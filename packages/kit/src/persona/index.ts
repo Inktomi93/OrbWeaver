@@ -33,10 +33,7 @@ const PERSONA_INJECT_DEFAULT_ROLE: MessageRole = "system";
 
 /** The resolved persona-description placement for one persona. `at_depth` carries the resolved
  *  depth + role (persona's defaults applied per-field when `inject` is absent/partial). */
-export type PersonaDescriptionPlacement =
-  | { kind: "none" }
-  | { kind: "in_prompt" }
-  | { kind: "at_depth"; depth: number; role: MessageRole };
+export type PersonaDescriptionPlacement = { kind: "none" } | { kind: "in_prompt" } | { kind: "at_depth"; depth: number; role: MessageRole };
 
 /** Field-isolated read of a metadata blob — a malformed sibling field never poisons this one
  *  (read-side leniency: one bad `descriptionPosition` must not also drop a valid `inject`). */
@@ -51,9 +48,7 @@ function metadataField(metadata: unknown, key: "descriptionPosition" | "inject")
  *  marker-only behavior that predates this knob). Reads each field in isolation so a malformed
  *  sibling never poisons the decision. */
 export function resolvePersonaDescriptionPlacement(metadata: unknown): PersonaDescriptionPlacement {
-  const pos = z
-    .enum(PERSONA_DESCRIPTION_POSITIONS)
-    .safeParse(metadataField(metadata, "descriptionPosition"));
+  const pos = z.enum(PERSONA_DESCRIPTION_POSITIONS).safeParse(metadataField(metadata, "descriptionPosition"));
   const position = pos.success ? pos.data : "in_prompt";
   if (position === "none") {
     return { kind: "none" };

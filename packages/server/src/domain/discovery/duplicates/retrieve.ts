@@ -9,24 +9,14 @@
 
 import type { DuplicateRelation } from "@orb/contracts/discovery";
 import type { Db } from "@orb/db";
-import {
-  characters,
-  chatParticipants,
-  chats,
-  duplicateCharacterPairs,
-  duplicateChatPairs,
-} from "@orb/db";
+import { characters, chatParticipants, chats, duplicateCharacterPairs, duplicateChatPairs } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { aliasedTable, and, desc, eq, exists, gte, isNull } from "drizzle-orm";
 import type { DuplicateCharactersOptions, DuplicateChatsOptions } from "../contract/params";
 import type { DuplicateCharacterPair, DuplicateChatPair } from "../contract/results";
 
 /** The owner's near-duplicate character pairs, CSLS-ranked (highest first), enriched with both card names. */
-export async function readDuplicateCharacters(
-  db: Db,
-  ownerId: UserId,
-  opts: DuplicateCharactersOptions = {},
-): Promise<DuplicateCharacterPair[]> {
+export async function readDuplicateCharacters(db: Db, ownerId: UserId, opts: DuplicateCharactersOptions = {}): Promise<DuplicateCharacterPair[]> {
   const charA = aliasedTable(characters, "char_a");
   const charB = aliasedTable(characters, "char_b");
   const where = [eq(charA.ownerId, ownerId)];
@@ -61,11 +51,7 @@ export async function readDuplicateCharacters(
  *  present-host `chat_participants` row for side A's chat (a pair is within ONE owner's hosted chats, so
  *  scoping side A suffices and the join never reads `users`). `ownerId` is ALWAYS the resolved principal
  *  (audit #1). */
-export async function readDuplicateChats(
-  db: Db,
-  ownerId: UserId,
-  opts: DuplicateChatsOptions = {},
-): Promise<DuplicateChatPair[]> {
+export async function readDuplicateChats(db: Db, ownerId: UserId, opts: DuplicateChatsOptions = {}): Promise<DuplicateChatPair[]> {
   const chatA = aliasedTable(chats, "chat_a");
   const chatB = aliasedTable(chats, "chat_b");
   const where = [

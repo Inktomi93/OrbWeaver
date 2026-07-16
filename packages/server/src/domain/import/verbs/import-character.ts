@@ -37,10 +37,7 @@ interface WriteCharacterArgs {
 }
 
 /** A handle match edits the existing row in place instead of inserting (dead-ends on the unique index). */
-async function writeCharacter(
-  ctx: ImportContext,
-  args: WriteCharacterArgs,
-): Promise<{ readonly characterId: CharacterId; readonly created: boolean }> {
+async function writeCharacter(ctx: ImportContext, args: WriteCharacterArgs): Promise<{ readonly characterId: CharacterId; readonly created: boolean }> {
   const { matchedId, input, filename, importHash } = args;
   if (matchedId !== null) {
     await ctx.updateCharacter({ ownerId: ctx.ownerId, characterId: matchedId, input });
@@ -55,11 +52,7 @@ async function writeCharacter(
   return { characterId: ref.characterId, created: true };
 }
 
-async function attachCardTags(
-  ctx: ImportContext,
-  characterId: CharacterId,
-  tags: readonly string[],
-): Promise<void> {
+async function attachCardTags(ctx: ImportContext, characterId: CharacterId, tags: readonly string[]): Promise<void> {
   for (const tagName of tags) {
     // biome-ignore lint/performance/noAwaitInLoops: card tags attach sequentially — each is an independent idempotent resolve-or-create-and-attach; card tag lists are short.
     await ctx.attachCardTag({ ownerId: ctx.ownerId, characterId, tagName });
@@ -76,9 +69,7 @@ export function createImportCharacter(ctx: ImportContext): ImportService["import
     if (parsed === null) {
       throw new ImportCardError(
         "card_unreadable",
-        png
-          ? "PNG carries no readable ccv3/chara character-card chunk"
-          : "bytes are not a readable V2/V3 character-card JSON",
+        png ? "PNG carries no readable ccv3/chara character-card chunk" : "bytes are not a readable V2/V3 character-card JSON",
       );
     }
     const { card: characterCard, tags, book } = parsed;
@@ -97,9 +88,7 @@ export function createImportCharacter(ctx: ImportContext): ImportService["import
     });
 
     // Content-addressed store: a byte-identical re-import resolves to the same asset id.
-    const avatarAssetId = png
-      ? await ctx.storeAsset({ ownerId: ctx.ownerId, bytes, mime: PNG_MIME })
-      : null;
+    const avatarAssetId = png ? await ctx.storeAsset({ ownerId: ctx.ownerId, bytes, mime: PNG_MIME }) : null;
     const input = cardToCreateInput(characterCard, avatarAssetId);
 
     const { characterId, created } = await writeCharacter(ctx, {

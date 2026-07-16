@@ -82,11 +82,7 @@ describe("resolveHostTierRegexScripts", () => {
 
   test("returns the FULL set — disabled + every placement/flag survive (the executor filters, not this)", () => {
     const result = resolveHostTierRegexScripts({
-      hostGlobal: [
-        script("off", { enabled: false }),
-        script("md", { markdownOnly: true }),
-        script("po", { promptOnly: true, placement: ["AI_OUTPUT"] }),
-      ],
+      hostGlobal: [script("off", { enabled: false }), script("md", { markdownOnly: true }), script("po", { promptOnly: true, placement: ["AI_OUTPUT"] })],
       preset: [],
       cast: [],
     });

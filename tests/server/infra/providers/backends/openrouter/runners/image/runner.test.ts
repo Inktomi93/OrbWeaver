@@ -88,10 +88,7 @@ describe("runImageEmbed", () => {
       model: EMBED_MODEL,
       object: "list",
     });
-    await runImageEmbed(
-      client,
-      embedReq({ kind: "image", input: [new Uint8Array([1, 2, 3]), "https://img.example/x.png"] }),
-    );
+    await runImageEmbed(client, embedReq({ kind: "image", input: [new Uint8Array([1, 2, 3]), "https://img.example/x.png"] }));
     const input = captured.body?.["input"];
     const items = Array.isArray(input) ? input : [];
     const firstUrl = contentOf(items[0])[0]?.imageUrl?.url ?? "";
@@ -106,10 +103,7 @@ describe("runImageEmbed", () => {
       model: EMBED_MODEL,
       object: "list",
     });
-    await runImageEmbed(
-      client,
-      embedReq({ kind: "multimodal", input: { image: "https://i/x.png", text: "caption" } }),
-    );
+    await runImageEmbed(client, embedReq({ kind: "multimodal", input: { image: "https://i/x.png", text: "caption" } }));
     const input = captured.body?.["input"];
     const parts = Array.isArray(input) ? contentOf(input[0]) : [];
     expect(parts[0]?.type).toBe("image_url");

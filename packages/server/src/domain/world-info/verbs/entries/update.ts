@@ -48,10 +48,7 @@ export function createUpdate(ctx: WorldInfoContext): WorldInfoService["updateEnt
       return toEntryView(row);
     }
 
-    const ownedBooks = ctx.db
-      .select({ id: worldBooks.id })
-      .from(worldBooks)
-      .where(eq(worldBooks.ownerId, ownerId));
+    const ownedBooks = ctx.db.select({ id: worldBooks.id }).from(worldBooks).where(eq(worldBooks.ownerId, ownerId));
     const at = ctx.now();
     const rows = await ctx.db
       .update(worldEntries)
@@ -81,7 +78,6 @@ export function createUpdate(ctx: WorldInfoContext): WorldInfoService["updateEnt
       for (const chatId of chatIds) {
         // biome-ignore lint/performance/noAwaitInLoops: the chat bus assigns a monotonic seq per emit — fan-out emits are sequential (create.ts precedent).
         await ctx.emitWiEvent({
-          // biome-ignore lint/security/noSecrets: a discriminator literal, not a secret.
           type: "wiEntryScopeChanged",
           chatId,
           surface: "chat",

@@ -1,17 +1,14 @@
 // Gate: diagnostic-legibility (Documentation-Law.md — machine-first: an error message IS the amnesiac
-// agent's documentation at the moment of blocking). Every custom-gate + grit diagnostic STRING must
+// agent's documentation at the moment of blocking). Every custom-gate diagnostic STRING must
 // carry a resolvable pointer — a `*.md` doc path, a code-home path/file/`@orb/<pkg>` specifier, or an
 // explicit `// terse-ok: <reason>` marker on the diagnostic's line or the line above — so a blocked
-// cold agent gets a navigable next step, never a dead-end "no". Reads gate `message:` and grit `register_diagnostic` strings — never incidental strings.
-import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+// cold agent gets a navigable next step, never a dead-end "no". Reads gate `message:` strings — never incidental strings.
 import type { SourceFile } from "ts-morph";
-import { Node, Project, SyntaxKind } from "ts-morph";
+import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
 import type { Violation } from "../harness.ts";
 
 const GATES_REL = "scripts/check/gates";
-const GRIT_REL = "tools/grit";
 
 // A pointer token: a doc, a concrete source file, a code dir path, or an @orb package specifier.
 const MD = /[\w.-]+\.md\b/u;
@@ -20,7 +17,6 @@ const CODE_DIR =
   /(?:^|[\s(/"'`])(?:packages|features|domain|infra|foundation|entry|transport|contracts?|kit|db|server|client|ui|tools|scripts|tests|lib|data|forms|state|hooks|surfaces|anchors|components|engine|substrate|persistence|verbs|guard)\//u;
 const PKG_SPEC = /@orb\/[\w-]+/u;
 const TERSE_OK = /terse-ok/u;
-const GRIT_MSG = /message\s*=\s*"(?<msg>(?:[^"\\]|\\.)*)"/gu;
 const MSG_TABLE_NAME = /^(?:MSG|MESSAGES)$/u;
 
 const POINTER_HELP =
@@ -44,11 +40,7 @@ type Diag = { readonly line: number; readonly text: string };
 /** Strip `as const` / `satisfies` / parentheses so the underlying literal or object is reachable. */
 function unwrap(node: Node): Node {
   let n = node;
-  while (
-    Node.isAsExpression(n) ||
-    Node.isSatisfiesExpression(n) ||
-    Node.isParenthesizedExpression(n)
-  ) {
+  while (Node.isAsExpression(n) || Node.isSatisfiesExpression(n) || Node.isParenthesizedExpression(n)) {
     n = n.getExpression();
   }
   return n;
@@ -129,15 +121,6 @@ function msgTableDiags(sf: SourceFile): Diag[] {
   return out;
 }
 
-function collectGritDiags(raw: string): Diag[] {
-  const out: Diag[] = [];
-  for (const m of raw.matchAll(GRIT_MSG)) {
-    const line = raw.slice(0, m.index).split("\n").length;
-    out.push({ line, text: m.groups?.["msg"] ?? "" });
-  }
-  return out;
-}
-
 /** The shared verdict: a diagnostic passes iff its text carries a pointer OR it's terse-ok-marked. */
 function flag(diags: readonly Diag[], lines: readonly string[], file: string): Violation[] {
   const out: Violation[] = [];
@@ -149,51 +132,10 @@ function flag(diags: readonly Diag[], lines: readonly string[], file: string): V
   return out;
 }
 
-function scanGatesDir(dir: string, prefix: string): Violation[] {
-  if (!existsSync(dir)) {
-    return [];
-  }
-  const project = new Project({ skipAddingFilesFromTsConfig: true });
-  const out: Violation[] = [];
-  for (const name of readdirSync(dir).sort()) {
-    if (!name.endsWith(".ts")) {
-      continue;
-    }
-    const abs = join(dir, name);
-    const lines = readFileSync(abs, "utf-8").split("\n");
-    const sf = project.addSourceFileAtPath(abs);
-    const diags = [...messagePropDiags(sf), ...msgTableDiags(sf)];
-    out.push(...flag(diags, lines, `${prefix}${name}`));
-  }
-  return out;
-}
-
-function scanGritDir(dir: string, prefix: string): Violation[] {
-  if (!existsSync(dir)) {
-    return [];
-  }
-  const out: Violation[] = [];
-  for (const name of readdirSync(dir).sort()) {
-    if (!name.endsWith(".grit")) {
-      continue;
-    }
-    const raw = readFileSync(join(dir, name), "utf-8");
-    out.push(...flag(collectGritDiags(raw), raw.split("\n"), `${prefix}${name}`));
-  }
-  return out;
-}
-
-/** The reusable scanner over an explicit gates dir + grit dir — the self-test drives this against a
- *  temp fixture tree so it never touches the real gate corpus. */
-export function scanDirs(gatesDir: string, gritDir: string): Violation[] {
-  return [...scanGatesDir(gatesDir, ""), ...scanGritDir(gritDir, "")];
-}
-
 // Reads the gate files from the shared project via `scanRoot: p => p.startsWith("scripts/check/gates/")`.
 // The whole-project scanners (commented-code, no-caller-user-id, no-inline-union-redecl,
 // pd-citation-integrity) each pin their own `scanRoot` to packages+tests so they don't also see this
-// gate's example strings. The GRIT arm stays fs (grit files aren't in the ts project), so this
-// descriptor is fsBacked.
+// gate's example strings.
 const GATE_SCAN_ROOT = `${GATES_REL}/`;
 
 /** Every message-diagnostic Violation in ONE gate SourceFile (read from the shared project's AST). */
@@ -210,7 +152,6 @@ export const gate: GateDescriptor = {
   docRow: "core/Documentation-Law.md",
   status: "active",
   scopeSafety: "whole-project",
-  fsBacked: true,
   message: POINTER_HELP,
   fix: "end the message with a `<Doc>.md §N` doc path or a code-home (packages/…, an @orb/… specifier, or a concrete file.ts), or mark it `// terse-ok: <reason>` if the fix is fully self-contained (Documentation-Law.md).",
   // The fold-in's opt-IN: THIS gate reads the gate corpus from the shared project. The four whole-project
@@ -227,16 +168,11 @@ export const gate: GateDescriptor = {
         ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
       }
     }
-    // Grit diagnostics — grit files are not in the ts project, so this arm stays fs (fsBacked).
-    for (const v of scanGritDir(join(ctx.root, GRIT_REL), `${GRIT_REL}/`)) {
-      ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
-    }
   },
   mustFlag: [
     {
       files: {
-        "scripts/check/gates/x.ts":
-          'export const gate = { message: "a bare diagnostic with no home" };\n',
+        "scripts/check/gates/x.ts": 'export const gate = { message: "a bare diagnostic with no home" };\n',
       },
       expect: { messageIncludes: "must carry a pointer" },
       why: "a gate `message:` with no doc/code-home pointer — the amnesiac agent gets a dead-end 'no'",
@@ -244,8 +180,7 @@ export const gate: GateDescriptor = {
     {
       // a message resolved ONE level through a same-file const — the pointerless const still fires.
       files: {
-        "scripts/check/gates/x.ts":
-          'const MESSAGE = "no home for this rule";\nexport const gate = { message: MESSAGE };\n',
+        "scripts/check/gates/x.ts": 'const MESSAGE = "no home for this rule";\nexport const gate = { message: MESSAGE };\n',
       },
       expect: { messageIncludes: "must carry a pointer" },
       why: "a `message:` resolved through a same-file const is checked — a pointerless const fires",
@@ -253,24 +188,16 @@ export const gate: GateDescriptor = {
     {
       // a `const MSG` object-table string value (the shorthand-`{ message }` idiom).
       files: {
-        "scripts/check/gates/x.ts":
-          'const MSG = { verb: "bare table diagnostic" } as const;\nexport const use = MSG.verb;\n',
+        "scripts/check/gates/x.ts": 'const MSG = { verb: "bare table diagnostic" } as const;\nexport const use = MSG.verb;\n',
       },
       expect: { messageIncludes: "must carry a pointer" },
       why: "a pointerless value in a `const MSG` object table fires (the shorthand-`{ message }` idiom)",
-    },
-    {
-      // grit register_diagnostic message with no pointer — the grit arm (fs-scanned).
-      files: { "tools/grit/bad.grit": 'message="bare grit diagnostic"\n' },
-      expect: { messageIncludes: "must carry a pointer" },
-      why: "a grit `register_diagnostic` message with no pointer fires (the grit arm)",
     },
   ],
   mustPass: [
     {
       files: {
-        "scripts/check/gates/x.ts":
-          'export const gate = { message: "the fix lives in packages/ui/src/x.ts" };\n',
+        "scripts/check/gates/x.ts": 'export const gate = { message: "the fix lives in packages/ui/src/x.ts" };\n',
       },
       why: "a gate message carrying a concrete code-home pointer (packages/…/x.ts) — a navigable next step, passes",
     },
@@ -281,11 +208,6 @@ export const gate: GateDescriptor = {
           'export const gate = {\n  // terse-ok: fix is fully self-contained, no doc covers it\n  message: "just do the obvious thing",\n};\n',
       },
       why: "a `// terse-ok:` marker on the line above the message is the sanctioned escape — passes",
-    },
-    {
-      // a grit message carrying a *.md pointer is clean.
-      files: { "tools/grit/good.grit": 'message="fix it. See Foo.md §1."\n' },
-      why: "a grit message carrying a *.md pointer is a navigable next step — passes",
     },
   ],
 };

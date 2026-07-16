@@ -13,13 +13,7 @@ import { useAuthConfig, useInvalidation, useUserBus } from "#data";
 import { AppShell } from "#features/app-shell";
 import { clearJoinParam, JoinInviteDialog, readJoinToken } from "#features/chat";
 import { FirstRunPersonaDialog, PersonaPanelSurface } from "#features/persona";
-import {
-  isCommitted,
-  useActiveChatHandle,
-  useActiveDraftSeed,
-  useActiveSection,
-  useSelectedCharacterId,
-} from "#state";
+import { isCommitted, useActiveChatHandle, useActiveDraftSeed, useActiveSection, useSelectedCharacterId } from "#state";
 
 export function AppRoot(): ReactElement {
   // Single-user renders none of the three multi-human surfaces (bell, People tab, /join landing);
@@ -75,9 +69,7 @@ export function AppRoot(): ReactElement {
       {/* Renders nothing once the viewer owns a persona; forces the create flow on a fresh account. */}
       <FirstRunPersonaDialog />
       {/* The /join link landing — mounts only when a token arrived and the deployment is capable. */}
-      {multiHumanCapable && joinToken !== null ? (
-        <JoinInviteDialog token={joinToken} onDone={(): void => setJoinToken(null)} />
-      ) : null}
+      {multiHumanCapable && joinToken !== null ? <JoinInviteDialog token={joinToken} onDone={(): void => setJoinToken(null)} /> : null}
     </>
   );
 }

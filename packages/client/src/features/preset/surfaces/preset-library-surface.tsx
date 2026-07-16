@@ -22,12 +22,7 @@ import { selectPreset, useSelectedPresetId } from "#state";
 import { PresetImportDialog } from "../components/preset-import-dialog";
 import { PresetLibraryRow } from "../components/preset-library-row";
 import { PresetRenameDialog } from "../components/preset-rename-dialog";
-import {
-  useCreatePreset,
-  useRemovePreset,
-  useSetDefaultPreset,
-  useUpdatePreset,
-} from "../hooks/use-preset-mutations";
+import { useCreatePreset, useRemovePreset, useSetDefaultPreset, useUpdatePreset } from "../hooks/use-preset-mutations";
 
 const NEW_PRESET_NAME = "New preset";
 const NEW_PRESET_KIND = "generation";
@@ -43,21 +38,14 @@ export function PresetLibrarySurface({ onSelectPreset }: PresetLibrarySurfacePro
 
   return (
     <Stack ref={surfaceRef} className="h-full outline-none" gap="block" tabIndex={-1}>
-      <LibrarySurfaceShell
-        errorLabel="Couldn't load your presets."
-        loadingLabel="Loading your presets…"
-      >
+      <LibrarySurfaceShell errorLabel="Couldn't load your presets." loadingLabel="Loading your presets…">
         <PresetList onSelectPreset={onSelectPreset ?? selectPreset} />
       </LibrarySurfaceShell>
     </Stack>
   );
 }
 
-function PresetList({
-  onSelectPreset,
-}: {
-  readonly onSelectPreset: (id: PresetId) => void;
-}): ReactElement {
+function PresetList({ onSelectPreset }: { readonly onSelectPreset: (id: PresetId) => void }): ReactElement {
   const trpc = useTRPC();
   const client = useTRPCClient();
   const invalidation = useInvalidation();
@@ -78,18 +66,12 @@ function PresetList({
   const [importOpen, setImportOpen] = useState(false);
 
   const needle = deferredQuery.trim().toLowerCase();
-  const filtered =
-    needle === "" ? presets : presets.filter((p) => p.name.toLowerCase().includes(needle));
+  const filtered = needle === "" ? presets : presets.filter((p) => p.name.toLowerCase().includes(needle));
 
-  const activeItems: SelectItems<string> = [
-    { value: "", label: "Built-in default" },
-    ...presets.map((p) => ({ value: p.id, label: p.name })),
-  ];
+  const activeItems: SelectItems<string> = [{ value: "", label: "Built-in default" }, ...presets.map((p) => ({ value: p.id, label: p.name }))];
 
   const onCreate = (): void => {
-    void create
-      .mutateAsync({ name: NEW_PRESET_NAME, kind: NEW_PRESET_KIND })
-      .then((created) => onSelectPreset(created.id));
+    void create.mutateAsync({ name: NEW_PRESET_NAME, kind: NEW_PRESET_KIND }).then((created) => onSelectPreset(created.id));
   };
 
   const onSetActive = (id: string): void => {
@@ -123,12 +105,7 @@ function PresetList({
       <LibraryListLayout
         actions={
           <>
-            <Button
-              aria-label="Import a SillyTavern preset"
-              intent="ghost"
-              onClick={(): void => setImportOpen(true)}
-              size="sm"
-            >
+            <Button aria-label="Import a SillyTavern preset" intent="ghost" onClick={(): void => setImportOpen(true)} size="sm">
               <Icon icon={Upload} size="sm" />
             </Button>
             <Button disabled={create.isPending} intent="primary" onClick={onCreate} size="sm">
@@ -159,11 +136,7 @@ function PresetList({
                 </Button>
               ) : undefined
             }
-            description={
-              needle === ""
-                ? "Create a preset to tune sampling, reasoning, and the prompt structure."
-                : "No preset matches your search."
-            }
+            description={needle === "" ? "Create a preset to tune sampling, reasoning, and the prompt structure." : "No preset matches your search."}
             icon={<Icon icon={needle === "" ? SlidersHorizontal : Search} size="lg" />}
             title={needle === "" ? "No presets yet" : "No matches"}
           />

@@ -9,14 +9,7 @@ import { createDiscoveryService } from "@orb/server/domain/discovery";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
-import {
-  FROZEN_AT,
-  makeDiscoveryHarness,
-  seedCharacter,
-  seedCharacterEmbedding,
-  seedUser,
-  vec,
-} from "../_support.ts";
+import { FROZEN_AT, makeDiscoveryHarness, seedCharacter, seedCharacterEmbedding, seedUser, vec } from "../_support.ts";
 
 async function seedCard(
   db: Db,

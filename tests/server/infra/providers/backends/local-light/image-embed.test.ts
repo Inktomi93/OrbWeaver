@@ -12,10 +12,7 @@ import { cosineSim } from "@orb/kit/vector-math";
 import type { ImageEmbedRequest, ImageEmbedResult } from "@orb/server/infra/providers";
 import { ProviderError } from "@orb/server/infra/providers";
 import type { LocalLightModelCache } from "@orb/server/infra/providers/backends/local-light";
-import {
-  createLocalLightBackend,
-  DEFAULT_IMAGE_EMBED_MODEL,
-} from "@orb/server/infra/providers/backends/local-light";
+import { createLocalLightBackend, DEFAULT_IMAGE_EMBED_MODEL } from "@orb/server/infra/providers/backends/local-light";
 import { describe } from "vitest";
 import { makeResolvedCredential } from "../../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../../support/fixtures";
@@ -42,9 +39,7 @@ function fakeCache(record: { imageCount?: number; textCount?: number }): LocalLi
   };
 }
 
-function imageEmbedOf(
-  cache: LocalLightModelCache,
-): (req: ImageEmbedRequest) => Promise<ImageEmbedResult> {
+function imageEmbedOf(cache: LocalLightModelCache): (req: ImageEmbedRequest) => Promise<ImageEmbedResult> {
   const fn = createLocalLightBackend({ cache }).imageEmbed;
   if (fn === undefined) {
     throw new Error("local-light backend did not wire the imageEmbed role");
@@ -82,13 +77,9 @@ describe("createLocalLightImageEmbed", () => {
       embedTexts: (): Promise<Float32Array[]> => Promise.resolve([]),
       scorePairs: (): Promise<number[]> => Promise.resolve([]),
       embedImages: (_modelId, images): Promise<Float32Array[]> =>
-        Promise.resolve(
-          images.map(() => Float32Array.from({ length: VECTOR_DIM }, (_v, i) => i + 1)),
-        ),
+        Promise.resolve(images.map(() => Float32Array.from({ length: VECTOR_DIM }, (_v, i) => i + 1))),
       embedClipTexts: (_modelId, texts): Promise<Float32Array[]> =>
-        Promise.resolve(
-          texts.map(() => Float32Array.from({ length: VECTOR_DIM }, (_v, i) => VECTOR_DIM - i)),
-        ),
+        Promise.resolve(texts.map(() => Float32Array.from({ length: VECTOR_DIM }, (_v, i) => VECTOR_DIM - i))),
     };
     const embed = imageEmbedOf(cache);
 

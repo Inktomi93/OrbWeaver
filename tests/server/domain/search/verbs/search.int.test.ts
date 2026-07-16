@@ -153,9 +153,9 @@ describe("search (unified dispatch)", () => {
     const db = await freshDb();
     const owner = await seedUser(db, { handle: "owner" });
     const svc = makeSearch(db, { embedVector: () => vec(1) });
-    await expect(
-      svc.search({ ownerId: owner, query: "x", topN: 5, over: "images", scope: { kind: "owner" } }),
-    ).rejects.toMatchObject({ code: "lens_required" });
+    await expect(svc.search({ ownerId: owner, query: "x", topN: 5, over: "images", scope: { kind: "owner" } })).rejects.toMatchObject({
+      code: "lens_required",
+    });
   });
 
   test("digests · chat scope: a FOREIGN chat leaks nothing (characters-join owner belt)", async () => {

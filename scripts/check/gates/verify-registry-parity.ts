@@ -110,8 +110,7 @@ export const gate: GateDescriptor = {
   mustFlag: [
     {
       files: {
-        "package.json":
-          '{ "scripts": { "test:visual-regression": "playwright test --grep @visual" } }\n',
+        "package.json": '{ "scripts": { "test:visual-regression": "playwright test --grep @visual" } }\n',
       },
       expect: { messageIncludes: "not a `pnpm verify` stage" },
       why: "a verification-shaped script (test:*) with no registry tier — the forgotten-script failure the gate exists to make impossible",

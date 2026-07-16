@@ -80,21 +80,14 @@ function perFileCounts(hits: Hit[]): [string, number][] {
 }
 
 function emit(hits: Hit[], flags: Flags, label: string): void {
-  const unique = dedupe(hits, flags).sort(
-    (a, b) => a.file.localeCompare(b.file) || a.line - b.line,
-  );
+  const unique = dedupe(hits, flags).sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line);
   const files = new Set(unique.map((h) => h.file)).size;
   if (flags.json) {
     const shown = unique.slice(0, flags.max);
-    console.log(
-      JSON.stringify({ label, total: unique.length, shown: shown.length, hits: shown }, null, 1),
-    );
+    console.log(JSON.stringify({ label, total: unique.length, shown: shown.length, hits: shown }, null, 1));
     return;
   }
-  if (
-    flags.filesOnly ||
-    (unique.length > Math.max(flags.max, COLLAPSE_THRESHOLD) && flags.max === DEFAULT_MAX)
-  ) {
+  if (flags.filesOnly || (unique.length > Math.max(flags.max, COLLAPSE_THRESHOLD) && flags.max === DEFAULT_MAX)) {
     // The at-a-glance mode: WHERE the hits live, one line per file. Explicit via --files, or
     // automatic when raw lines would flood the reader (pass --max <n> to force raw lines).
     for (const [file, n] of perFileCounts(unique)) {
@@ -110,11 +103,7 @@ function emit(hits: Hit[], flags: Flags, label: string): void {
     console.log(`${h.file}:${h.line}  [${h.kind}]  ${h.text}`);
   }
   const overflow = unique.length > shown.length ? ` (showing ${shown.length} — raise --max)` : "";
-  console.log(
-    unique.length === 0
-      ? `RESULT ast ${label}: no results`
-      : `RESULT ast ${label}: ${unique.length} hit(s)${overflow} in ${files} file(s)`,
-  );
+  console.log(unique.length === 0 ? `RESULT ast ${label}: no results` : `RESULT ast ${label}: ${unique.length} hit(s)${overflow} in ${files} file(s)`);
 }
 
 // One workspace project per invocation, via the ONE sanctioned bootstrap (scripts/ts-workspace.ts).
@@ -153,9 +142,7 @@ function cmdRefs(project: Project, name: string, flags: Flags): void {
     return;
   }
   const hits: Hit[] = [];
-  const declStarts = new Set(
-    decls.map((d) => `${d.getSourceFile().getFilePath()}:${d.getStart()}`),
-  );
+  const declStarts = new Set(decls.map((d) => `${d.getSourceFile().getFilePath()}:${d.getStart()}`));
   for (const decl of decls) {
     hits.push(hitOf(decl, "def"));
     if (Node.isReferenceFindable(decl)) {
@@ -187,10 +174,7 @@ function cmdCallers(project: Project, name: string, flags: Flags): void {
 
 function staticImporterHits(sf: SourceFile, spec: string): Hit[] {
   const out: Hit[] = [];
-  const decls: Array<ImportDeclaration | ExportDeclaration> = [
-    ...sf.getImportDeclarations(),
-    ...sf.getExportDeclarations(),
-  ];
+  const decls: Array<ImportDeclaration | ExportDeclaration> = [...sf.getImportDeclarations(), ...sf.getExportDeclarations()];
   for (const d of decls) {
     // Two independent match strategies, OR'd: (1) the raw specifier text — catches package/#alias specs
     // the caller quotes verbatim (`@orb/ui/badge`); (2) the RESOLVED target file's path — catches relative
@@ -393,7 +377,7 @@ function resolvedGraph(project: Project, prefix: string): Map<string, string[]> 
     const edges: string[] = [];
     for (const d of [...sf.getImportDeclarations(), ...sf.getExportDeclarations()]) {
       const target = d.getModuleSpecifierSourceFile()?.getFilePath();
-      if (target !== undefined && target.includes(prefix) && target !== from) {
+      if (target?.includes(prefix) && target !== from) {
         edges.push(target);
       }
     }
@@ -525,11 +509,11 @@ const VERBS: Record<string, (project: Project, arg: string, flags: Flags) => voi
 const DEPCRUISE_VERBS: Record<string, string> = { flow: "--focus", reaches: "--reaches" };
 
 function runDepcruise(mode: string, pattern: string): void {
-  const res = spawnSync(
-    "node_modules/.bin/depcruise",
-    ["packages", "--config", ".dependency-cruiser.cjs", "--output-type", "text", mode, pattern],
-    { cwd: REPO_ROOT, encoding: "utf8", maxBuffer: DEPCRUISE_MAX_BUFFER_BYTES },
-  );
+  const res = spawnSync("node_modules/.bin/depcruise", ["packages", "--config", ".dependency-cruiser.cjs", "--output-type", "text", mode, pattern], {
+    cwd: REPO_ROOT,
+    encoding: "utf8",
+    maxBuffer: DEPCRUISE_MAX_BUFFER_BYTES,
+  });
   const out = (res.stdout ?? "").trim();
   console.log(out === "" ? `RESULT ast ${mode} ${pattern}: no edges` : out);
   if (res.status !== 0 && out === "") {

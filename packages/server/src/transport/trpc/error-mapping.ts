@@ -23,14 +23,9 @@ import { TRPCError } from "@trpc/server";
  * (tRPC surfaces it as `INTERNAL_SERVER_ERROR`, the correct outcome for a genuine bug).
  */
 export function classifyDomainError(err: unknown): TRPCError | null {
-  let cause: unknown = (err as { cause?: unknown })?.cause ?? err;
+  let cause: unknown = (err as { cause?: unknown }).cause ?? err;
   const seen = new Set<unknown>();
-  while (
-    cause instanceof Error &&
-    !(cause instanceof DomainError) &&
-    cause.cause &&
-    !seen.has(cause)
-  ) {
+  while (cause instanceof Error && !(cause instanceof DomainError) && cause.cause !== undefined && !seen.has(cause)) {
     seen.add(cause);
     cause = cause.cause;
   }

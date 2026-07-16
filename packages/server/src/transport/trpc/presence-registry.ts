@@ -57,9 +57,7 @@ export function createPresenceRegistry(now: () => number): PresenceRegistry {
       return { userId, online: true, lastSeenAt: null };
     }
     const withinGrace = cell.lastSeenAt !== null && now() - cell.lastSeenAt < GRACE_MS;
-    return withinGrace
-      ? { userId, online: true, lastSeenAt: null }
-      : { userId, online: false, lastSeenAt: cell.lastSeenAt };
+    return withinGrace ? { userId, online: true, lastSeenAt: null } : { userId, online: false, lastSeenAt: cell.lastSeenAt };
   }
 
   return { connect, read };

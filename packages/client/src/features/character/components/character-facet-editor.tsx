@@ -44,13 +44,7 @@ function spoilerClass(blur: boolean): string | undefined {
   return blur ? "select-none blur-md" : undefined;
 }
 
-export function CharacterFacetEditor({
-  form,
-  facetId,
-  trusted,
-  readOnly,
-  onBack,
-}: CharacterFacetEditorProps): ReactElement {
+export function CharacterFacetEditor({ form, facetId, trusted, readOnly, onBack }: CharacterFacetEditorProps): ReactElement {
   const facet = facetById(facetId);
   // Move focus to Back on mount — else it drops to `<body>` when the facet row unmounts.
   const backRef = useRef<HTMLButtonElement>(null);
@@ -110,14 +104,7 @@ function FacetBody({
       );
     case "personality":
       return (
-        <CountedMacroField
-          form={form}
-          name="personality"
-          label="Personality"
-          hint="A summary of traits and temperament."
-          spoilerBlur={spoilerBlur}
-          rows={16}
-        />
+        <CountedMacroField form={form} name="personality" label="Personality" hint="A summary of traits and temperament." spoilerBlur={spoilerBlur} rows={16} />
       );
     case "scenario":
       return (
@@ -136,12 +123,7 @@ function FacetBody({
       return (
         <form.AppField name="creatorNotes">
           {(field): ReactElement => (
-            <field.MacroField
-              label="Creator notes"
-              hint="Notes for humans — never sent to the model."
-              suggestions={CHARACTER_CARD_MACROS}
-              rows={8}
-            />
+            <field.MacroField label="Creator notes" hint="Notes for humans — never sent to the model." suggestions={CHARACTER_CARD_MACROS} rows={8} />
           )}
         </form.AppField>
       );
@@ -173,7 +155,7 @@ function FacetBody({
       return <DepthPromptFacet form={form} />;
     case "regexScripts":
       return <CharacterRegexScriptsField form={form} />;
-    default:
+    case "provenance":
       return <ProvenanceFacet form={form} readOnly={readOnly} />;
   }
 }
@@ -189,12 +171,7 @@ function CountedMacroField({
   showTokenCount = true,
 }: {
   readonly form: CardForm;
-  readonly name:
-    | "description"
-    | "personality"
-    | "scenario"
-    | "systemPrompt"
-    | "postHistoryInstructions";
+  readonly name: "description" | "personality" | "scenario" | "systemPrompt" | "postHistoryInstructions";
   readonly label: string;
   readonly hint: string;
   readonly spoilerBlur: boolean;
@@ -205,13 +182,7 @@ function CountedMacroField({
     <Stack gap="field" data-slot="character-spoiler-field" className={spoilerClass(spoilerBlur)}>
       <form.AppField name={name}>
         {(field): ReactElement => (
-          <field.MacroField
-            label={label}
-            hint={hint}
-            suggestions={CHARACTER_CARD_MACROS}
-            rows={rows}
-            showTokenCount={showTokenCount}
-          />
+          <field.MacroField label={label} hint={hint} suggestions={CHARACTER_CARD_MACROS} rows={rows} showTokenCount={showTokenCount} />
         )}
       </form.AppField>
     </Stack>
@@ -247,25 +218,13 @@ function DepthPromptFacet({ form }: { readonly form: CardForm }): ReactElement {
 }
 
 /** The editable creator/cardVersion pair + the read-only import/refinery tail. */
-function ProvenanceFacet({
-  form,
-  readOnly,
-}: {
-  readonly form: CardForm;
-  readonly readOnly: CharacterProvenanceSectionProps;
-}): ReactElement {
+function ProvenanceFacet({ form, readOnly }: { readonly form: CardForm; readonly readOnly: CharacterProvenanceSectionProps }): ReactElement {
   return (
     <Stack gap="section">
       <Section heading="Provenance">
         <FieldLayout orientation="horizontal">
-          <form.AppField name="creator">
-            {(field): ReactElement => <field.TextField label="Creator" placeholder="Optional" />}
-          </form.AppField>
-          <form.AppField name="cardVersion">
-            {(field): ReactElement => (
-              <field.TextField label="Card version" placeholder="e.g. 1.2" />
-            )}
-          </form.AppField>
+          <form.AppField name="creator">{(field): ReactElement => <field.TextField label="Creator" placeholder="Optional" />}</form.AppField>
+          <form.AppField name="cardVersion">{(field): ReactElement => <field.TextField label="Card version" placeholder="e.g. 1.2" />}</form.AppField>
         </FieldLayout>
       </Section>
       <CharacterProvenanceSection {...readOnly} />
@@ -287,11 +246,7 @@ function ExampleMessagesField({
   const [editing, setEditing] = useState(false);
   return (
     <Stack gap="field">
-      <Stack
-        gap="field"
-        data-slot="character-spoiler-field"
-        className={editing ? undefined : spoilerClass(spoilerBlur)}
-      >
+      <Stack gap="field" data-slot="character-spoiler-field" className={editing ? undefined : spoilerClass(spoilerBlur)}>
         {editing ? (
           <form.AppField name="exampleMessages">
             {(field): ReactElement => (
@@ -312,13 +267,7 @@ function ExampleMessagesField({
       <form.Subscribe selector={(s): string => s.values.exampleMessages}>
         {(value): ReactElement => <CharacterTokenCounter tokens={estimateTokens(value)} />}
       </form.Subscribe>
-      <Button
-        type="button"
-        size="sm"
-        intent={editing ? "secondary" : "ghost"}
-        aria-pressed={editing}
-        onClick={(): void => setEditing((e) => !e)}
-      >
+      <Button type="button" size="sm" intent={editing ? "secondary" : "ghost"} aria-pressed={editing} onClick={(): void => setEditing((e) => !e)}>
         {editing ? "Done editing" : "Expand to edit"}
       </Button>
     </Stack>
@@ -326,13 +275,7 @@ function ExampleMessagesField({
 }
 
 /** One Markdown block per parsed `<START>` segment. */
-function ExampleTranscript({
-  value,
-  trusted,
-}: {
-  readonly value: string;
-  readonly trusted: boolean;
-}): ReactElement {
+function ExampleTranscript({ value, trusted }: { readonly value: string; readonly trusted: boolean }): ReactElement {
   const blocks = parseExampleBlocks(value);
   if (blocks.length === 0) {
     return <Text tone="muted">No example messages yet.</Text>;
@@ -341,7 +284,7 @@ function ExampleTranscript({
     <Stack gap="block">
       {blocks.map((block, index) => (
         <Stack
-          // biome-ignore lint/suspicious/noArrayIndexKey: example blocks are positional (an ST `<START>` array) with no stable id — the index IS the identity.
+          // biome-ignore lint/suspicious/noArrayIndexKey: example blocks are a positional `<START>` array with no stable id — the index IS the identity.
           key={index}
           gap="row"
           padding="field"

@@ -21,12 +21,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { ConfirmDialog } from "#components";
 import type { Invalidation, Trpc } from "#data";
-import {
-  useMergeTags,
-  useRemoveTag,
-  useRenameTag,
-  useUpdateTagStyle,
-} from "../hooks/use-tag-settings-mutations";
+import { useMergeTags, useRemoveTag, useRenameTag, useUpdateTagStyle } from "../hooks/use-tag-settings-mutations";
 import { FOLDER_TYPE_ITEMS, usageBreakdown, usageTotalLabel } from "../lib/tags-settings-model";
 
 /** Apply a partial patch to this tag (the immediate-commit style writer shared by the sub-controls). */
@@ -41,12 +36,7 @@ export interface TagSettingsRowProps {
 }
 
 /** One tag's management row: color pickers · rename · folder · hide · merge · delete. */
-export function TagSettingsRow({
-  tag,
-  others,
-  trpc,
-  invalidation,
-}: TagSettingsRowProps): ReactElement {
+export function TagSettingsRow({ tag, others, trpc, invalidation }: TagSettingsRowProps): ReactElement {
   const deps = { trpc, invalidation };
   const rename = useRenameTag(deps);
   const style = useUpdateTagStyle(deps);
@@ -89,12 +79,7 @@ export function TagSettingsRow({
       <Row gap="field" align="center" className="flex-wrap">
         <TagBehaviorControls tag={tag} patchStyle={patchStyle} />
         <TagMergeControl invalidation={invalidation} others={others} tag={tag} trpc={trpc} />
-        <Button
-          intent="ghost"
-          size="sm"
-          aria-label={`Delete ${tag.name}`}
-          onClick={(): void => setDeleteOpen(true)}
-        >
+        <Button intent="ghost" size="sm" aria-label={`Delete ${tag.name}`} onClick={(): void => setDeleteOpen(true)}>
           <Icon icon={Trash2} size="sm" />
         </Button>
       </Row>
@@ -112,13 +97,7 @@ export function TagSettingsRow({
 }
 
 /** The two color pickers (chip background + text). An empty value maps to `null` (clear to theme-default). */
-function TagColorControls({
-  tag,
-  patchStyle,
-}: {
-  readonly tag: TagWithUsage;
-  readonly patchStyle: PatchStyle;
-}): ReactElement {
+function TagColorControls({ tag, patchStyle }: { readonly tag: TagWithUsage; readonly patchStyle: PatchStyle }): ReactElement {
   return (
     <>
       <ColorField
@@ -136,13 +115,7 @@ function TagColorControls({
 }
 
 /** The folder-type Select + the hide-on-card Switch (the tag's display behavior). */
-function TagBehaviorControls({
-  tag,
-  patchStyle,
-}: {
-  readonly tag: TagWithUsage;
-  readonly patchStyle: PatchStyle;
-}): ReactElement {
+function TagBehaviorControls({ tag, patchStyle }: { readonly tag: TagWithUsage; readonly patchStyle: PatchStyle }): ReactElement {
   return (
     <>
       <Select
@@ -189,22 +162,14 @@ function TagMergeControl({ tag, others, trpc, invalidation }: TagSettingsRowProp
 
   return (
     <>
-      <Button
-        intent="secondary"
-        size="sm"
-        disabled={others.length === 0}
-        onClick={(): void => setOpen(true)}
-      >
+      <Button intent="secondary" size="sm" disabled={others.length === 0} onClick={(): void => setOpen(true)}>
         Merge into…
       </Button>
       <Dialog onOpenChange={setOpen} open={open}>
         <DialogPopup>
           <Stack gap="block">
             <DialogTitle>{`Merge "${tag.name}" into another tag`}</DialogTitle>
-            <DialogDescription>
-              Every attachment moves to the tag you pick, then this tag is deleted. This can't be
-              undone.
-            </DialogDescription>
+            <DialogDescription>Every attachment moves to the tag you pick, then this tag is deleted. This can't be undone.</DialogDescription>
             <Select
               aria-label="Merge target tag"
               items={items}

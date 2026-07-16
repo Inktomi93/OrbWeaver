@@ -78,8 +78,7 @@ function exportedDeclarationNames(sf: SourceFile): string[] {
 /** The class-7 db/wire suffix convention: an `@orb/db` (or db-schema-relative) `X as XTable`, or an
  *  `@orb/contracts` `X as XWire` — a systematic disambiguation of the table/wire shape, exempt by exact suffix. */
 function isDbWireSuffixRename(spec: string, rel: string, original: string, alias: string): boolean {
-  const dbSource =
-    spec.startsWith("@orb/db") || (spec.startsWith(".") && rel.startsWith(DB_SCHEMA_DIR));
+  const dbSource = spec.startsWith("@orb/db") || (spec.startsWith(".") && rel.startsWith(DB_SCHEMA_DIR));
   if (dbSource && alias === `${original}Table`) {
     return true;
   }
@@ -103,21 +102,14 @@ interface ImportScan {
 }
 
 /** One named rename-import specifier: flag it unless it's a genuine collision or the db/wire suffix convention. */
-function checkRenameImportSpecifier(
-  named: ImportSpecifier,
-  scan: ImportScan,
-  ctx: GateRunCtx,
-): void {
+function checkRenameImportSpecifier(named: ImportSpecifier, scan: ImportScan, ctx: GateRunCtx): void {
   const aliasNode = named.getAliasNode();
   if (aliasNode === undefined) {
     return;
   }
   const original = named.getName();
   const alias = aliasNode.getText();
-  if (
-    (scan.freq.get(original) ?? 0) > 1 ||
-    isDbWireSuffixRename(scan.spec, scan.rel, original, alias)
-  ) {
+  if ((scan.freq.get(original) ?? 0) > 1 || isDbWireSuffixRename(scan.spec, scan.rel, original, alias)) {
     return; // genuine collision, or the sanctioned db/wire suffix convention
   }
   reportAt(
@@ -146,11 +138,7 @@ function checkRenameImports(sf: SourceFile, ctx: GateRunCtx, rel: string): void 
 /** Rule (b): a workspace rename-EXPORT of a UNIQUELY-homed symbol (the ChatSource class) gives it a second
  *  public name. Exempt: a vendor-source re-export, and a GENERIC name declared by ≥2 producer modules
  *  (barrel disambiguation — verb barrels, domain barrels, rewording alike). */
-function checkRenameExports(
-  sf: SourceFile,
-  ctx: GateRunCtx,
-  producerCount: ReadonlyMap<string, number>,
-): void {
+function checkRenameExports(sf: SourceFile, ctx: GateRunCtx, producerCount: ReadonlyMap<string, number>): void {
   for (const exp of sf.getExportDeclarations()) {
     const spec = exp.getModuleSpecifierValue();
     if (spec !== undefined && !isWorkspaceSpecifier(spec)) {
@@ -262,8 +250,7 @@ export const gate: GateDescriptor = {
       why: "a rename-export of a uniquely-homed name (0 producers here) — a synonym, the ChatSource class (rule b)",
     },
     {
-      files:
-        "export type RouteOverlay = RouteChatAssignment;\nexport type RoutableChat = RouteChatAssignment;\n",
+      files: "export type RouteOverlay = RouteChatAssignment;\nexport type RoutableChat = RouteChatAssignment;\n",
       at: "packages/contracts/src/connection/index.ts",
       expect: { messageIncludes: "vanity double type-alias", count: 2 },
       why: "two bare type aliases onto one identifier outside a /contract/ home — the RouteOverlay/RoutableChat case (rule c)",
@@ -271,31 +258,25 @@ export const gate: GateDescriptor = {
   ],
   mustPass: [
     {
-      files:
-        'import { Foo as Bar } from "@orb/kit/x";\nexport function Foo(): number {\n  return 1;\n}\nexport const use = Bar;\n',
+      files: 'import { Foo as Bar } from "@orb/kit/x";\nexport function Foo(): number {\n  return 1;\n}\nexport const use = Bar;\n',
       at: "packages/server/src/domain/x/x.ts",
       why: "a genuine collision — the original 'Foo' is also declared in-module, so the rename is necessary (rule a exempt)",
     },
     {
-      files:
-        'import { ColorField as UiColorField } from "@orb/ui/color-field";\nexport const use = UiColorField;\n',
+      files: 'import { ColorField as UiColorField } from "@orb/ui/color-field";\nexport const use = UiColorField;\n',
       at: "packages/client/src/forms/bound-fields/color-field.tsx",
       why: "an @orb/ui design-system rename (the sealed client vendor) — sanctioned like the Base-UI seal (rule a exempt)",
     },
     {
-      files:
-        'import { messages as messagesTable } from "@orb/db";\nexport const t = messagesTable;\n',
+      files: 'import { messages as messagesTable } from "@orb/db";\nexport const t = messagesTable;\n',
       at: "packages/server/src/entry/compose/services.ts",
       why: "the db `*Table` suffix convention off @orb/db (exact suffix) — systematic, exempt (rule a class-7)",
     },
     {
       files: {
-        "packages/server/src/domain/a/verbs/thing.ts":
-          "export function createThing(): number {\n  return 1;\n}\n",
-        "packages/server/src/domain/b/verbs/thing.ts":
-          "export function createThing(): number {\n  return 2;\n}\n",
-        "packages/server/src/domain/a/index.ts":
-          'export { createThing as createThingA } from "./verbs/thing";\n',
+        "packages/server/src/domain/a/verbs/thing.ts": "export function createThing(): number {\n  return 1;\n}\n",
+        "packages/server/src/domain/b/verbs/thing.ts": "export function createThing(): number {\n  return 2;\n}\n",
+        "packages/server/src/domain/a/index.ts": 'export { createThing as createThingA } from "./verbs/thing";\n',
       },
       why: "a barrel rename of a GENERIC name (createThing declared by ≥2 producer modules) — disambiguation, legal (rule b exempt)",
     },
@@ -305,8 +286,7 @@ export const gate: GateDescriptor = {
       why: "a vendor-source rename-export (echarts-setup's OrbChartOption) — vendor renames are always legal (rule b exempt)",
     },
     {
-      files:
-        "export type ProbeRequest = DiagnosticRequestCommon;\nexport type AccountCreditsRequest = DiagnosticRequestCommon;\n",
+      files: "export type ProbeRequest = DiagnosticRequestCommon;\nexport type AccountCreditsRequest = DiagnosticRequestCommon;\n",
       at: "packages/server/src/infra/providers/contract/diagnostics.ts",
       why: "distinct-alias-per-verb onto one shape in an infra /contract/ vocab home — contract doctrine, scoped out of rule c (class-8)",
     },

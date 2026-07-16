@@ -4,12 +4,7 @@
 // tokens), and the build -> parse -> build ROUND-TRIP identity (the drift guard against the two halves diverging).
 
 import type { CanonicalTheme, ThemeBackup } from "@orb/server/kit/serde/theme";
-import {
-  buildThemeBackup,
-  parseThemeBackup,
-  THEME_SCHEMA_KIND,
-  THEME_SCHEMA_VERSION,
-} from "@orb/server/kit/serde/theme";
+import { buildThemeBackup, parseThemeBackup, THEME_SCHEMA_KIND, THEME_SCHEMA_VERSION } from "@orb/server/kit/serde/theme";
 import { describe } from "vitest";
 import { expect, test } from "../../../../support/fixtures";
 
@@ -53,9 +48,7 @@ describe("parseThemeBackup", () => {
   });
 
   test("null for a foreign / absent schemaKind (a different portable file)", () => {
-    const foreign = new TextEncoder().encode(
-      JSON.stringify({ schemaKind: "orb.tag-library", schemaVersion: 1, themes: [] }),
-    );
+    const foreign = new TextEncoder().encode(JSON.stringify({ schemaKind: "orb.tag-library", schemaVersion: 1, themes: [] }));
     expect(parseThemeBackup(foreign)).toBeNull();
     expect(parseThemeBackup(new TextEncoder().encode(JSON.stringify({ themes: [] })))).toBeNull();
   });

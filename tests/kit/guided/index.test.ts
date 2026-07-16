@@ -11,22 +11,12 @@ function macroOpts(extra: Partial<ProcessMacroOptions> = {}): ProcessMacroOption
 const ZWSP_CODEPOINT = 0x20_0b;
 
 test("resolveGuidedInstruction splices the steering input into the template", () => {
-  const out = resolveGuidedInstruction(
-    "[Take the following into special consideration for your next message: {{input}}]",
-    "make it tense",
-    macroOpts(),
-  );
-  expect(out).toBe(
-    "[Take the following into special consideration for your next message: make it tense]",
-  );
+  const out = resolveGuidedInstruction("[Take the following into special consideration for your next message: {{input}}]", "make it tense", macroOpts());
+  expect(out).toBe("[Take the following into special consideration for your next message: make it tense]");
 });
 
 test("resolveGuidedInstruction resolves the rest of the macro context, not just {{input}}", () => {
-  const out = resolveGuidedInstruction(
-    "{{char}} reacts to {{user}}: {{input}}",
-    "smile",
-    macroOpts(),
-  );
+  const out = resolveGuidedInstruction("{{char}} reacts to {{user}}: {{input}}", "smile", macroOpts());
   expect(out).toBe("Alice reacts to Bob: smile");
 });
 
@@ -50,12 +40,7 @@ test("ZWSP defense: the inserted codepoint is exactly U+200B and sits BETWEEN th
 });
 
 test("{{person}} is replaced by opts.person before macro processing", () => {
-  const out = resolveGuidedInstruction(
-    "Write in the {{person}}-person perspective. {{input}}",
-    "go",
-    macroOpts(),
-    { person: "third" },
-  );
+  const out = resolveGuidedInstruction("Write in the {{person}}-person perspective. {{input}}", "go", macroOpts(), { person: "third" });
   expect(out).toBe("Write in the third-person perspective. go");
 });
 

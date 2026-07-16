@@ -25,11 +25,7 @@ const useWorldInfoSelectionStore = createGatedStore<WorldInfoSelectionState>(
 /** Open a book (a library-row click) — the route swaps CONTENT to that book's entry editor. Opening a
  *  DIFFERENT book clears the entry selection so a stale entry never carries across books. */
 export function selectWorldBook(id: WorldBookId): void {
-  useWorldInfoSelectionStore.setState(
-    { selectedBookId: id, selectedEntryId: null },
-    false,
-    "world-info-selection/select-book",
-  );
+  useWorldInfoSelectionStore.setState({ selectedBookId: id, selectedEntryId: null }, false, "world-info-selection/select-book");
 }
 
 /** Open a book from the LIST (a library-row click) AND close any open LIST slide-over — the
@@ -43,29 +39,17 @@ export function selectWorldBookFromList(id: WorldBookId): void {
 
 /** Clear the selection (back to the World Info welcome state — e.g. after deleting the open book). */
 export function clearWorldBookSelection(): void {
-  useWorldInfoSelectionStore.setState(
-    { selectedBookId: null, selectedEntryId: null },
-    false,
-    "world-info-selection/clear-book",
-  );
+  useWorldInfoSelectionStore.setState({ selectedBookId: null, selectedEntryId: null }, false, "world-info-selection/clear-book");
 }
 
 /** Select an entry to edit (an entry-row click reveals its field editor). */
 export function selectWorldEntry(id: WorldEntryId): void {
-  useWorldInfoSelectionStore.setState(
-    { selectedEntryId: id },
-    false,
-    "world-info-selection/select-entry",
-  );
+  useWorldInfoSelectionStore.setState({ selectedEntryId: id }, false, "world-info-selection/select-entry");
 }
 
 /** Clear the entry selection — back to the entry-list overview (also fired on entry delete). */
 export function clearWorldEntrySelection(): void {
-  useWorldInfoSelectionStore.setState(
-    { selectedEntryId: null },
-    false,
-    "world-info-selection/clear-entry",
-  );
+  useWorldInfoSelectionStore.setState({ selectedEntryId: null }, false, "world-info-selection/clear-entry");
 }
 
 /** Reactive: the currently-open book id (`null` = none). A primitive selector (no fresh object). */

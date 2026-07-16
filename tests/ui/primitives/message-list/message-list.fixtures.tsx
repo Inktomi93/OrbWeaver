@@ -26,19 +26,11 @@ interface AppendableListProps {
 
 /** A growable, bottom-anchored list — the "Add message" button appends ONE item at the tail, the
  *  real chat shape (new turns land at the end; the reader may or may not be pinned there). */
-export function AppendableList({
-  initialCount,
-  rowHeightPx,
-  listHeightPx,
-}: AppendableListProps): ReactElement {
+export function AppendableList({ initialCount, rowHeightPx, listHeightPx }: AppendableListProps): ReactElement {
   const [items, setItems] = useState<FixtureItem[]>(() => makeItems(initialCount));
   return (
     <div>
-      <button
-        type="button"
-        data-testid="append"
-        onClick={(): void => setItems((prev) => [...prev, ...makeItems(1, prev.length)])}
-      >
+      <button type="button" data-testid="append" onClick={(): void => setItems((prev) => [...prev, ...makeItems(1, prev.length)])}>
         Add message
       </button>
       <div style={{ height: listHeightPx }}>
@@ -46,9 +38,7 @@ export function AppendableList({
           items={items}
           getItemKey={(item): string => item.id}
           estimateSize={(): number => rowHeightPx}
-          renderItem={(item): ReactElement => (
-            <div style={{ height: rowHeightPx }}>{item.label}</div>
-          )}
+          renderItem={(item): ReactElement => <div style={{ height: rowHeightPx }}>{item.label}</div>}
           className="h-full"
         />
       </div>
@@ -90,9 +80,7 @@ export function UnboundedMessageList({ itemCount, rowHeightPx }: UnboundedProps)
           items={items}
           getItemKey={(item): string => item.id}
           estimateSize={(): number => rowHeightPx}
-          renderItem={(item): ReactElement => (
-            <div style={{ height: rowHeightPx }}>{item.label}</div>
-          )}
+          renderItem={(item): ReactElement => <div style={{ height: rowHeightPx }}>{item.label}</div>}
         />
       </div>
     </TripwireBoundary>
@@ -154,19 +142,11 @@ interface PrependableListProps {
  * shifts every existing item's INDEX but not its KEY, so the reader's viewport position (which
  * message is on screen) must survive untouched.
  */
-export function PrependableList({
-  initialCount,
-  rowHeightPx,
-  listHeightPx,
-}: PrependableListProps): ReactElement {
+export function PrependableList({ initialCount, rowHeightPx, listHeightPx }: PrependableListProps): ReactElement {
   const [items, setItems] = useState<FixtureItem[]>(() => makeItems(initialCount));
   return (
     <div>
-      <button
-        type="button"
-        data-testid="prepend"
-        onClick={(): void => setItems((prev) => [...makeOlderItems(20), ...prev])}
-      >
+      <button type="button" data-testid="prepend" onClick={(): void => setItems((prev) => [...makeOlderItems(20), ...prev])}>
         Load older
       </button>
       <div style={{ height: listHeightPx }}>
@@ -174,9 +154,7 @@ export function PrependableList({
           items={items}
           getItemKey={(item): string => item.id}
           estimateSize={(): number => rowHeightPx}
-          renderItem={(item): ReactElement => (
-            <div style={{ height: rowHeightPx }}>{item.label}</div>
-          )}
+          renderItem={(item): ReactElement => <div style={{ height: rowHeightPx }}>{item.label}</div>}
           className="h-full"
         />
       </div>
@@ -189,11 +167,7 @@ export function PrependableList({
  *  this seal too, mirroring `virtual-list`'s own `CustomRangeExtractorList`. The list is
  *  bottom-anchored by default, so index 0 sits far outside the natural viewport from the moment it
  *  mounts — no scrolling needed to prove the forced row survives off-screen. */
-export function RangeExtractorMessageList({
-  itemCount,
-}: {
-  readonly itemCount: number;
-}): ReactElement {
+export function RangeExtractorMessageList({ itemCount }: { readonly itemCount: number }): ReactElement {
   const items = makeItems(itemCount);
   return (
     <div style={{ height: 200 }}>
@@ -224,11 +198,7 @@ function StatefulInputRow({ label }: { readonly label: string }): ReactElement {
   const [value, setValue] = useState("");
   return (
     <div style={{ height: 40 }}>
-      <input
-        data-testid="stateful-input"
-        value={value}
-        onChange={(event): void => setValue(event.target.value)}
-      />
+      <input data-testid="stateful-input" value={value} onChange={(event): void => setValue(event.target.value)} />
       {label}
     </div>
   );
@@ -252,13 +222,7 @@ export function KeepMountedStateList({ keep }: { readonly keep: boolean }): Reac
         getItemKey={(item): string => item.id}
         estimateSize={(): number => 40}
         {...(keep ? { keepMounted: (item: FixtureItem): boolean => item.id === firstId } : {})}
-        renderItem={(item, index): ReactElement =>
-          index === 0 ? (
-            <StatefulInputRow label={item.label} />
-          ) : (
-            <div style={{ height: 40 }}>{item.label}</div>
-          )
-        }
+        renderItem={(item, index): ReactElement => (index === 0 ? <StatefulInputRow label={item.label} /> : <div style={{ height: 40 }}>{item.label}</div>)}
         className="h-full"
       />
     </div>
@@ -270,11 +234,7 @@ export function KeepMountedStateList({ keep }: { readonly keep: boolean }): Reac
  *  equality checks rather than string-parsing) so the CT can read the READING-HISTORY primitives
  *  without reaching into React internals. A "read status" button snapshots the handle's current
  *  values into DOM text. */
-export function HandleExposingList({
-  initialCount,
-  rowHeightPx,
-  listHeightPx,
-}: AppendableListProps): ReactElement {
+export function HandleExposingList({ initialCount, rowHeightPx, listHeightPx }: AppendableListProps): ReactElement {
   const [items] = useState<FixtureItem[]>(() => makeItems(initialCount));
   const handleRef = useRef<MessageListHandle>(null);
   const [isAtEnd, setIsAtEnd] = useState<string>("unread");
@@ -305,9 +265,7 @@ export function HandleExposingList({
           items={items}
           getItemKey={(item): string => item.id}
           estimateSize={(): number => rowHeightPx}
-          renderItem={(item): ReactElement => (
-            <div style={{ height: rowHeightPx }}>{item.label}</div>
-          )}
+          renderItem={(item): ReactElement => <div style={{ height: rowHeightPx }}>{item.label}</div>}
           className="h-full"
         />
       </div>
@@ -323,11 +281,7 @@ export function HandleExposingList({
  * resize anchor abandons the pin once one delta clears `scrollEndThreshold`, stranding the reader.
  * The handle readout (mirrors `HandleExposingList`) lets the CT assert the pin held.
  */
-export function TailGrowthList({
-  initialCount,
-  rowHeightPx,
-  listHeightPx,
-}: AppendableListProps): ReactElement {
+export function TailGrowthList({ initialCount, rowHeightPx, listHeightPx }: AppendableListProps): ReactElement {
   const [items, setItems] = useState<FixtureItem[]>(() => makeItems(initialCount));
   const [tailHeightPx, setTailHeightPx] = useState(rowHeightPx);
   const handleRef = useRef<MessageListHandle>(null);
@@ -336,20 +290,12 @@ export function TailGrowthList({
   const lastIndex = items.length - 1;
   return (
     <div>
-      <button
-        type="button"
-        data-testid="grow-tail"
-        onClick={(): void => setTailHeightPx((h) => h + 360)}
-      >
+      <button type="button" data-testid="grow-tail" onClick={(): void => setTailHeightPx((h) => h + 360)}>
         grow tail
       </button>
       {/* Append a new tall row at the tail — an "arriving message". Grows the container (so the seal's
           ResizeObserver fires) even when the reader has scrolled the old tail off-screen. */}
-      <button
-        type="button"
-        data-testid="append-tall"
-        onClick={(): void => setItems((prev) => [...prev, ...makeItems(1, prev.length)])}
-      >
+      <button type="button" data-testid="append-tall" onClick={(): void => setItems((prev) => [...prev, ...makeItems(1, prev.length)])}>
         append tall
       </button>
       <button
@@ -376,11 +322,7 @@ export function TailGrowthList({
           items={items}
           getItemKey={(item): string => item.id}
           estimateSize={(): number => rowHeightPx}
-          renderItem={(item, index): ReactElement => (
-            <div style={{ height: index === lastIndex ? tailHeightPx : rowHeightPx }}>
-              {item.label}
-            </div>
-          )}
+          renderItem={(item, index): ReactElement => <div style={{ height: index === lastIndex ? tailHeightPx : rowHeightPx }}>{item.label}</div>}
           className="h-full"
         />
       </div>
@@ -406,11 +348,7 @@ export function CachedMeasurementsList(): ReactElement {
       <button type="button" data-testid="toggle-frozen" onClick={(): void => setFrozen((f) => !f)}>
         frozen: {String(frozen)}
       </button>
-      <button
-        type="button"
-        data-testid="bump-row0"
-        onClick={(): void => setRow0HeightPx((h) => h + 100)}
-      >
+      <button type="button" data-testid="bump-row0" onClick={(): void => setRow0HeightPx((h) => h + 100)}>
         bump row 0
       </button>
       <div style={{ height: 200 }}>
@@ -419,9 +357,7 @@ export function CachedMeasurementsList(): ReactElement {
           getItemKey={(item): string => item.id}
           estimateSize={(): number => 40}
           useCachedMeasurements={frozen}
-          renderItem={(item, index): ReactElement => (
-            <div style={{ height: index === 0 ? row0HeightPx : 40 }}>{item.label}</div>
-          )}
+          renderItem={(item, index): ReactElement => <div style={{ height: index === 0 ? row0HeightPx : 40 }}>{item.label}</div>}
           className="h-full"
         />
       </div>

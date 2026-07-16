@@ -12,9 +12,7 @@ import { loadBuddy } from "../persistence/queries";
 import { buildSoulPrompt } from "../substrate/agent";
 import { bondTierOf, formOf } from "../substrate/mood";
 
-export function createResolveSpeakerIdentity(
-  ctx: BuddyContext,
-): BuddyService["resolveSpeakerIdentity"] {
+export function createResolveSpeakerIdentity(ctx: BuddyContext): BuddyService["resolveSpeakerIdentity"] {
   return async (ownerUserId: UserId): Promise<AgentSpeakerIdentity | null> => {
     const row = await loadBuddy(ctx.db, ownerUserId);
     if (row === null) {

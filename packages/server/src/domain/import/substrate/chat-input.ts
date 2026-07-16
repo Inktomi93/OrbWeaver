@@ -3,11 +3,7 @@
 // domain never sees SillyTavern. updatedAt = max(send_dates), not last and not import `now`; the selected
 // variant's content is always the rendered `mes`, even when the active swipe was empty-dropped.
 
-import type {
-  BulkImportChatInput,
-  BulkImportMessageInput,
-  BulkImportVariantInput,
-} from "@orb/contracts/chat";
+import type { BulkImportChatInput, BulkImportMessageInput, BulkImportVariantInput } from "@orb/contracts/chat";
 import type { PersonaId } from "@orb/kit/ids";
 import type { ParsedChatMessage } from "#kit/serde/chat";
 import type { CollectedChat } from "../contract/views";
@@ -38,9 +34,7 @@ function buildVariantColumns(m: ParsedChatMessage): {
     const selected = variants[m.activeVariantIdx];
     if (selected !== undefined) {
       return {
-        variants: variants.map((v) =>
-          v.idx === m.activeVariantIdx ? { ...v, ttftMs: m.ttftMs } : v,
-        ),
+        variants: variants.map((v) => (v.idx === m.activeVariantIdx ? { ...v, ttftMs: m.ttftMs } : v)),
         selectedIdx: m.activeVariantIdx,
       };
     }
@@ -76,11 +70,7 @@ function buildVariantColumns(m: ParsedChatMessage): {
 }
 
 /** A user turn credits the pre-resolved chat persona; other roles carry no persona. */
-function toMessageInput(
-  m: ParsedChatMessage,
-  createdAt: number,
-  chatPersonaId: PersonaId | null,
-): BulkImportMessageInput {
+function toMessageInput(m: ParsedChatMessage, createdAt: number, chatPersonaId: PersonaId | null): BulkImportMessageInput {
   const { variants, selectedIdx } = buildVariantColumns(m);
   return {
     role: m.role,
@@ -100,13 +90,11 @@ export function buildBulkImportChatInput(
   },
 ): BulkImportChatInput {
   const pc = ci.parsed;
-  const created =
-    pc.createDate ?? pc.messages.find((m) => m.sendDate !== null)?.sendDate ?? deps.now();
+  const created = pc.createDate ?? pc.messages.find((m) => m.sendDate !== null)?.sendDate ?? deps.now();
   const sendDates = pc.messages.flatMap((m) => (m.sendDate !== null ? [m.sendDate] : []));
   const updatedAt = sendDates.length > 0 ? Math.max(...sendDates) : created;
   const key = pc.userName?.trim().toLowerCase();
-  const chatPersonaId: PersonaId | null =
-    (key !== undefined && deps.personaByUserName.get(key)) || null;
+  const chatPersonaId: PersonaId | null = (key !== undefined && deps.personaByUserName.get(key)) || null;
 
   return {
     title: ci.importedFrom.replace(JSONL_EXT, ""),

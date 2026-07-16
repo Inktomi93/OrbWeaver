@@ -14,25 +14,10 @@ import type { SQLiteColumn, SQLiteTable } from "drizzle-orm/sqlite-core";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
-import {
-  makeTagHarness,
-  principal,
-  seedCharacter,
-  seedChat,
-  seedPersona,
-  seedPreset,
-  seedTag,
-  seedUser,
-  seedWorldBook,
-} from "../_support.ts";
+import { makeTagHarness, principal, seedCharacter, seedChat, seedPersona, seedPreset, seedTag, seedUser, seedWorldBook } from "../_support.ts";
 
 /** How many rows of `table` carry `tagId` on `col` — the junction-count assertion helper. */
-async function countTag(
-  db: Db,
-  table: SQLiteTable,
-  col: SQLiteColumn,
-  tagId: TagId,
-): Promise<number> {
+async function countTag(db: Db, table: SQLiteTable, col: SQLiteColumn, tagId: TagId): Promise<number> {
   return (await db.select().from(table).where(eq(col, tagId))).length;
 }
 
@@ -53,8 +38,7 @@ describe("mergeTags", () => {
     h.allowChat(chatId);
 
     const p = principal(owner);
-    const attach = (tagId: TagId, targetType: TagTargetType, targetId: string): Promise<void> =>
-      svc.attachTag({ principal: p, tagId, targetType, targetId });
+    const attach = (tagId: TagId, targetType: TagTargetType, targetId: string): Promise<void> => svc.attachTag({ principal: p, tagId, targetType, targetId });
     await attach(source, "character", characterId);
     await attach(source, "worldBook", worldBookId);
     await attach(source, "persona", personaId);
@@ -121,8 +105,7 @@ describe("mergeTags", () => {
     const worldBookId = await seedWorldBook(db, owner);
     const p = principal(owner);
 
-    const attach = (tagId: TagId): Promise<void> =>
-      svc.attachTag({ principal: p, tagId, targetType: "worldBook", targetId: worldBookId });
+    const attach = (tagId: TagId): Promise<void> => svc.attachTag({ principal: p, tagId, targetType: "worldBook", targetId: worldBookId });
     await attach(source);
     await attach(target);
 
@@ -137,9 +120,7 @@ describe("mergeTags", () => {
     const owner = await seedUser(db);
     const svc = createTagService(makeTagHarness(db).ctx);
     const tagId = await seedTag(db, owner, { id: "tag_a", name: "alpha" });
-    await expect(
-      svc.mergeTags({ principal: principal(owner), sourceTagId: tagId, targetTagId: tagId }),
-    ).rejects.toThrow(DomainOperationError);
+    await expect(svc.mergeTags({ principal: principal(owner), sourceTagId: tagId, targetTagId: tagId })).rejects.toThrow(DomainOperationError);
   });
 
   test("refuses merging a tag the caller does not own (either endpoint)", async () => {
@@ -151,13 +132,9 @@ describe("mergeTags", () => {
     const theirs = await seedTag(db, stranger, { id: "tag_theirs", name: "theirs" });
 
     // Foreign SOURCE → not-found.
-    await expect(
-      svc.mergeTags({ principal: principal(owner), sourceTagId: theirs, targetTagId: mine }),
-    ).rejects.toThrow(TagNotFoundError);
+    await expect(svc.mergeTags({ principal: principal(owner), sourceTagId: theirs, targetTagId: mine })).rejects.toThrow(TagNotFoundError);
     // Foreign TARGET → not-found.
-    await expect(
-      svc.mergeTags({ principal: principal(owner), sourceTagId: mine, targetTagId: theirs }),
-    ).rejects.toThrow(TagNotFoundError);
+    await expect(svc.mergeTags({ principal: principal(owner), sourceTagId: mine, targetTagId: theirs })).rejects.toThrow(TagNotFoundError);
     // The stranger's tag survived untouched.
     expect(await db.select().from(tags).where(eq(tags.id, theirs))).toHaveLength(1);
   });

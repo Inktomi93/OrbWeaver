@@ -31,69 +31,20 @@ const TEMPERATURE_FLOOR = 0;
 const TEMPERATURE_CEIL = 2;
 
 export const memoryDefaultsSchema = z.object({
-  blockSize: z
-    .number()
-    .int()
-    .positive()
-    .optional()
-    .describe("Messages per tier-0 digest block (default 8; ≈3k BGE tok, under the 8192 cap)."),
-  verbatimWindow: z
-    .number()
-    .int()
-    .nonnegative()
-    .optional()
-    .describe("Recent messages never digested — the protect zone / seam buffer (default 8)."),
-  queryWindow: z
-    .number()
-    .int()
-    .positive()
-    .optional()
-    .describe("Recent messages used as the retrieval query for mixB/mixC (default 2)."),
+  blockSize: z.number().int().positive().optional().describe("Messages per tier-0 digest block (default 8; ≈3k BGE tok, under the 8192 cap)."),
+  verbatimWindow: z.number().int().nonnegative().optional().describe("Recent messages never digested — the protect zone / seam buffer (default 8)."),
+  queryWindow: z.number().int().positive().optional().describe("Recent messages used as the retrieval query for mixB/mixC (default 2)."),
   mode: z
     .enum(MEMORY_RETRIEVAL_MODES)
     .optional()
-    .describe(
-      "off | mixA (all tier-0, chronological) | mixB (+vector retrieve) | mixC (+rerank) | tiered (consolidation bridge). Default mixC.",
-    ),
-  fanOut: z
-    .number()
-    .int()
-    .positive()
-    .optional()
-    .describe("Tier-k digests consolidated into one tier-(k+1) digest (default 4)."),
-  maxTier: z
-    .number()
-    .int()
-    .nonnegative()
-    .optional()
-    .describe("Max consolidation depth; 0 = tier-0 only (default 3)."),
-  retrieveK: z
-    .number()
-    .int()
-    .positive()
-    .optional()
-    .describe("Vector candidate pool size for mixB/mixC (default 8)."),
-  rerankTo: z
-    .number()
-    .int()
-    .positive()
-    .optional()
-    .describe("Digests kept after cross-encoder rerank in mixC (default 3)."),
-  minScore: z
-    .number()
-    .min(SCORE_FLOOR)
-    .max(SCORE_CEIL)
-    .optional()
-    .describe("Minimum cosine similarity for a retrieved digest (default 0.25)."),
-  keywordMatch: z
-    .boolean()
-    .optional()
-    .describe("Also match digest keywords whole-word against recent messages (default true)."),
-  recencyBias: z
-    .number()
-    .min(RECENCY_BIAS_FLOOR)
-    .optional()
-    .describe("Mild score boost toward recent digests in mixB/mixC (default 0 = off)."),
+    .describe("off | mixA (all tier-0, chronological) | mixB (+vector retrieve) | mixC (+rerank) | tiered (consolidation bridge). Default mixC."),
+  fanOut: z.number().int().positive().optional().describe("Tier-k digests consolidated into one tier-(k+1) digest (default 4)."),
+  maxTier: z.number().int().nonnegative().optional().describe("Max consolidation depth; 0 = tier-0 only (default 3)."),
+  retrieveK: z.number().int().positive().optional().describe("Vector candidate pool size for mixB/mixC (default 8)."),
+  rerankTo: z.number().int().positive().optional().describe("Digests kept after cross-encoder rerank in mixC (default 3)."),
+  minScore: z.number().min(SCORE_FLOOR).max(SCORE_CEIL).optional().describe("Minimum cosine similarity for a retrieved digest (default 0.25)."),
+  keywordMatch: z.boolean().optional().describe("Also match digest keywords whole-word against recent messages (default true)."),
+  recencyBias: z.number().min(RECENCY_BIAS_FLOOR).optional().describe("Mild score boost toward recent digests in mixB/mixC (default 0 = off)."),
 });
 export type MemoryDefaults = z.infer<typeof memoryDefaultsSchema>;
 
@@ -143,14 +94,7 @@ export const appSettingsSchema = z.object({
   vllmConcurrency: vllmConcurrencySchema.nullable().optional().catch(undefined),
   allowNonOwnerLocalCompute: z.boolean().nullable().optional().catch(undefined),
   nonOwnerLocalComputeBudget: z.number().int().positive().nullable().optional().catch(undefined),
-  maxImageBytes: z
-    .number()
-    .int()
-    .min(MAX_IMAGE_BYTES_FLOOR)
-    .max(MAX_IMAGE_BYTES_CEIL)
-    .nullable()
-    .optional()
-    .catch(undefined),
+  maxImageBytes: z.number().int().min(MAX_IMAGE_BYTES_FLOOR).max(MAX_IMAGE_BYTES_CEIL).nullable().optional().catch(undefined),
   allowNonOwnerMaxProSub: z.boolean().nullable().optional().catch(undefined),
   localMultiUser: z.boolean().nullable().optional().catch(undefined),
   discreetLogin: z.boolean().nullable().optional().catch(undefined),
@@ -158,10 +102,7 @@ export const appSettingsSchema = z.object({
 
 export type AppSettings = z.infer<typeof appSettingsSchema>;
 
-const APP_SETTINGS_LIFTS: Record<
-  number,
-  (config: Record<string, unknown>) => Record<string, unknown>
-> = {
+const APP_SETTINGS_LIFTS: Record<number, (config: Record<string, unknown>) => Record<string, unknown>> = {
   1: (config) => {
     const summarizer = config["memorySummarizer"] as { source?: unknown } | undefined;
     if (summarizer && "source" in summarizer) {
@@ -241,40 +182,28 @@ const routingSchema = z.object({ roleDefaults: roleDefaultsSchema }).prefault({}
 
 const themeSettingsSchema = z
   .object({
-    // biome-ignore lint/plugin/no-raw-id: lenient UserSettings tier — a stale/deleted theme id degrades to the Hearth default at resolution (the profile.avatarAssetId precedent), so it stays plain; null = "the default palette" (no sentinel id leaked into contracts).
+    // @orb-gate-ignore no-raw-id lenient UserSettings tier — a stale/deleted theme id degrades to the Hearth default at resolution (the profile.avatarAssetId precedent), so it stays plain; null = "the default palette" (no sentinel id leaked into contracts).
     selectedThemeId: z.string().nullable().catch(null).default(null),
   })
   .prefault({});
 
 const seedsSchema = z
   .object({
-    // biome-ignore lint/plugin/no-raw-id: lenient UserSettings tier — a stale/deleted id degrades at consumption (not a validated entity boundary), so it stays plain.
+    // @orb-gate-ignore no-raw-id lenient UserSettings tier — a stale/deleted id degrades at consumption (not a validated entity boundary), so it stays plain.
     defaultPersonaId: z.string().nullable().catch(null).default(null),
-    // biome-ignore lint/plugin/no-raw-id: lenient UserSettings tier — a stale/deleted id degrades at consumption (not a validated entity boundary), so it stays plain.
+    // @orb-gate-ignore no-raw-id lenient UserSettings tier — a stale/deleted id degrades at consumption (not a validated entity boundary), so it stays plain.
     currentPersonaId: z.string().nullable().catch(null).default(null),
-    // biome-ignore lint/plugin/no-raw-id: lenient UserSettings tier — a stale/deleted id degrades at consumption (not a validated entity boundary), so it stays plain.
+    // @orb-gate-ignore no-raw-id lenient UserSettings tier — a stale/deleted id degrades at consumption (not a validated entity boundary), so it stays plain.
     welcomeAssistantCharacterId: z.string().nullable().catch(null).default(null),
-    // biome-ignore lint/plugin/no-raw-id: lenient UserSettings tier — a stale/unowned id degrades to the system-default preset at consumption, so it stays plain.
+    // @orb-gate-ignore no-raw-id lenient UserSettings tier — a stale/unowned id degrades to the system-default preset at consumption, so it stays plain.
     defaultPresetId: z.string().nullable().catch(null).default(null),
   })
   .prefault({});
 
 const worldInfoSchema = z
   .object({
-    scanDepth: z
-      .number()
-      .int()
-      .min(SCAN_DEPTH_MIN)
-      .max(SCAN_DEPTH_MAX)
-      .catch(SCAN_DEPTH_DEFAULT)
-      .default(SCAN_DEPTH_DEFAULT),
-    tokenBudget: z
-      .number()
-      .int()
-      .min(WI_TOKEN_BUDGET_MIN)
-      .max(WI_TOKEN_BUDGET_MAX)
-      .catch(WI_TOKEN_BUDGET_DEFAULT)
-      .default(WI_TOKEN_BUDGET_DEFAULT),
+    scanDepth: z.number().int().min(SCAN_DEPTH_MIN).max(SCAN_DEPTH_MAX).catch(SCAN_DEPTH_DEFAULT).default(SCAN_DEPTH_DEFAULT),
+    tokenBudget: z.number().int().min(WI_TOKEN_BUDGET_MIN).max(WI_TOKEN_BUDGET_MAX).catch(WI_TOKEN_BUDGET_DEFAULT).default(WI_TOKEN_BUDGET_DEFAULT),
   })
   .prefault({});
 
@@ -307,19 +236,8 @@ const personaSchema = z
 
 const workloadsSchema = z
   .object({
-    dupThreshold: z
-      .number()
-      .min(DUP_THRESHOLD_FLOOR)
-      .max(DUP_THRESHOLD_CEIL)
-      .optional()
-      .catch(undefined),
-    computeThemesK: z
-      .number()
-      .int()
-      .positive()
-      .max(COMPUTE_THEMES_K_MAX)
-      .optional()
-      .catch(undefined),
+    dupThreshold: z.number().min(DUP_THRESHOLD_FLOOR).max(DUP_THRESHOLD_CEIL).optional().catch(undefined),
+    computeThemesK: z.number().int().positive().max(COMPUTE_THEMES_K_MAX).optional().catch(undefined),
   })
   .prefault({});
 
@@ -333,7 +251,7 @@ const onboardingSchema = z
 
 const profileSchema = z
   .object({
-    // biome-ignore lint/plugin/no-raw-id: lenient UserSettings tier — a stale/deleted asset id degrades at consumption (not a validated entity boundary), so it stays plain.
+    // @orb-gate-ignore no-raw-id lenient UserSettings tier — a stale/deleted asset id degrades at consumption (not a validated entity boundary), so it stays plain.
     avatarAssetId: z.string().nullable().optional(),
   })
   .prefault({});
@@ -392,19 +310,8 @@ const BLUR_STRENGTH_DEFAULT = 14;
 
 const appearanceSchema = z
   .object({
-    chatWidthPct: z
-      .number()
-      .int()
-      .min(CHAT_WIDTH_PCT_MIN)
-      .max(CHAT_WIDTH_PCT_MAX)
-      .catch(CHAT_WIDTH_PCT_DEFAULT)
-      .default(CHAT_WIDTH_PCT_DEFAULT),
-    fontScale: z
-      .number()
-      .min(FONT_SCALE_MIN)
-      .max(FONT_SCALE_MAX)
-      .catch(FONT_SCALE_DEFAULT)
-      .default(FONT_SCALE_DEFAULT),
+    chatWidthPct: z.number().int().min(CHAT_WIDTH_PCT_MIN).max(CHAT_WIDTH_PCT_MAX).catch(CHAT_WIDTH_PCT_DEFAULT).default(CHAT_WIDTH_PCT_DEFAULT),
+    fontScale: z.number().min(FONT_SCALE_MIN).max(FONT_SCALE_MAX).catch(FONT_SCALE_DEFAULT).default(FONT_SCALE_DEFAULT),
     avatarSize: z.enum(["sm", "md", "lg"]).catch("md").default("md"),
     avatarShape: z.enum(["round", "square", "rounded"]).catch("round").default("round"),
     avatarAspect: z.enum(["square", "portrait"]).catch("square").default("square"),
@@ -428,7 +335,7 @@ const appearanceSchema = z
     surfaceTexture: z.enum(SURFACE_TEXTURES).catch("none").default("none"),
     reducedMotion: z.boolean().catch(false).default(false),
     backgroundImageKind: z.enum(BACKGROUND_IMAGE_KINDS).catch("none").default("none"),
-    // biome-ignore lint/plugin/no-raw-id: not an entity FK — a seeded-background CATALOG slug (matched against the static `listSeededBackgrounds()` set at render), so it stays a plain slug string; an empty/stale value degrades to "no image" at resolution.
+    // @orb-gate-ignore no-raw-id not an entity FK — a seeded-background CATALOG slug (matched against the static `listSeededBackgrounds()` set at render), so it stays a plain slug string; an empty/stale value degrades to "no image" at resolution.
     backgroundSeededId: z
       .string()
       .regex(/^[a-z0-9-]*$/u)
@@ -439,7 +346,7 @@ const appearanceSchema = z
       .refine((s) => s === "" || z.url().safeParse(s).success)
       .catch("")
       .default(""),
-    // biome-ignore lint/plugin/no-raw-id: lenient UserSettings tier — the own-upload background asset id (kind `asset`). A stale/deleted value degrades to "no image" at resolution (the `profile.avatarAssetId` precedent); the LIVE value is GC-rooted by the settings live-source scan (`domain/assets/persistence/asset-refs.ts`), not an FK boundary.
+    // @orb-gate-ignore no-raw-id lenient UserSettings tier — the own-upload background asset id (kind `asset`). A stale/deleted value degrades to "no image" at resolution (the `profile.avatarAssetId` precedent); the LIVE value is GC-rooted by the settings live-source scan (`domain/assets/persistence/asset-refs.ts`), not an FK boundary.
     backgroundAssetId: z
       .string()
       .regex(/^(asset_[a-z0-9]+)?$/u)
@@ -449,18 +356,8 @@ const appearanceSchema = z
     // `blobUrl(hash)` from it (no async id→hash round-trip). A blank/garbage value degrades to a 404 blob.
     backgroundAssetHash: z.string().catch("").default(""),
     backgroundFit: z.enum(APPEARANCE_BACKGROUND_FITS).catch("cover").default("cover"),
-    backgroundDim: z
-      .number()
-      .min(BACKGROUND_DIM_MIN)
-      .max(BACKGROUND_DIM_MAX)
-      .catch(BACKGROUND_DIM_DEFAULT)
-      .default(BACKGROUND_DIM_DEFAULT),
-    backgroundBlur: z
-      .number()
-      .min(BACKGROUND_BLUR_MIN)
-      .max(BACKGROUND_BLUR_MAX)
-      .catch(BACKGROUND_BLUR_DEFAULT)
-      .default(BACKGROUND_BLUR_DEFAULT),
+    backgroundDim: z.number().min(BACKGROUND_DIM_MIN).max(BACKGROUND_DIM_MAX).catch(BACKGROUND_DIM_DEFAULT).default(BACKGROUND_DIM_DEFAULT),
+    backgroundBlur: z.number().min(BACKGROUND_BLUR_MIN).max(BACKGROUND_BLUR_MAX).catch(BACKGROUND_BLUR_DEFAULT).default(BACKGROUND_BLUR_DEFAULT),
     readingLineHeight: z
       .number()
       .min(READING_LINE_HEIGHT_MIN)
@@ -479,26 +376,11 @@ const appearanceSchema = z
       .max(READING_PARAGRAPH_SPACING_MAX)
       .catch(READING_PARAGRAPH_SPACING_DEFAULT)
       .default(READING_PARAGRAPH_SPACING_DEFAULT),
-    readingNameScale: z
-      .number()
-      .min(READING_NAME_SCALE_MIN)
-      .max(READING_NAME_SCALE_MAX)
-      .catch(READING_SCALE_DEFAULT)
-      .default(READING_SCALE_DEFAULT),
-    readingBodyScale: z
-      .number()
-      .min(READING_BODY_SCALE_MIN)
-      .max(READING_BODY_SCALE_MAX)
-      .catch(READING_SCALE_DEFAULT)
-      .default(READING_SCALE_DEFAULT),
+    readingNameScale: z.number().min(READING_NAME_SCALE_MIN).max(READING_NAME_SCALE_MAX).catch(READING_SCALE_DEFAULT).default(READING_SCALE_DEFAULT),
+    readingBodyScale: z.number().min(READING_BODY_SCALE_MIN).max(READING_BODY_SCALE_MAX).catch(READING_SCALE_DEFAULT).default(READING_SCALE_DEFAULT),
     justifyBodyText: z.boolean().catch(false).default(false),
     enableThemeColorization: z.boolean().catch(false).default(false),
-    blurStrength: z
-      .number()
-      .min(BLUR_STRENGTH_MIN)
-      .max(BLUR_STRENGTH_MAX)
-      .catch(BLUR_STRENGTH_DEFAULT)
-      .default(BLUR_STRENGTH_DEFAULT),
+    blurStrength: z.number().min(BLUR_STRENGTH_MIN).max(BLUR_STRENGTH_MAX).catch(BLUR_STRENGTH_DEFAULT).default(BLUR_STRENGTH_DEFAULT),
     showLLMReasoningIcon: z.boolean().catch(false).default(false),
   })
   .prefault({});
@@ -559,10 +441,7 @@ export const DEFAULT_USER_SETTINGS: UserSettings = userSettingsSchema.parse({});
 
 export const DEFAULT_APPEARANCE_SETTINGS: AppearanceSettings = DEFAULT_USER_SETTINGS.appearance;
 
-const USER_SETTINGS_LIFTS: Record<
-  number,
-  (config: Record<string, unknown>) => Record<string, unknown>
-> = {
+const USER_SETTINGS_LIFTS: Record<number, (config: Record<string, unknown>) => Record<string, unknown>> = {
   1: (c) => {
     const chat: Record<string, unknown> = {};
     if (c["defaultApi"] !== undefined && c["defaultApi"] !== null) {

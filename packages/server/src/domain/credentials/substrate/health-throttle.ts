@@ -1,14 +1,7 @@
 // domain/credentials/substrate/health-throttle — substrate mediator for the `health/` subsystem; the
 // single seam test-health imports. `now` is the injected clock value, never read from a wall-clock here.
 
-import {
-  clearHealthStrikes,
-  getLastHealthCheck,
-  HEALTH_STRIKE_LIMIT,
-  HEALTH_THROTTLE_MS,
-  recordHealthStrike,
-  rememberHealthCheck,
-} from "../health/cache";
+import { clearHealthStrikes, getLastHealthCheck, HEALTH_STRIKE_LIMIT, HEALTH_THROTTLE_MS, recordHealthStrike, rememberHealthCheck } from "../health/cache";
 
 /** If a probe already went out within the throttle window, returns that lastCheckedAt (caller returns
  *  throttled); otherwise records now as the probe time and returns null. */

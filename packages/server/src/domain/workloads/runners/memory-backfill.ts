@@ -5,12 +5,7 @@
 
 import type { Runner } from "../contract/runner";
 
-export const memoryBackfillRunner: Runner<"memory-backfill"> = async (
-  ctx,
-  _params,
-  report,
-  signal,
-) => {
+export const memoryBackfillRunner: Runner<"memory-backfill"> = async (ctx, _params, report, signal) => {
   report({ message: "memory backfill: sweeping chats (segments + digests per scope)" });
   const counts = await ctx.env.memory.backfill({ ownerId: ctx.ownerId, signal });
   report({

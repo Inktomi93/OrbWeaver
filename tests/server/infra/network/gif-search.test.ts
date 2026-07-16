@@ -101,10 +101,7 @@ describe("searchTenorGifs", () => {
   });
 
   test("throws on a non-2xx upstream (mapped to hub-unavailable by the verb)", async () => {
-    vi.stubGlobal(
-      "fetch",
-      () => new Response("nope", { status: 429, headers: { "content-type": "application/json" } }),
-    );
+    vi.stubGlobal("fetch", () => new Response("nope", { status: 429, headers: { "content-type": "application/json" } }));
     await expect(searchTenorGifs({ apiKey: "k", query: "cat", limit: 20 })).rejects.toThrow();
   });
 });
@@ -138,10 +135,7 @@ describe("fetchTenorGifImage (SSRF + untrusted-image chokepoint)", () => {
 
   test("accepts a real gif on a Tenor host → returns bytes + sniffed mime", async () => {
     const bytes = gifBytes(100, 80);
-    vi.stubGlobal(
-      "fetch",
-      () => new Response(bytes, { status: 200, headers: { "content-type": "image/gif" } }),
-    );
+    vi.stubGlobal("fetch", () => new Response(bytes, { status: 200, headers: { "content-type": "image/gif" } }));
     const out = await fetchTenorGifImage("https://media.tenor.com/real.gif");
     expect(out.image.mime).toBe("image/gif");
     expect(out.bytes.byteLength).toBe(bytes.byteLength);

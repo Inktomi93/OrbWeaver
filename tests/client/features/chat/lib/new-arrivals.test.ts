@@ -5,11 +5,7 @@
 // the live-verified 2026-07-12 failure modes), and the ghost key re-arms between turns.
 
 import type { ArrivalEntry } from "../../../../../packages/client/src/features/chat/lib/new-arrivals";
-import {
-  initialArrivals,
-  NO_ARRIVALS,
-  nextArrivals,
-} from "../../../../../packages/client/src/features/chat/lib/new-arrivals";
+import { initialArrivals, NO_ARRIVALS, nextArrivals } from "../../../../../packages/client/src/features/chat/lib/new-arrivals";
 import { expect, test } from "../../../../support/fixtures";
 
 const GHOST = "__ghost__";
@@ -96,11 +92,7 @@ test("an ASSISTANT row committing while the ghost is STILL live is muted (mid-tu
   if (streaming === null) {
     return;
   }
-  const committed = nextArrivals(
-    streaming,
-    [...rows("m1"), assistant("m2"), ...rows(GHOST)],
-    GHOST,
-  );
+  const committed = nextArrivals(streaming, [...rows("m1"), assistant("m2"), ...rows(GHOST)], GHOST);
   expect(committed).not.toBeNull();
   expect(committed?.fresh).toBe(NO_ARRIVALS);
   expect(committed?.seen.has("m2")).toBe(true);
@@ -126,16 +118,12 @@ test("a DELAYED settle is muted: the canon row landing a refetch AFTER the ghost
   const streaming = nextArrivals(initialArrivals(["m1"]), rows("m1", GHOST), GHOST);
   const ghostGone = streaming === null ? null : nextArrivals(streaming, rows("m1"), GHOST);
   expect(ghostGone?.awaitingSettle).toBe(true);
-  const canonLands =
-    ghostGone === null ? null : nextArrivals(ghostGone, [...rows("m1"), assistant("m2")], GHOST);
+  const canonLands = ghostGone === null ? null : nextArrivals(ghostGone, [...rows("m1"), assistant("m2")], GHOST);
   expect(canonLands).not.toBeNull();
   expect(canonLands?.fresh).toBe(NO_ARRIVALS);
   expect(canonLands?.awaitingSettle).toBe(false);
   // The latch is consumed: a LATER assistant arrival with no turn live animates normally.
-  const later =
-    canonLands === null
-      ? null
-      : nextArrivals(canonLands, [...rows("m1"), assistant("m2"), assistant("m3")], GHOST);
+  const later = canonLands === null ? null : nextArrivals(canonLands, [...rows("m1"), assistant("m2"), assistant("m3")], GHOST);
   expect([...(later?.fresh ?? [])]).toEqual(["m3"]);
 });
 
@@ -149,13 +137,9 @@ test("a USER message arriving while awaitingSettle still animates (only model ou
 
 test("the ghost key re-arms after settle: the NEXT turn's ghost is fresh again", () => {
   const streaming = nextArrivals(initialArrivals(["m1"]), rows("m1", GHOST), GHOST);
-  const settled =
-    streaming === null ? null : nextArrivals(streaming, [...rows("m1"), assistant("m2")], GHOST);
+  const settled = streaming === null ? null : nextArrivals(streaming, [...rows("m1"), assistant("m2")], GHOST);
   expect(settled?.seen.has(GHOST)).toBe(false);
-  const nextTurn =
-    settled === null
-      ? null
-      : nextArrivals(settled, [...rows("m1"), assistant("m2"), ...rows(GHOST)], GHOST);
+  const nextTurn = settled === null ? null : nextArrivals(settled, [...rows("m1"), assistant("m2"), ...rows(GHOST)], GHOST);
   expect([...(nextTurn?.fresh ?? [])]).toEqual([GHOST]);
 });
 

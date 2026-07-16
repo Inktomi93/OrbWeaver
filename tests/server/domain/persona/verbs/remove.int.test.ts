@@ -5,11 +5,7 @@
 import { characterPersonas, personas } from "@orb/db";
 import type { PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import {
-  createPersonaService,
-  LastPersonaError,
-  PersonaNotFoundError,
-} from "@orb/server/domain/persona";
+import { createPersonaService, LastPersonaError, PersonaNotFoundError } from "@orb/server/domain/persona";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
@@ -39,9 +35,7 @@ describe("remove", () => {
 
     expect(result).toEqual({ deleted: true });
     expect(await db.select().from(personas).where(eq(personas.id, created.id))).toHaveLength(0);
-    expect(
-      await db.select().from(characterPersonas).where(eq(characterPersonas.personaId, created.id)),
-    ).toHaveLength(0);
+    expect(await db.select().from(characterPersonas).where(eq(characterPersonas.personaId, created.id))).toHaveLength(0);
     expect(h.audits.map((a) => a.entry.action)).toContain("persona.remove");
     // The seed re-point fires with the deleted id (owner invariant "never NO current persona while you own
     // one" — the injected settings write itself is exercised at the composed-service level).
@@ -72,9 +66,7 @@ describe("remove", () => {
       principal: principal(owner),
       input: { name: "Mine", description: "d" },
     });
-    await expect(
-      svc.remove({ principal: principal(other), personaId: created.id }),
-    ).rejects.toThrow(PersonaNotFoundError);
+    await expect(svc.remove({ principal: principal(other), personaId: created.id })).rejects.toThrow(PersonaNotFoundError);
     expect(await db.select().from(personas).where(eq(personas.id, created.id))).toHaveLength(1);
     expect(h.audits.some((a) => a.entry.action === "persona.remove")).toBe(false);
   });
@@ -83,9 +75,7 @@ describe("remove", () => {
     const db = await freshDb();
     const svc = createPersonaService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: "owner" });
-    await expect(
-      svc.remove({ principal: principal(owner), personaId: castId<PersonaId>("persona_ghost") }),
-    ).rejects.toThrow(PersonaNotFoundError);
+    await expect(svc.remove({ principal: principal(owner), personaId: castId<PersonaId>("persona_ghost") })).rejects.toThrow(PersonaNotFoundError);
   });
 
   test("the LAST persona is refused with last_persona (the always-one belt); a second persona unblocks it", async () => {
@@ -98,9 +88,7 @@ describe("remove", () => {
       input: { name: "Sole", description: "s" },
     });
 
-    const err = await svc
-      .remove({ principal: principal(owner), personaId: only.id })
-      .catch((e: unknown) => e);
+    const err = await svc.remove({ principal: principal(owner), personaId: only.id }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(LastPersonaError);
     expect((err as LastPersonaError).code).toBe("last_persona");
     // The refusal is a no-op: the row survives and nothing audited.

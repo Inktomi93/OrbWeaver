@@ -5,27 +5,15 @@
 import type { IndexSource, ScheduleCadence, WorkloadMode } from "@orb/contracts/workloads";
 import { SCHEDULE_CADENCES, WORKLOAD_KIND_MODES } from "@orb/contracts/workloads";
 import type { WorkloadRunValues } from "./workloads-model";
-import {
-  isMaintenanceWorkloadKind,
-  isRunnableWorkloadKind,
-  RUNNABLE_WORKLOAD_KINDS,
-} from "./workloads-model";
+import { isMaintenanceWorkloadKind, isRunnableWorkloadKind, RUNNABLE_WORKLOAD_KINDS } from "./workloads-model";
 
 /** Whether a kind may be scheduled to recur in bulk. A schedule carries no `targetOwnerId`, so a bulk create-kind (bulkRequiresTarget) is not bulk-schedulable. */
 export function workloadKindBulkSchedulable(kind: string): boolean {
-  return (
-    isRunnableWorkloadKind(kind) &&
-    WORKLOAD_KIND_MODES[kind].bulk &&
-    !WORKLOAD_KIND_MODES[kind].bulkRequiresTarget
-  );
+  return isRunnableWorkloadKind(kind) && WORKLOAD_KIND_MODES[kind].bulk && !WORKLOAD_KIND_MODES[kind].bulkRequiresTarget;
 }
 
 /** Resolve the wire `mode` for a schedule create/edit — mirrors the run dialog's mode logic. */
-export function resolveScheduleMode(
-  kind: string,
-  bulk: boolean,
-  viewerIsOwner: boolean,
-): WorkloadMode {
+export function resolveScheduleMode(kind: string, bulk: boolean, viewerIsOwner: boolean): WorkloadMode {
   if (isMaintenanceWorkloadKind(kind)) {
     return "bulk";
   }
@@ -44,8 +32,10 @@ export const SCHEDULE_CADENCE_LABELS: Record<ScheduleCadence, string> = {
 };
 
 /** The cadence picker items (in the contract's tuple order). */
-export const SCHEDULE_CADENCE_ITEMS: readonly { value: string; label: string }[] =
-  SCHEDULE_CADENCES.map((cadence) => ({ value: cadence, label: SCHEDULE_CADENCE_LABELS[cadence] }));
+export const SCHEDULE_CADENCE_ITEMS: readonly { value: string; label: string }[] = SCHEDULE_CADENCES.map((cadence) => ({
+  value: cadence,
+  label: SCHEDULE_CADENCE_LABELS[cadence],
+}));
 
 /** The schedule form values. Backs both the create and edit dialogs; the param slots mirror the run form
  *  so `buildStartInput` assembles the same wire input a manual run would. */

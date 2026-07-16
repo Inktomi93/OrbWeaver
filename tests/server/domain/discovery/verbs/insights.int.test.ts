@@ -9,15 +9,7 @@ import { createDiscoveryService } from "@orb/server/domain/discovery";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
-import {
-  FROZEN_AT,
-  makeDiscoveryHarness,
-  seedCharacter,
-  seedChatDigest,
-  seedHostedChat,
-  seedUser,
-  vec,
-} from "../_support.ts";
+import { FROZEN_AT, makeDiscoveryHarness, seedCharacter, seedChatDigest, seedHostedChat, seedUser, vec } from "../_support.ts";
 
 // 2024-01-15 and 2024-03-20 (epoch-ms) — two distinct YYYY-MM story-time buckets.
 const JAN_2024 = Date.UTC(2024, 0, 15);
@@ -26,10 +18,7 @@ const MAR_2024 = Date.UTC(2024, 2, 20);
 let clusterN = 0;
 let digestN = 0;
 
-async function seedCluster(
-  db: Db,
-  args: { ownerId: UserId; clusterIdx: number; name: string | null; level?: string },
-): Promise<ThemeClusterId> {
+async function seedCluster(db: Db, args: { ownerId: UserId; clusterIdx: number; name: string | null; level?: string }): Promise<ThemeClusterId> {
   clusterN += 1;
   const id = castId<ThemeClusterId>(`theme_cluster_${clusterN}`);
   await db.insert(themeClusters).values({
@@ -46,10 +35,7 @@ async function seedCluster(
   return id;
 }
 
-async function assignDigest(
-  db: Db,
-  args: { digestId: string; chatId: ChatId; clusterId: ThemeClusterId; msgMidAt: number },
-): Promise<void> {
+async function assignDigest(db: Db, args: { digestId: string; chatId: ChatId; clusterId: ThemeClusterId; msgMidAt: number }): Promise<void> {
   digestN += 1;
   await seedChatDigest(db, {
     id: args.digestId,

@@ -83,10 +83,7 @@ describe("tag persistence/queries", () => {
 
     const removed = await deleteOwnedTag(db, tagId, owner);
     expect(removed).toBe(1);
-    const junctionRows = await db
-      .select()
-      .from(characterTags)
-      .where(eq(characterTags.tagId, tagId));
+    const junctionRows = await db.select().from(characterTags).where(eq(characterTags.tagId, tagId));
     expect(junctionRows).toHaveLength(0);
   });
 

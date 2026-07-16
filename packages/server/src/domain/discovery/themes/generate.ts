@@ -5,13 +5,7 @@
 
 import type { SummarizeInput } from "@orb/contracts/role-clients";
 import type { BatchStmt, Db } from "@orb/db";
-import {
-  batchMany,
-  chunkRows,
-  digestThemeAssignments,
-  rowsPerInsert,
-  themeClusters,
-} from "@orb/db";
+import { batchMany, chunkRows, digestThemeAssignments, rowsPerInsert, themeClusters } from "@orb/db";
 import type { ThemeClusterId, UserId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import type { ComputeThemesOptions, ThemeLevel } from "../contract/params";
@@ -122,11 +116,7 @@ function clusterSubgroup(
   return builds.filter((b) => b.memberDigestIds.length > 0);
 }
 
-function buildDrafts(
-  solo: readonly OwnedDigest[],
-  opts: ComputeThemesOptions,
-  seed: number,
-): { drafts: ClusterDraft[]; owners: Set<string> } {
+function buildDrafts(solo: readonly OwnedDigest[], opts: ComputeThemesOptions, seed: number): { drafts: ClusterDraft[]; owners: Set<string> } {
   const drafts: ClusterDraft[] = [];
   const owners = new Set<string>();
   for (const [, levelGroup] of groupBy(solo, (r) => `${r.ownerId} ${levelOf(r.tier)}`)) {
@@ -148,10 +138,7 @@ function buildDrafts(
   return { drafts, owners };
 }
 
-async function nameDrafts(
-  drafts: readonly ClusterDraft[],
-  summarize: Summarize,
-): Promise<(string | null)[]> {
+async function nameDrafts(drafts: readonly ClusterDraft[], summarize: Summarize): Promise<(string | null)[]> {
   const names = new Array<string | null>(drafts.length).fill(null);
   const targets: number[] = [];
   const inputs: SummarizeInput[] = [];
@@ -184,11 +171,7 @@ async function nameDrafts(
  * `digest_theme_assignments`, then both are reinserted). Standalone `(db, deps, opts?)` so the
  * `compute-themes` runner drives it without the whole service.
  */
-export async function computeThemes(
-  db: Db,
-  deps: ComputeThemesDeps,
-  opts: ComputeThemesOptions = {},
-): Promise<ThemeComputeStats> {
+export async function computeThemes(db: Db, deps: ComputeThemesDeps, opts: ComputeThemesOptions = {}): Promise<ThemeComputeStats> {
   const seed = opts.seed ?? DEFAULT_SEED;
   const all = await readOwnedDigestVectors(db, opts.ownerId);
   const solo = all.filter((r) => !r.isGroup);
@@ -232,16 +215,8 @@ export async function computeThemes(
 }
 
 // Delete before insert, clusters before assignments (FK order); `ownerId` scopes the delete, omitted/null = delete-ALL.
-async function replaceAll(
-  db: Db,
-  clusterRows: readonly ClusterRow[],
-  assignRows: readonly AssignRow[],
-  ownerId?: UserId | null,
-): Promise<void> {
-  const del =
-    ownerId === undefined || ownerId === null
-      ? db.delete(themeClusters)
-      : db.delete(themeClusters).where(eq(themeClusters.ownerId, ownerId));
+async function replaceAll(db: Db, clusterRows: readonly ClusterRow[], assignRows: readonly AssignRow[], ownerId?: UserId | null): Promise<void> {
+  const del = ownerId === undefined || ownerId === null ? db.delete(themeClusters) : db.delete(themeClusters).where(eq(themeClusters.ownerId, ownerId));
   const stmts: BatchStmt[] = [del];
   for (const chunk of chunkRows(clusterRows, rowsPerInsert(CLUSTER_COLS))) {
     stmts.push(db.insert(themeClusters).values(chunk));

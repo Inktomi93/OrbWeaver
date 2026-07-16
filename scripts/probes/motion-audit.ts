@@ -144,14 +144,10 @@ type AnimationRecord = {
 };
 
 async function readMotion(page: Page): Promise<MotionSnapshot | null> {
-  return (await page.evaluate(
-    "globalThis.__orb ? globalThis.__orb.motion() : null",
-  )) as MotionSnapshot | null;
+  return (await page.evaluate("globalThis.__orb ? globalThis.__orb.motion() : null")) as MotionSnapshot | null;
 }
 async function readAnimations(page: Page): Promise<readonly AnimationRecord[]> {
-  return (await page.evaluate(
-    "globalThis.__orb ? globalThis.__orb.animations() : []",
-  )) as readonly AnimationRecord[];
+  return (await page.evaluate("globalThis.__orb ? globalThis.__orb.animations() : []")) as readonly AnimationRecord[];
 }
 
 // ── CDP performance trace → Percent Dropped Frames ────────────────────────────────────────────────
@@ -171,9 +167,7 @@ function droppedFramePct(events: readonly TraceEvent[]): {
   pct: number;
 } {
   const frames = events.filter((e) => e.name === "PipelineReporter");
-  const dropped = frames.filter(
-    (e) => e.args?.state === "STATE_DROPPED" && e.args.affects_smoothness === true,
-  ).length;
+  const dropped = frames.filter((e) => e.args?.state === "STATE_DROPPED" && e.args.affects_smoothness === true).length;
   const total = frames.length;
   const pct = total === 0 ? 0 : Number(((dropped / total) * PCT).toFixed(2));
   return { total, dropped, pct };
@@ -187,18 +181,13 @@ type AuditData = {
   readonly stepFailed: boolean;
 };
 
-async function runAudit(
-  page: Page,
-  cdp: Awaited<ReturnType<ProbeSession["context"]["newCDPSession"]>>,
-  opts: Args,
-): Promise<AuditData> {
+async function runAudit(page: Page, cdp: Awaited<ReturnType<ProbeSession["context"]["newCDPSession"]>>, opts: Args): Promise<AuditData> {
   const traceEvents: TraceEvent[] = [];
   cdp.on("Tracing.dataCollected", (e: { value: TraceEvent[] }) => {
     traceEvents.push(...e.value);
   });
   await cdp.send("Tracing.start", {
-    categories:
-      "benchmark,disabled-by-default-devtools.timeline.frame,disabled-by-default-devtools.timeline",
+    categories: "benchmark,disabled-by-default-devtools.timeline.frame,disabled-by-default-devtools.timeline",
     transferMode: "ReportEvents",
   });
 
@@ -235,28 +224,18 @@ function report(url: string, opts: Args, data: AuditData): number {
   const { motion, animations, frames, pageErrors, stepFailed } = data;
   const worstBlocking = motion === null ? 0 : motion.worstBlocking;
   const cls = motion === null ? 0 : motion.cls;
-  const layoutInFrame = (motion === null ? [] : motion.loafs).filter(
-    (l) => l.styleAndLayoutStart > 0,
-  );
+  const layoutInFrame = (motion === null ? [] : motion.loafs).filter((l) => l.styleAndLayoutStart > 0);
   const dirtyAnimations = animations.filter((a) => !a.compositorClean);
 
   print(`URL         ${url}`);
-  print(
-    `window      ${opts.windowMs}ms · cpu-throttle ${opts.throttle ? `${CPU_THROTTLE_RATE}×` : "off"}`,
-  );
-  print(
-    `headless    ${opts.vnc ? "no (headful — dropped-frame % trustworthy)" : "yes (dropped-frame % ADVISORY — no real vsync)"}`,
-  );
-  print(
-    `LoAF        ${motion?.loafs.length ?? 0} in ring · worst blockingDuration ${worstBlocking}ms · ${layoutInFrame.length} with style/layout in-frame`,
-  );
+  print(`window      ${opts.windowMs}ms · cpu-throttle ${opts.throttle ? `${CPU_THROTTLE_RATE}×` : "off"}`);
+  print(`headless    ${opts.vnc ? "no (headful — dropped-frame % trustworthy)" : "yes (dropped-frame % ADVISORY — no real vsync)"}`);
+  print(`LoAF        ${motion?.loafs.length ?? 0} in ring · worst blockingDuration ${worstBlocking}ms · ${layoutInFrame.length} with style/layout in-frame`);
   print(`CLS         ${cls}`);
   print(`frames      ${frames.dropped}/${frames.total} dropped-smoothness (${frames.pct}%)`);
   print(`animations  ${animations.length} active · ${dirtyAnimations.length} NOT compositor-clean`);
   for (const a of dirtyAnimations) {
-    print(
-      `  ✗ ${a.target}  animates [${a.properties.join(", ")}] — non-compositor prop (jank risk)`,
-    );
+    print(`  ✗ ${a.target}  animates [${a.properties.join(", ")}] — non-compositor prop (jank risk)`);
   }
   for (const l of layoutInFrame) {
     print(`  ✗ LoAF @${l.startTime}ms  blocking ${l.blockingDuration}ms, style/layout in-frame`);
@@ -270,11 +249,7 @@ function report(url: string, opts: Args, data: AuditData): number {
   }
 
   const budgetFails =
-    layoutInFrame.length > 0 ||
-    worstBlocking > BLOCKING_BUDGET_MS ||
-    cls > CLS_BUDGET ||
-    dirtyAnimations.length > 0 ||
-    frames.pct > DROPPED_FRAME_BUDGET_PCT;
+    layoutInFrame.length > 0 || worstBlocking > BLOCKING_BUDGET_MS || cls > CLS_BUDGET || dirtyAnimations.length > 0 || frames.pct > DROPPED_FRAME_BUDGET_PCT;
   const pass = !(budgetFails || stepFailed || pageErrors.length > 0);
 
   printResult("motion-audit", [

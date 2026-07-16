@@ -7,9 +7,7 @@ test("shape='line' renders `count` full-width skeleton bars", async ({ mount }) 
   await expect(component.locator('[data-slot="skeleton"]')).toHaveCount(3);
 });
 
-test("shape='avatar-row' renders `count` rows of an avatar circle + two text lines", async ({
-  mount,
-}) => {
+test("shape='avatar-row' renders `count` rows of an avatar circle + two text lines", async ({ mount }) => {
   const component = await mount(<SkeletonRows count={2} shape="avatar-row" />);
   // 3 skeletons per row (circle + 2 lines) × 2 rows.
   await expect(component.locator('[data-slot="skeleton"]')).toHaveCount(6);

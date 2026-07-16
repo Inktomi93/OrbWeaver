@@ -4,12 +4,7 @@
 // build -> parse -> build ROUND-TRIP identity (the structural drift guard against the two halves diverging).
 
 import type { CanonicalTag, TagLibrary } from "@orb/server/kit/serde/tag";
-import {
-  buildTagLibrary,
-  parseTagLibrary,
-  TAG_LIBRARY_SCHEMA_KIND,
-  TAG_LIBRARY_SCHEMA_VERSION,
-} from "@orb/server/kit/serde/tag";
+import { buildTagLibrary, parseTagLibrary, TAG_LIBRARY_SCHEMA_KIND, TAG_LIBRARY_SCHEMA_VERSION } from "@orb/server/kit/serde/tag";
 import { describe } from "vitest";
 import { expect, test } from "../../../../support/fixtures";
 
@@ -59,9 +54,7 @@ describe("parseTagLibrary", () => {
   });
 
   test("null for a foreign / absent schemaKind (a different portable file)", () => {
-    const foreign = new TextEncoder().encode(
-      JSON.stringify({ schemaKind: "orb.persona", schemaVersion: 1, tags: [] }),
-    );
+    const foreign = new TextEncoder().encode(JSON.stringify({ schemaKind: "orb.persona", schemaVersion: 1, tags: [] }));
     expect(parseTagLibrary(foreign)).toBeNull();
     const noKind = new TextEncoder().encode(JSON.stringify({ tags: [] }));
     expect(parseTagLibrary(noKind)).toBeNull();

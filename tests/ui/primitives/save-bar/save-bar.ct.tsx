@@ -42,10 +42,7 @@ test("the header sticky variant docks to the top with a bottom border", async ({
   await expect(root).toHaveCSS("border-bottom-color", TOKENS["color.border"].value);
 });
 
-test("keyboard order runs title then actions (DOM/tab order, source-ordered flex)", async ({
-  mount,
-  page,
-}) => {
+test("keyboard order runs title then actions (DOM/tab order, source-ordered flex)", async ({ mount, page }) => {
   const bar = await mount(
     <SaveBar kind="Character" title="Aria">
       <button type="button">Discard</button>
@@ -54,9 +51,7 @@ test("keyboard order runs title then actions (DOM/tab order, source-ordered flex
   );
   const labelBeforeActions = await bar.evaluate((el) => {
     const html = el.innerHTML;
-    return (
-      html.indexOf('data-slot="save-bar-label"') < html.indexOf('data-slot="save-bar-actions"')
-    );
+    return html.indexOf('data-slot="save-bar-label"') < html.indexOf('data-slot="save-bar-actions"');
   });
   expect(labelBeforeActions).toBe(true);
 

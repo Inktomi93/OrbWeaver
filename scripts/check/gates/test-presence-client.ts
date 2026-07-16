@@ -19,8 +19,7 @@ import type { Violation } from "../harness.ts";
 const CLIENT_SRC = "/packages/client/src/";
 const UI_SRC = "/packages/ui/src/";
 const EXT_RE = /\.tsx?$/u;
-const STATE_STORE_FACTORY_RE =
-  /\b(?:createGatedStore|createPersistedStore|createEntityDraftStore)(?:<[^(]*>)?\(/u;
+const STATE_STORE_FACTORY_RE = /\b(?:createGatedStore|createPersistedStore|createEntityDraftStore)(?:<[^(]*>)?\(/u;
 // The client tiers this gate reaches, and (for A) the nested buckets it deliberately does NOT.
 const CLIENT_TIERS = ["data/", "forms/", "state/"];
 const CLIENT_EXCLUDE_NESTED = ["data/bus/", "forms/bound-fields/"];
@@ -29,21 +28,12 @@ const CLIENT_EXCLUDE_NESTED = ["data/bus/", "forms/bound-fields/"];
 // mounts via `CtDataProviders`, so an isolated test here would just re-assert "the library was called".
 const CLIENT_EXCLUDE_FILES = ["data/trpc.ts"];
 // Non-primitive @orb/ui logic groups (primitives/ are covered by ui-primitive-structure's CT clause).
-const UI_LOGIC_GROUPS = [
-  "charts/",
-  "markdown/",
-  "stream/",
-  "content/",
-  "code-editor/",
-  "diff/",
-  "fuzzy-search/",
-];
+const UI_LOGIC_GROUPS = ["charts/", "markdown/", "stream/", "content/", "code-editor/", "diff/", "fuzzy-search/"];
 const TEST_KINDS = [".test.ts", ".int.test.ts", ".test.tsx", ".ct.tsx"] as const;
 
 const MSG_CLIENT =
   "client data/forms/state primitive has no test — add a .test.ts / .int.test.ts / .ct.tsx at its tests/client mirror. These seals are composed by every feature; an untested change breaks behavior downstream silently (Spine-Testing.md §5).";
-const MSG_UI =
-  "non-primitive @orb/ui logic module has no test — add a .test.ts / .ct.tsx at its tests/ui mirror (Spine-Testing.md §5).";
+const MSG_UI = "non-primitive @orb/ui logic module has no test — add a .test.ts / .ct.tsx at its tests/ui mirror (Spine-Testing.md §5).";
 const MSG_STATE_ACTION = (action: string): string =>
   `store action \`${action}\` is not referenced by name in its mirror tests/client/state/*.ct.tsx — a mirror EXISTING isn't presence for a NEW action (Spine-Testing.md §5). Drive it and assert the resulting store state.`;
 
@@ -105,8 +95,7 @@ function exportedConstActionNames(sf: SourceFile): string[] {
     for (const decl of stmt.getDeclarations()) {
       const init = decl.getInitializer();
       const name = decl.getName();
-      const isFnValue =
-        init !== undefined && (Node.isArrowFunction(init) || Node.isFunctionExpression(init));
+      const isFnValue = init !== undefined && (Node.isArrowFunction(init) || Node.isFunctionExpression(init));
       if (isFnValue && !name.startsWith("use")) {
         names.push(name);
       }
@@ -141,20 +130,14 @@ function hasDirTest(root: string, pkg: string, rel: string): boolean {
   if (!existsSync(mirrorDir)) {
     return false;
   }
-  return readdirSync(mirrorDir, { withFileTypes: true }).some(
-    (e) => e.isFile() && TEST_KINDS.some((kind) => e.name.endsWith(kind)),
-  );
+  return readdirSync(mirrorDir, { withFileTypes: true }).some((e) => e.isFile() && TEST_KINDS.some((kind) => e.name.endsWith(kind)));
 }
 
 // Clause A — a DIRECT child of a client tier (data/x.ts), excluding the nested buckets + the named
 // per-file exclusions (CLIENT_EXCLUDE_FILES — see its own comment for why each one is there).
 function clientTierRel(rel: string): string | undefined {
   const tier = CLIENT_TIERS.find((t) => rel.startsWith(t));
-  if (
-    tier === undefined ||
-    CLIENT_EXCLUDE_NESTED.some((n) => rel.startsWith(n)) ||
-    CLIENT_EXCLUDE_FILES.includes(rel)
-  ) {
+  if (tier === undefined || CLIENT_EXCLUDE_NESTED.some((n) => rel.startsWith(n)) || CLIENT_EXCLUDE_FILES.includes(rel)) {
     return;
   }
   // Direct child only: `data/x.ts` (one segment after the tier), not `data/sub/x.ts`.
@@ -206,11 +189,7 @@ function scanClientTier(root: string, clientRel: string, sf: SourceFile): Violat
 }
 
 function scanUiTier(root: string, uiRel: string, sf: SourceFile): Violation[] {
-  if (
-    UI_LOGIC_GROUPS.some((g) => uiRel.startsWith(g)) &&
-    hasCallableExport(sf) &&
-    !hasDirTest(root, "ui", uiRel)
-  ) {
+  if (UI_LOGIC_GROUPS.some((g) => uiRel.startsWith(g)) && hasCallableExport(sf) && !hasDirTest(root, "ui", uiRel)) {
     return [{ file: `packages/ui/src/${uiRel}`, line: 0, message: MSG_UI }];
   }
   return [];
@@ -275,8 +254,7 @@ export const gate: GateDescriptor = {
           'const useX = createGatedStore<{ n: number }>("g-presclient", () => ({ n: 0 }));\n' +
           'export function gPresClientAction(): void {\n  useX.setState({ n: 1 }, false, "x/set");\n}\n' +
           "export function useGPresClient(): number {\n  return useX((s) => s.n);\n}\n",
-        "tests/client/state/__g_gpresclient-store.ct.tsx":
-          'import { useGPresClient } from "@orb/client/state";\nexport const t = useGPresClient;\n',
+        "tests/client/state/__g_gpresclient-store.ct.tsx": 'import { useGPresClient } from "@orb/client/state";\nexport const t = useGPresClient;\n',
       },
       expect: { messageIncludes: "gPresClientAction" },
       why: "clause C: the mirror exists but never calls gPresClientAction( by name — untested new action",
@@ -300,10 +278,8 @@ export const gate: GateDescriptor = {
     {
       // clause A: the nested buckets (data/bus, forms/bound-fields) are excluded.
       files: {
-        "packages/client/src/data/bus/apply-chat-bus-event.ts":
-          "export function build(): number {\n  return 1;\n}\n",
-        "packages/client/src/forms/bound-fields/text-field.tsx":
-          "export function build(): number {\n  return 1;\n}\n",
+        "packages/client/src/data/bus/apply-chat-bus-event.ts": "export function build(): number {\n  return 1;\n}\n",
+        "packages/client/src/forms/bound-fields/text-field.tsx": "export function build(): number {\n  return 1;\n}\n",
       },
       why: "clause A: nested buckets (data/bus, forms/bound-fields) are deliberately excluded — passes",
     },
@@ -311,8 +287,7 @@ export const gate: GateDescriptor = {
       // clause B dir-level: a sibling test (different basename) in the mirror dir satisfies presence.
       files: {
         "packages/ui/src/markdown/policy.ts": "export function build(): number {\n  return 1;\n}\n",
-        "packages/ui/src/markdown/to-plain-text.ts":
-          "export function build(): number {\n  return 1;\n}\n",
+        "packages/ui/src/markdown/to-plain-text.ts": "export function build(): number {\n  return 1;\n}\n",
         "tests/ui/markdown/markdown.ct.tsx": "export {};\n",
       },
       why: "clause B dir-level: a sibling test (different basename) in the mirror dir satisfies presence — passes",
@@ -320,8 +295,7 @@ export const gate: GateDescriptor = {
     {
       // bare primitives/ are covered by ui-primitive-structure's CT clause — not scanned here.
       files: {
-        "packages/ui/src/primitives/button/button.tsx":
-          "export function build(): number {\n  return 1;\n}\n",
+        "packages/ui/src/primitives/button/button.tsx": "export function build(): number {\n  return 1;\n}\n",
       },
       why: "bare primitives/ are covered by ui-primitive-structure's CT clause — not scanned here, passes",
     },
@@ -334,8 +308,7 @@ export const gate: GateDescriptor = {
           'export function gPresClientOkAction(): void {\n  useX.setState({ n: 1 }, false, "x/set");\n}\n' +
           "export function useGPresClientOk(): number {\n  return useX((s) => s.n);\n}\n",
         "tests/client/state/__g_gpresclientok-store.ct.tsx":
-          'import { gPresClientOkAction, useGPresClientOk } from "@orb/client/state";\n' +
-          "gPresClientOkAction();\nexport const t = useGPresClientOk;\n",
+          'import { gPresClientOkAction, useGPresClientOk } from "@orb/client/state";\ngPresClientOkAction();\nexport const t = useGPresClientOk;\n',
       },
       why: "clause C: gPresClientOkAction( appears by name in the mirror — covered, passes",
     },
@@ -343,8 +316,7 @@ export const gate: GateDescriptor = {
       // clause C: a state/*.ts file that mints NO store (no factory call) is out of clause C's scope
       // entirely — e.g. chat-handle.ts's pure constructors, never gated as store actions.
       files: {
-        "packages/client/src/state/__g_purehandle.ts":
-          'export function gPureBuild(): { kind: "x" } {\n  return { kind: "x" };\n}\n',
+        "packages/client/src/state/__g_purehandle.ts": 'export function gPureBuild(): { kind: "x" } {\n  return { kind: "x" };\n}\n',
         "tests/client/state/__g_purehandle.ct.tsx": "export {};\n",
       },
       why: "clause C: no store-factory call in the file — not a store, out of clause C's scope, passes",

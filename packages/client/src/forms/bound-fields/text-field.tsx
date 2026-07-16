@@ -25,26 +25,11 @@ export interface TextFieldProps {
   readonly autoComplete?: string;
 }
 
-export function TextField({
-  label,
-  description,
-  hint,
-  placeholder,
-  disabled,
-  type,
-  autoComplete,
-}: TextFieldProps): ReactElement {
+export function TextField({ label, description, hint, placeholder, disabled, type, autoComplete }: TextFieldProps): ReactElement {
   const field = useFieldContext<string>();
   const error = touchedFieldError(field.state.meta);
   return (
-    <Field
-      label={label}
-      description={description}
-      hint={hint}
-      error={error}
-      disabled={disabled ?? false}
-      name={field.name}
-    >
+    <Field label={label} description={description} hint={hint} error={error} disabled={disabled ?? false} name={field.name}>
       <Input
         value={field.state.value}
         onChange={(e): void => {

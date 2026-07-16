@@ -2,13 +2,7 @@
 // non-additive ratios from the additive rollup columns.
 
 import { describe } from "vitest";
-import {
-  cacheHitRate,
-  deriveExtra,
-  div,
-  reasoningRate,
-  throughputTps,
-} from "../../../../../packages/server/src/domain/stats/substrate/rates.ts";
+import { cacheHitRate, deriveExtra, div, reasoningRate, throughputTps } from "../../../../../packages/server/src/domain/stats/substrate/rates.ts";
 import { expect, test } from "../../../../support/fixtures";
 
 describe("rate helpers", () => {

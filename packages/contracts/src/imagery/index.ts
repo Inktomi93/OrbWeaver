@@ -8,15 +8,7 @@ import { z } from "zod";
 /** The committed prompt-template modes. `free` = the user's prompt verbatim — the
  *  only mode the Phase-5 chat caller drives; the rest are the Phase-7 extraction/caption modes. A new mode
  *  fails the templates `Record`'s `tsc` (imagery-design/02 §5) — the exhaustiveness lever. */
-export const PROMPT_TEMPLATE_MODES = [
-  "free",
-  "character",
-  "face",
-  "scenario",
-  "background",
-  "character_multimodal",
-  "face_multimodal",
-] as const;
+export const PROMPT_TEMPLATE_MODES = ["free", "character", "face", "scenario", "background", "character_multimodal", "face_multimodal"] as const;
 export const promptTemplateModeSchema = z.enum(PROMPT_TEMPLATE_MODES);
 export type PromptTemplateMode = z.infer<typeof promptTemplateModeSchema>;
 

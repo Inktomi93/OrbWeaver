@@ -112,10 +112,7 @@ const DIAGNOSTIC_SEVERITY_LABEL: Record<CodeEditorDiagnostic["severity"], string
 
 // Positions come from a caller-owned parse that can lag one keystroke behind the live document —
 // clamp rather than let RangeSetBuilder choke on an out-of-bounds span.
-function toLintDiagnostics(
-  diagnostics: readonly CodeEditorDiagnostic[],
-  docLength: number,
-): Diagnostic[] {
+function toLintDiagnostics(diagnostics: readonly CodeEditorDiagnostic[], docLength: number): Diagnostic[] {
   return diagnostics.map((diagnostic) => {
     const from = Math.max(0, Math.min(diagnostic.from, docLength));
     const to = Math.max(from, Math.min(diagnostic.to, docLength));
@@ -152,16 +149,7 @@ export interface CodeEditorProps {
  * through the design-token map. `value` is compared against the live view state before
  * dispatching (no update loops); user edits surface via `onChange`. The view is destroyed on unmount.
  */
-export function CodeEditor({
-  lang,
-  value,
-  onChange,
-  readOnly = false,
-  ariaLabel,
-  diagnostics,
-  completions,
-  className,
-}: CodeEditorProps): ReactElement {
+export function CodeEditor({ lang, value, onChange, readOnly = false, ariaLabel, diagnostics, completions, className }: CodeEditorProps): ReactElement {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<EditorView | null>(null);
   const valueRef = useRef(value);
@@ -204,9 +192,7 @@ export function CodeEditor({
         // linter(null): no auto-computed source — diagnostics are pushed via setDiagnostics below.
         ...(hasDiagnostics ? [linter(null), lintGutter()] : []),
         // `completions` is expected to be a stable reference — a genuine change rebuilds the view.
-        ...(completions === undefined
-          ? []
-          : [autocompletion({ override: [completeFromList([...completions])] })]),
+        ...(completions === undefined ? [] : [autocompletion({ override: [completeFromList([...completions])] })]),
       ],
     });
     viewRef.current = view;
@@ -237,25 +223,17 @@ export function CodeEditor({
     if (view === null || diagnostics === undefined) {
       return;
     }
-    view.dispatch(
-      setDiagnostics(view.state, toLintDiagnostics(diagnostics, view.state.doc.length)),
-    );
+    view.dispatch(setDiagnostics(view.state, toLintDiagnostics(diagnostics, view.state.doc.length)));
   }, [diagnostics]);
 
   return (
     <>
-      <div
-        ref={hostRef}
-        className={cn(
-          "overflow-hidden rounded-control border border-border font-mono text-code",
-          className,
-        )}
-      />
+      <div ref={hostRef} className={cn("overflow-hidden rounded-control border border-border font-mono text-code", className)} />
       {hasDiagnostics ? (
         <div id={describedById} aria-live="polite" className="sr-only">
           {diagnostics.map((diagnostic, index) => {
             const text = `${DIAGNOSTIC_SEVERITY_LABEL[diagnostic.severity]}: ${diagnostic.message}`;
-            // biome-ignore lint/suspicious/noArrayIndexKey: a flat per-render diagnostics snapshot for an SR-only announcement — nothing reorders mid-list, position is a stable-enough identity.
+            // biome-ignore lint/suspicious/noArrayIndexKey: flat per-render diagnostics snapshot for an SR-only announcement — nothing reorders mid-list, position is stable enough.
             return <p key={index}>{text}</p>;
           })}
         </div>

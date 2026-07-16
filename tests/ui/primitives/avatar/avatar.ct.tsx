@@ -2,8 +2,7 @@ import { Avatar } from "@orb/ui/avatar";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 
-const SVG_MARKUP =
-  "<svg xmlns='http://www.w3.org/2000/svg' width='2' height='2'><rect width='2' height='2'/></svg>";
+const SVG_MARKUP = "<svg xmlns='http://www.w3.org/2000/svg' width='2' height='2'><rect width='2' height='2'/></svg>";
 const TINY_SVG = `data:image/svg+xml;utf8,${encodeURIComponent(SVG_MARKUP)}`;
 
 // avatar-lg is authored in rem; the rendered box resolves to px (root = 16px — the stack.ct precedent).
@@ -45,10 +44,7 @@ test("falls back when no image source is given", async ({ mount, page }) => {
 // leak into an accessible name (chat rows / message rows / cast bars all sit avatars beside a real text
 // label). A fallback-only avatar contributes NO accessible text — identity comes from the adjacent
 // label, or an `aria-label` when the avatar is the sole content of a control.
-test("the initials fallback is decorative (aria-hidden) — visible but not in the a11y name", async ({
-  mount,
-  page,
-}) => {
+test("the initials fallback is decorative (aria-hidden) — visible but not in the a11y name", async ({ mount, page }) => {
   await mount(
     <button aria-label="Open the owner's profile" type="button">
       <Avatar alt="Alex">NT</Avatar>
@@ -67,10 +63,7 @@ test("shape variants map to the radius tokens", async ({ mount, page }) => {
   await expect(root).toHaveCSS("border-radius", "9999px");
 });
 
-test("square shape uses the control radius token; size rides the DISPLAY-avatar token (D62 rewire)", async ({
-  mount,
-  page,
-}) => {
+test("square shape uses the control radius token; size rides the DISPLAY-avatar token (D62 rewire)", async ({ mount, page }) => {
   await mount(
     <Avatar alt="Square avatar" shape="square" size="lg">
       S
@@ -83,10 +76,7 @@ test("square shape uses the control radius token; size rides the DISPLAY-avatar 
   await expect(root).toHaveCSS("width", `${avatarLgPx}px`);
 });
 
-test("rounded shape uses the card radius token (§B.3 avatar versatility)", async ({
-  mount,
-  page,
-}) => {
+test("rounded shape uses the card radius token (§B.3 avatar versatility)", async ({ mount, page }) => {
   await mount(
     <Avatar alt="Rounded avatar" shape="rounded">
       R
@@ -97,10 +87,7 @@ test("rounded shape uses the card radius token (§B.3 avatar versatility)", asyn
   await expect(root).toHaveCSS("border-radius", "10px");
 });
 
-test("portrait aspect renders a 2:3 box (the VN/immersive presence lever, §B.3/§B.4)", async ({
-  mount,
-  page,
-}) => {
+test("portrait aspect renders a 2:3 box (the VN/immersive presence lever, §B.3/§B.4)", async ({ mount, page }) => {
   await mount(
     <Avatar alt="Portrait avatar" aspect="portrait" size="lg">
       P
@@ -117,30 +104,21 @@ test("ring=none (default) paints no box-shadow", async ({ mount, page }) => {
   await expect(page.locator('[data-slot="avatar-root"]')).toHaveCSS("box-shadow", "none");
 });
 
-test("ring=accent paints a visible ring (§B.3 — reuse-ready for active-speaker highlight)", async ({
-  mount,
-  page,
-}) => {
+test("ring=accent paints a visible ring (§B.3 — reuse-ready for active-speaker highlight)", async ({ mount, page }) => {
   await mount(
     <Avatar alt="Accent ring" ring="accent">
       AR
     </Avatar>,
   );
-  const boxShadow = await page
-    .locator('[data-slot="avatar-root"]')
-    .evaluate((el) => getComputedStyle(el).boxShadow);
+  const boxShadow = await page.locator('[data-slot="avatar-root"]').evaluate((el) => getComputedStyle(el).boxShadow);
   expect(boxShadow).not.toBe("none");
 });
 
 // Every rendered fallback's background-color in one read (no await-in-loop).
 const FALLBACK = '[data-slot="avatar-fallback"]';
-const readBackgrounds = (els: Element[]): string[] =>
-  els.map((el) => getComputedStyle(el).backgroundColor);
+const readBackgrounds = (els: Element[]): string[] => els.map((el) => getComputedStyle(el).backgroundColor);
 
-test("the fallback hue is DETERMINISTIC per seed and spreads across the ramp (D62)", async ({
-  mount,
-  page,
-}) => {
+test("the fallback hue is DETERMINISTIC per seed and spreads across the ramp (D62)", async ({ mount, page }) => {
   // Two avatars with the SAME seed (indices 0,1) + four distinct seeds — mounted together so a single
   // read compares them without a loop.
   await mount(
@@ -160,10 +138,7 @@ test("the fallback hue is DETERMINISTIC per seed and spreads across the ramp (D6
   expect(new Set(bgs).size).toBeGreaterThan(1);
 });
 
-test("hueSeed defaults to alt — a missing seed still colors the fallback stably by name", async ({
-  mount,
-  page,
-}) => {
+test("hueSeed defaults to alt — a missing seed still colors the fallback stably by name", async ({ mount, page }) => {
   // Left relies on the alt default; right passes hueSeed === alt explicitly — same resolved hue.
   await mount(
     <div>

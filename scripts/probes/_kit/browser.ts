@@ -68,9 +68,7 @@ export async function launchProbeSession(opts: ProbeLaunchOptions): Promise<Prob
   const browser = await chromium.launch({ headless: opts.headless });
   const context = await browser.newContext({
     viewport: opts.viewport,
-    ...(opts.recordVideoDir === undefined
-      ? {}
-      : { recordVideo: { dir: opts.recordVideoDir, size: opts.viewport } }),
+    ...(opts.recordVideoDir === undefined ? {} : { recordVideo: { dir: opts.recordVideoDir, size: opts.viewport } }),
   });
 
   if (opts.localStorage.length > 0) {
@@ -103,10 +101,7 @@ export async function launchProbeSession(opts: ProbeLaunchOptions): Promise<Prob
   page.on("console", (m: ConsoleMessage) => {
     const t = m.type();
     const loc = m.location();
-    const where =
-      (t === "error" || t === "warning") && loc.url
-        ? ` (${loc.url}:${loc.lineNumber}:${loc.columnNumber})`
-        : "";
+    const where = (t === "error" || t === "warning") && loc.url ? ` (${loc.url}:${loc.lineNumber}:${loc.columnNumber})` : "";
     consoleLines.push(`[${t}] ${m.text()}${where}`);
   });
   page.on("pageerror", (e: Error) => {

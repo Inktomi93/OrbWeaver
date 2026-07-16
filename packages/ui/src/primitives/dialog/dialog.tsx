@@ -24,9 +24,7 @@ export function DialogTrigger<Payload = unknown>(props: BaseTriggerProps<Payload
   return <BaseDialog.Trigger {...props} />;
 }
 
-export interface DialogPopupProps
-  extends Omit<BasePopupProps, "className">,
-    VariantProps<typeof dialogVariants> {
+export interface DialogPopupProps extends Omit<BasePopupProps, "className">, VariantProps<typeof dialogVariants> {
   className?: string;
   /** Defaults to the themed portal root from context; an explicit node/ref overrides. */
   container?: BasePortalProps["container"];
@@ -43,11 +41,7 @@ export function DialogPopup(props: DialogPopupProps): ReactElement {
   const sized = dialogVariants({ size });
   return (
     <BaseDialog.Portal container={container ?? portalContainer} keepMounted={keepMounted}>
-      <BaseDialog.Backdrop
-        className={sized.backdrop()}
-        data-slot="dialog-backdrop"
-        forceRender={forceRender}
-      />
+      <BaseDialog.Backdrop className={sized.backdrop()} data-slot="dialog-backdrop" forceRender={forceRender} />
       <BaseDialog.Viewport className={sized.viewport()} data-slot="dialog-viewport">
         <BaseDialog.Popup className={sized.popup({ className })} data-slot="dialog-popup" {...rest}>
           {children}

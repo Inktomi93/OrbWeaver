@@ -5,7 +5,7 @@
 export type { AuthConfig } from "./auth-config";
 export { AUTH_CONFIG_KEY, fetchAuthConfig, useAuthConfig } from "./auth-config";
 export type { ChatBusDeps, UserBusDeps } from "./bus/index";
-export { applyChatBusEvent, useChatBus, useUserBus } from "./bus/index";
+export { applyChatBusEvent, markTurnStopping, useChatBus, useChatBusDeps, useUserBus } from "./bus/index";
 export type {
   CollectionSelection,
   CollectionSurface,

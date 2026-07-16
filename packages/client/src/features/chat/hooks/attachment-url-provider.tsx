@@ -24,19 +24,13 @@ export interface AttachmentUrlProviderProps {
 
 /** Resolve a row's inline `asset:<id>` refs → `blobUrl`s (chat-scoped `assets.resolveChatBlobRefs`) and
  *  provide them to the row's `MessageMediaBlock`s. */
-export function AttachmentUrlProvider({
-  chatId,
-  content,
-  children,
-}: AttachmentUrlProviderProps): ReactElement {
+export function AttachmentUrlProvider({ chatId, content, children }: AttachmentUrlProviderProps): ReactElement {
   const trpc = useTRPC();
   const assetIds = assetIdsInContent(content);
   const query = useQuery({
     ...trpc.assets.resolveChatBlobRefs.queryOptions({ chatId, assetIds }),
     enabled: assetIds.length > 0,
   });
-  const map: ReadonlyMap<AssetId, string> = new Map(
-    (query.data ?? []).map((ref) => [ref.assetId, blobUrl(ref.hash)] as const),
-  );
-  return <AttachmentUrlContext.Provider value={map}>{children}</AttachmentUrlContext.Provider>;
+  const map: ReadonlyMap<AssetId, string> = new Map((query.data ?? []).map((ref) => [ref.assetId, blobUrl(ref.hash)] as const));
+  return <AttachmentUrlContext value={map}>{children}</AttachmentUrlContext>;
 }

@@ -17,16 +17,7 @@ import { describe, onTestFinished } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
 import type { AssetsHarness } from "../_support.ts";
-import {
-  makeHarness,
-  pngBytes,
-  principal,
-  seedChatRow,
-  seedMessage,
-  seedMessageAsset,
-  seedParticipant,
-  seedUser,
-} from "../_support.ts";
+import { makeHarness, pngBytes, principal, seedChatRow, seedMessage, seedMessageAsset, seedParticipant, seedUser } from "../_support.ts";
 
 const PNG = "image/png";
 
@@ -161,8 +152,6 @@ describe("resolveChatAssetRefs — #67 co-participant render", () => {
     await seedParticipant(db, s.chatId, "human", { id: "cp_member", userId: s.member });
 
     expect(await s.svc.resolveChatAssetRefs(s.member, s.chatId, [])).toEqual([]);
-    expect(
-      await s.svc.resolveChatAssetRefs(s.member, s.chatId, [castId<AssetId>("asset_missing")]),
-    ).toEqual([]);
+    expect(await s.svc.resolveChatAssetRefs(s.member, s.chatId, [castId<AssetId>("asset_missing")])).toEqual([]);
   });
 });

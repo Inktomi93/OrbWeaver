@@ -24,10 +24,7 @@ function marker(over: Partial<Extract<PromptSection, { type: "marker" }>>): Prom
     ...over,
   } as PromptSection;
 }
-function literal(
-  content: string,
-  over: Partial<Extract<PromptSection, { type: "literal" }>> = {},
-): PromptSection {
+function literal(content: string, over: Partial<Extract<PromptSection, { type: "literal" }>> = {}): PromptSection {
   sectionSeq += 1;
   return {
     type: "literal",
@@ -89,11 +86,7 @@ describe("assemblePrompt — section walk", () => {
   });
 
   test("memory marker lands in the DYNAMIC half (per-turn), not static", () => {
-    const config = configOf([
-      marker({ marker: "main_prompt", template: "sys" }),
-      marker({ marker: "memory" }),
-      marker({ marker: "chat_history" }),
-    ]);
+    const config = configOf([marker({ marker: "main_prompt", template: "sys" }), marker({ marker: "memory" }), marker({ marker: "chat_history" })]);
     const out = assemblePrompt(config, ctxOf({ memory: "past events" }));
     expect(out.static).toContain("sys");
     expect(out.dynamic).toContain("past events");
@@ -117,10 +110,7 @@ describe("assemblePrompt — section walk", () => {
   });
 
   test("a disabled chat_history pivot suppresses history (sendHistory false)", () => {
-    const config = configOf([
-      marker({ marker: "main_prompt", template: "sys" }),
-      marker({ marker: "chat_history", enabled: false }),
-    ]);
+    const config = configOf([marker({ marker: "main_prompt", template: "sys" }), marker({ marker: "chat_history", enabled: false })]);
     expect(assemblePrompt(config, ctxOf()).sendHistory).toBe(false);
   });
 
@@ -138,10 +128,7 @@ describe("assemblePrompt — section walk", () => {
   });
 
   test("a volatile macro ({{date}}) in a STATIC section is reported as a cache-buster", () => {
-    const config = configOf([
-      literal("today is {{date}}", { role: "system" }),
-      marker({ marker: "chat_history" }),
-    ]);
+    const config = configOf([literal("today is {{date}}", { role: "system" }), marker({ marker: "chat_history" })]);
     const out = assemblePrompt(config, ctxOf({ nowMs: 1_750_000_000_000, timezone: "UTC" }));
     expect(out.trace.staticCacheBusters).toContain("date");
   });
@@ -154,33 +141,21 @@ describe("assemblePrompt — section walk", () => {
 describe("assemblePrompt — injection_trigger section-gating", () => {
   test("fires only when generationType matches one of the section's triggers", () => {
     const config = configOf([literal("continue-only", { trigger: ["continue"] })]);
-    expect(assemblePrompt(config, ctxOf({ generationType: "continue" })).dynamic).toContain(
-      "continue-only",
-    );
-    expect(assemblePrompt(config, ctxOf({ generationType: "normal" })).dynamic).not.toContain(
-      "continue-only",
-    );
+    expect(assemblePrompt(config, ctxOf({ generationType: "continue" })).dynamic).toContain("continue-only");
+    expect(assemblePrompt(config, ctxOf({ generationType: "normal" })).dynamic).not.toContain("continue-only");
   });
 
   test("swipe and regenerate alias to the same generation-type bucket", () => {
     const config = configOf([literal("swipe-gated", { trigger: ["swipe"] })]);
-    expect(assemblePrompt(config, ctxOf({ generationType: "swipe" })).dynamic).toContain(
-      "swipe-gated",
-    );
-    expect(assemblePrompt(config, ctxOf({ generationType: "regenerate" })).dynamic).toContain(
-      "swipe-gated",
-    );
-    expect(assemblePrompt(config, ctxOf({ generationType: "normal" })).dynamic).not.toContain(
-      "swipe-gated",
-    );
+    expect(assemblePrompt(config, ctxOf({ generationType: "swipe" })).dynamic).toContain("swipe-gated");
+    expect(assemblePrompt(config, ctxOf({ generationType: "regenerate" })).dynamic).toContain("swipe-gated");
+    expect(assemblePrompt(config, ctxOf({ generationType: "normal" })).dynamic).not.toContain("swipe-gated");
   });
 
   test("an absent trigger always fires, regardless of generation type", () => {
     const config = configOf([literal("always")]);
     expect(assemblePrompt(config, ctxOf({ generationType: "quiet" })).static).toContain("always");
-    expect(assemblePrompt(config, ctxOf({ generationType: "impersonate" })).static).toContain(
-      "always",
-    );
+    expect(assemblePrompt(config, ctxOf({ generationType: "impersonate" })).static).toContain("always");
   });
 
   test("an absent generationType defaults to normal", () => {
@@ -189,9 +164,7 @@ describe("assemblePrompt — injection_trigger section-gating", () => {
   });
 
   test("a trigger-gated section always lands in the dynamic half, never the cached static prefix", () => {
-    const config = configOf([
-      marker({ marker: "main_prompt", template: "sys", trigger: ["normal"] }),
-    ]);
+    const config = configOf([marker({ marker: "main_prompt", template: "sys", trigger: ["normal"] })]);
     const out = assemblePrompt(config, ctxOf({ generationType: "normal" }));
     expect(out.static).toBe("");
     expect(out.dynamic).toContain("sys");
@@ -220,10 +193,7 @@ describe("assemblePrompt — merged co-speaker scenario (F6: single emission)", 
       character: aria,
       promptConfig: DEFAULT_PROMPT_CONFIG,
       cast: [aria, kai],
-      castCharacterIds: [
-        castId<CharacterId>("character_aria"),
-        castId<CharacterId>("character_kai"),
-      ],
+      castCharacterIds: [castId<CharacterId>("character_aria"), castId<CharacterId>("character_kai")],
       castMembers: [
         { kind: "character", characterId: castId<CharacterId>("character_aria") },
         { kind: "character", characterId: castId<CharacterId>("character_kai") },

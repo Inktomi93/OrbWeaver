@@ -14,10 +14,7 @@ import type { ChartColors } from "../chart/use-chart-theme";
 const SPARKLINE_LINE_WIDTH = 2;
 const SPARKLINE_AREA_OPACITY = 0.12;
 
-export function buildSparklineOption(
-  trend: readonly number[],
-  colors: ChartColors,
-): OrbChartOption {
+export function buildSparklineOption(trend: readonly number[], colors: ChartColors): OrbChartOption {
   return {
     grid: { left: 0, right: 0, top: 4, bottom: 0 },
     xAxis: { type: "category", show: false, data: trend.map((_, index) => String(index)) },

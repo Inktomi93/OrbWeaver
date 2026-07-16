@@ -19,10 +19,7 @@ function buildPatch(input: UpdateTagInput): TagPatch {
     // A whitespace-only rename normalizes to "" (the wire min(1) passes it) — refuse, never an empty-name row.
     const name = normalizeTagName(input.name);
     if (name.length === 0) {
-      throw new DomainOperationError(
-        "tag_name_empty",
-        "a tag name cannot be empty/whitespace-only",
-      );
+      throw new DomainOperationError("tag_name_empty", "a tag name cannot be empty/whitespace-only");
     }
     patch.name = name;
   }
@@ -64,9 +61,7 @@ export function createUpdate(ctx: TagContext): TagService["updateTag"] {
       return toTagView(updated);
     } catch (err) {
       if (isConstraintViolation(err)?.kind === "unique") {
-        const dup = new DomainConflictError(
-          `a tag named "${params.patch.name ?? ""}" already exists`,
-        );
+        const dup = new DomainConflictError(`a tag named "${params.patch.name ?? ""}" already exists`);
         dup.cause = err;
         throw dup;
       }

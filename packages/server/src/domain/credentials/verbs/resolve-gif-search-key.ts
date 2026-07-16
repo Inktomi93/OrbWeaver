@@ -13,9 +13,7 @@ import { decryptSealed } from "../substrate/decrypt";
 
 const GIF_SEARCH_PROVIDER = "gif-search" as const;
 
-export function createResolveGifSearchKey(
-  ctx: CredentialContext,
-): CredentialsService["resolveGifSearchKey"] {
+export function createResolveGifSearchKey(ctx: CredentialContext): CredentialsService["resolveGifSearchKey"] {
   return async (params: ResolveGifSearchKeyParams): Promise<string | null> => {
     const ownerId: UserId = params.principal.userId;
     if (!ctx.box.enabled) {

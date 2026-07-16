@@ -38,11 +38,7 @@ function assertNever(value: never): never {
 
 /** The first vector of an embed result, or `EmbedFailedError` when the family filtered the input (`null`) or
  *  returned nothing. */
-function firstVector(
-  vectors: readonly (Float32Array | null)[],
-  lens: string,
-  model: string,
-): Float32Array {
+function firstVector(vectors: readonly (Float32Array | null)[], lens: string, model: string): Float32Array {
   const vector = vectors[0];
   if (vector === null || vector === undefined) {
     throw new EmbedFailedError(lens, model);
@@ -80,10 +76,7 @@ async function storeCardText(ctx: EmbeddingsContext, p: CardTextStoreParams): Pr
 
 /** image-raw / image-captioned → `image_embeddings` (both lenses coexist per `(asset, model, lens)`;
  *  `force` bypasses the staleness short-circuit — PD-53 bulk re-index). */
-async function storeImage(
-  ctx: EmbeddingsContext,
-  p: ImageRawStoreParams | ImageCaptionedStoreParams,
-): Promise<StoreResult> {
+async function storeImage(ctx: EmbeddingsContext, p: ImageRawStoreParams | ImageCaptionedStoreParams): Promise<StoreResult> {
   const hash = contentHash(p.content);
   if (p.force !== true && (await existingImageHash(ctx.db, p.assetId, p.lens, p.model)) === hash) {
     return { outcome: "noop", contentHash: hash };

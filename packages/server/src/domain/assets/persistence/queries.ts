@@ -3,13 +3,7 @@
 // read is owner-scoped in the WHERE, never a post-filter; `metadataForOwnerAndHash` is the sole exception,
 // trusted only because the verb already resolved the owner via `loadCoParticipantOwner`.
 
-import type {
-  AssetBlobRef,
-  AssetKind,
-  AssetListItem,
-  GalleryItemView,
-  StoredAsset,
-} from "@orb/contracts/assets";
+import type { AssetBlobRef, AssetKind, AssetListItem, GalleryItemView, StoredAsset } from "@orb/contracts/assets";
 import type { Db } from "@orb/db";
 import { assets, galleryItems } from "@orb/db";
 import type { AssetId, CharacterId, GalleryItemId, UserId } from "@orb/kit/ids";
@@ -42,24 +36,13 @@ interface AssetCasRef {
 }
 
 /** An asset's `(ownerId, hash, mime)` by id alone — no owner scope, un-principal. Not a user-facing surface. */
-export async function loadAssetCasRefById(
-  db: Db,
-  assetId: AssetId,
-): Promise<AssetCasRef | undefined> {
-  const rows = await db
-    .select({ ownerId: assets.ownerId, hash: assets.hash, mime: assets.mime })
-    .from(assets)
-    .where(eq(assets.id, assetId))
-    .limit(LIMIT_ONE);
+export async function loadAssetCasRefById(db: Db, assetId: AssetId): Promise<AssetCasRef | undefined> {
+  const rows = await db.select({ ownerId: assets.ownerId, hash: assets.hash, mime: assets.mime }).from(assets).where(eq(assets.id, assetId)).limit(LIMIT_ONE);
   return rows[0];
 }
 
 /** The `(assetId, hash)` pairs owned by `ownerId` among `assetIds` — foreign/gone ids are simply absent. */
-export async function selectOwnedAssetRefs(
-  db: Db,
-  ownerId: UserId,
-  assetIds: readonly AssetId[],
-): Promise<AssetBlobRef[]> {
+export async function selectOwnedAssetRefs(db: Db, ownerId: UserId, assetIds: readonly AssetId[]): Promise<AssetBlobRef[]> {
   if (assetIds.length === 0) {
     return [];
   }
@@ -72,20 +55,13 @@ export async function selectOwnedAssetRefs(
 
 /** Every image asset id, all owners when `ownerId` omitted — a trusted system sweep, not user-facing. */
 export async function listImageAssetIdRows(db: Db, ownerId?: UserId | null): Promise<AssetId[]> {
-  const scope =
-    ownerId === undefined || ownerId === null
-      ? like(assets.mime, "image/%")
-      : and(like(assets.mime, "image/%"), eq(assets.ownerId, ownerId));
+  const scope = ownerId === undefined || ownerId === null ? like(assets.mime, "image/%") : and(like(assets.mime, "image/%"), eq(assets.ownerId, ownerId));
   const rows = await db.select({ id: assets.id }).from(assets).where(scope);
   return rows.map((r) => r.id);
 }
 
 /** The id of the caller's asset with this hash, or undefined when they have none. Owner-scoped. */
-export async function assetIdForHash(
-  db: Db,
-  ownerId: UserId,
-  hash: string,
-): Promise<AssetId | undefined> {
+export async function assetIdForHash(db: Db, ownerId: UserId, hash: string): Promise<AssetId | undefined> {
   const rows = await db
     .select({ id: assets.id })
     .from(assets)
@@ -95,11 +71,7 @@ export async function assetIdForHash(
 }
 
 /** The `{mime,size}` of the caller's asset with this hash, or undefined (404) when not found / not theirs. */
-export async function metadataForOwnedHash(
-  db: Db,
-  ownerId: UserId,
-  hash: string,
-): Promise<AssetMetadataRow | undefined> {
+export async function metadataForOwnedHash(db: Db, ownerId: UserId, hash: string): Promise<AssetMetadataRow | undefined> {
   const rows = await db
     .select({ mime: assets.mime, size: assets.size })
     .from(assets)
@@ -110,11 +82,7 @@ export async function metadataForOwnedHash(
 
 /** The `{mime,size}` of a specific owner's asset with this hash — the roster-avatar path; the verb
  *  resolves the avatar owner via `loadCoParticipantOwner` before calling this. */
-export async function metadataForOwnerAndHash(
-  db: Db,
-  ownerId: UserId,
-  hash: string,
-): Promise<AssetMetadataRow | undefined> {
+export async function metadataForOwnerAndHash(db: Db, ownerId: UserId, hash: string): Promise<AssetMetadataRow | undefined> {
   const rows = await db
     .select({ mime: assets.mime, size: assets.size })
     .from(assets)
@@ -130,14 +98,10 @@ export async function storeBlob(db: Db, cas: Cas, input: StoreBlobInput): Promis
   if (input.enforceMagic) {
     const sniffed = sniffMime(input.bytes);
     if (sniffed === OCTET_STREAM) {
-      throw new Error(
-        `assets.store: unrecognized magic bytes — claimed ${input.mime}, no known image signature`,
-      );
+      throw new Error(`assets.store: unrecognized magic bytes — claimed ${input.mime}, no known image signature`);
     }
     if (sniffed !== input.mime) {
-      throw new Error(
-        `assets.store: magic-byte mismatch — claimed ${input.mime}, sniffed ${sniffed}`,
-      );
+      throw new Error(`assets.store: magic-byte mismatch — claimed ${input.mime}, sniffed ${sniffed}`);
     }
   }
 
@@ -177,10 +141,7 @@ interface ListOwnedInput {
 export async function listOwnedAssetRows(db: Db, input: ListOwnedInput): Promise<AssetListItem[]> {
   const keyset =
     input.cursor !== undefined && input.cursorId !== undefined
-      ? or(
-          lt(assets.uploadedAt, input.cursor),
-          and(eq(assets.uploadedAt, input.cursor), lt(assets.id, input.cursorId)),
-        )
+      ? or(lt(assets.uploadedAt, input.cursor), and(eq(assets.uploadedAt, input.cursor), lt(assets.id, input.cursorId)))
       : undefined;
   const rows = await db
     .select({
@@ -193,13 +154,7 @@ export async function listOwnedAssetRows(db: Db, input: ListOwnedInput): Promise
       animated: assets.animated,
     })
     .from(assets)
-    .where(
-      and(
-        eq(assets.ownerId, input.ownerId),
-        input.kind !== undefined ? eq(assets.kind, input.kind) : undefined,
-        keyset,
-      ),
-    )
+    .where(and(eq(assets.ownerId, input.ownerId), input.kind !== undefined ? eq(assets.kind, input.kind) : undefined, keyset))
     .orderBy(desc(assets.uploadedAt), desc(assets.id))
     .limit(input.limit);
   return rows;
@@ -211,11 +166,7 @@ interface OwnedAssetRow {
 }
 
 /** The `{hash,mime}` of the caller's asset by id, or undefined when not found / not theirs. */
-export async function ownedAssetForGallery(
-  db: Db,
-  ownerId: UserId,
-  assetId: AssetId,
-): Promise<OwnedAssetRow | undefined> {
+export async function ownedAssetForGallery(db: Db, ownerId: UserId, assetId: AssetId): Promise<OwnedAssetRow | undefined> {
   const rows = await db
     .select({ hash: assets.hash, mime: assets.mime })
     .from(assets)
@@ -233,10 +184,7 @@ interface InsertGalleryItemInput {
 
 /** Insert a gallery item, upsert-guarded on `(assetId, subjectCharacterId)`; idempotent on conflict.
  *  SQLite treats NULL subjects as distinct under the unique index, so un-charactered adds always insert. */
-export async function insertGalleryItem(
-  db: Db,
-  input: InsertGalleryItemInput,
-): Promise<GalleryItemId> {
+export async function insertGalleryItem(db: Db, input: InsertGalleryItemInput): Promise<GalleryItemId> {
   const inserted = await db
     .insert(galleryItems)
     .values({
@@ -256,9 +204,7 @@ export async function insertGalleryItem(
     .where(
       and(
         eq(galleryItems.assetId, input.assetId),
-        input.subjectCharacterId !== undefined
-          ? eq(galleryItems.subjectCharacterId, input.subjectCharacterId)
-          : isNull(galleryItems.subjectCharacterId),
+        input.subjectCharacterId !== undefined ? eq(galleryItems.subjectCharacterId, input.subjectCharacterId) : isNull(galleryItems.subjectCharacterId),
       ),
     )
     .limit(LIMIT_ONE);
@@ -270,10 +216,7 @@ export async function insertGalleryItem(
 }
 
 /** The full `GalleryItemView` for one item, or undefined when gone. */
-export async function galleryItemViewById(
-  db: Db,
-  galleryItemId: GalleryItemId,
-): Promise<GalleryItemView | undefined> {
+export async function galleryItemViewById(db: Db, galleryItemId: GalleryItemId): Promise<GalleryItemView | undefined> {
   const rows = await db
     .select({
       galleryItemId: galleryItems.id,
@@ -292,10 +235,7 @@ export async function galleryItemViewById(
 }
 
 /** The owner of a gallery item, resolved through the asset join (no stamped owner column). Undefined if gone. */
-export async function galleryItemOwner(
-  db: Db,
-  galleryItemId: GalleryItemId,
-): Promise<UserId | undefined> {
+export async function galleryItemOwner(db: Db, galleryItemId: GalleryItemId): Promise<UserId | undefined> {
   const rows = await db
     .select({ ownerId: assets.ownerId })
     .from(galleryItems)
@@ -325,10 +265,7 @@ interface GalleryExportRow {
 }
 
 /** Every curation row the owner holds, for a portability export. Ordered `(createdAt, id)` for deterministic bytes. */
-export async function listGalleryItemsForExport(
-  db: Db,
-  ownerId: UserId,
-): Promise<GalleryExportRow[]> {
+export async function listGalleryItemsForExport(db: Db, ownerId: UserId): Promise<GalleryExportRow[]> {
   const rows = await db
     .select({
       assetId: galleryItems.assetId,
@@ -351,19 +288,14 @@ interface ImportGalleryItemInput {
 
 /** Restore one curation row, idempotently, keyed on `(assetId, subjectCharacterId)`. An explicit existence
  *  check (not `onConflictDoNothing`) because SQLite treats NULL subjects as distinct under the unique index. */
-export async function importGalleryItem(
-  db: Db,
-  input: ImportGalleryItemInput,
-): Promise<{ readonly created: boolean }> {
+export async function importGalleryItem(db: Db, input: ImportGalleryItemInput): Promise<{ readonly created: boolean }> {
   const existing = await db
     .select({ id: galleryItems.id })
     .from(galleryItems)
     .where(
       and(
         eq(galleryItems.assetId, input.assetId),
-        input.subjectCharacterId !== null
-          ? eq(galleryItems.subjectCharacterId, input.subjectCharacterId)
-          : isNull(galleryItems.subjectCharacterId),
+        input.subjectCharacterId !== null ? eq(galleryItems.subjectCharacterId, input.subjectCharacterId) : isNull(galleryItems.subjectCharacterId),
       ),
     )
     .limit(LIMIT_ONE);
@@ -380,16 +312,10 @@ export async function importGalleryItem(
 }
 
 /** Gallery v2: the caller's gallery via the asset join, newest-first, keyset-paged by `(createdAt, id)`. */
-export async function listGalleryViewRows(
-  db: Db,
-  input: ListGalleryInput,
-): Promise<GalleryItemView[]> {
+export async function listGalleryViewRows(db: Db, input: ListGalleryInput): Promise<GalleryItemView[]> {
   const keyset =
     input.cursor !== undefined && input.cursorId !== undefined
-      ? or(
-          lt(galleryItems.createdAt, input.cursor),
-          and(eq(galleryItems.createdAt, input.cursor), lt(galleryItems.id, input.cursorId)),
-        )
+      ? or(lt(galleryItems.createdAt, input.cursor), and(eq(galleryItems.createdAt, input.cursor), lt(galleryItems.id, input.cursorId)))
       : undefined;
   const rows = await db
     .select({
@@ -406,9 +332,7 @@ export async function listGalleryViewRows(
     .where(
       and(
         eq(assets.ownerId, input.ownerId),
-        input.subjectCharacterId !== undefined
-          ? eq(galleryItems.subjectCharacterId, input.subjectCharacterId)
-          : undefined,
+        input.subjectCharacterId !== undefined ? eq(galleryItems.subjectCharacterId, input.subjectCharacterId) : undefined,
         keyset,
       ),
     )

@@ -40,9 +40,7 @@ test("pending shows the TTFT shimmer, then streaming reveals paced markdown", as
   await expect(component.getByText("Hi")).toBeVisible();
 });
 
-test("more tokens grow only the ghost; the lifecycle phase read stays stable", async ({
-  mount,
-}) => {
+test("more tokens grow only the ghost; the lifecycle phase read stays stable", async ({ mount }) => {
   const component = await mount(<GhostRowStory />);
   await component.getByTestId("begin").click();
   await component.getByTestId("token").click();
@@ -58,14 +56,8 @@ test("more tokens grow only the ghost; the lifecycle phase read stays stable", a
 
 // ── Golden streaming-safety tests (UI-Gates §11.6 hard checkpoint) ─────────────────────────────────
 
-test("an unterminated code fence never flashes literal backticks and renders as a code block", async ({
-  mount,
-}) => {
-  const component = await mount(
-    <GhostRowScriptedStory
-      chunks={["Here is code:\n```js\n", "const x = 1;\n", "function f() {\n"]}
-    />,
-  );
+test("an unterminated code fence never flashes literal backticks and renders as a code block", async ({ mount }) => {
+  const component = await mount(<GhostRowScriptedStory chunks={["Here is code:\n```js\n", "const x = 1;\n", "function f() {\n"]} />);
   await driveScript(component, 3);
 
   await expect(component.locator("pre code")).toContainText("const x = 1;");
@@ -77,29 +69,21 @@ test("unpaired markdown emphasis never renders the literal ** marker", async ({ 
   // Trailing space completes the word boundary for the pacer (`snapToWordBoundary` — UI-Arch §6.3.1)
   // so the reveal isn't held back waiting for a next chunk that never comes; the repair still has to
   // CLOSE the unpaired `**` for the assertion below to hold.
-  const component = await mount(
-    <GhostRowScriptedStory chunks={["This is **bold and not yet closed "]} />,
-  );
+  const component = await mount(<GhostRowScriptedStory chunks={["This is **bold and not yet closed "]} />);
   await driveScript(component, 1);
 
   // Streamdown renders emphasis as `<span data-streamdown="strong">`, not a native `<strong>`.
-  // biome-ignore lint/security/noSecrets: a CSS attribute-selector literal, not a secret.
-  await expect(component.locator('[data-streamdown="strong"]')).toContainText(
-    "bold and not yet closed",
-  );
+
+  await expect(component.locator('[data-streamdown="strong"]')).toContainText("bold and not yet closed");
   await expect(component.getByText("**", { exact: false })).toHaveCount(0);
   await expect(component.getByText(ERROR_FALLBACK)).toHaveCount(0);
 });
 
-test("a torn <speaker> tag mid-stream is held back — never flashes the raw tag or its content", async ({
-  mount,
-}) => {
+test("a torn <speaker> tag mid-stream is held back — never flashes the raw tag or its content", async ({ mount }) => {
   // The trailing space after "Bob" completes the pacer's word boundary (so the reveal isn't merely
   // waiting on the NEXT chunk) — it's `repairStreamingTail`'s `holdTornSpeaker`, not the pacer, that
   // must strip the unclosed tag from what's actually rendered.
-  const component = await mount(
-    <GhostRowScriptedStory chunks={["Alice said ", "<speaker>Bob "]} />,
-  );
+  const component = await mount(<GhostRowScriptedStory chunks={["Alice said ", "<speaker>Bob "]} />);
   await driveScript(component, 2);
 
   // The unclosed open tag + its content are held back entirely until the close tag arrives.
@@ -110,9 +94,7 @@ test("a torn <speaker> tag mid-stream is held back — never flashes the raw tag
 });
 
 test("closing the <speaker> tag settles the render without white-screening", async ({ mount }) => {
-  const component = await mount(
-    <GhostRowScriptedStory chunks={["Alice said ", "<speaker>Bob</speaker> hi"]} />,
-  );
+  const component = await mount(<GhostRowScriptedStory chunks={["Alice said ", "<speaker>Bob</speaker> hi"]} />);
   await driveScript(component, 2);
 
   await expect(component.getByText(ERROR_FALLBACK)).toHaveCount(0);
@@ -120,16 +102,12 @@ test("closing the <speaker> tag settles the render without white-screening", asy
 
 // ── D44 §12.0 stream-trust guardrail (#25 — the streaming path is the highest-exposure window) ─────
 
-test("SECURITY: a streamed markdown image never emits an <img> — the live stream renders UNTRUSTED", async ({
-  mount,
-}) => {
+test("SECURITY: a streamed markdown image never emits an <img> — the live stream renders UNTRUSTED", async ({ mount }) => {
   // A prompt-injected turn streams an inline image ref. Under the pre-fix `trust="trusted"` posture the
   // ghost rendered it live → the browser fetched the attacker URL mid-stream (D21 tracking-pixel exfil)
   // BEFORE commit-time sanitization ever ran. The stream tier is now untrusted: the untrusted allowlist
   // drops `<img>` at the element level, so no image element (and no preload) is ever emitted.
-  const component = await mount(
-    <GhostRowScriptedStory chunks={["Look: ![x](https://attacker.example/p.png) done "]} />,
-  );
+  const component = await mount(<GhostRowScriptedStory chunks={["Look: ![x](https://attacker.example/p.png) done "]} />);
   await driveScript(component, 1);
 
   await expect(component.getByText("Look:", { exact: false })).toBeVisible();
@@ -137,15 +115,11 @@ test("SECURITY: a streamed markdown image never emits an <img> — the live stre
   await expect(component.getByText(ERROR_FALLBACK)).toHaveCount(0);
 });
 
-test("a complete <speaker> marker mid-stream shows the name as plain text (untrusted drops the tag)", async ({
-  mount,
-}) => {
+test("a complete <speaker> marker mid-stream shows the name as plain text (untrusted drops the tag)", async ({ mount }) => {
   // Untrusted drops the `<speaker>` element AND its child, so the stream pre-passes `speakerTagsToPlain`
   // to keep the narrator's name visible as a plain `Name:` prefix while streaming (the settled row
   // re-parses the marker for per-speaker coloring on turn-complete).
-  const component = await mount(
-    <GhostRowScriptedStory chunks={["<speaker>Bob</speaker> hello there "]} />,
-  );
+  const component = await mount(<GhostRowScriptedStory chunks={["<speaker>Bob</speaker> hello there "]} />);
   await driveScript(component, 1);
 
   await expect(component.getByText("Bob:", { exact: false })).toBeVisible();
@@ -154,10 +128,7 @@ test("a complete <speaker> marker mid-stream shows the name as plain text (untru
   await expect(component.getByText(ERROR_FALLBACK)).toHaveCount(0);
 });
 
-test("reduced motion: the full streamed text lands immediately, with no pacing lag", async ({
-  mount,
-  page,
-}) => {
+test("reduced motion: the full streamed text lands immediately, with no pacing lag", async ({ mount, page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   const longChunk = Array.from({ length: 40 }, (_, i) => `word${i}`).join(" ");
   const component = await mount(<GhostRowScriptedStory chunks={[longChunk]} />);

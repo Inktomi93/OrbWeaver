@@ -47,17 +47,12 @@ function LoreBookSelect({ personaId }: PersonaLoreBookFieldProps): ReactElement 
   const attach = useAttachBookToPersona({ trpc, invalidation });
   const detach = useDetachBookFromPersona({ trpc, invalidation });
   const { data: library } = useSuspenseQuery(trpc.worldInfo.listBooks.queryOptions());
-  const { data: attached } = useSuspenseQuery(
-    trpc.worldInfo.listForPersona.queryOptions({ personaId }),
-  );
+  const { data: attached } = useSuspenseQuery(trpc.worldInfo.listForPersona.queryOptions({ personaId }));
   // The UI only ever offers ONE — the first attachment (if the M:N junction somehow holds more, from a
   // pre-redesign state, the others are simply not shown/touched until the user picks again).
   const current = attached[0];
 
-  const items: SelectItems<string> = [
-    { value: NONE_VALUE, label: "None" },
-    ...library.map((book) => ({ value: book.id, label: book.name })),
-  ];
+  const items: SelectItems<string> = [{ value: NONE_VALUE, label: "None" }, ...library.map((book) => ({ value: book.id, label: book.name }))];
 
   const onChange = (value: string | null): void => {
     // `book.id` is already the branded `WorldBookId` (tRPC-inferred) — no re-cast.
@@ -75,13 +70,7 @@ function LoreBookSelect({ personaId }: PersonaLoreBookFieldProps): ReactElement 
     <Field label="Lore book" name="persona-lore-book">
       <Row gap="field" align="center">
         <Icon icon={BookOpen} size="sm" />
-        <Select
-          aria-label="Lore book"
-          items={items}
-          value={current?.id ?? NONE_VALUE}
-          onValueChange={onChange}
-          placeholder="None"
-        />
+        <Select aria-label="Lore book" items={items} value={current?.id ?? NONE_VALUE} onValueChange={onChange} placeholder="None" />
       </Row>
     </Field>
   );

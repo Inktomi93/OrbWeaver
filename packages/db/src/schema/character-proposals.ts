@@ -24,9 +24,7 @@ import { characters } from "./character";
 import { chats } from "./chat";
 
 // CHECK list derived from the canonical tuple (NOT re-spelled) — static DDL fragment.
-const STATUS_CHECK_LIST = CARD_EVOLUTION_PROPOSAL_STATUSES.map((status) => `'${status}'`).join(
-  ", ",
-);
+const STATUS_CHECK_LIST = CARD_EVOLUTION_PROPOSAL_STATUSES.map((status) => `'${status}'`).join(", ");
 
 // card_evolution_proposals — the propose-don't-dispose card-drift queue. Authority DERIVES via
 // `characterId → characters.ownerId` (D23 derive, no stamp). `chatId` is PROVENANCE only (which chat's
@@ -59,9 +57,7 @@ export const cardEvolutionProposals = sqliteTable(
     // ONE pending per (characterId, chatId) — a newer audit SUPERSEDES the old proposal (status flip).
     // SQLite UNIQUE treats NULLs as distinct, so chat-less (deleted-chat / non-crew) pendings coexist —
     // acceptable: the supersede semantic is per-chat-audit by design.
-    uniqueIndex("card_evolution_proposals_pending_unique")
-      .on(t.characterId, t.chatId)
-      .where(sql`status = 'pending'`),
+    uniqueIndex("card_evolution_proposals_pending_unique").on(t.characterId, t.chatId).where(sql`status = 'pending'`),
     check("card_evolution_proposals_status_check", sql.raw(`status in (${STATUS_CHECK_LIST})`)),
   ],
 );

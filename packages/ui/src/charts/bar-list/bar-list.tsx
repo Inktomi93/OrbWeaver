@@ -29,14 +29,7 @@ function defaultValueFormatter(value: number): string {
   return String(value);
 }
 
-export function BarList({
-  items,
-  label,
-  valueFormatter = defaultValueFormatter,
-  height,
-  className,
-  onChartReady,
-}: BarListProps): ReactElement {
+export function BarList({ items, label, valueFormatter = defaultValueFormatter, height, className, onChartReady }: BarListProps): ReactElement {
   const slots = barListVariants();
   // Called unconditionally (before the empty-state branch) to satisfy rules-of-hooks.
   const colors = useChartTheme();

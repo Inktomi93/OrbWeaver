@@ -9,14 +9,7 @@
 import type { ChatTriggerType } from "@orb/contracts/automation";
 import { AUTOMATION_FIRE_OUTCOMES, AUTOMATION_TRIGGER_BUSES } from "@orb/contracts/automation";
 import type { Db } from "@orb/db";
-import {
-  automationBudgets,
-  automationFires,
-  automationRules,
-  chats,
-  globalVariables,
-  isConstraintViolation,
-} from "@orb/db";
+import { automationBudgets, automationFires, automationRules, chats, globalVariables, isConstraintViolation } from "@orb/db";
 import type { AutomationFireId, AutomationRuleId, ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
@@ -35,11 +28,7 @@ async function seedOwnerAndChat(db: Db, tag: string): Promise<{ ownerId: UserId;
   return { ownerId, chatId };
 }
 
-function ruleValues(
-  id: string,
-  ownerId: UserId,
-  chatId: ChatId,
-): typeof automationRules.$inferInsert {
+function ruleValues(id: string, ownerId: UserId, chatId: ChatId): typeof automationRules.$inferInsert {
   return {
     id: castId<AutomationRuleId>(id),
     ownerId,
@@ -144,9 +133,7 @@ test("the name CHECK caps at 120 chars", async () => {
 test("automation_rules.chat_id is nullable from birth (the owner-global v2 seam) and CASCADEs with the chat", async () => {
   const db = await freshDb();
   const { ownerId, chatId } = await seedOwnerAndChat(db, "rule_scope");
-  await db
-    .insert(automationRules)
-    .values({ ...ruleValues("automation_rule_global", ownerId, chatId), chatId: null });
+  await db.insert(automationRules).values({ ...ruleValues("automation_rule_global", ownerId, chatId), chatId: null });
   await db.insert(automationRules).values(ruleValues("automation_rule_scoped", ownerId, chatId));
 
   await db.delete(chats).where(eq(chats.id, chatId));
@@ -216,9 +203,7 @@ test("global_variables keys on (ownerId, key): same key across owners coexists, 
 test("the key CHECK caps at 128 chars; the value CHECK caps at 64 KiB of BYTES (not characters)", async () => {
   const db = await freshDb();
   const { ownerId } = await seedOwnerAndChat(db, "gvar_caps");
-  await db
-    .insert(globalVariables)
-    .values({ ownerId, key: "k".repeat(KEY_CAP), value: "v".repeat(VALUE_CAP_BYTES) }); // both AT cap
+  await db.insert(globalVariables).values({ ownerId, key: "k".repeat(KEY_CAP), value: "v".repeat(VALUE_CAP_BYTES) }); // both AT cap
 
   let longKey: unknown;
   try {

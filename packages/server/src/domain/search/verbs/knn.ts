@@ -20,10 +20,7 @@ export function createKnn(ctx: SearchContext): SearchService["knn"] {
     const embedded = await ctx.roleClients.embed(query, { inputType: "query" });
     const queryVector = embedded.vectors[0];
     if (queryVector === null || queryVector === undefined) {
-      throw new SearchError(
-        SEARCH_EMPTY_QUERY,
-        "the query embedded to no vector — nothing to scan",
-      );
+      throw new SearchError(SEARCH_EMPTY_QUERY, "the query embedded to no vector — nothing to scan");
     }
 
     const pool = await nearestCharacters(ctx.db, {
@@ -50,14 +47,7 @@ export function createKnn(ctx: SearchContext): SearchService["knn"] {
       );
 
     const ordered =
-      params.rerank === true
-        ? await applyRerank(
-            query,
-            rerankPoolByScores(ranked, RERANK_POOL_FACTOR * topN),
-            ctx.roleClients.rerank,
-            topN,
-          )
-        : ranked;
+      params.rerank === true ? await applyRerank(query, rerankPoolByScores(ranked, RERANK_POOL_FACTOR * topN), ctx.roleClients.rerank, topN) : ranked;
 
     return ordered.slice(0, topN).map((c) => ({ characterId: c.characterId, score: c.score }));
   };

@@ -35,9 +35,7 @@ const CLIENT_ERROR_REQUEST_ID_MAX = 200;
 
 export const appRouter = t.router({
   health: publicProcedure.query(() => ({ ok: true }) as const),
-  echo: publicProcedure
-    .input(z.object({ message: z.string() }))
-    .query(({ input }) => ({ message: input.message })),
+  echo: publicProcedure.input(z.object({ message: z.string() })).query(({ input }) => ({ message: input.message })),
 
   // The client error boundary's fire-and-forget report. publicProcedure (anonymous-allowed): a render
   // throw can happen before auth resolves, or because auth is broken. Always returns { ok: true } — the
@@ -49,7 +47,7 @@ export const appRouter = t.router({
         stack: z.string().max(CLIENT_ERROR_TEXT_MAX).optional(),
         ownerStack: z.string().max(CLIENT_ERROR_TEXT_MAX).optional(),
         url: z.string().max(CLIENT_ERROR_URL_MAX),
-        // biome-ignore lint/plugin/no-raw-id: opaque client-supplied correlation string, not an entity id (mirrors X-Request-Id's own charset-only validation in observability/middleware.ts — never a TypeID/nanoid-branded domain id).
+        // @orb-gate-ignore no-raw-id opaque client-supplied correlation string, not an entity id (mirrors X-Request-Id's own charset-only validation in observability/middleware.ts — never a TypeID/nanoid-branded domain id).
         requestId: z.string().max(CLIENT_ERROR_REQUEST_ID_MAX).optional(),
       }),
     )
@@ -80,7 +78,7 @@ export const appRouter = t.router({
   worldInfo: worldInfoRouter,
 });
 
-// biome-ignore lint/plugin/no-inline-types: AppRouter is the client's type-import contract — `typeof` the root router has no other home (a package below `server` in the cake cannot reference this server value).
+// @orb-gate-ignore no-inline-types AppRouter is the client's type-import contract — `typeof` the root router has no other home (a package below `server` in the cake cannot reference this server value).
 export type AppRouter = typeof appRouter;
 
 /** Invokes a procedure through the full middleware ladder without HTTP. */

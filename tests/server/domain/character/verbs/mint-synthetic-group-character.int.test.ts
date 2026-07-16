@@ -62,9 +62,7 @@ describe("mintSyntheticGroupCharacter", () => {
       synthetic: false,
     });
 
-    await expect(
-      svc.mintSyntheticGroupCharacter({ ownerId: owner, chatId: castId<ChatId>("chat_1") }),
-    ).rejects.toBeInstanceOf(CharacterOperationError);
+    await expect(svc.mintSyntheticGroupCharacter({ ownerId: owner, chatId: castId<ChatId>("chat_1") })).rejects.toBeInstanceOf(CharacterOperationError);
   });
 
   test("different rooms mint distinct buckets", async () => {

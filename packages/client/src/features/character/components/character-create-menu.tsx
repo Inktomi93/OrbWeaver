@@ -93,20 +93,12 @@ export function CharacterCreateMenu(): ReactElement {
         <DialogPopup>
           <Stack gap="block">
             <DialogTitle>New character</DialogTitle>
-            <DialogDescription>
-              Give them a name and a one-line description — you can flesh out the rest in the
-              editor.
-            </DialogDescription>
+            <DialogDescription>Give them a name and a one-line description — you can flesh out the rest in the editor.</DialogDescription>
             <Stack gap="field">
               <Text as="span" size="label" tone="muted">
                 Name
               </Text>
-              <Input
-                aria-label="Character name"
-                onValueChange={setName}
-                placeholder="Elara Vance"
-                value={name}
-              />
+              <Input aria-label="Character name" onValueChange={setName} placeholder="Elara Vance" value={name} />
               <Text as="span" size="label" tone="muted">
                 Description
               </Text>
@@ -137,11 +129,7 @@ export function CharacterCreateMenu(): ReactElement {
           <Stack gap="block">
             <DialogTitle>Import card</DialogTitle>
             <DialogDescription>Drop a SillyTavern character card (PNG or JSON).</DialogDescription>
-            <FileDropzone
-              accept={CARD_ACCEPT}
-              multiple={true}
-              onFilesSelected={({ accepted }): void => onImportFiles(accepted)}
-            />
+            <FileDropzone accept={CARD_ACCEPT} multiple={true} onFilesSelected={({ accepted }): void => onImportFiles(accepted)} />
           </Stack>
         </DialogPopup>
       </Dialog>

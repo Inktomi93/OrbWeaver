@@ -39,10 +39,7 @@ export interface FetchModelsArgs {
 type ProbeOp = (credential: ResolvedCredential) => Promise<CredentialHealth>;
 
 /** Inspect a resolved custom_openai credential — the "Test endpoint" round-trip (inspectEndpoint's op). */
-type InspectOp = (req: {
-  readonly credential: ResolvedCredential;
-  readonly model: string;
-}) => Promise<EndpointInspection>;
+type InspectOp = (req: { readonly credential: ResolvedCredential; readonly model: string }) => Promise<EndpointInspection>;
 
 /** Best-effort `/models` fetch against a user-supplied endpoint (fetch-models' op; `[]` on any failure). */
 type FetchModelsOp = (args: FetchModelsArgs) => Promise<string[]>;

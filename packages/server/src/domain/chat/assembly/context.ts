@@ -31,12 +31,7 @@ import type { ApplyRegexReplaceOp } from "../contract/context";
 import type { ResolvedPersonas } from "../contract/foreign";
 import type { GuidedSteer } from "../contract/params";
 import { renderInjection } from "./injections";
-import {
-  buildTurnMacroContext,
-  freezeVolatileMacros,
-  renderMacros,
-  resolveGuidedActionText,
-} from "./macros";
+import { buildTurnMacroContext, freezeVolatileMacros, renderMacros, resolveGuidedActionText } from "./macros";
 import { loadWorldInfoPool } from "./world-info/pool";
 
 interface MatchedKey {
@@ -45,14 +40,8 @@ interface MatchedKey {
 }
 
 /** Logs a ReDoS-watchdog/bad-regex failure; the pass proceeds fail-open on the text as-is. */
-function onHostRegexFailure(
-  placement: "WORLD_INFO" | "USER_INPUT",
-): (err: unknown, script: RegexScriptInput) => void {
-  return (err, script) =>
-    getLog().warn(
-      { err, placement, findRegex: script.findRegex },
-      "chat: host-tier regex script failed (D53 watchdog)",
-    );
+function onHostRegexFailure(placement: "WORLD_INFO" | "USER_INPUT"): (err: unknown, script: RegexScriptInput) => void {
+  return (err, script) => getLog().warn({ err, placement, findRegex: script.findRegex }, "chat: host-tier regex script failed (D53 watchdog)");
 }
 
 /** Logs a macro-engine depth-cap/output-size trip; fail-open, output stays bounded. */
@@ -144,10 +133,7 @@ interface WiConvEnv {
 }
 
 /** Which anchor bucket an always-scope, system-half WI entry joins (null ⇒ default in_static). */
-function resolveBucket(
-  entry: AssembleWorldEntry,
-  args: WiConversionArgs,
-): "before" | "after" | null {
+function resolveBucket(entry: AssembleWorldEntry, args: WiConversionArgs): "before" | "after" | null {
   if (entry.position === "before" && args.hasBeforeAnchor) {
     return "before";
   }
@@ -159,11 +145,7 @@ function resolveBucket(
 
 /** Position-routes a rendered WI entry: depth-inject → in_chat; always-scope → anchor bucket (or
  *  in_static); keyword (fired) → in_prompt. */
-function wiCandidate(
-  entry: AssembleWorldEntry,
-  content: string,
-  args: WiConversionArgs,
-): InjectionCandidate {
+function wiCandidate(entry: AssembleWorldEntry, content: string, args: WiConversionArgs): InjectionCandidate {
   const meta = {
     tokens: estimateTokens(content),
     ignoreBudget: entry.ignoreBudget === true,
@@ -190,10 +172,7 @@ function wiCandidate(
 
 /** Records a keyword entry's fired keys, noting which fired on the latest user text, into the trace. */
 function recordKeyHits(entry: AssembleWorldEntry, hits: readonly string[], env: WiConvEnv): void {
-  const userHits =
-    env.haystacks.latestUser.length > 0
-      ? new Set(matchEntryKeys(entry.keys, env.haystacks.latestUser))
-      : new Set<string>();
+  const userHits = env.haystacks.latestUser.length > 0 ? new Set(matchEntryKeys(entry.keys, env.haystacks.latestUser)) : new Set<string>();
   for (const key of hits) {
     env.matchedKeys.push({ key, matchedLatestUserMessage: userHits.has(key) });
   }
@@ -234,10 +213,7 @@ function convertWorldInfo(
   args: WiConversionArgs,
   regexCtx: MacroContext,
 ): { candidates: InjectionCandidate[]; matchedKeys: MatchedKey[] } {
-  const haystackTexts = [
-    ...args.recentMessages,
-    ...(args.pendingUserText !== undefined ? [args.pendingUserText] : []),
-  ];
+  const haystackTexts = [...args.recentMessages, ...(args.pendingUserText !== undefined ? [args.pendingUserText] : [])];
   const latestUserText = args.pendingUserText ?? args.lastUserMessage ?? "";
   const env: WiConvEnv = {
     ctx,
@@ -335,11 +311,7 @@ function frameSystemInjection(inj: ChatInjection): ChatInjection {
 }
 
 /** Sets `target[key]` only when `value` is defined (omit, never `undefined`, under exactOptionalPropertyTypes). */
-function setIf<K extends keyof AssembleContext>(
-  target: AssembleContext,
-  key: K,
-  value: AssembleContext[K] | undefined,
-): void {
+function setIf<K extends keyof AssembleContext>(target: AssembleContext, key: K, value: AssembleContext[K] | undefined): void {
   if (value !== undefined) {
     target[key] = value;
   }
@@ -384,9 +356,7 @@ function buildBaseContext(
   setIf(base, "guidedInstruction", input.guidedInstruction);
   // The {{persona}} marker emits only when the active persona's placement is in_prompt (default/absent);
   // at_depth/none route elsewhere, so the description is never double-injected.
-  base.personaMarkerActive =
-    input.personas.active?.placement === undefined ||
-    input.personas.active.placement.kind === "in_prompt";
+  base.personaMarkerActive = input.personas.active?.placement === undefined || input.personas.active.placement.kind === "in_prompt";
   return base;
 }
 
@@ -414,16 +384,12 @@ function routeKept(kept: readonly InjectionCandidate[]): {
 
 /** Resolves the one-turn guided steer against the built base ctx: `steer.placement`, else the action
  *  config's role (system → marker; user/assistant → depth-0 injection). No steer is a no-op. */
-function resolveGuidedSteer(
-  base: AssembleContext,
-  input: BuildAssembleContextInput,
-): { candidates: InjectionCandidate[] } {
+function resolveGuidedSteer(base: AssembleContext, input: BuildAssembleContextInput): { candidates: InjectionCandidate[] } {
   const steer = input.guided;
   if (steer === undefined) {
     return { candidates: [] };
   }
-  const config =
-    input.promptConfig.guidedActions?.[steer.action] ?? DEFAULT_GUIDED_ACTIONS[steer.action];
+  const config = input.promptConfig.guidedActions?.[steer.action] ?? DEFAULT_GUIDED_ACTIONS[steer.action];
   const resolved = resolveGuidedActionText(base, {
     action: steer.action,
     input: steer.input ?? "",
@@ -435,11 +401,7 @@ function resolveGuidedSteer(
   if (resolved.trim().length === 0) {
     return { candidates: [] };
   }
-  const placement =
-    steer.placement ??
-    (config.role === "system"
-      ? ({ kind: "system" } as const)
-      : ({ kind: "inject", role: config.role } as const));
+  const placement = steer.placement ?? (config.role === "system" ? ({ kind: "system" } as const) : ({ kind: "inject", role: config.role } as const));
   if (placement.kind === "system") {
     base.guidedInstruction = resolved;
     return { candidates: [] };
@@ -465,10 +427,7 @@ const ANCHOR_IDENTITY_PREFIX = "The person the character knows as the user is";
 /** The active persona's `descriptionPosition: "at_depth"` → an in_chat candidate, or null when it doesn't
  *  inject at depth. Resolved against the active persona itself to avoid cross-contaminating another persona's
  *  macros; unframed so a no-swap turn stays byte-identical to single-persona output. */
-function activePersonaDepthCandidate(
-  ctx: AssembleContext,
-  active: AssemblePersona | null,
-): InjectionCandidate | null {
+function activePersonaDepthCandidate(ctx: AssembleContext, active: AssemblePersona | null): InjectionCandidate | null {
   if (active === null || active.placement?.kind !== "at_depth") {
     return null;
   }
@@ -491,10 +450,7 @@ function activePersonaDepthCandidate(
  *  swap still reaches the model with who the character's card relationships refer to, even though the
  *  active speaker differs. Ignores the anchor's own descriptionPosition (that's its prompt-time preference
  *  for when it IS active, not this role). Null when opted out or empty. */
-function anchorPersonaCardCandidate(
-  ctx: AssembleContext,
-  anchor: AssemblePersona,
-): InjectionCandidate | null {
+function anchorPersonaCardCandidate(ctx: AssembleContext, anchor: AssemblePersona): InjectionCandidate | null {
   if (anchor.placement?.kind === "none") {
     return null;
   }
@@ -522,10 +478,7 @@ function sameProjectedPersona(a: AssemblePersona, b: AssemblePersona | null): bo
 /** Resolves the distinct personas in play for `{{user}}` into injection candidates: active per its own
  *  descriptionPosition (unframed); anchor as a fixed card-context block, only on a real swap. Deduped so a
  *  no-swap turn's output is byte-identical to the active-only injection. */
-function resolvePersonaDescriptionCandidates(
-  ctx: AssembleContext,
-  personas: ResolvedPersonas,
-): InjectionCandidate[] {
+function resolvePersonaDescriptionCandidates(ctx: AssembleContext, personas: ResolvedPersonas): InjectionCandidate[] {
   const candidates: InjectionCandidate[] = [];
   const active = activePersonaDepthCandidate(ctx, personas.active);
   if (active !== null) {
@@ -587,10 +540,7 @@ function depthNoteSource(contributorNames: readonly string[]): string {
 /** The chat's room author's note → an in_chat depth-note candidate on the same injection machinery the
  *  member notes ride. `{{user}}` routes to the active persona; `{{char}}` to the base primary since the
  *  note is chat-scoped, not bound to any one cast member. Null when the rendered note is empty. */
-function roomAuthorsNoteCandidate(
-  ctx: AssembleContext,
-  note: RoomAuthorsNote,
-): InjectionCandidate | null {
+function roomAuthorsNoteCandidate(ctx: AssembleContext, note: RoomAuthorsNote): InjectionCandidate | null {
   const content = renderMacros(note.prompt, ctx, ctx.activePersona);
   if (content.trim().length === 0) {
     return null;
@@ -632,18 +582,10 @@ function authorsNoteCandidates(ctx: AssembleContext): {
 }
 
 /** Produces the immutable per-turn AssembleContext SHAPE consumes per speaker; never mutated after return. */
-export async function buildAssembleContext(
-  ctx: ChatContext,
-  input: BuildAssembleContextInput,
-  out?: SendRegexResult,
-): Promise<AssembleContext> {
+export async function buildAssembleContext(ctx: ChatContext, input: BuildAssembleContextInput, out?: SendRegexResult): Promise<AssembleContext> {
   // RESOLVE — live cast cards; castMembers stays index-aligned with the filtered cast (a gone/null card
   // drops from both).
-  const cards = await Promise.all(
-    input.castCharacterIds.map((characterId) =>
-      ctx.getCard({ ownerId: input.ownerId, characterId }),
-    ),
-  );
+  const cards = await Promise.all(input.castCharacterIds.map((characterId) => ctx.getCard({ ownerId: input.ownerId, characterId })));
   const present = input.castCharacterIds.flatMap((characterId, i) => {
     const card = cards[i];
     return card ? [{ characterId, card }] : [];
@@ -697,11 +639,9 @@ export async function buildAssembleContext(
 
   // BUILD — WI to injections (render once + keyword match), unified into one list, one budget pass.
   const wiFormat = input.promptConfig.formatStrings?.wiFormat ?? DEFAULT_FORMAT_STRINGS.wiFormat;
-  const names = [
-    ...cast.map((c) => c.name),
-    input.personas.anchor?.name,
-    input.personas.active?.name,
-  ].filter((n): n is string => typeof n === "string" && n.length > 0);
+  const names = [...cast.map((c) => c.name), input.personas.anchor?.name, input.personas.active?.name].filter(
+    (n): n is string => typeof n === "string" && n.length > 0,
+  );
 
   const wi = convertWorldInfo(
     pool,
@@ -734,13 +674,7 @@ export async function buildAssembleContext(
   // Appended after persona so a same-depth tie orders persona-then-note deterministically.
   const authorsNote = authorsNoteCandidates(base);
   const { kept, dropped } = budgetInjections(
-    [
-      ...wi.candidates,
-      ...userCandidates,
-      ...guided.candidates,
-      ...personaDescription,
-      ...authorsNote.candidates,
-    ],
+    [...wi.candidates, ...userCandidates, ...guided.candidates, ...personaDescription, ...authorsNote.candidates],
     input.injectionTokenBudget,
   );
   const { chatInjections, beforeParts, afterParts } = routeKept(kept);
@@ -752,13 +686,9 @@ export async function buildAssembleContext(
     chatInjections,
     worldInfoBefore: beforeParts.join("\n"),
     worldInfoAfter: afterParts.join("\n"),
-    ...(authorsNote.authorsNoteSource !== undefined
-      ? { authorsNoteSource: authorsNote.authorsNoteSource }
-      : {}),
+    ...(authorsNote.authorsNoteSource !== undefined ? { authorsNoteSource: authorsNote.authorsNoteSource } : {}),
     // Carries the resolved host-tier regex set onto the immutable ctx so RECEIVE applies the same set SEND used.
-    ...(input.hostTierRegexScripts !== undefined
-      ? { hostTierRegexScripts: input.hostTierRegexScripts }
-      : {}),
+    ...(input.hostTierRegexScripts !== undefined ? { hostTierRegexScripts: input.hostTierRegexScripts } : {}),
     wiTrace: {
       included: chatInjections.length + beforeParts.length + afterParts.length,
       dropped,

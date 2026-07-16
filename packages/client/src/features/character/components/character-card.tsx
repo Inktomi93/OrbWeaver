@@ -81,13 +81,7 @@ export function CharacterCardTile({
   // exactOptionalPropertyTypes: omit `src` entirely for a missing avatar so it falls to the fallback.
   const avatarSrc = character.avatarHash === null ? {} : { src: blobUrl(character.avatarHash) };
 
-  const bulkActions = (
-    <Checkbox
-      aria-label={`Select ${character.name}`}
-      checked={bulkSelected}
-      onCheckedChange={(): void => onToggleBulk(character.id)}
-    />
-  );
+  const bulkActions = <Checkbox aria-label={`Select ${character.name}`} checked={bulkSelected} onCheckedChange={(): void => onToggleBulk(character.id)} />;
 
   return (
     <ListRow
@@ -175,8 +169,7 @@ function NormalRowActions({
         destructive={{
           separator: false,
           title: `Delete "${character.name}"?`,
-          description:
-            "This permanently deletes the character and everything attached to it. This can't be undone.",
+          description: "This permanently deletes the character and everything attached to it. This can't be undone.",
           onConfirm: (): void => onDelete(character.id),
         }}
       >

@@ -42,14 +42,7 @@ function initialLayers(src: string | null): Layers {
  * `prefers-reduced-motion` via the globals.css unlayered floor — no JS media-query branching needed.
  * A failing `src` swaps to a styled broken-image fallback instead of the browser's native glyph.
  */
-export function CrossfadeImage({
-  src,
-  alt,
-  aspectRatio,
-  fit,
-  durationMs,
-  className,
-}: CrossfadeImageProps): ReactElement {
+export function CrossfadeImage({ src, alt, aspectRatio, fit, durationMs, className }: CrossfadeImageProps): ReactElement {
   // Mirrors `src` so a prop change is detected and reacted to DURING render, not a setState-in-effect cascade.
   const [propSrc, setPropSrc] = useState(src);
   const [layers, setLayers] = useState<Layers>(() => initialLayers(src));
@@ -74,31 +67,19 @@ export function CrossfadeImage({
     }
     const revealKey = layers.top.key;
     const frame = requestAnimationFrame((): void => {
-      setLayers((state) =>
-        state.top !== null && state.top.key === revealKey
-          ? { ...state, top: { ...state.top, revealed: true } }
-          : state,
-      );
+      setLayers((state) => (state.top !== null && state.top.key === revealKey ? { ...state, top: { ...state.top, revealed: true } } : state));
     });
     return (): void => cancelAnimationFrame(frame);
   }, [layers.top]);
 
   const slots = crossfadeImageVariants({ fit });
-  const overrideStyle =
-    durationMs === undefined ? undefined : { transitionDuration: `${durationMs}ms` };
+  const overrideStyle = durationMs === undefined ? undefined : { transitionDuration: `${durationMs}ms` };
 
   const topIsBroken = layers.top !== null && layers.top.key === brokenKey;
 
   return (
     <div className={slots.root({ className })} data-slot="crossfade-image" style={{ aspectRatio }}>
-      {layers.previousSrc !== null && !topIsBroken && (
-        <img
-          alt={alt}
-          className={slots.image()}
-          data-slot="crossfade-image-previous"
-          src={layers.previousSrc}
-        />
-      )}
+      {layers.previousSrc !== null && !topIsBroken && <img alt={alt} className={slots.image()} data-slot="crossfade-image-previous" src={layers.previousSrc} />}
       {layers.top !== null && topIsBroken && (
         <div className={slots.fallback()} data-slot="crossfade-image-fallback">
           <Icon icon={ImageOff} label={`${alt} failed to load`} size="md" />

@@ -20,47 +20,23 @@ interface SettingRowControlProps {
 }
 
 /** One label-left / switch-right settings row (the on/off-effect shape). */
-export function SettingSwitchRow({
-  id,
-  label,
-  description,
-  checked,
-  onChange,
-  onBlur,
-}: SettingRowControlProps): ReactElement {
+export function SettingSwitchRow({ id, label, description, checked, onChange, onBlur }: SettingRowControlProps): ReactElement {
   return (
     <SettingRow id={id} label={label} {...(description === undefined ? {} : { description })}>
       {/* a11y: SettingRow renders the associated `<label htmlFor={id}>` — the shared id is the real label
           wiring, invisible at this control. */}
-      <Switch
-        id={id}
-        checked={checked}
-        onCheckedChange={onChange}
-        {...(onBlur === undefined ? {} : { onBlur })}
-      />
+      <Switch id={id} checked={checked} onCheckedChange={onChange} {...(onBlur === undefined ? {} : { onBlur })} />
     </SettingRow>
   );
 }
 
 /** The checkbox sibling (the multi-pick-from-a-set shape, e.g. "which kinds to include"). */
-export function SettingCheckboxRow({
-  id,
-  label,
-  description,
-  checked,
-  onChange,
-  onBlur,
-}: SettingRowControlProps): ReactElement {
+export function SettingCheckboxRow({ id, label, description, checked, onChange, onBlur }: SettingRowControlProps): ReactElement {
   return (
     <SettingRow id={id} label={label} {...(description === undefined ? {} : { description })}>
       {/* a11y: SettingRow renders the associated `<label htmlFor={id}>` — the shared id is the real label
           wiring, invisible at this control. */}
-      <Checkbox
-        id={id}
-        checked={checked}
-        onCheckedChange={(next): void => onChange(next === true)}
-        {...(onBlur === undefined ? {} : { onBlur })}
-      />
+      <Checkbox id={id} checked={checked} onCheckedChange={(next): void => onChange(next === true)} {...(onBlur === undefined ? {} : { onBlur })} />
     </SettingRow>
   );
 }

@@ -45,9 +45,7 @@ function programClosure(root: string, config: string): readonly string[] | undef
     maxBuffer: LIST_FILES_MAX_BUFFER,
   });
   if (res.status !== 0 || typeof res.stdout !== "string") {
-    process.stderr.write(
-      `tests-type-membership: \`tsgo --listFilesOnly -p ${config}\` failed (status ${String(res.status)})\n${res.stderr ?? ""}`,
-    );
+    process.stderr.write(`tests-type-membership: \`tsgo --listFilesOnly -p ${config}\` failed (status ${String(res.status)})\n${res.stderr ?? ""}`);
     return;
   }
   return res.stdout.split("\n").map((l) => l.trim());
@@ -97,11 +95,7 @@ const FIX_HINT =
   "playwright/** MUST be in ≥1 type program's closure — else it is checked by NOTHING.";
 
 /** The reconciliation core (exported for a proof test): the test files that appear in NO program closure. */
-export function findEscapees(
-  testFiles: readonly string[],
-  closureAbs: ReadonlySet<string>,
-  root: string,
-): readonly string[] {
+export function findEscapees(testFiles: readonly string[], closureAbs: ReadonlySet<string>, root: string): readonly string[] {
   const prefix = `${root}/`;
   return testFiles.filter((rel) => !closureAbs.has(`${prefix}${rel}`));
 }
@@ -115,19 +109,13 @@ function main(): void {
   const testFiles = enumerateTestFiles(root);
   const escapees = findEscapees(testFiles, closure, root);
 
-  process.stdout.write(
-    `tests-type-membership — ${testFiles.length} test file(s) across ${PROGRAMS.length} type program(s)\n`,
-  );
+  process.stdout.write(`tests-type-membership — ${testFiles.length} test file(s) across ${PROGRAMS.length} type program(s)\n`);
   if (escapees.length === 0) {
-    process.stdout.write(
-      "  ✓ every tests/** + playwright/** TS file is in ≥1 type program's closure\n",
-    );
+    process.stdout.write("  ✓ every tests/** + playwright/** TS file is in ≥1 type program's closure\n");
     process.exitCode = EXIT_CLEAN;
     return;
   }
-  process.stdout.write(
-    `  ✗ ${escapees.length} file(s) in ZERO type programs — checked by NO static stage:\n`,
-  );
+  process.stdout.write(`  ✗ ${escapees.length} file(s) in ZERO type programs — checked by NO static stage:\n`);
   for (const rel of escapees) {
     process.stdout.write(`      · ${rel}\n`);
   }

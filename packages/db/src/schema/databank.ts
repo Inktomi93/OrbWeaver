@@ -100,10 +100,7 @@ export const globalDocuments = sqliteTable(
       .notNull()
       .references(() => documents.id, { onDelete: "cascade" }),
   },
-  (t) => [
-    primaryKey({ columns: [t.ownerId, t.documentId] }),
-    index("global_documents_document_idx").on(t.documentId),
-  ],
+  (t) => [primaryKey({ columns: [t.ownerId, t.documentId] }), index("global_documents_document_idx").on(t.documentId)],
 );
 
 export const characterDocuments = sqliteTable(
@@ -118,10 +115,7 @@ export const characterDocuments = sqliteTable(
       .notNull()
       .references(() => documents.id, { onDelete: "cascade" }),
   },
-  (t) => [
-    primaryKey({ columns: [t.characterId, t.documentId] }),
-    index("character_documents_document_idx").on(t.documentId),
-  ],
+  (t) => [primaryKey({ columns: [t.characterId, t.documentId] }), index("character_documents_document_idx").on(t.documentId)],
 );
 
 export const chatDocuments = sqliteTable(
@@ -136,8 +130,5 @@ export const chatDocuments = sqliteTable(
       .notNull()
       .references(() => documents.id, { onDelete: "cascade" }),
   },
-  (t) => [
-    primaryKey({ columns: [t.chatId, t.documentId] }),
-    index("chat_documents_document_idx").on(t.documentId),
-  ],
+  (t) => [primaryKey({ columns: [t.chatId, t.documentId] }), index("chat_documents_document_idx").on(t.documentId)],
 );

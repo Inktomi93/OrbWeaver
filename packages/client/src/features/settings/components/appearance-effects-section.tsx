@@ -19,25 +19,17 @@ import { BLUR_STRENGTH_MAX, BLUR_STRENGTH_MIN } from "../lib/appearance-bounds";
 import { APPEARANCE_SUBCATEGORY_IDS } from "../lib/appearance-nav";
 import { BLUR_SURFACE_ITEMS, SURFACE_TEXTURE_ITEMS } from "../lib/appearance-select-items";
 
-export function AppearanceEffectsSection({
-  form,
-}: {
-  readonly form: Omit<AppFormInstance<AppearanceSettings>, "reset">;
-}): ReactElement {
+export function AppearanceEffectsSection({ form }: { readonly form: Omit<AppFormInstance<AppearanceSettings>, "reset"> }): ReactElement {
   const glassId = useId();
   const shadowId = useId();
   const tintId = useId();
   return (
-    <Section
-      divider={true}
-      heading="Effects"
-      id={settingsAnchorId("appearance", APPEARANCE_SUBCATEGORY_IDS.effects)}
-    >
+    <Section divider={true} heading="Effects" id={settingsAnchorId("appearance", APPEARANCE_SUBCATEGORY_IDS.effects)}>
       <Stack gap="field">
         <Text size="label">Frosted glass</Text>
         <Text size="micro" tone="muted">
-          Backdrop blur + a translucent fill on the surfaces you pick. Messages carry glass poorly
-          (scrolling prose over blur), so they stay off unless you opt in.
+          Backdrop blur + a translucent fill on the surfaces you pick. Messages carry glass poorly (scrolling prose over blur), so they stay off unless you opt
+          in.
         </Text>
         <form.AppField name="blurSurfaces">
           {(field): ReactElement => (
@@ -54,11 +46,7 @@ export function AppearanceEffectsSection({
                     checked={field.state.value.includes(surface)}
                     onBlur={field.handleBlur}
                     onChange={(next): void =>
-                      field.handleChange(
-                        next
-                          ? [...field.state.value, surface]
-                          : field.state.value.filter((value) => value !== surface),
-                      )
+                      field.handleChange(next ? [...field.state.value, surface] : field.state.value.filter((value) => value !== surface))
                     }
                   />
                 );

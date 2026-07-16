@@ -18,7 +18,6 @@ export const mediaGridVariants = tv({
     ],
     image: "h-full w-full object-cover",
     placeholder: "h-full w-full bg-muted",
-    selectedBadge:
-      "absolute top-field right-field flex items-center justify-center rounded-full bg-primary p-field text-primary-foreground",
+    selectedBadge: "absolute top-field right-field flex items-center justify-center rounded-full bg-primary p-field text-primary-foreground",
   },
 });

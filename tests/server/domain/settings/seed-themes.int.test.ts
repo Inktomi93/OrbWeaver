@@ -6,12 +6,7 @@
 import { themes } from "@orb/db";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
-import {
-  THEME_HEARTH_ID,
-  THEME_HEARTH_NAME,
-  THEME_LIGHT_ID,
-  THEME_MOCHA_ID,
-} from "../../../../packages/server/src/domain/settings/constants.ts";
+import { THEME_HEARTH_ID, THEME_HEARTH_NAME, THEME_LIGHT_ID, THEME_MOCHA_ID } from "../../../../packages/server/src/domain/settings/constants.ts";
 import { readableTheme } from "../../../../packages/server/src/domain/settings/persistence/theme-queries.ts";
 import { ensureSeedThemes } from "../../../../packages/server/src/domain/settings/seed-themes.ts";
 import { freshDb } from "../../../support/db.ts";
@@ -23,9 +18,7 @@ describe("ensureSeedThemes", () => {
     const db = await freshDb();
     await ensureSeedThemes(db, () => FROZEN_AT);
     const a = await seedUser(db, { id: "user_a" });
-    const rows = await Promise.all(
-      [THEME_HEARTH_ID, THEME_MOCHA_ID, THEME_LIGHT_ID].map((id) => readableTheme(db, a, id)),
-    );
+    const rows = await Promise.all([THEME_HEARTH_ID, THEME_MOCHA_ID, THEME_LIGHT_ID].map((id) => readableTheme(db, a, id)));
     for (const row of rows) {
       expect(row?.ownerId).toBeNull();
     }
@@ -37,9 +30,7 @@ describe("ensureSeedThemes", () => {
     await ensureSeedThemes(db, () => FROZEN_AT);
     await ensureSeedThemes(db, () => FROZEN_AT + 999);
     const a = await seedUser(db, { id: "user_a" });
-    const seeds = (await h.svc.listThemes({ principal: principal(a, "user") })).filter(
-      (v) => v.isSeed,
-    );
+    const seeds = (await h.svc.listThemes({ principal: principal(a, "user") })).filter((v) => v.isSeed);
     expect(seeds).toHaveLength(3);
   });
 

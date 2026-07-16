@@ -12,10 +12,7 @@ import type { ChatContext } from "../context";
 import type { GenerateImageParams } from "../contract/params";
 import type { ChatService } from "../contract/service";
 import { requireParticipant } from "../guard";
-import {
-  buildCommittedMessageView,
-  insertCanonMessageStatements,
-} from "../persistence/canon-write";
+import { buildCommittedMessageView, insertCanonMessageStatements } from "../persistence/canon-write";
 import { loadMaxMessageSeq } from "../persistence/queries";
 
 /** The alt text stamped on each generated-image ref (one home — no scattered magic string). */
@@ -26,18 +23,9 @@ interface GenerateImageDeps {
   readonly emit: (event: ChatBusEvent) => Promise<void>;
 }
 
-export function createGenerateImage(
-  ctx: ChatContext,
-  deps: GenerateImageDeps,
-): Pick<ChatService, "generateImage"> {
+export function createGenerateImage(ctx: ChatContext, deps: GenerateImageDeps): Pick<ChatService, "generateImage"> {
   return {
-    generateImage: async ({
-      principal,
-      chatId,
-      mode,
-      prompt,
-      n,
-    }: GenerateImageParams): Promise<MessageView> => {
+    generateImage: async ({ principal, chatId, mode, prompt, n }: GenerateImageParams): Promise<MessageView> => {
       await requireParticipant(ctx, principal, chatId);
       const picture = await ctx.generatePicture({
         caller: principal,
@@ -48,9 +36,7 @@ export function createGenerateImage(
       });
 
       // ONE message body STRING: the prompt (if any) + one markdown image ref per generated asset (D51).
-      const refs = picture.images
-        .map((img) => `![${GENERATED_IMAGE_ALT}](asset:${img.assetId})`)
-        .join("\n");
+      const refs = picture.images.map((img) => `![${GENERATED_IMAGE_ALT}](asset:${img.assetId})`).join("\n");
       const trimmed = prompt?.trim() ?? "";
       const body = trimmed.length > 0 ? `${trimmed}\n\n${refs}` : refs;
 

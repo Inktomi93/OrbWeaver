@@ -12,18 +12,10 @@ import { ensureCharacterOwned, ensurePersonaOwned } from "../../persistence/quer
 export function createDisconnect(ctx: PersonaContext): PersonaService["disconnectFromCharacter"] {
   return async ({ principal, characterId, personaId }: DisconnectParams) => {
     const ownerId = principal.userId;
-    await Promise.all([
-      ensureCharacterOwned(ctx.db, ownerId, characterId),
-      ensurePersonaOwned(ctx.db, ownerId, personaId),
-    ]);
+    await Promise.all([ensureCharacterOwned(ctx.db, ownerId, characterId), ensurePersonaOwned(ctx.db, ownerId, personaId)]);
     const deleted = await ctx.db
       .delete(characterPersonas)
-      .where(
-        and(
-          eq(characterPersonas.characterId, characterId),
-          eq(characterPersonas.personaId, personaId),
-        ),
-      )
+      .where(and(eq(characterPersonas.characterId, characterId), eq(characterPersonas.personaId, personaId)))
       .returning({ personaId: characterPersonas.personaId });
     const disconnected = deleted.length > 0;
     if (disconnected) {

@@ -15,12 +15,7 @@ import { routeTrpc } from "../../../../support/ct/route-trpc";
 import { makeCharacterSummary } from "../../character/fixtures";
 import { makeChatSummary } from "../../chat/fixtures";
 import { ShellCascadeFixture } from "../_cascade-fixtures";
-import {
-  AppShellRealChatsStory,
-  AppShellStory,
-  AppShellWidthProbeStory,
-  ModalScrollStory,
-} from "../_ct-stories";
+import { AppShellRealChatsStory, AppShellStory, AppShellWidthProbeStory, ModalScrollStory } from "../_ct-stories";
 
 /** The thumb-reach budget (L6/J12): rendered mobile-bar buttons (mobilePrimary sections + "You") must
  *  never exceed this — a def flipping `mobilePrimary: true` must not silently balloon the bar. */
@@ -47,10 +42,7 @@ test("a rail click switches the section's CONTENT + LIST slots", async ({ mount,
   await expect(page.getByText("chats content pane")).toBeHidden();
 });
 
-test("<Activity> pane-keeping: switching away and back keeps the SAME CONTENT node (state survives)", async ({
-  mount,
-  page,
-}) => {
+test("<Activity> pane-keeping: switching away and back keeps the SAME CONTENT node (state survives)", async ({ mount, page }) => {
   const shell = await mount(<AppShellStory />);
   // Tag the live chats CONTENT node, switch away (it goes hidden, not unmounted), switch back — if the
   // pane had unmounted/remounted the tag would be gone; a surviving tag proves the subtree (and its
@@ -66,10 +58,7 @@ test("<Activity> pane-keeping: switching away and back keeps the SAME CONTENT no
   await expect(page.locator('[data-activity-probe="kept"]')).toHaveText("chats content pane");
 });
 
-test("the topbar toggle collapses the list panel to zero rendered width (clamp-overlay)", async ({
-  mount,
-  page,
-}) => {
+test("the topbar toggle collapses the list panel to zero rendered width (clamp-overlay)", async ({ mount, page }) => {
   const shell = await mount(<AppShellStory />);
   const listPanel = page.locator('.shell-panel[data-panel-side="list"]');
   await expect(listPanel).toHaveAttribute("data-panel-mode", "docked");
@@ -94,10 +83,7 @@ test("the topbar toggle collapses the list panel to zero rendered width (clamp-o
   await expect(listPanel).toHaveAttribute("aria-hidden", "true");
 });
 
-test("the focus toggle collapses both panels (immersive) then restores (command-center)", async ({
-  mount,
-  page,
-}) => {
+test("the focus toggle collapses both panels (immersive) then restores (command-center)", async ({ mount, page }) => {
   const shell = await mount(<AppShellStory />);
   const listPanel = page.locator('.shell-panel[data-panel-side="list"]');
   const contextPanel = page.locator('.shell-panel[data-panel-side="context"]');
@@ -127,16 +113,11 @@ test("CONTEXT follows the active section (§4.2 rule 1): a rail switch swaps the
   // Switch to corpus (no context slot) — the chats panel must be GONE (not merely hidden: the shell
   // reads only sections[activeSection], so the stale body is unmounted) and the honest placeholder in.
   await page.getByRole("button", { name: "Corpus" }).click();
-  await expect
-    .poll(panelText, { intervals: [20, 50, 100] })
-    .toContain("Select something to see its details here");
+  await expect.poll(panelText, { intervals: [20, 50, 100] }).toContain("Select something to see its details here");
   expect(await panelText()).not.toContain("chats context pane");
 });
 
-test("a footer modal trigger (derived from the modal registry) opens its real body", async ({
-  mount,
-  page,
-}) => {
+test("a footer modal trigger (derived from the modal registry) opens its real body", async ({ mount, page }) => {
   const shell = await mount(<AppShellStory />);
   // The rail-footer "Settings" button DERIVES from the modal registry (settingsModal.trigger).
   await shell.getByRole("button", { name: "Settings" }).click();
@@ -152,10 +133,7 @@ test("a footer modal trigger (derived from the modal registry) opens its real bo
 // finalFocus (§13.8 R1 · side-eye P3): the store-driven modal mounts already-open (no DialogTrigger), so
 // ModalHost captures the trigger at open and hands it to Base UI's `finalFocus` — on Escape-close, focus
 // returns to the Settings control, not lost to <body>. A keyboard user's place is preserved.
-test("closing a modal returns focus to the control that opened it (finalFocus)", async ({
-  mount,
-  page,
-}) => {
+test("closing a modal returns focus to the control that opened it (finalFocus)", async ({ mount, page }) => {
   const shell = await mount(<AppShellStory />);
   const trigger = shell.getByRole("button", { name: "Settings" });
   await trigger.focus();
@@ -185,10 +163,7 @@ function scrollRegionContainment(page: Page): Promise<string> {
     let el = document.querySelector('[data-testid="tall-modal-body"]')?.parentElement ?? null;
     while (el !== null) {
       const s = getComputedStyle(el);
-      if (
-        (s.overflowY === "auto" || s.overflowY === "scroll") &&
-        el.scrollHeight > el.clientHeight
-      ) {
+      if ((s.overflowY === "auto" || s.overflowY === "scroll") && el.scrollHeight > el.clientHeight) {
         return popup.contains(el) && popup !== el ? "descendant" : "outside-popup";
       }
       el = el.parentElement;
@@ -203,10 +178,7 @@ function scrollInteriorToBottom(page: Page): Promise<void> {
     let el = document.querySelector('[data-testid="tall-modal-body"]')?.parentElement ?? null;
     while (el !== null) {
       const s = getComputedStyle(el);
-      if (
-        (s.overflowY === "auto" || s.overflowY === "scroll") &&
-        el.scrollHeight > el.clientHeight
-      ) {
+      if ((s.overflowY === "auto" || s.overflowY === "scroll") && el.scrollHeight > el.clientHeight) {
         el.scrollTop = el.scrollHeight;
         return;
       }
@@ -216,10 +188,7 @@ function scrollInteriorToBottom(page: Page): Promise<void> {
 }
 
 for (const modalId of MODAL_SLOT_IDS) {
-  test(`no-window-scroll: the "${modalId}" modal overflows its OWN region, never the document`, async ({
-    mount,
-    page,
-  }) => {
+  test(`no-window-scroll: the "${modalId}" modal overflows its OWN region, never the document`, async ({ mount, page }) => {
     await page.setViewportSize({ width: 1024, height: 500 });
     await mount(<ModalScrollStory modalId={modalId} />);
     // The modal PORTALS to document.body — scope the wait to the page, not the mounted component root.
@@ -243,9 +212,7 @@ for (const modalId of MODAL_SLOT_IDS) {
     //    (The receipts showed the outer backdrop wrapper absorbing the overflow, which scrolled the title
     //    + nav + close out of view along with the content. "Some ancestor scrolls" is too weak — it PASSED
     //    with the broken backdrop-owns-scroll shape; the scroll must live INSIDE the popup.)
-    await expect
-      .poll(() => scrollRegionContainment(page), { intervals: [20, 50, 100] })
-      .toBe("descendant");
+    await expect.poll(() => scrollRegionContainment(page), { intervals: [20, 50, 100] }).toBe("descendant");
 
     // 3) PINNED HEADER — scrolling the interior region to the bottom leaves the modal header's box put
     //    (the dialog header is a SIBLING of the scroll region; the drawer header pins via `sticky top-0`).
@@ -288,19 +255,14 @@ for (const modalId of MODAL_SLOT_IDS) {
     });
     await page.getByTestId("tall-modal-body").waitFor({ state: "attached" });
     const popup = page.locator('[data-slot="dialog-popup"], [data-slot="drawer-popup"]');
-    const bg = await popup.evaluate((el) =>
-      getComputedStyle(el).getPropertyValue("--color-background").trim(),
-    );
+    const bg = await popup.evaluate((el) => getComputedStyle(el).getPropertyValue("--color-background").trim());
     expect(bg).toContain("300");
   });
 }
 
 // ── MOBILE (L6/J12 · D62 P3) — the bottom-tab-bar reflow ─────────────────────────────────────────
 
-test("landmark uniqueness: exactly ONE main, distinct complementary labels, one nav", async ({
-  mount,
-  page,
-}) => {
+test("landmark uniqueness: exactly ONE main, distinct complementary labels, one nav", async ({ mount, page }) => {
   await mount(<AppShellStory />);
 
   // Exactly ONE main landmark (CONTENT)
@@ -312,9 +274,7 @@ test("landmark uniqueness: exactly ONE main, distinct complementary labels, one 
   // The complementary landmarks (asides) must have distinct accessible names
   // In default chats layout, it's "Chats list" and "Chats details"
   await expect(page.getByRole("complementary", { name: "Chats list", exact: true })).toBeVisible();
-  await expect(
-    page.getByRole("complementary", { name: "Chats details", exact: true, includeHidden: true }),
-  ).toBeAttached();
+  await expect(page.getByRole("complementary", { name: "Chats details", exact: true, includeHidden: true })).toBeAttached();
 
   // No unnamed complementary landmarks, and all labels are distinct
   const allComplementary = page.getByRole("complementary", { includeHidden: true });
@@ -333,19 +293,12 @@ test("landmark uniqueness: exactly ONE main, distinct complementary labels, one 
 
 // ── MOBILE (L6/J12 · D62 P3) — the bottom-tab-bar reflow ─────────────────────────────────────────
 
-test("mobile: the bottom bar is the curated four; overflow + footer affordances are off the bar", async ({
-  mount,
-  page,
-}) => {
+test("mobile: the bottom bar is the curated four; overflow + footer affordances are off the bar", async ({ mount, page }) => {
   await page.setViewportSize(MOBILE);
   const shell = await mount(<AppShellStory />);
 
   // The four thumb-reach tabs render as named buttons.
-  await Promise.all(
-    ["Chats", "Characters", "Corpus", "You"].map((name) =>
-      expect(shell.getByRole("button", { name, exact: true })).toBeVisible(),
-    ),
-  );
+  await Promise.all(["Chats", "Characters", "Corpus", "You"].map((name) => expect(shell.getByRole("button", { name, exact: true })).toBeVisible()));
   // The overflow sections + the desktop footer triggers are NOT on the bar (they live in the You sheet).
   // display:none on the desktop block removes them from the a11y tree entirely.
   await expect(page.getByRole("button", { name: "Refinery" })).toHaveCount(0);
@@ -357,10 +310,7 @@ test("mobile: the bottom bar is the curated four; overflow + footer affordances 
   expect(tabCount).toBeLessThanOrEqual(MAX_MOBILE_TAB_BUTTONS);
 });
 
-test("mobile: you land on CONTENT — the list panel is collapsed, not an open sheet", async ({
-  mount,
-  page,
-}) => {
+test("mobile: you land on CONTENT — the list panel is collapsed, not an open sheet", async ({ mount, page }) => {
   await page.setViewportSize(MOBILE);
   await mount(<AppShellStory />);
   // Mobile resolves the list to a closed sheet (collapsed), never the persisted desktop dock — the
@@ -379,10 +329,7 @@ test("mobile: a tab click switches the section", async ({ mount, page }) => {
   await expect(page.getByText("chats content pane")).toBeHidden();
 });
 
-test("mobile: the You tab opens the sheet; an overflow section routes and closes it", async ({
-  mount,
-  page,
-}) => {
+test("mobile: the You tab opens the sheet; an overflow section routes and closes it", async ({ mount, page }) => {
   await page.setViewportSize(MOBILE);
   const shell = await mount(<AppShellStory />);
   await shell.getByRole("button", { name: "You", exact: true }).click();
@@ -400,10 +347,7 @@ test("mobile: the You tab opens the sheet; an overflow section routes and closes
   await expect(page.getByText("Charts over your corpus land here", { exact: false })).toBeVisible();
 });
 
-test("mobile: the You sheet hands off to Settings in the shared modal slot (single-slot layered)", async ({
-  mount,
-  page,
-}) => {
+test("mobile: the You sheet hands off to Settings in the shared modal slot (single-slot layered)", async ({ mount, page }) => {
   await page.setViewportSize(MOBILE);
   const shell = await mount(<AppShellStory />);
   await shell.getByRole("button", { name: "You", exact: true }).click();
@@ -460,10 +404,7 @@ test("resolvePanel: a docked-default panel is docked >64rem, CLOSED (collapsed) 
   await expect(listPanel).toHaveAttribute("data-panel-mode", "collapsed");
 });
 
-test("resolvePanel: an explicit collapsed/overlay override passes through identically across all three regimes", async ({
-  mount,
-  page,
-}) => {
+test("resolvePanel: an explicit collapsed/overlay override passes through identically across all three regimes", async ({ mount, page }) => {
   await page.setViewportSize(WIDE);
   const shell = await mount(<AppShellStory />);
   const listPanel = page.locator('.shell-panel[data-panel-side="list"]');
@@ -562,10 +503,7 @@ test("the topbar toggle OPENS a narrow-auto-overlayed panel (slide-over + scrim)
   expect(after).toEqual(before);
 });
 
-test("the scrim dismiss closes a narrow-auto-overlayed panel the same way the topbar toggle does", async ({
-  mount,
-  page,
-}) => {
+test("the scrim dismiss closes a narrow-auto-overlayed panel the same way the topbar toggle does", async ({ mount, page }) => {
   await page.setViewportSize(NARROW_DESKTOP);
   const shell = await mount(<AppShellStory />);
   const listPanel = page.locator('.shell-panel[data-panel-side="list"]');
@@ -582,10 +520,7 @@ test("the scrim dismiss closes a narrow-auto-overlayed panel the same way the to
 // persisted panelOverrides (there's nothing "docked" to persist-collapse — it's already an on-demand
 // overlay), it just closes whatever slide-over happens to be open.
 
-test("toggleFocus at narrow width closes an open slide-over without writing panelOverrides", async ({
-  mount,
-  page,
-}) => {
+test("toggleFocus at narrow width closes an open slide-over without writing panelOverrides", async ({ mount, page }) => {
   await page.setViewportSize(NARROW_DESKTOP);
   const shell = await mount(<AppShellStory />);
   const listPanel = page.locator('.shell-panel[data-panel-side="list"]');
@@ -607,10 +542,7 @@ test("toggleFocus at narrow width closes an open slide-over without writing pane
 // The overlay is modal-adjacent (scrim + on-demand) — a keyboard user needs Escape, not just
 // toggle/scrim-click, to dismiss it. Scoped to the overlay regime; Escape must yield to an open modal.
 
-test("Escape closes an open narrow-overlay panel without writing panelOverrides", async ({
-  mount,
-  page,
-}) => {
+test("Escape closes an open narrow-overlay panel without writing panelOverrides", async ({ mount, page }) => {
   await page.setViewportSize(NARROW_DESKTOP);
   const shell = await mount(<AppShellStory />);
   const listPanel = page.locator('.shell-panel[data-panel-side="list"]');
@@ -639,10 +571,7 @@ test("Escape closes an open narrow-overlay panel without writing panelOverrides"
 // user in the first place — the yield guard's job is to never fire while a modal owns Escape, which the
 // two tests above/below jointly prove: Escape closes the overlay when no modal is open, and Escape closes
 // the modal (Base UI's handling) when one is open, with the shell's own listener a no-op in the latter case.
-test("Escape closes an open modal without any panel-dismiss side effect (the yield guard, non-overlapping state)", async ({
-  mount,
-  page,
-}) => {
+test("Escape closes an open modal without any panel-dismiss side effect (the yield guard, non-overlapping state)", async ({ mount, page }) => {
   await page.setViewportSize(NARROW_DESKTOP);
   const shell = await mount(<AppShellStory />);
   const listPanel = page.locator('.shell-panel[data-panel-side="list"]');
@@ -690,10 +619,7 @@ function transitionOf(locator: Locator, prop: string): Promise<{ duration: strin
   }, prop);
 }
 
-test("co-motion parity: the grid track and the collapsed panel share one non-zero duration + easing", async ({
-  mount,
-  page,
-}) => {
+test("co-motion parity: the grid track and the collapsed panel share one non-zero duration + easing", async ({ mount, page }) => {
   const shell = await mount(<AppShellStory />);
   const grid = page.locator(".shell-grid");
   const listPanel = page.locator('.shell-panel[data-panel-side="list"]');
@@ -753,27 +679,15 @@ function backdropFilterOf(locator: Locator): Promise<string> {
   return locator.evaluate((el) => getComputedStyle(el).backdropFilter);
 }
 
-test("baseline (flat, no glass, no bg-image): surfaces are opaque, no backdrop-filter", async ({
-  mount,
-}) => {
+test("baseline (flat, no glass, no bg-image): surfaces are opaque, no backdrop-filter", async ({ mount }) => {
   const shell = await mount(<ShellCascadeFixture />);
-  await expect
-    .poll(() => bgAlpha(shell.getByTestId("panel-probe")), { intervals: [20, 50, 100] })
-    .toBe(1);
-  await expect
-    .poll(() => bgAlpha(shell.getByTestId("main-probe")), { intervals: [20, 50, 100] })
-    .toBe(1);
-  await expect
-    .poll(() => bgAlpha(shell.getByTestId("topbar-probe")), { intervals: [20, 50, 100] })
-    .toBe(1);
-  await expect
-    .poll(() => backdropFilterOf(shell.getByTestId("panel-probe")), { intervals: [20, 50, 100] })
-    .toBe("none");
+  await expect.poll(() => bgAlpha(shell.getByTestId("panel-probe")), { intervals: [20, 50, 100] }).toBe(1);
+  await expect.poll(() => bgAlpha(shell.getByTestId("main-probe")), { intervals: [20, 50, 100] }).toBe(1);
+  await expect.poll(() => bgAlpha(shell.getByTestId("topbar-probe")), { intervals: [20, 50, 100] }).toBe(1);
+  await expect.poll(() => backdropFilterOf(shell.getByTestId("panel-probe")), { intervals: [20, 50, 100] }).toBe("none");
 });
 
-test("glass beats elevation: ramp + blur-panels still leaves .shell-panel translucent", async ({
-  mount,
-}) => {
+test("glass beats elevation: ramp + blur-panels still leaves .shell-panel translucent", async ({ mount }) => {
   const shell = await mount(<ShellCascadeFixture elevation="ramp" blurSurfaces={["panels"]} />);
   const panel = shell.getByTestId("panel-probe");
   // THE BUG: shell.css's un-:where()'d elevation rule used to out-specificity globals.css's glass
@@ -781,20 +695,14 @@ test("glass beats elevation: ramp + blur-panels still leaves .shell-panel transl
   // translucent glass mix even with blur-panels on. This is the exact assertion that regression flips.
   await expect.poll(() => bgAlpha(panel), { intervals: [20, 50, 100] }).toBeLessThan(1);
   await expect.poll(() => backdropFilterOf(panel), { intervals: [20, 50, 100] }).toContain("blur(");
-  await expect
-    .poll(() => backdropFilterOf(panel), { intervals: [20, 50, 100] })
-    .toContain("saturate(");
+  await expect.poll(() => backdropFilterOf(panel), { intervals: [20, 50, 100] }).toContain("saturate(");
 });
 
 test("glass beats elevation on composer and both dialog popup slots", async ({ mount }) => {
-  const shell = await mount(
-    <ShellCascadeFixture elevation="ramp" blurSurfaces={["composer", "modals"]} />,
-  );
+  const shell = await mount(<ShellCascadeFixture elevation="ramp" blurSurfaces={["composer", "modals"]} />);
   const composer = shell.getByTestId("composer-probe");
   await expect.poll(() => bgAlpha(composer), { intervals: [20, 50, 100] }).toBeLessThan(1);
-  await expect
-    .poll(() => backdropFilterOf(composer), { intervals: [20, 50, 100] })
-    .toContain("blur(");
+  await expect.poll(() => backdropFilterOf(composer), { intervals: [20, 50, 100] }).toContain("blur(");
 
   const dialog = shell.getByTestId("dialog-probe");
   const alertDialog = shell.getByTestId("alert-dialog-probe");
@@ -803,102 +711,66 @@ test("glass beats elevation on composer and both dialog popup slots", async ({ m
 });
 
 for (const role of MESSAGE_ROLES) {
-  test(`glass beats elevation on a "${role}" message bubble (denser reading-surface fill)`, async ({
-    mount,
-  }) => {
-    const shell = await mount(
-      <ShellCascadeFixture elevation="ramp" blurSurfaces={["messages"]} messageRole={role} />,
-    );
+  test(`glass beats elevation on a "${role}" message bubble (denser reading-surface fill)`, async ({ mount }) => {
+    const shell = await mount(<ShellCascadeFixture elevation="ramp" blurSurfaces={["messages"]} messageRole={role} />);
     // The bubble fill is the DENSER --blur-fill-dense mix (a reading surface, per globals.css) — still
     // strictly translucent, never opaque, for every role's own base tone.
-    await expect
-      .poll(() => bgAlpha(shell.getByTestId("bubble-probe")), { intervals: [20, 50, 100] })
-      .toBeLessThan(1);
-    await expect
-      .poll(() => backdropFilterOf(shell.getByTestId("bubble-probe")), { intervals: [20, 50, 100] })
-      .toContain("blur(");
+    await expect.poll(() => bgAlpha(shell.getByTestId("bubble-probe")), { intervals: [20, 50, 100] }).toBeLessThan(1);
+    await expect.poll(() => backdropFilterOf(shell.getByTestId("bubble-probe")), { intervals: [20, 50, 100] }).toContain("blur(");
   });
 }
 
-test("elevation alone (glass off) leaves .shell-panel opaque — glass is what flips it, not ramp", async ({
-  mount,
-}) => {
+test("elevation alone (glass off) leaves .shell-panel opaque — glass is what flips it, not ramp", async ({ mount }) => {
   const shell = await mount(<ShellCascadeFixture elevation="ramp" />);
   // Matrix cell: ramp × glass-off. Elevation-ramp's own fill (--color-surface-raised) is opaque —
   // confirms the translucency above comes from the glass rule winning, not from ramp itself.
-  await expect
-    .poll(() => bgAlpha(shell.getByTestId("panel-probe")), { intervals: [20, 50, 100] })
-    .toBe(1);
+  await expect.poll(() => bgAlpha(shell.getByTestId("panel-probe")), { intervals: [20, 50, 100] }).toBe(1);
 });
 
-test("background-image beats elevation: .shell-main goes transparent, .shell-topbar stays opaque", async ({
-  mount,
-}) => {
+test("background-image beats elevation: .shell-main goes transparent, .shell-topbar stays opaque", async ({ mount }) => {
   const shell = await mount(<ShellCascadeFixture elevation="ramp" hasBgImage={true} />);
   // THE BUG: shell.css's un-:where()'d elevation rule for .shell-main used to out-specificity the
   // has-bg-image transparent rule, burying the fixed <ThemeBackgroundLayer> under an opaque
   // --color-card fill even with an image set. This is the exact assertion that regression flips.
-  await expect
-    .poll(() => bgAlpha(shell.getByTestId("main-probe")), { intervals: [20, 50, 100] })
-    .toBe(0);
+  await expect.poll(() => bgAlpha(shell.getByTestId("main-probe")), { intervals: [20, 50, 100] }).toBe(0);
   // .shell-topbar was deliberately EXCLUDED from the transparent rule — chrome stays legible.
-  await expect
-    .poll(() => bgAlpha(shell.getByTestId("topbar-probe")), { intervals: [20, 50, 100] })
-    .toBe(1);
+  await expect.poll(() => bgAlpha(shell.getByTestId("topbar-probe")), { intervals: [20, 50, 100] }).toBe(1);
 });
 
-test("elevation alone (bg-image off) leaves .shell-main opaque — bg-image is what flips it, not ramp", async ({
-  mount,
-}) => {
+test("elevation alone (bg-image off) leaves .shell-main opaque — bg-image is what flips it, not ramp", async ({ mount }) => {
   const shell = await mount(<ShellCascadeFixture elevation="ramp" />);
   // Matrix cell: ramp × bg-off. Elevation-ramp's own fill (--color-card) is opaque — confirms the
   // transparency above comes from has-bg-image winning, not from ramp itself.
-  await expect
-    .poll(() => bgAlpha(shell.getByTestId("main-probe")), { intervals: [20, 50, 100] })
-    .toBe(1);
+  await expect.poll(() => bgAlpha(shell.getByTestId("main-probe")), { intervals: [20, 50, 100] }).toBe(1);
 });
 
 // ── WS3: the reading/document CONTENT backing over a bg image (only Chats stays immersive) ──────────
 
-test("bg-image + a non-Chats section: .shell-main gets a SOLID reading backing, not the photo", async ({
-  mount,
-}) => {
+test("bg-image + a non-Chats section: .shell-main gets a SOLID reading backing, not the photo", async ({ mount }) => {
   const shell = await mount(<ShellCascadeFixture hasBgImage={true} section="characters" />);
   // THE DEFECT: a document/reader section (character detail, world-info, …) used to inherit the Chats
   // immersive transparency and float its prose directly on the photo. A non-Chats section now backs the
   // content column with an opaque --color-card reading surface.
-  await expect
-    .poll(() => bgAlpha(shell.getByTestId("main-probe")), { intervals: [20, 50, 100] })
-    .toBe(1);
+  await expect.poll(() => bgAlpha(shell.getByTestId("main-probe")), { intervals: [20, 50, 100] }).toBe(1);
 });
 
-test("bg-image + a non-Chats section + blur-panels: the reading backing upgrades to glass (panel parity)", async ({
-  mount,
-}) => {
-  const shell = await mount(
-    <ShellCascadeFixture hasBgImage={true} section="characters" blurSurfaces={["panels"]} />,
-  );
+test("bg-image + a non-Chats section + blur-panels: the reading backing upgrades to glass (panel parity)", async ({ mount }) => {
+  const shell = await mount(<ShellCascadeFixture hasBgImage={true} section="characters" blurSurfaces={["panels"]} />);
   const main = shell.getByTestId("main-probe");
   await expect.poll(() => bgAlpha(main), { intervals: [20, 50, 100] }).toBeLessThan(1);
   await expect.poll(() => backdropFilterOf(main), { intervals: [20, 50, 100] }).toContain("blur(");
 });
 
-test("bg-image + the Chats section stays IMMERSIVE: .shell-main transparent (photo behind the thread)", async ({
-  mount,
-}) => {
+test("bg-image + the Chats section stays IMMERSIVE: .shell-main transparent (photo behind the thread)", async ({ mount }) => {
   const shell = await mount(<ShellCascadeFixture hasBgImage={true} section="chats" />);
   // The carve-out: Chats keeps the transparent path so the message thread shows the image behind bubbles
   // that carry their own fill — the reading-surface backing must NOT reach it.
-  await expect
-    .poll(() => bgAlpha(shell.getByTestId("main-probe")), { intervals: [20, 50, 100] })
-    .toBe(0);
+  await expect.poll(() => bgAlpha(shell.getByTestId("main-probe")), { intervals: [20, 50, 100] }).toBe(0);
 });
 
 // ── WS3: the Chats-immersive landing HERO scrim chip (anchor the copy over the photo) ───────────────
 
-test("bg-image + Chats: the landing empty-state hero gets a frosted scrim chip (anchored over the photo)", async ({
-  mount,
-}) => {
+test("bg-image + Chats: the landing empty-state hero gets a frosted scrim chip (anchored over the photo)", async ({ mount }) => {
   const shell = await mount(<ShellCascadeFixture hasBgImage={true} section="chats" />);
   const hero = shell.getByTestId("empty-state-probe");
   // Chats stays immersive (main transparent, asserted above) — but the empty-state COPY is anchored in a
@@ -908,36 +780,23 @@ test("bg-image + Chats: the landing empty-state hero gets a frosted scrim chip (
   await expect.poll(() => backdropFilterOf(hero), { intervals: [20, 50, 100] }).toContain("blur(");
 });
 
-test("bg-image + a NON-Chats section: the empty-state hero is NOT scrim-chipped (backed content already)", async ({
-  mount,
-}) => {
+test("bg-image + a NON-Chats section: the empty-state hero is NOT scrim-chipped (backed content already)", async ({ mount }) => {
   const shell = await mount(<ShellCascadeFixture hasBgImage={true} section="characters" />);
   // Non-Chats content is already backed (the reading surface) — the hero needs no separate chip, so the
   // scrim rule is Chats-scoped and must NOT fire here.
-  await expect
-    .poll(() => bgAlpha(shell.getByTestId("empty-state-probe")), { intervals: [20, 50, 100] })
-    .toBe(0);
+  await expect.poll(() => bgAlpha(shell.getByTestId("empty-state-probe")), { intervals: [20, 50, 100] }).toBe(0);
 });
 
-test("no bg-image + Chats: the landing hero is NOT scrim-chipped (nothing to float over)", async ({
-  mount,
-}) => {
+test("no bg-image + Chats: the landing hero is NOT scrim-chipped (nothing to float over)", async ({ mount }) => {
   const shell = await mount(<ShellCascadeFixture section="chats" />);
-  await expect
-    .poll(() => bgAlpha(shell.getByTestId("empty-state-probe")), { intervals: [20, 50, 100] })
-    .toBe(0);
+  await expect.poll(() => bgAlpha(shell.getByTestId("empty-state-probe")), { intervals: [20, 50, 100] }).toBe(0);
 });
 
-test("useAppearanceRootEffects lands a representative axis on <html> as a real computed effect", async ({
-  mount,
-  page,
-}) => {
+test("useAppearanceRootEffects lands a representative axis on <html> as a real computed effect", async ({ mount, page }) => {
   await mount(<ShellCascadeFixture fontScale={1.25} />);
   // globals.css's `:root { font-size: calc(100% * var(--font-scale)) }` floor reads this custom
   // property — proves the root-stamp hook actually reaches computed style, not just a JS assignment.
-  const fontScale = await page.evaluate(() =>
-    getComputedStyle(document.documentElement).getPropertyValue("--font-scale").trim(),
-  );
+  const fontScale = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--font-scale").trim());
   expect(fontScale).toBe("1.25");
 });
 
@@ -950,10 +809,7 @@ test("useAppearanceRootEffects lands a representative axis on <html> as a real c
 // avatar.ct.tsx's ROOT_PX): the UA root font-size before any `:root { font-size }` override.
 const UA_ROOT_PX = 16;
 
-test("chatWidthPct stamps a real rendered max-width on a --width-shell-content consumer", async ({
-  mount,
-  page,
-}) => {
+test("chatWidthPct stamps a real rendered max-width on a --width-shell-content consumer", async ({ mount, page }) => {
   const chatWidthPct = 90; // clear of the clamp's 680px floor at any CT viewport ≥ 756px wide.
   await routeTrpc(page, {
     "settings.getUserSettings": () => ({
@@ -972,17 +828,12 @@ test("chatWidthPct stamps a real rendered max-width on a --width-shell-content c
   // The COMPUTED `max-width` (the browser's own dvw→px resolution of the clamp formula) — not the
   // rendered box width, which the CONTENT column's own (narrower, panel-shared) available space also
   // bounds. This isolates the one thing under test: the --width-shell-content var reaching the probe.
-  const computedMaxWidthPx = await shell
-    .getByTestId("width-probe")
-    .evaluate((el) => Number.parseFloat(getComputedStyle(el).maxWidth));
+  const computedMaxWidthPx = await shell.getByTestId("width-probe").evaluate((el) => Number.parseFloat(getComputedStyle(el).maxWidth));
   const expectedPx = (chatWidthPct / 100) * viewportWidth;
   expect(computedMaxWidthPx).toBeCloseTo(expectedPx, 0);
 });
 
-test("fontScale stamps a real rendered <html> font-size (UA root × fontScale)", async ({
-  mount,
-  page,
-}) => {
+test("fontScale stamps a real rendered <html> font-size (UA root × fontScale)", async ({ mount, page }) => {
   const fontScale = 1.25;
   await routeTrpc(page, {
     "settings.getUserSettings": () => ({
@@ -997,10 +848,6 @@ test("fontScale stamps a real rendered <html> font-size (UA root × fontScale)",
   });
   await mount(<AppShellStory />);
   await expect
-    .poll(
-      () =>
-        page.evaluate(() => Number.parseFloat(getComputedStyle(document.documentElement).fontSize)),
-      { intervals: [20, 50, 100] },
-    )
+    .poll(() => page.evaluate(() => Number.parseFloat(getComputedStyle(document.documentElement).fontSize)), { intervals: [20, 50, 100] })
     .toBeCloseTo(UA_ROOT_PX * fontScale, 0);
 });

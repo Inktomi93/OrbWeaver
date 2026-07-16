@@ -75,8 +75,7 @@ export const gate: GateDescriptor = {
   mustFlag: [
     {
       files: {
-        "packages/client/src/features/x/surfaces/pane.tsx":
-          "export const Pane = () => <div>content</div>;\n",
+        "packages/client/src/features/x/surfaces/pane.tsx": "export const Pane = () => <div>content</div>;\n",
       },
       expect: { messageIncludes: "focus restoration" },
       why: "a full-page surface with no .focus()/useFocusOnMount and no focus-trapping primitive (a11y gap)",
@@ -85,8 +84,7 @@ export const gate: GateDescriptor = {
   mustPass: [
     {
       files: {
-        "packages/client/src/features/x/surfaces/ok.tsx":
-          "export const Ok = () => {\n  ref.current?.focus();\n  return <div>content</div>;\n};\n",
+        "packages/client/src/features/x/surfaces/ok.tsx": "export const Ok = () => {\n  ref.current?.focus();\n  return <div>content</div>;\n};\n",
       },
       why: "the surface calls .focus() on mount — manages its own focus restoration, passes",
     },

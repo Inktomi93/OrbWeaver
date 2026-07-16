@@ -63,12 +63,7 @@ export function StatFigure({
       </div>
       {trend === undefined || trend.length === 0 ? null : (
         <div className={slots.sparkline()} data-slot="stat-figure-sparkline">
-          <Chart
-            height={sparklineHeight}
-            label={`${label} trend`}
-            onChartReady={onChartReady}
-            option={buildSparklineOption(trend, colors)}
-          />
+          <Chart height={sparklineHeight} label={`${label} trend`} onChartReady={onChartReady} option={buildSparklineOption(trend, colors)} />
         </div>
       )}
     </div>

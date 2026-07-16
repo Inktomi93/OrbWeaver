@@ -15,11 +15,7 @@ import type { ReactElement } from "react";
 import type { Trpc } from "#data";
 import { useInvalidation } from "#data";
 import { openSettingsTo } from "#state";
-import {
-  useAcceptSuggestion,
-  useRejectSuggestion,
-  useSuggestCharacterTags,
-} from "../hooks/use-tag-suggestion-mutations";
+import { useAcceptSuggestion, useRejectSuggestion, useSuggestCharacterTags } from "../hooks/use-tag-suggestion-mutations";
 
 const TAGS_SETTINGS_CATEGORY = "tags";
 
@@ -29,14 +25,9 @@ export interface CharacterTagSuggestionsProps {
 }
 
 /** The pending-suggestion review strip: distinct chips (Accept/Reject each) + "Suggest tags" + "Manage tags". */
-export function CharacterTagSuggestions({
-  characterId,
-  trpc,
-}: CharacterTagSuggestionsProps): ReactElement {
+export function CharacterTagSuggestions({ characterId, trpc }: CharacterTagSuggestionsProps): ReactElement {
   const invalidation = useInvalidation();
-  const { data: suggestions } = useQuery(
-    trpc.tag.listPendingSuggestions.queryOptions({ characterId }),
-  );
+  const { data: suggestions } = useQuery(trpc.tag.listPendingSuggestions.queryOptions({ characterId }));
   const accept = useAcceptSuggestion({ trpc, invalidation });
   const reject = useRejectSuggestion({ trpc, invalidation });
   const suggest = useSuggestCharacterTags({ trpc, invalidation });
@@ -86,22 +77,11 @@ export function CharacterTagSuggestions({
           </Button>
         </Badge>
       ))}
-      <Button
-        type="button"
-        size="sm"
-        intent="ghost"
-        disabled={suggest.isPending}
-        onClick={(): void => suggest.mutate({ characterId })}
-      >
+      <Button type="button" size="sm" intent="ghost" disabled={suggest.isPending} onClick={(): void => suggest.mutate({ characterId })}>
         <Icon icon={Sparkles} size="sm" />
         {suggest.isPending ? "Suggesting…" : "Suggest tags"}
       </Button>
-      <Button
-        type="button"
-        size="sm"
-        intent="ghost"
-        onClick={(): void => openSettingsTo(TAGS_SETTINGS_CATEGORY)}
-      >
+      <Button type="button" size="sm" intent="ghost" onClick={(): void => openSettingsTo(TAGS_SETTINGS_CATEGORY)}>
         <Icon icon={Settings} size="sm" />
         Manage tags
       </Button>

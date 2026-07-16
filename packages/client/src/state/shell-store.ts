@@ -9,26 +9,11 @@ import { withViewTransition } from "#lib";
 import { createPersistedStore } from "./create-persisted-store";
 
 /** The rail's navigable sections. */
-export const SECTION_IDS = [
-  "chats",
-  "characters",
-  "corpus",
-  "worldInfo",
-  "presets",
-  "refinery",
-  "analytics",
-] as const;
+export const SECTION_IDS = ["chats", "characters", "corpus", "worldInfo", "presets", "refinery", "analytics"] as const;
 export type SectionId = (typeof SECTION_IDS)[number];
 
 /** The modal vocabulary — the ModalDefinition registry is total over this tuple (assembled at the door). */
-export const MODAL_SLOT_IDS = [
-  "theme",
-  "settings",
-  "account",
-  "command",
-  "newChat",
-  "you",
-] as const;
+export const MODAL_SLOT_IDS = ["theme", "settings", "account", "command", "newChat", "you"] as const;
 export type ModalSlotId = (typeof MODAL_SLOT_IDS)[number];
 
 /** The settings vocabulary — the SettingsPaneDefinition registry is total over this tuple (assembled at
@@ -120,12 +105,7 @@ function patchPanels(current: SectionPanels, panel: PanelName, mode: PanelMode):
 }
 
 /** Write one (section, panel) override, preserving every other section + the section's other panel. */
-function withOverride(
-  overrides: PanelOverrides,
-  section: SectionId,
-  panel: PanelName,
-  mode: PanelMode,
-): PanelOverrides {
+function withOverride(overrides: PanelOverrides, section: SectionId, panel: PanelName, mode: PanelMode): PanelOverrides {
   const next: PanelOverrides = { ...overrides };
   // Index assignment (not a literal computed key) — assignable to the Partial Record.
   next[section] = patchPanels(overrides[section] ?? {}, panel, mode);
@@ -175,18 +155,14 @@ function migrate(persisted: unknown): ShellState {
   };
 }
 
-const useShellStore = createPersistedStore<ShellState, PersistedShellState>(
-  "shell",
-  (): ShellState => DEFAULT_STATE,
-  {
-    version: PERSIST_VERSION,
-    migrate,
-    partialize: (s): PersistedShellState => ({
-      activeSection: s.activeSection,
-      panelOverrides: s.panelOverrides,
-    }),
-  },
-);
+const useShellStore = createPersistedStore<ShellState, PersistedShellState>("shell", (): ShellState => DEFAULT_STATE, {
+  version: PERSIST_VERSION,
+  migrate,
+  partialize: (s): PersistedShellState => ({
+    activeSection: s.activeSection,
+    panelOverrides: s.panelOverrides,
+  }),
+});
 
 // ── The write API — intent-named module actions (the store handle never escapes this file). ──
 
@@ -196,22 +172,14 @@ export function setActiveSection(id: SectionId): void {
   // A rail-section swap is an in-app pane change at a constant route, so the router's VT never fires —
   // drive it by hand so every writer of the section inherits the crossfade for free.
   withViewTransition(() => {
-    useShellStore.setState(
-      { activeSection: id, openOverlayPanel: null },
-      false,
-      "shell/setActiveSection",
-    );
+    useShellStore.setState({ activeSection: id, openOverlayPanel: null }, false, "shell/setActiveSection");
   });
 }
 
 /** Set the active section's explicit mode for one panel (dock ⇄ overlay ⇄ collapse). */
 export function setPanelMode(panel: PanelName, mode: PanelMode): void {
   const { activeSection, panelOverrides } = useShellStore.getState();
-  useShellStore.setState(
-    { panelOverrides: withOverride(panelOverrides, activeSection, panel, mode) },
-    false,
-    "shell/setPanelMode",
-  );
+  useShellStore.setState({ panelOverrides: withOverride(panelOverrides, activeSection, panel, mode) }, false, "shell/setPanelMode");
 }
 
 export function openModal(id: ModalSlotId): void {
@@ -220,11 +188,7 @@ export function openModal(id: ModalSlotId): void {
 
 /** Open the settings overlay and target a specific category pane. */
 export function openSettingsTo(category: SettingsCategoryId): void {
-  useShellStore.setState(
-    { openModal: "settings", settingsCategory: category },
-    false,
-    "shell/openSettingsTo",
-  );
+  useShellStore.setState({ openModal: "settings", settingsCategory: category }, false, "shell/openSettingsTo");
 }
 
 /** Ask the CONTEXT panel to open a specific tab. `null` clears the request. */

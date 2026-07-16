@@ -3,9 +3,7 @@ import { useState } from "react";
 import { cn } from "#lib";
 
 // asset = our own origin (render freely); external = untrusted URL.
-export type MediaSource =
-  | { readonly kind: "asset"; readonly url: string }
-  | { readonly kind: "external"; readonly url: string };
+export type MediaSource = { readonly kind: "asset"; readonly url: string } | { readonly kind: "external"; readonly url: string };
 
 export interface MessageMediaProps {
   readonly src: MediaSource;
@@ -43,15 +41,7 @@ function hostOf(url: string): string {
  * Renders an image / native audio / video with the external-load gate. Untrusted A/V is always
  * `controls` and never `autoplay` (non-overridable — an autoplaying untrusted element is a tracking beacon).
  */
-export function MessageMedia({
-  src,
-  media,
-  alt,
-  dims,
-  allowExternal = false,
-  className,
-  onActivate,
-}: MessageMediaProps): ReactElement {
+export function MessageMedia({ src, media, alt, dims, allowExternal = false, className, onActivate }: MessageMediaProps): ReactElement {
   const isExternal = src.kind === "external";
   const blockedDataUri = isExternal && isDataUri(src.url);
   const [loadRequested, setLoadRequested] = useState(false);
@@ -80,13 +70,7 @@ export function MessageMedia({
 
   if (gated) {
     return (
-      <button
-        type="button"
-        onClick={requestLoad}
-        className={fallbackClass}
-        style={aspectStyle}
-        data-slot="message-media-placeholder"
-      >
+      <button type="button" onClick={requestLoad} className={fallbackClass} style={aspectStyle} data-slot="message-media-placeholder">
         External media — load from {hostOf(src.url)}?
       </button>
     );
@@ -106,26 +90,13 @@ export function MessageMedia({
   if (media === "image") {
     const img = (
       // biome-ignore lint/a11y/noNoninteractiveElementInteractions: onError is a load-status callback, not a user interaction — the standard React pattern for a broken-image fallback.
-      <img
-        src={src.url}
-        alt={alt}
-        loading="lazy"
-        style={aspectStyle}
-        className={mediaClass}
-        data-slot="message-media"
-        onError={onMediaError}
-      />
+      <img src={src.url} alt={alt} loading="lazy" style={aspectStyle} className={mediaClass} data-slot="message-media" onError={onMediaError} />
     );
     // A clickable image is wrapped in a button (keyboard-operable) — never an onClick on the <img>.
     return onActivate === undefined ? (
       img
     ) : (
-      <button
-        type="button"
-        onClick={onActivate}
-        className="block max-w-full"
-        data-slot="message-media-zoom"
-      >
+      <button type="button" onClick={onActivate} className="block max-w-full" data-slot="message-media-zoom">
         {img}
       </button>
     );
@@ -133,14 +104,7 @@ export function MessageMedia({
 
   if (media === "video") {
     return (
-      <video
-        controls={true}
-        style={aspectStyle}
-        aria-label={alt}
-        className={mediaClass}
-        data-slot="message-media"
-        onError={onMediaError}
-      >
+      <video controls={true} style={aspectStyle} aria-label={alt} className={mediaClass} data-slot="message-media" onError={onMediaError}>
         <source src={src.url} />
         {/* WCAG 1.2.2: declare the track even with no caption source; an empty WebVTT data-URI satisfies the rule. */}
         <track kind="captions" default={true} src="data:text/vtt,WEBVTT" />
@@ -149,13 +113,7 @@ export function MessageMedia({
   }
 
   return (
-    <audio
-      controls={true}
-      aria-label={alt}
-      className={mediaClass}
-      data-slot="message-media"
-      onError={onMediaError}
-    >
+    <audio controls={true} aria-label={alt} className={mediaClass} data-slot="message-media" onError={onMediaError}>
       <source src={src.url} />
       <track kind="captions" default={true} src="data:text/vtt,WEBVTT" />
     </audio>

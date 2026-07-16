@@ -17,12 +17,7 @@ import type { RowMacroNameContext } from "@orb/kit/macro";
 import { and, eq, isNull } from "drizzle-orm";
 import { getLog } from "#foundation/observability";
 import type { ChatContext } from "../context";
-import type {
-  BackfillPassCounts,
-  MemoryBackfillCounts,
-  MemoryScope,
-  ResolveBackfillMemoryConfig,
-} from "../contract/memory";
+import type { BackfillPassCounts, MemoryBackfillCounts, MemoryScope, ResolveBackfillMemoryConfig } from "../contract/memory";
 import { generateDigests } from "../memory/build/digests";
 import { generateSegments } from "../memory/build/segments";
 import { loadChatMacroNameProducer } from "../persistence/macro-names";
@@ -63,9 +58,7 @@ async function loadCastAndHost(
   macroNames: RowMacroNameContext;
 }> {
   const roster = await loadRoster(ctx.db, chatId);
-  const cast = roster.flatMap((r) =>
-    r.kind === "character" && r.characterId !== null ? [r.characterId] : [],
-  );
+  const cast = roster.flatMap((r) => (r.kind === "character" && r.characterId !== null ? [r.characterId] : []));
   const hostUserId = roster.find((r) => r.role === "host" && r.userId !== null)?.userId ?? null;
   const producer = await loadChatMacroNameProducer(ctx.db, { participants: roster });
   const macroNames: RowMacroNameContext = {
@@ -78,12 +71,7 @@ async function loadCastAndHost(
 /** The digest scope buckets for one chat — mirrors the engine's post-turn enumeration: the shared group
  *  bucket gated on cast size (no-op for solo), then every cast character's bucket. A hostless group has
  *  no funding owner to mint under, so its shared bucket is skipped (per-character buckets still build). */
-async function scopesFor(
-  ctx: ChatContext,
-  chatId: ChatId,
-  cast: readonly CharacterId[],
-  hostUserId: UserId | null,
-): Promise<MemoryScope[]> {
+async function scopesFor(ctx: ChatContext, chatId: ChatId, cast: readonly CharacterId[], hostUserId: UserId | null): Promise<MemoryScope[]> {
   const scopes: MemoryScope[] = [];
   if (cast.length > 1 && hostUserId !== null) {
     const scopedCharacterId = await resolveGroupBucketCharacterId(ctx, {
@@ -127,6 +115,7 @@ export async function backfillMemory(
       segments.changed += seg.written;
       const scopes = await scopesFor(ctx, chatId, cast, hostUserId);
       for (const scope of scopes) {
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- signal.aborted can flip between the outer check and here (multiple awaits in between); tsc's narrowing doesn't see that.
         if (args.signal.aborted) {
           break;
         }

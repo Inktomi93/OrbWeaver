@@ -1,12 +1,5 @@
 import { DateTime } from "luxon";
-import type {
-  MacroAST,
-  MacroContext,
-  MacroHandler,
-  MacroRegisterOptions,
-  MacroRegistry,
-  VarOp,
-} from "./types";
+import type { MacroAST, MacroContext, MacroHandler, MacroRegisterOptions, MacroRegistry, VarOp } from "./types";
 import { applyVarOp } from "./variables";
 
 const DECIMAL_RADIX = 10;
@@ -201,25 +194,30 @@ const randomHandler: MacroHandler = (args, ctx) => {
   return args[idx] ?? "";
 };
 
+// The "NdM" branch of {{roll}}, split out so the handler itself stays under the complexity cap.
+function rollDice(dice: RegExpMatchArray, random: () => number): string {
+  const count = dice[1] !== undefined && dice[1] !== "" ? Number.parseInt(dice[1], DECIMAL_RADIX) : 1;
+  const sides = Number.parseInt(dice[2] ?? "", DECIMAL_RADIX);
+  if (count < 1 || sides < 1 || count > ROLL_MAX || sides > ROLL_MAX) {
+    return "";
+  }
+  let total = 0;
+  for (let i = 0; i < count; i += 1) {
+    total += Math.floor(random() * sides) + 1;
+  }
+  return String(total);
+}
+
 // {{roll::NdM}} (sum of N M-sided dice) or {{roll::N}} (1..N). Empty/invalid → "".
 const rollHandler: MacroHandler = (args, ctx) => {
   const random = ctx.random ?? Math.random;
   const spec = args[0]?.trim().toLowerCase();
-  if (!spec) {
+  if (spec === undefined || spec === "") {
     return "";
   }
   const dice = spec.match(DICE_SPEC);
   if (dice) {
-    const count = dice[1] ? Number.parseInt(dice[1], DECIMAL_RADIX) : 1;
-    const sides = Number.parseInt(dice[2] ?? "", DECIMAL_RADIX);
-    if (count < 1 || sides < 1 || count > ROLL_MAX || sides > ROLL_MAX) {
-      return "";
-    }
-    let total = 0;
-    for (let i = 0; i < count; i += 1) {
-      total += Math.floor(random() * sides) + 1;
-    }
-    return String(total);
+    return rollDice(dice, random);
   }
   if (PLAIN_INT.test(spec)) {
     const n = Number.parseInt(spec, DECIMAL_RADIX);
@@ -244,7 +242,7 @@ const pickHandler: MacroHandler = (args, ctx) => {
 // {{datetimeformat::FORMAT}} — Luxon format string (e.g. "yyyy-MM-dd HH:mm"). Empty arg → ISO.
 const dateTimeFormat: MacroHandler = (args, ctx) => {
   const fmt = args[0]?.trim();
-  if (!fmt) {
+  if (fmt === undefined || fmt === "") {
     return nowInZone(ctx).toISO() ?? "";
   }
   return nowInZone(ctx).toFormat(fmt);
@@ -253,7 +251,7 @@ const dateTimeFormat: MacroHandler = (args, ctx) => {
 // Storage is ctx.env. Mutation handlers write IN-PLACE — visible to a later `getvar` in the same turn.
 const readVar: MacroHandler = (args, ctx) => {
   const key = args[0]?.trim();
-  if (!key) {
+  if (key === undefined || key === "") {
     return "";
   }
   return String(ctx.env[key] ?? "");
@@ -262,7 +260,7 @@ const readVar: MacroHandler = (args, ctx) => {
 // {{setvar::name::value}} — write `value` to ctx.env[name], render "". Records the op on ctx.opLog.
 const setVar: MacroHandler = (args, ctx) => {
   const key = args[0]?.trim();
-  if (!key) {
+  if (key === undefined || key === "") {
     return "";
   }
   const op: VarOp = { op: "set", key, value: args[1] ?? "" };
@@ -274,7 +272,7 @@ const setVar: MacroHandler = (args, ctx) => {
 // {{addvar::name::value}} — append `value` to ctx.env[name] (string concat).
 const addVar: MacroHandler = (args, ctx) => {
   const key = args[0]?.trim();
-  if (!key) {
+  if (key === undefined || key === "") {
     return "";
   }
   const op: VarOp = { op: "add", key, value: args[1] ?? "" };
@@ -287,7 +285,7 @@ const addVar: MacroHandler = (args, ctx) => {
 // embedded inline as a counter.
 const incVar: MacroHandler = (args, ctx) => {
   const key = args[0]?.trim();
-  if (!key) {
+  if (key === undefined || key === "") {
     return "";
   }
   const op: VarOp = { op: "inc", key };
@@ -299,7 +297,7 @@ const incVar: MacroHandler = (args, ctx) => {
 // {{decvar::name}} — parse-or-zero −1 on the stored string.
 const decVar: MacroHandler = (args, ctx) => {
   const key = args[0]?.trim();
-  if (!key) {
+  if (key === undefined || key === "") {
     return "";
   }
   const op: VarOp = { op: "dec", key };
@@ -312,7 +310,7 @@ const decVar: MacroHandler = (args, ctx) => {
 // membership, NOT non-empty — `{{setvar::flag::}}` then `{{hasvar::flag}}` returns "true".
 const hasVar: MacroHandler = (args, ctx) => {
   const key = args[0]?.trim();
-  if (!key) {
+  if (key === undefined || key === "") {
     return "";
   }
   return Object.hasOwn(ctx.env, key) ? "true" : "";
@@ -321,7 +319,7 @@ const hasVar: MacroHandler = (args, ctx) => {
 // {{deletevar::name}} — drop the key entirely (different from setvar::name:: → empty string).
 const deleteVar: MacroHandler = (args, ctx) => {
   const key = args[0]?.trim();
-  if (!key) {
+  if (key === undefined || key === "") {
     return "";
   }
   const op: VarOp = { op: "delete", key };
@@ -344,7 +342,7 @@ function castNotMutedOf(ctx: MacroContext): readonly string[] {
 function charField(read: (ctx: MacroContext) => string | undefined): MacroHandler {
   return (_args: string[], ctx: MacroContext): string => {
     const raw = read(ctx);
-    if (!raw) {
+    if (raw === undefined || raw === "") {
       return "";
     }
     return raw.includes("{{") ? ctx.evaluateString(raw) : raw;
@@ -516,23 +514,13 @@ export function createDefaultRegistry(): MacroRegistry {
   registry.register("noop", () => "");
   registry.register("banned", () => ""); // legacy upstreams strip the contents; mirror that
 
-  registry.register("trim", (_args, ctx, children) =>
-    children ? ctx.evaluateAST(children).trim() : "",
-  );
-  registry.register("trimstart", (_args, ctx, children) =>
-    children ? ctx.evaluateAST(children).trimStart() : "",
-  );
-  registry.register("trimend", (_args, ctx, children) =>
-    children ? ctx.evaluateAST(children).trimEnd() : "",
-  );
+  registry.register("trim", (_args, ctx, children) => (children ? ctx.evaluateAST(children).trim() : ""));
+  registry.register("trimstart", (_args, ctx, children) => (children ? ctx.evaluateAST(children).trimStart() : ""));
+  registry.register("trimend", (_args, ctx, children) => (children ? ctx.evaluateAST(children).trimEnd() : ""));
   // Locale-INDEPENDENT fold (Unicode default case mapping) — server and client must fold identically;
   // `toLocale*` would diverge on host locale (Turkish dotless-i, German ß).
-  registry.register("uppercase", (_args, ctx, children) =>
-    children ? ctx.evaluateAST(children).toUpperCase() : "",
-  );
-  registry.register("lowercase", (_args, ctx, children) =>
-    children ? ctx.evaluateAST(children).toLowerCase() : "",
-  );
+  registry.register("uppercase", (_args, ctx, children) => (children ? ctx.evaluateAST(children).toUpperCase() : ""));
+  registry.register("lowercase", (_args, ctx, children) => (children ? ctx.evaluateAST(children).toLowerCase() : ""));
 
   registry.register("input", (_args, ctx) => ctx.input ?? "", volChat);
   registry.register("lastMessage", (_args, ctx) => ctx.lastMessage ?? "", volChat);

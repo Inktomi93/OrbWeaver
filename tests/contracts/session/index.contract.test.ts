@@ -17,9 +17,7 @@ const SAMPLE_VIEW: SessionView = {
 };
 
 test("SessionView pins the device-list shape: id+createdAt+lastSeenAt+expiresAt+revokedAt+userAgent", () => {
-  expect(Object.keys(SAMPLE_VIEW).sort()).toEqual(
-    ["createdAt", "expiresAt", "id", "lastSeenAt", "revokedAt", "userAgent"].sort(),
-  );
+  expect(Object.keys(SAMPLE_VIEW).sort()).toEqual(["createdAt", "expiresAt", "id", "lastSeenAt", "revokedAt", "userAgent"].sort());
 });
 
 // The token is not identity: the opaque token, its peppered hash, the SESSION_SECRET pepper, and the

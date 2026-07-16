@@ -5,12 +5,7 @@
 // freshly-derived-array footgun (ui-primitive-contract §13).
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
-import {
-  BasicTableStory,
-  NullableSortStory,
-  PaginatedTableStory,
-  ShrinkingDataStory,
-} from "./table.fixtures";
+import { BasicTableStory, NullableSortStory, PaginatedTableStory, ShrinkingDataStory } from "./table.fixtures";
 
 test("renders columns and rows", async ({ mount, page }) => {
   await mount(<BasicTableStory />);
@@ -21,10 +16,7 @@ test("renders columns and rows", async ({ mount, page }) => {
   await expect(page.getByText("Bram")).toBeVisible();
 });
 
-test("clicking a sortable header cycles none -> asc -> desc -> none with aria-sort + a glyph swap", async ({
-  mount,
-  page,
-}) => {
+test("clicking a sortable header cycles none -> asc -> desc -> none with aria-sort + a glyph swap", async ({ mount, page }) => {
   await mount(<BasicTableStory />);
   const header = page.getByRole("columnheader", { name: "Name" });
   const sortButton = header.getByRole("button");
@@ -52,10 +44,7 @@ test("clicking a sortable header cycles none -> asc -> desc -> none with aria-so
   await expect(bodyRows.first()).toContainText("Elara"); // back to original insertion order
 });
 
-test("blank (null) cells sort LAST in both directions, not flipped to the top under desc", async ({
-  mount,
-  page,
-}) => {
+test("blank (null) cells sort LAST in both directions, not flipped to the top under desc", async ({ mount, page }) => {
   // Ascending: the two real values order low→high, then the two blank rows land at the bottom.
   const asc = await mount(<NullableSortStory direction="asc" />);
   const ascNames = await page.locator("tbody tr td:first-child").allInnerTexts();
@@ -69,15 +58,10 @@ test("blank (null) cells sort LAST in both directions, not flipped to the top un
   expect(descNames).toEqual(["Ciel", "Alpha", "Echo", "Bravo", "Delta"]);
 });
 
-test("a non-sortable column carries no aria-sort attribute at all (vs. 'none' for sortable-unsorted)", async ({
-  mount,
-  page,
-}) => {
+test("a non-sortable column carries no aria-sort attribute at all (vs. 'none' for sortable-unsorted)", async ({ mount, page }) => {
   await mount(<BasicTableStory />);
   await expect(page.getByRole("columnheader", { name: "Status" })).not.toHaveAttribute("aria-sort");
-  await expect(page.getByRole("columnheader", { name: "Status" }).getByRole("button")).toHaveCount(
-    0,
-  );
+  await expect(page.getByRole("columnheader", { name: "Status" }).getByRole("button")).toHaveCount(0);
 });
 
 test("keyboard: Enter on a focused sort button toggles sort", async ({ mount, page }) => {
@@ -89,10 +73,7 @@ test("keyboard: Enter on a focused sort button toggles sort", async ({ mount, pa
   await expect(header).toHaveAttribute("aria-sort", "ascending");
 });
 
-test("pagination: prev/next navigate pages and self-disable at the bounds", async ({
-  mount,
-  page,
-}) => {
+test("pagination: prev/next navigate pages and self-disable at the bounds", async ({ mount, page }) => {
   await mount(<PaginatedTableStory />);
   const prev = page.getByRole("button", { name: "Previous page" });
   const next = page.getByRole("button", { name: "Next page" });
@@ -119,10 +100,7 @@ test("pagination: prev/next navigate pages and self-disable at the bounds", asyn
   await expect(page.getByText("Page 2 of 3")).toBeVisible();
 });
 
-test("row selection: select-all checks every row and goes indeterminate on a partial selection", async ({
-  mount,
-  page,
-}) => {
+test("row selection: select-all checks every row and goes indeterminate on a partial selection", async ({ mount, page }) => {
   await mount(<BasicTableStory selectable={true} />);
   const selectAll = page.getByRole("checkbox", { name: "Select all rows" });
   const bram = page.getByRole("checkbox", { name: "Select Bram" });
@@ -167,10 +145,7 @@ test("compact density is shorter than default density", async ({ mount, page }) 
   expect(compactHeight).toBeLessThan(defaultHeight);
 });
 
-test("a parent re-render with a freshly-derived (shrunk) data array clamps the page instead of going blank", async ({
-  mount,
-  page,
-}) => {
+test("a parent re-render with a freshly-derived (shrunk) data array clamps the page instead of going blank", async ({ mount, page }) => {
   await mount(<ShrinkingDataStory />);
   // Starts on page 3 of 3 (pageIndex 2, pageSize 5) over 12 rows — the last page has 2 rows.
   await expect(page.getByText("Page 3 of 3")).toBeVisible();

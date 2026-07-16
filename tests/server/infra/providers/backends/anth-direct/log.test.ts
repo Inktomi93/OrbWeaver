@@ -4,10 +4,7 @@
 
 import { logger } from "@orb/server/foundation/observability";
 import { ProviderError } from "@orb/server/infra/providers";
-import {
-  logAnthDirectError,
-  logAnthDirectTurn,
-} from "@orb/server/infra/providers/backends/anth-direct";
+import { logAnthDirectError, logAnthDirectTurn } from "@orb/server/infra/providers/backends/anth-direct";
 import { describe, vi } from "vitest";
 import { expect, test } from "../../../../../support/fixtures";
 

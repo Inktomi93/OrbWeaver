@@ -2,11 +2,7 @@
 // knobs. Reuses the kit-hoisted cache-breakpoint placer (same positional decision as the OR chat-completions
 // runner), emitted as the SDK's `CacheControlEphemeral` dialect. Sealed: imports only `backends/kit` + SDK.
 
-import type {
-  MessageCreateParamsStreaming,
-  MessageParam,
-  TextBlockParam,
-} from "@anthropic-ai/sdk/resources/messages";
+import type { MessageCreateParamsStreaming, MessageParam, TextBlockParam } from "@anthropic-ai/sdk/resources/messages";
 import { CACHE_MIN_FLOOR } from "@orb/contracts/connection";
 import { estimateTokens } from "@orb/kit/tokens";
 import type { AnthropicMessagesChatRequest, ResolvedChatKnobs } from "../../contract";
@@ -42,9 +38,7 @@ export function anthHistoryCacheOffsets(req: AnthropicMessagesChatRequest): read
   });
 }
 
-function toMessageParam(
-  turn: AnthropicMessagesChatRequest["history"][number],
-): MessageParam | null {
+function toMessageParam(turn: AnthropicMessagesChatRequest["history"][number]): MessageParam | null {
   if (turn.role === "tool") {
     return null;
   }
@@ -81,14 +75,10 @@ function buildMessages(req: AnthropicMessagesChatRequest): MessageParam[] {
 
 // Static prefix pinned with cache_control (breakpoint #1). When the dynamic half rides the message-tail
 // channel, the dynamic text is excluded here — the runner places it as a trailing system message instead.
-function buildSystem(
-  req: AnthropicMessagesChatRequest,
-  resolved: ResolvedChatKnobs,
-): TextBlockParam[] | undefined {
+function buildSystem(req: AnthropicMessagesChatRequest, resolved: ResolvedChatKnobs): TextBlockParam[] | undefined {
   const staticText = req.systemPrompt.static.trim();
   const dynamicText = req.systemPrompt.dynamic.trim();
-  const dynamicInSystem =
-    resolved.dynamicContextChannel !== "message-tail" && dynamicText.length > 0;
+  const dynamicInSystem = resolved.dynamicContextChannel !== "message-tail" && dynamicText.length > 0;
   const blocks: TextBlockParam[] = [];
   if (staticText.length > 0) {
     blocks.push({ type: TEXT_TYPE, text: staticText, cache_control: ANTHROPIC_CACHE_5M });
@@ -100,9 +90,7 @@ function buildSystem(
 }
 
 // Adaptive models get `{type:"adaptive"}`, budget models `{type:"enabled", budget_tokens}`.
-function buildThinking(
-  resolved: ResolvedChatKnobs,
-): MessageCreateParamsStreaming["thinking"] | undefined {
+function buildThinking(resolved: ResolvedChatKnobs): MessageCreateParamsStreaming["thinking"] | undefined {
   const r = resolved.reasoning;
   if (!r.enabled) {
     return;
@@ -110,9 +98,7 @@ function buildThinking(
   if (r.mode === "adaptive") {
     return { type: "adaptive" };
   }
-  return r.mode === "budget" && r.budgetTokens !== undefined
-    ? { type: "enabled", budget_tokens: r.budgetTokens }
-    : undefined;
+  return r.mode === "budget" && r.budgetTokens !== undefined ? { type: "enabled", budget_tokens: r.budgetTokens } : undefined;
 }
 
 function samplingFields(resolved: ResolvedChatKnobs): Partial<MessageCreateParamsStreaming> {
@@ -126,10 +112,7 @@ function samplingFields(resolved: ResolvedChatKnobs): Partial<MessageCreateParam
 }
 
 /** `max_tokens` is required on the wire; fail-closed to the model's max when no explicit cap was set. */
-export function buildAnthMessageParams(
-  req: AnthropicMessagesChatRequest,
-  resolved: ResolvedChatKnobs,
-): MessageCreateParamsStreaming {
+export function buildAnthMessageParams(req: AnthropicMessagesChatRequest, resolved: ResolvedChatKnobs): MessageCreateParamsStreaming {
   const messages = buildMessages(req);
   const system = buildSystem(req, resolved);
   const dynamicText = req.systemPrompt.dynamic.trim();

@@ -9,13 +9,7 @@ import type { ModalSlotId } from "./shell-store";
 
 /** WHERE a modal's trigger affordance lives — the rail/topbar/mobile-bar DERIVE from this (no parallel
  *  map). Extend the tuple to add a placement. */
-export const MODAL_TRIGGER_PLACEMENTS = [
-  "rail-footer",
-  "avatar",
-  "topbar-command",
-  "content",
-  "mobile-tab",
-] as const;
+export const MODAL_TRIGGER_PLACEMENTS = ["rail-footer", "avatar", "topbar-command", "content", "mobile-tab"] as const;
 export type ModalTriggerPlacement = (typeof MODAL_TRIGGER_PLACEMENTS)[number];
 
 /** A modal's self-declared trigger — its reachability + the affordance a deriving surface renders. */

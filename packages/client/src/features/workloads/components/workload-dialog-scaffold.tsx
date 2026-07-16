@@ -24,14 +24,7 @@ export interface WorkloadFormDialogProps {
 }
 
 /** The Workloads dialog shell: Dialog → popup (test-id) → Title + Description + the form body. */
-export function WorkloadFormDialog({
-  open,
-  onOpenChange,
-  testKey,
-  title,
-  description,
-  children,
-}: WorkloadFormDialogProps): ReactElement {
+export function WorkloadFormDialog({ open, onOpenChange, testKey, title, description, children }: WorkloadFormDialogProps): ReactElement {
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
       <DialogPopup data-testid={testId(testKey)}>
@@ -53,12 +46,7 @@ export interface WorkloadSubmitButtonProps {
 }
 
 /** The align-end primary submit button shared by the Workloads dialog bodies. */
-export function WorkloadSubmitButton({
-  testKey,
-  disabled,
-  label,
-  onSubmit,
-}: WorkloadSubmitButtonProps): ReactElement {
+export function WorkloadSubmitButton({ testKey, disabled, label, onSubmit }: WorkloadSubmitButtonProps): ReactElement {
   return (
     <Stack align="end">
       <Button data-testid={testId(testKey)} disabled={disabled} intent="primary" onClick={onSubmit}>

@@ -10,19 +10,9 @@ import type { UserId } from "@orb/kit/ids";
 import { cosineSim } from "@orb/kit/vector-math";
 import type { DiscoveryContext } from "../context";
 import type { ImageFacetKey } from "../contract/params";
-import type {
-  FacetCount,
-  ImageFacetMember,
-  ImageFacets,
-  PortraitAlignment,
-  PortraitAlignmentReport,
-} from "../contract/results";
+import type { FacetCount, ImageFacetMember, ImageFacets, PortraitAlignment, PortraitAlignmentReport } from "../contract/results";
 import type { DiscoveryService } from "../contract/service";
-import {
-  readCaptionRowsByFacet,
-  readOwnedCaptionRows,
-  readOwnedPortraitPairs,
-} from "../persistence/embed-store-reads";
+import { readCaptionRowsByFacet, readOwnedCaptionRows, readOwnedPortraitPairs } from "../persistence/embed-store-reads";
 
 const LIST_FACET_PATHS = { tag: "$.tags", exposedPart: "$.exposedParts" } as const;
 type ListFacetKey = keyof typeof LIST_FACET_PATHS;
@@ -45,26 +35,19 @@ const SCALAR_FACET_PATHS: Record<Exclude<ImageFacetKey, ListFacetKey>, string> =
 
 const TOP_TAGS_LIMIT = 40;
 
-export function createImageAnalyticsFacets(
-  ctx: DiscoveryContext,
-): Pick<DiscoveryService, "portraitAlignment" | "imageFacets" | "charactersByImageFacet"> {
+export function createImageAnalyticsFacets(ctx: DiscoveryContext): Pick<DiscoveryService, "portraitAlignment" | "imageFacets" | "charactersByImageFacet"> {
   return {
     portraitAlignment: (userId) => portraitAlignment(ctx.db, userId),
     imageFacets: (userId) => imageFacets(ctx.db, userId),
-    charactersByImageFacet: (userId, facet, value) =>
-      charactersByImageFacet(ctx.db, userId, facet, value),
+    charactersByImageFacet: (userId, facet, value) => charactersByImageFacet(ctx.db, userId, facet, value),
   };
 }
 
-const metaStr = (m: Record<string, unknown> | null, key: string): string | null =>
-  m !== null && typeof m[key] === "string" ? (m[key] as string) : null;
+const metaStr = (m: Record<string, unknown> | null, key: string): string | null => (m !== null && typeof m[key] === "string" ? (m[key] as string) : null);
 
 /** Ascending — worst-matched art first (the curation signal). */
 async function portraitAlignment(db: Db, ownerId: UserId): Promise<PortraitAlignmentReport> {
-  const [pairs, captions] = await Promise.all([
-    readOwnedPortraitPairs(db, ownerId),
-    readOwnedCaptionRows(db, ownerId),
-  ]);
+  const [pairs, captions] = await Promise.all([readOwnedPortraitPairs(db, ownerId), readOwnedCaptionRows(db, ownerId)]);
   const metaById = new Map(captions.map((c) => [c.characterId, c.captionMeta]));
   const characters: PortraitAlignment[] = pairs
     .map((p) => ({
@@ -101,8 +84,7 @@ function bumpArr(m: Map<string, number>, v: unknown): void {
   }
 }
 
-const toFacetCounts = (m: Map<string, number>): FacetCount[] =>
-  [...m.entries()].map(([value, count]) => ({ value, count })).sort((a, b) => b.count - a.count);
+const toFacetCounts = (m: Map<string, number>): FacetCount[] => [...m.entries()].map(([value, count]) => ({ value, count })).sort((a, b) => b.count - a.count);
 
 async function imageFacets(db: Db, ownerId: UserId): Promise<ImageFacets> {
   const rows = await readOwnedCaptionRows(db, ownerId);
@@ -154,15 +136,8 @@ async function imageFacets(db: Db, ownerId: UserId): Promise<ImageFacets> {
   };
 }
 
-async function charactersByImageFacet(
-  db: Db,
-  ownerId: UserId,
-  facet: ImageFacetKey,
-  value: string,
-): Promise<ImageFacetMember[]> {
-  const sel = isListFacet(facet)
-    ? { path: LIST_FACET_PATHS[facet], isList: true, value }
-    : { path: SCALAR_FACET_PATHS[facet], isList: false, value };
+async function charactersByImageFacet(db: Db, ownerId: UserId, facet: ImageFacetKey, value: string): Promise<ImageFacetMember[]> {
+  const sel = isListFacet(facet) ? { path: LIST_FACET_PATHS[facet], isList: true, value } : { path: SCALAR_FACET_PATHS[facet], isList: false, value };
   const rows = await readCaptionRowsByFacet(db, ownerId, sel);
   return rows.map((r) => ({
     characterId: r.characterId,

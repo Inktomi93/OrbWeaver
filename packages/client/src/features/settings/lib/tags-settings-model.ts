@@ -13,9 +13,10 @@ const FOLDER_TYPE_LABELS = new Map<TagFolderType, string>([
 ]);
 
 /** The folder-type Select options, derived from the canonical tuple. */
-export const FOLDER_TYPE_ITEMS: readonly SelectOption<TagFolderType>[] = TAG_FOLDER_TYPES.map(
-  (value) => ({ label: FOLDER_TYPE_LABELS.get(value) ?? value, value }),
-);
+export const FOLDER_TYPE_ITEMS: readonly SelectOption<TagFolderType>[] = TAG_FOLDER_TYPES.map((value) => ({
+  label: FOLDER_TYPE_LABELS.get(value) ?? value,
+  value,
+}));
 
 /** The five per-target usage counts (singular labels, pluralized in {@link usageBreakdown}). */
 const USAGE_LABELS: Record<Exclude<keyof TagUsage, "total">, string> = {

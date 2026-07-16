@@ -47,17 +47,12 @@ test("lists the owner-global scripts seeded from the regex section", async ({ mo
   await expect(page.getByText("strip ooc")).toBeVisible();
 });
 
-test("adding a script opens the shared editor and autosaves the regex section", async ({
-  mount,
-  page,
-}) => {
+test("adding a script opens the shared editor and autosaves the regex section", async ({ mount, page }) => {
   const trpc = await stub(page);
   await mount(<RegexSettingsStory />);
   await page.getByRole("button", { name: "Add script" }).click();
   // The shared RegexEditorDialog opens on the freshly-pushed row.
   await expect(page.getByRole("heading", { name: "Edit regex script" })).toBeVisible();
   // Autosave debounces, then fires the section patch on the `regex` namespace (busDriven, no refetch).
-  await expect
-    .poll(() => trpc.lastInput(UPDATE_PROC), { intervals: [100, 250, 500, 750] })
-    .toMatchObject({ section: "regex" });
+  await expect.poll(() => trpc.lastInput(UPDATE_PROC), { intervals: [100, 250, 500, 750] }).toMatchObject({ section: "regex" });
 });

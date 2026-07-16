@@ -34,13 +34,7 @@ export interface AvatarStackProps extends Omit<ComponentProps<"div">, "children"
 }
 
 /** N overlapping `<Avatar>`s plus a "+N" overflow chip, which IS one more Avatar (fallback renders "+N"). */
-export function AvatarStack({
-  className,
-  items,
-  max = DEFAULT_MAX,
-  size = "md",
-  ...rest
-}: AvatarStackProps): ReactElement {
+export function AvatarStack({ className, items, max = DEFAULT_MAX, size = "md", ...rest }: AvatarStackProps): ReactElement {
   const count = items.length;
   // `max` is the TOTAL slot budget (real avatars + overflow chip), not the real-avatar count.
   const visibleCount = count > max ? Math.max(max - 1, 0) : count;

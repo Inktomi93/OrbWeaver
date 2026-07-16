@@ -16,19 +16,10 @@ import { Container, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQueries } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import {
-  createEntityMutation,
-  QueryBoundary,
-  QueryErrorState,
-  useInvalidation,
-  useTRPC,
-} from "#data";
+import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { useFocusOnMount } from "#lib";
 import { settingsAnchorId } from "#state";
-import {
-  SYSTEM_SETTINGS_ENTITY_ID,
-  useSystemSettingsForm,
-} from "../hooks/use-system-settings-form";
+import { SYSTEM_SETTINGS_ENTITY_ID, useSystemSettingsForm } from "../hooks/use-system-settings-form";
 import { LOG_LEVEL_ITEMS } from "../lib/log-level-items";
 import { SYSTEM_SUBCATEGORY_IDS } from "../lib/system-nav";
 import type { SystemSettingsForm } from "../lib/system-settings-model";
@@ -63,12 +54,7 @@ export function SystemSettingsSurface(): ReactElement {
     <Stack ref={surfaceRef} tabIndex={-1} className="outline-none">
       <QueryBoundary
         fallback={<Text tone="muted">Loading system settings…</Text>}
-        renderError={(_error, retry): ReactElement => (
-          <QueryErrorState
-            label="system settings — they're available to administrators only"
-            onRetry={retry}
-          />
-        )}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label="system settings — they're available to administrators only" onRetry={retry} />}
       >
         <FieldLayout orientation="horizontal">
           <Container>
@@ -95,10 +81,7 @@ function SystemForm(): ReactElement {
   const lastSavedRef = useRef(serverForm);
 
   const save = async (values: SystemSettingsForm): Promise<EffectiveAppConfig> => {
-    const partial = diffSystemPatch(
-      { original: originalRef.current, lastSaved: lastSavedRef.current },
-      values,
-    );
+    const partial = diffSystemPatch({ original: originalRef.current, lastSaved: lastSavedRef.current }, values);
     const result = await update.mutateAsync({ partial });
     lastSavedRef.current = projectSystemForm(result);
     return result;
@@ -110,16 +93,12 @@ function SystemForm(): ReactElement {
     save,
   });
 
-  const ownerOnly = viewer?.globalRole !== "owner";
+  const ownerOnly = viewer.globalRole !== "owner";
 
   return (
     <Stack key={mountKey} gap="section">
       <Stack gap="section">
-        <Section
-          divider={true}
-          heading="Media & trust"
-          id={anchor(SYSTEM_SUBCATEGORY_IDS.mediaTrust)}
-        >
+        <Section divider={true} heading="Media & trust" id={anchor(SYSTEM_SUBCATEGORY_IDS.mediaTrust)}>
           <form.AppField name="forbidExternalMedia">
             {(field): ReactElement => (
               <field.SwitchField
@@ -152,29 +131,17 @@ function SystemForm(): ReactElement {
         <Section divider={true} heading="Compute" id={anchor(SYSTEM_SUBCATEGORY_IDS.compute)}>
           <form.AppField name="vllmEmbedConcurrency">
             {(field): ReactElement => (
-              <field.NumberField
-                label="Embedding concurrency"
-                description="Parallel batches for the embed + image-embed vLLM runners."
-                min={CONCURRENCY_MIN}
-              />
+              <field.NumberField label="Embedding concurrency" description="Parallel batches for the embed + image-embed vLLM runners." min={CONCURRENCY_MIN} />
             )}
           </form.AppField>
           <form.AppField name="vllmSummarizeConcurrency">
             {(field): ReactElement => (
-              <field.NumberField
-                label="Summarize concurrency"
-                description="Parallel batches for the gen-engine summarize runner."
-                min={CONCURRENCY_MIN}
-              />
+              <field.NumberField label="Summarize concurrency" description="Parallel batches for the gen-engine summarize runner." min={CONCURRENCY_MIN} />
             )}
           </form.AppField>
         </Section>
 
-        <Section
-          divider={true}
-          heading="Shared access"
-          id={anchor(SYSTEM_SUBCATEGORY_IDS.sharedAccess)}
-        >
+        <Section divider={true} heading="Shared access" id={anchor(SYSTEM_SUBCATEGORY_IDS.sharedAccess)}>
           <form.AppField name="allowNonOwnerLocalCompute">
             {(field): ReactElement => (
               <field.SwitchField
@@ -236,18 +203,13 @@ function SystemForm(): ReactElement {
           </form.AppField>
           <form.AppField name="logLevel">
             {(field): ReactElement => (
-              <field.SelectField
-                label="Log level"
-                description="Server log verbosity. Applied live — no restart needed."
-                items={LOG_LEVEL_ITEMS}
-              />
+              <field.SelectField label="Log level" description="Server log verbosity. Applied live — no restart needed." items={LOG_LEVEL_ITEMS} />
             )}
           </form.AppField>
         </Section>
       </Stack>
       <Text size="micro" tone="muted">
-        Values reflect the effective configuration — environment defaults with any saved overrides
-        applied. Only the fields you change are saved as overrides.
+        Values reflect the effective configuration — environment defaults with any saved overrides applied. Only the fields you change are saved as overrides.
       </Text>
     </Stack>
   );

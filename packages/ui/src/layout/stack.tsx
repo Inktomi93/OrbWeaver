@@ -10,13 +10,6 @@ export interface StackProps extends ComponentProps<"div">, VariantProps<typeof s
  * Usage: `<Stack gap="row" padding="block">…</Stack>` — never `className="flex flex-col gap-2"`
  * in feature code (gate no-raw-spacing: structural layout goes through layout primitives).
  */
-export function Stack({
-  className,
-  gap,
-  align,
-  justify,
-  padding,
-  ...props
-}: StackProps): ReactElement {
+export function Stack({ className, gap, align, justify, padding, ...props }: StackProps): ReactElement {
   return <div {...props} className={stackVariants({ gap, align, justify, padding, className })} />;
 }

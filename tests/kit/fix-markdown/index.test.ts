@@ -55,9 +55,7 @@ test("repairStreamingTail leaves a complete <speaker>…</speaker> intact", () =
 });
 
 test("repairStreamingTail holds only from the LAST unclosed open tag", () => {
-  expect(repairStreamingTail("<speaker>A</speaker> said <speaker>B")).toBe(
-    "<speaker>A</speaker> said ",
-  );
+  expect(repairStreamingTail("<speaker>A</speaker> said <speaker>B")).toBe("<speaker>A</speaker> said ");
 });
 
 test("repairStreamingTail matches the open tag case-insensitively", () => {

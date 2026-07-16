@@ -21,18 +21,13 @@ export function createVllm(ctx: AdminContext): VllmVerbs {
       return ctx.vllm.allEngineStatuses();
     });
 
-  const restartVllmEngine: AdminService["restartVllmEngine"] = async (
-    params: RestartVllmEngineParams,
-  ) => {
+  const restartVllmEngine: AdminService["restartVllmEngine"] = async (params: RestartVllmEngineParams) => {
     requireAdmin(params.principal);
     let status: string;
     try {
       status = await ctx.vllm.restartEngine(params.engine);
     } catch (err) {
-      const failed = new DomainOperationError(
-        ADMIN_OP_CODES.restartEngine,
-        `failed to restart engine '${params.engine}'`,
-      );
+      const failed = new DomainOperationError(ADMIN_OP_CODES.restartEngine, `failed to restart engine '${params.engine}'`);
       failed.cause = err;
       throw failed;
     }

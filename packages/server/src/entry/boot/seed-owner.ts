@@ -37,10 +37,7 @@ export async function seedOwner(deps: SeedOwnerDeps): Promise<readonly UserId[]>
     );
   }
   const at = deps.now();
-  const seedPassword =
-    deps.initialPassword !== undefined && deps.hashPassword !== undefined
-      ? { plain: deps.initialPassword, hash: deps.hashPassword }
-      : null;
+  const seedPassword = deps.initialPassword !== undefined && deps.hashPassword !== undefined ? { plain: deps.initialPassword, hash: deps.hashPassword } : null;
   let passwordsSeeded = 0;
   const ids = await Promise.all(
     deps.ownerHandles.map(async (handle): Promise<UserId> => {
@@ -57,10 +54,7 @@ export async function seedOwner(deps: SeedOwnerDeps): Promise<readonly UserId[]>
   );
   getLog().info({ owners: ids.length }, "boot/seed-owner: ensured OWNER_HANDLES at role=owner");
   if (passwordsSeeded > 0) {
-    getLog().info(
-      { owners: passwordsSeeded },
-      "boot/seed-owner: seeded initial local-owner password (first boot, AUTH_MODE=local)",
-    );
+    getLog().info({ owners: passwordsSeeded }, "boot/seed-owner: seeded initial local-owner password (first boot, AUTH_MODE=local)");
   }
   return ids;
 }
@@ -72,11 +66,7 @@ async function seedOwnerPassword(
   seed: { readonly plain: string; readonly hash: (plain: string) => Promise<string> },
   at: number,
 ): Promise<boolean> {
-  const existing = await db
-    .select({ passwordHash: users.passwordHash })
-    .from(users)
-    .where(eq(users.id, userId))
-    .limit(1);
+  const existing = await db.select({ passwordHash: users.passwordHash }).from(users).where(eq(users.id, userId)).limit(1);
   const currentHash = existing.at(0)?.passwordHash;
   if (currentHash !== null && currentHash !== undefined) {
     return false;

@@ -4,13 +4,7 @@
 // through the non-hook `readSelectedMessageIds` snapshot (the reactive hooks need a React render — the
 // `message-edit-draft.test.ts` / `chat-stream.test.ts` posture).
 
-import {
-  clearSelection,
-  enterSelectionMode,
-  exitSelectionMode,
-  readSelectedMessageIds,
-  toggleMessageSelected,
-} from "@orb/client/state";
+import { clearSelection, enterSelectionMode, exitSelectionMode, readSelectedMessageIds, toggleMessageSelected } from "@orb/client/state";
 import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";

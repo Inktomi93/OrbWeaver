@@ -46,14 +46,8 @@ test("foldVarOps replays ordered deltas into the string-valued cache", () => {
 });
 
 test("foldVarOps is deterministic + order-sensitive (later ops win)", () => {
-  const a: VarOp[][] = [
-    [{ op: "set", key: "x", value: "1" }],
-    [{ op: "set", key: "x", value: "2" }],
-  ];
-  const b: VarOp[][] = [
-    [{ op: "set", key: "x", value: "2" }],
-    [{ op: "set", key: "x", value: "1" }],
-  ];
+  const a: VarOp[][] = [[{ op: "set", key: "x", value: "1" }], [{ op: "set", key: "x", value: "2" }]];
+  const b: VarOp[][] = [[{ op: "set", key: "x", value: "2" }], [{ op: "set", key: "x", value: "1" }]];
   expect(foldVarOps(a)).toEqual({ x: "2" });
   expect(foldVarOps(b)).toEqual({ x: "1" });
   // Pure: same input → same output, no shared state.
@@ -61,10 +55,7 @@ test("foldVarOps is deterministic + order-sensitive (later ops win)", () => {
 });
 
 test("foldVarOps: a delete rewinds a key set by an earlier delta", () => {
-  const deltas: VarOp[][] = [
-    [{ op: "set", key: "flag", value: "on" }],
-    [{ op: "delete", key: "flag" }],
-  ];
+  const deltas: VarOp[][] = [[{ op: "set", key: "flag", value: "on" }], [{ op: "delete", key: "flag" }]];
   expect(foldVarOps(deltas)).toEqual({});
 });
 

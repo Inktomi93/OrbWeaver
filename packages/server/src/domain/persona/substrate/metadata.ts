@@ -8,8 +8,6 @@
 import type { PersonaMetadata } from "@orb/contracts/persona";
 import { personaMetadataSchema } from "@orb/contracts/persona";
 
-export function normalizeWriteMetadata(
-  raw: Record<string, unknown> | null,
-): PersonaMetadata | null {
+export function normalizeWriteMetadata(raw: Record<string, unknown> | null): PersonaMetadata | null {
   return raw === null ? null : personaMetadataSchema.parse(raw);
 }

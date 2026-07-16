@@ -19,16 +19,7 @@ import {
 } from "../../../../../packages/server/src/domain/chat/persistence/queries";
 import { freshDb } from "../../../../support/db";
 import { expect, test } from "../../../../support/fixtures";
-import {
-  addVariant,
-  seedCharacter,
-  seedChat,
-  seedChatEvent,
-  seedMessage,
-  seedParticipant,
-  seedStreamEvent,
-  seedUser,
-} from "../_support";
+import { addVariant, seedCharacter, seedChat, seedChatEvent, seedMessage, seedParticipant, seedStreamEvent, seedUser } from "../_support";
 
 let db: Db;
 
@@ -152,9 +143,7 @@ describe("persistence/queries — loadChatParticipantCharacterIds (the FIX-#1 re
     await seedParticipant(db, { chatId, key: "left", characterId: rejoiner, leftSeq: 3 });
     await seedParticipant(db, { chatId, key: "back", characterId: rejoiner, joinSeq: 4 });
 
-    expect(await loadChatParticipantCharacterIds(db, [chatId])).toStrictEqual(
-      new Map([[chatId, [rejoiner]]]),
-    );
+    expect(await loadChatParticipantCharacterIds(db, [chatId])).toStrictEqual(new Map([[chatId, [rejoiner]]]));
   });
 
   test("an empty id list is a no-op (empty map, no query)", async () => {

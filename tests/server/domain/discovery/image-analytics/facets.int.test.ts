@@ -8,15 +8,7 @@ import { createDiscoveryService } from "@orb/server/domain/discovery";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
-import {
-  makeDiscoveryHarness,
-  seedAsset,
-  seedCharacter,
-  seedCharacterEmbedding,
-  seedImageEmbedding,
-  seedUser,
-  vec,
-} from "../_support.ts";
+import { makeDiscoveryHarness, seedAsset, seedCharacter, seedCharacterEmbedding, seedImageEmbedding, seedUser, vec } from "../_support.ts";
 
 // Seed a character with a card-text vector + an image-raw avatar vector (same model) + a captioned lens.
 async function seedPortraitChar(

@@ -29,9 +29,7 @@ export function assertStaticPrefixStable(requests: readonly TurnRequest[]): void
   const first = requests[0]?.prompt.static;
   const statics = requests.map((r) => r.prompt.static);
   // biome-ignore lint/suspicious/noMisplacedAssertion: named assertion helper — asserts for the calling test (satisfies requireAssertions).
-  expect(statics, "static prompt prefix drifted across turns — the KV cache is poisoned").toEqual(
-    statics.map(() => first),
-  );
+  expect(statics, "static prompt prefix drifted across turns — the KV cache is poisoned").toEqual(statics.map(() => first));
 }
 
 /**
@@ -40,12 +38,8 @@ export function assertStaticPrefixStable(requests: readonly TurnRequest[]): void
  * regression that drops or double-counts a turn's tokens is invisible to a per-turn assertion but shows here.
  * Only counts a delta that reported the field (an omitted increment is absent, never a fabricated zero).
  */
-export function assertTokenTotalsConsistent(
-  deltas: readonly StatsDelta[],
-  expected: { readonly tokensIn: number; readonly tokensOut: number },
-): void {
-  const sum = (pick: (d: StatsDelta) => number | undefined): number =>
-    deltas.reduce((acc, d) => acc + (pick(d) ?? 0), 0);
+export function assertTokenTotalsConsistent(deltas: readonly StatsDelta[], expected: { readonly tokensIn: number; readonly tokensOut: number }): void {
+  const sum = (pick: (d: StatsDelta) => number | undefined): number => deltas.reduce((acc, d) => acc + (pick(d) ?? 0), 0);
   // biome-ignore lint/suspicious/noMisplacedAssertion: named assertion helper — asserts for the calling test (satisfies requireAssertions).
   expect(
     { tokensIn: sum((d) => d.tokensIn), tokensOut: sum((d) => d.tokensOut) },
@@ -77,17 +71,10 @@ function orderedSubsequenceCount(actual: readonly string[], expected: readonly s
  * sequence itself — a reordered emit passes silently today; this pins it. Default matches the ordered
  * subsequence (deltas interleave); `{ exact: true }` demands the full type list verbatim.
  */
-export function assertEventSequence(
-  events: readonly ChatBusEvent[],
-  expected: readonly ChatBusEvent["type"][],
-  options: EventSequenceOptions = {},
-): void {
+export function assertEventSequence(events: readonly ChatBusEvent[], expected: readonly ChatBusEvent["type"][], options: EventSequenceOptions = {}): void {
   const types = events.map((e) => e.type);
   const actual = options.exact === true ? types : orderedSubsequenceCount(types, expected);
   const want = options.exact === true ? [...expected] : expected.length;
   // biome-ignore lint/suspicious/noMisplacedAssertion: named assertion helper — asserts for the calling test (satisfies requireAssertions).
-  expect(
-    actual,
-    `event order [${expected.join(", ")}] not satisfied by [${types.join(", ")}]`,
-  ).toEqual(want);
+  expect(actual, `event order [${expected.join(", ")}] not satisfied by [${types.join(", ")}]`).toEqual(want);
 }

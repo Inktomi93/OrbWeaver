@@ -127,10 +127,8 @@ export const gate: GateDescriptor = {
     },
     {
       files: {
-        "packages/client/src/features/a/lib/a-chrome.tsx":
-          "export const aChrome: ChromeEntry = { id: 'dup', zone: 'topbar.trail' };\n",
-        "packages/client/src/features/b/lib/b-chrome.tsx":
-          "export const bChrome: ChromeEntry = { id: 'dup', zone: 'topbar.trail' };\n",
+        "packages/client/src/features/a/lib/a-chrome.tsx": "export const aChrome: ChromeEntry = { id: 'dup', zone: 'topbar.trail' };\n",
+        "packages/client/src/features/b/lib/b-chrome.tsx": "export const bChrome: ChromeEntry = { id: 'dup', zone: 'topbar.trail' };\n",
       },
       expect: { messageIncludes: "already claimed by" },
       why: "two co-located ChromeEntry defs declaring the SAME id — the shadow-def duplicate-id arm",
@@ -144,8 +142,7 @@ export const gate: GateDescriptor = {
   ],
   mustPass: [
     {
-      files:
-        "export const xChrome: ChromeEntry = { id: 'x', zone: 'topbar.trail', label: 'X', body: () => null };\n",
+      files: "export const xChrome: ChromeEntry = { id: 'x', zone: 'topbar.trail', label: 'X', body: () => null };\n",
       at: "packages/client/src/features/x/lib/x-chrome.tsx",
       why: "a FULL co-located chrome widget (real zone, unique id) — passes",
     },

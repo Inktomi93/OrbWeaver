@@ -65,12 +65,7 @@ export function RevealGate({
         {announcement}
       </span>
       {revealed ? (
-        <div
-          ref={contentRef}
-          className={slots.content()}
-          data-slot="reveal-gate-content"
-          tabIndex={-1}
-        >
+        <div ref={contentRef} className={slots.content()} data-slot="reveal-gate-content" tabIndex={-1}>
           {children}
           {hideable ? (
             <button

@@ -13,12 +13,7 @@
 // list-vs-header title duplication unambiguous. Bootstrap: openOrCreateChat (support/chat-room.ts).
 
 import { expect, test } from "@playwright/test";
-import {
-  openOrCreateChat,
-  renameOpenChat,
-  reopenFirstChat,
-  waitForAppReady,
-} from "./support/chat-room";
+import { openOrCreateChat, renameOpenChat, reopenFirstChat, waitForAppReady } from "./support/chat-room";
 
 const STAR_MENU_ITEM = /^(Star|Unstar)$/u;
 
@@ -54,9 +49,7 @@ async function openRowKebab(page: import("@playwright/test").Page): Promise<void
 test.describe("chat persistence", () => {
   // `@smoke` — part of the fast pre-push anti-rot subset (`pnpm e2e:smoke`): drives the drift-prone
   // library→Chats-list reuse + reopen path (the exact selector surface this task's failures rotted on).
-  test("open → reload → re-open reads the same DURABLE messages", { tag: "@smoke" }, async ({
-    page,
-  }) => {
+  test("open → reload → re-open reads the same DURABLE messages", { tag: "@smoke" }, async ({ page }) => {
     await openOrCreateChat(page);
     const rows = page.locator('[data-slot="message-row"]');
     await expect(rows.first()).toBeVisible({ timeout: 15_000 });
@@ -96,9 +89,7 @@ test.describe("chat persistence", () => {
     // The menu item text reflects current state ("Star" when unstarred, "Unstar" when starred).
     const starItem = page.getByRole("menuitem", { name: STAR_MENU_ITEM });
     const wasStarred = (await starItem.textContent())?.trim() === "Unstar";
-    const starResp = page.waitForResponse(
-      (r) => r.url().includes("/api/trpc/chat.star") && r.status() < 500,
-    );
+    const starResp = page.waitForResponse((r) => r.url().includes("/api/trpc/chat.star") && r.status() < 500);
     await starItem.click();
     await starResp;
 
@@ -113,9 +104,7 @@ test.describe("chat persistence", () => {
     });
 
     // Restore original state so reruns don't drift (register the response wait BEFORE the click).
-    const restoreResp = page.waitForResponse(
-      (r) => r.url().includes("/api/trpc/chat.star") && r.status() < 500,
-    );
+    const restoreResp = page.waitForResponse((r) => r.url().includes("/api/trpc/chat.star") && r.status() < 500);
     await page.getByRole("menuitem", { name: expectedLabel }).click();
     await restoreResp;
   });

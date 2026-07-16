@@ -32,12 +32,7 @@ export interface PresetImportDialogProps {
 }
 
 /** The ST-preset import dialog: drop → parse → summarize dropped fields → create. */
-export function PresetImportDialog({
-  open,
-  onOpenChange,
-  onImport,
-  creating,
-}: PresetImportDialogProps): ReactElement {
+export function PresetImportDialog({ open, onOpenChange, onImport, creating }: PresetImportDialogProps): ReactElement {
   const [parsed, setParsed] = useState<ParsedImport | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -74,8 +69,7 @@ export function PresetImportDialog({
       <DialogPopup>
         <DialogTitle>Import a SillyTavern preset</DialogTitle>
         <DialogDescription>
-          Pick a SillyTavern Chat Completion preset (.json). It's parsed in your browser and saved
-          as a new preset — nothing is uploaded.
+          Pick a SillyTavern Chat Completion preset (.json). It's parsed in your browser and saved as a new preset — nothing is uploaded.
         </DialogDescription>
 
         <Stack gap="block">

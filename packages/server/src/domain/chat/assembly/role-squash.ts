@@ -21,25 +21,18 @@ const ROLE_HANDLING_RANK: Record<RoleHandling, number> = {
 
 /** The effective strategy = `max(floor, knob)` under the strictness ordering. An unset knob defaults to the
  *  floor; an unset floor defaults to `strict`. */
-export function clampRoleHandling(
-  floor: RoleHandling | undefined,
-  knob: RoleHandling | undefined,
-): RoleHandling {
+export function clampRoleHandling(floor: RoleHandling | undefined, knob: RoleHandling | undefined): RoleHandling {
   const floorRank = ROLE_HANDLING_RANK[floor ?? "strict"];
   const knobRank = knob === undefined ? floorRank : ROLE_HANDLING_RANK[knob];
   const winner = Math.max(floorRank, knobRank);
-  return (Object.keys(ROLE_HANDLING_RANK) as RoleHandling[]).find(
-    (k) => ROLE_HANDLING_RANK[k] === winner,
-  ) as RoleHandling;
+  return (Object.keys(ROLE_HANDLING_RANK) as RoleHandling[]).find((k) => ROLE_HANDLING_RANK[k] === winner) as RoleHandling;
 }
 
 /** Squash adjacent same-role messages into one by concatenating content with a blank-line separator.
  *  Drops empty/whitespace-only items before squashing. The first row of a same-role run keeps its extra
  *  fields; merged-in rows contribute only their content. Two adjacent rows carrying distinct completion
  *  `name` fields are not merged. */
-export function squashSameRole<
-  T extends { role: "user" | "assistant"; content: string; name?: string },
->(history: readonly T[]): T[] {
+export function squashSameRole<T extends { role: "user" | "assistant"; content: string; name?: string }>(history: readonly T[]): T[] {
   const result: T[] = [];
   for (const msg of history) {
     if (msg.content.trim().length === 0) {

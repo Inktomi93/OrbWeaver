@@ -19,15 +19,10 @@ import { loadOwnedBook } from "../../persistence/queries";
 
 const PRIMARY_ROLE = "primary";
 
-export function createAttachToCharacter(
-  ctx: WorldInfoContext,
-): WorldInfoService["attachToCharacter"] {
+export function createAttachToCharacter(ctx: WorldInfoContext): WorldInfoService["attachToCharacter"] {
   return async ({ principal, characterId, bookId, role }: AttachToCharacterParams) => {
     const ownerId = principal.userId;
-    const [, book] = await Promise.all([
-      ensureCharacterOwned(ctx.db, ownerId, characterId),
-      loadOwnedBook(ctx.db, ownerId, bookId),
-    ]);
+    const [, book] = await Promise.all([ensureCharacterOwned(ctx.db, ownerId, characterId), loadOwnedBook(ctx.db, ownerId, bookId)]);
     if (book === undefined) {
       throw new WorldInfoNotFoundError("world_book", bookId);
     }
@@ -45,13 +40,7 @@ export function createAttachToCharacter(
       const demote = ctx.db
         .update(characterBooks)
         .set({ role: "auxiliary" })
-        .where(
-          and(
-            eq(characterBooks.characterId, characterId),
-            eq(characterBooks.role, PRIMARY_ROLE),
-            ne(characterBooks.worldBookId, bookId),
-          ),
-        );
+        .where(and(eq(characterBooks.characterId, characterId), eq(characterBooks.role, PRIMARY_ROLE), ne(characterBooks.worldBookId, bookId)));
       await ctx.db.batch(batchMany([demote, upsert]));
     } else {
       await upsert;

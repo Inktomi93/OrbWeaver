@@ -17,9 +17,7 @@ test("the line region exposes role=log and aria-live=polite", async ({ mount }) 
   await expect(log).toHaveAttribute("aria-live", "polite");
 });
 
-test("warn and error lines carry a non-color glyph plus the intent token color", async ({
-  mount,
-}) => {
+test("warn and error lines carry a non-color glyph plus the intent token color", async ({ mount }) => {
   const component = await mount(
     <LogViewer
       lines={[
@@ -72,9 +70,7 @@ test("appending lines autoscrolls the line region to the new bottom", async ({ m
   await expect(log.getByText("line 0", { exact: true })).not.toBeInViewport();
 });
 
-test("a reader scrolled up is not yanked back to the bottom by an append (pin, not yank)", async ({
-  mount,
-}) => {
+test("a reader scrolled up is not yanked back to the bottom by an append (pin, not yank)", async ({ mount }) => {
   const component = await mount(
     <div style={{ height: 100 }}>
       <LogViewer lines={makeLines(20)} className="h-full" />
@@ -142,9 +138,7 @@ test("the line region is keyboard-scrollable (tabIndex=0, WCAG 2.1.1)", async ({
   });
   await log.focus();
   await page.keyboard.press("ArrowDown");
-  await expect
-    .poll(() => log.evaluate((el) => el.scrollTop), { intervals: [20, 50, 100] })
-    .toBeGreaterThan(0);
+  await expect.poll(() => log.evaluate((el) => el.scrollTop), { intervals: [20, 50, 100] }).toBeGreaterThan(0);
 });
 
 test("autoscroll is instant (not smooth) under prefers-reduced-motion", async ({ mount, page }) => {
@@ -157,8 +151,7 @@ test("autoscroll is instant (not smooth) under prefers-reduced-motion", async ({
     const original = proto.scrollTo;
     proto.scrollTo = (options?: ScrollToOptions): void => {
       if (options !== undefined) {
-        (globalThis as unknown as { __behavior: string | null }).__behavior =
-          options.behavior ?? null;
+        (globalThis as unknown as { __behavior: string | null }).__behavior = options.behavior ?? null;
       }
       original.call(proto, options);
     };
@@ -170,15 +163,11 @@ test("autoscroll is instant (not smooth) under prefers-reduced-motion", async ({
     </div>,
   );
 
-  const behavior = await page.evaluate(
-    () => (globalThis as unknown as { __behavior: string | null }).__behavior,
-  );
+  const behavior = await page.evaluate(() => (globalThis as unknown as { __behavior: string | null }).__behavior);
   expect(behavior).toBe("auto");
 });
 
-test("a long log windows its DOM via the virtual-list seal instead of rendering every line", async ({
-  mount,
-}) => {
+test("a long log windows its DOM via the virtual-list seal instead of rendering every line", async ({ mount }) => {
   const component = await mount(
     <div style={{ height: 200 }}>
       <LogViewer lines={makeLines(500)} className="h-full" />
@@ -202,18 +191,14 @@ function distanceFromEnd(log: Locator): Promise<number> {
 // message-list's own `scrollEndThreshold` (px) — within this of the tail reads as "pinned".
 const PINNED_SLACK_PX = 80;
 
-test("a virtualized log sticks to the bottom while streaming when the reader is pinned", async ({
-  mount,
-}) => {
+test("a virtualized log sticks to the bottom while streaming when the reader is pinned", async ({ mount }) => {
   const component = await mount(
     <div style={{ height: 150 }}>
       <LogViewer lines={makeLines(250)} className="h-full" />
     </div>,
   );
   const log = component.getByRole("log");
-  await expect
-    .poll(() => distanceFromEnd(log), { intervals: [20, 50, 100] })
-    .toBeLessThanOrEqual(PINNED_SLACK_PX);
+  await expect.poll(() => distanceFromEnd(log), { intervals: [20, 50, 100] }).toBeLessThanOrEqual(PINNED_SLACK_PX);
 
   await component.update(
     <div style={{ height: 150 }}>
@@ -221,15 +206,11 @@ test("a virtualized log sticks to the bottom while streaming when the reader is 
     </div>,
   );
 
-  await expect
-    .poll(() => distanceFromEnd(log), { intervals: [20, 50, 100] })
-    .toBeLessThanOrEqual(PINNED_SLACK_PX);
+  await expect.poll(() => distanceFromEnd(log), { intervals: [20, 50, 100] }).toBeLessThanOrEqual(PINNED_SLACK_PX);
   await expect(log.getByText("line 299", { exact: true })).toBeInViewport();
 });
 
-test("a reader scrolled up in a virtualized log is NOT yanked to the bottom by an append", async ({
-  mount,
-}) => {
+test("a reader scrolled up in a virtualized log is NOT yanked to the bottom by an append", async ({ mount }) => {
   const component = await mount(
     <div style={{ height: 150 }}>
       <LogViewer lines={makeLines(250)} className="h-full" />
@@ -251,9 +232,7 @@ test("a reader scrolled up in a virtualized log is NOT yanked to the bottom by a
   await expect.poll(() => distanceFromEnd(log), { intervals: [20, 50, 100] }).toBeGreaterThan(1000);
 });
 
-test("a maxLines-capped virtualized log (ring buffer FULL) still sticks to the bottom while streaming", async ({
-  mount,
-}) => {
+test("a maxLines-capped virtualized log (ring buffer FULL) still sticks to the bottom while streaming", async ({ mount }) => {
   // 300 lines capped to 250 → virtualized AND the buffer is already full, so `visible.length`
   // (the virtualizer's item COUNT) stays a constant 250 across every append. message-list's own
   // `followOnAppend` is gated on the count GROWING, so it never re-fires here — this is the exact
@@ -265,9 +244,7 @@ test("a maxLines-capped virtualized log (ring buffer FULL) still sticks to the b
     </div>,
   );
   const log = component.getByRole("log");
-  await expect
-    .poll(() => distanceFromEnd(log), { intervals: [20, 50, 100] })
-    .toBeLessThanOrEqual(PINNED_SLACK_PX);
+  await expect.poll(() => distanceFromEnd(log), { intervals: [20, 50, 100] }).toBeLessThanOrEqual(PINNED_SLACK_PX);
 
   await component.update(
     <div style={{ height: 150 }}>
@@ -275,15 +252,11 @@ test("a maxLines-capped virtualized log (ring buffer FULL) still sticks to the b
     </div>,
   );
 
-  await expect
-    .poll(() => distanceFromEnd(log), { intervals: [20, 50, 100] })
-    .toBeLessThanOrEqual(PINNED_SLACK_PX);
+  await expect.poll(() => distanceFromEnd(log), { intervals: [20, 50, 100] }).toBeLessThanOrEqual(PINNED_SLACK_PX);
   await expect(log.getByText("line 319", { exact: true })).toBeInViewport();
 });
 
-test("a maxLines-capped virtualized log does NOT yank a reader who scrolled up", async ({
-  mount,
-}) => {
+test("a maxLines-capped virtualized log does NOT yank a reader who scrolled up", async ({ mount }) => {
   const component = await mount(
     <div style={{ height: 150 }}>
       <LogViewer lines={makeLines(300)} maxLines={250} className="h-full" />
@@ -321,8 +294,6 @@ test("the copy affordance writes the visible lines to the clipboard", async ({ m
   const component = await mount(<LogViewer lines={["alpha", "beta"]} />);
   await component.getByRole("button", { name: "Copy log" }).click();
 
-  const copied = await page.evaluate(
-    () => (globalThis as unknown as { __copied: string | null }).__copied,
-  );
+  const copied = await page.evaluate(() => (globalThis as unknown as { __copied: string | null }).__copied);
   expect(copied).toBe("alpha\nbeta");
 });

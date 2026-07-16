@@ -30,8 +30,7 @@ export function Progress(props: ProgressProps): ReactElement {
   const hasLabel = label !== undefined && label !== null;
   const format =
     formatValue ??
-    ((_formatted: string | null, value: number | null): ReactNode =>
-      value === null ? null : `${Math.round((value / maxValue) * PERCENT_SCALE)}%`);
+    ((_formatted: string | null, value: number | null): ReactNode => (value === null ? null : `${Math.round((value / maxValue) * PERCENT_SCALE)}%`));
 
   return (
     <BaseProgress.Root className={slots.root({ className })} data-slot="progress-root" {...rest}>
@@ -49,10 +48,7 @@ export function Progress(props: ProgressProps): ReactElement {
           ) : null}
         </div>
       ) : null}
-      <BaseProgress.Track
-        className={slots.track({ className: trackClassName })}
-        data-slot="progress-track"
-      >
+      <BaseProgress.Track className={slots.track({ className: trackClassName })} data-slot="progress-track">
         <BaseProgress.Indicator className={slots.indicator()} data-slot="progress-indicator" />
       </BaseProgress.Track>
     </BaseProgress.Root>

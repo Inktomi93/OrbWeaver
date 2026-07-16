@@ -9,12 +9,7 @@ import { fakeEnv, makeRunnerContext } from "../_support.ts";
 describe("refresh-model-catalog runner", () => {
   test("refreshes the catalog and projects the model count", async () => {
     const env = fakeEnv();
-    const result = await refreshModelCatalogRunner(
-      makeRunnerContext(env),
-      {},
-      vi.fn(),
-      new AbortController().signal,
-    );
+    const result = await refreshModelCatalogRunner(makeRunnerContext(env), {}, vi.fn(), new AbortController().signal);
     expect(env.connection.refreshCatalogSnapshot).toHaveBeenCalledTimes(1);
     expect(result).toEqual({ models: 99, agentSdkModels: 3 });
   });
@@ -30,12 +25,7 @@ describe("refresh-model-catalog runner", () => {
         })),
       },
     });
-    const result = await refreshModelCatalogRunner(
-      makeRunnerContext(env),
-      {},
-      vi.fn(),
-      new AbortController().signal,
-    );
+    const result = await refreshModelCatalogRunner(makeRunnerContext(env), {}, vi.fn(), new AbortController().signal);
     expect(result).toEqual({ models: 99, agentSdkModels: null });
   });
 });

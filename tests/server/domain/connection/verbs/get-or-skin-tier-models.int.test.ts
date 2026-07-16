@@ -6,14 +6,8 @@
 
 import { createConnectionService } from "@orb/server/domain/connection";
 import { afterEach, describe } from "vitest";
-import {
-  __resetAgentSdkModelCache,
-  seedAgentSdkModelCache,
-} from "../../../../../packages/server/src/domain/connection/substrate/agent-sdk-model-cache.ts";
-import {
-  __resetOrModelCache,
-  seedOrModelCache,
-} from "../../../../../packages/server/src/domain/connection/substrate/or-model-cache.ts";
+import { __resetAgentSdkModelCache, seedAgentSdkModelCache } from "../../../../../packages/server/src/domain/connection/substrate/agent-sdk-model-cache.ts";
+import { __resetOrModelCache, seedOrModelCache } from "../../../../../packages/server/src/domain/connection/substrate/or-model-cache.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
 import { makeAgentSdkModel, makeConnHarness, makeOrEntry } from "../_support.ts";
@@ -26,16 +20,11 @@ afterEach(() => {
 /** The three base anthropic OR ids the derivation resolves the tier families against. */
 function seedOrCatalog(now: number): void {
   seedOrModelCache(
-    [
-      makeOrEntry({ id: "anthropic/claude-opus-4.8" }),
-      makeOrEntry({ id: "anthropic/claude-sonnet-5" }),
-      makeOrEntry({ id: "anthropic/claude-haiku-4.5" }),
-    ],
+    [makeOrEntry({ id: "anthropic/claude-opus-4.8" }), makeOrEntry({ id: "anthropic/claude-sonnet-5" }), makeOrEntry({ id: "anthropic/claude-haiku-4.5" })],
     now,
   );
 }
 
-// biome-ignore lint/security/noSecrets: the verb name (a long camelCase identifier), not a secret.
 describe("getOrSkinTierModels", () => {
   test("a warm daemon + OR pair derives the daemon-current tier slugs", async () => {
     const h = makeConnHarness(await freshDb());

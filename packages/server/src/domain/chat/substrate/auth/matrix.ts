@@ -28,14 +28,7 @@ import type { ChatService } from "../../contract/service";
  *                             active-turns match; NOT host — a host aborting a member's turn is the
  *                             rollback-theft the contract defends against).
  */
-export const CHAT_AUTHORITIES = [
-  "member",
-  "author-or-host",
-  "host",
-  "member-card",
-  "lineage-per-ancestor",
-  "turn-owner",
-] as const;
+export const CHAT_AUTHORITIES = ["member", "author-or-host", "host", "member-card", "lineage-per-ancestor", "turn-owner"] as const;
 type ChatAuthority = (typeof CHAT_AUTHORITIES)[number];
 
 /** A verb whose gate is NOT the chatId-membership matrix (it takes no single-chat membership). The marker is
@@ -158,7 +151,5 @@ export const DENY = "deny" as const;
  * surfaces (SSE/bus/lineage/anchor/…) that arrive as strings, not method names.
  */
 export function authorityForSurface(surface: string): ChatAuthority | typeof DENY {
-  return surface in CHAT_SURFACE_AUTHORITY
-    ? CHAT_SURFACE_AUTHORITY[surface as ChatNonVerbSurface]
-    : DENY;
+  return surface in CHAT_SURFACE_AUTHORITY ? CHAT_SURFACE_AUTHORITY[surface as ChatNonVerbSurface] : DENY;
 }

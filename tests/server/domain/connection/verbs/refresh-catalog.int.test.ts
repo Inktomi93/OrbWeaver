@@ -4,10 +4,7 @@
 import { CatalogUnavailableError, createConnectionService } from "@orb/server/domain/connection";
 import { afterEach, describe } from "vitest";
 import { readCatalogSnapshot } from "../../../../../packages/server/src/domain/connection/persistence/catalog-snapshot.ts";
-import {
-  __resetOrModelCache,
-  getCachedOrModels,
-} from "../../../../../packages/server/src/domain/connection/substrate/or-model-cache.ts";
+import { __resetOrModelCache, getCachedOrModels } from "../../../../../packages/server/src/domain/connection/substrate/or-model-cache.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
 import { makeConnHarness, makeOrEntry } from "../_support.ts";

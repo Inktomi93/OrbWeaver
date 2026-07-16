@@ -21,9 +21,7 @@ test("select sets the id; clear resets to none", async ({ mount }) => {
   await expect(state).toHaveText("selected=none facet=none");
 });
 
-test("selecting a character clears a stale facet (no carry across characters)", async ({
-  mount,
-}) => {
+test("selecting a character clears a stale facet (no carry across characters)", async ({ mount }) => {
   const probe = await mount(<CharacterSelectionProbe />);
   const state = probe.locator("output");
 

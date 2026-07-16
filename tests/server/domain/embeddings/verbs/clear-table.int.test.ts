@@ -6,15 +6,7 @@ import { createEmbeddingsService } from "@orb/server/domain/embeddings";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
-import {
-  EMBED_DIM,
-  EMBED_MODEL,
-  IMAGE_EMBED_MODEL,
-  makeStoreHarness,
-  seedAsset,
-  seedCharacter,
-  seedUser,
-} from "../_support.ts";
+import { EMBED_DIM, EMBED_MODEL, IMAGE_EMBED_MODEL, makeStoreHarness, seedAsset, seedCharacter, seedUser } from "../_support.ts";
 
 const IMG = new Uint8Array([1, 2, 3, 4]);
 

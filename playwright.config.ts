@@ -27,7 +27,6 @@ const stackEnv = {
   VLLM_DISABLED: "true",
   AUTH_MODE: "single-user",
   SESSION_SECRET: "orbweaver-dev-only-session-secret-insecure",
-  // biome-ignore lint/security/noSecrets: deterministic DEV-ONLY literal, mirrors scripts/dev/stack.sh
   CREDENTIALS_KEY: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
   LOCAL_INITIAL_PASSWORD: "orbweaver-dev-password",
 };

@@ -32,9 +32,7 @@ export interface CharacterFacetInspectorProps {
 }
 
 /** The CONTEXT Field tab — resolves the bridged form + drilled facet, or shows the EmptyState. */
-export function CharacterFacetInspector({
-  characterId,
-}: CharacterFacetInspectorProps): ReactElement {
+export function CharacterFacetInspector({ characterId }: CharacterFacetInspectorProps): ReactElement {
   const handle = useCharacterForm();
   const selectedCharacterId = useSelectedCharacterId();
   const selectedFacetId = useSelectedCharacterFacetId();
@@ -55,11 +53,7 @@ export function CharacterFacetInspector({
         </Text>
       )}
     >
-      <InspectorLoader
-        form={resolved.form}
-        facetId={selectedFacetId as CharacterFacetId}
-        characterId={characterId}
-      />
+      <InspectorLoader form={resolved.form} facetId={selectedFacetId as CharacterFacetId} characterId={characterId} />
     </QueryBoundary>
   );
 }
@@ -87,12 +81,7 @@ function InspectorLoader({
 }
 
 function SelectFacet(): ReactElement {
-  return (
-    <EmptyState
-      title="Open a field to inspect it"
-      description="Pick a field from the list to edit its details here."
-    />
-  );
+  return <EmptyState title="Open a field to inspect it" description="Pick a field from the list to edit its details here." />;
 }
 
 /** The thin per-facet detail body — small knobs + counts only; the big text authors in CONTENT. */
@@ -141,7 +130,12 @@ function FacetDetail({
       return <RegexDetail form={form} />;
     case "creatorNotes":
       return <CountDetail form={form} name="creatorNotes" tokens={false} />;
-    default:
+    case "description":
+    case "personality":
+    case "scenario":
+    case "exampleMessages":
+    case "systemPrompt":
+    case "postHistoryInstructions":
       return <CountDetail form={form} name={facetId} tokens={true} />;
   }
 }
@@ -151,21 +145,11 @@ function DepthDetail({ form }: { readonly form: CardForm }): ReactElement {
   return (
     <Section heading="Injection point">
       <form.AppField name="depthPromptDepth">
-        {(field): ReactElement => (
-          <field.NumberField
-            label="Depth"
-            description="How far back in history the note is spliced."
-            min={0}
-          />
-        )}
+        {(field): ReactElement => <field.NumberField label="Depth" description="How far back in history the note is spliced." min={0} />}
       </form.AppField>
       <form.AppField name="depthPromptRole">
         {(field): ReactElement => (
-          <field.SelectField
-            label="Role"
-            description="Which conversation role the note is delivered with."
-            items={MESSAGE_ROLE_ITEMS}
-          />
+          <field.SelectField label="Role" description="Which conversation role the note is delivered with." items={MESSAGE_ROLE_ITEMS} />
         )}
       </form.AppField>
     </Section>
@@ -173,22 +157,12 @@ function DepthDetail({ form }: { readonly form: CardForm }): ReactElement {
 }
 
 /** provenance's SMALL detail — the editable creator/version pair + the read-only import/refinery tail. */
-function ProvenanceDetail({
-  form,
-  readOnly,
-}: {
-  readonly form: CardForm;
-  readonly readOnly: CharacterProvenanceSectionProps;
-}): ReactElement {
+function ProvenanceDetail({ form, readOnly }: { readonly form: CardForm; readonly readOnly: CharacterProvenanceSectionProps }): ReactElement {
   return (
     <Stack gap="section">
       <Section heading="Authoring">
-        <form.AppField name="creator">
-          {(field): ReactElement => <field.TextField label="Creator" placeholder="Optional" />}
-        </form.AppField>
-        <form.AppField name="cardVersion">
-          {(field): ReactElement => <field.TextField label="Card version" placeholder="e.g. 1.2" />}
-        </form.AppField>
+        <form.AppField name="creator">{(field): ReactElement => <field.TextField label="Creator" placeholder="Optional" />}</form.AppField>
+        <form.AppField name="cardVersion">{(field): ReactElement => <field.TextField label="Card version" placeholder="e.g. 1.2" />}</form.AppField>
       </Section>
       <CharacterProvenanceSection {...readOnly} />
     </Stack>
@@ -217,14 +191,7 @@ function CountDetail({
   tokens,
 }: {
   readonly form: CardForm;
-  readonly name:
-    | "description"
-    | "personality"
-    | "scenario"
-    | "exampleMessages"
-    | "creatorNotes"
-    | "systemPrompt"
-    | "postHistoryInstructions";
+  readonly name: "description" | "personality" | "scenario" | "exampleMessages" | "creatorNotes" | "systemPrompt" | "postHistoryInstructions";
   readonly tokens: boolean;
 }): ReactElement {
   return (

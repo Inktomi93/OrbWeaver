@@ -53,9 +53,7 @@ describe("openrouter reshapeChatStreamChunk — SDK chunk field-mapping contract
     expect(delta?.reasoning).toBe("let me think");
     expect(delta?.reasoningDetails).toEqual([{ type: "reasoning.text", text: "chain" }]);
     // The D48 tool-call fragment maps 1:1 minus the SDK's `type:"function"` marker (the reducer never reads it).
-    expect(delta?.toolCalls).toEqual([
-      { index: 0, id: "call_a", function: { name: "lookup", arguments: '{"q":' } },
-    ]);
+    expect(delta?.toolCalls).toEqual([{ index: 0, id: "call_a", function: { name: "lookup", arguments: '{"q":' } }]);
   });
 
   test("the terminal usage-sentinel chunk (empty choices) maps usage; delta collapses to empty", () => {

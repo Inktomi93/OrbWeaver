@@ -10,10 +10,7 @@ import type { ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 
 /** Insert the minimal `users` FK-parent row; returns its branded id. `handle` defaults to echo the id. */
-export async function seedUser(
-  db: Db,
-  raw: { id?: string; handle?: string } = {},
-): Promise<UserId> {
+export async function seedUser(db: Db, raw: { id?: string; handle?: string } = {}): Promise<UserId> {
   const id = castId<UserId>(raw.id ?? "user_x");
   await db.insert(users).values({ id, handle: castId<Handle>(raw.handle ?? id) });
   return id;

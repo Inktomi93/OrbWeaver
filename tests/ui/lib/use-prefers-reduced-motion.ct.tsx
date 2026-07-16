@@ -17,10 +17,7 @@ test("reflects prefers-reduced-motion: reduce at mount", async ({ mount, page })
   await expect(component).toHaveText("true");
 });
 
-test("stays live: a mid-session preference flip updates the hook without remounting", async ({
-  mount,
-  page,
-}) => {
+test("stays live: a mid-session preference flip updates the hook without remounting", async ({ mount, page }) => {
   const component = await mount(<ReducedMotionProbe />);
   await expect(component).toHaveText("false");
 

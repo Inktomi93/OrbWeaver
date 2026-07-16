@@ -38,10 +38,7 @@ test("notifications insert→select round-trips (payload JSON + discriminant + d
     seq: 1,
   });
 
-  const rows = await db
-    .select()
-    .from(notifications)
-    .where(eq(notifications.recipientUserId, userId));
+  const rows = await db.select().from(notifications).where(eq(notifications.recipientUserId, userId));
   expect(rows).toHaveLength(1);
   const row = rows[0];
   expect(row?.type).toBe("invite");
@@ -56,18 +53,9 @@ test("test-mirror: the `type` column accepts EXACTLY the contract union members"
   // Derive the canonical discriminant set from the closed union (the column's one home). A structural
   // cast reads each member's `type` literal without depending on zod's internal option typing.
   const unionTypes = notificationEventSchema.options
-    .map(
-      (member) =>
-        (member as unknown as { shape: { type: { value: NotificationType } } }).shape.type.value,
-    )
+    .map((member) => (member as unknown as { shape: { type: { value: NotificationType } } }).shape.type.value)
     .sort();
-  expect(unionTypes).toEqual([
-    "deferred-turn-dropped",
-    "handoff-accepted",
-    "handoff-nominated",
-    "invite",
-    "kicked",
-  ]);
+  expect(unionTypes).toEqual(["deferred-turn-dropped", "handoff-accepted", "handoff-nominated", "invite", "kicked"]);
 
   // Every union member inserts cleanly (the column enum + CHECK derive the same set). Batched (one
   // insert) to avoid await-in-loop.
@@ -141,11 +129,7 @@ test("seq is monotonic-orderable per recipient and unique per (recipient, seq)",
     },
   ]);
 
-  const ordered = await db
-    .select()
-    .from(notifications)
-    .where(eq(notifications.recipientUserId, a))
-    .orderBy(asc(notifications.seq));
+  const ordered = await db.select().from(notifications).where(eq(notifications.recipientUserId, a)).orderBy(asc(notifications.seq));
   expect(ordered.map((r) => r.seq)).toEqual([1, 2, 3]);
 
   // A duplicate (recipient, seq) collides on the unique index.
@@ -180,9 +164,7 @@ test("readAt / dismissedAt flip from null on update", async () => {
     .update(notifications)
     .set({ readAt })
     .where(eq(notifications.id, castId<NotificationId>("notification_read")));
-  const afterRead = (
-    await db.select().from(notifications).where(eq(notifications.recipientUserId, userId))
-  )[0];
+  const afterRead = (await db.select().from(notifications).where(eq(notifications.recipientUserId, userId)))[0];
   expect(afterRead?.readAt).toBeTypeOf("number");
   expect(afterRead?.dismissedAt).toBeNull();
 
@@ -191,9 +173,7 @@ test("readAt / dismissedAt flip from null on update", async () => {
     .update(notifications)
     .set({ dismissedAt })
     .where(eq(notifications.id, castId<NotificationId>("notification_read")));
-  const afterDismiss = (
-    await db.select().from(notifications).where(eq(notifications.recipientUserId, userId))
-  )[0];
+  const afterDismiss = (await db.select().from(notifications).where(eq(notifications.recipientUserId, userId)))[0];
   expect(afterDismiss?.dismissedAt).toBeTypeOf("number");
 });
 
@@ -209,9 +189,7 @@ test("deleting the recipient cascades their notifications", async () => {
   });
 
   await db.delete(users).where(eq(users.id, userId));
-  expect(
-    await db.select().from(notifications).where(eq(notifications.recipientUserId, userId)),
-  ).toHaveLength(0);
+  expect(await db.select().from(notifications).where(eq(notifications.recipientUserId, userId))).toHaveLength(0);
 });
 
 test("the closed union makes a credential-shaped payload UNREPRESENTABLE (stripped on parse)", () => {

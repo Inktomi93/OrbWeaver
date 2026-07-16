@@ -60,9 +60,7 @@ function weightedOrder(pool: readonly ArbiterCandidate[], rng: () => number): Ar
  * ban-last yield makes the one eligible character re-speak.
  */
 export function selectSpeakers(params: SelectSpeakersParams): SpeakerRef[] {
-  const eligible = params.candidates.filter((c) =>
-    isArbiterEligible({ leftSeq: c.leftSeq, disabled: c.disabled }),
-  );
+  const eligible = params.candidates.filter((c) => isArbiterEligible({ leftSeq: c.leftSeq, disabled: c.disabled }));
   const eligibleKeys = new Set(eligible.map((c) => speakerKey(c.ref)));
 
   // 1. @mention/forced hard-override — before any policy; bypasses ban-last; eligible-intersected, ordered.
@@ -90,11 +88,7 @@ export function selectSpeakers(params: SelectSpeakersParams): SpeakerRef[] {
   );
 }
 
-function applyPolicy(
-  pool: readonly ArbiterCandidate[],
-  policy: GroupConfig["policy"],
-  rng: () => number,
-): readonly ArbiterCandidate[] {
+function applyPolicy(pool: readonly ArbiterCandidate[], policy: GroupConfig["policy"], rng: () => number): readonly ArbiterCandidate[] {
   switch (policy) {
     case "natural":
     // `smart` is the side-LLM path — the round driver routes it elsewhere; if it reaches the sync path
@@ -149,9 +143,7 @@ export function resolveMentions(triggerText: string, cast: readonly CastName[]):
     return [];
   }
   // @mention is character-only: only character seats resolve to a forced characterId.
-  const characters = cast.flatMap((c) =>
-    c.ref.kind === "character" ? [{ characterId: c.ref.characterId, name: c.name }] : [],
-  );
+  const characters = cast.flatMap((c) => (c.ref.kind === "character" ? [{ characterId: c.ref.characterId, name: c.name }] : []));
   const byLongest = [...characters].sort((a, b) => b.name.length - a.name.length);
   // Longest-first with overlap masking: a longer name that matched first CONSUMES its span, so a shorter
   // name nested inside it (`@Aria` within `@Aria Stormborn`) cannot also fire.

@@ -18,10 +18,7 @@ const CONNECTION_OP_CODES = {
 export class ConnectionRoutingError extends DomainOperationError {
   declare readonly code: typeof CONNECTION_OP_CODES.routingIncoherent;
   constructor(api: string, source: string) {
-    super(
-      CONNECTION_OP_CODES.routingIncoherent,
-      `incoherent routing: api=${api} is not coherent with source=${source}`,
-    );
+    super(CONNECTION_OP_CODES.routingIncoherent, `incoherent routing: api=${api} is not coherent with source=${source}`);
   }
 }
 

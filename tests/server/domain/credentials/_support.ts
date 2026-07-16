@@ -5,10 +5,7 @@
 // one), and FAKE recording provider/network ops (probe/inspect/fetchModels) — the sanctioned "fake at the
 // edges, inject at the root" doctrine (testing §3). The fakes RECORD their calls so tests assert behavior.
 
-import type {
-  CredentialHealth,
-  ResolvedCredential,
-} from "../../../../packages/contracts/src/credentials/index.ts";
+import type { CredentialHealth, ResolvedCredential } from "../../../../packages/contracts/src/credentials/index.ts";
 import type { Principal, UserRole } from "../../../../packages/contracts/src/identity/index.ts";
 import type { EndpointInspection } from "../../../../packages/contracts/src/providers/index.ts";
 import type { Db } from "../../../../packages/db/src/client/index.ts";

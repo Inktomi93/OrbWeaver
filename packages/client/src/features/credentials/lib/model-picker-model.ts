@@ -58,18 +58,13 @@ export function hasTools(entry: PickerEntry): boolean {
 }
 
 /** Apply the Vision/Tools chip filter (AND across active chips) before the render cap. An empty chip set is a no-op pass-through. */
-export function filterByChips<T extends PickerEntry>(
-  entries: readonly T[],
-  chips: readonly string[],
-): readonly T[] {
+export function filterByChips<T extends PickerEntry>(entries: readonly T[], chips: readonly string[]): readonly T[] {
   if (chips.length === 0) {
     return entries;
   }
   const wantVision = chips.includes("vision");
   const wantTools = chips.includes("tools");
-  return entries.filter(
-    (entry) => (!wantVision || hasVision(entry)) && (!wantTools || hasTools(entry)),
-  );
+  return entries.filter((entry) => (!wantVision || hasVision(entry)) && (!wantTools || hasTools(entry)));
 }
 
 /** The footer's synced line — relative time when a snapshot `fetchedAt` is present, else the source's static provenance note. */

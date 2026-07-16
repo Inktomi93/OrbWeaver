@@ -15,9 +15,7 @@ import { ShellStoreProbe } from "./_ct-stories";
 const DEFAULT_STATE =
   "section=chats list=none context=none modal=none docked=true settingsTarget=none contextTab=none openOverlayPanel=none narrowViewport=false";
 
-test("panel overrides are PER-SECTION: set on one section, remembered, not leaked to another", async ({
-  mount,
-}) => {
+test("panel overrides are PER-SECTION: set on one section, remembered, not leaked to another", async ({ mount }) => {
   const probe = await mount(<ShellStoreProbe />);
   const state = probe.locator("output");
   // Fresh page → default (chats active, no overrides set).
@@ -54,9 +52,7 @@ test("openModal / closeModal drive the open-modal read", async ({ mount }) => {
   await expect(state).toContainText("modal=none");
 });
 
-test("openSettingsTo opens the settings modal AND targets the deep-link category", async ({
-  mount,
-}) => {
+test("openSettingsTo opens the settings modal AND targets the deep-link category", async ({ mount }) => {
   const probe = await mount(<ShellStoreProbe />);
   const state = probe.locator("output");
   await expect(state).toContainText("modal=none");
@@ -81,9 +77,7 @@ test("setContextTab sets the opaque CONTEXT tab request", async ({ mount }) => {
   await expect(state).toContainText("contextTab=members");
 });
 
-test("revealContextPanel dual-writes: contextTab + openOverlayPanel + the CONTEXT panel dock", async ({
-  mount,
-}) => {
+test("revealContextPanel dual-writes: contextTab + openOverlayPanel + the CONTEXT panel dock", async ({ mount }) => {
   const probe = await mount(<ShellStoreProbe />);
   const state = probe.locator("output");
   await expect(state).toContainText("context=none");
@@ -107,9 +101,7 @@ test("useListDocked resolves override-over-default, per section, live", async ({
   await expect(state).toContainText("docked=true");
 });
 
-test("useListDocked forces `false` on mobile viewport regardless of override/default", async ({
-  mount,
-}) => {
+test("useListDocked forces `false` on mobile viewport regardless of override/default", async ({ mount }) => {
   const probe = await mount(<ShellStoreProbe />);
   const state = probe.locator("output");
   // Desktop + docked default → docked=true (the pre-existing algebra, unaffected).
@@ -162,11 +154,11 @@ test("resolvePanelMode — the shared algebra both useListDocked and useShellLay
   // NEW branch here is presence-checked by name, not just transitively through the hooks above.
   await mount(<ShellStoreProbe />);
 
-  const regime = (
-    isMobile: boolean,
-    isNarrow: boolean,
-    openOverlayPanel: "list" | null,
-  ): Parameters<typeof resolvePanelMode>[2] => ({ isMobile, isNarrow, openOverlayPanel });
+  const regime = (isMobile: boolean, isNarrow: boolean, openOverlayPanel: "list" | null): Parameters<typeof resolvePanelMode>[2] => ({
+    isMobile,
+    isNarrow,
+    openOverlayPanel,
+  });
 
   // Wide: passes the resolved mode through untouched.
   expect(resolvePanelMode("list", "docked", regime(false, false, null))).toBe("docked");

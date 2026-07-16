@@ -35,24 +35,16 @@ export interface SelectOptionGroup<Value = string> {
 }
 
 /** Flat options or grouped options — the seal renders `Select.Group` for the grouped shape. */
-export type SelectItems<Value = string> =
-  | readonly SelectOption<Value>[]
-  | readonly SelectOptionGroup<Value>[];
+export type SelectItems<Value = string> = readonly SelectOption<Value>[] | readonly SelectOptionGroup<Value>[];
 
 function isGrouped<Value>(items: SelectItems<Value>): items is readonly SelectOptionGroup<Value>[] {
   const first = items[0];
-  return typeof first === "object" && first !== null && "items" in first;
+  return typeof first === "object" && "items" in first;
 }
 
 function renderOption<Value>(option: SelectOption<Value>): ReactElement {
   return (
-    <BaseSelect.Item
-      className={slots.item()}
-      data-slot="select-item"
-      disabled={option.disabled}
-      key={String(option.value)}
-      value={option.value}
-    >
+    <BaseSelect.Item className={slots.item()} data-slot="select-item" disabled={option.disabled} key={String(option.value)} value={option.value}>
       <BaseSelect.ItemText>{option.label}</BaseSelect.ItemText>
       <BaseSelect.ItemIndicator className={slots.itemIndicator()} data-slot="select-item-indicator">
         {CHECK_ICON}
@@ -77,22 +69,14 @@ function renderItems<Value>(items: SelectItems<Value>): ReactNode {
     // A Separator between adjacent groups, not before the first.
     return items.flatMap((group, index) =>
       index > 0
-        ? [
-            <BaseSelect.Separator
-              className={slots.separator()}
-              data-slot="select-separator"
-              key={`separator-${group.label}`}
-            />,
-            renderGroup(group),
-          ]
+        ? [<BaseSelect.Separator className={slots.separator()} data-slot="select-separator" key={`separator-${group.label}`} />, renderGroup(group)]
         : [renderGroup(group)],
     );
   }
   return items.map(renderOption);
 }
 
-export interface SelectProps<Value = string, Multiple extends boolean = false>
-  extends Omit<SelectRootProps<Value, Multiple>, "items"> {
+export interface SelectProps<Value = string, Multiple extends boolean = false> extends Omit<SelectRootProps<Value, Multiple>, "items"> {
   /**
    * The options — flat (`{ label, value }[]`) or grouped (`{ label, items }[]`). `Select.Value`
    * renders the selected option's label(s) automatically (comma-joined when `multiple`).
@@ -135,9 +119,7 @@ export interface SelectProps<Value = string, Multiple extends boolean = false>
  * Positioner → Popup → List/Item), so features never hand-assemble parts. The generics thread Base
  * UI's `<Value, Multiple>` overload: pass `multiple` and the value becomes an array.
  */
-export function Select<Value = string, Multiple extends boolean = false>(
-  props: SelectProps<Value, Multiple>,
-): ReactElement {
+export function Select<Value = string, Multiple extends boolean = false>(props: SelectProps<Value, Multiple>): ReactElement {
   const {
     items,
     placeholder,
@@ -172,7 +154,8 @@ export function Select<Value = string, Multiple extends boolean = false>(
   useEffect(() => {
     if (hiddenInputRef.current) {
       const node = hiddenInputRef.current as AttributeSettable;
-      node.setAttribute("aria-label", ariaLabel || ariaLabelledby || "Hidden select value");
+      const fallbackLabel = ariaLabel !== undefined && ariaLabel !== "" ? ariaLabel : ariaLabelledby;
+      node.setAttribute("aria-label", fallbackLabel !== undefined && fallbackLabel !== "" ? fallbackLabel : "Hidden select value");
     }
   }, [ariaLabel, ariaLabelledby]);
 
@@ -190,9 +173,7 @@ export function Select<Value = string, Multiple extends boolean = false>(
           <BaseSelect.Trigger
             {...(ariaDescribedby !== undefined ? { "aria-describedby": ariaDescribedby } : {})}
             {...(ariaLabel !== undefined ? { "aria-label": ariaLabel } : {})}
-            {...((ariaLabelledby ?? labelId) !== undefined
-              ? { "aria-labelledby": ariaLabelledby ?? labelId }
-              : {})}
+            {...((ariaLabelledby ?? labelId) !== undefined ? { "aria-labelledby": ariaLabelledby ?? labelId } : {})}
             className={cn(slots.trigger(), className)}
             data-slot="select-trigger"
             id={id}
@@ -205,9 +186,7 @@ export function Select<Value = string, Multiple extends boolean = false>(
         }
       />
       <BaseSelect.Portal container={container ?? portalContainer}>
-        {backdrop ? (
-          <BaseSelect.Backdrop className={slots.backdrop()} data-slot="select-backdrop" />
-        ) : null}
+        {backdrop ? <BaseSelect.Backdrop className={slots.backdrop()} data-slot="select-backdrop" /> : null}
         <BaseSelect.Positioner
           align={align}
           // Scroll arrows only function in Base UI's align-item-with-trigger mode.
@@ -220,19 +199,13 @@ export function Select<Value = string, Multiple extends boolean = false>(
           <BaseSelect.Popup className={slots.popup()} data-slot="select-popup">
             {arrow ? <BaseSelect.Arrow className={slots.arrow()} data-slot="select-arrow" /> : null}
             {scrollArrows ? (
-              <BaseSelect.ScrollUpArrow
-                className={cn(slots.scrollArrow(), "top-0")}
-                data-slot="select-scroll-up-arrow"
-              >
+              <BaseSelect.ScrollUpArrow className={cn(slots.scrollArrow(), "top-0")} data-slot="select-scroll-up-arrow">
                 {CHEVRON_ICON}
               </BaseSelect.ScrollUpArrow>
             ) : null}
             <BaseSelect.List data-slot="select-list">{renderItems(items)}</BaseSelect.List>
             {scrollArrows ? (
-              <BaseSelect.ScrollDownArrow
-                className={cn(slots.scrollArrow(), "bottom-0")}
-                data-slot="select-scroll-down-arrow"
-              >
+              <BaseSelect.ScrollDownArrow className={cn(slots.scrollArrow(), "bottom-0")} data-slot="select-scroll-down-arrow">
                 {CHEVRON_ICON}
               </BaseSelect.ScrollDownArrow>
             ) : null}

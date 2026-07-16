@@ -26,11 +26,7 @@ export interface JumpToLatestState {
   readonly onJump: () => void;
 }
 
-export function useJumpToLatest({
-  messagesCount,
-  live,
-  listHandleRef,
-}: UseJumpToLatestArgs): JumpToLatestState {
+export function useJumpToLatest({ messagesCount, live, listHandleRef }: UseJumpToLatestArgs): JumpToLatestState {
   const [atTail, setAtTail] = useState(true);
   const scrollNodeRef = useRef<HTMLDivElement | null>(null);
   const settleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);

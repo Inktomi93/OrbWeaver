@@ -21,10 +21,7 @@ const PAGE_2 = {
   nextCursor: null,
 };
 
-test("onEndApproach fetches the next page and appends its rows (the guarded tail-fetch)", async ({
-  mount,
-  page,
-}) => {
+test("onEndApproach fetches the next page and appends its rows (the guarded tail-fetch)", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "notifications.list": (input: unknown) => {
       const cursor = (input as { cursor?: number } | undefined)?.cursor;
@@ -45,10 +42,7 @@ test("onEndApproach fetches the next page and appends its rows (the guarded tail
   expect(trpc.count("notifications.list")).toBe(2);
 });
 
-test("once exhausted (hasNextPage:false), repeated onEndApproach calls stay a no-op", async ({
-  mount,
-  page,
-}) => {
+test("once exhausted (hasNextPage:false), repeated onEndApproach calls stay a no-op", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "notifications.list": () => PAGE_2, // a single, already-final page — hasNextPage starts false.
   });

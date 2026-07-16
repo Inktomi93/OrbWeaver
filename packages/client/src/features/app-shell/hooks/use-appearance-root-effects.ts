@@ -35,16 +35,7 @@ export function useAppearanceRootEffects(params: {
   readonly themeColorization: boolean;
   readonly surfaceTexture: SurfaceTexture;
 }): void {
-  const {
-    fontScale,
-    dataTheme,
-    blurSurfaces,
-    shadowEffects,
-    blurStrength,
-    reading,
-    themeColorization,
-    surfaceTexture,
-  } = params;
+  const { fontScale, dataTheme, blurSurfaces, shadowEffects, blurStrength, reading, themeColorization, surfaceTexture } = params;
   useLayoutEffect((): (() => void) => {
     const root = document.documentElement;
     root.style.setProperty("--font-scale", String(fontScale));
@@ -102,14 +93,5 @@ export function useAppearanceRootEffects(params: {
       root.removeAttribute("data-theme-colorization");
       root.removeAttribute("data-texture");
     };
-  }, [
-    fontScale,
-    dataTheme,
-    blurSurfaces,
-    shadowEffects,
-    blurStrength,
-    reading,
-    themeColorization,
-    surfaceTexture,
-  ]);
+  }, [fontScale, dataTheme, blurSurfaces, shadowEffects, blurStrength, reading, themeColorization, surfaceTexture]);
 }

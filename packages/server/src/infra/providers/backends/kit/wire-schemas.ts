@@ -5,9 +5,7 @@
 
 import { z } from "zod";
 
-const chatReasoningDetailSchema = z
-  .object({ type: z.string().optional(), text: z.string().nullable().optional() })
-  .loose();
+const chatReasoningDetailSchema = z.object({ type: z.string().optional(), text: z.string().nullable().optional() }).loose();
 
 const chatCompletionResultSchema = z
   .object({
@@ -61,11 +59,7 @@ const chatCompletionResultSchema = z
           .loose()
           .nullable()
           .optional(),
-        completionTokensDetails: z
-          .object({ reasoningTokens: z.number().optional() })
-          .loose()
-          .nullable()
-          .optional(),
+        completionTokensDetails: z.object({ reasoningTokens: z.number().optional() }).loose().nullable().optional(),
         isByok: z.boolean().optional(),
       })
       .loose()
@@ -80,9 +74,7 @@ const responsesResultSchema = z
         z
           .object({
             type: z.string(),
-            content: z
-              .array(z.object({ type: z.string(), text: z.string().optional() }).loose())
-              .optional(),
+            content: z.array(z.object({ type: z.string(), text: z.string().optional() }).loose()).optional(),
           })
           .loose(),
       )
@@ -105,10 +97,7 @@ const responsesResultSchema = z
           .nullable()
           .optional(),
         inputTokensDetails: z.object({ cachedTokens: z.number().optional() }).loose().optional(),
-        outputTokensDetails: z
-          .object({ reasoningTokens: z.number().optional() })
-          .loose()
-          .optional(),
+        outputTokensDetails: z.object({ reasoningTokens: z.number().optional() }).loose().optional(),
         isByok: z.boolean().optional(),
       })
       .loose()
@@ -204,9 +193,7 @@ export interface ResponsesResult {
 export interface ChatToolCallDelta {
   readonly index: number;
   readonly id?: string | undefined;
-  readonly function?:
-    | { readonly name?: string | undefined; readonly arguments?: string | undefined }
-    | undefined;
+  readonly function?: { readonly name?: string | undefined; readonly arguments?: string | undefined } | undefined;
 }
 
 export interface ChatCompletionStreamDelta {
@@ -236,10 +223,7 @@ export interface ResponsesStreamEvent {
         readonly status?: string | undefined;
         readonly incompleteDetails?: { readonly reason?: string | undefined } | null | undefined;
         readonly usage?: ResponsesUsage | undefined;
-        readonly error?:
-          | { readonly code: number | string | null; readonly message: string }
-          | null
-          | undefined;
+        readonly error?: { readonly code: number | string | null; readonly message: string } | null | undefined;
       }
     | undefined;
   readonly code?: string | null | undefined;
@@ -261,10 +245,7 @@ export function extractChatReply(view: ChatCompletionResult): string {
   }
   if (Array.isArray(content)) {
     return content
-      .filter(
-        (part): part is { type?: string; text?: string } =>
-          part !== null && typeof part === "object",
-      )
+      .filter((part): part is { type?: string; text?: string } => part !== null && typeof part === "object")
       .map((part): string => (typeof part.text === "string" ? part.text : ""))
       .join("")
       .trim();
@@ -273,9 +254,7 @@ export function extractChatReply(view: ChatCompletionResult): string {
 }
 
 // Skips `reasoning.encrypted` entries (opaque continuity blocks with no display text).
-function collectReasoningDetailsText(
-  details: readonly ChatReasoningDetail[] | null | undefined,
-): string {
+function collectReasoningDetailsText(details: readonly ChatReasoningDetail[] | null | undefined): string {
   if (!Array.isArray(details)) {
     return "";
   }

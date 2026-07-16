@@ -108,12 +108,7 @@ export async function setBuddyFlag(
     .where(eq(buddies.userId, userId));
 }
 
-export async function renameBuddy(
-  db: Db,
-  userId: UserId,
-  name: string,
-  now: number,
-): Promise<void> {
+export async function renameBuddy(db: Db, userId: UserId, name: string, now: number): Promise<void> {
   await db.update(buddies).set({ name, updatedAt: now }).where(eq(buddies.userId, userId));
 }
 
@@ -141,12 +136,7 @@ export async function appendTurn(
 /** The id tiebreak is load-bearing: two turns can land in the same millisecond (frozen-clock tests always
  *  equal), and BuddyTurnId is ms-sortable + minted in write order, so desc(id) preserves user-before-assistant. */
 export async function loadTurns(db: Db, userId: UserId, limit: number): Promise<BuddyTurnRow[]> {
-  const rows = await db
-    .select()
-    .from(buddyTurns)
-    .where(eq(buddyTurns.userId, userId))
-    .orderBy(desc(buddyTurns.createdAt), desc(buddyTurns.id))
-    .limit(limit);
+  const rows = await db.select().from(buddyTurns).where(eq(buddyTurns.userId, userId)).orderBy(desc(buddyTurns.createdAt), desc(buddyTurns.id)).limit(limit);
   return rows.reverse();
 }
 
@@ -210,17 +200,8 @@ export async function insertQuip(
   await db.insert(buddyQuips).values(quip);
 }
 
-export async function loadRecentQuips(
-  db: Db,
-  userId: UserId,
-  limit: number,
-): Promise<BuddyQuipRow[]> {
-  return await db
-    .select()
-    .from(buddyQuips)
-    .where(eq(buddyQuips.userId, userId))
-    .orderBy(desc(buddyQuips.generatedAt), desc(buddyQuips.id))
-    .limit(limit);
+export async function loadRecentQuips(db: Db, userId: UserId, limit: number): Promise<BuddyQuipRow[]> {
+  return await db.select().from(buddyQuips).where(eq(buddyQuips.userId, userId)).orderBy(desc(buddyQuips.generatedAt), desc(buddyQuips.id)).limit(limit);
 }
 
 /** Two queries rather than a correlated DELETE subquery — libSQL has no DELETE ... LIMIT. */

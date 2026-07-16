@@ -10,9 +10,7 @@ test("placement variants ride the token surface (sticky vs floating)", async ({ 
   await expect(sticky).toHaveCSS("background-color", TOKENS["color.background"].value);
   await sticky.unmount();
 
-  const floating = await mount(
-    <SelectionBar count={1} onClear={(): void => undefined} placement="floating" />,
-  );
+  const floating = await mount(<SelectionBar count={1} onClear={(): void => undefined} placement="floating" />);
   await expect(floating).toHaveCSS("background-color", TOKENS["color.popover"].value);
 });
 

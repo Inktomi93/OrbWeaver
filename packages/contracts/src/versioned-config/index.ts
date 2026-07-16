@@ -50,17 +50,10 @@ export function defineVersionedConfig<T>(def: VersionedConfigDef<T>): VersionedC
         return def.default;
       }
       const probe = versionProbeSchema.safeParse(raw);
-      const probedVersion = probe.success
-        ? (probe.data.schemaVersion ?? INITIAL_VERSION)
-        : INITIAL_VERSION;
+      const probedVersion = probe.success ? (probe.data.schemaVersion ?? INITIAL_VERSION) : INITIAL_VERSION;
       // Externally-recorded version (a storage column) beats the in-blob probe; garbage
       // (non-positive / non-integer) falls back to the probe rather than poisoning the walk.
-      let version =
-        storedVersion !== undefined &&
-        Number.isInteger(storedVersion) &&
-        storedVersion >= INITIAL_VERSION
-          ? storedVersion
-          : probedVersion;
+      let version = storedVersion !== undefined && Number.isInteger(storedVersion) && storedVersion >= INITIAL_VERSION ? storedVersion : probedVersion;
       let config: Record<string, unknown> = raw;
       let lift = def.lifts[version];
       while (lift !== undefined) {

@@ -25,9 +25,7 @@ test("runBootMigrations applies the baseline on a fresh db + passes the integrit
   const db = await createDb(":memory:");
   await runBootMigrations({ db, databaseUrl: ":memory:" });
   // Each select throws if the baseline didn't create the table (independent → run together).
-  await Promise.all(
-    SENTINEL_TABLES.map((table) => db.run(sql.raw(`select count(*) from ${table}`))),
-  );
+  await Promise.all(SENTINEL_TABLES.map((table) => db.run(sql.raw(`select count(*) from ${table}`))));
   const row = await db.get<Record<string, number>>(sql`PRAGMA foreign_keys`);
   expect(row?.["foreign_keys"]).toBe(FK_ON);
 });
@@ -65,20 +63,14 @@ test("runBootMigrations auto-resets a regenerated-baseline dev db + re-migrates 
   await expect(runBootMigrations({ db, databaseUrl: ":memory:" })).resolves.toBeUndefined();
 
   // The reset dropped everything (incl. the sentinel) and re-applied the fresh baseline.
-  const sentinel = await db.all(
-    sql`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'sentinel_probe'`,
-  );
+  const sentinel = await db.all(sql`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'sentinel_probe'`);
   expect(sentinel.length).toBe(0);
-  await Promise.all(
-    SENTINEL_TABLES.map((table) => db.run(sql.raw(`select count(*) from ${table}`))),
-  );
+  await Promise.all(SENTINEL_TABLES.map((table) => db.run(sql.raw(`select count(*) from ${table}`))));
 });
 
 test("a LAUNCHED db refuses to auto-wipe — a baseline mismatch is boot-FATAL", async () => {
   const db = await createDb(":memory:");
   await runBootMigrations({ db, databaseUrl: ":memory:" });
   await db.run(sql`UPDATE __drizzle_migrations SET created_at = 0`);
-  await expect(runBootMigrations({ db, databaseUrl: ":memory:", launched: true })).rejects.toThrow(
-    LAUNCHED_FATAL_RE,
-  );
+  await expect(runBootMigrations({ db, databaseUrl: ":memory:", launched: true })).rejects.toThrow(LAUNCHED_FATAL_RE);
 });

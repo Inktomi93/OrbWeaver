@@ -2,12 +2,7 @@
 // diagnostic peel, and the sanitized ProviderError builder (an HTML/secret-bearing body never leaks).
 
 import { ProviderError } from "@orb/server/infra/providers";
-import {
-  classifyHttpStatus,
-  classifyTransportName,
-  extractHttpErrorDiagnostic,
-  providerErrorFromHttp,
-} from "@orb/server/infra/providers/backends/kit";
+import { classifyHttpStatus, classifyTransportName, extractHttpErrorDiagnostic, providerErrorFromHttp } from "@orb/server/infra/providers/backends/kit";
 import { describe } from "vitest";
 import { expect, test } from "../../../../../support/fixtures";
 

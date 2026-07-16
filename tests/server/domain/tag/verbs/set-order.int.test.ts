@@ -23,8 +23,6 @@ describe("setTagOrder", () => {
     const db = await freshDb();
     const owner = await seedUser(db);
     const svc = createTagService(makeTagHarness(db).ctx);
-    await expect(
-      svc.setTagOrder({ principal: principal(owner), orderedIds: [] }),
-    ).resolves.toBeUndefined();
+    await expect(svc.setTagOrder({ principal: principal(owner), orderedIds: [] })).resolves.toBeUndefined();
   });
 });

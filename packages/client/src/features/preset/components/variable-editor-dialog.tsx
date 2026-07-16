@@ -24,11 +24,7 @@ export interface VariableEditorDialogProps {
 }
 
 /** The variable editor — bound to `variables[index].*`; closes via the tab's `onClose`. */
-export function VariableEditorDialog({
-  form,
-  index,
-  onClose,
-}: VariableEditorDialogProps): ReactElement {
+export function VariableEditorDialog({ form, index, onClose }: VariableEditorDialogProps): ReactElement {
   return (
     <Dialog
       open={true}
@@ -42,55 +38,25 @@ export function VariableEditorDialog({
         <DialogTitle>Edit variable</DialogTitle>
         <Stack gap="block" className="min-h-0 overflow-y-auto">
           <form.AppField name={`variables[${index}].name`}>
-            {(field): ReactElement => (
-              <field.TextField
-                label="Name"
-                description="The macro key — used as {{name}} in your prompt."
-              />
-            )}
+            {(field): ReactElement => <field.TextField label="Name" description="The macro key — used as {{name}} in your prompt." />}
           </form.AppField>
           <form.AppField name={`variables[${index}].question`}>
-            {(field): ReactElement => (
-              <field.TextField
-                label="Question"
-                description="What the chat asks you at generation."
-              />
-            )}
+            {(field): ReactElement => <field.TextField label="Question" description="What the chat asks you at generation." />}
           </form.AppField>
 
           <OptionList form={form} index={index} />
 
           <form.AppField name={`variables[${index}].defaultValue`}>
-            {(field): ReactElement => (
-              <field.TextField
-                label="Default value"
-                description="Used when you skip the question (optional)."
-              />
-            )}
+            {(field): ReactElement => <field.TextField label="Default value" description="Used when you skip the question (optional)." />}
           </form.AppField>
           <form.AppField name={`variables[${index}].multiSelect`}>
-            {(field): ReactElement => (
-              <field.SwitchField
-                label="Allow multiple"
-                description="Let more than one option be picked."
-              />
-            )}
+            {(field): ReactElement => <field.SwitchField label="Allow multiple" description="Let more than one option be picked." />}
           </form.AppField>
           <form.AppField name={`variables[${index}].separator`}>
-            {(field): ReactElement => (
-              <field.TextField
-                label="Separator"
-                description="Joins multiple picks (when multiple are allowed)."
-              />
-            )}
+            {(field): ReactElement => <field.TextField label="Separator" description="Joins multiple picks (when multiple are allowed)." />}
           </form.AppField>
           <form.AppField name={`variables[${index}].randomPick`}>
-            {(field): ReactElement => (
-              <field.SwitchField
-                label="Random pick"
-                description="Choose an option at random instead of asking."
-              />
-            )}
+            {(field): ReactElement => <field.SwitchField label="Random pick" description="Choose an option at random instead of asking." />}
           </form.AppField>
 
           <Row gap="field" justify="end">
@@ -108,21 +74,11 @@ function makeOption(): ChoiceBlockOption {
 }
 
 /** The nested option list — label/value pairs bound at `variables[i].options[j].*`, add/remove in place. */
-function OptionList({
-  form,
-  index,
-}: {
-  readonly form: AppForm;
-  readonly index: number;
-}): ReactElement {
+function OptionList({ form, index }: { readonly form: AppForm; readonly index: number }): ReactElement {
   const optionsName = `variables[${index}].options` as const;
   return (
     <Section heading="Options">
-      <form.Subscribe
-        selector={(state): readonly ChoiceBlockOption[] =>
-          state.values.variables[index]?.options ?? []
-        }
-      >
+      <form.Subscribe selector={(state): readonly ChoiceBlockOption[] => state.values.variables[index]?.options ?? []}>
         {(options): ReactElement => (
           <Stack gap="field">
             {options.length === 0 ? (
@@ -131,14 +87,10 @@ function OptionList({
               </Text>
             ) : (
               options.map((_option, j) => (
-                // biome-ignore lint/suspicious/noArrayIndexKey: options are a positional, id-less list edited in place — the index IS the identity (the character-greeting-preview precedent).
+                // biome-ignore lint/suspicious/noArrayIndexKey: options are a positional, id-less list edited in place by index — the index IS the identity.
                 <Row key={j} gap="field" align="end">
-                  <form.AppField name={`variables[${index}].options[${j}].label`}>
-                    {(field): ReactElement => <field.TextField label="Label" />}
-                  </form.AppField>
-                  <form.AppField name={`variables[${index}].options[${j}].value`}>
-                    {(field): ReactElement => <field.TextField label="Value" />}
-                  </form.AppField>
+                  <form.AppField name={`variables[${index}].options[${j}].label`}>{(field): ReactElement => <field.TextField label="Label" />}</form.AppField>
+                  <form.AppField name={`variables[${index}].options[${j}].value`}>{(field): ReactElement => <field.TextField label="Value" />}</form.AppField>
                   <Button
                     intent="ghost"
                     size="sm"
@@ -152,11 +104,7 @@ function OptionList({
               ))
             )}
             <Row>
-              <Button
-                intent="secondary"
-                size="sm"
-                onClick={(): void => form.pushFieldValue(optionsName, makeOption())}
-              >
+              <Button intent="secondary" size="sm" onClick={(): void => form.pushFieldValue(optionsName, makeOption())}>
                 <Icon icon={Plus} size="sm" />
                 Add option
               </Button>

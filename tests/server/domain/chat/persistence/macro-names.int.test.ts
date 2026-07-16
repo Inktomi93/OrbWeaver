@@ -28,9 +28,7 @@ describe("persistence/macro-names — loadChatMacroNameProducer (§1 member-gate
       participants: [{ characterId: charId, activePersonaId: personaId }],
     });
     expect(producer.characterNames).toEqual([{ id: charId, name: "aria" }]);
-    expect(producer.personaNames).toEqual([
-      { id: personaId, name: "nyx", description: "nyx description" },
-    ]);
+    expect(producer.personaNames).toEqual([{ id: personaId, name: "nyx", description: "nyx description" }]);
   });
 
   test("covers a message-stamped id NOT on any participant (a since-switched persona)", async () => {
@@ -43,9 +41,7 @@ describe("persistence/macro-names — loadChatMacroNameProducer (§1 member-gate
       messages: [{ characterId: null, personaId: oldPersona }],
     });
     // Both the participant's CURRENT active persona and the message's HISTORICAL stamp resolve.
-    expect(new Set(producer.personaNames.map((p) => p.id))).toEqual(
-      new Set([activePersona, oldPersona]),
-    );
+    expect(new Set(producer.personaNames.map((p) => p.id))).toEqual(new Set([activePersona, oldPersona]));
   });
 
   test("dedupes an id referenced by BOTH a participant and a message row (one query, one entry)", async () => {
@@ -100,12 +96,8 @@ describe("persistence/macro-names — multi-human coverage is member-gated, not 
 
     // Both resolve — the loader has no notion of "whose chat this is"; it resolves whatever ids the
     // membership layer already collected. A member's OWN persona is not gated behind the host's ownership.
-    expect(new Set(producer.personaNames.map((p) => p.name))).toEqual(
-      new Set(["host_pov", "member_pov"]),
-    );
-    expect(producer.personaNames.map((p) => p.id)).toEqual(
-      expect.arrayContaining([hostPersona, memberPersona]),
-    );
+    expect(new Set(producer.personaNames.map((p) => p.name))).toEqual(new Set(["host_pov", "member_pov"]));
+    expect(producer.personaNames.map((p) => p.id)).toEqual(expect.arrayContaining([hostPersona, memberPersona]));
   });
 
   test("rows stamped with DIFFERENT participants' personaIds each resolve {{user}} to THEIR OWN persona", async () => {

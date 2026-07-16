@@ -16,6 +16,5 @@ const baseTimeLib = createTimeLib();
  *  `formatRelative` freezes to a fixed placeholder under `pnpm snap --probe` (see header). */
 export const timeLib: TimeLib = {
   ...baseTimeLib,
-  formatRelative: (epochMs): string =>
-    isProbeMode() ? PROBE_RELATIVE_PLACEHOLDER : baseTimeLib.formatRelative(epochMs),
+  formatRelative: (epochMs): string => (isProbeMode() ? PROBE_RELATIVE_PLACEHOLDER : baseTimeLib.formatRelative(epochMs)),
 };

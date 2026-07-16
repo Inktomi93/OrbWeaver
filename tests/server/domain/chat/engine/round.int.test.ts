@@ -5,13 +5,7 @@
 // canon advances between speakers (speaker k+1 witnesses k's row); the two-axis nudge per speaker; the
 // narrator round (ONE turn authored by the group character); and the locked-yield (a fake engine).
 
-import type {
-  AssembleContext,
-  ChatBusEvent,
-  GroupConfig,
-  MessageView,
-  SpeakerRef,
-} from "@orb/contracts/chat";
+import type { AssembleContext, ChatBusEvent, GroupConfig, MessageView, SpeakerRef } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
@@ -19,30 +13,14 @@ import type { CharacterId, ChatId, MessageId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
 import type { CastName } from "../../../../../packages/server/src/domain/chat/contract/arbitration";
-import {
-  CHAT_OP_CODES,
-  ChatOperationError,
-} from "../../../../../packages/server/src/domain/chat/contract/errors";
-import type {
-  TurnEngine,
-  TurnOutcome,
-  TurnPrep,
-  TurnRequest,
-} from "../../../../../packages/server/src/domain/chat/contract/results";
+import { CHAT_OP_CODES, ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors";
+import type { TurnEngine, TurnOutcome, TurnPrep, TurnRequest } from "../../../../../packages/server/src/domain/chat/contract/results";
 import { createTurnEngine } from "../../../../../packages/server/src/domain/chat/engine/engine";
 import { driveRound } from "../../../../../packages/server/src/domain/chat/engine/round";
 import { loadCanonHistory } from "../../../../../packages/server/src/domain/chat/persistence/queries";
 import { freshDb } from "../../../../support/db";
 import { expect, test } from "../../../../support/fixtures";
-import {
-  makeChatContext,
-  scriptedRoleTurn,
-  seedAgent,
-  seedCharacter,
-  seedChat,
-  seedUser,
-  testConnection,
-} from "../_support";
+import { makeChatContext, scriptedRoleTurn, seedAgent, seedCharacter, seedChat, seedUser, testConnection } from "../_support";
 
 const HOST = castId<UserId>("user_host");
 const cid = (k: string): CharacterId => castId<CharacterId>(`character_${k}`);
@@ -112,9 +90,7 @@ function base(chatId: ChatId): Omit<TurnPrep, "speakerCharacterId" | "groupNudge
 
 /** Flatten a wire history's text content (for the nudge assertion). */
 function historyText(req: TurnRequest): string {
-  return req.history
-    .flatMap((m) => m.content.map((p) => (p.type === "text" ? p.text : "")))
-    .join("\n");
+  return req.history.flatMap((m) => m.content.map((p) => (p.type === "text" ? p.text : ""))).join("\n");
 }
 
 let db: Db;

@@ -15,10 +15,7 @@ import { ConfirmDialog } from "#components";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
 import { startEditingMessage } from "#state";
-import {
-  MESSAGE_ACTION_ICON_CLASS,
-  messageActionsRevealClass,
-} from "../lib/message-actions-reveal";
+import { MESSAGE_ACTION_ICON_CLASS, messageActionsRevealClass } from "../lib/message-actions-reveal";
 
 interface HideVars {
   readonly chatId: ChatId;
@@ -65,11 +62,7 @@ export interface MessageActionsRowProps {
   readonly messageActions?: "expanded" | "hover" | undefined;
 }
 
-export function MessageActionsRow({
-  message,
-  onChatForked,
-  messageActions,
-}: MessageActionsRowProps): ReactElement {
+export function MessageActionsRow({ message, onChatForked, messageActions }: MessageActionsRowProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const hide = useHideMutation({ trpc, invalidation });
@@ -122,13 +115,7 @@ export function MessageActionsRow({
   };
 
   return (
-    <Row
-      gap="field"
-      align="center"
-      justify="end"
-      data-slot="message-actions-row"
-      className={messageActionsRevealClass(messageActions)}
-    >
+    <Row gap="field" align="center" justify="end" data-slot="message-actions-row" className={messageActionsRevealClass(messageActions)}>
       {editable ? (
         <Button intent="ghost" size="icon" aria-label="Edit message" onClick={onEdit}>
           <Icon className={MESSAGE_ACTION_ICON_CLASS} icon={Pencil} size="sm" />
@@ -142,39 +129,18 @@ export function MessageActionsRow({
           aria-label={excludedFromPrompt ? "Unhide from AI" : "Hide from AI"}
           onClick={onToggleHidden}
         >
-          <Icon
-            className={MESSAGE_ACTION_ICON_CLASS}
-            icon={excludedFromPrompt ? EyeOff : Eye}
-            size="sm"
-          />
+          <Icon className={MESSAGE_ACTION_ICON_CLASS} icon={excludedFromPrompt ? EyeOff : Eye} size="sm" />
         </Button>
       ) : null}
       {editable ? (
-        <Button
-          intent="ghost"
-          size="icon"
-          loading={fork.isPending}
-          aria-label="Fork chat here"
-          onClick={(): void => void onFork()}
-        >
+        <Button intent="ghost" size="icon" loading={fork.isPending} aria-label="Fork chat here" onClick={(): void => void onFork()}>
           <Icon className={MESSAGE_ACTION_ICON_CLASS} icon={GitFork} size="sm" />
         </Button>
       ) : null}
-      <Button
-        intent="ghost"
-        size="icon"
-        aria-label="Copy message"
-        onClick={(): void => void onCopy()}
-      >
+      <Button intent="ghost" size="icon" aria-label="Copy message" onClick={(): void => void onCopy()}>
         <Icon className={MESSAGE_ACTION_ICON_CLASS} icon={Copy} size="sm" />
       </Button>
-      <Button
-        intent="ghost"
-        size="icon"
-        loading={remove.isPending}
-        aria-label="Delete message"
-        onClick={(): void => setDeleteOpen(true)}
-      >
+      <Button intent="ghost" size="icon" loading={remove.isPending} aria-label="Delete message" onClick={(): void => setDeleteOpen(true)}>
         <Icon className={MESSAGE_ACTION_ICON_CLASS} icon={Trash2} size="sm" />
       </Button>
       <ConfirmDialog

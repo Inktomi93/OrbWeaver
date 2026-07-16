@@ -32,9 +32,7 @@ async function* liveEntries<Event>(source: AsyncIterable<unknown[]>): AsyncGener
   }
 }
 
-export function defineBusChannel<Key extends string | number, Event>(
-  channelFor: (key: Key) => string,
-): BusChannel<Key, Event>;
+export function defineBusChannel<Key extends string | number, Event>(channelFor: (key: Key) => string): BusChannel<Key, Event>;
 export function defineBusChannel<Key extends string | number, Event>(
   channelFor: (key: Key) => string,
   opts: { readonly firehose: true },

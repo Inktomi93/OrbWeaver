@@ -51,16 +51,7 @@ export const rpgElementPresetSchema = z.enum(RPG_ELEMENT_PRESETS);
 export type RpgElementPreset = z.infer<typeof rpgElementPresetSchema>;
 
 /** rpg_hud_widgets.type — the 8 widget kinds (03 §8). */
-export const RPG_WIDGET_TYPES = [
-  "progress_bar",
-  "gauge",
-  "relationship_meter",
-  "counter",
-  "stat_block",
-  "list",
-  "inventory_grid",
-  "timer",
-] as const;
+export const RPG_WIDGET_TYPES = ["progress_bar", "gauge", "relationship_meter", "counter", "stat_block", "list", "inventory_grid", "timer"] as const;
 export const rpgWidgetTypeSchema = z.enum(RPG_WIDGET_TYPES);
 export type RpgWidgetType = z.infer<typeof rpgWidgetTypeSchema>;
 
@@ -75,15 +66,7 @@ export const rpgNpcDescriptionSourceSchema = z.enum(RPG_NPC_DESCRIPTION_SOURCES)
 export type RpgNpcDescriptionSource = z.infer<typeof rpgNpcDescriptionSourceSchema>;
 
 /** rpg_journal.type (03 §6). */
-export const RPG_JOURNAL_TYPES = [
-  "location",
-  "npc",
-  "combat",
-  "quest",
-  "item",
-  "event",
-  "note",
-] as const;
+export const RPG_JOURNAL_TYPES = ["location", "npc", "combat", "quest", "item", "event", "note"] as const;
 export const rpgJournalTypeSchema = z.enum(RPG_JOURNAL_TYPES);
 export type RpgJournalType = z.infer<typeof rpgJournalTypeSchema>;
 
@@ -128,13 +111,7 @@ export const rpgSessionStatusSchema = z.enum(RPG_SESSION_STATUSES);
 export type RpgSessionStatus = z.infer<typeof rpgSessionStatusSchema>;
 
 /** rpg_checkpoints.trigger (03 §10). */
-export const RPG_CHECKPOINT_TRIGGERS = [
-  "manual",
-  "session_start",
-  "session_end",
-  "combat_start",
-  "combat_end",
-] as const;
+export const RPG_CHECKPOINT_TRIGGERS = ["manual", "session_start", "session_end", "combat_start", "combat_end"] as const;
 export const rpgCheckpointTriggerSchema = z.enum(RPG_CHECKPOINT_TRIGGERS);
 export type RpgCheckpointTrigger = z.infer<typeof rpgCheckpointTriggerSchema>;
 
@@ -178,10 +155,7 @@ export const rpgGameConfigSchema = z.object({
   language: z.string().default("English"),
   playerGoals: z.string().max(GOALS_MAX).default("Have an adventure"),
   additionalPreferences: z.string().max(PREFS_MAX).default(""),
-  gm: z.discriminatedUnion("kind", [
-    z.object({ kind: z.literal("standalone") }),
-    z.object({ kind: z.literal("character"), characterId: characterIdSchema }),
-  ]),
+  gm: z.discriminatedUnion("kind", [z.object({ kind: z.literal("standalone") }), z.object({ kind: z.literal("character"), characterId: characterIdSchema })]),
   houseRules: z
     .object({
       failForward: z.boolean().default(true),
@@ -268,9 +242,7 @@ export type RpgPresentCharacter = z.infer<typeof rpgPresentCharacterSchema>;
 export const rpgPartyVolatileSchema = z.object({
   partyMemberId: partyMemberIdSchema,
   hp: z.object({ value: z.number().int(), max: z.number().int().min(1) }),
-  pools: z
-    .array(z.object({ name: z.string(), value: z.number().int(), max: z.number().int().min(1) }))
-    .default([]),
+  pools: z.array(z.object({ name: z.string(), value: z.number().int(), max: z.number().int().min(1) })).default([]),
   conditions: z
     .array(
       z.object({

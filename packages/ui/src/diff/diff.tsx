@@ -34,12 +34,7 @@ export interface DiffViewProps {
 }
 
 /** The jsdiff seal — renders the before/after change stream as inline segments. */
-export function DiffView({
-  before,
-  after,
-  mode = "chars",
-  className,
-}: DiffViewProps): ReactElement {
+export function DiffView({ before, after, mode = "chars", className }: DiffViewProps): ReactElement {
   const changes = DIFF_BY_MODE[mode](before, after);
   const segments: ReactElement[] = [];
   // Keyed by the running text offset — stable and unique, unlike an array index across recomputed diffs.

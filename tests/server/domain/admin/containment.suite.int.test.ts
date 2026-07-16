@@ -62,12 +62,7 @@ beforeEach(async () => {
 /** Build the runtime `AgentActor` from the agent's ACTUAL persisted state (so the kill switch is proven
  *  against the real `users.enabled`, not an asserted literal). */
 async function actorFromDb(agentId: UserId): Promise<AgentActor> {
-  const row = (
-    await db
-      .select({ enabled: users.enabled, ownerUserId: users.ownerUserId })
-      .from(users)
-      .where(eq(users.id, agentId))
-  )[0];
+  const row = (await db.select({ enabled: users.enabled, ownerUserId: users.ownerUserId }).from(users).where(eq(users.id, agentId)))[0];
   if (row === undefined || row.ownerUserId === null) {
     throw new Error("expected a seeded agent row with an owner");
   }
@@ -80,11 +75,7 @@ function makeNotifications(): NotificationsService {
     db,
     now: clock.now,
     isAgentRecipient: async (userId) => {
-      const rows = await db
-        .select({ kind: users.kind })
-        .from(users)
-        .where(eq(users.id, userId))
-        .limit(1);
+      const rows = await db.select({ kind: users.kind }).from(users).where(eq(users.id, userId)).limit(1);
       return rows[0]?.kind === "agent";
     },
   });
@@ -173,15 +164,11 @@ describe("agent-principal containment (AP1, unseated) — a disabled agent can d
     const root = await seedUser(db, { id: "user_root", role: "owner", handle: "root" });
     const p = principal(root, "owner");
 
-    await expect(svc.setRole({ principal: p, userId: agent, role: "admin" })).rejects.toMatchObject(
-      {
-        code: "cannot_modify_agent",
-      },
-    );
+    await expect(svc.setRole({ principal: p, userId: agent, role: "admin" })).rejects.toMatchObject({
+      code: "cannot_modify_agent",
+    });
     // A strong password so the refusal is reached AFTER the weak-password floor (not masked by it).
-    await expect(
-      svc.resetPassword({ principal: p, userId: agent, password: "a-strong-password-123" }),
-    ).rejects.toMatchObject({ code: "cannot_modify_agent" });
+    await expect(svc.resetPassword({ principal: p, userId: agent, password: "a-strong-password-123" })).rejects.toMatchObject({ code: "cannot_modify_agent" });
 
     const updated = await svc.setEnabled({ principal: p, userId: agent, enabled: false });
     expect(updated.enabled).toBe(false);
@@ -216,21 +203,15 @@ describe("agent-principal containment (AP1, unseated) — a disabled agent can d
       joinSeq: 0,
     });
     const msgId = castId<MessageId>("message_agent");
-    await db
-      .insert(messages)
-      .values({ id: msgId, chatId, seq: 1, role: "assistant", authorUserId: agent });
+    await db.insert(messages).values({ id: msgId, chatId, seq: 1, role: "assistant", authorUserId: agent });
 
     // Delete the OWNER → referential physics (agent-principal-design/01 §1, 03 §5 #4 — no reaper).
     await db.delete(users).where(eq(users.id, owner));
 
     // The agent principal is GONE: the users row, the satellite, and the roster seat all cascade.
     expect(await db.select().from(users).where(eq(users.id, agent))).toHaveLength(0);
-    expect(
-      await db.select().from(agentPrincipals).where(eq(agentPrincipals.userId, agent)),
-    ).toHaveLength(0);
-    expect(
-      await db.select().from(chatParticipants).where(eq(chatParticipants.userId, agent)),
-    ).toHaveLength(0);
+    expect(await db.select().from(agentPrincipals).where(eq(agentPrincipals.userId, agent))).toHaveLength(0);
+    expect(await db.select().from(chatParticipants).where(eq(chatParticipants.userId, agent))).toHaveLength(0);
 
     // Its authored message SURVIVES with authorUserId SET NULL (the D26 slot; attribution degrades — doc 02 §2,
     // the same shape `import` produces for an agent-authored row — doc 06 §6).

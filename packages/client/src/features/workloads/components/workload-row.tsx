@@ -32,12 +32,7 @@ import {
   WORKLOAD_STATUS_LABELS,
   workloadResultPreview,
 } from "../lib/workloads-model";
-import {
-  dependencyWaitLabel,
-  isDeferredWorkload,
-  isDependencyFailure,
-  isWaitingOnDependencies,
-} from "../lib/workloads-run-model";
+import { dependencyWaitLabel, isDeferredWorkload, isDependencyFailure, isWaitingOnDependencies } from "../lib/workloads-run-model";
 
 type WorkloadItem = inferOutput<Trpc["workloads"]["list"]>[number];
 
@@ -51,11 +46,7 @@ export interface WorkloadRowProps {
 
 /** One workload row — active rows additionally tail the live SSE stream. */
 export function WorkloadRow(props: WorkloadRowProps): ReactElement {
-  return isActiveWorkloadStatus(props.workload.status) ? (
-    <ActiveWorkloadRow {...props} />
-  ) : (
-    <WorkloadRowBody {...props} progress={null} />
-  );
+  return isActiveWorkloadStatus(props.workload.status) ? <ActiveWorkloadRow {...props} /> : <WorkloadRowBody {...props} progress={null} />;
 }
 
 /** The live wrapper: mounts the per-row subscription + the row-local progress buffer. */
@@ -84,8 +75,7 @@ function WorkloadRowBody({
   const waiting = isWaitingOnDependencies(workload);
   const depFailed = workload.status === "failed" && isDependencyFailure(workload.error);
   const statusLabel = depFailed ? "Dependency failed" : WORKLOAD_STATUS_LABELS[workload.status];
-  const resultPreview =
-    workload.status === "succeeded" ? workloadResultPreview(workload.result) : null;
+  const resultPreview = workload.status === "succeeded" ? workloadResultPreview(workload.result) : null;
 
   const subtitleParts = [timeLib.formatRelative(workload.createdAt)];
   if (ownerHandle !== null) {
@@ -102,29 +92,15 @@ function WorkloadRowBody({
             {workload.mode === "bulk" ? <Badge intent="warning">Bulk</Badge> : null}
             <QueueStateBadges deferred={deferred} waiting={waiting} />
             <Row aria-live="polite" data-slot="workload-status">
-              <Badge intent={depFailed ? "warning" : WORKLOAD_STATUS_INTENT[workload.status]}>
-                {statusLabel}
-              </Badge>
+              <Badge intent={depFailed ? "warning" : WORKLOAD_STATUS_INTENT[workload.status]}>{statusLabel}</Badge>
             </Row>
             {active ? (
-              <Button
-                type="button"
-                intent="ghost"
-                size="sm"
-                aria-label={`Cancel — ${kindLabel}`}
-                onClick={(): void => setConfirmCancel(true)}
-              >
+              <Button type="button" intent="ghost" size="sm" aria-label={`Cancel — ${kindLabel}`} onClick={(): void => setConfirmCancel(true)}>
                 Cancel
               </Button>
             ) : null}
             {isRetryableWorkloadStatus(workload.status) ? (
-              <Button
-                type="button"
-                intent="secondary"
-                size="sm"
-                aria-label={`Retry — ${kindLabel}`}
-                onClick={onRetry}
-              >
+              <Button type="button" intent="secondary" size="sm" aria-label={`Retry — ${kindLabel}`} onClick={onRetry}>
                 Retry
               </Button>
             ) : null}
@@ -132,11 +108,7 @@ function WorkloadRowBody({
         }
       />
       {active && !deferred && !waiting ? (
-        <Progress
-          label={progress?.label ?? WORKLOAD_STATUS_LABELS[workload.status]}
-          showValue={true}
-          value={progress?.pct ?? null}
-        />
+        <Progress label={progress?.label ?? WORKLOAD_STATUS_LABELS[workload.status]} showValue={true} value={progress?.pct ?? null} />
       ) : null}
       <WorkloadWaitDetail workload={workload} deferred={deferred} waiting={waiting} />
       {resultPreview === null ? null : (
@@ -160,13 +132,7 @@ function WorkloadRowBody({
 }
 
 /** The queue-state badges next to the status badge. */
-function QueueStateBadges({
-  deferred,
-  waiting,
-}: {
-  readonly deferred: boolean;
-  readonly waiting: boolean;
-}): ReactElement | null {
+function QueueStateBadges({ deferred, waiting }: { readonly deferred: boolean; readonly waiting: boolean }): ReactElement | null {
   if (!(deferred || waiting)) {
     return null;
   }
@@ -208,15 +174,8 @@ function WorkloadWaitDetail({
 }
 
 /** The failure line for a failed/worker_died row: friendly copy when a class matches, with the raw exception one disclosure away. */
-function WorkloadFailureDetail({
-  workload,
-}: {
-  readonly workload: WorkloadItem;
-}): ReactElement | null {
-  const rawError =
-    (workload.status === "failed" || workload.status === "worker_died") && workload.error !== null
-      ? workload.error
-      : null;
+function WorkloadFailureDetail({ workload }: { readonly workload: WorkloadItem }): ReactElement | null {
+  const rawError = (workload.status === "failed" || workload.status === "worker_died") && workload.error !== null ? workload.error : null;
   if (rawError === null) {
     return null;
   }

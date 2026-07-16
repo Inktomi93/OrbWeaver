@@ -13,14 +13,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { Hono, MiddlewareHandler } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { hasCsrfHeader } from "#infra/auth";
-import type {
-  ImportAssetPort,
-  ImportCharacterPort,
-  ImportFile,
-  ImportTagPort,
-  ImportWorldInfoPort,
-  ProfileImportResult,
-} from "../import";
+import type { ImportAssetPort, ImportCharacterPort, ImportFile, ImportTagPort, ImportWorldInfoPort, ProfileImportResult } from "../import";
 import { runProfileImport } from "../import";
 
 const UNAUTHORIZED = 401;

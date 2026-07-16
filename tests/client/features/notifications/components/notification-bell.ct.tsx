@@ -46,10 +46,7 @@ function sseBody(events: readonly Record<string, unknown>[]): string {
 
 /** Serve the notifications subscription a scripted stream; everything else falls back to routeTrpc.
  *  Register AFTER routeTrpc (later routes run first; non-SSE requests fall through). */
-async function routeInboxStream(
-  page: Page,
-  events: readonly Record<string, unknown>[],
-): Promise<void> {
+async function routeInboxStream(page: Page, events: readonly Record<string, unknown>[]): Promise<void> {
   let served = false;
   await page.route("**/api/trpc/**", async (route) => {
     const accept = route.request().headers()["accept"] ?? "";
@@ -68,10 +65,7 @@ async function routeInboxStream(
   });
 }
 
-test("unread invites badge the bell; opening lists the invite and marks it read", async ({
-  mount,
-  page,
-}) => {
+test("unread invites badge the bell; opening lists the invite and marks it read", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "notifications.list": () => ({ items: [inviteRow()], nextCursor: null }),
     "notifications.markAllRead": () => ({ markedCount: 1 }),
@@ -87,9 +81,7 @@ test("unread invites badge the bell; opening lists the invite and marks it read"
   await bell.click();
   await expect(page.getByText("alex invited you to a chat")).toBeVisible();
   // Opening = seen: ONE bulk markAllRead call, not a per-row markRead loop.
-  await expect
-    .poll(() => trpc.count("notifications.markAllRead"), { intervals: [20, 50, 100] })
-    .toBeGreaterThanOrEqual(1);
+  await expect.poll(() => trpc.count("notifications.markAllRead"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
   expect(trpc.count("notifications.markAllRead")).toBe(1);
 });
 
@@ -106,10 +98,7 @@ test("no unread → plain label, empty inbox copy", async ({ mount, page }) => {
   await expect(page.getByText("No notifications.")).toBeVisible();
 });
 
-test("Accept fires acceptInvite with the notification's inviteId, then dismisses the row", async ({
-  mount,
-  page,
-}) => {
+test("Accept fires acceptInvite with the notification's inviteId, then dismisses the row", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "notifications.list": () => ({ items: [inviteRow()], nextCursor: null }),
     "notifications.markAllRead": () => ({ markedCount: 1 }),
@@ -125,30 +114,22 @@ test("Accept fires acceptInvite with the notification's inviteId, then dismisses
   await page.getByRole("button", { name: "Notifications (1 unread)" }).click();
   await page.getByRole("button", { name: "Accept" }).click();
 
-  await expect
-    .poll(() => trpc.count("invites.acceptInvite"), { intervals: [20, 50, 100] })
-    .toBeGreaterThanOrEqual(1);
+  await expect.poll(() => trpc.count("invites.acceptInvite"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
   const accepted = trpc.lastInput("invites.acceptInvite") as { inviteId?: unknown };
   expect(accepted.inviteId).toBe("chatinvite_ct_1");
   // Acting on the invite clears its inbox row.
-  await expect
-    .poll(() => trpc.count("notifications.dismiss"), { intervals: [20, 50, 100] })
-    .toBeGreaterThanOrEqual(1);
+  await expect.poll(() => trpc.count("notifications.dismiss"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
   const dismissed = trpc.lastInput("notifications.dismiss") as { notificationId?: unknown };
   expect(dismissed.notificationId).toBe("ntf_ct_1");
 });
 
-test("Decline fires declineInvite + dismisses; the row leaves the inbox on refetch", async ({
-  mount,
-  page,
-}) => {
+test("Decline fires declineInvite + dismisses; the row leaves the inbox on refetch", async ({ mount, page }) => {
   // Keyed off the DISMISS (not a call counter): the open-marks-read settle ALSO refetches the list,
   // and a counter-keyed stub would empty the inbox before Decline is ever clicked (observed flake —
   // the row detached mid-click).
   let dismissed = false;
   const trpc = await routeTrpc(page, {
-    "notifications.list": () =>
-      dismissed ? { items: [], nextCursor: null } : { items: [inviteRow()], nextCursor: null },
+    "notifications.list": () => (dismissed ? { items: [], nextCursor: null } : { items: [inviteRow()], nextCursor: null }),
     "notifications.markAllRead": () => ({ markedCount: 1 }),
     "notifications.dismiss": () => {
       dismissed = true;
@@ -170,18 +151,13 @@ test("Decline fires declineInvite + dismisses; the row leaves the inbox on refet
   expect(trpc.count("notifications.dismiss")).toBeGreaterThanOrEqual(1);
 });
 
-test("a LIVE invite arrival re-renders the badge without a refresh (the SSE-driven invalidate)", async ({
-  mount,
-  page,
-}) => {
+test("a LIVE invite arrival re-renders the badge without a refresh (the SSE-driven invalidate)", async ({ mount, page }) => {
   let listCalls = 0;
   await routeTrpc(page, {
     "notifications.list": () => {
       listCalls += 1;
       // The first read (before the stream delivers) is empty; the stream-driven refetch finds the row.
-      return listCalls === 1
-        ? { items: [], nextCursor: null }
-        : { items: [inviteRow()], nextCursor: null };
+      return listCalls === 1 ? { items: [], nextCursor: null } : { items: [inviteRow()], nextCursor: null };
     },
   });
   await routeInboxStream(page, [inviteRow()]);
@@ -209,10 +185,7 @@ function handoffRow(): Record<string, unknown> {
   };
 }
 
-test("a handoff-nominated row carries Accept — fires acceptHostHandoff with the chatId, then dismisses", async ({
-  mount,
-  page,
-}) => {
+test("a handoff-nominated row carries Accept — fires acceptHostHandoff with the chatId, then dismisses", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "notifications.list": () => ({ items: [handoffRow()], unreadCount: 1 }),
     "notifications.markAllRead": () => null,
@@ -227,13 +200,9 @@ test("a handoff-nominated row carries Accept — fires acceptHostHandoff with th
   await expect(page.getByText("You've been nominated to host a chat")).toBeVisible();
   await page.getByRole("button", { name: "Accept" }).click();
 
-  await expect
-    .poll(() => trpc.count("invites.acceptHostHandoff"), { intervals: [20, 50, 100] })
-    .toBeGreaterThanOrEqual(1);
+  await expect.poll(() => trpc.count("invites.acceptHostHandoff"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
   const accepted = trpc.lastInput("invites.acceptHostHandoff") as { chatId?: unknown };
   expect(accepted.chatId).toBe("chat_ct_target");
   // Acting on the nomination clears its inbox row.
-  await expect
-    .poll(() => trpc.count("notifications.dismiss"), { intervals: [20, 50, 100] })
-    .toBeGreaterThanOrEqual(1);
+  await expect.poll(() => trpc.count("notifications.dismiss"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
 });

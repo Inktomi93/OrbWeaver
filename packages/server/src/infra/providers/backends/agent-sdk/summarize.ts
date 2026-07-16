@@ -4,12 +4,7 @@
 // fails closed toward the hosted (OpenRouter) summarize path.
 
 import type { Options, SDKMessage } from "@anthropic-ai/claude-agent-sdk";
-import type {
-  SummarizeRequest,
-  SummarizeRequestItem,
-  SummarizeResult,
-  SummarizeResultItem,
-} from "../../contract";
+import type { SummarizeRequest, SummarizeRequestItem, SummarizeResult, SummarizeResultItem } from "../../contract";
 import { ProviderError } from "../../contract";
 import { logProviderSummarize } from "./log";
 import { disciplineOptions, observabilityOptions } from "./translate";
@@ -36,8 +31,7 @@ function serializeStructured(structuredOutput: unknown, model: string): string {
     throw new ProviderError({
       kind: "invalid",
       retryable: false,
-      message:
-        "agent-sdk: summarize requested a jsonSchema but the turn produced no structured_output frame.",
+      message: "agent-sdk: summarize requested a jsonSchema but the turn produced no structured_output frame.",
       model,
     });
   }
@@ -62,10 +56,7 @@ interface SummarizeAcc {
   terminalReason: string | null;
 }
 
-function accumulateAssistant(
-  acc: SummarizeAcc,
-  message: Extract<SDKMessage, { type: "assistant" }>,
-): void {
+function accumulateAssistant(acc: SummarizeAcc, message: Extract<SDKMessage, { type: "assistant" }>): void {
   for (const block of message.message.content) {
     if (block.type === "text") {
       acc.reply += block.text;
@@ -73,23 +64,19 @@ function accumulateAssistant(
   }
 }
 
-function accumulateResult(
-  acc: SummarizeAcc,
-  message: Extract<SDKMessage, { type: "result" }>,
-): void {
+function accumulateResult(acc: SummarizeAcc, message: Extract<SDKMessage, { type: "result" }>): void {
   acc.ok = !message.is_error && message.subtype === "success";
   acc.terminalReason = message.terminal_reason ?? null;
   acc.costUsd = message.total_cost_usd;
-  acc.tokensIn = message.usage.input_tokens ?? null;
-  acc.tokensOut = message.usage.output_tokens ?? null;
+  // `input_tokens`/`output_tokens` are non-optional `number` on the SDK's `BetaUsage` — always present.
+  acc.tokensIn = message.usage.input_tokens;
+  acc.tokensOut = message.usage.output_tokens;
   if (message.subtype === "success") {
     acc.structuredOutput = message.structured_output;
   }
 }
 
-async function reduceSummarizeStream(
-  stream: AsyncIterable<SDKMessage>,
-): Promise<SummarizeTurnResult> {
+async function reduceSummarizeStream(stream: AsyncIterable<SDKMessage>): Promise<SummarizeTurnResult> {
   const acc: SummarizeAcc = {
     reply: "",
     structuredOutput: undefined,
@@ -111,11 +98,7 @@ async function reduceSummarizeStream(
   return { ...acc };
 }
 
-async function runSummarizeItem(
-  req: SummarizeRequest,
-  item: SummarizeRequestItem,
-  deps: AgentSdkDeps,
-): Promise<SummarizeTurnResult> {
+async function runSummarizeItem(req: SummarizeRequest, item: SummarizeRequestItem, deps: AgentSdkDeps): Promise<SummarizeTurnResult> {
   const abortController = new AbortController();
   if (req.signal !== undefined) {
     if (req.signal.aborted) {
@@ -137,12 +120,10 @@ async function runSummarizeItem(
         }),
       );
     }, SUMMARIZE_ITEM_TIMEOUT_MS);
-    timer.unref?.();
+    timer.unref();
   });
   const outputFormat: Pick<Options, "outputFormat"> =
-    req.jsonSchema !== undefined
-      ? { outputFormat: { type: "json_schema", schema: req.jsonSchema as Record<string, unknown> } }
-      : {};
+    req.jsonSchema !== undefined ? { outputFormat: { type: "json_schema", schema: req.jsonSchema as Record<string, unknown> } } : {};
   const stream = deps.query({
     prompt: item.userPrompt,
     options: {
@@ -180,10 +161,7 @@ async function runSummarizeItem(
   }
 }
 
-export async function summarize(
-  req: SummarizeRequest,
-  deps: AgentSdkDeps,
-): Promise<SummarizeResult> {
+export async function summarize(req: SummarizeRequest, deps: AgentSdkDeps): Promise<SummarizeResult> {
   if (req.credential.source !== "max-pro-sub") {
     throw new ProviderError({
       kind: "invalid",

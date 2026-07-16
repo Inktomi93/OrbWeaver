@@ -38,28 +38,12 @@ export const regexScriptSchema = z.object({
 
   // How macros run on the FIND pattern before it is compiled (kit `SubstituteFindRegex`: none/raw/escaped).
   substituteRegex: z
-    .union([
-      z.literal(SubstituteFindRegex.none),
-      z.literal(SubstituteFindRegex.raw),
-      z.literal(SubstituteFindRegex.escaped),
-    ])
+    .union([z.literal(SubstituteFindRegex.none), z.literal(SubstituteFindRegex.raw), z.literal(SubstituteFindRegex.escaped)])
     .default(SubstituteFindRegex.none),
 
   // Min/Max depth for recursive generation (null = unbounded on that side).
-  minDepth: z
-    .number()
-    .int()
-    .min(MIN_RECURSION_DEPTH)
-    .max(MAX_RECURSION_DEPTH)
-    .nullable()
-    .default(null),
-  maxDepth: z
-    .number()
-    .int()
-    .min(MIN_RECURSION_DEPTH)
-    .max(MAX_RECURSION_DEPTH)
-    .nullable()
-    .default(null),
+  minDepth: z.number().int().min(MIN_RECURSION_DEPTH).max(MAX_RECURSION_DEPTH).nullable().default(null),
+  maxDepth: z.number().int().min(MIN_RECURSION_DEPTH).max(MAX_RECURSION_DEPTH).nullable().default(null),
 });
 
 export type RegexScript = z.infer<typeof regexScriptSchema>;

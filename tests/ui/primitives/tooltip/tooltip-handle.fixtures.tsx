@@ -23,9 +23,7 @@ export function TooltipHandleHarness(): ReactElement {
       <TooltipTrigger className="sr-only" handle={handle} id={triggerId} payload="Reached content">
         anchor
       </TooltipTrigger>
-      <Tooltip handle={handle}>
-        {({ payload }): ReactElement => <TooltipPopup>{payload ?? "no payload"}</TooltipPopup>}
-      </Tooltip>
+      <Tooltip handle={handle}>{({ payload }): ReactElement => <TooltipPopup>{payload ?? "no payload"}</TooltipPopup>}</Tooltip>
     </>
   );
 }

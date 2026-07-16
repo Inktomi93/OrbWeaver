@@ -16,9 +16,7 @@ const HANDLE = castId<Handle>("alex");
 
 describe("sessions.me — viewer identity projection", () => {
   test("projects the caller's Principal into { userId, handle, globalRole }", async () => {
-    const view = await caller(
-      makeContext({ auth: principal("admin", { userId: USER, handle: HANDLE }) }),
-    ).sessions.me();
+    const view = await caller(makeContext({ auth: principal("admin", { userId: USER, handle: HANDLE }) })).sessions.me();
 
     expect(view).toEqual({ userId: USER, handle: HANDLE, globalRole: "admin" });
   });

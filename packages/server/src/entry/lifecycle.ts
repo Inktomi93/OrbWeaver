@@ -18,13 +18,7 @@ import type { Configuration } from "openid-client";
 import { discovery } from "openid-client";
 import { startBuddyObserver } from "#domain/buddy";
 import { createOidcStore, createSessionsService, ownerHandles } from "#domain/sessions";
-import {
-  loadWorkload,
-  nextRunnableWorkload,
-  reapOrphanedWorkloads,
-  runWorkload,
-  subscribeWorkloadWake,
-} from "#domain/workloads";
+import { loadWorkload, nextRunnableWorkload, reapOrphanedWorkloads, runWorkload, subscribeWorkloadWake } from "#domain/workloads";
 import { env } from "#foundation/env";
 import { getLog } from "#foundation/observability";
 import { createPasswordHasher } from "#infra/auth";
@@ -153,9 +147,7 @@ export function createLifecycle(): Lifecycle {
 
     credentialsKeyOk = await built.services.credentials.probeKeyDecrypt();
     if (!credentialsKeyOk) {
-      log.error(
-        "boot: SecretBox decrypt-probe FAILED — healthz will report credentials_key_mismatch",
-      );
+      log.error("boot: SecretBox decrypt-probe FAILED — healthz will report credentials_key_mismatch");
     }
 
     const owner: Principal = {
@@ -240,10 +232,7 @@ export function createLifecycle(): Lifecycle {
       scheduleInterval: scheduleTimer,
       scheduleTimeout: scheduleTimer,
     }).catch((err: unknown) => {
-      log.error(
-        { err: err instanceof Error ? err.message : String(err) },
-        "workloads worker loop exited",
-      );
+      log.error({ err: err instanceof Error ? err.message : String(err) }, "workloads worker loop exited");
     });
 
     stopBuddyObserver = startBuddyObserver(
@@ -258,17 +247,12 @@ export function createLifecycle(): Lifecycle {
 
     let authenticate: LocalAuthenticator | undefined;
     if (env.AUTH_MODE === "local") {
-      authenticate = (handle: string, password: string): Promise<UserId | null> =>
-        built.sessions.authenticate(handle, password);
+      authenticate = (handle: string, password: string): Promise<UserId | null> => built.sessions.authenticate(handle, password);
     }
 
     // forward-header fail-closed belt: warn loudly at boot so a non-authentik proxy deploy (no signed
     // JWT) isn't left silently rejecting every request.
-    if (
-      env.AUTH_MODE === "forward-header" &&
-      (env.FORWARD_AUTH_TRUSTED_PROXIES === undefined ||
-        env.FORWARD_AUTH_TRUSTED_PROXIES.trim().length === 0)
-    ) {
+    if (env.AUTH_MODE === "forward-header" && (env.FORWARD_AUTH_TRUSTED_PROXIES === undefined || env.FORWARD_AUTH_TRUSTED_PROXIES.trim().length === 0)) {
       log.warn(
         "boot: AUTH_MODE=forward-header with FORWARD_AUTH_TRUSTED_PROXIES unset — the UNSIGNED trusted-header path is FAIL-CLOSED (raw identity headers are rejected). Set FORWARD_AUTH_TRUSTED_PROXIES to the trusted proxy/client source range(s) to enable it; the signed-JWT (authentik) path is unaffected.",
       );
@@ -278,8 +262,7 @@ export function createLifecycle(): Lifecycle {
     if (env.AUTH_MODE === "oidc") {
       let cachedConfig: Configuration | undefined;
       const issuerUrlStr = env.OIDC_ISSUER ?? "";
-      const issuerUrl =
-        issuerUrlStr.length > 0 ? new URL(issuerUrlStr) : new URL("http://localhost");
+      const issuerUrl = issuerUrlStr.length > 0 ? new URL(issuerUrlStr) : new URL("http://localhost");
       const clientId = env.OIDC_CLIENT_ID ?? "";
       const clientSecret = env.OIDC_CLIENT_SECRET;
 

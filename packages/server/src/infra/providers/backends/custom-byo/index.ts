@@ -10,13 +10,7 @@
 // credential firewall forbids `custom_openai` for every non-chat role, so this backend implements only
 // `runChatTurn`.
 
-import type {
-  ChatRequest,
-  ChatResult,
-  EndpointInspection,
-  InspectRequest,
-  ProviderBackend,
-} from "../../contract";
+import type { ChatRequest, ChatResult, EndpointInspection, InspectRequest, ProviderBackend } from "../../contract";
 import { ProviderError } from "../../contract";
 import { inspectCustomByoEndpoint } from "./inspect";
 import type { CustomByoRunnerDeps } from "./runners/chat";

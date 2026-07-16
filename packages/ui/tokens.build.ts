@@ -71,11 +71,7 @@ function renderPointerFineBlock(overrides: readonly FineOverride[]): string {
 
 /** Collect `$extensions["orb.pointerFine"]` fine-pointer values from the RAW DTCG source (literal
  *  dimensions — no `{references}` to resolve, so the un-transformed source is the right input). */
-function collectPointerFine(
-  node: Record<string, unknown>,
-  path: readonly string[],
-  out: FineOverride[],
-): void {
+function collectPointerFine(node: Record<string, unknown>, path: readonly string[], out: FineOverride[]): void {
   if ("$value" in node) {
     const ext = (node["$extensions"] as Record<string, unknown> | undefined)?.["orb.pointerFine"];
     if (typeof ext === "string") {
@@ -150,7 +146,7 @@ export async function generateArtifacts(): Promise<{ themeCss: string; tokensTs:
 }
 
 // tsx entrypoint (`pnpm --filter @orb/ui tokens:build`): write the committed artifacts.
-if (process.argv[1] !== undefined && process.argv[1].endsWith("tokens.build.ts")) {
+if (process.argv[1]?.endsWith("tokens.build.ts")) {
   const { themeCss, tokensTs } = await generateArtifacts();
   writeFileSync(THEME_CSS, themeCss);
   writeFileSync(TOKENS_TS, tokensTs);

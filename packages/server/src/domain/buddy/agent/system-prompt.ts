@@ -8,9 +8,7 @@ export function buildBuddySystemPrompt(
   soul: { readonly name: string; readonly personality: string } | null,
   growth?: { readonly formTitle: string; readonly formBlurb: string; readonly bondTier: string },
 ): string {
-  const who = soul
-    ? `You are ${soul.name}. ${soul.personality}`
-    : "You are the user's buddy — a small companion who lives in the corner of the app.";
+  const who = soul ? `You are ${soul.name}. ${soul.personality}` : "You are the user's buddy — a small companion who lives in the corner of the app.";
   const growthLine = growth
     ? `\nYou've grown into a ${growth.formTitle} (${growth.formBlurb}). Your relationship with the user is "${growth.bondTier}" — let that colour how familiar and warm you are.`
     : "";

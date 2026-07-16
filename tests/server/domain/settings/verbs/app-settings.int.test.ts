@@ -22,9 +22,7 @@ describe("getAppSettings", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const u = await seedUser(db, { id: "user_u", role: "user" });
-    await expect(h.svc.getAppSettings({ principal: principal(u, "user") })).rejects.toThrow(
-      DomainForbiddenError,
-    );
+    await expect(h.svc.getAppSettings({ principal: principal(u, "user") })).rejects.toThrow(DomainForbiddenError);
   });
 
   test("an admin reads the resolved config (env floor before any write)", async () => {
@@ -60,9 +58,7 @@ describe("updateAppSettings — admin tier", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const u = await seedUser(db, { id: "user_u", role: "user" });
-    await expect(
-      h.svc.updateAppSettings({ principal: principal(u, "user"), partial: { logLevel: "warn" } }),
-    ).rejects.toThrow(DomainForbiddenError);
+    await expect(h.svc.updateAppSettings({ principal: principal(u, "user"), partial: { logLevel: "warn" } })).rejects.toThrow(DomainForbiddenError);
   });
 
   test("null=CLEAR: an override is set, then cleared, and the env floor reads back", async () => {

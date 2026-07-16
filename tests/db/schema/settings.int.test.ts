@@ -5,11 +5,7 @@
 // table's owner-cascade + lenient-parse-at-the-read-seam invariant (themes-design.md §6 invariants 5/7).
 
 import { regexScriptSchema } from "@orb/contracts/regex";
-import {
-  DEFAULT_USER_SETTINGS,
-  parseUserSettings,
-  USER_SETTINGS_SCHEMA_VERSION,
-} from "@orb/contracts/settings";
+import { DEFAULT_USER_SETTINGS, parseUserSettings, USER_SETTINGS_SCHEMA_VERSION } from "@orb/contracts/settings";
 import { themeOverrideSchema } from "@orb/contracts/theme";
 import { isConstraintViolation, settings, themes, userSettings, users } from "@orb/db";
 import type { ThemeId, UserId } from "@orb/kit/ids";
@@ -110,9 +106,7 @@ test("the userId FK rejects a missing user", async () => {
 
   let caught: unknown;
   try {
-    await db
-      .insert(userSettings)
-      .values({ userId: castId<UserId>("user_does_not_exist"), config: DEFAULT_USER_SETTINGS });
+    await db.insert(userSettings).values({ userId: castId<UserId>("user_does_not_exist"), config: DEFAULT_USER_SETTINGS });
   } catch (err) {
     caught = err;
   }

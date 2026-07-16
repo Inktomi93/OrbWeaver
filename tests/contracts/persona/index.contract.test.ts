@@ -1,9 +1,4 @@
-import {
-  createPersonaSchema,
-  personaMetadataSchema,
-  personaMetadataWriteSchema,
-  updatePersonaSchema,
-} from "@orb/contracts/persona";
+import { createPersonaSchema, personaMetadataSchema, personaMetadataWriteSchema, updatePersonaSchema } from "@orb/contracts/persona";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "../../support/fixtures";
 
@@ -76,9 +71,7 @@ test("personaMetadataWriteSchema stays an open record (arbitrary keys survive)",
 });
 
 test("personaMetadataWriteSchema rejects a typo'd descriptionPosition at write", () => {
-  expect(personaMetadataWriteSchema.safeParse({ descriptionPosition: "bogus" }).success).toBe(
-    false,
-  );
+  expect(personaMetadataWriteSchema.safeParse({ descriptionPosition: "bogus" }).success).toBe(false);
 });
 
 // D66-B (W5, ruling A): the assistant@depth-0 WRITE-reject is REMOVED — authored prefill is now

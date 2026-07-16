@@ -14,11 +14,7 @@ export const useInviteForm = createSavedEntityForm<InviteFormValues>({
   defaultValues: INVITE_FORM_DEFAULTS,
   options: {
     validators: {
-      onDynamic: ({
-        value,
-      }: {
-        value: InviteFormValues;
-      }): { fields: Record<string, string> } | undefined => validateInviteForm(value),
+      onDynamic: ({ value }: { value: InviteFormValues }): { fields: Record<string, string> } | undefined => validateInviteForm(value),
     },
   },
 });

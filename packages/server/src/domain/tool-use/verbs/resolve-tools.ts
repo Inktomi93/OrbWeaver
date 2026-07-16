@@ -9,9 +9,7 @@
 import { ToolNotFoundError } from "../contract/errors";
 import type { RegisteredTool, ResolvedToolSet, ToolRegistry } from "../contract/results";
 
-export function createResolveTools(
-  registry: ToolRegistry,
-): (names: readonly string[]) => ResolvedToolSet {
+export function createResolveTools(registry: ToolRegistry): (names: readonly string[]) => ResolvedToolSet {
   return (names: readonly string[]): ResolvedToolSet => {
     const entries: RegisteredTool[] = [];
     for (const name of names) {

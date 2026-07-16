@@ -24,7 +24,4 @@ export interface ExportedWorldBook {
 
 /** Export ONE owned book (+ its entries) as the portable `worlds/*.json` file, or null when the book is not
  *  the caller's (or absent). */
-export type ExportWorldBook = (args: {
-  readonly ownerId: UserId;
-  readonly bookId: WorldBookId;
-}) => Promise<ExportedWorldBook | null>;
+export type ExportWorldBook = (args: { readonly ownerId: UserId; readonly bookId: WorldBookId }) => Promise<ExportedWorldBook | null>;

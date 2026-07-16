@@ -4,11 +4,7 @@
 // in the shared `backends/kit` (which is SDK-free OpenAI-wire helpers). They map onto the SDK-free
 // `ProviderErrorKind` vocab so the runner builds one `ProviderError` surface for every caller.
 
-import type {
-  SDKAssistantMessageError,
-  SDKResultError,
-  TerminalReason,
-} from "@anthropic-ai/claude-agent-sdk";
+import type { SDKAssistantMessageError, SDKResultError, TerminalReason } from "@anthropic-ai/claude-agent-sdk";
 import type { ProviderErrorKind } from "../../contract";
 
 /** A classification result: the normalized kind + whether a retry could plausibly recover the turn. */
@@ -27,14 +23,10 @@ interface Classification {
 export function assertInitFrameShape(message: unknown): void {
   const init = message as { session_id?: unknown; apiKeySource?: unknown };
   if (typeof init.session_id !== "string" || init.session_id.length === 0) {
-    throw new Error(
-      "agent-sdk: init frame is missing session_id (SDK shape changed?). Pin or upgrade carefully.",
-    );
+    throw new Error("agent-sdk: init frame is missing session_id (SDK shape changed?). Pin or upgrade carefully.");
   }
   if (typeof init.apiKeySource !== "string") {
-    throw new Error(
-      "agent-sdk: init frame is missing apiKeySource (SDK shape changed?). Pin or upgrade carefully.",
-    );
+    throw new Error("agent-sdk: init frame is missing apiKeySource (SDK shape changed?). Pin or upgrade carefully.");
   }
 }
 

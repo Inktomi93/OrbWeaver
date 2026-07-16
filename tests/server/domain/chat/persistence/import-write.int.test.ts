@@ -8,14 +8,7 @@ import type { BulkImportChatInput } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { chatParticipants, chats, messages, messageVariants } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type {
-  AssetId,
-  ChatId,
-  ChatParticipantId,
-  MessageAssetId,
-  MessageId,
-  MessageVariantId,
-} from "@orb/kit/ids";
+import type { AssetId, ChatId, ChatParticipantId, MessageAssetId, MessageId, MessageVariantId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
@@ -44,11 +37,9 @@ function importCtx(db: Db): ChatImportContext {
     now: (): number => NOW,
     newChatId: (): ChatId => castId<ChatId>(`chat_${counter()}`),
     newMessageId: (): MessageId => castId<MessageId>(`message_${counter()}`),
-    newMessageVariantId: (): MessageVariantId =>
-      castId<MessageVariantId>(`message_variant_${counter()}`),
+    newMessageVariantId: (): MessageVariantId => castId<MessageVariantId>(`message_variant_${counter()}`),
     newMessageAssetId: (): MessageAssetId => castId<MessageAssetId>(`message_asset_${counter()}`),
-    newParticipantId: (): ChatParticipantId =>
-      castId<ChatParticipantId>(`chat_participant_${counter()}`),
+    newParticipantId: (): ChatParticipantId => castId<ChatParticipantId>(`chat_participant_${counter()}`),
     // #67 — default "nothing exists" (these tests seed no attachments); the P-8 round-trip covers the
     // asset-existing path end-to-end.
     filterExistingAssetIds: (): Promise<readonly AssetId[]> => Promise.resolve([]),
@@ -56,10 +47,7 @@ function importCtx(db: Db): ChatImportContext {
 }
 
 /** One canonical real_conversation chat (a greeting + a user turn). `over` tweaks the dedup/branch/note keys. */
-function chatInput(
-  importedFrom: string,
-  over: Partial<BulkImportChatInput> = {},
-): BulkImportChatInput {
+function chatInput(importedFrom: string, over: Partial<BulkImportChatInput> = {}): BulkImportChatInput {
   return {
     title: importedFrom.replace(JSONL_EXT, ""),
     importedFrom,
@@ -183,15 +171,10 @@ describe("createBulkImportChats", () => {
     await op({
       ownerId: owner.id,
       characterId: character.id,
-      chats: [
-        chatInput(parentName),
-        chatInput("Aria - Branch #1.jsonl", { parentRef: parentName }),
-      ],
+      chats: [chatInput(parentName), chatInput("Aria - Branch #1.jsonl", { parentRef: parentName })],
     });
 
-    const rows = await db
-      .select({ id: chats.id, importedFrom: chats.importedFrom, parentChatId: chats.parentChatId })
-      .from(chats);
+    const rows = await db.select({ id: chats.id, importedFrom: chats.importedFrom, parentChatId: chats.parentChatId }).from(chats);
     const parent = rows.find((r) => r.importedFrom === parentName);
     const child = rows.find((r) => r.importedFrom?.includes("Branch #1"));
     expect(child?.parentChatId).toBe(parent?.id);

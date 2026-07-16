@@ -1,12 +1,7 @@
 // engine/pipeline — the per-turn execution pipeline: assemble→shape→fit→request→reduce. Pins the stream
 // reduce (deltas → final text + economics), the shaped request, the §8 fit, and ctx immutability.
 
-import type {
-  AssembleContext,
-  ChatDeltaEvent,
-  MessageView,
-  ToolCallRecord,
-} from "@orb/contracts/chat";
+import type { AssembleContext, ChatDeltaEvent, MessageView, ToolCallRecord } from "@orb/contracts/chat";
 import type { ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
 import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { PromptConfig, UserIntent } from "@orb/contracts/preset";
@@ -17,15 +12,8 @@ import type { CharacterId, ChatId, ModelId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { getLog } from "@orb/server/foundation/observability";
 import { describe, vi } from "vitest";
-import type {
-  ChatToolOps,
-  RunChatTurnOp,
-} from "../../../../../packages/server/src/domain/chat/contract/context";
-import type {
-  HistoryMacroNames,
-  TurnRequest,
-  TurnStreamChunk,
-} from "../../../../../packages/server/src/domain/chat/contract/results";
+import type { ChatToolOps, RunChatTurnOp } from "../../../../../packages/server/src/domain/chat/contract/context";
+import type { HistoryMacroNames, TurnRequest, TurnStreamChunk } from "../../../../../packages/server/src/domain/chat/contract/results";
 import { runTurnPipeline } from "../../../../../packages/server/src/domain/chat/engine/pipeline";
 import { makeModelCapability } from "../../../../support/factories";
 import { expect, test } from "../../../../support/fixtures";
@@ -93,8 +81,7 @@ function baseArgs(over: Partial<PipelineArgs> = {}): {
         economics: { content: "Hello", tokensIn: 3, tokensOut: 1, model: "test-model" },
       },
     ]),
-    resolveImageUrl: (ref) =>
-      Promise.resolve(ref.kind === "asset" ? `https://cas.test/${ref.assetId}` : ref.url),
+    resolveImageUrl: (ref) => Promise.resolve(ref.kind === "asset" ? `https://cas.test/${ref.assetId}` : ref.url),
     assembleContext: ctxOf(),
     canon: [userRow("u1")],
     connection: CONNECTION,
@@ -171,9 +158,7 @@ describe("runTurnPipeline — request shaping + fit", () => {
     expect(result.request.history.at(-1)?.role).toBe("user");
     expect(result.request.history.at(-1)?.content).toEqual([{ type: "text", text: "u1" }]);
     expect(result.imageDropped).toBe(false);
-    expect(
-      typeof result.cacheBreakpointFromEnd === "number" || result.cacheBreakpointFromEnd === null,
-    ).toBe(true);
+    expect(typeof result.cacheBreakpointFromEnd === "number" || result.cacheBreakpointFromEnd === null).toBe(true);
   });
 
   test("the `completion` names-behavior threads the author into the wire `name` field", async () => {
@@ -246,12 +231,7 @@ describe("runTurnPipeline — request shaping + fit", () => {
 
   test("the §8 fit drops oldest turns under a tiny window (keeps the newest)", async () => {
     // Alternate roles so squash doesn't collapse the history into one turn (then the fit has rows to drop).
-    const longCanon = Array.from({ length: 12 }, (_, i) =>
-      rowOf(
-        i % 2 === 0 ? "user" : "assistant",
-        `turn ${i} with several words to spend tokens here`,
-      ),
-    );
+    const longCanon = Array.from({ length: 12 }, (_, i) => rowOf(i % 2 === 0 ? "user" : "assistant", `turn ${i} with several words to spend tokens here`));
     const tiny = {
       ...CAPABILITY,
       context: { window: 80 },
@@ -303,9 +283,7 @@ function macroNamesOf(
 ): HistoryMacroNames {
   return {
     characterNamesById: new Map(chars.map((c) => [c.id, { name: c.name }])),
-    personaNamesById: new Map(
-      personas.map((p) => [p.id, { name: p.name, description: p.description ?? "" }]),
-    ),
+    personaNamesById: new Map(personas.map((p) => [p.id, { name: p.name, description: p.description ?? "" }])),
   };
 }
 
@@ -354,10 +332,7 @@ describe("runTurnPipeline — history macro resolution", () => {
 
   test("two rows with DIFFERENT personaId stamps each resolve {{user}} to their OWN persona", async () => {
     const { args } = baseArgs({
-      canon: [
-        userRowWithPersona("{{user}} waves", ZARA),
-        userRowWithPersona("{{user}} nods", MARA),
-      ],
+      canon: [userRowWithPersona("{{user}} waves", ZARA), userRowWithPersona("{{user}} nods", MARA)],
       historyMacroNames: macroNamesOf(
         [],
         [
@@ -415,8 +390,7 @@ describe("runTurnPipeline — roleHandling is the PRESET knob, clamped at SHAPE"
     ...DEFAULT_PROMPT_CONFIG,
     params: { ...DEFAULT_PROMPT_CONFIG.params, advanced: { roleHandling } },
   });
-  const assistantRows = (req: TurnRequest): TurnRequest["history"] =>
-    req.history.filter((h) => h.role === "assistant");
+  const assistantRows = (req: TurnRequest): TurnRequest["history"] => req.history.filter((h) => h.role === "assistant");
 
   test("preset `none`, floor `none` ⇒ the adjacent assistant rows stay SEPARATE (preset value reached SHAPE)", async () => {
     const { args } = baseArgs({
@@ -530,12 +504,7 @@ describe("runTurnPipeline — immutability", () => {
 
 // ── RECEIVE (D53 step 2): <think>-demux → AI_OUTPUT regex → post-process → REASONING regex ─────────────────
 /** A host-tier regex script (fully defaulted via the parse seam) for a single placement. */
-function script(
-  id: string,
-  find: string,
-  replace: string,
-  placement: "AI_OUTPUT" | "REASONING",
-): RegexScript {
+function script(id: string, find: string, replace: string, placement: "AI_OUTPUT" | "REASONING"): RegexScript {
   return regexScriptSchema.parse({
     id,
     name: id,
@@ -745,10 +714,7 @@ const TOOL_CAPABILITY: ModelCapability = makeModelCapability({ tools: { parallel
 const TOOL_CONNECTION: ResolvedConnection = { ...CONNECTION, capability: TOOL_CAPABILITY };
 
 /** A scripted role returning one chunk-set PER INVOCATION (depth k gets script[k]); captures requests. */
-function scriptedDepths(
-  scripts: readonly (readonly TurnStreamChunk[])[],
-  sink: TurnRequest[],
-): RunChatTurnOp {
+function scriptedDepths(scripts: readonly (readonly TurnStreamChunk[])[], sink: TurnRequest[]): RunChatTurnOp {
   let call = 0;
   return (req) => {
     sink.push(req);
@@ -763,10 +729,7 @@ function scriptedDepths(
   };
 }
 
-const toolFinal = (
-  content: string,
-  calls: readonly { id: string; name: string; args: string }[],
-): TurnStreamChunk => ({
+const toolFinal = (content: string, calls: readonly { id: string; name: string; args: string }[]): TurnStreamChunk => ({
   kind: "final",
   economics: {
     content,
@@ -795,10 +758,7 @@ function fakeToolOps(executed: string[][], failWith?: string): ChatToolOps {
           toolCallId: c.toolCallId,
           name: c.name,
           arguments: c.arguments,
-          result:
-            failWith === undefined
-              ? JSON.stringify({ ok: c.name })
-              : JSON.stringify({ error: failWith }),
+          result: failWith === undefined ? JSON.stringify({ ok: c.name }) : JSON.stringify({ error: failWith }),
           isError: failWith !== undefined,
           durationMs: 1,
         })),
@@ -816,10 +776,7 @@ describe("runTurnPipeline — the D48 recurse loop", () => {
       tools: fakeToolOps(executed),
       attachedToolNames: ["tick_clock"],
       runChatTurn: scriptedDepths(
-        [
-          [toolFinal("The clock ticks... ", [{ id: "c1", name: "tick_clock", args: '{"m":30}' }])],
-          [doneFinal("Half an hour passes.")],
-        ],
+        [[toolFinal("The clock ticks... ", [{ id: "c1", name: "tick_clock", args: '{"m":30}' }])], [doneFinal("Half an hour passes.")]],
         requests,
       ),
     });
@@ -833,12 +790,8 @@ describe("runTurnPipeline — the D48 recurse loop", () => {
     const secondHistory = requests[1]?.history ?? [];
     const appended = secondHistory.slice((requests[0]?.history ?? []).length);
     expect(appended.map((m) => m.role)).toEqual(["assistant", "tool"]);
-    expect(
-      appended[0]?.content.some((p) => p.type === "tool-call" && p.name === "tick_clock"),
-    ).toBe(true);
-    expect(
-      appended[1]?.content.some((p) => p.type === "tool-result" && p.toolCallId === "c1"),
-    ).toBe(true);
+    expect(appended[0]?.content.some((p) => p.type === "tool-call" && p.name === "tick_clock")).toBe(true);
+    expect(appended[1]?.content.some((p) => p.type === "tool-result" && p.toolCallId === "c1")).toBe(true);
     // Executed once, in order; records land on the result in execution order.
     expect(executed).toEqual([["tick_clock"]]);
     expect(result.toolRecords.map((r) => r.name)).toEqual(["tick_clock"]);
@@ -879,13 +832,7 @@ describe("runTurnPipeline — the D48 recurse loop", () => {
       connection: TOOL_CONNECTION,
       tools: fakeToolOps([], "party is mid-combat"),
       attachedToolNames: ["tick_clock"],
-      runChatTurn: scriptedDepths(
-        [
-          [toolFinal("", [{ id: "c1", name: "tick_clock", args: "{}" }])],
-          [doneFinal("I cannot do that right now.")],
-        ],
-        requests,
-      ),
+      runChatTurn: scriptedDepths([[toolFinal("", [{ id: "c1", name: "tick_clock", args: "{}" }])], [doneFinal("I cannot do that right now.")]], requests),
     });
     const result = await runTurnPipeline(args);
     const toolRow = requests[1]?.history.at(-1);

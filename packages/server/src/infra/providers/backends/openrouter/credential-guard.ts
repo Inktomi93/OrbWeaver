@@ -16,10 +16,7 @@ const OPENROUTER_SOURCE = "openrouter";
  * throws `kind:"invalid"` (non-retryable) rather than degrading. The message names the source vocab only —
  * never the key (the `ProviderError` core stays secret-free).
  */
-export function requireOpenRouterApiKey(
-  credential: ResolvedCredential,
-  runnerLabel: string,
-): string {
+export function requireOpenRouterApiKey(credential: ResolvedCredential, runnerLabel: string): string {
   if (credential.source !== OPENROUTER_SOURCE) {
     throw new ProviderError({
       kind: "invalid",

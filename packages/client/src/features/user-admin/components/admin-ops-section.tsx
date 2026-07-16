@@ -13,11 +13,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
-import {
-  useEmbedCharacterCard,
-  useRefreshAgentSdkCatalog,
-  useRefreshCatalog,
-} from "../hooks/use-admin-mutations";
+import { useEmbedCharacterCard, useRefreshAgentSdkCatalog, useRefreshCatalog } from "../hooks/use-admin-mutations";
 
 /** The two model-catalog refreshers — re-fetch the catalogs the role pickers browse. */
 export function AdminCatalogSection(): ReactElement {
@@ -32,20 +28,10 @@ export function AdminCatalogSection(): ReactElement {
         Re-fetch the model catalogs the role pickers browse. Each runs live against its provider.
       </Text>
       <Row gap="field" align="center" className="flex-wrap">
-        <Button
-          intent="secondary"
-          size="sm"
-          disabled={refreshCatalog.isPending}
-          onClick={(): void => refreshCatalog.mutate()}
-        >
+        <Button intent="secondary" size="sm" disabled={refreshCatalog.isPending} onClick={(): void => refreshCatalog.mutate()}>
           Refresh model catalog
         </Button>
-        <Button
-          intent="secondary"
-          size="sm"
-          disabled={refreshAgentSdk.isPending}
-          onClick={(): void => refreshAgentSdk.mutate()}
-        >
+        <Button intent="secondary" size="sm" disabled={refreshAgentSdk.isPending} onClick={(): void => refreshAgentSdk.mutate()}>
           Refresh agent-SDK catalog
         </Button>
       </Row>
@@ -76,8 +62,7 @@ export function AdminEmbedCardSection(): ReactElement {
   return (
     <Stack gap="row">
       <Text size="micro" tone="muted">
-        Embed one character card into the vector index by its id (the inline path; the bulk path is
-        the background index workload).
+        Embed one character card into the vector index by its id (the inline path; the bulk path is the background index workload).
       </Text>
       <Row gap="field" align="center" className="flex-wrap">
         <Input
@@ -89,12 +74,7 @@ export function AdminEmbedCardSection(): ReactElement {
             setDone(false);
           }}
         />
-        <Button
-          intent="secondary"
-          size="sm"
-          disabled={trimmed === "" || embed.isPending}
-          onClick={onEmbed}
-        >
+        <Button intent="secondary" size="sm" disabled={trimmed === "" || embed.isPending} onClick={onEmbed}>
           Embed card
         </Button>
       </Row>

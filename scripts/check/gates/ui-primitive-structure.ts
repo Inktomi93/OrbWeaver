@@ -17,13 +17,7 @@ const PRIMITIVES = "packages/ui/src/primitives";
 // renderItem, so there's no skin for a tv() to own; file-trigger = headless render-prop, zero visual
 // chrome of its own — the caller's OWN trigger element carries the skin). code-editor/content/markdown/
 // lib/layout/stream live outside primitives/.
-const VARIANTS_EXEMPT = new Set([
-  "icons",
-  "virtual-list",
-  "message-list",
-  "aria-announcer",
-  "file-trigger",
-]);
+const VARIANTS_EXEMPT = new Set(["icons", "virtual-list", "message-list", "aria-announcer", "file-trigger"]);
 // §4.1 the ONLY test-exempt primitive (a trivial re-export).
 const TEST_EXEMPT = new Set(["icons", "aria-announcer"]);
 // §4.3 clause 6 — drawer-local providers are the sole inline-provider allowlist (fail-closed: every
@@ -102,9 +96,7 @@ function clauseTest(root: string): Violation[] {
 
 function isTvCall(decl: VariableDeclaration): boolean {
   const init = decl.getInitializer();
-  return (
-    init !== undefined && Node.isCallExpression(init) && init.getExpression().getText() === "tv"
-  );
+  return init !== undefined && Node.isCallExpression(init) && init.getExpression().getText() === "tv";
 }
 
 /** Clause 2 — each primitive variants.ts exports exactly one `tv()` named `{camelName}Variants`. */
@@ -159,8 +151,7 @@ function clauseNoLeak(ctx: CheckContext): Violation[] {
         out.push({
           file: relPath(ctx.root, path),
           line: exp.getStartLineNumber(),
-          message:
-            "index.ts re-exports './variants' — the cva is internal; never leak it through the public front door (UI-Primitives-and-Reuse.md §13.7).",
+          message: "index.ts re-exports './variants' — the cva is internal; never leak it through the public front door (UI-Primitives-and-Reuse.md §13.7).",
         });
       }
     }
@@ -175,11 +166,7 @@ function clauseNoLeak(ctx: CheckContext): Violation[] {
 // commit tests need literal hex — see ui-primitive-carve-out-work-order.md item 13). sandbox-frame
 // joined 2026-07 — its hostile-themeTokens CT reuses theme-scope's `isSafeColor` clamp and needs the
 // same literal-hex/url() rejection inputs.
-const COLOR_LITERAL_TEST_EXEMPT = new Set([
-  "theme-scope.ct.tsx",
-  "color-field.ct.tsx",
-  "sandbox-frame.ct.tsx",
-]);
+const COLOR_LITERAL_TEST_EXEMPT = new Set(["theme-scope.ct.tsx", "color-field.ct.tsx", "sandbox-frame.ct.tsx"]);
 
 /** Clause 5 — no token-color literals in any .ct.tsx (§4.2); the exempt set tests the mechanism. */
 function clauseNoColorLiterals(ctx: CheckContext): Violation[] {
@@ -199,8 +186,7 @@ function clauseNoColorLiterals(ctx: CheckContext): Violation[] {
           out.push({
             file: relPath(ctx.root, path),
             line: i + 1,
-            message:
-              "hardcoded color literal in a .ct.tsx — assert toHaveCSS(prop, TOKENS[path].value) instead (UI-Primitives-and-Reuse.md §13.7).",
+            message: "hardcoded color literal in a .ct.tsx — assert toHaveCSS(prop, TOKENS[path].value) instead (UI-Primitives-and-Reuse.md §13.7).",
           });
         }
       });
@@ -336,8 +322,7 @@ function clauseDataSlot(ctx: CheckContext): Violation[] {
       out.push({
         file: relPath(ctx.root, abs),
         line: 1,
-        message:
-          'no data-slot locator — every primitive part carries data-slot="<name>-<part>" (the CT locator surface, UI-Primitives-and-Reuse.md §13.7).',
+        message: 'no data-slot locator — every primitive part carries data-slot="<name>-<part>" (the CT locator surface, UI-Primitives-and-Reuse.md §13.7).',
       });
     }
   }
@@ -380,8 +365,7 @@ export const gate: GateDescriptor = {
     {
       files: {
         // Clause 1 — a styled primitive dir missing its variants.ts + index.ts (only the .tsx) AND no CT.
-        "packages/ui/src/primitives/thing/thing.tsx":
-          'export const Thing = () => <div data-slot="thing" />;\n',
+        "packages/ui/src/primitives/thing/thing.tsx": 'export const Thing = () => <div data-slot="thing" />;\n',
       },
       expect: { messageIncludes: "missing index.ts" },
       why: "clause 1 — a primitive dir missing its trio (no index.ts / variants.ts) — §13.7",
@@ -389,11 +373,9 @@ export const gate: GateDescriptor = {
     {
       files: {
         // Clause 2 — variants.ts exports a tv() with the WRONG name (`thingVariants` expected).
-        "packages/ui/src/primitives/thing/thing.tsx":
-          'export const Thing = () => <div data-slot="thing" />;\n',
+        "packages/ui/src/primitives/thing/thing.tsx": 'export const Thing = () => <div data-slot="thing" />;\n',
         "packages/ui/src/primitives/thing/index.ts": 'export { Thing } from "./thing";\n',
-        "packages/ui/src/primitives/thing/variants.ts":
-          'import { tv } from "#lib";\nexport const wrongVariants = tv({ base: "block" });\n',
+        "packages/ui/src/primitives/thing/variants.ts": 'import { tv } from "#lib";\nexport const wrongVariants = tv({ base: "block" });\n',
         "tests/ui/primitives/thing/thing.ct.tsx": "export const t = 1;\n",
       },
       expect: { messageIncludes: "tv export is 'wrongVariants'" },
@@ -402,12 +384,9 @@ export const gate: GateDescriptor = {
     {
       files: {
         // Clause 3 — a ui index.ts re-exports the internal ./variants module.
-        "packages/ui/src/primitives/thing/index.ts":
-          'export { Thing } from "./thing";\nexport * from "./variants";\n',
-        "packages/ui/src/primitives/thing/thing.tsx":
-          'export const Thing = () => <div data-slot="thing" />;\n',
-        "packages/ui/src/primitives/thing/variants.ts":
-          'import { tv } from "#lib";\nexport const thingVariants = tv({ base: "block" });\n',
+        "packages/ui/src/primitives/thing/index.ts": 'export { Thing } from "./thing";\nexport * from "./variants";\n',
+        "packages/ui/src/primitives/thing/thing.tsx": 'export const Thing = () => <div data-slot="thing" />;\n',
+        "packages/ui/src/primitives/thing/variants.ts": 'import { tv } from "#lib";\nexport const thingVariants = tv({ base: "block" });\n',
         "tests/ui/primitives/thing/thing.ct.tsx": "export const t = 1;\n",
       },
       expect: { messageIncludes: "re-exports './variants'" },
@@ -424,8 +403,7 @@ export const gate: GateDescriptor = {
     {
       files: {
         // Clause 6 — an inline non-allowlisted <*Provider> in a .ct.tsx.
-        "tests/ui/primitives/thing/thing.ct.tsx":
-          "export const T = () => <ThemeProvider><div /></ThemeProvider>;\n",
+        "tests/ui/primitives/thing/thing.ct.tsx": "export const T = () => <ThemeProvider><div /></ThemeProvider>;\n",
       },
       expect: { messageIncludes: "<ThemeProvider>" },
       why: "clause 6 — an inline provider in a test (global providers live in CtProviders) — §13.7",
@@ -433,11 +411,9 @@ export const gate: GateDescriptor = {
     {
       files: {
         // Clause 7 — an inline glyph <svg> in a ui component outside charts/**.
-        "packages/ui/src/primitives/thing/thing.tsx":
-          'export const Thing = () => <svg data-slot="thing" />;\n',
+        "packages/ui/src/primitives/thing/thing.tsx": 'export const Thing = () => <svg data-slot="thing" />;\n',
         "packages/ui/src/primitives/thing/index.ts": 'export { Thing } from "./thing";\n',
-        "packages/ui/src/primitives/thing/variants.ts":
-          'import { tv } from "#lib";\nexport const thingVariants = tv({ base: "block" });\n',
+        "packages/ui/src/primitives/thing/variants.ts": 'import { tv } from "#lib";\nexport const thingVariants = tv({ base: "block" });\n',
         "tests/ui/primitives/thing/thing.ct.tsx": "export const t = 1;\n",
       },
       expect: { messageIncludes: "inline <svg> glyph" },
@@ -449,8 +425,7 @@ export const gate: GateDescriptor = {
         "packages/ui/src/primitives/dialog/dialog.tsx":
           'export const Dialog = () => <div data-slot="dialog">{Root.Backdrop}{Root.Popup}{Root.Positioner}</div>;\ndeclare const Root: Record<string, unknown>;\n',
         "packages/ui/src/primitives/dialog/index.ts": 'export { Dialog } from "./dialog";\n',
-        "packages/ui/src/primitives/dialog/variants.ts":
-          'import { tv } from "#lib";\nexport const dialogVariants = tv({ base: "block" });\n',
+        "packages/ui/src/primitives/dialog/variants.ts": 'import { tv } from "#lib";\nexport const dialogVariants = tv({ base: "block" });\n',
         "tests/ui/primitives/dialog/dialog.ct.tsx": "export const t = 1;\n",
       },
       expect: { messageIncludes: "must NOT have a .Positioner" },
@@ -461,8 +436,7 @@ export const gate: GateDescriptor = {
         // Clause 9 — a styled primitive .tsx with NO data-slot locator.
         "packages/ui/src/primitives/thing/thing.tsx": "export const Thing = () => <div />;\n",
         "packages/ui/src/primitives/thing/index.ts": 'export { Thing } from "./thing";\n',
-        "packages/ui/src/primitives/thing/variants.ts":
-          'import { tv } from "#lib";\nexport const thingVariants = tv({ base: "block" });\n',
+        "packages/ui/src/primitives/thing/variants.ts": 'import { tv } from "#lib";\nexport const thingVariants = tv({ base: "block" });\n',
         "tests/ui/primitives/thing/thing.ct.tsx": "export const t = 1;\n",
       },
       expect: { messageIncludes: "no data-slot locator" },
@@ -472,11 +446,9 @@ export const gate: GateDescriptor = {
   mustPass: [
     {
       files: {
-        "packages/ui/src/primitives/thing/thing.tsx":
-          'export const Thing = () => <div data-slot="thing" />;\n',
+        "packages/ui/src/primitives/thing/thing.tsx": 'export const Thing = () => <div data-slot="thing" />;\n',
         "packages/ui/src/primitives/thing/index.ts": 'export { Thing } from "./thing";\n',
-        "packages/ui/src/primitives/thing/variants.ts":
-          'import { tv } from "#lib";\nexport const thingVariants = tv({ base: "block" });\n',
+        "packages/ui/src/primitives/thing/variants.ts": 'import { tv } from "#lib";\nexport const thingVariants = tv({ base: "block" });\n',
         "tests/ui/primitives/thing/thing.ct.tsx": "export const t = 1;\n",
       },
       why: "a complete styled primitive (trio + correctly-named tv() + data-slot + co-located CT) — the §13.7 shape, passes",

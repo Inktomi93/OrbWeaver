@@ -61,8 +61,6 @@ describe("duplicateTheme", () => {
       principal: principal(b, "user"),
       input: { name: "Theirs", override: {} },
     });
-    await expect(
-      h.svc.duplicateTheme({ principal: principal(a, "user"), id: theirs.id }),
-    ).rejects.toThrow(ThemeNotFoundError);
+    await expect(h.svc.duplicateTheme({ principal: principal(a, "user"), id: theirs.id })).rejects.toThrow(ThemeNotFoundError);
   });
 });

@@ -38,17 +38,11 @@ export function detectTrigger(text: string, caret: number): MacroTrigger | null 
 
 // Parameterized macros (name contains `:`) insert a template with the caret just inside the closing
 // braces so the user keeps typing the argument; non-parameterized macros insert the bare `{{name}}`.
-export function computeMacroInsertion(
-  value: string,
-  trigger: MacroTrigger,
-  macroName: string,
-): MacroInsertion {
+export function computeMacroInsertion(value: string, trigger: MacroTrigger, macroName: string): MacroInsertion {
   const before = value.slice(0, trigger.start);
   const after = value.slice(trigger.start + 2 + trigger.partial.length);
   const isParameterized = macroName.includes(":");
-  const inserted = isParameterized
-    ? `{{${macroName.slice(0, macroName.indexOf(":"))}::}}`
-    : `{{${macroName}}}`;
+  const inserted = isParameterized ? `{{${macroName.slice(0, macroName.indexOf(":"))}::}}` : `{{${macroName}}}`;
   const next = `${before}${inserted}${after}`;
   const caret = isParameterized
     ? before.length + inserted.length - 2 // before the closing `}}`

@@ -21,13 +21,7 @@ export interface PanelChromeProps {
   readonly children: ReactNode;
 }
 
-export function PanelChrome({
-  panel,
-  label,
-  header,
-  mode,
-  children,
-}: PanelChromeProps): ReactElement {
+export function PanelChrome({ panel, label, header, mode, children }: PanelChromeProps): ReactElement {
   return (
     <aside
       className="shell-panel"

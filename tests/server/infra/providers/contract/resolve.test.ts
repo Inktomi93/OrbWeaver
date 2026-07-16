@@ -5,14 +5,8 @@
 //
 // resolve.ts is behind the providers contract barrel; reached by relative path (the local-light convention).
 
-import type {
-  ResolvedChatKnobs,
-  ResolvedSampling,
-} from "../../../../../packages/server/src/infra/providers/contract/resolve.ts";
-import {
-  DYNAMIC_CONTEXT_CHANNELS,
-  WARNING_CODES,
-} from "../../../../../packages/server/src/infra/providers/contract/resolve.ts";
+import type { ResolvedChatKnobs, ResolvedSampling } from "../../../../../packages/server/src/infra/providers/contract/resolve.ts";
+import { DYNAMIC_CONTEXT_CHANNELS, WARNING_CODES } from "../../../../../packages/server/src/infra/providers/contract/resolve.ts";
 import { expect, test } from "../../../../support/fixtures";
 
 test("WARNING_CODES carries the verbosity_dropped member (D68-B)", () => {

@@ -20,22 +20,11 @@ export interface MultiToggleFieldProps {
   readonly disabled?: boolean;
 }
 
-export function MultiToggleField({
-  label,
-  description,
-  items,
-  disabled,
-}: MultiToggleFieldProps): ReactElement {
+export function MultiToggleField({ label, description, items, disabled }: MultiToggleFieldProps): ReactElement {
   const field = useFieldContext<readonly string[]>();
   const error = touchedFieldError(field.state.meta);
   return (
-    <Field
-      label={label}
-      description={description}
-      error={error}
-      disabled={disabled ?? false}
-      name={field.name}
-    >
+    <Field label={label} description={description} error={error} disabled={disabled ?? false} name={field.name}>
       <ToggleGroup
         multiple={true}
         value={field.state.value}

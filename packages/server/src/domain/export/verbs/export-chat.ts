@@ -43,30 +43,13 @@ function toParsedVariant(v: VariantRow): ParsedVariant {
 
 // The per-chat speaker-name maps: characterId → card name, personaId → persona name. Built once from the
 // canon's distinct ids so each turn resolves to its own speaker, not the header primary.
-async function loadSpeakerNames(
-  ctx: ExportContext,
-  slots: readonly MessageRow[],
-): Promise<{ char: Map<string, string>; persona: Map<string, string> }> {
-  const charIds = [
-    ...new Set(slots.flatMap((m) => (m.characterId !== null ? [m.characterId] : []))),
-  ];
-  const personaIds = [
-    ...new Set(slots.flatMap((m) => (m.personaId !== null ? [m.personaId] : []))),
-  ];
+async function loadSpeakerNames(ctx: ExportContext, slots: readonly MessageRow[]): Promise<{ char: Map<string, string>; persona: Map<string, string> }> {
+  const charIds = [...new Set(slots.flatMap((m) => (m.characterId !== null ? [m.characterId] : [])))];
+  const personaIds = [...new Set(slots.flatMap((m) => (m.personaId !== null ? [m.personaId] : [])))];
   const charRows =
-    charIds.length === 0
-      ? []
-      : await ctx.db
-          .select({ id: characters.id, name: characters.name })
-          .from(characters)
-          .where(inArray(characters.id, charIds));
+    charIds.length === 0 ? [] : await ctx.db.select({ id: characters.id, name: characters.name }).from(characters).where(inArray(characters.id, charIds));
   const personaRows =
-    personaIds.length === 0
-      ? []
-      : await ctx.db
-          .select({ id: personas.id, name: personas.name })
-          .from(personas)
-          .where(inArray(personas.id, personaIds));
+    personaIds.length === 0 ? [] : await ctx.db.select({ id: personas.id, name: personas.name }).from(personas).where(inArray(personas.id, personaIds));
   return {
     char: new Map(charRows.map((c) => [c.id, c.name])),
     persona: new Map(personaRows.map((p) => [p.id, p.name])),
@@ -98,11 +81,7 @@ async function loadParsedMessages(
   chatId: ChatId,
   fallback: { characterName: string; userName: string | null },
 ): Promise<ParsedChatMessage[]> {
-  const slots = await ctx.db
-    .select()
-    .from(messages)
-    .where(eq(messages.chatId, chatId))
-    .orderBy(asc(messages.seq));
+  const slots = await ctx.db.select().from(messages).where(eq(messages.chatId, chatId)).orderBy(asc(messages.seq));
   if (slots.length === 0) {
     return [];
   }
@@ -146,10 +125,7 @@ async function loadParsedMessages(
 
 // The chat-level header facts: the primary character's name, the anchor persona's name, and the branch
 // round-trip ref. Every miss degrades, never a throw.
-async function loadExportMeta(
-  ctx: ExportContext,
-  chat: ChatRow,
-): Promise<{ characterName: string; userName: string | null; parentRef: string | null }> {
+async function loadExportMeta(ctx: ExportContext, chat: ChatRow): Promise<{ characterName: string; userName: string | null; parentRef: string | null }> {
   const [firstChar] = await ctx.db
     .select({ characterId: chatParticipants.characterId })
     .from(chatParticipants)
@@ -158,29 +134,17 @@ async function loadExportMeta(
     .limit(1);
   let characterName = "Character";
   if (firstChar?.characterId !== null && firstChar?.characterId !== undefined) {
-    const [c] = await ctx.db
-      .select({ name: characters.name })
-      .from(characters)
-      .where(eq(characters.id, firstChar.characterId))
-      .limit(1);
+    const [c] = await ctx.db.select({ name: characters.name }).from(characters).where(eq(characters.id, firstChar.characterId)).limit(1);
     characterName = c?.name ?? characterName;
   }
   let userName: string | null = null;
   if (chat.anchorPersonaId !== null) {
-    const [p] = await ctx.db
-      .select({ name: personas.name })
-      .from(personas)
-      .where(eq(personas.id, chat.anchorPersonaId))
-      .limit(1);
+    const [p] = await ctx.db.select({ name: personas.name }).from(personas).where(eq(personas.id, chat.anchorPersonaId)).limit(1);
     userName = p?.name ?? null;
   }
   let parentRef: string | null = null;
   if (chat.parentChatId !== null) {
-    const [parent] = await ctx.db
-      .select({ importedFrom: chats.importedFrom })
-      .from(chats)
-      .where(eq(chats.id, chat.parentChatId))
-      .limit(1);
+    const [parent] = await ctx.db.select({ importedFrom: chats.importedFrom }).from(chats).where(eq(chats.id, chat.parentChatId)).limit(1);
     parentRef = parent?.importedFrom ?? null;
   }
   return { characterName, userName, parentRef };
@@ -196,14 +160,7 @@ export function createExportChat(ctx: ExportContext): ExportService["exportChat"
     const hostRows = await ctx.db
       .select({ userId: chatParticipants.userId })
       .from(chatParticipants)
-      .where(
-        and(
-          eq(chatParticipants.chatId, chatId),
-          eq(chatParticipants.role, "host"),
-          isNull(chatParticipants.leftSeq),
-          isNotNull(chatParticipants.userId),
-        ),
-      );
+      .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.role, "host"), isNull(chatParticipants.leftSeq), isNotNull(chatParticipants.userId)));
     const isHost = hostRows.some((r) => r.userId === principal.userId);
     if (!isHost) {
       return null;

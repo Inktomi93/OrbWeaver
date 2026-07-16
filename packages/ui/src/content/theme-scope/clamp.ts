@@ -5,28 +5,11 @@ import { z } from "zod";
 import { isSafeColor } from "#lib";
 
 /** Fonts a user may pick — an allowlist; anything else is dropped. */
-export const THEME_FONT_ALLOWLIST = [
-  "Geist",
-  "ui-sans-serif",
-  "ui-serif",
-  "ui-monospace",
-  "Georgia",
-  "Times New Roman",
-  "Iowan Old Style",
-] as const;
+export const THEME_FONT_ALLOWLIST = ["Geist", "ui-sans-serif", "ui-serif", "ui-monospace", "Georgia", "Times New Roman", "Iowan Old Style"] as const;
 type ThemeFont = (typeof THEME_FONT_ALLOWLIST)[number];
 
 // Exported for the contracts↔ui structural pairing test — must stay byte-identical to the wire twin.
-export const THEME_SCOPE_CHAT_STYLES = [
-  "bubble",
-  "flat",
-  "document",
-  "echo",
-  "whisper",
-  "hush",
-  "ripple",
-  "tide",
-] as const;
+export const THEME_SCOPE_CHAT_STYLES = ["bubble", "flat", "document", "echo", "whisper", "hush", "ripple", "tide"] as const;
 export const THEME_SCOPE_DENSITIES = ["comfortable", "compact"] as const;
 export const THEME_SCOPE_RADII = ["base", "control", "card", "full"] as const;
 const CHAT_STYLES = THEME_SCOPE_CHAT_STYLES;

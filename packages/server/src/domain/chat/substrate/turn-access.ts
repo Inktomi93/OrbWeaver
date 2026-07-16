@@ -20,43 +20,31 @@ import { smartArbitrate } from "../engine/smart-arbitrate";
 import { resolveTurnIdentity } from "../engine/turn-identity";
 
 /** Resolve the D19 turn-identity triple (`triggeredBy`/`runAsUserId`) from the ids the verb holds. PURE. */
-export function resolveTurnIdentityVia(
-  ...args: Parameters<typeof resolveTurnIdentity>
-): ReturnType<typeof resolveTurnIdentity> {
+export function resolveTurnIdentityVia(...args: Parameters<typeof resolveTurnIdentity>): ReturnType<typeof resolveTurnIdentity> {
   return resolveTurnIdentity(...args);
 }
 
 /** 7a deterministic arbitration — the ordered character ids that speak this round (rng-driven, D46). */
-export function selectSpeakersVia(
-  ...args: Parameters<typeof selectSpeakers>
-): ReturnType<typeof selectSpeakers> {
+export function selectSpeakersVia(...args: Parameters<typeof selectSpeakers>): ReturnType<typeof selectSpeakers> {
   return selectSpeakers(...args);
 }
 
 /** Extract `@mention` targets from HUMAN-authored trigger text (only human text drives the override — §12 inv 6). */
-export function resolveMentionsVia(
-  ...args: Parameters<typeof resolveMentions>
-): ReturnType<typeof resolveMentions> {
+export function resolveMentionsVia(...args: Parameters<typeof resolveMentions>): ReturnType<typeof resolveMentions> {
   return resolveMentions(...args);
 }
 
 /** 7b side-LLM arbitration (the `smart` policy) — one chosen speaker, roster-validating with a `natural` fallback. */
-export function smartArbitrateVia(
-  ...args: Parameters<typeof smartArbitrate>
-): ReturnType<typeof smartArbitrate> {
+export function smartArbitrateVia(...args: Parameters<typeof smartArbitrate>): ReturnType<typeof smartArbitrate> {
   return smartArbitrate(...args);
 }
 
 /** Drive ONE group round (the narrator collapse / per-speaker list) off the ONE immutable ctx, per-turn-locked. */
-export function driveRoundVia(
-  ...args: Parameters<typeof driveRound>
-): ReturnType<typeof driveRound> {
+export function driveRoundVia(...args: Parameters<typeof driveRound>): ReturnType<typeof driveRound> {
   return driveRound(...args);
 }
 
 /** Run the auto-mode AI→AI chain (re-arbitrate → run → repeat; the dual bound + the four stop conditions). */
-export function runAutoModeVia(
-  ...args: Parameters<typeof runAutoMode>
-): ReturnType<typeof runAutoMode> {
+export function runAutoModeVia(...args: Parameters<typeof runAutoMode>): ReturnType<typeof runAutoMode> {
   return runAutoMode(...args);
 }

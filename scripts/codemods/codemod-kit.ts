@@ -261,7 +261,7 @@ export function createCodemodProject(opts: CreateProjectOptions = {}): Project {
   if (!existsSync(tsConfigFilePath)) {
     throw new CodemodError(
       `tsconfig.json not found at ${tsConfigFilePath}`,
-      // biome-ignore lint/security/noSecrets: an error hint string, not a credential (high-entropy false positive).
+
       "Run the codemod from the repo root, or pass `tsConfigFilePath`.",
     );
   }
@@ -369,10 +369,7 @@ function resolveIsDryRun(options: RunCodemodOptions, argv: readonly string[]): b
   const hasApply = options.forceApply === true || argv.includes("--apply");
   const hasDryRun = argv.includes("--dry-run");
   if (hasApply && hasDryRun) {
-    throw new CodemodError(
-      "Both --apply and --dry-run were passed.",
-      "Pick one. --apply writes changes; --dry-run is the default preview mode.",
-    );
+    throw new CodemodError("Both --apply and --dry-run were passed.", "Pick one. --apply writes changes; --dry-run is the default preview mode.");
   }
   return !hasApply;
 }
@@ -413,11 +410,7 @@ function buildCodemodContext(opts: {
 /** Capture every source file that has been modified (by helpers OR by the user directly), even
  *  if we never explicitly snapshot()-ed it. We can't diff what we don't have an original for —
  *  but at least we can say "this file changed" using ts-morph's own dirty tracking. */
-function captureUnsavedFiles(
-  ctx: CodemodContext,
-  project: Project,
-  snapshots: Map<string, FileSnapshot>,
-): void {
+function captureUnsavedFiles(ctx: CodemodContext, project: Project, snapshots: Map<string, FileSnapshot>): void {
   for (const sf of project.getSourceFiles()) {
     if (sf.isSaved()) {
       continue;
@@ -441,8 +434,7 @@ function checkDiagnostics(opts: {
   // run-time opt-out for codemods that INTENTIONALLY leave a residual cascade frontier (e.g. a
   // per-entity TypeID pass that clears the mechanical bulk and leaves the edges for a follow-up
   // hand-fix), so they don't have to hardcode `skipDiagnosticsCheck` and lose the guard forever.
-  const skipDiagnostics =
-    options.skipDiagnosticsCheck === true || argv.includes("--no-diagnostics-check");
+  const skipDiagnostics = options.skipDiagnosticsCheck === true || argv.includes("--no-diagnostics-check");
   let diagnosticErrors = 0;
   if (!skipDiagnostics) {
     const touched = new Set<string>([...snapshots.keys()]);
@@ -527,12 +519,7 @@ export async function runCodemod(
   };
 }
 
-function snapshotFile(
-  ctx: CodemodContext,
-  project: Project,
-  snapshots: Map<string, FileSnapshot>,
-  filePath: string,
-): void {
+function snapshotFile(ctx: CodemodContext, project: Project, snapshots: Map<string, FileSnapshot>, filePath: string): void {
   const resolved = absolutePath(filePath, ctx.repoRoot);
   if (snapshots.has(resolved)) {
     return;
@@ -639,10 +626,7 @@ export function absolutePath(p: string, repoRoot: string): string {
   const abs = isAbsolute(p) ? normalize(p) : resolve(root, p);
   const rel = relative(root, abs);
   if (rel.startsWith("..") || isAbsolute(rel)) {
-    throw new CodemodError(
-      `Path escapes repo root: ${p}`,
-      "Codemod helpers refuse to touch files outside the repo. Pass a path relative to the repo root.",
-    );
+    throw new CodemodError(`Path escapes repo root: ${p}`, "Codemod helpers refuse to touch files outside the repo. Pass a path relative to the repo root.");
   }
   return abs;
 }
@@ -693,16 +677,8 @@ export function siblingTestPath(filePath: string): string {
  * path. Don't hold the source path around after planning a move — look it
  * up by the new path if you need to access it again.
  */
-export function moveFiles(
-  ctx: CodemodContext,
-  moves: ReadonlyArray<readonly [from: string, to: string]>,
-  opts: OperationOptions = {},
-): Plan {
-  assert(
-    moves.length > 0,
-    "moveFiles called with empty moves list",
-    "Skip the call or pass at least one move.",
-  );
+export function moveFiles(ctx: CodemodContext, moves: ReadonlyArray<readonly [from: string, to: string]>, opts: OperationOptions = {}): Plan {
+  assert(moves.length > 0, "moveFiles called with empty moves list", "Skip the call or pass at least one move.");
 
   // Validate paths up front — fail loudly before we touch the in-memory
   // project, so a typo in the move list aborts cleanly.
@@ -759,16 +735,8 @@ export function moveFiles(
  * If you want to delete a file AND its test sibling, call this once with
  * both paths.
  */
-export function deleteFiles(
-  ctx: CodemodContext,
-  paths: readonly string[],
-  opts: OperationOptions,
-): Plan {
-  assert(
-    opts.confirm === true,
-    "deleteFiles refuses to run without { confirm: true }",
-    "Pass { confirm: true } only after you've reviewed the list of paths.",
-  );
+export function deleteFiles(ctx: CodemodContext, paths: readonly string[], opts: OperationOptions): Plan {
+  assert(opts.confirm === true, "deleteFiles refuses to run without { confirm: true }", "Pass { confirm: true } only after you've reviewed the list of paths.");
   assert(paths.length > 0, "deleteFiles called with empty paths list");
 
   const resolved = paths.map((p) => {
@@ -798,21 +766,12 @@ export function deleteFiles(
  * existing file unless `confirm: true`. The new file is auto-snapshotted as
  * a creation so the preview correctly labels it `+ new file`.
  */
-export function createSourceFile(
-  ctx: CodemodContext,
-  filePath: string,
-  text: string,
-  opts: OperationOptions = {},
-): Plan {
+export function createSourceFile(ctx: CodemodContext, filePath: string, text: string, opts: OperationOptions = {}): Plan {
   const abs = absolutePath(filePath, ctx.repoRoot);
   const exists = existsSync(abs) || ctx.project.getSourceFile(abs) !== undefined;
   if (exists) {
     // biome-ignore lint/nursery/noConditionalExpect: this is our own guard-clause assert() helper, not vitest's expect().
-    assert(
-      opts.confirm === true,
-      `createSourceFile: ${repoRelative(abs, ctx.repoRoot)} already exists`,
-      "Pass { confirm: true } if you intend to overwrite.",
-    );
+    assert(opts.confirm === true, `createSourceFile: ${repoRelative(abs, ctx.repoRoot)} already exists`, "Pass { confirm: true } if you intend to overwrite.");
   }
 
   return {
@@ -839,19 +798,11 @@ export function createSourceFile(
  * be valid from the new location). Useful as a building block when you want
  * to "fork" a file into two — copy, then edit each side.
  */
-export function copyFile(
-  ctx: CodemodContext,
-  from: string,
-  to: string,
-  opts: OperationOptions = {},
-): Plan {
+export function copyFile(ctx: CodemodContext, from: string, to: string, opts: OperationOptions = {}): Plan {
   const fromAbs = absolutePath(from, ctx.repoRoot);
   const toAbs = absolutePath(to, ctx.repoRoot);
   const sf = ctx.project.getSourceFile(fromAbs);
-  assert(
-    sf !== undefined,
-    `copyFile: source not in project: ${repoRelative(fromAbs, ctx.repoRoot)}`,
-  );
+  assert(sf !== undefined, `copyFile: source not in project: ${repoRelative(fromAbs, ctx.repoRoot)}`);
   if (existsSync(toAbs)) {
     // biome-ignore lint/nursery/noConditionalExpect: this is our own guard-clause assert() helper, not vitest's expect().
     assert(
@@ -903,9 +854,7 @@ export function findImporters(project: Project, moduleSpecifier: string): Import
  * rare arms have their own dedicated helpers below).
  */
 export function findImportersOfFile(targetFile: SourceFile): ImportDeclaration[] {
-  return targetFile
-    .getReferencingNodesInOtherSourceFiles()
-    .filter((n): n is ImportDeclaration => n.isKind(SyntaxKind.ImportDeclaration));
+  return targetFile.getReferencingNodesInOtherSourceFiles().filter((n): n is ImportDeclaration => n.isKind(SyntaxKind.ImportDeclaration));
 }
 
 /**
@@ -926,12 +875,7 @@ export function findAllReferencersOfFile(targetFile: SourceFile): SourceFileRefe
  *
  * For the regex sweep across many alias paths, use `repointAliasPaths`.
  */
-export function repointImports(
-  ctx: CodemodContext,
-  fromSpecifier: string,
-  toSpecifier: string,
-  opts: OperationOptions = {},
-): Plan {
+export function repointImports(ctx: CodemodContext, fromSpecifier: string, toSpecifier: string, opts: OperationOptions = {}): Plan {
   assertPathString(fromSpecifier, "fromSpecifier");
   assertPathString(toSpecifier, "toSpecifier");
   const matches = findImporters(ctx.project, fromSpecifier);
@@ -965,11 +909,7 @@ export function repointImports(
  *
  * Use `g` flags so every occurrence in a file is rewritten.
  */
-export function repointAliasPaths(
-  ctx: CodemodContext,
-  rewrites: ReadonlyArray<readonly [RegExp, string]>,
-  opts: OperationOptions = {},
-): Plan {
+export function repointAliasPaths(ctx: CodemodContext, rewrites: ReadonlyArray<readonly [RegExp, string]>, opts: OperationOptions = {}): Plan {
   assert(rewrites.length > 0, "repointAliasPaths called with empty rewrites list");
   // Materialise the source files up-front so we don't iterate while ts-morph
   // is mutating its own internal list.
@@ -995,13 +935,7 @@ export function repointAliasPaths(
 
 /** vi's module-mocking methods whose first argument is a module-specifier string.
  *  A codemod that rewrites import paths must rewrite these strings too. */
-export const VI_MODULE_METHODS: ReadonlySet<string> = new Set([
-  "mock",
-  "doMock",
-  "importActual",
-  "importMock",
-  "unmock",
-]);
+export const VI_MODULE_METHODS: ReadonlySet<string> = new Set(["mock", "doMock", "importActual", "importMock", "unmock"]);
 
 /**
  * Extract the module-specifier string literal from a call when it's a dynamic
@@ -1011,10 +945,7 @@ export const VI_MODULE_METHODS: ReadonlySet<string> = new Set([
 export function moduleStringArg(call: CallExpression): StringLiteral | null {
   const expr = call.getExpression();
   const isDynImport = expr.getKind() === SyntaxKind.ImportKeyword;
-  const isViMock =
-    Node.isPropertyAccessExpression(expr) &&
-    expr.getExpression().getText() === "vi" &&
-    VI_MODULE_METHODS.has(expr.getName());
+  const isViMock = Node.isPropertyAccessExpression(expr) && expr.getExpression().getText() === "vi" && VI_MODULE_METHODS.has(expr.getName());
   if (!(isDynImport || isViMock)) {
     return null;
   }
@@ -1024,10 +955,7 @@ export function moduleStringArg(call: CallExpression): StringLiteral | null {
 
 /** Merge a named import into an EXISTING import declaration for the same module (the "already
  *  importing from here" branch of `addNamedImport`). */
-function mergeNamedImportInto(
-  existing: ImportDeclaration,
-  named: { readonly name: string; readonly alias?: string; readonly isTypeOnly?: boolean },
-): void {
+function mergeNamedImportInto(existing: ImportDeclaration, named: { readonly name: string; readonly alias?: string; readonly isTypeOnly?: boolean }): void {
   const wantValue = named.isTypeOnly !== true;
   // Adding a VALUE specifier into an `import type {…}` declaration would silently make the value
   // type-only (TS1361 at its use site). Convert the declaration to a value import and push the
@@ -1040,11 +968,7 @@ function mergeNamedImportInto(
   }
   const match = existing
     .getNamedImports()
-    .find(
-      (n) =>
-        n.getName() === named.name &&
-        (n.getAliasNode()?.getText() ?? n.getName()) === (named.alias ?? named.name),
-    );
+    .find((n) => n.getName() === named.name && (n.getAliasNode()?.getText() ?? n.getName()) === (named.alias ?? named.name));
   if (match !== undefined) {
     // Already imported — but a prior pass may have added it type-only; a later value use must
     // downgrade it so it's callable.
@@ -1081,10 +1005,7 @@ export function addNamedImport(
   const { moduleSpecifier } = named;
   const abs = absolutePath(filePath, ctx.repoRoot);
   const sf = ctx.project.getSourceFile(abs);
-  assert(
-    sf !== undefined,
-    `addNamedImport: file not in project: ${repoRelative(abs, ctx.repoRoot)}`,
-  );
+  assert(sf !== undefined, `addNamedImport: file not in project: ${repoRelative(abs, ctx.repoRoot)}`);
   assertPathString(moduleSpecifier, "moduleSpecifier");
   assertPathString(named.name, "named.name");
 
@@ -1097,9 +1018,7 @@ export function addNamedImport(
       // A value-import lookup by string alone can't tell a value declaration from a type-only one
       // sharing the same specifier (`import type { X } from "m"` + `import { Y } from "m"`) — match
       // on the non-type-only declaration explicitly, or we'd silently merge into the wrong one.
-      const existing = sf.getImportDeclaration(
-        (d) => d.getModuleSpecifierValue() === moduleSpecifier && !d.isTypeOnly(),
-      );
+      const existing = sf.getImportDeclaration((d) => d.getModuleSpecifierValue() === moduleSpecifier && !d.isTypeOnly());
       if (existing !== undefined) {
         mergeNamedImportInto(existing, named);
         return;
@@ -1134,10 +1053,7 @@ export function removeNamedImport(
   const { moduleSpecifier, names } = target;
   const abs = absolutePath(filePath, ctx.repoRoot);
   const sf = ctx.project.getSourceFile(abs);
-  assert(
-    sf !== undefined,
-    `removeNamedImport: file not in project: ${repoRelative(abs, ctx.repoRoot)}`,
-  );
+  assert(sf !== undefined, `removeNamedImport: file not in project: ${repoRelative(abs, ctx.repoRoot)}`);
   assert(names.length > 0, "removeNamedImport: pass at least one name to remove");
 
   return {
@@ -1146,9 +1062,7 @@ export function removeNamedImport(
     transform(): void {
       // See addNamedImport's matching comment: don't grab a type-only declaration sharing the
       // same specifier as the value declaration we actually mean to strip names from.
-      const decl = sf.getImportDeclaration(
-        (d) => d.getModuleSpecifierValue() === moduleSpecifier && !d.isTypeOnly(),
-      );
+      const decl = sf.getImportDeclaration((d) => d.getModuleSpecifierValue() === moduleSpecifier && !d.isTypeOnly());
       if (!decl) {
         return;
       }
@@ -1164,10 +1078,7 @@ export function removeNamedImport(
       }
       // If we removed everything from the declaration AND it has no default
       // / namespace, drop the declaration itself.
-      const stillHas =
-        decl.getNamedImports().length > 0 ||
-        decl.getDefaultImport() !== undefined ||
-        decl.getNamespaceImport() !== undefined;
+      const stillHas = decl.getNamedImports().length > 0 || decl.getDefaultImport() !== undefined || decl.getNamespaceImport() !== undefined;
       if (!stillHas) {
         decl.remove();
       }
@@ -1188,9 +1099,7 @@ export function renameNamedImport(
   opts: OperationOptions = {},
 ): Plan {
   const { oldName, newName } = rename;
-  const importers = findImporters(ctx.project, moduleSpecifier).filter((d) =>
-    d.getNamedImports().some((n) => n.getName() === oldName),
-  );
+  const importers = findImporters(ctx.project, moduleSpecifier).filter((d) => d.getNamedImports().some((n) => n.getName() === oldName));
   return {
     description: `Rename named import "${oldName}" → "${newName}" from "${moduleSpecifier}" (${importers.length} file${importers.length === 1 ? "" : "s"})${opts.note ? ` (${opts.note})` : ""}`,
     touchedFiles: [...new Set(importers.map((d) => d.getSourceFile().getFilePath()))],
@@ -1211,12 +1120,7 @@ export function renameNamedImport(
  * to flip an entire module's imports to `import type` when the value side
  * goes away (the F6 "make X type-only" sweep is the canonical case).
  */
-export function makeImportTypeOnly(
-  ctx: CodemodContext,
-  moduleSpecifier: string,
-  filter: ImportSpecFilter = () => true,
-  opts: OperationOptions = {},
-): Plan {
+export function makeImportTypeOnly(ctx: CodemodContext, moduleSpecifier: string, filter: ImportSpecFilter = () => true, opts: OperationOptions = {}): Plan {
   const decls = findImporters(ctx.project, moduleSpecifier);
   return {
     description: `Flip imports to type-only from "${moduleSpecifier}"${opts.note ? ` (${opts.note})` : ""}`,
@@ -1246,10 +1150,7 @@ export function makeImportTypeOnly(
  */
 /** Group a declaration's named imports by which new module specifier they route to (skipping any
  *  name not in the map — those stay on the original declaration). */
-function groupImportsByDestination(
-  decl: ImportDeclaration,
-  symbolToNewSpecifier: Readonly<Record<string, string>>,
-): Map<string, ImportSpecifier[]> {
+function groupImportsByDestination(decl: ImportDeclaration, symbolToNewSpecifier: Readonly<Record<string, string>>): Map<string, ImportSpecifier[]> {
   const groups = new Map<string, ImportSpecifier[]>();
   for (const spec of decl.getNamedImports()) {
     const dest = symbolToNewSpecifier[spec.getName()];
@@ -1265,11 +1166,7 @@ function groupImportsByDestination(
 
 /** Add-or-merge an import declaration for `dest` carrying `specs`, then remove the specifiers
  *  from their original declaration now that they've moved. */
-function routeSpecifiersToDestination(
-  sf: SourceFile,
-  dest: string,
-  specs: readonly ImportSpecifier[],
-): void {
+function routeSpecifiersToDestination(sf: SourceFile, dest: string, specs: readonly ImportSpecifier[]): void {
   const target = sf.getImportDeclaration(dest);
   const incoming = specs.map((s) => {
     const aliasNode = s.getAliasNode();
@@ -1298,7 +1195,7 @@ export function routeSymbolsByMap(
   opts: OperationOptions = {},
 ): Plan {
   const symbols = Object.keys(symbolToNewSpecifier);
-  // biome-ignore lint/security/noSecrets: an assertion message, not a credential (high-entropy false positive).
+
   assert(symbols.length > 0, "routeSymbolsByMap: empty map");
   const matches = findImporters(ctx.project, fromSpecifier);
 
@@ -1316,11 +1213,7 @@ export function routeSymbolsByMap(
         // If leftovers remain, leave the declaration in place (it still
         // points at the old module). If we cleared it out, drop the empty
         // declaration so we don't leave a `from "OLD"` shell.
-        if (
-          decl.getNamedImports().length === 0 &&
-          decl.getDefaultImport() === undefined &&
-          decl.getNamespaceImport() === undefined
-        ) {
+        if (decl.getNamedImports().length === 0 && decl.getDefaultImport() === undefined && decl.getNamespaceImport() === undefined) {
           decl.remove();
         }
       }
@@ -1359,9 +1252,7 @@ export function addReExport(
     touchedFiles: [abs],
     transform(): void {
       // Same type-only vs value ambiguity as addNamedImport — match the value declaration only.
-      const existing = sf.getExportDeclaration(
-        (d) => d.getModuleSpecifierValue() === moduleSpecifier && !d.isTypeOnly(),
-      );
+      const existing = sf.getExportDeclaration((d) => d.getModuleSpecifierValue() === moduleSpecifier && !d.isTypeOnly());
       if (existing !== undefined) {
         const already = existing.getNamedExports().some((n) => n.getName() === named.name);
         if (already) {
@@ -1403,19 +1294,14 @@ export function removeReExport(
   const { moduleSpecifier, names } = target;
   const abs = absolutePath(filePath, ctx.repoRoot);
   const sf = ctx.project.getSourceFile(abs);
-  assert(
-    sf !== undefined,
-    `removeReExport: file not in project: ${repoRelative(abs, ctx.repoRoot)}`,
-  );
+  assert(sf !== undefined, `removeReExport: file not in project: ${repoRelative(abs, ctx.repoRoot)}`);
 
   return {
     description: `Remove re-export { ${names.join(", ")} } from "${moduleSpecifier}" in ${repoRelative(abs, ctx.repoRoot)}${opts.note ? ` (${opts.note})` : ""}`,
     touchedFiles: [abs],
     transform(): void {
       // Same type-only vs value ambiguity as removeNamedImport — match the value declaration only.
-      const decl = sf.getExportDeclaration(
-        (d) => d.getModuleSpecifierValue() === moduleSpecifier && !d.isTypeOnly(),
-      );
+      const decl = sf.getExportDeclaration((d) => d.getModuleSpecifierValue() === moduleSpecifier && !d.isTypeOnly());
       if (!decl) {
         return;
       }
@@ -1458,17 +1344,10 @@ function dedupeExportDeclaration(decl: ExportDeclaration, seen: Set<string>): vo
   }
 }
 
-export function dedupeReExports(
-  ctx: CodemodContext,
-  filePath: string,
-  opts: OperationOptions = {},
-): Plan {
+export function dedupeReExports(ctx: CodemodContext, filePath: string, opts: OperationOptions = {}): Plan {
   const abs = absolutePath(filePath, ctx.repoRoot);
   const sf = ctx.project.getSourceFile(abs);
-  assert(
-    sf !== undefined,
-    `dedupeReExports: file not in project: ${repoRelative(abs, ctx.repoRoot)}`,
-  );
+  assert(sf !== undefined, `dedupeReExports: file not in project: ${repoRelative(abs, ctx.repoRoot)}`);
   return {
     description: `Dedupe re-exports in ${repoRelative(abs, ctx.repoRoot)}${opts.note ? ` (${opts.note})` : ""}`,
     touchedFiles: [abs],
@@ -1577,10 +1456,7 @@ export function renameExportedSymbol(
   const { oldName, newName } = rename;
   const abs = absolutePath(filePath, ctx.repoRoot);
   const sf = ctx.project.getSourceFile(abs);
-  assert(
-    sf !== undefined,
-    `renameExportedSymbol: file not in project: ${repoRelative(abs, ctx.repoRoot)}`,
-  );
+  assert(sf !== undefined, `renameExportedSymbol: file not in project: ${repoRelative(abs, ctx.repoRoot)}`);
   return {
     description: `Rename symbol "${oldName}" → "${newName}" in ${repoRelative(abs, ctx.repoRoot)}${opts.note ? ` (${opts.note})` : ""}`,
     // We don't know up-front which files have references — return [abs]
@@ -1600,10 +1476,7 @@ export function renameExportedSymbol(
       }
       // Fallback: find the first child identifier and rename it.
       const id = decl.getFirstDescendantByKind(SyntaxKind.Identifier);
-      assert(
-        id !== undefined,
-        `renameExportedSymbol: couldn't find an Identifier on the declaration of "${oldName}"`,
-      );
+      assert(id !== undefined, `renameExportedSymbol: couldn't find an Identifier on the declaration of "${oldName}"`);
       id.rename(newName);
     },
   };
@@ -1625,11 +1498,7 @@ export function renameExportedSymbol(
  * Best practice: call this ONCE per file at the end of your transform.
  * Don't intersperse `replaceText` calls with AST navigation.
  */
-export function applyTextReplacements(
-  ctx: CodemodContext,
-  replacements: readonly TextReplacement[],
-  opts: OperationOptions = {},
-): Plan {
+export function applyTextReplacements(ctx: CodemodContext, replacements: readonly TextReplacement[], opts: OperationOptions = {}): Plan {
   // Validate non-overlap per-file. Overlapping replacements would corrupt
   // text in subtle ways (the sort handles them OK individually but two
   // ranges that share bytes leave undefined output).
@@ -1662,10 +1531,7 @@ export function applyTextReplacements(
     transform(innerCtx): void {
       for (const [file, plans] of byFile) {
         const sf = innerCtx.project.getSourceFile(file);
-        assert(
-          sf !== undefined,
-          `applyTextReplacements: file disappeared between plan and transform: ${file}`,
-        );
+        assert(sf !== undefined, `applyTextReplacements: file disappeared between plan and transform: ${file}`);
         // Sort end-DESCENDING. Applying later offsets first keeps earlier
         // offsets valid.
         const sorted = [...plans].sort((a, b) => b.end - a.end);
@@ -1680,10 +1546,7 @@ export function applyTextReplacements(
 /** Convert a list of AST nodes + a per-node text producer into a flat
  *  TextReplacement array. Computes start/end at the time you call this
  *  (BEFORE any mutation) — pass that array to `applyTextReplacements`. */
-export function replacementsForNodes(
-  nodes: readonly Node[],
-  produce: (node: Node) => { text: string; label?: string },
-): TextReplacement[] {
+export function replacementsForNodes(nodes: readonly Node[], produce: (node: Node) => { text: string; label?: string }): TextReplacement[] {
   const out: TextReplacement[] = [];
   for (const n of nodes) {
     const { text, label } = produce(n);
@@ -1733,12 +1596,7 @@ export function findJsxByTag(project: Project, tagName: string): JsxLike[] {
  * `renameNamedImport` if the new component lives at a different name in
  * its source module.
  */
-export function renameJsxTag(
-  ctx: CodemodContext,
-  oldTagName: string,
-  newTagName: string,
-  opts: OperationOptions = {},
-): Plan {
+export function renameJsxTag(ctx: CodemodContext, oldTagName: string, newTagName: string, opts: OperationOptions = {}): Plan {
   const matches = findJsxByTag(ctx.project, oldTagName);
   const touched = new Set<string>();
   for (const el of matches) {
@@ -1903,11 +1761,7 @@ export function retypeIdAnnotations(ctx: CodemodContext, opts: RetypeIdAnnotatio
       );
     }
   }
-  return composePlans(
-    `retype {${opts.names.join(", ")}}: string → ${opts.brand} ` +
-      `(${keywords.length} site(s) across ${files.size} file(s))`,
-    plans,
-  );
+  return composePlans(`retype {${opts.names.join(", ")}}: string → ${opts.brand} (${keywords.length} site(s) across ${files.size} file(s))`, plans);
 }
 
 /** The table identifier an object literal is being `insert(...).values()` /
@@ -1998,10 +1852,7 @@ function isCastTargetProperty(
 
 /** The node to wrap in `castFn<brand>(...)` for a matched property, or undefined if this
  *  property's initializer isn't eligible (already cast, wrong type, or vars disabled). */
-function resolveCastCandidate(
-  pa: PropertyAssignment,
-  opts: CastIdLiteralsOptions,
-): Node | undefined {
+function resolveCastCandidate(pa: PropertyAssignment, opts: CastIdLiteralsOptions): Node | undefined {
   const literal =
     pa.getInitializerIfKind(SyntaxKind.StringLiteral) ??
     pa.getInitializerIfKind(SyntaxKind.NoSubstitutionTemplateLiteral) ??
@@ -2031,10 +1882,7 @@ function resolveCastCandidate(
   return exprType.getText() === "string" || exprType.isStringLiteral() ? expr : undefined;
 }
 
-function scanObjectLiteralCastTargets(
-  ctx: CodemodContext,
-  opts: CastIdLiteralsOptions,
-): { targets: Node[]; files: Set<string> } {
+function scanObjectLiteralCastTargets(ctx: CodemodContext, opts: CastIdLiteralsOptions): { targets: Node[]; files: Set<string> } {
   const always = new Set(opts.alwaysProps);
   const tableScoped = opts.tableScopedIdProps ?? [];
   const testOnly = opts.testFilesOnly ?? true;
@@ -2138,11 +1986,7 @@ function isUnwrappedComparisonLiteral(n: Node | undefined, castFn: string): bool
   if (n === undefined) {
     return false;
   }
-  if (
-    n.getKind() !== SyntaxKind.StringLiteral &&
-    n.getKind() !== SyntaxKind.NoSubstitutionTemplateLiteral &&
-    n.getKind() !== SyntaxKind.TemplateExpression
-  ) {
+  if (n.getKind() !== SyntaxKind.StringLiteral && n.getKind() !== SyntaxKind.NoSubstitutionTemplateLiteral && n.getKind() !== SyntaxKind.TemplateExpression) {
     return false;
   }
   const parent = n.getParent();
@@ -2157,17 +2001,12 @@ function isUnwrappedComparisonLiteral(n: Node | undefined, castFn: string): bool
 
 /** For one matched `eq`/`inArray`/… call, collect the comparand(s) still needing a cast wrap.
  *  `inArray`'s second arg is an array of comparands; every other op compares directly. */
-function collectComparisonTargets(
-  call: CallExpression,
-  opts: CastIdComparisonsOptions,
-): readonly Node[] {
+function collectComparisonTargets(call: CallExpression, opts: CastIdComparisonsOptions): readonly Node[] {
   const [first, second] = call.getArguments();
   if (first === undefined || second === undefined) {
     return [];
   }
-  const matchesColumn = opts.columns.some((c) =>
-    c.startsWith(".") ? first.getText().endsWith(c) : first.getText() === c,
-  );
+  const matchesColumn = opts.columns.some((c) => (c.startsWith(".") ? first.getText().endsWith(c) : first.getText() === c));
   if (!matchesColumn) {
     return [];
   }
@@ -2175,10 +2014,7 @@ function collectComparisonTargets(
   return operands.filter((operand) => isUnwrappedComparisonLiteral(operand, opts.castFn));
 }
 
-function scanComparisonCastTargets(
-  ctx: CodemodContext,
-  opts: CastIdComparisonsOptions,
-): { targets: Node[]; files: Set<string> } {
+function scanComparisonCastTargets(ctx: CodemodContext, opts: CastIdComparisonsOptions): { targets: Node[]; files: Set<string> } {
   const ops = new Set(opts.ops ?? ["eq", "ne", "gt", "gte", "lt", "lte", "inArray", "notInArray"]);
   const testOnly = opts.testFilesOnly ?? true;
   const targets: Node[] = [];
@@ -2223,8 +2059,7 @@ export function castIdInComparisons(ctx: CodemodContext, opts: CastIdComparisons
     plans.push(...buildCastImportPlans(ctx, opts, files));
   }
   return composePlans(
-    `cast {${opts.columns.join(", ")}} comparison literals → ${opts.castFn}<${opts.brand}> ` +
-      `(${targets.length} site(s) across ${files.size} file(s))`,
+    `cast {${opts.columns.join(", ")}} comparison literals → ${opts.castFn}<${opts.brand}> (${targets.length} site(s) across ${files.size} file(s))`,
     plans,
   );
 }
@@ -2275,10 +2110,7 @@ export interface CastByDiagnosticOptions {
 /** The string-literal node a diagnostic points at (or just under), skipping literals already
  *  wrapped in `castFn(...)` (idempotent). Undefined if this diagnostic isn't a brand-mismatch
  *  on a literal we can locate. */
-function resolveDiagnosticCastLiteral(
-  diag: Diagnostic,
-  opts: CastByDiagnosticOptions,
-): Node | undefined {
+function resolveDiagnosticCastLiteral(diag: Diagnostic, opts: CastByDiagnosticOptions): Node | undefined {
   const sf = diag.getSourceFile();
   if (sf === undefined) {
     return;
@@ -2318,10 +2150,7 @@ function resolveDiagnosticCastLiteral(
   return lit;
 }
 
-function scanDiagnosticCastTargets(
-  ctx: CodemodContext,
-  opts: CastByDiagnosticOptions,
-): { targets: Node[]; files: Set<string> } {
+function scanDiagnosticCastTargets(ctx: CodemodContext, opts: CastByDiagnosticOptions): { targets: Node[]; files: Set<string> } {
   const codes = new Set(opts.codes ?? [TS_ARGUMENT_TYPE_MISMATCH, TS_ASSIGNMENT_TYPE_MISMATCH]);
   const testOnly = opts.testFilesOnly ?? true;
   const seen = new Set<string>();
@@ -2351,10 +2180,7 @@ function scanDiagnosticCastTargets(
   return { targets, files };
 }
 
-export function castStringLiteralsByDiagnostic(
-  ctx: CodemodContext,
-  opts: CastByDiagnosticOptions,
-): Plan {
+export function castStringLiteralsByDiagnostic(ctx: CodemodContext, opts: CastByDiagnosticOptions): Plan {
   assertPathString(opts.brand, "brand");
   assertPathString(opts.castFn, "castFn");
   assertPathString(opts.importModule, "importModule");
@@ -2374,11 +2200,7 @@ export function castStringLiteralsByDiagnostic(
     );
     plans.push(...buildCastImportPlans(ctx, opts, files));
   }
-  return composePlans(
-    `cast tsc-flagged string literals → ${opts.castFn}<${opts.brand}> ` +
-      `(${targets.length} site(s) across ${files.size} file(s))`,
-    plans,
-  );
+  return composePlans(`cast tsc-flagged string literals → ${opts.castFn}<${opts.brand}> (${targets.length} site(s) across ${files.size} file(s))`, plans);
 }
 
 // ── §15 ─ Diagnostics + diff rendering ───────────────────────────────────────
@@ -2438,11 +2260,7 @@ function resolveMaxOutputLines(override?: number): number {
  *
  * Returns the path written to (or undefined if no overflow).
  */
-function flushBuffer(
-  buffer: readonly string[],
-  tag: string,
-  maxLines?: number,
-): string | undefined {
+function flushBuffer(buffer: readonly string[], tag: string, maxLines?: number): string | undefined {
   const flat = buffer.flatMap((entry) => entry.split("\n"));
   const limit = resolveMaxOutputLines(maxLines);
   if (flat.length <= limit) {
@@ -2473,10 +2291,7 @@ function flushBuffer(
   console.log("│  Tip: cat the path above for the full result, or pass --max-output-lines=N.");
   console.log("╰────────────────────────────────────────────────────────────────────────────");
 
-  const headLines = Math.max(
-    1,
-    Math.floor((limit - RESERVED_BANNER_LINES) * TRUNCATION_HEAD_FRACTION),
-  );
+  const headLines = Math.max(1, Math.floor((limit - RESERVED_BANNER_LINES) * TRUNCATION_HEAD_FRACTION));
   const tailLines = Math.max(1, limit - RESERVED_BANNER_LINES - headLines);
 
   for (let i = 0; i < headLines; i++) {
@@ -2506,10 +2321,7 @@ interface PreviewStats {
 type FileEntryStatus = "deleted" | "created" | "changed" | "unchanged";
 
 /** Render one file's line for the "Files" preview section, and classify it for the tally. */
-function renderFileEntry(
-  snap: FileSnapshot,
-  project: Project,
-): { line: string; status: FileEntryStatus } {
+function renderFileEntry(snap: FileSnapshot, project: Project): { line: string; status: FileEntryStatus } {
   const sf = project.getSourceFile(snap.filePath);
   const repoRel = repoRelative(snap.filePath, process.cwd());
   if (sf === undefined) {
@@ -2586,10 +2398,7 @@ function renderPreview(opts: {
   }
 
   buf.push("\n── Files ──");
-  const { lines, filesChanged, filesCreated, filesDeleted } = renderFilesSection(
-    snapshots,
-    project,
-  );
+  const { lines, filesChanged, filesCreated, filesDeleted } = renderFilesSection(snapshots, project);
   buf.push(...lines);
   const overflowFile = flushBuffer(buf, `preview-${name}`, maxOutputLines);
   return {
@@ -2681,8 +2490,7 @@ export const MANIFEST: readonly ManifestCategory[] = [
       },
       {
         name: "runCodemod",
-        summary:
-          "The CLI harness — handles --apply / --dry-run flags, snapshots, diff rendering, save.",
+        summary: "The CLI harness — handles --apply / --dry-run flags, snapshots, diff rendering, save.",
         when: "Always wrap your codemod with this. It's the only legitimate way to write changes.",
       },
       {
@@ -2765,8 +2573,7 @@ export const MANIFEST: readonly ManifestCategory[] = [
       },
       {
         name: "findImportersOfFile",
-        summary:
-          "Find every importer that resolves to a given SourceFile (handles relative paths).",
+        summary: "Find every importer that resolves to a given SourceFile (handles relative paths).",
         when: "Asking 'who depends on this file?' (not 'who imports this string?').",
       },
       {
@@ -2786,8 +2593,7 @@ export const MANIFEST: readonly ManifestCategory[] = [
       },
       {
         name: "addNamedImport",
-        summary:
-          'Idempotent `import { X } from "Y"` — merges into existing declaration if present.',
+        summary: 'Idempotent `import { X } from "Y"` — merges into existing declaration if present.',
         when: "Adding a new dep to a file when you don't want to write the boilerplate twice.",
       },
       {
@@ -2806,10 +2612,8 @@ export const MANIFEST: readonly ManifestCategory[] = [
         when: "When the value side of a symbol is going away and only the type remains.",
       },
       {
-        // biome-ignore lint/security/noSecrets: a recipe function name, not a credential (high-entropy false positive).
         name: "routeSymbolsByMap",
-        summary:
-          "Split one file's exports across many: route each importer to the right destination.",
+        summary: "Split one file's exports across many: route each importer to the right destination.",
         when: "Restructure stage 2 — types.ts → contract/views/params/results/errors split.",
       },
     ],
@@ -2841,8 +2645,7 @@ export const MANIFEST: readonly ManifestCategory[] = [
     entries: [
       {
         name: "findReferencesByName",
-        summary:
-          "Find every reference to an exported symbol (uses TS language service — alias-aware).",
+        summary: "Find every reference to an exported symbol (uses TS language service — alias-aware).",
         when: "Audit: 'who actually uses this exported foo()?'",
       },
       {
@@ -2879,8 +2682,7 @@ export const MANIFEST: readonly ManifestCategory[] = [
     entries: [
       {
         name: "applyTextReplacements",
-        summary:
-          "Apply many {start,end,text} plans in end-descending order. Validates non-overlap.",
+        summary: "Apply many {start,end,text} plans in end-descending order. Validates non-overlap.",
         when: "Any time you collect AST-derived plans + need to apply them without invalidating each other.",
       },
       {
@@ -2896,31 +2698,24 @@ export const MANIFEST: readonly ManifestCategory[] = [
     entries: [
       {
         name: "retypeIdAnnotations",
-        summary:
-          "Retype `chatId: string` → `chatId: ChatId` on every named param/field/var; preserves `| null`/`?`; adds the import.",
-        // biome-ignore lint/security/noSecrets: recipe doc prose, not a credential (high-entropy false positive).
+        summary: "Retype `chatId: string` → `chatId: ChatId` on every named param/field/var; preserves `| null`/`?`; adds the import.",
+
         when: "Per-entity TypeID rollout, production side — after the DB columns carry `.$type<Brand>()`. Parameterized by id names + brand.",
       },
       {
         name: "castIdInObjectLiterals",
-        summary:
-          // biome-ignore lint/security/noSecrets: recipe doc prose with example literals, not a credential (high-entropy false positive).
-          'Wrap fixture id string-literals (`chatId: "ch1"`, table-scoped `id: "ch1"`) in `castId<Brand>(...)`. Test-scoped.',
+        summary: 'Wrap fixture id string-literals (`chatId: "ch1"`, table-scoped `id: "ch1"`) in `castId<Brand>(...)`. Test-scoped.',
         when: "Per-entity TypeID rollout, test side — the literal-fixture insert/values bulk the column brand now rejects.",
       },
       {
         name: "castIdInComparisons",
-        summary:
-          // biome-ignore lint/security/noSecrets: recipe doc prose with example literals, not a credential (high-entropy false positive).
-          'Wrap string literals compared against a branded column (`eq(chats.id, "ch1")`, `inArray`) in `castId<Brand>(...)`.',
+        summary: 'Wrap string literals compared against a branded column (`eq(chats.id, "ch1")`, `inArray`) in `castId<Brand>(...)`.',
         when: "Per-entity TypeID rollout — WHERE-clause literals that surface as TS2769 on the operator, which the other cast passes can't see.",
       },
       {
         name: "castStringLiteralsByDiagnostic",
-        summary:
-          // biome-ignore lint/security/noSecrets: recipe doc prose with example literals, not a credential (high-entropy false positive).
-          "Wrap every tsc-flagged string literal unassignable to the brand (call args, assignments, returns) in `castId<Brand>(...)`.",
-        // biome-ignore lint/security/noSecrets: recipe doc prose with example literals, not a credential (high-entropy false positive).
+        summary: "Wrap every tsc-flagged string literal unassignable to the brand (call args, assignments, returns) in `castId<Brand>(...)`.",
+
         when: 'Run LAST — type-checker-driven mop-up of literal value sites that `retypeIdAnnotations` pushes errors to (e.g. `f(db, "ch1")`).',
       },
     ],
@@ -2930,7 +2725,6 @@ export const MANIFEST: readonly ManifestCategory[] = [
     title: "JSX (for client codemods)",
     entries: [
       {
-        // biome-ignore lint/security/noSecrets: a recipe function name, not a credential (high-entropy false positive).
         name: "findJsxByTag",
         summary: "Find every JSX element with a given tag name (opening + self-closing).",
         when: "Sweeping every <OldButton> in the client.",
@@ -3322,9 +3116,7 @@ export function exampleRestructureCodemod(): Promise<CodemodResult> {
     );
 
     // 5. Delete the now-empty old file. Note `confirm: true` is required.
-    ctx.plan(
-      deleteFiles(ctx, ["src/feature/foo.ts"], { confirm: true, note: "after symbol routing" }),
-    );
+    ctx.plan(deleteFiles(ctx, ["src/feature/foo.ts"], { confirm: true, note: "after symbol routing" }));
 
     ctx.log("All 5 phases queued. Run with --apply to commit.");
   });
@@ -3333,10 +3125,7 @@ export function exampleRestructureCodemod(): Promise<CodemodResult> {
 // ── Bonus: bare-bones argv/env helpers some codemods want ────────────────────
 
 /** Get a named flag value from argv, e.g. `--threshold=0.5` → `"0.5"`. */
-export function getFlag(
-  name: string,
-  argv: readonly string[] = process.argv.slice(2),
-): string | undefined {
+export function getFlag(name: string, argv: readonly string[] = process.argv.slice(2)): string | undefined {
   const prefix = `--${name}=`;
   const match = argv.find((a) => a.startsWith(prefix));
   return match?.slice(prefix.length);
@@ -3362,11 +3151,7 @@ export function assertDirectoryExists(dir: string, repoRoot = process.cwd()): vo
  *  of it (covers the "remove the now-empty substrate/" pattern). Refuses
  *  unless `confirm: true` and the directory is empty after the moves
  *  finished (so we can't accidentally delete a populated dir). */
-export function removeEmptyDirectory(
-  ctx: CodemodContext,
-  dir: string,
-  opts: OperationOptions & { confirm: true },
-): Plan {
+export function removeEmptyDirectory(ctx: CodemodContext, dir: string, opts: OperationOptions & { confirm: true }): Plan {
   assert(opts.confirm === true, "removeEmptyDirectory requires { confirm: true }");
   const abs = absolutePath(dir, ctx.repoRoot);
   return {

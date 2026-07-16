@@ -9,20 +9,8 @@
 import type { ResolvedIdentity, UserRole } from "@orb/contracts/identity";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type {
-  AuthRoutesDeps,
-  AuthSessionsPort,
-  LocalAuthenticator,
-  OidcClaimMap,
-  OidcRoutesDeps,
-} from "@orb/server/entry/http";
-import {
-  deriveRedirectUri,
-  identityFromClaims,
-  registerAuthRoutes,
-  serializeClearedSessionCookie,
-  serializeSessionCookie,
-} from "@orb/server/entry/http";
+import type { AuthRoutesDeps, AuthSessionsPort, LocalAuthenticator, OidcClaimMap, OidcRoutesDeps } from "@orb/server/entry/http";
+import { deriveRedirectUri, identityFromClaims, registerAuthRoutes, serializeClearedSessionCookie, serializeSessionCookie } from "@orb/server/entry/http";
 import type { OidcTransaction } from "@orb/server/infra/auth";
 import { describe } from "vitest";
 import { expect, test } from "../../../support/fixtures";
@@ -54,11 +42,7 @@ type Handler = (c: MockCtx) => Promise<Response> | Response;
 
 function makeCtx(req: MockReq): MockCtx {
   const out = new Headers();
-  const merge = (
-    status: number,
-    body: string | Uint8Array | null,
-    extra?: Record<string, string>,
-  ): Response => {
+  const merge = (status: number, body: string | Uint8Array | null, extra?: Record<string, string>): Response => {
     const headers = new Headers(out);
     for (const [k, v] of Object.entries(extra ?? {})) {
       headers.set(k, v);
@@ -69,8 +53,7 @@ function makeCtx(req: MockReq): MockCtx {
     header: (name: string, value: string): void => {
       out.set(name, value);
     },
-    json: (body: unknown, status = 200): Response =>
-      merge(status, JSON.stringify(body), { "content-type": "application/json" }),
+    json: (body: unknown, status = 200): Response => merge(status, JSON.stringify(body), { "content-type": "application/json" }),
     body: (data: string | Uint8Array | null, status = 200): Response => merge(status, data),
     redirect: (location: string, status = 302): Response => merge(status, null, { location }),
     req: {
@@ -127,10 +110,7 @@ function recordingSessions(): SessionRecorder {
       },
       provisionIdentity: (
         _identity: ResolvedIdentity,
-      ): Promise<
-        | { outcome: "provisioned"; userId: UserId; enabled: boolean; role: UserRole }
-        | { outcome: "denied" }
-      > =>
+      ): Promise<{ outcome: "provisioned"; userId: UserId; enabled: boolean; role: UserRole } | { outcome: "denied" }> =>
         Promise.resolve({
           outcome: "provisioned",
           userId: castId<UserId>("usr_x"),
@@ -150,7 +130,6 @@ describe("cookie I/O", () => {
     expect(cookie).toContain("Path=/");
     expect(cookie).toContain("HttpOnly");
     expect(cookie).toContain("Secure");
-    // biome-ignore lint/security/noSecrets: "SameSite=Lax" is a Set-Cookie attribute, not a secret.
     expect(cookie).toContain("SameSite=Lax");
     expect(cookie).not.toContain("Domain=");
   });
@@ -199,10 +178,7 @@ describe("local login", () => {
       now: (): number => NOW,
       authenticate: ownerAuth(null),
     };
-    const res = await handlerFor(
-      deps,
-      "POST /api/auth/login",
-    )(makeCtx({ parseBody: { handle: "owner", password: "wrong-pass" } }));
+    const res = await handlerFor(deps, "POST /api/auth/login")(makeCtx({ parseBody: { handle: "owner", password: "wrong-pass" } }));
     expect(res.status).toBe(401);
     expect(res.headers.get("set-cookie")).toBeNull();
     expect(rec.createdFor).toBeNull();
@@ -215,10 +191,7 @@ describe("local login", () => {
       now: (): number => NOW,
       authenticate: ownerAuth(castId<UserId>("usr_owner")),
     };
-    const res = await handlerFor(
-      deps,
-      "POST /api/auth/login",
-    )(makeCtx({ parseBody: { handle: "owner" } }));
+    const res = await handlerFor(deps, "POST /api/auth/login")(makeCtx({ parseBody: { handle: "owner" } }));
     expect(res.status).toBe(400);
   });
 
@@ -233,10 +206,7 @@ describe("logout", () => {
   test("with a session cookie → revokes the token + clears the cookie (204)", async () => {
     const rec = recordingSessions();
     const deps: AuthRoutesDeps = { sessions: rec.sessions, now: (): number => NOW };
-    const res = await handlerFor(
-      deps,
-      "POST /api/auth/logout",
-    )(makeCtx({ headers: { cookie: `${COOKIE}=tok-123` } }));
+    const res = await handlerFor(deps, "POST /api/auth/logout")(makeCtx({ headers: { cookie: `${COOKIE}=tok-123` } }));
     expect(res.status).toBe(204);
     expect(rec.revoked).toBe("tok-123");
     expect(res.headers.get("set-cookie")).toContain("Max-Age=0");
@@ -387,10 +357,7 @@ describe("deriveRedirectUri — origin-flexible, allowlist-gated (open-redirect 
   const h = (init: Record<string, string>): Headers => new Headers(init);
 
   test("public FQDN via X-Forwarded-Proto/Host → the allowlisted callback", () => {
-    const derived = deriveRedirectUri(
-      h({ "x-forwarded-proto": "https", "x-forwarded-host": "chat.example.com" }),
-      allow,
-    );
+    const derived = deriveRedirectUri(h({ "x-forwarded-proto": "https", "x-forwarded-host": "chat.example.com" }), allow);
     expect(derived).toBe(FQDN);
   });
 
@@ -440,8 +407,7 @@ describe("OIDC login — the redirect_uri allowlist gate", () => {
       mints: 0,
       deps: {
         // Must NOT run on an off-allowlist login (the 400 short-circuits before any IdP round-trip).
-        getConfig: (): Promise<never> =>
-          Promise.reject(new Error("getConfig must not run on an off-allowlist login")),
+        getConfig: (): Promise<never> => Promise.reject(new Error("getConfig must not run on an off-allowlist login")),
         redirectAllowlist: allowlist,
         scope: "openid profile email",
         claims: {
@@ -469,10 +435,7 @@ describe("OIDC login — the redirect_uri allowlist gate", () => {
       now: (): number => NOW,
       oidc: rec.deps,
     };
-    const res = await handlerFor(
-      deps,
-      "GET /api/auth/oidc/login",
-    )(makeCtx({ headers: { "x-forwarded-host": "evil.example", "x-forwarded-proto": "https" } }));
+    const res = await handlerFor(deps, "GET /api/auth/oidc/login")(makeCtx({ headers: { "x-forwarded-host": "evil.example", "x-forwarded-proto": "https" } }));
     expect(res.status).toBe(400);
     expect(rec.mints).toBe(0);
   });
@@ -544,10 +507,7 @@ describe("OIDC callback — single-use state consume (replay/forgery/TTL gate)",
 
   test("a forged/replayed/expired state (consume → null) → 401, no token exchange, no session", async () => {
     const h = callbackDeps(() => Promise.resolve(null));
-    const res = await handlerFor(
-      h.deps,
-      "GET /api/auth/oidc/callback",
-    )(makeCtx({ url: callbackUrl({ state: "forged", code: "grant" }) }));
+    const res = await handlerFor(h.deps, "GET /api/auth/oidc/callback")(makeCtx({ url: callbackUrl({ state: "forged", code: "grant" }) }));
     expect(res.status).toBe(401);
     expect(h.getConfigCalls()).toBe(0); // never reached the IdP token exchange
     expect(h.session.createdFor).toBeNull(); // no session minted
@@ -555,10 +515,7 @@ describe("OIDC callback — single-use state consume (replay/forgery/TTL gate)",
 
   test("a missing state param (empty consume key) → 401 (the callback fails closed)", async () => {
     const h = callbackDeps(() => Promise.resolve(null));
-    const res = await handlerFor(
-      h.deps,
-      "GET /api/auth/oidc/callback",
-    )(makeCtx({ url: callbackUrl({ code: "grant" }) }));
+    const res = await handlerFor(h.deps, "GET /api/auth/oidc/callback")(makeCtx({ url: callbackUrl({ code: "grant" }) }));
     expect(res.status).toBe(401);
     expect(h.consumedWith()).toBe(""); // no `state` query → the empty-string consume key → null → 401
     expect(h.getConfigCalls()).toBe(0);

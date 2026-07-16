@@ -79,9 +79,7 @@ export function formatSignedDelta(n: number): string {
 }
 
 /** Rising / falling momentum rows → ranked bars (magnitude of the swing; the label carries the sign). */
-export function momentumBarItems(
-  rows: readonly { readonly characterId: string; readonly name: string; readonly delta: number }[],
-): BarListItem[] {
+export function momentumBarItems(rows: readonly { readonly characterId: string; readonly name: string; readonly delta: number }[]): BarListItem[] {
   return rows.map((row) => ({
     id: row.characterId,
     label: row.name,
@@ -112,9 +110,7 @@ export function formatDayLabel(day: string): string {
 }
 
 /** Daily points → an assistant-turn histogram in date order. */
-export function dailyTurnBuckets(
-  points: readonly { readonly day: string; readonly assistantTurns: number }[],
-): HistogramBucket[] {
+export function dailyTurnBuckets(points: readonly { readonly day: string; readonly assistantTurns: number }[]): HistogramBucket[] {
   return points.map((point) => ({
     label: formatDayLabel(point.day),
     count: point.assistantTurns,
@@ -122,9 +118,7 @@ export function dailyTurnBuckets(
 }
 
 /** Daily points → an output-token histogram in date order. */
-export function dailyTokenBuckets(
-  points: readonly { readonly day: string; readonly tokensOut: number }[],
-): HistogramBucket[] {
+export function dailyTokenBuckets(points: readonly { readonly day: string; readonly tokensOut: number }[]): HistogramBucket[] {
   return points.map((point) => ({
     label: formatDayLabel(point.day),
     count: point.tokensOut,
@@ -132,9 +126,7 @@ export function dailyTokenBuckets(
 }
 
 /** Per-model rows → ranked generation-count bars. */
-export function byModelBarItems(
-  rows: readonly { readonly model: string; readonly generations: number }[],
-): BarListItem[] {
+export function byModelBarItems(rows: readonly { readonly model: string; readonly generations: number }[]): BarListItem[] {
   return rows.map((row) => ({ id: row.model, label: row.model, value: row.generations }));
 }
 
@@ -150,9 +142,7 @@ export function personaBarItems(
 }
 
 /** The heatmap peak cell as a `Tue 21:00` label, or `null` when there's no activity. */
-export function formatPeak(
-  peak: { readonly dayOfWeek: number; readonly hour: number } | null,
-): string | null {
+export function formatPeak(peak: { readonly dayOfWeek: number; readonly hour: number } | null): string | null {
   if (peak === null) {
     return null;
   }

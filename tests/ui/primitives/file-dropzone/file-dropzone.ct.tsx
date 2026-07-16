@@ -9,10 +9,7 @@ import { FileDropzoneHarness } from "./file-dropzone.fixtures";
 const NON_EMPTY = /.+/u;
 const TWENTY_MEBIBYTES = 20 * 1024 * 1024;
 
-test("inside a <Field>, the label associates with the real file input (Field.Control registration)", async ({
-  mount,
-  page,
-}) => {
+test("inside a <Field>, the label associates with the real file input (Field.Control registration)", async ({ mount, page }) => {
   await mount(
     <Field description="Up to 20 MB" label="Avatar">
       <FileDropzone />
@@ -23,10 +20,7 @@ test("inside a <Field>, the label associates with the real file input (Field.Con
   await expect(control).toHaveAttribute("aria-describedby", NON_EMPTY);
 });
 
-test("clicking the dropzone opens the native file picker and a selected file reaches onFilesSelected", async ({
-  mount,
-  page,
-}) => {
+test("clicking the dropzone opens the native file picker and a selected file reaches onFilesSelected", async ({ mount, page }) => {
   await mount(<FileDropzoneHarness />);
   const fileChooserPromise = page.waitForEvent("filechooser");
   // Clicking ANYWHERE in the box hits the real input — it covers the full dropzone.
@@ -68,18 +62,12 @@ test("a file over maxSizeBytes is rejected and the error is announced", async ({
   expect(results).toEqual([{ accepted: 0, rejected: 1 }]);
 });
 
-test("the size hint auto-renders from maxSizeBytes when no explicit hint is given", async ({
-  mount,
-  page,
-}) => {
+test("the size hint auto-renders from maxSizeBytes when no explicit hint is given", async ({ mount, page }) => {
   await mount(<FileDropzone aria-label="Upload" maxSizeBytes={TWENTY_MEBIBYTES} />);
   await expect(page.locator('[data-slot="file-dropzone-content"]')).toContainText("20 MB per file");
 });
 
-test("dragging over the dropzone flips the drag-over highlight and leaving clears it", async ({
-  mount,
-  page,
-}) => {
+test("dragging over the dropzone flips the drag-over highlight and leaving clears it", async ({ mount, page }) => {
   await mount(<FileDropzone aria-label="Upload" />);
   const root = page.locator('[data-slot="file-dropzone"]');
   await expect(root).not.toHaveAttribute("data-drag-over", "");
@@ -89,19 +77,13 @@ test("dragging over the dropzone flips the drag-over highlight and leaving clear
   await expect(root).not.toHaveAttribute("data-drag-over", "");
 });
 
-test("disabled: the native input is disabled and the root carries data-disabled", async ({
-  mount,
-  page,
-}) => {
+test("disabled: the native input is disabled and the root carries data-disabled", async ({ mount, page }) => {
   await mount(<FileDropzone aria-label="Upload" disabled={true} />);
   await expect(page.getByLabel("Upload")).toBeDisabled();
   await expect(page.locator('[data-slot="file-dropzone"]')).toHaveAttribute("data-disabled", "");
 });
 
-test("keyboard: Tab focuses the real input and Enter opens the native file picker", async ({
-  mount,
-  page,
-}) => {
+test("keyboard: Tab focuses the real input and Enter opens the native file picker", async ({ mount, page }) => {
   await mount(<FileDropzone aria-label="Upload" />);
   await page.keyboard.press("Tab");
   await expect(page.getByLabel("Upload")).toBeFocused();
@@ -110,10 +92,7 @@ test("keyboard: Tab focuses the real input and Enter opens the native file picke
   await fileChooserPromise;
 });
 
-test("loading swaps the Upload glyph for a spinner and inerts the input", async ({
-  mount,
-  page,
-}) => {
+test("loading swaps the Upload glyph for a spinner and inerts the input", async ({ mount, page }) => {
   await mount(<FileDropzone aria-label="Upload" loading={true} />);
   const root = page.locator('[data-slot="file-dropzone"]');
   await expect(root).toHaveAttribute("data-loading", "");

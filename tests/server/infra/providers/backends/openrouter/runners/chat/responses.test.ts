@@ -176,9 +176,7 @@ describe("runResponsesTurn — wire shaping", () => {
       }),
       DEPS,
     );
-    const line = spy.mock.calls.find(
-      (c) => (c[0] as { event?: string }).event === "provider.sampling",
-    );
+    const line = spy.mock.calls.find((c) => (c[0] as { event?: string }).event === "provider.sampling");
     const fields = line?.[0] as Record<string, unknown>;
     expect(fields["requested"]).toEqual({ temperature: 0.4, verbosity: "medium" });
     expect(fields["applied"]).toEqual({ temperature: 0.4, verbosity: "medium" });
@@ -204,11 +202,7 @@ describe("runResponsesTurn — wire shaping", () => {
 
   test("Anthropic model → top-level cacheControl; non-Anthropic → a promptCacheKey instead", async () => {
     const anthropic = streamingClient(OK_EVENTS);
-    await runResponsesTurn(
-      anthropic.client,
-      makeRequest({ model: castId<ModelId>(ANTHROPIC_MODEL) }),
-      DEPS,
-    );
+    await runResponsesTurn(anthropic.client, makeRequest({ model: castId<ModelId>(ANTHROPIC_MODEL) }), DEPS);
     expect(anthropic.captured.body?.["cacheControl"]).toEqual({ type: "ephemeral" });
     expect(anthropic.captured.body?.["promptCacheKey"]).toBeUndefined();
 
@@ -240,11 +234,7 @@ describe("runResponsesTurn — wire shaping", () => {
     const { client } = streamingClient(OK_EVENTS);
     const onEvent = vi.fn();
     // CAPABILITY exposes no temperature range → resolve-chat drops it + warns.
-    const result = await runResponsesTurn(
-      client,
-      makeRequest({ params: { effort: "high", temperature: 0.5 }, onEvent }),
-      DEPS,
-    );
+    const result = await runResponsesTurn(client, makeRequest({ params: { effort: "high", temperature: 0.5 }, onEvent }), DEPS);
     const warnings = result.events.filter((e) => e.kind === "warning");
     expect(warnings).toEqual([
       {
@@ -279,9 +269,7 @@ describe("runResponsesTurn — stream reduce → ChatResult", () => {
   });
 
   test("a response.failed event becomes a thrown ProviderError", async () => {
-    const { client } = streamingClient([
-      { type: "response.failed", response: { error: { code: "server_error", message: "boom" } } },
-    ]);
+    const { client } = streamingClient([{ type: "response.failed", response: { error: { code: "server_error", message: "boom" } } }]);
     await expect(runResponsesTurn(client, makeRequest(), DEPS)).rejects.toMatchObject({
       name: "ProviderError",
     });

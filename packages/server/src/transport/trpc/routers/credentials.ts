@@ -44,24 +44,18 @@ export const credentialsRouter = t.router({
 
   setActive: authedProcedure
     .input(z.object({ credentialId: brandedId<UserCredentialId>() }))
-    .mutation(({ ctx, input }) =>
-      ctx.services.credentials.setActive({ principal: ctx.auth, credentialId: input.credentialId }),
-    ),
+    .mutation(({ ctx, input }) => ctx.services.credentials.setActive({ principal: ctx.auth, credentialId: input.credentialId })),
 
   remove: authedProcedure
     .input(z.object({ credentialId: brandedId<UserCredentialId>() }))
-    .mutation(({ ctx, input }) =>
-      ctx.services.credentials.remove({ principal: ctx.auth, credentialId: input.credentialId }),
-    ),
+    .mutation(({ ctx, input }) => ctx.services.credentials.remove({ principal: ctx.auth, credentialId: input.credentialId })),
 
-  testHealth: authedProcedure
-    .input(z.object({ credentialId: brandedId<UserCredentialId>() }))
-    .mutation(({ ctx, input }) =>
-      ctx.services.credentials.testHealth({
-        principal: ctx.auth,
-        credentialId: input.credentialId,
-      }),
-    ),
+  testHealth: authedProcedure.input(z.object({ credentialId: brandedId<UserCredentialId>() })).mutation(({ ctx, input }) =>
+    ctx.services.credentials.testHealth({
+      principal: ctx.auth,
+      credentialId: input.credentialId,
+    }),
+  ),
 
   markRevokedByUser: authedProcedure
     .input(z.object({ credentialId: brandedId<UserCredentialId>(), reason: z.string().optional() }))
@@ -73,14 +67,12 @@ export const credentialsRouter = t.router({
       }),
     ),
 
-  clearRevoked: authedProcedure
-    .input(z.object({ credentialId: brandedId<UserCredentialId>() }))
-    .mutation(({ ctx, input }) =>
-      ctx.services.credentials.clearRevoked({
-        principal: ctx.auth,
-        credentialId: input.credentialId,
-      }),
-    ),
+  clearRevoked: authedProcedure.input(z.object({ credentialId: brandedId<UserCredentialId>() })).mutation(({ ctx, input }) =>
+    ctx.services.credentials.clearRevoked({
+      principal: ctx.auth,
+      credentialId: input.credentialId,
+    }),
+  ),
 
   // SSRF-surfaced reads — `.mutation()` to keep the CSRF gate (Esoteric #9).
   fetchModels: authedProcedure
@@ -98,13 +90,11 @@ export const credentialsRouter = t.router({
       }),
     ),
 
-  inspectEndpoint: authedProcedure
-    .input(z.object({ credentialId: brandedId<UserCredentialId>(), model: z.string().optional() }))
-    .mutation(({ ctx, input }) =>
-      ctx.services.credentials.inspectEndpoint({
-        principal: ctx.auth,
-        credentialId: input.credentialId,
-        ...(input.model !== undefined ? { model: input.model } : {}),
-      }),
-    ),
+  inspectEndpoint: authedProcedure.input(z.object({ credentialId: brandedId<UserCredentialId>(), model: z.string().optional() })).mutation(({ ctx, input }) =>
+    ctx.services.credentials.inspectEndpoint({
+      principal: ctx.auth,
+      credentialId: input.credentialId,
+      ...(input.model !== undefined ? { model: input.model } : {}),
+    }),
+  ),
 });

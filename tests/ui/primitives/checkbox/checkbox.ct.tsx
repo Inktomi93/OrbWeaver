@@ -55,10 +55,7 @@ test("disabled blocks toggling and drops the interactive skin", async ({ mount, 
   await expect(control).toHaveAttribute("aria-checked", "false");
 });
 
-test("read-only: blocks toggling but keeps the checked token + shows the lock glyph", async ({
-  mount,
-  page,
-}) => {
+test("read-only: blocks toggling but keeps the checked token + shows the lock glyph", async ({ mount, page }) => {
   await mount(<Checkbox aria-label="Archived" checked={true} readOnly={true} />);
   const control = page.getByRole("checkbox");
   await expect(control).toHaveAttribute("data-readonly", "");
@@ -78,10 +75,7 @@ test("non-read-only checkbox never shows the lock glyph", async ({ mount, page }
   await expect(page.getByRole("checkbox").locator("svg.lucide-lock")).toBeHidden();
 });
 
-test("inside an invalid <Field>, data-invalid lands and the border swaps to destructive", async ({
-  mount,
-  page,
-}) => {
+test("inside an invalid <Field>, data-invalid lands and the border swaps to destructive", async ({ mount, page }) => {
   await mount(
     <Field error="Required" label="Terms">
       <Checkbox />
@@ -92,10 +86,7 @@ test("inside an invalid <Field>, data-invalid lands and the border swaps to dest
   await expect(control).toHaveCSS("border-top-color", TOKENS["color.destructive"].value);
 });
 
-test("inside a <Field>, the label associates and aria-describedby wires the description", async ({
-  mount,
-  page,
-}) => {
+test("inside a <Field>, the label associates and aria-describedby wires the description", async ({ mount, page }) => {
   await mount(
     <Field description="Required to continue" label="Terms">
       <Checkbox />

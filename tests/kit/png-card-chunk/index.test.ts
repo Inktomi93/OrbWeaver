@@ -109,9 +109,7 @@ test("a non-object card is written verbatim to both chunks (no stripping)", () =
 
 test("dual-chunk ORDER is chara (V2), then ccv3 (V3), then IEND", () => {
   const json = v3Json("X");
-  const labels = walk(writeCardChunk(makeBasePng(), json)).map((c) =>
-    c.type === "tEXt" ? c.keyword : c.type,
-  );
+  const labels = walk(writeCardChunk(makeBasePng(), json)).map((c) => (c.type === "tEXt" ? c.keyword : c.type));
   expect(labels.indexOf("chara")).toBeLessThan(labels.indexOf("ccv3"));
   expect(labels.indexOf("ccv3")).toBeLessThan(labels.indexOf("IEND"));
 });

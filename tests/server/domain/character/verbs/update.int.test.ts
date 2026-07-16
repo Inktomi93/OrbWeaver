@@ -2,12 +2,7 @@
 // character.updated; `null` CLEARS a nullable field while `undefined` (omitted) keeps it; an empty edit
 // neither writes nor emits; not-owned throws.
 
-import {
-  AssetNotFoundError,
-  CharacterNotFoundError,
-  CharacterOperationError,
-  createCharacterService,
-} from "@orb/server/domain/character";
+import { AssetNotFoundError, CharacterNotFoundError, CharacterOperationError, createCharacterService } from "@orb/server/domain/character";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
@@ -33,9 +28,7 @@ describe("update", () => {
 
     expect(updated.description).toBe("after");
     expect(updated.contentHash).not.toBe(created.contentHash);
-    expect(h.events).toEqual([
-      { type: "character.updated", characterId: created.id, contentChanged: true },
-    ]);
+    expect(h.events).toEqual([{ type: "character.updated", characterId: created.id, contentChanged: true }]);
   });
 
   test("null clears a nullable field; omitted fields are kept", async () => {
@@ -105,9 +98,7 @@ describe("update", () => {
     expect(updated.starred).toBe(true);
     expect(updated.contentHash).toBe(created.contentHash);
     // The emit stamps contentChanged=false → the embeddings indexer skips re-embedding a star toggle.
-    expect(h.events).toEqual([
-      { type: "character.updated", characterId: created.id, contentChanged: false },
-    ]);
+    expect(h.events).toEqual([{ type: "character.updated", characterId: created.id, contentChanged: false }]);
   });
 
   test("updating another user's character throws CharacterNotFoundError", async () => {
@@ -119,9 +110,7 @@ describe("update", () => {
       principal: principal(owner),
       input: { handle: "nyx", name: "Nyx", description: "d" },
     });
-    await expect(
-      svc.update({ principal: principal(other), characterId: created.id, input: { name: "Hax" } }),
-    ).rejects.toBeInstanceOf(CharacterNotFoundError);
+    await expect(svc.update({ principal: principal(other), characterId: created.id, input: { name: "Hax" } })).rejects.toBeInstanceOf(CharacterNotFoundError);
   });
 
   test("a FOREIGN avatar asset throws AssetNotFoundError (D21 cross-root belt — nothing written)", async () => {
@@ -234,9 +223,9 @@ describe("update", () => {
       input: { handle: "mara", name: "Mara", description: "d" },
     });
 
-    await expect(
-      svc.update({ principal: principal(owner), characterId: mara.id, input: { handle: "nyx" } }),
-    ).rejects.toMatchObject({ code: "handle_conflict" });
+    await expect(svc.update({ principal: principal(owner), characterId: mara.id, input: { handle: "nyx" } })).rejects.toMatchObject({
+      code: "handle_conflict",
+    });
     const reread = await svc.get({ principal: principal(owner), characterId: mara.id });
     expect(reread.handle).toBe("mara");
   });

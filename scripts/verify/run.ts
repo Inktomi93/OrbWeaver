@@ -151,11 +151,7 @@ type ParsedValues = {
 
 /** parseArgs, but any throw (unknown flag, missing value, dangling `=`) is turned into our misuse error —
  *  parseArgs already covers UNKNOWN flags and `--opt=` shapes; we ONLY add the flag-as-value guard below. */
-function parseStrict(
-  argv: readonly string[],
-):
-  | { readonly values: ParsedValues; readonly positionals: readonly string[] }
-  | { readonly error: string } {
+function parseStrict(argv: readonly string[]): { readonly values: ParsedValues; readonly positionals: readonly string[] } | { readonly error: string } {
   // Guard the `--valueOption --nextFlag` footgun BEFORE parseArgs consumes the flag as a value. A value
   // given inline (`--package=db`) is fine; the hazard is only the space-separated `--package --json` form.
   for (let i = 0; i < argv.length; i += 1) {
@@ -194,9 +190,7 @@ const WHOLE_SCOPE = { none: true } as const;
 type ScopeResult = SelectionRequest | typeof WHOLE_SCOPE | { readonly error: string };
 
 /** The --file branch: ≥1 positional path, all under the repo + existing (the check:file muscle memory). */
-function fileRequest(
-  positionals: readonly string[],
-): SelectionRequest | { readonly error: string } {
+function fileRequest(positionals: readonly string[]): SelectionRequest | { readonly error: string } {
   if (positionals.length === 0) {
     return { error: "--file needs at least one path" };
   }
@@ -234,9 +228,7 @@ function scopeRequest(v: ParsedValues, positionals: readonly string[]): ScopeRes
     return changedRequest(positionals);
   }
   if (v.package !== undefined) {
-    return v.package.length === 0
-      ? { error: "--package needs a name" }
-      : { kind: "package", name: v.package };
+    return v.package.length === 0 ? { error: "--package needs a name" } : { kind: "package", name: v.package };
   }
   const glob = v.scope ?? "";
   return glob.length === 0 ? { error: "--scope needs a folder glob" } : { kind: "scope", glob };
@@ -380,12 +372,7 @@ function failureExcerpt(output: string): string {
   return lines.slice(-EXCERPT_LINES).join("\n");
 }
 
-function runOneStage(
-  root: string,
-  stage: StageDef,
-  selection: Selection | undefined,
-  verbose: boolean,
-): StageResult {
+function runOneStage(root: string, stage: StageDef, selection: Selection | undefined, verbose: boolean): StageResult {
   const plan = planStage(stage, selection);
   if (plan.mode === "deferred" || plan.mode === "skipped") {
     return {
@@ -514,17 +501,13 @@ function printSummary(report: VerifyReport): void {
   if (report.ok) {
     process.stdout.write("[verify] VERDICT: PASS (exit 0) — all stages clean\n");
   } else {
-    process.stdout.write(
-      `[verify] VERDICT: FAIL (exit ${report.exitCode}) — ${failed.length} stage(s) failed:\n`,
-    );
+    process.stdout.write(`[verify] VERDICT: FAIL (exit ${report.exitCode}) — ${failed.length} stage(s) failed:\n`);
     for (const r of failed) {
       process.stdout.write(`${failReason(r)}\n`);
     }
   }
   // The pointer is printed on BOTH pass and fail — a tailing reader always lands on where to read next.
-  process.stdout.write(
-    "[verify] AUTHORITATIVE RESULT → reports/verify.json · per-stage logs → reports/verify/<stage>.log\n",
-  );
+  process.stdout.write("[verify] AUTHORITATIVE RESULT → reports/verify.json · per-stage logs → reports/verify/<stage>.log\n");
   process.stdout.write("════════════════════════════════════════════════════════════════════\n");
 }
 
@@ -539,9 +522,7 @@ function printList(): void {
   }
   process.stdout.write("\n  manual (never auto-run):\n");
   for (const s of manualStages()) {
-    process.stdout.write(
-      `    · ${s.name.padEnd(NAME_PAD)} — ${s.manualReason ?? "(no reason given)"}\n`,
-    );
+    process.stdout.write(`    · ${s.name.padEnd(NAME_PAD)} — ${s.manualReason ?? "(no reason given)"}\n`);
   }
 }
 

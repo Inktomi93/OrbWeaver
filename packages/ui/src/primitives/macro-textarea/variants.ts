@@ -18,8 +18,7 @@ export const macroTextareaVariants = tv({
     listbox: [
       "absolute top-full right-0 left-0 z-(--z-overlay) mt-field max-h-64 overflow-y-auto rounded-card border border-border bg-popover py-field shadow-overlay",
     ],
-    groupLabel:
-      "px-block py-field text-label leading-label font-semibold text-muted-foreground uppercase tracking-wide",
+    groupLabel: "px-block py-field text-label leading-label font-semibold text-muted-foreground uppercase tracking-wide",
     item: [
       "flex w-full min-h-touch-target cursor-pointer select-none items-start justify-between gap-block px-block py-field text-left text-body leading-body text-foreground outline-none",
       "hover:bg-muted data-highlighted:bg-accent data-highlighted:text-accent-foreground",

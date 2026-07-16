@@ -18,10 +18,8 @@ export const listRowVariants = tv({
     // `min-w-24` is the title-column floor: name/subtitle never collapse below a readable width, so
     // `actions` yields (shrinks + clips) instead.
     content: "flex min-w-24 flex-1 flex-col",
-    title:
-      "block truncate text-left text-body font-medium leading-body text-foreground group-data-[selected]:text-accent-foreground",
-    subtitle:
-      "block truncate text-left text-label leading-label text-muted-foreground group-data-[selected]:text-accent-foreground",
+    title: "block truncate text-left text-body font-medium leading-body text-foreground group-data-[selected]:text-accent-foreground",
+    subtitle: "block truncate text-left text-label leading-label text-muted-foreground group-data-[selected]:text-accent-foreground",
     // Hover/focus-within display-swap of the subtitle in the SAME line, so a wide metadata span never
     // contends with the trailing `actions` buttons for width.
     subtitleReveal:

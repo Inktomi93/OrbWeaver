@@ -10,16 +10,7 @@
 
 import type { BulkImportChatInput, BulkImportChatsResult } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
-import type {
-  AssetId,
-  CharacterId,
-  ChatId,
-  ChatParticipantId,
-  MessageAssetId,
-  MessageId,
-  MessageVariantId,
-  UserId,
-} from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, ChatParticipantId, MessageAssetId, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
 
 /** The DI bundle `createBulkImportChats` closes over (assembled at the entry composition root). All ids are
  *  minted by the INJECTED minters (determinism — no ambient `mintTypeId()` in the write). */
@@ -37,10 +28,7 @@ export interface ChatImportContext {
    *  `asset:<id>` body ref whose asset actually landed (the bundle's `assets` entity imports FIRST, so a
    *  bundled attachment resolves); a ref to a non-bundled asset degrades to plain body text (no dangling FK,
    *  matching the asset-refs "generic canon-scan" note). */
-  readonly filterExistingAssetIds: (
-    ownerId: UserId,
-    assetIds: readonly AssetId[],
-  ) => Promise<readonly AssetId[]>;
+  readonly filterExistingAssetIds: (ownerId: UserId, assetIds: readonly AssetId[]) => Promise<readonly AssetId[]>;
 }
 
 /** The chat-owned bulk-import op (`createBulkImportChats`) the entry root wires into `import`'s

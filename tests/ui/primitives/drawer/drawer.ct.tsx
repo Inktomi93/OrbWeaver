@@ -110,10 +110,7 @@ test("swipe area mounts as an edge hit-target", async ({ mount, page }) => {
   await expect(page.locator('[data-slot="drawer-popup"]')).toBeHidden();
 });
 
-test("provider + indent coordinate depth — indent gains data-active when a drawer opens", async ({
-  mount,
-  page,
-}) => {
+test("provider + indent coordinate depth — indent gains data-active when a drawer opens", async ({ mount, page }) => {
   await mount(
     <DrawerProvider>
       <DrawerIndentBackground />
@@ -136,15 +133,10 @@ test("provider + indent coordinate depth — indent gains data-active when a dra
   await expect(page.locator('[data-slot="drawer-popup"]')).toBeVisible();
   // The Provider tells the Indent (and IndentBackground) that a drawer within it is open.
   await expect(indent).toHaveAttribute("data-active");
-  await expect(page.locator('[data-slot="drawer-indent-background"]')).toHaveAttribute(
-    "data-active",
-  );
+  await expect(page.locator('[data-slot="drawer-indent-background"]')).toHaveAttribute("data-active");
 });
 
-test("virtual-keyboard provider mounts inside the drawer and it still opens", async ({
-  mount,
-  page,
-}) => {
+test("virtual-keyboard provider mounts inside the drawer and it still opens", async ({ mount, page }) => {
   // The provider consumes the Drawer root context + viewport (verified against the shipped source),
   // so it must sit INSIDE <Drawer> wrapping the popup — not around the whole Drawer.
   await mount(
@@ -167,10 +159,7 @@ test("virtual-keyboard provider mounts inside the drawer and it still opens", as
 // asserts the CONTRACT, not just trusts it: Tab never escapes the popup to the outside siblings, and
 // closing returns focus to the trigger that opened it (menu/select already model this Tab-containment
 // shape; dialog/alert-dialog/drawer previously leaned on "Base UI is free" with no assertion).
-test("focus is trapped inside the popup and returns to the trigger on close", async ({
-  mount,
-  page,
-}) => {
+test("focus is trapped inside the popup and returns to the trigger on close", async ({ mount, page }) => {
   await mount(
     <>
       <button type="button">Outside before</button>
@@ -215,10 +204,7 @@ test("focus is trapped inside the popup and returns to the trigger on close", as
 // createHandle: open the drawer imperatively (no trigger) with a payload via handle.openWithPayload;
 // the payload reaches the Root render-function children (harness in ./drawer-handle.fixtures). Base
 // UI drawer re-exports the dialog createHandle mechanism.
-test("opens imperatively via a detached handle and routes the payload to content", async ({
-  mount,
-  page,
-}) => {
+test("opens imperatively via a detached handle and routes the payload to content", async ({ mount, page }) => {
   await mount(<DrawerHandleHarness />);
   await expect(page.locator('[data-slot="drawer-popup"]')).toBeHidden();
   await page.getByRole("button", { name: "Open remotely" }).click();
@@ -231,10 +217,7 @@ test("opens imperatively via a detached handle and routes the payload to content
 // Dialog/AlertDialogTrigger both are): two DETACHED triggers, each carrying its own `payload`, wired
 // to ONE handle-driven drawer. Clicking either trigger routes THAT trigger's payload to content —
 // proves the generic actually threads a payload type through the trigger, not just the root.
-test("a detached DrawerTrigger carries its own payload to a handle-driven drawer", async ({
-  mount,
-  page,
-}) => {
+test("a detached DrawerTrigger carries its own payload to a handle-driven drawer", async ({ mount, page }) => {
   await mount(<DrawerTriggerPayloadHarness />);
   const popup = page.locator('[data-slot="drawer-popup"]');
   await expect(popup).toBeHidden();

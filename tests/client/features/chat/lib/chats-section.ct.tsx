@@ -68,11 +68,7 @@ function character(key: string): Record<string, unknown> {
 // `role` seats the viewer's OWN human row AND sets the server-resolved `viewerIsHost` to match — the
 // honest single-human case where the seat and the server field agree (the proxy-vs-server DISAGREEMENT
 // is exercised by its own dedicated test below).
-function chatDetail(
-  role: "host" | "member",
-  roomOverrides: Record<string, string> = {},
-  characters: readonly Record<string, unknown>[] = [],
-): unknown {
+function chatDetail(role: "host" | "member", roomOverrides: Record<string, string> = {}, characters: readonly Record<string, unknown>[] = []): unknown {
   return {
     participants: [human(role), ...characters],
     roomOverrides,
@@ -112,11 +108,7 @@ function emptyTrace(): Record<string, unknown> {
 
 // A PRESENT human seat with the fields the People tab renders (multi-human invites lane):
 // `leftSeq: null` is load-bearing — `resolveHumanParticipants` keeps only present seats.
-function humanSeat(
-  id: string,
-  displayName: string,
-  role: "host" | "member",
-): Record<string, unknown> {
+function humanSeat(id: string, displayName: string, role: "host" | "member"): Record<string, unknown> {
   return {
     id: `participant_${id}`,
     kind: "human",
@@ -132,10 +124,7 @@ function humanSeat(
 
 // A `ChatDetail` stub for the People-tab cases — carries the server-resolved `viewerIsHost` (the
 // invite-controls gate; NOT the first-seat proxy the older tabs still use).
-function multiHumanChat(
-  viewerIsHost: boolean,
-  humans: readonly Record<string, unknown>[],
-): unknown {
+function multiHumanChat(viewerIsHost: boolean, humans: readonly Record<string, unknown>[]): unknown {
   return {
     participants: [...humans, character("aria")],
     roomOverrides: {},
@@ -157,10 +146,7 @@ test("host sees all three tabs (Overrides · Preview · Injections)", async ({ m
   await expect(component.getByRole("tab", { name: "Injections" })).toBeVisible();
 });
 
-test("host in a SOLO (1-character) chat sees no Members tab (D16 size-gate)", async ({
-  mount,
-  page,
-}) => {
+test("host in a SOLO (1-character) chat sees no Members tab (D16 size-gate)", async ({ mount, page }) => {
   await routeTrpc(page, {
     "chat.getChat": () => chatDetail("host", {}, [character("aria")]),
     "chat.listChatInjections": () => [],
@@ -175,10 +161,7 @@ test("host in a SOLO (1-character) chat sees no Members tab (D16 size-gate)", as
   await expect(component.getByRole("tab", { name: "Members" })).toHaveCount(0);
 });
 
-test("host in a GROUP (2-character) chat sees the Members tab AND it is the default tab (§7)", async ({
-  mount,
-  page,
-}) => {
+test("host in a GROUP (2-character) chat sees the Members tab AND it is the default tab (§7)", async ({ mount, page }) => {
   await routeTrpc(page, {
     "chat.getChat": () => chatDetail("host", {}, [character("aria"), character("bryn")]),
     "chat.listChatInjections": () => [],
@@ -196,10 +179,7 @@ test("host in a GROUP (2-character) chat sees the Members tab AND it is the defa
   await expect(component.getByRole("button", { name: "Bryn — character" })).toBeVisible();
 });
 
-test("NOT multi-human capable → no People section anywhere (single-user renders no invite surface)", async ({
-  mount,
-  page,
-}) => {
+test("NOT multi-human capable → no People section anywhere (single-user renders no invite surface)", async ({ mount, page }) => {
   await routeTrpc(page, {
     "chat.getChat": () => multiHumanChat(true, [humanSeat("alex", "Alex", "host")]),
     "chat.listChatInjections": () => [],
@@ -214,16 +194,9 @@ test("NOT multi-human capable → no People section anywhere (single-user render
   await expect(component.getByRole("tab", { name: "Members" })).toHaveCount(0);
 });
 
-test("capable HOST: Members lists the humans (host chip) and the invite dialog mints by handle", async ({
-  mount,
-  page,
-}) => {
+test("capable HOST: Members lists the humans (host chip) and the invite dialog mints by handle", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
-    "chat.getChat": () =>
-      multiHumanChat(true, [
-        humanSeat("alex", "Alex", "host"),
-        humanSeat("buddy", "Buddy", "member"),
-      ]),
+    "chat.getChat": () => multiHumanChat(true, [humanSeat("alex", "Alex", "host"), humanSeat("buddy", "Buddy", "member")]),
     "chat.listChatInjections": () => [],
     "chat.previewAssembly": () => PREVIEW,
     "invites.listInvites": () => [],
@@ -251,9 +224,7 @@ test("capable HOST: Members lists the humans (host chip) and the invite dialog m
   await dialog.getByLabel("Handle").fill("frodo");
   await dialog.getByRole("button", { name: "Send invite" }).click();
 
-  await expect
-    .poll(() => trpc.count("invites.createInvite"), { intervals: [20, 50, 100] })
-    .toBeGreaterThanOrEqual(1);
+  await expect.poll(() => trpc.count("invites.createInvite"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
   const input = trpc.lastInput("invites.createInvite") as {
     chatId?: unknown;
     input?: { invitedHandle?: unknown };
@@ -262,16 +233,9 @@ test("capable HOST: Members lists the humans (host chip) and the invite dialog m
   expect(input.input?.invitedHandle).toBe("frodo");
 });
 
-test("capable MEMBER: Members shows who's here but NO invite/kick controls (host-only mirror)", async ({
-  mount,
-  page,
-}) => {
+test("capable MEMBER: Members shows who's here but NO invite/kick controls (host-only mirror)", async ({ mount, page }) => {
   await routeTrpc(page, {
-    "chat.getChat": () =>
-      multiHumanChat(false, [
-        humanSeat("alex", "Alex", "host"),
-        humanSeat("buddy", "Buddy", "member"),
-      ]),
+    "chat.getChat": () => multiHumanChat(false, [humanSeat("alex", "Alex", "host"), humanSeat("buddy", "Buddy", "member")]),
     "chat.listChatInjections": () => [],
   });
   await stubMultiHumanCapable(page, true);
@@ -305,10 +269,7 @@ test("member loses the Preview tab and the overrides are read-only", async ({ mo
   await expect(mainPrompt).toBeDisabled();
 });
 
-test("migrated tabs obey the server host field, NOT the first-seat proxy (member behind a host seat sees no host UI)", async ({
-  mount,
-  page,
-}) => {
+test("migrated tabs obey the server host field, NOT the first-seat proxy (member behind a host seat sees no host UI)", async ({ mount, page }) => {
   await routeTrpc(page, {
     // The FIRST human seat is a host, so the old `resolveViewerIsHost` first-seat proxy would return
     // TRUE and mis-grant host UI. The server-resolved `viewerIsHost:false` says THIS viewer is a
@@ -350,10 +311,7 @@ test("the Preview tab renders the assembled prompt + trace", async ({ mount, pag
   await expect(component.getByText("room override")).toBeVisible();
 });
 
-test("host adds an injection (setChatInjection fires with no id ⇒ create)", async ({
-  mount,
-  page,
-}) => {
+test("host adds an injection (setChatInjection fires with no id ⇒ create)", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "chat.getChat": () => chatDetail("host"),
     "chat.listChatInjections": () => [],
@@ -372,19 +330,14 @@ test("host adds an injection (setChatInjection fires with no id ⇒ create)", as
 
   await component.getByRole("button", { name: "Add injection" }).click();
 
-  await expect
-    .poll(() => trpc.count("chat.setChatInjection"), { intervals: [20, 50, 100] })
-    .toBeGreaterThanOrEqual(1);
+  await expect.poll(() => trpc.count("chat.setChatInjection"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
   const input = trpc.lastInput("chat.setChatInjection") as { id?: unknown; position?: unknown };
   // A create carries NO id (the server mints it) and the default position.
   expect(input.id).toBeUndefined();
   expect(input.position).toBe("in_chat");
 });
 
-test("host removes an injection (deleteChatInjection fires with the row id)", async ({
-  mount,
-  page,
-}) => {
+test("host removes an injection (deleteChatInjection fires with the row id)", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "chat.getChat": () => chatDetail("host"),
     "chat.listChatInjections": () => [
@@ -405,17 +358,12 @@ test("host removes an injection (deleteChatInjection fires with the row id)", as
 
   await component.getByRole("button", { name: "Remove injection" }).click();
 
-  await expect
-    .poll(() => trpc.count("chat.deleteChatInjection"), { intervals: [20, 50, 100] })
-    .toBeGreaterThanOrEqual(1);
+  await expect.poll(() => trpc.count("chat.deleteChatInjection"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
   const input = trpc.lastInput("chat.deleteChatInjection") as { injectionId?: unknown };
   expect(input.injectionId).toBe("chat_injection_a");
 });
 
-test("host editing an override autosaves (setRoomOverrides fires, empty ⇒ omitted)", async ({
-  mount,
-  page,
-}) => {
+test("host editing an override autosaves (setRoomOverrides fires, empty ⇒ omitted)", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "chat.getChat": () => chatDetail("host"),
     "chat.listChatInjections": () => [],
@@ -426,9 +374,7 @@ test("host editing an override autosaves (setRoomOverrides fires, empty ⇒ omit
   const component = await mount(<ChatContextPanelStory />);
   await component.getByLabel("Scenario").fill("A rainy dock.");
 
-  await expect
-    .poll(() => trpc.count("chat.setRoomOverrides"), { intervals: [20, 50, 100] })
-    .toBeGreaterThanOrEqual(1);
+  await expect.poll(() => trpc.count("chat.setRoomOverrides"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
   const input = trpc.lastInput("chat.setRoomOverrides") as {
     overrides?: { scenario?: string; mainPrompt?: string };
   };
@@ -437,10 +383,7 @@ test("host editing an override autosaves (setRoomOverrides fires, empty ⇒ omit
   expect(input.overrides).not.toHaveProperty("mainPrompt");
 });
 
-test("host sets the author's-note depth — the injection directive is saved (task #22)", async ({
-  mount,
-  page,
-}) => {
+test("host sets the author's-note depth — the injection directive is saved (task #22)", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "chat.getChat": () => chatDetail("host"),
     "chat.listChatInjections": () => [],
@@ -473,10 +416,7 @@ test("host sets the author's-note depth — the injection directive is saved (ta
   });
 });
 
-test("assistant role at depth 0 surfaces the author's-note prefill warning", async ({
-  mount,
-  page,
-}) => {
+test("assistant role at depth 0 surfaces the author's-note prefill warning", async ({ mount, page }) => {
   await routeTrpc(page, {
     "chat.getChat": () => chatDetail("host"),
     "chat.listChatInjections": () => [],
@@ -494,10 +434,7 @@ test("assistant role at depth 0 surfaces the author's-note prefill warning", asy
   await expect(component.getByText("response prefill", { exact: false })).toBeVisible();
 });
 
-test("an invalid author's-note combo does NOT hostage a sibling edit; fixing it resumes note saves", async ({
-  mount,
-  page,
-}) => {
+test("an invalid author's-note combo does NOT hostage a sibling edit; fixing it resumes note saves", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "chat.getChat": () => chatDetail("host"),
     "chat.listChatInjections": () => [],
@@ -559,10 +496,7 @@ test("an invalid author's-note combo does NOT hostage a sibling edit; fixing it 
 // place of main.tsx's empty registry, renders as a real tab AND `when`-gates, through the REAL
 // section → factory → mint → resolve path (not a bespoke test double of the seam).
 
-test("a fake context-tab contributor renders as a tab, in the real tab strip", async ({
-  mount,
-  page,
-}) => {
+test("a fake context-tab contributor renders as a tab, in the real tab strip", async ({ mount, page }) => {
   await routeTrpc(page, {
     "chat.getChat": () => chatDetail("host"),
     "chat.listChatInjections": () => [],
@@ -576,10 +510,7 @@ test("a fake context-tab contributor renders as a tab, in the real tab strip", a
   await expect(component.getByTestId("ct-fake-context-tab-body")).toBeVisible();
 });
 
-test("a fake context-tab contributor's `when:false` hides it from the real tab strip", async ({
-  mount,
-  page,
-}) => {
+test("a fake context-tab contributor's `when:false` hides it from the real tab strip", async ({ mount, page }) => {
   await routeTrpc(page, {
     "chat.getChat": () => chatDetail("host"),
     "chat.listChatInjections": () => [],

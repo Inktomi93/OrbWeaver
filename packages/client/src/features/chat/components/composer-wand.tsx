@@ -7,14 +7,7 @@ import { GUIDED_IMPERSONATE_PERSONS } from "@orb/contracts/preset";
 import type { ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Icon, WandSparkles } from "@orb/ui/icons";
-import {
-  Menu,
-  MenuItem,
-  MenuPopup,
-  MenuSubmenuRoot,
-  MenuSubmenuTrigger,
-  MenuTrigger,
-} from "@orb/ui/menu";
+import { Menu, MenuItem, MenuPopup, MenuSubmenuRoot, MenuSubmenuTrigger, MenuTrigger } from "@orb/ui/menu";
 import type { ReactElement } from "react";
 import { testId } from "#lib";
 import type { ChatHandle, DraftSeed } from "#state";
@@ -38,14 +31,7 @@ export interface ComposerWandProps {
   readonly busy?: boolean | undefined;
 }
 
-export function ComposerWand({
-  handle,
-  value,
-  onChange,
-  draftSeed,
-  onCommitted,
-  busy = false,
-}: ComposerWandProps): ReactElement {
+export function ComposerWand({ handle, value, onChange, draftSeed, onCommitted, busy = false }: ComposerWandProps): ReactElement {
   const chatId = isCommitted(handle) ? handle.id : null;
   const phase = useTurnPhase(chatId);
   const turnBusy = phase === "pending" || phase === "streaming" || phase === "stopping";
@@ -75,31 +61,18 @@ export function ComposerWand({
       <MenuPopup>
         {isCommitted(handle) ? (
           <>
-            <MenuItem onClick={(): void => fireAndClear(guided.fireResponse)}>
-              Guided response
-            </MenuItem>
-            <MenuItem
-              disabled={!canTargetTail}
-              onClick={(): void => fireAndClear(guided.fireSwipe)}
-            >
+            <MenuItem onClick={(): void => fireAndClear(guided.fireResponse)}>Guided response</MenuItem>
+            <MenuItem disabled={!canTargetTail} onClick={(): void => fireAndClear(guided.fireSwipe)}>
               Guided swipe
             </MenuItem>
-            <MenuItem
-              disabled={!canTargetTail}
-              onClick={(): void => fireAndClear(guided.fireContinue)}
-            >
+            <MenuItem disabled={!canTargetTail} onClick={(): void => fireAndClear(guided.fireContinue)}>
               Guided continue
             </MenuItem>
             <MenuSubmenuRoot>
               <MenuSubmenuTrigger>Impersonate</MenuSubmenuTrigger>
               <MenuPopup>
                 {GUIDED_IMPERSONATE_PERSONS.map((person) => (
-                  <MenuItem
-                    key={person}
-                    onClick={(): void =>
-                      fireAndClear((input) => guided.fireImpersonate(input, person))
-                    }
-                  >
+                  <MenuItem key={person} onClick={(): void => fireAndClear((input) => guided.fireImpersonate(input, person))}>
                     {PERSON_LABEL[person]}
                   </MenuItem>
                 ))}
@@ -107,9 +80,7 @@ export function ComposerWand({
             </MenuSubmenuRoot>
           </>
         ) : (
-          <MenuItem onClick={(): void => fireAndClear(guided.fireOpening)}>
-            Guide the opening
-          </MenuItem>
+          <MenuItem onClick={(): void => fireAndClear(guided.fireOpening)}>Guide the opening</MenuItem>
         )}
       </MenuPopup>
     </Menu>

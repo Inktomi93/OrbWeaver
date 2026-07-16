@@ -14,22 +14,9 @@ import type { ChatBusDeps } from "@orb/client/data/bus";
 import { applyChatBusEvent } from "@orb/client/data/bus";
 import type { TurnSlot } from "@orb/client/state";
 import { chatStream, subscribeTurnSlot } from "@orb/client/state";
-import type {
-  ChatBusEvent,
-  ChatDeltaEvent,
-  ChatWarningCode,
-  TurnIntent,
-} from "@orb/contracts/chat";
+import type { ChatBusEvent, ChatDeltaEvent, ChatWarningCode, TurnIntent } from "@orb/contracts/chat";
 import { CHAT_BUS_EVENT_TYPES } from "@orb/contracts/chat";
-import type {
-  CharacterId,
-  ChatId,
-  MessageId,
-  MessageVariantId,
-  PersonaId,
-  WorldBookId,
-  WorldEntryId,
-} from "@orb/kit/ids";
+import type { CharacterId, ChatId, MessageId, MessageVariantId, PersonaId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe, vi } from "vitest";
 import { expect, test } from "../../../support/fixtures";
@@ -45,9 +32,7 @@ interface Harness {
   readonly appendDelta: ReturnType<typeof vi.fn<typeof chatStream.appendDelta>>;
   readonly completeTurn: ReturnType<typeof vi.fn<typeof chatStream.completeTurn>>;
   readonly abortTurn: ReturnType<typeof vi.fn<typeof chatStream.abortTurn>>;
-  readonly notifyUserMessageCommitted: ReturnType<
-    typeof vi.fn<typeof chatStream.notifyUserMessageCommitted>
-  >;
+  readonly notifyUserMessageCommitted: ReturnType<typeof vi.fn<typeof chatStream.notifyUserMessageCommitted>>;
   /** Latest slot snapshot for `chatId`, updated via a real `subscribeTurnSlot`. */
   readonly slotOf: (chatId: ChatId) => TurnSlot | undefined;
   readonly unsub: () => void;
@@ -189,10 +174,7 @@ describe("applyChatBusEvent — stream-transient events", () => {
   test("reasoningStreamDone → no-op: no store mutation, no invalidate", () => {
     const chatId = freshChatId();
     const h = harness([chatId]);
-    applyChatBusEvent(
-      turnStartedEvent({ chatId, intent: "send", speakerCharacterId: null, targetMessageId: null }),
-      h.deps,
-    );
+    applyChatBusEvent(turnStartedEvent({ chatId, intent: "send", speakerCharacterId: null, targetMessageId: null }), h.deps);
 
     applyChatBusEvent({ type: "reasoningStreamDone", chatId }, h.deps);
 
@@ -243,10 +225,7 @@ describe("applyChatBusEvent — turn terminals", () => {
   test("turnCompleted → stream.completeTurn(chatId, messageId); slot reaches 'completed'; invalidate(event) called once", () => {
     const chatId = freshChatId();
     const h = harness([chatId]);
-    applyChatBusEvent(
-      turnStartedEvent({ chatId, intent: "send", speakerCharacterId: null, targetMessageId: null }),
-      h.deps,
-    );
+    applyChatBusEvent(turnStartedEvent({ chatId, intent: "send", speakerCharacterId: null, targetMessageId: null }), h.deps);
     const event: ChatBusEvent = {
       type: "turnCompleted",
       chatId,
@@ -265,10 +244,7 @@ describe("applyChatBusEvent — turn terminals", () => {
   test("turnAborted → stream.abortTurn(chatId, reason); slot reaches 'aborted'; invalidate(event) called once", () => {
     const chatId = freshChatId();
     const h = harness([chatId]);
-    applyChatBusEvent(
-      turnStartedEvent({ chatId, intent: "send", speakerCharacterId: null, targetMessageId: null }),
-      h.deps,
-    );
+    applyChatBusEvent(turnStartedEvent({ chatId, intent: "send", speakerCharacterId: null, targetMessageId: null }), h.deps);
     const event: ChatBusEvent = { type: "turnAborted", chatId, intent: "send", reason: "stale" };
 
     applyChatBusEvent(event, h.deps);
@@ -353,13 +329,7 @@ const STREAM_TRANSIENT = new Set([
 
 type CanonEventType = Exclude<
   ChatBusEvent["type"],
-  | "delta"
-  | "turnStarted"
-  | "reasoningStreamDone"
-  | "warning"
-  | "turnCompleted"
-  | "turnAborted"
-  | "expression"
+  "delta" | "turnStarted" | "reasoningStreamDone" | "warning" | "turnCompleted" | "turnAborted" | "expression"
 >;
 
 function assertNeverCanon(value: never): never {
@@ -395,7 +365,7 @@ function buildCanonEvent(type: CanonEventType, chatId: ChatId): ChatBusEvent {
       return { type, chatId, surface: "chat", entryId: WORLD_ENTRY_ID, scope: "always" };
     case "wiEntryDetached":
       return { type, chatId, surface: "chat", entryId: WORLD_ENTRY_ID };
-    // biome-ignore lint/security/noSecrets: a bus discriminator, not a secret (mirrors the reducer's own suppression).
+
     case "wiEntryScopeChanged":
       return { type, chatId, surface: "chat", entryId: WORLD_ENTRY_ID, scope: "keyword" };
     default:
@@ -403,9 +373,7 @@ function buildCanonEvent(type: CanonEventType, chatId: ChatId): ChatBusEvent {
   }
 }
 
-const CANON_TYPES = Object.keys(CHAT_BUS_EVENT_TYPES).filter(
-  (t): t is CanonEventType => !STREAM_TRANSIENT.has(t),
-);
+const CANON_TYPES = Object.keys(CHAT_BUS_EVENT_TYPES).filter((t): t is CanonEventType => !STREAM_TRANSIENT.has(t));
 
 describe("applyChatBusEvent — canon/lifecycle events (invalidate-only)", () => {
   // Sanity: the split above must actually partition the contract's full list (catches a typo in

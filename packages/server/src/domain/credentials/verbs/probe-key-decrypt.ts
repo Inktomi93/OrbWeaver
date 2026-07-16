@@ -5,9 +5,7 @@ import { aadFor } from "../persistence/aad";
 import { decryptSealed } from "../substrate/decrypt";
 
 /** Boot probe: decrypts the FIRST stored credential row to catch a rotated/lost CREDENTIALS_KEY vs EXISTING ciphertext. */
-export function createProbeKeyDecrypt(
-  ctx: CredentialContext,
-): CredentialsService["probeKeyDecrypt"] {
+export function createProbeKeyDecrypt(ctx: CredentialContext): CredentialsService["probeKeyDecrypt"] {
   return async (): Promise<boolean> => {
     if (!ctx.box.enabled) {
       return true;

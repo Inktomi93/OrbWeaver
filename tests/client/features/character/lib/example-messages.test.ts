@@ -12,16 +12,11 @@ const CHAR = "{{char}}";
 
 test("parseExampleBlocks: splits a multi-block string on <START>, trimming each block", () => {
   const raw = `<START>\n${USER}: hi\n${CHAR}: hello\n<START>\n${USER}: bye\n${CHAR}: farewell`;
-  expect(parseExampleBlocks(raw)).toEqual([
-    `${USER}: hi\n${CHAR}: hello`,
-    `${USER}: bye\n${CHAR}: farewell`,
-  ]);
+  expect(parseExampleBlocks(raw)).toEqual([`${USER}: hi\n${CHAR}: hello`, `${USER}: bye\n${CHAR}: farewell`]);
 });
 
 test("parseExampleBlocks: treats a marker-less string as one block", () => {
-  expect(parseExampleBlocks(`${USER}: hi\n${CHAR}: hello`)).toEqual([
-    `${USER}: hi\n${CHAR}: hello`,
-  ]);
+  expect(parseExampleBlocks(`${USER}: hi\n${CHAR}: hello`)).toEqual([`${USER}: hi\n${CHAR}: hello`]);
 });
 
 test("parseExampleBlocks: matches the delimiter case-insensitively", () => {

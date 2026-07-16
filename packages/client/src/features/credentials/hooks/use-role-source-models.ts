@@ -16,16 +16,11 @@ type SourceModelsResult = inferOutput<Trpc["connection"]["getModelsForSource"]>;
 const FACADE_STALE_TIME_MS = 60_000;
 
 /** Read the per-source model list + state for a role slot; an unset source skips the query. */
-export function useRoleSourceModels(
-  source: string,
-  role: RoutingRoleKey,
-): { readonly result: SourceModelsResult | undefined; readonly isLoading: boolean } {
+export function useRoleSourceModels(source: string, role: RoutingRoleKey): { readonly result: SourceModelsResult | undefined; readonly isLoading: boolean } {
   const trpc = useTRPC();
   const enabled = source !== "";
   const query = useQuery({
-    ...trpc.connection.getModelsForSource.queryOptions(
-      enabled ? { source: source as CredentialSource, role } : skipToken,
-    ),
+    ...trpc.connection.getModelsForSource.queryOptions(enabled ? { source: source as CredentialSource, role } : skipToken),
     staleTime: FACADE_STALE_TIME_MS,
   });
   return { result: query.data, isLoading: query.isLoading && enabled };

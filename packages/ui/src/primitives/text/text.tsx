@@ -27,23 +27,9 @@ export interface TextProps extends ComponentProps<"p">, VariantProps<typeof text
 }
 
 /** Token-driven typographic scale over the body intrinsics (p/span/div) — there is no Base UI text primitive. */
-export function Text({
-  className,
-  as = "p",
-  size,
-  weight,
-  tone,
-  transform,
-  ...rest
-}: TextProps): ReactElement {
+export function Text({ className, as = "p", size, weight, tone, transform, ...rest }: TextProps): ReactElement {
   const Component = TEXT_ELEMENTS[as];
-  return (
-    <Component
-      data-slot="text"
-      className={cn(textVariants({ size, weight, tone, transform }), className)}
-      {...rest}
-    />
-  );
+  return <Component data-slot="text" className={cn(textVariants({ size, weight, tone, transform }), className)} {...rest} />;
 }
 
 export interface HeadingProps extends ComponentProps<"h1">, VariantProps<typeof textVariants> {
@@ -52,24 +38,9 @@ export interface HeadingProps extends ComponentProps<"h1">, VariantProps<typeof 
 }
 
 /** Renders a real h1-h6 with the type-scale skin; `size` defaults from `level`, override for the rare hero. */
-export function Heading({
-  className,
-  level,
-  size,
-  weight = "semibold",
-  tone,
-  transform,
-  ...rest
-}: HeadingProps): ReactElement {
+export function Heading({ className, level, size, weight = "semibold", tone, transform, ...rest }: HeadingProps): ReactElement {
   const Component = HEADING_ELEMENTS[level];
   return (
-    <Component
-      data-slot="heading"
-      className={cn(
-        textVariants({ size: size ?? HEADING_SIZE_BY_LEVEL[level], weight, tone, transform }),
-        className,
-      )}
-      {...rest}
-    />
+    <Component data-slot="heading" className={cn(textVariants({ size: size ?? HEADING_SIZE_BY_LEVEL[level], weight, tone, transform }), className)} {...rest} />
   );
 }

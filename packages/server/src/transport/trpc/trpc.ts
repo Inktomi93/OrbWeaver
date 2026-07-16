@@ -60,10 +60,7 @@ const rateLimitMiddleware = t.middleware(async ({ ctx, path, type, next }) => {
   return next();
 });
 
-export const publicProcedure = t.procedure
-  .use(tracingMiddleware)
-  .use(domainErrorMiddleware)
-  .use(rateLimitMiddleware);
+export const publicProcedure = t.procedure.use(tracingMiddleware).use(domainErrorMiddleware).use(rateLimitMiddleware);
 
 // authedProcedure: a resolved identity is required (ctx.auth === null → 401), plus the CSRF mitigation —
 // a cookie-authenticated mutation must carry the custom header. The gate keys on Principal.via: a
@@ -74,11 +71,7 @@ const authMiddleware = t.middleware(({ ctx, type, path, next }) => {
     throw new TRPCError({ code: "UNAUTHORIZED", message: "Authentication required." });
   }
   if (type === "mutation" && ctx.auth.via === "cookie" && !ctx.csrfHeaderPresent) {
-    securityEvent(
-      "csrf_rejected",
-      { path, handle: ctx.auth.handle },
-      "security: cookie mutation missing CSRF header",
-    );
+    securityEvent("csrf_rejected", { path, handle: ctx.auth.handle }, "security: cookie mutation missing CSRF header");
     throw new TRPCError({ code: "FORBIDDEN", message: "Missing CSRF header." });
   }
   return next({ ctx: { auth: ctx.auth } });
@@ -91,11 +84,7 @@ export const authedProcedure = publicProcedure.use(authMiddleware);
 // the auth gate so even an anonymous probe sees the same shape tRPC gives an unmounted procedure.
 const multiHumanMiddleware = t.middleware(({ ctx, path, next }) => {
   if (!ctx.multiHumanCapable) {
-    securityEvent(
-      "multi_human_unavailable",
-      { path },
-      "security: multi-human surface refused (deployment not multi-human capable)",
-    );
+    securityEvent("multi_human_unavailable", { path }, "security: multi-human surface refused (deployment not multi-human capable)");
     throw new TRPCError({ code: "NOT_FOUND", message: `No procedure found on path "${path}"` });
   }
   return next();
@@ -113,11 +102,7 @@ const adminMiddleware = t.middleware(({ ctx, path, next }) => {
   try {
     requireAdmin(ctx.auth);
   } catch (denial) {
-    securityEvent(
-      "admin_required",
-      { path, handle: ctx.auth.handle, role: ctx.auth.role },
-      "security: non-admin attempted admin endpoint",
-    );
+    securityEvent("admin_required", { path, handle: ctx.auth.handle, role: ctx.auth.role }, "security: non-admin attempted admin endpoint");
     throw denial;
   }
   return next({ ctx: { auth: ctx.auth } });

@@ -32,10 +32,7 @@ test("keepMounted keeps the closed panel in the DOM", async ({ mount, page }) =>
     </Collapsible>,
   );
 
-  await expect(page.getByRole("button", { name: "Advanced" })).toHaveAttribute(
-    "aria-expanded",
-    "false",
-  );
+  await expect(page.getByRole("button", { name: "Advanced" })).toHaveAttribute("aria-expanded", "false");
   const panel = page.getByText("Persisted details");
   await expect(panel).toBeAttached();
   await expect(panel).toBeHidden();
@@ -52,10 +49,7 @@ test("without keepMounted the closed panel is removed from the DOM", async ({ mo
   await expect(page.getByText("Ephemeral details")).toHaveCount(0);
 });
 
-test("hiddenUntilFound renders the closed panel with hidden='until-found'", async ({
-  mount,
-  page,
-}) => {
+test("hiddenUntilFound renders the closed panel with hidden='until-found'", async ({ mount, page }) => {
   await mount(
     <Collapsible>
       <CollapsibleTrigger>Advanced</CollapsibleTrigger>

@@ -14,9 +14,7 @@ describe("find synthetic group character", () => {
     const svc = createCharacterService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: "owner" });
 
-    expect(
-      await svc.findSyntheticGroupCharacter({ ownerId: owner, chatId: castId<ChatId>("chat_1") }),
-    ).toBeNull();
+    expect(await svc.findSyntheticGroupCharacter({ ownerId: owner, chatId: castId<ChatId>("chat_1") })).toBeNull();
 
     const minted = await svc.mintSyntheticGroupCharacter({
       ownerId: owner,

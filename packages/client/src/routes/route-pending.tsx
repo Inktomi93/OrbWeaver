@@ -13,13 +13,7 @@ import { WeaveGlyph } from "#lib";
 /** Full-viewport brand loading mark — shown while a route's `beforeLoad` auth gate resolves. */
 export function RoutePending(): ReactElement {
   return (
-    <Stack
-      align="center"
-      justify="center"
-      className="min-h-dvh bg-background text-foreground"
-      role="status"
-      aria-label="Loading"
-    >
+    <Stack align="center" justify="center" className="min-h-dvh bg-background text-foreground" role="status" aria-label="Loading">
       <WeaveGlyph size={64} anim={true} />
     </Stack>
   );

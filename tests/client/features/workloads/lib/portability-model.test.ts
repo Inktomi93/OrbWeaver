@@ -93,7 +93,5 @@ test("summarizeCardImport surfaces a server `failed` entry as a FAILURE with its
 
 test("summaryCaption shows only the non-zero tallies", () => {
   expect(summaryCaption({ imported: 3, skipped: 0, failed: 0, outcomes: [] })).toBe("3 imported");
-  expect(summaryCaption({ imported: 3, skipped: 1, failed: 2, outcomes: [] })).toBe(
-    "3 imported · 1 skipped · 2 failed",
-  );
+  expect(summaryCaption({ imported: 3, skipped: 1, failed: 2, outcomes: [] })).toBe("3 imported · 1 skipped · 2 failed");
 });

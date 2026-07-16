@@ -46,16 +46,10 @@ export interface SavedEntityFormArgs<TValues extends object> {
 
 // Return type is inference-carried: the AppForm instance is a 20+-generic TanStack type that can't
 // be truthfully re-spelled by hand.
-export function createSavedEntityForm<TValues extends object>(
-  config: SavedEntityFormConfig<TValues>,
-) {
+export function createSavedEntityForm<TValues extends object>(config: SavedEntityFormConfig<TValues>) {
   // biome-ignore lint/nursery/noComponentHookFactories: the D54 §13.1 editor-factory pattern — factories run at MODULE scope (const useCharacterForm = createSavedEntityForm(...)), so the returned hook has a stable identity the Compiler can analyze; a per-render creation is what the rule fears and cannot happen here.
   // biome-ignore lint/nursery/useExplicitReturnType: inference-carried (see the factory header).
-  return function useSavedEntityForm({
-    entityId,
-    serverValues,
-    save: callTimeSave,
-  }: SavedEntityFormArgs<TValues>) {
+  return function useSavedEntityForm({ entityId, serverValues, save: callTimeSave }: SavedEntityFormArgs<TValues>) {
     const save = callTimeSave ?? config.save;
 
     // Draft read is a plain store read (not a subscription), promoted after mount, never merged into
@@ -75,9 +69,7 @@ export function createSavedEntityForm<TValues extends object>(
         // FLAG[#58] parse-on-submit not wired: `value` is the form's input type; a Standard-Schema
         // transform's output is not applied here.
         if (save === undefined) {
-          throw new Error(
-            "createSavedEntityForm: no save function supplied (neither config.save nor a call-time save)",
-          );
+          throw new Error("createSavedEntityForm: no save function supplied (neither config.save nor a call-time save)");
         }
         const saved = await save(value);
         savedRef.current = saved;
@@ -85,18 +77,13 @@ export function createSavedEntityForm<TValues extends object>(
         config.draft?.clearDraft(entityId);
       },
       onSubmitInvalid: (): void => {
-        // biome-ignore lint/security/noSecrets: false positive — an aria-attribute CSS selector, not a credential.
         document.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
       },
       ...(config.draft === undefined
         ? {}
         : {
             listeners: {
-              onChange: ({
-                formApi,
-              }: {
-                formApi: { state: { values: TValues; isDefaultValue: boolean } };
-              }): void => {
+              onChange: ({ formApi }: { formApi: { state: { values: TValues; isDefaultValue: boolean } } }): void => {
                 if (!formApi.state.isDefaultValue) {
                   config.draft?.setDraft(entityId, formApi.state.values);
                 }
@@ -125,7 +112,7 @@ export function createSavedEntityForm<TValues extends object>(
       draftSeededRef.current = true;
       if (draftSeed !== undefined && draftSeedRef.current !== undefined) {
         for (const [name, value] of Object.entries(draftSeedRef.current)) {
-          // biome-ignore lint/plugin/no-loose-id-cast: not a branded-id cast — `name`/`value` are a draft field key + its value erased to `never` at this loose public boundary (see promote()).
+          // @orb-gate-ignore no-loose-id-cast not a branded-id cast — `name`/`value` are a draft field key + its value erased to `never` at this loose public boundary (see promote()).
           form.setFieldValue(name as never, value as never);
         }
       }
@@ -158,7 +145,7 @@ export function createSavedEntityForm<TValues extends object>(
       form,
       mountKey: entityId,
       promote: (name: string, value: unknown): void => {
-        // biome-ignore lint/plugin/no-loose-id-cast: not a branded-id cast — `name`/`value` are an arbitrary DeepKeys path + its value, erased to `never` ONLY to satisfy setFieldValue's generic `TField extends DeepKeys<TFormData>` at this loose public boundary (see header).
+        // @orb-gate-ignore no-loose-id-cast not a branded-id cast — `name`/`value` are an arbitrary DeepKeys path + its value, erased to `never` ONLY to satisfy setFieldValue's generic `TField extends DeepKeys<TFormData>` at this loose public boundary (see header).
         form.setFieldValue(name as never, value as never, {
           dontUpdateMeta: true,
         } satisfies UpdateMetaOptions);

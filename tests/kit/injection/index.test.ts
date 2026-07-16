@@ -1,8 +1,4 @@
-import {
-  injectionDirectiveSchema,
-  MAX_INJECTION_DEPTH,
-  resolveInjectionPlacement,
-} from "@orb/kit/injection";
+import { injectionDirectiveSchema, MAX_INJECTION_DEPTH, resolveInjectionPlacement } from "@orb/kit/injection";
 import { expect, test } from "../../support/fixtures";
 
 // ── injectionDirectiveSchema (depth REQUIRED, role optional) — the opt-in-or-null shape ──
@@ -16,9 +12,7 @@ test("injectionDirectiveSchema requires depth and rejects an out-of-range / non-
   expect(injectionDirectiveSchema.safeParse({ role: "user" }).success).toBe(false);
   expect(injectionDirectiveSchema.safeParse({ depth: -1 }).success).toBe(false);
   expect(injectionDirectiveSchema.safeParse({ depth: 1.5 }).success).toBe(false);
-  expect(injectionDirectiveSchema.safeParse({ depth: MAX_INJECTION_DEPTH + 1 }).success).toBe(
-    false,
-  );
+  expect(injectionDirectiveSchema.safeParse({ depth: MAX_INJECTION_DEPTH + 1 }).success).toBe(false);
 });
 
 test("injectionDirectiveSchema rejects an unknown role", () => {

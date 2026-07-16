@@ -12,11 +12,7 @@ export const autocompleteVariants = tv({
       FOCUS_RING_WITHIN,
       "has-data-disabled:pointer-events-none has-data-disabled:opacity-50",
     ],
-    input: [
-      "h-full w-full min-w-0 flex-1 bg-transparent px-block text-body leading-body text-foreground",
-      "placeholder:text-muted-foreground",
-      "outline-none",
-    ],
+    input: ["h-full w-full min-w-0 flex-1 bg-transparent px-block text-body leading-body text-foreground", "placeholder:text-muted-foreground", "outline-none"],
     clear: [
       "mr-field flex size-control-sm shrink-0 items-center justify-center rounded-control text-muted-foreground outline-none",
       "hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring",

@@ -31,8 +31,7 @@ export function deriveRunner(api: ChatApi, source: CredentialSource): BackendKey
           throw new ProviderError({
             kind: "invalid",
             retryable: false,
-            message:
-              'the "local-light" tier serves only embed/rerank/imageEmbed, never a chat turn',
+            message: 'the "local-light" tier serves only embed/rerank/imageEmbed, never a chat turn',
           });
         case "custom_openai":
           throw new ProviderError({
@@ -55,8 +54,7 @@ export function deriveRunner(api: ChatApi, source: CredentialSource): BackendKey
           throw new ProviderError({
             kind: "invalid",
             retryable: false,
-            message:
-              'the "local-light" tier serves only embed/rerank/imageEmbed, never a chat turn',
+            message: 'the "local-light" tier serves only embed/rerank/imageEmbed, never a chat turn',
           });
         case "max-pro-sub":
           throw new ProviderError({
@@ -93,8 +91,7 @@ export function deriveRunner(api: ChatApi, source: CredentialSource): BackendKey
           throw new ProviderError({
             kind: "invalid",
             retryable: false,
-            message:
-              'the "max-pro-sub" credential can never drive the direct Anthropic-Messages api (the sub stays on the agent-sdk CLI)',
+            message: 'the "max-pro-sub" credential can never drive the direct Anthropic-Messages api (the sub stays on the agent-sdk CLI)',
           });
         case "vllm":
         case "local-light":
@@ -133,11 +130,7 @@ export function backendForSource(source: CredentialSource): BackendKey {
 
 /** Look up a WIRED backend, or fail-closed: a role resolving to an unwired key is an operator error
  *  (a missing composition-root wire), never a silent default. */
-export function requireBackend(
-  registry: BackendRegistry,
-  key: BackendKey,
-  role: string,
-): ProviderBackend {
+export function requireBackend(registry: BackendRegistry, key: BackendKey, role: string): ProviderBackend {
   const backend = registry.get(key);
   if (backend === undefined) {
     throw new ProviderError({

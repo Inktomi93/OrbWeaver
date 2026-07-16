@@ -18,8 +18,7 @@ export const selectVariants = tv({
       OVERLAY_MOTION.anchoredPopup,
     ],
     group: "flex flex-col",
-    groupLabel:
-      "px-block py-field text-label font-medium leading-label text-muted-foreground select-none",
+    groupLabel: "px-block py-field text-label font-medium leading-label text-muted-foreground select-none",
     item: [
       "flex min-h-touch-target cursor-pointer select-none items-center justify-between gap-row rounded-control px-block py-field text-body leading-body text-foreground outline-none",
       "data-highlighted:bg-accent data-highlighted:text-accent-foreground",
@@ -29,7 +28,6 @@ export const selectVariants = tv({
     arrow: "size-row rotate-45 border border-border bg-popover",
     separator: "-mx-field my-field h-px bg-border",
     backdrop: `fixed inset-0 z-(--z-popover) bg-scrim ${OVERLAY_MOTION.backdropFade("fast")}`,
-    scrollArrow:
-      "sticky z-(--z-raised) flex h-section w-full cursor-default items-center justify-center bg-popover text-muted-foreground",
+    scrollArrow: "sticky z-(--z-raised) flex h-section w-full cursor-default items-center justify-center bg-popover text-muted-foreground",
   },
 });

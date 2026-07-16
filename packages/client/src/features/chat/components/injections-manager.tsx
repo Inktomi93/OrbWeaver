@@ -18,11 +18,7 @@ import { useInvalidation, useTRPC } from "#data";
 import { MESSAGE_ROLE_ITEMS } from "#lib";
 import { useDeleteChatInjection, useSetChatInjection } from "../hooks/use-context-panel-mutations";
 import type { InjectionFormValues } from "../hooks/use-injection-row-form";
-import {
-  fromInjectionForm,
-  toInjectionForm,
-  useInjectionRowForm,
-} from "../hooks/use-injection-row-form";
+import { fromInjectionForm, toInjectionForm, useInjectionRowForm } from "../hooks/use-injection-row-form";
 
 type InjectionFields = Pick<ChatInjection, "position" | "role" | "depth" | "content">;
 
@@ -63,19 +59,11 @@ export interface InjectionsListProps {
   readonly onDelete: (key: string) => void;
 }
 
-export function InjectionsList({
-  rows,
-  isHost,
-  onAdd,
-  onSave,
-  onDelete,
-}: InjectionsListProps): ReactElement {
+export function InjectionsList({ rows, isHost, onAdd, onSave, onDelete }: InjectionsListProps): ReactElement {
   return (
     <Stack gap="section">
       <Text size="label" tone="muted">
-        {isHost
-          ? "Ad-hoc context spliced into this chat's prompt. Changes save automatically."
-          : "Ad-hoc context the host has added to this chat's prompt."}
+        {isHost ? "Ad-hoc context spliced into this chat's prompt. Changes save automatically." : "Ad-hoc context the host has added to this chat's prompt."}
       </Text>
 
       {rows.length === 0 ? (
@@ -83,13 +71,7 @@ export function InjectionsList({
       ) : (
         <Stack gap="section">
           {rows.map((row) => (
-            <InjectionRow
-              key={row.key}
-              row={row}
-              isHost={isHost}
-              onSave={onSave}
-              onDelete={onDelete}
-            />
+            <InjectionRow key={row.key} row={row} isHost={isHost} onSave={onSave} onDelete={onDelete} />
           ))}
         </Stack>
       )}
@@ -127,28 +109,17 @@ function InjectionRow({ row, isHost, onSave, onDelete }: InjectionRowProps): Rea
             Injection
           </Text>
           {isHost ? (
-            <Button
-              intent="ghost"
-              size="sm"
-              aria-label="Remove injection"
-              onClick={(): void => onDelete(row.key)}
-            >
+            <Button intent="ghost" size="sm" aria-label="Remove injection" onClick={(): void => onDelete(row.key)}>
               Remove
             </Button>
           ) : null}
         </Row>
 
         <form.AppField name="position">
-          {(field): ReactElement => (
-            <field.SelectField label="Position" items={POSITION_ITEMS} disabled={!isHost} />
-          )}
+          {(field): ReactElement => <field.SelectField label="Position" items={POSITION_ITEMS} disabled={!isHost} />}
         </form.AppField>
 
-        <form.AppField name="role">
-          {(field): ReactElement => (
-            <field.SelectField label="Role" items={MESSAGE_ROLE_ITEMS} disabled={!isHost} />
-          )}
-        </form.AppField>
+        <form.AppField name="role">{(field): ReactElement => <field.SelectField label="Role" items={MESSAGE_ROLE_ITEMS} disabled={!isHost} />}</form.AppField>
 
         <form.Subscribe selector={(state): string => state.values.position}>
           {(position): ReactElement | null =>
@@ -168,11 +139,7 @@ function InjectionRow({ row, isHost, onSave, onDelete }: InjectionRowProps): Rea
           }
         </form.Subscribe>
 
-        <form.AppField name="content">
-          {(field): ReactElement => (
-            <field.TextareaField label="Content" disabled={!isHost} rows={2} />
-          )}
-        </form.AppField>
+        <form.AppField name="content">{(field): ReactElement => <field.TextareaField label="Content" disabled={!isHost} rows={2} />}</form.AppField>
       </Stack>
     </Section>
   );
@@ -189,9 +156,7 @@ export function InjectionsManager({ chatId, isHost }: InjectionsManagerProps): R
   const addInjection = useSetChatInjection({ trpc, invalidation });
   const setInjection = useSetChatInjection({ trpc, invalidation });
   const deleteInjection = useDeleteChatInjection({ trpc, invalidation });
-  const { data: injections } = useSuspenseQuery(
-    trpc.chat.listChatInjections.queryOptions({ chatId }),
-  );
+  const { data: injections } = useSuspenseQuery(trpc.chat.listChatInjections.queryOptions({ chatId }));
   const rows: InjectionListRow[] = injections.map((injection) => ({
     key: injection.id,
     value: injection,

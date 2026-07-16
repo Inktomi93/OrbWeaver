@@ -19,17 +19,11 @@ function eraseDefinition<A>(def: ToolDefinition<A>): RegisteredTool {
     capability: def.capability,
     source: def.source,
     parameters: projectArgSchema(def.argsSchema),
-    run: async (
-      parsedJson: unknown,
-      exec: ToolExecutionContext,
-      gate: () => void,
-    ): Promise<RunOutcome> => {
+    run: async (parsedJson: unknown, exec: ToolExecutionContext, gate: () => void): Promise<RunOutcome> => {
       const parsed = def.argsSchema.safeParse(parsedJson);
       if (!parsed.success) {
         // The zod issue summary IS the correction surface — the model reads it against its own schema.
-        const issues = parsed.error.issues
-          .map((issue) => `${issue.path.join(".")}: ${issue.message}`)
-          .join("; ");
+        const issues = parsed.error.issues.map((issue) => `${issue.path.join(".")}: ${issue.message}`).join("; ");
         return { kind: "invalid", issues };
       }
       try {
@@ -43,9 +37,7 @@ function eraseDefinition<A>(def: ToolDefinition<A>): RegisteredTool {
       let outcome: RunOutcome;
       try {
         const result = await def.handler(parsed.data, exec);
-        outcome = result.ok
-          ? { kind: "result", ok: true, value: JSON.stringify(result.value) }
-          : { kind: "result", ok: false, value: result.error };
+        outcome = result.ok ? { kind: "result", ok: true, value: JSON.stringify(result.value) } : { kind: "result", ok: false, value: result.error };
       } catch (err) {
         outcome = { kind: "threw", message: errorMessage(err) };
       }
@@ -57,9 +49,7 @@ function eraseDefinition<A>(def: ToolDefinition<A>): RegisteredTool {
 export function createRegister(registry: ToolRegistry): <A>(def: ToolDefinition<A>) => void {
   return <A>(def: ToolDefinition<A>): void => {
     if (!TOOL_NAME_RE.test(def.name)) {
-      throw new ToolNameCollisionError(
-        `${def.name} (invalid — must match OpenAI∩MCP name charset ${TOOL_NAME_RE.source})`,
-      );
+      throw new ToolNameCollisionError(`${def.name} (invalid — must match OpenAI∩MCP name charset ${TOOL_NAME_RE.source})`);
     }
     if (registry.has(def.name)) {
       throw new ToolNameCollisionError(def.name);

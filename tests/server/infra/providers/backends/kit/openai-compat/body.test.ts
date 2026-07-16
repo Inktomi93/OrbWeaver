@@ -18,9 +18,12 @@ import { expect, test } from "../../../../../../support/fixtures";
 
 describe("buildOpenAiSamplingFields", () => {
   test("emits only the set knobs, in snake_case wire form", () => {
-    expect(
-      buildOpenAiSamplingFields({ temperature: 0.7, topP: 0.9, maxTokens: 256, seed: 42 }),
-    ).toEqual({ temperature: 0.7, top_p: 0.9, max_tokens: 256, seed: 42 });
+    expect(buildOpenAiSamplingFields({ temperature: 0.7, topP: 0.9, maxTokens: 256, seed: 42 })).toEqual({
+      temperature: 0.7,
+      top_p: 0.9,
+      max_tokens: 256,
+      seed: 42,
+    });
   });
 
   test("an empty input yields an empty body (no null/0 defaults)", () => {
@@ -76,18 +79,11 @@ describe("redactHeaders", () => {
 
 describe("applyIncludeExclude", () => {
   test("merges includeBody over the base (user wins)", () => {
-    expect(
-      applyIncludeExclude({ model: "m", temperature: 1 }, { temperature: 0.5, top_p: 0.8 }, null),
-    ).toEqual({ model: "m", temperature: 0.5, top_p: 0.8 });
+    expect(applyIncludeExclude({ model: "m", temperature: 1 }, { temperature: 0.5, top_p: 0.8 }, null)).toEqual({ model: "m", temperature: 0.5, top_p: 0.8 });
   });
 
   test("excludeBody strips keys LAST — even one includeBody just added", () => {
-    expect(
-      applyIncludeExclude({ model: "m", reasoning: { effort: "high" } }, { extra: 1 }, [
-        "reasoning",
-        "extra",
-      ]),
-    ).toEqual({ model: "m" });
+    expect(applyIncludeExclude({ model: "m", reasoning: { effort: "high" } }, { extra: 1 }, ["reasoning", "extra"])).toEqual({ model: "m" });
   });
 
   test("no transforms → the base, merged", () => {

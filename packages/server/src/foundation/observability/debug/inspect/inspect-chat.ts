@@ -5,23 +5,8 @@
 import type { ParticipantKind } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
-import {
-  characters,
-  chatEvents,
-  chatParticipants,
-  chats,
-  messages,
-  messageVariants,
-  sessionEntries,
-} from "@orb/db";
-import type {
-  CharacterId,
-  ChatId,
-  MessageId,
-  MessageVariantId,
-  PersonaId,
-  UserId,
-} from "@orb/kit/ids";
+import { characters, chatEvents, chatParticipants, chats, messages, messageVariants, sessionEntries } from "@orb/db";
+import type { CharacterId, ChatId, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
 import { asc, count, desc, eq } from "drizzle-orm";
 
 const RECENT_EVENT_LIMIT = 50;
@@ -110,18 +95,10 @@ export async function inspectChatState(db: Db, chatId: ChatId): Promise<ChatInsp
     provider: v?.provider ?? null,
   }));
 
-  const frameRows = await db
-    .select({ n: count() })
-    .from(sessionEntries)
-    .where(eq(sessionEntries.chatId, chatId));
+  const frameRows = await db.select({ n: count() }).from(sessionEntries).where(eq(sessionEntries.chatId, chatId));
   const sessionFrameCount = Number(frameRows[0]?.n ?? 0);
 
-  const recentEvents = await db
-    .select()
-    .from(chatEvents)
-    .where(eq(chatEvents.chatId, chatId))
-    .orderBy(desc(chatEvents.seq))
-    .limit(RECENT_EVENT_LIMIT);
+  const recentEvents = await db.select().from(chatEvents).where(eq(chatEvents.chatId, chatId)).orderBy(desc(chatEvents.seq)).limit(RECENT_EVENT_LIMIT);
 
   return {
     found: true,

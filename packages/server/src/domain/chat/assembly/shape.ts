@@ -84,12 +84,7 @@ const CONTINUATION_NUDGE = "[Continue the conversation.]";
  *  user-role line attributed inline (`Name: …`), keeping only the target's own past lines as `assistant`. */
 function scopeHistoryToTarget(canon: readonly CanonRow[], targetId: CharacterId): CanonRow[] {
   return canon.map((m): CanonRow => {
-    if (
-      m.role === "assistant" &&
-      m.characterId !== null &&
-      m.characterId !== undefined &&
-      m.characterId !== targetId
-    ) {
+    if (m.role === "assistant" && m.characterId !== null && m.characterId !== undefined && m.characterId !== targetId) {
       const name = m.authorName ?? "";
       return {
         role: "user",
@@ -166,10 +161,7 @@ export function shape(input: ShapeInput): ShapeOutput {
 
   // The volatile tail is always the last element: the verb-inserted user row (send), or the appended
   // synthetic user turn (regen/draft/continue).
-  const withTail: CanonRow[] =
-    input.appendUserTurn !== null
-      ? [...scopedCanon, { role: "user", content: input.appendUserTurn }]
-      : [...scopedCanon];
+  const withTail: CanonRow[] = input.appendUserTurn !== null ? [...scopedCanon, { role: "user", content: input.appendUserTurn }] : [...scopedCanon];
 
   // Effective role-handling strategy: the stricter of the model floor + the user knob, clamped here
   // (where the merge physically happens). `none` skips merging; every other strategy squashes.
@@ -179,14 +171,11 @@ export function shape(input: ShapeInput): ShapeOutput {
   // Rows [0, prefixBoundaryLen) in withTail are the committed cached prefix. Undefined when there's no
   // stable prefix, or a depth≥2 injection already mutates it.
   const stableCount = withTail.length - 1;
-  const prefixDisrupted = (input.injections ?? []).some(
-    (i) => i.position === "in_chat" && i.depth >= 2,
-  );
+  const prefixDisrupted = (input.injections ?? []).some((i) => i.position === "in_chat" && i.depth >= 2);
   const prefixBoundaryLen = stableCount >= 1 && !prefixDisrupted ? stableCount : undefined;
 
-  const runSquash = <T extends { role: WireRole; content: string; name?: string }>(
-    rows: readonly T[],
-  ): T[] => (merges ? squashSameRole(rows) : rows.filter((r) => r.content.trim().length > 0));
+  const runSquash = <T extends { role: WireRole; content: string; name?: string }>(rows: readonly T[]): T[] =>
+    merges ? squashSameRole(rows) : rows.filter((r) => r.content.trim().length > 0);
 
   // 2. splice in_chat by depth → 3. name-stamp → 4. squash same-role.
   // Name-stamp runs before the final squash so adjacent distinct-character rows keep each speaker's
@@ -197,9 +186,7 @@ export function shape(input: ShapeInput): ShapeOutput {
     prefixBoundaryLen,
   });
   const squashed = runSquash(injected);
-  const named = runSquash(
-    applyNamesBehavior(injected, input.namesBehavior, input.speakers, multiCharacter),
-  );
+  const named = runSquash(applyNamesBehavior(injected, input.namesBehavior, input.speakers, multiCharacter));
 
   // 5. group/continuation nudge: a multi-speaker round's nudge rides as a trailing user message; a
   // force/auto/empty-opening round that would otherwise end on assistant gets CONTINUATION_NUDGE. Either
@@ -208,8 +195,7 @@ export function shape(input: ShapeInput): ShapeOutput {
   const endsOnAssistant = named.length === 0 || named.at(-1)?.role === "assistant";
   const needsContinuation = endsOnAssistant && input.assistantPrefill !== true;
   const tailUser = nudge ?? (needsContinuation ? CONTINUATION_NUDGE : null);
-  const history =
-    tailUser !== null ? runSquash([...named, { role: "user", content: tailUser }]) : named;
+  const history = tailUser !== null ? runSquash([...named, { role: "user", content: tailUser }]) : named;
 
   // Computed on the nudge-free stages (an appended tail is a second volatile tail → abort).
   const cacheBreakpointFromEnd =
@@ -217,10 +203,7 @@ export function shape(input: ShapeInput): ShapeOutput {
       ? undefined
       : computeHistoryBreakpoint(withTail, injected, named, {
           injections: input.injections,
-          scopedFold:
-            input.output === "per-speaker" &&
-            input.cardScope === "scoped" &&
-            input.scopedTargetId !== null,
+          scopedFold: input.output === "per-speaker" && input.cardScope === "scoped" && input.scopedTargetId !== null,
           merges,
         });
 

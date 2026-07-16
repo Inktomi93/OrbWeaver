@@ -24,12 +24,5 @@ export interface IconProps {
 
 /** Sizing wrapper for the curated lucide set — decorative by default. */
 export function Icon({ icon: Glyph, size = "md", label, className }: IconProps): ReactElement {
-  return (
-    <Glyph
-      size={ICON_SIZES[size]}
-      aria-hidden={label === undefined}
-      aria-label={label}
-      className={className}
-    />
-  );
+  return <Glyph size={ICON_SIZES[size]} aria-hidden={label === undefined} aria-label={label} className={className} />;
 }

@@ -49,8 +49,7 @@ function makeCtx(principal: Principal | null, req: MockReq): MockCtx {
         status,
         headers: { "content-type": "application/json" },
       }),
-    body: (data: string | Uint8Array | null, status = 200): Response =>
-      new Response(data, { status }),
+    body: (data: string | Uint8Array | null, status = 200): Response => new Response(data, { status }),
     req: {
       param: (name: string): string => req.params?.[name] ?? "",
       query: (name: string): string | undefined => req.query?.[name],
@@ -81,9 +80,7 @@ function handlerFor(deps: ExportDeps, route: string): Handler {
 const CARD = { bytes: new Uint8Array([1, 2, 3]), filename: "aria.png" };
 const TRANSCRIPT = { text: '{"line":1}\n', filename: "chat.jsonl" };
 
-function stubExport(
-  overrides: Partial<Pick<ExportService, "exportCharacter" | "exportChat">>,
-): ExportDeps {
+function stubExport(overrides: Partial<Pick<ExportService, "exportCharacter" | "exportChat">>): ExportDeps {
   return {
     export: {
       exportCharacter: (): Promise<null> => Promise.resolve(null),
@@ -99,28 +96,19 @@ function stubExport(
 describe("registerExport — character route", () => {
   test("anonymous caller → 401, no body", async () => {
     const deps = stubExport({});
-    const res = await handlerFor(
-      deps,
-      CHARACTER_ROUTE,
-    )(makeCtx(null, { params: { characterId: CHARACTER_ID } }));
+    const res = await handlerFor(deps, CHARACTER_ROUTE)(makeCtx(null, { params: { characterId: CHARACTER_ID } }));
     expect(res.status).toBe(401);
   });
 
   test("not-owned / missing character → 404", async () => {
     const deps = stubExport({ exportCharacter: (): Promise<null> => Promise.resolve(null) });
-    const res = await handlerFor(
-      deps,
-      CHARACTER_ROUTE,
-    )(makeCtx(OWNER, { params: { characterId: CHARACTER_ID } }));
+    const res = await handlerFor(deps, CHARACTER_ROUTE)(makeCtx(OWNER, { params: { characterId: CHARACTER_ID } }));
     expect(res.status).toBe(404);
   });
 
   test("owned character → 200 image/png + filename disposition + bytes", async () => {
     const deps = stubExport({ exportCharacter: (): Promise<typeof CARD> => Promise.resolve(CARD) });
-    const res = await handlerFor(
-      deps,
-      CHARACTER_ROUTE,
-    )(makeCtx(OWNER, { params: { characterId: CHARACTER_ID } }));
+    const res = await handlerFor(deps, CHARACTER_ROUTE)(makeCtx(OWNER, { params: { characterId: CHARACTER_ID } }));
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe("image/png");
     expect(res.headers.get("content-disposition")).toBe('attachment; filename="aria.png"');
@@ -161,10 +149,7 @@ describe("registerExport — chat route", () => {
         return Promise.resolve(txt);
       },
     });
-    const res = await handlerFor(
-      deps,
-      CHAT_ROUTE,
-    )(makeCtx(OWNER, { params: { chatId: CHAT_ID }, query: { format: "txt" } }));
+    const res = await handlerFor(deps, CHAT_ROUTE)(makeCtx(OWNER, { params: { chatId: CHAT_ID }, query: { format: "txt" } }));
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe("text/plain; charset=utf-8");
     expect(receivedFormat).toBe("txt");
@@ -178,10 +163,7 @@ describe("registerExport — chat route", () => {
         return Promise.resolve(null);
       },
     });
-    const res = await handlerFor(
-      deps,
-      CHAT_ROUTE,
-    )(makeCtx(OWNER, { params: { chatId: CHAT_ID }, query: { format: "yaml" } }));
+    const res = await handlerFor(deps, CHAT_ROUTE)(makeCtx(OWNER, { params: { chatId: CHAT_ID }, query: { format: "yaml" } }));
     expect(res.status).toBe(400);
     expect(called).toBe(false);
   });

@@ -13,10 +13,7 @@ import { routeTrpc } from "../../../../support/ct/route-trpc";
 import { ChatOptionsMenuStory } from "../_ct-stories";
 import { CHAT_ID, makeMessagesPage, makeMessageView } from "../fixtures";
 
-test("header-menu Continue fires chat.continueTurn with NO guided object (plain, empty steer)", async ({
-  mount,
-  page,
-}) => {
+test("header-menu Continue fires chat.continueTurn with NO guided object (plain, empty steer)", async ({ mount, page }) => {
   const tail = makeMessageView({ chatId: CHAT_ID, role: "assistant" });
   const trpc = await routeTrpc(page, {
     "chat.listMessages": () => makeMessagesPage([tail]),
@@ -54,10 +51,7 @@ test("header-menu Regenerate fires chat.swipe with NO guided object", async ({ m
   expect(input).not.toHaveProperty("guided");
 });
 
-test("header-menu Impersonate fires chat.impersonate with NO guided object (person dropped too)", async ({
-  mount,
-  page,
-}) => {
+test("header-menu Impersonate fires chat.impersonate with NO guided object (person dropped too)", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, { "chat.impersonate": () => ({ ok: true }) });
   const component = await mount(<ChatOptionsMenuStory />);
 

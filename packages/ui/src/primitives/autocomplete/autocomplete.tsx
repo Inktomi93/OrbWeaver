@@ -1,7 +1,4 @@
-import type {
-  AutocompletePositionerProps as BasePositionerProps,
-  AutocompleteRootProps as BaseRootProps,
-} from "@base-ui/react/autocomplete";
+import type { AutocompletePositionerProps as BasePositionerProps, AutocompleteRootProps as BaseRootProps } from "@base-ui/react/autocomplete";
 import { Autocomplete as BaseAutocomplete } from "@base-ui/react/autocomplete";
 import type { ReactElement, ReactNode } from "react";
 import type { PortalContainer } from "#lib";
@@ -123,36 +120,18 @@ export function Autocomplete({
   const listChild =
     groups === undefined
       ? (item: string): ReactNode => (
-          <BaseAutocomplete.Item
-            className={slots.item()}
-            data-slot="autocomplete-item"
-            key={item}
-            value={item}
-          >
+          <BaseAutocomplete.Item className={slots.item()} data-slot="autocomplete-item" key={item} value={item}>
             {item}
           </BaseAutocomplete.Item>
         )
       : (group: AutocompleteGroup): ReactNode => (
-          <BaseAutocomplete.Group
-            className={slots.group()}
-            data-slot="autocomplete-group"
-            items={group.items}
-            key={group.label}
-          >
-            <BaseAutocomplete.GroupLabel
-              className={slots.groupLabel()}
-              data-slot="autocomplete-group-label"
-            >
+          <BaseAutocomplete.Group className={slots.group()} data-slot="autocomplete-group" items={group.items} key={group.label}>
+            <BaseAutocomplete.GroupLabel className={slots.groupLabel()} data-slot="autocomplete-group-label">
               {group.label}
             </BaseAutocomplete.GroupLabel>
             <BaseAutocomplete.Collection>
               {(item: string): ReactNode => (
-                <BaseAutocomplete.Item
-                  className={slots.item()}
-                  data-slot="autocomplete-item"
-                  key={item}
-                  value={item}
-                >
+                <BaseAutocomplete.Item className={slots.item()} data-slot="autocomplete-item" key={item} value={item}>
                   {item}
                 </BaseAutocomplete.Item>
               )}
@@ -162,10 +141,7 @@ export function Autocomplete({
 
   const inner = (
     <>
-      <BaseAutocomplete.InputGroup
-        className={slots.inputGroup()}
-        data-slot="autocomplete-input-group"
-      >
+      <BaseAutocomplete.InputGroup className={slots.inputGroup()} data-slot="autocomplete-input-group">
         <BaseAutocomplete.Input
           aria-describedby={ariaDescribedby}
           aria-label={ariaLabel}
@@ -174,26 +150,14 @@ export function Autocomplete({
           id={id}
           placeholder={placeholder}
         />
-        <BaseAutocomplete.Clear
-          aria-label={clearLabel}
-          className={slots.clear()}
-          data-slot="autocomplete-clear"
-        >
+        <BaseAutocomplete.Clear aria-label={clearLabel} className={slots.clear()} data-slot="autocomplete-clear">
           <Icon icon={X} size="sm" />
         </BaseAutocomplete.Clear>
       </BaseAutocomplete.InputGroup>
       <BaseAutocomplete.Portal container={container ?? portalContainer}>
-        <BaseAutocomplete.Positioner
-          align={align}
-          className={slots.positioner()}
-          data-slot="autocomplete-positioner"
-          side={side}
-          sideOffset={sideOffset}
-        >
+        <BaseAutocomplete.Positioner align={align} className={slots.positioner()} data-slot="autocomplete-positioner" side={side} sideOffset={sideOffset}>
           <BaseAutocomplete.Popup className={slots.popup()} data-slot="autocomplete-popup">
-            {arrow ? (
-              <BaseAutocomplete.Arrow className={slots.arrow()} data-slot="autocomplete-arrow" />
-            ) : null}
+            {arrow ? <BaseAutocomplete.Arrow className={slots.arrow()} data-slot="autocomplete-arrow" /> : null}
             <BaseAutocomplete.Empty className={slots.empty()} data-slot="autocomplete-empty">
               {emptyText}
             </BaseAutocomplete.Empty>
@@ -222,15 +186,7 @@ export function Autocomplete({
       {inner}
     </BaseAutocomplete.Root>
   ) : (
-    <BaseAutocomplete.Root
-      defaultValue={defaultValue}
-      disabled={disabled}
-      items={groups}
-      mode={mode}
-      onValueChange={onValueChangeProp}
-      value={value}
-      {...rest}
-    >
+    <BaseAutocomplete.Root defaultValue={defaultValue} disabled={disabled} items={groups} mode={mode} onValueChange={onValueChangeProp} value={value} {...rest}>
       {inner}
     </BaseAutocomplete.Root>
   );

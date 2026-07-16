@@ -26,12 +26,7 @@ import "../../../../packages/client/src/features/app-shell/surfaces/shell.css";
 import type { ModalSlotId } from "../../../../packages/client/src/state/shell-store";
 import { openModal } from "../../../../packages/client/src/state/shell-store";
 import "../../../../packages/client/src/styles/globals.css";
-import {
-  CtChatContributorSectionRegistry,
-  CtDataProviders,
-  CtFakeModalRegistry,
-  CtFakeSectionRegistry,
-} from "../../../support/ct/ct-data-providers";
+import { CtChatContributorSectionRegistry, CtDataProviders, CtFakeModalRegistry, CtFakeSectionRegistry } from "../../../support/ct/ct-data-providers";
 
 /** The full shell with chats CONTENT+CONTEXT slots + a corpus LIST/CONTENT slot; other sections fall
  *  back. The chats `context` slot backs the CONTEXT-follows-section CT (§4.2 rule 1). */
@@ -110,11 +105,7 @@ export function ModalScrollStory({ modalId }: { readonly modalId: ModalSlotId })
             `flexShrink: 0` so the drawer's flex-column scroll region can't shrink this EMPTY probe to fit
             (real drawer content has intrinsic height that resists shrink; an empty div would not) — we
             want it to genuinely overflow so the scroll assertion measures a real scroll region. */}
-        <CtFakeModalRegistry
-          body={(): ReactElement => (
-            <div data-testid="tall-modal-body" style={{ height: 3000, flexShrink: 0 }} />
-          )}
-        >
+        <CtFakeModalRegistry body={(): ReactElement => <div data-testid="tall-modal-body" style={{ height: 3000, flexShrink: 0 }} />}>
           <AppShell />
         </CtFakeModalRegistry>
       </CtFakeSectionRegistry>

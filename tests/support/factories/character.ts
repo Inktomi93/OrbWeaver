@@ -59,10 +59,7 @@ export function makeCharacter(overrides: Partial<CharacterRow> = {}): CharacterR
 
 /** `makeCharacter` then insert, FK-clean on an empty db: when `overrides.ownerId` is absent a fresh
  *  owner user is seeded first (explicit `ownerId` reuses the caller's user — no extra row). */
-export async function seedCharacter(
-  db: Db,
-  overrides: Partial<CharacterRow> = {},
-): Promise<CharacterRow> {
+export async function seedCharacter(db: Db, overrides: Partial<CharacterRow> = {}): Promise<CharacterRow> {
   const ownerId = overrides.ownerId ?? (await seedUser(db)).id;
   const row = makeCharacter({ ...overrides, ownerId });
   await db.insert(characters).values(row);

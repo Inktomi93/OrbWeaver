@@ -20,10 +20,7 @@ export const useRenameTag = createEntityMutation<inferInput<Trpc["tag"]["updateT
 });
 
 /** Update a tag's style/behavior (color · color2 · folderType · isHiddenOnCard). */
-export const useUpdateTagStyle = createEntityMutation<
-  inferInput<Trpc["tag"]["updateTag"]>,
-  unknown
->({
+export const useUpdateTagStyle = createEntityMutation<inferInput<Trpc["tag"]["updateTag"]>, unknown>({
   options: (trpc) => trpc.tag.updateTag.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't update the tag.",
@@ -44,13 +41,11 @@ export const useMergeTags = createEntityMutation<inferInput<Trpc["tag"]["mergeTa
 });
 
 /** Persist the manual tag order (position → sortOrder). */
-export const useSetTagOrder = createEntityMutation<inferInput<Trpc["tag"]["setTagOrder"]>, unknown>(
-  {
-    options: (trpc) => trpc.tag.setTagOrder.mutationOptions(),
-    busDriven: true,
-    errorToast: "Couldn't reorder the tags.",
-  },
-);
+export const useSetTagOrder = createEntityMutation<inferInput<Trpc["tag"]["setTagOrder"]>, unknown>({
+  options: (trpc) => trpc.tag.setTagOrder.mutationOptions(),
+  busDriven: true,
+  errorToast: "Couldn't reorder the tags.",
+});
 
 /** Delete every tag with zero attachments (the "Prune unused" action). */
 export const usePruneUnusedTags = createEntityMutation<void, unknown>({

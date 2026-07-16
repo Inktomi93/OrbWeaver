@@ -12,9 +12,7 @@ const ITEMS = [
   { id: "c", label: "FAQ", value: 12 },
 ];
 
-test("renders the heading and a populated chart canvas for a non-empty item list", async ({
-  mount,
-}) => {
+test("renders the heading and a populated chart canvas for a non-empty item list", async ({ mount }) => {
   const component = await mount(<BarList items={ITEMS} label="Top sources" />);
   await expect(component.getByText("Top sources")).toBeVisible();
   await expect(component.getByRole("img", { name: "Top sources" })).toBeVisible();

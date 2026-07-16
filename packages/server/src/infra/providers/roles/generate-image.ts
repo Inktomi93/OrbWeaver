@@ -9,9 +9,7 @@ import { assertCredentialAllowed } from "./firewall";
 const ROLE = "generateImage";
 
 /** Bind the generateImage dispatcher to the wired backend registry. */
-export function createGenerateImageRole(
-  deps: ProviderDeps,
-): (req: ImageGenerateRequest) => Promise<ImageGenerateResult> {
+export function createGenerateImageRole(deps: ProviderDeps): (req: ImageGenerateRequest) => Promise<ImageGenerateResult> {
   return async (req) => {
     assertCredentialAllowed({ role: ROLE, source: req.credential.source });
     const backend = requireBackend(deps.backends, backendForSource(req.credential.source), ROLE);

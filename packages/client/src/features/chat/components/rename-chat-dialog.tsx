@@ -18,24 +18,13 @@ export interface RenameChatDialogProps {
 }
 
 /** The chat rename dialog — a controlled title Input + Cancel/Save. */
-export function RenameChatDialog({
-  open,
-  onOpenChange,
-  value,
-  onValueChange,
-  onSave,
-}: RenameChatDialogProps): ReactElement {
+export function RenameChatDialog({ open, onOpenChange, value, onValueChange, onSave }: RenameChatDialogProps): ReactElement {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogPopup size="sm">
         <Stack gap="block">
           <DialogTitle>Rename chat</DialogTitle>
-          <Input
-            aria-label="Chat title"
-            value={value}
-            onValueChange={onValueChange}
-            placeholder="Untitled chat"
-          />
+          <Input aria-label="Chat title" value={value} onValueChange={onValueChange} placeholder="Untitled chat" />
           <Row gap="row" justify="end">
             <DialogClose render={<Button intent="ghost">Cancel</Button>} />
             <Button intent="primary" onClick={onSave}>

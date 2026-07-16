@@ -7,9 +7,7 @@
 import type { SettingsContext, SettingsService } from "../contract/service";
 import { readUserSettings, writeUserConfig } from "../persistence/queries";
 
-export function createUpdateUserSettings(
-  ctx: SettingsContext,
-): SettingsService["updateUserSettings"] {
+export function createUpdateUserSettings(ctx: SettingsContext): SettingsService["updateUserSettings"] {
   return (params) => {
     const ownerId = params.principal.userId;
     return ctx.serializeUserWrite(ownerId, async () => {

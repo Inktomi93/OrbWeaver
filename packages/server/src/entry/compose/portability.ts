@@ -7,24 +7,14 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { PersonaBackupInput } from "@orb/contracts/persona";
-import type {
-  PortabilityRegistry,
-  PortableEntity,
-  PortableFile,
-  PortableImportOutcome,
-} from "@orb/contracts/portability";
+import type { PortabilityRegistry, PortableEntity, PortableFile, PortableImportOutcome } from "@orb/contracts/portability";
 import type { Db } from "@orb/db";
 import { characters, chatParticipants, worldBooks } from "@orb/db";
 import type { CharacterId, ChatId, UserId, WorldBookId } from "@orb/kit/ids";
 import { slugifyHandle } from "@orb/kit/slug";
 import { and, asc, eq, isNotNull, isNull } from "drizzle-orm";
 import type { AssetsContext } from "#domain/assets";
-import {
-  createExportAssets,
-  createExportGallery,
-  createImportAsset,
-  createImportGallery,
-} from "#domain/assets";
+import { createExportAssets, createExportGallery, createImportAsset, createImportGallery } from "#domain/assets";
 import type { BulkImportChats } from "#domain/chat";
 import type { ExportService } from "#domain/export";
 import type { ImportService } from "#domain/import";
@@ -33,24 +23,14 @@ import type { BulkImportPersonas, PersonaService } from "#domain/persona";
 import type { PresetContext } from "#domain/preset";
 import { createExportPresets, createImportPresets } from "#domain/preset";
 import type { SettingsContext } from "#domain/settings";
-import {
-  createExportTheme,
-  createExportUserSettings,
-  createImportTheme,
-  createImportUserSettings,
-} from "#domain/settings";
+import { createExportTheme, createExportUserSettings, createImportTheme, createImportUserSettings } from "#domain/settings";
 import type { TagContext } from "#domain/tag";
 import { createTagLibraryExport, createTagLibraryImport } from "#domain/tag";
 import type { ImportStandaloneLorebook, WorldInfoExportContext } from "#domain/world-info";
 import { createExportWorldBook, createImportWorldBook } from "#domain/world-info";
 import { sha256Hex } from "#kit/content-hash";
 import { parseChatJsonl } from "#kit/serde/chat";
-import type {
-  ImportAssetPort,
-  ImportCharacterPort,
-  ImportTagPort,
-  ImportWorldInfoPort,
-} from "../import";
+import type { ImportAssetPort, ImportCharacterPort, ImportTagPort, ImportWorldInfoPort } from "../import";
 import { buildImportContext } from "../import";
 
 /** What the registry builder needs from the composition root to compose each descriptor. */
@@ -102,9 +82,7 @@ async function buildOwnerImport(deps: PortabilityDeps, ownerId: UserId): Promise
 }
 
 /** Wrap a single-file export verb (`() => Promise<{filename,bytes}>`) as the streaming `exportAll`. */
-function oneFile(
-  produce: (ownerId: UserId) => Promise<{ readonly filename: string; readonly bytes: Uint8Array }>,
-): PortableEntity["exportAll"] {
+function oneFile(produce: (ownerId: UserId) => Promise<{ readonly filename: string; readonly bytes: Uint8Array }>): PortableEntity["exportAll"] {
   return async function* exportOne(ownerId: UserId): AsyncIterable<PortableFile> {
     yield await produce(ownerId);
   };
@@ -128,13 +106,7 @@ async function listHostChats(db: Db, ownerId: UserId): Promise<HostChat[]> {
   const hostRows = await db
     .select({ chatId: chatParticipants.chatId })
     .from(chatParticipants)
-    .where(
-      and(
-        eq(chatParticipants.role, "host"),
-        eq(chatParticipants.userId, ownerId),
-        isNull(chatParticipants.leftSeq),
-      ),
-    );
+    .where(and(eq(chatParticipants.role, "host"), eq(chatParticipants.userId, ownerId), isNull(chatParticipants.leftSeq)));
   const out: HostChat[] = [];
   for (const { chatId } of hostRows) {
     // biome-ignore lint/performance/noAwaitInLoops: enumeration is intentionally sequential (bounded per-owner set); one small keyed read per hosted chat.
@@ -142,13 +114,7 @@ async function listHostChats(db: Db, ownerId: UserId): Promise<HostChat[]> {
       .select({ handle: characters.handle })
       .from(chatParticipants)
       .innerJoin(characters, eq(characters.id, chatParticipants.characterId))
-      .where(
-        and(
-          eq(chatParticipants.chatId, chatId),
-          isNotNull(chatParticipants.characterId),
-          isNull(chatParticipants.leftSeq),
-        ),
-      )
+      .where(and(eq(chatParticipants.chatId, chatId), isNotNull(chatParticipants.characterId), isNull(chatParticipants.leftSeq)))
       .orderBy(asc(chatParticipants.joinSeq), asc(chatParticipants.id))
       .limit(1);
     const handle = seat[0]?.handle;
@@ -161,10 +127,7 @@ async function listHostChats(db: Db, ownerId: UserId): Promise<HostChat[]> {
 
 /** Every world-info book the owner owns. */
 async function listOwnedBookIds(db: Db, ownerId: UserId): Promise<readonly WorldBookId[]> {
-  const rows = await db
-    .select({ id: worldBooks.id })
-    .from(worldBooks)
-    .where(eq(worldBooks.ownerId, ownerId));
+  const rows = await db.select({ id: worldBooks.id }).from(worldBooks).where(eq(worldBooks.ownerId, ownerId));
   return rows.map((r) => r.id);
 }
 
@@ -251,9 +214,7 @@ export function buildPortabilityRegistry(deps: PortabilityDeps): PortabilityRegi
   const importWorldBook = createImportWorldBook({
     importStandalone: deps.importStandaloneLorebook,
   });
-  const worldInfoExportAll = async function* worldInfoAll(
-    ownerId: UserId,
-  ): AsyncIterable<PortableFile> {
+  const worldInfoExportAll = async function* worldInfoAll(ownerId: UserId): AsyncIterable<PortableFile> {
     for (const bookId of await listOwnedBookIds(deps.worldInfoExportCtx.db, ownerId)) {
       // biome-ignore lint/performance/noAwaitInLoops: enumeration streams one book at a time (bounded memory — the descriptor contract).
       const book = await exportWorldBook({ ownerId, bookId });
@@ -270,9 +231,7 @@ export function buildPortabilityRegistry(deps: PortabilityDeps): PortabilityRegi
     importFile: (ownerId, file) => importWorldBook({ ownerId, bytes: file.bytes }),
   };
 
-  const personaExportAll = async function* personaAll(
-    ownerId: UserId,
-  ): AsyncIterable<PortableFile> {
+  const personaExportAll = async function* personaAll(ownerId: UserId): AsyncIterable<PortableFile> {
     const principal = await deps.resolveOwnerPrincipal(ownerId);
     for (const detail of await deps.persona.list({ principal })) {
       // biome-ignore lint/performance/noAwaitInLoops: enumeration streams one persona at a time (bounded memory).
@@ -306,9 +265,7 @@ export function buildPortabilityRegistry(deps: PortabilityDeps): PortabilityRegi
     },
   };
 
-  const characterExportAll = async function* characterAll(
-    ownerId: UserId,
-  ): AsyncIterable<PortableFile> {
+  const characterExportAll = async function* characterAll(ownerId: UserId): AsyncIterable<PortableFile> {
     const principal = await deps.resolveOwnerPrincipal(ownerId);
     for (const characterId of await deps.listOwnedCharacterIds(ownerId)) {
       // biome-ignore lint/performance/noAwaitInLoops: enumeration streams one card (+ its avatar blob) at a time (bounded memory).

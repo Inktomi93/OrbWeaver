@@ -5,14 +5,7 @@ import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { PresetId } from "@orb/kit/ids";
 import type { AuditEntry } from "#foundation/observability";
-import type {
-  CreatePresetParams,
-  GetPresetParams,
-  ListPresetsParams,
-  RemovePresetParams,
-  ResetToDefaultParams,
-  UpdatePresetParams,
-} from "./params";
+import type { CreatePresetParams, GetPresetParams, ListPresetsParams, RemovePresetParams, ResetToDefaultParams, UpdatePresetParams } from "./params";
 import type { PresetDetail, PresetSummary } from "./views";
 
 /** The DI bundle the preset verbs close over, wired at the composition root. */

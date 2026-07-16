@@ -4,12 +4,7 @@
 
 import type { Runner } from "../contract/runner";
 
-export const groupCharacterBackfillRunner: Runner<"group-character-backfill"> = async (
-  ctx,
-  _params,
-  report,
-  signal,
-) => {
+export const groupCharacterBackfillRunner: Runner<"group-character-backfill"> = async (ctx, _params, report, signal) => {
   report({ message: "group-character backfill: sweeping group rooms" });
   const counts = await ctx.env.character.backfillGroupCharacters({ ownerId: ctx.ownerId, signal });
   report({

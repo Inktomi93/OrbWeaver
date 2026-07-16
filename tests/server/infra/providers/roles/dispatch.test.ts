@@ -2,19 +2,8 @@
 // and backendForSource (the non-chat axis), plus the fail-closed registry/role lookups. The runner key
 // is infra-internal and never leaves providers; this is its only test surface.
 
-import type {
-  BackendKey,
-  BackendRegistry,
-  CredentialSource,
-  ProviderBackend,
-} from "@orb/server/infra/providers";
-import {
-  backendForSource,
-  deriveRunner,
-  ProviderError,
-  requireBackend,
-  requireRoleImpl,
-} from "@orb/server/infra/providers";
+import type { BackendKey, BackendRegistry, CredentialSource, ProviderBackend } from "@orb/server/infra/providers";
+import { backendForSource, deriveRunner, ProviderError, requireBackend, requireRoleImpl } from "@orb/server/infra/providers";
 import { describe } from "vitest";
 import { expect, test } from "../../../../support/fixtures";
 
@@ -63,12 +52,7 @@ describe("deriveRunner — ChatApi × CredentialSource → the sealed backend ke
   });
 
   test("local-light is never a chat/agent runner (it serves only embed/rerank/imageEmbed)", () => {
-    for (const api of [
-      "agent-sdk",
-      "chat-completions",
-      "responses",
-      "anthropic-messages",
-    ] as const) {
+    for (const api of ["agent-sdk", "chat-completions", "responses", "anthropic-messages"] as const) {
       expect(() => deriveRunner(api, "local-light")).toThrow(ProviderError);
     }
   });

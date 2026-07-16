@@ -13,13 +13,7 @@ import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import type { RegexScriptsFormValues } from "#components";
 import { EntryListEditor, RegexEditorDialog } from "#components";
-import {
-  createEntityMutation,
-  QueryBoundary,
-  QueryErrorState,
-  useInvalidation,
-  useTRPC,
-} from "#data";
+import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { useFocusOnMount } from "#lib";
 import { settingsAnchorId } from "#state";
 import { REGEX_SETTINGS_ENTITY_ID, useRegexSettingsForm } from "../hooks/use-regex-settings-form";
@@ -63,9 +57,7 @@ export function RegexSettingsSurface(): ReactElement {
     <Stack ref={surfaceRef} className="outline-none" tabIndex={-1}>
       <QueryBoundary
         fallback={<Text tone="muted">Loading your regex scripts…</Text>}
-        renderError={(_error, retry): ReactElement => (
-          <QueryErrorState label="your regex scripts" onRetry={retry} />
-        )}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label="your regex scripts" onRetry={retry} />}
       >
         <Container>
           <RegexSettingsForm />
@@ -83,8 +75,7 @@ function RegexSettingsForm(): ReactElement {
   const update = useUpdateRegex({ trpc, invalidation });
   const [editIndex, setEditIndex] = useState<number | null>(null);
 
-  const save = (values: RegexScriptsFormValues): Promise<unknown> =>
-    update.mutateAsync({ section: "regex", patch: { scripts: values.regexScripts } });
+  const save = (values: RegexScriptsFormValues): Promise<unknown> => update.mutateAsync({ section: "regex", patch: { scripts: values.regexScripts } });
 
   const { form, mountKey } = useRegexSettingsForm({
     entityId: REGEX_SETTINGS_ENTITY_ID,
@@ -104,11 +95,7 @@ function RegexSettingsForm(): ReactElement {
   };
 
   return (
-    <Stack
-      gap="section"
-      id={settingsAnchorId("regex", REGEX_SUBCATEGORY_IDS.scripts)}
-      key={mountKey}
-    >
+    <Stack gap="section" id={settingsAnchorId("regex", REGEX_SUBCATEGORY_IDS.scripts)} key={mountKey}>
       <form.Subscribe selector={(state): readonly RegexScript[] => state.values.regexScripts}>
         {(scripts): ReactElement => (
           <EntryListEditor
@@ -125,13 +112,7 @@ function RegexSettingsForm(): ReactElement {
             onRemove={(index): void => {
               void form.removeFieldValue("regexScripts", index).then(() => form.handleSubmit());
             }}
-            renderEditor={(index): ReactElement => (
-              <RegexEditorDialog
-                form={form}
-                index={index}
-                onClose={(): void => setEditIndex(null)}
-              />
-            )}
+            renderEditor={(index): ReactElement => <RegexEditorDialog form={form} index={index} onClose={(): void => setEditIndex(null)} />}
           />
         )}
       </form.Subscribe>

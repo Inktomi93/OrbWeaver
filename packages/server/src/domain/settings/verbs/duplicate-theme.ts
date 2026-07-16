@@ -7,12 +7,7 @@ import { ThemeNotFoundError } from "../contract/errors";
 import type { DuplicateThemeParams } from "../contract/params";
 import type { SettingsContext, SettingsService } from "../contract/service";
 import type { ThemeView } from "../contract/views";
-import {
-  insertTheme,
-  isThemeNameConflict,
-  listOwnedThemeNames,
-  readableTheme,
-} from "../persistence/theme-queries";
+import { insertTheme, isThemeNameConflict, listOwnedThemeNames, readableTheme } from "../persistence/theme-queries";
 import { toThemeView } from "../substrate/theme-views";
 
 const THEME_DUPLICATE = "theme.duplicate";
@@ -32,9 +27,7 @@ function freeThemeName(base: string, taken: ReadonlySet<string>): string {
   return `${base} ${n}`;
 }
 
-export function createDuplicateTheme(
-  ctx: SettingsContext,
-): Pick<SettingsService, "duplicateTheme"> {
+export function createDuplicateTheme(ctx: SettingsContext): Pick<SettingsService, "duplicateTheme"> {
   async function duplicateTheme(params: DuplicateThemeParams): Promise<ThemeView> {
     const ownerId = params.principal.userId;
     const source = await readableTheme(ctx.db, ownerId, params.id);

@@ -25,20 +25,9 @@ import {
   worldEntries,
 } from "@orb/db";
 import { parseRecord, parseStringArrayColumn } from "@orb/db/kit";
-import type {
-  CharacterId,
-  ChatId,
-  PersonaId,
-  UserId,
-  WorldBookId,
-  WorldEntryId,
-} from "@orb/kit/ids";
+import type { CharacterId, ChatId, PersonaId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import {
-  resolveEntryInjection,
-  resolveEntryPosition,
-  resolveEntryScope,
-} from "@orb/kit/world-info";
+import { resolveEntryInjection, resolveEntryPosition, resolveEntryScope } from "@orb/kit/world-info";
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../support/db";
 import { expect, test } from "../../support/fixtures";
@@ -55,17 +44,13 @@ async function seedBook(db: Db, ownerId: UserId, raw: string): Promise<WorldBook
 
 async function seedEntry(db: Db, bookId: WorldBookId, raw: string): Promise<WorldEntryId> {
   const id = castId<WorldEntryId>(raw);
-  await db
-    .insert(worldEntries)
-    .values({ id, worldBookId: bookId, title: `entry-${raw}`, content: "lore body" });
+  await db.insert(worldEntries).values({ id, worldBookId: bookId, title: `entry-${raw}`, content: "lore body" });
   return id;
 }
 
 async function seedCharacter(db: Db, ownerId: UserId, raw: string): Promise<CharacterId> {
   const id = castId<CharacterId>(raw);
-  await db
-    .insert(characters)
-    .values({ id, handle: `card-${raw}`, ownerId, contentHash: `hash-${raw}`, name: raw });
+  await db.insert(characters).values({ id, handle: `card-${raw}`, ownerId, contentHash: `hash-${raw}`, name: raw });
   return id;
 }
 
@@ -205,9 +190,7 @@ test("character_books keys on characters.id (D28 — live identity, no cv)", asy
   const characterId = await seedCharacter(db, ownerId, "character_cb_key");
   await db.insert(characterBooks).values({ characterId, worldBookId: bookId, role: "primary" });
 
-  const row = (
-    await db.select().from(characterBooks).where(eq(characterBooks.worldBookId, bookId))
-  )[0];
+  const row = (await db.select().from(characterBooks).where(eq(characterBooks.worldBookId, bookId)))[0];
   // The only association key is `characterId` → characters.id (the CharacterId brand survives the row).
   expect(row?.characterId).toBe(characterId);
   expect(row?.role).toBe("primary");
@@ -219,9 +202,7 @@ test("a junction FK rejects a dangling scope target (chat_books needs a real cha
   const bookId = await seedBook(db, ownerId, "world_book_fk");
   let caught: unknown;
   try {
-    await db
-      .insert(chatBooks)
-      .values({ chatId: castId<ChatId>("chat_missing"), worldBookId: bookId });
+    await db.insert(chatBooks).values({ chatId: castId<ChatId>("chat_missing"), worldBookId: bookId });
   } catch (err) {
     caught = err;
   }
@@ -247,19 +228,11 @@ test("deleting a book CASCADEs its entries and all four scope junctions", async 
 
   await db.delete(worldBooks).where(eq(worldBooks.id, bookId));
 
-  expect(await db.select().from(worldEntries).where(eq(worldEntries.worldBookId, bookId))).toEqual(
-    [],
-  );
+  expect(await db.select().from(worldEntries).where(eq(worldEntries.worldBookId, bookId))).toEqual([]);
   expect(await db.select().from(chatBooks).where(eq(chatBooks.worldBookId, bookId))).toEqual([]);
-  expect(
-    await db.select().from(characterBooks).where(eq(characterBooks.worldBookId, bookId)),
-  ).toEqual([]);
-  expect(await db.select().from(globalBooks).where(eq(globalBooks.worldBookId, bookId))).toEqual(
-    [],
-  );
-  expect(await db.select().from(personaBooks).where(eq(personaBooks.worldBookId, bookId))).toEqual(
-    [],
-  );
+  expect(await db.select().from(characterBooks).where(eq(characterBooks.worldBookId, bookId))).toEqual([]);
+  expect(await db.select().from(globalBooks).where(eq(globalBooks.worldBookId, bookId))).toEqual([]);
+  expect(await db.select().from(personaBooks).where(eq(personaBooks.worldBookId, bookId))).toEqual([]);
 });
 
 // ── CASCADE: delete a scope target → that target's junction rows vanish ───────
@@ -279,12 +252,8 @@ test("deleting a scope target CASCADEs its junction rows (book survives)", async
   await db.delete(personas).where(eq(personas.id, personaId));
   await db.delete(chats).where(eq(chats.id, chatId));
 
-  expect(
-    await db.select().from(characterBooks).where(eq(characterBooks.worldBookId, bookId)),
-  ).toEqual([]);
-  expect(await db.select().from(personaBooks).where(eq(personaBooks.worldBookId, bookId))).toEqual(
-    [],
-  );
+  expect(await db.select().from(characterBooks).where(eq(characterBooks.worldBookId, bookId))).toEqual([]);
+  expect(await db.select().from(personaBooks).where(eq(personaBooks.worldBookId, bookId))).toEqual([]);
   expect(await db.select().from(chatBooks).where(eq(chatBooks.worldBookId, bookId))).toEqual([]);
   // The book itself survives — the CASCADE flows target → junction, never junction → book.
   expect(await db.select().from(worldBooks).where(eq(worldBooks.id, bookId))).toHaveLength(1);
@@ -302,7 +271,5 @@ test("deleting the owner CASCADEs their world_books (D23 ownerId)", async () => 
 
   expect(await db.select().from(worldBooks).where(eq(worldBooks.id, bookId))).toEqual([]);
   // The entry cascaded with its book.
-  expect(await db.select().from(worldEntries).where(eq(worldEntries.worldBookId, bookId))).toEqual(
-    [],
-  );
+  expect(await db.select().from(worldEntries).where(eq(worldEntries.worldBookId, bookId))).toEqual([]);
 });

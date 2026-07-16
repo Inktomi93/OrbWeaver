@@ -37,7 +37,6 @@ async function checkOwnerRows(
       danglingRows++;
       continue;
     }
-    // biome-ignore lint/performance/noAwaitInLoops: per-row re-hash verify — same read-only maintenance scan.
     if (!(await cas.verify(ownerId, row.hash))) {
       corruptBlobs++;
     }

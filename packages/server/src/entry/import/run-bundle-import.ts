@@ -216,16 +216,11 @@ export interface StagedBundleImportDeps {
  * dependency order, then dispose the staging dir. The seam BOTH sources funnel through — an extracted zip
  * (`runBundleImport`) and an uploaded folder (`stageDirectory`) — so the entity routing lives in one place.
  */
-export async function importStagedArchive(
-  deps: StagedBundleImportDeps,
-): Promise<BundleImportReport> {
+export async function importStagedArchive(deps: StagedBundleImportDeps): Promise<BundleImportReport> {
   const { registry, ownerId, staged, signal } = deps;
   try {
     const { byDir, unrouted } = groupByDir(staged);
-    const outcomes = [
-      ...(await importInDepOrder(registry, byDir, ownerId, signal)),
-      ...collectSkips(registry, byDir, unrouted),
-    ];
+    const outcomes = [...(await importInDepOrder(registry, byDir, ownerId, signal)), ...collectSkips(registry, byDir, unrouted)];
     return { outcomes, ...tally(outcomes) };
   } finally {
     await staged.dispose();

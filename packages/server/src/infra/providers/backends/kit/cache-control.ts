@@ -29,10 +29,7 @@ export function isAnthropicModel(model: string): boolean {
 }
 
 // A caller-supplied routing always wins; otherwise pin Anthropic (order-only) so cache_control is honored.
-export function effectiveProviderRouting(
-  model: string,
-  userRouting: OpenRouterProviderRouting | undefined,
-): OpenRouterProviderRouting | undefined {
+export function effectiveProviderRouting(model: string, userRouting: OpenRouterProviderRouting | undefined): OpenRouterProviderRouting | undefined {
   if (userRouting !== undefined) {
     return userRouting;
   }

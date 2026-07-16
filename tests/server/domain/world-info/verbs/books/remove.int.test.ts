@@ -34,8 +34,6 @@ describe("removeBook", () => {
     const other = await seedUser(db, { handle: "other" });
     const theirs = await svc.createBook({ principal: principal(other), input: { name: "Theirs" } });
 
-    await expect(
-      svc.removeBook({ principal: principal(owner), bookId: theirs.id }),
-    ).rejects.toBeInstanceOf(WorldInfoNotFoundError);
+    await expect(svc.removeBook({ principal: principal(owner), bookId: theirs.id })).rejects.toBeInstanceOf(WorldInfoNotFoundError);
   });
 });

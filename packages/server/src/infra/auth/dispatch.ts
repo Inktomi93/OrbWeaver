@@ -49,11 +49,7 @@ export function ownerFallbackAllowed(headers: Headers, config: AuthConfig): bool
  * a configured trusted hostname. Reads `Host` (not `X-Forwarded-Host`) deliberately. Fails closed (a
  * hostname that won't parse as an IP → no match → SSO required).
  */
-export function isLocalOrigin(
-  headers: Headers,
-  trustedHosts: readonly string[],
-  extraRanges: readonly string[] = [],
-): boolean {
+export function isLocalOrigin(headers: Headers, trustedHosts: readonly string[], extraRanges: readonly string[] = []): boolean {
   const rawHost = headers.get("host");
   if (rawHost === null) {
     return false;
@@ -69,7 +65,6 @@ export function isLocalOrigin(
     return true;
   }
   // env-extra CIDRs widen the built-in set without replacing it.
-  const ranges =
-    extraRanges.length > 0 ? [...DEFAULT_TRUSTED_RANGES, ...extraRanges] : DEFAULT_TRUSTED_RANGES;
+  const ranges = extraRanges.length > 0 ? [...DEFAULT_TRUSTED_RANGES, ...extraRanges] : DEFAULT_TRUSTED_RANGES;
   return isInRanges(host, ranges);
 }

@@ -14,9 +14,7 @@ function nullIfEmpty(s: string): string | null {
   return s.trim().length > 0 ? s : null;
 }
 function asObj(v: unknown): Record<string, unknown> | null {
-  return typeof v === "object" && v !== null && !Array.isArray(v)
-    ? (v as Record<string, unknown>)
-    : null;
+  return typeof v === "object" && v !== null && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
 }
 
 // ST persona_description_positions: IN_PROMPT 0 · AFTER_CHAR 1 (alias) · TOP_AN 2 · BOTTOM_AN 3 ·
@@ -44,9 +42,7 @@ function stPositionToPlacement(rawPos: number): PersonaDescriptionPosition | nul
 }
 
 /** Returns null when there's no placement to record (absent descriptor or plain in_prompt default). */
-function metadataFromDescriptor(
-  descriptor: Record<string, unknown> | null,
-): Record<string, unknown> | null {
+function metadataFromDescriptor(descriptor: Record<string, unknown> | null): Record<string, unknown> | null {
   if (descriptor === null) {
     return null;
   }

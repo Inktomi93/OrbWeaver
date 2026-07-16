@@ -528,7 +528,7 @@ describe("memory/recall — the §3a recall window-filter (the SECOND guard, tok
         topicAnchor: `[b${b}]`,
         keywords: [],
       });
-      // biome-ignore lint/performance/noAwaitInLoops: ordered seed.
+
       await seedSegment(db, { chatId, blockIdx: b, seqStart: 8 * b + 1, seqEnd: 8 * b + 8 });
     }
   }

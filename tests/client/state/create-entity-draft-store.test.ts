@@ -73,8 +73,6 @@ describe("createEntityDraftStore", () => {
   test("a duplicate store name throws at creation (the storage-key uniqueness registry)", () => {
     const { storage } = memoryStorage();
     createEntityDraftStore<CardDraft>({ name: "t-dup", storage });
-    expect(() => createEntityDraftStore<CardDraft>({ name: "t-dup", storage })).toThrow(
-      DUPLICATE_NAME_RE,
-    );
+    expect(() => createEntityDraftStore<CardDraft>({ name: "t-dup", storage })).toThrow(DUPLICATE_NAME_RE);
   });
 });

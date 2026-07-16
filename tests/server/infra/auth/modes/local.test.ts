@@ -24,11 +24,7 @@ describe("resolveLocal", () => {
 
   test("the outcome is invariant under `config` (the resolver ignores its config arg)", async () => {
     const a = await resolveLocal(headers(COOKIE), cfg({ fallback: "deny" }), {});
-    const b = await resolveLocal(
-      headers(COOKIE),
-      cfg({ fallback: "owner", defaultHandle: "someone-else", trustedLocalHosts: ["x"] }),
-      {},
-    );
+    const b = await resolveLocal(headers(COOKIE), cfg({ fallback: "owner", defaultHandle: "someone-else", trustedLocalHosts: ["x"] }), {});
     expect(a).toEqual(b);
     expect(a).toBeNull();
   });

@@ -23,11 +23,7 @@ export interface ModalHostProps {
 
 /** The def's body — a real render, or the DECLARED-PLANNED placeholder (mirror the section content-none). */
 function modalBody(def: ModalDefinition): ReactNode {
-  return typeof def.body === "function" ? (
-    def.body()
-  ) : (
-    <SectionPlaceholder title={def.title} description={def.body.planned} weave={true} />
-  );
+  return typeof def.body === "function" ? def.body() : <SectionPlaceholder title={def.title} description={def.body.planned} weave={true} />;
 }
 
 export function ModalHost({ openModal, container, onClose }: ModalHostProps): ReactElement | null {
@@ -83,9 +79,7 @@ function DialogModal({
   readonly def: ModalDefinition;
   readonly onOpenChange: (nextOpen: boolean) => void;
 }): ReactElement {
-  const [capturedTrigger] = useState<HTMLElement | null>(() =>
-    document.activeElement instanceof HTMLElement ? document.activeElement : null,
-  );
+  const [capturedTrigger] = useState<HTMLElement | null>(() => (document.activeElement instanceof HTMLElement ? document.activeElement : null));
 
   // Shell modals (full/xl) fill the popup height; content modals size to content but still scroll internally when tall.
   const isShellModal = def.size === "full" || def.size === "xl";
@@ -94,11 +88,7 @@ function DialogModal({
   const bodyClass = isShellModal ? "min-h-0 flex-1 overflow-y-auto" : "min-h-0 overflow-y-auto";
   return (
     <Dialog open={true} onOpenChange={onOpenChange}>
-      <DialogPopup
-        {...sizeProp}
-        container={container}
-        finalFocus={(): HTMLElement | boolean => capturedTrigger ?? true}
-      >
+      <DialogPopup {...sizeProp} container={container} finalFocus={(): HTMLElement | boolean => capturedTrigger ?? true}>
         <header className="shell-modal-header shrink-0">
           <DialogTitle>{def.title}</DialogTitle>
           <DialogClose

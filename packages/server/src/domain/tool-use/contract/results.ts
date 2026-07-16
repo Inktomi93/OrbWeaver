@@ -23,11 +23,7 @@ export interface RegisteredTool {
   readonly source: ToolSource;
   readonly parameters: Record<string, unknown>;
   /** Parse the args, call gate (deny maps to "denied"), invoke the handler. Never rejects. */
-  readonly run: (
-    parsedJson: unknown,
-    exec: ToolExecutionContext,
-    gate: () => void,
-  ) => Promise<RunOutcome>;
+  readonly run: (parsedJson: unknown, exec: ToolExecutionContext, gate: () => void) => Promise<RunOutcome>;
 }
 
 /** The registry's mutable state — created once per service; deliberately no unregister in v1. */

@@ -31,22 +31,12 @@ interface DriveRoundParams {
 }
 
 /** Build ONE speaker's two-axis prep off the shared round base. */
-function buildSpeakerPrep(
-  base: RoundBase,
-  group: GroupConfig,
-  speaker: CastName,
-  multi: boolean,
-): TurnPrep {
+function buildSpeakerPrep(base: RoundBase, group: GroupConfig, speaker: CastName, multi: boolean): TurnPrep {
   const isCharacter = speaker.ref.kind === "character";
   const speakerCharacterId = speaker.ref.kind === "character" ? speaker.ref.characterId : null;
   // Only a character has a card to scope to (an agent's identity is its soul — no roster card).
   const cardScope = group.output === "per-speaker" ? group.cardScope : "merged";
-  const scopedTargetId =
-    group.output === "per-speaker" &&
-    group.cardScope === "scoped" &&
-    speaker.ref.kind === "character"
-      ? speaker.ref.characterId
-      : null;
+  const scopedTargetId = group.output === "per-speaker" && group.cardScope === "scoped" && speaker.ref.kind === "character" ? speaker.ref.characterId : null;
   const shape: TurnSpeakerShape = {
     output: group.output,
     cardScope,
@@ -54,8 +44,7 @@ function buildSpeakerPrep(
     speakerName: speaker.name,
     speakerRef: speaker.ref,
   };
-  const groupNudge =
-    group.groupNudge && multi ? `[Write the next reply only as ${speaker.name}.]` : null;
+  const groupNudge = group.groupNudge && multi ? `[Write the next reply only as ${speaker.name}.]` : null;
   // An agent speaker self-attributes: a new-slot assistant row authored by the agent. A character round
   // leaves `persist` absent (the engine's new-slot default stamps characterId, authorUserId null).
   return {

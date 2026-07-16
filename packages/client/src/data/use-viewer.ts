@@ -23,24 +23,14 @@ export type Viewer = inferOutput<Trpc["sessions"]["me"]> & {
 export function useViewer(): Viewer {
   const trpc = useTRPC();
   const [{ data: identity }, { data: settings }, { data: personas }] = useSuspenseQueries({
-    queries: [
-      trpc.sessions.me.queryOptions(),
-      trpc.settings.getUserSettings.queryOptions(),
-      trpc.persona.list.queryOptions(),
-    ],
+    queries: [trpc.sessions.me.queryOptions(), trpc.settings.getUserSettings.queryOptions(), trpc.persona.list.queryOptions()],
   });
 
   const currentId = settings.config.seeds.currentPersonaId;
   const defaultId = settings.config.seeds.defaultPersonaId;
   // Mirrors persona-panel-surface.tsx's `current` resolution exactly.
-  const persona =
-    personas.find((p) => p.id === currentId) ??
-    personas.find((p) => p.id === defaultId) ??
-    personas[0];
-  const currentPersona: ViewerPersona | null =
-    persona === undefined
-      ? null
-      : { id: persona.id, name: persona.name, avatarHash: persona.avatarHash };
+  const persona = personas.find((p) => p.id === currentId) ?? personas.find((p) => p.id === defaultId) ?? personas[0];
+  const currentPersona: ViewerPersona | null = persona === undefined ? null : { id: persona.id, name: persona.name, avatarHash: persona.avatarHash };
 
   return { ...identity, currentPersona };
 }

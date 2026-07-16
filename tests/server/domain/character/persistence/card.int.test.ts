@@ -76,10 +76,7 @@ describe("persistence/card", () => {
       label: "v1",
       createdAt: 2,
     });
-    const snaps = await db
-      .select()
-      .from(characterSnapshots)
-      .where(eq(characterSnapshots.characterId, characterId));
+    const snaps = await db.select().from(characterSnapshots).where(eq(characterSnapshots.characterId, characterId));
     expect(snaps).toHaveLength(1);
     expect(snaps[0]?.label).toBe("v1");
   });

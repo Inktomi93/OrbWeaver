@@ -6,11 +6,7 @@
 // founding character's greeting as a normal, editable `MessageRow` instead of an empty state.
 
 import type { ChatMacroNameProducer, MessageView, PersonaAvatarEntry } from "@orb/contracts/chat";
-import {
-  buildCharacterNameMap,
-  buildPersonaAvatarMap,
-  buildPersonaNameMap,
-} from "@orb/contracts/chat";
+import { buildCharacterNameMap, buildPersonaAvatarMap, buildPersonaNameMap } from "@orb/contracts/chat";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { Stack } from "@orb/ui/layout";
 import type { MessageListHandle } from "@orb/ui/message-list";
@@ -24,13 +20,7 @@ import { QueryBoundary, QueryErrorState, SkeletonRows, useChatBus, useTRPC } fro
 import type { ChatSurfaceContribution, ContributorRegistry } from "#lib";
 import { useFocusOnMount } from "#lib";
 import type { ChatHandle, DraftSeed } from "#state";
-import {
-  isCommitted,
-  isLiveTurnPhase,
-  useDraftConfig,
-  useTurnPhase,
-  useTurnSpeakerCharacterId,
-} from "#state";
+import { isCommitted, isLiveTurnPhase, useDraftConfig, useTurnPhase, useTurnSpeakerCharacterId } from "#state";
 import { GhostMessageRow } from "../components/ghost-message-row";
 import { JumpToLatestPill } from "../components/jump-to-latest-pill";
 import { MessageRow } from "../components/message-row";
@@ -41,11 +31,7 @@ import { messageItemKey, useMessageItems, useNewArrivalKeys } from "../hooks/use
 import { resolveRowAttribution } from "../lib/attribution";
 import { resolveContextBoundaryMessageId } from "../lib/context-boundary";
 import type { MESSAGE_ROW_SKINS } from "../lib/message-row-variants";
-import {
-  buildParticipantsById,
-  resolveViewerActivePersonaId,
-  resolveViewerUserId,
-} from "../lib/roster";
+import { buildParticipantsById, resolveViewerActivePersonaId, resolveViewerUserId } from "../lib/roster";
 import { synthGreetingRow } from "../lib/synth-greeting-row";
 
 /** Initial per-row height guess (px) — rows re-measure themselves after mount (the seal's job). */
@@ -61,13 +47,7 @@ export interface MessageListSurfaceProps {
 }
 
 /** The scrolling chat transcript for one chat (or a draft's editable greeting preview). */
-export function MessageListSurface({
-  handle,
-  busDeps,
-  draftSeed,
-  onChatForked,
-  surfaceContributors,
-}: MessageListSurfaceProps): ReactElement {
+export function MessageListSurface({ handle, busDeps, draftSeed, onChatForked, surfaceContributors }: MessageListSurfaceProps): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
 
@@ -86,31 +66,18 @@ export function MessageListSurface({
           return (
             <QueryBoundary
               fallback={<SkeletonRows count={3} />}
-              renderError={(_error, retry): ReactElement => (
-                <QueryErrorState label="this conversation" onRetry={retry} />
-              )}
+              renderError={(_error, retry): ReactElement => <QueryErrorState label="this conversation" onRetry={retry} />}
             >
-              <DraftGreetingThread
-                draftKey={handle.draftKey}
-                characterIds={characterIds}
-                chatStyle={chatStyle}
-              />
+              <DraftGreetingThread draftKey={handle.draftKey} characterIds={characterIds} chatStyle={chatStyle} />
             </QueryBoundary>
           );
         }
         return (
           <QueryBoundary
             fallback={<SkeletonRows count={3} />}
-            renderError={(_error, retry): ReactElement => (
-              <QueryErrorState label="this conversation" onRetry={retry} />
-            )}
+            renderError={(_error, retry): ReactElement => <QueryErrorState label="this conversation" onRetry={retry} />}
           >
-            <ChatThread
-              chatId={chatId}
-              chatStyle={chatStyle}
-              onChatForked={onChatForked}
-              surfaceContributors={surfaceContributors}
-            />
+            <ChatThread chatId={chatId} chatStyle={chatStyle} onChatForked={onChatForked} surfaceContributors={surfaceContributors} />
           </QueryBoundary>
         );
       })()}
@@ -126,33 +93,19 @@ interface ChatThreadProps {
 }
 
 /** The committed-chat transcript — suspends on the canon + roster reads, then merges the live ghost. */
-function ChatThread({
-  chatId,
-  chatStyle,
-  onChatForked,
-  surfaceContributors,
-}: ChatThreadProps): ReactElement {
+function ChatThread({ chatId, chatStyle, onChatForked, surfaceContributors }: ChatThreadProps): ReactElement {
   const trpc = useTRPC();
   const [{ data: messagesPage }, { data: chatDetail }] = useSuspenseQueries({
-    queries: [
-      trpc.chat.listMessages.queryOptions({ chatId }),
-      trpc.chat.getChat.queryOptions({ chatId }),
-    ],
+    queries: [trpc.chat.listMessages.queryOptions({ chatId }), trpc.chat.getChat.queryOptions({ chatId })],
   });
   const messages = messagesPage.messages;
   const participants = buildParticipantsById(chatDetail.participants);
   // Merge the two ChatMacroNameProducer wire halves (chat-level floor + this page's own stamped ids),
   // last-write-wins on a dup id.
-  const producers: readonly ChatMacroNameProducer[] = [
-    chatDetail.macroNames,
-    messagesPage.macroNames,
-  ];
+  const producers: readonly ChatMacroNameProducer[] = [chatDetail.macroNames, messagesPage.macroNames];
   const characterNamesById = buildCharacterNameMap(producers.flatMap((p) => p.characterNames));
   const personaNamesById = buildPersonaNameMap(producers.flatMap((p) => p.personaNames));
-  const personaAvatarEntries: readonly PersonaAvatarEntry[] = [
-    ...chatDetail.personaAvatars,
-    ...messagesPage.personaAvatars,
-  ];
+  const personaAvatarEntries: readonly PersonaAvatarEntry[] = [...chatDetail.personaAvatars, ...messagesPage.personaAvatars];
   const personaAvatarsById = buildPersonaAvatarMap(personaAvatarEntries);
   const activePersonaId = resolveViewerActivePersonaId(chatDetail.participants);
   const viewerUserId = resolveViewerUserId(chatDetail.participants);
@@ -263,20 +216,14 @@ interface DraftGreetingThreadProps {
 }
 
 /** A draft's editable greeting preview — one MessageRow per founding character, in greet-all order. */
-function DraftGreetingThread({
-  draftKey,
-  characterIds,
-  chatStyle,
-}: DraftGreetingThreadProps): ReactElement {
+function DraftGreetingThread({ draftKey, characterIds, chatStyle }: DraftGreetingThreadProps): ReactElement {
   const trpc = useTRPC();
   const draftConfig = useDraftConfig(draftKey);
   const messageAppearance = useMessageAppearance();
   const characters = useSuspenseQueries({
     queries: characterIds.map((characterId) => trpc.character.get.queryOptions({ characterId })),
   });
-  const characterNamesById = buildCharacterNameMap(
-    characters.map((c) => ({ id: c.data.id, name: c.data.name })),
-  );
+  const characterNamesById = buildCharacterNameMap(characters.map((c) => ({ id: c.data.id, name: c.data.name })));
   const personaNamesById = buildPersonaNameMap([]);
 
   const rows = characters.flatMap((c, i) => {
@@ -316,9 +263,7 @@ function DraftGreetingEmpty({ names }: { readonly names: readonly string[] }): R
   const label = names.filter((n) => n.length > 0).join(", ");
   return (
     <Stack align="center" justify="center" padding="section" className="h-full">
-      <Text tone="muted">
-        {label.length > 0 ? `Say hello to ${label} to begin the scene.` : "No messages yet."}
-      </Text>
+      <Text tone="muted">{label.length > 0 ? `Say hello to ${label} to begin the scene.` : "No messages yet."}</Text>
     </Stack>
   );
 }

@@ -28,11 +28,7 @@ export function JumpToLatestPillStory(): ReactElement {
         zero count
       </button>
       <output data-testid="jumps">{jumps}</output>
-      <JumpToLatestPill
-        count={count}
-        visible={visible}
-        onJump={(): void => setJumps((j) => j + 1)}
-      />
+      <JumpToLatestPill count={count} visible={visible} onJump={(): void => setJumps((j) => j + 1)} />
     </div>
   );
 }
@@ -80,9 +76,7 @@ export function JumpToLatestRegressionStory(): ReactElement {
           data-testid="read-dist"
           onClick={(): void => {
             const handle = listHandleRef.current;
-            setDist(
-              handle === null ? "no-handle" : String(Math.round(handle.getDistanceFromEnd())),
-            );
+            setDist(handle === null ? "no-handle" : String(Math.round(handle.getDistanceFromEnd())));
           }}
         >
           read dist
@@ -97,9 +91,7 @@ export function JumpToLatestRegressionStory(): ReactElement {
           getItemKey={(item): string => item.id}
           estimateSize={(): number => REGRESSION_ROW_PX}
           scrollContainerRef={jump.scrollContainerRef}
-          renderItem={(item): ReactElement => (
-            <div style={{ height: REGRESSION_ROW_PX }}>{item.label}</div>
-          )}
+          renderItem={(item): ReactElement => <div style={{ height: REGRESSION_ROW_PX }}>{item.label}</div>}
           className="h-full"
         />
         <JumpToLatestPill count={jump.count} visible={jump.visible} onJump={jump.onJump} />

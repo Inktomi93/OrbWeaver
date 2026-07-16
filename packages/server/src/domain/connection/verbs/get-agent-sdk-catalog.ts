@@ -12,9 +12,7 @@ import { readAgentSdkCatalogSnapshot } from "../persistence/agent-sdk-catalog-sn
 
 const EMPTY_SNAPSHOT: AgentSdkCatalogSnapshot = { fetchedAt: 0, models: [] };
 
-export function createGetAgentSdkCatalog(
-  ctx: ConnectionContext,
-): ConnectionService["getAgentSdkCatalog"] {
+export function createGetAgentSdkCatalog(ctx: ConnectionContext): ConnectionService["getAgentSdkCatalog"] {
   return async (_params: GetCatalogParams): Promise<AgentSdkCatalogSnapshot> => {
     const snapshot = await readAgentSdkCatalogSnapshot(ctx.db);
     return snapshot ?? EMPTY_SNAPSHOT;

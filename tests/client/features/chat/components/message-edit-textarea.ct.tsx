@@ -7,9 +7,7 @@ import { routeTrpc } from "../../../../support/ct/route-trpc";
 import { MessageEditTextareaStory } from "../_ct-stories";
 import { makeMessageView } from "../fixtures";
 
-test("mounts pre-focused with the message's current content, caret at the end", async ({
-  mount,
-}) => {
+test("mounts pre-focused with the message's current content, caret at the end", async ({ mount }) => {
   const message = makeMessageView({ content: "original text" });
   const component = await mount(<MessageEditTextareaStory message={message} />);
 
@@ -19,10 +17,7 @@ test("mounts pre-focused with the message's current content, caret at the end", 
   await expect(textarea).toBeFocused();
 });
 
-test("Enter (no Shift) saves via chat.editMessage with the edited content", async ({
-  mount,
-  page,
-}) => {
+test("Enter (no Shift) saves via chat.editMessage with the edited content", async ({ mount, page }) => {
   const message = makeMessageView({ content: "original text" });
   const trpc = await routeTrpc(page, { "chat.editMessage": () => message });
   const component = await mount(<MessageEditTextareaStory message={message} />);
@@ -53,10 +48,7 @@ test("Shift+Enter inserts a newline instead of saving", async ({ mount, page }) 
   expect(trpc.count("chat.editMessage")).toBe(0);
 });
 
-test("Esc cancels — discards the draft (store clears → the textarea reads empty), never saves", async ({
-  mount,
-  page,
-}) => {
+test("Esc cancels — discards the draft (store clears → the textarea reads empty), never saves", async ({ mount, page }) => {
   const message = makeMessageView({ content: "original text" });
   const trpc = await routeTrpc(page, { "chat.editMessage": () => message });
   const component = await mount(<MessageEditTextareaStory message={message} />);
@@ -99,10 +91,7 @@ test("the Save button fires the same save path as Enter", async ({ mount, page }
   expect(trpc.lastInput("chat.editMessage")).toMatchObject({ content: "saved via button" });
 });
 
-test("an unchanged save (identical text) exits WITHOUT calling chat.editMessage", async ({
-  mount,
-  page,
-}) => {
+test("an unchanged save (identical text) exits WITHOUT calling chat.editMessage", async ({ mount, page }) => {
   const message = makeMessageView({ content: "unchanged text" });
   const trpc = await routeTrpc(page, { "chat.editMessage": () => message });
   const component = await mount(<MessageEditTextareaStory message={message} />);

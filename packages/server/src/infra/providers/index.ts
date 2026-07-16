@@ -113,9 +113,7 @@ export function createBackendRegistry(deps: BackendRegistryDeps): BackendRegistr
     vllmEngine = vllm.engine;
   }
 
-  const registry: BackendRegistry = new Map(
-    backends.map((b): readonly [ProviderBackend["key"], ProviderBackend] => [b.key, b]),
-  );
+  const registry: BackendRegistry = new Map(backends.map((b): readonly [ProviderBackend["key"], ProviderBackend] => [b.key, b]));
   return { backends: registry, vllmEngine };
 }
 

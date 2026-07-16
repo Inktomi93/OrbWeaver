@@ -12,15 +12,9 @@ import type { ModelId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ChatRequest, ChatResult } from "@orb/server/infra/providers";
 import { ProviderError } from "@orb/server/infra/providers";
-import {
-  createCustomByoBackend,
-  reshapeChunk,
-} from "@orb/server/infra/providers/backends/custom-byo";
+import { createCustomByoBackend, reshapeChunk } from "@orb/server/infra/providers/backends/custom-byo";
 import { afterEach, describe, vi } from "vitest";
-import {
-  makeCustomOpenAiCredential,
-  makeOpenRouterCredential,
-} from "../../../../../../support/factories/resolved-connection";
+import { makeCustomOpenAiCredential, makeOpenRouterCredential } from "../../../../../../support/factories/resolved-connection";
 import { expect, test } from "../../../../../../support/fixtures";
 
 const FIXED_NOW = 1000;
@@ -98,8 +92,7 @@ describe("createCustomByoBackend — request mapping", () => {
     vi.stubGlobal("fetch", (url: string | URL, init?: RequestInit): Response => {
       capturedUrl = String(url);
       capturedHeaders = new Headers(init?.headers);
-      capturedBody =
-        typeof init?.body === "string" ? (JSON.parse(init.body) as Record<string, unknown>) : {};
+      capturedBody = typeof init?.body === "string" ? (JSON.parse(init.body) as Record<string, unknown>) : {};
       return sseResponse([
         'data: {"choices":[{"delta":{"content":"hello"}}]}',
         'data: {"choices":[{"finish_reason":"stop"}],"usage":{"prompt_tokens":3,"completion_tokens":1}}',
@@ -107,9 +100,7 @@ describe("createCustomByoBackend — request mapping", () => {
       ]);
     });
 
-    await runTurn(
-      makeRequest({ customParameters: { reasoning_effort: "high", temperature: 0.2 } }),
-    );
+    await runTurn(makeRequest({ customParameters: { reasoning_effort: "high", temperature: 0.2 } }));
 
     expect(capturedUrl).toBe(EXPECTED_URL);
     expect(capturedHeaders.get("authorization")).toBe(`Bearer ${SECRET_KEY}`);
@@ -128,12 +119,8 @@ describe("createCustomByoBackend — request mapping", () => {
   test("projects the user's minP onto the min_p wire field (D68-A)", async () => {
     let capturedBody: Record<string, unknown> = {};
     vi.stubGlobal("fetch", (_url: string | URL, init?: RequestInit): Response => {
-      capturedBody =
-        typeof init?.body === "string" ? (JSON.parse(init.body) as Record<string, unknown>) : {};
-      return sseResponse([
-        'data: {"choices":[{"finish_reason":"stop"}],"usage":{"prompt_tokens":1,"completion_tokens":1}}',
-        "data: [DONE]",
-      ]);
+      capturedBody = typeof init?.body === "string" ? (JSON.parse(init.body) as Record<string, unknown>) : {};
+      return sseResponse(['data: {"choices":[{"finish_reason":"stop"}],"usage":{"prompt_tokens":1,"completion_tokens":1}}', "data: [DONE]"]);
     });
     await runTurn(makeRequest({ params: { minP: 0.04 } }));
     expect(capturedBody["min_p"]).toBe(0.04);
@@ -142,14 +129,14 @@ describe("createCustomByoBackend — request mapping", () => {
   test("a __proto__/constructor-carrying customParameters does not pollute Object.prototype, legit keys still merge (PD-101 Layer 2)", async () => {
     let capturedBody: Record<string, unknown> = {};
     vi.stubGlobal("fetch", (_url: string | URL, init?: RequestInit): Response => {
-      capturedBody =
-        typeof init?.body === "string" ? (JSON.parse(init.body) as Record<string, unknown>) : {};
+      capturedBody = typeof init?.body === "string" ? (JSON.parse(init.body) as Record<string, unknown>) : {};
       return sseResponse(['data: {"choices":[{"delta":{"content":"x"}}]}', "data: [DONE]"]);
     });
 
-    const poison = JSON.parse(
-      '{"reasoning_effort":"high","__proto__":{"polluted":true},"nested":{"constructor":{"polluted":true},"ok":1}}',
-    ) as Record<string, unknown>;
+    const poison = JSON.parse('{"reasoning_effort":"high","__proto__":{"polluted":true},"nested":{"constructor":{"polluted":true},"ok":1}}') as Record<
+      string,
+      unknown
+    >;
     await runTurn(makeRequest({ customParameters: poison }));
 
     expect(({} as Record<string, unknown>)["polluted"]).toBeUndefined();
@@ -225,15 +212,7 @@ describe("createCustomByoBackend — streaming + non-streaming + the user-declar
   });
 
   test("threads the credential's responseMap over the streaming defaults (PD-13)", async () => {
-    vi.stubGlobal(
-      "fetch",
-      (): Response =>
-        sseResponse([
-          'data: {"out":{"text":"mapped "}}',
-          'data: {"out":{"text":"hi"},"done":"stop"}',
-          "data: [DONE]",
-        ]),
-    );
+    vi.stubGlobal("fetch", (): Response => sseResponse(['data: {"out":{"text":"mapped "}}', 'data: {"out":{"text":"hi"},"done":"stop"}', "data: [DONE]"]));
     // Only `contentPath`/`finishReasonPath` overridden — the untouched default paths still apply.
     const cred = makeCustomOpenAiCredential({
       ...CRED_BASE,
@@ -247,8 +226,7 @@ describe("createCustomByoBackend — streaming + non-streaming + the user-declar
   test("applies the credential's includeBody/excludeBody to the request body (PD-13)", async () => {
     let capturedBody: Record<string, unknown> = {};
     vi.stubGlobal("fetch", (_url: string | URL, init?: RequestInit): Response => {
-      capturedBody =
-        typeof init?.body === "string" ? (JSON.parse(init.body) as Record<string, unknown>) : {};
+      capturedBody = typeof init?.body === "string" ? (JSON.parse(init.body) as Record<string, unknown>) : {};
       return sseResponse(['data: {"choices":[{"delta":{"content":"x"}}]}', "data: [DONE]"]);
     });
     const cred = makeCustomOpenAiCredential({
@@ -284,10 +262,7 @@ describe("reshapeChunk — the user-declared RESPONSE map (the part neo faked)",
   });
 
   test("a missing path yields a null content delta (never throws); array segments index by number", () => {
-    const chunk = reshapeChunk(
-      { choices: [{ delta: { content: "idx" } }] },
-      { contentPath: "choices.0.delta.content", reasoningPath: "nope.gone" },
-    );
+    const chunk = reshapeChunk({ choices: [{ delta: { content: "idx" } }] }, { contentPath: "choices.0.delta.content", reasoningPath: "nope.gone" });
     expect(chunk.choices[0]?.delta?.content).toBe("idx");
     expect(chunk.choices[0]?.delta?.reasoning).toBeUndefined();
     expect(chunk.usage).toBeUndefined();
@@ -314,11 +289,7 @@ describe("createCustomByoBackend — error classification", () => {
   });
 
   test("an in-band stream error is promoted to a classified ProviderError (not a silent empty reply)", async () => {
-    vi.stubGlobal(
-      "fetch",
-      (): Response =>
-        sseResponse(['data: {"error":{"message":"context too long","code":400}}', "data: [DONE]"]),
-    );
+    vi.stubGlobal("fetch", (): Response => sseResponse(['data: {"error":{"message":"context too long","code":400}}', "data: [DONE]"]));
     await expect(runTurn(makeRequest())).rejects.toBeInstanceOf(ProviderError);
   });
 

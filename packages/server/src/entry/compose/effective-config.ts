@@ -8,9 +8,7 @@ export interface EffectiveConfigWiring {
 }
 
 /** Surface settings' effective-config seam for boot warm + downstream injection. */
-export function createEffectiveConfigWiring(
-  settings: Pick<SettingsService, "getEffectiveConfig" | "reloadEffectiveConfig">,
-): EffectiveConfigWiring {
+export function createEffectiveConfigWiring(settings: Pick<SettingsService, "getEffectiveConfig" | "reloadEffectiveConfig">): EffectiveConfigWiring {
   return {
     getEffectiveConfig: settings.getEffectiveConfig,
     reload: settings.reloadEffectiveConfig,

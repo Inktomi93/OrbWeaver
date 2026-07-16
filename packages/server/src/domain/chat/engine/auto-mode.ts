@@ -33,9 +33,7 @@ function isLockedRefusal(err: unknown): boolean {
 }
 
 /** One chained turn: arbitrate → run. Non-lock turn errors propagate. */
-type StepResult =
-  | { readonly done: AutoModeStopReason }
-  | { readonly committed: readonly MessageView[]; readonly speakerRef: SpeakerRef };
+type StepResult = { readonly done: AutoModeStopReason } | { readonly committed: readonly MessageView[]; readonly speakerRef: SpeakerRef };
 
 async function step(params: AutoModeParams, last: SpeakerRef | null): Promise<StepResult> {
   const speaker = await params.nextSpeaker(last);

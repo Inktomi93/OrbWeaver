@@ -120,18 +120,8 @@ function buildTheme(name: string, type: "light" | "dark", fg: string, bg: string
 
 // Dark literals: TOKENS["color.*"].value. Light literals: transcribed from the [data-theme="light"]
 // override block in styles/globals.css — a palette edit there needs the matching edit here.
-const ORB_DARK = buildTheme(
-  "orbweaver-dark",
-  "dark",
-  TOKENS["color.foreground"].value,
-  TOKENS["color.card"].value,
-);
-const ORB_LIGHT = buildTheme(
-  "orbweaver-light",
-  "light",
-  "oklch(0.24 0.01 60)",
-  "oklch(0.995 0.003 75)",
-);
+const ORB_DARK = buildTheme("orbweaver-dark", "dark", TOKENS["color.foreground"].value, TOKENS["color.card"].value);
+const ORB_LIGHT = buildTheme("orbweaver-light", "light", "oklch(0.24 0.01 60)", "oklch(0.995 0.003 75)");
 
 const THEMES: [ThemeInput, ThemeInput] = [ORB_LIGHT, ORB_DARK];
 
@@ -176,10 +166,7 @@ export const MARKDOWN_SHIKI_PLUGIN: CodeHighlighterPlugin = {
   getThemes: () => THEMES,
   getSupportedLanguages: () => Object.keys(LANGUAGE_LOADERS) as never[],
   supportsLanguage: (language) => language in LANGUAGE_LOADERS,
-  highlight(
-    options: HighlightOptions,
-    callback?: (result: ShikiHighlightResult) => void,
-  ): ShikiHighlightResult | null {
+  highlight(options: HighlightOptions, callback?: (result: ShikiHighlightResult) => void): ShikiHighlightResult | null {
     highlightAsync(options.code, options.language)
       .then((result) => callback?.(result))
       .catch(() => {

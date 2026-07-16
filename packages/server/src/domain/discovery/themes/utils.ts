@@ -10,13 +10,6 @@ const INNER_WHITESPACE = /\s+/g;
  *  numbering + surrounding quotes/backticks, collapse inner whitespace, cap length. Returns `null` for an
  *  empty result (the caller leaves the cluster unnamed rather than store junk). */
 export function parseThemeName(raw: string): string | null {
-  const cleaned = raw
-    .trim()
-    .replace(LEADING_BULLET, "")
-    .replace(SURROUNDING_QUOTES, "")
-    .replace(INNER_WHITESPACE, " ")
-    .trim()
-    .slice(0, MAX_NAME_LEN)
-    .trim();
+  const cleaned = raw.trim().replace(LEADING_BULLET, "").replace(SURROUNDING_QUOTES, "").replace(INNER_WHITESPACE, " ").trim().slice(0, MAX_NAME_LEN).trim();
   return cleaned.length === 0 ? null : cleaned;
 }

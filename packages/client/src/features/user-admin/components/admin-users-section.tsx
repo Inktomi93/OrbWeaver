@@ -49,11 +49,7 @@ export function AdminUsersSection(props: AdminUsersSectionProps): ReactElement {
         <Text size="label" tone="muted">
           {props.users.length} {props.users.length === 1 ? "account" : "accounts"}
         </Text>
-        <Button
-          size="sm"
-          data-testid={testId("adminCreateUserButton")}
-          onClick={(): void => setCreateOpen(true)}
-        >
+        <Button size="sm" data-testid={testId("adminCreateUserButton")} onClick={(): void => setCreateOpen(true)}>
           <Icon icon={UserPlus} size="sm" />
           Create user
         </Button>
@@ -67,20 +63,14 @@ export function AdminUsersSection(props: AdminUsersSectionProps): ReactElement {
             isSelf={user.id === props.viewerUserId}
             viewerIsOwner={props.viewerIsOwner}
             onSetRole={(role: UserRole): void => setRole.mutate({ userId: user.id, role })}
-            onSetEnabled={(enabled: boolean): void =>
-              setEnabled.mutate({ userId: user.id, enabled })
-            }
+            onSetEnabled={(enabled: boolean): void => setEnabled.mutate({ userId: user.id, enabled })}
             onOpenSessions={(): void => setSessionsFor({ userId: user.id, handle: user.handle })}
             onResetPassword={(): void => setResetFor({ userId: user.id, handle: user.handle })}
           />
         ))}
       </Stack>
 
-      <AdminCreateUserDialog
-        open={createOpen}
-        onOpenChange={setCreateOpen}
-        viewerIsOwner={props.viewerIsOwner}
-      />
+      <AdminCreateUserDialog open={createOpen} onOpenChange={setCreateOpen} viewerIsOwner={props.viewerIsOwner} />
 
       {sessionsFor === null ? null : (
         <AdminUserSessionsDialog

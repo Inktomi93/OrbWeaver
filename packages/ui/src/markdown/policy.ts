@@ -58,9 +58,7 @@ export const TIER_A_ELEMENTS: readonly string[] = [
  * `urlTransform` does not intercept, so an untrusted external image would prefetch to the source
  * (a tracking-pixel exfil) even with the url gate — dropping `img` blocks that at the element level.
  */
-export const TIER_A_UNTRUSTED_ELEMENTS: readonly string[] = TIER_A_ELEMENTS.filter(
-  (tag) => tag !== "img",
-);
+export const TIER_A_UNTRUSTED_ELEMENTS: readonly string[] = TIER_A_ELEMENTS.filter((tag) => tag !== "img");
 
 // Protocols an untrusted link may use — everything else (javascript:, data:, vbscript:, …) is blocked.
 const SAFE_PROTOCOLS: readonly string[] = ["http:", "https:", "mailto:"];
@@ -102,12 +100,10 @@ export const untrustedUrlTransform: UrlTransform = (url) => {
  * `10~20°C`). Overrides only `remarkPlugins`, never `rehypePlugins` — Streamdown's `allowedTags`
  * schema-merge is gated on `rehypePlugins` staying its default reference.
  */
-export const MARKDOWN_REMARK_PLUGINS: NonNullable<StreamdownProps["remarkPlugins"]> = Object.values(
-  {
-    ...defaultRemarkPlugins,
-    gfm: [remarkGfm, { singleTilde: false }],
-  },
-);
+export const MARKDOWN_REMARK_PLUGINS: NonNullable<StreamdownProps["remarkPlugins"]> = Object.values({
+  ...defaultRemarkPlugins,
+  gfm: [remarkGfm, { singleTilde: false }],
+});
 
 /**
  * Trusted-only custom-tag passthrough for the `<speaker>` wire format. Adds `<speaker>` to

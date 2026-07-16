@@ -62,10 +62,7 @@ const MINIMAL_CONFIG = {
   lorebook: {},
 } as never;
 
-async function seedGame(
-  db: Db,
-  chatSuffix: string,
-): Promise<{ chatId: ChatId; gameId: RpgGameId }> {
+async function seedGame(db: Db, chatSuffix: string): Promise<{ chatId: ChatId; gameId: RpgGameId }> {
   const chatId = castId<ChatId>(`chat_rpg_${chatSuffix}`);
   await db.insert(chats).values({ id: chatId });
   const gameId = castId<RpgGameId>(`rpggame_${chatSuffix}`);
@@ -76,9 +73,7 @@ async function seedGame(
 async function seedSnapshot(db: Db, gameId: RpgGameId, suffix: string): Promise<RpgSnapshotId> {
   const chatId = (await db.select().from(rpgGames).where(eq(rpgGames.id, gameId)))[0]?.chatId;
   const messageId = castId<MessageId>(`message_rpg_${suffix}`);
-  await db
-    .insert(messages)
-    .values({ id: messageId, chatId: chatId as ChatId, seq: 1, role: "assistant" });
+  await db.insert(messages).values({ id: messageId, chatId: chatId as ChatId, seq: 1, role: "assistant" });
   const variantId = castId<MessageVariantId>(`message_variant_rpg_${suffix}`);
   await db.insert(messageVariants).values({ id: variantId, messageId, idx: 0, content: "x" });
   const snapshotId = castId<RpgSnapshotId>(`rpgsnap_${suffix}`);
@@ -103,9 +98,7 @@ test("chat delete CASCADEs the whole game (rpg_games + its satellites)", async (
 
   await db.delete(chats).where(eq(chats.id, chatId));
   expect(await db.select().from(rpgGames).where(eq(rpgGames.id, gameId))).toHaveLength(0);
-  expect(await db.select().from(rpgSnapshots).where(eq(rpgSnapshots.gameId, gameId))).toHaveLength(
-    0,
-  );
+  expect(await db.select().from(rpgSnapshots).where(eq(rpgSnapshots.gameId, gameId))).toHaveLength(0);
 });
 
 test("rpg_party XOR(characterId,userId) + per-actor uniques", async () => {
@@ -129,9 +122,7 @@ test("rpg_party XOR(characterId,userId) + per-actor uniques", async () => {
 
   // Character insert needs a real character row (FK).
   const { characters } = await import("@orb/db");
-  await db
-    .insert(users)
-    .values({ id: castId<UserId>("user_rpg_owner"), handle: castId<Handle>("o") });
+  await db.insert(users).values({ id: castId<UserId>("user_rpg_owner"), handle: castId<Handle>("o") });
   await db.insert(characters).values({
     id: characterId,
     handle: "card-rpg",
@@ -144,9 +135,7 @@ test("rpg_party XOR(characterId,userId) + per-actor uniques", async () => {
   // BOTH null → XOR violated.
   await expect(insertMember("rpgparty_none", {})).rejects.toSatisfy(isConstraintErr);
   // BOTH set → XOR violated.
-  await expect(insertMember("rpgparty_both", { characterId, userId })).rejects.toSatisfy(
-    isConstraintErr,
-  );
+  await expect(insertMember("rpgparty_both", { characterId, userId })).rejects.toSatisfy(isConstraintErr);
   // A user seat (XOR satisfied).
   await expect(insertMember("rpgparty_user", { userId })).resolves.toBeUndefined();
   // Second character seat for the same (game, character) → unique collides.
@@ -164,9 +153,7 @@ test("rpg_checkpoints RESTRICT blocks deleting the pointed snapshot", async () =
     label: "save",
     trigger: "manual",
   });
-  await expect(db.delete(rpgSnapshots).where(eq(rpgSnapshots.id, snapshotId))).rejects.toSatisfy(
-    isConstraintErr,
-  );
+  await expect(db.delete(rpgSnapshots).where(eq(rpgSnapshots.id, snapshotId))).rejects.toSatisfy(isConstraintErr);
 });
 
 test("partial-unique: one `active` encounter per game; one `pending` check per target", async () => {

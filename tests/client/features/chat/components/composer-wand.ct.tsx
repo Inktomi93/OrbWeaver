@@ -19,10 +19,7 @@ test("the wand trigger is disabled on an empty draft", async ({ mount }) => {
   await expect(component.getByRole("button", { name: "Guided generations" })).toBeDisabled();
 });
 
-test("typing a draft enables the trigger; it opens to the committed-chat items", async ({
-  mount,
-  page,
-}) => {
+test("typing a draft enables the trigger; it opens to the committed-chat items", async ({ mount, page }) => {
   const component = await mount(<ComposerStory />);
   await component.getByLabel("Message", { exact: true }).fill("steer it darker");
 
@@ -36,10 +33,7 @@ test("typing a draft enables the trigger; it opens to the committed-chat items",
   await expect(page.getByRole("menuitem", { name: "Impersonate" })).toBeVisible();
 });
 
-test("Guided response fires chat.generate with the draft as guidance, then clears the composer", async ({
-  mount,
-  page,
-}) => {
+test("Guided response fires chat.generate with the draft as guidance, then clears the composer", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, { "chat.generate": () => ({ ok: true }) });
   const component = await mount(<ComposerStory />);
 
@@ -55,10 +49,7 @@ test("Guided response fires chat.generate with the draft as guidance, then clear
   await expect(component.getByLabel("Message", { exact: true })).toHaveValue("");
 });
 
-test("Guided swipe/continue are disabled with no tail assistant message to target", async ({
-  mount,
-  page,
-}) => {
+test("Guided swipe/continue are disabled with no tail assistant message to target", async ({ mount, page }) => {
   // The default unstubbed `chat.listMessages` resolves `null` (routeTrpc header contract) — no tail.
   const component = await mount(<ComposerStory />);
   await component.getByLabel("Message", { exact: true }).fill("steer it darker");
@@ -68,10 +59,7 @@ test("Guided swipe/continue are disabled with no tail assistant message to targe
   await expect(page.getByRole("menuitem", { name: "Guided continue" })).toBeDisabled();
 });
 
-test("Guided swipe fires chat.swipe with the tail assistant messageId + guidance", async ({
-  mount,
-  page,
-}) => {
+test("Guided swipe fires chat.swipe with the tail assistant messageId + guidance", async ({ mount, page }) => {
   const tail = makeMessageView({ chatId: COMPOSER_CHAT_ID, role: "assistant" });
   const trpc = await routeTrpc(page, {
     "chat.listMessages": () => makeMessagesPage([tail]),
@@ -93,10 +81,7 @@ test("Guided swipe fires chat.swipe with the tail assistant messageId + guidance
   });
 });
 
-test("Guided continue fires chat.continueTurn with the tail assistant messageId + guidance", async ({
-  mount,
-  page,
-}) => {
+test("Guided continue fires chat.continueTurn with the tail assistant messageId + guidance", async ({ mount, page }) => {
   const tail = makeMessageView({ chatId: COMPOSER_CHAT_ID, role: "assistant" });
   const trpc = await routeTrpc(page, {
     "chat.listMessages": () => makeMessagesPage([tail]),
@@ -118,10 +103,7 @@ test("Guided continue fires chat.continueTurn with the tail assistant messageId 
   });
 });
 
-test("Impersonate's person submenu fires chat.impersonate with the picked person", async ({
-  mount,
-  page,
-}) => {
+test("Impersonate's person submenu fires chat.impersonate with the picked person", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, { "chat.impersonate": () => ({ ok: true }) });
   const component = await mount(<ComposerStory />);
 
@@ -138,10 +120,7 @@ test("Impersonate's person submenu fires chat.impersonate with the picked person
   });
 });
 
-test("draft handle: shows only 'Guide the opening', which fires chat.startChat with a forced generate + the steer", async ({
-  mount,
-  page,
-}) => {
+test("draft handle: shows only 'Guide the opening', which fires chat.startChat with a forced generate + the steer", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "chat.startChat": () => ({ chat: { id: COMPOSER_CHAT_ID } }),
   });
@@ -162,9 +141,7 @@ test("draft handle: shows only 'Guide the opening', which fires chat.startChat w
   await expect(component.getByLabel("Message", { exact: true })).toHaveValue("");
 });
 
-test("the wand trigger is disabled while a turn is mid-flight, even with draft text", async ({
-  mount,
-}) => {
+test("the wand trigger is disabled while a turn is mid-flight, even with draft text", async ({ mount }) => {
   const component = await mount(<ComposerStory />);
   await component.getByLabel("Message", { exact: true }).fill("steer it darker");
   await expect(component.getByRole("button", { name: "Guided generations" })).toBeEnabled();

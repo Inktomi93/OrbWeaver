@@ -9,12 +9,7 @@ import { fakeEnv, makeRunnerContext, RUNNER_OWNER_ID } from "../_support.ts";
 describe("memory-backfill runner", () => {
   test("runs the corpus sweep and returns its counts", async () => {
     const env = fakeEnv();
-    const result = await memoryBackfillRunner(
-      makeRunnerContext(env),
-      {},
-      vi.fn(),
-      new AbortController().signal,
-    );
+    const result = await memoryBackfillRunner(makeRunnerContext(env), {}, vi.fn(), new AbortController().signal);
     expect(env.memory.backfill).toHaveBeenCalledWith({
       ownerId: RUNNER_OWNER_ID,
       signal: expect.any(AbortSignal),

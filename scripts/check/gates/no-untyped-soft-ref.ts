@@ -44,10 +44,7 @@ function relPath(root: string, abs: string): string {
  *  call/property-access spine down to its leading identifier. */
 function chainRoot(expr: Node): string {
   let current = expr;
-  while (
-    current.isKind(SyntaxKind.CallExpression) ||
-    current.isKind(SyntaxKind.PropertyAccessExpression)
-  ) {
+  while (current.isKind(SyntaxKind.CallExpression) || current.isKind(SyntaxKind.PropertyAccessExpression)) {
     current = current.getExpression();
   }
   return current.isKind(SyntaxKind.Identifier) ? current.getText() : "";
@@ -115,11 +112,7 @@ export const gate: GateDescriptor = {
       return;
     }
     const [nameArg, colsArg] = node.getArguments();
-    if (
-      nameArg === undefined ||
-      !nameArg.isKind(SyntaxKind.StringLiteral) ||
-      colsArg === undefined
-    ) {
+    if (nameArg === undefined || !nameArg.isKind(SyntaxKind.StringLiteral) || colsArg === undefined) {
       return;
     }
     const rel = relPath(ctx.root, sf.getFilePath());
@@ -167,8 +160,7 @@ export const gate: GateDescriptor = {
   // run. Only the pure FLAG/PASS branches port as examples below.
   mustPass: [
     {
-      files:
-        'export const t = sqliteTable("t", { widgetId: text("widget_id").references(() => w.id) });\n',
+      files: 'export const t = sqliteTable("t", { widgetId: text("widget_id").references(() => w.id) });\n',
       at: "packages/db/src/schema/y.ts",
       why: "the `*Id` column carries a .references() FK — a typed ref, passes",
     },
@@ -180,8 +172,7 @@ export const gate: GateDescriptor = {
     },
     {
       // a primary-key id + a non-id column are not soft refs.
-      files:
-        'export const t = sqliteTable("t", { id: text("id").primaryKey(), name: text("name") });\n',
+      files: 'export const t = sqliteTable("t", { id: text("id").primaryKey(), name: text("name") });\n',
       at: "packages/db/src/schema/z.ts",
       why: "a primary-key id and a non-id column are not id-shaped soft refs — passes",
     },

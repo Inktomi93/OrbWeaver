@@ -22,8 +22,7 @@ export const presetsSection: SectionDefinition = {
   panelDefaults: { list: "docked", context: "collapsed" },
   placeholder: {
     title: "Presets",
-    description:
-      "Your generation presets live here — pick one to tune sampling, reasoning, and prompts.",
+    description: "Your generation presets live here — pick one to tune sampling, reasoning, and prompts.",
   },
   list: () => (
     <PresetLibraryAnchor>

@@ -11,11 +11,7 @@ import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
-import {
-  clearAssemblyForm,
-  publishAssemblyForm,
-  useAssemblyForm,
-} from "../../../../../packages/client/src/features/preset/lib/preset-editor-bridge";
+import { clearAssemblyForm, publishAssemblyForm, useAssemblyForm } from "../../../../../packages/client/src/features/preset/lib/preset-editor-bridge";
 
 const STORY_PRESET = castId<PresetId>("preset_bridgestoryaa");
 
@@ -31,10 +27,7 @@ function BridgePublisher(): ReactElement {
   const { form } = useStoryForm({ entityId: STORY_PRESET, serverValues: DEFAULT_PROMPT_CONFIG });
   return (
     <div>
-      <button
-        type="button"
-        onClick={(): void => publishAssemblyForm({ presetId: STORY_PRESET, form })}
-      >
+      <button type="button" onClick={(): void => publishAssemblyForm({ presetId: STORY_PRESET, form })}>
         publish form
       </button>
       <button type="button" onClick={(): void => clearAssemblyForm()}>

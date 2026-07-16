@@ -35,11 +35,7 @@ export const gate: GateDescriptor = {
   scopeSafety: "incremental-safe",
   message: FIXTURE_MESSAGE,
   fix: "import { test, expect } from 'support/fixtures' — the composed fixture (db, frozen clock, …), never directly from vitest/@playwright/test.",
-  scanRoot: (p) =>
-    p.includes("tests/") &&
-    !p.includes("tests/e2e/") &&
-    !p.includes("tests/support/") &&
-    !p.endsWith(".test-d.ts"),
+  scanRoot: (p) => p.includes("tests/") && !p.includes("tests/e2e/") && !p.includes("tests/support/") && !p.endsWith(".test-d.ts"),
   kinds: [SyntaxKind.ImportSpecifier],
   visit: (node, _sf, ctx) => {
     const hit = directFixtureImport(node);

@@ -32,18 +32,12 @@ test("the touch floor holds PER-POINTER: coarse @theme meets ≥44px, fine overr
   const coarseFloor = coarseRem("touch-target");
   expect(coarseFloor).toBeGreaterThanOrEqual(2.75); // 44px @ 16px root
   for (const control of ["control-sm", "control-md", "control-lg"]) {
-    expect(
-      coarseRem(control),
-      `coarse spacing.${control} may not undercut the ≥44px touch floor`,
-    ).toBeGreaterThanOrEqual(coarseFloor);
+    expect(coarseRem(control), `coarse spacing.${control} may not undercut the ≥44px touch floor`).toBeGreaterThanOrEqual(coarseFloor);
   }
 
   // FINE — the emitted @media(pointer:fine) :root override: the desktop density scale.
   const fineBlock = themeCss.match(FINE_BLOCK_RE);
-  expect(
-    fineBlock,
-    "an @media(pointer:fine) :root override block must be emitted for the desktop density scale",
-  ).not.toBeNull();
+  expect(fineBlock, "an @media(pointer:fine) :root override block must be emitted for the desktop density scale").not.toBeNull();
   const fineBody = fineBlock?.[1] ?? "";
   const fineRem = (name: string): number => {
     const m = fineBody.match(new RegExp(`--spacing-${name}:\\s*([\\d.]+)rem`, "u"));
@@ -56,10 +50,7 @@ test("the touch floor holds PER-POINTER: coarse @theme meets ≥44px, fine overr
   expect(fineRem("control-lg"), "fine control-lg = 40px").toBe(2.5);
   const fineFloor = fineRem("touch-target");
   for (const control of ["control-sm", "control-md", "control-lg"]) {
-    expect(
-      fineRem(control),
-      `fine spacing.${control} may not undercut the fine touch floor`,
-    ).toBeGreaterThanOrEqual(fineFloor);
+    expect(fineRem(control), `fine spacing.${control} may not undercut the fine touch floor`).toBeGreaterThanOrEqual(fineFloor);
   }
 });
 
@@ -135,19 +126,9 @@ function contrast(fg: string, bg: string): number {
   return (hi + 0.05) / (lo + 0.05);
 }
 
-const HUE_TOKENS = [
-  "color.chart-1",
-  "color.chart-2",
-  "color.chart-3",
-  "color.chart-4",
-  "color.chart-5",
-] as const;
+const HUE_TOKENS = ["color.chart-1", "color.chart-2", "color.chart-3", "color.chart-4", "color.chart-5"] as const;
 
-test.each(
-  HUE_TOKENS,
-)("%s clears AA (≥4.5:1) against --color-primary-foreground (the avatar fallback-hue guard)", (hue) => {
+test.each(HUE_TOKENS)("%s clears AA (≥4.5:1) against --color-primary-foreground (the avatar fallback-hue guard)", (hue) => {
   const ratio = contrast(TOKENS["color.primary-foreground"].value, TOKENS[hue].value);
-  expect(ratio, `${hue} vs primary-foreground = ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(
-    AA_SMALL_TEXT,
-  );
+  expect(ratio, `${hue} vs primary-foreground = ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(AA_SMALL_TEXT);
 });

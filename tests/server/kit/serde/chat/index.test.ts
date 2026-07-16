@@ -8,13 +8,7 @@
 // identity (the structural drift guard against the two halves diverging).
 
 import type { ParsedChat, ParsedChatMessage } from "@orb/server/kit/serde/chat";
-import {
-  buildChatJsonl,
-  buildChatTxt,
-  formatStDate,
-  parseChatJsonl,
-  parseStDate,
-} from "@orb/server/kit/serde/chat";
+import { buildChatJsonl, buildChatTxt, formatStDate, parseChatJsonl, parseStDate } from "@orb/server/kit/serde/chat";
 import { describe } from "vitest";
 import { expect, test } from "../../../../support/fixtures";
 
@@ -129,9 +123,7 @@ describe("parseChatJsonl", () => {
   });
 
   test("bucket classifier — header_only / greeting_only / real_conversation", () => {
-    expect(parseChatJsonl(header(), { fileName: "m.jsonl", charDirName: "A" })?.bucket).toBe(
-      "header_only",
-    );
+    expect(parseChatJsonl(header(), { fileName: "m.jsonl", charDirName: "A" })?.bucket).toBe("header_only");
     expect(
       parseChatJsonl(`${header()}\n${line({ is_user: false, mes: "greeting" })}`, {
         fileName: "m.jsonl",
@@ -139,16 +131,14 @@ describe("parseChatJsonl", () => {
       })?.bucket,
     ).toBe("greeting_only");
     const convo = `${header()}\n${line({ is_user: false, mes: "hi" })}\n${line({ is_user: true, mes: "hello" })}`;
-    expect(parseChatJsonl(convo, { fileName: "m.jsonl", charDirName: "A" })?.bucket).toBe(
-      "real_conversation",
-    );
+    expect(parseChatJsonl(convo, { fileName: "m.jsonl", charDirName: "A" })?.bucket).toBe("real_conversation");
   });
 
   test("branch ref — main_chat wins; falls back to the filename lineage; isBranch on 'Branch #'", () => {
-    const withMain = parseChatJsonl(
-      `${header({ chat_metadata: { main_chat: "Aria - 2023-11-11@09h41m32s538ms" } })}\n${line()}`,
-      { fileName: "Aria - date - Branch #1.jsonl", charDirName: "Aria" },
-    );
+    const withMain = parseChatJsonl(`${header({ chat_metadata: { main_chat: "Aria - 2023-11-11@09h41m32s538ms" } })}\n${line()}`, {
+      fileName: "Aria - date - Branch #1.jsonl",
+      charDirName: "Aria",
+    });
     expect(withMain?.parentRef).toBe("Aria - 2023-11-11@09h41m32s538ms.jsonl");
     expect(withMain?.isBranch).toBe(true);
 
@@ -317,9 +307,7 @@ describe("buildChatTxt", () => {
     expect((JSON.parse(jsonl[1] ?? "") as Record<string, unknown>)["name"]).toBe("Alex");
     expect((JSON.parse(jsonl[2] ?? "") as Record<string, unknown>)["name"]).toBe("Bran");
     expect((JSON.parse(jsonl[3] ?? "") as Record<string, unknown>)["name"]).toBe("Cara");
-    expect(buildChatTxt(pchat(rows))).toBe(
-      "Alex: hello all\n\nBran: Bran here\n\nCara: Cara here\n",
-    );
+    expect(buildChatTxt(pchat(rows))).toBe("Alex: hello all\n\nBran: Bran here\n\nCara: Cara here\n");
   });
 });
 

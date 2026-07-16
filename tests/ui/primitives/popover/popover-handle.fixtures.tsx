@@ -3,13 +3,7 @@
 // trigger carries the payload, and `handle.open(triggerId)` opens the popover imperatively so the
 // payload reaches the Root render-function children. API DELTA: popover handles have no
 // openWithPayload — payload rides the trigger (see popover/handle.ts).
-import {
-  createPopoverHandle,
-  Popover,
-  PopoverDescription,
-  PopoverPopup,
-  PopoverTrigger,
-} from "@orb/ui/popover";
+import { createPopoverHandle, Popover, PopoverDescription, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
 import type { ReactElement } from "react";
 import { useId, useState } from "react";
 

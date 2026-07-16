@@ -84,8 +84,5 @@ export const rosterPresetMembers = sqliteTable(
     talkativeness: real("talkativeness"),
     disabled: integer("disabled", { mode: "boolean" }).notNull().default(false),
   },
-  (t) => [
-    primaryKey({ columns: [t.presetId, t.characterId] }),
-    index("roster_preset_members_character_idx").on(t.characterId),
-  ],
+  (t) => [primaryKey({ columns: [t.presetId, t.characterId] }), index("roster_preset_members_character_idx").on(t.characterId)],
 );

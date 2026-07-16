@@ -9,15 +9,7 @@ import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
-import {
-  makeDiscoveryHarness,
-  seedCharacter,
-  seedCharacterEmbedding,
-  seedChatSegment,
-  seedHostedChat,
-  seedUser,
-  vec,
-} from "../_support.ts";
+import { makeDiscoveryHarness, seedCharacter, seedCharacterEmbedding, seedChatSegment, seedHostedChat, seedUser, vec } from "../_support.ts";
 
 describe("computeDuplicatePairs", () => {
   test("records a near-duplicate pair above the cosine threshold, canonical A<B", async () => {
@@ -125,14 +117,8 @@ describe("computeDuplicatePairs", () => {
     const db = await freshDb();
     const owner = await seedUser(db, "user_a");
     // Three byte-identical copies (SAME contentHash) ⇒ collapse to one rep ⇒ no pairs among them.
-    const ids = await Promise.all(
-      [1, 2, 3].map((n) => seedCharacter(db, { id: `character_${n}`, ownerId: owner })),
-    );
-    await Promise.all(
-      ids.map((c) =>
-        seedCharacterEmbedding(db, { characterId: c, embedding: vec(1, 0), contentHash: "same" }),
-      ),
-    );
+    const ids = await Promise.all([1, 2, 3].map((n) => seedCharacter(db, { id: `character_${n}`, ownerId: owner })));
+    await Promise.all(ids.map((c) => seedCharacterEmbedding(db, { characterId: c, embedding: vec(1, 0), contentHash: "same" })));
     const svc = createDiscoveryService(makeDiscoveryHarness(db).ctx);
     expect((await svc.computeDuplicatePairs()).pairsWritten).toBe(0);
   });
@@ -168,10 +154,7 @@ describe("computeDuplicatePairs", () => {
     // Recompute ONLY owner A (singular) — B's pair must survive.
     const stats = await svc.computeDuplicatePairs({ ownerId: a });
     expect(stats.ownersProcessed).toBe(1);
-    const bPairs = await db
-      .select()
-      .from(duplicateCharacterPairs)
-      .where(eq(duplicateCharacterPairs.characterIdA, b1));
+    const bPairs = await db.select().from(duplicateCharacterPairs).where(eq(duplicateCharacterPairs.characterIdA, b1));
     expect(bPairs).toHaveLength(1); // NOT wiped by A's singular run
     expect(await db.select().from(duplicateCharacterPairs)).toHaveLength(2); // both still present
   });
@@ -199,12 +182,7 @@ describe("computeDuplicatePairs", () => {
 
 // ── the chat near-dup arm (Jaccard of segment content-hashes + fork relation) ──
 // Seed a hosted chat with a set of segment content-hashes (distinct blockIdx per segment).
-async function seedChatWithHashes(
-  db: Db,
-  id: string,
-  ownerId: UserId,
-  hashes: readonly string[],
-): Promise<ChatId> {
+async function seedChatWithHashes(db: Db, id: string, ownerId: UserId, hashes: readonly string[]): Promise<ChatId> {
   const chatId = await seedHostedChat(db, id, ownerId);
   await Promise.all(
     hashes.map((h, i) =>

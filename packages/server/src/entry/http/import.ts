@@ -36,11 +36,7 @@ interface PrincipalEnv {
 }
 
 /** Write the upload stream to `path`, aborting (returning `false`) the instant it exceeds `maxBytes`. */
-async function stageCapped(
-  body: ReadableStream<Uint8Array>,
-  path: string,
-  maxBytes: number,
-): Promise<boolean> {
+async function stageCapped(body: ReadableStream<Uint8Array>, path: string, maxBytes: number): Promise<boolean> {
   const handle = await open(path, "w");
   const reader = body.getReader();
   let total = 0;
@@ -56,7 +52,6 @@ async function stageCapped(
         await reader.cancel();
         return false;
       }
-      // biome-ignore lint/performance/noAwaitInLoops: each chunk is appended in order (a stream write, not a parallelizable batch).
       await handle.write(value);
     }
   } finally {

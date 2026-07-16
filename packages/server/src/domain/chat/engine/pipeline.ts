@@ -10,14 +10,7 @@
 // Single-speaker core: output is pinned per-speaker/merged (no narrator, no scoped egocentric fold); the
 // arbitration/auto-mode chunk extends this via the `shape` argument.
 
-import type {
-  AssembleContext,
-  ChatContentPart,
-  ChatDeltaEvent,
-  ChatInjection,
-  MessageView,
-  ToolCallRecord,
-} from "@orb/contracts/chat";
+import type { AssembleContext, ChatContentPart, ChatDeltaEvent, ChatInjection, MessageView, ToolCallRecord } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
 import type { UserIntent } from "@orb/contracts/preset";
 import type { ContentImageRef } from "@orb/kit/content";
@@ -31,29 +24,9 @@ import { applyReceivePostProcess } from "@orb/server/kit/post-process";
 import { parseReasoningTags } from "@orb/server/kit/reasoning";
 import { getLog } from "#foundation/observability";
 import type { ToolCallInput } from "#infra/providers";
-import type {
-  ApplyRegexReplaceOp,
-  ChatToolExecFrame,
-  ChatToolOps,
-  ChatToolSet,
-  RunChatTurnOp,
-} from "../contract/context";
-import type {
-  HistoryMacroNames,
-  TurnEconomics,
-  TurnKind,
-  TurnMessage,
-  TurnRequest,
-  TurnSpeakerShape,
-} from "../contract/results";
-import {
-  buildPrompt,
-  buildTurnMacroContext,
-  fitHistory,
-  renderHistoryMacros,
-  shapeContextForSpeaker,
-  shapeTurn,
-} from "../substrate/assembly-access";
+import type { ApplyRegexReplaceOp, ChatToolExecFrame, ChatToolOps, ChatToolSet, RunChatTurnOp } from "../contract/context";
+import type { HistoryMacroNames, TurnEconomics, TurnKind, TurnMessage, TurnRequest, TurnSpeakerShape } from "../contract/results";
+import { buildPrompt, buildTurnMacroContext, fitHistory, renderHistoryMacros, shapeContextForSpeaker, shapeTurn } from "../substrate/assembly-access";
 
 /** A SHAPE canon row (system rows never reach the delivered history). */
 interface ShapeCanonRow {
@@ -132,20 +105,13 @@ interface TurnPipelineResult {
 /** The wire authorName for a user/narrator row: the row's own stamped personaId resolved through the
  *  per-chat producer, not the current active persona. A null stamp or unresolvable id yields null, so
  *  `applyNamesBehavior` falls back to the active persona. */
-function userRowAuthorName(
-  personaId: PersonaId | null,
-  macroNames: HistoryMacroNames,
-): string | null {
+function userRowAuthorName(personaId: PersonaId | null, macroNames: HistoryMacroNames): string | null {
   return personaId !== null ? (macroNames.personaNamesById.get(personaId)?.name ?? null) : null;
 }
 
 /** Maps the loaded canon to SHAPE wire rows: drops hidden + system rows, resolves each row's macros
  *  against its own stamps + the per-chat macroNames producer (matching client display resolution). */
-function toShapeCanon(
-  canon: readonly MessageView[],
-  ctx: AssembleContext,
-  macroNames: HistoryMacroNames,
-): ShapeCanonRow[] {
+function toShapeCanon(canon: readonly MessageView[], ctx: AssembleContext, macroNames: HistoryMacroNames): ShapeCanonRow[] {
   const nameById = new Map<CharacterId, string>();
   const cast = ctx.cast ?? [];
   const ids = ctx.castCharacterIds ?? [];
@@ -198,8 +164,7 @@ function fitBudget(
   reserveOutputTokens: number;
   systemTokens: number;
 } {
-  const reserveOutputTokens =
-    args.intent.maxOutputTokens ?? args.connection.capability.output.maxTokens.max;
+  const reserveOutputTokens = args.intent.maxOutputTokens ?? args.connection.capability.output.maxTokens.max;
   return {
     windowTokens: args.connection.capability.context.window,
     softMaxTokens: args.intent.maxContextTokens,
@@ -218,9 +183,7 @@ async function reduceStream(
   let reasoning = "";
   let economics: TurnEconomics | null = null;
   for await (const chunk of stream as AsyncIterable<
-    | { kind: "text"; text: string }
-    | { kind: "reasoning"; text: string }
-    | { kind: "final"; economics: TurnEconomics }
+    { kind: "text"; text: string } | { kind: "reasoning"; text: string } | { kind: "final"; economics: TurnEconomics }
   >) {
     if (chunk.kind === "text") {
       text += chunk.text;
@@ -279,8 +242,7 @@ function applyReceiveTransforms(
           assembleCtx: ctx,
           model: args.connection.model,
           chatId: args.chatId,
-          onWarn: (msg, warnErr) =>
-            getLog().warn({ err: warnErr, macroWarn: msg }, "chat: macro budget/eval trip (D53)"),
+          onWarn: (msg, warnErr) => getLog().warn({ err: warnErr, macroWarn: msg }, "chat: macro budget/eval trip (D53)"),
         })
       : null;
   if (macroCtx !== null) {
@@ -291,10 +253,7 @@ function applyReceiveTransforms(
       ctx: macroCtx,
       applyReplace: args.applyRegexReplace,
       onScriptFailure: (scriptErr, script) =>
-        getLog().warn(
-          { err: scriptErr, placement: "AI_OUTPUT", findRegex: script.findRegex },
-          "chat: host-tier regex script failed (D53 watchdog)",
-        ),
+        getLog().warn({ err: scriptErr, placement: "AI_OUTPUT", findRegex: script.findRegex }, "chat: host-tier regex script failed (D53 watchdog)"),
     });
   }
 
@@ -309,10 +268,7 @@ function applyReceiveTransforms(
       ctx: macroCtx,
       applyReplace: args.applyRegexReplace,
       onScriptFailure: (scriptErr, script) =>
-        getLog().warn(
-          { err: scriptErr, placement: "REASONING", findRegex: script.findRegex },
-          "chat: host-tier regex script failed (D53 watchdog)",
-        ),
+        getLog().warn({ err: scriptErr, placement: "REASONING", findRegex: script.findRegex }, "chat: host-tier regex script failed (D53 watchdog)"),
     });
   }
 
@@ -336,19 +292,13 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
   const assembled = buildPrompt(ctx.promptConfig, ctx);
 
   // SHAPE — the wire history + the cache breakpoint.
-  const inChatInjections: ChatInjection[] = [
-    ...(ctx.chatInjections ?? []).filter((i) => i.position === "in_chat"),
-    ...assembled.afterHistory,
-  ];
+  const inChatInjections: ChatInjection[] = [...(ctx.chatInjections ?? []).filter((i) => i.position === "in_chat"), ...assembled.afterHistory];
   const speakers = {
-    // biome-ignore lint/suspicious/noUnnecessaryConditions: false positive — `activePersona` is `AssemblePersona | null | undefined` (cross-package zod inference), so `?.name ?? "User"` is required.
     user: ctx.activePersona?.name ?? "User",
     assistant: args.shape?.speakerName ?? ctx.character.name,
   };
   const shaped = shapeTurn({
-    canon: assembled.sendHistory
-      ? toShapeCanon(args.canon, ctx, args.historyMacroNames ?? EMPTY_HISTORY_MACRO_NAMES)
-      : [],
+    canon: assembled.sendHistory ? toShapeCanon(args.canon, ctx, args.historyMacroNames ?? EMPTY_HISTORY_MACRO_NAMES) : [],
     appendUserTurn: args.appendUserTurn ?? null,
     injections: inChatInjections,
     output: args.shape?.output ?? "per-speaker",
@@ -373,10 +323,7 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
   const built = await Promise.all(
     fitted.history.map(async (h) => {
       const { parts, dropped } = await toContentParts(h.content, visionOk, args.resolveImageUrl);
-      const row: TurnMessage =
-        h.name === undefined
-          ? { role: h.role, content: parts }
-          : { role: h.role, content: parts, name: h.name };
+      const row: TurnMessage = h.name === undefined ? { role: h.role, content: parts } : { role: h.role, content: parts, name: h.name };
       return { row, dropped };
     }),
   );
@@ -398,10 +345,7 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
   const attach = attachTools(args, baseRequest);
   const loop = await runRecurseLoop({ args, request: attach.request, set: attach.set });
   // RECEIVE, applied once over the depth-cumulative text (prose flows across recursion depths into one variant).
-  const received = applyReceiveTransforms(
-    { content: loop.content, reasoning: loop.reasoning },
-    args,
-  );
+  const received = applyReceiveTransforms({ content: loop.content, reasoning: loop.reasoning }, args);
   return {
     request: attach.request,
     content: received.content,
@@ -420,13 +364,10 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
 // Tools ride only when names were gather-contributed AND the ops are wired AND capability.tools declares
 // support — attached-but-unsupported drops them (runs tool-less) and flags tools_unsupported. A tool-less
 // request carries no tools field.
-function attachTools(
-  args: RunTurnPipelineArgs,
-  baseRequest: TurnRequest,
-): { request: TurnRequest; set: ChatToolSet | null; unsupported: boolean } {
+function attachTools(args: RunTurnPipelineArgs, baseRequest: TurnRequest): { request: TurnRequest; set: ChatToolSet | null; unsupported: boolean } {
   const wantTools = args.attachedToolNames.length > 0 && args.tools !== null;
   const toolsSupported = args.connection.capability.tools !== undefined;
-  if (!wantTools || args.tools === null) {
+  if (!wantTools) {
     return { request: baseRequest, set: null, unsupported: false };
   }
   if (!toolsSupported) {
@@ -449,11 +390,7 @@ function attachTools(
 // one variant; usage aggregates into one economics row; at the limit, pending calls are recorded not
 // executed (result:null — side effects the model can't narrate are worse than none). Records accumulate
 // in-loop and persist once at commit, so a crash mid-loop loses the records with the generation.
-async function runRecurseLoop(input: {
-  readonly args: RunTurnPipelineArgs;
-  readonly request: TurnRequest;
-  readonly set: ChatToolSet | null;
-}): Promise<{
+async function runRecurseLoop(input: { readonly args: RunTurnPipelineArgs; readonly request: TurnRequest; readonly set: ChatToolSet | null }): Promise<{
   content: string;
   reasoning: string | null;
   economics: TurnEconomics | null;
@@ -483,7 +420,6 @@ async function runRecurseLoop(input: {
       records.push(...calls.map(asUnexecutedRecord));
       break;
     }
-    // biome-ignore lint/performance/noAwaitInLoops: the recurse loop is inherently sequential (03 §2).
     const batch = await args.tools.executeToolCalls(set, calls, args.toolExecFrame);
     records.push(...batch);
     history = [...history, ...toolExchangeMessages(reduced.content, batch)];
@@ -494,11 +430,7 @@ async function runRecurseLoop(input: {
 
 /** Recurses only when tools rode this request AND the finish reason says "tool" AND the reducer assembled
  *  ≥1 call; null means the turn is done. */
-function pivotCalls(
-  set: ChatToolSet | null,
-  tools: ChatToolOps | null,
-  economics: TurnEconomics | null,
-): readonly ToolCallInput[] | null {
+function pivotCalls(set: ChatToolSet | null, tools: ChatToolOps | null, economics: TurnEconomics | null): readonly ToolCallInput[] | null {
   if (set === null || tools === null || economics?.finishReason !== "tool") {
     return null;
   }
@@ -550,10 +482,7 @@ function toolExchangeMessages(depthText: string, batch: readonly ToolCallRecord[
 
 /** Folds one depth's economics into the turn aggregate: counts/costs sum (absent stays absent), ttftMs is
  *  the first depth's, terminal reasons/model/window are the last depth's. */
-function aggregateEconomics(
-  acc: TurnEconomics | null,
-  next: TurnEconomics | null,
-): TurnEconomics | null {
+function aggregateEconomics(acc: TurnEconomics | null, next: TurnEconomics | null): TurnEconomics | null {
   if (acc === null) {
     return next;
   }
@@ -594,18 +523,16 @@ async function toContentParts(
   resolveImageUrl: (ref: ContentImageRef) => Promise<string | null>,
 ): Promise<{ parts: ChatContentPart[]; dropped: boolean }> {
   const resolved = await Promise.all(
-    tokenizeContent(body).map(
-      async (span): Promise<ChatContentPart | { droppedAlt: string } | null> => {
-        if (span.kind === "text") {
-          return span.text.length > 0 ? { type: "text", text: span.text } : null;
-        }
-        if (!visionOk) {
-          return { droppedAlt: span.alt };
-        }
-        const url = await resolveImageUrl(span.ref);
-        return url === null ? { droppedAlt: span.alt } : { type: "image", url };
-      },
-    ),
+    tokenizeContent(body).map(async (span): Promise<ChatContentPart | { droppedAlt: string } | null> => {
+      if (span.kind === "text") {
+        return span.text.length > 0 ? { type: "text", text: span.text } : null;
+      }
+      if (!visionOk) {
+        return { droppedAlt: span.alt };
+      }
+      const url = await resolveImageUrl(span.ref);
+      return url === null ? { droppedAlt: span.alt } : { type: "image", url };
+    }),
   );
   const parts: ChatContentPart[] = [];
   let dropped = false;

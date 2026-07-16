@@ -6,37 +6,13 @@
 
 import { GUIDED_IMPERSONATE_PERSONS } from "@orb/contracts/preset";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
-import {
-  Crown,
-  Download,
-  Icon,
-  Images,
-  LogOut,
-  MessagesSquare,
-  Pencil,
-  UserPlus,
-  X,
-} from "@orb/ui/icons";
-import {
-  MenuItem,
-  MenuLinkItem,
-  MenuPopup,
-  MenuSeparator,
-  MenuSubmenuRoot,
-  MenuSubmenuTrigger,
-} from "@orb/ui/menu";
+import { Crown, Download, Icon, Images, LogOut, MessagesSquare, Pencil, UserPlus, X } from "@orb/ui/icons";
+import { MenuItem, MenuLinkItem, MenuPopup, MenuSeparator, MenuSubmenuRoot, MenuSubmenuTrigger } from "@orb/ui/menu";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { ConfirmDialog, RowActionsMenu } from "#components";
 import { useInvalidation, useTRPC } from "#data";
-import {
-  committedChat,
-  enterSelectionMode,
-  goToLanding,
-  setContextTab,
-  setPanelMode,
-  startNewChat,
-} from "#state";
+import { committedChat, enterSelectionMode, goToLanding, setContextTab, setPanelMode, startNewChat } from "#state";
 import { CharacterGalleryDialog } from "../anchors/character-gallery-dialog";
 import { useDeleteChat, useUpdateChatTitle } from "../hooks/use-chat-row-mutations";
 import { useGuidedActions } from "../hooks/use-guided-actions";
@@ -65,13 +41,7 @@ export interface ChatOptionsMenuProps {
   readonly multiHumanCapable?: boolean;
 }
 
-export function ChatOptionsMenu({
-  chatId,
-  title,
-  characters,
-  isHost,
-  multiHumanCapable = false,
-}: ChatOptionsMenuProps): ReactElement {
+export function ChatOptionsMenu({ chatId, title, characters, isHost, multiHumanCapable = false }: ChatOptionsMenuProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const updateTitle = useUpdateChatTitle({ trpc, invalidation });
@@ -132,8 +102,7 @@ export function ChatOptionsMenu({
           label: "Delete chat",
           separator: false,
           title: "Delete this chat?",
-          description:
-            "This permanently deletes the chat and its messages for everyone. This can't be undone.",
+          description: "This permanently deletes the chat and its messages for everyone. This can't be undone.",
           confirmLabel: "Delete",
           onConfirm: confirmDelete,
         }}
@@ -158,10 +127,7 @@ export function ChatOptionsMenu({
             </MenuSubmenuTrigger>
             <MenuPopup>
               {characters.map((character) => (
-                <MenuItem
-                  key={character.characterId}
-                  onClick={(): void => setGalleryFor(character)}
-                >
+                <MenuItem key={character.characterId} onClick={(): void => setGalleryFor(character)}>
                   {character.name}
                 </MenuItem>
               ))}
@@ -207,9 +173,7 @@ export function ChatOptionsMenu({
         {multiHumanCapable ? <MenuSeparator /> : null}
         <MenuItem onClick={enterSelectionMode}>Select messages…</MenuItem>
         <MenuItem onClick={(): void => openContextTab("overrides")}>Chat overrides…</MenuItem>
-        {isHost ? (
-          <MenuItem onClick={(): void => openContextTab("preview")}>Preview request…</MenuItem>
-        ) : null}
+        {isHost ? <MenuItem onClick={(): void => openContextTab("preview")}>Preview request…</MenuItem> : null}
         <MenuItem onClick={(): void => openContextTab("injections")}>Injections…</MenuItem>
 
         <MenuSeparator />
@@ -227,13 +191,7 @@ export function ChatOptionsMenu({
         </MenuItem>
       </RowActionsMenu>
 
-      <RenameChatDialog
-        open={renameOpen}
-        onOpenChange={setRenameOpen}
-        value={renameValue}
-        onValueChange={setRenameValue}
-        onSave={saveRename}
-      />
+      <RenameChatDialog open={renameOpen} onOpenChange={setRenameOpen} value={renameValue} onValueChange={setRenameValue} onSave={saveRename} />
 
       <ConfirmDialog
         open={leaveOpen}
@@ -244,9 +202,7 @@ export function ChatOptionsMenu({
         onConfirm={confirmLeave}
       />
 
-      {isHost && multiHumanCapable ? (
-        <InviteDialog chatId={chatId} open={inviteOpen} onOpenChange={setInviteOpen} />
-      ) : null}
+      {isHost && multiHumanCapable ? <InviteDialog chatId={chatId} open={inviteOpen} onOpenChange={setInviteOpen} /> : null}
 
       {galleryFor === null ? null : (
         <CharacterGalleryDialog

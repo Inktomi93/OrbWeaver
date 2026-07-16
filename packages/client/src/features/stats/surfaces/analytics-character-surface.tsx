@@ -22,19 +22,11 @@ export interface AnalyticsCharacterSurfaceProps {
   readonly onBack: () => void;
 }
 
-export function AnalyticsCharacterSurface({
-  characterId,
-  onBack,
-}: AnalyticsCharacterSurfaceProps): ReactElement {
+export function AnalyticsCharacterSurface({ characterId, onBack }: AnalyticsCharacterSurfaceProps): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
   return (
-    <Stack
-      ref={surfaceRef}
-      tabIndex={-1}
-      className="h-full min-h-0 outline-none"
-      data-testid={testId("analyticsCharacterSurface")}
-    >
+    <Stack ref={surfaceRef} tabIndex={-1} className="h-full min-h-0 outline-none" data-testid={testId("analyticsCharacterSurface")}>
       <QueryBoundary
         fallback={<Text tone="muted">Loading character stats…</Text>}
         renderError={(_error, retry): ReactElement => (
@@ -52,18 +44,10 @@ export function AnalyticsCharacterSurface({
   );
 }
 
-function CharacterBody({
-  characterId,
-  onBack,
-}: {
-  readonly characterId: CharacterId;
-  readonly onBack: () => void;
-}): ReactElement {
+function CharacterBody({ characterId, onBack }: { readonly characterId: CharacterId; readonly onBack: () => void }): ReactElement {
   const trpc = useTRPC();
   const { data: stats } = useSuspenseQuery(trpc.stats.character.queryOptions({ characterId }));
-  const { data: latency } = useSuspenseQuery(
-    trpc.stats.latency.queryOptions({ kind: "character", characterId }),
-  );
+  const { data: latency } = useSuspenseQuery(trpc.stats.latency.queryOptions({ kind: "character", characterId }));
 
   if (stats === null) {
     return (

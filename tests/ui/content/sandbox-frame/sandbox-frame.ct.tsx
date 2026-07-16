@@ -1,9 +1,7 @@
 import { SandboxFrame } from "@orb/ui/sandbox-frame";
 import { expect, test } from "@playwright/experimental-ct-react";
 
-test("the iframe is sandboxed with NO allow-scripts and NO allow-same-origin", async ({
-  mount,
-}) => {
+test("the iframe is sandboxed with NO allow-scripts and NO allow-same-origin", async ({ mount }) => {
   const cmp = await mount(<SandboxFrame html="<p>card</p>" title="card" />);
   const sandbox = await cmp.getAttribute("sandbox");
   expect(sandbox).not.toBeNull();
@@ -19,10 +17,7 @@ test("the srcdoc carries the deny-by-default CSP", async ({ mount }) => {
   expect(srcdoc).not.toContain("connect-src");
 });
 
-test("a <script> inside the untrusted html does not reach the parent (sandboxed, scripts off)", async ({
-  mount,
-  page,
-}) => {
+test("a <script> inside the untrusted html does not reach the parent (sandboxed, scripts off)", async ({ mount, page }) => {
   const payload = ["<scr", "ipt>window.parent.__pwned=1</scr", "ipt>"].join("");
   await mount(<SandboxFrame html={`<p>hi</p>${payload}`} title="c" />);
   // scripts are disabled by the empty sandbox → the injected script can never run in the parent realm.
@@ -36,9 +31,7 @@ test("render-on-complete: incomplete shows a skeleton, not the frame", async ({ 
   expect(await cmp.evaluate((el) => el.tagName.toLowerCase())).not.toBe("iframe");
 });
 
-test("hostile themeTokens are dropped at the boundary, not smuggled into the srcdoc", async ({
-  mount,
-}) => {
+test("hostile themeTokens are dropped at the boundary, not smuggled into the srcdoc", async ({ mount }) => {
   const cmp = await mount(
     <SandboxFrame
       html="<p>x</p>"

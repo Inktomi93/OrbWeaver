@@ -48,9 +48,7 @@ export function parseJsonObject(text: string): Record<string, unknown> | null {
   }
   try {
     const parsed: unknown = JSON.parse(trimmed);
-    return parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)
-      ? (parsed as Record<string, unknown>)
-      : null;
+    return parsed !== null && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : null;
   } catch {
     return null;
   }
@@ -86,9 +84,7 @@ export function isCustomProvider(provider: string): boolean {
 }
 
 /** The plain-function field validator: a non-empty key always, plus a baseUrl for custom_openai. */
-export function validateAddCredential(
-  value: AddCredentialFormValues,
-): { fields: Record<string, string> } | undefined {
+export function validateAddCredential(value: AddCredentialFormValues): { fields: Record<string, string> } | undefined {
   const fields: Record<string, string> = {};
   if (value.key.trim().length === 0) {
     fields["key"] = "Paste your API key.";

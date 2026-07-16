@@ -51,9 +51,7 @@ function migrateDrafts<TInput>(persisted: unknown): DraftsState<TInput> {
   return { drafts: {} };
 }
 
-export function createEntityDraftStore<TInput>(
-  config: EntityDraftStoreConfig,
-): EntityDraftStore<TInput> {
+export function createEntityDraftStore<TInput>(config: EntityDraftStoreConfig): EntityDraftStore<TInput> {
   if (registeredNames.has(config.name)) {
     throw new Error(
       `createEntityDraftStore: duplicate store name "${config.name}" — two stores would clobber ` +
@@ -71,24 +69,17 @@ export function createEntityDraftStore<TInput>(
         version: config.version ?? DEFAULT_VERSION,
         partialize: (s): DraftsState<TInput> => ({ drafts: s.drafts }),
         migrate: migrateDrafts<TInput>,
-        ...(config.storage === undefined
-          ? {}
-          : { storage: createJSONStorage(() => config.storage as StateStorage) }),
+        ...(config.storage === undefined ? {} : { storage: createJSONStorage(() => config.storage as StateStorage) }),
       }),
       { name: `${STORAGE_KEY_PREFIX}${config.name}`, enabled: STORE_DEVTOOLS_ENABLED },
     ),
   );
 
-  const readDraft = (id: string): Readonly<Partial<TInput>> | undefined =>
-    store.getState().drafts[id];
+  const readDraft = (id: string): Readonly<Partial<TInput>> | undefined => store.getState().drafts[id];
 
   const setDraft = (id: string, patch: Partial<TInput>): void => {
     const drafts = store.getState().drafts;
-    store.setState(
-      { drafts: { ...drafts, [id]: { ...drafts[id], ...patch } } },
-      false,
-      "draft/set",
-    );
+    store.setState({ drafts: { ...drafts, [id]: { ...drafts[id], ...patch } } }, false, "draft/set");
   };
 
   return {

@@ -9,15 +9,7 @@ import { createDiscoveryService } from "@orb/server/domain/discovery";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
-import {
-  FROZEN_AT,
-  makeDiscoveryHarness,
-  seedAsset,
-  seedCharacter,
-  seedImageEmbedding,
-  seedUser,
-  vec,
-} from "../_support.ts";
+import { FROZEN_AT, makeDiscoveryHarness, seedAsset, seedCharacter, seedImageEmbedding, seedUser, vec } from "../_support.ts";
 
 // Seed a character with its OWN avatar asset + an image-raw embedding at `avatarVec`. Optionally distilled
 // facets + a captioned lens (caption_meta) for the visual labels.
@@ -106,11 +98,7 @@ describe("imageDuplicates", () => {
       embedding: vec(1, 0),
       lens: "image-raw",
     });
-    await Promise.all(
-      ["s1", "s2", "s3"].map((id) =>
-        seedCharacter(db, { id, ownerId: owner, avatarAssetId: shared }),
-      ),
-    );
+    await Promise.all(["s1", "s2", "s3"].map((id) => seedCharacter(db, { id, ownerId: owner, avatarAssetId: shared })));
 
     expect(await svcFor(db).imageDuplicates(owner)).toEqual([]);
   });

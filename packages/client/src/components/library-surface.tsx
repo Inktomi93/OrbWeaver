@@ -26,11 +26,7 @@ export interface LibrarySurfaceShellProps {
 
 /** The library-surface QueryBoundary shell: shared load + error/retry copy. The caller owns the outer
  *  focus-on-mount container (the surface-purity `A11y focus restoration` gate scans the surface file). */
-export function LibrarySurfaceShell({
-  loadingLabel,
-  errorLabel,
-  children,
-}: LibrarySurfaceShellProps): ReactElement {
+export function LibrarySurfaceShell({ loadingLabel, errorLabel, children }: LibrarySurfaceShellProps): ReactElement {
   return (
     <QueryBoundary
       fallback={<Text tone="muted">{loadingLabel}</Text>}
@@ -93,12 +89,7 @@ export function LibraryListLayout({
 
       {beforeSearch}
 
-      <Input
-        aria-label={searchLabel}
-        onValueChange={onSearchChange}
-        placeholder={searchPlaceholder}
-        value={searchValue}
-      />
+      <Input aria-label={searchLabel} onValueChange={onSearchChange} placeholder={searchPlaceholder} value={searchValue} />
 
       {isEmpty ? (
         empty

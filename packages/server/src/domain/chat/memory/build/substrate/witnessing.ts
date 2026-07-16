@@ -12,11 +12,7 @@ import type { WitnessInterval } from "../../types";
  * character is gone from `leftSeq` onward). Overlap with `[seqStart, seqEnd]` iff `joinSeq ≤ seqEnd` AND
  * (`leftSeq` is null OR `leftSeq > seqStart`). Empty horizons ⇒ never witnessed (no presence).
  */
-export function spanWitnessed(
-  seqStart: number,
-  seqEnd: number,
-  horizons: readonly WitnessInterval[],
-): boolean {
+export function spanWitnessed(seqStart: number, seqEnd: number, horizons: readonly WitnessInterval[]): boolean {
   for (const iv of horizons) {
     if (iv.joinSeq <= seqEnd && (iv.leftSeq === null || iv.leftSeq > seqStart)) {
       return true;

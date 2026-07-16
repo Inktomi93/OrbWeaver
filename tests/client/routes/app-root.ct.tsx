@@ -28,10 +28,7 @@ const NO_CHARACTERS = { items: [], nextCursor: null };
 // closed and out of the way.
 const PERSONAS = [{ id: "persona_home", name: "Alex", avatarHash: null, starred: true }];
 
-test("the default chats section renders the landing surface, not an empty room (J1)", async ({
-  mount,
-  page,
-}) => {
+test("the default chats section renders the landing surface, not an empty room (J1)", async ({ mount, page }) => {
   await routeTrpc(page, {
     "chat.listChats": [],
     "character.list": NO_CHARACTERS,
@@ -41,17 +38,12 @@ test("the default chats section renders the landing surface, not an empty room (
 
   // At rest = the landing hero, never a dead composer. An empty DB teaches the first step.
   await expect(component.getByText("Pick up a thread")).toBeVisible();
-  await expect(
-    component.getByRole("button", { name: "Create your first character" }),
-  ).toBeVisible();
+  await expect(component.getByRole("button", { name: "Create your first character" })).toBeVisible();
   // No chat room / composer is mounted at rest.
   await expect(page.getByTestId(testId("composer"))).toHaveCount(0);
 });
 
-test("picking a character in the library starts a chat with it (the library→chat seam)", async ({
-  mount,
-  page,
-}) => {
+test("picking a character in the library starts a chat with it (the library→chat seam)", async ({ mount, page }) => {
   await routeTrpc(page, {
     "chat.listChats": [],
     "character.list": ONE_CHARACTER,
@@ -70,9 +62,7 @@ test("picking a character in the library starts a chat with it (the library→ch
   await component.getByRole("button", { name: "Characters", exact: true }).click();
   // Scope to the library row's unique "Chat with X" CTA — the bare name "Aria Nightshade" is now
   // ambiguous (the landing surface stays mounted with a "Character quick-picks" row of the same name).
-  await expect(
-    page.getByRole("button", { name: "Chat with Aria Nightshade", exact: true }),
-  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Chat with Aria Nightshade", exact: true })).toBeVisible();
   // On the Characters section the chat composer is NOT mounted (CONTENT is the library).
   await expect(page.getByTestId(testId("composer"))).toHaveCount(0);
 

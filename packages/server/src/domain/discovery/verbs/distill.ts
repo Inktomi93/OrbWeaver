@@ -49,18 +49,7 @@ const GENRES = [
 ] as const;
 
 /** @internal — the tone grammar enum (barrel re-export is internal to discovery/). */
-const TONES = [
-  "dark",
-  "lighthearted",
-  "romantic",
-  "comedic",
-  "gritty",
-  "wholesome",
-  "melancholic",
-  "tense",
-  "whimsical",
-  "sensual",
-] as const;
+const TONES = ["dark", "lighthearted", "romantic", "comedic", "gritty", "wholesome", "melancholic", "tense", "whimsical", "sensual"] as const;
 
 /** @internal — JSON-schema grammar driver for the distill pass. */
 const CHARACTER_DISTILL_SCHEMA = {
@@ -109,11 +98,7 @@ interface StagedLabel {
  * whole-library batch. Returns the pass summary. Exported standalone (the `distill-characters` workload runner
  * + the service factory both call it) — the factory thin-wraps it with `ctx`'s injected deps.
  */
-async function distillCharacters(
-  db: Db,
-  deps: DistillCharactersDeps,
-  opts: DistillCharactersOptions = {},
-): Promise<DistillStats> {
+async function distillCharacters(db: Db, deps: DistillCharactersDeps, opts: DistillCharactersOptions = {}): Promise<DistillStats> {
   const { signal } = opts;
   signal?.throwIfAborted();
   const targets = await readCardDistillTargets(db, {
@@ -204,24 +189,20 @@ async function commitSummaries(db: Db, stmts: readonly BatchItem<"sqlite">[]): P
     if (chunk.length === 0) {
       continue;
     }
+    // @orb-gate-ignore no-await-db-in-loop bounded per-chunk batch — deliberate backpressure over the libSQL bound-variable cap (mirrors every bulk-write in the slice).
     // biome-ignore lint/performance/noAwaitInLoops: bounded per-chunk batch — deliberate backpressure, not a fan-out.
-    // biome-ignore lint/plugin/no-await-db-in-loop: bounded per-chunk batch — deliberate backpressure over the libSQL bound-variable cap (mirrors every bulk-write in the slice).
     await db.batch(chunk as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]]);
   }
 }
 
 /** Stage each distilled label as a `source:'auto', status:'pending'` suggestion through the injected tag seam;
  *  returns the count NEWLY attached (idempotent + no-downgrade — a re-run/accepted tag doesn't re-count). */
-async function stageSuggestions(
-  deps: DistillCharactersDeps,
-  stagedLabels: readonly StagedLabel[],
-  signal: AbortSignal | undefined,
-): Promise<number> {
+async function stageSuggestions(deps: DistillCharactersDeps, stagedLabels: readonly StagedLabel[], signal: AbortSignal | undefined): Promise<number> {
   let tagsStaged = 0;
   for (const label of stagedLabels) {
     signal?.throwIfAborted();
+    // @orb-gate-ignore no-await-db-in-loop the tag attach is a metered resolve-or-create chokepoint (per-name unique race guard) — staged sequentially, not fanned out.
     // biome-ignore lint/performance/noAwaitInLoops: the tag attach is a metered resolve-or-create chokepoint — staged sequentially, not fanned out.
-    // biome-ignore lint/plugin/no-await-db-in-loop: the tag attach is a metered resolve-or-create chokepoint (per-name unique race guard) — staged sequentially, not fanned out.
     const attached = await deps.attachCardTagByName({
       ownerId: label.ownerId,
       characterId: label.characterId,
@@ -238,10 +219,7 @@ async function stageSuggestions(
 
 /** Build the idempotent `character_summaries` upsert for one card (keyed by `characterId`, D28). `set` omits
  *  `characterId` (the PK) — a re-run refreshes the facets in place. */
-function upsertSummary(
-  db: Db,
-  args: { characterId: CharacterId; parsed: CharacterDistillation; model: string; now: number },
-): BatchItem<"sqlite"> {
+function upsertSummary(db: Db, args: { characterId: CharacterId; parsed: CharacterDistillation; model: string; now: number }): BatchItem<"sqlite"> {
   const { characterId, parsed, model, now } = args;
   const set = {
     genre: parsed.genre,
@@ -269,11 +247,7 @@ function parseDistill(raw: string): CharacterDistillation | null {
   }
   const str = (v: unknown): string | null => (typeof v === "string" && v.trim() ? v.trim() : null);
   const arr = (v: unknown): string[] =>
-    Array.isArray(v)
-      ? v
-          .filter((x): x is string => typeof x === "string" && x.trim().length > 0)
-          .map((x) => x.trim())
-      : [];
+    Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && x.trim().length > 0).map((x) => x.trim()) : [];
   return {
     genre: str(obj["genre"]),
     tone: str(obj["tone"]),

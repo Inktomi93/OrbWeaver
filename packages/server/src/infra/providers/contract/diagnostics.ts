@@ -11,12 +11,7 @@
 
 import type { AgentSdkModel, ModelCatalogEntry } from "@orb/contracts/connection";
 import type { CredentialHealth, ResolvedCredential } from "@orb/contracts/credentials";
-import type {
-  AccountCredits,
-  EndpointInspection,
-  GenerationCost,
-  VerifyAuthResult,
-} from "@orb/contracts/providers";
+import type { AccountCredits, EndpointInspection, GenerationCost, VerifyAuthResult } from "@orb/contracts/providers";
 
 /** FLAG[PD-16]: Fields the credential-shaped diagnostic requests share. `signal` is the cross-surface
  *  cancellation hook. THREADED for `inspect` (the BYO inspector's fetch) and `verifyAuth` (the agent-sdk

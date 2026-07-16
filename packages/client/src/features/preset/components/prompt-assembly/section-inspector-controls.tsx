@@ -42,11 +42,7 @@ export function SectionPlacementControl({ form, section, index }: ControlProps):
 
   return (
     <Section heading="Placement">
-      <ToggleGroup
-        aria-label="Placement"
-        value={[spliced ? "spliced" : "inflow"]}
-        onValueChange={(picked): void => setPlacement(picked[0] ?? "inflow")}
-      >
+      <ToggleGroup aria-label="Placement" value={[spliced ? "spliced" : "inflow"]} onValueChange={(picked): void => setPlacement(picked[0] ?? "inflow")}>
         <Toggle value="inflow" aria-label="In flow">
           In flow
         </Toggle>
@@ -58,20 +54,12 @@ export function SectionPlacementControl({ form, section, index }: ControlProps):
         <Stack gap="field">
           <form.AppField name={`sections[${index}].inject.depth`}>
             {(field): ReactElement => (
-              <field.NumberField
-                label="Depth"
-                description="0 = the tail; N = N turns back from your latest message."
-                min={0}
-                max={MAX_INJECTION_DEPTH}
-              />
+              <field.NumberField label="Depth" description="0 = the tail; N = N turns back from your latest message." min={0} max={MAX_INJECTION_DEPTH} />
             )}
           </form.AppField>
           <form.AppField name={`sections[${index}].inject.order`}>
             {(field): ReactElement => (
-              <field.NumberField
-                label="Order"
-                description="Within a depth: lower sits higher; higher lands closer to your latest message."
-              />
+              <field.NumberField label="Order" description="Within a depth: lower sits higher; higher lands closer to your latest message." />
             )}
           </form.AppField>
         </Stack>
@@ -102,11 +90,7 @@ export function SectionTriggersControl({ form, section, index }: ControlProps): 
         />
       </Row>
       {everyGeneration ? null : (
-        <form.AppField name={name}>
-          {(field): ReactElement => (
-            <field.MultiToggleField label="Only on" items={GENERATION_TYPE_ITEMS} />
-          )}
-        </form.AppField>
+        <form.AppField name={name}>{(field): ReactElement => <field.MultiToggleField label="Only on" items={GENERATION_TYPE_ITEMS} />}</form.AppField>
       )}
     </Section>
   );
@@ -130,19 +114,11 @@ export function SectionLocksControl({ form, section, index }: ControlProps): Rea
       </Text>
       <form.AppField name={`sections[${index}].forbidCharacterOverride`}>
         {(field): ReactElement => (
-          <field.SwitchField
-            label="Block character-card override"
-            description="Always use yours, ignoring the character card's replacement."
-          />
+          <field.SwitchField label="Block character-card override" description="Always use yours, ignoring the character card's replacement." />
         )}
       </form.AppField>
       <form.AppField name={`sections[${index}].forbidRoomOverride`}>
-        {(field): ReactElement => (
-          <field.SwitchField
-            label="Block room override"
-            description="Independent of the card lock."
-          />
-        )}
+        {(field): ReactElement => <field.SwitchField label="Block room override" description="Independent of the card lock." />}
       </form.AppField>
     </Section>
   );

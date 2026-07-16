@@ -93,11 +93,7 @@ function curatedSlug(tier: Tier): string {
 }
 
 /** Resolve ONE tier's OR slug through the fallback chain (a→b→c). */
-function resolveTier(
-  tier: Tier,
-  agentSdk: readonly AgentSdkModel[],
-  orIds: ReadonlySet<string>,
-): string {
+function resolveTier(tier: Tier, agentSdk: readonly AgentSdkModel[], orIds: ReadonlySet<string>): string {
   // (a) the daemon's resolved id, transformed + present in the OR list.
   const resolved = daemonResolved(tier, agentSdk);
   if (resolved !== null) {
@@ -123,10 +119,7 @@ function resolveTier(
 }
 
 /** Derive the OR-skin tier→slug map for a mode-2 spawn; never throws. */
-export function deriveOrSkinTierModels(
-  agentSdk: readonly AgentSdkModel[],
-  orIds: readonly string[],
-): OrSkinTierModels {
+export function deriveOrSkinTierModels(agentSdk: readonly AgentSdkModel[], orIds: readonly string[]): OrSkinTierModels {
   const orSet = new Set(orIds);
   return {
     opus: resolveTier("opus", agentSdk, orSet),

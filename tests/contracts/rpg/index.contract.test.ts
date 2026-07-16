@@ -103,7 +103,5 @@ test("rpgWidgetBindingSchema discriminates on source and brands entity refs", ()
     clockId: mintTypeId(ID_PREFIX.rpgClock),
   });
   expect(clock.source).toBe("clock");
-  expect(
-    rpgWidgetBindingSchema.safeParse({ source: "clock", clockId: "not-branded" }).success,
-  ).toBe(false);
+  expect(rpgWidgetBindingSchema.safeParse({ source: "clock", clockId: "not-branded" }).success).toBe(false);
 });

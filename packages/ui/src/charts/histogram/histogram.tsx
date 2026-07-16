@@ -22,13 +22,7 @@ export interface HistogramProps {
 
 const DEFAULT_HEIGHT_PX = 200;
 
-export function Histogram({
-  buckets,
-  label,
-  height = DEFAULT_HEIGHT_PX,
-  className,
-  onChartReady,
-}: HistogramProps): ReactElement {
+export function Histogram({ buckets, label, height = DEFAULT_HEIGHT_PX, className, onChartReady }: HistogramProps): ReactElement {
   const slots = histogramVariants();
   // Called unconditionally (before the empty-state branch) to satisfy rules-of-hooks.
   const colors = useChartTheme();
@@ -46,12 +40,7 @@ export function Histogram({
       <p className={slots.heading()} data-slot="histogram-heading">
         {label}
       </p>
-      <Chart
-        height={height}
-        label={label}
-        onChartReady={onChartReady}
-        option={buildHistogramOption(buckets, colors)}
-      />
+      <Chart height={height} label={label} onChartReady={onChartReady} option={buildHistogramOption(buckets, colors)} />
     </div>
   );
 }

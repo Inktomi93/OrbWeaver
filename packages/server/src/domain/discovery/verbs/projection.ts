@@ -15,9 +15,7 @@ import { pca2d } from "../substrate/pca";
 
 type CardVector = Awaited<ReturnType<typeof readOwnedCharacterVectors>>[number];
 
-export function createProjection(
-  ctx: DiscoveryContext,
-): Pick<DiscoveryService, "corpusProjection"> {
+export function createProjection(ctx: DiscoveryContext): Pick<DiscoveryService, "corpusProjection"> {
   return { corpusProjection: (userId) => corpusProjection(ctx.db, userId) };
 }
 

@@ -79,9 +79,7 @@ async function canLogin(handle: string, password: string): Promise<boolean> {
 async function main(): Promise<void> {
   const owner = (await listUsers()).find((u) => (u.handle ?? "").toLowerCase() === OWNER_HANDLE);
   if (owner?.id === undefined) {
-    die(
-      `owner "${OWNER_HANDLE}" not found via the fallback seam — is AUTH_MODE=local + a local origin?`,
-    );
+    die(`owner "${OWNER_HANDLE}" not found via the fallback seam — is AUTH_MODE=local + a local origin?`);
   }
 
   await trpc("admin.resetPassword", { userId: owner.id, password: OWNER_PASSWORD });
@@ -108,9 +106,7 @@ async function main(): Promise<void> {
     mode?: string;
   };
   if (config.multiHumanCapable !== true) {
-    die(
-      `/api/auth/config reports multiHumanCapable=${String(config.multiHumanCapable)} (expected true)`,
-    );
+    die(`/api/auth/config reports multiHumanCapable=${String(config.multiHumanCapable)} (expected true)`);
   }
   if (!(await canLogin(OWNER_HANDLE, OWNER_PASSWORD))) {
     die(`owner "${OWNER_HANDLE}" cannot authenticate via the login form`);

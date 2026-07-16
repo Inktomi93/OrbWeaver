@@ -44,9 +44,7 @@ export function buildOpenAiSamplingFields(input: OpenAiSamplingInput): Record<st
     ...(input.topK !== undefined ? { top_k: input.topK } : {}),
     ...(input.frequencyPenalty !== undefined ? { frequency_penalty: input.frequencyPenalty } : {}),
     ...(input.presencePenalty !== undefined ? { presence_penalty: input.presencePenalty } : {}),
-    ...(input.repetitionPenalty !== undefined
-      ? { repetition_penalty: input.repetitionPenalty }
-      : {}),
+    ...(input.repetitionPenalty !== undefined ? { repetition_penalty: input.repetitionPenalty } : {}),
     ...(input.minP !== undefined ? { min_p: input.minP } : {}),
     ...(input.seed !== undefined ? { seed: input.seed } : {}),
     ...(input.logitBias !== undefined ? { logit_bias: input.logitBias } : {}),
@@ -79,7 +77,6 @@ export function rawToolChoice(choice: ToolChoice): unknown {
 /** The contract `ResponseFormat` → raw `response_format` (`json_schema` dialect — the neo vLLM runner's
  *  exact shape; the projection rule upstream already produced a clean schema). */
 export function rawResponseFormat(format: ResponseFormat): Record<string, unknown> {
-  // biome-ignore lint/style/useNamingConvention: OpenAI-compatible wire field name (snake_case).
   return {
     type: "json_schema",
     json_schema: {

@@ -14,9 +14,7 @@ import type { ResolvedConnection } from "@orb/contracts/connection";
 import type { AgentOverride, ResolveChatParams } from "../contract/params";
 import type { ConnectionService } from "../contract/service";
 
-export function createResolveChat(
-  resolveRole: ConnectionService["resolveRole"],
-): ConnectionService["resolveChat"] {
+export function createResolveChat(resolveRole: ConnectionService["resolveRole"]): ConnectionService["resolveChat"] {
   return (params: ResolveChatParams): Promise<ResolvedConnection> => {
     const agentOverride: AgentOverride = {
       api: params.routableChat.api,

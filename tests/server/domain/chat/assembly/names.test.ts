@@ -7,13 +7,7 @@ const SPEAKERS = { user: "User", assistant: "Aria" };
 
 describe("applyNamesBehavior", () => {
   test('"none" strips names + drops authorName/name fields', () => {
-    expect(
-      applyNamesBehavior(
-        [{ role: "user", content: "u1", authorName: "OldPersona" }],
-        "none",
-        SPEAKERS,
-      ),
-    ).toEqual([{ role: "user", content: "u1" }]);
+    expect(applyNamesBehavior([{ role: "user", content: "u1", authorName: "OldPersona" }], "none", SPEAKERS)).toEqual([{ role: "user", content: "u1" }]);
   });
 
   test('"default" solo prefixes nothing → byte-identical (Part III §12 inv 1)', () => {
@@ -28,14 +22,9 @@ describe("applyNamesBehavior", () => {
   });
 
   test('"default" prefixes a user turn authored under a since-switched persona', () => {
-    expect(
-      applyNamesBehavior(
-        [{ role: "user", content: "hi", authorName: "Alt" }],
-        "default",
-        SPEAKERS,
-        false,
-      ),
-    ).toEqual([{ role: "user", content: "Alt: hi" }]);
+    expect(applyNamesBehavior([{ role: "user", content: "hi", authorName: "Alt" }], "default", SPEAKERS, false)).toEqual([
+      { role: "user", content: "Alt: hi" },
+    ]);
   });
 
   test('"default" + multiCharacter prefixes assistant rows with their character name', () => {
@@ -56,14 +45,9 @@ describe("applyNamesBehavior", () => {
   });
 
   test('"default" + multiCharacter does NOT prefix an unattributed assistant row', () => {
-    expect(
-      applyNamesBehavior(
-        [{ role: "assistant", content: "x", authorName: null }],
-        "default",
-        SPEAKERS,
-        true,
-      ),
-    ).toEqual([{ role: "assistant", content: "x" }]);
+    expect(applyNamesBehavior([{ role: "assistant", content: "x", authorName: null }], "default", SPEAKERS, true)).toEqual([
+      { role: "assistant", content: "x" },
+    ]);
   });
 
   test('"content" always prefixes author (falling back to the active speaker)', () => {
@@ -83,12 +67,8 @@ describe("applyNamesBehavior", () => {
   });
 
   test('"completion" sets the OpenAI-spec name field; content untouched', () => {
-    expect(
-      applyNamesBehavior(
-        [{ role: "user", content: "u1", authorName: "Alt" }],
-        "completion",
-        SPEAKERS,
-      ),
-    ).toEqual([{ role: "user", content: "u1", name: "Alt" }]);
+    expect(applyNamesBehavior([{ role: "user", content: "u1", authorName: "Alt" }], "completion", SPEAKERS)).toEqual([
+      { role: "user", content: "u1", name: "Alt" },
+    ]);
   });
 });

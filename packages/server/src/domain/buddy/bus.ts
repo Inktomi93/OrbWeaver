@@ -23,8 +23,7 @@ export function createBuddyBus(): BuddyBus {
       replay.record(event.userId, event);
       emitter.emit(channelFor(event.userId), event);
     },
-    subscribe: (userId: UserId, signal: AbortSignal): AsyncIterable<BuddyBusEvent> =>
-      liveEvents(on(emitter, channelFor(userId), { signal })),
+    subscribe: (userId: UserId, signal: AbortSignal): AsyncIterable<BuddyBusEvent> => liveEvents(on(emitter, channelFor(userId), { signal })),
     snapshot: (userId: UserId): BuddyBusEvent[] => replay.snapshot(userId),
   };
 }

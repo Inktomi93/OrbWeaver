@@ -13,10 +13,7 @@ import type { ImageInput } from "@orb/contracts/role-clients";
 import type { ModelId } from "@orb/kit/ids";
 import { cosineSim } from "@orb/kit/vector-math";
 import type { ImageEmbedRequest, ImageEmbedResult } from "@orb/server/infra/providers";
-import {
-  createLocalLightBackend,
-  DEFAULT_IMAGE_EMBED_MODEL,
-} from "@orb/server/infra/providers/backends/local-light";
+import { createLocalLightBackend, DEFAULT_IMAGE_EMBED_MODEL } from "@orb/server/infra/providers/backends/local-light";
 import sharp from "sharp";
 import { describe } from "vitest";
 import { makeResolvedCredential } from "../../../../../support/factories/resolved-connection.ts";

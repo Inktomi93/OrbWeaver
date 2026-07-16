@@ -9,13 +9,7 @@ import type { Finding } from "../../scripts/check/contract.ts";
 import { gate as verifyRegistryParityGate } from "../../scripts/check/gates/verify-registry-parity.ts";
 import { canonicalSort, runPass } from "../../scripts/check/pass.ts";
 import type { StageDef } from "../../scripts/verify/registry.ts";
-import {
-  asViolations,
-  eslintScheme,
-  ownScheme,
-  REGISTRY,
-  stagesForTier,
-} from "../../scripts/verify/registry.ts";
+import { asViolations, eslintScheme, ownScheme, REGISTRY, stagesForTier } from "../../scripts/verify/registry.ts";
 import { aggregateExit, parse } from "../../scripts/verify/run.ts";
 import { resolveSelection } from "../../scripts/verify/selection.ts";
 import { expect, test } from "../support/fixtures.ts";
@@ -102,8 +96,7 @@ test("the static tier is EXACTLY the known ordered stage set (the pre-commit `pn
 });
 
 test("static ⊂ push ⊂ full (the whole-tree ladder); changed ⊆ push (the scoped inner loop)", () => {
-  const names = (t: "changed" | "static" | "push" | "full"): Set<string> =>
-    new Set(stagesForTier(t).map((s) => s.name));
+  const names = (t: "changed" | "static" | "push" | "full"): Set<string> => new Set(stagesForTier(t).map((s) => s.name));
   const changed = names("changed");
   const staticT = names("static");
   const push = names("push");
@@ -226,12 +219,7 @@ test("lint:eslint scopedArgv: skip-empty when no file is in the eslint surface",
 
 test("structure:full scopedArgv: routes to scoped.ts with the selection's flag (walk-scoped gates)", () => {
   const sel = resolveSelection({ kind: "package", name: "ui" });
-  expect(stage("structure:full").scopedArgv?.(sel)).toEqual([
-    "tsx",
-    "scripts/check/scoped.ts",
-    "--package",
-    "ui",
-  ]);
+  expect(stage("structure:full").scopedArgv?.(sel)).toEqual(["tsx", "scripts/check/scoped.ts", "--package", "ui"]);
 });
 
 // ── argv parsing (parseArgs, strict schema §3.4) — the misuse (exit 3) matrix + good invocations ──
@@ -320,9 +308,7 @@ test("every stage carries a classify + non-empty tiers", () => {
 });
 
 test("every manual-tier stage carries a reason", () => {
-  const manualWithoutReason = REGISTRY.filter(
-    (s) => s.tiers.includes("manual") && s.manualReason === undefined,
-  );
+  const manualWithoutReason = REGISTRY.filter((s) => s.tiers.includes("manual") && s.manualReason === undefined);
   expect(manualWithoutReason).toEqual([]);
 });
 
@@ -340,9 +326,7 @@ function runParityGate(pkgScripts: Readonly<Record<string, string>>): readonly F
       files: project.getSourceFiles(),
       checker: () => project.getTypeChecker(),
     });
-    findings = canonicalSort(
-      result.gates.find((g) => g.name === verifyRegistryParityGate.name)?.findings ?? [],
-    );
+    findings = canonicalSort(result.gates.find((g) => g.name === verifyRegistryParityGate.name)?.findings ?? []);
   });
   return findings;
 }

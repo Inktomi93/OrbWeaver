@@ -16,15 +16,11 @@ function isCharacter(p: ParticipantView): p is CharacterParticipant {
   return p.kind === "character" && p.characterId !== null;
 }
 
-export function filterCharacters(
-  participants: readonly ParticipantView[],
-): readonly CharacterParticipant[] {
+export function filterCharacters(participants: readonly ParticipantView[]): readonly CharacterParticipant[] {
   return participants.filter(isCharacter);
 }
 
-export function buildParticipantsById(
-  participants: readonly ParticipantView[],
-): ReadonlyMap<CharacterId, ParticipantView> {
+export function buildParticipantsById(participants: readonly ParticipantView[]): ReadonlyMap<CharacterId, ParticipantView> {
   const byId = new Map<CharacterId, ParticipantView>();
   for (const participant of participants) {
     if (participant.kind === "character" && participant.characterId !== null) {
@@ -36,9 +32,7 @@ export function buildParticipantsById(
 
 // No client auth/session concept exists yet; this is the first present human seat's activePersonaId,
 // the correct proxy pre-multi-human. Null when no human participant is present.
-export function resolveViewerActivePersonaId(
-  participants: readonly ParticipantView[],
-): PersonaId | null {
+export function resolveViewerActivePersonaId(participants: readonly ParticipantView[]): PersonaId | null {
   for (const participant of participants) {
     if (participant.kind === "human") {
       return participant.activePersonaId;
@@ -60,9 +54,7 @@ export function resolveViewerUserId(participants: readonly ParticipantView[]): U
 
 // leftSeq === null is the present-and-contributing predicate — a kicked/left human keeps a historical
 // row but must not render as a room member.
-export function resolveHumanParticipants(
-  participants: readonly ParticipantView[],
-): readonly ParticipantView[] {
+export function resolveHumanParticipants(participants: readonly ParticipantView[]): readonly ParticipantView[] {
   return participants.filter((p) => p.kind === "human" && p.leftSeq === null);
 }
 
@@ -80,11 +72,7 @@ export function castSectionVisible(participants: readonly ParticipantView[]): bo
 
 /** The Members tab's overall floor gate (chats-section.tsx's members `when`): People needs a multi-human
  *  install with \>=2 humans, Cast needs \>=2 characters; either alone justifies the tab. */
-export function membersTabJustified(
-  participants: readonly ParticipantView[],
-  multiHumanCapable: boolean,
-): boolean {
-  const peopleJustifies =
-    multiHumanCapable && resolveHumanParticipants(participants).length >= PEOPLE_TAB_FLOOR;
+export function membersTabJustified(participants: readonly ParticipantView[], multiHumanCapable: boolean): boolean {
+  const peopleJustifies = multiHumanCapable && resolveHumanParticipants(participants).length >= PEOPLE_TAB_FLOOR;
   return peopleJustifies || castSectionVisible(participants);
 }

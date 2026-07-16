@@ -17,26 +17,12 @@ import { castId } from "@orb/kit/ids";
 import type { AuditEntry } from "@orb/server/foundation/observability";
 import { and, eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import {
-  ChatNotFoundError,
-  ChatOperationError,
-} from "../../../../../packages/server/src/domain/chat/contract/errors";
-import {
-  createRoster,
-  setParticipantActivePersona,
-} from "../../../../../packages/server/src/domain/chat/verbs/roster";
+import { ChatNotFoundError, ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors";
+import { createRoster, setParticipantActivePersona } from "../../../../../packages/server/src/domain/chat/verbs/roster";
 import { freshDb } from "../../../../support/db";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../support/fixtures";
-import {
-  makeChatContext,
-  seedAgent,
-  seedCharacter,
-  seedChat,
-  seedParticipant,
-  seedPersona,
-  seedUser,
-} from "../_support";
+import { makeChatContext, seedAgent, seedCharacter, seedChat, seedParticipant, seedPersona, seedUser } from "../_support";
 
 let db: Db;
 let emitted: ChatBusEvent[];
@@ -48,9 +34,7 @@ beforeEach(async () => {
 
 /** A recording emit-op fake that HONORS the PD-24 contract: it records the event AND commits the producer's
  *  unexecuted co-statements (the op owns the commit — without this the membership transition never lands). */
-function recordingEmit(
-  notes: NotificationEvent[],
-): (event: NotificationEvent, coStatements?: readonly unknown[]) => Promise<void> {
+function recordingEmit(notes: NotificationEvent[]): (event: NotificationEvent, coStatements?: readonly unknown[]) => Promise<void> {
   return async (event, coStatements) => {
     notes.push(event);
     if (coStatements !== undefined && coStatements.length > 0) {
@@ -68,16 +52,12 @@ function principal(userId: UserId): Principal {
   return makePrincipal(userId, { handle: castId<Handle>("h") });
 }
 
-const card = (name: string): CharacterCard =>
-  ({ name, avatarAssetId: null }) as unknown as CharacterCard;
+const card = (name: string): CharacterCard => ({ name, avatarAssetId: null }) as unknown as CharacterCard;
 
 /** An owner-scoped `getCard` fake mirroring the REAL one (D28 — `loadOwnedCharacterRow`): the card resolves
  *  only for its OWNER, `null` for a non-owner. The handoff cast-drop resolver (D64 / F4) calls this per seated
  *  character to decide which seats the NEW host doesn't own (→ dropped); the harness default is a bare `null`. */
-function ownedCard(): (params: {
-  readonly ownerId: UserId;
-  readonly characterId: CharacterId;
-}) => Promise<CharacterCard | null> {
+function ownedCard(): (params: { readonly ownerId: UserId; readonly characterId: CharacterId }) => Promise<CharacterCard | null> {
   return async ({ ownerId, characterId }) => {
     const [row] = await db.select().from(characters).where(eq(characters.id, characterId));
     return row !== undefined && row.ownerId === ownerId ? card(row.name) : null;
@@ -180,12 +160,9 @@ describe("add character to chat — the participant-insert chokepoint", () => {
     const characterId = await seedCharacter(db, host, "aria");
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
-    const roster = createRoster(
-      makeChatContext(db, { getCard: () => Promise.resolve(card("Aria")) }),
-      {
-        emit,
-      },
-    );
+    const roster = createRoster(makeChatContext(db, { getCard: () => Promise.resolve(card("Aria")) }), {
+      emit,
+    });
 
     const view = await roster.addCharacterToChat({
       principal: principal(host),
@@ -200,9 +177,7 @@ describe("add character to chat — the participant-insert chokepoint", () => {
     const rows = await db
       .select()
       .from(chatParticipants)
-      .where(
-        and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.characterId, characterId)),
-      );
+      .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.characterId, characterId)));
     expect(rows).toHaveLength(1);
     expect(emitted).toEqual([{ type: "chatUpdated", chatId }]);
   });
@@ -223,10 +198,7 @@ describe("add character to chat — the participant-insert chokepoint", () => {
         characterId: castId<CharacterId>("character_foreign"),
       }),
     ).rejects.toBeInstanceOf(DomainNotFoundError);
-    const rows = await db
-      .select()
-      .from(chatParticipants)
-      .where(eq(chatParticipants.kind, "character"));
+    const rows = await db.select().from(chatParticipants).where(eq(chatParticipants.kind, "character"));
     expect(rows).toHaveLength(0);
     expect(emitted).toEqual([]);
   });
@@ -239,12 +211,9 @@ describe("setParticipantDisabled — host mute", () => {
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "c", characterId, role: "member" });
-    const roster = createRoster(
-      makeChatContext(db, { getCard: () => Promise.resolve(card("Aria")) }),
-      {
-        emit,
-      },
-    );
+    const roster = createRoster(makeChatContext(db, { getCard: () => Promise.resolve(card("Aria")) }), {
+      emit,
+    });
 
     const view = await roster.setParticipantDisabled({
       principal: principal(host),
@@ -253,10 +222,7 @@ describe("setParticipantDisabled — host mute", () => {
       disabled: true,
     });
     expect(view.disabled).toBe(true);
-    const [row] = await db
-      .select()
-      .from(chatParticipants)
-      .where(eq(chatParticipants.characterId, characterId));
+    const [row] = await db.select().from(chatParticipants).where(eq(chatParticipants.characterId, characterId));
     expect(row?.disabled).toBe(true);
   });
 
@@ -267,9 +233,7 @@ describe("setParticipantDisabled — host mute", () => {
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     const roster = createRoster(makeChatContext(db), { emit });
 
-    const err = await roster
-      .setParticipantDisabled({ principal: principal(host), chatId, characterId, disabled: true })
-      .catch((e: unknown) => e);
+    const err = await roster.setParticipantDisabled({ principal: principal(host), chatId, characterId, disabled: true }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
     expect((err as ChatOperationError).code).toBe("participant_not_found");
     expect(emitted).toEqual([]);
@@ -283,12 +247,9 @@ describe("setParticipantTalkativeness — host sets the 0–1 arbitration weight
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "c", characterId, role: "member" });
-    const roster = createRoster(
-      makeChatContext(db, { getCard: () => Promise.resolve(card("Aria")) }),
-      {
-        emit,
-      },
-    );
+    const roster = createRoster(makeChatContext(db, { getCard: () => Promise.resolve(card("Aria")) }), {
+      emit,
+    });
 
     const view = await roster.setParticipantTalkativeness({
       principal: principal(host),
@@ -297,10 +258,7 @@ describe("setParticipantTalkativeness — host sets the 0–1 arbitration weight
       talkativeness: 0.8,
     });
     expect(view.talkativeness).toBe(0.8);
-    const [row] = await db
-      .select()
-      .from(chatParticipants)
-      .where(eq(chatParticipants.characterId, characterId));
+    const [row] = await db.select().from(chatParticipants).where(eq(chatParticipants.characterId, characterId));
     expect(row?.talkativeness).toBe(0.8);
     expect(emitted).toEqual([{ type: "chatUpdated", chatId }]);
   });
@@ -344,10 +302,7 @@ describe("kick — host removes a member", () => {
 
     await roster.kick({ principal: principal(host), chatId, userId: member });
 
-    const [row] = await db
-      .select()
-      .from(chatParticipants)
-      .where(eq(chatParticipants.userId, member));
+    const [row] = await db.select().from(chatParticipants).where(eq(chatParticipants.userId, member));
     expect(row?.leftSeq).not.toBeNull();
     expect(emitted).toEqual([{ type: "chatUpdated", chatId }]);
     expect(notes).toEqual([{ type: "kicked", recipientUserId: member, chatId }]);
@@ -403,9 +358,7 @@ describe("nominateHostHandoff — host nominates a present member (step 1)", () 
     await seedParticipant(db, { chatId, key: "o", userId: other, role: "member" });
     const roster = createRoster(makeChatContext(db), { emit });
 
-    const err = await roster
-      .nominateHostHandoff({ principal: principal(member), chatId, userId: other })
-      .catch((e: unknown) => e);
+    const err = await roster.nominateHostHandoff({ principal: principal(member), chatId, userId: other }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
     expect((err as ChatOperationError).code).toBe("not_host");
     const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
@@ -420,9 +373,7 @@ describe("nominateHostHandoff — host nominates a present member (step 1)", () 
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     const roster = createRoster(makeChatContext(db), { emit });
 
-    const err = await roster
-      .nominateHostHandoff({ principal: principal(host), chatId, userId: stranger })
-      .catch((e: unknown) => e);
+    const err = await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: stranger }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatNotFoundError);
     const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
     expect(row?.pendingHostUserId).toBeNull();
@@ -450,10 +401,7 @@ describe("acceptHostHandoff — the nominee self-action (step 2)", () => {
 
     await roster.acceptHostHandoff({ principal: principal(member), chatId });
 
-    const rows = await db
-      .select()
-      .from(chatParticipants)
-      .where(eq(chatParticipants.chatId, chatId));
+    const rows = await db.select().from(chatParticipants).where(eq(chatParticipants.chatId, chatId));
     expect(rows.find((r) => r.userId === host)?.role).toBe("member");
     expect(rows.find((r) => r.userId === member)?.role).toBe("host");
     const [chatRow] = await db.select().from(chats).where(eq(chats.id, chatId));
@@ -481,16 +429,11 @@ describe("acceptHostHandoff — the nominee self-action (step 2)", () => {
     await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member });
     emitted.length = 0;
 
-    const err = await roster
-      .acceptHostHandoff({ principal: principal(attacker), chatId })
-      .catch((e: unknown) => e);
+    const err = await roster.acceptHostHandoff({ principal: principal(attacker), chatId }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
     expect((err as ChatOperationError).code).toBe("not_turn_owner");
     // Roles untouched; the nomination still stands for the real nominee; nothing emitted.
-    const rows = await db
-      .select()
-      .from(chatParticipants)
-      .where(eq(chatParticipants.chatId, chatId));
+    const rows = await db.select().from(chatParticipants).where(eq(chatParticipants.chatId, chatId));
     expect(rows.find((r) => r.userId === host)?.role).toBe("host");
     expect(rows.find((r) => r.userId === attacker)?.role).toBe("member");
     const [chatRow] = await db.select().from(chats).where(eq(chats.id, chatId));
@@ -506,9 +449,7 @@ describe("acceptHostHandoff — the nominee self-action (step 2)", () => {
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
     const roster = createRoster(makeChatContext(db), { emit });
 
-    const err = await roster
-      .acceptHostHandoff({ principal: principal(member), chatId })
-      .catch((e: unknown) => e);
+    const err = await roster.acceptHostHandoff({ principal: principal(member), chatId }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
     expect((err as ChatOperationError).code).toBe("not_turn_owner");
   });
@@ -529,20 +470,14 @@ describe("acceptHostHandoff — the nominee self-action (step 2)", () => {
     await seedParticipant(db, { chatId, key: "ca", characterId: aria, role: "member" });
     await seedParticipant(db, { chatId, key: "cb", characterId: bella, role: "member" });
     const notes: NotificationEvent[] = [];
-    const roster = createRoster(
-      makeChatContext(db, { getCard: ownedCard(), emitNotification: recordingEmit(notes) }),
-      { emit },
-    );
+    const roster = createRoster(makeChatContext(db, { getCard: ownedCard(), emitNotification: recordingEmit(notes) }), { emit });
     await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member });
     emitted.length = 0;
     notes.length = 0;
 
     await roster.acceptHostHandoff({ principal: principal(member), chatId });
 
-    const rows = await db
-      .select()
-      .from(chatParticipants)
-      .where(eq(chatParticipants.chatId, chatId));
+    const rows = await db.select().from(chatParticipants).where(eq(chatParticipants.chatId, chatId));
     // Host authority transferred; both humans remain present.
     expect(rows.find((r) => r.userId === host)?.role).toBe("member");
     expect(rows.find((r) => r.userId === host)?.leftSeq).toBeNull();
@@ -566,18 +501,12 @@ describe("acceptHostHandoff — the nominee self-action (step 2)", () => {
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
     await seedParticipant(db, { chatId, key: "c", characterId, role: "member" });
     const notes: NotificationEvent[] = [];
-    const roster = createRoster(
-      makeChatContext(db, { getCard: ownedCard(), emitNotification: recordingEmit(notes) }),
-      { emit },
-    );
+    const roster = createRoster(makeChatContext(db, { getCard: ownedCard(), emitNotification: recordingEmit(notes) }), { emit });
     await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member });
 
     await roster.acceptHostHandoff({ principal: principal(member), chatId });
 
-    const rows = await db
-      .select()
-      .from(chatParticipants)
-      .where(eq(chatParticipants.chatId, chatId));
+    const rows = await db.select().from(chatParticipants).where(eq(chatParticipants.chatId, chatId));
     expect(rows.find((r) => r.userId === host)?.role).toBe("member");
     expect(rows.find((r) => r.userId === member)?.role).toBe("host");
     // The nominee-owned character seat is retained (present).
@@ -608,10 +537,7 @@ describe("audit wiring — the membership/config mutations write best-effort aud
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
     const rows: RecordedAudit[] = [];
     const notes: NotificationEvent[] = [];
-    const roster = createRoster(
-      makeChatContext(db, { emitNotification: recordingEmit(notes), audit: auditRecorder(rows) }),
-      { emit },
-    );
+    const roster = createRoster(makeChatContext(db, { emitNotification: recordingEmit(notes), audit: auditRecorder(rows) }), { emit });
 
     await roster.kick({ principal: principal(host), chatId, userId: member });
 
@@ -650,18 +576,12 @@ describe("audit wiring — the membership/config mutations write best-effort aud
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
     const rows: RecordedAudit[] = [];
     const notes: NotificationEvent[] = [];
-    const roster = createRoster(
-      makeChatContext(db, { emitNotification: recordingEmit(notes), audit: auditRecorder(rows) }),
-      { emit },
-    );
+    const roster = createRoster(makeChatContext(db, { emitNotification: recordingEmit(notes), audit: auditRecorder(rows) }), { emit });
 
     await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member });
     await roster.acceptHostHandoff({ principal: principal(member), chatId });
 
-    expect(rows.map((r) => r.entry.action)).toEqual([
-      "chat.nominateHostHandoff",
-      "chat.acceptHostHandoff",
-    ]);
+    expect(rows.map((r) => r.entry.action)).toEqual(["chat.nominateHostHandoff", "chat.acceptHostHandoff"]);
     expect(rows.at(0)?.entry.metadata).toEqual({ nomineeUserId: member });
     expect(rows.at(1)?.entry.metadata).toEqual({ previousHostUserId: host });
     expect(rows.at(1)?.entry.actorUserId).toBe(member);
@@ -702,9 +622,7 @@ describe("audit wiring — the membership/config mutations write best-effort aud
     const rows: RecordedAudit[] = [];
     const roster = createRoster(makeChatContext(db, { audit: auditRecorder(rows) }), { emit });
 
-    await roster
-      .kick({ principal: principal(member), chatId, userId: host })
-      .catch((e: unknown) => e);
+    await roster.kick({ principal: principal(member), chatId, userId: host }).catch((e: unknown) => e);
 
     expect(rows).toEqual([]);
   });

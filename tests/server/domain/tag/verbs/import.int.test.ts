@@ -54,14 +54,9 @@ describe("tag-library import", () => {
     await svc.createTag({ principal: principal(owner), input: { name: "Fantasy" } });
 
     // "fantasy" folds onto the existing "Fantasy"; only "western" is new.
-    const result = await createTagLibraryImport(harness.ctx)(
-      owner,
-      libBytes(["fantasy", "western"]),
-    );
+    const result = await createTagLibraryImport(harness.ctx)(owner, libBytes(["fantasy", "western"]));
     expect(result).toEqual({ total: 2, created: 1 });
-    expect((await svc.listTags({ principal: principal(owner) })).map((t) => t.name).sort()).toEqual(
-      ["Fantasy", "western"],
-    );
+    expect((await svc.listTags({ principal: principal(owner) })).map((t) => t.name).sort()).toEqual(["Fantasy", "western"]);
   });
 
   test("round-trips export -> import across owners", async () => {
@@ -99,8 +94,6 @@ describe("tag-library import", () => {
     const harness = makeTagHarness(db);
 
     const garbage = new TextEncoder().encode("{not a tag library");
-    await expect(createTagLibraryImport(harness.ctx)(owner, garbage)).rejects.toBeInstanceOf(
-      DomainOperationError,
-    );
+    await expect(createTagLibraryImport(harness.ctx)(owner, garbage)).rejects.toBeInstanceOf(DomainOperationError);
   });
 });

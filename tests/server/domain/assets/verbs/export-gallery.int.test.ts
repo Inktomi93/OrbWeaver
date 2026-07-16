@@ -23,22 +23,11 @@ function withCharacterOps(ctx: AssetsContext, db: AssetsContext["db"]): AssetsCo
   return {
     ...ctx,
     resolveCharacterHandle: async (characterId: CharacterId): Promise<string | null> => {
-      const rows = await db
-        .select({ handle: characters.handle })
-        .from(characters)
-        .where(eq(characters.id, characterId))
-        .limit(1);
+      const rows = await db.select({ handle: characters.handle }).from(characters).where(eq(characters.id, characterId)).limit(1);
       return rows[0]?.handle ?? null;
     },
-    findCharacterByHandle: async (args: {
-      readonly ownerId: UserId;
-      readonly handle: string;
-    }): Promise<CharacterId | null> => {
-      const rows = await db
-        .select({ id: characters.id })
-        .from(characters)
-        .where(eq(characters.handle, args.handle))
-        .limit(1);
+    findCharacterByHandle: async (args: { readonly ownerId: UserId; readonly handle: string }): Promise<CharacterId | null> => {
+      const rows = await db.select({ id: characters.id }).from(characters).where(eq(characters.handle, args.handle)).limit(1);
       const hit = rows[0];
       return hit !== undefined ? hit.id : null;
     },

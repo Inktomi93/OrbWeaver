@@ -16,15 +16,11 @@ describe("parseAllowlist", () => {
 
 describe("resolveClientIp — the PD-52 peer-vs-XFF trust precedence", () => {
   test("an UNTRUSTED public peer's x-forwarded-for is IGNORED (the spoof pin)", () => {
-    expect(
-      resolveClientIp({ peer: "198.51.100.9", forwarded: "1.2.3.4", trustedProxies: [] }),
-    ).toBe("198.51.100.9");
+    expect(resolveClientIp({ peer: "198.51.100.9", forwarded: "1.2.3.4", trustedProxies: [] })).toBe("198.51.100.9");
   });
 
   test("a loopback/private peer (the fronting proxy) yields the leftmost XFF hop", () => {
-    expect(
-      resolveClientIp({ peer: "127.0.0.1", forwarded: "1.2.3.4, 10.0.0.1", trustedProxies: [] }),
-    ).toBe("1.2.3.4");
+    expect(resolveClientIp({ peer: "127.0.0.1", forwarded: "1.2.3.4, 10.0.0.1", trustedProxies: [] })).toBe("1.2.3.4");
   });
 
   test("an explicitly trusted public proxy yields the XFF hop", () => {
@@ -38,12 +34,8 @@ describe("resolveClientIp — the PD-52 peer-vs-XFF trust precedence", () => {
   });
 
   test("no/empty XFF falls back to the peer; no peer at all is null", () => {
-    expect(resolveClientIp({ peer: "127.0.0.1", forwarded: undefined, trustedProxies: [] })).toBe(
-      "127.0.0.1",
-    );
-    expect(resolveClientIp({ peer: undefined, forwarded: "1.2.3.4", trustedProxies: [] })).toBe(
-      null,
-    );
+    expect(resolveClientIp({ peer: "127.0.0.1", forwarded: undefined, trustedProxies: [] })).toBe("127.0.0.1");
+    expect(resolveClientIp({ peer: undefined, forwarded: "1.2.3.4", trustedProxies: [] })).toBe(null);
   });
 });
 

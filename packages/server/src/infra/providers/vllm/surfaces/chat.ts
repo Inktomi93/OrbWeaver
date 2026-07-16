@@ -40,9 +40,7 @@ interface WireMessage {
   readonly role: HistoryRole | "system";
   readonly content: string;
   readonly name?: string;
-  // biome-ignore lint/style/useNamingConvention: OpenAI-compatible wire field name (snake_case).
   readonly tool_calls?: readonly Record<string, unknown>[];
-  // biome-ignore lint/style/useNamingConvention: OpenAI-compatible wire field name (snake_case).
   readonly tool_call_id?: string;
 }
 
@@ -64,7 +62,6 @@ function wireToolResults(content: readonly ChatContentPart[]): WireMessage[] {
   const out: WireMessage[] = [];
   for (const part of content) {
     if (part.type === "tool-result") {
-      // biome-ignore lint/style/useNamingConvention: OpenAI-compatible wire field name (snake_case).
       out.push({ role: "tool", tool_call_id: part.toolCallId, content: part.content });
     }
   }
@@ -81,16 +78,13 @@ function wireTurnMessage(turn: ChatHistoryMessage): WireMessage | null {
   return {
     role: turn.role,
     content: text,
-    // biome-ignore lint/style/useNamingConvention: OpenAI-compatible wire field name (snake_case).
     ...(toolCalls.length > 0 ? { tool_calls: toolCalls } : {}),
     ...(turn.name !== undefined ? { name: turn.name } : {}),
   };
 }
 
 function toMessages(req: VllmChatTurn): WireMessage[] {
-  const system = [req.systemPrompt.static, req.systemPrompt.dynamic]
-    .filter((s) => s.trim().length > 0)
-    .join("\n\n");
+  const system = [req.systemPrompt.static, req.systemPrompt.dynamic].filter((s) => s.trim().length > 0).join("\n\n");
   const history: WireMessage[] = [];
   for (const turn of req.history) {
     if (turn.role === "tool") {
@@ -127,12 +121,8 @@ function buildBody(req: VllmChatTurn): Record<string, unknown> {
     messages: toMessages(req),
     ...sampling,
     ...(req.tools !== undefined ? { tools: rawWireTools(req.tools) } : {}),
-    // biome-ignore lint/style/useNamingConvention: OpenAI-compatible wire field names (snake_case).
     ...(req.toolChoice !== undefined ? { tool_choice: rawToolChoice(req.toolChoice) } : {}),
-    // biome-ignore lint/style/useNamingConvention: OpenAI-compatible wire field names (snake_case).
-    ...(req.responseFormat !== undefined
-      ? { response_format: rawResponseFormat(req.responseFormat) }
-      : {}),
+    ...(req.responseFormat !== undefined ? { response_format: rawResponseFormat(req.responseFormat) } : {}),
   };
 }
 

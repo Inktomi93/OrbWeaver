@@ -84,11 +84,7 @@ export function makeHarness(db: Db): SettingsHarness {
 /** Find a seed theme by name in `ownerId`'s readable set (own ∪ seeds) — the
  *  `ensureSeedThemes` + `listThemes` + find + not-undefined-guard block 5 theme-verb tests repeated. Throws
  *  if the name isn't found (a seed lookup that misses is a test-setup bug, not a case to assert on). */
-export async function findSeedTheme(
-  h: SettingsHarness,
-  ownerId: UserId,
-  name: string,
-): Promise<ThemeView> {
+export async function findSeedTheme(h: SettingsHarness, ownerId: UserId, name: string): Promise<ThemeView> {
   const views = await h.svc.listThemes({ principal: principal(ownerId, "user") });
   const found = views.find((v) => v.name === name);
   if (found === undefined) {

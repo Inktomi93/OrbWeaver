@@ -46,9 +46,7 @@ describe("buildCardEmbedText", () => {
   });
 
   test("normalizes {{char}}/{{user}} placeholders and strips HTML", () => {
-    const text = buildCardEmbedText(
-      card({ name: "Ivy", description: "<b>{{char}}</b> greets {{user}} warmly" }),
-    );
+    const text = buildCardEmbedText(card({ name: "Ivy", description: "<b>{{char}}</b> greets {{user}} warmly" }));
     expect(text).toBe("Name: Ivy\nDescription: Ivy greets User warmly");
   });
 });

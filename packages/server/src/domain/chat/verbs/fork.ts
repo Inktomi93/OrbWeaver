@@ -10,17 +10,8 @@
 // forker. Other human participants are NOT copied (a fresh `chat_participants` insert is invite/host-action
 // only). The compaction checkpoint copies only when covered by the fork point, else reset to null.
 
-import type {
-  ChatBusEvent,
-  ChatMacroNameProducer,
-  ParticipantView,
-  PersonaAvatarEntry,
-} from "@orb/contracts/chat";
-import {
-  DEFAULT_GROUP_CONFIG,
-  DEFAULT_ROOM_OVERRIDES,
-  variableDeltaSchema,
-} from "@orb/contracts/chat";
+import type { ChatBusEvent, ChatMacroNameProducer, ParticipantView, PersonaAvatarEntry } from "@orb/contracts/chat";
+import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES, variableDeltaSchema } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { chatInjections, chatParticipants, chats, messages, messageVariants } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
@@ -35,13 +26,7 @@ import type { ChatService } from "../contract/service";
 import type { ChatDetail } from "../contract/views";
 import { requireParticipant } from "../guard";
 import { loadChatMacroNameProducer } from "../persistence/macro-names";
-import {
-  loadChatInjections,
-  loadChatRow,
-  loadMessageSlots,
-  loadStoredVariables,
-  loadVariantsByMessageIds,
-} from "../persistence/queries";
+import { loadChatInjections, loadChatRow, loadMessageSlots, loadStoredVariables, loadVariantsByMessageIds } from "../persistence/queries";
 import { loadRoster } from "../persistence/roster";
 import { loadPersonaAvatarProducer } from "../persistence/roster-avatars";
 import { foldChain } from "../substrate/runtime-variables";
@@ -74,13 +59,7 @@ interface ToChatDetailInput {
   readonly viewerUserId: UserId;
 }
 
-function toChatDetail({
-  chat,
-  participants,
-  macroNames,
-  personaAvatars,
-  viewerUserId,
-}: ToChatDetailInput): ChatDetail {
+function toChatDetail({ chat, participants, macroNames, personaAvatars, viewerUserId }: ToChatDetailInput): ChatDetail {
   const viewer = participants.find((p) => p.userId === viewerUserId);
   return {
     id: chat.id,
@@ -145,10 +124,7 @@ function buildCanonCopy(
     if (newMessageId !== undefined) {
       // The fit-pass boundary references another slot (a cross-slot pointer). Remap it through the
       // same slotIdMap; a boundary outside the copied range has no entry → null (never a stale cross-chat id).
-      const newBoundaryId =
-        variant.contextBoundaryMessageId !== null
-          ? (slotIdMap.get(variant.contextBoundaryMessageId) ?? null)
-          : null;
+      const newBoundaryId = variant.contextBoundaryMessageId !== null ? (slotIdMap.get(variant.contextBoundaryMessageId) ?? null) : null;
       variantInserts.push(
         batchStmt(
           db.insert(messageVariants).values({
@@ -163,14 +139,9 @@ function buildCanonCopy(
   }
   for (const slot of args.slots) {
     const newId = slotIdMap.get(slot.id);
-    const newSelected =
-      slot.selectedVariantId !== null ? variantIdMap.get(slot.selectedVariantId) : undefined;
+    const newSelected = slot.selectedVariantId !== null ? variantIdMap.get(slot.selectedVariantId) : undefined;
     if (newId !== undefined && newSelected !== undefined) {
-      pointerFlips.push(
-        batchStmt(
-          db.update(messages).set({ selectedVariantId: newSelected }).where(eq(messages.id, newId)),
-        ),
-      );
+      pointerFlips.push(batchStmt(db.update(messages).set({ selectedVariantId: newSelected }).where(eq(messages.id, newId))));
     }
   }
   return [...slotInserts, ...variantInserts, ...pointerFlips];
@@ -256,13 +227,9 @@ async function resolveOwnedCharacterSeats(
   roster: readonly (typeof chatParticipants.$inferSelect)[],
 ): Promise<CharacterSeatRow[]> {
   const characterSeats = roster.flatMap((p) =>
-    p.kind === "character" && p.characterId !== null && p.leftSeq === null
-      ? [{ ...p, characterId: p.characterId }]
-      : [],
+    p.kind === "character" && p.characterId !== null && p.leftSeq === null ? [{ ...p, characterId: p.characterId }] : [],
   );
-  const cards = await Promise.all(
-    characterSeats.map((s) => ctx.getCard({ ownerId: forkerUserId, characterId: s.characterId })),
-  );
+  const cards = await Promise.all(characterSeats.map((s) => ctx.getCard({ ownerId: forkerUserId, characterId: s.characterId })));
   return characterSeats.filter((_, i) => cards[i] !== null);
 }
 
@@ -290,9 +257,7 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
 
     // The compaction checkpoint copies only when it is covered by the fork point (else a truncated fork
     // would claim a summary over trimmed turns).
-    const keepCheckpoint =
-      source.compactedAtSeq !== null &&
-      (throughSeq === undefined || source.compactedAtSeq <= throughSeq);
+    const keepCheckpoint = source.compactedAtSeq !== null && (throughSeq === undefined || source.compactedAtSeq <= throughSeq);
 
     // The fork's runtime cache is the fold of the copied selected-variant chain (recomputed from the
     // possibly-truncated `slots` — a partial fork must not claim the source's full-chain cache).
@@ -348,13 +313,7 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
       ),
       batchStmt(ctx.db.insert(chatParticipants).values(participantRows)),
       ...buildCanonCopy(ctx, { newChatId, slots, variants }),
-      ...injections.map((inj) =>
-        batchStmt(
-          ctx.db
-            .insert(chatInjections)
-            .values({ ...inj, id: ctx.newInjectionId(), chatId: newChatId }),
-        ),
-      ),
+      ...injections.map((inj) => batchStmt(ctx.db.insert(chatInjections).values({ ...inj, id: ctx.newInjectionId(), chatId: newChatId }))),
     ];
 
     // The rebuild counts the copied canon under the new room, so the live path must too. Owner = the

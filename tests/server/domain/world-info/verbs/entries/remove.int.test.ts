@@ -21,9 +21,7 @@ describe("removeEntry", () => {
 
     const res = await svc.removeEntry({ principal: principal(owner), entryId: entry.id });
     expect(res.deleted).toBe(true);
-    await expect(
-      svc.getEntry({ principal: principal(owner), entryId: entry.id }),
-    ).rejects.toBeInstanceOf(WorldInfoNotFoundError);
+    await expect(svc.getEntry({ principal: principal(owner), entryId: entry.id })).rejects.toBeInstanceOf(WorldInfoNotFoundError);
   });
 
   test("a foreign entry id is NotFound — no cross-tenant delete", async () => {
@@ -38,9 +36,7 @@ describe("removeEntry", () => {
       input: { title: "E", content: "c" },
     });
 
-    await expect(
-      svc.removeEntry({ principal: principal(owner), entryId: theirEntry.id }),
-    ).rejects.toBeInstanceOf(WorldInfoNotFoundError);
+    await expect(svc.removeEntry({ principal: principal(owner), entryId: theirEntry.id })).rejects.toBeInstanceOf(WorldInfoNotFoundError);
     const still = await svc.getEntry({ principal: principal(other), entryId: theirEntry.id });
     expect(still.id).toBe(theirEntry.id);
   });

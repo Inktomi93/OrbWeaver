@@ -31,21 +31,11 @@ import type { ChatContext } from "../../../packages/server/src/domain/chat/contr
 import type { ResolveForeignInputsOp } from "../../../packages/server/src/domain/chat/contract/foreign";
 import type { MemoryConfig } from "../../../packages/server/src/domain/chat/contract/memory";
 import type { GuidedSteer } from "../../../packages/server/src/domain/chat/contract/params";
-import type {
-  GroupOutput,
-  TurnOutcome,
-  TurnRequest,
-} from "../../../packages/server/src/domain/chat/contract/results";
+import type { GroupOutput, TurnOutcome, TurnRequest } from "../../../packages/server/src/domain/chat/contract/results";
 import { createTurnEngine } from "../../../packages/server/src/domain/chat/engine/engine";
 import { loadCanonHistory } from "../../../packages/server/src/domain/chat/persistence/queries";
 import { createTurn } from "../../../packages/server/src/domain/chat/verbs/turn";
-import {
-  makeChatContext,
-  seedCharacter,
-  seedChat,
-  seedParticipant,
-  seedUser,
-} from "../../server/domain/chat/_support";
+import { makeChatContext, seedCharacter, seedChat, seedParticipant, seedUser } from "../../server/domain/chat/_support";
 import { freshDb } from "../db";
 import type { Tape } from "./tape";
 import { scriptedRunner } from "./tape";
@@ -189,9 +179,7 @@ async function seedRoom(
   const group: Record<string, unknown> = {
     output: options.output ?? "per-speaker",
     policy: options.policy ?? "natural",
-    ...(options.autoMode === true
-      ? { autoMode: true, autoModeMaxTurns: options.autoModeMaxTurns ?? 2, autoModeDelayMs: 0 }
-      : {}),
+    ...(options.autoMode === true ? { autoMode: true, autoModeMaxTurns: options.autoModeMaxTurns ?? 2, autoModeDelayMs: 0 } : {}),
   };
   const chatId = await seedChat(db, "a", { metadata: { group } });
   await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
@@ -215,10 +203,7 @@ async function seedRoom(
 
 /** Build a live {@link ChatScenario}: seed the room, wire the tape as `runChatTurn` + the recorders, and return
  *  the real turn verbs. The db is seeded and the verbs are ready to drive on return. */
-async function buildChatScenario(
-  script: Tape,
-  options: ChatScenarioOptions,
-): Promise<ChatScenario> {
+async function buildChatScenario(script: Tape, options: ChatScenarioOptions): Promise<ChatScenario> {
   const db = options.db ?? (await freshDb());
   const { host, chatId, chars, names } = await seedRoom(db, options);
 
@@ -237,8 +222,7 @@ async function buildChatScenario(
       statsDeltas.push(delta);
     },
     getCard: ({ characterId }) => Promise.resolve(cardOf(names[characterId] ?? "Unknown")),
-    mintSyntheticGroupCharacter: () =>
-      Promise.resolve({ characterId: castId<CharacterId>("character_group") }),
+    mintSyntheticGroupCharacter: () => Promise.resolve({ characterId: castId<CharacterId>("character_group") }),
     ...options.ctx,
   });
 
@@ -305,6 +289,5 @@ async function buildChatScenario(
 
 /** The scenario entry point — `scenario.chat(tape, opts)` wires a live, real-DB chat driver from a tape. */
 export const scenario = {
-  chat: (script: Tape, options: ChatScenarioOptions = {}): Promise<ChatScenario> =>
-    buildChatScenario(script, options),
+  chat: (script: Tape, options: ChatScenarioOptions = {}): Promise<ChatScenario> => buildChatScenario(script, options),
 };

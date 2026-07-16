@@ -47,10 +47,7 @@ function renderToolError(e: ToolError): string {
 
 /** Render the whole pass result: grouped failing gates (reason once, occurrences under), a one-line ✓ per
  *  clean gate, then the summary footer. `gatesByName` resolves each result's descriptor for its reason. */
-export function renderPass(
-  result: PassResult,
-  gatesByName: ReadonlyMap<string, GateDescriptor>,
-): string {
+export function renderPass(result: PassResult, gatesByName: ReadonlyMap<string, GateDescriptor>): string {
   const out: string[] = [];
   let violationTotal = 0;
   for (const g of result.gates) {
@@ -76,8 +73,6 @@ export function renderPass(
   if (result.toolErrors.length > 0) {
     out.push(`single-pass: ${result.toolErrors.length} tool error(s) — the checker is broken`);
   }
-  out.push(
-    violationTotal > 0 ? `single-pass: ${violationTotal} violation(s)` : "single-pass: clean",
-  );
+  out.push(violationTotal > 0 ? `single-pass: ${violationTotal} violation(s)` : "single-pass: clean");
   return out.join("\n");
 }

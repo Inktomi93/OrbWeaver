@@ -45,20 +45,8 @@ export function ZoneSummaryStrip({ zones }: ZoneSummaryStripProps): ReactElement
   const { setup, post } = zones.summaries;
   return (
     <Row gap="block" align="center">
-      <ZoneChip
-        intent="info"
-        label="SETUP"
-        count={setup.enabledCount}
-        where="before the conversation"
-        tokens={setup.tokenEstimate}
-      />
-      <ZoneChip
-        intent="warning"
-        label="POST"
-        count={post.enabledCount}
-        where="after your message"
-        tokens={post.tokenEstimate}
-      />
+      <ZoneChip intent="info" label="SETUP" count={setup.enabledCount} where="before the conversation" tokens={setup.tokenEstimate} />
+      <ZoneChip intent="warning" label="POST" count={post.enabledCount} where="after your message" tokens={post.tokenEstimate} />
     </Row>
   );
 }

@@ -104,12 +104,7 @@ function ClusterView({
     return <QueryErrorState label="archetypes" onRetry={onRetry} />;
   }
   if (clusters.length === 0) {
-    return (
-      <CorpusDistillEmptyState
-        title={emptyLabel}
-        description="Archetypes cluster your distilled, indexed cards. Distill your library, then come back."
-      />
-    );
+    return <CorpusDistillEmptyState title={emptyLabel} description="Archetypes cluster your distilled, indexed cards. Distill your library, then come back." />;
   }
   return (
     <Stack gap="block">
@@ -122,19 +117,14 @@ function ClusterView({
         )}
       />
       {clusters.map((cluster) => (
-        <ClusterCard
-          key={`${cluster.label}-${cluster.members[0]?.characterId ?? "empty"}`}
-          cluster={cluster}
-        />
+        <ClusterCard key={`${cluster.label}-${cluster.members[0]?.characterId ?? "empty"}`} cluster={cluster} />
       ))}
     </Stack>
   );
 }
 
 function ClusterCard({ cluster }: { readonly cluster: ArchetypeCard }): ReactElement {
-  const facets = [cluster.genre, cluster.tone, ...(cluster.extra ?? [])].filter(
-    (v) => v !== null && v !== undefined && v !== "",
-  );
+  const facets = [cluster.genre, cluster.tone, ...(cluster.extra ?? [])].filter((v) => v !== null && v !== "");
   return (
     <Stack gap="field">
       <Row align="center" gap="field" justify="between">

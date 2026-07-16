@@ -104,10 +104,7 @@ test("oidc_transactions round-trips on its natural state key (nullable fields st
     expiresAt: EXPIRES_AT,
   });
 
-  const rows = await db
-    .select()
-    .from(oidcTransactions)
-    .where(eq(oidcTransactions.state, "state-abc"));
+  const rows = await db.select().from(oidcTransactions).where(eq(oidcTransactions.state, "state-abc"));
   expect(rows).toHaveLength(1);
   expect(rows[0]?.codeVerifier).toBe("verifier-xyz");
   expect(rows[0]?.nonce).toBeNull();

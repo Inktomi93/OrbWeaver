@@ -4,11 +4,7 @@
 // fallback (an unrecognized non-null value → "other", not "stop").
 
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
-import {
-  HISTORY_ROLES,
-  NORMALIZED_FINISH_REASONS,
-  normalizeFinishReason,
-} from "@orb/server/infra/providers";
+import { HISTORY_ROLES, NORMALIZED_FINISH_REASONS, normalizeFinishReason } from "@orb/server/infra/providers";
 import { describe } from "vitest";
 import { expect, test } from "../../../../support/fixtures";
 
@@ -17,12 +13,7 @@ describe("normalizeFinishReason — the cross-backend finish-reason map", () => 
     for (const raw of ["end_turn", "stop", "stop_sequence", "completed"]) {
       expect(normalizeFinishReason(raw)).toBe("stop");
     }
-    for (const raw of [
-      "max_tokens",
-      "length",
-      "max_output_tokens",
-      "model_context_window_exceeded",
-    ]) {
+    for (const raw of ["max_tokens", "length", "max_output_tokens", "model_context_window_exceeded"]) {
       expect(normalizeFinishReason(raw)).toBe("length");
     }
     for (const raw of ["content_filter", "refusal"]) {
@@ -49,13 +40,7 @@ describe("normalizeFinishReason — the cross-backend finish-reason map", () => 
   });
 
   test("NORMALIZED_FINISH_REASONS enumerates exactly the five normalized values", () => {
-    expect([...NORMALIZED_FINISH_REASONS]).toStrictEqual([
-      "stop",
-      "length",
-      "filter",
-      "tool",
-      "other",
-    ]);
+    expect([...NORMALIZED_FINISH_REASONS]).toStrictEqual(["stop", "length", "filter", "tool", "other"]);
   });
 });
 

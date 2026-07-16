@@ -10,8 +10,7 @@ import { fileLoaded } from "../pass.ts";
 /** Current legit arbitrary-value files → reason (no token exists). See no-raw-interactive-intrinsics.ts
  *  for the ratchet contract (both arms). */
 const ALLOWLIST: Record<string, string> = {
-  "packages/ui/src/markdown/markdown.tsx":
-    "`max-h-[60cqh]` — container-query height unit; no Tailwind token exists for cqh.",
+  "packages/ui/src/markdown/markdown.tsx": "`max-h-[60cqh]` — container-query height unit; no Tailwind token exists for cqh.",
   "packages/ui/src/layout/variants.ts":
     "`grid-cols-[repeat(auto-fit,minmax(min(16rem,100%),1fr))]` (and its `wide` " +
     "`minmax(min(22rem,100%),1fr)` variant) — responsive auto-fit grid; no token equivalent.",

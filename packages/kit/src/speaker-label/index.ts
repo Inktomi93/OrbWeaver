@@ -48,7 +48,7 @@ export function parseSpeakerSpans(content: string): readonly SpeakerSpan[] {
   const spans: SpeakerSpan[] = [];
   let cursor = 0;
   for (const [matchPosition, match] of matches.entries()) {
-    const matchIndex = match.index ?? 0;
+    const matchIndex = match.index;
     // Preamble / inter-marker plain text (no attributed speaker) ahead of this marker.
     if (matchIndex > cursor) {
       spans.push({ speaker: null, text: content.slice(cursor, matchIndex) });
@@ -165,10 +165,6 @@ export function truncateAtForeignLabel(content: string, otherNames: readonly str
 /** Full per-speaker reply clean: strip a leaked LEADING own-label, then truncate any FOREIGN-speaker
  *  drift. The one entry point the canon-persist paths (send/force/opening + continue) call so a
  *  per-speaker row is exactly its own speaker's content. Solo / no other names → just the leading strip. */
-export function cleanPerSpeakerReply(
-  content: string,
-  speakerName: string,
-  otherNames: readonly string[],
-): string {
+export function cleanPerSpeakerReply(content: string, speakerName: string, otherNames: readonly string[]): string {
   return truncateAtForeignLabel(stripSelfSpeakerLabel(content, speakerName), otherNames);
 }

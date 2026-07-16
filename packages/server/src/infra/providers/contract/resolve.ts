@@ -1,12 +1,7 @@
 // The resolved-chat-knobs type home: the output shape of the (UserIntent x ModelCapability) → wire knobs
 // funnel (resolve-chat.ts). Only resolve-chat builds these; both sealed chat runners consume an identical shape.
 
-import type {
-  EffortLevel,
-  ReasoningDisplayMode,
-  ReasoningMode,
-  Verbosity,
-} from "@orb/contracts/connection";
+import type { EffortLevel, ReasoningDisplayMode, ReasoningMode, Verbosity } from "@orb/contracts/connection";
 
 // One code per distinct drop site resolve-chat actually emits; clamps are silent (no clamp code).
 export const WARNING_CODES = [

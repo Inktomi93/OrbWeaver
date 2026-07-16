@@ -39,10 +39,7 @@ function reasoningFromDaemon(row: AgentSdkModel): ModelCapability["reasoning"] {
 }
 
 /** Resolve a bare family alias / stale id via the daemon's live map; `undefined` when no daemon row covers it. */
-export function resolveAgentSdkAlias(
-  model: ModelId | string,
-  cached: readonly AgentSdkModel[] | null,
-): AgentSdkAliasResolution | undefined {
+export function resolveAgentSdkAlias(model: ModelId | string, cached: readonly AgentSdkModel[] | null): AgentSdkAliasResolution | undefined {
   if (cached === null) {
     return;
   }
@@ -52,14 +49,8 @@ export function resolveAgentSdkAlias(
   }
   // Output/context bounds: prefer the curated entry for the resolved id; else the Claude-family default.
   const curated = getChatModel(row.resolvedModel);
-  const output =
-    curated === undefined
-      ? { maxTokens: { min: MIN_OUTPUT, max: CLAUDE_MAX_OUTPUT } }
-      : curated.capability.output;
-  const context =
-    curated === undefined
-      ? { window: CLAUDE_CONTEXT_WINDOW, supports1M: false }
-      : curated.capability.context;
+  const output = curated === undefined ? { maxTokens: { min: MIN_OUTPUT, max: CLAUDE_MAX_OUTPUT } } : curated.capability.output;
+  const context = curated === undefined ? { window: CLAUDE_CONTEXT_WINDOW, supports1M: false } : curated.capability.context;
   return {
     resolvedModel: row.resolvedModel,
     capability: {

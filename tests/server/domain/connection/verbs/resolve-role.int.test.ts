@@ -88,9 +88,7 @@ describe("resolveRole — honors roleDefaults (PD-9)", () => {
     h.setRoleDefaults({ chat: { api: "agent-sdk", source: "vllm" } }); // agent-sdk can't run on vllm
     const svc = createConnectionService(h.ctx);
 
-    await expect(
-      svc.resolveRole({ role: "chat", principal: principal("user_1") }),
-    ).rejects.toBeInstanceOf(ConnectionRoutingError);
+    await expect(svc.resolveRole({ role: "chat", principal: principal("user_1") })).rejects.toBeInstanceOf(ConnectionRoutingError);
   });
 });
 
@@ -118,9 +116,7 @@ describe("resolveRole — the anthropic-messages (anth-direct) coherence pairing
     h.setRoleDefaults({ chat: { api: "anthropic-messages", source: "max-pro-sub" } });
     const svc = createConnectionService(h.ctx);
 
-    await expect(
-      svc.resolveRole({ role: "chat", principal: principal("owner_1", "owner") }),
-    ).rejects.toBeInstanceOf(ConnectionRoutingError);
+    await expect(svc.resolveRole({ role: "chat", principal: principal("owner_1", "owner") })).rejects.toBeInstanceOf(ConnectionRoutingError);
   });
 
   test("anthropic-messages × vllm is INCOHERENT in v1 (the Anthropic wire is OR-skin-only)", async () => {
@@ -128,9 +124,7 @@ describe("resolveRole — the anthropic-messages (anth-direct) coherence pairing
     h.setRoleDefaults({ chat: { api: "anthropic-messages", source: "vllm" } });
     const svc = createConnectionService(h.ctx);
 
-    await expect(
-      svc.resolveRole({ role: "chat", principal: principal("user_1") }),
-    ).rejects.toBeInstanceOf(ConnectionRoutingError);
+    await expect(svc.resolveRole({ role: "chat", principal: principal("user_1") })).rejects.toBeInstanceOf(ConnectionRoutingError);
   });
 });
 
@@ -157,11 +151,7 @@ describe("resolveRole — derive-role local-light fallback when vLLM is unavaila
     expect(conn.model).toBe("");
   });
 
-  test.each([
-    "chat",
-    "summarize",
-    "agent",
-  ] as const)("a %s (generation) role with vllmAvailable:false stays as resolved — NEVER local-light", async (role) => {
+  test.each(["chat", "summarize", "agent"] as const)("a %s (generation) role with vllmAvailable:false stays as resolved — NEVER local-light", async (role) => {
     const h = makeConnHarness(await freshDb());
     h.setVllmAvailable(false);
     const svc = createConnectionService(h.ctx);

@@ -33,13 +33,7 @@ type SchemaFieldBan = {
   cite: string;
 };
 type ImportBan = { readonly kind: "import"; specifier: string; cite: string };
-type BannedShape =
-  | ColumnBan
-  | ColumnPatternBan
-  | TableBan
-  | InterfaceFieldBan
-  | SchemaFieldBan
-  | ImportBan;
+type BannedShape = ColumnBan | ColumnPatternBan | TableBan | InterfaceFieldBan | SchemaFieldBan | ImportBan;
 
 const MESSAGE_ECONOMICS: readonly string[] = [
   "content",
@@ -155,10 +149,7 @@ function columnKeys(colsObj: Node): string[] {
     return [];
   }
   return colsObj.getProperties().flatMap((p) => {
-    if (
-      p.isKind(SyntaxKind.PropertyAssignment) ||
-      p.isKind(SyntaxKind.ShorthandPropertyAssignment)
-    ) {
+    if (p.isKind(SyntaxKind.PropertyAssignment) || p.isKind(SyntaxKind.ShorthandPropertyAssignment)) {
       return [p.getName()];
     }
     return [];
@@ -169,25 +160,16 @@ function tableBanViolation(found: Table[], rel: string, shape: TableBan): Violat
   if (!found.some((t) => t.sqlName === shape.table)) {
     return [];
   }
-  return [
-    { file: rel, line: 1, message: bannedMessage(`the \`${shape.table}\` table`, shape.cite) },
-  ];
+  return [{ file: rel, line: 1, message: bannedMessage(`the \`${shape.table}\` table`, shape.cite) }];
 }
 
-function columnBanViolations(
-  found: Table[],
-  rel: string,
-  shape: ColumnBan | ColumnPatternBan,
-): Violation[] {
+function columnBanViolations(found: Table[], rel: string, shape: ColumnBan | ColumnPatternBan): Violation[] {
   const table = found.find((t) => t.sqlName === shape.table);
   if (table === undefined) {
     return [];
   }
   const keys = columnKeys(table.colsObj);
-  const hits =
-    shape.kind === "column"
-      ? keys.filter((k) => k === shape.column)
-      : keys.filter((k) => shape.pattern.test(k));
+  const hits = shape.kind === "column" ? keys.filter((k) => k === shape.column) : keys.filter((k) => shape.pattern.test(k));
   const label = shape.kind === "column" ? `\`${shape.table}.${shape.column}\`` : shape.label;
   return hits.map(() => ({ file: rel, line: 1, message: bannedMessage(label, shape.cite) }));
 }
@@ -312,8 +294,7 @@ export const gate: GateDescriptor = {
       why: "a messages economics column (content) — messages is a pure slot (D26)",
     },
     {
-      files:
-        'export const t = sqliteTable("chats", { activePresetId: text("active_preset_id") });\n',
+      files: 'export const t = sqliteTable("chats", { activePresetId: text("active_preset_id") });\n',
       at: "packages/db/src/schema/chat.ts",
       expect: { messageIncludes: "D58" },
       why: "a chats.*presetId* column-pattern — never bind a preset to a chat (D58)",
@@ -331,8 +312,7 @@ export const gate: GateDescriptor = {
       why: "a `kind` field on Principal — agents are structurally Principal-less (D60)",
     },
     {
-      files:
-        "export const appSettingsSchema = z.object({\n  guidedActions: z.array(z.string()),\n});\n",
+      files: "export const appSettingsSchema = z.object({\n  guidedActions: z.array(z.string()),\n});\n",
       at: "packages/contracts/src/settings/index.ts",
       expect: { messageIncludes: "D33" },
       why: "appSettingsSchema.guidedActions — a neo phantom; guided actions live only on the preset (D33)",
@@ -356,10 +336,8 @@ export const gate: GateDescriptor = {
         "packages/db/src/schema/chat.ts":
           'export const c = sqliteTable("chats", { id: text("id"), hostUserId: text("host_user_id") });\n' +
           'export const m = sqliteTable("messages", { id: text("id"), role: text("role") });\n',
-        "packages/contracts/src/identity/index.ts":
-          "export interface Principal {\n  userId: string;\n  role: string;\n}\n",
-        "packages/server/src/x.ts":
-          'import { X } from "@orb/contracts/session";\nexport const y = 1;\n',
+        "packages/contracts/src/identity/index.ts": "export interface Principal {\n  userId: string;\n  role: string;\n}\n",
+        "packages/server/src/x.ts": 'import { X } from "@orb/contracts/session";\nexport const y = 1;\n',
       },
       why: "born-compliant shapes across every arm (slots, kind-less Principal, singular session import) — passes",
     },

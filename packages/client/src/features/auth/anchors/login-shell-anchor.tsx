@@ -14,13 +14,7 @@ export interface LoginShellAnchorProps {
 /** The centered login card box (full-viewport backdrop + one `max-w-sm` card). */
 export function LoginShellAnchor({ children }: LoginShellAnchorProps): ReactElement {
   return (
-    <Stack
-      align="center"
-      justify="center"
-      padding="section"
-      className="min-h-dvh bg-background text-foreground"
-      data-testid={testId("loginPage")}
-    >
+    <Stack align="center" justify="center" padding="section" className="min-h-dvh bg-background text-foreground" data-testid={testId("loginPage")}>
       <Container name="login" className="w-full max-w-sm">
         <Card>{children}</Card>
       </Container>

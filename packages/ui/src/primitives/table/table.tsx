@@ -5,14 +5,7 @@ import { Button } from "#primitives/button";
 import { Checkbox } from "#primitives/checkbox";
 import { EmptyState } from "#primitives/empty-state";
 import type { LucideIcon } from "#primitives/icons";
-import {
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsUpDown,
-  ChevronUp,
-  Icon,
-} from "#primitives/icons";
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronsUpDown, ChevronUp, Icon } from "#primitives/icons";
 import { tableVariants } from "./variants";
 
 const DEFAULT_PAGE_SIZE = 10;
@@ -128,10 +121,7 @@ interface TableEntry<TData> {
   readonly originalIndex: number;
 }
 
-function toEntries<TData>(
-  data: readonly TData[],
-  getRowId: (row: TData, index: number) => string,
-): readonly TableEntry<TData>[] {
+function toEntries<TData>(data: readonly TData[], getRowId: (row: TData, index: number) => string): readonly TableEntry<TData>[] {
   return data.map((row, originalIndex) => ({
     row,
     id: getRowId(row, originalIndex),
@@ -152,9 +142,7 @@ function sortEntries<TData>(
     return entries;
   }
   const sign = sort.direction === "desc" ? -1 : 1;
-  return [...entries].sort((a, b) =>
-    compareValues(column.accessor(a.row), column.accessor(b.row), sign),
-  );
+  return [...entries].sort((a, b) => compareValues(column.accessor(a.row), column.accessor(b.row), sign));
 }
 
 function defaultCell(value: unknown): ReactNode {
@@ -177,10 +165,7 @@ function sortIconFor(columnId: string, sort: TableSort | null): LucideIcon {
   return sort.direction === "asc" ? ChevronUp : ChevronDown;
 }
 
-function ariaSortFor(
-  column: Pick<TableColumn<unknown>, "id" | "sortable">,
-  sort: TableSort | null,
-): "ascending" | "descending" | "none" | undefined {
+function ariaSortFor(column: Pick<TableColumn<unknown>, "id" | "sortable">, sort: TableSort | null): "ascending" | "descending" | "none" | undefined {
   if (column.sortable !== true) {
     return;
   }
@@ -221,17 +206,11 @@ export function Table<TData>({
   const isSortingControlled = controlledSorting !== undefined;
   const sorting = isSortingControlled ? controlledSorting : uncontrolledSorting;
 
-  const [uncontrolledPagination, setUncontrolledPagination] = useState<TablePagination>(
-    defaultPagination ?? { pageIndex: 0, pageSize: DEFAULT_PAGE_SIZE },
-  );
+  const [uncontrolledPagination, setUncontrolledPagination] = useState<TablePagination>(defaultPagination ?? { pageIndex: 0, pageSize: DEFAULT_PAGE_SIZE });
   const isPaginationControlled = controlledPagination !== undefined;
-  const requestedPagination = isPaginationControlled
-    ? controlledPagination
-    : uncontrolledPagination;
+  const requestedPagination = isPaginationControlled ? controlledPagination : uncontrolledPagination;
 
-  const [uncontrolledSelectedIds, setUncontrolledSelectedIds] = useState<ReadonlySet<string>>(
-    defaultSelectedRowIds ?? EMPTY_SELECTION,
-  );
+  const [uncontrolledSelectedIds, setUncontrolledSelectedIds] = useState<ReadonlySet<string>>(defaultSelectedRowIds ?? EMPTY_SELECTION);
   const isSelectionControlled = controlledSelectedRowIds !== undefined;
   const selectedIds = isSelectionControlled ? controlledSelectedRowIds : uncontrolledSelectedIds;
 
@@ -304,11 +283,7 @@ export function Table<TData>({
           <thead className={slots.thead()}>
             <tr>
               {selectable ? (
-                <th
-                  className={slots.th({ align: "center" })}
-                  data-slot="table-select-header"
-                  scope="col"
-                >
+                <th className={slots.th({ align: "center" })} data-slot="table-select-header" scope="col">
                   <Checkbox
                     aria-label="Select all rows"
                     checked={allSelected}
@@ -330,18 +305,9 @@ export function Table<TData>({
                     style={column.width === undefined ? undefined : { width: column.width }}
                   >
                     {column.sortable === true ? (
-                      <button
-                        className={slots.sortButton()}
-                        data-slot="table-sort-button"
-                        onClick={(): void => toggleSort(column.id)}
-                        type="button"
-                      >
+                      <button className={slots.sortButton()} data-slot="table-sort-button" onClick={(): void => toggleSort(column.id)} type="button">
                         <span>{column.header}</span>
-                        <Icon
-                          className={slots.sortIcon({ sortActive: isSorted })}
-                          icon={sortIconFor(column.id, sorting)}
-                          size="xs"
-                        />
+                        <Icon className={slots.sortIcon({ sortActive: isSorted })} icon={sortIconFor(column.id, sorting)} size="xs" />
                       </button>
                     ) : (
                       column.header
@@ -375,10 +341,7 @@ export function Table<TData>({
                     {columns.map((column) => {
                       const value = column.accessor(row);
                       return (
-                        <td
-                          className={slots.td({ align: column.align ?? "start" })}
-                          key={column.id}
-                        >
+                        <td className={slots.td({ align: column.align ?? "start" })} key={column.id}>
                           {column.cell === undefined ? defaultCell(value) : column.cell(value, row)}
                         </td>
                       );
@@ -396,25 +359,13 @@ export function Table<TData>({
             {pageStart + 1}–{Math.min(pageStart + pageSize, sorted.length)} of {sorted.length}
           </span>
           <div className={slots.pagerButtons()}>
-            <Button
-              disabled={pageIndex <= 0}
-              intent="ghost"
-              onClick={(): void => goToPage(pageIndex - 1)}
-              size="sm"
-              type="button"
-            >
+            <Button disabled={pageIndex <= 0} intent="ghost" onClick={(): void => goToPage(pageIndex - 1)} size="sm" type="button">
               <Icon icon={ChevronLeft} label="Previous page" size="sm" />
             </Button>
             <span className={slots.pagerInfo()}>
               Page {pageIndex + 1} of {pageCount}
             </span>
-            <Button
-              disabled={pageIndex >= pageCount - 1}
-              intent="ghost"
-              onClick={(): void => goToPage(pageIndex + 1)}
-              size="sm"
-              type="button"
-            >
+            <Button disabled={pageIndex >= pageCount - 1} intent="ghost" onClick={(): void => goToPage(pageIndex + 1)} size="sm" type="button">
               <Icon icon={ChevronRight} label="Next page" size="sm" />
             </Button>
           </div>

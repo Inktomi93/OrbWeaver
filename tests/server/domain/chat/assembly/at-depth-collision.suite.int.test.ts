@@ -95,16 +95,7 @@ describe("spliceInChatInjections — cross-depth stratification", () => {
     // Each injection lands `depth` slots back from the ORIGINAL tail (insertAt = len - depth): WI@3 is the
     // deepest (furthest from the tail, right after U1), persona-note@0 lands at the very tail. The four
     // stratify strictly by depth regardless of their `order` — a deeper note always precedes a shallower one.
-    expect(labels(out)).toEqual([
-      "canon:U1",
-      WI,
-      "canon:A1",
-      USER_INJ,
-      "canon:U2",
-      CHAR_NOTE,
-      "canon:A2",
-      PERSONA_NOTE,
-    ]);
+    expect(labels(out)).toEqual(["canon:U1", WI, "canon:A1", USER_INJ, "canon:U2", CHAR_NOTE, "canon:A2", PERSONA_NOTE]);
   });
 });
 

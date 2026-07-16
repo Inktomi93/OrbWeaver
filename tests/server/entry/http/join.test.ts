@@ -59,7 +59,6 @@ describe("GET /join/:token", () => {
   test("capable → 302 into the SPA root with the URL-encoded token", () => {
     expect(run({ multiHumanCapable: () => true }, "tok en")).toEqual({
       kind: "redirect",
-      // biome-ignore lint/security/noSecrets: a two-word test token URL-encoded, not a secret (entropy false-positive).
       value: "/?join=tok%20en",
       status: 302,
     });

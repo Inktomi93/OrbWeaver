@@ -61,10 +61,6 @@ export function downloadUrl(href: string, filename?: string): void {
 /** Display name → a safe download filename token. Client-side filename use ONLY — the server's
  *  `slugifyHandle` (the import pairing key) is identity-bearing and deliberately separate. */
 export function slugifyFilename(name: string, fallback: string): string {
-  const slug = name
-    .toLowerCase()
-    .replace(NON_SLUG_RE, "-")
-    .replace(EDGE_DASH_RE, "")
-    .slice(0, FILENAME_MAX_LEN);
+  const slug = name.toLowerCase().replace(NON_SLUG_RE, "-").replace(EDGE_DASH_RE, "").slice(0, FILENAME_MAX_LEN);
   return slug === "" ? fallback : slug;
 }

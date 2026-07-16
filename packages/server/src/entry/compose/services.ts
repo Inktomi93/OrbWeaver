@@ -15,12 +15,7 @@ import type { CredentialHealth, ResolvedCredential } from "@orb/contracts/creden
 import type { DomainEvent } from "@orb/contracts/events";
 import type { Principal } from "@orb/contracts/identity";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
-import type {
-  AccountCredits,
-  EndpointInspection,
-  GenerationCost,
-  VerifyAuthResult,
-} from "@orb/contracts/providers";
+import type { AccountCredits, EndpointInspection, GenerationCost, VerifyAuthResult } from "@orb/contracts/providers";
 import type { RoleClients } from "@orb/contracts/role-clients";
 import type { SessionView } from "@orb/contracts/session";
 import type { BatchStmt, Db } from "@orb/db";
@@ -34,15 +29,7 @@ import {
   users,
 } from "@orb/db";
 import { batchMany } from "@orb/db/kit";
-import type {
-  AssetId,
-  Handle,
-  PersonaId,
-  SessionId,
-  TypeIdOf,
-  UserId,
-  WorkloadId,
-} from "@orb/kit/ids";
+import type { AssetId, Handle, PersonaId, SessionId, TypeIdOf, UserId, WorkloadId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId, newId } from "@orb/kit/ids";
 import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
@@ -77,11 +64,7 @@ import { createTagService } from "#domain/tag";
 import { createToolUseService } from "#domain/tool-use";
 import type { StartWorkloadInput, WorkloadRunnerEnv } from "#domain/workloads";
 import { createWorkloadService } from "#domain/workloads";
-import {
-  createBulkImportLorebook,
-  createImportStandaloneLorebook,
-  createWorldInfoService,
-} from "#domain/world-info";
+import { createBulkImportLorebook, createImportStandaloneLorebook, createWorldInfoService } from "#domain/world-info";
 import { env } from "#foundation/env";
 import type { AuditEntry } from "#foundation/observability";
 import { logAudit } from "#foundation/observability";
@@ -89,13 +72,7 @@ import { createPasswordHasher } from "#infra/auth";
 import type { SecretBox } from "#infra/crypto";
 import { createSecretBox } from "#infra/crypto";
 import { createImageAdapter } from "#infra/image";
-import {
-  fetchImageBytes,
-  fetchOpenAiModels,
-  fetchTenorGifImage,
-  GIF_IMPORT_MAX_BYTES,
-  searchTenorGifs,
-} from "#infra/network";
+import { fetchImageBytes, fetchOpenAiModels, fetchTenorGifImage, GIF_IMPORT_MAX_BYTES, searchTenorGifs } from "#infra/network";
 import type { AgentToolSpec, BackendRegistryDeps, VllmEngineHandle } from "#infra/providers";
 import {
   createAgentToolServer,
@@ -287,16 +264,14 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     },
   });
 
-  const bindRoleClients = (ownerId: UserId): Promise<RoleClients> =>
-    bindRoleClientsForUser({ connection, executor }, ownerId);
+  const bindRoleClients = (ownerId: UserId): Promise<RoleClients> => bindRoleClientsForUser({ connection, executor }, ownerId);
   const roleClients = await bindRoleClients(deps.ownerId);
 
   // Built before character so character's by-name card-tag attach port wires to the real tag verb.
   const tagCtx: TagContext = {
     db,
     newTagId: minter(ID_PREFIX.tag),
-    requireParticipant: (principal, chatId) =>
-      requireParticipant({ db, can }, principal, chatId).then((): void => undefined),
+    requireParticipant: (principal, chatId) => requireParticipant({ db, can }, principal, chatId).then((): void => undefined),
     // Tag is clockless (rows born-stamp via SQL default), so the audit timestamp is pre-bound here.
     audit: (entry): Promise<void> => audit(entry, now()),
     emitUserEvent: publishUserEvent,
@@ -333,22 +308,8 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
         .select({ ownerId: assetsTable.ownerId })
         .from(assetsTable)
         .innerJoin(charactersTable, eq(charactersTable.avatarAssetId, assetsTable.id))
-        .innerJoin(
-          rosterChar,
-          and(
-            eq(rosterChar.characterId, charactersTable.id),
-            eq(rosterChar.kind, "character"),
-            isNull(rosterChar.leftSeq),
-          ),
-        )
-        .innerJoin(
-          callerSeat,
-          and(
-            eq(callerSeat.chatId, rosterChar.chatId),
-            eq(callerSeat.userId, callerId),
-            isNull(callerSeat.leftSeq),
-          ),
-        )
+        .innerJoin(rosterChar, and(eq(rosterChar.characterId, charactersTable.id), eq(rosterChar.kind, "character"), isNull(rosterChar.leftSeq)))
+        .innerJoin(callerSeat, and(eq(callerSeat.chatId, rosterChar.chatId), eq(callerSeat.userId, callerId), isNull(callerSeat.leftSeq)))
         .where(eq(assetsTable.hash, hash))
         .limit(1);
       if (characterRows[0] !== undefined) {
@@ -361,21 +322,10 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
         .select({ ownerId: assetsTable.ownerId })
         .from(assetsTable)
         .innerJoin(personasTable, eq(personasTable.avatarAssetId, assetsTable.id))
-        .innerJoin(
-          personaSeat,
-          and(
-            eq(personaSeat.activePersonaId, personasTable.id),
-            eq(personaSeat.kind, "human"),
-            isNull(personaSeat.leftSeq),
-          ),
-        )
+        .innerJoin(personaSeat, and(eq(personaSeat.activePersonaId, personasTable.id), eq(personaSeat.kind, "human"), isNull(personaSeat.leftSeq)))
         .innerJoin(
           personaCallerSeat,
-          and(
-            eq(personaCallerSeat.chatId, personaSeat.chatId),
-            eq(personaCallerSeat.userId, callerId),
-            isNull(personaCallerSeat.leftSeq),
-          ),
+          and(eq(personaCallerSeat.chatId, personaSeat.chatId), eq(personaCallerSeat.userId, callerId), isNull(personaCallerSeat.leftSeq)),
         )
         .where(eq(assetsTable.hash, hash))
         .limit(1);
@@ -394,19 +344,11 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
         .innerJoin(messagesTable, eq(messagesTable.id, messageAssets.messageId))
         .innerJoin(
           attachCallerSeat,
-          and(
-            eq(attachCallerSeat.chatId, messagesTable.chatId),
-            eq(attachCallerSeat.userId, callerId),
-            isNull(attachCallerSeat.leftSeq),
-          ),
+          and(eq(attachCallerSeat.chatId, messagesTable.chatId), eq(attachCallerSeat.userId, callerId), isNull(attachCallerSeat.leftSeq)),
         )
         .innerJoin(
           attachOwnerSeat,
-          and(
-            eq(attachOwnerSeat.chatId, messagesTable.chatId),
-            eq(attachOwnerSeat.userId, assetsTable.ownerId),
-            isNull(attachOwnerSeat.leftSeq),
-          ),
+          and(eq(attachOwnerSeat.chatId, messagesTable.chatId), eq(attachOwnerSeat.userId, assetsTable.ownerId), isNull(attachOwnerSeat.leftSeq)),
         )
         .where(eq(assetsTable.hash, hash))
         .limit(1);
@@ -426,22 +368,8 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
         .from(assetsTable)
         .innerJoin(messageAssets, eq(messageAssets.assetId, assetsTable.id))
         .innerJoin(messagesTable, eq(messagesTable.id, messageAssets.messageId))
-        .innerJoin(
-          callerSeat,
-          and(
-            eq(callerSeat.chatId, messagesTable.chatId),
-            eq(callerSeat.userId, callerId),
-            isNull(callerSeat.leftSeq),
-          ),
-        )
-        .innerJoin(
-          ownerSeat,
-          and(
-            eq(ownerSeat.chatId, messagesTable.chatId),
-            eq(ownerSeat.userId, assetsTable.ownerId),
-            isNull(ownerSeat.leftSeq),
-          ),
-        )
+        .innerJoin(callerSeat, and(eq(callerSeat.chatId, messagesTable.chatId), eq(callerSeat.userId, callerId), isNull(callerSeat.leftSeq)))
+        .innerJoin(ownerSeat, and(eq(ownerSeat.chatId, messagesTable.chatId), eq(ownerSeat.userId, assetsTable.ownerId), isNull(ownerSeat.leftSeq)))
         .where(and(eq(messagesTable.chatId, forChatId), inArray(assetsTable.id, [...assetIds])));
       return rows;
     },
@@ -498,11 +426,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   const galleryCtx: AssetsContext = {
     ...assetsCtx,
     resolveCharacterHandle: async (characterId): Promise<string | null> => {
-      const rows = await db
-        .select({ handle: charactersTable.handle })
-        .from(charactersTable)
-        .where(eq(charactersTable.id, characterId))
-        .limit(1);
+      const rows = await db.select({ handle: charactersTable.handle }).from(charactersTable).where(eq(charactersTable.id, characterId)).limit(1);
       return rows[0]?.handle ?? null;
     },
     findCharacterByHandle: async ({ ownerId, handle }) => {
@@ -563,8 +487,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
         });
       }
     },
-    isSeeded: async (principal): Promise<boolean> =>
-      (await settings.getUserSettings({ principal })).config.onboarding.defaultCharactersSeeded,
+    isSeeded: async (principal): Promise<boolean> => (await settings.getUserSettings({ principal })).config.onboarding.defaultCharactersSeeded,
     markSeeded: async (principal, welcomeAssistantId): Promise<void> => {
       await settings.updateUserSettingsSection({
         principal,
@@ -602,8 +525,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       });
       return stored.assetId;
     },
-    isSeeded: async (principal): Promise<boolean> =>
-      (await settings.getUserSettings({ principal })).config.onboarding.defaultPersonaSeeded,
+    isSeeded: async (principal): Promise<boolean> => (await settings.getUserSettings({ principal })).config.onboarding.defaultPersonaSeeded,
     markSeeded: async (principal, seededPersonaId): Promise<void> => {
       await settings.updateUserSettingsSection({
         principal,
@@ -637,21 +559,17 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     newChatDigestId: minter(ID_PREFIX.chatDigest),
     newChatSegmentId: minter(ID_PREFIX.chatSegment),
     listCharacterIds: character.listEmbeddableCharacterIds,
-    loadCardText: async (characterId): Promise<string | undefined> =>
-      (await character.loadCardText(characterId)) ?? undefined,
+    loadCardText: async (characterId): Promise<string | undefined> => (await character.loadCardText(characterId)) ?? undefined,
     listImageAssetIds: assets.listImageAssetIds,
-    loadAssetBytes: async (assetId): Promise<Uint8Array | undefined> =>
-      (await assets.loadAssetBytes(assetId)) ?? undefined,
+    loadAssetBytes: async (assetId): Promise<Uint8Array | undefined> => (await assets.loadAssetBytes(assetId)) ?? undefined,
     embedDim: env.VLLM_EMBED_DIM,
     imageEmbedDim: env.VLLM_EMBED_DIM,
   });
 
   const indexer = createEmbeddingsIndexer({
     store: embeddings.store,
-    loadCardText: async (characterId): Promise<string | undefined> =>
-      (await character.loadCardText(characterId)) ?? undefined,
-    loadAssetBytes: async (assetId): Promise<Uint8Array | undefined> =>
-      (await assets.loadAssetBytes(assetId)) ?? undefined,
+    loadCardText: async (characterId): Promise<string | undefined> => (await character.loadCardText(characterId)) ?? undefined,
+    loadAssetBytes: async (assetId): Promise<Uint8Array | undefined> => (await assets.loadAssetBytes(assetId)) ?? undefined,
     roleClients,
     embedDim: env.VLLM_EMBED_DIM,
     imageEmbedDim: env.VLLM_EMBED_DIM,
@@ -718,9 +636,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       const firstRemaining: PersonaId | null = remaining[0]?.id ?? null;
       // Prefer the surviving default; else the newest remaining persona; else null.
       const survivingDefault = defaultHit ? firstRemaining : seeds.defaultPersonaId;
-      const nextCurrent = currentHit
-        ? (survivingDefault ?? firstRemaining)
-        : seeds.currentPersonaId;
+      const nextCurrent = currentHit ? (survivingDefault ?? firstRemaining) : seeds.currentPersonaId;
       const principal: Principal = {
         userId: ownerId,
         role: "user",
@@ -780,19 +696,14 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       })),
     // The memory tier-grid seam (PD-39 tier-k) — chat/memory's fanOut math (ONE home) bound over the LIVE
     // AppSettings.memoryDefaults, the same source the digest build resolves per call.
-    tier0RangeOf: (tier, blockIdx) =>
-      resolveTier0Range(effectiveConfig.getEffectiveConfig().memoryDefaults, tier, blockIdx),
+    tier0RangeOf: (tier, blockIdx) => resolveTier0Range(effectiveConfig.getEffectiveConfig().memoryDefaults, tier, blockIdx),
   });
   const notifications = createNotificationsService({
     db,
     now,
     // An agent principal has no inbox, so record refuses it. A missing row ⇒ false.
     isAgentRecipient: async (userId) => {
-      const rows = await db
-        .select({ kind: users.kind })
-        .from(users)
-        .where(eq(users.id, userId))
-        .limit(1);
+      const rows = await db.select({ kind: users.kind }).from(users).where(eq(users.id, userId)).limit(1);
       return rows[0]?.kind === "agent";
     },
   });
@@ -813,9 +724,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     audit,
     sessions: {
       // SessionView deliberately omits userId; re-stamp it onto each row.
-      listForUser: async (
-        userId: UserId,
-      ): Promise<readonly (SessionView & { userId: UserId })[]> => {
+      listForUser: async (userId: UserId): Promise<readonly (SessionView & { userId: UserId })[]> => {
         const views = await sessions.listForUser(userId);
         return views.map((view): SessionView & { userId: UserId } => ({ ...view, userId }));
       },
@@ -823,8 +732,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       revokeAllForUser: (userId: UserId): Promise<number> => sessions.revokeAllForUser(userId),
     },
     vllm: {
-      allEngineStatuses: (): ReturnType<VllmEngineHandle["status"]> =>
-        registry.vllmEngine === null ? {} : registry.vllmEngine.status(),
+      allEngineStatuses: (): ReturnType<VllmEngineHandle["status"]> => (registry.vllmEngine === null ? {} : registry.vllmEngine.status()),
       restartEngine: (name: string): Promise<string> =>
         registry.vllmEngine === null
           ? Promise.resolve("vllm supervisor not running")
@@ -858,11 +766,9 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     now,
     newTurnId: minter(ID_PREFIX.buddyTurn),
     newProposalId: minter("buddy_proposal"),
-    resolveAgentConnection: ({ principal }): Promise<ResolvedConnection> =>
-      connection.resolveRole({ role: "agent", principal }),
+    resolveAgentConnection: ({ principal }): Promise<ResolvedConnection> => connection.resolveRole({ role: "agent", principal }),
     agentTurn: async (req): Promise<BuddyAgentResult> => {
-      const orSkinTierModels =
-        req.credential.source === "openrouter" ? await connection.getOrSkinTierModels() : undefined;
+      const orSkinTierModels = req.credential.source === "openrouter" ? await connection.getOrSkinTierModels() : undefined;
       const result = await executor.runAgentTurn({
         credential: req.credential,
         model: req.model,
@@ -878,15 +784,11 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       return { text: result.reply };
     },
     // BuddyToolSpec mirrors AgentToolSpec by design; the cast bridges the readonly-array nominal gap only.
-    buildToolServer: (tools): BuddyToolServer =>
-      createAgentToolServer({ tools: tools as readonly AgentToolSpec[] }),
+    buildToolServer: (tools): BuddyToolServer => createAgentToolServer({ tools: tools as readonly AgentToolSpec[] }),
     roleClients,
     agentEnv: {
       startWorkload: async ({ ownerId, kind }): Promise<{ readonly workloadId: WorkloadId }> => {
-        const input: StartWorkloadInput =
-          kind === "find-duplicates"
-            ? { kind: "find-duplicates", params: {} }
-            : { kind: "index", params: { source: "all" } };
+        const input: StartWorkloadInput = kind === "find-duplicates" ? { kind: "find-duplicates", params: {} } : { kind: "index", params: { source: "all" } };
         // A trusted internal trigger — caller:null bypasses the mode gate; singular on the agent's owning
         // user (never a global bulk bypass).
         const started = await workloads.start({ input, caller: null, mode: "singular", ownerId });
@@ -907,8 +809,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     },
     generateImage: (req) => executor.generateImage(req),
     fetchImage: (url) => fetchImageBytes(url, effectiveConfig.getEffectiveConfig().maxImageBytes),
-    storeAsset: (caller, bytes, kind, mime) =>
-      assets.store({ principal: caller, bytes, kind, mime, enforceMagic: true }),
+    storeAsset: (caller, bytes, kind, mime) => assets.store({ principal: caller, bytes, kind, mime, enforceMagic: true }),
     recordStats: async (delta): Promise<void> => {
       const batch: BatchStmt[] = [];
       applyStatsDelta(batch, db, delta);
@@ -957,10 +858,8 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     newBookId: minter(ID_PREFIX.worldBook),
     newEntryId: minter(ID_PREFIX.worldEntry),
     audit,
-    requireChatHost: (principal, chatId) =>
-      requireHost({ db, can }, principal, chatId).then((): void => undefined),
-    requireChatMember: (principal, chatId) =>
-      requireParticipant({ db, can }, principal, chatId).then((): void => undefined),
+    requireChatHost: (principal, chatId) => requireHost({ db, can }, principal, chatId).then((): void => undefined),
+    requireChatMember: (principal, chatId) => requireParticipant({ db, can }, principal, chatId).then((): void => undefined),
     emitWiEvent: emitChatBusEvent,
     emitUserEvent: publishUserEvent,
   });
@@ -985,8 +884,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     newParticipantId: minter(ID_PREFIX.chatParticipant),
     // The bundle's assets entity imports first, so a bundled inline attachment exists by the time chats
     // import; this filters an imported message's asset refs to the ones that landed.
-    filterExistingAssetIds: async (ownerId, assetIds) =>
-      (await assets.resolveOwnedAssetRefs(ownerId, assetIds)).map((r) => r.assetId),
+    filterExistingAssetIds: async (ownerId, assetIds) => (await assets.resolveOwnedAssetRefs(ownerId, assetIds)).map((r) => r.assetId),
   });
   const bulkImportPersonas = createBulkImportPersonas({
     db,

@@ -33,10 +33,5 @@ export const agentPrincipals = sqliteTable(
     sourceKind: text("source_kind", { enum: AGENT_SOURCE_KINDS }).notNull(),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
-  () => [
-    check(
-      "agent_principals_source_kind_check",
-      sql.raw(`source_kind in (${checkList(AGENT_SOURCE_KINDS)})`),
-    ),
-  ],
+  () => [check("agent_principals_source_kind_check", sql.raw(`source_kind in (${checkList(AGENT_SOURCE_KINDS)})`))],
 );

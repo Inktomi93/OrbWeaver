@@ -9,10 +9,7 @@ import type { UserId, WorkloadId } from "@orb/kit/ids";
 import type { StartWorkloadParams } from "../contract/params";
 import type { WorkloadService, WorkloadServiceContext } from "../contract/service";
 import { resolveWorkloadSource, startWorkloadInput } from "../contract/workload-params";
-import {
-  isActiveKindUniqueViolation,
-  isOwnerForeignKeyViolation,
-} from "../persistence/constraints";
+import { isActiveKindUniqueViolation, isOwnerForeignKeyViolation } from "../persistence/constraints";
 import { insertWorkload } from "../persistence/queries";
 
 /**
@@ -22,11 +19,7 @@ import { insertWorkload } from "../persistence/queries";
  *   3. singular → the caller's own id (or the system `ownerId`); bulk sweep-kind → `null` (all owners); bulk
  *      create-kind → the required `targetOwnerId` (BAD_REQUEST if absent — you can't mint ownerless rows).
  */
-function authorizeAndResolveOwner(
-  ctx: WorkloadServiceContext,
-  params: StartWorkloadParams,
-  kind: WorkloadKind,
-): UserId | null {
+function authorizeAndResolveOwner(ctx: WorkloadServiceContext, params: StartWorkloadParams, kind: WorkloadKind): UserId | null {
   const mode = params.mode;
   const policy = WORKLOAD_KIND_MODES[kind];
   if ((mode === "singular" && !policy.singular) || (mode === "bulk" && !policy.bulk)) {
@@ -43,10 +36,7 @@ function authorizeAndResolveOwner(
     return null;
   }
   if (params.targetOwnerId === undefined || params.targetOwnerId === null) {
-    throw new DomainOperationError(
-      "bulk_target_required",
-      `a bulk "${kind}" run must designate a targetOwnerId (it mints owner-owned rows)`,
-    );
+    throw new DomainOperationError("bulk_target_required", `a bulk "${kind}" run must designate a targetOwnerId (it mints owner-owned rows)`);
   }
   return params.targetOwnerId;
 }

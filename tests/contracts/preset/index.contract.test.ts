@@ -95,9 +95,7 @@ test("CONFIG_LIFTS v1→v2 inserts NO pivot when there is no post_history (the p
   }
   const lifted = liftV1({
     schemaVersion: SCHEMA_VERSION_V1,
-    sections: [
-      { type: "marker", id: "d", name: "Description", marker: "char_description", enabled: true },
-    ],
+    sections: [{ type: "marker", id: "d", name: "Description", marker: "char_description", enabled: true }],
   });
   const sections = lifted["sections"] as Record<string, unknown>[];
   const markers = sections.map((s): unknown => s["marker"]);
@@ -204,18 +202,14 @@ test("a guided action role rejects a value outside the MessageRole axis (D32)", 
 
 test("customParametersSchema strips __proto__ (Zod) and accepts a clean overlay", () => {
   // `__proto__` as a JSON own-property is silently stripped by Zod core (absent from the output).
-  const parsed = customParametersSchema.parse(
-    JSON.parse('{"transforms":["middle-out"],"__proto__":{"polluted":true}}'),
-  );
+  const parsed = customParametersSchema.parse(JSON.parse('{"transforms":["middle-out"],"__proto__":{"polluted":true}}'));
   expect(parsed).toEqual({ transforms: ["middle-out"] });
   expect(Object.getPrototypeOf(parsed)).toBe(Object.prototype);
 });
 
 test("customParametersSchema rejects a `constructor` key (top level and nested)", () => {
   expect(customParametersSchema.safeParse({ constructor: { evil: true } }).success).toBe(false);
-  expect(customParametersSchema.safeParse({ nested: { prototype: { evil: true } } }).success).toBe(
-    false,
-  );
+  expect(customParametersSchema.safeParse({ nested: { prototype: { evil: true } } }).success).toBe(false);
 });
 
 // ── Serde: parsePresetFile (STRICT) vs parsePromptConfig (LENIENT) ───────────────────────────────
@@ -322,11 +316,7 @@ test("parsePresetFile LIFTS a v1-era file forward before strict validation (olde
   expect(result.name).toBe("legacy");
   // Lifted to the current version, and the v1 literal `main` became the `main_prompt` marker.
   expect(result.config.schemaVersion).toBe(PROMPT_CONFIG_SCHEMA_VERSION);
-  expect(result.config.sections.map((s) => ("marker" in s ? s.marker : s.id))).toEqual([
-    "main_prompt",
-    "chat_history",
-    "post_history",
-  ]);
+  expect(result.config.sections.map((s) => ("marker" in s ? s.marker : s.id))).toEqual(["main_prompt", "chat_history", "post_history"]);
 });
 
 test("parsePresetFile rejects a non-object and a wrong schemaKind", () => {

@@ -12,11 +12,7 @@
 // assertion pass.
 
 import type { RegexReplacer } from "@orb/kit/regex";
-import {
-  applyReplace,
-  createRegexApplyReplace,
-  REGEX_APPLY_TIMEOUT_MS,
-} from "@orb/server/kit/regex";
+import { applyReplace, createRegexApplyReplace, REGEX_APPLY_TIMEOUT_MS } from "@orb/server/kit/regex";
 import { describe } from "vitest";
 import { expect, test } from "../../support/fixtures";
 
@@ -69,11 +65,7 @@ describe("createRegexApplyReplace — ReDoS watchdog", () => {
 
 describe("createRegexApplyReplace — correctness across the vm boundary", () => {
   test("positional captures pass through and reorder correctly", () => {
-    const out = applyReplace(
-      "hello world",
-      SWAP_WORDS,
-      (_m, p1, p2) => `${String(p2)} ${String(p1)}`,
-    );
+    const out = applyReplace("hello world", SWAP_WORDS, (_m, p1, p2) => `${String(p2)} ${String(p1)}`);
     expect(out).toBe("world hello");
   });
 

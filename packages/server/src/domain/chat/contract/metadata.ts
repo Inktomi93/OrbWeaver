@@ -6,13 +6,7 @@
 // its default without nuking its siblings.
 
 import type { GroupConfig, OpeningPolicy, RoomOverrides } from "@orb/contracts/chat";
-import {
-  DEFAULT_GROUP_CONFIG,
-  DEFAULT_ROOM_OVERRIDES,
-  groupConfigSchema,
-  openingPolicySchema,
-  roomOverridesSchema,
-} from "@orb/contracts/chat";
+import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES, groupConfigSchema, openingPolicySchema, roomOverridesSchema } from "@orb/contracts/chat";
 import type { OpenRouterProviderRouting } from "@orb/contracts/connection";
 import { openRouterProviderRoutingSchema } from "@orb/contracts/connection";
 import { stripUndefined } from "@orb/kit/objects";

@@ -9,9 +9,7 @@ import type { AdminService } from "../contract/service";
 import { requireAdmin } from "../guard";
 
 export function createEmbed(ctx: AdminContext): Pick<AdminService, "embedCharacterCard"> {
-  const embedCharacterCard: AdminService["embedCharacterCard"] = async (
-    params: EmbedCharacterCardParams,
-  ): Promise<void> => {
+  const embedCharacterCard: AdminService["embedCharacterCard"] = async (params: EmbedCharacterCardParams): Promise<void> => {
     requireAdmin(params.principal);
     const embedded = await ctx.embed.embedCharacterCard(params.principal, params.characterId);
     if (!embedded) {

@@ -37,11 +37,7 @@ function view(provider: CredentialProvider, id: string): CredentialView {
 interface Double {
   readonly credentials: {
     readonly list: (params: { principal: Principal }) => Promise<CredentialView[]>;
-    readonly add: (params: {
-      principal: Principal;
-      provider: CredentialProvider;
-      key: string;
-    }) => Promise<CredentialView>;
+    readonly add: (params: { principal: Principal; provider: CredentialProvider; key: string }) => Promise<CredentialView>;
   };
   /** The mutable backing store — tests assert on its length / contents (no separate call counter). */
   readonly store: CredentialView[];

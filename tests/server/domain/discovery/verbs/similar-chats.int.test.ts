@@ -10,14 +10,7 @@ import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
-import {
-  makeDiscoveryHarness,
-  seedChatSegment,
-  seedDepartedHost,
-  seedHostedChat,
-  seedUser,
-  vec,
-} from "../_support.ts";
+import { makeDiscoveryHarness, seedChatSegment, seedDepartedHost, seedHostedChat, seedUser, vec } from "../_support.ts";
 
 // Seed a hosted chat with a title + one segment vector (one block = one centroid input).
 async function seedChatWith(
@@ -31,11 +24,7 @@ async function seedChatWith(
 ): Promise<ChatId> {
   const chatId = await seedHostedChat(db, args.id, args.ownerId);
   await db.update(chats).set({ title: args.title }).where(eq(chats.id, chatId));
-  await Promise.all(
-    args.embeddings.map((embedding, i) =>
-      seedChatSegment(db, { id: `${args.id}_seg_${i}`, chatId, blockIdx: i, embedding }),
-    ),
-  );
+  await Promise.all(args.embeddings.map((embedding, i) => seedChatSegment(db, { id: `${args.id}_seg_${i}`, chatId, blockIdx: i, embedding })));
   return chatId;
 }
 

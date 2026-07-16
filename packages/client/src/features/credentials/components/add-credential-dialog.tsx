@@ -17,13 +17,7 @@ import type { Invalidation, Trpc } from "#data";
 import { useAddCredentialForm } from "../hooks/use-add-credential-form";
 import { useAddCredential, useFetchModels } from "../hooks/use-connections-mutations";
 import type { AddCredentialFormValues } from "../lib/add-credential-form-model";
-import {
-  isCustomProvider,
-  PROVIDER_ITEMS,
-  parseJsonObject,
-  parseKeyList,
-  parseResponseMap,
-} from "../lib/add-credential-form-model";
+import { isCustomProvider, PROVIDER_ITEMS, parseJsonObject, parseKeyList, parseResponseMap } from "../lib/add-credential-form-model";
 
 export interface AddCredentialDialogProps {
   readonly open: boolean;
@@ -32,26 +26,14 @@ export interface AddCredentialDialogProps {
   readonly invalidation: Invalidation;
 }
 
-export function AddCredentialDialog({
-  open,
-  onOpenChange,
-  trpc,
-  invalidation,
-}: AddCredentialDialogProps): ReactElement {
+export function AddCredentialDialog({ open, onOpenChange, trpc, invalidation }: AddCredentialDialogProps): ReactElement {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogPopup>
         <Stack gap="block">
           <DialogTitle>Add a provider key</DialogTitle>
-          <DialogDescription>
-            The key is encrypted at rest and never shown again — only its provider and label appear
-            in the list.
-          </DialogDescription>
-          <AddCredentialFormBody
-            trpc={trpc}
-            invalidation={invalidation}
-            onDone={(): void => onOpenChange(false)}
-          />
+          <DialogDescription>The key is encrypted at rest and never shown again — only its provider and label appear in the list.</DialogDescription>
+          <AddCredentialFormBody trpc={trpc} invalidation={invalidation} onDone={(): void => onOpenChange(false)} />
         </Stack>
       </DialogPopup>
     </Dialog>
@@ -60,9 +42,7 @@ export function AddCredentialDialog({
 
 /** Build the `custom_openai` metadata blob from the form values — the three transforms are parsed from
  *  free text (the validator already rejected an invalid JSON object) and omitted when empty. */
-function customEndpointMetadata(
-  values: AddCredentialFormValues,
-): Extract<ProviderMetadata, { readonly kind: "custom_openai" }> {
+function customEndpointMetadata(values: AddCredentialFormValues): Extract<ProviderMetadata, { readonly kind: "custom_openai" }> {
   const model = values.model.trim();
   const includeBody = parseJsonObject(values.includeBody);
   const excludeBody = parseKeyList(values.excludeBody);
@@ -118,18 +98,11 @@ function AddCredentialFormBody({
         }}
       >
         <Stack gap="block">
-          <form.AppField name="provider">
-            {(field): ReactElement => <field.SelectField label="Provider" items={PROVIDER_ITEMS} />}
-          </form.AppField>
+          <form.AppField name="provider">{(field): ReactElement => <field.SelectField label="Provider" items={PROVIDER_ITEMS} />}</form.AppField>
 
           <form.AppField name="label">
             {(field): ReactElement => (
-              <field.TextField
-                label="Label"
-                hint="A name to tell this key apart (optional)."
-                placeholder="default"
-                autoComplete="off"
-              />
+              <field.TextField label="Label" hint="A name to tell this key apart (optional)." placeholder="default" autoComplete="off" />
             )}
           </form.AppField>
 
@@ -193,15 +166,11 @@ function AddCredentialFormBody({
           </form.Subscribe>
 
           <form.AppField name="key">
-            {(field): ReactElement => (
-              <field.TextField label="Key" placeholder="Paste your API key" autoComplete="off" />
-            )}
+            {(field): ReactElement => <field.TextField label="Key" placeholder="Paste your API key" autoComplete="off" />}
           </form.AppField>
 
           <form.Subscribe
-            selector={(
-              state,
-            ): { readonly provider: string; readonly baseUrl: string; readonly key: string } => ({
+            selector={(state): { readonly provider: string; readonly baseUrl: string; readonly key: string } => ({
               provider: state.values.provider,
               baseUrl: state.values.baseUrl,
               key: state.values.key,
@@ -209,12 +178,7 @@ function AddCredentialFormBody({
           >
             {(draft): ReactElement | null =>
               isCustomProvider(draft.provider) ? (
-                <DraftFetchModelsCheck
-                  trpc={trpc}
-                  invalidation={invalidation}
-                  baseUrl={draft.baseUrl}
-                  keyValue={draft.key}
-                />
+                <DraftFetchModelsCheck trpc={trpc} invalidation={invalidation} baseUrl={draft.baseUrl} keyValue={draft.key} />
               ) : null
             }
           </form.Subscribe>
@@ -254,10 +218,7 @@ function DraftFetchModelsCheck({
     if (draftBaseUrl === "") {
       return;
     }
-    const draft =
-      keyValue.trim() === ""
-        ? { baseUrl: draftBaseUrl }
-        : { baseUrl: draftBaseUrl, key: keyValue.trim() };
+    const draft = keyValue.trim() === "" ? { baseUrl: draftBaseUrl } : { baseUrl: draftBaseUrl, key: keyValue.trim() };
     void fetchModels
       .mutateAsync({ draft })
       .then((models): void => {
@@ -272,19 +233,12 @@ function DraftFetchModelsCheck({
 
   return (
     <Row gap="field" align="center">
-      <Button
-        intent="secondary"
-        size="sm"
-        disabled={baseUrl.trim() === "" || fetchModels.isPending}
-        onClick={runCheck}
-      >
+      <Button intent="secondary" size="sm" disabled={baseUrl.trim() === "" || fetchModels.isPending} onClick={runCheck}>
         Fetch models
       </Button>
       {checked ? (
         <Text size="micro" tone={count !== null && count > 0 ? "success" : "warning"}>
-          {count !== null && count > 0
-            ? `reachable — ${count} model${count === 1 ? "" : "s"}`
-            : "unreachable or no /models"}
+          {count !== null && count > 0 ? `reachable — ${count} model${count === 1 ? "" : "s"}` : "unreachable or no /models"}
         </Text>
       ) : null}
     </Row>

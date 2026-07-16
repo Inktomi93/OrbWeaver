@@ -163,18 +163,13 @@ export function MessageList<T>({
     // positions that wouldn't match `programmaticTopRef`, tripping the external-scroll detector below.
     ...(followTail
       ? {
-          scrollToFn: (
-            offset: number,
-            options: { adjustments?: number; behavior?: ScrollBehavior },
-          ) => {
+          scrollToFn: (offset: number, options: { adjustments?: number; behavior?: ScrollBehavior }) => {
             const el = scrollRef.current;
             if (el === null) {
               return;
             }
             const top = offset + (options.adjustments ?? 0);
-            el.scrollTo(
-              options.behavior === undefined ? { top } : { top, behavior: options.behavior },
-            );
+            el.scrollTo(options.behavior === undefined ? { top } : { top, behavior: options.behavior });
             programmaticTopRef.current = el.scrollTop;
           },
         }

@@ -55,13 +55,7 @@ export interface RunWorkloadDialogProps {
   readonly dependencyCandidates: readonly DependencyCandidate[];
 }
 
-export function RunWorkloadDialog({
-  open,
-  onOpenChange,
-  viewerIsOwner,
-  users,
-  dependencyCandidates,
-}: RunWorkloadDialogProps): ReactElement {
+export function RunWorkloadDialog({ open, onOpenChange, viewerIsOwner, users, dependencyCandidates }: RunWorkloadDialogProps): ReactElement {
   return (
     <WorkloadFormDialog
       description="Runs a background job over your own library. It queues immediately; progress shows live in the list."
@@ -70,12 +64,7 @@ export function RunWorkloadDialog({
       testKey="runWorkloadDialog"
       title="Run a workload"
     >
-      <RunWorkloadFormBody
-        dependencyCandidates={dependencyCandidates}
-        onDone={(): void => onOpenChange(false)}
-        users={users}
-        viewerIsOwner={viewerIsOwner}
-      />
+      <RunWorkloadFormBody dependencyCandidates={dependencyCandidates} onDone={(): void => onOpenChange(false)} users={users} viewerIsOwner={viewerIsOwner} />
     </WorkloadFormDialog>
   );
 }
@@ -95,16 +84,12 @@ function RunWorkloadFormBody({
   const invalidation = useInvalidation();
   const start = useStartWorkload({ trpc, invalidation });
 
-  const targetItems = users
-    .filter((user) => user.kind === "human" && user.enabled)
-    .map((user) => ({ value: user.id as string, label: user.handle as string }));
+  const targetItems = users.filter((user) => user.kind === "human" && user.enabled).map((user) => ({ value: user.id as string, label: user.handle as string }));
 
-  const dependencyItems: readonly SelectOption<string>[] = dependencyCandidates.map(
-    (candidate) => ({
-      value: candidate.id,
-      label: `${WORKLOAD_KIND_LABELS[candidate.kind as WorkloadKind]} · ${timeLib.formatRelative(candidate.createdAt)}`,
-    }),
-  );
+  const dependencyItems: readonly SelectOption<string>[] = dependencyCandidates.map((candidate) => ({
+    value: candidate.id,
+    label: `${WORKLOAD_KIND_LABELS[candidate.kind as WorkloadKind]} · ${timeLib.formatRelative(candidate.createdAt)}`,
+  }));
 
   const save = async (values: RunWorkloadFormValues): Promise<RunWorkloadFormValues> => {
     if (!isStartableWorkloadKind(values.kind)) {
@@ -113,8 +98,7 @@ function RunWorkloadFormBody({
     const isMaintenance = isMaintenanceWorkloadKind(values.kind);
     const bulkToggleOn = viewerIsOwner && values.bulk && WORKLOAD_KIND_MODES[values.kind].bulk;
     const bulkOn = isMaintenance || bulkToggleOn;
-    const needsTarget =
-      !isMaintenance && bulkToggleOn && WORKLOAD_KIND_MODES[values.kind].bulkRequiresTarget;
+    const needsTarget = !isMaintenance && bulkToggleOn && WORKLOAD_KIND_MODES[values.kind].bulkRequiresTarget;
     const scheduledAt = parseRunAt(values.runAt);
     await start.mutateAsync({
       input: buildStartInput(values.kind, values),
@@ -132,9 +116,7 @@ function RunWorkloadFormBody({
 
   return (
     <Stack gap="block">
-      <form.AppField name="kind">
-        {(field): ReactElement => <field.SelectField label="Workload" items={kindItems} />}
-      </form.AppField>
+      <form.AppField name="kind">{(field): ReactElement => <field.SelectField label="Workload" items={kindItems} />}</form.AppField>
       <WorkloadParamFields form={form} />
       {viewerIsOwner ? (
         <form.Subscribe selector={(state): string => state.values.kind}>
@@ -149,10 +131,7 @@ function RunWorkloadFormBody({
             return isRunnableWorkloadKind(kind) && WORKLOAD_KIND_MODES[kind].bulk ? (
               <form.AppField name="bulk">
                 {(field): ReactElement => (
-                  <field.SwitchField
-                    label="Bulk mode"
-                    description="Owner only — runs across every user's data instead of just yours."
-                  />
+                  <field.SwitchField label="Bulk mode" description="Owner only — runs across every user's data instead of just yours." />
                 )}
               </form.AppField>
             ) : null;
@@ -161,11 +140,7 @@ function RunWorkloadFormBody({
       ) : null}
       {viewerIsOwner ? (
         <form.Subscribe
-          selector={(state): boolean =>
-            state.values.bulk &&
-            !isMaintenanceWorkloadKind(state.values.kind) &&
-            workloadKindNeedsBulkTarget(state.values.kind)
-          }
+          selector={(state): boolean => state.values.bulk && !isMaintenanceWorkloadKind(state.values.kind) && workloadKindNeedsBulkTarget(state.values.kind)}
         >
           {(needsTarget): ReactElement | null =>
             needsTarget ? (
@@ -189,11 +164,7 @@ function RunWorkloadFormBody({
             <Stack gap="block">
               <form.AppField name="runAt">
                 {(field): ReactElement => (
-                  <Field
-                    label="Run at"
-                    description="Leave empty to run now. Set a date and time to defer this run."
-                    name={field.name}
-                  >
+                  <Field label="Run at" description="Leave empty to run now. Set a date and time to defer this run." name={field.name}>
                     <Input
                       type="datetime-local"
                       value={field.state.value}

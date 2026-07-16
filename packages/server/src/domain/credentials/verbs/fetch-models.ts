@@ -34,10 +34,7 @@ export function createFetchModels(ctx: CredentialContext): CredentialsService["f
     }
     const endpoint = parseCustomOpenAiEndpoint(row.metadata);
     if (endpoint === null) {
-      getLog().info(
-        { credentialId: params.credentialId },
-        "credentials: fetchModels on a non-custom_openai credential — returning []",
-      );
+      getLog().info({ credentialId: params.credentialId }, "credentials: fetchModels on a non-custom_openai credential — returning []");
       return NO_MODELS;
     }
     const apiKey = decryptSealed(ctx.box, row, aadFor(ownerId, "custom_openai"));

@@ -6,8 +6,7 @@ import { computeBackoffMs, runWithPreCommitRetry } from "@orb/server/infra/provi
 import { describe } from "vitest";
 import { expect, test } from "../../../../../support/fixtures";
 
-const serverErr = (): ProviderError =>
-  new ProviderError({ kind: "server", retryable: true, message: "boom" });
+const serverErr = (): ProviderError => new ProviderError({ kind: "server", retryable: true, message: "boom" });
 
 describe("computeBackoffMs — deterministic with injected RNG/clock", () => {
   test("exponential growth, jitter centered at random()=0.5 (jitter factor 1.0)", () => {
@@ -23,9 +22,7 @@ describe("computeBackoffMs — deterministic with injected RNG/clock", () => {
   });
 
   test("caps any single sleep at maxMs", () => {
-    expect(
-      computeBackoffMs(10, serverErr(), { baseMs: 500, maxMs: 8000, random: (): number => 0.5 }),
-    ).toBe(8000);
+    expect(computeBackoffMs(10, serverErr(), { baseMs: 500, maxMs: 8000, random: (): number => 0.5 })).toBe(8000);
   });
 
   test("honors a NEAR rate-limit resetsAt when a clock is injected", () => {
@@ -118,8 +115,7 @@ describe("the pre-commit retry loop", () => {
 
   test("does NOT retry a non-retryable classification", async () => {
     let calls = 0;
-    const classifyFatal = (): ProviderError =>
-      new ProviderError({ kind: "auth_failed", retryable: false, message: "401" });
+    const classifyFatal = (): ProviderError => new ProviderError({ kind: "auth_failed", retryable: false, message: "401" });
     await expect(
       runWithPreCommitRetry(
         (): Promise<never> => {

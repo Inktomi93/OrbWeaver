@@ -8,26 +8,14 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
 import { goToLanding, selectCharacter, setActiveSection, useTurnSpeakerCharacterId } from "#state";
-import {
-  useKickMember,
-  useNominateHostHandoff,
-  useSelfLeave,
-} from "../hooks/use-membership-mutations";
-import {
-  useForceCharacterTurn,
-  useSetParticipantDisabled,
-  useSetParticipantTalkativeness,
-} from "../hooks/use-roster-mutations";
+import { useKickMember, useNominateHostHandoff, useSelfLeave } from "../hooks/use-membership-mutations";
+import { useForceCharacterTurn, useSetParticipantDisabled, useSetParticipantTalkativeness } from "../hooks/use-roster-mutations";
 import type { MemberCastRow, MemberPersonRow } from "../lib/member-rows";
 import { filterCharacters, resolveHumanParticipants } from "../lib/roster";
 import { InviteDialog } from "./invite-dialog";
 import { MembersPanel } from "./members-panel";
 
-function toPersonRows(
-  participants: readonly ParticipantView[],
-  viewerUserId: UserId | null,
-  pendingHostUserId: UserId | null,
-): MemberPersonRow[] {
+function toPersonRows(participants: readonly ParticipantView[], viewerUserId: UserId | null, pendingHostUserId: UserId | null): MemberPersonRow[] {
   const rows: MemberPersonRow[] = [];
   for (const p of resolveHumanParticipants(participants)) {
     if (p.userId === null) {
@@ -48,10 +36,7 @@ function toPersonRows(
   return rows;
 }
 
-function toCastRows(
-  participants: readonly ParticipantView[],
-  respondingCharacterId: CharacterId | null,
-): MemberCastRow[] {
+function toCastRows(participants: readonly ParticipantView[], respondingCharacterId: CharacterId | null): MemberCastRow[] {
   return filterCharacters(participants).map((p) => ({
     kind: "cast",
     key: p.id,
@@ -78,13 +63,7 @@ export interface CommittedMembersTabProps {
   readonly castVisible: boolean;
 }
 
-export function CommittedMembersTab({
-  chatId,
-  chat,
-  isHost,
-  multiHumanCapable,
-  castVisible,
-}: CommittedMembersTabProps): ReactElement {
+export function CommittedMembersTab({ chatId, chat, isHost, multiHumanCapable, castVisible }: CommittedMembersTabProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const setDisabled = useSetParticipantDisabled({ trpc, invalidation });
@@ -96,9 +75,7 @@ export function CommittedMembersTab({
   const [inviteOpen, setInviteOpen] = useState(false);
 
   const respondingCharacterId = useTurnSpeakerCharacterId(chatId);
-  const people = multiHumanCapable
-    ? toPersonRows(chat.participants, chat.viewerUserId, chat.pendingHostUserId)
-    : [];
+  const people = multiHumanCapable ? toPersonRows(chat.participants, chat.viewerUserId, chat.pendingHostUserId) : [];
   const cast = castVisible ? toCastRows(chat.participants, respondingCharacterId) : [];
   const hostMembership = isHost && multiHumanCapable;
 
@@ -115,34 +92,19 @@ export function CommittedMembersTab({
         cast={cast}
         onInvitePeople={hostMembership ? (): void => setInviteOpen(true) : undefined}
         onKick={hostMembership ? (userId): void => kick.mutate({ chatId, userId }) : undefined}
-        onNominateHost={
-          hostMembership ? (userId): void => nominateHost.mutate({ chatId, userId }) : undefined
-        }
+        onNominateHost={hostMembership ? (userId): void => nominateHost.mutate({ chatId, userId }) : undefined}
         onLeave={multiHumanCapable ? onLeave : undefined}
         leaveArchivesRoom={isHost}
-        onSetDisabled={
-          isHost
-            ? (characterId, disabled): void => setDisabled.mutate({ chatId, characterId, disabled })
-            : undefined
-        }
-        onSetTalkativeness={
-          isHost
-            ? (characterId, talkativeness): void =>
-                setTalkativeness.mutate({ chatId, characterId, talkativeness })
-            : undefined
-        }
-        onForceTurn={
-          isHost ? (characterId): void => forceTurn.mutate({ chatId, characterId }) : undefined
-        }
+        onSetDisabled={isHost ? (characterId, disabled): void => setDisabled.mutate({ chatId, characterId, disabled }) : undefined}
+        onSetTalkativeness={isHost ? (characterId, talkativeness): void => setTalkativeness.mutate({ chatId, characterId, talkativeness }) : undefined}
+        onForceTurn={isHost ? (characterId): void => forceTurn.mutate({ chatId, characterId }) : undefined}
         onViewCharacter={(characterId): void => {
           selectCharacter(characterId);
           setActiveSection("characters");
         }}
       />
 
-      {hostMembership ? (
-        <InviteDialog chatId={chatId} open={inviteOpen} onOpenChange={setInviteOpen} />
-      ) : null}
+      {hostMembership ? <InviteDialog chatId={chatId} open={inviteOpen} onOpenChange={setInviteOpen} /> : null}
     </>
   );
 }

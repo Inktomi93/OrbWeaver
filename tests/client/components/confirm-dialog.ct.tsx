@@ -8,10 +8,7 @@ import { Button } from "@orb/ui/button";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { ConfirmDialogControlledHarness } from "./confirm-dialog.fixtures";
 
-test("uncontrolled: renders the given trigger, opens on click, confirms and closes", async ({
-  mount,
-  page,
-}) => {
+test("uncontrolled: renders the given trigger, opens on click, confirms and closes", async ({ mount, page }) => {
   let confirmed = 0;
   await mount(
     <ConfirmDialog
@@ -57,10 +54,7 @@ test("uncontrolled: Cancel closes without firing onConfirm", async ({ mount, pag
   expect(confirmed).toBe(0);
 });
 
-test("controlled: caller owns open/onOpenChange, no default trigger renders", async ({
-  mount,
-  page,
-}) => {
+test("controlled: caller owns open/onOpenChange, no default trigger renders", async ({ mount, page }) => {
   await mount(<ConfirmDialogControlledHarness />);
 
   const dialog = page.getByRole("alertdialog");
@@ -89,17 +83,9 @@ test("cancelLabel overrides the cancel button's text", async ({ mount, page }) =
   await expect(dialog.getByRole("button", { name: "Keep running" })).toBeVisible();
 });
 
-test("description is optional — a title-only confirm renders no description paragraph", async ({
-  mount,
-  page,
-}) => {
+test("description is optional — a title-only confirm renders no description paragraph", async ({ mount, page }) => {
   await mount(
-    <ConfirmDialog
-      confirmLabel="Delete"
-      onConfirm={(): void => undefined}
-      title='Delete "Entry title"?'
-      trigger={<Button intent="ghost">Delete</Button>}
-    />,
+    <ConfirmDialog confirmLabel="Delete" onConfirm={(): void => undefined} title='Delete "Entry title"?' trigger={<Button intent="ghost">Delete</Button>} />,
   );
 
   await page.getByRole("button", { name: "Delete", exact: true }).click();

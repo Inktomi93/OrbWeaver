@@ -25,10 +25,7 @@ test("handle mode renders one grip affordance per row", async ({ mount, page }) 
   await expect(page.locator('[data-slot="sortable-handle"]')).toHaveCount(3);
 });
 
-test("pointer drag via the handle reorders the list and calls onReorder", async ({
-  mount,
-  page,
-}) => {
+test("pointer drag via the handle reorders the list and calls onReorder", async ({ mount, page }) => {
   await mount(<ReorderableList handle={true} itemCount={3} />);
   const handles = page.locator('[data-slot="sortable-handle"]');
   const rows = page.locator('[data-slot="sortable-item"]');
@@ -39,10 +36,7 @@ test("pointer drag via the handle reorders the list and calls onReorder", async 
     throw new Error("sortable CT: missing bounding box for drag geometry");
   }
 
-  await page.mouse.move(
-    firstHandleBox.x + firstHandleBox.width / 2,
-    firstHandleBox.y + firstHandleBox.height / 2,
-  );
+  await page.mouse.move(firstHandleBox.x + firstHandleBox.width / 2, firstHandleBox.y + firstHandleBox.height / 2);
   await page.mouse.down();
   await page.mouse.move(lastRowBox.x + lastRowBox.width / 2, lastRowBox.y + lastRowBox.height - 4, {
     steps: 10,
@@ -55,10 +49,7 @@ test("pointer drag via the handle reorders the list and calls onReorder", async 
   await expect(page.getByTestId("reorder-count")).toHaveText("1");
 });
 
-test("the drag activator is keyboard-focusable and auto-described (Accessibility plugin defaults)", async ({
-  mount,
-  page,
-}) => {
+test("the drag activator is keyboard-focusable and auto-described (Accessibility plugin defaults)", async ({ mount, page }) => {
   await mount(<ReorderableList itemCount={3} />);
   const row = page.locator('[data-slot="sortable-item"]').first();
   await expect(row).toHaveAttribute("tabindex", "0");
@@ -66,10 +57,7 @@ test("the drag activator is keyboard-focusable and auto-described (Accessibility
   await expect(row).toHaveAttribute("aria-describedby", NON_EMPTY);
 });
 
-test("keyboard reorder: focus, Space to pick up, ArrowDown to move, Space to drop", async ({
-  mount,
-  page,
-}) => {
+test("keyboard reorder: focus, Space to pick up, ArrowDown to move, Space to drop", async ({ mount, page }) => {
   await mount(<ReorderableList itemCount={3} />);
   const rows = page.locator('[data-slot="sortable-item"]');
   await expect(rows.nth(0)).toHaveAttribute("tabindex", "0");
@@ -121,10 +109,7 @@ test("disabled blocks both pointer and keyboard reorder", async ({ mount, page }
   if (firstHandleBox === null || lastRowBox === null) {
     throw new Error("sortable CT: missing bounding box for drag geometry");
   }
-  await page.mouse.move(
-    firstHandleBox.x + firstHandleBox.width / 2,
-    firstHandleBox.y + firstHandleBox.height / 2,
-  );
+  await page.mouse.move(firstHandleBox.x + firstHandleBox.width / 2, firstHandleBox.y + firstHandleBox.height / 2);
   await page.mouse.down();
   await page.mouse.move(lastRowBox.x + lastRowBox.width / 2, lastRowBox.y + lastRowBox.height - 4, {
     steps: 10,
@@ -135,10 +120,7 @@ test("disabled blocks both pointer and keyboard reorder", async ({ mount, page }
   await expect(page.getByTestId("reorder-count")).toHaveText("0");
 });
 
-test("reduced motion: a completed drag produces no perceptible (non-zero-duration) animation", async ({
-  mount,
-  page,
-}) => {
+test("reduced motion: a completed drag produces no perceptible (non-zero-duration) animation", async ({ mount, page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.evaluate(() => {
     (globalThis as unknown as { __durations: number[] }).__durations = [];
@@ -148,15 +130,8 @@ test("reduced motion: a completed drag produces no perceptible (non-zero-duratio
     const original = proto.animate;
     // A real `function` (not an arrow) — mirrors the message-list.ct.tsx scrollTo-patch pattern:
     // `this` must be the actual animating element for the native call to succeed.
-    proto.animate = function patchedAnimate(
-      this: Element,
-      keyframes: unknown,
-      options?: unknown,
-    ): Animation {
-      const duration =
-        typeof options === "object" && options !== null && "duration" in options
-          ? Number((options as { duration?: number }).duration ?? 0)
-          : 0;
+    proto.animate = function patchedAnimate(this: Element, keyframes: unknown, options?: unknown): Animation {
+      const duration = typeof options === "object" && options !== null && "duration" in options ? Number((options as { duration?: number }).duration ?? 0) : 0;
       (globalThis as unknown as { __durations: number[] }).__durations.push(duration);
       return original.call(this, keyframes, options);
     };
@@ -171,10 +146,7 @@ test("reduced motion: a completed drag produces no perceptible (non-zero-duratio
   if (firstHandleBox === null || lastRowBox === null) {
     throw new Error("sortable CT: missing bounding box for drag geometry");
   }
-  await page.mouse.move(
-    firstHandleBox.x + firstHandleBox.width / 2,
-    firstHandleBox.y + firstHandleBox.height / 2,
-  );
+  await page.mouse.move(firstHandleBox.x + firstHandleBox.width / 2, firstHandleBox.y + firstHandleBox.height / 2);
   await page.mouse.down();
   await page.mouse.move(lastRowBox.x + lastRowBox.width / 2, lastRowBox.y + lastRowBox.height - 4, {
     steps: 10,
@@ -184,9 +156,7 @@ test("reduced motion: a completed drag produces no perceptible (non-zero-duratio
   await expect(rows.nth(0)).toContainText("Item 1");
   await expect(page.getByTestId("reorder-count")).toHaveText("1");
 
-  const durations = await page.evaluate(
-    () => (globalThis as unknown as { __durations: number[] }).__durations,
-  );
+  const durations = await page.evaluate(() => (globalThis as unknown as { __durations: number[] }).__durations);
   // Every WAAPI animation dnd-kit ran during this drag+drop — the sibling FLIP reposition AND
   // the drop-settle bounce — has ZERO duration under reduced motion: the FLIP reposition via
   // `useSortable`'s own internal prefers-reduced-motion check, and the drop-settle because this
@@ -196,10 +166,7 @@ test("reduced motion: a completed drag produces no perceptible (non-zero-duratio
   expect(durations.every((duration) => duration === 0)).toBe(true);
 });
 
-test("reorders correctly when the parent passes a freshly-derived items array each render", async ({
-  mount,
-  page,
-}) => {
+test("reorders correctly when the parent passes a freshly-derived items array each render", async ({ mount, page }) => {
   await mount(<DerivedItemsList />);
   const rows = page.locator('[data-slot="sortable-item"]');
   await expect(rows).toHaveCount(3);

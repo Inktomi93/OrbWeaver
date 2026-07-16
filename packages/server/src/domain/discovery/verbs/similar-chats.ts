@@ -33,12 +33,7 @@ function dominantModel(rows: readonly { readonly model: string }[]): string | nu
  * service factory + tests call it directly. A target chat the owner doesn't host, or with no segments in its
  * space, ⇒ `[]`.
  */
-async function similarChats(
-  db: Db,
-  ownerId: UserId,
-  chatId: ChatId,
-  limit = DEFAULT_LIMIT,
-): Promise<SimilarChat[]> {
+async function similarChats(db: Db, ownerId: UserId, chatId: ChatId, limit = DEFAULT_LIMIT): Promise<SimilarChat[]> {
   const segs = await readOwnedSegmentVectorsByChat(db, ownerId, chatId);
 
   const targetRows = segs.filter((s) => s.chatId === chatId);

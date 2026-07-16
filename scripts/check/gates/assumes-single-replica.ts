@@ -20,8 +20,7 @@ function flaggedCtor(decl: VariableDeclaration): string {
   }
   const args = init.getArguments();
   const first = args[0];
-  const literalSeed =
-    args.length === 1 && first !== undefined && Node.isArrayLiteralExpression(first);
+  const literalSeed = args.length === 1 && first !== undefined && Node.isArrayLiteralExpression(first);
   return literalSeed ? "" : ctor;
 }
 
@@ -72,8 +71,7 @@ export const gate: GateDescriptor = {
   ],
   mustPass: [
     {
-      files:
-        "// ASSUMES(single-replica): per-process cache, replace with a DB seam later\nexport const cache = new Map<string, number>();\n",
+      files: "// ASSUMES(single-replica): per-process cache, replace with a DB seam later\nexport const cache = new Map<string, number>();\n",
       at: "packages/server/src/domain/hub/y.ts",
       why: "the same Map WITH the ASSUMES(single-replica) annotation — declared, so it passes",
     },

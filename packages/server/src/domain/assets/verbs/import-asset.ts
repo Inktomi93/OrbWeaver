@@ -4,11 +4,7 @@
 // (assets.id is a global PK); (3) reject an id bound to different bytes for the same owner. Same id+owner+
 // bytes ⇒ idempotent no-op.
 
-import type {
-  PortableEntity,
-  PortableFile,
-  PortableImportOutcome,
-} from "@orb/contracts/portability";
+import type { PortableEntity, PortableFile, PortableImportOutcome } from "@orb/contracts/portability";
 import type { UserId } from "@orb/kit/ids";
 import type { AssetsPortabilityContext } from "../contract/portability";
 import { loadAssetCasRefById, storeBlob } from "../persistence/queries";

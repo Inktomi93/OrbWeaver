@@ -128,8 +128,7 @@ function parseScalarFlag(flag: string, rest: string[], args: Args): boolean {
   if (flag === "--frames") {
     // Optional numeric offset argument; bare --frames takes the default.
     const peek = rest[0];
-    args.framesOffsetMs =
-      peek !== undefined && INT_RE.test(peek) ? Number(rest.shift()) : DEFAULT_FRAMES_OFFSET_MS;
+    args.framesOffsetMs = peek !== undefined && INT_RE.test(peek) ? Number(rest.shift()) : DEFAULT_FRAMES_OFFSET_MS;
     return true;
   }
   return false;
@@ -204,9 +203,7 @@ async function dispatchStep(run: StepRun, step: Exclude<Step, { kind: "pause" }>
     // corner changes IS the click frame.
     const color = MARKER_COLORS[run.clickIndex % MARKER_COLORS.length] as string;
     run.clickIndex += 1;
-    await page.evaluate(
-      `(() => { const m = document.getElementById("__probe-marker"); if (m) m.style.background = ${JSON.stringify(color)}; })()`,
-    );
+    await page.evaluate(`(() => { const m = document.getElementById("__probe-marker"); if (m) m.style.background = ${JSON.stringify(color)}; })()`);
     run.clickTimes.push({ t: Date.now() - run.t0, label: `${step.kind} ${step.selector}` });
     if (step.kind === "jsclick") {
       await loc.evaluate("(el) => el.click()");
@@ -325,26 +322,8 @@ async function renderArtifacts(job: RenderJob): Promise<Rendered> {
   const { ffmpeg, rec, webm, outDir, opts } = job;
   const gif = join(outDir, `${opts.out}.gif`);
   const palette = join(outDir, `.${opts.out}-palette.png`);
-  const paletteOk = runFfmpeg(ffmpeg, [
-    "-y",
-    "-i",
-    webm,
-    "-vf",
-    `${GIF_FPS_SCALE},palettegen`,
-    palette,
-  ]);
-  const gifOk =
-    paletteOk &&
-    runFfmpeg(ffmpeg, [
-      "-y",
-      "-i",
-      webm,
-      "-i",
-      palette,
-      "-lavfi",
-      `${GIF_FPS_SCALE}[x];[x][1:v]paletteuse`,
-      gif,
-    ]);
+  const paletteOk = runFfmpeg(ffmpeg, ["-y", "-i", webm, "-vf", `${GIF_FPS_SCALE},palettegen`, palette]);
+  const gifOk = paletteOk && runFfmpeg(ffmpeg, ["-y", "-i", webm, "-i", palette, "-lavfi", `${GIF_FPS_SCALE}[x];[x][1:v]paletteuse`, gif]);
   await rm(palette, { force: true });
 
   // Per-click windows: 6 tiles × 120ms starting just before each click — count tiles
@@ -353,20 +332,7 @@ async function renderArtifacts(job: RenderJob): Promise<Rendered> {
   for (const [i, ct] of rec.clickTimes.entries()) {
     const start = Math.max(0, ct.t / MS_PER_S - CLICK_STRIP_PRE_S);
     const win = join(outDir, `${opts.out}-click${i + 1}.png`);
-    const ok = runFfmpeg(ffmpeg, [
-      "-y",
-      "-ss",
-      start.toFixed(2),
-      "-t",
-      String(CLICK_STRIP_LEN_S),
-      "-i",
-      webm,
-      "-vf",
-      STRIP_FILTER,
-      "-frames:v",
-      "1",
-      win,
-    ]);
+    const ok = runFfmpeg(ffmpeg, ["-y", "-ss", start.toFixed(2), "-t", String(CLICK_STRIP_LEN_S), "-i", webm, "-vf", STRIP_FILTER, "-frames:v", "1", win]);
     if (ok) {
       strips += 1;
       print(`click ${i + 1}      t=${ct.t}ms ${ct.label} → ${win}  (6 tiles × 120ms)`);
@@ -380,16 +346,7 @@ async function renderArtifacts(job: RenderJob): Promise<Rendered> {
     for (const [i, st] of rec.stepTimeline.entries()) {
       const at = Math.max(0, (st.t + opts.framesOffsetMs) / MS_PER_S);
       const frame = join(outDir, `${opts.out}-step${i + 1}.png`);
-      const ok = runFfmpeg(ffmpeg, [
-        "-y",
-        "-ss",
-        at.toFixed(2),
-        "-i",
-        webm,
-        "-frames:v",
-        "1",
-        frame,
-      ]);
+      const ok = runFfmpeg(ffmpeg, ["-y", "-ss", at.toFixed(2), "-i", webm, "-frames:v", "1", frame]);
       if (ok) {
         frames += 1;
         print(`step ${i + 1}       t=${st.t}ms+${opts.framesOffsetMs} ${st.label} → ${frame}`);

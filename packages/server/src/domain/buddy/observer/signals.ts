@@ -48,11 +48,7 @@ const TRACE_BLURB: Record<"slow-turn" | "error-spike", string> = {
 };
 
 /** Traces are request-scoped, not user-attributed; the OWNER's companion feels the system's health. */
-export function traceSignal(
-  kind: "slow-turn" | "error-spike",
-  ownerId: UserId,
-  atMs: number,
-): BuddySignal {
+export function traceSignal(kind: "slow-turn" | "error-spike", ownerId: UserId, atMs: number): BuddySignal {
   return {
     kind: `trace:${kind}`,
     userId: ownerId,
@@ -67,11 +63,7 @@ const PRESENCE_BLURB: Record<"idle" | "wake" | "neglected", string> = {
   neglected: "You've been away a long while",
 };
 
-export function presenceSignal(
-  kind: "idle" | "wake" | "neglected",
-  userId: UserId,
-  atMs: number,
-): BuddySignal {
+export function presenceSignal(kind: "idle" | "wake" | "neglected", userId: UserId, atMs: number): BuddySignal {
   return {
     kind: `presence:${kind}`,
     userId,

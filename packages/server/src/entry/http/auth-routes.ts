@@ -19,14 +19,7 @@ import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Hono } from "hono";
 import type { Configuration } from "openid-client";
-import {
-  authorizationCodeGrant,
-  buildAuthorizationUrl,
-  calculatePKCECodeChallenge,
-  randomNonce,
-  randomPKCECodeVerifier,
-  randomState,
-} from "openid-client";
+import { authorizationCodeGrant, buildAuthorizationUrl, calculatePKCECodeChallenge, randomNonce, randomPKCECodeVerifier, randomState } from "openid-client";
 import { securityEvent } from "#foundation/observability";
 import type { OidcTransaction } from "#infra/auth";
 import { SESSION_COOKIE_NAME } from "#infra/auth";
@@ -83,10 +76,7 @@ function readSessionToken(headers: Headers): string | null {
 
 /** The `domain/sessions` slice the mint routes consume (the seam owns resolution; this is the write side). */
 export interface AuthSessionsPort {
-  readonly create: (params: {
-    readonly userId: UserId;
-    readonly userAgent?: string | null;
-  }) => Promise<{ readonly token: string; readonly expiresAt: number }>;
+  readonly create: (params: { readonly userId: UserId; readonly userAgent?: string | null }) => Promise<{ readonly token: string; readonly expiresAt: number }>;
   readonly revokeByToken: (token: string) => Promise<void>;
   readonly provisionIdentity: (identity: ResolvedIdentity) => Promise<ProvisionOutcome>;
 }
@@ -180,10 +170,7 @@ export function registerAuthRoutes(app: Hono, deps: AuthRoutesDeps): void {
 }
 
 /** Build the Set-Cookie for a freshly minted session (Max-Age from the expiry minus the injected clock). */
-function sessionCookieFor(
-  session: { readonly token: string; readonly expiresAt: number },
-  now: number,
-): string {
+function sessionCookieFor(session: { readonly token: string; readonly expiresAt: number }, now: number): string {
   return serializeSessionCookie(session.token, (session.expiresAt - now) / MS_PER_SECOND);
 }
 
@@ -194,8 +181,10 @@ function sessionCookieFor(
  * X-Forwarded-Host is trusted here because the allowlist is the real gate. Off-allowlist ⇒ null.
  */
 export function deriveRedirectUri(headers: Headers, allowlist: readonly string[]): string | null {
-  const proto = headers.get("x-forwarded-proto")?.split(",")[0]?.trim() || "https";
-  const host = headers.get("x-forwarded-host")?.split(",")[0]?.trim() || headers.get("host");
+  const rawProto = headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
+  const proto = rawProto !== undefined && rawProto !== "" ? rawProto : "https";
+  const rawHost = headers.get("x-forwarded-host")?.split(",")[0]?.trim();
+  const host = rawHost !== undefined && rawHost !== "" ? rawHost : headers.get("host");
   if (host === null || host.length === 0) {
     return null;
   }
@@ -297,10 +286,7 @@ function readClaimPath(claims: { readonly [claim: string]: unknown }, path: stri
 /** Map verified OIDC ID-token claims → a `ResolvedIdentity`, or `null` when the configured username claim
  *  is absent/empty. Claim names are injected (`OidcClaimMap`) so a non-authentik IdP maps without a code
  *  change; each name may be a nested dot-path. */
-export function identityFromClaims(
-  claims: { readonly [claim: string]: unknown } | undefined,
-  claimMap: OidcClaimMap,
-): ResolvedIdentity | null {
+export function identityFromClaims(claims: { readonly [claim: string]: unknown } | undefined, claimMap: OidcClaimMap): ResolvedIdentity | null {
   if (claims === undefined) {
     return null;
   }
@@ -311,9 +297,7 @@ export function identityFromClaims(
   const rawUid = readClaimPath(claims, claimMap.uidClaim);
   const uid = typeof rawUid === "string" && rawUid.length > 0 ? rawUid : null;
   const rawGroups = readClaimPath(claims, claimMap.groupsClaim);
-  const groups = Array.isArray(rawGroups)
-    ? rawGroups.filter((g): g is string => typeof g === "string")
-    : [];
+  const groups = Array.isArray(rawGroups) ? rawGroups.filter((g): g is string => typeof g === "string") : [];
   const rawEmail = readClaimPath(claims, claimMap.emailClaim);
   const email = typeof rawEmail === "string" && rawEmail.length > 0 ? rawEmail : null;
   return {

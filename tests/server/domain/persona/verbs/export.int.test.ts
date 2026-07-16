@@ -48,8 +48,6 @@ describe("export", () => {
       input: { name: "Theirs", description: "d" },
     });
 
-    await expect(
-      svc.export({ principal: principal(owner), personaId: foreign.id }),
-    ).rejects.toBeInstanceOf(PersonaNotFoundError);
+    await expect(svc.export({ principal: principal(owner), personaId: foreign.id })).rejects.toBeInstanceOf(PersonaNotFoundError);
   });
 });

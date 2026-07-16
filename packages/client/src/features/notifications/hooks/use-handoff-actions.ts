@@ -8,10 +8,7 @@ import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
 
-export const useAcceptHostHandoff = createEntityMutation<
-  inferInput<Trpc["invites"]["acceptHostHandoff"]>,
-  inferOutput<Trpc["invites"]["acceptHostHandoff"]>
->({
+export const useAcceptHostHandoff = createEntityMutation<inferInput<Trpc["invites"]["acceptHostHandoff"]>, inferOutput<Trpc["invites"]["acceptHostHandoff"]>>({
   options: (trpc) => trpc.invites.acceptHostHandoff.mutationOptions(),
   invalidates: (trpc) => [trpc.chat.getChat.pathFilter(), trpc.chat.listChats.pathFilter()],
   errorToast: "Couldn't accept the host handoff — it may have been withdrawn.",

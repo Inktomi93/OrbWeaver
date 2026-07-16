@@ -11,9 +11,7 @@ const BUCKETS = [
   { label: "200–299", count: 7 },
 ];
 
-test("renders the heading and a populated chart canvas for non-empty buckets", async ({
-  mount,
-}) => {
+test("renders the heading and a populated chart canvas for non-empty buckets", async ({ mount }) => {
   const component = await mount(<Histogram buckets={BUCKETS} label="Chunk size distribution" />);
   await expect(component.getByText("Chunk size distribution")).toBeVisible();
   await expect(component.getByRole("img", { name: "Chunk size distribution" })).toBeVisible();

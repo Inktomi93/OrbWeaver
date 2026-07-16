@@ -1,10 +1,6 @@
 import type { PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import {
-  createPresetService,
-  PresetNotFoundError,
-  SYSTEM_DEFAULT_PRESET_ID,
-} from "@orb/server/domain/preset";
+import { createPresetService, PresetNotFoundError, SYSTEM_DEFAULT_PRESET_ID } from "@orb/server/domain/preset";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";

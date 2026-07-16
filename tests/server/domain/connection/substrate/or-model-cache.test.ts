@@ -4,11 +4,7 @@
 
 import type { ModelCatalogEntry } from "@orb/contracts/connection";
 import { afterEach, describe } from "vitest";
-import {
-  __resetOrModelCache,
-  getCachedOrModels,
-  seedOrModelCache,
-} from "../../../../../packages/server/src/domain/connection/substrate/or-model-cache.ts";
+import { __resetOrModelCache, getCachedOrModels, seedOrModelCache } from "../../../../../packages/server/src/domain/connection/substrate/or-model-cache.ts";
 import { expect, test } from "../../../../support/fixtures";
 
 const FETCHED_AT = 1_750_000_000_000;

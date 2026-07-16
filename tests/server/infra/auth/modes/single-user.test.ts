@@ -16,14 +16,10 @@ describe("resolveSingleUser", () => {
   });
 
   test("a session cookie is IGNORED → still null (never short-circuits)", async () => {
-    expect(
-      await resolveSingleUser(headers({ cookie: "__Host-orb_session=t" }), cfg(), {}),
-    ).toBeNull();
+    expect(await resolveSingleUser(headers({ cookie: "__Host-orb_session=t" }), cfg(), {})).toBeNull();
   });
 
   test("an SSO-style forward header is IGNORED → still null", async () => {
-    expect(
-      await resolveSingleUser(headers({ "x-authentik-username": "alice" }), cfg(), {}),
-    ).toBeNull();
+    expect(await resolveSingleUser(headers({ "x-authentik-username": "alice" }), cfg(), {})).toBeNull();
   });
 });

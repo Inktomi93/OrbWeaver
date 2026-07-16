@@ -31,13 +31,9 @@ describe("detachFromChat", () => {
       { type: "wiBookAttached", chatId, surface: "chat", bookId: book.id },
       { type: "wiBookDetached", chatId, surface: "chat", bookId: book.id },
     ]);
-    expect(
-      harness.audits.filter((a) => a.entry.action === "worldInfo.detachFromChat"),
-    ).toHaveLength(1);
+    expect(harness.audits.filter((a) => a.entry.action === "worldInfo.detachFromChat")).toHaveLength(1);
     // Only the REAL detach fires the user-bus freshness emit (the no-op detach is silent).
-    expect(harness.userEvents).toEqual([
-      { userId: host, event: { type: "worldInfoChanged", bookId: book.id } },
-    ]);
+    expect(harness.userEvents).toEqual([{ userId: host, event: { type: "worldInfoChanged", bookId: book.id } }]);
   });
 
   test("a NON-owned attached book is still detachable by the host (room authority, not book ownership)", async () => {
@@ -73,9 +69,7 @@ describe("detachFromChat", () => {
     const book = await svc.createBook({ principal: principal(host), input: { name: "B" } });
     await svc.attachToChat({ principal: principal(host), chatId, bookId: book.id });
     harness.wiEvents.length = 0;
-    await expect(
-      svc.detachFromChat({ principal: principal(host), chatId, bookId: book.id }),
-    ).rejects.toBe(refusal);
+    await expect(svc.detachFromChat({ principal: principal(host), chatId, bookId: book.id })).rejects.toBe(refusal);
     expect(await db.select().from(chatBooks)).toHaveLength(1);
     expect(harness.wiEvents).toEqual([]);
   });

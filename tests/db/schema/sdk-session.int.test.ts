@@ -124,11 +124,7 @@ test("the lineage appends entries per chat — distinct seqs coexist, ordered by
     seq: LINEAGE_NEXT_SEQ,
   });
 
-  const rows = await db
-    .select()
-    .from(sessionEntries)
-    .where(eq(sessionEntries.chatId, chatId))
-    .orderBy(sessionEntries.seq);
+  const rows = await db.select().from(sessionEntries).where(eq(sessionEntries.chatId, chatId)).orderBy(sessionEntries.seq);
   expect(rows.map((entry) => entry.seq)).toEqual([LINEAGE_HEAD_SEQ, LINEAGE_NEXT_SEQ]);
 });
 

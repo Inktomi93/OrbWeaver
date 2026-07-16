@@ -40,8 +40,7 @@ export const MARKER_COPY: Record<MarkerType, MarkerCopy> = {
   },
   ["post_history"]: {
     label: "Post-history instructions",
-    oneLiner:
-      "A reminder placed after the conversation — the character's card can replace it in place.",
+    oneLiner: "A reminder placed after the conversation — the character's card can replace it in place.",
     subtitle: "reminder after the conversation",
   },
   ["persona"]: {

@@ -39,8 +39,6 @@ describe("getTheme", () => {
       principal: principal(b, "user"),
       input: { name: "Theirs", override: {} },
     });
-    await expect(
-      h.svc.getTheme({ principal: principal(a, "user"), id: created.id }),
-    ).rejects.toThrow(ThemeNotFoundError);
+    await expect(h.svc.getTheme({ principal: principal(a, "user"), id: created.id })).rejects.toThrow(ThemeNotFoundError);
   });
 });

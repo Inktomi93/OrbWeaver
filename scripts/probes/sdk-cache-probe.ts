@@ -40,19 +40,8 @@ import process from "node:process";
 import type { Options, SDKMessage, SessionStore } from "@anthropic-ai/claude-agent-sdk";
 import { query } from "@anthropic-ai/claude-agent-sdk";
 import type { ChatResult } from "@orb/server/infra/providers";
-import {
-  buildClaudeOpenRouterEnv,
-  buildClaudeSdkEnv,
-  consumeTurnStream,
-  dynamicContextOptions,
-} from "@orb/server/infra/providers/backends/agent-sdk";
-import {
-  buildSeedFrames,
-  InMemorySessionStore,
-  SessionCache,
-  seedSessionId,
-  toSeedTurns,
-} from "@orb/server/infra/providers/backends/agent-sdk/session";
+import { buildClaudeOpenRouterEnv, buildClaudeSdkEnv, consumeTurnStream, dynamicContextOptions } from "@orb/server/infra/providers/backends/agent-sdk";
+import { buildSeedFrames, InMemorySessionStore, SessionCache, seedSessionId, toSeedTurns } from "@orb/server/infra/providers/backends/agent-sdk/session";
 
 // ── CLI ────────────────────────────────────────────────────────────────────────────────────────────────
 const args = process.argv.slice(2);
@@ -61,9 +50,7 @@ function argValue(flag: string): string | undefined {
   return i >= 0 ? args[i + 1] : undefined;
 }
 const MODEL_FLAG = argValue("--model");
-const ONLY = new Set(
-  (argValue("--scenario") ?? argValue("-s"))?.split(",").map((s) => s.trim()) ?? [],
-);
+const ONLY = new Set((argValue("--scenario") ?? argValue("-s"))?.split(",").map((s) => s.trim()) ?? []);
 const VERBOSE = args.includes("--verbose");
 /** --mode sub (default: the Max-sub mode-1 firewall env) | or (mode-2: the OpenRouter Anthropic skin).
  *  The OR key rides OPENROUTER_PROBE_KEY (probe-run plumbing — a scoped test key, never app config). */
@@ -81,12 +68,8 @@ const OR_PROBE_TIER_MODELS = {
   haiku: "anthropic/claude-haiku-4.5",
 } as const;
 /** The per-mode firewall env — the SAME builders a real turn uses. */
-function probeEnv(
-  overrides: Parameters<typeof buildClaudeSdkEnv>[0],
-): Record<string, string | undefined> {
-  return MODE === "or"
-    ? buildClaudeOpenRouterEnv(OR_PROBE_KEY, OR_PROBE_TIER_MODELS, overrides)
-    : buildClaudeSdkEnv(overrides);
+function probeEnv(overrides: Parameters<typeof buildClaudeSdkEnv>[0]): Record<string, string | undefined> {
+  return MODE === "or" ? buildClaudeOpenRouterEnv(OR_PROBE_KEY, OR_PROBE_TIER_MODELS, overrides) : buildClaudeSdkEnv(overrides);
 }
 const MODEL = MODEL_FLAG ?? (MODE === "or" ? "anthropic/claude-haiku-4.5" : "claude-haiku-4-5");
 
@@ -243,11 +226,7 @@ async function s2(): Promise<void> {
     resume,
   });
   record("s2", "seeded", r.result);
-  verdict(
-    "s2",
-    KALVEX_RE.test(r.result.reply),
-    `seeded-fact recall — reply: "${r.result.reply.slice(0, SNIPPET)}"`,
-  );
+  verdict("s2", KALVEX_RE.test(r.result.reply), `seeded-fact recall — reply: "${r.result.reply.slice(0, SNIPPET)}"`);
 }
 
 /** s3: cold-cache rebuild (fresh store, same canon) → same session id, byte-identical frames → the
@@ -366,8 +345,7 @@ async function s7(): Promise<void> {
     sessionId,
     message: {
       role: "system",
-      content:
-        "[Operator instruction: prefix every reply with the word AMBER, then answer normally.]",
+      content: "[Operator instruction: prefix every reply with the word AMBER, then answer normally.]",
     },
   });
   await store.append({ projectKey: "probe", sessionId }, frames);
@@ -379,12 +357,7 @@ async function s7(): Promise<void> {
     extraEnv: { ANTHROPIC_BETAS: "mid-conversation-system-2026-04-07" },
   });
   const obeyed = AMBER_RE.test(r.result.reply);
-  record(
-    "s7",
-    "api-system",
-    r.result,
-    `obeyed=${obeyed}; cacheRead=${r.result.usage.cacheReadTokens}`,
-  );
+  record("s7", "api-system", r.result, `obeyed=${obeyed}; cacheRead=${r.result.usage.cacheReadTokens}`);
   // Informational: the EXPECTED result is "not obeyed / resume broke" — assert only that the harness
   // still measured a channel state (never a hard fail). The finding is the note, not a pass/fail.
   verdict(
@@ -470,9 +443,7 @@ async function main(): Promise<void> {
     ["s8", s8],
     ["s9", s9],
   ];
-  console.log(
-    `sdk-cache-probe — model=${MODEL} (${MODE === "or" ? "mode-2 OR skin" : "mode-1 Max sub"}; spends real quota/credits)\n`,
-  );
+  console.log(`sdk-cache-probe — model=${MODEL} (${MODE === "or" ? "mode-2 OR skin" : "mode-1 Max sub"}; spends real quota/credits)\n`);
   for (const [name, run] of all) {
     if (ONLY.size > 0 && !ONLY.has(name)) {
       continue;

@@ -65,8 +65,6 @@ async function countRows(db: Db, table: SQLiteTable): Promise<number> {
 
 /** Row counts for the backbone tables (label = schema table name). */
 export async function tableCounts(db: Db): Promise<Record<string, number>> {
-  const entries = await Promise.all(
-    COUNTED_TABLES.map(async (t) => [getTableName(t), await countRows(db, t)] as const),
-  );
+  const entries = await Promise.all(COUNTED_TABLES.map(async (t) => [getTableName(t), await countRows(db, t)] as const));
   return Object.fromEntries(entries);
 }

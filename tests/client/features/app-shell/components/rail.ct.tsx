@@ -5,16 +5,10 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import { RailStory } from "../_ct-stories";
 
-test("renders every section + footer action as a named button; active = aria-current", async ({
-  mount,
-}) => {
+test("renders every section + footer action as a named button; active = aria-current", async ({ mount }) => {
   const rail = await mount(<RailStory />);
 
-  await Promise.all(
-    ["Chats", "Characters", "Corpus", "Refinery", "Analytics"].map((name) =>
-      expect(rail.getByRole("button", { name })).toBeVisible(),
-    ),
-  );
+  await Promise.all(["Chats", "Characters", "Corpus", "Refinery", "Analytics"].map((name) => expect(rail.getByRole("button", { name })).toBeVisible()));
   await expect(rail.getByRole("button", { name: "Switch theme" })).toBeVisible();
   await expect(rail.getByRole("button", { name: "Settings" })).toBeVisible();
   await expect(rail.getByRole("button", { name: "Account" })).toBeVisible();

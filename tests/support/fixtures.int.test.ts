@@ -16,18 +16,13 @@ describe("anonCaller — the unauthenticated request", () => {
     await expect(anonCaller.persona.list()).toThrowTRPCError("UNAUTHORIZED");
   });
 
-  test("the public health surface still answers (anon is a caller, not a brick)", async ({
-    anonCaller,
-  }) => {
+  test("the public health surface still answers (anon is a caller, not a brick)", async ({ anonCaller }) => {
     expect(await anonCaller.health()).toEqual({ ok: true });
   });
 });
 
 describe("cross-user isolation — NOT_FOUND, never FORBIDDEN", () => {
-  test("another user's persona is indistinguishable from a missing one", async ({
-    ownerCaller,
-    otherCaller,
-  }) => {
+  test("another user's persona is indistinguishable from a missing one", async ({ ownerCaller, otherCaller }) => {
     const created = await ownerCaller.persona.create({
       input: { name: "Secret", description: "the owner's private persona" },
     });
@@ -37,21 +32,14 @@ describe("cross-user isolation — NOT_FOUND, never FORBIDDEN", () => {
 
 describe("admin gating — FORBIDDEN for a plain user, open for admin/owner", () => {
   test("an admin-gated mutation by a non-admin rejects FORBIDDEN", async ({ otherCaller }) => {
-    await expect(
-      otherCaller.admin.createUser({ handle: "sneaky", password: "not-gonna-happen-1234" }),
-    ).toThrowTRPCError("FORBIDDEN");
+    await expect(otherCaller.admin.createUser({ handle: "sneaky", password: "not-gonna-happen-1234" })).toThrowTRPCError("FORBIDDEN");
   });
 
-  test("an admin-gated query by a non-admin rejects FORBIDDEN (gate, not oracle — admin surfaces are advertised)", async ({
-    otherCaller,
-  }) => {
+  test("an admin-gated query by a non-admin rejects FORBIDDEN (gate, not oracle — admin surfaces are advertised)", async ({ otherCaller }) => {
     await expect(otherCaller.admin.listUsers()).toThrowTRPCError("FORBIDDEN");
   });
 
-  test("adminCaller and ownerCaller both pass the owner∪admin gate (D17)", async ({
-    adminCaller,
-    ownerCaller,
-  }) => {
+  test("adminCaller and ownerCaller both pass the owner∪admin gate (D17)", async ({ adminCaller, ownerCaller }) => {
     const viaAdmin = await adminCaller.admin.listUsers();
     const viaOwner = await ownerCaller.admin.listUsers();
     // Both fixture users are seeded (each caller seeds its own row before acting).
@@ -61,9 +49,7 @@ describe("admin gating — FORBIDDEN for a plain user, open for admin/owner", ()
 });
 
 describe("the owner happy path", () => {
-  test("ownerCaller round-trips its own entity through the real ladder", async ({
-    ownerCaller,
-  }) => {
+  test("ownerCaller round-trips its own entity through the real ladder", async ({ ownerCaller }) => {
     const created = await ownerCaller.persona.create({
       input: { name: "Nyx", description: "d" },
     });

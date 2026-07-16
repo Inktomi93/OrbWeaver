@@ -14,15 +14,8 @@ import { Toaster, ToastProvider } from "@orb/ui/toast";
 import type { ReactElement } from "react";
 import { useEffect } from "react";
 import { PresetSectionInspector } from "../../../../../packages/client/src/features/preset/components/preset-section-inspector";
-import {
-  clearAssemblyForm,
-  publishAssemblyForm,
-} from "../../../../../packages/client/src/features/preset/lib/preset-editor-bridge";
-import {
-  clearPresetSection,
-  selectPreset,
-  selectPresetSection,
-} from "../../../../../packages/client/src/state";
+import { clearAssemblyForm, publishAssemblyForm } from "../../../../../packages/client/src/features/preset/lib/preset-editor-bridge";
+import { clearPresetSection, selectPreset, selectPresetSection } from "../../../../../packages/client/src/state";
 
 const STORY_PRESET = castId<PresetId>("preset_delundostoryy");
 

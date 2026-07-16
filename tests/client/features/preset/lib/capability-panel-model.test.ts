@@ -66,26 +66,20 @@ test("reasoning mode 'none' → no reasoning control at all", () => {
 });
 
 test("reasoning mode 'effort' → the model's ACTUAL effortLevels only (never the full enum)", () => {
-  const control = reasoningControlFor(
-    capability({ reasoning: { mode: "effort", enabled: true, effortLevels: ["low", "high"] } }),
-  );
+  const control = reasoningControlFor(capability({ reasoning: { mode: "effort", enabled: true, effortLevels: ["low", "high"] } }));
   expect(control.kind).toBe("effort");
   expect(control.reasons).toBe(true);
   expect(control.effortLevels).toEqual(["low", "high"]);
 });
 
 test("reasoning mode 'budget' → the budgetRange slider bounds", () => {
-  const control = reasoningControlFor(
-    capability({ reasoning: { mode: "budget", enabled: true, budgetRange: R(1024, 32_000) } }),
-  );
+  const control = reasoningControlFor(capability({ reasoning: { mode: "budget", enabled: true, budgetRange: R(1024, 32_000) } }));
   expect(control.kind).toBe("budget");
   expect(control.budgetRange).toEqual(R(1024, 32_000));
 });
 
 test("reasoning mode 'adaptive' → the adaptive note (no manual dial)", () => {
-  const control = reasoningControlFor(
-    capability({ reasoning: { mode: "adaptive", enabled: true } }),
-  );
+  const control = reasoningControlFor(capability({ reasoning: { mode: "adaptive", enabled: true } }));
   expect(control.kind).toBe("adaptive");
   expect(control.reasons).toBe(true);
   expect(control.effortLevels).toBeUndefined();

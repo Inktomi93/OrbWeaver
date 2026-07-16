@@ -8,10 +8,7 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import { NotifyToastStory } from "./_ct-stories";
 
-test("a failed mutation with errorToast meta renders a toast (the notify render half)", async ({
-  mount,
-  page,
-}) => {
+test("a failed mutation with errorToast meta renders a toast (the notify render half)", async ({ mount, page }) => {
   await mount(<NotifyToastStory />);
 
   // Nothing surfaced yet.

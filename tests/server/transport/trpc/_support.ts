@@ -7,12 +7,7 @@
 import type { Principal, UserRole } from "@orb/contracts/identity";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type {
-  Context,
-  PresenceRegistry,
-  RateLimitGate,
-  Services,
-} from "@orb/server/transport/trpc";
+import type { Context, PresenceRegistry, RateLimitGate, Services } from "@orb/server/transport/trpc";
 import { createCaller } from "@orb/server/transport/trpc";
 
 /** A minimal Principal carrying the given role; `via` defaults to header (no CSRF surface). */

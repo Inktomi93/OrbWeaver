@@ -46,10 +46,7 @@ const backAtIdx0Of2: MessageView = makeMessageView({
   selectedVariantId: VARIANT_0,
 });
 
-test("renders the n/m counter and fires swipe (generate) on the next chevron at the tip", async ({
-  mount,
-  page,
-}) => {
+test("renders the n/m counter and fires swipe (generate) on the next chevron at the tip", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "chat.swipe": () => ({ ok: true }),
     "chat.listMessageVariants": () => TWO_VARIANT_LIST,
@@ -64,9 +61,7 @@ test("renders the n/m counter and fires swipe (generate) on the next chevron at 
   expect(trpc.count("chat.selectVariant")).toBe(0);
 });
 
-test("the left chevron is disabled when idx 0 has no earlier sibling (gate stays off, variantCount === 1)", async ({
-  mount,
-}) => {
+test("the left chevron is disabled when idx 0 has no earlier sibling (gate stays off, variantCount === 1)", async ({ mount }) => {
   // No routeTrpc call at all — `variantCount === 1` means `useVariantHistory`'s gate never fires the
   // query (§13.1 useGatedQuery/skipToken), so an unhandled network request would prove a leak if this
   // gate ever loosened.
@@ -74,10 +69,7 @@ test("the left chevron is disabled when idx 0 has no earlier sibling (gate stays
   await expect(component.getByRole("button", { name: "Previous variant" })).toBeDisabled();
 });
 
-test("COLD LOAD step-BACK: the left chevron reaches an earlier variant this mount has never rendered", async ({
-  mount,
-  page,
-}) => {
+test("COLD LOAD step-BACK: the left chevron reaches an earlier variant this mount has never rendered", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "chat.selectVariant": () => ({ ok: true }),
     "chat.listMessageVariants": () => TWO_VARIANT_LIST,
@@ -101,10 +93,7 @@ test("COLD LOAD step-BACK: the left chevron reaches an earlier variant this moun
   expect(trpc.count("chat.swipe")).toBe(0);
 });
 
-test("COLD LOAD step-FORWARD: the right chevron selects an already-generated sibling this mount has never rendered", async ({
-  mount,
-  page,
-}) => {
+test("COLD LOAD step-FORWARD: the right chevron selects an already-generated sibling this mount has never rendered", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "chat.selectVariant": () => ({ ok: true }),
     "chat.swipe": () => ({ ok: true }),
@@ -138,10 +127,7 @@ test("ArrowRight/ArrowLeft drive the same navigation as the chevrons", async ({ 
   await expect.poll(() => trpc.count("chat.swipe"), { intervals: [20, 50, 100] }).toBe(1);
 });
 
-test("ArrowLeft/ArrowRight are ignored while an editable control has focus (don't fight typing)", async ({
-  mount,
-  page,
-}) => {
+test("ArrowLeft/ArrowRight are ignored while an editable control has focus (don't fight typing)", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "chat.swipe": () => ({ ok: true }),
     "chat.listMessageVariants": () => TWO_VARIANT_LIST,

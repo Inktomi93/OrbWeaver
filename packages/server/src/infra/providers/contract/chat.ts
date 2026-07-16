@@ -37,7 +37,7 @@ export type ToolChoice =
 
 /** One assembled model-emitted call off the stream. `arguments` is the raw JSON string, parsed exactly once inside execute. */
 export interface ToolCallInput {
-  // biome-ignore lint/plugin/no-raw-id: PROVIDER-emitted opaque handle (OpenAI `call_…`) — provenance-faithful, joins the call to its result on the wire; never an orbweaver brand.
+  // @orb-gate-ignore no-raw-id PROVIDER-emitted opaque handle (OpenAI `call_…`) — provenance-faithful, joins the call to its result on the wire; never an orbweaver brand.
   readonly toolCallId: string;
   readonly name: string;
   readonly arguments: string;
@@ -165,9 +165,7 @@ const FINISH_REASON_MAP: Readonly<Record<string, NormalizedFinishReason>> = {
 };
 
 /** Map any backend's raw stop/finish/status string to the normalized vocab; unrecognized non-null → "other". */
-export function normalizeFinishReason(
-  raw: string | null | undefined,
-): NormalizedFinishReason | null {
+export function normalizeFinishReason(raw: string | null | undefined): NormalizedFinishReason | null {
   if (raw === null || raw === undefined || raw === "") {
     return null;
   }

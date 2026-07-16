@@ -63,12 +63,7 @@ export function FolderPicker({
 
   return (
     <>
-      <Button
-        intent={intent}
-        loading={loading}
-        disabled={inert}
-        onClick={(): void => inputRef.current?.click()}
-      >
+      <Button intent={intent} loading={loading} disabled={inert} onClick={(): void => inputRef.current?.click()}>
         {children}
       </Button>
       <input hidden={true} multiple={true} onChange={handleChange} ref={inputRef} type="file" />

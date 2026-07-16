@@ -12,9 +12,7 @@ describe("global settings (raw KV)", () => {
   test("setGlobalSetting refuses the reserved 'app' key", async () => {
     const db = await freshDb();
     const h = makeHarness(db);
-    await expect(h.svc.setGlobalSetting("app", { x: 1 })).rejects.toBeInstanceOf(
-      DomainOperationError,
-    );
+    await expect(h.svc.setGlobalSetting("app", { x: 1 })).rejects.toBeInstanceOf(DomainOperationError);
     await expect(h.svc.setGlobalSetting("app", { x: 1 })).rejects.toMatchObject({
       code: "reserved_key",
     });

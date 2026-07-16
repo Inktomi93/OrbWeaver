@@ -57,10 +57,7 @@ test("backdrop renders with the scrim token color", async ({ mount, page }) => {
 // asserts the CONTRACT, not just trusts it: Tab never escapes the popup to the outside siblings, and
 // closing returns focus to the trigger that opened it (menu/select already model this Tab-containment
 // shape; dialog/alert-dialog/drawer previously leaned on "Base UI is free" with no assertion).
-test("focus is trapped inside the popup and returns to the trigger on close", async ({
-  mount,
-  page,
-}) => {
+test("focus is trapped inside the popup and returns to the trigger on close", async ({ mount, page }) => {
   await mount(
     <>
       <button type="button">Outside before</button>
@@ -105,10 +102,7 @@ test("focus is trapped inside the popup and returns to the trigger on close", as
 // createHandle: open the alert dialog imperatively (no trigger) with a payload via
 // handle.openWithPayload; the payload reaches the Root render-function children (harness in
 // ./alert-dialog-handle.fixtures).
-test("opens imperatively via a handle and routes the payload to content", async ({
-  mount,
-  page,
-}) => {
+test("opens imperatively via a handle and routes the payload to content", async ({ mount, page }) => {
   await mount(<AlertDialogHandleHarness />);
 
   await expect(page.getByRole("alertdialog")).toBeHidden();

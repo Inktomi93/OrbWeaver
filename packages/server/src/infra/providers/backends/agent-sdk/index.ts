@@ -80,9 +80,7 @@ export function createAgentSdkBackend(deps: AgentSdkBackendDeps): ProviderBacken
     now: deps.now,
     query: deps.query ?? query,
     sessionStore: sessions.store,
-    refreshHostSubToken:
-      deps.refreshHostSubToken ??
-      ((): Promise<boolean> => ensureFreshHostSubToken({ now: deps.now })),
+    refreshHostSubToken: deps.refreshHostSubToken ?? ((): Promise<boolean> => ensureFreshHostSubToken({ now: deps.now })),
   };
   return {
     key: "agent-sdk",
@@ -107,8 +105,7 @@ export function createAgentSdkBackend(deps: AgentSdkBackendDeps): ProviderBacken
     verifyAuth: (req: VerifyAuthRequest): Promise<VerifyAuthResult> => verifyAuth(req, resolved),
     // The `supportedModels()` discovery (connection.refreshAgentSdkCatalog) — a held-open streaming query
     // through the SAME mode-1 firewall; a control-channel call, not a billed turn (see catalog.ts).
-    fetchModels: (_req: FetchAgentSdkModelsRequest): Promise<AgentSdkModel[]> =>
-      fetchAgentSdkModels(resolved),
+    fetchModels: (_req: FetchAgentSdkModelsRequest): Promise<AgentSdkModel[]> => fetchAgentSdkModels(resolved),
   };
 }
 
@@ -136,11 +133,7 @@ export interface AgentToolSpec {
  * Build an opaque {@link AgentToolServer} from domain-supplied tool specs — the seam that lets a domain
  * obtain a tool server WITHOUT importing the SDK. The result is handed to `runAgentTurn`'s `mcpServer`.
  */
-export function createAgentToolServer(opts: {
-  readonly name?: string;
-  readonly version?: string;
-  readonly tools: readonly AgentToolSpec[];
-}): AgentToolServer {
+export function createAgentToolServer(opts: { readonly name?: string; readonly version?: string; readonly tools: readonly AgentToolSpec[] }): AgentToolServer {
   const sdkTools = opts.tools.map((spec) =>
     tool(spec.name, spec.description, spec.inputSchema, async (args: Record<string, unknown>) => {
       const result = await spec.handler(args);

@@ -23,23 +23,9 @@ import { getLog } from "#foundation/observability";
 import type { ChatContext } from "../context";
 import type { DebitBudgetOp, ResolveTurnPolicyOp } from "../contract/context";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors";
-import type {
-  MemoryConfig,
-  MemoryPassCounts,
-  MemoryScope,
-  WitnessInterval,
-} from "../contract/memory";
+import type { MemoryConfig, MemoryPassCounts, MemoryScope, WitnessInterval } from "../contract/memory";
 import { TOOL_RECURSE_LIMIT_DEFAULT } from "../contract/metadata";
-import type {
-  HistoryMacroNames,
-  TurnEconomics,
-  TurnEngine,
-  TurnIntent,
-  TurnKind,
-  TurnOutcome,
-  TurnPersist,
-  TurnPrep,
-} from "../contract/results";
+import type { HistoryMacroNames, TurnEconomics, TurnEngine, TurnIntent, TurnKind, TurnOutcome, TurnPersist, TurnPrep } from "../contract/results";
 import {
   appendVariantStatements,
   buildCommittedMessageView,
@@ -49,14 +35,7 @@ import {
 } from "../persistence/canon-write";
 import { releaseLock, tryAcquireLock } from "../persistence/lock";
 import { loadChatMacroNameProducer } from "../persistence/macro-names";
-import {
-  loadCanonHistory,
-  loadCanonStatRows,
-  loadMaxMessageSeq,
-  loadMessageView,
-  loadSlotTarget,
-  loadVariableDeltas,
-} from "../persistence/queries";
+import { loadCanonHistory, loadCanonStatRows, loadMaxMessageSeq, loadMessageView, loadSlotTarget, loadVariableDeltas } from "../persistence/queries";
 import { loadRoster } from "../persistence/roster";
 import { resolveGroupBucketCharacterId } from "../substrate/group-bucket";
 import { foldChain, runtimeVariablesUpdateStatement } from "../substrate/runtime-variables";
@@ -363,11 +342,7 @@ async function buildTurnStatsDeltas(args: {
 }
 
 /** Loads the target slot's pre-mutation selected-variant stat row. */
-async function loadOldStatRow(
-  ctx: ChatContext,
-  prep: TurnPrep,
-  target: SlotTarget,
-): Promise<CanonStatRow | undefined> {
+async function loadOldStatRow(ctx: ChatContext, prep: TurnPrep, target: SlotTarget): Promise<CanonStatRow | undefined> {
   const rows = await loadCanonStatRows(ctx.db, prep.chatId, [target.messageId]);
   return rows.at(0);
 }
@@ -500,9 +475,7 @@ async function commitGeneration(args: {
     const postEntries =
       persist.mode === "new-slot" || target === null
         ? [...currentDeltas, { seq, delta: turnDelta }]
-        : currentDeltas.map((e) =>
-            e.messageId === target.messageId ? { seq: e.seq, delta: turnDelta } : e,
-          );
+        : currentDeltas.map((e) => (e.messageId === target.messageId ? { seq: e.seq, delta: turnDelta } : e));
     statements.push(runtimeVariablesUpdateStatement(ctx.db, prep.chatId, foldChain(postEntries)));
 
     await ctx.db.batch(batchMany(statements));
@@ -524,17 +497,11 @@ async function commitGeneration(args: {
 
 /** Scopes the loaded canon to the turn's context window: new-slot sees the full canon; append-variant
  *  regenerates from before the target slot; continue sees up to and including it. */
-function scopeCanon(
-  canon: readonly MessageView[],
-  persist: TurnPersist,
-  target: SlotTarget | null,
-): readonly MessageView[] {
+function scopeCanon(canon: readonly MessageView[], persist: TurnPersist, target: SlotTarget | null): readonly MessageView[] {
   if (persist.mode === "new-slot" || target === null) {
     return canon;
   }
-  return persist.mode === "append-variant"
-    ? canon.filter((m) => m.seq < target.seq)
-    : canon.filter((m) => m.seq <= target.seq);
+  return persist.mode === "append-variant" ? canon.filter((m) => m.seq < target.seq) : canon.filter((m) => m.seq <= target.seq);
 }
 
 /** Which abort reason a thrown error maps to (a caller-cancel AbortError → user; else error). */
@@ -545,11 +512,7 @@ function abortReasonFor(err: unknown): TurnAbortReason {
 /** The turn body, parametrized by persist mode + lock-freedom: security belts → resolve persist target →
  *  turnStarted → assemble/generate → persist → turnCompleted. On a post-start error: emit turnAborted then
  *  rethrow. Pre-start refusals throw a coded error and emit nothing. */
-async function executeTurn(
-  ctx: ChatContext,
-  deps: EngineDeps,
-  prep: TurnPrep,
-): Promise<TurnOutcome> {
+async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): Promise<TurnOutcome> {
   // Security belts before any turnStarted: consent + budget debit attributed to triggeredBy.
   const policy = await deps.resolveTurnPolicy(prep.runAsUserId);
   const identity = { triggeredBy: prep.triggeredBy, runAsUserId: prep.runAsUserId };
@@ -569,10 +532,7 @@ async function executeTurn(
   // Absent persist mode = a new assistant slot. append-variant/continue load the write target before
   // turnStarted — a missing target is a pre-start refusal (leak-free NOT_FOUND, emits nothing).
   const persist: TurnPersist = prep.persist ?? { mode: "new-slot", role: "assistant" };
-  const target =
-    persist.mode === "new-slot"
-      ? null
-      : ((await loadSlotTarget(ctx.db, prep.chatId, persist.targetMessageId)) ?? null);
+  const target = persist.mode === "new-slot" ? null : ((await loadSlotTarget(ctx.db, prep.chatId, persist.targetMessageId)) ?? null);
   if (persist.mode !== "new-slot" && target === null) {
     throw new ChatNotFoundError(prep.chatId);
   }
@@ -590,10 +550,7 @@ async function executeTurn(
   });
 
   try {
-    const [canonAll, maxSeq] = await Promise.all([
-      loadCanonHistory(ctx.db, prep.chatId),
-      loadMaxMessageSeq(ctx.db, prep.chatId),
-    ]);
+    const [canonAll, maxSeq] = await Promise.all([loadCanonHistory(ctx.db, prep.chatId), loadMaxMessageSeq(ctx.db, prep.chatId)]);
     // Builds the per-chat macro name producer from the full loaded canon's distinct characterId/personaId
     // stamps, engine-side (the ids aren't knowable in turn prep).
     const macroProducer = await loadChatMacroNameProducer(ctx.db, { messages: canonAll });
@@ -606,8 +563,7 @@ async function executeTurn(
     const result = await runTurnPipeline({
       runChatTurn: ctx.runChatTurn,
       applyRegexReplace: ctx.applyRegexReplace,
-      resolveImageUrl: (ref) =>
-        ctx.resolveImageUrl({ ownerId: prep.runAsUserId, chatId: prep.chatId, ref }),
+      resolveImageUrl: (ref) => ctx.resolveImageUrl({ ownerId: prep.runAsUserId, chatId: prep.chatId, ref }),
       assembleContext: prep.assembleContext,
       canon: scopeCanon(canonAll, persist, target),
       historyMacroNames,
@@ -685,9 +641,7 @@ async function executeTurn(
             macroNames,
           });
           const roster = await loadRoster(ctx.db, prep.chatId);
-          const chars = roster.flatMap((r) =>
-            r.kind === "character" && r.characterId !== null ? [r.characterId] : [],
-          );
+          const chars = roster.flatMap((r) => (r.kind === "character" && r.characterId !== null ? [r.characterId] : []));
 
           // Group-as-character scope (only for groups): the single synthetic bucket, keyed by the real
           // minted synthetic-character row id, never the fabricated `__group__` handle string.
@@ -756,10 +710,7 @@ export function createTurnEngine(ctx: ChatContext, deps: EngineDeps): TurnEngine
       expiresAt: now + deps.lockTtlMs,
     });
     if (!acquired) {
-      throw new ChatOperationError(
-        CHAT_OP_CODES.locked,
-        "a turn is already in flight for this chat",
-      );
+      throw new ChatOperationError(CHAT_OP_CODES.locked, "a turn is already in flight for this chat");
     }
     try {
       return await executeTurn(ctx, deps, prep);

@@ -51,9 +51,7 @@ describe("createUser", () => {
   test("a short password is rejected (weak_password)", async () => {
     const db = await freshDb();
     const { svc, admin } = await seedAdminCaller(db);
-    await expect(
-      svc.createUser({ principal: principal(admin, "admin"), handle: "x", password: "short" }),
-    ).rejects.toMatchObject({ code: "weak_password" });
+    await expect(svc.createUser({ principal: principal(admin, "admin"), handle: "x", password: "short" })).rejects.toMatchObject({ code: "weak_password" });
   });
 
   test("even the OWNER cannot mint a second owner (cannot_grant_owner — the single-owner invariant)", async () => {
@@ -143,8 +141,6 @@ describe("createUser", () => {
     const db = await freshDb();
     const svc = createAdminService(makeHarness(db).ctx);
     const u = await seedUser(db, { id: "user_u", role: "user", handle: "u" });
-    await expect(
-      svc.createUser({ principal: principal(u, "user"), handle: "x", password: GOOD_PASSWORD }),
-    ).rejects.toThrow(DomainForbiddenError);
+    await expect(svc.createUser({ principal: principal(u, "user"), handle: "x", password: GOOD_PASSWORD })).rejects.toThrow(DomainForbiddenError);
   });
 });

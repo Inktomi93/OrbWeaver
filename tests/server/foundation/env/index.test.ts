@@ -9,9 +9,7 @@ import { expect, test } from "../../../support/fixtures";
 // against the crafted input. resetModules invalidates the cache; we wipe process.env first to strip the
 // runner pins; we stub `dotenv`'s `config` so a developer's local `.env` (real OIDC_ISSUER etc.) can't
 // bleed in and mask the refinement under test. VITEST stays set so env's override path is the no-op.
-async function reimportEnvWith(
-  overrides: Record<string, string | undefined>,
-): Promise<typeof import("@orb/server/foundation/env")> {
+async function reimportEnvWith(overrides: Record<string, string | undefined>): Promise<typeof import("@orb/server/foundation/env")> {
   for (const k of Object.keys(process.env)) {
     delete process.env[k];
   }
@@ -122,15 +120,15 @@ describe("foundation/env — the AUTH_MODE superRefine boot-fatality", () => {
   });
 
   test("AUTH_MODE=local WITHOUT LOCAL_INITIAL_PASSWORD → boot FAILS", async () => {
-    await expect(
-      reimportEnvWith({ AUTH_MODE: "local", SESSION_SECRET: VALID_SESSION_SECRET }),
-    ).rejects.toThrow("LOCAL_INITIAL_PASSWORD is required when AUTH_MODE=local");
+    await expect(reimportEnvWith({ AUTH_MODE: "local", SESSION_SECRET: VALID_SESSION_SECRET })).rejects.toThrow(
+      "LOCAL_INITIAL_PASSWORD is required when AUTH_MODE=local",
+    );
   });
 
   test("AUTH_MODE=local WITHOUT SESSION_SECRET → boot FAILS", async () => {
-    await expect(
-      reimportEnvWith({ AUTH_MODE: "local", LOCAL_INITIAL_PASSWORD: "abcdefgh" }),
-    ).rejects.toThrow("SESSION_SECRET is required when AUTH_MODE=local");
+    await expect(reimportEnvWith({ AUTH_MODE: "local", LOCAL_INITIAL_PASSWORD: "abcdefgh" })).rejects.toThrow(
+      "SESSION_SECRET is required when AUTH_MODE=local",
+    );
   });
 
   test("invalid AUTH_MODE enum → the Zod error names the AUTH_MODE field", async () => {
@@ -138,9 +136,7 @@ describe("foundation/env — the AUTH_MODE superRefine boot-fatality", () => {
   });
 
   test("a multi-handle OWNER_HANDLES is boot-fatal (D17: exactly one owner)", async () => {
-    await expect(reimportEnvWith({ OWNER_HANDLES: "alice,bob" })).rejects.toThrow(
-      "OWNER_HANDLES must name EXACTLY ONE owner",
-    );
+    await expect(reimportEnvWith({ OWNER_HANDLES: "alice,bob" })).rejects.toThrow("OWNER_HANDLES must name EXACTLY ONE owner");
   });
 
   test("a whitespace/empty-padded single handle still boots (only real duplicates fail)", async () => {

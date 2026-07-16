@@ -2,15 +2,7 @@
 // `ASSET_REFS` or `DERIVED_ASSET_COLUMNS` (domain/assets/persistence/asset-refs.ts), the one
 // enumeration seam both asset GC and portability blob-bundling walk. Unregistered = invisible to
 // both (GC can reap a live blob as orphaned; export/import won't bundle it). STRICT, no allowlist.
-import type {
-  ArrayLiteralExpression,
-  CallExpression,
-  Expression,
-  Identifier,
-  ObjectLiteralExpression,
-  PropertyAssignment,
-  SourceFile,
-} from "ts-morph";
+import type { ArrayLiteralExpression, CallExpression, Expression, Identifier, ObjectLiteralExpression, PropertyAssignment, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
 import type { CheckContext } from "../harness.ts";
@@ -39,7 +31,7 @@ const MESSAGE = (tableSql: string, columnSql: string): string =>
 
 function isAssetsTableIdentifier(id: Identifier): boolean {
   const decl = id.getSymbol()?.getDeclarations()[0];
-  if (decl !== undefined && decl.isKind(SyntaxKind.ImportSpecifier)) {
+  if (decl?.isKind(SyntaxKind.ImportSpecifier)) {
     const importedName = decl.getName();
     const moduleSpecifier = decl.getImportDeclaration().getModuleSpecifierValue();
     return importedName === "assets" && ASSETS_MODULE_RE.test(moduleSpecifier);
@@ -60,11 +52,7 @@ function referencesAssetsId(prop: PropertyAssignment): boolean {
   }
   for (const call of callChain(init)) {
     const callee = call.getExpression();
-    if (
-      !(
-        callee.isKind(SyntaxKind.PropertyAccessExpression) && callee.getName() === REFERENCES_METHOD
-      )
-    ) {
+    if (!(callee.isKind(SyntaxKind.PropertyAccessExpression) && callee.getName() === REFERENCES_METHOD)) {
       continue;
     }
     const [arrowArg] = call.getArguments();
@@ -88,7 +76,7 @@ function findColumnSqlName(init: Expression): string {
     const callee = call.getExpression();
     if (callee.isKind(SyntaxKind.Identifier) && BUILDER_FNS.has(callee.getText())) {
       const [arg0] = call.getArguments();
-      if (arg0 !== undefined && arg0.isKind(SyntaxKind.StringLiteral)) {
+      if (arg0?.isKind(SyntaxKind.StringLiteral)) {
         return arg0.getLiteralText();
       }
     }
@@ -96,11 +84,7 @@ function findColumnSqlName(init: Expression): string {
   return "";
 }
 
-function fkColumnsOfTable(
-  tableJs: string,
-  tableSql: string,
-  colsArg: ObjectLiteralExpression,
-): FkColumn[] {
+function fkColumnsOfTable(tableJs: string, tableSql: string, colsArg: ObjectLiteralExpression): FkColumn[] {
   const out: FkColumn[] = [];
   for (const prop of colsArg.getProperties()) {
     if (!(prop.isKind(SyntaxKind.PropertyAssignment) && referencesAssetsId(prop))) {
@@ -140,9 +124,7 @@ function fkColumnsToAssets(sf: SourceFile): FkColumn[] {
   return out;
 }
 
-function tableAndColumnProps(
-  el: Expression,
-): { tableProp: PropertyAssignment; columnProp: PropertyAssignment } | undefined {
+function tableAndColumnProps(el: Expression): { tableProp: PropertyAssignment; columnProp: PropertyAssignment } | undefined {
   if (!el.isKind(SyntaxKind.ObjectLiteralExpression)) {
     return;
   }
@@ -262,10 +244,8 @@ export const gate: GateDescriptor = {
       files: {
         "packages/db/src/schema/x.ts":
           'import { assets } from "./assets";\nexport const t = sqliteTable("thing", {\n  assetId: text("asset_id").references(() => assets.id),\n});\n',
-        "packages/db/src/schema/assets.ts":
-          'export const assets = sqliteTable("assets", { id: text("id").primaryKey() });\n',
-        "packages/server/src/domain/assets/persistence/asset-refs.ts":
-          "export const ASSET_REFS = [];\nexport const DERIVED_ASSET_COLUMNS = [];\n",
+        "packages/db/src/schema/assets.ts": 'export const assets = sqliteTable("assets", { id: text("id").primaryKey() });\n',
+        "packages/server/src/domain/assets/persistence/asset-refs.ts": "export const ASSET_REFS = [];\nexport const DERIVED_ASSET_COLUMNS = [];\n",
       },
       expect: { messageIncludes: "registered in NEITHER" },
       why: "a schema FK→assets.id column absent from both registry arrays — GC/portability would miss it",
@@ -276,8 +256,7 @@ export const gate: GateDescriptor = {
       files: {
         "packages/db/src/schema/x.ts":
           'import { assets } from "./assets";\nexport const t = sqliteTable("thing", {\n  assetId: text("asset_id").references(() => assets.id),\n});\n',
-        "packages/db/src/schema/assets.ts":
-          'export const assets = sqliteTable("assets", { id: text("id").primaryKey() });\n',
+        "packages/db/src/schema/assets.ts": 'export const assets = sqliteTable("assets", { id: text("id").primaryKey() });\n',
         "packages/server/src/domain/assets/persistence/asset-refs.ts":
           "export const ASSET_REFS = [{ table: t, column: t.assetId }];\nexport const DERIVED_ASSET_COLUMNS: string[] = [];\n",
       },
@@ -287,8 +266,7 @@ export const gate: GateDescriptor = {
       files: {
         "packages/db/src/schema/x.ts":
           'import { assets } from "./assets";\nexport const t = sqliteTable("thing", {\n  assetId: text("asset_id").references(() => assets.id),\n});\n',
-        "packages/db/src/schema/assets.ts":
-          'export const assets = sqliteTable("assets", { id: text("id").primaryKey() });\n',
+        "packages/db/src/schema/assets.ts": 'export const assets = sqliteTable("assets", { id: text("id").primaryKey() });\n',
         "packages/server/src/domain/assets/persistence/asset-refs.ts":
           'export const ASSET_REFS = [];\nexport const DERIVED_ASSET_COLUMNS = ["thing.asset_id"];\n',
       },
@@ -298,18 +276,15 @@ export const gate: GateDescriptor = {
       files: {
         "packages/db/src/schema/x.ts":
           'import { assets } from "./assets";\nexport const t = sqliteTable("thing", {\n  assetId: text("asset_id").references(() => assets.id),\n});\n',
-        "packages/db/src/schema/assets.ts":
-          'export const assets = sqliteTable("assets", { id: text("id").primaryKey() });\n',
+        "packages/db/src/schema/assets.ts": 'export const assets = sqliteTable("assets", { id: text("id").primaryKey() });\n',
       },
       why: "vacuous: the asset-refs registry file isn't in the project — nothing to reconcile against, passes",
     },
     {
       // a schema column with no FK to assets.id is not an asset ref — ignored.
       files: {
-        "packages/db/src/schema/x.ts":
-          'export const t = sqliteTable("thing", { id: text("id").primaryKey() });\n',
-        "packages/server/src/domain/assets/persistence/asset-refs.ts":
-          "export const ASSET_REFS = [];\nexport const DERIVED_ASSET_COLUMNS: string[] = [];\n",
+        "packages/db/src/schema/x.ts": 'export const t = sqliteTable("thing", { id: text("id").primaryKey() });\n',
+        "packages/server/src/domain/assets/persistence/asset-refs.ts": "export const ASSET_REFS = [];\nexport const DERIVED_ASSET_COLUMNS: string[] = [];\n",
       },
       why: "a schema column with no FK to assets.id is not an asset ref — ignored, passes",
     },

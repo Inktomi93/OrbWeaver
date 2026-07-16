@@ -29,21 +29,13 @@ const WORKLOAD_FAILED = "WORKLOAD_FAILED";
  * runtime row. Indexing `RUNNERS` by the row's union-typed `kind` yields a union of runners TS can't call,
  * and the per-kind params correlation is lost across the union; both casts are contained HERE (do not spread).
  */
-function dispatchAndRun(
-  ctx: WorkloadRunnerContext,
-  row: WorkloadRowAnyKind,
-  report: ReportProgress,
-  signal: AbortSignal,
-): Promise<unknown> {
+function dispatchAndRun(ctx: WorkloadRunnerContext, row: WorkloadRowAnyKind, report: ReportProgress, signal: AbortSignal): Promise<unknown> {
   const runner = RUNNERS[row.kind] as Runner<WorkloadKind>;
   return runner(ctx, row.params as ParamsByKind[WorkloadKind], report, signal);
 }
 
 /** Build the per-dispatch runner context — roleClients PRE-BOUND for the row's acting user (or the synthetic system id). */
-async function buildRunnerContext(
-  deps: WorkloadRunnerDeps,
-  row: WorkloadRowAnyKind,
-): Promise<WorkloadRunnerContext> {
+async function buildRunnerContext(deps: WorkloadRunnerDeps, row: WorkloadRowAnyKind): Promise<WorkloadRunnerContext> {
   const userId: UserId = row.ownerId ?? SYSTEM_OWNER_ID;
   return {
     userId,
@@ -57,11 +49,7 @@ async function buildRunnerContext(
 
 /** Start the single-replica lease timers (heartbeat + DB cancel-poll); `<= 0` cadence DISABLES a timer (the
  *  deterministic test seam). Returns the handles for the `finally` cleanup. */
-function startLeaseTimers(
-  deps: WorkloadRunnerDeps,
-  row: WorkloadRowAnyKind,
-  controller: AbortController,
-): ReturnType<typeof setInterval>[] {
+function startLeaseTimers(deps: WorkloadRunnerDeps, row: WorkloadRowAnyKind, controller: AbortController): ReturnType<typeof setInterval>[] {
   const timers: ReturnType<typeof setInterval>[] = [];
   const heartbeatMs = deps.heartbeatMs ?? DEFAULT_HEARTBEAT_MS;
   const cancelPollMs = deps.cancelPollMs ?? DEFAULT_CANCEL_POLL_MS;
@@ -89,11 +77,7 @@ function startLeaseTimers(
 
 /** Pin a (running|cancelling) row to `cancelled` + emit. Returns whether it actually moved (false ⇒ already
  *  terminal — a zombie; the caller writes nothing more). */
-async function finishCancelled(
-  deps: WorkloadRunnerDeps,
-  row: WorkloadRowAnyKind,
-  at: number,
-): Promise<boolean> {
+async function finishCancelled(deps: WorkloadRunnerDeps, row: WorkloadRowAnyKind, at: number): Promise<boolean> {
   const moved = await markTerminal(deps.db, { id: row.id, status: "cancelled", now: at });
   if (moved) {
     emitWorkloadEvent({ type: "cancelled", workloadId: row.id, kind: row.kind, at });
@@ -103,11 +87,7 @@ async function finishCancelled(
 
 /** Stamp the SUCCESS outcome: cancelled if aborted mid-run (the pin); else succeeded; else cancelling-pin;
  *  else a zombie (row already reaped) → nothing. */
-async function finalizeSuccess(
-  deps: WorkloadRunnerDeps,
-  row: WorkloadRowAnyKind,
-  args: { aborted: boolean; result: unknown },
-): Promise<void> {
+async function finalizeSuccess(deps: WorkloadRunnerDeps, row: WorkloadRowAnyKind, args: { aborted: boolean; result: unknown }): Promise<void> {
   if (args.aborted) {
     await finishCancelled(deps, row, deps.now());
     return;
@@ -130,19 +110,12 @@ async function finalizeSuccess(
   }
   // succeeded didn't move (row not `running`): pin cancelling→cancelled, or it was already reaped (zombie).
   if (!(await finishCancelled(deps, row, deps.now()))) {
-    getLog().warn(
-      { workloadId: row.id },
-      "workloads: run finished but row already terminal (reaped)",
-    );
+    getLog().warn({ workloadId: row.id }, "workloads: run finished but row already terminal (reaped)");
   }
 }
 
 /** Stamp the FAILURE outcome: cancelled if the throw was the abort firing; else failed (runtime). */
-async function finalizeFailure(
-  deps: WorkloadRunnerDeps,
-  row: WorkloadRowAnyKind,
-  args: { aborted: boolean; err: unknown },
-): Promise<void> {
+async function finalizeFailure(deps: WorkloadRunnerDeps, row: WorkloadRowAnyKind, args: { aborted: boolean; err: unknown }): Promise<void> {
   if (args.aborted) {
     await finishCancelled(deps, row, deps.now());
     return;
@@ -183,11 +156,7 @@ async function finalizeFailure(
  * Claim + run one row to a terminal state. Returns when the row is terminal (or the claim was lost). The
  * worker calls this per dispatched row; it never throws (every outcome is recorded on the row + the bus).
  */
-export async function runWorkload(
-  deps: WorkloadRunnerDeps,
-  row: WorkloadRowAnyKind,
-  signal: AbortSignal,
-): Promise<void> {
+export async function runWorkload(deps: WorkloadRunnerDeps, row: WorkloadRowAnyKind, signal: AbortSignal): Promise<void> {
   // Idempotent claim: the loser of a two-worker race updates 0 rows → bail.
   if (!(await markStarted(deps.db, row.id, deps.now()))) {
     return;
@@ -217,12 +186,7 @@ export async function runWorkload(
 
   const timers = startLeaseTimers(deps, row, controller);
   try {
-    const result = await withRequestSpan(
-      `workload:${row.id}`,
-      "workload.run",
-      { kind: row.kind },
-      () => dispatchAndRun(ctx, row, report, controller.signal),
-    );
+    const result = await withRequestSpan(`workload:${row.id}`, "workload.run", { kind: row.kind }, () => dispatchAndRun(ctx, row, report, controller.signal));
     await finalizeSuccess(deps, row, { aborted: controller.signal.aborted, result });
   } catch (err) {
     await finalizeFailure(deps, row, { aborted: controller.signal.aborted, err });

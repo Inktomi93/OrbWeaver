@@ -46,12 +46,7 @@ export function LoginLocalForm({ defaultHandle, onLoggedIn }: LoginLocalFormProp
     <form onSubmit={onSubmit} data-testid={testId("loginLocalForm")}>
       <Stack gap="block">
         <Field label="Handle">
-          <Input
-            autoComplete="username"
-            value={handle}
-            onValueChange={(value): void => setHandle(value)}
-            data-testid={testId("loginHandle")}
-          />
+          <Input autoComplete="username" value={handle} onValueChange={(value): void => setHandle(value)} data-testid={testId("loginHandle")} />
         </Field>
         <Field label="Password">
           <Input
@@ -67,12 +62,7 @@ export function LoginLocalForm({ defaultHandle, onLoggedIn }: LoginLocalFormProp
             {error}
           </Text>
         )}
-        <Button
-          intent="primary"
-          type="submit"
-          disabled={!canSubmit}
-          data-testid={testId("loginSubmit")}
-        >
+        <Button intent="primary" type="submit" disabled={!canSubmit} data-testid={testId("loginSubmit")}>
           {pending ? "Signing in…" : "Sign in"}
         </Button>
       </Stack>

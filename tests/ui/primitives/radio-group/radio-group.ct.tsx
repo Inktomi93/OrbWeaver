@@ -36,10 +36,7 @@ test("arrow keys move the selection", async ({ mount, page }) => {
   await ai.click();
   await expect(ai).toHaveAttribute("aria-checked", "true");
   await ai.press("ArrowDown");
-  await expect(page.getByRole("radio", { name: "A human GM" })).toHaveAttribute(
-    "aria-checked",
-    "true",
-  );
+  await expect(page.getByRole("radio", { name: "A human GM" })).toHaveAttribute("aria-checked", "true");
 });
 
 test("onValueChange reports the picked value", async ({ mount, page }) => {
@@ -73,10 +70,7 @@ test("disabled blocks selection and drops the interactive skin", async ({ mount,
   await expect(ai).toHaveAttribute("aria-checked", "false");
 });
 
-test("read-only: blocks selection but keeps the checked token + shows the lock glyph", async ({
-  mount,
-  page,
-}) => {
+test("read-only: blocks selection but keeps the checked token + shows the lock glyph", async ({ mount, page }) => {
   await mount(
     <RadioGroup aria-label="Who runs the game" readOnly={true} value="ai">
       <RadioGroupItem value="ai">An AI</RadioGroupItem>
@@ -96,10 +90,7 @@ test("read-only: blocks selection but keeps the checked token + shows the lock g
   await expect(ai).toHaveAttribute("aria-checked", "true");
 });
 
-test("inside an invalid <Field>, data-invalid lands on every item and the border swaps to destructive", async ({
-  mount,
-  page,
-}) => {
+test("inside an invalid <Field>, data-invalid lands on every item and the border swaps to destructive", async ({ mount, page }) => {
   await mount(
     <Field error="Pick one" label="Who runs the game">
       <RadioGroup>
@@ -117,10 +108,7 @@ test("inside an invalid <Field>, data-invalid lands on every item and the border
   await expect(ai).toHaveCSS("border-top-color", TOKENS["color.destructive"].value);
 });
 
-test("inside a <Field>, the group registers — aria-describedby wires the description", async ({
-  mount,
-  page,
-}) => {
+test("inside a <Field>, the group registers — aria-describedby wires the description", async ({ mount, page }) => {
   await mount(
     <Field description="Pick who narrates" label="Who runs the game">
       <RadioGroup>

@@ -8,11 +8,7 @@
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import { getLog } from "#foundation/observability";
-import {
-  SYSTEM_DEFAULT_PRESET_ID,
-  SYSTEM_DEFAULT_PRESET_KIND,
-  SYSTEM_DEFAULT_PRESET_NAME,
-} from "./constants";
+import { SYSTEM_DEFAULT_PRESET_ID, SYSTEM_DEFAULT_PRESET_KIND, SYSTEM_DEFAULT_PRESET_NAME } from "./constants";
 import { insertPreset, reseedSystemDefault, selectSystemDefault } from "./persistence/queries";
 
 export async function ensureSystemDefaultPreset(db: Db, now: () => number): Promise<void> {
@@ -35,12 +31,7 @@ export async function ensureSystemDefaultPreset(db: Db, now: () => number): Prom
   }
 
   if (existing.schemaVersion < DEFAULT_PROMPT_CONFIG.schemaVersion) {
-    await reseedSystemDefault(
-      db,
-      DEFAULT_PROMPT_CONFIG,
-      DEFAULT_PROMPT_CONFIG.schemaVersion,
-      now(),
-    );
+    await reseedSystemDefault(db, DEFAULT_PROMPT_CONFIG, DEFAULT_PROMPT_CONFIG.schemaVersion, now());
     getLog().info(
       {
         presetId: SYSTEM_DEFAULT_PRESET_ID,

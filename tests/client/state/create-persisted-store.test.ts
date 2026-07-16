@@ -54,11 +54,7 @@ function opts(storage: StateStorage): PersistedStoreOptions<ProbeState, Persiste
 describe("createPersistedStore", () => {
   test("mint + set/read round-trip via the returned handle", () => {
     const { storage } = memoryStorage();
-    const store = createPersistedStore<ProbeState, Persisted>(
-      "t-roundtrip",
-      (): ProbeState => INITIAL,
-      opts(storage),
-    );
+    const store = createPersistedStore<ProbeState, Persisted>("t-roundtrip", (): ProbeState => INITIAL, opts(storage));
     expect(store.getState().count).toBe(0);
     store.setState({ count: 5 }, false, "test/inc");
     expect(store.getState().count).toBe(5);
@@ -66,11 +62,7 @@ describe("createPersistedStore", () => {
 
   test("persists ONLY the partialized keys with a version stamp (transient excluded)", () => {
     const { storage, map } = memoryStorage();
-    const store = createPersistedStore<ProbeState, Persisted>(
-      "t-partialize",
-      (): ProbeState => INITIAL,
-      opts(storage),
-    );
+    const store = createPersistedStore<ProbeState, Persisted>("t-partialize", (): ProbeState => INITIAL, opts(storage));
     store.setState({ count: 3, transient: "should-not-persist" }, false, "test/set");
 
     const raw = map.get("orb:t-partialize");
@@ -84,11 +76,7 @@ describe("createPersistedStore", () => {
     const { storage } = memoryStorage({
       "orb:t-migrate": JSON.stringify({ state: { legacy: ["?"] }, version: 0 }),
     });
-    const store = createPersistedStore<ProbeState, Persisted>(
-      "t-migrate",
-      (): ProbeState => INITIAL,
-      opts(storage),
-    );
+    const store = createPersistedStore<ProbeState, Persisted>("t-migrate", (): ProbeState => INITIAL, opts(storage));
     // Rehydration ran migrate synchronously at creation (sync storage) → the default shape, not a throw.
     expect(store.getState().label).toBe("default");
   });
@@ -96,12 +84,6 @@ describe("createPersistedStore", () => {
   test("a duplicate store name throws at creation (the storage-key uniqueness registry)", () => {
     const { storage } = memoryStorage();
     createPersistedStore<ProbeState, Persisted>("t-dup", (): ProbeState => INITIAL, opts(storage));
-    expect(() =>
-      createPersistedStore<ProbeState, Persisted>(
-        "t-dup",
-        (): ProbeState => INITIAL,
-        opts(storage),
-      ),
-    ).toThrow(DUPLICATE_NAME_RE);
+    expect(() => createPersistedStore<ProbeState, Persisted>("t-dup", (): ProbeState => INITIAL, opts(storage))).toThrow(DUPLICATE_NAME_RE);
   });
 });

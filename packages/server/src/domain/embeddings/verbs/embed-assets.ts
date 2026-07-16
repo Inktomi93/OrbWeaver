@@ -26,12 +26,7 @@ interface EmbedAssetsDeps {
 }
 
 /** One asset's sweep step: hash pre-check (both lenses) → store raw → caption → store captioned. */
-async function embedOneAsset(
-  ctx: EmbeddingsContext,
-  deps: EmbedAssetsDeps,
-  assetId: AssetId,
-  force: boolean,
-): Promise<"embedded" | "skipped"> {
+async function embedOneAsset(ctx: EmbeddingsContext, deps: EmbedAssetsDeps, assetId: AssetId, force: boolean): Promise<"embedded" | "skipped"> {
   const bytes = await ctx.loadAssetBytes(assetId);
   if (bytes === undefined) {
     return "skipped";
@@ -41,8 +36,7 @@ async function embedOneAsset(
   // caption/summarize call ever runs.
   const hash = contentHash(bytes);
   const rawCurrent = (await existingImageHash(ctx.db, assetId, "image-raw", model)) === hash;
-  const captionedCurrent =
-    (await existingImageHash(ctx.db, assetId, "image-captioned", model)) === hash;
+  const captionedCurrent = (await existingImageHash(ctx.db, assetId, "image-captioned", model)) === hash;
   if (!force && rawCurrent && captionedCurrent) {
     return "skipped";
   }
@@ -70,10 +64,7 @@ async function embedOneAsset(
   return raw.outcome === "written" || captioned.outcome === "written" ? "embedded" : "skipped";
 }
 
-export function createEmbedAssets(
-  ctx: EmbeddingsContext,
-  deps: EmbedAssetsDeps,
-): EmbeddingsService["embedAssets"] {
+export function createEmbedAssets(ctx: EmbeddingsContext, deps: EmbedAssetsDeps): EmbeddingsService["embedAssets"] {
   return async ({ force, signal, ownerId }: EmbedPassParams): Promise<BulkEmbedResult> => {
     let embedded = 0;
     let skipped = 0;

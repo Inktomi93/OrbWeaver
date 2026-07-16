@@ -23,10 +23,7 @@ export function createTokenHasher(pepper: string | null | undefined): (token: st
   const key = pepper !== null && pepper !== undefined && pepper.length > 0 ? pepper : null;
   return (token: string): string => {
     if (key === null) {
-      throw new Error(
-        "SESSION_SECRET is not configured but is required for session token hashing. " +
-          "Set SESSION_SECRET in the deployment env.",
-      );
+      throw new Error("SESSION_SECRET is not configured but is required for session token hashing. Set SESSION_SECRET in the deployment env.");
     }
     return createHmac(HMAC_ALGORITHM, key).update(token).digest("hex");
   };

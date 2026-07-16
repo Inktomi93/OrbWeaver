@@ -63,9 +63,7 @@ async function attachChatEntry(
   entry: { content: string; keys?: string[]; priority?: number; inject?: { depth: number } },
 ): Promise<void> {
   const bookId = castId<WorldBookId>(`world_book_${key}`);
-  await db
-    .insert(worldBooks)
-    .values({ id: bookId, ownerId: owner, name: key, createdAt: FROZEN_AT });
+  await db.insert(worldBooks).values({ id: bookId, ownerId: owner, name: key, createdAt: FROZEN_AT });
   await db.insert(worldEntries).values({
     id: castId<WorldEntryId>(`world_entry_${key}`),
     worldBookId: bookId,
@@ -78,9 +76,7 @@ async function attachChatEntry(
     metadata: entry.inject ? { inject: { depth: entry.inject.depth } } : null,
     createdAt: FROZEN_AT,
   });
-  await db
-    .insert(chatBooks)
-    .values({ chatId: castId(chatId), worldBookId: bookId, createdAt: FROZEN_AT });
+  await db.insert(chatBooks).values({ chatId: castId(chatId), worldBookId: bookId, createdAt: FROZEN_AT });
 }
 
 interface InputOver {
@@ -91,12 +87,7 @@ interface InputOver {
   hostTierRegexScripts?: RegexScript[];
   roomOverrides?: RoomOverrides;
 }
-function inputOf(
-  chatId: string,
-  ownerId: UserId,
-  castIds: CharacterId[],
-  over: InputOver = {},
-): Parameters<typeof buildAssembleContext>[1] {
+function inputOf(chatId: string, ownerId: UserId, castIds: CharacterId[], over: InputOver = {}): Parameters<typeof buildAssembleContext>[1] {
   return {
     chatId: castId(chatId),
     ownerId,
@@ -110,20 +101,13 @@ function inputOf(
     model: "test-model",
     injectionTokenBudget: over.injectionTokenBudget ?? 0,
     ...(over.pendingUserText !== undefined ? { pendingUserText: over.pendingUserText } : {}),
-    ...(over.hostTierRegexScripts !== undefined
-      ? { hostTierRegexScripts: over.hostTierRegexScripts }
-      : {}),
+    ...(over.hostTierRegexScripts !== undefined ? { hostTierRegexScripts: over.hostTierRegexScripts } : {}),
     ...(over.roomOverrides !== undefined ? { roomOverrides: over.roomOverrides } : {}),
   };
 }
 
 /** A fully-defaulted host-tier `RegexScript` (via the parse seam) for the given placement. */
-function regexScript(
-  id: string,
-  find: string,
-  replace: string,
-  placement: "USER_INPUT" | "WORLD_INFO",
-): RegexScript {
+function regexScript(id: string, find: string, replace: string, placement: "USER_INPUT" | "WORLD_INFO"): RegexScript {
   return regexScriptSchema.parse({
     id,
     name: id,
@@ -142,10 +126,7 @@ describe("buildAssembleContext — GATHER keyword match (the two-phase lag-kill)
     const ctx = ctxWithCard(cardOf("Aria"));
 
     // Pending text mentions the key → fires THIS turn, flagged as a latest-user match.
-    const fired = await buildAssembleContext(
-      ctx,
-      inputOf(chatId, host, [charId], { pendingUserText: "a dragon appears" }),
-    );
+    const fired = await buildAssembleContext(ctx, inputOf(chatId, host, [charId], { pendingUserText: "a dragon appears" }));
     expect(fired.chatInjections?.map((i) => i.content)).toContain("DRAGON LORE");
     expect(fired.wiTrace?.matchedKeys).toContainEqual({
       key: "dragon",
@@ -227,13 +208,8 @@ describe("buildAssembleContext — BUILD render-once + position routing", () => 
     await attachChatEntry(host, chatId, "kw", { content: "KW", keys: ["spell"] });
     await attachChatEntry(host, chatId, "depth", { content: "DEPTH", inject: { depth: 2 } });
     const ctx = ctxWithCard(cardOf("Aria"));
-    const out = await buildAssembleContext(
-      ctx,
-      inputOf(chatId, host, [charId], { pendingUserText: "cast a spell" }),
-    );
-    const byContent = Object.fromEntries(
-      (out.chatInjections ?? []).map((i) => [i.content, i.position]),
-    );
+    const out = await buildAssembleContext(ctx, inputOf(chatId, host, [charId], { pendingUserText: "cast a spell" }));
+    const byContent = Object.fromEntries((out.chatInjections ?? []).map((i) => [i.content, i.position]));
     // Always-scope routes to the before-anchor (the default has the marker); keyword/depth ride the injection list.
     expect(out.worldInfoBefore).toContain("ALWAYS");
     expect(byContent["KW"]).toBe("in_prompt");
@@ -249,14 +225,9 @@ describe("buildAssembleContext — the ONE injection list + ONE budget pass (§4
     // Two always entries ~2 tokens each (8 printable chars). Budget=2 keeps the higher-priority one.
     await attachChatEntry(host, chatId, "hi", { content: "AAAAAAAA", priority: 10 });
     await attachChatEntry(host, chatId, "lo", { content: "BBBBBBBB", priority: 1 });
-    const userInjections: ChatInjection[] = [
-      { position: "in_static", depth: 0, role: "system", content: "OPERATOR" },
-    ];
+    const userInjections: ChatInjection[] = [{ position: "in_static", depth: 0, role: "system", content: "OPERATOR" }];
     const ctx = ctxWithCard(cardOf("Aria"));
-    const out = await buildAssembleContext(
-      ctx,
-      inputOf(chatId, host, [charId], { userInjections, injectionTokenBudget: 2 }),
-    );
+    const out = await buildAssembleContext(ctx, inputOf(chatId, host, [charId], { userInjections, injectionTokenBudget: 2 }));
     // Always-scope lore routes to the before-anchor; the operator injection stays in the in_static list.
     expect(out.worldInfoBefore).toContain("AAAAAAAA"); // higher priority kept
     expect(out.worldInfoBefore).not.toContain("BBBBBBBB"); // lower priority dropped
@@ -321,11 +292,7 @@ describe("buildAssembleContext — SEND USER_INPUT regex (D53; chat.md §2/§3)"
     await attachChatEntry(host, chatId, "k", { content: "DRAGON LORE", keys: ["dragon"] });
     const ctx = ctxWithCard(cardOf("Aria"));
     const out: { sendUserText?: string } = {};
-    const result = await buildAssembleContext(
-      ctx,
-      inputOf(chatId, host, [charId], { pendingUserText: "a wyrm appears" }),
-      out,
-    );
+    const result = await buildAssembleContext(ctx, inputOf(chatId, host, [charId], { pendingUserText: "a wyrm appears" }), out);
     // #77 freeze-volatile: the SEND path ALWAYS flows the composer text through the freeze pass, so the sink is
     // set even with no host scripts — a macro-less string freezes to itself (the canon-persisted, re-render-stable
     // value the verb writes; Chat-Macro-Resolution §0).
@@ -354,9 +321,7 @@ describe("buildAssembleContext — character depthPrompt (Character's Note @ Dep
     const host = await seedUser(db, "host");
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
-    const ctx = ctxWithCard(
-      cardWithNote("Aria", { prompt: "Aria stays cryptic.", depth: 4, role: "system" }),
-    );
+    const ctx = ctxWithCard(cardWithNote("Aria", { prompt: "Aria stays cryptic.", depth: 4, role: "system" }));
     const out = await buildAssembleContext(ctx, inputOf(chatId, host, [charId]));
 
     const notes = (out.chatInjections ?? []).filter((i) => i.content === "Aria stays cryptic.");
@@ -446,9 +411,7 @@ describe("buildAssembleContext — character depthPrompt (Character's Note @ Dep
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
     // role:user so the spliced content stays verbatim (system would be [Note from system: …]-framed).
-    const ctx = ctxWithCard(
-      cardWithNote("Aria", { prompt: "Aria stays cryptic.", depth: 2, role: "user" }),
-    );
+    const ctx = ctxWithCard(cardWithNote("Aria", { prompt: "Aria stays cryptic.", depth: 2, role: "user" }));
     const built = await buildAssembleContext(ctx, inputOf(chatId, host, [charId]));
 
     const history = [1, 2, 3, 4, 5].map((n) => ({ role: "user" as const, content: `m${n}` }));
@@ -462,12 +425,8 @@ describe("buildAssembleContext — character depthPrompt (Character's Note @ Dep
     // The write-reject was REMOVED (W5, ruling A) — authored prefill is persistable. A stored
     // assistant@depth-0 note now round-trips the write schema; the SHAPE splice normalizes it to depth 1
     // (the only assistant placement both runners express) unless the model's `assistantPrefill` is honored.
-    expect(
-      cardDepthPromptSchema.safeParse({ prompt: "x", depth: 0, role: "assistant" }).success,
-    ).toBe(true);
-    expect(
-      cardDepthPromptSchema.safeParse({ prompt: "x", depth: 1, role: "assistant" }).success,
-    ).toBe(true);
+    expect(cardDepthPromptSchema.safeParse({ prompt: "x", depth: 0, role: "assistant" }).success).toBe(true);
+    expect(cardDepthPromptSchema.safeParse({ prompt: "x", depth: 1, role: "assistant" }).success).toBe(true);
   });
 });
 
@@ -557,13 +516,8 @@ describe("buildAssembleContext — room author's note (roomOverrides.authorsNote
     const host = await seedUser(db, "host");
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
-    const ctx = ctxWithCard(
-      cardWithNote("Aria", { prompt: "Aria stays cryptic.", depth: 4, role: "system" }),
-    );
-    const out = await buildAssembleContext(
-      ctx,
-      inputOf(chatId, host, [charId], { roomOverrides: { authorsNote: { prompt: "" } } }),
-    );
+    const ctx = ctxWithCard(cardWithNote("Aria", { prompt: "Aria stays cryptic.", depth: 4, role: "system" }));
+    const out = await buildAssembleContext(ctx, inputOf(chatId, host, [charId], { roomOverrides: { authorsNote: { prompt: "" } } }));
 
     const notes = (out.chatInjections ?? []).filter((i) => i.content === "Aria stays cryptic.");
     expect(notes).toHaveLength(1);
@@ -574,13 +528,8 @@ describe("buildAssembleContext — room author's note (roomOverrides.authorsNote
     const host = await seedUser(db, "host");
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
-    const ctx = ctxWithCard(
-      cardWithNote("Aria", { prompt: "Aria stays cryptic.", depth: 4, role: "system" }),
-    );
-    const out = await buildAssembleContext(
-      ctx,
-      inputOf(chatId, host, [charId], { roomOverrides: { authorsNote: { prompt: "   " } } }),
-    );
+    const ctx = ctxWithCard(cardWithNote("Aria", { prompt: "Aria stays cryptic.", depth: 4, role: "system" }));
+    const out = await buildAssembleContext(ctx, inputOf(chatId, host, [charId], { roomOverrides: { authorsNote: { prompt: "   " } } }));
 
     const notes = (out.chatInjections ?? []).filter((i) => i.content === "Aria stays cryptic.");
     expect(notes).toHaveLength(1);
@@ -596,14 +545,8 @@ describe("buildAssembleContext — room author's note (roomOverrides.authorsNote
       [ariaId]: cardWithNote("Aria", { prompt: "Aria stays cryptic.", depth: 4, role: "system" }),
       [branId]: cardWithNote("Bran", { prompt: "Bran owes a debt.", depth: 2, role: "user" }),
     };
-    const bare = await buildAssembleContext(
-      ctxWithCards(cards),
-      inputOf(chatId, host, [ariaId, branId]),
-    );
-    const emptyRoom = await buildAssembleContext(
-      ctxWithCards(cards),
-      inputOf(chatId, host, [ariaId, branId], { roomOverrides: {} }),
-    );
+    const bare = await buildAssembleContext(ctxWithCards(cards), inputOf(chatId, host, [ariaId, branId]));
+    const emptyRoom = await buildAssembleContext(ctxWithCards(cards), inputOf(chatId, host, [ariaId, branId], { roomOverrides: {} }));
 
     expect(emptyRoom.chatInjections).toStrictEqual(bare.chatInjections);
     expect(emptyRoom.authorsNoteSource).toBe(bare.authorsNoteSource);
@@ -679,9 +622,7 @@ describe("buildAssembleContext — guided steering (chat.md §6, PD-63)", () => 
     });
     // Template macros resolve ({{char}} → the cast primary); the user's steering text is spliced in with
     // its braces ZWSP-neutralized (a typed {{tone}} can NEVER re-trigger macro evaluation).
-    expect(out.guidedInstruction).toBe(
-      `[Steer for Aria: watch the {${ZWSP}{tone}${ZWSP}} closely]`,
-    );
+    expect(out.guidedInstruction).toBe(`[Steer for Aria: watch the {${ZWSP}{tone}${ZWSP}} closely]`);
     // System placement adds NO injection.
     expect(out.chatInjections?.some((i) => i.content.includes("watch the"))).toBe(false);
   });
@@ -715,9 +656,7 @@ describe("buildAssembleContext — guided steering (chat.md §6, PD-63)", () => 
     });
     // Neither arm fires: no `{{guided_instruction}}` value and no depth-0 guided injection.
     expect(out.guidedInstruction).toBeUndefined();
-    expect(out.chatInjections?.some((i) => i.content.includes("special consideration"))).toBe(
-      false,
-    );
+    expect(out.chatInjections?.some((i) => i.content.includes("special consideration"))).toBe(false);
   });
 
   test("F2: a standalone action (impersonate) with a BLANK steer STILL fires unsteered", async () => {
@@ -1030,9 +969,7 @@ describe("buildAssembleContext — the BOTH-PERSONAS context rule on a swap (FIN
     const injections = out.chatInjections ?? [];
 
     // The active still injects; the anchor opted out ⇒ no in_static card block.
-    expect(
-      injections.some((i) => i.position === "in_chat" && i.content === "Steve is a mage"),
-    ).toBe(true);
+    expect(injections.some((i) => i.position === "in_chat" && i.content === "Steve is a mage")).toBe(true);
     expect(injections.some((i) => i.position === "in_static")).toBe(false);
   });
 

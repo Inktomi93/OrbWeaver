@@ -209,10 +209,7 @@ export function makeProfileHarness(ownerId: UserId): ProfileHarness {
         chatsImported: args.chats.length,
         chatsSkipped: 0,
         messagesImported: args.chats.reduce((n, c) => n + c.messages.length, 0),
-        variantsImported: args.chats.reduce(
-          (n, c) => n + c.messages.reduce((v, m) => v + m.variants.length, 0),
-          0,
-        ),
+        variantsImported: args.chats.reduce((n, c) => n + c.messages.reduce((v, m) => v + m.variants.length, 0), 0),
         branchesLinked: 0,
         realConversationWritten,
       });
@@ -253,9 +250,7 @@ export function makeProfileHarness(ownerId: UserId): ProfileHarness {
     },
   };
   const inert = (): never => {
-    throw new Error(
-      "import profile harness: card op not wired (chats/personas verbs must not call it)",
-    );
+    throw new Error("import profile harness: card op not wired (chats/personas verbs must not call it)");
   };
   const ctx: ImportContext = {
     ownerId,

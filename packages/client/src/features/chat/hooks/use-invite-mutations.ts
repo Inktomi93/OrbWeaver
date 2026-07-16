@@ -21,36 +21,24 @@ import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
 
-export const useCreateInvite = createEntityMutation<
-  inferInput<Trpc["invites"]["createInvite"]>,
-  inferOutput<Trpc["invites"]["createInvite"]>
->({
+export const useCreateInvite = createEntityMutation<inferInput<Trpc["invites"]["createInvite"]>, inferOutput<Trpc["invites"]["createInvite"]>>({
   options: (trpc) => trpc.invites.createInvite.mutationOptions(),
   invalidates: (trpc) => [trpc.invites.listInvites.pathFilter()],
 });
 
-export const useRevokeInvite = createEntityMutation<
-  inferInput<Trpc["invites"]["revokeInvite"]>,
-  unknown
->({
+export const useRevokeInvite = createEntityMutation<inferInput<Trpc["invites"]["revokeInvite"]>, unknown>({
   options: (trpc) => trpc.invites.revokeInvite.mutationOptions(),
   invalidates: (trpc) => [trpc.invites.listInvites.pathFilter()],
   errorToast: "Couldn't revoke the invite.",
 });
 
-export const usePreviewInvite = createEntityMutation<
-  inferInput<Trpc["invites"]["previewInvite"]>,
-  inferOutput<Trpc["invites"]["previewInvite"]>
->({
+export const usePreviewInvite = createEntityMutation<inferInput<Trpc["invites"]["previewInvite"]>, inferOutput<Trpc["invites"]["previewInvite"]>>({
   options: (trpc) => trpc.invites.previewInvite.mutationOptions(),
   invalidates: () => [],
   // No errorToast: the join dialog renders the leak-free "invalid or expired" state inline.
 });
 
-export const useRedeemInvite = createEntityMutation<
-  inferInput<Trpc["invites"]["redeemInvite"]>,
-  inferOutput<Trpc["invites"]["redeemInvite"]>
->({
+export const useRedeemInvite = createEntityMutation<inferInput<Trpc["invites"]["redeemInvite"]>, inferOutput<Trpc["invites"]["redeemInvite"]>>({
   options: (trpc) => trpc.invites.redeemInvite.mutationOptions(),
   invalidates: (trpc) => [trpc.chat.listChats.pathFilter()],
   errorToast: "Couldn't join — the invite is invalid or expired.",

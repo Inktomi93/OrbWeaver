@@ -6,14 +6,7 @@
 import type { ThemeOverride } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
 import { getLog } from "#foundation/observability";
-import {
-  THEME_HEARTH_ID,
-  THEME_HEARTH_NAME,
-  THEME_LIGHT_ID,
-  THEME_LIGHT_NAME,
-  THEME_MOCHA_ID,
-  THEME_MOCHA_NAME,
-} from "./constants";
+import { THEME_HEARTH_ID, THEME_HEARTH_NAME, THEME_LIGHT_ID, THEME_LIGHT_NAME, THEME_MOCHA_ID, THEME_MOCHA_NAME } from "./constants";
 import { upsertSeedTheme } from "./persistence/theme-queries";
 
 const HEARTH_OVERRIDE: ThemeOverride = {
@@ -93,8 +86,5 @@ export async function ensureSeedThemes(db: Db, now: () => number): Promise<void>
     createdAt: at,
     updatedAt: at,
   });
-  getLog().info(
-    { themeIds: [THEME_HEARTH_ID, THEME_MOCHA_ID, THEME_LIGHT_ID] },
-    "settings: seeded/reseeded theme palettes",
-  );
+  getLog().info({ themeIds: [THEME_HEARTH_ID, THEME_MOCHA_ID, THEME_LIGHT_ID] }, "settings: seeded/reseeded theme palettes");
 }

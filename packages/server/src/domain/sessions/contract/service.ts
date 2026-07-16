@@ -6,13 +6,7 @@ import type { SessionView } from "@orb/contracts/session";
 import type { Db } from "@orb/db";
 import type { Handle, SessionId, UserId } from "@orb/kit/ids";
 import type { CreateSessionParams, ProvisionAgentParams } from "./params";
-import type {
-  CreateSessionResult,
-  ProvisionAgentResult,
-  ProvisionResult,
-  UserPrincipalFields,
-  ValidatedSession,
-} from "./results";
+import type { CreateSessionResult, ProvisionAgentResult, ProvisionResult, UserPrincipalFields, ValidatedSession } from "./results";
 
 /** The DI bundle every verb closes over, wired at the composition root. */
 export interface SessionsContext {
@@ -36,10 +30,7 @@ export interface SessionsService {
    *  missing/revoked/expired/disabled. `role`/`enabled` are re-read from the row each request, so a
    *  revoke/role-change/disable propagates on the next request. Slides expiry on a throttle; `onSlide`
    *  fires with the new expiry so the route can refresh the cookie Max-Age. */
-  validate: (
-    token: string,
-    onSlide?: (expiresAt: number) => void,
-  ) => Promise<ValidatedSession | null>;
+  validate: (token: string, onSlide?: (expiresAt: number) => void) => Promise<ValidatedSession | null>;
   /** Revoke the session a token belongs to (logout); audits `AUTH_LOGOUT`. No-op if already gone. */
   revokeByToken: (token: string) => Promise<void>;
   /** Revoke one session by id (admin: kick a specific device). @internal */

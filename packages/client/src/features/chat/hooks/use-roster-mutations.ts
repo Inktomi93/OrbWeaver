@@ -51,10 +51,7 @@ interface SetParticipantTalkativenessVars {
   readonly talkativeness: number;
 }
 
-export const useSetParticipantTalkativeness = createEntityMutation<
-  SetParticipantTalkativenessVars,
-  unknown
->({
+export const useSetParticipantTalkativeness = createEntityMutation<SetParticipantTalkativenessVars, unknown>({
   options: (trpc) => trpc.chat.setParticipantTalkativeness.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't update the member's talkativeness.",

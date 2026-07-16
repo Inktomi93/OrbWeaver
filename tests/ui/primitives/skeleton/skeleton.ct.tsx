@@ -18,9 +18,7 @@ test("shimmers on the muted token and takes the caller-supplied height", async (
   expect(Math.round(box?.height ?? 0)).toBe(AVATAR_MD_PX);
 });
 
-test("the shimmer sweep is a moving gradient over --motion-shimmer (animated by default)", async ({
-  mount,
-}) => {
+test("the shimmer sweep is a moving gradient over --motion-shimmer (animated by default)", async ({ mount }) => {
   const skeleton = await mount(<Skeleton className="h-control-md w-full" />);
   // The gradient sweep is a background-image (not just a color) with a running animation.
   const image = await skeleton.evaluate((el) => getComputedStyle(el).backgroundImage);
@@ -29,10 +27,7 @@ test("the shimmer sweep is a moving gradient over --motion-shimmer (animated by 
   expect(name).toBe("orb-skeleton-shimmer");
 });
 
-test("reduced-motion drops to a FLAT muted fill (no gradient, no animation)", async ({
-  mount,
-  page,
-}) => {
+test("reduced-motion drops to a FLAT muted fill (no gradient, no animation)", async ({ mount, page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   const skeleton = await mount(<Skeleton className="h-control-md w-full" />);
   // The class self-neutralizes under reduced motion: no gradient image, animation off — bg-muted shows.

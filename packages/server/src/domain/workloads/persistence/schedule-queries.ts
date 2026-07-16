@@ -82,24 +82,14 @@ export async function insertSchedule(db: Db, row: ScheduleInsert): Promise<void>
 }
 
 /** Load one schedule by id, or `null` (absent). */
-export async function loadSchedule(
-  db: Db,
-  id: WorkloadScheduleId,
-): Promise<WorkloadScheduleRow | null> {
-  const rows = await db
-    .select()
-    .from(workloadSchedules)
-    .where(eq(workloadSchedules.id, id))
-    .limit(1);
+export async function loadSchedule(db: Db, id: WorkloadScheduleId): Promise<WorkloadScheduleRow | null> {
+  const rows = await db.select().from(workloadSchedules).where(eq(workloadSchedules.id, id)).limit(1);
   const row = rows[0];
   return row === undefined ? null : toScheduleView(row);
 }
 
 /** Filtered list (owner/kind), newest-first. */
-export async function listSchedulesQuery(
-  db: Db,
-  filter: ScheduleListFilter,
-): Promise<WorkloadScheduleRow[]> {
+export async function listSchedulesQuery(db: Db, filter: ScheduleListFilter): Promise<WorkloadScheduleRow[]> {
   const predicates: SQL[] = [];
   if (filter.ownerId !== undefined) {
     predicates.push(eq(workloadSchedules.ownerId, filter.ownerId));
@@ -117,12 +107,7 @@ export async function listSchedulesQuery(
 
 /** Apply a patch to a schedule, returning the updated row (or `null` if the id vanished between the verb's
  *  load and this write — a benign race). Always bumps `updatedAt`. */
-export async function updateScheduleFields(
-  db: Db,
-  id: WorkloadScheduleId,
-  patch: SchedulePatch,
-  now: number,
-): Promise<WorkloadScheduleRow | null> {
+export async function updateScheduleFields(db: Db, id: WorkloadScheduleId, patch: SchedulePatch, now: number): Promise<WorkloadScheduleRow | null> {
   const updated = await db
     .update(workloadSchedules)
     .set({
@@ -140,27 +125,15 @@ export async function updateScheduleFields(
 }
 
 /** Flip a schedule's `enabled` flag, returning the updated row (or `null` if it vanished). */
-export async function setScheduleEnabledQuery(
-  db: Db,
-  id: WorkloadScheduleId,
-  enabled: boolean,
-  now: number,
-): Promise<WorkloadScheduleRow | null> {
-  const updated = await db
-    .update(workloadSchedules)
-    .set({ enabled, updatedAt: now })
-    .where(eq(workloadSchedules.id, id))
-    .returning();
+export async function setScheduleEnabledQuery(db: Db, id: WorkloadScheduleId, enabled: boolean, now: number): Promise<WorkloadScheduleRow | null> {
+  const updated = await db.update(workloadSchedules).set({ enabled, updatedAt: now }).where(eq(workloadSchedules.id, id)).returning();
   const row = updated[0];
   return row === undefined ? null : toScheduleView(row);
 }
 
 /** Delete a schedule by id. Returns whether a row was removed (false = already gone). */
 export async function deleteScheduleRow(db: Db, id: WorkloadScheduleId): Promise<boolean> {
-  const removed = await db
-    .delete(workloadSchedules)
-    .where(eq(workloadSchedules.id, id))
-    .returning({ id: workloadSchedules.id });
+  const removed = await db.delete(workloadSchedules).where(eq(workloadSchedules.id, id)).returning({ id: workloadSchedules.id });
   return removed.length > 0;
 }
 
@@ -174,14 +147,6 @@ export async function findDueSchedules(db: Db, now: number): Promise<WorkloadSch
 }
 
 /** Advance a schedule after an enqueue attempt: set the next due instant + the last-run stamp. */
-export async function advanceSchedule(
-  db: Db,
-  id: WorkloadScheduleId,
-  nextRunAt: number,
-  lastRunAt: number,
-): Promise<void> {
-  await db
-    .update(workloadSchedules)
-    .set({ nextRunAt, lastRunAt, updatedAt: lastRunAt })
-    .where(eq(workloadSchedules.id, id));
+export async function advanceSchedule(db: Db, id: WorkloadScheduleId, nextRunAt: number, lastRunAt: number): Promise<void> {
+  await db.update(workloadSchedules).set({ nextRunAt, lastRunAt, updatedAt: lastRunAt }).where(eq(workloadSchedules.id, id));
 }

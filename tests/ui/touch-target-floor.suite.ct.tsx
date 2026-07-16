@@ -89,9 +89,7 @@ async function controlHeight(locator: Locator): Promise<number> {
 
 // ── R6 probe — the emulation actually flipped the pointer media ───────────────────────────────────
 
-test("the CT context reports a COARSE pointer (hasTouch flips pointer:coarse)", async ({
-  page,
-}) => {
+test("the CT context reports a COARSE pointer (hasTouch flips pointer:coarse)", async ({ page }) => {
   const coarse = await page.evaluate(() => matchMedia("(pointer: coarse)").matches);
   const fine = await page.evaluate(() => matchMedia("(pointer: fine)").matches);
   expect(coarse, "hasTouch must make the @media(pointer:coarse) branch win").toBe(true);
@@ -102,36 +100,24 @@ test("the CT context reports a COARSE pointer (hasTouch flips pointer:coarse)", 
 
 test("icon Button is a square control meeting the floor on both axes", async ({ mount }) => {
   const button = await mount(<Button aria-label="Regenerate" size="icon" />);
-  await expect
-    .poll(() => shortSide(button), { intervals: [20, 50, 100] })
-    .toBeGreaterThanOrEqual(FLOOR);
+  await expect.poll(() => shortSide(button), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(FLOOR);
 });
 
-test("Switch hit area reaches the floor via its ::before pseudo (visible track is shorter)", async ({
-  mount,
-  page,
-}) => {
+test("Switch hit area reaches the floor via its ::before pseudo (visible track is shorter)", async ({ mount, page }) => {
   await mount(<Switch aria-label="Streaming" />);
   const control = page.getByRole("switch");
   // Prove the visible box alone is UNDER the floor — otherwise the ::before union isn't being exercised.
   const visible = await control.evaluate((el: Element) => el.getBoundingClientRect().height);
   expect(visible, "the Switch's visible track is intentionally < 44px tall").toBeLessThan(FLOOR);
-  await expect
-    .poll(() => shortSide(control), { intervals: [20, 50, 100] })
-    .toBeGreaterThanOrEqual(FLOOR);
+  await expect.poll(() => shortSide(control), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(FLOOR);
 });
 
 test("Checkbox hit area reaches the floor via its ::before pseudo", async ({ mount, page }) => {
   await mount(<Checkbox aria-label="Remember me" />);
-  await expect
-    .poll(() => shortSide(page.getByRole("checkbox")), { intervals: [20, 50, 100] })
-    .toBeGreaterThanOrEqual(FLOOR);
+  await expect.poll(() => shortSide(page.getByRole("checkbox")), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(FLOOR);
 });
 
-test("RadioGroupItem hit area reaches the floor via its ::before pseudo", async ({
-  mount,
-  page,
-}) => {
+test("RadioGroupItem hit area reaches the floor via its ::before pseudo", async ({ mount, page }) => {
   await mount(
     <RadioGroup aria-label="Who runs the game">
       <RadioGroupItem value="ai">An AI</RadioGroupItem>
@@ -139,21 +125,15 @@ test("RadioGroupItem hit area reaches the floor via its ::before pseudo", async 
     </RadioGroup>,
   );
   const radio = page.getByRole("radio", { name: "An AI" });
-  await expect
-    .poll(() => shortSide(radio), { intervals: [20, 50, 100] })
-    .toBeGreaterThanOrEqual(FLOOR);
+  await expect.poll(() => shortSide(radio), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(FLOOR);
 });
 
 test("NumberField steppers are full touch-target squares", async ({ mount, page }) => {
   await mount(<NumberField aria-label="Weight" defaultValue={5} />);
   const inc = page.getByRole("button", { name: "Increase" });
   const dec = page.getByRole("button", { name: "Decrease" });
-  await expect
-    .poll(() => shortSide(inc), { intervals: [20, 50, 100] })
-    .toBeGreaterThanOrEqual(FLOOR);
-  await expect
-    .poll(() => shortSide(dec), { intervals: [20, 50, 100] })
-    .toBeGreaterThanOrEqual(FLOOR);
+  await expect.poll(() => shortSide(inc), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(FLOOR);
+  await expect.poll(() => shortSide(dec), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(FLOOR);
 });
 
 // ── Row / text controls — CONTROL HEIGHT ≥ 44 ─────────────────────────────────────────────────────
@@ -161,9 +141,7 @@ test("NumberField steppers are full touch-target squares", async ({ mount, page 
 for (const size of ["sm", "md", "lg"] as const) {
   test(`Button size="${size}" meets the height floor`, async ({ mount }) => {
     const button = await mount(<Button size={size}>Save</Button>);
-    await expect
-      .poll(() => controlHeight(button), { intervals: [20, 50, 100] })
-      .toBeGreaterThanOrEqual(FLOOR);
+    await expect.poll(() => controlHeight(button), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(FLOOR);
   });
 }
 
@@ -174,18 +152,14 @@ for (const size of ["sm", "md", "lg"] as const) {
         B
       </Toggle>,
     );
-    await expect
-      .poll(() => controlHeight(toggle), { intervals: [20, 50, 100] })
-      .toBeGreaterThanOrEqual(FLOOR);
+    await expect.poll(() => controlHeight(toggle), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(FLOOR);
   });
 }
 
 test("Select trigger meets the height floor", async ({ mount, page }) => {
   await mount(<Select aria-label="Model picker" items={SELECT_ITEMS} placeholder="Pick one" />);
   const trigger = page.getByRole("combobox", { name: "Model picker" });
-  await expect
-    .poll(() => controlHeight(trigger), { intervals: [20, 50, 100] })
-    .toBeGreaterThanOrEqual(FLOOR);
+  await expect.poll(() => controlHeight(trigger), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(FLOOR);
 });
 
 test("Tabs tab meets the height floor", async ({ mount, page }) => {
@@ -200,46 +174,33 @@ test("Tabs tab meets the height floor", async ({ mount, page }) => {
     </Tabs>,
   );
   const tab = page.getByRole("tab", { name: "One" });
-  await expect
-    .poll(() => controlHeight(tab), { intervals: [20, 50, 100] })
-    .toBeGreaterThanOrEqual(FLOOR);
+  await expect.poll(() => controlHeight(tab), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(FLOOR);
 });
 
 test("Slider control (the drag surface) meets the height floor", async ({ mount }) => {
   const slider = await mount(<Slider defaultValue={50} label="Volume" max={100} min={0} />);
   const control = slider.locator('[data-slot="slider-control"]');
-  await expect
-    .poll(() => controlHeight(control), { intervals: [20, 50, 100] })
-    .toBeGreaterThanOrEqual(FLOOR);
+  await expect.poll(() => controlHeight(control), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(FLOOR);
 });
 
 test("clickable ListRow body meets the height floor", async ({ mount, page }) => {
   await mount(<ListRow clickable={true} title="Elara" />);
   const row = page.getByRole("button", { name: "Elara" });
-  await expect
-    .poll(() => controlHeight(row), { intervals: [20, 50, 100] })
-    .toBeGreaterThanOrEqual(FLOOR);
+  await expect.poll(() => controlHeight(row), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(FLOOR);
 });
 
 test("Input meets the height floor", async ({ mount }) => {
   const input = await mount(<Input aria-label="Name" />);
-  await expect
-    .poll(() => controlHeight(input), { intervals: [20, 50, 100] })
-    .toBeGreaterThanOrEqual(FLOOR);
+  await expect.poll(() => controlHeight(input), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(FLOOR);
 });
 
 test("Combobox tap surface (the input group) meets the height floor", async ({ mount }) => {
   const combobox = await mount(<Combobox aria-label="Tag" items={TAGS} />);
   const group = combobox.locator('[data-slot="combobox-input-group"]');
-  await expect
-    .poll(() => controlHeight(group), { intervals: [20, 50, 100] })
-    .toBeGreaterThanOrEqual(FLOOR);
+  await expect.poll(() => controlHeight(group), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(FLOOR);
 });
 
-test("Menu items meet the height floor (opened, measured in the portal after the open animation)", async ({
-  mount,
-  page,
-}) => {
+test("Menu items meet the height floor (opened, measured in the portal after the open animation)", async ({ mount, page }) => {
   await mount(
     <Menu>
       <MenuTrigger>Actions</MenuTrigger>
@@ -252,9 +213,7 @@ test("Menu items meet the height floor (opened, measured in the portal after the
   await page.getByRole("button", { name: "Actions" }).click();
   await expect(page.getByRole("menu")).toBeVisible();
   const item = page.getByRole("menuitem", { name: "Rename" });
-  await expect
-    .poll(() => controlHeight(item), { intervals: [20, 50, 100], timeout: 5000 })
-    .toBeGreaterThanOrEqual(FLOOR);
+  await expect.poll(() => controlHeight(item), { intervals: [20, 50, 100], timeout: 5000 }).toBeGreaterThanOrEqual(FLOOR);
 });
 
 // ── NAMED NON-COVERAGE — interactive primitives this sweep deliberately does not mount ────────────

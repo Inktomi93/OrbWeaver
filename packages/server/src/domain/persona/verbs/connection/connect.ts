@@ -11,15 +11,9 @@ import { ensureCharacterOwned, ensurePersonaOwned } from "../../persistence/quer
 export function createConnect(ctx: PersonaContext): PersonaService["connectToCharacter"] {
   return async ({ principal, characterId, personaId }: ConnectParams) => {
     const ownerId = principal.userId;
-    await Promise.all([
-      ensureCharacterOwned(ctx.db, ownerId, characterId),
-      ensurePersonaOwned(ctx.db, ownerId, personaId),
-    ]);
+    await Promise.all([ensureCharacterOwned(ctx.db, ownerId, characterId), ensurePersonaOwned(ctx.db, ownerId, personaId)]);
     const at = ctx.now();
-    await ctx.db
-      .insert(characterPersonas)
-      .values({ characterId, personaId, createdAt: at })
-      .onConflictDoNothing();
+    await ctx.db.insert(characterPersonas).values({ characterId, personaId, createdAt: at }).onConflictDoNothing();
     await ctx.audit(
       {
         actorUserId: ownerId,

@@ -29,9 +29,8 @@ export function ImportLibrarySection(): ReactElement {
   return (
     <Stack gap="block">
       <Text tone="muted" size="body">
-        Restore a backup, or bring your SillyTavern library over. Drop a full .zip export
-        (characters, chats, personas, lorebooks — everything) or a single character card — or pick
-        an unzipped backup / SillyTavern profile folder.
+        Restore a backup, or bring your SillyTavern library over. Drop a full .zip export (characters, chats, personas, lorebooks — everything) or a single
+        character card — or pick an unzipped backup / SillyTavern profile folder.
       </Text>
       <FileDropzone
         accept=".zip,.png,.json"
@@ -66,16 +65,8 @@ export function ImportLibrarySection(): ReactElement {
       </Row>
       {state.status === "running" ? (
         <>
-          <BundleWorkloadTracker
-            workloadId={state.workloadId}
-            onProgress={track.onProgress}
-            onSucceeded={track.onSucceeded}
-            onFailed={track.onFailed}
-          />
-          <Progress
-            value={state.progress.pct}
-            label={state.progress.label ?? "Importing your library…"}
-          />
+          <BundleWorkloadTracker workloadId={state.workloadId} onProgress={track.onProgress} onSucceeded={track.onSucceeded} onFailed={track.onFailed} />
+          <Progress value={state.progress.pct} label={state.progress.label ?? "Importing your library…"} />
         </>
       ) : null}
       {state.status === "error" ? (

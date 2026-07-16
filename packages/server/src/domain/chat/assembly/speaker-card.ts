@@ -15,10 +15,7 @@ import type { AssembleContext, SpeakerRef } from "@orb/contracts/chat";
 import { speakerKey } from "@orb/contracts/chat";
 
 /** Shape the immutable ctx to THIS speaker. `cardScope` selects the co-speaker breadth. */
-export function shapeContextForSpeaker(
-  ctx: AssembleContext,
-  speaker: { readonly ref: SpeakerRef; readonly cardScope: "merged" | "scoped" },
-): AssembleContext {
+export function shapeContextForSpeaker(ctx: AssembleContext, speaker: { readonly ref: SpeakerRef; readonly cardScope: "merged" | "scoped" }): AssembleContext {
   const { castMembers, cast } = ctx;
   if (castMembers === undefined || cast === undefined) {
     return ctx; // solo / hand-built — no per-speaker selection to make.

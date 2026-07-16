@@ -5,10 +5,7 @@ import { castId } from "@orb/kit/ids";
 import type { SessionsService } from "@orb/server/domain/sessions";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, vi } from "vitest";
-import {
-  SESSION_TTL_MS,
-  SLIDE_THROTTLE_MS,
-} from "../../../../../packages/server/src/domain/sessions/tokens/tokens";
+import { SESSION_TTL_MS, SLIDE_THROTTLE_MS } from "../../../../../packages/server/src/domain/sessions/tokens/tokens";
 import type { Clock } from "../../../../support/clock";
 import { freshDb } from "../../../../support/db";
 import { expect, test } from "../../../../support/fixtures";
@@ -25,9 +22,7 @@ let clock: Clock;
 beforeEach(async () => {
   db = await freshDb();
   ({ svc, clock } = makeService(db));
-  await db
-    .insert(users)
-    .values({ id: USER_ID, handle: HANDLE, externalId: castId(EXTERNAL), role: "owner" });
+  await db.insert(users).values({ id: USER_ID, handle: HANDLE, externalId: castId(EXTERNAL), role: "owner" });
 });
 
 describe("sessions.validate — Route A (returns userId + the principal-fields)", () => {
@@ -109,8 +104,7 @@ describe("sessions.validate — throttled expiry slide", () => {
 
   test("within the throttle: no slide, onSlide not fired", async () => {
     const { token, sessionId } = await svc.create({ userId: USER_ID });
-    const originalExpiry = (await db.select().from(sessions).where(eq(sessions.id, sessionId)))[0]
-      ?.expiresAt;
+    const originalExpiry = (await db.select().from(sessions).where(eq(sessions.id, sessionId)))[0]?.expiresAt;
     clock.advance(SLIDE_THROTTLE_MS - 1);
     const onSlide = vi.fn<(expiresAt: number) => void>();
     await svc.validate(token, onSlide);

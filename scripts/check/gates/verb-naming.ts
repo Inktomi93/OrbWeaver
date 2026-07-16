@@ -6,8 +6,7 @@
 // createCreate, bulk-archive.ts → createBulkArchive). index.ts barrels are exempt.
 import type { GateDescriptor } from "../contract.ts";
 
-const VERB_FILE =
-  /\/packages\/server\/src\/domain\/[^/]+\/(?:[^/]+\/)*verbs\/(?:[^/]+\/)*[^/]+\.ts$/u;
+const VERB_FILE = /\/packages\/server\/src\/domain\/[^/]+\/(?:[^/]+\/)*verbs\/(?:[^/]+\/)*[^/]+\.ts$/u;
 
 function pascal(kebab: string): string {
   return kebab

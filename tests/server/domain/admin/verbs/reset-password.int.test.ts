@@ -72,9 +72,7 @@ describe("resetPassword", () => {
     const svc = createAdminService(makeHarness(db).ctx);
     const u = await seedUser(db, { id: "user_u", role: "user", handle: "u" });
     const t = await seedUser(db, { id: "user_t", role: "user", handle: "t" });
-    await expect(
-      svc.resetPassword({ principal: principal(u, "user"), userId: t, password: NEW_PASSWORD }),
-    ).rejects.toThrow(DomainForbiddenError);
+    await expect(svc.resetPassword({ principal: principal(u, "user"), userId: t, password: NEW_PASSWORD })).rejects.toThrow(DomainForbiddenError);
   });
 
   test("REFUSES an agent target — cannot_modify_agent (loginless), no audit (D60)", async () => {

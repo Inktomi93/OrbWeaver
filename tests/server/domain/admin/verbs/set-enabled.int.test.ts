@@ -36,9 +36,9 @@ describe("setEnabled", () => {
     const h = makeHarness(db);
     const svc = createAdminService(h.ctx);
     const admin = await seedUser(db, { id: "user_adm", role: "admin", handle: "adm" });
-    await expect(
-      svc.setEnabled({ principal: principal(admin, "admin"), userId: admin, enabled: false }),
-    ).rejects.toMatchObject({ code: "cannot_disable_self" });
+    await expect(svc.setEnabled({ principal: principal(admin, "admin"), userId: admin, enabled: false })).rejects.toMatchObject({
+      code: "cannot_disable_self",
+    });
     expect(h.revokedAll).toHaveLength(0);
     const rows = await db.select().from(users).where(eq(users.id, admin));
     expect(rows[0]?.enabled).toBe(true);
@@ -48,9 +48,9 @@ describe("setEnabled", () => {
     const db = await freshDb();
     const { svc, admin } = await seedAdminCaller(db);
     const owner = await seedUser(db, { id: "user_owner", role: "owner", handle: "owner" });
-    await expect(
-      svc.setEnabled({ principal: principal(admin, "admin"), userId: owner, enabled: false }),
-    ).rejects.toMatchObject({ code: "cannot_modify_owner" });
+    await expect(svc.setEnabled({ principal: principal(admin, "admin"), userId: owner, enabled: false })).rejects.toMatchObject({
+      code: "cannot_modify_owner",
+    });
   });
 
   test("a write to a missing id throws AND writes NO audit row (existence-before-audit)", async () => {
@@ -73,9 +73,7 @@ describe("setEnabled", () => {
     const svc = createAdminService(makeHarness(db).ctx);
     const u = await seedUser(db, { id: "user_u", role: "user", handle: "u" });
     const t = await seedUser(db, { id: "user_t", role: "user", handle: "t" });
-    await expect(
-      svc.setEnabled({ principal: principal(u, "user"), userId: t, enabled: false }),
-    ).rejects.toThrow(DomainForbiddenError);
+    await expect(svc.setEnabled({ principal: principal(u, "user"), userId: t, enabled: false })).rejects.toThrow(DomainForbiddenError);
   });
 
   test("ACCEPTS an agent — it IS the containment verb; view carries kind/ownerHandle (D60)", async () => {

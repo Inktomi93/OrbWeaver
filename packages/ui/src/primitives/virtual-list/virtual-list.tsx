@@ -161,11 +161,7 @@ export function VirtualList<T>({
       role="list"
       {...(ariaLabel !== undefined ? { "aria-label": ariaLabel } : {})}
     >
-      <div
-        ref={virtualizer.containerRef}
-        className="relative w-full"
-        data-slot="virtual-list-viewport"
-      >
+      <div ref={virtualizer.containerRef} className="relative w-full" data-slot="virtual-list-viewport">
         {virtualItems.map((virtualItem) => (
           // biome-ignore lint/a11y/useSemanticElements: virtualized DOM structure requires divs
           <div

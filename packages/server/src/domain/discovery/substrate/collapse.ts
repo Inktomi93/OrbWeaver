@@ -4,11 +4,7 @@
 // signal. The rep of a hash group is the row with the smallest id, and reps is ordered by rep id ascending
 // so the same input yields the same rep order run-to-run (k-means++ seeding indexes into reps).
 
-export function collapseByHash<T>(
-  rows: readonly T[],
-  hashOf: (row: T) => string,
-  idOf: (row: T) => string,
-): { readonly reps: T[]; readonly repOf: number[] } {
+export function collapseByHash<T>(rows: readonly T[], hashOf: (row: T) => string, idOf: (row: T) => string): { readonly reps: T[]; readonly repOf: number[] } {
   const repByHash = new Map<string, T>();
   for (const row of rows) {
     const hash = hashOf(row);

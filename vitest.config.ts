@@ -40,12 +40,6 @@ const SERIAL_INT = [
   // 1. tree-writers + fixed-port boot
   "tests/tooling/check-gates.int.test.ts",
   "tests/tooling/dependency-cruiser.int.test.ts",
-  "tests/tooling/grit-plugins.int.test.ts",
-  "tests/tooling/single-pass-parity.int.test.ts",
-  "tests/tooling/monotonic-tests.int.test.ts",
-  "tests/tooling/client-structure.int.test.ts",
-  "tests/tooling/diagnostic-legibility.int.test.ts",
-  "tests/tooling/test-presence-client.int.test.ts",
   "tests/server/entry/lifecycle.int.test.ts",
   // 2. whole-tree scanners + heavy full-composition files (flaked on 5s timeout under fork contention)
   "tests/tooling/gate-conformance.int.test.ts",
@@ -107,9 +101,7 @@ export default defineConfig({
     },
 
     // --- reporters: CI-aware (junit for CI ingestion; default locally) ---
-    reporters: inCI
-      ? ["default", "github-actions", ["junit", { outputFile: "reports/junit.xml" }]]
-      : ["default"],
+    reporters: inCI ? ["default", "github-actions", ["junit", { outputFile: "reports/junit.xml" }]] : ["default"],
 
     projects: [
       {

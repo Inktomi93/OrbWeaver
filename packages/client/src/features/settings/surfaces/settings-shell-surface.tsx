@@ -11,31 +11,19 @@
 // search jump); within that pane the active subcategory tracks scroll (a passive, rAF-throttled listener
 // lights the last section past the spy line), suppressed while a programmatic jump is in flight.
 
-import {
-  Command,
-  CommandEmpty,
-  CommandInput,
-  CommandItem,
-  CommandList,
-  CommandStatus,
-} from "@orb/ui/command";
+import { Command, CommandEmpty, CommandInput, CommandItem, CommandList, CommandStatus } from "@orb/ui/command";
 import { Icon } from "@orb/ui/icons";
 import { Container, Row, Stack } from "@orb/ui/layout";
 import { scrollBehavior } from "@orb/ui/lib";
 import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTRPC } from "#data";
 import { useFocusOnMount } from "#lib";
 import type { SettingsCategoryId, SettingsPaneDefinition, SettingsViewerView } from "#state";
-import {
-  SETTINGS_GROUPS,
-  settingsAnchorId,
-  useSettingsPaneRegistry,
-  useSettingsTarget,
-} from "#state";
+import { SETTINGS_GROUPS, settingsAnchorId, useSettingsPaneRegistry, useSettingsTarget } from "#state";
 import { SettingsPanePlaceholder } from "../components/settings-pane-placeholder";
 import { SETTINGS_GROUP_LABELS } from "../lib/settings-nav-model";
 import type { SettingsSearchEntry } from "../lib/settings-search";
@@ -49,10 +37,7 @@ function isCategoryId(v: SettingsCategoryId | null): v is SettingsCategoryId {
 }
 
 /** The category ids for one group, in the registry's declared order. */
-function categoryIdsForGroup(
-  panes: readonly SettingsPaneDefinition[],
-  group: (typeof SETTINGS_GROUPS)[number],
-): readonly SettingsPaneDefinition[] {
+function categoryIdsForGroup(panes: readonly SettingsPaneDefinition[], group: (typeof SETTINGS_GROUPS)[number]): readonly SettingsPaneDefinition[] {
   return panes.filter((pane) => pane.group === group);
 }
 
@@ -69,8 +54,7 @@ export function SettingsShell(): ReactElement {
   // A non-suspense probe (never blocks the shell) so `when`-gated panes (e.g. admin) can filter nav/search.
   const trpc = useTRPC();
   const viewerQuery = useQuery(trpc.sessions.me.queryOptions());
-  const isAdmin =
-    viewerQuery.data?.globalRole === "owner" || viewerQuery.data?.globalRole === "admin";
+  const isAdmin = viewerQuery.data?.globalRole === "owner" || viewerQuery.data?.globalRole === "admin";
   const visiblePanes = useMemo(() => {
     const viewer: SettingsViewerView = { isAdmin };
     return panes.filter((pane) => pane.when?.(viewer) ?? true);
@@ -97,10 +81,7 @@ export function SettingsShell(): ReactElement {
   // Suppresses the scroll-spy for the duration of a programmatic jump so smooth-scroll can't flicker the nav; a ref, never state.
   const suppressSpyRef = useRef(false);
 
-  const searchEntries = useMemo(
-    () => buildSettingsSearchEntries(registry, (id) => visibleIds.has(id as SettingsCategoryId)),
-    [registry, visibleIds],
-  );
+  const searchEntries = useMemo(() => buildSettingsSearchEntries(registry, (id) => visibleIds.has(id as SettingsCategoryId)), [registry, visibleIds]);
 
   const beginProgrammaticScroll = (): void => {
     suppressSpyRef.current = true;
@@ -183,10 +164,7 @@ export function SettingsShell(): ReactElement {
     let attempts = 0;
     let raf = 0;
     const initialCompute = (): void => {
-      if (
-        container.querySelector(`[id^="${prefix}"]`) === null &&
-        attempts++ < MAX_ANCHOR_POLL_FRAMES
-      ) {
+      if (container.querySelector(`[id^="${prefix}"]`) === null && attempts++ < MAX_ANCHOR_POLL_FRAMES) {
         raf = requestAnimationFrame(initialCompute);
         return;
       }
@@ -209,23 +187,13 @@ export function SettingsShell(): ReactElement {
         <Stack className="h-full min-h-0" gap="section">
           <Stack role="search" aria-label="Settings search">
             <Command label="Search settings">
-              <CommandInput
-                aria-label="Search settings"
-                onValueChange={setQuery}
-                placeholder="Search settings…"
-                value={query}
-              />
+              <CommandInput aria-label="Search settings" onValueChange={setQuery} placeholder="Search settings…" value={query} />
               {hasQuery ? (
                 <CommandList className="max-h-(--container-cq-sm)">
                   <CommandStatus />
                   <CommandEmpty>{`No settings match “${query.trim()}”.`}</CommandEmpty>
                   {searchEntries.map((entry) => (
-                    <CommandItem
-                      key={entry.id}
-                      keywords={[...entry.keywords]}
-                      onSelect={(): void => jumpToEntry(entry)}
-                      value={entry.id}
-                    >
+                    <CommandItem key={entry.id} keywords={[...entry.keywords]} onSelect={(): void => jumpToEntry(entry)} value={entry.id}>
                       <Text size="body">{entry.label}</Text>
                       {entry.label === entry.categoryLabel ? null : (
                         <Text size="micro" tone="muted">
@@ -283,12 +251,7 @@ export function SettingsShell(): ReactElement {
               ))}
             </Stack>
 
-            <Stack
-              ref={contentRef}
-              role="region"
-              aria-label={`${activePane.label} settings`}
-              className="min-h-0 flex-1 overflow-y-auto"
-            >
+            <Stack ref={contentRef} role="region" aria-label={`${activePane.label} settings`} className="min-h-0 flex-1 overflow-y-auto">
               <SettingsPane pane={activePane} />
             </Stack>
           </Row>
@@ -315,8 +278,7 @@ function computeActiveSub(container: HTMLElement, prefix: string): string | null
     return null;
   }
   const last = sections.at(-1);
-  const atBottom =
-    container.scrollTop + container.clientHeight >= container.scrollHeight - SPY_BOTTOM_EPS;
+  const atBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - SPY_BOTTOM_EPS;
   if (atBottom && last !== undefined) {
     return last.id.slice(prefix.length);
   }
@@ -345,9 +307,9 @@ function flashAnchor(el: HTMLElement): void {
 /** The active pane — reads the registry blind, narrowing the DECLARED-PLANNED arm to the placeholder.
  *  Admin needs no extra guard here — the nav/search hide it from non-admin viewers via `when`, and a
  *  forced deep-link hits the pane's own server-gated error. */
-function SettingsPane({ pane }: { readonly pane: SettingsPaneDefinition }): ReactElement {
+function SettingsPane({ pane }: { readonly pane: SettingsPaneDefinition }): ReactNode {
   if (typeof pane.body === "function") {
-    return <>{pane.body()}</>;
+    return pane.body();
   }
   return <SettingsPanePlaceholder title={pane.label} description={pane.description} />;
 }

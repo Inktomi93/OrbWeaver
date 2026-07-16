@@ -26,7 +26,7 @@ const RELATION_SEEN: Record<DuplicateRelation, true> = {
   duplicate: true,
   forked: true,
 };
-// biome-ignore lint/security/noSecrets: a test description string, not a secret (entropy false-positive).
+
 test("the relation union has no member beyond the tuple (exhaustive over duplicate|forked)", () => {
   expect(Object.keys(RELATION_SEEN).sort()).toEqual([...RELATIONS].sort());
 });

@@ -43,11 +43,7 @@ const COMPACTION_SYSTEM_PROMPT =
 
 /** Build the summarizer's user prompt from the prior checkpoint summary (folded in so the new summary
  *  supersedes it), the new transcript, and any caller guidance. */
-function buildCompactionPrompt(args: {
-  readonly priorSummary: string | null;
-  readonly transcript: string;
-  readonly instructions: string | undefined;
-}): string {
+function buildCompactionPrompt(args: { readonly priorSummary: string | null; readonly transcript: string; readonly instructions: string | undefined }): string {
   const parts: string[] = [];
   if (args.priorSummary !== null && args.priorSummary.length > 0) {
     parts.push(`Summary so far:\n${args.priorSummary}`);
@@ -63,21 +59,14 @@ function buildCompactionPrompt(args: {
  *  `throughSeq`), writes the advanced checkpoint. A window with no new turns is an idempotent no-op. No gate
  *  / no bus emit — that's the verb's / engine's job. */
 function makeRunCompaction(ctx: ChatContext): (args: RunCompactionArgs) => Promise<CompactResult> {
-  return async ({
-    chatId,
-    throughSeq,
-    instructions,
-  }: RunCompactionArgs): Promise<CompactResult> => {
+  return async ({ chatId, throughSeq, instructions }: RunCompactionArgs): Promise<CompactResult> => {
     const chat = await loadChatRow(ctx.db, chatId);
     if (chat === undefined) {
       throw new ChatNotFoundError(chatId);
     }
     const fromSeq = chat.compactedAtSeq ?? 0;
     const afterCheckpoint = await loadCanonHistoryAfter(ctx.db, chatId, fromSeq);
-    const window =
-      throughSeq === undefined
-        ? afterCheckpoint
-        : afterCheckpoint.filter((m) => m.seq <= throughSeq);
+    const window = throughSeq === undefined ? afterCheckpoint : afterCheckpoint.filter((m) => m.seq <= throughSeq);
     const coveredThroughSeq = window.at(-1)?.seq;
     if (coveredThroughSeq === undefined) {
       // Nothing new to compact — the checkpoint is already current (idempotent no-op).
@@ -93,10 +82,7 @@ function makeRunCompaction(ctx: ChatContext): (args: RunCompactionArgs) => Promi
     const result = await ctx.summarize([{ systemPrompt: COMPACTION_SYSTEM_PROMPT, userPrompt }]);
     const summary = result.items.at(0)?.text ?? chat.compactSummary ?? "";
 
-    await ctx.db
-      .update(chats)
-      .set({ compactSummary: summary, compactedAtSeq: coveredThroughSeq, updatedAt: ctx.now() })
-      .where(eq(chats.id, chatId));
+    await ctx.db.update(chats).set({ compactSummary: summary, compactedAtSeq: coveredThroughSeq, updatedAt: ctx.now() }).where(eq(chats.id, chatId));
     return { summary, compactedAtSeq: coveredThroughSeq };
   };
 }

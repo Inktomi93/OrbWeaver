@@ -6,10 +6,7 @@
 // guard throws LOUDLY at the first turn instead. We lock that EVERY malformed shape (missing/empty/
 // wrong-typed) throws, and a well-formed one passes.
 
-import {
-  assertInitFrameShape,
-  classifyTerminalReason,
-} from "@orb/server/infra/providers/backends/agent-sdk";
+import { assertInitFrameShape, classifyTerminalReason } from "@orb/server/infra/providers/backends/agent-sdk";
 import { describe } from "vitest";
 import { expect, test } from "../../../../../support/fixtures";
 
@@ -18,9 +15,7 @@ const MISSING_API_KEY_SOURCE_RE = /missing apiKeySource/u;
 
 describe("assertInitFrameShape", () => {
   test("a well-formed init frame passes", () => {
-    expect(() =>
-      assertInitFrameShape({ session_id: "sess-1", apiKeySource: "oauth" }),
-    ).not.toThrow();
+    expect(() => assertInitFrameShape({ session_id: "sess-1", apiKeySource: "oauth" })).not.toThrow();
   });
 
   test("a missing session_id throws loudly (points at an SDK shape change)", () => {
@@ -28,15 +23,11 @@ describe("assertInitFrameShape", () => {
   });
 
   test("an empty-string session_id throws loudly (an empty id can't key a resume lookup)", () => {
-    expect(() => assertInitFrameShape({ session_id: "", apiKeySource: "oauth" })).toThrow(
-      MISSING_SESSION_ID_RE,
-    );
+    expect(() => assertInitFrameShape({ session_id: "", apiKeySource: "oauth" })).toThrow(MISSING_SESSION_ID_RE);
   });
 
   test("a non-string session_id throws loudly (the type, not just presence, is guarded)", () => {
-    expect(() => assertInitFrameShape({ session_id: 42, apiKeySource: "oauth" })).toThrow(
-      MISSING_SESSION_ID_RE,
-    );
+    expect(() => assertInitFrameShape({ session_id: 42, apiKeySource: "oauth" })).toThrow(MISSING_SESSION_ID_RE);
   });
 
   test("a missing apiKeySource throws loudly (the sub-vs-key canary is required)", () => {
@@ -44,9 +35,7 @@ describe("assertInitFrameShape", () => {
   });
 
   test("a non-string apiKeySource throws loudly", () => {
-    expect(() => assertInitFrameShape({ session_id: "sess-1", apiKeySource: 1 })).toThrow(
-      MISSING_API_KEY_SOURCE_RE,
-    );
+    expect(() => assertInitFrameShape({ session_id: "sess-1", apiKeySource: 1 })).toThrow(MISSING_API_KEY_SOURCE_RE);
   });
 
   test("a non-object message does not silently pass (it throws rather than orphan sessions)", () => {

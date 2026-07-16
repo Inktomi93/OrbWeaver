@@ -115,10 +115,7 @@ describe("sessionMatchesSeed — the resume-gate comparator", () => {
   });
 
   test("a session holding MORE than the seed does NOT match (a swipe's rejected reply)", () => {
-    const frames = buildSeedFrames(
-      [...canon, { role: "user", content: "u2" }, { role: "assistant", content: "rejected" }],
-      SESSION_ID,
-    );
+    const frames = buildSeedFrames([...canon, { role: "user", content: "u2" }, { role: "assistant", content: "rejected" }], SESSION_ID);
     expect(sessionMatchesSeed(frames, [...canon, { role: "user", content: "u2" }])).toBe(false);
   });
 
@@ -218,15 +215,8 @@ describe("isBranchDivergence — swipe/edit (shared-prefix) vs unrelated diverge
 
   test("a swipe (shared prefix, then a diverged tail) IS a branch", () => {
     // Stored = canon + a rejected reply; the new seed keeps canon's prefix but swaps the tail.
-    const stored = buildSeedFrames(
-      [...canon, { role: "user", content: "u2" }, { role: "assistant", content: "rejected" }],
-      SESSION_ID,
-    );
-    const swipe = [
-      ...canon,
-      { role: "user" as const, content: "u2" },
-      { role: "assistant" as const, content: "kept" },
-    ];
+    const stored = buildSeedFrames([...canon, { role: "user", content: "u2" }, { role: "assistant", content: "rejected" }], SESSION_ID);
+    const swipe = [...canon, { role: "user" as const, content: "u2" }, { role: "assistant" as const, content: "kept" }];
     expect(isBranchDivergence(stored, swipe)).toBe(true);
   });
 
@@ -271,10 +261,7 @@ describe("sessionContainsSeedPrefix — the grown-superset re-adoption gate", ()
   test("a GROWN lineage (seed + SDK-appended turns) still contains the seed as a leading prefix", () => {
     // The live-append shape: canon ends on an assistant reply, so the SDK's growth is the NEXT distinct-role
     // turns (a user prompt + its reply) — a clean leading prefix, not folded into canon's trailing run.
-    const grown = buildSeedFrames(
-      [...canon, { role: "user", content: "u2" }, { role: "assistant", content: "r2" }],
-      SESSION_ID,
-    );
+    const grown = buildSeedFrames([...canon, { role: "user", content: "u2" }, { role: "assistant", content: "r2" }], SESSION_ID);
     // NOTE: `sessionMatchesSeed` (exact) is FALSE here — that mismatch is exactly why the old build re-forked.
     expect(sessionMatchesSeed(grown, canon)).toBe(false);
     expect(sessionContainsSeedPrefix(grown, canon)).toBe(true);
@@ -311,18 +298,14 @@ describe("seedSessionId — deterministic uuid-shaped session ids", () => {
   test("same chat + seed + salt → the same id; chat, seed, or salt changes it", () => {
     expect(seedSessionId("chat-1", seed)).toBe(seedSessionId("chat-1", seed));
     expect(seedSessionId("chat-2", seed)).not.toBe(seedSessionId("chat-1", seed));
-    expect(seedSessionId("chat-1", [{ role: "user", content: "other" }])).not.toBe(
-      seedSessionId("chat-1", seed),
-    );
+    expect(seedSessionId("chat-1", [{ role: "user", content: "other" }])).not.toBe(seedSessionId("chat-1", seed));
     expect(seedSessionId("chat-1", seed, 1)).not.toBe(seedSessionId("chat-1", seed, 0));
   });
 });
 
 describe("assertInitFrameShape — the SHAPE GUARD", () => {
   test("a well-formed init frame passes", () => {
-    expect(() =>
-      assertInitFrameShape({ session_id: "sess-1", apiKeySource: "oauth" }),
-    ).not.toThrow();
+    expect(() => assertInitFrameShape({ session_id: "sess-1", apiKeySource: "oauth" })).not.toThrow();
   });
 
   test("a missing session_id throws loudly", () => {
@@ -330,9 +313,7 @@ describe("assertInitFrameShape — the SHAPE GUARD", () => {
   });
 
   test("an empty session_id throws loudly", () => {
-    expect(() => assertInitFrameShape({ session_id: "", apiKeySource: "oauth" })).toThrow(
-      MISSING_SESSION_ID_RE,
-    );
+    expect(() => assertInitFrameShape({ session_id: "", apiKeySource: "oauth" })).toThrow(MISSING_SESSION_ID_RE);
   });
 
   test("a missing apiKeySource throws loudly", () => {

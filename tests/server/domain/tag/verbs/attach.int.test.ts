@@ -10,14 +10,7 @@ import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
-import {
-  makeTagHarness,
-  principal,
-  seedCharacter,
-  seedChat,
-  seedTag,
-  seedUser,
-} from "../_support.ts";
+import { makeTagHarness, principal, seedCharacter, seedChat, seedTag, seedUser } from "../_support.ts";
 
 describe("attachTag / detachTag / bulkAttachTag", () => {
   test("attaching to an owned character defaults to accepted; passing pending then re-attaching flips it", async () => {
@@ -68,9 +61,7 @@ describe("attachTag / detachTag / bulkAttachTag", () => {
       targetType: "character",
       targetId: characterId,
     });
-    expect(
-      await db.select().from(characterTags).where(eq(characterTags.tagId, tagId)),
-    ).toHaveLength(0);
+    expect(await db.select().from(characterTags).where(eq(characterTags.tagId, tagId))).toHaveLength(0);
   });
 
   test("attaching a tag you do not own is tag-not-found (the tag guard fires first)", async () => {
@@ -135,9 +126,7 @@ describe("attachTag / detachTag / bulkAttachTag", () => {
     const chatId = await seedChat(db);
     const tagId = await seedTag(db, owner, { id: "tag_a", name: "alpha" });
 
-    await expect(
-      svc.attachTag({ principal: principal(owner), tagId, targetType: "chat", targetId: chatId }),
-    ).rejects.toThrow(DomainForbiddenError);
+    await expect(svc.attachTag({ principal: principal(owner), tagId, targetType: "chat", targetId: chatId })).rejects.toThrow(DomainForbiddenError);
     expect(await db.select().from(chatTags).where(eq(chatTags.tagId, tagId))).toHaveLength(0);
   });
 
@@ -155,9 +144,7 @@ describe("attachTag / detachTag / bulkAttachTag", () => {
       targetType: "character",
       targetId: characterId,
     });
-    expect(
-      await db.select().from(characterTags).where(eq(characterTags.characterId, characterId)),
-    ).toHaveLength(2);
+    expect(await db.select().from(characterTags).where(eq(characterTags.characterId, characterId))).toHaveLength(2);
 
     await expect(
       svc.bulkAttachTag({

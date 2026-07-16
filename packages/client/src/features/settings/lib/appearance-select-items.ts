@@ -3,11 +3,7 @@
 // error, not a silently-unselectable option.
 
 import type { AppearanceSettings } from "@orb/contracts/settings";
-import {
-  APPEARANCE_BACKGROUND_FITS,
-  BACKGROUND_IMAGE_KINDS,
-  BLUR_SURFACES,
-} from "@orb/contracts/settings";
+import { APPEARANCE_BACKGROUND_FITS, BACKGROUND_IMAGE_KINDS, BLUR_SURFACES } from "@orb/contracts/settings";
 import { THEME_CHAT_STYLES, THEME_DENSITIES } from "@orb/contracts/theme";
 import type { SelectItems, SelectOption } from "@orb/ui/select";
 import { listSeededBackgrounds } from "#lib";
@@ -101,12 +97,10 @@ const BACKGROUND_FIT_LABELS: Record<AppearanceSettings["backgroundFit"], string>
   cover: "Cover (fill, crop edges)",
   contain: "Contain (fit, may letterbox)",
 };
-export const BACKGROUND_FIT_ITEMS: SelectItems<string> = APPEARANCE_BACKGROUND_FITS.map(
-  (value) => ({
-    value,
-    label: BACKGROUND_FIT_LABELS[value],
-  }),
-);
+export const BACKGROUND_FIT_ITEMS: SelectItems<string> = APPEARANCE_BACKGROUND_FITS.map((value) => ({
+  value,
+  label: BACKGROUND_FIT_LABELS[value],
+}));
 export const SEEDED_BACKGROUND_ITEMS: SelectItems<string> = listSeededBackgrounds().map((bg) => ({
   value: bg.id,
   label: bg.label,

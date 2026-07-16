@@ -1,14 +1,10 @@
 import { describe } from "vitest";
-import {
-  parseDigest,
-  renderDigestFacets,
-} from "../../../../../../../packages/server/src/domain/chat/memory/build/substrate/parse";
+import { parseDigest, renderDigestFacets } from "../../../../../../../packages/server/src/domain/chat/memory/build/substrate/parse";
 import { expect, test } from "../../../../../../support/fixtures";
 
 describe("memory/build/substrate/parse", () => {
   test("parses the three-part digest (anchor · facts · keywords)", () => {
-    const raw =
-      "[Aria — the docks]\nAria found the ledger.\nShe lied to Cole.\nkeywords: Aria, ledger, Cole";
+    const raw = "[Aria — the docks]\nAria found the ledger.\nShe lied to Cole.\nkeywords: Aria, ledger, Cole";
     const d = parseDigest(raw);
     expect(d.topicAnchor).toBe("[Aria — the docks]");
     expect(d.facts).toBe("Aria found the ledger.\nShe lied to Cole.");
@@ -22,7 +18,6 @@ describe("memory/build/substrate/parse", () => {
   });
 
   test("keywords are trimmed, de-duped, empties dropped", () => {
-    // biome-ignore lint/security/noSecrets: digest fixture string, not a credential.
     const d = parseDigest("[x]\nf\nkeywords: a , b, , a,c");
     expect(d.keywords).toEqual(["a", "b", "c"]);
   });
@@ -38,10 +33,7 @@ describe("memory/build/substrate/parse", () => {
   });
 
   test("renderDigestFacets composes anchor + keywords; handles each absent", () => {
-    expect(renderDigestFacets({ topicAnchor: "[a]", keywords: ["k1", "k2"] })).toBe(
-      // biome-ignore lint/security/noSecrets: digest fixture string, not a credential.
-      "[a]\nkeywords: k1, k2",
-    );
+    expect(renderDigestFacets({ topicAnchor: "[a]", keywords: ["k1", "k2"] })).toBe("[a]\nkeywords: k1, k2");
     expect(renderDigestFacets({ topicAnchor: "[a]", keywords: [] })).toBe("[a]");
     expect(renderDigestFacets({ topicAnchor: null, keywords: ["k"] })).toBe("keywords: k");
     expect(renderDigestFacets({ topicAnchor: null, keywords: [] })).toBe("");

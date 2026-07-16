@@ -41,10 +41,7 @@ const DOMAIN_SPECIFIC_ROOT_FILES: Readonly<Record<string, readonly string[]>> = 
 
 function isAllowedRootFile(feature: string, fileName: string): boolean {
   const allNames: readonly string[] = REQUIRED_FILES;
-  if (
-    allNames.includes(fileName) ||
-    (ALWAYS_ALLOWED_ROOT_FILES as readonly string[]).includes(fileName)
-  ) {
+  if (allNames.includes(fileName) || (ALWAYS_ALLOWED_ROOT_FILES as readonly string[]).includes(fileName)) {
     return true;
   }
   return (DOMAIN_SPECIFIC_ROOT_FILES[feature] ?? []).includes(fileName);
@@ -99,10 +96,7 @@ function scanFeatureStructure(root: string): Violation[] {
     if (!statSync(featureDir).isDirectory()) {
       continue;
     }
-    violations.push(
-      ...checkRequiredSlots(featureDir, feature),
-      ...checkLooseFiles(featureDir, feature),
-    );
+    violations.push(...checkRequiredSlots(featureDir, feature), ...checkLooseFiles(featureDir, feature));
   }
   return violations;
 }

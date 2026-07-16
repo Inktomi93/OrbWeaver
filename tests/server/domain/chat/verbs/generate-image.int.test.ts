@@ -46,10 +46,7 @@ describe("generateImage", () => {
       generatePicture: (p) => {
         calls.push(p);
         return Promise.resolve({
-          images: [
-            { assetId: castId<AssetId>("asset_one") },
-            { assetId: castId<AssetId>("asset_two") },
-          ],
+          images: [{ assetId: castId<AssetId>("asset_one") }, { assetId: castId<AssetId>("asset_two") }],
           warnings: [],
         });
       },
@@ -73,11 +70,7 @@ describe("generateImage", () => {
     // Exactly one committed slot; its body is a STRING with two asset refs + the prompt.
     const rows = await db.select().from(messages).where(eq(messages.chatId, chatId));
     expect(rows).toHaveLength(1);
-    const variants = await db
-      .select()
-      .from(messageVariants)
-      .where(eq(messageVariants.messageId, view.id))
-      .orderBy(asc(messageVariants.idx));
+    const variants = await db.select().from(messageVariants).where(eq(messageVariants.messageId, view.id)).orderBy(asc(messageVariants.idx));
     expect(variants).toHaveLength(1);
     const body = variants[0]?.content ?? "";
     expect(body).toContain("a dragon");
@@ -103,9 +96,7 @@ describe("generateImage", () => {
     });
     const { generateImage } = createGenerateImage(ctx, { emit });
 
-    await expect(
-      generateImage({ principal: principal(outsider), chatId, mode: "free", prompt: "x" }),
-    ).rejects.toThrow();
+    await expect(generateImage({ principal: principal(outsider), chatId, mode: "free", prompt: "x" })).rejects.toThrow();
     expect(called).toBe(false);
   });
 });

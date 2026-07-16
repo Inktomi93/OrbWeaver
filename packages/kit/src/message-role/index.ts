@@ -24,9 +24,7 @@ const ST_NUM_BY_ROLE: Record<MessageRole, number> = {
   user: 1,
   assistant: 2,
 };
-const ROLE_BY_ST_NUM: ReadonlyMap<number, MessageRole> = new Map(
-  MESSAGE_ROLES.map((role): [number, MessageRole] => [ST_NUM_BY_ROLE[role], role]),
-);
+const ROLE_BY_ST_NUM: ReadonlyMap<number, MessageRole> = new Map(MESSAGE_ROLES.map((role): [number, MessageRole] => [ST_NUM_BY_ROLE[role], role]));
 
 /** ST role → `MessageRole`. Accepts the numeric encoding (0/1/2) AND a literal role string
  *  ("system"/"user"/"assistant", as modern cards emit). Returns null for anything else, letting the

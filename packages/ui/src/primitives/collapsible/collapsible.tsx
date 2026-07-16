@@ -14,13 +14,7 @@ export interface CollapsibleProps extends Omit<BaseRootProps, "className"> {
 }
 
 export function Collapsible({ className, ...rest }: CollapsibleProps): ReactElement {
-  return (
-    <BaseCollapsible.Root
-      className={slots.root({ className })}
-      data-slot="collapsible-root"
-      {...rest}
-    />
-  );
+  return <BaseCollapsible.Root className={slots.root({ className })} data-slot="collapsible-root" {...rest} />;
 }
 
 export interface CollapsibleTriggerProps extends Omit<BaseTriggerProps, "className"> {
@@ -28,13 +22,7 @@ export interface CollapsibleTriggerProps extends Omit<BaseTriggerProps, "classNa
 }
 
 export function CollapsibleTrigger({ className, ...rest }: CollapsibleTriggerProps): ReactElement {
-  return (
-    <BaseCollapsible.Trigger
-      className={slots.trigger({ className })}
-      data-slot="collapsible-trigger"
-      {...rest}
-    />
-  );
+  return <BaseCollapsible.Trigger className={slots.trigger({ className })} data-slot="collapsible-trigger" {...rest} />;
 }
 
 export interface CollapsiblePanelProps extends Omit<BasePanelProps, "className"> {
@@ -44,11 +32,5 @@ export interface CollapsiblePanelProps extends Omit<BasePanelProps, "className">
 // Removed from the DOM while closed by default. `keepMounted` keeps it mounted but hidden;
 // `hiddenUntilFound` renders `hidden="until-found"` so find-in-page can locate + auto-expand it.
 export function CollapsiblePanel({ className, ...rest }: CollapsiblePanelProps): ReactElement {
-  return (
-    <BaseCollapsible.Panel
-      className={slots.panel({ className })}
-      data-slot="collapsible-panel"
-      {...rest}
-    />
-  );
+  return <BaseCollapsible.Panel className={slots.panel({ className })} data-slot="collapsible-panel" {...rest} />;
 }

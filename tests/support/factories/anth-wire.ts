@@ -17,9 +17,7 @@ export function anthEvent(event: Record<string, unknown>): RawMessageStreamEvent
 
 /** Wrap an event array as a fake `Stream<RawMessageStreamEvent>` — the reducer only `for await`s it, so a
  *  plain async iterable over the events is a structurally-valid stream. */
-export function anthStream(
-  events: readonly RawMessageStreamEvent[],
-): Stream<RawMessageStreamEvent> {
+export function anthStream(events: readonly RawMessageStreamEvent[]): Stream<RawMessageStreamEvent> {
   async function* gen(): AsyncGenerator<RawMessageStreamEvent> {
     await Promise.resolve();
     for (const event of events) {

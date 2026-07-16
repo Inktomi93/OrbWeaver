@@ -1,8 +1,4 @@
-import type {
-  ToastPortalProps as BasePortalProps,
-  ToastProviderProps as BaseProviderProps,
-  ToastRootProps as BaseRootProps,
-} from "@base-ui/react/toast";
+import type { ToastPortalProps as BasePortalProps, ToastProviderProps as BaseProviderProps, ToastRootProps as BaseRootProps } from "@base-ui/react/toast";
 import { Toast as BaseToast } from "@base-ui/react/toast";
 import type { ReactElement } from "react";
 import { Icon, X } from "#primitives/icons";
@@ -12,6 +8,7 @@ const slots = toastVariants();
 
 /** App-wide toast state — seals the Base UI Toast manager. Mount ONCE near the root. */
 export function ToastProvider(props: BaseProviderProps): ReactElement {
+  // @orb-gate-ignore no-context-provider Base UI's Toast.Provider is a namespace COMPONENT, not a React Context — the React-19 `<Context.Provider>` deprecation the gate targets doesn't apply.
   return <BaseToast.Provider {...props} />;
 }
 
@@ -24,13 +21,7 @@ function ToastItems({ swipeDirection }: ToastItemsProps): ReactElement {
   return (
     <>
       {toasts.map((toast) => (
-        <BaseToast.Root
-          className={slots.root()}
-          data-slot="toast-root"
-          key={toast.id}
-          swipeDirection={swipeDirection}
-          toast={toast}
-        >
+        <BaseToast.Root className={slots.root()} data-slot="toast-root" key={toast.id} swipeDirection={swipeDirection} toast={toast}>
           <BaseToast.Content className={slots.content()}>
             <BaseToast.Title className={slots.title()} />
             <BaseToast.Description className={slots.description()} />

@@ -11,13 +11,7 @@ const KAI = castId<CharacterId>("character_kai");
 
 describe("hasMultipleCharacters", () => {
   test("solo (one character across all assistant rows) → false", () => {
-    expect(
-      hasMultipleCharacters([
-        { role: "assistant", characterId: ARIA },
-        { role: "user" },
-        { role: "assistant", characterId: ARIA },
-      ]),
-    ).toBe(false);
+    expect(hasMultipleCharacters([{ role: "assistant", characterId: ARIA }, { role: "user" }, { role: "assistant", characterId: ARIA }])).toBe(false);
   });
 
   test("two distinct authoring characters → true", () => {
@@ -39,9 +33,7 @@ describe("hasMultipleCharacters", () => {
   });
 
   test("unattributed assistant rows (null/absent characterId) don't count", () => {
-    expect(
-      hasMultipleCharacters([{ role: "assistant", characterId: null }, { role: "assistant" }]),
-    ).toBe(false);
+    expect(hasMultipleCharacters([{ role: "assistant", characterId: null }, { role: "assistant" }])).toBe(false);
   });
 
   test("empty history → false", () => {

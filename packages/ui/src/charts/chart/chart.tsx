@@ -15,9 +15,7 @@ import { chartVariants } from "./variants";
 // (`{ default: class }`) rather than the class itself — rendering it throws "Element type is
 // invalid… got: object" the moment a populated chart mounts. Unwrap defensively so the value is
 // always the component class regardless of which interop path resolved it.
-const ReactEChartsCore =
-  (ReactEChartsCoreDefault as unknown as { readonly default?: typeof ReactEChartsCoreDefault })
-    .default ?? ReactEChartsCoreDefault;
+const ReactEChartsCore = (ReactEChartsCoreDefault as unknown as { readonly default?: typeof ReactEChartsCoreDefault }).default ?? ReactEChartsCoreDefault;
 
 const DEFAULT_HEIGHT = 240;
 
@@ -31,13 +29,7 @@ export interface ChartProps {
   readonly onChartReady?: ((instance: OrbEChartsInstance) => void) | undefined;
 }
 
-export function Chart({
-  option,
-  label,
-  height = DEFAULT_HEIGHT,
-  className,
-  onChartReady,
-}: ChartProps): ReactElement {
+export function Chart({ option, label, height = DEFAULT_HEIGHT, className, onChartReady }: ChartProps): ReactElement {
   const reducedMotion = usePrefersReducedMotion();
   const slots = chartVariants();
   const merged = mergeChartOption(option, { label, reducedMotion });

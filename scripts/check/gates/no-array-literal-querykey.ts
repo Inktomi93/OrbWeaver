@@ -15,11 +15,7 @@ const MESSAGE =
  *  identifier to its declaration (a `const K = [...]` proxy-shaped mint is legal). */
 function unwrap(node: Node): Node {
   let n = node;
-  while (
-    Node.isAsExpression(n) ||
-    Node.isSatisfiesExpression(n) ||
-    Node.isParenthesizedExpression(n)
-  ) {
+  while (Node.isAsExpression(n) || Node.isSatisfiesExpression(n) || Node.isParenthesizedExpression(n)) {
     n = n.getExpression();
   }
   return n;

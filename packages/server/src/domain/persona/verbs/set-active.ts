@@ -11,12 +11,7 @@ import type { SetActivePersonaParams } from "../contract/params";
 import type { PersonaService } from "../contract/service";
 
 export function createSetActive(ctx: PersonaContext): PersonaService["setActivePersona"] {
-  return async ({
-    principal,
-    chatId,
-    targetUserId,
-    personaId,
-  }: SetActivePersonaParams): Promise<void> => {
+  return async ({ principal, chatId, targetUserId, personaId }: SetActivePersonaParams): Promise<void> => {
     const target = targetUserId ?? principal.userId;
     await ctx.requireChatAuthorOrHost(principal, chatId, target);
 

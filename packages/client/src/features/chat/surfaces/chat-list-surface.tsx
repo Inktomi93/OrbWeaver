@@ -41,11 +41,7 @@ export interface ChatListSurfaceProps {
   readonly onDeletedChat?: ((chatId: ChatId) => void) | undefined;
 }
 
-export function ChatListSurface({
-  onSelect,
-  onNewChat,
-  onDeletedChat,
-}: ChatListSurfaceProps): ReactElement {
+export function ChatListSurface({ onSelect, onNewChat, onDeletedChat }: ChatListSurfaceProps): ReactElement {
   const activeChatId = useActiveChatId();
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query, "");
@@ -70,18 +66,11 @@ export function ChatListSurface({
         </Tooltip>
       </Row>
       {characterFilter !== null ? <FilterChip filter={characterFilter} /> : null}
-      <Input
-        aria-label="Search chats"
-        onValueChange={setQuery}
-        placeholder="Search the weave…"
-        value={query}
-      />
+      <Input aria-label="Search chats" onValueChange={setQuery} placeholder="Search the weave…" value={query} />
       <Stack className="min-h-0 flex-1">
         <QueryBoundary
           fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />}
-          renderError={(_error, retry): ReactElement => (
-            <QueryErrorState label="your chats" onRetry={retry} />
-          )}
+          renderError={(_error, retry): ReactElement => <QueryErrorState label="your chats" onRetry={retry} />}
         >
           <ChatListBody
             activeChatId={activeChatId}
@@ -107,13 +96,7 @@ function FilterChip({ filter }: { readonly filter: ChatListCharacterFilter }): R
       <Badge intent="info" size="sm">
         {filter.name}
       </Badge>
-      <Button
-        aria-label={`Clear the ${filter.name} filter`}
-        intent="ghost"
-        onClick={clearChatListCharacterFilter}
-        size="icon"
-        type="button"
-      >
+      <Button aria-label={`Clear the ${filter.name} filter`} intent="ghost" onClick={clearChatListCharacterFilter} size="icon" type="button">
         <Icon icon={X} size="sm" />
       </Button>
     </Row>
@@ -130,15 +113,7 @@ interface ChatListBodyProps {
   readonly query: string;
 }
 
-function ChatListBody({
-  activeChatId,
-  characterFilter,
-  onSelect,
-  onDeletedChat,
-  onNewChat,
-  onClearSearch,
-  query,
-}: ChatListBodyProps): ReactElement {
+function ChatListBody({ activeChatId, characterFilter, onSelect, onDeletedChat, onNewChat, onClearSearch, query }: ChatListBodyProps): ReactElement {
   const trpc = useTRPC();
   const { data: chats } = useSuspenseQuery(trpc.chat.listChats.queryOptions({}));
 
@@ -158,10 +133,7 @@ function ChatListBody({
     );
   }
 
-  const scoped =
-    characterFilter === null
-      ? chats
-      : chats.filter((chat) => chat.participantCharacterIds.includes(characterFilter.id));
+  const scoped = characterFilter === null ? chats : chats.filter((chat) => chat.participantCharacterIds.includes(characterFilter.id));
   if (characterFilter !== null && scoped.length === 0) {
     return (
       <EmptyState
@@ -195,20 +167,9 @@ function ChatListBody({
   }
 
   return (
-    <Stack
-      aria-label="Chats"
-      className="h-full min-h-0 overflow-y-auto overscroll-contain"
-      gap="row"
-      role="list"
-    >
+    <Stack aria-label="Chats" className="h-full min-h-0 overflow-y-auto overscroll-contain" gap="row" role="list">
       {filtered.map((chat) => (
-        <ChatListRow
-          chat={chat}
-          key={chat.id}
-          onDeletedChat={onDeletedChat}
-          onSelect={onSelect}
-          selected={chat.id === activeChatId}
-        />
+        <ChatListRow chat={chat} key={chat.id} onDeletedChat={onDeletedChat} onSelect={onSelect} selected={chat.id === activeChatId} />
       ))}
     </Stack>
   );
@@ -223,8 +184,7 @@ interface ChatListRowProps {
 
 function ChatListRow({ chat, selected, onSelect, onDeletedChat }: ChatListRowProps): ReactElement {
   const title = chat.title ?? "Untitled chat";
-  const subtitle =
-    chat.participantNames.length > 0 ? chat.participantNames.join(", ") : "No characters";
+  const subtitle = chat.participantNames.length > 0 ? chat.participantNames.join(", ") : "No characters";
   const when = chat.lastMessageAt ?? chat.updatedAt;
 
   return (
@@ -234,13 +194,7 @@ function ChatListRow({ chat, selected, onSelect, onDeletedChat }: ChatListRowPro
           <Text className="whitespace-nowrap font-mono" size="micro" tone="muted">
             {timeLib.formatRelative(when)}
           </Text>
-          <ChatListRowMenu
-            archived={chat.archived}
-            chatId={chat.id}
-            onDeleted={onDeletedChat}
-            starred={chat.star}
-            title={chat.title}
-          />
+          <ChatListRowMenu archived={chat.archived} chatId={chat.id} onDeleted={onDeletedChat} starred={chat.star} title={chat.title} />
         </Row>
       }
       clickable={true}

@@ -18,10 +18,6 @@ export interface ToolUseService {
   /** Resolve caller-supplied names against the registry. Unknown name throws (our wiring bug). */
   readonly resolveTools: (names: readonly string[]) => ResolvedToolSet;
   /** Run model-emitted calls sequentially, in array order; never throws for a per-call failure. */
-  readonly executeToolCalls: (
-    set: ResolvedToolSet,
-    calls: ToolCallBatch,
-    exec: ToolExecutionContext,
-  ) => Promise<readonly ToolCallRecord[]>;
+  readonly executeToolCalls: (set: ResolvedToolSet, calls: ToolCallBatch, exec: ToolExecutionContext) => Promise<readonly ToolCallRecord[]>;
   readonly toWireTools: (set: ResolvedToolSet) => readonly WireTool[];
 }

@@ -6,11 +6,7 @@
 import type { ModelCatalogEntry } from "@orb/contracts/connection";
 import type { CredentialHealth, ResolvedCredential } from "@orb/contracts/credentials";
 import type { AccountCredits, EndpointInspection, GenerationCost } from "@orb/contracts/providers";
-import type {
-  GenerationCostRequest,
-  InspectRequest,
-  ProviderBackend,
-} from "@orb/server/infra/providers";
+import type { GenerationCostRequest, InspectRequest, ProviderBackend } from "@orb/server/infra/providers";
 import { createProviderDiagnostics, ProviderError } from "@orb/server/infra/providers";
 import { describe } from "vitest";
 import { expect, test } from "../../../support/fixtures";
@@ -85,23 +81,15 @@ describe("createProviderDiagnostics — source → the sealed backend's diagnost
 
     expect(await diag.probe({ credential: cred("openrouter") })).toEqual(HEALTH);
     expect(await diag.accountCredits({ credential: cred("openrouter") })).toEqual(CREDITS);
-    expect(
-      await diag.generationCost({ credential: cred("openrouter"), generationId: "gen-1" }),
-    ).toEqual(COST);
+    expect(await diag.generationCost({ credential: cred("openrouter"), generationId: "gen-1" })).toEqual(COST);
 
-    expect(calls).toEqual([
-      "openrouter:probe",
-      "openrouter:accountCredits",
-      "openrouter:generationCost:gen-1",
-    ]);
+    expect(calls).toEqual(["openrouter:probe", "openrouter:accountCredits", "openrouter:generationCost:gen-1"]);
   });
 
   test("inspect with a custom_openai credential routes to the custom-byo backend, carrying the model", async () => {
     const calls: string[] = [];
     const diag = createProviderDiagnostics({ backends: fullRegistry(calls) });
-    expect(await diag.inspect({ credential: cred("custom_openai"), model: "my-model" })).toEqual(
-      INSPECTION,
-    );
+    expect(await diag.inspect({ credential: cred("custom_openai"), model: "my-model" })).toEqual(INSPECTION);
     expect(calls).toEqual(["custom-openai:inspect:my-model"]);
   });
 
@@ -116,9 +104,7 @@ describe("createProviderDiagnostics — source → the sealed backend's diagnost
 describe("createProviderDiagnostics — fail-closed (typed ProviderError, never a silent undefined)", () => {
   test("an UNWIRED backend fail-closes (a missing composition-root wire)", async () => {
     const diag = createProviderDiagnostics({ backends: new Map() });
-    await expect(diag.probe({ credential: cred("openrouter") })).rejects.toBeInstanceOf(
-      ProviderError,
-    );
+    await expect(diag.probe({ credential: cred("openrouter") })).rejects.toBeInstanceOf(ProviderError);
     await expect(diag.fetchOrCatalog({})).rejects.toBeInstanceOf(ProviderError);
   });
 
@@ -133,12 +119,8 @@ describe("createProviderDiagnostics — fail-closed (typed ProviderError, never 
   test("accountCredits / generationCost off a non-openrouter source fail-close (OR-only today)", async () => {
     const calls: string[] = [];
     const diag = createProviderDiagnostics({ backends: fullRegistry(calls) });
-    await expect(diag.accountCredits({ credential: cred("vllm") })).rejects.toBeInstanceOf(
-      ProviderError,
-    );
-    await expect(
-      diag.generationCost({ credential: cred("vllm"), generationId: "g" }),
-    ).rejects.toBeInstanceOf(ProviderError);
+    await expect(diag.accountCredits({ credential: cred("vllm") })).rejects.toBeInstanceOf(ProviderError);
+    await expect(diag.generationCost({ credential: cred("vllm"), generationId: "g" })).rejects.toBeInstanceOf(ProviderError);
     expect(calls).toEqual([]);
   });
 
@@ -146,9 +128,7 @@ describe("createProviderDiagnostics — fail-closed (typed ProviderError, never 
     const calls: string[] = [];
     const diag = createProviderDiagnostics({ backends: fullRegistry(calls) });
     // openrouter backend has no inspect impl → fail-closed.
-    await expect(
-      diag.inspect({ credential: cred("openrouter"), model: "m" }),
-    ).rejects.toBeInstanceOf(ProviderError);
+    await expect(diag.inspect({ credential: cred("openrouter"), model: "m" })).rejects.toBeInstanceOf(ProviderError);
     expect(calls).toEqual([]);
   });
 });

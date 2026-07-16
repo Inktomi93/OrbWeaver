@@ -29,12 +29,7 @@ const OCTET_STREAM = "application/octet-stream";
 
 // Exported (contracts/types-in-contract doesn't apply to `kit` — it's the leaf below contracts, and
 // callers in two different packages need this exact union to narrow on the result).
-export type SniffedMime =
-  | typeof PNG_MIME
-  | typeof JPEG_MIME
-  | typeof GIF_MIME
-  | typeof WEBP_MIME
-  | typeof OCTET_STREAM;
+export type SniffedMime = typeof PNG_MIME | typeof JPEG_MIME | typeof GIF_MIME | typeof WEBP_MIME | typeof OCTET_STREAM;
 
 /** `bytes[start..end)` as a lowercase hex string — the `Buffer.toString("hex")` equivalent, hand-packed
  *  so this module has no `node:buffer` dependency (kit-purity: browser + Node isomorphic). */
@@ -95,12 +90,7 @@ function fourccAt(bytes: Uint8Array, offset: number, tag: string): boolean {
 }
 
 /** True iff the ASCII FourCC `tag` appears anywhere in `bytes[start, endExclusive)` (bounded scan). */
-function containsFourcc(
-  bytes: Uint8Array,
-  tag: string,
-  start: number,
-  endExclusive: number,
-): boolean {
+function containsFourcc(bytes: Uint8Array, tag: string, start: number, endExclusive: number): boolean {
   const last = Math.min(endExclusive, bytes.length) - tag.length;
   for (let i = start; i <= last; i += 1) {
     if (fourccAt(bytes, i, tag)) {
@@ -119,10 +109,7 @@ function isAnimatedWebp(bytes: Uint8Array): boolean {
       return true;
     }
   }
-  return (
-    containsFourcc(bytes, "ANIM", HEADER_LEN, ANIM_SCAN_WINDOW) ||
-    containsFourcc(bytes, "ANMF", HEADER_LEN, ANIM_SCAN_WINDOW)
-  );
+  return containsFourcc(bytes, "ANIM", HEADER_LEN, ANIM_SCAN_WINDOW) || containsFourcc(bytes, "ANMF", HEADER_LEN, ANIM_SCAN_WINDOW);
 }
 
 /** Whether `bytes` is an animated image (GIF / APNG / animated WebP). Pure byte inspection — never throws,
@@ -245,8 +232,7 @@ function vp8lDimensions(b: Uint8Array): Dimensions {
   const b2 = b[OFF.vp8lB2] ?? 0;
   const b3 = b[OFF.vp8lB3] ?? 0;
   const width = DIM_BIAS + (b0 + (b1 % LOW6_MOD) * SHIFT_8);
-  const height =
-    DIM_BIAS + (Math.floor(b1 / LOW6_MOD) + b2 * SHIFT_2 + (b3 % NIBBLE_MOD) * SHIFT_10);
+  const height = DIM_BIAS + (Math.floor(b1 / LOW6_MOD) + b2 * SHIFT_2 + (b3 % NIBBLE_MOD) * SHIFT_10);
   return { width, height };
 }
 
@@ -340,10 +326,7 @@ function isAvif(bytes: Uint8Array): boolean {
   if (!fourccAt(bytes, FOURCC_LEN, "ftyp")) {
     return false;
   }
-  return (
-    containsFourcc(bytes, "avif", FOURCC_LEN, ANIM_SCAN_WINDOW) ||
-    containsFourcc(bytes, "avis", FOURCC_LEN, ANIM_SCAN_WINDOW)
-  );
+  return containsFourcc(bytes, "avif", FOURCC_LEN, ANIM_SCAN_WINDOW) || containsFourcc(bytes, "avis", FOURCC_LEN, ANIM_SCAN_WINDOW);
 }
 
 /** The full byte-facts of an image buffer — `{mime, ext, width, height, animated}` — or `null` when no
@@ -360,7 +343,7 @@ export function sniffImageBytes(bytes: Uint8Array): SniffedImage | null {
       return { mime: GIF_MIME, ext: "gif", ...gifDimensions(bytes), animated };
     case WEBP_MIME:
       return { mime: WEBP_MIME, ext: "webp", ...webpDimensions(bytes), animated };
-    default:
+    case OCTET_STREAM:
       if (isAvif(bytes)) {
         return { mime: AVIF_MIME, ext: "avif", ...avifDimensions(bytes), animated };
       }

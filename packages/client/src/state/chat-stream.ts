@@ -3,9 +3,10 @@
 // Token churn stays isolated: only a component subscribed to that chat's slot re-renders on a delta.
 //
 // Write ownership: every action here is bus-only (called only from `applyChatBusEvent`) except
-// `markStopping`, which the composer's Stop button calls directly for instant feedback before the
-// abort round-trip starts. The slot does not close there — it closes only on the bus's turnAborted
-// (or a race-won turnCompleted).
+// `markStopping`, which the composer's Stop button reaches via `data/bus`'s `markTurnStopping`
+// wrapper for instant feedback before the abort round-trip starts (`chatStream` itself may only be
+// imported inside data/bus/ — gate `chat-stream-writes-in-bus-only`). The slot does not close there —
+// it closes only on the bus's turnAborted (or a race-won turnCompleted).
 
 import type { ChatDeltaEvent, TurnAbortReason, TurnIntent } from "@orb/contracts/chat";
 import type { CharacterId, ChatId, MessageId } from "@orb/kit/ids";
@@ -59,10 +60,7 @@ interface ChatStreamState {
 /** The stable "no turn" slot — frozen so selectors returning it never mint a fresh object per render. */
 const IDLE_TURN: TurnSlot = Object.freeze({ phase: "idle" as const });
 
-const useChatStreamStore = createGatedStore<ChatStreamState>(
-  "chat-stream",
-  (): ChatStreamState => ({ turns: {} }),
-);
+const useChatStreamStore = createGatedStore<ChatStreamState>("chat-stream", (): ChatStreamState => ({ turns: {} }));
 
 function slotOf(chatId: ChatId): TurnSlot {
   return useChatStreamStore.getState().turns[chatId] ?? IDLE_TURN;
@@ -89,8 +87,8 @@ export interface ChatStreamApi {
   /** Fire the per-chat "the caller's own user row committed" signal — a fire-and-forget notification,
    *  not a slot write. The composer's send-hook subscribes to clear its draft exactly on this. */
   readonly notifyUserMessageCommitted: (chatId: ChatId) => void;
-  /** Component-callable: pending/streaming → stopping, preserving accumulated text/reasoning.
-   *  Idempotent no-op from any other phase. */
+  /** Called via `data/bus`'s `markTurnStopping` wrapper: pending/streaming → stopping, preserving
+   *  accumulated text/reasoning. Idempotent no-op from any other phase. */
   readonly markStopping: (chatId: ChatId) => void;
 }
 
@@ -208,9 +206,7 @@ export function useTurnSlot(chatId: ChatId | null): TurnSlot {
 
 /** Phase-only read for chrome (Stop button, spinner) — token churn never reaches subscribers. */
 export function useTurnPhase(chatId: ChatId | null): TurnSlot["phase"] {
-  return useChatStreamStore((s) =>
-    chatId === null ? "idle" : (s.turns[chatId] ?? IDLE_TURN).phase,
-  );
+  return useChatStreamStore((s) => (chatId === null ? "idle" : (s.turns[chatId] ?? IDLE_TURN).phase));
 }
 
 /** The live turn's voiced speaker — stable across every token delta (only text/reasoning change per
@@ -221,9 +217,7 @@ export function useTurnSpeakerCharacterId(chatId: ChatId | null): CharacterId | 
       return null;
     }
     const slot = s.turns[chatId] ?? IDLE_TURN;
-    return slot.phase === "pending" || slot.phase === "streaming" || slot.phase === "stopping"
-      ? slot.speakerCharacterId
-      : null;
+    return slot.phase === "pending" || slot.phase === "streaming" || slot.phase === "stopping" ? slot.speakerCharacterId : null;
   });
 }
 

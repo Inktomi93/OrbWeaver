@@ -103,11 +103,7 @@ function enclosingComponent(el: Node): { key: number; name: string } | undefined
   let found: { key: number; name: string } | undefined;
   let node: Node | undefined = el.getParent();
   while (node !== undefined && found === undefined) {
-    if (
-      node.isKind(SyntaxKind.FunctionDeclaration) ||
-      node.isKind(SyntaxKind.FunctionExpression) ||
-      node.isKind(SyntaxKind.ArrowFunction)
-    ) {
+    if (node.isKind(SyntaxKind.FunctionDeclaration) || node.isKind(SyntaxKind.FunctionExpression) || node.isKind(SyntaxKind.ArrowFunction)) {
       found = { key: node.getStart(), name: componentName(node) };
     } else {
       node = node.getParent();
@@ -127,10 +123,7 @@ function componentName(fn: Node): string {
 
 function fileViolations(sf: SourceFile, rel: string): Violation[] {
   const perComponent = new Map<number, { name: string; count: number; line: number }>();
-  const elements = [
-    ...sf.getDescendantsOfKind(SyntaxKind.JsxOpeningElement),
-    ...sf.getDescendantsOfKind(SyntaxKind.JsxSelfClosingElement),
-  ];
+  const elements = [...sf.getDescendantsOfKind(SyntaxKind.JsxOpeningElement), ...sf.getDescendantsOfKind(SyntaxKind.JsxSelfClosingElement)];
   for (const el of elements) {
     if (!isControlledFormInput(el)) {
       continue;
@@ -200,8 +193,7 @@ export const gate: GateDescriptor = {
   ],
   mustPass: [
     {
-      files:
-        "export const F = () => (\n  <div>\n    <input value={a} onChange={x} />\n    <input value={b} onChange={y} />\n  </div>\n);\n",
+      files: "export const F = () => (\n  <div>\n    <input value={a} onChange={x} />\n    <input value={b} onChange={y} />\n  </div>\n);\n",
       at: "packages/client/src/features/x/two-field.tsx",
       why: "only 2 controlled inputs — under the ≥3 threshold (a lone search / login 2-field), passes",
     },

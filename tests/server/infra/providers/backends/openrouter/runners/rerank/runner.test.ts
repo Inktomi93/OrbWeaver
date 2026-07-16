@@ -114,10 +114,7 @@ describe("runRerank", () => {
       results: [{ index: 0, relevanceScore: 0.6, document: { text: "alpha" } }],
       usage: { totalTokens: 2 },
     });
-    const result = await runRerank(
-      client,
-      makeRequest({ query: { text: "structured query" }, topN: 1 }),
-    );
+    const result = await runRerank(client, makeRequest({ query: { text: "structured query" }, topN: 1 }));
     expect(captured.body?.["query"]).toBe("structured query");
     expect(captured.body?.["topN"]).toBe(1);
     expect(result.hits).toEqual([{ id: "d1", score: 0.6 }]);

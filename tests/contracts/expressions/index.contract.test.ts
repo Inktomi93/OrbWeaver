@@ -1,10 +1,4 @@
-import {
-  characterSpriteViewSchema,
-  EXPRESSION_LABELS,
-  expressionLabelSchema,
-  generateSpriteSheetSchema,
-  setSpriteSchema,
-} from "@orb/contracts/expressions";
+import { characterSpriteViewSchema, EXPRESSION_LABELS, expressionLabelSchema, generateSpriteSheetSchema, setSpriteSchema } from "@orb/contracts/expressions";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "../../support/fixtures";
 

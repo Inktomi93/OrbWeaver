@@ -33,7 +33,5 @@ export function DerivedItemsStory(): ReactElement {
  * async/fuzzy seam (`filter`) forwards through the wrapper to Base UI Root.
  */
 export function CustomFilterStory(): ReactElement {
-  return (
-    <Autocomplete aria-label="Tag" filter={(): boolean => true} items={["adventure", "mystery"]} />
-  );
+  return <Autocomplete aria-label="Tag" filter={(): boolean => true} items={["adventure", "mystery"]} />;
 }

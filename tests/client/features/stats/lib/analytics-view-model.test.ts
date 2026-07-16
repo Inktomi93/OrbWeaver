@@ -85,9 +85,7 @@ describe("scalar formatters", () => {
 
 describe("hourHistogramBuckets", () => {
   test("sums each hour column across all 7 weekday rows into 24 buckets", () => {
-    const matrix = Array.from({ length: 7 }, () =>
-      Array.from({ length: 24 }, (_unused, hour) => hour),
-    );
+    const matrix = Array.from({ length: 7 }, () => Array.from({ length: 24 }, (_unused, hour) => hour));
     const buckets = hourHistogramBuckets(matrix);
     expect(buckets).toHaveLength(24);
     expect(buckets[0]).toEqual({ label: "00", count: 0 });

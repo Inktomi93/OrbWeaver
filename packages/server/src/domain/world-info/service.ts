@@ -23,14 +23,7 @@ import {
   createListForPersona,
   createListGlobal,
 } from "./verbs/attachments";
-import {
-  createCreateBook,
-  createDuplicateBook,
-  createGetBook,
-  createListBooks,
-  createRemoveBook,
-  createUpdateBook,
-} from "./verbs/books";
+import { createCreateBook, createDuplicateBook, createGetBook, createListBooks, createRemoveBook, createUpdateBook } from "./verbs/books";
 import {
   createBackfillTitles,
   createCreateEntry,

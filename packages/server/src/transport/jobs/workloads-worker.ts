@@ -42,11 +42,7 @@ const DEFAULT_REAP_INTERVAL_MS = 60_000;
 // `nextRunnableWorkload` — the queue-head poll (front door).
 type NextRunnableOp = (db: Db, now: number) => Promise<WorkloadRowAnyKind | null>;
 // `runWorkload` — drive ONE claimed row end-to-end (the domain's per-row state machine; front door).
-type RunWorkloadOp = (
-  deps: WorkloadRunnerDeps,
-  row: WorkloadRowAnyKind,
-  signal: AbortSignal,
-) => Promise<void>;
+type RunWorkloadOp = (deps: WorkloadRunnerDeps, row: WorkloadRowAnyKind, signal: AbortSignal) => Promise<void>;
 // `reapOrphanedWorkloads` — sweep stale in-flight rows from dead workers (front door).
 type ReapOp = (args: { db: Db; now: number; staleThresholdMs?: number }) => Promise<number>;
 // `loadWorkload` — the by-id re-read the post-dispatch hot-loop guard uses (front door).
@@ -123,10 +119,7 @@ export async function claimAndRunNext(deps: WorkloadsWorkerDeps): Promise<Worker
     try {
       const after = await deps.load(db, id);
       if (after?.status === "queued") {
-        log.warn(
-          { workloadId: id, kind: row.kind },
-          "workloads-worker: row still 'queued' after dispatch — backing off a full poll period",
-        );
+        log.warn({ workloadId: id, kind: row.kind }, "workloads-worker: row still 'queued' after dispatch — backing off a full poll period");
         return { ran: true, backOff: true };
       }
     } catch (err) {
@@ -213,6 +206,7 @@ export async function startWorkloadsWorker(deps: WorkloadsWorkerDeps): Promise<v
     while (!deps.signal.aborted) {
       // biome-ignore lint/performance/noAwaitInLoops: a poll loop is sequential BY DESIGN — claim one row, run it to completion, then poll the next; concurrency would race the single-active-per-kind DB lock.
       const outcome = await claimAndRunNext(deps);
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- tsc narrows `while (!deps.signal.aborted)` as still false here, but `.aborted` is a live getter that can flip true during the `await` above (shutdown mid-claim)
       if (deps.signal.aborted) {
         break;
       }

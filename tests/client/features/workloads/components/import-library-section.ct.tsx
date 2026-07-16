@@ -14,10 +14,7 @@ import { BackupSettingsStory } from "../_ct-stories";
 const DROPZONE_ROOT = '[data-slot="file-dropzone"]';
 const A_CARD = { name: "villain.png", mimeType: "image/png", buffer: Buffer.from("PNG") };
 
-test("a REJECTED card import shows NO success ✓ and a non-success toast (0 imported · 1 failed)", async ({
-  mount,
-  page,
-}) => {
+test("a REJECTED card import shows NO success ✓ and a non-success toast (0 imported · 1 failed)", async ({ mount, page }) => {
   await routeTrpc(page, {});
   const errors: string[] = [];
   page.on("console", (msg) => {
@@ -48,9 +45,7 @@ test("a REJECTED card import shows NO success ✓ and a non-success toast (0 imp
   await expect(page.locator(DROPZONE_ROOT)).not.toHaveAttribute("data-success", "");
   await expect(page.getByRole("img", { name: "Uploaded" })).toHaveCount(0);
   // …and the toast is the error channel (never a green "Import complete").
-  await expect
-    .poll(() => errors.some((line) => line.includes("Import failed")), { intervals: [20, 50, 100] })
-    .toBe(true);
+  await expect.poll(() => errors.some((line) => line.includes("Import failed")), { intervals: [20, 50, 100] }).toBe(true);
   expect(errors.some((line) => line.includes("Import complete"))).toBe(false);
 });
 

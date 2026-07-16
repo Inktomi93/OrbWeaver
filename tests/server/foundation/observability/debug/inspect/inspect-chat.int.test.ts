@@ -4,27 +4,8 @@
 // with its SELECTED variant's content/provenance (D26), the session-cache frame count (keyed by chatId,
 // D8/D25), and recent events (newest-first). Plus the NOT_FOUND short-circuit for an unknown chat.
 
-import {
-  characters,
-  chatEvents,
-  chatParticipants,
-  chats,
-  messages,
-  messageVariants,
-  sessionEntries,
-  users,
-} from "@orb/db";
-import type {
-  CharacterId,
-  ChatEventId,
-  ChatId,
-  ChatParticipantId,
-  Handle,
-  MessageId,
-  MessageVariantId,
-  SessionEntryId,
-  UserId,
-} from "@orb/kit/ids";
+import { characters, chatEvents, chatParticipants, chats, messages, messageVariants, sessionEntries, users } from "@orb/db";
+import type { CharacterId, ChatEventId, ChatId, ChatParticipantId, Handle, MessageId, MessageVariantId, SessionEntryId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { inspectChatState } from "@orb/server/foundation/observability/debug";
 import { eq } from "drizzle-orm";
@@ -81,9 +62,7 @@ async function seedFullChat(db: Awaited<ReturnType<typeof freshDb>>): Promise<Se
   ]);
 
   const messageId = castId<MessageId>("message_inspect");
-  await db
-    .insert(messages)
-    .values({ id: messageId, chatId, seq: 1, role: "assistant", characterId });
+  await db.insert(messages).values({ id: messageId, chatId, seq: 1, role: "assistant", characterId });
   const variantId = castId<MessageVariantId>("message_variant_inspect");
   await db.insert(messageVariants).values({
     id: variantId,

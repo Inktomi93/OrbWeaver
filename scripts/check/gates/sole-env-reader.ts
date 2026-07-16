@@ -14,13 +14,7 @@ const ENV_HOME = /\/packages\/server\/src\/foundation\/env\//u;
 // key, or any process.env read elsewhere in the domain, stays RED. OIDC_ADMIN_GROUPS / OIDC_ALLOWED_GROUPS
 // are the group→role governance vars (admin grant + login gate; declared in foundation/env, read here).
 const ROLE_POLICY = /\/packages\/server\/src\/domain\/sessions\/substrate\/role-policy\.ts$/u;
-const SANCTIONED_KEYS = new Set([
-  "OWNER_HANDLES",
-  "OWNER_GROUP",
-  "RE_DERIVE_ROLE_ON_LOGIN",
-  "OIDC_ADMIN_GROUPS",
-  "OIDC_ALLOWED_GROUPS",
-]);
+const SANCTIONED_KEYS = new Set(["OWNER_HANDLES", "OWNER_GROUP", "RE_DERIVE_ROLE_ON_LOGIN", "OIDC_ADMIN_GROUPS", "OIDC_ALLOWED_GROUPS"]);
 // A `process.env` node is a sanctioned role-policy read iff it is the object of `process.env["<KEY>"]`
 // where KEY is one of the three allowlisted vars.
 function isSanctionedRolePolicyRead(node: Node): boolean {
@@ -29,9 +23,7 @@ function isSanctionedRolePolicyRead(node: Node): boolean {
     return false;
   }
   const arg = parent.getArgumentExpression();
-  return (
-    arg !== undefined && Node.isStringLiteral(arg) && SANCTIONED_KEYS.has(arg.getLiteralText())
-  );
+  return arg !== undefined && Node.isStringLiteral(arg) && SANCTIONED_KEYS.has(arg.getLiteralText());
 }
 
 // Is this node a `process.env` access (property `process.env` or element `process["env"]`)?
@@ -43,13 +35,7 @@ function isProcessEnvAccess(node: Node): boolean {
   if (Node.isElementAccessExpression(node)) {
     const obj = node.getExpression();
     const arg = node.getArgumentExpression();
-    return (
-      Node.isIdentifier(obj) &&
-      obj.getText() === "process" &&
-      arg !== undefined &&
-      Node.isStringLiteral(arg) &&
-      arg.getLiteralText() === "env"
-    );
+    return Node.isIdentifier(obj) && obj.getText() === "process" && arg !== undefined && Node.isStringLiteral(arg) && arg.getLiteralText() === "env";
   }
   return false;
 }

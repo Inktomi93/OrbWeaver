@@ -11,10 +11,7 @@ export interface ColorFieldHarnessProps {
   description?: string;
 }
 
-export function ColorFieldHarness({
-  initialValue = "#f4a261",
-  description,
-}: ColorFieldHarnessProps): ReactElement {
+export function ColorFieldHarness({ initialValue = "#f4a261", description }: ColorFieldHarnessProps): ReactElement {
   const [value, setValue] = useState(initialValue);
   return (
     <div>

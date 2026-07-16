@@ -4,12 +4,7 @@
 // `<svg>` would inject that span inside it (invalid).
 import { Meter as BaseMeter } from "@base-ui/react/meter";
 import type { ReactElement, ReactNode } from "react";
-import {
-  arcMeterVariants,
-  bipolarMeterVariants,
-  linearMeterVariants,
-  meterVariants,
-} from "./variants";
+import { arcMeterVariants, bipolarMeterVariants, linearMeterVariants, meterVariants } from "./variants";
 
 export interface MeterProps {
   /** Presentation of the magnitude — same data, different dress. */
@@ -80,12 +75,7 @@ function ArcGeometry({ fraction, danger }: GeometryProps): ReactElement {
   const slots = arcMeterVariants({ danger });
   const rotate = `rotate(${ARC_START_DEG} ${ARC_CENTER} ${ARC_CENTER})`;
   return (
-    <svg
-      aria-hidden={true}
-      className={slots.root()}
-      data-slot="meter-track"
-      viewBox={`0 0 ${ARC_SIZE} ${ARC_SIZE}`}
-    >
+    <svg aria-hidden={true} className={slots.root()} data-slot="meter-track" viewBox={`0 0 ${ARC_SIZE} ${ARC_SIZE}`}>
       <circle
         className={slots.track()}
         cx={ARC_CENTER}
@@ -126,11 +116,7 @@ function BipolarGeometry({ fraction, origin, ticks, danger }: BipolarGeometryPro
   const width = Math.abs(fraction - origin);
   return (
     <div className={slots.root()} data-slot="meter-track">
-      <div
-        className={slots.fill()}
-        data-slot="fill"
-        style={{ left: pct(start), width: pct(width) }}
-      />
+      <div className={slots.fill()} data-slot="fill" style={{ left: pct(start), width: pct(width) }} />
       <div className={slots.origin()} data-slot="origin" style={{ left: pct(origin) }} />
       {ticks.map((tick) => (
         <div className={slots.tick()} data-slot="tick" key={tick} style={{ left: pct(tick) }} />
@@ -139,11 +125,7 @@ function BipolarGeometry({ fraction, origin, ticks, danger }: BipolarGeometryPro
   );
 }
 
-function renderGeometry(
-  kind: MeterProps["kind"],
-  geo: GeometryProps,
-  origin: number,
-): ReactElement {
+function renderGeometry(kind: MeterProps["kind"], geo: GeometryProps, origin: number): ReactElement {
   if (kind === "arc") {
     return <ArcGeometry {...geo} />;
   }

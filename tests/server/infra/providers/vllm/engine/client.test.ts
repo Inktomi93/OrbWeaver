@@ -12,9 +12,7 @@ const client = createVllmEngineClient();
 
 describe("enginePost", () => {
   test("returns the parsed JSON on a 2xx response", async () => {
-    vi.stubGlobal("fetch", () =>
-      Promise.resolve(new Response(JSON.stringify({ ok: 1 }), { status: 200 })),
-    );
+    vi.stubGlobal("fetch", () => Promise.resolve(new Response(JSON.stringify({ ok: 1 }), { status: 200 })));
     await expect(client.enginePost("embed", "/v1/embeddings", {})).resolves.toEqual({ ok: 1 });
   });
 
@@ -53,16 +51,12 @@ describe("engineStream", () => {
 
   test("a non-ok status throws a typed ProviderError (never yields a stream)", async () => {
     vi.stubGlobal("fetch", () => Promise.resolve(new Response("nope", { status: 500 })));
-    await expect(client.engineStream("gen", "/v1/chat/completions", {})).rejects.toBeInstanceOf(
-      ProviderError,
-    );
+    await expect(client.engineStream("gen", "/v1/chat/completions", {})).rejects.toBeInstanceOf(ProviderError);
   });
 
   test("a connection failure throws a 'not reachable' ProviderError", async () => {
     vi.stubGlobal("fetch", () => Promise.reject(new TypeError("ECONNREFUSED")));
-    const err = await client
-      .engineStream("gen", "/v1/chat/completions", {})
-      .catch((e: unknown) => e);
+    const err = await client.engineStream("gen", "/v1/chat/completions", {}).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ProviderError);
     expect((err as ProviderError).message).toContain("not reachable");
   });

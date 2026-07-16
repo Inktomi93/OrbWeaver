@@ -9,14 +9,7 @@ import type { CharacterId, UserId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
-import {
-  makeSearch,
-  seedAsset,
-  seedCharacter,
-  seedImageEmbedding,
-  seedUser,
-  vec,
-} from "../_support.ts";
+import { makeSearch, seedAsset, seedCharacter, seedImageEmbedding, seedUser, vec } from "../_support.ts";
 
 /** Seed a character whose avatar has an `image-raw` embedding at the given vector — a `similarArt` candidate. */
 async function seedAvatarCharacter(

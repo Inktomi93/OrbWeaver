@@ -8,12 +8,7 @@
 // unknown-dir SKIPS (a benign forward-compat file is recorded, not fatal), and — the security pin — a
 // HOSTILE archive (zip-slip) is rejected WHOLE by the belt battery so no importFile ever runs.
 
-import type {
-  PortabilityRegistry,
-  PortableEntity,
-  PortableFile,
-  PortableImportOutcome,
-} from "@orb/contracts/portability";
+import type { PortabilityRegistry, PortableEntity, PortableFile, PortableImportOutcome } from "@orb/contracts/portability";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { runBundleImport } from "@orb/server/entry/import";
@@ -32,17 +27,11 @@ interface RecordedCall {
 }
 
 /** A fake entity that records every importFile call + returns a scripted outcome. */
-function fakeEntity(
-  kind: PortableEntity["kind"],
-  dir: string,
-  calls: RecordedCall[],
-  outcome: (file: PortableFile) => PortableImportOutcome,
-): PortableEntity {
+function fakeEntity(kind: PortableEntity["kind"], dir: string, calls: RecordedCall[], outcome: (file: PortableFile) => PortableImportOutcome): PortableEntity {
   return {
     kind,
     dir,
     ext: ".json",
-    // biome-ignore lint/suspicious/useAwait: a stub export stream — the import tests never pull it.
     async *exportAll(): AsyncGenerator<PortableFile> {
       // no export in these tests
     },
@@ -54,7 +43,6 @@ function fakeEntity(
 }
 
 async function packBundle(entries: readonly ZipEntry[]): Promise<Uint8Array> {
-  // biome-ignore lint/suspicious/useAwait: a synchronous test adapter to the AsyncIterable packZip consumes.
   async function* iter(): AsyncGenerator<ZipEntry> {
     yield* entries;
   }
@@ -105,9 +93,7 @@ describe("runBundleImport", () => {
     const calls: RecordedCall[] = [];
     const registry: PortabilityRegistry = [
       fakeEntity("character", "characters/", calls, (file) =>
-        file.filename === "bad.json"
-          ? { ok: false, error: "unreadable card" }
-          : { ok: true, created: true },
+        file.filename === "bad.json" ? { ok: false, error: "unreadable card" } : { ok: true, created: true },
       ),
       {
         ...fakeEntity("persona", "personas/", calls, () => ({ ok: true })),
@@ -134,9 +120,7 @@ describe("runBundleImport", () => {
 
   test("records an unknown-dir file as a skip, never fatal", async () => {
     const calls: RecordedCall[] = [];
-    const registry: PortabilityRegistry = [
-      fakeEntity("character", "characters/", calls, () => ({ ok: true, created: true })),
-    ];
+    const registry: PortabilityRegistry = [fakeEntity("character", "characters/", calls, () => ({ ok: true, created: true }))];
     const archive = await packBundle([
       { path: "characters/Aria.json", bytes: enc.encode("{}") },
       { path: "unknown-kind/x.json", bytes: enc.encode("{}") },
@@ -153,9 +137,7 @@ describe("runBundleImport", () => {
 
   test("SECURITY: an aggregate decompression bomb is rejected WHOLE — no importFile runs", async () => {
     const calls: RecordedCall[] = [];
-    const registry: PortabilityRegistry = [
-      fakeEntity("character", "characters/", calls, () => ({ ok: true, created: true })),
-    ];
+    const registry: PortabilityRegistry = [fakeEntity("character", "characters/", calls, () => ({ ok: true, created: true }))];
     // 40 entries of 64 KiB zeros ≈ 2.6 MiB decompressed; a 1 MiB aggregate cap must abort during extraction,
     // before any file reaches a descriptor's importFile.
     const entries: ZipEntry[] = [];
@@ -177,9 +159,7 @@ describe("runBundleImport", () => {
 
   test("SECURITY: a zip-slip archive is rejected WHOLE — no importFile runs", async () => {
     const calls: RecordedCall[] = [];
-    const registry: PortabilityRegistry = [
-      fakeEntity("character", "characters/", calls, () => ({ ok: true, created: true })),
-    ];
+    const registry: PortabilityRegistry = [fakeEntity("character", "characters/", calls, () => ({ ok: true, created: true }))];
     // Craft a minimal store archive whose central-directory name traverses out of the tree.
     const name = "characters/../../etc/passwd";
     const nameBytes = enc.encode(name);

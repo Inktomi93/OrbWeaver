@@ -9,7 +9,6 @@ import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
 import { makeHarness, seedCredential } from "../_support.ts";
 
-// biome-ignore lint/security/noSecrets: "maybeRevokeOnAuthFailed" is the verb name (high camelCase entropy), not a credential.
 describe("maybeRevokeOnAuthFailed", () => {
   test("auth_failed + a BYO credentialId revokes that credential", async () => {
     const db = await freshDb();

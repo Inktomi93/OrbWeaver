@@ -7,10 +7,7 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import { DeleteUndoStory } from "./_delete-undo-stories";
 
-test("Delete raises an Undo toast that restores the section at its original index", async ({
-  mount,
-  page,
-}) => {
+test("Delete raises an Undo toast that restores the section at its original index", async ({ mount, page }) => {
   const probe = await mount(<DeleteUndoStory />);
   const ids = probe.locator("output");
 

@@ -23,16 +23,12 @@ test("Send is disabled on an empty draft", async ({ mount }) => {
 });
 
 // ── imagery I5 base slice: the in-chat AI generate-image affordance ─────────────────────────────────────
-test("generate-image is gated on typed text, then fires chat.generateImage (mode free, the text as prompt)", async ({
-  mount,
-  page,
-}) => {
+test("generate-image is gated on typed text, then fires chat.generateImage (mode free, the text as prompt)", async ({ mount, page }) => {
   let genBody: string | null = null;
   await routeTrpc(page, {});
   await page.route("**/api/trpc/**", async (route) => {
     const req = route.request();
-    const isGen =
-      req.method() === "POST" && new URL(req.url()).pathname.includes("chat.generateImage");
+    const isGen = req.method() === "POST" && new URL(req.url()).pathname.includes("chat.generateImage");
     if (!isGen) {
       await route.fallback();
       return;
@@ -58,10 +54,7 @@ test("generate-image is gated on typed text, then fires chat.generateImage (mode
   expect(genBody).toContain(COMPOSER_CHAT_ID);
 });
 
-test("committed handle: Send fires chat.send; the draft is NOT cleared until the commit signal, then clears", async ({
-  mount,
-  page,
-}) => {
+test("committed handle: Send fires chat.send; the draft is NOT cleared until the commit signal, then clears", async ({ mount, page }) => {
   // Hold chat.send so its clear-on-commit listener stays alive (the send promise stays open for the
   // whole turn in production; the commit signal arrives MID-flight). Registered BEFORE routeTrpc so it
   // runs FIRST (Playwright routes are LIFO); it captures the send body then holds (never falls through
@@ -99,10 +92,7 @@ test("committed handle: Send fires chat.send; the draft is NOT cleared until the
   await expect(textarea).toHaveValue("");
 });
 
-test("draft handle: Send lazily starts the chat, then commits the typed text as its first send", async ({
-  mount,
-  page,
-}) => {
+test("draft handle: Send lazily starts the chat, then commits the typed text as its first send", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "chat.startChat": () => ({ chat: { id: COMPOSER_CHAT_ID } }),
     "chat.send": () => ({ ok: true }),
@@ -146,10 +136,7 @@ test("Stop shows 'stopping' immediately on click and fires chat.abort; the butto
   await expect(component.getByRole("button", { name: "Send message" })).toBeVisible();
 });
 
-test("a second Stop click while already stopping does not fire a second chat.abort", async ({
-  mount,
-  page,
-}) => {
+test("a second Stop click while already stopping does not fire a second chat.abort", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, { "chat.abort": () => ({ ok: true }) });
   const component = await mount(<ComposerStory />);
 
@@ -165,10 +152,7 @@ test("a second Stop click while already stopping does not fire a second chat.abo
   await expect.poll(() => trpc.count("chat.abort"), { intervals: [20, 50, 100] }).toBe(1);
 });
 
-test("a send that FAILS keeps the draft for retry (never cleared — no commit signal ever fires)", async ({
-  mount,
-  page,
-}) => {
+test("a send that FAILS keeps the draft for retry (never cleared — no commit signal ever fires)", async ({ mount, page }) => {
   // `chat.send` rejects and NO commit signal is ever driven → clear-on-commit never fires → the draft
   // survives. This is the race-free replacement for the old phase-gated restore: nothing was cleared, so
   // nothing needs restoring.
@@ -184,10 +168,7 @@ test("a send that FAILS keeps the draft for retry (never cleared — no commit s
   await expect(textarea).toHaveValue("Don't lose me");
 });
 
-test("the draft stays cleared after a POST-commit send failure (commit signal fired ⇒ no restore)", async ({
-  mount,
-  page,
-}) => {
+test("the draft stays cleared after a POST-commit send failure (commit signal fired ⇒ no restore)", async ({ mount, page }) => {
   // Hold chat.send so the commit signal can be driven (draft clears) BEFORE the send rejects. The
   // failure must NOT resurrect the already-committed-and-cleared text (the old restore bug this design
   // removes). Registered BEFORE routeTrpc (LIFO); intercepts only chat.send.
@@ -205,9 +186,7 @@ test("the draft stays cleared after a POST-commit send failure (commit signal fi
     }
     await sendHeld;
     await route.fulfill({
-      json: [
-        { error: { code: -32_603, message: "boom", data: { code: "INTERNAL_SERVER_ERROR" } } },
-      ],
+      json: [{ error: { code: -32_603, message: "boom", data: { code: "INTERNAL_SERVER_ERROR" } } }],
     });
   });
 
@@ -224,10 +203,7 @@ test("the draft stays cleared after a POST-commit send failure (commit signal fi
   // restore. Wait for the mutation to settle (its busy state clears) before the final draft assertion;
   // Send itself stays DISABLED because the draft is now empty (`!canSubmitText`), which is correct.
   releaseSend?.();
-  await expect(component.getByRole("button", { name: "Send message" })).not.toHaveAttribute(
-    "aria-busy",
-    "true",
-  );
+  await expect(component.getByRole("button", { name: "Send message" })).not.toHaveAttribute("aria-busy", "true");
   await expect(textarea).toHaveValue("");
 });
 
@@ -235,25 +211,19 @@ test("the draft stays cleared after a POST-commit send failure (commit signal fi
 const DROPZONE_INPUT = '[data-slot="file-dropzone-input"]';
 const ATTACHMENT_PREVIEW = '[data-slot="composer-attachment"]';
 const REMOVE_BTN = /Remove/u;
-const PNG_1PX_BASE64 =
-  // biome-ignore lint/security/noSecrets: a fixed 1×1 transparent PNG (base64), a test image fixture, not a credential.
-  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+const PNG_1PX_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
 const PNG_1PX = Buffer.from(PNG_1PX_BASE64, "base64");
 // A valid `asset_…` TypeID the upload stub returns (the client re-parses `storedAssetSchema`, which
 // validates the prefix + base32 suffix — a bogus string would throw at the boundary).
-// biome-ignore lint/security/noSecrets: a fixed asset TypeID render fixture, not a credential.
+
 const STUB_ASSET_ID = "asset_01h455vb4pex5vsknk084sn02q";
 
-test("picking an image shows a removable preview and enables Send on an empty draft", async ({
-  mount,
-}) => {
+test("picking an image shows a removable preview and enables Send on an empty draft", async ({ mount }) => {
   const component = await mount(<ComposerStory />);
   // Empty draft → Send disabled to start.
   await expect(component.getByRole("button", { name: "Send message" })).toBeDisabled();
 
-  await component
-    .locator(DROPZONE_INPUT)
-    .setInputFiles({ name: "cat.png", mimeType: "image/png", buffer: PNG_1PX });
+  await component.locator(DROPZONE_INPUT).setInputFiles({ name: "cat.png", mimeType: "image/png", buffer: PNG_1PX });
 
   // The pending preview appears and an attachment-only draft is now sendable.
   await expect(component.locator(ATTACHMENT_PREVIEW)).toHaveCount(1);
@@ -265,10 +235,7 @@ test("picking an image shows a removable preview and enables Send on an empty dr
   await expect(component.getByRole("button", { name: "Send message" })).toBeDisabled();
 });
 
-test("sending with an attachment uploads it to CAS and includes the asset id on chat.send", async ({
-  mount,
-  page,
-}) => {
+test("sending with an attachment uploads it to CAS and includes the asset id on chat.send", async ({ mount, page }) => {
   // Stub the raw multipart upload route (not tRPC) → returns a StoredAsset.
   let uploadCalled = 0;
   await page.route("**/api/assets/upload", async (route) => {
@@ -292,9 +259,7 @@ test("sending with an attachment uploads it to CAS and includes the asset id on 
   });
 
   const component = await mount(<ComposerStory />);
-  await component
-    .locator(DROPZONE_INPUT)
-    .setInputFiles({ name: "cat.png", mimeType: "image/png", buffer: PNG_1PX });
+  await component.locator(DROPZONE_INPUT).setInputFiles({ name: "cat.png", mimeType: "image/png", buffer: PNG_1PX });
   await component.getByRole("button", { name: "Send message" }).click();
 
   await expect.poll(() => uploadCalled, { intervals: [20, 50, 100] }).toBe(1);
@@ -303,10 +268,7 @@ test("sending with an attachment uploads it to CAS and includes the asset id on 
   expect(sendBody).toContain(COMPOSER_CHAT_ID);
 });
 
-test("the wand is disabled while a Send is in flight (clear-on-commit reopened the pre-commit window)", async ({
-  mount,
-  page,
-}) => {
+test("the wand is disabled while a Send is in flight (clear-on-commit reopened the pre-commit window)", async ({ mount, page }) => {
   // Removing the optimistic clear left the draft populated during a send's pre-commit window; without a
   // gate the wand could fire a guided action against it (its own user-role messageCommitted could even
   // satisfy the send's clear correlation → a double-action). `busy={sendMessage.isPending}` closes it.

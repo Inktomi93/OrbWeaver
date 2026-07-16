@@ -51,9 +51,7 @@ export function createBulkRemove(ctx: CharacterContext): CharacterService["bulkR
       ),
     );
 
-    const reap: AssetId[] = deletedRows
-      .map((row) => row.avatarAssetId)
-      .filter((id): id is AssetId => id !== null);
+    const reap: AssetId[] = deletedRows.map((row) => row.avatarAssetId).filter((id): id is AssetId => id !== null);
     if (reap.length > 0) {
       try {
         await ctx.reapAssets(reap);

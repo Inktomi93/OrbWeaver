@@ -264,11 +264,7 @@ describe("nextRunnableWorkload (dependsOn DAG gate)", () => {
   });
 
   describe("multi-dependency (EVERY dep must be terminal + succeeded)", () => {
-    async function seedTwoDepDependent(
-      db: Awaited<ReturnType<typeof freshDb>>,
-      a: WorkloadStatus,
-      b: WorkloadStatus,
-    ): Promise<void> {
+    async function seedTwoDepDependent(db: Awaited<ReturnType<typeof freshDb>>, a: WorkloadStatus, b: WorkloadStatus): Promise<void> {
       await seedWorkloadRow(db, { id: "dep", kind: "compute-themes", status: a });
       await seedWorkloadRow(db, { id: "dep_b", kind: "find-duplicates", status: b });
       await seedWorkloadRow(db, {

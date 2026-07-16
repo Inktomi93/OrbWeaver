@@ -1,11 +1,6 @@
 import type { Db } from "@orb/db";
 import { beforeEach, describe } from "vitest";
-import {
-  reclaimChatLocksOnBoot,
-  refreshLock,
-  releaseLock,
-  tryAcquireLock,
-} from "../../../../../packages/server/src/domain/chat/persistence/lock";
+import { reclaimChatLocksOnBoot, refreshLock, releaseLock, tryAcquireLock } from "../../../../../packages/server/src/domain/chat/persistence/lock";
 import { freshDb } from "../../../../support/db";
 import { expect, test } from "../../../../support/fixtures";
 import { seedChat } from "../_support";
@@ -22,12 +17,8 @@ beforeEach(async () => {
 describe("persistence/lock — the per-chat turn lock", () => {
   test("tryAcquireLock takes a free lock; a contended fresh lock is refused", async () => {
     const chatId = await seedChat(db, "a");
-    expect(await tryAcquireLock(db, { chatId, holder: "r1", now: T0, expiresAt: T0 + TTL })).toBe(
-      true,
-    );
-    expect(await tryAcquireLock(db, { chatId, holder: "r2", now: T0, expiresAt: T0 + TTL })).toBe(
-      false,
-    );
+    expect(await tryAcquireLock(db, { chatId, holder: "r1", now: T0, expiresAt: T0 + TTL })).toBe(true);
+    expect(await tryAcquireLock(db, { chatId, holder: "r2", now: T0, expiresAt: T0 + TTL })).toBe(false);
   });
 
   test("tryAcquireLock STEALS a stale lock (expiresAt <= now)", async () => {
@@ -54,14 +45,10 @@ describe("persistence/lock — the per-chat turn lock", () => {
     await tryAcquireLock(db, { chatId, holder: "r1", now: T0, expiresAt: T0 + TTL });
     // A non-owner release is a no-op — the lock survives, so a fresh acquire is still refused.
     await releaseLock(db, chatId, "imposter");
-    expect(await tryAcquireLock(db, { chatId, holder: "r2", now: T0, expiresAt: T0 + TTL })).toBe(
-      false,
-    );
+    expect(await tryAcquireLock(db, { chatId, holder: "r2", now: T0, expiresAt: T0 + TTL })).toBe(false);
     // The owner releases → the lock is free again.
     await releaseLock(db, chatId, "r1");
-    expect(await tryAcquireLock(db, { chatId, holder: "r2", now: T0, expiresAt: T0 + TTL })).toBe(
-      true,
-    );
+    expect(await tryAcquireLock(db, { chatId, holder: "r2", now: T0, expiresAt: T0 + TTL })).toBe(true);
   });
 
   test("boot reclaim clears only this replica's holder + returns the count", async () => {
@@ -74,8 +61,6 @@ describe("persistence/lock — the per-chat turn lock", () => {
 
     expect(await reclaimChatLocksOnBoot(db, "r1")).toBe(2);
     // r2's live lock survived the r1 boot-reclaim.
-    expect(
-      await tryAcquireLock(db, { chatId: c, holder: "r3", now: T0, expiresAt: T0 + TTL }),
-    ).toBe(false);
+    expect(await tryAcquireLock(db, { chatId: c, holder: "r3", now: T0, expiresAt: T0 + TTL })).toBe(false);
   });
 });

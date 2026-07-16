@@ -1,10 +1,6 @@
 // Unit tests for the supervisor↔runner status registry — a process-local set/get with an INJECTED clock.
 
-import {
-  allEngineStatuses,
-  getEngineStatus,
-  setEngineStatus,
-} from "@orb/server/infra/providers/vllm/engine";
+import { allEngineStatuses, getEngineStatus, setEngineStatus } from "@orb/server/infra/providers/vllm/engine";
 import { describe } from "vitest";
 import { expect, test } from "../../../../../support/fixtures";
 

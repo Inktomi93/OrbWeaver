@@ -4,14 +4,7 @@
 // (per witnessing character). Atomic per-owner replace — a crash mid-rebuild never leaves an empty table.
 
 import type { BatchStmt, Db } from "@orb/db";
-import {
-  batchMany,
-  characterKeywordProfiles,
-  characters,
-  chunkRows,
-  keywordCooccurrence,
-  rowsPerInsert,
-} from "@orb/db";
+import { batchMany, characterKeywordProfiles, characters, chunkRows, keywordCooccurrence, rowsPerInsert } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { eq, inArray } from "drizzle-orm";
 import type { ComputeCooccurrenceOptions } from "../contract/params";
@@ -56,11 +49,7 @@ function bumpNested(m: Map<string, Map<string, number>>, k1: string, k2: string)
   bump(inner, k2);
 }
 
-function tallyDigest(
-  d: NormalizedDigest,
-  pairCount: Map<string, Map<string, number>>,
-  charKw: Map<string, Map<string, number>>,
-): void {
+function tallyDigest(d: NormalizedDigest, pairCount: Map<string, Map<string, number>>, charKw: Map<string, Map<string, number>>): void {
   const kws = d.keywords;
   for (const kw of kws) {
     bumpNested(charKw, d.characterId, kw);
@@ -100,10 +89,7 @@ function tallyCooccurrence(digests: readonly NormalizedDigest[]): OwnerTally {
   return { pairs, charKeywords };
 }
 
-function normalizeOwner(
-  digests: readonly DigestKeywords[],
-  hubFraction: number,
-): { normalized: NormalizedDigest[]; hubDropped: number } {
+function normalizeOwner(digests: readonly DigestKeywords[], hubFraction: number): { normalized: NormalizedDigest[]; hubDropped: number } {
   const perDigest: NormalizedDigest[] = [];
   const df = new Map<string, number>();
   for (const d of digests) {
@@ -129,22 +115,12 @@ function normalizeOwner(
 }
 
 // character_keyword_profiles has no ownerId column — delete by characterId IN (owner's characters).
-async function replaceOwner(
-  db: Db,
-  ownerId: UserId,
-  coocRows: readonly CoocInsert[],
-  profileRows: readonly ProfileInsert[],
-): Promise<void> {
+async function replaceOwner(db: Db, ownerId: UserId, coocRows: readonly CoocInsert[], profileRows: readonly ProfileInsert[]): Promise<void> {
   const stmts: BatchStmt[] = [
     db.delete(keywordCooccurrence).where(eq(keywordCooccurrence.ownerId, ownerId)),
     db
       .delete(characterKeywordProfiles)
-      .where(
-        inArray(
-          characterKeywordProfiles.characterId,
-          db.select({ id: characters.id }).from(characters).where(eq(characters.ownerId, ownerId)),
-        ),
-      ),
+      .where(inArray(characterKeywordProfiles.characterId, db.select({ id: characters.id }).from(characters).where(eq(characters.ownerId, ownerId)))),
   ];
   for (const chunk of chunkRows(coocRows, rowsPerInsert(COOC_COLS))) {
     stmts.push(db.insert(keywordCooccurrence).values(chunk));
@@ -173,11 +149,7 @@ function groupByOwner(rows: readonly DigestKeywords[]): Map<UserId, DigestKeywor
  * owner when `opts.ownerId` is set). Idempotent atomic per-owner replace. Standalone `(db, deps, opts?)` so the
  * `compute-cooccurrence` runner drives it without the whole service.
  */
-export async function computeCooccurrence(
-  db: Db,
-  deps: ComputeCooccurrenceDeps,
-  opts: ComputeCooccurrenceOptions = {},
-): Promise<CooccurrenceStats> {
+export async function computeCooccurrence(db: Db, deps: ComputeCooccurrenceDeps, opts: ComputeCooccurrenceOptions = {}): Promise<CooccurrenceStats> {
   const maxPairs = opts.maxPairs ?? DEFAULT_MAX_PAIRS;
   const hubFraction = opts.hubFraction ?? DEFAULT_HUB_FRACTION;
   const { signal } = opts;
@@ -215,8 +187,8 @@ export async function computeCooccurrence(
       count: c.count,
       computedAt: now,
     }));
+    // @orb-gate-ignore no-await-db-in-loop independent per-owner batches, bounded backpressure.
     // biome-ignore lint/performance/noAwaitInLoops: per-owner atomic replace — folding into one batch would unbound memory on a large corpus.
-    // biome-ignore lint/plugin/no-await-db-in-loop: independent per-owner batches, bounded backpressure.
     await replaceOwner(db, ownerId, coocRows, profileRows);
     pairsWritten += coocRows.length;
     charKeywordsWritten += profileRows.length;

@@ -84,7 +84,7 @@ async function seedScene(
     // biome-ignore lint/performance/noAwaitInLoops: deterministic fixture seeding — join order is load-bearing.
     const id = await seedCharacter(db, host, `${spec.key}_${name}`);
     chars[name] = id;
-    // biome-ignore lint/performance/noAwaitInLoops: sequential fixture seeding.
+
     await seedParticipant(db, { chatId, key: `${spec.key}_c_${name}`, characterId: id });
   }
 
@@ -95,9 +95,9 @@ async function seedScene(
       ...(h.description !== undefined ? { description: h.description } : {}),
     });
     personas[h.personaKey] = pid;
-    // biome-ignore lint/performance/noAwaitInLoops: sequential fixture seeding.
+
     const hUser = await seedUser(db, `${spec.key}_hu_${h.personaKey}`);
-    // biome-ignore lint/performance/noAwaitInLoops: sequential fixture seeding.
+
     await seedParticipant(db, {
       chatId,
       key: `${spec.key}_hp_${h.personaKey}`,
@@ -170,13 +170,10 @@ async function seedScene(
 
     // SERVER — mirror `toShapeCanon`: an assistant row passes the producer's card name as `speakerCharName`;
     // a user/narrator row passes none (falls to the ctx default inside the adapter).
-    const assistantSpeaker =
-      row.characterId === null ? undefined : characterNamesById.get(row.characterId)?.name;
+    const assistantSpeaker = row.characterId === null ? undefined : characterNamesById.get(row.characterId)?.name;
     const server = renderHistoryMacros(row.content, stamps, serverCtx, {
       producer: { characterNamesById, personaNamesById },
-      ...(row.role === "assistant" && assistantSpeaker !== undefined
-        ? { speakerCharName: assistantSpeaker }
-        : {}),
+      ...(row.role === "assistant" && assistantSpeaker !== undefined ? { speakerCharName: assistantSpeaker } : {}),
     });
 
     // CLIENT — the REAL DISPLAY pipeline: the room context the real `resolveMessageRenderContext` builds
@@ -260,7 +257,7 @@ test("S3 group MxN: a greeting (null-persona assistant row) resolves {{user}}/{{
   // the anchor Zara; {{persona}} = the anchor's description — identical for the model + every human.
   const out = await scene.resolve({
     role: "assistant",
-    // biome-ignore lint/security/noSecrets: a macro test fixture string, not a credential (brace-dense → false positive).
+
     content: "{{char}} greets {{user}} ({{persona}})",
     characterId: chars["Aria"] ?? null,
     personaId: null,
@@ -517,8 +514,5 @@ test("hostile / typo macro in stored content fails open to the literal token (bo
     characterId: null,
     personaId: personas["mara"] ?? null,
   });
-  expect([out.server, out.client]).toStrictEqual([
-    "{{nope::x}} sadho_mara",
-    "{{nope::x}} sadho_mara",
-  ]);
+  expect([out.server, out.client]).toStrictEqual(["{{nope::x}} sadho_mara", "{{nope::x}} sadho_mara"]);
 });

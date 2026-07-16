@@ -5,12 +5,7 @@
 // the real DOM `selectionStart`) fires exactly as it would for a user.
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
-import {
-  DerivedSuggestionsStory,
-  EmptySuggestionsStory,
-  FieldWrappedStory,
-  MacroTextareaStory,
-} from "./macro-textarea.fixtures";
+import { DerivedSuggestionsStory, EmptySuggestionsStory, FieldWrappedStory, MacroTextareaStory } from "./macro-textarea.fixtures";
 
 const NON_EMPTY = /.+/u;
 
@@ -23,10 +18,7 @@ test("typing `{{` opens a filtered popover", async ({ mount, page }) => {
   await expect(page.getByRole("option", { name: "{{user}}" })).toHaveCount(0);
 });
 
-test("controlled value/onChange: plain typing with no trigger round-trips through the parent", async ({
-  mount,
-  page,
-}) => {
+test("controlled value/onChange: plain typing with no trigger round-trips through the parent", async ({ mount, page }) => {
   await mount(<MacroTextareaStory />);
   const textarea = page.getByRole("combobox");
   await textarea.click();
@@ -35,10 +27,7 @@ test("controlled value/onChange: plain typing with no trigger round-trips throug
   await expect(page.getByRole("listbox")).toHaveCount(0);
 });
 
-test("ArrowDown moves the highlight, Enter inserts and repositions the caret at the end", async ({
-  mount,
-  page,
-}) => {
+test("ArrowDown moves the highlight, Enter inserts and repositions the caret at the end", async ({ mount, page }) => {
   await mount(<MacroTextareaStory />);
   const textarea = page.getByRole("combobox");
   await textarea.click();
@@ -96,10 +85,7 @@ test("adjacent same-category suggestions group under ONE header", async ({ mount
   await expect(page.getByText("Variables", { exact: true })).toBeVisible();
 });
 
-test("a parameterized macro inserts the `::` template and shows the arg hint", async ({
-  mount,
-  page,
-}) => {
+test("a parameterized macro inserts the `::` template and shows the arg hint", async ({ mount, page }) => {
   await mount(<MacroTextareaStory />);
   const textarea = page.getByRole("combobox");
   await textarea.click();
@@ -126,39 +112,28 @@ test("the popup wears the popover token and the overlay z-index", async ({ mount
   await expect(list).toHaveCSS("z-index", "40");
 });
 
-test("option rows carry tabIndex=-1 (real DOM focus never leaves the textarea — roving via aria-activedescendant only)", async ({
-  mount,
-  page,
-}) => {
+test("option rows carry tabIndex=-1 (real DOM focus never leaves the textarea — roving via aria-activedescendant only)", async ({ mount, page }) => {
   await mount(<MacroTextareaStory />);
   const textarea = page.getByRole("combobox");
   await textarea.click();
   await textarea.pressSequentially("{{");
   const options = page.getByRole("option");
   await expect(options.first()).toBeVisible();
-  const tabIndexes = await options.evaluateAll((els) =>
-    els.map((el) => el.getAttribute("tabindex")),
-  );
+  const tabIndexes = await options.evaluateAll((els) => els.map((el) => el.getAttribute("tabindex")));
   expect(tabIndexes.length).toBeGreaterThan(0);
   expect(tabIndexes.every((value) => value === "-1")).toBe(true);
   // Focus never left the textarea despite the popover being open.
   await expect(textarea).toBeFocused();
 });
 
-test("inside a <Field>, the label associates with the textarea with NO explicit id passed (Field.Control registration)", async ({
-  mount,
-  page,
-}) => {
+test("inside a <Field>, the label associates with the textarea with NO explicit id passed (Field.Control registration)", async ({ mount, page }) => {
   await mount(<FieldWrappedStory />);
   const control = page.getByLabel("Body");
   await expect(control).toHaveAttribute("role", "combobox");
   await expect(control).toHaveAttribute("aria-describedby", NON_EMPTY);
 });
 
-test("filters correctly when the parent re-renders and passes a freshly-DERIVED suggestions array (the real consumer shape)", async ({
-  mount,
-  page,
-}) => {
+test("filters correctly when the parent re-renders and passes a freshly-DERIVED suggestions array (the real consumer shape)", async ({ mount, page }) => {
   const cmp = await mount(<DerivedSuggestionsStory />);
   const rerender = cmp.getByTestId("rerender");
   await rerender.click();

@@ -30,11 +30,7 @@ const DRAFT_CHAT_ID = castId<ChatId>("draft");
 
 /** Build a valid `MessageView` for one founding character's shown greeting (assistant role, the card's
  *  `characterId` stamped so `{{char}}`/attribution/color all resolve). `seq` orders the greet-all rows. */
-export function synthGreetingRow(
-  characterId: CharacterId,
-  content: string,
-  seq: number,
-): MessageView {
+export function synthGreetingRow(characterId: CharacterId, content: string, seq: number): MessageView {
   return {
     id: castId<MessageId>(`draft-greeting_${characterId}`),
     chatId: DRAFT_CHAT_ID,

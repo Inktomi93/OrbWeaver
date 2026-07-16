@@ -57,25 +57,13 @@ export function authConfigFromEnv(): AuthConfig {
     verifyForwardJwt: env.FORWARD_AUTH_VERIFY_JWT,
     trustedLocalHosts: parseHostList(env.TRUSTED_LOCAL_HOSTS),
     trustedPrivateRanges: parseCsv(env.TRUSTED_PRIVATE_RANGES),
-    ...(env.FORWARD_AUTH_USER_HEADER !== undefined
-      ? { forwardUserHeader: env.FORWARD_AUTH_USER_HEADER }
-      : {}),
-    ...(env.FORWARD_AUTH_GROUPS_HEADER !== undefined
-      ? { forwardGroupsHeader: env.FORWARD_AUTH_GROUPS_HEADER }
-      : {}),
-    ...(env.FORWARD_AUTH_UID_HEADER !== undefined
-      ? { forwardUidHeader: env.FORWARD_AUTH_UID_HEADER }
-      : {}),
-    ...(env.FORWARD_AUTH_EMAIL_HEADER !== undefined
-      ? { forwardEmailHeader: env.FORWARD_AUTH_EMAIL_HEADER }
-      : {}),
+    ...(env.FORWARD_AUTH_USER_HEADER !== undefined ? { forwardUserHeader: env.FORWARD_AUTH_USER_HEADER } : {}),
+    ...(env.FORWARD_AUTH_GROUPS_HEADER !== undefined ? { forwardGroupsHeader: env.FORWARD_AUTH_GROUPS_HEADER } : {}),
+    ...(env.FORWARD_AUTH_UID_HEADER !== undefined ? { forwardUidHeader: env.FORWARD_AUTH_UID_HEADER } : {}),
+    ...(env.FORWARD_AUTH_EMAIL_HEADER !== undefined ? { forwardEmailHeader: env.FORWARD_AUTH_EMAIL_HEADER } : {}),
     forwardTrustedProxies: parseCsv(env.FORWARD_AUTH_TRUSTED_PROXIES),
     jwksAllowlist: jwksAllowlistFromEnv(),
-    ...(env.FORWARD_AUTH_JWT_ISSUER !== undefined
-      ? { jwtIssuer: env.FORWARD_AUTH_JWT_ISSUER }
-      : {}),
-    ...(env.FORWARD_AUTH_JWT_AUDIENCE !== undefined
-      ? { jwtAudience: env.FORWARD_AUTH_JWT_AUDIENCE }
-      : {}),
+    ...(env.FORWARD_AUTH_JWT_ISSUER !== undefined ? { jwtIssuer: env.FORWARD_AUTH_JWT_ISSUER } : {}),
+    ...(env.FORWARD_AUTH_JWT_AUDIENCE !== undefined ? { jwtAudience: env.FORWARD_AUTH_JWT_AUDIENCE } : {}),
   };
 }

@@ -52,11 +52,7 @@ export function CharacterGreetingPreview(props: CharacterGreetingPreviewProps): 
         const index = Math.min(activeIndex, Math.max(0, greetings.length - 1));
         return (
           <Stack gap="row" data-slot="character-greeting">
-            <GreetingPills
-              count={greetings.length}
-              activeIndex={index}
-              onSelect={onActiveIndexChange}
-            />
+            <GreetingPills count={greetings.length} activeIndex={index} onSelect={onActiveIndexChange} />
             <GreetingBody {...props} index={index} editing={editing} />
             <GreetingActions
               form={form}
@@ -146,14 +142,7 @@ function GreetingBody({
     <form.Subscribe selector={(s): string => s.values.greetings[index] ?? ""}>
       {(active): ReactElement => (
         <ThemeScope tokens={themeOverride ?? {}}>
-          <Stack
-            gap="row"
-            className={cn(
-              "rounded-card bg-ai-bubble p-block",
-              spoilerBlur && "select-none blur-md",
-            )}
-            data-slot="character-greeting-bubble"
-          >
+          <Stack gap="row" className={cn("rounded-card bg-ai-bubble p-block", spoilerBlur && "select-none blur-md")} data-slot="character-greeting-bubble">
             {active.trim() === "" ? (
               <Text tone="muted">No first message yet.</Text>
             ) : (
@@ -214,13 +203,7 @@ function GreetingActions({
         <Icon icon={Plus} size="sm" />
         Add opening
       </Button>
-      <Button
-        type="button"
-        size="sm"
-        intent={editing ? "secondary" : "ghost"}
-        aria-pressed={editing}
-        onClick={onToggleEdit}
-      >
+      <Button type="button" size="sm" intent={editing ? "secondary" : "ghost"} aria-pressed={editing} onClick={onToggleEdit}>
         <Icon icon={Pencil} size="sm" />
         {editing ? "Done" : "Edit"}
       </Button>

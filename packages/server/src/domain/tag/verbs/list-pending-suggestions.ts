@@ -11,9 +11,6 @@ import type { ListPendingSuggestionsParams } from "../contract/params";
 import type { TagContext } from "../contract/service";
 import { listPendingCharacterSuggestions } from "../persistence/queries";
 
-export function createListPendingSuggestions(
-  ctx: TagContext,
-): (params: ListPendingSuggestionsParams) => Promise<TagSuggestionView[]> {
-  return ({ principal, characterId }) =>
-    listPendingCharacterSuggestions(ctx.db, principal.userId, characterId);
+export function createListPendingSuggestions(ctx: TagContext): (params: ListPendingSuggestionsParams) => Promise<TagSuggestionView[]> {
+  return ({ principal, characterId }) => listPendingCharacterSuggestions(ctx.db, principal.userId, characterId);
 }

@@ -47,21 +47,11 @@ export function CharacterRegexScriptsField({ form }: { readonly form: CardForm }
             {arrayField.state.value.length === 0 ? null : (
               <Stack gap="block">
                 {arrayField.state.value.map((script, index) => (
-                  <RegexScriptRow
-                    key={script.id}
-                    form={form}
-                    index={index}
-                    onRemove={(): void => arrayField.removeValue(index)}
-                  />
+                  <RegexScriptRow key={script.id} form={form} index={index} onRemove={(): void => arrayField.removeValue(index)} />
                 ))}
               </Stack>
             )}
-            <Button
-              type="button"
-              size="sm"
-              intent="secondary"
-              onClick={(): void => arrayField.pushValue(blankRegexScript())}
-            >
+            <Button type="button" size="sm" intent="secondary" onClick={(): void => arrayField.pushValue(blankRegexScript())}>
               <Icon icon={Plus} size="sm" />
               Add script
             </Button>
@@ -73,44 +63,21 @@ export function CharacterRegexScriptsField({ form }: { readonly form: CardForm }
 }
 
 /** One script row — name/find/replace inputs + an enabled switch + remove. */
-function RegexScriptRow({
-  form,
-  index,
-  onRemove,
-}: {
-  readonly form: CardForm;
-  readonly index: number;
-  readonly onRemove: () => void;
-}): ReactElement {
+function RegexScriptRow({ form, index, onRemove }: { readonly form: CardForm; readonly index: number; readonly onRemove: () => void }): ReactElement {
   return (
     <Stack gap="field" padding="field" className="rounded-card border border-border">
       <Row gap="field" align="center">
         <form.Field name={`regexScripts[${index}].name`}>
           {(field): ReactElement => (
-            <Input
-              aria-label="Script name"
-              className="min-w-0 flex-1"
-              value={field.state.value}
-              onValueChange={(next): void => field.handleChange(next)}
-            />
+            <Input aria-label="Script name" className="min-w-0 flex-1" value={field.state.value} onValueChange={(next): void => field.handleChange(next)} />
           )}
         </form.Field>
         <form.Field name={`regexScripts[${index}].enabled`}>
           {(field): ReactElement => (
-            <Switch
-              aria-label="Enabled"
-              checked={field.state.value}
-              onCheckedChange={(checked): void => field.handleChange(checked)}
-            />
+            <Switch aria-label="Enabled" checked={field.state.value} onCheckedChange={(checked): void => field.handleChange(checked)} />
           )}
         </form.Field>
-        <Button
-          type="button"
-          size="icon"
-          intent="ghost"
-          aria-label="Remove script"
-          onClick={onRemove}
-        >
+        <Button type="button" size="icon" intent="ghost" aria-label="Remove script" onClick={onRemove}>
           <Icon icon={Trash2} size="sm" />
         </Button>
       </Row>
@@ -118,20 +85,14 @@ function RegexScriptRow({
         <form.Field name={`regexScripts[${index}].findRegex`}>
           {(field): ReactElement => (
             <Field label="Find" name={field.name} className="min-w-0 flex-1">
-              <Input
-                value={field.state.value}
-                onValueChange={(next): void => field.handleChange(next)}
-              />
+              <Input value={field.state.value} onValueChange={(next): void => field.handleChange(next)} />
             </Field>
           )}
         </form.Field>
         <form.Field name={`regexScripts[${index}].replaceString`}>
           {(field): ReactElement => (
             <Field label="Replace" name={field.name} className="min-w-0 flex-1">
-              <Input
-                value={field.state.value}
-                onValueChange={(next): void => field.handleChange(next)}
-              />
+              <Input value={field.state.value} onValueChange={(next): void => field.handleChange(next)} />
             </Field>
           )}
         </form.Field>

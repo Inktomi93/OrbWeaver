@@ -4,33 +4,13 @@
 // (no phantom extra rows); the chat `withX` opt-ins are explicit; and seedMessage performs the D26
 // slot→variant→pointer dance.
 
-import {
-  assets,
-  characters,
-  chatParticipants,
-  chats,
-  messages,
-  messageVariants,
-  users,
-} from "@orb/db";
+import { assets, characters, chatParticipants, chats, messages, messageVariants, users } from "@orb/db";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { FROZEN_AT_MS } from "../clock.ts";
 import { freshDb } from "../db.ts";
 import { expect, test } from "../fixtures.ts";
-import {
-  makeAsset,
-  makeCharacter,
-  makeChat,
-  makeMessage,
-  makeUser,
-  seedAsset,
-  seedCharacter,
-  seedChat,
-  seedMessage,
-  seedPersona,
-  seedUser,
-} from "./index.ts";
+import { makeAsset, makeCharacter, makeChat, makeMessage, makeUser, seedAsset, seedCharacter, seedChat, seedMessage, seedPersona, seedUser } from "./index.ts";
 
 const CHARACTER_ID_SHAPE = /^character_\d{6}$/u;
 
@@ -106,10 +86,7 @@ describe("seed* — the FK chain on an empty db", () => {
   test("withHost/withCharacter are explicit opt-ins carrying their ids back", async () => {
     const db = await freshDb();
     const chat = await seedChat(db, { withHost: true, withCharacter: true });
-    const roster = await db
-      .select()
-      .from(chatParticipants)
-      .where(eq(chatParticipants.chatId, chat.id));
+    const roster = await db.select().from(chatParticipants).where(eq(chatParticipants.chatId, chat.id));
     expect(roster).toHaveLength(2);
     const host = roster.find((p) => p.kind === "human");
     expect(host?.role).toBe("host");
@@ -124,10 +101,7 @@ describe("seed* — the FK chain on an empty db", () => {
     const seeded = await seedMessage(db, { content: "hello there" });
     const [slot] = await db.select().from(messages).where(eq(messages.id, seeded.id));
     expect(slot?.selectedVariantId).toBe(seeded.variantId);
-    const [variant] = await db
-      .select()
-      .from(messageVariants)
-      .where(eq(messageVariants.id, seeded.variantId));
+    const [variant] = await db.select().from(messageVariants).where(eq(messageVariants.id, seeded.variantId));
     expect(variant?.messageId).toBe(seeded.id);
     expect(variant?.idx).toBe(0);
     expect(variant?.content).toBe("hello there");

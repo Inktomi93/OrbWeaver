@@ -13,17 +13,10 @@ export interface FilterableCharacter {
 
 /** Case-insensitive substring match against the name OR any tag name. An empty/whitespace query matches
  *  everything (the unfiltered library). */
-export function filterCharacters<T extends FilterableCharacter>(
-  items: readonly T[],
-  query: string,
-): readonly T[] {
+export function filterCharacters<T extends FilterableCharacter>(items: readonly T[], query: string): readonly T[] {
   const q = query.trim().toLowerCase();
   if (q === "") {
     return items;
   }
-  return items.filter(
-    (item) =>
-      item.name.toLowerCase().includes(q) ||
-      item.tags.some((tag) => tag.name.toLowerCase().includes(q)),
-  );
+  return items.filter((item) => item.name.toLowerCase().includes(q) || item.tags.some((tag) => tag.name.toLowerCase().includes(q)));
 }

@@ -75,9 +75,7 @@ export async function createDb(url: string, wrap?: LibSqlWrap): Promise<Db> {
   const readback = await client.execute("PRAGMA foreign_keys");
   const value = readback.rows[0]?.["foreign_keys"];
   if (value !== FK_ENABLED) {
-    throw new Error(
-      `@orb/db: PRAGMA foreign_keys did not stick (read back ${String(value)}); refusing to boot — the FK-dense schema requires enforcement ON.`,
-    );
+    throw new Error(`@orb/db: PRAGMA foreign_keys did not stick (read back ${String(value)}); refusing to boot — the FK-dense schema requires enforcement ON.`);
   }
   return drizzle(client, { schema });
 }
@@ -147,18 +145,12 @@ export type BaselineCheck =
 /** The most-recently-applied migration's (hash, folderMillis), or undefined when `__drizzle_migrations`
  *  doesn't exist / has no rows (a fresh db). Columns are read off a `Record` (not typed literals) to
  *  sidestep the biome⇄tsc snake_case literal-key friction. */
-async function readAppliedBaseline(
-  db: Db,
-): Promise<{ hash: string; folderMillis: number } | undefined> {
-  const present = await db.all<Record<string, unknown>>(
-    sql`SELECT name FROM sqlite_master WHERE type = 'table' AND name = '__drizzle_migrations'`,
-  );
+async function readAppliedBaseline(db: Db): Promise<{ hash: string; folderMillis: number } | undefined> {
+  const present = await db.all<Record<string, unknown>>(sql`SELECT name FROM sqlite_master WHERE type = 'table' AND name = '__drizzle_migrations'`);
   if (present.length === 0) {
     return;
   }
-  const rows = await db.all<Record<string, unknown>>(
-    sql`SELECT hash, created_at FROM __drizzle_migrations ORDER BY created_at DESC LIMIT 1`,
-  );
+  const rows = await db.all<Record<string, unknown>>(sql`SELECT hash, created_at FROM __drizzle_migrations ORDER BY created_at DESC LIMIT 1`);
   const row = rows[0];
   if (row === undefined) {
     return;
@@ -170,14 +162,12 @@ async function readAppliedBaseline(
 // of the raw `<tag>.sql` bytes + the journal entry's `when`. Pre-launch the journal holds one entry (the
 // baseline); `.at(-1)` reads it without hard-coding the tag.
 function shippedBaselineIdentity(migrationsFolder: string): { hash: string; folderMillis: number } {
-  const journal = JSON.parse(
-    readFileSync(join(migrationsFolder, "meta", "_journal.json"), "utf-8"),
-  ) as { entries?: readonly { readonly when: number; readonly tag: string }[] };
+  const journal = JSON.parse(readFileSync(join(migrationsFolder, "meta", "_journal.json"), "utf-8")) as {
+    entries?: readonly { readonly when: number; readonly tag: string }[];
+  };
   const entry = journal.entries?.at(-1);
   if (entry === undefined) {
-    throw new Error(
-      "@orb/db: migrations journal has no entries — cannot compute baseline identity",
-    );
+    throw new Error("@orb/db: migrations journal has no entries — cannot compute baseline identity");
   }
   const sqlText = readFileSync(join(migrationsFolder, `${entry.tag}.sql`), "utf-8");
   return { hash: createHash("sha256").update(sqlText).digest("hex"), folderMillis: entry.when };
@@ -219,9 +209,7 @@ export async function resetDevDatabase(db: Db): Promise<void> {
     // One DDL script over the ONE connection (libSQL `executeMultiple`) rather than a per-object
     // round-trip loop — a single teardown, not an N+1 read path.
     const script = RESET_DROP_ORDER.flatMap((kind) =>
-      objects
-        .filter((o) => o["type"] === kind)
-        .map((o) => `DROP ${kind} IF EXISTS "${String(o["name"])}";`),
+      objects.filter((o) => o["type"] === kind).map((o) => `DROP ${kind} IF EXISTS "${String(o["name"])}";`),
     ).join("\n");
     if (script.length > 0) {
       await clientOf(db).executeMultiple(script);

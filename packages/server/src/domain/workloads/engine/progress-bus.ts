@@ -21,11 +21,8 @@ const replay = createReplayBuffer<WorkloadId, WorkloadEvent>(REPLAY_TTL_MS, () =
 
 /** Throws on an empty workloadId (the subscription filters on it; empty silently drops client-side). */
 export function emitWorkloadEvent(event: WorkloadEvent): void {
-  if (!event.workloadId) {
-    throw new DomainOperationError(
-      "workload_event_no_id",
-      "a WorkloadEvent must carry a non-empty workloadId (the subscription filters on it)",
-    );
+  if (event.workloadId === "") {
+    throw new DomainOperationError("workload_event_no_id", "a WorkloadEvent must carry a non-empty workloadId (the subscription filters on it)");
   }
   busClock = Math.max(busClock, event.at);
   replay.record(event.workloadId, event);

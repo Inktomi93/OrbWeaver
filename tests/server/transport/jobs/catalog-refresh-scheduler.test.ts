@@ -4,10 +4,7 @@
 
 import { DomainConflictError } from "@orb/kit/errors";
 import { describe, vi } from "vitest";
-import {
-  runCatalogCheck,
-  startCatalogRefreshScheduler,
-} from "../../../../packages/server/src/transport/jobs/catalog-refresh-scheduler.ts";
+import { runCatalogCheck, startCatalogRefreshScheduler } from "../../../../packages/server/src/transport/jobs/catalog-refresh-scheduler.ts";
 import { expect, test } from "../../../support/fixtures";
 import { makeRow, makeSchedulerDeps, T0 } from "./_support.ts";
 
@@ -39,9 +36,7 @@ describe("catalog-refresh-scheduler decision", () => {
   });
 
   test("skips when the newest success is still within the 24h refresh cadence", async () => {
-    const list = vi.fn(() =>
-      Promise.resolve([makeRow({ status: "succeeded", updatedAt: T0 - MS_PER_HOUR })]),
-    );
+    const list = vi.fn(() => Promise.resolve([makeRow({ status: "succeeded", updatedAt: T0 - MS_PER_HOUR })]));
     const deps = makeSchedulerDeps({
       now: () => T0,
       service: { ...makeSchedulerDeps().service, list },
@@ -53,9 +48,7 @@ describe("catalog-refresh-scheduler decision", () => {
   });
 
   test("re-enqueues once a success ages past 24h (fires on the injected clock)", async () => {
-    const list = vi.fn(() =>
-      Promise.resolve([makeRow({ status: "succeeded", updatedAt: T0 - (MS_PER_DAY + 1) })]),
-    );
+    const list = vi.fn(() => Promise.resolve([makeRow({ status: "succeeded", updatedAt: T0 - (MS_PER_DAY + 1) })]));
     const deps = makeSchedulerDeps({
       now: () => T0,
       service: { ...makeSchedulerDeps().service, list },
@@ -69,11 +62,7 @@ describe("catalog-refresh-scheduler decision", () => {
   test("a failed row retries after 1h, not the full day", async () => {
     const base = makeSchedulerDeps().service;
     // 90 min after a failure → past the 1h retry cadence.
-    const list = vi.fn(() =>
-      Promise.resolve([
-        makeRow({ status: "failed", updatedAt: T0 - MS_PER_HOUR - MS_PER_HOUR / 2 }),
-      ]),
-    );
+    const list = vi.fn(() => Promise.resolve([makeRow({ status: "failed", updatedAt: T0 - MS_PER_HOUR - MS_PER_HOUR / 2 })]));
     const deps = makeSchedulerDeps({ now: () => T0, service: { ...base, list } });
 
     await runCatalogCheck(deps);

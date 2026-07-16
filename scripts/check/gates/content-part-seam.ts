@@ -58,40 +58,34 @@ export const gate: GateDescriptor = {
   },
   mustFlag: [
     {
-      files:
-        'import type { ChatContentPart } from "@orb/contracts/chat";\nexport type T = ChatContentPart;\n',
+      files: 'import type { ChatContentPart } from "@orb/contracts/chat";\nexport type T = ChatContentPart;\n',
       at: "packages/server/src/domain/chat/verbs/assemble.ts",
       why: "an upstream verb importing ChatContentPart — reaching for parts before the engine seam (D51)",
     },
   ],
   mustPass: [
     {
-      files:
-        'import type { ChatContentPart } from "@orb/contracts/chat";\nexport type U = ChatContentPart;\n',
+      files: 'import type { ChatContentPart } from "@orb/contracts/chat";\nexport type U = ChatContentPart;\n',
       at: "packages/server/src/infra/providers/backends/kit/map.ts",
       why: "the infra/providers consumer is a sanctioned seam member — the sealed runner maps parts to wire",
     },
     {
-      files:
-        'import type { ChatContentPart } from "@orb/contracts/chat";\nexport type U = ChatContentPart;\n',
+      files: 'import type { ChatContentPart } from "@orb/contracts/chat";\nexport type U = ChatContentPart;\n',
       at: "packages/server/src/domain/chat/engine/pipeline.ts",
       why: "the engine request seam (pipeline.ts) is the ONE sanctioned producer of parts (D51)",
     },
     {
-      files:
-        'import type { ChatContentPart } from "@orb/contracts/chat";\nexport type U = ChatContentPart;\n',
+      files: 'import type { ChatContentPart } from "@orb/contracts/chat";\nexport type U = ChatContentPart;\n',
       at: "packages/server/src/domain/chat/contract/results.ts",
       why: "the request DTO (contract/results.ts) is the sanctioned member the seam populates",
     },
     {
-      files:
-        'import type { ChatContentPart } from "@orb/contracts/chat";\nexport type U = ChatContentPart;\n',
+      files: 'import type { ChatContentPart } from "@orb/contracts/chat";\nexport type U = ChatContentPart;\n',
       at: "packages/contracts/src/chat/index.ts",
       why: "the contracts home declares the symbol — a sanctioned seam member",
     },
     {
-      files:
-        'import type { ChatContentPart } from "@orb/contracts/chat";\nexport type U = ChatContentPart;\n',
+      files: 'import type { ChatContentPart } from "@orb/contracts/chat";\nexport type U = ChatContentPart;\n',
       at: "tests/contracts/chat/index.test-d.ts",
       why: "the centralized tests/ mirror (not prod src) legitimately imports the contract type to test it — exempt",
     },

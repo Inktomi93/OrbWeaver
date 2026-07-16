@@ -33,11 +33,7 @@ export async function readOwnedCardFacets(db: Db, ownerId: UserId): Promise<Card
 
 /** ONE owned/distilled card's facets — the owner belt for `askCard`/`characterDossier` (`undefined` when the
  *  character isn't owned by `ownerId` or has no `character_summaries` row). Owner scope via `characters.ownerId`. */
-export async function readOwnedCardFacet(
-  db: Db,
-  ownerId: UserId,
-  characterId: CharacterId,
-): Promise<CardFacetRow | undefined> {
+export async function readOwnedCardFacet(db: Db, ownerId: UserId, characterId: CharacterId): Promise<CardFacetRow | undefined> {
   const rows = await db
     .select({
       characterId: characterSummaries.characterId,

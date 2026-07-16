@@ -4,13 +4,7 @@
 // in the passed-in cache snapshot and delegates to `catalog/resolveModelCapability`. PURE: the cache is
 // passed in (the verb read it with `ctx.now()`), so this is deterministic + unit-testable.
 
-import type {
-  AgentSdkModel,
-  ChatApi,
-  CredentialSource,
-  ModelCapability,
-  ModelCatalogEntry,
-} from "@orb/contracts/connection";
+import type { AgentSdkModel, ChatApi, CredentialSource, ModelCapability, ModelCatalogEntry } from "@orb/contracts/connection";
 import type { ModelId } from "@orb/kit/ids";
 import { resolveModelCapability } from "../catalog/resolve-model-capability";
 

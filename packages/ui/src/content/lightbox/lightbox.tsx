@@ -21,23 +21,11 @@ export interface LightboxProps {
  *
  * Spec: ui-package-design §6.1 — the sealed viewer over Dialog + MessageMedia.
  */
-export function Lightbox({
-  open,
-  onOpenChange,
-  src,
-  media,
-  alt,
-  allowExternal,
-}: LightboxProps): ReactElement {
+export function Lightbox({ open, onOpenChange, src, media, alt, allowExternal }: LightboxProps): ReactElement {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogPopup className="max-w-cq-lg bg-transparent p-block shadow-none">
-        <MessageMedia
-          src={src}
-          media={media}
-          alt={alt}
-          {...(allowExternal === undefined ? {} : { allowExternal })}
-        />
+        <MessageMedia src={src} media={media} alt={alt} {...(allowExternal === undefined ? {} : { allowExternal })} />
       </DialogPopup>
     </Dialog>
   );

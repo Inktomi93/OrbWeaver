@@ -48,10 +48,7 @@ function isForbiddenModifierCall(call: CallExpression, modifier: string): boolea
     return true; // `it.skip("name", () => {…})`.
   }
   const first = args[0];
-  return (
-    first !== undefined &&
-    (Node.isStringLiteral(first) || Node.isNoSubstitutionTemplateLiteral(first))
-  ); // `test.skip("just a title")` — no condition arg.
+  return first !== undefined && (Node.isStringLiteral(first) || Node.isNoSubstitutionTemplateLiteral(first)); // `test.skip("just a title")` — no condition arg.
 }
 
 function hasAllowSkip(lines: readonly string[], lineNo: number): boolean {
@@ -181,26 +178,22 @@ export const gate: GateDescriptor = {
   ],
   mustPass: [
     {
-      files:
-        'it.skipIf(process.env.CI === undefined)("gated", () => {\n  expect(1).toBe(1);\n});\n',
+      files: 'it.skipIf(process.env.CI === undefined)("gated", () => {\n  expect(1).toBe(1);\n});\n',
       at: "tests/tooling/ok.test.ts",
       why: "a conditional `.skipIf(cond)` gate (env/engine) — exact-name match, never the forbidden modifier",
     },
     {
-      files:
-        'test("some flow", async ({ page }) => {\n  test.skip(!!process.env.CI, "flaky in CI");\n  await page.goto("/");\n});\n',
+      files: 'test("some flow", async ({ page }) => {\n  test.skip(!!process.env.CI, "flaky in CI");\n  await page.goto("/");\n});\n',
       at: "tests/e2e/z.spec.ts",
       why: "Playwright's runtime test.skip(cond, reason) guard (condition arg, no test body) — allowed",
     },
     {
-      files:
-        '// allow-skip: flaky pending PD-999\nit.skip("known-flaky", () => {\n  expect(1).toBe(1);\n});\n',
+      files: '// allow-skip: flaky pending PD-999\nit.skip("known-flaky", () => {\n  expect(1).toBe(1);\n});\n',
       at: "tests/tooling/escape.test.ts",
       why: "the `// allow-skip: <reason>` escape hatch on the line above exempts the skip — passes",
     },
     {
-      files:
-        'test("iterates", () => {\n  const it = [1, 2][Symbol.iterator]();\n  it.next();\n  expect(it.next().done).toBe(true);\n});\n',
+      files: 'test("iterates", () => {\n  const it = [1, 2][Symbol.iterator]();\n  it.next();\n  expect(it.next().done).toBe(true);\n});\n',
       at: "tests/tooling/iter.test.ts",
       why: "a local `it` async-iterator variable (it.next()) is not a test call — not mistaken for one, passes",
     },

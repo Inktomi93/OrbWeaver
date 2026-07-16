@@ -18,8 +18,7 @@ interface ScopeInstructions {
 export const SCOPE_INSTRUCTIONS = {
   entities: {
     query: "Retrieve the roleplay character or conversation moment that best matches the request.",
-    rerank:
-      "Given a query, retrieve the roleplay character or conversation moment most relevant to it.",
+    rerank: "Given a query, retrieve the roleplay character or conversation moment most relevant to it.",
   },
   characters: {
     query: "Retrieve the roleplay character card that best matches the described persona.",
@@ -27,8 +26,7 @@ export const SCOPE_INSTRUCTIONS = {
   },
   discover: {
     query: "Retrieve the lived roleplay scene whose character has experienced moments like this.",
-    rerank:
-      "Given a query, retrieve the roleplay conversation moment whose character best fits the request.",
+    rerank: "Given a query, retrieve the roleplay conversation moment whose character best fits the request.",
   },
   segments: {
     query: "Retrieve the verbatim roleplay conversation moment that best matches the request.",
@@ -40,8 +38,7 @@ export const SCOPE_INSTRUCTIONS = {
   },
   corpus: {
     query: "Retrieve the roleplay scene or conversation moment that best matches the request.",
-    rerank:
-      "Given a query, retrieve the roleplay scene or conversation excerpt most relevant to it.",
+    rerank: "Given a query, retrieve the roleplay scene or conversation excerpt most relevant to it.",
   },
   images: {
     query: "Retrieve the character art that best matches the described appearance.",

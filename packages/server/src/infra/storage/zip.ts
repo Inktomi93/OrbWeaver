@@ -80,15 +80,7 @@ const DEFAULT_MAX_ENTRIES = 50_000;
 
 const DRIVE_LETTER = /^[a-zA-Z]:/;
 
-const ZIP_REJECT_KINDS = [
-  "too-large",
-  "too-many-entries",
-  "bad-method",
-  "zip-slip",
-  "bomb",
-  "unsupported",
-  "malformed",
-] as const;
+const ZIP_REJECT_KINDS = ["too-large", "too-many-entries", "bad-method", "zip-slip", "bomb", "unsupported", "malformed"] as const;
 
 type ZipRejectKind = (typeof ZIP_REJECT_KINDS)[number];
 
@@ -210,12 +202,7 @@ interface EntryLimits {
   readonly maxEntryBytes: number;
 }
 
-function parseCentralRecord(
-  buf: Uint8Array,
-  at: number,
-  index: number,
-  maxEntryBytes: number,
-): { readonly record: CentralRecord; readonly nextAt: number } {
+function parseCentralRecord(buf: Uint8Array, at: number, index: number, maxEntryBytes: number): { readonly record: CentralRecord; readonly nextAt: number } {
   if (u32(buf, at) !== SIG_CENTRAL) {
     throw new ZipRejectedError("malformed", `central directory entry ${index} has a bad signature`);
   }
@@ -239,10 +226,7 @@ function parseCentralRecord(
     throw new ZipRejectedError("bad-method", `entry ${index} uses compression method ${method}`);
   }
   if (uncompressedSize > maxEntryBytes) {
-    throw new ZipRejectedError(
-      "too-large",
-      `entry ${index} declares ${uncompressedSize} bytes, over the ${maxEntryBytes} per-entry cap`,
-    );
+    throw new ZipRejectedError("too-large", `entry ${index} declares ${uncompressedSize} bytes, over the ${maxEntryBytes} per-entry cap`);
   }
   const nameAt = at + CENTRAL_FIXED_SIZE;
   if (nameAt + nameLen > buf.length) {
@@ -256,16 +240,9 @@ function parseCentralRecord(
   };
 }
 
-function readCentralDirectory(
-  buf: Uint8Array,
-  location: CentralDirLocation,
-  limits: EntryLimits,
-): CentralRecord[] {
+function readCentralDirectory(buf: Uint8Array, location: CentralDirLocation, limits: EntryLimits): CentralRecord[] {
   if (location.count > limits.maxEntries) {
-    throw new ZipRejectedError(
-      "too-many-entries",
-      `${location.count} entries exceeds the cap of ${limits.maxEntries}`,
-    );
+    throw new ZipRejectedError("too-many-entries", `${location.count} entries exceeds the cap of ${limits.maxEntries}`);
   }
   const records: CentralRecord[] = [];
   let at = location.cdOffset;
@@ -305,10 +282,7 @@ function inflateEntry(buf: Uint8Array, rec: CentralRecord): Uint8Array {
     out = inflateWithCap(compressed, rec);
   }
   if (out.length !== rec.uncompressedSize) {
-    throw new ZipRejectedError(
-      "bomb",
-      `entry ${rec.name} produced ${out.length} bytes, declared ${rec.uncompressedSize}`,
-    );
+    throw new ZipRejectedError("bomb", `entry ${rec.name} produced ${out.length} bytes, declared ${rec.uncompressedSize}`);
   }
   if (crc32(out) >>> 0 !== rec.crc) {
     throw new ZipRejectedError("bomb", `entry ${rec.name} failed its CRC-32 integrity check`);
@@ -338,9 +312,7 @@ function inflateWithCap(compressed: Uint8Array, rec: CentralRecord): Uint8Array 
   }
 }
 
-function toAsyncIterable(
-  source: ReadableStream<Uint8Array> | AsyncIterable<Uint8Array>,
-): AsyncIterable<Uint8Array> {
+function toAsyncIterable(source: ReadableStream<Uint8Array> | AsyncIterable<Uint8Array>): AsyncIterable<Uint8Array> {
   // Discriminate on getReader (ReadableStream-only) — a Symbol.asyncIterator guard would collapse the else branch to never.
   if (!("getReader" in source)) {
     return source;
@@ -356,9 +328,7 @@ function toAsyncIterable(
           if (done) {
             return;
           }
-          if (value !== undefined) {
-            yield value;
-          }
+          yield value;
         }
       } finally {
         reader.releaseLock();
@@ -370,10 +340,7 @@ function toAsyncIterable(
 async function bufferCapped(source: ZipByteSource, maxTotalBytes: number): Promise<Uint8Array> {
   if (source instanceof Uint8Array) {
     if (source.length > maxTotalBytes) {
-      throw new ZipRejectedError(
-        "too-large",
-        `archive is ${source.length} bytes, over ${maxTotalBytes}`,
-      );
+      throw new ZipRejectedError("too-large", `archive is ${source.length} bytes, over ${maxTotalBytes}`);
     }
     return source;
   }
@@ -399,8 +366,7 @@ const STAGING_PREFIX = "orb-import-stage-";
 
 // O_CREAT|O_EXCL|O_NOFOLLOW: never open an existing path, so a pre-planted symlink can't be followed or clobbered.
 async function writeStaged(path: string, bytes: Uint8Array): Promise<void> {
-  const flags =
-    fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_EXCL | fsConstants.O_NOFOLLOW;
+  const flags = fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_EXCL | fsConstants.O_NOFOLLOW;
   const handle = await open(path, flags);
   try {
     await handle.writeFile(bytes);
@@ -419,22 +385,14 @@ async function readStaged(path: string): Promise<Uint8Array> {
   }
 }
 
-async function stageRecords(
-  dir: string,
-  buf: Uint8Array,
-  records: readonly CentralRecord[],
-  maxTotalDecompressedBytes: number,
-): Promise<StagedEntry[]> {
+async function stageRecords(dir: string, buf: Uint8Array, records: readonly CentralRecord[], maxTotalDecompressedBytes: number): Promise<StagedEntry[]> {
   const entries: StagedEntry[] = [];
   let producedTotal = 0;
   for (const [i, rec] of records.entries()) {
     const bytes = inflateEntry(buf, rec);
     producedTotal += bytes.length;
     if (producedTotal > maxTotalDecompressedBytes) {
-      throw new ZipRejectedError(
-        "bomb",
-        `aggregate decompressed size exceeds ${maxTotalDecompressedBytes} bytes (amplification bomb)`,
-      );
+      throw new ZipRejectedError("bomb", `aggregate decompressed size exceeds ${maxTotalDecompressedBytes} bytes (amplification bomb)`);
     }
     // Staged filename is the entry INDEX, never the archive's own attacker-chosen path.
     const stagedPath = join(dir, String(i));
@@ -445,14 +403,10 @@ async function stageRecords(
   return entries;
 }
 
-export async function extractZip(
-  source: ZipByteSource,
-  options?: ExtractOptions,
-): Promise<StagedArchive> {
+export async function extractZip(source: ZipByteSource, options?: ExtractOptions): Promise<StagedArchive> {
   const maxTotalBytes = options?.maxTotalBytes ?? DEFAULT_MAX_TOTAL_BYTES;
   const maxEntryBytes = options?.maxEntryBytes ?? DEFAULT_MAX_ENTRY_BYTES;
-  const maxTotalDecompressedBytes =
-    options?.maxTotalDecompressedBytes ?? DEFAULT_MAX_TOTAL_DECOMPRESSED_BYTES;
+  const maxTotalDecompressedBytes = options?.maxTotalDecompressedBytes ?? DEFAULT_MAX_TOTAL_DECOMPRESSED_BYTES;
   const maxEntries = options?.maxEntries ?? DEFAULT_MAX_ENTRIES;
   const stagingRoot = options?.stagingRoot ?? tmpdir();
 
@@ -541,12 +495,7 @@ function eocdRecord(count: number, cdOffset: number, cdSize: number): Uint8Array
   return rec;
 }
 
-function emitEntry(
-  controller: ReadableStreamDefaultController<Uint8Array>,
-  entry: ZipEntry,
-  localOffset: number,
-  centrals: PackedCentral[],
-): number {
+function emitEntry(controller: ReadableStreamDefaultController<Uint8Array>, entry: ZipEntry, localOffset: number, centrals: PackedCentral[]): number {
   const nameBytes = new TextEncoder().encode(entry.path);
   const crc = crc32(entry.bytes) >>> 0;
   const deflated = deflateRawSync(entry.bytes);
@@ -575,7 +524,7 @@ export function packZip(entries: AsyncIterable<ZipEntry>): ReadableStream<Uint8A
   return new ReadableStream<Uint8Array>({
     async pull(controller: ReadableStreamDefaultController<Uint8Array>): Promise<void> {
       const next = await iterator.next();
-      if (!next.done) {
+      if (next.done !== true) {
         offset += emitEntry(controller, next.value, offset, centrals);
         return;
       }

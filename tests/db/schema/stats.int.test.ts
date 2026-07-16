@@ -6,14 +6,7 @@
 // (never Date). ZERO vector columns is enforced structurally by the dep-cruiser gate, not here.
 
 import type { Db } from "@orb/db";
-import {
-  characterStats,
-  characters,
-  dailyStats,
-  isConstraintViolation,
-  modelStats,
-  ownerStats,
-} from "@orb/db";
+import { characterStats, characters, dailyStats, isConstraintViolation, modelStats, ownerStats } from "@orb/db";
 import type { CharacterId, CharacterStatId, DailyStatId, ModelStatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
@@ -144,15 +137,11 @@ test("character_stats is one row per character (the characterId unique rejects a
   const db = await freshDb();
   const ownerId = await seedUser(db, { id: "user_char_dup", handle: "char-dup" });
   const characterId = await seedCharacter(db, ownerId, "character_dup_stats");
-  await db
-    .insert(characterStats)
-    .values({ id: castId<CharacterStatId>("character_stat_dup_a"), characterId });
+  await db.insert(characterStats).values({ id: castId<CharacterStatId>("character_stat_dup_a"), characterId });
 
   let caught: unknown;
   try {
-    await db
-      .insert(characterStats)
-      .values({ id: castId<CharacterStatId>("character_stat_dup_b"), characterId });
+    await db.insert(characterStats).values({ id: castId<CharacterStatId>("character_stat_dup_b"), characterId });
   } catch (err) {
     caught = err;
   }
@@ -177,16 +166,11 @@ test("deleting a character CASCADEs its character_stats row (the rollup dies wit
   const db = await freshDb();
   const ownerId = await seedUser(db, { id: "user_char_cascade", handle: "char-cascade" });
   const characterId = await seedCharacter(db, ownerId, "character_cascade_stats");
-  await db
-    .insert(characterStats)
-    .values({ id: castId<CharacterStatId>("character_stat_cascade"), characterId });
+  await db.insert(characterStats).values({ id: castId<CharacterStatId>("character_stat_cascade"), characterId });
 
   await db.delete(characters).where(eq(characters.id, characterId));
 
-  const rows = await db
-    .select()
-    .from(characterStats)
-    .where(eq(characterStats.characterId, characterId));
+  const rows = await db.select().from(characterStats).where(eq(characterStats.characterId, characterId));
   expect(rows).toHaveLength(0);
 });
 
@@ -221,15 +205,11 @@ test("daily_stats round-trips (KEEPS ownerId, day bucket, OR-flag default false,
 test("daily_stats is one row per (owner, day) (the composite unique rejects a duplicate day)", async () => {
   const db = await freshDb();
   const ownerId = await seedUser(db, { id: "user_daily_dup", handle: "daily-dup" });
-  await db
-    .insert(dailyStats)
-    .values({ id: castId<DailyStatId>("daily_stat_dup_a"), ownerId, day: "2026-06-26" });
+  await db.insert(dailyStats).values({ id: castId<DailyStatId>("daily_stat_dup_a"), ownerId, day: "2026-06-26" });
 
   let caught: unknown;
   try {
-    await db
-      .insert(dailyStats)
-      .values({ id: castId<DailyStatId>("daily_stat_dup_b"), ownerId, day: "2026-06-26" });
+    await db.insert(dailyStats).values({ id: castId<DailyStatId>("daily_stat_dup_b"), ownerId, day: "2026-06-26" });
   } catch (err) {
     caught = err;
   }

@@ -13,14 +13,7 @@ import { CharacterNotFoundError } from "../contract/errors";
 import type { DuplicateCharacterParams } from "../contract/params";
 import type { CharacterService } from "../contract/service";
 import { insertCharacter } from "../persistence/card";
-import {
-  canonicalTagsOf,
-  cardOf,
-  detailOf,
-  listOwnerHandles,
-  loadOwnedCharacterRow,
-  loadOwnedCharacterWithAvatar,
-} from "../persistence/queries";
+import { canonicalTagsOf, cardOf, detailOf, listOwnerHandles, loadOwnedCharacterRow, loadOwnedCharacterWithAvatar } from "../persistence/queries";
 import { cardTokenSize } from "../substrate/card-tokens";
 
 const COPY_SUFFIX = "-copy";

@@ -58,7 +58,6 @@ export function SwipeStrip({ message }: SwipeStripProps): ReactElement {
   const prevVariantId = current > 1 ? history.get(idx - 1) : undefined;
   const nextVariantId = current < total ? history.get(idx + 1) : undefined;
   const canStepBack = prevVariantId !== undefined;
-  const canStepForward = nextVariantId !== undefined;
 
   const goPrev = useCallback((): void => {
     if (busy || prevVariantId === undefined) {
@@ -71,25 +70,18 @@ export function SwipeStrip({ message }: SwipeStripProps): ReactElement {
     if (busy) {
       return;
     }
-    if (canStepForward && nextVariantId !== undefined) {
+    if (nextVariantId !== undefined) {
       selectVariant.mutate({ chatId, messageId, variantId: nextVariantId });
       return;
     }
     swipe.mutate({ chatId, messageId });
-  }, [busy, canStepForward, nextVariantId, selectVariant, swipe, chatId, messageId]);
+  }, [busy, nextVariantId, selectVariant, swipe, chatId, messageId]);
 
   useSwipeKeyboardNav({ onPrev: goPrev, onNext: goNext });
 
   return (
     <Row gap="field" align="center" data-slot="swipe-strip">
-      <Button
-        intent="ghost"
-        size="icon"
-        disabled={!canStepBack}
-        loading={busy && canStepBack}
-        aria-label="Previous variant"
-        onClick={goPrev}
-      >
+      <Button intent="ghost" size="icon" disabled={!canStepBack} loading={busy && canStepBack} aria-label="Previous variant" onClick={goPrev}>
         <Icon icon={ChevronLeft} size="sm" />
       </Button>
       <Text as="span" size="label" tone="muted">

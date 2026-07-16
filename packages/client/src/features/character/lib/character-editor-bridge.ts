@@ -26,10 +26,7 @@ export const clearCharacterForm = bridge.clear;
 export const useCharacterForm = bridge.useHandle;
 
 /** Resolve the form the inspector should bind, or `null` when unpublished or id-mismatched. */
-export function resolveCharacterForm(
-  currentHandle: CharacterFormHandle | null,
-  expectedCharacterId: CharacterId | null,
-): CharacterFormHandle | null {
+export function resolveCharacterForm(currentHandle: CharacterFormHandle | null, expectedCharacterId: CharacterId | null): CharacterFormHandle | null {
   if (currentHandle === null || expectedCharacterId === null) {
     return null;
   }

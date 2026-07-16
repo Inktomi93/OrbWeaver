@@ -176,24 +176,20 @@ export const gate: GateDescriptor = {
     },
     {
       files: {
-        "packages/client/src/features/a/lib/a-pane.ts":
-          "export const aPane: SettingsPaneDefinition = { id: 'dup' };\n",
-        "packages/client/src/features/b/lib/b-pane.ts":
-          "export const bPane: SettingsPaneDefinition = { id: 'dup' };\n",
+        "packages/client/src/features/a/lib/a-pane.ts": "export const aPane: SettingsPaneDefinition = { id: 'dup' };\n",
+        "packages/client/src/features/b/lib/b-pane.ts": "export const bPane: SettingsPaneDefinition = { id: 'dup' };\n",
       },
       expect: { messageIncludes: "already claimed by" },
       why: "two co-located SettingsPaneDefinitions declaring the SAME id — the shadow-def duplicate-id arm",
     },
     {
-      files:
-        'export const xPane: SettingsPaneDefinition = { id: \'x\', body: () => <SettingsPanePlaceholder title="X" description="d" /> };\n',
+      files: 'export const xPane: SettingsPaneDefinition = { id: \'x\', body: () => <SettingsPanePlaceholder title="X" description="d" /> };\n',
       at: "packages/client/src/features/x/lib/x-pane.tsx",
       expect: { messageIncludes: "teaching placeholder" },
       why: "a real function `body` silently rendering the generic placeholder instead of `{ placeholder: true }` — the placeholder-honesty arm",
     },
     {
-      files:
-        'import { XSettingsSurface } from "./x-settings-surface";\nexport const G = XSettingsSurface;\n',
+      files: 'import { XSettingsSurface } from "./x-settings-surface";\nexport const G = XSettingsSurface;\n',
       at: "packages/client/src/features/settings/surfaces/settings-shell-surface.tsx",
       expect: { messageIncludes: "imports" },
       why: "the settings host importing a pane's own surface directly (a same-dir sibling import, the real shape) — the host-imports-no-pane-body arm",
@@ -201,14 +197,12 @@ export const gate: GateDescriptor = {
   ],
   mustPass: [
     {
-      files:
-        "export const themePane: SettingsPaneDefinition = { id: 'theme', group: \"user\", body: () => <ThemeSurface /> };\n",
+      files: "export const themePane: SettingsPaneDefinition = { id: 'theme', group: \"user\", body: () => <ThemeSurface /> };\n",
       at: "packages/client/src/features/x/lib/theme-pane.tsx",
       why: "a FULL co-located pane (function body) — passes",
     },
     {
-      files:
-        "export const draftPane: SettingsPaneDefinition = { id: 'draft', body: { placeholder: true } };\n",
+      files: "export const draftPane: SettingsPaneDefinition = { id: 'draft', body: { placeholder: true } };\n",
       at: "packages/client/src/features/x/lib/draft-pane.tsx",
       why: "a DECLARED-PLACEHOLDER pane — flagged honestly, no function body — passes",
     },

@@ -20,10 +20,8 @@ interface OwnedAssetExportRow {
   readonly mime: string;
 }
 
-export async function selectOwnedReferencedAssetIds(
-  db: Db,
-  ownerId: UserId,
-): Promise<Set<AssetId>> {
+export async function selectOwnedReferencedAssetIds(db: Db, ownerId: UserId): Promise<Set<AssetId>> {
+  // @orb-gate-ignore persistence-no-in-memory-state: query-local accumulator for owned asset collection
   const ids = new Set<AssetId>();
   for (const ref of ASSET_REFS) {
     // biome-ignore lint/performance/noAwaitInLoops: sequential DISTINCT reads over the fixed tiny registry — an export-time collection, not a hot path (mirrors `selectAllReferencedAssetIds`).
@@ -48,17 +46,11 @@ export async function selectInlineReferencedContents(db: Db, ownerId: UserId): P
     .from(messageVariants)
     .innerJoin(messages, eq(messages.id, messageVariants.messageId))
     .innerJoin(chatParticipants, eq(chatParticipants.chatId, messages.chatId))
-    .where(
-      and(eq(chatParticipants.userId, ownerId), like(messageVariants.content, INLINE_REF_LIKE)),
-    );
+    .where(and(eq(chatParticipants.userId, ownerId), like(messageVariants.content, INLINE_REF_LIKE)));
   return rows.map((r) => r.content);
 }
 
-export async function loadOwnedAssetForExport(
-  db: Db,
-  ownerId: UserId,
-  assetId: AssetId,
-): Promise<OwnedAssetExportRow | undefined> {
+export async function loadOwnedAssetForExport(db: Db, ownerId: UserId, assetId: AssetId): Promise<OwnedAssetExportRow | undefined> {
   const rows = await db
     .select({ hash: assets.hash, kind: assets.kind, mime: assets.mime })
     .from(assets)

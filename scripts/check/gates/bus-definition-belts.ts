@@ -40,9 +40,7 @@ function recordUnionName(decl: { getInitializer: () => TsNode | undefined }): st
     return;
   }
   const first = typeNode.getTypeArguments()[0];
-  return first !== undefined && Node.isIndexedAccessTypeNode(first)
-    ? first.getObjectTypeNode().getText()
-    : undefined;
+  return first !== undefined && Node.isIndexedAccessTypeNode(first) ? first.getObjectTypeNode().getText() : undefined;
 }
 
 /** Every `X_EVENT_TYPES` const in @orb/contracts shaped `satisfies Record<Union["type"], true>` — the
@@ -67,21 +65,12 @@ function findEventTypesConsts(files: readonly SourceFile[]): EventTypesConst[] {
 /** Does any scripts/check/gates/*.ts file (other than this one) name the const literally? Mirrors
  *  bus-coverage.ts's own `const TYPES_CONST = "CHAT_BUS_EVENT_TYPES"` convention. */
 function hasCoverageGate(files: readonly SourceFile[], constName: string): boolean {
-  return files.some(
-    (sf) =>
-      GATES_SCOPE.test(sf.getFilePath()) &&
-      !OWN_HOME.test(sf.getFilePath()) &&
-      sf.getFullText().includes(constName),
-  );
+  return files.some((sf) => GATES_SCOPE.test(sf.getFilePath()) && !OWN_HOME.test(sf.getFilePath()) && sf.getFullText().includes(constName));
 }
 
 /** Is `node` an `IndexedAccessTypeNode` over exactly `unionName["type"]`-shaped? */
 function isIndexedOverUnion(node: TsNode | undefined, unionName: string): boolean {
-  return (
-    node !== undefined &&
-    Node.isIndexedAccessTypeNode(node) &&
-    node.getObjectTypeNode().getText() === unionName
-  );
+  return node !== undefined && Node.isIndexedAccessTypeNode(node) && node.getObjectTypeNode().getText() === unionName;
 }
 
 /** Does data/invalidation.ts declare a mapped type (`[K in Union["type"]]`) OR a `Record<Union["type"], …>`
@@ -91,19 +80,13 @@ function hasClientTotalMap(files: readonly SourceFile[], unionName: string): boo
   if (sf === undefined) {
     return false;
   }
-  const mappedHit = sf
-    .getDescendantsOfKind(SyntaxKind.MappedType)
-    .some((m) => isIndexedOverUnion(m.getTypeParameter().getConstraint(), unionName));
+  const mappedHit = sf.getDescendantsOfKind(SyntaxKind.MappedType).some((m) => isIndexedOverUnion(m.getTypeParameter().getConstraint(), unionName));
   if (mappedHit) {
     return true;
   }
   return sf
     .getDescendantsOfKind(SyntaxKind.TypeReference)
-    .some(
-      (ref) =>
-        ref.getTypeName().getText() === "Record" &&
-        isIndexedOverUnion(ref.getTypeArguments()[0], unionName),
-    );
+    .some((ref) => ref.getTypeName().getText() === "Record" && isIndexedOverUnion(ref.getTypeArguments()[0], unionName));
 }
 
 export const gate: GateDescriptor = {
@@ -129,7 +112,6 @@ export const gate: GateDescriptor = {
     {
       files: {
         "packages/contracts/src/__probe/index.ts":
-          // biome-ignore lint/security/noSecrets: fixture SOURCE CODE (a contracts const), not a secret.
           'export type PEv = { type: "a" };\nexport const PROBE_EVENT_TYPES = { a: true } satisfies Record<PEv["type"], true>;\n',
         "packages/client/src/data/invalidation.ts": "export const untouched = 1;\n",
       },
@@ -141,10 +123,8 @@ export const gate: GateDescriptor = {
     {
       files: {
         "packages/contracts/src/__probe/index.ts":
-          // biome-ignore lint/security/noSecrets: fixture SOURCE CODE (a contracts const), not a secret.
           'export type PEv = { type: "a" };\nexport const PROBE_EVENT_TYPES = { a: true } satisfies Record<PEv["type"], true>;\n',
-        "scripts/check/gates/__probe-coverage.ts":
-          'export const TYPES_CONST = "PROBE_EVENT_TYPES";\n',
+        "scripts/check/gates/__probe-coverage.ts": 'export const TYPES_CONST = "PROBE_EVENT_TYPES";\n',
         "packages/client/src/data/invalidation.ts":
           'import type { PEv } from "@orb/contracts/__probe";\ntype ProbeMap = { readonly [K in PEv["type"]]: () => void };\n',
       },
@@ -152,8 +132,7 @@ export const gate: GateDescriptor = {
     },
     {
       files: {
-        "packages/contracts/src/events/index.ts":
-          'export const DOMAIN_EVENT_TYPES = ["character.updated"] as const;\n',
+        "packages/contracts/src/events/index.ts": 'export const DOMAIN_EVENT_TYPES = ["character.updated"] as const;\n',
         "packages/client/src/data/invalidation.ts": "export const untouched = 1;\n",
       },
       why: "an array-literal DOMAIN_EVENT_TYPES const (not `satisfies Record<X[type], true>`) is a DIFFERENT shape — not this gate's target, passes",

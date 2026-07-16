@@ -1,12 +1,7 @@
 // backends/kit/wire-schemas — lenient parses keep unknown fields, throw on a broken shape; the extractors
 // share ONE extraction (string vs content-parts; the reasoningDetails-over-reasoning channel preference).
 
-import {
-  extractChatReasoning,
-  extractChatReply,
-  parseChatCompletionResult,
-  parseResponsesResult,
-} from "@orb/server/infra/providers/backends/kit";
+import { extractChatReasoning, extractChatReply, parseChatCompletionResult, parseResponsesResult } from "@orb/server/infra/providers/backends/kit";
 import { describe } from "vitest";
 import { expect, test } from "../../../../../support/fixtures";
 

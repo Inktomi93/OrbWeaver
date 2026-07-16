@@ -42,9 +42,7 @@ switch (sub) {
     break;
   case "recipe":
     if (!arg) {
-      console.log(
-        "Usage: pnpm codemod recipe <name>\n  Run `pnpm codemod recipes` to see every recipe name.",
-      );
+      console.log("Usage: pnpm codemod recipe <name>\n  Run `pnpm codemod recipes` to see every recipe name.");
       process.exit(1);
     }
     printRecipe(arg);

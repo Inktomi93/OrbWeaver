@@ -28,19 +28,13 @@ function roster(...members: unknown[]): unknown {
   return { participants: members };
 }
 
-test("a solo roster (1 character) renders NO speak-as control (the D16 size-gate)", async ({
-  mount,
-  page,
-}) => {
+test("a solo roster (1 character) renders NO speak-as control (the D16 size-gate)", async ({ mount, page }) => {
   await routeTrpc(page, { "chat.getChat": () => roster(character("aria", "Aria")) });
   const component = await mount(<SpeakAsSelectStory />);
   await expect(component.getByRole("button", { name: "Speak as a character" })).toHaveCount(0);
 });
 
-test("a draft handle renders NO speak-as control (no committed roster yet)", async ({
-  mount,
-  page,
-}) => {
+test("a draft handle renders NO speak-as control (no committed roster yet)", async ({ mount, page }) => {
   await routeTrpc(page, {
     "chat.getChat": () => roster(character("aria", "Aria"), character("bryn", "Bryn")),
   });
@@ -61,10 +55,7 @@ test("a 2+ roster opens to Auto + one item per character", async ({ mount, page 
   await expect(page.getByRole("menuitem", { name: "Bryn" })).toBeVisible();
 });
 
-test("picking a character fires chat.generate with that speakerCharacterId", async ({
-  mount,
-  page,
-}) => {
+test("picking a character fires chat.generate with that speakerCharacterId", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "chat.getChat": () => roster(character("aria", "Aria"), character("bryn", "Bryn")),
     "chat.generate": () => ({ messages: [], aborted: false }),
@@ -78,10 +69,7 @@ test("picking a character fires chat.generate with that speakerCharacterId", asy
   expect(trpc.lastInput("chat.generate")).toMatchObject({ speakerCharacterId: "character_bryn" });
 });
 
-test("picking Auto fires chat.generate with a null speakerCharacterId (arbitration picks)", async ({
-  mount,
-  page,
-}) => {
+test("picking Auto fires chat.generate with a null speakerCharacterId (arbitration picks)", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "chat.getChat": () => roster(character("aria", "Aria"), character("bryn", "Bryn")),
     "chat.generate": () => ({ messages: [], aborted: false }),

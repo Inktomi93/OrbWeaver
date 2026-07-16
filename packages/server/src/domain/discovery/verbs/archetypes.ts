@@ -64,10 +64,10 @@ function topN(m: Map<string, number>, n: number): string[] {
 
 function tallyCard(acc: ClusterAcc, card: CardVector, facet: CardFacet | undefined): void {
   acc.members.push({ characterId: card.characterId, name: facet?.name ?? "Unknown" });
-  if (facet?.genre) {
+  if (facet?.genre !== null && facet?.genre !== undefined && facet.genre !== "") {
     bump(acc.genre, facet.genre);
   }
-  if (facet?.tone) {
+  if (facet?.tone !== null && facet?.tone !== undefined && facet.tone !== "") {
     bump(acc.tone, facet.tone);
   }
   for (const tag of facet?.tags ?? []) {
@@ -76,11 +76,7 @@ function tallyCard(acc: ClusterAcc, card: CardVector, facet: CardFacet | undefin
 }
 
 // A group below the k+1 floor yields no archetypes (too few cards to cluster).
-function archetypesForGroup(
-  group: readonly CardVector[],
-  facetById: Map<CharacterId, CardFacet>,
-  k: number,
-): Archetype[] {
+function archetypesForGroup(group: readonly CardVector[], facetById: Map<CharacterId, CardFacet>, k: number): Archetype[] {
   const { reps, repOf } = collapseByHash(
     group,
     (r) => r.contentHash,
@@ -129,11 +125,7 @@ function archetypesForGroup(
  * The owner's character archetypes — k-means clusters of their card embeddings, labelled from distilled
  * facets, largest first. Standalone `(db, ownerId, opts?)` so the service factory + tests call it directly.
  */
-async function archetypes(
-  db: Db,
-  ownerId: UserId,
-  opts: ArchetypesOptions = {},
-): Promise<Archetype[]> {
+async function archetypes(db: Db, ownerId: UserId, opts: ArchetypesOptions = {}): Promise<Archetype[]> {
   const k = opts.k ?? DEFAULT_ARCHETYPE_K;
   const vectors = await readOwnedCharacterVectors(db, ownerId);
   if (vectors.length === 0) {

@@ -1,11 +1,4 @@
-import type {
-  MacroAST,
-  MacroBlockNode,
-  MacroCallNode,
-  MacroContext,
-  MacroEnv,
-  MacroRegistry,
-} from "./types";
+import type { MacroAST, MacroBlockNode, MacroCallNode, MacroContext, MacroEnv, MacroRegistry } from "./types";
 
 /** Resolve an env entry by name, exact-case first then case-insensitively (registry parity).
  *  Returns the stringified value (null/undefined → ""), or `undefined` when no key matches so
@@ -32,12 +25,7 @@ function resolveArg(arg: string, ctx: MacroContext): string {
 // reconstructing from parsed args normalized `{{x:one,two}}` → `{{x::one::two}}`, changing
 // passthrough bytes (review V10-10). Fallback reconstruction only for hand-built AST nodes that
 // lack `raw`. `openMarker` is "{{" for inline, "{{#" for a block open tag.
-function reconstruct(
-  name: string,
-  args: string[],
-  raw: string | undefined,
-  openMarker: string,
-): string {
+function reconstruct(name: string, args: string[], raw: string | undefined, openMarker: string): string {
   const argSuffix = args.length > 0 ? `::${args.join("::")}` : "";
   return raw ?? `${openMarker}${name}${argSuffix}}}`;
 }
@@ -75,9 +63,7 @@ function evalBlockNode(node: MacroBlockNode, registry: MacroRegistry, ctx: Macro
     // `delayArgResolution: true` lets handlers like `if` distinguish a bare identifier from a
     // resolved sub-macro by reading the unresolved arg themselves.
     const opts = registry.getOptions(node.name);
-    const resolvedArgs = opts?.delayArgResolution
-      ? node.args
-      : node.args.map((arg) => resolveArg(arg, ctx));
+    const resolvedArgs = opts?.delayArgResolution === true ? node.args : node.args.map((arg) => resolveArg(arg, ctx));
     try {
       const val = handler(resolvedArgs, ctx, node.children);
       return ctx.postProcess ? ctx.postProcess(val) : val;
@@ -117,7 +103,7 @@ export function evaluateMacros(ast: MacroAST, registry: MacroRegistry, ctx: Macr
   };
 
   for (const node of ast) {
-    if (budget?.tripped) {
+    if (budget?.tripped === true) {
       break;
     }
     if (node.type === "text") {

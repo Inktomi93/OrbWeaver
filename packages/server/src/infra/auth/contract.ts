@@ -70,11 +70,7 @@ export interface ResolveDeps {
   config?: AuthConfig;
 }
 
-export type ModeResolver = (
-  headers: Headers,
-  config: AuthConfig,
-  deps: ResolveDeps,
-) => Promise<ResolvedIdentity | null>;
+export type ModeResolver = (headers: Headers, config: AuthConfig, deps: ResolveDeps) => Promise<ResolvedIdentity | null>;
 
 /** Verification-tier output: the pre-row identity plus per-request signals. Carries no userId/role — the
  *  seam resolves the row and mints the Principal from this. Infra never resolves a cookie (the seam does

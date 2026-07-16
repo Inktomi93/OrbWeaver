@@ -103,7 +103,7 @@ export function defineContextTabs<S>(spec: ContextTabsSpec<S>): ContextDefinitio
 /** The sentinel a `void`-projection host (no shared context state) passes as its `useContextState`
  *  result — always-present and unconditionally called, so the mint never branches on a conditional hook
  *  (the rules-of-hooks constraint the optional-`useContextState?` alternative would have violated). */
-export const VOID_STATE = undefined as void;
+export const VOID_STATE = undefined as undefined;
 
 /** The Characters CONTEXT-panel state projection (O5 strict — a real named type, never void/any): the
  *  selected character every context tab drills into. */

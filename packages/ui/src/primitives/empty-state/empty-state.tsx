@@ -14,14 +14,7 @@ export interface EmptyStateProps {
 }
 
 /** Teaching empty-state pattern: icon -\> title -\> description -\> action, centered. Copy is the caller's. */
-export function EmptyState({
-  decoration,
-  icon,
-  title,
-  description,
-  action,
-  className,
-}: EmptyStateProps): ReactElement {
+export function EmptyState({ decoration, icon, title, description, action, className }: EmptyStateProps): ReactElement {
   const slots = emptyStateVariants();
   let head: ReactElement | null = null;
   if (decoration !== undefined) {

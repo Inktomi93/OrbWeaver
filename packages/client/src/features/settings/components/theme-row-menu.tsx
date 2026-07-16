@@ -19,12 +19,7 @@ export interface ThemeRowMenuProps {
 }
 
 /** A theme row's action menu — Delete is AlertDialog-confirmed (destructive, no undo). */
-export function ThemeRowMenu({
-  theme,
-  onCustomize,
-  onEdit,
-  onDelete,
-}: ThemeRowMenuProps): ReactElement {
+export function ThemeRowMenu({ theme, onCustomize, onEdit, onDelete }: ThemeRowMenuProps): ReactElement {
   return (
     <RowActionsMenu
       label={`${theme.name} actions`}

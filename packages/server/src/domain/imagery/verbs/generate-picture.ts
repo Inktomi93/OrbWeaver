@@ -68,10 +68,7 @@ interface PersistArgs {
 
 /** Store the bytes (kind `"generated"`) then write the provenance row (order matters) and return the
  *  render-ready image. */
-async function persistImage(
-  ctx: ImageryContext,
-  args: PersistArgs,
-): Promise<GeneratedPictureImage> {
+async function persistImage(ctx: ImageryContext, args: PersistArgs): Promise<GeneratedPictureImage> {
   // Derive the claimed mime from the bytes via the shared `@orb/kit/image-sniff` table — the same one
   // assets' `enforceMagic` re-checks against. On the unrecognized sentinel, fall back to the provider
   // mediaType then PNG.
@@ -116,17 +113,12 @@ function buildDelta(args: {
   };
 }
 
-async function resolveConnection(
-  ctx: ImageryContext,
-  caller: Principal,
-): Promise<Awaited<ReturnType<ImageryContext["resolveGenerateImage"]>>["connection"]> {
+async function resolveConnection(ctx: ImageryContext, caller: Principal): Promise<Awaited<ReturnType<ImageryContext["resolveGenerateImage"]>>["connection"]> {
   try {
     const resolved = await ctx.resolveGenerateImage(caller);
     return resolved.connection;
   } catch (err) {
-    const error = new ImageryNotConfiguredError(
-      "imagery: no generateImage role is configured for this caller",
-    );
+    const error = new ImageryNotConfiguredError("imagery: no generateImage role is configured for this caller");
     error.cause = err;
     throw error;
   }
@@ -136,9 +128,7 @@ export function createGeneratePicture(ctx: ImageryContext): ImageryService["gene
   return async (p: GeneratePictureParams): Promise<GeneratedPicture> => {
     const prompt = p.prompt?.trim() ?? "";
     if (prompt.length === 0) {
-      throw new ImageryNotConfiguredError(
-        `imagery: mode "${p.mode}" requires a prompt in this phase (prompt extraction is not yet available)`,
-      );
+      throw new ImageryNotConfiguredError(`imagery: mode "${p.mode}" requires a prompt in this phase (prompt extraction is not yet available)`);
     }
     const connection = await resolveConnection(ctx, p.caller);
     const result = await ctx.generateImage({
@@ -147,9 +137,7 @@ export function createGeneratePicture(ctx: ImageryContext): ImageryService["gene
       prompt,
       n: p.n ?? DEFAULT_IMAGE_COUNT,
     });
-    const decoded = (await Promise.all(result.images.map((img) => materialize(ctx, img)))).filter(
-      (d): d is DecodedImage => d !== null,
-    );
+    const decoded = (await Promise.all(result.images.map((img) => materialize(ctx, img)))).filter((d): d is DecodedImage => d !== null);
     if (decoded.length === 0) {
       throw new GenerationFailedError("imagery: the image provider returned zero decodable images");
     }

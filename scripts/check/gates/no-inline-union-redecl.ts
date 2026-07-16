@@ -3,12 +3,7 @@
 // inline string-literal union TYPE ALIAS of ≥3 members. (B) any inline string-literal set whose members
 // EXACTLY EQUAL an existing canonical tuple — catches a union in a property position or a `z.enum([...])`
 // call that (A) misses. A genuine one-off enum with no canonical tuple (e.g. NODE_ENV) is not flagged.
-import type {
-  ArrayLiteralExpression,
-  CallExpression,
-  UnionTypeNode,
-  VariableDeclaration,
-} from "ts-morph";
+import type { ArrayLiteralExpression, CallExpression, UnionTypeNode, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor, GateRunCtx } from "../contract.ts";
 
@@ -59,19 +54,13 @@ function zEnumArrayMembers(call: CallExpression): string[] | undefined {
     return;
   }
   const [arg] = call.getArguments();
-  return arg !== undefined && Node.isArrayLiteralExpression(arg)
-    ? stringArrayMembers(arg)
-    : undefined;
+  return arg !== undefined && Node.isArrayLiteralExpression(arg) ? stringArrayMembers(arg) : undefined;
 }
 
 /** sig of a `const X = [...] as const` string tuple (>=MIN_MEMBERS), or undefined. */
 function tupleSig(decl: VariableDeclaration): string | undefined {
   const init = decl.getInitializer();
-  if (
-    init === undefined ||
-    !Node.isAsExpression(init) ||
-    init.getTypeNode()?.getText() !== "const"
-  ) {
+  if (init === undefined || !Node.isAsExpression(init) || init.getTypeNode()?.getText() !== "const") {
     return;
   }
   const expr = init.getExpression();
@@ -158,12 +147,7 @@ export const gate: GateDescriptor = {
   // file's inline-union EXAMPLE strings (mustFlag fixtures) are not real axis declarations, and the gate
   // corpus never homes a canonical tuple — this pin keeps both arms' findings byte-identical to before.
   scanRoot: (p) => !p.startsWith("scripts/check/gates/"),
-  kinds: [
-    SyntaxKind.VariableDeclaration,
-    SyntaxKind.TypeAliasDeclaration,
-    SyntaxKind.UnionType,
-    SyntaxKind.CallExpression,
-  ],
+  kinds: [SyntaxKind.VariableDeclaration, SyntaxKind.TypeAliasDeclaration, SyntaxKind.UnionType, SyntaxKind.CallExpression],
   begin: () => {
     passTuples.clear();
     passRespells.length = 0;

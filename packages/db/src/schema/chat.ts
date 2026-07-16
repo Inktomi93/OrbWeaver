@@ -43,12 +43,7 @@ import type {
   RoomOverrides,
   ToolCallRecord,
 } from "@orb/contracts/chat";
-import {
-  CHAT_BUS_EVENT_TYPES,
-  INVITE_STATUSES,
-  JOIN_HISTORY_VISIBILITIES,
-  PARTICIPANT_KINDS,
-} from "@orb/contracts/chat";
+import { CHAT_BUS_EVENT_TYPES, INVITE_STATUSES, JOIN_HISTORY_VISIBILITIES, PARTICIPANT_KINDS } from "@orb/contracts/chat";
 // PARTICIPANT_ROLES is one-homed in @orb/contracts/identity (the can() resource-role axis; PD-59).
 import { PARTICIPANT_ROLES } from "@orb/contracts/identity";
 import type { UserIntent } from "@orb/contracts/preset";
@@ -72,15 +67,7 @@ import type { VarOp } from "@orb/kit/macro";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import { sql } from "drizzle-orm";
 import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
-import {
-  check,
-  index,
-  integer,
-  real,
-  sqliteTable,
-  text,
-  uniqueIndex,
-} from "drizzle-orm/sqlite-core";
+import { check, index, integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { assets } from "./assets";
 import { characters } from "./character";
 import { personas } from "./persona";
@@ -213,9 +200,7 @@ export const messages = sqliteTable(
       .$type<MessageVariantId>()
       .references((): AnySQLiteColumn => messageVariants.id, { onDelete: "set null" }),
     // When true, the slot is held out of the assembled prompt (a hidden message).
-    excludedFromPrompt: integer("excluded_from_prompt", { mode: "boolean" })
-      .notNull()
-      .default(false),
+    excludedFromPrompt: integer("excluded_from_prompt", { mode: "boolean" }).notNull().default(false),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
     editedAt: integer("edited_at"),
   },
@@ -385,9 +370,7 @@ export const chatParticipants = sqliteTable(
     joinSeq: integer("join_seq").notNull(),
     leftSeq: integer("left_seq"),
     // from-join | full — derives JOIN_HISTORY_VISIBILITIES (default from-join).
-    joinHistoryVisibility: text("join_history_visibility", { enum: JOIN_HISTORY_VISIBILITIES })
-      .notNull()
-      .default("from-join"),
+    joinHistoryVisibility: text("join_history_visibility", { enum: JOIN_HISTORY_VISIBILITIES }).notNull().default("from-join"),
   },
   (t) => [
     // No duplicate human membership; the re-join `ON CONFLICT(chatId,userId) DO UPDATE` target. userId is
@@ -412,10 +395,7 @@ export const chatParticipants = sqliteTable(
     ),
     check("chat_participants_kind_check", sql.raw(`kind in (${checkList(PARTICIPANT_KINDS)})`)),
     check("chat_participants_role_check", sql.raw(`role in (${checkList(PARTICIPANT_ROLES)})`)),
-    check(
-      "chat_participants_join_visibility_check",
-      sql.raw(`join_history_visibility in (${checkList(JOIN_HISTORY_VISIBILITIES)})`),
-    ),
+    check("chat_participants_join_visibility_check", sql.raw(`join_history_visibility in (${checkList(JOIN_HISTORY_VISIBILITIES)})`)),
   ],
 );
 
@@ -509,10 +489,7 @@ export const chatEvents = sqliteTable(
     payload: text("payload", { mode: "json" }).$type<ChatBusEvent>().notNull(),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
-  (t) => [
-    uniqueIndex("chat_events_chat_seq_unique").on(t.chatId, t.seq),
-    check("chat_events_type_check", sql.raw(`type in (${checkList(CHAT_EVENT_TYPES)})`)),
-  ],
+  (t) => [uniqueIndex("chat_events_chat_seq_unique").on(t.chatId, t.seq), check("chat_events_type_check", sql.raw(`type in (${checkList(CHAT_EVENT_TYPES)})`))],
 );
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -524,10 +501,7 @@ export const chatEvents = sqliteTable(
 // The stream-delta kind tuple — tied to the contract `ChatDeltaEvent["kind"]` (compile-time validity; a
 // new delta kind fails this `satisfies` until the column learns it). No `z`-schema home exists for a
 // runtime mirror, so the test asserts the column's `.enumValues` equals this tuple.
-const STREAM_DELTA_KINDS = [
-  "text",
-  "reasoning",
-] as const satisfies readonly ChatDeltaEvent["kind"][];
+const STREAM_DELTA_KINDS = ["text", "reasoning"] as const satisfies readonly ChatDeltaEvent["kind"][];
 
 export const chatStreamEvents = sqliteTable(
   "chat_stream_events",
@@ -563,12 +537,7 @@ export const chatStreamEvents = sqliteTable(
 
 // The injection-position tuple — tied to the contract `ChatInjection["position"]` (compile-time validity).
 // No `z`-schema home exists for a runtime mirror, so the test asserts the column's `.enumValues`.
-const INJECTION_POSITIONS = [
-  "before_prompt",
-  "in_static",
-  "in_prompt",
-  "in_chat",
-] as const satisfies readonly ChatInjectionWire["position"][];
+const INJECTION_POSITIONS = ["before_prompt", "in_static", "in_prompt", "in_chat"] as const satisfies readonly ChatInjectionWire["position"][];
 
 export const chatInjections = sqliteTable(
   "chat_injections",
@@ -592,10 +561,7 @@ export const chatInjections = sqliteTable(
   },
   (t) => [
     index("chat_injections_chat_idx").on(t.chatId),
-    check(
-      "chat_injections_position_check",
-      sql.raw(`position in (${checkList(INJECTION_POSITIONS)})`),
-    ),
+    check("chat_injections_position_check", sql.raw(`position in (${checkList(INJECTION_POSITIONS)})`)),
     check("chat_injections_role_check", sql.raw(`role in (${checkList(MESSAGE_ROLES)})`)),
   ],
 );

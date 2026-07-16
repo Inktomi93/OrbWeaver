@@ -1,10 +1,4 @@
-import {
-  DEFAULT_TRUSTED_RANGES,
-  fetchImageBytes,
-  privateEgressRanges,
-  safeFetch,
-  shouldBlockEgress,
-} from "@orb/server/infra/network";
+import { DEFAULT_TRUSTED_RANGES, fetchImageBytes, privateEgressRanges, safeFetch, shouldBlockEgress } from "@orb/server/infra/network";
 import { describe, vi } from "vitest";
 import { expect, test } from "../../../support/fixtures";
 
@@ -18,15 +12,11 @@ describe("shouldBlockEgress", () => {
   });
 
   test("allows a private address when its host is allowlisted", () => {
-    expect(shouldBlockEgress("10.0.0.5", "authentik.lan", allow("authentik.lan"), ranges)).toBe(
-      false,
-    );
+    expect(shouldBlockEgress("10.0.0.5", "authentik.lan", allow("authentik.lan"), ranges)).toBe(false);
   });
 
   test("the allowlist host match is case-insensitive", () => {
-    expect(shouldBlockEgress("10.0.0.5", "Authentik.LAN", allow("authentik.lan"), ranges)).toBe(
-      false,
-    );
+    expect(shouldBlockEgress("10.0.0.5", "Authentik.LAN", allow("authentik.lan"), ranges)).toBe(false);
   });
 
   test("never blocks a public resolved address", () => {
@@ -83,11 +73,7 @@ function streamOf(chunks: readonly Uint8Array[]): ReadableStream<Uint8Array> {
 describe("safeFetch readCapped — multi-chunk cap boundary", () => {
   test("a body EXACTLY at maxBytes across several chunks passes (at-cap is not a crossing)", async () => {
     const chunks = [new Uint8Array(40), new Uint8Array(40), new Uint8Array(20)]; // 100 total
-    vi.stubGlobal(
-      "fetch",
-      () =>
-        new Response(streamOf(chunks), { status: 200, headers: { "content-type": "text/plain" } }),
-    );
+    vi.stubGlobal("fetch", () => new Response(streamOf(chunks), { status: 200, headers: { "content-type": "text/plain" } }));
     const res = await safeFetch("https://example.com", { maxBytes: 100 });
     expect((await res.bytes()).byteLength).toBe(100);
     vi.unstubAllGlobals();
@@ -95,11 +81,7 @@ describe("safeFetch readCapped — multi-chunk cap boundary", () => {
 
   test("the chunk that tips the total past maxBytes rejects (each chunk fits; the accumulation does not)", async () => {
     const chunks = [new Uint8Array(40), new Uint8Array(40), new Uint8Array(40)]; // 120 > cap on chunk 3
-    vi.stubGlobal(
-      "fetch",
-      () =>
-        new Response(streamOf(chunks), { status: 200, headers: { "content-type": "text/plain" } }),
-    );
+    vi.stubGlobal("fetch", () => new Response(streamOf(chunks), { status: 200, headers: { "content-type": "text/plain" } }));
     const res = await safeFetch("https://example.com", { maxBytes: 100 });
     await expect(res.bytes()).rejects.toThrow("maxBytes");
     vi.unstubAllGlobals();
@@ -124,39 +106,26 @@ describe("safeFetch — abort propagation mid-redirect-chain", () => {
       }
       return Promise.resolve(new Response("{}", { status: 200 }));
     });
-    await expect(
-      safeFetch("https://benign.test/start", { signal: ctrl.signal, maxRedirects: 2 }),
-    ).rejects.toThrow(ABORT_RE);
+    await expect(safeFetch("https://benign.test/start", { signal: ctrl.signal, maxRedirects: 2 })).rejects.toThrow(ABORT_RE);
     vi.unstubAllGlobals();
   });
 });
 
 describe("safeFetch (staged response-side controls)", () => {
   test("rejects a disallowed content-type", async () => {
-    vi.stubGlobal(
-      "fetch",
-      () => new Response("hi", { status: 200, headers: { "content-type": "text/html" } }),
-    );
-    await expect(
-      safeFetch("https://example.com", { allowedContentTypes: ["image/png"] }),
-    ).rejects.toThrow("content-type");
+    vi.stubGlobal("fetch", () => new Response("hi", { status: 200, headers: { "content-type": "text/html" } }));
+    await expect(safeFetch("https://example.com", { allowedContentTypes: ["image/png"] })).rejects.toThrow("content-type");
   });
 
   test("enforces the maxBytes cap when reading the body", async () => {
     const big = "x".repeat(1000);
-    vi.stubGlobal(
-      "fetch",
-      () => new Response(big, { status: 200, headers: { "content-type": "text/plain" } }),
-    );
+    vi.stubGlobal("fetch", () => new Response(big, { status: 200, headers: { "content-type": "text/plain" } }));
     const res = await safeFetch("https://example.com", { maxBytes: 100 });
     await expect(res.bytes()).rejects.toThrow("maxBytes");
   });
 
   test("returns the body bytes when under the cap", async () => {
-    vi.stubGlobal(
-      "fetch",
-      () => new Response("hello", { status: 200, headers: { "content-type": "text/plain" } }),
-    );
+    vi.stubGlobal("fetch", () => new Response("hello", { status: 200, headers: { "content-type": "text/plain" } }));
     const res = await safeFetch("https://example.com");
     expect(new TextDecoder().decode(await res.bytes())).toBe("hello");
   });
@@ -174,10 +143,7 @@ describe("safeFetch (staged response-side controls)", () => {
 describe("fetchImageBytes (SSRF-safe generated-image download)", () => {
   test("returns the body bytes for a 2xx image response", async () => {
     const png = Uint8Array.from([0x89, 0x50, 0x4e, 0x47]);
-    vi.stubGlobal(
-      "fetch",
-      () => new Response(png, { status: 200, headers: { "content-type": "image/png" } }),
-    );
+    vi.stubGlobal("fetch", () => new Response(png, { status: 200, headers: { "content-type": "image/png" } }));
     const bytes = await fetchImageBytes("https://cdn.example/img.png");
     expect(bytes).not.toBeNull();
     expect([...(bytes ?? [])]).toEqual([...png]);
@@ -192,19 +158,14 @@ describe("fetchImageBytes (SSRF-safe generated-image download)", () => {
     // This is exactly what the global egress dispatcher does to a loopback/link-local/RFC1918 target:
     // it rejects the connect at DNS resolution (see the shouldBlockEgress tests above). fetchImageBytes
     // must swallow that rejection and DROP the image — the SSRF response never reaches an asset.
-    vi.stubGlobal("fetch", () =>
-      Promise.reject(new Error("SSRF_BLOCKED: 169.254.169.254 → 169.254.169.254")),
-    );
+    vi.stubGlobal("fetch", () => Promise.reject(new Error("SSRF_BLOCKED: 169.254.169.254 → 169.254.169.254")));
     expect(await fetchImageBytes("http://169.254.169.254/latest/meta-data/")).toBeNull();
   });
 
   test("drops an oversized response that trips the safeFetch byte cap → null", async () => {
     // A ~6 MB body exceeds safeFetch's 5 MB decompression-bomb cap; bytes() throws → fetchImageBytes drops.
     const huge = new Uint8Array(6_000_000);
-    vi.stubGlobal(
-      "fetch",
-      () => new Response(huge, { status: 200, headers: { "content-type": "image/png" } }),
-    );
+    vi.stubGlobal("fetch", () => new Response(huge, { status: 200, headers: { "content-type": "image/png" } }));
     expect(await fetchImageBytes("https://cdn.example/bomb.png")).toBeNull();
   });
 
@@ -212,20 +173,14 @@ describe("fetchImageBytes (SSRF-safe generated-image download)", () => {
     // The compose binding passes AppSettings.maxImageBytes here. A 1 KB image under safeFetch's 5 MB
     // default succeeds, but a 500-byte cap drops it — proving the knob reaches the byte cap.
     const img = new Uint8Array(1000);
-    vi.stubGlobal(
-      "fetch",
-      () => new Response(img, { status: 200, headers: { "content-type": "image/png" } }),
-    );
+    vi.stubGlobal("fetch", () => new Response(img, { status: 200, headers: { "content-type": "image/png" } }));
     expect(await fetchImageBytes("https://cdn.example/img.png", 500)).toBeNull();
   });
 
   test("the maxBytes param admits an image within a raised cap", async () => {
     // A ~6 MB image that would trip the default 5 MB cap is admitted when the knob raises it to 8 MB.
     const big = new Uint8Array(6_000_000);
-    vi.stubGlobal(
-      "fetch",
-      () => new Response(big, { status: 200, headers: { "content-type": "image/png" } }),
-    );
+    vi.stubGlobal("fetch", () => new Response(big, { status: 200, headers: { "content-type": "image/png" } }));
     const bytes = await fetchImageBytes("https://cdn.example/hi-res.png", 8_000_000);
     expect(bytes).not.toBeNull();
     expect(bytes?.byteLength).toBe(6_000_000);

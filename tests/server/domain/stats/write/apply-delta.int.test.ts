@@ -53,9 +53,7 @@ describe("applyStatsDelta", () => {
     expect(owner?.tokensIn).toBe(15);
     expect(owner?.tokensOut).toBe(21);
 
-    const char = (
-      await db.select().from(characterStats).where(eq(characterStats.characterId, characterId))
-    )[0];
+    const char = (await db.select().from(characterStats).where(eq(characterStats.characterId, characterId)))[0];
     expect(char?.userTurns).toBe(3);
     expect(char?.tokensIn).toBe(15);
 
@@ -64,13 +62,9 @@ describe("applyStatsDelta", () => {
   });
 
   test("extrema merge by MIN/MAX, not addition", async () => {
-    await apply(
-      makeDelta({ firstAt: T0 + 500, lastAt: T0 + 500, maxContextTokens: 1000, now: T0 + 10 }),
-    );
+    await apply(makeDelta({ firstAt: T0 + 500, lastAt: T0 + 500, maxContextTokens: 1000, now: T0 + 10 }));
     // A later write with an EARLIER first, LATER last, LOWER ctx, LATER now.
-    await apply(
-      makeDelta({ firstAt: T0 + 100, lastAt: T0 + 900, maxContextTokens: 500, now: T0 + 99 }),
-    );
+    await apply(makeDelta({ firstAt: T0 + 100, lastAt: T0 + 900, maxContextTokens: 500, now: T0 + 99 }));
 
     const owner = (await db.select().from(ownerStats).where(eq(ownerStats.ownerId, ownerId)))[0];
     expect(owner?.firstChatAt).toBe(T0 + 100); // MIN
@@ -81,9 +75,7 @@ describe("applyStatsDelta", () => {
 
   test("daily tokens are decoupled — a delta omitting dailyTokensIn/Out leaves day.tokens untouched", async () => {
     // A message delta credits daily tokens; a variant (swipe) delta bumps day.swipes but omits dailyTokens.
-    await apply(
-      makeDelta({ tokensIn: 100, tokensOut: 200, dailyTokensIn: 100, dailyTokensOut: 200 }),
-    );
+    await apply(makeDelta({ tokensIn: 100, tokensOut: 200, dailyTokensIn: 100, dailyTokensOut: 200 }));
     await apply(makeDelta({ tokensIn: 50, swipes: 1 })); // variant-shaped: scalar tokens, NO dailyTokens
 
     const owner = (await db.select().from(ownerStats).where(eq(ownerStats.ownerId, ownerId)))[0];

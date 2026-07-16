@@ -20,15 +20,7 @@ export interface SettingRowProps {
 }
 
 /** Settings-surface row: label left (htmlFor-wired to the caller's control), control docked right. */
-export function SettingRow({
-  id,
-  label,
-  description,
-  hint,
-  disabledReason,
-  children,
-  className,
-}: SettingRowProps): ReactElement {
+export function SettingRow({ id, label, description, hint, disabledReason, children, className }: SettingRowProps): ReactElement {
   const slots = settingRowVariants();
   return (
     <div className={cn(slots.root(), className)} data-slot="setting-row-root">
@@ -40,10 +32,7 @@ export function SettingRow({
             </label>
             {hint === undefined ? null : (
               <Tooltip>
-                <TooltipTrigger
-                  className={slots.hintTrigger()}
-                  data-slot="setting-row-hint-trigger"
-                >
+                <TooltipTrigger className={slots.hintTrigger()} data-slot="setting-row-hint-trigger">
                   <Icon icon={Info} label={hint} size="sm" />
                 </TooltipTrigger>
                 <TooltipPopup>{hint}</TooltipPopup>

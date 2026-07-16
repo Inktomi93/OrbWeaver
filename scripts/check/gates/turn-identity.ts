@@ -42,8 +42,7 @@ export const gate: GateDescriptor = {
   },
   mustFlag: [
     {
-      files:
-        'import { Principal } from "@orb/contracts/identity";\nexport const p: Principal = null as never;\n',
+      files: 'import { Principal } from "@orb/contracts/identity";\nexport const p: Principal = null as never;\n',
       at: "packages/server/src/domain/chat/engine/a.ts",
       why: "a `Principal` named import inside the engine — the caller's id type reaching the engine",
     },
@@ -60,8 +59,7 @@ export const gate: GateDescriptor = {
       why: "the same `principal` identifier OUTSIDE the engine (a verb) passes — only engine/ is blind",
     },
     {
-      files:
-        'import { Principal } from "@orb/contracts/identity";\nexport const p: Principal = null as never;\n',
+      files: 'import { Principal } from "@orb/contracts/identity";\nexport const p: Principal = null as never;\n',
       at: "packages/server/src/domain/chat/verbs/d.ts",
       why: "the `Principal` import OUTSIDE the engine (a verb) — the verb layer legitimately holds the caller's id, passes",
     },

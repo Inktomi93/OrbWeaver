@@ -5,17 +5,12 @@ import { withContextCompressionPlugin } from "@orb/server/infra/providers/backen
 import { describe } from "vitest";
 import { expect, test } from "../../../../../../../support/fixtures";
 
-// biome-ignore lint/security/noSecrets: the describe label is a function name, not a secret.
 describe("withContextCompressionPlugin", () => {
   test("disables middle-out by default (an explicit enabled:false — transforms:[] does NOT disable it)", () => {
-    expect(withContextCompressionPlugin({})).toEqual([
-      { id: "context-compression", enabled: false },
-    ]);
+    expect(withContextCompressionPlugin({})).toEqual([{ id: "context-compression", enabled: false }]);
   });
 
   test("a user opt-in enables the middle-out engine", () => {
-    expect(withContextCompressionPlugin({ providerContextCompression: true })).toEqual([
-      { id: "context-compression", enabled: true, engine: "middle-out" },
-    ]);
+    expect(withContextCompressionPlugin({ providerContextCompression: true })).toEqual([{ id: "context-compression", enabled: true, engine: "middle-out" }]);
   });
 });

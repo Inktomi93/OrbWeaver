@@ -7,14 +7,7 @@
 
 import type { ChatBusEvent, ChatMacroNameProducer, MessageView } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
-import type {
-  CharacterId,
-  ChatId,
-  ChatInjectionId,
-  ChatParticipantId,
-  MessageVariantId,
-  UserId,
-} from "@orb/kit/ids";
+import type { CharacterId, ChatId, ChatInjectionId, ChatParticipantId, MessageVariantId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ChatService } from "@orb/server/domain/chat";
 import { ChatNotFoundError } from "@orb/server/domain/chat";
@@ -175,9 +168,7 @@ describe("chat.listMessages — the paged canon read (D26), member-gated", () =>
   });
 
   test("a non-member gets the leak-free NOT_FOUND the verb's requireParticipant gate throws (the getChat collapse)", async () => {
-    const listMessages = vi
-      .fn<ChatService["listMessages"]>()
-      .mockRejectedValue(new ChatNotFoundError(CHAT));
+    const listMessages = vi.fn<ChatService["listMessages"]>().mockRejectedValue(new ChatNotFoundError(CHAT));
     const ctx = makeContext({
       auth: principal("user", { userId: NON_MEMBER }),
       services: { chat: { listMessages } },
@@ -215,17 +206,13 @@ describe("chat.listMessageVariants — the swipe strip's step-target resolver (D
   });
 
   test("a foreign-chat messageId surfaces the verb's leak-free NOT_FOUND", async () => {
-    const listMessageVariants = vi
-      .fn<ChatService["listMessageVariants"]>()
-      .mockRejectedValue(new ChatNotFoundError(CHAT));
+    const listMessageVariants = vi.fn<ChatService["listMessageVariants"]>().mockRejectedValue(new ChatNotFoundError(CHAT));
     const ctx = makeContext({
       auth: principal("user", { userId: MEMBER }),
       services: { chat: { listMessageVariants } },
     });
 
-    await expect(
-      caller(ctx).chat.listMessageVariants({ chatId: CHAT, messageId: MESSAGE.id }),
-    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+    await expect(caller(ctx).chat.listMessageVariants({ chatId: CHAT, messageId: MESSAGE.id })).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
 });
 
@@ -255,17 +242,13 @@ describe("chat.selectVariant — the swipe strip's step-BACK verb (task #19 wire
 
   test("a sibling-ownership miss (a variantId from a DIFFERENT slot) surfaces the verb's leak-free NOT_FOUND", async () => {
     const variantId = castId<MessageVariantId>("message_variant_other_slot");
-    const selectVariant = vi
-      .fn<ChatService["selectVariant"]>()
-      .mockRejectedValue(new ChatNotFoundError(CHAT));
+    const selectVariant = vi.fn<ChatService["selectVariant"]>().mockRejectedValue(new ChatNotFoundError(CHAT));
     const ctx = makeContext({
       auth: principal("user", { userId: MEMBER }),
       services: { chat: { selectVariant } },
     });
 
-    await expect(
-      caller(ctx).chat.selectVariant({ chatId: CHAT, messageId: MESSAGE.id, variantId }),
-    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+    await expect(caller(ctx).chat.selectVariant({ chatId: CHAT, messageId: MESSAGE.id, variantId })).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
 });
 
@@ -301,17 +284,13 @@ describe("chat.continueTurn — the guided-continue verb (composer wand wire-thr
   });
 
   test("a non-assistant / missing target surfaces the verb's leak-free NOT_FOUND", async () => {
-    const continueTurn = vi
-      .fn<ChatService["continueTurn"]>()
-      .mockRejectedValue(new ChatNotFoundError(CHAT));
+    const continueTurn = vi.fn<ChatService["continueTurn"]>().mockRejectedValue(new ChatNotFoundError(CHAT));
     const ctx = makeContext({
       auth: principal("user", { userId: MEMBER }),
       services: { chat: { continueTurn } },
     });
 
-    await expect(
-      caller(ctx).chat.continueTurn({ chatId: CHAT, messageId: MESSAGE.id }),
-    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+    await expect(caller(ctx).chat.continueTurn({ chatId: CHAT, messageId: MESSAGE.id })).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
 });
 
@@ -342,9 +321,7 @@ describe("chat.impersonate — the guided-impersonate verb (composer wand wire-t
   });
 
   test("a non-member gets the verb's leak-free NOT_FOUND (requireParticipant gate)", async () => {
-    const impersonate = vi
-      .fn<ChatService["impersonate"]>()
-      .mockRejectedValue(new ChatNotFoundError(CHAT));
+    const impersonate = vi.fn<ChatService["impersonate"]>().mockRejectedValue(new ChatNotFoundError(CHAT));
     const ctx = makeContext({
       auth: principal("user", { userId: NON_MEMBER }),
       services: { chat: { impersonate } },
@@ -379,9 +356,7 @@ describe("chat.generate — the guided-response verb (composer wand wire-through
   });
 
   test("a non-member gets the verb's leak-free NOT_FOUND (requireParticipant gate)", async () => {
-    const generate = vi
-      .fn<ChatService["generate"]>()
-      .mockRejectedValue(new ChatNotFoundError(CHAT));
+    const generate = vi.fn<ChatService["generate"]>().mockRejectedValue(new ChatNotFoundError(CHAT));
     const ctx = makeContext({
       auth: principal("user", { userId: NON_MEMBER }),
       services: { chat: { generate } },
@@ -422,17 +397,13 @@ describe("chat.editMessage — edit-in-place's save verb (chat-surface lane wire
   });
 
   test("a non-author non-host gets the verb's leak-free NOT_FOUND (author-or-host gate)", async () => {
-    const editMessage = vi
-      .fn<ChatService["editMessage"]>()
-      .mockRejectedValue(new ChatNotFoundError(CHAT));
+    const editMessage = vi.fn<ChatService["editMessage"]>().mockRejectedValue(new ChatNotFoundError(CHAT));
     const ctx = makeContext({
       auth: principal("user", { userId: NON_MEMBER }),
       services: { chat: { editMessage } },
     });
 
-    await expect(
-      caller(ctx).chat.editMessage({ chatId: CHAT, messageId: MESSAGE.id, content: "x" }),
-    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+    await expect(caller(ctx).chat.editMessage({ chatId: CHAT, messageId: MESSAGE.id, content: "x" })).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
 });
 
@@ -463,17 +434,13 @@ describe("chat.setMessageHidden — the hide-from-AI toggle (chat-surface lane w
   });
 
   test("a non-author non-host gets the verb's leak-free NOT_FOUND (author-or-host gate)", async () => {
-    const setMessageHidden = vi
-      .fn<ChatService["setMessageHidden"]>()
-      .mockRejectedValue(new ChatNotFoundError(CHAT));
+    const setMessageHidden = vi.fn<ChatService["setMessageHidden"]>().mockRejectedValue(new ChatNotFoundError(CHAT));
     const ctx = makeContext({
       auth: principal("user", { userId: NON_MEMBER }),
       services: { chat: { setMessageHidden } },
     });
 
-    await expect(
-      caller(ctx).chat.setMessageHidden({ chatId: CHAT, messageId: MESSAGE.id, hidden: true }),
-    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+    await expect(caller(ctx).chat.setMessageHidden({ chatId: CHAT, messageId: MESSAGE.id, hidden: true })).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
 });
 
@@ -499,17 +466,13 @@ describe("chat.deleteMessages — the bulk delete verb (chat-surface lane wire-t
   });
 
   test("a member deleting another's slot without host role gets the verb's leak-free NOT_FOUND", async () => {
-    const deleteMessages = vi
-      .fn<ChatService["deleteMessages"]>()
-      .mockRejectedValue(new ChatNotFoundError(CHAT));
+    const deleteMessages = vi.fn<ChatService["deleteMessages"]>().mockRejectedValue(new ChatNotFoundError(CHAT));
     const ctx = makeContext({
       auth: principal("user", { userId: NON_MEMBER }),
       services: { chat: { deleteMessages } },
     });
 
-    await expect(
-      caller(ctx).chat.deleteMessages({ chatId: CHAT, messageIds: [MESSAGE.id] }),
-    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+    await expect(caller(ctx).chat.deleteMessages({ chatId: CHAT, messageIds: [MESSAGE.id] })).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
 });
 
@@ -567,9 +530,7 @@ describe("chat.forkChat — the deep-copy-into-a-new-chat verb (chat-surface lan
   });
 
   test("a non-member gets the verb's leak-free NOT_FOUND (requireParticipant gate)", async () => {
-    const forkChat = vi
-      .fn<ChatService["forkChat"]>()
-      .mockRejectedValue(new ChatNotFoundError(CHAT));
+    const forkChat = vi.fn<ChatService["forkChat"]>().mockRejectedValue(new ChatNotFoundError(CHAT));
     const ctx = makeContext({
       auth: principal("user", { userId: NON_MEMBER }),
       services: { chat: { forkChat } },
@@ -624,17 +585,13 @@ describe("chat.setRoomOverrides — the per-chat prompt overrides write (task #2
   });
 
   test("a non-host gets the verb's leak-free NOT_FOUND (requireHost gate)", async () => {
-    const setRoomOverrides = vi
-      .fn<ChatService["setRoomOverrides"]>()
-      .mockRejectedValue(new ChatNotFoundError(CHAT));
+    const setRoomOverrides = vi.fn<ChatService["setRoomOverrides"]>().mockRejectedValue(new ChatNotFoundError(CHAT));
     const ctx = makeContext({
       auth: principal("user", { userId: NON_MEMBER }),
       services: { chat: { setRoomOverrides } },
     });
 
-    await expect(
-      caller(ctx).chat.setRoomOverrides({ chatId: CHAT, overrides: { mainPrompt: "x" } }),
-    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+    await expect(caller(ctx).chat.setRoomOverrides({ chatId: CHAT, overrides: { mainPrompt: "x" } })).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
 });
 
@@ -693,9 +650,7 @@ describe("chat.previewAssembly — the assembled-prompt preview + trace (task #2
   });
 
   test("a non-host gets the verb's leak-free NOT_FOUND (the host-only debug-surface gate)", async () => {
-    const previewAssembly = vi
-      .fn<ChatService["previewAssembly"]>()
-      .mockRejectedValue(new ChatNotFoundError(CHAT));
+    const previewAssembly = vi.fn<ChatService["previewAssembly"]>().mockRejectedValue(new ChatNotFoundError(CHAT));
     const ctx = makeContext({
       auth: principal("user", { userId: NON_MEMBER }),
       services: { chat: { previewAssembly } },
@@ -759,9 +714,7 @@ describe("chat.setChatInjection / listChatInjections / deleteChatInjection — t
       content: "updated",
     });
 
-    expect(setChatInjection).toHaveBeenCalledWith(
-      expect.objectContaining({ chatId: CHAT, id: InjectionId, position: "before_prompt" }),
-    );
+    expect(setChatInjection).toHaveBeenCalledWith(expect.objectContaining({ chatId: CHAT, id: InjectionId, position: "before_prompt" }));
   });
 
   test("setChatInjection rejects an off-axis position before the verb (the wire enum)", async () => {
@@ -785,9 +738,7 @@ describe("chat.setChatInjection / listChatInjections / deleteChatInjection — t
   });
 
   test("listChatInjections: a thin pass-through returning the splice-ordered list (member-gated)", async () => {
-    const listChatInjections = vi.fn<ChatService["listChatInjections"]>(async () => [
-      InjectionView,
-    ]);
+    const listChatInjections = vi.fn<ChatService["listChatInjections"]>(async () => [InjectionView]);
     const ctx = makeContext({
       auth: principal("user", { userId: MEMBER }),
       services: { chat: { listChatInjections } },
@@ -823,17 +774,13 @@ describe("chat.setChatInjection / listChatInjections / deleteChatInjection — t
   });
 
   test("a non-host deleting an injection gets the verb's leak-free NOT_FOUND (requireHost gate)", async () => {
-    const deleteChatInjection = vi
-      .fn<ChatService["deleteChatInjection"]>()
-      .mockRejectedValue(new ChatNotFoundError(CHAT));
+    const deleteChatInjection = vi.fn<ChatService["deleteChatInjection"]>().mockRejectedValue(new ChatNotFoundError(CHAT));
     const ctx = makeContext({
       auth: principal("user", { userId: NON_MEMBER }),
       services: { chat: { deleteChatInjection } },
     });
 
-    await expect(
-      caller(ctx).chat.deleteChatInjection({ chatId: CHAT, injectionId: InjectionId }),
-    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+    await expect(caller(ctx).chat.deleteChatInjection({ chatId: CHAT, injectionId: InjectionId })).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
 });
 
@@ -893,9 +840,7 @@ describe("chat.setParticipantDisabled — the per-member mute/unmute setter (tas
   });
 
   test("a non-host gets the verb's leak-free NOT_FOUND (requireHost gate)", async () => {
-    const setParticipantDisabled = vi
-      .fn<ChatService["setParticipantDisabled"]>()
-      .mockRejectedValue(new ChatNotFoundError(CHAT));
+    const setParticipantDisabled = vi.fn<ChatService["setParticipantDisabled"]>().mockRejectedValue(new ChatNotFoundError(CHAT));
     const ctx = makeContext({
       auth: principal("user", { userId: NON_MEMBER }),
       services: { chat: { setParticipantDisabled } },
@@ -913,9 +858,7 @@ describe("chat.setParticipantDisabled — the per-member mute/unmute setter (tas
 
 describe("chat.setParticipantTalkativeness — the per-member weight setter (task #29 wire-through, host-only)", () => {
   test("a thin pass-through: chatId/characterId/talkativeness reach the verb with the resolved Principal", async () => {
-    const setParticipantTalkativeness = vi.fn<ChatService["setParticipantTalkativeness"]>(
-      async () => ({ ...PARTICIPANT, talkativeness: 0.8 }),
-    );
+    const setParticipantTalkativeness = vi.fn<ChatService["setParticipantTalkativeness"]>(async () => ({ ...PARTICIPANT, talkativeness: 0.8 }));
     const ctx = makeContext({
       auth: principal("user", { userId: MEMBER }),
       services: { chat: { setParticipantTalkativeness } },
@@ -937,9 +880,7 @@ describe("chat.setParticipantTalkativeness — the per-member weight setter (tas
   });
 
   test("a non-numeric talkativeness is rejected at the wire before the verb", async () => {
-    const setParticipantTalkativeness = vi.fn<ChatService["setParticipantTalkativeness"]>(
-      async () => PARTICIPANT,
-    );
+    const setParticipantTalkativeness = vi.fn<ChatService["setParticipantTalkativeness"]>(async () => PARTICIPANT);
     const ctx = makeContext({
       auth: principal("user", { userId: MEMBER }),
       services: { chat: { setParticipantTalkativeness } },
@@ -982,17 +923,13 @@ describe("chat.forceCharacterTurn — the host summons a member to speak next (t
   });
 
   test("a non-host gets the verb's leak-free NOT_FOUND (requireHost gate)", async () => {
-    const forceCharacterTurn = vi
-      .fn<ChatService["forceCharacterTurn"]>()
-      .mockRejectedValue(new ChatNotFoundError(CHAT));
+    const forceCharacterTurn = vi.fn<ChatService["forceCharacterTurn"]>().mockRejectedValue(new ChatNotFoundError(CHAT));
     const ctx = makeContext({
       auth: principal("user", { userId: NON_MEMBER }),
       services: { chat: { forceCharacterTurn } },
     });
 
-    await expect(
-      caller(ctx).chat.forceCharacterTurn({ chatId: CHAT, characterId: CHARACTER }),
-    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+    await expect(caller(ctx).chat.forceCharacterTurn({ chatId: CHAT, characterId: CHARACTER })).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
 });
 
@@ -1031,9 +968,7 @@ describe("chat.updateTitle — the LIST-row rename verb (J5 wire-through, host-o
   });
 
   test("a non-host gets the verb's leak-free NOT_FOUND (requireHost gate)", async () => {
-    const updateTitle = vi
-      .fn<ChatService["updateTitle"]>()
-      .mockRejectedValue(new ChatNotFoundError(CHAT));
+    const updateTitle = vi.fn<ChatService["updateTitle"]>().mockRejectedValue(new ChatNotFoundError(CHAT));
     const ctx = makeContext({
       auth: principal("user", { userId: NON_MEMBER }),
       services: { chat: { updateTitle } },
@@ -1155,9 +1090,7 @@ describe("chat.getGroupConfig / chat.setGroupConfig — the group-config wire-th
   });
 
   test("getGroupConfig: a thin pass-through — chatId reaches the verb; the effective config returns", async () => {
-    const getGroupConfigForChat = vi.fn<ChatService["getGroupConfigForChat"]>(
-      async () => DEFAULT_GROUP_CONFIG,
-    );
+    const getGroupConfigForChat = vi.fn<ChatService["getGroupConfigForChat"]>(async () => DEFAULT_GROUP_CONFIG);
     const ctx = makeContext({
       auth: principal("user", { userId: MEMBER }),
       services: { chat: { getGroupConfigForChat } },

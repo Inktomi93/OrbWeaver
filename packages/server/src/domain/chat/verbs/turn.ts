@@ -8,26 +8,12 @@
 // the auxiliary single-speaker turns swipe/continueTurn(+undo/revert)/impersonate/generate. Every generating
 // verb threads the active-turns abort signal into the engine and its `guided` steer into GATHER→BUILD.
 
-import type {
-  AssembleContext,
-  ChatBusEvent,
-  GroupConfig,
-  MessageView,
-  SpeakerRef,
-} from "@orb/contracts/chat";
+import type { AssembleContext, ChatBusEvent, GroupConfig, MessageView, SpeakerRef } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG, isAiDriven, speakerKey } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
 import type { GenerationType } from "@orb/contracts/preset";
 import { batchMany, isConstraintViolation } from "@orb/db/kit";
-import type {
-  AssetId,
-  CharacterId,
-  ChatId,
-  MessageId,
-  PendingTurnId,
-  PersonaId,
-  UserId,
-} from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, MessageId, PendingTurnId, PersonaId, UserId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
 import type { ChatContext } from "../context";
 import type { ActiveTurns } from "../contract/active-turns";
@@ -47,14 +33,7 @@ import type {
   SwipeParams,
   UndoContinueParams,
 } from "../contract/params";
-import type {
-  DrainDeferredTurnsScope,
-  DrainReport,
-  TurnEngine,
-  TurnKind,
-  TurnOutcome,
-  TurnPrep,
-} from "../contract/results";
+import type { DrainDeferredTurnsScope, DrainReport, TurnEngine, TurnKind, TurnOutcome, TurnPrep } from "../contract/results";
 import type { ChatService } from "../contract/service";
 import { requireHost, requireParticipant } from "../guard";
 import {
@@ -64,32 +43,13 @@ import {
   insertMessageAssetStatements,
   setVariantContentStatement,
 } from "../persistence/canon-write";
-import {
-  claimPendingTurn,
-  insertPendingTurn,
-  loadPendingTurnsForHost,
-  loadPendingTurnsForReclaim,
-} from "../persistence/invites";
-import {
-  loadCanonHistory,
-  loadChatRow,
-  loadContinueSnapshot,
-  loadMaxMessageSeq,
-  loadMessageView,
-  loadSlotTarget,
-} from "../persistence/queries";
+import { claimPendingTurn, insertPendingTurn, loadPendingTurnsForHost, loadPendingTurnsForReclaim } from "../persistence/invites";
+import { loadCanonHistory, loadChatRow, loadContinueSnapshot, loadMaxMessageSeq, loadMessageView, loadSlotTarget } from "../persistence/queries";
 import { loadRoster } from "../persistence/roster";
 import { gatherAssembleContext } from "../substrate/assemble-gather";
 import { freezeVolatileMacros } from "../substrate/assembly-access";
 import { userMessageDelta } from "../substrate/stats-delta";
-import {
-  driveRoundVia,
-  resolveMentionsVia,
-  resolveTurnIdentityVia,
-  runAutoModeVia,
-  selectSpeakersVia,
-  smartArbitrateVia,
-} from "../substrate/turn-access";
+import { driveRoundVia, resolveMentionsVia, resolveTurnIdentityVia, runAutoModeVia, selectSpeakersVia, smartArbitrateVia } from "../substrate/turn-access";
 
 /** SEND USER_INPUT regex out-param sink: `buildAssembleContext` writes the post-regex user text here so the
  *  verb persists that (the haystack and the stored row never diverge). */
@@ -107,10 +67,7 @@ interface TurnDeps {
   readonly emit: (event: ChatBusEvent) => Promise<void>;
   readonly prng: () => number;
   readonly delay: (ms: number) => Promise<void>;
-  readonly resolveConnection: (args: {
-    readonly runAsUserId: UserId;
-    readonly chatId: ChatId;
-  }) => Promise<ResolvedConnection>;
+  readonly resolveConnection: (args: { readonly runAsUserId: UserId; readonly chatId: ChatId }) => Promise<ResolvedConnection>;
   /** The foreign half of the assemble ctx (preset/persona/settings), resolved at the composition root. The
    *  chat-internal half is gathered by `gatherAssembleContext`. */
   readonly resolveForeignInputs: ResolveForeignInputsOp;
@@ -119,16 +76,7 @@ interface TurnDeps {
 /** The turn-running slice of `ChatService` this grouped file owns. */
 type TurnVerbs = Pick<
   ChatService,
-  | "send"
-  | "forceCharacterTurn"
-  | "abort"
-  | "swipe"
-  | "continueTurn"
-  | "impersonate"
-  | "generate"
-  | "undoContinue"
-  | "revertContinue"
-  | "drainDeferredTurns"
+  "send" | "forceCharacterTurn" | "abort" | "swipe" | "continueTurn" | "impersonate" | "generate" | "undoContinue" | "revertContinue" | "drainDeferredTurns"
 >;
 
 /** How many trailing canon rows feed the `smart` arbiter's transcript. */
@@ -149,8 +97,7 @@ function composeBodyWithAttachments(text: string, attachmentAssetIds: readonly A
 
 /** Synthetic trailing-user nudges: the unsteered continue/impersonate baseline, riding `appendUserTurn`. A
  *  `guided` steer composes with these. */
-const CONTINUE_NUDGE =
-  "[Continue the previous message from exactly where it left off, without repeating it.]";
+const CONTINUE_NUDGE = "[Continue the previous message from exactly where it left off, without repeating it.]";
 const IMPERSONATE_NUDGE = "[Write the next message as the user, in the user's own voice.]";
 
 /** The roster-derived turn substrate: the host, the character candidates (arbitration), their display names,
@@ -172,23 +119,15 @@ async function loadRoom(ctx: ChatContext, chatId: ChatId): Promise<Room> {
     throw new ChatNotFoundError(chatId);
   }
   const aiRows = roster.filter((r) => isAiDriven(r.kind));
-  const charRows = aiRows.flatMap((r) =>
-    r.kind === "character" && r.characterId !== null ? [{ ...r, characterId: r.characterId }] : [],
-  );
-  const cards = await Promise.all(
-    charRows.map((r) => ctx.getCard({ ownerId: hostUserId, characterId: r.characterId })),
-  );
+  const charRows = aiRows.flatMap((r) => (r.kind === "character" && r.characterId !== null ? [{ ...r, characterId: r.characterId }] : []));
+  const cards = await Promise.all(charRows.map((r) => ctx.getCard({ ownerId: hostUserId, characterId: r.characterId })));
   // An offline human's persona drops from the present-cast set for this round, since presence gates
   // which persona-book world-info joins the pool (a server-derived signal, never client-asserted).
   const humanPersonas = roster.flatMap((r) =>
-    r.kind === "human" && r.userId !== null && r.activePersonaId !== null
-      ? [{ userId: r.userId, personaId: r.activePersonaId }]
-      : [],
+    r.kind === "human" && r.userId !== null && r.activePersonaId !== null ? [{ userId: r.userId, personaId: r.activePersonaId }] : [],
   );
-  const online = await Promise.all(
-    humanPersonas.map((h) => ctx.readPresence(h.userId).then((p) => p.online)),
-  );
-  const personaIds = humanPersonas.filter((_h, i) => online[i]).map((h) => h.personaId);
+  const online = await Promise.all(humanPersonas.map((h) => ctx.readPresence(h.userId).then((p) => p.online)));
+  const personaIds = humanPersonas.filter((_h, i) => online[i] === true).map((h) => h.personaId);
   return {
     hostUserId,
     candidates: charRows.map((r) => ({
@@ -222,10 +161,7 @@ function joinedCastName(castNames: readonly CastName[]): string {
 }
 
 /** The last-assistant speaker (ban-last seed) + a recent transcript the `smart` arbiter reads. */
-async function canonFacts(
-  ctx: ChatContext,
-  chatId: ChatId,
-): Promise<{ lastSpeaker: SpeakerRef | null; recentHistory: string }> {
+async function canonFacts(ctx: ChatContext, chatId: ChatId): Promise<{ lastSpeaker: SpeakerRef | null; recentHistory: string }> {
   const canon = await loadCanonHistory(ctx.db, chatId);
   return {
     lastSpeaker: lastSpeakerRef(canon.findLast((m) => m.role === "assistant")),
@@ -238,11 +174,7 @@ async function canonFacts(
 
 /** The ban-last speaker ref for the last assistant row: its characterId or its authorUserId; null when there
  *  is no prior assistant turn. */
-function lastSpeakerRef(
-  row:
-    | { readonly characterId: CharacterId | null; readonly authorUserId: UserId | null }
-    | undefined,
-): SpeakerRef | null {
+function lastSpeakerRef(row: { readonly characterId: CharacterId | null; readonly authorUserId: UserId | null } | undefined): SpeakerRef | null {
   if (row === undefined) {
     return null;
   }
@@ -368,11 +300,7 @@ async function persistUserMessage(
       }),
     );
     // characterId null — the stats rebuild's per-char grain is assistant-only.
-    ctx.applyStatsDelta(
-      statements,
-      ctx.db,
-      userMessageDelta({ ownerId: args.hostUserId, characterId: null, content: args.content, now }),
-    );
+    ctx.applyStatsDelta(statements, ctx.db, userMessageDelta({ ownerId: args.hostUserId, characterId: null, content: args.content, now }));
     await ctx.db.batch(batchMany(statements));
     return buildCommittedMessageView(params);
   };
@@ -569,10 +497,7 @@ async function deferIfHostOffline(
     readonly chatId: ChatId;
   },
 ): Promise<boolean> {
-  if (
-    args.principalUserId === args.runAsUserId ||
-    (await ctx.readPresence(args.runAsUserId)).online
-  ) {
+  if (args.principalUserId === args.runAsUserId || (await ctx.readPresence(args.runAsUserId)).online) {
     return false;
   }
   await insertPendingTurn(ctx.db, {
@@ -594,20 +519,13 @@ async function deferIfHostOffline(
  * on a repeat pass), so it's also safe under the concurrent-send retry. A later swipe to an unfrozen
  * alternate is not re-frozen — there is no subsequent "first turn" to catch it.
  */
-async function freezeGreetingVolatiles(
-  ctx: ChatContext,
-  deps: TurnDeps,
-  assembleContext: AssembleContext,
-  priorCanon: readonly MessageView[],
-): Promise<void> {
+async function freezeGreetingVolatiles(ctx: ChatContext, deps: TurnDeps, assembleContext: AssembleContext, priorCanon: readonly MessageView[]): Promise<void> {
   const stmts = priorCanon.flatMap((m) => {
     if (m.role !== "assistant") {
       return [];
     }
     const frozen = freezeVolatileMacros(m.content, assembleContext, { random: deps.prng });
-    return frozen === m.content
-      ? []
-      : [setVariantContentStatement(ctx.db, m.selectedVariantId, frozen, m.reasoning)];
+    return frozen === m.content ? [] : [setVariantContentStatement(ctx.db, m.selectedVariantId, frozen, m.reasoning)];
   });
   if (stmts.length > 0) {
     await ctx.db.batch(batchMany(stmts));
@@ -616,37 +534,21 @@ async function freezeGreetingVolatiles(
 
 /** Trust boundary: every claimed attachment id must be owned by the actor. A foreign/gone id is absent from
  *  the owned subset → a leak-free `attachment_not_owned` refusal. No-op for an attachment-free send. */
-async function assertAttachmentsOwned(
-  ctx: ChatContext,
-  principalUserId: UserId,
-  chatId: ChatId,
-  attachments: readonly AssetId[],
-): Promise<void> {
+async function assertAttachmentsOwned(ctx: ChatContext, principalUserId: UserId, chatId: ChatId, attachments: readonly AssetId[]): Promise<void> {
   if (attachments.length === 0) {
     return;
   }
   const owned = new Set(await ctx.filterOwnedAssetIds(principalUserId, attachments));
   const foreign = attachments.find((id) => !owned.has(id));
   if (foreign !== undefined) {
-    throw new ChatOperationError(
-      CHAT_OP_CODES.attachmentNotOwned,
-      `chat ${chatId}: attachment ${foreign} is not owned by the sender`,
-    );
+    throw new ChatOperationError(CHAT_OP_CODES.attachmentNotOwned, `chat ${chatId}: attachment ${foreign} is not owned by the sender`);
   }
 }
 
 /** `send` — persist the user message, build the one immutable assemble ctx, arbitrate the responders, drive
  *  the round, then (if autoMode) chain AI→AI. Member-gated; AI turns run as the host. */
 function createSend(ctx: ChatContext, deps: TurnDeps): ChatService["send"] {
-  return async ({
-    principal,
-    chatId,
-    content,
-    personaId,
-    attachmentAssetIds,
-    intent,
-    guided,
-  }: SendParams): Promise<TurnOutcome> => {
+  return async ({ principal, chatId, content, personaId, attachmentAssetIds, intent, guided }: SendParams): Promise<TurnOutcome> => {
     const membership = await requireParticipant(ctx, principal, chatId);
     const attachments = attachmentAssetIds ?? [];
     await assertAttachmentsOwned(ctx, principal.userId, chatId, attachments);
@@ -749,30 +651,17 @@ function createSend(ctx: ChatContext, deps: TurnDeps): ChatService["send"] {
  *  row). Eligibility is presence-only (`leftSeq === null`) — a muted member is still force-summonable, since
  *  mute only excludes from natural/smart auto-selection, not an explicit host override. A non-member / left /
  *  unknown target is a leak-free NOT_FOUND. */
-function createForceCharacterTurn(
-  ctx: ChatContext,
-  deps: TurnDeps,
-): ChatService["forceCharacterTurn"] {
-  return async ({
-    principal,
-    chatId,
-    characterId,
-    intent,
-    guided,
-  }: ForceCharacterTurnParams): Promise<TurnOutcome> => {
+function createForceCharacterTurn(ctx: ChatContext, deps: TurnDeps): ChatService["forceCharacterTurn"] {
+  return async ({ principal, chatId, characterId, intent, guided }: ForceCharacterTurnParams): Promise<TurnOutcome> => {
     const membership = await requireHost(ctx, principal, chatId);
     const room = await loadRoom(ctx, chatId);
     const identity = resolveTurnIdentityVia({
       principalUserId: principal.userId,
       hostUserId: room.hostUserId,
     });
-    const target = room.castNames.find(
-      (c) => c.ref.kind === "character" && c.ref.characterId === characterId,
-    );
+    const target = room.castNames.find((c) => c.ref.kind === "character" && c.ref.characterId === characterId);
     // Presence-only (leftSeq === null), not the stricter isArbiterEligible: a host can force-turn a muted member.
-    const present = room.candidates.some(
-      (c) => c.ref.kind === "character" && c.ref.characterId === characterId && c.leftSeq === null,
-    );
+    const present = room.candidates.some((c) => c.ref.kind === "character" && c.ref.characterId === characterId && c.leftSeq === null);
     if (target === undefined || !present) {
       throw new ChatNotFoundError(chatId);
     }
@@ -828,10 +717,7 @@ function createAbort(ctx: ChatContext, deps: TurnDeps): ChatService["abort"] {
     await requireParticipant(ctx, principal, chatId);
     const { aborted, foreignInFlight } = deps.activeTurns.abort(chatId, principal.userId);
     if (aborted === 0 && foreignInFlight) {
-      throw new ChatOperationError(
-        CHAT_OP_CODES.notTurnOwner,
-        `chat ${chatId}: cannot abort a turn you do not own`,
-      );
+      throw new ChatOperationError(CHAT_OP_CODES.notTurnOwner, `chat ${chatId}: cannot abort a turn you do not own`);
     }
   };
 }
@@ -887,12 +773,7 @@ async function resolveTurnBase(
 
 /** Runs one engine turn under an active-turns registration, threading the abort signal into the engine and
  *  releasing the handle in a `finally`. */
-async function runRegistered(
-  deps: TurnDeps,
-  chatId: ChatId,
-  triggeredBy: UserId,
-  prep: Omit<TurnPrep, "signal">,
-): Promise<TurnOutcome> {
+async function runRegistered(deps: TurnDeps, chatId: ChatId, triggeredBy: UserId, prep: Omit<TurnPrep, "signal">): Promise<TurnOutcome> {
   const handle = deps.activeTurns.register(chatId, triggeredBy);
   try {
     return await deps.engine.runTurn({ ...prep, signal: handle.signal });
@@ -907,9 +788,7 @@ function speakerShapeFor(room: Room, characterId: CharacterId | null): TurnPrep[
   if (characterId === null) {
     return; // a non-character slot has no per-speaker character shape.
   }
-  const name = room.castNames.find(
-    (c) => c.ref.kind === "character" && c.ref.characterId === characterId,
-  )?.name;
+  const name = room.castNames.find((c) => c.ref.kind === "character" && c.ref.characterId === characterId)?.name;
   if (name === undefined || name.length === 0) {
     return;
   }
@@ -926,31 +805,21 @@ function speakerShapeFor(room: Room, characterId: CharacterId | null): TurnPrep[
  *  a new selected variant. `regenerate` is swipe on the last assistant message. A non-assistant / missing
  *  target is NOT_FOUND. */
 function createSwipe(ctx: ChatContext, deps: TurnDeps): ChatService["swipe"] {
-  return async ({
-    principal,
-    chatId,
-    messageId,
-    intent,
-    guided,
-  }: SwipeParams): Promise<TurnOutcome> => {
+  return async ({ principal, chatId, messageId, intent, guided }: SwipeParams): Promise<TurnOutcome> => {
     const membership = await requireParticipant(ctx, principal, chatId);
     // Chat-scoped load: a messageId from another chat matches nothing, so a member can't swipe-append another room's canon.
     const target = await loadSlotTarget(ctx.db, chatId, messageId);
     if (target === undefined || target.role !== "assistant") {
       throw new ChatNotFoundError(chatId);
     }
-    const { room, identity, connection, assembleContext, memoryConfig } = await resolveTurnBase(
-      ctx,
-      deps,
-      {
-        principal,
-        chatId,
-        kind: "swipe",
-        anchorPersonaId: membership.chat.anchorPersonaId,
-        triggerPersonaId: membership.activePersonaId,
-        guided,
-      },
-    );
+    const { room, identity, connection, assembleContext, memoryConfig } = await resolveTurnBase(ctx, deps, {
+      principal,
+      chatId,
+      kind: "swipe",
+      anchorPersonaId: membership.chat.anchorPersonaId,
+      triggerPersonaId: membership.activePersonaId,
+      guided,
+    });
     const shape = speakerShapeFor(room, target.characterId);
     return await runRegistered(deps, chatId, identity.triggeredBy, {
       chatId,
@@ -973,31 +842,21 @@ function createSwipe(ctx: ChatContext, deps: TurnDeps): ChatService["swipe"] {
  *  slot (+ a continue nudge) and the generated text is APPENDED to the variant, snapshotting `preContinue*` so
  *  `undoContinue` can restore it (D26). A non-assistant / missing target is a leak-free NOT_FOUND. */
 function createContinueTurn(ctx: ChatContext, deps: TurnDeps): ChatService["continueTurn"] {
-  return async ({
-    principal,
-    chatId,
-    messageId,
-    intent,
-    guided,
-  }: ContinueTurnParams): Promise<TurnOutcome> => {
+  return async ({ principal, chatId, messageId, intent, guided }: ContinueTurnParams): Promise<TurnOutcome> => {
     const membership = await requireParticipant(ctx, principal, chatId);
     // Chat-scoped load: a messageId from another chat matches nothing, so a member can't continue-append another room's canon.
     const target = await loadSlotTarget(ctx.db, chatId, messageId);
     if (target === undefined || target.role !== "assistant") {
       throw new ChatNotFoundError(chatId);
     }
-    const { room, identity, connection, assembleContext, memoryConfig } = await resolveTurnBase(
-      ctx,
-      deps,
-      {
-        principal,
-        chatId,
-        kind: "continue",
-        anchorPersonaId: membership.chat.anchorPersonaId,
-        triggerPersonaId: membership.activePersonaId,
-        guided,
-      },
-    );
+    const { room, identity, connection, assembleContext, memoryConfig } = await resolveTurnBase(ctx, deps, {
+      principal,
+      chatId,
+      kind: "continue",
+      anchorPersonaId: membership.chat.anchorPersonaId,
+      triggerPersonaId: membership.activePersonaId,
+      guided,
+    });
     const shape = speakerShapeFor(room, target.characterId);
     return await runRegistered(deps, chatId, identity.triggeredBy, {
       chatId,
@@ -1019,27 +878,17 @@ function createContinueTurn(ctx: ChatContext, deps: TurnDeps): ChatService["cont
 /** `impersonate` — generate the user's next line in the active persona's voice and persist it as a
  *  role:"user" slot, authored by the responsible human + the chosen persona. */
 function createImpersonate(ctx: ChatContext, deps: TurnDeps): ChatService["impersonate"] {
-  return async ({
-    principal,
-    chatId,
-    personaId,
-    intent,
-    guided,
-  }: ImpersonateParams): Promise<TurnOutcome> => {
+  return async ({ principal, chatId, personaId, intent, guided }: ImpersonateParams): Promise<TurnOutcome> => {
     const membership = await requireParticipant(ctx, principal, chatId);
-    const { identity, connection, assembleContext, memoryConfig } = await resolveTurnBase(
-      ctx,
-      deps,
-      {
-        principal,
-        chatId,
-        kind: "impersonate",
-        anchorPersonaId: membership.chat.anchorPersonaId,
-        // biome-ignore lint/nursery/useNullishCoalescing: `??` would coalesce an EXPLICIT null into the active persona — only an omitted (undefined) param falls back (mirrors the slot stamp below).
-        triggerPersonaId: personaId !== undefined ? personaId : membership.activePersonaId,
-        guided,
-      },
-    );
+    const { identity, connection, assembleContext, memoryConfig } = await resolveTurnBase(ctx, deps, {
+      principal,
+      chatId,
+      kind: "impersonate",
+      anchorPersonaId: membership.chat.anchorPersonaId,
+      // biome-ignore lint/nursery/useNullishCoalescing: `??` would coalesce an EXPLICIT null into the active persona — only an omitted (undefined) param falls back (mirrors the slot stamp below).
+      triggerPersonaId: personaId !== undefined ? personaId : membership.activePersonaId,
+      guided,
+    });
     return await runRegistered(deps, chatId, identity.triggeredBy, {
       chatId,
       assembleContext,
@@ -1065,26 +914,16 @@ function createImpersonate(ctx: ChatContext, deps: TurnDeps): ChatService["imper
 /** `generate` — a lock-free auxiliary assistant generation: runs concurrent with a locked `send`. Commits a
  *  new assistant slot for the named speaker (or the primary character). */
 function createGenerate(ctx: ChatContext, deps: TurnDeps): ChatService["generate"] {
-  return async ({
-    principal,
-    chatId,
-    speakerCharacterId,
-    intent,
-    guided,
-  }: GenerateParams): Promise<TurnOutcome> => {
+  return async ({ principal, chatId, speakerCharacterId, intent, guided }: GenerateParams): Promise<TurnOutcome> => {
     const membership = await requireParticipant(ctx, principal, chatId);
-    const { room, identity, connection, assembleContext, memoryConfig } = await resolveTurnBase(
-      ctx,
-      deps,
-      {
-        principal,
-        chatId,
-        kind: "generate",
-        anchorPersonaId: membership.chat.anchorPersonaId,
-        triggerPersonaId: membership.activePersonaId,
-        guided,
-      },
-    );
+    const { room, identity, connection, assembleContext, memoryConfig } = await resolveTurnBase(ctx, deps, {
+      principal,
+      chatId,
+      kind: "generate",
+      anchorPersonaId: membership.chat.anchorPersonaId,
+      triggerPersonaId: membership.activePersonaId,
+      guided,
+    });
     const speaker = speakerCharacterId ?? primaryCharacterId(room);
     const shape = speakerShapeFor(room, speaker);
     return await runRegistered(deps, chatId, identity.triggeredBy, {
@@ -1117,27 +956,12 @@ async function restoreContinue(
   const { chatId, messageId, direction } = args;
   // Chat-scoped load: a messageId from another chat matches nothing, so undo/revert can't mutate another room's canon.
   const snap = await loadContinueSnapshot(ctx.db, chatId, messageId);
-  if (
-    snap === undefined ||
-    snap.preContinueContent === null ||
-    snap.lastContinuationContent === null
-  ) {
-    throw new ChatOperationError(
-      CHAT_OP_CODES.noContinuation,
-      `message ${messageId}: no continuation to ${direction}`,
-    );
+  if (snap === undefined || snap.preContinueContent === null || snap.lastContinuationContent === null) {
+    throw new ChatOperationError(CHAT_OP_CODES.noContinuation, `message ${messageId}: no continuation to ${direction}`);
   }
-  const content =
-    direction === "undo"
-      ? snap.preContinueContent
-      : snap.preContinueContent + snap.lastContinuationContent;
-  const reasoning =
-    direction === "undo"
-      ? snap.preContinueReasoning
-      : combineReasoning(snap.preContinueReasoning, snap.lastContinuationReasoning);
-  await ctx.db.batch(
-    batchMany([setVariantContentStatement(ctx.db, snap.variantId, content, reasoning)]),
-  );
+  const content = direction === "undo" ? snap.preContinueContent : snap.preContinueContent + snap.lastContinuationContent;
+  const reasoning = direction === "undo" ? snap.preContinueReasoning : combineReasoning(snap.preContinueReasoning, snap.lastContinuationReasoning);
+  await ctx.db.batch(batchMany([setVariantContentStatement(ctx.db, snap.variantId, content, reasoning)]));
   const view = await loadMessageView(ctx.db, messageId);
   if (view === undefined) {
     throw new ChatNotFoundError(chatId);
@@ -1172,10 +996,7 @@ function createRevertContinue(ctx: ChatContext, deps: TurnDeps): ChatService["re
  *  member's owed reply waits for the next drain edge), and a transient fault (provider outage) is a retry.
  *  Drains fire only at boot + host-return edges, so a re-queued row can't hot-loop. */
 function isDrainVerdictDrop(err: unknown): boolean {
-  return (
-    err instanceof ChatNotFoundError ||
-    (err instanceof ChatOperationError && err.code === CHAT_OP_CODES.consentRequired)
-  );
+  return err instanceof ChatNotFoundError || (err instanceof ChatOperationError && err.code === CHAT_OP_CODES.consentRequired);
 }
 
 /** Reconstruct + run ONE deferred AI round from a durable `pending_turns` row — no principal, no new user
@@ -1232,11 +1053,7 @@ async function runDeferredRound(
  *  permanent verdict (the claim already deleted it) · or RE-QUEUE it (re-insert) on `budget_exceeded`/a
  *  transient fault. A lost claim ("skipped") means a concurrent drain owns the row. Isolated — the fault
  *  never escapes the sweep. */
-async function drainOne(
-  ctx: ChatContext,
-  deps: TurnDeps,
-  row: { readonly id: PendingTurnId },
-): Promise<"ran" | "dropped" | "requeued" | "skipped"> {
+async function drainOne(ctx: ChatContext, deps: TurnDeps, row: { readonly id: PendingTurnId }): Promise<"ran" | "dropped" | "requeued" | "skipped"> {
   // Atomic claim-before-run: the `DELETE … RETURNING` is the ONLY serializer (a drained turn is not
   // lock-held), so the boot reclaim ∥ host-return overlap can't double-run or double-spend a row.
   const claimed = await claimPendingTurn(ctx.db, row.id);
@@ -1250,10 +1067,7 @@ async function drainOne(
     if (isDrainVerdictDrop(err)) {
       const reason = err instanceof ChatNotFoundError ? "chat-gone" : "consent";
       await notifyDeferredTurnDropped(ctx, claimed, reason);
-      getLog().info(
-        { pendingTurnId: claimed.id, chatId: claimed.chatId, reason, dropped: true },
-        "chat: deferred turn DROPPED at drain (permanent verdict)",
-      );
+      getLog().info({ pendingTurnId: claimed.id, chatId: claimed.chatId, reason, dropped: true }, "chat: deferred turn DROPPED at drain (permanent verdict)");
       return "dropped";
     }
     // budget_exceeded (temporal) or a transient fault → RE-QUEUE (re-insert the claimed row, same frozen
@@ -1291,10 +1105,7 @@ async function notifyDeferredTurnDropped(
       reason,
     })
     .catch((err: unknown) =>
-      getLog().warn(
-        { chatId: row.chatId, triggeredBy: row.triggeredBy, reason, err },
-        "chat: deferred-turn-dropped notification emit failed (best-effort)",
-      ),
+      getLog().warn({ chatId: row.chatId, triggeredBy: row.triggeredBy, reason, err }, "chat: deferred-turn-dropped notification emit failed (best-effort)"),
     );
 }
 
@@ -1302,15 +1113,9 @@ async function notifyDeferredTurnDropped(
  *  `pending_turns` queue. Each row runs through the engine (consent/budget re-validated in-lock) or is
  *  dropped on a re-validation refusal — both consume the row; a transient fault leaves it queued. Rows drain
  *  oldest-first + SEQUENTIALLY (each takes the per-chat lock + spends the host budget). */
-function createDrainDeferredTurns(
-  ctx: ChatContext,
-  deps: TurnDeps,
-): ChatService["drainDeferredTurns"] {
+function createDrainDeferredTurns(ctx: ChatContext, deps: TurnDeps): ChatService["drainDeferredTurns"] {
   return async (scope: DrainDeferredTurnsScope): Promise<DrainReport> => {
-    const rows =
-      "all" in scope
-        ? await loadPendingTurnsForReclaim(ctx.db)
-        : await loadPendingTurnsForHost(ctx.db, scope.hostUserId);
+    const rows = "all" in scope ? await loadPendingTurnsForReclaim(ctx.db) : await loadPendingTurnsForHost(ctx.db, scope.hostUserId);
     let ran = 0;
     let dropped = 0;
     for (const row of rows) {

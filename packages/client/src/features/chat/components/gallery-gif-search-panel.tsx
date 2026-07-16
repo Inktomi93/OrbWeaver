@@ -41,15 +41,7 @@ function toGifGridItem(hit: GifHit): MediaGridItem {
 
 /** A transient in-panel hint (NOT an EmptyState — the search box IS the always-present next action, so a
  *  mandatory CTA would be redundant; this is a lightweight muted status, token-composed). */
-function GifHint({
-  icon,
-  title,
-  detail,
-}: {
-  readonly icon: ReactElement;
-  readonly title: string;
-  readonly detail: string;
-}): ReactElement {
+function GifHint({ icon, title, detail }: { readonly icon: ReactElement; readonly title: string; readonly detail: string }): ReactElement {
   return (
     // aria-live: the body swaps blank→searching→results/error as the query resolves; announce the
     // status transitions to screen readers (the grid itself carries its own label, not this region).
@@ -95,13 +87,7 @@ export function GalleryGifSearchPanel({ characterId }: GalleryGifSearchPanelProp
 
   let body: ReactElement;
   if (query.trim().length === 0) {
-    body = (
-      <GifHint
-        icon={<Icon icon={Search} size="lg" />}
-        title="Search for a gif"
-        detail="Type a search above, then pick a gif to add it to the gallery."
-      />
-    );
+    body = <GifHint icon={<Icon icon={Search} size="lg" />} title="Search for a gif" detail="Type a search above, then pick a gif to add it to the gallery." />;
   } else if (results.isError) {
     body = (
       <GifHint
@@ -111,31 +97,11 @@ export function GalleryGifSearchPanel({ characterId }: GalleryGifSearchPanelProp
       />
     );
   } else if (results.isPending) {
-    body = (
-      <GifHint
-        icon={<Icon icon={Search} size="lg" />}
-        title="Searching…"
-        detail="Finding gifs — one moment."
-      />
-    );
+    body = <GifHint icon={<Icon icon={Search} size="lg" />} title="Searching…" detail="Finding gifs — one moment." />;
   } else if (hits.length === 0) {
-    body = (
-      <GifHint
-        icon={<Icon icon={Search} size="lg" />}
-        title="No gifs found"
-        detail="Nothing matched that search — try different words."
-      />
-    );
+    body = <GifHint icon={<Icon icon={Search} size="lg" />} title="No gifs found" detail="Nothing matched that search — try different words." />;
   } else {
-    body = (
-      <MediaGrid
-        items={hits.map(toGifGridItem)}
-        ariaLabel="Gif results"
-        gapToken="row"
-        onActivate={importHit}
-        className="max-h-96"
-      />
-    );
+    body = <MediaGrid items={hits.map(toGifGridItem)} ariaLabel="Gif results" gapToken="row" onActivate={importHit} className="max-h-96" />;
   }
 
   return (
@@ -147,12 +113,7 @@ export function GalleryGifSearchPanel({ characterId }: GalleryGifSearchPanelProp
         }}
       >
         <Row gap="row" align="center">
-          <Input
-            aria-label="Search gifs"
-            placeholder="Search GIFs…"
-            value={draft}
-            onValueChange={setDraft}
-          />
+          <Input aria-label="Search gifs" placeholder="Search GIFs…" value={draft} onValueChange={setDraft} />
           <Button type="submit" intent="secondary">
             <Icon icon={Search} size="sm" />
             Search

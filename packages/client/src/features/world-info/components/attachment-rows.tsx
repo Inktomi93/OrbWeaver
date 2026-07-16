@@ -31,11 +31,7 @@ export interface CharacterAttachRowProps {
 }
 
 /** One character row: attach/detach this book + (while attached) its primary/auxiliary role. */
-export function CharacterAttachRow({
-  bookId,
-  characterId,
-  characterName,
-}: CharacterAttachRowProps): ReactElement {
+export function CharacterAttachRow({ bookId, characterId, characterName }: CharacterAttachRowProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const attachedQuery = useQuery(trpc.worldInfo.listForCharacter.queryOptions({ characterId }));
@@ -55,9 +51,7 @@ export function CharacterAttachRow({
             <Select
               items={ROLE_ITEMS}
               value={attachment.role ?? "auxiliary"}
-              onValueChange={(role): void =>
-                attach.mutate({ characterId, bookId, role: role as WorldBookRole })
-              }
+              onValueChange={(role): void => attach.mutate({ characterId, bookId, role: role as WorldBookRole })}
               aria-label={`Role for ${characterName}`}
             />
           ) : null}
@@ -85,11 +79,7 @@ export interface PersonaAttachRowProps {
 }
 
 /** One persona row: attach/detach this book (personas carry no role). */
-export function PersonaAttachRow({
-  bookId,
-  personaId,
-  personaName,
-}: PersonaAttachRowProps): ReactElement {
+export function PersonaAttachRow({ bookId, personaId, personaName }: PersonaAttachRowProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const attachedQuery = useQuery(trpc.worldInfo.listForPersona.queryOptions({ personaId }));

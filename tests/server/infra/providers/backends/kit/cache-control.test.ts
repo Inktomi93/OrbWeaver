@@ -75,7 +75,6 @@ describe("cache_control constants + placement primitive", () => {
 // cumulative prefix clears the per-model `cacheMinTokens` floor. No wire types — each runner (OR
 // openai-compat / anth-direct) maps the returned offsets to its own block dialect. The single breakpoint
 // was the regression (part 01 §1d / part 02 §5d); this hoisted core emits the pair.
-// biome-ignore lint/security/noSecrets: the long camelCase fn name in the title trips the entropy heuristic — a test description, not a secret.
 describe("computeCacheBreakpointOffsets — the R1 rolling pair", () => {
   // 6 messages, 500 tokens each; systemStatic 0. Cumulative prefix at index i = 500 * (i + 1).
   const messageTokens = [500, 500, 500, 500, 500, 500];

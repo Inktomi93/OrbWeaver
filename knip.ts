@@ -1,4 +1,3 @@
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver can't follow knip's type re-export chain (dist/types.d.ts `export type { RawConfigurationOrFn as KnipConfig }`); tsgo resolves it fine — the react-19.2 named-exports precedent.
 import type { KnipConfig } from "knip";
 
 // knip — the dead-code/dead-export/dead-dependency authority (flipped on 2026-07-13; the

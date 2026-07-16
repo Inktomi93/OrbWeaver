@@ -67,11 +67,7 @@ function nearestSqDist(p: Float32Array, centroids: readonly Float32Array[]): num
   return Math.max(0, SQ_DIST_SCALE * (1 - cosineSim(p, nearest)));
 }
 
-function kmeansPlusPlus(
-  points: readonly Float32Array[],
-  k: number,
-  rng: () => number,
-): Float32Array[] {
+function kmeansPlusPlus(points: readonly Float32Array[], k: number, rng: () => number): Float32Array[] {
   const first = points[Math.floor(rng() * points.length)] ?? points[0];
   if (first === undefined) {
     return [];
@@ -88,11 +84,7 @@ function kmeansPlusPlus(
   return centroids;
 }
 
-function pickWeighted(
-  points: readonly Float32Array[],
-  weights: readonly number[],
-  threshold: number,
-): Float32Array {
+function pickWeighted(points: readonly Float32Array[], weights: readonly number[], threshold: number): Float32Array {
   let r = threshold;
   for (let i = 0; i < weights.length; i += 1) {
     r -= weights[i] ?? 0;
@@ -107,11 +99,7 @@ function pickWeighted(
   return points.at(-1) as Float32Array;
 }
 
-function recenter(
-  points: readonly Float32Array[],
-  assignments: readonly number[],
-  prev: readonly Float32Array[],
-): Float32Array[] {
+function recenter(points: readonly Float32Array[], assignments: readonly number[], prev: readonly Float32Array[]): Float32Array[] {
   return prev.map((prevCentroid, c) => {
     const members = points.filter((_, i) => assignments[i] === c);
     return members.length === 0 ? prevCentroid : l2Normalize(mean(members));

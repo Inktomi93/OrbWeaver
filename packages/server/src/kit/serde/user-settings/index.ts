@@ -57,11 +57,7 @@ export function projectShareSafe(full: UserSettings): PortableUserSettings {
 }
 
 /** Type-safe single-namespace copy (a union-indexed `dst[ns] = src[ns]` is rejected by tsc). */
-function copyNamespace<K extends ShareSafeSettingsNamespace>(
-  dst: Partial<PortableUserSettings>,
-  src: PortableUserSettings,
-  key: K,
-): void {
+function copyNamespace<K extends ShareSafeSettingsNamespace>(dst: Partial<PortableUserSettings>, src: PortableUserSettings, key: K): void {
   dst[key] = src[key];
 }
 
@@ -99,11 +95,7 @@ function decodeJson(bytes: Uint8Array): unknown {
 }
 
 /** Type-safe single-namespace copy into the parse output (same reason as `copyNamespace`). */
-function takeNamespace<K extends ShareSafeSettingsNamespace>(
-  dst: Partial<PortableUserSettings>,
-  healed: UserSettings,
-  key: K,
-): void {
+function takeNamespace<K extends ShareSafeSettingsNamespace>(dst: Partial<PortableUserSettings>, healed: UserSettings, key: K): void {
   dst[key] = healed[key];
 }
 

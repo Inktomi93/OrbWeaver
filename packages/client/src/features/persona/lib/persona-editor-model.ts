@@ -58,10 +58,7 @@ export function personaFormFromEntity(persona: PersonaDetail): PersonaFormValues
  *  button to gate an invalid combo), an assistant\@depth-0 prefill combo is withheld: the mapper
  *  re-emits the base's last-saved placement untouched so the rejected value never reaches the wire,
  *  while sibling edits (title/description) still persist. */
-function metadataFromForm(
-  values: PersonaFormValues,
-  base: PersonaMetadata | null,
-): Record<string, unknown> {
+function metadataFromForm(values: PersonaFormValues, base: PersonaMetadata | null): Record<string, unknown> {
   const baseEntries = Object.entries(base ?? {});
   if (isPrefillCombo(values)) {
     return Object.fromEntries(baseEntries);
@@ -81,10 +78,7 @@ function metadataFromForm(
 
 /** Build the persona.update partial input from the details form values. name/avatarAssetId/starred
  *  are never sent from here — they're the row's own patches. */
-export function personaInputFromForm(
-  values: PersonaFormValues,
-  base: PersonaMetadata | null,
-): UpdatePersonaInput {
+export function personaInputFromForm(values: PersonaFormValues, base: PersonaMetadata | null): UpdatePersonaInput {
   return {
     title: values.title.trim() === "" ? null : values.title,
     description: values.description,
@@ -95,8 +89,5 @@ export function personaInputFromForm(
 /** Assistant-role at depth 0 is a response prefill, unsupported across providers. The editor shows an
  *  inline warning off this predicate, and `metadataFromForm` withholds the invalid placement. */
 export function isPrefillCombo(values: PersonaFormValues): boolean {
-  return (
-    values.descriptionPosition === "at_depth" &&
-    isAssistantPrefill(values.injectRole, values.injectDepth ?? 0)
-  );
+  return values.descriptionPosition === "at_depth" && isAssistantPrefill(values.injectRole, values.injectDepth ?? 0);
 }

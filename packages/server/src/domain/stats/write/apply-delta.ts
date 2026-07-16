@@ -28,11 +28,7 @@ const n = (v: number | undefined): number => v ?? 0;
 
 /** Push the four UPSERT-increment statements into the caller's batch array (appends; returns nothing — the
  *  caller commits the batch atomically with its canon write). */
-export const applyStatsDelta: ApplyStatsDelta<BatchStmt[], Db> = (
-  batch: BatchStmt[],
-  db: Db,
-  delta: StatsDelta,
-): void => {
+export const applyStatsDelta: ApplyStatsDelta<BatchStmt[], Db> = (batch: BatchStmt[], db: Db, delta: StatsDelta): void => {
   const lastAt = delta.lastAt ?? null;
   const firstAt = delta.firstAt ?? null;
   const maxCtx = delta.maxContextTokens ?? null;
@@ -109,7 +105,7 @@ export const applyStatsDelta: ApplyStatsDelta<BatchStmt[], Db> = (
         .insert(ownerStats)
         .values({
           ownerId: delta.ownerId,
-          characters: delta.newCharacter ? 1 : 0,
+          characters: delta.newCharacter === true ? 1 : 0,
           chats: n(delta.chats),
           userTurns: n(delta.userTurns),
           assistantTurns: n(delta.assistantTurns),

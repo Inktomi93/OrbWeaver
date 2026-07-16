@@ -5,12 +5,7 @@
 // append, defensive-copy reads, and the resume/reseed/re-adopt outcomes that keep the Max-sub prompt
 // cache alive while never resuming a diverged transcript.
 
-import {
-  buildSeedFrames,
-  InMemorySessionStore,
-  SessionCache,
-  seedSessionId,
-} from "@orb/server/infra/providers/backends/agent-sdk/session";
+import { buildSeedFrames, InMemorySessionStore, SessionCache, seedSessionId } from "@orb/server/infra/providers/backends/agent-sdk/session";
 import { describe } from "vitest";
 import { expect, test } from "../../../../../../support/fixtures";
 
@@ -103,9 +98,7 @@ function lineageKey(n: number): Key {
 async function fillToCap(store: InMemorySessionStore): Promise<void> {
   for (let n = 0; n < LINEAGE_CAP; n += 1) {
     // biome-ignore lint/performance/noAwaitInLoops: sequential setup — LRU order depends on append order.
-    await store.append(lineageKey(n), [
-      { type: "user", uuid: `u-${n}`, message: { role: "user", content: `l${n}` } },
-    ]);
+    await store.append(lineageKey(n), [{ type: "user", uuid: `u-${n}`, message: { role: "user", content: `l${n}` } }]);
   }
 }
 
@@ -114,9 +107,7 @@ describe("InMemorySessionStore — LRU lineage bound", () => {
     const store = new InMemorySessionStore();
     await fillToCap(store);
     // Lineage 0 is the least-recently-touched; the cap+1 append must drop it.
-    await store.append(lineageKey(LINEAGE_CAP), [
-      { type: "user", uuid: "u-new", message: { role: "user", content: "new" } },
-    ]);
+    await store.append(lineageKey(LINEAGE_CAP), [{ type: "user", uuid: "u-new", message: { role: "user", content: "new" } }]);
     expect(await store.load(lineageKey(0))).toBeNull();
     // A non-oldest lineage and the newcomer both survive.
     expect(await store.load(lineageKey(1))).not.toBeNull();
@@ -128,9 +119,7 @@ describe("InMemorySessionStore — LRU lineage bound", () => {
     await fillToCap(store);
     // Touch lineage 0 so it is no longer the oldest; lineage 1 becomes the eviction victim.
     await store.load(lineageKey(0));
-    await store.append(lineageKey(LINEAGE_CAP), [
-      { type: "user", uuid: "u-new", message: { role: "user", content: "new" } },
-    ]);
+    await store.append(lineageKey(LINEAGE_CAP), [{ type: "user", uuid: "u-new", message: { role: "user", content: "new" } }]);
     expect(await store.load(lineageKey(0))).not.toBeNull();
     expect(await store.load(lineageKey(1))).toBeNull();
   });
@@ -138,12 +127,8 @@ describe("InMemorySessionStore — LRU lineage bound", () => {
   test("replace also touches — a replaced lineage is protected from the next eviction", async () => {
     const store = new InMemorySessionStore();
     await fillToCap(store);
-    await store.replace(lineageKey(0), [
-      { type: "user", uuid: "u-r", message: { role: "user", content: "replaced" } },
-    ]);
-    await store.append(lineageKey(LINEAGE_CAP), [
-      { type: "user", uuid: "u-new", message: { role: "user", content: "new" } },
-    ]);
+    await store.replace(lineageKey(0), [{ type: "user", uuid: "u-r", message: { role: "user", content: "replaced" } }]);
+    await store.append(lineageKey(LINEAGE_CAP), [{ type: "user", uuid: "u-new", message: { role: "user", content: "new" } }]);
     expect(await store.load(lineageKey(0))).not.toBeNull();
     expect(await store.load(lineageKey(1))).toBeNull();
   });
@@ -151,18 +136,12 @@ describe("InMemorySessionStore — LRU lineage bound", () => {
   test("all composite keys of ONE lineage evict together (main transcript + a subpath)", async () => {
     const store = new InMemorySessionStore();
     const victim = "00000000-0000-4000-8000-0000000000aa";
-    await store.append({ projectKey: "p", sessionId: victim }, [
-      { type: "user", uuid: "m", message: { role: "user", content: "main" } },
-    ]);
-    await store.append({ projectKey: "p", sessionId: victim, subpath: "sub-1" }, [
-      { type: "user", uuid: "s", message: { role: "user", content: "sub" } },
-    ]);
+    await store.append({ projectKey: "p", sessionId: victim }, [{ type: "user", uuid: "m", message: { role: "user", content: "main" } }]);
+    await store.append({ projectKey: "p", sessionId: victim, subpath: "sub-1" }, [{ type: "user", uuid: "s", message: { role: "user", content: "sub" } }]);
     // Fill the REST of the cap, then push one past — the two-key victim lineage is the oldest and drops whole.
     for (let n = 0; n < LINEAGE_CAP; n += 1) {
       // biome-ignore lint/performance/noAwaitInLoops: sequential setup.
-      await store.append(lineageKey(n), [
-        { type: "user", uuid: `u-${n}`, message: { role: "user", content: `l${n}` } },
-      ]);
+      await store.append(lineageKey(n), [{ type: "user", uuid: `u-${n}`, message: { role: "user", content: `l${n}` } }]);
     }
     expect(await store.load({ projectKey: "p", sessionId: victim })).toBeNull();
     expect(await store.load({ projectKey: "p", sessionId: victim, subpath: "sub-1" })).toBeNull();
@@ -234,11 +213,7 @@ describe("SessionCache.ensureSeededSession — the PD-7 resume gate", () => {
         message: { role: "assistant", content: [{ type: "text", text: "part two" }] },
       },
     ]);
-    const continued = [
-      ...seed,
-      { role: "user" as const, content: "next question" },
-      { role: "assistant" as const, content: "answer part two" },
-    ];
+    const continued = [...seed, { role: "user" as const, content: "next question" }, { role: "assistant" as const, content: "answer part two" }];
     const next = await cache.ensureSeededSession(CHAT_ID, continued);
     // The grown transcript's merged runs equal the continued seed → clean resume of the SAME id; the fork
     // path is NOT taken (a match is not a divergence).
@@ -416,9 +391,7 @@ describe("SessionCache.ensureSeededSession — the PD-7 resume gate", () => {
     // uses seedFresh (append + load), so `replace` is irrelevant here. NOT the recorded id → `forked`.
     expect(next.sessionId).not.toBe(first.sessionId);
     expect(next.disposition).toBe("forked");
-    expect(next.sessionId).toBe(
-      seedSessionId(CHAT_ID, [...seed, { role: "user", content: "prompt" }], 0),
-    );
+    expect(next.sessionId).toBe(seedSessionId(CHAT_ID, [...seed, { role: "user", content: "prompt" }], 0));
   });
 
   test("an ASSISTANT-FIRST seed (greeting) is stub-normalized consistently across calls", async () => {
@@ -463,9 +436,7 @@ describe("SessionCache.ensureSeededSession — the PD-7 resume gate", () => {
     const cache = new SessionCache();
     // salt-0 is poisoned (diverged); salt-1 already holds the EXACT seed (a prior seed for this state).
     const salt0 = seedSessionId(CHAT_ID, seed, 0);
-    await cache.store.append({ projectKey: "x", sessionId: salt0 }, [
-      { type: "user", uuid: "poison", message: { role: "user", content: "not the seed" } },
-    ]);
+    await cache.store.append({ projectKey: "x", sessionId: salt0 }, [{ type: "user", uuid: "poison", message: { role: "user", content: "not the seed" } }]);
     const salt1 = seedSessionId(CHAT_ID, seed, 1);
     await cache.store.append({ projectKey: "x", sessionId: salt1 }, buildSeedFrames(seed, salt1));
     const decision = await cache.ensureSeededSession(CHAT_ID, seed);
@@ -484,9 +455,7 @@ describe("SessionCache.ensureSeededSession — the PD-7 resume gate", () => {
     for (let salt = 0; salt < 4; salt += 1) {
       const id = seedSessionId(CHAT_ID, seed, salt);
       // biome-ignore lint/performance/noAwaitInLoops: sequential test setup, not a hot path.
-      await appendOnly.append({ projectKey: "x", sessionId: id }, [
-        { type: "user", uuid: `poison-${salt}`, message: { role: "user", content: "mismatch" } },
-      ]);
+      await appendOnly.append({ projectKey: "x", sessionId: id }, [{ type: "user", uuid: `poison-${salt}`, message: { role: "user", content: "mismatch" } }]);
     }
     const decision = await cache.ensureSeededSession(CHAT_ID, seed);
     expect(decision.sessionId).toBeNull();

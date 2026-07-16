@@ -3,10 +3,7 @@ import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { resolveCfg } from "../../../../../../packages/server/src/domain/chat/memory/constants";
 import { buildRecallQuery } from "../../../../../../packages/server/src/domain/chat/memory/recall/query";
-import type {
-  MemoryScope,
-  MsgRow,
-} from "../../../../../../packages/server/src/domain/chat/memory/types";
+import type { MemoryScope, MsgRow } from "../../../../../../packages/server/src/domain/chat/memory/types";
 import { expect, test } from "../../../../../support/fixtures";
 
 const chatId = castId<ChatId>("chat_q");

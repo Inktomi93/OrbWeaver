@@ -12,7 +12,5 @@ export function CorpusContent(): ReactElement {
   if (selectedCorpusCharacterId === null) {
     return <CorpusHomeSurface />;
   }
-  return (
-    <CorpusDossierSurface characterId={selectedCorpusCharacterId} onBack={clearCorpusSelection} />
-  );
+  return <CorpusDossierSurface characterId={selectedCorpusCharacterId} onBack={clearCorpusSelection} />;
 }

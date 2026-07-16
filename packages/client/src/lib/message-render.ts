@@ -11,12 +11,7 @@
 
 import { fixMarkdown } from "@orb/kit/fix-markdown";
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
-import type {
-  MacroEnv,
-  ProcessMacroOptions,
-  RowCharacterName,
-  RowPersonaName,
-} from "@orb/kit/macro";
+import type { MacroEnv, ProcessMacroOptions, RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { resolveRowMacros } from "@orb/kit/macro";
 import type { RegexScriptInput } from "@orb/kit/regex";
 import { executeRegexScripts } from "@orb/kit/regex";
@@ -61,12 +56,7 @@ function regexCtxChar(ctx: MessageRenderContext, characterId: CharacterId | null
   return cast?.[0] ?? ctx.speakerCharName ?? "";
 }
 
-export function renderMessageForDisplay(
-  text: string,
-  ctx: MessageRenderContext,
-  rowCharacterId?: CharacterId | null,
-  rowPersonaId?: PersonaId | null,
-): string {
+export function renderMessageForDisplay(text: string, ctx: MessageRenderContext, rowCharacterId?: CharacterId | null, rowPersonaId?: PersonaId | null): string {
   const characterId = rowCharacterId ?? null;
   const personaId = rowPersonaId ?? null;
 

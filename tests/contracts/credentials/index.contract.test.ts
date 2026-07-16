@@ -15,27 +15,14 @@ test("credentialSourceSchema round-trips every dispatch source", () => {
   for (const source of CRED_SOURCES) {
     expect(credentialSourceSchema.parse(source)).toBe(source);
   }
-  expect(CRED_SOURCES).toEqual([
-    "max-pro-sub",
-    "openrouter",
-    "vllm",
-    "local-light",
-    "custom_openai",
-  ]);
+  expect(CRED_SOURCES).toEqual(["max-pro-sub", "openrouter", "vllm", "local-light", "custom_openai"]);
 });
 
 test("credentialProviderSchema round-trips every storable provider", () => {
   for (const provider of CRED_PROVIDERS) {
     expect(credentialProviderSchema.parse(provider)).toBe(provider);
   }
-  expect(CRED_PROVIDERS).toEqual([
-    "openrouter",
-    "anthropic",
-    "openai",
-    "google_vertex",
-    "custom_openai",
-    "gif-search",
-  ]);
+  expect(CRED_PROVIDERS).toEqual(["openrouter", "anthropic", "openai", "google_vertex", "custom_openai", "gif-search"]);
 });
 
 test("the source axis and the storage axis are NOT conflated", () => {

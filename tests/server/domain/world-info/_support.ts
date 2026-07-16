@@ -10,15 +10,7 @@ import type { Principal, UserRole } from "@orb/contracts/identity";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import { characters, chats, personas } from "@orb/db";
-import type {
-  CharacterId,
-  ChatId,
-  Handle,
-  PersonaId,
-  UserId,
-  WorldBookId,
-  WorldEntryId,
-} from "@orb/kit/ids";
+import type { CharacterId, ChatId, Handle, PersonaId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { WorldInfoContext } from "../../../../packages/server/src/domain/world-info/context.ts";
 import { createFrozenClock, FROZEN_AT_MS } from "../../../support/clock.ts";
@@ -113,10 +105,7 @@ interface SeedCharacterOverrides {
 }
 
 /** D28 — flat row, no version table. */
-export async function seedCharacter(
-  db: Db,
-  overrides: SeedCharacterOverrides,
-): Promise<CharacterId> {
+export async function seedCharacter(db: Db, overrides: SeedCharacterOverrides): Promise<CharacterId> {
   const id = castId<CharacterId>(overrides.id ?? "character_c");
   await db.insert(characters).values({
     id,
@@ -159,10 +148,6 @@ export async function seedPersona(db: Db, overrides: SeedPersonaOverrides): Prom
   return id;
 }
 
-export function principal(
-  userId: UserId,
-  role: UserRole = "user",
-  handle: string = userId,
-): Principal {
+export function principal(userId: UserId, role: UserRole = "user", handle: string = userId): Principal {
   return makePrincipal(userId, { role, handle: castId<Handle>(handle) });
 }

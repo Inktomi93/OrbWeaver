@@ -11,8 +11,5 @@ const EDGE_UNDERSCORES = /^_+|_+$/gu;
 
 /** A filename-safe download slug (≤60 chars; "export" when the input slugs to empty). */
 export function slug(name: string): string {
-  return (
-    name.trim().replace(UNSAFE_RUN, "_").replace(EDGE_UNDERSCORES, "").slice(0, MAX_SLUG_LENGTH) ||
-    FALLBACK
-  );
+  return name.trim().replace(UNSAFE_RUN, "_").replace(EDGE_UNDERSCORES, "").slice(0, MAX_SLUG_LENGTH) || FALLBACK;
 }

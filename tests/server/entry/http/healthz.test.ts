@@ -43,26 +43,21 @@ function run(deps: HealthzDeps): MockResult {
 
 describe("registerHealthz", () => {
   test("live → 200 ok", () => {
-    expect(
-      run({ isShuttingDown: (): boolean => false, credentialsKeyOk: (): boolean => true }),
-    ).toEqual({ body: { status: "ok" }, status: 200 });
+    expect(run({ isShuttingDown: (): boolean => false, credentialsKeyOk: (): boolean => true })).toEqual({ body: { status: "ok" }, status: 200 });
   });
 
   test("shutdown drain → 503 shutting_down", () => {
-    expect(
-      run({ isShuttingDown: (): boolean => true, credentialsKeyOk: (): boolean => true }),
-    ).toEqual({ body: { status: "shutting_down" }, status: 503 });
+    expect(run({ isShuttingDown: (): boolean => true, credentialsKeyOk: (): boolean => true })).toEqual({ body: { status: "shutting_down" }, status: 503 });
   });
 
   test("boot decrypt-probe failure → 503 credentials_key_mismatch", () => {
-    expect(
-      run({ isShuttingDown: (): boolean => false, credentialsKeyOk: (): boolean => false }),
-    ).toEqual({ body: { status: "credentials_key_mismatch" }, status: 503 });
+    expect(run({ isShuttingDown: (): boolean => false, credentialsKeyOk: (): boolean => false })).toEqual({
+      body: { status: "credentials_key_mismatch" },
+      status: 503,
+    });
   });
 
   test("shutdown wins over the key signal", () => {
-    expect(
-      run({ isShuttingDown: (): boolean => true, credentialsKeyOk: (): boolean => false }),
-    ).toEqual({ body: { status: "shutting_down" }, status: 503 });
+    expect(run({ isShuttingDown: (): boolean => true, credentialsKeyOk: (): boolean => false })).toEqual({ body: { status: "shutting_down" }, status: 503 });
   });
 });

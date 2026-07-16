@@ -37,10 +37,7 @@ describe("db.batch atomicity — a UNIQUE violation mid-batch lands ZERO rows (P
   test("the positive control: a valid two-statement batch commits BOTH rows", async () => {
     const db = await freshDb();
 
-    await db.batch([
-      db.insert(users).values(userRow("user_ctl_a", "ctl-a")),
-      db.insert(users).values(userRow("user_ctl_b", "ctl-b")),
-    ]);
+    await db.batch([db.insert(users).values(userRow("user_ctl_a", "ctl-a")), db.insert(users).values(userRow("user_ctl_b", "ctl-b"))]);
 
     const rows = await db.select({ id: users.id }).from(users);
     expect(rows.map((r) => r.id).sort()).toEqual(["user_ctl_a", "user_ctl_b"]);
@@ -54,10 +51,7 @@ describe("db.batch atomicity — a UNIQUE violation mid-batch lands ZERO rows (P
     // The batch: statement 1 is a brand-new valid row; statement 2 re-inserts the existing PK → UNIQUE
     // violation MID-BATCH. Atomicity demands statement 1 never lands.
     await expect(
-      db.batch([
-        db.insert(users).values(userRow("user_fresh", "fresh")),
-        db.insert(users).values(userRow("user_existing", "existing-dup")),
-      ]),
+      db.batch([db.insert(users).values(userRow("user_fresh", "fresh")), db.insert(users).values(userRow("user_existing", "existing-dup"))]),
     ).rejects.toThrow();
 
     // THE ATOMICITY ASSERT: the pre-batch row survived, but the batch's first (valid) row did NOT land —

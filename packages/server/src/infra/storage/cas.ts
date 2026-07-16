@@ -117,11 +117,7 @@ export function createCas(rootDir: string): Cas {
   }
 
   function shardDir(ownerId: string, hash: string): string {
-    return join(
-      ownerDir(ownerId),
-      hash.slice(0, SHARD_A_END),
-      hash.slice(SHARD_A_END, SHARD_B_END),
-    );
+    return join(ownerDir(ownerId), hash.slice(0, SHARD_A_END), hash.slice(SHARD_A_END, SHARD_B_END));
   }
 
   function blobPath(ownerId: UserId, hash: string): string {
@@ -190,7 +186,7 @@ export function createCas(rootDir: string): Cas {
           await utimes(dest, seconds, seconds);
           return { hash, size, created: false };
         } catch (err) {
-          if ((err as NodeJS.ErrnoException)?.code !== "ENOENT") {
+          if ((err as NodeJS.ErrnoException).code !== "ENOENT") {
             throw err;
           }
         }
@@ -204,7 +200,7 @@ export function createCas(rootDir: string): Cas {
         return sha256(await read(ownerId, hash)) === hash;
       } catch (err) {
         // Only "missing" is honestly false — permission/I/O/corruption errors must surface.
-        if ((err as NodeJS.ErrnoException)?.code === "ENOENT") {
+        if ((err as NodeJS.ErrnoException).code === "ENOENT") {
           return false;
         }
         throw err;

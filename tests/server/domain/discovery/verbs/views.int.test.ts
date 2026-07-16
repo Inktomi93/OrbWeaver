@@ -30,10 +30,7 @@ function svcFor(db: Db): ReturnType<typeof createDiscoveryService> {
   return createDiscoveryService(makeDiscoveryHarness(db).ctx);
 }
 
-async function seedCluster(
-  db: Db,
-  args: { id: string; ownerId: UserId; level?: string; clusterIdx?: number; name?: string },
-): Promise<ThemeClusterId> {
+async function seedCluster(db: Db, args: { id: string; ownerId: UserId; level?: string; clusterIdx?: number; name?: string }): Promise<ThemeClusterId> {
   const id = castId<ThemeClusterId>(args.id);
   await db.insert(themeClusters).values({
     id,
@@ -159,10 +156,7 @@ describe("characterDossier", () => {
     return hero;
   }
 
-  function dossierSvc(
-    db: Db,
-    similar?: DiscoveryContext["similar"],
-  ): ReturnType<typeof createDiscoveryService> {
+  function dossierSvc(db: Db, similar?: DiscoveryContext["similar"]): ReturnType<typeof createDiscoveryService> {
     return createDiscoveryService(makeDiscoveryHarness(db, similar ? { similar } : {}).ctx);
   }
 

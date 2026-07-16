@@ -11,9 +11,7 @@ const ROLE = "agent";
 const AGENT_BACKEND = "agent-sdk";
 
 /** Bind the agent-turn dispatcher to the wired backend registry. */
-export function createAgentRole(
-  deps: ProviderDeps,
-): (req: AgentTurnRequest) => Promise<ChatResult> {
+export function createAgentRole(deps: ProviderDeps): (req: AgentTurnRequest) => Promise<ChatResult> {
   return async (req) => {
     assertCredentialAllowed({
       role: ROLE,

@@ -31,9 +31,7 @@ beforeEach(async () => {
 
 async function seedOwner(handle: string): Promise<UserId> {
   const id = castId<UserId>(`user_${handle}`);
-  await db
-    .insert(users)
-    .values({ id, handle: castId<Handle>(handle), role: "user", enabled: true });
+  await db.insert(users).values({ id, handle: castId<Handle>(handle), role: "user", enabled: true });
   return id;
 }
 
@@ -66,8 +64,7 @@ function makeHarness(overrides: Partial<ImageryContext> = {}): Harness {
   const ctx: ImageryContext = {
     db,
     now: () => FROZEN_AT,
-    newGenerationId: (): ImageryGenerationId =>
-      castId<ImageryGenerationId>(ids.next("imagery_generation")),
+    newGenerationId: (): ImageryGenerationId => castId<ImageryGenerationId>(ids.next("imagery_generation")),
     resolveGenerateImage: () => Promise.resolve({ connection, capability: connection.capability }),
     generateImage: (req) => {
       generateCalls.push(req.n ?? 1);
@@ -147,8 +144,7 @@ describe("generatePicture (free mode)", () => {
   test("zero decodable images → GenerationFailedError (no asset, no row)", async () => {
     const owner = await seedOwner("owner");
     const { ctx } = makeHarness({
-      generateImage: () =>
-        Promise.resolve({ images: [], model: "img-model", usage: { costUsd: null } }),
+      generateImage: () => Promise.resolve({ images: [], model: "img-model", usage: { costUsd: null } }),
     });
 
     await expect(
@@ -223,9 +219,7 @@ describe("generatePicture (free mode)", () => {
     const owner = await seedOwner("owner");
     const { ctx } = makeHarness();
 
-    await expect(
-      createImageryService(ctx).generatePicture({ caller: principal(owner), mode: "free" }),
-    ).rejects.toThrow();
+    await expect(createImageryService(ctx).generatePicture({ caller: principal(owner), mode: "free" })).rejects.toThrow();
   });
 });
 

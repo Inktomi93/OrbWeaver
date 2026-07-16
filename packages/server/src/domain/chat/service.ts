@@ -39,16 +39,9 @@ export function createChatService(ctx: ChatContext, deps: ChatServiceDeps): Chat
     const rows = await loadRoster(ctx.db, chatId);
     const hostUserId = rows.find((r) => r.role === "host")?.userId ?? null;
     return Promise.all(
-      // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: straightforward mapping
       rows.map(async (r): Promise<ParticipantView> => {
-        const card =
-          r.characterId !== null && hostUserId !== null
-            ? await ctx.getCard({ ownerId: hostUserId, characterId: r.characterId })
-            : null;
-        const publics =
-          r.kind === "human" && r.userId !== null
-            ? await ctx.resolveUserPublics(r.userId, r.activePersonaId)
-            : null;
+        const card = r.characterId !== null && hostUserId !== null ? await ctx.getCard({ ownerId: hostUserId, characterId: r.characterId }) : null;
+        const publics = r.kind === "human" && r.userId !== null ? await ctx.resolveUserPublics(r.userId, r.activePersonaId) : null;
 
         // The resolved per-participant render policy (override ?? global); keyed on the character override
         // for AI seats, the global floor for humans.

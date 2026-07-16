@@ -2,11 +2,7 @@
 // table. Key/label strings are raw here (validated at the verb/transport boundary); ids/provider/source are
 // branded.
 
-import type {
-  CredentialProvider,
-  CredentialSource,
-  ProviderMetadata,
-} from "@orb/contracts/credentials";
+import type { CredentialProvider, CredentialSource, ProviderMetadata } from "@orb/contracts/credentials";
 import type { Principal } from "@orb/contracts/identity";
 import type { UserCredentialId } from "@orb/kit/ids";
 

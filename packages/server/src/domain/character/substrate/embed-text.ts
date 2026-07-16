@@ -5,10 +5,7 @@
 
 import type { CharacterCard } from "@orb/contracts/character";
 
-type CardEmbedFields = Pick<
-  CharacterCard,
-  "name" | "description" | "personality" | "scenario" | "greetings"
->;
+type CardEmbedFields = Pick<CharacterCard, "name" | "description" | "personality" | "scenario" | "greetings">;
 
 // Char budget mirrors the embed model's window (8192 tokens, 3.67 chars/token measured). Capping here keeps
 // content_hash consistent with the bytes that actually reach the vector, avoiding spurious re-embeds.
@@ -83,8 +80,5 @@ export function buildCardEmbedText(card: CardEmbedFields, userName = "User"): st
     }
   }
 
-  return truncateAtCodepoint(
-    parts.filter((p): p is string => p !== null).join("\n"),
-    MAX_EMBED_CHARS,
-  );
+  return truncateAtCodepoint(parts.filter((p): p is string => p !== null).join("\n"), MAX_EMBED_CHARS);
 }

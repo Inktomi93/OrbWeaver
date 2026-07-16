@@ -12,10 +12,7 @@ test("idle renders the neutral (muted) badge token with the Idle label", async (
   await expect(badge).toHaveCSS("background-color", TOKENS["color.muted"].value);
 });
 
-test("running renders the composed Spinner (role=status, spinning glyph)", async ({
-  mount,
-  page,
-}) => {
+test("running renders the composed Spinner (role=status, spinning glyph)", async ({ mount, page }) => {
   const component = await mount(<StatusChip status="running" />);
   // The root IS the mounted element (component.locator only searches its DESCENDANTS — the
   // avatar.ct.tsx `page.locator` precedent for asserting on the mount root itself).
@@ -24,9 +21,7 @@ test("running renders the composed Spinner (role=status, spinning glyph)", async
   await expect(component.locator("svg.animate-spin")).toBeVisible();
 });
 
-test("succeeded carries the Check icon glyph plus the success token background", async ({
-  mount,
-}) => {
+test("succeeded carries the Check icon glyph plus the success token background", async ({ mount }) => {
   const component = await mount(<StatusChip status="succeeded" />);
   const badge = component.locator('[data-slot="status-chip-badge"]');
   await expect(badge).toHaveText("Succeeded");
@@ -34,9 +29,7 @@ test("succeeded carries the Check icon glyph plus the success token background",
   await expect(badge).toHaveCSS("background-color", TOKENS["color.success"].value);
 });
 
-test("failed carries an icon glyph (never color alone) plus the destructive token background", async ({
-  mount,
-}) => {
+test("failed carries an icon glyph (never color alone) plus the destructive token background", async ({ mount }) => {
   const component = await mount(<StatusChip status="failed" />);
   const badge = component.locator('[data-slot="status-chip-badge"]');
   await expect(badge).toHaveText("Failed");
@@ -60,9 +53,7 @@ test("a status transition updates the live region's rendered label", async ({ mo
 });
 
 test("summary and pre-formatted timestamp render as plain given strings", async ({ mount }) => {
-  const component = await mount(
-    <StatusChip status="running" summary="3 of 5 files" timestamp="2m ago" />,
-  );
+  const component = await mount(<StatusChip status="running" summary="3 of 5 files" timestamp="2m ago" />);
   await expect(component.locator('[data-slot="status-chip-summary"]')).toHaveText("3 of 5 files");
   await expect(component.locator('[data-slot="status-chip-timestamp"]')).toHaveText("2m ago");
 });
@@ -88,8 +79,6 @@ test("onRetry renders a real button that fires on click, only on failed", async 
 });
 
 test("a custom retryLabel renders on the retry button", async ({ mount }) => {
-  const component = await mount(
-    <StatusChip onRetry={(): void => undefined} retryLabel="Try again" status="failed" />,
-  );
+  const component = await mount(<StatusChip onRetry={(): void => undefined} retryLabel="Try again" status="failed" />);
   await expect(component.getByRole("button", { name: "Try again" })).toBeVisible();
 });

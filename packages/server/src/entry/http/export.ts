@@ -59,11 +59,7 @@ function parseKinds(raw: string | undefined): ParsedKinds {
 
 /** Stream every requested entity's files as zip entries. Owner-scoped: `ownerId` is the only owner each
  *  `exportAll` sees. */
-async function* libraryEntries(
-  registry: PortabilityRegistry,
-  kinds: ReadonlySet<PortableKind> | null,
-  ownerId: Principal["userId"],
-): AsyncGenerator<ZipEntry> {
+async function* libraryEntries(registry: PortabilityRegistry, kinds: ReadonlySet<PortableKind> | null, ownerId: Principal["userId"]): AsyncGenerator<ZipEntry> {
   for (const entity of registry) {
     if (kinds !== null && !kinds.has(entity.kind)) {
       continue;

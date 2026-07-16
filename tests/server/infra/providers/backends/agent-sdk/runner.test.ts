@@ -12,16 +12,10 @@ import { castId } from "@orb/kit/ids";
 import { logger } from "@orb/server/foundation/observability";
 import type { AgentSdkChatRequest, ChatRequest, ChatResult } from "@orb/server/infra/providers";
 import { ProviderError } from "@orb/server/infra/providers";
-import {
-  consumeTurnStream,
-  createAgentSdkBackend,
-} from "@orb/server/infra/providers/backends/agent-sdk";
+import { consumeTurnStream, createAgentSdkBackend } from "@orb/server/infra/providers/backends/agent-sdk";
 import { seedSessionId } from "@orb/server/infra/providers/backends/agent-sdk/session";
 import { describe, vi } from "vitest";
-import {
-  makeModelCapability,
-  makeResolvedCredential,
-} from "../../../../../support/factories/resolved-connection.ts";
+import { makeModelCapability, makeResolvedCredential } from "../../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../../support/fixtures";
 import { streamOf as sharedStreamOf } from "./_support.ts";
 
@@ -78,10 +72,7 @@ const CONTEXT_USAGE_RESPONSE = {
  *  live-`Query` shape `runChatTurn` probes (a bare async generator, like `streamOf`, lacks it, which is how
  *  the "no control channel" absence path is exercised). `getContextUsage` is caller-supplied so a test can
  *  make it resolve, throw, or hang. */
-function queryOf(
-  messages: readonly unknown[],
-  getContextUsage: () => Promise<unknown>,
-): MessageStream {
+function queryOf(messages: readonly unknown[], getContextUsage: () => Promise<unknown>): MessageStream {
   const stream = streamOf(messages) as MessageStream & {
     getContextUsage: () => Promise<unknown>;
   };
@@ -157,16 +148,12 @@ describe("consumeTurnStream", () => {
       modelUsage: {},
       usage: {},
     };
-    await expect(
-      consumeTurnStream(streamOf([initMsg, errorResult]), baseCtx),
-    ).rejects.toBeInstanceOf(ProviderError);
+    await expect(consumeTurnStream(streamOf([initMsg, errorResult]), baseCtx)).rejects.toBeInstanceOf(ProviderError);
   });
 
   test("the init shape guard fires when session_id is missing", async () => {
     const badInit = { type: "system", subtype: "init", apiKeySource: "oauth" };
-    await expect(consumeTurnStream(streamOf([badInit]), baseCtx)).rejects.toThrow(
-      MISSING_SESSION_ID_RE,
-    );
+    await expect(consumeTurnStream(streamOf([badInit]), baseCtx)).rejects.toThrow(MISSING_SESSION_ID_RE);
   });
 
   test("thinking_tokens frames fill usage.reasoningTokens (running total — last wins)", async () => {
@@ -177,18 +164,12 @@ describe("consumeTurnStream", () => {
       estimated_tokens: estimated,
       estimated_tokens_delta: estimated,
     });
-    const result = await consumeTurnStream(
-      streamOf([initMsg, thinking(40), assistantMsg, thinking(120), successResult]),
-      baseCtx,
-    );
+    const result = await consumeTurnStream(streamOf([initMsg, thinking(40), assistantMsg, thinking(120), successResult]), baseCtx);
     expect(result.usage.reasoningTokens).toBe(120);
   });
 
   test("a turn with no thinking_tokens frames reports reasoningTokens null", async () => {
-    const result = await consumeTurnStream(
-      streamOf([initMsg, assistantMsg, successResult]),
-      baseCtx,
-    );
+    const result = await consumeTurnStream(streamOf([initMsg, assistantMsg, successResult]), baseCtx);
     expect(result.usage.reasoningTokens).toBeNull();
   });
 
@@ -204,10 +185,7 @@ describe("consumeTurnStream", () => {
       content: "banner text",
     };
     const onEvent = vi.fn();
-    const result = await consumeTurnStream(
-      streamOf([initMsg, refusal, assistantMsg, successResult]),
-      { ...baseCtx, onEvent },
-    );
+    const result = await consumeTurnStream(streamOf([initMsg, refusal, assistantMsg, successResult]), { ...baseCtx, onEvent });
     const events = result.events.filter((e) => e.kind === "refusal");
     expect(events).toEqual([
       {
@@ -239,9 +217,7 @@ describe("consumeTurnStream", () => {
       modelUsage: {},
       usage: {},
     };
-    const err = await consumeTurnStream(streamOf([initMsg, errorResult]), baseCtx).catch(
-      (e: unknown) => e,
-    );
+    const err = await consumeTurnStream(streamOf([initMsg, errorResult]), baseCtx).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ProviderError);
     const perr = err as ProviderError;
     expect(perr.kind).toBe("invalid");
@@ -269,10 +245,7 @@ describe("consumeTurnStream", () => {
       },
     };
     const onEvent = vi.fn();
-    const result = await consumeTurnStream(
-      streamOf([initMsg, rateLimit, assistantMsg, successResult]),
-      { ...baseCtx, onEvent },
-    );
+    const result = await consumeTurnStream(streamOf([initMsg, rateLimit, assistantMsg, successResult]), { ...baseCtx, onEvent });
     expect(result.rateLimit).toEqual({
       status: "allowed_warning",
       rateLimitType: "five_hour",
@@ -294,9 +267,7 @@ describe("consumeTurnStream", () => {
     // With the locked tool-less config this MUST be empty; a leak must be LOUD, never swallowed.
     const leakedResult = {
       ...successResult,
-      permission_denials: [
-        { tool_name: "Bash", tool_use_id: "t1", tool_input: { command: "rm -rf" } },
-      ],
+      permission_denials: [{ tool_name: "Bash", tool_use_id: "t1", tool_input: { command: "rm -rf" } }],
     };
     const onEvent = vi.fn();
     const result = await consumeTurnStream(streamOf([initMsg, assistantMsg, leakedResult]), {
@@ -327,10 +298,7 @@ describe("consumeTurnStream", () => {
   });
 
   test("a turn with no redacted blocks reports reasoningRedacted false", async () => {
-    const result = await consumeTurnStream(
-      streamOf([initMsg, assistantMsg, successResult]),
-      baseCtx,
-    );
+    const result = await consumeTurnStream(streamOf([initMsg, assistantMsg, successResult]), baseCtx);
     expect(result.reasoningRedacted).toBe(false);
   });
 
@@ -343,10 +311,7 @@ describe("consumeTurnStream", () => {
       event: { type: "content_block_delta", delta: { type: "text_delta", text: "Hello" } },
     };
     const onDelta = vi.fn();
-    const result = await consumeTurnStream(
-      streamOf([initMsg, textDelta, assistantMsg, successResult]),
-      { ...baseCtx, chatId: "c1", onDelta },
-    );
+    const result = await consumeTurnStream(streamOf([initMsg, textDelta, assistantMsg, successResult]), { ...baseCtx, chatId: "c1", onDelta });
     expect(onDelta).toHaveBeenCalledExactlyOnceWith({ chatId: "c1", kind: "text", text: "Hello" });
     // The assistant frame's text is "Hello"; the delta text is NOT concatenated on top of it.
     expect(result.reply).toBe("Hello");
@@ -375,10 +340,7 @@ describe("consumeTurnStream", () => {
       },
     };
     const onDelta = vi.fn();
-    const result = await consumeTurnStream(
-      streamOf([initMsg, thinkingDelta, thinkingAssistant, successResult]),
-      { ...baseCtx, chatId: "c1", onDelta },
-    );
+    const result = await consumeTurnStream(streamOf([initMsg, thinkingDelta, thinkingAssistant, successResult]), { ...baseCtx, chatId: "c1", onDelta });
     expect(onDelta).toHaveBeenCalledExactlyOnceWith({
       chatId: "c1",
       kind: "reasoning",
@@ -396,10 +358,7 @@ describe("consumeTurnStream", () => {
       event: { type: "content_block_delta", delta: { type: "signature_delta", signature: "SIG" } },
     };
     const onDelta = vi.fn();
-    const result = await consumeTurnStream(
-      streamOf([initMsg, sigDelta, assistantMsg, successResult]),
-      { ...baseCtx, chatId: "c1", onDelta },
-    );
+    const result = await consumeTurnStream(streamOf([initMsg, sigDelta, assistantMsg, successResult]), { ...baseCtx, chatId: "c1", onDelta });
     // No crash, empty reasoning, and the signature never surfaced as a reasoning delta.
     expect(result.reply).toBe("Hello");
     expect(result.reasoning).toBe("");
@@ -427,10 +386,7 @@ describe("consumeTurnStream", () => {
       error: "invalid_request", // classifies invalid / non-retryable
       uuid: "u-retry-1",
     };
-    const err = await consumeTurnStream(
-      streamOf([initMsg, apiRetry, successResult]),
-      baseCtx,
-    ).catch((e: unknown) => e);
+    const err = await consumeTurnStream(streamOf([initMsg, apiRetry, successResult]), baseCtx).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ProviderError);
     const perr = err as ProviderError;
     expect(perr.kind).toBe("invalid");
@@ -452,10 +408,7 @@ describe("consumeTurnStream", () => {
       error: "rate_limit",
       uuid: "u-retry-2",
     };
-    const result = await consumeTurnStream(
-      streamOf([initMsg, apiRetry, assistantMsg, successResult]),
-      baseCtx,
-    );
+    const result = await consumeTurnStream(streamOf([initMsg, apiRetry, assistantMsg, successResult]), baseCtx);
     expect(result.reply).toBe("Hello");
     const retries = result.events.filter((e) => e.kind === "api_retry");
     expect(retries).toHaveLength(1);
@@ -487,10 +440,7 @@ describe("consumeTurnStream", () => {
       modelUsage: {},
       usage: {},
     };
-    const err = await consumeTurnStream(
-      streamOf([initMsg, rateLimitRetry, errorResult]),
-      baseCtx,
-    ).catch((e: unknown) => e);
+    const err = await consumeTurnStream(streamOf([initMsg, rateLimitRetry, errorResult]), baseCtx).catch((e: unknown) => e);
     const perr = err as ProviderError;
     expect(perr.kind).toBe("rate_limit");
     expect(perr.detail).toBe("rate_limit");
@@ -526,9 +476,7 @@ describe("consumeTurnStream", () => {
       modelUsage: {},
       usage: {},
     };
-    const err = await consumeTurnStream(streamOf([initMsg, rateLimit, errorResult]), baseCtx).catch(
-      (e: unknown) => e,
-    );
+    const err = await consumeTurnStream(streamOf([initMsg, rateLimit, errorResult]), baseCtx).catch((e: unknown) => e);
     const perr = err as ProviderError;
     expect(perr.kind).toBe("rate_limit");
     expect(perr.resetsAt).toBe(7000);
@@ -547,9 +495,7 @@ describe("consumeTurnStream", () => {
       modelUsage: {},
       usage: {},
     };
-    const err = await consumeTurnStream(streamOf([initMsg, errorResult]), baseCtx).catch(
-      (e: unknown) => e,
-    );
+    const err = await consumeTurnStream(streamOf([initMsg, errorResult]), baseCtx).catch((e: unknown) => e);
     const perr = err as ProviderError;
     expect(perr.kind).toBe("billing");
     expect(perr.detail).toBe("error_max_budget_usd");
@@ -568,10 +514,7 @@ describe("consumeTurnStream", () => {
       request_id: null,
       content: "",
     };
-    const result = await consumeTurnStream(
-      streamOf([initMsg, refusal, assistantMsg, successResult]),
-      baseCtx,
-    );
+    const result = await consumeTurnStream(streamOf([initMsg, refusal, assistantMsg, successResult]), baseCtx);
     expect(result.events.filter((e) => e.kind === "refusal")).toEqual([
       {
         kind: "refusal",
@@ -610,9 +553,7 @@ describe("createAgentSdkBackend", () => {
   }
 
   test("runChatTurn reduces a turn; a second turn RESUMES the cached session", async () => {
-    const fakeQuery = vi.fn((_args: { options?: { resume?: string } }) =>
-      streamOf([initMsg, assistantMsg, successResult]),
-    );
+    const fakeQuery = vi.fn((_args: { options?: { resume?: string } }) => streamOf([initMsg, assistantMsg, successResult]));
     const backend = createAgentSdkBackend({
       now: () => 0,
       query: fakeQuery as never,
@@ -631,9 +572,7 @@ describe("createAgentSdkBackend", () => {
   });
 
   test("a seeded request resumes the DETERMINISTIC seeded session (the PD-7 canon feed)", async () => {
-    const fakeQuery = vi.fn((_args: { options?: { resume?: string } }) =>
-      streamOf([initMsg, assistantMsg, successResult]),
-    );
+    const fakeQuery = vi.fn((_args: { options?: { resume?: string } }) => streamOf([initMsg, assistantMsg, successResult]));
     const backend = createAgentSdkBackend({
       now: () => 0,
       query: fakeQuery as never,
@@ -657,10 +596,8 @@ describe("createAgentSdkBackend", () => {
   });
 
   test("resolved 'system-block' channel JOINS static+dynamic into ONE leak-free systemPrompt string, no hooks", async () => {
-    const fakeQuery = vi.fn(
-      (_args: {
-        options?: { systemPrompt?: string | string[]; hooks?: Record<string, unknown[]> };
-      }) => streamOf([initMsg, assistantMsg, successResult]),
+    const fakeQuery = vi.fn((_args: { options?: { systemPrompt?: string | string[]; hooks?: Record<string, unknown[]> } }) =>
+      streamOf([initMsg, assistantMsg, successResult]),
     );
     const backend = createAgentSdkBackend({
       now: () => 0,
@@ -682,9 +619,8 @@ describe("createAgentSdkBackend", () => {
   });
 
   test("resolved 'message-tail' channel (knob 'hook' + capable model) sends STATIC-only systemPrompt + a hook", async () => {
-    const fakeQuery = vi.fn(
-      (_args: { options?: { systemPrompt?: string; hooks?: Record<string, unknown[]> } }) =>
-        streamOf([initMsg, assistantMsg, successResult]),
+    const fakeQuery = vi.fn((_args: { options?: { systemPrompt?: string; hooks?: Record<string, unknown[]> } }) =>
+      streamOf([initMsg, assistantMsg, successResult]),
     );
     const backend = createAgentSdkBackend({
       now: () => 0,
@@ -706,9 +642,8 @@ describe("createAgentSdkBackend", () => {
   });
 
   test("knob 'hook' on an INCAPABLE model is DEMOTED → joined system-block, no hook", async () => {
-    const fakeQuery = vi.fn(
-      (_args: { options?: { systemPrompt?: string; hooks?: Record<string, unknown[]> } }) =>
-        streamOf([initMsg, assistantMsg, successResult]),
+    const fakeQuery = vi.fn((_args: { options?: { systemPrompt?: string; hooks?: Record<string, unknown[]> } }) =>
+      streamOf([initMsg, assistantMsg, successResult]),
     );
     const backend = createAgentSdkBackend({
       now: () => 0,
@@ -766,9 +701,7 @@ describe("createAgentSdkBackend", () => {
     try {
       // A never-resolving getContextUsage — only the bounded timeout can resolve the race.
       const getContextUsage = vi.fn(() => new Promise<never>(() => undefined));
-      const fakeQuery = vi.fn(() =>
-        queryOf([initMsg, assistantMsg, successResult], getContextUsage),
-      );
+      const fakeQuery = vi.fn(() => queryOf([initMsg, assistantMsg, successResult], getContextUsage));
       const backend = createAgentSdkBackend({
         now: () => 0,
         query: fakeQuery as never,
@@ -798,9 +731,7 @@ describe("createAgentSdkBackend", () => {
   });
 
   test("options.title is the chatId-derived METADATA label (orb:<chatId>), never the user's chat title", async () => {
-    const fakeQuery = vi.fn((_args: { options?: { title?: string } }) =>
-      streamOf([initMsg, assistantMsg, successResult]),
-    );
+    const fakeQuery = vi.fn((_args: { options?: { title?: string } }) => streamOf([initMsg, assistantMsg, successResult]));
     const backend = createAgentSdkBackend({
       now: () => 0,
       query: fakeQuery as never,

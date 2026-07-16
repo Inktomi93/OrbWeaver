@@ -16,12 +16,7 @@ export interface RailButtonProps {
   readonly onClick: () => void;
 }
 
-export function RailButton({
-  label,
-  icon,
-  active = false,
-  onClick,
-}: RailButtonProps): ReactElement {
+export function RailButton({ label, icon, active = false, onClick }: RailButtonProps): ReactElement {
   return (
     <Tooltip>
       <TooltipTrigger

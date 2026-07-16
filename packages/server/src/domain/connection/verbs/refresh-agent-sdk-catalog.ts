@@ -11,15 +11,10 @@ import { AgentSdkCatalogUnavailableError } from "../contract/errors";
 import type { RefreshCatalogParams } from "../contract/params";
 import type { AgentSdkCatalogSnapshot } from "../contract/results";
 import type { ConnectionService } from "../contract/service";
-import {
-  readAgentSdkCatalogSnapshot,
-  writeAgentSdkCatalogSnapshot,
-} from "../persistence/agent-sdk-catalog-snapshot";
+import { readAgentSdkCatalogSnapshot, writeAgentSdkCatalogSnapshot } from "../persistence/agent-sdk-catalog-snapshot";
 import { seedAgentSdkModelCache } from "../substrate/agent-sdk-model-cache";
 
-export function createRefreshAgentSdkCatalog(
-  ctx: ConnectionContext,
-): ConnectionService["refreshAgentSdkCatalog"] {
+export function createRefreshAgentSdkCatalog(ctx: ConnectionContext): ConnectionService["refreshAgentSdkCatalog"] {
   return async (params: RefreshCatalogParams): Promise<AgentSdkCatalogSnapshot> => {
     let models: AgentSdkCatalogSnapshot["models"];
     try {

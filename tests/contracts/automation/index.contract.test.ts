@@ -64,15 +64,9 @@ test("automationTriggerSchema discriminates on bus and refuses a cross-bus trigg
     type: "crew.keeperRan",
   });
   // The chat bus does not admit domain trigger names (and vice versa) — the db CHECK mirrors this.
-  expect(
-    automationTriggerSchema.safeParse({ bus: "chat", type: "character.updated" }).success,
-  ).toBe(false);
-  expect(
-    automationTriggerSchema.safeParse({ bus: "domain", type: "messageCommitted" }).success,
-  ).toBe(false);
-  expect(automationTriggerSchema.safeParse({ bus: "plugin", type: "chatOpened" }).success).toBe(
-    false,
-  );
+  expect(automationTriggerSchema.safeParse({ bus: "chat", type: "character.updated" }).success).toBe(false);
+  expect(automationTriggerSchema.safeParse({ bus: "domain", type: "messageCommitted" }).success).toBe(false);
+  expect(automationTriggerSchema.safeParse({ bus: "plugin", type: "chatOpened" }).success).toBe(false);
 });
 
 test("AUTOMATION_TRIGGER_BUSES mirrors the trigger union's discriminant set", () => {

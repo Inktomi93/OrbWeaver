@@ -9,12 +9,7 @@ import { fakeEnv, makeRunnerContext } from "../_support.ts";
 describe("assets-fsck runner", () => {
   test("returns the integrity report", async () => {
     const env = fakeEnv();
-    const result = await assetsFsckRunner(
-      makeRunnerContext(env),
-      {},
-      vi.fn(),
-      new AbortController().signal,
-    );
+    const result = await assetsFsckRunner(makeRunnerContext(env), {}, vi.fn(), new AbortController().signal);
     expect(env.assets.fsck).toHaveBeenCalledWith({ signal: expect.any(AbortSignal) });
     expect(result).toEqual({ danglingRows: 1, corruptBlobs: 0, orphanBlobs: 2 });
   });

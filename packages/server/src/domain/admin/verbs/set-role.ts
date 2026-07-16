@@ -28,16 +28,10 @@ export function createSetRole(ctx: AdminContext): AdminService["setRole"] {
       if (role === OWNER_ROLE) {
         return target;
       }
-      throw new DomainOperationError(
-        ADMIN_OP_CODES.cannotModifyOwner,
-        "the owner cannot be demoted",
-      );
+      throw new DomainOperationError(ADMIN_OP_CODES.cannotModifyOwner, "the owner cannot be demoted");
     }
     if (target.kind === AGENT_KIND) {
-      throw new DomainOperationError(
-        ADMIN_OP_CODES.cannotModifyAgent,
-        "an agent principal's role cannot be changed — its authority is the capability ceiling",
-      );
+      throw new DomainOperationError(ADMIN_OP_CODES.cannotModifyAgent, "an agent principal's role cannot be changed — its authority is the capability ceiling");
     }
     if (role === OWNER_ROLE) {
       throw new DomainConflictError("an owner already exists; ownership transfer is not supported");
@@ -52,10 +46,7 @@ export function createSetRole(ctx: AdminContext): AdminService["setRole"] {
       .returning(userCols);
     const row = updated[0];
     if (row === undefined) {
-      throw new DomainOperationError(
-        ADMIN_OP_CODES.cannotModifyOwner,
-        "the owner cannot be demoted",
-      );
+      throw new DomainOperationError(ADMIN_OP_CODES.cannotModifyOwner, "the owner cannot be demoted");
     }
 
     await ctx.audit(

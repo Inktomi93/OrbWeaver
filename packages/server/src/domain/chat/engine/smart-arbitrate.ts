@@ -47,16 +47,12 @@ const SYSTEM_PROMPT =
  * when NO character is eligible (the driver maps that to `no-eligible`). Single-eligible short-circuits.
  */
 export async function smartArbitrate(params: SmartArbitrateParams): Promise<SpeakerRef[]> {
-  const eligible = params.candidates.filter((c) =>
-    isArbiterEligible({ leftSeq: c.leftSeq, disabled: c.disabled }),
-  );
+  const eligible = params.candidates.filter((c) => isArbiterEligible({ leftSeq: c.leftSeq, disabled: c.disabled }));
   if (eligible.length === 0) {
     return [];
   }
   const nameByKey = new Map(params.castNames.map((n) => [speakerKey(n.ref), n.name] as const));
-  const eligibleNamed = eligible
-    .map((c) => ({ ref: c.ref, name: nameByKey.get(speakerKey(c.ref)) ?? "" }))
-    .filter((c) => c.name.length > 0);
+  const eligibleNamed = eligible.map((c) => ({ ref: c.ref, name: nameByKey.get(speakerKey(c.ref)) ?? "" })).filter((c) => c.name.length > 0);
   // Single eligible (or none has a resolvable name) — no LLM call needed (solo byte-identical).
   if (eligibleNamed.length <= 1) {
     return eligibleNamed.map((c) => c.ref);
@@ -120,10 +116,7 @@ function includesWholeWord(haystack: string, needle: string): boolean {
  *  case-insensitive; longest name first so a substring name can't pre-empt a longer one). Whole-word so an
  *  eligible name embedded in a longer word ("Ari" inside "Arianna") never false-positives (F9 — the header
  *  claimed whole-word; the impl was a bare substring). Null ⇒ no eligible name matched (→ caller falls back). */
-function matchEligible(
-  reply: string,
-  eligible: readonly { ref: SpeakerRef; name: string }[],
-): SpeakerRef | null {
+function matchEligible(reply: string, eligible: readonly { ref: SpeakerRef; name: string }[]): SpeakerRef | null {
   const haystack = reply.toLowerCase();
   const byLongest = [...eligible].sort((a, b) => b.name.length - a.name.length);
   for (const member of byLongest) {

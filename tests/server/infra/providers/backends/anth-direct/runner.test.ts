@@ -15,10 +15,7 @@ import type { AnthClient } from "@orb/server/infra/providers/backends/anth-direc
 import { runAnthDirectTurn } from "@orb/server/infra/providers/backends/anth-direct";
 import { describe, vi } from "vitest";
 import { anthEvent, anthStream } from "../../../../../support/factories/anth-wire.ts";
-import {
-  makeModelCapability,
-  makeOpenRouterCredential,
-} from "../../../../../support/factories/resolved-connection.ts";
+import { makeModelCapability, makeOpenRouterCredential } from "../../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../../support/fixtures";
 
 const MODEL = "anthropic/claude-opus-4-5";
@@ -126,9 +123,7 @@ describe("runAnthDirectTurn — the turn pipeline", () => {
       },
     };
     await expect(runAnthDirectTurn(failing, makeRequest(), DEPS)).rejects.toThrow(ProviderError);
-    const failTurn = infoSpy.mock.calls
-      .map((call) => call[0] as Record<string, unknown>)
-      .find((e) => e["event"] === "provider.turn" && e["ok"] === false);
+    const failTurn = infoSpy.mock.calls.map((call) => call[0] as Record<string, unknown>).find((e) => e["event"] === "provider.turn" && e["ok"] === false);
     expect(failTurn).toBeDefined();
     expect(failTurn?.["transport"]).toBe("direct");
     infoSpy.mockRestore();

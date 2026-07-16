@@ -14,25 +14,19 @@ import { z } from "zod";
 import { adminProcedure, t } from "../trpc";
 
 export const adminRouter = t.router({
-  listUsers: adminProcedure.query(({ ctx }) =>
-    ctx.services.admin.listUsers({ principal: ctx.auth }),
-  ),
+  listUsers: adminProcedure.query(({ ctx }) => ctx.services.admin.listUsers({ principal: ctx.auth })),
 
   setRole: adminProcedure
     .input(z.object({ userId: brandedId<UserId>(), role: userRoleSchema }))
-    .mutation(({ ctx, input }) =>
-      ctx.services.admin.setRole({ principal: ctx.auth, userId: input.userId, role: input.role }),
-    ),
+    .mutation(({ ctx, input }) => ctx.services.admin.setRole({ principal: ctx.auth, userId: input.userId, role: input.role })),
 
-  setEnabled: adminProcedure
-    .input(z.object({ userId: brandedId<UserId>(), enabled: z.boolean() }))
-    .mutation(({ ctx, input }) =>
-      ctx.services.admin.setEnabled({
-        principal: ctx.auth,
-        userId: input.userId,
-        enabled: input.enabled,
-      }),
-    ),
+  setEnabled: adminProcedure.input(z.object({ userId: brandedId<UserId>(), enabled: z.boolean() })).mutation(({ ctx, input }) =>
+    ctx.services.admin.setEnabled({
+      principal: ctx.auth,
+      userId: input.userId,
+      enabled: input.enabled,
+    }),
+  ),
 
   createUser: adminProcedure
     .input(
@@ -51,57 +45,43 @@ export const adminRouter = t.router({
       }),
     ),
 
-  resetPassword: adminProcedure
-    .input(z.object({ userId: brandedId<UserId>(), password: z.string().min(1) }))
-    .mutation(async ({ ctx, input }) => {
-      await ctx.services.admin.resetPassword({
-        principal: ctx.auth,
-        userId: input.userId,
-        password: input.password,
-      });
-      return { ok: true } as const;
-    }),
+  resetPassword: adminProcedure.input(z.object({ userId: brandedId<UserId>(), password: z.string().min(1) })).mutation(async ({ ctx, input }) => {
+    await ctx.services.admin.resetPassword({
+      principal: ctx.auth,
+      userId: input.userId,
+      password: input.password,
+    });
+    return { ok: true } as const;
+  }),
 
   listSessions: adminProcedure
     .input(z.object({ userId: brandedId<UserId>() }))
-    .query(({ ctx, input }) =>
-      ctx.services.admin.listSessions({ principal: ctx.auth, userId: input.userId }),
-    ),
+    .query(({ ctx, input }) => ctx.services.admin.listSessions({ principal: ctx.auth, userId: input.userId })),
 
-  revokeSession: adminProcedure
-    .input(z.object({ sessionId: brandedId<SessionId>() }))
-    .mutation(async ({ ctx, input }) => {
-      await ctx.services.admin.revokeSession({ principal: ctx.auth, sessionId: input.sessionId });
-      return { ok: true } as const;
-    }),
+  revokeSession: adminProcedure.input(z.object({ sessionId: brandedId<SessionId>() })).mutation(async ({ ctx, input }) => {
+    await ctx.services.admin.revokeSession({ principal: ctx.auth, sessionId: input.sessionId });
+    return { ok: true } as const;
+  }),
 
   revokeUserSessions: adminProcedure
     .input(z.object({ userId: brandedId<UserId>() }))
-    .mutation(({ ctx, input }) =>
-      ctx.services.admin.revokeUserSessions({ principal: ctx.auth, userId: input.userId }),
-    ),
+    .mutation(({ ctx, input }) => ctx.services.admin.revokeUserSessions({ principal: ctx.auth, userId: input.userId })),
 
   // PD-3 — vLLM ops surface (admin-gated; delegates to the injected supervisor port).
-  vllmEngines: adminProcedure.query(({ ctx }) =>
-    ctx.services.admin.vllmEngines({ principal: ctx.auth }),
-  ),
+  vllmEngines: adminProcedure.query(({ ctx }) => ctx.services.admin.vllmEngines({ principal: ctx.auth })),
 
   restartVllmEngine: adminProcedure
     .input(z.object({ engine: z.string().min(1) }))
-    .mutation(({ ctx, input }) =>
-      ctx.services.admin.restartVllmEngine({ principal: ctx.auth, engine: input.engine }),
-    ),
+    .mutation(({ ctx, input }) => ctx.services.admin.restartVllmEngine({ principal: ctx.auth, engine: input.engine })),
 
   // PD-90 — the inline single-card embed (adminProcedure, Tier-4 esoteric #10: only admins drive the GPU
   // embed engine inline; the bulk path is the admin-only index workload). The producer-ownership
   // check + the embeddings write live behind the AdminService verb (the composed EmbedProducerPort).
-  embedCharacterCard: adminProcedure
-    .input(z.object({ characterId: brandedId<CharacterId>() }))
-    .mutation(async ({ ctx, input }) => {
-      await ctx.services.admin.embedCharacterCard({
-        principal: ctx.auth,
-        characterId: input.characterId,
-      });
-      return { ok: true } as const;
-    }),
+  embedCharacterCard: adminProcedure.input(z.object({ characterId: brandedId<CharacterId>() })).mutation(async ({ ctx, input }) => {
+    await ctx.services.admin.embedCharacterCard({
+      principal: ctx.auth,
+      characterId: input.characterId,
+    });
+    return { ok: true } as const;
+  }),
 });

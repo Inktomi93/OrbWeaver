@@ -20,10 +20,7 @@ function sseBody(events: readonly Record<string, unknown>[]): string {
 }
 
 /** Serve `workloads.subscribe` a scripted stream; everything else falls through. Register AFTER routeTrpc. */
-async function routeWorkloadStream(
-  page: Page,
-  events: readonly Record<string, unknown>[],
-): Promise<void> {
+async function routeWorkloadStream(page: Page, events: readonly Record<string, unknown>[]): Promise<void> {
   let served = false;
   await page.route("**/api/trpc/**", async (route) => {
     const accept = route.request().headers()["accept"] ?? "";
@@ -41,10 +38,7 @@ async function routeWorkloadStream(
   });
 }
 
-test("export: a full selection downloads the whole library (no kinds param); unchecking one narrows it + keeps assets", async ({
-  mount,
-  page,
-}) => {
+test("export: a full selection downloads the whole library (no kinds param); unchecking one narrows it + keeps assets", async ({ mount, page }) => {
   await routeTrpc(page, {});
   let exportUrl: string | undefined;
   await page.route("**/api/export/library**", async (route) => {
@@ -78,10 +72,7 @@ test("export: a full selection downloads the whole library (no kinds param); unc
   expect(kinds.split(",")).toContain("assets");
 });
 
-test("import: dropping a .zip POSTs the bundle, tails the workload, and shows the count summary", async ({
-  mount,
-  page,
-}) => {
+test("import: dropping a .zip POSTs the bundle, tails the workload, and shows the count summary", async ({ mount, page }) => {
   await routeTrpc(page, {});
   let bundlePost: { method: string } | undefined;
   await page.route("**/api/import/bundle", async (route) => {

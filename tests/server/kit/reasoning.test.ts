@@ -72,8 +72,6 @@ describe("parseReasoningTags — the null contract (both tags required)", () => 
   });
 
   test("custom tags are matched literally (escaped — `[think]` is not a char class)", () => {
-    expect(
-      parseReasoningTags("[think]hmm[/think]done", { prefix: "[think]", suffix: "[/think]" }),
-    ).toEqual({ reasoning: "hmm", content: "done" });
+    expect(parseReasoningTags("[think]hmm[/think]done", { prefix: "[think]", suffix: "[/think]" })).toEqual({ reasoning: "hmm", content: "done" });
   });
 });

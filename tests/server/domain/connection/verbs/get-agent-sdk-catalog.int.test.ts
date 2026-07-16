@@ -4,10 +4,7 @@
 import { createConnectionService } from "@orb/server/domain/connection";
 import { afterEach, describe } from "vitest";
 import { writeAgentSdkCatalogSnapshot } from "../../../../../packages/server/src/domain/connection/persistence/agent-sdk-catalog-snapshot.ts";
-import {
-  __resetAgentSdkModelCache,
-  getCachedAgentSdkModels,
-} from "../../../../../packages/server/src/domain/connection/substrate/agent-sdk-model-cache.ts";
+import { __resetAgentSdkModelCache, getCachedAgentSdkModels } from "../../../../../packages/server/src/domain/connection/substrate/agent-sdk-model-cache.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
 import { makeAgentSdkModel, makeConnHarness } from "../_support.ts";

@@ -14,26 +14,13 @@ import { resolveTier0Range } from "../../../../../packages/server/src/domain/cha
 import { backfillMsgMidAt } from "../../../../../packages/server/src/domain/discovery/themes/backfill.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
-import {
-  FROZEN_AT,
-  makeDiscoveryHarness,
-  seedChatDigest,
-  seedChatSegment,
-  seedHostedChat,
-  seedMessage,
-  seedUser,
-  vec,
-} from "../_support.ts";
+import { FROZEN_AT, makeDiscoveryHarness, seedChatDigest, seedChatSegment, seedHostedChat, seedMessage, seedUser, vec } from "../_support.ts";
 
 // The same grid the composition root binds — the grounded floor config (fanOut 4).
-const tier0RangeOf = (tier: number, blockIdx: number): ReturnType<typeof resolveTier0Range> =>
-  resolveTier0Range(undefined, tier, blockIdx);
+const tier0RangeOf = (tier: number, blockIdx: number): ReturnType<typeof resolveTier0Range> => resolveTier0Range(undefined, tier, blockIdx);
 
 // Seed a theme cluster + assign a digest to it (msgMidAt starts null) — the row the backfill stamps.
-async function seedAssignedCluster(
-  db: Db,
-  args: { clusterId: string; ownerId: UserId; digestId: string; level?: string },
-): Promise<void> {
+async function seedAssignedCluster(db: Db, args: { clusterId: string; ownerId: UserId; digestId: string; level?: string }): Promise<void> {
   const id = castId<ThemeClusterId>(args.clusterId);
   await db.insert(themeClusters).values({
     id,
@@ -55,10 +42,7 @@ async function seedAssignedCluster(
 }
 
 // A tier-0 digest + its verbatim segment (same chatId/blockIdx) covering seq [seqStart, seqEnd].
-async function seedTier0Digest(
-  db: Db,
-  args: { id: string; chatId: ChatId; blockIdx: number; seqStart: number; seqEnd: number },
-): Promise<void> {
+async function seedTier0Digest(db: Db, args: { id: string; chatId: ChatId; blockIdx: number; seqStart: number; seqEnd: number }): Promise<void> {
   await seedChatDigest(db, {
     id: args.id,
     chatId: args.chatId,
@@ -86,7 +70,6 @@ async function msgMidAtOf(db: Db, digestId: string): Promise<number | null> {
   return rows[0]?.msgMidAt ?? null;
 }
 
-// biome-ignore lint/security/noSecrets: the verb name under test, not a secret (high-entropy false positive).
 describe("backfillMsgMidAt", () => {
   test("stamps the position-median message createdAt of the digest's seq-span", async () => {
     const db = await freshDb();
@@ -149,11 +132,7 @@ describe("backfillMsgMidAt", () => {
       digestId: "arc_1",
       level: "arc",
     });
-    await Promise.all(
-      Array.from({ length: 16 }, (_, seq) =>
-        seedMessage(db, { id: `m${seq}`, chatId: chat, seq, createdAt: 1000 + seq * 100 }),
-      ),
-    );
+    await Promise.all(Array.from({ length: 16 }, (_, seq) => seedMessage(db, { id: `m${seq}`, chatId: chat, seq, createdAt: 1000 + seq * 100 })));
 
     const stats = await backfillMsgMidAt(db, tier0RangeOf);
     expect(stats.stamped).toBe(1);

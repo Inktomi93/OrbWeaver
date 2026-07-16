@@ -16,11 +16,7 @@ const LAST_PERSONA_PROBE = 2;
 export function createRemove(ctx: PersonaContext): PersonaService["remove"] {
   return async ({ principal, personaId }: RemovePersonaParams) => {
     const ownerId = principal.userId;
-    const owned = await ctx.db
-      .select({ id: personas.id })
-      .from(personas)
-      .where(eq(personas.ownerId, ownerId))
-      .limit(LAST_PERSONA_PROBE);
+    const owned = await ctx.db.select({ id: personas.id }).from(personas).where(eq(personas.ownerId, ownerId)).limit(LAST_PERSONA_PROBE);
     if (owned.length === 1 && owned[0]?.id === personaId) {
       throw new LastPersonaError(personaId);
     }

@@ -11,10 +11,7 @@ import type { DuplicateCharacterPair, DuplicateChatPair, ThemeRow } from "./cont
 import type { DiscoveryService, ViewsDeps } from "./contract/service";
 import { computeCooccurrence as runComputeCooccurrence } from "./cooccurrence/generate";
 import { characterKeywords, cooccurringKeywords, topKeywords } from "./cooccurrence/retrieve";
-import {
-  computeChatDuplicatePairs as runComputeChatDuplicatePairs,
-  computeDuplicatePairs as runComputeDuplicatePairs,
-} from "./duplicates/generate";
+import { computeChatDuplicatePairs as runComputeChatDuplicatePairs, computeDuplicatePairs as runComputeDuplicatePairs } from "./duplicates/generate";
 import { readDuplicateCharacters, readDuplicateChats } from "./duplicates/retrieve";
 import { createImageAnalyticsFacets } from "./image-analytics/facets";
 import { createImageAnalyticsRetrieve } from "./image-analytics/retrieve";
@@ -48,12 +45,9 @@ export function createDiscoveryService(ctx: DiscoveryContext): DiscoveryService 
   // `similar` is the one CROSS-domain member — search's `similarCharacters`, narrowed to DossierNeighbor at
   // the entry root and threaded in via `ctx.similar` (discovery holds no search runtime).
   const viewsDeps: ViewsDeps = {
-    themes: (userId: UserId, level?: ThemeLevel): Promise<ThemeRow[]> =>
-      readThemes(ctx.db, userId, level),
-    duplicateCharacters: (userId: UserId): Promise<DuplicateCharacterPair[]> =>
-      readDuplicateCharacters(ctx.db, userId),
-    duplicateChats: (userId: UserId, opts?): Promise<DuplicateChatPair[]> =>
-      readDuplicateChats(ctx.db, userId, opts),
+    themes: (userId: UserId, level?: ThemeLevel): Promise<ThemeRow[]> => readThemes(ctx.db, userId, level),
+    duplicateCharacters: (userId: UserId): Promise<DuplicateCharacterPair[]> => readDuplicateCharacters(ctx.db, userId),
+    duplicateChats: (userId: UserId, opts?): Promise<DuplicateChatPair[]> => readDuplicateChats(ctx.db, userId, opts),
     similar: ctx.similar,
   };
   // catalog is built once so its `compareCharacters` can be injected into analyze (verb-to-verb value deps
@@ -94,10 +88,8 @@ export function createDiscoveryService(ctx: DiscoveryContext): DiscoveryService 
     ...createEconomicsInsights(ctx),
     computeCooccurrence: (opts) => runComputeCooccurrence(ctx.db, coocDeps, opts),
     topKeywords: (userId, opts) => topKeywords(ctx.db, userId, opts),
-    cooccurringKeywords: (userId, keyword, limit) =>
-      cooccurringKeywords(ctx.db, userId, keyword, limit),
-    characterKeywords: (userId, characterId, limit) =>
-      characterKeywords(ctx.db, userId, characterId, limit),
+    cooccurringKeywords: (userId, keyword, limit) => cooccurringKeywords(ctx.db, userId, keyword, limit),
+    characterKeywords: (userId, characterId, limit) => characterKeywords(ctx.db, userId, characterId, limit),
     ...createComputeHubScores(ctx),
   };
 }

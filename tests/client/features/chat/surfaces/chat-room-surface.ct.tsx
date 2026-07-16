@@ -49,10 +49,7 @@ const ROSTER_STUB = {
   }),
 };
 
-test("a seeded draft renders the founding greeting as an editable row + the live composer, no CANON read", async ({
-  mount,
-  page,
-}) => {
+test("a seeded draft renders the founding greeting as an editable row + the live composer, no CANON read", async ({ mount, page }) => {
   let listMessagesCalls = 0;
   await routeTrpc(page, {
     "chat.listMessages": () => {
@@ -77,10 +74,7 @@ test("a seeded draft renders the founding greeting as an editable row + the live
   expect(listMessagesCalls).toBe(0);
 });
 
-test("a committed chat reads canon and renders the rows beside the composer", async ({
-  mount,
-  page,
-}) => {
+test("a committed chat reads canon and renders the rows beside the composer", async ({ mount, page }) => {
   await routeTrpc(page, {
     "chat.listMessages": () => makeMessagesPage(CANON),
     ...ROSTER_STUB,
@@ -101,16 +95,10 @@ test("a committed chat reads canon and renders the rows beside the composer", as
 // delivered (empty stream), so the ONLY thing that could refetch `listMessages` after the initial read is
 // the mutation itself. It doesn't. A regression re-adding `invalidates` to the send mutation (or dropping
 // `busDriven`) makes this count 2 and the test goes red — the "one send fired the list 4-5×" storm.
-test("a committed send adds NO invalidation of its own — the list refetch is bus-only (busDriven)", async ({
-  mount,
-  page,
-}) => {
+test("a committed send adds NO invalidation of its own — the list refetch is bus-only (busDriven)", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     // The committed room reads its transcript ONCE (the list + the composer's tail-gate share the key).
-    "chat.listMessages": () =>
-      makeMessagesPage([
-        makeMessageView({ id: castId<MessageId>("msg_room_user"), role: "user", content: "Ping?" }),
-      ]),
+    "chat.listMessages": () => makeMessagesPage([makeMessageView({ id: castId<MessageId>("msg_room_user"), role: "user", content: "Ping?" })]),
     // `send` resolves immediately (the turn's effect is bus-driven; the value is never read back).
     "chat.send": () => null,
     ...ROSTER_STUB,
@@ -158,18 +146,13 @@ test("a committed send adds NO invalidation of its own — the list refetch is b
 // section's `content()` → `ChatContent` → `ChatRoomSurface`/`MessageRow` anchor-consumer path (this file's
 // own `chat-room-surface.tsx`, and `message-row.tsx` for `message-footer`).
 
-test("a fake thread-flank contribution appears beside the thread (the flank column activates)", async ({
-  mount,
-  page,
-}) => {
+test("a fake thread-flank contribution appears beside the thread (the flank column activates)", async ({ mount, page }) => {
   // Wide content width — comfortably above the @max-lg (32rem/512px) stack threshold, so the flank
   // row's container query resolves to the beside (row) layout.
   await page.setViewportSize({ width: 1024, height: 600 });
   await routeTrpc(page, { ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage(CANON) });
 
-  const component = await mount(
-    <ChatSurfaceContributorStory anchor="thread-flank" visible={true} />,
-  );
+  const component = await mount(<ChatSurfaceContributorStory anchor="thread-flank" visible={true} />);
 
   await expect(component.getByTestId("ct-fake-surface-contribution")).toBeVisible();
   await expect(component.getByText("fake thread-flank")).toBeVisible();
@@ -177,15 +160,10 @@ test("a fake thread-flank contribution appears beside the thread (the flank colu
   await expect(flankRow).toHaveCSS("flex-direction", "row");
 });
 
-test("a fake thread-flank contribution with `when:false` renders NO flank column (today's layout, unchanged)", async ({
-  mount,
-  page,
-}) => {
+test("a fake thread-flank contribution with `when:false` renders NO flank column (today's layout, unchanged)", async ({ mount, page }) => {
   await routeTrpc(page, { ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage(CANON) });
 
-  const component = await mount(
-    <ChatSurfaceContributorStory anchor="thread-flank" visible={false} />,
-  );
+  const component = await mount(<ChatSurfaceContributorStory anchor="thread-flank" visible={false} />);
 
   await expect(component.getByTestId("ct-fake-surface-contribution")).toHaveCount(0);
   await expect(page.locator('[data-slot="chat-thread-flank"]')).toHaveCount(0);
@@ -196,18 +174,13 @@ test("a fake thread-flank contribution with `when:false` renders NO flank column
 // crushes the thread's reading column at narrow content width. Proven via a CONTAINER query (the
 // chat-content region's own inline size), NOT a viewport media query — the flank stacks below the
 // thread instead.
-test("a fake thread-flank contribution STACKS below the thread at narrow content width (no crushed reading column)", async ({
-  mount,
-  page,
-}) => {
+test("a fake thread-flank contribution STACKS below the thread at narrow content width (no crushed reading column)", async ({ mount, page }) => {
   // Below the @max-lg (32rem/512px) container-query threshold — the flank row must switch to
   // column, keeping the thread at full (readable) width instead of splitting it with the flank.
   await page.setViewportSize({ width: 400, height: 600 });
   await routeTrpc(page, { ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage(CANON) });
 
-  const component = await mount(
-    <ChatSurfaceContributorStory anchor="thread-flank" visible={true} />,
-  );
+  const component = await mount(<ChatSurfaceContributorStory anchor="thread-flank" visible={true} />);
 
   // The flank is NOT hidden — it renders stacked, not dropped.
   await expect(component.getByTestId("ct-fake-surface-contribution")).toBeVisible();
@@ -215,15 +188,10 @@ test("a fake thread-flank contribution STACKS below the thread at narrow content
   await expect(flankRow).toHaveCSS("flex-direction", "column");
 });
 
-test("a fake above-composer contribution appears between the selection bar slot and the composer", async ({
-  mount,
-  page,
-}) => {
+test("a fake above-composer contribution appears between the selection bar slot and the composer", async ({ mount, page }) => {
   await routeTrpc(page, { ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage(CANON) });
 
-  const component = await mount(
-    <ChatSurfaceContributorStory anchor="above-composer" visible={true} />,
-  );
+  const component = await mount(<ChatSurfaceContributorStory anchor="above-composer" visible={true} />);
 
   await expect(component.getByTestId("ct-fake-surface-contribution")).toBeVisible();
 });
@@ -231,22 +199,15 @@ test("a fake above-composer contribution appears between the selection bar slot 
 test("a fake above-composer contribution's `when:false` hides it", async ({ mount, page }) => {
   await routeTrpc(page, { ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage(CANON) });
 
-  const component = await mount(
-    <ChatSurfaceContributorStory anchor="above-composer" visible={false} />,
-  );
+  const component = await mount(<ChatSurfaceContributorStory anchor="above-composer" visible={false} />);
 
   await expect(component.getByTestId("ct-fake-surface-contribution")).toHaveCount(0);
 });
 
-test("a fake message-footer contribution renders under a COMMITTED message row", async ({
-  mount,
-  page,
-}) => {
+test("a fake message-footer contribution renders under a COMMITTED message row", async ({ mount, page }) => {
   await routeTrpc(page, { ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage(CANON) });
 
-  const component = await mount(
-    <ChatSurfaceContributorStory anchor="message-footer" visible={true} />,
-  );
+  const component = await mount(<ChatSurfaceContributorStory anchor="message-footer" visible={true} />);
 
   // One footer per COMMITTED row (CANON has 2 messages) — proves the anchor mounts PER-ROW, not once.
   const footers = component.getByTestId("ct-fake-surface-contribution");
@@ -254,15 +215,10 @@ test("a fake message-footer contribution renders under a COMMITTED message row",
   await expect(footers.first()).toBeVisible();
 });
 
-test("a fake message-footer contribution's `when:false` hides it on the row", async ({
-  mount,
-  page,
-}) => {
+test("a fake message-footer contribution's `when:false` hides it on the row", async ({ mount, page }) => {
   await routeTrpc(page, { ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage(CANON) });
 
-  const component = await mount(
-    <ChatSurfaceContributorStory anchor="message-footer" visible={false} />,
-  );
+  const component = await mount(<ChatSurfaceContributorStory anchor="message-footer" visible={false} />);
 
   await expect(component.getByTestId("ct-fake-surface-contribution")).toHaveCount(0);
 });

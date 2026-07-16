@@ -18,10 +18,7 @@ export interface SettingsSearchEntry {
 }
 
 /** Build the whole search index from the registry's definitions (`when`-visible entries only). */
-export function buildSettingsSearchEntries(
-  registry: SettingsPaneRegistry,
-  isVisible: (categoryId: string) => boolean,
-): readonly SettingsSearchEntry[] {
+export function buildSettingsSearchEntries(registry: SettingsPaneRegistry, isVisible: (categoryId: string) => boolean): readonly SettingsSearchEntry[] {
   const entries: SettingsSearchEntry[] = [];
   for (const pane of registry.list()) {
     if (!isVisible(pane.id)) {

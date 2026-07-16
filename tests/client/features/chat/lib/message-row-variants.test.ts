@@ -15,11 +15,7 @@ import { expect, test } from "../../../../support/fixtures";
 
 /** A `bubbleDecoration` argument builder — the two no-image FALLBACK fields (`hueSeed`/`initial`, the
  *  owner-ruled first-class tile inputs) default to fixed test values; a case overrides what it asserts. */
-function decoArgs(
-  kind: BubbleDecorationArgs["kind"],
-  avatarHash: string | null,
-  extra?: Partial<BubbleDecorationArgs>,
-): BubbleDecorationArgs {
+function decoArgs(kind: BubbleDecorationArgs["kind"], avatarHash: string | null, extra?: Partial<BubbleDecorationArgs>): BubbleDecorationArgs {
   return { kind, avatarHash, hueSeed: "char_alice", initial: "AL", ...extra };
 }
 
@@ -110,9 +106,7 @@ test("whisper's stripe always paints (speaker-color chrome); the header band is 
   // No background-image on the bubble's OWN style — the art lives on the headerBand's style instead (a
   // real block child, never a layer on the bubble's own message-length-dependent box — the squish fix).
   expect(characterDecoration?.style?.backgroundImage).toBeUndefined();
-  expect(characterDecoration?.headerBand?.style.backgroundImage).toContain(
-    "/api/blob/x?v=banner&w=",
-  );
+  expect(characterDecoration?.headerBand?.style.backgroundImage).toContain("/api/blob/x?v=banner&w=");
   // A fixed height drifted the box aspect off 3:1 as the fluid bubble width changed — the band is now
   // an aspect-ratio box so its height derives from width and always matches the server's 3:1 crop.
   expect(characterDecoration?.headerBand?.style.aspectRatio).toBe("var(--aspect-banner)");
@@ -122,9 +116,7 @@ test("whisper's stripe always paints (speaker-color chrome); the header band is 
 
 test("whisper's no-image character band is the first-class FALLBACK tile (hue field + initial), not a bare stripe", () => {
   const whisper = MESSAGE_ROW_SKINS.whisper;
-  const fallback = whisper.bubbleDecoration?.(
-    decoArgs("character", null, { hueSeed: "char_alice" }),
-  );
+  const fallback = whisper.bubbleDecoration?.(decoArgs("character", null, { hueSeed: "char_alice" }));
   // The stripe still paints AND a band now renders (the mode no longer collapses to a bare stripe for an
   // imageless character) — at the SAME 3:1 geometry as the imaged band.
   expect(fallback?.style?.borderTopColor).toBe("var(--color-speaker)");
@@ -138,8 +130,6 @@ test("whisper's no-image character band is the first-class FALLBACK tile (hue fi
 test("hush's stripe paints for every kind (chrome, not portrait art — not hide-user-portrait's concern)", () => {
   const hush = MESSAGE_ROW_SKINS.hush;
   for (const kind of ["character", "persona", null] as const) {
-    expect(hush.bubbleDecoration?.(decoArgs(kind, null))?.style?.borderLeftColor).toBe(
-      "var(--color-speaker)",
-    );
+    expect(hush.bubbleDecoration?.(decoArgs(kind, null))?.style?.borderLeftColor).toBe("var(--color-speaker)");
   }
 });

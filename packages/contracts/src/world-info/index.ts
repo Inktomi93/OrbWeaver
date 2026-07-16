@@ -51,16 +51,14 @@ export type EntryMetadata = z.infer<typeof entryMetadataSchema>;
 
 /** Write-side metadata guard: stays a lenient open record (unknown keys ride through), but the
  *  load-bearing fields are validated when present — a typo'd `scopeMode`/`inject` rejects at WRITE. */
-export const entryMetadataWriteSchema = z
-  .record(z.string(), z.unknown())
-  .superRefine((val, ctx): void => {
-    const known = entryMetadataSchema.safeParse(val);
-    if (!known.success) {
-      for (const issue of known.error.issues) {
-        ctx.addIssue({ code: "custom", message: issue.message, path: issue.path });
-      }
+export const entryMetadataWriteSchema = z.record(z.string(), z.unknown()).superRefine((val, ctx): void => {
+  const known = entryMetadataSchema.safeParse(val);
+  if (!known.success) {
+    for (const issue of known.error.issues) {
+      ctx.addIssue({ code: "custom", message: issue.message, path: issue.path });
     }
-  });
+  }
+});
 
 export const createEntrySchema = z.object({
   title: z.string().min(1).max(NAME_MAX),

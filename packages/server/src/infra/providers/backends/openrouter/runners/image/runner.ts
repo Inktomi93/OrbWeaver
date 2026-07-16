@@ -11,25 +11,9 @@
 // data-URL (the common hosted shape); a Uint8Array is encoded as a `data:image/png;base64,…` URL (the mime
 // is assumed png — OR sniffs the actual bytes). A bare filesystem path is NOT read here.
 
-import type {
-  ChatMessages,
-  ChatRequest,
-  ChatStreamChunk,
-  ChatResult as SdkChatResult,
-} from "@openrouter/sdk/models";
-import type {
-  ContentImageURL,
-  CreateEmbeddingsRequestBody,
-  CreateEmbeddingsResponse,
-  Input,
-} from "@openrouter/sdk/models/operations";
-import type {
-  GeneratedImage,
-  ImageEmbedRequest,
-  ImageEmbedResult,
-  ImageGenerateRequest,
-  ImageGenerateResult,
-} from "../../../../contract";
+import type { ChatMessages, ChatRequest, ChatStreamChunk, ChatResult as SdkChatResult } from "@openrouter/sdk/models";
+import type { ContentImageURL, CreateEmbeddingsRequestBody, CreateEmbeddingsResponse, Input } from "@openrouter/sdk/models/operations";
+import type { GeneratedImage, ImageEmbedRequest, ImageEmbedResult, ImageGenerateRequest, ImageGenerateResult } from "../../../../contract";
 import { ProviderError } from "../../../../contract";
 import { providerErrorFromHttp } from "../../../kit";
 
@@ -101,20 +85,14 @@ function embedErrorPrefix(model: string): string {
  * Run a joint image/text embedding via the multimodal embeddings input. Fail-closes (typed `server`) on a
  * non-JSON body or an empty vector set; carries `model` back as the shared-space provenance.
  */
-export async function runImageEmbed(
-  client: OrImageEmbedClient,
-  req: ImageEmbedRequest,
-): Promise<ImageEmbedResult> {
+export async function runImageEmbed(client: OrImageEmbedClient, req: ImageEmbedRequest): Promise<ImageEmbedResult> {
   const requestBody: CreateEmbeddingsRequestBody = {
     model: req.model,
     input: buildEmbedInput(req),
   };
   let response: CreateEmbeddingsResponse;
   try {
-    response = await client.embeddings.generate(
-      { requestBody },
-      req.signal !== undefined ? { signal: req.signal } : undefined,
-    );
+    response = await client.embeddings.generate({ requestBody }, req.signal !== undefined ? { signal: req.signal } : undefined);
   } catch (err) {
     throw providerErrorFromHttp(err, embedErrorPrefix(req.model));
   }
@@ -150,10 +128,7 @@ function parseGeneratedImage(url: string): GeneratedImage {
   }
   const semicolon = url.indexOf(";");
   const comma = url.indexOf(",");
-  const mediaType =
-    semicolon > DATA_URL_PREFIX.length
-      ? url.slice(DATA_URL_PREFIX.length, semicolon)
-      : DEFAULT_IMAGE_MEDIA_TYPE;
+  const mediaType = semicolon > DATA_URL_PREFIX.length ? url.slice(DATA_URL_PREFIX.length, semicolon) : DEFAULT_IMAGE_MEDIA_TYPE;
   const base64 = comma >= 0 ? url.slice(comma + 1) : "";
   return { url: undefined, base64, mediaType };
 }
@@ -175,10 +150,7 @@ function buildGenMessages(req: ImageGenerateRequest): ChatMessages[] {
  * Run a text→image generation as a chat turn with image modality. Reads the generated images off the
  * assistant message; fail-closes (typed `server`) when none are returned or the call unexpectedly streamed.
  */
-export async function runGenerateImage(
-  client: OrImageGenClient,
-  req: ImageGenerateRequest,
-): Promise<ImageGenerateResult> {
+export async function runGenerateImage(client: OrImageGenClient, req: ImageGenerateRequest): Promise<ImageGenerateResult> {
   const chatRequest: ChatRequest = {
     model: req.model,
     messages: buildGenMessages(req),
@@ -187,10 +159,7 @@ export async function runGenerateImage(
   };
   let result: SdkChatResult | AsyncIterable<ChatStreamChunk>;
   try {
-    result = await client.chat.send(
-      { chatRequest },
-      req.signal !== undefined ? { signal: req.signal } : undefined,
-    );
+    result = await client.chat.send({ chatRequest }, req.signal !== undefined ? { signal: req.signal } : undefined);
   } catch (err) {
     throw providerErrorFromHttp(err, genErrorPrefix(req.model));
   }
@@ -201,9 +170,7 @@ export async function runGenerateImage(
       message: `${genErrorPrefix(req.model)}: expected a non-streaming image response`,
     });
   }
-  const images = (result.choices.at(0)?.message.images ?? []).map((entry) =>
-    parseGeneratedImage(entry.imageUrl.url),
-  );
+  const images = (result.choices.at(0)?.message.images ?? []).map((entry) => parseGeneratedImage(entry.imageUrl.url));
   if (images.length === 0) {
     throw new ProviderError({
       kind: "server",

@@ -21,11 +21,7 @@ import { useFocusOnMount } from "#lib";
 import { clearWorldEntrySelection, selectWorldEntry, useSelectedWorldEntryId } from "#state";
 import { BookDetailsDialog } from "../components/book-details-dialog";
 import { EntryEditor } from "../components/entry-editor";
-import {
-  useBackfillWorldTitles,
-  useCreateWorldEntry,
-  useUpdateWorldBook,
-} from "../hooks/use-world-info-mutations";
+import { useBackfillWorldTitles, useCreateWorldEntry, useUpdateWorldBook } from "../hooks/use-world-info-mutations";
 
 const NEW_ENTRY_TITLE = "New entry";
 const NEW_ENTRY_CONTENT = "New lore.";
@@ -40,11 +36,7 @@ export function WorldInfoEditorSurface({ bookId }: WorldInfoEditorSurfaceProps):
   useFocusOnMount(surfaceRef);
 
   return (
-    <Stack
-      ref={surfaceRef}
-      tabIndex={-1}
-      className="h-full min-h-0 overflow-y-auto overflow-x-hidden outline-none"
-    >
+    <Stack ref={surfaceRef} tabIndex={-1} className="h-full min-h-0 overflow-y-auto overflow-x-hidden outline-none">
       <QueryBoundary
         fallback={<Text tone="muted">Loading the book…</Text>}
         renderError={(_error, retry): ReactElement => (
@@ -77,18 +69,13 @@ function BookEditor({ bookId }: { readonly bookId: WorldBookId }): ReactElement 
   const selectedEntry = entries.find((e) => e.id === selectedEntryId) ?? null;
 
   const onCreate = (): void => {
-    void create
-      .mutateAsync({ bookId, input: { title: NEW_ENTRY_TITLE, content: NEW_ENTRY_CONTENT } })
-      .then((created) => selectWorldEntry(created.id));
+    void create.mutateAsync({ bookId, input: { title: NEW_ENTRY_TITLE, content: NEW_ENTRY_CONTENT } }).then((created) => selectWorldEntry(created.id));
   };
 
   const onBackfill = (): void => {
     void backfill.mutateAsync({ bookId }).then(({ filled }) =>
       toast.add({
-        title:
-          filled === 0
-            ? "No blank titles to fill"
-            : `Filled ${filled} title${filled === 1 ? "" : "s"}`,
+        title: filled === 0 ? "No blank titles to fill" : `Filled ${filled} title${filled === 1 ? "" : "s"}`,
       }),
     );
   };
@@ -98,12 +85,7 @@ function BookEditor({ bookId }: { readonly bookId: WorldBookId }): ReactElement 
     return (
       <Stack gap="block" className="min-h-0">
         <Row gap="field" align="center" padding="block" className="pb-0">
-          <Button
-            intent="ghost"
-            size="sm"
-            onClick={(): void => clearWorldEntrySelection()}
-            aria-label="Back to entries"
-          >
+          <Button intent="ghost" size="sm" onClick={(): void => clearWorldEntrySelection()} aria-label="Back to entries">
             <Icon icon={ArrowLeft} size="sm" />
             Entries
           </Button>
@@ -120,18 +102,13 @@ function BookEditor({ bookId }: { readonly bookId: WorldBookId }): ReactElement 
           <Text size="label" weight="medium">
             {book.name}
           </Text>
-          {book.description ? (
+          {book.description !== null && book.description !== "" ? (
             <Text size="body" tone="muted">
               {book.description}
             </Text>
           ) : null}
         </Stack>
-        <Button
-          intent="ghost"
-          size="sm"
-          onClick={(): void => setDetailsOpen(true)}
-          aria-label="Edit book details"
-        >
+        <Button intent="ghost" size="sm" onClick={(): void => setDetailsOpen(true)} aria-label="Edit book details">
           <Icon icon={Pencil} size="sm" />
         </Button>
       </Row>
@@ -141,12 +118,7 @@ function BookEditor({ bookId }: { readonly bookId: WorldBookId }): ReactElement 
           {entries.length === 1 ? "1 entry" : `${entries.length} entries`}
         </Text>
         <Row gap="field" align="center">
-          <Button
-            intent="ghost"
-            size="sm"
-            onClick={onBackfill}
-            disabled={backfill.isPending || entries.length === 0}
-          >
+          <Button intent="ghost" size="sm" onClick={onBackfill} disabled={backfill.isPending || entries.length === 0}>
             Backfill titles
           </Button>
           <Button intent="primary" size="sm" onClick={onCreate} disabled={create.isPending}>
@@ -187,13 +159,7 @@ function BookEditor({ bookId }: { readonly bookId: WorldBookId }): ReactElement 
 }
 
 /** One entry row in the book overview — title · a keyword/always summary · an enabled/disabled badge. */
-function EntryRow({
-  entry,
-  onSelect,
-}: {
-  readonly entry: EntryView;
-  readonly onSelect: (id: WorldEntryId) => void;
-}): ReactElement {
+function EntryRow({ entry, onSelect }: { readonly entry: EntryView; readonly onSelect: (id: WorldEntryId) => void }): ReactElement {
   const keys = entry.keys ?? [];
   const summary = keys.length === 0 ? "Always" : keys.join(", ");
   return (

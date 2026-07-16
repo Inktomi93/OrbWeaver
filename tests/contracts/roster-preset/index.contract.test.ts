@@ -1,8 +1,4 @@
-import {
-  applyRosterPresetResultSchema,
-  rosterPresetSummarySchema,
-  rosterPresetViewSchema,
-} from "@orb/contracts/roster-preset";
+import { applyRosterPresetResultSchema, rosterPresetSummarySchema, rosterPresetViewSchema } from "@orb/contracts/roster-preset";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "../../support/fixtures";
 

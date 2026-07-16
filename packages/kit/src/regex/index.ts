@@ -11,14 +11,7 @@ import { processMacros } from "#macro";
 
 /** Where in the pipeline a script runs. `DISPLAY` is frontend-only (render-time); the rest are
  *  prompt-side legs. */
-export const REGEX_PLACEMENTS = [
-  "USER_INPUT",
-  "AI_OUTPUT",
-  "SLASH_COMMAND",
-  "WORLD_INFO",
-  "REASONING",
-  "DISPLAY",
-] as const;
+export const REGEX_PLACEMENTS = ["USER_INPUT", "AI_OUTPUT", "SLASH_COMMAND", "WORLD_INFO", "REASONING", "DISPLAY"] as const;
 
 export type RegexPlacement = (typeof REGEX_PLACEMENTS)[number];
 
@@ -90,17 +83,10 @@ const REGEX_MACRO_ESCAPES: Readonly<Record<string, string>> = {
   "\0": "\\0",
 };
 function sanitizeRegexMacro(value: string): string {
-  return value.replace(
-    /[\n\r\t\v\f\0.^$*+?{}[\]\\/|()]/gs,
-    (char) => REGEX_MACRO_ESCAPES[char] ?? `\\${char}`,
-  );
+  return value.replace(/[\n\r\t\v\f\0.^$*+?{}[\]\\/|()]/gs, (char) => REGEX_MACRO_ESCAPES[char] ?? `\\${char}`);
 }
 
-function filterString(
-  rawString: string,
-  trimStrings: readonly string[],
-  ctx: ProcessMacroOptions,
-): string {
+function filterString(rawString: string, trimStrings: readonly string[], ctx: ProcessMacroOptions): string {
   let finalString = rawString;
   for (const trimString of trimStrings) {
     if (!trimString) {
@@ -189,7 +175,7 @@ function resolveDollarToken(token: DollarToken, splice: SpliceContext): string {
     matchText = splice.namedGroups?.[token.name];
   }
 
-  if (!matchText) {
+  if (matchText === undefined || matchText === "") {
     return "";
   }
 
@@ -204,11 +190,7 @@ function resolveDollarToken(token: DollarToken, splice: SpliceContext): string {
 // ORDERING IS LOAD-BEARING: macros run on the replacement template FIRST, then `$N`/`$<name>`/
 // {{match}} are spliced with the raw captured text — so an AI_OUTPUT script re-emitting a model
 // reply containing `{{setvar::x::y}}` can never mutate persisted chat vars on the way through.
-function buildReplacement(
-  args: readonly unknown[],
-  script: RegexScriptInput,
-  ctx: ProcessMacroOptions,
-): string {
+function buildReplacement(args: readonly unknown[], script: RegexScriptInput, ctx: ProcessMacroOptions): string {
   const lastArg = args.at(-1);
   const namedGroups = isNamedGroups(lastArg) ? lastArg : undefined;
   const captureCount = args.length - REPLACE_FIXED_ARGS - (namedGroups ? 1 : 0);
@@ -220,10 +202,8 @@ function buildReplacement(
   replacement = replacement.replace(/{{match}}/gi, "$0");
 
   // `$$` matched first so `$(\d+)` can't consume the second `$` of an escape.
-  return replacement.replace(
-    /\$\$|\$(\d+)|\$<([^>]+)>/g,
-    (full: string, num: string | undefined, name: string | undefined): string =>
-      resolveDollarToken({ full, num, name }, { args, captureCount, namedGroups, script, ctx }),
+  return replacement.replace(/\$\$|\$(\d+)|\$<([^>]+)>/g, (full: string, num: string | undefined, name: string | undefined): string =>
+    resolveDollarToken({ full, num, name }, { args, captureCount, namedGroups, script, ctx }),
   );
 }
 
@@ -278,10 +258,10 @@ export function executeRegexScripts(args: ExecuteRegexScriptsArgs): string {
       continue;
     }
     // markdownOnly is display-only (skip non-DISPLAY); promptOnly skips DISPLAY.
-    if (script.markdownOnly && placement !== "DISPLAY") {
+    if (script.markdownOnly === true && placement !== "DISPLAY") {
       continue;
     }
-    if (script.promptOnly && placement === "DISPLAY") {
+    if (script.promptOnly === true && placement === "DISPLAY") {
       continue;
     }
 

@@ -28,11 +28,9 @@ export interface ResolveRowRenderPolicyInput {
 export function resolveRowRenderPolicy(input: ResolveRowRenderPolicyInput): RowRenderPolicy {
   const { role, authorUserId, characterId, viewerUserId, participants } = input;
 
-  const policy: RenderPolicy =
-    (characterId === null ? undefined : participants?.get(characterId)?.renderPolicy) ?? SAFE_FLOOR;
+  const policy: RenderPolicy = (characterId === null ? undefined : participants?.get(characterId)?.renderPolicy) ?? SAFE_FLOOR;
 
-  const isOwnUserMessage =
-    role === "user" && authorUserId !== null && authorUserId === viewerUserId;
+  const isOwnUserMessage = role === "user" && authorUserId !== null && authorUserId === viewerUserId;
 
   const trust: RenderTrust = isOwnUserMessage || policy.trustHtml ? "trusted" : "untrusted";
   return { trust, allowExternal: !policy.forbidExternalMedia };

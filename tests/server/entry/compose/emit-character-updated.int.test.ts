@@ -40,10 +40,7 @@ describe("emit-character-updated — seated-chat fan + departed/non-seat isolati
 
     // ONLY the present-seat chats (A + B), each as a `chatUpdated` carrying that chatId. Order-insensitive.
     expect(new Set(captured.map((e) => JSON.stringify(e)))).toEqual(
-      new Set([
-        JSON.stringify({ type: "chatUpdated", chatId: chatA }),
-        JSON.stringify({ type: "chatUpdated", chatId: chatB }),
-      ]),
+      new Set([JSON.stringify({ type: "chatUpdated", chatId: chatA }), JSON.stringify({ type: "chatUpdated", chatId: chatB })]),
     );
   });
 

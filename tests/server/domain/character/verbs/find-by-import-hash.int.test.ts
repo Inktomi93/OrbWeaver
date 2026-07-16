@@ -9,7 +9,6 @@ import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
 import { makeHarness, principal, seedRawCharacter, seedUser } from "../_support.ts";
 
-// biome-ignore lint/security/noSecrets: the verb name, not a credential (high-entropy false positive).
 describe("findByImportHash", () => {
   test("returns the owner's character carrying the hash", async () => {
     const db = await freshDb();

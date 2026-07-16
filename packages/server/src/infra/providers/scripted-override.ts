@@ -55,9 +55,7 @@ function parseReplies(spec: string): readonly string[] {
   }
   try {
     const parsed = JSON.parse(spec.slice(TAPE_PREFIX.length)) as { readonly replies?: unknown };
-    const replies = Array.isArray(parsed.replies)
-      ? parsed.replies.filter((reply): reply is string => typeof reply === "string")
-      : [];
+    const replies = Array.isArray(parsed.replies) ? parsed.replies.filter((reply): reply is string => typeof reply === "string") : [];
     return replies.length > 0 ? replies : [FALLBACK_REPLY];
   } catch {
     return [FALLBACK_REPLY];
@@ -66,17 +64,13 @@ function parseReplies(spec: string): readonly string[] {
 
 /** Build a `runChatTurn`-shaped function that replays canned replies instead of calling a model. The spec
  *  is injected by `entry/` (read from `env.RUNNER_OVERRIDE` there); this seam never touches `process.env`. */
-export function buildScriptedOverrideRunner(
-  spec: string,
-): (req: ChatRequest) => Promise<ChatResult> {
+export function buildScriptedOverrideRunner(spec: string): (req: ChatRequest) => Promise<ChatResult> {
   const replies = parseReplies(spec);
   let cursor = 0;
 
   return (req: ChatRequest): Promise<ChatResult> => {
     if (req.signal?.aborted === true) {
-      return Promise.reject(
-        new ProviderError({ kind: "aborted", retryable: false, message: "scripted abort" }),
-      );
+      return Promise.reject(new ProviderError({ kind: "aborted", retryable: false, message: "scripted abort" }));
     }
     // `cursor % length` cycles the tape; the `??` is a defensive floor (length ≥ 1 always holds).
     const reply = replies[cursor % replies.length] ?? FALLBACK_REPLY;

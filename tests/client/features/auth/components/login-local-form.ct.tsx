@@ -17,20 +17,14 @@ test("pre-fills the handle and gates submit on a non-empty password", async ({ m
   await expect(page.getByTestId("login-submit")).toBeEnabled();
 });
 
-test("discreet login (null defaultHandle) starts blank — and an empty handle keeps submit disabled", async ({
-  mount,
-  page,
-}) => {
+test("discreet login (null defaultHandle) starts blank — and an empty handle keeps submit disabled", async ({ mount, page }) => {
   await mount(<LoginLocalFormStory defaultHandle={null} />);
   await expect(page.getByTestId("login-handle")).toHaveValue("");
   await page.getByTestId("login-password").fill("hunter22");
   await expect(page.getByTestId("login-submit")).toBeDisabled();
 });
 
-test("a refused login renders the server's generic error and stays on the form", async ({
-  mount,
-  page,
-}) => {
+test("a refused login renders the server's generic error and stays on the form", async ({ mount, page }) => {
   await page.route("**/api/auth/login", (route) =>
     route.fulfill({
       status: 401,
@@ -45,10 +39,7 @@ test("a refused login renders the server's generic error and stays on the form",
   await expect(page.getByTestId("login-submit")).toBeEnabled(); // recoverable — not stuck pending
 });
 
-test("a successful login posts an urlencoded credential form and fires onLoggedIn", async ({
-  mount,
-  page,
-}) => {
+test("a successful login posts an urlencoded credential form and fires onLoggedIn", async ({ mount, page }) => {
   let postedBody = "";
   await page.route("**/api/auth/login", (route) => {
     postedBody = route.request().postData() ?? "";
@@ -63,7 +54,5 @@ test("a successful login posts an urlencoded credential form and fires onLoggedI
   await page.getByTestId("login-submit").click();
   await expect(page.getByTestId("ct-logged-in")).toBeVisible();
   // The server route parses a FORM body (`parseBody`) — a JSON post would silently 400.
-  expect(postedBody).toBe(
-    new URLSearchParams({ handle: "owner", password: "hunter22" }).toString(),
-  );
+  expect(postedBody).toBe(new URLSearchParams({ handle: "owner", password: "hunter22" }).toString());
 });

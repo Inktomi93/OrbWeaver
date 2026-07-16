@@ -18,27 +18,8 @@ import type { ParticipantKind } from "@orb/contracts/chat";
 import type { DomainEvent } from "@orb/contracts/events";
 import type { ParticipantRole, Principal, UserRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
-import {
-  assets,
-  characters,
-  chatParticipants,
-  chats,
-  messageAssets,
-  messages,
-  personas,
-} from "@orb/db";
-import type {
-  AssetId,
-  CharacterId,
-  ChatId,
-  ChatParticipantId,
-  GalleryItemId,
-  Handle,
-  MessageAssetId,
-  MessageId,
-  PersonaId,
-  UserId,
-} from "@orb/kit/ids";
+import { assets, characters, chatParticipants, chats, messageAssets, messages, personas } from "@orb/db";
+import type { AssetId, CharacterId, ChatId, ChatParticipantId, GalleryItemId, Handle, MessageAssetId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createCas, createVariantCache } from "@orb/server/infra/storage";
 import { and, eq, inArray, isNull } from "drizzle-orm";
@@ -82,9 +63,7 @@ export async function makeHarness(db: Db): Promise<AssetsHarness> {
   const cas = createCas(casDir);
   const variants = createVariantCache(variantDir);
   const emitted: DomainEvent[] = [];
-  const imageTransform: Mock<AssetsContext["imageTransform"]> = vi.fn<
-    AssetsContext["imageTransform"]
-  >(() => Promise.resolve(FAKE_WEBP));
+  const imageTransform: Mock<AssetsContext["imageTransform"]> = vi.fn<AssetsContext["imageTransform"]>(() => Promise.resolve(FAKE_WEBP));
   const ctx: AssetsContext = {
     db,
     cas,
@@ -117,22 +96,8 @@ export async function makeHarness(db: Db): Promise<AssetsHarness> {
         .select({ ownerId: assets.ownerId })
         .from(assets)
         .innerJoin(characters, eq(characters.avatarAssetId, assets.id))
-        .innerJoin(
-          rosterChar,
-          and(
-            eq(rosterChar.characterId, characters.id),
-            eq(rosterChar.kind, "character"),
-            isNull(rosterChar.leftSeq),
-          ),
-        )
-        .innerJoin(
-          callerSeat,
-          and(
-            eq(callerSeat.chatId, rosterChar.chatId),
-            eq(callerSeat.userId, callerId),
-            isNull(callerSeat.leftSeq),
-          ),
-        )
+        .innerJoin(rosterChar, and(eq(rosterChar.characterId, characters.id), eq(rosterChar.kind, "character"), isNull(rosterChar.leftSeq)))
+        .innerJoin(callerSeat, and(eq(callerSeat.chatId, rosterChar.chatId), eq(callerSeat.userId, callerId), isNull(callerSeat.leftSeq)))
         .where(eq(assets.hash, hash))
         .limit(1);
       if (characterRows[0] !== undefined) {
@@ -145,21 +110,10 @@ export async function makeHarness(db: Db): Promise<AssetsHarness> {
         .select({ ownerId: assets.ownerId })
         .from(assets)
         .innerJoin(personas, eq(personas.avatarAssetId, assets.id))
-        .innerJoin(
-          personaSeat,
-          and(
-            eq(personaSeat.activePersonaId, personas.id),
-            eq(personaSeat.kind, "human"),
-            isNull(personaSeat.leftSeq),
-          ),
-        )
+        .innerJoin(personaSeat, and(eq(personaSeat.activePersonaId, personas.id), eq(personaSeat.kind, "human"), isNull(personaSeat.leftSeq)))
         .innerJoin(
           personaCallerSeat,
-          and(
-            eq(personaCallerSeat.chatId, personaSeat.chatId),
-            eq(personaCallerSeat.userId, callerId),
-            isNull(personaCallerSeat.leftSeq),
-          ),
+          and(eq(personaCallerSeat.chatId, personaSeat.chatId), eq(personaCallerSeat.userId, callerId), isNull(personaCallerSeat.leftSeq)),
         )
         .where(eq(assets.hash, hash))
         .limit(1);
@@ -177,21 +131,10 @@ export async function makeHarness(db: Db): Promise<AssetsHarness> {
         .from(assets)
         .innerJoin(messageAssets, eq(messageAssets.assetId, assets.id))
         .innerJoin(messages, eq(messages.id, messageAssets.messageId))
-        .innerJoin(
-          attachCallerSeat,
-          and(
-            eq(attachCallerSeat.chatId, messages.chatId),
-            eq(attachCallerSeat.userId, callerId),
-            isNull(attachCallerSeat.leftSeq),
-          ),
-        )
+        .innerJoin(attachCallerSeat, and(eq(attachCallerSeat.chatId, messages.chatId), eq(attachCallerSeat.userId, callerId), isNull(attachCallerSeat.leftSeq)))
         .innerJoin(
           attachOwnerSeat,
-          and(
-            eq(attachOwnerSeat.chatId, messages.chatId),
-            eq(attachOwnerSeat.userId, assets.ownerId),
-            isNull(attachOwnerSeat.leftSeq),
-          ),
+          and(eq(attachOwnerSeat.chatId, messages.chatId), eq(attachOwnerSeat.userId, assets.ownerId), isNull(attachOwnerSeat.leftSeq)),
         )
         .where(eq(assets.hash, hash))
         .limit(1);
@@ -211,22 +154,8 @@ export async function makeHarness(db: Db): Promise<AssetsHarness> {
         .from(assets)
         .innerJoin(messageAssets, eq(messageAssets.assetId, assets.id))
         .innerJoin(messages, eq(messages.id, messageAssets.messageId))
-        .innerJoin(
-          callerSeat,
-          and(
-            eq(callerSeat.chatId, messages.chatId),
-            eq(callerSeat.userId, callerId),
-            isNull(callerSeat.leftSeq),
-          ),
-        )
-        .innerJoin(
-          ownerSeat,
-          and(
-            eq(ownerSeat.chatId, messages.chatId),
-            eq(ownerSeat.userId, assets.ownerId),
-            isNull(ownerSeat.leftSeq),
-          ),
-        )
+        .innerJoin(callerSeat, and(eq(callerSeat.chatId, messages.chatId), eq(callerSeat.userId, callerId), isNull(callerSeat.leftSeq)))
+        .innerJoin(ownerSeat, and(eq(ownerSeat.chatId, messages.chatId), eq(ownerSeat.userId, assets.ownerId), isNull(ownerSeat.leftSeq)))
         .where(and(eq(messages.chatId, forChatId), inArray(assets.id, [...assetIds])));
       return rows;
     },
@@ -263,11 +192,7 @@ export async function seedUser(db: Db, overrides: SeedUserOverrides = {}): Promi
 
 /** Build a Principal for a given user id + role (cookie-resolved by default). Delegates to the shared
  *  `support/factories/principal` — assets keeps its existing positional `(id, role, handle?)` convention. */
-export function principal(
-  userId: UserId,
-  role: UserRole = "user",
-  handle: string = userId,
-): Principal {
+export function principal(userId: UserId, role: UserRole = "user", handle: string = userId): Principal {
   return makePrincipal(userId, { role, handle: castId<Handle>(handle) });
 }
 
@@ -304,11 +229,7 @@ interface SeedCharacterOverrides {
 
 /** Insert a minimal `characters` row owned by `ownerId` (the gallery `subjectCharacterId` FK target).
  *  Only the notNull/no-default columns are supplied. Returns the branded id. */
-export async function seedCharacter(
-  db: Db,
-  ownerId: UserId,
-  overrides: SeedCharacterOverrides = {},
-): Promise<CharacterId> {
+export async function seedCharacter(db: Db, ownerId: UserId, overrides: SeedCharacterOverrides = {}): Promise<CharacterId> {
   const id = castId<CharacterId>(overrides.id ?? `character_${overrides.handle ?? "x"}`);
   await db.insert(characters).values({
     id,
@@ -341,12 +262,7 @@ interface SeedParticipantOverrides {
 /** Insert a `chat_participants` row of the given `kind` (human/agent → userId, character → characterId).
  *  Supports the multi-human / multi-character / departed-member rosters the `seedChat` factory's single
  *  `withHost`/`withCharacter` opt-ins can't express (PD-107 needs those). */
-export async function seedParticipant(
-  db: Db,
-  chatId: ChatId,
-  kind: ParticipantKind,
-  overrides: SeedParticipantOverrides = {},
-): Promise<void> {
+export async function seedParticipant(db: Db, chatId: ChatId, kind: ParticipantKind, overrides: SeedParticipantOverrides = {}): Promise<void> {
   await db.insert(chatParticipants).values({
     id: castId<ChatParticipantId>(overrides.id ?? `chat_participant_${kind}_${chatId}`),
     chatId,
@@ -362,11 +278,7 @@ export async function seedParticipant(
 }
 
 /** Point a character's `avatarAssetId` at a stored asset id (the D21 reference the check gates on). */
-export async function setCharacterAvatar(
-  db: Db,
-  characterId: CharacterId,
-  avatarAssetId: AssetId,
-): Promise<void> {
+export async function setCharacterAvatar(db: Db, characterId: CharacterId, avatarAssetId: AssetId): Promise<void> {
   await db.update(characters).set({ avatarAssetId }).where(eq(characters.id, characterId));
 }
 
@@ -377,11 +289,7 @@ interface SeedPersonaOverrides {
 
 /** Insert a minimal `personas` row owned by `ownerId` (the PD-107 persona-sibling reference-check target).
  *  Only the notNull/no-default columns are supplied. Returns the branded id. */
-export async function seedPersona(
-  db: Db,
-  ownerId: UserId,
-  overrides: SeedPersonaOverrides = {},
-): Promise<PersonaId> {
+export async function seedPersona(db: Db, ownerId: UserId, overrides: SeedPersonaOverrides = {}): Promise<PersonaId> {
   const id = castId<PersonaId>(overrides.id ?? `persona_${overrides.name ?? "x"}`);
   await db.insert(personas).values({
     id,
@@ -393,21 +301,13 @@ export async function seedPersona(
 }
 
 /** Point a persona's `avatarAssetId` at a stored asset id (the D21 reference the check gates on). */
-export async function setPersonaAvatar(
-  db: Db,
-  personaId: PersonaId,
-  avatarAssetId: AssetId,
-): Promise<void> {
+export async function setPersonaAvatar(db: Db, personaId: PersonaId, avatarAssetId: AssetId): Promise<void> {
   await db.update(personas).set({ avatarAssetId }).where(eq(personas.id, personaId));
 }
 
 /** Insert a minimal `messages` row (the #67 attachment structural reference — a `message_assets` row FKs to
  *  it). Only the notNull/no-default columns are supplied (id, chatId, seq, role). Returns the branded id. */
-export async function seedMessage(
-  db: Db,
-  chatId: ChatId,
-  overrides: { readonly id?: string; readonly seq?: number } = {},
-): Promise<MessageId> {
+export async function seedMessage(db: Db, chatId: ChatId, overrides: { readonly id?: string; readonly seq?: number } = {}): Promise<MessageId> {
   const id = castId<MessageId>(overrides.id ?? `message_${chatId}`);
   await db.insert(messages).values({ id, chatId, seq: overrides.seq ?? 0, role: "user" });
   return id;
@@ -415,12 +315,7 @@ export async function seedMessage(
 
 /** Insert a `message_assets` row — the STRUCTURAL chat-message ↔ asset link the #67 co-participant render
  *  gate keys on (an asset is renderable in a chat ONLY when it has one of these for a message in that chat). */
-export async function seedMessageAsset(
-  db: Db,
-  messageId: MessageId,
-  assetId: AssetId,
-  id?: string,
-): Promise<void> {
+export async function seedMessageAsset(db: Db, messageId: MessageId, assetId: AssetId, id?: string): Promise<void> {
   await db.insert(messageAssets).values({
     id: castId<MessageAssetId>(id ?? `message_asset_${messageId}_${assetId}`),
     messageId,

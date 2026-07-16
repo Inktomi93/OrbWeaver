@@ -1,11 +1,4 @@
-import {
-  cosineDistance,
-  cosineSim,
-  cosineToMany,
-  l2Normalize,
-  mean,
-  pairwiseCosine,
-} from "@orb/kit/vector-math";
+import { cosineDistance, cosineSim, cosineToMany, l2Normalize, mean, pairwiseCosine } from "@orb/kit/vector-math";
 import { expect, test } from "../../support/fixtures";
 
 const v = (...xs: number[]): Float32Array => Float32Array.from(xs);

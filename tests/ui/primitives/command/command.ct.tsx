@@ -25,24 +25,15 @@ test("groups render with their headings", async ({ mount, page }) => {
 
 test("the first reachable item is highlighted by default", async ({ mount, page }) => {
   await mount(<CommandPaletteStory />);
-  await expect(page.getByRole("option", { name: "report.md" })).toHaveAttribute(
-    "aria-selected",
-    "true",
-  );
+  await expect(page.getByRole("option", { name: "report.md" })).toHaveAttribute("aria-selected", "true");
 });
 
-test("ArrowDown moves the highlight, Enter selects the highlighted item", async ({
-  mount,
-  page,
-}) => {
+test("ArrowDown moves the highlight, Enter selects the highlighted item", async ({ mount, page }) => {
   await mount(<CommandPaletteStory />);
   const input = page.getByRole("combobox");
   await input.click();
   await input.press("ArrowDown");
-  await expect(page.getByRole("option", { name: "readme.md" })).toHaveAttribute(
-    "aria-selected",
-    "true",
-  );
+  await expect(page.getByRole("option", { name: "readme.md" })).toHaveAttribute("aria-selected", "true");
   await input.press("Enter");
   await expect(page.getByTestId("selected")).toHaveText("readme.md");
 });
@@ -53,20 +44,14 @@ test("disabled items are skipped by keyboard nav and ignore clicks", async ({ mo
   await input.click();
   await input.press("End");
   // "Delete file" is disabled — End must land on the last REACHABLE item, "Create file".
-  await expect(page.getByRole("option", { name: "Create file" })).toHaveAttribute(
-    "aria-selected",
-    "true",
-  );
+  await expect(page.getByRole("option", { name: "Create file" })).toHaveAttribute("aria-selected", "true");
   const deleteItem = page.getByRole("option", { name: "Delete file" });
   await expect(deleteItem).toHaveAttribute("aria-disabled", "true");
   await deleteItem.click({ force: true });
   await expect(page.getByTestId("selected")).toHaveText("");
 });
 
-test("Escape reaches the caller via onEscape without closing anything itself", async ({
-  mount,
-  page,
-}) => {
+test("Escape reaches the caller via onEscape without closing anything itself", async ({ mount, page }) => {
   await mount(<CommandPaletteStory />);
   const input = page.getByRole("combobox");
   await input.click();
@@ -108,10 +93,7 @@ test("the live status region announces the filtered result count", async ({ moun
   await expect(status).toHaveText("1 result");
 });
 
-test("combobox/listbox ARIA wiring is wired (input <-> list association)", async ({
-  mount,
-  page,
-}) => {
+test("combobox/listbox ARIA wiring is wired (input <-> list association)", async ({ mount, page }) => {
   await mount(<CommandPaletteStory />);
   const input = page.getByRole("combobox");
   const list = page.getByRole("listbox");
@@ -131,10 +113,7 @@ test("the root wears the popover token", async ({ mount, page }) => {
   await expect(root).toHaveCSS("background-color", TOKENS["color.popover"].value);
 });
 
-test("filters correctly when the parent re-renders and passes a freshly-DERIVED item array (the real consumer shape)", async ({
-  mount,
-  page,
-}) => {
+test("filters correctly when the parent re-renders and passes a freshly-DERIVED item array (the real consumer shape)", async ({ mount, page }) => {
   const cmp = await mount(<DerivedItemsStory />);
   const rerender = cmp.getByTestId("rerender");
   await rerender.click();

@@ -2,14 +2,7 @@
 // Two floor origins: env-mirrored fields read foundation/env, born-in-DB fields read a code floor only an
 // admin override moves. Pure (no I/O, no cache) — cache + reload live in cache.ts.
 
-import type {
-  AppSettings,
-  EffectiveAppConfig,
-  RateLimits,
-  ResolvedRateLimits,
-  ResolvedVllmConcurrency,
-  VllmConcurrency,
-} from "@orb/contracts/settings";
+import type { AppSettings, EffectiveAppConfig, RateLimits, ResolvedRateLimits, ResolvedVllmConcurrency, VllmConcurrency } from "@orb/contracts/settings";
 import {
   DEFAULT_ALLOW_NON_OWNER_LOCAL_COMPUTE,
   DEFAULT_ALLOW_NON_OWNER_MAX_PRO_SUB,
@@ -66,10 +59,8 @@ export function layer(overrides: AppSettings): EffectiveAppConfig {
     memorySummarizer: overrides.memorySummarizer ?? {},
     rateLimits: resolveRateLimits(overrides.rateLimits),
     vllmConcurrency: resolveVllmConcurrency(overrides.vllmConcurrency),
-    allowNonOwnerLocalCompute:
-      overrides.allowNonOwnerLocalCompute ?? DEFAULT_ALLOW_NON_OWNER_LOCAL_COMPUTE,
-    nonOwnerLocalComputeBudget:
-      overrides.nonOwnerLocalComputeBudget ?? NON_OWNER_LOCAL_COMPUTE_BUDGET_FLOOR,
+    allowNonOwnerLocalCompute: overrides.allowNonOwnerLocalCompute ?? DEFAULT_ALLOW_NON_OWNER_LOCAL_COMPUTE,
+    nonOwnerLocalComputeBudget: overrides.nonOwnerLocalComputeBudget ?? NON_OWNER_LOCAL_COMPUTE_BUDGET_FLOOR,
     allowNonOwnerMaxProSub: overrides.allowNonOwnerMaxProSub ?? DEFAULT_ALLOW_NON_OWNER_MAX_PRO_SUB,
     maxImageBytes: overrides.maxImageBytes ?? DEFAULT_MAX_IMAGE_BYTES,
     localMultiUser: overrides.localMultiUser ?? DEFAULT_LOCAL_MULTI_USER,

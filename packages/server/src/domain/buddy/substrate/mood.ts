@@ -2,14 +2,7 @@
 // archetype form). SIGNAL_MOOD is a full Record<BuddySignalKind, Mood> (a new signal kind fails tsc);
 // SIGNAL_STAT is intentionally partial (not every signal grows a stat).
 
-import type {
-  BondTier,
-  CompanionForm,
-  CompanionStats,
-  Mood,
-  Stage,
-  StatName,
-} from "@orb/contracts/buddy";
+import type { BondTier, CompanionForm, CompanionStats, Mood, Stage, StatName } from "@orb/contracts/buddy";
 import { BOND_THRESHOLDS, FORMS, MOOD_PRIORITY, STAGE_THRESHOLDS } from "@orb/contracts/buddy";
 import type { BuddySignalKind } from "../contract/signals";
 
@@ -45,12 +38,7 @@ const MOOD_HOLD_MS = 120_000;
 
 /** A higher-or-equal priority candidate always wins; a lower one is held off while current is fresh
  *  (a failure's anxious survives a routine content a moment later) and accepted once stale. */
-export function resolveMood(
-  current: Mood,
-  candidate: Mood,
-  lastReactionAt: number | null,
-  now: number,
-): Mood {
+export function resolveMood(current: Mood, candidate: Mood, lastReactionAt: number | null, now: number): Mood {
   if (lastReactionAt === null) {
     return candidate;
   }

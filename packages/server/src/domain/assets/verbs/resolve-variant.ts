@@ -15,12 +15,7 @@ import { snapBannerWidth, snapBlobWidth, snapPortraitWidth } from "../substrate/
 const WEBP = "webp";
 
 /** The `icon` ladder: width-only, any source aspect (the pre-existing behavior, untouched). */
-async function resolveIconVariant(
-  ctx: AssetsContext,
-  ownerId: UserId,
-  hash: string,
-  width: number,
-): Promise<Uint8Array | undefined> {
+async function resolveIconVariant(ctx: AssetsContext, ownerId: UserId, hash: string, width: number): Promise<Uint8Array | undefined> {
   const snapped = snapBlobWidth(width);
   if (snapped === undefined) {
     return;
@@ -44,12 +39,7 @@ async function resolveIconVariant(
 }
 
 /** The `portrait` ladder: 2:3 smart-cropped (`fit:'cover', position:'attention'` — face-safe, §B.4). */
-async function resolvePortraitVariant(
-  ctx: AssetsContext,
-  ownerId: UserId,
-  hash: string,
-  width: number,
-): Promise<Uint8Array | undefined> {
+async function resolvePortraitVariant(ctx: AssetsContext, ownerId: UserId, hash: string, width: number): Promise<Uint8Array | undefined> {
   const size = snapPortraitWidth(width);
   if (size === undefined) {
     return;
@@ -79,12 +69,7 @@ async function resolvePortraitVariant(
 }
 
 /** The `banner` ladder: 3:1 smart-cropped. Same shape as {@link resolvePortraitVariant}, a different fixed aspect. */
-async function resolveBannerVariant(
-  ctx: AssetsContext,
-  ownerId: UserId,
-  hash: string,
-  width: number,
-): Promise<Uint8Array | undefined> {
+async function resolveBannerVariant(ctx: AssetsContext, ownerId: UserId, hash: string, width: number): Promise<Uint8Array | undefined> {
   const size = snapBannerWidth(width);
   if (size === undefined) {
     return;
@@ -113,12 +98,7 @@ async function resolveBannerVariant(
   return variant;
 }
 
-type VariantResolver = (
-  ctx: AssetsContext,
-  ownerId: UserId,
-  hash: string,
-  width: number,
-) => Promise<Uint8Array | undefined>;
+type VariantResolver = (ctx: AssetsContext, ownerId: UserId, hash: string, width: number) => Promise<Uint8Array | undefined>;
 
 /** Exhaustive `kind` → resolver dispatch: a 4th `VariantKind` member fails `tsc` here. */
 const VARIANT_RESOLVERS: Record<VariantKind, VariantResolver> = {

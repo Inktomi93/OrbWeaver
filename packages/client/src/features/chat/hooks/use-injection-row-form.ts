@@ -31,9 +31,7 @@ const DEFAULT_INJECTION_FORM: InjectionFormValues = {
 
 /** An injection's editable fields → the row form's edit shape. Accepts either a persisted `ChatInjection`
  *  OR a draft `ChatInjectionInput` — only the source-agnostic subset (`id`/`order` are server-owned). */
-export function toInjectionForm(
-  injection: Pick<ChatInjection, "position" | "role" | "depth" | "content">,
-): InjectionFormValues {
+export function toInjectionForm(injection: Pick<ChatInjection, "position" | "role" | "depth" | "content">): InjectionFormValues {
   return {
     position: injection.position,
     role: injection.role,
@@ -45,9 +43,7 @@ export function toInjectionForm(
 /** The row form's edit shape → the injection's editable fields (position/role cast back from the bound
  *  `SelectField`'s string; empty `depth` → 0). The save target for BOTH the committed `setChatInjection`
  *  (spread + the row id) and the draft array (a valid `ChatInjectionInput` on its own). */
-export function fromInjectionForm(
-  values: InjectionFormValues,
-): Pick<ChatInjection, "position" | "role" | "depth" | "content"> {
+export function fromInjectionForm(values: InjectionFormValues): Pick<ChatInjection, "position" | "role" | "depth" | "content"> {
   return {
     position: values.position as ChatInjection["position"],
     role: values.role as MessageRole,

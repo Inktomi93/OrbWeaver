@@ -57,9 +57,7 @@ function isViewMode(v: unknown): v is CharacterViewMode {
   return typeof v === "string" && (CHARACTER_VIEW_MODES as readonly string[]).includes(v);
 }
 function toTagFilter(v: unknown): readonly TagId[] {
-  return Array.isArray(v)
-    ? v.filter((x): x is string => typeof x === "string").map((x) => castId<TagId>(x))
-    : [];
+  return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string").map((x) => castId<TagId>(x)) : [];
 }
 
 // TOTAL migrate: any unknown/corrupt persisted shape degrades field-by-field to the default (never throws).
@@ -79,21 +77,22 @@ function migrate(persisted: unknown, _version: number): CharacterLibraryState {
   };
 }
 
-const useCharacterLibraryStore = createPersistedStore<
-  CharacterLibraryState,
-  PersistedCharacterLibraryState
->("character-library", (): CharacterLibraryState => DEFAULT_STATE, {
-  version: PERSIST_VERSION,
-  migrate,
-  partialize: (s): PersistedCharacterLibraryState => ({
-    sortMode: s.sortMode,
-    viewMode: s.viewMode,
-    favoritesOnly: s.favoritesOnly,
-    showArchived: s.showArchived,
-    tagFilter: s.tagFilter,
-    spoilerBlur: s.spoilerBlur,
-  }),
-});
+const useCharacterLibraryStore = createPersistedStore<CharacterLibraryState, PersistedCharacterLibraryState>(
+  "character-library",
+  (): CharacterLibraryState => DEFAULT_STATE,
+  {
+    version: PERSIST_VERSION,
+    migrate,
+    partialize: (s): PersistedCharacterLibraryState => ({
+      sortMode: s.sortMode,
+      viewMode: s.viewMode,
+      favoritesOnly: s.favoritesOnly,
+      showArchived: s.showArchived,
+      tagFilter: s.tagFilter,
+      spoilerBlur: s.spoilerBlur,
+    }),
+  },
+);
 
 export function setCharacterSortMode(sortMode: CharacterListSort): void {
   useCharacterLibraryStore.setState({ sortMode }, false, "character-library/setSort");
@@ -102,25 +101,15 @@ export function setCharacterViewMode(viewMode: CharacterViewMode): void {
   useCharacterLibraryStore.setState({ viewMode }, false, "character-library/setViewMode");
 }
 export function toggleFavoritesOnly(): void {
-  useCharacterLibraryStore.setState(
-    (s) => ({ favoritesOnly: !s.favoritesOnly }),
-    false,
-    "character-library/toggleFavoritesOnly",
-  );
+  useCharacterLibraryStore.setState((s) => ({ favoritesOnly: !s.favoritesOnly }), false, "character-library/toggleFavoritesOnly");
 }
 export function toggleShowArchived(): void {
-  useCharacterLibraryStore.setState(
-    (s) => ({ showArchived: !s.showArchived }),
-    false,
-    "character-library/toggleShowArchived",
-  );
+  useCharacterLibraryStore.setState((s) => ({ showArchived: !s.showArchived }), false, "character-library/toggleShowArchived");
 }
 export function toggleTagFilter(tagId: TagId): void {
   useCharacterLibraryStore.setState(
     (s) => ({
-      tagFilter: s.tagFilter.includes(tagId)
-        ? s.tagFilter.filter((id) => id !== tagId)
-        : [...s.tagFilter, tagId],
+      tagFilter: s.tagFilter.includes(tagId) ? s.tagFilter.filter((id) => id !== tagId) : [...s.tagFilter, tagId],
     }),
     false,
     "character-library/toggleTagFilter",
@@ -133,11 +122,7 @@ export function setBulkMode(bulkMode: boolean): void {
   useCharacterLibraryStore.setState({ bulkMode }, false, "character-library/setBulkMode");
 }
 export function toggleSpoilerBlur(): void {
-  useCharacterLibraryStore.setState(
-    (s) => ({ spoilerBlur: !s.spoilerBlur }),
-    false,
-    "character-library/toggleSpoilerBlur",
-  );
+  useCharacterLibraryStore.setState((s) => ({ spoilerBlur: !s.spoilerBlur }), false, "character-library/toggleSpoilerBlur");
 }
 
 export function useCharacterSortMode(): CharacterListSort {

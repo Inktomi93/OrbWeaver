@@ -3,13 +3,7 @@
 // TC39 private-field brand check). Also asserts an instrumented `execute` opens a `db.execute` child span
 // that lands in the request's trace.
 
-import {
-  getTraceByRequestId,
-  initTracing,
-  recordThrownRequest,
-  withRequestSpan,
-  wrapLibSqlClient,
-} from "@orb/server/foundation/observability";
+import { getTraceByRequestId, initTracing, recordThrownRequest, withRequestSpan, wrapLibSqlClient } from "@orb/server/foundation/observability";
 import { describe } from "vitest";
 import { expect, test } from "../../../support/fixtures";
 
@@ -34,8 +28,7 @@ describe("the libSQL client wrap", () => {
     initTracing();
     const requestId = "tracing-exec-req";
     const client = {
-      execute: (_sql: string): Promise<{ rows: unknown[]; rowsAffected: number }> =>
-        Promise.resolve({ rows: [{}], rowsAffected: 0 }),
+      execute: (_sql: string): Promise<{ rows: unknown[]; rowsAffected: number }> => Promise.resolve({ rows: [{}], rowsAffected: 0 }),
     };
     const wrapped = wrapLibSqlClient(client);
 

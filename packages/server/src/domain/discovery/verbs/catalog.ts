@@ -8,34 +8,21 @@ import { characterSummaries, characters } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { and, desc, eq, isNotNull, sql } from "drizzle-orm";
 import type { DiscoveryContext } from "../context";
-import type {
-  CatalogStats,
-  CharacterComparison,
-  ComparedCharacter,
-  FacetCount,
-  TagCount,
-  TagPair,
-} from "../contract/results";
+import type { CatalogStats, CharacterComparison, ComparedCharacter, FacetCount, TagCount, TagPair } from "../contract/results";
 import type { DiscoveryService } from "../contract/service";
 
 const TOP_TAGS_LIMIT = 40;
 const TAG_PAIRS_LIMIT = 30;
 const TAG_PAIR_MIN = 2;
 
-export function createCatalog(
-  ctx: DiscoveryContext,
-): Pick<DiscoveryService, "catalog" | "compareCharacters"> {
+export function createCatalog(ctx: DiscoveryContext): Pick<DiscoveryService, "catalog" | "compareCharacters"> {
   return {
     catalog: (userId) => catalog(ctx.db, userId),
     compareCharacters: (userId, idA, idB) => compareCharacters(ctx.db, userId, idA, idB),
   };
 }
 
-async function facetCounts(
-  db: Db,
-  ownerId: UserId,
-  col: typeof characterSummaries.genre | typeof characterSummaries.tone,
-): Promise<FacetCount[]> {
+async function facetCounts(db: Db, ownerId: UserId, col: typeof characterSummaries.genre | typeof characterSummaries.tone): Promise<FacetCount[]> {
   const rows = await db
     .select({ value: col, count: sql<number>`count(*)` })
     .from(characterSummaries)
@@ -47,10 +34,7 @@ async function facetCounts(
 }
 
 async function catalog(db: Db, ownerId: UserId): Promise<CatalogStats> {
-  const [genres, tones] = await Promise.all([
-    facetCounts(db, ownerId, characterSummaries.genre),
-    facetCounts(db, ownerId, characterSummaries.tone),
-  ]);
+  const [genres, tones] = await Promise.all([facetCounts(db, ownerId, characterSummaries.genre), facetCounts(db, ownerId, characterSummaries.tone)]);
   // json_each unnests the JSON tag arrays; lower() folds distill case-dups ("NSFW"/"nsfw").
   const topTags = await db.all<TagCount>(sql`
     SELECT lower(je.value) AS tag, COUNT(*) AS count
@@ -75,11 +59,7 @@ async function catalog(db: Db, ownerId: UserId): Promise<CatalogStats> {
   return { genres, tones, topTags, tagPairs, totalDistilled: totalRows[0]?.count ?? 0 };
 }
 
-async function comparedCard(
-  db: Db,
-  ownerId: UserId,
-  characterId: CharacterId,
-): Promise<{ card: ComparedCharacter; tags: Set<string> } | undefined> {
+async function comparedCard(db: Db, ownerId: UserId, characterId: CharacterId): Promise<{ card: ComparedCharacter; tags: Set<string> } | undefined> {
   const rows = await db
     .select({
       characterId: characterSummaries.characterId,
@@ -105,25 +85,17 @@ async function comparedCard(
       tone: r.tone,
       pitch: r.pitch,
     },
-    tags: new Set((r.tags ?? []).map((t) => t.toLowerCase())),
+    tags: new Set(r.tags.map((t) => t.toLowerCase())),
   };
 }
 
 /** null when the ids are equal or either card isn't distilled/owned. `analyze.compareCharactersDeep`
  *  decorates this exact belt + diff via the injected `AnalyzeDeps.compareCharacters` seam (one home). */
-async function compareCharacters(
-  db: Db,
-  ownerId: UserId,
-  idA: CharacterId,
-  idB: CharacterId,
-): Promise<CharacterComparison | null> {
+async function compareCharacters(db: Db, ownerId: UserId, idA: CharacterId, idB: CharacterId): Promise<CharacterComparison | null> {
   if (idA === idB) {
     return null;
   }
-  const [ra, rb] = await Promise.all([
-    comparedCard(db, ownerId, idA),
-    comparedCard(db, ownerId, idB),
-  ]);
+  const [ra, rb] = await Promise.all([comparedCard(db, ownerId, idA), comparedCard(db, ownerId, idB)]);
   if (ra === undefined || rb === undefined) {
     return null;
   }

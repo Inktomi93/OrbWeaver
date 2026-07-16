@@ -39,8 +39,7 @@ export const gate: GateDescriptor = {
   ],
   mustPass: [
     {
-      files:
-        'import { KINDS } from "@orb/contracts";\nexport const t = sqliteTable("t", { k: text("k", { enum: KINDS }) });\n',
+      files: 'import { KINDS } from "@orb/contracts";\nexport const t = sqliteTable("t", { k: text("k", { enum: KINDS }) });\n',
       at: "packages/db/src/schema/y.ts",
       why: "an imported contracts tuple identifier — the sanctioned derive-from-one-home idiom, passes",
     },

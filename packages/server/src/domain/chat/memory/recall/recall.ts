@@ -14,14 +14,7 @@ import type { ChatContext } from "../../context";
 import { spanWitnessed } from "../build/substrate/witnessing";
 import { resolveCfg } from "../constants";
 import { loadDigestsForScope, loadSegmentSpans } from "../persistence/queries";
-import type {
-  DigestRow,
-  MemoryConfig,
-  MemoryRecallTrace,
-  MemoryScope,
-  MsgRow,
-  WitnessInterval,
-} from "../types";
+import type { DigestRow, MemoryConfig, MemoryRecallTrace, MemoryScope, MsgRow, WitnessInterval } from "../types";
 import { computeBridge } from "./bridge";
 import { blockKeyStr, formatMemory } from "./format";
 import { buildRecallQuery } from "./query";
@@ -60,10 +53,7 @@ export async function recallMemory(ctx: ChatContext, args: RecallArgs): Promise<
 
   // The shared (group-char) bucket ∪ the speaker's own bucket; one read when the speaker IS the group char.
   const own = await loadDigestsForScope(ctx.db, scope.chatId, scope.scopedCharacterId);
-  const shared =
-    args.groupCharacterId === scope.scopedCharacterId
-      ? []
-      : await loadDigestsForScope(ctx.db, scope.chatId, args.groupCharacterId);
+  const shared = args.groupCharacterId === scope.scopedCharacterId ? [] : await loadDigestsForScope(ctx.db, scope.chatId, args.groupCharacterId);
   const union = await filterPool(ctx, {
     chatId: scope.chatId,
     union: [...shared, ...own],
@@ -128,10 +118,7 @@ async function filterPool(
       return false;
     }
     // Keyed on the digest's start seq: seqStart == cutoff still counts as in-window (dropped).
-    if (
-      env.liveWindowCutoffSeq !== undefined &&
-      inLiveWindow(first.seqStart, env.liveWindowCutoffSeq)
-    ) {
+    if (env.liveWindowCutoffSeq !== undefined && inLiveWindow(first.seqStart, env.liveWindowCutoffSeq)) {
       return false;
     }
     return true;
@@ -156,12 +143,7 @@ async function selectKeys(
   if (cfg.mode === "tiered") {
     return { keys: computeBridge(scope, union, cfg.fanOut), queryEmbedded: false };
   }
-  const query = buildRecallQuery(
-    cfg,
-    scope,
-    args.recent ?? [],
-    args.names ?? new Map<CharacterId, string>(),
-  );
+  const query = buildRecallQuery(cfg, scope, args.recent ?? [], args.names ?? new Map<CharacterId, string>());
   const keys = await ctx.searchDigests({
     ...query,
     candidates: computeBridge(scope, union, cfg.fanOut),

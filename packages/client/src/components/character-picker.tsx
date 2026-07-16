@@ -14,14 +14,7 @@ import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { initialsFor } from "@orb/kit/initials";
 import { Avatar } from "@orb/ui/avatar";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@orb/ui/command";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@orb/ui/command";
 import { Check, Icon } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
@@ -66,9 +59,7 @@ export function CharacterPicker(props: CharacterPickerProps): ReactElement {
   return (
     <QueryBoundary
       fallback={<SkeletonRows count={props.skeletonCount ?? DEFAULT_SKELETON_ROW_COUNT} />}
-      renderError={(_error, retry): ReactElement => (
-        <QueryErrorState label="the character library" onRetry={retry} />
-      )}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label="the character library" onRetry={retry} />}
     >
       <CharacterPickerBody {...props} />
     </QueryBoundary>
@@ -88,19 +79,12 @@ function CharacterPickerBody({
   onEscape,
 }: CharacterPickerProps): ReactElement {
   const trpc = useTRPC();
-  const { data: page } = useSuspenseQuery(
-    trpc.character.list.queryOptions({ limit: PICKER_PAGE_LIMIT }),
-  );
+  const { data: page } = useSuspenseQuery(trpc.character.list.queryOptions({ limit: PICKER_PAGE_LIMIT }));
   const excluded = new Set<string>(excludeIds ?? []);
   const candidates = page.items.filter((c) => !excluded.has(c.id));
 
   const rows = candidates.map((character) => (
-    <CharacterPickerRow
-      character={character}
-      key={character.id}
-      onSelect={onSelect}
-      {...(isSelected === undefined ? {} : { isSelected })}
-    />
+    <CharacterPickerRow character={character} key={character.id} onSelect={onSelect} {...(isSelected === undefined ? {} : { isSelected })} />
   ));
 
   return (
@@ -109,11 +93,7 @@ function CharacterPickerBody({
       <CommandList className={listClassName ?? "max-h-80"}>
         <CommandEmpty>{emptyText}</CommandEmpty>
         {leadingGroup}
-        {rowsHeading === undefined ? (
-          rows
-        ) : (
-          <CommandGroup heading={rowsHeading}>{rows}</CommandGroup>
-        )}
+        {rowsHeading === undefined ? rows : <CommandGroup heading={rowsHeading}>{rows}</CommandGroup>}
       </CommandList>
     </Command>
   );
@@ -126,19 +106,11 @@ interface CharacterPickerRowProps {
 }
 
 // keywords carries the display name so cmdk's value-based filter still matches what the user reads.
-function CharacterPickerRow({
-  character,
-  onSelect,
-  isSelected,
-}: CharacterPickerRowProps): ReactElement {
+function CharacterPickerRow({ character, onSelect, isSelected }: CharacterPickerRowProps): ReactElement {
   const id = castId<CharacterId>(character.id);
   const avatarSrc = character.avatarHash === null ? {} : { src: blobUrl(character.avatarHash) };
   return (
-    <CommandItem
-      keywords={[character.name]}
-      onSelect={(): void => onSelect(id)}
-      value={character.id}
-    >
+    <CommandItem keywords={[character.name]} onSelect={(): void => onSelect(id)} value={character.id}>
       <Row align="center" className="min-w-0 flex-1" gap="row">
         <Avatar fallbackDelay={0} hueSeed={character.id} shape="square" size="sm" {...avatarSrc}>
           {initialsFor(character.name)}

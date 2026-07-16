@@ -50,11 +50,7 @@ function groupBy<T>(rows: readonly T[], keyOf: (row: T) => string): Map<string, 
   return groups;
 }
 
-async function hubOwners(
-  db: Db,
-  ownerId: UserId | null | undefined,
-  distinct: (db: Db) => Promise<UserId[]>,
-): Promise<UserId[]> {
+async function hubOwners(db: Db, ownerId: UserId | null | undefined, distinct: (db: Db) => Promise<UserId[]>): Promise<UserId[]> {
   if (ownerId === undefined || ownerId === null) {
     return await distinct(db);
   }
@@ -74,8 +70,8 @@ async function fanOutHubPass<T extends HubRow>(
   let rowsScored = 0;
   let groupsProcessed = 0;
   for (const owner of owners) {
+    // @orb-gate-ignore no-await-db-in-loop owner-local hubness — parallel would stampede the write seam.
     // biome-ignore lint/performance/noAwaitInLoops: per-owner fan-out — sequential keeps writeHubScores backpressure bounded.
-    // biome-ignore lint/plugin/no-await-db-in-loop: owner-local hubness — parallel would stampede the write seam.
     const stats = await runHubPass(await readForOwner(owner), cfg);
     rowsScored += stats.rowsScored;
     groupsProcessed += stats.groupsProcessed;
@@ -120,11 +116,7 @@ async function runHubPass<T extends HubRow>(
 }
 
 /** Card hub scores, grouped per embedding space (`model`). */
-export async function computeCharacterHubScores(
-  db: Db,
-  deps: ComputeHubScoresDeps,
-  opts: ComputeHubScoresOptions = {},
-): Promise<HubStats> {
+export async function computeCharacterHubScores(db: Db, deps: ComputeHubScoresDeps, opts: ComputeHubScoresOptions = {}): Promise<HubStats> {
   const owners = await hubOwners(db, opts.ownerId, distinctCharacterHubOwners);
   return await fanOutHubPass(owners, (owner) => readCharacterHubVectors(db, owner), {
     table: "character_embeddings",
@@ -135,11 +127,7 @@ export async function computeCharacterHubScores(
 }
 
 /** Digest hub scores, grouped per `(tier, model)`. */
-export async function computeDigestHubScores(
-  db: Db,
-  deps: ComputeHubScoresDeps,
-  opts: ComputeHubScoresOptions = {},
-): Promise<number> {
+export async function computeDigestHubScores(db: Db, deps: ComputeHubScoresDeps, opts: ComputeHubScoresOptions = {}): Promise<number> {
   const owners = await hubOwners(db, opts.ownerId, distinctDigestHubOwners);
   const stats = await fanOutHubPass(owners, (owner) => readDigestHubVectors(db, owner), {
     table: "chat_digests",
@@ -151,11 +139,7 @@ export async function computeDigestHubScores(
 }
 
 /** Segment hub scores, grouped per embedding space (`model`). */
-export async function computeSegmentHubScores(
-  db: Db,
-  deps: ComputeHubScoresDeps,
-  opts: ComputeHubScoresOptions = {},
-): Promise<number> {
+export async function computeSegmentHubScores(db: Db, deps: ComputeHubScoresDeps, opts: ComputeHubScoresOptions = {}): Promise<number> {
   const owners = await hubOwners(db, opts.ownerId, distinctSegmentHubOwners);
   const stats = await fanOutHubPass(owners, (owner) => readSegmentHubVectors(db, owner), {
     table: "chat_segments",
@@ -167,11 +151,7 @@ export async function computeSegmentHubScores(
 }
 
 /** Image hub scores, grouped per embedding space (`model`); image↔image only. */
-export async function computeImageHubScores(
-  db: Db,
-  deps: ComputeHubScoresDeps,
-  opts: ComputeHubScoresOptions = {},
-): Promise<number> {
+export async function computeImageHubScores(db: Db, deps: ComputeHubScoresDeps, opts: ComputeHubScoresOptions = {}): Promise<number> {
   const owners = await hubOwners(db, opts.ownerId, distinctImageHubOwners);
   const stats = await fanOutHubPass(owners, (owner) => readImageHubVectors(db, owner), {
     table: "image_embeddings",
@@ -185,13 +165,7 @@ export async function computeImageHubScores(
 /** The four hub-score verbs bound over the context (the `csls` runner calls the standalone functions above directly). */
 export function createComputeHubScores(
   ctx: DiscoveryContext,
-): Pick<
-  DiscoveryService,
-  | "computeCharacterHubScores"
-  | "computeDigestHubScores"
-  | "computeSegmentHubScores"
-  | "computeImageHubScores"
-> {
+): Pick<DiscoveryService, "computeCharacterHubScores" | "computeDigestHubScores" | "computeSegmentHubScores" | "computeImageHubScores"> {
   const deps: ComputeHubScoresDeps = { writeHubScores: ctx.writeHubScores };
   return {
     computeCharacterHubScores: (opts) => computeCharacterHubScores(ctx.db, deps, opts),

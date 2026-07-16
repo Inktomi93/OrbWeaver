@@ -21,10 +21,7 @@ export async function insertCharacter(db: Db, values: CharacterInsert): Promise<
     await db.insert(characters).values(values);
   } catch (err) {
     if (isConstraintViolation(err)?.kind === "unique") {
-      const conflict = new CharacterOperationError(
-        CHARACTER_HANDLE_CONFLICT,
-        `a character with handle "${values.handle}" already exists`,
-      );
+      const conflict = new CharacterOperationError(CHARACTER_HANDLE_CONFLICT, `a character with handle "${values.handle}" already exists`);
       conflict.cause = err;
       throw conflict;
     }
@@ -36,12 +33,7 @@ export async function insertCharacter(db: Db, values: CharacterInsert): Promise<
  *  No `updatedAt` column exists (D28) — the caller recomputes `contentHash` and includes it in `edits`. A
  *  `handle` edit can trip the per-owner `(ownerId, handle)` unique index → the same typed
  *  `CharacterOperationError("handle_conflict")` `insertCharacter` raises (never a raw DB error surfacing). */
-export async function writeCardInPlace(
-  db: Db,
-  characterId: CharacterId,
-  ownerId: UserId,
-  edits: CharacterEdits,
-): Promise<boolean> {
+export async function writeCardInPlace(db: Db, characterId: CharacterId, ownerId: UserId, edits: CharacterEdits): Promise<boolean> {
   try {
     const updated = await db
       .update(characters)
@@ -51,10 +43,7 @@ export async function writeCardInPlace(
     return updated.length > 0;
   } catch (err) {
     if (isConstraintViolation(err)?.kind === "unique") {
-      const conflict = new CharacterOperationError(
-        CHARACTER_HANDLE_CONFLICT,
-        `a character with handle "${edits.handle}" already exists`,
-      );
+      const conflict = new CharacterOperationError(CHARACTER_HANDLE_CONFLICT, `a character with handle "${edits.handle}" already exists`);
       conflict.cause = err;
       throw conflict;
     }
@@ -69,11 +58,7 @@ export async function appendSnapshot(db: Db, values: SnapshotInsert): Promise<vo
 
 /** Hard-delete an owned character (cascades snapshots / personas / downstream FKs). Returns `true` when a
  *  row was actually deleted (owned/found). The caller best-effort reaps the avatar asset afterwards. */
-export async function deleteOwnedCharacter(
-  db: Db,
-  characterId: CharacterId,
-  ownerId: UserId,
-): Promise<boolean> {
+export async function deleteOwnedCharacter(db: Db, characterId: CharacterId, ownerId: UserId): Promise<boolean> {
   const deleted = await db
     .delete(characters)
     .where(and(eq(characters.id, characterId), eq(characters.ownerId, ownerId)))
@@ -82,12 +67,7 @@ export async function deleteOwnedCharacter(
 }
 
 /** Archive / un-archive many owned characters in one statement. Returns the ids actually flipped. */
-export async function setArchivedBulk(
-  db: Db,
-  ownerId: UserId,
-  characterIds: readonly CharacterId[],
-  archived: boolean,
-): Promise<CharacterId[]> {
+export async function setArchivedBulk(db: Db, ownerId: UserId, characterIds: readonly CharacterId[], archived: boolean): Promise<CharacterId[]> {
   if (characterIds.length === 0) {
     return [];
   }

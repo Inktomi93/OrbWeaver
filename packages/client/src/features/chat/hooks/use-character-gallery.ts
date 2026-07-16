@@ -15,20 +15,14 @@ import { createEntityMutation } from "#data";
 export const GALLERY_PAGE_LIMIT = 100;
 
 /** Curate an owned asset into a character's gallery (idempotent server-side). Refetches the gallery. */
-export const useAddToGallery = createEntityMutation<
-  inferInput<Trpc["assets"]["addToGallery"]>,
-  inferOutput<Trpc["assets"]["addToGallery"]>
->({
+export const useAddToGallery = createEntityMutation<inferInput<Trpc["assets"]["addToGallery"]>, inferOutput<Trpc["assets"]["addToGallery"]>>({
   options: (trpc) => trpc.assets.addToGallery.mutationOptions(),
   invalidates: (trpc) => [trpc.assets.listGallery.pathFilter()],
   errorToast: "Couldn't add that image to the gallery.",
 });
 
 /** Remove a curated item from the gallery (the underlying asset is untouched). Refetches the gallery. */
-export const useRemoveFromGallery = createEntityMutation<
-  inferInput<Trpc["assets"]["removeFromGallery"]>,
-  unknown
->({
+export const useRemoveFromGallery = createEntityMutation<inferInput<Trpc["assets"]["removeFromGallery"]>, unknown>({
   options: (trpc) => trpc.assets.removeFromGallery.mutationOptions(),
   invalidates: (trpc) => [trpc.assets.listGallery.pathFilter()],
   errorToast: "Couldn't remove that image from the gallery.",
@@ -36,10 +30,7 @@ export const useRemoveFromGallery = createEntityMutation<
 
 /** Import a searched gif (Tenor) into a character's gallery (D61). The server re-validates the URL host +
  *  the bytes; on success a new `gallery_items` row appears, so this refetches the gallery. */
-export const useImportGif = createEntityMutation<
-  inferInput<Trpc["hub"]["importGif"]>,
-  inferOutput<Trpc["hub"]["importGif"]>
->({
+export const useImportGif = createEntityMutation<inferInput<Trpc["hub"]["importGif"]>, inferOutput<Trpc["hub"]["importGif"]>>({
   options: (trpc) => trpc.hub.importGif.mutationOptions(),
   invalidates: (trpc) => [trpc.assets.listGallery.pathFilter()],
   errorToast: "Couldn't import that gif.",

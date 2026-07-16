@@ -124,10 +124,7 @@ export function characterUpdateFromForm(values: CharacterCardFormValues): Update
 
 /** The changed-keys diff: emits a key only when the user's edit genuinely differs from the server row,
  *  never a full-object PUT that could silently revert a concurrent edit to an untouched field. */
-export function characterUpdateDiff(
-  values: CharacterCardFormValues,
-  card: CharacterDetail,
-): UpdateCharacterInput {
+export function characterUpdateDiff(values: CharacterCardFormValues, card: CharacterDetail): UpdateCharacterInput {
   const desired = characterUpdateFromForm(values);
   const baseline = characterUpdateFromForm(characterCardFormFromDetail(card));
   const patch: Record<string, unknown> = {};
@@ -149,21 +146,11 @@ function deepEqual(a: unknown, b: unknown): boolean {
     return false;
   }
   if (Array.isArray(a) || Array.isArray(b)) {
-    return (
-      Array.isArray(a) &&
-      Array.isArray(b) &&
-      a.length === b.length &&
-      a.every((item, index) => deepEqual(item, b[index]))
-    );
+    return Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((item, index) => deepEqual(item, b[index]));
   }
   const aKeys = Object.keys(a);
   const bKeys = Object.keys(b);
-  return (
-    aKeys.length === bKeys.length &&
-    aKeys.every((key) =>
-      deepEqual((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key]),
-    )
-  );
+  return aKeys.length === bKeys.length && aKeys.every((key) => deepEqual((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key]));
 }
 
 /** Keep `[0]` always (the first message, even when empty), drop only trailing empty ALTERNATES. */
@@ -187,10 +174,7 @@ function depthPromptFromForm(values: CharacterCardFormValues): UpdateCharacterIn
 /** Assistant-role at depth 0 is a response prefill — unsupported across providers. The editor surfaces
  *  this, never silently drops it. Only meaningful while the note has text. */
 export function isDepthPromptPrefill(values: CharacterCardFormValues): boolean {
-  return (
-    values.depthPromptText.trim() !== "" &&
-    isAssistantPrefill(values.depthPromptRole, values.depthPromptDepth ?? PREFILL_DEPTH)
-  );
+  return values.depthPromptText.trim() !== "" && isAssistantPrefill(values.depthPromptRole, values.depthPromptDepth ?? PREFILL_DEPTH);
 }
 
 // Token counts, live off the draft. Permanent = every-turn assembly set: description/personality/
@@ -211,10 +195,7 @@ export function permanentTokenCount(values: CharacterCardFormValues): number {
 }
 
 /** The total: permanent + the prompt-bearing non-permanent fields (name + the active greeting). */
-export function totalTokenCount(
-  values: CharacterCardFormValues,
-  activeGreetingIndex: number,
-): number {
+export function totalTokenCount(values: CharacterCardFormValues, activeGreetingIndex: number): number {
   const activeGreeting = values.greetings[activeGreetingIndex] ?? values.greetings[0] ?? "";
   return permanentTokenCount(values) + estimateTokens(values.name) + estimateTokens(activeGreeting);
 }

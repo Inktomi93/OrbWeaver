@@ -23,17 +23,7 @@
 // (optional) — no `unknown`/`Record`/index field a secret could ride in; no caller id (a subscriber only ever
 // receives its OWN userId channel, derived server-side from the principal, never from client input).
 
-import type {
-  CharacterId,
-  ChatId,
-  PersonaId,
-  PresetId,
-  TagId,
-  ThemeId,
-  UserCredentialId,
-  UserId,
-  WorldBookId,
-} from "@orb/kit/ids";
+import type { CharacterId, ChatId, PersonaId, PresetId, TagId, ThemeId, UserCredentialId, UserId, WorldBookId } from "@orb/kit/ids";
 
 /** One coarse "a thing you own in domain X changed" event. The optional id is a targeting hint — the client
  *  invalidation map is free to path-invalidate the whole domain regardless (a missed/omitted id costs one

@@ -43,12 +43,7 @@ export function TagCreateButton({ trpc }: TagCreateButtonProps): ReactElement {
           <Stack gap="block">
             <DialogTitle>New tag</DialogTitle>
             <DialogDescription>Name the label. You can recolor it after.</DialogDescription>
-            <Input
-              aria-label="Tag name"
-              onValueChange={setName}
-              placeholder="e.g. adventure"
-              value={name}
-            />
+            <Input aria-label="Tag name" onValueChange={setName} placeholder="e.g. adventure" value={name} />
             <Row gap="field" justify="end">
               <DialogClose render={<Button intent="ghost">Cancel</Button>} />
               <Button disabled={name.trim() === ""} intent="primary" onClick={submit}>

@@ -6,9 +6,7 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import { PersonaPanelRowStory } from "../_ct-stories";
 
-test("the 'set current' target is a real native <button>, not a role=button div", async ({
-  mount,
-}) => {
+test("the 'set current' target is a real native <button>, not a role=button div", async ({ mount }) => {
   const component = await mount(<PersonaPanelRowStory />);
   const setCurrent = component.getByRole("button", { name: "Switch to Nova" });
   await expect(setCurrent).toHaveJSProperty("tagName", "BUTTON");
@@ -23,17 +21,13 @@ test("the stretched overlay is wired to onSetCurrent", async ({ mount }) => {
   await expect(component.getByTestId("fired")).toHaveText("current");
 });
 
-test("the chevron fires onToggleExpand only — a disjoint sibling, never 'set current'", async ({
-  mount,
-}) => {
+test("the chevron fires onToggleExpand only — a disjoint sibling, never 'set current'", async ({ mount }) => {
   const component = await mount(<PersonaPanelRowStory />);
   await component.getByRole("button", { name: "Show details" }).click();
   await expect(component.getByTestId("fired")).toHaveText("expand");
 });
 
-test("the name control enters inline rename — it does NOT fire 'set current'", async ({
-  mount,
-}) => {
+test("the name control enters inline rename — it does NOT fire 'set current'", async ({ mount }) => {
   const component = await mount(<PersonaPanelRowStory />);
   await component.getByRole("button", { name: "Rename persona" }).click();
   // The name became an inline input (rename edit), and 'set current' did NOT fire (disjoint sibling).

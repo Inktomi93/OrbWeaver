@@ -29,10 +29,7 @@ function human(role: "host" | "member"): Record<string, unknown> {
   };
 }
 
-test("a member behind a host seat sees NO host affordance (server viewerIsHost wins over the seat)", async ({
-  mount,
-  page,
-}) => {
+test("a member behind a host seat sees NO host affordance (server viewerIsHost wins over the seat)", async ({ mount, page }) => {
   await routeTrpc(page, {
     // The FIRST human seat is a host, so the retired first-seat proxy would return TRUE and mis-grant the
     // host-only Preview item. The server-resolved `viewerIsHost:false` says THIS viewer is a member.
@@ -68,10 +65,7 @@ test("a host sees the host-only Preview affordance", async ({ mount, page }) => 
   await expect(page.getByRole("menuitem", { name: "Preview request…" })).toBeVisible();
 });
 
-test("the member-count chip is a BUTTON counting PRESENT participants (\u00a7 6.1: Members \u2014 N)", async ({
-  mount,
-  page,
-}) => {
+test("the member-count chip is a BUTTON counting PRESENT participants (\u00a7 6.1: Members \u2014 N)", async ({ mount, page }) => {
   await routeTrpc(page, {
     "chat.getChat": () => ({
       title: "Council of Two",

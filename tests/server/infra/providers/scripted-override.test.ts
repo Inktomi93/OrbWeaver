@@ -85,8 +85,6 @@ describe("buildScriptedOverrideRunner — turn behavior", () => {
     const controller = new AbortController();
     controller.abort();
     const run = buildScriptedOverrideRunner("ok");
-    await expect(run(makeRequest({ signal: controller.signal }))).rejects.toBeInstanceOf(
-      ProviderError,
-    );
+    await expect(run(makeRequest({ signal: controller.signal }))).rejects.toBeInstanceOf(ProviderError);
   });
 });

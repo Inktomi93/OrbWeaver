@@ -107,10 +107,7 @@ function sectionName(section: PromptSection): string {
 /** Build the display block for a section (name + tokens, or a plain-marker hint). */
 function toBlock(section: PromptSection): PreviewBlock {
   const tokens = displayTokens(section);
-  const plainHint =
-    tokens === undefined && section.type === "marker"
-      ? MARKER_COPY[section.marker].oneLiner
-      : undefined;
+  const plainHint = tokens === undefined && section.type === "marker" ? MARKER_COPY[section.marker].oneLiner : undefined;
   return { section, name: sectionName(section), tokens, plainHint };
 }
 
@@ -146,10 +143,7 @@ function groupByRole(blocks: readonly PreviewBlock[]): readonly RoleGroup[] {
  * `fires` is an OPTIONAL per-section include predicate (default: every section fires). The lens filter was
  * retired with the toolbar Lens, but the predicate seam is kept so a test can prove the include filter.
  */
-export function assemblePreview(
-  sections: readonly PromptSection[],
-  fires: (section: PromptSection) => boolean = () => true,
-): AssembledPreview {
+export function assemblePreview(sections: readonly PromptSection[], fires: (section: PromptSection) => boolean = () => true): AssembledPreview {
   const zones = deriveZones(sections);
   const duplicateSet = new Set(zones.duplicatePivotIndexes);
 
@@ -180,9 +174,7 @@ export function assemblePreview(
   }
 
   // Splice order: higher depth sits earlier (further from the tail); within a depth, LOWER order higher.
-  const orderedSplices = [...splices].sort((a, b) =>
-    a.depth !== b.depth ? b.depth - a.depth : a.order - b.order,
-  );
+  const orderedSplices = [...splices].sort((a, b) => (a.depth !== b.depth ? b.depth - a.depth : a.order - b.order));
 
   return {
     setup: groupByRole(setupInFlow),

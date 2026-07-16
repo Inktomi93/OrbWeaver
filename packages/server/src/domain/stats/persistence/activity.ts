@@ -32,9 +32,7 @@ export async function readActivityHeatmap(db: Db, ownerId: string): Promise<Acti
       )
     GROUP BY dow, hour
   `);
-  const matrix: number[][] = Array.from({ length: DAYS_PER_WEEK }, () =>
-    new Array<number>(HOURS_PER_DAY).fill(0),
-  );
+  const matrix: number[][] = Array.from({ length: DAYS_PER_WEEK }, () => new Array<number>(HOURS_PER_DAY).fill(0));
   let total = 0;
   let peak: { dayOfWeek: number; hour: number; count: number } | null = null;
   for (const r of rows) {
@@ -77,11 +75,8 @@ function latestTwoMonths(rows: MonthCountRow[]): {
 }
 
 /** Collapse the per-(character, month) rows into one `MomentumRow` per character over the two months. */
-function momentumRows(
-  rows: MonthCountRow[],
-  latestMonth: string,
-  prevMonth: string,
-): MomentumRow[] {
+function momentumRows(rows: MonthCountRow[], latestMonth: string, prevMonth: string): MomentumRow[] {
+  // @orb-gate-ignore persistence-no-in-memory-state: query-local lookup map for momentum rows by character
   const byChar = new Map<string, { name: string; current: number; prev: number }>();
   for (const r of rows) {
     if (r.month !== latestMonth && r.month !== prevMonth) {
@@ -106,11 +101,7 @@ function momentumRows(
 
 /** Per-character attention shift between the two most-recent active months. Anchored to the data's latest
  *  months (not wall-clock now) so a quiet current month doesn't read as "everything falling". */
-export async function readCharacterMomentum(
-  db: Db,
-  ownerId: string,
-  limit = DEFAULT_MOMENTUM_LIMIT,
-): Promise<CharacterMomentum> {
+export async function readCharacterMomentum(db: Db, ownerId: string, limit = DEFAULT_MOMENTUM_LIMIT): Promise<CharacterMomentum> {
   const rows = await db.all<MonthCountRow>(sql`
     SELECT m.character_id AS characterId, MIN(c.name) AS name,
            strftime('%Y-%m', m.created_at / 1000, 'unixepoch') AS month, COUNT(*) AS n

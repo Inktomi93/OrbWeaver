@@ -23,17 +23,9 @@ const READING_SCALE_MAX = 1.6;
 const READING_SCALE_STEP = 0.05;
 
 /** Message line-height/letter-spacing/paragraph-spacing/name+body scale + the justify toggle. Sizing/spacing only, never blur. */
-export function AppearanceReadingSection({
-  form,
-}: {
-  readonly form: Omit<AppFormInstance<AppearanceSettings>, "reset">;
-}): ReactElement {
+export function AppearanceReadingSection({ form }: { readonly form: Omit<AppFormInstance<AppearanceSettings>, "reset"> }): ReactElement {
   return (
-    <Section
-      divider={true}
-      heading="Reading typography"
-      id={settingsAnchorId("appearance", APPEARANCE_SUBCATEGORY_IDS.reading)}
-    >
+    <Section divider={true} heading="Reading typography" id={settingsAnchorId("appearance", APPEARANCE_SUBCATEGORY_IDS.reading)}>
       <form.AppField name="readingLineHeight">
         {(field): ReactElement => (
           <field.SliderField
@@ -90,12 +82,7 @@ export function AppearanceReadingSection({
         )}
       </form.AppField>
       <form.AppField name="justifyBodyText">
-        {(field): ReactElement => (
-          <field.SwitchField
-            label="Justify message text"
-            description="Align both edges of wrapped message text (manuscript style)."
-          />
-        )}
+        {(field): ReactElement => <field.SwitchField label="Justify message text" description="Align both edges of wrapped message text (manuscript style)." />}
       </form.AppField>
     </Section>
   );

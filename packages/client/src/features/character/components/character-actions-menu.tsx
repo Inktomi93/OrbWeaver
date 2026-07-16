@@ -10,12 +10,7 @@ import { useState } from "react";
 import { ConfirmDialog, RowActionsMenu } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { clearCharacterSelection, selectCharacter } from "#state";
-import {
-  useCreatePersonaFromCharacter,
-  useDuplicateCharacter,
-  useRemoveCharacter,
-  useSetWelcomeGreeter,
-} from "../hooks/use-character-context-mutations";
+import { useCreatePersonaFromCharacter, useDuplicateCharacter, useRemoveCharacter, useSetWelcomeGreeter } from "../hooks/use-character-context-mutations";
 
 export interface CharacterActionsMenuProps {
   readonly characterId: CharacterId;
@@ -51,8 +46,7 @@ export function CharacterActionsMenu({ characterId }: CharacterActionsMenuProps)
         label="Character actions"
         destructive={{
           title: "Delete this character?",
-          description:
-            "This permanently deletes the character and everything attached to it. This can't be undone.",
+          description: "This permanently deletes the character and everything attached to it. This can't be undone.",
           onConfirm: confirmDelete,
         }}
       >
@@ -60,9 +54,7 @@ export function CharacterActionsMenu({ characterId }: CharacterActionsMenuProps)
         <MenuLinkItem href={`/api/export/character/${characterId}`} download={true}>
           Export card
         </MenuLinkItem>
-        <MenuItem onClick={(): void => convert.mutate({ characterId, swapMacros: true })}>
-          Convert to persona
-        </MenuItem>
+        <MenuItem onClick={(): void => convert.mutate({ characterId, swapMacros: true })}>Convert to persona</MenuItem>
         <MenuItem
           onClick={(): void =>
             setWelcome.mutate({

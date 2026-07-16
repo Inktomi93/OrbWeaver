@@ -11,11 +11,7 @@ function callHasAssertion(call: CallExpression): boolean {
   return call.getDescendantsOfKind(SyntaxKind.CallExpression).some((c) => {
     // Collapse whitespace: a formatter-broken chain (`expect\n  .poll(...)`) must still read as `expect.poll`.
     const innerExprText = c.getExpression().getText().replaceAll(/\s+/gu, "");
-    return (
-      innerExprText === "expect" ||
-      innerExprText === "expectTypeOf" ||
-      innerExprText.startsWith("expect.")
-    );
+    return innerExprText === "expect" || innerExprText === "expectTypeOf" || innerExprText.startsWith("expect.");
   });
 }
 

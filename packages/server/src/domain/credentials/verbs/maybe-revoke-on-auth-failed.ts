@@ -14,9 +14,7 @@ import { setRevokedById } from "../persistence/queries";
 
 const AUTH_FAILED = "auth_failed";
 
-export function createMaybeRevokeOnAuthFailed(
-  ctx: CredentialContext,
-): CredentialsService["maybeRevokeOnAuthFailed"] {
+export function createMaybeRevokeOnAuthFailed(ctx: CredentialContext): CredentialsService["maybeRevokeOnAuthFailed"] {
   return async (params: MaybeRevokeParams): Promise<void> => {
     if (params.errorKind !== AUTH_FAILED || params.credentialId === null) {
       return;
@@ -30,10 +28,7 @@ export function createMaybeRevokeOnAuthFailed(
         "credentials: marked revoked (post-turn auth_failed)",
       );
     } catch (err) {
-      getLog().error(
-        { credentialId, err: errorMessage(err) },
-        "credentials: failed to mark revoked (suppressed — the turn's error path still surfaces)",
-      );
+      getLog().error({ credentialId, err: errorMessage(err) }, "credentials: failed to mark revoked (suppressed — the turn's error path still surfaces)");
     }
   };
 }

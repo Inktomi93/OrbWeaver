@@ -13,14 +13,7 @@ import { Select } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import { Toggle } from "@orb/ui/toggle";
 import type { ReactElement } from "react";
-import {
-  setBulkMode,
-  setCharacterSortMode,
-  setCharacterViewMode,
-  useCharacterBulkMode,
-  useCharacterSortMode,
-  useCharacterViewMode,
-} from "#state";
+import { setBulkMode, setCharacterSortMode, setCharacterViewMode, useCharacterBulkMode, useCharacterSortMode, useCharacterViewMode } from "#state";
 import { CharacterCreateMenu } from "./character-create-menu";
 
 /** The §4.5 sort labels — a TOTAL Record over `CHARACTER_LIST_SORTS` (a new sort member fails `tsc`;
@@ -45,10 +38,7 @@ export interface CharacterLibraryToolbarProps {
 }
 
 /** The header + sort/view controls row. */
-export function CharacterLibraryToolbar({
-  query,
-  onQueryChange,
-}: CharacterLibraryToolbarProps): ReactElement {
+export function CharacterLibraryToolbar({ query, onQueryChange }: CharacterLibraryToolbarProps): ReactElement {
   const sortMode = useCharacterSortMode();
   const viewMode = useCharacterViewMode();
   const bulkMode = useCharacterBulkMode();
@@ -59,25 +49,14 @@ export function CharacterLibraryToolbar({
           Characters
         </Text>
         <Row align="center" gap="field">
-          <Toggle
-            aria-label="Select multiple"
-            onPressedChange={(pressed): void => setBulkMode(pressed)}
-            pressed={bulkMode}
-            size="sm"
-          >
+          <Toggle aria-label="Select multiple" onPressedChange={(pressed): void => setBulkMode(pressed)} pressed={bulkMode} size="sm">
             <Icon icon={Pencil} size="sm" />
           </Toggle>
           <CharacterCreateMenu />
         </Row>
       </Row>
       <Row align="center" gap="field">
-        <Input
-          aria-label="Search characters"
-          className="flex-1"
-          onValueChange={onQueryChange}
-          placeholder="Search characters…"
-          value={query}
-        />
+        <Input aria-label="Search characters" className="flex-1" onValueChange={onQueryChange} placeholder="Search characters…" value={query} />
         <Select
           aria-label="Sort characters"
           items={SORT_ITEMS}
@@ -90,9 +69,7 @@ export function CharacterLibraryToolbar({
         />
         <Toggle
           aria-label="Group by tag"
-          onPressedChange={(pressed): void =>
-            setCharacterViewMode(pressed ? "categorized" : "flat")
-          }
+          onPressedChange={(pressed): void => setCharacterViewMode(pressed ? "categorized" : "flat")}
           pressed={viewMode === "categorized"}
           size="sm"
         >

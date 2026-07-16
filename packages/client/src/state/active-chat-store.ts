@@ -61,11 +61,7 @@ export function startNewChat(seed?: DraftSeed): void {
   // it keeps the same sessionKey (no remount), so animating it would flash the live room.
   withViewTransition(() => {
     const sessionKey = nextSessionKey();
-    useActiveChatStore.setState(
-      { handle: draftChat(sessionKey), draftSeed: seed, sessionKey },
-      true,
-      "activeChat/startNew",
-    );
+    useActiveChatStore.setState({ handle: draftChat(sessionKey), draftSeed: seed, sessionKey }, true, "activeChat/startNew");
   });
 }
 
@@ -73,11 +69,7 @@ export function startNewChat(seed?: DraftSeed): void {
  *  idempotent and switching chats remounts the slot. */
 export function selectChat(chatId: ChatId): void {
   withViewTransition(() => {
-    useActiveChatStore.setState(
-      { handle: committedChat(chatId), draftSeed: undefined, sessionKey: chatId },
-      true,
-      "activeChat/select",
-    );
+    useActiveChatStore.setState({ handle: committedChat(chatId), draftSeed: undefined, sessionKey: chatId }, true, "activeChat/select");
   });
 }
 
@@ -92,22 +84,14 @@ export function commitDraft(chatId: ChatId, forDraftKey: string): void {
   if (handle.kind !== "draft" || handle.draftKey !== forDraftKey) {
     return;
   }
-  useActiveChatStore.setState(
-    { handle: committedChat(chatId), draftSeed, sessionKey },
-    true,
-    "activeChat/commitDraft",
-  );
+  useActiveChatStore.setState({ handle: committedChat(chatId), draftSeed, sessionKey }, true, "activeChat/commitDraft");
 }
 
 /** Return to the at-rest landing state. Mints a fresh `sessionKey` so a subsequent new-chat/select
  *  remounts a clean slot. */
 export function goToLanding(): void {
   withViewTransition(() => {
-    useActiveChatStore.setState(
-      { handle: landingChat(), draftSeed: undefined, sessionKey: nextSessionKey() },
-      true,
-      "activeChat/goToLanding",
-    );
+    useActiveChatStore.setState({ handle: landingChat(), draftSeed: undefined, sessionKey: nextSessionKey() }, true, "activeChat/goToLanding");
   });
 }
 

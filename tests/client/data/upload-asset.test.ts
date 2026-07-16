@@ -21,12 +21,7 @@ test("POSTs a file+kind FormData body with the CSRF header, and parses the respo
   let capturedRequest: { url: string; init: RequestInit } | undefined;
   vi.stubGlobal("fetch", (url: string, init: RequestInit) => {
     capturedRequest = { url, init };
-    return Promise.resolve(
-      new Response(
-        JSON.stringify({ assetId: SAMPLE_ASSET_ID, hash: SAMPLE_HASH, size: 42, created: true }),
-        { status: 200 },
-      ),
-    );
+    return Promise.resolve(new Response(JSON.stringify({ assetId: SAMPLE_ASSET_ID, hash: SAMPLE_HASH, size: 42, created: true }), { status: 200 }));
   });
 
   const file = new File(["bytes"], "avatar.png", { type: "image/png" });
@@ -43,17 +38,13 @@ test("POSTs a file+kind FormData body with the CSRF header, and parses the respo
 });
 
 test("throws on a non-OK response", async () => {
-  vi.stubGlobal("fetch", () =>
-    Promise.resolve(new Response(null, { status: 401, statusText: "Unauthorized" })),
-  );
+  vi.stubGlobal("fetch", () => Promise.resolve(new Response(null, { status: 401, statusText: "Unauthorized" })));
   const file = new File(["bytes"], "avatar.png", { type: "image/png" });
   await expect(uploadAsset(file, "avatar")).rejects.toThrow("401");
 });
 
 test("throws on a malformed response body (schema validation, not a bare cast)", async () => {
-  vi.stubGlobal("fetch", () =>
-    Promise.resolve(new Response(JSON.stringify({ hash: SAMPLE_HASH }), { status: 200 })),
-  );
+  vi.stubGlobal("fetch", () => Promise.resolve(new Response(JSON.stringify({ hash: SAMPLE_HASH }), { status: 200 })));
   const file = new File(["bytes"], "avatar.png", { type: "image/png" });
   await expect(uploadAsset(file, "avatar")).rejects.toThrow();
 });

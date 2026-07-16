@@ -44,9 +44,7 @@ test("BlockKey pins the (chatId, tier, blockIdx, scopedCharacterId) shape", () =
     blockIdx: 3,
     scopedCharacterId: SAMPLE_CHARACTER_ID,
   };
-  expect(Object.keys(key).sort()).toEqual(
-    ["blockIdx", "chatId", "scopedCharacterId", "tier"].sort(),
-  );
+  expect(Object.keys(key).sort()).toEqual(["blockIdx", "chatId", "scopedCharacterId", "tier"].sort());
 });
 
 // `scopedCharacterId` is ALWAYS a real `CharacterId` — inv 8: the synthetic group-as-character for the

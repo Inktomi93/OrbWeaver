@@ -237,8 +237,7 @@ export const gate: GateDescriptor = {
       files: {
         "packages/server/src/domain/character/index.ts": "export const d = 1;\n",
         "packages/client/src/features/character/index.ts": "export const x = 1;\n",
-        "packages/client/src/features/character/surfaces/card.tsx":
-          "export const C = () => null;\n",
+        "packages/client/src/features/character/surfaces/card.tsx": "export const C = () => null;\n",
       },
       expect: { messageIncludes: "end in -surface.tsx" },
       why: "rule 5: a surface file not named -surface.tsx",
@@ -258,8 +257,7 @@ export const gate: GateDescriptor = {
       files: {
         "packages/server/src/domain/character/index.ts": "export const d = 1;\n",
         "packages/client/src/features/character/index.ts": "export const x = 1;\n",
-        "packages/client/src/features/character/anchors/thing.tsx":
-          "export const T = () => null;\n",
+        "packages/client/src/features/character/anchors/thing.tsx": "export const T = () => null;\n",
       },
       expect: { messageIncludes: "container-type suffix" },
       why: "rule 6: an anchor filename without a known container-type suffix",
@@ -269,8 +267,7 @@ export const gate: GateDescriptor = {
       files: {
         "packages/server/src/domain/character/index.ts": "export const d = 1;\n",
         "packages/client/src/features/character/index.ts": "export const x = 1;\n",
-        "packages/client/src/features/character/surfaces/edit-surface.tsx":
-          "export const E = () => <Dialog>x</Dialog>;\n",
+        "packages/client/src/features/character/surfaces/edit-surface.tsx": "export const E = () => <Dialog>x</Dialog>;\n",
       },
       expect: { messageIncludes: "must not render its own outer Dialog" },
       why: "rule 7: a surface rendering its own outer Dialog root — the containment box is the anchor's job",
@@ -281,8 +278,7 @@ export const gate: GateDescriptor = {
       files: {
         "packages/server/src/domain/chat/index.ts": "export const d = 1;\n",
         "packages/client/src/features/chat/index.ts": "export const i = 1;\n",
-        "packages/client/src/features/chat/surfaces/chat-surface.tsx":
-          "export const S = () => null;\n",
+        "packages/client/src/features/chat/surfaces/chat-surface.tsx": "export const S = () => null;\n",
         "packages/client/src/features/chat/hooks/use-chat.ts": "export const useChat = () => 1;\n",
       },
       why: "a built feature mirroring a real domain with an index.ts, a -surface.tsx, and a use-* hook — the layout, passes",
@@ -298,8 +294,7 @@ export const gate: GateDescriptor = {
       // rule 5: app-shell surfaces are exempt from the -surface.tsx naming contract (region chrome).
       files: {
         "packages/client/src/features/app-shell/index.ts": "export const x = 1;\n",
-        "packages/client/src/features/app-shell/surfaces/rail.tsx":
-          "export const R = () => null;\n",
+        "packages/client/src/features/app-shell/surfaces/rail.tsx": "export const R = () => null;\n",
       },
       why: "rule 5: app-shell surfaces are exempt from the -surface.tsx naming contract",
     },
@@ -308,8 +303,7 @@ export const gate: GateDescriptor = {
       files: {
         "packages/server/src/domain/character/index.ts": "export const d = 1;\n",
         "packages/client/src/features/character/index.ts": "export const x = 1;\n",
-        "packages/client/src/features/character/surfaces/edit-surface.tsx":
-          "export const E = () => <DialogTrigger>x</DialogTrigger>;\n",
+        "packages/client/src/features/character/surfaces/edit-surface.tsx": "export const E = () => <DialogTrigger>x</DialogTrigger>;\n",
       },
       why: "rule 7: composing a Dialog PART (DialogTrigger) is legal — only the bare modal root is banned",
     },
@@ -318,8 +312,7 @@ export const gate: GateDescriptor = {
       files: {
         "packages/server/src/domain/character/index.ts": "export const d = 1;\n",
         "packages/client/src/features/character/index.ts": "export const x = 1;\n",
-        "packages/client/src/features/character/hooks/use-card.ts":
-          "export const useCard = () => 1;\n",
+        "packages/client/src/features/character/hooks/use-card.ts": "export const useCard = () => 1;\n",
         "packages/client/src/features/character/hooks/.gitkeep": "",
       },
       why: "rule 6: a use-*.ts hook plus a .gitkeep both pass the hooks/ naming contract",
@@ -329,8 +322,7 @@ export const gate: GateDescriptor = {
       files: {
         "packages/server/src/domain/character/index.ts": "export const d = 1;\n",
         "packages/client/src/features/character/index.ts": "export const x = 1;\n",
-        "packages/client/src/features/character/anchors/edit-dialog.tsx":
-          "export const E = () => null;\n",
+        "packages/client/src/features/character/anchors/edit-dialog.tsx": "export const E = () => null;\n",
       },
       why: "rule 6: a -dialog anchor carries a known container-type suffix and passes",
     },

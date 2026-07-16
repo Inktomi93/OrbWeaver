@@ -1,10 +1,7 @@
 // backends/openrouter client — the per-API-key LRU resolver: a warm client is reused per key, distinct
 // keys get distinct clients, and the cache is CLOSURE state (each `createClientCache()` is independent).
 
-import {
-  createClientCache,
-  createOpenRouterClient,
-} from "@orb/server/infra/providers/backends/openrouter";
+import { createClientCache, createOpenRouterClient } from "@orb/server/infra/providers/backends/openrouter";
 import { describe } from "vitest";
 import { expect, test } from "../../../../../support/fixtures";
 

@@ -268,11 +268,7 @@ function getTracer(): Tracer {
  * A throw marks the span error, records the message as an event, and re-throws (the caller sees the same
  * shape as without tracing).
  */
-export function span<T>(
-  name: string,
-  fn: (span: Span) => Promise<T> | T,
-  attrs: SpanAttrs = {},
-): Promise<T> {
+export function span<T>(name: string, fn: (span: Span) => Promise<T> | T, attrs: SpanAttrs = {}): Promise<T> {
   const t = getTracer();
   const opts: SpanOptions = { attributes: cleanAttrs(attrs) };
   const parent = trace.getActiveSpan();
@@ -307,38 +303,29 @@ export function span<T>(
 
 /** Open a REQUEST-ROOT span — sets the request-id attribute so the processor buckets the whole tree under
  *  it. Used by the per-request middleware. The callback runs with the root active in OTel context. */
-export function withRequestSpan<T>(
-  requestId: string,
-  name: string,
-  attrs: SpanAttrs,
-  fn: () => Promise<T> | T,
-): Promise<T> {
+export function withRequestSpan<T>(requestId: string, name: string, attrs: SpanAttrs, fn: () => Promise<T> | T): Promise<T> {
   const t = getTracer();
-  return t.startActiveSpan(
-    name,
-    { attributes: { ...cleanAttrs(attrs), [REQUEST_ID_ATTR]: requestId } },
-    async (root) => {
-      try {
-        const result = await fn();
-        // Do NOT clobber an ERROR status a HANDLED throw already set on this root while `next()` still
-        // resolved normally. Hono's compose() catches a thrown request handler at ITS origin dispatch frame
-        // (below the observability middleware), converts it to a Response via `app.onError`, and resolves
-        // `next()` normally — so a thrown request reaches here on the SUCCESS path. `recordThrownRequest`
-        // (called from that onError, root still active) marks ERROR; the SDK's setStatus lets a later OK
-        // overwrite a prior ERROR (only OK is final — verified against @opentelemetry/sdk-trace-base), so
-        // guard explicitly or the /api/_debug/traces status would seal back to "ok".
-        if (spanStatusCode(root) !== SpanStatusCode.ERROR) {
-          root.setStatus({ code: SpanStatusCode.OK });
-        }
-        return result;
-      } catch (err) {
-        root.setStatus({ code: SpanStatusCode.ERROR, message: errorMessage(err) });
-        throw err;
-      } finally {
-        root.end();
+  return t.startActiveSpan(name, { attributes: { ...cleanAttrs(attrs), [REQUEST_ID_ATTR]: requestId } }, async (root) => {
+    try {
+      const result = await fn();
+      // Do NOT clobber an ERROR status a HANDLED throw already set on this root while `next()` still
+      // resolved normally. Hono's compose() catches a thrown request handler at ITS origin dispatch frame
+      // (below the observability middleware), converts it to a Response via `app.onError`, and resolves
+      // `next()` normally — so a thrown request reaches here on the SUCCESS path. `recordThrownRequest`
+      // (called from that onError, root still active) marks ERROR; the SDK's setStatus lets a later OK
+      // overwrite a prior ERROR (only OK is final — verified against @opentelemetry/sdk-trace-base), so
+      // guard explicitly or the /api/_debug/traces status would seal back to "ok".
+      if (spanStatusCode(root) !== SpanStatusCode.ERROR) {
+        root.setStatus({ code: SpanStatusCode.OK });
       }
-    },
-  );
+      return result;
+    } catch (err) {
+      root.setStatus({ code: SpanStatusCode.ERROR, message: errorMessage(err) });
+      throw err;
+    } finally {
+      root.end();
+    }
+  });
 }
 
 /** Read the SDK concrete-span status code through the same internal cast `span()` uses for `.attributes`
@@ -516,9 +503,7 @@ function cleanAttrs(attrs: SpanAttrs): Record<string, string | number | boolean>
   return out;
 }
 
-function serializeAttrs(
-  raw: Readonly<Record<string, unknown>>,
-): Record<string, string | number | boolean> {
+function serializeAttrs(raw: Readonly<Record<string, unknown>>): Record<string, string | number | boolean> {
   const out: Record<string, string | number | boolean> = {};
   for (const [k, v] of Object.entries(raw)) {
     if (typeof v === "string") {

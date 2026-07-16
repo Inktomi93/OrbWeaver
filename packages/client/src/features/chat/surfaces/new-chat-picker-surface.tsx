@@ -52,22 +52,11 @@ export function NewChatPicker(): ReactElement {
         label="Choose characters"
         leadingGroup={
           <CommandGroup heading="Start">
-            <CommandItem
-              disabled={selectedCount === 0}
-              keywords={["start", "chat", "group"]}
-              onSelect={(): void => found([...selected])}
-              value="__start__"
-            >
+            <CommandItem disabled={selectedCount === 0} keywords={["start", "chat", "group"]} onSelect={(): void => found([...selected])} value="__start__">
               <Icon icon={MessagesSquare} size="sm" />
-              {selectedCount === 0
-                ? "Pick a character to start"
-                : `Start chat with ${selectedCount} character${selectedCount === 1 ? "" : "s"}`}
+              {selectedCount === 0 ? "Pick a character to start" : `Start chat with ${selectedCount} character${selectedCount === 1 ? "" : "s"}`}
             </CommandItem>
-            <CommandItem
-              keywords={["blank", "assistant", "solo"]}
-              onSelect={(): void => found([])}
-              value="__blank__"
-            >
+            <CommandItem keywords={["blank", "assistant", "solo"]} onSelect={(): void => found([])} value="__blank__">
               <Icon icon={Plus} size="sm" />
               Blank chat
             </CommandItem>

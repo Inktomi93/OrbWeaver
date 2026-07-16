@@ -68,12 +68,7 @@ export function readCardChunk(data: Uint8Array, keyword: string): string | null 
 
 /** Pull the value of a single `tEXt` chunk if its keyword matches `want`; null otherwise (wrong key,
  *  no null separator, or undecodable base64/UTF-8). */
-function readTextValue(
-  data: Uint8Array,
-  chunkStart: number,
-  length: number,
-  want: string,
-): string | null {
+function readTextValue(data: Uint8Array, chunkStart: number, length: number, want: string): string | null {
   const chunk = data.subarray(chunkStart + LENGTH_AND_TYPE, chunkStart + LENGTH_AND_TYPE + length);
   const nullIdx = chunk.indexOf(0);
   if (nullIdx < 0) {
@@ -261,7 +256,6 @@ const BITS_PER_B64_DIGIT = 6;
 const B64_DIGIT_MASK = 0x3f;
 const B64_GROUP_CHARS = 4;
 const B64_PAD = "=";
-// biome-ignore lint/security/noSecrets: the standard RFC 4648 base64 alphabet, not a credential.
 const B64_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 const B64_REVERSE = new Map<string, number>(Array.from(B64_ALPHABET, (ch, i) => [ch, i]));
 

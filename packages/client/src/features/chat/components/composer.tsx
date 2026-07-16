@@ -41,30 +41,11 @@ interface PendingAttachment {
   readonly url: string;
 }
 
-function AttachmentPreview({
-  attachment,
-  onRemove,
-}: {
-  readonly attachment: PendingAttachment;
-  readonly onRemove: () => void;
-}): ReactElement {
+function AttachmentPreview({ attachment, onRemove }: { readonly attachment: PendingAttachment; readonly onRemove: () => void }): ReactElement {
   return (
     <Row gap="field" align="center" className="shrink-0" data-slot="composer-attachment">
-      <CrossfadeImage
-        src={attachment.url}
-        alt={`Attachment preview: ${attachment.file.name}`}
-        aspectRatio={1}
-        fit="cover"
-        className="size-16 rounded-card"
-      />
-      <Button
-        type="button"
-        intent="ghost"
-        size="icon"
-        aria-label={`Remove ${attachment.file.name}`}
-        onClick={onRemove}
-        className="rounded-full"
-      >
+      <CrossfadeImage src={attachment.url} alt={`Attachment preview: ${attachment.file.name}`} aspectRatio={1} fit="cover" className="size-16 rounded-card" />
+      <Button type="button" intent="ghost" size="icon" aria-label={`Remove ${attachment.file.name}`} onClick={onRemove} className="rounded-full">
         <Icon icon={X} size="sm" />
       </Button>
     </Row>
@@ -81,14 +62,7 @@ export interface ComposerProps {
   readonly tailRole?: MessageRole | null | undefined;
 }
 
-export function Composer({
-  handle,
-  value,
-  onChange,
-  draftSeed,
-  onCommitted,
-  tailRole = null,
-}: ComposerProps): ReactElement {
+export function Composer({ handle, value, onChange, draftSeed, onCommitted, tailRole = null }: ComposerProps): ReactElement {
   const chatId = isCommitted(handle) ? handle.id : null;
   const stopTurn = useStopTurn(chatId);
   const [attachments, setAttachments] = useState<readonly PendingAttachment[]>([]);
@@ -114,10 +88,7 @@ export function Composer({
       return [];
     });
   const addFiles = ({ accepted }: FileDropzoneResult): void =>
-    setAttachments((prev) => [
-      ...prev,
-      ...accepted.map((file) => ({ file, url: URL.createObjectURL(file) })),
-    ]);
+    setAttachments((prev) => [...prev, ...accepted.map((file) => ({ file, url: URL.createObjectURL(file) }))]);
   const removeAttachment = (index: number): void =>
     setAttachments((prev) => {
       const target = prev[index];
@@ -148,8 +119,7 @@ export function Composer({
   const canSubmitText = trimmed.length > 0;
   const canSubmit = canSubmitText || hasAttachments;
   // Needs a committed chat to post into + prompt text; one action at a time (never mid-send/mid-generate).
-  const canGenerateImage =
-    chatId !== null && canSubmitText && !sendMessage.isPending && !generateImage.isPending;
+  const canGenerateImage = chatId !== null && canSubmitText && !sendMessage.isPending && !generateImage.isPending;
 
   const generateFromText = (): void => {
     if (!canGenerateImage) {
@@ -187,18 +157,9 @@ export function Composer({
     <footer data-testid={testId("composer")}>
       <Stack gap="field">
         {hasAttachments ? (
-          <Row
-            gap="field"
-            align="center"
-            data-slot="composer-attachments"
-            className="mx-auto w-full max-w-(--width-shell-content) flex-wrap"
-          >
+          <Row gap="field" align="center" data-slot="composer-attachments" className="mx-auto w-full max-w-(--width-shell-content) flex-wrap">
             {attachments.map((attachment, index) => (
-              <AttachmentPreview
-                key={attachment.url}
-                attachment={attachment}
-                onRemove={(): void => removeAttachment(index)}
-              />
+              <AttachmentPreview key={attachment.url} attachment={attachment} onRemove={(): void => removeAttachment(index)} />
             ))}
           </Row>
         ) : null}
@@ -274,11 +235,7 @@ export function Composer({
               onClick={stopTurn.stop}
               className="rounded-full"
             >
-              {stopping ? (
-                <Spinner size="sm" label="Stopping…" />
-              ) : (
-                <Icon icon={Square} size="sm" />
-              )}
+              {stopping ? <Spinner size="sm" label="Stopping…" /> : <Icon icon={Square} size="sm" />}
             </Button>
           ) : (
             <Button

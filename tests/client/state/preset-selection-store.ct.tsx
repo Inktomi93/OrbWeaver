@@ -28,9 +28,7 @@ test("select/clear section drives the inspector selection reactively", async ({ 
 
   await probe.getByRole("button", { name: "select preset", exact: true }).click();
   await probe.getByRole("button", { name: "select section", exact: true }).click();
-  await expect(state).toHaveText(
-    "selected=preset_ct_probe section=sec_probe openOverlayPanel=none",
-  );
+  await expect(state).toHaveText("selected=preset_ct_probe section=sec_probe openOverlayPanel=none");
 
   await probe.getByRole("button", { name: "clear section", exact: true }).click();
   await expect(state).toHaveText("selected=preset_ct_probe section=none openOverlayPanel=none");
@@ -59,9 +57,7 @@ test("selectPresetFromList selects AND closes the LIST slide-over", async ({ mou
   await expect(state).toHaveText("selected=preset_ct_probe section=none openOverlayPanel=none");
 });
 
-test("dismissPresetSection clears the section AND closes the CONTEXT slide-over", async ({
-  mount,
-}) => {
+test("dismissPresetSection clears the section AND closes the CONTEXT slide-over", async ({ mount }) => {
   const probe = await mount(<PresetSelectionProbe />);
   const state = probe.locator("output");
 

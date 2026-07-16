@@ -36,10 +36,7 @@ interface NearestDigestsParams {
   readonly limit: number;
 }
 
-export async function nearestDigests(
-  db: ReadOnlyDb,
-  params: NearestDigestsParams,
-): Promise<NearestDigest[]> {
+export async function nearestDigests(db: ReadOnlyDb, params: NearestDigestsParams): Promise<NearestDigest[]> {
   const distance = sql<number>`vector_distance_cos(${chatDigests.embedding}, vector32(${toVectorBlob(params.queryVector)}))`;
   const rows = await db
     .select({
@@ -67,16 +64,12 @@ export async function nearestDigests(
     )
     .orderBy(distance)
     .limit(params.limit);
-  return rows.map((r) => ({ ...r, keywords: r.keywords ?? [] }));
+  return rows;
 }
 
 /** The owner's materialized chat set, bounding discover's verbatim segment scan (which has no owner column).
  *  groupBy yields the distinct set (ReadOnlyDb has no selectDistinct). */
-export async function ownedChatIds(
-  db: ReadOnlyDb,
-  ownerId: UserId,
-  model: string,
-): Promise<ChatId[]> {
+export async function ownedChatIds(db: ReadOnlyDb, ownerId: UserId, model: string): Promise<ChatId[]> {
   const rows = await db
     .select({ chatId: chatDigests.chatId })
     .from(chatDigests)
@@ -103,10 +96,7 @@ interface NearestSegmentsParams {
   readonly limit: number;
 }
 
-export async function nearestSegments(
-  db: ReadOnlyDb,
-  params: NearestSegmentsParams,
-): Promise<NearestSegment[]> {
+export async function nearestSegments(db: ReadOnlyDb, params: NearestSegmentsParams): Promise<NearestSegment[]> {
   const distance = sql<number>`vector_distance_cos(${chatSegments.embedding}, vector32(${toVectorBlob(params.queryVector)}))`;
   const rows = await db
     .select({

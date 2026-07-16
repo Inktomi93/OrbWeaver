@@ -19,12 +19,7 @@ export interface ThemeBackgroundLayerProps {
 }
 
 /** Renders nothing when `url === null` — the app's normal `--color-background` paints through. */
-export function ThemeBackgroundLayer({
-  url,
-  fit,
-  dim,
-  blur,
-}: ThemeBackgroundLayerProps): ReactElement | null {
+export function ThemeBackgroundLayer({ url, fit, dim, blur }: ThemeBackgroundLayerProps): ReactElement | null {
   if (url === null) {
     return null;
   }
@@ -42,12 +37,7 @@ export function ThemeBackgroundLayer({
         className="pointer-events-none fixed inset-0 z-(--z-base) bg-center bg-no-repeat"
         style={photoStyle}
       />
-      <div
-        aria-hidden="true"
-        data-slot="theme-background-scrim"
-        className="pointer-events-none fixed inset-0 z-(--z-base) bg-scrim"
-        style={{ opacity: dim }}
-      />
+      <div aria-hidden="true" data-slot="theme-background-scrim" className="pointer-events-none fixed inset-0 z-(--z-base) bg-scrim" style={{ opacity: dim }} />
     </>
   );
 }

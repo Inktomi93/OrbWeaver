@@ -15,17 +15,7 @@ import type {
 import type { AgentSourceKind, Principal } from "@orb/contracts/identity";
 import type { PromptTemplateMode } from "@orb/contracts/imagery";
 import type { GuidedActionKind, GuidedImpersonatePerson, UserIntent } from "@orb/contracts/preset";
-import type {
-  AssetId,
-  CharacterId,
-  ChatId,
-  ChatInjectionId,
-  ChatInviteId,
-  MessageId,
-  MessageVariantId,
-  PersonaId,
-  UserId,
-} from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, ChatInjectionId, ChatInviteId, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 
 /** Common to every chat verb: the acting principal. */
@@ -45,9 +35,7 @@ interface MessageScopedParams extends ChatScopedParams {
 
 /** A one-turn typed steer. `placement` defaults to the system marker; the `inject` arm is for an action
  *  that must read as an in-character turn. Untrusted `input` is macro-neutralized downstream. */
-type GuidedPlacement =
-  | { readonly kind: "system" }
-  | { readonly kind: "inject"; readonly role: MessageRole };
+type GuidedPlacement = { readonly kind: "system" } | { readonly kind: "inject"; readonly role: MessageRole };
 
 export interface GuidedSteer {
   readonly action: GuidedActionKind;
@@ -68,12 +56,7 @@ export interface StartChatParams extends ChatActorParams {
   readonly seedGreetings?: Readonly<Record<CharacterId, string>> | undefined;
   /** Pre-send per-character roster tuning applied to the founding rows at creation. */
   readonly rosterOverrides?:
-    | Readonly<
-        Record<
-          CharacterId,
-          { readonly disabled?: boolean | undefined; readonly talkativeness?: number | undefined }
-        >
-      >
+    | Readonly<Record<CharacterId, { readonly disabled?: boolean | undefined; readonly talkativeness?: number | undefined }>>
     | undefined;
   readonly groupConfig?: GroupConfigInput | undefined;
   readonly roomOverrides?: RoomOverrides | undefined;

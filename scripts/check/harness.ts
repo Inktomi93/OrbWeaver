@@ -28,12 +28,7 @@ export function getProject(root: string): Project {
     return cached;
   }
   const project = new Project({ skipAddingFilesFromTsConfig: true });
-  project.addSourceFilesAtPaths([
-    `${root}/packages/*/src/**/*.ts`,
-    `${root}/packages/*/src/**/*.tsx`,
-    `${root}/tests/**/*.ts`,
-    `${root}/tests/**/*.tsx`,
-  ]);
+  project.addSourceFilesAtPaths([`${root}/packages/*/src/**/*.ts`, `${root}/packages/*/src/**/*.tsx`, `${root}/tests/**/*.ts`, `${root}/tests/**/*.tsx`]);
   cached = project;
   return project;
 }

@@ -11,10 +11,7 @@ import type { ModelId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { isChatModelId } from "../catalog/chat-models";
 
-export function pickOrModel(
-  model: string | null,
-  cached: readonly ModelCatalogEntry[] | null,
-): ModelId {
+export function pickOrModel(model: string | null, cached: readonly ModelCatalogEntry[] | null): ModelId {
   if (model === null) {
     return DEFAULT_OR_CHAT_MODEL_ID;
   }

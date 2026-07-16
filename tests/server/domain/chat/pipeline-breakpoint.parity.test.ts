@@ -20,13 +20,7 @@
 import { describe } from "vitest";
 import { expect, test } from "../../../support/fixtures";
 import type { ShapeCase } from "../../../support/parity-runner";
-import {
-  loadFixture,
-  loadReference,
-  rollingDelta,
-  runOrbweaverShape,
-  UNSKIP_WHEN,
-} from "../../../support/parity-runner";
+import { loadFixture, loadReference, rollingDelta, runOrbweaverShape, UNSKIP_WHEN } from "../../../support/parity-runner";
 
 const SHA1 = /^[0-9a-f]{40}$/u;
 
@@ -47,17 +41,12 @@ describe("oracle reference integrity (no orbweaver assembly needed)", () => {
   });
 
   test("every fixture case has a captured reference result", () => {
-    const missing = fixture.cases
-      .filter((c) => reference.cases[c.name] === undefined)
-      .map((c) => c.name);
+    const missing = fixture.cases.filter((c) => reference.cases[c.name] === undefined).map((c) => c.name);
     expect(missing).toEqual([]);
   });
 
   test("each case's captured breakpoint matches its a-priori annotation (capture is faithful)", () => {
-    const got = fixture.cases.map((c) => [
-      c.name,
-      reference.cases[c.name]?.cacheBreakpointFromEnd ?? null,
-    ]);
+    const got = fixture.cases.map((c) => [c.name, reference.cases[c.name]?.cacheBreakpointFromEnd ?? null]);
     const want = fixture.cases.map((c) => [c.name, c.expectBreakpointFromEnd]);
     expect(got).toEqual(want);
   });
@@ -80,9 +69,7 @@ describe("oracle reference integrity (no orbweaver assembly needed)", () => {
       .filter((r) => r.cacheBreakpointFromEnd !== null)
       .filter((r) => r.targetIdx === null || r.targetIdx < 0 || r.targetIdx >= r.history.length);
     expect(outOfBounds).toHaveLength(1);
-    expect(
-      req(reference.cases["scoped-egocentric-history"], "scoped case").cacheBreakpointFromEnd,
-    ).toBe(-1);
+    expect(req(reference.cases["scoped-egocentric-history"], "scoped case").cacheBreakpointFromEnd).toBe(-1);
   });
 
   test("the rolling pair: offset invariant + placement advances by one user/assistant pair (2)", () => {
@@ -135,11 +122,7 @@ const F2_ATTRIBUTION_DIVERGENT = "group-per-speaker-nudge-abort";
 // byte-identical turn-over-turn and the breakpoint HOLDS (offset 1). This is a DELIBERATE bytes + breakpoint
 // divergence, called out here (never a silent fixture update).
 const W6_PREFIX_STABLE_DIVERGENT = "depth1-assistant-boundary-squash-abort";
-const DIVERGENT: ReadonlySet<string> = new Set([
-  NEO_QUIRK_DIVERGENT,
-  F2_ATTRIBUTION_DIVERGENT,
-  W6_PREFIX_STABLE_DIVERGENT,
-]);
+const DIVERGENT: ReadonlySet<string> = new Set([NEO_QUIRK_DIVERGENT, F2_ATTRIBUTION_DIVERGENT, W6_PREFIX_STABLE_DIVERGENT]);
 
 describe(`pipeline-breakpoint parity: orbweaver SHAPE vs neo — ${UNSKIP_WHEN}`, () => {
   for (const c of fixture.cases.filter((x) => !DIVERGENT.has(x.name))) {

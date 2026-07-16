@@ -2,11 +2,7 @@
 // provenance is null (app-authored), `character.updated` is emitted (the indexer re-embeds), and a per-owner
 // handle collision throws `CharacterOperationError("handle_conflict")`.
 
-import {
-  AssetNotFoundError,
-  CharacterOperationError,
-  createCharacterService,
-} from "@orb/server/domain/character";
+import { AssetNotFoundError, CharacterOperationError, createCharacterService } from "@orb/server/domain/character";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
@@ -35,9 +31,7 @@ describe("create", () => {
     expect(detail.greetings).toEqual([]);
     expect(detail.regexScripts).toEqual([]);
 
-    expect(h.events).toEqual([
-      { type: "character.updated", characterId: detail.id, contentChanged: true },
-    ]);
+    expect(h.events).toEqual([{ type: "character.updated", characterId: detail.id, contentChanged: true }]);
     expect(h.audits.map((a) => a.entry.action)).toContain("character.create");
   });
 

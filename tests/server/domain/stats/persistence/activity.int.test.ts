@@ -4,10 +4,7 @@
 import type { Db } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
-import {
-  readActivityHeatmap,
-  readCharacterMomentum,
-} from "../../../../../packages/server/src/domain/stats/persistence/activity.ts";
+import { readActivityHeatmap, readCharacterMomentum } from "../../../../../packages/server/src/domain/stats/persistence/activity.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
 import { DAY, seedCharacter, seedChat, seedMessage, seedUser, T0 } from "../_support.ts";

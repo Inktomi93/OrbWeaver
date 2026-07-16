@@ -47,7 +47,10 @@ interface MockCtx {
 function captureExport(deps: ExportDeps): Map<string, Handler> {
   const routes = new Map<string, Handler>();
   const app = {
-    get: (path: string, h: Handler): unknown => (routes.set(`GET ${path}`, h), app),
+    get: (path: string, h: Handler): unknown => {
+      routes.set(`GET ${path}`, h);
+      return app;
+    },
   };
   // FABRICATION-OK: narrowing a captured mock app to Hono's registrar param — a test seam, not a domain value.
   registerExport(app as unknown as Parameters<typeof registerExport>[0], deps);
@@ -57,21 +60,20 @@ function captureExport(deps: ExportDeps): Map<string, Handler> {
 function captureImport(deps: ImportBundleDeps): Map<string, Handler> {
   const routes = new Map<string, Handler>();
   const app = {
-    post: (path: string, h: Handler): unknown => (routes.set(`POST ${path}`, h), app),
+    post: (path: string, h: Handler): unknown => {
+      routes.set(`POST ${path}`, h);
+      return app;
+    },
   };
   // FABRICATION-OK: narrowing a captured mock app to Hono's registrar param — a test seam, not a domain value.
   registerImportBundle(app as unknown as Parameters<typeof registerImportBundle>[0], deps);
   return routes;
 }
 
-function makeCtx(
-  principal: Principal | null,
-  opts: { readonly query?: Record<string, string>; readonly raw?: Request } = {},
-): MockCtx {
+function makeCtx(principal: Principal | null, opts: { readonly query?: Record<string, string>; readonly raw?: Request } = {}): MockCtx {
   return {
     get: (key): Principal | null => (key === "principal" ? principal : null),
-    json: (b, status = 200): Response =>
-      new Response(JSON.stringify(b), { status, headers: { "content-type": "application/json" } }),
+    json: (b, status = 200): Response => new Response(JSON.stringify(b), { status, headers: { "content-type": "application/json" } }),
     body: (data, status = 200): Response => new Response(data, { status }),
     req: {
       query: (name): string | undefined => opts.query?.[name],
@@ -91,10 +93,7 @@ async function zipPaths(bytes: Uint8Array): Promise<string[]> {
 }
 
 describe("portability routes — GET /api/export/library + POST /api/import/bundle over the real registry", () => {
-  test("library route: anon → 401; bad kinds token → 400; the streamed zip carries the seeded entity dirs", async ({
-    db,
-    app,
-  }) => {
+  test("library route: anon → 401; bad kinds token → 400; the streamed zip carries the seeded entity dirs", async ({ db, app }) => {
     await seedUser(db, { id: OWNER_ID, handle: castId<Handle>("portability-owner") });
     const owner = principalOf(OWNER_ID);
     // Seed two self-contained entities (no CAS needed) — enough to prove a MULTI-entity library zip.
@@ -126,10 +125,7 @@ describe("portability routes — GET /api/export/library + POST /api/import/bund
     expect(filteredPaths.some((p) => p.startsWith("tags/"))).toBe(false);
   });
 
-  test("bundle route: a library zip → import writes the ROWS for the uploading owner", async ({
-    db,
-    app,
-  }): Promise<void> => {
+  test("bundle route: a library zip → import writes the ROWS for the uploading owner", async ({ db, app }): Promise<void> => {
     await seedUser(db, { id: OWNER_ID, handle: castId<Handle>("portability-owner") });
     await seedUser(db, { id: TARGET_ID, handle: castId<Handle>("portability-target") });
     const owner = principalOf(OWNER_ID);
@@ -197,10 +193,7 @@ describe("portability routes — GET /api/export/library + POST /api/import/bund
     // Idempotent re-import: a second upload of the same bundle writes ZERO new rows.
     const report2 = await runImport();
     expect(report2.failed).toBe(0);
-    const presetsAfter = await db
-      .select({ id: presets.id })
-      .from(presets)
-      .where(eq(presets.ownerId, TARGET_ID));
+    const presetsAfter = await db.select({ id: presets.id }).from(presets).where(eq(presets.ownerId, TARGET_ID));
     expect(presetsAfter).toHaveLength(1);
   });
 });

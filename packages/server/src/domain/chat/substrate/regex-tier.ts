@@ -15,11 +15,7 @@ import type { HostTierRegexSources } from "../contract/regex";
  *  (first/earliest-tier wins), deterministically ordered. Returns the full set — `executeRegexScripts` does
  *  the enabled/placement/flag filtering. */
 export function resolveHostTierRegexScripts(sources: HostTierRegexSources): RegexScript[] {
-  const ordered: readonly RegexScript[] = [
-    ...sources.hostGlobal,
-    ...sources.preset,
-    ...sources.cast.flatMap((card) => card.regexScripts),
-  ];
+  const ordered: readonly RegexScript[] = [...sources.hostGlobal, ...sources.preset, ...sources.cast.flatMap((card) => card.regexScripts)];
   const seen = new Set<string>();
   const effective: RegexScript[] = [];
   for (const candidate of ordered) {

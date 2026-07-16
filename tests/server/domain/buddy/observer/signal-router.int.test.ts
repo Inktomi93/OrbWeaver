@@ -6,17 +6,9 @@ import type { Db } from "@orb/db";
 import type { BuddyQuipId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import type {
-  BuddyBusEvent,
-  BuddyObserverEnv,
-  BuddyObserverReads,
-  LiteChatEvent,
-} from "../../../../../packages/server/src/domain/buddy/index.ts";
+import type { BuddyBusEvent, BuddyObserverEnv, BuddyObserverReads, LiteChatEvent } from "../../../../../packages/server/src/domain/buddy/index.ts";
 import { createSignalRouter } from "../../../../../packages/server/src/domain/buddy/observer/signal-router.ts";
-import {
-  insertBuddy,
-  loadRecentQuips,
-} from "../../../../../packages/server/src/domain/buddy/persistence/queries.ts";
+import { insertBuddy, loadRecentQuips } from "../../../../../packages/server/src/domain/buddy/persistence/queries.ts";
 import { roll } from "../../../../../packages/server/src/domain/buddy/substrate/roll.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";

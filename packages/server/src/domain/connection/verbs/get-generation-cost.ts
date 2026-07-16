@@ -9,14 +9,8 @@ import type { ConnectionContext } from "../context";
 import type { GetGenerationCostParams } from "../contract/params";
 import type { ConnectionService } from "../contract/service";
 
-export function createGetGenerationCost(
-  ctx: ConnectionContext,
-): ConnectionService["getGenerationCost"] {
-  return async ({
-    principal,
-    generationId,
-    signal,
-  }: GetGenerationCostParams): Promise<GenerationCost> => {
+export function createGetGenerationCost(ctx: ConnectionContext): ConnectionService["getGenerationCost"] {
+  return async ({ principal, generationId, signal }: GetGenerationCostParams): Promise<GenerationCost> => {
     const credential = await ctx.resolveCredential({ principal, source: "openrouter" });
     return await ctx.generationCost({ credential, generationId, signal });
   };

@@ -14,9 +14,6 @@ import type { CharacterContext } from "../context";
 import type { CharacterService } from "../contract/service";
 import { listEmbeddableCharacterIdRows } from "../persistence/queries";
 
-export function createListEmbeddableCharacterIds(
-  ctx: CharacterContext,
-): CharacterService["listEmbeddableCharacterIds"] {
-  return (ownerId?: UserId | null): Promise<readonly CharacterId[]> =>
-    listEmbeddableCharacterIdRows(ctx.db, ownerId);
+export function createListEmbeddableCharacterIds(ctx: CharacterContext): CharacterService["listEmbeddableCharacterIds"] {
+  return (ownerId?: UserId | null): Promise<readonly CharacterId[]> => listEmbeddableCharacterIdRows(ctx.db, ownerId);
 }

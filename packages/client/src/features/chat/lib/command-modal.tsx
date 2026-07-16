@@ -10,9 +10,7 @@ import { CommandPaletteSurface } from "../surfaces/command-palette-surface";
 
 function CommandModalBody(): ReturnType<typeof CommandPaletteSurface> {
   const registry = useSectionRegistry();
-  const goToSections: readonly GoToSection[] = registry
-    .list()
-    .map((d) => ({ id: d.id, label: d.rail.label }));
+  const goToSections: readonly GoToSection[] = registry.list().map((d) => ({ id: d.id, label: d.rail.label }));
   return <CommandPaletteSurface goToSections={goToSections} />;
 }
 

@@ -11,11 +11,7 @@
 import { TOKENS } from "@orb/ui/tokens";
 import { THEME_DERIVATION } from "../../../../packages/ui/src/content/theme-scope/clamp";
 import type { Rgb } from "../../../../scripts/probes/design-audit-checks";
-import {
-  contrastRatio,
-  LARGE_MIN_RATIO,
-  NORMAL_MIN_RATIO,
-} from "../../../../scripts/probes/design-audit-checks";
+import { contrastRatio, LARGE_MIN_RATIO, NORMAL_MIN_RATIO } from "../../../../scripts/probes/design-audit-checks";
 import { expect, test } from "../../../support/fixtures";
 
 // ── House oklch → sRGB (0–255). Standard OKLab matrices; channels clamped to gamut (neutral/low-chroma
@@ -77,42 +73,27 @@ const rgbOf = (path: keyof typeof TOKENS): Rgb => oklchToRgb(parseOklch(TOKENS[p
 // into `clamp.ts` (it would couple the property test to the impl and lose the independent cross-check).
 const D = THEME_DERIVATION;
 const clampN = (min: number, v: number, max: number): number => Math.max(min, Math.min(max, v));
-const contrastToneL = (surfaceL: number): number =>
-  clampN(D.fgLMin, (D.fgPivotL - surfaceL) * D.fgSteepness, D.fgLMax);
-const mutedToneL = (surfaceL: number): number =>
-  clampN(D.mutedLMin, (D.fgPivotL - surfaceL) * D.fgSteepness, D.mutedLMax);
+const contrastToneL = (surfaceL: number): number => clampN(D.fgLMin, (D.fgPivotL - surfaceL) * D.fgSteepness, D.fgLMax);
+const mutedToneL = (surfaceL: number): number => clampN(D.mutedLMin, (D.fgPivotL - surfaceL) * D.fgSteepness, D.mutedLMax);
 /** A derived surface = the base with its L shifted by a ramp delta (chroma/hue kept, L clamped). */
 const rampSurface = (base: Oklch, deltaL: number): Oklch => ({
   ...base,
   l: clamp01(base.l + deltaL),
 });
 /** The contrast foreground for `surface` (chroma 0, base hue). */
-const foregroundRgb = (surface: Oklch): Rgb =>
-  oklchToRgb({ l: contrastToneL(surface.l), c: 0, h: surface.h });
+const foregroundRgb = (surface: Oklch): Rgb => oklchToRgb({ l: contrastToneL(surface.l), c: 0, h: surface.h });
 
 // Representative bases: dark themes sit at L ≤ 0.25 (Mocha 0.15, Hearth-projection 0.158), light at
 // L ≥ 0.90 (Light 0.98). The mid band (~0.28–0.62) is the DOCUMENTED pivot limitation — a mid-gray page
 // surface is inherently low-contrast for any sub-maximal tone (clamp.ts §muted-foreground), and no real
 // palette uses one — so it is deliberately outside the swept range, not a gap.
-const DARK_BASES = [
-  "oklch(0.10 0.01 60)",
-  "oklch(0.15 0.015 250)",
-  "oklch(0.158 0.006 60)",
-  "oklch(0.20 0.02 300)",
-  "oklch(0.25 0.02 300)",
-];
+const DARK_BASES = ["oklch(0.10 0.01 60)", "oklch(0.15 0.015 250)", "oklch(0.158 0.006 60)", "oklch(0.20 0.02 300)", "oklch(0.25 0.02 300)"];
 const LIGHT_BASES = ["oklch(0.90 0.01 60)", "oklch(0.95 0.01 60)", "oklch(0.98 0.004 75)"];
 const REALISTIC_BASES = [...DARK_BASES, ...LIGHT_BASES];
 
 // Real-world accents a user might pick (saturated, mid-high L — never a pivot-adjacent mid-gray): the
 // three seed accents + a cool/warm spread. primary-foreground must stay legible on every one.
-const ACCENTS = [
-  "oklch(0.72 0.175 52)",
-  "oklch(0.7 0.14 250)",
-  "oklch(0.55 0.16 50)",
-  "oklch(0.5 0.2 25)",
-  "oklch(0.9 0.15 100)",
-];
+const ACCENTS = ["oklch(0.72 0.175 52)", "oklch(0.7 0.14 250)", "oklch(0.55 0.16 50)", "oklch(0.5 0.2 25)", "oklch(0.9 0.15 100)"];
 
 test("static seed tokens (theme.css :root) — every body-text pairing clears WCAG AA 4.5:1", () => {
   // Body/surface/secondary pairings must clear the normal-text floor.
@@ -143,9 +124,7 @@ test("static seed tokens (theme.css :root) — every body-text pairing clears WC
   for (const backdrop of ["color.card", "color.popover", "color.background"] as const) {
     const composited = compositeOver(inputTok, rgbOf(backdrop));
     const ratio = contrastRatio(rgbOf("color.muted-foreground"), composited);
-    expect(ratio, `muted-foreground on input over ${backdrop}`).toBeGreaterThanOrEqual(
-      NORMAL_MIN_RATIO,
-    );
+    expect(ratio, `muted-foreground on input over ${backdrop}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
   }
 });
 
@@ -180,9 +159,7 @@ test("static destructive clears WCAG AA-NORMAL 4.5:1 in BOTH roles it renders in
   }
   //   role 2 — the solid `bg-destructive` + `text-destructive-foreground` button/badge/pill.
   const pill = contrastRatio(rgbOf("color.destructive-foreground"), rgbOf("color.destructive"));
-  expect(pill, "destructive-foreground on destructive (solid pill)").toBeGreaterThanOrEqual(
-    NORMAL_MIN_RATIO,
-  );
+  expect(pill, "destructive-foreground on destructive (solid pill)").toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
 });
 
 test("clamp DERIVED neutral chrome clears AA on every realistic light + dark base", () => {
@@ -202,9 +179,7 @@ test("clamp DERIVED neutral chrome clears AA on every realistic light + dark bas
     };
     for (const [name, surface] of Object.entries(surfaces)) {
       const ratio = contrastRatio(fg, oklchToRgb(surface));
-      expect(ratio, `derived foreground on ${name} @ ${baseStr}`).toBeGreaterThanOrEqual(
-        NORMAL_MIN_RATIO,
-      );
+      expect(ratio, `derived foreground on ${name} @ ${baseStr}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
     }
     // Muted foreground over the derived input fill (contrast tone at inputAlpha) composited over the
     // lightest (popover) and base surfaces — the worst realistic backdrops — PLUS the opaque derived
@@ -216,16 +191,10 @@ test("clamp DERIVED neutral chrome clears AA on every realistic light + dark bas
       ["background", base],
     ] as const) {
       const ratio = contrastRatio(muted, compositeOver(inputFill, oklchToRgb(surface)));
-      expect(
-        ratio,
-        `derived muted-foreground on input over ${name} @ ${baseStr}`,
-      ).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
+      expect(ratio, `derived muted-foreground on input over ${name} @ ${baseStr}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
     }
     const mutedSurface = rampSurface(base, D.ramp.muted);
-    expect(
-      contrastRatio(muted, oklchToRgb(mutedSurface)),
-      `derived muted-foreground on muted @ ${baseStr}`,
-    ).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
+    expect(contrastRatio(muted, oklchToRgb(mutedSurface)), `derived muted-foreground on muted @ ${baseStr}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
   }
 });
 
@@ -238,9 +207,7 @@ test("clamp DERIVED accent (hover/selected) surface + its foreground clear AA on
     const accent = rampSurface(base, D.ramp.accent);
     const accentFg = oklchToRgb({ l: contrastToneL(base.l + D.ramp.accent), c: 0, h: base.h });
     const ratio = contrastRatio(accentFg, oklchToRgb(accent));
-    expect(ratio, `derived accent-foreground on accent @ ${baseStr}`).toBeGreaterThanOrEqual(
-      NORMAL_MIN_RATIO,
-    );
+    expect(ratio, `derived accent-foreground on accent @ ${baseStr}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
   }
 });
 
@@ -249,8 +216,6 @@ test("clamp DERIVED primary-foreground clears AA on every realistic picked accen
     const accent = parseOklch(accentStr);
     const primaryFg = foregroundRgb(accent);
     const ratio = contrastRatio(primaryFg, oklchToRgb(accent));
-    expect(ratio, `derived primary-foreground on accent ${accentStr}`).toBeGreaterThanOrEqual(
-      NORMAL_MIN_RATIO,
-    );
+    expect(ratio, `derived primary-foreground on accent ${accentStr}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
   }
 });

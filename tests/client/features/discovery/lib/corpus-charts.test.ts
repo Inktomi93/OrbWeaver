@@ -3,12 +3,7 @@
 // by frequency, deterministic tie-break, muted fallback for overflow + null). The surfaces lean on both;
 // this asserts the shaping, not a trivial passthrough.
 
-import {
-  assignGenreColors,
-  GENRE_FILL_MUTED,
-  GENRE_FILLS,
-  toBarItems,
-} from "../../../../../packages/client/src/features/discovery/lib/corpus-charts";
+import { assignGenreColors, GENRE_FILL_MUTED, GENRE_FILLS, toBarItems } from "../../../../../packages/client/src/features/discovery/lib/corpus-charts";
 import { expect, test } from "../../../../support/fixtures";
 
 test("toBarItems maps label/value and keeps keys unique across repeated labels", () => {

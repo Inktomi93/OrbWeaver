@@ -12,15 +12,7 @@ import type { RegexScript } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { BatchStmt, Db } from "@orb/db";
-import {
-  characterStats,
-  chats,
-  dailyStats,
-  messages,
-  messageVariants,
-  modelStats,
-  ownerStats,
-} from "@orb/db";
+import { characterStats, chats, dailyStats, messages, messageVariants, modelStats, ownerStats } from "@orb/db";
 import type { CharacterId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName, VarOp } from "@orb/kit/macro";
@@ -28,27 +20,14 @@ import { resolveRowMacros } from "@orb/kit/macro";
 import type { AuditEntry } from "@orb/server/foundation/observability";
 import { asc, eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import {
-  ChatNotFoundError,
-  ChatOperationError,
-} from "../../../../../packages/server/src/domain/chat/contract/errors";
+import { ChatNotFoundError, ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors";
 import { createEdit } from "../../../../../packages/server/src/domain/chat/verbs/edit";
 import { applyStatsDelta } from "../../../../../packages/server/src/domain/stats/write/apply-delta";
 import { reconcileStats } from "../../../../../packages/server/src/domain/stats/write/rebuild-from-canon";
 import { freshDb } from "../../../../support/db";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../support/fixtures";
-import {
-  addVariant,
-  FROZEN_AT,
-  makeChatContext,
-  seedCharacter,
-  seedChat,
-  seedMessage,
-  seedParticipant,
-  seedPersona,
-  seedUser,
-} from "../_support";
+import { addVariant, FROZEN_AT, makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedPersona, seedUser } from "../_support";
 
 let db: Db;
 let emitted: ChatBusEvent[];
@@ -117,10 +96,7 @@ describe("editMessage — mutate the selected variant (D26, no doubling)", () =>
     expect(view.content).toBe("fixed");
     expect(view.variantCount).toBe(1); // D26: edit mutated the variant, never appended one
     expect(view.editedAt).toBe(view.createdAt); // editedAt stamped (FROZEN clock)
-    const variants = await db
-      .select()
-      .from(messageVariants)
-      .where(eq(messageVariants.messageId, messageId));
+    const variants = await db.select().from(messageVariants).where(eq(messageVariants.messageId, messageId));
     expect(variants).toHaveLength(1);
     expect(variants[0]?.content).toBe("fixed");
     expect(emitted).toEqual([{ type: "messageEdited", chatId, messageId, view }]);
@@ -134,9 +110,7 @@ describe("editMessage — mutate the selected variant (D26, no doubling)", () =>
     });
     const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs });
 
-    const err = await edit
-      .editMessage({ principal: principal(member), chatId, messageId, content: "x" })
-      .catch((e: unknown) => e);
+    const err = await edit.editMessage({ principal: principal(member), chatId, messageId, content: "x" }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
     expect((err as ChatOperationError).code).toBe("not_author");
 
@@ -156,8 +130,7 @@ describe("editMessage — mutate the selected variant (D26, no doubling)", () =>
       characterId: charA,
     });
     const ctx = makeChatContext(db, {
-      getCard: () =>
-        Promise.resolve({ name: "Aria", avatarAssetId: null, regexScripts: [] } as never),
+      getCard: () => Promise.resolve({ name: "Aria", avatarAssetId: null, regexScripts: [] } as never),
     });
     const edit = createEdit(ctx, { emit, resolveForeignInputs });
 
@@ -204,10 +177,7 @@ describe("editMessage — runOnEdit regex re-apply (PD-110; D53 host-tier)", () 
 
     // Canon-mutating at write: the STORED row is the post-regex text.
     expect(view.content).toBe("she said **** twice");
-    const [variant] = await db
-      .select()
-      .from(messageVariants)
-      .where(eq(messageVariants.messageId, messageId));
+    const [variant] = await db.select().from(messageVariants).where(eq(messageVariants.messageId, messageId));
     expect(variant?.content).toBe("she said **** twice");
   });
 
@@ -299,9 +269,7 @@ describe("selectVariant — flip the pointer to a sibling swipe (D26 zero-copy)"
     expect(view.variantCount).toBe(2);
     expect(emitted.at(-1)).toEqual({ type: "variantSelected", chatId, messageId, view });
 
-    const err = await edit
-      .selectVariant({ principal: principal(host), chatId, messageId, variantId: other.variantId })
-      .catch((e: unknown) => e);
+    const err = await edit.selectVariant({ principal: principal(host), chatId, messageId, variantId: other.variantId }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatNotFoundError);
   });
 });
@@ -437,14 +405,9 @@ describe("deleteMessages — bulk, author-or-host, FK cascade", () => {
 
     const rows = await db.select().from(messages).where(eq(messages.chatId, chatId));
     expect(rows).toHaveLength(0);
-    const variants = await db
-      .select()
-      .from(messageVariants)
-      .where(eq(messageVariants.id, a.variantId));
+    const variants = await db.select().from(messageVariants).where(eq(messageVariants.id, a.variantId));
     expect(variants).toHaveLength(0); // FK CASCADE
-    expect(emitted).toEqual([
-      { type: "messagesDeleted", chatId, messageIds: [a.messageId, b.messageId] },
-    ]);
+    expect(emitted).toEqual([{ type: "messagesDeleted", chatId, messageIds: [a.messageId, b.messageId] }]);
   });
 
   test("a member cannot delete another member's slot (not_author)", async () => {
@@ -452,9 +415,7 @@ describe("deleteMessages — bulk, author-or-host, FK cascade", () => {
     const a = await seedMessage(db, chatId, 1, { role: "assistant", characterId: charA });
     const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs });
 
-    const err = await edit
-      .deleteMessages({ principal: principal(member), chatId, messageIds: [a.messageId] })
-      .catch((e: unknown) => e);
+    const err = await edit.deleteMessages({ principal: principal(member), chatId, messageIds: [a.messageId] }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
     expect((err as ChatOperationError).code).toBe("not_author");
   });
@@ -474,9 +435,7 @@ describe("deleteMessages — bulk, author-or-host, FK cascade", () => {
     );
 
     // Refused first (member ≠ author) — existence-before-audit: NO phantom row for a delete that never ran.
-    await edit
-      .deleteMessages({ principal: principal(member), chatId, messageIds: [a.messageId] })
-      .catch((e: unknown) => e);
+    await edit.deleteMessages({ principal: principal(member), chatId, messageIds: [a.messageId] }).catch((e: unknown) => e);
     expect(audits).toEqual([]);
 
     await edit.deleteMessages({ principal: principal(host), chatId, messageIds: [a.messageId] });
@@ -559,13 +518,7 @@ describe("canon-mutator stats deltas (stats.md — the delete/edit push)", () =>
 // canon — proving live == rebuild on the ADDITIVE columns (words/tokens/cost/swipes/counts). Extrema
 // (`firstChatAt`/`lastActivityAt`/`maxContextTokens`) + bookkeeping (`id`/`computedAt`) are stripped — a
 // subtracted extremum can't be retracted live (it re-floats + settles on the next reconcile, stats-delta.ts).
-const NON_ADDITIVE = new Set([
-  "id",
-  "computedAt",
-  "firstChatAt",
-  "lastActivityAt",
-  "maxContextTokens",
-]);
+const NON_ADDITIVE = new Set(["id", "computedAt", "firstChatAt", "lastActivityAt", "maxContextTokens"]);
 
 /** Strip the non-additive/bookkeeping columns so the two writers are compared over the DATA they compute. */
 function strip(row: object): Record<string, unknown> {
@@ -827,10 +780,7 @@ describe("moveMessage — host-only re-sequence", () => {
       toSeq: 2,
     });
 
-    const [row] = await db
-      .select({ runtimeVariables: chats.runtimeVariables })
-      .from(chats)
-      .where(eq(chats.id, chatId));
+    const [row] = await db.select({ runtimeVariables: chats.runtimeVariables }).from(chats).where(eq(chats.id, chatId));
     expect(row?.runtimeVariables).toEqual({ hp: "10" });
   });
 
@@ -838,9 +788,7 @@ describe("moveMessage — host-only re-sequence", () => {
     const { member, chatId } = await seedRoom();
     const m1 = await seedMessage(db, chatId, 1, { role: "user", authorUserId: member });
     const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs });
-    const err = await edit
-      .moveMessage({ principal: principal(member), chatId, messageId: m1.messageId, toSeq: 2 })
-      .catch((e: unknown) => e);
+    const err = await edit.moveMessage({ principal: principal(member), chatId, messageId: m1.messageId, toSeq: 2 }).catch((e: unknown) => e);
     expect((err as ChatOperationError).code).toBe("not_host");
   });
 });
@@ -1016,9 +964,7 @@ describe("reattributePersona — author-or-host per row; re-stamp USER slots' pe
 
     const edits = emitted.filter((e) => e.type === "messageEdited");
     expect(edits).toHaveLength(3);
-    expect(edits.every((e) => e.type === "messageEdited" && e.view?.personaId === persona)).toBe(
-      true,
-    );
+    expect(edits.every((e) => e.type === "messageEdited" && e.view?.personaId === persona)).toBe(true);
     const rows = await db.select().from(messages).where(eq(messages.chatId, chatId));
     expect(rows.every((r) => r.personaId === persona)).toBe(true);
   });
@@ -1060,13 +1006,7 @@ describe("reattributePersona — author-or-host per row; re-stamp USER slots' pe
 
     // Before: the row is stamped Mara → {{user}} resolves to Mara.
     const before = await db.select().from(messages).where(eq(messages.id, messageId));
-    expect(
-      resolveRowMacros(
-        "{{user}} waves",
-        { characterId: null, personaId: before[0]?.personaId ?? null },
-        ctx,
-      ),
-    ).toBe("Mara waves");
+    expect(resolveRowMacros("{{user}} waves", { characterId: null, personaId: before[0]?.personaId ?? null }, ctx)).toBe("Mara waves");
 
     await edit.reattributePersona({
       principal: principal(member),
@@ -1082,12 +1022,6 @@ describe("reattributePersona — author-or-host per row; re-stamp USER slots' pe
       .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
       .where(eq(messages.id, messageId));
     expect(after[0]?.message_variants.content).toBe("{{user}} waves"); // RAW storage untouched (D51)
-    expect(
-      resolveRowMacros(
-        "{{user}} waves",
-        { characterId: null, personaId: after[0]?.messages.personaId ?? null },
-        ctx,
-      ),
-    ).toBe("Zara waves");
+    expect(resolveRowMacros("{{user}} waves", { characterId: null, personaId: after[0]?.messages.personaId ?? null }, ctx)).toBe("Zara waves");
   });
 });

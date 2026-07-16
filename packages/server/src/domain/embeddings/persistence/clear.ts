@@ -45,38 +45,22 @@ export async function clearVectorTable(db: Db, table: VectorTable): Promise<void
  *  one — no row is ever stranded. Exhaustive over {@link VectorTable} (a new table fails tsc until its arm
  *  lands). Called in BULK mode only (a model change is a box-level event → a bulk reindex; a singular
  *  per-owner catch-up must not delete the global old space). */
-export async function purgeStaleVectors(
-  db: Db,
-  table: VectorTable,
-  activeModel: string,
-): Promise<number> {
+export async function purgeStaleVectors(db: Db, table: VectorTable, activeModel: string): Promise<number> {
   switch (table) {
     case "character_embeddings": {
-      const rows = await db
-        .delete(characterEmbeddings)
-        .where(ne(characterEmbeddings.model, activeModel))
-        .returning({ id: characterEmbeddings.id });
+      const rows = await db.delete(characterEmbeddings).where(ne(characterEmbeddings.model, activeModel)).returning({ id: characterEmbeddings.id });
       return rows.length;
     }
     case "image_embeddings": {
-      const rows = await db
-        .delete(imageEmbeddings)
-        .where(ne(imageEmbeddings.model, activeModel))
-        .returning({ id: imageEmbeddings.id });
+      const rows = await db.delete(imageEmbeddings).where(ne(imageEmbeddings.model, activeModel)).returning({ id: imageEmbeddings.id });
       return rows.length;
     }
     case "chat_digests": {
-      const rows = await db
-        .delete(chatDigests)
-        .where(ne(chatDigests.model, activeModel))
-        .returning({ id: chatDigests.id });
+      const rows = await db.delete(chatDigests).where(ne(chatDigests.model, activeModel)).returning({ id: chatDigests.id });
       return rows.length;
     }
     case "chat_segments": {
-      const rows = await db
-        .delete(chatSegments)
-        .where(ne(chatSegments.model, activeModel))
-        .returning({ id: chatSegments.id });
+      const rows = await db.delete(chatSegments).where(ne(chatSegments.model, activeModel)).returning({ id: chatSegments.id });
       return rows.length;
     }
     default:

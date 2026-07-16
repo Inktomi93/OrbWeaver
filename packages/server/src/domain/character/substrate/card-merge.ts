@@ -78,9 +78,7 @@ export function flagEdits(input: UpdateCharacterInput): {
   return {
     ...(input.starred === undefined ? {} : { starred: input.starred }),
     ...(input.archived === undefined ? {} : { archived: input.archived }),
-    ...(input.forbidExternalMedia === undefined
-      ? {}
-      : { forbidExternalMedia: input.forbidExternalMedia }),
+    ...(input.forbidExternalMedia === undefined ? {} : { forbidExternalMedia: input.forbidExternalMedia }),
     ...(input.trustHtml === undefined ? {} : { trustHtml: input.trustHtml }),
     ...(input.themeOverride === undefined ? {} : { themeOverride: input.themeOverride }),
   };

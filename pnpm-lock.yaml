@@ -12,15 +12,78 @@ catalogs:
     '@anthropic-ai/sdk':
       specifier: ^0.106.0
       version: 0.106.0
+    '@base-ui/react':
+      specifier: ^1.6.0
+      version: 1.6.0
     '@biomejs/biome':
       specifier: ^2.5.1
       version: 2.5.1
+    '@codemirror/autocomplete':
+      specifier: ^6.20.3
+      version: 6.20.3
+    '@codemirror/lang-css':
+      specifier: ^6.3.1
+      version: 6.3.1
+    '@codemirror/lint':
+      specifier: ^6.9.7
+      version: 6.9.7
+    '@codemirror/state':
+      specifier: ^6.7.0
+      version: 6.7.0
+    '@dnd-kit/dom':
+      specifier: ^0.5.0
+      version: 0.5.0
+    '@dnd-kit/helpers':
+      specifier: ^0.5.0
+      version: 0.5.0
+    '@dnd-kit/react':
+      specifier: ^0.5.0
+      version: 0.5.0
+    '@hono/node-server':
+      specifier: ^2.0.6
+      version: 2.0.6
+    '@huggingface/transformers':
+      specifier: ^4.2.0
+      version: 4.2.0
+    '@libsql/client':
+      specifier: ^0.17.4
+      version: 0.17.4
+    '@openrouter/sdk':
+      specifier: ^0.13.0
+      version: 0.13.19
+    '@opentelemetry/api':
+      specifier: ^1.9.1
+      version: 1.9.1
+    '@opentelemetry/context-async-hooks':
+      specifier: ^2.7.1
+      version: 2.8.0
+    '@opentelemetry/resources':
+      specifier: ^2.7.1
+      version: 2.8.0
+    '@opentelemetry/sdk-trace-base':
+      specifier: ^2.8.0
+      version: 2.8.0
+    '@opentelemetry/semantic-conventions':
+      specifier: ^1.41.1
+      version: 1.41.1
     '@playwright/experimental-ct-react':
       specifier: ^1.61.1
       version: 1.61.1
     '@playwright/test':
       specifier: ^1.61.1
       version: 1.61.1
+    '@rolldown/plugin-babel':
+      specifier: ^0.2.3
+      version: 0.2.3
+    '@shikijs/core':
+      specifier: ^4.3.1
+      version: 4.3.1
+    '@shikijs/engine-javascript':
+      specifier: ^4.3.1
+      version: 4.3.1
+    '@shikijs/langs':
+      specifier: ^4.3.1
+      version: 4.3.1
     '@stryker-mutator/core':
       specifier: 9.6.1
       version: 9.6.1
@@ -33,24 +96,51 @@ catalogs:
     '@tailwindcss/vite':
       specifier: ^4.3.2
       version: 4.3.2
+    '@tanstack/devtools-vite':
+      specifier: 0.8.1
+      version: 0.8.1
     '@tanstack/eslint-plugin-query':
       specifier: ^5.101.2
       version: 5.101.2
     '@tanstack/eslint-plugin-router':
       specifier: ^1.162.0
       version: 1.162.0
+    '@tanstack/react-devtools':
+      specifier: 0.10.8
+      version: 0.10.8
     '@tanstack/react-form':
       specifier: ^1.33.0
       version: 1.33.0
     '@tanstack/react-query':
       specifier: ^5.101.2
       version: 5.101.2
+    '@tanstack/react-query-devtools':
+      specifier: ^5.101.2
+      version: 5.101.2
+    '@tanstack/react-router':
+      specifier: ^1.170.16
+      version: 1.170.16
+    '@tanstack/react-router-devtools':
+      specifier: ^1.167.0
+      version: 1.167.0
+    '@tanstack/react-virtual':
+      specifier: ^3.14.5
+      version: 3.14.5
     '@total-typescript/ts-reset':
       specifier: ^0.6.1
       version: 0.6.1
     '@trpc/client':
       specifier: ^11.18.0
       version: 11.18.0
+    '@trpc/server':
+      specifier: ^11.18.0
+      version: 11.18.0
+    '@trpc/tanstack-react-query':
+      specifier: ^11.18.0
+      version: 11.18.0
+    '@types/luxon':
+      specifier: ^3.7.2
+      version: 3.7.2
     '@types/node':
       specifier: ^24
       version: 24.13.2
@@ -63,15 +153,36 @@ catalogs:
     '@vitest/coverage-v8':
       specifier: ^4.1.9
       version: 4.1.9
+    babel-plugin-react-compiler:
+      specifier: ^1.0.0
+      version: 1.0.0
+    cmdk:
+      specifier: ^1.1.1
+      version: 1.1.1
+    codemirror:
+      specifier: ^6.0.2
+      version: 6.0.2
     dependency-cruiser:
       specifier: ^18.0.0
       version: 18.0.0
+    diff:
+      specifier: ^9.0.0
+      version: 9.0.0
+    dotenv:
+      specifier: ^16.4.7
+      version: 16.6.1
     drizzle-kit:
       specifier: ^0.31.10
       version: 0.31.10
     drizzle-orm:
       specifier: ^0.45.2
       version: 0.45.2
+    echarts:
+      specifier: ^6.1.0
+      version: 6.1.0
+    echarts-for-react:
+      specifier: ^3.0.6
+      version: 3.0.6
     eslint:
       specifier: ^10.6.0
       version: 10.6.0
@@ -90,9 +201,27 @@ catalogs:
     jscpd:
       specifier: ^5.0.11
       version: 5.0.11
+    katex:
+      specifier: ^0.16.25
+      version: 0.16.47
     lefthook:
       specifier: ^2.1.9
       version: 2.1.9
+    lucide-react:
+      specifier: ^1.22.0
+      version: 1.22.0
+    luxon:
+      specifier: ^3.7.2
+      version: 3.7.2
+    minisearch:
+      specifier: ^7.2.0
+      version: 7.2.0
+    openid-client:
+      specifier: ^6.8.4
+      version: 6.8.4
+    pino:
+      specifier: ^10.3.1
+      version: 10.3.1
     pino-pretty:
       specifier: ^13.1.3
       version: 13.1.3
@@ -102,6 +231,9 @@ catalogs:
     react-dom:
       specifier: ^19.2.7
       version: 19.2.7
+    rehype-katex:
+      specifier: ^7.0.1
+      version: 7.0.1
     remark:
       specifier: ^15.0.1
       version: 15.0.1
@@ -111,9 +243,30 @@ catalogs:
     remark-gfm:
       specifier: ^4.0.1
       version: 4.0.1
+    remark-math:
+      specifier: ^6.0.0
+      version: 6.0.0
+    remend:
+      specifier: ^1.3.0
+      version: 1.3.0
     sharp:
       specifier: ^0.34.4
       version: 0.34.5
+    streamdown:
+      specifier: ^2.5.0
+      version: 2.5.0
+    strip-markdown:
+      specifier: ^6.0.0
+      version: 6.0.0
+    style-dictionary:
+      specifier: ^5.5.0
+      version: 5.5.0
+    tailwind-merge:
+      specifier: ^3.6.0
+      version: 3.6.0
+    tailwind-variants:
+      specifier: ^3.2.2
+      version: 3.2.2
     tailwindcss:
       specifier: ^4.3.2
       version: 4.3.2
@@ -123,12 +276,24 @@ catalogs:
     tsx:
       specifier: ^4.22.4
       version: 4.22.4
+    typeid-js:
+      specifier: ^1.2.0
+      version: 1.2.0
     typescript:
       specifier: ^6.0.3
       version: 6.0.3
     typescript-eslint:
       specifier: ^8.62.1
       version: 8.62.1
+    undici:
+      specifier: ^7.16.0
+      version: 7.28.0
+    vite:
+      specifier: ^8.1.2
+      version: 8.1.2
+    vite-plugin-checker:
+      specifier: ^0.14.4
+      version: 0.14.4
     vitest:
       specifier: ^4.1.9
       version: 4.1.9
@@ -5721,10 +5886,6 @@ packages:
   possible-typed-array-names@1.1.0:
     resolution: {integrity: sha512-/+5VFTchJDoVj3bhoqi6UeymcD00DAwb1nJwamzPvHEszJ4FpF6SNNbUbOS8yI56qHzdV8eK0qEfOSiodkTdxg==}
     engines: {node: '>= 0.4'}
-
-  postcss@8.5.15:
-    resolution: {integrity: sha512-FfR8sjd4em2T6fb3I2MwAJU7HWVMr9zba+enmQeeWFfCbm+UOC/0X4DS8XtpUTMwWMGbjKYP7xjfNekzyGmB3A==}
-    engines: {node: ^10 || ^12 || >=14}
 
   postcss@8.5.16:
     resolution: {integrity: sha512-vuwillviilfKZsg0VGj5R/YwwcHx4SLsIOI/7K6mQkWx+l5cUHTjj5g0AasTBcyXsbfTgrwsUNmVUb5xVwyPwg==}
@@ -12096,12 +12257,6 @@ snapshots:
 
   possible-typed-array-names@1.1.0: {}
 
-  postcss@8.5.15:
-    dependencies:
-      nanoid: 3.3.15
-      picocolors: 1.1.1
-      source-map-js: 1.2.1
-
   postcss@8.5.16:
     dependencies:
       nanoid: 3.3.15
@@ -13103,7 +13258,7 @@ snapshots:
       esbuild: 0.28.1
       fdir: 6.5.0(picomatch@4.0.4)
       picomatch: 4.0.4
-      postcss: 8.5.15
+      postcss: 8.5.16
       rollup: 4.62.2
       tinyglobby: 0.2.17
     optionalDependencies:

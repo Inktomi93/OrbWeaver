@@ -10,6 +10,5 @@ runEmbedShapedRoleTests({
   method: "generateImage",
   create: createGenerateImageRole as never,
   allowedSources: ["openrouter"],
-  makeReq: (credential: ResolvedCredential): ImageGenerateRequest =>
-    ({ credential, model: "m", prompt: "a cat" }) as ImageGenerateRequest,
+  makeReq: (credential: ResolvedCredential): ImageGenerateRequest => ({ credential, model: "m", prompt: "a cat" }) as ImageGenerateRequest,
 });

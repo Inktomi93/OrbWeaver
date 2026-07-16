@@ -13,22 +13,11 @@
 
 import { ASSET_LIST_LIMIT_MAX, assetIdSchema } from "@orb/contracts/assets";
 import type { ChatBusEvent } from "@orb/contracts/chat";
-import {
-  chatInjectionInputSchema,
-  groupConfigSchema,
-  roomOverridesSchema,
-} from "@orb/contracts/chat";
+import { chatInjectionInputSchema, groupConfigSchema, roomOverridesSchema } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import { generatePictureRequestSchema } from "@orb/contracts/imagery";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type {
-  CharacterId,
-  ChatId,
-  ChatInjectionId,
-  MessageId,
-  MessageVariantId,
-  PersonaId,
-} from "@orb/kit/ids";
+import type { CharacterId, ChatId, ChatInjectionId, MessageId, MessageVariantId, PersonaId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import type { TrackedEnvelope } from "@trpc/server";
 import { tracked } from "@trpc/server";
@@ -230,7 +219,7 @@ const deleteChatInjectionSchema = z.object({
 
 const streamSchema = z.object({
   chatId: brandedId<ChatId>(),
-  // biome-ignore lint/plugin/no-raw-id: lastEventId is the SSE resume cursor (a `seq` string set by tRPC's Last-Event-ID), not a branded entity id.
+  // @orb-gate-ignore no-raw-id lastEventId is the SSE resume cursor (a `seq` string set by tRPC's Last-Event-ID), not a branded entity id.
   lastEventId: z.string().nullish(),
 });
 
@@ -319,166 +308,88 @@ const forceCharacterTurnSchema = z.object({
 });
 
 export const chatRouter = t.router({
-  startChat: authedProcedure
-    .input(startChatSchema)
-    .mutation(({ ctx, input }) => ctx.services.chat.startChat({ principal: ctx.auth, ...input })),
+  startChat: authedProcedure.input(startChatSchema).mutation(({ ctx, input }) => ctx.services.chat.startChat({ principal: ctx.auth, ...input })),
   listChats: authedProcedure
     .input(z.object({ includeArchived: z.boolean().optional() }).optional())
-    .query(({ ctx, input }) =>
-      ctx.services.chat.listChats({ principal: ctx.auth, ...(input || {}) }),
-    ),
+    .query(({ ctx, input }) => ctx.services.chat.listChats({ principal: ctx.auth, ...(input || {}) })),
   getChat: authedProcedure
     .input(z.object({ chatId: brandedId<ChatId>() }))
-    .query(({ ctx, input }) =>
-      ctx.services.chat.getChat({ principal: ctx.auth, chatId: input.chatId }),
-    ),
+    .query(({ ctx, input }) => ctx.services.chat.getChat({ principal: ctx.auth, chatId: input.chatId })),
   // A paged canon read (D26), member-gated (`requireParticipant` inside the verb — leak-free NOT_FOUND
   // for a non-member, the same collapse `getChat` uses). `beforeSeq`/`limit` page backwards from the tail.
-  listMessages: authedProcedure
-    .input(listMessagesSchema)
-    .query(({ ctx, input }) => ctx.services.chat.listMessages({ principal: ctx.auth, ...input })),
+  listMessages: authedProcedure.input(listMessagesSchema).query(({ ctx, input }) => ctx.services.chat.listMessages({ principal: ctx.auth, ...input })),
   // The swipe strip's step-target resolver (see the schema's header note above).
   listMessageVariants: authedProcedure
     .input(listMessageVariantsSchema)
-    .query(({ ctx, input }) =>
-      ctx.services.chat.listMessageVariants({ principal: ctx.auth, ...input }),
-    ),
-  send: authedProcedure
-    .input(sendSchema)
-    .mutation(({ ctx, input }) => ctx.services.chat.send({ principal: ctx.auth, ...input })),
-  swipe: authedProcedure
-    .input(swipeSchema)
-    .mutation(({ ctx, input }) => ctx.services.chat.swipe({ principal: ctx.auth, ...input })),
-  selectVariant: authedProcedure
-    .input(selectVariantSchema)
-    .mutation(({ ctx, input }) =>
-      ctx.services.chat.selectVariant({ principal: ctx.auth, ...input }),
-    ),
+    .query(({ ctx, input }) => ctx.services.chat.listMessageVariants({ principal: ctx.auth, ...input })),
+  send: authedProcedure.input(sendSchema).mutation(({ ctx, input }) => ctx.services.chat.send({ principal: ctx.auth, ...input })),
+  swipe: authedProcedure.input(swipeSchema).mutation(({ ctx, input }) => ctx.services.chat.swipe({ principal: ctx.auth, ...input })),
+  selectVariant: authedProcedure.input(selectVariantSchema).mutation(({ ctx, input }) => ctx.services.chat.selectVariant({ principal: ctx.auth, ...input })),
   // The three guided-generations verbs (see the schemas' header note above).
-  continueTurn: authedProcedure
-    .input(continueTurnSchema)
-    .mutation(({ ctx, input }) =>
-      ctx.services.chat.continueTurn({ principal: ctx.auth, ...input }),
-    ),
-  impersonate: authedProcedure
-    .input(impersonateSchema)
-    .mutation(({ ctx, input }) => ctx.services.chat.impersonate({ principal: ctx.auth, ...input })),
-  generate: authedProcedure
-    .input(generateSchema)
-    .mutation(({ ctx, input }) => ctx.services.chat.generate({ principal: ctx.auth, ...input })),
-  abort: authedProcedure
-    .input(abortSchema)
-    .mutation(({ ctx, input }) => ctx.services.chat.abort({ principal: ctx.auth, ...input })),
+  continueTurn: authedProcedure.input(continueTurnSchema).mutation(({ ctx, input }) => ctx.services.chat.continueTurn({ principal: ctx.auth, ...input })),
+  impersonate: authedProcedure.input(impersonateSchema).mutation(({ ctx, input }) => ctx.services.chat.impersonate({ principal: ctx.auth, ...input })),
+  generate: authedProcedure.input(generateSchema).mutation(({ ctx, input }) => ctx.services.chat.generate({ principal: ctx.auth, ...input })),
+  abort: authedProcedure.input(abortSchema).mutation(({ ctx, input }) => ctx.services.chat.abort({ principal: ctx.auth, ...input })),
   // The per-message ACTION cluster's four verbs (see the schemas' header note above).
-  editMessage: authedProcedure
-    .input(editMessageSchema)
-    .mutation(({ ctx, input }) => ctx.services.chat.editMessage({ principal: ctx.auth, ...input })),
+  editMessage: authedProcedure.input(editMessageSchema).mutation(({ ctx, input }) => ctx.services.chat.editMessage({ principal: ctx.auth, ...input })),
   setMessageHidden: authedProcedure
     .input(setMessageHiddenSchema)
-    .mutation(({ ctx, input }) =>
-      ctx.services.chat.setMessageHidden({ principal: ctx.auth, ...input }),
-    ),
-  deleteMessages: authedProcedure
-    .input(deleteMessagesSchema)
-    .mutation(({ ctx, input }) =>
-      ctx.services.chat.deleteMessages({ principal: ctx.auth, ...input }),
-    ),
+    .mutation(({ ctx, input }) => ctx.services.chat.setMessageHidden({ principal: ctx.auth, ...input })),
+  deleteMessages: authedProcedure.input(deleteMessagesSchema).mutation(({ ctx, input }) => ctx.services.chat.deleteMessages({ principal: ctx.auth, ...input })),
   reattributePersona: authedProcedure
     .input(reattributePersonaSchema)
-    .mutation(({ ctx, input }) =>
-      ctx.services.chat.reattributePersona({ principal: ctx.auth, ...input }),
-    ),
-  forkChat: authedProcedure
-    .input(forkChatSchema)
-    .mutation(({ ctx, input }) => ctx.services.chat.forkChat({ principal: ctx.auth, ...input })),
+    .mutation(({ ctx, input }) => ctx.services.chat.reattributePersona({ principal: ctx.auth, ...input })),
+  forkChat: authedProcedure.input(forkChatSchema).mutation(({ ctx, input }) => ctx.services.chat.forkChat({ principal: ctx.auth, ...input })),
   // The CONTEXT-panel cluster (task #28 — see the schemas' header note above). Thin pass-throughs.
   setRoomOverrides: authedProcedure
     .input(setRoomOverridesSchema)
-    .mutation(({ ctx, input }) =>
-      ctx.services.chat.setRoomOverrides({ principal: ctx.auth, ...input }),
-    ),
-  previewAssembly: authedProcedure
-    .input(previewAssemblySchema)
-    .query(({ ctx, input }) =>
-      ctx.services.chat.previewAssembly({ principal: ctx.auth, ...input }),
-    ),
+    .mutation(({ ctx, input }) => ctx.services.chat.setRoomOverrides({ principal: ctx.auth, ...input })),
+  previewAssembly: authedProcedure.input(previewAssemblySchema).query(({ ctx, input }) => ctx.services.chat.previewAssembly({ principal: ctx.auth, ...input })),
   setChatInjection: authedProcedure
     .input(setChatInjectionSchema)
-    .mutation(({ ctx, input }) =>
-      ctx.services.chat.setChatInjection({ principal: ctx.auth, ...input }),
-    ),
+    .mutation(({ ctx, input }) => ctx.services.chat.setChatInjection({ principal: ctx.auth, ...input })),
   listChatInjections: authedProcedure
     .input(listChatInjectionsSchema)
-    .query(({ ctx, input }) =>
-      ctx.services.chat.listChatInjections({ principal: ctx.auth, ...input }),
-    ),
+    .query(({ ctx, input }) => ctx.services.chat.listChatInjections({ principal: ctx.auth, ...input })),
   deleteChatInjection: authedProcedure
     .input(deleteChatInjectionSchema)
-    .mutation(({ ctx, input }) =>
-      ctx.services.chat.deleteChatInjection({ principal: ctx.auth, ...input }),
-    ),
+    .mutation(({ ctx, input }) => ctx.services.chat.deleteChatInjection({ principal: ctx.auth, ...input })),
   // The group-roster-controls cluster (task #29 — see the schemas' header note above). Thin pass-throughs.
   addCharacterToChat: authedProcedure
     .input(addCharacterToChatSchema)
-    .mutation(({ ctx, input }) =>
-      ctx.services.chat.addCharacterToChat({ principal: ctx.auth, ...input }),
-    ),
+    .mutation(({ ctx, input }) => ctx.services.chat.addCharacterToChat({ principal: ctx.auth, ...input })),
   setParticipantDisabled: authedProcedure
     .input(setParticipantDisabledSchema)
-    .mutation(({ ctx, input }) =>
-      ctx.services.chat.setParticipantDisabled({ principal: ctx.auth, ...input }),
-    ),
+    .mutation(({ ctx, input }) => ctx.services.chat.setParticipantDisabled({ principal: ctx.auth, ...input })),
   setParticipantTalkativeness: authedProcedure
     .input(setParticipantTalkativenessSchema)
-    .mutation(({ ctx, input }) =>
-      ctx.services.chat.setParticipantTalkativeness({ principal: ctx.auth, ...input }),
-    ),
+    .mutation(({ ctx, input }) => ctx.services.chat.setParticipantTalkativeness({ principal: ctx.auth, ...input })),
   forceCharacterTurn: authedProcedure
     .input(forceCharacterTurnSchema)
-    .mutation(({ ctx, input }) =>
-      ctx.services.chat.forceCharacterTurn({ principal: ctx.auth, ...input }),
-    ),
+    .mutation(({ ctx, input }) => ctx.services.chat.forceCharacterTurn({ principal: ctx.auth, ...input })),
   getGroupConfig: authedProcedure
     .input(getGroupConfigSchema)
-    .query(({ ctx, input }) =>
-      ctx.services.chat.getGroupConfigForChat({ principal: ctx.auth, ...input }),
-    ),
-  setGroupConfig: authedProcedure
-    .input(setGroupConfigSchema)
-    .mutation(({ ctx, input }) =>
-      ctx.services.chat.setGroupConfig({ principal: ctx.auth, ...input }),
-    ),
+    .query(({ ctx, input }) => ctx.services.chat.getGroupConfigForChat({ principal: ctx.auth, ...input })),
+  setGroupConfig: authedProcedure.input(setGroupConfigSchema).mutation(({ ctx, input }) => ctx.services.chat.setGroupConfig({ principal: ctx.auth, ...input })),
   // The chat-ROW lifecycle cluster (J5 — the LIST-panel row kebab). Thin pass-throughs; host-only INSIDE.
-  updateTitle: authedProcedure
-    .input(updateTitleSchema)
-    .mutation(({ ctx, input }) => ctx.services.chat.updateTitle({ principal: ctx.auth, ...input })),
-  star: authedProcedure
-    .input(starChatSchema)
-    .mutation(({ ctx, input }) => ctx.services.chat.star({ principal: ctx.auth, ...input })),
-  archive: authedProcedure
-    .input(archiveChatSchema)
-    .mutation(({ ctx, input }) => ctx.services.chat.archive({ principal: ctx.auth, ...input })),
+  updateTitle: authedProcedure.input(updateTitleSchema).mutation(({ ctx, input }) => ctx.services.chat.updateTitle({ principal: ctx.auth, ...input })),
+  star: authedProcedure.input(starChatSchema).mutation(({ ctx, input }) => ctx.services.chat.star({ principal: ctx.auth, ...input })),
+  archive: authedProcedure.input(archiveChatSchema).mutation(({ ctx, input }) => ctx.services.chat.archive({ principal: ctx.auth, ...input })),
   setChatAnchorPersona: authedProcedure
     .input(setChatAnchorPersonaSchema)
-    .mutation(({ ctx, input }) =>
-      ctx.services.chat.setChatAnchorPersona({ principal: ctx.auth, ...input }),
-    ),
-  delete: authedProcedure
-    .input(deleteChatSchema)
-    .mutation(({ ctx, input }) => ctx.services.chat.delete({ principal: ctx.auth, ...input })),
+    .mutation(({ ctx, input }) => ctx.services.chat.setChatAnchorPersona({ principal: ctx.auth, ...input })),
+  delete: authedProcedure.input(deleteChatSchema).mutation(({ ctx, input }) => ctx.services.chat.delete({ principal: ctx.auth, ...input })),
   // Generate image(s) in a chat (P5: mode "free" + a required prompt). The wire `size` is Phase-7 (not
   // forwarded); mode/prompt/n map onto `chat.generateImage`.
-  generateImage: authedProcedure
-    .input(generatePictureRequestSchema.extend({ chatId: brandedId<ChatId>() }))
-    .mutation(({ ctx, input }) =>
-      ctx.services.chat.generateImage({
-        principal: ctx.auth,
-        chatId: input.chatId,
-        mode: input.mode,
-        prompt: input.prompt,
-        n: input.n,
-      }),
-    ),
+  generateImage: authedProcedure.input(generatePictureRequestSchema.extend({ chatId: brandedId<ChatId>() })).mutation(({ ctx, input }) =>
+    ctx.services.chat.generateImage({
+      principal: ctx.auth,
+      chatId: input.chatId,
+      mode: input.mode,
+      prompt: input.prompt,
+      n: input.n,
+    }),
+  ),
 
   // The per-chat room-public event stream (PD-46's stream half — see the file header for the shape).
   streamMessages: authedProcedure.input(streamSchema).subscription(({ ctx, input, signal }) =>
@@ -527,7 +438,6 @@ async function* chatEventStream(args: {
     }
     // The PER-YIELD membership gate: a kicked member stops receiving within the kick tx; a pre-start
     // subscriber stays open and silent until the room exists and they are seated (withhold-not-throw).
-    // biome-ignore lint/performance/noAwaitInLoops: the gate is per-yield BY DESIGN (Tier-4 §5 — the membership chokepoint covers every SSE yield; batching would leak post-kick events).
     if (!(await isMember(service, principal, chatId))) {
       continue;
     }
@@ -538,11 +448,7 @@ async function* chatEventStream(args: {
 
 // The withhold-not-throw membership probe: NOT_FOUND (no chat / not a member — the leak-free collapse)
 // → `false`; anything else is a real fault and propagates.
-async function isMember(
-  service: ChatService,
-  principal: Principal,
-  chatId: ChatId,
-): Promise<boolean> {
+async function isMember(service: ChatService, principal: Principal, chatId: ChatId): Promise<boolean> {
   try {
     await service.chatEventBounds({ principal, chatId });
     return true;

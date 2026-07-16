@@ -19,11 +19,7 @@ import { useInvalidation, useTRPC } from "#data";
 import { useSetGroupConfig } from "../hooks/use-context-panel-mutations";
 import { GROUP_CONFIG_ENTITY_PREFIX, useGroupConfigForm } from "../hooks/use-group-config-form";
 import type { GroupConfigFormValues } from "../lib/group-config-model";
-import {
-  defaultSpeakerTags,
-  fromGroupConfigForm,
-  toGroupConfigForm,
-} from "../lib/group-config-model";
+import { defaultSpeakerTags, fromGroupConfigForm, toGroupConfigForm } from "../lib/group-config-model";
 
 type GroupOutput = GroupConfig["output"];
 
@@ -64,10 +60,7 @@ export interface GroupConfigFormProps {
 }
 
 export function GroupConfigForm({ entityId, config, save }: GroupConfigFormProps): ReactElement {
-  const factorySave =
-    save === undefined
-      ? undefined
-      : (values: GroupConfigFormValues): Promise<unknown> => save(fromGroupConfigForm(values));
+  const factorySave = save === undefined ? undefined : (values: GroupConfigFormValues): Promise<unknown> => save(fromGroupConfigForm(values));
 
   const { form, mountKey } = useGroupConfigForm({
     entityId,
@@ -107,46 +100,29 @@ export function GroupConfigForm({ entityId, config, save }: GroupConfigFormProps
         )}
       </form.AppField>
 
-      <form.AppField name="speakerTags">
-        {(field): ReactElement => <field.SwitchField label="Label each speaker" />}
-      </form.AppField>
+      <form.AppField name="speakerTags">{(field): ReactElement => <field.SwitchField label="Label each speaker" />}</form.AppField>
 
-      <form.AppField name="groupNudge">
-        {(field): ReactElement => (
-          <field.SwitchField label="Nudge the group to stay in character" />
-        )}
-      </form.AppField>
+      <form.AppField name="groupNudge">{(field): ReactElement => <field.SwitchField label="Nudge the group to stay in character" />}</form.AppField>
 
       <Accordion>
         <AccordionItem value="advanced">
           <AccordionTrigger>Advanced</AccordionTrigger>
           <AccordionPanel>
             <Stack gap="section" className="pt-block">
-              <form.AppField name="policy">
-                {(field): ReactElement => (
-                  <field.SelectField label="Who speaks each round" items={POLICY_ITEMS} />
-                )}
-              </form.AppField>
+              <form.AppField name="policy">{(field): ReactElement => <field.SelectField label="Who speaks each round" items={POLICY_ITEMS} />}</form.AppField>
 
               <form.Subscribe selector={(state): GroupOutput => state.values.output}>
                 {(output): ReactElement | null =>
                   output === "per-speaker" ? (
                     <form.AppField name="scopedCards">
-                      {(field): ReactElement => (
-                        <field.SwitchField label="Each character sees only their own card" />
-                      )}
+                      {(field): ReactElement => <field.SwitchField label="Each character sees only their own card" />}
                     </form.AppField>
                   ) : null
                 }
               </form.Subscribe>
 
               <form.AppField name="memberCardVisibility">
-                {(field): ReactElement => (
-                  <field.SelectField
-                    label="How much of each member the others see"
-                    items={VISIBILITY_ITEMS}
-                  />
-                )}
+                {(field): ReactElement => <field.SelectField label="How much of each member the others see" items={VISIBILITY_ITEMS} />}
               </form.AppField>
 
               <Stack gap="field">
@@ -163,29 +139,15 @@ export function GroupConfigForm({ entityId, config, save }: GroupConfigFormProps
                     autoMode ? (
                       <Stack gap="field">
                         <form.AppField name="autoModeMaxTurns">
-                          {(field): ReactElement => (
-                            <field.SliderField
-                              label="Max turns in a row"
-                              min={MAX_TURNS_MIN}
-                              max={MAX_TURNS_MAX}
-                              step={1}
-                            />
-                          )}
+                          {(field): ReactElement => <field.SliderField label="Max turns in a row" min={MAX_TURNS_MIN} max={MAX_TURNS_MAX} step={1} />}
                         </form.AppField>
                         <form.AppField name="autoModeDelayMs">
                           {(field): ReactElement => (
-                            <field.SliderField
-                              label="Delay between turns"
-                              min={DELAY_MS_MIN}
-                              max={DELAY_MS_MAX}
-                              step={DELAY_MS_STEP}
-                            />
+                            <field.SliderField label="Delay between turns" min={DELAY_MS_MIN} max={DELAY_MS_MAX} step={DELAY_MS_STEP} />
                           )}
                         </form.AppField>
                         <form.AppField name="allowSelfResponses">
-                          {(field): ReactElement => (
-                            <field.SwitchField label="Let a character reply to itself" />
-                          )}
+                          {(field): ReactElement => <field.SwitchField label="Let a character reply to itself" />}
                         </form.AppField>
                       </Stack>
                     ) : null
@@ -214,9 +176,7 @@ export function CommittedGroupConfigTab({ chatId }: CommittedGroupConfigTabProps
     <GroupConfigForm
       entityId={`${GROUP_CONFIG_ENTITY_PREFIX}${chatId}`}
       config={config}
-      save={(next): Promise<unknown> =>
-        setGroupConfig.mutateAsync({ chatId, config: next }).catch(() => undefined)
-      }
+      save={(next): Promise<unknown> => setGroupConfig.mutateAsync({ chatId, config: next }).catch(() => undefined)}
     />
   );
 }

@@ -18,12 +18,7 @@ import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data"
 import { useFocusOnMount } from "#lib";
 import { ThemeEditor } from "../components/theme-editor";
 import { ThemeRowMenu } from "../components/theme-row-menu";
-import {
-  useCreateTheme,
-  useDuplicateTheme,
-  useRemoveTheme,
-  useSelectTheme,
-} from "../hooks/use-theme-mutations";
+import { useCreateTheme, useDuplicateTheme, useRemoveTheme, useSelectTheme } from "../hooks/use-theme-mutations";
 import { DEFAULT_THEME_FORM, themeInputFromForm } from "../lib/theme-editor-model";
 
 const HEARTH_NAME = "Hearth";
@@ -37,9 +32,7 @@ export function ThemePickerSurface(): ReactElement {
     <Container ref={surfaceRef} tabIndex={-1} className="outline-none">
       <QueryBoundary
         fallback={<Text tone="muted">Loading your themes…</Text>}
-        renderError={(_error, retry): ReactElement => (
-          <QueryErrorState label="your themes" onRetry={retry} />
-        )}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label="your themes" onRetry={retry} />}
       >
         <ThemeManager />
       </QueryBoundary>
@@ -78,8 +71,7 @@ function ThemeManager(): ReactElement {
       // errorToast already surfaced the failure — stay on the list.
     }
   };
-  const selectById = (id: string | null): void =>
-    selectTheme.mutate({ section: "theme", patch: { selectedThemeId: id } });
+  const selectById = (id: string | null): void => selectTheme.mutate({ section: "theme", patch: { selectedThemeId: id } });
 
   if (editing !== null) {
     return (
@@ -94,8 +86,7 @@ function ThemeManager(): ReactElement {
     );
   }
 
-  const isActive = (theme: Theme): boolean =>
-    selectedId === null ? theme.isSeed && theme.name === HEARTH_NAME : theme.id === selectedId;
+  const isActive = (theme: Theme): boolean => (selectedId === null ? theme.isSeed && theme.name === HEARTH_NAME : theme.id === selectedId);
 
   return (
     <Stack gap="block">
@@ -144,10 +135,7 @@ function ThemeManager(): ReactElement {
 /** A theme's swatch — its real background + accent, painted through `<ThemeScope>` (never a raw inline style). Decorative, no accessible-name leak. */
 function ThemeSwatch({ theme }: { readonly theme: Theme }): ReactElement {
   return (
-    <ThemeScope
-      className="flex size-8 items-end justify-end rounded-control border border-border bg-background p-field"
-      tokens={theme.override}
-    >
+    <ThemeScope className="flex size-8 items-end justify-end rounded-control border border-border bg-background p-field" tokens={theme.override}>
       <Stack className="size-2 rounded-full bg-primary">{null}</Stack>
     </ThemeScope>
   );

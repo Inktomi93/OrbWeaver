@@ -14,9 +14,7 @@ import { swapPersonaMacros } from "../substrate/macro-swap";
 
 const LIMIT_ONE = 1;
 
-export function createCreateFromCharacter(
-  ctx: PersonaContext,
-): PersonaService["createFromCharacter"] {
+export function createCreateFromCharacter(ctx: PersonaContext): PersonaService["createFromCharacter"] {
   return async ({ principal, characterId, swapMacros }: CreateFromCharacterParams) => {
     const ownerId = principal.userId;
     const rows = await ctx.db

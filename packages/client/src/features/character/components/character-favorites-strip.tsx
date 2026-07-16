@@ -24,19 +24,14 @@ export interface CharacterFavoritesStripProps {
 
 /** The pinned favorites strip — renders nothing when the caller has no starred characters (data-driven,
  *  never an empty shell). */
-export function CharacterFavoritesStrip({
-  favorites,
-  selectedId,
-  onSelect,
-}: CharacterFavoritesStripProps): ReactElement | null {
+export function CharacterFavoritesStrip({ favorites, selectedId, onSelect }: CharacterFavoritesStripProps): ReactElement | null {
   if (favorites.length === 0) {
     return null;
   }
   return (
     <Row aria-label="Favorite characters" className="overflow-x-auto" gap="field" role="list">
       {favorites.map((character) => {
-        const avatarSrc =
-          character.avatarHash === null ? {} : { src: blobUrl(character.avatarHash) };
+        const avatarSrc = character.avatarHash === null ? {} : { src: blobUrl(character.avatarHash) };
         return (
           <Button
             aria-current={selectedId === character.id ? "true" : undefined}

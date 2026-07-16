@@ -2,12 +2,7 @@
 // renderer; the machine owns the tail-fetch guard, placeholder-keep on param change, and selection
 // state. The hook is the logic half; the feature renders `items` via <VirtualList>/<MediaGrid>.
 
-import type {
-  DefaultError,
-  InfiniteData,
-  QueryKey,
-  UseInfiniteQueryOptions,
-} from "@tanstack/react-query";
+import type { DefaultError, InfiniteData, QueryKey, UseInfiniteQueryOptions } from "@tanstack/react-query";
 import { keepPreviousData, useInfiniteQuery } from "@tanstack/react-query";
 import { useCallback, useMemo, useState } from "react";
 import type { Trpc } from "./trpc";
@@ -15,26 +10,17 @@ import type { Trpc } from "./trpc";
 /** What the tRPC proxy's `.infiniteQueryOptions(input, opts)` returns — wrapped, never re-spelled.
  *  `TKey`/`TError` are the caller's real key/error types (the proxy's DataTag-keyed return + the
  *  TRPCClientErrorLike error don't structurally satisfy a fixed `readonly unknown[]`/`Error`). */
-type BaseInfiniteOptions<
+type BaseInfiniteOptions<TPage, TPageParam, TError = DefaultError, TKey extends QueryKey = QueryKey> = UseInfiniteQueryOptions<
   TPage,
-  TPageParam,
-  TError = DefaultError,
-  TKey extends QueryKey = QueryKey,
-> = UseInfiniteQueryOptions<TPage, TError, InfiniteData<TPage, TPageParam>, TKey, TPageParam>;
+  TError,
+  InfiniteData<TPage, TPageParam>,
+  TKey,
+  TPageParam
+>;
 
-export interface CollectionSurfaceConfig<
-  TItem,
-  TPage,
-  TParams,
-  TPageParam,
-  TError = DefaultError,
-  TKey extends QueryKey = QueryKey,
-> {
+export interface CollectionSurfaceConfig<TItem, TPage, TParams, TPageParam, TError = DefaultError, TKey extends QueryKey = QueryKey> {
   /** `(t, params) => t.character.list.infiniteQueryOptions({...params}, { getNextPageParam, maxPages })`. */
-  readonly query: (
-    trpc: Trpc,
-    params: TParams,
-  ) => BaseInfiniteOptions<TPage, TPageParam, TError, TKey>;
+  readonly query: (trpc: Trpc, params: TParams) => BaseInfiniteOptions<TPage, TPageParam, TError, TKey>;
   /** Flatten one page into rows. */
   readonly itemsOf: (page: TPage) => readonly TItem[];
   /** Stable id per row (selection + the virtualizer key — id-based, NEVER the index). */
@@ -75,14 +61,7 @@ export interface CollectionSurface<TItem> {
 
 const DEFAULT_END_APPROACH_ROWS = 12;
 
-export function createCollectionSurface<
-  TItem,
-  TPage,
-  TParams,
-  TPageParam = unknown,
-  TError = DefaultError,
-  TKey extends QueryKey = QueryKey,
->(
+export function createCollectionSurface<TItem, TPage, TParams, TPageParam = unknown, TError = DefaultError, TKey extends QueryKey = QueryKey>(
   config: CollectionSurfaceConfig<TItem, TPage, TParams, TPageParam, TError, TKey>,
 ): (deps: { trpc: Trpc }, params: TParams) => CollectionSurface<TItem> {
   // biome-ignore lint/nursery/noComponentHookFactories: factories run at module scope, so the returned hook has a stable identity (see forms/create-saved-entity-form.ts).
@@ -94,10 +73,7 @@ export function createCollectionSurface<
 
     const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set<string>());
 
-    const items = useMemo(
-      () => (query.data === undefined ? [] : query.data.pages.flatMap((p) => config.itemsOf(p))),
-      [query.data],
-    );
+    const items = useMemo(() => (query.data === undefined ? [] : query.data.pages.flatMap((p) => config.itemsOf(p))), [query.data]);
 
     // Destructured so the callback deps are exact slices, not the fresh-proxy-per-render `query` object.
     const { hasNextPage, isFetching, fetchNextPage, refetch } = query;

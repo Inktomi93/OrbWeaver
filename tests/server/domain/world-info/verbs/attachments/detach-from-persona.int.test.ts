@@ -38,8 +38,6 @@ describe("detachFromPersona", () => {
     const foreign = await seedPersona(db, { ownerId: other });
     const book = await svc.createBook({ principal: principal(owner), input: { name: "B" } });
 
-    await expect(
-      svc.detachFromPersona({ principal: principal(owner), personaId: foreign, bookId: book.id }),
-    ).rejects.toBeInstanceOf(WorldInfoNotFoundError);
+    await expect(svc.detachFromPersona({ principal: principal(owner), personaId: foreign, bookId: book.id })).rejects.toBeInstanceOf(WorldInfoNotFoundError);
   });
 });

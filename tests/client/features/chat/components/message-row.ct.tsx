@@ -92,11 +92,7 @@ function parseOklch(value: string): readonly [number, number, number] {
   }
   const rawL = Number.parseFloat(match.groups["l"] ?? "0");
   const l = match.groups["pct"] === "%" ? rawL / 100 : rawL;
-  return [
-    l,
-    Number.parseFloat(match.groups["c"] ?? "0"),
-    Number.parseFloat(match.groups["h"] ?? "0"),
-  ];
+  return [l, Number.parseFloat(match.groups["c"] ?? "0"), Number.parseFloat(match.groups["h"] ?? "0")];
 }
 
 test("bubble style tints the assistant bubble with the ai-bubble token", async ({ mount }) => {
@@ -105,9 +101,7 @@ test("bubble style tints the assistant bubble with the ai-bubble token", async (
   await expect(component.locator(ROW)).toHaveAttribute("data-role", "assistant");
 });
 
-test("bubble style tints a user row with the user-bubble token + right-alignment", async ({
-  mount,
-}) => {
+test("bubble style tints a user row with the user-bubble token + right-alignment", async ({ mount }) => {
   const component = await mount(<MessageRowStory chatStyle="bubble" messageRole="user" />);
   await expect(component.locator(BUBBLE)).toHaveClass(USER_BUBBLE);
   await expect(component.locator(ROW)).toHaveClass(ALIGN_END);
@@ -134,29 +128,16 @@ test("renders the markdown body", async ({ mount }) => {
 
 // ── #21 attribution chrome ─────────────────────────────────────────────────────────────────────
 
-test("no roster/persona maps threaded: no attribution chrome at all (pre-#21 default)", async ({
-  mount,
-}) => {
-  const component = await mount(
-    <MessageRowStory chatStyle="bubble" messageRole="assistant" characterId={ALICE_ID} />,
-  );
+test("no roster/persona maps threaded: no attribution chrome at all (pre-#21 default)", async ({ mount }) => {
+  const component = await mount(<MessageRowStory chatStyle="bubble" messageRole="assistant" characterId={ALICE_ID} />);
   await expect(component.locator(ATTRIBUTION)).toHaveCount(0);
   await expect(component.locator(THEME_SCOPE)).toHaveCount(0);
 });
 
-test("assistant row resolves name from the roster + colors the bubble via ThemeScope", async ({
-  mount,
-}) => {
+test("assistant row resolves name from the roster + colors the bubble via ThemeScope", async ({ mount }) => {
   // Arrays, not a `Map`: a `Map`/`Set` prop does not survive the Playwright CT serialization
   // boundary (arrives empty, no error) — `MessageRowStory` builds the `Map` post-mount instead.
-  const component = await mount(
-    <MessageRowStory
-      chatStyle="bubble"
-      messageRole="assistant"
-      characterId={ALICE_ID}
-      participants={[alice()]}
-    />,
-  );
+  const component = await mount(<MessageRowStory chatStyle="bubble" messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} />);
   await expect(component.locator(ATTRIBUTION)).toContainText("Alice");
   // TWO ThemeScopes now (UIP-304): one (display:contents) tints the speaker NAME with `--color-speaker`
   // (the accent), one wraps the bubble CONTENT — both from the same per-character `attribution.tokens`.
@@ -165,31 +146,15 @@ test("assistant row resolves name from the roster + colors the bubble via ThemeS
   await expect(component.locator(ATTRIBUTION).getByText("Alice")).toHaveClass(SPEAKER_ACCENT_RE);
 });
 
-test("a null characterId in a multi-character room shows a neutral Narrator, uncolored", async ({
-  mount,
-}) => {
-  const component = await mount(
-    <MessageRowStory
-      chatStyle="bubble"
-      messageRole="assistant"
-      characterId={null}
-      participants={[alice(), bob()]}
-    />,
-  );
+test("a null characterId in a multi-character room shows a neutral Narrator, uncolored", async ({ mount }) => {
+  const component = await mount(<MessageRowStory chatStyle="bubble" messageRole="assistant" characterId={null} participants={[alice(), bob()]} />);
   await expect(component.locator(ATTRIBUTION)).toContainText("Narrator");
   await expect(component.locator(THEME_SCOPE)).toHaveCount(0);
 });
 
-test("user row resolves the message's personaId against the macro-name producer", async ({
-  mount,
-}) => {
+test("user row resolves the message's personaId against the macro-name producer", async ({ mount }) => {
   const component = await mount(
-    <MessageRowStory
-      chatStyle="bubble"
-      messageRole="user"
-      personaId={NATE_PERSONA_ID}
-      personas={[{ id: NATE_PERSONA_ID, name: "Alex" }]}
-    />,
+    <MessageRowStory chatStyle="bubble" messageRole="user" personaId={NATE_PERSONA_ID} personas={[{ id: NATE_PERSONA_ID, name: "Alex" }]} />,
   );
   await expect(component.locator(ATTRIBUTION)).toContainText("Alex");
   // User-row attribution carries no color wrap — the per-role user-bubble token owns that already.
@@ -200,17 +165,9 @@ test("user row resolves the message's personaId against the macro-name producer"
 
 const AVATAR = '[data-slot="avatar-root"]';
 
-test("showInChatAvatars=false hides the avatar image but KEEPS the speaker name", async ({
-  mount,
-}) => {
+test("showInChatAvatars=false hides the avatar image but KEEPS the speaker name", async ({ mount }) => {
   const component = await mount(
-    <MessageRowStory
-      chatStyle="bubble"
-      messageRole="assistant"
-      characterId={ALICE_ID}
-      participants={[alice()]}
-      showInChatAvatars={false}
-    />,
+    <MessageRowStory chatStyle="bubble" messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} showInChatAvatars={false} />,
   );
   // The attribution row + name stay; only the avatar image is dropped (ST "show avatars" parity).
   await expect(component.locator(ATTRIBUTION)).toContainText("Alice");
@@ -219,13 +176,7 @@ test("showInChatAvatars=false hides the avatar image but KEEPS the speaker name"
 
 test("showInChatAvatars=true (default) renders the attribution avatar", async ({ mount }) => {
   const component = await mount(
-    <MessageRowStory
-      chatStyle="bubble"
-      messageRole="assistant"
-      characterId={ALICE_ID}
-      participants={[alice()]}
-      showInChatAvatars={true}
-    />,
+    <MessageRowStory chatStyle="bubble" messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} showInChatAvatars={true} />,
   );
   await expect(component.locator(ATTRIBUTION)).toContainText("Alice");
   await expect(component.locator(AVATAR)).toHaveCount(1);
@@ -237,17 +188,8 @@ const ROW_BODY = '[data-slot="message-row-body"]';
 const CONTENT_COLUMN = '[data-slot="message-content-column"]';
 const NAME_ROW = '[data-slot="message-name-row"]';
 
-test("the avatar is a SIBLING of the content column, never nested inside the name row (§B.1)", async ({
-  mount,
-}) => {
-  const component = await mount(
-    <MessageRowStory
-      chatStyle="bubble"
-      messageRole="assistant"
-      characterId={ALICE_ID}
-      participants={[alice()]}
-    />,
-  );
+test("the avatar is a SIBLING of the content column, never nested inside the name row (§B.1)", async ({ mount }) => {
+  const component = await mount(<MessageRowStory chatStyle="bubble" messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} />);
   const body = component.locator(ROW_BODY);
   // The avatar is a direct child of the row-body, a sibling of the content column — not a descendant
   // of the name row (which holds only the name-group + actions).
@@ -258,14 +200,7 @@ test("the avatar is a SIBLING of the content column, never nested inside the nam
 });
 
 test("an assistant avatar sits BEFORE the content column (§B.1)", async ({ mount }) => {
-  const assistant = await mount(
-    <MessageRowStory
-      chatStyle="bubble"
-      messageRole="assistant"
-      characterId={ALICE_ID}
-      participants={[alice()]}
-    />,
-  );
+  const assistant = await mount(<MessageRowStory chatStyle="bubble" messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} />);
   const assistantChildren = assistant.locator(`${ROW_BODY} > *`);
   await expect(assistantChildren.first()).toHaveAttribute("data-slot", "avatar-root");
   await expect(assistantChildren.last()).toHaveAttribute("data-slot", "message-content-column");
@@ -273,33 +208,18 @@ test("an assistant avatar sits BEFORE the content column (§B.1)", async ({ moun
 
 // Separate mount: Playwright-CT allows one mount per test (a second mount into the same root throws
 // "container already has a React root"). The mirror is its own test rather than a second mount above.
-test("a user row mirrors it — avatar AFTER the content column (§B.1 own-message mirroring)", async ({
-  mount,
-}) => {
+test("a user row mirrors it — avatar AFTER the content column (§B.1 own-message mirroring)", async ({ mount }) => {
   const user = await mount(
-    <MessageRowStory
-      chatStyle="bubble"
-      messageRole="user"
-      personaId={NATE_PERSONA_ID}
-      personas={[{ id: NATE_PERSONA_ID, name: "Alex" }]}
-    />,
+    <MessageRowStory chatStyle="bubble" messageRole="user" personaId={NATE_PERSONA_ID} personas={[{ id: NATE_PERSONA_ID, name: "Alex" }]} />,
   );
   const userChildren = user.locator(`${ROW_BODY} > *`);
   await expect(userChildren.first()).toHaveAttribute("data-slot", "message-content-column");
   await expect(userChildren.last()).toHaveAttribute("data-slot", "avatar-root");
 });
 
-test("avatars-off drops the avatar element entirely; the content column is unaffected (§B.1)", async ({
-  mount,
-}) => {
+test("avatars-off drops the avatar element entirely; the content column is unaffected (§B.1)", async ({ mount }) => {
   const component = await mount(
-    <MessageRowStory
-      chatStyle="bubble"
-      messageRole="assistant"
-      characterId={ALICE_ID}
-      participants={[alice()]}
-      showInChatAvatars={false}
-    />,
+    <MessageRowStory chatStyle="bubble" messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} showInChatAvatars={false} />,
   );
   await expect(component.locator(AVATAR)).toHaveCount(0);
   // The name + actions structure is untouched — only the row's leading slot is gone.
@@ -307,9 +227,7 @@ test("avatars-off drops the avatar element entirely; the content column is unaff
   await expect(component.locator(ATTRIBUTION)).toContainText("Alice");
 });
 
-test("avatarShape=rounded / avatarAspect=portrait / avatarRing=accent thread through to the avatar (§B.3)", async ({
-  mount,
-}) => {
+test("avatarShape=rounded / avatarAspect=portrait / avatarRing=accent thread through to the avatar (§B.3)", async ({ mount }) => {
   const component = await mount(
     <MessageRowStory
       chatStyle="bubble"
@@ -336,9 +254,7 @@ test("avatarShape=rounded / avatarAspect=portrait / avatarRing=accent thread thr
 
 // ── Macro DISPLAY pass (the `{{char}}`/`{{user}}` bug) ─────────────────────────────────────────────
 
-test("a message with {{char}}/{{user}} resolves real names once the roster + anchor persona are threaded", async ({
-  mount,
-}) => {
+test("a message with {{char}}/{{user}} resolves real names once the roster + anchor persona are threaded", async ({ mount }) => {
   const component = await mount(
     <MessageRowStory
       chatStyle="bubble"
@@ -360,28 +276,13 @@ test("a message with {{char}}/{{user}} resolves real names once the roster + anc
 // speaker (Chat-Macro-Resolution.md §2's "a past line by Aria stays Aria" rule).
 test("a row's own characterId wins over another roster member also present", async ({ mount }) => {
   const component = await mount(
-    <MessageRowStory
-      chatStyle="bubble"
-      messageRole="assistant"
-      content="{{char}} nods."
-      characterId={BOB_ID}
-      participants={[alice(), bob()]}
-    />,
+    <MessageRowStory chatStyle="bubble" messageRole="assistant" content="{{char}} nods." characterId={BOB_ID} participants={[alice(), bob()]} />,
   );
   await expect(component.getByText("Bob nods.")).toBeVisible();
 });
 
-test("no roster/persona threaded: {{char}}/{{user}} resolve to the kit floor ('Character'/'User'), never left literal", async ({
-  mount,
-}) => {
-  const component = await mount(
-    <MessageRowStory
-      chatStyle="bubble"
-      messageRole="assistant"
-      content="{{char}} waves at {{user}}."
-      characterId={ALICE_ID}
-    />,
-  );
+test("no roster/persona threaded: {{char}}/{{user}} resolve to the kit floor ('Character'/'User'), never left literal", async ({ mount }) => {
+  const component = await mount(<MessageRowStory chatStyle="bubble" messageRole="assistant" content="{{char}} waves at {{user}}." characterId={ALICE_ID} />);
   await expect(component.getByText("Character waves at User.")).toBeVisible();
   await expect(component.getByText("{{char}}", { exact: false })).toHaveCount(0);
   await expect(component.getByText("{{user}}", { exact: false })).toHaveCount(0);
@@ -392,17 +293,8 @@ test("no roster/persona threaded: {{char}}/{{user}} resolve to the kit floor ('C
 // These mount the real DOM and assert against the RESOLVED `--immersive-*`/`--color-speaker` custom
 // properties (never a hardcoded px/hex literal — the golden rule), same as `theme-scope.ct.tsx`.
 
-test("whisper: the header band renders a 3:1 aspect box (matches the server's banner crop); its art is the banner variant", async ({
-  mount,
-}) => {
-  const component = await mount(
-    <MessageRowStory
-      chatStyle="whisper"
-      messageRole="assistant"
-      characterId={ALICE_ID}
-      participants={[aliceWithAvatar()]}
-    />,
-  );
+test("whisper: the header band renders a 3:1 aspect box (matches the server's banner crop); its art is the banner variant", async ({ mount }) => {
+  const component = await mount(<MessageRowStory chatStyle="whisper" messageRole="assistant" characterId={ALICE_ID} participants={[aliceWithAvatar()]} />);
   const band = component.locator('[data-slot="message-band"]');
   await expect(band).toBeVisible();
   // The band is an `--aspect-banner` (3:1) box — height DERIVES from the bubble width so the displayed
@@ -415,17 +307,8 @@ test("whisper: the header band renders a 3:1 aspect box (matches the server's ba
   expect(bgImage).toContain("?v=banner&w=");
 });
 
-test("echo: the bubble's padding-right resolves to --immersive-echo-feather (of the content column's width)", async ({
-  mount,
-}) => {
-  const component = await mount(
-    <MessageRowStory
-      chatStyle="echo"
-      messageRole="assistant"
-      characterId={ALICE_ID}
-      participants={[aliceWithAvatar()]}
-    />,
-  );
+test("echo: the bubble's padding-right resolves to --immersive-echo-feather (of the content column's width)", async ({ mount }) => {
+  const component = await mount(<MessageRowStory chatStyle="echo" messageRole="assistant" characterId={ALICE_ID} participants={[aliceWithAvatar()]} />);
   const bubble = component.locator(BUBBLE);
   const column = component.locator(CONTENT_COLUMN);
   // The feather is authored as a PERCENTAGE (of the bubble's containing block width, message-row-
@@ -435,25 +318,16 @@ test("echo: the bubble's padding-right resolves to --immersive-echo-feather (of 
   const featherPct = await cssVar(bubble, "--immersive-echo-feather");
   const pct = Number.parseFloat(featherPct) / 100;
   expect(pct).toBeGreaterThan(0);
-  const paddingRightPx = await bubble.evaluate((el) =>
-    Number.parseFloat(getComputedStyle(el).paddingRight),
-  );
+  const paddingRightPx = await bubble.evaluate((el) => Number.parseFloat(getComputedStyle(el).paddingRight));
   const columnBox = await column.boundingBox();
   const expectedPx = (columnBox?.width ?? 0) * pct;
   expect(paddingRightPx).toBeGreaterThan(0);
   expect(Math.abs(paddingRightPx - expectedPx)).toBeLessThan(2);
 });
 
-test("echo: a persona-kind (user) row never bleeds portrait art — padding-right reverts to the base (hide-user-portrait)", async ({
-  mount,
-}) => {
+test("echo: a persona-kind (user) row never bleeds portrait art — padding-right reverts to the base (hide-user-portrait)", async ({ mount }) => {
   const component = await mount(
-    <MessageRowStory
-      chatStyle="echo"
-      messageRole="user"
-      personaId={NATE_PERSONA_ID}
-      personas={[{ id: NATE_PERSONA_ID, name: "Alex" }]}
-    />,
+    <MessageRowStory chatStyle="echo" messageRole="user" personaId={NATE_PERSONA_ID} personas={[{ id: NATE_PERSONA_ID, name: "Alex" }]} />,
   );
   const bubble = component.locator(BUBBLE);
   // No decoration ⇒ no inline paddingRight override (echoDecoration returns null for a non-character
@@ -467,56 +341,28 @@ test("echo: a persona-kind (user) row never bleeds portrait art — padding-righ
   expect(paddingRight).toBe(paddingLeft);
 });
 
-test("ripple: the welded avatar's boundingBox width resolves to --immersive-ripple-portrait-width; position is sticky", async ({
-  mount,
-}) => {
-  const component = await mount(
-    <MessageRowStory
-      chatStyle="ripple"
-      messageRole="assistant"
-      characterId={ALICE_ID}
-      participants={[aliceWithAvatar()]}
-    />,
-  );
+test("ripple: the welded avatar's boundingBox width resolves to --immersive-ripple-portrait-width; position is sticky", async ({ mount }) => {
+  const component = await mount(<MessageRowStory chatStyle="ripple" messageRole="assistant" characterId={ALICE_ID} participants={[aliceWithAvatar()]} />);
   const avatar = component.locator(AVATAR);
   const box = await avatar.boundingBox();
-  expect(Math.round(box?.width ?? 0)).toBe(
-    remTokenPx(TOKENS["immersive.ripple-portrait-width"].value),
-  );
+  expect(Math.round(box?.width ?? 0)).toBe(remTokenPx(TOKENS["immersive.ripple-portrait-width"].value));
   await expect(avatar).toHaveCSS("position", "sticky");
 });
 
-test("hush: the left stripe resolves to --immersive-stripe-width and the character's --color-speaker", async ({
-  mount,
-}) => {
-  const component = await mount(
-    <MessageRowStory
-      chatStyle="hush"
-      messageRole="assistant"
-      characterId={ALICE_ID}
-      participants={[alice()]}
-    />,
-  );
+test("hush: the left stripe resolves to --immersive-stripe-width and the character's --color-speaker", async ({ mount }) => {
+  const component = await mount(<MessageRowStory chatStyle="hush" messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} />);
   const bubble = component.locator(BUBBLE);
-  const stripeWidthPx = await bubble.evaluate((el) =>
-    Number.parseFloat(getComputedStyle(el).borderLeftWidth),
-  );
+  const stripeWidthPx = await bubble.evaluate((el) => Number.parseFloat(getComputedStyle(el).borderLeftWidth));
   expect(stripeWidthPx).toBe(remTokenPx(TOKENS["immersive.stripe-width"].value));
   const borderColor = await bubble.evaluate((el) => getComputedStyle(el).borderLeftColor);
   const speakerColor = await cssVar(bubble, "--color-speaker");
   expect(parseOklch(borderColor)).toEqual(parseOklch(speakerColor));
 });
 
-test("tide: a blank-line-separated body renders N stacked, non-overlapping bubbles (a train, not one bubble)", async ({
-  mount,
-}) => {
+test("tide: a blank-line-separated body renders N stacked, non-overlapping bubbles (a train, not one bubble)", async ({ mount }) => {
   const content = "First paragraph.\n\nSecond paragraph.\n\nThird paragraph.";
-  const component = await mount(
-    <MessageRowStory chatStyle="tide" messageRole="assistant" content={content} />,
-  );
-  const bubbles = component.locator(
-    '[data-slot="message-bubble-train"] [data-slot="message-bubble"]',
-  );
+  const component = await mount(<MessageRowStory chatStyle="tide" messageRole="assistant" content={content} />);
+  const bubbles = component.locator('[data-slot="message-bubble-train"] [data-slot="message-bubble"]');
   await expect(bubbles).toHaveCount(3);
   const ys = await bubbles.evaluateAll((els) => els.map((el) => el.getBoundingClientRect().y));
   for (let i = 1; i < ys.length; i++) {
@@ -535,8 +381,7 @@ test("tide: a blank-line-separated body renders N stacked, non-overlapping bubbl
 const EDGE_TILE = '[data-slot="message-edge-tile"]';
 const BAND = '[data-slot="message-band"]';
 const FALLBACK = '[data-slot="avatar-fallback"]';
-const LONG_BODY =
-  "Line one is fairly long.\n\nLine two.\n\nLine three.\n\nLine four.\n\nLine five.";
+const LONG_BODY = "Line one is fairly long.\n\nLine two.\n\nLine three.\n\nLine four.\n\nLine five.";
 
 // The hue is asserted via the RESOLVED `--color-chart-N` var read off the mounted element (never a
 // hardcoded oklch literal — the §13.7 spirit), parsed to numbers so the author-string vs engine-
@@ -551,10 +396,7 @@ const CONSTANT_ALT_BUCKET = 2; // the pre-fix shared color (hashed `alt=""`)
 async function bgOf(locator: Locator): Promise<readonly [number, number, number]> {
   return parseOklch(await locator.evaluate((el) => getComputedStyle(el).backgroundColor));
 }
-async function chartHue(
-  locator: Locator,
-  bucket: number,
-): Promise<readonly [number, number, number]> {
+async function chartHue(locator: Locator, bucket: number): Promise<readonly [number, number, number]> {
   return parseOklch(await cssVar(locator, `--color-chart-${bucket}`));
 }
 
@@ -562,13 +404,7 @@ test("bubble: a no-avatar character's chip top-aligns with the name row + paints
   mount,
 }) => {
   const component = await mount(
-    <MessageRowStory
-      chatStyle="bubble"
-      messageRole="assistant"
-      content={LONG_BODY}
-      characterId={ALICE_ID}
-      participants={[alice()]}
-    />,
+    <MessageRowStory chatStyle="bubble" messageRole="assistant" content={LONG_BODY} characterId={ALICE_ID} participants={[alice()]} />,
   );
   const avatar = component.locator(AVATAR);
   // Placement: the gutter avatar pins to the TOP of the message group (aligned with the speaker name),
@@ -585,19 +421,10 @@ test("bubble: a no-avatar character's chip top-aligns with the name row + paints
   expect(await bgOf(fallback)).not.toEqual(await chartHue(fallback, CONSTANT_ALT_BUCKET));
 });
 
-test("bubble: a different no-avatar character resolves a DISTINCT hue (per-entity, not one shared color)", async ({
-  mount,
-}) => {
+test("bubble: a different no-avatar character resolves a DISTINCT hue (per-entity, not one shared color)", async ({ mount }) => {
   // Bob (a different id) lands his OWN bucket (4), not Alice's (5) — the exact defect the owner reported
   // (every imageless speaker was the same teal `alt=""` bucket) is gone.
-  const component = await mount(
-    <MessageRowStory
-      chatStyle="bubble"
-      messageRole="assistant"
-      characterId={BOB_ID}
-      participants={[bob()]}
-    />,
-  );
+  const component = await mount(<MessageRowStory chatStyle="bubble" messageRole="assistant" characterId={BOB_ID} participants={[bob()]} />);
   const fallback = component.locator(`${AVATAR} ${FALLBACK}`);
   expect(await bgOf(fallback)).toEqual(await chartHue(fallback, BOB_HUE_BUCKET));
   expect(await bgOf(fallback)).not.toEqual(await chartHue(fallback, ALICE_HUE_BUCKET));
@@ -607,13 +434,7 @@ test("echo (no avatar): the FALLBACK edge tile IS the art — hue field + initia
   mount,
 }) => {
   const component = await mount(
-    <MessageRowStory
-      chatStyle="echo"
-      messageRole="assistant"
-      content={LONG_BODY}
-      characterId={ALICE_ID}
-      participants={[alice()]}
-    />,
+    <MessageRowStory chatStyle="echo" messageRole="assistant" content={LONG_BODY} characterId={ALICE_ID} participants={[alice()]} />,
   );
   const bubble = component.locator(BUBBLE);
   const tile = component.locator(EDGE_TILE);
@@ -622,9 +443,7 @@ test("echo (no avatar): the FALLBACK edge tile IS the art — hue field + initia
   await expect(tile).toContainText("A");
   // Owner ruling 2026-07-09 (side-eye): the initial is a scannable identity mark, sized off the
   // hero-avatar glyph token (~4× the old 16px title), not an easter egg — RENDERED font-size, not a class.
-  const glyphPx = await tile
-    .locator('[data-slot="text"]')
-    .evaluate((el) => Number.parseFloat(getComputedStyle(el).fontSize));
+  const glyphPx = await tile.locator('[data-slot="text"]').evaluate((el) => Number.parseFloat(getComputedStyle(el).fontSize));
   expect(glyphPx).toBe(remTokenPx(TOKENS["spacing.avatar-hero"].value));
   // Reading geometry is IDENTICAL to the with-image echo (the regression pin above): text is padded
   // clear by the feather token, never a reserved-but-empty gap.
@@ -647,13 +466,7 @@ test("whisper (no avatar): the FALLBACK band renders at the SAME 3:1 geometry (h
   mount,
 }) => {
   const component = await mount(
-    <MessageRowStory
-      chatStyle="whisper"
-      messageRole="assistant"
-      content={LONG_BODY}
-      characterId={ALICE_ID}
-      participants={[alice()]}
-    />,
+    <MessageRowStory chatStyle="whisper" messageRole="assistant" content={LONG_BODY} characterId={ALICE_ID} participants={[alice()]} />,
   );
   const band = component.locator(BAND);
   await expect(band).toBeVisible();
@@ -671,21 +484,13 @@ test("ripple (no avatar): the welded VN portrait falls back to the hue tile at t
   mount,
 }) => {
   const component = await mount(
-    <MessageRowStory
-      chatStyle="ripple"
-      messageRole="assistant"
-      content={LONG_BODY}
-      characterId={ALICE_ID}
-      participants={[alice()]}
-    />,
+    <MessageRowStory chatStyle="ripple" messageRole="assistant" content={LONG_BODY} characterId={ALICE_ID} participants={[alice()]} />,
   );
   const avatar = component.locator(AVATAR);
   // No <img> renders (no hash) — the Avatar shows its fallback tile, at the UNCHANGED portrait width.
   await expect(avatar.locator('[data-slot="avatar-image"]')).toHaveCount(0);
   const box = await avatar.boundingBox();
-  expect(Math.round(box?.width ?? 0)).toBe(
-    remTokenPx(TOKENS["immersive.ripple-portrait-width"].value),
-  );
+  expect(Math.round(box?.width ?? 0)).toBe(remTokenPx(TOKENS["immersive.ripple-portrait-width"].value));
   await expect(avatar).toHaveCSS("position", "sticky");
   const fallback = avatar.locator(FALLBACK);
   await expect(fallback).toContainText("A");
@@ -711,18 +516,10 @@ const TRANSPARENT = "rgba(0, 0, 0, 0)";
 //   in-data-[has-bg-image]:rounded-card in-data-[has-bg-image]:px-field in-data-[has-bg-image]:py-row
 
 for (const style of ["flat", "hush", "document"] as const) {
-  test(`${style} over a bg image: the reading text's backdrop is the scrim + blur (computed), never transparent`, async ({
-    mount,
-  }) => {
+  test(`${style} over a bg image: the reading text's backdrop is the scrim + blur (computed), never transparent`, async ({ mount }) => {
     const component = await mount(
       <div data-has-bg-image="">
-        <MessageRowStory
-          chatStyle={style}
-          messageRole="assistant"
-          content={LONG_BODY}
-          characterId={ALICE_ID}
-          participants={[alice()]}
-        />
+        <MessageRowStory chatStyle={style} messageRole="assistant" content={LONG_BODY} characterId={ALICE_ID} participants={[alice()]} />
       </div>,
     );
     const bubble = component.locator(BUBBLE).first();
@@ -739,17 +536,9 @@ for (const style of ["flat", "hush", "document"] as const) {
   });
 }
 
-test("without a bg image, flat stays truly flat — no scrim, no blur (don't scrim what doesn't need it)", async ({
-  mount,
-}) => {
+test("without a bg image, flat stays truly flat — no scrim, no blur (don't scrim what doesn't need it)", async ({ mount }) => {
   const component = await mount(
-    <MessageRowStory
-      chatStyle="flat"
-      messageRole="assistant"
-      content={LONG_BODY}
-      characterId={ALICE_ID}
-      participants={[alice()]}
-    />,
+    <MessageRowStory chatStyle="flat" messageRole="assistant" content={LONG_BODY} characterId={ALICE_ID} participants={[alice()]} />,
   );
   const bubble = component.locator(BUBBLE).first();
   const { bg, backdrop } = await bubble.evaluate((el) => {
@@ -767,17 +556,10 @@ test("without a bg image, flat stays truly flat — no scrim, no blur (don't scr
 const ACTIONS_ROW = '[data-slot="message-actions-row"]';
 
 for (const style of ["flat", "hush", "document"] as const) {
-  test(`${style} over a bg image: the action row's nearest backdrop is the scrim chip, not the raw photo`, async ({
-    mount,
-  }) => {
+  test(`${style} over a bg image: the action row's nearest backdrop is the scrim chip, not the raw photo`, async ({ mount }) => {
     const component = await mount(
       <div data-has-bg-image="">
-        <MessageRowStory
-          chatStyle={style}
-          messageRole="assistant"
-          characterId={ALICE_ID}
-          participants={[alice()]}
-        />
+        <MessageRowStory chatStyle={style} messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} />
       </div>,
     );
     // The action-icon row itself paints no bg; its NEAREST backdrop is the name-row chip that wraps it.
@@ -801,14 +583,7 @@ for (const style of ["flat", "hush", "document"] as const) {
 }
 
 test("without a bg image, the chrome row carries NO chip (unchanged) — flat", async ({ mount }) => {
-  const component = await mount(
-    <MessageRowStory
-      chatStyle="flat"
-      messageRole="assistant"
-      characterId={ALICE_ID}
-      participants={[alice()]}
-    />,
-  );
+  const component = await mount(<MessageRowStory chatStyle="flat" messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} />);
   const nameRow = component.locator(NAME_ROW);
   const { bg, backdrop } = await nameRow.evaluate((el) => {
     const cs = getComputedStyle(el);
@@ -818,22 +593,13 @@ test("without a bg image, the chrome row carries NO chip (unchanged) — flat", 
   expect(backdrop).toBe("none");
 });
 
-test("a FILLED mode (echo) does NOT chip its chrome — scoped to the no-fill modes (bubble anchors it)", async ({
-  mount,
-}) => {
+test("a FILLED mode (echo) does NOT chip its chrome — scoped to the no-fill modes (bubble anchors it)", async ({ mount }) => {
   const component = await mount(
     <div data-has-bg-image="">
-      <MessageRowStory
-        chatStyle="echo"
-        messageRole="assistant"
-        characterId={ALICE_ID}
-        participants={[alice()]}
-      />
+      <MessageRowStory chatStyle="echo" messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} />
     </div>,
   );
-  const bg = await component
-    .locator(NAME_ROW)
-    .evaluate((el) => getComputedStyle(el).backgroundColor);
+  const bg = await component.locator(NAME_ROW).evaluate((el) => getComputedStyle(el).backgroundColor);
   expect(bg).toBe(TRANSPARENT);
 });
 
@@ -842,17 +608,8 @@ test("a FILLED mode (echo) does NOT chip its chrome — scoped to the no-fill mo
 // in-flow), NOT `opacity-0` (invisible-but-claiming-width, the Wave-1 P0). This pins the two facts that
 // make it safe: (a) the cluster is on-screen at rest (opacity 0.4, a real box) so its footprint is never
 // a surprise, and (b) opposite an icon-only cluster a normal speaker name doesn't overflow the name row.
-test("action cluster is dim-at-rest (opacity, in-flow) and never starves a normal name (Wave-1 audit no-op)", async ({
-  mount,
-}) => {
-  const component = await mount(
-    <MessageRowStory
-      chatStyle="bubble"
-      messageRole="assistant"
-      characterId={ALICE_ID}
-      participants={[alice()]}
-    />,
-  );
+test("action cluster is dim-at-rest (opacity, in-flow) and never starves a normal name (Wave-1 audit no-op)", async ({ mount }) => {
+  const component = await mount(<MessageRowStory chatStyle="bubble" messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} />);
   const actions = component.locator('[data-slot="message-actions-row"]');
   const nameRow = component.locator(NAME_ROW);
   // Dim-at-rest via OPACITY (§B.1), never display:none — a real box that's visibly dim, so its width is

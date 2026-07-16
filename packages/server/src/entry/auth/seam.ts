@@ -15,12 +15,7 @@ import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { requireAdmin } from "#domain/admin";
 import type { SessionsService } from "#domain/sessions";
-import type {
-  AuthConfig,
-  ForwardJwtVerifier,
-  IdentityResolution,
-  OidcTransactionStore,
-} from "#infra/auth";
+import type { AuthConfig, ForwardJwtVerifier, IdentityResolution, OidcTransactionStore } from "#infra/auth";
 import { authConfigFromEnv, hasCsrfHeader, resolve, SESSION_COOKIE_NAME } from "#infra/auth";
 
 /** The boot-time deps the seam binds once. `config` is the test/override seam — production parses
@@ -99,10 +94,7 @@ async function resolveCookiePrincipal(
 }
 
 /** Owner-fallback or SSO header path. `null` for an anonymous/disabled caller (→ transport 401). */
-async function resolveHeaderOrFallbackPrincipal(
-  sessions: SessionsService,
-  res: IdentityResolution,
-): Promise<Principal | null> {
+async function resolveHeaderOrFallbackPrincipal(sessions: SessionsService, res: IdentityResolution): Promise<Principal | null> {
   if (res.identity === null) {
     return null;
   }
@@ -139,9 +131,7 @@ async function resolveHeaderOrFallbackPrincipal(
  * Role-sensitive ops re-read the host's real `users.role` live via `loadUserById` — a fabricated
  * `role:"user"` would fail-closed-deny the owner's own privileged turn; unknown id degrades to `"user"`.
  */
-export function createHostPrincipalResolver(
-  sessions: SessionsService,
-): (userId: UserId) => Promise<Principal> {
+export function createHostPrincipalResolver(sessions: SessionsService): (userId: UserId) => Promise<Principal> {
   return async (userId: UserId): Promise<Principal> => {
     const fields = await sessions.loadUserById(userId);
     return {
@@ -163,11 +153,7 @@ export function createAuthSeam(deps: AuthSeamDeps): AuthSeam {
     const csrfHeaderPresent = hasCsrfHeader(headers);
 
     if (isCookieMode) {
-      const cookiePrincipal = await resolveCookiePrincipal(
-        deps.sessions,
-        headers,
-        req?.onSessionSlide,
-      );
+      const cookiePrincipal = await resolveCookiePrincipal(deps.sessions, headers, req?.onSessionSlide);
       if (cookiePrincipal !== null) {
         return { principal: cookiePrincipal, csrfHeaderPresent };
       }

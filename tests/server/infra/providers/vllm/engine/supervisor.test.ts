@@ -7,14 +7,7 @@
 // prove the flag stays true across the restart-backoff window — a monitor tick landing in that window must
 // NOT double-queue the spawn (which would double-charge the breaker and mislabel an owned engine 'adopted').
 
-import {
-  breakerAllows,
-  decideTick,
-  engineBaseUrl,
-  findOrphanedEngineCores,
-  getEngineStatus,
-  startVllmEngines,
-} from "@orb/server/infra/providers/vllm/engine";
+import { breakerAllows, decideTick, engineBaseUrl, findOrphanedEngineCores, getEngineStatus, startVllmEngines } from "@orb/server/infra/providers/vllm/engine";
 import { afterEach, beforeEach, describe, vi } from "vitest";
 import { expect, test } from "../../../../../support/fixtures";
 
@@ -57,8 +50,7 @@ vi.mock("node:child_process", async (importOriginal) => {
     // the spawn, and mark the engine healthy so its next /health probe resolves owned.
     spawn: (_cmd: string, args: readonly string[]): FakeChild => {
       const wrapper = args[1] ?? "";
-      const engine =
-        ["embed", "rerank", "gen"].find((e) => wrapper.includes(`vllm-engine.sh" ${e} `)) ?? "?";
+      const engine = ["embed", "rerank", "gen"].find((e) => wrapper.includes(`vllm-engine.sh" ${e} `)) ?? "?";
       const child = io.makeChild(engine);
       io.children.push(child);
       io.spawns.push(engine);
@@ -66,8 +58,7 @@ vi.mock("node:child_process", async (importOriginal) => {
       return child;
     },
     // reap ps / port-owner ss → empty (no orphans, no foreign owner).
-    execFile: (_c: string, _a: readonly string[], cb: (e: unknown, out: string) => void): void =>
-      cb(null, ""),
+    execFile: (_c: string, _a: readonly string[], cb: (e: unknown, out: string) => void): void => cb(null, ""),
     // detectGpu's nvidia-smi probe: succeed (a GPU is "present").
     execFileSync: (): undefined => undefined,
   };
@@ -150,11 +141,9 @@ describe("decideTick", () => {
       });
     });
     test("owned but child gone → adopt (someone else's healthy engine)", () => {
-      expect(decideTick({ ...base, status: "owned", probe: "healthy", childAlive: false })).toEqual(
-        {
-          kind: "adopt",
-        },
-      );
+      expect(decideTick({ ...base, status: "owned", probe: "healthy", childAlive: false })).toEqual({
+        kind: "adopt",
+      });
     });
     test("already adopted → none (steady state)", () => {
       expect(decideTick({ ...base, status: "adopted", probe: "healthy" })).toEqual({
@@ -183,14 +172,14 @@ describe("decideTick", () => {
       expect(action).toEqual({ kind: "restart", reason: "hung (owned)" });
     });
     test("hung but not ours → mark hung (never kill a process we don't own)", () => {
-      expect(
-        decideTick({ ...base, status: "foreign", probe: "occupied", unhealthyStreak: 2 }),
-      ).toEqual({ kind: "mark", status: "hung", detail: "port open, /health unresponsive" });
+      expect(decideTick({ ...base, status: "foreign", probe: "occupied", unhealthyStreak: 2 })).toEqual({
+        kind: "mark",
+        status: "hung",
+        detail: "port open, /health unresponsive",
+      });
     });
     test("below the streak threshold → none", () => {
-      expect(
-        decideTick({ ...base, status: "owned", probe: "occupied", unhealthyStreak: 0 }),
-      ).toEqual({
+      expect(decideTick({ ...base, status: "owned", probe: "occupied", unhealthyStreak: 0 })).toEqual({
         kind: "none",
       });
     });
@@ -285,9 +274,7 @@ describe("findOrphanedEngineCores", () => {
   });
 
   test("a fully-supervised tree (parent also ours) yields nothing to reap", () => {
-    const reaped = findOrphanedEngineCores("  222 333 VLLM::EngineCore", (pid) =>
-      new Set([222, 333]).has(pid),
-    );
+    const reaped = findOrphanedEngineCores("  222 333 VLLM::EngineCore", (pid) => new Set([222, 333]).has(pid));
     expect(reaped).toEqual([]);
   });
 
@@ -303,8 +290,7 @@ describe("startVllmEngines — the queued-spawn flag holds across the backoff wi
   const monitorIntervalMs = 21_000;
   const engines = ["embed", "rerank", "gen"] as const;
 
-  const urlEngine = (url: string): string | undefined =>
-    engines.find((e) => url.startsWith(engineBaseUrl(e)));
+  const urlEngine = (url: string): string | undefined => engines.find((e) => url.startsWith(engineBaseUrl(e)));
 
   beforeEach(() => {
     io.healthy.clear();
@@ -314,9 +300,7 @@ describe("startVllmEngines — the queued-spawn flag holds across the backoff wi
     // /health: healthy iff the engine's child has spawned (and not "crashed"); else connection-refused (free).
     vi.stubGlobal("fetch", (input: unknown): Promise<{ ok: boolean }> => {
       const engine = urlEngine(String(input));
-      return engine !== undefined && io.healthy.has(engine)
-        ? Promise.resolve({ ok: true })
-        : Promise.reject(new Error("ECONNREFUSED"));
+      return engine !== undefined && io.healthy.has(engine) ? Promise.resolve({ ok: true }) : Promise.reject(new Error("ECONNREFUSED"));
     });
   });
 
@@ -338,10 +322,7 @@ describe("startVllmEngines — the queued-spawn flag holds across the backoff wi
     // the window; health-poll sleeps resolve immediately.
     let parkBackoffs = false;
     const parked: Array<() => void> = [];
-    const sleep = (ms: number): Promise<void> =>
-      parkBackoffs && ms >= 5000
-        ? new Promise<void>((resolve) => parked.push(resolve))
-        : Promise.resolve();
+    const sleep = (ms: number): Promise<void> => (parkBackoffs && ms >= 5000 ? new Promise<void>((resolve) => parked.push(resolve)) : Promise.resolve());
 
     const stop = startVllmEngines({ repoRoot: "/repo", now: (): number => fixedNow, sleep });
     try {

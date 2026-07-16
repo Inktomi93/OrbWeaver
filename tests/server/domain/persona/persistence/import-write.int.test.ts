@@ -58,10 +58,7 @@ describe("createBulkImportPersonas", () => {
     expect(result.defaultPersonaId).toBe(result.idByName[nateKey]);
     expect(Object.keys(result.idByName).sort()).toEqual(["eve", "alex"]);
 
-    const rows = await db
-      .select({ name: personas.name })
-      .from(personas)
-      .where(eq(personas.ownerId, owner.id));
+    const rows = await db.select({ name: personas.name }).from(personas).where(eq(personas.ownerId, owner.id));
     expect(rows.map((r) => r.name).sort()).toEqual(["Eve", "Alex"]);
   });
 
@@ -80,10 +77,7 @@ describe("createBulkImportPersonas", () => {
     // The reused id matches the first run's (idByName is stable across runs).
     expect(second.idByName[nateKey]).toBe(first.idByName[nateKey]);
 
-    const rows = await db
-      .select({ id: personas.id })
-      .from(personas)
-      .where(eq(personas.ownerId, owner.id));
+    const rows = await db.select({ id: personas.id }).from(personas).where(eq(personas.ownerId, owner.id));
     expect(rows).toHaveLength(2);
   });
 });

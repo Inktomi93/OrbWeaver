@@ -10,16 +10,7 @@ import { SearchError } from "@orb/server/domain/search";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
-import {
-  makeSearch,
-  seedCharacter,
-  seedChat,
-  seedChatDigest,
-  seedChatDigestSpeaker,
-  seedChatSegment,
-  seedUser,
-  vec,
-} from "../_support.ts";
+import { makeSearch, seedCharacter, seedChat, seedChatDigest, seedChatDigestSpeaker, seedChatSegment, seedUser, vec } from "../_support.ts";
 
 describe("discover", () => {
   test("credits a solo block to its scoped character with the segment as evidence", async () => {
@@ -222,8 +213,6 @@ describe("discover", () => {
     const owner = await seedUser(db, { handle: "owner" });
 
     const svc = makeSearch(db, { embedVector: () => null });
-    await expect(
-      svc.discover({ ownerId: owner, queryText: "anything", topN: 5 }),
-    ).rejects.toBeInstanceOf(SearchError);
+    await expect(svc.discover({ ownerId: owner, queryText: "anything", topN: 5 })).rejects.toBeInstanceOf(SearchError);
   });
 });

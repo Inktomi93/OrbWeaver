@@ -26,11 +26,7 @@ interface BoundedListProps extends ListFixtureProps {
 }
 
 /** A 1000-item-scale list inside a BOUNDED parent — the legal shape (caller owns the height). */
-export function BoundedList({
-  itemCount,
-  rowHeightPx,
-  listHeightPx,
-}: BoundedListProps): ReactElement {
+export function BoundedList({ itemCount, rowHeightPx, listHeightPx }: BoundedListProps): ReactElement {
   const items = makeItems(itemCount);
   return (
     <div style={{ height: listHeightPx }}>
@@ -74,9 +70,7 @@ export function UnboundedList({ itemCount, rowHeightPx }: ListFixtureProps): Rea
           items={items}
           getItemKey={(item): string => item.id}
           estimateSize={(): number => rowHeightPx}
-          renderItem={(item): ReactElement => (
-            <div style={{ height: rowHeightPx }}>{item.label}</div>
-          )}
+          renderItem={(item): ReactElement => <div style={{ height: rowHeightPx }}>{item.label}</div>}
         />
       </div>
     </TripwireBoundary>
@@ -144,11 +138,7 @@ export function LanesList({ itemCount, lanes }: LanesListProps): ReactElement {
 
 /** Passthrough smoke: a custom `rangeExtractor` that always force-includes index 0 alongside the
  *  normal overscan window — proves the option actually reaches `useVirtualizer`, not just typed. */
-export function CustomRangeExtractorList({
-  itemCount,
-}: {
-  readonly itemCount: number;
-}): ReactElement {
+export function CustomRangeExtractorList({ itemCount }: { readonly itemCount: number }): ReactElement {
   const items = makeItems(itemCount);
   return (
     <div style={{ height: 200 }}>

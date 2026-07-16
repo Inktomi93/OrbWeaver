@@ -51,10 +51,7 @@ export function isAssistantPrefill(role: MessageRole, depth: number): boolean {
  *  injector's policy local while the shape stays shared. Use this for consumers that always inject with
  *  defaults (persona at-depth, guided); use {@link injectionDirectiveSchema} directly for opt-in-or-null
  *  consumers (world-info). */
-export function resolveInjectionPlacement(
-  raw: unknown,
-  defaults: InjectionPlacement,
-): InjectionPlacement {
+export function resolveInjectionPlacement(raw: unknown, defaults: InjectionPlacement): InjectionPlacement {
   const obj = z.looseObject({}).safeParse(raw);
   const source = obj.success ? obj.data : {};
   const depth = depthSchema.safeParse(source["depth"]);

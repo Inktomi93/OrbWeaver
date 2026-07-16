@@ -6,11 +6,7 @@
 
 import type { GalleryItemView, GifSearchResult } from "@orb/contracts/hub";
 import type { Principal } from "@orb/contracts/identity";
-import {
-  DomainNoCredentialError,
-  DomainNotFoundError,
-  DomainOperationError,
-} from "@orb/kit/errors";
+import { DomainNoCredentialError, DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import type { AssetId, CharacterId, GalleryItemId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { HubContext } from "@orb/server/domain/hub";
@@ -40,11 +36,9 @@ const GALLERY_VIEW: GalleryItemView = {
 function makeCtx(over: Partial<HubContext> = {}): HubContext {
   return {
     searchGifs: (): Promise<GifSearchResult> => Promise.resolve({ hits: [] }),
-    fetchGifImage: (): Promise<{ bytes: Uint8Array; mime: string }> =>
-      Promise.resolve({ bytes: new Uint8Array([1]), mime: "image/gif" }),
+    fetchGifImage: (): Promise<{ bytes: Uint8Array; mime: string }> => Promise.resolve({ bytes: new Uint8Array([1]), mime: "image/gif" }),
     resolveGifKey: (): Promise<string | null> => Promise.resolve("tenor-key"),
-    storeGalleryAsset: (): Promise<{ assetId: AssetId }> =>
-      Promise.resolve({ assetId: castId<AssetId>("asset_1") }),
+    storeGalleryAsset: (): Promise<{ assetId: AssetId }> => Promise.resolve({ assetId: castId<AssetId>("asset_1") }),
     addToGallery: (): Promise<GalleryItemView> => Promise.resolve(GALLERY_VIEW),
     assertCharacterOwned: (): Promise<boolean> => Promise.resolve(true),
     ...over,
@@ -54,9 +48,7 @@ function makeCtx(over: Partial<HubContext> = {}): HubContext {
 describe("searchGifs", () => {
   test("no gif-search key → DomainNoCredentialError (the no-credential floor)", async () => {
     const hub = createHubService(makeCtx({ resolveGifKey: () => Promise.resolve(null) }));
-    await expect(hub.searchGifs({ principal: OWNER, query: "cat", limit: 20 })).rejects.toThrow(
-      DomainNoCredentialError,
-    );
+    await expect(hub.searchGifs({ principal: OWNER, query: "cat", limit: 20 })).rejects.toThrow(DomainNoCredentialError);
   });
 
   test("resolves the caller's key, passes it to the adapter, returns the hits", async () => {
@@ -103,12 +95,8 @@ describe("importGif", () => {
   const characterId = castId<CharacterId>("character_a");
 
   test("EARLY leak-free gate: a foreign subject character → NOT_FOUND, and NO fetch happens", async () => {
-    const fetchGifImage = vi.fn(() =>
-      Promise.resolve({ bytes: new Uint8Array([1]), mime: "image/gif" }),
-    );
-    const hub = createHubService(
-      makeCtx({ assertCharacterOwned: () => Promise.resolve(false), fetchGifImage }),
-    );
+    const fetchGifImage = vi.fn(() => Promise.resolve({ bytes: new Uint8Array([1]), mime: "image/gif" }));
+    const hub = createHubService(makeCtx({ assertCharacterOwned: () => Promise.resolve(false), fetchGifImage }));
     await expect(
       hub.importGif({
         principal: OWNER,
@@ -160,12 +148,8 @@ describe("importGif", () => {
   });
 
   test("a rejected buffer / bad host maps to a leak-free hub_rejected_content", async () => {
-    const hub = createHubService(
-      makeCtx({ fetchGifImage: () => Promise.reject(new Error("not-image")) }),
-    );
-    const err = await hub
-      .importGif({ principal: OWNER, url: "https://media.tenor.com/x.gif" })
-      .catch((e) => e);
+    const hub = createHubService(makeCtx({ fetchGifImage: () => Promise.reject(new Error("not-image")) }));
+    const err = await hub.importGif({ principal: OWNER, url: "https://media.tenor.com/x.gif" }).catch((e) => e);
     expect(err).toBeInstanceOf(DomainOperationError);
     expect((err as DomainOperationError).code).toBe("hub_rejected_content");
   });

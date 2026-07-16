@@ -76,9 +76,7 @@ export function CharacterHeroBand({
         <Stack className="min-w-0 flex-1" gap="field">
           <Row align="center" gap="row" className="flex-wrap">
             <Stack className="min-w-0 flex-1" gap="field">
-              <form.AppField name="name">
-                {(field): ReactElement => <field.TextField label="Name" />}
-              </form.AppField>
+              <form.AppField name="name">{(field): ReactElement => <field.TextField label="Name" />}</form.AppField>
               <form.Subscribe selector={(s): string => s.values.name}>
                 {(name): ReactElement => <CharacterTokenCounter tokens={estimateTokens(name)} />}
               </form.Subscribe>
@@ -88,12 +86,7 @@ export function CharacterHeroBand({
             </Stack>
             <AccentSwatch themeOverride={detail.themeOverride} />
           </Row>
-          <HeroActions
-            spoilerBlur={spoilerBlur}
-            onNewChat={onNewChat}
-            onViewChats={onViewChats}
-            chatCount={chatCount}
-          />
+          <HeroActions spoilerBlur={spoilerBlur} onNewChat={onNewChat} onViewChats={onViewChats} chatCount={chatCount} />
         </Stack>
       </Row>
 
@@ -114,13 +107,7 @@ export function CharacterHeroBand({
 
 /** The click-to-replace portrait — immediate commit (upload-complete = commit). A confirmation ring
  *  flashes on the portrait (no toast). */
-function HeroPortrait({
-  detail,
-  trpc,
-}: {
-  readonly detail: CharacterHeroDetail;
-  readonly trpc: Trpc;
-}): ReactElement {
+function HeroPortrait({ detail, trpc }: { readonly detail: CharacterHeroDetail; readonly trpc: Trpc }): ReactElement {
   const invalidation = useInvalidation();
   const update = useUpdateCharacter({ trpc, invalidation });
   const [previewHash, setPreviewHash] = useState<string | null>(detail.avatarHash);
@@ -154,11 +141,7 @@ function HeroPortrait({
           aria-label="Replace portrait"
           intent="ghost"
           size="icon"
-          className={
-            confirming
-              ? "relative size-auto shrink-0 rounded-card ring-2 ring-accent"
-              : "relative size-auto shrink-0 rounded-card"
-          }
+          className={confirming ? "relative size-auto shrink-0 rounded-card ring-2 ring-accent" : "relative size-auto shrink-0 rounded-card"}
           onClick={open}
         >
           <Avatar hueSeed={detail.id} shape="square" size="hero" {...avatarSrc}>
@@ -173,11 +156,7 @@ function HeroPortrait({
 const CONFIRM_MS = 1500;
 
 /** Read-only accent preview — the theme control itself lives in the CONTEXT Appearance tab. */
-function AccentSwatch({
-  themeOverride,
-}: {
-  readonly themeOverride: ThemeOverride | null;
-}): ReactElement {
+function AccentSwatch({ themeOverride }: { readonly themeOverride: ThemeOverride | null }): ReactElement {
   return (
     <Row gap="field" align="center">
       <ThemeScope className="size-4 shrink-0 rounded-full bg-primary" tokens={themeOverride ?? {}}>

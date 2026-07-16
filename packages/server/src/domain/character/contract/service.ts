@@ -34,17 +34,9 @@ import type { CharacterDetail } from "./views";
 export type ReapAssetsOp = (assetIds: readonly AssetId[]) => Promise<void>;
 
 /** Attaches a tag by name to one owned character; returns whether it was newly attached (idempotent). */
-export type AttachCardTagOp = (args: {
-  readonly ownerId: UserId;
-  readonly characterId: CharacterId;
-  readonly tagName: string;
-}) => Promise<boolean>;
+export type AttachCardTagOp = (args: { readonly ownerId: UserId; readonly characterId: CharacterId; readonly tagName: string }) => Promise<boolean>;
 
-export type DetachCardTagOp = (args: {
-  readonly ownerId: UserId;
-  readonly characterId: CharacterId;
-  readonly tagName: string;
-}) => Promise<boolean>;
+export type DetachCardTagOp = (args: { readonly ownerId: UserId; readonly characterId: CharacterId; readonly tagName: string }) => Promise<boolean>;
 
 /** DI bundle every character verb closes over. */
 export interface CharacterContext {
@@ -94,7 +86,5 @@ export interface CharacterService {
   readonly findByHandle: (params: FindByHandleParams) => Promise<CharacterRef | null>;
 
   readonly mintSyntheticGroupCharacter: (params: MintGroupCharParams) => Promise<CharacterRef>;
-  readonly findSyntheticGroupCharacter: (
-    params: FindGroupCharParams,
-  ) => Promise<CharacterRef | null>;
+  readonly findSyntheticGroupCharacter: (params: FindGroupCharParams) => Promise<CharacterRef | null>;
 }

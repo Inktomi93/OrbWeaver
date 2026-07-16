@@ -55,9 +55,7 @@ function stub(page: Page): Promise<TrpcRecorder> {
 test("lists every owned tag with its usage rollup", async ({ mount, page }) => {
   await stub(page);
   await mount(<TagsSettingsStory />);
-  await expect(page.getByRole("textbox", { name: "Tag name (adventure)" })).toHaveValue(
-    "adventure",
-  );
+  await expect(page.getByRole("textbox", { name: "Tag name (adventure)" })).toHaveValue("adventure");
   await expect(page.getByRole("textbox", { name: "Tag name (orphan)" })).toHaveValue("orphan");
   // The used tag shows its total; the unused one reads "unused" (and gates the row's own controls).
   await expect(page.getByText("7 uses")).toBeVisible();
@@ -79,10 +77,7 @@ test("renaming a tag commits an updateTag name patch on blur", async ({ mount, p
     });
 });
 
-test("clearing a tag color sends the updateTag tri-state null (clear to theme default)", async ({
-  mount,
-  page,
-}) => {
+test("clearing a tag color sends the updateTag tri-state null (clear to theme default)", async ({ mount, page }) => {
   const trpc = await stub(page);
   await mount(<TagsSettingsStory />);
   // "adventure" has a set background color (#3355ff) — open its ColorField and Reset to default. The
@@ -117,9 +112,7 @@ test("deleting a tag confirms, then fires removeTag with its id", async ({ mount
   // The confirm names the cascade + usage breakdown before the destructive action.
   await expect(page.getByText(DELETE_CASCADE)).toBeVisible();
   await page.getByRole("button", { name: "Delete", exact: true }).click();
-  await expect
-    .poll(() => trpc.lastInput("tag.removeTag"), { intervals: [20, 50, 100] })
-    .toEqual({ tagId: "tag_adventure" });
+  await expect.poll(() => trpc.lastInput("tag.removeTag"), { intervals: [20, 50, 100] }).toEqual({ tagId: "tag_adventure" });
 });
 
 test("merging picks a target and fires mergeTags source→target", async ({ mount, page }) => {

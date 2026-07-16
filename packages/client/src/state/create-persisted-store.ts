@@ -33,8 +33,7 @@ export function createPersistedStore<T, TPersisted = T>(
 ): GatedStoreHook<T> {
   if (registeredNames.has(name)) {
     throw new Error(
-      `createPersistedStore: duplicate store name "${name}" — two stores would clobber one ` +
-        "localStorage key. Every persisted store needs a unique name.",
+      `createPersistedStore: duplicate store name "${name}" — two stores would clobber one localStorage key. Every persisted store needs a unique name.`,
     );
   }
   registeredNames.add(name);
@@ -49,9 +48,7 @@ export function createPersistedStore<T, TPersisted = T>(
           version: options.version,
           migrate: options.migrate,
           partialize: (s): TPersisted => options.partialize(s),
-          ...(options.storage === undefined
-            ? {}
-            : { storage: createJSONStorage(() => options.storage as StateStorage) }),
+          ...(options.storage === undefined ? {} : { storage: createJSONStorage(() => options.storage as StateStorage) }),
         }),
       ),
       { name: storageKey, enabled: STORE_DEVTOOLS_ENABLED },

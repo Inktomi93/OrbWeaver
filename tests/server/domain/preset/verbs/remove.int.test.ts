@@ -1,11 +1,6 @@
 import type { PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import {
-  createPresetService,
-  PresetNotFoundError,
-  PresetOperationError,
-  SYSTEM_DEFAULT_PRESET_ID,
-} from "@orb/server/domain/preset";
+import { createPresetService, PresetNotFoundError, PresetOperationError, SYSTEM_DEFAULT_PRESET_ID } from "@orb/server/domain/preset";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
@@ -29,12 +24,8 @@ describe("remove", () => {
     const svc = createPresetService(makeHarness(db).ctx);
     const owner = await seedUser(db);
     await seedPreset(db, { id: SYSTEM_DEFAULT_PRESET_ID, ownerId: null, name: "Default" });
-    await expect(svc.remove({ userId: owner, id: SYSTEM_DEFAULT_PRESET_ID })).rejects.toMatchObject(
-      { code: "cannot_remove_system_default" },
-    );
-    await expect(svc.remove({ userId: owner, id: SYSTEM_DEFAULT_PRESET_ID })).rejects.toThrow(
-      PresetOperationError,
-    );
+    await expect(svc.remove({ userId: owner, id: SYSTEM_DEFAULT_PRESET_ID })).rejects.toMatchObject({ code: "cannot_remove_system_default" });
+    await expect(svc.remove({ userId: owner, id: SYSTEM_DEFAULT_PRESET_ID })).rejects.toThrow(PresetOperationError);
   });
 
   test("throws PresetNotFoundError for another owner's preset (no cross-owner delete)", async () => {

@@ -20,10 +20,7 @@ const PAIR_FINDER = /([*_]{1,2})([\s\S]*?)\1/gm;
 // (start-marker)(unicode whitespace+) OR (unicode whitespace+)(end-marker) — every Unicode space the
 // emphasis run might pad with, so `* x *` → `*x*` regardless of which space the model used.
 const SPACE_CLASS = "\\t \\u00a0\\u1680\\u2000-\\u200a\\u202f\\u205f\\u3000\\ufeff";
-const PAIR_INNER_WHITESPACE = new RegExp(
-  `(\\*|_)([${SPACE_CLASS}]+)|([${SPACE_CLASS}]+)(\\*|_)`,
-  "g",
-);
+const PAIR_INNER_WHITESPACE = new RegExp(`(\\*|_)([${SPACE_CLASS}]+)|([${SPACE_CLASS}]+)(\\*|_)`, "g");
 
 // A `<speaker` open-tag marker (case-insensitive, optional attrs). The narrator render
 // (parse-speaker-spans.ts) splits the body on well-formed `<speaker>Name</speaker>` markers; a
@@ -54,7 +51,7 @@ export function fixMarkdown(text: string, forDisplay: boolean): string {
 function stripInnerWhitespace(text: string): string {
   const matches = [...text.matchAll(PAIR_FINDER)].map((m) => ({
     index: m.index,
-    full: m[0] ?? "",
+    full: m[0],
   }));
   let next = text;
   // Descending index order keeps each splice from invalidating the indices still to be applied.

@@ -15,52 +15,28 @@ test("renders label + value with no chart when trend is omitted", async ({ mount
 });
 
 test("an up delta shows the chevron-up glyph and the success token color", async ({ mount }) => {
-  const component = await mount(
-    <StatFigure
-      delta={{ text: "+12% this week", direction: "up" }}
-      label="Documents indexed"
-      value="1,204"
-    />,
-  );
+  const component = await mount(<StatFigure delta={{ text: "+12% this week", direction: "up" }} label="Documents indexed" value="1,204" />);
   const delta = component.locator('[data-slot="stat-figure-delta"]');
   await expect(delta).toBeVisible();
   await expect(delta.locator("svg")).toBeVisible();
   await expect(delta).toHaveCSS("color", TOKENS["color.success"].value);
 });
 
-test("a down delta shows the chevron-down glyph and the destructive token color", async ({
-  mount,
-}) => {
-  const component = await mount(
-    <StatFigure
-      delta={{ text: "-3 today", direction: "down" }}
-      label="Documents indexed"
-      value="1,204"
-    />,
-  );
+test("a down delta shows the chevron-down glyph and the destructive token color", async ({ mount }) => {
+  const component = await mount(<StatFigure delta={{ text: "-3 today", direction: "down" }} label="Documents indexed" value="1,204" />);
   const delta = component.locator('[data-slot="stat-figure-delta"]');
   await expect(delta.locator("svg")).toBeVisible();
   await expect(delta).toHaveCSS("color", TOKENS["color.destructive"].value);
 });
 
-test("a flat delta shows the dash glyph and the muted-foreground token color", async ({
-  mount,
-}) => {
-  const component = await mount(
-    <StatFigure
-      delta={{ text: "no change", direction: "flat" }}
-      label="Documents indexed"
-      value="1,204"
-    />,
-  );
+test("a flat delta shows the dash glyph and the muted-foreground token color", async ({ mount }) => {
+  const component = await mount(<StatFigure delta={{ text: "no change", direction: "flat" }} label="Documents indexed" value="1,204" />);
   const delta = component.locator('[data-slot="stat-figure-delta"]');
   await expect(delta.locator("svg")).toBeVisible();
   await expect(delta).toHaveCSS("color", TOKENS["color.muted-foreground"].value);
 });
 
 test("a trend renders a sparkline chart, an omitted trend does not", async ({ mount }) => {
-  const component = await mount(
-    <StatFigure label="Documents indexed" trend={[1, 4, 2, 8, 5, 9]} value="1,204" />,
-  );
+  const component = await mount(<StatFigure label="Documents indexed" trend={[1, 4, 2, 8, 5, 9]} value="1,204" />);
   await expect(component.getByRole("img", { name: "Documents indexed trend" })).toBeVisible();
 });

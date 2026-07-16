@@ -8,12 +8,7 @@ import { cardFromJson } from "@orb/server/kit/serde/card";
 import { describe } from "vitest";
 // The substrate-internal helpers (cardToCreateInput/importFileHash) are not front-door exports — this is
 // their mirror test, so it reaches the module directly (same relative-path pattern as `_support.ts`).
-import {
-  cardToCreateInput,
-  importFileHash,
-  parseCardJson,
-  parseCardPng,
-} from "../../../../../packages/server/src/domain/import/substrate/card.ts";
+import { cardToCreateInput, importFileHash, parseCardJson, parseCardPng } from "../../../../../packages/server/src/domain/import/substrate/card.ts";
 import { expect, test } from "../../../../support/fixtures";
 
 const FAILED_VALIDATION = /failed validation/u;
@@ -44,10 +39,7 @@ const encoder = new TextEncoder();
 
 // A minimal valid PNG (8-byte signature + a zero-length IEND chunk) — enough for writeCardChunk to embed a
 // card tEXt chunk before IEND, which parseCardPng then reads back.
-const MINIMAL_PNG = Uint8Array.from([
-  0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44,
-  0xae, 0x42, 0x60, 0x82,
-]);
+const MINIMAL_PNG = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82]);
 
 // Unwrap a non-null parse result (the codebase guard idiom — narrows away the `| null` for both tsc and the
 // biome optional-chain rule).
@@ -74,16 +66,12 @@ describe("parseCardJson", () => {
   });
 
   test("skips non-string tag entries (tolerant IN) but keeps every string verbatim", () => {
-    const parsed = expectParsed(
-      parseCardJson('{"data":{"name":"X","description":"d","tags":["a",42,null,"  b  ",{}]}}', "x"),
-    );
+    const parsed = expectParsed(parseCardJson('{"data":{"name":"X","description":"d","tags":["a",42,null,"  b  ",{}]}}', "x"));
     expect(parsed.tags).toEqual(["a", "  b  "]);
   });
 
   test("a card with no tags field yields an empty tag list", () => {
-    const parsed = expectParsed(
-      parseCardJson('{"data":{"name":"NoTags","description":"x"}}', "fallback"),
-    );
+    const parsed = expectParsed(parseCardJson('{"data":{"name":"NoTags","description":"x"}}', "fallback"));
     expect(parsed.tags).toEqual([]);
   });
 

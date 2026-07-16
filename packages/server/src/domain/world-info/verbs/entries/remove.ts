@@ -17,10 +17,7 @@ import { listChatIdsForBook } from "../../persistence/queries";
 export function createRemove(ctx: WorldInfoContext): WorldInfoService["removeEntry"] {
   return async ({ principal, entryId }: RemoveEntryParams) => {
     const ownerId = principal.userId;
-    const ownedBooks = ctx.db
-      .select({ id: worldBooks.id })
-      .from(worldBooks)
-      .where(eq(worldBooks.ownerId, ownerId));
+    const ownedBooks = ctx.db.select({ id: worldBooks.id }).from(worldBooks).where(eq(worldBooks.ownerId, ownerId));
     const deleted = await ctx.db
       .delete(worldEntries)
       .where(and(eq(worldEntries.id, entryId), inArray(worldEntries.worldBookId, ownedBooks)))

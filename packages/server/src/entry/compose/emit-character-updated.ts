@@ -12,24 +12,13 @@ import { and, eq, isNull } from "drizzle-orm";
 
 /** Build the character→chat fan: enumerate chats where `characterId` is a present seat, then emit a
  *  `chatUpdated` event per distinct chat. Fire-and-forget + error-isolated by the domain-event bus. */
-export function createCharacterUpdatedChatFan(
-  db: Db,
-  emitChatEvent: (event: ChatBusEvent) => Promise<void>,
-): (characterId: CharacterId) => Promise<void> {
+export function createCharacterUpdatedChatFan(db: Db, emitChatEvent: (event: ChatBusEvent) => Promise<void>): (characterId: CharacterId) => Promise<void> {
   return async (characterId): Promise<void> => {
     const rows = await db
       .select({ chatId: chatParticipants.chatId })
       .from(chatParticipants)
-      .where(
-        and(
-          eq(chatParticipants.characterId, characterId),
-          eq(chatParticipants.kind, "character"),
-          isNull(chatParticipants.leftSeq),
-        ),
-      );
+      .where(and(eq(chatParticipants.characterId, characterId), eq(chatParticipants.kind, "character"), isNull(chatParticipants.leftSeq)));
     const seatedChats = new Set<ChatId>(rows.map((row) => row.chatId));
-    await Promise.all(
-      [...seatedChats].map((chatId) => emitChatEvent({ type: "chatUpdated", chatId })),
-    );
+    await Promise.all([...seatedChats].map((chatId) => emitChatEvent({ type: "chatUpdated", chatId })));
   };
 }

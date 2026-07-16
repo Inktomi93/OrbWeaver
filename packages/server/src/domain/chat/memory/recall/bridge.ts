@@ -19,11 +19,7 @@ function tierSpan(fanOut: number, tier: number): number {
 
 /** The tier-0 blockIdx range a tier-`k` digest at `blockIdx` covers: `[blockIdx·fanOutᵏ, (blockIdx+1)·fanOutᵏ − 1]`
  *  (the file-header indexing, matching `build/digests.ts` consolidation). Tier 0 is the identity range. */
-function tier0RangeOf(
-  fanOut: number,
-  tier: number,
-  blockIdx: number,
-): { readonly startIdx: number; readonly endIdx: number } {
+function tier0RangeOf(fanOut: number, tier: number, blockIdx: number): { readonly startIdx: number; readonly endIdx: number } {
   const span = tierSpan(fanOut, tier);
   return { startIdx: blockIdx * span, endIdx: (blockIdx + 1) * span - 1 };
 }
@@ -42,11 +38,7 @@ export function resolveTier0Range(
 
 /** Compute the tiered bridge block-keys (chronological) from a scope's digests. The most-recent `fanOut`
  *  tier-0 blocks stay fine; everything older is covered by the highest available non-overlapping tier. */
-export function computeBridge(
-  scope: MemoryScope,
-  digests: readonly DigestRow[],
-  fanOut: number,
-): BlockKey[] {
+export function computeBridge(scope: MemoryScope, digests: readonly DigestRow[], fanOut: number): BlockKey[] {
   const present = new Set<string>();
   const scopeOf = new Map<string, CharacterId>();
   let maxTier = 0;
@@ -117,12 +109,7 @@ function highestCoveringTier(
 /** Emit a {@link BlockKey} carrying the block's OWN bucket owner (from `scopeOf`) — so a union of the shared
  *  (group-char) + the speaker's scoped bucket keys each block to the digest that actually produced it. A
  *  position with no recorded owner cannot reach here (only `present` positions are emitted). */
-function toKey(
-  chatId: ChatId,
-  scopeOf: ReadonlyMap<string, CharacterId>,
-  tier: number,
-  blockIdx: number,
-): BlockKey {
+function toKey(chatId: ChatId, scopeOf: ReadonlyMap<string, CharacterId>, tier: number, blockIdx: number): BlockKey {
   const scopedCharacterId = scopeOf.get(`${tier}:${blockIdx}`);
   if (scopedCharacterId === undefined) {
     throw new Error(`computeBridge: no scope owner for ${tier}:${blockIdx}`);

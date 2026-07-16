@@ -28,15 +28,7 @@ export interface WorldInfoLibraryRowProps {
 }
 
 /** A single world-book library row (its Rename/Duplicate/Delete menu + delete-confirm come from LibraryRow). */
-export function WorldInfoLibraryRow({
-  book,
-  selected,
-  global,
-  onSelect,
-  onDelete,
-  onDuplicate,
-  onRename,
-}: WorldInfoLibraryRowProps): ReactElement {
+export function WorldInfoLibraryRow({ book, selected, global, onSelect, onDelete, onDuplicate, onRename }: WorldInfoLibraryRowProps): ReactElement {
   return (
     <LibraryRow
       actions={{
@@ -44,13 +36,12 @@ export function WorldInfoLibraryRow({
         onRename: (): void => onRename(book.id),
         onDuplicate: (): void => onDuplicate(book.id),
         onDelete: (): void => onDelete(book.id),
-        deleteDescription:
-          "This permanently removes the book and every entry in it, and detaches it everywhere. This can't be undone.",
+        deleteDescription: "This permanently removes the book and every entry in it, and detaches it everywhere. This can't be undone.",
       }}
       onSelect={(): void => onSelect(book.id)}
       selected={selected}
       title={book.name}
-      {...(book.description ? { subtitle: book.description } : {})}
+      {...(book.description !== null && book.description !== "" ? { subtitle: book.description } : {})}
       {...(global ? { leading: <GlobalMarker /> } : {})}
     />
   );

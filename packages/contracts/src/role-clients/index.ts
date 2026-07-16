@@ -81,17 +81,10 @@ export interface SummarizeOptions {
 export interface RoleClients {
   /** Text-embedding. Single string or array — result vectors are index-aligned. `inputType` is the
    *  asymmetric-retrieval hint ("query" vs "document"); symmetric embedders ignore it. */
-  embed: (
-    input: string | string[],
-    opts?: { inputType?: "query" | "document"; instruction?: string },
-  ) => Promise<EmbedResult>;
+  embed: (input: string | string[], opts?: { inputType?: "query" | "document"; instruction?: string }) => Promise<EmbedResult>;
   /** Cross-encoder rerank. Documents carry caller ids; hits preserve them. `opts.instruction` is the
    *  per-task `<Instruct>` for instruction-aware rerankers; text-only families ignore it. */
-  rerank: (
-    query: RerankQuery,
-    documents: RerankDocument[],
-    opts?: { instruction?: string },
-  ) => Promise<RerankResult>;
+  rerank: (query: RerankQuery, documents: RerankDocument[], opts?: { instruction?: string }) => Promise<RerankResult>;
   /** Joint image+text embedding (image + text in one shared space). Discriminate via `kind`. */
   imageEmbed: (req: ImageEmbedInput) => Promise<ImageEmbedResult>;
   /** Batched summarization. Returns one item per input; pass non-empty user prompts only. */

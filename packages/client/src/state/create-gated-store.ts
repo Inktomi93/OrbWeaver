@@ -12,8 +12,7 @@ import { IS_DEV } from "#lib";
  * installed — zustand's middleware console-warns per store when enabled without the extension
  * (that would spam every vitest node run, where `import.meta.env.DEV` is true).
  */
-export const STORE_DEVTOOLS_ENABLED: boolean =
-  IS_DEV && Reflect.get(globalThis, "__REDUX_DEVTOOLS_EXTENSION__") !== undefined;
+export const STORE_DEVTOOLS_ENABLED: boolean = IS_DEV && Reflect.get(globalThis, "__REDUX_DEVTOOLS_EXTENSION__") !== undefined;
 
 // One devtools connection name per store — a duplicate would interleave two stores' action
 // timelines under one label (the same failure class as the draft factory's STORAGE_KEYS clash).
@@ -25,11 +24,7 @@ const registeredNames = new Set<string>();
  * exists — this is a pure compile-time tightening.
  */
 export interface GatedSet<T> {
-  (
-    partial: T | Partial<T> | ((state: T) => T | Partial<T>),
-    replace: false | undefined,
-    action: string,
-  ): void;
+  (partial: T | Partial<T> | ((state: T) => T | Partial<T>), replace: false | undefined, action: string): void;
   (state: T | ((state: T) => T), replace: true, action: string): void;
 }
 
@@ -48,14 +43,10 @@ export type GatedStoreHook<T> = {
  * Mint a gated store hook. `name` is the devtools connection label (unique — duplicate THROWS at
  * creation); the initializer's `set` requires the action label.
  */
-export function createGatedStore<T>(
-  name: string,
-  initializer: (set: GatedSet<T>, get: () => T) => T,
-): GatedStoreHook<T> {
+export function createGatedStore<T>(name: string, initializer: (set: GatedSet<T>, get: () => T) => T): GatedStoreHook<T> {
   if (registeredNames.has(name)) {
     throw new Error(
-      `createGatedStore: duplicate store name "${name}" — two stores would share one devtools ` +
-        "connection label. Every gated store needs a unique name.",
+      `createGatedStore: duplicate store name "${name}" — two stores would share one devtools connection label. Every gated store needs a unique name.`,
     );
   }
   registeredNames.add(name);

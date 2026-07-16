@@ -15,7 +15,6 @@ const ALLOWLIST: Record<string, string> = {};
 
 const MESSAGE =
   "off-token raw-literal inline style (design-enforcement.md §3) — a token-backed CSS property " +
-  // biome-ignore lint/security/noSecrets: diagnostic PROSE (a CSS-axis enumeration), not a secret.
   "(radius/shadow/color/background/motion/spacing) written as a raw literal in a JSX `style={{…}}` or an " +
   "imperative `.style`/`setProperty` bypasses the className + CSS token gates: use a Tailwind token " +
   "utility, or (if inline is required) reference a `var(--…)` token, per tokens.json.";
@@ -103,10 +102,7 @@ function isRawLiteralValue(value: string): boolean {
  *  dynamic value (identifier, member read, interpolated template, conditional), which never trips
  *  `isRawLiteralValue` (an empty string is not a raw literal), so a dynamic value is deliberately skipped. */
 function staticLiteral(node: Node | undefined): string {
-  if (
-    node?.isKind(SyntaxKind.StringLiteral) ||
-    node?.isKind(SyntaxKind.NoSubstitutionTemplateLiteral)
-  ) {
+  if (node?.isKind(SyntaxKind.StringLiteral) || node?.isKind(SyntaxKind.NoSubstitutionTemplateLiteral)) {
     return node.getLiteralText();
   }
   if (node?.isKind(SyntaxKind.NumericLiteral)) {
@@ -133,11 +129,7 @@ function isStyleAccess(expr: Node): boolean {
 
 /** Is `lhs` a `<expr>.style.<token-prop>` member access (the assignment-target shape)? */
 function isStyleTokenTarget(lhs: Node): boolean {
-  return (
-    lhs.isKind(SyntaxKind.PropertyAccessExpression) &&
-    isStyleAccess(lhs.getExpression()) &&
-    TOKEN_BACKED_PROPS.has(lhs.getName())
-  );
+  return lhs.isKind(SyntaxKind.PropertyAccessExpression) && isStyleAccess(lhs.getExpression()) && TOKEN_BACKED_PROPS.has(lhs.getName());
 }
 
 // Three carriers, ONE gate: a JSX `style={{ <prop>: <raw> }}` PropertyAssignment, an imperative
@@ -176,9 +168,7 @@ function isSetPropertyOffender(call: Node): boolean {
     return false;
   }
   const [propArg, valueArg] = call.getArguments();
-  return (
-    TOKEN_BACKED_PROPS.has(staticLiteral(propArg)) && isRawLiteralValue(staticLiteral(valueArg))
-  );
+  return TOKEN_BACKED_PROPS.has(staticLiteral(propArg)) && isRawLiteralValue(staticLiteral(valueArg));
 }
 
 export const gate: GateDescriptor = {
@@ -251,8 +241,7 @@ export const gate: GateDescriptor = {
       why: "a raw hex color in a JSX inline style — a token-backed color axis written off-token",
     },
     {
-      files:
-        'export function f(el: HTMLElement): void {\n  el.style.setProperty("gap", "12px");\n}\n',
+      files: 'export function f(el: HTMLElement): void {\n  el.style.setProperty("gap", "12px");\n}\n',
       at: "packages/ui/src/primitives/demo/setprop.ts",
       why: "an imperative `.style.setProperty('gap','12px')` — the third carrier, a token-backed spacing axis",
     },
@@ -269,8 +258,7 @@ export const gate: GateDescriptor = {
       why: "a non-token property (left) is out of scope — this gate owns only tokens.json's axes",
     },
     {
-      files:
-        'export function f(el: HTMLElement): void {\n  el.style.borderRadius = "var(--radius-card)";\n}\n',
+      files: 'export function f(el: HTMLElement): void {\n  el.style.borderRadius = "var(--radius-card)";\n}\n',
       at: "packages/ui/src/primitives/demo/imp-var.ts",
       why: "an imperative `.style.x = 'var(--…)'` is on-token (just inline) — passes",
     },

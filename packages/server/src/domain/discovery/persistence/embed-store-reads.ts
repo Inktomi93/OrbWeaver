@@ -4,39 +4,10 @@
 // characters.ownerId, the present chat host (kind='human' AND role='host' AND leftSeq IS NULL), or assets.ownerId.
 
 import type { Db } from "@orb/db";
-import {
-  assets,
-  characterEmbeddings,
-  characters,
-  chatDigests,
-  chatParticipants,
-  chatSegments,
-  chats,
-  digestThemeAssignments,
-  imageEmbeddings,
-} from "@orb/db";
-import type {
-  AssetId,
-  CharacterId,
-  ChatDigestId,
-  ChatId,
-  ThemeClusterId,
-  UserId,
-} from "@orb/kit/ids";
+import { assets, characterEmbeddings, characters, chatDigests, chatParticipants, chatSegments, chats, digestThemeAssignments, imageEmbeddings } from "@orb/db";
+import type { AssetId, CharacterId, ChatDigestId, ChatId, ThemeClusterId, UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
-import {
-  and,
-  asc,
-  desc,
-  eq,
-  gt,
-  gte,
-  inArray,
-  isNotNull,
-  isNull,
-  notInArray,
-  sql,
-} from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, inArray, isNotNull, isNull, notInArray, sql } from "drizzle-orm";
 
 interface DigestKeywordRow {
   readonly ownerId: UserId;
@@ -78,14 +49,9 @@ interface OwnedDigestVector {
 
 // ── duplicate-character pass ──────────────────────────────────────────────────
 /** Every card embedding with its owner, excluding synthetic (per-room group) characters. */
-export async function readOwnedCharacterVectors(
-  db: Db,
-  ownerId?: UserId | null,
-): Promise<OwnedCharacterVector[]> {
+export async function readOwnedCharacterVectors(db: Db, ownerId?: UserId | null): Promise<OwnedCharacterVector[]> {
   const scope =
-    ownerId === undefined || ownerId === null
-      ? eq(characters.synthetic, false)
-      : and(eq(characters.synthetic, false), eq(characters.ownerId, ownerId));
+    ownerId === undefined || ownerId === null ? eq(characters.synthetic, false) : and(eq(characters.synthetic, false), eq(characters.ownerId, ownerId));
   return await db
     .select({
       characterId: characterEmbeddings.characterId,
@@ -220,20 +186,14 @@ export async function distinctSegmentHubOwners(db: Db): Promise<UserId[]> {
 
 /** Distinct owners with image embeddings (via `assets.ownerId`). */
 export async function distinctImageHubOwners(db: Db): Promise<UserId[]> {
-  const rows = await db
-    .selectDistinct({ ownerId: assets.ownerId })
-    .from(imageEmbeddings)
-    .innerJoin(assets, eq(imageEmbeddings.assetId, assets.id));
+  const rows = await db.selectDistinct({ ownerId: assets.ownerId }).from(imageEmbeddings).innerJoin(assets, eq(imageEmbeddings.assetId, assets.id));
   return rows.map((r) => r.ownerId);
 }
 
 // ── theme pass ────────────────────────────────────────────────────────────────
 /** Every digest embedding tagged with its owner (present chat host) + isGroup + tier + space — the theme
  *  clustering inputs. Present-host join only — a departed ex-host must not re-attribute the digest. */
-export async function readOwnedDigestVectors(
-  db: Db,
-  ownerId?: UserId | null,
-): Promise<OwnedDigestVector[]> {
+export async function readOwnedDigestVectors(db: Db, ownerId?: UserId | null): Promise<OwnedDigestVector[]> {
   const hostJoin =
     ownerId === undefined || ownerId === null
       ? and(
@@ -263,18 +223,13 @@ export async function readOwnedDigestVectors(
     })
     .from(chatDigests)
     .innerJoin(chatParticipants, hostJoin)
-    .then((rows) =>
-      rows.flatMap((r) => (r.ownerId === null ? [] : [{ ...r, ownerId: r.ownerId as UserId }])),
-    );
+    .then((rows) => rows.flatMap((r) => (r.ownerId === null ? [] : [{ ...r, ownerId: r.ownerId as UserId }])));
 }
 
 // ── cooccurrence pass ───────────────────────────────────────────────────────
 /** Every tier-0 digest's keyword material tagged with its owner (present chat host) + witnessing character
  *  + contentHash — the cooccurrence + per-character keyword-profile inputs. Tier-0 leaves only. */
-export async function readOwnedDigestKeywords(
-  db: Db,
-  ownerId?: UserId | null,
-): Promise<DigestKeywordRow[]> {
+export async function readOwnedDigestKeywords(db: Db, ownerId?: UserId | null): Promise<DigestKeywordRow[]> {
   const hostJoin =
     ownerId === undefined || ownerId === null
       ? and(
@@ -300,22 +255,13 @@ export async function readOwnedDigestKeywords(
     .from(chatDigests)
     .innerJoin(chatParticipants, hostJoin)
     .where(eq(chatDigests.tier, 0))
-    .then((rows) =>
-      rows.flatMap((r) => (r.ownerId === null ? [] : [{ ...r, ownerId: r.ownerId as UserId }])),
-    );
+    .then((rows) => rows.flatMap((r) => (r.ownerId === null ? [] : [{ ...r, ownerId: r.ownerId as UserId }])));
 }
 
 // ── chat near-dup arm (Jaccard of segment content-hashes + fork lineage) ─────
 // A present-host predicate factory for the owner-scope join (a departed ex-host must not re-attribute).
-function segmentHostJoin(
-  chatIdCol: typeof chatSegments.chatId,
-  ownerId?: UserId | null,
-): ReturnType<typeof and> {
-  const common = [
-    eq(chatParticipants.kind, "human"),
-    eq(chatParticipants.role, "host"),
-    isNull(chatParticipants.leftSeq),
-  ];
+function segmentHostJoin(chatIdCol: typeof chatSegments.chatId, ownerId?: UserId | null): ReturnType<typeof and> {
+  const common = [eq(chatParticipants.kind, "human"), eq(chatParticipants.role, "host"), isNull(chatParticipants.leftSeq)];
   return ownerId === undefined || ownerId === null
     ? and(eq(chatParticipants.chatId, chatIdCol), ...common)
     : and(eq(chatParticipants.chatId, chatIdCol), eq(chatParticipants.userId, ownerId), ...common);
@@ -329,10 +275,7 @@ interface ChatSegmentHash {
 
 /** Every verbatim segment content-hash of the owner's hosted chats — the Jaccard set elements for the chat
  *  near-dup arm. */
-export async function readOwnedChatSegmentHashes(
-  db: Db,
-  ownerId?: UserId | null,
-): Promise<ChatSegmentHash[]> {
+export async function readOwnedChatSegmentHashes(db: Db, ownerId?: UserId | null): Promise<ChatSegmentHash[]> {
   return await db
     .select({
       ownerId: chatParticipants.userId,
@@ -341,9 +284,7 @@ export async function readOwnedChatSegmentHashes(
     })
     .from(chatSegments)
     .innerJoin(chatParticipants, segmentHostJoin(chatSegments.chatId, ownerId))
-    .then((rows) =>
-      rows.flatMap((r) => (r.ownerId === null ? [] : [{ ...r, ownerId: r.ownerId as UserId }])),
-    );
+    .then((rows) => rows.flatMap((r) => (r.ownerId === null ? [] : [{ ...r, ownerId: r.ownerId as UserId }])));
 }
 
 interface ChatLineageEdge {
@@ -354,15 +295,8 @@ interface ChatLineageEdge {
 
 /** Every hosted chat of the owner with its fork parent — the lineage the near-dup arm walks to label a
  *  pair `forked` vs `duplicate`. */
-export async function readOwnedChatLineage(
-  db: Db,
-  ownerId?: UserId | null,
-): Promise<ChatLineageEdge[]> {
-  const common = [
-    eq(chatParticipants.kind, "human"),
-    eq(chatParticipants.role, "host"),
-    isNull(chatParticipants.leftSeq),
-  ];
+export async function readOwnedChatLineage(db: Db, ownerId?: UserId | null): Promise<ChatLineageEdge[]> {
+  const common = [eq(chatParticipants.kind, "human"), eq(chatParticipants.role, "host"), isNull(chatParticipants.leftSeq)];
   const hostJoin =
     ownerId === undefined || ownerId === null
       ? and(eq(chatParticipants.chatId, chats.id), ...common)
@@ -375,9 +309,7 @@ export async function readOwnedChatLineage(
     })
     .from(chats)
     .innerJoin(chatParticipants, hostJoin)
-    .then((rows) =>
-      rows.flatMap((r) => (r.ownerId === null ? [] : [{ ...r, ownerId: r.ownerId as UserId }])),
-    );
+    .then((rows) => rows.flatMap((r) => (r.ownerId === null ? [] : [{ ...r, ownerId: r.ownerId as UserId }])));
 }
 
 interface Tier0DigestSpan {
@@ -388,10 +320,7 @@ interface Tier0DigestSpan {
 }
 
 /** Every tier-0 digest with a theme assignment, mapped to its verbatim seq-span — the msgMidAt backfill input. */
-export async function readTier0DigestSpans(
-  db: Db,
-  ownerId?: UserId | null,
-): Promise<Tier0DigestSpan[]> {
+export async function readTier0DigestSpans(db: Db, ownerId?: UserId | null): Promise<Tier0DigestSpan[]> {
   const base = db
     .selectDistinct({
       digestId: chatDigests.id,
@@ -401,13 +330,7 @@ export async function readTier0DigestSpans(
     })
     .from(digestThemeAssignments)
     .innerJoin(chatDigests, eq(chatDigests.id, digestThemeAssignments.digestId))
-    .innerJoin(
-      chatSegments,
-      and(
-        eq(chatSegments.chatId, chatDigests.chatId),
-        eq(chatSegments.blockIdx, chatDigests.blockIdx),
-      ),
-    );
+    .innerJoin(chatSegments, and(eq(chatSegments.chatId, chatDigests.chatId), eq(chatSegments.blockIdx, chatDigests.blockIdx)));
   if (ownerId === undefined || ownerId === null) {
     return await base.where(eq(chatDigests.tier, 0));
   }
@@ -434,10 +357,7 @@ interface TierKDigestRow {
 
 /** Every tier-k (tier \> 0) digest with a theme assignment — no 1:1 segment sibling, so the seq-span is
  *  derived from the injected memory tier-grid (`Tier0RangeOp`) over {@link readSegmentBlockSpans}. */
-export async function readTierKDigestSpans(
-  db: Db,
-  ownerId?: UserId | null,
-): Promise<TierKDigestRow[]> {
+export async function readTierKDigestSpans(db: Db, ownerId?: UserId | null): Promise<TierKDigestRow[]> {
   const base = db
     .selectDistinct({
       digestId: chatDigests.id,
@@ -473,10 +393,7 @@ interface SegmentBlockSpan {
 
 /** The verbatim block grid of the given chats — each tier-0 block's seq-span. The tier-k backfill folds a
  *  digest's covered blockIdx range over these to derive its whole-span `[min(seqStart), max(seqEnd)]`. */
-export async function readSegmentBlockSpans(
-  db: Db,
-  chatIds: readonly ChatId[],
-): Promise<SegmentBlockSpan[]> {
+export async function readSegmentBlockSpans(db: Db, chatIds: readonly ChatId[]): Promise<SegmentBlockSpan[]> {
   if (chatIds.length === 0) {
     return [];
   }
@@ -493,10 +410,7 @@ export async function readSegmentBlockSpans(
 
 // ── composed views (home coverage + theme-detail members/timeline) ───────────
 /** Corpus coverage — how much of the owner's library is indexed (catalog size + memory-substrate depth). */
-export async function readCorpusCoverage(
-  db: Db,
-  ownerId: UserId,
-): Promise<{ characters: number; digests: number; segments: number }> {
+export async function readCorpusCoverage(db: Db, ownerId: UserId): Promise<{ characters: number; digests: number; segments: number }> {
   const hosted = and(
     eq(chatParticipants.kind, "human"),
     eq(chatParticipants.role, "host"),
@@ -539,32 +453,19 @@ export async function readThemeClusterMembers(
     .from(digestThemeAssignments)
     .innerJoin(chatDigests, eq(chatDigests.id, digestThemeAssignments.digestId))
     .innerJoin(characters, eq(characters.id, chatDigests.scopedCharacterId))
-    .where(
-      and(
-        eq(digestThemeAssignments.themeClusterId, themeClusterId),
-        eq(characters.synthetic, false),
-      ),
-    )
+    .where(and(eq(digestThemeAssignments.themeClusterId, themeClusterId), eq(characters.synthetic, false)))
     .groupBy(chatDigests.scopedCharacterId, characters.name)
     .orderBy(desc(sql`count(*)`))
     .limit(limit);
 }
 
 /** A theme cluster's story-time timeline — assigned-digest count per `YYYY-MM` bucket, ascending. */
-export async function readThemeClusterTimeline(
-  db: Db,
-  themeClusterId: ThemeClusterId,
-): Promise<{ bucket: string; count: number }[]> {
+export async function readThemeClusterTimeline(db: Db, themeClusterId: ThemeClusterId): Promise<{ bucket: string; count: number }[]> {
   const bucket = sql<string>`strftime('%Y-%m', ${digestThemeAssignments.msgMidAt} / 1000, 'unixepoch')`;
   return await db
     .select({ bucket, count: sql<number>`count(*)` })
     .from(digestThemeAssignments)
-    .where(
-      and(
-        eq(digestThemeAssignments.themeClusterId, themeClusterId),
-        isNotNull(digestThemeAssignments.msgMidAt),
-      ),
-    )
+    .where(and(eq(digestThemeAssignments.themeClusterId, themeClusterId), isNotNull(digestThemeAssignments.msgMidAt)))
     .groupBy(bucket)
     .orderBy(asc(bucket));
 }
@@ -614,14 +515,7 @@ export async function readOwnedAvatarVectors(db: Db, ownerId: UserId): Promise<A
     .from(imageEmbeddings)
     .innerJoin(characters, eq(characters.avatarAssetId, imageEmbeddings.assetId))
     .innerJoin(assets, eq(assets.id, imageEmbeddings.assetId))
-    .where(
-      and(
-        eq(characters.ownerId, ownerId),
-        eq(characters.synthetic, false),
-        eq(imageEmbeddings.lens, IMAGE_VECTOR_LENS),
-        excludeShared(shared),
-      ),
-    );
+    .where(and(eq(characters.ownerId, ownerId), eq(characters.synthetic, false), eq(imageEmbeddings.lens, IMAGE_VECTOR_LENS), excludeShared(shared)));
 }
 
 interface PortraitPair {
@@ -647,21 +541,8 @@ export async function readOwnedPortraitPairs(db: Db, ownerId: UserId): Promise<P
     .from(imageEmbeddings)
     .innerJoin(characters, eq(characters.avatarAssetId, imageEmbeddings.assetId))
     .innerJoin(assets, eq(assets.id, imageEmbeddings.assetId))
-    .innerJoin(
-      characterEmbeddings,
-      and(
-        eq(characterEmbeddings.characterId, characters.id),
-        eq(characterEmbeddings.model, imageEmbeddings.model),
-      ),
-    )
-    .where(
-      and(
-        eq(characters.ownerId, ownerId),
-        eq(characters.synthetic, false),
-        eq(imageEmbeddings.lens, IMAGE_VECTOR_LENS),
-        excludeShared(shared),
-      ),
-    );
+    .innerJoin(characterEmbeddings, and(eq(characterEmbeddings.characterId, characters.id), eq(characterEmbeddings.model, imageEmbeddings.model)))
+    .where(and(eq(characters.ownerId, ownerId), eq(characters.synthetic, false), eq(imageEmbeddings.lens, IMAGE_VECTOR_LENS), excludeShared(shared)));
 }
 
 interface CaptionRow {

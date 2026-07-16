@@ -33,9 +33,7 @@ describe("updateBook", () => {
     const other = await seedUser(db, { handle: "other" });
     const theirs = await svc.createBook({ principal: principal(other), input: { name: "Theirs" } });
 
-    await expect(
-      svc.updateBook({ principal: principal(owner), bookId: theirs.id, input: { name: "Hijack" } }),
-    ).rejects.toBeInstanceOf(WorldInfoNotFoundError);
+    await expect(svc.updateBook({ principal: principal(owner), bookId: theirs.id, input: { name: "Hijack" } })).rejects.toBeInstanceOf(WorldInfoNotFoundError);
     const still = await svc.getBook({ principal: principal(other), bookId: theirs.id });
     expect(still.name).toBe("Theirs");
   });

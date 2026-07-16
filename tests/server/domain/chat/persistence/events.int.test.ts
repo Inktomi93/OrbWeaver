@@ -37,11 +37,7 @@ describe("appendChatEvent — the durable chat_events append", () => {
     });
 
     expect([s1, s2]).toEqual([1, 2]);
-    const rows = await db
-      .select()
-      .from(chatEvents)
-      .where(eq(chatEvents.chatId, chatId))
-      .orderBy(asc(chatEvents.seq));
+    const rows = await db.select().from(chatEvents).where(eq(chatEvents.chatId, chatId)).orderBy(asc(chatEvents.seq));
     expect(rows.map((r) => r.type)).toEqual(["chatUpdated", "chatDeleted"]);
     expect(rows[0]?.payload).toEqual({ type: "chatUpdated", chatId });
   });

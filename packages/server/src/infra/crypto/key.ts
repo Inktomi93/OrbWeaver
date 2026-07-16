@@ -73,9 +73,7 @@ export function loadOrCreateKeyfile(keyPath: string): Buffer | null {
     // logger→env→crypto import cycle is the hazard the file header warns about. First-boot one-shot
     // only; silenced under tests (which spin temp credential stores up and down constantly).
     if (env.NODE_ENV !== "test") {
-      process.stderr.write(
-        `crypto: auto-generated CREDENTIALS_KEY → ${keyPath} (mode 0600). Back this up alongside the DB.\n`,
-      );
+      process.stderr.write(`crypto: auto-generated CREDENTIALS_KEY → ${keyPath} (mode 0600). Back this up alongside the DB.\n`);
     }
     return fresh;
   } catch {
@@ -97,7 +95,7 @@ export function resolveAutoKey(): Buffer | null {
  *  composition root passes the result to `createSecretBox`. Never throws — a missing/bad key DEGRADES. */
 export function credentialsKeyFromEnv(): Buffer | null {
   const raw = env.CREDENTIALS_KEY;
-  if (raw) {
+  if (raw !== undefined && raw !== "") {
     return decode32Bytes(raw);
   }
   if (env.CREDENTIALS_KEY_AUTO) {

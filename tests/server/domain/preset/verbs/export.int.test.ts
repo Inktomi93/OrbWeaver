@@ -28,9 +28,7 @@ describe("export (orb-native backup)", () => {
       throw new Error(`expected the exported bytes to re-parse, got: ${parsed.error}`);
     }
     expect(parsed.name).toBe("My RP");
-    expect((decode(files[0]?.bytes ?? new Uint8Array()) as { schemaKind: string }).schemaKind).toBe(
-      PRESET_SCHEMA_KIND,
-    );
+    expect((decode(files[0]?.bytes ?? new Uint8Array()) as { schemaKind: string }).schemaKind).toBe(PRESET_SCHEMA_KIND);
   });
 
   test("an owner with no presets exports nothing", async () => {

@@ -11,15 +11,10 @@ import type { AssetsService } from "../contract/service";
 import { metadataForOwnedHash, metadataForOwnerAndHash } from "../persistence/queries";
 
 export function createGetMetadata(ctx: AssetsContext): AssetsService["getMetadata"] {
-  return ({ principal, hash }: GetMetadataParams): Promise<AssetMetadata | undefined> =>
-    getMetadata(ctx, principal, hash);
+  return ({ principal, hash }: GetMetadataParams): Promise<AssetMetadata | undefined> => getMetadata(ctx, principal, hash);
 }
 
-async function getMetadata(
-  ctx: AssetsContext,
-  principal: GetMetadataParams["principal"],
-  hash: string,
-): Promise<AssetMetadata | undefined> {
+async function getMetadata(ctx: AssetsContext, principal: GetMetadataParams["principal"], hash: string): Promise<AssetMetadata | undefined> {
   const owned = await metadataForOwnedHash(ctx.db, principal.userId, hash);
   if (owned !== undefined) {
     return owned;

@@ -37,11 +37,7 @@ export interface SchedulesSectionProps {
   readonly users: readonly AdminUser[];
 }
 
-export function SchedulesSection({
-  viewerIsOwner,
-  viewerUserId,
-  users,
-}: SchedulesSectionProps): ReactElement {
+export function SchedulesSection({ viewerIsOwner, viewerUserId, users }: SchedulesSectionProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const { data: schedules } = useSuspenseQuery(trpc.workloads.listSchedules.queryOptions({}));
@@ -59,21 +55,13 @@ export function SchedulesSection({
   };
 
   return (
-    <Section
-      divider={true}
-      heading="Schedules"
-      id={settingsAnchorId("workloads", WORKLOADS_SUBCATEGORY_IDS.schedules)}
-    >
+    <Section divider={true} heading="Schedules" id={settingsAnchorId("workloads", WORKLOADS_SUBCATEGORY_IDS.schedules)}>
       <Stack gap="block" data-testid={testId("workloadsSchedulesSection")}>
         <Row align="center" justify="between" gap="row">
           <Text tone="muted" size="label">
             Run a job automatically on a recurring cadence.
           </Text>
-          <Button
-            intent="primary"
-            data-testid={testId("scheduleCreateButton")}
-            onClick={(): void => setCreateOpen(true)}
-          >
+          <Button intent="primary" data-testid={testId("scheduleCreateButton")} onClick={(): void => setCreateOpen(true)}>
             New schedule…
           </Button>
         </Row>
@@ -102,11 +90,7 @@ export function SchedulesSection({
         )}
       </Stack>
 
-      <CreateScheduleDialog
-        open={createOpen}
-        onOpenChange={setCreateOpen}
-        viewerIsOwner={viewerIsOwner}
-      />
+      <CreateScheduleDialog open={createOpen} onOpenChange={setCreateOpen} viewerIsOwner={viewerIsOwner} />
       {editing === null ? null : (
         <EditScheduleDialog
           open={true}
@@ -139,9 +123,7 @@ function ScheduleRow({
 }): ReactElement {
   const kindLabel = WORKLOAD_KIND_LABELS[schedule.kind as WorkloadKind];
   const cadence = SCHEDULE_CADENCE_LABELS[schedule.cadence];
-  const nextRun = schedule.enabled
-    ? `Next ${timeLib.formatRelative(schedule.nextRunAt)}`
-    : "Paused";
+  const nextRun = schedule.enabled ? `Next ${timeLib.formatRelative(schedule.nextRunAt)}` : "Paused";
   const subtitleParts = [`${cadence} · ${nextRun}`];
   if (ownerHandle !== null) {
     subtitleParts.push(`for ${ownerHandle}`);
@@ -153,17 +135,8 @@ function ScheduleRow({
       actions={
         <Row align="center" gap="row">
           {schedule.mode === "bulk" ? <Badge intent="warning">Bulk</Badge> : null}
-          <Switch
-            aria-label={`Enable ${kindLabel} schedule`}
-            checked={schedule.enabled}
-            onCheckedChange={onToggle}
-          />
-          <Button
-            intent="secondary"
-            size="sm"
-            aria-label={`Edit ${kindLabel} schedule`}
-            onClick={onEdit}
-          >
+          <Switch aria-label={`Enable ${kindLabel} schedule`} checked={schedule.enabled} onCheckedChange={onToggle} />
+          <Button intent="secondary" size="sm" aria-label={`Edit ${kindLabel} schedule`} onClick={onEdit}>
             Edit
           </Button>
           <Button intent="ghost" size="sm" onClick={onDelete}>

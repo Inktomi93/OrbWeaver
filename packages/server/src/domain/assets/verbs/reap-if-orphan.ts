@@ -23,7 +23,6 @@ export function createReapIfOrphan(ctx: AssetsContext): AssetsService["reapIfOrp
       if (ref === undefined) {
         continue; // already gone (a concurrent reap / the cascade beat us) — nothing to do.
       }
-      // biome-ignore lint/performance/noAwaitInLoops: same per-asset sequencing invariant as above.
       await purgeAsset({
         db: ctx.db,
         cas: ctx.cas,

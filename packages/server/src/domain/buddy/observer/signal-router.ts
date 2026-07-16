@@ -6,11 +6,7 @@
 
 import type { UserId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
-import type {
-  BuddyObserverReads,
-  LiteChatEvent,
-  LiteWorkloadEvent,
-} from "../contract/observer-env";
+import type { BuddyObserverReads, LiteChatEvent, LiteWorkloadEvent } from "../contract/observer-env";
 import type { BuddySignal } from "../contract/signals";
 import { react } from "./react";
 import { chatSignal, workloadSignal } from "./signals";

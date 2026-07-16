@@ -26,12 +26,7 @@ export interface AssemblyToolbarProps {
   readonly onAdd: (marker: MarkerType | null) => void;
 }
 
-export function AssemblyToolbar({
-  form,
-  mode,
-  onModeChange,
-  onAdd,
-}: AssemblyToolbarProps): ReactElement {
+export function AssemblyToolbar({ form, mode, onModeChange, onAdd }: AssemblyToolbarProps): ReactElement {
   return (
     <Toolbar aria-label="Assembly controls">
       <Row gap="field" align="center" className="ml-auto">
@@ -46,11 +41,7 @@ export function AssemblyToolbar({
           }}
         >
           {ASSEMBLY_MODES.map((value) => (
-            <Toggle
-              key={value}
-              value={value}
-              aria-label={value === "compose" ? "Compose" : "Preview"}
-            >
+            <Toggle key={value} value={value} aria-label={value === "compose" ? "Compose" : "Preview"}>
               {value === "compose" ? "Compose" : "Preview"}
             </Toggle>
           ))}
@@ -69,10 +60,7 @@ export function AssemblyToolbar({
               />
               <MenuPopup>
                 {addableSections(sections).map((entry) => (
-                  <MenuItem
-                    key={entry.marker ?? "literal"}
-                    onClick={(): void => onAdd(entry.marker)}
-                  >
+                  <MenuItem key={entry.marker ?? "literal"} onClick={(): void => onAdd(entry.marker)}>
                     {entry.label}
                   </MenuItem>
                 ))}

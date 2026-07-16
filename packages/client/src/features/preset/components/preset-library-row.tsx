@@ -29,15 +29,7 @@ export interface PresetLibraryRowProps {
 }
 
 /** A single preset library row (its Rename/Duplicate/Delete menu + delete-confirm come from LibraryRow). */
-export function PresetLibraryRow({
-  preset,
-  selected,
-  active,
-  onSelect,
-  onDelete,
-  onDuplicate,
-  onRename,
-}: PresetLibraryRowProps): ReactElement {
+export function PresetLibraryRow({ preset, selected, active, onSelect, onDelete, onDuplicate, onRename }: PresetLibraryRowProps): ReactElement {
   let leading: ReactNode;
   if (active) {
     leading = <ActiveMarker />;

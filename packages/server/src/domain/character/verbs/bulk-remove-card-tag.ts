@@ -12,9 +12,7 @@ import type { BulkRemoveCardTagParams } from "../contract/params";
 import type { CharacterService } from "../contract/service";
 import { loadOwnedCharacterRow } from "../persistence/queries";
 
-export function createBulkRemoveCardTag(
-  ctx: CharacterContext,
-): CharacterService["bulkRemoveCardTag"] {
+export function createBulkRemoveCardTag(ctx: CharacterContext): CharacterService["bulkRemoveCardTag"] {
   return async ({ principal, tagName, characterIds }: BulkRemoveCardTagParams) => {
     const ownerId = principal.userId;
     const name = tagName.trim();

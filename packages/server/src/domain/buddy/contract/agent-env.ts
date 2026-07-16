@@ -15,8 +15,5 @@ export type BuddyWorkloadKind = "find-duplicates" | "index";
  *  the buddy's owner (borrowed-owner posture). Throws (a kit `DomainConflictError`) when a job of that
  *  kind is already running (single-active) — `confirm` catches it into a friendly `detail`. */
 export interface BuddyAgentEnv {
-  readonly startWorkload: (args: {
-    readonly ownerId: UserId;
-    readonly kind: BuddyWorkloadKind;
-  }) => Promise<{ readonly workloadId: WorkloadId }>;
+  readonly startWorkload: (args: { readonly ownerId: UserId; readonly kind: BuddyWorkloadKind }) => Promise<{ readonly workloadId: WorkloadId }>;
 }

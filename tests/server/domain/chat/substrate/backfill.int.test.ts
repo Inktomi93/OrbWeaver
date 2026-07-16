@@ -8,10 +8,7 @@ import type { Db } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { beforeEach, describe, vi } from "vitest";
 import type { ResolveBackfillMemoryConfig } from "../../../../../packages/server/src/domain/chat/contract/memory.ts";
-import {
-  backfillGroupCharacters,
-  backfillMemory,
-} from "../../../../../packages/server/src/domain/chat/substrate/backfill.ts";
+import { backfillGroupCharacters, backfillMemory } from "../../../../../packages/server/src/domain/chat/substrate/backfill.ts";
 import { freshDb } from "../../../../support/db";
 import { expect, test } from "../../../../support/fixtures";
 import { makeChatContext, seedCharacter, seedChat, seedParticipant, seedUser } from "../_support";
@@ -49,15 +46,10 @@ describe("backfillMemory — the chat × scope enumeration", () => {
     // The shared group bucket is find-or-minted (the REAL synthetic-char id — inv 8), so the sweep resolves
     // it exactly the way the engine's post-turn trigger does (no fabricated `__group__` handle).
     const ctx = makeChatContext(db, {
-      mintSyntheticGroupCharacter: () =>
-        Promise.resolve({ characterId: "character_group" as CharacterId }),
+      mintSyntheticGroupCharacter: () => Promise.resolve({ characterId: "character_group" as CharacterId }),
     });
 
-    const counts = await backfillMemory(
-      ctx,
-      { signal: new AbortController().signal },
-      enabledMemory,
-    );
+    const counts = await backfillMemory(ctx, { signal: new AbortController().signal }, enabledMemory);
 
     // 3 chats swept for segments (solo + group + empty).
     expect(counts.segments).toEqual({ scanned: 3, changed: 0 });
@@ -85,17 +77,11 @@ describe("backfillMemory — the chat × scope enumeration", () => {
 
     const ctx = makeChatContext(db, {
       mintSyntheticGroupCharacter: ({ chatId }) =>
-        chatId === poisoned
-          ? Promise.reject(new Error("boom: poisoned chat"))
-          : Promise.resolve({ characterId: "character_group" as CharacterId }),
+        chatId === poisoned ? Promise.reject(new Error("boom: poisoned chat")) : Promise.resolve({ characterId: "character_group" as CharacterId }),
     });
 
     // The call RESOLVES (the poisoned chat's throw was isolated, not propagated) …
-    const counts = await backfillMemory(
-      ctx,
-      { signal: new AbortController().signal },
-      enabledMemory,
-    );
+    const counts = await backfillMemory(ctx, { signal: new AbortController().signal }, enabledMemory);
 
     // … both chats were swept for segments; only the HEALTHY room's digest buckets enumerated (synthetic +
     // 2 cast = 3) — the poisoned room contributed zero digest scans but did NOT abort the healthy one.
@@ -141,8 +127,7 @@ describe("backfillMemory — the chat × scope enumeration", () => {
       characterId: "character_group" as CharacterId,
     }));
     const ctx = makeChatContext(db, { mintSyntheticGroupCharacter: mint as never });
-    const resolve: ResolveBackfillMemoryConfig = (hostUserId) =>
-      Promise.resolve(hostUserId === hostOff ? { mode: "off" } : {});
+    const resolve: ResolveBackfillMemoryConfig = (hostUserId) => Promise.resolve(hostUserId === hostOff ? { mode: "off" } : {});
 
     const counts = await backfillMemory(ctx, { signal: new AbortController().signal }, resolve);
 
@@ -173,11 +158,9 @@ describe("backfillMemory — the chat × scope enumeration", () => {
     await seedParticipant(db, { chatId: roomGood, key: "good_c2", characterId: gc2 });
 
     const ctx = makeChatContext(db, {
-      mintSyntheticGroupCharacter: () =>
-        Promise.resolve({ characterId: "character_group" as CharacterId }),
+      mintSyntheticGroupCharacter: () => Promise.resolve({ characterId: "character_group" as CharacterId }),
     });
-    const resolve: ResolveBackfillMemoryConfig = (hostUserId) =>
-      hostUserId === hostBad ? Promise.reject(new Error("settings boom")) : Promise.resolve({});
+    const resolve: ResolveBackfillMemoryConfig = (hostUserId) => (hostUserId === hostBad ? Promise.reject(new Error("settings boom")) : Promise.resolve({}));
 
     // Resolves (the resolver throw was isolated), and the healthy room still built its buckets.
     const counts = await backfillMemory(ctx, { signal: new AbortController().signal }, resolve);
@@ -211,8 +194,7 @@ describe("backfillGroupCharacters — mint only for group rooms lacking one", ()
     await seedRooms(host);
     const mint = vi.fn();
     const ctx = makeChatContext(db, {
-      findSyntheticGroupCharacter: () =>
-        Promise.resolve({ characterId: "character_group" as CharacterId }),
+      findSyntheticGroupCharacter: () => Promise.resolve({ characterId: "character_group" as CharacterId }),
       mintSyntheticGroupCharacter: mint as never,
     });
 

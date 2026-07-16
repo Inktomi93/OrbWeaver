@@ -11,19 +11,8 @@
 // OR-skin is PERMITTED (per the authoritative spec) and that the REAL fail-closed rules hold.
 
 import type { ResolvedCredential } from "@orb/contracts/credentials";
-import type {
-  AgentTurnRequest,
-  ChatRequest,
-  ChatResult,
-  EmbedRequest,
-  EmbedResult,
-  ProviderBackend,
-} from "@orb/server/infra/providers";
-import {
-  createBackendRegistry,
-  createProviderExecutor,
-  ProviderError,
-} from "@orb/server/infra/providers";
+import type { AgentTurnRequest, ChatRequest, ChatResult, EmbedRequest, EmbedResult, ProviderBackend } from "@orb/server/infra/providers";
+import { createBackendRegistry, createProviderExecutor, ProviderError } from "@orb/server/infra/providers";
 import { describe } from "vitest";
 import { createFrozenClock } from "../../../support/clock.ts";
 import { expect, test } from "../../../support/fixtures";
@@ -140,9 +129,7 @@ describe("createProviderExecutor — routing through the firewall + sealed dispa
     const exec = createProviderExecutor({
       backends: new Map([["agent-sdk", spyBackend("agent-sdk", calls)]]),
     });
-    await expect(exec.embed(embedReq({ credential: cred("max-pro-sub") }))).rejects.toBeInstanceOf(
-      ProviderError,
-    );
+    await expect(exec.embed(embedReq({ credential: cred("max-pro-sub") }))).rejects.toBeInstanceOf(ProviderError);
     expect(calls).toEqual([]); // fail-closed: nothing ran
   });
 
@@ -151,22 +138,16 @@ describe("createProviderExecutor — routing through the firewall + sealed dispa
     const exec = createProviderExecutor({
       backends: new Map([["agent-sdk", spyBackend("agent-sdk", calls)]]),
     });
-    await expect(
-      exec.runChatTurn(chatReq({ api: "agent-sdk", credential: cred("max-pro-sub") })),
-    ).rejects.toBeInstanceOf(ProviderError);
+    await expect(exec.runChatTurn(chatReq({ api: "agent-sdk", credential: cred("max-pro-sub") }))).rejects.toBeInstanceOf(ProviderError);
     expect(calls).toEqual([]);
 
-    await exec.runChatTurn(
-      chatReq({ api: "agent-sdk", credential: cred("max-pro-sub"), ownerConsented: true }),
-    );
+    await exec.runChatTurn(chatReq({ api: "agent-sdk", credential: cred("max-pro-sub"), ownerConsented: true }));
     expect(calls).toEqual(["agent-sdk:chat"]);
   });
 
   test("an UNWIRED backend fail-closes (a missing composition-root wire, not a silent default)", async () => {
     const exec = createProviderExecutor({ backends: new Map() });
-    await expect(
-      exec.runChatTurn(chatReq({ api: "chat-completions", credential: cred("openrouter") })),
-    ).rejects.toBeInstanceOf(ProviderError);
+    await expect(exec.runChatTurn(chatReq({ api: "chat-completions", credential: cred("openrouter") }))).rejects.toBeInstanceOf(ProviderError);
   });
 
   test("a backend that doesn't implement the requested role fail-closes", async () => {
@@ -203,13 +184,7 @@ describe("createBackendRegistry — the boot-binder factory behind the sealed do
   // The five always-on backends are keyed off each backend's OWN `.key` (the BackendKey axis is sealed —
   // entry can't enumerate it). vLLM is the engine-bearing sixth, gated by the §D3 escape hatch. anth-direct
   // (W9) is the sealed PAID-ONLY direct Anthropic-Messages backend — always constructed like its siblings.
-  const nonVllmKeys = [
-    "openrouter",
-    "agent-sdk",
-    "anth-direct",
-    "custom-openai",
-    "local-light",
-  ] as const;
+  const nonVllmKeys = ["openrouter", "agent-sdk", "anth-direct", "custom-openai", "local-light"] as const;
 
   test("vllmDisabled:false wires all six backends + a live engine handle, each under its own key", () => {
     const clock = createFrozenClock();

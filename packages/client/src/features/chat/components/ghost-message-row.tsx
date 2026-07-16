@@ -73,14 +73,8 @@ export function GhostMessageRow({
   const rawText = useGhostText(chatId);
   const rawReasoning = useGhostReasoning(chatId);
   const thinking = useGhostThinking(chatId);
-  const text =
-    renderContext === undefined
-      ? rawText
-      : renderMessageForDisplay(rawText, renderContext, rowCharacterId);
-  const reasoning =
-    renderContext === undefined
-      ? rawReasoning
-      : renderMessageForDisplay(rawReasoning, renderContext, rowCharacterId);
+  const text = renderContext === undefined ? rawText : renderMessageForDisplay(rawText, renderContext, rowCharacterId);
+  const reasoning = renderContext === undefined ? rawReasoning : renderMessageForDisplay(rawReasoning, renderContext, rowCharacterId);
   const paced = useSmoothText(text, { enabled: streaming, cps: GHOST_CPS });
   // Streamdown repairs the streaming markdown tail itself; the only pre-pass still needed here is
   // holding a torn <speaker> tag, then converting a complete one to a plain "Name:" prefix (the
@@ -114,15 +108,8 @@ export function GhostMessageRow({
   const bubble = (
     // w-full so the shimmer/streaming-markdown children have a sized parent (the assistant skin is
     // otherwise shrink-to-fit).
-    <Stack
-      gap="row"
-      data-slot="message-bubble"
-      className={cn(skin.inner("assistant"), "w-full", decoration?.className)}
-      style={decoration?.style}
-    >
-      {reasoning.length > 0 ? (
-        <ReasoningBlock reasoning={reasoning} thinking={thinking} showIcon={showLLMReasoningIcon} />
-      ) : null}
+    <Stack gap="row" data-slot="message-bubble" className={cn(skin.inner("assistant"), "w-full", decoration?.className)} style={decoration?.style}>
+      {reasoning.length > 0 ? <ReasoningBlock reasoning={reasoning} thinking={thinking} showIcon={showLLMReasoningIcon} /> : null}
       {held.length === 0 ? (
         <StreamShimmer label="Generating a reply…" />
       ) : (

@@ -45,9 +45,7 @@ export async function inspectCustomByoEndpoint(args: {
   const body = applyIncludeExclude(base, args.includeBody, args.excludeBody);
   const headers: Record<string, string> = {
     "content-type": JSON_CONTENT_TYPE,
-    ...(args.apiKey !== null && args.apiKey.length > 0
-      ? { authorization: `Bearer ${args.apiKey}` }
-      : {}),
+    ...(args.apiKey !== null && args.apiKey.length > 0 ? { authorization: `Bearer ${args.apiKey}` } : {}),
     ...(args.headers ?? {}),
   };
   const url = `${args.baseUrl.replace(TRAILING_SLASH_RE, "")}${CHAT_COMPLETIONS_PATH}`;

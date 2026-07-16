@@ -36,9 +36,7 @@ function deterministicId(seed: string): string {
   return `${h.slice(0, HEX_8)}-${h.slice(HEX_8, HEX_12)}-4${h.slice(HEX_13, HEX_16)}-8${h.slice(HEX_17, HEX_20)}-${h.slice(HEX_20, HEX_32)}`;
 }
 
-export function toSeedTurns(
-  canon: readonly { role: string; content: string; model?: string | null }[],
-): SeedTurn[] {
+export function toSeedTurns(canon: readonly { role: string; content: string; model?: string | null }[]): SeedTurn[] {
   const kept: SeedTurn[] = [];
   for (const m of canon) {
     if (m.role === "user" || m.role === "assistant") {
@@ -48,9 +46,7 @@ export function toSeedTurns(
   if (kept.length === 0) {
     return [];
   }
-  return kept[0]?.role === "assistant"
-    ? [{ role: "user", content: GREETING_USER_STUB }, ...kept]
-    : kept;
+  return kept[0]?.role === "assistant" ? [{ role: "user", content: GREETING_USER_STUB }, ...kept] : kept;
 }
 
 interface FrameArgs {
@@ -95,10 +91,7 @@ function buildFrame(args: FrameArgs): SessionStoreEntry {
 }
 
 // sessionId must be a valid uuidv4 — the SDK rejects arbitrary resume ids.
-export function buildSeedFrames(
-  canon: readonly SeedTurn[],
-  sessionId: string,
-): SessionStoreEntry[] {
+export function buildSeedFrames(canon: readonly SeedTurn[], sessionId: string): SessionStoreEntry[] {
   const common = {
     isSidechain: false,
     cwd: SEED_CWD,
@@ -119,9 +112,7 @@ export function buildSeedFrames(
 // Handles both content shapes a stored frame can carry: our synthesized block arrays and the SDK's own
 // appended frames, whose message.content may be a plain string. Thinking blocks are excluded on purpose.
 function frameText(entry: SessionStoreEntry): string {
-  const message = (
-    entry as { message?: { content?: string | Array<{ type?: string; text?: string }> } }
-  ).message;
+  const message = (entry as { message?: { content?: string | Array<{ type?: string; text?: string }> } }).message;
   const content = message?.content;
   if (typeof content === "string") {
     return content;
@@ -185,10 +176,7 @@ function sessionRuns(entries: readonly SessionStoreEntry[]): TranscriptRun[] {
 }
 
 // The resume gate: exact match required — a session holding MORE than the seed (e.g. a swipe's rejected reply) must NOT be resumed.
-export function sessionMatchesSeed(
-  entries: readonly SessionStoreEntry[],
-  seed: readonly SeedTurn[],
-): boolean {
+export function sessionMatchesSeed(entries: readonly SessionStoreEntry[], seed: readonly SeedTurn[]): boolean {
   const stored = sessionRuns(entries);
   const seedR = mergeRuns(seed.map((t) => ({ role: t.role, text: t.content })));
   if (stored.length !== seedR.length) {
@@ -203,10 +191,7 @@ export function sessionMatchesSeed(
 // Is the seed a leading prefix of the stored transcript (exact match, or the seed plus turns the SDK
 // appended live)? The re-adoption gate: after a turn runs the subprocess appends its own frames, so a
 // swipe-back finds the lineage grown past the pre-turn seed — an exact-only compare would false-diverge and re-fork.
-export function sessionContainsSeedPrefix(
-  entries: readonly SessionStoreEntry[],
-  seed: readonly SeedTurn[],
-): boolean {
+export function sessionContainsSeedPrefix(entries: readonly SessionStoreEntry[], seed: readonly SeedTurn[]): boolean {
   const stored = sessionRuns(entries);
   const seedR = mergeRuns(seed.map((t) => ({ role: t.role, text: t.content })));
   if (seedR.length === 0 || stored.length < seedR.length) {
@@ -220,10 +205,7 @@ export function sessionContainsSeedPrefix(
 
 // A branch shares a non-trivial common prefix then diverges (swipe/edit), vs. an unrelated/window-slid
 // transcript sharing nothing. "Non-trivial" = at least one fully-equal leading role-run in common.
-export function isBranchDivergence(
-  entries: readonly SessionStoreEntry[],
-  seed: readonly SeedTurn[],
-): boolean {
+export function isBranchDivergence(entries: readonly SessionStoreEntry[], seed: readonly SeedTurn[]): boolean {
   const stored = sessionRuns(entries);
   const seedR = mergeRuns(seed.map((t) => ({ role: t.role, text: t.content })));
   const limit = Math.min(stored.length, seedR.length);

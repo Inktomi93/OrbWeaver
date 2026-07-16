@@ -57,7 +57,7 @@ function composeCardText(card: {
   const parts: string[] = [`Name: ${card.name}`];
   const add = (label: string, value: string | null): void => {
     const trimmed = value?.trim();
-    if (trimmed) {
+    if (trimmed !== undefined && trimmed !== "") {
       parts.push(`${label}: ${trimmed}`);
     }
   };

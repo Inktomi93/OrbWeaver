@@ -9,10 +9,7 @@ import { join } from "node:path";
 import { expect, test } from "../../support/fixtures";
 
 const GLOBALS_CSS_PATH = join(import.meta.dirname, "../../../packages/ui/src/styles/globals.css");
-const SHELL_CSS_PATH = join(
-  import.meta.dirname,
-  "../../../packages/client/src/features/app-shell/surfaces/shell.css",
-);
+const SHELL_CSS_PATH = join(import.meta.dirname, "../../../packages/client/src/features/app-shell/surfaces/shell.css");
 
 /** Balanced-brace scan: returns the index of the `}` that closes the `{` at `openBraceIndex`. */
 function findBlockEnd(css: string, openBraceIndex: number): number {
@@ -53,10 +50,7 @@ test("globals.css: the reduced-motion floor is unlayered (D43 §11.4e footgun #1
   while ((match = layerRe.exec(css)) !== null) {
     const openBrace = match.index + match[0].length - 1;
     const closeBrace = findBlockEnd(css, openBrace);
-    expect(
-      mediaIndex < match.index || mediaIndex > closeBrace,
-      "the reduced-motion @media block must not be nested inside an @layer",
-    ).toBe(true);
+    expect(mediaIndex < match.index || mediaIndex > closeBrace, "the reduced-motion @media block must not be nested inside an @layer").toBe(true);
   }
 });
 
@@ -80,9 +74,7 @@ test("globals.css: the @custom-variant dark is enumerated (not default-dark)", (
   expect(css).toContain("@custom-variant dark");
   // It must reference the light palette (to EXCLUDE it) — proving it's enumerated, not "everything is dark".
   const variantLine = css.split("\n").find((l) => l.includes("@custom-variant dark")) ?? "";
-  expect(variantLine, "the dark variant must exclude the light palette").toContain(
-    '[data-theme="light"]',
-  );
+  expect(variantLine, "the dark variant must exclude the light palette").toContain('[data-theme="light"]');
 });
 
 test("globals.css: the Mocha + Light seed palettes ship as [data-theme] value-sets", () => {
@@ -99,9 +91,7 @@ test("globals.css: the Light palette flips color-scheme to light (footgun #3)", 
   const lightIdx = (blockMatch as RegExpExecArray).index;
   const blockEnd = findBlockEnd(css, css.indexOf("{", lightIdx));
   const lightBlock = css.slice(lightIdx, blockEnd);
-  expect(lightBlock, "the Light palette must declare color-scheme: light").toMatch(
-    COLOR_SCHEME_LIGHT_RE,
-  );
+  expect(lightBlock, "the Light palette must declare color-scheme: light").toMatch(COLOR_SCHEME_LIGHT_RE);
 });
 
 // shell.css geometry — the properties that carry the shell's structural dimensions. A raw rem/px

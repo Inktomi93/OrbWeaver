@@ -18,10 +18,7 @@ export function blockKeyStr(k: BlockKey): string {
 /** Format the ordered recalled keys → the `{{memory}}` string: each block's stored distilled `text` (§2b),
  *  blank-line separated, in the given order. A key with no row in `byKey` is dropped (a search hit that fell
  *  outside the loaded scope). Empty input / all-blank → `""` (no `{{memory}}` content). */
-export function formatMemory(
-  orderedKeys: readonly BlockKey[],
-  byKey: ReadonlyMap<string, DigestRow>,
-): string {
+export function formatMemory(orderedKeys: readonly BlockKey[], byKey: ReadonlyMap<string, DigestRow>): string {
   const parts: string[] = [];
   for (const key of orderedKeys) {
     const row = byKey.get(blockKeyStr(key));

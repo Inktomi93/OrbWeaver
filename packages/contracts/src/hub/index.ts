@@ -27,7 +27,7 @@ export type GifSearchParams = z.infer<typeof gifSearchParamsSchema>;
 /** One normalized gif result. `previewUrl` is the small clip the picker renders inline; `fullUrl` is
  *  the import target the server re-validates + fetches. */
 export const gifSearchHitSchema = z.object({
-  // biome-ignore lint/plugin/no-raw-id: an OPAQUE provider (Tenor) item id, not a TypeID/branded entity id — treated as a passthrough string by domain + client, never parsed (mirrors router.ts's requestId exemption).
+  // @orb-gate-ignore no-raw-id an OPAQUE provider (Tenor) item id, not a TypeID/branded entity id — treated as a passthrough string by domain + client, never parsed (mirrors router.ts's requestId exemption).
   id: z.string(),
   previewUrl: z.url(),
   fullUrl: z.url(),

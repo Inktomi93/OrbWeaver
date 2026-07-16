@@ -5,16 +5,6 @@ import type { ReactElement, ReactNode } from "react";
 import type { SettingsPaneRegistry } from "./settings-pane-registry-context";
 import { SettingsPaneRegistryContext } from "./settings-pane-registry-context";
 
-export function SettingsPaneRegistryProvider({
-  value,
-  children,
-}: {
-  readonly value: SettingsPaneRegistry;
-  readonly children: ReactNode;
-}): ReactElement {
-  return (
-    <SettingsPaneRegistryContext.Provider value={value}>
-      {children}
-    </SettingsPaneRegistryContext.Provider>
-  );
+export function SettingsPaneRegistryProvider({ value, children }: { readonly value: SettingsPaneRegistry; readonly children: ReactNode }): ReactElement {
+  return <SettingsPaneRegistryContext value={value}>{children}</SettingsPaneRegistryContext>;
 }

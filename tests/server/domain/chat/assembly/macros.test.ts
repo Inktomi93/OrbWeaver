@@ -37,9 +37,7 @@ function producerOf(
 ): HistoryMacroNames {
   return {
     characterNamesById: new Map(chars.map((c) => [c.id, { name: c.name }])),
-    personaNamesById: new Map(
-      personas.map((p) => [p.id, { name: p.name, description: p.description ?? "" }]),
-    ),
+    personaNamesById: new Map(personas.map((p) => [p.id, { name: p.name, description: p.description ?? "" }])),
   };
 }
 
@@ -148,9 +146,7 @@ describe("renderHistoryMacros", () => {
         { name: "Kai", description: "" },
       ],
     });
-    expect(
-      renderHistoryMacros("{{char}} nods", NO_STAMPS, multi, { producer: EMPTY_PRODUCER }),
-    ).toBe("Aria, Kai nods");
+    expect(renderHistoryMacros("{{char}} nods", NO_STAMPS, multi, { producer: EMPTY_PRODUCER })).toBe("Aria, Kai nods");
   });
 
   test("two rows with DIFFERENT personaId stamps each resolve {{user}} to their OWN persona", () => {
@@ -189,23 +185,17 @@ describe("renderHistoryMacros", () => {
       pinnedPersona: { name: "Nyx", description: "the frozen anchor" },
       activePersona: { name: "Zara", description: "the live active persona" },
     });
-    expect(renderHistoryMacros("{{user}} nods", NO_STAMPS, ctx, { producer: EMPTY_PRODUCER })).toBe(
-      "Nyx nods",
-    );
+    expect(renderHistoryMacros("{{user}} nods", NO_STAMPS, ctx, { producer: EMPTY_PRODUCER })).toBe("Nyx nods");
   });
 
   test("{{user}} falls back to 'User' with a null personaId stamp AND no active persona", () => {
-    expect(
-      renderHistoryMacros("{{user}} speaks", NO_STAMPS, ctxOf(), { producer: EMPTY_PRODUCER }),
-    ).toBe("User speaks");
+    expect(renderHistoryMacros("{{user}} speaks", NO_STAMPS, ctxOf(), { producer: EMPTY_PRODUCER })).toBe("User speaks");
   });
 
   test("{{persona}} resolves the row's own persona's DESCRIPTION (distinct from {{user}}'s name)", () => {
     const producer = producerOf([], [{ id: NYX, name: "Nyx", description: "a wandering scholar" }]);
     const stamps: RowMacroStamps = { characterId: null, personaId: NYX };
-    expect(renderHistoryMacros("{{persona}}", stamps, ctxOf(), { producer })).toBe(
-      "a wandering scholar",
-    );
+    expect(renderHistoryMacros("{{persona}}", stamps, ctxOf(), { producer })).toBe("a wandering scholar");
   });
 
   test("plain text (no macros) passes through byte-identical — inert for the common case", () => {
@@ -249,9 +239,7 @@ describe("resolveGuidedActionText — the blank-steer per-action guard (F2)", ()
   });
 
   test("a scaffold-only action WITH a steer still fires", () => {
-    expect(resolveGuidedActionText(ctx, { action: "response", input: "make it tense" })).toContain(
-      "make it tense",
-    );
+    expect(resolveGuidedActionText(ctx, { action: "response", input: "make it tense" })).toContain("make it tense");
   });
 
   test("a standalone action (opening) STILL fires unsteered (its template carries a real instruction)", () => {

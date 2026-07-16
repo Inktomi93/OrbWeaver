@@ -88,9 +88,7 @@ export function createAsk(ctx: BuddyContext): BuddyService["ask"] {
     const proposal = pendingProposal(userId, ctx.now());
     return {
       reply: result.text,
-      ...(proposal
-        ? { proposal: { id: proposal.id, kind: proposal.kind, summary: proposal.summary } }
-        : {}),
+      ...(proposal ? { proposal: { id: proposal.id, kind: proposal.kind, summary: proposal.summary } } : {}),
     };
   };
 }

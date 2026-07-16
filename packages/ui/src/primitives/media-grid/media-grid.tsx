@@ -38,12 +38,12 @@ function computeCellEstimatePx(containerWidthPx: number, columns: number, gapPx:
 // Pointer-follow spotlight reveal (globals.css paints it via --x/--y). A delegated pointermove on
 // the scroll root writes the vars directly (style.setProperty, no React state, zero re-render).
 function attachSpotlight(root: HTMLElement | null): (() => void) | undefined {
-  const matchMedia = globalThis.matchMedia?.bind(globalThis);
-  if (root === null || matchMedia === undefined) {
+  if (root === null) {
     return;
   }
   // Fine-pointer only + honor reduced-motion, so a touch/reduced-motion user never installs the listener.
-  if (!matchMedia("(pointer: fine)").matches || prefersReducedMotionNow()) {
+  // @orb-gate-ignore no-raw-matchmedia `(pointer: fine)` is pointer-CAPABILITY detection, not reduced-motion — the gate's usePrefersReducedMotion/prefersReducedMotionNow helpers don't cover pointer queries (same rationale as the use-is-mobile-viewport.ts exemption).
+  if (!globalThis.matchMedia("(pointer: fine)").matches || prefersReducedMotionNow()) {
     return;
   }
   const onMove = (event: PointerEvent): void => {
@@ -171,14 +171,7 @@ function MediaGridCell<T extends MediaGridItem>({
       {src === undefined ? (
         <div className={slots.placeholder()} data-slot="media-grid-placeholder" />
       ) : (
-        <img
-          alt=""
-          className={slots.image()}
-          data-slot="media-grid-image"
-          decoding="async"
-          loading="lazy"
-          src={src}
-        />
+        <img alt="" className={slots.image()} data-slot="media-grid-image" decoding="async" loading="lazy" src={src} />
       )}
       {selectable && selected ? (
         <span className={slots.selectedBadge()} data-slot="media-grid-selected-badge">
@@ -349,7 +342,6 @@ export function MediaGrid<T extends MediaGridItem>({
 
   return (
     /* eslint-disable jsx-a11y/interactive-supports-focus */
-    // biome-ignore lint/a11y/useFocusableInteractive: roving tabindex lives on the gridcell children (MediaGridCell), never the grid container itself — per APG grid pattern.
     // biome-ignore lint/a11y/useSemanticElements: APG composite grid widget — role="grid" on a div is first-class ARIA, not a semantic workaround. <table> implies tabular data which doesn't apply to a media picker.
     <div
       aria-colcount={columns}
@@ -362,11 +354,7 @@ export function MediaGrid<T extends MediaGridItem>({
       role="grid"
     >
       {/* eslint-enable jsx-a11y/interactive-supports-focus */}
-      <div
-        className="relative w-full"
-        data-slot="media-grid-viewport"
-        ref={rowVirtualizer.containerRef}
-      >
+      <div className="relative w-full" data-slot="media-grid-viewport" ref={rowVirtualizer.containerRef}>
         {rowVirtualizer.getVirtualItems().map((virtualRow) => {
           const rowStart = virtualRow.index * columns;
           const rowItems = items.slice(rowStart, rowStart + columns);

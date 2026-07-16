@@ -14,9 +14,7 @@ type SectionKind = (typeof SECTION_KINDS)[number];
 export const ASSEMBLY_MODES = ["compose", "preview"] as const;
 
 /** A templated marker is exactly a key of `DEFAULT_MARKER_TEMPLATES`. */
-export function isTemplatedMarker(
-  marker: MarkerType,
-): marker is keyof typeof DEFAULT_MARKER_TEMPLATES {
+export function isTemplatedMarker(marker: MarkerType): marker is keyof typeof DEFAULT_MARKER_TEMPLATES {
   return marker in DEFAULT_MARKER_TEMPLATES;
 }
 
@@ -81,9 +79,7 @@ export interface AddableSection {
 
 /** The Add-menu options given the sections already placed: "Literal text" + every ABSENT marker. */
 export function addableSections(sections: readonly PromptSection[]): readonly AddableSection[] {
-  const placed = new Set(
-    sections.flatMap((s) => (s.type === "marker" ? [s.marker as MarkerType] : [])),
-  );
+  const placed = new Set(sections.flatMap((s) => (s.type === "marker" ? [s.marker as MarkerType] : [])));
   const markers: AddableSection[] = MARKER_TYPES.filter((m) => !placed.has(m)).map((marker) => ({
     marker,
     label: MARKER_COPY[marker].label,

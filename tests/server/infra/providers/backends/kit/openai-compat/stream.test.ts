@@ -2,23 +2,12 @@
 // preference, in-band error promotion, sentinel usage), the deterministic view→ChatResult mapper (injected
 // clock), and the tolerant raw-SSE parser.
 
-import type {
-  ChatCompletionResult,
-  ChatCompletionStreamChunk,
-  ChatToolCallDelta,
-  StreamDelta,
-} from "@orb/server/infra/providers/backends/kit";
-import {
-  mapChatCompletionToTurnResult,
-  parseOpenAiSse,
-  reduceChatCompletionStream,
-} from "@orb/server/infra/providers/backends/kit/openai-compat";
+import type { ChatCompletionResult, ChatCompletionStreamChunk, ChatToolCallDelta, StreamDelta } from "@orb/server/infra/providers/backends/kit";
+import { mapChatCompletionToTurnResult, parseOpenAiSse, reduceChatCompletionStream } from "@orb/server/infra/providers/backends/kit/openai-compat";
 import { describe } from "vitest";
 import { expect, test } from "../../../../../../support/fixtures";
 
-async function* streamOf(
-  items: readonly ChatCompletionStreamChunk[],
-): AsyncGenerator<ChatCompletionStreamChunk> {
+async function* streamOf(items: readonly ChatCompletionStreamChunk[]): AsyncGenerator<ChatCompletionStreamChunk> {
   await Promise.resolve(); // yields control once so this is a genuine async stream
   for (const item of items) {
     yield item;
@@ -99,14 +88,11 @@ describe("reduceChatCompletionStream", () => {
 
   test("falls back to the legacy reasoning string when details carry no text", async () => {
     const deltas: StreamDelta[] = [];
-    await reduceChatCompletionStream(
-      streamOf([{ choices: [{ delta: { reasoning: "legacy CoT", reasoningDetails: [] } }] }]),
-      {
-        onDelta: (delta): void => {
-          deltas.push(delta);
-        },
+    await reduceChatCompletionStream(streamOf([{ choices: [{ delta: { reasoning: "legacy CoT", reasoningDetails: [] } }] }]), {
+      onDelta: (delta): void => {
+        deltas.push(delta);
       },
-    );
+    });
     expect(deltas).toEqual([{ kind: "reasoning", text: "legacy CoT" }]);
   });
 
@@ -122,18 +108,15 @@ describe("reduceChatCompletionStream", () => {
   });
 
   test("carries no id when the stream never reports one (a spec-sloppy BYO endpoint)", async () => {
-    const view = await reduceChatCompletionStream(
-      streamOf([{ choices: [{ delta: { content: "hi" }, finishReason: "stop" }] }]),
-    );
+    const view = await reduceChatCompletionStream(streamOf([{ choices: [{ delta: { content: "hi" }, finishReason: "stop" }] }]));
     expect("id" in view).toBe(false);
   });
 
   test("promotes an in-band stream error to a throw carrying the status code", async () => {
-    await expect(
-      reduceChatCompletionStream(
-        streamOf([{ choices: [], error: { code: 429, message: "rate limited" } }]),
-      ),
-    ).rejects.toMatchObject({ message: "rate limited", statusCode: 429 });
+    await expect(reduceChatCompletionStream(streamOf([{ choices: [], error: { code: 429, message: "rate limited" } }]))).rejects.toMatchObject({
+      message: "rate limited",
+      statusCode: 429,
+    });
   });
 });
 
@@ -186,10 +169,7 @@ describe("mapChatCompletionToTurnResult", () => {
   });
 
   test("surfaces the view's generation handle as ChatResult.generationId, else omits it (PD-137)", () => {
-    const withId = mapChatCompletionToTurnResult(
-      { ...view, id: "gen-xyz" },
-      { model: "m", startedAt: 0, now: 1, contextWindow: null, maxOutputTokens: null },
-    );
+    const withId = mapChatCompletionToTurnResult({ ...view, id: "gen-xyz" }, { model: "m", startedAt: 0, now: 1, contextWindow: null, maxOutputTokens: null });
     expect(withId.generationId).toBe("gen-xyz");
 
     const withoutId = mapChatCompletionToTurnResult(view, {
@@ -234,16 +214,9 @@ describe("mapChatCompletionToTurnResult", () => {
 
 describe("the raw SSE parser", () => {
   test("yields JSON payloads, skips comments/events/blanks/bad-json, stops at [DONE]", async () => {
-    const text = `${[
-      ": a keepalive comment",
-      'data: {"n":1}',
-      "",
-      "event: ping",
-      "data: not-json-here",
-      'data: {"n":2}',
-      "data: [DONE]",
-      'data: {"n":3}',
-    ].join("\n")}\n`;
+    const text = `${[": a keepalive comment", 'data: {"n":1}', "", "event: ping", "data: not-json-here", 'data: {"n":2}', "data: [DONE]", 'data: {"n":3}'].join(
+      "\n",
+    )}\n`;
     const out: unknown[] = [];
     for await (const item of parseOpenAiSse(sseBody(text))) {
       out.push(item);
@@ -274,9 +247,7 @@ describe("the D48 tool-call delta accumulator (T2 — tool-use-design/02 §6)", 
         { choices: [{ delta: {}, finishReason: "tool_calls" }] },
       ]),
     );
-    expect(view.choices?.[0]?.message?.toolCalls).toEqual([
-      { id: "call_1", function: { name: "tick_clock", arguments: '{"minutes":30}' } },
-    ]);
+    expect(view.choices?.[0]?.message?.toolCalls).toEqual([{ id: "call_1", function: { name: "tick_clock", arguments: '{"minutes":30}' } }]);
   });
 
   test("interleaves multiple calls by index; emission order = ascending index", async () => {
@@ -299,20 +270,14 @@ describe("the D48 tool-call delta accumulator (T2 — tool-use-design/02 §6)", 
     const view = await reduceChatCompletionStream(
       streamOf([
         chunkWithToolCalls([{ index: 0, id: "call_first", function: { name: "real" } }]),
-        chunkWithToolCalls([
-          { index: 0, id: "call_second", function: { name: "fake", arguments: "{}" } },
-        ]),
+        chunkWithToolCalls([{ index: 0, id: "call_second", function: { name: "fake", arguments: "{}" } }]),
       ]),
     );
-    expect(view.choices?.[0]?.message?.toolCalls).toEqual([
-      { id: "call_first", function: { name: "real", arguments: "{}" } },
-    ]);
+    expect(view.choices?.[0]?.message?.toolCalls).toEqual([{ id: "call_first", function: { name: "real", arguments: "{}" } }]);
   });
 
   test("a tool-less stream carries NO toolCalls key (absence discipline) and 'tool_calls' normalizes to 'tool'", async () => {
-    const bare = await reduceChatCompletionStream(
-      streamOf([{ choices: [{ delta: { content: "hi" }, finishReason: "stop" }] }]),
-    );
+    const bare = await reduceChatCompletionStream(streamOf([{ choices: [{ delta: { content: "hi" }, finishReason: "stop" }] }]));
     expect(bare.choices?.[0]?.message).not.toHaveProperty("toolCalls");
 
     const withCalls = await reduceChatCompletionStream(

@@ -22,13 +22,15 @@ export type { MessageMacroIdSource, ParticipantMacroIdSource } from "../contract
  *  two optional sources the caller has loaded. Pure — no I/O; `loadChatMacroNameProducer` runs the query.
  *  EXPORTED: `persistence/roster-avatars.ts` (the persona-AVATAR producer sibling, kept a SEPARATE type/
  *  file because the name producer is names-only, §1) reuses this for the identical coverage algorithm. */
-export function collectMacroIds(args: {
-  readonly participants?: readonly ParticipantMacroIdSource[];
-  readonly messages?: readonly MessageMacroIdSource[];
-}): { characterIds: CharacterId[]; personaIds: PersonaId[] } {
+export function collectMacroIds(args: { readonly participants?: readonly ParticipantMacroIdSource[]; readonly messages?: readonly MessageMacroIdSource[] }): {
+  characterIds: CharacterId[];
+  personaIds: PersonaId[];
+} {
   const participants = args.participants ?? [];
   const rows = args.messages ?? [];
+  // @orb-gate-ignore persistence-no-in-memory-state: query-local dedup Sets for collecting macro ids
   const characterIds = new Set<CharacterId>();
+  // @orb-gate-ignore persistence-no-in-memory-state: query-local dedup Sets for collecting macro ids
   const personaIds = new Set<PersonaId>();
   for (const p of participants) {
     if (p.characterId !== null) {
@@ -68,16 +70,10 @@ export async function loadChatMacroNameProducer(
   const [characterNames, personaNames] = await Promise.all([
     characterIds.length === 0
       ? Promise.resolve([])
-      : db
-          .select({ id: characters.id, name: characters.name })
-          .from(characters)
-          .where(inArray(characters.id, characterIds)),
+      : db.select({ id: characters.id, name: characters.name }).from(characters).where(inArray(characters.id, characterIds)),
     personaIds.length === 0
       ? Promise.resolve([])
-      : db
-          .select({ id: personas.id, name: personas.name, description: personas.description })
-          .from(personas)
-          .where(inArray(personas.id, personaIds)),
+      : db.select({ id: personas.id, name: personas.name, description: personas.description }).from(personas).where(inArray(personas.id, personaIds)),
   ]);
   return { characterNames, personaNames };
 }

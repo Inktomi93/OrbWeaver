@@ -40,18 +40,13 @@ async function embedImageSide(
 ): Promise<(Float32Array<ArrayBuffer> | null)[]> {
   // A lone image is a `string` (path/URL) or `Uint8Array` (bytes) — neither is a JS Array, so a single
   // image wraps cleanly instead of being treated as an array of items.
-  const images: readonly ImageInput[] =
-    typeof input === "string" || input instanceof Uint8Array ? [input] : input;
+  const images: readonly ImageInput[] = typeof input === "string" || input instanceof Uint8Array ? [input] : input;
   const raw = await cache.embedImages(modelId, images);
   return raw.map((vec) => normalizeVector(vec));
 }
 
 /** Embed texts → one normalized vector each; empty/whitespace texts filter to `null` (aligned). */
-async function embedTextSide(
-  cache: LocalLightModelCache,
-  modelId: string,
-  input: string | readonly string[],
-): Promise<(Float32Array<ArrayBuffer> | null)[]> {
+async function embedTextSide(cache: LocalLightModelCache, modelId: string, input: string | readonly string[]): Promise<(Float32Array<ArrayBuffer> | null)[]> {
   const texts: readonly string[] = typeof input === "string" ? [input] : input;
   const kept: { index: number; text: string }[] = [];
   for (let i = 0; i < texts.length; i += 1) {
@@ -79,11 +74,7 @@ async function embedTextSide(
 }
 
 /** Dispatch on the discriminated `kind` of the joint-embed input. */
-async function embedByKind(
-  cache: LocalLightModelCache,
-  modelId: string,
-  input: ImageEmbedInput,
-): Promise<(Float32Array<ArrayBuffer> | null)[]> {
+async function embedByKind(cache: LocalLightModelCache, modelId: string, input: ImageEmbedInput): Promise<(Float32Array<ArrayBuffer> | null)[]> {
   switch (input.kind) {
     case "image":
       return await embedImageSide(cache, modelId, input.input);
@@ -102,9 +93,7 @@ async function embedByKind(
 }
 
 /** Bind the imageEmbed role to a model cache (the real transformers.js cache, or a test fake). */
-export function createLocalLightImageEmbed(
-  cache: LocalLightModelCache,
-): (req: ImageEmbedRequest) => Promise<ImageEmbedResult> {
+export function createLocalLightImageEmbed(cache: LocalLightModelCache): (req: ImageEmbedRequest) => Promise<ImageEmbedResult> {
   return async (req) => {
     throwIfAborted(req.signal);
     const modelId = resolveModelId(req.model, DEFAULT_IMAGE_EMBED_MODEL);

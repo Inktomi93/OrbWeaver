@@ -9,13 +9,7 @@ import { assertCredentialAllowed, ProviderError } from "@orb/server/infra/provid
 import { describe } from "vitest";
 import { expect, test } from "../../../../support/fixtures";
 
-const ALL_SOURCES: readonly CredentialSource[] = [
-  "max-pro-sub",
-  "openrouter",
-  "vllm",
-  "local-light",
-  "custom_openai",
-];
+const ALL_SOURCES: readonly CredentialSource[] = ["max-pro-sub", "openrouter", "vllm", "local-light", "custom_openai"];
 
 /** Run `fn` and return the thrown ProviderError — keeps assertions OUT of a catch block
  *  (noConditionalExpect) while still inspecting the error's `kind`/`retryable`. */
@@ -34,13 +28,9 @@ describe("assertCredentialAllowed — source × role compatibility (fail-closed)
       expect(() => assertCredentialAllowed({ role: "embed", source })).not.toThrow();
     }
     // The owner sub credential does not authenticate embed endpoints (wrong-source-for-role).
-    expect(() => assertCredentialAllowed({ role: "embed", source: "max-pro-sub" })).toThrow(
-      ProviderError,
-    );
+    expect(() => assertCredentialAllowed({ role: "embed", source: "max-pro-sub" })).toThrow(ProviderError);
     // A BYO chat endpoint doesn't serve embeddings either.
-    expect(() => assertCredentialAllowed({ role: "embed", source: "custom_openai" })).toThrow(
-      ProviderError,
-    );
+    expect(() => assertCredentialAllowed({ role: "embed", source: "custom_openai" })).toThrow(ProviderError);
   });
 
   test("rerank / imageEmbed mirror embed (openrouter + vllm + local-light)", () => {
@@ -49,16 +39,12 @@ describe("assertCredentialAllowed — source × role compatibility (fail-closed)
         expect(() => assertCredentialAllowed({ role, source })).not.toThrow();
       }
       expect(() => assertCredentialAllowed({ role, source: "max-pro-sub" })).toThrow(ProviderError);
-      expect(() => assertCredentialAllowed({ role, source: "custom_openai" })).toThrow(
-        ProviderError,
-      );
+      expect(() => assertCredentialAllowed({ role, source: "custom_openai" })).toThrow(ProviderError);
     }
   });
 
   test("summarize is a chat-turn shaper: openrouter + vllm only, NOT the chat-less local-light tier", () => {
-    expect(() =>
-      assertCredentialAllowed({ role: "summarize", source: "openrouter" }),
-    ).not.toThrow();
+    expect(() => assertCredentialAllowed({ role: "summarize", source: "openrouter" })).not.toThrow();
     expect(() => assertCredentialAllowed({ role: "summarize", source: "vllm" })).not.toThrow();
     for (const source of ["local-light", "max-pro-sub", "custom_openai"] as const) {
       expect(() => assertCredentialAllowed({ role: "summarize", source })).toThrow(ProviderError);
@@ -66,13 +52,9 @@ describe("assertCredentialAllowed — source × role compatibility (fail-closed)
   });
 
   test("generateImage is hosted-only: openrouter passes, every other source is denied", () => {
-    expect(() =>
-      assertCredentialAllowed({ role: "generateImage", source: "openrouter" }),
-    ).not.toThrow();
+    expect(() => assertCredentialAllowed({ role: "generateImage", source: "openrouter" })).not.toThrow();
     for (const source of ALL_SOURCES.filter((s) => s !== "openrouter")) {
-      expect(() => assertCredentialAllowed({ role: "generateImage", source })).toThrow(
-        ProviderError,
-      );
+      expect(() => assertCredentialAllowed({ role: "generateImage", source })).toThrow(ProviderError);
     }
   });
 
@@ -88,15 +70,11 @@ describe("assertCredentialAllowed — source × role compatibility (fail-closed)
         }),
       ).not.toThrow();
     }
-    expect(() =>
-      assertCredentialAllowed({ role: "agent", source: "custom_openai", api: "agent-sdk" }),
-    ).toThrow(ProviderError);
+    expect(() => assertCredentialAllowed({ role: "agent", source: "custom_openai", api: "agent-sdk" })).toThrow(ProviderError);
   });
 
   test("a denied check throws kind:'forbidden' (not retryable)", () => {
-    const thrown = captureError(() =>
-      assertCredentialAllowed({ role: "embed", source: "max-pro-sub" }),
-    );
+    const thrown = captureError(() => assertCredentialAllowed({ role: "embed", source: "max-pro-sub" }));
     expect(thrown).toBeInstanceOf(ProviderError);
     expect(thrown.kind).toBe("forbidden");
     expect(thrown.retryable).toBe(false);
@@ -105,9 +83,7 @@ describe("assertCredentialAllowed — source × role compatibility (fail-closed)
 
 describe("assertCredentialAllowed — the D17 max-pro-sub owner-consent belt", () => {
   test("max-pro-sub on chat is REFUSED without explicit owner consent (default OFF)", () => {
-    expect(() =>
-      assertCredentialAllowed({ role: "chat", source: "max-pro-sub", api: "agent-sdk" }),
-    ).toThrow(ProviderError);
+    expect(() => assertCredentialAllowed({ role: "chat", source: "max-pro-sub", api: "agent-sdk" })).toThrow(ProviderError);
     // ownerConsented explicitly false is still a refusal (consent must be affirmatively ON).
     expect(() =>
       assertCredentialAllowed({
@@ -131,11 +107,7 @@ describe("assertCredentialAllowed — the D17 max-pro-sub owner-consent belt", (
   });
 
   test("the consent belt only applies to max-pro-sub — other sources need no consent", () => {
-    expect(() =>
-      assertCredentialAllowed({ role: "chat", source: "openrouter", api: "chat-completions" }),
-    ).not.toThrow();
-    expect(() =>
-      assertCredentialAllowed({ role: "chat", source: "vllm", api: "chat-completions" }),
-    ).not.toThrow();
+    expect(() => assertCredentialAllowed({ role: "chat", source: "openrouter", api: "chat-completions" })).not.toThrow();
+    expect(() => assertCredentialAllowed({ role: "chat", source: "vllm", api: "chat-completions" })).not.toThrow();
   });
 });

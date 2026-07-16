@@ -73,8 +73,7 @@ export function useShellLayout(): ShellLayout {
   // A panel is in an OVERLAY REGIME (ephemeral open/close via `openOverlayPanel`) when mobile (always) or
   // when narrow AND its own resolution is the docked default (auto-overlay eligible); otherwise it's the
   // WIDE regime (persisted docked⇄collapsed flip). Mirrors `resolvePanelMode`'s own branch condition.
-  const isOverlayRegime = (resolved: PanelMode): boolean =>
-    isMobile || (isNarrow && resolved === "docked");
+  const isOverlayRegime = (resolved: PanelMode): boolean => isMobile || (isNarrow && resolved === "docked");
 
   const listMode = resolvePanelMode("list", listDefault, { isMobile, isNarrow, openOverlayPanel });
   const contextMode = resolvePanelMode("context", contextDefault, {

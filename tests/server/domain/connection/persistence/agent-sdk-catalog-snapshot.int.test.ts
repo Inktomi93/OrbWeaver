@@ -10,10 +10,7 @@ import {
   writeAgentSdkCatalogSnapshot,
 } from "../../../../../packages/server/src/domain/connection/persistence/agent-sdk-catalog-snapshot.ts";
 import { readCatalogSnapshot } from "../../../../../packages/server/src/domain/connection/persistence/catalog-snapshot.ts";
-import {
-  __resetAgentSdkModelCache,
-  getCachedAgentSdkModels,
-} from "../../../../../packages/server/src/domain/connection/substrate/agent-sdk-model-cache.ts";
+import { __resetAgentSdkModelCache, getCachedAgentSdkModels } from "../../../../../packages/server/src/domain/connection/substrate/agent-sdk-model-cache.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
 
@@ -58,9 +55,7 @@ describe("agent-sdk-catalog-snapshot persistence", () => {
 
   test("a malformed stored blob degrades to null (tightened parse, not a blind cast)", async () => {
     const db = await freshDb();
-    await db
-      .insert(settings)
-      .values({ key: "agent-sdk-model-catalog", value: { bogus: true }, updatedAt: 0 });
+    await db.insert(settings).values({ key: "agent-sdk-model-catalog", value: { bogus: true }, updatedAt: 0 });
     expect(await readAgentSdkCatalogSnapshot(db)).toBeNull();
   });
 

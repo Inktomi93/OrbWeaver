@@ -12,10 +12,7 @@ import type { UserId, WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { vi } from "vitest";
 import type { WorkloadRunnerEnv } from "../../../../packages/server/src/domain/workloads/contract/runner-env.ts";
-import type {
-  WorkloadRunnerDeps,
-  WorkloadService,
-} from "../../../../packages/server/src/domain/workloads/contract/service.ts";
+import type { WorkloadRunnerDeps, WorkloadService } from "../../../../packages/server/src/domain/workloads/contract/service.ts";
 import type { WorkloadRowAnyKind } from "../../../../packages/server/src/domain/workloads/contract/workload-row.ts";
 import type { CatalogRefreshSchedulerDeps } from "../../../../packages/server/src/transport/jobs/catalog-refresh-scheduler.ts";
 import type { OidcGcSchedulerDeps } from "../../../../packages/server/src/transport/jobs/oidc-gc-scheduler.ts";
@@ -27,14 +24,7 @@ export const T0 = 1_700_000_000_000;
 /** A minimal valid `reconcile-stats` row (no params) — the worker treats the row opaquely (it threads it into
  *  the faked `run`), so the kind is fixed and only the lifecycle fields the tests vary are overridable (a
  *  `Partial<WorkloadRowAnyKind>` spread would break the discriminated kind↔params correlation). */
-export function makeRow(
-  overrides: {
-    id?: WorkloadId;
-    status?: WorkloadStatus;
-    ownerId?: UserId | null;
-    updatedAt?: number;
-  } = {},
-): WorkloadRowAnyKind {
+export function makeRow(overrides: { id?: WorkloadId; status?: WorkloadStatus; ownerId?: UserId | null; updatedAt?: number } = {}): WorkloadRowAnyKind {
   return {
     id: overrides.id ?? castId<WorkloadId>("workload_1"),
     kind: "reconcile-stats",
@@ -71,12 +61,8 @@ export function makeWorkerDeps(overrides: Partial<WorkloadsWorkerDeps> = {}): Wo
   return {
     runnerDeps: makeRunnerDeps(),
     signal: new AbortController().signal,
-    nextRunnable: vi.fn((_db: Db, _now: number) =>
-      Promise.resolve<WorkloadRowAnyKind | null>(null),
-    ),
-    run: vi.fn((_deps: WorkloadRunnerDeps, _row: WorkloadRowAnyKind, _signal: AbortSignal) =>
-      Promise.resolve(),
-    ),
+    nextRunnable: vi.fn((_db: Db, _now: number) => Promise.resolve<WorkloadRowAnyKind | null>(null)),
+    run: vi.fn((_deps: WorkloadRunnerDeps, _row: WorkloadRowAnyKind, _signal: AbortSignal) => Promise.resolve()),
     reap: vi.fn((_args: { db: Db; now: number; staleThresholdMs?: number }) => Promise.resolve(0)),
     load: vi.fn((_db: Db, _id: WorkloadId) => Promise.resolve<WorkloadRowAnyKind | null>(null)),
     subscribeWake: vi.fn((_listener: () => void) => () => undefined),
@@ -88,9 +74,7 @@ export function makeWorkerDeps(overrides: Partial<WorkloadsWorkerDeps> = {}): Wo
 
 /** Build scheduler deps with a faked `WorkloadService` (list/start) + the frozen clock + an inert interval.
  *  `list` defaults to empty (no prior row → due). */
-export function makeSchedulerDeps(
-  overrides: Partial<CatalogRefreshSchedulerDeps> = {},
-): CatalogRefreshSchedulerDeps {
+export function makeSchedulerDeps(overrides: Partial<CatalogRefreshSchedulerDeps> = {}): CatalogRefreshSchedulerDeps {
   const service: WorkloadService = {
     list: vi.fn(() => Promise.resolve<readonly WorkloadRowAnyKind[]>([])),
     start: vi.fn(() => Promise.resolve({ id: castId<WorkloadId>("workload_started") })),
@@ -99,9 +83,7 @@ export function makeSchedulerDeps(
     get: vi.fn(() => Promise.resolve(makeRow())),
     // The schedule verbs are unused by the catalog-refresh scheduler (it drives list/start), but the
     // service type requires them — inert fakes keep the shape complete.
-    createSchedule: vi.fn(() =>
-      Promise.resolve({ id: castId<WorkloadScheduleId>("workload_schedule_x") }),
-    ),
+    createSchedule: vi.fn(() => Promise.resolve({ id: castId<WorkloadScheduleId>("workload_schedule_x") })),
     updateSchedule: vi.fn(() => Promise.reject(new Error("unused"))),
     deleteSchedule: vi.fn(() => Promise.resolve()),
     setScheduleEnabled: vi.fn(() => Promise.reject(new Error("unused"))),

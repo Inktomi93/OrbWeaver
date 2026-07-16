@@ -15,15 +15,13 @@ const ALLOWLIST: Record<string, string> = {
   "packages/client/src/features/app-shell/components/section-placeholder.tsx":
     "the generic unbuilt-section placeholder (modal-body-not-placeholder's SectionPlaceholder sibling) " +
     "— has no section-specific next step to offer; the flag is on the eventual real section body, not here.",
-  "packages/client/src/features/settings/components/settings-pane-placeholder.tsx":
-    "the settings equivalent of section-placeholder.tsx — same reasoning.",
+  "packages/client/src/features/settings/components/settings-pane-placeholder.tsx": "the settings equivalent of section-placeholder.tsx — same reasoning.",
   "packages/client/src/features/preset/components/preset-library-welcome.tsx":
     'the Presets CONTENT teaching state — a "pick a preset on the left, or create one" nudge shown ' +
     "alongside the library list, which itself carries the create CTA; the next step lives in the sibling " +
     "list, so this state legitimately has no action of its own (same reasoning as preset-section-inspector.tsx).",
   "packages/client/src/features/chat/anchors/character-gallery-dialog.tsx":
-    'the "Nothing left to add" state (every owned image is already in the gallery) has no next step — ' +
-    "genuinely nothing to do.",
+    'the "Nothing left to add" state (every owned image is already in the gallery) has no next step — genuinely nothing to do.',
   "packages/client/src/features/preset/components/preset-section-inspector.tsx":
     'the "Select a section to inspect it" prompt shown when no rack row is selected — the next step (pick ' +
     "a row) lives in the sibling rack, not here, so this state legitimately has no action of its own; same " +
@@ -54,9 +52,7 @@ function hasAction(el: JsxSelfClosingElement): boolean {
     if (attr.getKind() === SyntaxKind.JsxSpreadAttribute) {
       return true;
     }
-    return (
-      attr.getKind() === SyntaxKind.JsxAttribute && attr.getFirstChild()?.getText() === "action"
-    );
+    return attr.getKind() === SyntaxKind.JsxAttribute && attr.getFirstChild()?.getText() === "action";
   });
 }
 
@@ -129,8 +125,7 @@ export const gate: GateDescriptor = {
       why: "an <EmptyState> WITH an action prop — the next-step affordance is present",
     },
     {
-      files:
-        'export const G = <EmptyState title="Nothing here" {...(cond ? { action: 1 } : {})} />;\n',
+      files: 'export const G = <EmptyState title="Nothing here" {...(cond ? { action: 1 } : {})} />;\n',
       at: "packages/client/src/features/demo/spread.tsx",
       why: "a spread attribute might carry action (a conditional CTA the gate can't statically resolve) — treated as present",
     },

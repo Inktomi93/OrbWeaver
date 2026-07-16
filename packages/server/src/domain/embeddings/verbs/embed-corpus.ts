@@ -16,10 +16,7 @@ import type { BulkEmbedResult } from "../contract/results";
 import type { EmbeddingsService } from "../contract/service";
 import { purgeStaleVectors } from "../persistence/clear";
 
-export function createEmbedCorpus(
-  ctx: EmbeddingsContext,
-  deps: { readonly store: EmbeddingsService["store"] },
-): EmbeddingsService["embedCorpus"] {
+export function createEmbedCorpus(ctx: EmbeddingsContext, deps: { readonly store: EmbeddingsService["store"] }): EmbeddingsService["embedCorpus"] {
   return async ({ force, signal, ownerId }: EmbedPassParams): Promise<BulkEmbedResult> => {
     let embedded = 0;
     let skipped = 0;
@@ -33,7 +30,6 @@ export function createEmbedCorpus(
         skipped += 1;
         continue;
       }
-      // biome-ignore lint/performance/noAwaitInLoops: sequential by design (see the read above).
       const result = await deps.store({
         kind: "card",
         lens: "card-text",

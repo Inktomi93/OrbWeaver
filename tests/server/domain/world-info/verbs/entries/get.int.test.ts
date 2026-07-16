@@ -35,8 +35,6 @@ describe("getEntry", () => {
       input: { title: "E", content: "c" },
     });
 
-    await expect(
-      svc.getEntry({ principal: principal(owner), entryId: theirEntry.id }),
-    ).rejects.toBeInstanceOf(WorldInfoNotFoundError);
+    await expect(svc.getEntry({ principal: principal(owner), entryId: theirEntry.id })).rejects.toBeInstanceOf(WorldInfoNotFoundError);
   });
 });

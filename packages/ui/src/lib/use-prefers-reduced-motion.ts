@@ -10,13 +10,11 @@ interface ReducedMotionQuery {
   readonly addEventListener: (type: "change", listener: () => void) => void;
   readonly removeEventListener: (type: "change", listener: () => void) => void;
 }
-const matchMediaFn = (globalThis as { matchMedia?: (query: string) => ReducedMotionQuery })
-  .matchMedia;
+const matchMediaFn = (globalThis as { matchMedia?: (query: string) => ReducedMotionQuery }).matchMedia;
 
 // Read once at module load and cached — the query's `.matches` stays live. `null` where matchMedia
 // doesn't exist (SSR / non-browser test runners); every consumer below degrades to `false`.
-const reducedMotionQuery: ReducedMotionQuery | null =
-  typeof matchMediaFn === "function" ? matchMediaFn("(prefers-reduced-motion: reduce)") : null;
+const reducedMotionQuery: ReducedMotionQuery | null = typeof matchMediaFn === "function" ? matchMediaFn("(prefers-reduced-motion: reduce)") : null;
 
 function subscribeReducedMotion(onChange: () => void): () => void {
   reducedMotionQuery?.addEventListener("change", onChange);

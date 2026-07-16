@@ -36,18 +36,13 @@ const DEFAULT_IMAGE_SOURCE: CredentialSource = "openrouter";
 
 /** Exhaustive over `RoutingRoleKey`; `agentOverride` fields beat the role default. */
 const ROLE_SELECTORS: {
-  readonly [K in ResolveRoleParams["role"]]: (
-    roleDefaults: RoleDefaults,
-    override: AgentOverride | undefined,
-    isOwner: boolean,
-  ) => RouteSelection;
+  readonly [K in ResolveRoleParams["role"]]: (roleDefaults: RoleDefaults, override: AgentOverride | undefined, isOwner: boolean) => RouteSelection;
 } = {
   // The unconfigured chat default is owner-conditional: owner falls back to max-pro-sub (agent-sdk),
   // everyone else to local vllm (max-pro-sub is owner-only and would throw for a non-owner).
   chat: (rd, ov, isOwner) => ({
     api: ov?.api ?? rd.chat?.api ?? (isOwner ? "agent-sdk" : DEFAULT_CHAT_API),
-    source:
-      ov?.source ?? rd.chat?.source ?? (isOwner ? DEFAULT_AGENT_SOURCE : DEFAULT_LOCAL_SOURCE),
+    source: ov?.source ?? rd.chat?.source ?? (isOwner ? DEFAULT_AGENT_SOURCE : DEFAULT_LOCAL_SOURCE),
     model: ov?.model ?? rd.chat?.model ?? null,
     chatModel: true,
   }),
@@ -97,18 +92,10 @@ const ROLE_SELECTORS: {
 
 // The only roles that may fall back to the in-process local-light tier when vLLM is unavailable; generation
 // roles (chat/agent/summarize/generateImage) never fall back — local-light cannot generate.
-const DERIVE_ROLES: ReadonlySet<ResolveRoleParams["role"]> = new Set<ResolveRoleParams["role"]>([
-  "embed",
-  "rerank",
-  "imageEmbed",
-]);
+const DERIVE_ROLES: ReadonlySet<ResolveRoleParams["role"]> = new Set<ResolveRoleParams["role"]>(["embed", "rerank", "imageEmbed"]);
 
 /** Reroutes a DERIVE role from `vllm` to `local-light` (empty model, self-defaults to jina-clip-v2) when no GPU. */
-function applyVllmFallback(
-  role: ResolveRoleParams["role"],
-  selection: RouteSelection,
-  vllmAvailable: boolean,
-): RouteSelection {
+function applyVllmFallback(role: ResolveRoleParams["role"], selection: RouteSelection, vllmAvailable: boolean): RouteSelection {
   if (vllmAvailable || selection.source !== "vllm" || !DERIVE_ROLES.has(role)) {
     return selection;
   }
@@ -153,11 +140,7 @@ export function createResolveRole(ctx: ConnectionContext): ConnectionService["re
     const settings = await ctx.loadUserSettings(params.principal.userId);
     const selection = applyVllmFallback(
       params.role,
-      ROLE_SELECTORS[params.role](
-        settings.routing.roleDefaults,
-        params.agentOverride,
-        ctx.isOwner(params.principal),
-      ),
+      ROLE_SELECTORS[params.role](settings.routing.roleDefaults, params.agentOverride, ctx.isOwner(params.principal)),
       ctx.vllmAvailable,
     );
     assertCoherent(selection.api, selection.source);
@@ -170,8 +153,7 @@ export function createResolveRole(ctx: ConnectionContext): ConnectionService["re
     const capability = resolveCapability(model, selection.source, selection.api, {
       cached: getCachedOrModels(ctx.now()),
       agentSdkModels: getCachedAgentSdkModels(ctx.now()),
-      customContextWindow:
-        credential.source === "custom_openai" ? credential.contextWindow : undefined,
+      customContextWindow: credential.source === "custom_openai" ? credential.contextWindow : undefined,
     });
     return {
       api: selection.api,

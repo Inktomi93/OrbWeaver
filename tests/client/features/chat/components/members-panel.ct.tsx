@@ -22,16 +22,12 @@ const KICK_RE = /Kick…/u;
 const CHIP_50_RE = /Talkativeness: Aria — 50%/u;
 const CHIP_80_RE = /Talkativeness: Aria — 80%/u;
 
-test("People + Cast render in one list with identity+state accessible names and chips", async ({
-  mount,
-}) => {
+test("People + Cast render in one list with identity+state accessible names and chips", async ({ mount }) => {
   const component = await mount(<MembersPanelStory withPeople={true} />);
 
   // People rows: viewer-host Riley ("you") + pending-nominated Kestrel.
   await expect(component.getByRole("button", { name: "Riley — host, you" })).toBeVisible();
-  await expect(
-    component.getByRole("button", { name: "Kestrel — member, nominated as host" }),
-  ).toBeVisible();
+  await expect(component.getByRole("button", { name: "Kestrel — member, nominated as host" })).toBeVisible();
   await expect(component.getByText("Nominated", { exact: true })).toBeVisible();
   // Cast rows: responding Aria (visual mark aria-hidden) + muted Bryn.
   await expect(component.getByRole("button", { name: "Aria — character" })).toBeVisible();
@@ -41,22 +37,17 @@ test("People + Cast render in one list with identity+state accessible names and 
   await expect(component.getByText("responding…")).toHaveAttribute("aria-hidden", "true");
 });
 
-test("roving tabindex: one tab stop; arrows cross the People→Cast boundary; Home/End; typeahead", async ({
-  mount,
-  page,
-}) => {
+test("roving tabindex: one tab stop; arrows cross the People→Cast boundary; Home/End; typeahead", async ({ mount, page }) => {
   const component = await mount(<MembersPanelStory withPeople={true} />);
 
   // Exactly ONE row body in the tab order.
-  // biome-ignore lint/security/noSecrets: a CSS selector literal (data-slot + tabindex), not a secret.
+
   await expect(component.locator('[data-slot="member-row"] button[tabindex="0"]')).toHaveCount(1);
 
   // Walk: Riley → Kestrel → (boundary) → Aria.
   await component.getByRole("button", { name: "Riley — host, you" }).focus();
   await page.keyboard.press("ArrowDown");
-  await expect(
-    component.getByRole("button", { name: "Kestrel — member, nominated as host" }),
-  ).toBeFocused();
+  await expect(component.getByRole("button", { name: "Kestrel — member, nominated as host" })).toBeFocused();
   await page.keyboard.press("ArrowDown");
   await expect(component.getByRole("button", { name: "Aria — character" })).toBeFocused();
 
@@ -68,15 +59,10 @@ test("roving tabindex: one tab stop; arrows cross the People→Cast boundary; Ho
 
   // Typeahead-by-name: "k" jumps to Kestrel.
   await page.keyboard.press("k");
-  await expect(
-    component.getByRole("button", { name: "Kestrel — member, nominated as host" }),
-  ).toBeFocused();
+  await expect(component.getByRole("button", { name: "Kestrel — member, nominated as host" })).toBeFocused();
 });
 
-test("Enter opens the per-row Menu (the canonical action home); Mute fires the callback", async ({
-  mount,
-  page,
-}) => {
+test("Enter opens the per-row Menu (the canonical action home); Mute fires the callback", async ({ mount, page }) => {
   const component = await mount(<MembersPanelStory />);
 
   await component.getByRole("button", { name: "Aria — character" }).focus();
@@ -93,10 +79,7 @@ test("Enter opens the per-row Menu (the canonical action home); Mute fires the c
   await expect(component.locator(LAST_ACTION)).toHaveText("disabled:character_aria:true");
 });
 
-test("force-turn stays enabled for a MUTED member (#29) and the draft case drops it", async ({
-  mount,
-  page,
-}) => {
+test("force-turn stays enabled for a MUTED member (#29) and the draft case drops it", async ({ mount, page }) => {
   const component = await mount(<MembersPanelStory />);
 
   await component.getByRole("button", { name: "Bryn — character, muted" }).focus();
@@ -133,10 +116,7 @@ test("Kick sits LAST behind an AlertDialog; confirm fires onKick", async ({ moun
   await expect(component.locator(LAST_ACTION)).toHaveText("kick:user_kestrel");
 });
 
-test("the viewer's own row carries Leave behind an AlertDialog with the sole-host archive copy", async ({
-  mount,
-  page,
-}) => {
+test("the viewer's own row carries Leave behind an AlertDialog with the sole-host archive copy", async ({ mount, page }) => {
   const component = await mount(<MembersPanelStory withPeople={true} />);
 
   await component.getByRole("button", { name: "Riley — host, you" }).focus();
@@ -148,10 +128,7 @@ test("the viewer's own row carries Leave behind an AlertDialog with the sole-hos
   await expect(component.locator(LAST_ACTION)).toHaveText("leave");
 });
 
-test("post-destructive focus: the bus echo removes the kicked row and focus lands on a neighbor", async ({
-  mount,
-  page,
-}) => {
+test("post-destructive focus: the bus echo removes the kicked row and focus lands on a neighbor", async ({ mount, page }) => {
   const component = await mount(<MembersKickFocusStory />);
 
   // Arm the removal intent through the REAL kick path (menu → AlertDialog → confirm)…
@@ -167,10 +144,7 @@ test("post-destructive focus: the bus echo removes the kicked row and focus land
   await expect(component.getByRole("button", { name: "Aria — character" })).toBeFocused();
 });
 
-test("a MEMBER view exposes only View character on cast rows and no menu on other humans", async ({
-  mount,
-  page,
-}) => {
+test("a MEMBER view exposes only View character on cast rows and no menu on other humans", async ({ mount, page }) => {
   const component = await mount(<MembersPanelStory withPeople={true} memberView={true} />);
 
   // A cast row's menu: only the cross-section View character remains (host controls absent — §8.1).
@@ -196,10 +170,7 @@ test("the People header 'Invite people' action fires (host)", async ({ mount }) 
   await expect(component.locator(LAST_ACTION)).toHaveText("invite");
 });
 
-test("Talkativeness… opens the anchored popover; the slider commits on release", async ({
-  mount,
-  page,
-}) => {
+test("Talkativeness… opens the anchored popover; the slider commits on release", async ({ mount, page }) => {
   const component = await mount(<MembersPanelStory />);
 
   await component.getByRole("button", { name: "Aria — character" }).focus();
@@ -213,9 +184,7 @@ test("Talkativeness… opens the anchored popover; the slider commits on release
   await expect(component.locator(LAST_ACTION)).toContainText("talkativeness:character_aria:");
 });
 
-test("the weight chip RE-SEEDS from the prop on a value-only change (bus/other-device echo)", async ({
-  mount,
-}) => {
+test("the weight chip RE-SEEDS from the prop on a value-only change (bus/other-device echo)", async ({ mount }) => {
   const component = await mount(<MembersReseedStory />);
   const chip = component.getByRole("button", { name: CHIP_50_RE });
   await expect(chip).toHaveText("50%");
@@ -225,10 +194,7 @@ test("the weight chip RE-SEEDS from the prop on a value-only change (bus/other-d
   await expect(component.getByRole("button", { name: CHIP_80_RE })).toHaveText("80%");
 });
 
-test("the popover thumb SNAPS BACK to the prop after a failed write (no stale local value)", async ({
-  mount,
-  page,
-}) => {
+test("the popover thumb SNAPS BACK to the prop after a failed write (no stale local value)", async ({ mount, page }) => {
   const component = await mount(<MembersReseedStory />);
 
   await component.getByRole("button", { name: CHIP_50_RE }).click();
@@ -242,10 +208,7 @@ test("the popover thumb SNAPS BACK to the prop after a failed write (no stale lo
 test.describe("coarse pointer", () => {
   test.use({ hasTouch: true, viewport: { width: 420, height: 800 } });
 
-  test("the inline shortcut cluster never renders at a coarse pointer (row tap opens the Menu)", async ({
-    mount,
-    page,
-  }) => {
+  test("the inline shortcut cluster never renders at a coarse pointer (row tap opens the Menu)", async ({ mount, page }) => {
     const component = await mount(<MembersPanelStory />);
     const row = component.getByRole("button", { name: "Aria — character" });
 
@@ -259,9 +222,7 @@ test.describe("coarse pointer", () => {
   });
 });
 
-test("the fine-pointer inline cluster reveals on hover and duplicates the Menu items' labels", async ({
-  mount,
-}) => {
+test("the fine-pointer inline cluster reveals on hover and duplicates the Menu items' labels", async ({ mount }) => {
   const component = await mount(<MembersPanelStory />);
   const inlineMute = component.getByRole("button", { name: "Mute Aria" });
 

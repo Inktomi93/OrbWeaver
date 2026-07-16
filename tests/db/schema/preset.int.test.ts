@@ -3,11 +3,7 @@
 // row (NULL owner, the NIL TypeID sentinel), and the ownerId RESTRICT FK (both a missing owner and a
 // delete-blocked owner).
 
-import {
-  DEFAULT_PROMPT_CONFIG,
-  PROMPT_CONFIG_SCHEMA_VERSION,
-  parsePromptConfig,
-} from "@orb/contracts/preset";
+import { DEFAULT_PROMPT_CONFIG, PROMPT_CONFIG_SCHEMA_VERSION, parsePromptConfig } from "@orb/contracts/preset";
 import { regexScriptSchema } from "@orb/contracts/regex";
 import { isConstraintViolation, presets, users } from "@orb/db";
 import type { PresetId, UserId } from "@orb/kit/ids";

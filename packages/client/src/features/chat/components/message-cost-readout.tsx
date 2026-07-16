@@ -31,21 +31,14 @@ function costLabel(isError: boolean, totalCost: number | undefined): string {
   return formatCost(totalCost);
 }
 
-export function MessageCostReadout({
-  message,
-}: {
-  readonly message: MessageView;
-}): ReactElement | null {
+export function MessageCostReadout({ message }: { readonly message: MessageView }): ReactElement | null {
   const trpc = useTRPC();
   const [revealed, setRevealed] = useState(false);
   const { generationId } = message;
   // The key is built ONLY once revealed AND a handle exists — until then `useGatedQuery` skips the fetch.
   const gateKey = revealed && generationId !== null ? generationId : undefined;
   const query = useGatedQuery(gateKey, (id: string) =>
-    trpc.connection.orGenerationCost.queryOptions(
-      { generationId: id },
-      { staleTime: Number.POSITIVE_INFINITY },
-    ),
+    trpc.connection.orGenerationCost.queryOptions({ generationId: id }, { staleTime: Number.POSITIVE_INFINITY }),
   );
 
   if (generationId === null) {

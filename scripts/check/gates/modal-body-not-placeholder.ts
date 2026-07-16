@@ -74,22 +74,19 @@ export const gate: GateDescriptor = {
   },
   mustFlag: [
     {
-      files:
-        "export const themeModal: ModalDefinition = { id: 'theme', body: () => <SectionPlaceholder /> };\n",
+      files: "export const themeModal: ModalDefinition = { id: 'theme', body: () => <SectionPlaceholder /> };\n",
       at: "packages/client/src/features/settings/lib/theme-modal.tsx",
       why: "a ModalDefinition function body rendering <SectionPlaceholder> — the silent-sparkle anti-pattern",
     },
   ],
   mustPass: [
     {
-      files:
-        "export const draftModal: ModalDefinition = { id: 'draft', body: { planned: 'build pending' } };\n",
+      files: "export const draftModal: ModalDefinition = { id: 'draft', body: { planned: 'build pending' } };\n",
       at: "packages/client/src/features/x/lib/draft-modal.tsx",
       why: "the DECLARED-PLANNED arm (object literal, not a function) — the sanctioned unbuilt state, passes",
     },
     {
-      files:
-        "export const themeModal: ModalDefinition = { id: 'theme', body: () => <ThemePanel /> };\n",
+      files: "export const themeModal: ModalDefinition = { id: 'theme', body: () => <ThemePanel /> };\n",
       at: "packages/client/src/features/settings/lib/theme-modal.tsx",
       why: "a function body rendering a REAL body (no <SectionPlaceholder>) — the false branch, passes",
     },

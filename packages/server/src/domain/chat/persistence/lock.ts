@@ -50,12 +50,7 @@ export async function tryAcquireLock(
 
 /** Extend the lock's TTL during a long turn — ONLY while THIS holder still owns it (the `holder` guard stops a
  *  caller from refreshing a lock that was stolen out from under it). Returns `true` iff it refreshed. */
-export async function refreshLock(
-  db: Db,
-  chatId: ChatId,
-  holder: string,
-  expiresAt: number,
-): Promise<boolean> {
+export async function refreshLock(db: Db, chatId: ChatId, holder: string, expiresAt: number): Promise<boolean> {
   const refreshed = await db
     .update(chatLocks)
     .set({ expiresAt })
@@ -75,9 +70,6 @@ export async function releaseLock(db: Db, chatId: ChatId, holder: string): Promi
  *  live locks are untouched (the `holder` scope); cross-replica staleness is handled by the TTL steal in
  *  {@link tryAcquireLock}. Returns how many locks were reclaimed. */
 export async function reclaimChatLocksOnBoot(db: Db, holder: string): Promise<number> {
-  const reclaimed = await db
-    .delete(chatLocks)
-    .where(eq(chatLocks.holder, holder))
-    .returning({ chatId: chatLocks.chatId });
+  const reclaimed = await db.delete(chatLocks).where(eq(chatLocks.holder, holder)).returning({ chatId: chatLocks.chatId });
   return reclaimed.length;
 }

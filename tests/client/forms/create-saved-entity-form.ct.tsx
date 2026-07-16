@@ -6,12 +6,7 @@
 // (core/Spine-Testing.md §7).
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import {
-  SavedDraftMirrorStory,
-  SavedDraftRestoreStory,
-  SavedDraftUnmountFlushStory,
-  SavedEntityPromoteStory,
-} from "./_ct-stories";
+import { SavedDraftMirrorStory, SavedDraftRestoreStory, SavedDraftUnmountFlushStory, SavedEntityPromoteStory } from "./_ct-stories";
 
 test("promote() with dontUpdateMeta keeps the form's isDirty false", async ({ mount, page }) => {
   await mount(<SavedEntityPromoteStory />);
@@ -31,10 +26,7 @@ test("promote() with dontUpdateMeta keeps the form's isDirty false", async ({ mo
 // §13.4 obligation-5 doctrine). The dirty-pill HONESTY is the whole point: a restored draft must LIGHT
 // the pill or the next navigation silently loses the work.
 
-test("a surviving draft is restored AND lights the pill (isDefaultValue flips false)", async ({
-  mount,
-  page,
-}) => {
+test("a surviving draft is restored AND lights the pill (isDefaultValue flips false)", async ({ mount, page }) => {
   await mount(<SavedDraftRestoreStory />);
 
   // THE PIN: the form seeds from the SERVER row, then the promotion effect applies the surviving draft
@@ -45,10 +37,7 @@ test("a surviving draft is restored AND lights the pill (isDefaultValue flips fa
   await expect(page.getByTestId("saved-restore-is-default")).toHaveText("false");
 });
 
-test("a host re-render does NOT re-apply the mount draft over a live edit (draftSeededRef guard)", async ({
-  mount,
-  page,
-}) => {
+test("a host re-render does NOT re-apply the mount draft over a live edit (draftSeededRef guard)", async ({ mount, page }) => {
   await mount(<SavedDraftRestoreStory />);
 
   const field = page.getByLabel("Saved text");
@@ -106,10 +95,7 @@ test("a confirmed save clears the mirror", async ({ mount, page }) => {
   await expect(draftState).toHaveText("{}");
 });
 
-test("an edit unmounted before the debounce is FLUSHED to the mirror (the §6.5 switch race)", async ({
-  mount,
-  page,
-}) => {
+test("an edit unmounted before the debounce is FLUSHED to the mirror (the §6.5 switch race)", async ({ mount, page }) => {
   await mount(<SavedDraftUnmountFlushStory />);
 
   const draftState = page.getByTestId("saved-flush-draft");

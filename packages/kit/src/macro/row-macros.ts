@@ -109,20 +109,11 @@ function castChar(ctx: RowMacroNameContext): string {
  * verbatim, so a given row renders byte-identically on every assemble/re-render regardless of wall
  * clock or PRNG.
  */
-export function resolveRowMacros(
-  content: string,
-  stamps: RowMacroStamps,
-  ctx: RowMacroNameContext,
-): string {
-  const character =
-    stamps.characterId === null ? undefined : ctx.characterNamesById.get(stamps.characterId);
-  const persona =
-    stamps.personaId === null ? undefined : ctx.personaNamesById.get(stamps.personaId);
+export function resolveRowMacros(content: string, stamps: RowMacroStamps, ctx: RowMacroNameContext): string {
+  const character = stamps.characterId === null ? undefined : ctx.characterNamesById.get(stamps.characterId);
+  const persona = stamps.personaId === null ? undefined : ctx.personaNamesById.get(stamps.personaId);
 
-  const char =
-    stamps.characterId === null
-      ? castChar(ctx)
-      : (character?.name ?? ctx.speakerCharName ?? UNKNOWN_CHARACTER_NAME);
+  const char = stamps.characterId === null ? castChar(ctx) : (character?.name ?? ctx.speakerCharName ?? UNKNOWN_CHARACTER_NAME);
   const user = persona?.name ?? ctx.fallbackPersonaName ?? UNKNOWN_PERSONA_NAME;
   const personaDescription = persona?.description ?? ctx.fallbackPersonaDescription ?? "";
 

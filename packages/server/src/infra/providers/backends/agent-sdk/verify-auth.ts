@@ -27,10 +27,7 @@ const VERIFY_PROMPT = "Reply with exactly the two characters: ok";
 const ACCOUNT_INFO_PROBE_TIMEOUT_MS = 2000;
 
 /** Run the tiny auth-verify turn. `maxTurns: 1`, no resume, no tools (the firewall base). */
-export async function verifyAuth(
-  req: VerifyAuthRequest,
-  deps: AgentSdkDeps,
-): Promise<VerifyAuthResult> {
+export async function verifyAuth(req: VerifyAuthRequest, deps: AgentSdkDeps): Promise<VerifyAuthResult> {
   // Refresh an expired host token before the probe (mode-1 only) — so `testClaudeAuth` reports the SAME
   // fresh-token state a real turn now gets, instead of a stale `auth_failed` that a manual login "fixes".
   await refreshHostSubTokenIfMode1(req.credential, deps.refreshHostSubToken);
@@ -76,9 +73,7 @@ export async function verifyAuth(
 
 /** The linear frame read (init → assistant → result) of the verify turn — split from {@link verifyAuth}
  *  so the enrichment + assembly stays under the cognitive-complexity budget. */
-async function reduceVerifyStream(
-  stream: Query,
-): Promise<{ apiKeySource: string; reply: string; ok: boolean; costUsd: number }> {
+async function reduceVerifyStream(stream: Query): Promise<{ apiKeySource: string; reply: string; ok: boolean; costUsd: number }> {
   let apiKeySource = "unknown";
   let reply = "";
   let ok = false;
@@ -126,7 +121,7 @@ async function probeAccountInfo(query: Query): Promise<VerifyAuthAccount | undef
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<undefined>((resolve) => {
     timer = setTimeout(() => resolve(undefined), ACCOUNT_INFO_PROBE_TIMEOUT_MS);
-    timer.unref?.();
+    timer.unref();
   });
   let account: VerifyAuthAccount | undefined;
   try {

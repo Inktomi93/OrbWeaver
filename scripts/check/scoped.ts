@@ -99,16 +99,12 @@ type Args = {
   readonly changedPaths: readonly string[];
 };
 
-const USAGE =
-  // biome-ignore lint/security/noSecrets: CLI usage string, not a secret.
-  "usage: tsx scripts/check/scoped.ts (--scope <folder-glob> | --package <name> | --changed [<paths…>|git])";
+const USAGE = "usage: tsx scripts/check/scoped.ts (--scope <folder-glob> | --package <name> | --changed [<paths…>|git])";
 
 /** Reject a selector combination that isn't exactly one non-empty selector — the first failing rule's
  *  message, or undefined when the args are well-formed. */
 function validateSelectors(a: Args): string | undefined {
-  const selectors = [a.scope !== undefined, a.package !== undefined, a.changed].filter(
-    Boolean,
-  ).length;
+  const selectors = [a.scope !== undefined, a.package !== undefined, a.changed].filter(Boolean).length;
   const rules: ReadonlyArray<readonly [boolean, string]> = [
     [selectors !== 1, "exactly one of --scope / --package / --changed is required"],
     [a.scope !== undefined && a.scope.length === 0, "--scope needs a folder glob"],
@@ -190,19 +186,13 @@ export function runScopedPass(
   selection: Pick<ScopeSelection, "scope" | "inScope">,
 ): ScopedResult {
   const { incremental, deferred } = partitionGates(gates);
-  const files: SourceFile[] = base.project
-    .getSourceFiles()
-    .filter((sf) => selection.inScope(repoRel(base.root, sf.getFilePath())));
+  const files: SourceFile[] = base.project.getSourceFiles().filter((sf) => selection.inScope(repoRel(base.root, sf.getFilePath())));
   const pass = runPass(incremental, { ...base, scope: selection.scope, files });
   return { pass, deferred, files: files.length };
 }
 
 /** The CLI path: build the real full workspace, then scope it. */
-function runScoped(
-  gates: readonly GateDescriptor[],
-  root: string,
-  selection: Pick<ScopeSelection, "scope" | "inScope">,
-): ScopedResult {
+function runScoped(gates: readonly GateDescriptor[], root: string, selection: Pick<ScopeSelection, "scope" | "inScope">): ScopedResult {
   return runScopedPass(gates, projectCtx(root), selection);
 }
 

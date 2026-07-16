@@ -8,26 +8,8 @@
 
 import { IMAGE_LENSES } from "@orb/contracts/embeddings";
 import type { Db } from "@orb/db";
-import {
-  assets,
-  characterEmbeddings,
-  characters,
-  chatDigestSpeakers,
-  chatDigests,
-  chatSegments,
-  chats,
-  imageEmbeddings,
-  isConstraintViolation,
-} from "@orb/db";
-import type {
-  AssetId,
-  CharacterEmbeddingId,
-  CharacterId,
-  ChatDigestId,
-  ChatSegmentId,
-  ImageEmbeddingId,
-  UserId,
-} from "@orb/kit/ids";
+import { assets, characterEmbeddings, characters, chatDigestSpeakers, chatDigests, chatSegments, chats, imageEmbeddings, isConstraintViolation } from "@orb/db";
+import type { AssetId, CharacterEmbeddingId, CharacterId, ChatDigestId, ChatSegmentId, ImageEmbeddingId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
 import { freshDb } from "../../support/db";
@@ -174,9 +156,7 @@ test("character_embeddings.hubScore is a FLOAT — a fractional value round-trip
     dim: DIM,
   });
 
-  const row = (
-    await db.select().from(characterEmbeddings).where(eq(characterEmbeddings.id, id))
-  )[0];
+  const row = (await db.select().from(characterEmbeddings).where(eq(characterEmbeddings.id, id)))[0];
   expect(row?.hubScore).toBeTypeOf("number");
   expect(row?.hubScore).toBeCloseTo(hubScore);
 });
@@ -526,12 +506,8 @@ test("deleting a chat CASCADEs its digests, segments, and digest-speaker rows", 
   await db.delete(chats).where(eq(chats.id, chatId));
 
   expect(await db.select().from(chatDigests).where(eq(chatDigests.chatId, chatId))).toHaveLength(0);
-  expect(await db.select().from(chatSegments).where(eq(chatSegments.chatId, chatId))).toHaveLength(
-    0,
-  );
-  expect(
-    await db.select().from(chatDigestSpeakers).where(eq(chatDigestSpeakers.digestId, digestId)),
-  ).toHaveLength(0);
+  expect(await db.select().from(chatSegments).where(eq(chatSegments.chatId, chatId))).toHaveLength(0);
+  expect(await db.select().from(chatDigestSpeakers).where(eq(chatDigestSpeakers.digestId, digestId))).toHaveLength(0);
 });
 
 // ── chat_digest_speakers — the identity-keyed join (composite PK; both FKs CASCADE) ───────────────────
@@ -562,12 +538,7 @@ test("chat_digest_speakers round-trips, dedupes on the composite PK, and CASCADE
   const rows = await db
     .select()
     .from(chatDigestSpeakers)
-    .where(
-      and(
-        eq(chatDigestSpeakers.digestId, digestId),
-        eq(chatDigestSpeakers.characterId, characterId),
-      ),
-    );
+    .where(and(eq(chatDigestSpeakers.digestId, digestId), eq(chatDigestSpeakers.characterId, characterId)));
   expect(rows).toHaveLength(1);
 
   // The composite PK rejects a duplicate (digest, character) pair (SQLite reports it as a UNIQUE failure).
@@ -581,8 +552,6 @@ test("chat_digest_speakers round-trips, dedupes on the composite PK, and CASCADE
 
   // Deleting the character CASCADEs the speaker row (the digest itself survives).
   await db.delete(characters).where(eq(characters.id, characterId));
-  expect(
-    await db.select().from(chatDigestSpeakers).where(eq(chatDigestSpeakers.digestId, digestId)),
-  ).toHaveLength(0);
+  expect(await db.select().from(chatDigestSpeakers).where(eq(chatDigestSpeakers.digestId, digestId))).toHaveLength(0);
   expect(await db.select().from(chatDigests).where(eq(chatDigests.id, digestId))).toHaveLength(1);
 });

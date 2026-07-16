@@ -11,21 +11,14 @@ export function cslsAdjust(distance: number, hubScore: number | null): number {
 }
 
 /** Ascending comparator: primary = clamped adjusted score, secondary = raw cosine distance (tie-break). */
-export function compareCsls(
-  a: { readonly dist: number; readonly hub: number | null },
-  b: { readonly dist: number; readonly hub: number | null },
-): number {
+export function compareCsls(a: { readonly dist: number; readonly hub: number | null }, b: { readonly dist: number; readonly hub: number | null }): number {
   const adj = cslsAdjust(a.dist, a.hub) - cslsAdjust(b.dist, b.hub);
   return adj !== 0 ? adj : a.dist - b.dist;
 }
 
 /** {@link compareCsls} lifted over arbitrary row shapes via dist/hub accessors. */
-export function compareCslsBy<T>(
-  distOf: (item: T) => number,
-  hubOf: (item: T) => number | null,
-): (a: T, b: T) => number {
-  return (a, b) =>
-    compareCsls({ dist: distOf(a), hub: hubOf(a) }, { dist: distOf(b), hub: hubOf(b) });
+export function compareCslsBy<T>(distOf: (item: T) => number, hubOf: (item: T) => number | null): (a: T, b: T) => number {
+  return (a, b) => compareCsls({ dist: distOf(a), hub: hubOf(a) }, { dist: distOf(b), hub: hubOf(b) });
 }
 
 /** Trim an already CSLS-sorted list to the rerank budget; a non-positive cap yields an empty pool. */

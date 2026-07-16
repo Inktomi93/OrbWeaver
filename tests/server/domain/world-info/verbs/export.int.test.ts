@@ -109,8 +109,6 @@ describe("createExport", () => {
     await seedBook(db, owner.id, bookId);
 
     expect(await createExport({ db })({ ownerId: stranger.id, bookId })).toBeNull();
-    expect(
-      await createExport({ db })({ ownerId: owner.id, bookId: castId("world_book_missing") }),
-    ).toBeNull();
+    expect(await createExport({ db })({ ownerId: owner.id, bookId: castId("world_book_missing") })).toBeNull();
   });
 });

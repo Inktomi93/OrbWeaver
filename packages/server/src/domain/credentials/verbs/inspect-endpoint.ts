@@ -27,16 +27,11 @@ function notCustomEndpoint(): EndpointInspection {
   };
 }
 
-export function createInspectEndpoint(
-  ctx: CredentialContext,
-): CredentialsService["inspectEndpoint"] {
+export function createInspectEndpoint(ctx: CredentialContext): CredentialsService["inspectEndpoint"] {
   return async (params: InspectEndpointParams): Promise<EndpointInspection> => {
     const ownerId = params.principal.userId;
     const { credentialId } = params;
-    const row = requireOwned(
-      await fetchOwnedCredential(ctx.db, ownerId, credentialId),
-      credentialId,
-    );
+    const row = requireOwned(await fetchOwnedCredential(ctx.db, ownerId, credentialId), credentialId);
     const endpoint = parseCustomOpenAiEndpoint(row.metadata);
     if (endpoint === null) {
       return notCustomEndpoint();

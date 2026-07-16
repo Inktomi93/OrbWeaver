@@ -34,44 +34,42 @@ const REPLAY_PAGE = 100;
 const MAX_REPLAY_PAGES = 10;
 
 export const notificationsRouter = t.router({
-  list: multiHumanProcedure
-    .input(z.object({ cursor: z.number().optional(), limit: z.number().optional() }).optional())
-    .query(({ ctx, input }) =>
-      ctx.services.notifications.list({
-        principal: ctx.auth,
-        ...(input?.cursor !== undefined ? { cursor: input.cursor } : {}),
-        ...(input?.limit !== undefined ? { limit: input.limit } : {}),
-      }),
-    ),
-
-  markRead: multiHumanProcedure
-    .input(z.object({ notificationId: brandedId<NotificationId>() }))
-    .mutation(({ ctx, input }) =>
-      ctx.services.notifications.markRead({
-        principal: ctx.auth,
-        notificationId: input.notificationId,
-      }),
-    ),
-
-  markAllRead: multiHumanProcedure.mutation(({ ctx }) =>
-    ctx.services.notifications.markAllRead({ principal: ctx.auth }),
+  list: multiHumanProcedure.input(z.object({ cursor: z.number().optional(), limit: z.number().optional() }).optional()).query(({ ctx, input }) =>
+    ctx.services.notifications.list({
+      principal: ctx.auth,
+      ...(input?.cursor !== undefined ? { cursor: input.cursor } : {}),
+      ...(input?.limit !== undefined ? { limit: input.limit } : {}),
+    }),
   ),
 
-  dismiss: multiHumanProcedure
-    .input(z.object({ notificationId: brandedId<NotificationId>() }))
-    .mutation(({ ctx, input }) =>
-      ctx.services.notifications.dismiss({
-        principal: ctx.auth,
-        notificationId: input.notificationId,
-      }),
-    ),
+  markRead: multiHumanProcedure.input(z.object({ notificationId: brandedId<NotificationId>() })).mutation(({ ctx, input }) =>
+    ctx.services.notifications.markRead({
+      principal: ctx.auth,
+      notificationId: input.notificationId,
+    }),
+  ),
+
+  markAllRead: multiHumanProcedure.mutation(({ ctx }) => ctx.services.notifications.markAllRead({ principal: ctx.auth })),
+
+  dismiss: multiHumanProcedure.input(z.object({ notificationId: brandedId<NotificationId>() })).mutation(({ ctx, input }) =>
+    ctx.services.notifications.dismiss({
+      principal: ctx.auth,
+      notificationId: input.notificationId,
+    }),
+  ),
 
   // The per-user durable inbox stream (PD-23). `withSubscriptionErrors` converts a thrown domain error
   // (e.g. from the durable `list` replay) into a typed frame — a subscription bypasses the
   // domain-error middleware, so without it a throw would surface as a spurious 500 (Esoteric #5).
   notifications: multiHumanProcedure
-    // biome-ignore lint/plugin/no-raw-id: lastEventId is the SSE resume cursor (a `seq` string set by tRPC's Last-Event-ID), not a branded entity id.
-    .input(z.object({ lastEventId: z.string().nullish() }).optional())
+    .input(
+      z
+        .object({
+          // @orb-gate-ignore no-raw-id lastEventId is the SSE resume cursor (a `seq` string set by tRPC's Last-Event-ID), not a branded entity id.
+          lastEventId: z.string().nullish(),
+        })
+        .optional(),
+    )
     .subscription(({ ctx, input, signal }) => {
       const sig = signal ?? new AbortController().signal;
       // Presence (PD-70): the per-user notifications stream IS the device-liveness signal — every device holds
@@ -85,16 +83,9 @@ export const notificationsRouter = t.router({
       if (!wasOnline) {
         void ctx.services.chat
           .drainDeferredTurns({ hostUserId: ctx.auth.userId })
-          .catch((err: unknown) =>
-            getLog().error(
-              { err, userId: ctx.auth.userId },
-              "host-return: deferred-turn drain failed",
-            ),
-          );
+          .catch((err: unknown) => getLog().error({ err, userId: ctx.auth.userId }, "host-return: deferred-turn drain failed"));
       }
-      return withSubscriptionErrors(
-        notificationStream(ctx.services.notifications, ctx.auth, input?.lastEventId ?? null, sig),
-      );
+      return withSubscriptionErrors(notificationStream(ctx.services.notifications, ctx.auth, input?.lastEventId ?? null, sig));
     }),
 });
 
@@ -128,11 +119,7 @@ async function* notificationStream(
 }
 
 // Page the durable inbox (newest-first) for rows newer than `resumeSeq`, returned ASCENDING for replay.
-async function collectSince(
-  service: NotificationsService,
-  principal: Principal,
-  resumeSeq: number,
-): Promise<InboxView[]> {
+async function collectSince(service: NotificationsService, principal: Principal, resumeSeq: number): Promise<InboxView[]> {
   const missed: InboxView[] = [];
   let cursor: number | undefined;
   for (let page = 0; page < MAX_REPLAY_PAGES; page++) {

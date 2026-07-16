@@ -16,9 +16,7 @@ import { getCachedAgentSdkModels } from "../substrate/agent-sdk-model-cache";
 import { getCachedOrModels } from "../substrate/or-model-cache";
 import { deriveOrSkin } from "../substrate/tier-models";
 
-export function createGetOrSkinTierModels(
-  ctx: ConnectionContext,
-): ConnectionService["getOrSkinTierModels"] {
+export function createGetOrSkinTierModels(ctx: ConnectionContext): ConnectionService["getOrSkinTierModels"] {
   return (): Promise<OrSkinTierModels> => {
     const now = ctx.now();
     return Promise.resolve(deriveOrSkin(getCachedOrModels(now), getCachedAgentSdkModels(now)));

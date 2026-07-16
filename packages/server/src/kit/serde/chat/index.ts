@@ -22,12 +22,7 @@ import { z } from "zod";
 /** RAG/analytics relevance class of a parsed chat (the `classify` output). Import EVERYTHING, but the
  *  memory-backfill (PD-78) enqueues over `real_conversation` chats ONLY. `greeting_only` = no user turn;
  *  `all_empty_msgs` = only system/blank lines; `header_only` = no message lines at all. */
-export const CHAT_BUCKETS = [
-  "header_only",
-  "all_empty_msgs",
-  "greeting_only",
-  "real_conversation",
-] as const;
+export const CHAT_BUCKETS = ["header_only", "all_empty_msgs", "greeting_only", "real_conversation"] as const;
 export type ChatBucket = (typeof CHAT_BUCKETS)[number];
 
 /** One swipe in a message's variant pool (0-based `idx` after the empty-slot drop + re-index). `metadata` is
@@ -92,9 +87,7 @@ function nullIfEmpty(s: string): string | null {
   return s.trim().length > 0 ? s : null;
 }
 function asObj(v: unknown): Record<string, unknown> | null {
-  return typeof v === "object" && v !== null && !Array.isArray(v)
-    ? (v as Record<string, unknown>)
-    : null;
+  return typeof v === "object" && v !== null && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
 }
 
 // Permissive typed views over ST's external JSON (snake_case by spec). Each field is `unknown` and every
@@ -122,10 +115,7 @@ const rawExtraSchema = z
   .partial()
   .loose();
 
-const rawSwipeInfoSchema = z
-  .object({ extra: z.unknown(), gen_started: z.unknown(), gen_finished: z.unknown() })
-  .partial()
-  .loose();
+const rawSwipeInfoSchema = z.object({ extra: z.unknown(), gen_started: z.unknown(), gen_finished: z.unknown() }).partial().loose();
 
 const rawMessageSchema = z
   .object({
@@ -154,20 +144,7 @@ function asTyped<T>(v: unknown, schema: z.ZodType<T>): T | null {
 
 // ── the ST date codec (the inverse pair — one home) ──────────────────────────────────────────────────────
 
-const ST_MONTHS = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-] as const;
+const ST_MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"] as const;
 
 const MONTHS: Record<string, number> = {
   january: 1,
@@ -243,13 +220,7 @@ function parseMonthWithTime(lower: string, pat: (typeof MONTH_PATTERNS)[number])
     return null;
   }
   const [, d, y, hh, mm, ap] = withTime;
-  const t = Date.UTC(
-    Number(y),
-    pat.mo - 1,
-    Number(d),
-    to24Hour(Number(hh), String(ap)),
-    Number(mm),
-  );
+  const t = Date.UTC(Number(y), pat.mo - 1, Number(d), to24Hour(Number(hh), String(ap)), Number(mm));
   return Number.isNaN(t) ? null : t;
 }
 
@@ -369,15 +340,9 @@ const MIN_REAL_SWIPES = 2;
 /** Build the variant pool from a message's `swipes[]` + parallel `swipe_info[]`, DROPPING genuinely-empty
  *  swipe slots and remapping the active index onto what survives (esoterica 3). `mes` (the rendered content)
  *  is authoritative regardless — an active slot that was itself empty simply yields `activeVariantIdx: null`. */
-function buildVariants(
-  swipes: unknown[],
-  swipeInfo: unknown,
-  activeSwipeId: number | null,
-): { variants: ParsedVariant[]; activeVariantIdx: number | null } {
+function buildVariants(swipes: unknown[], swipeInfo: unknown, activeSwipeId: number | null): { variants: ParsedVariant[]; activeVariantIdx: number | null } {
   const info = Array.isArray(swipeInfo) ? swipeInfo : [];
-  const kept = swipes
-    .map((content, originIdx) => ({ content: str(content), originIdx, si: info[originIdx] }))
-    .filter((s) => s.content.trim().length > 0);
+  const kept = swipes.map((content, originIdx) => ({ content: str(content), originIdx, si: info[originIdx] })).filter((s) => s.content.trim().length > 0);
   if (kept.length < MIN_REAL_SWIPES) {
     return { variants: [], activeVariantIdx: null };
   }
@@ -462,10 +427,7 @@ const BOM = /^﻿/;
  * `charDirName` (the "unused"/empty `character_name` fallback) are caller context. Returns null ONLY when the
  * header line itself is unparseable. Resilient: a corrupt message line is SKIPPED, never fatal.
  */
-export function parseChatJsonl(
-  text: string,
-  opts: { readonly fileName: string; readonly charDirName: string },
-): ParsedChat | null {
+export function parseChatJsonl(text: string, opts: { readonly fileName: string; readonly charDirName: string }): ParsedChat | null {
   const lines = text.replace(BOM, "").trim().split("\n");
   const first = lines[0];
   if (first === undefined || first.length === 0) {
@@ -478,8 +440,7 @@ export function parseChatJsonl(
 
   const meta = asObj(header.chat_metadata);
   const rawCharName = str(header.character_name);
-  const characterName =
-    rawCharName.length === 0 || rawCharName === "unused" ? opts.charDirName : rawCharName;
+  const characterName = rawCharName.length === 0 || rawCharName === "unused" ? opts.charDirName : rawCharName;
 
   const messages: ParsedChatMessage[] = [];
   for (const line of lines.slice(1)) {
@@ -500,8 +461,7 @@ export function parseChatJsonl(
     createDate: parseFilenameDate(opts.fileName) ?? parseStDate(header.create_date),
     // "Branch #" ANYWHERE — catches both "Branch #N - date.jsonl" AND "CharName - date - Branch #N.jsonl".
     isBranch: opts.fileName.includes("Branch #"),
-    parentRef:
-      normalizeParentRef(str(meta?.["main_chat"])) ?? deriveParentFromFilename(opts.fileName),
+    parentRef: normalizeParentRef(str(meta?.["main_chat"])) ?? deriveParentFromFilename(opts.fileName),
     notePrompt: nullIfEmpty(str(meta?.["note_prompt"])),
     bucket: classifyChat(messages),
     sourceMetadata: meta,
@@ -524,12 +484,8 @@ export function buildChatJsonl(chat: ParsedChat): string {
     character_name: chat.characterName,
     create_date: formatStDate(chat.createDate),
     chat_metadata: {
-      ...(chat.parentRef !== null && chat.parentRef !== undefined
-        ? { main_chat: chat.parentRef }
-        : {}),
-      ...(chat.notePrompt !== null && chat.notePrompt !== undefined
-        ? { note_prompt: chat.notePrompt }
-        : {}),
+      ...(chat.parentRef !== null ? { main_chat: chat.parentRef } : {}),
+      ...(chat.notePrompt !== null ? { note_prompt: chat.notePrompt } : {}),
     },
   };
 

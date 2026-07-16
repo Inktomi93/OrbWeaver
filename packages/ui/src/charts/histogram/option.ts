@@ -9,10 +9,7 @@ export interface HistogramBucket {
   readonly count: number;
 }
 
-export function buildHistogramOption(
-  buckets: readonly HistogramBucket[],
-  colors: ChartColors,
-): OrbChartOption {
+export function buildHistogramOption(buckets: readonly HistogramBucket[], colors: ChartColors): OrbChartOption {
   return {
     grid: { left: 8, right: 8, top: 8, bottom: 8, containLabel: true },
     tooltip: { trigger: "axis" },

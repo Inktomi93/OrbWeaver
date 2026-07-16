@@ -4,12 +4,7 @@
 // non-hook `readMessageEditDraft` snapshot (the hooks themselves need a React render, same posture as
 // `chat-stream.test.ts` exercising `subscribeTurnSlot` rather than `useTurnSlot`/`useTurnPhase`).
 
-import {
-  cancelEditingMessage,
-  readMessageEditDraft,
-  setMessageEditDraft,
-  startEditingMessage,
-} from "@orb/client/state";
+import { cancelEditingMessage, readMessageEditDraft, setMessageEditDraft, startEditingMessage } from "@orb/client/state";
 import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";

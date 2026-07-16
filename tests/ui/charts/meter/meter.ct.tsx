@@ -33,12 +33,8 @@ test("arc renders an SVG gauge with the same ARIA mechanism", async ({ mount }) 
   await expect(component.locator("svg")).toHaveCount(1);
 });
 
-test("bipolar takes a −max..max domain by default and renders milestone ticks", async ({
-  mount,
-}) => {
-  const component = await mount(
-    <Meter kind="bipolar" value={40} milestones={[-50, 0, 50]} label="Reputation" />,
-  );
+test("bipolar takes a −max..max domain by default and renders milestone ticks", async ({ mount }) => {
+  const component = await mount(<Meter kind="bipolar" value={40} milestones={[-50, 0, 50]} label="Reputation" />);
   await expect(component).toHaveAttribute("aria-valuemin", "-100");
   await expect(component).toHaveAttribute("aria-valuemax", "100");
   await expect(component).toHaveAttribute("aria-valuenow", "40");
@@ -51,28 +47,17 @@ test("bipolar takes a −max..max domain by default and renders milestone ticks"
 });
 
 test("dangerBelow swaps the linear fill to the destructive token", async ({ mount }) => {
-  const component = await mount(
-    <Meter kind="linear" value={10} max={100} dangerBelow={25} label="HP" />,
-  );
+  const component = await mount(<Meter kind="linear" value={10} max={100} dangerBelow={25} label="HP" />);
   await expect(component.locator('[data-slot="fill"]')).toHaveCSS("background-color", DESTRUCTIVE);
 });
 
 test("at or above dangerBelow the fill stays on the primary token", async ({ mount }) => {
-  const component = await mount(
-    <Meter kind="linear" value={25} max={100} dangerBelow={25} label="HP" />,
-  );
-  await expect(component.locator('[data-slot="fill"]')).not.toHaveCSS(
-    "background-color",
-    DESTRUCTIVE,
-  );
+  const component = await mount(<Meter kind="linear" value={25} max={100} dangerBelow={25} label="HP" />);
+  await expect(component.locator('[data-slot="fill"]')).not.toHaveCSS("background-color", DESTRUCTIVE);
 });
 
-test("dangerBelow swaps the arc stroke color too (one mechanism across kinds)", async ({
-  mount,
-}) => {
-  const component = await mount(
-    <Meter kind="arc" value={5} max={100} dangerBelow={25} label="Pool" />,
-  );
+test("dangerBelow swaps the arc stroke color too (one mechanism across kinds)", async ({ mount }) => {
+  const component = await mount(<Meter kind="arc" value={5} max={100} dangerBelow={25} label="Pool" />);
   await expect(component.locator('[data-slot="fill"]')).toHaveCSS("stroke", DESTRUCTIVE);
 });
 
@@ -88,13 +73,8 @@ test("aria-valuetext comes from the Base UI shell for free (locale-aware)", asyn
   expect(valueText).toContain("50");
 });
 
-test("showValue renders the visible label + value readout and names the meter", async ({
-  mount,
-  page,
-}) => {
-  const component = await mount(
-    <Meter kind="linear" label="HP" max={60} showValue={true} value={30} />,
-  );
+test("showValue renders the visible label + value readout and names the meter", async ({ mount, page }) => {
+  const component = await mount(<Meter kind="linear" label="HP" max={60} showValue={true} value={30} />);
   await expect(component).toHaveRole("meter");
   // The visible label renders and names the meter via aria-labelledby.
   await expect(component.locator('[data-slot="meter-label"]')).toHaveText("HP");

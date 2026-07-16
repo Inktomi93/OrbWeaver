@@ -37,8 +37,7 @@ export const gate: GateDescriptor = {
   ],
   mustPass: [
     {
-      files:
-        "// resolves NO userId here (invariant)\nexport const doc = 'the seam resolves the userId';\n",
+      files: "// resolves NO userId here (invariant)\nexport const doc = 'the seam resolves the userId';\n",
       at: "packages/server/src/infra/auth/modes/notes.ts",
       why: "the `// NO userId` invariant comments + string mentions DOCUMENT the ban — AST identifiers only",
     },

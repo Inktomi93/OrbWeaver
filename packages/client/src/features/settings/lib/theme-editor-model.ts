@@ -2,15 +2,7 @@
 // from-scratch defaults, and the themeable-var reference the CSS editor surfaces. Foregrounds and the
 // neutral ramp are derived by <ThemeScope> (never picked), so this model carries no foreground fields.
 
-import type {
-  CreateThemeInput,
-  Theme,
-  ThemeChatStyle,
-  ThemeDensity,
-  ThemeFont,
-  ThemeOverride,
-  ThemeRadius,
-} from "@orb/contracts/theme";
+import type { CreateThemeInput, Theme, ThemeChatStyle, ThemeDensity, ThemeFont, ThemeOverride, ThemeRadius } from "@orb/contracts/theme";
 import type { ThemeColorFields } from "#lib";
 import { assignThemeColorFields } from "#lib";
 

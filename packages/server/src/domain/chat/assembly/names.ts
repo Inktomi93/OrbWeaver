@@ -42,12 +42,7 @@ export function applyNamesBehavior(
       if (m.role === "user" && author !== speakers.user) {
         return { role: m.role, content: `${author}: ${m.content}`, messageId: m.messageId };
       }
-      if (
-        m.role === "assistant" &&
-        multiCharacter &&
-        m.authorName !== null &&
-        m.authorName !== undefined
-      ) {
+      if (m.role === "assistant" && multiCharacter && m.authorName !== null && m.authorName !== undefined) {
         return { role: m.role, content: `${author}: ${m.content}`, messageId: m.messageId };
       }
       return { role: m.role, content: m.content, messageId: m.messageId };

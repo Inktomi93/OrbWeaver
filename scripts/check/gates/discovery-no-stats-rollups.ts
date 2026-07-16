@@ -47,8 +47,7 @@ export const gate: GateDescriptor = {
   ],
   mustPass: [
     {
-      files:
-        'import { characterSummaries } from "@orb/db";\nexport const t = characterSummaries;\n',
+      files: 'import { characterSummaries } from "@orb/db";\nexport const t = characterSummaries;\n',
       at: "packages/server/src/domain/discovery/persistence/y.ts",
       why: "discovery's OWN rollup table passes — only the four stats rollups are sealed",
     },

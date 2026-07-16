@@ -36,9 +36,7 @@ function avatarSrcProp(avatarHash: string | null): { src?: string } {
 const RIPPLE_PORTRAIT_REQUEST_WIDTH = 200;
 
 function avatarPortraitSrcProp(avatarHash: string | null): { src?: string } {
-  return avatarHash === null
-    ? {}
-    : { src: blobPortraitUrl(avatarHash, RIPPLE_PORTRAIT_REQUEST_WIDTH) };
+  return avatarHash === null ? {} : { src: blobPortraitUrl(avatarHash, RIPPLE_PORTRAIT_REQUEST_WIDTH) };
 }
 
 /** Null when Tide's trains take over — each paragraph gets its own MessageContent call. */
@@ -56,11 +54,7 @@ export function resolveRowContent(args: {
     return (
       <MessageEditTextarea
         message={args.message}
-        onSave={
-          greeting === undefined
-            ? undefined
-            : (text): void => setDraftGreeting(greeting.draftKey, greeting.characterId, text)
-        }
+        onSave={greeting === undefined ? undefined : (text): void => setDraftGreeting(greeting.draftKey, greeting.characterId, text)}
       />
     );
   }
@@ -94,12 +88,7 @@ export function renderRowBubble(args: {
   readonly speakerThemes: ReadonlyMap<string, ThemeScopeTokens>;
 }): ReactElement {
   // Hide-from-AI dims the row (still user-visible — the toggle holds it out of assembly only).
-  const bubbleClassName =
-    cn(
-      args.skin.inner(args.role),
-      args.message.excludedFromPrompt && "opacity-50",
-      args.decoration?.className,
-    ) ?? "";
+  const bubbleClassName = cn(args.skin.inner(args.role), args.message.excludedFromPrompt && "opacity-50", args.decoration?.className) ?? "";
   const body =
     args.trainParagraphs === null ? (
       renderSingleBubble({
@@ -113,7 +102,7 @@ export function renderRowBubble(args: {
       <Stack gap="field" data-slot="message-bubble-train">
         {args.trainParagraphs.map((paragraph, index) => (
           <Stack
-            // biome-ignore lint/suspicious/noArrayIndexKey: paragraphs are a stable re-split of the SAME settled `message.content` on every render — index IS the paragraph's identity here.
+            // biome-ignore lint/suspicious/noArrayIndexKey: paragraphs are a stable re-split of the SAME settled message.content each render — the index IS the paragraph identity.
             key={index}
             gap="row"
             data-slot="message-bubble"
@@ -179,8 +168,7 @@ export function renderRowAvatar(args: {
     return null;
   }
   if (args.avatarTreatment === "sticky-portrait") {
-    const weldRounding =
-      args.role === "user" ? "rounded-l-none rounded-r-card" : "rounded-l-card rounded-r-none";
+    const weldRounding = args.role === "user" ? "rounded-l-none rounded-r-card" : "rounded-l-card rounded-r-none";
     return (
       <Avatar
         size={args.avatarSize}
@@ -189,9 +177,7 @@ export function renderRowAvatar(args: {
         ring={args.avatarRing}
         fallbackDelay={0}
         hueSeed={args.attribution.hueSeed}
-        className={
-          cn("sticky top-0 h-auto w-(--immersive-ripple-portrait-width)", weldRounding) ?? ""
-        }
+        className={cn("sticky top-0 h-auto w-(--immersive-ripple-portrait-width)", weldRounding) ?? ""}
         {...avatarPortraitSrcProp(args.attribution.avatarHash)}
       >
         {initialsFor(args.attribution.name)}
@@ -227,13 +213,7 @@ export function renderRowActions(args: {
   if (args.greeting !== undefined) {
     return <GreetingActionsRow message={args.message} messageActions={args.messageActions} />;
   }
-  return (
-    <MessageActionsRow
-      message={args.message}
-      onChatForked={args.onChatForked}
-      messageActions={args.messageActions}
-    />
-  );
+  return <MessageActionsRow message={args.message} onChatForked={args.onChatForked} messageActions={args.messageActions} />;
 }
 
 export function renderRowSwipe(args: {
@@ -256,9 +236,7 @@ export function renderRowSwipe(args: {
       />
     ) : null;
   }
-  return args.showSwipes && args.role === "assistant" ? (
-    <SwipeStrip message={args.message} />
-  ) : null;
+  return args.showSwipes && args.role === "assistant" ? <SwipeStrip message={args.message} /> : null;
 }
 
 export function renderContextBoundaryDivider(show: boolean): ReactNode {

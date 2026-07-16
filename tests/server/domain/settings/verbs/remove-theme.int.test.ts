@@ -17,9 +17,7 @@ describe("removeTheme", () => {
       input: { name: "Mine", override: {} },
     });
     await h.svc.removeTheme({ principal: principal(a, "user"), id: created.id });
-    await expect(
-      h.svc.getTheme({ principal: principal(a, "user"), id: created.id }),
-    ).rejects.toThrow(ThemeNotFoundError);
+    await expect(h.svc.getTheme({ principal: principal(a, "user"), id: created.id })).rejects.toThrow(ThemeNotFoundError);
     expect(h.audits.some((a2) => a2.entry.action === "theme.remove")).toBe(true);
   });
 
@@ -29,9 +27,7 @@ describe("removeTheme", () => {
     await ensureSeedThemes(db, () => h.clock.now());
     const a = await seedUser(db, { id: "user_a" });
     const hearth = await findSeedTheme(h, a, "Hearth");
-    await expect(
-      h.svc.removeTheme({ principal: principal(a, "user"), id: hearth.id }),
-    ).rejects.toThrow(ThemeNotFoundError);
+    await expect(h.svc.removeTheme({ principal: principal(a, "user"), id: hearth.id })).rejects.toThrow(ThemeNotFoundError);
     // Still there, for owner and admin alike.
     const stillThere = await h.svc.getTheme({ principal: principal(a, "user"), id: hearth.id });
     expect(stillThere.name).toBe("Hearth");
@@ -46,8 +42,6 @@ describe("removeTheme", () => {
       principal: principal(b, "user"),
       input: { name: "Theirs", override: {} },
     });
-    await expect(
-      h.svc.removeTheme({ principal: principal(a, "user"), id: theirs.id }),
-    ).rejects.toThrow(ThemeNotFoundError);
+    await expect(h.svc.removeTheme({ principal: principal(a, "user"), id: theirs.id })).rejects.toThrow(ThemeNotFoundError);
   });
 });

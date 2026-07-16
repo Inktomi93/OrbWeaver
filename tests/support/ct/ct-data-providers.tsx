@@ -41,12 +41,7 @@ import { analyticsSection } from "@orb/client/features/stats";
 import { adminPane } from "@orb/client/features/user-admin";
 import { backupPane, workloadsPane } from "@orb/client/features/workloads";
 import { worldInfoSection } from "@orb/client/features/world-info";
-import type {
-  ChatContextState,
-  ChatSurfaceContribution,
-  ContextTabDef,
-  ContributorRegistry,
-} from "@orb/client/lib";
+import type { ChatContextState, ChatSurfaceContribution, ContextTabDef, ContributorRegistry } from "@orb/client/lib";
 import { createContributorRegistry, createRegistry } from "@orb/client/lib";
 import type {
   ChromeEntry,
@@ -96,14 +91,8 @@ export function CtDataProviders({ children }: { readonly children: ReactNode }):
 // (the one client-owned CT support file — selection.ts CT_CLIENT_OWNED) so importing the client feature
 // front doors stays in the client program.
 
-const chatContextContributors = createContributorRegistry<ContextTabDef<ChatContextState>>(
-  "chat-context",
-  [],
-);
-const chatSurfaceContributors = createContributorRegistry<ChatSurfaceContribution>(
-  "chat-surface",
-  [],
-);
+const chatContextContributors = createContributorRegistry<ContextTabDef<ChatContextState>>("chat-context", []);
+const chatSurfaceContributors = createContributorRegistry<ChatSurfaceContribution>("chat-surface", []);
 
 const REAL: Record<SectionId, SectionDefinition> = {
   chats: makeChatsSection(chatContextContributors, chatSurfaceContributors),
@@ -115,11 +104,7 @@ const REAL: Record<SectionId, SectionDefinition> = {
   analytics: analyticsSection,
 };
 
-const realRegistry: SectionRegistry = createRegistry<SectionId, SectionDefinition>(
-  "sections",
-  SECTION_IDS,
-  REAL,
-);
+const realRegistry: SectionRegistry = createRegistry<SectionId, SectionDefinition>("sections", SECTION_IDS, REAL);
 
 // ── Modal-registry CT provider ────────────────────────────────────────────────────────────────────
 // AppShell / Rail / YouSheet / ModalHost read the modal registry as a runtime context (mirrors main.tsx).
@@ -134,11 +119,7 @@ const REAL_MODALS: Record<ModalSlotId, ModalDefinition> = {
   you: youModal,
 };
 
-const realModalRegistry: ModalRegistry = createRegistry<ModalSlotId, ModalDefinition>(
-  "modals",
-  MODAL_SLOT_IDS,
-  REAL_MODALS,
-);
+const realModalRegistry: ModalRegistry = createRegistry<ModalSlotId, ModalDefinition>("modals", MODAL_SLOT_IDS, REAL_MODALS);
 
 // ── Settings-pane-registry CT provider ────────────────────────────────────────────────────────────
 // The settings host reads the settings-pane registry as a runtime context (mirrors main.tsx's door).
@@ -158,35 +139,26 @@ const REAL_SETTINGS_PANES: Record<SettingsCategoryId, SettingsPaneDefinition> = 
   admin: adminPane,
 };
 
-const realSettingsPaneRegistry: SettingsPaneRegistry = createRegistry<
-  SettingsCategoryId,
-  SettingsPaneDefinition
->("settings-panes", SETTINGS_CATEGORY_IDS, REAL_SETTINGS_PANES);
+const realSettingsPaneRegistry: SettingsPaneRegistry = createRegistry<SettingsCategoryId, SettingsPaneDefinition>(
+  "settings-panes",
+  SETTINGS_CATEGORY_IDS,
+  REAL_SETTINGS_PANES,
+);
 
 // ── Chrome-registry CT provider ───────────────────────────────────────────────────────────────────
 // AppShell reads the chrome registry (its topbar.trail render) as a runtime context (mirrors main.tsx's
 // door). The section-registry providers below nest it, so every shell CT gets all four registries.
 
-const realChromeRegistry: ChromeRegistry = createContributorRegistry<ChromeEntry>("chrome", [
-  notificationsChrome,
-  fullscreenChrome,
-  contextToggleChrome,
-]);
+const realChromeRegistry: ChromeRegistry = createContributorRegistry<ChromeEntry>("chrome", [notificationsChrome, fullscreenChrome, contextToggleChrome]);
 
 /** The real 7-section + 6-modal + 12-settings-pane + 3-chrome registries — for CTs that drive real
  *  content (the route CT). */
-export function CtRealSectionRegistry({
-  children,
-}: {
-  readonly children: ReactNode;
-}): ReactElement {
+export function CtRealSectionRegistry({ children }: { readonly children: ReactNode }): ReactElement {
   return (
     <SectionRegistryProvider value={realRegistry}>
       <ModalRegistryProvider value={realModalRegistry}>
         <ChromeRegistryProvider value={realChromeRegistry}>
-          <SettingsPaneRegistryProvider value={realSettingsPaneRegistry}>
-            {children}
-          </SettingsPaneRegistryProvider>
+          <SettingsPaneRegistryProvider value={realSettingsPaneRegistry}>{children}</SettingsPaneRegistryProvider>
         </ChromeRegistryProvider>
       </ModalRegistryProvider>
     </SectionRegistryProvider>
@@ -208,18 +180,13 @@ export function CtChatContributorSectionRegistry({
 }): ReactElement {
   const registry = createRegistry<SectionId, SectionDefinition>("sections", SECTION_IDS, {
     ...REAL,
-    chats: makeChatsSection(
-      contextContributors ?? chatContextContributors,
-      surfaceContributors ?? chatSurfaceContributors,
-    ),
+    chats: makeChatsSection(contextContributors ?? chatContextContributors, surfaceContributors ?? chatSurfaceContributors),
   });
   return (
     <SectionRegistryProvider value={registry}>
       <ModalRegistryProvider value={realModalRegistry}>
         <ChromeRegistryProvider value={realChromeRegistry}>
-          <SettingsPaneRegistryProvider value={realSettingsPaneRegistry}>
-            {children}
-          </SettingsPaneRegistryProvider>
+          <SettingsPaneRegistryProvider value={realSettingsPaneRegistry}>{children}</SettingsPaneRegistryProvider>
         </ChromeRegistryProvider>
       </ModalRegistryProvider>
     </SectionRegistryProvider>
@@ -228,19 +195,11 @@ export function CtChatContributorSectionRegistry({
 
 /** A modal registry with a story-injected body per id (real trigger/title/presentation preserved) — the
  *  test-seam analog of CtFakeSectionRegistry, for CTs isolating ModalHost behavior (the scroll invariant). */
-export function CtFakeModalRegistry({
-  body,
-  children,
-}: {
-  readonly body: (id: ModalSlotId) => ReactElement;
-  readonly children: ReactNode;
-}): ReactElement {
+export function CtFakeModalRegistry({ body, children }: { readonly body: (id: ModalSlotId) => ReactElement; readonly children: ReactNode }): ReactElement {
   const registry = createRegistry<ModalSlotId, ModalDefinition>(
     "modals",
     MODAL_SLOT_IDS,
-    Object.fromEntries(
-      MODAL_SLOT_IDS.map((id) => [id, { ...REAL_MODALS[id], body: (): ReactElement => body(id) }]),
-    ) as Record<ModalSlotId, ModalDefinition>,
+    Object.fromEntries(MODAL_SLOT_IDS.map((id) => [id, { ...REAL_MODALS[id], body: (): ReactElement => body(id) }])) as Record<ModalSlotId, ModalDefinition>,
   );
   return <ModalRegistryProvider value={registry}>{children}</ModalRegistryProvider>;
 }
@@ -264,10 +223,7 @@ function fakeSection(id: SectionId, slot: CtFakeSection | undefined): SectionDef
     ...(slot?.list !== undefined ? { list: (): ReactNode => slot.list } : {}),
     // A non-injected section renders its real placeholder (the planned arm) — the old "unwired ⇒ fallback".
     content: slot?.content !== undefined ? (): ReactNode => slot.content : { planned: "ct" },
-    context:
-      slot?.context !== undefined
-        ? { kind: "single", body: (): ReactNode => slot.context }
-        : { kind: "none" },
+    context: slot?.context !== undefined ? { kind: "single", body: (): ReactNode => slot.context } : { kind: "none" },
   };
 }
 
@@ -282,18 +238,13 @@ export function CtFakeSectionRegistry({
   const registry = createRegistry<SectionId, SectionDefinition>(
     "sections",
     SECTION_IDS,
-    Object.fromEntries(SECTION_IDS.map((id) => [id, fakeSection(id, sections?.[id])])) as Record<
-      SectionId,
-      SectionDefinition
-    >,
+    Object.fromEntries(SECTION_IDS.map((id) => [id, fakeSection(id, sections?.[id])])) as Record<SectionId, SectionDefinition>,
   );
   return (
     <SectionRegistryProvider value={registry}>
       <ModalRegistryProvider value={realModalRegistry}>
         <ChromeRegistryProvider value={realChromeRegistry}>
-          <SettingsPaneRegistryProvider value={realSettingsPaneRegistry}>
-            {children}
-          </SettingsPaneRegistryProvider>
+          <SettingsPaneRegistryProvider value={realSettingsPaneRegistry}>{children}</SettingsPaneRegistryProvider>
         </ChromeRegistryProvider>
       </ModalRegistryProvider>
     </SectionRegistryProvider>

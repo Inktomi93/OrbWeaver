@@ -46,9 +46,7 @@ describe("parseParticipant — the kind shape", () => {
   });
 
   test("rejects the reserved observer kind (un-seatable — carries neither column)", () => {
-    expect(() => parseParticipant({ kind: "observer", userId: null, characterId: null })).toThrow(
-      "observer",
-    );
+    expect(() => parseParticipant({ kind: "observer", userId: null, characterId: null })).toThrow("observer");
   });
 
   test("rejects a corrupt row that breaks the human/character shape", () => {

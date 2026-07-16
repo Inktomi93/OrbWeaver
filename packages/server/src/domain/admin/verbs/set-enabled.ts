@@ -23,10 +23,7 @@ export function createSetEnabled(ctx: AdminContext): AdminService["setEnabled"] 
     const { userId, enabled } = params;
 
     if (!enabled && userId === params.principal.userId) {
-      throw new DomainOperationError(
-        ADMIN_OP_CODES.cannotDisableSelf,
-        "you cannot disable your own account",
-      );
+      throw new DomainOperationError(ADMIN_OP_CODES.cannotDisableSelf, "you cannot disable your own account");
     }
 
     const target = await loadUser(ctx.db, userId);
@@ -34,10 +31,7 @@ export function createSetEnabled(ctx: AdminContext): AdminService["setEnabled"] 
       throw new DomainNotFoundError("user", userId);
     }
     if (target.role === OWNER_ROLE) {
-      throw new DomainOperationError(
-        ADMIN_OP_CODES.cannotModifyOwner,
-        "the owner cannot be disabled",
-      );
+      throw new DomainOperationError(ADMIN_OP_CODES.cannotModifyOwner, "the owner cannot be disabled");
     }
 
     const at = ctx.now();
@@ -48,10 +42,7 @@ export function createSetEnabled(ctx: AdminContext): AdminService["setEnabled"] 
       .returning(userCols);
     const row = updated[0];
     if (row === undefined) {
-      throw new DomainOperationError(
-        ADMIN_OP_CODES.cannotModifyOwner,
-        "the owner cannot be disabled",
-      );
+      throw new DomainOperationError(ADMIN_OP_CODES.cannotModifyOwner, "the owner cannot be disabled");
     }
 
     if (!enabled) {

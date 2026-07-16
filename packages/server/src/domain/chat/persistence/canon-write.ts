@@ -17,16 +17,7 @@ import type { Db } from "@orb/db";
 import { messageAssets, messages, messageVariants } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchStmt } from "@orb/db/kit";
-import type {
-  AssetId,
-  CharacterId,
-  ChatId,
-  MessageAssetId,
-  MessageId,
-  MessageVariantId,
-  PersonaId,
-  UserId,
-} from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, MessageAssetId, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import { and, eq, gte, inArray, lte, sql } from "drizzle-orm";
@@ -170,10 +161,7 @@ function variantColumns(args: {
  * The engine concatenates this with the stats-delta statements and commits one `db.batch` — atomic. The
  * statements must execute in this order.
  */
-export function insertCanonMessageStatements(
-  db: Db,
-  params: InsertCanonMessageParams,
-): BatchStmt[] {
+export function insertCanonMessageStatements(db: Db, params: InsertCanonMessageParams): BatchStmt[] {
   return [
     batchStmt(
       db.insert(messages).values({
@@ -200,12 +188,7 @@ export function insertCanonMessageStatements(
         }),
       ),
     ),
-    batchStmt(
-      db
-        .update(messages)
-        .set({ selectedVariantId: params.variantId })
-        .where(eq(messages.id, params.messageId)),
-    ),
+    batchStmt(db.update(messages).set({ selectedVariantId: params.variantId }).where(eq(messages.id, params.messageId))),
   ];
 }
 
@@ -237,14 +220,8 @@ export function insertMessageAssetStatements(
 
 /** The pointer flip (`selectVariant` — a zero-copy pointer move to a sibling swipe, never a content copy).
  *  The caller verifies the variant belongs to the slot. */
-export function selectActiveVariantStatement(
-  db: Db,
-  messageId: MessageId,
-  variantId: MessageVariantId,
-): BatchStmt {
-  return batchStmt(
-    db.update(messages).set({ selectedVariantId: variantId }).where(eq(messages.id, messageId)),
-  );
+export function selectActiveVariantStatement(db: Db, messageId: MessageId, variantId: MessageVariantId): BatchStmt {
+  return batchStmt(db.update(messages).set({ selectedVariantId: variantId }).where(eq(messages.id, messageId)));
 }
 
 /** Append a fresh variant to an existing slot (a swipe/regen reroll — the slot is unchanged, a new
@@ -322,15 +299,8 @@ export function continueVariantStatements(
 /** Set a variant's `content`/`reasoning` directly (the `undoContinue`/`revertContinue` restore — a
  *  pointer-free content swap from the `preContinue*`/`lastContinuation*` snapshot). The economics/snapshot
  *  columns are untouched so a restore is reversible by its twin. */
-export function setVariantContentStatement(
-  db: Db,
-  variantId: MessageVariantId,
-  content: string,
-  reasoning: string | null,
-): BatchStmt {
-  return batchStmt(
-    db.update(messageVariants).set({ content, reasoning }).where(eq(messageVariants.id, variantId)),
-  );
+export function setVariantContentStatement(db: Db, variantId: MessageVariantId, content: string, reasoning: string | null): BatchStmt {
+  return batchStmt(db.update(messageVariants).set({ content, reasoning }).where(eq(messageVariants.id, variantId)));
 }
 
 /** Merge a base + a continuation text/reasoning (continue/revert): null only when both are null, else the
@@ -354,18 +324,8 @@ export function editMessageContentStatements(
   },
 ): BatchStmt[] {
   return [
-    batchStmt(
-      db
-        .update(messageVariants)
-        .set({ content: params.content })
-        .where(eq(messageVariants.id, params.variantId)),
-    ),
-    batchStmt(
-      db
-        .update(messages)
-        .set({ editedAt: params.editedAt })
-        .where(eq(messages.id, params.messageId)),
-    ),
+    batchStmt(db.update(messageVariants).set({ content: params.content }).where(eq(messageVariants.id, params.variantId))),
+    batchStmt(db.update(messages).set({ editedAt: params.editedAt }).where(eq(messages.id, params.messageId))),
   ];
 }
 
@@ -381,55 +341,26 @@ export function editReasoningStatements(
   },
 ): BatchStmt[] {
   return [
-    batchStmt(
-      db
-        .update(messageVariants)
-        .set({ reasoning: params.reasoning })
-        .where(eq(messageVariants.id, params.variantId)),
-    ),
-    batchStmt(
-      db
-        .update(messages)
-        .set({ editedAt: params.editedAt })
-        .where(eq(messages.id, params.messageId)),
-    ),
+    batchStmt(db.update(messageVariants).set({ reasoning: params.reasoning }).where(eq(messageVariants.id, params.variantId))),
+    batchStmt(db.update(messages).set({ editedAt: params.editedAt }).where(eq(messages.id, params.messageId))),
   ];
 }
 
 /** Toggle a slot's `excludedFromPrompt` (`setMessageHidden`; the row survives, held out of assembly). A
  *  pure slot-flag write. */
-export function setMessageHiddenStatement(
-  db: Db,
-  messageId: MessageId,
-  hidden: boolean,
-): BatchStmt {
-  return batchStmt(
-    db.update(messages).set({ excludedFromPrompt: hidden }).where(eq(messages.id, messageId)),
-  );
+export function setMessageHiddenStatement(db: Db, messageId: MessageId, hidden: boolean): BatchStmt {
+  return batchStmt(db.update(messages).set({ excludedFromPrompt: hidden }).where(eq(messages.id, messageId)));
 }
 
 /** Delete a set of slots (`deleteMessages`; message_variants cascade on the slot delete). Scoped to
  *  `chatId` so a stray foreign id can never delete another room's row. */
-export function deleteMessagesStatement(
-  db: Db,
-  chatId: ChatId,
-  messageIds: readonly MessageId[],
-): BatchStmt {
-  return batchStmt(
-    db
-      .delete(messages)
-      .where(and(eq(messages.chatId, chatId), inArray(messages.id, [...messageIds]))),
-  );
+export function deleteMessagesStatement(db: Db, chatId: ChatId, messageIds: readonly MessageId[]): BatchStmt {
+  return batchStmt(db.delete(messages).where(and(eq(messages.chatId, chatId), inArray(messages.id, [...messageIds]))));
 }
 
 /** Re-stamp a set of slots' `characterId` attribution (host-only — `reattributeMessages`; the self-heal
  *  hash-diff re-voice). Scoped to `chatId`. */
-export function reattributeMessagesStatement(
-  db: Db,
-  chatId: ChatId,
-  messageIds: readonly MessageId[],
-  characterId: CharacterId,
-): BatchStmt {
+export function reattributeMessagesStatement(db: Db, chatId: ChatId, messageIds: readonly MessageId[], characterId: CharacterId): BatchStmt {
   return batchStmt(
     db
       .update(messages)
@@ -441,23 +372,12 @@ export function reattributeMessagesStatement(
 /** Re-stamp a set of slots' `personaId` (the authoring-persona / `{{user}}` axis — `reattributePersona`;
  *  author-or-host per row). Scoped to `chatId` AND `role = 'user'` — an assistant/system row is never
  *  re-stamped even if its id slips into the set. */
-export function reattributePersonaStatement(
-  db: Db,
-  chatId: ChatId,
-  messageIds: readonly MessageId[],
-  personaId: PersonaId,
-): BatchStmt {
+export function reattributePersonaStatement(db: Db, chatId: ChatId, messageIds: readonly MessageId[], personaId: PersonaId): BatchStmt {
   return batchStmt(
     db
       .update(messages)
       .set({ personaId })
-      .where(
-        and(
-          eq(messages.chatId, chatId),
-          inArray(messages.id, [...messageIds]),
-          eq(messages.role, "user"),
-        ),
-      ),
+      .where(and(eq(messages.chatId, chatId), inArray(messages.id, [...messageIds]), eq(messages.role, "user"))),
   );
 }
 
@@ -477,13 +397,7 @@ export function shiftSeqRangeStatement(
     db
       .update(messages)
       .set({ seq: sql`${messages.seq} + ${params.by}` })
-      .where(
-        and(
-          eq(messages.chatId, params.chatId),
-          gte(messages.seq, params.lo),
-          lte(messages.seq, params.hi),
-        ),
-      ),
+      .where(and(eq(messages.chatId, params.chatId), gte(messages.seq, params.lo), lte(messages.seq, params.hi))),
   );
 }
 

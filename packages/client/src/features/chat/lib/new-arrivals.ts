@@ -31,11 +31,7 @@ export function initialArrivals(keys: readonly string[]): ArrivalDiff {
 // The ghost key is ignored when finding the append boundary: it's a synthetic tail, so a message
 // committed during a live turn lands before it — counting the ghost as "last seen" would misclassify
 // that arrival as a backfill.
-function appendedArrivals(
-  seen: ReadonlySet<string>,
-  keys: readonly string[],
-  ghostKey: string,
-): Set<string> {
+function appendedArrivals(seen: ReadonlySet<string>, keys: readonly string[], ghostKey: string): Set<string> {
   let lastSeenIndex = -1;
   for (const [index, key] of keys.entries()) {
     if (seen.has(key) && key !== ghostKey) {
@@ -52,11 +48,7 @@ function appendedArrivals(
 }
 
 /** Drops model-output arrivals from `fresh` in place; true when anything was muted. */
-function muteModelOutputArrivals(
-  fresh: Set<string>,
-  entries: readonly ArrivalEntry[],
-  ghostKey: string,
-): boolean {
+function muteModelOutputArrivals(fresh: Set<string>, entries: readonly ArrivalEntry[], ghostKey: string): boolean {
   let muted = false;
   for (const entry of entries) {
     if (entry.modelOutput && entry.key !== ghostKey && fresh.delete(entry.key)) {
@@ -67,11 +59,7 @@ function muteModelOutputArrivals(
 }
 
 /** One diff step: the next tracking state, or null when nothing arrived/ended (caller keeps previous). */
-export function nextArrivals(
-  prev: ArrivalDiff,
-  entries: readonly ArrivalEntry[],
-  ghostKey: string,
-): ArrivalDiff | null {
+export function nextArrivals(prev: ArrivalDiff, entries: readonly ArrivalEntry[], ghostKey: string): ArrivalDiff | null {
   const keys = entries.map((entry) => entry.key);
   const newKeys = keys.filter((key) => !prev.seen.has(key));
   const ghostPresent = keys.includes(ghostKey);
@@ -88,14 +76,9 @@ export function nextArrivals(
     seen.delete(ghostKey);
   }
   const fresh = appendedArrivals(prev.seen, keys, ghostKey);
-  const mutedModelOutput =
-    ghostPresent || ghostEnded || prev.awaitingSettle
-      ? muteModelOutputArrivals(fresh, entries, ghostKey)
-      : false;
+  const mutedModelOutput = ghostPresent || ghostEnded || prev.awaitingSettle ? muteModelOutputArrivals(fresh, entries, ghostKey) : false;
   // Arms when the ghost leaves without its canon row in the same diff; disarms once a model-output
   // arrival lands or a new turn's ghost enters.
-  const awaitingSettle = ghostPresent
-    ? false
-    : (ghostEnded || prev.awaitingSettle) && !mutedModelOutput;
+  const awaitingSettle = ghostPresent ? false : (ghostEnded || prev.awaitingSettle) && !mutedModelOutput;
   return { seen, fresh: fresh.size === 0 ? NO_ARRIVALS : fresh, awaitingSettle };
 }

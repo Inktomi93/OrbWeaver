@@ -26,10 +26,7 @@ import { usePreviewInvite, useRedeemInvite } from "../hooks/use-invite-mutations
 
 type Preview = inferOutput<Trpc["invites"]["previewInvite"]>;
 
-type PreviewState =
-  | { readonly kind: "loading" }
-  | { readonly kind: "invalid" }
-  | { readonly kind: "ready"; readonly preview: Preview };
+type PreviewState = { readonly kind: "loading" } | { readonly kind: "invalid" } | { readonly kind: "ready"; readonly preview: Preview };
 
 export interface JoinInviteDialogProps {
   /** The raw invite token captured from `?join=` (already scrubbed from the URL by the caller). */
@@ -123,12 +120,7 @@ export function JoinInviteDialog({ token, onDone }: JoinInviteDialogProps): Reac
                 <Button intent="ghost" onClick={onDone}>
                   Not now
                 </Button>
-                <Button
-                  intent="primary"
-                  disabled={redeem.isPending}
-                  onClick={join}
-                  data-testid={testId("joinInviteConfirm")}
-                >
+                <Button intent="primary" disabled={redeem.isPending} onClick={join} data-testid={testId("joinInviteConfirm")}>
                   {redeem.isPending ? "Joining…" : "Join chat"}
                 </Button>
               </Row>

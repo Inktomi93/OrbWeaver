@@ -81,14 +81,10 @@ async function leakVerdict(path: string, thunk: () => Promise<unknown>): Promise
     value = await thunk();
   } catch (e) {
     const code = trpcCode(e);
-    return code === "NOT_FOUND"
-      ? null
-      : `${path}: a stranger's rejection must be leak-free NOT_FOUND, got ${code ?? `non-tRPC ${String(e)}`}`;
+    return code === "NOT_FOUND" ? null : `${path}: a stranger's rejection must be leak-free NOT_FOUND, got ${code ?? `non-tRPC ${String(e)}`}`;
   }
   const leaked = MARKERS.find((m) => (JSON.stringify(value) ?? "").includes(m));
-  return leaked === undefined
-    ? null
-    : `${path}: a stranger's result leaked owner A's data ("${leaked}")`;
+  return leaked === undefined ? null : `${path}: a stranger's result leaked owner A's data ("${leaked}")`;
 }
 
 /** One probe: the router path + the stranger call built from owner A's ids. */
@@ -145,12 +141,10 @@ const PROBES: readonly Probe[] = [
     call: (c, i) => c.character.bulkArchive({ characterIds: [i.characterId], archived: true }),
   },
   {
-    // biome-ignore lint/security/noSecrets: "character.bulkAddCardTag" is a router path constant, not a secret.
     path: "character.bulkAddCardTag",
     call: (c, i) => c.character.bulkAddCardTag({ tagName: "x", characterIds: [i.characterId] }),
   },
   {
-    // biome-ignore lint/security/noSecrets: "character.bulkRemoveCardTag" is a router path constant, not a secret.
     path: "character.bulkRemoveCardTag",
     call: (c, i) => c.character.bulkRemoveCardTag({ tagName: "x", characterIds: [i.characterId] }),
   },
@@ -165,18 +159,15 @@ const PROBES: readonly Probe[] = [
   { path: "persona.export", call: (c, i) => c.persona.export({ personaId: i.personaId }) },
   {
     path: "persona.createFromCharacter",
-    call: (c, i) =>
-      c.persona.createFromCharacter({ characterId: i.characterId, swapMacros: false }),
+    call: (c, i) => c.persona.createFromCharacter({ characterId: i.characterId, swapMacros: false }),
   },
   {
     path: "persona.connectToCharacter",
-    call: (c, i) =>
-      c.persona.connectToCharacter({ characterId: i.characterId, personaId: i.personaId }),
+    call: (c, i) => c.persona.connectToCharacter({ characterId: i.characterId, personaId: i.personaId }),
   },
   {
     path: "persona.disconnectFromCharacter",
-    call: (c, i) =>
-      c.persona.disconnectFromCharacter({ characterId: i.characterId, personaId: i.personaId }),
+    call: (c, i) => c.persona.disconnectFromCharacter({ characterId: i.characterId, personaId: i.personaId }),
   },
   {
     path: "persona.listConnectedToCharacter",
@@ -205,8 +196,7 @@ const PROBES: readonly Probe[] = [
   { path: "worldInfo.listEntries", call: (c, i) => c.worldInfo.listEntries({ bookId: i.bookId }) },
   {
     path: "worldInfo.createEntry",
-    call: (c, i) =>
-      c.worldInfo.createEntry({ bookId: i.bookId, input: { title: "x", content: "x" } }),
+    call: (c, i) => c.worldInfo.createEntry({ bookId: i.bookId, input: { title: "x", content: "x" } }),
   },
   {
     path: "worldInfo.backfillTitles",
@@ -244,8 +234,7 @@ const PROBES: readonly Probe[] = [
   },
   {
     path: "worldInfo.detachFromCharacter",
-    call: (c, i) =>
-      c.worldInfo.detachFromCharacter({ characterId: i.characterId, bookId: i.bookId }),
+    call: (c, i) => c.worldInfo.detachFromCharacter({ characterId: i.characterId, bookId: i.bookId }),
   },
   {
     path: "worldInfo.listForCharacter",
@@ -276,18 +265,15 @@ const PROBES: readonly Probe[] = [
   { path: "tag.removeTag", call: (c, i) => c.tag.removeTag({ tagId: i.tagId }) },
   {
     path: "tag.attachTag",
-    call: (c, i) =>
-      c.tag.attachTag({ tagId: i.tagId, targetType: "character", targetId: i.characterId }),
+    call: (c, i) => c.tag.attachTag({ tagId: i.tagId, targetType: "character", targetId: i.characterId }),
   },
   {
     path: "tag.detachTag",
-    call: (c, i) =>
-      c.tag.detachTag({ tagId: i.tagId, targetType: "character", targetId: i.characterId }),
+    call: (c, i) => c.tag.detachTag({ tagId: i.tagId, targetType: "character", targetId: i.characterId }),
   },
   {
     path: "tag.bulkAttachTag",
-    call: (c, i) =>
-      c.tag.bulkAttachTag({ tagIds: [i.tagId], targetType: "character", targetId: i.characterId }),
+    call: (c, i) => c.tag.bulkAttachTag({ tagIds: [i.tagId], targetType: "character", targetId: i.characterId }),
   },
   { path: "tag.setTagOrder", call: (c, i) => c.tag.setTagOrder({ orderedIds: [i.tagId] }) },
   // The `pending` review inbox narrowed by a characterId — owner-scoped via `characters.ownerId`
@@ -315,15 +301,13 @@ const PROBES: readonly Probe[] = [
   // the `idA === idB` short-circuit doesn't mask the belt), a leak-free non-answer.
   {
     path: "discovery.compareCharacters",
-    call: (c, i) =>
-      c.discovery.compareCharacters({ idA: i.characterId, idB: "character_other_fake" }),
+    call: (c, i) => c.discovery.compareCharacters({ idA: i.characterId, idB: "character_other_fake" }),
   },
   // discovery.compareCharactersDeep — same two-id owner belt as compareCharacters (it DECORATES that diff);
   // a stranger comparing A's card gets null before any summarize call (each card's belt joins characters.ownerId).
   {
     path: "discovery.compareCharactersDeep",
-    call: (c, i) =>
-      c.discovery.compareCharactersDeep({ idA: i.characterId, idB: "character_other_fake" }),
+    call: (c, i) => c.discovery.compareCharactersDeep({ idA: i.characterId, idB: "character_other_fake" }),
   },
   // discovery.askCard — owner-belted via readOwnedCardFacet (characters.ownerId ∩ characterId): a stranger
   // asking about A's card reads no owned/distilled row → null before any summarize/scene read (leak-free).
@@ -428,13 +412,11 @@ const PROBES: readonly Probe[] = [
   { path: "chat.delete", call: (c, i) => c.chat.delete({ chatId: i.chatId }) },
   {
     path: "chat.editMessage",
-    call: (c, i) =>
-      c.chat.editMessage({ chatId: i.chatId, messageId: i.messageId, content: "hacked" }),
+    call: (c, i) => c.chat.editMessage({ chatId: i.chatId, messageId: i.messageId, content: "hacked" }),
   },
   {
     path: "chat.setMessageHidden",
-    call: (c, i) =>
-      c.chat.setMessageHidden({ chatId: i.chatId, messageId: i.messageId, hidden: true }),
+    call: (c, i) => c.chat.setMessageHidden({ chatId: i.chatId, messageId: i.messageId, hidden: true }),
   },
   {
     path: "chat.deleteMessages",
@@ -563,8 +545,7 @@ const PROBES: readonly Probe[] = [
   },
   {
     path: "chat.selectVariant",
-    call: (c, i) =>
-      c.chat.selectVariant({ chatId: i.chatId, messageId: i.messageId, variantId: FAKE.variantId }),
+    call: (c, i) => c.chat.selectVariant({ chatId: i.chatId, messageId: i.messageId, variantId: FAKE.variantId }),
   },
   {
     path: "chat.continueTurn",
@@ -609,12 +590,9 @@ const EXEMPT: Readonly<Record<string, string>> = {
   "credentials.setActive": "keyless-fixture: storage-disabled guard precedes the ownership check",
   "credentials.remove": "keyless-fixture: storage-disabled guard precedes the ownership check",
   "credentials.testHealth": "keyless-fixture: storage-disabled guard precedes the ownership check",
-  "credentials.markRevokedByUser":
-    "keyless-fixture: storage-disabled guard precedes the ownership check",
-  "credentials.clearRevoked":
-    "keyless-fixture: storage-disabled guard precedes the ownership check",
-  "credentials.inspectEndpoint":
-    "keyless-fixture: storage-disabled guard precedes the ownership check",
+  "credentials.markRevokedByUser": "keyless-fixture: storage-disabled guard precedes the ownership check",
+  "credentials.clearRevoked": "keyless-fixture: storage-disabled guard precedes the ownership check",
+  "credentials.inspectEndpoint": "keyless-fixture: storage-disabled guard precedes the ownership check",
   "assets.listOwned": "self-scoped",
   "assets.listGallery": "self-scoped",
   // #67 render resolvers — both return `{assetId, hash}` pairs (asset HASHES, never a marker NAME), so the
@@ -624,8 +602,7 @@ const EXEMPT: Readonly<Record<string, string>> = {
   // membership-scoped on `chatId` + the STRUCTURAL `message_assets` reference + owner-present (a non-
   // participant caller, or an asset not attached in this chat, resolves to nothing) — teeth in
   // `resolve-chat-asset-refs.int.test.ts` and the blob byte-serve attachment arm in `get-metadata.int.test.ts`.
-  "assets.resolveBlobRefs":
-    "self-scoped (ownerId = principal); see resolve-owned-asset-refs.int.test.ts",
+  "assets.resolveBlobRefs": "self-scoped (ownerId = principal); see resolve-owned-asset-refs.int.test.ts",
   "assets.resolveChatBlobRefs":
     "membership + structural-reference scoped; asset hashes are not marker NAMES (sweep toothless) — see resolve-chat-asset-refs.int.test.ts + get-metadata attachment arm",
   "hub.searchGifs":
@@ -633,14 +610,11 @@ const EXEMPT: Readonly<Record<string, string>> = {
   // Gallery ids are strict `typeIdSchema` — a synthesized id fails WIRE validation (BAD_REQUEST) before the
   // ownership gate, and seeding a real gallery item needs CAS bytes. Asset-ownership IDOR (the shared-avatar
   // reference check) is covered by the assets domain's `loadCoParticipantOwner` tests.
-  "assets.addToGallery":
-    "strict-typeid input validation precedes the ownership gate; see loadCoParticipantOwner tests",
-  "assets.removeFromGallery":
-    "strict-typeid input validation precedes the ownership gate; see the assets domain tests",
+  "assets.addToGallery": "strict-typeid input validation precedes the ownership gate; see loadCoParticipantOwner tests",
+  "assets.removeFromGallery": "strict-typeid input validation precedes the ownership gate; see the assets domain tests",
   // `groupConfigSchema` is a discriminated union — a minimal `{}` fails WIRE validation before the verb's
   // membership gate. That IDENTICAL host/member gate IS exercised by `chat.getGroupConfig` (probed → NOT_FOUND).
-  "chat.setGroupConfig":
-    "group-config wire schema validates before the membership gate; the gate is probed via chat.getGroupConfig",
+  "chat.setGroupConfig": "group-config wire schema validates before the membership gate; the gate is probed via chat.getGroupConfig",
   "chat.startChat": "self-scoped: creates a chat the caller hosts",
   "chat.listChats": "self-scoped: only the caller's member chats",
   "settings.getUserSettings": "self-scoped by principal.userId",
@@ -653,8 +627,7 @@ const EXEMPT: Readonly<Record<string, string>> = {
   "buddy.get": "self-scoped: one buddy per caller",
   "buddy.hatch": "self-scoped",
   "buddy.ask": "self-scoped",
-  "buddy.confirm":
-    "not-a-cross-tenant-id: ephemeral in-memory proposal handle (per-user, 5-min TTL)",
+  "buddy.confirm": "not-a-cross-tenant-id: ephemeral in-memory proposal handle (per-user, 5-min TTL)",
   "buddy.history": "self-scoped",
   "buddy.clearChat": "self-scoped",
   "buddy.setReactions": "self-scoped",
@@ -662,14 +635,10 @@ const EXEMPT: Readonly<Record<string, string>> = {
   "buddy.stream": "self-scoped: SSE reaction feed keyed to the caller's own userId (no id input)",
   "search.knn": "self-scoped: ownerId = principal.userId",
   "search.findCharacters": "self-scoped: ownerId = principal.userId",
-  "search.images":
-    "self-scoped: ownerId = principal.userId (owner via assets.ownerId; query text, no id)",
-  "search.fields":
-    "self-scoped: ownerId = principal.userId (index corpus = owner's cards; query text, no id)",
-  "search.suggest":
-    "self-scoped: ownerId = principal.userId (index corpus = owner's cards; query text, no id)",
-  "search.discover":
-    "self-scoped: ownerId = principal.userId (owner-wide verbatim scan derived via characters.ownerId; query text, no id)",
+  "search.images": "self-scoped: ownerId = principal.userId (owner via assets.ownerId; query text, no id)",
+  "search.fields": "self-scoped: ownerId = principal.userId (index corpus = owner's cards; query text, no id)",
+  "search.suggest": "self-scoped: ownerId = principal.userId (index corpus = owner's cards; query text, no id)",
+  "search.discover": "self-scoped: ownerId = principal.userId (owner-wide verbatim scan derived via characters.ownerId; query text, no id)",
   // Takes ids inside `scope`, but EVERY scope is owner-belted in the dispatch (digest scans carry the
   // characters.ownerId belt; the verbatim segments chat is gated against the owner's materialized chat
   // set) — a stranger's id yields []. Unprobeable HERE: the digest/segment path requires a live embedder
@@ -678,39 +647,29 @@ const EXEMPT: Readonly<Record<string, string>> = {
   "search.search":
     "owner-belted-per-scope: ids in `scope` are owner-belted; unprobeable under vllmDisabled (needs an embedder). Belt proven in search.int.test.ts.",
   "discovery.duplicateCharacters": "self-scoped: userId = principal.userId",
-  "discovery.duplicateChats":
-    "self-scoped: userId = principal.userId (owner via present-host EXISTS)",
+  "discovery.duplicateChats": "self-scoped: userId = principal.userId (owner via present-host EXISTS)",
   "discovery.themes": "self-scoped: userId = principal.userId",
-  "discovery.browseCharacters":
-    "self-scoped: userId = principal.userId (owner via characters join)",
+  "discovery.browseCharacters": "self-scoped: userId = principal.userId (owner via characters join)",
   "discovery.characterFacets": "self-scoped: userId = principal.userId",
   "discovery.catalog": "self-scoped: userId = principal.userId (owner via characters join)",
   "discovery.archetypes": "self-scoped: userId = principal.userId",
   "discovery.corpusProjection": "self-scoped: userId = principal.userId",
   "discovery.topKeywords": "self-scoped: userId = principal.userId (owner via characters join)",
-  "discovery.cooccurringKeywords":
-    "self-scoped: userId = principal.userId; `keyword` is a free string, not an owned id",
-  "discovery.themeDrift":
-    "self-scoped: userId = principal.userId (owner via theme_clusters.ownerId)",
+  "discovery.cooccurringKeywords": "self-scoped: userId = principal.userId; `keyword` is a free string, not an owned id",
+  "discovery.themeDrift": "self-scoped: userId = principal.userId (owner via theme_clusters.ownerId)",
   "discovery.unusedCharacters": "self-scoped: userId = principal.userId",
-  "discovery.forgottenGems":
-    "self-scoped: userId = principal.userId (owner via characters join + the self-scoped stats economics op)",
-  "discovery.modelRouting":
-    "self-scoped: userId = principal.userId (owner via characters join + the self-scoped stats economics op)",
-  "discovery.similarityGraph":
-    "self-scoped: userId = principal.userId (no id input; owner via characters join)",
+  "discovery.forgottenGems": "self-scoped: userId = principal.userId (owner via characters join + the self-scoped stats economics op)",
+  "discovery.modelRouting": "self-scoped: userId = principal.userId (owner via characters join + the self-scoped stats economics op)",
+  "discovery.similarityGraph": "self-scoped: userId = principal.userId (no id input; owner via characters join)",
   "discovery.imageDuplicates": "self-scoped: userId = principal.userId",
   "discovery.visualArchetypes": "self-scoped: userId = principal.userId",
   "discovery.portraitAlignment": "self-scoped: userId = principal.userId",
   "discovery.imageFacets": "self-scoped: userId = principal.userId",
-  "discovery.charactersByImageFacet":
-    "self-scoped: userId = principal.userId; facet/value are allowlisted strings, not an owned id",
+  "discovery.charactersByImageFacet": "self-scoped: userId = principal.userId; facet/value are allowlisted strings, not an owned id",
   "discovery.home": "self-scoped: userId = principal.userId",
-  "discovery.themeDetail":
-    "self-scoped: userId = principal.userId; clusterIdx is a facet index, not an owned id (the theme list is owner-scoped)",
+  "discovery.themeDetail": "self-scoped: userId = principal.userId; clusterIdx is a facet index, not an owned id (the theme list is owner-scoped)",
   "connection.getCatalog": "not-owned: the deployment-global model catalog",
-  "connection.getAgentSdkCatalog":
-    "not-owned: the deployment-global agent-sdk daemon model catalog (no id, authed browse)",
+  "connection.getAgentSdkCatalog": "not-owned: the deployment-global agent-sdk daemon model catalog (no id, authed browse)",
   "connection.getModelCapability": "not-owned: a model/source lookup, no owned id",
   "connection.getModelsForSource":
     "self-scoped: the read-only picker facade over (source, role) — reads the caller's OWN credential " +
@@ -720,12 +679,10 @@ const EXEMPT: Readonly<Record<string, string>> = {
   "connection.testClaudeAuth": "self-scoped: the caller's own max-pro-sub health check",
   "notifications.list": "self-scoped by principal.userId (multi-human belt)",
   "notifications.markRead": "self-scoped by principal.userId (inbox scoped inside the verb)",
-  "notifications.markAllRead":
-    "self-scoped by principal.userId (recipient-scoped inside the verb, no foreign id)",
+  "notifications.markAllRead": "self-scoped by principal.userId (recipient-scoped inside the verb, no foreign id)",
   "notifications.dismiss": "self-scoped by principal.userId (inbox scoped inside the verb)",
   "notifications.notifications": "subscription: self-scoped per-user channel",
-  "chat.streamMessages":
-    "subscription: non-member WITHHOLDS (yields nothing), not a NOT_FOUND throw — covered by chat.int durable-replay",
+  "chat.streamMessages": "subscription: non-member WITHHOLDS (yields nothing), not a NOT_FOUND throw — covered by chat.int durable-replay",
   // Stats — every verb scopes on ctx.auth.userId (single-owner); no cross-tenant id but `character` (probed).
   "stats.overview": "self-scoped by principal.userId",
   "stats.leaderboard": "self-scoped by principal.userId",
@@ -752,19 +709,14 @@ const EXEMPT: Readonly<Record<string, string>> = {
   "admin.restartVllmEngine": "admin-gated: role gate",
   "admin.embedCharacterCard": "admin-gated: role gate",
   // get/cancel/retry are PROBED above (owner-scoped, id-taking). start/list/subscribe below:
-  "workloads.start":
-    "self-scoped: a singular run stamps ownerId = caller (a bulk run requires the box owner); no foreign id",
-  "workloads.list":
-    "self-scoped: a non-admin caller is forced to its own ownerId (no cross-tenant id)",
+  "workloads.start": "self-scoped: a singular run stamps ownerId = caller (a bulk run requires the box owner); no foreign id",
+  "workloads.list": "self-scoped: a non-admin caller is forced to its own ownerId (no cross-tenant id)",
   "workloads.subscribe":
     "subscription: the existence check is the OWNER-scoped `get` (throws NOT_FOUND on first pull, not on call) — the gate is probed via workloads.get + the F3 authz int tests",
-  "workloads.createSchedule":
-    "self-scoped: stamps ownerId = caller (a bulk schedule requires the box owner); no foreign id",
-  "workloads.listSchedules":
-    "self-scoped: a non-admin caller is forced to its own ownerId (no cross-tenant id)",
+  "workloads.createSchedule": "self-scoped: stamps ownerId = caller (a bulk schedule requires the box owner); no foreign id",
+  "workloads.listSchedules": "self-scoped: a non-admin caller is forced to its own ownerId (no cross-tenant id)",
   "connection.refreshCatalog": "admin-gated: writes the deployment KV snapshot",
-  "connection.refreshAgentSdkCatalog":
-    "admin-gated: writes the deployment agent-sdk catalog KV snapshot",
+  "connection.refreshAgentSdkCatalog": "admin-gated: writes the deployment agent-sdk catalog KV snapshot",
   "settings.getAppSettings": "admin-gated: deployment settings",
   "settings.updateAppSettings": "admin-gated: deployment settings",
   "settings.getGlobalSetting": "admin-gated: raw global KV",
@@ -781,26 +733,19 @@ describe("cross-tenant IDOR sweep — the completeness guard (grows with the rou
     ).sort();
     const covered = new Set([...PROBES.map((p) => p.path), ...Object.keys(EXEMPT)]);
     const uncovered = all.filter((p) => !covered.has(p));
-    expect(
-      uncovered,
-      `unclassified procedure(s) — add each to PROBES (id-taking, cross-tenant) or EXEMPT (with a reason): ${uncovered.join(", ")}`,
-    ).toEqual([]);
+    expect(uncovered, `unclassified procedure(s) — add each to PROBES (id-taking, cross-tenant) or EXEMPT (with a reason): ${uncovered.join(", ")}`).toEqual(
+      [],
+    );
     // And no stale entries pointing at deleted procedures.
     const known = new Set(all);
     const stale = [...covered].filter((p) => !known.has(p));
-    expect(
-      stale,
-      `stale probe/exempt entries for procedures that no longer exist: ${stale.join(", ")}`,
-    ).toEqual([]);
+    expect(stale, `stale probe/exempt entries for procedures that no longer exist: ${stale.join(", ")}`).toEqual([]);
   });
 });
 
 describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for a stranger", () => {
   /** Seed owner A's one-of-everything (front door where possible; direct db for the turn-engine-bound rows). */
-  async function seedOwnerWorld(
-    owner: AppCaller,
-    db: Parameters<typeof seedChat>[0],
-  ): Promise<OwnerIds> {
+  async function seedOwnerWorld(owner: AppCaller, db: Parameters<typeof seedChat>[0]): Promise<OwnerIds> {
     const character = await owner.character.create({
       input: { handle: "alpha-hero", name: MARK.character, description: "owned by A" },
     });
@@ -904,17 +849,11 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
     };
   }
 
-  test("owner A sees its own marker (the leak-detector has teeth) but a stranger never does", async ({
-    db,
-    ownerCaller,
-    otherCaller,
-  }) => {
+  test("owner A sees its own marker (the leak-detector has teeth) but a stranger never does", async ({ db, ownerCaller, otherCaller }) => {
     const ids = await seedOwnerWorld(ownerCaller, db);
 
     // CONTROL: the owner's OWN read carries the marker — proving the detector below is not blind.
-    const ownView = JSON.stringify(
-      await ownerCaller.character.get({ characterId: ids.characterId }),
-    );
+    const ownView = JSON.stringify(await ownerCaller.character.get({ characterId: ids.characterId }));
     expect(ownView).toContain(MARK.character);
 
     // THE SWEEP: every id-taking procedure, probed as the stranger, must be leak-free. Verdicts are
@@ -927,10 +866,7 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
         leaks.push(verdict);
       }
     }
-    expect(
-      leaks,
-      `cross-tenant IDOR leak(s) — STOP-and-report findings:\n${leaks.join("\n")}`,
-    ).toEqual([]);
+    expect(leaks, `cross-tenant IDOR leak(s) — STOP-and-report findings:\n${leaks.join("\n")}`).toEqual([]);
 
     // POST-SWEEP INTEGRITY: no probe silently MUTATED/deleted A's world (a write-IDOR returning void).
     const stillThere = await ownerCaller.character.get({ characterId: ids.characterId });

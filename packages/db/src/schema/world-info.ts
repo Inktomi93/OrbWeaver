@@ -29,14 +29,7 @@
 
 import type { EntryMetadata } from "@orb/contracts/world-info";
 import { WORLD_BOOK_ROLES } from "@orb/contracts/world-info";
-import type {
-  CharacterId,
-  ChatId,
-  PersonaId,
-  UserId,
-  WorldBookId,
-  WorldEntryId,
-} from "@orb/kit/ids";
+import type { CharacterId, ChatId, PersonaId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 // biome-ignore lint/suspicious/noDeprecatedImports: drizzle @deprecates the positional primaryKey(col) overload; we use the supported primaryKey({ columns }) object form below.
 import { check, index, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";

@@ -37,9 +37,7 @@ export interface CharacterSummaryFixture {
   readonly lastChattedAt: number | null;
 }
 
-export function makeTagFixture(
-  overrides: Partial<CharacterSummaryFixtureTag> = {},
-): CharacterSummaryFixtureTag {
+export function makeTagFixture(overrides: Partial<CharacterSummaryFixtureTag> = {}): CharacterSummaryFixtureTag {
   return {
     id: "tag_ct_1",
     name: "rpg",
@@ -97,9 +95,7 @@ export interface CharacterDetailFixture {
 }
 
 /** A fully-valid `CharacterDetail` literal (the editor read). */
-export function makeCharacterDetail(
-  overrides: Partial<CharacterDetailFixture> = {},
-): CharacterDetailFixture {
+export function makeCharacterDetail(overrides: Partial<CharacterDetailFixture> = {}): CharacterDetailFixture {
   return {
     id: "char_ct_1",
     handle: "char_ct_1",
@@ -137,9 +133,7 @@ export function makeCharacterDetail(
 }
 
 /** A fully-valid `CharacterSummary` literal (the client read model — the library-list row). */
-export function makeCharacterSummary(
-  overrides: Partial<CharacterSummaryFixture> = {},
-): CharacterSummaryFixture {
+export function makeCharacterSummary(overrides: Partial<CharacterSummaryFixture> = {}): CharacterSummaryFixture {
   return {
     id: "char_ct_1",
     handle: "char_ct_1",

@@ -12,9 +12,7 @@ import { getCachedAgentSdkModels } from "../substrate/agent-sdk-model-cache";
 import { resolveCapability } from "../substrate/capability";
 import { getCachedOrModels } from "../substrate/or-model-cache";
 
-export function createGetModelCapability(
-  ctx: ConnectionContext,
-): ConnectionService["getModelCapability"] {
+export function createGetModelCapability(ctx: ConnectionContext): ConnectionService["getModelCapability"] {
   return (params: GetModelCapabilityParams): Promise<ModelCapability> =>
     Promise.resolve(
       resolveCapability(params.model, params.source, params.api, {

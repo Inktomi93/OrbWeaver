@@ -45,20 +45,12 @@ function human(role: "host" | "member"): unknown {
  *  renders past the D16 size-gate). A host FIRST human seat trips the retired first-seat proxy. */
 function castWithHost(viewerIsHost: boolean): unknown {
   return {
-    participants: [
-      human("host"),
-      human("member"),
-      character("aria", "Aria"),
-      character("bryn", "Bryn"),
-    ],
+    participants: [human("host"), human("member"), character("aria", "Aria"), character("bryn", "Bryn")],
     viewerIsHost,
   };
 }
 
-test("a solo roster (1 character) renders NO cast bar (the D16 size-gate)", async ({
-  mount,
-  page,
-}) => {
+test("a solo roster (1 character) renders NO cast bar (the D16 size-gate)", async ({ mount, page }) => {
   await routeTrpc(page, { "chat.getChat": () => roster(character("aria", "Aria")) });
   const component = await mount(<ChatCastBarStory />);
   // Give the query a beat to settle, then assert the bar never appears.
@@ -79,8 +71,7 @@ test("a 2+ roster renders a chip per character", async ({ mount, page }) => {
 
 test("a muted member's chip is marked (dimmed)", async ({ mount, page }) => {
   await routeTrpc(page, {
-    "chat.getChat": () =>
-      roster(character("aria", "Aria"), character("bryn", "Bryn", { disabled: true })),
+    "chat.getChat": () => roster(character("aria", "Aria"), character("bryn", "Bryn", { disabled: true })),
   });
   const component = await mount(<ChatCastBarStory />);
 
@@ -89,10 +80,7 @@ test("a muted member's chip is marked (dimmed)", async ({ mount, page }) => {
   await expect(component.locator('[data-slot="cast-chip"][data-muted]')).toHaveCount(1);
 });
 
-test("a member behind a host seat sees NO add-member '+' (server viewerIsHost wins over the seat)", async ({
-  mount,
-  page,
-}) => {
+test("a member behind a host seat sees NO add-member '+' (server viewerIsHost wins over the seat)", async ({ mount, page }) => {
   // The FIRST human seat is a host, so the retired first-seat proxy would return TRUE and show the "+".
   // The server-resolved `viewerIsHost:false` says THIS viewer is a member — no add affordance.
   await routeTrpc(page, { "chat.getChat": () => castWithHost(false) });

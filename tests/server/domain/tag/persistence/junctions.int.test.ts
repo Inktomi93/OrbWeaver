@@ -17,14 +17,7 @@ import {
 } from "../../../../../packages/server/src/domain/tag/persistence/junctions.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
-import {
-  makeTagHarness,
-  principal,
-  seedCharacter,
-  seedChat,
-  seedTag,
-  seedUser,
-} from "../_support.ts";
+import { makeTagHarness, principal, seedCharacter, seedChat, seedTag, seedUser } from "../_support.ts";
 
 describe("tag persistence/junctions", () => {
   test("ensureTargetAccessible passes an owned target and 404s a foreign one", async () => {
@@ -165,10 +158,7 @@ describe("tag persistence/junctions", () => {
       taggerId: owner,
       status: "accepted",
     });
-    const rows = await db
-      .select()
-      .from(characterTags)
-      .where(eq(characterTags.characterId, characterId));
+    const rows = await db.select().from(characterTags).where(eq(characterTags.characterId, characterId));
     expect(rows.map((r) => r.tagId).sort()).toEqual([a, b].sort());
   });
 

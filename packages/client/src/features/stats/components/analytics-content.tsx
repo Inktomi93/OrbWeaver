@@ -12,10 +12,5 @@ export function AnalyticsContent(): ReactElement {
   if (selectedAnalyticsCharacterId === null) {
     return <AnalyticsOverviewSurface />;
   }
-  return (
-    <AnalyticsCharacterSurface
-      characterId={selectedAnalyticsCharacterId}
-      onBack={clearAnalyticsSelection}
-    />
-  );
+  return <AnalyticsCharacterSurface characterId={selectedAnalyticsCharacterId} onBack={clearAnalyticsSelection} />;
 }

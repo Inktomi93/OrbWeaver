@@ -12,9 +12,7 @@ test("a legal override lands as a scoped custom property", async ({ mount }) => 
       <span>scoped</span>
     </ThemeScope>,
   );
-  const value = await cmp.evaluate((el) =>
-    getComputedStyle(el).getPropertyValue("--color-user-bubble"),
-  );
+  const value = await cmp.evaluate((el) => getComputedStyle(el).getPropertyValue("--color-user-bubble"));
   expect(value.trim()).toBe("oklch(0.3 0.1 20)");
 });
 
@@ -27,9 +25,7 @@ test("a hostile accent value is DROPPED (no injected custom property)", async ({
   );
   // Check the INLINE style (what ThemeScope actually set) — computed would resolve the inherited
   // :root default. A dropped value leaves the inline custom property unset.
-  const inline = await cmp.evaluate((el) =>
-    (el as HTMLElement).style.getPropertyValue("--color-primary"),
-  );
+  const inline = await cmp.evaluate((el) => (el as HTMLElement).style.getPropertyValue("--color-primary"));
   expect(inline).toBe("");
 });
 
@@ -39,15 +35,10 @@ test("a hostile accent value is DROPPED (no injected custom property)", async ({
 // light-theme case (background 0.98) that made the static accent-foreground / primary-foreground
 // illegible before #16 derived them. Colors are normalized through a 1×1 canvas (the browser converts
 // whatever it computed — rgb/oklch — to pixels), then WCAG-contrasted in-page.
-test("derived accent-/primary-foreground RESOLVE to AA-legible colors under a light theme", async ({
-  mount,
-}) => {
+test("derived accent-/primary-foreground RESOLVE to AA-legible colors under a light theme", async ({ mount }) => {
   const cmp = await mount(
     <ThemeScope tokens={{ background: "oklch(0.98 0.004 75)", accent: "oklch(0.55 0.16 50)" }}>
-      <span
-        data-testid="accent"
-        style={{ backgroundColor: "var(--color-accent)", color: "var(--color-accent-foreground)" }}
-      >
+      <span data-testid="accent" style={{ backgroundColor: "var(--color-accent)", color: "var(--color-accent-foreground)" }}>
         selected row
       </span>
       <span
@@ -112,9 +103,7 @@ test("chatStyle/density become data-attributes, not custom properties", async ({
 // tests assert that computed outcome directly (not the inline style, per the "hostile value" test
 // above — inheritance can only be observed at computed-style time).
 
-test("nested ThemeScope: inner wins where it sets a token, falls through to outer where it doesn't", async ({
-  mount,
-}) => {
+test("nested ThemeScope: inner wins where it sets a token, falls through to outer where it doesn't", async ({ mount }) => {
   const cmp = await mount(
     <ThemeScope tokens={{ accent: "oklch(0.3 0.1 20)", speaker: "oklch(0.4 0.1 30)" }}>
       <ThemeScope tokens={{ accent: "oklch(0.5 0.1 40)" }}>
@@ -123,25 +112,16 @@ test("nested ThemeScope: inner wins where it sets a token, falls through to oute
     </ThemeScope>,
   );
   const probe = cmp.getByTestId("probe");
-  const read = (name: string): Promise<string> =>
-    probe.evaluate((el, prop) => getComputedStyle(el).getPropertyValue(prop).trim(), name);
+  const read = (name: string): Promise<string> => probe.evaluate((el, prop) => getComputedStyle(el).getPropertyValue(prop).trim(), name);
   // The inner (character) scope sets `accent` — it wins over the outer (global) scope's accent.
-  await expect
-    .poll(() => read("--color-primary"), { intervals: [20, 50, 100] })
-    .toBe("oklch(0.5 0.1 40)");
+  await expect.poll(() => read("--color-primary"), { intervals: [20, 50, 100] }).toBe("oklch(0.5 0.1 40)");
   // `accent` also maps to --color-ring — the SAME inner value, not a stale outer one.
-  await expect
-    .poll(() => read("--color-ring"), { intervals: [20, 50, 100] })
-    .toBe("oklch(0.5 0.1 40)");
+  await expect.poll(() => read("--color-ring"), { intervals: [20, 50, 100] }).toBe("oklch(0.5 0.1 40)");
   // The inner scope never touches `speaker` — it falls through to the outer (global) scope's value.
-  await expect
-    .poll(() => read("--color-speaker"), { intervals: [20, 50, 100] })
-    .toBe("oklch(0.4 0.1 30)");
+  await expect.poll(() => read("--color-speaker"), { intervals: [20, 50, 100] }).toBe("oklch(0.4 0.1 30)");
 });
 
-test("nested ThemeScope: a token neither scope sets resolves to the same app default as no scope at all", async ({
-  mount,
-}) => {
+test("nested ThemeScope: a token neither scope sets resolves to the same app default as no scope at all", async ({ mount }) => {
   const cmp = await mount(
     <div>
       <ThemeScope tokens={{ accent: "oklch(0.3 0.1 20)" }}>
@@ -153,13 +133,8 @@ test("nested ThemeScope: a token neither scope sets resolves to the same app def
     </div>,
   );
   const readSpeaker = (testId: string): Promise<string> =>
-    cmp
-      .getByTestId(testId)
-      .evaluate((el) => getComputedStyle(el).getPropertyValue("--color-speaker").trim());
-  const [probeValue, controlValue] = await Promise.all([
-    readSpeaker("probe"),
-    readSpeaker("control"),
-  ]);
+    cmp.getByTestId(testId).evaluate((el) => getComputedStyle(el).getPropertyValue("--color-speaker").trim());
+  const [probeValue, controlValue] = await Promise.all([readSpeaker("probe"), readSpeaker("control")]);
   // Neither the inner nor the outer scope sets `speaker` — both the doubly-nested probe and a
   // completely unscoped sibling must resolve to the identical app-default value (not empty, not
   // diverged by the nesting).
@@ -179,9 +154,7 @@ test("nested ThemeScope: a hostile INNER override is dropped — the outer (safe
     </ThemeScope>,
   );
   const probe = cmp.getByTestId("probe");
-  const computed = await probe.evaluate((el) =>
-    getComputedStyle(el).getPropertyValue("--color-primary").trim(),
-  );
+  const computed = await probe.evaluate((el) => getComputedStyle(el).getPropertyValue("--color-primary").trim());
   expect(computed).toBe("oklch(0.3 0.1 20)"); // inherited from the outer scope — the clamp dropped it
   expect(computed).not.toContain("url(");
 });
@@ -198,13 +171,9 @@ test("nested ThemeScope: a hostile INNER override is dropped — the outer (safe
 // Hearth's static --color-primary (oklch(0.72 0.175 52)) is what a `<body>` portal would show instead.
 const FLOAT_ACCENT = "oklch(0.42 0.17 40)"; // maps to --color-primary; decisive vs Hearth's 0.72 0.175 52
 
-const readPrimary = (el: Element): string =>
-  getComputedStyle(el).getPropertyValue("--color-primary").trim();
+const readPrimary = (el: Element): string => getComputedStyle(el).getPropertyValue("--color-primary").trim();
 
-test("an OPEN popover popup resolves the ThemeScope override (portals into the themed root, not <body>)", async ({
-  mount,
-  page,
-}) => {
+test("an OPEN popover popup resolves the ThemeScope override (portals into the themed root, not <body>)", async ({ mount, page }) => {
   await mount(
     <ThemedFloatScope accent={FLOAT_ACCENT}>
       <Popover>
@@ -264,10 +233,7 @@ test("an OPEN menu popup resolves the ThemeScope override", async ({ mount, page
 // into the themed root. Regression pin for the side-eye finding: New-character dialog painted Hearth
 // chrome while Settings (ModalHost) was themed, same session. No `container` prop here — the seal
 // defaults it from context.
-test("an OPEN dialog popup (no explicit container) resolves the ThemeScope override", async ({
-  mount,
-  page,
-}) => {
+test("an OPEN dialog popup (no explicit container) resolves the ThemeScope override", async ({ mount, page }) => {
   await mount(
     <ThemedFloatScope accent={FLOAT_ACCENT}>
       <Dialog>

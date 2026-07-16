@@ -7,17 +7,7 @@ import type { Db } from "@orb/db";
 import type { AssetId, CharacterId, ChatId, GalleryItemId, UserId } from "@orb/kit/ids";
 import type { ImageTransformOptions } from "#infra/image";
 import type { Cas, VariantCache } from "#infra/storage";
-import type {
-  BackfillParams,
-  BackfillResult,
-  FsckOptions,
-  FsckResult,
-  GcOptions,
-  GcResult,
-  ReapResult,
-  RebuildOptions,
-  RebuildResult,
-} from "./maintenance";
+import type { BackfillParams, BackfillResult, FsckOptions, FsckResult, GcOptions, GcResult, ReapResult, RebuildOptions, RebuildResult } from "./maintenance";
 import type {
   GalleryAddParams,
   GalleryListParams,
@@ -45,20 +35,13 @@ export interface AssetsContext {
   readonly loadCoParticipantOwner?: (callerId: UserId, hash: string) => Promise<UserId | undefined>;
   /** Chat-scoped render resolver: `(assetId, hash)` pairs among `assetIds` the caller may render in `chatId`
    *  (structural `message_assets` reference + owner present + caller present). Optional. */
-  readonly loadChatAssetRefs?: (
-    callerId: UserId,
-    chatId: ChatId,
-    assetIds: readonly AssetId[],
-  ) => Promise<readonly AssetBlobRef[]>;
+  readonly loadChatAssetRefs?: (callerId: UserId, chatId: ChatId, assetIds: readonly AssetId[]) => Promise<readonly AssetBlobRef[]>;
   /** Gallery owner-only posture: does `ownerId` own `characterId`? Optional — absent skips the subject check. */
   readonly assertCharacterOwned?: (ownerId: UserId, characterId: CharacterId) => Promise<boolean>;
   /** Gallery export re-link: the portable `handle` of a character by id, or null if gone. Optional. */
   readonly resolveCharacterHandle?: (characterId: CharacterId) => Promise<string | null>;
   /** Gallery import re-link: the owner's own character id carrying `handle`, or null if none exists. Optional. */
-  readonly findCharacterByHandle?: (args: {
-    readonly ownerId: UserId;
-    readonly handle: string;
-  }) => Promise<CharacterId | null>;
+  readonly findCharacterByHandle?: (args: { readonly ownerId: UserId; readonly handle: string }) => Promise<CharacterId | null>;
 }
 
 export interface AssetsService {
@@ -85,17 +68,10 @@ export interface AssetsService {
   /** Gallery v2: the caller's gallery, newest-first, keyset-paged; optional `subjectCharacterId` filter. */
   readonly listGallery: (params: GalleryListParams) => Promise<GalleryItemView[]>;
   /** Resolve `(assetId, hash)` pairs the owner owns among `assetIds` — inline-image render + attach boundary. */
-  readonly resolveOwnedAssetRefs: (
-    ownerId: UserId,
-    assetIds: readonly AssetId[],
-  ) => Promise<readonly AssetBlobRef[]>;
+  readonly resolveOwnedAssetRefs: (ownerId: UserId, assetIds: readonly AssetId[]) => Promise<readonly AssetBlobRef[]>;
   /** Chat-scoped sibling of {@link resolveOwnedAssetRefs}: pairs a caller may render in `chatId`, gated via
    *  {@link AssetsContext.loadChatAssetRefs}. */
-  readonly resolveChatAssetRefs: (
-    callerId: UserId,
-    chatId: ChatId,
-    assetIds: readonly AssetId[],
-  ) => Promise<readonly AssetBlobRef[]>;
+  readonly resolveChatAssetRefs: (callerId: UserId, chatId: ChatId, assetIds: readonly AssetId[]) => Promise<readonly AssetBlobRef[]>;
 
   // ── Maintenance / DR — CLI/workload-driven, not user-facing. ──
 

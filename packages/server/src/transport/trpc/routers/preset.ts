@@ -53,13 +53,9 @@ export const presetRouter = t.router({
 
   remove: authedProcedure
     .input(z.object({ id: brandedId<PresetId>() }))
-    .mutation(({ ctx, input }) =>
-      ctx.services.preset.remove({ userId: ctx.auth.userId, id: input.id }),
-    ),
+    .mutation(({ ctx, input }) => ctx.services.preset.remove({ userId: ctx.auth.userId, id: input.id })),
 
   resetToDefault: authedProcedure
     .input(z.object({ id: brandedId<PresetId>() }))
-    .mutation(({ ctx, input }) =>
-      ctx.services.preset.resetToDefault({ userId: ctx.auth.userId, id: input.id }),
-    ),
+    .mutation(({ ctx, input }) => ctx.services.preset.resetToDefault({ userId: ctx.auth.userId, id: input.id })),
 });

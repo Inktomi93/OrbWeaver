@@ -16,9 +16,7 @@ export interface SubmitButtonProps {
 export function SubmitButton({ children }: SubmitButtonProps): ReactElement {
   const form = useFormContext();
   return (
-    <form.Subscribe
-      selector={(s): readonly [boolean, boolean] => [s.canSubmit, s.isSubmitting] as const}
-    >
+    <form.Subscribe selector={(s): readonly [boolean, boolean] => [s.canSubmit, s.isSubmitting] as const}>
       {([canSubmit, isSubmitting]): ReactElement => (
         <Button type="submit" disabled={!canSubmit || isSubmitting} loading={isSubmitting}>
           {children ?? "Save"}
@@ -33,9 +31,7 @@ export function DirtyPill(): ReactElement {
   const form = useFormContext();
   return (
     <form.Subscribe selector={(s): boolean => s.isDefaultValue}>
-      {(isDefaultValue): ReactElement | null =>
-        isDefaultValue ? null : <Badge intent="warning">Unsaved</Badge>
-      }
+      {(isDefaultValue): ReactElement | null => (isDefaultValue ? null : <Badge intent="warning">Unsaved</Badge>)}
     </form.Subscribe>
   );
 }
@@ -49,8 +45,7 @@ export function FormErrorBanner(): ReactElement {
         if (onSubmitError === undefined || onSubmitError === null) {
           return null;
         }
-        const text =
-          typeof onSubmitError === "string" ? onSubmitError : fieldErrorText([onSubmitError]);
+        const text = typeof onSubmitError === "string" ? onSubmitError : fieldErrorText([onSubmitError]);
         return text === null ? null : <Badge intent="danger">{text}</Badge>;
       }}
     </form.Subscribe>

@@ -16,14 +16,7 @@ import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
-import {
-  EMBED_DIM,
-  IMAGE_EMBED_MODEL,
-  makeStoreHarness,
-  seedAsset,
-  seedUser,
-  TEST_CAPTION,
-} from "../_support.ts";
+import { EMBED_DIM, IMAGE_EMBED_MODEL, makeStoreHarness, seedAsset, seedUser, TEST_CAPTION } from "../_support.ts";
 
 const IMG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 1, 2, 3, 4]);
 const signal = (): AbortSignal => new AbortController().signal;
@@ -50,10 +43,7 @@ describe("embedAssets — the bulk image sweep", () => {
     expect(result).toEqual({ embedded: 1, skipped: 0 });
     expect(h.roleClients.imageEmbed).toHaveBeenCalledTimes(2);
     expect(h.roleClients.summarize).toHaveBeenCalledTimes(1);
-    const rows = await db
-      .select()
-      .from(imageEmbeddings)
-      .where(eq(imageEmbeddings.assetId, seeded.assetId));
+    const rows = await db.select().from(imageEmbeddings).where(eq(imageEmbeddings.assetId, seeded.assetId));
     expect(rows.map((r) => r.lens).sort()).toEqual(["image-captioned", "image-raw"]);
     expect(rows.find((r) => r.lens === "image-captioned")?.caption).toBe(TEST_CAPTION);
   });
@@ -85,9 +75,7 @@ describe("embedAssets — the bulk image sweep", () => {
     expect(forced).toEqual({ embedded: 1, skipped: 0 });
     expect(h.roleClients.imageEmbed).toHaveBeenCalledTimes(4);
     expect(h.roleClients.summarize).toHaveBeenCalledTimes(2);
-    expect(
-      await db.select().from(imageEmbeddings).where(eq(imageEmbeddings.assetId, seeded.assetId)),
-    ).toHaveLength(2);
+    expect(await db.select().from(imageEmbeddings).where(eq(imageEmbeddings.assetId, seeded.assetId))).toHaveLength(2);
   });
 
   test("a HALF-embedded asset (raw only) is resumed, not skipped", async () => {
@@ -110,9 +98,7 @@ describe("embedAssets — the bulk image sweep", () => {
     expect(result).toEqual({ embedded: 1, skipped: 0 });
     // Raw was current (store's internal gate noops it); the captioned half was built.
     expect(h.roleClients.summarize).toHaveBeenCalledTimes(1);
-    expect(
-      await db.select().from(imageEmbeddings).where(eq(imageEmbeddings.assetId, seeded.assetId)),
-    ).toHaveLength(2);
+    expect(await db.select().from(imageEmbeddings).where(eq(imageEmbeddings.assetId, seeded.assetId))).toHaveLength(2);
   });
 
   test("a vanished asset row is a skip, not an error", async () => {

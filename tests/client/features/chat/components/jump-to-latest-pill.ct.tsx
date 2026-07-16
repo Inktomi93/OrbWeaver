@@ -27,17 +27,13 @@ test("hidden by default: inert + out of the tab order + out of the AT tree", asy
   await expect(button).toHaveAttribute("tabindex", "-1");
 });
 
-test("shown: a real, tab-reachable button with a singular/plural count label", async ({
-  mount,
-}) => {
+test("shown: a real, tab-reachable button with a singular/plural count label", async ({ mount }) => {
   const component = await mount(<JumpToLatestPillStory />);
   const button = component.locator('[data-slot="jump-to-latest"] button');
 
   await component.getByTestId("ctl-inc").click(); // count → 1
   await component.getByTestId("ctl-toggle").click(); // visible
-  await expect(component.locator('[data-slot="jump-to-latest"]')).not.toHaveAttribute(
-    "aria-hidden",
-  );
+  await expect(component.locator('[data-slot="jump-to-latest"]')).not.toHaveAttribute("aria-hidden");
   await expect(button).toHaveAttribute("tabindex", "0");
   await expect(button).toHaveAccessibleName("Jump to latest, 1 new message");
 
@@ -53,9 +49,7 @@ test("click fires onJump", async ({ mount }) => {
   await expect(component.getByTestId("jumps")).toHaveText("1");
 });
 
-test("keyboard: the pill is focusable and Enter activates it (real <button> semantics)", async ({
-  mount,
-}) => {
+test("keyboard: the pill is focusable and Enter activates it (real <button> semantics)", async ({ mount }) => {
   const component = await mount(<JumpToLatestPillStory />);
   await component.getByTestId("ctl-inc").click();
   await component.getByTestId("ctl-toggle").click();
@@ -68,9 +62,7 @@ test("keyboard: the pill is focusable and Enter activates it (real <button> sema
   await expect(component.getByTestId("jumps")).toHaveText("2");
 });
 
-test("held-count: the label keeps the last count while hiding (no '0 new messages' flash)", async ({
-  mount,
-}) => {
+test("held-count: the label keeps the last count while hiding (no '0 new messages' flash)", async ({ mount }) => {
   const component = await mount(<JumpToLatestPillStory />);
   const button = component.locator('[data-slot="jump-to-latest"] button');
   await component.getByTestId("ctl-inc").click();
@@ -83,9 +75,7 @@ test("held-count: the label keeps the last count while hiding (no '0 new message
   await expect(button).toHaveAccessibleName("Jump to latest, 2 new messages");
 });
 
-test("P0#1: scrolled far up + a message arrives → pill STAYS visible with the count (not 'caught up')", async ({
-  mount,
-}) => {
+test("P0#1: scrolled far up + a message arrives → pill STAYS visible with the count (not 'caught up')", async ({ mount }) => {
   const component = await mount(<JumpToLatestRegressionStory />);
   const scroll = component.locator('[data-slot="message-list-scroll"]');
   await expect(scroll).toBeVisible();
@@ -106,9 +96,7 @@ test("P0#1: scrolled far up + a message arrives → pill STAYS visible with the 
   await expect(component.locator(`${PILL} button`)).toHaveAccessibleName(NEW_MESSAGE);
 });
 
-test("P0#1 (settle race): live→false ONE commit before the canon bump must NOT drop the count to 0", async ({
-  mount,
-}) => {
+test("P0#1 (settle race): live→false ONE commit before the canon bump must NOT drop the count to 0", async ({ mount }) => {
   const component = await mount(<JumpToLatestRegressionStory />);
   const scroll = component.locator('[data-slot="message-list-scroll"]');
   await expect(scroll).toBeVisible();

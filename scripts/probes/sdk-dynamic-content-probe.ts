@@ -47,17 +47,9 @@ import type { SDKMessage, SessionStore } from "@anthropic-ai/claude-agent-sdk";
 import { query } from "@anthropic-ai/claude-agent-sdk";
 import type { ChatInjection } from "@orb/contracts/chat";
 import type { ChatResult } from "@orb/server/infra/providers";
-import {
-  buildClaudeOpenRouterEnv,
-  buildClaudeSdkEnv,
-  consumeTurnStream,
-  dynamicContextOptions,
-} from "@orb/server/infra/providers/backends/agent-sdk";
+import { buildClaudeOpenRouterEnv, buildClaudeSdkEnv, consumeTurnStream, dynamicContextOptions } from "@orb/server/infra/providers/backends/agent-sdk";
 import type { SeedTurn } from "@orb/server/infra/providers/backends/agent-sdk/session";
-import {
-  InMemorySessionStore,
-  SessionCache,
-} from "@orb/server/infra/providers/backends/agent-sdk/session";
+import { InMemorySessionStore, SessionCache } from "@orb/server/infra/providers/backends/agent-sdk/session";
 import { AGENT_PROMPT_TAIL_JOINER } from "@orb/server/infra/providers/contract";
 // The PRODUCTION splice + squash, deep-imported like the assembly tests (no assembly barrel exists).
 import { spliceInChatInjections } from "../../packages/server/src/domain/chat/assembly/injections.ts";
@@ -97,12 +89,8 @@ const OR_PROBE_TIER_MODELS = {
   haiku: "anthropic/claude-haiku-4.5",
 } as const;
 /** The per-mode firewall env — the SAME builders a real turn uses. */
-function probeEnv(
-  overrides: Parameters<typeof buildClaudeSdkEnv>[0],
-): Record<string, string | undefined> {
-  return MODE === "or"
-    ? buildClaudeOpenRouterEnv(OR_PROBE_KEY, OR_PROBE_TIER_MODELS, overrides)
-    : buildClaudeSdkEnv(overrides);
+function probeEnv(overrides: Parameters<typeof buildClaudeSdkEnv>[0]): Record<string, string | undefined> {
+  return MODE === "or" ? buildClaudeOpenRouterEnv(OR_PROBE_KEY, OR_PROBE_TIER_MODELS, overrides) : buildClaudeSdkEnv(overrides);
 }
 /** Default = claude-opus-4-8. The UserPromptSubmit hook delivers a MID-CONVERSATION SYSTEM MESSAGE, and
  *  per the docs that feature is "Claude Opus 4.8 ONLY" — on Haiku it carries no system authority.
@@ -147,28 +135,9 @@ const PIRATE_MARKERS = ["arr", "matey", "ye ", "ahoy", "be ", "aye", "avast", "y
  *  ("a storm is battering the tavern and everyone is shouting to be heard"); a reply that reflects the storm /
  *  shouting / tension absorbed the fact. Reported ALONGSIDE the pirate steer so we can tell whether it's the
  *  COMMAND FRAMING that fails (docs: Claude resists override-style system directives) vs the channel itself. */
-const STORM_MARKERS = [
-  "storm",
-  "shout",
-  "wind",
-  "rain",
-  "thunder",
-  "howl",
-  "roar",
-  "din",
-  "over the noise",
-] as const;
+const STORM_MARKERS = ["storm", "shout", "wind", "rain", "thunder", "howl", "roar", "din", "over the noise"] as const;
 /** Tolerant butler markers — contains-ANY over a lowercased reply. */
-const BUTLER_MARKERS = [
-  "sir",
-  "madam",
-  "certainly",
-  "indeed",
-  "shall",
-  "very good",
-  "at once",
-  "of course",
-] as const;
+const BUTLER_MARKERS = ["sir", "madam", "certainly", "indeed", "shall", "very good", "at once", "of course"] as const;
 
 // ── Shared fixtures (nonce-woven for per-run cache isolation) ─────────────────────────────────────────────
 /** Deterministic lore, mixing the run nonce into EVERY paragraph so a fresh run's system prefix cannot match
@@ -189,10 +158,7 @@ function balloonFact(colour: string): string {
  *  all three: BLUE, a butler command, and a CALM scene (storm passed) — so freshness is visible on every axis. */
 function spotContent(turnNo: TurnNo): string {
   if (turnNo === FRESHNESS_TURN) {
-    return (
-      `${balloonFact(COLOUR_TURN3)} The storm has passed and the tavern is quiet and calm again. ` +
-      "For your very next reply, speak like a formal butler."
-    );
+    return `${balloonFact(COLOUR_TURN3)} The storm has passed and the tavern is quiet and calm again. For your very next reply, speak like a formal butler.`;
   }
   return (
     `${balloonFact(COLOUR_TURN12)} The scene has shifted: a storm is battering the tavern and everyone ` +
@@ -227,15 +193,9 @@ interface BuiltTurn {
  * `splitAgentHistory` (last-assistant boundary; tail joined with AGENT_PROMPT_TAIL_JOINER — the real constant)
  * because importing the compose barrel would drag the whole composition-root graph into a hand-run probe.
  */
-function buildShaped(
-  canon: readonly WireRow[],
-  tailQuestion: string,
-  injection: ChatInjection | null,
-): BuiltTurn {
+function buildShaped(canon: readonly WireRow[], tailQuestion: string, injection: ChatInjection | null): BuiltTurn {
   const withTail: WireRow[] = [...canon, { role: "user", content: tailQuestion }];
-  const shaped = squashSameRole(
-    spliceInChatInjections(withTail, injection === null ? undefined : [injection]),
-  );
+  const shaped = squashSameRole(spliceInChatInjections(withTail, injection === null ? undefined : [injection]));
   let lastAssistant = -1;
   for (let i = shaped.length - 1; i >= 0; i--) {
     if (shaped[i]?.role === "assistant") {
@@ -245,14 +205,10 @@ function buildShaped(
   }
   const tail = shaped.slice(lastAssistant + 1);
   if (tail.length === 0) {
-    throw new Error(
-      "probe canon must end with a user tail (assistant-final shape is continue-mode)",
-    );
+    throw new Error("probe canon must end with a user tail (assistant-final shape is continue-mode)");
   }
   const prompt = tail.map((r) => r.content).join(AGENT_PROMPT_TAIL_JOINER);
-  const seed = shaped
-    .slice(0, lastAssistant + 1)
-    .map((r): SeedTurn => ({ role: r.role, content: r.content }));
+  const seed = shaped.slice(0, lastAssistant + 1).map((r): SeedTurn => ({ role: r.role, content: r.content }));
   return { seed, prompt };
 }
 
@@ -442,9 +398,7 @@ function record(spot: string, turnNo: number, t: TurnResult, disposition: string
     costUsd: r.usage.costUsd,
     ms: t.elapsedMs,
   });
-  console.log(
-    `  [${spot}/t${turnNo}] disp=${disposition} reply: ${r.reply.slice(0, VERBOSE ? r.reply.length : SNIPPET)}`,
-  );
+  console.log(`  [${spot}/t${turnNo}] disp=${disposition} reply: ${r.reply.slice(0, VERBOSE ? r.reply.length : SNIPPET)}`);
 }
 
 // ── The battery driver — one spot, 3 resumed turns ───────────────────────────────────────────────────────
@@ -506,18 +460,15 @@ function classifySpot(reads: readonly TurnRead[]): SpotScore {
   // FLIP: new colour BLUE (not RED) and butler-ish / NOT piratey (the changed content reached the model).
   const recallLands = t1?.recallOk === true && t2?.recallOk === true;
   const steerLands = t1?.steerPirate === true && t2?.steerPirate === true;
-  const freshnessFlips =
-    t3?.colour === COLOUR_TURN3 && t3?.steerButler === true && t3?.steerPirate === false;
+  const freshnessFlips = t3?.colour === COLOUR_TURN3 && t3?.steerButler === true && t3?.steerPirate === false;
   const live = recallLands && steerLands && freshnessFlips;
   // Precise STALE tell: turn-3 still saying RED, or still piratey ⇒ the channel served stale (cached) content.
   const stale = t3?.colour === COLOUR_TURN12 || t3?.steerPirate === true;
-  let label =
-    "DEAD/UNCLEAR — content did not reliably land (recall/steer failed turns 1-2); see per-turn reads";
+  let label = "DEAD/UNCLEAR — content did not reliably land (recall/steer failed turns 1-2); see per-turn reads";
   if (live) {
     label = "LIVE — content lands turns 1-2 AND turn-3 freshness flips (BLUE + butler)";
   } else if (recallLands && steerLands && stale) {
-    label =
-      "STALE — content lands turns 1-2 but turn-3 served STALE content (still RED and/or still piratey)";
+    label = "STALE — content lands turns 1-2 but turn-3 served STALE content (still RED and/or still piratey)";
   }
   // DIAGNOSTIC (not gated): did the CONTEXT-framed storm fact land on t1-2 while the COMMAND-framed pirate
   // did/didn't? A landed storm + a failed pirate points at COMMAND FRAMING, not the channel, as the failure.
@@ -548,9 +499,7 @@ function printPlan(spots: readonly Spot[]): void {
     `PLAN — ${spots.length} spot(s) × 3-turn battery = ${totalTurns} live turns ` +
       `(~${EST_TOKENS_PER_TURN} input tok touched/turn, mostly cache-read after t1; ⚠ real ${MODE === "or" ? "OR credits" : "Max-sub quota"})`,
   );
-  console.log(
-    `  nonce=${NONCE} (woven into LORE + balloon fact ⇒ this run is cache-isolated from every other run)`,
-  );
+  console.log(`  nonce=${NONCE} (woven into LORE + balloon fact ⇒ this run is cache-isolated from every other run)`);
   console.log("  battery per spot (BENIGN content, read off REPLY TEXT):");
   for (const spot of spots) {
     console.log(`  spot ${spot.id}: ${spot.label}`);
@@ -577,9 +526,7 @@ function printUsageTable(): void {
   if (usageRows.length === 0) {
     return;
   }
-  console.log(
-    "\n=== usage table (SECONDARY — contaminated by the global 5-min content cache across runs; do NOT gate on it) ===",
-  );
+  console.log("\n=== usage table (SECONDARY — contaminated by the global 5-min content cache across runs; do NOT gate on it) ===");
   console.table(
     usageRows.map((r) => ({
       spot: `${r.spot}/${r.turn}`,
@@ -596,9 +543,7 @@ function printUsageTable(): void {
 
 // ── Main ─────────────────────────────────────────────────────────────────────────────────────────────────
 async function main(): Promise<void> {
-  console.log(
-    `sdk-dynamic-content-probe — model=${MODEL} (${MODE === "or" ? "mode-2 OR skin" : "mode-1 Max sub"}; spends real quota/credits)\n`,
-  );
+  console.log(`sdk-dynamic-content-probe — model=${MODEL} (${MODE === "or" ? "mode-2 OR skin" : "mode-1 Max sub"}; spends real quota/credits)\n`);
   const spots = SPOTS.filter((s) => ONLY.size === 0 || ONLY.has(s.id));
   if (spots.length === 0) {
     throw new Error(`--spot matched nothing; known spots: ${SPOTS.map((s) => s.id).join(",")}`);

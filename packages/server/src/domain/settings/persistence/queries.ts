@@ -2,11 +2,7 @@
 // domain never reads/joins users. Timestamps arrive as params (injected clock, no ambient wall-clock reads).
 
 import type { UserSettings } from "@orb/contracts/settings";
-import {
-  DEFAULT_USER_SETTINGS,
-  parseUserSettings,
-  USER_SETTINGS_SCHEMA_VERSION,
-} from "@orb/contracts/settings";
+import { DEFAULT_USER_SETTINGS, parseUserSettings, USER_SETTINGS_SCHEMA_VERSION } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import { settings, userSettings } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
@@ -19,11 +15,7 @@ import type { GlobalSettingView, UserSettingsView } from "../contract/views";
 /** Read this user's typed/defaulted UserSettings. A never-touched account returns parsed defaults with no
  *  write (updatedAt: 0) — materializing the row is ensureUserSettings. */
 export async function readUserSettings(db: Db, ownerId: UserId): Promise<UserSettingsView> {
-  const rows = await db
-    .select()
-    .from(userSettings)
-    .where(eq(userSettings.userId, ownerId))
-    .limit(1);
+  const rows = await db.select().from(userSettings).where(eq(userSettings.userId, ownerId)).limit(1);
   const row = rows[0];
   if (row === undefined) {
     return {
@@ -57,17 +49,9 @@ export async function ensureUserSettings(db: Db, ownerId: UserId, at: number): P
 }
 
 /** Seed-then-UPDATE the user's config blob; schemaVersion is service-owned (pinned to the current constant). */
-export async function writeUserConfig(
-  db: Db,
-  ownerId: UserId,
-  config: UserSettings,
-  at: number,
-): Promise<void> {
+export async function writeUserConfig(db: Db, ownerId: UserId, config: UserSettings, at: number): Promise<void> {
   await ensureUserSettings(db, ownerId, at);
-  await db
-    .update(userSettings)
-    .set({ config, schemaVersion: USER_SETTINGS_SCHEMA_VERSION, updatedAt: at })
-    .where(eq(userSettings.userId, ownerId));
+  await db.update(userSettings).set({ config, schemaVersion: USER_SETTINGS_SCHEMA_VERSION, updatedAt: at }).where(eq(userSettings.userId, ownerId));
 }
 
 function toView(row: { key: string; value: JsonValue; updatedAt: number }): GlobalSettingView {
@@ -86,12 +70,7 @@ export async function readGlobalSetting(db: Db, key: string): Promise<GlobalSett
 }
 
 /** Upsert one raw global-KV row and return its view. The reserved-key guard + audit live in the verb. */
-export async function upsertGlobalSetting(
-  db: Db,
-  key: string,
-  value: JsonValue,
-  at: number,
-): Promise<GlobalSettingView> {
+export async function upsertGlobalSetting(db: Db, key: string, value: JsonValue, at: number): Promise<GlobalSettingView> {
   await db
     .insert(settings)
     .values({ key, value, updatedAt: at })
@@ -106,11 +85,7 @@ export async function upsertGlobalSetting(
 
 /** Read the raw stored AppSettings override blob (or undefined if never written); the caller parses it. */
 export async function readAppOverrideRaw(db: Db): Promise<JsonValue | undefined> {
-  const rows = await db
-    .select({ value: settings.value })
-    .from(settings)
-    .where(eq(settings.key, APP_SETTINGS_KEY))
-    .limit(1);
+  const rows = await db.select({ value: settings.value }).from(settings).where(eq(settings.key, APP_SETTINGS_KEY)).limit(1);
   return rows[0]?.value;
 }
 

@@ -26,16 +26,12 @@ export interface ValidatedSession {
 
 /** The SSO login access + role decision. `deny` = the allowed-groups login gate refused the identity;
  *  `allow` carries the derived global role. */
-export type IdentityAccess =
-  | { readonly outcome: "allow"; readonly role: UserRole }
-  | { readonly outcome: "deny" };
+export type IdentityAccess = { readonly outcome: "allow"; readonly role: UserRole } | { readonly outcome: "deny" };
 
 /** `provisionIdentity` output — a discriminated union: `provisioned` (the upserted row's live login state)
  *  or `denied` (the login gate refused the identity — no row is created/updated). Distinct from
  *  `enabled:false` (a disabled account, surfaced as 403). */
-export type ProvisionResult =
-  | { readonly outcome: "provisioned"; userId: UserId; enabled: boolean; role: UserRole }
-  | { readonly outcome: "denied" };
+export type ProvisionResult = { readonly outcome: "provisioned"; userId: UserId; enabled: boolean; role: UserRole } | { readonly outcome: "denied" };
 
 /** `loadUserById` output: a bare row id's live principal-fields — the frozen-host → `Principal` bridge. Not
  *  a login path: no `enabled` gate rides this read. */

@@ -29,12 +29,7 @@ async function seedOneEmbedding(db: Awaited<ReturnType<typeof freshDb>>): Promis
     model: EMBED_MODEL,
     dim: EMBED_DIM,
   });
-  const row = (
-    await db
-      .select()
-      .from(characterEmbeddings)
-      .where(eq(characterEmbeddings.characterId, characterId))
-  )[0];
+  const row = (await db.select().from(characterEmbeddings).where(eq(characterEmbeddings.characterId, characterId)))[0];
   if (row === undefined) {
     throw new Error("seedOneEmbedding: row missing after store");
   }
@@ -52,9 +47,7 @@ describe("writeHubScores", () => {
     });
 
     expect(result.rowsUpdated).toBe(1);
-    const row = (
-      await db.select().from(characterEmbeddings).where(eq(characterEmbeddings.id, id))
-    )[0];
+    const row = (await db.select().from(characterEmbeddings).where(eq(characterEmbeddings.id, id)))[0];
     expect(row?.hubScore).toBeCloseTo(0.42);
   });
 
@@ -68,9 +61,7 @@ describe("writeHubScores", () => {
     });
 
     expect(result.rowsUpdated).toBe(0);
-    const row = (
-      await db.select().from(characterEmbeddings).where(eq(characterEmbeddings.id, id))
-    )[0];
+    const row = (await db.select().from(characterEmbeddings).where(eq(characterEmbeddings.id, id)))[0];
     expect(row?.hubScore).toBeNull();
   });
 

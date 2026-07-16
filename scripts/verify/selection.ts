@@ -11,8 +11,7 @@ import process from "node:process";
 // ── the path-zone predicates + algebra (lifted verbatim from check/file.ts — kept in ONE place) ──
 const TS_RE = /\.(?:ts|tsx|mts|cts)$/u;
 // Mirrors the lint:eslint script's path list in package.json.
-const ESLINT_RE =
-  /^(?:packages\/(?:ui|client|server|kit|db|contracts)|tests\/ui|tests\/client)\/.*\.tsx?$/u;
+const ESLINT_RE = /^(?:packages\/(?:ui|client|server|kit|db|contracts)|tests\/ui|tests\/client)\/.*\.tsx?$/u;
 const DEPCRUISE_RE = /^packages\/.*\.(?:ts|tsx|js|jsx|mts|cts)$/u;
 const PKG_SRC_RE = /^packages\/([^/]+)\/src\//u;
 const DOCS_MD_RE = /^docs\/architecture\/.*\.md$/u;
@@ -72,11 +71,7 @@ export function staticPrograms(rel: string): readonly string[] {
   if (TESTS_CLIENT_TSX_RE.test(rel) || rel === CT_CLIENT_OWNED) {
     return [CLIENT_TSCONFIG];
   }
-  if (
-    TESTS_UI_TSX_RE.test(rel) ||
-    (CT_SUPPORT_TSX_RE.test(rel) && rel !== CT_CLIENT_OWNED) ||
-    PLAYWRIGHT_TSX_DTS_RE.test(rel)
-  ) {
+  if (TESTS_UI_TSX_RE.test(rel) || (CT_SUPPORT_TSX_RE.test(rel) && rel !== CT_CLIENT_OWNED) || PLAYWRIGHT_TSX_DTS_RE.test(rel)) {
     return [UI_TSCONFIG];
   }
   // 4. the node graph roots (a .tsx here is claimed by rule 3 above — today none reach this arm).
@@ -92,12 +87,7 @@ export function programsFor(rel: string, graphSrcMembers?: ReadonlySet<string>):
   const base = staticPrograms(rel);
   // rule 5 — the import-pull overlay. Only package-src files can be pulled into the graph (the graph's
   // own roots are already GRAPH via rule 4; browser tsx is directory-excluded from the graph).
-  if (
-    PKG_SRC_RE.test(rel) &&
-    graphSrcMembers !== undefined &&
-    graphSrcMembers.has(rel) &&
-    !base.includes(GRAPH)
-  ) {
+  if (PKG_SRC_RE.test(rel) && graphSrcMembers?.has(rel) && !base.includes(GRAPH)) {
     return [...base, GRAPH];
   }
   return base;
@@ -224,9 +214,7 @@ function computeMembership(): readonly string[] | undefined {
 
 /** The graph program's package-src overlay set (rule 5), cached on HEAD+dirty. undefined ⇒ tsgo/cache
  *  unavailable ⇒ the conservative fallback applies. Memoized per process. */
-let membershipMemo:
-  | { readonly key: string; readonly set: ReadonlySet<string> | undefined }
-  | undefined;
+let membershipMemo: { readonly key: string; readonly set: ReadonlySet<string> | undefined } | undefined;
 function graphMembership(): ReadonlySet<string> | undefined {
   const key = graphMembershipKey();
   if (membershipMemo?.key === key) {
@@ -256,10 +244,7 @@ const GRAPH_TSCONFIG = "tsconfig.json";
 /** The distinct PACKAGE-level owning tsconfigs a selection touches (the honest per-package tsc floor). The
  *  root GRAPH program is EXCLUDED here — it is a separate stage (`types:graph`), driven by the graph flag,
  *  not a per-package `tsc -p`. */
-function distinctTsconfigs(
-  paths: readonly string[],
-  graphSrc: ReadonlySet<string> | undefined,
-): readonly string[] {
+function distinctTsconfigs(paths: readonly string[], graphSrc: ReadonlySet<string> | undefined): readonly string[] {
   const owners = new Set<string>();
   for (const p of paths) {
     for (const cfg of programsFor(p, graphSrc)) {
@@ -277,10 +262,7 @@ function distinctTsconfigs(
  *  exception is the cache-cold fallback: a package-src file the overlay can't confirm is conservatively
  *  treated as in-graph so `types:graph` is never UNDER-run. Browser tsx under tests/ is NOT in the graph
  *  (it's directory-excluded, routed to ui/client) — `programsFor` already reflects that. */
-function touchesGraph(
-  paths: readonly string[],
-  graphSrc: ReadonlySet<string> | undefined,
-): boolean {
+function touchesGraph(paths: readonly string[], graphSrc: ReadonlySet<string> | undefined): boolean {
   return paths.some((p) => {
     if (programsFor(p, graphSrc).includes(GRAPH)) {
       return true;
@@ -321,10 +303,7 @@ function resolveChanged(kind: "changed" | "file", explicit: readonly string[]): 
     label,
     paths,
     ...deriveViews(paths),
-    checkScopeArgv:
-      paths.length > 0
-        ? ["tsx", "scripts/check/scoped.ts", "--changed", ...paths]
-        : ["tsx", "scripts/check/scoped.ts", "--changed"],
+    checkScopeArgv: paths.length > 0 ? ["tsx", "scripts/check/scoped.ts", "--changed", ...paths] : ["tsx", "scripts/check/scoped.ts", "--changed"],
     gitRef,
   };
 }

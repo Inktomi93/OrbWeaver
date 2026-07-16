@@ -3,14 +3,7 @@
 // (one home — the type AND the schema mirror the tuple; no re-spelled union, no re-spelled enum list).
 
 import type { ClipKind, ClipScope, ClipSourceKind } from "@orb/contracts/memory";
-import {
-  CLIP_KINDS,
-  CLIP_SCOPES,
-  CLIP_SOURCE_KINDS,
-  clipKindSchema,
-  clipScopeSchema,
-  clipSourceKindSchema,
-} from "@orb/contracts/memory";
+import { CLIP_KINDS, CLIP_SCOPES, CLIP_SOURCE_KINDS, clipKindSchema, clipScopeSchema, clipSourceKindSchema } from "@orb/contracts/memory";
 import { expect, test } from "../../support/fixtures";
 
 test("CLIP_KINDS is exactly [fact, trait, relationship, world-state, plot-thread]", () => {

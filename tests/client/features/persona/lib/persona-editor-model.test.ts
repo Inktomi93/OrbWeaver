@@ -9,10 +9,7 @@
 import { personaMetadataSchema } from "@orb/contracts/persona";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { PersonaFormValues } from "../../../../../packages/client/src/features/persona/lib/persona-editor-model";
-import {
-  isPrefillCombo,
-  personaInputFromForm,
-} from "../../../../../packages/client/src/features/persona/lib/persona-editor-model";
+import { isPrefillCombo, personaInputFromForm } from "../../../../../packages/client/src/features/persona/lib/persona-editor-model";
 import { expect, test } from "../../../../support/fixtures";
 
 const BASE_VALUES: PersonaFormValues = {
@@ -57,10 +54,7 @@ test("placement mapping — none drops inject too", () => {
 });
 
 test("placement mapping — at_depth re-nests inject {depth, role}", () => {
-  const { metadata } = personaInputFromForm(
-    form({ descriptionPosition: "at_depth", injectDepth: 4, injectRole: "user" }),
-    null,
-  );
+  const { metadata } = personaInputFromForm(form({ descriptionPosition: "at_depth", injectDepth: 4, injectRole: "user" }), null);
   expect(metadata).toStrictEqual({
     descriptionPosition: "at_depth",
     inject: { depth: 4, role: "user" },
@@ -68,10 +62,7 @@ test("placement mapping — at_depth re-nests inject {depth, role}", () => {
 });
 
 test("at_depth with an empty depth input falls back to the default depth (2), not null", () => {
-  const { metadata } = personaInputFromForm(
-    form({ descriptionPosition: "at_depth", injectDepth: null, injectRole: "user" }),
-    null,
-  );
+  const { metadata } = personaInputFromForm(form({ descriptionPosition: "at_depth", injectDepth: null, injectRole: "user" }), null);
   expect(metadata).toStrictEqual({
     descriptionPosition: "at_depth",
     inject: { depth: 2, role: "user" },
@@ -79,10 +70,7 @@ test("at_depth with an empty depth input falls back to the default depth (2), no
 });
 
 test("provenance tail (sourceCharacterId/swapMacros + loose extras) survives a save — only the editor's own keys are rewritten", () => {
-  const { metadata } = personaInputFromForm(
-    form({ descriptionPosition: "at_depth", injectDepth: 3, injectRole: "user" }),
-    PROVENANCE,
-  );
+  const { metadata } = personaInputFromForm(form({ descriptionPosition: "at_depth", injectDepth: 3, injectRole: "user" }), PROVENANCE);
   expect(metadata).toStrictEqual({
     sourceCharacterId: SOURCE_CHARACTER_ID,
     swapMacros: true,
@@ -94,8 +82,7 @@ test("provenance tail (sourceCharacterId/swapMacros + loose extras) survives a s
 });
 
 test("isPrefillCombo flags ONLY assistant-role at depth 0 (the wire-rejected prefill)", () => {
-  const combo = (o: Partial<PersonaFormValues>): boolean =>
-    isPrefillCombo(form({ descriptionPosition: "at_depth", injectRole: "assistant", ...o }));
+  const combo = (o: Partial<PersonaFormValues>): boolean => isPrefillCombo(form({ descriptionPosition: "at_depth", injectRole: "assistant", ...o }));
   expect(combo({ injectDepth: 0 })).toBe(true);
   // empty depth reads as 0 → still the prefill
   expect(combo({ injectDepth: null })).toBe(true);
@@ -129,9 +116,6 @@ test("F6 withhold — the prefill combo re-emits the base placement verbatim so 
 });
 
 test("F6 withhold — with no base metadata the prefill combo yields an empty blob (nothing invalid written)", () => {
-  const input = personaInputFromForm(
-    form({ descriptionPosition: "at_depth", injectRole: "assistant", injectDepth: 0 }),
-    null,
-  );
+  const input = personaInputFromForm(form({ descriptionPosition: "at_depth", injectRole: "assistant", injectDepth: 0 }), null);
   expect(input.metadata).toStrictEqual({});
 });

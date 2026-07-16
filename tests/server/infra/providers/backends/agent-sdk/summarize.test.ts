@@ -101,9 +101,7 @@ function streamOf(messages: readonly unknown[]): AsyncGenerator<never> {
 
 describe("agent-sdk summarize", () => {
   test("no jsonSchema → the plain reply text (trimmed), token usage + sub cost", async () => {
-    const fakeQuery = vi.fn((_req: { prompt: string; options: Record<string, unknown> }) =>
-      streamOf(textTurn("  a lazy dog jumps  ")),
-    );
+    const fakeQuery = vi.fn((_req: { prompt: string; options: Record<string, unknown> }) => streamOf(textTurn("  a lazy dog jumps  ")));
     const summarize = backendOf(fakeQuery);
 
     const result = await summarize(reqOf());
@@ -139,9 +137,7 @@ describe("agent-sdk summarize", () => {
       required: ["topic", "sentiment"],
     };
     const structured = { topic: "fox", sentiment: "neutral" };
-    const fakeQuery = vi.fn((_req: { prompt: string; options: Record<string, unknown> }) =>
-      streamOf(structuredTurn(structured)),
-    );
+    const fakeQuery = vi.fn((_req: { prompt: string; options: Record<string, unknown> }) => streamOf(structuredTurn(structured)));
     const summarize = backendOf(fakeQuery);
 
     const result = await summarize(reqOf({ jsonSchema: schema }));
@@ -193,9 +189,7 @@ describe("agent-sdk summarize", () => {
   });
 
   test("maxTokens rides the output-cap env override; sampling knobs are DROPPED", async () => {
-    const fakeQuery = vi.fn((_req: { prompt: string; options: Record<string, unknown> }) =>
-      streamOf(textTurn("ok")),
-    );
+    const fakeQuery = vi.fn((_req: { prompt: string; options: Record<string, unknown> }) => streamOf(textTurn("ok")));
     const summarize = backendOf(fakeQuery);
 
     await summarize(

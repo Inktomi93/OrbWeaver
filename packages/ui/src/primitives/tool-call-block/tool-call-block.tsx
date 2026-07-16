@@ -51,11 +51,7 @@ function prettyOrRaw(raw: string): string {
  * Generic tool-invocation block — the fallback every unregistered tool name falls back to. Three
  * states driven only by the record, never by parsing prose: error, unexecuted (`result === null`), success.
  */
-export function ToolCallBlock({
-  record,
-  defaultOpen,
-  className,
-}: ToolCallBlockProps): ReactElement {
+export function ToolCallBlock({ record, defaultOpen, className }: ToolCallBlockProps): ReactElement {
   const slots = toolCallBlockVariants();
   const state = stateOf(record);
   const argumentsText = prettyOrRaw(record.arguments);

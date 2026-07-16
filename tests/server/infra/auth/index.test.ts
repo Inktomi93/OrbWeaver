@@ -25,12 +25,7 @@ describe("resolve — the verification output never carries userId or role (inva
       peerIp: "10.1.2.3",
     });
     expect(res.identity).not.toBeNull();
-    expect(Object.keys(res.identity ?? {}).sort()).toEqual([
-      "email",
-      "externalId",
-      "groups",
-      "handle",
-    ]);
+    expect(Object.keys(res.identity ?? {}).sort()).toEqual(["email", "externalId", "groups", "handle"]);
   });
 });
 

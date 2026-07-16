@@ -23,9 +23,7 @@ interface OrAccountClient {
 }
 
 /** Read the credential's OpenRouter credit balance (`{ total, used }`). Works on any inference key. */
-export async function getOpenRouterCredits(
-  client: Pick<OrAccountClient, "credits">,
-): Promise<AccountCredits> {
+export async function getOpenRouterCredits(client: Pick<OrAccountClient, "credits">): Promise<AccountCredits> {
   let response: GetCreditsResponse;
   try {
     response = await client.credits.getCredits();
@@ -40,10 +38,7 @@ export async function getOpenRouterCredits(
  * key that billed the generation, else OpenRouter 404s — the caller throttles/retries; this just surfaces
  * the typed error.
  */
-export async function getOpenRouterGenerationCost(
-  client: Pick<OrAccountClient, "generations">,
-  generationId: string,
-): Promise<GenerationCost> {
+export async function getOpenRouterGenerationCost(client: Pick<OrAccountClient, "generations">, generationId: string): Promise<GenerationCost> {
   let response: GenerationResponse;
   try {
     response = await client.generations.getGeneration({ id: generationId });

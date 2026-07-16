@@ -18,11 +18,7 @@ export const useCreateUserForm = createSavedEntityForm<CreateUserFormValues>({
   defaultValues: CREATE_USER_DEFAULTS,
   options: {
     validators: {
-      onDynamic: ({
-        value,
-      }: {
-        value: CreateUserFormValues;
-      }): { fields: Record<string, string> } | undefined => {
+      onDynamic: ({ value }: { value: CreateUserFormValues }): { fields: Record<string, string> } | undefined => {
         const fields: Record<string, string> = {};
         if (value.handle.trim().length === 0) {
           fields["handle"] = "A handle is required.";

@@ -51,23 +51,13 @@ interface CapturedOptions {
   env?: Record<string, string | undefined>;
   abortController?: AbortController;
   taskBudget?: { total: number };
-  onElicitation?: (request: {
-    mode?: "form" | "url";
-  }) => Promise<{ action: string; content?: Record<string, unknown> }>;
-  onUserDialog?: (request: {
-    dialogKind: string;
-    payload: Record<string, unknown>;
-  }) => Promise<{ behavior: string }>;
+  onElicitation?: (request: { mode?: "form" | "url" }) => Promise<{ action: string; content?: Record<string, unknown> }>;
+  onUserDialog?: (request: { dialogKind: string; payload: Record<string, unknown> }) => Promise<{ behavior: string }>;
 }
 
 /** Find the ONE logged line for `event` among a pino-spy's calls (its first arg is the fields object). */
-function lineFor(
-  spy: ReturnType<typeof vi.spyOn>,
-  event: string,
-): Record<string, unknown> | undefined {
-  return spy.mock.calls.find(
-    (c: readonly unknown[]) => (c[0] as { event?: string }).event === event,
-  )?.[0] as Record<string, unknown> | undefined;
+function lineFor(spy: ReturnType<typeof vi.spyOn>, event: string): Record<string, unknown> | undefined {
+  return spy.mock.calls.find((c: readonly unknown[]) => (c[0] as { event?: string }).event === event)?.[0] as Record<string, unknown> | undefined;
 }
 
 function streamOf(messages: readonly unknown[]): MessageStream {
@@ -116,9 +106,7 @@ function buildReq(extra: Partial<AgentTurnRequest> = {}): AgentTurnRequest {
 }
 
 function harness(): { run: AgentTurn; lastOptions: () => CapturedOptions | undefined } {
-  const fakeQuery = vi.fn((_args: { options?: CapturedOptions }) =>
-    streamOf([initMsg, assistantMsg, successResult]),
-  );
+  const fakeQuery = vi.fn((_args: { options?: CapturedOptions }) => streamOf([initMsg, assistantMsg, successResult]));
   const backend = createAgentSdkBackend({
     now: () => 0,
     query: fakeQuery as never,
@@ -348,9 +336,7 @@ describe("runAgentTurn — structured output (responseFormat → outputFormat)",
 
   test("also fails closed when supportsStructuredOutput is omitted (must be explicitly true)", async () => {
     const { run } = harness();
-    await expect(
-      run(buildReq({ responseFormat: { name: "v", schema: SCHEMA } })),
-    ).rejects.toMatchObject({ kind: "invalid" });
+    await expect(run(buildReq({ responseFormat: { name: "v", schema: SCHEMA } }))).rejects.toMatchObject({ kind: "invalid" });
   });
 });
 
@@ -392,13 +378,9 @@ describe("runAgentTurn — MCP health surfacing (best-effort probe)", () => {
 
   test("a failed server → mcpServerHealth carries name+status+error and provider.mcp WARNS", async () => {
     const warn = vi.spyOn(logger, "warn");
-    const { run } = harnessWithMcpStatus([
-      { name: "remote", status: "failed", error: "connect ECONNREFUSED" },
-    ]);
+    const { run } = harnessWithMcpStatus([{ name: "remote", status: "failed", error: "connect ECONNREFUSED" }]);
     const result = await run(buildReq());
-    expect(result.mcpServerHealth).toEqual([
-      { name: "remote", status: "failed", error: "connect ECONNREFUSED" },
-    ]);
+    expect(result.mcpServerHealth).toEqual([{ name: "remote", status: "failed", error: "connect ECONNREFUSED" }]);
     expect(lineFor(warn, "provider.mcp")).toMatchObject({ unhealthy: true });
   });
 });

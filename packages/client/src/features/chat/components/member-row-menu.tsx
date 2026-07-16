@@ -21,27 +21,15 @@ export interface MemberMenuControls {
 
 /** The per-row Menu items — ALL of a row's actions (rule 10); destructive rows LAST. Empty array ⇒
  *  the row renders no menu (a member viewing another human). */
-export function buildMenuItems(
-  props: MemberRowActions & { readonly row: MemberPersonRow | MemberCastRow },
-  controls: MemberMenuControls,
-): ReactNode[] {
-  return props.row.kind === "cast"
-    ? castMenuItems(props.row, props, controls.openWeight)
-    : personMenuItems(props.row, props, controls.setConfirm);
+export function buildMenuItems(props: MemberRowActions & { readonly row: MemberPersonRow | MemberCastRow }, controls: MemberMenuControls): ReactNode[] {
+  return props.row.kind === "cast" ? castMenuItems(props.row, props, controls.openWeight) : personMenuItems(props.row, props, controls.setConfirm);
 }
 
-function castMenuItems(
-  row: MemberCastRow,
-  actions: MemberRowActions,
-  openWeight: () => void,
-): ReactNode[] {
+function castMenuItems(row: MemberCastRow, actions: MemberRowActions, openWeight: () => void): ReactNode[] {
   const items: ReactNode[] = [];
   if (actions.onSetDisabled !== undefined) {
     items.push(
-      <MenuItem
-        key="mute"
-        onClick={(): void => actions.onSetDisabled?.(row.characterId, !row.disabled)}
-      >
+      <MenuItem key="mute" onClick={(): void => actions.onSetDisabled?.(row.characterId, !row.disabled)}>
         <Icon icon={row.disabled ? VolumeX : Volume2} size="sm" />
         {row.disabled ? `Unmute ${row.displayName}` : `Mute ${row.displayName}`}
       </MenuItem>,
@@ -74,11 +62,7 @@ function castMenuItems(
   return items;
 }
 
-function personMenuItems(
-  row: MemberPersonRow,
-  actions: MemberRowActions,
-  setConfirm: (confirm: "kick" | "leave") => void,
-): ReactNode[] {
+function personMenuItems(row: MemberPersonRow, actions: MemberRowActions, setConfirm: (confirm: "kick" | "leave") => void): ReactNode[] {
   const items: ReactNode[] = [];
   if (row.isViewer) {
     if (actions.onLeave !== undefined) {

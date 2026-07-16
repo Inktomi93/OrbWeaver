@@ -17,10 +17,7 @@ const PRESET_ENTITY = "preset";
 export function createRemove(ctx: PresetContext): Pick<PresetService, "remove"> {
   async function remove(params: RemovePresetParams): Promise<void> {
     if (params.id === SYSTEM_DEFAULT_PRESET_ID) {
-      throw new PresetOperationError(
-        PRESET_OP_CODES.cannotRemoveSystemDefault,
-        "the system default preset cannot be removed",
-      );
+      throw new PresetOperationError(PRESET_OP_CODES.cannotRemoveSystemDefault, "the system default preset cannot be removed");
     }
     const removed = await deletePreset(ctx.db, params.id, params.userId);
     if (!removed) {

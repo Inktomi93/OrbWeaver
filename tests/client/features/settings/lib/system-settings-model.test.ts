@@ -5,14 +5,8 @@
 // law the diff exists to protect). The two-baseline contract: `original` = the inherited/default a revert
 // clears back to; `lastSaved` = the last persisted state (change detection).
 
-import type {
-  SystemSettingsBaselines,
-  SystemSettingsForm,
-} from "../../../../../packages/client/src/features/settings/lib/system-settings-model";
-import {
-  BYTES_PER_MB,
-  diffSystemPatch,
-} from "../../../../../packages/client/src/features/settings/lib/system-settings-model";
+import type { SystemSettingsBaselines, SystemSettingsForm } from "../../../../../packages/client/src/features/settings/lib/system-settings-model";
+import { BYTES_PER_MB, diffSystemPatch } from "../../../../../packages/client/src/features/settings/lib/system-settings-model";
 import { expect, test } from "../../../../support/fixtures";
 
 // The projection of the CT's resolved effective config (env floor ⊕ override — every field present).
@@ -92,9 +86,7 @@ test("reverting a vLLM sub-key while the sibling is untouched clears the whole n
     original: form({ vllmEmbedConcurrency: 4, vllmSummarizeConcurrency: 2 }),
     lastSaved: form({ vllmEmbedConcurrency: 8, vllmSummarizeConcurrency: 2 }),
   };
-  expect(
-    diffSystemPatch(baselines, form({ vllmEmbedConcurrency: 4, vllmSummarizeConcurrency: 2 })),
-  ).toStrictEqual({ vllmConcurrency: null });
+  expect(diffSystemPatch(baselines, form({ vllmEmbedConcurrency: 4, vllmSummarizeConcurrency: 2 }))).toStrictEqual({ vllmConcurrency: null });
 });
 
 test("maxImageMb toggled up then back to the inherited MB clears the byte override", () => {
@@ -124,10 +116,7 @@ test("clearing the maxImageMb input (null) clears the override rather than sendi
 });
 
 test("a multi-field turn writes every moved field and no untouched env-mirrored one", () => {
-  const patch = diffSystemPatch(
-    mounted(BASE),
-    form({ trustHtml: true, forbidExternalMedia: false, corpusAutoindex: true }),
-  );
+  const patch = diffSystemPatch(mounted(BASE), form({ trustHtml: true, forbidExternalMedia: false, corpusAutoindex: true }));
   expect(patch).toEqual({ trustHtml: true, forbidExternalMedia: false, corpusAutoindex: true });
   // The env-mirrored fields the admin never touched must be absent (never pinned to a DB copy).
   expect("logLevel" in patch).toBe(false);

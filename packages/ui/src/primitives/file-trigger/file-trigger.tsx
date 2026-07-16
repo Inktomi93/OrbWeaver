@@ -20,13 +20,7 @@ export interface FileTriggerProps {
  * Headless counterpart to `@orb/ui/file-dropzone`: a real (visually-hidden, not `display:none`)
  * `<input type="file">` driven by a render-prop `open()` the caller wires to its own trigger element.
  */
-export function FileTrigger({
-  accept,
-  multiple = false,
-  disabled = false,
-  onFilesSelected,
-  children,
-}: FileTriggerProps): ReactElement {
+export function FileTrigger({ accept, multiple = false, disabled = false, onFilesSelected, children }: FileTriggerProps): ReactElement {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const inputId = useId();
   // A monotonic nonce (not a boolean) so back-to-back opens without an intervening change still re-fire.

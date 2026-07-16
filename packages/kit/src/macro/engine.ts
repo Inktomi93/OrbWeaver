@@ -37,10 +37,7 @@ export type ProcessMacroOptions = Omit<MacroContext, "evaluateString" | "evaluat
   postProcess?: (val: string) => string;
 };
 
-export function createMacroContext(
-  options: ProcessMacroOptions,
-  registry: MacroRegistry = globalMacroRegistry,
-): MacroContext {
+export function createMacroContext(options: ProcessMacroOptions, registry: MacroRegistry = globalMacroRegistry): MacroContext {
   const budget: MacroBudget = options.__budget ?? createMacroBudget();
   // Wrap each recursion seam in a depth check — handler-driven re-entry (ctx.evaluateString in
   // args, ctx.evaluateAST in block bodies) is exactly where the recursion bomb lives.
@@ -49,12 +46,10 @@ export function createMacroContext(
       return "";
     }
     if (budget.depth >= budget.maxDepth) {
-      if (!budget.tripped) {
-        budget.tripped = true;
-        options.onWarn?.(
-          `[Macro Engine] depth limit ${budget.maxDepth} exceeded — rendering aborted`,
-        );
-      }
+      // `budget.tripped` was already checked false above and nothing between here and there
+      // mutates it, so this is the first time we trip — always warn.
+      budget.tripped = true;
+      options.onWarn?.(`[Macro Engine] depth limit ${budget.maxDepth} exceeded — rendering aborted`);
       return "";
     }
     budget.depth += 1;
@@ -73,11 +68,7 @@ export function createMacroContext(
   return ctx;
 }
 
-export function processMacros(
-  text: string,
-  options: ProcessMacroOptions,
-  registry: MacroRegistry = globalMacroRegistry,
-): string {
+export function processMacros(text: string, options: ProcessMacroOptions, registry: MacroRegistry = globalMacroRegistry): string {
   const ctx = createMacroContext(options, registry);
 
   const ast = parseMacros(text);

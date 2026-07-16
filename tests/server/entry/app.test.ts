@@ -9,11 +9,7 @@ import type { Db } from "@orb/db";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { AuthSeam, SeamResult } from "@orb/server/entry/auth";
-import {
-  getTraceByRequestId,
-  initTracing,
-  recentRequests,
-} from "@orb/server/foundation/observability";
+import { getTraceByRequestId, initTracing, recentRequests } from "@orb/server/foundation/observability";
 import { describe } from "vitest";
 import { layer } from "../../../packages/server/src/domain/settings/effective-config/layer.ts";
 import type { AppDeps } from "../../../packages/server/src/entry/app.ts";
@@ -140,18 +136,14 @@ describe("createApp", () => {
 
   test("a resolved principal fires the per-new-user default-card seed hook (PD-32)", async () => {
     const seeded: Principal[] = [];
-    const app = createApp(
-      deps({ seam: fakeSeam(OWNER), seedUserCharacters: (p): void => void seeded.push(p) }),
-    );
+    const app = createApp(deps({ seam: fakeSeam(OWNER), seedUserCharacters: (p): void => void seeded.push(p) }));
     await hit(app, new Request("http://localhost/healthz"));
     expect(seeded).toEqual([OWNER]);
   });
 
   test("an anonymous request does NOT fire the seed hook (no principal)", async () => {
     const seeded: Principal[] = [];
-    const app = createApp(
-      deps({ seam: fakeSeam(null), seedUserCharacters: (p): void => void seeded.push(p) }),
-    );
+    const app = createApp(deps({ seam: fakeSeam(null), seedUserCharacters: (p): void => void seeded.push(p) }));
     await hit(app, new Request("http://localhost/healthz"));
     expect(seeded).toHaveLength(0);
   });
@@ -201,10 +193,7 @@ describe("createApp", () => {
   test("PD-118: a response carries X-Request-Id and the request ring records the request", async () => {
     const requestId = "pd-118-app-mount-req-1";
     const app = createApp(deps({}));
-    const res = await hit(
-      app,
-      new Request("http://localhost/healthz", { headers: { "X-Request-Id": requestId } }),
-    );
+    const res = await hit(app, new Request("http://localhost/healthz", { headers: { "X-Request-Id": requestId } }));
     expect(res.status).toBe(OK);
     expect(res.headers.get("X-Request-Id")).toBe(requestId);
 

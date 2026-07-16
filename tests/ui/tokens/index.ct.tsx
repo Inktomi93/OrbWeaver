@@ -16,10 +16,7 @@ test.use({ hasTouch: true });
 // The floor, in px, straight from the token (coarse `value` = the @theme literal): 2.75rem → 44px.
 const FLOOR_PX = `${Number.parseFloat(TOKENS["spacing.touch-target"].value) * 16}px`;
 
-test("a coarse pointer keeps an interactive control on the ≥44px touch floor", async ({
-  mount,
-  page,
-}) => {
+test("a coarse pointer keeps an interactive control on the ≥44px touch floor", async ({ mount, page }) => {
   const coarse = await page.evaluate(() => matchMedia("(pointer: coarse)").matches);
   expect(coarse, "the CT context must emulate a coarse pointer (hasTouch)").toBe(true);
 
@@ -29,8 +26,5 @@ test("a coarse pointer keeps an interactive control on the ≥44px touch floor",
   // The cascade resolves the coarse @theme value (= the touch floor), not the fine 28px override.
   await expect(component).toHaveCSS("height", FLOOR_PX);
   const box = await component.boundingBox();
-  expect(
-    box?.height,
-    "the rendered control box meets the ≥44px floor on coarse",
-  ).toBeGreaterThanOrEqual(44);
+  expect(box?.height, "the rendered control box meets the ≥44px floor on coarse").toBeGreaterThanOrEqual(44);
 });

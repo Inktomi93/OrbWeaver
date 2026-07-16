@@ -12,10 +12,7 @@ import type { OrSkinTierModels } from "../contract/results";
 /** Derive the mode-2 tier→OR-slug map from the two cache snapshots. `null` (cold cache) ⇒ empty input —
  *  the derivation falls back to the curated shortlist so a mode-2 turn always gets a coherent trio. The
  *  single seam the verb uses (no direct `catalog/` reach). */
-export function deriveOrSkin(
-  cached: readonly ModelCatalogEntry[] | null,
-  agentSdkModels: readonly AgentSdkModel[] | null,
-): OrSkinTierModels {
+export function deriveOrSkin(cached: readonly ModelCatalogEntry[] | null, agentSdkModels: readonly AgentSdkModel[] | null): OrSkinTierModels {
   return deriveOrSkinTierModels(
     agentSdkModels ?? [],
     (cached ?? []).map((m) => m.id),

@@ -30,9 +30,7 @@ function portraitSizeOf(width: number): { readonly width: number; readonly heigh
 }
 
 /** Snap a requested portrait width to `PORTRAIT_WIDTHS`, returning the full derived `(width, height)` pair. */
-export function snapPortraitWidth(
-  requested: number,
-): { readonly width: number; readonly height: number } | undefined {
+export function snapPortraitWidth(requested: number): { readonly width: number; readonly height: number } | undefined {
   if (!Number.isFinite(requested) || requested <= 0) {
     return;
   }
@@ -56,9 +54,7 @@ function bannerSizeOf(width: number): { readonly width: number; readonly height:
 }
 
 /** Snap a requested banner width to `BANNER_WIDTHS` — same shape as {@link snapPortraitWidth}. */
-export function snapBannerWidth(
-  requested: number,
-): { readonly width: number; readonly height: number } | undefined {
+export function snapBannerWidth(requested: number): { readonly width: number; readonly height: number } | undefined {
   if (!Number.isFinite(requested) || requested <= 0) {
     return;
   }

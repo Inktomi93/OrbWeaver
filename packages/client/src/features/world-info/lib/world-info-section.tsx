@@ -19,8 +19,7 @@ export const worldInfoSection: SectionDefinition = {
   panelDefaults: { list: "docked", context: "collapsed" },
   placeholder: {
     title: "World Info",
-    description:
-      "Your world books live here — pick one to edit its keyword-triggered lore and where it attaches.",
+    description: "Your world books live here — pick one to edit its keyword-triggered lore and where it attaches.",
   },
   list: () => (
     <WorldInfoLibraryAnchor>

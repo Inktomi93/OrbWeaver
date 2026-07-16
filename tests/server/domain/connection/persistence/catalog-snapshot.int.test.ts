@@ -5,14 +5,8 @@
 import type { ModelCatalogEntry } from "@orb/contracts/connection";
 import { afterEach, describe } from "vitest";
 import { settings } from "../../../../../packages/db/src/schema/index.ts";
-import {
-  readCatalogSnapshot,
-  writeCatalogSnapshot,
-} from "../../../../../packages/server/src/domain/connection/persistence/catalog-snapshot.ts";
-import {
-  __resetOrModelCache,
-  getCachedOrModels,
-} from "../../../../../packages/server/src/domain/connection/substrate/or-model-cache.ts";
+import { readCatalogSnapshot, writeCatalogSnapshot } from "../../../../../packages/server/src/domain/connection/persistence/catalog-snapshot.ts";
+import { __resetOrModelCache, getCachedOrModels } from "../../../../../packages/server/src/domain/connection/substrate/or-model-cache.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
 
@@ -59,9 +53,7 @@ describe("catalog-snapshot persistence", () => {
 
   test("a malformed stored blob degrades to null (tightened parse, not a blind cast)", async () => {
     const db = await freshDb();
-    await db
-      .insert(settings)
-      .values({ key: "openrouter-model-catalog", value: { bogus: true }, updatedAt: 0 });
+    await db.insert(settings).values({ key: "openrouter-model-catalog", value: { bogus: true }, updatedAt: 0 });
     expect(await readCatalogSnapshot(db)).toBeNull();
   });
 });

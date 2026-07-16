@@ -9,13 +9,7 @@ import { expect, test } from "../../../../support/fixtures";
 
 describe("LEADERBOARD_SORTS", () => {
   test("is the exact sort axis, in order", () => {
-    expect([...LEADERBOARD_SORTS]).toEqual([
-      "assistantTurns",
-      // biome-ignore lint/security/noSecrets: a leaderboard sort-key literal, not a secret (high-entropy false positive).
-      "totalGenTimeMs",
-      "swipes",
-      "lastActivityAt",
-    ]);
+    expect([...LEADERBOARD_SORTS]).toEqual(["assistantTurns", "totalGenTimeMs", "swipes", "lastActivityAt"]);
   });
 
   test("every member is a valid LeaderboardSort (the tuple derives the union)", () => {

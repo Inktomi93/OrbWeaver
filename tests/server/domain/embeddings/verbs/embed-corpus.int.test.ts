@@ -14,14 +14,7 @@ import { describe } from "vitest";
 import { upsertCharacterEmbedding } from "../../../../../packages/server/src/domain/embeddings/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
-import {
-  EMBED_DIM,
-  EMBED_MODEL,
-  fakeVector,
-  makeStoreHarness,
-  seedCharacter,
-  seedUser,
-} from "../_support.ts";
+import { EMBED_DIM, EMBED_MODEL, fakeVector, makeStoreHarness, seedCharacter, seedUser } from "../_support.ts";
 
 const STALE_MODEL = "old-embed-model-v0";
 const NOW = 1_750_000_000_000;
@@ -144,9 +137,7 @@ describe("embedCorpus — the bulk card-text sweep", () => {
         usage: { promptTokens: null, totalTokens: null },
       });
 
-    await expect(
-      svc.embedCorpus({ ownerId: null, force: false, signal: signal() }),
-    ).rejects.toBeInstanceOf(EmbedFailedError);
+    await expect(svc.embedCorpus({ ownerId: null, force: false, signal: signal() })).rejects.toBeInstanceOf(EmbedFailedError);
     // The first card's row landed and is durable — the rerun resumes from it (hash-gated skip).
     expect(await db.select().from(characterEmbeddings)).toHaveLength(1);
     const rerun = await svc.embedCorpus({ ownerId: null, force: false, signal: signal() });

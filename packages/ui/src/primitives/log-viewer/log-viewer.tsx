@@ -54,20 +54,9 @@ interface LogLineRowProps {
 function LogLineRow({ line, slots }: LogLineRowProps): ReactElement {
   const level = levelOf(line);
   return (
-    <div
-      data-log-line=""
-      data-level={level}
-      data-slot="log-viewer-line"
-      className={slots.line({ level })}
-    >
+    <div data-log-line="" data-level={level} data-slot="log-viewer-line" className={slots.line({ level })}>
       {level === undefined ? null : (
-        <Icon
-          icon={LEVEL_GLYPH[level]}
-          size="sm"
-          label={LEVEL_LABEL[level]}
-          className={slots.glyph()}
-          data-slot="log-viewer-glyph"
-        />
+        <Icon icon={LEVEL_GLYPH[level]} size="sm" label={LEVEL_LABEL[level]} className={slots.glyph()} data-slot="log-viewer-glyph" />
       )}
       <span>{textOf(line)}</span>
     </div>
@@ -116,9 +105,7 @@ export function LogViewer({ lines, maxLines, className }: LogViewerProps): React
   // reading a reader who just scrolled up as "at the tail" and yanking them on the next append.
   const handleVirtualScrollRef = useRef((): void => {
     const node = virtualScrollNodeRef.current;
-    wasAtEndRef.current =
-      node === null ||
-      node.scrollHeight - node.scrollTop - node.clientHeight <= VIRTUAL_TAIL_SLACK_PX;
+    wasAtEndRef.current = node === null || node.scrollHeight - node.scrollTop - node.clientHeight <= VIRTUAL_TAIL_SLACK_PX;
   });
 
   // Removes from the prior node first so a node swap never double-binds.
@@ -162,8 +149,7 @@ export function LogViewer({ lines, maxLines, className }: LogViewerProps): React
 
   const handleScroll = (event: UIEvent<HTMLDivElement>): void => {
     const el = event.currentTarget;
-    isNearBottomRef.current =
-      el.scrollHeight - el.scrollTop - el.clientHeight <= NEAR_BOTTOM_SLACK_PX;
+    isNearBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight <= NEAR_BOTTOM_SLACK_PX;
   };
 
   const handleCopy = (): void => {
@@ -204,7 +190,7 @@ export function LogViewer({ lines, maxLines, className }: LogViewerProps): React
           data-slot="log-viewer-scroll"
         >
           {visible.map((line, index) => (
-            // biome-ignore lint/suspicious/noArrayIndexKey: an append-only log tail (lines are never reordered/removed from the middle) — position is a stable identity.
+            // biome-ignore lint/suspicious/noArrayIndexKey: append-only log tail (lines never reordered/removed from the middle) — position is a stable identity.
             <LogLineRow key={index} line={line} slots={slots} />
           ))}
         </div>

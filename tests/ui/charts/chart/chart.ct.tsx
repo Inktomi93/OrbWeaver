@@ -15,9 +15,7 @@ const BASIC_OPTION: OrbChartOption = {
   series: [{ type: "bar", data: [1, 2, 3] }],
 };
 
-test("renders and exposes its accessible name via ECharts' native aria component", async ({
-  mount,
-}) => {
+test("renders and exposes its accessible name via ECharts' native aria component", async ({ mount }) => {
   const component = await mount(<Chart label="Widget usage" option={BASIC_OPTION} />);
   await expect(component.getByRole("img", { name: "Widget usage" })).toBeVisible();
 });
@@ -28,9 +26,7 @@ test("renders a canvas even under prefers-reduced-motion", async ({ mount, page 
   await expect(component.locator("canvas")).toBeVisible();
 });
 
-test("resizes with its container (size-sensor's ResizeObserver, no hand-rolled observer)", async ({
-  mount,
-}) => {
+test("resizes with its container (size-sensor's ResizeObserver, no hand-rolled observer)", async ({ mount }) => {
   const component = await mount(
     <div style={{ width: 300 }}>
       <Chart label="Widget usage" option={BASIC_OPTION} />
@@ -42,7 +38,5 @@ test("resizes with its container (size-sensor's ResizeObserver, no hand-rolled o
   await component.evaluate((el) => {
     (el as HTMLElement).style.width = "600px";
   });
-  await expect
-    .poll(async () => (await canvas.boundingBox())?.width, { intervals: [20, 50, 100] })
-    .not.toBe(initialBox?.width);
+  await expect.poll(async () => (await canvas.boundingBox())?.width, { intervals: [20, 50, 100] }).not.toBe(initialBox?.width);
 });

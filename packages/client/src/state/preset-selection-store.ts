@@ -27,11 +27,7 @@ const usePresetSelectionStore = createGatedStore<PresetSelectionState>(
 /** Open a preset (a library-row click) — the route swaps CONTENT to that preset's tabbed editor. Opening
  *  a DIFFERENT preset clears the section selection so a stale section never carries across presets. */
 export function selectPreset(id: PresetId): void {
-  usePresetSelectionStore.setState(
-    { selectedPresetId: id, selectedSectionId: null },
-    false,
-    "preset-selection/select",
-  );
+  usePresetSelectionStore.setState({ selectedPresetId: id, selectedSectionId: null }, false, "preset-selection/select");
 }
 
 /** Open a preset from the LIST (a library-row click) AND close any open LIST slide-over — the
@@ -46,29 +42,17 @@ export function selectPresetFromList(id: PresetId): void {
 /** Clear the selection (back to the Presets welcome state — e.g. after deleting the open preset). Clears
  *  the section too (a welcome state has no section to inspect). */
 export function clearPresetSelection(): void {
-  usePresetSelectionStore.setState(
-    { selectedPresetId: null, selectedSectionId: null },
-    false,
-    "preset-selection/clear",
-  );
+  usePresetSelectionStore.setState({ selectedPresetId: null, selectedSectionId: null }, false, "preset-selection/clear");
 }
 
 /** Select a rack section — a row's name-button click reveals the CONTEXT section inspector (§2.2/§3.4). */
 export function selectPresetSection(id: string): void {
-  usePresetSelectionStore.setState(
-    { selectedSectionId: id },
-    false,
-    "preset-selection/select-section",
-  );
+  usePresetSelectionStore.setState({ selectedSectionId: id }, false, "preset-selection/select-section");
 }
 
 /** Clear the section selection — CONTEXT collapses to its EmptyState (also fired on section delete). */
 export function clearPresetSection(): void {
-  usePresetSelectionStore.setState(
-    { selectedSectionId: null },
-    false,
-    "preset-selection/clear-section",
-  );
+  usePresetSelectionStore.setState({ selectedSectionId: null }, false, "preset-selection/clear-section");
 }
 
 /** Dismiss the CONTEXT section inspector AND close any open CONTEXT slide-over — the viewport-unaware

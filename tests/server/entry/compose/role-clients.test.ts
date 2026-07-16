@@ -6,12 +6,7 @@
 
 import type { ChatApi, ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
 import type { ResolvedCredential } from "@orb/contracts/credentials";
-import type {
-  EmbedResult,
-  ImageEmbedResult,
-  RerankResult,
-  SummarizeResult,
-} from "@orb/contracts/providers";
+import type { EmbedResult, ImageEmbedResult, RerankResult, SummarizeResult } from "@orb/contracts/providers";
 import type { ModelId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ConnectionService } from "@orb/server/domain/connection";
@@ -71,10 +66,7 @@ test("bindRoleClientsForUser dispatches embed through the executor with the reso
 });
 
 test("bindRoleClientsForUser carries provenance-correct *Model tags from the resolved connections", async () => {
-  const clients = await bindRoleClientsForUser(
-    { connection: stubConnection(), executor: recordingExecutor().executor },
-    OWNER,
-  );
+  const clients = await bindRoleClientsForUser({ connection: stubConnection(), executor: recordingExecutor().executor }, OWNER);
 
   expect(clients.embedModel).toBe("model-embed");
   expect(clients.rerankModel).toBe("model-rerank");

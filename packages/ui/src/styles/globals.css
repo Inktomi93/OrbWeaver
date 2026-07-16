@@ -8,6 +8,7 @@
   *,
   *::before,
   *::after {
+    /* biome-ignore lint/complexity/noImportantStyles: reduced-motion override MUST beat inline styles and high-specificity rules — removing !important silently ignores the user's a11y preference */
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
@@ -20,6 +21,7 @@
 [data-reduced-motion="true"] *,
 [data-reduced-motion="true"] *::before,
 [data-reduced-motion="true"] *::after {
+  /* biome-ignore lint/complexity/noImportantStyles: same as the @media block above — must override inline styles */
   animation-duration: 0.01ms !important;
   animation-iteration-count: 1 !important;
   transition-duration: 0.01ms !important;
@@ -135,11 +137,7 @@
   z-index: -1;
   inset: -60% -40%;
   pointer-events: none;
-  background: radial-gradient(
-    60% 50% at 50% 0%,
-    oklch(from var(--color-primary) l c h / 0.14),
-    transparent 70%
-  );
+  background: radial-gradient(60% 50% at 50% 0%, oklch(from var(--color-primary) l c h / 0.14), transparent 70%);
 }
 
 /* Gradient border ring on accent surfaces (CTA / selected media cell): a ::after overlay (dual
@@ -156,8 +154,7 @@
   border-radius: inherit;
   background:
     linear-gradient(transparent, transparent) padding-box,
-    linear-gradient(180deg, oklch(from var(--color-primary) l c h / 0.55), oklch(1 0 0 / 0.04))
-    border-box;
+    linear-gradient(180deg, oklch(from var(--color-primary) l c h / 0.55), oklch(1 0 0 / 0.04)) border-box;
 }
 /* Positioning context for the ring above — Base UI's button isn't positioned by default. */
 [data-slot="button"][data-cta] {
@@ -175,27 +172,14 @@
   border-radius: var(--radius-control);
   background:
     linear-gradient(transparent, transparent) padding-box,
-    linear-gradient(180deg, oklch(from var(--color-primary) l c h / 0.3), oklch(1 0 0 / 0.02))
-    border-box;
+    linear-gradient(180deg, oklch(from var(--color-primary) l c h / 0.3), oklch(1 0 0 / 0.02)) border-box;
 }
 
 /* Gradient-fade dividers: long separators dissolve at their ends via a mask gradient instead of a
  * hard 1px stub. Vertical (short) separators are left alone — a fade there reads as a bug. */
 [data-slot="separator"][data-orientation="horizontal"] {
-  -webkit-mask-image: linear-gradient(
-    to right,
-    transparent,
-    black var(--fade-edge-stop),
-    black calc(100% - var(--fade-edge-stop)),
-    transparent
-  );
-  mask-image: linear-gradient(
-    to right,
-    transparent,
-    black var(--fade-edge-stop),
-    black calc(100% - var(--fade-edge-stop)),
-    transparent
-  );
+  -webkit-mask-image: linear-gradient(to right, transparent, black var(--fade-edge-stop), black calc(100% - var(--fade-edge-stop)), transparent);
+  mask-image: linear-gradient(to right, transparent, black var(--fade-edge-stop), black calc(100% - var(--fade-edge-stop)), transparent);
 }
 
 /* Horizontal-overflow cue: a scrollable strip (e.g. a many-tab tablist too wide for a narrow panel)
@@ -203,11 +187,7 @@
  * Trailing-only: a leading fade would dim the always-visible first item. When the content fits (no
  * overflow), the fade sits over the strip's trailing empty space and is invisible. */
 .scroll-fade-x {
-  -webkit-mask-image: linear-gradient(
-    to right,
-    black calc(100% - var(--fade-edge-stop)),
-    transparent
-  );
+  -webkit-mask-image: linear-gradient(to right, black calc(100% - var(--fade-edge-stop)), transparent);
   mask-image: linear-gradient(to right, black calc(100% - var(--fade-edge-stop)), transparent);
 }
 
@@ -224,11 +204,7 @@
     border-radius: inherit;
     opacity: 0;
     transition: opacity var(--motion-fast) ease-out;
-    background: radial-gradient(
-      6rem 6rem at var(--x, 50%) var(--y, 50%),
-      oklch(from var(--color-primary) l c h / 0.18),
-      transparent 70%
-    );
+    background: radial-gradient(6rem 6rem at var(--x, 50%) var(--y, 50%), oklch(from var(--color-primary) l c h / 0.18), transparent 70%);
   }
   [data-slot="media-grid-cell"]:hover::before {
     opacity: 1;
@@ -266,12 +242,7 @@
   }
 }
 .orb-skeleton-shimmer {
-  background-image: linear-gradient(
-    90deg,
-    var(--color-muted) 30%,
-    var(--color-accent) 50%,
-    var(--color-muted) 70%
-  );
+  background-image: linear-gradient(90deg, var(--color-muted) 30%, var(--color-accent) 50%, var(--color-muted) 70%);
   background-size: 200% 100%;
   background-repeat: no-repeat;
   animation: orb-skeleton-shimmer var(--motion-shimmer) linear infinite;

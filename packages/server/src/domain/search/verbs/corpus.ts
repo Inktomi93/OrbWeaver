@@ -40,10 +40,7 @@ export function createCorpus(ctx: SearchContext): SearchService["corpus"] {
     const embedded = await ctx.roleClients.embed(text, { inputType: "query" });
     const queryVector = embedded.vectors[0];
     if (queryVector === null || queryVector === undefined) {
-      throw new SearchError(
-        SEARCH_EMPTY_QUERY,
-        "the query embedded to no vector — nothing to scan",
-      );
+      throw new SearchError(SEARCH_EMPTY_QUERY, "the query embedded to no vector — nothing to scan");
     }
     const model = ctx.roleClients.embedModel;
 

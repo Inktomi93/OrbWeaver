@@ -6,15 +6,8 @@
 import type { PortableEntity, PortableFile } from "@orb/contracts/portability";
 import type { UserId } from "@orb/kit/ids";
 import type { AssetsPortabilityContext } from "../contract/portability";
-import {
-  loadOwnedAssetForExport,
-  selectInlineReferencedContents,
-  selectOwnedReferencedAssetIds,
-} from "../persistence/portable-refs";
-import {
-  buildPortableAssetFilename,
-  extractInlineAssetIds,
-} from "../substrate/portable-asset-file";
+import { loadOwnedAssetForExport, selectInlineReferencedContents, selectOwnedReferencedAssetIds } from "../persistence/portable-refs";
+import { buildPortableAssetFilename, extractInlineAssetIds } from "../substrate/portable-asset-file";
 
 export function createExportAssets(ctx: AssetsPortabilityContext): PortableEntity["exportAll"] {
   return async function* exportAll(ownerId: UserId): AsyncIterable<PortableFile> {

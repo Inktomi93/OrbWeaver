@@ -14,9 +14,7 @@ import type { MessageView } from "@orb/contracts/chat";
 
 /** The id of the earliest message still "in context" as of the most recent generation, or `null` when
  *  nothing has ever been dropped (or no assistant turn has generated yet) — no divider to show. */
-export function resolveContextBoundaryMessageId(
-  messages: readonly MessageView[],
-): MessageView["id"] | null {
+export function resolveContextBoundaryMessageId(messages: readonly MessageView[]): MessageView["id"] | null {
   for (let i = messages.length - 1; i >= 0; i--) {
     const m = messages[i];
     if (m !== undefined && m.contextBoundaryMessageId !== null) {

@@ -3,11 +3,7 @@
 // tick cores (`claimAndRunNext`/`reapOnce`) are tested directly; one loop test covers boot-reap + abort.
 
 import { describe, vi } from "vitest";
-import {
-  claimAndRunNext,
-  reapOnce,
-  startWorkloadsWorker,
-} from "../../../../packages/server/src/transport/jobs/workloads-worker.ts";
+import { claimAndRunNext, reapOnce, startWorkloadsWorker } from "../../../../packages/server/src/transport/jobs/workloads-worker.ts";
 import { expect, test } from "../../../support/fixtures";
 import { makeRow, makeWorkerDeps, T0 } from "./_support.ts";
 

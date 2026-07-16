@@ -5,11 +5,7 @@ import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors";
-import {
-  assertMaxProSubConsent,
-  resolveOwnerConsented,
-  resolveTurnIdentity,
-} from "../../../../../packages/server/src/domain/chat/engine/turn-identity";
+import { assertMaxProSubConsent, resolveOwnerConsented, resolveTurnIdentity } from "../../../../../packages/server/src/domain/chat/engine/turn-identity";
 import { expect, test } from "../../../../support/fixtures";
 
 const CALLER = castId<UserId>("user_caller");
@@ -35,18 +31,11 @@ describe("resolveTurnIdentity — the D19 triple", () => {
   });
 
   test("runAsUserId is ALWAYS the host — never the caller (D19)", () => {
-    expect(resolveTurnIdentity({ principalUserId: CALLER, hostUserId: HOST }).runAsUserId).toBe(
-      HOST,
-    );
+    expect(resolveTurnIdentity({ principalUserId: CALLER, hostUserId: HOST }).runAsUserId).toBe(HOST);
   });
 });
 
-const consent = (over: {
-  source?: CredentialSource;
-  triggeredBy?: UserId;
-  runAsUserId?: UserId;
-  ownerConsent?: boolean;
-}): void =>
+const consent = (over: { source?: CredentialSource; triggeredBy?: UserId; runAsUserId?: UserId; ownerConsent?: boolean }): void =>
   assertMaxProSubConsent({
     source: over.source ?? "max-pro-sub",
     identity: {
@@ -81,11 +70,7 @@ describe("assertMaxProSubConsent — the by-proxy belt (fail-closed)", () => {
   });
 });
 
-const ownerConsented = (over: {
-  triggeredBy?: UserId;
-  runAsUserId?: UserId;
-  ownerConsent?: boolean;
-}): boolean =>
+const ownerConsented = (over: { triggeredBy?: UserId; runAsUserId?: UserId; ownerConsent?: boolean }): boolean =>
   resolveOwnerConsented({
     identity: {
       triggeredBy: over.triggeredBy ?? CALLER,
@@ -117,9 +102,7 @@ describe("resolveOwnerConsented — the D17 verdict as a VALUE (post-belt)", () 
     ];
     for (const c of cases) {
       // The belt does not throw for any of these …
-      expect(() =>
-        consent({ triggeredBy: c.triggeredBy, ownerConsent: c.ownerConsent }),
-      ).not.toThrow();
+      expect(() => consent({ triggeredBy: c.triggeredBy, ownerConsent: c.ownerConsent })).not.toThrow();
       // … and the value the firewall re-verifies is affirmatively true (no independent disagreement).
       expect(ownerConsented(c)).toBe(true);
     }

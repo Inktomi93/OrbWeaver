@@ -9,10 +9,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc } from "../../../../support/ct/route-trpc";
 import { EntryEditorStory } from "../_ct-stories";
 
-test("renders every field, commits a keyword chip, and saves the full input", async ({
-  mount,
-  page,
-}) => {
+test("renders every field, commits a keyword chip, and saves the full input", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "worldInfo.updateEntry": (input: unknown) => {
       const { entryId } = input as { entryId: string };
@@ -35,9 +32,7 @@ test("renders every field, commits a keyword chip, and saves the full input", as
 
   // Seeded fields render (by ROLE — the `hint` info-tooltip button also carries the field name).
   await expect(page.getByRole("textbox", { name: "Title" })).toHaveValue("Eldoria");
-  await expect(page.getByRole("textbox", { name: "Content" })).toHaveValue(
-    "Eldoria is the capital city, ringed by white walls.",
-  );
+  await expect(page.getByRole("textbox", { name: "Content" })).toHaveValue("Eldoria is the capital city, ringed by white walls.");
   // The two seeded keyword chips render (each Combobox chip carries a "Remove <chip>" button).
   await expect(page.getByRole("button", { name: "Remove eldoria" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Remove capital" })).toBeVisible();
@@ -50,9 +45,7 @@ test("renders every field, commits a keyword chip, and saves the full input", as
 
   // Save → updateEntry fires with the FULL input (every field + the added chip + the preserved unknown key).
   await page.getByRole("button", { name: "Save entry" }).click();
-  await expect
-    .poll(() => trpc.count("worldInfo.updateEntry"), { intervals: [20, 50, 100] })
-    .toBeGreaterThanOrEqual(1);
+  await expect.poll(() => trpc.count("worldInfo.updateEntry"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
 
   const saved = trpc.lastInput("worldInfo.updateEntry") as {
     entryId: string;
@@ -77,10 +70,7 @@ test("renders every field, commits a keyword chip, and saves the full input", as
   expect(saved.input.metadata["extra"]).toBe("keep-me");
 });
 
-test("delete: the icon trigger opens an uncontrolled confirm with no description, and confirming removes the entry", async ({
-  mount,
-  page,
-}) => {
+test("delete: the icon trigger opens an uncontrolled confirm with no description, and confirming removes the entry", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "worldInfo.removeEntry": () => ({ ok: true }),
   });
@@ -95,10 +85,6 @@ test("delete: the icon trigger opens an uncontrolled confirm with no description
   await expect(dialog.locator("p")).toHaveCount(0);
 
   await dialog.getByRole("button", { name: "Delete" }).click();
-  await expect
-    .poll(() => trpc.count("worldInfo.removeEntry"), { intervals: [20, 50, 100] })
-    .toBeGreaterThanOrEqual(1);
-  expect((trpc.lastInput("worldInfo.removeEntry") as { entryId: string }).entryId).toBe(
-    "world_entry_ctstory0001",
-  );
+  await expect.poll(() => trpc.count("worldInfo.removeEntry"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
+  expect((trpc.lastInput("worldInfo.removeEntry") as { entryId: string }).entryId).toBe("world_entry_ctstory0001");
 });

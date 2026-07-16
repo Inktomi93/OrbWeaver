@@ -70,14 +70,7 @@ export interface SourceModelEntry {
 }
 
 /** The per-source availability state driving the role-slot status dot (CONNECTIONS-BUILD-SPEC §1.7). */
-const SOURCE_MODELS_STATES = [
-  "ok",
-  "empty-catalog",
-  "needs-key",
-  "owner-only",
-  "engine-off",
-  "needs-probe",
-] as const;
+const SOURCE_MODELS_STATES = ["ok", "empty-catalog", "needs-key", "owner-only", "engine-off", "needs-probe"] as const;
 type SourceModelsState = (typeof SOURCE_MODELS_STATES)[number];
 
 /**

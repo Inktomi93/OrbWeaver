@@ -5,12 +5,7 @@
 
 import type { Runner } from "../contract/runner";
 
-export const databankReindexRunner: Runner<"databank-reindex"> = (
-  _ctx,
-  _params,
-  report,
-  _signal,
-) => {
+export const databankReindexRunner: Runner<"databank-reindex"> = (_ctx, _params, report, _signal) => {
   report({ message: "databank-reindex is a DB2-tables stub (no-op); DB2 proper lands the runner" });
   return Promise.resolve({ deferred: true });
 };

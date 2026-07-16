@@ -24,10 +24,7 @@ test("fit=contain sets background-size: contain", async ({ mount, page }) => {
   await expect(page.locator(PHOTO)).toHaveCSS("background-size", "contain");
 });
 
-test("never background-attachment: fixed (position:fixed, not bg-attachment)", async ({
-  mount,
-  page,
-}) => {
+test("never background-attachment: fixed (position:fixed, not bg-attachment)", async ({ mount, page }) => {
   await mount(<ThemeBackgroundLayer blur={0} dim={0.4} fit="cover" url="/fake.jpg" />);
   const photo = page.locator(PHOTO);
   await expect(photo).toHaveCSS("background-attachment", "scroll");
@@ -39,10 +36,7 @@ test("dim maps 1:1 to the scrim's computed opacity", async ({ mount, page }) => 
   await expect(page.locator(SCRIM)).toHaveCSS("opacity", "0.4");
 });
 
-test("blur lands as filter:blur(<n>px) on the photo; the scrim carries no filter", async ({
-  mount,
-  page,
-}) => {
+test("blur lands as filter:blur(<n>px) on the photo; the scrim carries no filter", async ({ mount, page }) => {
   await mount(<ThemeBackgroundLayer blur={8} dim={0.4} fit="cover" url="/fake.jpg" />);
   await expect(page.locator(PHOTO)).toHaveCSS("filter", "blur(8px)");
   await expect(page.locator(SCRIM)).toHaveCSS("filter", "none");

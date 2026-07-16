@@ -5,24 +5,8 @@
 
 import type { ImageLens } from "@orb/contracts/embeddings";
 import type { Db } from "@orb/db";
-import {
-  batchMany,
-  batchStmt,
-  characterEmbeddings,
-  chatDigestSpeakers,
-  chatDigests,
-  chatSegments,
-  imageEmbeddings,
-} from "@orb/db";
-import type {
-  AssetId,
-  CharacterEmbeddingId,
-  CharacterId,
-  ChatDigestId,
-  ChatId,
-  ChatSegmentId,
-  ImageEmbeddingId,
-} from "@orb/kit/ids";
+import { batchMany, batchStmt, characterEmbeddings, chatDigestSpeakers, chatDigests, chatSegments, imageEmbeddings } from "@orb/db";
+import type { AssetId, CharacterEmbeddingId, CharacterId, ChatDigestId, ChatId, ChatSegmentId, ImageEmbeddingId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
 import type { HubScoreUpdate, VectorTable } from "../contract/params";
@@ -30,38 +14,21 @@ import type { HubScoreUpdate, VectorTable } from "../contract/params";
 const LIMIT_ONE = 1;
 
 /** The stored `content_hash` for `(characterId, model)`, or `undefined` when no row exists yet. */
-export async function existingCharacterHash(
-  db: Db,
-  characterId: CharacterId,
-  model: string,
-): Promise<string | undefined> {
+export async function existingCharacterHash(db: Db, characterId: CharacterId, model: string): Promise<string | undefined> {
   const rows = await db
     .select({ hash: characterEmbeddings.contentHash })
     .from(characterEmbeddings)
-    .where(
-      and(eq(characterEmbeddings.characterId, characterId), eq(characterEmbeddings.model, model)),
-    )
+    .where(and(eq(characterEmbeddings.characterId, characterId), eq(characterEmbeddings.model, model)))
     .limit(LIMIT_ONE);
   return rows[0]?.hash;
 }
 
 /** The stored `content_hash` for `(assetId, model, lens)`, or `undefined` when no row exists yet. */
-export async function existingImageHash(
-  db: Db,
-  assetId: AssetId,
-  lens: ImageLens,
-  model: string,
-): Promise<string | undefined> {
+export async function existingImageHash(db: Db, assetId: AssetId, lens: ImageLens, model: string): Promise<string | undefined> {
   const rows = await db
     .select({ hash: imageEmbeddings.contentHash })
     .from(imageEmbeddings)
-    .where(
-      and(
-        eq(imageEmbeddings.assetId, assetId),
-        eq(imageEmbeddings.model, model),
-        eq(imageEmbeddings.lens, lens),
-      ),
-    )
+    .where(and(eq(imageEmbeddings.assetId, assetId), eq(imageEmbeddings.model, model), eq(imageEmbeddings.lens, lens)))
     .limit(LIMIT_ONE);
   return rows[0]?.hash;
 }
@@ -149,22 +116,11 @@ export async function upsertImageEmbedding(db: Db, input: UpsertImageInput): Pro
 /** The stored `content_hash` for a chat segment `(chatId, blockIdx, model)`, or `undefined` when no row
  *  exists in that space. `model` is part of the key (PD-104) — the read scopes to the active space so the
  *  staleness short-circuit never compares against a different model's row. */
-export async function existingSegmentHash(
-  db: Db,
-  chatId: ChatId,
-  blockIdx: number,
-  model: string,
-): Promise<string | undefined> {
+export async function existingSegmentHash(db: Db, chatId: ChatId, blockIdx: number, model: string): Promise<string | undefined> {
   const rows = await db
     .select({ hash: chatSegments.contentHash })
     .from(chatSegments)
-    .where(
-      and(
-        eq(chatSegments.chatId, chatId),
-        eq(chatSegments.blockIdx, blockIdx),
-        eq(chatSegments.model, model),
-      ),
-    )
+    .where(and(eq(chatSegments.chatId, chatId), eq(chatSegments.blockIdx, blockIdx), eq(chatSegments.model, model)))
     .limit(LIMIT_ONE);
   return rows[0]?.hash;
 }
@@ -287,13 +243,7 @@ export async function upsertChatDigest(db: Db, input: UpsertDigestInput): Promis
       createdAt: input.now,
     })
     .onConflictDoUpdate({
-      target: [
-        chatDigests.chatId,
-        chatDigests.scopedCharacterId,
-        chatDigests.tier,
-        chatDigests.blockIdx,
-        chatDigests.model,
-      ],
+      target: [chatDigests.chatId, chatDigests.scopedCharacterId, chatDigests.tier, chatDigests.blockIdx, chatDigests.model],
       set: {
         text: input.text,
         topicAnchor: input.topicAnchor,
@@ -311,11 +261,7 @@ export async function upsertChatDigest(db: Db, input: UpsertDigestInput): Promis
 
 /** Replace a digest's `chat_digest_speakers` join: delete the existing rows, then insert the new speaker
  *  set. Runs only on the written path — a noop upsert leaves the join intact. */
-export async function replaceDigestSpeakers(
-  db: Db,
-  digestId: ChatDigestId,
-  characterIds: readonly CharacterId[],
-): Promise<void> {
+export async function replaceDigestSpeakers(db: Db, digestId: ChatDigestId, characterIds: readonly CharacterId[]): Promise<void> {
   await db.delete(chatDigestSpeakers).where(eq(chatDigestSpeakers.digestId, digestId));
   if (characterIds.length === 0) {
     return;
@@ -334,11 +280,7 @@ function assertNever(value: never): never {
 /** Batch-UPDATE `hub_score` keyed `(id, model)` on the given table, in one `db.batch` round-trip. Returns
  *  the count of rows actually touched. Exhaustive over {@link VectorTable} — a new table fails tsc until
  *  its arm is added. */
-export async function writeHubScoreRows(
-  db: Db,
-  table: VectorTable,
-  updates: readonly HubScoreUpdate[],
-): Promise<number> {
+export async function writeHubScoreRows(db: Db, table: VectorTable, updates: readonly HubScoreUpdate[]): Promise<number> {
   if (updates.length === 0) {
     return 0;
   }
@@ -349,12 +291,7 @@ export async function writeHubScoreRows(
           db
             .update(characterEmbeddings)
             .set({ hubScore: u.hubScore })
-            .where(
-              and(
-                eq(characterEmbeddings.id, castId<CharacterEmbeddingId>(u.id)),
-                eq(characterEmbeddings.model, u.model),
-              ),
-            )
+            .where(and(eq(characterEmbeddings.id, castId<CharacterEmbeddingId>(u.id)), eq(characterEmbeddings.model, u.model)))
             .returning({ id: characterEmbeddings.id }),
         ),
       );
@@ -367,12 +304,7 @@ export async function writeHubScoreRows(
           db
             .update(imageEmbeddings)
             .set({ hubScore: u.hubScore })
-            .where(
-              and(
-                eq(imageEmbeddings.id, castId<ImageEmbeddingId>(u.id)),
-                eq(imageEmbeddings.model, u.model),
-              ),
-            )
+            .where(and(eq(imageEmbeddings.id, castId<ImageEmbeddingId>(u.id)), eq(imageEmbeddings.model, u.model)))
             .returning({ id: imageEmbeddings.id }),
         ),
       );
@@ -385,9 +317,7 @@ export async function writeHubScoreRows(
           db
             .update(chatDigests)
             .set({ hubScore: u.hubScore })
-            .where(
-              and(eq(chatDigests.id, castId<ChatDigestId>(u.id)), eq(chatDigests.model, u.model)),
-            )
+            .where(and(eq(chatDigests.id, castId<ChatDigestId>(u.id)), eq(chatDigests.model, u.model)))
             .returning({ id: chatDigests.id }),
         ),
       );
@@ -400,12 +330,7 @@ export async function writeHubScoreRows(
           db
             .update(chatSegments)
             .set({ hubScore: u.hubScore })
-            .where(
-              and(
-                eq(chatSegments.id, castId<ChatSegmentId>(u.id)),
-                eq(chatSegments.model, u.model),
-              ),
-            )
+            .where(and(eq(chatSegments.id, castId<ChatSegmentId>(u.id)), eq(chatSegments.model, u.model)))
             .returning({ id: chatSegments.id }),
         ),
       );

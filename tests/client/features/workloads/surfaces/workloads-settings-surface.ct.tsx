@@ -74,10 +74,7 @@ function sseBody(events: readonly Record<string, unknown>[]): string {
 
 /** Serve `workloads.subscribe` a scripted stream; everything else falls through to routeTrpc.
  *  Register AFTER routeTrpc (later routes run first; non-SSE requests fall through). */
-async function routeWorkloadStream(
-  page: Page,
-  events: readonly Record<string, unknown>[],
-): Promise<void> {
+async function routeWorkloadStream(page: Page, events: readonly Record<string, unknown>[]): Promise<void> {
   let served = false;
   await page.route("**/api/trpc/**", async (route) => {
     const accept = route.request().headers()["accept"] ?? "";
@@ -96,10 +93,7 @@ async function routeWorkloadStream(
   });
 }
 
-test("the Workloads category shows in the shell nav for a PLAIN user (per-user, not admin-gated) and opens the real pane", async ({
-  mount,
-  page,
-}) => {
+test("the Workloads category shows in the shell nav for a PLAIN user (per-user, not admin-gated) and opens the real pane", async ({ mount, page }) => {
   await routeTrpc(page, {
     "settings.getUserSettings": () => ({
       userId: "user_ct_kes",
@@ -122,10 +116,7 @@ test("the Workloads category shows in the shell nav for a PLAIN user (per-user, 
   await expect(page.getByRole("tab", { name: "Running" })).toBeVisible();
 });
 
-test("lists the caller's own jobs with status badges; a plain user never fires admin.listUsers; tabs filter", async ({
-  mount,
-  page,
-}) => {
+test("lists the caller's own jobs with status badges; a plain user never fires admin.listUsers; tabs filter", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "workloads.list": () => [
       workloadRow(),
@@ -171,10 +162,7 @@ test("lists the caller's own jobs with status badges; a plain user never fires a
   expect(trpc.count("admin.listUsers")).toBe(0);
 });
 
-test("run dialog: singular by default, params ride the kind, and a non-owner sees NO bulk affordances", async ({
-  mount,
-  page,
-}) => {
+test("run dialog: singular by default, params ride the kind, and a non-owner sees NO bulk affordances", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "workloads.list": () => [],
     "sessions.me": () => USER_VIEWER,
@@ -217,10 +205,7 @@ test("run dialog: singular by default, params ride the kind, and a non-owner see
   expect(started.targetOwnerId).toBeUndefined();
 });
 
-test("owner bulk create-kind: the Bulk switch + required target picker wire targetOwnerId", async ({
-  mount,
-  page,
-}) => {
+test("owner bulk create-kind: the Bulk switch + required target picker wire targetOwnerId", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "workloads.list": () => [],
     "sessions.me": () => OWNER_VIEWER,
@@ -256,10 +241,7 @@ test("owner bulk create-kind: the Bulk switch + required target picker wire targ
   expect(started.targetOwnerId).toBe("user_ct_mira");
 });
 
-test("owner maintenance kind: the Maintenance group offers refresh-model-catalog; it runs mode:bulk with NO target", async ({
-  mount,
-  page,
-}) => {
+test("owner maintenance kind: the Maintenance group offers refresh-model-catalog; it runs mode:bulk with NO target", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "workloads.list": () => [],
     "sessions.me": () => OWNER_VIEWER,
@@ -294,10 +276,7 @@ test("owner maintenance kind: the Maintenance group offers refresh-model-catalog
   expect(started.targetOwnerId).toBeUndefined();
 });
 
-test("a failed row shows the FRIENDLY message; the raw exception stays one disclosure away", async ({
-  mount,
-  page,
-}) => {
+test("a failed row shows the FRIENDLY message; the raw exception stays one disclosure away", async ({ mount, page }) => {
   await routeTrpc(page, {
     "workloads.list": () => [
       workloadRow({
@@ -313,11 +292,7 @@ test("a failed row shows the FRIENDLY message; the raw exception stays one discl
   await mount(<WorkloadsSettingsStory />);
 
   // The mapped, user-actionable line shows; the raw internal string is NOT the surfaced copy.
-  await expect(
-    page.getByText(
-      "A required local model wasn't available. Check the model is installed, then retry.",
-    ),
-  ).toBeVisible();
+  await expect(page.getByText("A required local model wasn't available. Check the model is installed, then retry.")).toBeVisible();
   const raw = page.getByText("Unable to get model file path or buffer.");
   // The raw string lives inside the collapsed "Technical details" disclosure (hidden until expanded).
   await expect(raw).toHaveCount(0);
@@ -325,14 +300,9 @@ test("a failed row shows the FRIENDLY message; the raw exception stays one discl
   await expect(raw).toBeVisible();
 });
 
-test("an UNMAPPED failure falls back to the raw string verbatim (no disclosure)", async ({
-  mount,
-  page,
-}) => {
+test("an UNMAPPED failure falls back to the raw string verbatim (no disclosure)", async ({ mount, page }) => {
   await routeTrpc(page, {
-    "workloads.list": () => [
-      workloadRow({ status: "failed", error: "runtime: something weirdly specific" }),
-    ],
+    "workloads.list": () => [workloadRow({ status: "failed", error: "runtime: something weirdly specific" })],
     "sessions.me": () => USER_VIEWER,
     "workloads.listSchedules": () => [],
   });
@@ -345,10 +315,7 @@ test("an UNMAPPED failure falls back to the raw string verbatim (no disclosure)"
   await expect(page.getByRole("button", { name: "Technical details" })).toHaveCount(0);
 });
 
-test("cancel is confirm-gated (AlertDialog) and retry fires on a failure terminal", async ({
-  mount,
-  page,
-}) => {
+test("cancel is confirm-gated (AlertDialog) and retry fires on a failure terminal", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "workloads.list": () => [
       workloadRow(),
@@ -375,24 +342,17 @@ test("cancel is confirm-gated (AlertDialog) and retry fires on a failure termina
   await page.getByRole("button", { name: "Cancel workload" }).click();
   // No DOM correlate: the mock's `workloads.list` responder is static, so the invalidation-driven
   // refetch re-renders nothing observable — poll the call-count, but tightly (not the 1.85s default).
-  await expect
-    .poll(() => trpc.count("workloads.cancel"), { intervals: [20, 50, 100] })
-    .toBeGreaterThanOrEqual(1);
+  await expect.poll(() => trpc.count("workloads.cancel"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
   const cancelled = trpc.lastInput("workloads.cancel") as { id?: unknown };
   expect(cancelled.id).toBe("workload_ct_1");
 
   await page.getByRole("button", { name: "Retry — Distill characters" }).click();
-  await expect
-    .poll(() => trpc.count("workloads.retry"), { intervals: [20, 50, 100] })
-    .toBeGreaterThanOrEqual(1);
+  await expect.poll(() => trpc.count("workloads.retry"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
   const retried = trpc.lastInput("workloads.retry") as { id?: unknown };
   expect(retried.id).toBe("workload_ct_2");
 });
 
-test("a LIVE progress event drives the row's determinate progress bar (row-local buffer)", async ({
-  mount,
-  page,
-}) => {
+test("a LIVE progress event drives the row's determinate progress bar (row-local buffer)", async ({ mount, page }) => {
   await routeTrpc(page, {
     "workloads.list": () => [workloadRow()],
     "sessions.me": () => USER_VIEWER,
@@ -435,10 +395,7 @@ function scheduleRow(overrides: Record<string, unknown> = {}): Record<string, un
   };
 }
 
-test("Schedules section: lists a schedule, and toggle/delete fire the owner-scoped verbs", async ({
-  mount,
-  page,
-}) => {
+test("Schedules section: lists a schedule, and toggle/delete fire the owner-scoped verbs", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "workloads.list": () => [],
     "sessions.me": () => USER_VIEWER,
@@ -457,25 +414,18 @@ test("Schedules section: lists a schedule, and toggle/delete fire the owner-scop
   // Toggling the enable Switch fires the owner-scoped setScheduleEnabled with the row id.
   await section.getByRole("switch", { name: "Enable Index (embeddings) schedule" }).click();
   // No DOM correlate: the mock's `listSchedules` responder is static — tighten the poll instead.
-  await expect
-    .poll(() => trpc.count("workloads.setScheduleEnabled"), { intervals: [20, 50, 100] })
-    .toBeGreaterThanOrEqual(1);
+  await expect.poll(() => trpc.count("workloads.setScheduleEnabled"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
   const toggled = trpc.lastInput("workloads.setScheduleEnabled") as { id?: unknown };
   expect(toggled.id).toBe("workload_schedule_ct_1");
 
   // Delete fires deleteSchedule with the row id.
   await section.getByRole("button", { name: "Delete" }).click();
-  await expect
-    .poll(() => trpc.count("workloads.deleteSchedule"), { intervals: [20, 50, 100] })
-    .toBeGreaterThanOrEqual(1);
+  await expect.poll(() => trpc.count("workloads.deleteSchedule"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
   const deleted = trpc.lastInput("workloads.deleteSchedule") as { id?: unknown };
   expect(deleted.id).toBe("workload_schedule_ct_1");
 });
 
-test("Schedules section: the create dialog wires a singular createSchedule (kind + cadence + params)", async ({
-  mount,
-  page,
-}) => {
+test("Schedules section: the create dialog wires a singular createSchedule (kind + cadence + params)", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "workloads.list": () => [],
     "sessions.me": () => USER_VIEWER,
@@ -506,10 +456,7 @@ test("Schedules section: the create dialog wires a singular createSchedule (kind
   expect(created.cadence).toBe("weekly");
 });
 
-test("owner: the create dialog offers a Bulk toggle on a sweep kind and wires a BULK schedule", async ({
-  mount,
-  page,
-}) => {
+test("owner: the create dialog offers a Bulk toggle on a sweep kind and wires a BULK schedule", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "workloads.list": () => [],
     "sessions.me": () => OWNER_VIEWER,
@@ -541,10 +488,7 @@ test("owner: the create dialog offers a Bulk toggle on a sweep kind and wires a 
   expect(created.mode).toBe("bulk");
 });
 
-test("owner: a Maintenance kind schedule is bulk BY FORCE (a note, no toggle) and wires mode:bulk", async ({
-  mount,
-  page,
-}) => {
+test("owner: a Maintenance kind schedule is bulk BY FORCE (a note, no toggle) and wires mode:bulk", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "workloads.list": () => [],
     "sessions.me": () => OWNER_VIEWER,
@@ -574,10 +518,7 @@ test("owner: a Maintenance kind schedule is bulk BY FORCE (a note, no toggle) an
   expect(created.mode).toBe("bulk");
 });
 
-test("Schedules: the Edit action opens a seeded dialog and wires updateSchedule (cadence retune)", async ({
-  mount,
-  page,
-}) => {
+test("Schedules: the Edit action opens a seeded dialog and wires updateSchedule (cadence retune)", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "workloads.list": () => [],
     "sessions.me": () => USER_VIEWER,
@@ -603,10 +544,7 @@ test("Schedules: the Edit action opens a seeded dialog and wires updateSchedule 
   expect(updated.cadence).toBe("weekly");
 });
 
-test("owner: a BULK schedule row wears the Bulk badge and a foreign row shows its owner handle", async ({
-  mount,
-  page,
-}) => {
+test("owner: a BULK schedule row wears the Bulk badge and a foreign row shows its owner handle", async ({ mount, page }) => {
   await routeTrpc(page, {
     "workloads.list": () => [],
     "sessions.me": () => OWNER_VIEWER,
@@ -634,13 +572,9 @@ test("owner: a BULK schedule row wears the Bulk badge and a foreign row shows it
 
 // The exact server `dependency_failed` message (domain/workloads persistence DEPENDENCY_FAILED_MESSAGE) —
 // the row exposes only this string, so the client keys on it to label the DAG terminal apart.
-const DEPENDENCY_FAILED_MESSAGE =
-  "a dependency did not succeed (a non-success terminal, or an absent dependency) — the dependent cannot run";
+const DEPENDENCY_FAILED_MESSAGE = "a dependency did not succeed (a non-success terminal, or an absent dependency) — the dependent cannot run";
 
-test("run dialog: setting 'Run at' defers the run — start carries scheduledAt (epoch ms)", async ({
-  mount,
-  page,
-}) => {
+test("run dialog: setting 'Run at' defers the run — start carries scheduledAt (epoch ms)", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "workloads.list": () => [],
     "sessions.me": () => USER_VIEWER,
@@ -664,15 +598,10 @@ test("run dialog: setting 'Run at' defers the run — start carries scheduledAt 
   expect(started.scheduledAt as number).toBeGreaterThan(4_000_000_000_000);
 });
 
-test("run dialog: 'Run after these complete' lists in-flight runs and wires dependsOn", async ({
-  mount,
-  page,
-}) => {
+test("run dialog: 'Run after these complete' lists in-flight runs and wires dependsOn", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     // One in-flight run owned by the viewer → offered as a dependency candidate.
-    "workloads.list": () => [
-      workloadRow({ id: "workload_ct_dep", kind: "distill-characters", status: "running" }),
-    ],
+    "workloads.list": () => [workloadRow({ id: "workload_ct_dep", kind: "distill-characters", status: "running" })],
     "sessions.me": () => USER_VIEWER,
     "workloads.listSchedules": () => [],
     "workloads.start": () => ({ id: "workload_ct_new" }),
@@ -693,10 +622,7 @@ test("run dialog: 'Run after these complete' lists in-flight runs and wires depe
   expect(started.dependsOn).toEqual(["workload_ct_dep"]);
 });
 
-test("list: a deferred (future-dated) queued row shows the Scheduled state, not a progress bar", async ({
-  mount,
-  page,
-}) => {
+test("list: a deferred (future-dated) queued row shows the Scheduled state, not a progress bar", async ({ mount, page }) => {
   await routeTrpc(page, {
     "workloads.list": () => [
       workloadRow({
@@ -719,14 +645,9 @@ test("list: a deferred (future-dated) queued row shows the Scheduled state, not 
   await expect(allPanel.getByRole("progressbar")).toHaveCount(0);
 });
 
-test("list: a queued row with dependsOn shows the Waiting-on-dependencies state", async ({
-  mount,
-  page,
-}) => {
+test("list: a queued row with dependsOn shows the Waiting-on-dependencies state", async ({ mount, page }) => {
   await routeTrpc(page, {
-    "workloads.list": () => [
-      workloadRow({ status: "queued", dependsOn: ["workload_ct_a", "workload_ct_b"] }),
-    ],
+    "workloads.list": () => [workloadRow({ status: "queued", dependsOn: ["workload_ct_a", "workload_ct_b"] })],
     "sessions.me": () => USER_VIEWER,
     "workloads.listSchedules": () => [],
   });
@@ -739,10 +660,7 @@ test("list: a queued row with dependsOn shows the Waiting-on-dependencies state"
   await expect(allPanel.getByText("Waiting on 2 dependencies")).toBeVisible();
 });
 
-test("list: a dependency_failed terminal is labelled apart from a normal failure", async ({
-  mount,
-  page,
-}) => {
+test("list: a dependency_failed terminal is labelled apart from a normal failure", async ({ mount, page }) => {
   await routeTrpc(page, {
     "workloads.list": () => [workloadRow({ status: "failed", error: DEPENDENCY_FAILED_MESSAGE })],
     "sessions.me": () => USER_VIEWER,
@@ -757,23 +675,16 @@ test("list: a dependency_failed terminal is labelled apart from a normal failure
   await expect(allPanel.getByText("Dependency failed", { exact: true })).toBeVisible();
   await expect(allPanel.getByText("Failed", { exact: true })).toHaveCount(0);
   // The friendly, distinct copy explains it never ran; the raw server line stays one disclosure away.
-  await expect(
-    allPanel.getByText("one of the jobs it depends on didn't succeed", { exact: false }),
-  ).toBeVisible();
+  await expect(allPanel.getByText("one of the jobs it depends on didn't succeed", { exact: false })).toBeVisible();
 });
 
-test("a LIVE terminal event refetches the list — Running flips to Succeeded without a refresh", async ({
-  mount,
-  page,
-}) => {
+test("a LIVE terminal event refetches the list — Running flips to Succeeded without a refresh", async ({ mount, page }) => {
   let listCalls = 0;
   await routeTrpc(page, {
     "workloads.list": () => {
       listCalls += 1;
       // The seed read sees the running row; the terminal-event invalidate refetches the succeeded one.
-      return listCalls === 1
-        ? [workloadRow()]
-        : [workloadRow({ status: "succeeded", result: { embedded: 12 } })];
+      return listCalls === 1 ? [workloadRow()] : [workloadRow({ status: "succeeded", result: { embedded: 12 } })];
     },
     "sessions.me": () => USER_VIEWER,
     "workloads.listSchedules": () => [],

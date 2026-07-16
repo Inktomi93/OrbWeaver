@@ -33,8 +33,6 @@ describe("listForPersona", () => {
     const other = await seedUser(db, { handle: "other" });
     const foreign = await seedPersona(db, { ownerId: other });
 
-    await expect(
-      svc.listForPersona({ principal: principal(owner), personaId: foreign }),
-    ).rejects.toBeInstanceOf(WorldInfoNotFoundError);
+    await expect(svc.listForPersona({ principal: principal(owner), personaId: foreign })).rejects.toBeInstanceOf(WorldInfoNotFoundError);
   });
 });

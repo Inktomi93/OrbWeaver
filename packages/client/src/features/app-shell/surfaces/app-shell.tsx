@@ -13,14 +13,7 @@ import type { CSSProperties, ReactElement, ReactNode } from "react";
 import { useCallback, useEffect, useRef } from "react";
 import { preload } from "react-dom";
 import type { ChromeEntry, SectionId } from "#state";
-import {
-  closeModal,
-  openModal,
-  setActiveSection,
-  useChromeRegistry,
-  useModalRegistry,
-  useSectionRegistry,
-} from "#state";
+import { closeModal, openModal, setActiveSection, useChromeRegistry, useModalRegistry, useSectionRegistry } from "#state";
 import { RegionAnchor } from "../anchors/region-anchor";
 import { CustomThemeStyle } from "../components/custom-theme-style";
 import { ModalHost } from "../components/modal-host";
@@ -61,9 +54,9 @@ function TopbarTrailChrome(): ReactElement {
   );
 }
 
-function TrailWidget({ entry }: { readonly entry: ChromeEntry }): ReactElement | null {
+function TrailWidget({ entry }: { readonly entry: ChromeEntry }): ReactNode {
   const visible = entry.useVisible?.() ?? true;
-  return visible ? <>{entry.body()}</> : null;
+  return visible ? entry.body() : null;
 }
 
 export function AppShell({ railFoot }: AppShellProps): ReactElement {
@@ -108,16 +101,8 @@ export function AppShell({ railFoot }: AppShellProps): ReactElement {
   const activeDef = registry.get(layout.activeSection);
   const placeholderCopy = activeDef.placeholder;
   // At most one Weave decoration per screen — it rides the content placeholder only.
-  const listContent = activeDef.list?.() ?? (
-    <SectionPlaceholder title={`${placeholderCopy.title} list`} />
-  );
-  const contentFallback = (
-    <SectionPlaceholder
-      title={placeholderCopy.title}
-      description={placeholderCopy.description}
-      weave={true}
-    />
-  );
+  const listContent = activeDef.list?.() ?? <SectionPlaceholder title={`${placeholderCopy.title} list`} />;
+  const contentFallback = <SectionPlaceholder title={placeholderCopy.title} description={placeholderCopy.description} weave={true} />;
   // Every section's content, from the registry, so <Activity> keeps recently-visited panes mounted-but-
   // hidden across a rail switch. The DECLARED-PLANNED arm renders the section's own placeholder as its
   // content (the refinery founding member).
@@ -127,11 +112,7 @@ export function AppShell({ railFoot }: AppShellProps): ReactElement {
       typeof def.content === "function" ? (
         def.content()
       ) : (
-        <SectionPlaceholder
-          title={def.placeholder.title}
-          description={def.placeholder.description}
-          weave={true}
-        />
+        <SectionPlaceholder title={def.placeholder.title} description={def.placeholder.description} weave={true} />
       );
   }
   const mainRef = useRef<HTMLElement>(null);
@@ -166,14 +147,9 @@ export function AppShell({ railFoot }: AppShellProps): ReactElement {
   return (
     <TooltipProvider>
       {/* Mounted before .shell-grid in DOM order so it paints underneath; renders nothing when no image is set. */}
-      <ThemeBackgroundLayer
-        url={bgUrl}
-        fit={appearance.backgroundFit}
-        dim={appearance.backgroundDim}
-        blur={appearance.backgroundBlur}
-      />
+      <ThemeBackgroundLayer url={bgUrl} fit={appearance.backgroundFit} dim={appearance.backgroundDim} blur={appearance.backgroundBlur} />
       <ThemeScope tokens={theme?.override ?? {}} className="contents">
-        <PortalContainerContext.Provider value={portalRootRef}>
+        <PortalContainerContext value={portalRootRef}>
           <div
             className="shell-grid"
             data-section={layout.activeSection}
@@ -186,18 +162,9 @@ export function AppShell({ railFoot }: AppShellProps): ReactElement {
             style={shellVars}
           >
             <CustomThemeStyle css={theme?.css ?? null} />
-            <Rail
-              activeSection={layout.activeSection}
-              onSelectSection={setActiveSection}
-              onOpenModal={openModal}
-              railFoot={railFoot}
-            />
+            <Rail activeSection={layout.activeSection} onSelectSection={setActiveSection} onOpenModal={openModal} railFoot={railFoot} />
 
-            <PanelChrome
-              panel="list"
-              label={`${layout.activeSectionLabel} list`}
-              mode={layout.listMode}
-            >
+            <PanelChrome panel="list" label={`${layout.activeSectionLabel} list`} mode={layout.listMode}>
               <RegionAnchor region="list">{listContent}</RegionAnchor>
             </PanelChrome>
 
@@ -236,12 +203,7 @@ export function AppShell({ railFoot }: AppShellProps): ReactElement {
                 onToggleList={(): void => layout.togglePanel("list")}
               />
               <main className="shell-content" ref={mainRef} tabIndex={-1}>
-                <SectionContent
-                  activeSection={layout.activeSection}
-                  contentBySection={contentBySection}
-                  fallback={contentFallback}
-                  focusAnchorRef={mainRef}
-                />
+                <SectionContent activeSection={layout.activeSection} contentBySection={contentBySection} fallback={contentFallback} focusAnchorRef={mainRef} />
               </main>
             </div>
 
@@ -271,15 +233,11 @@ export function AppShell({ railFoot }: AppShellProps): ReactElement {
               onClick={dismissOverlays}
             />
 
-            <ModalHost
-              openModal={layout.openModalId}
-              container={portalRootRef}
-              onClose={closeModal}
-            />
+            <ModalHost openModal={layout.openModalId} container={portalRootRef} onClose={closeModal} />
           </div>
           {/* Themed portal root for every overlay — sibling of .shell-grid but inside <ThemeScope>. */}
           <div ref={portalRootRef} className="contents" data-slot="portal-root" />
-        </PortalContainerContext.Provider>
+        </PortalContainerContext>
       </ThemeScope>
     </TooltipProvider>
   );

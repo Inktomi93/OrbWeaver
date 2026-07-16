@@ -72,10 +72,7 @@ function buildShape(paths: readonly string[]): TreeShape {
 
 /** An ST profile dir carries `settings.json`, or one of `characters/`/`chats/`/`User Avatars/`, and NO
  *  orb-only entity dir (an orb-only child means it is NOT an ST profile — don't guess). */
-function looksLikeStProfile(
-  child: { readonly files: Set<string>; readonly dirs: Set<string> },
-  orbOnlyDirs: ReadonlySet<string>,
-): boolean {
+function looksLikeStProfile(child: { readonly files: Set<string>; readonly dirs: Set<string> }, orbOnlyDirs: ReadonlySet<string>): boolean {
   for (const dir of child.dirs) {
     if (orbOnlyDirs.has(dir)) {
       return false;
@@ -96,10 +93,7 @@ function looksLikeStProfile(
  * Sniff a wrapper-stripped relative-path set. `orbOnlyDirs` is the registry's entity-dir names MINUS the
  * ST-shared `characters`/`chats` (bare segment names, no trailing slash) — the positive orb signal.
  */
-export function sniffTreeLayout(
-  paths: readonly string[],
-  orbOnlyDirs: ReadonlySet<string>,
-): TreeLayout {
+export function sniffTreeLayout(paths: readonly string[], orbOnlyDirs: ReadonlySet<string>): TreeLayout {
   const shape = buildShape(paths);
   const orbAtTop = [...shape.topDirs].some((d) => orbOnlyDirs.has(d));
   const stStrongAtTop = shape.topFiles.has(ST_SETTINGS_FILE) || shape.topDirs.has(ST_AVATARS_DIR);
@@ -122,9 +116,7 @@ export function sniffTreeLayout(
       const child = shape.childrenByDir.get(d);
       return child !== undefined && looksLikeStProfile(child, orbOnlyDirs);
     });
-    const anyOrb = [...shape.childrenByDir.values()].some((child) =>
-      [...child.dirs].some((d) => orbOnlyDirs.has(d)),
-    );
+    const anyOrb = [...shape.childrenByDir.values()].some((child) => [...child.dirs].some((d) => orbOnlyDirs.has(d)));
     if (anyProfile && !anyOrb) {
       return { kind: "st", stagePrefix: "" };
     }

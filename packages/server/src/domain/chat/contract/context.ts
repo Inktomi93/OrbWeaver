@@ -3,18 +3,8 @@
 // this. Every cross-feature/infra dependency is an injected op — chat never sideways-imports a sibling domain.
 
 import type { CharacterCard } from "@orb/contracts/character";
-import type {
-  ChatBusEvent,
-  GroupConfig,
-  RenderPolicy,
-  RoomOverrides,
-  ToolCallRecord,
-} from "@orb/contracts/chat";
-import type {
-  CredentialSource,
-  ResolvedConnection,
-  RouteChatAssignment,
-} from "@orb/contracts/connection";
+import type { ChatBusEvent, GroupConfig, RenderPolicy, RoomOverrides, ToolCallRecord } from "@orb/contracts/chat";
+import type { CredentialSource, ResolvedConnection, RouteChatAssignment } from "@orb/contracts/connection";
 import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { AgentSourceKind, Can, ChatRoster, Principal } from "@orb/contracts/identity";
 import type { PromptTemplateMode } from "@orb/contracts/imagery";
@@ -89,11 +79,7 @@ export interface ChatToolOps {
   readonly resolveTools: (names: readonly string[]) => ChatToolSet;
   readonly toWireTools: (set: ChatToolSet) => readonly WireTool[];
   /** The one execute path — sequential, errors-as-data; never throws per-call. */
-  readonly executeToolCalls: (
-    set: ChatToolSet,
-    calls: readonly ToolCallInput[],
-    frame: ChatToolExecFrame,
-  ) => Promise<readonly ToolCallRecord[]>;
+  readonly executeToolCalls: (set: ChatToolSet, calls: readonly ToolCallInput[], frame: ChatToolExecFrame) => Promise<readonly ToolCallRecord[]>;
 }
 
 /** Resolve `{api, model, credential, capability}` for a turn under the frozen `runAsUserId` (never the caller). */
@@ -104,24 +90,14 @@ type ResolveChatConnectionOp = (params: {
 }) => Promise<ResolvedConnection>;
 
 /** The brand-protected credential for a `{runAsUserId, source}` (the side-LLM/summarizer path). */
-type ResolveCredentialOp = (params: {
-  readonly runAsUserId: UserId;
-  readonly source: CredentialSource;
-}) => Promise<ResolvedCredential>;
+type ResolveCredentialOp = (params: { readonly runAsUserId: UserId; readonly source: CredentialSource }) => Promise<ResolvedCredential>;
 
 /** The post-turn auth_failed side-effect. Best-effort; never throws into the turn path. */
-type MaybeRevokeOnAuthFailedOp = (params: {
-  readonly runAsUserId: UserId;
-  readonly source: CredentialSource;
-  readonly status: number;
-}) => Promise<void>;
+type MaybeRevokeOnAuthFailedOp = (params: { readonly runAsUserId: UserId; readonly source: CredentialSource; readonly status: number }) => Promise<void>;
 
 /** The live card for a roster member under the host's ownership. Null means gone/mid-delete — the caller
  *  treats null as skip, never an error. */
-type GetCardOp = (params: {
-  readonly ownerId: UserId;
-  readonly characterId: CharacterId;
-}) => Promise<CharacterCard | null>;
+type GetCardOp = (params: { readonly ownerId: UserId; readonly characterId: CharacterId }) => Promise<CharacterCard | null>;
 
 /** Resolves a roster member's content-render policy (override ?? global). `characterId: null` (a human
  *  seat) resolves to the global floor alone. */
@@ -133,10 +109,7 @@ type ResolveRenderPolicyOp = (params: {
 
 /** Resolves a roster member's raw per-character theme override, unmerged — chat never reads the themes
  *  table itself; the override/global/default cascade is a client concern. */
-type ResolveThemeOverrideOp = (params: {
-  readonly ownerId: UserId | null;
-  readonly characterId: CharacterId | null;
-}) => Promise<ThemeOverride | null>;
+type ResolveThemeOverrideOp = (params: { readonly ownerId: UserId | null; readonly characterId: CharacterId | null }) => Promise<ThemeOverride | null>;
 
 /** Resolves a human participant's display fields. */
 type ResolveUserPublicsOp = (
@@ -150,11 +123,7 @@ type ResolveUserPublicsOp = (
 
 /** Resolves a parsed message-image ref to a model-fetchable URL/data-URI. Null blocks the image (owner
  *  policy or a gone asset) and the engine drops that image part. */
-type ResolveImageUrlOp = (params: {
-  readonly ownerId: UserId;
-  readonly chatId: ChatId;
-  readonly ref: ContentImageRef;
-}) => Promise<string | null>;
+type ResolveImageUrlOp = (params: { readonly ownerId: UserId; readonly chatId: ChatId; readonly ref: ContentImageRef }) => Promise<string | null>;
 
 /** Resolves an asset id to just its content hash — a hash is not a secret, so this is a bare lookup, never
  *  an existence/ownership oracle. Null for a null id or a gone row. */
@@ -162,10 +131,7 @@ type ResolveAssetHashOp = (assetId: AssetId | null) => Promise<string | null>;
 
 /** The send-attach trust boundary: given the acting principal's userId + claimed attachment ids, returns
  *  the subset they actually own. The verb rejects a send whose claimed ids aren't all returned. */
-type FilterOwnedAssetIdsOp = (
-  userId: UserId,
-  assetIds: readonly AssetId[],
-) => Promise<readonly AssetId[]>;
+type FilterOwnedAssetIdsOp = (userId: UserId, assetIds: readonly AssetId[]) => Promise<readonly AssetId[]>;
 
 /** A handle to a synthetic group-character identity row, declared structurally so chat takes no cross-domain edge. */
 interface GroupCharacterRef {
@@ -173,16 +139,10 @@ interface GroupCharacterRef {
 }
 
 /** Find-or-mint the hidden group-narrator identity for a room (idempotent, never null). */
-type MintSyntheticGroupCharacterOp = (params: {
-  readonly ownerId: UserId;
-  readonly chatId: ChatId;
-}) => Promise<GroupCharacterRef>;
+type MintSyntheticGroupCharacterOp = (params: { readonly ownerId: UserId; readonly chatId: ChatId }) => Promise<GroupCharacterRef>;
 
 /** The group identity for a room, or null if not yet minted. */
-type FindSyntheticGroupCharacterOp = (params: {
-  readonly ownerId: UserId;
-  readonly chatId: ChatId;
-}) => Promise<GroupCharacterRef | null>;
+type FindSyntheticGroupCharacterOp = (params: { readonly ownerId: UserId; readonly chatId: ChatId }) => Promise<GroupCharacterRef | null>;
 
 /** Persists the turn-economics delta the chat-side builders produced. */
 type ApplyStatsDeltaOp = ApplyStatsDelta<unknown, Db>;
@@ -192,10 +152,7 @@ export type SummarizeOp = RoleClients["summarize"];
 
 /** Delivers an invite/kick/handoff to a non-member the per-chat bus can't reach. Durable-first; `coStatements`
  *  carries the producer's membership-transition statements, committed in the same batch as the notification row. */
-type NotificationsEmitOp = (
-  event: NotificationEvent,
-  coStatements?: readonly unknown[],
-) => Promise<void>;
+type NotificationsEmitOp = (event: NotificationEvent, coStatements?: readonly unknown[]) => Promise<void>;
 
 /** The exact handle→userId lookup for targeted invites; unknown/disabled collapses to null. Chat never
  *  reads `users` itself. */
@@ -237,17 +194,11 @@ type ResolveCurrentPersonaOp = (userId: UserId) => Promise<PersonaId | null>;
 
 /** The persona to auto-anchor a new chat founded on exactly one character with exactly one connection.
  *  Ambiguity or a group founding falls through to {@link ResolveDefaultPersonaOp}. */
-type ResolveConnectedPersonaOp = (
-  userId: UserId,
-  characterIds: readonly CharacterId[],
-) => Promise<PersonaId | null>;
+type ResolveConnectedPersonaOp = (userId: UserId, characterIds: readonly CharacterId[]) => Promise<PersonaId | null>;
 
 /** Does `personaId` belong to `ownerId`? The persona-reattribution ownership belt: a line may be re-stamped
  *  only to a persona the acting user owns. */
-type VerifyPersonaOwnedOp = (params: {
-  readonly ownerId: UserId;
-  readonly personaId: PersonaId;
-}) => Promise<boolean>;
+type VerifyPersonaOwnedOp = (params: { readonly ownerId: UserId; readonly personaId: PersonaId }) => Promise<boolean>;
 
 /** memory's digest write payload → `embeddings.store`. `contentHash` is the staleness/collapse key;
  *  `key.scopedCharacterId` is always a real CharacterId (the synthetic group-as-character bucket, or a cast
@@ -363,9 +314,7 @@ export type DebitBudgetOp = (triggeredBy: UserId, budget: number | null) => Prom
 
 /** The per-turn host policy resolved under the frozen `runAsUserId`: the budget cap + the max-pro-sub
  *  owner-consent flag. */
-export type ResolveTurnPolicyOp = (
-  runAsUserId: UserId,
-) => Promise<{ readonly budget: number | null; readonly allowNonOwnerMaxProSub: boolean }>;
+export type ResolveTurnPolicyOp = (runAsUserId: UserId) => Promise<{ readonly budget: number | null; readonly allowNonOwnerMaxProSub: boolean }>;
 
 /** What `createChatService` receives from the entry root: collaborators not on {@link ChatContext} and not
  *  built inside the composition root. */
@@ -378,10 +327,7 @@ export interface ChatServiceDeps {
   readonly prng: () => number;
   /** The inter-turn delay for the auto-mode chain. */
   readonly delay: (ms: number) => Promise<void>;
-  readonly resolveConnection: (args: {
-    readonly runAsUserId: UserId;
-    readonly chatId: ChatId;
-  }) => Promise<ResolvedConnection>;
+  readonly resolveConnection: (args: { readonly runAsUserId: UserId; readonly chatId: ChatId }) => Promise<ResolvedConnection>;
   readonly resolveForeignInputs: ResolveForeignInputsOp;
   readonly debitBudget: DebitBudgetOp;
   readonly resolveTurnPolicy: ResolveTurnPolicyOp;

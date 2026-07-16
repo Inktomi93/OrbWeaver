@@ -67,9 +67,7 @@ describe("buildHistoryMessages — the D48 tool exchange (T2)", () => {
       {
         role: "assistant",
         content: "",
-        toolCalls: [
-          { id: "call_1", type: "function", function: { name: "tick", arguments: '{"m":1}' } },
-        ],
+        toolCalls: [{ id: "call_1", type: "function", function: { name: "tick", arguments: '{"m":1}' } }],
       },
     ]);
   });
@@ -91,17 +89,13 @@ describe("buildHistoryMessages — the D48 tool exchange (T2)", () => {
   });
 
   test("byte-identity guard: a tool-less history maps exactly as pre-T2 (no new keys)", () => {
-    expect(
-      buildHistoryMessages([{ role: "user", content: [{ type: "text", text: "hi" }] }]),
-    ).toEqual([{ role: "user", content: "hi" }]);
+    expect(buildHistoryMessages([{ role: "user", content: [{ type: "text", text: "hi" }] }])).toEqual([{ role: "user", content: "hi" }]);
   });
 });
 
 describe("the D48 request-field builders (chat-completions dialect)", () => {
   test("buildWireTools wraps in the {type:'function'} envelope, order preserved", () => {
-    expect(
-      buildWireTools([{ name: "a", description: "da", parameters: { type: "object" } }]),
-    ).toEqual([
+    expect(buildWireTools([{ name: "a", description: "da", parameters: { type: "object" } }])).toEqual([
       {
         type: "function",
         function: { name: "a", description: "da", parameters: { type: "object" } },
@@ -119,7 +113,6 @@ describe("the D48 request-field builders (chat-completions dialect)", () => {
     });
   });
 
-  // biome-ignore lint/security/noSecrets: a test title naming a wire dialect, not a secret.
   test("buildChatResponseFormat: json_schema dialect, strict defaults true", () => {
     expect(buildChatResponseFormat({ name: "s", schema: { type: "object" } })).toEqual({
       type: "json_schema",
@@ -181,17 +174,16 @@ describe("resolveProviderPreferences", () => {
   });
 
   test("user routing wins, mapped snake_case → camelCase", () => {
-    expect(
-      resolveProviderPreferences(ANTHROPIC_MODEL, { order: ["Together"], allow_fallbacks: false }),
-    ).toEqual({ order: ["Together"], allowFallbacks: false });
+    expect(resolveProviderPreferences(ANTHROPIC_MODEL, { order: ["Together"], allow_fallbacks: false })).toEqual({
+      order: ["Together"],
+      allowFallbacks: false,
+    });
   });
 });
 
 describe("mergeCustomParameters", () => {
   test("owned fields WIN over customParameters (the preset-hijack firewall)", () => {
-    expect(
-      mergeCustomParameters({ model: "owned", temperature: 0.7 }, { model: "evil", topK: 5 }),
-    ).toEqual({
+    expect(mergeCustomParameters({ model: "owned", temperature: 0.7 }, { model: "evil", topK: 5 })).toEqual({
       model: "owned",
       temperature: 0.7,
       topK: 5,
@@ -204,18 +196,14 @@ describe("mergeCustomParameters", () => {
   });
 
   test("owned wins even inside a nested object customParameters also sets (deep merge, PD-101)", () => {
-    expect(
-      mergeCustomParameters(
-        { model: "owned", reasoning: { effort: "high", enabled: true } },
-        { reasoning: { effort: "low", extra: "x" } },
-      ),
-    ).toEqual({ model: "owned", reasoning: { effort: "high", enabled: true, extra: "x" } });
+    expect(mergeCustomParameters({ model: "owned", reasoning: { effort: "high", enabled: true } }, { reasoning: { effort: "low", extra: "x" } })).toEqual({
+      model: "owned",
+      reasoning: { effort: "high", enabled: true, extra: "x" },
+    });
   });
 
   test("a __proto__/constructor-carrying customParameters does not pollute Object.prototype (PD-101 Layer 2)", () => {
-    const poison = JSON.parse(
-      '{"__proto__":{"polluted":true},"nested":{"constructor":{"polluted":true},"ok":1},"topOk":1}',
-    ) as Record<string, unknown>;
+    const poison = JSON.parse('{"__proto__":{"polluted":true},"nested":{"constructor":{"polluted":true},"ok":1},"topOk":1}') as Record<string, unknown>;
     const merged = mergeCustomParameters({ model: "owned" }, poison);
     expect(({} as Record<string, unknown>)["polluted"]).toBeUndefined();
     expect(merged).toEqual({ model: "owned", nested: { ok: 1 }, topOk: 1 });
@@ -224,9 +212,7 @@ describe("mergeCustomParameters", () => {
 
 describe("isMandatoryReasoningRejection", () => {
   test("matches the reasoning-mandatory signature on the error message", () => {
-    expect(isMandatoryReasoningRejection(new Error("reasoning is mandatory for this model"))).toBe(
-      true,
-    );
+    expect(isMandatoryReasoningRejection(new Error("reasoning is mandatory for this model"))).toBe(true);
   });
 
   test("does not match an unrelated error", () => {

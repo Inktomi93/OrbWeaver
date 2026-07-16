@@ -38,11 +38,7 @@ export async function insertPreset(db: Db, row: PresetInsert): Promise<void> {
 }
 
 /** Read one preset readable by this owner: their own row OR the shared system default. */
-export async function readablePreset(
-  db: Db,
-  userId: UserId,
-  id: PresetId,
-): Promise<PresetRow | undefined> {
+export async function readablePreset(db: Db, userId: UserId, id: PresetId): Promise<PresetRow | undefined> {
   const rows = await db
     .select()
     .from(presets)
@@ -63,20 +59,12 @@ export async function listReadable(db: Db, userId: UserId): Promise<PresetRow[]>
 /** The owner's own rows only (excludes the un-owned system default), oldest-first. The backup export reads
  *  this — the shared default never travels in a per-owner backup. */
 export async function listOwned(db: Db, userId: UserId): Promise<PresetRow[]> {
-  return await db
-    .select()
-    .from(presets)
-    .where(eq(presets.ownerId, userId))
-    .orderBy(asc(presets.createdAt));
+  return await db.select().from(presets).where(eq(presets.ownerId, userId)).orderBy(asc(presets.createdAt));
 }
 
 /** The caller's existing owned preset with this exact `name`, or null — the import dedup key. Newest wins
  *  when names collide. */
-export async function findOwnedPresetByName(
-  db: Db,
-  userId: UserId,
-  name: string,
-): Promise<PresetId | null> {
+export async function findOwnedPresetByName(db: Db, userId: UserId, name: string): Promise<PresetId | null> {
   const rows = await db
     .select({ id: presets.id })
     .from(presets)
@@ -88,12 +76,7 @@ export async function findOwnedPresetByName(
 
 /** Patch an OWNED row (scoped on `ownerId = userId` — never matches the null-owner system default),
  *  RETURNING the updated row (undefined when nothing matched: missing or not the caller's). */
-export async function updatePresetRow(
-  db: Db,
-  id: PresetId,
-  userId: UserId,
-  patch: PresetPatch,
-): Promise<PresetRow | undefined> {
+export async function updatePresetRow(db: Db, id: PresetId, userId: UserId, patch: PresetPatch): Promise<PresetRow | undefined> {
   const updated = await db
     .update(presets)
     .set(patch)
@@ -123,12 +106,7 @@ export async function selectSystemDefault(db: Db): Promise<PresetRow | undefined
 
 /** Overwrite the system-default row's config + version (the boot reseed; keyed on the sentinel + null
  *  owner so it can never hit an owned row). */
-export async function reseedSystemDefault(
-  db: Db,
-  config: PromptConfig,
-  schemaVersion: number,
-  updatedAt: number,
-): Promise<void> {
+export async function reseedSystemDefault(db: Db, config: PromptConfig, schemaVersion: number, updatedAt: number): Promise<void> {
   await db
     .update(presets)
     .set({ config, schemaVersion, updatedAt })

@@ -14,10 +14,5 @@ export function CharacterContent(): ReactElement {
   if (selectedCharacterId === null) {
     return <CharacterLibraryWelcome />;
   }
-  return (
-    <CharacterEditorSurface
-      characterId={selectedCharacterId}
-      onRevealField={(): void => revealContextPanel("field")}
-    />
-  );
+  return <CharacterEditorSurface characterId={selectedCharacterId} onRevealField={(): void => revealContextPanel("field")} />;
 }

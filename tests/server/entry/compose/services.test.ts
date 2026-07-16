@@ -27,12 +27,7 @@ import { subscribeNotifications } from "../../../../packages/server/src/transpor
 import { createFrozenClock } from "../../../support/clock";
 import { freshDb } from "../../../support/db";
 import { expect, test } from "../../../support/fixtures";
-import {
-  makeHarness as makeAssetsHarness,
-  pngBytes,
-  principal,
-  seedUser,
-} from "../../domain/assets/_support.ts";
+import { makeHarness as makeAssetsHarness, pngBytes, principal, seedUser } from "../../domain/assets/_support.ts";
 import { makeHarness as makeCharHarness } from "../../domain/character/_support.ts";
 import { EMBED_DIM, makeRoleClients } from "../../domain/embeddings/_support.ts";
 
@@ -139,11 +134,7 @@ test("the backend registry sources the resolved vLLM concurrency from AppSetting
   // An admin AppSettings override the boot reload resolves into the effective-config the registry reads.
   // embed:2 is distinct from the backend's DEFAULT_EMBED_CONCURRENCY (4): observing exactly 2 in-flight embed
   // requests proves the RESOLVED override (not the deps default) reached the constructed vLLM backend.
-  await writeAppOverride(
-    db,
-    { vllmConcurrency: { embed: 2, summarize: 3 }, schemaVersion: 2 },
-    clock.now(),
-  );
+  await writeAppOverride(db, { vllmConcurrency: { embed: 2, summarize: 3 }, schemaVersion: 2 }, clock.now());
 
   // A recording fake engine client: track the peak simultaneous in-flight embed requests. The setTimeout(0)
   // yield lets every started worker increment before any resolves, so the peak == the worker count, which the
@@ -215,10 +206,7 @@ test("character.bulkAddCardTag attaches via the real tag wiring (PD-49) — not 
 
   const tagRows = await db.select().from(tags).where(eq(tags.ownerId, owner));
   expect(tagRows.map((t) => t.name)).toEqual(["favorites"]); // trimmed, resolve-or-created via tag
-  const junction = await db
-    .select()
-    .from(characterTags)
-    .where(eq(characterTags.characterId, created.id));
+  const junction = await db.select().from(characterTags).where(eq(characterTags.characterId, created.id));
   expect(junction).toHaveLength(1);
   expect(junction[0]?.tagId).toBe(tagRows[0]?.id);
   expect(junction[0]?.status).toBe("accepted");
@@ -313,15 +301,11 @@ async function wireIndexer(db: Db): Promise<IndexerWiring> {
   const character = createCharacterService(makeCharHarness(db).ctx);
   const assetsH = await makeAssetsHarness(db);
   const assets = createAssetsService(assetsH.ctx);
-  const store: Mock<EmbeddingsService["store"]> = vi.fn<EmbeddingsService["store"]>(() =>
-    Promise.resolve({ outcome: "written", contentHash: "stub-hash" }),
-  );
+  const store: Mock<EmbeddingsService["store"]> = vi.fn<EmbeddingsService["store"]>(() => Promise.resolve({ outcome: "written", contentHash: "stub-hash" }));
   const indexer = createEmbeddingsIndexer({
     store,
-    loadCardText: async (characterId): Promise<string | undefined> =>
-      (await character.loadCardText(characterId)) ?? undefined,
-    loadAssetBytes: async (assetId): Promise<Uint8Array | undefined> =>
-      (await assets.loadAssetBytes(assetId)) ?? undefined,
+    loadCardText: async (characterId): Promise<string | undefined> => (await character.loadCardText(characterId)) ?? undefined,
+    loadAssetBytes: async (assetId): Promise<Uint8Array | undefined> => (await assets.loadAssetBytes(assetId)) ?? undefined,
     roleClients: makeRoleClients(),
     embedDim: EMBED_DIM,
     imageEmbedDim: EMBED_DIM,
@@ -418,10 +402,7 @@ describe("embeddings indexer bus subscription (PD-48)", () => {
     for (const call of w.store.mock.calls) {
       const params = call[0];
       // Both image arms carry `content` (the bytes); narrow off the union before reading it.
-      const content =
-        params?.lens === "image-raw" || params?.lens === "image-captioned"
-          ? params.content
-          : undefined;
+      const content = params?.lens === "image-raw" || params?.lens === "image-captioned" ? params.content : undefined;
       // CAS returns the bytes as a Buffer (a Uint8Array subclass) — compare by value, not subtype.
       expect(content instanceof Uint8Array && Array.from(content)).toEqual(Array.from(bytes));
     }
@@ -597,10 +578,7 @@ describe("persona.setActivePersona → chat bus (PD-120)", () => {
       expect(live.value?.seq).toBeGreaterThan(0);
 
       // DURABLE half: the row write committed (the participant's activePersonaId actually flipped).
-      const [row] = await db
-        .select()
-        .from(chatParticipants)
-        .where(eq(chatParticipants.userId, host));
+      const [row] = await db.select().from(chatParticipants).where(eq(chatParticipants.userId, host));
       expect(row?.activePersonaId).toBe(persona.id);
     } finally {
       const closed = iter.next().catch(() => undefined);
@@ -716,11 +694,7 @@ describe("corpusAutoindex indexer gate (Piece D)", () => {
   test("corpusAutoindex ON → indexer subscribed; a character write embeds (row persisted)", async () => {
     const db = await freshDb();
     // The boot reload resolves this stored override into the effective-config the gate reads.
-    await writeAppOverride(
-      db,
-      { corpusAutoindex: true, schemaVersion: 2 },
-      createFrozenClock().now(),
-    );
+    await writeAppOverride(db, { corpusAutoindex: true, schemaVersion: 2 }, createFrozenClock().now());
     const result = await buildGatedGraph(db);
     const owner = await seedUser(db, { handle: "owner" });
 
@@ -731,10 +705,7 @@ describe("corpusAutoindex indexer gate (Piece D)", () => {
     // Bounded, wall-clock-free flush of the fire-and-forget bus dispatch → the embed → the store write.
     await drain(() => false);
 
-    const rows = await db
-      .select()
-      .from(characterEmbeddings)
-      .where(eq(characterEmbeddings.characterId, created.id));
+    const rows = await db.select().from(characterEmbeddings).where(eq(characterEmbeddings.characterId, created.id));
     expect(rows.length).toBeGreaterThanOrEqual(1);
   });
 
@@ -749,10 +720,7 @@ describe("corpusAutoindex indexer gate (Piece D)", () => {
     });
     await drain(() => false);
 
-    const rows = await db
-      .select()
-      .from(characterEmbeddings)
-      .where(eq(characterEmbeddings.characterId, created.id));
+    const rows = await db.select().from(characterEmbeddings).where(eq(characterEmbeddings.characterId, created.id));
     expect(rows).toHaveLength(0);
   });
 });

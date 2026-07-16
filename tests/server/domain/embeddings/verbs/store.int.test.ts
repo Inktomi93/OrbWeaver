@@ -8,20 +8,10 @@
 //   • both image lenses (`image-raw` pure-visual + `image-captioned` joint-VL) coexist per asset, caption
 //     persisted only on the captioned lens.
 
-import {
-  characterEmbeddings,
-  chatDigestSpeakers,
-  chatDigests,
-  chatSegments,
-  imageEmbeddings,
-} from "@orb/db";
+import { characterEmbeddings, chatDigestSpeakers, chatDigests, chatSegments, imageEmbeddings } from "@orb/db";
 import type { ChatDigestId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import {
-  createEmbeddingsService,
-  EmbedFailedError,
-  SpaceMismatchError,
-} from "@orb/server/domain/embeddings";
+import { createEmbeddingsService, EmbedFailedError, SpaceMismatchError } from "@orb/server/domain/embeddings";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
@@ -62,10 +52,7 @@ describe("store — card-text (character_embeddings)", () => {
     expect(result.outcome).toBe("written");
     expect(h.roleClients.embed).toHaveBeenCalledTimes(1);
 
-    const rows = await db
-      .select()
-      .from(characterEmbeddings)
-      .where(eq(characterEmbeddings.characterId, characterId));
+    const rows = await db.select().from(characterEmbeddings).where(eq(characterEmbeddings.characterId, characterId));
     expect(rows).toHaveLength(1);
     const row = rows[0];
     expect(row?.model).toBe(EMBED_MODEL);
@@ -99,10 +86,7 @@ describe("store — card-text (character_embeddings)", () => {
     expect(second.contentHash).toBe(first.contentHash);
     // The staleness gate short-circuits BEFORE the embed — still exactly one embed call.
     expect(h.roleClients.embed).toHaveBeenCalledTimes(1);
-    const rows = await db
-      .select()
-      .from(characterEmbeddings)
-      .where(eq(characterEmbeddings.characterId, characterId));
+    const rows = await db.select().from(characterEmbeddings).where(eq(characterEmbeddings.characterId, characterId));
     expect(rows).toHaveLength(1);
   });
 
@@ -133,10 +117,7 @@ describe("store — card-text (character_embeddings)", () => {
     expect(second.outcome).toBe("written");
     expect(second.contentHash).not.toBe(first.contentHash);
     expect(h.roleClients.embed).toHaveBeenCalledTimes(2);
-    const rows = await db
-      .select()
-      .from(characterEmbeddings)
-      .where(eq(characterEmbeddings.characterId, characterId));
+    const rows = await db.select().from(characterEmbeddings).where(eq(characterEmbeddings.characterId, characterId));
     expect(rows).toHaveLength(1);
     expect(rows[0]?.contentHash).toBe(second.contentHash);
   });
@@ -208,12 +189,7 @@ describe("store — card-text (character_embeddings)", () => {
       model: EMBED_MODEL,
       dim: EMBED_DIM,
     });
-    const written = (
-      await db
-        .select()
-        .from(characterEmbeddings)
-        .where(eq(characterEmbeddings.characterId, characterId))
-    )[0];
+    const written = (await db.select().from(characterEmbeddings).where(eq(characterEmbeddings.characterId, characterId)))[0];
     // discovery writes a hub score through the only permitted seam…
     await svc.writeHubScores({
       table: "character_embeddings",
@@ -228,12 +204,7 @@ describe("store — card-text (character_embeddings)", () => {
       model: EMBED_MODEL,
       dim: EMBED_DIM,
     });
-    const after = (
-      await db
-        .select()
-        .from(characterEmbeddings)
-        .where(eq(characterEmbeddings.characterId, characterId))
-    )[0];
+    const after = (await db.select().from(characterEmbeddings).where(eq(characterEmbeddings.characterId, characterId)))[0];
     expect(after?.hubScore).toBe(0.87);
   });
 });
@@ -257,10 +228,7 @@ describe("store — image lenses (image_embeddings)", () => {
 
     expect(result.outcome).toBe("written");
     expect(h.roleClients.imageEmbed).toHaveBeenCalledWith({ kind: "image", input: IMG });
-    const rows = await db
-      .select()
-      .from(imageEmbeddings)
-      .where(eq(imageEmbeddings.assetId, assetId));
+    const rows = await db.select().from(imageEmbeddings).where(eq(imageEmbeddings.assetId, assetId));
     expect(rows).toHaveLength(1);
     expect(rows[0]?.lens).toBe("image-raw");
     expect(rows[0]?.caption).toBeNull();
@@ -296,10 +264,7 @@ describe("store — image lenses (image_embeddings)", () => {
       kind: "multimodal",
       input: { image: IMG, text: TEST_CAPTION },
     });
-    const rows = await db
-      .select()
-      .from(imageEmbeddings)
-      .where(eq(imageEmbeddings.assetId, assetId));
+    const rows = await db.select().from(imageEmbeddings).where(eq(imageEmbeddings.assetId, assetId));
     // Both lenses coexist for one asset in one space (the unique key is (assetId, model, lens)).
     expect(rows).toHaveLength(2);
     const captioned = rows.find((r) => r.lens === "image-captioned");
@@ -330,10 +295,7 @@ describe("store — image lenses (image_embeddings)", () => {
     expect(skipped.outcome).toBe("noop");
     // The expensive joint embed never ran, and NO poisoned captioned row landed.
     expect(h.roleClients.imageEmbed).not.toHaveBeenCalled();
-    const empty = await db
-      .select()
-      .from(imageEmbeddings)
-      .where(eq(imageEmbeddings.assetId, assetId));
+    const empty = await db.select().from(imageEmbeddings).where(eq(imageEmbeddings.assetId, assetId));
     expect(empty.filter((r) => r.lens === "image-captioned")).toHaveLength(0);
 
     // A later run with a REAL caption is not short-circuited — it embeds + writes the captioned lens.
@@ -348,17 +310,13 @@ describe("store — image lenses (image_embeddings)", () => {
     });
     expect(written.outcome).toBe("written");
     expect(h.roleClients.imageEmbed).toHaveBeenCalledTimes(1);
-    const after = await db
-      .select()
-      .from(imageEmbeddings)
-      .where(eq(imageEmbeddings.assetId, assetId));
+    const after = await db.select().from(imageEmbeddings).where(eq(imageEmbeddings.assetId, assetId));
     expect(after.find((r) => r.lens === "image-captioned")?.caption).toBe(TEST_CAPTION);
   });
 });
 
 describe("store — chat-block lenses (segment / digest)", () => {
-  const digestText =
-    "[Alice, Bob — the docks] Alice agreed to smuggle the relic.\nkeywords: Alice, relic";
+  const digestText = "[Alice, Bob — the docks] Alice agreed to smuggle the relic.\nkeywords: Alice, relic";
   const segmentText = "Alice: meet me at the docks.\nBob: I'll bring the relic.";
 
   test("segment persists the verbatim text + seq-span; the PRECOMPUTED contentHash gates (no recompute)", async () => {
@@ -414,9 +372,7 @@ describe("store — chat-block lenses (segment / digest)", () => {
     expect((await svc.store(params)).outcome).toBe("written");
     expect((await svc.store(params)).outcome).toBe("noop");
     expect(h.roleClients.embed).toHaveBeenCalledTimes(1);
-    expect(
-      await db.select().from(chatSegments).where(eq(chatSegments.chatId, chatId)),
-    ).toHaveLength(1);
+    expect(await db.select().from(chatSegments).where(eq(chatSegments.chatId, chatId))).toHaveLength(1);
   });
 
   test("digest persists text + the §2b facets keyed by the real-CharacterId scope; hub_score untouched", async () => {

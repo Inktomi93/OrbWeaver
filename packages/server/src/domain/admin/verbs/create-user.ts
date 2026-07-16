@@ -43,22 +43,15 @@ function validateCreate(params: CreateUserParams, role: UserRole): string {
   // The owner is the immutable bootstrap row — never minted through admin. Refuses even the owner caller,
   // so a second owner can never be minted.
   if (role === OWNER_ROLE) {
-    throw new DomainOperationError(
-      ADMIN_OP_CODES.cannotGrantOwner,
-      "the owner role cannot be assigned to a newly created user",
-    );
+    throw new DomainOperationError(ADMIN_OP_CODES.cannotGrantOwner, "the owner role cannot be assigned to a newly created user");
   }
   if (params.password.length < MIN_PASSWORD_LENGTH) {
-    throw new DomainOperationError(
-      ADMIN_OP_CODES.weakPassword,
-      `password must be at least ${MIN_PASSWORD_LENGTH} characters`,
-    );
+    throw new DomainOperationError(ADMIN_OP_CODES.weakPassword, `password must be at least ${MIN_PASSWORD_LENGTH} characters`);
   }
   return handle;
 }
 
-const handleTaken = (handle: string): DomainOperationError =>
-  new DomainOperationError(ADMIN_OP_CODES.userExists, `handle '${handle}' is already taken`);
+const handleTaken = (handle: string): DomainOperationError => new DomainOperationError(ADMIN_OP_CODES.userExists, `handle '${handle}' is already taken`);
 
 /** Insert the local user, translating a racing unique-violation to the same `user_exists` code the
  *  pre-SELECT throws (the raw driver error is kept as `cause`). */
@@ -97,10 +90,7 @@ async function insertLocalUser(ctx: AdminContext, row: LocalUserInsert): Promise
   }
   const created = inserted[0];
   if (created === undefined) {
-    throw new DomainOperationError(
-      ADMIN_OP_CODES.userExists,
-      "user row was not returned after insert",
-    );
+    throw new DomainOperationError(ADMIN_OP_CODES.userExists, "user row was not returned after insert");
   }
   // A freshly-minted human never owns anything — `ownerHandle` is null; the joined column is omitted from
   // `.returning`, so it's set explicitly here.

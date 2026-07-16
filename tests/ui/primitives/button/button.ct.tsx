@@ -35,9 +35,7 @@ test.describe("coarse pointer — the touch floor", () => {
     expect(largeBox?.height ?? 0).toBeGreaterThan(smallBox?.height ?? 0);
   });
 
-  test("icon size is a square control meeting the floor with no horizontal padding", async ({
-    mount,
-  }) => {
+  test("icon size is a square control meeting the floor with no horizontal padding", async ({ mount }) => {
     const button = await mount(<Button aria-label="Regenerate" size="icon" />);
     const box = await button.boundingBox();
     expect(box?.width).toBeCloseTo(box?.height ?? 0, 0);
@@ -78,10 +76,7 @@ test("loading keeps the button in the tab order for assistive tech", async ({ mo
   await expect(page.getByRole("button", { name: "Save" })).toHaveAttribute("aria-disabled", "true");
 });
 
-test("a caller-supplied focusableWhenDisabled overrides the loading default", async ({
-  mount,
-  page,
-}) => {
+test("a caller-supplied focusableWhenDisabled overrides the loading default", async ({ mount, page }) => {
   await mount(
     <div>
       <Button>Before</Button>
@@ -106,9 +101,7 @@ test("ghost defaults to the muted-foreground text token at rest (D62 P5)", async
   await expect(button).toHaveCSS("color", TOKENS["color.muted-foreground"].value);
 });
 
-test("secondary is BORDERED — a border-token outline over a transparent surface (D62 P5)", async ({
-  mount,
-}) => {
+test("secondary is BORDERED — a border-token outline over a transparent surface (D62 P5)", async ({ mount }) => {
   const button = await mount(<Button intent="secondary">Cancel</Button>);
   // The old solid `--secondary` fill is GONE (retuned to a transparent bordered surface) …
   await expect(button).not.toHaveCSS("background-color", TOKENS["color.secondary"].value);
@@ -120,8 +113,7 @@ test("secondary is BORDERED — a border-token outline over a transparent surfac
 test("active press darkens the primary intent from its hover color", async ({ mount, page }) => {
   const button = await mount(<Button>Save</Button>);
   const control = page.getByRole("button", { name: "Save" });
-  const readBackgroundColor = (): Promise<string> =>
-    button.evaluate((el) => getComputedStyle(el).backgroundColor);
+  const readBackgroundColor = (): Promise<string> => button.evaluate((el) => getComputedStyle(el).backgroundColor);
   await control.hover();
   const hoverColor = await readBackgroundColor();
   await page.mouse.down();

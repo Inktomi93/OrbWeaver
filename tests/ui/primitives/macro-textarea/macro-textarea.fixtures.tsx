@@ -64,12 +64,7 @@ export function DerivedSuggestionsStory(): ReactElement {
       <button data-testid="rerender" onClick={rerender} type="button">
         rerender {bump}
       </button>
-      <MacroTextarea
-        aria-label="Body"
-        onChange={setValue}
-        suggestions={suggestions}
-        value={value}
-      />
+      <MacroTextarea aria-label="Body" onChange={setValue} suggestions={suggestions} value={value} />
     </div>
   );
 }

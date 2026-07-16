@@ -15,8 +15,7 @@
 // floors the luminance; blur collapses the bright peaks a flat scrim alone can't). Applied to `skin.inner`
 // (the bubble) of the three no-fill modes; the filled modes' bubble/card/portrait fill already backs their
 // text (side-eye: those SHIP as-is).
-export const BG_PHOTO_READING_SCRIM =
-  "in-data-[has-bg-image]:bg-scrim in-data-[has-bg-image]:backdrop-blur-sm";
+export const BG_PHOTO_READING_SCRIM = "in-data-[has-bg-image]:bg-scrim in-data-[has-bg-image]:backdrop-blur-sm";
 
 // Chrome backing (name + action-icon row) — side-eye P1 follow-up (2026-07-09). That row is a SIBLING
 // rendered ABOVE the bubble (message-row.tsx; verified: it sits entirely above the bubble box in EVERY

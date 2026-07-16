@@ -76,9 +76,7 @@ describe("updatePresetRow (owned-only)", () => {
     const a = await seedUser(db, "a");
     const b = await seedUser(db, "b");
     const bsPreset = await seedPreset(db, { id: castId<PresetId>("preset_b"), ownerId: b });
-    expect(
-      await updatePresetRow(db, bsPreset, a, { name: "Hijack", updatedAt: FROZEN_AT }),
-    ).toBeUndefined();
+    expect(await updatePresetRow(db, bsPreset, a, { name: "Hijack", updatedAt: FROZEN_AT })).toBeUndefined();
   });
 
   test("never matches the null-owner system default", async () => {
@@ -127,12 +125,7 @@ describe("system-default seed/reseed queries", () => {
       name: "Default",
       schemaVersion: OLDER_VERSION,
     });
-    await reseedSystemDefault(
-      db,
-      DEFAULT_PROMPT_CONFIG,
-      DEFAULT_PROMPT_CONFIG.schemaVersion,
-      FROZEN_AT + 5,
-    );
+    await reseedSystemDefault(db, DEFAULT_PROMPT_CONFIG, DEFAULT_PROMPT_CONFIG.schemaVersion, FROZEN_AT + 5);
     const row = await selectSystemDefault(db);
     expect(row?.schemaVersion).toBe(DEFAULT_PROMPT_CONFIG.schemaVersion);
     expect(row?.updatedAt).toBe(FROZEN_AT + 5);

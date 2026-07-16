@@ -39,20 +39,12 @@ export interface PresetEditorSurfaceProps {
   readonly onDismissSection?: (() => void) | undefined;
 }
 
-export function PresetEditorSurface({
-  presetId,
-  onRevealSection,
-  onDismissSection,
-}: PresetEditorSurfaceProps): ReactElement {
+export function PresetEditorSurface({ presetId, onRevealSection, onDismissSection }: PresetEditorSurfaceProps): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
 
   return (
-    <Stack
-      ref={surfaceRef}
-      tabIndex={-1}
-      className="h-full min-h-0 overflow-y-auto overflow-x-hidden outline-none"
-    >
+    <Stack ref={surfaceRef} tabIndex={-1} className="h-full min-h-0 overflow-y-auto overflow-x-hidden outline-none">
       <QueryBoundary
         fallback={<Text tone="muted">Loading the preset…</Text>}
         renderError={(_error, retry): ReactElement => (
@@ -64,21 +56,13 @@ export function PresetEditorSurface({
           </Text>
         )}
       >
-        <PresetEditor
-          presetId={presetId}
-          onRevealSection={onRevealSection}
-          onDismissSection={onDismissSection}
-        />
+        <PresetEditor presetId={presetId} onRevealSection={onRevealSection} onDismissSection={onDismissSection} />
       </QueryBoundary>
     </Stack>
   );
 }
 
-function PresetEditor({
-  presetId,
-  onRevealSection,
-  onDismissSection,
-}: PresetEditorSurfaceProps): ReactElement {
+function PresetEditor({ presetId, onRevealSection, onDismissSection }: PresetEditorSurfaceProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const { data: preset } = useSuspenseQuery(trpc.preset.get.queryOptions({ id: presetId }));
@@ -89,15 +73,10 @@ function PresetEditor({
   const chat = settings.config.routing.roleDefaults.chat;
   const chatModel = chat?.model ?? undefined;
   const capabilityKey =
-    chatModel !== undefined &&
-    chatModel !== "" &&
-    chat?.source !== undefined &&
-    chat.api !== undefined
+    chatModel !== undefined && chatModel !== "" && chat?.source !== undefined && chat.api !== undefined
       ? { model: chatModel, source: chat.source as CredentialSource, api: chat.api as ChatApi }
       : null;
-  const capabilityQuery = useGatedQuery(capabilityKey, (key) =>
-    trpc.connection.getModelCapability.queryOptions(key),
-  );
+  const capabilityQuery = useGatedQuery(capabilityKey, (key) => trpc.connection.getModelCapability.queryOptions(key));
   const capability = capabilityQuery.data;
 
   const server = preset.config;
@@ -190,13 +169,7 @@ function PresetEditor({
           </TabsPanel>
 
           <TabsPanel value="prompt">
-            <PresetStructureTabs
-              form={form}
-              tab="prompt"
-              onRevealSection={onRevealSection}
-              onDismissSection={onDismissSection}
-              capability={capability}
-            />
+            <PresetStructureTabs form={form} tab="prompt" onRevealSection={onRevealSection} onDismissSection={onDismissSection} capability={capability} />
           </TabsPanel>
           <TabsPanel value="templates">
             <PresetStructureTabs form={form} tab="templates" />

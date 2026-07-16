@@ -14,17 +14,8 @@ import type { AssetId, CharacterId, Handle, PersonaId, UserId } from "@orb/kit/i
 import { castId } from "@orb/kit/ids";
 import { writeCardChunk } from "@orb/kit/png-card-chunk";
 import type { ImportFsPort } from "@orb/server/domain/import";
-import type {
-  ImportAssetPort,
-  ImportCharacterPort,
-  ImportTagPort,
-  ProfileDirImportDeps,
-} from "@orb/server/entry/import";
-import {
-  createNodeFsImportPort,
-  PROFILE_IMPORT_MAX_ASSET_BYTES,
-  runProfileDirImport,
-} from "@orb/server/entry/import";
+import type { ImportAssetPort, ImportCharacterPort, ImportTagPort, ProfileDirImportDeps } from "@orb/server/entry/import";
+import { createNodeFsImportPort, PROFILE_IMPORT_MAX_ASSET_BYTES, runProfileDirImport } from "@orb/server/entry/import";
 import { describe } from "vitest";
 import { expect, test } from "../../../support/fixtures";
 
@@ -38,10 +29,7 @@ const OWNER: Principal = {
 const NOW = 1_700_000_000_000;
 
 // A minimal valid PNG (signature + zero-length IEND) to embed a card into via the kit codec.
-const MINIMAL_PNG = Uint8Array.from([
-  0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44,
-  0xae, 0x42, 0x60, 0x82,
-]);
+const MINIMAL_PNG = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82]);
 
 /** A real ST PNG card whose card-name is `name` (→ handle = its slug). */
 function cardPng(name: string): Uint8Array {
@@ -117,12 +105,8 @@ interface Fakes {
   readonly character: ImportCharacterPort;
   readonly storeAvatar: ImportAssetPort["store"];
   readonly tag: ImportTagPort["attachCardTagByName"];
-  readonly bulkImportPersonas: (args: {
-    readonly personas: readonly BulkImportPersonaInput[];
-  }) => Promise<BulkImportPersonasResult>;
-  readonly bulkImportChats: (args: {
-    readonly chats: readonly BulkImportChatInput[];
-  }) => Promise<BulkImportChatsResult>;
+  readonly bulkImportPersonas: (args: { readonly personas: readonly BulkImportPersonaInput[] }) => Promise<BulkImportPersonasResult>;
+  readonly bulkImportChats: (args: { readonly chats: readonly BulkImportChatInput[] }) => Promise<BulkImportChatsResult>;
   readonly stores: StoreCall[];
   readonly log: string[];
   readonly backfills: UserId[];
@@ -171,9 +155,7 @@ function fakes(): Fakes {
 
   const tag: ImportTagPort["attachCardTagByName"] = () => Promise.resolve(true);
 
-  const bulkImportPersonas = (args: {
-    readonly personas: readonly BulkImportPersonaInput[];
-  }): Promise<BulkImportPersonasResult> => {
+  const bulkImportPersonas = (args: { readonly personas: readonly BulkImportPersonaInput[] }): Promise<BulkImportPersonasResult> => {
     log.push("bulkImportPersonas");
     const idByName: Record<string, PersonaId> = {};
     let created = 0;
@@ -199,9 +181,7 @@ function fakes(): Fakes {
     });
   };
 
-  const bulkImportChats = (args: {
-    readonly chats: readonly BulkImportChatInput[];
-  }): Promise<BulkImportChatsResult> => {
+  const bulkImportChats = (args: { readonly chats: readonly BulkImportChatInput[] }): Promise<BulkImportChatsResult> => {
     log.push("bulkImportChats");
     let imported = 0;
     for (const c of args.chats) {
@@ -246,11 +226,7 @@ function fixtureFiles(root: string): Record<string, Uint8Array> {
   };
 }
 
-function deps(
-  fs: ImportFsPort,
-  f: ReturnType<typeof fakes>,
-  over: Partial<Pick<ProfileDirImportDeps, "dryRun">> = {},
-): ProfileDirImportDeps {
+function deps(fs: ImportFsPort, f: ReturnType<typeof fakes>, over: Partial<Pick<ProfileDirImportDeps, "dryRun">> = {}): ProfileDirImportDeps {
   return {
     fs,
     profileRoot: "root",

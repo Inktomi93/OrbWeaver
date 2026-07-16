@@ -62,10 +62,7 @@ export interface RouteChatStreamOptions {
  * (`route.fallback()`) to a previously-registered routeTrpc. The scripted events fire once, on the
  * first subscribe; any reconnect gets a bare connected→return (no replay).
  */
-export async function routeChatStream(
-  page: Page,
-  opts: RouteChatStreamOptions,
-): Promise<ChatStreamRecorder> {
+export async function routeChatStream(page: Page, opts: RouteChatStreamOptions): Promise<ChatStreamRecorder> {
   const inputs: unknown[] = [];
   const closeStream = opts.closeStream ?? true;
 

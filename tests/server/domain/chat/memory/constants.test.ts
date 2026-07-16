@@ -1,8 +1,5 @@
 import { describe } from "vitest";
-import {
-  DEFAULTS,
-  resolveCfg,
-} from "../../../../../packages/server/src/domain/chat/memory/constants";
+import { DEFAULTS, resolveCfg } from "../../../../../packages/server/src/domain/chat/memory/constants";
 import { expect, test } from "../../../../support/fixtures";
 
 describe("memory/constants — DEFAULTS + resolveCfg", () => {

@@ -17,10 +17,7 @@ const PREVIEW = {
   modeLabel: "Group · natural",
 };
 
-test("mount previews the token; confirm redeems and closes into the chat", async ({
-  mount,
-  page,
-}) => {
+test("mount previews the token; confirm redeems and closes into the chat", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "invites.previewInvite": () => PREVIEW,
     "invites.redeemInvite": () => ({
@@ -50,10 +47,7 @@ test("mount previews the token; confirm redeems and closes into the chat", async
   expect(trpc.lastInput("invites.redeemInvite")).toEqual({ token: "tok_ct_secret" });
 });
 
-test("a bad token renders the flat 'invalid or expired' state (leak-free NOT_FOUND)", async ({
-  mount,
-  page,
-}) => {
+test("a bad token renders the flat 'invalid or expired' state (leak-free NOT_FOUND)", async ({ mount, page }) => {
   await routeTrpc(page, {
     "invites.previewInvite": () => trpcError({ code: "NOT_FOUND" }),
   });

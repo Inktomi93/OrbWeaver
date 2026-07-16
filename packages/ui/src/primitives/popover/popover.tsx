@@ -42,23 +42,11 @@ export interface PopoverPopupProps extends Omit<BasePopupProps, "className"> {
 
 /** Bundles Portal → (optional Backdrop) → Positioner → Popup so the anatomy cannot be mis-assembled. */
 export function PopoverPopup(props: PopoverPopupProps): ReactElement {
-  const {
-    className,
-    children,
-    side,
-    align,
-    sideOffset = DEFAULT_SIDE_OFFSET,
-    alignOffset,
-    container,
-    backdrop = false,
-    ...rest
-  } = props;
+  const { className, children, side, align, sideOffset = DEFAULT_SIDE_OFFSET, alignOffset, container, backdrop = false, ...rest } = props;
   const portalContainer = usePortalContainer();
   return (
     <BasePopover.Portal container={container ?? portalContainer}>
-      {backdrop ? (
-        <BasePopover.Backdrop className={slots.backdrop()} data-slot="popover-backdrop" />
-      ) : null}
+      {backdrop ? <BasePopover.Backdrop className={slots.backdrop()} data-slot="popover-backdrop" /> : null}
       <BasePopover.Positioner
         align={align}
         alignOffset={alignOffset}
@@ -67,11 +55,7 @@ export function PopoverPopup(props: PopoverPopupProps): ReactElement {
         side={side}
         sideOffset={sideOffset}
       >
-        <BasePopover.Popup
-          className={slots.popup({ className })}
-          data-slot="popover-popup"
-          {...rest}
-        >
+        <BasePopover.Popup className={slots.popup({ className })} data-slot="popover-popup" {...rest}>
           {children}
         </BasePopover.Popup>
       </BasePopover.Positioner>
@@ -85,9 +69,7 @@ export interface PopoverArrowProps extends Omit<BaseArrowProps, "className"> {
 
 export function PopoverArrow(props: PopoverArrowProps): ReactElement {
   const { className, ...rest } = props;
-  return (
-    <BasePopover.Arrow className={slots.arrow({ className })} data-slot="popover-arrow" {...rest} />
-  );
+  return <BasePopover.Arrow className={slots.arrow({ className })} data-slot="popover-arrow" {...rest} />;
 }
 
 export function PopoverClose(props: BaseCloseProps): ReactElement {

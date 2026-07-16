@@ -16,11 +16,7 @@ import { createDefaultPersonaSeeder } from "../../../../packages/server/src/entr
 import { freshDb } from "../../../support/db.ts";
 import { expect, test } from "../../../support/fixtures";
 import { makeHarness as makeAssetsHarness } from "../../domain/assets/_support.ts";
-import {
-  makeHarness as makePersonaHarness,
-  principal,
-  seedUser,
-} from "../../domain/persona/_support.ts";
+import { makeHarness as makePersonaHarness, principal, seedUser } from "../../domain/persona/_support.ts";
 
 interface MarkCall {
   readonly userId: UserId;

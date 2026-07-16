@@ -9,10 +9,7 @@ import { personas } from "@orb/db";
 import type { AssetId, CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import {
-  PersonaCharacterNotFoundError,
-  PersonaNotFoundError,
-} from "../../../../../packages/server/src/domain/persona/contract/errors.ts";
+import { PersonaCharacterNotFoundError, PersonaNotFoundError } from "../../../../../packages/server/src/domain/persona/contract/errors.ts";
 import {
   detailOf,
   ensureCharacterOwned,
@@ -96,9 +93,7 @@ describe("ownership gates", () => {
     const other = await seedUser(db, { handle: "other" });
     const id = await seedPersonaRow(db, owner);
     await expect(ensurePersonaOwned(db, other, id)).rejects.toThrow(PersonaNotFoundError);
-    await expect(ensurePersonaOwned(db, owner, castId<PersonaId>("persona_ghost"))).rejects.toThrow(
-      PersonaNotFoundError,
-    );
+    await expect(ensurePersonaOwned(db, owner, castId<PersonaId>("persona_ghost"))).rejects.toThrow(PersonaNotFoundError);
     await expect(ensurePersonaOwned(db, owner, id)).resolves.toBeUndefined();
   });
 
@@ -107,12 +102,8 @@ describe("ownership gates", () => {
     const owner = await seedUser(db, { handle: "owner" });
     const other = await seedUser(db, { handle: "other" });
     const character = await seedCharacter(db, { ownerId: owner });
-    await expect(ensureCharacterOwned(db, other, character)).rejects.toThrow(
-      PersonaCharacterNotFoundError,
-    );
-    await expect(
-      ensureCharacterOwned(db, owner, castId<CharacterId>("character_ghost")),
-    ).rejects.toThrow(PersonaCharacterNotFoundError);
+    await expect(ensureCharacterOwned(db, other, character)).rejects.toThrow(PersonaCharacterNotFoundError);
+    await expect(ensureCharacterOwned(db, owner, castId<CharacterId>("character_ghost"))).rejects.toThrow(PersonaCharacterNotFoundError);
     await expect(ensureCharacterOwned(db, owner, character)).resolves.toBeUndefined();
   });
 });

@@ -3,12 +3,7 @@
 // `@orb/contracts/character`. The two synthetic group-character ops are chat-injected internals (act on a
 // resolved room `ownerId`, not a request principal) — NOT exposed here.
 
-import {
-  characterListCursorSchema,
-  characterListSortSchema,
-  createCharacterSchema,
-  updateCharacterSchema,
-} from "@orb/contracts/character";
+import { characterListCursorSchema, characterListSortSchema, createCharacterSchema, updateCharacterSchema } from "@orb/contracts/character";
 import type { CharacterId, CharacterSnapshotId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
@@ -17,15 +12,11 @@ import { authedProcedure, t } from "../trpc";
 export const characterRouter = t.router({
   create: authedProcedure
     .input(z.object({ input: createCharacterSchema }))
-    .mutation(({ ctx, input }) =>
-      ctx.services.character.create({ principal: ctx.auth, input: input.input }),
-    ),
+    .mutation(({ ctx, input }) => ctx.services.character.create({ principal: ctx.auth, input: input.input })),
 
   get: authedProcedure
     .input(z.object({ characterId: brandedId<CharacterId>() }))
-    .query(({ ctx, input }) =>
-      ctx.services.character.get({ principal: ctx.auth, characterId: input.characterId }),
-    ),
+    .query(({ ctx, input }) => ctx.services.character.get({ principal: ctx.auth, characterId: input.characterId })),
 
   // Keyset-paged (core/Tier-4-Transport.md thin pass-through; core/Spine-Testing.md). `sort` + `cursor` derive
   // from `@orb/contracts/character` (never re-spelled here). `cursor` rides as ONE sort-discriminated object
@@ -51,45 +42,33 @@ export const characterRouter = t.router({
       }),
     ),
 
-  update: authedProcedure
-    .input(z.object({ characterId: brandedId<CharacterId>(), input: updateCharacterSchema }))
-    .mutation(({ ctx, input }) =>
-      ctx.services.character.update({
-        principal: ctx.auth,
-        characterId: input.characterId,
-        input: input.input,
-      }),
-    ),
+  update: authedProcedure.input(z.object({ characterId: brandedId<CharacterId>(), input: updateCharacterSchema })).mutation(({ ctx, input }) =>
+    ctx.services.character.update({
+      principal: ctx.auth,
+      characterId: input.characterId,
+      input: input.input,
+    }),
+  ),
 
   remove: authedProcedure
     .input(z.object({ characterId: brandedId<CharacterId>() }))
-    .mutation(({ ctx, input }) =>
-      ctx.services.character.remove({ principal: ctx.auth, characterId: input.characterId }),
-    ),
+    .mutation(({ ctx, input }) => ctx.services.character.remove({ principal: ctx.auth, characterId: input.characterId })),
 
   duplicate: authedProcedure
     .input(z.object({ characterId: brandedId<CharacterId>() }))
-    .mutation(({ ctx, input }) =>
-      ctx.services.character.duplicate({ principal: ctx.auth, characterId: input.characterId }),
-    ),
+    .mutation(({ ctx, input }) => ctx.services.character.duplicate({ principal: ctx.auth, characterId: input.characterId })),
 
   bulkRemove: authedProcedure
     .input(z.object({ characterIds: z.array(brandedId<CharacterId>()).min(1) }))
-    .mutation(({ ctx, input }) =>
-      ctx.services.character.bulkRemove({ principal: ctx.auth, characterIds: input.characterIds }),
-    ),
+    .mutation(({ ctx, input }) => ctx.services.character.bulkRemove({ principal: ctx.auth, characterIds: input.characterIds })),
 
-  bulkArchive: authedProcedure
-    .input(
-      z.object({ characterIds: z.array(brandedId<CharacterId>()).min(1), archived: z.boolean() }),
-    )
-    .mutation(({ ctx, input }) =>
-      ctx.services.character.bulkArchive({
-        principal: ctx.auth,
-        characterIds: input.characterIds,
-        archived: input.archived,
-      }),
-    ),
+  bulkArchive: authedProcedure.input(z.object({ characterIds: z.array(brandedId<CharacterId>()).min(1), archived: z.boolean() })).mutation(({ ctx, input }) =>
+    ctx.services.character.bulkArchive({
+      principal: ctx.auth,
+      characterIds: input.characterIds,
+      archived: input.archived,
+    }),
+  ),
 
   bulkAddCardTag: authedProcedure
     .input(
@@ -121,21 +100,17 @@ export const characterRouter = t.router({
       }),
     ),
 
-  snapshot: authedProcedure
-    .input(z.object({ characterId: brandedId<CharacterId>(), label: z.string().nullish() }))
-    .mutation(({ ctx, input }) =>
-      ctx.services.character.snapshot({
-        principal: ctx.auth,
-        characterId: input.characterId,
-        ...(input.label !== undefined ? { label: input.label } : {}),
-      }),
-    ),
+  snapshot: authedProcedure.input(z.object({ characterId: brandedId<CharacterId>(), label: z.string().nullish() })).mutation(({ ctx, input }) =>
+    ctx.services.character.snapshot({
+      principal: ctx.auth,
+      characterId: input.characterId,
+      ...(input.label !== undefined ? { label: input.label } : {}),
+    }),
+  ),
 
   listSnapshots: authedProcedure
     .input(z.object({ characterId: brandedId<CharacterId>() }))
-    .query(({ ctx, input }) =>
-      ctx.services.character.listSnapshots({ principal: ctx.auth, characterId: input.characterId }),
-    ),
+    .query(({ ctx, input }) => ctx.services.character.listSnapshots({ principal: ctx.auth, characterId: input.characterId })),
 
   restore: authedProcedure
     .input(
@@ -154,7 +129,5 @@ export const characterRouter = t.router({
 
   getCard: authedProcedure
     .input(z.object({ characterId: brandedId<CharacterId>() }))
-    .query(({ ctx, input }) =>
-      ctx.services.character.getCard({ principal: ctx.auth, characterId: input.characterId }),
-    ),
+    .query(({ ctx, input }) => ctx.services.character.getCard({ principal: ctx.auth, characterId: input.characterId })),
 });

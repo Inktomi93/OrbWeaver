@@ -23,10 +23,7 @@ const DEFAULT_VARIANT_KIND: VariantKind = "icon";
 /** The `assets` front-door slice the blob route consumes. `getMetadata` may include `ownerId` for the
  *  roster-avatar path. */
 export interface BlobAssetsPort {
-  readonly getMetadata: (params: {
-    readonly principal: Principal;
-    readonly hash: string;
-  }) => Promise<AssetMetadata | undefined>;
+  readonly getMetadata: (params: { readonly principal: Principal; readonly hash: string }) => Promise<AssetMetadata | undefined>;
   readonly resolveVariant: (params: {
     readonly principal: Principal;
     readonly hash: string;

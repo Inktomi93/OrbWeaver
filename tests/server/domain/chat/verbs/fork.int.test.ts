@@ -19,16 +19,7 @@ import { createFork } from "../../../../../packages/server/src/domain/chat/verbs
 import { freshDb } from "../../../../support/db";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../support/fixtures";
-import {
-  addVariant,
-  makeChatContext,
-  makeLoadParticipantViews,
-  seedCharacter,
-  seedChat,
-  seedMessage,
-  seedParticipant,
-  seedUser,
-} from "../_support";
+import { addVariant, makeChatContext, makeLoadParticipantViews, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../_support";
 
 let db: Db;
 let emitted: ChatBusEvent[];
@@ -52,10 +43,7 @@ function principal(userId: UserId): Principal {
 /** An owner-scoped `getCard` fake mirroring the REAL one (D28 — `loadOwnedCharacterRow`): the card resolves
  *  only for its OWNER, `null` for a non-owner. The fork cast-drop resolver (D64 / F4) calls this per seated
  *  character to decide which seats the forker doesn't own (→ dropped); the harness default is a bare `null`. */
-function ownedCard(): (params: {
-  readonly ownerId: UserId;
-  readonly characterId: CharacterId;
-}) => Promise<CharacterCard | null> {
+function ownedCard(): (params: { readonly ownerId: UserId; readonly characterId: CharacterId }) => Promise<CharacterCard | null> {
   return async ({ ownerId, characterId }) => {
     const [row] = await db.select().from(characters).where(eq(characters.id, characterId));
     if (row === undefined || row.ownerId !== ownerId) {
@@ -157,10 +145,7 @@ describe("forkChat — D27 deep copy", () => {
     expect(forkMsgs.map((r) => r.content)).toEqual(["one", "two"]);
     expect(forkMsgs.some((r) => r.id === m1.messageId)).toBe(false);
 
-    const forkInjections = await db
-      .select()
-      .from(chatInjections)
-      .where(eq(chatInjections.chatId, chat.id));
+    const forkInjections = await db.select().from(chatInjections).where(eq(chatInjections.chatId, chat.id));
     expect(forkInjections).toHaveLength(1);
     expect(forkInjections[0]?.content).toBe("note");
     expect(forkInjections[0]?.id).not.toBe("chat_injection_src");
@@ -191,10 +176,7 @@ describe("forkChat — D27 deep copy", () => {
       .set({ content: "mutated" })
       .where(eq(messageVariants.id, forkMsg?.selectedVariantId ?? castId("x")));
 
-    const [srcVariant] = await db
-      .select()
-      .from(messageVariants)
-      .where(eq(messageVariants.id, src.variantId));
+    const [srcVariant] = await db.select().from(messageVariants).where(eq(messageVariants.id, src.variantId));
     expect(srcVariant?.content).toBe("original");
   });
 

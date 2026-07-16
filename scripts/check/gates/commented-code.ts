@@ -3,8 +3,7 @@
 // parked code. Conservative on purpose (prose comments, doc refs, and `// e.g. …` notes never match).
 import type { GateDescriptor } from "../contract.ts";
 
-const CODE_COMMENT_RE =
-  /^\s*\/\/\s*(?:import|export|const|let|var|function|class|interface|type|return|if|for|while|switch|throw|await)\b.*[;{}]\s*$/u;
+const CODE_COMMENT_RE = /^\s*\/\/\s*(?:import|export|const|let|var|function|class|interface|type|return|if|for|while|switch|throw|await)\b.*[;{}]\s*$/u;
 
 const COMMENTED_CODE_MESSAGE =
   "commented-out code — delete it (git history keeps it). Comments are for prose, not parked code (Documentation-Law.md §Code comments).";

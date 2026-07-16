@@ -34,10 +34,7 @@ function sanitize(value: unknown): unknown {
  * {@link sanitize}. Plain objects recurse key-by-key; arrays/primitives/a type mismatch replace the base
  * value outright at that node.
  */
-export function deepMergeRequestBody(
-  base: Readonly<Record<string, unknown>>,
-  patch: Readonly<Record<string, unknown>>,
-): Record<string, unknown> {
+export function deepMergeRequestBody(base: Readonly<Record<string, unknown>>, patch: Readonly<Record<string, unknown>>): Record<string, unknown> {
   const merged: Record<string, unknown> = {};
   for (const key of new Set([...Object.keys(base), ...Object.keys(patch)])) {
     if (FORBIDDEN_KEYS.has(key)) {
@@ -53,10 +50,7 @@ export function deepMergeRequestBody(
     }
     const baseValue = base[key];
     const patchValue = patch[key];
-    merged[key] =
-      isPlainObject(baseValue) && isPlainObject(patchValue)
-        ? deepMergeRequestBody(baseValue, patchValue)
-        : sanitize(patchValue);
+    merged[key] = isPlainObject(baseValue) && isPlainObject(patchValue) ? deepMergeRequestBody(baseValue, patchValue) : sanitize(patchValue);
   }
   return merged;
 }

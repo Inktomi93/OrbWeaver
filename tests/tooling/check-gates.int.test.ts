@@ -45,26 +45,9 @@ function fx(rel: string, content: string): void {
 }
 
 function cleanFixtures(): void {
-  execFileSync(
-    "find",
-    [
-      "packages",
-      "tests",
-      "tools",
-      "scripts",
-      "-name",
-      "__g_*",
-      "-prune",
-      "-exec",
-      "rm",
-      "-rf",
-      "{}",
-      "+",
-    ],
-    {
-      cwd: ROOT,
-    },
-  );
+  execFileSync("find", ["packages", "tests", "scripts", "-name", "__g_*", "-prune", "-exec", "rm", "-rf", "{}", "+"], {
+    cwd: ROOT,
+  });
 }
 
 function runStructure(): string {
@@ -104,10 +87,7 @@ function writeFixtures(): void {
   // co-locate in index.ts (the convention — NOT a re-export barrel) with no .contract.test.ts mirror. The
   // OLD gate blanket-skipped every index.ts, silently exempting whole contract domains (imagery shipped
   // with zero tests). This fixture pins that a schema-bearing contracts index.ts is now presence-gated.
-  fx(
-    "packages/contracts/src/__g_prescontract/index.ts",
-    'import { z } from "zod";\nexport const gSchema = z.object({ n: z.number() });\n',
-  );
+  fx("packages/contracts/src/__g_prescontract/index.ts", 'import { z } from "zod";\nexport const gSchema = z.object({ n: z.number() });\n');
   // test-presence (workloads runners/ arm, added 2026-07-10): a runner with REAL logic (touches ctx.env,
   // no `{ deferred: true }`) and no mirror test fires. A D58 no-op stub is shape-exempt; this fixture is the
   // non-stub case so a filled-in runner can never ship untested.
@@ -142,54 +122,30 @@ function writeFixtures(): void {
   // also scans) — only the written fixture resolves to the ambient-clock call.
   fx("tests/tooling/__g_det.test.ts", `export const t = ${["Date", "now"].join(".")}();\n`);
   // providers-runner-seal: a domain consumer (above infra) importing a sealed runner symbol.
-  fx(
-    "packages/server/src/domain/__g_seal/x.ts",
-    `import { deriveRunner } from "@orb/server/infra/providers";\nexport const x = deriveRunner;\n`,
-  );
+  fx("packages/server/src/domain/__g_seal/x.ts", `import { deriveRunner } from "@orb/server/infra/providers";\nexport const x = deriveRunner;\n`);
   // pd-citation-integrity: a code FLAG[PD-n] citing an id with no registry row (orphan).
   // The citation is assembled so the literal isn't present in THIS file's source (which the gate
   // also scans) — only the written fixture resolves to the orphan citation.
-  fx(
-    "packages/server/src/__g_pd.ts",
-    `// ${["FLAG", "[PD-9999]"].join("")} — orphan citation, no registry row.\nexport const x = 1;\n`,
-  );
+  fx("packages/server/src/__g_pd.ts", `// ${["FLAG", "[PD-9999]"].join("")} — orphan citation, no registry row.\nexport const x = 1;\n`);
   // no-direct-users-read: a domain outside sessions/admin importing the `users` table from @orb/db.
-  fx(
-    `${D}/__g_users/persistence/x.ts`,
-    `import { users } from "@orb/db";\nexport const x = users;\n`,
-  );
+  fx(`${D}/__g_users/persistence/x.ts`, `import { users } from "@orb/db";\nexport const x = users;\n`);
   // discovery-no-stats-rollups: a stats rollup table imported inside domain/discovery (the seam breach
   // the @orb/db barrel hides from dep-cruiser — the gate matches the ImportSpecifier).
-  fx(
-    `${D}/discovery/__g_rollup.ts`,
-    `import { ownerStats } from "@orb/db";\nexport const x = ownerStats;\n`,
-  );
+  fx(`${D}/discovery/__g_rollup.ts`, `import { ownerStats } from "@orb/db";\nexport const x = ownerStats;\n`);
   // sole-env-reader: a server file outside foundation/env touching process.env (bracket form).
-  fx(
-    "packages/server/src/domain/__g_env.ts",
-    `import process from "node:process";\nexport const x = process.env["FOO"];\n`,
-  );
+  fx("packages/server/src/domain/__g_env.ts", `import process from "node:process";\nexport const x = process.env["FOO"];\n`);
   // assumes-single-replica: a module-scope mutable cache in a file with no ASSUMES(single-replica).
-  fx(
-    "packages/server/src/domain/__g_replica.ts",
-    "export const cache = new Map<string, number>();\n",
-  );
+  fx("packages/server/src/domain/__g_replica.ts", "export const cache = new Map<string, number>();\n");
   // no-caller-user-id: the D19-forbidden `callerUserId` identifier (in the fixture's source, not here).
   fx("packages/server/src/__g_caller.ts", "export const callerUserId = 1;\n");
   // test-mock-doctrine: vi.mock targeting an internal relative module.
   fx("tests/__g_mock.test.ts", `import { vi } from "vitest";\nvi.mock("../src/foo");\n`);
   // test-factory-contract: makeX taking db, seedX without db.
-  fx(
-    "tests/support/factories/__g_factory.ts",
-    "export function makeWrong(db: any) {}\nexport function seedWrong(a: any) {}\n",
-  );
+  fx("tests/support/factories/__g_factory.ts", "export function makeWrong(db: any) {}\nexport function seedWrong(a: any) {}\n");
   // test-fixture-imports: importing test/expect directly from vitest.
   fx("tests/__g_imports.test.ts", `import { test, expect } from "vitest";\n`);
   // test-no-stubs: a test block with no assertions.
-  fx(
-    "tests/__g_stub.test.ts",
-    `import { test } from "support/test";\ntest("stub", () => {\n  const x = 1;\n});\n`,
-  );
+  fx("tests/__g_stub.test.ts", `import { test } from "support/test";\ntest("stub", () => {\n  const x = 1;\n});\n`);
   // server-layout: an illegal directory at the root of server/src.
   fx("packages/server/src/__g_rogue_drawer/index.ts", "export const x = 1;\n");
   // package-layout: a loose file at the root of kit/src.
@@ -200,28 +156,16 @@ function writeFixtures(): void {
   fx("packages/client/src/features/__g_cfeat/stray.ts", "export const x = 1;\n");
   // section-registry-completeness: a non-auth feature front-door import in a route file that isn't
   // app-root (the anti-god-map arm 3b). `#features/chat` is a real specifier the gate matches by AST.
-  fx(
-    "packages/client/src/routes/__g_g1route.tsx",
-    'import { X } from "#features/chat";\nexport const G = X;\n',
-  );
+  fx("packages/client/src/routes/__g_g1route.tsx", 'import { X } from "#features/chat";\nexport const G = X;\n');
   // no-parallel-section-map: an object literal hardcoding ≥2 SectionId keys (the gate reads the real
   // SECTION_IDS tuple from shell-store.ts), outside the allowlisted homes — a re-declared parallel map.
-  fx(
-    "packages/client/src/features/__g_g2map/lib/parallel.ts",
-    "export const M = { chats: 1, characters: 1, corpus: 1 };\n",
-  );
+  fx("packages/client/src/features/__g_g2map/lib/parallel.ts", "export const M = { chats: 1, characters: 1, corpus: 1 };\n");
   // modal-registry-completeness: a `ModalDefinition`-typed var in a file that is NOT a `*-modal.tsx` def
   // file — the co-location arm.
-  fx(
-    "packages/client/src/features/__g_gmodal/lib/stray.ts",
-    "export const strayModal: ModalDefinition = { id: 'x' };\n",
-  );
+  fx("packages/client/src/features/__g_gmodal/lib/stray.ts", "export const strayModal: ModalDefinition = { id: 'x' };\n");
   // chrome-registry-completeness: a `ChromeEntry`-typed var in a file that is NOT a `*-chrome.tsx` def
   // file — the co-location arm.
-  fx(
-    "packages/client/src/features/__g_gchrome/lib/stray.ts",
-    "export const strayChrome: ChromeEntry = { id: 'x', zone: 'topbar.trail' };\n",
-  );
+  fx("packages/client/src/features/__g_gchrome/lib/stray.ts", "export const strayChrome: ChromeEntry = { id: 'x', zone: 'topbar.trail' };\n");
   // modal-body-not-placeholder: a `*-modal.tsx` def whose function body renders <SectionPlaceholder>.
   fx(
     "packages/client/src/features/__g_gmodalbody/lib/__g_gmodalbody-modal.tsx",
@@ -229,64 +173,36 @@ function writeFixtures(): void {
   );
   // settings-pane-completeness: a `SettingsPaneDefinition`-typed var in a file that is NOT a `*-pane.tsx`
   // def file — the co-location arm.
-  fx(
-    "packages/client/src/features/__g_gpane/lib/stray.ts",
-    "export const strayPane: SettingsPaneDefinition = { id: 'x' };\n",
-  );
+  fx("packages/client/src/features/__g_gpane/lib/stray.ts", "export const strayPane: SettingsPaneDefinition = { id: 'x' };\n");
   // no-parallel-section-map: a SettingsCategoryId-keyed object literal outside the sanctioned homes.
-  fx(
-    "packages/client/src/features/__g_g2settings/lib/parallel.ts",
-    "export const M = { account: 1, appearance: 1, tags: 1 };\n",
-  );
+  fx("packages/client/src/features/__g_g2settings/lib/parallel.ts", "export const M = { account: 1, appearance: 1, tags: 1 };\n");
   // context-definition-shape: a hand-rolled `{kind:"tabs",useResolved}` object literal outside
   // lib/registry-contracts.ts — a badge-wearing tabs renderer bypassing the mint (arm 1).
-  fx(
-    "packages/client/src/features/__g_g3ctx/lib/g3-badge.ts",
-    'export const gBadgeCtx = { kind: "tabs", useResolved: () => null };\n',
-  );
+  fx("packages/client/src/features/__g_g3ctx/lib/g3-badge.ts", 'export const gBadgeCtx = { kind: "tabs", useResolved: () => null };\n');
   // state-files: a flat state/ file exporting the minted store handle (rule 3 — no exported handle).
-  fx(
-    "packages/client/src/state/__g_state.ts",
-    'export const useGStore = createGatedStore("g", () => ({ n: 0 }));\n',
-  );
+  fx("packages/client/src/state/__g_state.ts", 'export const useGStore = createGatedStore("g", () => ({ n: 0 }));\n');
   // component-size: a client source over the 450-line cap (in lib/, not a feature, so it trips
   // component-size alone). 451 padded lines.
   fx("packages/client/src/lib/__g_oversize.ts", "// pad line\n".repeat(451));
   // persistence-boundary: raw browser storage in a feature file (outside the two persist factories
   // + the boot/dev allowlist).
-  fx(
-    "packages/client/src/features/__g_persistb/lib/__g_flag.ts",
-    'export const v = globalThis.localStorage.getItem("k");\n',
-  );
+  fx("packages/client/src/features/__g_persistb/lib/__g_flag.ts", 'export const v = globalThis.localStorage.getItem("k");\n');
   // no-interactive-role-in-features: a feature file forging an interactive widget via a layout-kit
   // role= passthrough (NOT in BURN_DOWN → fires). `Row` is a local `declare` — the gate matches the JSX
   // `role="button"` attribute by AST, so the fixture parses standalone without importing @orb/ui.
   fx(
     "packages/client/src/features/__g_role/components/__g_role.tsx",
-    // biome-ignore lint/security/noSecrets: fixture SOURCE CODE (a JSX role attribute), not a secret.
     'declare function Row(props: { role?: string; children?: unknown }): unknown;\nexport const G = <Row role="button">hi</Row>;\n',
   );
   // no-raw-interactive-intrinsics: a raw <input> in a feature file (not app-shell, not in BURN_DOWN).
-  fx(
-    "packages/client/src/features/__g_rawintr/components/__g_rawintr.tsx",
-    'export const G = <input type="text" />;\n',
-  );
+  fx("packages/client/src/features/__g_rawintr/components/__g_rawintr.tsx", 'export const G = <input type="text" />;\n');
   // empty-state-has-action: an <EmptyState> with no `action` prop, in a file not in the ALLOWLIST.
-  fx(
-    "packages/client/src/features/__g_emptyact/surfaces/__g_emptyact.tsx",
-    'export const G = <EmptyState title="Nothing here" />;\n',
-  );
+  fx("packages/client/src/features/__g_emptyact/surfaces/__g_emptyact.tsx", 'export const G = <EmptyState title="Nothing here" />;\n');
   // no-arbitrary-tw-values: a scoped-utility (w-) arbitrary-value class, off-token, not in ALLOWLIST.
-  fx(
-    "packages/client/src/features/__g_arbtw/components/__g_arbtw.tsx",
-    'export const G = <div className="w-[137px]" />;\n',
-  );
+  fx("packages/client/src/features/__g_arbtw/components/__g_arbtw.tsx", 'export const G = <div className="w-[137px]" />;\n');
   // no-off-token-radius-shadow: a default-scale shadow utility in a real className site, off-token,
   // not in ALLOWLIST.
-  fx(
-    "packages/client/src/features/__g_offtoken/components/__g_offtoken.tsx",
-    'export const G = <div className="rounded-lg shadow-md" />;\n',
-  );
+  fx("packages/client/src/features/__g_offtoken/components/__g_offtoken.tsx", 'export const G = <div className="rounded-lg shadow-md" />;\n');
   // motion-token-purity: a CSS file with a raw duration + easing in a transition declaration (off-token,
   // not in ALLOWLIST). The gate reads .css via fs.globSync (not ts-morph), so a __g_ CSS fixture in the
   // real src tree is picked up; the __g_ excludes on the OTHER consumers don't reach fs.globSync.
@@ -295,16 +211,12 @@ function writeFixtures(): void {
   // property written as a raw literal — the inline/imperative hole the className + CSS gates can't see),
   // in a file not in the ALLOWLIST. The gate walks the ts-morph project's own files, so a __g_ .tsx in the
   // real src tree is scanned.
-  fx(
-    "packages/client/src/features/__g_inlinestyle/components/__g_inlinestyle.tsx",
-    'export const G = <div style={{ borderRadius: "8px" }} />;\n',
-  );
+  fx("packages/client/src/features/__g_inlinestyle/components/__g_inlinestyle.tsx", 'export const G = <div style={{ borderRadius: "8px" }} />;\n');
   // no-effect-on-shared-selection: a feature effect depping a selection-hook result (the chase).
   // The hook is a local `declare` — the gate matches by NAME (AST-only), so the fixture parses
   // standalone without importing #state.
   fx(
     "packages/client/src/features/__g_chase/components/__g_chase.tsx",
-    // biome-ignore lint/security/noSecrets: fixture SOURCE CODE (a hook name), not a secret.
     "declare function useActiveChatId(): string | null;\ndeclare function useEffect(fn: () => void, deps: unknown[]): void;\nexport function GChase(): null {\n  const chatId = useActiveChatId();\n  useEffect(() => {\n    void chatId;\n  }, [chatId]);\n  return null;\n}\n",
   );
   // zustand-selector-derived: a store-hook selector returning a fresh object literal, unwrapped.
@@ -313,25 +225,13 @@ function writeFixtures(): void {
     "declare const useGStore: (sel: (s: { a: number; b: number }) => unknown) => unknown;\nexport const v = useGStore((s) => ({ a: s.a, b: s.b }));\n",
   );
   // vector-scope-derived: a domain OUTSIDE the sanctioned set importing a vector-table symbol (D20).
-  fx(
-    `${D}/__g_vec/persistence/x.ts`,
-    `import { chatDigests } from "@orb/db";\nexport const x = chatDigests;\n`,
-  );
+  fx(`${D}/__g_vec/persistence/x.ts`, `import { chatDigests } from "@orb/db";\nexport const x = chatDigests;\n`);
   // turn-identity: a `principal` identifier inside the Principal-blind chat engine (D19).
-  fx(
-    `${D}/chat/engine/__g_ti.ts`,
-    "export function leak(principal: { userId: string }): string {\n  return principal.userId;\n}\n",
-  );
+  fx(`${D}/chat/engine/__g_ti.ts`, "export function leak(principal: { userId: string }): string {\n  return principal.userId;\n}\n");
   // membership-enforcer: an owner-equality comparison inside domain/chat (D18).
-  fx(
-    `${D}/chat/verbs/__g_me.ts`,
-    "export const isOwner = (c: { ownerId: string }, u: string): boolean => c.ownerId === u;\n",
-  );
+  fx(`${D}/chat/verbs/__g_me.ts`, "export const isOwner = (c: { ownerId: string }, u: string): boolean => c.ownerId === u;\n");
   // owner-role-split: a global-role literal comparison outside admin/guard.ts (D17).
-  fx(
-    "packages/server/src/domain/__g_role.ts",
-    'export const elevated = (p: { role: string }): boolean => p.role === "admin";\n',
-  );
+  fx("packages/server/src/domain/__g_role.ts", 'export const elevated = (p: { role: string }): boolean => p.role === "admin";\n');
   // bus-coverage: a DEFERRED-allowlisted member gaining an emit-site literal → the STALE arm fires
   // (proves the contracts-parse + corpus scan + both ratchet directions are alive). Must name a member
   // STILL in the DEFERRED map — `personaSwitched`/`reasoningStreamDone` were wired (PD-117 wave 2), so
@@ -342,24 +242,16 @@ function writeFixtures(): void {
   // DEFERRED map in user-bus-coverage.ts (if a real per-user connection emit lands, retarget this fixture).
   fx(`${D}/chat/__g_userbus.ts`, 'export const staleUserBusEmit = "connectionsChanged";\n');
   // member-card-clamped: a re-spelled MemberCardView declaration outside contracts (D22/PD-111).
-  fx(
-    `${D}/character/__g_mcv.ts`,
-    "export interface MemberCardView {\n  readonly name: string;\n}\n",
-  );
-  // diagnostic-legibility: a grit diagnostic string carrying no doc/code-home pointer (the meta-gate
-  // reads tools/grit + scripts/check/gates source, so its fixture lives there, not under packages/).
-  fx("tools/grit/__g_diaglegi.grit", 'message="a bare diagnostic with no home"\n');
+  fx(`${D}/character/__g_mcv.ts`, "export interface MemberCardView {\n  readonly name: string;\n}\n");
+  // diagnostic-legibility: a gate-corpus `message:` string carrying no doc/code-home pointer (the
+  // meta-gate reads scripts/check/gates from the shared project, so its fixture lives there, not under
+  // packages/; no `gate` export, so the loader skips it as un-ported).
+  fx("scripts/check/gates/__g_diaglegi.ts", 'export const stub = { message: "a bare diagnostic with no home" };\n');
   // test-presence-client: a client data/ file with a callable export and no tests/client mirror.
-  fx(
-    "packages/client/src/data/__g_presclient.ts",
-    "export function gPresClient(): number {\n  return 1;\n}\n",
-  );
+  fx("packages/client/src/data/__g_presclient.ts", "export function gPresClient(): number {\n  return 1;\n}\n");
   // surface-in-a-container: a surface with raw structural JSX, no Container, no anchors/ dir under
   // its (stray) feature — the anchor-provided exemption has nothing to exempt it with.
-  fx(
-    "packages/client/src/features/__g_surfacefeat/surfaces/__g_thing-surface.tsx",
-    "export function gThingSurface() {\n  return <div>hi</div>;\n}\n",
-  );
+  fx("packages/client/src/features/__g_surfacefeat/surfaces/__g_thing-surface.tsx", "export function gThingSurface() {\n  return <div>hi</div>;\n}\n");
   // surface-a11y-focus: a drill-down surface missing focus restoration or auto-focus wrapper.
   // The function name is assembled so the literal isn't present in THIS file's source — only the
   // written fixture resolves to the unfocused surface (same pattern as the ambient-clock fixture L88).
@@ -388,10 +280,7 @@ function writeFixtures(): void {
   // no-array-literal-querykey: a client options object minting a queryKey as an inline array literal
   // (keys are 100% tRPC-proxy-derived). These gates scope to packages/client/src ONLY, so writing the
   // banned shapes literally in THIS tests/tooling file can't self-trip them.
-  fx(
-    "packages/client/src/features/__g_qkey/lib/__g_qkey.ts",
-    `export const opts = { queryKey: ["chat", "list"], enabled: true };\n`,
-  );
+  fx("packages/client/src/features/__g_qkey/lib/__g_qkey.ts", `export const opts = { queryKey: ["chat", "list"], enabled: true };\n`);
   // no-inline-invalidate-outside-seam: an invalidateQueries call outside data/invalidation.ts.
   fx(
     "packages/client/src/features/__g_inval/lib/__g_inval.ts",
@@ -441,34 +330,22 @@ function writeFixtures(): void {
     'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const gBanned = sqliteTable("chats", { ownerId: text("owner_id") });\n',
   );
   // infra-auth-no-userid: a `userId` identifier under infra/auth/** (D40 — infra never yields a userId).
-  fx(
-    "packages/server/src/infra/auth/__g_userid.ts",
-    "export function gAuth(userId: string): string {\n  return userId;\n}\n",
-  );
+  fx("packages/server/src/infra/auth/__g_userid.ts", "export function gAuth(userId: string): string {\n  return userId;\n}\n");
   // content-part-seam: a ChatContentPart import from @orb/contracts/chat OUTSIDE the D51 seam set.
   fx(
     "packages/server/src/domain/__g_contentpart/x.ts",
     'import type { ChatContentPart } from "@orb/contracts/chat";\nexport const g = (p: ChatContentPart): ChatContentPart => p;\n',
   );
   // no-raw-egress: a bare `fetch(` in packages/server/src outside the sanctioned provider-egress zones.
-  fx(
-    "packages/server/src/domain/__g_egress.ts",
-    'export async function gFetch(): Promise<unknown> {\n  return fetch("http://example.test");\n}\n',
-  );
+  fx("packages/server/src/domain/__g_egress.ts", 'export async function gFetch(): Promise<unknown> {\n  return fetch("http://example.test");\n}\n');
   // contract-verb-presence: a __g_ domain whose contract/service.ts declares a verb on a *Service interface
   // with NO test in tests/server/domain/__g_verbpres/ (the domain tree is empty → the verb is uncovered).
-  fx(
-    "packages/server/src/domain/__g_verbpres/contract/service.ts",
-    "export interface GVerbPresService {\n  readonly gUntested: () => Promise<void>;\n}\n",
-  );
+  fx("packages/server/src/domain/__g_verbpres/contract/service.ts", "export interface GVerbPresService {\n  readonly gUntested: () => Promise<void>;\n}\n");
   // no-test-fabrication: a tests/ file with a `as unknown as` double-cast NOT in the baseline (baseline 0
   // for a __g_ path → over budget → RED). The banned cast is ASSEMBLED so the literal never appears in THIS
   // file's own source (which the gate also scans) — only the written fixture resolves to it (same technique
   // as the ambient-clock fixture above).
-  fx(
-    "tests/server/__g_fab.test.ts",
-    `export const g = ({} ${["as", "unknown", "as"].join(" ")} { n: number }).n;\n`,
-  );
+  fx("tests/server/__g_fab.test.ts", `export const g = ({} ${["as", "unknown", "as"].join(" ")} { n: number }).n;\n`);
   // asset-refs-fk-coverage: a schema column with a real FK to `assets.id` (importing the REAL
   // packages/db/src/schema/assets.ts) that is registered in NEITHER ASSET_REFS nor
   // DERIVED_ASSET_COLUMNS (domain/assets/persistence/asset-refs.ts) — the gate reads the real
@@ -483,13 +360,12 @@ function writeFixtures(): void {
   // warning-code-coverage: NOT fixtured here — it is a whole-corpus emit-coverage RATCHET (a tuple member
   // with no emit site across the real home + emit scope). An injected `__g_` file can neither match its
   // fixed tuple-home path nor REMOVE a real emit, so it cannot be driven from an isolated fixture; it is
-  // proven to fire by its dedicated self-test (tests/tooling/warning-code-coverage.int.test.ts) and is
+  // proven to fire by its dedicated self-test (tests/tooling/warning-code-coverage.residual.test.ts) and is
   // exempted from the anti-drift assertion below.
   // list-row-adoption: a LIST-surface file (imports LibrarySurfaceShell) whose `.map()` row roots in a
   // plain interactive <div>, not ListRow/LibraryRow (client-architecture-lockdown.md §16 G6).
   fx(
     "packages/client/src/features/__g_listrow/surfaces/__g_listrow-surface.tsx",
-    // biome-ignore lint/security/noSecrets: fixture SOURCE CODE (a JSX onClick row), not a secret.
     'import { LibrarySurfaceShell } from "#components";\ndeclare const items: { id: string; name: string }[];\ndeclare function select(item: unknown): void;\nexport const G = () => (\n  <LibrarySurfaceShell>\n    {items.map((item) => <div key={item.id} onClick={() => select(item)}>{item.name}</div>)}\n  </LibrarySurfaceShell>\n);\n',
   );
   // feature-css-files: a .css file under features/** outside the shell.css allowlist
@@ -502,16 +378,12 @@ function writeFixtures(): void {
   fx("packages/client/src/features/__g_ownsnodef/lib/helper.ts", "export const g = 1;\n");
   // bus-channel-primitive: a bespoke `new EventEmitter()` under transport/, outside bus-channel.ts's own
   // home (client-architecture-lockdown.md §13/§16 G10 — the M9 unification).
-  fx(
-    "packages/server/src/transport/__g_bce/x.ts",
-    'import { EventEmitter } from "node:events";\nexport const gEmitter = new EventEmitter();\n',
-  );
+  fx("packages/server/src/transport/__g_bce/x.ts", 'import { EventEmitter } from "node:events";\nexport const gEmitter = new EventEmitter();\n');
   // bus-definition-belts: a `*_EVENT_TYPES satisfies Record<X["type"], true>` const in @orb/contracts with
   // NEITHER a coverage-gate file naming it NOR a client-side total map in data/invalidation.ts — both belts
   // missing (client-architecture-lockdown.md §13 laws 4/5, §16 G11).
   fx(
     "packages/contracts/src/__g_busbelt/index.ts",
-    // biome-ignore lint/security/noSecrets: fixture SOURCE CODE (a contracts const), not a secret.
     'export type GBeltEvent = { type: "gTick" };\nexport const G_BELT_EVENT_TYPES = { gTick: true } satisfies Record<GBeltEvent["type"], true>;\n',
   );
   // membership-fan-guard: an actor-only `emitUserEvent` identifier inside domain/chat — member-visible
@@ -520,6 +392,114 @@ function writeFixtures(): void {
   fx(
     `${D}/chat/verbs/__g_mfg.ts`,
     'export const leak = (emitUserEvent: (u: string, e: unknown) => void): void => {\n  emitUserEvent("u1", { type: "x" });\n};\n',
+  );
+  // ── grit→ts-morph migration wave (2026-07-15) — fixtures for every ported plugin-turned-gate. Each is
+  // the gate's own mustFlag violation shape planted at a real-tree path its scanRoot covers; banned
+  // literals (ambient clock/random, unseeded UUID) are assembled so THIS file's source stays clean for
+  // the textual test-determinism scan (same technique as the __g_det fixture above). ──
+  // chat-stream-writes-in-bus-only: importing the stream store's write api outside data/bus/ + main.tsx.
+  fx("packages/client/src/features/__g_streamwrite/hooks/__g_h.ts", 'import { chatStream } from "#state";\nexport const s = chatStream;\n');
+  // client-cache-surgery-only-in-data: an imperative QueryClient cache call outside data/.
+  fx(
+    "packages/client/src/features/__g_cachesurgery/hooks/__g_h.ts",
+    "export const f = (qc: { invalidateQueries: (a: unknown) => void }): void => {\n  qc.invalidateQueries({});\n};\n",
+  );
+  // no-await-db-in-loop: an awaited db query inside a for-of (the N+1 shape).
+  fx(
+    `${D}/__g_awaitloop/x.ts`,
+    "declare const xs: string[];\ndeclare const db: { select: () => { from: (t: unknown) => Promise<unknown> } };\ndeclare const y: unknown;\nexport async function f(): Promise<void> {\n  for (const x of xs) {\n    void x;\n    await db.select().from(y);\n  }\n}\n",
+  );
+  // no-chat-trpc-in-surface: an inline chat-verb mutation in a surface file.
+  fx("packages/client/src/features/__g_chattrpc/surfaces/__g_s.ts", "export const o = trpc.chat.send.mutationOptions();\n");
+  // no-color-literals: an arbitrary hex color in a className.
+  fx("packages/client/src/features/__g_colorlit/components/__g_c.tsx", 'export const C = () => <div className="text-[#fff000]" />;\n');
+  // no-context-provider: the React-19-deprecated <Context.Provider> form.
+  fx("packages/client/src/features/__g_ctxprov/components/__g_c.tsx", "export const Host = () => <MyContext.Provider value={1} />;\n");
+  // no-context-returntype: a ReturnType<> DI-bundle type in a context.ts.
+  fx(`${D}/__g_ctxret/context.ts`, "declare function makeCtx(): { n: number };\nexport type Ctx = ReturnType<typeof makeCtx>;\n");
+  // no-decorators: a decorator (non-erasable syntax — no runtime under type-stripping).
+  fx(`${D}/__g_decorator/x.ts`, "function dec(): void {}\nexport class A {\n  @dec foo(): number {\n    return 1;\n  }\n}\n");
+  // no-default-props: the React-19-deprecated `defaultProps` assignment.
+  fx("packages/ui/src/__g_defprops/__g_c.tsx", "const GDef = () => <div />;\nGDef.defaultProps = { id: 1 };\nexport { GDef };\n");
+  // no-direct-useform: a direct useForm() call outside the shared #forms toolkit.
+  fx("packages/client/src/features/__g_useform/hooks/__g_h.ts", "export const x = useForm({});\n");
+  // no-external-media-without-gate: a raw <img> in a feature (outside MessageMedia).
+  fx("packages/client/src/features/__g_extmedia/components/__g_c.tsx", 'export const C = (u: string) => <img src={u} alt="" />;\n');
+  // no-fake-disabled-id: the empty-string branded-id fake-disabled sentinel.
+  fx("packages/client/src/features/__g_fakeid/hooks/__g_h.ts", 'export const id = castId("");\n');
+  // no-form-state-in-useeffect: form.state.values in a useEffect dep array.
+  fx(
+    "packages/client/src/features/__g_formeffect/components/__g_c.tsx",
+    "declare function useEffect(fn: () => void, deps: unknown[]): void;\nexport function C(form: { state: { values: unknown } }): void {\n  useEffect(() => {}, [form.state.values]);\n}\n",
+  );
+  // no-forward-ref: the React-19-deprecated forwardRef import + call.
+  fx(
+    "packages/client/src/features/__g_fwdref/components/__g_c.tsx",
+    'import { forwardRef } from "react";\nexport const GInput = forwardRef((props, ref) => <input ref={ref} />);\n',
+  );
+  // no-if-is-group: an isGroup boolean branch (solo is the degenerate group — D16).
+  fx(`${D}/__g_isgroup/x.ts`, "export function f(isGroup: boolean): number {\n  if (isGroup) {\n    return 1;\n  }\n  return 0;\n}\n");
+  // no-inline-optimistic-in-surface: optimistic-mutation plumbing in a surface file.
+  fx(
+    "packages/client/src/features/__g_optimistic/surfaces/__g_s.ts",
+    "export const X = (queryClient: { setQueryData: (k: unknown, v: unknown) => void }): void => {\n  queryClient.setQueryData(['k'], 1);\n};\n",
+  );
+  // no-inline-types: an exported interface in a domain verb (types live in contract/).
+  fx(`${D}/__g_inltypes/verbs/__g_v.ts`, "export interface Leak {\n  a: number;\n}\n");
+  // no-layout-context-props: a layout-context boolean prop (compact) on JSX (D42).
+  fx("packages/client/src/features/__g_layoutprops/components/__g_c.tsx", "export const G = <EntityCard compact={true} />;\n");
+  // no-loose-id-cast: an `as never` type-check launder.
+  fx(`${D}/__g_loosecast/x.ts`, "declare const x: unknown;\nexport const a = x as never;\n");
+  // no-manual-token-estimate: the hand-rolled `.length / 4` token estimate.
+  fx(`${D}/__g_tokest/__g_tok.ts`, "export function f(text: string): number {\n  return text.length / 4;\n}\n");
+  // no-media-queries-in-features: a viewport breakpoint variant in a feature className.
+  fx("packages/client/src/features/__g_mediaq/components/__g_c.tsx", 'export const C = () => <div className="md:flex-row" />;\n');
+  // no-mint-via-cast: minting an id by laundering a fresh UUID through castId (assembled).
+  fx(`${D}/__g_mintcast/x.ts`, `export const a = castId(crypto.${["random", "UUID"].join("")}());\n`);
+  // no-multiplexed-mutation-error: two mutations' errors multiplexed through ??.
+  fx(
+    "packages/client/src/features/__g_muxerr/hooks/__g_h.ts",
+    "export const e = (a: { error: unknown }, b: { error: unknown }): unknown => a.error ?? b.error;\n",
+  );
+  // no-raw-clock: an ambient clock read outside the @orb/kit/time seam (assembled).
+  fx(`${D}/__g_rawclock/x.ts`, `export const t = ${["Date", "now"].join(".")}();\n`);
+  // no-raw-container-widths: a raw content-width utility on a container element.
+  fx("packages/client/src/features/__g_containerw/components/__g_c.tsx", 'export const C = () => <div className="w-[600px]" />;\n');
+  // no-raw-id: an Id field typed as raw z.string() (no brand).
+  fx(`${D}/__g_rawid/x.ts`, 'import { z } from "zod";\nexport const s = z.object({ chatId: z.string() });\n');
+  // no-raw-intl-time: a raw Intl API construction outside the time seam.
+  fx("packages/client/src/features/__g_intl/lib/__g_time.ts", 'export const f = new Intl.DateTimeFormat("en-US");\n');
+  // no-raw-matchmedia: a raw matchMedia call outside the sanctioned viewport-hook homes.
+  fx("packages/client/src/features/__g_matchmedia/hooks/__g_h.ts", 'export const f = window.matchMedia("(prefers-reduced-motion: reduce)");\n');
+  // no-raw-random: an ambient random call in shipped source (assembled).
+  fx(`${D}/__g_rawrandom/x.ts`, `export const r = Math.${["ran", "dom"].join("")}();\n`);
+  // no-raw-spacing-in-features: a raw spacing utility in a feature className.
+  fx("packages/client/src/features/__g_rawspacing/components/__g_c.tsx", 'export const C = () => <div className="p-4" />;\n');
+  // no-raw-typography-in-features: a raw typography utility in a feature className.
+  fx("packages/client/src/features/__g_rawtypo/components/__g_c.tsx", 'export const C = () => <p className="text-sm" />;\n');
+  // no-raw-z-index: a raw z-index utility in a className.
+  fx("packages/client/src/features/__g_rawz/components/__g_c.tsx", 'export const C = () => <div className="z-50" />;\n');
+  // no-raw-zustand-persist: a bare zustand persist() outside the two minting factories.
+  fx(
+    "packages/client/src/features/__g_rawpersist/lib/__g_store.ts",
+    "declare function create(x: unknown): unknown;\ndeclare function persist(init: unknown): unknown;\nexport const useGRogueStore = create(persist(() => ({})));\n",
+  );
+  // no-static-staletime: the banned `staleTime: "static"` (the bus drives freshness).
+  fx("packages/client/src/features/__g_staletime/hooks/__g_h.ts", 'export const o = { staleTime: "static" };\n');
+  // no-untrusted-html-in-main-dom: dangerouslySetInnerHTML outside the sanctioned seals (D44).
+  fx("packages/client/src/features/__g_rawhtml/components/__g_c.tsx", "export const C = (s: string) => <div dangerouslySetInnerHTML={{ __html: s }} />;\n");
+  // persistence-no-in-memory-state: a module-scope Map in a persistence/ file.
+  fx(`${D}/__g_memstate/persistence/__g_p.ts`, "export const m = new Map();\n");
+  // query-machine-seals: a useMutation import outside data/ (client-architecture-lockdown.md §16 G9).
+  fx("packages/client/src/features/__g_qseals/hooks/__g_h.ts", 'import { useMutation } from "@tanstack/react-query";\nexport const m = useMutation;\n');
+  // testid-typed-only: a freeform string data-testid (must come from the typed test-id home).
+  fx("packages/client/src/features/__g_testid/components/__g_c.tsx", 'export const C = () => <div data-testid="freeform-string" />;\n');
+  // theme-override-only-via-scope: an inline style overriding a color token custom property.
+  fx("packages/client/src/features/__g_themeover/components/__g_c.tsx", "export const C = () => <div style={{ '--color-primary': 'red' }} />;\n");
+  // zustand-selector-stability: a store-hook selector returning a fresh object literal.
+  fx(
+    "packages/client/src/features/__g_selstab/hooks/__g_h.ts",
+    "declare const useGStore: (sel: (s: { a: number }) => unknown) => unknown;\nexport const v = useGStore((s) => ({ a: s.a }));\n",
   );
 }
 
@@ -537,12 +517,7 @@ function writeFixtures(): void {
 // alter a program's resolved include/files, so it can't be fixture-driven. Its bite is proven by its
 // conformance mustFlag (a synthetic reach-back-include tree) + a real-tree break-confirm (misroute one
 // file → RED → restore byte-identical).
-const UNFIXTURABLE_GATES = new Set([
-  "warning-code-coverage",
-  "verify-registry-parity",
-  "enforcement-registry-parity",
-  "tsconfig-routing-parity",
-]);
+const UNFIXTURABLE_GATES = new Set(["warning-code-coverage", "verify-registry-parity", "enforcement-registry-parity", "tsconfig-routing-parity"]);
 
 let registry = new Set<string>();
 let fired = new Set<string>();
@@ -556,7 +531,7 @@ beforeAll(() => {
   registry = new Set([...names(OK_RE, cleanReport), ...names(FIRED_RE, cleanReport)]);
   writeFixtures();
   fired = names(FIRED_RE, runStructure()); // with fixtures: the gates that caught a violation
-}, 60_000);
+}, 300_000);
 
 afterAll(() => {
   cleanFixtures();

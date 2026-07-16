@@ -29,10 +29,7 @@ export function toVectorBlob(v: Float32Array): Uint8Array {
 }
 
 /** Top-`limit` characters in `model`'s space closest (cosine) to the query, owner-scoped, ascending distance. */
-export async function nearestCharacters(
-  db: ReadOnlyDb,
-  params: NearestCharactersParams,
-): Promise<NearestCharacter[]> {
+export async function nearestCharacters(db: ReadOnlyDb, params: NearestCharactersParams): Promise<NearestCharacter[]> {
   const distance = sql<number>`vector_distance_cos(${characterEmbeddings.embedding}, vector32(${toVectorBlob(params.queryVector)}))`;
   const rows = await db
     .select({
@@ -48,9 +45,7 @@ export async function nearestCharacters(
       and(
         eq(characters.ownerId, params.ownerId),
         eq(characterEmbeddings.model, params.model),
-        params.excludeCharacterId === undefined
-          ? undefined
-          : ne(characterEmbeddings.characterId, params.excludeCharacterId),
+        params.excludeCharacterId === undefined ? undefined : ne(characterEmbeddings.characterId, params.excludeCharacterId),
       ),
     )
     .orderBy(distance)

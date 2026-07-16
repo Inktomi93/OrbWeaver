@@ -40,17 +40,11 @@ export function fitSeedToBudget(history: readonly ViewTurn[], budgetTokens: numb
 
 /** Build the per-turn prompt: a compact transcript of recent turns (when any) + the new message. The
  *  system prompt carries the soul, so this is purely the conversational context to remember. */
-export function buildPromptWithMemory(
-  history: readonly ViewTurn[],
-  buddyName: string | null,
-  message: string,
-): string {
+export function buildPromptWithMemory(history: readonly ViewTurn[], buddyName: string | null, message: string): string {
   if (history.length === 0) {
     return message;
   }
   const them = buddyName ?? "You";
-  const transcript = history
-    .map((t) => (t.role === "user" ? `User: ${t.content}` : `${them}: ${t.content}`))
-    .join("\n");
+  const transcript = history.map((t) => (t.role === "user" ? `User: ${t.content}` : `${them}: ${t.content}`)).join("\n");
   return `Recent conversation so far:\n${transcript}\n\nThe user now says: ${message}`;
 }

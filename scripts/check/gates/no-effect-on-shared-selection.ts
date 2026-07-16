@@ -138,9 +138,7 @@ export const gate: GateDescriptor = {
   scopeSafety: "incremental-safe",
   message: MESSAGE,
   fix: "derive in render instead, or use `useEffectEvent` for a non-reactive read inside an unrelated effect.",
-  scanRoot: (p) =>
-    p.includes("packages/client/src/features/") &&
-    !p.includes("packages/client/src/features/app-shell/"),
+  scanRoot: (p) => p.includes("packages/client/src/features/") && !p.includes("packages/client/src/features/app-shell/"),
   kinds: [SyntaxKind.CallExpression],
   begin: () => {
     taintMemo.clear();

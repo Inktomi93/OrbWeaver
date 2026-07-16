@@ -4,8 +4,7 @@ import type { VariantProps } from "tailwind-variants";
 import { ICON_XS, Icon, Lock } from "#primitives/icons";
 import { segmentedClockVariants } from "./variants";
 
-export interface SegmentedClockProps
-  extends Omit<VariantProps<typeof segmentedClockVariants>, "filled" | "hidden"> {
+export interface SegmentedClockProps extends Omit<VariantProps<typeof segmentedClockVariants>, "filled" | "hidden"> {
   /** Total segment count — any integer ≥ 2. */
   segments: number;
   /** Filled segment count (clamped to 0..segments). */
@@ -51,15 +50,7 @@ function segmentPath(index: number, count: number): string {
 }
 
 /** Progress-clock display — `filled` of `segments` wedges. Pure count display: knows nothing of fronts. */
-export function SegmentedClock({
-  segments,
-  filled,
-  completed,
-  hidden,
-  label,
-  size,
-  className,
-}: SegmentedClockProps): ReactElement {
+export function SegmentedClock({ segments, filled, completed, hidden, label, size, className }: SegmentedClockProps): ReactElement {
   const count = Math.max(MIN_SEGMENTS, Math.trunc(segments));
   const filledCount = Math.min(count, Math.max(0, Math.trunc(filled)));
   const isComplete = completed === true;
@@ -68,23 +59,13 @@ export function SegmentedClock({
   let centerSlot: ReactElement | null = null;
   if (isHidden) {
     centerSlot = (
-      <g
-        data-slot="hidden-icon"
-        transform={`translate(${HIDDEN_ICON_OFFSET} ${HIDDEN_ICON_OFFSET})`}
-      >
+      <g data-slot="hidden-icon" transform={`translate(${HIDDEN_ICON_OFFSET} ${HIDDEN_ICON_OFFSET})`}>
         <Icon className={slots.hiddenIcon()} icon={Lock} label="Hidden from players" size="xs" />
       </g>
     );
   } else if (isComplete) {
     centerSlot = (
-      <circle
-        className={slots.completedDot()}
-        cx={CLOCK_CENTER}
-        cy={CLOCK_CENTER}
-        data-slot="completed-dot"
-        fill="currentColor"
-        r={CENTER_DOT_RADIUS}
-      />
+      <circle className={slots.completedDot()} cx={CLOCK_CENTER} cy={CLOCK_CENTER} data-slot="completed-dot" fill="currentColor" r={CENTER_DOT_RADIUS} />
     );
   }
   return (

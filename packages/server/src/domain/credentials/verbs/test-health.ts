@@ -52,10 +52,7 @@ async function probeOpenRouterHealth(
     const { strikes, limitHit } = recordStrike(credentialId);
     if (limitHit) {
       await setRevokedById(ctx.db, credentialId, now);
-      getLog().warn(
-        { credentialId, strikes },
-        "credentials: health probe strike-limit hit — marking revoked despite no auth classification",
-      );
+      getLog().warn({ credentialId, strikes }, "credentials: health probe strike-limit hit — marking revoked despite no auth classification");
       return { status: "revoked", checkedAt: now, reason: result.reason };
     }
     return { status: "unreachable", checkedAt: now, reason: result.reason };
@@ -67,10 +64,7 @@ export function createTestHealth(ctx: CredentialContext): CredentialsService["te
   return async (params: TestHealthParams): Promise<CredentialHealth> => {
     const ownerId = params.principal.userId;
     const { credentialId } = params;
-    const row = requireOwned(
-      await fetchOwnedCredential(ctx.db, ownerId, credentialId),
-      credentialId,
-    );
+    const row = requireOwned(await fetchOwnedCredential(ctx.db, ownerId, credentialId), credentialId);
     const now = ctx.now();
 
     const throttledAt = beginProbe(credentialId, now);

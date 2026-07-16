@@ -40,9 +40,7 @@ function defaultPathFor(gate: GateDescriptor): string {
 
 /** The example's (repo-relative path → source) map, resolving the single-snippet form to its `at`. */
 function exampleFiles(ex: GateExample, gate: GateDescriptor): Record<string, string> {
-  return typeof ex.files === "string"
-    ? { [ex.at ?? defaultPathFor(gate)]: ex.files }
-    : { ...ex.files };
+  return typeof ex.files === "string" ? { [ex.at ?? defaultPathFor(gate)]: ex.files } : { ...ex.files };
 }
 
 /** Materialize an example into an in-memory Project (the pure-AST substrate). */
@@ -57,11 +55,7 @@ function inMemoryExampleProject(ex: GateExample, gate: GateDescriptor): Project 
 /** Run ONE gate standalone over an example project — the same begin→walk→run→finalize path as the real
  *  run. A dormant gate is run as-active here (runPass skips dormant gates in the real run) so its proof
  *  still holds. */
-function runGateStandalone(
-  gate: GateDescriptor,
-  project: Project,
-  root: string,
-): readonly Finding[] {
+function runGateStandalone(gate: GateDescriptor, project: Project, root: string): readonly Finding[] {
   const asActive: GateDescriptor = gate.status === "active" ? gate : { ...gate, status: "active" };
   const result = runPass([asActive], {
     root,
@@ -94,18 +88,12 @@ function runFsBackedExample(gate: GateDescriptor, ex: GateExample): readonly Fin
 
 /** Run one example on the substrate the descriptor declares. */
 function runExample(gate: GateDescriptor, ex: GateExample): readonly Finding[] {
-  return gate.fsBacked === true
-    ? runFsBackedExample(gate, ex)
-    : runGateStandalone(gate, inMemoryExampleProject(ex, gate), VROOT);
+  return gate.fsBacked === true ? runFsBackedExample(gate, ex) : runGateStandalone(gate, inMemoryExampleProject(ex, gate), VROOT);
 }
 
 /** Did the findings satisfy a mustFlag example's precision expectations (count/line/messageIncludes)?
  *  `messageIncludes` matches against the gate's `message` (or a finding's own override). */
-function matchesExpect(
-  findings: readonly Finding[],
-  ex: GateExample,
-  gateMessage: string,
-): boolean {
+function matchesExpect(findings: readonly Finding[], ex: GateExample, gateMessage: string): boolean {
   if (findings.length === 0) {
     return false;
   }
@@ -126,12 +114,7 @@ function matchesExpect(
   return true;
 }
 
-function checkArm(
-  gate: GateDescriptor,
-  arm: "mustFlag" | "mustPass",
-  examples: readonly GateExample[],
-  out: ConformanceFailure[],
-): void {
+function checkArm(gate: GateDescriptor, arm: "mustFlag" | "mustPass", examples: readonly GateExample[], out: ConformanceFailure[]): void {
   const wantBite = arm === "mustFlag";
   for (const ex of examples) {
     const findings = runExample(gate, ex);

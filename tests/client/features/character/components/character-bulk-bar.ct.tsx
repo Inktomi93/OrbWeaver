@@ -5,10 +5,7 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import { CharacterBulkBarStory } from "../_ct-stories";
 
-test("the bulk actions fit the narrow panel — Delete is not clipped past the edge", async ({
-  mount,
-  page,
-}) => {
+test("the bulk actions fit the narrow panel — Delete is not clipped past the edge", async ({ mount, page }) => {
   const component = await mount(<CharacterBulkBarStory />);
   const del = component.getByRole("button", { name: "Delete", exact: true });
   await expect(component.getByRole("button", { name: "Tag", exact: true })).toBeVisible();

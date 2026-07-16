@@ -27,10 +27,7 @@ const EXIT_TOOL_ERROR = 2;
 /** Map the single-pass PassResult into the `check-structure.json` shape: each gate's per-occurrence
  *  findings collapse into `{file,line,message}` violations, where the message is the finding's own
  *  override or the gate descriptor's `message`. */
-function toStructureReport(
-  pass: PassResult,
-  gatesByName: ReadonlyMap<string, GateDescriptor>,
-): StructureReport {
+function toStructureReport(pass: PassResult, gatesByName: ReadonlyMap<string, GateDescriptor>): StructureReport {
   const gates: GateResult[] = pass.gates.map((g) => {
     const descriptor = gatesByName.get(g.name);
     const violations: Violation[] = g.findings.map((f) => ({

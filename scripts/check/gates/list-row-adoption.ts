@@ -9,11 +9,7 @@ import type { SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
 
-const LIST_SURFACE_IMPORTS: ReadonlySet<string> = new Set([
-  "LibrarySurfaceShell",
-  "LibraryListLayout",
-  "createCollectionSurface",
-]);
+const LIST_SURFACE_IMPORTS: ReadonlySet<string> = new Set(["LibrarySurfaceShell", "LibraryListLayout", "createCollectionSurface"]);
 
 /** The composite root names a LIST-surface `.map()`/renderItem/renderRow row may legally return. */
 const ALLOWED_ROOTS: ReadonlySet<string> = new Set(["ListRow", "LibraryRow"]);
@@ -72,9 +68,7 @@ function unwrapParens(node: Node): Node {
 
 /** The single top-level `return`'s expression inside a callback body, unwrapped — undefined if none. */
 function firstReturnExpression(callback: Node): Node | undefined {
-  const ret = callback
-    .getDescendantsOfKind(SyntaxKind.ReturnStatement)
-    .find((r) => r.getExpression() !== undefined);
+  const ret = callback.getDescendantsOfKind(SyntaxKind.ReturnStatement).find((r) => r.getExpression() !== undefined);
   const expr = ret?.getExpression();
   return expr === undefined ? undefined : unwrapParens(expr);
 }
@@ -83,15 +77,11 @@ function firstReturnExpression(callback: Node): Node | undefined {
  *  top-level `return`), or undefined when the callback doesn't return JSX at all (a plain data transform
  *  — `.map((p) => ({...}))` — is out of scope: G6 is about ROW RENDERING, not any `.map()`). */
 function mapReturnRoot(callback: Node): Node | undefined {
-  const candidate = Node.isArrowFunction(callback)
-    ? unwrapParens(callback.getBody())
-    : firstReturnExpression(callback);
+  const candidate = Node.isArrowFunction(callback) ? unwrapParens(callback.getBody()) : firstReturnExpression(callback);
   if (candidate === undefined) {
     return;
   }
-  return Node.isJsxElement(candidate) || Node.isJsxSelfClosingElement(candidate)
-    ? candidate
-    : undefined;
+  return Node.isJsxElement(candidate) || Node.isJsxSelfClosingElement(candidate) ? candidate : undefined;
 }
 
 /** An arrow function directly, or an identifier resolved to a local `const x = (item) => …` declaration

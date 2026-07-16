@@ -12,14 +12,7 @@
 // FLAG[assemble-post-process]: the post-process pass (`applyAssemblePostProcess`) is not yet built — it
 // lands with RECEIVE. This chunk returns the raw `\n\n`-joined halves until then.
 
-import type {
-  AssembleCharacter,
-  AssembleContext,
-  AssembledPrompt,
-  AssembleTrace,
-  ChatInjection,
-  SectionPreview,
-} from "@orb/contracts/chat";
+import type { AssembleCharacter, AssembleContext, AssembledPrompt, AssembleTrace, ChatInjection, SectionPreview } from "@orb/contracts/chat";
 import type { GenerationType, PromptConfig, PromptSection } from "@orb/contracts/preset";
 import { DEFAULT_MARKER_TEMPLATES } from "@orb/contracts/preset";
 import { globalMacroRegistry } from "@orb/kit/macro";
@@ -33,8 +26,7 @@ let volatileMacroReCache: RegExp | undefined;
 function volatileMacroRe(): RegExp {
   if (volatileMacroReCache === undefined) {
     const names = globalMacroRegistry.volatileNames();
-    volatileMacroReCache =
-      names.length === 0 ? NO_VOLATILE_RE : new RegExp(`\\{\\{#?(${names.join("|")})\\b`, "giu");
+    volatileMacroReCache = names.length === 0 ? NO_VOLATILE_RE : new RegExp(`\\{\\{#?(${names.join("|")})\\b`, "giu");
   }
   return volatileMacroReCache;
 }
@@ -54,10 +46,7 @@ function findVolatileMacros(text: string | null | undefined): string[] {
 }
 
 type MarkerSection = Extract<PromptSection, { type: "marker" }>;
-type TemplatedMarkerSection = Extract<
-  MarkerSection,
-  { marker: keyof typeof DEFAULT_MARKER_TEMPLATES }
->;
+type TemplatedMarkerSection = Extract<MarkerSection, { marker: keyof typeof DEFAULT_MARKER_TEMPLATES }>;
 
 /** The template for a templated marker — caller override wins, else the shipped default framing. */
 function templateFor(section: TemplatedMarkerSection): string {
@@ -85,14 +74,7 @@ function overrideSet(v: string | null | undefined): v is string {
 }
 
 // The merge-eligible per-member card fields, declared as a tuple.
-const MEMBER_FIELDS = [
-  "description",
-  "personality",
-  "scenario",
-  "exampleMessages",
-  "systemPrompt",
-  "postHistoryInstructions",
-] as const;
+const MEMBER_FIELDS = ["description", "personality", "scenario", "exampleMessages", "systemPrompt", "postHistoryInstructions"] as const;
 type MemberField = (typeof MEMBER_FIELDS)[number];
 
 /** Hard cap on the concatenated merged-fallback value (chars) — bounds the room-override `{{original}}`
@@ -101,11 +83,7 @@ const MERGED_FALLBACK_CAP = 4000;
 
 /** Render ONE member's card field with `{{char}}` bound to that member and `{{user}}` to the room anchor.
  *  `exampleMessages` is `<START>`-normalized so a member's example chain begins fresh. */
-function renderMemberField(
-  field: MemberField,
-  member: AssembleCharacter,
-  ctx: AssembleContext,
-): string {
+function renderMemberField(field: MemberField, member: AssembleCharacter, ctx: AssembleContext): string {
   const raw = member[field];
   if (typeof raw !== "string" || raw.trim().length === 0) {
     return "";
@@ -137,11 +115,7 @@ function dedupeNonEmpty(parts: readonly string[]): string[] {
 /** The room-override scope fallback: the value a room override inherits / `{{original}}` recovers, + whether
  *  it merged the present cast. Solo/scoped collapses to `activeValue`. Consumed only by the two
  *  `{{original}}`-templated overridable markers, never the scenario marker (that would double-emit it). */
-function resolveScopeFallback(
-  field: MemberField,
-  ctx: AssembleContext,
-  activeValue: string,
-): { value: string; merged: boolean } {
+function resolveScopeFallback(field: MemberField, ctx: AssembleContext, activeValue: string): { value: string; merged: boolean } {
   const co = ctx.coSpeakers;
   if (co === undefined || co.length === 0) {
     return { value: activeValue, merged: false };
@@ -161,12 +135,7 @@ function renderCoSpeakers(ctx: AssembleContext): string {
   }
   return co
     .map((m) => {
-      const head = [
-        renderMemberField("description", m, ctx),
-        renderMemberField("personality", m, ctx),
-      ]
-        .filter((s) => s.trim().length > 0)
-        .join("\n");
+      const head = [renderMemberField("description", m, ctx), renderMemberField("personality", m, ctx)].filter((s) => s.trim().length > 0).join("\n");
       if (head.trim().length === 0) {
         return "";
       }
@@ -193,11 +162,7 @@ function recordMergedCacheBuster(trace: AssembleTrace): void {
   }
 }
 
-function recordOverrideSource(
-  trace: AssembleTrace,
-  field: keyof NonNullable<AssembleTrace["overrideSources"]>,
-  source: string | undefined,
-): void {
+function recordOverrideSource(trace: AssembleTrace, field: keyof NonNullable<AssembleTrace["overrideSources"]>, source: string | undefined): void {
   if (source === undefined) {
     return;
   }
@@ -236,13 +201,8 @@ function renderOverridable(
 ): { text: string; merged: boolean } {
   const { ctx, originals } = env;
   const cardOverride = ctx.character[cardField];
-  const preset =
-    originals.renderedById.get(section.id) ??
-    renderMacros(templateFor(section), ctx, ctx.activePersona);
-  const afterCard =
-    overrideSet(cardOverride) && section.forbidCharacterOverride !== true
-      ? renderMacros(cardOverride, ctx, ctx.pinnedPersona, preset)
-      : preset;
+  const preset = originals.renderedById.get(section.id) ?? renderMacros(templateFor(section), ctx, ctx.activePersona);
+  const afterCard = overrideSet(cardOverride) && section.forbidCharacterOverride !== true ? renderMacros(cardOverride, ctx, ctx.pinnedPersona, preset) : preset;
   const fallback = resolveScopeFallback(cardField, ctx, afterCard);
   if (overrideSet(roomOverride) && section.forbidRoomOverride !== true) {
     return {
@@ -253,15 +213,10 @@ function renderOverridable(
   return { text: fallback.value, merged: fallback.merged };
 }
 
-function renderOverridableMarker(
-  section: TemplatedMarkerSection,
-  marker: "main_prompt" | "post_history",
-  env: BuildEnv,
-): string {
+function renderOverridableMarker(section: TemplatedMarkerSection, marker: "main_prompt" | "post_history", env: BuildEnv): string {
   const { ctx, trace } = env;
   const cardField = marker === "main_prompt" ? "systemPrompt" : "postHistoryInstructions";
-  const room =
-    marker === "main_prompt" ? ctx.roomOverrides?.mainPrompt : ctx.roomOverrides?.postHistory;
+  const room = marker === "main_prompt" ? ctx.roomOverrides?.mainPrompt : ctx.roomOverrides?.postHistory;
   const { text, merged } = renderOverridable(section, env, cardField, room);
   const source = resolveOverrideSource({
     room,
@@ -286,19 +241,12 @@ function renderScenarioMarker(section: TemplatedMarkerSection, env: BuildEnv): s
   if (value.trim().length === 0) {
     return "";
   }
-  recordOverrideSource(
-    trace,
-    "scenario",
-    overrideSet(room) ? "room override" : `from ${ctx.character.name}`,
-  );
+  recordOverrideSource(trace, "scenario", overrideSet(room) ? "room override" : `from ${ctx.character.name}`);
   return value;
 }
 
 /** The ctx field + trace flag for each server-injected marker (avoids a nested ternary). */
-function serverMarkerValue(
-  marker: "compact_summary" | "memory" | "guided_instruction",
-  ctx: AssembleContext,
-): string | null | undefined {
+function serverMarkerValue(marker: "compact_summary" | "memory" | "guided_instruction", ctx: AssembleContext): string | null | undefined {
   if (marker === "compact_summary") {
     return ctx.compactSummary;
   }
@@ -308,10 +256,7 @@ function serverMarkerValue(
   return ctx.guidedInstruction;
 }
 
-function markServerInclude(
-  marker: "compact_summary" | "memory" | "guided_instruction",
-  trace: AssembleTrace,
-): void {
+function markServerInclude(marker: "compact_summary" | "memory" | "guided_instruction", trace: AssembleTrace): void {
   if (marker === "compact_summary") {
     trace.compactSummaryIncluded = true;
   } else if (marker === "memory") {
@@ -321,11 +266,7 @@ function markServerInclude(
   }
 }
 
-function renderServerMarker(
-  section: TemplatedMarkerSection,
-  marker: "compact_summary" | "memory" | "guided_instruction",
-  env: BuildEnv,
-): string {
+function renderServerMarker(section: TemplatedMarkerSection, marker: "compact_summary" | "memory" | "guided_instruction", env: BuildEnv): string {
   const value = serverMarkerValue(marker, env.ctx);
   if (value === null || value === undefined || value.trim().length === 0) {
     return "";
@@ -357,19 +298,13 @@ function renderMarker(section: MarkerSection, env: BuildEnv): string {
       return [active, co].filter((s) => s.trim().length > 0).join("\n\n");
     }
     case "char_personality":
-      return ctx.character.personality
-        ? renderMacros(templateFor(section), ctx, ctx.pinnedPersona)
-        : "";
+      return ctx.character.personality !== null && ctx.character.personality !== "" ? renderMacros(templateFor(section), ctx, ctx.pinnedPersona) : "";
     case "dialogue_examples":
-      return ctx.character.exampleMessages
-        ? renderMacros(templateFor(section), ctx, ctx.pinnedPersona)
-        : "";
+      return ctx.character.exampleMessages !== null && ctx.character.exampleMessages !== "" ? renderMacros(templateFor(section), ctx, ctx.pinnedPersona) : "";
     case "persona":
       // Emits ONLY when the active persona's description placement is in_prompt (else it rode an
       // injection, or nowhere — the single-placement rule that makes double-injection impossible).
-      return ctx.activePersona && ctx.personaMarkerActive !== false
-        ? renderMacros(templateFor(section), ctx, ctx.activePersona)
-        : "";
+      return ctx.activePersona && ctx.personaMarkerActive !== false ? renderMacros(templateFor(section), ctx, ctx.activePersona) : "";
     case "compact_summary":
     case "memory":
     case "guided_instruction":
@@ -386,9 +321,7 @@ function renderMarker(section: MarkerSection, env: BuildEnv): string {
 
 function renderSection(section: PromptSection, env: BuildEnv): string {
   // Literal blocks are USER-authored → active persona; markers route per-marker (dual-persona inside).
-  return section.type === "literal"
-    ? renderMacros(section.content, env.ctx, env.ctx.activePersona)
-    : renderMarker(section, env);
+  return section.type === "literal" ? renderMacros(section.content, env.ctx, env.ctx.activePersona) : renderMarker(section, env);
 }
 
 function coSpeakerFieldSources(field: MemberField, ctx: AssembleContext): string[] {
@@ -411,12 +344,7 @@ function markerStaticSources(section: MarkerSection, ctx: AssembleContext): stri
     case "guided_instruction":
       return [templateFor(section)];
     case "main_prompt":
-      return [
-        templateFor(section),
-        ctx.character.systemPrompt ?? "",
-        ctx.roomOverrides?.mainPrompt ?? "",
-        ...coSpeakerFieldSources("systemPrompt", ctx),
-      ];
+      return [templateFor(section), ctx.character.systemPrompt ?? "", ctx.roomOverrides?.mainPrompt ?? "", ...coSpeakerFieldSources("systemPrompt", ctx)];
     case "post_history":
       return [
         templateFor(section),
@@ -436,12 +364,7 @@ function markerStaticSources(section: MarkerSection, ctx: AssembleContext): stri
     case "char_personality":
       return [templateFor(section), ctx.character.personality ?? ""];
     case "scenario":
-      return [
-        templateFor(section),
-        ctx.character.scenario ?? "",
-        ctx.roomOverrides?.scenario ?? "",
-        ...coSpeakerFieldSources("scenario", ctx),
-      ];
+      return [templateFor(section), ctx.character.scenario ?? "", ctx.roomOverrides?.scenario ?? "", ...coSpeakerFieldSources("scenario", ctx)];
     case "dialogue_examples":
       return [templateFor(section), ctx.character.exampleMessages ?? ""];
   }
@@ -456,10 +379,7 @@ function collectStaticSources(section: PromptSection, ctx: AssembleContext): str
  *  once regardless of section order. */
 function computeOriginals(config: PromptConfig, ctx: AssembleContext): Originals {
   const overridable = config.sections.filter(
-    (s): s is TemplatedMarkerSection =>
-      s.type === "marker" &&
-      s.enabled &&
-      (s.marker === "main_prompt" || s.marker === "post_history"),
+    (s): s is TemplatedMarkerSection => s.type === "marker" && s.enabled && (s.marker === "main_prompt" || s.marker === "post_history"),
   );
   if (overridable.length === 0) {
     return EMPTY_ORIGINALS;
@@ -494,11 +414,7 @@ function isSectionDynamic(section: PromptSection): boolean {
   if (section.type === "literal") {
     return false;
   }
-  return (
-    section.marker === "memory" ||
-    section.marker === "guided_instruction" ||
-    section.marker === "chat_history"
-  );
+  return section.marker === "memory" || section.marker === "guided_instruction" || section.marker === "chat_history";
 }
 
 /** A relative non-system section is delivered at the top of history. The splice clamps this large depth
@@ -508,12 +424,7 @@ const BEFORE_HISTORY_DEPTH = Number.MAX_SAFE_INTEGER;
 /** A section's `in_chat` delivery depth, or null for system-block placement. Precedence: explicit
  *  `inject.depth` \> after the pivot (depth 0) \> non-system role (top of history) \> system block. */
 function injectionDepthFor(section: PromptSection, idx: number, pivotIndex: number): number | null {
-  if (
-    section.type === "marker" &&
-    (section.marker === "chat_history" ||
-      section.marker === "world_info_before" ||
-      section.marker === "world_info_after")
-  ) {
+  if (section.type === "marker" && (section.marker === "chat_history" || section.marker === "world_info_before" || section.marker === "world_info_after")) {
     return null;
   }
   const inject = "inject" in section ? section.inject : undefined;
@@ -530,9 +441,6 @@ function injectionDepthFor(section: PromptSection, idx: number, pivotIndex: numb
 }
 
 function freshTrace(ctx: AssembleContext): AssembleTrace {
-  // biome-ignore lint/suspicious/noUnnecessaryConditions: `wiTrace` is optional (`?:`); biome's optional-
-  // chain inference wrongly treats the `?? fallback` as redundant (tsc requires it — same false-positive
-  // family as the -start block above + credentials/substrate/parse-metadata.ts).
   const wi = ctx.wiTrace ?? { included: 0, dropped: [], matchedKeys: [] };
   const trace: AssembleTrace = {
     staticSections: [],
@@ -562,12 +470,7 @@ interface WalkAccum {
 
 /** Deliver an after-history (`in_chat`) section: render → push to the injection bucket at `depth`. The
  *  splice (SHAPE) frames it; content here is macro-resolved only. */
-function pushAfterHistory(
-  section: PromptSection,
-  depth: number,
-  env: BuildEnv,
-  acc: WalkAccum,
-): void {
+function pushAfterHistory(section: PromptSection, depth: number, env: BuildEnv, acc: WalkAccum): void {
   const rendered = renderSection(section, env).trim();
   if (rendered.length === 0) {
     return;
@@ -587,11 +490,7 @@ function pushAfterHistory(
 }
 
 /** Scan a static section's source strings for volatile macros (cache-busters) into `busters`. */
-function scanStaticBusters(
-  section: PromptSection,
-  ctx: AssembleContext,
-  busters: Set<string>,
-): void {
+function scanStaticBusters(section: PromptSection, ctx: AssembleContext, busters: Set<string>): void {
   for (const src of collectStaticSources(section, ctx)) {
     for (const name of findVolatileMacros(src)) {
       busters.add(name);
@@ -620,13 +519,7 @@ function walkSection(section: PromptSection, idx: number, env: BuildEnv, acc: Wa
 
 /** Append the non-empty trimmed content of `list` to `target` (with a matching `label` per section),
  *  counting each into the trace. */
-function appendInjections(args: {
-  list: readonly ChatInjection[];
-  target: string[];
-  sections: string[];
-  label: string;
-  trace: AssembleTrace;
-}): void {
+function appendInjections(args: { list: readonly ChatInjection[]; target: string[]; sections: string[]; label: string; trace: AssembleTrace }): void {
   for (const inj of args.list) {
     const text = inj.content.trim();
     if (text.length > 0) {
@@ -684,9 +577,7 @@ export function assemblePrompt(config: PromptConfig, ctx: AssembleContext): Asse
     afterHistory: [],
     cacheBusters: new Set<string>(),
   };
-  const pivotIndex = config.sections.findIndex(
-    (s) => s.type === "marker" && s.marker === "chat_history",
-  );
+  const pivotIndex = config.sections.findIndex((s) => s.type === "marker" && s.marker === "chat_history");
   const env: BuildEnv = { ctx, trace, originals: computeOriginals(config, ctx), pivotIndex };
 
   const pivotSection = pivotIndex >= 0 ? config.sections[pivotIndex] : undefined;
@@ -729,11 +620,7 @@ export function assemblePrompt(config: PromptConfig, ctx: AssembleContext): Asse
  * SIDE-EFFECT FREE: the variable map is cloned so a `{{setvar}}` in the preview can't bleed into the
  * caller's live `variableValues`.
  */
-export function previewSection(
-  section: PromptSection,
-  ctx: AssembleContext,
-  config: PromptConfig,
-): SectionPreview {
+export function previewSection(section: PromptSection, ctx: AssembleContext, config: PromptConfig): SectionPreview {
   const half: "static" | "dynamic" = isSectionDynamic(section) ? "dynamic" : "static";
   const trace = freshTrace(ctx);
   if (!section.enabled) {

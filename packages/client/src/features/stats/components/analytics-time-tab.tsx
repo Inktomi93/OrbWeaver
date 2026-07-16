@@ -13,14 +13,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary, useTRPC } from "#data";
 import { testId } from "#lib";
-import {
-  dailyTokenBuckets,
-  dailyTurnBuckets,
-  formatCompact,
-  formatPeak,
-  hourHistogramBuckets,
-  weekdayBarItems,
-} from "../lib/analytics-view-model";
+import { dailyTokenBuckets, dailyTurnBuckets, formatCompact, formatPeak, hourHistogramBuckets, weekdayBarItems } from "../lib/analytics-view-model";
 
 export function AnalyticsTimeTab(): ReactElement {
   return (
@@ -48,11 +41,7 @@ function TimeBody(): ReactElement {
   const peak = formatPeak(heatmap.peak);
 
   return (
-    <Stack
-      className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
-      gap="section"
-      data-testid={testId("analyticsTimeTab")}
-    >
+    <Stack className="min-h-0 flex-1 overflow-y-auto overscroll-contain" gap="section" data-testid={testId("analyticsTimeTab")}>
       <Section heading="Daily replies">
         <Histogram buckets={dailyTurnBuckets(points)} label="Assistant turns per day" />
       </Section>
@@ -65,19 +54,12 @@ function TimeBody(): ReactElement {
         <Row gap="block" className="flex-wrap">
           <StatFigure label="Active days" value={formatCompact(temporal.activeDays)} />
           <StatFigure label="Longest streak" value={`${temporal.longestStreakDays}d`} />
-          <StatFigure
-            label="Busiest day"
-            value={temporal.busiestDay === null ? "—" : formatCompact(temporal.busiestDay.count)}
-          />
+          <StatFigure label="Busiest day" value={temporal.busiestDay === null ? "—" : formatCompact(temporal.busiestDay.count)} />
         </Row>
       </Section>
 
       <Section heading="By weekday">
-        <BarList
-          items={weekdayBarItems(temporal.dayOfWeek)}
-          label="Messages by weekday"
-          valueFormatter={formatCompact}
-        />
+        <BarList items={weekdayBarItems(temporal.dayOfWeek)} label="Messages by weekday" valueFormatter={formatCompact} />
       </Section>
 
       <Section heading="By hour">

@@ -22,20 +22,14 @@ import type { RequireOwner } from "#domain/admin";
 
 /** Mint the owner's box credential (agent-sdk over the host Claude sub). Owner-only: `requireOwner` throws
  *  for any non-owner principal before the cast is reached. No key, no row. */
-export function mintMaxProSub(
-  principal: Principal,
-  requireOwner: RequireOwner,
-): MaxProSubCredential {
+export function mintMaxProSub(principal: Principal, requireOwner: RequireOwner): MaxProSubCredential {
   requireOwner(principal);
   return { source: "max-pro-sub", credentialId: null } as MaxProSubCredential;
 }
 
 /** Mint an OpenRouter credential. `credentialId` is the row id (`null` is allowed by the contract shape
  *  but every live path passes a row id); `apiKey` is the decrypted key. Any authenticated user. */
-export function mintOpenRouter(
-  apiKey: string,
-  credentialId: UserCredentialId | null,
-): OpenRouterCredential {
+export function mintOpenRouter(apiKey: string, credentialId: UserCredentialId | null): OpenRouterCredential {
   return { source: "openrouter", apiKey, credentialId } as OpenRouterCredential;
 }
 

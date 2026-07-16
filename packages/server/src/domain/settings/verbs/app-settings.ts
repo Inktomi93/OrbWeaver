@@ -21,9 +21,7 @@ interface AppSettingsVerbs {
 // The owner-box governance fields — flipping any of these requires the box owner, not a delegated admin.
 const OWNER_GATED_FIELDS = [
   "allowNonOwnerLocalCompute",
-  // biome-ignore lint/security/noSecrets: an AppSettings field name (D17 governance toggle), not a secret.
   "nonOwnerLocalComputeBudget",
-  // biome-ignore lint/security/noSecrets: an AppSettings field name (D17 governance toggle), not a secret.
   "allowNonOwnerMaxProSub",
   "localMultiUser",
 ] as const satisfies readonly (keyof AppSettings)[];
@@ -50,10 +48,7 @@ export function createAppSettings(ctx: SettingsContext): AppSettingsVerbs {
     if (touchesOwnerGatedField(params.partial)) {
       ctx.requireOwner(params.principal);
     }
-    const merged = deepMergeAppSettings(
-      parseAppSettings(await readAppOverrideRaw(ctx.db)),
-      params.partial,
-    );
+    const merged = deepMergeAppSettings(parseAppSettings(await readAppOverrideRaw(ctx.db)), params.partial);
     const at = ctx.now();
     // Stamp the version into the blob (the `settings` table has no version column). The merge never
     // assigns `undefined`, so the result is a valid JsonValue at runtime — the cast bridges only the type.

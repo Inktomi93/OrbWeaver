@@ -20,13 +20,7 @@ const ITEM_COUNT = 500;
 const MAX_WINDOWED_ROWS = 60; // a bounded 200px window + overscan(10) is ~2 dozen rows
 
 test("renders only a window of a 500-item list", async ({ mount }) => {
-  const component = await mount(
-    <AppendableList
-      initialCount={ITEM_COUNT}
-      rowHeightPx={ROW_HEIGHT_PX}
-      listHeightPx={LIST_HEIGHT_PX}
-    />,
-  );
+  const component = await mount(<AppendableList initialCount={ITEM_COUNT} rowHeightPx={ROW_HEIGHT_PX} listHeightPx={LIST_HEIGHT_PX} />);
   const rendered = await component.locator("[data-index]").count();
   expect(rendered).toBeGreaterThan(0);
   expect(rendered).toBeLessThan(MAX_WINDOWED_ROWS);
@@ -35,43 +29,20 @@ test("renders only a window of a 500-item list", async ({ mount }) => {
 });
 
 test("bottom-anchored: mounts scrolled to the last item, not the first", async ({ mount }) => {
-  const component = await mount(
-    <AppendableList
-      initialCount={ITEM_COUNT}
-      rowHeightPx={ROW_HEIGHT_PX}
-      listHeightPx={LIST_HEIGHT_PX}
-    />,
-  );
+  const component = await mount(<AppendableList initialCount={ITEM_COUNT} rowHeightPx={ROW_HEIGHT_PX} listHeightPx={LIST_HEIGHT_PX} />);
   await expect(component.getByText(`Message ${ITEM_COUNT - 1}`, { exact: true })).toBeVisible();
   await expect(component.getByText("Message 0", { exact: true })).toHaveCount(0);
 });
 
-test("stick-to-bottom: appending while pinned at the end follows the new item into view", async ({
-  mount,
-}) => {
-  const component = await mount(
-    <AppendableList
-      initialCount={ITEM_COUNT}
-      rowHeightPx={ROW_HEIGHT_PX}
-      listHeightPx={LIST_HEIGHT_PX}
-    />,
-  );
+test("stick-to-bottom: appending while pinned at the end follows the new item into view", async ({ mount }) => {
+  const component = await mount(<AppendableList initialCount={ITEM_COUNT} rowHeightPx={ROW_HEIGHT_PX} listHeightPx={LIST_HEIGHT_PX} />);
   await expect(component.getByText(`Message ${ITEM_COUNT - 1}`, { exact: true })).toBeVisible();
   await component.getByTestId("append").click();
   await expect(component.getByText(`Message ${ITEM_COUNT}`, { exact: true })).toBeVisible();
 });
 
-test("a reader scrolled away from the end is NOT yanked when a new item appends", async ({
-  mount,
-  page,
-}) => {
-  const component = await mount(
-    <AppendableList
-      initialCount={ITEM_COUNT}
-      rowHeightPx={ROW_HEIGHT_PX}
-      listHeightPx={LIST_HEIGHT_PX}
-    />,
-  );
+test("a reader scrolled away from the end is NOT yanked when a new item appends", async ({ mount, page }) => {
+  const component = await mount(<AppendableList initialCount={ITEM_COUNT} rowHeightPx={ROW_HEIGHT_PX} listHeightPx={LIST_HEIGHT_PX} />);
   await expect(component.getByText(`Message ${ITEM_COUNT - 1}`, { exact: true })).toBeVisible();
   // Scroll well away from the tail (up to roughly the middle of the list).
   await component.getByText(`Message ${ITEM_COUNT - 1}`, { exact: true }).hover();
@@ -90,12 +61,8 @@ test("a reader scrolled away from the end is NOT yanked when a new item appends"
 // 2026-07-13). `followOnAppend` re-pins on COUNT growth only; a just-committed row + streaming ghost
 // re-measure far past their estimate (a SIZE change), and virtual-core's resize anchor abandons the
 // pin once one delta clears `scrollEndThreshold` — so the tail must be re-pinned on resize too.
-test("stick-to-bottom on RESIZE: the tail row growing taller keeps the viewport pinned to the end", async ({
-  mount,
-}) => {
-  const component = await mount(
-    <TailGrowthList initialCount={200} rowHeightPx={ROW_HEIGHT_PX} listHeightPx={LIST_HEIGHT_PX} />,
-  );
+test("stick-to-bottom on RESIZE: the tail row growing taller keeps the viewport pinned to the end", async ({ mount }) => {
+  const component = await mount(<TailGrowthList initialCount={200} rowHeightPx={ROW_HEIGHT_PX} listHeightPx={LIST_HEIGHT_PX} />);
   await expect(component.getByText("Message 199", { exact: true })).toBeVisible();
   await component.getByTestId("read-status").click();
   await expect(component.getByTestId("is-at-end")).toHaveText("true");
@@ -112,13 +79,8 @@ test("stick-to-bottom on RESIZE: the tail row growing taller keeps the viewport 
     .toBe("true");
 });
 
-test("the reader-scrolled-up guard survives a tail RESIZE: growth never yanks a history reader down", async ({
-  mount,
-  page,
-}) => {
-  const component = await mount(
-    <TailGrowthList initialCount={200} rowHeightPx={ROW_HEIGHT_PX} listHeightPx={LIST_HEIGHT_PX} />,
-  );
+test("the reader-scrolled-up guard survives a tail RESIZE: growth never yanks a history reader down", async ({ mount, page }) => {
+  const component = await mount(<TailGrowthList initialCount={200} rowHeightPx={ROW_HEIGHT_PX} listHeightPx={LIST_HEIGHT_PX} />);
   await expect(component.getByText("Message 199", { exact: true })).toBeVisible();
   // Scroll up with a real wheel gesture (this is what flips follow OFF — see `stickToBottomRef`).
   await component.getByText("Message 199", { exact: true }).hover();
@@ -140,12 +102,8 @@ test("the reader-scrolled-up guard survives a tail RESIZE: growth never yanks a 
 // them and yanks the reader back on the next resize (live-diagnosed 2026-07-13). This drives EXACTLY
 // that channel: move scrollTop up + a bare `scroll` event, then a tail resize, and the reader must
 // stay put. (Pre-marker: this scrolled the reader back to the tail.)
-test("the reader-scrolled-up guard holds for a BARE scroll event (scrollbar/AT — no wheel/touch/key)", async ({
-  mount,
-}) => {
-  const component = await mount(
-    <TailGrowthList initialCount={200} rowHeightPx={ROW_HEIGHT_PX} listHeightPx={LIST_HEIGHT_PX} />,
-  );
+test("the reader-scrolled-up guard holds for a BARE scroll event (scrollbar/AT — no wheel/touch/key)", async ({ mount }) => {
+  const component = await mount(<TailGrowthList initialCount={200} rowHeightPx={ROW_HEIGHT_PX} listHeightPx={LIST_HEIGHT_PX} />);
   await expect(component.getByText("Message 199", { exact: true })).toBeVisible();
   await component.getByTestId("read-status").click();
   await expect(component.getByTestId("is-at-end")).toHaveText("true");
@@ -174,16 +132,8 @@ test("the tripwire THROWS when the parent gives no bounded height", async ({ mou
   await expect(alert).toContainText("no bounded height");
 });
 
-test("the scroll wrapper exposes role=log + aria-live=polite (arriving messages are announced)", async ({
-  mount,
-}) => {
-  const component = await mount(
-    <AppendableList
-      initialCount={ITEM_COUNT}
-      rowHeightPx={ROW_HEIGHT_PX}
-      listHeightPx={LIST_HEIGHT_PX}
-    />,
-  );
+test("the scroll wrapper exposes role=log + aria-live=polite (arriving messages are announced)", async ({ mount }) => {
+  const component = await mount(<AppendableList initialCount={ITEM_COUNT} rowHeightPx={ROW_HEIGHT_PX} listHeightPx={LIST_HEIGHT_PX} />);
   const log = component.getByRole("log");
   await expect(log).toBeVisible();
   await expect(log).toHaveAttribute("aria-live", "polite");
@@ -191,9 +141,7 @@ test("the scroll wrapper exposes role=log + aria-live=polite (arriving messages 
 
 // R7 (ui-primitive-contract, the systemic gap missing from all 3 virtual seals): the parent
 // re-renders passing a freshly-DERIVED items array — not a stable module-const reference.
-test("renders correctly when the parent passes a freshly-derived items array each render", async ({
-  mount,
-}) => {
+test("renders correctly when the parent passes a freshly-derived items array each render", async ({ mount }) => {
   const component = await mount(<DerivedItemsMessageList />);
   await expect(component.getByText("Alpha", { exact: true })).toBeVisible();
 
@@ -203,18 +151,9 @@ test("renders correctly when the parent passes a freshly-derived items array eac
   await expect(component.getByText("Charlie", { exact: true })).toBeVisible();
 });
 
-test("prepend stability: the id-keyed anchor keeps a mid-scroll reader's view in place when older history loads", async ({
-  mount,
-  page,
-}) => {
+test("prepend stability: the id-keyed anchor keeps a mid-scroll reader's view in place when older history loads", async ({ mount, page }) => {
   const initialCount = 50;
-  const component = await mount(
-    <PrependableList
-      initialCount={initialCount}
-      rowHeightPx={ROW_HEIGHT_PX}
-      listHeightPx={LIST_HEIGHT_PX}
-    />,
-  );
+  const component = await mount(<PrependableList initialCount={initialCount} rowHeightPx={ROW_HEIGHT_PX} listHeightPx={LIST_HEIGHT_PX} />);
   // Scroll away from the bottom-anchored mount position to a mid-thread item.
   const midLabel = `Message ${Math.floor(initialCount / 2)}`;
   await component.getByText(`Message ${initialCount - 1}`, { exact: true }).hover();
@@ -240,10 +179,7 @@ test("prepend stability: the id-keyed anchor keeps a mid-scroll reader's view in
   await expect(component.getByText("Older 0", { exact: true })).toHaveCount(0);
 });
 
-test("the follow-on-append scroll is instant (not smooth) under prefers-reduced-motion", async ({
-  mount,
-  page,
-}) => {
+test("the follow-on-append scroll is instant (not smooth) under prefers-reduced-motion", async ({ mount, page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.evaluate(() => {
     (globalThis as unknown as { __behaviors: (string | null)[] }).__behaviors = [];
@@ -256,21 +192,13 @@ test("the follow-on-append scroll is instant (not smooth) under prefers-reduced-
     // silently break the real scroll virtual-core depends on for its own follow-up measurements).
     proto.scrollTo = function patchedScrollTo(this: Element, options?: ScrollToOptions): void {
       if (options !== undefined) {
-        (globalThis as unknown as { __behaviors: (string | null)[] }).__behaviors.push(
-          options.behavior ?? null,
-        );
+        (globalThis as unknown as { __behaviors: (string | null)[] }).__behaviors.push(options.behavior ?? null);
       }
       original.call(this, options);
     };
   });
 
-  const component = await mount(
-    <AppendableList
-      initialCount={ITEM_COUNT}
-      rowHeightPx={ROW_HEIGHT_PX}
-      listHeightPx={LIST_HEIGHT_PX}
-    />,
-  );
+  const component = await mount(<AppendableList initialCount={ITEM_COUNT} rowHeightPx={ROW_HEIGHT_PX} listHeightPx={LIST_HEIGHT_PX} />);
   await expect(component.getByText(`Message ${ITEM_COUNT - 1}`, { exact: true })).toBeVisible();
   // Only care about the APPEND-triggered follow call, not the initial mount's own scrollToEnd.
   await page.evaluate(() => {
@@ -280,18 +208,14 @@ test("the follow-on-append scroll is instant (not smooth) under prefers-reduced-
   await component.getByTestId("append").click();
   await expect(component.getByText(`Message ${ITEM_COUNT}`, { exact: true })).toBeVisible();
 
-  const behaviors = await page.evaluate(
-    () => (globalThis as unknown as { __behaviors: (string | null)[] }).__behaviors,
-  );
+  const behaviors = await page.evaluate(() => (globalThis as unknown as { __behaviors: (string | null)[] }).__behaviors);
   expect(behaviors.length).toBeGreaterThan(0);
   expect(behaviors.at(-1)).toBe("auto");
 });
 
 // PD-119 mechanism (Task #26): the SAME rangeExtractor escape hatch already sealed + CT-proven on
 // virtual-list, wired through this seal too.
-test("rangeExtractor passthrough: a forced index stays mounted even off-screen of the bottom-anchored viewport", async ({
-  mount,
-}) => {
+test("rangeExtractor passthrough: a forced index stays mounted even off-screen of the bottom-anchored viewport", async ({ mount }) => {
   const component = await mount(<RangeExtractorMessageList itemCount={200} />);
   // Bottom-anchored: the viewport sits at the tail on mount, far from index 0.
   await expect(component.getByText("Message 199", { exact: true })).toBeVisible();
@@ -306,15 +230,10 @@ const KEEP_MOUNTED_ITEMS = 200;
 const KEEP_MOUNTED_SCROLL_PX = KEEP_MOUNTED_ITEMS * ROW_HEIGHT_PX; // clears the full list in one wheel
 const TYPED_STATE = "kept-local-state";
 
-test("keepMounted keeps a stateful row mounted off-screen, so its local state survives scroll-away", async ({
-  mount,
-  page,
-}) => {
+test("keepMounted keeps a stateful row mounted off-screen, so its local state survives scroll-away", async ({ mount, page }) => {
   const component = await mount(<KeepMountedStateList keep={true} />);
   // Bottom-anchored: the tail is visible, index 0 (the input row) sits far above the window.
-  await expect(
-    component.getByText(`Message ${KEEP_MOUNTED_ITEMS - 1}`, { exact: true }),
-  ).toBeVisible();
+  await expect(component.getByText(`Message ${KEEP_MOUNTED_ITEMS - 1}`, { exact: true })).toBeVisible();
   await component.getByText(`Message ${KEEP_MOUNTED_ITEMS - 1}`, { exact: true }).hover();
 
   // Scroll to the top, type into the row's input.
@@ -326,9 +245,7 @@ test("keepMounted keeps a stateful row mounted off-screen, so its local state su
 
   // Scroll to the tail — the pinned row is off-screen but still a mounted DOM node.
   await page.mouse.wheel(0, KEEP_MOUNTED_SCROLL_PX);
-  await expect(
-    component.getByText(`Message ${KEEP_MOUNTED_ITEMS - 1}`, { exact: true }),
-  ).toBeVisible();
+  await expect(component.getByText(`Message ${KEEP_MOUNTED_ITEMS - 1}`, { exact: true })).toBeVisible();
   await expect(component.getByTestId("stateful-input")).toHaveCount(1);
 
   // Scroll back to the top — the SAME row, its typed state intact (never unmounted).
@@ -336,14 +253,9 @@ test("keepMounted keeps a stateful row mounted off-screen, so its local state su
   await expect(component.getByTestId("stateful-input")).toHaveValue(TYPED_STATE);
 });
 
-test("WITHOUT keepMounted the same row unmounts off-screen and loses its local state (control)", async ({
-  mount,
-  page,
-}) => {
+test("WITHOUT keepMounted the same row unmounts off-screen and loses its local state (control)", async ({ mount, page }) => {
   const component = await mount(<KeepMountedStateList keep={false} />);
-  await expect(
-    component.getByText(`Message ${KEEP_MOUNTED_ITEMS - 1}`, { exact: true }),
-  ).toBeVisible();
+  await expect(component.getByText(`Message ${KEEP_MOUNTED_ITEMS - 1}`, { exact: true })).toBeVisible();
   await component.getByText(`Message ${KEEP_MOUNTED_ITEMS - 1}`, { exact: true }).hover();
 
   await page.mouse.wheel(0, -KEEP_MOUNTED_SCROLL_PX);
@@ -354,9 +266,7 @@ test("WITHOUT keepMounted the same row unmounts off-screen and loses its local s
 
   // Scroll to the tail — with no keep-mounted policy the row unmounts entirely.
   await page.mouse.wheel(0, KEEP_MOUNTED_SCROLL_PX);
-  await expect(
-    component.getByText(`Message ${KEEP_MOUNTED_ITEMS - 1}`, { exact: true }),
-  ).toBeVisible();
+  await expect(component.getByText(`Message ${KEEP_MOUNTED_ITEMS - 1}`, { exact: true })).toBeVisible();
   await expect(component.getByTestId("stateful-input")).toHaveCount(0);
 
   // Scroll back to the top — the row remounts FRESH, its typed state gone.
@@ -365,18 +275,9 @@ test("WITHOUT keepMounted the same row unmounts off-screen and loses its local s
 });
 
 // §A.4/§F.6 "jump to latest" / reading-history primitives on the imperative handle.
-test("isAtEnd/getDistanceFromEnd report the true pinned state, then reflect scrolling away", async ({
-  mount,
-  page,
-}) => {
+test("isAtEnd/getDistanceFromEnd report the true pinned state, then reflect scrolling away", async ({ mount, page }) => {
   const initialCount = 200;
-  const component = await mount(
-    <HandleExposingList
-      initialCount={initialCount}
-      rowHeightPx={ROW_HEIGHT_PX}
-      listHeightPx={LIST_HEIGHT_PX}
-    />,
-  );
+  const component = await mount(<HandleExposingList initialCount={initialCount} rowHeightPx={ROW_HEIGHT_PX} listHeightPx={LIST_HEIGHT_PX} />);
   await expect(component.getByText(`Message ${initialCount - 1}`, { exact: true })).toBeVisible();
 
   await component.getByTestId("read-status").click();
@@ -401,10 +302,7 @@ test("isAtEnd/getDistanceFromEnd report the true pinned state, then reflect scro
 // (message-list.tsx's own prop doc): a STATIC bypass, not an automatic hidden-only mode — it
 // discards EVERY measurement, including a genuine resize, while true, and resumes real
 // measurement the instant it's set back to false.
-test("useCachedMeasurements discards a real resize while true, and resumes measuring once false", async ({
-  mount,
-  page,
-}) => {
+test("useCachedMeasurements discards a real resize while true, and resumes measuring once false", async ({ mount, page }) => {
   const component = await mount(<CachedMeasurementsList />);
   const viewport = component.locator('[data-slot="message-list-viewport"]');
 

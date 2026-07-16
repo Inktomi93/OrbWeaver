@@ -27,39 +27,18 @@ interface MaintenancePassCounts {
 
 /** embeddings.* — the one vector write path's bulk passes. `force` re-embeds matched rows (else resumable skip). */
 export interface WorkloadEmbeddingsEnv {
-  readonly embedCorpus: (args: {
-    ownerId: UserId | null;
-    force: boolean;
-    signal: AbortSignal;
-  }) => Promise<EmbedPassResult>;
-  readonly embedAssets: (args: {
-    ownerId: UserId | null;
-    force: boolean;
-    signal: AbortSignal;
-  }) => Promise<EmbedPassResult>;
+  readonly embedCorpus: (args: { ownerId: UserId | null; force: boolean; signal: AbortSignal }) => Promise<EmbedPassResult>;
+  readonly embedAssets: (args: { ownerId: UserId | null; force: boolean; signal: AbortSignal }) => Promise<EmbedPassResult>;
 }
 
 /** discovery.* — the semantics passes. `computeHubScores` computes then writes back internally — workloads
  *  sees one op. `computeCooccurrence` is bulk-only. */
 export interface WorkloadDiscoveryEnv {
-  readonly computeThemes: (args: {
-    ownerId: UserId | null;
-    k: number;
-    signal: AbortSignal;
-  }) => Promise<AnalyticsResult>;
-  readonly distillCharacters: (args: {
-    ownerId: UserId | null;
-    signal: AbortSignal;
-  }) => Promise<AnalyticsResult>;
+  readonly computeThemes: (args: { ownerId: UserId | null; k: number; signal: AbortSignal }) => Promise<AnalyticsResult>;
+  readonly distillCharacters: (args: { ownerId: UserId | null; signal: AbortSignal }) => Promise<AnalyticsResult>;
   readonly computeCooccurrence: (args: { signal: AbortSignal }) => Promise<AnalyticsResult>;
-  readonly findDuplicates: (args: {
-    ownerId: UserId | null;
-    signal: AbortSignal;
-  }) => Promise<AnalyticsResult>;
-  readonly computeHubScores: (args: {
-    ownerId: UserId | null;
-    signal: AbortSignal;
-  }) => Promise<AnalyticsResult>;
+  readonly findDuplicates: (args: { ownerId: UserId | null; signal: AbortSignal }) => Promise<AnalyticsResult>;
+  readonly computeHubScores: (args: { ownerId: UserId | null; signal: AbortSignal }) => Promise<AnalyticsResult>;
 }
 
 /** import.* — the two import passes, both create-kind (`ownerId` is the target, never `null`). `importAll`
@@ -86,24 +65,14 @@ export interface WorkloadImportEnv {
 /** assets.* — the GC/backfill/fsck maintenance verbs that run as workloads. `collectGarbage` is the
  *  grace-windowed mark-sweep GC; `fsck` is the read-only integrity report (both global, no per-owner concept). */
 export interface WorkloadAssetsEnv {
-  readonly backfillAvatars: (args: {
-    ownerId: UserId | null;
-    dryRun: boolean;
-    signal: AbortSignal;
-  }) => Promise<MaintenancePassCounts>;
-  readonly collectGarbage: (args: {
-    dryRun: boolean;
-    signal: AbortSignal;
-  }) => Promise<MaintenancePassCounts>;
+  readonly backfillAvatars: (args: { ownerId: UserId | null; dryRun: boolean; signal: AbortSignal }) => Promise<MaintenancePassCounts>;
+  readonly collectGarbage: (args: { dryRun: boolean; signal: AbortSignal }) => Promise<MaintenancePassCounts>;
   readonly fsck: (args: { signal: AbortSignal }) => Promise<FsckReport>;
 }
 
 /** stats.* — the rollup rebuild from canon (the `reconcile-stats` workload + the import post-settle). */
 export interface WorkloadStatsEnv {
-  readonly reconcileStats: (args: {
-    ownerId: UserId | null;
-    signal: AbortSignal;
-  }) => Promise<ReconcileStatsWorkloadResult>;
+  readonly reconcileStats: (args: { ownerId: UserId | null; signal: AbortSignal }) => Promise<ReconcileStatsWorkloadResult>;
 }
 
 /** connection.* — the provider catalog snapshot refreshes, counts only (no provider entry shapes cross into
@@ -115,18 +84,12 @@ export interface WorkloadConnectionEnv {
 /** memory.* — the corpus-wide memory backfill (enumerates every chat × scope bucket, runs the same
  *  idempotent segment/digest builds the engine's post-turn trigger uses). */
 export interface WorkloadMemoryEnv {
-  readonly backfill: (args: {
-    ownerId: UserId | null;
-    signal: AbortSignal;
-  }) => Promise<MemoryBackfillResult>;
+  readonly backfill: (args: { ownerId: UserId | null; signal: AbortSignal }) => Promise<MemoryBackfillResult>;
 }
 
 /** character.* — the synthetic group-character backfill; idempotent via the find-first short-circuit. */
 export interface WorkloadCharacterEnv {
-  readonly backfillGroupCharacters: (args: {
-    ownerId: UserId | null;
-    signal: AbortSignal;
-  }) => Promise<BackfillPassResult>;
+  readonly backfillGroupCharacters: (args: { ownerId: UserId | null; signal: AbortSignal }) => Promise<BackfillPassResult>;
 }
 
 /** The full cross-feature op bundle the runner context closes over (`ctx.env`). */

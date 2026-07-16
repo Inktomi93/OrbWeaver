@@ -1,11 +1,7 @@
 // backends/kit/reasoning-budget — the wire-effort mapping (max→xhigh, off→none) and THE load-bearing
 // OR-responses XOR: a responses reasoning block never carries BOTH `effort` and `maxTokens` (live 400).
 
-import {
-  effortToOpenAIReasoning,
-  effortToResponsesReasoning,
-  OPENAI_EFFORT_LEVELS,
-} from "@orb/server/infra/providers/backends/kit";
+import { effortToOpenAIReasoning, effortToResponsesReasoning, OPENAI_EFFORT_LEVELS } from "@orb/server/infra/providers/backends/kit";
 import { describe } from "vitest";
 import { expect, test } from "../../../../../support/fixtures";
 

@@ -10,9 +10,7 @@ import { isVisibleToCaller } from "../substrate/authorize";
 
 const ENTITY = "workload_schedule";
 
-export function createDeleteSchedule(
-  ctx: WorkloadServiceContext,
-): Pick<WorkloadService, "deleteSchedule"> {
+export function createDeleteSchedule(ctx: WorkloadServiceContext): Pick<WorkloadService, "deleteSchedule"> {
   async function deleteSchedule(params: DeleteScheduleParams): Promise<void> {
     const existing = await loadSchedule(ctx.db, params.id);
     if (existing === null || !isVisibleToCaller(ctx.isAdmin, params.caller, existing.ownerId)) {

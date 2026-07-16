@@ -44,11 +44,7 @@ function selectInputs(inputs: readonly string[], instruction: string | undefined
 }
 
 /** Truncate (MRL) + L2-normalize one raw vector into its final stored form. */
-function finalizeVector(
-  vec: Float32Array,
-  dimensions: number | undefined,
-  modelId: string,
-): Float32Array<ArrayBuffer> {
+function finalizeVector(vec: Float32Array, dimensions: number | undefined, modelId: string): Float32Array<ArrayBuffer> {
   if (dimensions === undefined || dimensions === vec.length) {
     return normalizeVector(vec);
   }
@@ -83,9 +79,7 @@ function assembleVectors(
 }
 
 /** Bind the embed role to a model cache (the real transformers.js cache, or a test fake). */
-export function createLocalLightEmbed(
-  cache: LocalLightModelCache,
-): (req: EmbedRequest) => Promise<EmbedResult> {
+export function createLocalLightEmbed(cache: LocalLightModelCache): (req: EmbedRequest) => Promise<EmbedResult> {
   return async (req) => {
     throwIfAborted(req.signal);
     const modelId = resolveModelId(req.model, DEFAULT_EMBED_MODEL);
@@ -101,9 +95,7 @@ export function createLocalLightEmbed(
         : [];
     throwIfAborted(req.signal);
 
-    const vectors = assembleVectors(inputs.length, kept, raw, (vec) =>
-      finalizeVector(vec, req.dimensions, modelId),
-    );
+    const vectors = assembleVectors(inputs.length, kept, raw, (vec) => finalizeVector(vec, req.dimensions, modelId));
     // In-process inference is unmetered → null token usage (the EmbedResult contract).
     return { vectors, model: modelId, usage: { promptTokens: null, totalTokens: null } };
   };

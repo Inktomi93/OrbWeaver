@@ -9,24 +9,8 @@
 import type { CrewEditProposalStatus } from "@orb/contracts/crew";
 import { CREW_EDIT_PROPOSAL_STATUSES, crewConfigSchema } from "@orb/contracts/crew";
 import type { Db } from "@orb/db";
-import {
-  chatInjections,
-  chats,
-  crewChats,
-  crewEditProposals,
-  crewGuides,
-  crewPlots,
-  isConstraintViolation,
-  messages,
-  messageVariants,
-} from "@orb/db";
-import type {
-  ChatId,
-  ChatInjectionId,
-  CrewEditProposalId,
-  MessageId,
-  MessageVariantId,
-} from "@orb/kit/ids";
+import { chatInjections, chats, crewChats, crewEditProposals, crewGuides, crewPlots, isConstraintViolation, messages, messageVariants } from "@orb/db";
+import type { ChatId, ChatInjectionId, CrewEditProposalId, MessageId, MessageVariantId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import { eq } from "drizzle-orm";
@@ -34,12 +18,7 @@ import { freshDb } from "../../support/db";
 import { expect, test } from "../../support/fixtures";
 import { seedChat } from "./_support.ts";
 
-async function seedVariant(
-  db: Db,
-  chatId: ChatId,
-  messageId: string,
-  variantId: string,
-): Promise<{ messageId: MessageId; variantId: MessageVariantId }> {
+async function seedVariant(db: Db, chatId: ChatId, messageId: string, variantId: string): Promise<{ messageId: MessageId; variantId: MessageVariantId }> {
   const mid = castId<MessageId>(messageId);
   const vid = castId<MessageVariantId>(variantId);
   await db.insert(messages).values({ id: mid, chatId, seq: 1, role: "assistant" });
@@ -78,9 +57,7 @@ test("crew_chats + crew_plots CASCADE on chat delete (one crew per chat, no orph
   const db = await freshDb();
   const chatId = await seedChat(db, { id: "chat_crew_cascade" });
   await db.insert(crewChats).values({ chatId });
-  await db
-    .insert(crewPlots)
-    .values({ chatId, arc: "the hidden storm", guidance: "foreshadow it", lastPassSeq: 4 });
+  await db.insert(crewPlots).values({ chatId, arc: "the hidden storm", guidance: "foreshadow it", lastPassSeq: 4 });
 
   await db.delete(chats).where(eq(chats.id, chatId));
   expect(await db.select().from(crewChats)).toHaveLength(0);
@@ -110,12 +87,7 @@ test("crew_plots round-trips the twist banks (JSON string[] columns)", async () 
 test("crew_edit_proposals borns pending, round-trips notes, and FKs the variant", async () => {
   const db = await freshDb();
   const chatId = await seedChat(db, { id: "chat_crew_prop" });
-  const { messageId, variantId } = await seedVariant(
-    db,
-    chatId,
-    "message_p1",
-    "message_variant_p1",
-  );
+  const { messageId, variantId } = await seedVariant(db, chatId, "message_p1", "message_variant_p1");
 
   const id = castId<CrewEditProposalId>("crewprop_roundtrip");
   await db.insert(crewEditProposals).values({
@@ -138,22 +110,13 @@ test("crew_edit_proposals borns pending, round-trips notes, and FKs the variant"
 test("a second PENDING proposal on the same variant collides (replace-on-new, made durable)", async () => {
   const db = await freshDb();
   const chatId = await seedChat(db, { id: "chat_crew_dup" });
-  const { messageId, variantId } = await seedVariant(
-    db,
-    chatId,
-    "message_d1",
-    "message_variant_d1",
-  );
+  const { messageId, variantId } = await seedVariant(db, chatId, "message_d1", "message_variant_d1");
   const base = { chatId, messageId, variantId, proposedContent: "v1", auditedHash: "h1" };
-  await db
-    .insert(crewEditProposals)
-    .values({ id: castId<CrewEditProposalId>("crewprop_dup_a"), ...base });
+  await db.insert(crewEditProposals).values({ id: castId<CrewEditProposalId>("crewprop_dup_a"), ...base });
 
   let caught: unknown;
   try {
-    await db
-      .insert(crewEditProposals)
-      .values({ id: castId<CrewEditProposalId>("crewprop_dup_b"), ...base });
+    await db.insert(crewEditProposals).values({ id: castId<CrewEditProposalId>("crewprop_dup_b"), ...base });
   } catch (err) {
     caught = err;
   }
@@ -163,12 +126,7 @@ test("a second PENDING proposal on the same variant collides (replace-on-new, ma
 test("a pending proposal coexists with RESOLVED ones on the same variant (the index is partial)", async () => {
   const db = await freshDb();
   const chatId = await seedChat(db, { id: "chat_crew_hist" });
-  const { messageId, variantId } = await seedVariant(
-    db,
-    chatId,
-    "message_h1",
-    "message_variant_h1",
-  );
+  const { messageId, variantId } = await seedVariant(db, chatId, "message_h1", "message_variant_h1");
   const base = { chatId, messageId, variantId, proposedContent: "x", auditedHash: "h" };
 
   await db.insert(crewEditProposals).values({
@@ -181,9 +139,7 @@ test("a pending proposal coexists with RESOLVED ones on the same variant (the in
     ...base,
     status: "stale",
   });
-  await db
-    .insert(crewEditProposals)
-    .values({ id: castId<CrewEditProposalId>("crewprop_hist_open"), ...base });
+  await db.insert(crewEditProposals).values({ id: castId<CrewEditProposalId>("crewprop_hist_open"), ...base });
 
   const all = await db.select().from(crewEditProposals);
   expect(all).toHaveLength(3);
@@ -192,12 +148,7 @@ test("a pending proposal coexists with RESOLVED ones on the same variant (the in
 test("the status CHECK rejects a non-member status", async () => {
   const db = await freshDb();
   const chatId = await seedChat(db, { id: "chat_crew_badstatus" });
-  const { messageId, variantId } = await seedVariant(
-    db,
-    chatId,
-    "message_b1",
-    "message_variant_b1",
-  );
+  const { messageId, variantId } = await seedVariant(db, chatId, "message_b1", "message_variant_b1");
 
   let caught: unknown;
   try {

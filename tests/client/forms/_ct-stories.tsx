@@ -63,11 +63,7 @@ const useAutosaveStoryForm = createAutosaveEntityForm<StoryValues>({
 /** Owns the autosave hook + the bound text field. Its keystrokes write the draft slot. */
 function FormPane({ serverValues }: { readonly serverValues: StoryValues }): ReactElement {
   const { form } = useAutosaveStoryForm({ entityId: ENTITY_ID, serverValues });
-  return (
-    <form.AppField name="text">
-      {(field): ReactElement => <field.TextField label="Draft text" />}
-    </form.AppField>
-  );
+  return <form.AppField name="text">{(field): ReactElement => <field.TextField label="Draft text" />}</form.AppField>;
 }
 
 /** SIBLING observer — reactive read of the SAME draft slot, serialized for the test to assert on. */
@@ -122,20 +118,12 @@ const useUnmountFlushForm = createAutosaveEntityForm<StoryValues>({
 });
 
 /** Owns the form + a toggle that unmounts ONLY the field, keeping the form instance alive. */
-function UnmountFlushFormPane({
-  serverValues,
-}: {
-  readonly serverValues: StoryValues;
-}): ReactElement {
+function UnmountFlushFormPane({ serverValues }: { readonly serverValues: StoryValues }): ReactElement {
   const { form } = useUnmountFlushForm({ entityId: UNMOUNT_FLUSH_ENTITY_ID, serverValues });
   const [showField, setShowField] = useState(true);
   return (
     <div>
-      {showField ? (
-        <form.AppField name="text">
-          {(field): ReactElement => <field.TextField label="Flush text" />}
-        </form.AppField>
-      ) : null}
+      {showField ? <form.AppField name="text">{(field): ReactElement => <field.TextField label="Flush text" />}</form.AppField> : null}
       <button type="button" onClick={(): void => setShowField(false)}>
         unmount field
       </button>
@@ -205,11 +193,7 @@ function FailedSaveFormPane(): ReactElement {
     entityId: FAILED_SAVE_ENTITY_ID,
     serverValues: { text: "" },
   });
-  return (
-    <form.AppField name="text">
-      {(field): ReactElement => <field.TextField label="Failing text" />}
-    </form.AppField>
-  );
+  return <form.AppField name="text">{(field): ReactElement => <field.TextField label="Failing text" />}</form.AppField>;
 }
 
 /** SIBLING observers — the surviving draft slot, the save-called signal, and the rejection counter. */
@@ -259,9 +243,7 @@ export function SavedEntityPromoteStory(): ReactElement {
   return (
     <div>
       <form.Subscribe selector={(s): boolean => s.isDirty}>
-        {(isDirty): ReactElement => (
-          <output data-testid="promote-story-is-dirty">{String(isDirty)}</output>
-        )}
+        {(isDirty): ReactElement => <output data-testid="promote-story-is-dirty">{String(isDirty)}</output>}
       </form.Subscribe>
       <button type="button" onClick={(): void => promote("avatarAssetId", "asset_promoted")}>
         promote avatarAssetId
@@ -303,22 +285,14 @@ const useSavedRestoreForm = createSavedEntityForm<SavedDraftValues>({
 });
 
 /** Owns the saved hook + the bound field; exposes the pill signal (`isDefaultValue`) for the test. */
-function SavedRestoreFormPane({
-  serverValues,
-}: {
-  readonly serverValues: SavedDraftValues;
-}): ReactElement {
+function SavedRestoreFormPane({ serverValues }: { readonly serverValues: SavedDraftValues }): ReactElement {
   const { form } = useSavedRestoreForm({ entityId: SAVED_DRAFT_ENTITY_ID, serverValues });
   return (
     <div>
-      <form.AppField name="text">
-        {(field): ReactElement => <field.TextField label="Saved text" />}
-      </form.AppField>
+      <form.AppField name="text">{(field): ReactElement => <field.TextField label="Saved text" />}</form.AppField>
       {/* The save-bar pill lights on `!isDefaultValue`; a restored draft MUST flip this to false. */}
       <form.Subscribe selector={(s): boolean => s.isDefaultValue}>
-        {(isDefaultValue): ReactElement => (
-          <output data-testid="saved-restore-is-default">{String(isDefaultValue)}</output>
-        )}
+        {(isDefaultValue): ReactElement => <output data-testid="saved-restore-is-default">{String(isDefaultValue)}</output>}
       </form.Subscribe>
     </div>
   );
@@ -343,10 +317,7 @@ export function SavedDraftRestoreStory(): ReactElement {
     <div>
       <SavedRestoreFormPane serverValues={serverValues} />
       <SavedRestoreDraftObserver />
-      <button
-        type="button"
-        onClick={(): void => setServerValues({ text: SAVED_DRAFT_SERVER_TEXT })}
-      >
+      <button type="button" onClick={(): void => setServerValues({ text: SAVED_DRAFT_SERVER_TEXT })}>
         force host re-render
       </button>
     </div>
@@ -371,9 +342,7 @@ function SavedMirrorFormPane(): ReactElement {
   });
   return (
     <div>
-      <form.AppField name="text">
-        {(field): ReactElement => <field.TextField label="Mirror text" />}
-      </form.AppField>
+      <form.AppField name="text">{(field): ReactElement => <field.TextField label="Mirror text" />}</form.AppField>
       <button type="button" onClick={(): void => void form.handleSubmit()}>
         save
       </button>
@@ -424,11 +393,7 @@ function SavedFlushFormPane(): ReactElement {
     entityId: SAVED_FLUSH_ENTITY_ID,
     serverValues: { text: SAVED_DRAFT_SERVER_TEXT },
   });
-  return (
-    <form.AppField name="text">
-      {(field): ReactElement => <field.TextField label="Flush text" />}
-    </form.AppField>
-  );
+  return <form.AppField name="text">{(field): ReactElement => <field.TextField label="Flush text" />}</form.AppField>;
 }
 
 /** SIBLING observer — reactive read of the same slot (empty-key default `{}`, the story convention). */

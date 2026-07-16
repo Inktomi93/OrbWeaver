@@ -40,13 +40,7 @@ export function ChatCastBar({ chatId }: ChatCastBarProps): ReactElement | null {
   const existingCharacterIds: readonly CharacterId[] = cast.map((member) => member.characterId);
 
   return (
-    <Row
-      gap="field"
-      align="center"
-      className="flex-wrap px-block py-row"
-      data-testid={testId("chatCastBar")}
-      aria-label="Cast"
-    >
+    <Row gap="field" align="center" className="flex-wrap px-block py-row" data-testid={testId("chatCastBar")} aria-label="Cast">
       {(cast.length > 1 ? cast : []).map((member) => (
         <Row
           key={member.id}
@@ -56,12 +50,7 @@ export function ChatCastBar({ chatId }: ChatCastBarProps): ReactElement | null {
           data-muted={member.disabled ? "" : undefined}
           className={cn(member.disabled && "opacity-50")}
         >
-          <Avatar
-            size="sm"
-            fallbackDelay={0}
-            hueSeed={member.characterId}
-            {...(member.avatarHash === null ? {} : { src: blobUrl(member.avatarHash) })}
-          >
+          <Avatar size="sm" fallbackDelay={0} hueSeed={member.characterId} {...(member.avatarHash === null ? {} : { src: blobUrl(member.avatarHash) })}>
             {initialsFor(member.displayName)}
           </Avatar>
           <Text as="span" size="label" weight="medium" tone={member.disabled ? "muted" : undefined}>
@@ -69,9 +58,7 @@ export function ChatCastBar({ chatId }: ChatCastBarProps): ReactElement | null {
           </Text>
         </Row>
       ))}
-      {isHost ? (
-        <AddMemberPopover chatId={chatId} existingCharacterIds={existingCharacterIds} />
-      ) : null}
+      {isHost ? <AddMemberPopover chatId={chatId} existingCharacterIds={existingCharacterIds} /> : null}
       {humans.length > 1 ? <HumanChips humans={humans} /> : null}
     </Row>
   );
@@ -84,20 +71,13 @@ function HumanChips({ humans }: { readonly humans: readonly ParticipantView[] })
     <Row gap="row" align="center" aria-label="People" data-slot="cast-bar-humans">
       {visible.map((member) => (
         <Row key={member.id} gap="row" align="center" data-slot="human-chip">
-          <Avatar
-            size="sm"
-            fallbackDelay={0}
-            hueSeed={member.id}
-            {...(member.avatarHash === null ? {} : { src: blobUrl(member.avatarHash) })}
-          >
+          <Avatar size="sm" fallbackDelay={0} hueSeed={member.id} {...(member.avatarHash === null ? {} : { src: blobUrl(member.avatarHash) })}>
             {initialsFor(member.displayName)}
           </Avatar>
           <Text as="span" size="label" weight="medium">
             {member.displayName}
           </Text>
-          {member.role === "host" ? (
-            <Icon icon={Crown} size="xs" aria-label="Host" data-slot="host-crown" />
-          ) : null}
+          {member.role === "host" ? <Icon icon={Crown} size="xs" aria-label="Host" data-slot="host-crown" /> : null}
         </Row>
       ))}
       {overflow > 0 ? (

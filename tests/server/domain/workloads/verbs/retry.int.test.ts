@@ -30,9 +30,7 @@ describe("workloads.retry", () => {
 
   test("a missing row is a DomainNotFoundError", async () => {
     const s = makeService(await freshDb());
-    await expect(
-      s.retry({ id: castId<WorkloadId>("workload_absent"), caller: null }),
-    ).rejects.toBeInstanceOf(DomainNotFoundError);
+    await expect(s.retry({ id: castId<WorkloadId>("workload_absent"), caller: null })).rejects.toBeInstanceOf(DomainNotFoundError);
   });
 
   // ── F3 authz ──
@@ -47,13 +45,9 @@ describe("workloads.retry", () => {
       status: "failed",
     });
     const s = makeService(db);
-    await expect(s.retry({ id, caller: principal("user_bob") })).rejects.toBeInstanceOf(
-      DomainNotFoundError,
-    );
+    await expect(s.retry({ id, caller: principal("user_bob") })).rejects.toBeInstanceOf(DomainNotFoundError);
     // No clone leaked into anyone's world — only the original row exists (admin sees all).
-    expect((await s.list({ caller: principal("user_admin", "admin") })).map((r) => r.id)).toEqual([
-      id,
-    ]);
+    expect((await s.list({ caller: principal("user_admin", "admin") })).map((r) => r.id)).toEqual([id]);
   });
 
   test("the owner retries its OWN failed workload; the clone stays owned by that owner", async () => {

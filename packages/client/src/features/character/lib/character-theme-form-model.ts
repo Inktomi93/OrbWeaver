@@ -3,12 +3,7 @@
 // empty colour string, or `INHERIT` for an enum) is omitted from the built override, so that token
 // inherits the parent scope; all-sentinel collapses the override to `null`.
 
-import type {
-  ThemeChatStyle,
-  ThemeDensity,
-  ThemeOverride,
-  ThemeRadius,
-} from "@orb/contracts/theme";
+import type { ThemeChatStyle, ThemeDensity, ThemeOverride, ThemeRadius } from "@orb/contracts/theme";
 import type { ThemeColorFields } from "#lib";
 import { assignThemeColorFields } from "#lib";
 
@@ -91,9 +86,7 @@ function colorFieldsFromOverride(
 }
 
 /** Read a `ThemeOverride` (or null) into the flat form values — the autosave form's mount seed. */
-export function characterThemeFormFromOverride(
-  override: ThemeOverride | null,
-): CharacterThemeFormValues {
+export function characterThemeFormFromOverride(override: ThemeOverride | null): CharacterThemeFormValues {
   if (override === null) {
     return EMPTY_CHARACTER_THEME_FORM;
   }

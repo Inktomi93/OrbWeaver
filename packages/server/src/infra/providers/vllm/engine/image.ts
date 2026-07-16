@@ -23,8 +23,7 @@ export function sniffMime(bytes: Uint8Array): string {
 
 /** {@link ImageInput} (bytes or a filesystem path) → a base64 data URI the engine consumes directly. */
 export async function toDataUri(input: ImageInput): Promise<string> {
-  const bytes: Uint8Array =
-    typeof input === "string" ? new Uint8Array(await readFile(input)) : new Uint8Array(input);
+  const bytes: Uint8Array = typeof input === "string" ? new Uint8Array(await readFile(input)) : new Uint8Array(input);
   const mime = sniffMime(bytes);
   return `data:${mime};base64,${Buffer.from(bytes).toString("base64")}`;
 }

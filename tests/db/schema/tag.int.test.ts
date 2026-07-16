@@ -26,15 +26,7 @@ import {
   worldBooks,
   worldBookTags,
 } from "@orb/db";
-import type {
-  CharacterId,
-  ChatId,
-  PersonaId,
-  PresetId,
-  TagId,
-  UserId,
-  WorldBookId,
-} from "@orb/kit/ids";
+import type { CharacterId, ChatId, PersonaId, PresetId, TagId, UserId, WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
 import { freshDb } from "../../support/db";
@@ -54,9 +46,7 @@ async function seedTag(db: Db, ownerId: UserId, raw: string, name = `tag-${raw}`
 
 async function seedCharacter(db: Db, ownerId: UserId, raw: string): Promise<CharacterId> {
   const id = castId<CharacterId>(raw);
-  await db
-    .insert(characters)
-    .values({ id, handle: `card-${raw}`, ownerId, contentHash: `hash-${raw}`, name: raw });
+  await db.insert(characters).values({ id, handle: `card-${raw}`, ownerId, contentHash: `hash-${raw}`, name: raw });
   return id;
 }
 

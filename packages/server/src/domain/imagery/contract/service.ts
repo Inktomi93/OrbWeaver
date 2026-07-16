@@ -62,12 +62,7 @@ export interface ImageryContext {
    *  on any SSRF block/non-2xx/size-cap/network failure — the caller drops that image. */
   readonly fetchImage: (url: string) => Promise<Uint8Array | null>;
   /** `assets.store` — the per-user CAS write. `kind` is always `"generated"` from this domain. */
-  readonly storeAsset: (
-    caller: Principal,
-    bytes: Uint8Array,
-    kind: AssetKind,
-    mime: string,
-  ) => Promise<StoredAsset>;
+  readonly storeAsset: (caller: Principal, bytes: Uint8Array, kind: AssetKind, mime: string) => Promise<StoredAsset>;
   readonly recordStats: (delta: StatsDelta) => Promise<void>;
 }
 

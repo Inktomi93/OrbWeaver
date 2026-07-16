@@ -10,10 +10,7 @@ import { ReasoningBlockStory } from "../_ct-stories";
 const ONE_SECOND_MS = 1000;
 const THINKING_LABEL = /Thinking/u;
 
-test("TTFT: force-open with a ticking 'Thinking… Ns' label + shimmer before any reasoning is revealed", async ({
-  mount,
-  page,
-}) => {
+test("TTFT: force-open with a ticking 'Thinking… Ns' label + shimmer before any reasoning is revealed", async ({ mount, page }) => {
   await page.clock.install();
   const component = await mount(<ReasoningBlockStory reasoning="" thinking={true} />);
 
@@ -29,16 +26,11 @@ test("TTFT: force-open with a ticking 'Thinking… Ns' label + shimmer before an
 });
 
 test("reveals the growing reasoning trace as markdown while thinking", async ({ mount }) => {
-  const component = await mount(
-    <ReasoningBlockStory reasoning="Considering the **best** approach" thinking={true} />,
-  );
+  const component = await mount(<ReasoningBlockStory reasoning="Considering the **best** approach" thinking={true} />);
   await expect(component.getByText("best", { exact: false })).toBeVisible();
 });
 
-test("auto-collapses to the frozen 'Thought for Ns' the instant thinking ends", async ({
-  mount,
-  page,
-}) => {
+test("auto-collapses to the frozen 'Thought for Ns' the instant thinking ends", async ({ mount, page }) => {
   await page.clock.install();
   const component = await mount(<ReasoningBlockStory reasoning="Some reasoning" thinking={true} />);
   await page.clock.runFor(3 * ONE_SECOND_MS);
@@ -56,9 +48,7 @@ test("auto-collapses to the frozen 'Thought for Ns' the instant thinking ends", 
   await expect(component.getByRole("button", { name: "Thought for 3s" })).toBeVisible();
 });
 
-test("a user toggle permanently overrides the auto force-open, surviving further reasoning growth", async ({
-  mount,
-}) => {
+test("a user toggle permanently overrides the auto force-open, surviving further reasoning growth", async ({ mount }) => {
   const component = await mount(<ReasoningBlockStory reasoning="First bit" thinking={true} />);
   const trigger = component.getByRole("button", { name: THINKING_LABEL });
   await expect(trigger).toHaveAttribute("aria-expanded", "true");
@@ -73,12 +63,8 @@ test("a user toggle permanently overrides the auto force-open, surviving further
   await expect(component.getByText("First bit, then more")).toBeHidden();
 });
 
-test("the user can manually re-expand after auto-collapse to read the settled reasoning trace", async ({
-  mount,
-}) => {
-  const component = await mount(
-    <ReasoningBlockStory reasoning="The full settled trace" thinking={false} />,
-  );
+test("the user can manually re-expand after auto-collapse to read the settled reasoning trace", async ({ mount }) => {
+  const component = await mount(<ReasoningBlockStory reasoning="The full settled trace" thinking={false} />);
   const trigger = component.getByRole("button", { name: "Thought for 0s" });
   await expect(trigger).toHaveAttribute("aria-expanded", "false");
 

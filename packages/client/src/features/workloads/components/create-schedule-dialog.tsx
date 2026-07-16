@@ -18,19 +18,9 @@ import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
 import { useCreateScheduleForm } from "../hooks/use-create-schedule-form";
 import { useCreateSchedule, useUpdateSchedule } from "../hooks/use-workload-mutations";
-import {
-  buildStartInput,
-  isMaintenanceWorkloadKind,
-  isStartableWorkloadKind,
-  workloadKindItems,
-} from "../lib/workloads-model";
+import { buildStartInput, isMaintenanceWorkloadKind, isStartableWorkloadKind, workloadKindItems } from "../lib/workloads-model";
 import type { CreateScheduleFormValues } from "../lib/workloads-schedule-model";
-import {
-  resolveScheduleMode,
-  SCHEDULE_CADENCE_ITEMS,
-  scheduleFormValuesFromRow,
-  workloadKindBulkSchedulable,
-} from "../lib/workloads-schedule-model";
+import { resolveScheduleMode, SCHEDULE_CADENCE_ITEMS, scheduleFormValuesFromRow, workloadKindBulkSchedulable } from "../lib/workloads-schedule-model";
 import { WorkloadFormDialog, WorkloadSubmitButton } from "./workload-dialog-scaffold";
 import { WorkloadParamFields } from "./workload-kind-fields";
 
@@ -51,11 +41,7 @@ export interface EditScheduleDialogProps {
   readonly schedule: ScheduleItem;
 }
 
-export function CreateScheduleDialog({
-  open,
-  onOpenChange,
-  viewerIsOwner,
-}: CreateScheduleDialogProps): ReactElement {
+export function CreateScheduleDialog({ open, onOpenChange, viewerIsOwner }: CreateScheduleDialogProps): ReactElement {
   return (
     <WorkloadFormDialog
       description="Runs a background job on a recurring cadence. Each run queues automatically and shows in the Jobs list."
@@ -69,12 +55,7 @@ export function CreateScheduleDialog({
   );
 }
 
-export function EditScheduleDialog({
-  open,
-  onOpenChange,
-  viewerIsOwner,
-  schedule,
-}: EditScheduleDialogProps): ReactElement {
+export function EditScheduleDialog({ open, onOpenChange, viewerIsOwner, schedule }: EditScheduleDialogProps): ReactElement {
   return (
     <WorkloadFormDialog
       description="Retune this recurring job — change what it runs, its cadence, or (owner) its scope. Enable and pause stay on the row switch."
@@ -83,11 +64,7 @@ export function EditScheduleDialog({
       testKey="editScheduleDialog"
       title="Edit schedule"
     >
-      <ScheduleFormBody
-        onDone={(): void => onOpenChange(false)}
-        schedule={schedule}
-        viewerIsOwner={viewerIsOwner}
-      />
+      <ScheduleFormBody onDone={(): void => onOpenChange(false)} schedule={schedule} viewerIsOwner={viewerIsOwner} />
     </WorkloadFormDialog>
   );
 }
@@ -143,12 +120,8 @@ function ScheduleFormBody({
 
   return (
     <Stack gap="block">
-      <form.AppField name="kind">
-        {(field): ReactElement => <field.SelectField label="Workload" items={kindItems} />}
-      </form.AppField>
-      <form.AppField name="cadence">
-        {(field): ReactElement => <field.SelectField label="Runs" items={CADENCE_ITEMS} />}
-      </form.AppField>
+      <form.AppField name="kind">{(field): ReactElement => <field.SelectField label="Workload" items={kindItems} />}</form.AppField>
+      <form.AppField name="cadence">{(field): ReactElement => <field.SelectField label="Runs" items={CADENCE_ITEMS} />}</form.AppField>
       <WorkloadParamFields form={form} />
       {viewerIsOwner ? (
         <form.Subscribe selector={(state): string => state.values.kind}>
@@ -163,10 +136,7 @@ function ScheduleFormBody({
             return workloadKindBulkSchedulable(kind) ? (
               <form.AppField name="bulk">
                 {(field): ReactElement => (
-                  <field.SwitchField
-                    label="Bulk mode"
-                    description="Owner only — recurs across every user's data instead of just yours."
-                  />
+                  <field.SwitchField label="Bulk mode" description="Owner only — recurs across every user's data instead of just yours." />
                 )}
               </form.AppField>
             ) : null;
@@ -175,9 +145,7 @@ function ScheduleFormBody({
       ) : null}
       {hasError ? (
         <Text size="label" tone="destructive">
-          {isEdit
-            ? "Couldn't update the schedule. Try again."
-            : "Couldn't create the schedule. Try again."}
+          {isEdit ? "Couldn't update the schedule. Try again." : "Couldn't create the schedule. Try again."}
         </Text>
       ) : null}
       <WorkloadSubmitButton

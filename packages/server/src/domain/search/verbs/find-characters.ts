@@ -13,10 +13,7 @@ import type { CharacterCardHit } from "../contract/results";
 import type { SearchService } from "../contract/service";
 import { resolveCharacterDisplay } from "../persistence/display";
 
-export function createFindCharacters(
-  ctx: SearchContext,
-  knn: SearchService["knn"],
-): SearchService["findCharacters"] {
+export function createFindCharacters(ctx: SearchContext, knn: SearchService["knn"]): SearchService["findCharacters"] {
   return async (params: FindCharactersParams): Promise<CharacterCardHit[]> => {
     const hits = await knn(params);
     if (hits.length === 0) {

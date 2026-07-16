@@ -42,9 +42,7 @@ describe("sessions.provisionAgentPrincipal", () => {
     expect(u?.passwordHash).toBeNull();
     expect(u?.externalId).toBeNull();
     expect(u?.handle).toBe(`__agent__buddy__${OWNER}`);
-    const sat = (
-      await db.select().from(agentPrincipals).where(eq(agentPrincipals.userId, agentUserId))
-    )[0];
+    const sat = (await db.select().from(agentPrincipals).where(eq(agentPrincipals.userId, agentUserId)))[0];
     expect(sat?.sourceKind).toBe("buddy");
     const audits = await db.select().from(auditLogs).where(eq(auditLogs.action, MINTED));
     expect(audits).toHaveLength(1);
@@ -71,16 +69,12 @@ describe("sessions.provisionAgentPrincipal", () => {
 
   test("refuses a NON-HUMAN owner — no nested agents (not-found)", async () => {
     const agent = await svc.provisionAgentPrincipal({ ownerUserId: OWNER, sourceKind: "buddy" });
-    await expect(
-      svc.provisionAgentPrincipal({ ownerUserId: agent.agentUserId, sourceKind: "buddy" }),
-    ).rejects.toThrow(DomainNotFoundError);
+    await expect(svc.provisionAgentPrincipal({ ownerUserId: agent.agentUserId, sourceKind: "buddy" })).rejects.toThrow(DomainNotFoundError);
   });
 
   test("refuses a DISABLED human owner (forbidden — a disabled human cannot mint hands)", async () => {
     await db.update(users).set({ enabled: false }).where(eq(users.id, OWNER));
-    await expect(
-      svc.provisionAgentPrincipal({ ownerUserId: OWNER, sourceKind: "buddy" }),
-    ).rejects.toThrow(DomainForbiddenError);
+    await expect(svc.provisionAgentPrincipal({ ownerUserId: OWNER, sourceKind: "buddy" })).rejects.toThrow(DomainForbiddenError);
     expect(await db.select().from(users).where(eq(users.kind, "agent"))).toHaveLength(0);
   });
 });

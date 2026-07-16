@@ -28,10 +28,7 @@ export interface LibraryFilters {
 
 /** §4.5 chip filter: archived hidden unless opted-in · favorites-only · tag multi-select (AND). Order
  *  is irrelevant (all conjunctive). Search (name) stays in `filterCharacters` — this is chips only. */
-export function filterByChips<T extends FilterableRow>(
-  items: readonly T[],
-  filters: LibraryFilters,
-): readonly T[] {
+export function filterByChips<T extends FilterableRow>(items: readonly T[], filters: LibraryFilters): readonly T[] {
   return items.filter((item) => {
     if (!filters.showArchived && item.archived) {
       return false;

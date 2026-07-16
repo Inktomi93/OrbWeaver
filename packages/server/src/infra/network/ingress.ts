@@ -32,12 +32,7 @@ export function resolveClientIp(args: {
   readonly trustedProxies: readonly string[];
 }): string | null {
   const { peer, forwarded, trustedProxies } = args;
-  if (
-    forwarded !== undefined &&
-    forwarded.length > 0 &&
-    peer !== undefined &&
-    (isPrivateOrLoopback(peer) || isInRanges(peer, trustedProxies))
-  ) {
+  if (forwarded !== undefined && forwarded.length > 0 && peer !== undefined && (isPrivateOrLoopback(peer) || isInRanges(peer, trustedProxies))) {
     const first = forwarded.split(",")[0]?.trim();
     if (first !== undefined && first.length > 0) {
       return first;

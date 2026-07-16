@@ -35,12 +35,8 @@ function readUnsignedIdentity(headers: Headers, config: AuthConfig): ResolvedIde
     if (handle === null) {
       return null;
     }
-    const externalId =
-      config.forwardUidHeader !== undefined ? headers.get(config.forwardUidHeader) : null;
-    const groups =
-      config.forwardGroupsHeader !== undefined
-        ? groupsFromClaim(headers.get(config.forwardGroupsHeader))
-        : [];
+    const externalId = config.forwardUidHeader !== undefined ? headers.get(config.forwardUidHeader) : null;
+    const groups = config.forwardGroupsHeader !== undefined ? groupsFromClaim(headers.get(config.forwardGroupsHeader)) : [];
     return {
       externalId: externalId !== null ? castId<ExternalId>(externalId) : null,
       handle: castId<Handle>(handle),
@@ -87,36 +83,19 @@ function emailFromHeader(name: string | undefined, headers: Headers): string | n
   return raw !== null && raw.trim().length > 0 ? raw.trim() : null;
 }
 
-async function resolveSignedJwt(
-  jwt: string,
-  metaJwks: string | null,
-  config: AuthConfig,
-  deps: ResolveDeps,
-): Promise<ResolvedIdentity | null> {
+async function resolveSignedJwt(jwt: string, metaJwks: string | null, config: AuthConfig, deps: ResolveDeps): Promise<ResolvedIdentity | null> {
   if (metaJwks === null) {
     // JWT without its JWKS is a stripped/spoofed request — reject, do not fall through.
-    securityEvent(
-      "jwt_no_jwks",
-      {},
-      "security: forwarded JWT present without its JWKS — rejecting (possible stripped/spoofed request)",
-    );
+    securityEvent("jwt_no_jwks", {}, "security: forwarded JWT present without its JWKS — rejecting (possible stripped/spoofed request)");
     return null;
   }
   if (config.jwksAllowlist.length === 0) {
     // No trusted key source — refuse the request-supplied JWKS entirely.
-    securityEvent(
-      "jwt_no_allowlist",
-      {},
-      "security: JWT verification on but no JWKS allowlist/issuer configured — refusing the request-supplied JWKS",
-    );
+    securityEvent("jwt_no_allowlist", {}, "security: JWT verification on but no JWKS allowlist/issuer configured — refusing the request-supplied JWKS");
     return null;
   }
   if (deps.verifyForwardJwt === undefined) {
-    securityEvent(
-      "jwt_no_verifier",
-      {},
-      "security: JWT verification on but no verifier injected — rejecting forwarded identity",
-    );
+    securityEvent("jwt_no_verifier", {}, "security: JWT verification on but no verifier injected — rejecting forwarded identity");
     return null;
   }
   const claims = await deps.verifyForwardJwt.verify({
@@ -131,11 +110,7 @@ async function resolveSignedJwt(
   }
   if (claims.handle === undefined || claims.handle.length === 0) {
     // Verified but no preferred_username — refuse to fall through to the unsigned path.
-    securityEvent(
-      "jwt_no_username",
-      {},
-      "security: forwarded JWT verified but has no preferred_username claim — rejecting",
-    );
+    securityEvent("jwt_no_username", {}, "security: forwarded JWT verified but has no preferred_username claim — rejecting");
     return null;
   }
   return {
@@ -146,11 +121,7 @@ async function resolveSignedJwt(
   };
 }
 
-function resolveUnsignedHeader(
-  headers: Headers,
-  config: AuthConfig,
-  peerIp: string | undefined,
-): ResolvedIdentity | null {
+function resolveUnsignedHeader(headers: Headers, config: AuthConfig, peerIp: string | undefined): ResolvedIdentity | null {
   const identity = readUnsignedIdentity(headers, config);
   if (identity === null) {
     return null;
@@ -178,11 +149,7 @@ function resolveUnsignedHeader(
   return identity;
 }
 
-export function resolveForwardHeader(
-  headers: Headers,
-  config: AuthConfig,
-  deps: ResolveDeps,
-): Promise<ResolvedIdentity | null> {
+export function resolveForwardHeader(headers: Headers, config: AuthConfig, deps: ResolveDeps): Promise<ResolvedIdentity | null> {
   const jwt = headers.get("x-authentik-jwt");
   if (config.verifyForwardJwt && jwt !== null) {
     return resolveSignedJwt(jwt, headers.get("x-authentik-meta-jwks"), config, deps);

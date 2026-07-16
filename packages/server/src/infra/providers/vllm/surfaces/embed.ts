@@ -5,13 +5,7 @@
 
 import type { EmbedRequest, EmbedResult } from "../../contract";
 import type { VllmEngineClient } from "../engine";
-import {
-  DOC_INSTRUCTION,
-  normalizeVector,
-  QUERY_INSTRUCTION,
-  toEmbedPrompt,
-  truncateToDim,
-} from "../engine";
+import { DOC_INSTRUCTION, normalizeVector, QUERY_INSTRUCTION, toEmbedPrompt, truncateToDim } from "../engine";
 
 // vLLM rejects over-long input with HTTP 400 by default; `-1` tells it to truncate using its own tokenizer.
 const TRUNCATE_TO_MODEL_MAX = -1;
@@ -58,22 +52,12 @@ async function embedChunk(
     truncate_prompt_tokens: TRUNCATE_TO_MODEL_MAX,
   };
   try {
-    return await client.enginePost<OpenAiEmbeddingsResponse>(
-      "embed",
-      "/v1/embeddings",
-      withDim,
-      signal,
-    );
+    return await client.enginePost<OpenAiEmbeddingsResponse>("embed", "/v1/embeddings", withDim, signal);
   } catch (err) {
     // Some vLLM/pooling combos reject `dimensions` — fall back to full-dim + client-side truncation.
     if (err instanceof Error && DIMENSIONS_REJECTED_RE.test(err.message)) {
       const noDim = { model, input: texts, truncate_prompt_tokens: TRUNCATE_TO_MODEL_MAX };
-      return await client.enginePost<OpenAiEmbeddingsResponse>(
-        "embed",
-        "/v1/embeddings",
-        noDim,
-        signal,
-      );
+      return await client.enginePost<OpenAiEmbeddingsResponse>("embed", "/v1/embeddings", noDim, signal);
     }
     throw err;
   }
@@ -102,21 +86,15 @@ function scatter(
       vectors[slot.index] = normalizeVector(truncateToDim(item.embedding, dim));
     }
   }
-  return response.usage === undefined
-    ? null
-    : { prompt: response.usage.prompt_tokens ?? 0, total: response.usage.total_tokens ?? 0 };
+  return response.usage === undefined ? null : { prompt: response.usage.prompt_tokens ?? 0, total: response.usage.total_tokens ?? 0 };
 }
 
 export function createVllmEmbed(deps: VllmEmbedDeps): (req: EmbedRequest) => Promise<EmbedResult> {
   return async (req) => {
     const inputs: readonly string[] = typeof req.input === "string" ? [req.input] : req.input;
     const dim = req.dimensions ?? deps.embedDim;
-    const signal = embedRequestSignal(
-      req.signal,
-      deps.requestTimeoutMs ?? EMBED_REQUEST_TIMEOUT_MS,
-    );
-    const instruction =
-      req.instruction ?? (req.inputType === "query" ? QUERY_INSTRUCTION : DOC_INSTRUCTION);
+    const signal = embedRequestSignal(req.signal, deps.requestTimeoutMs ?? EMBED_REQUEST_TIMEOUT_MS);
+    const instruction = req.instruction ?? (req.inputType === "query" ? QUERY_INSTRUCTION : DOC_INSTRUCTION);
 
     const kept = selectInputs(inputs, instruction);
     const vectors: (Float32Array<ArrayBuffer> | null)[] = new Array(inputs.length).fill(null);
@@ -128,9 +106,7 @@ export function createVllmEmbed(deps: VllmEmbedDeps): (req: EmbedRequest) => Pro
     for (let start = 0; start < kept.length; start += deps.chunkSize) {
       chunks.push(kept.slice(start, start + deps.chunkSize));
     }
-    const usages: ({ prompt: number; total: number } | null)[] = new Array(chunks.length).fill(
-      null,
-    );
+    const usages: ({ prompt: number; total: number } | null)[] = new Array(chunks.length).fill(null);
 
     let next = 0;
     const worker = async (): Promise<void> => {

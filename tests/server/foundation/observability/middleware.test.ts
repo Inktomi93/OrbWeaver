@@ -5,14 +5,7 @@
 // charset guard (a malicious X-Request-Id → a fresh safe id; a valid one propagates unchanged) and the
 // /api/_debug skip (no trace root, no request-ring record — introspection traffic doesn't evict real traces).
 
-import {
-  getTraceByRequestId,
-  initTracing,
-  logger,
-  observability,
-  observabilityErrorHandler,
-  recentRequests,
-} from "@orb/server/foundation/observability";
+import { getTraceByRequestId, initTracing, logger, observability, observabilityErrorHandler, recentRequests } from "@orb/server/foundation/observability";
 import { describe, vi } from "vitest";
 import { expect, test } from "../../../support/fixtures";
 
@@ -39,11 +32,7 @@ interface RunResult {
 
 // Drive the middleware once: build a mock Context (capturing the echoed X-Request-Id and whether next ran),
 // invoke it, and report what came back out.
-async function run(opts: {
-  path: string;
-  method?: string;
-  incomingId?: string;
-}): Promise<RunResult> {
+async function run(opts: { path: string; method?: string; incomingId?: string }): Promise<RunResult> {
   const incoming = opts.incomingId;
   let echoedId: string | undefined;
   let nextCalled = false;
@@ -51,8 +40,7 @@ async function run(opts: {
     req: {
       path: opts.path,
       method: opts.method ?? "GET",
-      header: (name: string): string | undefined =>
-        name.toLowerCase() === "x-request-id" ? incoming : undefined,
+      header: (name: string): string | undefined => (name.toLowerCase() === "x-request-id" ? incoming : undefined),
     },
     res: { status: OK_STATUS },
     header: (name: string, value: string): void => {
@@ -137,7 +125,6 @@ describe("the /api/_debug trace-skip (introspection doesn't evict real traces)",
 // EVERY sink — the trace root name (`/api/_debug/traces`), the request ring (`/api/_debug/logs`), and the
 // pino `request` line (silenced in tests) — so the raw token never persists (entry/http/join.ts's claim).
 describe("invite-token path redaction (F1 — the bearer token is never persisted raw)", () => {
-  // biome-ignore lint/security/noSecrets: a fabricated invite token literal for the leak assertion, not a real secret.
   const rawToken = "s3cr3t-invite-token-abc123";
 
   test("GET /join/<token> redacts the token in BOTH the request ring and the trace root name", async () => {

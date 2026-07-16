@@ -73,11 +73,7 @@ function getOrBuildIndex<T extends { id: string }>(args: IndexArgs<T>): MiniSear
 }
 
 /** DOM-free core of {@link useFuzzySearch}: empty query → `items` unchanged; else ranked matches capped at `limit`. */
-export function fuzzySearch<T extends { id: string }>(
-  items: readonly T[],
-  query: string,
-  options: FuzzySearchOptions<T>,
-): readonly T[] {
+export function fuzzySearch<T extends { id: string }>(items: readonly T[], query: string, options: FuzzySearchOptions<T>): readonly T[] {
   const { fields, storeFields } = options;
   const trimmed = query.trim();
   if (trimmed.length === 0) {
@@ -93,10 +89,7 @@ export function fuzzySearch<T extends { id: string }>(
     ...(options.boost === undefined ? {} : { boost: options.boost as Record<string, number> }),
     ...(options.searchFields === undefined ? {} : { fields: options.searchFields as string[] }),
   };
-  const hits = getOrBuildIndex({ items, fieldsKey, storeFieldsKey, fields, storeFields }).search(
-    trimmed,
-    searchOptions,
-  );
+  const hits = getOrBuildIndex({ items, fieldsKey, storeFieldsKey, fields, storeFields }).search(trimmed, searchOptions);
   const limit = options.limit ?? DEFAULT_LIMIT;
   // Map back to the original item by id so callers keep their own type without widening.
   const byId = new Map(items.map((it) => [it.id, it]));
@@ -113,11 +106,7 @@ export function fuzzySearch<T extends { id: string }>(
   return out;
 }
 
-export function useFuzzySearch<T extends { id: string }>(
-  items: readonly T[],
-  query: string,
-  options: FuzzySearchOptions<T>,
-): readonly T[] {
+export function useFuzzySearch<T extends { id: string }>(items: readonly T[], query: string, options: FuzzySearchOptions<T>): readonly T[] {
   const { fields, storeFields } = options;
   const fieldsKey = fields.join(" ");
   const storeFieldsKey = (storeFields ?? fields).join(" ");
@@ -151,17 +140,6 @@ export function useFuzzySearch<T extends { id: string }>(
   return useMemo(
     () => fuzzySearch(items, query, options),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- value-keyed deps (see biome-ignore above)
-    [
-      items,
-      fieldsKey,
-      storeFieldsKey,
-      query,
-      boostKey,
-      options.combineWith,
-      options.fuzzy,
-      options.limit,
-      options.prefix,
-      searchFieldsKey,
-    ],
+    [items, fieldsKey, storeFieldsKey, query, boostKey, options.combineWith, options.fuzzy, options.limit, options.prefix, searchFieldsKey],
   );
 }

@@ -20,19 +20,12 @@ export function parseRunAt(runAt: string): number | undefined {
 const DEFER_LEAD_MS = 60_000;
 
 /** A future-dated run that hasn't fired yet — still `queued`, `scheduledAt` well past `createdAt`. */
-export function isDeferredWorkload(row: {
-  readonly status: WorkloadStatus;
-  readonly scheduledAt: number;
-  readonly createdAt: number;
-}): boolean {
+export function isDeferredWorkload(row: { readonly status: WorkloadStatus; readonly scheduledAt: number; readonly createdAt: number }): boolean {
   return row.status === "queued" && row.scheduledAt - row.createdAt > DEFER_LEAD_MS;
 }
 
 /** A run blocked on its DAG gate — `queued` with a non-empty `dependsOn` (waits until every dep succeeds). */
-export function isWaitingOnDependencies(row: {
-  readonly status: WorkloadStatus;
-  readonly dependsOn: readonly string[] | null;
-}): boolean {
+export function isWaitingOnDependencies(row: { readonly status: WorkloadStatus; readonly dependsOn: readonly string[] | null }): boolean {
   return row.status === "queued" && row.dependsOn !== null && row.dependsOn.length > 0;
 }
 
@@ -46,5 +39,5 @@ const DEPENDENCY_FAILURE_MARKER = "a dependency did not succeed";
 
 /** Whether a failed row's error is the DAG `dependency_failed` terminal, distinct from a normal runtime failure. */
 export function isDependencyFailure(error: string | null): boolean {
-  return error !== null && error.toLowerCase().includes(DEPENDENCY_FAILURE_MARKER);
+  return error?.toLowerCase().includes(DEPENDENCY_FAILURE_MARKER) ?? false;
 }

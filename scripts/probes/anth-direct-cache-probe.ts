@@ -47,10 +47,7 @@ import process from "node:process";
 import type { MessageParam, TextBlockParam } from "@anthropic-ai/sdk/resources/messages";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import {
-  createOpenRouterAnthClient,
-  reduceAnthStream,
-} from "@orb/server/infra/providers/backends/anth-direct";
+import { createOpenRouterAnthClient, reduceAnthStream } from "@orb/server/infra/providers/backends/anth-direct";
 import { createOpenRouterClient } from "@orb/server/infra/providers/backends/openrouter";
 
 // ── CLI ────────────────────────────────────────────────────────────────────────────────────────────────
@@ -163,19 +160,11 @@ const rows: Row[] = [];
 const verdicts: { scenario: string; pass: boolean; detail: string }[] = [];
 
 /** THE RESULT-LINE receipt (the recon's probe contract): per-turn cacheRead/cacheWrite, greppable. */
-function result(cell: {
-  arm: string;
-  scenario: string;
-  turn: string;
-  r: CacheReadout;
-  note?: string;
-}): void {
+function result(cell: { arm: string; scenario: string; turn: string; r: CacheReadout; note?: string }): void {
   const { arm, scenario, turn, r } = cell;
   const note = cell.note ?? "";
   rows.push({ arm, scenario, turn, cacheRead: r.cacheRead, cacheWrite: r.cacheWrite, note });
-  console.log(
-    `RESULT ${arm}/${scenario}/${turn} cacheRead=${r.cacheRead} cacheWrite=${r.cacheWrite}${note ? ` ${note}` : ""}`,
-  );
+  console.log(`RESULT ${arm}/${scenario}/${turn} cacheRead=${r.cacheRead} cacheWrite=${r.cacheWrite}${note ? ` ${note}` : ""}`);
   if (VERBOSE && r.reply !== undefined) {
     console.log(`  reply: ${r.reply.slice(0, SNIPPET * 2)}`);
   }
@@ -380,10 +369,7 @@ function errorReadout(err: unknown): CacheReadout {
  *  20-block lookback, so a lone breakpoint stops being read — the PAIR keeps the hit. Prints both receipts. */
 async function lookbackProof(
   arm: "anth-direct" | "or-chat",
-  run: (spec: {
-    history: readonly WireRow[];
-    breakpoints: readonly number[];
-  }) => Promise<CacheReadout>,
+  run: (spec: { history: readonly WireRow[]; breakpoints: readonly number[] }) => Promise<CacheReadout>,
 ): Promise<void> {
   const history = longHistory();
   const single = [ROLLING_OFFSET_FROM_END];
@@ -445,10 +431,7 @@ async function prefillHonor(model: string): Promise<void> {
 /** The mid-conv-system placement probe (part 01 §2). A trailing `role:"system"` message after the last user
  *  turn — HONORED (operator authority) on Opus 4.8, demoted on Haiku. Opens `turns.midConversationSystem`. */
 async function midConvHonor(model: string): Promise<void> {
-  const history = [
-    ...longHistory().slice(0, HONOR_PREFIX_ROWS),
-    { role: "user" as const, content: "What is the innkeeper's name? One word." },
-  ];
+  const history = [...longHistory().slice(0, HONOR_PREFIX_ROWS), { role: "user" as const, content: "What is the innkeeper's name? One word." }];
   const r = await anthTurn({
     model,
     history,
@@ -474,16 +457,12 @@ async function midConvHonor(model: string): Promise<void> {
  *  Sends a non-default temperature (Anthropic 0–1), top_p, top_k; a 400 means the model rejects it
  *  (post-Opus-4.6 deprecation), a 200 means the knob is honorable. Seeded fail-closed `{}` until this passes. */
 async function samplingHonor(model: string): Promise<void> {
-  const history = [
-    ...longHistory().slice(0, SAMPLING_PREFIX_ROWS),
-    { role: "user" as const, content: "In one short sentence, describe the singing dunes." },
+  const history = [...longHistory().slice(0, SAMPLING_PREFIX_ROWS), { role: "user" as const, content: "In one short sentence, describe the singing dunes." }];
+  const knobs: readonly { readonly label: string; readonly sampling: AnthTurnSpec["sampling"] }[] = [
+    { label: "temperature=0.5", sampling: { temperature: 0.5 } },
+    { label: "top_p=0.9", sampling: { top_p: 0.9 } },
+    { label: "top_k=40", sampling: { top_k: 40 } },
   ];
-  const knobs: readonly { readonly label: string; readonly sampling: AnthTurnSpec["sampling"] }[] =
-    [
-      { label: "temperature=0.5", sampling: { temperature: 0.5 } },
-      { label: "top_p=0.9", sampling: { top_p: 0.9 } },
-      { label: "top_k=40", sampling: { top_k: 40 } },
-    ];
   const honored: string[] = [];
   const rejected: string[] = [];
   for (const knob of knobs) {
@@ -514,15 +493,11 @@ async function samplingHonor(model: string): Promise<void> {
 
 // ── Main ───────────────────────────────────────────────────────────────────────────────────────────────
 async function main(): Promise<void> {
-  console.log(
-    `anth-direct-cache-probe — model=${DEFAULT_MODEL} arms=[${[...ARMS].join(", ")}] (spends real OR credits)\n`,
-  );
+  console.log(`anth-direct-cache-probe — model=${DEFAULT_MODEL} arms=[${[...ARMS].join(", ")}] (spends real OR credits)\n`);
 
   if (ARMS.has("anth-direct")) {
     console.log("── anth-direct: 20-block lookback proof (single vs the R1 PAIR) ──");
-    await lookbackProof("anth-direct", (spec) =>
-      anthTurn({ model: DEFAULT_MODEL, history: spec.history, breakpoints: spec.breakpoints }),
-    );
+    await lookbackProof("anth-direct", (spec) => anthTurn({ model: DEFAULT_MODEL, history: spec.history, breakpoints: spec.breakpoints }));
     console.log("── anth-direct: prefill / mid-conv-system / sampling honor matrix ──");
     await prefillHonor(DEFAULT_MODEL);
     await midConvHonor(DEFAULT_MODEL);
@@ -531,9 +506,7 @@ async function main(): Promise<void> {
 
   if (ARMS.has("or-chat")) {
     console.log("── or-chat: 20-block lookback proof (single vs the R1 PAIR) ──");
-    await lookbackProof("or-chat", (spec) =>
-      orChatTurn({ model: DEFAULT_MODEL, history: spec.history, breakpoints: spec.breakpoints }),
-    );
+    await lookbackProof("or-chat", (spec) => orChatTurn({ model: DEFAULT_MODEL, history: spec.history, breakpoints: spec.breakpoints }));
   }
 
   console.log("\n=== usage table ===");

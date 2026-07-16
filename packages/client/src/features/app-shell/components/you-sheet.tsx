@@ -9,14 +9,7 @@ import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import type { ModalSlotId, SectionId } from "#state";
-import {
-  closeModal,
-  openModal,
-  setActiveSection,
-  useActiveSection,
-  useModalRegistry,
-  useSectionRegistry,
-} from "#state";
+import { closeModal, openModal, setActiveSection, useActiveSection, useModalRegistry, useSectionRegistry } from "#state";
 
 /** The You bottom-sheet body: the desktop-rail-footer + avatar modals, in the same order the desktop
  *  rail renders them (rail-footer group, then avatar) + the overflow (non-`mobilePrimary`) sections. */
@@ -42,13 +35,7 @@ export function YouSheet(): ReactElement {
     <Stack gap="section">
       <Stack gap="row" aria-label="Account and settings" role="group">
         {modalRows.map((row) => (
-          <ListRow
-            key={row.id}
-            clickable={true}
-            leading={<Icon icon={row.icon} size="sm" />}
-            onClick={(): void => openYouModal(row.id)}
-            title={row.label}
-          />
+          <ListRow key={row.id} clickable={true} leading={<Icon icon={row.icon} size="sm" />} onClick={(): void => openYouModal(row.id)} title={row.label} />
         ))}
       </Stack>
 

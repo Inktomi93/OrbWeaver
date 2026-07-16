@@ -21,10 +21,7 @@ import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context";
-import type {
-  TurnPrep,
-  TurnStreamChunk,
-} from "../../../../../packages/server/src/domain/chat/contract/results";
+import type { TurnPrep, TurnStreamChunk } from "../../../../../packages/server/src/domain/chat/contract/results";
 import { createTurnEngine } from "../../../../../packages/server/src/domain/chat/engine/engine";
 import { chatCreatedDelta } from "../../../../../packages/server/src/domain/chat/substrate/stats-delta";
 import { applyStatsDelta } from "../../../../../packages/server/src/domain/stats/write/apply-delta";
@@ -32,16 +29,7 @@ import { reconcileStats } from "../../../../../packages/server/src/domain/stats/
 import { createFrozenClock } from "../../../../support/clock";
 import { freshDb } from "../../../../support/db";
 import { expect, test } from "../../../../support/fixtures";
-import {
-  FROZEN_AT,
-  makeChatContext,
-  seedCharacter,
-  seedChat,
-  seedParticipant,
-  seedPersona,
-  seedUser,
-  TEST_CAPABILITY,
-} from "../_support";
+import { FROZEN_AT, makeChatContext, seedCharacter, seedChat, seedParticipant, seedPersona, seedUser, TEST_CAPABILITY } from "../_support";
 
 const HOST = castId<UserId>("user_host");
 
@@ -153,11 +141,7 @@ const REASONING_REPLY = scripted({
  *  same `message_1` and collide) whose `runChatTurn` pulls the next scripted response off `queue`, recording
  *  every emitted delta (the LIVE writer). The canon commits via the real db.batch; only the rollup upserts are
  *  captured so the test replays them into a clean table for the comparison. */
-function engineFor(
-  database: Db,
-  deltas: StatsDelta[],
-  queue: readonly RunChatTurn[],
-): ReturnType<typeof createTurnEngine> {
+function engineFor(database: Db, deltas: StatsDelta[], queue: readonly RunChatTurn[]): ReturnType<typeof createTurnEngine> {
   let idx = 0;
   const ctx = makeChatContext(database, {
     runChatTurn: (request) => {
@@ -224,9 +208,7 @@ interface RollupSnapshot {
 }
 
 async function snapshotRollups(database: Db, owner: UserId): Promise<RollupSnapshot> {
-  const ownerRow = (
-    await database.select().from(ownerStats).where(eq(ownerStats.ownerId, owner))
-  )[0];
+  const ownerRow = (await database.select().from(ownerStats).where(eq(ownerStats.ownerId, owner)))[0];
   const chars = await database.select().from(characterStats);
   const days = await database.select().from(dailyStats).where(eq(dailyStats.ownerId, owner));
   const models = await database.select().from(modelStats).where(eq(modelStats.ownerId, owner));

@@ -76,9 +76,7 @@ describe("egress firewall — adversarial SSRF bypass matrix (task #55)", () => 
   });
 
   test("every private/loopback/link-local/encoded target is BLOCKED", async () => {
-    const results = await Promise.all(
-      PRIVATE_TARGETS.map(async (url) => [url, await probe(url)] as const),
-    );
+    const results = await Promise.all(PRIVATE_TARGETS.map(async (url) => [url, await probe(url)] as const));
     const holes = results.filter(([, r]) => r !== "BLOCKED");
     expect(holes).toEqual([]);
   });

@@ -134,7 +134,6 @@ describe("entry verbs — PD-89 wiEntry* fan-out", () => {
 
     expect(harness.wiEvents).toEqual([
       {
-        // biome-ignore lint/security/noSecrets: a discriminator literal, not a secret.
         type: "wiEntryScopeChanged",
         chatId: chatA,
         surface: "chat",
@@ -142,7 +141,6 @@ describe("entry verbs — PD-89 wiEntry* fan-out", () => {
         scope: "keyword",
       },
       {
-        // biome-ignore lint/security/noSecrets: a discriminator literal, not a secret.
         type: "wiEntryScopeChanged",
         chatId: chatB,
         surface: "chat",

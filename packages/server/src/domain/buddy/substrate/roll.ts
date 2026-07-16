@@ -5,15 +5,7 @@
 // change once buddies exist — either would re-roll every user's preview. A golden test pins roll(knownId).
 
 import type { CompanionBones, CompanionStats, Rarity } from "@orb/contracts/buddy";
-import {
-  EYES,
-  HATS,
-  RARITIES,
-  RARITY_FLOOR,
-  RARITY_WEIGHTS,
-  SPECIES,
-  STAT_NAMES,
-} from "@orb/contracts/buddy";
+import { EYES, HATS, RARITIES, RARITY_FLOOR, RARITY_WEIGHTS, SPECIES, STAT_NAMES } from "@orb/contracts/buddy";
 import type { UserId } from "@orb/kit/ids";
 
 const SALT = "tavern-buddy-2026-01";

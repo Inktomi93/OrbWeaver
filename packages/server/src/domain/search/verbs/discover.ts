@@ -12,12 +12,7 @@ import type { DiscoverCharacter, DiscoverSegment } from "../contract/results";
 import type { SearchService } from "../contract/service";
 import { nearestSegments, ownedChatIds } from "../persistence/digest-rows";
 import { resolveSegmentDisplay } from "../persistence/display";
-import {
-  DISCOVER_SEGMENT_POOL_CAP,
-  DISCOVER_SEGMENT_POOL_FACTOR,
-  DISCOVER_SEGMENTS_PER_CHAR,
-  SNIPPET_CHARS,
-} from "../substrate/constants";
+import { DISCOVER_SEGMENT_POOL_CAP, DISCOVER_SEGMENT_POOL_FACTOR, DISCOVER_SEGMENTS_PER_CHAR, SNIPPET_CHARS } from "../substrate/constants";
 import { compareCslsBy, cslsAdjust } from "../substrate/csls";
 import { applyRerank } from "../substrate/rerank";
 
@@ -51,11 +46,7 @@ type SegmentCredit = Awaited<ReturnType<typeof resolveSegmentDisplay>>[number];
 
 /** A group scene credits each co-star: first appearance seeds the group, later ones bump matchCount +
  *  append evidence up to the per-character cap. Mutates byChar in ranked order. */
-function creditSegment(
-  byChar: Map<CharacterId, CharacterGroup>,
-  seg: DiscoverCandidate,
-  credits: readonly SegmentCredit[],
-): void {
+function creditSegment(byChar: Map<CharacterId, CharacterGroup>, seg: DiscoverCandidate, credits: readonly SegmentCredit[]): void {
   const evidence: DiscoverSegment = {
     chatId: seg.chatId,
     blockIdx: seg.blockIdx,
@@ -117,10 +108,7 @@ export function createDiscover(ctx: SearchContext): SearchService["discover"] {
     const embedded = await ctx.roleClients.embed(queryText, { inputType: "query" });
     const queryVector = embedded.vectors[0];
     if (queryVector === null || queryVector === undefined) {
-      throw new SearchError(
-        SEARCH_EMPTY_QUERY,
-        "the query embedded to no vector — nothing to scan",
-      );
+      throw new SearchError(SEARCH_EMPTY_QUERY, "the query embedded to no vector — nothing to scan");
     }
     const model = ctx.roleClients.embedModel;
 
@@ -153,10 +141,7 @@ export function createDiscover(ctx: SearchContext): SearchService["discover"] {
       );
 
     // Rerank segments before grouping so a promoted segment can pull in a low-CSLS character.
-    const ranked =
-      params.rerank === true
-        ? await applyRerank(queryText, sorted, ctx.roleClients.rerank, sorted.length)
-        : sorted;
+    const ranked = params.rerank === true ? await applyRerank(queryText, sorted, ctx.roleClients.rerank, sorted.length) : sorted;
 
     return await groupByCharacter(ctx, ownerId, ranked, topN);
   };

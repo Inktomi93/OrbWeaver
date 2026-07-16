@@ -52,9 +52,7 @@ export function parseParticipant(row: {
       return { kind: "agent", userId: row.userId };
     }
     case "observer": {
-      throw new Error(
-        "participant kind 'observer' is reserved and un-seatable (no kind-shape arm)",
-      );
+      throw new Error("participant kind 'observer' is reserved and un-seatable (no kind-shape arm)");
     }
     default: {
       const _exhaustive: never = row.kind;
@@ -64,10 +62,7 @@ export function parseParticipant(row: {
 }
 
 /** A `character` participant is always `role='member'` — a character can never be the host. */
-export function assertForcedCharacterMember(p: {
-  readonly kind: ParticipantKind;
-  readonly role: ParticipantRole;
-}): void {
+export function assertForcedCharacterMember(p: { readonly kind: ParticipantKind; readonly role: ParticipantRole }): void {
   if (p.kind === "character" && p.role !== "member") {
     throw new Error(`a character participant must be role 'member' (got '${p.role}')`);
   }
@@ -80,18 +75,12 @@ export function isPresent(p: { readonly leftSeq: number | null }): boolean {
 
 /** Present and not muted. A `disabled` participant still contributes cards/WI but is never
  *  arbiter-selected + is excluded from `{{groupNotMuted}}`. */
-export function isArbiterEligible(p: {
-  readonly leftSeq: number | null;
-  readonly disabled: boolean;
-}): boolean {
+export function isArbiterEligible(p: { readonly leftSeq: number | null; readonly disabled: boolean }): boolean {
   return p.leftSeq === null && !p.disabled;
 }
 
 /** Bulk-insert participant rows (the initial host+character roster, or a host adding a character). */
-export async function insertParticipants(
-  db: Db,
-  rows: readonly ParticipantInsertRow[],
-): Promise<void> {
+export async function insertParticipants(db: Db, rows: readonly ParticipantInsertRow[]): Promise<void> {
   if (rows.length === 0) {
     return;
   }
@@ -166,34 +155,18 @@ export async function upsertAgentSeat(
 
 /** Self-leave / kick-a-human: stamp `leftSeq` on the caller's present row (atomic). Returns the row left this
  *  call, or `undefined` if already gone / not a member. */
-export async function markUserLeft(
-  db: Db,
-  chatId: ChatId,
-  userId: UserId,
-  leftSeq: number,
-): Promise<typeof chatParticipants.$inferSelect | undefined> {
+export async function markUserLeft(db: Db, chatId: ChatId, userId: UserId, leftSeq: number): Promise<typeof chatParticipants.$inferSelect | undefined> {
   const rows = await markUserLeftStatement(db, chatId, userId, leftSeq);
   return rows.at(0);
 }
 
 /** The {@link markUserLeft} UPDATE, unexecuted — `kick` hands it to the notifications emit op so the
  *  membership transition + the `kicked` INSERT commit in one batch. */
-export function markUserLeftStatement(
-  db: Db,
-  chatId: ChatId,
-  userId: UserId,
-  leftSeq: number,
-): AwaitableBatchStmt<(typeof chatParticipants.$inferSelect)[]> {
+export function markUserLeftStatement(db: Db, chatId: ChatId, userId: UserId, leftSeq: number): AwaitableBatchStmt<(typeof chatParticipants.$inferSelect)[]> {
   return db
     .update(chatParticipants)
     .set({ leftSeq })
-    .where(
-      and(
-        eq(chatParticipants.chatId, chatId),
-        eq(chatParticipants.userId, userId),
-        isNull(chatParticipants.leftSeq),
-      ),
-    )
+    .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.userId, userId), isNull(chatParticipants.leftSeq)))
     .returning();
 }
 
@@ -214,16 +187,8 @@ export function markParticipantLeftStatement(
 /** Set the pending host-handoff nominee, unexecuted — `nominateHostHandoff` hands it to the
  *  notifications emit op so the nomination + the `handoff-nominated` INSERT commit in one batch. A
  *  re-nominate overwrites the prior nominee. */
-export function setPendingHostStatement(
-  db: Db,
-  chatId: ChatId,
-  nomineeUserId: UserId,
-  now: number,
-): AwaitableBatchStmt<unknown> {
-  return db
-    .update(chats)
-    .set({ pendingHostUserId: nomineeUserId, updatedAt: now })
-    .where(eq(chats.id, chatId));
+export function setPendingHostStatement(db: Db, chatId: ChatId, nomineeUserId: UserId, now: number): AwaitableBatchStmt<unknown> {
+  return db.update(chats).set({ pendingHostUserId: nomineeUserId, updatedAt: now }).where(eq(chats.id, chatId));
 }
 
 /** The atomic host-handoff accept statements, unexecuted: demotes the present host → `member`, promotes
@@ -237,26 +202,11 @@ export function acceptHostHandoffSwapStatements(
     db
       .update(chatParticipants)
       .set({ role: "member" })
-      .where(
-        and(
-          eq(chatParticipants.chatId, params.chatId),
-          eq(chatParticipants.role, "host"),
-          isNull(chatParticipants.leftSeq),
-        ),
-      ),
+      .where(and(eq(chatParticipants.chatId, params.chatId), eq(chatParticipants.role, "host"), isNull(chatParticipants.leftSeq))),
     db
       .update(chatParticipants)
       .set({ role: "host" })
-      .where(
-        and(
-          eq(chatParticipants.chatId, params.chatId),
-          eq(chatParticipants.userId, params.nomineeUserId),
-          isNull(chatParticipants.leftSeq),
-        ),
-      ),
-    db
-      .update(chats)
-      .set({ pendingHostUserId: null, updatedAt: params.now })
-      .where(eq(chats.id, params.chatId)),
+      .where(and(eq(chatParticipants.chatId, params.chatId), eq(chatParticipants.userId, params.nomineeUserId), isNull(chatParticipants.leftSeq))),
+    db.update(chats).set({ pendingHostUserId: null, updatedAt: params.now }).where(eq(chats.id, params.chatId)),
   ];
 }

@@ -2,13 +2,7 @@
 // acting `principal` and branded ids. Owner scoping is `principal.userId` — tags are personal labels.
 
 import type { Principal } from "@orb/contracts/identity";
-import type {
-  CreateTagInput,
-  TagSource,
-  TagStatus,
-  TagTargetType,
-  UpdateTagInput,
-} from "@orb/contracts/tag";
+import type { CreateTagInput, TagSource, TagStatus, TagTargetType, UpdateTagInput } from "@orb/contracts/tag";
 import type { CharacterId, TagId, UserId } from "@orb/kit/ids";
 
 /** Common to every tag verb: the acting principal whose `userId` is the owner discriminant. */

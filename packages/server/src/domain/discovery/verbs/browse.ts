@@ -13,20 +13,14 @@ import type { DiscoveryService } from "../contract/service";
 
 const DEFAULT_BROWSE_LIMIT = 200;
 
-export function createBrowse(
-  ctx: DiscoveryContext,
-): Pick<DiscoveryService, "browseCharacters" | "characterFacets"> {
+export function createBrowse(ctx: DiscoveryContext): Pick<DiscoveryService, "browseCharacters" | "characterFacets"> {
   return {
     browseCharacters: (userId, filter) => browseCharacters(ctx.db, userId, filter),
     characterFacets: (userId) => characterFacets(ctx.db, userId),
   };
 }
 
-async function browseCharacters(
-  db: Db,
-  ownerId: UserId,
-  filter: BrowseFilter = {},
-): Promise<BrowseCharacter[]> {
+async function browseCharacters(db: Db, ownerId: UserId, filter: BrowseFilter = {}): Promise<BrowseCharacter[]> {
   const conds = [eq(characters.ownerId, ownerId), eq(characters.synthetic, false)];
   if (filter.genre !== undefined) {
     conds.push(eq(characterSummaries.genre, filter.genre));
@@ -37,9 +31,7 @@ async function browseCharacters(
   if (filter.tag !== undefined) {
     // json_each membership is an exact-string test (never a fragile LIKE %"tag"% that would hit JSON quotes/commas).
     const tag = filter.tag.toLowerCase();
-    conds.push(
-      sql`EXISTS (SELECT 1 FROM json_each(${characterSummaries.tags}) WHERE lower(value) = ${tag})`,
-    );
+    conds.push(sql`EXISTS (SELECT 1 FROM json_each(${characterSummaries.tags}) WHERE lower(value) = ${tag})`);
   }
   const q = filter.q?.trim().toLowerCase();
   if (q !== undefined && q.length > 0) {
@@ -48,8 +40,7 @@ async function browseCharacters(
       sql`(lower(${characters.name}) LIKE ${like} OR lower(${characterSummaries.elevatorPitch}) LIKE ${like} OR EXISTS (SELECT 1 FROM json_each(${characterSummaries.tags}) WHERE lower(value) LIKE ${like}))`,
     );
   }
-  const orderBy =
-    (filter.sort ?? "recent") === "name" ? asc(characters.name) : desc(characters.createdAt);
+  const orderBy = (filter.sort ?? "recent") === "name" ? asc(characters.name) : desc(characters.createdAt);
 
   const rows = await db
     .select({
@@ -70,13 +61,11 @@ async function browseCharacters(
     .orderBy(orderBy)
     .limit(filter.limit ?? DEFAULT_BROWSE_LIMIT);
 
-  return rows.map((r) => ({ ...r, tags: r.tags ?? [] }));
+  return rows;
 }
 
 async function characterFacets(db: Db, ownerId: UserId): Promise<CharacterFacets> {
-  const facet = async (
-    col: typeof characterSummaries.genre | typeof characterSummaries.tone,
-  ): Promise<FacetCount[]> => {
+  const facet = async (col: typeof characterSummaries.genre | typeof characterSummaries.tone): Promise<FacetCount[]> => {
     const rows = await db
       .select({ value: col, count: sql<number>`count(*)` })
       .from(characterSummaries)
@@ -86,9 +75,6 @@ async function characterFacets(db: Db, ownerId: UserId): Promise<CharacterFacets
       .orderBy(desc(sql`count(*)`));
     return rows.flatMap((r) => (r.value === null ? [] : [{ value: r.value, count: r.count }]));
   };
-  const [genres, tones] = await Promise.all([
-    facet(characterSummaries.genre),
-    facet(characterSummaries.tone),
-  ]);
+  const [genres, tones] = await Promise.all([facet(characterSummaries.genre), facet(characterSummaries.tone)]);
   return { genres, tones };
 }

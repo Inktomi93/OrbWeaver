@@ -44,8 +44,7 @@ function principalOf(userId: UserId): Principal {
 }
 
 const noopAssets: ImportAssetPort = {
-  store: (): Promise<{ assetId: AssetId }> =>
-    Promise.resolve({ assetId: castId<AssetId>("ast_unused") }),
+  store: (): Promise<{ assetId: AssetId }> => Promise.resolve({ assetId: castId<AssetId>("ast_unused") }),
 };
 const noopTag: ImportTagPort = {
   attachCardTagByName: (): Promise<boolean> => Promise.resolve(true),

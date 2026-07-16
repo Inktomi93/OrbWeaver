@@ -16,12 +16,7 @@
 
 import { on } from "node:events";
 import type { Principal } from "@orb/contracts/identity";
-import {
-  scheduleCadenceSchema,
-  workloadKindSchema,
-  workloadModeSchema,
-  workloadStatusSchema,
-} from "@orb/contracts/workloads";
+import { scheduleCadenceSchema, workloadKindSchema, workloadModeSchema, workloadStatusSchema } from "@orb/contracts/workloads";
 import type { UserId, WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import type { TrackedEnvelope } from "@trpc/server";
@@ -29,11 +24,7 @@ import { tracked } from "@trpc/server";
 import { z } from "zod";
 import { requireOwner } from "#domain/admin";
 import type { WorkloadEvent, WorkloadService } from "#domain/workloads";
-import {
-  getRecentWorkloadEvents,
-  startWorkloadInput,
-  workloadStreamEmitter,
-} from "#domain/workloads";
+import { getRecentWorkloadEvents, startWorkloadInput, workloadStreamEmitter } from "#domain/workloads";
 import { withSubscriptionErrors } from "../subscriptions";
 import { authedProcedure, t } from "../trpc";
 
@@ -72,9 +63,7 @@ export const workloadsRouter = t.router({
 
   cancel: authedProcedure
     .input(z.object({ id: brandedId<WorkloadId>() }))
-    .mutation(({ ctx, input }) =>
-      ctx.services.workloads.cancel({ id: input.id, caller: ctx.auth }),
-    ),
+    .mutation(({ ctx, input }) => ctx.services.workloads.cancel({ id: input.id, caller: ctx.auth })),
 
   retry: authedProcedure
     .input(z.object({ id: brandedId<WorkloadId>() }))
@@ -107,11 +96,7 @@ export const workloadsRouter = t.router({
 
   subscribe: authedProcedure
     .input(z.object({ workloadId: brandedId<WorkloadId>() }))
-    .subscription(({ ctx, input, signal }) =>
-      withSubscriptionErrors(
-        workloadEvents(ctx.services.workloads, ctx.auth, input.workloadId, signal),
-      ),
-    ),
+    .subscription(({ ctx, input, signal }) => withSubscriptionErrors(workloadEvents(ctx.services.workloads, ctx.auth, input.workloadId, signal))),
 
   // ── Schedules (the TIME dimension) — recurring auto-enqueue. Owner-scoped like the workload verbs: a
   //    SINGULAR schedule is any authed caller; a BULK schedule is BOX-OWNER-only (LAYER-1 gate here, re-checked
@@ -163,28 +148,22 @@ export const workloadsRouter = t.router({
 
   deleteSchedule: authedProcedure
     .input(z.object({ id: brandedId<WorkloadScheduleId>() }))
-    .mutation(({ ctx, input }) =>
-      ctx.services.workloads.deleteSchedule({ id: input.id, caller: ctx.auth }),
-    ),
+    .mutation(({ ctx, input }) => ctx.services.workloads.deleteSchedule({ id: input.id, caller: ctx.auth })),
 
-  setScheduleEnabled: authedProcedure
-    .input(z.object({ id: brandedId<WorkloadScheduleId>(), enabled: z.boolean() }))
-    .mutation(({ ctx, input }) =>
-      ctx.services.workloads.setScheduleEnabled({
-        id: input.id,
-        caller: ctx.auth,
-        enabled: input.enabled,
-      }),
-    ),
+  setScheduleEnabled: authedProcedure.input(z.object({ id: brandedId<WorkloadScheduleId>(), enabled: z.boolean() })).mutation(({ ctx, input }) =>
+    ctx.services.workloads.setScheduleEnabled({
+      id: input.id,
+      caller: ctx.auth,
+      enabled: input.enabled,
+    }),
+  ),
 
-  listSchedules: authedProcedure
-    .input(z.object({ kind: workloadKindSchema.optional() }).optional())
-    .query(({ ctx, input }) =>
-      ctx.services.workloads.listSchedules({
-        caller: ctx.auth,
-        ...(input?.kind !== undefined ? { kind: input.kind } : {}),
-      }),
-    ),
+  listSchedules: authedProcedure.input(z.object({ kind: workloadKindSchema.optional() }).optional()).query(({ ctx, input }) =>
+    ctx.services.workloads.listSchedules({
+      caller: ctx.auth,
+      ...(input?.kind !== undefined ? { kind: input.kind } : {}),
+    }),
+  ),
 });
 
 async function* workloadEvents(

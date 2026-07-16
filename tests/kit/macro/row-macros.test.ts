@@ -27,22 +27,14 @@ function ctx(overrides: Partial<RowMacroNameContext> = {}): RowMacroNameContext 
 // ── §6 fixture: a user row stamped personaId = Mara resolves {{user}} to Mara on both consumers ──
 
 test("resolveRowMacros: {{user}} resolves to the row's stamped persona name (Mara)", () => {
-  const out = resolveRowMacros(
-    "{{user}} waves",
-    { characterId: null, personaId: MARA_ID },
-    ctx({ fallbackPersonaName: "Zara" }),
-  );
+  const out = resolveRowMacros("{{user}} waves", { characterId: null, personaId: MARA_ID }, ctx({ fallbackPersonaName: "Zara" }));
   expect(out).toBe("Mara waves");
 });
 
 // ── null personaId ⇒ falls to the chat ANCHOR fallback (never the row-stamp lookup) ──
 
 test("resolveRowMacros: {{user}} falls back to fallbackPersonaName (the anchor) when personaId is null", () => {
-  const out = resolveRowMacros(
-    "{{user}} waves",
-    { characterId: null, personaId: null },
-    ctx({ fallbackPersonaName: "Zara" }),
-  );
+  const out = resolveRowMacros("{{user}} waves", { characterId: null, personaId: null }, ctx({ fallbackPersonaName: "Zara" }));
   expect(out).toBe("Zara waves");
 });
 
@@ -54,21 +46,13 @@ test('resolveRowMacros: {{user}} falls back to the literal "User" when nothing r
 // ── {{char}}: the ROW's own speaker wins over the turn's current speaker fallback ──
 
 test("resolveRowMacros: {{char}} resolves to the row's own stamped character (not the current speaker)", () => {
-  const out = resolveRowMacros(
-    "{{char}} nods",
-    { characterId: ARIA_ID, personaId: null },
-    ctx({ speakerCharName: "Kai" }),
-  );
+  const out = resolveRowMacros("{{char}} nods", { characterId: ARIA_ID, personaId: null }, ctx({ speakerCharName: "Kai" }));
   // A past line stamped Aria stays Aria's even though Kai is the CURRENT turn's speaker.
   expect(out).toBe("Aria nods");
 });
 
 test("resolveRowMacros: {{char}} falls back to speakerCharName when the row carries no characterId", () => {
-  const out = resolveRowMacros(
-    "{{char}} nods",
-    { characterId: null, personaId: null },
-    ctx({ speakerCharName: "Kai" }),
-  );
+  const out = resolveRowMacros("{{char}} nods", { characterId: null, personaId: null }, ctx({ speakerCharName: "Kai" }));
   expect(out).toBe("Kai nods");
 });
 
@@ -80,30 +64,18 @@ test('resolveRowMacros: {{char}} falls back to the literal "Character" when noth
 // ── ruling B: a HUMAN-authored / narrator row (characterId === null) resolves {{char}} to the CAST ──
 
 test("resolveRowMacros: {{char}} in a user row resolves to the JOINED cast in a multi-character room", () => {
-  const out = resolveRowMacros(
-    "{{char}}, look here",
-    { characterId: null, personaId: MARA_ID },
-    ctx({ cast: ["Aria", "Kai"], speakerCharName: "Aria" }),
-  );
+  const out = resolveRowMacros("{{char}}, look here", { characterId: null, personaId: MARA_ID }, ctx({ cast: ["Aria", "Kai"], speakerCharName: "Aria" }));
   // A user's own {{char}} addresses the whole cast (== {{group}}), NOT the arbitrary current speaker.
   expect(out).toBe("Aria, Kai, look here");
 });
 
 test("resolveRowMacros: {{char}} in a user row resolves to the ONE character in a solo room", () => {
-  const out = resolveRowMacros(
-    "{{char}}, look here",
-    { characterId: null, personaId: MARA_ID },
-    ctx({ cast: ["Aria"] }),
-  );
+  const out = resolveRowMacros("{{char}}, look here", { characterId: null, personaId: MARA_ID }, ctx({ cast: ["Aria"] }));
   expect(out).toBe("Aria, look here");
 });
 
 test("resolveRowMacros: a VOICED row with a DELETED character floors to Character, never the cast join", () => {
-  const out = resolveRowMacros(
-    "{{char}} nods",
-    { characterId: castId<CharacterId>("character_gone"), personaId: null },
-    ctx({ cast: ["Aria", "Kai"] }),
-  );
+  const out = resolveRowMacros("{{char}} nods", { characterId: castId<CharacterId>("character_gone"), personaId: null }, ctx({ cast: ["Aria", "Kai"] }));
   // A stamped-but-unresolvable character is a deleted-id FLOOR (not a user/narrator row) → "Character",
   // NOT the cast join — only a null characterId means "the cast".
   expect(out).toBe("Character nods");
@@ -130,11 +102,7 @@ test("resolveRowMacros: a no-{{ string is returned byte-identical", () => {
 });
 
 test("resolveRowMacros: a <speaker> tag is left intact — the macro parser only touches {{…}}", () => {
-  const out = resolveRowMacros(
-    "<speaker>Aria</speaker>{{char}} waves back",
-    { characterId: ARIA_ID, personaId: null },
-    ctx(),
-  );
+  const out = resolveRowMacros("<speaker>Aria</speaker>{{char}} waves back", { characterId: ARIA_ID, personaId: null }, ctx());
   expect(out).toBe("<speaker>Aria</speaker>Aria waves back");
 });
 
@@ -146,11 +114,7 @@ test("resolveRowMacros: {{persona}} resolves to the row's stamped persona descri
 });
 
 test("resolveRowMacros: {{persona}} is empty when the persona doesn't resolve", () => {
-  const out = resolveRowMacros(
-    "before-{{persona}}-after",
-    { characterId: null, personaId: null },
-    ctx(),
-  );
+  const out = resolveRowMacros("before-{{persona}}-after", { characterId: null, personaId: null }, ctx());
   expect(out).toBe("before--after");
 });
 
@@ -172,11 +136,7 @@ test("resolveRowMacros: a stored row with {{time}} + {{roll}} renders byte-ident
 });
 
 test("resolveRowMacros: identity names still resolve while volatile macros pass through verbatim", () => {
-  const out = resolveRowMacros(
-    "{{char}} tells {{user}} the time is {{time}} — rolled {{roll:d6}}",
-    { characterId: ARIA_ID, personaId: MARA_ID },
-    ctx(),
-  );
+  const out = resolveRowMacros("{{char}} tells {{user}} the time is {{time}} — rolled {{roll:d6}}", { characterId: ARIA_ID, personaId: MARA_ID }, ctx());
   // Names resolve from the row's stamps; {{time}}/{{roll}} re-emit verbatim (stable).
   expect(out).toBe("Aria tells Mara the time is {{time}} — rolled {{roll:d6}}");
 });

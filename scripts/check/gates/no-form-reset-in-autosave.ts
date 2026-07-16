@@ -76,10 +76,7 @@ function factoryFileViolations(sf: SourceFile): Violation[] {
   if (!stripsReset) {
     out.push({ file: FACTORY_FILE, line: 1, message: OMIT_MISSING_MESSAGE });
   }
-  const props = [
-    ...sf.getDescendantsOfKind(SyntaxKind.PropertyAssignment),
-    ...sf.getDescendantsOfKind(SyntaxKind.ShorthandPropertyAssignment),
-  ];
+  const props = [...sf.getDescendantsOfKind(SyntaxKind.PropertyAssignment), ...sf.getDescendantsOfKind(SyntaxKind.ShorthandPropertyAssignment)];
   for (const prop of props) {
     if (prop.getName() === "reset") {
       out.push({
@@ -114,9 +111,7 @@ export const gate: GateDescriptor = {
     }
     if (rel === FACTORY_FILE) {
       for (const v of factoryFileViolations(sf)) {
-        ctx.report(
-          overrideFinding(v, v.message === OMIT_MISSING_MESSAGE ? "omit-strip" : "reset-prop"),
-        );
+        ctx.report(overrideFinding(v, v.message === OMIT_MISSING_MESSAGE ? "omit-strip" : "reset-prop"));
       }
       return;
     }
@@ -140,8 +135,7 @@ export const gate: GateDescriptor = {
       expect: { messageIncludes: "type-strip" },
     },
     {
-      files:
-        'export function createAutosaveEntityForm(): Omit<{ reset: () => void; x: 1 }, "reset"> {\n  return { reset: () => {}, x: 1 };\n}\n',
+      files: 'export function createAutosaveEntityForm(): Omit<{ reset: () => void; x: 1 }, "reset"> {\n  return { reset: () => {}, x: 1 };\n}\n',
       at: "packages/client/src/forms/create-autosave-entity-form.ts",
       why: "ARM B RESET_PROP — the factory file hands a `reset` property back through its returned object",
       expect: { messageIncludes: "re-exposes `reset`" },
@@ -149,8 +143,7 @@ export const gate: GateDescriptor = {
   ],
   mustPass: [
     {
-      files:
-        "export function f(personaForm: { reset: (v?: unknown) => void }) {\n  personaForm.reset();\n}\n",
+      files: "export function f(personaForm: { reset: (v?: unknown) => void }) {\n  personaForm.reset();\n}\n",
       at: "packages/client/src/features/persona/y.ts",
       why: "the same .reset( in a file that does NOT import the autosave factory — ARM A never scans it",
     },

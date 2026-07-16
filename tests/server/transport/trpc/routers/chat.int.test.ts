@@ -21,12 +21,7 @@ import { createChatBus } from "../../../../../packages/server/src/domain/chat/bu
 import { createRead } from "../../../../../packages/server/src/domain/chat/verbs/read";
 import { freshDb } from "../../../../support/db";
 import { expect, test } from "../../../../support/fixtures";
-import {
-  makeChatContext,
-  seedChat,
-  seedParticipant,
-  seedUser,
-} from "../../../domain/chat/_support";
+import { makeChatContext, seedChat, seedParticipant, seedUser } from "../../../domain/chat/_support";
 import { caller, principal as callerPrincipal, makeContext } from "../_support";
 
 let db: Db;
@@ -40,10 +35,8 @@ beforeEach(async () => {
 function readDeps(): Parameters<typeof createRead>[1] {
   return {
     loadParticipantViews: () => Promise.resolve([]),
-    resolveConnection: () =>
-      Promise.reject(new Error("unused: the stream generator never previews a connection")),
-    resolveForeignInputs: () =>
-      Promise.reject(new Error("unused: the stream generator never resolves foreign inputs")),
+    resolveConnection: () => Promise.reject(new Error("unused: the stream generator never previews a connection")),
+    resolveForeignInputs: () => Promise.reject(new Error("unused: the stream generator never resolves foreign inputs")),
   };
 }
 
@@ -102,11 +95,7 @@ describe("chat.streamMessages — durable delta replay over a real reads-slice (
 
     // The durable head replays ASCENDING with each durable seq as the tracked resume id.
     expect([idOf(a.value), idOf(b.value), idOf(c.value)]).toEqual(["1", "2", "3"]);
-    expect([dataOf(a.value).type, dataOf(b.value).type, dataOf(c.value).type]).toEqual([
-      "turnStarted",
-      "delta",
-      "delta",
-    ]);
+    expect([dataOf(a.value).type, dataOf(b.value).type, dataOf(c.value).type]).toEqual(["turnStarted", "delta", "delta"]);
 
     // The token-carrying delta payloads survived the JSON round-trip through the durable column.
     const deltaB = dataOf(b.value);

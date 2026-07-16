@@ -5,21 +5,8 @@
 import type { AssetCreatedEvent, CharacterUpdatedEvent } from "@orb/contracts/events";
 import type { RoleClients } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
-import type {
-  AssetId,
-  CharacterEmbeddingId,
-  CharacterId,
-  ChatDigestId,
-  ChatSegmentId,
-  ImageEmbeddingId,
-  UserId,
-} from "@orb/kit/ids";
-import type {
-  ClearTableParams,
-  EmbedPassParams,
-  StoreParams,
-  WriteHubScoresParams,
-} from "./params";
+import type { AssetId, CharacterEmbeddingId, CharacterId, ChatDigestId, ChatSegmentId, ImageEmbeddingId, UserId } from "@orb/kit/ids";
+import type { ClearTableParams, EmbedPassParams, StoreParams, WriteHubScoresParams } from "./params";
 import type { BulkEmbedResult, StoreResult, WriteHubScoresResult } from "./results";
 
 /** Re-read a character card's embeddable text by id. `undefined` when deleted between emit and handler. */

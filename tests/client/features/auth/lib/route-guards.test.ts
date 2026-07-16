@@ -11,10 +11,7 @@
 
 import { afterEach, vi } from "vitest";
 import type { AuthMe } from "../../../../../packages/client/src/features/auth/lib/auth-bootstrap";
-import {
-  redirectIfAuthed,
-  requireAuthed,
-} from "../../../../../packages/client/src/features/auth/lib/route-guards";
+import { redirectIfAuthed, requireAuthed } from "../../../../../packages/client/src/features/auth/lib/route-guards";
 import { expect, test } from "../../../../support/fixtures";
 
 const AUTHED: AuthMe = { authenticated: true, handle: "alice", role: "user" };

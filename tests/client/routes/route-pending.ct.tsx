@@ -8,10 +8,7 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import { RoutePending } from "../../../packages/client/src/routes/route-pending";
 
-test("renders a visible, accessibly-named loading mark (never a blank page)", async ({
-  mount,
-  page,
-}) => {
+test("renders a visible, accessibly-named loading mark (never a blank page)", async ({ mount, page }) => {
   await mount(<RoutePending />);
   await expect(page.getByRole("status", { name: "Loading" })).toBeVisible();
 });

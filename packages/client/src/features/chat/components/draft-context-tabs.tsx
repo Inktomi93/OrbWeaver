@@ -4,11 +4,7 @@
 // (a `ContextTabDef.body` is not a hook context, so the read lives here, not in the section definition).
 
 import type { ChatInjectionInput, RoomOverrides } from "@orb/contracts/chat";
-import {
-  DEFAULT_GROUP_CONFIG,
-  groupConfigSchema,
-  TALKATIVENESS_DEFAULT,
-} from "@orb/contracts/chat";
+import { DEFAULT_GROUP_CONFIG, groupConfigSchema, TALKATIVENESS_DEFAULT } from "@orb/contracts/chat";
 import type { CharacterId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Text } from "@orb/ui/text";
@@ -17,13 +13,7 @@ import type { ReactElement } from "react";
 import { useRef } from "react";
 import { QueryBoundary, useTRPC } from "#data";
 import type { DraftConfig } from "#state";
-import {
-  setDraftGroupConfig,
-  setDraftInjections,
-  setDraftRoomOverrides,
-  setDraftRosterOverride,
-  useDraftConfig,
-} from "#state";
+import { setDraftGroupConfig, setDraftInjections, setDraftRoomOverrides, setDraftRosterOverride, useDraftConfig } from "#state";
 import { GROUP_CONFIG_ENTITY_PREFIX } from "../hooks/use-group-config-form";
 import type { InjectionFormValues } from "../hooks/use-injection-row-form";
 import { fromInjectionForm } from "../hooks/use-injection-row-form";
@@ -95,11 +85,7 @@ export function DraftMembersTabBody({ draftKey, cast }: DraftMembersTabBodyProps
         </Text>
       )}
     >
-      <DraftMembersRoster
-        draftKey={draftKey}
-        characterIds={cast}
-        rosterOverrides={cfg.rosterOverrides}
-      />
+      <DraftMembersRoster draftKey={draftKey} characterIds={cast} rosterOverrides={cfg.rosterOverrides} />
     </QueryBoundary>
   );
 }
@@ -110,11 +96,7 @@ interface DraftMembersRosterProps {
   readonly rosterOverrides: DraftConfig["rosterOverrides"];
 }
 
-function DraftMembersRoster({
-  draftKey,
-  characterIds,
-  rosterOverrides,
-}: DraftMembersRosterProps): ReactElement {
+function DraftMembersRoster({ draftKey, characterIds, rosterOverrides }: DraftMembersRosterProps): ReactElement {
   const trpc = useTRPC();
   const characters = useSuspenseQueries({
     queries: characterIds.map((characterId) => trpc.character.get.queryOptions({ characterId })),
@@ -137,12 +119,8 @@ function DraftMembersRoster({
     <MembersPanel
       people={[]}
       cast={cast}
-      onSetDisabled={(characterId, disabled): void =>
-        setDraftRosterOverride(draftKey, characterId, { disabled })
-      }
-      onSetTalkativeness={(characterId, talkativeness): void =>
-        setDraftRosterOverride(draftKey, characterId, { talkativeness })
-      }
+      onSetDisabled={(characterId, disabled): void => setDraftRosterOverride(draftKey, characterId, { disabled })}
+      onSetTalkativeness={(characterId, talkativeness): void => setDraftRosterOverride(draftKey, characterId, { talkativeness })}
     />
   );
 }

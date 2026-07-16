@@ -5,12 +5,7 @@
 
 import type { Runner } from "../contract/runner";
 
-export const crewCardEvolutionRunner: Runner<"crew-card-evolution"> = (
-  _ctx,
-  _params,
-  report,
-  _signal,
-) => {
+export const crewCardEvolutionRunner: Runner<"crew-card-evolution"> = (_ctx, _params, report, _signal) => {
   report({ message: "crew-card-evolution is a CW1 stub (no-op); CW3 lands the real runner" });
   return Promise.resolve({ deferred: true });
 };

@@ -25,9 +25,7 @@ interface ReadOnlyEditorProps {
 }
 
 export function ReadOnlyEditor({ value }: ReadOnlyEditorProps): ReactElement {
-  return (
-    <CodeEditor lang="css" value={value} readOnly={true} ariaLabel="fixture readonly editor" />
-  );
+  return <CodeEditor lang="css" value={value} readOnly={true} ariaLabel="fixture readonly editor" />;
 }
 
 interface CompletionsEditorProps {
@@ -37,20 +35,9 @@ interface CompletionsEditorProps {
 
 /** Controlled editor with a fixed `completions` vocabulary (WS3 — the theme-editor CSS var
  *  autocomplete seam). */
-export function CompletionsEditor({
-  initialValue,
-  completions,
-}: CompletionsEditorProps): ReactElement {
+export function CompletionsEditor({ initialValue, completions }: CompletionsEditorProps): ReactElement {
   const [value, setValue] = useState(initialValue);
-  return (
-    <CodeEditor
-      lang="css"
-      value={value}
-      onChange={setValue}
-      ariaLabel="fixture completions editor"
-      completions={completions}
-    />
-  );
+  return <CodeEditor lang="css" value={value} onChange={setValue} ariaLabel="fixture completions editor" completions={completions} />;
 }
 
 interface DiagnosticsEditorProps {
@@ -66,24 +53,13 @@ interface DiagnosticsEditorProps {
  * change (the button) independently of typing (the editor content) — proving the re-render
  * never remounts the view (§ correctness contract: no cursor jump).
  */
-export function DiagnosticsEditor({
-  initialValue,
-  initialDiagnostics,
-  nextDiagnostics,
-}: DiagnosticsEditorProps): ReactElement {
+export function DiagnosticsEditor({ initialValue, initialDiagnostics, nextDiagnostics }: DiagnosticsEditorProps): ReactElement {
   const [value, setValue] = useState(initialValue);
-  const [diagnostics, setDiagnostics] =
-    useState<readonly CodeEditorDiagnostic[]>(initialDiagnostics);
+  const [diagnostics, setDiagnostics] = useState<readonly CodeEditorDiagnostic[]>(initialDiagnostics);
   const handleUpdateDiagnostics = (): void => setDiagnostics(nextDiagnostics);
   return (
     <div>
-      <CodeEditor
-        lang="css"
-        value={value}
-        onChange={setValue}
-        ariaLabel="fixture diagnostics editor"
-        diagnostics={diagnostics}
-      />
+      <CodeEditor lang="css" value={value} onChange={setValue} ariaLabel="fixture diagnostics editor" diagnostics={diagnostics} />
       <output>{value}</output>
       <button type="button" onClick={handleUpdateDiagnostics}>
         Update diagnostics

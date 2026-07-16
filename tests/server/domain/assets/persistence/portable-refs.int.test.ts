@@ -16,13 +16,7 @@ import {
 } from "../../../../../packages/server/src/domain/assets/persistence/portable-refs.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
-import {
-  seedCharacter,
-  seedChatRow,
-  seedParticipant,
-  seedUser,
-  setCharacterAvatar,
-} from "../_support.ts";
+import { seedCharacter, seedChatRow, seedParticipant, seedUser, setCharacterAvatar } from "../_support.ts";
 
 const NOW = 1_750_000_000_000;
 
@@ -49,11 +43,7 @@ async function seedAsset(
   return id;
 }
 
-async function seedVariant(
-  db: Db,
-  chatId: ChatId,
-  spec: { readonly seq: number; readonly content: string },
-): Promise<void> {
+async function seedVariant(db: Db, chatId: ChatId, spec: { readonly seq: number; readonly content: string }): Promise<void> {
   const messageId = castId<MessageId>(`message_${chatId}_${spec.seq}`);
   await db.insert(messages).values({ id: messageId, chatId, seq: spec.seq, role: "assistant" });
   await db.insert(messageVariants).values({
@@ -121,8 +111,6 @@ describe("loadOwnedAssetForExport", () => {
       mime: "image/webp",
     });
     expect(await loadOwnedAssetForExport(db, owner, foreign)).toBeUndefined();
-    expect(
-      await loadOwnedAssetForExport(db, owner, castId<AssetId>("asset_ghost")),
-    ).toBeUndefined();
+    expect(await loadOwnedAssetForExport(db, owner, castId<AssetId>("asset_ghost"))).toBeUndefined();
   });
 });

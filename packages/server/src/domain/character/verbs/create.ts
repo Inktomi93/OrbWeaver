@@ -9,20 +9,11 @@
 import type { CharacterCard } from "@orb/contracts/character";
 import { cardContentHash } from "#kit/serde/card";
 import type { CharacterContext } from "../context";
-import {
-  CHARACTER_HANDLE_RESERVED,
-  CharacterNotFoundError,
-  CharacterOperationError,
-} from "../contract/errors";
+import { CHARACTER_HANDLE_RESERVED, CharacterNotFoundError, CharacterOperationError } from "../contract/errors";
 import type { CharacterImportProvenance, CreateCharacterParams } from "../contract/params";
 import type { CharacterService } from "../contract/service";
 import { insertCharacter } from "../persistence/card";
-import {
-  canonicalTagsOf,
-  detailOf,
-  ensureAssetOwned,
-  loadOwnedCharacterWithAvatar,
-} from "../persistence/queries";
+import { canonicalTagsOf, detailOf, ensureAssetOwned, loadOwnedCharacterWithAvatar } from "../persistence/queries";
 import { cardTokenSize } from "../substrate/card-tokens";
 import { isReservedGroupHandle } from "../substrate/group-character";
 
@@ -78,10 +69,7 @@ export function createCreate(ctx: CharacterContext): CharacterService["create"] 
   return async ({ principal, input, provenance }: CreateCharacterParams) => {
     const ownerId = principal.userId;
     if (isReservedGroupHandle(input.handle)) {
-      throw new CharacterOperationError(
-        CHARACTER_HANDLE_RESERVED,
-        `handle "${input.handle}" is reserved for synthetic group characters`,
-      );
+      throw new CharacterOperationError(CHARACTER_HANDLE_RESERVED, `handle "${input.handle}" is reserved for synthetic group characters`);
     }
     await guardAvatarOwned(ctx, ownerId, input.avatarAssetId);
     const at = ctx.now();

@@ -4,5 +4,4 @@
 // expression instead — that's what the bundler constant-folds to strip devtools chunks from prod.
 
 /** True under the Vite dev server + vitest; false in a production build (or when no bundler env exists). */
-export const IS_DEV: boolean =
-  (import.meta as unknown as { readonly env?: { readonly DEV?: boolean } }).env?.DEV === true;
+export const IS_DEV: boolean = (import.meta as unknown as { readonly env?: { readonly DEV?: boolean } }).env?.DEV === true;

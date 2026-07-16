@@ -22,10 +22,7 @@ const MESSAGE =
  *  `onData:`/`onConnectionStateChange:` property (arrow value) or method shorthand. */
 function insideHandler(node: Node): boolean {
   for (let cur = node.getParent(); cur !== undefined; cur = cur.getParent()) {
-    if (
-      (cur.isKind(SyntaxKind.PropertyAssignment) || cur.isKind(SyntaxKind.MethodDeclaration)) &&
-      HANDLER_NAMES.has(cur.getName())
-    ) {
+    if ((cur.isKind(SyntaxKind.PropertyAssignment) || cur.isKind(SyntaxKind.MethodDeclaration)) && HANDLER_NAMES.has(cur.getName())) {
       return true;
     }
   }

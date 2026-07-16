@@ -5,16 +5,10 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import { ModalRegistryProbe } from "./_ct-stories";
 
-test("ModalRegistryProvider renders children and delivers the registry to a nested consumer", async ({
-  mount,
-}) => {
+test("ModalRegistryProvider renders children and delivers the registry to a nested consumer", async ({ mount }) => {
   const probe = await mount(<ModalRegistryProbe />);
   const out = probe.locator("output");
   await expect(out).toBeVisible();
   // All six modals reached the consumer — the provider delivered the total registry, not a partial one.
-  await Promise.all(
-    ["theme", "settings", "account", "command", "newChat", "you"].map((id) =>
-      expect(out).toContainText(id),
-    ),
-  );
+  await Promise.all(["theme", "settings", "account", "command", "newChat", "you"].map((id) => expect(out).toContainText(id)));
 });

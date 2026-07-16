@@ -25,12 +25,7 @@ export function AdminSettingsSurface(): ReactElement {
     <Stack ref={surfaceRef} tabIndex={-1} className="outline-none">
       <QueryBoundary
         fallback={<Text tone="muted">Loading the user table…</Text>}
-        renderError={(_error, retry): ReactElement => (
-          <QueryErrorState
-            label="the admin panel — it's available to administrators only"
-            onRetry={retry}
-          />
-        )}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label="the admin panel — it's available to administrators only" onRetry={retry} />}
       >
         <Container>
           <AdminPaneBody />
@@ -49,11 +44,7 @@ function AdminPaneBody(): ReactElement {
   return (
     <Stack gap="section">
       <Section divider={true} heading="Users" id={anchor(ADMIN_SUBCATEGORY_IDS.users)}>
-        <AdminUsersSection
-          users={users}
-          viewerUserId={viewer.userId}
-          viewerIsOwner={viewer.globalRole === "owner"}
-        />
+        <AdminUsersSection users={users} viewerUserId={viewer.userId} viewerIsOwner={viewer.globalRole === "owner"} />
       </Section>
       <Section divider={true} heading="Engines" id={anchor(ADMIN_SUBCATEGORY_IDS.engines)}>
         <AdminEnginesSection />

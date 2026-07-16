@@ -41,9 +41,7 @@ const ROW_COPY: {
   "handoff-nominated": () => "You've been nominated to host a chat",
   "handoff-accepted": (p) => `${p.newHostHandle} is now hosting your chat`,
   "deferred-turn-dropped": (p) =>
-    p.reason === "consent"
-      ? "An AI reply couldn't run — the host hasn't allowed it"
-      : "An AI reply couldn't run — that chat is no longer available",
+    p.reason === "consent" ? "An AI reply couldn't run — the host hasn't allowed it" : "An AI reply couldn't run — that chat is no longer available",
 };
 
 function rowCopy(payload: NotificationEvent): string {
@@ -173,13 +171,7 @@ interface InboxRowProps {
 
 /** One inbox row: the delivery copy + its actions (invite → Accept/Decline; handoff-nominated →
  *  Accept/Dismiss; the rest → Dismiss). */
-function InboxRow({
-  item,
-  onAccept,
-  onAcceptHandoff,
-  onDecline,
-  onDismiss,
-}: InboxRowProps): ReactElement {
+function InboxRow({ item, onAccept, onAcceptHandoff, onDecline, onDismiss }: InboxRowProps): ReactElement {
   const isInvite = item.payload.type === "invite";
   const isHandoff = item.payload.type === "handoff-nominated";
   return (

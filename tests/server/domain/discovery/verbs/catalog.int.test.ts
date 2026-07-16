@@ -131,8 +131,6 @@ describe("compareCharacters", () => {
     const svc = svcFor(db);
     expect(await svc.compareCharacters(owner, a, a)).toBeNull(); // self
     expect(await svc.compareCharacters(owner, a, foreign)).toBeNull(); // foreign belt
-    expect(
-      await svc.compareCharacters(owner, a, castId<CharacterId>("character_missing")),
-    ).toBeNull();
+    expect(await svc.compareCharacters(owner, a, castId<CharacterId>("character_missing"))).toBeNull();
   });
 });

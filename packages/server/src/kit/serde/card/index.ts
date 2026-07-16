@@ -61,7 +61,7 @@ interface RawCard {
     depth_prompt?: unknown;
     regex_scripts?: unknown;
     [key: string]: unknown;
-  };
+  } | null;
   // V2-era cards put `regex_scripts` at the data root (no extensions wrapper); V3 nests it under
   // `data.extensions.regex_scripts`. We accept either.
   regex_scripts?: unknown;
@@ -131,8 +131,7 @@ function parseDepthPrompt(raw: unknown): CharacterCard["depthPrompt"] {
     return null;
   }
   const depthNum = Number(dp["depth"]);
-  const depth =
-    Number.isFinite(depthNum) && depthNum >= 0 ? Math.floor(depthNum) : ST_DEFAULT_DEPTH;
+  const depth = Number.isFinite(depthNum) && depthNum >= 0 ? Math.floor(depthNum) : ST_DEFAULT_DEPTH;
   return { prompt, depth, role: messageRoleFromSt(dp["role"]) ?? "system" };
 }
 
@@ -212,10 +211,7 @@ const ST_CREATOR_NOTES_PLACEHOLDER = "Creator's notes go here.";
  */
 export function cardFromJson(raw: unknown, fallbackName: string): CharacterCard {
   const cardJson = normalizeCardJson((raw ?? {}) as RawCard);
-  const data: RawCard =
-    typeof cardJson.data === "object" && cardJson.data !== null
-      ? (cardJson.data as RawCard)
-      : cardJson;
+  const data: RawCard = typeof cardJson.data === "object" && cardJson.data !== null ? (cardJson.data as RawCard) : cardJson;
 
   const first = str(data.first_mes);
   const alternates = strArray(data.alternate_greetings);
@@ -233,9 +229,7 @@ export function cardFromJson(raw: unknown, fallbackName: string): CharacterCard 
     systemPrompt: nullIfEmpty(str(data.system_prompt)),
     postHistoryInstructions: nullIfEmpty(str(data.post_history_instructions)),
     depthPrompt: parseDepthPrompt(data.extensions?.depth_prompt),
-    creatorNotes: nullIfEmpty(
-      str(data.creator_notes).replace(ST_CREATOR_NOTES_PLACEHOLDER, "").trim(),
-    ),
+    creatorNotes: nullIfEmpty(str(data.creator_notes).replace(ST_CREATOR_NOTES_PLACEHOLDER, "").trim()),
     creator: nullIfEmpty(str(data.creator)),
     cardVersion: nullIfEmpty(str(data.character_version)),
     regexScripts: parseRegexScripts(data),
@@ -253,6 +247,11 @@ export function cardFromJson(raw: unknown, fallbackName: string): CharacterCard 
  *  re-import-dedup tests rely on. */
 function stableStringify(value: unknown): string {
   if (value === null || typeof value !== "object") {
+    // lib.es5.d.ts types `JSON.stringify` as always returning `string`, but it really returns
+    // `undefined` for `undefined`/function/symbol values (e.g. an explicit `{ a: undefined }`
+    // field surviving from a partially-populated CharacterCard) — a real runtime gap the TS lib
+    // misses, not a redundant guard.
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- see comment above; JSON.stringify(undefined) is `undefined` at runtime despite the `string` lib type
     return JSON.stringify(value) ?? "null";
   }
   if (Array.isArray(value)) {
@@ -423,14 +422,8 @@ export function selectBestCharacterBook(...candidates: unknown[]): unknown {
     if (entries.length === 0) {
       continue;
     }
-    const named = entries.filter(
-      (e) => typeof e["name"] === "string" && e["name"].trim().length > 0,
-    ).length;
-    if (
-      best === undefined ||
-      named > best.named ||
-      (named === best.named && entries.length > best.total)
-    ) {
+    const named = entries.filter((e) => typeof e["name"] === "string" && e["name"].trim().length > 0).length;
+    if (best === undefined || named > best.named || (named === best.named && entries.length > best.total)) {
       best = { book: candidate, named, total: entries.length };
     }
   }
@@ -441,9 +434,7 @@ export function selectBestCharacterBook(...candidates: unknown[]): unknown {
  *  back to `name`, then the first key) as the author-facing memo → our `title`; when `comment` differs from
  *  the resolved title it is ALSO kept as `description` (lossless). `insertion_order` → `priority`. */
 export function loreEntryColumns(entry: Record<string, unknown>): LoreEntryColumns {
-  const keys = Array.isArray(entry["keys"])
-    ? entry["keys"].filter((k): k is string => typeof k === "string")
-    : [];
+  const keys = Array.isArray(entry["keys"]) ? entry["keys"].filter((k): k is string => typeof k === "string") : [];
   const comment = typeof entry["comment"] === "string" ? entry["comment"] : "";
   const name = typeof entry["name"] === "string" ? entry["name"] : "";
   const title = firstNonEmpty(comment, name, keys[0] ?? "") ?? "Untitled";
@@ -476,12 +467,7 @@ export function loreEntryMetadata(entry: Record<string, unknown>): Record<string
   if (meta["inject"] === undefined) {
     const ext = isPlainObject(entry["extensions"]) ? entry["extensions"] : undefined;
     const depth = Number(ext?.["depth"]);
-    if (
-      ext !== undefined &&
-      Number(ext["position"]) === ST_POSITION_AT_DEPTH &&
-      Number.isInteger(depth) &&
-      depth >= 0
-    ) {
+    if (ext !== undefined && Number(ext["position"]) === ST_POSITION_AT_DEPTH && Number.isInteger(depth) && depth >= 0) {
       const role = messageRoleFromSt(ext["role"]);
       meta["inject"] = { depth, ...(role !== null ? { role } : {}) };
     }
@@ -496,16 +482,9 @@ export function loreEntryMetadata(entry: Record<string, unknown>): Record<string
  * is `characterCardV3Schema.parse`d so a malformed projection fails loud at the boundary, not silently on
  * the wire.
  */
-export function buildCardV3(
-  fields: ExportCardFields,
-  entries: ExportWorldEntry[],
-): CharacterCardV3 {
+export function buildCardV3(fields: ExportCardFields, entries: ExportWorldEntry[]): CharacterCardV3 {
   // biome-ignore-start lint/style/useNamingConvention: ST Character-Card-V3 wire field names (snake_case)
-  const {
-    depth_prompt: _staleDepthPrompt,
-    regex_scripts: _staleRegexScripts,
-    ...baseExtensions
-  } = fields.extensions ?? {};
+  const { depth_prompt: _staleDepthPrompt, regex_scripts: _staleRegexScripts, ...baseExtensions } = fields.extensions ?? {};
   const extensions: Record<string, unknown> = {
     ...baseExtensions,
     regex_scripts: fields.regexScripts,

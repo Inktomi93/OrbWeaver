@@ -8,9 +8,7 @@ import type { CharacterService } from "../contract/service";
 import { findByOwnerHandle } from "../persistence/queries";
 import { groupHandle } from "../substrate/group-character";
 
-export function createFindSyntheticGroupCharacter(
-  ctx: CharacterContext,
-): CharacterService["findSyntheticGroupCharacter"] {
+export function createFindSyntheticGroupCharacter(ctx: CharacterContext): CharacterService["findSyntheticGroupCharacter"] {
   return async ({ ownerId, chatId }: FindGroupCharParams) => {
     const row = await findByOwnerHandle(ctx.db, ownerId, groupHandle(chatId));
     if (row === undefined || !row.synthetic) {

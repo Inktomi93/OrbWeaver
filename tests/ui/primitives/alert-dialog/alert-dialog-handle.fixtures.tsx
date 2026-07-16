@@ -3,13 +3,7 @@
 // `handle.openWithPayload(payload)` opens it imperatively WITHOUT any trigger association and routes
 // the payload to the Root render-function children — one confirm dialog opened from N destructive
 // sources without threading state (Base UI 1.x createHandle).
-import {
-  AlertDialog,
-  AlertDialogDescription,
-  AlertDialogPopup,
-  AlertDialogTitle,
-  createAlertDialogHandle,
-} from "@orb/ui/alert-dialog";
+import { AlertDialog, AlertDialogDescription, AlertDialogPopup, AlertDialogTitle, createAlertDialogHandle } from "@orb/ui/alert-dialog";
 import type { ReactElement } from "react";
 import { useState } from "react";
 

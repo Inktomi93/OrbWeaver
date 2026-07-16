@@ -2,11 +2,7 @@
 // importGif order matters: ownership-check BEFORE fetch (leak-free IDOR/DoS), fetch is host-allowlisted +
 // image-validated inside the op, then store+curate as one verb (no torn imported-but-not-curated state).
 
-import {
-  DomainNoCredentialError,
-  DomainNotFoundError,
-  DomainOperationError,
-} from "@orb/kit/errors";
+import { DomainNoCredentialError, DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import { HUB_OP_CODES } from "../contract/errors";
 import type { ImportGifParams, SearchGifsParams } from "../contract/params";
 import type { GalleryItemView, GifSearchResult } from "../contract/results";
@@ -21,12 +17,7 @@ export function createGifs(ctx: HubContext): Pick<HubService, "searchGifs" | "im
 }
 
 function createSearchGifs(ctx: HubContext): HubService["searchGifs"] {
-  return async ({
-    principal,
-    query,
-    limit,
-    cursor,
-  }: SearchGifsParams): Promise<GifSearchResult> => {
+  return async ({ principal, query, limit, cursor }: SearchGifsParams): Promise<GifSearchResult> => {
     const apiKey = await ctx.resolveGifKey(principal);
     if (apiKey === null) {
       // No owner/shared-key fallback — that would meter the owner's Tenor quota.
@@ -36,10 +27,7 @@ function createSearchGifs(ctx: HubContext): HubService["searchGifs"] {
       return await ctx.searchGifs({ apiKey, query, limit, cursor });
     } catch (err) {
       // Upstream body/detail (and the key-bearing URL) never reach the client — only the code.
-      const unavailable = new DomainOperationError(
-        HUB_OP_CODES.unavailable,
-        "Gif search is temporarily unavailable.",
-      );
+      const unavailable = new DomainOperationError(HUB_OP_CODES.unavailable, "Gif search is temporarily unavailable.");
       unavailable.cause = err;
       throw unavailable;
     }
@@ -47,11 +35,7 @@ function createSearchGifs(ctx: HubContext): HubService["searchGifs"] {
 }
 
 function createImportGif(ctx: HubContext): HubService["importGif"] {
-  return async ({
-    principal,
-    url,
-    subjectCharacterId,
-  }: ImportGifParams): Promise<GalleryItemView> => {
+  return async ({ principal, url, subjectCharacterId }: ImportGifParams): Promise<GalleryItemView> => {
     if (subjectCharacterId !== undefined) {
       const owned = await ctx.assertCharacterOwned(principal.userId, subjectCharacterId);
       if (!owned) {
@@ -62,10 +46,7 @@ function createImportGif(ctx: HubContext): HubService["importGif"] {
     try {
       fetched = await ctx.fetchGifImage(url);
     } catch (err) {
-      const rejected = new DomainOperationError(
-        HUB_OP_CODES.rejectedContent,
-        "That gif could not be imported.",
-      );
+      const rejected = new DomainOperationError(HUB_OP_CODES.rejectedContent, "That gif could not be imported.");
       rejected.cause = err;
       throw rejected;
     }

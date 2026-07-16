@@ -16,9 +16,7 @@ export type ToolSource = (typeof TOOL_SOURCES)[number];
 
 /** The declarative can() ceiling the execute path checks before invoking the handler; the owning domain's
  *  verbs stay the authoritative gates underneath. `null` = member floor. */
-export type ToolCapability =
-  | { readonly scope: "chat"; readonly action: ChatAction }
-  | { readonly scope: "global"; readonly action: GlobalAction };
+export type ToolCapability = { readonly scope: "chat"; readonly action: ChatAction } | { readonly scope: "global"; readonly action: GlobalAction };
 
 /** What a handler receives beside its parsed args. A handler needing anything else (a service, a db)
  *  closes over it at registration — never through this context. */
@@ -36,9 +34,7 @@ export interface ToolExecutionContext {
 
 /** What a handler returns: `ok:false` is a legality result the model narrates, distinct from a genuine bug
  *  (a throw, caught by execute). `value` must be JSON-serializable. */
-export type ToolHandlerResult =
-  | { readonly ok: true; readonly value: unknown }
-  | { readonly ok: false; readonly error: string };
+export type ToolHandlerResult = { readonly ok: true; readonly value: unknown } | { readonly ok: false; readonly error: string };
 
 /** A tool's handler. Args are already zod-parsed; a raw string never reaches a handler. */
 export type ToolHandler<A> = (args: A, exec: ToolExecutionContext) => Promise<ToolHandlerResult>;

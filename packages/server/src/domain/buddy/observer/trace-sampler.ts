@@ -9,10 +9,7 @@ import { isSlowTrace, traceSignal } from "./signals";
 const SLOW_TURN_MS = 20_000;
 const ERROR_SPIKE_COUNT = 3;
 
-type SamplerDeps = Pick<
-  BuddyObserverEnv,
-  "db" | "now" | "newQuipId" | "summarize" | "emit" | "readRecentTraces"
-> & { readonly ownerUserId: UserId };
+type SamplerDeps = Pick<BuddyObserverEnv, "db" | "now" | "newQuipId" | "summarize" | "emit" | "readRecentTraces"> & { readonly ownerUserId: UserId };
 
 /** Never throws — ring-read failures and `react` are both guarded/swallowed. */
 export function sampleTracesOnce(deps: SamplerDeps): void {

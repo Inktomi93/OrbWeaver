@@ -11,10 +11,7 @@ type SortableItemKey = string | number;
  *  sits at `lo` in `before` and `hi` in `after` when the drag went DOWN (`lo → hi`), and at `hi`/`lo`
  *  respectively when it went UP (`hi → lo`). Adjacent swaps collapse to the same resulting array from either
  *  end, so the tie is harmless. Returns `null` for a canceled/no-op drag (nothing diverged). */
-export function diffMove(
-  before: readonly SortableItemKey[],
-  after: readonly SortableItemKey[],
-): { from: number; to: number } | null {
+export function diffMove(before: readonly SortableItemKey[], after: readonly SortableItemKey[]): { from: number; to: number } | null {
   const lo = before.findIndex((key, i) => key !== after[i]);
   if (lo === -1) {
     return null;

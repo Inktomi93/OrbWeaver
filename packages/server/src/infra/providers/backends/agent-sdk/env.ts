@@ -100,22 +100,17 @@ const VLLM_PLACEHOLDER_TOKEN = "local-vllm";
 function claudeRuntimeEnv(overrides: ClaudeRuntimeOverrides): Record<string, string | undefined> {
   return {
     CLAUDE_CODE_DISABLE_THINKING: overrides.disableThinking === false ? undefined : "1",
-    CLAUDE_CODE_MAX_CONTEXT_TOKENS:
-      overrides.maxContextTokens !== undefined ? String(overrides.maxContextTokens) : undefined,
+    CLAUDE_CODE_MAX_CONTEXT_TOKENS: overrides.maxContextTokens !== undefined ? String(overrides.maxContextTokens) : undefined,
     CLAUDE_EFFORT: undefined,
-    CLAUDE_CODE_MAX_OUTPUT_TOKENS:
-      overrides.maxOutputTokens !== undefined ? String(overrides.maxOutputTokens) : undefined,
+    CLAUDE_CODE_MAX_OUTPUT_TOKENS: overrides.maxOutputTokens !== undefined ? String(overrides.maxOutputTokens) : undefined,
     DISABLE_AUTO_COMPACT: overrides.disableAutoCompact === true ? "1" : undefined,
-    CLAUDE_AUTOCOMPACT_PCT_OVERRIDE:
-      overrides.autoCompactPct !== undefined ? String(overrides.autoCompactPct) : undefined,
+    CLAUDE_AUTOCOMPACT_PCT_OVERRIDE: overrides.autoCompactPct !== undefined ? String(overrides.autoCompactPct) : undefined,
     ...ISOLATION_PINS,
   };
 }
 
 // Filters RESERVED_CLAUDE_ENV_KEYS first so a preset can never override auth/firewall/routing env; a reserved-key attempt drops silently.
-function claudeUserEnv(
-  userOverrides: Record<string, string | null> | undefined,
-): Record<string, string | undefined> {
+function claudeUserEnv(userOverrides: Record<string, string | null> | undefined): Record<string, string | undefined> {
   if (userOverrides === undefined) {
     return {};
   }
@@ -176,9 +171,7 @@ function emptyIsolatedConfigDir(): string {
   return mode2IsolatedDir;
 }
 
-export function buildClaudeSdkEnv(
-  overrides: ClaudeRuntimeOverrides = {},
-): Record<string, string | undefined> {
+export function buildClaudeSdkEnv(overrides: ClaudeRuntimeOverrides = {}): Record<string, string | undefined> {
   const isoDir = mode1IsolatedConfigDir();
   return {
     ...hostEnvForClaudeChild(),
@@ -200,9 +193,7 @@ export function buildClaudeOpenRouterEnv(
   overrides: ClaudeRuntimeOverrides = {},
 ): Record<string, string | undefined> {
   if (openRouterApiKey.length === 0) {
-    throw new Error(
-      "buildClaudeOpenRouterEnv: an OpenRouter API key is required for the Claude-API skin (mode-2).",
-    );
+    throw new Error("buildClaudeOpenRouterEnv: an OpenRouter API key is required for the Claude-API skin (mode-2).");
   }
   const configDir = emptyIsolatedConfigDir();
   return {
@@ -226,9 +217,7 @@ export function buildClaudeOpenRouterEnv(
 }
 
 // mode-3: agent-sdk runtime pointed at the local vLLM gen engine (loopback-only, so no SSRF/egress concern).
-export function buildClaudeVllmEnv(
-  overrides: ClaudeRuntimeOverrides = {},
-): Record<string, string | undefined> {
+export function buildClaudeVllmEnv(overrides: ClaudeRuntimeOverrides = {}): Record<string, string | undefined> {
   const configDir = emptyIsolatedConfigDir();
   const baseUrl = `http://${LOOPBACK_HOST}:${env.VLLM_GEN_PORT}`;
   // Claude Code can't resolve model ids containing "/" — the engine serves this slash-free alias via --served-model-name.

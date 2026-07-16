@@ -15,8 +15,7 @@ export const scrollAreaVariants = tv({
     content: "min-w-max",
     scrollbar:
       "flex touch-none select-none bg-transparent data-[orientation=vertical]:w-row data-[orientation=horizontal]:h-row data-[orientation=horizontal]:flex-col",
-    thumb:
-      "flex-1 rounded-full bg-muted-foreground/40 transition-colors duration-(--motion-fast) ease-out-expo hover:bg-muted-foreground/60",
+    thumb: "flex-1 rounded-full bg-muted-foreground/40 transition-colors duration-(--motion-fast) ease-out-expo hover:bg-muted-foreground/60",
     // The square where the two scrollbars meet — Base UI shows it only on both-axis overflow.
     corner: "bg-transparent",
   },

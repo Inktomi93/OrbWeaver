@@ -24,8 +24,7 @@ describe("debitTurnBudget", () => {
   });
 
   test("a limiter DomainRateLimitError becomes ChatOperationError('budget_exceeded')", async () => {
-    const op = (): Promise<void> =>
-      Promise.reject(new DomainRateLimitError("over", { msBeforeNext: 1000, remainingPoints: 0 }));
+    const op = (): Promise<void> => Promise.reject(new DomainRateLimitError("over", { msBeforeNext: 1000, remainingPoints: 0 }));
     let caught: unknown;
     try {
       await debitTurnBudget(op, TRIGGERED_BY, 1);

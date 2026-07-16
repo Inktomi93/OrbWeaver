@@ -16,10 +16,7 @@ export function createBulkImportPersonas(ctx: PersonaImportContext): BulkImportP
   return async ({ ownerId, personas: input }): Promise<BulkImportPersonasResult> => {
     const { db } = ctx;
 
-    const existing = await db
-      .select({ id: personas.id, name: personas.name })
-      .from(personas)
-      .where(eq(personas.ownerId, ownerId));
+    const existing = await db.select({ id: personas.id, name: personas.name }).from(personas).where(eq(personas.ownerId, ownerId));
     const idByName: Record<string, PersonaId> = {};
     for (const p of existing) {
       const key = p.name.trim().toLowerCase();

@@ -68,11 +68,7 @@ export const gate: GateDescriptor = {
   visit: (node, sf, ctx) => {
     const path = sf.getFilePath();
     // Type arm: a MemberCardView interface/type-alias declaration outside contracts.
-    if (
-      (NodeGuards.isInterfaceDeclaration(node) || NodeGuards.isTypeAliasDeclaration(node)) &&
-      node.getName() === VIEW_TYPE &&
-      !CONTRACTS.test(path)
-    ) {
+    if ((NodeGuards.isInterfaceDeclaration(node) || NodeGuards.isTypeAliasDeclaration(node)) && node.getName() === VIEW_TYPE && !CONTRACTS.test(path)) {
       reportAt(ctx, node, TYPE_MESSAGE, VIEW_TYPE);
       return;
     }

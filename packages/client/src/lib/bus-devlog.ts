@@ -57,9 +57,7 @@ function clockMs(): number {
  *  lines across the log without the full 26-char ulid on every row. */
 function shortId(id: string): string {
   const cut = id.indexOf("_");
-  return cut === -1 || id.length <= SHORT_ID_WHOLE_MAX
-    ? id
-    : `${id.slice(0, cut + 1)}…${id.slice(-SHORT_ID_TAIL)}`;
+  return cut === -1 || id.length <= SHORT_ID_WHOLE_MAX ? id : `${id.slice(0, cut + 1)}…${id.slice(-SHORT_ID_TAIL)}`;
 }
 
 /** A subscription attached. `replay` ⇒ seeded with a replay cursor — the one path that can re-deliver
@@ -83,12 +81,7 @@ export function busUnsubscribe(chatId: string): void {
     return;
   }
   liveSubscriptions = Math.max(0, liveSubscriptions - 1);
-  console.info(
-    `%c${logClock()} [bus] %c⊝ unsubscribe ${shortId(chatId)}%c  · live=${liveSubscriptions}`,
-    PREFIX_STYLE,
-    LIFECYCLE_STYLE,
-    MUTED_STYLE,
-  );
+  console.info(`%c${logClock()} [bus] %c⊝ unsubscribe ${shortId(chatId)}%c  · live=${liveSubscriptions}`, PREFIX_STYLE, LIFECYCLE_STYLE, MUTED_STYLE);
 }
 
 /** A canon event dispatched through the invalidation seam → the query keys it refetched. Empty ⇒
@@ -98,12 +91,7 @@ export function busInvalidate(type: string, chatId: string, keys: readonly strin
     return;
   }
   const arrow = keys.length === 0 ? "→ (none)" : `→ ${keys.join(", ")}`;
-  console.info(
-    `%c${logClock()} [bus] %c◆ ${type} ${shortId(chatId)}%c ${arrow}`,
-    PREFIX_STYLE,
-    EVENT_STYLE,
-    MUTED_STYLE,
-  );
+  console.info(`%c${logClock()} [bus] %c◆ ${type} ${shortId(chatId)}%c ${arrow}`, PREFIX_STYLE, EVENT_STYLE, MUTED_STYLE);
   busEventLog.push({ at: clockMs(), type, chatId, keys });
   if (busEventLog.length > BUS_RING_CAP) {
     busEventLog.shift();

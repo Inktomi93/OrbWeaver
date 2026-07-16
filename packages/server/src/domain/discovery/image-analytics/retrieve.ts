@@ -33,20 +33,14 @@ function groupByModel<T extends { readonly model: string }>(rows: readonly T[]):
   return groups;
 }
 
-export function createImageAnalyticsRetrieve(
-  ctx: DiscoveryContext,
-): Pick<DiscoveryService, "imageDuplicates" | "visualArchetypes"> {
+export function createImageAnalyticsRetrieve(ctx: DiscoveryContext): Pick<DiscoveryService, "imageDuplicates" | "visualArchetypes"> {
   return {
     imageDuplicates: (userId, threshold) => imageDuplicates(ctx.db, userId, threshold),
     visualArchetypes: (userId, k) => visualArchetypes(ctx.db, userId, k),
   };
 }
 
-async function imageDuplicates(
-  db: Db,
-  ownerId: UserId,
-  threshold = DEFAULT_IMAGE_DUP_THRESHOLD,
-): Promise<ImageDuplicatePair[]> {
+async function imageDuplicates(db: Db, ownerId: UserId, threshold = DEFAULT_IMAGE_DUP_THRESHOLD): Promise<ImageDuplicatePair[]> {
   const avatars = await readOwnedAvatarVectors(db, ownerId);
   const out: ImageDuplicatePair[] = [];
   for (const [, group] of groupByModel(avatars)) {
@@ -95,11 +89,7 @@ function mode(m: Map<string, number>): string | null {
   return [...m.entries()].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))[0]?.[0] ?? null;
 }
 
-function visualArchetypesForGroup(
-  group: readonly AvatarVector[],
-  labels: Map<CharacterId, VisualLabels>,
-  k: number,
-): VisualArchetype[] {
+function visualArchetypesForGroup(group: readonly AvatarVector[], labels: Map<CharacterId, VisualLabels>, k: number): VisualArchetype[] {
   if (group.length < k + 1) {
     return [];
   }
@@ -145,10 +135,7 @@ function buildVisualArchetype(acc: VisualClusterAcc, model: string): VisualArche
   const artStyle = mode(acc.artStyle);
   const palette = mode(acc.palette);
   const mood = mode(acc.mood);
-  const label =
-    [artStyle, mood].filter((x) => x !== null).join(" · ") ||
-    [tone, genre].filter((x) => x !== null).join(" ") ||
-    "mixed";
+  const label = [artStyle, mood].filter((x) => x !== null).join(" · ") || [tone, genre].filter((x) => x !== null).join(" ") || "mixed";
   return {
     label,
     genre,
@@ -170,14 +157,9 @@ interface VisualLabels {
   mood: string | null;
 }
 
-const metaStr = (m: Record<string, unknown> | null, key: string): string | null =>
-  m !== null && typeof m[key] === "string" ? (m[key] as string) : null;
+const metaStr = (m: Record<string, unknown> | null, key: string): string | null => (m !== null && typeof m[key] === "string" ? (m[key] as string) : null);
 
-async function visualArchetypes(
-  db: Db,
-  ownerId: UserId,
-  k = DEFAULT_VISUAL_K,
-): Promise<VisualArchetype[]> {
+async function visualArchetypes(db: Db, ownerId: UserId, k = DEFAULT_VISUAL_K): Promise<VisualArchetype[]> {
   const [avatars, cardFacets, captions] = await Promise.all([
     readOwnedAvatarVectors(db, ownerId),
     readOwnedCardFacets(db, ownerId),

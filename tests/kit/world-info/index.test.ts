@@ -103,10 +103,7 @@ test("matchEntryKeys folds key case and trims whitespace before matching", () =>
 });
 
 test("matchEntryKeys returns every distinct key that fired, in input order", () => {
-  expect(matchEntryKeys(["sword", "shield", "bow"], "a sword and a shield")).toEqual([
-    "sword",
-    "shield",
-  ]);
+  expect(matchEntryKeys(["sword", "shield", "bow"], "a sword and a shield")).toEqual(["sword", "shield"]);
   expect(matchEntryKeys(["dragon"], "no monsters here")).toEqual([]);
 });
 
@@ -131,9 +128,7 @@ test("keyRegex returns the same cached instance for a repeated key", () => {
 });
 
 test("the haystack builder joins messages and names, drops empties, and lower-cases", () => {
-  expect(buildKeywordHaystack(["Hello There"], ["Alice", "", "Bob"])).toBe(
-    "hello there\nalice\nbob",
-  );
+  expect(buildKeywordHaystack(["Hello There"], ["Alice", "", "Bob"])).toBe("hello there\nalice\nbob");
   expect(buildKeywordHaystack([], [])).toBe("");
 });
 

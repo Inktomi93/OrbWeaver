@@ -10,12 +10,7 @@
 import { CACHE_MIN_FLOOR } from "@orb/contracts/connection";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type {
-  AnthropicMessagesChatRequest,
-  ChatResult,
-  ChatUsage,
-  ResolvedChatKnobs,
-} from "../../contract";
+import type { AnthropicMessagesChatRequest, ChatResult, ChatUsage, ResolvedChatKnobs } from "../../contract";
 import { normalizeFinishReason } from "../../contract";
 import { resolveChat } from "../../resolve-chat";
 import { logProviderCache, logProviderCapability, turnAbortSignal } from "../kit";
@@ -35,11 +30,7 @@ export interface AnthDirectChatDeps {
 // The `provider.cache` receipt (part 05 §3a) — THE cache-rot signal. Decoupled: reads RESOLVED facts (usage
 // counts + the placer's returned offsets + the resolved floor), NO model-id/wire branch. Only turns on an
 // `explicitPromptCache` wire (the static system block is breakpoint #1; the rolling pair adds #2/#3).
-function emitCacheReceipt(
-  req: AnthropicMessagesChatRequest,
-  usage: ChatUsage,
-  turnId: string,
-): void {
+function emitCacheReceipt(req: AnthropicMessagesChatRequest, usage: ChatUsage, turnId: string): void {
   if (req.capability.turns?.explicitPromptCache !== true) {
     return;
   }
@@ -56,7 +47,7 @@ function emitCacheReceipt(
     hitRatio: total > 0 ? usage.cacheReadTokens / total : 0,
     // The floor the placer actually used (fail-closed to CACHE_MIN_FLOOR when the capability didn't seed
     // an exact per-model floor — matches request.ts `cacheMinTokens`, so the receipt reports the real gate).
-    minCacheTokens: req.capability.turns?.cacheMinTokens ?? CACHE_MIN_FLOOR,
+    minCacheTokens: req.capability.turns.cacheMinTokens ?? CACHE_MIN_FLOOR,
   });
 }
 
@@ -65,10 +56,7 @@ function emitCacheReceipt(
 // warnings) — NO `wireShape` string materialized (that stays domain-internal per the anti-ST bar); `api` +
 // `credentialSource` are REPORT-ONLY fields, information-equivalent to it, the SAME vocab `provider.turn`
 // already carries. NO model-id/wire branch at the emit site.
-function emitCapabilityReceipt(
-  req: AnthropicMessagesChatRequest,
-  resolved: ResolvedChatKnobs,
-): void {
+function emitCapabilityReceipt(req: AnthropicMessagesChatRequest, resolved: ResolvedChatKnobs): void {
   logProviderCapability("anth-direct", {
     turnId: resolved.turnId,
     api: req.api,
@@ -81,11 +69,7 @@ function emitCapabilityReceipt(
 
 // Map the reduced stream + capability provenance → the cross-backend `ChatUsage`. The Messages API doesn't
 // return the OR cost tail on `/v1/messages`, so per-phase cost fields are `null` (verify-then-add, §5e).
-function mapUsage(
-  req: AnthropicMessagesChatRequest,
-  reduced: AnthReducedTurn,
-  maxOutputTokens: number,
-): ChatUsage {
+function mapUsage(req: AnthropicMessagesChatRequest, reduced: AnthReducedTurn, maxOutputTokens: number): ChatUsage {
   return {
     model: req.model,
     tokensIn: reduced.inputTokens,
@@ -106,12 +90,7 @@ function mapUsage(
 
 // Map the reduced stream → the cross-backend `ChatResult`. Stateless-backend semantics: no
 // session/heal/warm-spare/context-usage/mcp fields (`null`/absent, §5e).
-function mapResult(
-  req: AnthropicMessagesChatRequest,
-  reduced: AnthReducedTurn,
-  durationApiMs: number,
-  maxOutputTokens: number,
-): ChatResult {
+function mapResult(req: AnthropicMessagesChatRequest, reduced: AnthReducedTurn, durationApiMs: number, maxOutputTokens: number): ChatResult {
   return {
     reply: reduced.reply,
     reasoning: reduced.reasoning,
@@ -136,11 +115,7 @@ function mapResult(
  * reduces it, maps the result, emits `provider.turn` + `provider.cache`, and maps any failure through the
  * kit classification path (`anthDirectError`) — the credential NEVER appears in a log/event/error (§6).
  */
-export async function runAnthDirectTurn(
-  client: AnthClient,
-  req: AnthropicMessagesChatRequest,
-  deps: AnthDirectChatDeps,
-): Promise<ChatResult> {
+export async function runAnthDirectTurn(client: AnthClient, req: AnthropicMessagesChatRequest, deps: AnthDirectChatDeps): Promise<ChatResult> {
   const startedAt = deps.now();
   const resolved = resolveChat(req.params, req.capability);
   const params = buildAnthMessageParams(req, resolved);

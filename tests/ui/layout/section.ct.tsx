@@ -4,9 +4,7 @@
 import { Section } from "@orb/ui/layout";
 import { expect, test } from "@playwright/experimental-ct-react";
 
-test("renders the heading slot and does NOT self-pad (spacing is the container gap)", async ({
-  mount,
-}) => {
+test("renders the heading slot and does NOT self-pad (spacing is the container gap)", async ({ mount }) => {
   const component = await mount(
     <Section heading="Sampling">
       <p>content</p>

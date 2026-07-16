@@ -46,9 +46,7 @@ test("edit/hide/fork are all available on an assistant row", async ({ mount }) =
   await expect(component.getByRole("button", { name: "Fork chat here" })).toBeVisible();
 });
 
-test("the action cluster rests DIM (not hidden) and carries the hover/focus/coarse brighten hooks (§B.1 UIP-305)", async ({
-  mount,
-}) => {
+test("the action cluster rests DIM (not hidden) and carries the hover/focus/coarse brighten hooks (§B.1 UIP-305)", async ({ mount }) => {
   const component = await mount(<MessageActionsRowStory />);
   const cluster = component.locator("[data-slot='message-actions-row']");
 
@@ -75,9 +73,7 @@ test("hide-from-AI fires setMessageHidden with the flipped flag", async ({ mount
   await revealActions(component);
   await component.getByRole("button", { name: "Hide from AI" }).click();
 
-  await expect
-    .poll(() => trpc.count("chat.setMessageHidden"), { intervals: [20, 50, 100] })
-    .toBe(1);
+  await expect.poll(() => trpc.count("chat.setMessageHidden"), { intervals: [20, 50, 100] }).toBe(1);
   expect(trpc.lastInput("chat.setMessageHidden")).toMatchObject({
     messageId: message.id,
     hidden: true,
@@ -92,19 +88,14 @@ test("an already-hidden row shows Unhide and toggles the flag back", async ({ mo
   await revealActions(component);
   await component.getByRole("button", { name: "Unhide from AI" }).click();
 
-  await expect
-    .poll(() => trpc.count("chat.setMessageHidden"), { intervals: [20, 50, 100] })
-    .toBe(1);
+  await expect.poll(() => trpc.count("chat.setMessageHidden"), { intervals: [20, 50, 100] }).toBe(1);
   expect(trpc.lastInput("chat.setMessageHidden")).toMatchObject({
     messageId: message.id,
     hidden: false,
   });
 });
 
-test("delete opens a confirm dialog; confirming fires deleteMessages with this ONE messageId", async ({
-  mount,
-  page,
-}) => {
+test("delete opens a confirm dialog; confirming fires deleteMessages with this ONE messageId", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, { "chat.deleteMessages": () => null });
   const message = makeMessageView();
   const component = await mount(<MessageActionsRowStory message={message} />);
@@ -145,11 +136,7 @@ test("fork fires forkChat with this message's seq as throughSeq", async ({ mount
   expect(trpc.lastInput("chat.forkChat")).toMatchObject({ chatId: message.chatId, throughSeq: 7 });
 });
 
-test("copy writes the message content to the clipboard (no network call)", async ({
-  mount,
-  page,
-  context,
-}) => {
+test("copy writes the message content to the clipboard (no network call)", async ({ mount, page, context }) => {
   await context.grantPermissions(["clipboard-read", "clipboard-write"]);
   const message = makeMessageView({ content: "copy me please" });
   const component = await mount(<MessageActionsRowStory message={message} />);

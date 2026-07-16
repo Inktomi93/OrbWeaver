@@ -19,10 +19,7 @@ export function createResetPassword(ctx: AdminContext): AdminService["resetPassw
     const { userId, password } = params;
 
     if (password.length < MIN_PASSWORD_LENGTH) {
-      throw new DomainOperationError(
-        ADMIN_OP_CODES.weakPassword,
-        `password must be at least ${MIN_PASSWORD_LENGTH} characters`,
-      );
+      throw new DomainOperationError(ADMIN_OP_CODES.weakPassword, `password must be at least ${MIN_PASSWORD_LENGTH} characters`);
     }
 
     const target = await loadUser(ctx.db, userId);
@@ -31,10 +28,7 @@ export function createResetPassword(ctx: AdminContext): AdminService["resetPassw
     }
     // An agent principal is loginless — there is no password to reset.
     if (target.kind === "agent") {
-      throw new DomainOperationError(
-        ADMIN_OP_CODES.cannotModifyAgent,
-        "an agent principal is loginless — it has no password to reset",
-      );
+      throw new DomainOperationError(ADMIN_OP_CODES.cannotModifyAgent, "an agent principal is loginless — it has no password to reset");
     }
 
     const passwordHash = await ctx.hashPassword(password);

@@ -17,13 +17,7 @@ export interface SelectionBarProps {
 }
 
 /** Bulk-action chrome. Render-null-when-zero is the caller's concern — this primitive always renders exactly what it's given. */
-export function SelectionBar({
-  count,
-  onClear,
-  children,
-  placement,
-  className,
-}: SelectionBarProps): ReactElement {
+export function SelectionBar({ count, onClear, children, placement, className }: SelectionBarProps): ReactElement {
   const slots = selectionBarVariants({ placement });
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -50,14 +44,7 @@ export function SelectionBar({
       <div className={slots.actions()} data-slot="selection-bar-actions">
         {children}
       </div>
-      <Button
-        aria-label="Clear selection"
-        data-slot="selection-bar-clear"
-        intent="ghost"
-        onClick={onClear}
-        size="icon"
-        type="button"
-      >
+      <Button aria-label="Clear selection" data-slot="selection-bar-clear" intent="ghost" onClick={onClear} size="icon" type="button">
         <Icon icon={X} size="sm" />
       </Button>
     </div>

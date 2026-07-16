@@ -12,8 +12,7 @@ export function Toolbar({ className, ...props }: ToolbarProps): ReactElement {
   return <BaseToolbar.Root {...props} className={toolbarVariants({ className })} />;
 }
 
-export interface ToolbarButtonProps
-  extends Omit<ComponentProps<typeof BaseToolbar.Button>, "className"> {
+export interface ToolbarButtonProps extends Omit<ComponentProps<typeof BaseToolbar.Button>, "className"> {
   className?: string;
 }
 
@@ -22,8 +21,7 @@ export function ToolbarButton({ className, ...props }: ToolbarButtonProps): Reac
   return <BaseToolbar.Button {...props} className={toolbarButtonVariants({ className })} />;
 }
 
-export interface ToolbarSeparatorProps
-  extends Omit<ComponentProps<typeof BaseToolbar.Separator>, "className"> {
+export interface ToolbarSeparatorProps extends Omit<ComponentProps<typeof BaseToolbar.Separator>, "className"> {
   className?: string;
 }
 

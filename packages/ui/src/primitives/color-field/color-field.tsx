@@ -27,11 +27,7 @@ export function ColorSwatch({ value, label, className }: ColorSwatchProps): Reac
   const safe = isSafeColor(value);
   return (
     <span className={slots.root({ className })} data-slot="color-swatch">
-      <span
-        className={slots.swatch()}
-        data-slot="color-swatch-chip"
-        style={safe ? { backgroundColor: value } : undefined}
-      />
+      <span className={slots.swatch()} data-slot="color-swatch-chip" style={safe ? { backgroundColor: value } : undefined} />
       {label === undefined ? null : <span className={slots.hexText()}>{label}</span>}
     </span>
   );
@@ -62,26 +58,14 @@ interface ColorFieldTriggerGlyphProps {
 }
 
 /** The trigger's swatch/spinner/checkmark dispatch, split out to avoid a 3-way nested ternary. */
-function ColorFieldTriggerGlyph({
-  loading,
-  success,
-  isValid,
-  value,
-  slots,
-}: ColorFieldTriggerGlyphProps): ReactElement {
+function ColorFieldTriggerGlyph({ loading, success, isValid, value, slots }: ColorFieldTriggerGlyphProps): ReactElement {
   if (loading) {
     return <Spinner label="Saving color…" size="sm" />;
   }
   if (success) {
     return <Icon icon={Check} label="Saved" size="sm" />;
   }
-  return (
-    <span
-      className={slots.swatch()}
-      data-slot="color-field-swatch"
-      style={isValid ? { backgroundColor: value } : undefined}
-    />
-  );
+  return <span className={slots.swatch()} data-slot="color-field-swatch" style={isValid ? { backgroundColor: value } : undefined} />;
 }
 
 const NATIVE_HEX_RE = /^#[0-9a-f]{6}$/iu;
@@ -164,13 +148,7 @@ export function ColorField({
                 {...(ariaLabelledby === undefined ? {} : { "aria-labelledby": ariaLabelledby })}
                 {...(ariaDescribedby === undefined ? {} : { "aria-describedby": ariaDescribedby })}
               >
-                <ColorFieldTriggerGlyph
-                  isValid={isSafeColor(value)}
-                  loading={loading}
-                  slots={slots}
-                  success={success}
-                  value={value}
-                />
+                <ColorFieldTriggerGlyph isValid={isSafeColor(value)} loading={loading} slots={slots} success={success} value={value} />
               </button>
             }
           />
@@ -186,21 +164,10 @@ export function ColorField({
             type="color"
             value={nativeHex}
           />
-          <Field
-            className={slots.hexField()}
-            label="Hex"
-            {...(showError ? { error: "Enter a valid color (hex, rgb, hsl, or oklch)." } : {})}
-          >
+          <Field className={slots.hexField()} label="Hex" {...(showError ? { error: "Enter a valid color (hex, rgb, hsl, or oklch)." } : {})}>
             <Input onValueChange={commit} spellCheck={false} value={draft} />
           </Field>
-          <Button
-            className={slots.resetButton()}
-            data-slot="color-field-reset"
-            intent="ghost"
-            onClick={handleReset}
-            size="sm"
-            type="button"
-          >
+          <Button className={slots.resetButton()} data-slot="color-field-reset" intent="ghost" onClick={handleReset} size="sm" type="button">
             Reset to default
           </Button>
         </div>

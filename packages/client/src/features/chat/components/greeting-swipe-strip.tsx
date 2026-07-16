@@ -28,12 +28,7 @@ export interface GreetingSwipeStripProps {
 }
 
 /** The `n / m` greeting-alternate counter + prev/next for a draft greeting row. */
-export function GreetingSwipeStrip({
-  draftKey,
-  characterId,
-  variants,
-  current,
-}: GreetingSwipeStripProps): ReactElement {
+export function GreetingSwipeStrip({ draftKey, characterId, variants, current }: GreetingSwipeStripProps): ReactElement {
   const total = variants.length;
   const currentIdx = variants.indexOf(current);
   const atCustom = currentIdx === -1;
@@ -51,25 +46,13 @@ export function GreetingSwipeStrip({
 
   return (
     <Row gap="field" align="center" data-slot="greeting-swipe-strip">
-      <Button
-        intent="ghost"
-        size="icon"
-        disabled={!canPrev}
-        aria-label="Previous greeting"
-        onClick={(): void => pick(prevIdx)}
-      >
+      <Button intent="ghost" size="icon" disabled={!canPrev} aria-label="Previous greeting" onClick={(): void => pick(prevIdx)}>
         <Icon icon={ChevronLeft} size="sm" />
       </Button>
       <Text as="span" size="label" tone="muted">
         {atCustom ? "—" : currentIdx + 1} / {total}
       </Text>
-      <Button
-        intent="ghost"
-        size="icon"
-        disabled={!canNext}
-        aria-label="Next greeting"
-        onClick={(): void => pick(nextIdx)}
-      >
+      <Button intent="ghost" size="icon" disabled={!canNext} aria-label="Next greeting" onClick={(): void => pick(nextIdx)}>
         <Icon icon={ChevronRight} size="sm" />
       </Button>
     </Row>

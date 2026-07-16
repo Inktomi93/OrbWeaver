@@ -35,11 +35,7 @@ const HUNG_THRESHOLD = 3;
 const RESTART_BACKOFF_1_MS = 5000;
 const RESTART_BACKOFF_2_MS = 15_000;
 const RESTART_BACKOFF_3_MS = 45_000;
-const RESTART_BACKOFF_MS: readonly number[] = [
-  RESTART_BACKOFF_1_MS,
-  RESTART_BACKOFF_2_MS,
-  RESTART_BACKOFF_3_MS,
-];
+const RESTART_BACKOFF_MS: readonly number[] = [RESTART_BACKOFF_1_MS, RESTART_BACKOFF_2_MS, RESTART_BACKOFF_3_MS];
 const BREAKER_MAX_RESTARTS = 3;
 const BREAKER_WINDOW_MS = 600_000; // 10 minutes
 const BREAKER_HALF_OPEN_MS = 900_000; // 15 minutes
@@ -75,11 +71,7 @@ interface TickInput {
 }
 
 function decideFailed(t: TickInput): TickAction {
-  if (
-    t.failedAt !== undefined &&
-    t.now - t.failedAt >= BREAKER_HALF_OPEN_MS &&
-    t.probe === "free"
-  ) {
+  if (t.failedAt !== undefined && t.now - t.failedAt >= BREAKER_HALF_OPEN_MS && t.probe === "free") {
     return { kind: "spawn", reason: "breaker half-open probe" };
   }
   if (t.probe === "healthy") {
@@ -114,12 +106,7 @@ function decideFree(t: TickInput): TickAction {
     // Child alive but port not bound yet (vLLM binds late) vs. the child actually exited.
     return t.childAlive ? { kind: "none" } : { kind: "restart", reason: "owned engine exited" };
   }
-  if (
-    t.stackMode &&
-    !t.seenHealthy &&
-    !t.laterEngineHealthy &&
-    t.now - t.bootAt < STACK_BOOT_GRACE_MS
-  ) {
+  if (t.stackMode && !t.seenHealthy && !t.laterEngineHealthy && t.now - t.bootAt < STACK_BOOT_GRACE_MS) {
     return { kind: "mark", status: "stack-pending", detail: "waiting for stack leader" };
   }
   return {
@@ -147,10 +134,7 @@ export function decideTick(t: TickInput): TickAction {
 }
 
 /** Breaker bookkeeping: prune the window, decide if another restart is allowed. Pure. */
-export function breakerAllows(
-  restarts: readonly number[],
-  now: number,
-): { allowed: boolean; pruned: number[] } {
+export function breakerAllows(restarts: readonly number[], now: number): { allowed: boolean; pruned: number[] } {
   const pruned = restarts.filter((ts) => now - ts < BREAKER_WINDOW_MS);
   return { allowed: pruned.length < BREAKER_MAX_RESTARTS, pruned };
 }
@@ -163,10 +147,7 @@ const PS_ROW_RE = /^\s*(\d+)\s+(\d+)\s+(.*)$/;
  * starts in the repo root and never chdirs, so a core's cwd matching ours + its parent's NOT matching
  * means the parent died and it re-parented. Pure: `hasOurMarker` is injected so the /proc read is testable.
  */
-export function findOrphanedEngineCores(
-  psOutput: string,
-  hasOurMarker: (pid: number) => boolean,
-): number[] {
+export function findOrphanedEngineCores(psOutput: string, hasOurMarker: (pid: number) => boolean): number[] {
   const rows: { pid: number; ppid: number; args: string }[] = [];
   for (const line of psOutput.split("\n")) {
     const m = PS_ROW_RE.exec(line);
@@ -248,11 +229,7 @@ async function probeEngine(engine: VllmEngine): Promise<Probe> {
 const realSleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
 /** Start the supervisor; returns a graceful-drain closer. `now`/`sleep` are injected for determinism (tests drive backoff without wall-clock waits). */
-export function startVllmEngines(opts: {
-  repoRoot: string;
-  now: () => number;
-  sleep?: (ms: number) => Promise<void>;
-}): () => void {
+export function startVllmEngines(opts: { repoRoot: string; now: () => number; sleep?: (ms: number) => Promise<void> }): () => void {
   const { repoRoot, now } = opts;
   const sleep = opts.sleep ?? realSleep;
   const log = getLog().child({ component: "vllm-engines" });
@@ -341,10 +318,7 @@ export function startVllmEngines(opts: {
       await sleep(HEALTH_POLL_INTERVAL_MS);
     }
     if (s.status === "starting") {
-      log.warn(
-        { engine: s.engine },
-        "vllm-engines: not healthy before deadline — releasing spawn slot",
-      );
+      log.warn({ engine: s.engine }, "vllm-engines: not healthy before deadline — releasing spawn slot");
     }
   }
 
@@ -363,10 +337,7 @@ export function startVllmEngines(opts: {
         if (s.child !== undefined) {
           // A live child means this engine is already ours; never relabel it adopted/foreign (that
           // would lose the owned-hang → kill-our-child respawn recovery path).
-          log.warn(
-            { engine: s.engine, probe: reprobe },
-            "vllm-engines: queued spawn superseded — engine already ours",
-          );
+          log.warn({ engine: s.engine, probe: reprobe }, "vllm-engines: queued spawn superseded — engine already ours");
           return;
         }
         if (reprobe === "healthy") {
@@ -374,18 +345,12 @@ export function startVllmEngines(opts: {
         } else {
           mark(s, "foreign", "spawn skipped: port occupied while queued");
         }
-        log.warn(
-          { engine: s.engine, probe: reprobe },
-          "vllm-engines: queued spawn skipped — port no longer free",
-        );
+        log.warn({ engine: s.engine, probe: reprobe }, "vllm-engines: queued spawn skipped — port no longer free");
         return;
       }
       const reaped = await reapOrphanedEngineCores(repoRoot);
       if (reaped.length > 0) {
-        log.warn(
-          { engine: s.engine, reaped },
-          "vllm-engines: reaped orphaned EngineCore(s) before spawn",
-        );
+        log.warn({ engine: s.engine, reaped }, "vllm-engines: reaped orphaned EngineCore(s) before spawn");
         await sleep(ORPHAN_REAP_SETTLE_MS);
       }
       spawnOwned(s, reason);
@@ -412,20 +377,11 @@ export function startVllmEngines(opts: {
     s.restarts = pruned;
     if (!allowed) {
       s.failedAt = at;
-      mark(
-        s,
-        "failed",
-        `crash loop: ${BREAKER_MAX_RESTARTS} restarts in window; half-open in ${Math.round(BREAKER_HALF_OPEN_MS / MS_PER_MINUTE)}m`,
-      );
-      log.error(
-        { engine: s.engine, reason },
-        "vllm-engines: breaker OPEN — giving up until half-open",
-      );
+      mark(s, "failed", `crash loop: ${BREAKER_MAX_RESTARTS} restarts in window; half-open in ${Math.round(BREAKER_HALF_OPEN_MS / MS_PER_MINUTE)}m`);
+      log.error({ engine: s.engine, reason }, "vllm-engines: breaker OPEN — giving up until half-open");
       return;
     }
-    const backoff =
-      RESTART_BACKOFF_MS[Math.min(s.restarts.length, RESTART_BACKOFF_MS.length - 1)] ??
-      RESTART_BACKOFF_3_MS;
+    const backoff = RESTART_BACKOFF_MS[Math.min(s.restarts.length, RESTART_BACKOFF_MS.length - 1)] ?? RESTART_BACKOFF_3_MS;
     s.restarts.push(at);
     if (s.child) {
       s.child.stdin?.end();
@@ -471,9 +427,7 @@ export function startVllmEngines(opts: {
 
   function reconcileOne(s: EngineState, probes: ReadonlyMap<VllmEngine, Probe>): void {
     const probe = probes.get(s.engine) ?? "free";
-    const laterEngineHealthy = ENGINES.slice(ENGINES.indexOf(s.engine) + 1).some(
-      (e) => probes.get(e) === "healthy",
-    );
+    const laterEngineHealthy = ENGINES.slice(ENGINES.indexOf(s.engine) + 1).some((e) => probes.get(e) === "healthy");
     const action = decideTick({
       status: s.status,
       probe,

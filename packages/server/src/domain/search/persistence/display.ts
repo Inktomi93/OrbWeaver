@@ -21,11 +21,7 @@ interface CharacterDisplayRow {
 }
 
 /** Characters not returned (deleted between scan and enrich, or not the caller's) are simply absent. */
-export async function resolveCharacterDisplay(
-  db: ReadOnlyDb,
-  ownerId: UserId,
-  characterIds: readonly CharacterId[],
-): Promise<CharacterDisplayRow[]> {
+export async function resolveCharacterDisplay(db: ReadOnlyDb, ownerId: UserId, characterIds: readonly CharacterId[]): Promise<CharacterDisplayRow[]> {
   if (characterIds.length === 0) {
     return [];
   }
@@ -65,11 +61,7 @@ export async function resolveSegmentDisplay(
   if (segments.length === 0) {
     return [];
   }
-  const blockMatch = or(
-    ...segments.map((s) =>
-      and(eq(chatDigests.chatId, s.chatId), eq(chatDigests.blockIdx, s.blockIdx)),
-    ),
-  );
+  const blockMatch = or(...segments.map((s) => and(eq(chatDigests.chatId, s.chatId), eq(chatDigests.blockIdx, s.blockIdx))));
   const owned = and(eq(characters.ownerId, ownerId), eq(characters.synthetic, false));
   const displayCols = {
     chatId: chatDigests.chatId,
@@ -99,6 +91,7 @@ export async function resolveSegmentDisplay(
     .leftJoin(characterSummaries, eq(characterSummaries.characterId, characters.id))
     .where(and(eq(chatDigests.tier, 0), blockMatch, owned));
 
+  // @orb-gate-ignore persistence-no-in-memory-state: query-local dedup Set for segment credit deduplication
   const seen = new Set<string>();
   const credits: SegmentCredit[] = [];
   for (const r of [...speakerRows, ...scopedRows]) {

@@ -16,10 +16,7 @@ import { loadOwnedBook } from "../../persistence/queries";
 export function createAttachToChat(ctx: WorldInfoContext): WorldInfoService["attachToChat"] {
   return async ({ principal, chatId, bookId }: AttachToChatParams) => {
     const ownerId = principal.userId;
-    const [, book] = await Promise.all([
-      ctx.requireChatHost(principal, chatId),
-      loadOwnedBook(ctx.db, ownerId, bookId),
-    ]);
+    const [, book] = await Promise.all([ctx.requireChatHost(principal, chatId), loadOwnedBook(ctx.db, ownerId, bookId)]);
     if (book === undefined) {
       throw new WorldInfoNotFoundError("world_book", bookId);
     }

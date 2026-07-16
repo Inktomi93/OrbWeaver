@@ -153,11 +153,7 @@ describe("smartArbitrate — short-circuits (no LLM call)", () => {
     const summarize = summarizeReturning("Aria");
     const out = await smartArbitrate({
       summarize,
-      candidates: [
-        candidate("aria"),
-        candidate("bran", { disabled: true }),
-        candidate("cara", { leftSeq: 3 }),
-      ],
+      candidates: [candidate("aria"), candidate("bran", { disabled: true }), candidate("cara", { leftSeq: 3 })],
       castNames: CAST,
       recentHistory: "...",
       lastSpeaker: null,

@@ -38,10 +38,7 @@ const DEFAULT_REPLAY_TTL_MS = 5000;
  * expired, so idle keys don't accumulate. Cleared on process restart (subscribers re-attach and
  * re-snapshot). `now` is the injectable clock (default `Date.now`).
  */
-export function createReplayBuffer<K, E>(
-  ttlMs: number = DEFAULT_REPLAY_TTL_MS,
-  now: () => number = Date.now,
-): ReplayBuffer<K, E> {
+export function createReplayBuffer<K, E>(ttlMs: number = DEFAULT_REPLAY_TTL_MS, now: () => number = Date.now): ReplayBuffer<K, E> {
   const rings = new Map<K, BufferedEvent<E>[]>();
 
   // ── Global stale sweep ──

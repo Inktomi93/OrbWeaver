@@ -18,10 +18,7 @@ export function genDurationMs(startedAt: number | null, finishedAt: number | nul
 
 /** The quiet-metadata label for a gen duration: sub-second → whole `Nms`, else `N.Ns` (one decimal).
  *  Returns null when there is no complete window to show (caller renders no chip). */
-export function genDurationLabel(
-  startedAt: number | null,
-  finishedAt: number | null,
-): string | null {
+export function genDurationLabel(startedAt: number | null, finishedAt: number | null): string | null {
   const ms = genDurationMs(startedAt, finishedAt);
   if (ms === null) {
     return null;

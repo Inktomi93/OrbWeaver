@@ -74,13 +74,7 @@ describe("the per-user path (D21)", () => {
     const cas = createCas(root);
     const { hash } = await cas.putBytes(OWNER_A, BYTES, NOW);
 
-    const expected = join(
-      root,
-      "user_alpha",
-      hash.slice(0, SHARD_A_END),
-      hash.slice(SHARD_A_END, SHARD_B_END),
-      hash,
-    );
+    const expected = join(root, "user_alpha", hash.slice(0, SHARD_A_END), hash.slice(SHARD_A_END, SHARD_B_END), hash);
     expect(cas.blobPath(OWNER_A, hash)).toBe(expected);
     await expect(stat(expected)).resolves.toBeDefined();
   });
@@ -106,9 +100,7 @@ describe("owner isolation (D21 — no cross-user oracle)", () => {
     expect(b.created).toBe(true); // NOT deduped across owners
     expect(new Uint8Array(await cas.read(OWNER_A, a.hash))).toEqual(BYTES);
     expect(new Uint8Array(await cas.read(OWNER_B, b.hash))).toEqual(BYTES);
-    expect(await collect(cas.listOwners())).toEqual(
-      expect.arrayContaining(["user_alpha", "user_beta"]),
-    );
+    expect(await collect(cas.listOwners())).toEqual(expect.arrayContaining(["user_alpha", "user_beta"]));
   });
 });
 

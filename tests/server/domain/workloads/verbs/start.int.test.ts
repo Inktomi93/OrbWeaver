@@ -2,12 +2,7 @@
 // security core): a SINGULAR run is any authed caller (owned by self); a BULK run is BOX-OWNER-only; an
 // unsupported mode / a missing bulk-create target / a bad target are typed errors.
 
-import {
-  DomainConflictError,
-  DomainForbiddenError,
-  DomainNotFoundError,
-  DomainOperationError,
-} from "@orb/kit/errors";
+import { DomainConflictError, DomainForbiddenError, DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
@@ -160,9 +155,7 @@ describe("workloads.start — bulk CREATE-kind target (import-st)", () => {
       targetOwnerId: target,
       ownerId: null,
     });
-    expect((await s.get({ id, caller: principal("user_owner_box", "owner") })).ownerId).toBe(
-      target,
-    );
+    expect((await s.get({ id, caller: principal("user_owner_box", "owner") })).ownerId).toBe(target);
   });
 
   test("a bulk import into a NON-existent target → leak-free NOT_FOUND (the owner FK)", async () => {

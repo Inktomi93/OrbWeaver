@@ -15,13 +15,7 @@ import type { ReactElement } from "react";
 import { useId, useRef } from "react";
 import { SettingSwitchRow } from "#components";
 import type { Trpc } from "#data";
-import {
-  createEntityMutation,
-  QueryBoundary,
-  QueryErrorState,
-  useInvalidation,
-  useTRPC,
-} from "#data";
+import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { notify, useFocusOnMount } from "#lib";
 import { settingsAnchorId } from "#state";
 import { PERSONA_SUBCATEGORY_IDS } from "../lib/personas-nav";
@@ -51,9 +45,7 @@ export function PersonaSettingsSurface(): ReactElement {
     <Stack ref={surfaceRef} tabIndex={-1} className="outline-none">
       <QueryBoundary
         fallback={<Text tone="muted">Loading your persona settings…</Text>}
-        renderError={(_error, retry): ReactElement => (
-          <QueryErrorState label="your persona settings" onRetry={retry} />
-        )}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label="your persona settings" onRetry={retry} />}
       >
         <PersonaSettingsForm />
       </QueryBoundary>
@@ -96,15 +88,9 @@ function PersonaSettingsForm(): ReactElement {
         id={notifyId}
         label="Notify me when my persona changes in a chat"
         checked={data.config.persona.showNotifications}
-        onChange={(next): void =>
-          setPrefs.mutate({ section: "persona", patch: { showNotifications: next } })
-        }
+        onChange={(next): void => setPrefs.mutate({ section: "persona", patch: { showNotifications: next } })}
       />
-      <SettingRow
-        id={restoreId}
-        label="Restore personas from a backup"
-        description="A JSON export from this app, or a batch of one/many personas."
-      >
+      <SettingRow id={restoreId} label="Restore personas from a backup" description="A JSON export from this app, or a batch of one/many personas.">
         <FileTrigger
           accept="application/json"
           onFilesSelected={([file]): void => {

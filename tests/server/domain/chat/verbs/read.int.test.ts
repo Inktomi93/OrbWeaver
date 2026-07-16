@@ -49,8 +49,7 @@ function principal(userId: UserId): Principal {
 function makeDeps(): Parameters<typeof createRead>[1] {
   return {
     loadParticipantViews,
-    resolveConnection: () =>
-      Promise.resolve({ model: "test-model" } as unknown as ResolvedConnection),
+    resolveConnection: () => Promise.resolve({ model: "test-model" } as unknown as ResolvedConnection),
     resolveForeignInputs: () =>
       Promise.resolve({
         promptConfig: DEFAULT_PROMPT_CONFIG,
@@ -250,9 +249,7 @@ describe("read — single reads", () => {
     const { messageId } = await seedMessage(db, other, 1);
 
     const { listMessageVariants } = createRead(makeChatContext(db), makeDeps());
-    await expect(
-      listMessageVariants({ principal: principal(me), chatId, messageId }),
-    ).rejects.toBeInstanceOf(ChatNotFoundError);
+    await expect(listMessageVariants({ principal: principal(me), chatId, messageId })).rejects.toBeInstanceOf(ChatNotFoundError);
   });
 
   test("listParticipants returns the present roster", async () => {
@@ -322,9 +319,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     const section = await previewSection({ principal: principal(me), chatId, sectionId });
     expect(section.half === "static" || section.half === "dynamic").toBe(true);
 
-    await expect(
-      previewSection({ principal: principal(me), chatId, sectionId: "no-such-section" }),
-    ).rejects.toBeInstanceOf(DomainNotFoundError);
+    await expect(previewSection({ principal: principal(me), chatId, sectionId: "no-such-section" })).rejects.toBeInstanceOf(DomainNotFoundError);
   });
 });
 
@@ -354,25 +349,13 @@ describe("read — default-deny (membership chokepoint)", () => {
     const read = createRead(makeChatContext(db), makeDeps());
     const p = principal(stranger);
     await expect(read.getChat({ principal: p, chatId })).rejects.toBeInstanceOf(ChatNotFoundError);
-    await expect(read.listMessages({ principal: p, chatId })).rejects.toBeInstanceOf(
-      ChatNotFoundError,
-    );
-    await expect(
-      read.listMessageVariants({ principal: p, chatId, messageId }),
-    ).rejects.toBeInstanceOf(ChatNotFoundError);
-    await expect(read.listParticipants({ principal: p, chatId })).rejects.toBeInstanceOf(
-      ChatNotFoundError,
-    );
-    await expect(read.peekPrompt({ principal: p, chatId })).rejects.toBeInstanceOf(
-      ChatNotFoundError,
-    );
-    await expect(read.streamEventBounds({ principal: p, chatId })).rejects.toBeInstanceOf(
-      ChatNotFoundError,
-    );
+    await expect(read.listMessages({ principal: p, chatId })).rejects.toBeInstanceOf(ChatNotFoundError);
+    await expect(read.listMessageVariants({ principal: p, chatId, messageId })).rejects.toBeInstanceOf(ChatNotFoundError);
+    await expect(read.listParticipants({ principal: p, chatId })).rejects.toBeInstanceOf(ChatNotFoundError);
+    await expect(read.peekPrompt({ principal: p, chatId })).rejects.toBeInstanceOf(ChatNotFoundError);
+    await expect(read.streamEventBounds({ principal: p, chatId })).rejects.toBeInstanceOf(ChatNotFoundError);
     // A non-member of the parent cannot list its forks either.
-    await expect(read.listForks({ principal: p, chatId })).rejects.toBeInstanceOf(
-      ChatNotFoundError,
-    );
+    await expect(read.listForks({ principal: p, chatId })).rejects.toBeInstanceOf(ChatNotFoundError);
   });
 });
 
@@ -398,12 +381,8 @@ describe("read — durable chat-bus log (the streamMessages SSE resume)", () => 
     expect(bounds).toEqual({ minSeq: 1, maxSeq: 3 });
 
     // The membership chokepoint: a stranger's read collapses to a leak-free NOT_FOUND.
-    await expect(
-      replayChatEvents({ principal: principal(stranger), chatId }),
-    ).rejects.toBeInstanceOf(ChatNotFoundError);
-    await expect(
-      chatEventBounds({ principal: principal(stranger), chatId }),
-    ).rejects.toBeInstanceOf(ChatNotFoundError);
+    await expect(replayChatEvents({ principal: principal(stranger), chatId })).rejects.toBeInstanceOf(ChatNotFoundError);
+    await expect(chatEventBounds({ principal: principal(stranger), chatId })).rejects.toBeInstanceOf(ChatNotFoundError);
   });
 
   // The FIRST-TURN-RACE server pin (#1): the client seeds `lastEventId:"0"` for a just-created chat so
@@ -439,11 +418,9 @@ describe("read — durable chat-bus log (the streamMessages SSE resume)", () => 
     expect(replayed.map((e) => e.seq)).toEqual([1, 2, 3]);
     expect(replayed.map((e) => e.event.type)).toEqual(["turnStarted", "delta", "delta"]);
     // The token-carrying payload survives the JSON round-trip through the durable column, byte-for-byte.
-    expect(replayed.slice(1).map((e) => (e.event.type === "delta" ? e.event.delta : null))).toEqual(
-      [
-        { chatId, kind: "text", text: "Hello " },
-        { chatId, kind: "text", text: "world" },
-      ],
-    );
+    expect(replayed.slice(1).map((e) => (e.event.type === "delta" ? e.event.delta : null))).toEqual([
+      { chatId, kind: "text", text: "Hello " },
+      { chatId, kind: "text", text: "world" },
+    ]);
   });
 });

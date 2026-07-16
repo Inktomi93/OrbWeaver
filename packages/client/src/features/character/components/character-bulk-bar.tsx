@@ -18,11 +18,7 @@ import { useState } from "react";
 import { ConfirmDialog } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation } from "#data";
-import {
-  useBulkAddCardTag,
-  useBulkArchiveCharacters,
-  useBulkRemoveCharacters,
-} from "../hooks/use-character-mutations";
+import { useBulkAddCardTag, useBulkArchiveCharacters, useBulkRemoveCharacters } from "../hooks/use-character-mutations";
 
 export interface CharacterBulkBarProps {
   readonly ids: readonly string[];
@@ -32,12 +28,7 @@ export interface CharacterBulkBarProps {
 }
 
 /** The selection bar + its tag-picker Dialog. */
-export function CharacterBulkBar({
-  ids,
-  selectedCount,
-  onClear,
-  trpc,
-}: CharacterBulkBarProps): ReactElement {
+export function CharacterBulkBar({ ids, selectedCount, onClear, trpc }: CharacterBulkBarProps): ReactElement {
   const invalidation = useInvalidation();
   const bulkTag = useBulkAddCardTag({ trpc, invalidation });
   const bulkArchive = useBulkArchiveCharacters({ trpc, invalidation });
@@ -90,15 +81,8 @@ export function CharacterBulkBar({
           <Stack gap="block">
             <DialogTitle>{`Tag ${selectedCount} character${selectedCount === 1 ? "" : "s"}`}</DialogTitle>
             {/* Plain children — DialogDescription IS the <p>; a nested <Text> (also <p>) is invalid HTML. */}
-            <DialogDescription>
-              Attach an existing tag, or type a new one to create it.
-            </DialogDescription>
-            <Input
-              aria-label="Tag name"
-              onValueChange={setTagName}
-              placeholder="e.g. adventure"
-              value={tagName}
-            />
+            <DialogDescription>Attach an existing tag, or type a new one to create it.</DialogDescription>
+            <Input aria-label="Tag name" onValueChange={setTagName} placeholder="e.g. adventure" value={tagName} />
             <Row gap="field" justify="end">
               <DialogClose render={<Button intent="ghost">Cancel</Button>} />
               <Button disabled={tagName.trim() === ""} intent="primary" onClick={applyTag}>

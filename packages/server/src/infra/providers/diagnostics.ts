@@ -17,12 +17,7 @@
 
 import type { AgentSdkModel, ModelCatalogEntry } from "@orb/contracts/connection";
 import type { CredentialHealth } from "@orb/contracts/credentials";
-import type {
-  AccountCredits,
-  EndpointInspection,
-  GenerationCost,
-  VerifyAuthResult,
-} from "@orb/contracts/providers";
+import type { AccountCredits, EndpointInspection, GenerationCost, VerifyAuthResult } from "@orb/contracts/providers";
 import type {
   AccountCreditsRequest,
   BackendKey,
@@ -50,43 +45,23 @@ const AGENT_SDK_KEY: BackendKey = "agent-sdk";
 export function createProviderDiagnostics(deps: ProviderDeps): ProviderDiagnostics {
   return {
     probe: async (req: ProbeRequest): Promise<CredentialHealth> => {
-      const backend = requireBackend(
-        deps.backends,
-        backendForSource(req.credential.source),
-        "probe",
-      );
+      const backend = requireBackend(deps.backends, backendForSource(req.credential.source), "probe");
       return await requireRoleImpl(backend, backend.probe, "probe")(req);
     },
     accountCredits: async (req: AccountCreditsRequest): Promise<AccountCredits> => {
-      const backend = requireBackend(
-        deps.backends,
-        backendForSource(req.credential.source),
-        "accountCredits",
-      );
+      const backend = requireBackend(deps.backends, backendForSource(req.credential.source), "accountCredits");
       return await requireRoleImpl(backend, backend.accountCredits, "accountCredits")(req);
     },
     generationCost: async (req: GenerationCostRequest): Promise<GenerationCost> => {
-      const backend = requireBackend(
-        deps.backends,
-        backendForSource(req.credential.source),
-        "generationCost",
-      );
+      const backend = requireBackend(deps.backends, backendForSource(req.credential.source), "generationCost");
       return await requireRoleImpl(backend, backend.generationCost, "generationCost")(req);
     },
     inspect: async (req: InspectRequest): Promise<EndpointInspection> => {
-      const backend = requireBackend(
-        deps.backends,
-        backendForSource(req.credential.source),
-        "inspect",
-      );
+      const backend = requireBackend(deps.backends, backendForSource(req.credential.source), "inspect");
       return await requireRoleImpl(backend, backend.inspect, "inspect")(req);
     },
     verifyAuth: async (req: VerifyAuthRequest): Promise<VerifyAuthResult> => {
-      const backend = requireBackend(
-        deps.backends,
-        backendForSource(req.credential.source),
-        "verifyAuth",
-      );
+      const backend = requireBackend(deps.backends, backendForSource(req.credential.source), "verifyAuth");
       return await requireRoleImpl(backend, backend.verifyAuth, "verifyAuth")(req);
     },
     fetchOrCatalog: async (req: FetchCatalogRequest): Promise<ModelCatalogEntry[]> => {

@@ -8,9 +8,7 @@ import type { FindByImportHashParams } from "../contract/params";
 import type { CharacterService } from "../contract/service";
 import { findByOwnerImportHash } from "../persistence/queries";
 
-export function createFindByImportHash(
-  ctx: CharacterContext,
-): CharacterService["findByImportHash"] {
+export function createFindByImportHash(ctx: CharacterContext): CharacterService["findByImportHash"] {
   return async ({ ownerId, importHash }: FindByImportHashParams) => {
     const characterId = await findByOwnerImportHash(ctx.db, ownerId, importHash);
     return characterId === undefined ? null : { characterId };

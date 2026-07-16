@@ -7,9 +7,7 @@ import type { WorldInfoService } from "../../contract/service";
 import { ensureCharacterOwned } from "../../persistence/ownership";
 import { listCharacterBooks } from "../../persistence/queries";
 
-export function createListForCharacter(
-  ctx: WorldInfoContext,
-): WorldInfoService["listForCharacter"] {
+export function createListForCharacter(ctx: WorldInfoContext): WorldInfoService["listForCharacter"] {
   return async ({ principal, characterId }: ListForCharacterParams) => {
     const ownerId = principal.userId;
     await ensureCharacterOwned(ctx.db, ownerId, characterId);

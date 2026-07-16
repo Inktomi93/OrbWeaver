@@ -25,10 +25,7 @@ describe("detach card tag by name", () => {
     const removed = await svc.detachCardTagByName({ ownerId: owner, characterId, tagName: "hero" });
     expect(removed).toBe(true);
 
-    const junction = await db
-      .select()
-      .from(characterTags)
-      .where(eq(characterTags.characterId, characterId));
+    const junction = await db.select().from(characterTags).where(eq(characterTags.characterId, characterId));
     expect(junction).toHaveLength(1);
     // The surviving junction is "villain"; "hero" is gone.
     const survivingTagId = junction[0]?.tagId;
@@ -71,15 +68,9 @@ describe("detach card tag by name", () => {
 
     // Attach then detach twice — the second detach is a no-op.
     await svc.attachCardTagByName({ ownerId: owner, characterId, tagName: "hero" });
-    expect(await svc.detachCardTagByName({ ownerId: owner, characterId, tagName: "hero" })).toBe(
-      true,
-    );
-    expect(await svc.detachCardTagByName({ ownerId: owner, characterId, tagName: "hero" })).toBe(
-      false,
-    );
-    expect(
-      await db.select().from(characterTags).where(eq(characterTags.characterId, characterId)),
-    ).toHaveLength(0);
+    expect(await svc.detachCardTagByName({ ownerId: owner, characterId, tagName: "hero" })).toBe(true);
+    expect(await svc.detachCardTagByName({ ownerId: owner, characterId, tagName: "hero" })).toBe(false);
+    expect(await db.select().from(characterTags).where(eq(characterTags.characterId, characterId))).toHaveLength(0);
   });
 
   test("owner-scoping: a DIFFERENT owner's same-name tag/junction is NOT removed", async () => {
@@ -106,13 +97,9 @@ describe("detach card tag by name", () => {
     });
     expect(removed).toBe(true);
 
-    expect(
-      await db.select().from(characterTags).where(eq(characterTags.characterId, ownCharacter)),
-    ).toHaveLength(0);
+    expect(await db.select().from(characterTags).where(eq(characterTags.characterId, ownCharacter))).toHaveLength(0);
     // The foreign owner's "hero" junction survives (owner-scoped resolve never reached their tag).
-    expect(
-      await db.select().from(characterTags).where(eq(characterTags.characterId, foreignCharacter)),
-    ).toHaveLength(1);
+    expect(await db.select().from(characterTags).where(eq(characterTags.characterId, foreignCharacter))).toHaveLength(1);
   });
 
   test("normalizes whitespace + case before resolve — ' HERO ' detaches the 'hero' junction", async () => {
@@ -128,9 +115,7 @@ describe("detach card tag by name", () => {
       tagName: "  HERO  ",
     });
     expect(removed).toBe(true);
-    expect(
-      await db.select().from(characterTags).where(eq(characterTags.characterId, characterId)),
-    ).toHaveLength(0);
+    expect(await db.select().from(characterTags).where(eq(characterTags.characterId, characterId))).toHaveLength(0);
   });
 
   test("a blank name is a no-op (returns false)", async () => {
@@ -139,9 +124,7 @@ describe("detach card tag by name", () => {
     const svc = createTagService(makeTagHarness(db).ctx);
     const characterId = await seedCharacter(db, owner);
 
-    expect(await svc.detachCardTagByName({ ownerId: owner, characterId, tagName: "   " })).toBe(
-      false,
-    );
+    expect(await svc.detachCardTagByName({ ownerId: owner, characterId, tagName: "   " })).toBe(false);
   });
 });
 

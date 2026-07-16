@@ -7,11 +7,7 @@ import { DomainForbiddenError } from "@orb/kit/errors";
 import type { ToolCapability, ToolExecutionContext } from "../contract/params";
 
 /** null capability = the member floor — passes. A scope:"chat" ceiling with a null roster is a denial. */
-export function checkToolCapability(
-  capability: ToolCapability | null,
-  exec: ToolExecutionContext,
-  can: Can,
-): void {
+export function checkToolCapability(capability: ToolCapability | null, exec: ToolExecutionContext, can: Can): void {
   if (capability === null) {
     return;
   }

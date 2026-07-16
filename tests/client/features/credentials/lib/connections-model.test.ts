@@ -25,15 +25,8 @@ import { expect, test } from "../../../../support/fixtures";
 // --- embedDimensionWarning ---------------------------------------------------
 
 test("no embed warning when the image slot is empty (the captioned-text fallback)", () => {
-  expect(
-    embedDimensionWarning({ source: "openrouter", model: "text-embedding-3-large" }, undefined),
-  ).toBeNull();
-  expect(
-    embedDimensionWarning(
-      { source: "openrouter", model: "text-embedding-3-large" },
-      { source: "vllm", model: "" },
-    ),
-  ).toBeNull();
+  expect(embedDimensionWarning({ source: "openrouter", model: "text-embedding-3-large" }, undefined)).toBeNull();
+  expect(embedDimensionWarning({ source: "openrouter", model: "text-embedding-3-large" }, { source: "vllm", model: "" })).toBeNull();
 });
 
 test("no embed warning when both embedders are the identical (source, model) pair", () => {
@@ -42,19 +35,13 @@ test("no embed warning when both embedders are the identical (source, model) pai
 });
 
 test("WARNS when both slots are configured to DIFFERENT embedders (a plausible dimension mismatch)", () => {
-  const warning = embedDimensionWarning(
-    { source: "openrouter", model: "text-embedding-3-large" },
-    { source: "vllm", model: "clip-vit-large" },
-  );
+  const warning = embedDimensionWarning({ source: "openrouter", model: "text-embedding-3-large" }, { source: "vllm", model: "clip-vit-large" });
   expect(warning).not.toBeNull();
   expect(warning).toContain("1024");
 });
 
 test("WARNS on same source but different model (a different-dim model on the same provider)", () => {
-  const warning = embedDimensionWarning(
-    { source: "vllm", model: "bge-m3" },
-    { source: "vllm", model: "clip-vit-large" },
-  );
+  const warning = embedDimensionWarning({ source: "vllm", model: "bge-m3" }, { source: "vllm", model: "clip-vit-large" });
   expect(warning).not.toBeNull();
 });
 
@@ -131,9 +118,7 @@ test("every routing role has a slot descriptor (a new role is caught here)", () 
 
 test("only the chat slot carries the chat knobs; only imageEmbed is optional", () => {
   expect(ROLE_SLOTS.chat.carriesChatKnobs).toBe(true);
-  const nonChatCarriers = ROUTING_ROLE_KEYS.filter(
-    (role) => role !== "chat" && ROLE_SLOTS[role].carriesChatKnobs,
-  );
+  const nonChatCarriers = ROUTING_ROLE_KEYS.filter((role) => role !== "chat" && ROLE_SLOTS[role].carriesChatKnobs);
   expect(nonChatCarriers).toEqual([]);
   expect(ROLE_SLOTS.imageEmbed.optional).toBe(true);
   expect(ROLE_SLOTS.chat.optional).toBe(false);
@@ -147,9 +132,7 @@ test("the inference-derive roles offer exactly the three inference tiers (schema
 });
 
 test("summarize offers the two chat engines + the Claude sub; generateImage is openrouter-only", () => {
-  expect([...ROLE_SLOTS.summarize.sources].sort()).toEqual(
-    ["max-pro-sub", "openrouter", "vllm"].sort(),
-  );
+  expect([...ROLE_SLOTS.summarize.sources].sort()).toEqual(["max-pro-sub", "openrouter", "vllm"].sort());
   expect(ROLE_SLOTS.generateImage.sources).toEqual(["openrouter"]);
 });
 
@@ -180,12 +163,7 @@ test("CHAT_API_LABELS is total over the protocol axis", () => {
 
 test("chatApisForSource: max-pro-sub → agent-sdk only; openrouter → all four", () => {
   expect(chatApisForSource("max-pro-sub")).toEqual(["agent-sdk"]);
-  expect(chatApisForSource("openrouter")).toEqual([
-    "agent-sdk",
-    "chat-completions",
-    "responses",
-    "anthropic-messages",
-  ]);
+  expect(chatApisForSource("openrouter")).toEqual(["agent-sdk", "chat-completions", "responses", "anthropic-messages"]);
 });
 
 test("chatApisForSource: vllm / local-light / custom → chat-completions + responses", () => {
@@ -215,15 +193,8 @@ test("chatApisForSource: every offered pair is legal under the resolver matrix",
 // --- groupCredentialsByProvider (§5.1) ---------------------------------------
 
 test("the key library buckets per present provider in the stable ordered set", () => {
-  const row = (
-    provider: CredentialProvider,
-    id: string,
-  ): { provider: CredentialProvider; id: string } => ({ provider, id });
-  const groups = groupCredentialsByProvider([
-    row("custom_openai", "c1"),
-    row("openrouter", "o1"),
-    row("openrouter", "o2"),
-  ]);
+  const row = (provider: CredentialProvider, id: string): { provider: CredentialProvider; id: string } => ({ provider, id });
+  const groups = groupCredentialsByProvider([row("custom_openai", "c1"), row("openrouter", "o1"), row("openrouter", "o2")]);
   expect(groups.map(([provider]) => provider)).toEqual(["openrouter", "custom_openai"]);
   expect(groups[0]?.[1].map((r) => r.id)).toEqual(["o1", "o2"]);
   expect(groups[1]?.[1].map((r) => r.id)).toEqual(["c1"]);

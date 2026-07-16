@@ -44,13 +44,7 @@ function isBelowFloor(pick: RoleHandling | undefined, floor: RoleHandling): bool
   return pick !== undefined && ROLE_HANDLING_RANK[pick] < ROLE_HANDLING_RANK[floor];
 }
 
-export function MessageHandlingSection({
-  form,
-  capability,
-}: {
-  readonly form: AssemblyForm;
-  readonly capability: ModelCapability | undefined;
-}): ReactElement {
+export function MessageHandlingSection({ form, capability }: { readonly form: AssemblyForm; readonly capability: ModelCapability | undefined }): ReactElement {
   const floor = capability?.turns?.roleHandlingFloor;
 
   return (
@@ -59,9 +53,7 @@ export function MessageHandlingSection({
         Two independent collapses happen between your rack and the wire.
       </Text>
 
-      <form.Subscribe
-        selector={(state): RoleHandling | undefined => state.values.params.advanced?.roleHandling}
-      >
+      <form.Subscribe selector={(state): RoleHandling | undefined => state.values.params.advanced?.roleHandling}>
         {(roleHandling): ReactElement => (
           <Field
             label="Adjacent-role merging"
@@ -71,18 +63,14 @@ export function MessageHandlingSection({
               items={ROLE_HANDLING_ITEMS}
               value={roleHandling ?? ""}
               onValueChange={(next): void => {
-                form.setFieldValue(
-                  "params.advanced.roleHandling",
-                  next === "" ? undefined : (next as RoleHandling),
-                );
+                form.setFieldValue("params.advanced.roleHandling", next === "" ? undefined : (next as RoleHandling));
               }}
               aria-label="Adjacent-role merging"
             />
             {floor !== undefined ? (
               <Row gap="field" align="center">
                 <Text size="micro" tone="muted">
-                  This model enforces at least <b>{ROLE_HANDLING_LABELS[floor].split(" — ")[0]}</b>{" "}
-                  — stricter always wins.
+                  This model enforces at least <b>{ROLE_HANDLING_LABELS[floor].split(" — ")[0]}</b> — stricter always wins.
                 </Text>
                 {isBelowFloor(roleHandling, floor) ? (
                   <Badge intent="warning" size="sm">
@@ -95,16 +83,11 @@ export function MessageHandlingSection({
         )}
       </form.Subscribe>
 
-      <form.Subscribe
-        selector={(state): boolean => state.values.params.advanced?.squashSystemMessages === true}
-      >
+      <form.Subscribe selector={(state): boolean => state.values.params.advanced?.squashSystemMessages === true}>
         {(squash): ReactElement => (
           <Section heading="Squash system notes">
             <Row gap="row" align="center" justify="between">
-              <Text size="body">
-                Merge consecutive system-note runs into one message. Never touches the transcript or
-                examples.
-              </Text>
+              <Text size="body">Merge consecutive system-note runs into one message. Never touches the transcript or examples.</Text>
               <Switch
                 aria-label="Squash system notes"
                 checked={squash}

@@ -17,8 +17,7 @@ export interface FileDropzoneResult {
   rejected: FileDropzoneRejection[];
 }
 
-export interface FileDropzoneProps
-  extends Omit<ComponentPropsWithRef<"input">, "type" | "onChange" | "value" | "defaultValue"> {
+export interface FileDropzoneProps extends Omit<ComponentPropsWithRef<"input">, "type" | "onChange" | "value" | "defaultValue"> {
   /** Native `accept` filter for the file-picker dialog — does not gate a drop (browser behavior). */
   accept?: string;
   multiple?: boolean;
@@ -60,10 +59,7 @@ function formatBytes(bytes: number): string {
   return `${rounded} ${units[unitIndex] ?? "GB"}`;
 }
 
-function rejectionMessage(
-  rejected: FileDropzoneRejection[],
-  maxSizeBytes: number | undefined,
-): string | undefined {
+function rejectionMessage(rejected: FileDropzoneRejection[], maxSizeBytes: number | undefined): string | undefined {
   if (rejected.length === 0) {
     return;
   }
@@ -158,9 +154,7 @@ export function FileDropzone({
     setDragOver(false);
   };
 
-  const resolvedHint =
-    hint ??
-    (maxSizeBytes === undefined ? undefined : `Up to ${formatBytes(maxSizeBytes)} per file`);
+  const resolvedHint = hint ?? (maxSizeBytes === undefined ? undefined : `Up to ${formatBytes(maxSizeBytes)} per file`);
 
   const errorMessage = rejectionMessage(rejected, maxSizeBytes);
 

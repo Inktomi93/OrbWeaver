@@ -5,12 +5,7 @@
 
 import type { Runner } from "../contract/runner";
 
-export const expressionsSpriteSheetRunner: Runner<"expressions-sprite-sheet"> = (
-  _ctx,
-  _params,
-  report,
-  _signal,
-) => {
+export const expressionsSpriteSheetRunner: Runner<"expressions-sprite-sheet"> = (_ctx, _params, report, _signal) => {
   report({ message: "expressions-sprite-sheet is an E1 stub (no-op); E4 lands the real runner" });
   return Promise.resolve({ deferred: true });
 };

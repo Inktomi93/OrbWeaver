@@ -50,9 +50,7 @@ describe("clientError (PD-58 — the client error boundary's report verb)", () =
 
   test("a pathologically oversized message is rejected with BAD_REQUEST (the wire-abuse cap)", async () => {
     const ctx = makeContext({ auth: null });
-    await expect(
-      caller(ctx).clientError({ message: "x".repeat(100_000), url: "https://example.test/" }),
-    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    await expect(caller(ctx).clientError({ message: "x".repeat(100_000), url: "https://example.test/" })).rejects.toMatchObject({ code: "BAD_REQUEST" });
   });
 
   test("an authenticated caller can also report (auth is optional, not exclusive)", async () => {

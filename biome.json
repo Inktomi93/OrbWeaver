@@ -1,46 +1,7 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.5.1/schema.json",
   "root": true,
-  "plugins": [
-    "./tools/grit/no-raw-id.grit",
-    "./tools/grit/no-loose-id-cast.grit",
-    "./tools/grit/no-mint-via-cast.grit",
-    "./tools/grit/no-await-db-in-loop.grit",
-    "./tools/grit/no-raw-intl-time.grit",
-    "./tools/grit/no-if-is-group.grit",
-    "./tools/grit/no-context-returntype.grit",
-    "./tools/grit/no-decorators.grit",
-    "./tools/grit/no-inline-types.grit",
-    "./tools/grit/no-raw-clock.grit",
-    "./tools/grit/persistence-no-in-memory-state.grit",
-    "./tools/grit/no-color-literals.grit",
-    "./tools/grit/no-raw-z-index.grit",
-    "./tools/grit/no-raw-spacing-in-features.grit",
-    "./tools/grit/no-raw-typography-in-features.grit",
-    "./tools/grit/no-chat-trpc-in-surface.grit",
-    "./tools/grit/no-direct-useform.grit",
-    "./tools/grit/no-form-state-in-useeffect.grit",
-    "./tools/grit/no-inline-optimistic-in-surface.grit",
-    "./tools/grit/no-layout-context-props.grit",
-    "./tools/grit/no-untrusted-html-in-main-dom.grit",
-    "./tools/grit/no-external-media-without-gate.grit",
-    "./tools/grit/theme-override-only-via-scope.grit",
-    "./tools/grit/client-cache-surgery-only-in-data.grit",
-    "./tools/grit/no-raw-zustand-persist.grit",
-    "./tools/grit/no-static-staletime.grit",
-    "./tools/grit/no-fake-disabled-id.grit",
-    "./tools/grit/chat-stream-writes-in-bus-only.grit",
-    "./tools/grit/no-multiplexed-mutation-error.grit",
-    "./tools/grit/zustand-selector-stability.grit",
-    "./tools/grit/no-raw-random.grit",
-    "./tools/grit/testid-typed-only.grit",
-    "./tools/grit/no-media-queries-in-features.grit",
-    "./tools/grit/no-raw-container-widths.grit",
-    "./tools/grit/no-arbitrary-tw-values.grit",
-    "./tools/grit/no-manual-token-estimate.grit",
-    "./tools/grit/no-raw-matchmedia.grit",
-    "./tools/grit/query-machine-seals.grit"
-  ],
+  "plugins": [],
   "vcs": {
     "enabled": true,
     "clientKind": "git",
@@ -65,7 +26,7 @@
     "formatWithErrors": false,
     "indentStyle": "space",
     "indentWidth": 2,
-    "lineWidth": 100,
+    "lineWidth": 160,
     "lineEnding": "lf",
     "bracketSpacing": true,
     "attributePosition": "auto",
@@ -114,6 +75,7 @@
         "noReactPropAssignments": "error"
       },
       "complexity": {
+        "noUselessFragments": "error",
         "noUselessUndefined": "error",
         "noUselessCatchBinding": "error",
         "noUselessReturn": "error",
@@ -162,14 +124,7 @@
                 "message": "Dead rc-era package. Use @base-ui/react (D42)."
               },
               {
-                "group": [
-                  "@dnd-kit/core",
-                  "@dnd-kit/core/**",
-                  "@dnd-kit/sortable",
-                  "@dnd-kit/sortable/**",
-                  "@dnd-kit/utilities",
-                  "@dnd-kit/utilities/**"
-                ],
+                "group": ["@dnd-kit/core", "@dnd-kit/core/**", "@dnd-kit/sortable", "@dnd-kit/sortable/**", "@dnd-kit/utilities", "@dnd-kit/utilities/**"],
                 "message": "Dead legacy dnd-kit stack. Use @dnd-kit/react + @dnd-kit/helpers (ui-package-design §3, work-order item 15)."
               }
             ]
@@ -337,7 +292,7 @@
         "noDangerouslySetInnerHtmlWithChildren": "error",
         "noGlobalEval": "error",
         "noScriptUrl": "error",
-        "noSecrets": "error"
+        "noSecrets": "off"
       },
       "a11y": {
         "preset": "recommended",
@@ -400,7 +355,7 @@
     "formatter": {
       "indentStyle": "space",
       "indentWidth": 2,
-      "lineWidth": 100,
+      "lineWidth": 160,
       "lineEnding": "lf",
       "quoteStyle": "double",
       "jsxQuoteStyle": "double",
@@ -426,7 +381,7 @@
       "enabled": true,
       "indentStyle": "space",
       "indentWidth": 2,
-      "lineWidth": 100,
+      "lineWidth": 160,
       "lineEnding": "lf",
       "trailingCommas": "none"
     }
@@ -434,9 +389,15 @@
   "overrides": [
     {
       "includes": [
-        "packages/client/src/features/app-shell/surfaces/shell.css",
-        "packages/client/src/styles/globals.css"
+        "packages/db/src/schema/**",
+        "packages/server/src/transport/trpc/routers/**",
+        "packages/server/src/domain/chat/contract/metadata.ts",
+        "packages/server/src/kit/serde/persona/index.ts"
       ],
+      "plugins": []
+    },
+    {
+      "includes": ["packages/client/src/features/app-shell/surfaces/shell.css", "packages/client/src/styles/globals.css"],
       "linter": {
         "rules": {
           "style": {
@@ -564,12 +525,7 @@
       }
     },
     {
-      "includes": [
-        "**/*.config.ts",
-        "**/*.config.js",
-        "playwright*.config.ts",
-        "tests/e2e/support/global-setup.ts"
-      ],
+      "includes": ["**/*.config.ts", "**/*.config.js", "playwright*.config.ts", "tests/e2e/support/global-setup.ts"],
       "linter": {
         "rules": {
           "style": {

@@ -9,11 +9,7 @@
 import { characters } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import {
-  createAssetsService,
-  createExportGallery,
-  createImportGallery,
-} from "@orb/server/domain/assets";
+import { createAssetsService, createExportGallery, createImportGallery } from "@orb/server/domain/assets";
 import { buildGallery } from "@orb/server/kit/serde/gallery";
 import { eq } from "drizzle-orm";
 import { describe, onTestFinished } from "vitest";
@@ -30,22 +26,11 @@ function withCharacterOps(ctx: AssetsContext, db: AssetsContext["db"]): AssetsCo
   return {
     ...ctx,
     resolveCharacterHandle: async (characterId: CharacterId): Promise<string | null> => {
-      const rows = await db
-        .select({ handle: characters.handle })
-        .from(characters)
-        .where(eq(characters.id, characterId))
-        .limit(1);
+      const rows = await db.select({ handle: characters.handle }).from(characters).where(eq(characters.id, characterId)).limit(1);
       return rows[0]?.handle ?? null;
     },
-    findCharacterByHandle: async (args: {
-      readonly ownerId: UserId;
-      readonly handle: string;
-    }): Promise<CharacterId | null> => {
-      const rows = await db
-        .select({ id: characters.id })
-        .from(characters)
-        .where(eq(characters.handle, args.handle))
-        .limit(1);
+    findCharacterByHandle: async (args: { readonly ownerId: UserId; readonly handle: string }): Promise<CharacterId | null> => {
+      const rows = await db.select({ id: characters.id }).from(characters).where(eq(characters.handle, args.handle)).limit(1);
       const hit = rows[0];
       return hit !== undefined ? hit.id : null;
     },
@@ -83,11 +68,7 @@ describe("importGallery", () => {
     const file = await createExportGallery(ctx)(owner);
     // Wipe the live curation, then restore from the file (the subject travels as the handle "hero", not the id).
     const live = await svc.listGallery({ principal: principal(owner), limit: 100 });
-    await Promise.all(
-      live.map((item) =>
-        svc.removeFromGallery({ principal: principal(owner), galleryItemId: item.galleryItemId }),
-      ),
-    );
+    await Promise.all(live.map((item) => svc.removeFromGallery({ principal: principal(owner), galleryItemId: item.galleryItemId })));
     expect(await svc.listGallery({ principal: principal(owner), limit: 100 })).toHaveLength(0);
 
     const outcome = await createImportGallery(ctx)(owner, file);

@@ -5,12 +5,7 @@
 
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import {
-  buildClaudeOpenRouterEnv,
-  buildClaudeSdkEnv,
-  buildClaudeVllmEnv,
-  RESERVED_CLAUDE_ENV_KEYS,
-} from "@orb/server/infra/providers/backends/agent-sdk";
+import { buildClaudeOpenRouterEnv, buildClaudeSdkEnv, buildClaudeVllmEnv, RESERVED_CLAUDE_ENV_KEYS } from "@orb/server/infra/providers/backends/agent-sdk";
 import { afterEach, describe, vi } from "vitest";
 import { expect, test } from "../../../../../support/fixtures";
 
@@ -176,9 +171,7 @@ describe("byte-stability — cache-buster tripwires (a nondeterministic env bust
   });
 
   test("mode-2 env is deep-equal across calls with the same key + overrides", () => {
-    expect(
-      buildClaudeOpenRouterEnv("sk-or-x", TIER_MODELS, { maxContextTokens: 100_000 }),
-    ).toStrictEqual(
+    expect(buildClaudeOpenRouterEnv("sk-or-x", TIER_MODELS, { maxContextTokens: 100_000 })).toStrictEqual(
       buildClaudeOpenRouterEnv("sk-or-x", TIER_MODELS, { maxContextTokens: 100_000 }),
     );
   });

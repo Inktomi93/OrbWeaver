@@ -42,15 +42,7 @@ import { setParticipantActivePersona } from "../../../../packages/server/src/dom
 import { freshDb } from "../../../support/db";
 import { principal as makePrincipal } from "../../../support/factories/principal.ts";
 import { expect, test } from "../../../support/fixtures";
-import {
-  makeChatContext,
-  seedCharacter,
-  seedChat,
-  seedMessage,
-  seedParticipant,
-  seedPersona,
-  seedUser,
-} from "./_support";
+import { makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedPersona, seedUser } from "./_support";
 
 let db: Db;
 beforeEach(async () => {
@@ -133,10 +125,7 @@ describe("THE FOUR WORKED EXAMPLES (FINAL-Persona §A.2 — the headline accepta
     const ctx = ctxWithCard(cardOf("Mary", "{{user}} is my brother"));
     const alex = { name: "Alex", description: "Alex is a doctor" };
 
-    const { full } = await assembledText(
-      ctx,
-      inputOf(chatId, host, [charId], { anchor: alex, active: alex }),
-    );
+    const { full } = await assembledText(ctx, inputOf(chatId, host, [charId], { anchor: alex, active: alex }));
 
     expect(full).toContain("Alex is my brother"); // card {{user}} → anchor
     expect(full).toContain("roleplay with Alex"); // prompt {{user}} → active
@@ -150,10 +139,7 @@ describe("THE FOUR WORKED EXAMPLES (FINAL-Persona §A.2 — the headline accepta
     const alex = { name: "Alex", description: "Alex is a doctor" };
     const steve = { name: "Steve", description: "Steve is a soldier" };
 
-    const { out, full } = await assembledText(
-      ctx,
-      inputOf(chatId, host, [charId], { anchor: alex, active: steve }),
-    );
+    const { out, full } = await assembledText(ctx, inputOf(chatId, host, [charId], { anchor: alex, active: steve }));
 
     // Card {{user}} is STILL Alex (Anchor unchanged — Mary is not told "Steve is my brother").
     expect(full).toContain("Alex is my brother");
@@ -189,10 +175,7 @@ describe("THE FOUR WORKED EXAMPLES (FINAL-Persona §A.2 — the headline accepta
     // off `chats.anchorPersonaId` after `setChatAnchorPersona` writes it — FLAG[cross-domain-inputs], this
     // producer's own header). This ties the DB-level re-pin (chat-lifecycle.int.test.ts) to its assemble-level
     // consequence: after the pin moves, the card relationship follows it.
-    const { full } = await assembledText(
-      ctx,
-      inputOf(chatId, host, [charId], { anchor: steve, active: steve }),
-    );
+    const { full } = await assembledText(ctx, inputOf(chatId, host, [charId], { anchor: steve, active: steve }));
 
     expect(full).toContain("Steve is my brother"); // the relationship TRANSFERRED to the new anchor
     expect(full).not.toContain("Alex is my brother");
@@ -209,19 +192,13 @@ describe("THE FOUR WORKED EXAMPLES (FINAL-Persona §A.2 — the headline accepta
     // Mid-swap: anchor=Alex (established card identity), active=Steve (the current speaker). the owner's
     // description reaches the model via the framed in_static card-context block (§A.6b gap #1) so the
     // character retains it even though Alex isn't speaking.
-    const swapped = await assembledText(
-      ctx,
-      inputOf(chatId, host, [charId], { anchor: alex, active: steve }),
-    );
+    const swapped = await assembledText(ctx, inputOf(chatId, host, [charId], { anchor: alex, active: steve }));
     expect(swapped.full).toContain("my hair is brown");
 
     // Re-pin: anchor becomes Steve too (== active) — the dedup rule (`sameProjectedPersona`) fires, the
     // anchor card-context block disappears (byte-identical to the no-swap case; context.int.test.ts pins the
     // dedup shape directly — this proves its CONSEQUENCE on the assembled text).
-    const rePinned = await assembledText(
-      ctx,
-      inputOf(chatId, host, [charId], { anchor: steve, active: steve }),
-    );
+    const rePinned = await assembledText(ctx, inputOf(chatId, host, [charId], { anchor: steve, active: steve }));
     expect(rePinned.full).not.toContain("my hair is brown");
   });
 });
@@ -238,10 +215,7 @@ describe("the three {{persona}} (description) contexts — identical routing to 
     const alex = { name: "Alex", description: "a traveling doctor" };
     const steve = { name: "Steve", description: "a hardened soldier" };
 
-    const { full } = await assembledText(
-      ctx,
-      inputOf(chatId, host, [charId], { anchor: alex, active: steve }),
-    );
+    const { full } = await assembledText(ctx, inputOf(chatId, host, [charId], { anchor: alex, active: steve }));
 
     expect(full).toContain("About the user: a traveling doctor"); // anchor's description
     expect(full).not.toContain("About the user: a hardened soldier"); // never the active's

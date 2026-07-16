@@ -16,12 +16,7 @@
 // chosen for the security property, not the read/write semantics). The domain stores only the peppered
 // token HASH; these bodies + the `/join/:token` redirect are the token's only transit points.
 
-import {
-  acceptInviteSchema,
-  createInviteSchema,
-  previewInviteSchema,
-  redeemInviteSchema,
-} from "@orb/contracts/chat";
+import { acceptInviteSchema, createInviteSchema, previewInviteSchema, redeemInviteSchema } from "@orb/contracts/chat";
 import type { ChatId, ChatInviteId, UserId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
@@ -53,71 +48,45 @@ const nominateSchema = z.object({
 
 export const invitesRouter = t.router({
   // Host mints a share-link or targeted invite; the RAW token returns exactly once (the /join link).
-  createInvite: multiHumanProcedure
-    .input(createSchema)
-    .mutation(({ ctx, input }) =>
-      ctx.services.chat.createInvite({ principal: ctx.auth, ...input }),
-    ),
+  createInvite: multiHumanProcedure.input(createSchema).mutation(({ ctx, input }) => ctx.services.chat.createInvite({ principal: ctx.auth, ...input })),
 
   // Token-authenticated preview-then-confirm read (a mutation for the token-in-URL reason — header).
-  previewInvite: multiHumanProcedure
-    .input(previewInviteSchema)
-    .mutation(({ ctx, input }) => ctx.services.chat.previewInvite({ principal: ctx.auth, input })),
+  previewInvite: multiHumanProcedure.input(previewInviteSchema).mutation(({ ctx, input }) => ctx.services.chat.previewInvite({ principal: ctx.auth, input })),
 
   // THE one human-join path (the atomic participant-insert chokepoint).
-  redeemInvite: multiHumanProcedure
-    .input(redeemInviteSchema)
-    .mutation(({ ctx, input }) => ctx.services.chat.redeemInvite({ principal: ctx.auth, input })),
+  redeemInvite: multiHumanProcedure.input(redeemInviteSchema).mutation(({ ctx, input }) => ctx.services.chat.redeemInvite({ principal: ctx.auth, input })),
 
   // The token-FREE in-app accept of a TARGETED invite by id (the notification→accept loop) — self-authorizing
   // (the invite is bound to `ctx.auth.userId`); a share-link / foreign / spent invite is a leak-free NOT_FOUND.
   acceptInvite: multiHumanProcedure
     .input(acceptInviteSchema)
-    .mutation(({ ctx, input }) =>
-      ctx.services.chat.acceptInvite({ principal: ctx.auth, inviteId: input.inviteId }),
-    ),
+    .mutation(({ ctx, input }) => ctx.services.chat.acceptInvite({ principal: ctx.auth, inviteId: input.inviteId })),
 
-  revokeInvite: multiHumanProcedure
-    .input(revokeSchema)
-    .mutation(({ ctx, input }) =>
-      ctx.services.chat.revokeInvite({ principal: ctx.auth, ...input }),
-    ),
+  revokeInvite: multiHumanProcedure.input(revokeSchema).mutation(({ ctx, input }) => ctx.services.chat.revokeInvite({ principal: ctx.auth, ...input })),
 
   // FIX #4 — the host-management outstanding-invites read (`InviteView`s; tokens never re-derivable).
   // A genuine `.query()`: unlike preview/redeem there is no raw token in the input or output, so the
   // token-in-URL transport concern (file header) does not apply. Host authority lives INSIDE the verb.
   listInvites: multiHumanProcedure
     .input(chatScopedSchema)
-    .query(({ ctx, input }) =>
-      ctx.services.chat.listInvites({ principal: ctx.auth, chatId: input.chatId }),
-    ),
+    .query(({ ctx, input }) => ctx.services.chat.listInvites({ principal: ctx.auth, chatId: input.chatId })),
 
   declineInvite: multiHumanProcedure
     .input(declineSchema)
-    .mutation(({ ctx, input }) =>
-      ctx.services.chat.declineInvite({ principal: ctx.auth, inviteId: input.inviteId }),
-    ),
+    .mutation(({ ctx, input }) => ctx.services.chat.declineInvite({ principal: ctx.auth, inviteId: input.inviteId })),
 
   // Host removes a HUMAN member (character mute/remove is the ungated chat surface, not here).
-  kick: multiHumanProcedure
-    .input(kickSchema)
-    .mutation(({ ctx, input }) => ctx.services.chat.kick({ principal: ctx.auth, ...input })),
+  kick: multiHumanProcedure.input(kickSchema).mutation(({ ctx, input }) => ctx.services.chat.kick({ principal: ctx.auth, ...input })),
 
   selfLeave: multiHumanProcedure
     .input(chatScopedSchema)
-    .mutation(({ ctx, input }) =>
-      ctx.services.chat.selfLeave({ principal: ctx.auth, chatId: input.chatId }),
-    ),
+    .mutation(({ ctx, input }) => ctx.services.chat.selfLeave({ principal: ctx.auth, chatId: input.chatId })),
 
   nominateHostHandoff: multiHumanProcedure
     .input(nominateSchema)
-    .mutation(({ ctx, input }) =>
-      ctx.services.chat.nominateHostHandoff({ principal: ctx.auth, ...input }),
-    ),
+    .mutation(({ ctx, input }) => ctx.services.chat.nominateHostHandoff({ principal: ctx.auth, ...input })),
 
   acceptHostHandoff: multiHumanProcedure
     .input(chatScopedSchema)
-    .mutation(({ ctx, input }) =>
-      ctx.services.chat.acceptHostHandoff({ principal: ctx.auth, chatId: input.chatId }),
-    ),
+    .mutation(({ ctx, input }) => ctx.services.chat.acceptHostHandoff({ principal: ctx.auth, chatId: input.chatId })),
 });

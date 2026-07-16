@@ -1,9 +1,6 @@
 {
   "$comment": "The §C3 group / multi-human fixture — a DATA snapshot for the chat .int suite (NOT the parity oracle; the multi-human/group/invite/notification/presence/arbitration surfaces are intentional rewrites, not byte-diffable). It enumerates exactly the §C3 obligations: a roster with >=2 humans + >=2 characters, an invite, a kick, a host-handoff, a narrator round + a per-speaker round, and a scoped-memory room. Future int tests seed from this (deterministic readable ids; the seed factory maps these to real typeids/rows). Aligns with domains/chat.md Part III: chat_participants (kind/role/joinSeq/leftSeq/talkativeness/disabled/activePersonaId/joinHistoryVisibility + the (chatId,userId) UNIQUE + XOR CHECK), chat_invites (hashed CSPRNG token), the group character authoring narrator turns (never NULL), messages-slot + message_variants (D26), scoped vs merged cardScope memory keying.",
-  "users": [
-    { "id": "user_host", "handle": "host", "role": "owner" },
-    { "id": "user_member", "handle": "member", "role": "user" }
-  ],
+  "users": [{ "id": "user_host", "handle": "host", "role": "owner" }, { "id": "user_member", "handle": "member", "role": "user" }],
   "personas": [
     { "id": "persona_host", "ownerUserId": "user_host", "name": "Captain" },
     { "id": "persona_member", "ownerUserId": "user_member", "name": "Scout" }
@@ -171,10 +168,7 @@
           "personaId": null,
           "characterId": "char_aria",
           "selectedVariantId": "var_ps_aria_1",
-          "variants": [
-            { "id": "var_ps_aria_1", "content": "Aria: Ridge is clear." },
-            { "id": "var_ps_aria_2", "content": "Aria: All quiet up here." }
-          ]
+          "variants": [{ "id": "var_ps_aria_1", "content": "Aria: Ridge is clear." }, { "id": "var_ps_aria_2", "content": "Aria: All quiet up here." }]
         },
         {
           "id": "msg_ps_kai",
