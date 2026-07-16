@@ -182,7 +182,6 @@ catalog:
   # (tablePipeAlign:false) — law in docs/architecture/core/Core-Docs-Formatting-Law.md.
   "remark-frontmatter": ^5.0.0
   "remark-gfm": ^4.0.1
-  strip-markdown: ^6.0.0
   # DTCG token codegen (docs said v4; current major is 5 — ESM/async, DTCG first-class).
   style-dictionary: ^5.5.0
   # Tailwind v4 + the vite plugin (the @theme consumer; used by the CT harness + Phase-6 client).

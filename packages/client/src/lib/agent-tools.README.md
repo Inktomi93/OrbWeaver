@@ -40,7 +40,7 @@ Prefixed, low-noise, IS_DEV-gated — read via `preview_console_logs` or a conso
   query keys it invalidated, and a duplicate-invalidate storm alarm. The peer to `[trpc]`.
 - **`[trpc]`** (`trpc-devlog.ts`) — tRPC query/mutation round-trips.
 - **`[perf]`** (`render-profiler.tsx` + `long-task-tracer.ts`) — slow commits (>12ms, attributed to a
-  wrapped surface) + long tasks (>50ms main-thread blocks).
+  wrapped surface) + long tasks (>100ms main-thread blocks).
 
 ## Perf marks (`perf-marks.ts`)
 

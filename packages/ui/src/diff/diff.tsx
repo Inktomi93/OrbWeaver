@@ -1,3 +1,7 @@
+// PREBUILT[for:refinery/compare] — no current consumer; sealed for the refinery pipeline's
+// stage-stepper "compare" sub-part (D62 §4.1; refinery is a declared-PLANNED section per
+// client-architecture-lockdown.md §6a — build pending). Delete this marker (and re-check for
+// consumers) if that plan is ever dropped instead of built.
 import type { Change } from "diff";
 import { diffChars, diffLines, diffWords } from "diff";
 import type { ReactElement } from "react";

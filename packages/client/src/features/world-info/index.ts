@@ -1,8 +1,9 @@
 // world-info/ front door (UI-Arch §2.1) — the ONLY entry into the world-info slice (dep-cruiser
-// client-feature-front-door). The World Info authoring rail section (§4.1 authoring group). The composition
-// root (routes/home-page.tsx) mounts `<WorldInfoLibraryAnchor><WorldInfoLibrarySurface/></…>` in the
-// `worldInfo` LIST slot, the `<WorldInfoEditorSurface>` (or the `<WorldInfoWelcome>` teaching state) in
-// CONTENT, and `<BookAttachments>` (the global/character/persona activation panel) in the CONTEXT slot.
+// client-feature-front-door). The World Info authoring rail section (§4.1 authoring group) is ONE
+// co-located `SectionDefinition` (`lib/world-info-section.tsx`, client-architecture-lockdown.md §6a),
+// assembled into the section registry at the composition root (main.tsx) — the LIST slot mounts
+// `<WorldInfoLibraryAnchor><WorldInfoLibrarySurface/></…>`, CONTENT mounts `<WorldInfoContent>`, and
+// CONTEXT mounts `<WorldInfoContextBody>` (the global/character/persona activation panel).
 
 export type { WorldInfoLibraryAnchorProps } from "./anchors/world-info-library-anchor";
 export { WorldInfoLibraryAnchor } from "./anchors/world-info-library-anchor";

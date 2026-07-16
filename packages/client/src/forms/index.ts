@@ -15,4 +15,4 @@ export type { SavedEntityFormArgs, SavedEntityFormConfig } from "./create-saved-
 export { createSavedEntityForm } from "./create-saved-entity-form";
 export { mirrorDraft, readDraftSeed } from "./entity-form-base";
 export type { AppFormInstance } from "./use-app-form";
-export { useAppForm, withFieldGroup, withForm } from "./use-app-form";
+export { useAppForm } from "./use-app-form";

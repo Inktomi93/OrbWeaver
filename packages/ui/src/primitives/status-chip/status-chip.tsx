@@ -1,3 +1,7 @@
+// PREBUILT[for:automation-design/03-actions.md] — no current consumer; sealed for the workloads/
+// automation run-status chips (statuses `idle`/`running`/`succeeded`/`failed` mirror the workloads
+// run lifecycle, `workloads-deferred-designs.md` §"status"). Delete this marker (and re-check for
+// consumers) if that plan is ever dropped instead of built.
 import type { ComponentProps, ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
 import { cn } from "#lib";

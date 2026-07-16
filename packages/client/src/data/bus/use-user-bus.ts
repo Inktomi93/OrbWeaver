@@ -2,14 +2,14 @@
 // sessions.streamUserEvents (one always-on SSE stream per device, no chatId/cursor) and forwards every
 // event into invalidation.invalidateUser. Live-only, no durable log: on every (re)connect the hook
 // gap-heals with a blanket invalidate (invalidateAllUserRoots) since a missed write during downtime
-// needs closing. Mount ONCE at the authed composition root (routes/home-page.tsx), never in a feature.
+// needs closing. Mount ONCE at the authed composition root (routes/app-root.tsx), never in a feature.
 
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import { useSubscription } from "@trpc/tanstack-react-query";
 import { useTRPC } from "../trpc";
 
 /** What the hook needs from the central invalidation seam (`data/invalidation.ts`) — the two user-bus
- *  entry points. Passed from `home-page.tsx` (the seam is rebuilt per render; identity churn is harmless —
+ *  entry points. Passed from `app-root.tsx` (the seam is rebuilt per render; identity churn is harmless —
  *  the subscription keys off nothing that changes). */
 export interface UserBusDeps {
   /** Route ONE live `UserBusEvent` through the exhaustive user map. */

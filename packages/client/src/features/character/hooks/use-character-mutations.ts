@@ -1,7 +1,7 @@
 // The character CRUD mutations used by the LIST (mirrors use-persona-mutations.ts) — the ONE mutation
 // factory (`createEntityMutation`) instanced per verb. Every character verb emits `charactersChanged` on
 // the user-bus, and `USER_BUS_FILTERS.charactersChanged` path-invalidates the whole `character` router
-// (list + get); that subscription is ALWAYS on (home-page.tsx), so these are `busDriven` — the echo
+// (list + get); that subscription is ALWAYS on (app-root.tsx), so these are `busDriven` — the echo
 // reconciles the acting device AND another device (a self-`invalidates` would double-refetch). The star
 // chip + archive toggles are NOT separate verbs — they ride `character.update` (a partial patch: send only
 // the changed key). Bulk verbs invalidate the same way. TVars are the tRPC-INFERRED inputs.

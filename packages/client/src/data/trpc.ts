@@ -56,8 +56,10 @@ export function createTrpcClient(url: string = TRPC_URL): TRPCClient<AppRouter> 
 }
 
 /**
- * The non-hook options proxy — for the composition root + the invalidation seam (module code that
- * can't call `useTRPC()`). Components use `useTRPC()`; both return the same shape.
+ * The non-hook options proxy — production always gets its `Trpc` via `useTRPC()` inside
+ * `TRPCProvider`'s context (e.g. `useInvalidation`); this is the headless equivalent for node-lane
+ * tests that build a `Trpc` outside a React render (`invalidation.test.ts`). Same return shape as
+ * `useTRPC()`.
  */
 export function createTrpcProxy(client: TRPCClient<AppRouter>, queryClient: QueryClient): Trpc {
   return createTRPCOptionsProxy<AppRouter>({ client, queryClient });
