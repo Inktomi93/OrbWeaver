@@ -28,101 +28,23 @@
   scroll-behavior: auto !important;
 }
 
-/* Hearth (the default palette) is dark. */
-:root {
-  color-scheme: dark;
-}
-
 /* Client writes --font-scale onto root from the synced pref; rescales every rem-derived size
  * proportionally. Default 1 = no-op. Unlayered so nothing layered overrides it. */
 :root {
   font-size: calc(100% * var(--font-scale, 1));
 }
 
-/* Multi-palette seed value-sets shipped as [data-theme=...]. Redefining --color-* under a
- * [data-theme] scope reflows the whole subtree at runtime. Each block is unlayered + carries its
- * own color-scheme (Light must flip it or native controls/scrollbars stay dark) and is
- * self-complete so it themes the app with or without the root ThemeScope. */
-
-/* dark: enumerated (not "default = dark") so a dark: utility resolves everywhere except the one
- * light palette. */
+/* Multi-palette seed value-sets are GENERATED into theme.css from src/tokens/themes/*.json (the base
+ * :root { color-scheme } + each [data-theme=…] custom-property block, per tokens.build.ts). Redefining
+ * --color-* under a [data-theme] scope reflows the whole subtree at runtime; each generated block is
+ * unlayered + carries its own color-scheme (Light must flip it or native controls/scrollbars stay dark)
+ * and is self-complete so it themes the app with or without the root ThemeScope. To change a seed
+ * palette, edit the value-set JSON + run `pnpm --filter @orb/ui tokens:build` — NEVER hand-write the CSS.
+ *
+ * The @custom-variant below is the ONE hand-authored piece and stays here: dark is enumerated (not
+ * "default = dark") so a dark: utility resolves everywhere except the one light palette. It must
+ * exclude every light seed value-set (a css-structure test enforces this from the JSON). */
 @custom-variant dark (&:not([data-theme="light"], [data-theme="light"] *));
-
-[data-theme="mocha"] {
-  color-scheme: dark;
-  --color-background: oklch(0.15 0.015 250);
-  --color-foreground: oklch(0.95 0.01 250);
-  --color-card: oklch(0.21 0.015 250);
-  --color-card-foreground: oklch(0.95 0.01 250);
-  --color-surface-raised: oklch(0.19 0.015 250);
-  --color-popover: oklch(0.24 0.018 250);
-  --color-popover-foreground: oklch(0.96 0.01 250);
-  --color-primary: oklch(0.7 0.14 250);
-  --color-primary-foreground: oklch(0.16 0.03 250);
-  --color-secondary: oklch(0.26 0.02 250);
-  --color-secondary-foreground: oklch(0.95 0.01 250);
-  --color-muted: oklch(0.26 0.015 250);
-  --color-muted-foreground: oklch(0.72 0.012 250);
-  --color-accent: oklch(0.29 0.02 250);
-  --color-accent-foreground: oklch(0.96 0.01 250);
-  --color-border: oklch(0.99 0.01 250 / 0.09);
-  --color-input: oklch(0.99 0.01 250 / 0.13);
-  --color-ring: oklch(0.7 0.14 250);
-  --color-sidebar: oklch(0.125 0.015 250);
-  --color-sidebar-foreground: oklch(0.9 0.01 250);
-  --color-sidebar-primary: oklch(0.7 0.14 250);
-  --color-sidebar-accent: oklch(0.24 0.02 250);
-  --color-sidebar-border: oklch(0.99 0.01 250 / 0.08);
-  --color-scrim: oklch(0.1 0.015 250 / 0.6);
-  --color-user-bubble: oklch(0.26 0.02 250);
-  --color-user-bubble-foreground: oklch(0.95 0.01 250);
-  --color-ai-bubble: oklch(0.21 0.015 250);
-  --color-ai-bubble-foreground: oklch(0.95 0.01 250);
-  --color-system-bubble: oklch(0.26 0.015 250);
-  --color-system-bubble-foreground: oklch(0.7 0.01 250);
-  --color-dialogue: oklch(0.95 0.01 250);
-  --color-narration: oklch(0.76 0.03 230);
-  --color-prose-body: oklch(0.88 0.015 240);
-  --color-speaker: oklch(0.7 0.14 250);
-}
-
-[data-theme="light"] {
-  color-scheme: light;
-  --color-background: oklch(0.98 0.004 75);
-  --color-foreground: oklch(0.24 0.01 60);
-  --color-card: oklch(0.995 0.003 75);
-  --color-card-foreground: oklch(0.24 0.01 60);
-  --color-surface-raised: oklch(0.965 0.005 75);
-  --color-popover: oklch(0.995 0.003 75);
-  --color-popover-foreground: oklch(0.24 0.01 60);
-  --color-primary: oklch(0.55 0.16 50);
-  --color-primary-foreground: oklch(0.99 0.01 75);
-  --color-secondary: oklch(0.94 0.008 70);
-  --color-secondary-foreground: oklch(0.28 0.01 60);
-  --color-muted: oklch(0.95 0.006 70);
-  --color-muted-foreground: oklch(0.44 0.01 65);
-  --color-accent: oklch(0.93 0.01 70);
-  --color-accent-foreground: oklch(0.28 0.01 60);
-  --color-border: oklch(0.2 0.01 60 / 0.12);
-  --color-input: oklch(0.2 0.01 60 / 0.16);
-  --color-ring: oklch(0.55 0.16 50);
-  --color-sidebar: oklch(0.955 0.006 72);
-  --color-sidebar-foreground: oklch(0.3 0.01 60);
-  --color-sidebar-primary: oklch(0.55 0.16 50);
-  --color-sidebar-accent: oklch(0.9 0.012 70);
-  --color-sidebar-border: oklch(0.2 0.01 60 / 0.1);
-  --color-scrim: oklch(0.3 0.01 60 / 0.4);
-  --color-user-bubble: oklch(0.93 0.02 60);
-  --color-user-bubble-foreground: oklch(0.25 0.02 60);
-  --color-ai-bubble: oklch(0.97 0.006 60);
-  --color-ai-bubble-foreground: oklch(0.22 0.02 60);
-  --color-system-bubble: oklch(0.93 0.015 60);
-  --color-system-bubble-foreground: oklch(0.45 0.02 60);
-  --color-dialogue: oklch(0.2 0.02 60);
-  --color-narration: oklch(0.42 0.03 60);
-  --color-prose-body: oklch(0.28 0.015 60);
-  --color-speaker: oklch(0.5 0.17 50);
-}
 
 /* Ambient accent aura behind the empty-state brand glyph — a static low-alpha radial glow tinted
  * from --color-primary. Scoped to the brand/hero decoration slot only, never the muted empty-state
