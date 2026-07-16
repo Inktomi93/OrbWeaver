@@ -16,11 +16,18 @@ import {
   CharacterLibraryAnchor,
   CharacterLibrarySurface,
 } from "@orb/client/features/character";
+import type { CharacterDetailContribution } from "@orb/client/lib";
+import { createContributorRegistry } from "@orb/client/lib";
+import { selectCharacter, useSectionRegistry } from "@orb/client/state";
 import type { CharacterId, TagId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
-import { useState } from "react";
-import { CtDataProviders } from "../../../support/ct/ct-data-providers";
+import { useEffect, useState } from "react";
+import { CtCharacterContributorSectionRegistry, CtDataProviders } from "../../../support/ct/ct-data-providers";
+
+// The door's empty character-detail registry (§6c) — stories that don't test the seam pass this, mirroring
+// main.tsx's zero-contribution assembly (byte-identical to today's editor, no review-section wrapper).
+const NO_DETAIL_CONTRIBUTORS = createContributorRegistry<CharacterDetailContribution>("character-detail", []);
 
 // ── Pure-render story (no data layer) ───────────────────────────────────────────────────────────
 
@@ -110,8 +117,53 @@ export function CharacterEditorSurfaceStory(): ReactElement {
   return (
     <CtDataProviders>
       <div style={{ height: 640, width: 720 }}>
-        <CharacterEditorSurface characterId={castId<CharacterId>("char_ct_1")} />
+        <CharacterEditorSurface characterId={castId<CharacterId>("char_ct_1")} detailContributors={NO_DETAIL_CONTRIBUTORS} />
       </div>
+    </CtDataProviders>
+  );
+}
+
+// ── The character-detail CONTRIBUTOR seam (client-architecture-lockdown.md §6c) ─────────────────────
+// The seam is built EMPTY at the door; no CT had ever mounted a LIVE contribution through it. This proves
+// a fake `CharacterDetailContribution` at the `editor-sections` anchor, registered at a door-mirroring
+// `CtCharacterContributorSectionRegistry` in place of main.tsx's empty registry, renders as a real review
+// section in the editor body AND `when`-gates — through the REAL section → `makeCharactersSection` →
+// `CharacterContent` → `CharacterEditorSurface` anchor-consumer path (not a bespoke test double).
+
+const CT_DETAIL_SECTION_ID = "ct-fake-detail-section";
+
+export interface CharacterDetailContributorStoryProps {
+  /** Drives the fake section's `when` — `false` proves the anchor HIDES it (no wrapper, today's layout). */
+  readonly visible: boolean;
+}
+
+/** Mounts the characters section's CONTENT through the real registry (`registry.get("characters").content()`)
+ *  — the same call the shell's `SectionContent` makes — so the contributor CT drives the production path. */
+function CharacterContentHarness(): ReactElement {
+  const registry = useSectionRegistry();
+  const content = registry.get("characters").content;
+  if (typeof content !== "function") {
+    throw new Error("ct-stories: characters section content is a planned stub, not a body");
+  }
+  return <div style={{ height: 640, width: 720 }}>{content()}</div>;
+}
+
+export function CharacterDetailContributorStory({ visible }: CharacterDetailContributorStoryProps): ReactElement {
+  useEffect(() => {
+    selectCharacter(castId<CharacterId>("char_ct_1"));
+  }, []);
+  const fakeSection: CharacterDetailContribution = {
+    id: CT_DETAIL_SECTION_ID,
+    anchor: "editor-sections",
+    when: () => visible,
+    body: (): ReactElement => <div data-testid="ct-fake-detail-section">fake review card</div>,
+  };
+  const detailContributors = createContributorRegistry<CharacterDetailContribution>("character-detail", [fakeSection]);
+  return (
+    <CtDataProviders>
+      <CtCharacterContributorSectionRegistry detailContributors={detailContributors}>
+        <CharacterContentHarness />
+      </CtCharacterContributorSectionRegistry>
     </CtDataProviders>
   );
 }

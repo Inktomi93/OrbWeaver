@@ -5,14 +5,23 @@
 // branch component is not itself a focus-managing surface.
 
 import type { ReactElement } from "react";
+import type { CharacterDetailContribution, ContributorRegistry } from "#lib";
 import { revealContextPanel, useSelectedCharacterId } from "#state";
 import { CharacterEditorSurface } from "../surfaces/character-editor-surface";
 import { CharacterLibraryWelcome } from "./character-library-welcome";
 
-export function CharacterContent(): ReactElement {
+export interface CharacterContentProps {
+  /** The character-DETAIL contributor registry (§6c) — threaded from `makeCharactersSection` at the door
+   *  so the crew feature can graft review sections into the editor body without importing character. */
+  readonly detailContributors: ContributorRegistry<CharacterDetailContribution>;
+}
+
+export function CharacterContent({ detailContributors }: CharacterContentProps): ReactElement {
   const selectedCharacterId = useSelectedCharacterId();
   if (selectedCharacterId === null) {
     return <CharacterLibraryWelcome />;
   }
-  return <CharacterEditorSurface characterId={selectedCharacterId} onRevealField={(): void => revealContextPanel("field")} />;
+  return (
+    <CharacterEditorSurface characterId={selectedCharacterId} detailContributors={detailContributors} onRevealField={(): void => revealContextPanel("field")} />
+  );
 }

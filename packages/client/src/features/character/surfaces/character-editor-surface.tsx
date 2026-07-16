@@ -12,10 +12,11 @@ import { Stack } from "@orb/ui/layout";
 import { SaveBar } from "@orb/ui/save-bar";
 import { Text } from "@orb/ui/text";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
-import type { ReactElement } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import type { ReactElement, ReactNode } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { AutosaveStatus } from "#forms";
+import type { CharacterDetailContribution, CharacterDetailState, ContributorRegistry } from "#lib";
 import { useFocusOnMount } from "#lib";
 import {
   clearCharacterFacet,
@@ -38,22 +39,40 @@ import { clearCharacterForm, publishCharacterForm } from "../lib/character-edito
 
 export interface CharacterEditorSurfaceProps {
   readonly characterId: CharacterId;
+  /** The character-DETAIL contributor registry (§6c) — the crew feature grafts card-evolution review
+   *  sections into the editor body's `editor-sections` anchor without importing character. */
+  readonly detailContributors: ContributorRegistry<CharacterDetailContribution>;
   /** Reveal the CONTEXT Field inspector — a facet-row click calls this after writing the selection. */
   readonly onRevealField?: (() => void) | undefined;
 }
 
-export function CharacterEditorSurface({ characterId, onRevealField }: CharacterEditorSurfaceProps): ReactElement {
+/** Resolves the `when`-filtered, in-declared-order review-section nodes for the editor body — zero
+ *  contributions ⇒ an empty array, so the caller renders no wrapper (byte-identical to today's editor;
+ *  §6c/M8 posture). No anchor filter: `editor-sections` is the sole anchor today, so every contribution
+ *  targets the body; a SECOND anchor carrying a different state is compile-forced to add the discriminant
+ *  narrowing here (the union arm won't typecheck against one `state` shape otherwise). */
+function resolveDetailSections(
+  registry: ContributorRegistry<CharacterDetailContribution>,
+  state: CharacterDetailState,
+): readonly { readonly id: string; readonly node: ReactNode }[] {
+  return registry
+    .list()
+    .filter((c) => c.when?.(state) ?? true)
+    .map((c) => ({ id: c.id, node: c.body(state) }));
+}
+
+export function CharacterEditorSurface({ characterId, detailContributors, onRevealField }: CharacterEditorSurfaceProps): ReactElement {
   return (
     <QueryBoundary
       fallback={<Text tone="muted">Loading character…</Text>}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="this character" onRetry={retry} />}
     >
-      <CharacterEditorBody characterId={characterId} onRevealField={onRevealField} key={characterId} />
+      <CharacterEditorBody characterId={characterId} detailContributors={detailContributors} onRevealField={onRevealField} key={characterId} />
     </QueryBoundary>
   );
 }
 
-function CharacterEditorBody({ characterId, onRevealField }: CharacterEditorSurfaceProps): ReactElement {
+function CharacterEditorBody({ characterId, detailContributors, onRevealField }: CharacterEditorSurfaceProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const update = useUpdateCharacter({ trpc, invalidation });
@@ -117,6 +136,12 @@ function CharacterEditorBody({ characterId, onRevealField }: CharacterEditorSurf
     onRevealField?.();
   };
 
+  // The `editor-sections` contributor region (§6c): the crew feature's card-evolution review cards stack
+  // in the editor's existing flow. Layout is the SEAM's responsibility — the same centered column the form
+  // uses — so nothing a contributor supplies can break it. Zero contributions ⇒ no wrapper, byte-identical
+  // to today's editor (mirrors chat-room-surface.tsx's flank posture).
+  const detailSections = resolveDetailSections(detailContributors, { characterId: data.id });
+
   return (
     <Stack ref={surfaceRef} tabIndex={-1} className="h-full overflow-y-auto outline-none">
       <form
@@ -175,6 +200,16 @@ function CharacterEditorBody({ characterId, onRevealField }: CharacterEditorSurf
           )}
         </Stack>
       </form>
+
+      {/* Contributed review sections (§6c) — outside the autosave `<form>` (they carry their own
+          mutations), in the SAME centered column so a live section can't crush the editor width. */}
+      {detailSections.length === 0 ? null : (
+        <Stack gap="section" className="mx-auto w-full max-w-(--container-cq-lg)" padding="section" data-slot="character-editor-sections">
+          {detailSections.map((section) => (
+            <Fragment key={section.id}>{section.node}</Fragment>
+          ))}
+        </Stack>
+      )}
     </Stack>
   );
 }

@@ -18,7 +18,7 @@
 import { createTrpcClient, TRPCProvider } from "@orb/client/data";
 import { contextToggleChrome, fullscreenChrome, youModal } from "@orb/client/features/app-shell";
 import { accountModal } from "@orb/client/features/auth";
-import { charactersSection } from "@orb/client/features/character";
+import { makeCharactersSection } from "@orb/client/features/character";
 import { commandModal, makeChatsSection, newChatModal } from "@orb/client/features/chat";
 import { connectionsPane } from "@orb/client/features/credentials";
 import { corpusSection } from "@orb/client/features/discovery";
@@ -31,7 +31,7 @@ import { analyticsSection } from "@orb/client/features/stats";
 import { adminPane } from "@orb/client/features/user-admin";
 import { backupPane, workloadsPane } from "@orb/client/features/workloads";
 import { worldInfoSection } from "@orb/client/features/world-info";
-import type { ChatContextState, ChatSurfaceContribution, ContextTabDef, ContributorRegistry } from "@orb/client/lib";
+import type { CharacterDetailContribution, ChatContextState, ChatSurfaceContribution, ContextTabDef, ContributorRegistry } from "@orb/client/lib";
 import { createContributorRegistry, createRegistry } from "@orb/client/lib";
 import type {
   ChromeEntry,
@@ -84,10 +84,11 @@ export function CtDataProviders({ children }: { readonly children: ReactNode }):
 
 const chatContextContributors = createContributorRegistry<ContextTabDef<ChatContextState>>("chat-context", []);
 const chatSurfaceContributors = createContributorRegistry<ChatSurfaceContribution>("chat-surface", []);
+const characterDetailContributors = createContributorRegistry<CharacterDetailContribution>("character-detail", []);
 
 const REAL: Record<SectionId, SectionDefinition> = {
   chats: makeChatsSection(chatContextContributors, chatSurfaceContributors),
-  characters: charactersSection,
+  characters: makeCharactersSection(characterDetailContributors),
   corpus: corpusSection,
   worldInfo: worldInfoSection,
   presets: presetsSection,
@@ -205,6 +206,32 @@ export function CtChatContributorSectionRegistry({
   const registry = createRegistry<SectionId, SectionDefinition>("sections", SECTION_IDS, {
     ...REAL,
     chats: makeChatsSection(contextContributors ?? chatContextContributors, surfaceContributors ?? chatSurfaceContributors),
+  });
+  return (
+    <SectionRegistryProvider value={registry}>
+      <ModalRegistryProvider value={realModalRegistry}>
+        <ChromeRegistryProvider value={realChromeRegistry}>
+          <SettingsPaneRegistryProvider value={realSettingsPaneRegistry}>{children}</SettingsPaneRegistryProvider>
+        </ChromeRegistryProvider>
+      </ModalRegistryProvider>
+    </SectionRegistryProvider>
+  );
+}
+
+/** The REAL `characters` section, rebuilt with a CALLER-supplied `character-detail` contributor registry
+ *  in place of main.tsx's empty one (the seam deliverable — proves a fake detail contribution renders +
+ *  `when`-gates through the REAL section/factory/content path, not a bespoke test double). Every other
+ *  section stays the real registry (`REAL`), so a character CT mounting the shell still sees real siblings. */
+export function CtCharacterContributorSectionRegistry({
+  detailContributors,
+  children,
+}: {
+  readonly detailContributors: ContributorRegistry<CharacterDetailContribution>;
+  readonly children: ReactNode;
+}): ReactElement {
+  const registry = createRegistry<SectionId, SectionDefinition>("sections", SECTION_IDS, {
+    ...REAL,
+    characters: makeCharactersSection(detailContributors),
   });
   return (
     <SectionRegistryProvider value={registry}>

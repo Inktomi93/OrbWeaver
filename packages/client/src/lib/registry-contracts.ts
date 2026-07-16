@@ -188,3 +188,33 @@ export type ChatSurfaceContribution =
       readonly when?: (state: ChatMessageSurfaceState) => boolean;
       readonly body: (state: ChatMessageSurfaceState) => ReactNode;
     };
+
+/** The character-DETAIL surface-anchor vocabulary (§6c) — closed `as const` tuple, so an unlisted anchor
+ *  is unspellable. `editor-sections` is the review-cards region in the character editor body: the ONE
+ *  named cross-feature need (crew 07-client-ui §4.2 — pending card-evolution proposals render there as
+ *  review cards, owned by the crew feature, WITHOUT importing the character feature). */
+export const CHARACTER_DETAIL_ANCHORS = ["editor-sections"] as const;
+export type CharacterDetailAnchor = (typeof CHARACTER_DETAIL_ANCHORS)[number];
+
+/** The character-detail surface projection — what the editor body can actually supply a contributor: the
+ *  id of the character being edited (the same drill subject the CONTEXT tabs read — a distinct POSITION,
+ *  so its own named projection, mirroring how M8's surface anchors got projections distinct from the
+ *  CONTEXT-tab `ChatContextState`). */
+export interface CharacterDetailState {
+  readonly characterId: CharacterId;
+}
+
+/** The `editor-sections` arm of the character-detail contribution union — the review-cards region in the
+ *  editor body (crew 07-client-ui §4.2 renders pending card-evolution proposals here). */
+interface CharacterDetailSectionsContribution {
+  readonly id: string;
+  readonly anchor: Extract<CharacterDetailAnchor, "editor-sections">;
+  readonly when?: (state: CharacterDetailState) => boolean;
+  readonly body: (state: CharacterDetailState) => ReactNode;
+}
+
+/** A character-detail contribution (§6c) — a discriminated union BY ANCHOR (the M8 `ChatSurfaceContribution`
+ *  shape). One arm today; a new anchor is one `CHARACTER_DETAIL_ANCHORS` entry + one named arm added to
+ *  this union, and the `anchor` literal narrows `when`/`body` to its own state at every call site with
+ *  zero casts. */
+export type CharacterDetailContribution = CharacterDetailSectionsContribution;
