@@ -23,7 +23,7 @@ import { commandModal, makeChatsSection, newChatModal } from "@orb/client/featur
 import { connectionsPane } from "@orb/client/features/credentials";
 import { corpusSection } from "@orb/client/features/discovery";
 import { notificationsChrome } from "@orb/client/features/notifications";
-import { personasPane } from "@orb/client/features/persona";
+import { personaChrome, personasPane } from "@orb/client/features/persona";
 import { presetsSection } from "@orb/client/features/preset";
 import { refinerySection } from "@orb/client/features/refinery";
 import {
@@ -44,6 +44,7 @@ import { worldInfoSection } from "@orb/client/features/world-info";
 import type { ChatContextState, ChatSurfaceContribution, ContextTabDef, ContributorRegistry } from "@orb/client/lib";
 import { createContributorRegistry, createRegistry } from "@orb/client/lib";
 import type {
+  ChromeEntry,
   ChromeRegistry,
   ModalDefinition,
   ModalRegistry,
@@ -151,8 +152,39 @@ const realSettingsPaneRegistry: SettingsPaneRegistry = createRegistry<SettingsCa
 
 const realChromeRegistry: ChromeRegistry = createContributorRegistry(
   "chrome",
-  assembleChrome({ sections: realRegistry.list(), modals: realModalRegistry.list(), widgets: [notificationsChrome, fullscreenChrome, contextToggleChrome] }),
+  assembleChrome({
+    sections: realRegistry.list(),
+    modals: realModalRegistry.list(),
+    widgets: [notificationsChrome, fullscreenChrome, contextToggleChrome, personaChrome],
+  }),
 );
+
+// The rail's `rail.end` persona identity widget (`personaChrome.body("bar")`) is a data-backed suspense
+// surface; the BARE RailStory (a11y/keyboard, no data layer) stands a named button in its place — the
+// old `railFoot` stand-in philosophy, now expressed as a chrome widget — so the footer-slot a11y baseline
+// stays covered without pulling the persona feature (and its queries) into a dataless mount.
+const railStandInPersona: ChromeEntry = {
+  id: "persona-identity",
+  label: "Account",
+  zone: "rail.end",
+  order: 50,
+  mobile: "sheet",
+  behavior: { kind: "widget", body: (): ReactElement => <button type="button">Account</button> },
+};
+const standInChromeRegistry: ChromeRegistry = createContributorRegistry(
+  "chrome",
+  assembleChrome({
+    sections: realRegistry.list(),
+    modals: realModalRegistry.list(),
+    widgets: [notificationsChrome, fullscreenChrome, contextToggleChrome, railStandInPersona],
+  }),
+);
+
+/** Overrides the chrome registry with the stand-in (a bare "Account" rail.end widget) — for the bare
+ *  RailStory, which mounts the rail without a data layer. */
+export function CtStandInChromeRegistry({ children }: { readonly children: ReactNode }): ReactElement {
+  return <ChromeRegistryProvider value={standInChromeRegistry}>{children}</ChromeRegistryProvider>;
+}
 
 /** The real 7-section + 6-modal + 12-settings-pane + 3-chrome registries — for CTs that drive real
  *  content (the route CT). */

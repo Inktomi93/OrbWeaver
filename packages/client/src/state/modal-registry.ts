@@ -8,8 +8,11 @@ import type { ReactElement } from "react";
 import type { ModalSlotId } from "./shell-store";
 
 /** WHERE a modal's trigger affordance lives — the rail/topbar/mobile-bar DERIVE from this (no parallel
- *  map). Extend the tuple to add a placement. */
-export const MODAL_TRIGGER_PLACEMENTS = ["rail-footer", "avatar", "topbar-command", "content", "mobile-tab"] as const;
+ *  map). Extend the tuple to add a placement. (`avatar` was retired at §E-5: the account modal is reached
+ *  from INSIDE the persona identity widget's Account strip, so it rides the `content` placement — "my
+ *  trigger lives inside a feature surface" — like the new-chat modal. The `content`→`surface` rename is
+ *  §E-7's full vocab tightening, deferred.) */
+export const MODAL_TRIGGER_PLACEMENTS = ["rail-footer", "topbar-command", "content", "mobile-tab"] as const;
 export type ModalTriggerPlacement = (typeof MODAL_TRIGGER_PLACEMENTS)[number];
 
 /** A modal's self-declared trigger — its reachability + the affordance a deriving surface renders. */

@@ -162,7 +162,10 @@
   align-items: center;
   gap: var(--spacing-row);
 }
-.shell-rail-avatar {
+/* A live rail widget (the persona identity) — the old route-injected `.shell-rail-avatar` slot, now a
+ * registered `rail.end` chrome entry (§E-6). The extra top margin keeps the identity set apart from the
+ * footer-modal buttons above it, as the rail-foot avatar was. */
+.shell-rail-widget {
   margin-block-start: var(--spacing-row);
 }
 .shell-rail-spacer {
@@ -409,8 +412,7 @@
     display: contents;
   }
   .shell-rail-brand,
-  .shell-rail-spacer,
-  .shell-rail-avatar {
+  .shell-rail-spacer {
     display: none;
   }
   .shell-rail .shell-rail-button {
@@ -436,8 +438,11 @@
   .shell-rail-button-label {
     display: block;
   }
-  /* Sheet-curated entries fold into the You sheet — hidden here (display:none also removes them from AT). */
-  .shell-rail .shell-rail-button[data-mobile="sheet"] {
+  /* Sheet-curated entries fold into the You sheet — hidden here (display:none also removes them from AT).
+   * Applies to both a section/modal button and a live rail widget (the persona identity, `mobile:"sheet"`),
+   * which project into the sheet via `body("sheet")`. */
+  .shell-rail .shell-rail-button[data-mobile="sheet"],
+  .shell-rail .shell-rail-widget[data-mobile="sheet"] {
     display: none;
   }
   /* The "You" overflow tab appears only on the bar. */

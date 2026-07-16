@@ -1,6 +1,9 @@
-// The rail-foot account + persona panel. A prop-free @container consumer the route injects into the
-// app-shell rail-foot slot. Cross-feature reach to auth is a #state write (openModal), never a
-// #features/auth import. All server state via trpc, zero Zustand.
+// The Identity (persona) chrome widget's render — ONE widget, TWO lenses (shell-chrome-unification.md §B):
+// `presentation:"bar"` is the desktop rail.end avatar chip + popover; `presentation:"sheet"` inlines the
+// SAME sections (Account strip · Playing-as header · persona rows · this-chat) into the mobile You sheet —
+// this is where mobile persona switching lives (the §B ruling-1 gap closing). One data fetch, one section
+// stack, two wrappers. Cross-feature reach to auth is a #state write (openModal), never a #features/auth
+// import. All server state via trpc, zero Zustand.
 
 import { blobUrl } from "@orb/contracts/assets";
 import type { PersonaId } from "@orb/kit/ids";
@@ -16,10 +19,11 @@ import { Text } from "@orb/ui/text";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
 import type { Trpc } from "#data";
 import { QueryBoundary, useInvalidation, useTRPC } from "#data";
+import type { ChromePresentation } from "#state";
 import { openModal } from "#state";
 import { PersonaPanelRow } from "../components/persona-panel-row";
 import { PersonaThisChatSection } from "../components/persona-this-chat-section";
@@ -28,8 +32,8 @@ import { useCreatePersona, useRemovePersona } from "../hooks/use-persona-mutatio
 
 type PersonaListItem = inferOutput<Trpc["persona"]["list"]>[number];
 
-/** The rail-foot account + persona panel (route-injected into the app-shell rail-foot slot). */
-export function PersonaPanelSurface(): ReactElement {
+/** The Identity widget's render, keyed to the lens `personaChrome.body(presentation)` asks for. */
+export function PersonaPanelSurface({ presentation }: { readonly presentation: ChromePresentation }): ReactElement {
   return (
     <QueryBoundary
       fallback={
@@ -43,12 +47,12 @@ export function PersonaPanelSurface(): ReactElement {
         </Avatar>
       )}
     >
-      <PanelBody />
+      <PanelBody presentation={presentation} />
     </QueryBoundary>
   );
 }
 
-function PanelBody(): ReactElement {
+function PanelBody({ presentation }: { readonly presentation: ChromePresentation }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const setSeed = useSetPersonaSeed({ trpc, invalidation });
@@ -81,63 +85,73 @@ function PanelBody(): ReactElement {
     }
   };
 
+  // The ONE section stack both lenses render — the desktop popover body and the mobile sheet inline.
+  const sections: ReactNode = (
+    <Stack gap="row">
+      <AccountStrip />
+      <Separator />
+      <PersonaHeader
+        current={current}
+        onNew={(): void => {
+          void onCreate();
+        }}
+      />
+      <Separator />
+      <Text size="micro" tone="muted" transform="caps">
+        Your personas
+      </Text>
+      <Stack gap="field">
+        {personas.length === 0 ? (
+          <EmptyState
+            action={
+              <Button
+                intent="primary"
+                size="sm"
+                onClick={(): void => {
+                  void onCreate();
+                }}
+              >
+                <Icon icon={Plus} size="sm" />
+                Create persona
+              </Button>
+            }
+            icon={<Icon icon={Drama} size="md" />}
+            title="No personas yet"
+            description="Create one to start speaking as a distinct identity."
+          />
+        ) : (
+          personas.map((persona) => (
+            <PersonaPanelRow
+              key={persona.id}
+              persona={persona}
+              isCurrent={persona.id === current?.id}
+              isDefault={persona.id === defaultId}
+              expanded={persona.id === expandedId}
+              onSetCurrent={(): void => setCurrent(persona.id)}
+              onSetDefault={(): void => setSeed.mutate({ section: "seeds", patch: { defaultPersonaId: persona.id } })}
+              onToggleExpand={(): void => setExpandedId((prev) => (prev === persona.id ? null : persona.id))}
+              onDelete={(): void => onDelete(persona.id)}
+            />
+          ))
+        )}
+      </Stack>
+      <PersonaThisChatSection />
+    </Stack>
+  );
+
+  // The sheet lens: the same sections inline in the You bottom sheet (no popover, no trigger) — the
+  // drawer provides the containment, so this is the mobile persona switcher.
+  if (presentation === "sheet") {
+    return sections;
+  }
+
+  // The bar lens: the desktop rail.end avatar chip, opening the sections in a side popover.
   return (
     <Popover>
       <PanelTrigger current={current} />
       {/* max-h-(--available-height) caps the whole panel to the viewport, not just a nested list peephole. */}
       <PopoverPopup align="end" className="max-h-(--available-height) w-(--container-cq-sm) overflow-y-auto" side="right">
-        <Container size="md">
-          <Stack gap="row">
-            <AccountStrip />
-            <Separator />
-            <PersonaHeader
-              current={current}
-              onNew={(): void => {
-                void onCreate();
-              }}
-            />
-            <Separator />
-            <Text size="micro" tone="muted" transform="caps">
-              Your personas
-            </Text>
-            <Stack gap="field">
-              {personas.length === 0 ? (
-                <EmptyState
-                  action={
-                    <Button
-                      intent="primary"
-                      size="sm"
-                      onClick={(): void => {
-                        void onCreate();
-                      }}
-                    >
-                      <Icon icon={Plus} size="sm" />
-                      Create persona
-                    </Button>
-                  }
-                  icon={<Icon icon={Drama} size="md" />}
-                  title="No personas yet"
-                  description="Create one to start speaking as a distinct identity."
-                />
-              ) : (
-                personas.map((persona) => (
-                  <PersonaPanelRow
-                    key={persona.id}
-                    persona={persona}
-                    isCurrent={persona.id === current?.id}
-                    isDefault={persona.id === defaultId}
-                    expanded={persona.id === expandedId}
-                    onSetCurrent={(): void => setCurrent(persona.id)}
-                    onSetDefault={(): void => setSeed.mutate({ section: "seeds", patch: { defaultPersonaId: persona.id } })}
-                    onToggleExpand={(): void => setExpandedId((prev) => (prev === persona.id ? null : persona.id))}
-                    onDelete={(): void => onDelete(persona.id)}
-                  />
-                ))
-              )}
-            </Stack>
-            <PersonaThisChatSection />
-          </Stack>
-        </Container>
+        <Container size="md">{sections}</Container>
       </PopoverPopup>
     </Popover>
   );

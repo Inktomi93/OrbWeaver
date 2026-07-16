@@ -11,5 +11,4 @@ export { useShellLayout } from "./hooks/use-shell-layout";
 export { contextToggleChrome } from "./lib/context-toggle-chrome";
 export { fullscreenChrome } from "./lib/fullscreen-chrome";
 export { youModal } from "./lib/you-modal";
-export type { AppShellProps } from "./surfaces/app-shell";
 export { AppShell } from "./surfaces/app-shell";

@@ -10,8 +10,9 @@
 // Only `rail-footer → rail.end` maps: the rail consumes these rail.end entries as its footer affordances
 // (§E-3 single-DOM cutover). `topbar-command` (⌘K) is DELIBERATELY absent — the topbar still renders its bespoke ⌘K chip (whose
 // modal id is already derived from the trigger placement); folding ⌘K into a generically-rendered
-// topbar.trail entry is a VISIBLE change deferred to N1's skin pass. `avatar`/`content`/`mobile-tab`
-// have no chrome zone today (route-injected railFoot · a feature surface · the mobile bar).
+// topbar.trail entry is a VISIBLE change deferred to N1's skin pass. `content`/`mobile-tab` have no chrome
+// zone today (a feature surface · the mobile bar). The persona identity avatar is no longer a modal
+// placement at all — it's a `rail.end` WIDGET entry (`personaChrome`, §E-6), passed straight through below.
 
 import type { ChromeEntry, ChromeZone } from "./chrome-registry";
 import { CHROME_ZONES } from "./chrome-registry";

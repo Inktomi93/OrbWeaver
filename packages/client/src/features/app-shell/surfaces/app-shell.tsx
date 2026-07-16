@@ -32,11 +32,6 @@ import { resolveBackgroundUrl } from "../lib/resolve-theme-background";
 import { resolveThemeScopeTokens } from "../lib/resolve-theme-scope-tokens";
 import "./shell.css";
 
-export interface AppShellProps {
-  /** Route-composed rail-foot chip (the persona switcher). Undefined ⇒ the account button. */
-  readonly railFoot?: ReactNode;
-}
-
 /** Renders the `topbar.trail` zone's chrome widgets — the registry list is frozen at the door, so
  *  calling each entry's `useVisible` unconditionally, in a fixed loop, is legal (the `contentBySection`
  *  precedent). `false` ⇒ render NOTHING (no gap — preserves the bell's no-flash rule). */
@@ -64,7 +59,7 @@ function TrailWidget({ entry }: { readonly entry: ChromeEntry }): ReactNode {
   return entry.behavior.body("bar");
 }
 
-export function AppShell({ railFoot }: AppShellProps): ReactElement {
+export function AppShell(): ReactElement {
   const registry = useSectionRegistry();
   // The ⌘K affordance opens the single `topbar-command`-placed modal — derived, never hardcoded.
   const commandModalId = useModalRegistry()
@@ -169,7 +164,7 @@ export function AppShell({ railFoot }: AppShellProps): ReactElement {
             style={shellVars}
           >
             <CustomThemeStyle css={theme?.css ?? null} />
-            <Rail activeSection={layout.activeSection} onSelectSection={setActiveSection} onOpenModal={openModal} railFoot={railFoot} />
+            <Rail activeSection={layout.activeSection} onSelectSection={setActiveSection} onOpenModal={openModal} />
 
             <PanelChrome panel="list" label={`${layout.activeSectionLabel} list`} header={activeDef.listHeader?.()} mode={layout.listMode}>
               <RegionAnchor region="list">{listContent}</RegionAnchor>

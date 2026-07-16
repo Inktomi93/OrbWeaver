@@ -333,12 +333,21 @@ test("mobile: a tab click switches the section", async ({ mount, page }) => {
 
 test("mobile: the You tab opens the sheet; an overflow section routes and closes it", async ({ mount, page }) => {
   await page.setViewportSize(MOBILE);
+  // The sheet PROJECTS the persona identity widget's `body("sheet")` lens (§E-5) — stub its two reads so
+  // the mobile persona switcher (Playing-as + Account strip) renders, closing the §B ruling-1 gap.
+  await routeTrpc(page, {
+    "persona.list": () => [],
+    "settings.getUserSettings": () => ({ userId: "user_ct_you", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 }),
+  });
   const shell = await mount(<AppShellStory />);
   await shell.getByRole("button", { name: "You", exact: true }).click();
 
-  // The sheet holds account/settings/theme + the overflow sections (Refinery/Analytics reachable HERE).
+  // The sheet is a BLIND PROJECTION over the resolved chrome list: the rail.end footer modals (theme/
+  // settings, labelled by their trigger), the persona identity widget's sheet lens (Playing-as header +
+  // Account strip — mobile persona switching lives HERE), and the `mobile:"sheet"` overflow sections.
   await expect(page.getByRole("button", { name: "Settings" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Theme" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Switch theme" })).toBeVisible();
+  await expect(page.getByText("Playing as")).toBeVisible();
   await expect(page.getByRole("button", { name: "Account" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Refinery" })).toBeVisible();
 
@@ -351,6 +360,11 @@ test("mobile: the You tab opens the sheet; an overflow section routes and closes
 
 test("mobile: the You sheet hands off to Settings in the shared modal slot (single-slot layered)", async ({ mount, page }) => {
   await page.setViewportSize(MOBILE);
+  // Stub the persona identity widget's sheet-lens reads so the projected sheet renders cleanly (§E-5).
+  await routeTrpc(page, {
+    "persona.list": () => [],
+    "settings.getUserSettings": () => ({ userId: "user_ct_you_handoff", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 }),
+  });
   const shell = await mount(<AppShellStory />);
   await shell.getByRole("button", { name: "You", exact: true }).click();
   // Opening Settings REPLACES the You sheet in the shared openModal slot (not a nested modal): the You
