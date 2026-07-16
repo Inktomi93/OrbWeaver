@@ -1,10 +1,11 @@
 // Unit: the Analytics view-model helpers (features/stats/lib/analytics-view-model). Pure, no DOM — the
 // non-trivial shaping the surfaces lean on: duration bucketing, compact-number rounding, the 7×24
-// heatmap → hour-of-day aggregation, weekday labelling, and the chart-family row adapters. Asserts the
+// activity-matrix → <Heatmap> reshape, weekday labelling, and the chart-family row adapters. Asserts the
 // boundaries (ms/s/m/h thresholds, k/M cutovers) and the aggregation math, not the trivial passthroughs.
 
 import { describe } from "vitest";
 import {
+  activityHeatmapMatrix,
   byModelBarItems,
   dailyTurnBuckets,
   formatCompact,
@@ -15,7 +16,6 @@ import {
   formatPercent,
   formatSignedDelta,
   formatUsd,
-  hourHistogramBuckets,
   momentumBarItems,
   personaBarItems,
   WEEKDAY_LABELS,
@@ -83,21 +83,27 @@ describe("scalar formatters", () => {
   });
 });
 
-describe("hourHistogramBuckets", () => {
-  test("sums each hour column across all 7 weekday rows into 24 buckets", () => {
-    const matrix = Array.from({ length: 7 }, () => Array.from({ length: 24 }, (_unused, hour) => hour));
-    const buckets = hourHistogramBuckets(matrix);
-    expect(buckets).toHaveLength(24);
-    expect(buckets[0]).toEqual({ label: "00", count: 0 });
-    // Hour 5 present in all 7 rows → 5 * 7.
-    expect(buckets[5]).toEqual({ label: "05", count: 35 });
-    expect(buckets[23]?.count).toBe(23 * 7);
+describe("activityHeatmapMatrix", () => {
+  test("reshapes the 7×24 matrix into weekday rows + two-digit hour cols, cells preserved", () => {
+    const matrix = Array.from({ length: 7 }, (_unused, day) => Array.from({ length: 24 }, (_h, hour) => day * 100 + hour));
+    const out = activityHeatmapMatrix(matrix);
+    expect(out.rows).toEqual([...WEEKDAY_LABELS]);
+    expect(out.cols).toHaveLength(24);
+    expect(out.cols[0]).toBe("00");
+    expect(out.cols[23]).toBe("23");
+    expect(out.values).toHaveLength(7);
+    expect(out.values[0]?.[0]).toBe(0);
+    // Tue (index 2), hour 5 → 2*100 + 5.
+    expect(out.values[2]?.[5]).toBe(205);
   });
-  test("tolerates ragged / empty rows", () => {
-    const buckets = hourHistogramBuckets([[], [1, 2]]);
-    expect(buckets[0]?.count).toBe(1);
-    expect(buckets[1]?.count).toBe(2);
-    expect(buckets[2]?.count).toBe(0);
+  test("pads ragged / missing rows and cells to a full 7×24 grid of zeros", () => {
+    const out = activityHeatmapMatrix([[], [1, 2]]);
+    expect(out.values).toHaveLength(7);
+    expect(out.values[0]?.[0]).toBe(0);
+    expect(out.values[1]?.[0]).toBe(1);
+    expect(out.values[1]?.[1]).toBe(2);
+    expect(out.values[1]?.[2]).toBe(0);
+    expect(out.values[6]).toHaveLength(24);
   });
 });
 

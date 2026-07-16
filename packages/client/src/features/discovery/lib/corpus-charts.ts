@@ -4,6 +4,7 @@
 // The charts family was the audit's #1 style ding: count-data must render as bars, not text ListRow/Badge.
 
 import type { BarListItem } from "@orb/ui/bar-list";
+import type { ScatterPoint, ScatterSeries } from "@orb/ui/scatter";
 
 /** Map any labelled-count rows into pre-ranked BarList items (array order IS the rank — callers pre-sort). */
 export function toBarItems<T>(rows: readonly T[], label: (row: T) => string, value: (row: T) => number): BarListItem[] {
@@ -15,30 +16,26 @@ export function toBarItems<T>(rows: readonly T[], label: (row: T) => string, val
   }));
 }
 
-// ── semantic-map genre palette ────────────────────────────────────────────────
-/** The token `fill` refs the map colors genres with — set on the SVG `fill` ATTRIBUTE (a token reference,
- *  never a className/style: features may not className raw SVG, so `fill="var(--color-*)"` is the one
- *  belt-clean channel). The N most-common genres claim a fill in frequency order; the rest (+ null) go muted. */
-export const GENRE_FILLS = ["var(--color-primary)", "var(--color-success)", "var(--color-warning)", "var(--color-destructive)"] as const;
-export const GENRE_FILL_MUTED = "var(--color-muted-foreground)";
+// ── semantic-map genre grouping ───────────────────────────────────────────────
+// The N top genres get their own colored series; the rest (+ null/empty) fall into this one.
+const OTHER_GENRE_LABEL = "Other";
+// Cap named genre series to the `@orb/ui` chart ramp (5 stops) so <Scatter>'s per-series color never wraps.
+const MAX_GENRE_SERIES = 5;
 
-/** One legend entry — a genre value paired with the token fill its points render in. */
-interface GenreSwatch {
-  readonly genre: string;
-  readonly fill: string;
+/** A card's map point — the caller's row shaped for `<Scatter>` (id echoed back on click). */
+interface MapPoint extends ScatterPoint {
+  readonly genre: string | null;
 }
 
-/** The map's genre coloring — a stable legend (top genres by frequency) + a resolver for any point's fill.
- *  Deterministic: ties break on first-seen order, so the same corpus always paints identically. */
-export interface GenrePalette {
-  readonly legend: readonly GenreSwatch[];
-  readonly fillFor: (genre: string | null) => string;
-}
-
-export function assignGenreColors(genres: readonly (string | null)[]): GenrePalette {
+/** Group projected map points into `<Scatter>` series by genre — the top genres by frequency each get a
+ *  named series (colored by ui's chart ramp in this order), the rest collapse into one "Other" series.
+ *  Deterministic: ties break on first-seen order, so the same corpus always groups identically. Genres
+ *  with no members after the cap contribute nothing; an all-"Other" corpus yields a single series. */
+export function toGenreSeries(points: readonly MapPoint[]): ScatterSeries[] {
   const counts = new Map<string, { count: number; firstSeen: number }>();
   let seen = 0;
-  for (const genre of genres) {
+  for (const point of points) {
+    const genre = point.genre;
     if (genre === null || genre === "") {
       continue;
     }
@@ -51,15 +48,23 @@ export function assignGenreColors(genres: readonly (string | null)[]): GenrePale
     }
   }
 
-  const ranked = [...counts.entries()].sort((a, b) => b[1].count - a[1].count || a[1].firstSeen - b[1].firstSeen).slice(0, GENRE_FILLS.length);
+  const topGenres = [...counts.entries()]
+    .sort((a, b) => b[1].count - a[1].count || a[1].firstSeen - b[1].firstSeen)
+    .slice(0, MAX_GENRE_SERIES)
+    .map(([genre]) => genre);
+  const topSet = new Set(topGenres);
 
-  const byGenre = new Map<string, string>(ranked.map(([genre], index) => [genre, GENRE_FILLS[index] ?? GENRE_FILL_MUTED]));
+  const bucket = new Map<string, ScatterPoint[]>(topGenres.map((genre) => [genre, []]));
+  const other: ScatterPoint[] = [];
+  for (const point of points) {
+    const plain: ScatterPoint = { id: point.id, label: point.label, x: point.x, y: point.y };
+    const target = point.genre !== null && point.genre !== "" && topSet.has(point.genre) ? bucket.get(point.genre) : other;
+    (target ?? other).push(plain);
+  }
 
-  return {
-    legend: ranked.map(([genre], index) => ({
-      genre,
-      fill: GENRE_FILLS[index] ?? GENRE_FILL_MUTED,
-    })),
-    fillFor: (genre): string => (genre === null ? GENRE_FILL_MUTED : (byGenre.get(genre) ?? GENRE_FILL_MUTED)),
-  };
+  const series: ScatterSeries[] = topGenres.map((genre) => ({ name: genre, points: bucket.get(genre) ?? [] }));
+  if (other.length > 0) {
+    series.push({ name: OTHER_GENRE_LABEL, points: other });
+  }
+  return series;
 }

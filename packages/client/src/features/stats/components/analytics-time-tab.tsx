@@ -1,9 +1,10 @@
 // The Analytics CONTEXT "Time" tab — when activity happens. Reads `timeseries` (daily points → an
 // assistant-turn + output-token histogram), `temporal` (streaks / active days / busiest day + the
-// weekday activity vector as a bar-list), and `activityHeatmap` (the 7×24 matrix collapsed to an
-// hour-of-day histogram + the peak cell). Read-only analytics.
+// weekday activity vector as a bar-list), and `activityHeatmap` (the true 7×24 weekday×hour matrix as a
+// <Heatmap> with a VisualMap gradient + the peak cell). Read-only analytics.
 
 import { BarList } from "@orb/ui/bar-list";
+import { Heatmap } from "@orb/ui/heatmap";
 import { Histogram } from "@orb/ui/histogram";
 import { Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
@@ -11,7 +12,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary, QueryErrorState, useTRPC } from "#data";
 import { testId } from "#lib";
-import { dailyTokenBuckets, dailyTurnBuckets, formatCompact, formatPeak, hourHistogramBuckets, weekdayBarItems } from "../lib/analytics-view-model";
+import { activityHeatmapMatrix, dailyTokenBuckets, dailyTurnBuckets, formatCompact, formatPeak, weekdayBarItems } from "../lib/analytics-view-model";
 import { RhythmFigures } from "./rhythm-figures";
 
 export function AnalyticsTimeTab(): ReactElement {
@@ -48,13 +49,13 @@ function TimeBody(): ReactElement {
         <BarList items={weekdayBarItems(temporal.dayOfWeek)} label="Messages by weekday" valueFormatter={formatCompact} />
       </Section>
 
-      <Section heading="By hour">
+      <Section heading="By weekday and hour">
         {peak === null ? null : (
           <Text size="micro" tone="muted">
             Peak: {peak} ({formatCompact(heatmap.peak?.count ?? 0)})
           </Text>
         )}
-        <Histogram buckets={hourHistogramBuckets(heatmap.matrix)} label="Messages by hour (UTC)" />
+        <Heatmap label="Messages by weekday and hour (UTC)" matrix={activityHeatmapMatrix(heatmap.matrix)} />
       </Section>
     </Stack>
   );

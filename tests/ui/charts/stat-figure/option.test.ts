@@ -15,6 +15,7 @@ const COLORS: ChartColors = {
   axisLabel: "rgb(4, 5, 6)",
   axisLabelMuted: "rgb(7, 8, 9)",
   axisLine: "rgb(10, 11, 12)",
+  palette: ["rgb(1, 1, 1)", "rgb(2, 2, 2)", "rgb(3, 3, 3)", "rgb(4, 4, 4)", "rgb(5, 5, 5)"],
 };
 
 test("the sparkline line and area carry the resolved series color, never a token literal", () => {
