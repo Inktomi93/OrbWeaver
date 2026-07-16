@@ -17,8 +17,8 @@
   "// maxSize": "Skip files over 200kb (fixtures, snapshots).",
   "maxSize": "200kb",
 
-  "// threshold": "CI gate: fail if duplication exceeds 5%. Ratchet down as the codebase matures.",
-  "threshold": 5,
+  "// threshold": "CI gate: fail if duplication exceeds 2%. RATCHETED 5->2 (2026-07-16, derive-program close): measured floor after W1-W6 = 1.38% lines / 1.68% tokens (tsx 0.80%) - the next copy-paste CLASS reds instead of accumulating. Re-ratchet toward the floor as it drops.",
+  "threshold": 2,
 
   "// gitignore": "Respect .gitignore — no node_modules / reports / scratchpad.",
   "gitignore": true,
