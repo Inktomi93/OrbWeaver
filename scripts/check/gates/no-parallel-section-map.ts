@@ -11,9 +11,16 @@
 // check). The vocabulary TUPLES themselves (`SECTION_IDS`/`MODAL_SLOT_IDS` in shell-store.ts) are bare
 // all-ids string arrays too — they're the sanctioned ONE home, allowlisted like every other arm.
 //
+// (5) the CHROME arm (shell-chrome-unification.md §D/§E-7): chrome has NO id vocabulary — it's a
+// contributor-style OPEN set over the CLOSED `CHROME_ZONES` axis (zones are architecture, entries are
+// growth), so the id-keyed arms above can't see it. A hand-maintained chrome list = an array literal of ≥2
+// object literals EACH carrying a `zone:` that is a CHROME_ZONES member, outside the door. Homes: the door
+// (main.tsx), the pure assembler (state/assemble-chrome.ts), and the co-located widget defs
+// (features/*/lib/*-chrome.tsx). Everywhere else re-declares a parallel chrome registry — RED.
+//
 // SCOPE: the SectionId, ModalSlotId, AND SettingsCategoryId vocabularies (all LIVE — the SettingsCategoryId
 // arm lands at M6.1; its allowlist mirrors the modal arm: the tuple home (shell-store.ts), the door, and
-// its own co-located *-pane.tsx defs).
+// its own co-located *-pane.tsx defs) PLUS the zone-keyed chrome-entry array (arm 5, its own allowlist).
 import type { Expression, ObjectLiteralExpression, Project, SourceFile, TypeNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
@@ -47,6 +54,8 @@ const SETTINGS_RECORD_RE = /\bRecord<\s*SettingsCategoryId\b/;
 const SETTINGS_PARTIAL_RE = /\bPartial<\s*Record<\s*SettingsCategoryId\b/;
 /** A co-located settings-pane definition file: `features/<owner>/lib/<id>-pane.{ts,tsx}`. */
 const PANE_FILE_RE = /\/features\/[^/]+\/lib\/[^/]+-pane\.tsx?$/;
+/** A co-located chrome-widget definition file: `features/<owner>/lib/<id>-chrome.{ts,tsx}`. */
+const CHROME_FILE_RE = /\/features\/[^/]+\/lib\/[^/]+-chrome\.tsx?$/;
 
 function rel(path: string): string {
   const idx = path.indexOf("/packages/");
@@ -242,13 +251,69 @@ function scanFileForVocab(sf: SourceFile, vocab: Vocab, out: Violation[]): void 
   }
 }
 
+/** The sanctioned homes for a hand-assembled chrome list: the door (main.tsx), the pure assembler, and the
+ *  co-located widget def files matched by CHROME_FILE_RE. */
+function isChromeAllowlisted(repoRelPath: string): boolean {
+  return repoRelPath.endsWith("/client/src/main.tsx") || repoRelPath.endsWith("/state/assemble-chrome.ts") || CHROME_FILE_RE.test(repoRelPath);
+}
+
+/** An object literal's `zone:` value when it is a CHROME_ZONES member, else undefined (a non-chrome `zone`
+ *  like the preset assembly's `"setup"`/`"post"` returns undefined — that array isn't chrome-space). */
+function elementZone(el: ObjectLiteralExpression, zones: ReadonlySet<string>): string | undefined {
+  const prop = el.getProperty("zone");
+  if (prop === undefined || !Node.isPropertyAssignment(prop)) {
+    return;
+  }
+  const init = prop.getInitializer();
+  const text = init !== undefined && Node.isStringLiteral(init) ? init.getLiteralText() : undefined;
+  return text !== undefined && zones.has(text) ? text : undefined;
+}
+
+/** An array literal of ≥2 object literals EACH carrying a CHROME_ZONES `zone:` — a hand chrome list. A
+ *  foreign element (no chrome `zone`) makes the array not pure chrome-space, the same false-positive guard
+ *  the vocab arms use. */
+function isChromeArray(arr: readonly ObjectLiteralExpression[], zones: ReadonlySet<string>): boolean {
+  let count = 0;
+  for (const el of arr) {
+    if (elementZone(el, zones) === undefined) {
+      return false;
+    }
+    count += 1;
+  }
+  return count >= MIN_KEYS;
+}
+
+/** Arm 5 — a zone-keyed chrome-entry array re-formed outside the door. Chrome has no id tuple, so this
+ *  keys on the CHROME_ZONES value axis instead. */
+function scanFileForChromeArray(sf: SourceFile, zones: ReadonlySet<string>, out: Violation[]): void {
+  const path = sf.getFilePath();
+  if (!path.includes(CLIENT_SRC) || isChromeAllowlisted(rel(path))) {
+    return;
+  }
+  for (const arr of sf.getDescendantsOfKind(SyntaxKind.ArrayLiteralExpression)) {
+    const rawElements = arr.getElements();
+    const objectElements = rawElements.filter(Node.isObjectLiteralExpression);
+    if (objectElements.length !== rawElements.length || objectElements.length === 0) {
+      continue;
+    }
+    if (isChromeArray(objectElements, zones)) {
+      out.push({
+        file: rel(path),
+        line: arr.getStartLineNumber(),
+        message:
+          "an array literal of chrome entries (≥2 objects each with a CHROME_ZONES `zone`) — a hand-maintained chrome list re-formed outside the door. Chrome is assembled ONCE at the main.tsx door via assembleChrome (widgets co-located in features/*/lib/*-chrome.tsx); a consumer reads the registry (chrome.list().filter(...)), never re-declares — shell-chrome-unification.md §D.",
+      });
+    }
+  }
+}
+
 export const gate: GateDescriptor = {
   name: "no-parallel-section-map",
   docRow: "client-architecture-lockdown.md §5 rule 4 / §16 G2",
   status: "active",
   scopeSafety: "whole-project",
   message:
-    "a hardcoded map (object literal / `{ id }` array / `Record<…>` type) covering ≥2 SectionIds or ModalSlotIds is a parallel section/modal map (the composition-drift bug) — derive from the registry, never re-declare. Homes: the vocab tuple, the main.tsx door, the *-section/*-modal files.",
+    "a hardcoded map (object literal / `{ id }` array / `Record<…>` type) covering ≥2 SectionIds/ModalSlotIds/SettingsCategoryIds, or an array of ≥2 CHROME_ZONES-zoned chrome entries, is a parallel section/modal/chrome map (the composition-drift bug) — derive from the registry, never re-declare. Homes: the vocab tuple, the main.tsx door, the *-section/*-modal/*-pane/*-chrome files.",
   fix: "delete the map and read the registry (registry.get(id)/list()); if it is tracked scaffolding, home it in an allowlisted file with its FLAG marker.",
   run: (ctx) => {
     const out: Violation[] = [];
@@ -258,6 +323,12 @@ export const gate: GateDescriptor = {
       }
       for (const sf of ctx.project.getSourceFiles()) {
         scanFileForVocab(sf, vocab, out);
+      }
+    }
+    const chromeZones = readTuple(ctx.project, "CHROME_ZONES");
+    if (chromeZones.size > 0) {
+      for (const sf of ctx.project.getSourceFiles()) {
+        scanFileForChromeArray(sf, chromeZones, out);
       }
     }
     for (const v of out) {
@@ -326,6 +397,15 @@ export const gate: GateDescriptor = {
       expect: { messageIncludes: "parallel settings map" },
       why: "a re-declared per-category map (≥2 SettingsCategoryId keys) outside the sanctioned homes — the M6.1 arm",
     },
+    {
+      files: {
+        "packages/client/src/state/chrome-registry.ts": 'export const CHROME_ZONES = ["rail.nav", "rail.end", "topbar.trail"] as const;\n',
+        "packages/client/src/features/x/lib/hand-list.ts":
+          'export const HAND = [\n  { id: "a", zone: "rail.end" },\n  { id: "b", zone: "topbar.trail" },\n];\n',
+      },
+      expect: { messageIncludes: "array literal of chrome entries" },
+      why: "a hand array of ≥2 CHROME_ZONES-zoned chrome entries outside the door and not a *-chrome file — the chrome arm (5)",
+    },
   ],
   mustPass: [
     {
@@ -368,6 +448,20 @@ export const gate: GateDescriptor = {
         "packages/client/src/features/x/lib/appearance-pane.tsx": "export const M = { account: 1, appearance: 2 };\n",
       },
       why: "a SettingsCategoryId-keyed object literal inside a co-located *-pane.tsx def file — allowlisted, must pass",
+    },
+    {
+      files: {
+        "packages/client/src/state/chrome-registry.ts": 'export const CHROME_ZONES = ["rail.nav", "rail.end", "topbar.trail"] as const;\n',
+        "packages/client/src/features/x/lib/x-chrome.tsx": 'export const XS = [\n  { id: "a", zone: "rail.end" },\n  { id: "b", zone: "topbar.trail" },\n];\n',
+      },
+      why: "a chrome-entry array inside a co-located *-chrome.tsx def file — allowlisted, must pass",
+    },
+    {
+      files: {
+        "packages/client/src/state/chrome-registry.ts": 'export const CHROME_ZONES = ["rail.nav", "rail.end", "topbar.trail"] as const;\n',
+        "packages/client/src/features/x/lib/preset-zones.ts": 'export const PZ = [\n  { id: "a", zone: "setup" },\n  { id: "b", zone: "post" },\n];\n',
+      },
+      why: "an array whose `zone`s are NOT CHROME_ZONES members (the preset assembly's setup/post) isn't chrome-space — the chrome false-positive guard, passes",
     },
   ],
 };

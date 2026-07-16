@@ -8,6 +8,6 @@ import { NewChatPicker } from "../surfaces/new-chat-picker-surface";
 export const newChatModal: ModalDefinition = {
   id: "newChat",
   title: "New chat",
-  trigger: { placement: "content", label: "New chat", icon: Plus },
+  trigger: { placement: "surface", label: "New chat", icon: Plus },
   body: (): ReturnType<typeof NewChatPicker> => <NewChatPicker />,
 };

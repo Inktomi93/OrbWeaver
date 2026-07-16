@@ -5,10 +5,13 @@
 //     land in the dead twin; the door assembly silently picks one name);
 // (3) the PLANNED discipline — `body: { planned }` needs a non-empty reason AND no real function body
 //     (a planned modal wiring a real body is dishonest);
-// (4) the SINGLETON-PLACEMENT arm — the rail/topbar/mobile-bar derivation assumes exactly ONE modal per
-//     `topbar-command`/`mobile-tab`; two claiming a singleton placement → RED (`rail-footer`/`content` may
-//     repeat — `content` now carries both new-chat AND the account modal, §E-5);
-// (5) the ANTI-GOD-MAP arm — a `modals={{…}}` object literal in a route file (the deleted override map).
+// (4) the SINGLETON-PLACEMENT arm — the mobile-bar derivation assumes exactly ONE modal per `mobile-tab`
+//     (the You sheet); two claiming it → RED (`rail.end`/`topbar.trail`/`surface` are cluster placements
+//     that may repeat — `surface` carries both new-chat AND the account modal, §E-7);
+// (5) the ANTI-GOD-MAP arm — a `modals={{…}}` object literal in a route file (the deleted override map);
+// (6) the SURFACE-REACHABILITY arm (§E-7) — a `surface`-placed modal has NO chrome affordance deriving it
+//     (it lives inside a feature surface), so it MUST have ≥1 explicit `openModal("<id>")` call site or it
+//     is unreachable dead chrome. A DECLARED-PLANNED surface modal is exempt (not wired yet, by design).
 import type { ObjectLiteralExpression, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
@@ -19,7 +22,9 @@ const CLIENT_SRC = "/packages/client/src/";
 const MODAL_FILE_RE = /\/features\/[^/]+\/lib\/[^/]+-modal\.tsx?$/;
 const ROUTES_DIR = "/packages/client/src/routes/";
 /** Placements the derivation renders as EXACTLY ONE affordance — a second claimant breaks the .find(). */
-const SINGLETON_PLACEMENTS = new Set(["topbar-command", "mobile-tab"]);
+const SINGLETON_PLACEMENTS = new Set(["mobile-tab"]);
+/** The placement whose modals are reached ONLY by an explicit `openModal(id)` opener (arm 6). */
+const SURFACE_PLACEMENT = "surface";
 
 function rel(path: string): string {
   const idx = path.indexOf("/packages/");
@@ -75,6 +80,34 @@ type ModalDef = {
   readonly init: ObjectLiteralExpression;
 };
 
+/** A `surface`-placed modal with a real body — subject to the reachability arm (needs ≥1 opener). */
+type SurfaceModal = { readonly id: string; readonly name: string; readonly file: string; readonly line: number };
+
+/** The single-pass accumulators (bundled so the per-def check stays under the param cap). */
+type Accum = {
+  readonly out: Violation[];
+  readonly seenIds: Map<string, Seen>;
+  readonly seenSingletons: Map<string, Seen>;
+  readonly surfaceModals: SurfaceModal[];
+  readonly openModalCallSites: Set<string>;
+};
+
+/** Collects the id argument of every `openModal("<id>")` call — the explicit opener a `surface` modal
+ *  needs. Matches a call whose callee is the bare identifier `openModal` with a first string-literal arg;
+ *  ignores prop passing (`openModal={…}`) and identifier args (`openModal(commandModalId)`). */
+function collectOpenModalCallSites(sf: SourceFile, sites: Set<string>): void {
+  for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
+    const expr = call.getExpression();
+    if (!Node.isIdentifier(expr) || expr.getText() !== "openModal") {
+      continue;
+    }
+    const [arg] = call.getArguments();
+    if (arg !== undefined && Node.isStringLiteral(arg)) {
+      sites.add(arg.getLiteralText());
+    }
+  }
+}
+
 /** Records `key` against `seen`; returns the FIRST owner if `key` is already claimed (a duplicate). */
 function claim(key: string, def: ModalDef, seen: Map<string, Seen>): Seen | undefined {
   const firstOwner = seen.get(key);
@@ -85,28 +118,31 @@ function claim(key: string, def: ModalDef, seen: Map<string, Seen>): Seen | unde
   return firstOwner;
 }
 
-function checkModalDef(def: ModalDef, out: Violation[], seenIds: Map<string, Seen>, seenSingletons: Map<string, Seen>): void {
+function checkModalDef(def: ModalDef, acc: Accum): void {
   const id = modalId(def.init);
-  const idOwner = id === undefined ? undefined : claim(id, def, seenIds);
+  const placement = triggerPlacement(def.init);
+  const reason = plannedReason(def.init);
+  if (id !== undefined && placement === SURFACE_PLACEMENT && reason === undefined) {
+    acc.surfaceModals.push({ id, name: def.name, file: rel(def.path), line: def.line });
+  }
+  const idOwner = id === undefined ? undefined : claim(id, def, acc.seenIds);
   if (idOwner !== undefined) {
-    out.push({
+    acc.out.push({
       file: rel(def.path),
       line: def.line,
       message: `ModalDefinition "${def.name}" declares id "${id}", already claimed by "${idOwner.name}" (${idOwner.file}) — two definitions for one id is a shadow def that rots green — client-architecture-lockdown.md §16 G13.`,
     });
   }
-  const placement = triggerPlacement(def.init);
-  const singletonOwner = placement !== undefined && SINGLETON_PLACEMENTS.has(placement) ? claim(placement, def, seenSingletons) : undefined;
+  const singletonOwner = placement !== undefined && SINGLETON_PLACEMENTS.has(placement) ? claim(placement, def, acc.seenSingletons) : undefined;
   if (singletonOwner !== undefined) {
-    out.push({
+    acc.out.push({
       file: rel(def.path),
       line: def.line,
-      message: `ModalDefinition "${def.name}" claims the singleton placement "${placement}", already claimed by "${singletonOwner.name}" (${singletonOwner.file}) — the rail/topbar/mobile-bar derivation renders exactly ONE affordance per topbar-command/mobile-tab — client-architecture-lockdown.md §6d.`,
+      message: `ModalDefinition "${def.name}" claims the singleton placement "${placement}", already claimed by "${singletonOwner.name}" (${singletonOwner.file}) — the mobile-bar derivation renders exactly ONE affordance per mobile-tab — client-architecture-lockdown.md §6d.`,
     });
   }
-  const reason = plannedReason(def.init);
   if (reason !== undefined && reason.length === 0) {
-    out.push({
+    acc.out.push({
       file: rel(def.path),
       line: def.line,
       message: `planned modal "${def.name}" has an empty \`body.planned\` reason — the DECLARED-PLANNED arm needs the tracked reason — client-architecture-lockdown.md §6d.`,
@@ -114,7 +150,7 @@ function checkModalDef(def: ModalDef, out: Violation[], seenIds: Map<string, See
   }
 }
 
-function checkModalDefs(sf: SourceFile, out: Violation[], seenIds: Map<string, Seen>, seenSingletons: Map<string, Seen>): void {
+function checkModalDefs(sf: SourceFile, acc: Accum): void {
   const path = sf.getFilePath();
   const coLocated = MODAL_FILE_RE.test(path);
   for (const decl of sf.getVariableDeclarations()) {
@@ -124,7 +160,7 @@ function checkModalDefs(sf: SourceFile, out: Violation[], seenIds: Map<string, S
     }
     const line = decl.getStartLineNumber();
     if (!coLocated) {
-      out.push({
+      acc.out.push({
         file: rel(path),
         line,
         message: `ModalDefinition "${decl.getName()}" is not co-located — a modal definition lives only in a feature's lib modal file (features/*/lib/*-modal.tsx; G13 keys on location) — client-architecture-lockdown.md §6d.`,
@@ -135,7 +171,7 @@ function checkModalDefs(sf: SourceFile, out: Violation[], seenIds: Map<string, S
     if (init === undefined || !Node.isObjectLiteralExpression(init)) {
       continue;
     }
-    checkModalDef({ name: decl.getName(), path, line, init }, out, seenIds, seenSingletons);
+    checkModalDef({ name: decl.getName(), path, line, init }, acc);
   }
 }
 
@@ -168,23 +204,31 @@ export const gate: GateDescriptor = {
   status: "active",
   scopeSafety: "whole-project",
   message:
-    "a modal is dishonest: a ModalDefinition not co-located in a feature modal file, a duplicate id, a DECLARED-PLANNED modal with an empty reason, two modals claiming a singleton placement (topbar-command/mobile-tab), or a route re-forming the `modals` override god-map — client-architecture-lockdown.md §6d.",
-  fix: "co-locate the definition; a planned modal is a non-empty reason (no function body); one modal per topbar-command/mobile-tab; a route is a thin mount — modals ride the registry.",
+    "a modal is dishonest: a ModalDefinition not co-located in a feature modal file, a duplicate id, a DECLARED-PLANNED modal with an empty reason, two modals claiming the mobile-tab singleton placement, a `surface` modal with no `openModal(id)` opener, or a route re-forming the `modals` override god-map — client-architecture-lockdown.md §6d.",
+  fix: 'co-locate the definition; a planned modal is a non-empty reason (no function body); one modal per mobile-tab; give a `surface` modal ≥1 `openModal("<id>")` call site; a route is a thin mount — modals ride the registry.',
   run: (ctx) => {
-    const out: Violation[] = [];
-    const seenIds = new Map<string, Seen>();
-    const seenSingletons = new Map<string, Seen>();
+    const acc: Accum = { out: [], seenIds: new Map(), seenSingletons: new Map(), surfaceModals: [], openModalCallSites: new Set() };
     for (const sf of ctx.project.getSourceFiles()) {
       const path = sf.getFilePath();
       if (!path.includes(CLIENT_SRC)) {
         continue;
       }
-      checkModalDefs(sf, out, seenIds, seenSingletons);
+      checkModalDefs(sf, acc);
+      collectOpenModalCallSites(sf, acc.openModalCallSites);
       if (path.includes(ROUTES_DIR)) {
-        checkRouteFile(sf, out);
+        checkRouteFile(sf, acc.out);
       }
     }
-    for (const v of out) {
+    for (const m of acc.surfaceModals) {
+      if (!acc.openModalCallSites.has(m.id)) {
+        acc.out.push({
+          file: m.file,
+          line: m.line,
+          message: `surface modal "${m.name}" (id "${m.id}") has no \`openModal("${m.id}")\` call site — a "surface"-placed modal has no chrome affordance deriving it, so it MUST be opened by an explicit \`openModal(id)\` from inside a feature surface, or it is unreachable dead chrome — shell-chrome-unification.md §E-7.`,
+        });
+      }
+    }
+    for (const v of acc.out) {
       ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
     }
   },
@@ -196,7 +240,7 @@ export const gate: GateDescriptor = {
       why: "a ModalDefinition outside a `*-modal` file — the co-location arm",
     },
     {
-      files: "export const xModal: ModalDefinition = { id: 'x', trigger: { placement: 'content' }, body: { planned: '' } };\n",
+      files: "export const xModal: ModalDefinition = { id: 'x', trigger: { placement: 'surface' }, body: { planned: '' } };\n",
       at: "packages/client/src/features/x/lib/x-modal.ts",
       expect: { messageIncludes: "empty" },
       why: "a DECLARED-PLANNED modal with an empty reason — the planned-reason arm",
@@ -211,11 +255,17 @@ export const gate: GateDescriptor = {
     },
     {
       files: {
-        "packages/client/src/features/a/lib/a-modal.ts": "export const aModal: ModalDefinition = { id: 'dup', trigger: { placement: 'content' } };\n",
-        "packages/client/src/features/b/lib/b-modal.ts": "export const bModal: ModalDefinition = { id: 'dup', trigger: { placement: 'content' } };\n",
+        "packages/client/src/features/a/lib/a-modal.ts": "export const aModal: ModalDefinition = { id: 'dup', trigger: { placement: 'rail.end' } };\n",
+        "packages/client/src/features/b/lib/b-modal.ts": "export const bModal: ModalDefinition = { id: 'dup', trigger: { placement: 'rail.end' } };\n",
       },
       expect: { messageIncludes: "already claimed by" },
       why: "two co-located ModalDefinitions declaring the SAME id — the shadow-def duplicate-id arm",
+    },
+    {
+      files: "export const xModal: ModalDefinition = { id: 'x', trigger: { placement: 'surface' }, body: () => null };\n",
+      at: "packages/client/src/features/x/lib/x-modal.tsx",
+      expect: { messageIncludes: "call site" },
+      why: "a `surface` modal with a real body and NO openModal(id) opener — the surface-reachability arm (§E-7)",
     },
     {
       files: "export const G = <AppShell modals={{ theme: 1, settings: 2 }} />;\n",
@@ -226,14 +276,22 @@ export const gate: GateDescriptor = {
   ],
   mustPass: [
     {
-      files: "export const themeModal: ModalDefinition = { id: 'theme', trigger: { placement: 'rail-footer' }, body: () => null };\n",
+      files: "export const themeModal: ModalDefinition = { id: 'theme', trigger: { placement: 'rail.end' }, body: () => null };\n",
       at: "packages/client/src/features/settings/lib/theme-modal.tsx",
-      why: "a FULL co-located modal (function body, repeatable rail-footer placement) — passes",
+      why: "a FULL co-located modal (function body, repeatable rail.end placement) — passes",
     },
     {
-      files: "export const draftModal: ModalDefinition = { id: 'draft', trigger: { placement: 'content' }, body: { planned: 'build pending' } };\n",
+      files: "export const draftModal: ModalDefinition = { id: 'draft', trigger: { placement: 'surface' }, body: { planned: 'build pending' } };\n",
       at: "packages/client/src/features/x/lib/draft-modal.tsx",
-      why: "a DECLARED-PLANNED modal — non-empty reason, no function body — passes",
+      why: "a DECLARED-PLANNED surface modal — planned bodies are exempt from the opener requirement — passes",
+    },
+    {
+      files: {
+        "packages/client/src/features/x/lib/x-modal.tsx":
+          "export const xModal: ModalDefinition = { id: 'x', trigger: { placement: 'surface' }, body: () => null };\n",
+        "packages/client/src/features/x/components/opener.tsx": "import { openModal } from '#state';\nexport const O = (): void => openModal('x');\n",
+      },
+      why: "a `surface` modal with a real body AND an `openModal('x')` opener call site — reachable, passes",
     },
   ],
 };

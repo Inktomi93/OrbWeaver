@@ -61,10 +61,10 @@ function TrailWidget({ entry }: { readonly entry: ChromeEntry }): ReactNode {
 
 export function AppShell(): ReactElement {
   const registry = useSectionRegistry();
-  // The ⌘K affordance opens the single `topbar-command`-placed modal — derived, never hardcoded.
+  // The ⌘K affordance opens the single `topbar.trail`-placed modal — derived, never hardcoded.
   const commandModalId = useModalRegistry()
     .list()
-    .find((m) => m.trigger.placement === "topbar-command")?.id;
+    .find((m) => m.trigger.placement === "topbar.trail")?.id;
   const layout = useShellLayout();
   const appearance = useAppearance();
   const theme = useSelectedTheme();

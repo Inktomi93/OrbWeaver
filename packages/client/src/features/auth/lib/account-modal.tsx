@@ -10,6 +10,6 @@ import { AccountSurface } from "../surfaces/account-surface";
 export const accountModal: ModalDefinition = {
   id: "account",
   title: "Account",
-  trigger: { placement: "content", label: "Account", icon: CircleUser },
+  trigger: { placement: "surface", label: "Account", icon: CircleUser },
   body: (): ReturnType<typeof AccountSurface> => <AccountSurface />,
 };

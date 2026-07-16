@@ -10,9 +10,9 @@ test("SettingsPaneRegistryProvider renders children and delivers the registry to
   const probe = await mount(<SettingsPaneRegistryProbe />);
   const out = probe.locator("output");
   await expect(out).toBeVisible();
-  // All twelve panes reached the consumer — the provider delivered the total registry, not a partial one.
+  // All eleven panes reached the consumer — the provider delivered the total registry, not a partial one.
   await Promise.all(
-    ["account", "personas", "appearance", "tags", "workloads", "backup", "chat-behavior", "regex", "connections", "automation", "system", "admin"].map((id) =>
+    ["personas", "appearance", "tags", "workloads", "backup", "chat-behavior", "regex", "connections", "automation", "system", "admin"].map((id) =>
       expect(out).toContainText(id),
     ),
   );

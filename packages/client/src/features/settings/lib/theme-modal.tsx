@@ -7,6 +7,6 @@ import { ThemePickerSurface } from "../surfaces/theme-picker-surface";
 export const themeModal: ModalDefinition = {
   id: "theme",
   title: "Theme",
-  trigger: { placement: "rail-footer", label: "Switch theme", icon: SunMoon },
+  trigger: { placement: "rail.end", label: "Switch theme", icon: SunMoon },
   body: (): ReturnType<typeof ThemePickerSurface> => <ThemePickerSurface />,
 };
