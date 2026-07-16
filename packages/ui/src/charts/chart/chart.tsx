@@ -19,6 +19,13 @@ const ReactEChartsCore = (ReactEChartsCoreDefault as unknown as { readonly defau
 
 const DEFAULT_HEIGHT = 240;
 
+/** One ECharts mouse event — the fields interactive charts read (the clicked datum's series + data). */
+export interface ChartEvent {
+  readonly seriesIndex?: number;
+  readonly dataIndex?: number;
+  readonly data?: unknown;
+}
+
 export interface ChartProps {
   readonly option: OrbChartOption;
   /** Accessible name for the canvas, rendered via ECharts' `aria` component. */
@@ -27,9 +34,11 @@ export interface ChartProps {
   readonly className?: string;
   /** Escape hatch for callers/tests that need the live instance. */
   readonly onChartReady?: ((instance: OrbEChartsInstance) => void) | undefined;
+  /** ECharts event handlers, keyed by event name (`"click"` for point/cell selection). */
+  readonly onEvents?: Readonly<Record<string, (event: ChartEvent) => void>> | undefined;
 }
 
-export function Chart({ option, label, height = DEFAULT_HEIGHT, className, onChartReady }: ChartProps): ReactElement {
+export function Chart({ option, label, height = DEFAULT_HEIGHT, className, onChartReady, onEvents }: ChartProps): ReactElement {
   const reducedMotion = usePrefersReducedMotion();
   const slots = chartVariants();
   const merged = mergeChartOption(option, { label, reducedMotion });
@@ -45,6 +54,7 @@ export function Chart({ option, label, height = DEFAULT_HEIGHT, className, onCha
         // echarts-for-react's own prop type omits `| undefined` (exactOptionalPropertyTypes), so an
         // absent callback must be OMITTED rather than passed as an explicit `undefined` value.
         {...(onChartReady === undefined ? {} : { onChartReady })}
+        {...(onEvents === undefined ? {} : { onEvents })}
       />
     </div>
   );

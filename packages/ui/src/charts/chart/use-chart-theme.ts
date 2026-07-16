@@ -44,14 +44,23 @@ export interface ChartColors {
   readonly axisLabelMuted: string;
   /** Axis lines + grid split lines. */
   readonly axisLine: string;
+  /** The 5-stop categorical ramp (`color.chart-1..5`) — scatter series color-by-category; the heatmap's
+   * VisualMap uses stop 0 as its high-intensity end. All resolve live, so a custom theme retints them. */
+  readonly palette: readonly [string, string, string, string, string];
 }
+
+const RAMP_TOKENS = [TOKENS["color.chart-1"], TOKENS["color.chart-2"], TOKENS["color.chart-3"], TOKENS["color.chart-4"], TOKENS["color.chart-5"]] as const;
 
 const CHROME_TOKENS = {
   series: TOKENS["color.chart-1"],
   axisLabel: TOKENS["color.foreground"],
   axisLabelMuted: TOKENS["color.muted-foreground"],
   axisLine: TOKENS["color.border"],
-} as const satisfies Record<keyof ChartColors, { readonly cssVar: string; readonly value: string }>;
+} as const satisfies Record<Exclude<keyof ChartColors, "palette">, { readonly cssVar: string; readonly value: string }>;
+
+function resolveRamp(resolve: (token: { readonly cssVar: string; readonly value: string }) => string): ChartColors["palette"] {
+  return [resolve(RAMP_TOKENS[0]), resolve(RAMP_TOKENS[1]), resolve(RAMP_TOKENS[2]), resolve(RAMP_TOKENS[3]), resolve(RAMP_TOKENS[4])];
+}
 
 // A root present but the var unset (getPropertyValue returns "") also falls back — empty isn't paintable.
 function resolveColor(token: { readonly cssVar: string; readonly value: string }): string {
@@ -69,6 +78,7 @@ function resolveChartColors(): ChartColors {
     axisLabel: resolveColor(CHROME_TOKENS.axisLabel),
     axisLabelMuted: resolveColor(CHROME_TOKENS.axisLabelMuted),
     axisLine: resolveColor(CHROME_TOKENS.axisLine),
+    palette: resolveRamp(resolveColor),
   };
 }
 
@@ -78,6 +88,7 @@ const FALLBACK_COLORS: ChartColors = {
   axisLabel: CHROME_TOKENS.axisLabel.value,
   axisLabelMuted: CHROME_TOKENS.axisLabelMuted.value,
   axisLine: CHROME_TOKENS.axisLine.value,
+  palette: resolveRamp((token) => token.value),
 };
 
 // useSyncExternalStore demands a referentially-stable getSnapshot between notifications.

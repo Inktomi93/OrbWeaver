@@ -5,6 +5,7 @@
 // (the FacetChips precedent) so the lib never re-spells a stats contract type.
 
 import type { BarListItem } from "@orb/ui/bar-list";
+import type { HeatmapMatrix } from "@orb/ui/heatmap";
 import type { HistogramBucket } from "@orb/ui/histogram";
 
 /** Sun..Sat, index 0 = Sunday — matches the server's `dayOfWeek` / heatmap row ordering. */
@@ -96,12 +97,14 @@ export function weekdayBarItems(dayOfWeek: readonly number[]): BarListItem[] {
   }));
 }
 
-/** The 7×24 heatmap matrix collapsed to a 24-bucket hour-of-day distribution (summed across weekdays). */
-export function hourHistogramBuckets(matrix: readonly (readonly number[])[]): HistogramBucket[] {
-  return Array.from({ length: HOURS_PER_DAY }, (_unused, hour) => ({
-    label: String(hour).padStart(2, "0"),
-    count: matrix.reduce((sum, row) => sum + (row[hour] ?? 0), 0),
-  }));
+/** The server's 7×24 activity matrix → a `<Heatmap>` matrix: weekday rows (Sun..Sat), hour columns
+ * (`00`..`23`). Rows come straight from `dayOfWeek` order; cols are the two-digit hour labels. */
+export function activityHeatmapMatrix(matrix: readonly (readonly number[])[]): HeatmapMatrix {
+  return {
+    rows: [...WEEKDAY_LABELS],
+    cols: Array.from({ length: HOURS_PER_DAY }, (_unused, hour) => String(hour).padStart(2, "0")),
+    values: WEEKDAY_LABELS.map((_label, dayIndex) => Array.from({ length: HOURS_PER_DAY }, (_hour, hour) => matrix[dayIndex]?.[hour] ?? 0)),
+  };
 }
 
 /** `2026-07-13` → `07-13` for a compact daily-axis label. */

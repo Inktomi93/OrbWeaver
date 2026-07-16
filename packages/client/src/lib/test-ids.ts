@@ -69,7 +69,6 @@ export const TEST_IDS = {
   corpusDossierSurface: "corpus-dossier-surface",
   corpusAskInput: "corpus-ask-input",
   corpusAskSubmit: "corpus-ask-submit",
-  corpusContextMap: "corpus-context-map",
   corpusCompareTab: "corpus-compare-tab",
   corpusCompareDeep: "corpus-compare-deep",
   corpusVisualsTab: "corpus-visuals-tab",
