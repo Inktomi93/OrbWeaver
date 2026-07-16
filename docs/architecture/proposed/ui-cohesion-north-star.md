@@ -48,6 +48,11 @@ this doc wins on visual spec.
 
 Independent, anytime: **O4** — buddy-bus `defineBusChannel` adoption (server tier; lockdown §18).
 
+**Companion queue:** the 2026-07-15 full-read sweep of both packages surfaced three MORE non-uniform
+seam classes + a dupe/dead tail — [`derive-modernization-audit.md`](derive-modernization-audit.md)
+(W1 FormDialog rollup before the §6 rollout · W2 ui skin fragments WITH the PP lane · W3 plumbing
+mints anytime · W4/W5/W6 mechanical waves; W6 carries an owner ASK on the orphan build-ahead seals).
+
 ---
 
 ## 0. Ground rules (prevent drift — read before any task)
