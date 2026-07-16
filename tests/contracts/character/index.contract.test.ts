@@ -202,21 +202,11 @@ test("characterListSortSchema accepts every sort and rejects an unknown one", ()
   // keyset ORDER BY needs a persisted column, not the post-query estimate).
   expect(characterListSortSchema.safeParse("largestCards").success).toBe(true);
   // The tuple IS the axis (no drift): the owner-ruled 9 (§4.5).
-  expect([...CHARACTER_LIST_SORTS]).toEqual([
-    "recent",
-    "alpha",
-    "starred",
-    "newest",
-    "oldest",
-    "mostChats",
-    "fewestChats",
-    "largestCards",
-    "smallestCards",
-  ]);
+  expect([...CHARACTER_LIST_SORTS]).toEqual(["recent", "alpha", "starred", "newest", "oldest", "mostChats", "fewestChats", "largestCards", "smallestCards"]);
 });
 
 // A well-formed character TypeID (26-char Crockford-base32 suffix) — the cursor `id` is `typeIdSchema`-gated.
-// biome-ignore lint/security/noSecrets: a TypeID test literal (base32 id), not a secret (entropy false-positive).
+
 const CHAR_ID = "character_01h455vb4pex5vsknk084sn02q";
 
 test("characterListCursorSchema parses each sort variant (recent carries a nullable lastChattedAt)", () => {
@@ -278,13 +268,9 @@ test("characterListCursorSchema parses each sort variant (recent carries a nulla
 
 test("characterListCursorSchema rejects a cross-sort shape (an alpha cursor missing recent's keys)", () => {
   // `sort:"recent"` demands lastChattedAt + createdAt — an alpha-shaped payload can't satisfy it.
-  expect(
-    characterListCursorSchema.safeParse({ sort: "recent", name: "Ada", id: CHAR_ID }).success,
-  ).toBe(false);
+  expect(characterListCursorSchema.safeParse({ sort: "recent", name: "Ada", id: CHAR_ID }).success).toBe(false);
   // `mostChats` demands `chatCount` — a bare id can't satisfy it.
-  expect(characterListCursorSchema.safeParse({ sort: "mostChats", id: CHAR_ID }).success).toBe(
-    false,
-  );
+  expect(characterListCursorSchema.safeParse({ sort: "mostChats", id: CHAR_ID }).success).toBe(false);
   // An unknown discriminant is rejected outright.
   expect(characterListCursorSchema.safeParse({ sort: "bogus", id: CHAR_ID }).success).toBe(false);
 });

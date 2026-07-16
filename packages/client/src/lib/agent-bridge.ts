@@ -121,7 +121,6 @@ export function installAgentDebugHandle(queryClient: QueryClient): void {
       side: p.getAttribute("data-panel-side"),
       mode: p.getAttribute("data-panel-mode"),
     })),
-    // biome-ignore lint/security/noSecrets: a CSS attribute selector, not a credential (entropy false-positive).
     chatOpen: document.querySelectorAll('[role="article"]').length > 0,
   });
   const queries = (): readonly QuerySummary[] =>

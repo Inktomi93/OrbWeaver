@@ -12,11 +12,7 @@ import { expect, test } from "../../../../support/fixtures";
 import { makeSearch, seedCharacter, seedChat, seedChatDigest, seedUser, vec } from "../_support.ts";
 
 /** A `MemoryQueryOptions` with the within-chat defaults filled; override per test. */
-function opts(
-  chat: ChatId,
-  scopedCharacterId: CharacterId,
-  over: Partial<MemoryQueryOptions> = {},
-): MemoryQueryOptions {
+function opts(chat: ChatId, scopedCharacterId: CharacterId, over: Partial<MemoryQueryOptions> = {}): MemoryQueryOptions {
   return {
     scope: { chat },
     queryText: "anything",
@@ -30,9 +26,7 @@ function opts(
   };
 }
 
-async function seedOwnerChatChar(
-  db: Awaited<ReturnType<typeof freshDb>>,
-): Promise<{ chat: ChatId; char: CharacterId }> {
+async function seedOwnerChatChar(db: Awaited<ReturnType<typeof freshDb>>): Promise<{ chat: ChatId; char: CharacterId }> {
   const owner = await seedUser(db, { handle: "owner" });
   const char = await seedCharacter(db, { id: "character_pov", ownerId: owner, name: "POV" });
   const chat = await seedChat(db, "chat_a");
@@ -113,11 +107,7 @@ describe("digests", () => {
   test("the candidates restriction scores only the given block-keys", async () => {
     const db = await freshDb();
     const { chat, char } = await seedOwnerChatChar(db);
-    await Promise.all(
-      [0, 1, 2].map((blockIdx) =>
-        seedChatDigest(db, { chatId: chat, scopedCharacterId: char, blockIdx, embedding: vec(1) }),
-      ),
-    );
+    await Promise.all([0, 1, 2].map((blockIdx) => seedChatDigest(db, { chatId: chat, scopedCharacterId: char, blockIdx, embedding: vec(1) })));
 
     const svc = makeSearch(db, { embedVector: () => vec(1) });
     const hits = await svc.digests(
@@ -161,9 +151,7 @@ describe("digests", () => {
     const floored = await svc.digests(opts(chat, char, { minScore: 0.5, queryText: "the dragon" }));
     expect(floored).toHaveLength(0);
 
-    const folded = await svc.digests(
-      opts(chat, char, { minScore: 0.5, keywordMatch: true, queryText: "the dragon" }),
-    );
+    const folded = await svc.digests(opts(chat, char, { minScore: 0.5, keywordMatch: true, queryText: "the dragon" }));
     expect(folded.map((h) => h.blockKey.blockIdx)).toEqual([0]);
   });
 

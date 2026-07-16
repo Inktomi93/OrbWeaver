@@ -4,10 +4,7 @@
 
 import type { AppSettings } from "@orb/contracts/settings";
 import { describe } from "vitest";
-import {
-  deepMergeAppSettings,
-  deepMergePlain,
-} from "../../../../../packages/server/src/domain/settings/substrate/merge.ts";
+import { deepMergeAppSettings, deepMergePlain } from "../../../../../packages/server/src/domain/settings/substrate/merge.ts";
 import { expect, test } from "../../../../support/fixtures";
 
 describe("deepMergeAppSettings", () => {
@@ -33,10 +30,7 @@ describe("deepMergeAppSettings", () => {
 
 describe("deepMergePlain", () => {
   test("deep-merges nested objects, undefined skips, arrays replace", () => {
-    const merged = deepMergePlain(
-      { a: { x: 1, y: 2 }, b: [1, 2], c: 9 },
-      { a: { y: 3 }, b: [9], c: undefined },
-    );
+    const merged = deepMergePlain({ a: { x: 1, y: 2 }, b: [1, 2], c: 9 }, { a: { y: 3 }, b: [9], c: undefined });
     expect(merged).toEqual({ a: { x: 1, y: 3 }, b: [9], c: 9 });
   });
 });

@@ -159,9 +159,7 @@ export const dailyStats = sqliteTable(
     costUsd: real("cost_usd").notNull().default(0),
     genTimeMs: integer("gen_time_ms").notNull().default(0),
     // OR-merged in the upsert: once a day is flagged migration-approximate it stays (esoteric #7).
-    messageDatesApprox: integer("message_dates_approx", { mode: "boolean" })
-      .notNull()
-      .default(false),
+    messageDatesApprox: integer("message_dates_approx", { mode: "boolean" }).notNull().default(false),
     computedAt: integer("computed_at").notNull().default(NOW_MS),
   },
   (table) => [
@@ -201,10 +199,6 @@ export const modelStats = sqliteTable(
   },
   (table) => [
     // owner × model × provider — the live-delta UPSERT conflict target; relies on `provider` NOT NULL.
-    uniqueIndex("model_stats_owner_model_provider_unique").on(
-      table.ownerId,
-      table.model,
-      table.provider,
-    ),
+    uniqueIndex("model_stats_owner_model_provider_unique").on(table.ownerId, table.model, table.provider),
   ],
 );

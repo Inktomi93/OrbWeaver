@@ -7,12 +7,7 @@ import process from "node:process";
 import { env } from "#foundation/env";
 import type { ProviderBackend } from "../contract";
 import type { EngineStatusRecord, VLLM_ENGINES, VllmEngineClient } from "./engine";
-import {
-  allEngineStatuses,
-  createVllmEngineClient,
-  getVllmEngineController,
-  startVllmEngines,
-} from "./engine";
+import { allEngineStatuses, createVllmEngineClient, getVllmEngineController, startVllmEngines } from "./engine";
 // Surfaces are imported PER FILE (no surfaces/ barrel — `vllm-surface-isolation` gate forbids one);
 // this root file is not under surfaces/, so aggregating here is the legal seam.
 import { createVllmChat } from "./surfaces/chat";
@@ -75,9 +70,7 @@ export function createVllmBackend(deps: VllmBackendDeps): VllmBackend {
     status: () => allEngineStatuses(),
     restart: (e) => {
       const controller = getVllmEngineController();
-      return controller === null
-        ? Promise.resolve("vllm supervisor not running")
-        : controller.restart(e);
+      return controller === null ? Promise.resolve("vllm supervisor not running") : controller.restart(e);
     },
   };
 

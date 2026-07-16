@@ -24,11 +24,7 @@ function isBannedRegisterDecl(node: Node): boolean {
   }
   if (Node.isVariableDeclaration(node)) {
     const init = node.getInitializer();
-    return (
-      node.getName() === "register" &&
-      init !== undefined &&
-      (Node.isArrowFunction(init) || Node.isFunctionExpression(init))
-    );
+    return node.getName() === "register" && init !== undefined && (Node.isArrowFunction(init) || Node.isFunctionExpression(init));
   }
   return false;
 }
@@ -45,17 +41,11 @@ export const gate: GateDescriptor = {
     "function/method is banned outright (§5 rule 1) wherever it's declared.",
   fix: "move the createRegistry()/createContributorRegistry() call into main.tsx (or a compose/ module main.tsx imports); replace a register() API with an exported definition value assembled at the door.",
   scanRoot: (p) => p.startsWith("packages/client/src/"),
-  kinds: [
-    SyntaxKind.CallExpression,
-    SyntaxKind.MethodDeclaration,
-    SyntaxKind.FunctionDeclaration,
-    SyntaxKind.VariableDeclaration,
-  ],
+  kinds: [SyntaxKind.CallExpression, SyntaxKind.MethodDeclaration, SyntaxKind.FunctionDeclaration, SyntaxKind.VariableDeclaration],
   visit: (node, sf, ctx) => {
     if (Node.isCallExpression(node)) {
       const callee = node.getExpression();
-      const isRegistryFactory =
-        Node.isIdentifier(callee) && REGISTRY_FACTORY_NAMES.has(callee.getText());
+      const isRegistryFactory = Node.isIdentifier(callee) && REGISTRY_FACTORY_NAMES.has(callee.getText());
       if (!isRegistryFactory) {
         return;
       }
@@ -71,8 +61,7 @@ export const gate: GateDescriptor = {
   },
   mustFlag: [
     {
-      files:
-        'import { createRegistry } from "#lib";\nexport const x = createRegistry("t", ["a"], { a: 1 });\n',
+      files: 'import { createRegistry } from "#lib";\nexport const x = createRegistry("t", ["a"], { a: 1 });\n',
       at: "packages/client/src/features/x/lib/x-section.ts",
       why: "a createRegistry( call in a feature file — a private assembly outside the door (§5/§7)",
     },
@@ -84,14 +73,12 @@ export const gate: GateDescriptor = {
   ],
   mustPass: [
     {
-      files:
-        'import { createRegistry } from "#lib";\nexport const x = createRegistry("t", ["a"], { a: 1 });\n',
+      files: 'import { createRegistry } from "#lib";\nexport const x = createRegistry("t", ["a"], { a: 1 });\n',
       at: "packages/client/src/main.tsx",
       why: "the ONE sanctioned call site — the registration door itself, passes",
     },
     {
-      files:
-        'import { createRegistry } from "#lib";\nexport const x = createRegistry("t", ["a"], { a: 1 });\n',
+      files: 'import { createRegistry } from "#lib";\nexport const x = createRegistry("t", ["a"], { a: 1 });\n',
       at: "packages/client/src/compose/sections.ts",
       why: "a compose/ module (the door's own helper) — passes",
     },

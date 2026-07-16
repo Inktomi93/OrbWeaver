@@ -15,18 +15,10 @@ import { batchMany, batchStmt } from "@orb/db/kit";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, UserId, WorldBookId } from "@orb/kit/ids";
 import { and, desc, eq } from "drizzle-orm";
-import type {
-  BulkImportLorebook,
-  ImportStandaloneLorebook,
-  WorldInfoImportContext,
-} from "../contract/import";
+import type { BulkImportLorebook, ImportStandaloneLorebook, WorldInfoImportContext } from "../contract/import";
 
 /** The FK would fail-closed anyway, but the explicit check gives a typed DomainNotFoundError. */
-async function assertOwnedCharacter(
-  db: Db,
-  ownerId: UserId,
-  characterId: CharacterId,
-): Promise<void> {
+async function assertOwnedCharacter(db: Db, ownerId: UserId, characterId: CharacterId): Promise<void> {
   const owned = await db
     .select({ id: characters.id })
     .from(characters)
@@ -46,12 +38,7 @@ async function findPrimaryBookId(db: Db, characterId: CharacterId): Promise<Worl
   return rows[0]?.worldBookId ?? null;
 }
 
-function entryStmts(
-  ctx: WorldInfoImportContext,
-  worldBookId: WorldBookId,
-  book: Parameters<BulkImportLorebook>[0]["book"],
-  at: number,
-): BatchStmt[] {
+function entryStmts(ctx: WorldInfoImportContext, worldBookId: WorldBookId, book: Parameters<BulkImportLorebook>[0]["book"], at: number): BatchStmt[] {
   return book.entries.map((e) =>
     batchStmt(
       ctx.db.insert(worldEntries).values({
@@ -81,12 +68,7 @@ export function createBulkImportLorebook(ctx: WorldInfoImportContext): BulkImpor
 
     if (existingBookId !== null) {
       const stmts: BatchStmt[] = [
-        batchStmt(
-          db
-            .update(worldBooks)
-            .set({ name: book.name, description: book.description })
-            .where(eq(worldBooks.id, existingBookId)),
-        ),
+        batchStmt(db.update(worldBooks).set({ name: book.name, description: book.description }).where(eq(worldBooks.id, existingBookId))),
         batchStmt(db.delete(worldEntries).where(eq(worldEntries.worldBookId, existingBookId))),
         ...entryStmts(ctx, existingBookId, book, at),
       ];
@@ -133,9 +115,7 @@ async function findBookByName(db: Db, ownerId: UserId, name: string): Promise<Wo
   return rows[0]?.id ?? null;
 }
 
-export function createImportStandaloneLorebook(
-  ctx: WorldInfoImportContext,
-): ImportStandaloneLorebook {
+export function createImportStandaloneLorebook(ctx: WorldInfoImportContext): ImportStandaloneLorebook {
   return async ({ ownerId, book }): Promise<BulkImportLorebookResult> => {
     const { db } = ctx;
     const at = ctx.now();
@@ -143,12 +123,7 @@ export function createImportStandaloneLorebook(
 
     if (existingBookId !== null) {
       const stmts: BatchStmt[] = [
-        batchStmt(
-          db
-            .update(worldBooks)
-            .set({ name: book.name, description: book.description })
-            .where(eq(worldBooks.id, existingBookId)),
-        ),
+        batchStmt(db.update(worldBooks).set({ name: book.name, description: book.description }).where(eq(worldBooks.id, existingBookId))),
         batchStmt(db.delete(worldEntries).where(eq(worldEntries.worldBookId, existingBookId))),
         ...entryStmts(ctx, existingBookId, book, at),
       ];

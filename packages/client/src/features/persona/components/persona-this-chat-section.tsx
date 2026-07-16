@@ -17,11 +17,7 @@ import type { Trpc } from "#data";
 import { useGatedQuery, useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
 import { useActiveChatId } from "#state";
-import {
-  useReattributePersona,
-  useSetChatActivePersona,
-  useSetChatAnchorPersona,
-} from "../hooks/use-chat-persona";
+import { useReattributePersona, useSetChatActivePersona, useSetChatAnchorPersona } from "../hooks/use-chat-persona";
 
 type PersonaListItem = inferOutput<Trpc["persona"]["list"]>[number];
 
@@ -42,9 +38,7 @@ export function PersonaThisChatSection(): ReactElement | null {
   const queryClient = useQueryClient();
   const chatId = useActiveChatId();
 
-  const { data: chat } = useGatedQuery(chatId, (id) =>
-    trpc.chat.getChat.queryOptions({ chatId: id }),
-  );
+  const { data: chat } = useGatedQuery(chatId, (id) => trpc.chat.getChat.queryOptions({ chatId: id }));
   const { data: personas } = useSuspenseQuery(trpc.persona.list.queryOptions());
 
   const setActive = useSetChatActivePersona({ trpc, invalidation });
@@ -62,12 +56,8 @@ export function PersonaThisChatSection(): ReactElement | null {
     }
     // The fetchQuery read carries no mutation errorToast of its own, so catch its rejection here.
     try {
-      const page = await queryClient.fetchQuery(
-        trpc.chat.listMessages.queryOptions({ chatId, limit: REATTRIBUTE_WINDOW }),
-      );
-      const messageIds: MessageId[] = page.messages
-        .filter((m) => m.role === "user" && m.authorUserId === chat.viewerUserId)
-        .map((m) => m.id);
+      const page = await queryClient.fetchQuery(trpc.chat.listMessages.queryOptions({ chatId, limit: REATTRIBUTE_WINDOW }));
+      const messageIds: MessageId[] = page.messages.filter((m) => m.role === "user" && m.authorUserId === chat.viewerUserId).map((m) => m.id);
       if (messageIds.length === 0) {
         notify.info("No messages of yours in the recent window to restamp.");
         return;
@@ -93,10 +83,7 @@ export function PersonaThisChatSection(): ReactElement | null {
           />
           <MenuPopup>
             {personas.map((p) => (
-              <MenuItem
-                key={p.id}
-                onClick={(): void => setActive.mutate({ chatId, personaId: p.id })}
-              >
+              <MenuItem key={p.id} onClick={(): void => setActive.mutate({ chatId, personaId: p.id })}>
                 <Row gap="field" align="center" className="justify-between w-full">
                   {p.name}
                   {p.id === chat.viewerActivePersonaId ? <Icon icon={Check} size="xs" /> : null}
@@ -125,10 +112,7 @@ export function PersonaThisChatSection(): ReactElement | null {
             />
             <MenuPopup>
               {personas.map((p) => (
-                <MenuItem
-                  key={p.id}
-                  onClick={(): void => setAnchor.mutate({ chatId, personaId: p.id })}
-                >
+                <MenuItem key={p.id} onClick={(): void => setAnchor.mutate({ chatId, personaId: p.id })}>
                   {p.name}
                 </MenuItem>
               ))}
@@ -155,8 +139,8 @@ export function PersonaThisChatSection(): ReactElement | null {
             }
           />
           <TooltipPopup side="top">
-            Restamps your own lines from the last {REATTRIBUTE_WINDOW} messages in this chat to "
-            {personaLabel(personas, chat.viewerActivePersonaId)}". Older history is untouched.
+            Restamps your own lines from the last {REATTRIBUTE_WINDOW} messages in this chat to "{personaLabel(personas, chat.viewerActivePersonaId)}". Older
+            history is untouched.
           </TooltipPopup>
         </Tooltip>
       </Stack>

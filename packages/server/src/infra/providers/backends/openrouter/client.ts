@@ -26,30 +26,18 @@ const OR_CLIENT_CACHE_MAX = 64;
  *  test fake is a plain arrow returning the SDK's response type. */
 export interface OrClient {
   readonly chat: {
-    readonly send: (
-      request: SendChatCompletionRequestRequest,
-      options?: RequestOptions,
-    ) => Promise<SendChatCompletionRequestResponse>;
+    readonly send: (request: SendChatCompletionRequestRequest, options?: RequestOptions) => Promise<SendChatCompletionRequestResponse>;
   };
   readonly beta: {
     readonly responses: {
-      readonly send: (
-        request: CreateResponsesRequest,
-        options?: RequestOptions,
-      ) => Promise<CreateResponsesResponse>;
+      readonly send: (request: CreateResponsesRequest, options?: RequestOptions) => Promise<CreateResponsesResponse>;
     };
   };
   readonly embeddings: {
-    readonly generate: (
-      request: CreateEmbeddingsRequest,
-      options?: RequestOptions,
-    ) => Promise<CreateEmbeddingsResponse>;
+    readonly generate: (request: CreateEmbeddingsRequest, options?: RequestOptions) => Promise<CreateEmbeddingsResponse>;
   };
   readonly rerank: {
-    readonly rerank: (
-      request: CreateRerankRequest,
-      options?: RequestOptions,
-    ) => Promise<CreateRerankResponse>;
+    readonly rerank: (request: CreateRerankRequest, options?: RequestOptions) => Promise<CreateRerankResponse>;
   };
   readonly models: {
     readonly list: () => Promise<ModelsListResponse>;

@@ -68,9 +68,7 @@ const NULLABLE_SCALAR_KEYS = [
   "forbidExternalMedia",
   "trustHtml",
   "allowNonOwnerLocalCompute",
-  // biome-ignore lint/security/noSecrets: an AppSettings field name (D17 governance toggle), not a secret.
   "nonOwnerLocalComputeBudget",
-  // biome-ignore lint/security/noSecrets: an AppSettings field name (D17 governance toggle), not a secret.
   "allowNonOwnerMaxProSub",
   "localMultiUser",
   "discreetLogin",
@@ -92,10 +90,7 @@ function diffScalar(
 }
 
 /** Diff the current form into an `AppSettings` override partial — see the module header. */
-export function diffSystemPatch(
-  baselines: SystemSettingsBaselines,
-  current: SystemSettingsForm,
-): AppSettings {
+export function diffSystemPatch(baselines: SystemSettingsBaselines, current: SystemSettingsForm): AppSettings {
   const { original, lastSaved } = baselines;
   const patch: Record<string, unknown> = {};
 
@@ -104,10 +99,7 @@ export function diffSystemPatch(
   }
 
   if (current.maxImageMb !== lastSaved.maxImageMb) {
-    patch["maxImageBytes"] =
-      current.maxImageMb === null || current.maxImageMb === original.maxImageMb
-        ? null
-        : Math.round(current.maxImageMb * BYTES_PER_MB);
+    patch["maxImageBytes"] = current.maxImageMb === null || current.maxImageMb === original.maxImageMb ? null : Math.round(current.maxImageMb * BYTES_PER_MB);
   }
 
   diffVllmConcurrency(patch, baselines, current);
@@ -116,11 +108,7 @@ export function diffSystemPatch(
 }
 
 /** vLLM concurrency is nested with non-nullable sub-keys — clears as a whole object only once both are back at `original`. */
-function diffVllmConcurrency(
-  patch: Record<string, unknown>,
-  { original, lastSaved }: SystemSettingsBaselines,
-  current: SystemSettingsForm,
-): void {
+function diffVllmConcurrency(patch: Record<string, unknown>, { original, lastSaved }: SystemSettingsBaselines, current: SystemSettingsForm): void {
   const embed = current.vllmEmbedConcurrency;
   const summarize = current.vllmSummarizeConcurrency;
   const embedChanged = embed !== lastSaved.vllmEmbedConcurrency;

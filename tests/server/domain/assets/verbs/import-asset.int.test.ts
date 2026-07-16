@@ -12,31 +12,15 @@ import type { Db } from "@orb/db";
 import { assets, messages, messageVariants } from "@orb/db";
 import type { AssetId, ChatId, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import {
-  createAssetsService,
-  createExportAssets,
-  createImportAsset,
-} from "@orb/server/domain/assets";
+import { createAssetsService, createExportAssets, createImportAsset } from "@orb/server/domain/assets";
 import { eq } from "drizzle-orm";
 import { describe, onTestFinished } from "vitest";
 import { loadAssetCasRefById } from "../../../../../packages/server/src/domain/assets/persistence/queries.ts";
-import {
-  buildPortableAssetFilename,
-  hashAssetBytes,
-} from "../../../../../packages/server/src/domain/assets/substrate/portable-asset-file.ts";
+import { buildPortableAssetFilename, hashAssetBytes } from "../../../../../packages/server/src/domain/assets/substrate/portable-asset-file.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
 import type { AssetsHarness } from "../_support.ts";
-import {
-  makeHarness,
-  pngBytes,
-  principal,
-  seedCharacter,
-  seedChatRow,
-  seedParticipant,
-  seedUser,
-  setCharacterAvatar,
-} from "../_support.ts";
+import { makeHarness, pngBytes, principal, seedCharacter, seedChatRow, seedParticipant, seedUser, setCharacterAvatar } from "../_support.ts";
 
 const PNG = "image/png";
 
@@ -64,10 +48,7 @@ async function seedInlineRef(db: Db, chatId: ChatId, refId: string): Promise<voi
 }
 
 async function ownedAssetCount(h: AssetsHarness, ownerId: UserId): Promise<number> {
-  const rows = await h.ctx.db
-    .select({ id: assets.id })
-    .from(assets)
-    .where(eq(assets.ownerId, ownerId));
+  const rows = await h.ctx.db.select({ id: assets.id }).from(assets).where(eq(assets.ownerId, ownerId));
   return rows.length;
 }
 

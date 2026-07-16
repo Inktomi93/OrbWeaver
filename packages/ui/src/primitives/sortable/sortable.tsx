@@ -51,21 +51,9 @@ function SortableItem({ id, index, handle, disabled, children }: SortableItemPro
   });
   const slots = sortableVariants();
   return (
-    <div
-      className={slots.item()}
-      data-dragging={isDragging ? "" : undefined}
-      data-slot="sortable-item"
-      ref={ref}
-    >
+    <div className={slots.item()} data-dragging={isDragging ? "" : undefined} data-slot="sortable-item" ref={ref}>
       {handle ? (
-        <button
-          aria-label="Reorder item"
-          className={slots.handle()}
-          data-slot="sortable-handle"
-          disabled={disabled}
-          ref={handleRef}
-          type="button"
-        >
+        <button aria-label="Reorder item" className={slots.handle()} data-slot="sortable-handle" disabled={disabled} ref={handleRef} type="button">
           <Icon icon={GripVertical} size="sm" />
         </button>
       ) : null}
@@ -77,15 +65,7 @@ function SortableItem({ id, index, handle, disabled, children }: SortableItemPro
 }
 
 /** Generic controlled reorderable list over `@dnd-kit/react`; caller owns `items` and applies `onReorder`. */
-export function SortableList<T>({
-  items,
-  getItemKey,
-  renderItem,
-  onReorder,
-  handle = false,
-  disabled = false,
-  className,
-}: SortableListProps<T>): ReactElement {
+export function SortableList<T>({ items, getItemKey, renderItem, onReorder, handle = false, disabled = false, className }: SortableListProps<T>): ReactElement {
   const keys = items.map((item) => getItemKey(item));
 
   const handleDragEnd = (event: DragEndEvent): void => {
@@ -102,13 +82,7 @@ export function SortableList<T>({
     <DragDropProvider onDragEnd={handleDragEnd}>
       <div className={cn(sortableVariants().root(), className)} data-slot="sortable-root">
         {items.map((item, index) => (
-          <SortableItem
-            disabled={disabled}
-            handle={handle}
-            id={getItemKey(item)}
-            index={index}
-            key={getItemKey(item)}
-          >
+          <SortableItem disabled={disabled} handle={handle} id={getItemKey(item)} index={index} key={getItemKey(item)}>
             {renderItem(item, index)}
           </SortableItem>
         ))}

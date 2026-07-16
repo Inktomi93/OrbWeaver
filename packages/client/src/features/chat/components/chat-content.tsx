@@ -4,11 +4,9 @@
 // it stays a pure data object — the whole Chats CONTENT now flows from the registry, no route wrapper.
 
 import type { ReactElement } from "react";
-import type { ChatBusDeps } from "#data";
-import { useInvalidation } from "#data";
+import { useChatBusDeps } from "#data";
 import type { ChatSurfaceContribution, ContributorRegistry } from "#lib";
 import {
-  chatStream,
   commitDraft,
   isLanding,
   openModal,
@@ -31,7 +29,7 @@ export function ChatContent({ surfaceContributors }: ChatContentProps): ReactEle
   const handle = useActiveChatHandle();
   const draftSeed = useActiveDraftSeed();
   const sessionKey = useActiveSessionKey();
-  const invalidation = useInvalidation();
+  const busDeps = useChatBusDeps();
   // When the Chats LIST is docked it already is the recents finder, so the landing drops its own
   // "Recent chats" to avoid duplicating it.
   const listDocked = useListDocked("chats", "docked");
@@ -48,7 +46,6 @@ export function ChatContent({ surfaceContributors }: ChatContentProps): ReactEle
     );
   }
 
-  const busDeps: ChatBusDeps = { stream: chatStream, invalidate: invalidation.invalidate };
   return (
     <ChatRoomSurface
       busDeps={busDeps}

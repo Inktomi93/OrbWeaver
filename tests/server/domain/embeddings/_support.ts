@@ -13,25 +13,12 @@
 import type { ImageEmbedInput, RoleClients } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
 import { assets, characters, chats } from "@orb/db";
-import type {
-  AssetId,
-  CharacterEmbeddingId,
-  CharacterId,
-  ChatDigestId,
-  ChatId,
-  ChatSegmentId,
-  Handle,
-  ImageEmbeddingId,
-  UserId,
-} from "@orb/kit/ids";
+import type { AssetId, CharacterEmbeddingId, CharacterId, ChatDigestId, ChatId, ChatSegmentId, Handle, ImageEmbeddingId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Mock } from "vitest";
 import { vi } from "vitest";
 import type { EmbeddingsContext } from "../../../../packages/server/src/domain/embeddings/context.ts";
-import type {
-  EmbeddingsIndexerContext,
-  EmbeddingsService,
-} from "../../../../packages/server/src/domain/embeddings/contract/service.ts";
+import type { EmbeddingsIndexerContext, EmbeddingsService } from "../../../../packages/server/src/domain/embeddings/contract/service.ts";
 import { createFrozenClock, FROZEN_AT_MS } from "../../../support/clock.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 import { createSeededIds } from "../../../support/ids.ts";
@@ -70,12 +57,11 @@ export function makeRoleClients(): FakeRoleClients {
       usage: { promptTokens: null, totalTokens: null },
     }),
   );
-  const imageEmbed: Mock<RoleClients["imageEmbed"]> = vi.fn<RoleClients["imageEmbed"]>(
-    (req: ImageEmbedInput) =>
-      Promise.resolve({
-        vectors: [fakeVector(EMBED_DIM, req.kind === "multimodal" ? 3 : 2)],
-        model: IMAGE_EMBED_MODEL,
-      }),
+  const imageEmbed: Mock<RoleClients["imageEmbed"]> = vi.fn<RoleClients["imageEmbed"]>((req: ImageEmbedInput) =>
+    Promise.resolve({
+      vectors: [fakeVector(EMBED_DIM, req.kind === "multimodal" ? 3 : 2)],
+      model: IMAGE_EMBED_MODEL,
+    }),
   );
   const rerank: Mock<RoleClients["rerank"]> = vi.fn<RoleClients["rerank"]>(() =>
     Promise.resolve({ hits: [], model: "rerank-test", usage: { totalTokens: null } }),
@@ -123,26 +109,24 @@ export function makeStoreHarness(db: Db, sources: StoreHarnessSources = {}): Sto
   const clock = createFrozenClock(FROZEN_AT);
   const ids = createSeededIds();
   const roleClients = makeRoleClients();
-  const listCharacterIds: Mock<EmbeddingsContext["listCharacterIds"]> = vi.fn<
-    EmbeddingsContext["listCharacterIds"]
-  >(() => Promise.resolve(sources.characterIds ?? []));
-  const loadCardText: Mock<EmbeddingsContext["loadCardText"]> = vi.fn<
-    EmbeddingsContext["loadCardText"]
-  >((characterId) => Promise.resolve(sources.cardTexts?.get(characterId)));
-  const listImageAssetIds: Mock<EmbeddingsContext["listImageAssetIds"]> = vi.fn<
-    EmbeddingsContext["listImageAssetIds"]
-  >(() => Promise.resolve(sources.imageAssetIds ?? []));
-  const loadAssetBytes: Mock<EmbeddingsContext["loadAssetBytes"]> = vi.fn<
-    EmbeddingsContext["loadAssetBytes"]
-  >((assetId) => Promise.resolve(sources.assetBytes?.get(assetId)));
+  const listCharacterIds: Mock<EmbeddingsContext["listCharacterIds"]> = vi.fn<EmbeddingsContext["listCharacterIds"]>(() =>
+    Promise.resolve(sources.characterIds ?? []),
+  );
+  const loadCardText: Mock<EmbeddingsContext["loadCardText"]> = vi.fn<EmbeddingsContext["loadCardText"]>((characterId) =>
+    Promise.resolve(sources.cardTexts?.get(characterId)),
+  );
+  const listImageAssetIds: Mock<EmbeddingsContext["listImageAssetIds"]> = vi.fn<EmbeddingsContext["listImageAssetIds"]>(() =>
+    Promise.resolve(sources.imageAssetIds ?? []),
+  );
+  const loadAssetBytes: Mock<EmbeddingsContext["loadAssetBytes"]> = vi.fn<EmbeddingsContext["loadAssetBytes"]>((assetId) =>
+    Promise.resolve(sources.assetBytes?.get(assetId)),
+  );
   const ctx: EmbeddingsContext = {
     db,
     roleClients,
     now: (): number => clock.now(),
-    newCharacterEmbeddingId: (): CharacterEmbeddingId =>
-      castId<CharacterEmbeddingId>(ids.next("character_embedding")),
-    newImageEmbeddingId: (): ImageEmbeddingId =>
-      castId<ImageEmbeddingId>(ids.next("image_embedding")),
+    newCharacterEmbeddingId: (): CharacterEmbeddingId => castId<CharacterEmbeddingId>(ids.next("character_embedding")),
+    newImageEmbeddingId: (): ImageEmbeddingId => castId<ImageEmbeddingId>(ids.next("image_embedding")),
     newChatDigestId: (): ChatDigestId => castId<ChatDigestId>(ids.next("chat_digest")),
     newChatSegmentId: (): ChatSegmentId => castId<ChatSegmentId>(ids.next("chat_segment")),
     listCharacterIds,
@@ -177,12 +161,10 @@ export function makeIndexerHarness(
   roleClients: FakeRoleClients,
   sources: { readonly cardText?: string | undefined; readonly assetBytes?: Uint8Array | undefined },
 ): IndexerHarness {
-  const loadCardText: Mock<EmbeddingsIndexerContext["loadCardText"]> = vi.fn<
-    EmbeddingsIndexerContext["loadCardText"]
-  >(() => Promise.resolve(sources.cardText));
-  const loadAssetBytes: Mock<EmbeddingsIndexerContext["loadAssetBytes"]> = vi.fn<
-    EmbeddingsIndexerContext["loadAssetBytes"]
-  >(() => Promise.resolve(sources.assetBytes));
+  const loadCardText: Mock<EmbeddingsIndexerContext["loadCardText"]> = vi.fn<EmbeddingsIndexerContext["loadCardText"]>(() => Promise.resolve(sources.cardText));
+  const loadAssetBytes: Mock<EmbeddingsIndexerContext["loadAssetBytes"]> = vi.fn<EmbeddingsIndexerContext["loadAssetBytes"]>(() =>
+    Promise.resolve(sources.assetBytes),
+  );
   const ctx: EmbeddingsIndexerContext = {
     store,
     loadCardText,
@@ -208,11 +190,7 @@ export async function seedUser(db: Db, overrides: SeedUserOverrides = {}): Promi
 }
 
 /** Insert a `characters` row (the producer FK for character_embeddings). Returns its branded id. */
-export async function seedCharacter(
-  db: Db,
-  ownerId: UserId,
-  overrides: { readonly id?: string; readonly name?: string } = {},
-): Promise<CharacterId> {
+export async function seedCharacter(db: Db, ownerId: UserId, overrides: { readonly id?: string; readonly name?: string } = {}): Promise<CharacterId> {
   const id = castId<CharacterId>(overrides.id ?? "character_test");
   await db.insert(characters).values({
     id,
@@ -232,11 +210,7 @@ export async function seedChat(db: Db, id = "chat_test"): Promise<ChatId> {
 }
 
 /** Insert an `assets` row (the producer FK for image_embeddings). Returns its branded id. */
-export async function seedAsset(
-  db: Db,
-  ownerId: UserId,
-  overrides: { readonly id?: string; readonly hash?: string } = {},
-): Promise<AssetId> {
+export async function seedAsset(db: Db, ownerId: UserId, overrides: { readonly id?: string; readonly hash?: string } = {}): Promise<AssetId> {
   const id = castId<AssetId>(overrides.id ?? "asset_test");
   await db.insert(assets).values({
     id,

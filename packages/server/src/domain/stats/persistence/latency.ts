@@ -34,11 +34,7 @@ function statsOf(ttft: number[], gen: number[]): LatencyStats {
  *  assistant message. TTFT is `ttft_ms` (≥ 0); gen-duration is `gen_finished_at − gen_started_at` where
  *  both are present and finished ≥ started. Owner scope spans every owned character's assistant messages;
  *  character scope narrows to one character; model scope to one (model, provider) bucket. */
-export async function readLatency(
-  db: Db,
-  ownerId: string,
-  scope: LatencyScope,
-): Promise<LatencyStats> {
+export async function readLatency(db: Db, ownerId: string, scope: LatencyScope): Promise<LatencyStats> {
   // Narrowing predicate per scope (owner = no extra filter). Exhaustive over `LatencyScope` — a new scope
   // kind fails tsc until its arm exists.
   let narrow = sql``;
@@ -46,6 +42,7 @@ export async function readLatency(
     narrow = sql`AND m.character_id = ${scope.characterId}`;
   } else if (scope.kind === "model") {
     narrow = sql`AND v.model = ${scope.model} AND COALESCE(v.provider, ${UNKNOWN_PROVIDER}) = ${scope.provider ?? UNKNOWN_PROVIDER}`;
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- exhaustiveness guard: tautological once narrowed, kept so a future LatencyScope member fails tsc here instead of silently falling through to owner-scope.
   } else if (scope.kind !== "owner") {
     assertNever(scope);
   }
@@ -81,10 +78,7 @@ export function modelLatencyKey(model: string, provider: string): string {
 
 /** Per-(model, provider) latency in one owner-scoped scan: one scan, bucketed in JS, percentiles per bucket
  *  — O(N) instead of a scan per model. Returns a Map keyed by `modelLatencyKey`. */
-export async function readModelLatencies(
-  db: Db,
-  ownerId: string,
-): Promise<Map<string, LatencyStats>> {
+export async function readModelLatencies(db: Db, ownerId: string): Promise<Map<string, LatencyStats>> {
   const rows = await db.all<{
     model: string;
     provider: string | null;
@@ -99,6 +93,7 @@ export async function readModelLatencies(
     JOIN message_variants v ON v.id = m.selected_variant_id
     WHERE c.owner_id = ${ownerId} AND m.role = 'assistant' AND v.model IS NOT NULL
   `);
+  // @orb-gate-ignore persistence-no-in-memory-state: query-local accumulator map for latency buckets
   const buckets = new Map<string, { ttft: number[]; gen: number[] }>();
   for (const r of rows) {
     const key = modelLatencyKey(r.model, r.provider ?? UNKNOWN_PROVIDER);
@@ -114,6 +109,7 @@ export async function readModelLatencies(
       b.gen.push(r.gf - r.gs);
     }
   }
+  // @orb-gate-ignore persistence-no-in-memory-state: query-local accumulator map for latency stats output
   const out = new Map<string, LatencyStats>();
   for (const [key, b] of buckets) {
     out.set(key, statsOf(b.ttft, b.gen));

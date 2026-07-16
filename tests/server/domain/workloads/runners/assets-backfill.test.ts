@@ -9,12 +9,7 @@ import { fakeEnv, makeRunnerContext, RUNNER_OWNER_ID } from "../_support.ts";
 describe("assets-backfill runner", () => {
   test("backfills avatars and echoes dryRun", async () => {
     const env = fakeEnv();
-    const result = await assetsBackfillRunner(
-      makeRunnerContext(env),
-      { dryRun: true },
-      vi.fn(),
-      new AbortController().signal,
-    );
+    const result = await assetsBackfillRunner(makeRunnerContext(env), { dryRun: true }, vi.fn(), new AbortController().signal);
     expect(env.assets.backfillAvatars).toHaveBeenCalledWith({
       ownerId: RUNNER_OWNER_ID,
       dryRun: true,

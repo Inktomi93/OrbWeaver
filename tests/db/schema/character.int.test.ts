@@ -13,26 +13,9 @@ import type { CardEvolutionChange } from "@orb/contracts/crew";
 import type { RegexScript } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
 import type { Db } from "@orb/db";
-import {
-  assets,
-  cardEvolutionProposals,
-  characterPersonas,
-  characterSnapshots,
-  characters,
-  chats,
-  isConstraintViolation,
-  personas,
-} from "@orb/db";
+import { assets, cardEvolutionProposals, characterPersonas, characterSnapshots, characters, chats, isConstraintViolation, personas } from "@orb/db";
 import { parseRecord, parseStringArray } from "@orb/db/kit";
-import type {
-  AssetId,
-  CardEvolutionProposalId,
-  CharacterId,
-  CharacterSnapshotId,
-  ChatId,
-  PersonaId,
-  UserId,
-} from "@orb/kit/ids";
+import type { AssetId, CardEvolutionProposalId, CharacterId, CharacterSnapshotId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../support/db";
@@ -152,10 +135,7 @@ test("character_snapshots stores ONE opaque card blob and round-trips", async ()
     label: "v1",
   });
 
-  const rows = await db
-    .select()
-    .from(characterSnapshots)
-    .where(eq(characterSnapshots.id, snapshotId));
+  const rows = await db.select().from(characterSnapshots).where(eq(characterSnapshots.id, snapshotId));
   expect(rows[0]?.content).toEqual(card);
   expect(rows[0]?.label).toBe("v1");
 });
@@ -181,14 +161,8 @@ test("deleting a character CASCADEs its snapshots and persona junctions", async 
 
   await db.delete(characters).where(eq(characters.id, characterId));
 
-  const snaps = await db
-    .select()
-    .from(characterSnapshots)
-    .where(eq(characterSnapshots.characterId, characterId));
-  const junctions = await db
-    .select()
-    .from(characterPersonas)
-    .where(eq(characterPersonas.characterId, characterId));
+  const snaps = await db.select().from(characterSnapshots).where(eq(characterSnapshots.characterId, characterId));
+  const junctions = await db.select().from(characterPersonas).where(eq(characterPersonas.characterId, characterId));
   expect(snaps).toHaveLength(0);
   expect(junctions).toHaveLength(0);
   // The persona itself survives (the junction cascaded, not the persona).
@@ -290,10 +264,7 @@ const EVOLUTION_CHANGES: readonly CardEvolutionChange[] = [
   },
 ];
 
-async function seedProposalHome(
-  db: Db,
-  tag: string,
-): Promise<{ characterId: CharacterId; chatId: ChatId }> {
+async function seedProposalHome(db: Db, tag: string): Promise<{ characterId: CharacterId; chatId: ChatId }> {
   const ownerId = await seedUser(db, { id: `user_${tag}`, handle: `owner-${tag}` });
   const characterId = await seedCharacter(db, ownerId, `character_${tag}`);
   const chatId = castId<ChatId>(`chat_${tag}`);
@@ -313,10 +284,7 @@ test("card_evolution_proposals borns pending and round-trips the typed change li
     sourceSpan: { fromSeq: 12, toSeq: 140 },
   });
 
-  const rows = await db
-    .select()
-    .from(cardEvolutionProposals)
-    .where(eq(cardEvolutionProposals.id, id));
+  const rows = await db.select().from(cardEvolutionProposals).where(eq(cardEvolutionProposals.id, id));
   expect(rows[0]?.status).toBe("pending"); // the column default
   expect(rows[0]?.changes).toEqual(EVOLUTION_CHANGES);
   expect(rows[0]?.sourceSpan).toEqual({ fromSeq: 12, toSeq: 140 });
@@ -359,15 +327,10 @@ test("chatId is SET NULL on chat delete (provenance survives as history); charac
   const db = await freshDb();
   const { characterId, chatId } = await seedProposalHome(db, "cardprop_prov");
   const id = castId<CardEvolutionProposalId>("cardprop_provenance");
-  await db
-    .insert(cardEvolutionProposals)
-    .values({ id, characterId, chatId, changes: EVOLUTION_CHANGES });
+  await db.insert(cardEvolutionProposals).values({ id, characterId, chatId, changes: EVOLUTION_CHANGES });
 
   await db.delete(chats).where(eq(chats.id, chatId));
-  const survived = await db
-    .select()
-    .from(cardEvolutionProposals)
-    .where(eq(cardEvolutionProposals.id, id));
+  const survived = await db.select().from(cardEvolutionProposals).where(eq(cardEvolutionProposals.id, id));
   expect(survived).toHaveLength(1);
   expect(survived[0]?.chatId).toBeNull();
 

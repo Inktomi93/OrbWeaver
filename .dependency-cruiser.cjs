@@ -56,7 +56,6 @@ const FIXED_SLOTS = "(contract|verbs|persistence|substrate)";
 
 // The graph-reporter collapse pattern (one tier/package per node). Hoisted + suppressed once: biome's
 // noSecrets false-positives on the high-entropy regex alternation.
-// biome-ignore lint/security/noSecrets: a path-collapse regex for the dot/archi reporters, not a secret.
 const COLLAPSE = "^packages/(server/src/[^/]+|client/src/[^/]+|kit|contracts|db)";
 
 module.exports = {
@@ -283,8 +282,7 @@ module.exports = {
     },
     {
       name: "client-nothing-imports-main",
-      comment:
-        "main.tsx is the composition root — the top of the client cake; nothing imports it (the mirror of 'nothing imports entry/').",
+      comment: "main.tsx is the composition root — the top of the client cake; nothing imports it (the mirror of 'nothing imports entry/').",
       severity: "error",
       from: { path: CLIENT, pathNot: `${CLIENT}main\\.tsx$` },
       to: { path: `${CLIENT}main\\.tsx$` },
@@ -349,8 +347,7 @@ module.exports = {
     },
     {
       name: "transport-below-entry",
-      comment:
-        "transport (the tRPC + jobs drivers) is below entry (the composition root). A driver must not import entry/. (structure.md §3.)",
+      comment: "transport (the tRPC + jobs drivers) is below entry (the composition root). A driver must not import entry/. (structure.md §3.)",
       severity: "error",
       from: { path: `${SRV}transport/` },
       to: { path: `${SRV}entry/` },

@@ -234,7 +234,7 @@ The rot mode is a concept with no single home. Each of these has exactly one, up
 When these hold, **the structure is the documentation**: a new feature is "copy the template,"
 finding anything is a path derivation, and "where does this go?" has exactly one answer.
 
-> All 13 are IMPLEMENTED (dep-cruiser rules, grit plugins, and the ts-morph gates in
+> All 13 are IMPLEMENTED (dep-cruiser rules and the ts-morph gates in
 > `scripts/check/gates/`); `no-internal-mocks` stays advisory in `Spine-Testing.md §3`, not a hard gate.
 > **This table is the constitution; the full live-gate catalog is `Core-Enforcement-Active-Gates.md`**
 > (the single enforcement source of truth; deferred/rejected gates: `Core-Enforcement-Deferred-Dropped.md`).

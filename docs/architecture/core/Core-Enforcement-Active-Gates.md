@@ -1,12 +1,12 @@
 ---
 kind: law
 status: active
-updated: 2026-07-13
+updated: 2026-07-15
 ---
 
 # Orbweaver — Enforcement Registry: Active Gates
 
-> The currently-live, machine-enforced gate catalog — what fails a build today, across the six layers (Biome, GritQL, ts-morph structural gates, dependency-cruiser, jscpd, Stryker). Not-yet-active + rejected gates: `Core-Enforcement-Deferred-Dropped.md`. Extracted adoption sagas + dropped-experiment postmortems: `history/enforcement-archaeology-record.md`.
+> The currently-live, machine-enforced gate catalog — what fails a build today, across the five active layers (Biome, ts-morph structural gates, dependency-cruiser, jscpd, Stryker; the former GritQL layer is RETIRED — §Layer 2). Not-yet-active + rejected gates: `Core-Enforcement-Deferred-Dropped.md`. Extracted adoption sagas + dropped-experiment postmortems: `history/enforcement-archaeology-record.md`.
 
 ---
 
@@ -47,34 +47,15 @@ interfaces — matches structure §7.4), `noExcessiveCognitiveComplexity: 15`, `
 for `packages/client/**` (`info/warn/error` ok in the browser until a client logger lands) and turned
 off for `scripts/**` + `tests/**` (console is their output channel).
 
-## Layer 2 — GritQL plugins (`tools/grit/`, 38 active)
+## Layer 2 — GritQL plugins — **RETIRED (2026-07-15, migrated to Layer 3)**
 
-AST patterns Biome rules can't express. Node matchers are **PascalCase** (`JsDecorator()`,
-`JsxAttribute()`). The count is the `biome.json` `plugins` array (the `!**/*.grit` ignore entry is not a
-plugin); full list + rationale in `tools/grit/README.md`.
-
-- **Server / determinism / types / ids (12):** no-raw-id, no-loose-id-cast, no-mint-via-cast,
-  no-await-db-in-loop, no-raw-intl-time, no-raw-clock, no-raw-random, no-if-is-group,
-  no-context-returntype, no-decorators, no-inline-types, persistence-no-in-memory-state.
-  (`no-if-is-group` flags an `if (isGroup)` / group-vs-solo branch — group-ness is DATA, not a branch;
-  solo is the roster-of-1 degenerate case, byte-identical — ledger D16.) The determinism grits
-  (no-raw-clock, no-raw-random, no-raw-intl-time) scope over `packages/(server|client|ui)`.
-- **Client tokens / layout (7):** no-color-literals, no-raw-z-index, no-raw-spacing-in-features,
-  no-raw-typography-in-features, no-media-queries-in-features, no-raw-container-widths,
-  no-layout-context-props (D42).
-- **Client data / forms / state discipline (13):** no-chat-trpc-in-surface, no-direct-useform,
-  no-form-state-in-useeffect, no-inline-optimistic-in-surface, client-cache-surgery-only-in-data,
-  no-raw-zustand-persist, no-static-staletime, no-fake-disabled-id, chat-stream-writes-in-bus-only,
-  no-multiplexed-mutation-error, zustand-selector-stability, testid-typed-only,
-  query-machine-seals (client-architecture-lockdown.md §14/§16 G9 — `useMutation` outside `data/`,
-  `useInfiniteQuery` outside `data/create-collection-surface.ts`).
-- **D44 containment trio (3):** no-untrusted-html-in-main-dom, no-external-media-without-gate,
-  theme-override-only-via-scope.
-- **kit (1):** no-manual-token-estimate (`.length / 4` hand-rolled token estimates → `@orb/kit/tokens`).
-- **Misc bans (2):** no-arbitrary-tw-values (the className-arm Tailwind arbitrary-value ban — distinct
-  from the same-named Layer-3 structural gate), no-raw-matchmedia (raw `matchMedia()` ban).
-
-Client belts are LIVE now but fire only once client code lands.
+The GritQL layer is GONE: biome's gritql engine had been core-dumping SILENTLY whenever a plugin
+touched `packages/db`/`packages/server` shapes (trpc/drizzle call graphs) — a crash reads as "no
+diagnostics", so the layer enforced nothing over exactly the packages it claimed to cover. Every
+plugin was recreated 1:1 as a ts-morph structural gate in `scripts/check/gates/` (Layer 3 — where the
+rule, its diagnostic, and its inline `mustFlag`/`mustPass` proof live in ONE descriptor); `tools/grit/`
+is deleted and `biome.json` `plugins` is empty and stays empty. Do NOT add a grit plugin — add a
+Layer-3 gate.
 
 ## Layer 3 — Structural gates (`scripts/check/`, ts-morph + fs)
 
@@ -108,7 +89,7 @@ lands) and **pinned by `tests/tooling/check-gates.int.test.ts`** — it derives 
 | `section-registry-completeness` | client-architecture-lockdown §6/§16 G1 — the section-registry walls tsc can't see: a `SectionDefinition` is co-located in `features/<owner>/lib/<id>-section.*`; a DECLARED-PLANNED section (`content:{planned}`, O1) has a non-empty reason AND no real body (list/header/non-`none` context); two co-located definitions never declare the SAME `id` (a shadow def tsc's total door Record can't see); and no route re-forms the god-map (a `sections` prop object literal in a route file, or a non-auth feature front-door import in `routes/**` outside the sanctioned `app-root.tsx`). The `modals` twin of the anti-god-map arm lands at M4 (modal registry) |
 | `no-parallel-section-map` | client-architecture-lockdown §5 rule 4 / §16 G2 — an object literal / array of `{ id: … }` elements / `Record<…>`-typed value hardcoding ≥2 `SectionId`s, `ModalSlotId`s, OR `SettingsCategoryId`s (a re-declared per-id map like the old `SECTION_PANEL_DEFAULTS`/`RAIL_SECTIONS`/`RAIL_ACTIONS`/`YOU_MODAL_ROWS`) outside the sanctioned homes (the vocab tuple · the `main.tsx` door · the `*-section`/`*-modal`/`*-pane` definition files) is RED — derive from the registry, never re-declare (a derived `registry.list()…` map has no literal keys/type, so it passes). Covers the SectionId + ModalSlotId + SettingsCategoryId vocabularies (M6.1) |
 | `context-definition-shape` | client-architecture-lockdown §6b/§16 G3 — post-M3, four arms over the `defineContextTabs<S>` mint (`lib/registry-contracts.ts`): (1) a hand-rolled `{ kind: "tabs", useResolved }` object literal outside the mint's own home is a badge-wearing tabs renderer; (2) a `defineContextTabs` call with `tabs: []` AND no `contributors` (a dead mint); (3) O5 strict — a `defineContextTabs` call or `ContextTabDef<…>` type-ref whose type arg is not `void` and not an identifier resolving to a type EXPORTED from `registry-contracts.ts` (`any`/`unknown`/an inline literal/an index signature) is RED; (4) a `bodies: Record<string, ReactNode>`-shaped JSX attr/interface member under `client/src` — the dead CONTEXT\_SLOTS↔bodies split resurrected |
-| `zustand-selector-derived` | the Layer-3 half of the Zustand selector-stability belt (UI-Lib-Zustand.md §A/§C-1, UI-Gates-and-Lessons.md §7/§11.5) — flags a `use<X>Store(selector)`/`useStore(store, selector)` call whose inline selector returns a fresh object/array literal, an `Object.keys/values/entries(...)` derivation, or an array-rebuilding `.map/.filter/...` (directly, from a block body, or from either branch of a ternary/`??`/`&&`), unless wrapped in `useShallow(...)` — the shape the Layer-2 grit `zustand-selector-stability` (literal-concise-body only) can't express |
+| `zustand-selector-derived` | the Layer-3 half of the Zustand selector-stability belt (UI-Lib-Zustand.md §A/§C-1, UI-Gates-and-Lessons.md §7/§11.5) — flags a `use<X>Store(selector)`/`useStore(store, selector)` call whose inline selector returns a fresh object/array literal, an `Object.keys/values/entries(...)` derivation, or an array-rebuilding `.map/.filter/...` (directly, from a block body, or from either branch of a ternary/`??`/`&&`), unless wrapped in `useShallow(...)` — the shape its narrow sibling gate `zustand-selector-stability` (literal-concise-body only) can't express |
 | `component-size` | `@orb/client` hard file-size cap (450 default / 500 route shells); gates `.ts` + `.tsx`, exempts tests/gen/`.d.ts` — god-component sprawl can't survive a check run |
 | `no-direct-users-read` | the `users` table is read/written ONLY by `sessions` + `admin`; any other domain importing the `users` symbol from `@orb/db` is RED (identity comes from the Principal — resolve-once) |
 | `discovery-no-stats-rollups` | the stats rollup tables (`ownerStats`/`characterStats`/`dailyStats`/`modelStats`) are stats' alone — `domain/discovery` importing one from `@orb/db` is RED; economics reach discovery ONLY as the injected pre-aggregated stats ops (stats-discovery-seam.md; a dep-cruiser `to: schema/stats` rule cannot fire — the `@orb/db` barrel absorbs the resolution, so the seal matches the ImportSpecifier like `no-direct-users-read`) |
@@ -129,7 +110,7 @@ lands) and **pinned by `tests/tooling/check-gates.int.test.ts`** — it derives 
 | `bus-definition-belts` | client-architecture-lockdown.md §13 laws 4/5, §16 G11 — every `*_EVENT_TYPES satisfies Record<X["type"], true>` const in `@orb/contracts` must carry BOTH belts a new bus can ship without: a `scripts/check/gates/*.ts` coverage-gate file naming it (the producer-coverage ratchet, `bus-coverage`/`user-bus-coverage`'s own convention), AND a mapped-type total map over its event union in `packages/client/src/data/invalidation.ts` (the consumer-exhaustiveness belt) |
 | `membership-fan-guard` | client-architecture-lockdown.md §13 law 2/§16 G12 — the `emitUserEvent` identifier (the actor-only per-person emit) is banned under `domain/chat/**`: chat is MEMBERSHIP-scoped (D16/D18), so member-visible state must fan through `emitChatChanged`/the chat bus, never a single-user channel a co-member could be silently excluded from |
 | `member-card-clamped` | ONE D22 clamp: no `MemberCardView` declaration outside `@orb/contracts`, no `clampMemberCard`/`resolveCardVisibility` outside `chat/substrate/auth/`, and the deleted `getRosterCardView` stays dead (D22) |
-| `diagnostic-legibility` | every custom-gate + grit diagnostic STRING carries a resolvable pointer (a `*.md` doc path, a code-home path/file, or an explicit `// terse-ok:` marker) — the meta-gate: a new gate/grit cannot regress to a bare/pointerless message |
+| `diagnostic-legibility` | every custom-gate diagnostic STRING carries a resolvable pointer (a `*.md` doc path, a code-home path/file, or an explicit `// terse-ok:` marker) — the meta-gate: a new gate cannot regress to a bare/pointerless message |
 | `test-presence-client` | the `@orb/client` + non-primitive `@orb/ui` reach `test-presence` lacks (server/contracts only) — a test is required on the behavioral factories + logic modules, per `Spine-Testing.md` §5's conservative surface. Clause C: a `state/*.ts` store's mirror EXISTING isn't presence for a NEW action — every exported action (`createGatedStore`/`createPersistedStore`/`createEntityDraftStore` files) must be called BY NAME in its mirror `tests/client/state/*.ct.tsx` (or the shared `_ct-stories.tsx`), not merely have SOME mirror test |
 | `no-effect-on-shared-selection` | the mechanical half of the anti-`this_chid` rule (UI-Arch §5.1) — a `useEffect`/`useLayoutEffect` in `features/**` keyed on a shared-selection store pointer is banned; only render-only reads are sanctioned |
 | `persistence-boundary` | the device-local-vs-synced belt (UI-Theming-and-Content.md §12.1 + UI-Arch §5) — raw browser storage outside the two persist factories + the boot/dev allowlist is RED, and every persisted-store name must carry a registered why-device-local rationale |
@@ -147,10 +128,10 @@ lands) and **pinned by `tests/tooling/check-gates.int.test.ts`** — it derives 
 | `list-row-adoption` | client-architecture-lockdown.md §14/§16 G6 — a LIST-region surface file (one importing `LibrarySurfaceShell`/`LibraryListLayout`/`createCollectionSurface`) whose `.map()` callback OR `renderItem`/`renderRow` prop returns interactive JSX (onClick/role/href) must root that JSX in `ListRow`/`LibraryRow`/an allowlisted composite. Both-ways ALLOWLIST ratchet (currently empty — every current LIST-surface row already roots in `LibraryRow`) |
 | `enforcement-registry-parity` | this doc's declared registered-gate COUNT + Layer-3 ACTIVE/DORMANT tables must agree with the DISCOVERED gate descriptors' `status` fields (both directions) — reconciles the doc against `loadGates()`'s discovered set, not an `ALL_CHECKS` array — the meta-gate that promotes `check-gates.int.test.ts`'s anti-drift assertion to every `pnpm check` |
 | `no-array-literal-querykey` | a `queryKey:` property whose value is an inline array literal anywhere in `packages/client/src` is RED — client query keys are 100% tRPC-proxy-derived (`.queryKey()`/`.queryFilter()`/`.pathFilter()`), §11.1; the data/ factory passthroughs are identifiers, never literals, so they pass |
-| `no-inline-invalidate-outside-seam` | `.invalidateQueries(` may be called ONLY in `data/invalidation.ts` (the central seam); everything else routes `invalidate(event)`/`invalidateFilters`. Tighter than the Layer-2 grit `client-cache-surgery-only-in-data` (which allows all of `data/`) — §11.3 |
-| `bus-onData-no-store-write` | a raw `.setState(` inside a `data/bus/*` subscription `onData`/`onConnectionStateChange` body is RED — the seam buffers through the chatStream api + routes to the invalidation seam, never a second store (§11.1); the reducer-body twin of the import-side grit `chat-stream-writes-in-bus-only` |
+| `no-inline-invalidate-outside-seam` | `.invalidateQueries(` may be called ONLY in `data/invalidation.ts` (the central seam); everything else routes `invalidate(event)`/`invalidateFilters`. Tighter than `client-cache-surgery-only-in-data` (which allows all of `data/`) — §11.3 |
+| `bus-onData-no-store-write` | a raw `.setState(` inside a `data/bus/*` subscription `onData`/`onConnectionStateChange` body is RED — the seam buffers through the chatStream api + routes to the invalidation seam, never a second store (§11.1); the reducer-body twin of the import-side gate `chat-stream-writes-in-bus-only` |
 | `no-form-reset-in-autosave` | a `.reset(` on a form in any file importing `createAutosaveEntityForm`, PLUS the reset type-strip (`Omit<…,"reset">`) must stay present and unexposed in the factory — the runtime backstop to the compile-time strip (the autosave infinite loop, §7 row 2) |
-| `persist-partialize-and-total-migrate` | a bare zustand `persist(` outside the two minting factories (`create-persisted-store.ts`/`create-entity-draft-store.ts`) is RED, AND inside each factory the persist options must carry `version`+`partialize`+`migrate` — the Layer-3 twin of the `no-raw-zustand-persist` grit, reading INTO the chokepoint (§11.5) |
+| `persist-partialize-and-total-migrate` | a bare zustand `persist(` outside the two minting factories (`create-persisted-store.ts`/`create-entity-draft-store.ts`) is RED, AND inside each factory the persist options must carry `version`+`partialize`+`migrate` — the deep twin of `no-raw-zustand-persist`, reading INTO the chokepoint (§11.5) |
 | `ownerid-registry` | an `ownerId` schema column may exist ONLY on a D23-passing table (a TRUE PRODUCER, a parentless per-user aggregate, or the two sanctioned scope-subject cases — `chat_tags` D30 · `global_documents` D49); every other table DERIVES its owner by one FK to an owned entity. A newly-stamped `ownerId` on an unlisted table is a doubling — RED with the D23 cite (D21/D23/D30) |
 | `no-untyped-soft-ref` | a schema column whose JS key ends in `Id` (an entity reference) MUST carry a `.references()` FK — boundaries are FK-enforced physics (D24); a soft `text`/`integer` id with no FK is banned, exceptions only `audit_logs.entityId` (append-only, outlives its referent — D37) + `users.externalId` (an external IdP subject, not a table ref) |
 | `db-enum-from-tuple` | a drizzle `text("x", { enum: … })` column must reference an IDENTIFIER — an imported `@orb/contracts`/`@orb/kit` tuple or a local `as const satisfies readonly <ContractsType>[]` — never an inline array literal that re-spells the union away from its one home (D34) |
@@ -158,10 +139,13 @@ lands) and **pinned by `tests/tooling/check-gates.int.test.ts`** — it derives 
 | `warning-code-coverage` | the emit-coverage RATCHET for both structured warning-code tuples (`WARNING_CODES` in infra/providers · the domain warning set) — every member must appear as an emitted `{ code: "…" }` literal at a real emit site (the bus-coverage twin for the warning channels) (D41/D45/D48/D51) |
 | `infra-auth-no-userid` | `infra/auth` VERIFIES headers into a pre-row `ResolvedIdentity` and must NEVER yield a `userId` — identity→row is a DOMAIN step and the `Principal` is minted ONCE at `entry/auth`; a `userId` identifier under `infra/auth/**` is banned — RED (D40) |
 | `content-part-seam` | `ChatContentPart` is PRODUCED exactly once (the engine request seam, `pipeline.ts`) and CONSUMED only by `infra/providers/**`; everything upstream (assemble/shape, verbs, the rest of `domain/chat`, transport) stays `content: string` — no "content-parts everywhere" spread (D51) |
+| `no-raw-clock` | raw `Date.now()` / `new Date()` (ambient now) is forbidden outside the time seam (`@orb/kit/time`) and test suites. Production reads time from the injected clock for determinism. `new Date(ms)` to parse a known timestamp remains legal. (Spine-Testing.md §3) |
 | `no-raw-egress` | a bare `fetch(` in `packages/server/src` must go through `safeFetch` (the self-enforcing SSRF resolve→validate→pin guard, `infra/network`); raw `fetch` is sanctioned ONLY in the credentialed/loopback provider-egress tier + safeFetch's own home (D61 B5a) |
+| `no-raw-id` | id field typed as a raw z.string() — use brandedId<T>() (nanoid) or typeIdSchema(ID\_PREFIX.x) (TypeID). The brand flows through the contract surface into services + client, so swapping a ChatId for a CharacterId becomes a type error instead of silent FK drift. (Spine-TypeScript-and-Patterns.md §1) |
+| `no-raw-random` | ambient `Math.random()` in shipped source breaks determinism. Inject a seeded PRNG instead (the same seam tests pin). (UI-Gates-and-Lessons.md §11.5) |
 | `contract-verb-presence` | the INTERFACE-level complement to `test-presence`'s file-mirror rule — every method a domain's exported `*Service` interface declares (MethodSignature + PropertySignature-with-FunctionType) must have an invocation-shaped match (`verb(` bare call or its `create<Verb>(` factory) in that domain's `tests/server/domain/<d>/**` tree (grep-style presence, not filename convention). Closes the "add a verb to the contract, never test it" hole (Spine-Testing.md §5). Carries a DEFERRED ratchet for cited exceptions |
 | `no-test-fabrication` | bans the two fabricated-entity casts in `tests/` that compile straight through a type change — `X as unknown as Y` double-casts and object/array-literal `as Y` (Y ≠ const/any/unknown); fix is a typed factory or `satisfies Y`. `// FABRICATION-OK: <reason>` escapes a deliberate invalid-input probe. Baseline-ratchet (`no-test-fabrication.baseline.json`): a file is RED only when its count EXCEEDS baseline (Spine-Testing.md §5) |
-| `form-factory-for-multifield` | a `features/**` component hand-rolling ≥3 controlled form inputs (value/checked + an onChange-family handler) without importing an editor factory is RED — the D54 §13.4 "≥3 fields ⇒ a factory" trigger, closing the hole the `no-direct-useform` grit leaves (a form dodging Form entirely) |
+| `form-factory-for-multifield` | a `features/**` component hand-rolling ≥3 controlled form inputs (value/checked + an onChange-family handler) without importing an editor factory is RED — the D54 §13.4 "≥3 fields ⇒ a factory" trigger, closing the hole `no-direct-useform` leaves (a form dodging Form entirely) |
 | `no-arbitrary-tw-values` | design-enforcement.md §3 — a Tailwind arbitrary-value bracket (`w-[137px]`, `text-[13px]`) on a layout/size/spacing/type utility in `packages/client/src` or `packages/ui/src` is RED (variant-SELECTOR brackets like `data-[…]:`/`has-[…]:` and token-driven bodies — `--…`/`var(…)`/`calc(…)` — stay legal); if a value is worth using it's worth a token. Both-ways ALLOWLIST ratchet (allowlist in the gate file) |
 | `asset-refs-fk-coverage` | every `packages/db/src/schema` column whose FK targets `assets.id` must be classified in `domain/assets/persistence/asset-refs.ts`'s registry, either RETAINING (`ASSET_REFS`) or DERIVED (`DERIVED_ASSET_COLUMNS`) — an unregistered column silently escapes BOTH asset GC and portability blob-bundling (both walk that one registry). STRICT, no allowlist. The static (`pnpm check:structure`, pre-commit) half of the runtime `tests/server/domain/assets/persistence/asset-refs.int.test.ts` invariant |
 | `no-off-token-radius-shadow` | design-enforcement.md §3, DC8 — the default-scale twin of `no-arbitrary-tw-values` (that gate catches brackets only, e.g. `rounded-[3px]`; this one catches an off-token DEFAULT-SCALE `rounded-{sm,md,lg,xl,2xl,3xl,4xl}` / `shadow-{sm,md,lg,xl,2xl,3xl,inner}` / bare `shadow` utility in `packages/client/src` or `packages/ui/src`, which resolves against Tailwind's stock scale instead of the DTCG theme's closed radius vocabulary — `rounded-base/control/card/full` — and shadow vocabulary — `shadow-glow/overlay/prose`, `tokens.json`). `rounded-none`/`shadow-none` (a deliberate opt-out) and `drop-shadow-*` (a different CSS property) stay legal. Both-ways ALLOWLIST ratchet (allowlist in the gate file; `packages/client/src/features/preset/**` is structurally excluded, mid-revamp lane) |
@@ -172,15 +156,52 @@ lands) and **pinned by `tests/tooling/check-gates.int.test.ts`** — it derives 
 | `verify-registry-parity` | UNIFIED-VERIFICATION-DESIGN.md §3.6 — every `package.json` script matching the verification shape (`check*`/`test*`/`lint*`/`typecheck*`/`depcruise*`/`e2e*`/`cpd*`/`format*`) must be reachable from the `pnpm verify` stage registry (`scripts/verify/registry.ts`): either it IS a registry stage's `pnpm <script>` argv, or it is a writer/artifact-generator on the gate's `NON_STAGE_ALLOWLIST` (lint:fix, format(:docs), depcruise:graph/focus/reaches, cpd:report, the verify/check hosts). The mirror arm: every registry stage's whole-scope `pnpm <script>` argv must name a real package.json script (a dead row is RED). Makes a "forgotten script" — one added to package.json without a tier — a structural violation |
 | `no-vanity-alias` | one symbol, one name — a workspace rename-import (original not otherwise present in-module), a rename-export of a UNIQUELY-homed symbol (the ChatSource class — a name with <2 producer modules), or 2+ bare type-aliases onto one identifier (RouteOverlay/RoutableChat). Sanctioned: a genuine in-module collision; a GENERIC name (≥2 producer modules — barrel disambiguation); an `@orb/ui` / db-`*Table` / contracts-`*Wire` rename; a `packages/server/src/**/contract/**` distinct-alias-per-verb vocab home; any vendor-package rename. `whole-project` (rule b counts producer modules tree-wide) |
 | `tsconfig-routing-parity` | TSC-INCREMENTAL-PERFILE.md §2.2 — the file→tsconfig routing algebra (`scripts/verify/selection.ts` `staticPrograms`, which scopes `verify --file/--changed`'s type lanes to the OWNING program(s)) must match each program's REAL root membership. For every present tsconfig (the root graph + 6 package configs) the gate reads its resolved `files` via `tsgo --showConfig` (the include/files expansion, pre-import-closure) and reconciles both directions: a file a program ROOTS that the algebra doesn't predict is RED (forward), and a file the algebra routes to a program that doesn't root it is RED (mirror). A wrong route type-checks a file against the WRONG program (or skips it) → a FALSE GREEN at `verify --file` |
+| `no-raw-intl-time` | raw Intl API or `.toLocale*()` usage is forbidden. Production reads time from the injected clock (`@orb/kit/time`), never ambient now. (Spine-TypeScript-and-Patterns.md) |
+| `no-await-db-in-loop` | await on a db/tx query inside a loop — N+1 shape: one round-trip per iteration. Batch it instead. (Spine-TypeScript-and-Patterns.md §8) |
+| `persistence-no-in-memory-state` | Map/Set constructed in a persistence/ file — persistence is queries-only; in-memory state (caches, registries) belongs in a named subsystem, not the query layer (Core-0-Architecture-and-Structure.md §7) |
+| `no-loose-id-cast` | `as never` launders a value past ALL type checks. For a branded-ID parameter use the typed helper from @orb/kit/ids (castId / brandedId / parseId). For a genuine ORM/library escape, suppress WITH a reason. See Spine-TypeScript-and-Patterns.md §4. |
+| `no-mint-via-cast` | `castId(<generator>)` MINTS an id by laundering a fresh value through the RE-BRAND helper — castId is for re-branding a value that already IS an id, NEVER for minting. Mint with mintTypeId(ID\_PREFIX.x) (TypeID) or newId<T>() (nanoid) from @orb/kit/ids so the value matches typeIdSchema at the wire. See Spine-TypeScript-and-Patterns.md. |
+| `no-if-is-group` | `isGroup`-style boolean branches on group-vs-solo identity — the design forbids it (solo is the degenerate case of group). Gate on explicit roster/cast size that NO-OPS at roster=1 (so byte-identity holds). See Core-Laws-and-Precedents.md §7 D16 (unified group chat). |
+| `no-context-returntype` | `ReturnType<>` in context.ts — the DI bundle type must be an explicit, hand-written interface (read it to know the feature's deps), never reflected off a builder. Write the interface. See Spine-TypeScript-and-Patterns.md §7.4. |
+| `no-decorators` | decorators are not erasable — tsx/node type-stripping has no decorator runtime (runtime error), and the erasableSyntaxOnly compiler flag does NOT catch them. Use function composition / zod, not decorators. See Spine-TypeScript-and-Patterns.md §5. |
+| `chat-stream-writes-in-bus-only` | the stream store's WRITE api (`chatStream`) may be imported only by the bus reducer and composition root (UI-Gates §11.1) |
+| `client-cache-surgery-only-in-data` | the QueryClient's imperative cache API (`invalidateQueries`, etc.) may be called ONLY inside `packages/client/src/data/` (UI-Gates §11.3) |
+| `no-chat-trpc-in-surface` | inline chat-verb mutations (`trpc.chat.<verb>.mutationOptions`) in a surface are banned; they belong in sanctioned verb-hook homes (UI-Arch §2.1) |
+| `no-direct-useform` | direct `useForm(...)` / `createFormHook(...)` calls are banned; use the shared instance `useAppForm` from `#forms` instead (UI-Lib-TanStack-Form) |
+| `no-fake-disabled-id` | `castId("")` (an empty-string branded id) as a fake-disabled sentinel is banned; use `useGatedQuery`/`skipToken` instead (UI-Gates §11.5) |
+| `no-form-state-in-useeffect` | `useEffect` reading `form.state.values` / `form.store` in its dep array is banned; use form-level `listeners.onChange` or `form.Subscribe` (UI-Lib-TanStack-Form) |
+| `no-inline-optimistic-in-surface` | optimistic-mutation plumbing (`cancelQueries` / `setQueryData`) in a surface is banned; it belongs in `features/<x>/hooks/` (UI-Lib-TanStack-Query) |
+| `no-raw-spacing-in-features` | raw spacing tokens/values in features |
+| `no-raw-typography-in-features` | raw typography tokens/values in features |
+| `no-raw-z-index` | raw z-index tokens/values |
+| `no-raw-zustand-persist` | direct usage of zustand persist |
+| `no-static-staletime` | static staleTime in query configurations |
+| `no-untrusted-html-in-main-dom` | D44 containment: untrusted HTML in main DOM |
+| `query-machine-seals` | client-architecture-lockdown.md §14/§16 G9 — useMutation outside data/, useInfiniteQuery outside data/create-collection-surface.ts |
+| `testid-typed-only` | data-testid must be typed |
+| `theme-override-only-via-scope` | theme override only via scope |
+| `zustand-selector-stability` | zustand selector stability |
+| `no-default-props` | React modernization — `defaultProps` is deprecated; use default parameters instead. (UI-Architecture-and-Layout.md) |
+| `no-color-literals` | literal hex colors or non-token named colors in className/cn (UI-Architecture-and-Layout.md / D43) |
+| `no-external-media-without-gate` | raw media elements (img/video/audio) outside of MessageMedia in features (D44 containment) |
+| `no-inline-types` | exported type/zod-schema outside of type homes (contract, kit, tests) (Spine-TypeScript-and-Patterns.md §7.4) |
+| `no-layout-context-props` | layout-context boolean/enum props (compact/inDrawer) on JSX (D42) |
+| `no-manual-token-estimate` | hand-rolled `.length / 4` token estimates — use `@orb/kit/tokens` instead |
+| `no-media-queries-in-features` | viewport breakpoint variants in features — use `@orb/ui` responsive primitives |
+| `no-multiplexed-mutation-error` | multiplexed mutation errors (`a.error ?? b.error`) — use a single mutation |
+| `no-raw-container-widths` | raw content-width utilities on container elements — use layout tokens |
+| `no-raw-matchmedia` | raw `matchMedia()` call outside the one-home reduced-motion lib |
+| `no-context-provider` | React 19 deprecates `<Context.Provider>` — render `<Context>` directly instead (Spine-TypeScript-and-Patterns.md §1) |
+| `no-forward-ref` | React 19 deprecates `forwardRef` — pass `ref` as a normal prop instead (Spine-TypeScript-and-Patterns.md §1) |
 
-The table mirrors `report.ts`'s `loadGates()`-discovered `status:"active"` set (85 registered gates);
+The table mirrors `report.ts`'s `loadGates()`-discovered `status:"active"` set (125 registered gates);
 the discovered descriptor set is the runtime truth.
 
 The 7th fired-trigger gate (PD-116), `solo-byte-identical`, is NOT a static gate — it is the
 cross-cutting property suite `tests/server/domain/chat/solo-byte-identical.suite.int.test.ts`: two
 identically-shaped roster-of-one chats (untouched-solo config vs fully group-configured) drive ONE
 round each through the REAL engine and the wire request + persisted canon must be BYTE-identical
-(D16 "solo is a group of one"; the behavioral half of the `no-if-is-group` grit).
+(D16 "solo is a group of one"; the behavioral half of the `no-if-is-group` gate).
 
 ### Layer 3 — DORMANT structural gates (built + self-tested, deliberately `status:"dormant"`)
 
@@ -219,7 +240,7 @@ dead-code/dead-export/dead-dependency lane — LIVE in `pnpm check` as the `deps
 
 ## Layer 5 — jscpd (`jscpd.json`) — copy-paste detection
 
-Structural duplication the per-file biome/grit rules can't see. Scans `packages/**/src` (TS + CSS;
+Structural duplication the per-file biome/gate rules can't see. Scans `packages/**/src` (TS + CSS;
 the centralized `tests/` mirror, migrations, fixtures, and `*.d.ts` are excluded — mirror duplication
 is intentional). **CI lane, not the pre-commit fast check** (whole-tree scan). Gate: the build fails
 over **5%** duplication (`threshold`) — ratchet down as the codebase matures. `pnpm cpd` (console) /

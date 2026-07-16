@@ -24,8 +24,6 @@ describe("clearRevoked", () => {
     const alice = await seedUser(db, { id: "user_a", role: "user" });
     const bob = await seedUser(db, { id: "user_b", role: "user" });
     const cred = await svc.add({ principal: principal(alice), provider: "openrouter", key: "k" });
-    await expect(
-      svc.clearRevoked({ principal: principal(bob), credentialId: cred.id }),
-    ).rejects.toMatchObject({ code: "credential_not_found" });
+    await expect(svc.clearRevoked({ principal: principal(bob), credentialId: cred.id })).rejects.toMatchObject({ code: "credential_not_found" });
   });
 });

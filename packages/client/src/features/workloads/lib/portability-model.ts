@@ -11,9 +11,7 @@ const LIBRARY_EXPORT_PATH = "/api/export/library";
 const ASSETS_KIND = "assets";
 
 /** The kinds the export checkboxes offer — every portable kind except the always-included `assets`. */
-export const EXPORTABLE_KINDS: readonly PortableKind[] = PORTABLE_KINDS.filter(
-  (kind) => kind !== ASSETS_KIND,
-);
+export const EXPORTABLE_KINDS: readonly PortableKind[] = PORTABLE_KINDS.filter((kind) => kind !== ASSETS_KIND);
 
 /** The human label per portable kind (checkboxes + report copy). */
 export const PORTABLE_KIND_LABELS: Record<PortableKind, string> = {
@@ -62,8 +60,7 @@ export interface BundleCounts {
 
 /** Narrow an `unknown` workload-succeeded result into the bundle counts. */
 export function asBundleCounts(result: unknown): BundleCounts {
-  const record =
-    typeof result === "object" && result !== null ? (result as Record<string, unknown>) : {};
+  const record = typeof result === "object" && result !== null ? (result as Record<string, unknown>) : {};
   const count = (value: unknown): number => (typeof value === "number" ? value : 0);
   return {
     imported: count(record["imported"]),

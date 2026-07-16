@@ -7,42 +7,11 @@ import type { ChatBusEvent, MessageView } from "@orb/contracts/chat";
 import { variableDeltaSchema } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
-import {
-  chatEvents,
-  chatInjections,
-  chatParticipants,
-  chatStreamEvents,
-  chats,
-  messages,
-  messageVariants,
-} from "@orb/db";
-import type {
-  CharacterId,
-  ChatId,
-  MessageId,
-  MessageVariantId,
-  PersonaId,
-  UserId,
-} from "@orb/kit/ids";
+import { chatEvents, chatInjections, chatParticipants, chatStreamEvents, chats, messages, messageVariants } from "@orb/db";
+import type { CharacterId, ChatId, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
-import {
-  and,
-  asc,
-  count,
-  desc,
-  eq,
-  gt,
-  inArray,
-  isNotNull,
-  isNull,
-  lt,
-  lte,
-  max,
-  min,
-  ne,
-  sql,
-} from "drizzle-orm";
+import { and, asc, count, desc, eq, gt, inArray, isNotNull, isNull, lt, lte, max, min, ne, sql } from "drizzle-orm";
 import type { ChatMetadata } from "../contract/metadata";
 import { parseChatMetadata } from "../contract/metadata";
 import type { ChatStreamReplayEvent, StreamEventBounds } from "../contract/views";
@@ -129,9 +98,7 @@ const messageViewSelection = {
   generationId: messageVariants.generationId,
 } as const;
 
-function toChatRow(
-  r: { readonly metadata: ChatMetadata | null } & Omit<ChatRow, "metadata">,
-): ChatRow {
+function toChatRow(r: { readonly metadata: ChatMetadata | null } & Omit<ChatRow, "metadata">): ChatRow {
   return { ...r, metadata: parseChatMetadata(r.metadata) };
 }
 
@@ -140,11 +107,7 @@ function toChatRow(
 /** Unscoped chat-row read (boot/reap/lineage internals). Membership is NOT checked here; the
  *  membership-scoped front door is {@link loadMemberChat}. */
 export async function loadChatRow(db: Db, chatId: ChatId): Promise<ChatRow | undefined> {
-  const rows = await db
-    .select(chatRowSelection)
-    .from(chats)
-    .where(eq(chats.id, chatId))
-    .limit(LIMIT_ONE);
+  const rows = await db.select(chatRowSelection).from(chats).where(eq(chats.id, chatId)).limit(LIMIT_ONE);
   const r = rows.at(0);
   return r ? toChatRow(r) : undefined;
 }
@@ -152,11 +115,7 @@ export async function loadChatRow(db: Db, chatId: ChatId): Promise<ChatRow | und
 /** Read the chat's pending host-handoff nominee. `acceptHostHandoff` verifies the caller IS the nominee
  *  before the atomic role swap. */
 export async function loadPendingHostUserId(db: Db, chatId: ChatId): Promise<UserId | null> {
-  const rows = await db
-    .select({ pendingHostUserId: chats.pendingHostUserId })
-    .from(chats)
-    .where(eq(chats.id, chatId))
-    .limit(LIMIT_ONE);
+  const rows = await db.select({ pendingHostUserId: chats.pendingHostUserId }).from(chats).where(eq(chats.id, chatId)).limit(LIMIT_ONE);
   return rows.at(0)?.pendingHostUserId ?? null;
 }
 
@@ -169,9 +128,7 @@ export async function loadMemberChat(
   db: Db,
   chatId: ChatId,
   userId: UserId,
-): Promise<
-  { chat: ChatRow; role: ParticipantRole; activePersonaId: PersonaId | null } | undefined
-> {
+): Promise<{ chat: ChatRow; role: ParticipantRole; activePersonaId: PersonaId | null } | undefined> {
   const rows = await db
     .select({
       ...chatRowSelection,
@@ -179,14 +136,7 @@ export async function loadMemberChat(
       activePersonaId: chatParticipants.activePersonaId,
     })
     .from(chats)
-    .innerJoin(
-      chatParticipants,
-      and(
-        eq(chatParticipants.chatId, chats.id),
-        eq(chatParticipants.userId, userId),
-        isNull(chatParticipants.leftSeq),
-      ),
-    )
+    .innerJoin(chatParticipants, and(eq(chatParticipants.chatId, chats.id), eq(chatParticipants.userId, userId), isNull(chatParticipants.leftSeq)))
     .where(eq(chats.id, chatId))
     .limit(LIMIT_ONE);
   const r = rows.at(0);
@@ -200,26 +150,13 @@ export async function loadMemberChat(
 /** The membership-scoped library list — every chat the user is a present member of, newest-updated first.
  *  Archived excluded unless `includeArchived`; temporary chats are always hidden (they persist so turns
  *  can run, but never surface in the library — `reapTemporaryChats` sweeps them once expired). */
-export async function listMemberChats(
-  db: Db,
-  userId: UserId,
-  includeArchived = false,
-): Promise<ChatRow[]> {
+export async function listMemberChats(db: Db, userId: UserId, includeArchived = false): Promise<ChatRow[]> {
   const base = db
     .select(chatRowSelection)
     .from(chats)
-    .innerJoin(
-      chatParticipants,
-      and(
-        eq(chatParticipants.chatId, chats.id),
-        eq(chatParticipants.userId, userId),
-        isNull(chatParticipants.leftSeq),
-      ),
-    )
+    .innerJoin(chatParticipants, and(eq(chatParticipants.chatId, chats.id), eq(chatParticipants.userId, userId), isNull(chatParticipants.leftSeq)))
     .$dynamic();
-  const scoped = includeArchived
-    ? base.where(eq(chats.temporary, false))
-    : base.where(and(eq(chats.archived, false), eq(chats.temporary, false)));
+  const scoped = includeArchived ? base.where(eq(chats.temporary, false)) : base.where(and(eq(chats.archived, false), eq(chats.temporary, false)));
   const rows = await scoped.orderBy(desc(chats.updatedAt));
   return rows.map(toChatRow);
 }
@@ -227,20 +164,14 @@ export async function listMemberChats(
 /** The fork children of a chat. Membership-gating per child is the verb's (a fork grants no parent
  *  membership); persistence returns the candidate rows. */
 export async function loadForkChildren(db: Db, parentChatId: ChatId): Promise<ChatRow[]> {
-  const rows = await db
-    .select(chatRowSelection)
-    .from(chats)
-    .where(eq(chats.parentChatId, parentChatId))
-    .orderBy(desc(chats.createdAt));
+  const rows = await db.select(chatRowSelection).from(chats).where(eq(chats.parentChatId, parentChatId)).orderBy(desc(chats.createdAt));
   return rows.map(toChatRow);
 }
 
 /** Per-chat canon aggregates for the `ChatSummary` list chrome: message count + newest timestamp. Batched
  *  over a set of ids (one GROUP BY, no N+1); a chat with no messages is absent from the map. */
-export async function loadChatMessageStats(
-  db: Db,
-  chatIds: readonly ChatId[],
-): Promise<Map<ChatId, { messageCount: number; lastMessageAt: number | null }>> {
+export async function loadChatMessageStats(db: Db, chatIds: readonly ChatId[]): Promise<Map<ChatId, { messageCount: number; lastMessageAt: number | null }>> {
+  // @orb-gate-ignore persistence-no-in-memory-state: query-local lookup map for chat message stats
   const out = new Map<ChatId, { messageCount: number; lastMessageAt: number | null }>();
   if (chatIds.length === 0) {
     return out;
@@ -263,10 +194,8 @@ export async function loadChatMessageStats(
 /** The character-seat ids per chat (the reverse "which chats include character X" read). Batched over a
  *  set of chatIds (one junction read, no N+1). Deduped; includes departed seats (no `leftSeq` filter) —
  *  Activity wants "every chat you've had with them." A chat with no seats is absent from the map. */
-export async function loadChatParticipantCharacterIds(
-  db: Db,
-  chatIds: readonly ChatId[],
-): Promise<Map<ChatId, CharacterId[]>> {
+export async function loadChatParticipantCharacterIds(db: Db, chatIds: readonly ChatId[]): Promise<Map<ChatId, CharacterId[]>> {
+  // @orb-gate-ignore persistence-no-in-memory-state: query-local lookup map for chat participant ids
   const out = new Map<ChatId, CharacterId[]>();
   if (chatIds.length === 0) {
     return out;
@@ -274,13 +203,7 @@ export async function loadChatParticipantCharacterIds(
   const rows = await db
     .select({ chatId: chatParticipants.chatId, characterId: chatParticipants.characterId })
     .from(chatParticipants)
-    .where(
-      and(
-        inArray(chatParticipants.chatId, [...chatIds]),
-        eq(chatParticipants.kind, "character"),
-        isNotNull(chatParticipants.characterId),
-      ),
-    )
+    .where(and(inArray(chatParticipants.chatId, [...chatIds]), eq(chatParticipants.kind, "character"), isNotNull(chatParticipants.characterId)))
     .orderBy(asc(chatParticipants.joinSeq), asc(chatParticipants.id));
   for (const { chatId, characterId } of rows) {
     if (characterId === null) {
@@ -300,6 +223,7 @@ export async function loadChatParticipantCharacterIds(
  *  by the verb). Returns rows self-first; the `visited` set + `maxDepth` cap defend against a cycle. */
 export async function loadAncestorChain(db: Db, chatId: ChatId, maxDepth = 64): Promise<ChatRow[]> {
   const chain: ChatRow[] = [];
+  // @orb-gate-ignore persistence-no-in-memory-state: query-local visited Set for ancestor chain cycle guard
   const visited = new Set<ChatId>();
   let current: ChatId | undefined = chatId;
   while (current !== undefined && !visited.has(current) && chain.length < maxDepth) {
@@ -339,10 +263,7 @@ export async function loadCanonHistory(db: Db, chatId: ChatId): Promise<MessageV
 
 /** One slot ⋈ its selected variant. The engine re-reads this after an append-variant/continue commit;
  *  undo/revert re-read it for the returned view. `undefined` ⇒ no such committed slot. */
-export async function loadMessageView(
-  db: Db,
-  messageId: MessageId,
-): Promise<MessageView | undefined> {
+export async function loadMessageView(db: Db, messageId: MessageId): Promise<MessageView | undefined> {
   const rows = await db
     .select(messageViewSelection)
     .from(messages)
@@ -418,11 +339,7 @@ const canonStatSelection = {
 
 /** The stats-contribution rows (slot ⋈ selected variant) for a set of slots in one chat — the
  *  delete-messages delta input. Chat-scoped: a foreign id from another chat matches nothing. */
-export async function loadCanonStatRows(
-  db: Db,
-  chatId: ChatId,
-  messageIds: readonly MessageId[],
-): Promise<CanonStatRow[]> {
+export async function loadCanonStatRows(db: Db, chatId: ChatId, messageIds: readonly MessageId[]): Promise<CanonStatRow[]> {
   return await db
     .select(canonStatSelection)
     .from(messages)
@@ -432,11 +349,7 @@ export async function loadCanonStatRows(
 
 /** The non-selected variants (swipes) of a slot set, joined to the slot's attribution — the
  *  delete-messages swipe-delta input. */
-export async function loadSwipeStatRows(
-  db: Db,
-  chatId: ChatId,
-  messageIds: readonly MessageId[],
-): Promise<SwipeStatRow[]> {
+export async function loadSwipeStatRows(db: Db, chatId: ChatId, messageIds: readonly MessageId[]): Promise<SwipeStatRow[]> {
   return await db
     .select({
       messageId: messageVariants.messageId,
@@ -454,13 +367,7 @@ export async function loadSwipeStatRows(
     })
     .from(messageVariants)
     .innerJoin(messages, eq(messages.id, messageVariants.messageId))
-    .where(
-      and(
-        eq(messages.chatId, chatId),
-        inArray(messageVariants.messageId, [...messageIds]),
-        ne(messageVariants.id, messages.selectedVariantId),
-      ),
-    );
+    .where(and(eq(messages.chatId, chatId), inArray(messageVariants.messageId, [...messageIds]), ne(messageVariants.id, messages.selectedVariantId)));
 }
 
 // The append-variant/continue write target — the slot's attribution + seq joined to its selected
@@ -506,11 +413,7 @@ interface ContinueSnapshot {
 /** The write target for a swipe/`continue` — the slot's seq + attribution + its selected variant's current
  *  state. Chat-scoped (`id AND chatId`) so a foreign-chat `messageId` matches nothing. `undefined` ⇒ no
  *  such committed slot in this chat. */
-export async function loadSlotTarget(
-  db: Db,
-  chatId: ChatId,
-  messageId: MessageId,
-): Promise<SlotTarget | undefined> {
+export async function loadSlotTarget(db: Db, chatId: ChatId, messageId: MessageId): Promise<SlotTarget | undefined> {
   const rows = await db
     .select(slotTargetSelection)
     .from(messages)
@@ -522,11 +425,7 @@ export async function loadSlotTarget(
 
 /** The continue-undo snapshot for a slot's selected variant. All-null ⇒ never continued (undo/revert
  *  refuse `no_continuation`). Chat-scoped (`id AND chatId`); `undefined` ⇒ no such slot in this chat. */
-export async function loadContinueSnapshot(
-  db: Db,
-  chatId: ChatId,
-  messageId: MessageId,
-): Promise<ContinueSnapshot | undefined> {
+export async function loadContinueSnapshot(db: Db, chatId: ChatId, messageId: MessageId): Promise<ContinueSnapshot | undefined> {
   const rows = await db
     .select({
       variantId: messageVariants.id,
@@ -544,16 +443,8 @@ export async function loadContinueSnapshot(
 
 /** A backwards page of canon — slot ⋈ selected-variant rows strictly before `beforeSeq` (absent ⇒ from
  *  the tail), newest-first, capped at `limit`. The verb reverses for chronological display. */
-export async function loadMessagesPage(
-  db: Db,
-  chatId: ChatId,
-  beforeSeq?: number,
-  limit: number = DEFAULT_PAGE_LIMIT,
-): Promise<MessageView[]> {
-  const where =
-    beforeSeq === undefined
-      ? eq(messages.chatId, chatId)
-      : and(eq(messages.chatId, chatId), lt(messages.seq, beforeSeq));
+export async function loadMessagesPage(db: Db, chatId: ChatId, beforeSeq?: number, limit: number = DEFAULT_PAGE_LIMIT): Promise<MessageView[]> {
+  const where = beforeSeq === undefined ? eq(messages.chatId, chatId) : and(eq(messages.chatId, chatId), lt(messages.seq, beforeSeq));
   return await db
     .select(messageViewSelection)
     .from(messages)
@@ -567,15 +458,8 @@ export async function loadMessagesPage(
 
 /** Resume the resumable SSE token log — every row strictly after `afterSeq` (absent ⇒ from the retained
  *  window start), oldest-first. */
-export async function loadStreamReplay(
-  db: Db,
-  chatId: ChatId,
-  afterSeq?: number,
-): Promise<ChatStreamReplayEvent[]> {
-  const where =
-    afterSeq === undefined
-      ? eq(chatStreamEvents.chatId, chatId)
-      : and(eq(chatStreamEvents.chatId, chatId), gt(chatStreamEvents.seq, afterSeq));
+export async function loadStreamReplay(db: Db, chatId: ChatId, afterSeq?: number): Promise<ChatStreamReplayEvent[]> {
+  const where = afterSeq === undefined ? eq(chatStreamEvents.chatId, chatId) : and(eq(chatStreamEvents.chatId, chatId), gt(chatStreamEvents.seq, afterSeq));
   return await db
     .select({
       seq: chatStreamEvents.seq,
@@ -600,20 +484,9 @@ export async function loadStreamBounds(db: Db, chatId: ChatId): Promise<StreamEv
 
 /** Replay the durable chat-bus log — every row strictly after `afterSeq` (absent ⇒ from the start),
  *  oldest-first, the full room-public payload. */
-export async function loadChatEventReplay(
-  db: Db,
-  chatId: ChatId,
-  afterSeq?: number,
-): Promise<ChatEventLogRow[]> {
-  const where =
-    afterSeq === undefined
-      ? eq(chatEvents.chatId, chatId)
-      : and(eq(chatEvents.chatId, chatId), gt(chatEvents.seq, afterSeq));
-  return await db
-    .select({ seq: chatEvents.seq, payload: chatEvents.payload })
-    .from(chatEvents)
-    .where(where)
-    .orderBy(asc(chatEvents.seq));
+export async function loadChatEventReplay(db: Db, chatId: ChatId, afterSeq?: number): Promise<ChatEventLogRow[]> {
+  const where = afterSeq === undefined ? eq(chatEvents.chatId, chatId) : and(eq(chatEvents.chatId, chatId), gt(chatEvents.seq, afterSeq));
+  return await db.select({ seq: chatEvents.seq, payload: chatEvents.payload }).from(chatEvents).where(where).orderBy(asc(chatEvents.seq));
 }
 
 /** The durable chat-bus log's cursor bounds — min/max `seq` (null/null when empty); `maxSeq` is the
@@ -630,11 +503,7 @@ export async function loadChatEventBounds(db: Db, chatId: ChatId): Promise<Strea
 /** The full sibling-variant set for one slot, ordered by `idx` ascending — just enough to resolve an idx
  *  to its variant id. Chat-scoped via the `messages` join: a foreign-chat `messageId` matches nothing, so
  *  the verb collapses an empty result to a leak-free NOT_FOUND. */
-export async function loadMessageVariantSummaries(
-  db: Db,
-  chatId: ChatId,
-  messageId: MessageId,
-): Promise<{ variantId: MessageVariantId; idx: number }[]> {
+export async function loadMessageVariantSummaries(db: Db, chatId: ChatId, messageId: MessageId): Promise<{ variantId: MessageVariantId; idx: number }[]> {
   return await db
     .select({ variantId: messageVariants.id, idx: messageVariants.idx })
     .from(messageVariants)
@@ -646,36 +515,18 @@ export async function loadMessageVariantSummaries(
 /** The owning slot of a variant (`selectVariant` ownership belt). Returns the variant's `messageId`, or
  *  `undefined` for an unknown variant; the verb verifies it equals the target slot before flipping the
  *  pointer. */
-export async function loadVariantMessageId(
-  db: Db,
-  variantId: MessageVariantId,
-): Promise<MessageId | undefined> {
-  const rows = await db
-    .select({ messageId: messageVariants.messageId })
-    .from(messageVariants)
-    .where(eq(messageVariants.id, variantId))
-    .limit(LIMIT_ONE);
+export async function loadVariantMessageId(db: Db, variantId: MessageVariantId): Promise<MessageId | undefined> {
+  const rows = await db.select({ messageId: messageVariants.messageId }).from(messageVariants).where(eq(messageVariants.id, variantId)).limit(LIMIT_ONE);
   return rows.at(0)?.messageId;
 }
 
 /** Every slot's `(id, seq)` for a chat, ascending — the `moveMessage` re-sequence input. */
-export async function loadMessageSeqs(
-  db: Db,
-  chatId: ChatId,
-): Promise<{ id: MessageId; seq: number }[]> {
-  return await db
-    .select({ id: messages.id, seq: messages.seq })
-    .from(messages)
-    .where(eq(messages.chatId, chatId))
-    .orderBy(asc(messages.seq));
+export async function loadMessageSeqs(db: Db, chatId: ChatId): Promise<{ id: MessageId; seq: number }[]> {
+  return await db.select({ id: messages.id, seq: messages.seq }).from(messages).where(eq(messages.chatId, chatId)).orderBy(asc(messages.seq));
 }
 
 /** The canon history strictly after `afterSeq` (the compaction window). Slot ⋈ selected-variant, oldest-first. */
-export async function loadCanonHistoryAfter(
-  db: Db,
-  chatId: ChatId,
-  afterSeq: number,
-): Promise<MessageView[]> {
+export async function loadCanonHistoryAfter(db: Db, chatId: ChatId, afterSeq: number): Promise<MessageView[]> {
   return await db
     .select(messageViewSelection)
     .from(messages)
@@ -712,10 +563,7 @@ export async function loadVariableDeltas(db: Db, chatId: ChatId): Promise<Variab
 
 /** One variant's parsed `variable_delta` (the `selectVariant` re-fold). A malformed/absent blob degrades
  *  to `[]`. */
-export async function loadVariantDelta(
-  db: Db,
-  variantId: MessageVariantId,
-): Promise<readonly VarOp[]> {
+export async function loadVariantDelta(db: Db, variantId: MessageVariantId): Promise<readonly VarOp[]> {
   const rows = await db
     .select({ variableDelta: messageVariants.variableDelta })
     .from(messageVariants)
@@ -726,24 +574,14 @@ export async function loadVariantDelta(
 }
 
 /** The persisted per-chat ChoiceBlock variable flush. Null ⇒ nothing flushed yet (the verb returns `{}`). */
-export async function loadStoredVariables(
-  db: Db,
-  chatId: ChatId,
-): Promise<Record<string, string> | null> {
-  const rows = await db
-    .select({ variableValues: chats.variableValues })
-    .from(chats)
-    .where(eq(chats.id, chatId))
-    .limit(LIMIT_ONE);
+export async function loadStoredVariables(db: Db, chatId: ChatId): Promise<Record<string, string> | null> {
+  const rows = await db.select({ variableValues: chats.variableValues }).from(chats).where(eq(chats.id, chatId)).limit(LIMIT_ONE);
   return rows.at(0)?.variableValues ?? null;
 }
 
 /** The persisted positional injections for a chat. Full rows, ordered by depth then the within-depth
  *  `order` then insert order (a deterministic, splice-ready read). */
-export async function loadChatInjections(
-  db: Db,
-  chatId: ChatId,
-): Promise<(typeof chatInjections.$inferSelect)[]> {
+export async function loadChatInjections(db: Db, chatId: ChatId): Promise<(typeof chatInjections.$inferSelect)[]> {
   return await db
     .select()
     .from(chatInjections)
@@ -754,23 +592,13 @@ export async function loadChatInjections(
 /** The full message slot rows for a fork copy, oldest-first, optionally truncated at `throughSeq`. Raw
  *  `$inferSelect` rows so the fork can spread→re-id every column; the verb mints fresh ids + remaps the
  *  selected-variant pointer. */
-export async function loadMessageSlots(
-  db: Db,
-  chatId: ChatId,
-  throughSeq?: number,
-): Promise<(typeof messages.$inferSelect)[]> {
-  const where =
-    throughSeq === undefined
-      ? eq(messages.chatId, chatId)
-      : and(eq(messages.chatId, chatId), lte(messages.seq, throughSeq));
+export async function loadMessageSlots(db: Db, chatId: ChatId, throughSeq?: number): Promise<(typeof messages.$inferSelect)[]> {
+  const where = throughSeq === undefined ? eq(messages.chatId, chatId) : and(eq(messages.chatId, chatId), lte(messages.seq, throughSeq));
   return await db.select().from(messages).where(where).orderBy(asc(messages.seq));
 }
 
 /** Every variant (swipe) for a set of slots (the fork copy — every variant, not just the selected one). */
-export async function loadVariantsByMessageIds(
-  db: Db,
-  messageIds: readonly MessageId[],
-): Promise<(typeof messageVariants.$inferSelect)[]> {
+export async function loadVariantsByMessageIds(db: Db, messageIds: readonly MessageId[]): Promise<(typeof messageVariants.$inferSelect)[]> {
   if (messageIds.length === 0) {
     return [];
   }

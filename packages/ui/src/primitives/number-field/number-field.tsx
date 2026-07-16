@@ -28,41 +28,22 @@ export function NumberField(props: NumberFieldProps): ReactElement {
   const { className, scrubLabel, scrubDirection = "horizontal", ...rest } = props;
   const hasScrub = scrubLabel !== undefined && scrubLabel !== null;
   return (
-    <BaseNumberField.Root
-      className={cn(slots.root(), className)}
-      data-slot="number-field-root"
-      {...rest}
-    >
+    <BaseNumberField.Root className={cn(slots.root(), className)} data-slot="number-field-root" {...rest}>
       {hasScrub ? (
-        <BaseNumberField.ScrubArea
-          className={slots.scrubArea()}
-          data-slot="number-field-scrub-area"
-          direction={scrubDirection}
-        >
+        <BaseNumberField.ScrubArea className={slots.scrubArea()} data-slot="number-field-scrub-area" direction={scrubDirection}>
           {scrubLabel}
-          <BaseNumberField.ScrubAreaCursor
-            className={slots.scrubCursor()}
-            data-slot="number-field-scrub-cursor"
-          >
+          <BaseNumberField.ScrubAreaCursor className={slots.scrubCursor()} data-slot="number-field-scrub-cursor">
             {SCRUB_CURSOR_ICON}
           </BaseNumberField.ScrubAreaCursor>
         </BaseNumberField.ScrubArea>
       ) : null}
       <BaseNumberField.Group className={slots.group()} data-slot="number-field-group">
-        <BaseNumberField.Decrement
-          aria-label={DECREMENT_LABEL}
-          className={slots.decrement()}
-          data-slot="number-field-decrement"
-        >
+        <BaseNumberField.Decrement aria-label={DECREMENT_LABEL} className={slots.decrement()} data-slot="number-field-decrement">
           <Icon className={slots.stepIcon()} icon={Minus} size="xs" />
           <Icon className={slots.stepReadOnlyIcon()} icon={Lock} size="xs" />
         </BaseNumberField.Decrement>
         <BaseNumberField.Input className={slots.input()} data-slot="number-field-input" />
-        <BaseNumberField.Increment
-          aria-label={INCREMENT_LABEL}
-          className={slots.increment()}
-          data-slot="number-field-increment"
-        >
+        <BaseNumberField.Increment aria-label={INCREMENT_LABEL} className={slots.increment()} data-slot="number-field-increment">
           <Icon className={slots.stepIcon()} icon={Plus} size="xs" />
           <Icon className={slots.stepReadOnlyIcon()} icon={Lock} size="xs" />
         </BaseNumberField.Increment>

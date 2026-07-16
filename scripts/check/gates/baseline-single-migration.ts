@@ -42,13 +42,9 @@ interface Journal {
 function checkSqlFiles(migrationsDir: string): Violation[] {
   const sqlFiles = readdirSync(migrationsDir).filter((f) => SQL_EXT_RE.test(f));
   if (!sqlFiles.includes(BASELINE_SQL)) {
-    return [
-      { file: `${MIGRATIONS_REL}/${BASELINE_SQL}`, line: 0, message: MISSING_BASELINE_MESSAGE },
-    ];
+    return [{ file: `${MIGRATIONS_REL}/${BASELINE_SQL}`, line: 0, message: MISSING_BASELINE_MESSAGE }];
   }
-  return sqlFiles
-    .filter((f) => f !== BASELINE_SQL)
-    .map((f) => ({ file: `${MIGRATIONS_REL}/${f}`, line: 0, message: EXTRA_SQL_MESSAGE }));
+  return sqlFiles.filter((f) => f !== BASELINE_SQL).map((f) => ({ file: `${MIGRATIONS_REL}/${f}`, line: 0, message: EXTRA_SQL_MESSAGE }));
 }
 
 function checkJournal(migrationsDir: string): Violation[] {
@@ -59,8 +55,7 @@ function checkJournal(migrationsDir: string): Violation[] {
   }
   const journal = JSON.parse(readFileSync(journalPath, "utf-8")) as Journal;
   const entries = journal.entries ?? [];
-  const isSingleBaseline =
-    entries.length === 1 && entries[0]?.idx === 0 && entries[0]?.tag === BASELINE_TAG;
+  const isSingleBaseline = entries.length === 1 && entries[0]?.idx === 0 && entries[0]?.tag === BASELINE_TAG;
   if (isSingleBaseline) {
     return [];
   }
@@ -97,8 +92,7 @@ export const gate: GateDescriptor = {
       files: {
         "packages/db/src/migrations/0000_baseline.sql": "-- baseline\n",
         "packages/db/src/migrations/0001_extra.sql": "-- incremental\n",
-        "packages/db/src/migrations/meta/_journal.json":
-          '{ "entries": [{ "idx": 0, "tag": "0000_baseline" }] }\n',
+        "packages/db/src/migrations/meta/_journal.json": '{ "entries": [{ "idx": 0, "tag": "0000_baseline" }] }\n',
       },
       expect: { messageIncludes: "incremental migration" },
       why: "an incremental 0001 migration alongside the baseline — pre-launch changes must squash (db-baseline-squash)",
@@ -106,8 +100,7 @@ export const gate: GateDescriptor = {
     {
       files: {
         "packages/db/src/migrations/0001_stray.sql": "-- stray\n",
-        "packages/db/src/migrations/meta/_journal.json":
-          '{ "entries": [{ "idx": 0, "tag": "0001_stray" }] }\n',
+        "packages/db/src/migrations/meta/_journal.json": '{ "entries": [{ "idx": 0, "tag": "0001_stray" }] }\n',
       },
       expect: { messageIncludes: "missing 0000_baseline.sql" },
       why: "migrations/ has a .sql but no 0000_baseline.sql — the MISSING_BASELINE arm (distinct message)",
@@ -115,8 +108,7 @@ export const gate: GateDescriptor = {
     {
       files: {
         "packages/db/src/migrations/0000_baseline.sql": "-- baseline\n",
-        "packages/db/src/migrations/meta/_journal.json":
-          '{ "entries": [{ "idx": 0, "tag": "0000_baseline" }, { "idx": 1, "tag": "0001_extra" }] }\n',
+        "packages/db/src/migrations/meta/_journal.json": '{ "entries": [{ "idx": 0, "tag": "0000_baseline" }, { "idx": 1, "tag": "0001_extra" }] }\n',
       },
       expect: { messageIncludes: "EXACTLY one entry" },
       why: "a second _journal.json entry (idx 1) — the JOURNAL_SHAPE arm (distinct message + code path)",
@@ -126,8 +118,7 @@ export const gate: GateDescriptor = {
     {
       files: {
         "packages/db/src/migrations/0000_baseline.sql": "-- baseline\n",
-        "packages/db/src/migrations/meta/_journal.json":
-          '{ "entries": [{ "idx": 0, "tag": "0000_baseline" }] }\n',
+        "packages/db/src/migrations/meta/_journal.json": '{ "entries": [{ "idx": 0, "tag": "0000_baseline" }] }\n',
       },
       why: "exactly the 0000_baseline + a single-entry journal — the sanctioned pre-launch shape, passes",
     },

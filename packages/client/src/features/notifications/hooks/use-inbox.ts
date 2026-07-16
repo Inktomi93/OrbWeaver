@@ -28,18 +28,12 @@ export function useInbox(): InboxRead {
 }
 
 /** Bulk "opening the bell reads everything" — ONE mutation + ONE reconcile, not a per-row loop. */
-export const useMarkAllNotificationsRead = createEntityMutation<
-  inferInput<Trpc["notifications"]["markAllRead"]>,
-  unknown
->({
+export const useMarkAllNotificationsRead = createEntityMutation<inferInput<Trpc["notifications"]["markAllRead"]>, unknown>({
   options: (trpc) => trpc.notifications.markAllRead.mutationOptions(),
   invalidates: (trpc) => [trpc.notifications.list.pathFilter()],
 });
 
-export const useDismissNotification = createEntityMutation<
-  inferInput<Trpc["notifications"]["dismiss"]>,
-  unknown
->({
+export const useDismissNotification = createEntityMutation<inferInput<Trpc["notifications"]["dismiss"]>, unknown>({
   options: (trpc) => trpc.notifications.dismiss.mutationOptions(),
   invalidates: (trpc) => [trpc.notifications.list.pathFilter()],
   errorToast: "Couldn't dismiss the notification.",

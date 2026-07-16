@@ -19,10 +19,7 @@ describe("createGatedStore", () => {
   test("creation + labeled writes + selector reads; devtools stays warning-clean in the node lane", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
 
-    const counterStore = createGatedStore<CounterState>(
-      "t-gated-counter",
-      (): CounterState => ({ n: 0, label: "start" }),
-    );
+    const counterStore = createGatedStore<CounterState>("t-gated-counter", (): CounterState => ({ n: 0, label: "start" }));
     expect(counterStore.getState()).toEqual({ n: 0, label: "start" });
 
     // Partial merge + REPLACE writes, both label-carrying (the type demands it).
@@ -37,10 +34,7 @@ describe("createGatedStore", () => {
   });
 
   test("subscribeWithSelector is baked in: selector-scoped transient subscription fires on its slice only", () => {
-    const counterStore = createGatedStore<CounterState>(
-      "t-gated-subscribe",
-      (): CounterState => ({ n: 0, label: "start" }),
-    );
+    const counterStore = createGatedStore<CounterState>("t-gated-subscribe", (): CounterState => ({ n: 0, label: "start" }));
     const seen: number[] = [];
     const unsub = counterStore.subscribe(
       (s) => s.n,
@@ -58,20 +52,15 @@ describe("createGatedStore", () => {
   });
 
   test("initializer set() (labeled) works and a duplicate store name throws at creation", () => {
-    const toggleStore = createGatedStore<{ readonly on: boolean; readonly flip: () => void }>(
-      "t-gated-toggle",
-      (set, get) => ({
-        on: false,
-        flip: (): void => {
-          set({ on: !get().on }, false, "toggle/flip");
-        },
-      }),
-    );
+    const toggleStore = createGatedStore<{ readonly on: boolean; readonly flip: () => void }>("t-gated-toggle", (set, get) => ({
+      on: false,
+      flip: (): void => {
+        set({ on: !get().on }, false, "toggle/flip");
+      },
+    }));
     toggleStore.getState().flip();
     expect(toggleStore.getState().on).toBe(true);
 
-    expect(() =>
-      createGatedStore<CounterState>("t-gated-toggle", () => ({ n: 0, label: "" })),
-    ).toThrow(DUPLICATE_NAME_RE);
+    expect(() => createGatedStore<CounterState>("t-gated-toggle", () => ({ n: 0, label: "" }))).toThrow(DUPLICATE_NAME_RE);
   });
 });

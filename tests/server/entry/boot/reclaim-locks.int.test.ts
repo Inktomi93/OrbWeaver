@@ -56,9 +56,7 @@ test("an empty queue reaps nothing", async ({ clock }) => {
   expect(reaped).toBe(0);
 });
 
-test("reclaims THIS replica's orphaned chat turn-locks (by holder) but spares another holder's", async ({
-  clock,
-}) => {
+test("reclaims THIS replica's orphaned chat turn-locks (by holder) but spares another holder's", async ({ clock }) => {
   const db = await freshDb();
   const mine = castId<ChatId>("chat_mine");
   const theirs = castId<ChatId>("chat_theirs");

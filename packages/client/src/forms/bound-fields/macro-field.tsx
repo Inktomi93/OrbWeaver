@@ -31,29 +31,12 @@ export interface MacroFieldProps {
   readonly showTokenCount?: boolean;
 }
 
-export function MacroField({
-  label,
-  description,
-  hint,
-  suggestions,
-  placeholder,
-  rows,
-  disabled,
-  className,
-  showTokenCount,
-}: MacroFieldProps): ReactElement {
+export function MacroField({ label, description, hint, suggestions, placeholder, rows, disabled, className, showTokenCount }: MacroFieldProps): ReactElement {
   const field = useFieldContext<string>();
   const error = touchedFieldError(field.state.meta);
   return (
     <>
-      <Field
-        label={label}
-        description={description}
-        hint={hint}
-        error={error}
-        disabled={disabled ?? false}
-        name={field.name}
-      >
+      <Field label={label} description={description} hint={hint} error={error} disabled={disabled ?? false} name={field.name}>
         <MacroTextarea
           value={field.state.value}
           onChange={(next): void => {

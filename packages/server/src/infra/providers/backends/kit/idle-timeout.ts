@@ -28,10 +28,7 @@ export interface IdleAbort {
  * fatal as one mid-stream); `reset()` restarts it per chunk; `dispose()` clears it on settle. The caller's
  * cancel is folded in so the composed signal fires on either cause.
  */
-export function turnAbortSignal(
-  external?: AbortSignal,
-  idleMs: number = IDLE_TIMEOUT_MS,
-): IdleAbort {
+export function turnAbortSignal(external?: AbortSignal, idleMs: number = IDLE_TIMEOUT_MS): IdleAbort {
   const controller = new AbortController();
   let timer: ReturnType<typeof setTimeout> | undefined;
   let settled = false;

@@ -14,11 +14,7 @@ import { errorMessage } from "@orb/kit/error-message";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
 import { CHARACTER_HANDLE_CONFLICT, CharacterOperationError } from "../contract/errors";
-import type {
-  DefaultCharacterSeeder,
-  DefaultCharacterSeederDeps,
-  SeedCard,
-} from "../contract/seeder";
+import type { DefaultCharacterSeeder, DefaultCharacterSeederDeps, SeedCard } from "../contract/seeder";
 import { DEFAULT_CHARACTER_CARDS, WELCOME_ASSISTANT_HANDLE } from "./cards";
 
 interface CardOutcome {
@@ -26,9 +22,7 @@ interface CardOutcome {
   readonly created: boolean;
 }
 
-export function createDefaultCharacterSeeder(
-  deps: DefaultCharacterSeederDeps,
-): DefaultCharacterSeeder {
+export function createDefaultCharacterSeeder(deps: DefaultCharacterSeederDeps): DefaultCharacterSeeder {
   const log = getLog();
   // Only populated on success — a transient failure retries on the next touch. Assumes single-replica.
   const settled = new Set<UserId>();
@@ -116,10 +110,7 @@ export function createDefaultCharacterSeeder(
           settled.add(principal.userId);
         })
         .catch((err: unknown): void => {
-          log.error(
-            { userId: principal.userId, err: errorMessage(err) },
-            "character: default card seed failed",
-          );
+          log.error({ userId: principal.userId, err: errorMessage(err) }, "character: default card seed failed");
         })
         .finally((): void => {
           inFlight.delete(principal.userId);

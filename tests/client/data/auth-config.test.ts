@@ -20,8 +20,7 @@ const CONFIG: AuthConfig = {
   multiHumanCapable: true,
 };
 
-type FetchAuthConfig =
-  typeof import("../../../packages/client/src/data/auth-config").fetchAuthConfig;
+type FetchAuthConfig = typeof import("../../../packages/client/src/data/auth-config").fetchAuthConfig;
 
 async function freshFetchAuthConfig(): Promise<FetchAuthConfig> {
   vi.resetModules();
@@ -53,9 +52,7 @@ test("a failed fetch clears the memo so the next caller retries instead of cachi
   const fetchAuthConfig = await freshFetchAuthConfig();
   await expect(fetchAuthConfig()).rejects.toThrow("ECONNREFUSED");
 
-  vi.stubGlobal("fetch", () =>
-    Promise.resolve(new Response(JSON.stringify(CONFIG), { status: 200 })),
-  );
+  vi.stubGlobal("fetch", () => Promise.resolve(new Response(JSON.stringify(CONFIG), { status: 200 })));
   await expect(fetchAuthConfig()).resolves.toEqual(CONFIG);
 });
 

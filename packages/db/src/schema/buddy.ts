@@ -105,10 +105,7 @@ export const buddyTurns = sqliteTable(
     content: text("content").notNull(),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
-  (t) => [
-    index("buddy_turns_user_created_idx").on(t.userId, t.createdAt),
-    check("buddy_turns_role_check", sql.raw(`role in (${BUDDY_TURN_ROLE_CHECK_LIST})`)),
-  ],
+  (t) => [index("buddy_turns_user_created_idx").on(t.userId, t.createdAt), check("buddy_turns_role_check", sql.raw(`role in (${BUDDY_TURN_ROLE_CHECK_LIST})`))],
 );
 
 // ── buddy_quips — the reaction engine's spoken output (PK TypeID `buddy_quip`) ──────
@@ -131,8 +128,5 @@ export const buddyQuips = sqliteTable(
     fromCanned: integer("from_canned", { mode: "boolean" }).notNull().default(false),
     generatedAt: integer("generated_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
-  (t) => [
-    index("buddy_quips_user_generated_idx").on(t.userId, t.generatedAt),
-    check("buddy_quips_mood_check", sql.raw(`mood in (${MOOD_CHECK_LIST})`)),
-  ],
+  (t) => [index("buddy_quips_user_generated_idx").on(t.userId, t.generatedAt), check("buddy_quips_mood_check", sql.raw(`mood in (${MOOD_CHECK_LIST})`))],
 );

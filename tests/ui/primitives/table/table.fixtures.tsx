@@ -29,13 +29,7 @@ const COLUMNS: readonly TableColumn<Person>[] = [
   { id: "status", header: "Status", accessor: () => "Active" },
 ];
 
-export function BasicTableStory({
-  density = "default",
-  selectable = false,
-}: {
-  density?: "default" | "compact";
-  selectable?: boolean;
-}): ReactElement {
+export function BasicTableStory({ density = "default", selectable = false }: { density?: "default" | "compact"; selectable?: boolean }): ReactElement {
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   return (
     <Table
@@ -59,15 +53,7 @@ const MANY_PEOPLE: readonly Person[] = Array.from({ length: 12 }, (_, i) => ({
 }));
 
 export function PaginatedTableStory(): ReactElement {
-  return (
-    <Table
-      aria-label="People"
-      columns={COLUMNS}
-      data={MANY_PEOPLE}
-      defaultPagination={{ pageIndex: 0, pageSize: 5 }}
-      getRowId={(p): string => p.id}
-    />
-  );
+  return <Table aria-label="People" columns={COLUMNS} data={MANY_PEOPLE} defaultPagination={{ pageIndex: 0, pageSize: 5 }} getRowId={(p): string => p.id} />;
 }
 
 /**
@@ -101,15 +87,7 @@ const SCORE_COLUMNS: readonly TableColumn<Score>[] = [
 /** Sortable table over data with null/blank cells — drives the nulls-last acceptance test. The
  * `sorting` is controlled so the test can flip asc/desc without depending on the click cycle. */
 export function NullableSortStory({ direction }: { direction: "asc" | "desc" }): ReactElement {
-  return (
-    <Table
-      aria-label="Scores"
-      columns={SCORE_COLUMNS}
-      data={SCORES}
-      getRowId={(s): string => s.id}
-      sorting={{ columnId: "points", direction }}
-    />
-  );
+  return <Table aria-label="Scores" columns={SCORE_COLUMNS} data={SCORES} getRowId={(s): string => s.id} sorting={{ columnId: "points", direction }} />;
 }
 
 export function ShrinkingDataStory(): ReactElement {
@@ -120,13 +98,7 @@ export function ShrinkingDataStory(): ReactElement {
       <button data-testid="shrink" onClick={(): void => setCount(3)} type="button">
         shrink
       </button>
-      <Table
-        aria-label="People"
-        columns={COLUMNS}
-        data={data}
-        defaultPagination={{ pageIndex: 2, pageSize: 5 }}
-        getRowId={(p): string => p.id}
-      />
+      <Table aria-label="People" columns={COLUMNS} data={data} defaultPagination={{ pageIndex: 2, pageSize: 5 }} getRowId={(p): string => p.id} />
     </div>
   );
 }

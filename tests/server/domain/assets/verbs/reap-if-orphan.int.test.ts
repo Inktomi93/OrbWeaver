@@ -12,14 +12,7 @@ import { eq } from "drizzle-orm";
 import { describe, onTestFinished } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
-import {
-  makeHarness,
-  pngBytes,
-  principal,
-  seedCharacter,
-  seedUser,
-  setCharacterAvatar,
-} from "../_support.ts";
+import { makeHarness, pngBytes, principal, seedCharacter, seedUser, setCharacterAvatar } from "../_support.ts";
 
 const PNG = "image/png";
 

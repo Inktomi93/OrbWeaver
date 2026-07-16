@@ -14,13 +14,7 @@ import type {
   UserDialogRequest,
   UserDialogResult,
 } from "@anthropic-ai/claude-agent-sdk";
-import type {
-  AgentMcpServerHealth,
-  AgentMcpServerSpec,
-  AgentTurnRequest,
-  ChatResult,
-  ResponseFormat,
-} from "../../contract";
+import type { AgentMcpServerHealth, AgentMcpServerSpec, AgentTurnRequest, ChatResult, ResponseFormat } from "../../contract";
 import { ProviderError } from "../../contract";
 import { refreshHostSubTokenIfMode1 } from "./host-token";
 import { logProviderDialog, logProviderMcp } from "./log";
@@ -33,12 +27,7 @@ const DEFAULT_AGENT_MAX_TURNS = 8;
 const DEFAULT_AGENT_MAX_OUTPUT_TOKENS = 4096;
 const SDK_TITLE_AGENT = "orbweaver-agent";
 const MCP_STATUS_PROBE_TIMEOUT_MS = 2000;
-const UNHEALTHY_MCP_STATUSES: ReadonlySet<string> = new Set([
-  "failed",
-  "needs-auth",
-  "pending",
-  "disabled",
-]);
+const UNHEALTHY_MCP_STATUSES: ReadonlySet<string> = new Set(["failed", "needs-auth", "pending", "disabled"]);
 
 // No human on this turn — decline every MCP elicitation deterministically.
 function declineElicitation(request: ElicitationRequest): Promise<ElicitationResult> {
@@ -76,9 +65,7 @@ function toSdkExternalServer(spec: AgentMcpServerSpec): McpServerConfig {
   }
 }
 
-function toSdkExternalServers(
-  specs: Readonly<Record<string, AgentMcpServerSpec>> | undefined,
-): Record<string, McpServerConfig> {
+function toSdkExternalServers(specs: Readonly<Record<string, AgentMcpServerSpec>> | undefined): Record<string, McpServerConfig> {
   const out: Record<string, McpServerConfig> = {};
   if (specs === undefined) {
     return out;
@@ -109,7 +96,7 @@ async function probeMcpHealth(query: Query): Promise<readonly AgentMcpServerHeal
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<undefined>((resolve) => {
     timer = setTimeout(() => resolve(undefined), MCP_STATUS_PROBE_TIMEOUT_MS);
-    timer.unref?.();
+    timer.unref();
   });
   let statuses: readonly McpServerStatus[] | undefined;
   try {
@@ -138,8 +125,7 @@ export async function runAgentTurn(req: AgentTurnRequest, deps: AgentSdkDeps): P
     throw new ProviderError({
       kind: "invalid",
       retryable: false,
-      message:
-        "agent-sdk: responseFormat requested but the model does not support structured output (capability output.structured).",
+      message: "agent-sdk: responseFormat requested but the model does not support structured output (capability output.structured).",
       model: req.model,
     });
   }
@@ -160,10 +146,8 @@ export async function runAgentTurn(req: AgentTurnRequest, deps: AgentSdkDeps): P
     [MCP_NAMESPACE]: req.mcpServer as McpSdkServerConfigWithInstance,
     ...toSdkExternalServers(req.externalMcpServers),
   };
-  const taskBudget: Pick<Options, "taskBudget"> =
-    req.taskBudget !== undefined ? { taskBudget: { total: req.taskBudget } } : {};
-  const outputFormat: Pick<Options, "outputFormat"> =
-    req.responseFormat !== undefined ? { outputFormat: toSdkOutputFormat(req.responseFormat) } : {};
+  const taskBudget: Pick<Options, "taskBudget"> = req.taskBudget !== undefined ? { taskBudget: { total: req.taskBudget } } : {};
+  const outputFormat: Pick<Options, "outputFormat"> = req.responseFormat !== undefined ? { outputFormat: toSdkOutputFormat(req.responseFormat) } : {};
   const stream = deps.query({
     prompt: req.prompt,
     options: {
@@ -172,10 +156,7 @@ export async function runAgentTurn(req: AgentTurnRequest, deps: AgentSdkDeps): P
       mcpServers,
       allowedTools: [`mcp__${MCP_NAMESPACE}__*`],
       // Structured turns get a floor of 2: the runtime's own schema-validation retry consumes a turn.
-      maxTurns:
-        req.responseFormat !== undefined
-          ? Math.max(req.maxTurns ?? DEFAULT_AGENT_MAX_TURNS, 2)
-          : (req.maxTurns ?? DEFAULT_AGENT_MAX_TURNS),
+      maxTurns: req.responseFormat !== undefined ? Math.max(req.maxTurns ?? DEFAULT_AGENT_MAX_TURNS, 2) : (req.maxTurns ?? DEFAULT_AGENT_MAX_TURNS),
       model: req.model,
       systemPrompt: req.systemPrompt,
       title: SDK_TITLE_AGENT,

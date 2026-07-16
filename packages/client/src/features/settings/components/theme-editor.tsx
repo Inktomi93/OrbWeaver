@@ -23,11 +23,7 @@ import { useUpdateTheme } from "../hooks/use-theme-mutations";
 import { CHAT_STYLE_ITEMS, DENSITY_ITEMS } from "../lib/appearance-select-items";
 import { AA_CONTRAST_FLOOR, contrastRatio } from "../lib/theme-contrast";
 import type { ThemeFormValues } from "../lib/theme-editor-model";
-import {
-  themeFormFromEntity,
-  themeInputFromForm,
-  themeOverrideFromForm,
-} from "../lib/theme-editor-model";
+import { themeFormFromEntity, themeInputFromForm, themeOverrideFromForm } from "../lib/theme-editor-model";
 
 // Lazy so CodeMirror never lands in the entry chunk for a modal-only editor.
 const CodeEditor = lazy(async () => {
@@ -83,96 +79,51 @@ export function ThemeEditor({ theme }: ThemeEditorProps): ReactElement {
       }}
     >
       <Stack gap="section">
-        <form.AppField name="name">
-          {(field): ReactElement => <field.TextField label="Theme name" />}
-        </form.AppField>
+        <form.AppField name="name">{(field): ReactElement => <field.TextField label="Theme name" />}</form.AppField>
 
         <Grid cols="wide" gap="gutter">
           <Section heading="Surface">
             <form.AppField name="background">
               {(field): ReactElement => (
-                <field.ColorField
-                  label="Background"
-                  description="The base surface — the sidebar/panel/card ramp and all text colors derive from this."
-                />
+                <field.ColorField label="Background" description="The base surface — the sidebar/panel/card ramp and all text colors derive from this." />
               )}
             </form.AppField>
-            <form.AppField name="accent">
-              {(field): ReactElement => <field.ColorField label="Accent" />}
-            </form.AppField>
+            <form.AppField name="accent">{(field): ReactElement => <field.ColorField label="Accent" />}</form.AppField>
             <form.AppField name="borderColor">
-              {(field): ReactElement => (
-                <field.ColorField
-                  label="Border"
-                  description="Leave as-is to derive a subtle border from the surface."
-                />
-              )}
+              {(field): ReactElement => <field.ColorField label="Border" description="Leave as-is to derive a subtle border from the surface." />}
             </form.AppField>
           </Section>
 
           <Section heading="Message text">
-            <form.AppField name="speaker">
-              {(field): ReactElement => <field.ColorField label="Speaker name" />}
-            </form.AppField>
-            <form.AppField name="dialogueColor">
-              {(field): ReactElement => <field.ColorField label="Dialogue" />}
-            </form.AppField>
-            <form.AppField name="narrationColor">
-              {(field): ReactElement => <field.ColorField label="Narration" />}
-            </form.AppField>
-            <form.AppField name="bodyColor">
-              {(field): ReactElement => <field.ColorField label="Body" />}
-            </form.AppField>
+            <form.AppField name="speaker">{(field): ReactElement => <field.ColorField label="Speaker name" />}</form.AppField>
+            <form.AppField name="dialogueColor">{(field): ReactElement => <field.ColorField label="Dialogue" />}</form.AppField>
+            <form.AppField name="narrationColor">{(field): ReactElement => <field.ColorField label="Narration" />}</form.AppField>
+            <form.AppField name="bodyColor">{(field): ReactElement => <field.ColorField label="Body" />}</form.AppField>
           </Section>
 
           <Section heading="Bubbles">
-            <form.AppField name="userBubbleBg">
-              {(field): ReactElement => <field.ColorField label="Your bubble" />}
-            </form.AppField>
-            <form.AppField name="aiBubbleBg">
-              {(field): ReactElement => <field.ColorField label="Character bubble" />}
-            </form.AppField>
-            <form.AppField name="systemBubbleBg">
-              {(field): ReactElement => <field.ColorField label="System bubble" />}
-            </form.AppField>
+            <form.AppField name="userBubbleBg">{(field): ReactElement => <field.ColorField label="Your bubble" />}</form.AppField>
+            <form.AppField name="aiBubbleBg">{(field): ReactElement => <field.ColorField label="Character bubble" />}</form.AppField>
+            <form.AppField name="systemBubbleBg">{(field): ReactElement => <field.ColorField label="System bubble" />}</form.AppField>
           </Section>
 
           <Section heading="Type & shape">
-            <form.AppField name="font">
-              {(field): ReactElement => <field.SelectField label="Font" items={FONT_ITEMS} />}
-            </form.AppField>
-            <form.AppField name="radius">
-              {(field): ReactElement => (
-                <field.SelectField label="Corner radius" items={RADIUS_ITEMS} />
-              )}
-            </form.AppField>
-            <form.AppField name="chatStyle">
-              {(field): ReactElement => (
-                <field.SelectField label="Message style" items={CHAT_STYLE_ITEMS} />
-              )}
-            </form.AppField>
-            <form.AppField name="density">
-              {(field): ReactElement => <field.SelectField label="Density" items={DENSITY_ITEMS} />}
-            </form.AppField>
+            <form.AppField name="font">{(field): ReactElement => <field.SelectField label="Font" items={FONT_ITEMS} />}</form.AppField>
+            <form.AppField name="radius">{(field): ReactElement => <field.SelectField label="Corner radius" items={RADIUS_ITEMS} />}</form.AppField>
+            <form.AppField name="chatStyle">{(field): ReactElement => <field.SelectField label="Message style" items={CHAT_STYLE_ITEMS} />}</form.AppField>
+            <form.AppField name="density">{(field): ReactElement => <field.SelectField label="Density" items={DENSITY_ITEMS} />}</form.AppField>
           </Section>
         </Grid>
 
         <Section heading="Custom CSS">
           <form.AppField name="css">
-            {(field): ReactElement => (
-              <CssEditorField
-                value={field.state.value}
-                onChange={(next): void => field.handleChange(next)}
-              />
-            )}
+            {(field): ReactElement => <CssEditorField value={field.state.value} onChange={(next): void => field.handleChange(next)} />}
           </form.AppField>
           <ThemeableVarsReference />
         </Section>
 
         <Section heading="Preview">
-          <form.Subscribe selector={(state): ThemeFormValues => state.values}>
-            {(values): ReactElement => <ThemePreview values={values} />}
-          </form.Subscribe>
+          <form.Subscribe selector={(state): ThemeFormValues => state.values}>{(values): ReactElement => <ThemePreview values={values} />}</form.Subscribe>
         </Section>
 
         <form.AppForm>
@@ -187,13 +138,7 @@ export function ThemeEditor({ theme }: ThemeEditorProps): ReactElement {
 }
 
 /** The custom-CSS code editor + live validator diagnostics (warn on `@import`, reject `position:fixed`). */
-function CssEditorField({
-  value,
-  onChange,
-}: {
-  readonly value: string;
-  readonly onChange: (next: string) => void;
-}): ReactElement {
+function CssEditorField({ value, onChange }: { readonly value: string; readonly onChange: (next: string) => void }): ReactElement {
   const { errors, warnings } = validateThemeCss(value);
   const diagnostics: CodeEditorDiagnostic[] = [
     ...errors.map((message) => ({ severity: "error" as const, message, from: 0, to: 0 })),
@@ -201,14 +146,7 @@ function CssEditorField({
   ];
   return (
     <Suspense fallback={null}>
-      <CodeEditor
-        lang="css"
-        ariaLabel="Custom theme CSS"
-        value={value}
-        onChange={onChange}
-        diagnostics={diagnostics}
-        completions={THEME_SCOPE_EMIT_VARS}
-      />
+      <CodeEditor lang="css" ariaLabel="Custom theme CSS" value={value} onChange={onChange} diagnostics={diagnostics} completions={THEME_SCOPE_EMIT_VARS} />
     </Suspense>
   );
 }
@@ -222,13 +160,7 @@ function ThemeableVarsReference(): ReactElement {
       </Text>
       <Row gap="field" className="flex-wrap">
         {THEME_SCOPE_EMIT_VARS.map((name) => (
-          <Text
-            key={name}
-            as="span"
-            size="code"
-            tone="muted"
-            className="rounded-control bg-muted px-field font-mono"
-          >
+          <Text key={name} as="span" size="code" tone="muted" className="rounded-control bg-muted px-field font-mono">
             {name}
           </Text>
         ))}
@@ -285,15 +217,7 @@ function ContrastReport({ values }: { readonly values: ThemeFormValues }): React
   );
 }
 
-function ContrastBadge({
-  label,
-  color,
-  against,
-}: {
-  readonly label: string;
-  readonly color: string;
-  readonly against: string;
-}): ReactElement | null {
+function ContrastBadge({ label, color, against }: { readonly label: string; readonly color: string; readonly against: string }): ReactElement | null {
   const ratio = contrastRatio(color, against);
   if (ratio === null) {
     return null;

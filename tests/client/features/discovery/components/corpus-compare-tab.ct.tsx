@@ -43,10 +43,7 @@ const COMPARISON = {
   redundancy: 0.5,
 };
 
-test("picking two characters renders the facet diff; deep compare adds the narrative", async ({
-  mount,
-  page,
-}) => {
+test("picking two characters renders the facet diff; deep compare adds the narrative", async ({ mount, page }) => {
   await routeTrpc(page, {
     "discovery.browseCharacters": CATALOG,
     "discovery.compareCharacters": COMPARISON,

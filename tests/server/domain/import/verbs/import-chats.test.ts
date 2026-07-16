@@ -17,10 +17,7 @@ import { makeProfileHarness } from "../_support.ts";
 const OWNER = castId<UserId>("user_owner");
 
 /** A real_conversation chat (a greeting + a user turn) as one CollectedChat. `hashSalt` distinguishes files. */
-function chatFile(
-  fileName: string,
-  over: { hashSalt?: string; note?: string } = {},
-): CollectedChat {
+function chatFile(fileName: string, over: { hashSalt?: string; note?: string } = {}): CollectedChat {
   const meta = over.note !== undefined ? { note_prompt: over.note } : {};
   const h = JSON.stringify({
     user_name: "Nate",
@@ -73,9 +70,7 @@ describe("importChats (Option B mapping)", () => {
     expect(chat?.messages[1]?.role).toBe("user");
     expect(chat?.messages[1]?.personaId).toBe(personaNate);
     // Every message resolves a selected variant carrying the rendered `mes`.
-    expect(chat?.messages[0]?.variants[chat.messages[0].selectedIdx]?.content).toBe(
-      "Hello traveller.",
-    );
+    expect(chat?.messages[0]?.variants[chat.messages[0].selectedIdx]?.content).toBe("Hello traveller.");
 
     // PD-78 gate — a real_conversation chat enqueues exactly ONE backfill.
     expect(result.backfillEnqueued).toBe(true);

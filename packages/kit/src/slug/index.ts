@@ -12,10 +12,6 @@ const EDGE_HYPHENS = /^-+|-+$/g;
 const FALLBACK_HANDLE = "unnamed";
 
 export function slugifyHandle(name: string): string {
-  const slug = name
-    .toLowerCase()
-    .normalize("NFKD")
-    .replace(NON_SLUG_RUN, "-")
-    .replace(EDGE_HYPHENS, "");
+  const slug = name.toLowerCase().normalize("NFKD").replace(NON_SLUG_RUN, "-").replace(EDGE_HYPHENS, "");
   return slug.length > 0 ? slug : FALLBACK_HANDLE;
 }

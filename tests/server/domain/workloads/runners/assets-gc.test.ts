@@ -9,12 +9,7 @@ import { fakeEnv, makeRunnerContext } from "../_support.ts";
 describe("assets-gc runner", () => {
   test("collects garbage and echoes dryRun", async () => {
     const env = fakeEnv();
-    const result = await assetsGcRunner(
-      makeRunnerContext(env),
-      { dryRun: true },
-      vi.fn(),
-      new AbortController().signal,
-    );
+    const result = await assetsGcRunner(makeRunnerContext(env), { dryRun: true }, vi.fn(), new AbortController().signal);
     expect(env.assets.collectGarbage).toHaveBeenCalledWith({
       dryRun: true,
       signal: expect.any(AbortSignal),

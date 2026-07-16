@@ -110,10 +110,7 @@ async function runSummarize(client: OrClient, req: SummarizeRequest): Promise<Su
       ...(responseFormat !== undefined ? { responseFormat } : {}),
     };
     // biome-ignore lint/performance/noAwaitInLoops: sequential by design — OpenRouter per-key rate limits make a parallel fan-out trip 429s.
-    const result = await client.chat.send(
-      { chatRequest },
-      req.signal !== undefined ? { signal: req.signal } : undefined,
-    );
+    const result = await client.chat.send({ chatRequest }, req.signal !== undefined ? { signal: req.signal } : undefined);
     const view = parseChatCompletionResult(result);
     const text = extractChatReply(view).replace(THINK_BLOCK_RE, "").trim();
     items.push({
@@ -134,8 +131,7 @@ export function createOpenRouterBackend(deps: OpenRouterBackendDeps): ProviderBa
     now: deps.now,
     ...(deps.random !== undefined ? { random: deps.random } : {}),
   };
-  const clientFor = (credential: EmbedRequest["credential"], label: string): OrClient =>
-    getClient(requireOpenRouterApiKey(credential, label));
+  const clientFor = (credential: EmbedRequest["credential"], label: string): OrClient => getClient(requireOpenRouterApiKey(credential, label));
 
   return {
     key: "openrouter",
@@ -149,30 +145,17 @@ export function createOpenRouterBackend(deps: OpenRouterBackendDeps): ProviderBa
       }
       const narrowed: OpenRouterChatRequest = req;
       const client = clientFor(req.credential, req.api);
-      return req.api === "responses"
-        ? await runResponsesTurn(client, narrowed, chatDeps)
-        : await runChatCompletionTurn(client, narrowed, chatDeps);
+      return req.api === "responses" ? await runResponsesTurn(client, narrowed, chatDeps) : await runChatCompletionTurn(client, narrowed, chatDeps);
     },
-    embed: async (req: EmbedRequest): Promise<EmbedResult> =>
-      await runEmbed(clientFor(req.credential, "embed"), req),
-    rerank: async (req: RerankRequest): Promise<RerankResult> =>
-      await runRerank(clientFor(req.credential, "rerank"), req),
-    imageEmbed: async (req: ImageEmbedRequest): Promise<ImageEmbedResult> =>
-      await runImageEmbed(clientFor(req.credential, "imageEmbed"), req),
-    summarize: async (req: SummarizeRequest): Promise<SummarizeResult> =>
-      await runSummarize(clientFor(req.credential, "summarize"), req),
-    generateImage: async (req: ImageGenerateRequest): Promise<ImageGenerateResult> =>
-      await runGenerateImage(clientFor(req.credential, "generateImage"), req),
-    probe: async (req: ProbeRequest): Promise<CredentialHealth> =>
-      await probeOpenRouterCredential(clientFor(req.credential, "probe"), deps.now),
-    accountCredits: async (req: AccountCreditsRequest): Promise<AccountCredits> =>
-      await getOpenRouterCredits(clientFor(req.credential, "accountCredits")),
+    embed: async (req: EmbedRequest): Promise<EmbedResult> => await runEmbed(clientFor(req.credential, "embed"), req),
+    rerank: async (req: RerankRequest): Promise<RerankResult> => await runRerank(clientFor(req.credential, "rerank"), req),
+    imageEmbed: async (req: ImageEmbedRequest): Promise<ImageEmbedResult> => await runImageEmbed(clientFor(req.credential, "imageEmbed"), req),
+    summarize: async (req: SummarizeRequest): Promise<SummarizeResult> => await runSummarize(clientFor(req.credential, "summarize"), req),
+    generateImage: async (req: ImageGenerateRequest): Promise<ImageGenerateResult> => await runGenerateImage(clientFor(req.credential, "generateImage"), req),
+    probe: async (req: ProbeRequest): Promise<CredentialHealth> => await probeOpenRouterCredential(clientFor(req.credential, "probe"), deps.now),
+    accountCredits: async (req: AccountCreditsRequest): Promise<AccountCredits> => await getOpenRouterCredits(clientFor(req.credential, "accountCredits")),
     generationCost: async (req: GenerationCostRequest): Promise<GenerationCost> =>
-      await getOpenRouterGenerationCost(
-        clientFor(req.credential, "generationCost"),
-        req.generationId,
-      ),
-    fetchCatalog: async (_req: FetchCatalogRequest): Promise<ModelCatalogEntry[]> =>
-      await fetchOrCatalog(getClient("")),
+      await getOpenRouterGenerationCost(clientFor(req.credential, "generationCost"), req.generationId),
+    fetchCatalog: async (_req: FetchCatalogRequest): Promise<ModelCatalogEntry[]> => await fetchOrCatalog(getClient("")),
   };
 }

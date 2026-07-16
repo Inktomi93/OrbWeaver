@@ -27,9 +27,7 @@ test("select/clear entry drives the entry editor selection reactively", async ({
 
   await probe.getByRole("button", { name: "select book", exact: true }).click();
   await probe.getByRole("button", { name: "select entry", exact: true }).click();
-  await expect(state).toHaveText(
-    "book=world_book_ct_probe entry=world_entry_ct_probe openOverlayPanel=none",
-  );
+  await expect(state).toHaveText("book=world_book_ct_probe entry=world_entry_ct_probe openOverlayPanel=none");
 
   await probe.getByRole("button", { name: "clear entry", exact: true }).click();
   await expect(state).toHaveText("book=world_book_ct_probe entry=none openOverlayPanel=none");

@@ -24,10 +24,7 @@ export async function readCatalogSnapshot(db: Db): Promise<CatalogSnapshot | nul
   }
   const parsed = catalogSnapshotSchema.safeParse(value);
   if (!parsed.success) {
-    getLog().warn(
-      { key: SNAPSHOT_KEY },
-      "connection: persisted catalog snapshot failed validation",
-    );
+    getLog().warn({ key: SNAPSHOT_KEY }, "connection: persisted catalog snapshot failed validation");
     return null;
   }
   const snapshot = parsed.data;

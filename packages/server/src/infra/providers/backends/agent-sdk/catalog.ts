@@ -22,7 +22,6 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   const timeout = new Promise<never>((_resolve, reject) => {
     timer = setTimeout(() => {
       reject(
-        // biome-ignore lint/style/useErrorCause: a timeout has no underlying error to chain — it IS the cause.
         new ProviderError({
           kind: "server",
           retryable: true,

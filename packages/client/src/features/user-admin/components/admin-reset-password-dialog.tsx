@@ -33,10 +33,7 @@ export function AdminResetPasswordDialog(props: AdminResetPasswordDialogProps): 
       <DialogPopup data-testid={testId("adminResetPasswordDialog")}>
         <Stack gap="block">
           <DialogTitle>Reset password — {props.handle}</DialogTitle>
-          <DialogDescription>
-            Sets a new local password and revokes every live session — they'll need to sign in again
-            on all devices.
-          </DialogDescription>
+          <DialogDescription>Sets a new local password and revokes every live session — they'll need to sign in again on all devices.</DialogDescription>
           <ResetPasswordBody userId={props.userId} onDone={(): void => props.onOpenChange(false)} />
         </Stack>
       </DialogPopup>
@@ -44,13 +41,7 @@ export function AdminResetPasswordDialog(props: AdminResetPasswordDialogProps): 
   );
 }
 
-function ResetPasswordBody({
-  userId,
-  onDone,
-}: {
-  readonly userId: UserId;
-  readonly onDone: () => void;
-}): ReactElement {
+function ResetPasswordBody({ userId, onDone }: { readonly userId: UserId; readonly onDone: () => void }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const resetPassword = useResetPassword({ trpc, invalidation });
@@ -96,12 +87,7 @@ function ResetPasswordBody({
         </Text>
       ) : null}
       <Stack align="end">
-        <Button
-          intent="primary"
-          disabled={resetPassword.isPending}
-          data-testid={testId("adminResetPasswordSubmit")}
-          onClick={(): void => void submit()}
-        >
+        <Button intent="primary" disabled={resetPassword.isPending} data-testid={testId("adminResetPasswordSubmit")} onClick={(): void => void submit()}>
           {resetPassword.isPending ? "Resetting…" : "Reset password"}
         </Button>
       </Stack>

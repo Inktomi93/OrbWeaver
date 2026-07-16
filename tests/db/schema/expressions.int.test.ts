@@ -45,9 +45,7 @@ test("character_sprites: composite-PK (characterId,label) upsert REPLACES, never
   const assetB = await seedAsset(db, ownerId, "asset_sp_a2");
   const now = 1_700_000_000_000; // epoch-ms (plain integer column, never a Date)
 
-  await db
-    .insert(characterSprites)
-    .values({ characterId, label: "joy", assetId: assetA, createdAt: now });
+  await db.insert(characterSprites).values({ characterId, label: "joy", assetId: assetA, createdAt: now });
   // Upsert the SAME (characterId, label) → replaces the binding, one row.
   await db
     .insert(characterSprites)
@@ -57,10 +55,7 @@ test("character_sprites: composite-PK (characterId,label) upsert REPLACES, never
       set: { assetId: assetB },
     });
 
-  const rows = await db
-    .select()
-    .from(characterSprites)
-    .where(eq(characterSprites.characterId, characterId));
+  const rows = await db.select().from(characterSprites).where(eq(characterSprites.characterId, characterId));
   expect(rows).toHaveLength(1);
   expect(rows[0]?.assetId).toBe(assetB);
 });
@@ -70,14 +65,10 @@ test("character delete CASCADEs its sprite bindings", async () => {
   const ownerId = await seedUser(db, { id: "user_sp_c", handle: "sp-c" });
   const characterId = await seedCharacter(db, ownerId, "character_sp_c");
   const assetId = await seedAsset(db, ownerId, "asset_sp_c");
-  await db
-    .insert(characterSprites)
-    .values({ characterId, label: "anger", assetId, createdAt: 1_700_000_000_000 });
+  await db.insert(characterSprites).values({ characterId, label: "anger", assetId, createdAt: 1_700_000_000_000 });
 
   await db.delete(characters).where(eq(characters.id, characterId));
-  expect(
-    await db.select().from(characterSprites).where(eq(characterSprites.characterId, characterId)),
-  ).toHaveLength(0);
+  expect(await db.select().from(characterSprites).where(eq(characterSprites.characterId, characterId))).toHaveLength(0);
 });
 
 test("asset delete CASCADEs the binding (never a dangling sprite row)", async () => {
@@ -85,17 +76,13 @@ test("asset delete CASCADEs the binding (never a dangling sprite row)", async ()
   const ownerId = await seedUser(db, { id: "user_sp_d", handle: "sp-d" });
   const characterId = await seedCharacter(db, ownerId, "character_sp_d");
   const assetId = await seedAsset(db, ownerId, "asset_sp_d");
-  await db
-    .insert(characterSprites)
-    .values({ characterId, label: "fear", assetId, createdAt: 1_700_000_000_000 });
+  await db.insert(characterSprites).values({ characterId, label: "fear", assetId, createdAt: 1_700_000_000_000 });
 
   await db.delete(assets).where(eq(assets.id, assetId));
   expect(
     await db
       .select()
       .from(characterSprites)
-      .where(
-        and(eq(characterSprites.characterId, characterId), eq(characterSprites.label, "fear")),
-      ),
+      .where(and(eq(characterSprites.characterId, characterId), eq(characterSprites.label, "fear"))),
   ).toHaveLength(0);
 });

@@ -5,12 +5,7 @@
 
 import type { Runner } from "../contract/runner";
 
-export const rpgSceneDistillRunner: Runner<"rpg-scene-distill"> = (
-  _ctx,
-  _params,
-  report,
-  _signal,
-) => {
+export const rpgSceneDistillRunner: Runner<"rpg-scene-distill"> = (_ctx, _params, report, _signal) => {
   report({
     message: "rpg-scene-distill is an R1-subset stub (no-op); the real crew runner lands later",
   });

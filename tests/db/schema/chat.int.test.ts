@@ -9,12 +9,7 @@
 // CASCADE on chat delete (all ten dependents vanish).
 
 import type { OpeningPolicy, ToolCallRecord } from "@orb/contracts/chat";
-import {
-  DEFAULT_GROUP_CONFIG,
-  INVITE_STATUSES,
-  JOIN_HISTORY_VISIBILITIES,
-  PARTICIPANT_KINDS,
-} from "@orb/contracts/chat";
+import { DEFAULT_GROUP_CONFIG, INVITE_STATUSES, JOIN_HISTORY_VISIBILITIES, PARTICIPANT_KINDS } from "@orb/contracts/chat";
 import { PARTICIPANT_ROLES } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import {
@@ -58,9 +53,7 @@ const T0 = 1_700_000_000_000;
 
 async function seedCharacter(db: Db, ownerId: UserId, raw: string): Promise<CharacterId> {
   const id = castId<CharacterId>(raw);
-  await db
-    .insert(characters)
-    .values({ id, handle: `card-${raw}`, ownerId, contentHash: `hash-${raw}`, name: raw });
+  await db.insert(characters).values({ id, handle: `card-${raw}`, ownerId, contentHash: `hash-${raw}`, name: raw });
   return id;
 }
 
@@ -72,9 +65,7 @@ async function seedMessageWithVariant(
 ): Promise<{ messageId: MessageId; variantId: MessageVariantId }> {
   const messageId = castId<MessageId>(o.rawMsg);
   const variantId = castId<MessageVariantId>(o.rawVar);
-  await db
-    .insert(messages)
-    .values({ id: messageId, chatId: o.chatId, seq: o.seq, role: "assistant" });
+  await db.insert(messages).values({ id: messageId, chatId: o.chatId, seq: o.seq, role: "assistant" });
   await db.insert(messageVariants).values({ id: variantId, messageId, idx: 0, content: o.content });
   await db.update(messages).set({ selectedVariantId: variantId }).where(eq(messages.id, messageId));
   return { messageId, variantId };
@@ -164,9 +155,7 @@ test("the message SLOT points at its selected variant (D26 pointer + circular-FK
   expect(slot?.role).toBe("assistant");
   expect(slot?.excludedFromPrompt).toBe(false);
   // Content/economics live ONLY on the variant (D26 — no content column on the slot).
-  const variant = (
-    await db.select().from(messageVariants).where(eq(messageVariants.id, variantId))
-  )[0];
+  const variant = (await db.select().from(messageVariants).where(eq(messageVariants.id, variantId)))[0];
   expect(variant?.content).toBe("hello world");
   expect(variant?.messageId).toBe(messageId);
   expect(variant?.idx).toBe(0);
@@ -184,17 +173,12 @@ test("a swipe APPENDs a variant and selectVariant flips the slot pointer (no con
   });
   // Append a second swipe (idx 1) and repoint the slot — attribution (slot) is unchanged.
   const swipeId = castId<MessageVariantId>("message_variant_swipe_1");
-  await db
-    .insert(messageVariants)
-    .values({ id: swipeId, messageId, idx: 1, content: "second take" });
+  await db.insert(messageVariants).values({ id: swipeId, messageId, idx: 1, content: "second take" });
   await db.update(messages).set({ selectedVariantId: swipeId }).where(eq(messages.id, messageId));
 
   const slot = (await db.select().from(messages).where(eq(messages.id, messageId)))[0];
   expect(slot?.selectedVariantId).toBe(swipeId);
-  const all = await db
-    .select()
-    .from(messageVariants)
-    .where(eq(messageVariants.messageId, messageId));
+  const all = await db.select().from(messageVariants).where(eq(messageVariants.messageId, messageId));
   expect(all).toHaveLength(2);
   // The original variant is untouched (the flip is a pointer move, not a content rewrite).
   expect(all.find((v) => v.id === variantId)?.content).toBe("first take");
@@ -288,9 +272,7 @@ test("deleting a message CASCADEs its variants (D26)", async () => {
     seq: 1,
   });
   await db.delete(messages).where(eq(messages.id, messageId));
-  expect(
-    await db.select().from(messageVariants).where(eq(messageVariants.messageId, messageId)),
-  ).toHaveLength(0);
+  expect(await db.select().from(messageVariants).where(eq(messageVariants.messageId, messageId))).toHaveLength(0);
 });
 
 // ── chat_participants: the kind-shape CHECK + the (chatId,userId) UNIQUE ─────────────
@@ -492,9 +474,7 @@ test("(chatId,userId) is UNIQUE for humans; character rows (null userId) coexist
       joinSeq: 0,
     },
   ]);
-  expect(
-    await db.select().from(chatParticipants).where(eq(chatParticipants.chatId, chatId)),
-  ).toHaveLength(3);
+  expect(await db.select().from(chatParticipants).where(eq(chatParticipants.chatId, chatId))).toHaveLength(3);
 });
 
 // ── fork lineage (D27) ───────────────────────────────────────────────────────
@@ -564,17 +544,10 @@ test("test-mirror: every chat enum column derives its canonical tuple", () => {
   expect([...chatInjections.role.enumValues]).toEqual([...MESSAGE_ROLES]);
   expect([...chatParticipants.kind.enumValues]).toEqual([...PARTICIPANT_KINDS]);
   expect([...chatParticipants.role.enumValues]).toEqual([...PARTICIPANT_ROLES]);
-  expect([...chatParticipants.joinHistoryVisibility.enumValues]).toEqual([
-    ...JOIN_HISTORY_VISIBILITIES,
-  ]);
+  expect([...chatParticipants.joinHistoryVisibility.enumValues]).toEqual([...JOIN_HISTORY_VISIBILITIES]);
   expect([...chatInvites.status.enumValues]).toEqual([...INVITE_STATUSES]);
   // Local tuples tied (via `satisfies`) to the contract wire types — mirror the expected members.
-  expect([...chatInjections.position.enumValues]).toEqual([
-    "before_prompt",
-    "in_static",
-    "in_prompt",
-    "in_chat",
-  ]);
+  expect([...chatInjections.position.enumValues]).toEqual(["before_prompt", "in_static", "in_prompt", "in_chat"]);
   expect([...chatStreamEvents.kind.enumValues]).toEqual(["text", "reasoning"]);
 });
 
@@ -688,22 +661,12 @@ test("deleting a chat CASCADEs every child table", async () => {
 
   // Every dependent is gone (FK CASCADE on chatId; message_variants via the message CASCADE chain).
   expect(await db.select().from(messages).where(eq(messages.chatId, chatId))).toHaveLength(0);
-  expect(
-    await db.select().from(messageVariants).where(eq(messageVariants.messageId, messageId)),
-  ).toHaveLength(0);
-  expect(
-    await db.select().from(chatParticipants).where(eq(chatParticipants.chatId, chatId)),
-  ).toHaveLength(0);
+  expect(await db.select().from(messageVariants).where(eq(messageVariants.messageId, messageId))).toHaveLength(0);
+  expect(await db.select().from(chatParticipants).where(eq(chatParticipants.chatId, chatId))).toHaveLength(0);
   expect(await db.select().from(chatInvites).where(eq(chatInvites.chatId, chatId))).toHaveLength(0);
-  expect(await db.select().from(pendingTurns).where(eq(pendingTurns.chatId, chatId))).toHaveLength(
-    0,
-  );
+  expect(await db.select().from(pendingTurns).where(eq(pendingTurns.chatId, chatId))).toHaveLength(0);
   expect(await db.select().from(chatEvents).where(eq(chatEvents.chatId, chatId))).toHaveLength(0);
-  expect(
-    await db.select().from(chatStreamEvents).where(eq(chatStreamEvents.chatId, chatId)),
-  ).toHaveLength(0);
-  expect(
-    await db.select().from(chatInjections).where(eq(chatInjections.chatId, chatId)),
-  ).toHaveLength(0);
+  expect(await db.select().from(chatStreamEvents).where(eq(chatStreamEvents.chatId, chatId))).toHaveLength(0);
+  expect(await db.select().from(chatInjections).where(eq(chatInjections.chatId, chatId))).toHaveLength(0);
   expect(await db.select().from(chatLocks).where(eq(chatLocks.chatId, chatId))).toHaveLength(0);
 });

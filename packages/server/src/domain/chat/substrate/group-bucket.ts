@@ -19,10 +19,7 @@ import type { ChatContext } from "../context";
  *  idempotent — race-safe on the `(ownerId, handle)` unique). Callers gate on cast size (`>1`); a solo room keys
  *  its memory on its lone cast char, never through here. `ownerId` is the room HOST (D18/D19 — the funding
  *  owner the synthetic identity belongs to). */
-export async function resolveGroupBucketCharacterId(
-  ctx: ChatContext,
-  args: { readonly ownerId: UserId; readonly chatId: ChatId },
-): Promise<CharacterId> {
+export async function resolveGroupBucketCharacterId(ctx: ChatContext, args: { readonly ownerId: UserId; readonly chatId: ChatId }): Promise<CharacterId> {
   const group = await ctx.mintSyntheticGroupCharacter({
     ownerId: args.ownerId,
     chatId: args.chatId,

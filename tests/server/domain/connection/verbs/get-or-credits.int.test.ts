@@ -27,13 +27,10 @@ describe("getOrCredits", () => {
     const h = makeConnHarness(db);
     const ctx = {
       ...h.ctx,
-      resolveCredential: (): Promise<never> =>
-        Promise.reject(new DomainNoCredentialError("openrouter")),
+      resolveCredential: (): Promise<never> => Promise.reject(new DomainNoCredentialError("openrouter")),
     };
     const svc = createConnectionService(ctx);
 
-    await expect(svc.getOrCredits({ principal: principal("user_a") })).rejects.toBeInstanceOf(
-      DomainNoCredentialError,
-    );
+    await expect(svc.getOrCredits({ principal: principal("user_a") })).rejects.toBeInstanceOf(DomainNoCredentialError);
   });
 });

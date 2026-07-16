@@ -40,6 +40,12 @@ cfg.test.projects = cfg.test.projects
     test: { ...p.test, exclude: [...(p.test.exclude ?? []), TOOLING_GLOB, ...FRESHNESS_GLOBS] },
   }));
 
+// CRITICAL FIX: Stryker spins up 16 concurrent worker processes. If Vitest is allowed
+// to parallelize internally (via fileParallelism / maxWorkers), you get NxM core explosion.
+// Force Vitest to run serially within each Stryker worker.
+cfg.test.fileParallelism = false;
+cfg.test.poolOptions = { forks: { minWorkers: 1, maxWorkers: 1 }, threads: { minThreads: 1, maxThreads: 1 } };
+
 // Export the (mutated-in-place) local binding, not the raw import — `cfg` aliases the same object, so the
 // lane edits above are applied. (Re-exporting the import directly trips biome's noExportedImports.)
 export default cfg;

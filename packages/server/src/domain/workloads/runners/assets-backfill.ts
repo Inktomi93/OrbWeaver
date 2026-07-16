@@ -5,12 +5,7 @@
 
 import type { Runner } from "../contract/runner";
 
-export const assetsBackfillRunner: Runner<"assets-backfill"> = async (
-  ctx,
-  params,
-  report,
-  signal,
-) => {
+export const assetsBackfillRunner: Runner<"assets-backfill"> = async (ctx, params, report, signal) => {
   const dryRun = params.dryRun ?? false;
   report({ message: dryRun ? "assets backfill (dry run)" : "backfilling avatars" });
   const result = await ctx.env.assets.backfillAvatars({ ownerId: ctx.ownerId, dryRun, signal });

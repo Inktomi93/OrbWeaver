@@ -89,11 +89,7 @@ const SESSIONS = [
   },
 ];
 
-function stub(
-  page: Page,
-  viewer: typeof OWNER_VIEWER,
-  extra: TrpcRoutes = {},
-): Promise<TrpcRecorder> {
+function stub(page: Page, viewer: typeof OWNER_VIEWER, extra: TrpcRoutes = {}): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     "admin.listUsers": () => USERS,
     "sessions.me": () => viewer,
@@ -126,15 +122,10 @@ test("as the owner, changing a member's role fires setRole", async ({ mount, pag
   await roleSelect.click();
   await page.getByRole("option", { name: "Admin" }).click();
 
-  await expect
-    .poll(() => trpc.lastInput("admin.setRole"), { intervals: [20, 50, 100] })
-    .toEqual({ userId: "user_kes", role: "admin" });
+  await expect.poll(() => trpc.lastInput("admin.setRole"), { intervals: [20, 50, 100] }).toEqual({ userId: "user_kes", role: "admin" });
 });
 
-test("as a delegated admin, the role controls are DISABLED (requireOwner honesty)", async ({
-  mount,
-  page,
-}) => {
+test("as a delegated admin, the role controls are DISABLED (requireOwner honesty)", async ({ mount, page }) => {
   await stub(page, ADMIN_VIEWER);
   const component = await mount(<AdminSettingsStory />);
 
@@ -146,10 +137,7 @@ test("as a delegated admin, the role controls are DISABLED (requireOwner honesty
   await expect(component.getByRole("switch", { name: "Enabled — kes" })).toBeEnabled();
 });
 
-test("disabling an account is confirm-gated and fires setEnabled(false)", async ({
-  mount,
-  page,
-}) => {
+test("disabling an account is confirm-gated and fires setEnabled(false)", async ({ mount, page }) => {
   const trpc = await stub(page, OWNER_VIEWER);
   const component = await mount(<AdminSettingsStory />);
 
@@ -158,15 +146,10 @@ test("disabling an account is confirm-gated and fires setEnabled(false)", async 
   expect(trpc.count("admin.setEnabled")).toBe(0);
   await page.getByRole("button", { name: "Disable", exact: true }).click();
 
-  await expect
-    .poll(() => trpc.lastInput("admin.setEnabled"), { intervals: [20, 50, 100] })
-    .toEqual({ userId: "user_kes", enabled: false });
+  await expect.poll(() => trpc.lastInput("admin.setEnabled"), { intervals: [20, 50, 100] }).toEqual({ userId: "user_kes", enabled: false });
 });
 
-test("the self + owner guards: no enabled switch on the owner row, own switch disabled", async ({
-  mount,
-  page,
-}) => {
+test("the self + owner guards: no enabled switch on the owner row, own switch disabled", async ({ mount, page }) => {
   await stub(page, ADMIN_VIEWER);
   const component = await mount(<AdminSettingsStory />);
 
@@ -176,10 +159,7 @@ test("the self + owner guards: no enabled switch on the owner row, own switch di
   await expect(component.getByRole("switch", { name: "Enabled — mira" })).toBeDisabled();
 });
 
-test("the create-user dialog submits handle + password (+ admin role when picked)", async ({
-  mount,
-  page,
-}) => {
+test("the create-user dialog submits handle + password (+ admin role when picked)", async ({ mount, page }) => {
   const trpc = await stub(page, OWNER_VIEWER, { "admin.createUser": () => USERS[2] });
   const component = await mount(<AdminSettingsStory />);
 
@@ -200,10 +180,7 @@ test("the create-user dialog submits handle + password (+ admin role when picked
   await expect(dialog).toHaveCount(0);
 });
 
-test("as a delegated admin, the create-user dialog offers NO Admin role (owner-only mint honesty)", async ({
-  mount,
-  page,
-}) => {
+test("as a delegated admin, the create-user dialog offers NO Admin role (owner-only mint honesty)", async ({ mount, page }) => {
   const trpc = await stub(page, ADMIN_VIEWER, { "admin.createUser": () => USERS[2] });
   const component = await mount(<AdminSettingsStory />);
 
@@ -220,9 +197,7 @@ test("as a delegated admin, the create-user dialog offers NO Admin role (owner-o
   await dialog.getByLabel("Password").fill("hunter2hunter2");
   await page.getByTestId("admin-create-user-submit").click();
 
-  await expect
-    .poll(() => trpc.lastInput("admin.createUser"), { intervals: [20, 50, 100] })
-    .toEqual({ handle: "nova", password: "hunter2hunter2" });
+  await expect.poll(() => trpc.lastInput("admin.createUser"), { intervals: [20, 50, 100] }).toEqual({ handle: "nova", password: "hunter2hunter2" });
 });
 
 test("as the owner, the create-user dialog DOES offer the Admin role", async ({ mount, page }) => {
@@ -237,10 +212,7 @@ test("as the owner, the create-user dialog DOES offer the Admin role", async ({ 
   await expect(page.getByRole("option", { name: "Admin" })).toBeVisible();
 });
 
-test("the create-user dialog teaches the password floor instead of submitting", async ({
-  mount,
-  page,
-}) => {
+test("the create-user dialog teaches the password floor instead of submitting", async ({ mount, page }) => {
   const trpc = await stub(page, OWNER_VIEWER);
   const component = await mount(<AdminSettingsStory />);
 
@@ -256,10 +228,7 @@ test("the create-user dialog teaches the password floor instead of submitting", 
   expect(trpc.count("admin.createUser")).toBe(0);
 });
 
-test("reset password: the row menu opens the dialog and submits the new password", async ({
-  mount,
-  page,
-}) => {
+test("reset password: the row menu opens the dialog and submits the new password", async ({ mount, page }) => {
   const trpc = await stub(page, OWNER_VIEWER, { "admin.resetPassword": () => ({ ok: true }) });
   const component = await mount(<AdminSettingsStory />);
 
@@ -271,16 +240,11 @@ test("reset password: the row menu opens the dialog and submits the new password
   await dialog.getByLabel("New password").fill("correct-horse-9");
   await page.getByTestId("admin-reset-password-submit").click();
 
-  await expect
-    .poll(() => trpc.lastInput("admin.resetPassword"), { intervals: [20, 50, 100] })
-    .toEqual({ userId: "user_kes", password: "correct-horse-9" });
+  await expect.poll(() => trpc.lastInput("admin.resetPassword"), { intervals: [20, 50, 100] }).toEqual({ userId: "user_kes", password: "correct-horse-9" });
   await expect(dialog).toHaveCount(0);
 });
 
-test("reset password: submit is clickable, and a too-short password shows an inline error", async ({
-  mount,
-  page,
-}) => {
+test("reset password: submit is clickable, and a too-short password shows an inline error", async ({ mount, page }) => {
   const trpc = await stub(page, OWNER_VIEWER, { "admin.resetPassword": () => ({ ok: true }) });
   const component = await mount(<AdminSettingsStory />);
 
@@ -309,17 +273,13 @@ test("sessions: the dialog lists sessions and revokes one / all", async ({ mount
   await page.getByRole("menuitem", { name: "Sessions…" }).click();
   const dialog = page.getByTestId("admin-sessions-dialog");
   await expect(dialog).toBeVisible();
-  await expect
-    .poll(() => trpc.lastInput("admin.listSessions"), { intervals: [20, 50, 100] })
-    .toEqual({ userId: "user_kes" });
+  await expect.poll(() => trpc.lastInput("admin.listSessions"), { intervals: [20, 50, 100] }).toEqual({ userId: "user_kes" });
 
   await expect(dialog.getByText("Firefox on Linux")).toBeVisible();
   await expect(dialog.getByText("1 active / 2 total")).toBeVisible();
   // The revoked row has no Revoke affordance; the live one revokes.
   await dialog.getByRole("button", { name: "Revoke session — Firefox on Linux" }).click();
-  await expect
-    .poll(() => trpc.lastInput("admin.revokeSession"), { intervals: [20, 50, 100] })
-    .toEqual({ sessionId: "sess_live" });
+  await expect.poll(() => trpc.lastInput("admin.revokeSession"), { intervals: [20, 50, 100] }).toEqual({ sessionId: "sess_live" });
 
   // Revoke-all is confirm-gated: the nested ConfirmDialog (forceRender, since it opens on top of the
   // already-open sessions Dialog) renders OVER the parent — both the parent `dialog` and the nested
@@ -339,9 +299,7 @@ test("sessions: the dialog lists sessions and revokes one / all", async ({ mount
   // Confirming fires the real revoke-all mutation for this user.
   await dialog.getByRole("button", { name: "Revoke all" }).click();
   await page.getByRole("alertdialog").getByRole("button", { name: "Revoke all" }).click();
-  await expect
-    .poll(() => trpc.lastInput("admin.revokeUserSessions"), { intervals: [20, 50, 100] })
-    .toEqual({ userId: "user_kes" });
+  await expect.poll(() => trpc.lastInput("admin.revokeUserSessions"), { intervals: [20, 50, 100] }).toEqual({ userId: "user_kes" });
 });
 
 test("engines: restart fires restartVllmEngine for THAT engine", async ({ mount, page }) => {
@@ -351,7 +309,5 @@ test("engines: restart fires restartVllmEngine for THAT engine", async ({ mount,
   const component = await mount(<AdminSettingsStory />);
 
   await component.getByRole("button", { name: "Restart engine — rerank" }).click();
-  await expect
-    .poll(() => trpc.lastInput("admin.restartVllmEngine"), { intervals: [20, 50, 100] })
-    .toEqual({ engine: "rerank" });
+  await expect.poll(() => trpc.lastInput("admin.restartVllmEngine"), { intervals: [20, 50, 100] }).toEqual({ engine: "rerank" });
 });

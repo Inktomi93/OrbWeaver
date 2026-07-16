@@ -16,12 +16,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { ConfirmDialog } from "#components";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
-import {
-  exitSelectionMode,
-  readSelectedMessageIds,
-  useSelectedCount,
-  useSelectionActive,
-} from "#state";
+import { exitSelectionMode, readSelectedMessageIds, useSelectedCount, useSelectionActive } from "#state";
 
 interface DeleteVars {
   readonly chatId: ChatId;
@@ -71,13 +66,7 @@ export function MessageSelectionBar({ chatId }: MessageSelectionBarProps): React
 
   return (
     <SelectionBar count={count} onClear={exitSelectionMode}>
-      <Button
-        intent="destructive"
-        size="sm"
-        disabled={count === 0}
-        loading={remove.isPending}
-        onClick={(): void => setDeleteOpen(true)}
-      >
+      <Button intent="destructive" size="sm" disabled={count === 0} loading={remove.isPending} onClick={(): void => setDeleteOpen(true)}>
         Delete
       </Button>
       <ConfirmDialog

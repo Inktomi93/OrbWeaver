@@ -5,11 +5,7 @@
 import { personas } from "@orb/db";
 import type { PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import {
-  AssetNotFoundError,
-  createPersonaService,
-  PersonaNotFoundError,
-} from "@orb/server/domain/persona";
+import { AssetNotFoundError, createPersonaService, PersonaNotFoundError } from "@orb/server/domain/persona";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
@@ -75,9 +71,7 @@ describe("update", () => {
       principal: principal(owner),
       input: { name: "Mine", description: "d" },
     });
-    await expect(
-      svc.update({ principal: principal(other), personaId: created.id, input: { name: "Hijack" } }),
-    ).rejects.toThrow(PersonaNotFoundError);
+    await expect(svc.update({ principal: principal(other), personaId: created.id, input: { name: "Hijack" } })).rejects.toThrow(PersonaNotFoundError);
     const rows = await db.select().from(personas).where(eq(personas.id, created.id));
     expect(rows[0]?.name).toBe("Mine");
   });

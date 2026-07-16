@@ -15,17 +15,10 @@ export interface FilterableChat {
 
 /** Case-insensitive substring match against the title OR any participant name. An empty/whitespace query
  *  matches everything (the unfiltered list). A null title never matches (only its participants can). */
-export function filterChats<T extends FilterableChat>(
-  items: readonly T[],
-  query: string,
-): readonly T[] {
+export function filterChats<T extends FilterableChat>(items: readonly T[], query: string): readonly T[] {
   const q = query.trim().toLowerCase();
   if (q === "") {
     return items;
   }
-  return items.filter(
-    (item) =>
-      (item.title !== null && item.title.toLowerCase().includes(q)) ||
-      item.participantNames.some((name) => name.toLowerCase().includes(q)),
-  );
+  return items.filter((item) => (item.title?.toLowerCase().includes(q) ?? false) || item.participantNames.some((name) => name.toLowerCase().includes(q)));
 }

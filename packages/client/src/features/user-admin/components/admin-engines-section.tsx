@@ -43,14 +43,8 @@ export function AdminEnginesSection(): ReactElement {
   return (
     <Stack gap="row" data-testid={testId("adminEnginesSection")}>
       {engines.isPending ? <Text tone="muted">Loading engine status…</Text> : null}
-      {engines.isError ? (
-        <Text tone="destructive">Couldn't load the engine status — administrators only.</Text>
-      ) : null}
-      {engines.isSuccess && entries.length === 0 ? (
-        <Text tone="muted">
-          No engine status yet — the supervisor reports after its first probe.
-        </Text>
-      ) : null}
+      {engines.isError ? <Text tone="destructive">Couldn't load the engine status — administrators only.</Text> : null}
+      {engines.isSuccess && entries.length === 0 ? <Text tone="muted">No engine status yet — the supervisor reports after its first probe.</Text> : null}
 
       <Stack gap="field">
         {entries.map(([engine, record]) => (

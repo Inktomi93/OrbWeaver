@@ -55,8 +55,7 @@ function violationFor(root: string, rel: string, name: string): Violation | unde
     return {
       file: `tests/${rel}`,
       line: 0,
-      message:
-        "test outside a package mirror — expected tests/{kit,contracts,db,server,client}/… or tests/{support,e2e,tooling}/",
+      message: "test outside a package mirror — expected tests/{kit,contracts,db,server,client}/… or tests/{support,e2e,tooling}/",
     };
   }
   // The differential oracle (.parity.test.ts) is authored BEFORE its source (BUILD-PLAN Phase 5

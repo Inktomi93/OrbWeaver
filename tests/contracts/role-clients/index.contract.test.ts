@@ -1,22 +1,6 @@
-import type {
-  EmbedResult,
-  ImageEmbedResult,
-  RerankResult,
-  SummarizeResult,
-} from "@orb/contracts/providers";
-import {
-  embedResultSchema,
-  imageEmbedResultSchema,
-  rerankResultSchema,
-  summarizeResultSchema,
-} from "@orb/contracts/providers";
-import type {
-  ImageEmbedInput,
-  RerankDocument,
-  RerankQuery,
-  RoleClients,
-  SummarizeInput,
-} from "@orb/contracts/role-clients";
+import type { EmbedResult, ImageEmbedResult, RerankResult, SummarizeResult } from "@orb/contracts/providers";
+import { embedResultSchema, imageEmbedResultSchema, rerankResultSchema, summarizeResultSchema } from "@orb/contracts/providers";
+import type { ImageEmbedInput, RerankDocument, RerankQuery, RoleClients, SummarizeInput } from "@orb/contracts/role-clients";
 import { expect, test } from "../../support/fixtures";
 
 // Sample vectors — built (not pasted) so they carry no high-entropy literal (noSecrets).
@@ -61,17 +45,7 @@ const noopRoleClients: RoleClients = {
 
 test("a no-op object satisfies RoleClients: four derive callables + four model-provenance strings", () => {
   expect(Object.keys(noopRoleClients).sort()).toEqual(
-    [
-      "embed",
-      "embedModel",
-      "imageEmbed",
-      "imageEmbedModel",
-      "rerank",
-      "rerankModel",
-      "summarize",
-      "summarizerContextTokens",
-      "summarizerModel",
-    ].sort(),
+    ["embed", "embedModel", "imageEmbed", "imageEmbedModel", "rerank", "rerankModel", "summarize", "summarizerContextTokens", "summarizerModel"].sort(),
   );
   // FLAG pin: the bundle has NO chat/agent/generateImage member (not groundable at L1 — no such
   // result contract in @orb/contracts/providers). If one is added later this assertion changes.
@@ -87,12 +61,8 @@ test("each callable's result is the matching @orb/contracts/providers shape (par
   // `embed(input, opts)` — string or string[], with the query/document retrieval hint.
   const embedQuery = "a search query";
   const embedDocs = ["doc one", "doc two"];
-  expect(embedResultSchema.parse(await noopRoleClients.embed(embedQuery))).toEqual(
-    sampleEmbedResult,
-  );
-  expect(
-    embedResultSchema.parse(await noopRoleClients.embed(embedDocs, { inputType: "document" })),
-  ).toEqual(sampleEmbedResult);
+  expect(embedResultSchema.parse(await noopRoleClients.embed(embedQuery))).toEqual(sampleEmbedResult);
+  expect(embedResultSchema.parse(await noopRoleClients.embed(embedDocs, { inputType: "document" }))).toEqual(sampleEmbedResult);
 
   // `rerank(query, documents, opts)` — RerankQuery union (string | {text?,image?}); caller-id docs.
   const stringQuery: RerankQuery = "find the matching card";
@@ -101,14 +71,8 @@ test("each callable's result is the matching @orb/contracts/providers shape (par
     { id: "card-1", text: "a brave knight" },
     { id: "card-2", image: "art/card-2.png" },
   ];
-  expect(rerankResultSchema.parse(await noopRoleClients.rerank(stringQuery, docs))).toEqual(
-    sampleRerankResult,
-  );
-  expect(
-    rerankResultSchema.parse(
-      await noopRoleClients.rerank(multimodalQuery, docs, { instruction: "retrieve the match" }),
-    ),
-  ).toEqual(sampleRerankResult);
+  expect(rerankResultSchema.parse(await noopRoleClients.rerank(stringQuery, docs))).toEqual(sampleRerankResult);
+  expect(rerankResultSchema.parse(await noopRoleClients.rerank(multimodalQuery, docs, { instruction: "retrieve the match" }))).toEqual(sampleRerankResult);
 
   // `imageEmbed(req)` — the discriminated ImageEmbedInput (credential/model/signal-free).
   const imageReq: ImageEmbedInput = { kind: "image", input: new Uint8Array([4, 5, 6]) };
@@ -117,9 +81,7 @@ test("each callable's result is the matching @orb/contracts/providers shape (par
     kind: "multimodal",
     input: { image: "art/card.png", text: "the caption" },
   };
-  const imageEmbedResults = await Promise.all(
-    [imageReq, textReq, pairReq].map((req) => noopRoleClients.imageEmbed(req)),
-  );
+  const imageEmbedResults = await Promise.all([imageReq, textReq, pairReq].map((req) => noopRoleClients.imageEmbed(req)));
   for (const result of imageEmbedResults) {
     expect(imageEmbedResultSchema.parse(result)).toEqual(sampleImageEmbedResult);
   }

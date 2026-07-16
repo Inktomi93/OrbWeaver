@@ -28,12 +28,7 @@ export interface AssemblyRackProps {
   readonly onAddChatHistory: () => void;
 }
 
-export function AssemblyRack({
-  form,
-  selectedSectionId,
-  onSelectSection,
-  onAddChatHistory,
-}: AssemblyRackProps): ReactElement {
+export function AssemblyRack({ form, selectedSectionId, onSelectSection, onAddChatHistory }: AssemblyRackProps): ReactElement {
   return (
     <form.Subscribe selector={(state): readonly PromptSection[] => state.values.sections}>
       {(sections): ReactElement => {
@@ -51,12 +46,7 @@ export function AssemblyRack({
         return (
           <Stack gap="field">
             {zones.missingPivot ? (
-              <Row
-                gap="row"
-                align="center"
-                padding="row"
-                className="rounded-card border border-warning bg-warning/10"
-              >
+              <Row gap="row" align="center" padding="row" className="rounded-card border border-warning bg-warning/10">
                 <Icon icon={AlertTriangle} size="sm" />
                 <Text size="micro" tone="warning" className="flex-1">
                   No chat history marker — the conversation has nowhere to splice in.
@@ -74,9 +64,7 @@ export function AssemblyRack({
               onReorder={onReorder}
               renderItem={(section, index): ReactElement => {
                 if (section.type === "marker" && section.marker === "chat_history") {
-                  return (
-                    <PivotBand form={form} index={index} duplicate={duplicateSet.has(index)} />
-                  );
+                  return <PivotBand form={form} index={index} duplicate={duplicateSet.has(index)} />;
                 }
                 return (
                   <SectionRow

@@ -12,7 +12,7 @@ const UNKNOWN_PROVIDER = "(unknown)";
 
 /** ST's exact `\b\w+\b` word count — the validation harness matches SillyTavern's stats.json. */
 export function wordCount(s: string | null | undefined): number {
-  return s ? (s.match(/\b\w+\b/g)?.length ?? 0) : 0;
+  return s !== null && s !== undefined && s !== "" ? (s.match(/\b\w+\b/g)?.length ?? 0) : 0;
 }
 
 /** UTC 'YYYY-MM-DD' of an epoch-ms — the daily_stats grain. */
@@ -22,10 +22,7 @@ export function utcDay(ms: number): string {
 
 /** The model_stats group key — `(unknown)` provider bucket when a model has no provider. model null
  *  → no model_stats row. */
-export function modelKey(
-  model: string | null,
-  provider: string | null,
-): { model: string | null; provider: string | null } {
+export function modelKey(model: string | null, provider: string | null): { model: string | null; provider: string | null } {
   return {
     model,
     provider: model === null ? null : (provider ?? UNKNOWN_PROVIDER),

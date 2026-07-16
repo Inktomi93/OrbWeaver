@@ -40,10 +40,7 @@ test("popup wears the popover token and the popover z-index", async ({ mount, pa
   await expect(popup).toHaveCSS("z-index", TOKENS["z.popover"].value);
 });
 
-test("keyboard: opens with ArrowDown, arrows to an option, Enter selects", async ({
-  mount,
-  page,
-}) => {
+test("keyboard: opens with ArrowDown, arrows to an option, Enter selects", async ({ mount, page }) => {
   await mount(<Select defaultValue="alpha" items={ITEMS} />);
   const trigger = page.getByRole("combobox");
   await trigger.press("ArrowDown");
@@ -66,18 +63,9 @@ test("multiple: accumulates values and keeps the popup open", async ({ mount, pa
   // Multiple mode does not close on select — the list stays open to accumulate.
   await expect(page.getByRole("listbox")).toBeVisible();
   await page.getByRole("option", { name: "Gamma" }).click();
-  await expect(page.getByRole("option", { name: "Alpha" })).toHaveAttribute(
-    "aria-selected",
-    "true",
-  );
-  await expect(page.getByRole("option", { name: "Gamma" })).toHaveAttribute(
-    "aria-selected",
-    "true",
-  );
-  await expect(page.getByRole("option", { name: "Beta" })).toHaveAttribute(
-    "aria-selected",
-    "false",
-  );
+  await expect(page.getByRole("option", { name: "Alpha" })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("option", { name: "Gamma" })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("option", { name: "Beta" })).toHaveAttribute("aria-selected", "false");
   // Value comma-joins the selected labels.
   await trigger.click();
   await expect(page.getByRole("listbox")).toBeHidden();
@@ -85,10 +73,7 @@ test("multiple: accumulates values and keeps the popup open", async ({ mount, pa
   await expect(trigger).toContainText("Gamma");
 });
 
-test("multiple: reports the selected values as an array through onValueChange", async ({
-  mount,
-  page,
-}) => {
+test("multiple: reports the selected values as an array through onValueChange", async ({ mount, page }) => {
   const seen: string[][] = [];
   await mount(
     <Select
@@ -130,10 +115,7 @@ test("grouped: renders group labels and selects a grouped option", async ({ moun
   await expect(page.getByRole("combobox")).toContainText("Slate");
 });
 
-test("grouped: renders a Separator between adjacent groups (not before the first)", async ({
-  mount,
-  page,
-}) => {
+test("grouped: renders a Separator between adjacent groups (not before the first)", async ({ mount, page }) => {
   await mount(<Select items={GROUPED} placeholder="Pick a shade" />);
   await page.getByRole("combobox").click();
   await expect(page.getByRole("listbox")).toBeVisible();
@@ -162,10 +144,7 @@ test("disabled: the trigger is inert and cannot be opened", async ({ mount, page
   await expect(trigger).toHaveAttribute("data-disabled", "");
 });
 
-test("inside a <Field>, the label associates with the trigger and aria-describedby is wired", async ({
-  mount,
-  page,
-}) => {
+test("inside a <Field>, the label associates with the trigger and aria-describedby is wired", async ({ mount, page }) => {
   await mount(
     <Field description="Used for new chats" label="Model">
       <Select items={ITEMS} placeholder="Pick one" />
@@ -178,10 +157,7 @@ test("inside a <Field>, the label associates with the trigger and aria-described
   await expect(trigger).toHaveAttribute("aria-describedby", NON_EMPTY);
 });
 
-test("label: Select.Label renders and names the trigger without a wrapping <Field>", async ({
-  mount,
-  page,
-}) => {
+test("label: Select.Label renders and names the trigger without a wrapping <Field>", async ({ mount, page }) => {
   await mount(<Select items={ITEMS} label="Country" placeholder="Pick one" />);
   await expect(page.locator('[data-slot="select-label"]')).toHaveText("Country");
   await expect(page.getByRole("combobox", { name: "Country" })).toBeVisible();

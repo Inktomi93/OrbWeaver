@@ -5,14 +5,7 @@
 // status list derives from ACTIVE_WORKLOAD_STATUSES; the partition is the `mode` column). Real libSQL
 // :memory: via freshDb (FK ON).
 
-import {
-  ACTIVE_WORKLOAD_STATUSES,
-  SCHEDULE_CADENCES,
-  WORKLOAD_KINDS,
-  WORKLOAD_MODES,
-  WORKLOAD_SOURCES,
-  WORKLOAD_STATUSES,
-} from "@orb/contracts/workloads";
+import { ACTIVE_WORKLOAD_STATUSES, SCHEDULE_CADENCES, WORKLOAD_KINDS, WORKLOAD_MODES, WORKLOAD_SOURCES, WORKLOAD_STATUSES } from "@orb/contracts/workloads";
 import { isConstraintViolation, users, workloadSchedules, workloads } from "@orb/db";
 import type { Handle, UserId, WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -160,15 +153,11 @@ test("a bad ownerId FK is rejected (the FK is enforced)", async () => {
 // A BULK run locks GLOBAL — two active bulk rows of one kind collide regardless of owner (here both null).
 test("a second ACTIVE BULK row of a kind collides globally (reconcile-stats, queued vs queued)", async () => {
   const db = await freshDb();
-  await db
-    .insert(workloads)
-    .values({ id: castId<WorkloadId>("workload_q1"), kind: "reconcile-stats", mode: "bulk" });
+  await db.insert(workloads).values({ id: castId<WorkloadId>("workload_q1"), kind: "reconcile-stats", mode: "bulk" });
 
   let caught: unknown;
   try {
-    await db
-      .insert(workloads)
-      .values({ id: castId<WorkloadId>("workload_q2"), kind: "reconcile-stats", mode: "bulk" });
+    await db.insert(workloads).values({ id: castId<WorkloadId>("workload_q2"), kind: "reconcile-stats", mode: "bulk" });
   } catch (err) {
     caught = err;
   }
@@ -327,9 +316,7 @@ test("a BULK index{text} and a BULK index{image} coexist (per-(kind, source) bul
 
 test("`cancelling` still holds the slot — a queued + cancelling BULK pair of one kind collide", async () => {
   const db = await freshDb();
-  await db
-    .insert(workloads)
-    .values({ id: castId<WorkloadId>("workload_qa"), kind: "compute-themes", mode: "bulk" });
+  await db.insert(workloads).values({ id: castId<WorkloadId>("workload_qa"), kind: "compute-themes", mode: "bulk" });
 
   let caught: unknown;
   try {
@@ -373,12 +360,8 @@ test("TERMINAL rows do not hold the slot — a queued row coexists with cancelle
 
 test("a different kind never collides (the lock is per-kind)", async () => {
   const db = await freshDb();
-  await db
-    .insert(workloads)
-    .values({ id: castId<WorkloadId>("workload_k1"), kind: "distill-characters", mode: "bulk" });
-  await db
-    .insert(workloads)
-    .values({ id: castId<WorkloadId>("workload_k2"), kind: "compute-themes", mode: "bulk" });
+  await db.insert(workloads).values({ id: castId<WorkloadId>("workload_k1"), kind: "distill-characters", mode: "bulk" });
+  await db.insert(workloads).values({ id: castId<WorkloadId>("workload_k2"), kind: "compute-themes", mode: "bulk" });
   const all = await db.select().from(workloads);
   expect(all).toHaveLength(2);
 });

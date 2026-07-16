@@ -19,9 +19,7 @@ const WORKLOAD_KINDS = ["find-duplicates", "index"] as const;
 
 function toolText(text: string): BuddyToolResult {
   const clipped =
-    text.length > TOOL_PAYLOAD_MAX_CHARS
-      ? `${text.slice(0, TOOL_PAYLOAD_MAX_CHARS)}\n…[truncated ${text.length - TOOL_PAYLOAD_MAX_CHARS} chars]`
-      : text;
+    text.length > TOOL_PAYLOAD_MAX_CHARS ? `${text.slice(0, TOOL_PAYLOAD_MAX_CHARS)}\n…[truncated ${text.length - TOOL_PAYLOAD_MAX_CHARS} chars]` : text;
   return { content: [{ type: "text", text: clipped }] };
 }
 
@@ -45,8 +43,7 @@ export function createBuddyTools(deps: BuddyToolDeps): BuddyToolSpec[] {
   return [
     {
       name: "buddy_status",
-      description:
-        "Your own identity and state: name, species, rarity, mood, and disposition stats.",
+      description: "Your own identity and state: name, species, rarity, mood, and disposition stats.",
       inputSchema: {},
       handler: async (): Promise<BuddyToolResult> => {
         const rows = await db.select().from(buddies).where(eq(buddies.userId, userId)).limit(1);
@@ -87,10 +84,7 @@ export function createBuddyTools(deps: BuddyToolDeps): BuddyToolSpec[] {
       description: "How many characters the user currently owns.",
       inputSchema: {},
       handler: async (): Promise<BuddyToolResult> => {
-        const rows = await db
-          .select({ n: count() })
-          .from(characters)
-          .where(eq(characters.ownerId, userId));
+        const rows = await db.select({ n: count() }).from(characters).where(eq(characters.ownerId, userId));
         return toolText(JSON.stringify({ characters: rows[0]?.n ?? 0 }));
       },
     },
@@ -101,16 +95,8 @@ export function createBuddyTools(deps: BuddyToolDeps): BuddyToolSpec[] {
       inputSchema: { newName: z.string().min(NAME_MIN).max(NAME_MAX) },
       handler: (args: Record<string, unknown>): Promise<BuddyToolResult> => {
         const newName = asString(args["newName"]).trim();
-        proposeAction(
-          userId,
-          { id: newProposalId(), kind: "rename", newName, summary: `Rename to "${newName}"` },
-          now(),
-        );
-        return Promise.resolve(
-          toolText(
-            `Proposed. Tell the user you'd love to go by "${newName}" and that they can Confirm or Cancel it below.`,
-          ),
-        );
+        proposeAction(userId, { id: newProposalId(), kind: "rename", newName, summary: `Rename to "${newName}"` }, now());
+        return Promise.resolve(toolText(`Proposed. Tell the user you'd love to go by "${newName}" and that they can Confirm or Cancel it below.`));
       },
     },
     {
@@ -130,11 +116,7 @@ export function createBuddyTools(deps: BuddyToolDeps): BuddyToolSpec[] {
           },
           now(),
         );
-        return Promise.resolve(
-          toolText(
-            `Proposed the ${kind} job. Tell the user what it does and that they can Confirm or Cancel below.`,
-          ),
-        );
+        return Promise.resolve(toolText(`Proposed the ${kind} job. Tell the user what it does and that they can Confirm or Cancel below.`));
       },
     },
   ];

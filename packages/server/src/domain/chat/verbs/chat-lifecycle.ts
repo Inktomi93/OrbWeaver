@@ -123,33 +123,18 @@ function createArchive(ctx: ChatContext, emit: EmitChatEvent): ChatService["arch
 /** `setChatAnchorPersona` — host-only manual re-pin of the anchor. `personaId: null` clears the pin. A
  *  non-null target must be owned by a present human participant of this room — checked via
  *  `ctx.verifyPersonaOwned` against each present human's `userId`. */
-function createSetChatAnchorPersona(
-  ctx: ChatContext,
-  emit: EmitChatEvent,
-): ChatService["setChatAnchorPersona"] {
+function createSetChatAnchorPersona(ctx: ChatContext, emit: EmitChatEvent): ChatService["setChatAnchorPersona"] {
   return async ({ principal, chatId, personaId }: SetChatAnchorPersonaParams): Promise<void> => {
     await requireHost(ctx, principal, chatId);
     if (personaId !== null) {
       const roster = await loadRoster(ctx.db, chatId);
-      const presentHumanIds = [
-        ...new Set(
-          roster.flatMap((r) => (r.kind === "human" && r.userId !== null ? [r.userId] : [])),
-        ),
-      ];
-      const ownership = await Promise.all(
-        presentHumanIds.map((ownerId) => ctx.verifyPersonaOwned({ ownerId, personaId })),
-      );
+      const presentHumanIds = [...new Set(roster.flatMap((r) => (r.kind === "human" && r.userId !== null ? [r.userId] : [])))];
+      const ownership = await Promise.all(presentHumanIds.map((ownerId) => ctx.verifyPersonaOwned({ ownerId, personaId })));
       if (!ownership.some((owned) => owned)) {
-        throw new ChatOperationError(
-          CHAT_OP_CODES.notPersonaOwner,
-          `chat ${chatId}: the anchor persona must be owned by a present human participant`,
-        );
+        throw new ChatOperationError(CHAT_OP_CODES.notPersonaOwner, `chat ${chatId}: the anchor persona must be owned by a present human participant`);
       }
     }
-    await ctx.db
-      .update(chats)
-      .set({ anchorPersonaId: personaId, updatedAt: ctx.now() })
-      .where(eq(chats.id, chatId));
+    await ctx.db.update(chats).set({ anchorPersonaId: personaId, updatedAt: ctx.now() }).where(eq(chats.id, chatId));
     await emit({ type: "chatUpdated", chatId });
   };
 }
@@ -162,11 +147,7 @@ function createDelete(ctx: ChatContext, emit: EmitChatEvent): ChatService["delet
     // Enumerate present human members before the FK cascade drops the roster — each must have the
     // deleted chat drop from their live list, so they ride `extraUserIds`.
     const roster = await loadRoster(ctx.db, chatId);
-    const members = [
-      ...new Set(
-        roster.flatMap((r) => (r.kind === "human" && r.userId !== null ? [r.userId] : [])),
-      ),
-    ];
+    const members = [...new Set(roster.flatMap((r) => (r.kind === "human" && r.userId !== null ? [r.userId] : [])))];
     await ctx.db.delete(chats).where(eq(chats.id, chatId));
     await emit({ type: "chatDeleted", chatId });
     await ctx.emitChatChanged(chatId, { detail: true, extraUserIds: members });
@@ -221,10 +202,7 @@ function createReapTemporaryChats(ctx: ChatContext): ChatService["reapTemporaryC
 function createGetVariables(ctx: ChatContext): ChatService["getVariables"] {
   return async ({ principal, chatId }: GetVariablesParams): Promise<VariablesResult> => {
     await requireParticipant(ctx, principal, chatId);
-    const [stored, specs] = await Promise.all([
-      loadStoredVariables(ctx.db, chatId),
-      ctx.resolvePromptVariables(chatId),
-    ]);
+    const [stored, specs] = await Promise.all([loadStoredVariables(ctx.db, chatId), ctx.resolvePromptVariables(chatId)]);
     // withRandomPick:false ⇒ prng is never invoked; a no-op stub keeps the eval path off ambient entropy.
     return resolveChoiceVariables(specs, stored ?? {}, () => 0, { withRandomPick: false });
   };
@@ -242,45 +220,24 @@ function createGetStoredVariables(ctx: ChatContext): ChatService["getStoredVaria
 function createSetVariables(ctx: ChatContext, emit: EmitChatEvent): ChatService["setVariables"] {
   return async ({ principal, chatId, values }: SetVariablesParams): Promise<void> => {
     await requireParticipant(ctx, principal, chatId);
-    await ctx.db
-      .update(chats)
-      .set({ variableValues: values, updatedAt: ctx.now() })
-      .where(eq(chats.id, chatId));
+    await ctx.db.update(chats).set({ variableValues: values, updatedAt: ctx.now() }).where(eq(chats.id, chatId));
     await emit({ type: "chatUpdated", chatId });
   };
 }
 
 /** `clearVariables` — member. Null the persisted variable flush. Emits `chatUpdated`. */
-function createClearVariables(
-  ctx: ChatContext,
-  emit: EmitChatEvent,
-): ChatService["clearVariables"] {
+function createClearVariables(ctx: ChatContext, emit: EmitChatEvent): ChatService["clearVariables"] {
   return async ({ principal, chatId }: ClearVariablesParams): Promise<void> => {
     await requireParticipant(ctx, principal, chatId);
-    await ctx.db
-      .update(chats)
-      .set({ variableValues: null, updatedAt: ctx.now() })
-      .where(eq(chats.id, chatId));
+    await ctx.db.update(chats).set({ variableValues: null, updatedAt: ctx.now() }).where(eq(chats.id, chatId));
     await emit({ type: "chatUpdated", chatId });
   };
 }
 
 /** `setChatInjection` — host-only. `id` set ⇒ update the existing row (scoped to chatId — a foreign/unknown
  *  id is a leak-free NOT_FOUND); absent ⇒ insert a fresh row. Emits `chatUpdated`; returns the resolved view. */
-function createSetChatInjection(
-  ctx: ChatContext,
-  emit: EmitChatEvent,
-): ChatService["setChatInjection"] {
-  return async ({
-    principal,
-    chatId,
-    id,
-    position,
-    depth,
-    role,
-    content,
-    order,
-  }: SetChatInjectionParams): Promise<ChatInjectionView> => {
+function createSetChatInjection(ctx: ChatContext, emit: EmitChatEvent): ChatService["setChatInjection"] {
+  return async ({ principal, chatId, id, position, depth, role, content, order }: SetChatInjectionParams): Promise<ChatInjectionView> => {
     await requireHost(ctx, principal, chatId);
     const at = ctx.now();
     let injectionId = id;
@@ -332,15 +289,10 @@ function createListChatInjections(ctx: ChatContext): ChatService["listChatInject
 
 /** `deleteChatInjection` — host-only. Drop one positional injection (scoped to chatId; idempotent). Emits
  *  `chatUpdated`. */
-function createDeleteChatInjection(
-  ctx: ChatContext,
-  emit: EmitChatEvent,
-): ChatService["deleteChatInjection"] {
+function createDeleteChatInjection(ctx: ChatContext, emit: EmitChatEvent): ChatService["deleteChatInjection"] {
   return async ({ principal, chatId, injectionId }: DeleteChatInjectionParams): Promise<void> => {
     await requireHost(ctx, principal, chatId);
-    await ctx.db
-      .delete(chatInjections)
-      .where(and(eq(chatInjections.id, injectionId), eq(chatInjections.chatId, chatId)));
+    await ctx.db.delete(chatInjections).where(and(eq(chatInjections.id, injectionId), eq(chatInjections.chatId, chatId)));
     await emit({ type: "chatUpdated", chatId });
   };
 }

@@ -26,11 +26,7 @@ export interface ReasoningBlockProps {
   readonly showIcon?: boolean | undefined;
 }
 
-export function ReasoningBlock({
-  reasoning,
-  thinking,
-  showIcon = false,
-}: ReasoningBlockProps): ReactElement {
+export function ReasoningBlock({ reasoning, thinking, showIcon = false }: ReasoningBlockProps): ReactElement {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   // null = no manual toggle yet; once clicked this pins to the user's choice for this row's life.
   const [override, setOverride] = useState<boolean | null>(null);

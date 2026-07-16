@@ -37,26 +37,13 @@ function MediaWithZoom({
         {...(zoomMedia === null ? {} : { onActivate: () => setZoomOpen(true) })}
       />
       {zoomMedia === null ? null : (
-        <Lightbox
-          open={zoomOpen}
-          onOpenChange={setZoomOpen}
-          src={src}
-          media={zoomMedia}
-          alt={block.alt}
-          allowExternal={allowExternal}
-        />
+        <Lightbox open={zoomOpen} onOpenChange={setZoomOpen} src={src} media={zoomMedia} alt={block.alt} allowExternal={allowExternal} />
       )}
     </>
   );
 }
 
-function AssetMediaBlock({
-  block,
-  assetId,
-}: {
-  readonly block: MediaBlock;
-  readonly assetId: AssetId;
-}): ReactElement {
+function AssetMediaBlock({ block, assetId }: { readonly block: MediaBlock; readonly assetId: AssetId }): ReactElement {
   const url = useAttachmentUrl(assetId);
   if (url === undefined) {
     return (
@@ -78,11 +65,5 @@ export function MessageMediaBlock({ block, allowExternal }: MessageMediaBlockPro
   if (block.src.kind === "asset") {
     return <AssetMediaBlock block={block} assetId={block.src.assetId} />;
   }
-  return (
-    <MediaWithZoom
-      block={block}
-      src={{ kind: "external", url: block.src.url }}
-      allowExternal={allowExternal}
-    />
-  );
+  return <MediaWithZoom block={block} src={{ kind: "external", url: block.src.url }} allowExternal={allowExternal} />;
 }

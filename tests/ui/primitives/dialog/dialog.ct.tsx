@@ -1,11 +1,4 @@
-import {
-  Dialog,
-  DialogClose,
-  DialogDescription,
-  DialogPopup,
-  DialogTitle,
-  DialogTrigger,
-} from "@orb/ui/dialog";
+import { Dialog, DialogClose, DialogDescription, DialogPopup, DialogTitle, DialogTrigger } from "@orb/ui/dialog";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { DialogHandleHarness } from "./dialog-handle.fixtures";
@@ -68,10 +61,7 @@ test("backdrop renders with the scrim token color", async ({ mount, page }) => {
 // asserts the CONTRACT, not just trusts it: Tab never escapes the popup to the outside siblings, and
 // closing returns focus to the trigger that opened it (menu/select already model this Tab-containment
 // shape; dialog/alert-dialog/drawer previously leaned on "Base UI is free" with no assertion).
-test("focus is trapped inside the popup and returns to the trigger on close", async ({
-  mount,
-  page,
-}) => {
+test("focus is trapped inside the popup and returns to the trigger on close", async ({ mount, page }) => {
   await mount(
     <>
       <button type="button">Outside before</button>
@@ -114,13 +104,9 @@ test("focus is trapped inside the popup and returns to the trigger on close", as
 });
 
 const ROOT_PX = 16;
-const widthPx = (path: "width.dialog-sm" | "width.dialog-md" | "width.dialog-lg"): string =>
-  `${Number.parseFloat(TOKENS[path].value) * ROOT_PX}px`;
+const widthPx = (path: "width.dialog-sm" | "width.dialog-md" | "width.dialog-lg"): string => `${Number.parseFloat(TOKENS[path].value) * ROOT_PX}px`;
 
-test("the size variants clamp the popup to the dialog-width tokens (default = md)", async ({
-  mount,
-  page,
-}) => {
+test("the size variants clamp the popup to the dialog-width tokens (default = md)", async ({ mount, page }) => {
   await mount(
     <Dialog defaultOpen={true}>
       <DialogPopup size="sm">
@@ -128,10 +114,7 @@ test("the size variants clamp the popup to the dialog-width tokens (default = md
       </DialogPopup>
     </Dialog>,
   );
-  await expect(page.locator('[data-slot="dialog-popup"]')).toHaveCSS(
-    "max-width",
-    widthPx("width.dialog-sm"),
-  );
+  await expect(page.locator('[data-slot="dialog-popup"]')).toHaveCSS("max-width", widthPx("width.dialog-sm"));
 });
 
 test("the default popup (no size prop) is the md width token", async ({ mount, page }) => {
@@ -142,16 +125,10 @@ test("the default popup (no size prop) is the md width token", async ({ mount, p
       </DialogPopup>
     </Dialog>,
   );
-  await expect(page.locator('[data-slot="dialog-popup"]')).toHaveCSS(
-    "max-width",
-    widthPx("width.dialog-md"),
-  );
+  await expect(page.locator('[data-slot="dialog-popup"]')).toHaveCSS("max-width", widthPx("width.dialog-md"));
 });
 
-test("size=full is a full-bleed presentation — no width cap, no radius, no border", async ({
-  mount,
-  page,
-}) => {
+test("size=full is a full-bleed presentation — no width cap, no radius, no border", async ({ mount, page }) => {
   await mount(
     <Dialog defaultOpen={true}>
       <DialogPopup size="full">
@@ -169,10 +146,7 @@ test("size=full is a full-bleed presentation — no width cap, no radius, no bor
 
 // createHandle: open the dialog imperatively (no trigger) with a payload via handle.openWithPayload;
 // the payload reaches the Root render-function children (harness in ./dialog-handle.fixtures).
-test("opens imperatively via a handle and routes the payload to content", async ({
-  mount,
-  page,
-}) => {
+test("opens imperatively via a handle and routes the payload to content", async ({ mount, page }) => {
   await mount(<DialogHandleHarness />);
 
   await expect(page.getByRole("dialog")).toBeHidden();

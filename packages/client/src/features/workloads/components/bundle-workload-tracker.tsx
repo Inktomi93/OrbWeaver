@@ -21,12 +21,7 @@ export interface BundleWorkloadTrackerProps {
 }
 
 /** Tail the import workload; forward progress, and resolve on the terminal event. Renders nothing. */
-export function BundleWorkloadTracker({
-  workloadId,
-  onProgress,
-  onSucceeded,
-  onFailed,
-}: BundleWorkloadTrackerProps): null {
+export function BundleWorkloadTracker({ workloadId, onProgress, onSucceeded, onFailed }: BundleWorkloadTrackerProps): null {
   const trpc = useTRPC();
   useSubscription(
     trpc.workloads.subscribe.subscriptionOptions(

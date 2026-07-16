@@ -17,8 +17,6 @@ export function useSelectedTheme(): Theme | null {
   const trpc = useTRPC();
   const { data: settings } = useQuery(trpc.settings.getUserSettings.queryOptions());
   const selectedThemeId = (settings?.config.theme.selectedThemeId ?? null) as ThemeId | null;
-  const { data } = useGatedQuery(selectedThemeId, (id) =>
-    trpc.settings.getTheme.queryOptions({ id }),
-  );
+  const { data } = useGatedQuery(selectedThemeId, (id) => trpc.settings.getTheme.queryOptions({ id }));
   return data ?? null;
 }

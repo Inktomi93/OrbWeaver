@@ -5,6 +5,5 @@ import type { TagContext, TagService } from "../contract/service";
 import { listOwnedTagsWithUsage } from "../persistence/queries";
 
 export function createListWithUsage(ctx: TagContext): TagService["listTagsWithUsage"] {
-  return (params: ListTagsWithUsageParams) =>
-    listOwnedTagsWithUsage(ctx.db, params.principal.userId);
+  return (params: ListTagsWithUsageParams) => listOwnedTagsWithUsage(ctx.db, params.principal.userId);
 }

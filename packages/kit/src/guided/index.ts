@@ -46,19 +46,12 @@ const DEFAULT_PERSON = "first";
  * The untrusted `userInput` is run through `neutralizeMacros` BEFORE it is spliced in, so a user
  * cannot re-trigger macro evaluation by typing `{{…}}` into the steering box.
  */
-export function resolveGuidedInstruction(
-  promptTemplate: string,
-  userInput: string,
-  baseMacroOptions: ProcessMacroOptions,
-  opts?: { person?: string },
-): string {
+export function resolveGuidedInstruction(promptTemplate: string, userInput: string, baseMacroOptions: ProcessMacroOptions, opts?: { person?: string }): string {
   const safeInput = neutralizeMacros(userInput);
   // Substitute `{{person}}` in the template BEFORE macro processing so the editable template
   // controls placement while the chosen button controls the word. Done as a string replace, not a
   // macro, so it stays a guided-only concern and never touches the general macro engine/registry.
-  const template = promptTemplate
-    .trim()
-    .replace(/\{\{\s*person\s*\}\}/gi, opts?.person ?? DEFAULT_PERSON);
+  const template = promptTemplate.trim().replace(/\{\{\s*person\s*\}\}/gi, opts?.person ?? DEFAULT_PERSON);
   if (template.length === 0) {
     return safeInput;
   }

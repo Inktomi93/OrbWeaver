@@ -20,9 +20,7 @@ export function AlertDialog<Payload = unknown>(props: BaseRootProps<Payload>): R
 }
 
 /** Accepts `handle` + `payload` (Base UI 1.x) to act as a DETACHED trigger for a handle-driven dialog. */
-export function AlertDialogTrigger<Payload = unknown>(
-  props: BaseTriggerProps<Payload>,
-): ReactElement {
+export function AlertDialogTrigger<Payload = unknown>(props: BaseTriggerProps<Payload>): ReactElement {
   return <BaseAlertDialog.Trigger {...props} />;
 }
 
@@ -41,17 +39,9 @@ export function AlertDialogPopup(props: AlertDialogPopupProps): ReactElement {
   const portalContainer = usePortalContainer();
   return (
     <BaseAlertDialog.Portal container={container ?? portalContainer} keepMounted={keepMounted}>
-      <BaseAlertDialog.Backdrop
-        className={slots.backdrop()}
-        data-slot="alert-dialog-backdrop"
-        forceRender={forceRender}
-      />
+      <BaseAlertDialog.Backdrop className={slots.backdrop()} data-slot="alert-dialog-backdrop" forceRender={forceRender} />
       <BaseAlertDialog.Viewport className={slots.viewport()} data-slot="alert-dialog-viewport">
-        <BaseAlertDialog.Popup
-          className={slots.popup({ className })}
-          data-slot="alert-dialog-popup"
-          {...rest}
-        >
+        <BaseAlertDialog.Popup className={slots.popup({ className })} data-slot="alert-dialog-popup" {...rest}>
           {children}
         </BaseAlertDialog.Popup>
       </BaseAlertDialog.Viewport>
@@ -84,9 +74,7 @@ export interface AlertDialogActionsProps extends HTMLAttributes<HTMLDivElement> 
 /** Right-aligned action row for the cancel/confirm pair — a plain layout slot (no Base UI part). */
 export function AlertDialogActions(props: AlertDialogActionsProps): ReactElement {
   const { className, ...rest } = props;
-  return (
-    <div className={slots.actions({ className })} data-slot="alert-dialog-actions" {...rest} />
-  );
+  return <div className={slots.actions({ className })} data-slot="alert-dialog-actions" {...rest} />;
 }
 
 /** Use for BOTH the cancel and confirm control — the confirm fires the destructive action via its own `onClick`. */

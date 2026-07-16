@@ -44,10 +44,7 @@ export function createConfirm(ctx: BuddyContext): BuddyService["confirm"] {
     return executeProposal(userId, proposal);
   }
 
-  async function executeProposal(
-    userId: ConfirmBuddyParams["principal"]["userId"],
-    proposal: Proposal,
-  ): Promise<ConfirmBuddyResult> {
+  async function executeProposal(userId: ConfirmBuddyParams["principal"]["userId"], proposal: Proposal): Promise<ConfirmBuddyResult> {
     switch (proposal.kind) {
       case "rename": {
         await renameBuddy(ctx.db, userId, proposal.newName, ctx.now());

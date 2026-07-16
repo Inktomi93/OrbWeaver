@@ -97,9 +97,7 @@ export function getChatModel(id: ModelId | string): CuratedChatModel | undefined
   }
   // Stage 3 — prefix match WITH the boundary check (next char after the version must be `-`), so
   // `claude-haiku-4-5` → `claude-haiku-4-5-20251001` but `claude-haiku-4` does NOT match `…-45-…`.
-  return CHAT_MODELS.find(
-    (entry) => entry.id === normalized || entry.id.startsWith(`${normalized}-`),
-  );
+  return CHAT_MODELS.find((entry) => entry.id === normalized || entry.id.startsWith(`${normalized}-`));
 }
 
 /** Detect the tier of a bare family alias or a Claude id containing the tier token; `undefined` for a

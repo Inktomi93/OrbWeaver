@@ -104,13 +104,7 @@ export function PersonaPanelRow({
           }}
         >
           {({ open }): ReactElement => (
-            <Button
-              aria-label="Change avatar"
-              className="relative shrink-0"
-              intent="ghost"
-              onClick={open}
-              size="icon"
-            >
+            <Button aria-label="Change avatar" className="relative shrink-0" intent="ghost" onClick={open} size="icon">
               <Avatar fallbackDelay={0} hueSeed={persona.id} size="sm" {...avatarSrc}>
                 {initialsFor(persona.name)}
               </Avatar>
@@ -161,24 +155,12 @@ export function PersonaPanelRow({
           )}
         </Stack>
 
-        <Row
-          align="center"
-          className="pointer-events-none relative shrink-0 group-hover:hidden group-focus-within:hidden"
-          gap="field"
-        >
-          {isDefault ? (
-            <StatusGlyph className="text-warning" icon={Crown} label="Your default" />
-          ) : null}
-          {persona.starred ? (
-            <StatusGlyph className="text-destructive" icon={Heart} label="Favorited" />
-          ) : null}
+        <Row align="center" className="pointer-events-none relative shrink-0 group-hover:hidden group-focus-within:hidden" gap="field">
+          {isDefault ? <StatusGlyph className="text-warning" icon={Crown} label="Your default" /> : null}
+          {persona.starred ? <StatusGlyph className="text-destructive" icon={Heart} label="Favorited" /> : null}
         </Row>
 
-        <Row
-          align="center"
-          className="pointer-events-none relative hidden shrink-0 group-hover:flex group-focus-within:flex"
-          gap="field"
-        >
+        <Row align="center" className="pointer-events-none relative hidden shrink-0 group-hover:flex group-focus-within:flex" gap="field">
           <IconAction
             {...(persona.starred ? { className: "text-destructive" } : {})}
             icon={Heart}
@@ -192,11 +174,7 @@ export function PersonaPanelRow({
             label={isDefault ? "Your default" : "Set as default"}
             onClick={onSetDefault}
           />
-          <IconAction
-            icon={Trash2}
-            label="Delete persona"
-            onClick={(): void => setDeleteOpen(true)}
-          />
+          <IconAction icon={Trash2} label="Delete persona" onClick={(): void => setDeleteOpen(true)} />
         </Row>
 
         <IconAction
@@ -217,12 +195,7 @@ export function PersonaPanelRow({
 
       <ConfirmDialog
         confirmLabel="Delete"
-        description={
-          <>
-            This permanently deletes “{persona.name}”. Past messages you authored as it keep their
-            name and avatar. This can't be undone.
-          </>
-        }
+        description={<>This permanently deletes “{persona.name}”. Past messages you authored as it keep their name and avatar. This can't be undone.</>}
         onConfirm={onDelete}
         onOpenChange={setDeleteOpen}
         open={deleteOpen}
@@ -241,15 +214,7 @@ interface IconActionProps {
 }
 
 /** A non-interactive, glanceable status glyph shown at rest. */
-function StatusGlyph({
-  icon,
-  label,
-  className,
-}: {
-  readonly icon: typeof Star;
-  readonly label: string;
-  readonly className: string;
-}): ReactElement {
+function StatusGlyph({ icon, label, className }: { readonly icon: typeof Star; readonly label: string; readonly className: string }): ReactElement {
   return (
     <Tooltip>
       <TooltipTrigger
@@ -265,13 +230,7 @@ function StatusGlyph({
 }
 
 /** A reveal-action icon button — a `relative` sibling layered above the stretched select-Button. */
-function IconAction({
-  icon,
-  label,
-  onClick,
-  disabled = false,
-  className,
-}: IconActionProps): ReactElement {
+function IconAction({ icon, label, onClick, disabled = false, className }: IconActionProps): ReactElement {
   return (
     <Tooltip>
       <TooltipTrigger

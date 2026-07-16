@@ -7,10 +7,7 @@
 // The middleware is exercised through a minimal mock Context (Hono isn't a test-reachable dep): it touches
 // only c.req.raw.headers, c.req.header(), c.json(body,status), and next() — all mocked here.
 import type { DebugAuthOptions } from "@orb/server/foundation/observability/debug";
-import {
-  createDebugAuthMiddleware,
-  tokenMatches,
-} from "@orb/server/foundation/observability/debug";
+import { createDebugAuthMiddleware, tokenMatches } from "@orb/server/foundation/observability/debug";
 import { describe } from "vitest";
 import { expect, test } from "../../../../support/fixtures";
 
@@ -31,10 +28,7 @@ const OK = 200;
 
 // Run the gate with the given config + request token; report whether it called next() (authorized) and,
 // if it blocked, the HTTP status it returned.
-async function runGate(
-  opts: DebugAuthOptions | string | undefined,
-  reqToken?: string,
-): Promise<{ passed: boolean; status: number }> {
+async function runGate(opts: DebugAuthOptions | string | undefined, reqToken?: string): Promise<{ passed: boolean; status: number }> {
   const headers = new Headers();
   if (reqToken !== undefined) {
     headers.set("x-debug-token", reqToken);
@@ -114,9 +108,7 @@ describe("createDebugAuthMiddleware (admin-cookie tier)", () => {
   });
 
   test("non-admin session + correct token still authorizes (token is the fallback)", async () => {
-    expect(
-      await runGate({ expectedToken: "secret", adminAuth: { isAdmin: deny } }, "secret"),
-    ).toEqual({ passed: true, status: OK });
+    expect(await runGate({ expectedToken: "secret", adminAuth: { isAdmin: deny } }, "secret")).toEqual({ passed: true, status: OK });
   });
 
   test("isAdmin THROWING does not OPEN the gate — no token → 404", async () => {
@@ -127,8 +119,6 @@ describe("createDebugAuthMiddleware (admin-cookie tier)", () => {
   });
 
   test("isAdmin THROWING falls through to the token check — correct token → authorized", async () => {
-    expect(
-      await runGate({ expectedToken: "secret", adminAuth: { isAdmin: blowUp } }, "secret"),
-    ).toEqual({ passed: true, status: OK });
+    expect(await runGate({ expectedToken: "secret", adminAuth: { isAdmin: blowUp } }, "secret")).toEqual({ passed: true, status: OK });
   });
 });

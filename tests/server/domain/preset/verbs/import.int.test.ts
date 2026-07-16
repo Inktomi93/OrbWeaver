@@ -15,14 +15,10 @@ const richConfig = (temperature: number): PromptConfig => ({
   params: { temperature },
 });
 
-const fileBytes = (name: string, config: PromptConfig): Uint8Array =>
-  new TextEncoder().encode(JSON.stringify(buildPresetFile(name, config)));
+const fileBytes = (name: string, config: PromptConfig): Uint8Array => new TextEncoder().encode(JSON.stringify(buildPresetFile(name, config)));
 
 /** The owner's own rows (name → stored config), read straight from the table. */
-async function ownedRows(
-  db: Awaited<ReturnType<typeof freshDb>>,
-  owner: UserId,
-): Promise<{ name: string; config: PromptConfig }[]> {
+async function ownedRows(db: Awaited<ReturnType<typeof freshDb>>, owner: UserId): Promise<{ name: string; config: PromptConfig }[]> {
   const rows = await db.select().from(presets).where(eq(presets.ownerId, owner));
   return rows.map((r) => ({ name: r.name, config: r.config }));
 }

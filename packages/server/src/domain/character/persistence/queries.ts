@@ -2,25 +2,12 @@
 // the WHERE (never a post-filter). `cardOf` narrows JSON columns through the parse-seam: greetings/
 // regexScripts are always-a-list (corrupt ⇒ []); depthPrompt/extensions/refinery are nullable (corrupt ⇒ null).
 
-import type {
-  CharacterCard,
-  CharacterListCursor,
-  CharacterListSort,
-} from "@orb/contracts/character";
+import type { CharacterCard, CharacterListCursor, CharacterListSort } from "@orb/contracts/character";
 import { cardDepthPromptSchema, refinerySignalsSchema } from "@orb/contracts/character";
 import { regexScriptSchema } from "@orb/contracts/regex";
 import type { TagView } from "@orb/contracts/tag";
 import type { Db } from "@orb/db";
-import {
-  assets,
-  characterSnapshots,
-  characterStats,
-  characterSummaries,
-  characters,
-  characterTags,
-  parseStringArray,
-  tags,
-} from "@orb/db";
+import { assets, characterSnapshots, characterStats, characterSummaries, characters, characterTags, parseStringArray, tags } from "@orb/db";
 import type { AssetId, CharacterId, CharacterSnapshotId, UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import { and, asc, desc, eq, gt, inArray, isNull, lt, or, sql } from "drizzle-orm";
@@ -47,22 +34,14 @@ interface CharacterWithAvatar {
 
 /** A supplied avatar asset must belong to the caller — FK alone proves existence, never ownership. */
 export async function ensureAssetOwned(db: Db, ownerId: UserId, assetId: AssetId): Promise<void> {
-  const rows = await db
-    .select({ ownerId: assets.ownerId })
-    .from(assets)
-    .where(eq(assets.id, assetId))
-    .limit(LIMIT_ONE);
+  const rows = await db.select({ ownerId: assets.ownerId }).from(assets).where(eq(assets.id, assetId)).limit(LIMIT_ONE);
   if (rows[0]?.ownerId !== ownerId) {
     throw new AssetNotFoundError(assetId);
   }
 }
 
 /** One owned character + its avatar, or undefined when not found / not the caller's. */
-export async function loadOwnedCharacterWithAvatar(
-  db: Db,
-  ownerId: UserId,
-  characterId: CharacterId,
-): Promise<CharacterWithAvatar | undefined> {
+export async function loadOwnedCharacterWithAvatar(db: Db, ownerId: UserId, characterId: CharacterId): Promise<CharacterWithAvatar | undefined> {
   const rows = await db
     .select({ character: characters, avatar: assets })
     .from(characters)
@@ -93,12 +72,7 @@ const assertNever = (value: never): never => {
 function orderFor(sort: CharacterListSort): SQL[] {
   switch (sort) {
     case "recent":
-      return [
-        sql`${characterStats.lastActivityAt} is null`,
-        desc(characterStats.lastActivityAt),
-        desc(characters.createdAt),
-        desc(characters.id),
-      ];
+      return [sql`${characterStats.lastActivityAt} is null`, desc(characterStats.lastActivityAt), desc(characters.createdAt), desc(characters.id)];
     case "alpha":
       return [asc(characters.name), asc(characters.id)];
     case "starred":
@@ -108,11 +82,7 @@ function orderFor(sort: CharacterListSort): SQL[] {
     case "oldest":
       return [asc(characters.createdAt), asc(characters.id)];
     case "mostChats":
-      return [
-        sql`${characterStats.chats} is null`,
-        desc(characterStats.chats),
-        desc(characters.id),
-      ];
+      return [sql`${characterStats.chats} is null`, desc(characterStats.chats), desc(characters.id)];
     case "fewestChats":
       // never-chatted null group still sinks to the tail (never "fewest").
       return [sql`${characterStats.chats} is null`, asc(characterStats.chats), asc(characters.id)];
@@ -127,16 +97,10 @@ function orderFor(sort: CharacterListSort): SQL[] {
 
 // DESC serves both recent's createdAt tiebreak and newest; ASC is oldest's direction-flipped twin.
 function createdAtKeysetDesc(createdAt: number, id: CharacterId): SQL | undefined {
-  return or(
-    lt(characters.createdAt, createdAt),
-    and(eq(characters.createdAt, createdAt), lt(characters.id, id)),
-  );
+  return or(lt(characters.createdAt, createdAt), and(eq(characters.createdAt, createdAt), lt(characters.id, id)));
 }
 function createdAtKeysetAsc(createdAt: number, id: CharacterId): SQL | undefined {
-  return or(
-    gt(characters.createdAt, createdAt),
-    and(eq(characters.createdAt, createdAt), gt(characters.id, id)),
-  );
+  return or(gt(characters.createdAt, createdAt), and(eq(characters.createdAt, createdAt), gt(characters.id, id)));
 }
 
 // A null-boundary cursor stays within the null tail; a non-null boundary is followed by the whole null
@@ -154,9 +118,7 @@ function recentKeyset(cursor: Extract<CharacterListCursor, { sort: "recent" }>):
 }
 
 // Same null-boundary shape as recentKeyset (nulls = no stats row).
-function mostChatsKeyset(
-  cursor: Extract<CharacterListCursor, { sort: "mostChats" }>,
-): SQL | undefined {
+function mostChatsKeyset(cursor: Extract<CharacterListCursor, { sort: "mostChats" }>): SQL | undefined {
   if (cursor.chatCount === null) {
     return and(isNull(characterStats.chats), lt(characters.id, cursor.id));
   }
@@ -168,9 +130,7 @@ function mostChatsKeyset(
 }
 
 // Direction-flipped, not a negated copy — the null tail still trails every non-null row.
-function fewestChatsKeyset(
-  cursor: Extract<CharacterListCursor, { sort: "fewestChats" }>,
-): SQL | undefined {
+function fewestChatsKeyset(cursor: Extract<CharacterListCursor, { sort: "fewestChats" }>): SQL | undefined {
   if (cursor.chatCount === null) {
     return and(isNull(characterStats.chats), gt(characters.id, cursor.id));
   }
@@ -182,23 +142,20 @@ function fewestChatsKeyset(
 }
 
 function tokenSizeKeysetDesc(tokenSize: number, id: CharacterId): SQL | undefined {
-  return or(
-    lt(characters.tokenSize, tokenSize),
-    and(eq(characters.tokenSize, tokenSize), lt(characters.id, id)),
-  );
+  return or(lt(characters.tokenSize, tokenSize), and(eq(characters.tokenSize, tokenSize), lt(characters.id, id)));
 }
 function tokenSizeKeysetAsc(tokenSize: number, id: CharacterId): SQL | undefined {
-  return or(
-    gt(characters.tokenSize, tokenSize),
-    and(eq(characters.tokenSize, tokenSize), gt(characters.id, id)),
-  );
+  return or(gt(characters.tokenSize, tokenSize), and(eq(characters.tokenSize, tokenSize), gt(characters.id, id)));
 }
 
 function alphaKeyset(name: string, id: CharacterId): SQL | undefined {
   return or(gt(characters.name, name), and(eq(characters.name, name), gt(characters.id, id)));
 }
 
-// if-chained (not switch) so the exhaustiveness assertNever guard holds against this discriminated union.
+// if-chained (not switch) — biome's noUnnecessaryConditions can't track discriminant narrowing through
+// a Zod-inferred discriminated union property switch the way the typed eslint rule can, and misflags
+// every case as unreachable. The final arm's comparison is a true tautology once narrowed (all other
+// members excluded); suppressed there only, so assertNever still catches a future unhandled sort.
 function keysetFor(cursor: CharacterListCursor): SQL | undefined {
   if (cursor.sort === "recent") {
     return recentKeyset(cursor);
@@ -207,10 +164,7 @@ function keysetFor(cursor: CharacterListCursor): SQL | undefined {
     return alphaKeyset(cursor.name, cursor.id);
   }
   if (cursor.sort === "starred") {
-    return or(
-      lt(characters.starred, cursor.starred),
-      and(eq(characters.starred, cursor.starred), alphaKeyset(cursor.name, cursor.id)),
-    );
+    return or(lt(characters.starred, cursor.starred), and(eq(characters.starred, cursor.starred), alphaKeyset(cursor.name, cursor.id)));
   }
   if (cursor.sort === "newest") {
     return createdAtKeysetDesc(cursor.createdAt, cursor.id);
@@ -227,6 +181,7 @@ function keysetFor(cursor: CharacterListCursor): SQL | undefined {
   if (cursor.sort === "largestCards") {
     return tokenSizeKeysetDesc(cursor.tokenSize, cursor.id);
   }
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- tautology after exhaustive narrowing; kept so assertNever still guards a future unhandled member.
   if (cursor.sort === "smallestCards") {
     return tokenSizeKeysetAsc(cursor.tokenSize, cursor.id);
   }
@@ -234,10 +189,7 @@ function keysetFor(cursor: CharacterListCursor): SQL | undefined {
 }
 
 /** Owner's non-synthetic characters, sorted + keyset-paged. No offset (skips/dupes under concurrent writes). */
-export async function listOwnedCharactersWithAvatar(
-  db: Db,
-  input: ListOwnedPageInput,
-): Promise<CharacterListRow[]> {
+export async function listOwnedCharactersWithAvatar(db: Db, input: ListOwnedPageInput): Promise<CharacterListRow[]> {
   const scope = and(eq(characters.ownerId, input.ownerId), eq(characters.synthetic, false));
   const keyset = input.cursor === undefined ? undefined : keysetFor(input.cursor);
   const rows = await db
@@ -259,11 +211,7 @@ export async function listOwnedCharactersWithAvatar(
 }
 
 /** One owned character row (no avatar join) — the `getCard`/remove fast path. Undefined when not owned. */
-export async function loadOwnedCharacterRow(
-  db: Db,
-  ownerId: UserId,
-  characterId: CharacterId,
-): Promise<CharacterRow | undefined> {
+export async function loadOwnedCharacterRow(db: Db, ownerId: UserId, characterId: CharacterId): Promise<CharacterRow | undefined> {
   const rows = await db
     .select()
     .from(characters)
@@ -273,38 +221,22 @@ export async function loadOwnedCharacterRow(
 }
 
 /** No owner scope — the embeddings indexer is a trusted system consumer; not a user-facing surface. */
-export async function loadCharacterRowById(
-  db: Db,
-  characterId: CharacterId,
-): Promise<CharacterRow | undefined> {
-  const rows = await db
-    .select()
-    .from(characters)
-    .where(eq(characters.id, characterId))
-    .limit(LIMIT_ONE);
+export async function loadCharacterRowById(db: Db, characterId: CharacterId): Promise<CharacterRow | undefined> {
+  const rows = await db.select().from(characters).where(eq(characters.id, characterId)).limit(LIMIT_ONE);
   return rows[0];
 }
 
 /** No owner scope — the embeddings bulk pass sweeps the whole corpus; synthetic buckets excluded at source. */
-export async function listEmbeddableCharacterIdRows(
-  db: Db,
-  ownerId?: UserId | null,
-): Promise<CharacterId[]> {
+export async function listEmbeddableCharacterIdRows(db: Db, ownerId?: UserId | null): Promise<CharacterId[]> {
   // ownerId scopes the sweep to one owner; omitted/null = every owner (the bulk dev sweep).
   const scope =
-    ownerId === undefined || ownerId === null
-      ? eq(characters.synthetic, false)
-      : and(eq(characters.synthetic, false), eq(characters.ownerId, ownerId));
+    ownerId === undefined || ownerId === null ? eq(characters.synthetic, false) : and(eq(characters.synthetic, false), eq(characters.ownerId, ownerId));
   const rows = await db.select({ id: characters.id }).from(characters).where(scope);
   return rows.map((r) => r.id);
 }
 
 /** Find a character by (ownerId, handle) — relies on the per-owner handle unique index. */
-export async function findByOwnerHandle(
-  db: Db,
-  ownerId: UserId,
-  handle: string,
-): Promise<CharacterRow | undefined> {
+export async function findByOwnerHandle(db: Db, ownerId: UserId, handle: string): Promise<CharacterRow | undefined> {
   const rows = await db
     .select()
     .from(characters)
@@ -314,11 +246,7 @@ export async function findByOwnerHandle(
 }
 
 /** Re-import dedup oracle: the id of the owner's character already carrying importHash, or undefined. */
-export async function findByOwnerImportHash(
-  db: Db,
-  ownerId: UserId,
-  importHash: string,
-): Promise<CharacterId | undefined> {
+export async function findByOwnerImportHash(db: Db, ownerId: UserId, importHash: string): Promise<CharacterId | undefined> {
   const rows = await db
     .select({ id: characters.id })
     .from(characters)
@@ -329,18 +257,12 @@ export async function findByOwnerImportHash(
 
 /** Every handle the owner already uses — the duplicate verb derives a free `<handle>-copy[-n]` from this. */
 export async function listOwnerHandles(db: Db, ownerId: UserId): Promise<string[]> {
-  const rows = await db
-    .select({ handle: characters.handle })
-    .from(characters)
-    .where(eq(characters.ownerId, ownerId));
+  const rows = await db.select({ handle: characters.handle }).from(characters).where(eq(characters.ownerId, ownerId));
   return rows.map((r) => r.handle);
 }
 
 /** Browse a character's snapshot history, newest first (the opaque blob is read only on restore). */
-export async function listSnapshotSummaries(
-  db: Db,
-  characterId: CharacterId,
-): Promise<SnapshotSummary[]> {
+export async function listSnapshotSummaries(db: Db, characterId: CharacterId): Promise<SnapshotSummary[]> {
   const rows = await db
     .select({
       id: characterSnapshots.id,
@@ -354,17 +276,11 @@ export async function listSnapshotSummaries(
 }
 
 /** Load one snapshot's stored card blob, scoped to its character. Undefined when absent / wrong character. */
-export async function loadSnapshotContent(
-  db: Db,
-  characterId: CharacterId,
-  snapshotId: CharacterSnapshotId,
-): Promise<CharacterCard | undefined> {
+export async function loadSnapshotContent(db: Db, characterId: CharacterId, snapshotId: CharacterSnapshotId): Promise<CharacterCard | undefined> {
   const rows = await db
     .select({ content: characterSnapshots.content })
     .from(characterSnapshots)
-    .where(
-      and(eq(characterSnapshots.id, snapshotId), eq(characterSnapshots.characterId, characterId)),
-    )
+    .where(and(eq(characterSnapshots.id, snapshotId), eq(characterSnapshots.characterId, characterId)))
     .limit(LIMIT_ONE);
   const row = rows[0];
   return row === undefined ? undefined : cardOf(row.content);
@@ -394,10 +310,8 @@ export function cardOf(src: CharacterCard): CharacterCard {
 }
 
 // Read-only join over tag's schema via @orb/db, never an import of domain/tag. Pending rows excluded.
-export async function canonicalTagsFor(
-  db: Db,
-  characterIds: readonly CharacterId[],
-): Promise<Map<CharacterId, TagView[]>> {
+export async function canonicalTagsFor(db: Db, characterIds: readonly CharacterId[]): Promise<Map<CharacterId, TagView[]>> {
+  // @orb-gate-ignore persistence-no-in-memory-state: query-local lookup map keyed by characterId
   const map = new Map<CharacterId, TagView[]>();
   if (characterIds.length === 0) {
     return map;
@@ -406,9 +320,7 @@ export async function canonicalTagsFor(
     .select({ characterId: characterTags.characterId, tag: tags })
     .from(characterTags)
     .innerJoin(tags, eq(characterTags.tagId, tags.id))
-    .where(
-      and(inArray(characterTags.characterId, characterIds), eq(characterTags.status, "accepted")),
-    )
+    .where(and(inArray(characterTags.characterId, characterIds), eq(characterTags.status, "accepted")))
     .orderBy(sql`${tags.sortOrder} is null`, tags.sortOrder, tags.name);
   for (const { characterId, tag } of rows) {
     const view: TagView = {
@@ -432,18 +344,12 @@ export async function canonicalTagsFor(
 }
 
 /** One character's accepted canonical tags. */
-export async function canonicalTagsOf(
-  db: Db,
-  characterId: CharacterId,
-): Promise<readonly TagView[]> {
+export async function canonicalTagsOf(db: Db, characterId: CharacterId): Promise<readonly TagView[]> {
   return (await canonicalTagsFor(db, [characterId])).get(characterId) ?? [];
 }
 
 /** Row + joined avatar + accepted tags → the full owner detail view. */
-export function detailOf(
-  { character: row, avatar }: CharacterWithAvatar,
-  canonicalTags: readonly TagView[],
-): CharacterDetail {
+export function detailOf({ character: row, avatar }: CharacterWithAvatar, canonicalTags: readonly TagView[]): CharacterDetail {
   return {
     ...cardOf(row),
     id: row.id,
@@ -464,10 +370,7 @@ export function detailOf(
 }
 
 /** Row + joined avatar + denorms + accepted tags → the light library-list summary. */
-export function summaryOf(
-  { character: row, avatar, elevatorPitch, lastChattedAt }: CharacterListRow,
-  canonicalTags: readonly TagView[],
-): CharacterSummary {
+export function summaryOf({ character: row, avatar, elevatorPitch, lastChattedAt }: CharacterListRow, canonicalTags: readonly TagView[]): CharacterSummary {
   return {
     id: row.id,
     handle: row.handle,

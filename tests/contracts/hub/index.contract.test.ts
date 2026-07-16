@@ -3,11 +3,7 @@
 // URL requirement (a syntactic URL — the host allowlist is the server's real gate) + optional strict-TypeID
 // subject character.
 
-import {
-  gifImportParamsSchema,
-  gifSearchHitSchema,
-  gifSearchParamsSchema,
-} from "@orb/contracts/hub";
+import { gifImportParamsSchema, gifSearchHitSchema, gifSearchParamsSchema } from "@orb/contracts/hub";
 import { expect, test } from "../../support/fixtures";
 
 test("gifSearchParamsSchema clamps limit 1..50 and defaults to 20", () => {
@@ -37,9 +33,7 @@ test("gifSearchHitSchema requires positive dims + valid preview/full URLs", () =
 });
 
 test("gifImportParamsSchema requires a syntactic URL; subjectCharacterId is optional + strict-TypeID", () => {
-  expect(gifImportParamsSchema.safeParse({ url: "https://media.tenor.com/f.gif" }).success).toBe(
-    true,
-  );
+  expect(gifImportParamsSchema.safeParse({ url: "https://media.tenor.com/f.gif" }).success).toBe(true);
   expect(gifImportParamsSchema.safeParse({ url: "not-a-url" }).success).toBe(false);
   // A non-character-prefixed id is rejected at the wire (before the verb's ownership gate).
   expect(

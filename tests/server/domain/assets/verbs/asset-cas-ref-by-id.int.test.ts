@@ -12,7 +12,6 @@ import { makeHarness, pngBytes, principal, seedUser } from "../_support.ts";
 
 const PNG = "image/png";
 
-// biome-ignore lint/security/noSecrets: the describe label is a function name, not a secret.
 describe("assetCasRefById", () => {
   test("un-principal by-id: returns the stored (ownerId, hash)", async () => {
     const db = await freshDb();

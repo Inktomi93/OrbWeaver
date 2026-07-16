@@ -10,11 +10,7 @@ import type { PersonaContext } from "../context";
 import { PersonaNotFoundError } from "../contract/errors";
 import type { ImportPersonaParams } from "../contract/params";
 import type { PersonaService } from "../contract/service";
-import {
-  detailOf,
-  findOwnedPersonaByName,
-  loadOwnedPersonaWithAvatar,
-} from "../persistence/queries";
+import { detailOf, findOwnedPersonaByName, loadOwnedPersonaWithAvatar } from "../persistence/queries";
 
 export function createImport(ctx: PersonaContext): PersonaService["import"] {
   return async ({ principal, input }: ImportPersonaParams) => {

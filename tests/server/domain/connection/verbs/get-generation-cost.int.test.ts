@@ -31,13 +31,10 @@ describe("getGenerationCost", () => {
     const h = makeConnHarness(db);
     const ctx = {
       ...h.ctx,
-      resolveCredential: (): Promise<never> =>
-        Promise.reject(new DomainNoCredentialError("openrouter")),
+      resolveCredential: (): Promise<never> => Promise.reject(new DomainNoCredentialError("openrouter")),
     };
     const svc = createConnectionService(ctx);
 
-    await expect(
-      svc.getGenerationCost({ principal: principal("user_a"), generationId: "gen-123" }),
-    ).rejects.toBeInstanceOf(DomainNoCredentialError);
+    await expect(svc.getGenerationCost({ principal: principal("user_a"), generationId: "gen-123" })).rejects.toBeInstanceOf(DomainNoCredentialError);
   });
 });

@@ -32,12 +32,7 @@ export function AllThemes(): ReactElement {
   return (
     <Section heading="All themes">
       <Stack gap="block" data-testid={testId("corpusThemesDrill")}>
-        <ParamToggle
-          label="Level"
-          value={level}
-          options={LEVEL_OPTIONS}
-          onValueChange={(next): void => setLevel(next as ThemeLevel)}
-        />
+        <ParamToggle label="Level" value={level} options={LEVEL_OPTIONS} onValueChange={(next): void => setLevel(next as ThemeLevel)} />
         <ThemeSizeBars level={level} />
       </Stack>
     </Section>
@@ -100,12 +95,7 @@ export function KeywordExplorer(): ReactElement {
               (row) => row.count,
             )}
           />
-          <ParamSelect
-            label="Cooccurs with"
-            value={keyword}
-            items={items}
-            onValueChange={setKeyword}
-          />
+          <ParamSelect label="Cooccurs with" value={keyword} items={items} onValueChange={setKeyword} />
           {keyword === NO_KEYWORD ? null : <CooccurringKeywords keyword={keyword} />}
         </Stack>
       )}
@@ -148,12 +138,7 @@ export function ThemeDrift(): ReactElement {
   return (
     <Section heading="Theme drift">
       <Stack gap="block">
-        <ParamToggle
-          label="Level"
-          value={level}
-          options={LEVEL_OPTIONS}
-          onValueChange={(next): void => setLevel(next as ThemeLevel)}
-        />
+        <ParamToggle label="Level" value={level} options={LEVEL_OPTIONS} onValueChange={(next): void => setLevel(next as ThemeLevel)} />
         <ThemeDriftBody level={level} />
       </Stack>
     </Section>

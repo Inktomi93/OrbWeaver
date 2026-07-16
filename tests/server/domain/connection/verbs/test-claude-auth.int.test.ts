@@ -38,14 +38,11 @@ describe("testClaudeAuth", () => {
     // Simulate credentials' D17 refusal (the mint throws for a non-owner).
     const ctx = {
       ...h.ctx,
-      resolveCredential: (): Promise<never> =>
-        Promise.reject(new DomainForbiddenError("max-pro-sub is owner-only")),
+      resolveCredential: (): Promise<never> => Promise.reject(new DomainForbiddenError("max-pro-sub is owner-only")),
     };
     const svc = createConnectionService(ctx);
 
-    await expect(
-      svc.testClaudeAuth({ principal: principal("user_member") }),
-    ).rejects.toBeInstanceOf(DomainForbiddenError);
+    await expect(svc.testClaudeAuth({ principal: principal("user_member") })).rejects.toBeInstanceOf(DomainForbiddenError);
     // The verify diagnostic was never reached — no probe spend on a refused caller.
     expect(h.verifyCalls).toEqual([]);
   });

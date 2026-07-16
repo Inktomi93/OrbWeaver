@@ -50,14 +50,9 @@ export interface MacroTextareaProps {
 
 // Keyed by array identity: every field sharing the same registry reference shares one fuzzy index,
 // and an unmounted feature's array is GC-able.
-const indexCache = new WeakMap<
-  readonly MacroSuggestion[],
-  MiniSearch<MacroSuggestion & { id: string }>
->();
+const indexCache = new WeakMap<readonly MacroSuggestion[], MiniSearch<MacroSuggestion & { id: string }>>();
 
-function getMacroSearch(
-  suggestions: readonly MacroSuggestion[],
-): MiniSearch<MacroSuggestion & { id: string }> {
+function getMacroSearch(suggestions: readonly MacroSuggestion[]): MiniSearch<MacroSuggestion & { id: string }> {
   const cached = indexCache.get(suggestions);
   if (cached) {
     return cached;
@@ -76,9 +71,7 @@ function getMacroSearch(
   return index;
 }
 
-type SuggestionRow =
-  | { kind: "header"; label: string }
-  | { kind: "item"; suggestion: MacroSuggestion; index: number };
+type SuggestionRow = { kind: "header"; label: string } | { kind: "item"; suggestion: MacroSuggestion; index: number };
 
 /** Groups adjacent same-category entries with a header, preserving the fuzzy search's relevance order. */
 function toRows(list: readonly MacroSuggestion[]): SuggestionRow[] {
@@ -210,10 +203,7 @@ export function MacroTextarea({
     }
   };
 
-  const argHintText =
-    argHint === null
-      ? null
-      : `Args for {{${argHint.name.split(":")[0]}}}: ${(argHint.args ?? []).join(", ")}`;
+  const argHintText = argHint === null ? null : `Args for {{${argHint.name.split(":")[0]}}}: ${(argHint.args ?? []).join(", ")}`;
 
   return (
     <div className={cn(slots.root(), className)} data-slot="macro-textarea">
@@ -245,21 +235,10 @@ export function MacroTextarea({
         className={slots.textarea()}
       />
       {open ? (
-        <div
-          aria-label="Macro suggestions"
-          className={slots.listbox()}
-          data-slot="macro-textarea-listbox"
-          id={listboxId}
-          role="listbox"
-        >
+        <div aria-label="Macro suggestions" className={slots.listbox()} data-slot="macro-textarea-listbox" id={listboxId} role="listbox">
           {rowsList.map((row) =>
             row.kind === "header" ? (
-              <div
-                className={slots.groupLabel()}
-                data-slot="macro-textarea-group-header"
-                key={`header-${row.label}`}
-                role="presentation"
-              >
+              <div className={slots.groupLabel()} data-slot="macro-textarea-group-header" key={`header-${row.label}`} role="presentation">
                 {row.label}
               </div>
             ) : (
@@ -285,7 +264,7 @@ export function MacroTextarea({
               >
                 <span className={slots.itemMain()}>
                   <span className={slots.itemName()}>{`{{${row.suggestion.name}}}`}</span>
-                  {row.suggestion.description ? (
+                  {row.suggestion.description !== undefined && row.suggestion.description !== "" ? (
                     <span className={slots.itemDescription()}>{row.suggestion.description}</span>
                   ) : null}
                 </span>
@@ -294,7 +273,7 @@ export function MacroTextarea({
           )}
         </div>
       ) : null}
-      {argHintText ? (
+      {argHintText !== null ? (
         // aria-live: the hint appears after the popover closes, so it needs to be announced.
         <p aria-live="polite" className={slots.argHint()} data-slot="macro-textarea-arg-hint">
           {argHintText}

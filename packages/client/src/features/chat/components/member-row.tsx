@@ -26,12 +26,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useId, useRef, useState } from "react";
 import { ConfirmDialog } from "#components";
-import type {
-  MemberCastRow,
-  MemberPersonRow,
-  MemberRowActions,
-  MemberRowFocusProps,
-} from "../lib/member-rows";
+import type { MemberCastRow, MemberPersonRow, MemberRowActions, MemberRowFocusProps } from "../lib/member-rows";
 import { rowAccessibleName } from "../lib/member-rows";
 import { buildMenuItems } from "./member-row-menu";
 import { TalkativenessPopover } from "./talkativeness-popover";
@@ -83,13 +78,7 @@ export function MemberRow(props: MemberRowProps): ReactElement {
       >
         {initialsFor(row.displayName)}
       </Avatar>
-      <Text
-        as="span"
-        size="label"
-        weight="medium"
-        tone={row.kind === "cast" && row.disabled ? "muted" : undefined}
-        className="min-w-0 truncate"
-      >
+      <Text as="span" size="label" weight="medium" tone={row.kind === "cast" && row.disabled ? "muted" : undefined} className="min-w-0 truncate">
         {row.displayName}
         {row.kind === "person" && row.handle !== null ? ` · ${row.handle}` : ""}
       </Text>
@@ -125,12 +114,7 @@ export function MemberRow(props: MemberRowProps): ReactElement {
           "Talkativeness… opens an anchored popover with the labeled slider"). Menu item + chip both
           open it; pointer users can tap the chip directly. */}
       {row.kind === "cast" && props.onSetTalkativeness !== undefined ? (
-        <TalkativenessPopover
-          row={row}
-          open={weightOpen}
-          onOpenChange={setWeightOpen}
-          onSetTalkativeness={props.onSetTalkativeness}
-        />
+        <TalkativenessPopover row={row} open={weightOpen} onOpenChange={setWeightOpen} onSetTalkativeness={props.onSetTalkativeness} />
       ) : null}
 
       {/* The ⋯ affordance — a pointer shortcut into the SAME canonical Menu (tabIndex -1: the row body
@@ -148,19 +132,13 @@ export function MemberRow(props: MemberRowProps): ReactElement {
         </Button>
       ) : null}
 
-      {row.kind === "person" ? (
-        <PersonRowConfirms row={row} actions={props} confirm={confirm} setConfirm={setConfirm} />
-      ) : null}
+      {row.kind === "person" ? <PersonRowConfirms row={row} actions={props} confirm={confirm} setConfirm={setConfirm} /> : null}
     </Row>
   );
 }
 
 /** The quiet state chips beside the name: host crown · "you" · pending nomination · muted. */
-function RowStateBadges({
-  row,
-}: {
-  readonly row: MemberPersonRow | MemberCastRow;
-}): ReactElement | null {
+function RowStateBadges({ row }: { readonly row: MemberPersonRow | MemberCastRow }): ReactElement | null {
   if (row.kind === "cast") {
     return row.disabled ? (
       <Badge size="sm" intent="neutral">
@@ -192,23 +170,13 @@ function RowStateBadges({
 
 /** Fine-pointer inline shortcut cluster (mute · force-turn) — duplicates two Menu items with identical
  *  labels/icons; NEVER rendered at a coarse pointer (§7.1: row tap opens the Menu there). */
-function CastInlineCluster({
-  row,
-  actions,
-}: {
-  readonly row: MemberCastRow;
-  readonly actions: MemberRowActions;
-}): ReactElement | null {
+function CastInlineCluster({ row, actions }: { readonly row: MemberCastRow; readonly actions: MemberRowActions }): ReactElement | null {
   if (actions.onSetDisabled === undefined) {
     return null;
   }
   const setDisabled = actions.onSetDisabled;
   return (
-    <Row
-      gap="field"
-      align="center"
-      className="hidden pointer-fine:group-focus-within/member:flex pointer-fine:group-hover/member:flex"
-    >
+    <Row gap="field" align="center" className="hidden pointer-fine:group-focus-within/member:flex pointer-fine:group-hover/member:flex">
       <Button
         type="button"
         intent="ghost"

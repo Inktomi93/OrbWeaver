@@ -10,14 +10,7 @@ import { createDiscoveryService } from "@orb/server/domain/discovery";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
-import {
-  FROZEN_AT,
-  makeDiscoveryHarness,
-  seedCharacter,
-  seedChat,
-  seedMessage,
-  seedUser,
-} from "../_support.ts";
+import { FROZEN_AT, makeDiscoveryHarness, seedCharacter, seedChat, seedMessage, seedUser } from "../_support.ts";
 
 function svcFor(db: Db): ReturnType<typeof createDiscoveryService> {
   return createDiscoveryService(makeDiscoveryHarness(db).ctx);

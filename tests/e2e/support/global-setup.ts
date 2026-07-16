@@ -55,9 +55,7 @@ async function trpcMutation<T>(procedure: string, input: unknown): Promise<T> {
   const body = (await res.json()) as readonly { result?: { data?: T }; error?: unknown }[];
   const entry = body[0];
   if (!res.ok || entry?.error !== undefined || entry?.result === undefined) {
-    throw new Error(
-      `e2e seed: ${procedure} mutation failed (${res.status}): ${JSON.stringify(body)}`,
-    );
+    throw new Error(`e2e seed: ${procedure} mutation failed (${res.status}): ${JSON.stringify(body)}`);
   }
   return entry.result.data as T;
 }

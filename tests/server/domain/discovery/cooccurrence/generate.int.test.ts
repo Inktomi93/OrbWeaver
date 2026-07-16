@@ -14,23 +14,13 @@ import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
-import {
-  makeDiscoveryHarness,
-  seedCharacter,
-  seedChatDigest,
-  seedHostedChat,
-  seedUser,
-  vec,
-} from "../_support.ts";
+import { makeDiscoveryHarness, seedCharacter, seedChatDigest, seedHostedChat, seedUser, vec } from "../_support.ts";
 
 function svcFor(db: Db): ReturnType<typeof createDiscoveryService> {
   return createDiscoveryService(makeDiscoveryHarness(db).ctx);
 }
 
-async function pairsFor(
-  db: Db,
-  ownerId: UserId,
-): Promise<{ a: string; b: string; count: number }[]> {
+async function pairsFor(db: Db, ownerId: UserId): Promise<{ a: string; b: string; count: number }[]> {
   const rows = await db
     .select({
       a: keywordCooccurrence.keywordA,

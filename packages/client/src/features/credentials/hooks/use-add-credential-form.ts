@@ -13,11 +13,7 @@ export const useAddCredentialForm = createSavedEntityForm<AddCredentialFormValue
   defaultValues: ADD_CREDENTIAL_DEFAULTS,
   options: {
     validators: {
-      onDynamic: ({
-        value,
-      }: {
-        value: AddCredentialFormValues;
-      }): { fields: Record<string, string> } | undefined => validateAddCredential(value),
+      onDynamic: ({ value }: { value: AddCredentialFormValues }): { fields: Record<string, string> } | undefined => validateAddCredential(value),
     },
   },
 });

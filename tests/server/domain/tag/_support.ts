@@ -10,16 +10,7 @@ import type { PromptConfig } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import { characters, chats, personas, presets, tags, worldBooks } from "@orb/db";
 import { DomainForbiddenError } from "@orb/kit/errors";
-import type {
-  CharacterId,
-  ChatId,
-  Handle,
-  PersonaId,
-  PresetId,
-  TagId,
-  UserId,
-  WorldBookId,
-} from "@orb/kit/ids";
+import type { CharacterId, ChatId, Handle, PersonaId, PresetId, TagId, UserId, WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { AuditEntry } from "@orb/server/foundation/observability";
 import type { TagContext } from "../../../../packages/server/src/domain/tag/contract/service.ts";
@@ -50,9 +41,7 @@ export function makeTagHarness(db: Db): TagHarness {
     newTagId: (): TagId => castId<TagId>(ids.next("tag")),
     requireParticipant: (_principal: Principal, chatId: ChatId): Promise<void> => {
       participantChecks.push(chatId);
-      return allowed.has(chatId)
-        ? Promise.resolve()
-        : Promise.reject(new DomainForbiddenError(`not a participant of ${chatId}`));
+      return allowed.has(chatId) ? Promise.resolve() : Promise.reject(new DomainForbiddenError(`not a participant of ${chatId}`));
     },
     audit: (entry: AuditEntry): Promise<void> => {
       audits.push(entry);
@@ -101,11 +90,7 @@ export async function seedTag(
   return tagId;
 }
 
-export async function seedCharacter(
-  db: Db,
-  ownerId: UserId,
-  id = "character_x",
-): Promise<CharacterId> {
+export async function seedCharacter(db: Db, ownerId: UserId, id = "character_x"): Promise<CharacterId> {
   const characterId = castId<CharacterId>(id);
   await db.insert(characters).values({
     id: characterId,
@@ -129,11 +114,7 @@ export async function seedPersona(db: Db, ownerId: UserId, id = "persona_x"): Pr
   return personaId;
 }
 
-export async function seedWorldBook(
-  db: Db,
-  ownerId: UserId,
-  id = "world_book_x",
-): Promise<WorldBookId> {
+export async function seedWorldBook(db: Db, ownerId: UserId, id = "world_book_x"): Promise<WorldBookId> {
   const worldBookId = castId<WorldBookId>(id);
   await db.insert(worldBooks).values({ id: worldBookId, ownerId, name: id });
   return worldBookId;

@@ -18,10 +18,7 @@ interface ChatListFilterState {
   readonly characterFilter: ChatListCharacterFilter | null;
 }
 
-const useChatListFilterStore = createGatedStore<ChatListFilterState>(
-  "chat-list-filter",
-  (): ChatListFilterState => ({ characterFilter: null }),
-);
+const useChatListFilterStore = createGatedStore<ChatListFilterState>("chat-list-filter", (): ChatListFilterState => ({ characterFilter: null }));
 
 /** Scope the Chats LIST to one character's threads (the hero "N chats ›" seam) — the LIST reads this and
  *  filters to chats seating this character, showing a "filtered by [name] ✕" clear affordance. */

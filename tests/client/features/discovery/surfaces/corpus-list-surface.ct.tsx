@@ -81,10 +81,7 @@ test("the Characters target renders a character card hit", async ({ mount, page 
   await expect(component.getByText("A rogue who reads the night market.")).toBeVisible();
 });
 
-test("switching to the Scenes target renders the per-chat evidence preview", async ({
-  mount,
-  page,
-}) => {
+test("switching to the Scenes target renders the per-chat evidence preview", async ({ mount, page }) => {
   await routeTrpc(page, {
     "discovery.characterFacets": { genres: [], tones: [] },
     "discovery.catalog": EMPTY_CATALOG,
@@ -110,9 +107,7 @@ test("the browse catalog filter narrows the rows by the q param", async ({ mount
     "discovery.browseCharacters": (input: unknown) => {
       const q = (input as { q?: string } | undefined)?.q;
       const all = [ARIA_ROW, BOLT_ROW];
-      return q === undefined
-        ? all
-        : all.filter((r) => r.name.toLowerCase().includes(q.toLowerCase()));
+      return q === undefined ? all : all.filter((r) => r.name.toLowerCase().includes(q.toLowerCase()));
     },
     "search.suggest": [],
     "search.search": searchResponder,
@@ -128,10 +123,7 @@ test("the browse catalog filter narrows the rows by the q param", async ({ mount
   await expect(component.getByText("Aria Nightshade")).toHaveCount(0);
 });
 
-test("the Text target runs the lexical fields search and names the hits from the card list", async ({
-  mount,
-  page,
-}) => {
+test("the Text target runs the lexical fields search and names the hits from the card list", async ({ mount, page }) => {
   await routeTrpc(page, {
     "discovery.characterFacets": { genres: [], tones: [] },
     "discovery.catalog": EMPTY_CATALOG,
@@ -151,10 +143,7 @@ test("the Text target runs the lexical fields search and names the hits from the
   await expect(component.getByText("Zed the Lexeme")).toBeVisible();
 });
 
-test("the omnibox surfaces as-you-type suggestions from search.suggest", async ({
-  mount,
-  page,
-}) => {
+test("the omnibox surfaces as-you-type suggestions from search.suggest", async ({ mount, page }) => {
   await routeTrpc(page, {
     "discovery.characterFacets": { genres: [], tones: [] },
     "discovery.catalog": EMPTY_CATALOG,

@@ -6,13 +6,7 @@ import type { CharacterId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
 
-export const LEADERBOARD_SORTS = [
-  "assistantTurns",
-  // biome-ignore lint/security/noSecrets: a leaderboard sort-key literal, not a secret (high-entropy false positive).
-  "totalGenTimeMs",
-  "swipes",
-  "lastActivityAt",
-] as const;
+export const LEADERBOARD_SORTS = ["assistantTurns", "totalGenTimeMs", "swipes", "lastActivityAt"] as const;
 export type LeaderboardSort = (typeof LEADERBOARD_SORTS)[number];
 
 export const latencyScopeSchema = z.discriminatedUnion("kind", [

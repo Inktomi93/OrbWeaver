@@ -4,13 +4,7 @@
 // never reads the chat roster itself.
 
 import type { Principal } from "@orb/contracts/identity";
-import type {
-  CreateBookInput,
-  CreateEntryInput,
-  UpdateBookInput,
-  UpdateEntryInput,
-  WorldBookRole,
-} from "@orb/contracts/world-info";
+import type { CreateBookInput, CreateEntryInput, UpdateBookInput, UpdateEntryInput, WorldBookRole } from "@orb/contracts/world-info";
 import type { CharacterId, ChatId, PersonaId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 
 export type {

@@ -13,11 +13,7 @@ import { importGalleryItem, ownedAssetForGallery } from "../persistence/queries"
 
 /** Restore ONE curation row: gate on asset ownership, re-link the handle, then idempotently write.
  *  Returns true only when a genuinely new row was written. */
-async function restoreItem(
-  ctx: AssetsContext,
-  ownerId: UserId,
-  item: CanonicalGalleryItem,
-): Promise<boolean> {
+async function restoreItem(ctx: AssetsContext, ownerId: UserId, item: CanonicalGalleryItem): Promise<boolean> {
   // A missing/foreign asset means the blob was not part of this bundle — skip.
   const owned = await ownedAssetForGallery(ctx.db, ownerId, item.assetId);
   if (owned === undefined) {
@@ -39,9 +35,7 @@ async function restoreItem(
   return result.created;
 }
 
-export function createImportGallery(
-  ctx: AssetsContext,
-): (ownerId: UserId, file: GalleryPortableFile) => Promise<GalleryImportOutcome> {
+export function createImportGallery(ctx: AssetsContext): (ownerId: UserId, file: GalleryPortableFile) => Promise<GalleryImportOutcome> {
   return async (ownerId: UserId, file: GalleryPortableFile): Promise<GalleryImportOutcome> => {
     const parsed = parseGallery(file.bytes);
     if (parsed === null) {

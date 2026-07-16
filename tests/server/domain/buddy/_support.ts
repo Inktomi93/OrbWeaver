@@ -16,13 +16,7 @@ import type { SummarizeResult } from "@orb/contracts/providers";
 import type { Db } from "@orb/db";
 import type { BuddyTurnId, Handle, UserId, WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type {
-  BuddyAgentRequest,
-  BuddyAgentResult,
-  BuddyContext,
-  BuddyToolServer,
-  BuddyToolSpec,
-} from "@orb/server/domain/buddy";
+import type { BuddyAgentRequest, BuddyAgentResult, BuddyContext, BuddyToolServer, BuddyToolSpec } from "@orb/server/domain/buddy";
 import { FROZEN_AT_MS } from "../../../support/clock.ts";
 import { principal as makePrincipal } from "../../../support/factories/principal.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
@@ -153,8 +147,7 @@ export function makeHarness(db: Db): BuddyHarness {
       imageEmbed: (): never => {
         throw new Error("imageEmbed not used in buddy tests");
       },
-      summarize: (): Promise<SummarizeResult> =>
-        summarizeThrows ? Promise.reject(new Error("engine down")) : Promise.resolve(OK_SUMMARIZE),
+      summarize: (): Promise<SummarizeResult> => (summarizeThrows ? Promise.reject(new Error("engine down")) : Promise.resolve(OK_SUMMARIZE)),
       embedModel: "vllm-local",
       rerankModel: "vllm-local",
       imageEmbedModel: "vllm-local",
@@ -162,10 +155,7 @@ export function makeHarness(db: Db): BuddyHarness {
       summarizerContextTokens: 32_000,
     },
     agentEnv: {
-      startWorkload: (args: {
-        ownerId: UserId;
-        kind: string;
-      }): Promise<{ readonly workloadId: WorkloadId }> => {
+      startWorkload: (args: { ownerId: UserId; kind: string }): Promise<{ readonly workloadId: WorkloadId }> => {
         startWorkloadCalls.push(args);
         if (startWorkloadError !== null) {
           return Promise.reject(startWorkloadError);

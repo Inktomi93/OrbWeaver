@@ -40,21 +40,12 @@ const STORED_PARTS = 3;
 /** A well-formed all-zero dummy hash for the login CONSTANT-TIME floor: an unknown handle / SSO-only
  *  (null hash) row verifies against THIS so scrypt still runs, defeating the username-enumeration timing
  *  oracle. All-zero bytes can never match a real (peppered+salted) password — it just burns KDF time. */
-export const DUMMY_PASSWORD_HASH = `${ALGO}$${Buffer.alloc(SALT_BYTES).toString("base64")}$${Buffer.alloc(
-  KEY_LEN,
-).toString("base64")}`;
+export const DUMMY_PASSWORD_HASH = `${ALGO}$${Buffer.alloc(SALT_BYTES).toString("base64")}$${Buffer.alloc(KEY_LEN).toString("base64")}`;
 
 // promisify(scryptCb) loses the ScryptOptions overload — wrap manually so callers can pin cost.
-function scrypt(
-  password: Buffer,
-  salt: Buffer,
-  keylen: number,
-  options: ScryptOptions,
-): Promise<Buffer> {
+function scrypt(password: Buffer, salt: Buffer, keylen: number, options: ScryptOptions): Promise<Buffer> {
   return new Promise((resolve, reject) => {
-    scryptCb(password, salt, keylen, options, (err, derived) =>
-      err ? reject(err) : resolve(derived),
-    );
+    scryptCb(password, salt, keylen, options, (err, derived) => (err ? reject(err) : resolve(derived)));
   });
 }
 
@@ -73,23 +64,16 @@ export interface PasswordHasher {
 
 /** Build a PasswordHasher over the SESSION_SECRET pepper, or a disabled hasher when no pepper is set. */
 export function createPasswordHasher(pepperSecret: string | null | undefined): PasswordHasher {
-  const secret =
-    pepperSecret !== null && pepperSecret !== undefined && pepperSecret.length > 0
-      ? pepperSecret
-      : null;
+  const secret = pepperSecret !== null && pepperSecret !== undefined && pepperSecret.length > 0 ? pepperSecret : null;
 
   // HMAC the cleartext with the pepper before scrypt, so a stolen DB alone can't brute-force offline.
   function pepper(plain: string): Buffer {
     if (secret === null) {
       throw new Error(
-        "SESSION_SECRET is not configured but is required for password hashing/verification " +
-          "(AUTH_MODE=local). Set SESSION_SECRET in the deployment env.",
+        "SESSION_SECRET is not configured but is required for password hashing/verification (AUTH_MODE=local). Set SESSION_SECRET in the deployment env.",
       );
     }
-    return Buffer.from(
-      createHmac(HMAC_ALGORITHM, secret).update(plain.normalize()).digest("base64"),
-      "utf8",
-    );
+    return Buffer.from(createHmac(HMAC_ALGORITHM, secret).update(plain.normalize()).digest("base64"), "utf8");
   }
 
   return {

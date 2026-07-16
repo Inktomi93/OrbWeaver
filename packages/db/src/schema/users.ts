@@ -61,9 +61,7 @@ export const users = sqliteTable(
   (table) => [
     uniqueIndex("users_handle_unique").on(table.handle),
     // UNIQUE-when-set: SQLite's UNIQUE ignores NULL rows, so multiple null-externalId users coexist.
-    uniqueIndex("users_external_id_unique")
-      .on(table.externalId)
-      .where(sql`${table.externalId} is not null`),
+    uniqueIndex("users_external_id_unique").on(table.externalId).where(sql`${table.externalId} is not null`),
     // D17/D40 "exactly one owner" enforcer: a partial unique index over `role` scoped to owner rows makes a
     // SECOND `role='owner'` row unrepresentable (the invariant `Principal`/D17 assert but nothing enforced —
     // D40 tracked it "open, needs its enforcer"). SQLite ignores non-owner rows (the WHERE), so admin/user
@@ -76,12 +74,7 @@ export const users = sqliteTable(
     // The structural no-login core (agent-principal-design/01 §1/§3.1): an agent is loginless (no
     // `password_hash` to verify), unlinkable-by-SSO (no `external_id` can ever match), unprivileged
     // (`role='user'` — never satisfies requireAdmin/requireOwner), and owned. Unrepresentable, not just refused.
-    check(
-      "users_agent_shape",
-      sql.raw(
-        "kind <> 'agent' OR (role = 'user' AND password_hash IS NULL AND external_id IS NULL AND owner_user_id IS NOT NULL)",
-      ),
-    ),
+    check("users_agent_shape", sql.raw("kind <> 'agent' OR (role = 'user' AND password_hash IS NULL AND external_id IS NULL AND owner_user_id IS NOT NULL)")),
     // A human never carries an owner link — the kind axis is coherent both ways.
     check("users_human_shape", sql.raw("kind <> 'human' OR owner_user_id IS NULL")),
   ],

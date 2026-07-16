@@ -50,10 +50,7 @@ test("MenuArrow renders inside the popup when the menu opens", async ({ mount, p
   await expect(page.locator('[data-slot="menu-arrow"]')).toBeVisible();
 });
 
-test("arrow keys move the highlight and Enter selects (closing the menu)", async ({
-  mount,
-  page,
-}) => {
+test("arrow keys move the highlight and Enter selects (closing the menu)", async ({ mount, page }) => {
   await mount(
     <Menu>
       <MenuTrigger>Actions</MenuTrigger>
@@ -83,10 +80,7 @@ test("arrow keys move the highlight and Enter selects (closing the menu)", async
   await expect(page.getByRole("menu")).toBeHidden();
 });
 
-test("menu items animate the highlight color swap (motion guide §4.2 #9)", async ({
-  mount,
-  page,
-}) => {
+test("menu items animate the highlight color swap (motion guide §4.2 #9)", async ({ mount, page }) => {
   await mount(
     <Menu>
       <MenuTrigger>Actions</MenuTrigger>
@@ -123,10 +117,7 @@ test("Escape closes the menu without selecting", async ({ mount, page }) => {
   await expect(page.getByRole("menu")).toBeHidden();
 });
 
-test("a checkbox item toggles aria-checked and shows the native indicator", async ({
-  mount,
-  page,
-}) => {
+test("a checkbox item toggles aria-checked and shows the native indicator", async ({ mount, page }) => {
   await mount(
     <Menu>
       <MenuTrigger>View</MenuTrigger>
@@ -249,10 +240,7 @@ test("a link item renders an anchor with its href", async ({ mount, page }) => {
   expect(tagName).toBe("A");
 });
 
-test("the backdrop appears while the menu is open and hides when it closes", async ({
-  mount,
-  page,
-}) => {
+test("the backdrop appears while the menu is open and hides when it closes", async ({ mount, page }) => {
   await mount(
     <Menu>
       <MenuTrigger>Actions</MenuTrigger>

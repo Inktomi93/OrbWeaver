@@ -51,25 +51,11 @@ export interface MenuPopupProps extends Omit<BasePopupProps, "className"> {
 
 /** The menu surface — bundles Portal → Positioner → Popup so the anatomy can't be mis-assembled. */
 export function MenuPopup(props: MenuPopupProps): ReactElement {
-  const {
-    className,
-    children,
-    side,
-    align = "start",
-    sideOffset = DEFAULT_SIDE_OFFSET,
-    container,
-    ...rest
-  } = props;
+  const { className, children, side, align = "start", sideOffset = DEFAULT_SIDE_OFFSET, container, ...rest } = props;
   const portalContainer = usePortalContainer();
   return (
     <BaseMenu.Portal container={container ?? portalContainer}>
-      <BaseMenu.Positioner
-        align={align}
-        className={slots.positioner()}
-        data-slot="menu-positioner"
-        side={side}
-        sideOffset={sideOffset}
-      >
+      <BaseMenu.Positioner align={align} className={slots.positioner()} data-slot="menu-positioner" side={side} sideOffset={sideOffset}>
         <BaseMenu.Popup className={slots.popup({ className })} data-slot="menu-popup" {...rest}>
           {children}
         </BaseMenu.Popup>
@@ -98,8 +84,7 @@ export function MenuItem(props: MenuItemProps): ReactElement {
   return <BaseMenu.Item className={slots.item({ className })} data-slot="menu-item" {...rest} />;
 }
 
-export interface MenuSeparatorProps
-  extends Omit<ComponentProps<typeof BaseMenu.Separator>, "className"> {
+export interface MenuSeparatorProps extends Omit<ComponentProps<typeof BaseMenu.Separator>, "className"> {
   className?: string;
 }
 
@@ -141,11 +126,7 @@ export interface MenuCheckboxItemProps extends Omit<BaseCheckboxItemProps, "clas
 export function MenuCheckboxItem(props: MenuCheckboxItemProps): ReactElement {
   const { className, children, ...rest } = props;
   return (
-    <BaseMenu.CheckboxItem
-      className={slots.checkboxItem({ className })}
-      data-slot="menu-checkbox-item"
-      {...rest}
-    >
+    <BaseMenu.CheckboxItem className={slots.checkboxItem({ className })} data-slot="menu-checkbox-item" {...rest}>
       <BaseMenu.CheckboxItemIndicator className={slots.itemIndicator()}>
         <Icon icon={Check} size="sm" />
       </BaseMenu.CheckboxItemIndicator>
@@ -170,11 +151,7 @@ export interface MenuRadioItemProps extends Omit<BaseRadioItemProps, "className"
 export function MenuRadioItem(props: MenuRadioItemProps): ReactElement {
   const { className, children, ...rest } = props;
   return (
-    <BaseMenu.RadioItem
-      className={slots.radioItem({ className })}
-      data-slot="menu-radio-item"
-      {...rest}
-    >
+    <BaseMenu.RadioItem className={slots.radioItem({ className })} data-slot="menu-radio-item" {...rest}>
       <BaseMenu.RadioItemIndicator className={slots.itemIndicator()}>
         <Icon icon={Check} size="sm" />
       </BaseMenu.RadioItemIndicator>
@@ -196,11 +173,7 @@ export interface MenuSubmenuTriggerProps extends Omit<BaseSubmenuTriggerProps, "
 export function MenuSubmenuTrigger(props: MenuSubmenuTriggerProps): ReactElement {
   const { className, children, ...rest } = props;
   return (
-    <BaseMenu.SubmenuTrigger
-      className={slots.submenuTrigger({ className })}
-      data-slot="menu-submenu-trigger"
-      {...rest}
-    >
+    <BaseMenu.SubmenuTrigger className={slots.submenuTrigger({ className })} data-slot="menu-submenu-trigger" {...rest}>
       {children}
       <Icon className={slots.itemIndicator()} icon={ChevronRight} size="sm" />
     </BaseMenu.SubmenuTrigger>
@@ -214,13 +187,7 @@ export interface MenuLinkItemProps extends Omit<BaseLinkItemProps, "className"> 
 /** A navigating menu item — renders an `<a>` with `href`. Default `closeOnClick` is `false`. */
 export function MenuLinkItem(props: MenuLinkItemProps): ReactElement {
   const { className, ...rest } = props;
-  return (
-    <BaseMenu.LinkItem
-      className={slots.linkItem({ className })}
-      data-slot="menu-link-item"
-      {...rest}
-    />
-  );
+  return <BaseMenu.LinkItem className={slots.linkItem({ className })} data-slot="menu-link-item" {...rest} />;
 }
 
 export interface MenuBackdropProps extends Omit<BaseBackdropProps, "className"> {
@@ -230,11 +197,5 @@ export interface MenuBackdropProps extends Omit<BaseBackdropProps, "className"> 
 /** An optional dimming overlay for a modal menu; render as a direct child of `<Menu>`. */
 export function MenuBackdrop(props: MenuBackdropProps): ReactElement {
   const { className, ...rest } = props;
-  return (
-    <BaseMenu.Backdrop
-      className={slots.backdrop({ className })}
-      data-slot="menu-backdrop"
-      {...rest}
-    />
-  );
+  return <BaseMenu.Backdrop className={slots.backdrop({ className })} data-slot="menu-backdrop" {...rest} />;
 }

@@ -43,16 +43,7 @@ export const EYES = ["●", "•", "◉", "✦", "°", "×"] as const;
 export type Eye = (typeof EYES)[number];
 export const eyeSchema = z.enum(EYES);
 
-export const HATS = [
-  "none",
-  "crown",
-  "tophat",
-  "antenna",
-  "halo",
-  "wizard",
-  "beanie",
-  "bow",
-] as const;
+export const HATS = ["none", "crown", "tophat", "antenna", "halo", "wizard", "beanie", "bow"] as const;
 export type Hat = (typeof HATS)[number];
 export const hatSchema = z.enum(HATS);
 
@@ -66,25 +57,11 @@ export const statNameSchema = z.enum(STAT_NAMES);
 export const STAT_MIN = 1;
 export const STAT_MAX = 100;
 /** Exhaustive over `StatName` (zod 4 `z.record` of an enum key → full, non-partial `Record`). */
-export const companionStatsSchema = z.record(
-  statNameSchema,
-  z.number().int().min(STAT_MIN).max(STAT_MAX),
-);
+export const companionStatsSchema = z.record(statNameSchema, z.number().int().min(STAT_MIN).max(STAT_MAX));
 export type CompanionStats = z.infer<typeof companionStatsSchema>;
 
 // The reactor (domain) maps each signal to one of these moods and resolves conflicts by `MOOD_PRIORITY`.
-export const MOODS = [
-  "content",
-  "working",
-  "queasy",
-  "excited",
-  "sleepy",
-  "proud",
-  "anxious",
-  "playful",
-  "curious",
-  "grumpy",
-] as const;
+export const MOODS = ["content", "working", "queasy", "excited", "sleepy", "proud", "anxious", "playful", "curious", "grumpy"] as const;
 export type Mood = (typeof MOODS)[number];
 export const moodSchema = z.enum(MOODS);
 

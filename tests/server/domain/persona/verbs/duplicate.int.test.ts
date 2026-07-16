@@ -57,9 +57,7 @@ describe("duplicate", () => {
       input: { name: "Theirs", description: "d" },
     });
 
-    await expect(
-      svc.duplicate({ principal: principal(owner), personaId: foreign.id }),
-    ).rejects.toBeInstanceOf(PersonaNotFoundError);
+    await expect(svc.duplicate({ principal: principal(owner), personaId: foreign.id })).rejects.toBeInstanceOf(PersonaNotFoundError);
 
     const rows = await db.select().from(personas).where(eq(personas.ownerId, owner));
     expect(rows).toHaveLength(0);

@@ -28,20 +28,10 @@ import { join } from "node:path";
 import type { Principal } from "@orb/contracts/identity";
 import type { AssetId, UserId } from "@orb/kit/ids";
 import type { BulkImportChats } from "#domain/chat";
-import type {
-  CollectedCard,
-  CollectedPersona,
-  ImportFsPort,
-  ImportPersonaInput,
-} from "#domain/import";
+import type { CollectedCard, CollectedPersona, ImportFsPort, ImportPersonaInput } from "#domain/import";
 import { collectBundlesFromDir, createImportService, importFileHash } from "#domain/import";
 import type { BulkImportPersonas } from "#domain/persona";
-import type {
-  ImportAssetPort,
-  ImportCharacterPort,
-  ImportTagPort,
-  ImportWorldInfoPort,
-} from "./build-import-context";
+import type { ImportAssetPort, ImportCharacterPort, ImportTagPort, ImportWorldInfoPort } from "./build-import-context";
 import { buildImportContext } from "./build-import-context";
 
 const AVATAR_MIME = "image/png";
@@ -103,11 +93,7 @@ async function collectProfileRoot(deps: ProfileDirImportDeps): Promise<Collected
     const result = await collectBundlesFromDir(fs, fs.join(profileRoot, ent.name));
     bundles.push(...result.bundles);
     personas.push(...result.personas);
-    skipped +=
-      result.unreadableCards.length +
-      result.skippedChats.length +
-      result.skippedCharacters.length +
-      result.orphanChatDirs.length;
+    skipped += result.unreadableCards.length + result.skippedChats.length + result.skippedCharacters.length + result.orphanChatDirs.length;
   }
   return { bundles, personas, skipped };
 }
@@ -124,10 +110,7 @@ function tallyScanned(collected: Collected): number {
 /** dryRun prediction: a card writes iff neither the byte-identical importHash oracle nor the handle oracle
  *  matches (a create). Both lookups are reads — zero writes. Personas/chats can't be predicted without their
  *  write op, so they are examined (counted in scanned) but never in the dryRun `changed`. */
-async function countWouldCreate(
-  deps: ProfileDirImportDeps,
-  bundles: readonly CollectedCard[],
-): Promise<number> {
+async function countWouldCreate(deps: ProfileDirImportDeps, bundles: readonly CollectedCard[]): Promise<number> {
   const ownerId = deps.principal.userId;
   let changed = 0;
   for (const b of bundles) {
@@ -140,7 +123,6 @@ async function countWouldCreate(
     if (byHash !== null) {
       continue;
     }
-    // biome-ignore lint/performance/noAwaitInLoops: see above — sequential per-bundle handle probe.
     const byHandle = await deps.character.findByHandle({ ownerId, handle: b.handle });
     if (byHandle === null) {
       changed += 1;
@@ -150,11 +132,7 @@ async function countWouldCreate(
 }
 
 /** Store one persona's avatar (PD-94-capped) and pair it into the canonical persona-import input. */
-async function toPersonaInput(
-  store: ImportAssetPort["store"],
-  principal: Principal,
-  p: CollectedPersona,
-): Promise<ImportPersonaInput> {
+async function toPersonaInput(store: ImportAssetPort["store"], principal: Principal, p: CollectedPersona): Promise<ImportPersonaInput> {
   let avatarAssetId: AssetId | null = null;
   if (p.avatarBytes !== undefined) {
     const stored = await store({
@@ -173,9 +151,7 @@ async function toPersonaInput(
  * Import a staged ST profile-directory snapshot into the target owner. Returns the maintenance-pass counts
  * (scanned + changed). `dryRun` collects + matches with ZERO writes.
  */
-export async function runProfileDirImport(
-  deps: ProfileDirImportDeps,
-): Promise<ProfileDirImportResult> {
+export async function runProfileDirImport(deps: ProfileDirImportDeps): Promise<ProfileDirImportResult> {
   const collected = await collectProfileRoot(deps);
   const scanned = tallyScanned(collected);
 
@@ -184,8 +160,7 @@ export async function runProfileDirImport(
   }
 
   // The card avatar is CAS-stored inside importCharacter via ctx.storeAsset → this capped store (PD-94).
-  const store: ImportAssetPort["store"] = (params) =>
-    deps.storeAvatar({ ...params, maxBytes: PROFILE_IMPORT_MAX_ASSET_BYTES });
+  const store: ImportAssetPort["store"] = (params) => deps.storeAvatar({ ...params, maxBytes: PROFILE_IMPORT_MAX_ASSET_BYTES });
   const ctx = buildImportContext({
     principal: deps.principal,
     character: deps.character,
@@ -231,7 +206,6 @@ export async function runProfileDirImport(
       changed += 1;
     }
     if (bundle.chats.length > 0) {
-      // biome-ignore lint/performance/noAwaitInLoops: chats import sequentially after their card lands (the card must exist first).
       const chatResult = await service.importChats({
         characterId: cardResult.characterId,
         chats: bundle.chats,

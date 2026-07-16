@@ -68,25 +68,17 @@ const SHIPPED_SRC = [UI_SRC, CLIENT_SRC];
 // The typed exported-API packages governed by the Documentation-Law doc-comment gates
 // (tsdoc/syntax + no-deprecated). server/kit/db/contracts — where the contract surface + its TSDoc
 // live; ui/client run their own react-surface gates above. `.ts` only (no `.tsx` in these packages).
-const TSDOC_SURFACE = [
-  "packages/server/src/**/*.ts",
-  "packages/kit/src/**/*.ts",
-  "packages/db/src/**/*.ts",
-  "packages/contracts/src/**/*.ts",
-];
+const TSDOC_SURFACE = ["packages/server/src/**/*.ts", "packages/kit/src/**/*.ts", "packages/db/src/**/*.ts", "packages/contracts/src/**/*.ts"];
 
 // Reused restricted-syntax selectors. ESLint flat-config REPLACES `no-restricted-syntax` per matching
 // file (it does NOT merge across config objects), so any block that wins for a file must re-list every
 // selector that should apply there — hence these are shared consts, not inline.
 const NO_STORE_STATICS = {
-  selector:
-    "CallExpression[callee.object.name=/^use.*Store$/][callee.property.name=/^(setState|getState)$/]",
-  message:
-    "Don't reach into a zustand store's static setState/getState from outside state/. Define an action in the store file and call that.",
+  selector: "CallExpression[callee.object.name=/^use.*Store$/][callee.property.name=/^(setState|getState)$/]",
+  message: "Don't reach into a zustand store's static setState/getState from outside state/. Define an action in the store file and call that.",
 };
 // COMPOSE-ONLY KEYSTONE — a feature ASSEMBLES @orb/ui primitives + the layout kit; it never PAINTS.
 // No className/style on a raw intrinsic (lowercase-tag) element. The kit is the only painter (§1.1/§4).
-// biome-ignore lint/security/noSecrets: esquery AST selector fragment, not a secret.
 const INTRINSIC_EL = "JSXOpeningElement[name.type='JSXIdentifier'][name.name=/^[a-z]/]";
 const NO_CLASSNAME_ON_INTRINSIC = {
   selector: `${INTRINSIC_EL} > JSXAttribute[name.name='className']`,
@@ -95,8 +87,7 @@ const NO_CLASSNAME_ON_INTRINSIC = {
 };
 const NO_STYLE_ON_INTRINSIC = {
   selector: `${INTRINSIC_EL} > JSXAttribute[name.name='style']`,
-  message:
-    "No inline style on a raw HTML element in a feature — styling lives in @orb/ui, tokens only (UI-Arch §1.1).",
+  message: "No inline style on a raw HTML element in a feature — styling lives in @orb/ui, tokens only (UI-Arch §1.1).",
 };
 
 export default tseslint.config(
@@ -192,15 +183,14 @@ export default tseslint.config(
       // A Promise where a void/boolean is expected. `checksVoidReturn.attributes: false` is load-bearing:
       // without it this nags idiomatic `onClick={async …}` (TanStack `mutateAsync`) JSX handlers — forward-
       // necessary once chat wires those, kept even though the current tree has zero such sites.
-      "@typescript-eslint/no-misused-promises": [
-        "error",
-        { checksVoidReturn: { attributes: false } },
-      ],
+      "@typescript-eslint/no-misused-promises": ["error", { checksVoidReturn: { attributes: false } }],
       // An `async` fn with no `await` is a mis-signaled sync fn (a caller may skip awaiting it). 0 FP today.
       "@typescript-eslint/require-await": "error",
-      // `await`-ing a non-Thenable is a no-op that reads like it blocks — a type-honesty catch. 0 FP today
-      // (the db-layer `AwaitableBatchStmt<T>` seam fix cleared the 3 `BatchStmt` bare-await hits).
       "@typescript-eslint/await-thenable": "error",
+      "@typescript-eslint/switch-exhaustiveness-check": "error",
+      "@typescript-eslint/strict-boolean-expressions": "error",
+      "@typescript-eslint/restrict-template-expressions": "error",
+      "@typescript-eslint/no-unnecessary-condition": "error",
     },
   },
   {
@@ -390,12 +380,7 @@ export default tseslint.config(
       "**/*.test.{ts,tsx}",
     ],
     rules: {
-      "no-restricted-syntax": [
-        "error",
-        NO_STORE_STATICS,
-        NO_CLASSNAME_ON_INTRINSIC,
-        NO_STYLE_ON_INTRINSIC,
-      ],
+      "no-restricted-syntax": ["error", NO_STORE_STATICS, NO_CLASSNAME_ON_INTRINSIC, NO_STYLE_ON_INTRINSIC],
     },
   },
 );

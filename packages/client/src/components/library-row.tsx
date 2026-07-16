@@ -37,14 +37,7 @@ export interface LibraryRowProps {
 }
 
 /** One entity-library row: leading marker · title/subtitle · Rename/Duplicate/Delete menu. */
-export function LibraryRow({
-  title,
-  subtitle,
-  selected,
-  onSelect,
-  leading,
-  actions,
-}: LibraryRowProps): ReactElement {
+export function LibraryRow({ title, subtitle, selected, onSelect, leading, actions }: LibraryRowProps): ReactElement {
   return (
     <ListRow
       clickable={true}
@@ -58,13 +51,7 @@ export function LibraryRow({
   );
 }
 
-function LibraryRowActionsMenu({
-  name,
-  onRename,
-  onDuplicate,
-  onDelete,
-  deleteDescription,
-}: LibraryRowActions): ReactElement {
+function LibraryRowActionsMenu({ name, onRename, onDuplicate, onDelete, deleteDescription }: LibraryRowActions): ReactElement {
   return (
     <RowActionsMenu
       label={`Actions for ${name}`}

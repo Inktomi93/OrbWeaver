@@ -8,14 +8,7 @@
 
 import type { BulkImportChatInput, BulkImportChatsResult } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
-import {
-  characters,
-  chatParticipants,
-  chats,
-  messageAssets,
-  messages,
-  messageVariants,
-} from "@orb/db";
+import { characters, chatParticipants, chats, messageAssets, messages, messageVariants } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany, batchStmt } from "@orb/db/kit";
 import { tokenizeContent } from "@orb/kit/content";
@@ -27,6 +20,7 @@ import type { BulkImportChats, ChatImportContext } from "../contract/import";
 
 /** The distinct inline `asset:<id>` refs in a message's content, across all its variants. */
 function assetRefsInMessage(message: BulkImportChatInput["messages"][number]): AssetId[] {
+  // @orb-gate-ignore persistence-no-in-memory-state: query-local dedup Set for asset refs in a message
   const ids = new Set<string>();
   for (const v of message.variants) {
     for (const span of tokenizeContent(v.content)) {
@@ -45,11 +39,7 @@ interface PendingParent {
 }
 
 /** Ownership gate: the target character must be the caller's (leak-free `DomainNotFoundError`). */
-async function assertOwnedCharacter(
-  db: Db,
-  ownerId: UserId,
-  characterId: CharacterId,
-): Promise<void> {
+async function assertOwnedCharacter(db: Db, ownerId: UserId, characterId: CharacterId): Promise<void> {
   const owned = await db
     .select({ id: characters.id })
     .from(characters)
@@ -61,11 +51,7 @@ async function assertOwnedCharacter(
 }
 
 /** Pre-fetch the `importHash`es this character already has, scoped through the character-seat junction. */
-async function loadExistingHashes(
-  db: Db,
-  characterId: CharacterId,
-  hashes: readonly string[],
-): Promise<Record<string, true>> {
+async function loadExistingHashes(db: Db, characterId: CharacterId, hashes: readonly string[]): Promise<Record<string, true>> {
   const seen: Record<string, true> = {};
   if (hashes.length === 0) {
     return seen;
@@ -74,9 +60,7 @@ async function loadExistingHashes(
     .select({ importHash: chats.importHash })
     .from(chats)
     .innerJoin(chatParticipants, eq(chatParticipants.chatId, chats.id))
-    .where(
-      and(eq(chatParticipants.characterId, characterId), inArray(chats.importHash, [...hashes])),
-    );
+    .where(and(eq(chatParticipants.characterId, characterId), inArray(chats.importHash, [...hashes])));
   for (const r of rows) {
     if (r.importHash !== null) {
       seen[r.importHash] = true;
@@ -178,9 +162,7 @@ function messageStatements(args: MessageStatementsArgs): {
       ),
     );
   }
-  stmts.push(
-    batchStmt(db.update(messages).set({ selectedVariantId }).where(eq(messages.id, messageId))),
-  );
+  stmts.push(batchStmt(db.update(messages).set({ selectedVariantId }).where(eq(messages.id, messageId))));
   // Re-create the message_assets retaining row for each inline attachment that exists on the target box.
   for (const assetId of assetRefsInMessage(message)) {
     if (args.existingAssetIds.includes(assetId)) {
@@ -205,11 +187,7 @@ function commitChatBatch(db: Db, stmts: readonly BatchStmt[]): Promise<unknown> 
 }
 
 /** Resolve `parentRef` (a parent filename) → the parent chat's id, across all of this character's chats. */
-async function resolveBranches(
-  db: Db,
-  characterId: CharacterId,
-  pending: readonly PendingParent[],
-): Promise<number> {
+async function resolveBranches(db: Db, characterId: CharacterId, pending: readonly PendingParent[]): Promise<number> {
   if (pending.length === 0) {
     return 0;
   }
@@ -218,11 +196,10 @@ async function resolveBranches(
     .from(chats)
     .innerJoin(chatParticipants, eq(chatParticipants.chatId, chats.id))
     .where(eq(chatParticipants.characterId, characterId));
+  // @orb-gate-ignore persistence-no-in-memory-state: query-local dedup Map for import-from linkage
   const byFile = new Map<string, ChatId>();
   const candidates = all
-    .filter(
-      (c): c is { id: ChatId; importedFrom: string; createdAt: number } => c.importedFrom !== null,
-    )
+    .filter((c): c is { id: ChatId; importedFrom: string; createdAt: number } => c.importedFrom !== null)
     .sort((a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id));
   for (const c of candidates) {
     byFile.set(c.importedFrom, c.id);
@@ -231,14 +208,7 @@ async function resolveBranches(
   for (const p of pending) {
     const parentId = byFile.get(p.parentRef);
     if (parentId !== undefined && parentId !== p.chatId) {
-      linkStmts.push(
-        batchStmt(
-          db
-            .update(chats)
-            .set({ parentChatId: parentId, forkedAt: p.forkedAt })
-            .where(eq(chats.id, p.chatId)),
-        ),
-      );
+      linkStmts.push(batchStmt(db.update(chats).set({ parentChatId: parentId, forkedAt: p.forkedAt }).where(eq(chats.id, p.chatId))));
     }
   }
   if (linkStmts.length > 0) {
@@ -268,10 +238,7 @@ function chatHeaderStmts({ ctx, chatId, ci, ownerId, characterId }: OneChatArgs)
         anchorPersonaId: ci.anchorPersonaId,
         importedFrom: ci.importedFrom,
         importHash: ci.importHash,
-        metadata:
-          ci.authorsNote !== null
-            ? { roomOverrides: { authorsNote: { prompt: ci.authorsNote } } }
-            : null,
+        metadata: ci.authorsNote !== null ? { roomOverrides: { authorsNote: { prompt: ci.authorsNote } } } : null,
         createdAt: ci.createdAt,
         updatedAt: ci.updatedAt,
       }),
@@ -344,10 +311,7 @@ export function createBulkImportChats(ctx: ChatImportContext): BulkImportChats {
 
       const chatId = ctx.newChatId();
       // biome-ignore lint/performance/noAwaitInLoops: one bounded existence read per imported chat (the same per-chat granularity as the atomic commit below); a foreign asset would fail-closed the whole chat batch otherwise.
-      const existingAssetIds = await ctx.filterExistingAssetIds(
-        ownerId,
-        ci.messages.flatMap(assetRefsInMessage),
-      );
+      const existingAssetIds = await ctx.filterExistingAssetIds(ownerId, ci.messages.flatMap(assetRefsInMessage));
       const { stmts, messageCount, variantCount } = buildChatStatements({
         ctx,
         chatId,
@@ -360,7 +324,6 @@ export function createBulkImportChats(ctx: ChatImportContext): BulkImportChats {
         pendingParents.push({ chatId, parentRef: ci.parentRef, forkedAt: ci.createdAt });
       }
 
-      // biome-ignore lint/performance/noAwaitInLoops: the chat is the unit of import atomicity — one atomic db.batch per chat bounds memory on big corpora (the resumable importHash dedup heals a partial run).
       await commitChatBatch(db, stmts);
       chatsImported += 1;
       messagesImported += messageCount;

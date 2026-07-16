@@ -51,9 +51,7 @@ function declPlaceholder(decl: {
     return;
   }
   const placeholder = prop.getInitializer();
-  return placeholder !== undefined && Node.isObjectLiteralExpression(placeholder)
-    ? placeholder
-    : undefined;
+  return placeholder !== undefined && Node.isObjectLiteralExpression(placeholder) ? placeholder : undefined;
 }
 
 /** The one `<x>Section: SectionDefinition<...>` declaration's `placeholder` object literal, per section

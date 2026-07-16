@@ -62,12 +62,8 @@ describe("updateUserSettingsSection", () => {
         input: { section: "memory", patch: { enabled: false } },
       }),
     ]);
-    expect(
-      (await h.svc.getUserSettings({ principal: principal(a, "user") })).config.memory.enabled,
-    ).toBe(true);
-    expect(
-      (await h.svc.getUserSettings({ principal: principal(b, "user") })).config.memory.enabled,
-    ).toBe(false);
+    expect((await h.svc.getUserSettings({ principal: principal(a, "user") })).config.memory.enabled).toBe(true);
+    expect((await h.svc.getUserSettings({ principal: principal(b, "user") })).config.memory.enabled).toBe(false);
   });
 
   test("the appearance section patches + deep-merges (D44 §12.1 display prefs round-trip)", async () => {
@@ -97,9 +93,7 @@ describe("updateUserSettingsSection", () => {
     const h = makeHarness(db);
     const u = await seedUser(db, { id: "user_elevation" });
     const p = principal(u, "user");
-    expect((await h.svc.getUserSettings({ principal: p })).config.appearance.elevation).toBe(
-      "flat",
-    );
+    expect((await h.svc.getUserSettings({ principal: p })).config.appearance.elevation).toBe("flat");
     await h.svc.updateUserSettingsSection({
       principal: p,
       input: { section: "appearance", patch: { elevation: "ramp" } },

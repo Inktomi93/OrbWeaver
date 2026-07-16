@@ -20,7 +20,6 @@ import { formatCompact, formatDurationMs } from "../lib/analytics-view-model";
 // `leaderboard.sort` input validates against. Labels are the client-facing names.
 const SORT_OPTIONS = [
   { id: "assistantTurns", label: "Replies" },
-  // biome-ignore lint/security/noSecrets: a leaderboard sort-key literal mirroring the wire enum, not a secret (high-entropy false positive — the domain/stats/params.ts precedent).
   { id: "totalGenTimeMs", label: "Gen time" },
   { id: "swipes", label: "Swipes" },
   { id: "lastActivityAt", label: "Recent" },
@@ -37,13 +36,7 @@ export function AnalyticsListSurface(): ReactElement {
   const [sort, setSort] = useState<SortId>(DEFAULT_SORT);
 
   return (
-    <Stack
-      ref={surfaceRef}
-      tabIndex={-1}
-      className="h-full min-h-0 outline-none"
-      data-testid={testId("analyticsListSurface")}
-      gap="block"
-    >
+    <Stack ref={surfaceRef} tabIndex={-1} className="h-full min-h-0 outline-none" data-testid={testId("analyticsListSurface")} gap="block">
       <Text size="micro" weight="semibold" tone="muted" transform="caps">
         Leaderboard
       </Text>
@@ -62,9 +55,7 @@ export function AnalyticsListSurface(): ReactElement {
       <Stack className="min-h-0 flex-1">
         <QueryBoundary
           fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />}
-          renderError={(_error, retry): ReactElement => (
-            <QueryErrorState label="the leaderboard" onRetry={retry} />
-          )}
+          renderError={(_error, retry): ReactElement => <QueryErrorState label="the leaderboard" onRetry={retry} />}
         >
           <LeaderboardRows sort={sort} />
         </QueryBoundary>

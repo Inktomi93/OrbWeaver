@@ -15,9 +15,7 @@ import { routeTrpc } from "../../../../support/ct/route-trpc";
 import { makeCharacterDetail, makeCharacterSummary } from "../../character/fixtures";
 import { DraftContextPanelStory } from "../_ct-stories";
 
-test("a draft's CONTEXT panel renders the editable Overrides tab (host — autosaving)", async ({
-  mount,
-}) => {
+test("a draft's CONTEXT panel renders the editable Overrides tab (host — autosaving)", async ({ mount }) => {
   const component = await mount(<DraftContextPanelStory />);
 
   // The Overrides tab is present and active (no server read gated it).
@@ -36,9 +34,7 @@ test("a draft's CONTEXT panel renders the editable Overrides tab (host — autos
   );
 });
 
-test("editing a draft override field is accepted (the autosaving textarea is live)", async ({
-  mount,
-}) => {
+test("editing a draft override field is accepted (the autosaving textarea is live)", async ({ mount }) => {
   const component = await mount(<DraftContextPanelStory />);
 
   const scenario = component.getByRole("textbox", { name: "Scenario" });
@@ -46,9 +42,7 @@ test("editing a draft override field is accepted (the autosaving textarea is liv
   await expect(scenario).toHaveValue("A rooftop bar at midnight.");
 });
 
-test("a draft's Injections tab adds a LOCAL injection row (no network — the draft array grows)", async ({
-  mount,
-}) => {
+test("a draft's Injections tab adds a LOCAL injection row (no network — the draft array grows)", async ({ mount }) => {
   const component = await mount(<DraftContextPanelStory />);
 
   await component.getByRole("tab", { name: "Injections" }).click();
@@ -69,16 +63,10 @@ const BOLT_SUMMARY = makeCharacterSummary({ id: BOLT_ID, name: "Bolt" });
 const ARIA_DETAIL = makeCharacterDetail({ id: ARIA_ID, handle: ARIA_ID, name: "Aria" });
 const BOLT_DETAIL = makeCharacterDetail({ id: BOLT_ID, handle: BOLT_ID, name: "Bolt" });
 
-test("a draft with ≥2 cast shows Members + Group (hidden at cast<2) and the add-member popover", async ({
-  mount,
-  page,
-}) => {
+test("a draft with ≥2 cast shows Members + Group (hidden at cast<2) and the add-member popover", async ({ mount, page }) => {
   await routeTrpc(page, {
     "character.list": { items: [ARIA_SUMMARY, BOLT_SUMMARY], nextCursor: null },
-    "character.get": (input: unknown): unknown =>
-      (input as { readonly characterId: string }).characterId === ARIA_ID
-        ? ARIA_DETAIL
-        : BOLT_DETAIL,
+    "character.get": (input: unknown): unknown => ((input as { readonly characterId: string }).characterId === ARIA_ID ? ARIA_DETAIL : BOLT_DETAIL),
   });
 
   const component = await mount(<DraftContextPanelStory characterIds={[ARIA_ID, BOLT_ID]} />);

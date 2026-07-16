@@ -8,12 +8,7 @@
 import type { Principal, UserRole } from "@orb/contracts/identity";
 import type { RoleClients } from "@orb/contracts/role-clients";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
-import type {
-  WorkloadKind,
-  WorkloadMode,
-  WorkloadSource,
-  WorkloadStatus,
-} from "@orb/contracts/workloads";
+import type { WorkloadKind, WorkloadMode, WorkloadSource, WorkloadStatus } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import { workloads } from "@orb/db";
 import type { Handle, UserId, WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
@@ -21,11 +16,7 @@ import { castId } from "@orb/kit/ids";
 import { vi } from "vitest";
 import { isAdmin, requireOwner } from "../../../../packages/server/src/domain/admin/guard.ts";
 import type { WorkloadRunnerEnv } from "../../../../packages/server/src/domain/workloads/contract/runner-env.ts";
-import type {
-  WorkloadRunnerContext,
-  WorkloadRunnerDeps,
-  WorkloadService,
-} from "../../../../packages/server/src/domain/workloads/contract/service.ts";
+import type { WorkloadRunnerContext, WorkloadRunnerDeps, WorkloadService } from "../../../../packages/server/src/domain/workloads/contract/service.ts";
 import { createWorkloadService } from "../../../../packages/server/src/domain/workloads/service.ts";
 import type { Cas } from "../../../../packages/server/src/infra/storage/index.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
@@ -61,11 +52,7 @@ export function makeService(db: Db): WorkloadService {
 /** Insert a `users` row (the FK parent for an owner-scoped workload). Thin delegate over the canonical
  *  factory — workloads' call sites pass a bare-string `id` and want the id back, not the row. Defaults to
  *  role `user` (NOT `owner`) so a test can seed several rows without tripping the single-owner unique index. */
-export async function seedUser(
-  db: Db,
-  id = "user_owner",
-  role: UserRole = "user",
-): Promise<UserId> {
+export async function seedUser(db: Db, id = "user_owner", role: UserRole = "user"): Promise<UserId> {
   const uid = castId<UserId>(id);
   const seeded = await seedUserRow(db, { id: uid, handle: castId<Handle>(id), role });
   return seeded.id;
@@ -87,31 +74,23 @@ export function principal(id: string, role: UserRole = "user"): Principal {
  *  to assert behavior (failure/cancel) or read `.mock.calls`. `cas` is unused by any runner (cast).
  *  `overrides` is a deep partial-per-feature bundle, applied at construction — `WorkloadRunnerEnv`'s
  *  feature ops are readonly, so a test can no longer reassign `env.<feature>.<op>` after the fact. */
-export function fakeEnv(
-  overrides: { [K in keyof WorkloadRunnerEnv]?: Partial<WorkloadRunnerEnv[K]> } = {},
-): WorkloadRunnerEnv {
+export function fakeEnv(overrides: { [K in keyof WorkloadRunnerEnv]?: Partial<WorkloadRunnerEnv[K]> } = {}): WorkloadRunnerEnv {
   return {
     embeddings: {
-      embedCorpus: vi.fn(
-        async (_args: { ownerId: UserId | null; force: boolean; signal: AbortSignal }) => ({
-          embedded: 3,
-          skipped: 1,
-        }),
-      ),
-      embedAssets: vi.fn(
-        async (_args: { ownerId: UserId | null; force: boolean; signal: AbortSignal }) => ({
-          embedded: 2,
-          skipped: 0,
-        }),
-      ),
+      embedCorpus: vi.fn(async (_args: { ownerId: UserId | null; force: boolean; signal: AbortSignal }) => ({
+        embedded: 3,
+        skipped: 1,
+      })),
+      embedAssets: vi.fn(async (_args: { ownerId: UserId | null; force: boolean; signal: AbortSignal }) => ({
+        embedded: 2,
+        skipped: 0,
+      })),
     },
     discovery: {
-      computeThemes: vi.fn(
-        async (_args: { ownerId: UserId | null; k: number; signal: AbortSignal }) => ({
-          scanned: 10,
-          written: 5,
-        }),
-      ),
+      computeThemes: vi.fn(async (_args: { ownerId: UserId | null; k: number; signal: AbortSignal }) => ({
+        scanned: 10,
+        written: 5,
+      })),
       distillCharacters: vi.fn(async (_args: { ownerId: UserId | null; signal: AbortSignal }) => ({
         scanned: 8,
         written: 8,
@@ -130,27 +109,21 @@ export function fakeEnv(
       })),
     },
     import: {
-      importAll: vi.fn(
-        async (_args: { ownerId: UserId; dryRun: boolean; signal: AbortSignal }) => ({
-          scanned: 12,
-          changed: 4,
-        }),
-      ),
-      importBundle: vi.fn(
-        async (_args: { ownerId: UserId; token: string; signal: AbortSignal }) => ({
-          imported: 7,
-          skipped: 1,
-          failed: 0,
-        }),
-      ),
+      importAll: vi.fn(async (_args: { ownerId: UserId; dryRun: boolean; signal: AbortSignal }) => ({
+        scanned: 12,
+        changed: 4,
+      })),
+      importBundle: vi.fn(async (_args: { ownerId: UserId; token: string; signal: AbortSignal }) => ({
+        imported: 7,
+        skipped: 1,
+        failed: 0,
+      })),
     },
     assets: {
-      backfillAvatars: vi.fn(
-        async (_args: { ownerId: UserId | null; dryRun: boolean; signal: AbortSignal }) => ({
-          scanned: 20,
-          changed: 3,
-        }),
-      ),
+      backfillAvatars: vi.fn(async (_args: { ownerId: UserId | null; dryRun: boolean; signal: AbortSignal }) => ({
+        scanned: 20,
+        changed: 3,
+      })),
       collectGarbage: vi.fn(async (_args: { dryRun: boolean; signal: AbortSignal }) => ({
         scanned: 10,
         changed: 4,
@@ -181,22 +154,17 @@ export function fakeEnv(
       })),
     },
     character: {
-      backfillGroupCharacters: vi.fn(
-        async (_args: { ownerId: UserId | null; signal: AbortSignal }) => ({
-          scanned: 5,
-          changed: 1,
-        }),
-      ),
+      backfillGroupCharacters: vi.fn(async (_args: { ownerId: UserId | null; signal: AbortSignal }) => ({
+        scanned: 5,
+        changed: 1,
+      })),
     },
     cas: {} as Cas,
   };
 }
 
 /** A per-dispatch runner context over a fake env (the runner under test reads `ctx.env.<feature>.<op>`). */
-export function makeRunnerContext(
-  env: WorkloadRunnerEnv,
-  overrides: Partial<WorkloadRunnerContext> = {},
-): WorkloadRunnerContext {
+export function makeRunnerContext(env: WorkloadRunnerEnv, overrides: Partial<WorkloadRunnerContext> = {}): WorkloadRunnerContext {
   return {
     userId: RUNNER_OWNER_ID,
     // The enumeration scope a runner threads to its op (SINGULAR by default; a bulk test overrides to null).
@@ -211,11 +179,7 @@ export function makeRunnerContext(
 
 /** The base runner deps the engine builds a per-dispatch context from. Timers DISABLED (`*Ms: 0`) so the
  *  engine runs synchronously with no wall-clock poll (the deterministic test seam). */
-export function makeRunnerDeps(
-  db: Db,
-  env: WorkloadRunnerEnv,
-  overrides: Partial<WorkloadRunnerDeps> = {},
-): WorkloadRunnerDeps {
+export function makeRunnerDeps(db: Db, env: WorkloadRunnerEnv, overrides: Partial<WorkloadRunnerDeps> = {}): WorkloadRunnerDeps {
   return {
     db,
     env,

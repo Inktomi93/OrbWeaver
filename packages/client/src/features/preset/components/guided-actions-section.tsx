@@ -5,11 +5,7 @@
 // Default/Customized state · a missing-`{{input}}` lint.
 
 import type { GuidedActionKind, PromptConfig } from "@orb/contracts/preset";
-import {
-  DEFAULT_GUIDED_ACTIONS,
-  GUIDED_ACTION_KINDS,
-  GUIDED_IMPERSONATE_PERSONS,
-} from "@orb/contracts/preset";
+import { DEFAULT_GUIDED_ACTIONS, GUIDED_ACTION_KINDS, GUIDED_IMPERSONATE_PERSONS } from "@orb/contracts/preset";
 import type { MessageRole } from "@orb/kit/message-role";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
@@ -30,10 +26,7 @@ const INPUT_TOKEN = "{{input}}";
 const PERSON_TOKEN = "{{person}}";
 
 /** Human titles + one-line "fires on" copy per guided-action kind (registry-as-data over the tuple). */
-const GUIDED_ACTION_COPY: Record<
-  GuidedActionKind,
-  { readonly title: string; readonly fires: string }
-> = {
+const GUIDED_ACTION_COPY: Record<GuidedActionKind, { readonly title: string; readonly fires: string }> = {
   response: { title: "Response", fires: "You steer your next reply from the composer" },
   swipe: { title: "Swipe", fires: "You steer a re-roll of the last reply" },
   impersonate: { title: "Impersonate", fires: "The model writes as you for one turn" },
@@ -72,13 +65,10 @@ export function GuidedActionsSection({
     <Stack gap="block">
       <Row gap="row" align="start" justify="between">
         <Text size="micro" tone="muted">
-          When you steer a generation, the matching template wraps your text —{" "}
-          <code>{INPUT_TOKEN}</code> is where your steer lands.
+          When you steer a generation, the matching template wraps your text — <code>{INPUT_TOKEN}</code> is where your steer lands.
         </Text>
         <form.Subscribe selector={(state): MarkerHealth => markerHealth(state.values.sections)}>
-          {(health): ReactElement => (
-            <MarkerCrossLink health={health} form={form} onSelectSection={onSelectSection} />
-          )}
+          {(health): ReactElement => <MarkerCrossLink health={health} form={form} onSelectSection={onSelectSection} />}
         </form.Subscribe>
       </Row>
 
@@ -102,9 +92,7 @@ function MarkerCrossLink({
   readonly onSelectSection: (sectionId: string) => void;
 }): ReactElement {
   const onClick = (): void => {
-    const marker = form.state.values.sections.find(
-      (s) => s.type === "marker" && s.marker === "guided_instruction",
-    );
+    const marker = form.state.values.sections.find((s) => s.type === "marker" && s.marker === "guided_instruction");
     if (marker !== undefined) {
       onSelectSection(marker.id);
     }
@@ -123,13 +111,7 @@ function MarkerCrossLink({
 }
 
 /** One guided-action card — role Select + template MacroField, ghosting the default, with lint + state. */
-function GuidedActionCard({
-  form,
-  kind,
-}: {
-  readonly form: AssemblyForm;
-  readonly kind: GuidedActionKind;
-}): ReactElement {
+function GuidedActionCard({ form, kind }: { readonly form: AssemblyForm; readonly kind: GuidedActionKind }): ReactElement {
   const copy = GUIDED_ACTION_COPY[kind];
   const factoryDefault = DEFAULT_GUIDED_ACTIONS[kind].prompt;
 
@@ -155,46 +137,27 @@ function GuidedActionCard({
       </Text>
 
       <form.AppField name={`guidedActions.${kind}.role`}>
-        {(field): ReactElement => (
-          <field.SelectField label="Delivered as" items={MESSAGE_ROLE_ITEMS} />
-        )}
+        {(field): ReactElement => <field.SelectField label="Delivered as" items={MESSAGE_ROLE_ITEMS} />}
       </form.AppField>
 
       <form.AppField name={`guidedActions.${kind}.prompt`}>
-        {(field): ReactElement => (
-          <field.MacroField
-            label="Template"
-            suggestions={PRESET_PROMPT_MACROS}
-            placeholder={factoryDefault}
-            rows={3}
-          />
-        )}
+        {(field): ReactElement => <field.MacroField label="Template" suggestions={PRESET_PROMPT_MACROS} placeholder={factoryDefault} rows={3} />}
       </form.AppField>
 
       <form.Subscribe
         selector={(state): { prompt: string; role: MessageRole } => ({
-          prompt: state.values.guidedActions?.[kind]?.prompt ?? factoryDefault,
-          role: state.values.guidedActions?.[kind]?.role ?? "system",
+          prompt: state.values.guidedActions?.[kind].prompt ?? factoryDefault,
+          role: state.values.guidedActions?.[kind].role ?? "system",
         })}
       >
-        {({ prompt, role }): ReactElement => (
-          <CardFooter prompt={prompt} role={role} isDefault={prompt === factoryDefault} />
-        )}
+        {({ prompt, role }): ReactElement => <CardFooter prompt={prompt} role={role} isDefault={prompt === factoryDefault} />}
       </form.Subscribe>
     </Stack>
   );
 }
 
 /** The card footer — Default/Customized state, the missing-`{{input}}` lint, + the assistant-prefill note. */
-function CardFooter({
-  prompt,
-  role,
-  isDefault,
-}: {
-  readonly prompt: string;
-  readonly role: MessageRole;
-  readonly isDefault: boolean;
-}): ReactElement {
+function CardFooter({ prompt, role, isDefault }: { readonly prompt: string; readonly role: MessageRole; readonly isDefault: boolean }): ReactElement {
   return (
     <Stack gap="field">
       <Text size="micro" tone="muted">

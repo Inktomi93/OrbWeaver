@@ -27,9 +27,7 @@ export function TagsSettingsSurface(): ReactElement {
     <Stack ref={surfaceRef} tabIndex={-1} className="outline-none">
       <QueryBoundary
         fallback={<Text tone="muted">Loading your tags…</Text>}
-        renderError={(_error, retry): ReactElement => (
-          <QueryErrorState label="your tags" onRetry={retry} />
-        )}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label="your tags" onRetry={retry} />}
       >
         <TagsSettingsList />
       </QueryBoundary>
@@ -50,16 +48,10 @@ function TagsSettingsList(): ReactElement {
     <Section heading="Tags" divider={true} id={settingsAnchorId("tags", TAGS_SUBCATEGORY_IDS.tags)}>
       <Row gap="field" align="center" justify="between" className="flex-wrap">
         <Text size="micro" tone="muted">
-          Rename, recolor, reorder, merge, or delete the labels you tag characters, chats, world
-          books, personas, and presets with. Drag the handle to reorder.
+          Rename, recolor, reorder, merge, or delete the labels you tag characters, chats, world books, personas, and presets with. Drag the handle to reorder.
         </Text>
         <Row gap="field" align="center">
-          <Button
-            intent="secondary"
-            size="sm"
-            disabled={!hasUnused}
-            onClick={(): void => prune.mutate()}
-          >
+          <Button intent="secondary" size="sm" disabled={!hasUnused} onClick={(): void => prune.mutate()}>
             Prune unused
           </Button>
           <TagCreateButton trpc={trpc} />
@@ -67,25 +59,15 @@ function TagsSettingsList(): ReactElement {
       </Row>
 
       {tags.length === 0 ? (
-        <Text tone="muted">
-          You have no tags yet. Tag a character, chat, world book, persona, or preset and it shows
-          up here.
-        </Text>
+        <Text tone="muted">You have no tags yet. Tag a character, chat, world book, persona, or preset and it shows up here.</Text>
       ) : (
         <SortableList
           handle={true}
           items={tags}
           getItemKey={(tag: TagWithUsage): string => tag.id}
-          onReorder={(orderedKeys): void =>
-            setOrder.mutate({ orderedIds: orderedKeys.map((key) => key as TagId) })
-          }
+          onReorder={(orderedKeys): void => setOrder.mutate({ orderedIds: orderedKeys.map((key) => key as TagId) })}
           renderItem={(tag: TagWithUsage): ReactElement => (
-            <TagSettingsRow
-              invalidation={invalidation}
-              others={tags.filter((other) => other.id !== tag.id)}
-              tag={tag}
-              trpc={trpc}
-            />
+            <TagSettingsRow invalidation={invalidation} others={tags.filter((other) => other.id !== tag.id)} tag={tag} trpc={trpc} />
           )}
         />
       )}

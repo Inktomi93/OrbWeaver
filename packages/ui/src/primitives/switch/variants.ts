@@ -22,7 +22,6 @@ export const switchVariants = tv({
       "data-checked:translate-x-[calc(var(--spacing-switch-track)-var(--spacing-switch-thumb))] data-checked:bg-primary-foreground",
     ],
     // Hidden by default, shown only via data-readonly. Color inverts against whichever thumb bg is live.
-    readOnlyIcon:
-      "hidden text-background group-data-[readonly]:block group-data-[checked]:text-primary",
+    readOnlyIcon: "hidden text-background group-data-[readonly]:block group-data-[checked]:text-primary",
   },
 });

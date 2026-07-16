@@ -4,12 +4,7 @@
 // logger outside a request scope). `logProviderCache` is the W3 cache-rot receipt.
 
 import { logger } from "@orb/server/foundation/observability";
-import {
-  logProviderCache,
-  logProviderCapability,
-  logProviderSampling,
-  providerLog,
-} from "@orb/server/infra/providers/backends/kit";
+import { logProviderCache, logProviderCapability, logProviderSampling, providerLog } from "@orb/server/infra/providers/backends/kit";
 import { describe, vi } from "vitest";
 import { expect, test } from "../../../../../support/fixtures";
 
@@ -112,9 +107,7 @@ describe("logProviderCapability — the resolution line (part 05 §3c)", () => {
       turns: {},
       droppedWarnings: [],
     });
-    expect(
-      infoSpy.mock.calls.some((c) => (c[0] as { event?: string }).event === "provider.capability"),
-    ).toBe(false);
+    expect(infoSpy.mock.calls.some((c) => (c[0] as { event?: string }).event === "provider.capability")).toBe(false);
   });
 });
 
@@ -148,8 +141,6 @@ describe("logProviderSampling — which knobs survived (part 05 §3d)", () => {
       applied: {},
       dropped: [],
     });
-    expect(
-      infoSpy.mock.calls.some((c) => (c[0] as { event?: string }).event === "provider.sampling"),
-    ).toBe(false);
+    expect(infoSpy.mock.calls.some((c) => (c[0] as { event?: string }).event === "provider.sampling")).toBe(false);
   });
 });

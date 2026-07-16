@@ -19,12 +19,7 @@ import { QueryBoundary, QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { testId, useFocusOnMount } from "#lib";
 import { CorpusBrowseView } from "../components/corpus-browse-view";
 import { CorpusSearchResults } from "../components/corpus-search-results";
-import {
-  CORPUS_SEARCH_TARGETS,
-  CORPUS_SUGGEST_LIMIT,
-  CORPUS_TARGET_REST_HINTS,
-  resolveSearchTarget,
-} from "../lib/corpus-search-targets";
+import { CORPUS_SEARCH_TARGETS, CORPUS_SUGGEST_LIMIT, CORPUS_TARGET_REST_HINTS, resolveSearchTarget } from "../lib/corpus-search-targets";
 
 const DEFAULT_TARGET = CORPUS_SEARCH_TARGETS[0].id;
 const SKELETON_ROW_COUNT = 5;
@@ -39,13 +34,7 @@ export function CorpusListSurface(): ReactElement {
   const searching = deferredQuery.trim() !== "";
 
   return (
-    <Stack
-      ref={surfaceRef}
-      tabIndex={-1}
-      className="h-full min-h-0 outline-none"
-      data-testid={testId("corpusListSurface")}
-      gap="block"
-    >
+    <Stack ref={surfaceRef} tabIndex={-1} className="h-full min-h-0 outline-none" data-testid={testId("corpusListSurface")} gap="block">
       <Row align="center" justify="between">
         <Text size="micro" weight="semibold" tone="muted" transform="caps">
           Corpus
@@ -65,11 +54,7 @@ export function CorpusListSurface(): ReactElement {
       </ToggleGroup>
       <SearchOmnibox query={query} deferredQuery={deferredQuery} onQuery={setQuery} />
       <Stack className="min-h-0 flex-1">
-        {searching ? (
-          <CorpusSearchResults query={deferredQuery} targetId={targetId} />
-        ) : (
-          <CorpusRestState targetId={targetId} />
-        )}
+        {searching ? <CorpusSearchResults query={deferredQuery} targetId={targetId} /> : <CorpusRestState targetId={targetId} />}
       </Stack>
     </Stack>
   );
@@ -89,10 +74,7 @@ function SearchOmnibox({
   const trpc = useTRPC();
   const trimmed = deferredQuery.trim();
   const suggestions = useQuery(
-    trpc.search.suggest.queryOptions(
-      { query: trimmed, limit: CORPUS_SUGGEST_LIMIT },
-      { enabled: trimmed.length >= MIN_SUGGEST_LEN },
-    ),
+    trpc.search.suggest.queryOptions({ query: trimmed, limit: CORPUS_SUGGEST_LIMIT }, { enabled: trimmed.length >= MIN_SUGGEST_LEN }),
   );
   const items = (suggestions.data ?? []).map((hit) => hit.suggestion);
 
@@ -119,9 +101,7 @@ function CorpusRestState({ targetId }: { readonly targetId: string }): ReactElem
     return (
       <QueryBoundary
         fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />}
-        renderError={(_error, retry): ReactElement => (
-          <QueryErrorState label="the corpus catalog" onRetry={retry} />
-        )}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label="the corpus catalog" onRetry={retry} />}
       >
         <CorpusBrowseView />
       </QueryBoundary>

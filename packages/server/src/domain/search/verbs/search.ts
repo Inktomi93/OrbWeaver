@@ -15,13 +15,7 @@
 import type { MemoryRetrievalMode } from "@orb/contracts/search";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import type { SearchContext } from "../context";
-import {
-  SEARCH_EMPTY_QUERY,
-  SEARCH_LENS_REQUIRED,
-  SEARCH_SCOPE_REQUIRED,
-  SEARCH_SCOPE_UNSUPPORTED,
-  SearchError,
-} from "../contract/errors";
+import { SEARCH_EMPTY_QUERY, SEARCH_LENS_REQUIRED, SEARCH_SCOPE_REQUIRED, SEARCH_SCOPE_UNSUPPORTED, SearchError } from "../contract/errors";
 import type { SearchScope, UnifiedSearchParams } from "../contract/params";
 import type { DigestSearchHit, SegmentSearchHit, UnifiedSearchResult } from "../contract/results";
 import type { SearchService } from "../contract/service";
@@ -35,10 +29,7 @@ import { applyRerank } from "../substrate/rerank";
 /** The sibling verbs the dispatch delegates to for the owner-wide card/corpus/image surfaces + the
  *  (owner-gated) within-chat verbatim `segments`. Digests are NOT delegated — every digest scope routes
  *  through the owner-belted `crossChatDigests` here. */
-type DelegateVerbs = Pick<
-  SearchService,
-  "knn" | "findCharacters" | "discover" | "corpus" | "images" | "segments"
->;
+type DelegateVerbs = Pick<SearchService, "knn" | "findCharacters" | "discover" | "corpus" | "images" | "segments">;
 
 function assertNever(value: never): never {
   throw new SearchError(SEARCH_SCOPE_UNSUPPORTED, `unhandled search dispatch: ${String(value)}`);
@@ -52,10 +43,7 @@ function memoryMode(rerank: boolean | undefined): MemoryRetrievalMode {
 /** Owner-wide targets refuse a narrower scope rather than silently ignore it (flag-don't-fake). */
 function requireOwnerScope(scope: SearchScope, over: string): void {
   if (scope.kind !== "owner") {
-    throw new SearchError(
-      SEARCH_SCOPE_UNSUPPORTED,
-      `the ${over} target is owner-wide — it cannot honor a ${scope.kind} scope`,
-    );
+    throw new SearchError(SEARCH_SCOPE_UNSUPPORTED, `the ${over} target is owner-wide — it cannot honor a ${scope.kind} scope`);
   }
 }
 
@@ -88,9 +76,7 @@ async function digestScan(ctx: SearchContext, args: DigestScanArgs): Promise<Dig
     ownerId: args.ownerId,
     ...(args.chatId !== undefined ? { chatIds: [args.chatId] } : {}),
     ...(args.scopedCharacterId !== undefined ? { scopedCharacterId: args.scopedCharacterId } : {}),
-    ...(args.speakerCharacterId !== undefined
-      ? { speakerCharacterId: args.speakerCharacterId }
-      : {}),
+    ...(args.speakerCharacterId !== undefined ? { speakerCharacterId: args.speakerCharacterId } : {}),
     limit: Math.min(args.topN * OWNER_OVERFETCH, SCOPED_POOL_K),
   });
   const ranked = pool
@@ -118,24 +104,14 @@ async function digestScan(ctx: SearchContext, args: DigestScanArgs): Promise<Dig
     );
   // Instruction-aware rerankers key off the scope <Instruct>; text-only families ignore the prefix.
   const ordered = args.rerank
-    ? await applyRerank(
-        `${SCOPE_INSTRUCTIONS.digests.rerank}\n${args.query}`,
-        ranked,
-        ctx.roleClients.rerank,
-        ranked.length,
-      )
+    ? await applyRerank(`${SCOPE_INSTRUCTIONS.digests.rerank}\n${args.query}`, ranked, ctx.roleClients.rerank, ranked.length)
     : ranked;
-  return ordered
-    .slice(0, args.topN)
-    .map((c) => ({ blockKey: c.blockKey, score: c.score, text: c.sourceText }));
+  return ordered.slice(0, args.topN).map((c) => ({ blockKey: c.blockKey, score: c.score, text: c.sourceText }));
 }
 
 /** digests honors all three scopes, ALL owner-belted: `chat` → one chat; `character` → the cross-chat
  *  OR-branch; `owner` → every owner digest. */
-async function dispatchDigests(
-  ctx: SearchContext,
-  params: UnifiedSearchParams,
-): Promise<DigestSearchHit[]> {
+async function dispatchDigests(ctx: SearchContext, params: UnifiedSearchParams): Promise<DigestSearchHit[]> {
   const { scope, ownerId, query, topN, rerank } = params;
   const base = { ownerId, query, topN, rerank: rerank === true };
   switch (scope.kind) {
@@ -157,23 +133,13 @@ async function dispatchDigests(
 /** segments is within-chat verbatim — it needs a chat scope carrying the egocentric POV. The verbatim lens
  *  has no producer column, so the chat is owner-gated against the owner's materialized chat set (the digest
  *  scan's characters-join belt is unavailable here) before the delegated scan runs. */
-async function dispatchSegments(
-  ctx: SearchContext,
-  verbs: DelegateVerbs,
-  params: UnifiedSearchParams,
-): Promise<SegmentSearchHit[]> {
+async function dispatchSegments(ctx: SearchContext, verbs: DelegateVerbs, params: UnifiedSearchParams): Promise<SegmentSearchHit[]> {
   const { scope, ownerId, query, rerank } = params;
   if (scope.kind !== "chat") {
-    throw new SearchError(
-      SEARCH_SCOPE_UNSUPPORTED,
-      "the segments target is within-chat verbatim — it needs a chat scope",
-    );
+    throw new SearchError(SEARCH_SCOPE_UNSUPPORTED, "the segments target is within-chat verbatim — it needs a chat scope");
   }
   if (scope.scopedCharacterId === undefined) {
-    throw new SearchError(
-      SEARCH_SCOPE_REQUIRED,
-      "segments needs an egocentric scopedCharacterId on the chat scope",
-    );
+    throw new SearchError(SEARCH_SCOPE_REQUIRED, "segments needs an egocentric scopedCharacterId on the chat scope");
   }
   // Owner belt: a chat the principal produced no digests in is not theirs to search (a foreign chatId → []).
   const owned = await ownedChatIds(ctx.db, ownerId, ctx.roleClients.embedModel);

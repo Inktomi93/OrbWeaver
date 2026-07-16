@@ -13,12 +13,7 @@ export const SOURCE_LENSES = [...TEXT_LENSES, ...IMAGE_LENSES] as const;
 export type SourceLens = (typeof TEXT_LENSES)[number] | ImageLens;
 
 /** The primary vector tables `embeddings` owns — the single registry all callers derive from. */
-export const VECTOR_TABLES = [
-  "character_embeddings",
-  "image_embeddings",
-  "chat_digests",
-  "chat_segments",
-] as const;
+export const VECTOR_TABLES = ["character_embeddings", "image_embeddings", "chat_digests", "chat_segments"] as const;
 export type VectorTable = (typeof VECTOR_TABLES)[number];
 
 // Store params: a discriminated union on `lens`. No ownerId/principal field — vector rows FK to their
@@ -109,12 +104,7 @@ export interface DigestStoreParams {
 }
 
 /** The single write path's input — discriminated on `lens`. */
-export type StoreParams =
-  | CardTextStoreParams
-  | ImageRawStoreParams
-  | ImageCaptionedStoreParams
-  | SegmentStoreParams
-  | DigestStoreParams;
+export type StoreParams = CardTextStoreParams | ImageRawStoreParams | ImageCaptionedStoreParams | SegmentStoreParams | DigestStoreParams;
 
 /** `embedCorpus` / `embedAssets` input — the resumable, `content_hash`-gated bulk sweep. `force` re-embeds
  *  matched rows; `signal` is the cooperative abort, checked between items. */

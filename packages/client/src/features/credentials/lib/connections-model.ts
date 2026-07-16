@@ -17,19 +17,13 @@ const PROVIDER_LABEL_PAIRS: readonly (readonly [CredentialProvider, string])[] =
 ] as const;
 
 /** The human label for each storable provider (the add-dialog picker). */
-export const PROVIDER_LABELS: Record<CredentialProvider, string> = Object.fromEntries(
-  PROVIDER_LABEL_PAIRS,
-) as Record<CredentialProvider, string>;
+export const PROVIDER_LABELS: Record<CredentialProvider, string> = Object.fromEntries(PROVIDER_LABEL_PAIRS) as Record<CredentialProvider, string>;
 
 /** The full storable-provider order (includes `gif-search`, a storage-only member). */
-const PROVIDERS_ORDERED: readonly CredentialProvider[] = PROVIDER_LABEL_PAIRS.map(
-  ([provider]) => provider,
-);
+const PROVIDERS_ORDERED: readonly CredentialProvider[] = PROVIDER_LABEL_PAIRS.map(([provider]) => provider);
 
 /** The add-key dialog's provider options (excludes `gif-search`, minted elsewhere). */
-export const ADD_KEY_PROVIDERS_ORDERED: readonly CredentialProvider[] = PROVIDERS_ORDERED.filter(
-  (provider) => provider !== "gif-search",
-);
+export const ADD_KEY_PROVIDERS_ORDERED: readonly CredentialProvider[] = PROVIDERS_ORDERED.filter((provider) => provider !== "gif-search");
 
 const SOURCE_LABEL_PAIRS: readonly (readonly [CredentialSource, string])[] = [
   ["openrouter", "OpenRouter"],
@@ -40,9 +34,7 @@ const SOURCE_LABEL_PAIRS: readonly (readonly [CredentialSource, string])[] = [
 ] as const;
 
 /** The human label for each provider-source (the picker option text). */
-export const SOURCE_LABELS: Record<CredentialSource, string> = Object.fromEntries(
-  SOURCE_LABEL_PAIRS,
-) as Record<CredentialSource, string>;
+export const SOURCE_LABELS: Record<CredentialSource, string> = Object.fromEntries(SOURCE_LABEL_PAIRS) as Record<CredentialSource, string>;
 
 const SOURCE_ORDER: readonly CredentialSource[] = SOURCE_LABEL_PAIRS.map(([source]) => source);
 
@@ -74,8 +66,7 @@ export const ROLE_SLOTS: Record<RoutingRoleKey, RoleSlot> = {
   agent: {
     role: "agent",
     label: "Agent",
-    description:
-      "Tool-using companion turns (the buddy). Uses the Chat model until per-agent overrides ship.",
+    description: "Tool-using companion turns (the buddy). Uses the Chat model until per-agent overrides ship.",
     sources: SOURCE_ORDER,
     optional: false,
     carriesChatKnobs: false,
@@ -105,8 +96,7 @@ export const ROLE_SLOTS: Record<RoutingRoleKey, RoleSlot> = {
   imageEmbed: {
     role: "imageEmbed",
     label: "Image embedding",
-    description:
-      "Optional — set a multimodal/CLIP embedder to search images directly. Empty falls back to the captioned-text lens.",
+    description: "Optional — set a multimodal/CLIP embedder to search images directly. Empty falls back to the captioned-text lens.",
     sources: INFERENCE_SOURCES,
     optional: true,
     carriesChatKnobs: false,
@@ -136,9 +126,7 @@ export const ROLE_SLOTS: Record<RoutingRoleKey, RoleSlot> = {
 };
 
 /** The role slots in render order (a new role auto-appears once it has a `ROLE_SLOTS` entry). */
-export const ROLE_SLOTS_ORDERED: readonly RoleSlot[] = ROUTING_ROLE_KEYS.map(
-  (role) => ROLE_SLOTS[role],
-);
+export const ROLE_SLOTS_ORDERED: readonly RoleSlot[] = ROUTING_ROLE_KEYS.map((role) => ROLE_SLOTS[role]);
 
 /** A minimal (source, model) selection — the two fields a role slot persists. */
 export interface RoleSelection {
@@ -161,10 +149,7 @@ export function isConfigured(selection: RoleSelection | undefined): boolean {
  * The embedding-dimension mismatch advisory: returns a warning string when the text-embed and
  * image-embed slots are both configured to different embedders, else `null`.
  */
-export function embedDimensionWarning(
-  embed: RoleSelection | undefined,
-  imageEmbed: RoleSelection | undefined,
-): string | null {
+export function embedDimensionWarning(embed: RoleSelection | undefined, imageEmbed: RoleSelection | undefined): string | null {
   const bothConfigured = isConfigured(embed) && isConfigured(imageEmbed);
   if (!bothConfigured) {
     return null;
@@ -290,9 +275,7 @@ const CHAT_API_LABEL_PAIRS: readonly (readonly [ChatApi, string])[] = [
 ] as const;
 
 /** The api-picker labels for the chat slot (the protocol axis). */
-export const CHAT_API_LABELS: Record<ChatApi, string> = Object.fromEntries(
-  CHAT_API_LABEL_PAIRS,
-) as Record<ChatApi, string>;
+export const CHAT_API_LABELS: Record<ChatApi, string> = Object.fromEntries(CHAT_API_LABEL_PAIRS) as Record<ChatApi, string>;
 
 /** The chat api options in declaration order. */
 const CHAT_APIS_ORDERED: readonly ChatApi[] = CHAT_API_LABEL_PAIRS.map(([api]) => api);
@@ -306,9 +289,9 @@ const CHAT_APIS_BY_SOURCE_PAIRS: readonly (readonly [CredentialSource, readonly 
   ["custom_openai", ["chat-completions", "responses"]],
 ] as const;
 
-const CHAT_APIS_BY_SOURCE: Record<CredentialSource, readonly ChatApi[]> = Object.fromEntries(
-  CHAT_APIS_BY_SOURCE_PAIRS,
-) as Record<CredentialSource, readonly ChatApi[]>;
+/** `Partial` — `source` crosses a runtime boundary (an arbitrary form-field string, not yet validated as a
+ *  known `CredentialSource`), so the lookup can genuinely miss. */
+const CHAT_APIS_BY_SOURCE: Partial<Record<CredentialSource, readonly ChatApi[]>> = Object.fromEntries(CHAT_APIS_BY_SOURCE_PAIRS);
 
 /** The legal chat `api` protocols for a given source (mirrors the server's `assertCoherent`). */
 export function chatApisForSource(source: string): readonly ChatApi[] {

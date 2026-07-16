@@ -14,17 +14,7 @@ import { z } from "zod";
  *  expression sprite; `background` = a user-uploaded decorative app background (PD-131 — pinned by the
  *  `appearance.backgroundAssetId` JSON field, GC-rooted via the settings live-source scan, NOT an FK
  *  column). The db `assets.kind` enum derives from this tuple. */
-export const ASSET_KINDS = [
-  "card",
-  "avatar",
-  "export",
-  "generated",
-  "gallery",
-  "attachment",
-  "document",
-  "sprite",
-  "background",
-] as const;
+export const ASSET_KINDS = ["card", "avatar", "export", "generated", "gallery", "attachment", "document", "sprite", "background"] as const;
 
 export const assetKindSchema = z.enum(ASSET_KINDS);
 

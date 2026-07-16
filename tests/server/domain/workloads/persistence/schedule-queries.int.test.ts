@@ -20,11 +20,7 @@ import { seedUser, T0 } from "../_support.ts";
 
 const SCHEDULE_ID = castId<WorkloadScheduleId>("workload_schedule_1");
 
-async function seedOne(
-  db: Parameters<typeof insertSchedule>[0],
-  ownerId: UserId,
-  over: { nextRunAt?: number; enabled?: boolean } = {},
-): Promise<void> {
+async function seedOne(db: Parameters<typeof insertSchedule>[0], ownerId: UserId, over: { nextRunAt?: number; enabled?: boolean } = {}): Promise<void> {
   await insertSchedule(db, {
     id: SCHEDULE_ID,
     ownerId,
@@ -53,21 +49,14 @@ describe("schedule-queries — CRUD round-trip", () => {
 
   test("load of an absent id → null", async () => {
     const db = await freshDb();
-    expect(
-      await loadSchedule(db, castId<WorkloadScheduleId>("workload_schedule_ghost")),
-    ).toBeNull();
+    expect(await loadSchedule(db, castId<WorkloadScheduleId>("workload_schedule_ghost"))).toBeNull();
   });
 
   test("updateScheduleFields patches + bumps updatedAt", async () => {
     const db = await freshDb();
     const alice = await seedUser(db, "user_alice");
     await seedOne(db, alice);
-    const updated = await updateScheduleFields(
-      db,
-      SCHEDULE_ID,
-      { cadence: "weekly", nextRunAt: T0 + 999 },
-      T0 + 1,
-    );
+    const updated = await updateScheduleFields(db, SCHEDULE_ID, { cadence: "weekly", nextRunAt: T0 + 999 }, T0 + 1);
     expect(updated?.cadence).toBe("weekly");
     expect(updated?.nextRunAt).toBe(T0 + 999);
     expect(updated?.updatedAt).toBe(T0 + 1);

@@ -54,8 +54,6 @@ describe("admin vllm verbs", () => {
     const db = await freshDb();
     const svc = createAdminService(makeHarness(db).ctx);
     const u = await seedUser(db, { id: "user_u", role: "user", handle: "u" });
-    await expect(svc.vllmEngines({ principal: principal(u, "user") })).rejects.toThrow(
-      DomainForbiddenError,
-    );
+    await expect(svc.vllmEngines({ principal: principal(u, "user") })).rejects.toThrow(DomainForbiddenError);
   });
 });

@@ -4,14 +4,7 @@ import { createTagService } from "@orb/server/domain/tag";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
-import {
-  makeTagHarness,
-  principal,
-  seedCharacter,
-  seedPersona,
-  seedTag,
-  seedUser,
-} from "../_support.ts";
+import { makeTagHarness, principal, seedCharacter, seedPersona, seedTag, seedUser } from "../_support.ts";
 
 describe("listTagsWithUsage", () => {
   test("rolls up per-junction counts and the total", async () => {

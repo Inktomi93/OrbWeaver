@@ -30,9 +30,7 @@ describe("createTag", () => {
     const svc = createTagService(makeTagHarness(db).ctx);
     await svc.createTag({ principal: principal(owner), input: { name: "dupe" } });
 
-    await expect(
-      svc.createTag({ principal: principal(owner), input: { name: "dupe" } }),
-    ).rejects.toThrow(DomainConflictError);
+    await expect(svc.createTag({ principal: principal(owner), input: { name: "dupe" } })).rejects.toThrow(DomainConflictError);
   });
 
   test("the same name under two owners is allowed (namespace is per-owner)", async () => {
@@ -42,9 +40,7 @@ describe("createTag", () => {
     const svc = createTagService(makeTagHarness(db).ctx);
 
     await svc.createTag({ principal: principal(a), input: { name: "shared" } });
-    await expect(
-      svc.createTag({ principal: principal(b), input: { name: "shared" } }),
-    ).resolves.toMatchObject({ name: "shared" });
+    await expect(svc.createTag({ principal: principal(b), input: { name: "shared" } })).resolves.toMatchObject({ name: "shared" });
   });
 
   test("normalizes the name before insert (trim + whitespace-collapse, casing kept)", async () => {
@@ -63,9 +59,7 @@ describe("createTag", () => {
     const db = await freshDb();
     const owner = await seedUser(db);
     const svc = createTagService(makeTagHarness(db).ctx);
-    const err = await svc
-      .createTag({ principal: principal(owner), input: { name: "   " } })
-      .catch((e: unknown) => e);
+    const err = await svc.createTag({ principal: principal(owner), input: { name: "   " } }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(DomainOperationError);
     expect((err as DomainOperationError).code).toBe("tag_name_empty");
   });
@@ -76,9 +70,7 @@ describe("createTag", () => {
     const svc = createTagService(makeTagHarness(db).ctx);
     await svc.createTag({ principal: principal(owner), input: { name: "Female" } });
 
-    await expect(
-      svc.createTag({ principal: principal(owner), input: { name: "female" } }),
-    ).rejects.toThrow(DomainConflictError);
+    await expect(svc.createTag({ principal: principal(owner), input: { name: "female" } })).rejects.toThrow(DomainConflictError);
   });
 });
 
@@ -101,9 +93,7 @@ describe("createTag — audit", () => {
     ]);
 
     // A duplicate-name conflict writes NO second row (existence-before-audit posture).
-    await svc
-      .createTag({ principal: principal(owner), input: { name: "fantasy" } })
-      .catch((e: unknown) => e);
+    await svc.createTag({ principal: principal(owner), input: { name: "fantasy" } }).catch((e: unknown) => e);
     expect(h.audits).toHaveLength(1);
   });
 });

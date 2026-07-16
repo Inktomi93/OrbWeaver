@@ -32,20 +32,14 @@ function buildPatch(
   return {
     ...(params.name === undefined ? {} : { name: params.name }),
     ...(params.kind === undefined ? {} : { kind: params.kind }),
-    ...(params.config === undefined
-      ? {}
-      : { config: params.config, schemaVersion: params.config.schemaVersion }),
+    ...(params.config === undefined ? {} : { config: params.config, schemaVersion: params.config.schemaVersion }),
     updatedAt: now,
   };
 }
 
 /** COW: mint a new OWNED fork of the system default carrying the submission (omitted fields fall back to
  *  the system default's own). Returns the new fork's detail (its NEW id signals the client to navigate). */
-async function cowFork(
-  ctx: PresetContext,
-  params: UpdatePresetParams,
-  now: number,
-): Promise<PresetDetail> {
+async function cowFork(ctx: PresetContext, params: UpdatePresetParams, now: number): Promise<PresetDetail> {
   const base = await readablePreset(ctx.db, params.userId, SYSTEM_DEFAULT_PRESET_ID);
   if (base === undefined) {
     throw new PresetNotFoundError(params.id);
@@ -63,10 +57,7 @@ async function cowFork(
     updatedAt: now,
   };
   await insertPreset(ctx.db, row);
-  getLog().info(
-    { userId: params.userId, presetId: forkId },
-    "preset: copy-on-write fork of system default",
-  );
+  getLog().info({ userId: params.userId, presetId: forkId }, "preset: copy-on-write fork of system default");
   await ctx.audit(
     {
       actorUserId: params.userId,

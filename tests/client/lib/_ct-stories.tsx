@@ -9,6 +9,7 @@
 import { createAppQueryClient } from "@orb/client/data";
 import { bindNotify } from "@orb/client/lib";
 import { createToastManager, Toaster, ToastProvider } from "@orb/ui/toast";
+// @orb-gate-ignore query-machine-seals
 import { QueryClientProvider, useMutation } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 

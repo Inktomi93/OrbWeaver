@@ -37,9 +37,7 @@ function NewBookAction(): ReactElement {
       size="sm"
       disabled={create.isPending}
       onClick={(): void => {
-        void create
-          .mutateAsync({ input: { name: NEW_BOOK_NAME } })
-          .then((created) => selectWorldBook(created.id));
+        void create.mutateAsync({ input: { name: NEW_BOOK_NAME } }).then((created) => selectWorldBook(created.id));
       }}
     >
       <Icon icon={Plus} size="sm" />

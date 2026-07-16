@@ -18,13 +18,7 @@ export interface AccordionProps extends Omit<BaseRootProps, "className"> {
 
 // Keyboard focus is plain tab order, not roving nav — Base UI deprecated loopFocus/arrow-key roving focus.
 export function Accordion({ className, ...rest }: AccordionProps): ReactElement {
-  return (
-    <BaseAccordion.Root
-      className={slots.root({ className })}
-      data-slot="accordion-root"
-      {...rest}
-    />
-  );
+  return <BaseAccordion.Root className={slots.root({ className })} data-slot="accordion-root" {...rest} />;
 }
 
 export interface AccordionItemProps extends Omit<BaseItemProps, "className"> {
@@ -32,13 +26,7 @@ export interface AccordionItemProps extends Omit<BaseItemProps, "className"> {
 }
 
 export function AccordionItem({ className, ...rest }: AccordionItemProps): ReactElement {
-  return (
-    <BaseAccordion.Item
-      className={slots.item({ className })}
-      data-slot="accordion-item"
-      {...rest}
-    />
-  );
+  return <BaseAccordion.Item className={slots.item({ className })} data-slot="accordion-item" {...rest} />;
 }
 
 export interface AccordionHeaderProps extends Omit<BaseHeaderProps, "className"> {
@@ -46,13 +34,7 @@ export interface AccordionHeaderProps extends Omit<BaseHeaderProps, "className">
 }
 
 export function AccordionHeader({ className, ...rest }: AccordionHeaderProps): ReactElement {
-  return (
-    <BaseAccordion.Header
-      className={slots.header({ className })}
-      data-slot="accordion-header"
-      {...rest}
-    />
-  );
+  return <BaseAccordion.Header className={slots.header({ className })} data-slot="accordion-header" {...rest} />;
 }
 
 export interface AccordionTriggerProps extends Omit<BaseTriggerProps, "className"> {
@@ -60,17 +42,9 @@ export interface AccordionTriggerProps extends Omit<BaseTriggerProps, "className
 }
 
 /** Bakes the trailing `ChevronDown` that rotates on open. */
-export function AccordionTrigger({
-  className,
-  children,
-  ...rest
-}: AccordionTriggerProps): ReactElement {
+export function AccordionTrigger({ className, children, ...rest }: AccordionTriggerProps): ReactElement {
   return (
-    <BaseAccordion.Trigger
-      className={slots.trigger({ className })}
-      data-slot="accordion-trigger"
-      {...rest}
-    >
+    <BaseAccordion.Trigger className={slots.trigger({ className })} data-slot="accordion-trigger" {...rest}>
       {children}
       <Icon icon={ChevronDown} size="sm" className={slots.chevron()} />
     </BaseAccordion.Trigger>
@@ -83,11 +57,5 @@ export interface AccordionPanelProps extends Omit<BasePanelProps, "className"> {
 
 /** Animates height off Base UI's `--accordion-panel-height` var. */
 export function AccordionPanel({ className, ...rest }: AccordionPanelProps): ReactElement {
-  return (
-    <BaseAccordion.Panel
-      className={slots.panel({ className })}
-      data-slot="accordion-panel"
-      {...rest}
-    />
-  );
+  return <BaseAccordion.Panel className={slots.panel({ className })} data-slot="accordion-panel" {...rest} />;
 }

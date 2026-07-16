@@ -138,9 +138,7 @@ export const verifyAuthAccountSchema = z.object({
   /** The plan tier the account is on (SDK `subscriptionType`). */
   subscriptionType: z.string().optional(),
   /** The active API backend (SDK `apiProvider`) — the union the SDK declares. */
-  apiProvider: z
-    .enum(["firstParty", "bedrock", "vertex", "foundry", "anthropicAws", "mantle", "gateway"])
-    .optional(),
+  apiProvider: z.enum(["firstParty", "bedrock", "vertex", "foundry", "anthropicAws", "mantle", "gateway"]).optional(),
 });
 export type VerifyAuthAccount = z.infer<typeof verifyAuthAccountSchema>;
 

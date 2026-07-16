@@ -19,7 +19,6 @@ import { expect, test } from "../../../support/fixtures";
 const enc = new TextEncoder();
 
 // A test async-iterable adapter — packZip's contract consumes an AsyncIterable.
-// biome-ignore lint/suspicious/useAwait: the adapter yields synchronously; the async-iterable shape is the contract.
 async function* asAsync(entries: readonly ZipEntry[]): AsyncGenerator<ZipEntry> {
   yield* entries;
 }
@@ -78,10 +77,7 @@ function bytesAt(entries: readonly Extracted[], i: number): Uint8Array {
 
 /** Extract fully to a resolved array (or a rejected promise), disposing the staging dir afterwards — the
  *  shape every test asserts on directly. A hostile archive rejects at `extractZip` (already self-cleaned). */
-async function extractAll(
-  archive: Uint8Array | ReadableStream<Uint8Array>,
-  options?: ExtractOptions,
-): Promise<Extracted[]> {
+async function extractAll(archive: Uint8Array | ReadableStream<Uint8Array>, options?: ExtractOptions): Promise<Extracted[]> {
   const staged = await extractZip(archive, options);
   try {
     return await collect(staged);
@@ -217,14 +213,7 @@ describe("packZip → extractZip round-trip", () => {
 
 describe("zip-slip guard rejects hostile names", () => {
   const payload = enc.encode("x");
-  const cases: readonly string[] = [
-    "../escape.json",
-    "characters/../../etc/passwd",
-    "/etc/passwd",
-    "C:\\windows\\system32\\evil.dll",
-    "a\\b\\traverse",
-    "..",
-  ];
+  const cases: readonly string[] = ["../escape.json", "characters/../../etc/passwd", "/etc/passwd", "C:\\windows\\system32\\evil.dll", "a\\b\\traverse", ".."];
   for (const name of cases) {
     test(`rejects "${name}"`, async () => {
       await expect(extractAll(storedArchive(name, payload))).rejects.toMatchObject({
@@ -287,9 +276,7 @@ describe("zip-bomb + lying-header guards", () => {
       entries.push({ path: `characters/zeros-${i}.png`, bytes: new Uint8Array(64 * 1024) });
     }
     const archive = await packToBuffer(entries);
-    await expect(
-      extractAll(archive, { maxTotalDecompressedBytes: 1024 * 1024 }),
-    ).rejects.toMatchObject({ ...REJECTED, kind: "bomb" });
+    await expect(extractAll(archive, { maxTotalDecompressedBytes: 1024 * 1024 })).rejects.toMatchObject({ ...REJECTED, kind: "bomb" });
   });
 
   test("accepts entries whose SUM is under the aggregate cap", async () => {
@@ -422,10 +409,7 @@ describe("disk staging + cleanup", () => {
   test("names each staged file by ENTRY INDEX — never the archive's own (attacker-influenced) path", async () => {
     const root = await mkdtemp(join(tmpdir(), "ziptest-"));
     try {
-      const staged = await extractZip(
-        await packToBuffer([{ path: "characters/Aria.png", bytes: enc.encode("aria") }]),
-        { stagingRoot: root },
-      );
+      const staged = await extractZip(await packToBuffer([{ path: "characters/Aria.png", bytes: enc.encode("aria") }]), { stagingRoot: root });
       const [subdir] = await stagingSubdirs(root);
       if (subdir === undefined) {
         throw new Error("expected exactly one staging subdir");

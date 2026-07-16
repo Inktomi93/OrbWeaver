@@ -121,11 +121,7 @@ const ANTH_DIRECT_SAMPLING: readonly (readonly [RegExp, Sampling])[] = [
 
 /** The direct-transport sampling capability for a Claude id. Only `anthropic-direct` reaches a non-`{}`
  *  seed; every other shape returns `base` unchanged. */
-export function refineAnthDirectSampling(
-  id: string,
-  wireShape: WireShape,
-  base: Sampling,
-): Sampling {
+export function refineAnthDirectSampling(id: string, wireShape: WireShape, base: Sampling): Sampling {
   if (wireShape !== "anthropic-direct") {
     return base;
   }

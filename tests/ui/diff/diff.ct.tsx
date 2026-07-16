@@ -6,9 +6,7 @@ const BEFORE_LINES = "alpha\nbeta\ngamma\n";
 const AFTER_LINES = "alpha\ndelta\ngamma\n";
 
 test("words mode renders added/removed segments with intent token colors", async ({ mount }) => {
-  const component = await mount(
-    <DiffView before="the quick red fox" after="the quick brown fox" mode="words" />,
-  );
+  const component = await mount(<DiffView before="the quick red fox" after="the quick brown fox" mode="words" />);
   const added = component.locator("[data-diff=added]");
   const removed = component.locator("[data-diff=removed]");
   await expect(added).toContainText("brown");
@@ -28,9 +26,7 @@ test("chars mode (the default) diffs at character granularity", async ({ mount }
 });
 
 test("lines mode diffs whole lines", async ({ mount }) => {
-  const component = await mount(
-    <DiffView before={BEFORE_LINES} after={AFTER_LINES} mode="lines" />,
-  );
+  const component = await mount(<DiffView before={BEFORE_LINES} after={AFTER_LINES} mode="lines" />);
   await expect(component.locator("[data-diff=removed]")).toHaveText("beta\n");
   await expect(component.locator("[data-diff=added]")).toHaveText("delta\n");
 });

@@ -15,11 +15,7 @@ import { FROZEN_AT, makeDiscoveryHarness, seedCharacter, seedUser } from "../_su
 let coocN = 0;
 let profN = 0;
 
-async function seedPair(
-  db: Db,
-  ownerId: UserId,
-  pair: { a: string; b: string; count: number },
-): Promise<void> {
+async function seedPair(db: Db, ownerId: UserId, pair: { a: string; b: string; count: number }): Promise<void> {
   coocN += 1;
   await db.insert(keywordCooccurrence).values({
     id: castId(`keyword_cooccurrence_${coocN}`),
@@ -31,12 +27,7 @@ async function seedPair(
   });
 }
 
-async function seedProfile(
-  db: Db,
-  characterId: CharacterId,
-  keyword: string,
-  count: number,
-): Promise<void> {
+async function seedProfile(db: Db, characterId: CharacterId, keyword: string, count: number): Promise<void> {
   profN += 1;
   await db.insert(characterKeywordProfiles).values({
     id: castId(`character_keyword_profile_${profN}`),

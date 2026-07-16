@@ -10,11 +10,7 @@ import { castId } from "@orb/kit/ids";
 import { initialsFor } from "@orb/kit/initials";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { resolveRowMacros } from "@orb/kit/macro";
-import {
-  resolveRoomTheme,
-  resolveRowAttribution,
-  speakerThemesByName,
-} from "../../../../../packages/client/src/features/chat/lib/attribution";
+import { resolveRoomTheme, resolveRowAttribution, speakerThemesByName } from "../../../../../packages/client/src/features/chat/lib/attribution";
 import { expect, test } from "../../../../support/fixtures";
 import { makeParticipant } from "./_support";
 
@@ -39,12 +35,8 @@ test("assistant row with no roster/producer threaded gets no attribution chrome 
 });
 
 test("assistant row resolves name from the producer + avatar/color from the roster by characterId", () => {
-  const participants = new Map([
-    [ALICE_ID, makeParticipant({ displayName: "Alice", avatarHash: "hash_alice" })],
-  ]);
-  const characterNamesById = new Map<CharacterId, RowCharacterName>([
-    [ALICE_ID, { name: "Alice" }],
-  ]);
+  const participants = new Map([[ALICE_ID, makeParticipant({ displayName: "Alice", avatarHash: "hash_alice" })]]);
+  const characterNamesById = new Map<CharacterId, RowCharacterName>([[ALICE_ID, { name: "Alice" }]]);
   const result = resolveRowAttribution({
     role: "assistant",
     characterId: ALICE_ID,
@@ -59,9 +51,7 @@ test("assistant row resolves name from the producer + avatar/color from the rost
 });
 
 test("a characterId absent from the producer gets no chrome (not a crash, not char[0])", () => {
-  const characterNamesById = new Map<CharacterId, RowCharacterName>([
-    [ALICE_ID, { name: "Alice" }],
-  ]);
+  const characterNamesById = new Map<CharacterId, RowCharacterName>([[ALICE_ID, { name: "Alice" }]]);
   const result = resolveRowAttribution({
     role: "assistant",
     characterId: BOB_ID,
@@ -134,9 +124,7 @@ test("a non-character participant (human/agent/observer) never counts toward mul
 });
 
 test("user row resolves the message's own personaId against the producer", () => {
-  const personaNamesById = new Map<PersonaId, RowPersonaName>([
-    [NATE_PERSONA_ID, { name: "Nate", description: "" }],
-  ]);
+  const personaNamesById = new Map<PersonaId, RowPersonaName>([[NATE_PERSONA_ID, { name: "Nate", description: "" }]]);
   const result = resolveRowAttribution({
     role: "user",
     characterId: null,
@@ -153,9 +141,7 @@ test("user row resolves the message's own personaId against the producer", () =>
 });
 
 test("user row resolves the avatar HASH from the separate personaAvatarsById producer (#67)", () => {
-  const personaNamesById = new Map<PersonaId, RowPersonaName>([
-    [NATE_PERSONA_ID, { name: "Nate", description: "" }],
-  ]);
+  const personaNamesById = new Map<PersonaId, RowPersonaName>([[NATE_PERSONA_ID, { name: "Nate", description: "" }]]);
   const personaAvatarsById = new Map<PersonaId, string | null>([[NATE_PERSONA_ID, "hash_nate"]]);
   const result = resolveRowAttribution({
     role: "user",
@@ -169,9 +155,7 @@ test("user row resolves the avatar HASH from the separate personaAvatarsById pro
 });
 
 test("user row with a null personaId falls back to the viewing participant's active persona (legacy rows)", () => {
-  const personaNamesById = new Map<PersonaId, RowPersonaName>([
-    [NATE_PERSONA_ID, { name: "Nate", description: "" }],
-  ]);
+  const personaNamesById = new Map<PersonaId, RowPersonaName>([[NATE_PERSONA_ID, { name: "Nate", description: "" }]]);
   const result = resolveRowAttribution({
     role: "user",
     characterId: null,
@@ -220,9 +204,7 @@ test("C5 client: a changed personaId stamp re-resolves BOTH the badge and {{user
     activePersonaId: zara,
   });
   expect(badgeBefore.name).toBe("Mara");
-  expect(resolveRowMacros("{{user}} waves", { characterId: null, personaId: mara }, macroCtx)).toBe(
-    "Mara waves",
-  );
+  expect(resolveRowMacros("{{user}} waves", { characterId: null, personaId: mara }, macroCtx)).toBe("Mara waves");
 
   // After reattribution the refetched row carries personaId = Zara → badge + macro both flip to Zara.
   const badgeAfter = resolveRowAttribution({
@@ -233,9 +215,7 @@ test("C5 client: a changed personaId stamp re-resolves BOTH the badge and {{user
     activePersonaId: zara,
   });
   expect(badgeAfter.name).toBe("Zara");
-  expect(resolveRowMacros("{{user}} waves", { characterId: null, personaId: zara }, macroCtx)).toBe(
-    "Zara waves",
-  );
+  expect(resolveRowMacros("{{user}} waves", { characterId: null, personaId: zara }, macroCtx)).toBe("Zara waves");
 });
 
 test("the message's OWN personaId wins over the active persona (historical author, not current)", () => {
@@ -275,12 +255,8 @@ test("initials take the first letter of up to two words", () => {
 const HEARTH_TOKENS = { accent: "oklch(0.7 0.14 250)" };
 
 test("Layer 3: an assistant row uses the character's authored themeOverride when present", () => {
-  const participants = new Map([
-    [ALICE_ID, makeParticipant({ displayName: "Alice", themeOverride: HEARTH_TOKENS })],
-  ]);
-  const characterNamesById = new Map<CharacterId, RowCharacterName>([
-    [ALICE_ID, { name: "Alice" }],
-  ]);
+  const participants = new Map([[ALICE_ID, makeParticipant({ displayName: "Alice", themeOverride: HEARTH_TOKENS })]]);
+  const characterNamesById = new Map<CharacterId, RowCharacterName>([[ALICE_ID, { name: "Alice" }]]);
   const result = resolveRowAttribution({
     role: "assistant",
     characterId: ALICE_ID,

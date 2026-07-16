@@ -3,12 +3,7 @@
 
 import type { Runner } from "../contract/runner";
 
-export const distillCharactersRunner: Runner<"distill-characters"> = async (
-  ctx,
-  _params,
-  report,
-  signal,
-) => {
+export const distillCharactersRunner: Runner<"distill-characters"> = async (ctx, _params, report, signal) => {
   report({ message: "distilling character summaries" });
   const result = await ctx.env.discovery.distillCharacters({ ownerId: ctx.ownerId, signal });
   return { scanned: result.scanned, written: result.written };

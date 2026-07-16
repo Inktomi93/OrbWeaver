@@ -19,10 +19,7 @@ describe("deepMergeRequestBody — prototype-pollution defense (PD-101 Layer 2)"
 
   test("a nested __proto__ (several levels deep) does not pollute Object.prototype", () => {
     const base = { a: { b: { c: 1 } } };
-    const patch = JSON.parse('{"a":{"b":{"__proto__":{"polluted":true}}}}') as Record<
-      string,
-      unknown
-    >;
+    const patch = JSON.parse('{"a":{"b":{"__proto__":{"polluted":true}}}}') as Record<string, unknown>;
     const merged = deepMergeRequestBody(base, patch);
     expect(({} as Record<string, unknown>)["polluted"]).toBeUndefined();
     expect(merged).toEqual({ a: { b: { c: 1 } } });
@@ -38,9 +35,7 @@ describe("deepMergeRequestBody — prototype-pollution defense (PD-101 Layer 2)"
 
   test("a forbidden key survives neither side even when the OTHER side is clean", () => {
     // Forbidden on base only.
-    expect(
-      deepMergeRequestBody({ __proto__: { x: 1 } } as Record<string, unknown>, { a: 1 }),
-    ).toEqual({ a: 1 });
+    expect(deepMergeRequestBody({ __proto__: { x: 1 } } as Record<string, unknown>, { a: 1 })).toEqual({ a: 1 });
     // Forbidden on patch only.
     expect(deepMergeRequestBody({ a: 1 }, { constructor: { x: 1 } })).toEqual({ a: 1 });
   });
@@ -75,19 +70,13 @@ describe("deepMergeRequestBody — prototype-pollution defense (PD-101 Layer 2)"
   });
 
   test("a poison key nested inside a subtree present on ONLY ONE side is still stripped (regression: a whole-value copy must recurse too, not just merged nodes)", () => {
-    const patchOnly = JSON.parse('{"nested":{"constructor":{"polluted":true},"ok":1}}') as Record<
-      string,
-      unknown
-    >;
+    const patchOnly = JSON.parse('{"nested":{"constructor":{"polluted":true},"ok":1}}') as Record<string, unknown>;
     expect(deepMergeRequestBody({ model: "m" }, patchOnly)).toEqual({
       model: "m",
       nested: { ok: 1 },
     });
 
-    const baseOnly = JSON.parse('{"nested":{"__proto__":{"polluted":true},"ok":1}}') as Record<
-      string,
-      unknown
-    >;
+    const baseOnly = JSON.parse('{"nested":{"__proto__":{"polluted":true},"ok":1}}') as Record<string, unknown>;
     expect(deepMergeRequestBody(baseOnly, { model: "m" })).toEqual({
       nested: { ok: 1 },
       model: "m",

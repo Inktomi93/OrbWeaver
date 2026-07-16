@@ -7,9 +7,7 @@ import type { Violation } from "../harness.ts";
 function checkFactoryFunction(func: FunctionDeclaration, filePath: string): Violation | null {
   const name = func.getName() ?? "";
   if (name.startsWith("make")) {
-    const hasDb = func
-      .getParameters()
-      .some((p) => p.getName() === "db" || p.getType().getText().includes("Database"));
+    const hasDb = func.getParameters().some((p) => p.getName() === "db" || p.getType().getText().includes("Database"));
     if (hasDb) {
       return {
         file: filePath,

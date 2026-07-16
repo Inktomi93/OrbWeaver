@@ -56,19 +56,11 @@ export interface AddMemberPopoverProps {
   readonly existingCharacterIds: readonly CharacterId[];
 }
 
-export function AddMemberPopover({
-  chatId,
-  existingCharacterIds,
-}: AddMemberPopoverProps): ReactElement {
+export function AddMemberPopover({ chatId, existingCharacterIds }: AddMemberPopoverProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const add = useAddCharacterToChat({ trpc, invalidation });
-  return (
-    <AddMemberShell
-      existingCharacterIds={existingCharacterIds}
-      onAdd={(id): void => add.mutate({ chatId, characterId: id })}
-    />
-  );
+  return <AddMemberShell existingCharacterIds={existingCharacterIds} onAdd={(id): void => add.mutate({ chatId, characterId: id })} />;
 }
 
 export interface DraftAddMemberPopoverProps {
@@ -76,14 +68,6 @@ export interface DraftAddMemberPopoverProps {
   readonly existingCharacterIds: readonly CharacterId[];
 }
 
-export function DraftAddMemberPopover({
-  draftKey,
-  existingCharacterIds,
-}: DraftAddMemberPopoverProps): ReactElement {
-  return (
-    <AddMemberShell
-      existingCharacterIds={existingCharacterIds}
-      onAdd={(id): void => addDraftCharacter(draftKey, id)}
-    />
-  );
+export function DraftAddMemberPopover({ draftKey, existingCharacterIds }: DraftAddMemberPopoverProps): ReactElement {
+  return <AddMemberShell existingCharacterIds={existingCharacterIds} onAdd={(id): void => addDraftCharacter(draftKey, id)} />;
 }

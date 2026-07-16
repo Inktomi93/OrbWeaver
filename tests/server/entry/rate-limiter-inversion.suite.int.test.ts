@@ -50,11 +50,7 @@ function authed(userId: string, clientIp: string | null = "9.9.9.9"): RateLimitD
 }
 
 /** Drive `enforce` `n` times, swallowing throws — returns how many were ALLOWED before the first reject. */
-async function consumeUntilThrottled(
-  enforce: (d: RateLimitDecision) => Promise<void>,
-  decision: RateLimitDecision,
-  n: number,
-): Promise<number> {
+async function consumeUntilThrottled(enforce: (d: RateLimitDecision) => Promise<void>, decision: RateLimitDecision, n: number): Promise<number> {
   let allowed = 0;
   for (let i = 0; i < n; i += 1) {
     try {
@@ -107,14 +103,8 @@ describe("rate-limit gate — the anonymous → tight-bucket failsafe (never key
     await enforce(anon("2.2.2.2"));
     await enforce(authed("user_b"));
 
-    const publicRows = await db
-      .select({ key: rateLimitBuckets.key })
-      .from(rateLimitBuckets)
-      .where(like(rateLimitBuckets.key, "public-ip:%"));
-    const authedRows = await db
-      .select({ key: rateLimitBuckets.key })
-      .from(rateLimitBuckets)
-      .where(like(rateLimitBuckets.key, "general:%"));
+    const publicRows = await db.select({ key: rateLimitBuckets.key }).from(rateLimitBuckets).where(like(rateLimitBuckets.key, "public-ip:%"));
+    const authedRows = await db.select({ key: rateLimitBuckets.key }).from(rateLimitBuckets).where(like(rateLimitBuckets.key, "general:%"));
 
     // Exactly one row in each scope — the anon call keyed public-ip, the authed call keyed general. A gate
     // that keyed the anon call into `general:` (the inversion) would leave `public-ip:` empty.

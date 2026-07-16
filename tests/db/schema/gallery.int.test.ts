@@ -99,14 +99,10 @@ test("gallery_items: asset delete CASCADEs the item (never a dangling curation r
   const db = await freshDb();
   const ownerId = await seedUser(db, { id: "user_gal_d", handle: "gal-d" });
   const assetId = await seedAsset(db, ownerId, "asset_gal_d");
-  await db
-    .insert(galleryItems)
-    .values({ id: castId<GalleryItemId>("gallery_item_gal_d"), assetId });
+  await db.insert(galleryItems).values({ id: castId<GalleryItemId>("gallery_item_gal_d"), assetId });
 
   await db.delete(assets).where(eq(assets.id, assetId));
-  expect(
-    await db.select().from(galleryItems).where(eq(galleryItems.assetId, assetId)),
-  ).toHaveLength(0);
+  expect(await db.select().from(galleryItems).where(eq(galleryItems.assetId, assetId))).toHaveLength(0);
 });
 
 test("gallery_items: owner DERIVES through the asset FK (no ownerId column)", async () => {
@@ -114,9 +110,7 @@ test("gallery_items: owner DERIVES through the asset FK (no ownerId column)", as
   const ownerId = await seedUser(db, { id: "user_gal_e", handle: "gal-e" });
   const otherOwner = await seedUser(db, { id: "user_gal_e2", handle: "gal-e2" });
   const assetId = await seedAsset(db, ownerId, "asset_gal_e");
-  await db
-    .insert(galleryItems)
-    .values({ id: castId<GalleryItemId>("gallery_item_gal_e"), assetId });
+  await db.insert(galleryItems).values({ id: castId<GalleryItemId>("gallery_item_gal_e"), assetId });
 
   // The gallery row carries no ownerId; the owner is reachable via assetId → assets.ownerId only.
   const [row] = await db

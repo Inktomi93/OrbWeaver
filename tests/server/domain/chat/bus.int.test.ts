@@ -26,11 +26,7 @@ describe("createChatBus.emit — durable-first + the replay ring", () => {
     await bus.emit({ type: "chatUpdated", chatId });
     await bus.emit({ type: "chatDeleted", chatId });
 
-    const rows = await db
-      .select()
-      .from(chatEvents)
-      .where(eq(chatEvents.chatId, chatId))
-      .orderBy(asc(chatEvents.seq));
+    const rows = await db.select().from(chatEvents).where(eq(chatEvents.chatId, chatId)).orderBy(asc(chatEvents.seq));
     expect(rows.map((r) => r.seq)).toEqual([1, 2]);
     expect(rows.map((r) => r.type)).toEqual(["chatUpdated", "chatDeleted"]);
     // The full room-public event is persisted as the payload (the replay carrier).

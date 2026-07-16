@@ -221,9 +221,7 @@ test("roomOverridesSchema round-trips the four allowlisted fields and rejects an
     authorsNote: { prompt: "it is raining", depth: 3, role: "user" as const },
   };
   expect(roomOverridesSchema.parse(overrides)).toEqual(overrides);
-  expect(Object.keys(roomOverridesSchema.shape).sort()).toEqual(
-    ["authorsNote", "mainPrompt", "postHistory", "scenario"].sort(),
-  );
+  expect(Object.keys(roomOverridesSchema.shape).sort()).toEqual(["authorsNote", "mainPrompt", "postHistory", "scenario"].sort());
   // A stray field (e.g. a member trying to inject a room-wide persona) is rejected, not carried.
   expect(roomOverridesSchema.safeParse({ persona: "evil twin" }).success).toBe(false);
   expect(DEFAULT_ROOM_OVERRIDES).toEqual({});
@@ -248,19 +246,10 @@ test("roomOverridesSchema accepts a directive with just a prompt (depth/role lef
 // SHAPE normalizes the trailing assistant at delivery on a `assistantPrefill:false` model. Shape
 // validation stays.
 test("roomOverridesSchema ACCEPTS an assistant@depth-0 authorsNote (normalized at SHAPE delivery, D66-B)", () => {
-  expect(
-    roomOverridesSchema.safeParse({ authorsNote: { prompt: "x", depth: 0, role: "assistant" } })
-      .success,
-  ).toBe(true);
-  expect(
-    roomOverridesSchema.safeParse({ authorsNote: { prompt: "x", depth: 1, role: "assistant" } })
-      .success,
-  ).toBe(true);
+  expect(roomOverridesSchema.safeParse({ authorsNote: { prompt: "x", depth: 0, role: "assistant" } }).success).toBe(true);
+  expect(roomOverridesSchema.safeParse({ authorsNote: { prompt: "x", depth: 1, role: "assistant" } }).success).toBe(true);
   // system/user at depth 0 stay valid.
-  expect(
-    roomOverridesSchema.safeParse({ authorsNote: { prompt: "x", depth: 0, role: "system" } })
-      .success,
-  ).toBe(true);
+  expect(roomOverridesSchema.safeParse({ authorsNote: { prompt: "x", depth: 0, role: "system" } }).success).toBe(true);
 });
 
 test("openingPolicySchema round-trips its members", () => {
@@ -273,9 +262,7 @@ test("openingPolicySchema round-trips its members", () => {
 test("openingPolicySchema is cardinality-locked (an added member must be a deliberate test edit)", () => {
   // Round-trip + reject alone catch a removed/renamed member but NOT an accidentally-added 5th policy
   // (additive drift). Pin the exact member set so a new opening policy fails here until intended.
-  expect([...openingPolicySchema.options].sort()).toEqual(
-    ["first-message", "generate", "greet-all", "none"].sort(),
-  );
+  expect([...openingPolicySchema.options].sort()).toEqual(["first-message", "generate", "greet-all", "none"].sort());
 });
 
 // ═══ invites (D16) ══════════════════════════════════════════════════════════════
@@ -327,9 +314,7 @@ test("InviteView / InvitePreview pin the host + accept-flow shapes (no token lea
     modeLabel: "per-speaker · natural",
   };
   // The preview is identity-free: no roster, no history.
-  expect(Object.keys(preview).sort()).toEqual(
-    ["chatId", "hostHandle", "memberCount", "modeLabel", "roomName"].sort(),
-  );
+  expect(Object.keys(preview).sort()).toEqual(["chatId", "hostHandle", "memberCount", "modeLabel", "roomName"].sort());
 });
 
 test("ParticipantView pins the roster row (membership-scoped; XOR human/character)", () => {
@@ -511,7 +496,6 @@ test("messageContentBlockSchema — round-trips its three kinds (D44)", () => {
 });
 
 test("contentSpansToBlocks — joins text runs, converts D51 image refs, brands asset ids", () => {
-  // biome-ignore lint/security/noSecrets: a fixture TypeID literal, not a secret.
   const assetId = "asset_01h455vb4pex5vsknk084sn02q";
   const blocks = contentSpansToBlocks([
     { kind: "text", text: "Look: " },
@@ -542,16 +526,12 @@ test("contentSpansToBlocks — joins text runs, converts D51 image refs, brands 
 });
 
 test("contentSpansToBlocks — a text-only body is ONE markdown block; a bad asset ref DEGRADES, never throws", () => {
-  expect(contentSpansToBlocks([{ kind: "text", text: "plain" }])).toEqual([
-    { kind: "markdown", md: "plain" },
-  ]);
+  expect(contentSpansToBlocks([{ kind: "text", text: "plain" }])).toEqual([{ kind: "markdown", md: "plain" }]);
   // Stored-content projections degrade, never throw (ratified doctrine): a malformed persisted asset
   // ref would otherwise crash every render of the row with no per-row boundary — a permanent chat DoS.
   // It falls back to the raw image markdown as a text block; the projection returns a schema-valid,
   // renderable block set instead of throwing a ZodError inside React render.
-  const degraded = contentSpansToBlocks([
-    { kind: "image", ref: { kind: "asset", assetId: "not-a-typeid" }, alt: "a map" },
-  ]);
+  const degraded = contentSpansToBlocks([{ kind: "image", ref: { kind: "asset", assetId: "not-a-typeid" }, alt: "a map" }]);
   expect(degraded).toEqual([{ kind: "markdown", md: "![a map](asset:not-a-typeid)" }]);
   for (const b of degraded) {
     expect(messageContentBlockSchema.parse(b)).toEqual(b);
@@ -611,9 +591,7 @@ test("buildCharacterNameMap rebuilds a characterId → {name} lookup from the wi
 
 test("buildPersonaNameMap rebuilds a personaId → {name, description} lookup from the wire array", () => {
   const maraId = castId<PersonaId>(mintTypeId(ID_PREFIX.persona));
-  const entries: PersonaNameEntry[] = [
-    { id: maraId, name: "Mara", description: "a wandering scholar" },
-  ];
+  const entries: PersonaNameEntry[] = [{ id: maraId, name: "Mara", description: "a wandering scholar" }];
   const map = buildPersonaNameMap(entries);
   expect(map.get(maraId)).toEqual({ name: "Mara", description: "a wandering scholar" });
 });

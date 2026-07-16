@@ -38,10 +38,7 @@ const encoder = new TextEncoder();
 const SHA256_HEX = /^[0-9a-f]{64}$/u;
 
 // A minimal valid PNG (signature + zero-length IEND) to embed the card into via the kit codec.
-const MINIMAL_PNG = Uint8Array.from([
-  0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44,
-  0xae, 0x42, 0x60, 0x82,
-]);
+const MINIMAL_PNG = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82]);
 
 describe("importCharacter", () => {
   test("a real ST PNG card → create with flattened card + provenance + the stored avatar", async () => {
@@ -216,9 +213,7 @@ describe("importCharacter", () => {
     const h = makeHarness();
     const svc = createImportService(h.ctx);
 
-    await expect(
-      svc.importCharacter({ card: { bytes: encoder.encode("garbage {{") } }),
-    ).rejects.toBeInstanceOf(ImportCardError);
+    await expect(svc.importCharacter({ card: { bytes: encoder.encode("garbage {{") } })).rejects.toBeInstanceOf(ImportCardError);
     expect(h.creates).toHaveLength(0);
   });
 

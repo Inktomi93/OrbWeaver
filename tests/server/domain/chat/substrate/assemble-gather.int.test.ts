@@ -18,15 +18,7 @@ import type { ForeignInputs } from "../../../../../packages/server/src/domain/ch
 import { gatherAssembleContext } from "../../../../../packages/server/src/domain/chat/substrate/assemble-gather";
 import { freshDb } from "../../../../support/db";
 import { expect, test } from "../../../../support/fixtures";
-import {
-  FROZEN_AT,
-  makeChatContext,
-  seedCharacter,
-  seedChat,
-  seedMessage,
-  seedParticipant,
-  seedUser,
-} from "../_support";
+import { FROZEN_AT, makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../_support";
 import { fakeSearchDigests, GROUP_CHAR, seedDigest } from "../memory/_support";
 
 let db: Db;
@@ -58,12 +50,7 @@ function cardOf(name: string, regexScripts: RegexScript[] = []): CharacterCard {
 }
 
 /** A fully-defaulted host-tier `RegexScript` (via the parse seam) for the given placement. */
-function regexScript(
-  id: string,
-  find: string,
-  replace: string,
-  placement: "USER_INPUT" | "WORLD_INFO",
-): RegexScript {
+function regexScript(id: string, find: string, replace: string, placement: "USER_INPUT" | "WORLD_INFO"): RegexScript {
   return regexScriptSchema.parse({
     id,
     name: id,
@@ -95,17 +82,10 @@ async function seedRoom(key: string): Promise<{ host: UserId; chatId: ChatId; ar
 }
 
 /** Attach a chat-scope, always-fire WI entry (priority for the budget walk). */
-async function attachAlwaysEntry(
-  owner: UserId,
-  chatId: string,
-  key: string,
-  entry: { readonly content: string; readonly priority: number },
-): Promise<void> {
+async function attachAlwaysEntry(owner: UserId, chatId: string, key: string, entry: { readonly content: string; readonly priority: number }): Promise<void> {
   const { content, priority } = entry;
   const bookId = castId<WorldBookId>(`world_book_${key}`);
-  await db
-    .insert(worldBooks)
-    .values({ id: bookId, ownerId: owner, name: key, createdAt: FROZEN_AT });
+  await db.insert(worldBooks).values({ id: bookId, ownerId: owner, name: key, createdAt: FROZEN_AT });
   await db.insert(worldEntries).values({
     id: castId<WorldEntryId>(`world_entry_${key}`),
     worldBookId: bookId,
@@ -118,9 +98,7 @@ async function attachAlwaysEntry(
     metadata: null,
     createdAt: FROZEN_AT,
   });
-  await db
-    .insert(chatBooks)
-    .values({ chatId: castId(chatId), worldBookId: bookId, createdAt: FROZEN_AT });
+  await db.insert(chatBooks).values({ chatId: castId(chatId), worldBookId: bookId, createdAt: FROZEN_AT });
 }
 
 describe("gatherAssembleContext — the chat-internal merge", () => {

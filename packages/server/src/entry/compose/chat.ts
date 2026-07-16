@@ -90,7 +90,7 @@ export function flattenAgentHistory(history: readonly TurnMessage[]): string {
   return history
     .map((m) => {
       const prefix = m.role === "assistant" ? "Assistant" : "User";
-      const name = m.name ? ` (${m.name})` : "";
+      const name = m.name !== undefined && m.name.length > 0 ? ` (${m.name})` : "";
       const text = m.content.map((c) => (c.type === "text" ? c.text : "[Image]")).join("");
       return `${prefix}${name}: ${text}`;
     })
@@ -99,9 +99,7 @@ export function flattenAgentHistory(history: readonly TurnMessage[]): string {
 
 /** Split the shaped history into the session seed + the joined prompt tail; `null` when the history has
  *  no clean user tail (the caller falls back to {@link flattenAgentHistory}). */
-export function splitAgentHistory(
-  history: readonly TurnMessage[],
-): { seed: readonly AgentSeedTurn[]; prompt: string } | null {
+export function splitAgentHistory(history: readonly TurnMessage[]): { seed: readonly AgentSeedTurn[]; prompt: string } | null {
   if (history.some((m) => m.role === "tool")) {
     return null;
   }
@@ -178,14 +176,8 @@ export interface ChatComposeResult {
   readonly emitBusEvent: (event: ChatBusEvent) => Promise<void>;
   /** Chat's corpus sweeps, bound over the chat ctx. */
   readonly backfill: {
-    readonly memory: (args: {
-      signal: AbortSignal;
-      ownerId?: UserId | null;
-    }) => ReturnType<typeof backfillMemory>;
-    readonly groupCharacters: (args: {
-      signal: AbortSignal;
-      ownerId?: UserId | null;
-    }) => ReturnType<typeof backfillGroupCharacters>;
+    readonly memory: (args: { signal: AbortSignal; ownerId?: UserId | null }) => ReturnType<typeof backfillMemory>;
+    readonly groupCharacters: (args: { signal: AbortSignal; ownerId?: UserId | null }) => ReturnType<typeof backfillGroupCharacters>;
   };
 }
 
@@ -195,10 +187,7 @@ export interface ChatComposeResult {
  */
 // chat's opaque ChatToolSet IS the ResolvedToolSet this seam minted; the exec frame's runAsUserId resolves
 // to the live host Principal here (the engine itself stays Principal-blind).
-function buildChatToolOps(
-  toolUse: ToolUseService,
-  resolveHostPrincipal: (userId: UserId) => Promise<Principal>,
-): ChatToolOps {
+function buildChatToolOps(toolUse: ToolUseService, resolveHostPrincipal: (userId: UserId) => Promise<Principal>): ChatToolOps {
   // biome-ignore lint/suspicious/noExplicitAny: the opaque ChatToolSet round-trip (see the header note).
   const asResolvedSet = (set: ChatToolSet): ResolvedToolSet => set as any as ResolvedToolSet;
   return {
@@ -231,10 +220,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
   // owner's own privileged turn, so this read is injected rather than faked.
   const realHostPrincipal = input.resolveHostPrincipal;
 
-  const resolveChatVia = async (
-    userId: UserId,
-    routable: RouteChatAssignment,
-  ): Promise<ResolvedConnection> =>
+  const resolveChatVia = async (userId: UserId, routable: RouteChatAssignment): Promise<ResolvedConnection> =>
     input.connection.resolveChat({
       principal: await realHostPrincipal(userId),
       routableChat: routable,
@@ -243,10 +229,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
   // The host's active preset config, given its already-loaded default preset id. A stale/unowned/missing id
   // degrades to the system default. Shared by resolveForeignInputs + resolvePromptVariables so resolution
   // can't drift; takes the id (not the whole settings read) so a caller that already loaded it doesn't double-read.
-  const resolvePromptConfigFor = async (
-    runAsUserId: UserId,
-    defaultPresetId: string | null,
-  ): Promise<PromptConfig> => {
+  const resolvePromptConfigFor = async (runAsUserId: UserId, defaultPresetId: string | null): Promise<PromptConfig> => {
     if (defaultPresetId === null) {
       return DEFAULT_PROMPT_CONFIG;
     }
@@ -267,13 +250,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     const hostRows = await db
       .select({ userId: chatParticipants.userId })
       .from(chatParticipants)
-      .where(
-        and(
-          eq(chatParticipants.chatId, chatId),
-          eq(chatParticipants.role, "host"),
-          isNull(chatParticipants.leftSeq),
-        ),
-      )
+      .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.role, "host"), isNull(chatParticipants.leftSeq)))
       .limit(1);
     return hostRows.at(0)?.userId ?? null;
   };
@@ -293,8 +270,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
   // The one memory-config merge: the admin-set defaults, forced to `mode:"off"` when the host disabled
   // memory. Kept pure so both the live turn path and the sweep resolver funnel through it without
   // re-reading settings — the opt-out can't be honored on the turn and dropped on the sweep.
-  const withMemoryOptOut = (disabled: boolean, defaults: MemoryConfig): MemoryConfig =>
-    disabled ? { ...defaults, mode: "off" } : defaults;
+  const withMemoryOptOut = (disabled: boolean, defaults: MemoryConfig): MemoryConfig => (disabled ? { ...defaults, mode: "off" } : defaults);
 
   const resolveMemoryConfig = async (hostUserId: UserId): Promise<MemoryConfig> => {
     const us = await input.settings.loadUserSettings(hostUserId);
@@ -322,10 +298,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // (principal-blind) — this composition-root helper enumerates membership.
     emitChatChanged: createChatChangedEmitter(db),
     applyRegexReplace: createRegexApplyReplace(),
-    tools:
-      input.toolUse === undefined
-        ? null
-        : buildChatToolOps(input.toolUse, input.resolveHostPrincipal),
+    tools: input.toolUse === undefined ? null : buildChatToolOps(input.toolUse, input.resolveHostPrincipal),
     // Bridges the chat role's streaming AsyncIterable interface onto infra/providers' Promise+onDelta shape.
     // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: adapter logic
     async *runChatTurn(req: TurnRequest): AsyncIterable<TurnStreamChunk> {
@@ -345,10 +318,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       const agentSplit = req.connection.api === "agent-sdk" ? splitAgentHistory(req.history) : null;
       // The OR-skin tier→slug map the mode-2 firewall needs, derived from connection's live catalogs
       // (never throws — cold catalog degrades to a curated shortlist).
-      const orSkinTierModels =
-        req.connection.api === "agent-sdk"
-          ? await input.connection.getOrSkinTierModels()
-          : undefined;
+      const orSkinTierModels = req.connection.api === "agent-sdk" ? await input.connection.getOrSkinTierModels() : undefined;
       const chatReq: ChatRequest =
         req.connection.api === "agent-sdk" && orSkinTierModels !== undefined
           ? {
@@ -423,13 +393,13 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
           }
         });
 
-      // biome-ignore lint/suspicious/noUnnecessaryConditions: intentional infinite loop
-      while (true) {
+      for (;;) {
         if (queue.length > 0) {
           // biome-ignore lint/style/noNonNullAssertion: safe since queue.length > 0
           yield queue.shift()!;
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- `done` is mutated by the onDelta/.then/.catch closures above; tsc's narrowing can't see across those async callback boundaries
         } else if (done) {
-          if (error) {
+          if (error !== null && error !== undefined) {
             throw error;
           }
           break;
@@ -443,8 +413,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       }
     },
     resolveChat: (params) => resolveChatVia(params.runAsUserId, params.routable),
-    resolveCredential: async ({ runAsUserId, source }) =>
-      input.credentials.resolve({ principal: await realHostPrincipal(runAsUserId), source }),
+    resolveCredential: async ({ runAsUserId, source }) => input.credentials.resolve({ principal: await realHostPrincipal(runAsUserId), source }),
     maybeRevokeOnAuthFailed: async ({ runAsUserId, source, status }) => {
       try {
         // biome-ignore lint/style/noMagicNumbers: HTTP status codes
@@ -464,8 +433,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
         // Best-effort post-turn — never throw into the turn.
       }
     },
-    getCard: ({ ownerId, characterId }) =>
-      input.character.getCard({ principal: hostPrincipal(ownerId), characterId }),
+    getCard: ({ ownerId, characterId }) => input.character.getCard({ principal: hostPrincipal(ownerId), characterId }),
     // Layers the character's tri-state overrides over the deployment floor; a human seat or an
     // unreadable card resolves to the global floor alone (fail-closed, never a throw into roster assembly).
     resolveRenderPolicy: async ({ ownerId, characterId }) => {
@@ -505,11 +473,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     mintSyntheticGroupCharacter: (params) => input.character.mintSyntheticGroupCharacter(params),
     findSyntheticGroupCharacter: (params) => input.character.findSyntheticGroupCharacter(params),
     resolveUserPublics: async (userId, personaId) => {
-      const rows = await db
-        .select({ handle: users.handle })
-        .from(users)
-        .where(eq(users.id, userId))
-        .limit(1);
+      const rows = await db.select({ handle: users.handle }).from(users).where(eq(users.id, userId)).limit(1);
       const handle = rows[0]?.handle ?? null;
 
       let avatarAssetId: AssetId | null = null;
@@ -555,13 +519,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
           const rows = await db
             .select({ id: chatParticipants.id })
             .from(chatParticipants)
-            .where(
-              and(
-                eq(chatParticipants.userId, userId),
-                eq(chatParticipants.chatId, forChatId),
-                isNull(chatParticipants.leftSeq),
-              ),
-            )
+            .where(and(eq(chatParticipants.userId, userId), eq(chatParticipants.chatId, forChatId), isNull(chatParticipants.leftSeq)))
             .limit(1);
           return rows.length > 0;
         },
@@ -577,8 +535,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       return ref?.hash ?? null;
     },
     // Owner-scoped: a foreign/gone id is simply absent from the result.
-    filterOwnedAssetIds: async (userId, assetIds) =>
-      (await input.assets.resolveOwnedAssetRefs(userId, assetIds)).map((r) => r.assetId),
+    filterOwnedAssetIds: async (userId, assetIds) => (await input.assets.resolveOwnedAssetRefs(userId, assetIds)).map((r) => r.assetId),
     // The chat op type erases the batch to `unknown`; this wrapper restores the concrete type.
     applyStatsDelta: (batch, opDb, delta) => {
       applyStatsDelta(batch as BatchStmt[], opDb, delta);
@@ -591,11 +548,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // A missing row → disabled (fail-closed containment).
     provisionAgentPrincipal: (params) => input.provisionAgentPrincipal(params),
     resolveAgentEnabled: async (agentUserId) => {
-      const rows = await db
-        .select({ enabled: users.enabled })
-        .from(users)
-        .where(eq(users.id, agentUserId))
-        .limit(1);
+      const rows = await db.select({ enabled: users.enabled }).from(users).where(eq(users.id, agentUserId)).limit(1);
       return rows[0]?.enabled ?? false;
     },
     // A solo-character founding with exactly ONE character_personas connection auto-anchors that persona;
@@ -648,11 +601,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     },
     // Absent/foreign ⇒ false (leak-free).
     verifyPersonaOwned: async ({ ownerId, personaId }) => {
-      const rows = await db
-        .select({ ownerId: personas.ownerId })
-        .from(personas)
-        .where(eq(personas.id, personaId))
-        .limit(1);
+      const rows = await db.select({ ownerId: personas.ownerId }).from(personas).where(eq(personas.id, personaId)).limit(1);
       return rows[0]?.ownerId === ownerId;
     },
     emitNotification: async (event, coStatements) => {
@@ -712,8 +661,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
         dim: env.VLLM_EMBED_DIM,
       });
     },
-    searchDigests: (query) =>
-      input.search.digests(query).then((hits) => hits.map((h) => h.blockKey)),
+    searchDigests: (query) => input.search.digests(query).then((hits) => hits.map((h) => h.blockKey)),
     // The owner-wide corpus lens. MemoryQueryOptions deliberately carries no owner, so the owner is
     // resolved FROM CONTEXT here: the chat's present host (D19 — the room authority; every roster character
     // is host-owned per PD-21, so the host's corpus IS this room's corpus). Hostless/stale room ⇒ empty
@@ -749,22 +697,12 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
         setTimeout(resolve, ms);
       }),
     resolveConnection: async ({ runAsUserId, chatId }) => {
-      const rows = await db
-        .select({ metadata: chats.metadata })
-        .from(chats)
-        .where(eq(chats.id, chatId))
-        .limit(1);
+      const rows = await db.select({ metadata: chats.metadata }).from(chats).where(eq(chats.id, chatId)).limit(1);
       const meta = parseChatMetadata(rows.at(0)?.metadata ?? null);
-      const routable: RouteChatAssignment =
-        meta.providerRouting !== undefined ? { providerRouting: meta.providerRouting } : {};
+      const routable: RouteChatAssignment = meta.providerRouting !== undefined ? { providerRouting: meta.providerRouting } : {};
       return resolveChatVia(runAsUserId, routable);
     },
-    resolveForeignInputs: async ({
-      runAsUserId,
-      anchorPersonaId,
-      personaIds,
-      triggerPersonaId,
-    }) => {
+    resolveForeignInputs: async ({ runAsUserId, anchorPersonaId, personaIds, triggerPersonaId }) => {
       const us = await input.settings.loadUserSettings(runAsUserId);
       const principal = hostPrincipal(runAsUserId);
 
@@ -797,10 +735,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       // human) — so prompt-config {{user}} is the speaker's own persona in a multi-human room.
       const active = await loadPersona(triggerPersonaId ?? personaIds.at(0) ?? null);
 
-      const memoryConfig = withMemoryOptOut(
-        us.memory.enabled === false,
-        input.settings.getEffectiveConfig().memoryDefaults,
-      );
+      const memoryConfig = withMemoryOptOut(us.memory.enabled === false, input.settings.getEffectiveConfig().memoryDefaults);
 
       return {
         promptConfig,

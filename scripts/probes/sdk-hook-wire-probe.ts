@@ -25,10 +25,7 @@ import { join } from "node:path";
 import process from "node:process";
 import type { Options, SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import { query } from "@anthropic-ai/claude-agent-sdk";
-import {
-  dynamicContextOptions,
-  firewallBase,
-} from "@orb/server/infra/providers/backends/agent-sdk";
+import { dynamicContextOptions, firewallBase } from "@orb/server/infra/providers/backends/agent-sdk";
 
 const PORT = 8791;
 /** HTTP 200 — extracted so `noMagicNumbers` stays quiet. */
@@ -210,9 +207,7 @@ function captureEnv(): Record<string, string | undefined> {
 /** Run ONE turn through the CLI against the capture server. `withHook` toggles the UserPromptSubmit hook. */
 async function runOne(label: string, model: string, withHook: boolean): Promise<void> {
   currentLabel = label;
-  const hookOpts: Pick<Options, "hooks"> = withHook
-    ? dynamicContextOptions(`Operator note: ${SIGIL}. The balloon in the corner is red.`)
-    : {};
+  const hookOpts: Pick<Options, "hooks"> = withHook ? dynamicContextOptions(`Operator note: ${SIGIL}. The balloon in the corner is red.`) : {};
   const abort = new AbortController();
   const timer = setTimeout(() => {
     abort.abort();
@@ -253,11 +248,7 @@ function verdictFor(label: string): string {
   }
   const idx = withSigil.messages.findIndex((m) => m.hasSigil);
   const msg = withSigil.messages[idx];
-  return `messages[${idx}] role="${msg?.role}" ${
-    msg?.role === "system"
-      ? "⇒ a MID-CONVERSATION SYSTEM MESSAGE"
-      : "⇒ an ordinary conversation turn"
-  }`;
+  return `messages[${idx}] role="${msg?.role}" ${msg?.role === "system" ? "⇒ a MID-CONVERSATION SYSTEM MESSAGE" : "⇒ an ordinary conversation turn"}`;
 }
 
 function dumpCaptures(label: string): void {
@@ -266,18 +257,14 @@ function dumpCaptures(label: string): void {
     console.log(`    request #${i} (${c.url})`);
     console.log(`      system: ${c.systemHasSigil ? "[SIGIL] " : ""}"${c.systemSnippet}"`);
     for (const [j, m] of c.messages.entries()) {
-      console.log(
-        `      messages[${j}] role=${m.role} ${m.hasSigil ? "[SIGIL] " : ""}"${m.snippet}"`,
-      );
+      console.log(`      messages[${j}] role=${m.role} ${m.hasSigil ? "[SIGIL] " : ""}"${m.snippet}"`);
     }
   }
 }
 
 async function main(): Promise<void> {
   const server = await startServer();
-  console.log(
-    `sdk-hook-wire-probe — local capture server on http://127.0.0.1:${PORT} (FREE, no quota)\n`,
-  );
+  console.log(`sdk-hook-wire-probe — local capture server on http://127.0.0.1:${PORT} (FREE, no quota)\n`);
   try {
     await runOne("opus-control", "claude-opus-4-8", false);
     await runOne("opus-hook", "claude-opus-4-8", true);
@@ -295,9 +282,7 @@ async function main(): Promise<void> {
   console.log("=== WHERE THE HOOK CONTENT LANDED ===");
   console.log(`  opus-hook  : ${verdictFor("opus-hook")}`);
   console.log(`  haiku-hook : ${verdictFor("haiku-hook")}`);
-  console.log(
-    "\n  (opus-control is the no-hook baseline — its requests should contain NO sigil anywhere.)",
-  );
+  console.log("\n  (opus-control is the no-hook baseline — its requests should contain NO sigil anywhere.)");
 }
 
 main().catch((err: unknown) => {

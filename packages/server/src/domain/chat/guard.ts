@@ -32,15 +32,8 @@ type MemberChat = NonNullable<Awaited<ReturnType<typeof loadMemberChat>>>;
  * `chat_participants` row; a miss (no chat OR not a present member) throws a leak-free `ChatNotFoundError`.
  * Returns the loaded membership so the verb reuses it (no second query — the turn loads it anyway).
  */
-export async function requireParticipant(
-  ctx: GuardCtx,
-  principal: Principal,
-  chatId: ChatId,
-): Promise<MemberChat> {
-  const membership = assertParticipant(
-    await loadMemberChat(ctx.db, chatId, principal.userId),
-    chatId,
-  );
+export async function requireParticipant(ctx: GuardCtx, principal: Principal, chatId: ChatId): Promise<MemberChat> {
+  const membership = assertParticipant(await loadMemberChat(ctx.db, chatId, principal.userId), chatId);
   // Route the read-floor through the ONE seam (spine §6). A present member always reads in v1 — this is the
   // seam where a future `observer` participant kind denies; the verdict lives in `can()`, never here.
   ctx.can(principal, "read", { kind: "chat", roster: { role: membership.role } });
@@ -52,11 +45,7 @@ export async function requireParticipant(
  * throws `ChatNotFoundError` (leak-free); a member who is not the host throws `ChatOperationError('not_host')`
  * (a known-existence authority refusal, per `contract/errors.ts`).
  */
-export async function requireHost(
-  ctx: GuardCtx,
-  principal: Principal,
-  chatId: ChatId,
-): Promise<MemberChat> {
+export async function requireHost(ctx: GuardCtx, principal: Principal, chatId: ChatId): Promise<MemberChat> {
   const membership = await requireParticipant(ctx, principal, chatId);
   assertHost(ctx.can, principal, membership.role, chatId);
   return membership;
@@ -67,12 +56,7 @@ export async function requireHost(
  * otherwise the caller must be the slot's `authorUserId`. The verb supplies the slot author (read from the
  * `messages` row it is editing).
  */
-export async function requireAuthorOrHost(
-  ctx: GuardCtx,
-  principal: Principal,
-  chatId: ChatId,
-  authorUserId: Principal["userId"] | null,
-): Promise<MemberChat> {
+export async function requireAuthorOrHost(ctx: GuardCtx, principal: Principal, chatId: ChatId, authorUserId: Principal["userId"] | null): Promise<MemberChat> {
   const membership = await requireParticipant(ctx, principal, chatId);
   assertAuthorOrHost(ctx.can, { principal, role: membership.role, authorUserId }, chatId);
   return membership;
@@ -84,13 +68,7 @@ export async function requireAuthorOrHost(
  * member of. A non-member ancestor is EXCLUDED, not an error — the chain legitimately spans chats the caller
  * cannot see (the walker redacts; it does not leak their existence).
  */
-export async function gateLineagePerAncestor(
-  ctx: GuardCtx,
-  principal: Principal,
-  ancestorChatIds: readonly ChatId[],
-): Promise<ChatId[]> {
-  const memberships = await Promise.all(
-    ancestorChatIds.map((id) => loadMemberChat(ctx.db, id, principal.userId)),
-  );
+export async function gateLineagePerAncestor(ctx: GuardCtx, principal: Principal, ancestorChatIds: readonly ChatId[]): Promise<ChatId[]> {
+  const memberships = await Promise.all(ancestorChatIds.map((id) => loadMemberChat(ctx.db, id, principal.userId)));
   return ancestorChatIds.filter((_, i) => memberships[i] !== undefined);
 }

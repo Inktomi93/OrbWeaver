@@ -3,13 +3,7 @@
 // no FK-bearing tables (users/audit have none), so the constraint test exercises a UNIQUE violation;
 // the foreign-key arm of isConstraintViolation is exercised by the Wave-1 slices that land real FKs.
 
-import {
-  assertReferentialIntegrity,
-  createDb,
-  isConstraintViolation,
-  runMigrations,
-  users,
-} from "@orb/db";
+import { assertReferentialIntegrity, createDb, isConstraintViolation, runMigrations, users } from "@orb/db";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq, sql } from "drizzle-orm";
@@ -81,9 +75,7 @@ test("the 0000_baseline migration applies on a fresh db and passes assertReferen
   await runMigrations(db, MIGRATIONS_DIR);
   await expect(assertReferentialIntegrity(db)).resolves.toBeUndefined();
   // Each select throws if the baseline didn't create the table (independent → run together).
-  await Promise.all(
-    SENTINEL_TABLES.map((table) => db.run(sql.raw(`select count(*) from ${table}`))),
-  );
+  await Promise.all(SENTINEL_TABLES.map((table) => db.run(sql.raw(`select count(*) from ${table}`))));
 });
 
 test("runMigrations restores foreign_keys ON afterward (the finally-restore contract)", async () => {
@@ -100,10 +92,6 @@ test("assertReferentialIntegrity THROWS on an orphan FK row (the foreign_key_che
   await runMigrations(db, MIGRATIONS_DIR);
   // Plant an orphan with enforcement OFF — a session pointing at a non-existent user — then re-check.
   await db.run(sql`PRAGMA foreign_keys = OFF`);
-  await db.run(
-    sql.raw(
-      "insert into sessions (id, user_id, token_hash, expires_at) values ('session_orphan', 'user_ghost', 'h', 1)",
-    ),
-  );
+  await db.run(sql.raw("insert into sessions (id, user_id, token_hash, expires_at) values ('session_orphan', 'user_ghost', 'h', 1)"));
   await expect(assertReferentialIntegrity(db)).rejects.toThrow(ORPHAN_RE);
 });

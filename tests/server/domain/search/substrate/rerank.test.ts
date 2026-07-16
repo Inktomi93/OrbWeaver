@@ -65,19 +65,12 @@ describe("applyRerank", () => {
       { id: "a", sourceText: null },
       { id: "b", sourceText: "" },
     ];
-    const out = await applyRerank(
-      "q",
-      candidates,
-      () => Promise.reject(new Error("must not be called")),
-      10,
-    );
+    const out = await applyRerank("q", candidates, () => Promise.reject(new Error("must not be called")), 10);
     expect(out.map((c) => c.id)).toEqual(["a", "b"]);
   });
 
   test("a rerank rejection PROPAGATES (no silent fallback to CSLS order)", async () => {
     const candidates: Cand[] = [{ id: "a", sourceText: "alpha" }];
-    await expect(
-      applyRerank("q", candidates, () => Promise.reject(new Error("rerank not supported")), 10),
-    ).rejects.toThrow("rerank not supported");
+    await expect(applyRerank("q", candidates, () => Promise.reject(new Error("rerank not supported")), 10)).rejects.toThrow("rerank not supported");
   });
 });

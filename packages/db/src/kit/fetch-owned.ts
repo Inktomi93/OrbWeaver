@@ -26,12 +26,7 @@ export type OwnedTable = SQLiteTable & OwnedColumns;
  * Load the row of `table` with `id` owned by `ownerId`, or `undefined`. The owner predicate is part of
  * the WHERE (not a post-filter), so the query can never return a row the caller doesn't own.
  */
-export async function fetchOwned<T extends OwnedTable>(
-  db: Db,
-  table: T,
-  id: string,
-  ownerId: UserId,
-): Promise<T["$inferSelect"] | undefined> {
+export async function fetchOwned<T extends OwnedTable>(db: Db, table: T, id: string, ownerId: UserId): Promise<T["$inferSelect"] | undefined> {
   const rows = await db
     .select()
     .from(table)

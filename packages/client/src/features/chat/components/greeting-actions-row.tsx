@@ -15,10 +15,7 @@ import { Row } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { notify } from "#lib";
 import { startEditingMessage } from "#state";
-import {
-  MESSAGE_ACTION_ICON_CLASS,
-  messageActionsRevealClass,
-} from "../lib/message-actions-reveal";
+import { MESSAGE_ACTION_ICON_CLASS, messageActionsRevealClass } from "../lib/message-actions-reveal";
 
 export interface GreetingActionsRowProps {
   readonly message: MessageView;
@@ -27,10 +24,7 @@ export interface GreetingActionsRowProps {
 }
 
 /** Edit · Copy for a draft greeting row — the pre-commit subset of the committed action cluster. */
-export function GreetingActionsRow({
-  message,
-  messageActions,
-}: GreetingActionsRowProps): ReactElement {
+export function GreetingActionsRow({ message, messageActions }: GreetingActionsRowProps): ReactElement {
   const onEdit = (): void => {
     startEditingMessage(message.id, message.content);
   };
@@ -45,22 +39,11 @@ export function GreetingActionsRow({
   };
 
   return (
-    <Row
-      gap="field"
-      align="center"
-      justify="end"
-      data-slot="message-actions-row"
-      className={messageActionsRevealClass(messageActions)}
-    >
+    <Row gap="field" align="center" justify="end" data-slot="message-actions-row" className={messageActionsRevealClass(messageActions)}>
       <Button intent="ghost" size="icon" aria-label="Edit greeting" onClick={onEdit}>
         <Icon className={MESSAGE_ACTION_ICON_CLASS} icon={Pencil} size="sm" />
       </Button>
-      <Button
-        intent="ghost"
-        size="icon"
-        aria-label="Copy greeting"
-        onClick={(): void => void onCopy()}
-      >
+      <Button intent="ghost" size="icon" aria-label="Copy greeting" onClick={(): void => void onCopy()}>
         <Icon className={MESSAGE_ACTION_ICON_CLASS} icon={Copy} size="sm" />
       </Button>
     </Row>

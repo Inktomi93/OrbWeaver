@@ -23,13 +23,7 @@ import {
 } from "../../../../../packages/server/src/domain/character/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
-import {
-  seedAsset,
-  seedCharacterStats,
-  seedCharacterSummary,
-  seedRawCharacter,
-  seedUser,
-} from "../_support.ts";
+import { seedAsset, seedCharacterStats, seedCharacterSummary, seedRawCharacter, seedUser } from "../_support.ts";
 
 describe("persistence/queries", () => {
   test("loadOwnedCharacterRow is owner-scoped (undefined for a foreign row)", async () => {
@@ -331,12 +325,7 @@ describe("listOwnedCharactersWithAvatar — alpha sort (name ASC, id ASC)", () =
     });
     expect(all.map((r) => r.character.name)).toEqual(["Ada", "Bo", "Bo", "Cy"]);
     // The two "Bo" rows are ordered character_2 then character_3 (id ASC).
-    expect(all.map((r) => r.character.id)).toEqual([
-      "character_1",
-      "character_2",
-      "character_3",
-      "character_4",
-    ]);
+    expect(all.map((r) => r.character.id)).toEqual(["character_1", "character_2", "character_3", "character_4"]);
 
     // Cursor = the first "Bo" (character_2) → strictly after: the second "Bo" (same name, higher id), then Cy.
     const cursor: CharacterListCursor = {
@@ -808,11 +797,7 @@ describe("canonicalTagsFor — the accepted-junction db-layer consumer read", ()
     const owner = await seedUser(db, { handle: "owner" });
     const a = await seedRawCharacter(db, { id: "character_a", ownerId: owner, handle: "a" });
     const b = await seedRawCharacter(db, { id: "character_b", ownerId: owner, handle: "b" });
-    const mk = async (
-      id: string,
-      name: string,
-      sortOrder: number | null = null,
-    ): Promise<TagId> => {
+    const mk = async (id: string, name: string, sortOrder: number | null = null): Promise<TagId> => {
       const tagId = castId<TagId>(id);
       await db.insert(tags).values({ id: tagId, ownerId: owner, name, sortOrder });
       return tagId;

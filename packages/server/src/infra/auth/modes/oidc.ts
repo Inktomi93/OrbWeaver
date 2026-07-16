@@ -14,10 +14,7 @@ export function resolveOidc(): Promise<ResolvedIdentity | null> {
 /** Verify an OIDC callback's `state` against the injected transaction store; FAIL-CLOSED (returns null)
  *  when unwired, empty, absent, or mismatched. `consume` atomically take-and-deletes + enforces the
  *  10-min TTL, so a replayed callback can never be re-driven. */
-export async function verifyPkceState(
-  deps: ResolveDeps,
-  returnedState: string,
-): Promise<OidcTransaction | null> {
+export async function verifyPkceState(deps: ResolveDeps, returnedState: string): Promise<OidcTransaction | null> {
   if (deps.oidcStore === undefined || returnedState.length === 0) {
     return null;
   }

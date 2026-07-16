@@ -35,10 +35,7 @@ interface DraftConfigState {
   readonly configs: Readonly<Record<string, DraftConfig>>;
 }
 
-const useDraftConfigStore = createGatedStore<DraftConfigState>(
-  "draft-config",
-  (): DraftConfigState => ({ configs: {} }),
-);
+const useDraftConfigStore = createGatedStore<DraftConfigState>("draft-config", (): DraftConfigState => ({ configs: {} }));
 
 /** Non-reactive snapshot of one draft's config (commit reads it; tests). Untouched ⇒ the frozen empty. */
 export function readDraftConfig(draftKey: string): DraftConfig {
@@ -49,11 +46,7 @@ export function readDraftConfig(draftKey: string): DraftConfig {
 function patchDraftConfig(draftKey: string, patch: Partial<DraftConfig>): void {
   const { configs } = useDraftConfigStore.getState();
   const next = { ...(configs[draftKey] ?? EMPTY_DRAFT_CONFIG), ...patch };
-  useDraftConfigStore.setState(
-    { configs: { ...configs, [draftKey]: next } },
-    false,
-    "draft-config/patch",
-  );
+  useDraftConfigStore.setState({ configs: { ...configs, [draftKey]: next } }, false, "draft-config/patch");
 }
 
 /** Set one founding character's raw opening text (swipe → `greetings[idx]`; edit → typed). `""` clears it
@@ -64,11 +57,7 @@ export function setDraftGreeting(draftKey: string, characterId: CharacterId, tex
 }
 
 /** Merge one founding character's roster tuning (mute/talkativeness). */
-export function setDraftRosterOverride(
-  draftKey: string,
-  characterId: CharacterId,
-  override: DraftRosterOverride,
-): void {
+export function setDraftRosterOverride(draftKey: string, characterId: CharacterId, override: DraftRosterOverride): void {
   const { rosterOverrides } = readDraftConfig(draftKey);
   patchDraftConfig(draftKey, {
     rosterOverrides: {
@@ -89,10 +78,7 @@ export function setDraftRoomOverrides(draftKey: string, roomOverrides: RoomOverr
 }
 
 /** Replace the draft's authored injections (the injections manager's save seam). */
-export function setDraftInjections(
-  draftKey: string,
-  injections: readonly ChatInjectionInput[],
-): void {
+export function setDraftInjections(draftKey: string, injections: readonly ChatInjectionInput[]): void {
   patchDraftConfig(draftKey, { injections });
 }
 

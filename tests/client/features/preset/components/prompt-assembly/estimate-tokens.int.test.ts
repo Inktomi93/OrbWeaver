@@ -5,10 +5,7 @@
 
 import type { PromptSection } from "@orb/contracts/preset";
 import { DEFAULT_MARKER_TEMPLATES } from "@orb/contracts/preset";
-import {
-  estimateSectionTokens,
-  estimateTokens,
-} from "../../../../../../packages/client/src/features/preset/components/prompt-assembly/estimate-tokens";
+import { estimateSectionTokens, estimateTokens } from "../../../../../../packages/client/src/features/preset/components/prompt-assembly/estimate-tokens";
 import { expect, test } from "../../../../../support/fixtures";
 
 test("estimateTokens is chars/4 rounded up; empty ⇒ 0", () => {

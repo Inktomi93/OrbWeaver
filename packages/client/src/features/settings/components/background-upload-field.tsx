@@ -28,10 +28,7 @@ export interface BackgroundUploadFieldProps {
 
 /** Pick → `uploadAsset(file, "background")` → hand the full `StoredAsset` up. Upload failure surfaces
  *  inline in the `Field` error slot; the dropzone's own `loading`/`success` states cover the in-flight UX. */
-export function BackgroundUploadField({
-  currentHash,
-  onUploaded,
-}: BackgroundUploadFieldProps): ReactElement {
+export function BackgroundUploadField({ currentHash, onUploaded }: BackgroundUploadFieldProps): ReactElement {
   const [previewHash, setPreviewHash] = useState<string>(currentHash);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -59,20 +56,10 @@ export function BackgroundUploadField({
   return (
     <Field label="Uploaded image" error={uploadError} name="backgroundAssetUpload">
       <Row gap="field" align="center">
-        <Avatar
-          size="lg"
-          fallbackDelay={0}
-          {...(previewHash === "" ? {} : { src: blobUrl(previewHash) })}
-        >
+        <Avatar size="lg" fallbackDelay={0} {...(previewHash === "" ? {} : { src: blobUrl(previewHash) })}>
           <Icon icon={ImagePlus} size="lg" />
         </Avatar>
-        <FileDropzone
-          accept="image/*"
-          maxSizeBytes={MAX_BACKGROUND_BYTES}
-          loading={loading}
-          success={success}
-          onFilesSelected={handleFilesSelected}
-        />
+        <FileDropzone accept="image/*" maxSizeBytes={MAX_BACKGROUND_BYTES} loading={loading} success={success} onFilesSelected={handleFilesSelected} />
       </Row>
     </Field>
   );

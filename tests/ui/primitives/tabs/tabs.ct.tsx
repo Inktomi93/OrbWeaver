@@ -44,21 +44,12 @@ test("the indicator is present and tracks the active tab", async ({ mount, page 
   const indicator = page.getByTestId("tab-indicator");
   await expect(indicator).toBeVisible();
   // Base UI drives the indicator off the runtime --active-tab-left var; it moves when selection does.
-  const leftOnOne = await indicator.evaluate((el) =>
-    getComputedStyle(el).getPropertyValue("--active-tab-left"),
-  );
+  const leftOnOne = await indicator.evaluate((el) => getComputedStyle(el).getPropertyValue("--active-tab-left"));
   await page.getByRole("tab", { name: "Two" }).click();
-  await expect
-    .poll(() =>
-      indicator.evaluate((el) => getComputedStyle(el).getPropertyValue("--active-tab-left")),
-    )
-    .not.toBe(leftOnOne);
+  await expect.poll(() => indicator.evaluate((el) => getComputedStyle(el).getPropertyValue("--active-tab-left"))).not.toBe(leftOnOne);
 });
 
-test("the indicator is a 2px primary UNDERLINE and the list is a bordered track, not a pill (D62)", async ({
-  mount,
-  page,
-}) => {
+test("the indicator is a 2px primary UNDERLINE and the list is a bordered track, not a pill (D62)", async ({ mount, page }) => {
   await mount(fixture());
   const indicator = page.getByTestId("tab-indicator");
   // A 2px (h-0.5) bar filled with the primary token — the underline, not a full-height pill.
@@ -90,10 +81,7 @@ test("Home/End jump to the first/last tab", async ({ mount, page }) => {
   await expect(page.getByRole("tab", { name: "One" })).toHaveAttribute("aria-selected", "true");
 });
 
-test("a disabled tab is skipped by arrow-key navigation and cannot be activated by click", async ({
-  mount,
-  page,
-}) => {
+test("a disabled tab is skipped by arrow-key navigation and cannot be activated by click", async ({ mount, page }) => {
   await mount(
     <Tabs defaultValue="one">
       <TabsList>
@@ -134,14 +122,8 @@ test("orientation=vertical mirrors data-orientation onto every part", async ({ m
       <TabsPanel value="two">Second panel</TabsPanel>
     </Tabs>,
   );
-  await expect(page.locator('[data-slot="tabs-root"]')).toHaveAttribute(
-    "data-orientation",
-    "vertical",
-  );
-  await expect(page.locator('[data-slot="tabs-list"]')).toHaveAttribute(
-    "data-orientation",
-    "vertical",
-  );
+  await expect(page.locator('[data-slot="tabs-root"]')).toHaveAttribute("data-orientation", "vertical");
+  await expect(page.locator('[data-slot="tabs-list"]')).toHaveAttribute("data-orientation", "vertical");
   await page.getByRole("tab", { name: "One" }).focus();
   await page.keyboard.press("ArrowDown");
   await expect(page.getByRole("tab", { name: "Two" })).toHaveAttribute("aria-selected", "true");

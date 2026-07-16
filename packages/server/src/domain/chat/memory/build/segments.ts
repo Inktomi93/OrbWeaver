@@ -13,12 +13,7 @@ import type { ChatContext } from "../../context";
 import { resolveCfg } from "../constants";
 import { loadCanonThroughSeq, loadChatMeta, loadSegmentHashes } from "../persistence/queries";
 import type { MemoryConfig, MemoryPassCounts } from "../types";
-import {
-  blockHash,
-  EMPTY_MACRO_NAMES,
-  renderTranscript,
-  sliceBlocks,
-} from "./substrate/transcript";
+import { blockHash, EMPTY_MACRO_NAMES, renderTranscript, sliceBlocks } from "./substrate/transcript";
 
 /** What `generateSegments` needs (file-local, NON-exported — the `types-in-contract` gate; caller passes a
  *  structural literal). Segments are chat-wide, so this takes a bare `chatId` (no scope bucket). */
@@ -34,10 +29,7 @@ interface GenerateSegmentsArgs {
  * Same cutoff as the digest build (`maxSeq − verbatimWindow`): only complete, aged-out blocks. `mode: 'off'`
  * (D36) → a no-op. Returns the written/skipped counts.
  */
-export async function generateSegments(
-  ctx: ChatContext,
-  args: GenerateSegmentsArgs,
-): Promise<MemoryPassCounts> {
+export async function generateSegments(ctx: ChatContext, args: GenerateSegmentsArgs): Promise<MemoryPassCounts> {
   const cfg = resolveCfg(args.config);
   if (cfg.mode === "off") {
     return { written: 0, skipped: 0 };

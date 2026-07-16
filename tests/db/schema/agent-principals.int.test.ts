@@ -47,9 +47,7 @@ test("the source_kind CHECK rejects an off-enum source", async () => {
   const bad: string = "webhook";
   let caught: unknown;
   try {
-    await db
-      .insert(agentPrincipals)
-      .values({ userId: agentId, sourceKind: bad as (typeof AGENT_SOURCE_KINDS)[number] });
+    await db.insert(agentPrincipals).values({ userId: agentId, sourceKind: bad as (typeof AGENT_SOURCE_KINDS)[number] });
   } catch (err) {
     caught = err;
   }

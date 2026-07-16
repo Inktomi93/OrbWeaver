@@ -12,10 +12,7 @@ interface CorpusSelectionState {
   readonly selectedCharacterId: CharacterId | null;
 }
 
-const useCorpusSelectionStore = createGatedStore<CorpusSelectionState>(
-  "corpus-selection",
-  (): CorpusSelectionState => ({ selectedCharacterId: null }),
-);
+const useCorpusSelectionStore = createGatedStore<CorpusSelectionState>("corpus-selection", (): CorpusSelectionState => ({ selectedCharacterId: null }));
 
 /** Drill into a character's dossier (a search hit / browse row / neighbour click) — CONTENT swaps to it. */
 export function selectCorpusCharacter(id: CharacterId): void {

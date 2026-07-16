@@ -18,9 +18,7 @@ test("partial fill: exactly `filled` segments carry the accent", async ({ mount 
   await expect(component).toHaveAttribute("aria-valuenow", "3");
 });
 
-test("full fill without completed: all segments filled, no completion emphasis", async ({
-  mount,
-}) => {
+test("full fill without completed: all segments filled, no completion emphasis", async ({ mount }) => {
   const component = await mount(<SegmentedClock segments={4} filled={4} label="Front" />);
   await expect(component.locator('[data-filled="true"]')).toHaveCount(4);
   await expect(component.locator('[data-slot="completed-dot"]')).toHaveCount(0);
@@ -28,9 +26,7 @@ test("full fill without completed: all segments filled, no completion emphasis",
 });
 
 test("completed: full accent on every segment plus the center-dot emphasis", async ({ mount }) => {
-  const component = await mount(
-    <SegmentedClock segments={6} filled={6} completed={true} label="Front" />,
-  );
+  const component = await mount(<SegmentedClock segments={6} filled={6} completed={true} label="Front" />);
   await expect(component).toHaveAttribute("data-completed", "true");
   await expect(component.locator('[data-filled="true"]')).toHaveCount(6);
   await expect(component.locator('[data-slot="completed-dot"]')).toBeVisible();
@@ -48,9 +44,7 @@ test("role=meter with the filled/segments value semantics", async ({ mount }) =>
 
 // A4 — GM-eyes redaction: dimmed + a non-color lock signal, never color alone.
 test("hidden: dims the clock and swaps the center slot for a lock glyph", async ({ mount }) => {
-  const component = await mount(
-    <SegmentedClock filled={2} hidden={true} label="Twist clock" segments={6} />,
-  );
+  const component = await mount(<SegmentedClock filled={2} hidden={true} label="Twist clock" segments={6} />);
   await expect(component).toHaveAttribute("data-hidden", "true");
   await expect(component).toHaveCSS("opacity", "0.5");
   // The real fill count still renders — this is a GM-eyes viewer who IS allowed to see it.
@@ -59,9 +53,7 @@ test("hidden: dims the clock and swaps the center slot for a lock glyph", async 
 });
 
 test("hidden wins the center-emphasis slot over completed", async ({ mount }) => {
-  const component = await mount(
-    <SegmentedClock completed={true} filled={6} hidden={true} label="Twist clock" segments={6} />,
-  );
+  const component = await mount(<SegmentedClock completed={true} filled={6} hidden={true} label="Twist clock" segments={6} />);
   await expect(component.locator('[data-slot="hidden-icon"]')).toBeVisible();
   await expect(component.locator('[data-slot="completed-dot"]')).toHaveCount(0);
 });

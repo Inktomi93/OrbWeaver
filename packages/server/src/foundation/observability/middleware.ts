@@ -32,8 +32,7 @@ export const observability: MiddlewareHandler = (c, next) => {
   // If a trusted upstream already minted a correlation id, propagate it; else a fresh UUID. The charset
   // guard prevents log-injection from a client setting their own header.
   const incoming = c.req.header("x-request-id");
-  const requestId =
-    incoming !== undefined && SAFE_REQUEST_ID.test(incoming) ? incoming : randomUUID();
+  const requestId = incoming !== undefined && SAFE_REQUEST_ID.test(incoming) ? incoming : randomUUID();
   c.header("X-Request-Id", requestId);
   const start = performance.now();
 
@@ -48,14 +47,9 @@ export const observability: MiddlewareHandler = (c, next) => {
     }
     const path = redactSensitivePath(rawPath);
 
-    await withRequestSpan(
-      requestId,
-      `http ${method} ${path}`,
-      { "http.method": method, "http.path": path },
-      async () => {
-        await next();
-      },
-    );
+    await withRequestSpan(requestId, `http ${method} ${path}`, { "http.method": method, "http.path": path }, async () => {
+      await next();
+    });
 
     const durationMs = Math.round(performance.now() - start);
     const status = c.res.status;

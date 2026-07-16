@@ -16,23 +16,11 @@ export interface SwitchFieldProps {
   readonly disabled?: boolean;
 }
 
-export function SwitchField({
-  label,
-  description,
-  hint,
-  disabled,
-}: SwitchFieldProps): ReactElement {
+export function SwitchField({ label, description, hint, disabled }: SwitchFieldProps): ReactElement {
   const field = useFieldContext<boolean>();
   const error = touchedFieldError(field.state.meta);
   return (
-    <Field
-      label={label}
-      description={description}
-      hint={hint}
-      error={error}
-      disabled={disabled ?? false}
-      name={field.name}
-    >
+    <Field label={label} description={description} hint={hint} error={error} disabled={disabled ?? false} name={field.name}>
       {/* eslint-disable-next-line jsx-a11y/control-has-associated-label */}
       <Switch
         checked={field.state.value}

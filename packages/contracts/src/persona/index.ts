@@ -28,16 +28,14 @@ export type PersonaMetadata = z.infer<typeof personaMetadataSchema>;
 
 /** Write-side metadata guard: the blob stays a lenient open record, but known fields are validated when
  *  present so a typo'd `descriptionPosition`/`inject` is rejected at WRITE instead of silently no-op'ing. */
-export const personaMetadataWriteSchema = z
-  .record(z.string(), z.unknown())
-  .superRefine((val, ctx): void => {
-    const known = personaMetadataSchema.safeParse(val);
-    if (!known.success) {
-      for (const issue of known.error.issues) {
-        ctx.addIssue({ code: "custom", message: issue.message, path: issue.path });
-      }
+export const personaMetadataWriteSchema = z.record(z.string(), z.unknown()).superRefine((val, ctx): void => {
+  const known = personaMetadataSchema.safeParse(val);
+  if (!known.success) {
+    for (const issue of known.error.issues) {
+      ctx.addIssue({ code: "custom", message: issue.message, path: issue.path });
     }
-  });
+  }
+});
 export type PersonaMetadataWrite = z.infer<typeof personaMetadataWriteSchema>;
 
 export const createPersonaSchema = z.object({

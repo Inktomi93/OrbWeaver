@@ -18,16 +18,9 @@
 // observability probe, never for the input/button — those use getByLabel/getByRole).
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import {
-  AutosaveDraftMirrorStory,
-  AutosaveFailedSaveStory,
-  AutosaveUnmountFlushStory,
-} from "./_ct-stories";
+import { AutosaveDraftMirrorStory, AutosaveFailedSaveStory, AutosaveUnmountFlushStory } from "./_ct-stories";
 
-test("a host re-render after an edit does NOT clobber the draft mirror back to the mount seed", async ({
-  mount,
-  page,
-}) => {
+test("a host re-render after an edit does NOT clobber the draft mirror back to the mount seed", async ({ mount, page }) => {
   await mount(<AutosaveDraftMirrorStory />);
 
   const draftState = page.getByTestId("draft-mirror-state");
@@ -52,10 +45,7 @@ test("a host re-render after an edit does NOT clobber the draft mirror back to t
   await expect(draftState).not.toContainText("seed text");
 });
 
-test("a field unmounting mid-debounce flushes its pending edit via onFieldUnmount", async ({
-  mount,
-  page,
-}) => {
+test("a field unmounting mid-debounce flushes its pending edit via onFieldUnmount", async ({ mount, page }) => {
   await mount(<AutosaveUnmountFlushStory />);
 
   const savedState = page.getByTestId("unmount-flush-saved-state");
@@ -79,10 +69,7 @@ test("a field unmounting mid-debounce flushes its pending edit via onFieldUnmoun
 // double-invoke (mount→unmount→remount) unmounts fields on EVERY mount, and in prod any tab-away before an
 // edit does the same — without the `!isDefaultValue` guard, that flush autosaved the untouched seed to the
 // server (room-overrides wrote `{}` on every chat-open).
-test("a field unmounting on an UNTOUCHED form does NOT flush its seed (the setRoomOverrides({}) bug)", async ({
-  mount,
-  page,
-}) => {
+test("a field unmounting on an UNTOUCHED form does NOT flush its seed (the setRoomOverrides({}) bug)", async ({ mount, page }) => {
   await mount(<AutosaveUnmountFlushStory />);
 
   const savedState = page.getByTestId("unmount-flush-saved-state");
@@ -99,10 +86,7 @@ test("a field unmounting on an UNTOUCHED form does NOT flush its seed (the setRo
 // F4 — a REJECTING autosave must not leave an unhandled promise rejection, and must skip clearDraft so
 // the edit survives in the mirror for retry. Before the fix, the listener's `void handleSubmit()` let
 // form-core's re-thrown onSubmit error escape as an unhandledrejection (and poisoned CT console asserts).
-test("a rejecting autosave surfaces no unhandled rejection and preserves the draft", async ({
-  mount,
-  page,
-}) => {
+test("a rejecting autosave surfaces no unhandled rejection and preserves the draft", async ({ mount, page }) => {
   await mount(<AutosaveFailedSaveStory />);
 
   const draftState = page.getByTestId("failed-save-draft");

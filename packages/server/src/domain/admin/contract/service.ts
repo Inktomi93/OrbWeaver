@@ -75,9 +75,7 @@ export interface AdminService {
   readonly resetPassword: (params: ResetPasswordParams) => Promise<void>;
   readonly listSessions: (params: ListSessionsParams) => Promise<ListSessionsResult>;
   readonly revokeSession: (params: RevokeSessionParams) => Promise<void>;
-  readonly revokeUserSessions: (
-    params: RevokeUserSessionsParams,
-  ) => Promise<RevokeUserSessionsResult>;
+  readonly revokeUserSessions: (params: RevokeUserSessionsParams) => Promise<RevokeUserSessionsResult>;
   readonly vllmEngines: (params: VllmEnginesParams) => Promise<VllmEnginesResult>;
   readonly restartVllmEngine: (params: RestartVllmEngineParams) => Promise<RestartVllmEngineResult>;
   readonly embedCharacterCard: (params: EmbedCharacterCardParams) => Promise<void>;

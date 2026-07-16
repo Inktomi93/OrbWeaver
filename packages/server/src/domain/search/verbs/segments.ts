@@ -26,10 +26,7 @@ export function createSegments(ctx: SearchContext): SearchService["segments"] {
     }
     const scopedCharacterId = params.scopedCharacterId;
     if (scopedCharacterId === undefined) {
-      throw new SearchError(
-        SEARCH_SCOPE_REQUIRED,
-        "segments requires an egocentric scopedCharacterId to key the verbatim-lens result",
-      );
+      throw new SearchError(SEARCH_SCOPE_REQUIRED, "segments requires an egocentric scopedCharacterId to key the verbatim-lens result");
     }
     const text = params.queryText;
     if (text === undefined || text.trim().length === 0) {
@@ -39,10 +36,7 @@ export function createSegments(ctx: SearchContext): SearchService["segments"] {
     const embedded = await ctx.roleClients.embed(text, { inputType: "query" });
     const queryVector = embedded.vectors[0];
     if (queryVector === null || queryVector === undefined) {
-      throw new SearchError(
-        SEARCH_EMPTY_QUERY,
-        "the query embedded to no vector — nothing to scan",
-      );
+      throw new SearchError(SEARCH_EMPTY_QUERY, "the query embedded to no vector — nothing to scan");
     }
 
     const pool = await nearestSegments(ctx.db, {
@@ -73,10 +67,7 @@ export function createSegments(ctx: SearchContext): SearchService["segments"] {
         ),
       );
 
-    const ordered =
-      params.mode === "mixC"
-        ? await applyRerank(text, ranked, ctx.roleClients.rerank, ranked.length)
-        : ranked;
+    const ordered = params.mode === "mixC" ? await applyRerank(text, ranked, ctx.roleClients.rerank, ranked.length) : ranked;
 
     return ordered.map((c) => ({ blockKey: c.blockKey, score: c.score, text: c.sourceText }));
   };

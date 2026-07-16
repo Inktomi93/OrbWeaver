@@ -1,11 +1,4 @@
-import type {
-  TagAttachmentView,
-  TagSource,
-  TagStatus,
-  TagTargetType,
-  TagView,
-  TagWithUsage,
-} from "@orb/contracts/tag";
+import type { TagAttachmentView, TagSource, TagStatus, TagTargetType, TagView, TagWithUsage } from "@orb/contracts/tag";
 import {
   createTagSchema,
   TAG_FOLDER_TYPES,
@@ -152,9 +145,7 @@ test("TagWithUsage extends TagView with the five-junction rollup", () => {
     isHiddenOnCard: false,
     usage,
   };
-  expect(Object.keys(row.usage).sort()).toEqual(
-    ["characters", "chats", "personas", "presets", "total", "worldBooks"].sort(),
-  );
+  expect(Object.keys(row.usage).sort()).toEqual(["characters", "chats", "personas", "presets", "total", "worldBooks"].sort());
   expect(row.usage.total).toBe(6);
 });
 

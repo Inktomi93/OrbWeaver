@@ -15,13 +15,7 @@ import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement, ReactNode } from "react";
 import { useDeferredValue, useMemo, useRef, useState } from "react";
 import type { Trpc } from "#data";
-import {
-  createCollectionSurface,
-  QueryErrorState,
-  SkeletonRows,
-  useInvalidation,
-  useTRPC,
-} from "#data";
+import { createCollectionSurface, QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { useFocusOnMount } from "#lib";
 import {
   clearCharacterSelection,
@@ -48,10 +42,7 @@ import { CharacterCreateMenu } from "../components/character-create-menu";
 import { CharacterFavoritesStrip } from "../components/character-favorites-strip";
 import { CharacterFilterChips } from "../components/character-filter-chips";
 import { CharacterLibraryToolbar } from "../components/character-library-toolbar";
-import {
-  useDuplicateCharacter,
-  useRemoveCharacter,
-} from "../hooks/use-character-context-mutations";
+import { useDuplicateCharacter, useRemoveCharacter } from "../hooks/use-character-context-mutations";
 import { useUpdateCharacter } from "../hooks/use-character-mutations";
 import { filterByChips, groupByTag, resumeTargets } from "../lib/character-list-view";
 import { filterCharacters } from "../lib/filter-characters";
@@ -84,9 +75,7 @@ export interface CharacterLibrarySurfaceProps {
 }
 
 /** The character library: header + favorites + filters + the flat/categorized paged list + bulk mode. */
-export function CharacterLibrarySurface({
-  ariaLabel = "Character library",
-}: CharacterLibrarySurfaceProps): ReactElement {
+export function CharacterLibrarySurface({ ariaLabel = "Character library" }: CharacterLibrarySurfaceProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const [query, setQuery] = useState("");
@@ -120,10 +109,8 @@ export function CharacterLibrarySurface({
   );
 
   const openEditor = (id: string): void => selectCharacter(castId<CharacterId>(id));
-  const toggleStar = (id: string, next: boolean): void =>
-    update.mutate({ characterId: castId<CharacterId>(id), input: { starred: next } });
-  const toggleArchive = (id: string, next: boolean): void =>
-    update.mutate({ characterId: castId<CharacterId>(id), input: { archived: next } });
+  const toggleStar = (id: string, next: boolean): void => update.mutate({ characterId: castId<CharacterId>(id), input: { starred: next } });
+  const toggleArchive = (id: string, next: boolean): void => update.mutate({ characterId: castId<CharacterId>(id), input: { archived: next } });
   const toggleBulk = (id: string): void => collection.selection.toggle(id);
   const duplicateCharacter = (id: string): void => {
     void duplicate
@@ -185,11 +172,7 @@ export function CharacterLibrarySurface({
         showArchived={showArchived}
         tagFilter={tagFilter}
       />
-      <CharacterFavoritesStrip
-        favorites={favorites}
-        onSelect={openEditor}
-        selectedId={selectedId}
-      />
+      <CharacterFavoritesStrip favorites={favorites} onSelect={openEditor} selectedId={selectedId} />
       <Stack className="min-h-0 flex-1">
         <CharacterLibraryBody
           ariaLabel={ariaLabel}
@@ -208,21 +191,14 @@ export function CharacterLibrarySurface({
         />
       </Stack>
       {bulkMode && selectedCount > 0 ? (
-        <CharacterBulkBar
-          ids={[...collection.selection.selected]}
-          onClear={collection.selection.clear}
-          selectedCount={selectedCount}
-          trpc={trpc}
-        />
+        <CharacterBulkBar ids={[...collection.selection.selected]} onClear={collection.selection.clear} selectedCount={selectedCount} trpc={trpc} />
       ) : null}
     </Stack>
   );
 }
 
 /** The visible-tag vocabulary across the loaded rows (deduped by id) — the tag-filter chip set. */
-function tagVocabulary(
-  items: readonly CharacterLibraryItem[],
-): readonly { readonly id: TagId; readonly name: string }[] {
+function tagVocabulary(items: readonly CharacterLibraryItem[]): readonly { readonly id: TagId; readonly name: string }[] {
   const seen = new Map<TagId, string>();
   for (const item of items) {
     for (const tag of item.tags) {
@@ -302,21 +278,13 @@ function CharacterLibraryBody({
         {...(hasNextPage
           ? {
               action: (
-                <Button
-                  disabled={isFetchingNextPage}
-                  intent="secondary"
-                  onClick={listProps.onEndApproach}
-                >
+                <Button disabled={isFetchingNextPage} intent="secondary" onClick={listProps.onEndApproach}>
                   Load more
                 </Button>
               ),
             }
           : {})}
-        description={
-          hasNextPage
-            ? "None among the loaded characters — load more to keep looking."
-            : "No characters match the current filters."
-        }
+        description={hasNextPage ? "None among the loaded characters — load more to keep looking." : "No characters match the current filters."}
         icon={<Icon icon={Users} size="lg" />}
         title="No matches in view"
       />

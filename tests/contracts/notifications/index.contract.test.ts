@@ -1,8 +1,4 @@
-import type {
-  NotificationEvent,
-  NotificationType,
-  PresenceView,
-} from "@orb/contracts/notifications";
+import type { NotificationEvent, NotificationType, PresenceView } from "@orb/contracts/notifications";
 import { notificationEventSchema } from "@orb/contracts/notifications";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
@@ -56,9 +52,7 @@ const EXPECTED_VARIANT_COUNT = 5;
 // stray added member; the FIXTURES Record key set is the type-checked mirror.
 test("NotificationEvent is the closed 5-member delivery union", () => {
   expect(notificationEventSchema.options).toHaveLength(EXPECTED_VARIANT_COUNT);
-  expect(Object.keys(FIXTURES).sort()).toEqual(
-    ["deferred-turn-dropped", "handoff-accepted", "handoff-nominated", "invite", "kicked"].sort(),
-  );
+  expect(Object.keys(FIXTURES).sort()).toEqual(["deferred-turn-dropped", "handoff-accepted", "handoff-nominated", "invite", "kicked"].sort());
 });
 
 // ROUND-TRIP: the representative `invite` variant (the richest payload) survives parse unchanged.
@@ -113,9 +107,7 @@ test("an injected secret field is stripped at the schema boundary", () => {
 // assert the key set is finite/known by exhaustively listing it (an index signature would defeat this).
 test("NotificationEvent variants expose only the allowlisted fields", () => {
   const inviteKeys = Object.keys(FIXTURES.invite).sort();
-  expect(inviteKeys).toEqual(
-    ["chatId", "inviteId", "invitedByHandle", "recipientUserId", "type"].sort(),
-  );
+  expect(inviteKeys).toEqual(["chatId", "inviteId", "invitedByHandle", "recipientUserId", "type"].sort());
   const kickedKeys = Object.keys(FIXTURES.kicked).sort();
   expect(kickedKeys).toEqual(["chatId", "recipientUserId", "type"].sort());
 });

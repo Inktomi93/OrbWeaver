@@ -97,9 +97,9 @@ The **provider-send model** — what is transmitted *to the model as input* — 
 
 ### 12.6 Gates (machine-enforceable — the rigor)
 
-- **`no-untrusted-html-in-main-dom`** (`tools/grit/`) — a raw/untrusted HTML string may reach ONLY `@orb/ui/sandbox-frame`; never `dangerouslySetInnerHTML` or main-DOM injection.
-- **`no-external-media-without-gate`** (`tools/grit/`) — any raw `<img>`/`<audio>`/`<video>` in a feature must route through `MessageMedia`.
-- **`theme-override-only-via-scope`** (`tools/grit/`) — a `--color-*` override applies only via `<ThemeScope>` (values clamped at the boundary), never spread as a raw `style` prop.
+- **`no-untrusted-html-in-main-dom`** (`scripts/check/gates/`) — a raw/untrusted HTML string may reach ONLY `@orb/ui/sandbox-frame`; never `dangerouslySetInnerHTML` or main-DOM injection.
+- **`no-external-media-without-gate`** (`scripts/check/gates/`) — any raw `<img>`/`<audio>`/`<video>` in a feature must route through `MessageMedia`.
+- **`theme-override-only-via-scope`** (`scripts/check/gates/`) — a `--color-*` override applies only via `<ThemeScope>` (values clamped at the boundary), never spread as a raw `style` prop.
 - **`persistence-boundary`** — synced prefs go in the `user_settings` blob, not raw browser storage (§12.1 PERSISTENCE).
 - **CSP-headers-present** — the app-document CSP exists + is tight (`security-headers.ts`).
 

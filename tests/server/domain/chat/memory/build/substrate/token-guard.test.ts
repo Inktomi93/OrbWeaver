@@ -2,10 +2,7 @@ import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { RowMacroNameContext, RowPersonaName } from "@orb/kit/macro";
 import { describe } from "vitest";
-import {
-  fitBlockToBudget,
-  SUMMARIZER_CONTEXT_FLOOR,
-} from "../../../../../../../packages/server/src/domain/chat/memory/build/substrate/token-guard";
+import { fitBlockToBudget, SUMMARIZER_CONTEXT_FLOOR } from "../../../../../../../packages/server/src/domain/chat/memory/build/substrate/token-guard";
 import type { MsgRow } from "../../../../../../../packages/server/src/domain/chat/memory/types";
 import { expect, test } from "../../../../../../support/fixtures";
 

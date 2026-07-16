@@ -21,10 +21,7 @@ export const comboboxVariants = tv({
       "hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring",
       "disabled:pointer-events-none disabled:opacity-50",
     ],
-    input: [
-      "min-w-24 flex-1 bg-transparent px-field py-field text-body leading-body text-foreground outline-none",
-      "placeholder:text-muted-foreground",
-    ],
+    input: ["min-w-24 flex-1 bg-transparent px-field py-field text-body leading-body text-foreground outline-none", "placeholder:text-muted-foreground"],
     positioner: "z-(--z-popover) outline-none",
     popup: [
       "z-(--z-popover) max-h-(--available-height) w-(--anchor-width) overflow-y-auto rounded-card border border-border bg-popover p-field text-popover-foreground",

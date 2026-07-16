@@ -3,25 +3,11 @@
 // tuple, the size presets, and the `generatePicture` request (its `n`/`prompt` bounds are the fan-out cap
 // and the prompt-length clamp — boundary-tested here since the wire is the trust edge).
 
-import {
-  generatePictureRequestSchema,
-  PROMPT_TEMPLATE_MODES,
-  promptTemplateModeSchema,
-  SIZE_PRESET_NAMES,
-  sizePresetSchema,
-} from "@orb/contracts/imagery";
+import { generatePictureRequestSchema, PROMPT_TEMPLATE_MODES, promptTemplateModeSchema, SIZE_PRESET_NAMES, sizePresetSchema } from "@orb/contracts/imagery";
 import { expect, test } from "../../support/fixtures";
 
 test("PROMPT_TEMPLATE_MODES is the committed template axis and the schema derives from it", () => {
-  expect(PROMPT_TEMPLATE_MODES).toEqual([
-    "free",
-    "character",
-    "face",
-    "scenario",
-    "background",
-    "character_multimodal",
-    "face_multimodal",
-  ]);
+  expect(PROMPT_TEMPLATE_MODES).toEqual(["free", "character", "face", "scenario", "background", "character_multimodal", "face_multimodal"]);
   expect(promptTemplateModeSchema.options).toEqual(PROMPT_TEMPLATE_MODES);
 });
 
@@ -56,10 +42,6 @@ test("generatePictureRequestSchema enforces the n fan-out cap (1..4) and the pro
   expect(generatePictureRequestSchema.safeParse({ mode: "free", n: 5 }).success).toBe(false);
   expect(generatePictureRequestSchema.safeParse({ mode: "free", n: 2.5 }).success).toBe(false);
   // The 2000-char prompt ceiling — at cap parses, one over is rejected.
-  expect(
-    generatePictureRequestSchema.safeParse({ mode: "free", prompt: "a".repeat(2000) }).success,
-  ).toBe(true);
-  expect(
-    generatePictureRequestSchema.safeParse({ mode: "free", prompt: "a".repeat(2001) }).success,
-  ).toBe(false);
+  expect(generatePictureRequestSchema.safeParse({ mode: "free", prompt: "a".repeat(2000) }).success).toBe(true);
+  expect(generatePictureRequestSchema.safeParse({ mode: "free", prompt: "a".repeat(2001) }).success).toBe(false);
 });

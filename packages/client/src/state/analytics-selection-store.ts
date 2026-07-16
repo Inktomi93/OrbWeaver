@@ -20,20 +20,12 @@ const useAnalyticsSelectionStore = createGatedStore<AnalyticsSelectionState>(
 
 /** Drill into a character's stats (a leaderboard row / momentum row) — CONTENT swaps to the drill. */
 export function selectAnalyticsCharacter(id: CharacterId): void {
-  useAnalyticsSelectionStore.setState(
-    { selectedCharacterId: id },
-    false,
-    "analytics-selection/select",
-  );
+  useAnalyticsSelectionStore.setState({ selectedCharacterId: id }, false, "analytics-selection/select");
 }
 
 /** Clear the drill selection (back to the overview dashboard). */
 export function clearAnalyticsSelection(): void {
-  useAnalyticsSelectionStore.setState(
-    { selectedCharacterId: null },
-    false,
-    "analytics-selection/clear",
-  );
+  useAnalyticsSelectionStore.setState({ selectedCharacterId: null }, false, "analytics-selection/clear");
 }
 
 /** Reactive: the currently-drilled analytics character id (`null` = the dashboard). A primitive selector. */

@@ -17,16 +17,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { logger } from "@orb/server/foundation/observability";
 import type { HostTokenDeps } from "@orb/server/infra/providers/backends/agent-sdk";
-import {
-  ensureFreshHostSubToken,
-  refreshHostSubTokenIfMode1,
-} from "@orb/server/infra/providers/backends/agent-sdk";
+import { ensureFreshHostSubToken, refreshHostSubTokenIfMode1 } from "@orb/server/infra/providers/backends/agent-sdk";
 import type { Mock } from "vitest";
 import { afterEach, beforeEach, describe, vi } from "vitest";
-import {
-  makeOpenRouterCredential,
-  makeResolvedCredential,
-} from "../../../../../support/factories/resolved-connection.ts";
+import { makeOpenRouterCredential, makeResolvedCredential } from "../../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../../support/fixtures";
 
 /** A typed fake `fetch` — `vi.fn<typeof fetch>()` so no `as unknown as` double-cast is needed (the
@@ -136,9 +130,7 @@ describe("ensureFreshHostSubToken — the expired-access + valid-refresh path (t
   test("keeps the OLD refresh token when the endpoint does not rotate it", async () => {
     writeCreds({ expiresAt: NOW - 1000, refreshTokenExpiresAt: NOW + 2_000_000_000 });
     // No refresh_token in the response ⇒ the stored one is retained.
-    const fetchImpl = vi.fn<typeof fetch>(() =>
-      Promise.resolve(Response.json({ access_token: NEW_ACCESS, expires_in: 3600 })),
-    );
+    const fetchImpl = vi.fn<typeof fetch>(() => Promise.resolve(Response.json({ access_token: NEW_ACCESS, expires_in: 3600 })));
 
     await ensureFreshHostSubToken(deps(fetchImpl));
 
@@ -194,9 +186,7 @@ describe("ensureFreshHostSubToken — the no-op paths (a fresh token is not refr
 describe("ensureFreshHostSubToken — best-effort: a failure NEVER throws + never corrupts the file", () => {
   test("an HTTP error from the token endpoint is swallowed; the stale file is left intact", async () => {
     writeCreds({ expiresAt: NOW - 3_600_000, refreshTokenExpiresAt: NOW + 2_000_000_000 });
-    const fetchImpl = vi.fn<typeof fetch>(() =>
-      Promise.resolve(Response.json({ error: "invalid_grant" }, { status: 400 })),
-    );
+    const fetchImpl = vi.fn<typeof fetch>(() => Promise.resolve(Response.json({ error: "invalid_grant" }, { status: 400 })));
 
     const refreshed = await ensureFreshHostSubToken(deps(fetchImpl));
 
@@ -214,9 +204,7 @@ describe("ensureFreshHostSubToken — best-effort: a failure NEVER throws + neve
 
   test("a malformed token response (missing access_token) is rejected, not written", async () => {
     writeCreds({ expiresAt: NOW - 3_600_000, refreshTokenExpiresAt: NOW + 2_000_000_000 });
-    const fetchImpl = vi.fn<typeof fetch>(() =>
-      Promise.resolve(Response.json({ expires_in: 3600 })),
-    );
+    const fetchImpl = vi.fn<typeof fetch>(() => Promise.resolve(Response.json({ expires_in: 3600 })));
 
     const refreshed = await ensureFreshHostSubToken(deps(fetchImpl));
 

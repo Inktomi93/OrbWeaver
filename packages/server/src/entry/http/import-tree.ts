@@ -177,10 +177,7 @@ async function collectParts(form: FormData): Promise<UploadPart[]> {
   const parts: UploadPart[] = [];
   for (const file of files) {
     if (file.size > TREE_MAX_FILE_BYTES) {
-      throw new TreeRejected(
-        PAYLOAD_TOO_LARGE,
-        `"${file.name}" exceeds the ${TREE_MAX_FILE_MIB} MiB per-file cap`,
-      );
+      throw new TreeRejected(PAYLOAD_TOO_LARGE, `"${file.name}" exceeds the ${TREE_MAX_FILE_MIB} MiB per-file cap`);
     }
     const relPath = sanitizeRelPath(file.name);
     // biome-ignore lint/performance/noAwaitInLoops: parts are read sequentially — the batch is already bounded by the count + per-file + total-body caps.
@@ -226,12 +223,7 @@ async function stagePart(stagedRoot: string, relTarget: string, bytes: Uint8Arra
 }
 
 /** Stage every part under a fresh unique dir, normalizing paths by the sniffed `stagePrefix` + wrapper strip. */
-async function stageTree(
-  stagedRoot: string,
-  parts: readonly UploadPart[],
-  wrapper: string | null,
-  stagePrefix: string,
-): Promise<void> {
+async function stageTree(stagedRoot: string, parts: readonly UploadPart[], wrapper: string | null, stagePrefix: string): Promise<void> {
   for (const part of parts) {
     const relTarget = stagePrefix + stripWrapper(part.relPath, wrapper);
     // biome-ignore lint/performance/noAwaitInLoops: files are staged sequentially to disk (a bounded batch); the whole point is to NOT hold every write in flight at once.
@@ -241,9 +233,7 @@ async function stageTree(
 
 /** The workload the sniffed layout dispatches to (the token names the staged dir under the staging root). */
 function startInput(layout: "st" | "orb", token: string): StartWorkloadInput {
-  return layout === "st"
-    ? { kind: "import-st", params: { stagedDir: token } }
-    : { kind: "import-bundle", params: { token, source: "dir" } };
+  return layout === "st" ? { kind: "import-st", params: { stagedDir: token } } : { kind: "import-bundle", params: { token, source: "dir" } };
 }
 
 /** Sniff + stage the batch into a fresh unique dir. Throws {@link TreeRejected} on an unrecognized layout;
@@ -288,10 +278,7 @@ function errorResponse(c: TreeContext, err: unknown): Response {
 
 /** The Hono context slice this route reads (the `c.json` shape `errorResponse` needs). */
 interface TreeContext {
-  readonly json: (
-    body: { readonly error: string },
-    status: RejectStatus | typeof CONFLICT,
-  ) => Response;
+  readonly json: (body: { readonly error: string }, status: RejectStatus | typeof CONFLICT) => Response;
 }
 
 /** Register `POST /api/import/tree`. Auth-first, CSRF-guarded, DoS-capped; sanitizes + stages the folder

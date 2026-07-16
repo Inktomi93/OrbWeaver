@@ -83,10 +83,7 @@ describe("bulk add card tag", () => {
     expect(tagRow.source).toBe("manual");
 
     // The junction landed for the OWNED card only (foreign was owner-gated out before the port).
-    const junctions = await db
-      .select()
-      .from(characterTags)
-      .where(eq(characterTags.tagId, tagRow.id));
+    const junctions = await db.select().from(characterTags).where(eq(characterTags.tagId, tagRow.id));
     expect(junctions.map((j) => j.characterId)).toEqual([a.id]);
     expect(junctions[0]?.status).toBe("accepted");
 

@@ -184,9 +184,7 @@ export function ActiveChatStoreProbe(): ReactElement {
   const seedStr = seed?.characterIds?.join(",") ?? "none";
   return (
     <div>
-      <output>
-        {`handle=${handleStr} session=${sessionKey} seed=${seedStr} openOverlayPanel=${openOverlayPanel ?? "none"}`}
-      </output>
+      <output>{`handle=${handleStr} session=${sessionKey} seed=${seedStr} openOverlayPanel=${openOverlayPanel ?? "none"}`}</output>
       <button type="button" onClick={(): void => startNewChat()}>
         new blank
       </button>
@@ -212,12 +210,7 @@ export function ActiveChatStoreProbe(): ReactElement {
       {/* Commit the CURRENTLY-active draft — reads its draftKey off the live handle (the real send
           seam threads `initialHandle.draftKey`). A committed/landing handle passes "" ⇒ the guard
           no-ops, exactly as commitDraft rejects a non-draft slot. */}
-      <button
-        type="button"
-        onClick={(): void =>
-          commitDraft(PROBE_COMMIT_CHAT, handle.kind === "draft" ? handle.draftKey : "")
-        }
-      >
+      <button type="button" onClick={(): void => commitDraft(PROBE_COMMIT_CHAT, handle.kind === "draft" ? handle.draftKey : "")}>
         commit draft
       </button>
       {/* Commit a STALE draftKey (`draft-2`, the FIRST draft minted per fresh page) — reproduces a
@@ -270,12 +263,7 @@ export function ChatListFilterProbe(): ReactElement {
   return (
     <div>
       <output>{`filter=${filter === null ? "none" : `${filter.id}:${filter.name}`}`}</output>
-      <button
-        type="button"
-        onClick={(): void =>
-          setChatListCharacterFilter({ id: PROBE_FILTER_CHARACTER, name: "Aria" })
-        }
-      >
+      <button type="button" onClick={(): void => setChatListCharacterFilter({ id: PROBE_FILTER_CHARACTER, name: "Aria" })}>
         set filter
       </button>
       <button type="button" onClick={(): void => clearChatListCharacterFilter()}>
@@ -299,9 +287,7 @@ export function PresetSelectionProbe(): ReactElement {
   const openOverlayPanel = useOpenOverlayPanel();
   return (
     <div>
-      <output>
-        {`selected=${selected ?? "none"} section=${section ?? "none"} openOverlayPanel=${openOverlayPanel ?? "none"}`}
-      </output>
+      <output>{`selected=${selected ?? "none"} section=${section ?? "none"} openOverlayPanel=${openOverlayPanel ?? "none"}`}</output>
       <button type="button" onClick={(): void => selectPreset(PROBE_PRESET)}>
         select preset
       </button>
@@ -393,9 +379,7 @@ export function WorldInfoSelectionProbe(): ReactElement {
   const openOverlayPanel = useOpenOverlayPanel();
   return (
     <div>
-      <output>
-        {`book=${book ?? "none"} entry=${entry ?? "none"} openOverlayPanel=${openOverlayPanel ?? "none"}`}
-      </output>
+      <output>{`book=${book ?? "none"} entry=${entry ?? "none"} openOverlayPanel=${openOverlayPanel ?? "none"}`}</output>
       <button type="button" onClick={(): void => selectWorldBook(PROBE_BOOK)}>
         select book
       </button>
@@ -428,10 +412,7 @@ export function CorpusSelectionProbe(): ReactElement {
   return (
     <div>
       <output>{`corpus=${selected ?? "none"}`}</output>
-      <button
-        type="button"
-        onClick={(): void => selectCorpusCharacter(castId<CharacterId>("char_corpus_probe"))}
-      >
+      <button type="button" onClick={(): void => selectCorpusCharacter(castId<CharacterId>("char_corpus_probe"))}>
         select corpus character
       </button>
       <button type="button" onClick={(): void => clearCorpusSelection()}>
@@ -450,10 +431,7 @@ export function AnalyticsSelectionProbe(): ReactElement {
   return (
     <div>
       <output>{`analytics=${selected ?? "none"}`}</output>
-      <button
-        type="button"
-        onClick={(): void => selectAnalyticsCharacter(castId<CharacterId>("char_analytics_probe"))}
-      >
+      <button type="button" onClick={(): void => selectAnalyticsCharacter(castId<CharacterId>("char_analytics_probe"))}>
         select analytics character
       </button>
       <button type="button" onClick={(): void => clearAnalyticsSelection()}>

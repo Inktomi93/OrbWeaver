@@ -38,7 +38,6 @@ describe("decode32Bytes", () => {
   });
 });
 
-// biome-ignore lint/security/noSecrets: this is the name of the function under test, not a credential.
 describe("dataDirFromDbUrl", () => {
   test("returns the parent dir of a file: URL", () => {
     const dir = dataDirFromDbUrl("file:./data/orbweaver.db");

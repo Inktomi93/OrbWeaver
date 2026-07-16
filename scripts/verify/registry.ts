@@ -6,16 +6,7 @@ import type { Selection } from "./selection.ts";
 
 export type Tier = "changed" | "static" | "push" | "full" | "manual";
 
-export type StageGroup =
-  | "lint"
-  | "types"
-  | "structure"
-  | "imports"
-  | "deps"
-  | "docs"
-  | "tests"
-  | "browser"
-  | "quality";
+export type StageGroup = "lint" | "types" | "structure" | "imports" | "deps" | "docs" | "tests" | "browser" | "quality";
 
 /** The scoped invocation for a stage, or the sentinels: "whole-only" ⇒ DEFER at a scoped tier (print the
  *  named notice, record it in the artifact — the check:scope pattern promoted to run level, §3.4);
@@ -111,16 +102,7 @@ export const REGISTRY: readonly StageDef[] = [
     argv: ["pnpm", "lint"],
     classify: asViolations,
     scopedArgv: (sel) =>
-      sel.paths.length === 0
-        ? "skip-empty"
-        : [
-            "biome",
-            "check",
-            "--diagnostic-level=error",
-            "--reporter=concise",
-            "--no-errors-on-unmatched",
-            ...sel.paths,
-          ],
+      sel.paths.length === 0 ? "skip-empty" : ["biome", "check", "--diagnostic-level=error", "--reporter=concise", "--no-errors-on-unmatched", ...sel.paths],
   },
   {
     name: "lint:eslint",
@@ -133,18 +115,7 @@ export const REGISTRY: readonly StageDef[] = [
       // --no-warn-ignored: an explicit path that eslint's config IGNORES (e.g. a generated tokens file)
       // must not become a `--max-warnings 0` FAILURE — at whole scope eslint never sees it; scoped, we
       // hand it the path directly, so we suppress the "file ignored" warning to match whole-scope verdicts.
-      return files.length === 0
-        ? "skip-empty"
-        : [
-            "eslint",
-            "--max-warnings",
-            "0",
-            "--no-warn-ignored",
-            "--cache",
-            "--cache-strategy",
-            "content",
-            ...files,
-          ];
+      return files.length === 0 ? "skip-empty" : ["eslint", "--max-warnings", "0", "--no-warn-ignored", "--cache", "--cache-strategy", "content", ...files];
     },
   },
 
@@ -225,16 +196,7 @@ export const REGISTRY: readonly StageDef[] = [
     argv: ["pnpm", "depcruise"],
     classify: asViolations,
     scopedArgv: (sel) =>
-      sel.depcruisePaths.length === 0
-        ? "skip-empty"
-        : [
-            "depcruise",
-            ...sel.depcruisePaths,
-            "--config",
-            ".dependency-cruiser.cjs",
-            "--output-type",
-            "err-long",
-          ],
+      sel.depcruisePaths.length === 0 ? "skip-empty" : ["depcruise", ...sel.depcruisePaths, "--config", ".dependency-cruiser.cjs", "--output-type", "err-long"],
   },
 
   // ── deps stage-group ──
@@ -255,10 +217,7 @@ export const REGISTRY: readonly StageDef[] = [
     tiers: ["changed", ...STATIC],
     argv: ["pnpm", "check:docs"],
     classify: ownScheme,
-    scopedArgv: (sel) =>
-      sel.docsPaths.length === 0
-        ? "skip-empty"
-        : ["tsx", "scripts/docs/format-md.ts", "--check", ...sel.docsPaths],
+    scopedArgv: (sel) => (sel.docsPaths.length === 0 ? "skip-empty" : ["tsx", "scripts/docs/format-md.ts", "--check", ...sel.docsPaths]),
   },
 
   // ── tests stage-group (§3.7: the eight lanes as ONE concept with tier + scope) ──
@@ -270,16 +229,7 @@ export const REGISTRY: readonly StageDef[] = [
     classify: asViolations,
     // At changed scope: vitest's own related-test graph over the unit+integration lanes (serial + contract
     // are whole-tree-shaped, deferred to push). Whole-only otherwise.
-    scopedArgv: (sel) => [
-      "vitest",
-      "run",
-      "--project",
-      "unit",
-      "--project",
-      "integration",
-      "--changed",
-      ...(sel.gitRef === undefined ? [] : [sel.gitRef]),
-    ],
+    scopedArgv: (sel) => ["vitest", "run", "--project", "unit", "--project", "integration", "--changed", ...(sel.gitRef === undefined ? [] : [sel.gitRef])],
   },
   {
     name: "browser:ct",

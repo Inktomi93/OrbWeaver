@@ -22,11 +22,7 @@ import { batchMany, characterStats, dailyStats, modelStats, ownerStats } from "@
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import {
-  canonMessageDelta,
-  chatCreatedDelta,
-  swipeVariantDelta,
-} from "../../../../../packages/server/src/domain/chat/substrate/stats-delta.ts";
+import { canonMessageDelta, chatCreatedDelta, swipeVariantDelta } from "../../../../../packages/server/src/domain/chat/substrate/stats-delta.ts";
 import { applyStatsDelta } from "../../../../../packages/server/src/domain/stats/write/apply-delta.ts";
 import { reconcileStats } from "../../../../../packages/server/src/domain/stats/write/rebuild-from-canon.ts";
 import { createFrozenClock } from "../../../../support/clock.ts";
@@ -249,9 +245,7 @@ interface RollupSnapshot {
 
 /** Read the four rollup tables for `ownerId` and normalize (strip bookkeeping + sort) into a comparable shape. */
 async function snapshotRollups(database: Db, owner: UserId): Promise<RollupSnapshot> {
-  const ownerRow = (
-    await database.select().from(ownerStats).where(eq(ownerStats.ownerId, owner))
-  )[0];
+  const ownerRow = (await database.select().from(ownerStats).where(eq(ownerStats.ownerId, owner)))[0];
   const chars = await database.select().from(characterStats);
   const days = await database.select().from(dailyStats).where(eq(dailyStats.ownerId, owner));
   const models = await database.select().from(modelStats).where(eq(modelStats.ownerId, owner));

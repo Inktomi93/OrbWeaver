@@ -12,10 +12,7 @@
 // precedent as tests/ui/tokens/index.test.ts's direct import of tokens.build.ts.
 
 import { describe } from "vitest";
-import {
-  snapToGraphemeBoundary,
-  snapToWordBoundary,
-} from "../../../packages/ui/src/stream/snap.ts";
+import { snapToGraphemeBoundary, snapToWordBoundary } from "../../../packages/ui/src/stream/snap.ts";
 import { expect, test } from "../../support/fixtures";
 
 describe("snapToWordBoundary", () => {

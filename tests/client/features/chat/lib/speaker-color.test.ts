@@ -28,9 +28,7 @@ test("the generated color is a fixed-lightness/chroma OKLCH string", () => {
 
 test("the hue wraps into [0, 360)", () => {
   // A long key stresses the hash into large intermediate values; the modulus must still floor it.
-  const tokens = colorForCharacter(
-    "a-very-long-speaker-name-used-to-stress-the-fnv1a-hash-hue-math",
-  );
+  const tokens = colorForCharacter("a-very-long-speaker-name-used-to-stress-the-fnv1a-hash-hue-math");
   const match = OKLCH_HUE_CAPTURE.exec(tokens.speaker);
   expect(match).not.toBeNull();
   const hue = Number(match?.[1]);

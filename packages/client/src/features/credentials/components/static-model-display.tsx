@@ -21,14 +21,7 @@ export interface StaticModelDisplayProps {
 }
 
 /** The static vllm/local-light model display — the facade default ghosted with a source chip, no chevron. */
-export function StaticModelDisplay({
-  source,
-  value,
-  defaultModelId,
-  dimensions,
-  state,
-  onScrollToKeys,
-}: StaticModelDisplayProps): ReactElement {
+export function StaticModelDisplay({ source, value, defaultModelId, dimensions, state, onScrollToKeys }: StaticModelDisplayProps): ReactElement {
   const shown = value !== "" ? value : (defaultModelId ?? "—");
   const chipLabel = source === "vllm" ? "server config" : "built-in";
   return (
@@ -51,9 +44,7 @@ export function StaticModelDisplay({
           clears to server config
         </Text>
       ) : null}
-      {state !== undefined ? (
-        <RoleStatusDot state={state} source={source} onScrollToKeys={onScrollToKeys} />
-      ) : null}
+      {state !== undefined ? <RoleStatusDot state={state} source={source} onScrollToKeys={onScrollToKeys} /> : null}
     </Row>
   );
 }

@@ -47,11 +47,7 @@ export function createAutosaveEntityForm<TValues extends object>(
   mountKey: string;
 } {
   // biome-ignore lint/nursery/noComponentHookFactories: the D54 §13.1 editor-factory pattern — module-scope factory call sites give the returned hook a stable identity (see create-saved-entity-form.ts).
-  return function useAutosaveEntityForm({
-    entityId,
-    serverValues,
-    save: callTimeSave,
-  }: AutosaveEntityFormArgs<TValues>) {
+  return function useAutosaveEntityForm({ entityId, serverValues, save: callTimeSave }: AutosaveEntityFormArgs<TValues>) {
     const save = callTimeSave ?? config.save;
     // Seed order: defaults ← server row ← surviving draft (the draft is the newest unsaved intent).
     const draftSeed = config.draft?.readDraft(entityId);
@@ -70,7 +66,6 @@ export function createAutosaveEntityForm<TValues extends object>(
         config.draft?.clearDraft(entityId);
       },
       onSubmitInvalid: (): void => {
-        // biome-ignore lint/security/noSecrets: false positive — an aria-attribute CSS selector, not a credential.
         document.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
       },
       listeners: {

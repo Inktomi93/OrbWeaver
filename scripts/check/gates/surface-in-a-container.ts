@@ -87,8 +87,7 @@ export const gate: GateDescriptor = {
   mustFlag: [
     {
       files: {
-        "packages/client/src/features/x/surfaces/pane.tsx":
-          "export const Pane = () => <div><ul><li>row</li></ul></div>;\n",
+        "packages/client/src/features/x/surfaces/pane.tsx": "export const Pane = () => <div><ul><li>row</li></ul></div>;\n",
       },
       expect: { messageIncludes: "no <Container>" },
       why: "a surface with a raw structural <div>/<ul> root + no Container (own or anchor's) — §4",
@@ -97,22 +96,19 @@ export const gate: GateDescriptor = {
   mustPass: [
     {
       files: {
-        "packages/client/src/features/x/surfaces/ok.tsx":
-          "export const Ok = () => <Container><ul><li>row</li></ul></Container>;\n",
+        "packages/client/src/features/x/surfaces/ok.tsx": "export const Ok = () => <Container><ul><li>row</li></ul></Container>;\n",
       },
       why: "the surface renders a <Container> around its structural content — the sanctioned shape, passes",
     },
     {
       files: {
-        "packages/client/src/features/x/surfaces/name-surface.tsx":
-          "export const N = () => <Name />;\n",
+        "packages/client/src/features/x/surfaces/name-surface.tsx": "export const N = () => <Name />;\n",
       },
       why: "a surface returning only a single composed child (no structural root) needs no container — passes",
     },
     {
       files: {
-        "packages/client/src/features/app-shell/surfaces/app-shell.tsx":
-          "export const A = () => <Stack>x</Stack>;\n",
+        "packages/client/src/features/app-shell/surfaces/app-shell.tsx": "export const A = () => <Stack>x</Stack>;\n",
       },
       why: "the app-shell shell tier is the container PROVIDER frame — exempt, passes",
     },

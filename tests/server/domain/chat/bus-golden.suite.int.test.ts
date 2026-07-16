@@ -45,13 +45,7 @@ describe("bus golden — the turn lifecycle (send/swipe/continue) exact sequence
     await chat.send("hello");
 
     // The user row commits FIRST (canon is durable before the turn starts), THEN the turn lifecycle runs.
-    expect(types(chat.events)).toEqual([
-      "messageCommitted",
-      "turnStarted",
-      "delta",
-      "messageCommitted",
-      "turnCompleted",
-    ]);
+    expect(types(chat.events)).toEqual(["messageCommitted", "turnStarted", "delta", "messageCommitted", "turnCompleted"]);
     // The lifecycle payload discriminants that make the sequence load-bearing.
     const started = chat.events.find((e) => e.type === "turnStarted");
     expect(started).toMatchObject({ intent: "send", targetMessageId: null });
@@ -79,12 +73,7 @@ describe("bus golden — the turn lifecycle (send/swipe/continue) exact sequence
     });
 
     const swipeEvents = chat.events.slice(before);
-    expect(types(swipeEvents)).toEqual([
-      "turnStarted",
-      "delta",
-      "messageCommitted",
-      "turnCompleted",
-    ]);
+    expect(types(swipeEvents)).toEqual(["turnStarted", "delta", "messageCommitted", "turnCompleted"]);
     // The swipe targets the existing slot — the pin that distinguishes it from `send`.
     expect(swipeEvents[0]).toMatchObject({ intent: "swipe", targetMessageId: assistantId });
   });
@@ -107,12 +96,7 @@ describe("bus golden — the turn lifecycle (send/swipe/continue) exact sequence
     });
 
     const contEvents = chat.events.slice(before);
-    expect(types(contEvents)).toEqual([
-      "turnStarted",
-      "delta",
-      "messageCommitted",
-      "turnCompleted",
-    ]);
+    expect(types(contEvents)).toEqual(["turnStarted", "delta", "messageCommitted", "turnCompleted"]);
     expect(contEvents[0]).toMatchObject({ intent: "continue", targetMessageId: assistantId });
   });
 });

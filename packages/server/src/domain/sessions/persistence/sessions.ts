@@ -34,10 +34,7 @@ export async function insertSession(db: Db, row: SessionInsert): Promise<void> {
   await db.insert(sessions).values(row);
 }
 
-export async function selectForValidation(
-  db: Db,
-  tokenHash: string,
-): Promise<SessionValidationRow | undefined> {
+export async function selectForValidation(db: Db, tokenHash: string): Promise<SessionValidationRow | undefined> {
   const rows = await db
     .select({
       sessionId: sessions.id,
@@ -58,21 +55,12 @@ export async function selectForValidation(
   return rows.at(0);
 }
 
-export async function slideExpiry(
-  db: Db,
-  sessionId: SessionId,
-  lastSeenAt: number,
-  expiresAt: number,
-): Promise<void> {
+export async function slideExpiry(db: Db, sessionId: SessionId, lastSeenAt: number, expiresAt: number): Promise<void> {
   await db.update(sessions).set({ lastSeenAt, expiresAt }).where(eq(sessions.id, sessionId));
 }
 
 /** Flips revokedAt only on a still-live row, returning the owner so only the winning call audits. */
-export async function revokeByTokenHash(
-  db: Db,
-  tokenHash: string,
-  revokedAt: number,
-): Promise<{ id: SessionId; userId: UserId } | undefined> {
+export async function revokeByTokenHash(db: Db, tokenHash: string, revokedAt: number): Promise<{ id: SessionId; userId: UserId } | undefined> {
   const revoked = await db
     .update(sessions)
     .set({ revokedAt })
@@ -88,11 +76,7 @@ export async function revokeById(db: Db, sessionId: SessionId, revokedAt: number
     .where(and(eq(sessions.id, sessionId), isNull(sessions.revokedAt)));
 }
 
-export async function revokeAllForUser(
-  db: Db,
-  userId: UserId,
-  revokedAt: number,
-): Promise<SessionId[]> {
+export async function revokeAllForUser(db: Db, userId: UserId, revokedAt: number): Promise<SessionId[]> {
   const revoked = await db
     .update(sessions)
     .set({ revokedAt })

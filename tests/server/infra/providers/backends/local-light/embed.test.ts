@@ -12,10 +12,7 @@ import { cosineSim } from "@orb/kit/vector-math";
 import type { EmbedRequest, EmbedResult } from "@orb/server/infra/providers";
 import { ProviderError } from "@orb/server/infra/providers";
 import type { LocalLightModelCache } from "@orb/server/infra/providers/backends/local-light";
-import {
-  createLocalLightBackend,
-  DEFAULT_EMBED_MODEL,
-} from "@orb/server/infra/providers/backends/local-light";
+import { createLocalLightBackend, DEFAULT_EMBED_MODEL } from "@orb/server/infra/providers/backends/local-light";
 import { describe } from "vitest";
 import { makeResolvedCredential } from "../../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../../support/fixtures";
@@ -77,10 +74,7 @@ describe("createLocalLightEmbed", () => {
   test("a fake jina-clip cache yields a 1024-dim, unit-normalized vector tagged with the jina model", async () => {
     // The fake mirrors the real jina-clip text head: a RAW (un-normalized) 1024-dim vector per input.
     const cache: LocalLightModelCache = {
-      embedTexts: (_modelId, texts): Promise<Float32Array[]> =>
-        Promise.resolve(
-          texts.map(() => Float32Array.from({ length: VECTOR_DIM }, (_v, i) => i + 1)),
-        ),
+      embedTexts: (_modelId, texts): Promise<Float32Array[]> => Promise.resolve(texts.map(() => Float32Array.from({ length: VECTOR_DIM }, (_v, i) => i + 1))),
       scorePairs: (): Promise<number[]> => Promise.resolve([]),
       embedImages: (): Promise<Float32Array[]> => Promise.resolve([]),
       embedClipTexts: (): Promise<Float32Array[]> => Promise.resolve([]),
@@ -123,9 +117,7 @@ describe("createLocalLightEmbed", () => {
   });
 
   test("rejects `dimensions` larger than the model's native dimension", async () => {
-    await expect(
-      embedOf(fakeCache({}))({ credential: CRED, model: MODEL, input: "x", dimensions: 8 }),
-    ).rejects.toBeInstanceOf(ProviderError);
+    await expect(embedOf(fakeCache({}))({ credential: CRED, model: MODEL, input: "x", dimensions: 8 })).rejects.toBeInstanceOf(ProviderError);
   });
 
   test("applies an instruction prefix to every input", async () => {

@@ -17,22 +17,12 @@ import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC, useTRPCClient } from "#data";
-import {
-  ASSISTANT_PREFILL_WARNING,
-  downloadJson,
-  MESSAGE_ROLE_ITEMS,
-  notify,
-  slugifyFilename,
-} from "#lib";
+import { ASSISTANT_PREFILL_WARNING, downloadJson, MESSAGE_ROLE_ITEMS, notify, slugifyFilename } from "#lib";
 import { usePersonaForm } from "../hooks/use-persona-form";
 import { useDuplicatePersona, useUpdatePersona } from "../hooks/use-persona-mutations";
 import { PERSONA_DESCRIPTION_MACROS } from "../lib/persona-description-macros";
 import type { PersonaFormValues } from "../lib/persona-editor-model";
-import {
-  isPrefillCombo,
-  personaFormFromEntity,
-  personaInputFromForm,
-} from "../lib/persona-editor-model";
+import { isPrefillCombo, personaFormFromEntity, personaInputFromForm } from "../lib/persona-editor-model";
 import { PersonaLoreBookField } from "./persona-world-books-section";
 
 type PersonaDetail = inferOutput<Trpc["persona"]["get"]>;
@@ -87,11 +77,7 @@ export function PersonaEditor({ persona }: PersonaEditorProps): ReactElement {
     <Stack key={mountKey} gap="row">
       <form.AppField name="title">
         {(field): ReactElement => (
-          <field.TextField
-            label="Title"
-            hint="A display subtitle for pickers — never injected into the prompt."
-            placeholder="Optional"
-          />
+          <field.TextField label="Title" hint="A display subtitle for pickers — never injected into the prompt." placeholder="Optional" />
         )}
       </form.AppField>
 
@@ -119,23 +105,15 @@ export function PersonaEditor({ persona }: PersonaEditorProps): ReactElement {
             />
           )}
         </form.AppField>
-        <form.Subscribe
-          selector={(state): PersonaDescriptionPosition => state.values.descriptionPosition}
-        >
+        <form.Subscribe selector={(state): PersonaDescriptionPosition => state.values.descriptionPosition}>
           {(position): ReactElement | null => {
             if (position !== "at_depth") {
               return null;
             }
             return (
               <Row gap="field">
-                <form.AppField name="injectDepth">
-                  {(field): ReactElement => <field.NumberField label="Depth" min={0} />}
-                </form.AppField>
-                <form.AppField name="injectRole">
-                  {(field): ReactElement => (
-                    <field.SelectField label="Role" items={MESSAGE_ROLE_ITEMS} />
-                  )}
-                </form.AppField>
+                <form.AppField name="injectDepth">{(field): ReactElement => <field.NumberField label="Depth" min={0} />}</form.AppField>
+                <form.AppField name="injectRole">{(field): ReactElement => <field.SelectField label="Role" items={MESSAGE_ROLE_ITEMS} />}</form.AppField>
               </Row>
             );
           }}
@@ -156,11 +134,7 @@ export function PersonaEditor({ persona }: PersonaEditorProps): ReactElement {
       <ProvenanceChip metadata={baseMetadata} />
 
       <Row gap="row" align="center" className="justify-end">
-        <Button
-          intent="ghost"
-          size="sm"
-          onClick={(): void => duplicate.mutate({ personaId: persona.id })}
-        >
+        <Button intent="ghost" size="sm" onClick={(): void => duplicate.mutate({ personaId: persona.id })}>
           <Icon icon={Copy} size="sm" />
           Duplicate
         </Button>
@@ -180,11 +154,7 @@ export function PersonaEditor({ persona }: PersonaEditorProps): ReactElement {
 }
 
 /** Read-only provenance for a persona minted from a character card (`createFromCharacter`). */
-function ProvenanceChip({
-  metadata,
-}: {
-  readonly metadata: PersonaMetadata | null;
-}): ReactElement | null {
+function ProvenanceChip({ metadata }: { readonly metadata: PersonaMetadata | null }): ReactElement | null {
   if (metadata?.sourceCharacterId === undefined) {
     return null;
   }

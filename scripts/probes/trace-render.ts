@@ -118,11 +118,7 @@ export function renderTrace(trace: RequestTrace): string {
   const lines: string[] = [];
 
   const statusBadge = trace.status === "error" ? ANSI.red("✗ error") : ANSI.green("● ok");
-  lines.push(
-    `${ANSI.bold(trace.rootName)}  ${statusBadge}  ${Math.round(trace.durationMs)}ms  ${ANSI.dim(
-      `req ${trace.requestId}`,
-    )}`,
-  );
+  lines.push(`${ANSI.bold(trace.rootName)}  ${statusBadge}  ${Math.round(trace.durationMs)}ms  ${ANSI.dim(`req ${trace.requestId}`)}`);
   lines.push(
     ANSI.dim(
       `  ${trace.totals.spanCount} spans · ${trace.totals.dbSpanCount}db (${Math.round(trace.totals.dbDurationMs)}ms) · provider ${Math.round(trace.totals.providerDurationMs)}ms`,
@@ -136,12 +132,7 @@ export function renderTrace(trace: RequestTrace): string {
   return lines.join("\n");
 }
 
-function renderRow(
-  row: WaterfallRow,
-  trace: RequestTrace,
-  totalMs: number,
-  barCols: number,
-): string {
+function renderRow(row: WaterfallRow, trace: RequestTrace, totalMs: number, barCols: number): string {
   const indent = "  ".repeat(row.depth);
   const color = colorFor(row.span.name, row.span.status);
   const label = `${row.span.status === "error" ? ANSI.red("✗") : color("●")} ${indent}${color(row.span.name)}`;
@@ -152,10 +143,7 @@ function renderRow(
   const widthCol = Math.max(1, Math.round((row.span.durationMs / totalMs) * barCols));
   const left = Math.min(Math.max(0, offsetCol), barCols - 1);
   const width = Math.min(widthCol, barCols - left);
-  const bar =
-    ANSI.dim("░".repeat(left)) +
-    color("█".repeat(width)) +
-    ANSI.dim("░".repeat(Math.max(0, barCols - left - width)));
+  const bar = ANSI.dim("░".repeat(left)) + color("█".repeat(width)) + ANSI.dim("░".repeat(Math.max(0, barCols - left - width)));
 
   const attrs = pickInlineAttrs(row.span);
   const attrLine = attrs.length > 0 ? `  ${ANSI.dim(attrs.join(" "))}` : "";

@@ -21,9 +21,7 @@ import { shape } from "../assembly/shape";
 import { shapeContextForSpeaker as shapeContextForSpeakerImpl } from "../assembly/speaker-card";
 
 /** BUILD: render the prompt config against the immutable assemble ctx → the static/dynamic halves + splices. */
-export function buildPrompt(
-  ...args: Parameters<typeof assemblePrompt>
-): ReturnType<typeof assemblePrompt> {
+export function buildPrompt(...args: Parameters<typeof assemblePrompt>): ReturnType<typeof assemblePrompt> {
   return assemblePrompt(...args);
 }
 
@@ -34,18 +32,14 @@ export function shapeTurn(...args: Parameters<typeof shape>): ReturnType<typeof 
 
 /** The per-speaker CARD-SECTION shape (the two-axis `shape(ctx, speaker)`): pick the active
  *  speaker's card + co-speakers off the immutable ctx (D60). The legal `engine/ → assembly/` bridge. */
-export function shapeContextForSpeaker(
-  ...args: Parameters<typeof shapeContextForSpeakerImpl>
-): ReturnType<typeof shapeContextForSpeakerImpl> {
+export function shapeContextForSpeaker(...args: Parameters<typeof shapeContextForSpeakerImpl>): ReturnType<typeof shapeContextForSpeakerImpl> {
   return shapeContextForSpeakerImpl(...args);
 }
 
 /** Build the turn-stage `MacroContext` for regex find/replace templates (the RECEIVE AI_OUTPUT/REASONING
  *  author-side macro pass — macros run on the TEMPLATE, never on the model output). The legal
  *  `engine/ → assembly/` bridge (a direct import is `domain-no-cross-subsystem`-illegal). */
-export function buildTurnMacroContext(
-  ...args: Parameters<typeof buildTurnMacroContextImpl>
-): ReturnType<typeof buildTurnMacroContextImpl> {
+export function buildTurnMacroContext(...args: Parameters<typeof buildTurnMacroContextImpl>): ReturnType<typeof buildTurnMacroContextImpl> {
   return buildTurnMacroContextImpl(...args);
 }
 
@@ -53,42 +47,32 @@ export function buildTurnMacroContext(
  *  storage raw). `{{char}}` binds to the row's OWN speaker (or the cast for a user/narrator row),
  *  `{{user}}`/`{{persona}}` to the row's own persona — falling back to the chat ANCHOR for a null stamp
  *  (never the reader) — the client DISPLAY parity split. The legal `engine/ → assembly/` bridge. */
-export function renderHistoryMacros(
-  ...args: Parameters<typeof renderHistoryMacrosImpl>
-): ReturnType<typeof renderHistoryMacrosImpl> {
+export function renderHistoryMacros(...args: Parameters<typeof renderHistoryMacrosImpl>): ReturnType<typeof renderHistoryMacrosImpl> {
   return renderHistoryMacrosImpl(...args);
 }
 
 /** FREEZE the VOLATILE (nondeterministic clock/PRNG) macros in `text` at COMMIT (Chat-Macro-Resolution.md
  *  §0): the exact inverse of `renderHistoryMacros`' names-only pass. Used by the SEND path (composer text) and
  *  the greeting FIRST-USER-TURN freeze (Task #77 / D51) — a verb reaches assembly ONLY through this bridge. */
-export function freezeVolatileMacros(
-  ...args: Parameters<typeof freezeVolatileMacrosImpl>
-): ReturnType<typeof freezeVolatileMacrosImpl> {
+export function freezeVolatileMacros(...args: Parameters<typeof freezeVolatileMacrosImpl>): ReturnType<typeof freezeVolatileMacrosImpl> {
   return freezeVolatileMacrosImpl(...args);
 }
 
 /** Resolve a guided-action TEMPLATE against the turn ctx (the guided steering resolver; PD-63).
  *  The legal `verbs/ → assembly/` bridge for the `opening` action, whose resolved template IS the turn prompt
  *  (it rides `appendUserTurn`, not a placement — `start-chat.ts`'s generate opening). */
-export function resolveGuidedActionText(
-  ...args: Parameters<typeof resolveGuidedActionTextImpl>
-): ReturnType<typeof resolveGuidedActionTextImpl> {
+export function resolveGuidedActionText(...args: Parameters<typeof resolveGuidedActionTextImpl>): ReturnType<typeof resolveGuidedActionTextImpl> {
   return resolveGuidedActionTextImpl(...args);
 }
 
 /** BUILD (one section): render ONE preset section against an immutable assemble ctx → its `SectionPreview`
  *  (the `previewSection` read verb / the COMPOSER editor surface). Side-effect free (the variable map is
  *  cloned inside). The legal bridge for the same `verbs/ → assembly/` coupling. */
-export function previewSection(
-  ...args: Parameters<typeof previewSectionImpl>
-): ReturnType<typeof previewSectionImpl> {
+export function previewSection(...args: Parameters<typeof previewSectionImpl>): ReturnType<typeof previewSectionImpl> {
   return previewSectionImpl(...args);
 }
 
 /** FIT: the §8 history-budget tail (drop oldest turns to fit the window; offset-from-end survives). */
-export function fitHistory(
-  ...args: Parameters<typeof fitHistoryToWindow>
-): ReturnType<typeof fitHistoryToWindow> {
+export function fitHistory(...args: Parameters<typeof fitHistoryToWindow>): ReturnType<typeof fitHistoryToWindow> {
   return fitHistoryToWindow(...args);
 }

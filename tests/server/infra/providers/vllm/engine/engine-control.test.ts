@@ -1,9 +1,6 @@
 // Unit tests for the supervisor→admin control registry — a process-local mutate/read seam.
 
-import {
-  getVllmEngineController,
-  registerVllmEngineController,
-} from "@orb/server/infra/providers/vllm/engine";
+import { getVllmEngineController, registerVllmEngineController } from "@orb/server/infra/providers/vllm/engine";
 import { afterEach, describe } from "vitest";
 import { expect, test } from "../../../../../support/fixtures";
 

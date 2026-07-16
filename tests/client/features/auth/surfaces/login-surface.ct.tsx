@@ -22,26 +22,15 @@ function config(overrides: Partial<AuthConfig>): AuthConfig {
   };
 }
 
-test("forward-header → the proxy-config EXPLAINER (reachable now — no login form, no blank bounce)", async ({
-  mount,
-  page,
-}) => {
-  await mount(
-    <LoginArmStory
-      config={config({ mode: "forward-header", requiresLogin: false, localEnabled: false })}
-    />,
-  );
-  await expect(
-    page.getByRole("heading", { name: "Authentication happens at your proxy" }),
-  ).toBeVisible();
+test("forward-header → the proxy-config EXPLAINER (reachable now — no login form, no blank bounce)", async ({ mount, page }) => {
+  await mount(<LoginArmStory config={config({ mode: "forward-header", requiresLogin: false, localEnabled: false })} />);
+  await expect(page.getByRole("heading", { name: "Authentication happens at your proxy" })).toBeVisible();
   // The explainer is NOT a form — no credential inputs.
   await expect(page.getByTestId("login-handle")).toHaveCount(0);
 });
 
 test("oidc → the SSO redirect button (whole-window navigation arm)", async ({ mount, page }) => {
-  await mount(
-    <LoginArmStory config={config({ mode: "oidc", localEnabled: false, oidcEnabled: true })} />,
-  );
+  await mount(<LoginArmStory config={config({ mode: "oidc", localEnabled: false, oidcEnabled: true })} />);
   await expect(page.getByTestId("login-oidc")).toBeVisible();
 });
 
@@ -51,14 +40,7 @@ test("local → the credential form (handle pre-filled)", async ({ mount, page }
   await expect(page.getByTestId("login-submit")).toBeVisible();
 });
 
-test("single-user → the 'no login needed' explainer (reachable only by direct nav)", async ({
-  mount,
-  page,
-}) => {
-  await mount(
-    <LoginArmStory
-      config={config({ mode: "single-user", requiresLogin: false, localEnabled: false })}
-    />,
-  );
+test("single-user → the 'no login needed' explainer (reachable only by direct nav)", async ({ mount, page }) => {
+  await mount(<LoginArmStory config={config({ mode: "single-user", requiresLogin: false, localEnabled: false })} />);
   await expect(page.getByRole("heading", { name: "Single-user mode" })).toBeVisible();
 });

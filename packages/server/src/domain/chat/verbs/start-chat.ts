@@ -29,12 +29,7 @@ import type {
   PersonaAvatarEntry,
   RoomOverrides,
 } from "@orb/contracts/chat";
-import {
-  DEFAULT_GROUP_CONFIG,
-  DEFAULT_ROOM_OVERRIDES,
-  groupConfigSchema,
-  roomOverridesSchema,
-} from "@orb/contracts/chat";
+import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES, groupConfigSchema, roomOverridesSchema } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
 import { chatInjections, chatParticipants, chats } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
@@ -48,10 +43,7 @@ import type { GuidedSteer, StartChatParams } from "../contract/params";
 import type { StartChatResult, TurnEngine, TurnOutcome } from "../contract/results";
 import type { ChatService } from "../contract/service";
 import type { ChatDetail } from "../contract/views";
-import {
-  buildCommittedMessageView,
-  insertCanonMessageStatements,
-} from "../persistence/canon-write";
+import { buildCommittedMessageView, insertCanonMessageStatements } from "../persistence/canon-write";
 import { loadChatMacroNameProducer } from "../persistence/macro-names";
 import { loadChatRow } from "../persistence/queries";
 import { buildInitialRosterRows, characterSeatedInAnotherChat } from "../persistence/roster";
@@ -66,10 +58,7 @@ interface StartChatDeps {
   readonly emit: (event: ChatBusEvent) => Promise<void>;
   readonly loadParticipantViews: (chatId: ChatId) => Promise<readonly ParticipantView[]>;
   readonly engine: TurnEngine;
-  readonly resolveConnection: (args: {
-    readonly runAsUserId: UserId;
-    readonly chatId: ChatId;
-  }) => Promise<ResolvedConnection>;
+  readonly resolveConnection: (args: { readonly runAsUserId: UserId; readonly chatId: ChatId }) => Promise<ResolvedConnection>;
   /** The foreign half of the assemble ctx (preset/persona/settings) for the `generate` opening only. */
   readonly resolveForeignInputs: ResolveForeignInputsOp;
 }
@@ -91,13 +80,7 @@ interface ToChatDetailInput {
   readonly viewerUserId: UserId;
 }
 
-function toChatDetail({
-  chat,
-  participants,
-  macroNames,
-  personaAvatars,
-  viewerUserId,
-}: ToChatDetailInput): ChatDetail {
+function toChatDetail({ chat, participants, macroNames, personaAvatars, viewerUserId }: ToChatDetailInput): ChatDetail {
   const viewer = participants.find((p) => p.userId === viewerUserId);
   return {
     id: chat.id,
@@ -125,10 +108,7 @@ function toChatDetail({
 }
 
 /** Resolve the effective opening policy: the explicit param, else by roster size. */
-function resolveOpeningPolicy(
-  opening: OpeningPolicy | undefined,
-  charCount: number,
-): OpeningPolicy {
+function resolveOpeningPolicy(opening: OpeningPolicy | undefined, charCount: number): OpeningPolicy {
   if (opening !== undefined) {
     return opening;
   }
@@ -153,17 +133,12 @@ function buildCreationMetadata(args: {
   return {
     ...(opening === undefined ? {} : { opening }),
     ...(groupConfig === undefined ? {} : { group: groupConfigSchema.parse(groupConfig) }),
-    ...(roomOverrides === undefined
-      ? {}
-      : { roomOverrides: roomOverridesSchema.parse(roomOverrides) }),
+    ...(roomOverrides === undefined ? {} : { roomOverrides: roomOverridesSchema.parse(roomOverrides) }),
   };
 }
 
 /** The founding characters whose greeting is seeded verbatim for `policy`. */
-function greetTargets(
-  policy: OpeningPolicy,
-  characterIds: readonly CharacterId[],
-): readonly CharacterId[] {
+function greetTargets(policy: OpeningPolicy, characterIds: readonly CharacterId[]): readonly CharacterId[] {
   if (policy === "first-message") {
     return characterIds.slice(0, 1);
   }
@@ -175,11 +150,7 @@ function greetTargets(
 
 /** Validate every founding character is a host-readable (owner-scoped) card before any roster row exists.
  *  A foreign/unknown id is a not-found (owner-scoped read makes foreign == missing, leak-free). */
-async function requireFoundingCast(
-  ctx: ChatContext,
-  hostUserId: UserId,
-  characterIds: readonly CharacterId[],
-): Promise<void> {
+async function requireFoundingCast(ctx: ChatContext, hostUserId: UserId, characterIds: readonly CharacterId[]): Promise<void> {
   const cards = await Promise.all(
     characterIds.map(async (characterId) => ({
       characterId,
@@ -200,9 +171,7 @@ async function loadGreetings(
   characterIds: readonly CharacterId[],
   seedGreetings: Readonly<Record<CharacterId, string>> | undefined,
 ): Promise<{ characterId: CharacterId; text: string }[]> {
-  const cards = await Promise.all(
-    characterIds.map((characterId) => ctx.getCard({ ownerId: hostUserId, characterId })),
-  );
+  const cards = await Promise.all(characterIds.map((characterId) => ctx.getCard({ ownerId: hostUserId, characterId })));
   return characterIds.map((characterId, i) => ({
     characterId,
     // The draft's swiped/edited opening wins; else the card's primary greeting.
@@ -400,11 +369,7 @@ function createStartChatVerb(ctx: ChatContext, deps: StartChatDeps): ChatService
 
     // First-chat probe, per founding character, before the roster rows commit: a character seated in no
     // other chat makes this its first chat → the newCharacter bump rides the creation batch below.
-    const firstChat = await Promise.all(
-      characterIds.map(
-        async (characterId) => !(await characterSeatedInAnotherChat(ctx.db, characterId, chatId)),
-      ),
-    );
+    const firstChat = await Promise.all(characterIds.map(async (characterId) => !(await characterSeatedInAnotherChat(ctx.db, characterId, chatId))));
 
     const rosterRows = buildInitialRosterRows({
       chatId,
@@ -424,8 +389,7 @@ function createStartChatVerb(ctx: ChatContext, deps: StartChatDeps): ChatService
     });
 
     const targets = greetTargets(policy, characterIds);
-    const greetings =
-      targets.length > 0 ? await loadGreetings(ctx, hostUserId, targets, seedGreetings) : [];
+    const greetings = targets.length > 0 ? await loadGreetings(ctx, hostUserId, targets, seedGreetings) : [];
     const seed = buildGreetingSeed(ctx, { chatId, now, greetings });
 
     // One atomic creation batch: the chat row, the roster, and any verbatim greeting canon — all or none.

@@ -5,9 +5,7 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import { ModalRegistryProbe } from "./_ct-stories";
 
-test("useModalRegistry resolves the ordered modal list + get(id) inside the provider", async ({
-  mount,
-}) => {
+test("useModalRegistry resolves the ordered modal list + get(id) inside the provider", async ({ mount }) => {
   const probe = await mount(<ModalRegistryProbe />);
   const out = probe.locator("output");
   // list() preserves MODAL_SLOT_IDS order; get("theme") resolves the member's title.

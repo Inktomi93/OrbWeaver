@@ -75,13 +75,7 @@ function SlotLabel({ slot }: { readonly slot: RoleSlot }): ReactElement {
 }
 
 /** One role's compact row — an editable (source · model) pair, or the agent's read-only live mirror. */
-export function RoleSlotRow({
-  slot,
-  form,
-  isOwner,
-  customCredentialId,
-  onScrollToKeys,
-}: RoleSlotRowProps): ReactElement {
+export function RoleSlotRow({ slot, form, isOwner, customCredentialId, onScrollToKeys }: RoleSlotRowProps): ReactElement {
   if (slot.readOnly) {
     return <AgentMirrorRow slot={slot} form={form} />;
   }
@@ -89,10 +83,7 @@ export function RoleSlotRow({
   const sourceItems: SelectItems<string> = [
     { label: "Default", value: NO_PREFERENCE },
     ...slot.sources.map((source) => ({
-      label:
-        source === "max-pro-sub" && !isOwner
-          ? `${SOURCE_LABELS[source]} (owner only)`
-          : SOURCE_LABELS[source],
+      label: source === "max-pro-sub" && !isOwner ? `${SOURCE_LABELS[source]} (owner only)` : SOURCE_LABELS[source],
       value: source,
       ...(source === "max-pro-sub" && !isOwner ? { disabled: true } : {}),
     })),
@@ -236,9 +227,7 @@ function ModelCell({
               }
             : {})}
         />
-        {result !== undefined ? (
-          <RoleStatusDot state={result.state} source={source} onScrollToKeys={onScrollToKeys} />
-        ) : null}
+        {result !== undefined ? <RoleStatusDot state={result.state} source={source} onScrollToKeys={onScrollToKeys} /> : null}
       </Row>
       {staleAmber !== null ? (
         <Row gap="field" align="center" role="alert">
@@ -267,19 +256,9 @@ function agentMirrorLabel(source: string, model: string): string {
 }
 
 /** The agent row's read-only live mirror of Chat — ghosts chat's effective source + model with a "follows Chat ↑" chip. */
-function AgentMirrorRow({
-  slot,
-  form,
-}: {
-  readonly slot: RoleSlot;
-  readonly form: ConnectionsForm;
-}): ReactElement {
+function AgentMirrorRow({ slot, form }: { readonly slot: RoleSlot; readonly form: ConnectionsForm }): ReactElement {
   return (
-    <Row
-      gap="field"
-      className="flex-col items-stretch @2xl:flex-row @2xl:items-center"
-      data-slot="role-slot-row"
-    >
+    <Row gap="field" className="flex-col items-stretch @2xl:flex-row @2xl:items-center" data-slot="role-slot-row">
       <SlotLabel slot={slot} />
       <Row align="center" className={SOURCE_COL}>
         <Badge intent="neutral" size="sm">
@@ -305,26 +284,19 @@ function AgentMirrorRow({
 /** The stale-stored-id amber advisory: a non-empty stored model not in the source's catalog. `null` when the id is present / free text is allowed / there's no catalog. */
 function staleIdWarning(
   value: string,
-  result:
-    | { readonly models: readonly { readonly id: string }[]; readonly allowsFreeText: boolean }
-    | undefined,
+  result: { readonly models: readonly { readonly id: string }[]; readonly allowsFreeText: boolean } | undefined,
 ): string | null {
   if (value === "" || result === undefined || result.allowsFreeText || result.models.length === 0) {
     return null;
   }
   const present = result.models.some((entry) => entry.id === value);
-  return present
-    ? null
-    : `“${value}” isn't in the catalog — it falls back to the default at run time.`;
+  return present ? null : `“${value}” isn't in the catalog — it falls back to the default at run time.`;
 }
 
 /** The chat slot's extra inline knob: the protocol `api` picker, filtered by the live chat source. */
 function ChatSlotKnobs({ form }: { readonly form: ConnectionsForm }): ReactElement {
   return (
-    <Row
-      gap="field"
-      className="flex-col items-stretch @2xl:flex-row @2xl:items-center @2xl:ps-(--width-sidebar-sm)"
-    >
+    <Row gap="field" className="flex-col items-stretch @2xl:flex-row @2xl:items-center @2xl:ps-(--width-sidebar-sm)">
       <Text as="span" size="micro" tone="muted">
         Protocol
       </Text>

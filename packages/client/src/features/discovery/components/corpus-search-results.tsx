@@ -21,11 +21,7 @@ import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { testId } from "#lib";
 import { selectCorpusCharacter } from "#state";
-import {
-  CORPUS_IMAGE_LENS,
-  CORPUS_SEARCH_TOP_N,
-  resolveSearchTarget,
-} from "../lib/corpus-search-targets";
+import { CORPUS_IMAGE_LENS, CORPUS_SEARCH_TOP_N, resolveSearchTarget } from "../lib/corpus-search-targets";
 
 type UnifiedResult = inferOutput<Trpc["search"]["search"]>;
 type DiscoverHit = Extract<UnifiedResult, { over: "discover" }>["hits"][number];
@@ -55,15 +51,7 @@ export function CorpusSearchResults({ query, targetId }: CorpusSearchResultsProp
 }
 
 /** Run the unified search for the active target + render the discriminated result. */
-function UnifiedResults({
-  query,
-  over,
-  label,
-}: {
-  readonly query: string;
-  readonly over: UnifiedOver;
-  readonly label: string;
-}): ReactElement {
+function UnifiedResults({ query, over, label }: { readonly query: string; readonly over: UnifiedOver; readonly label: string }): ReactElement {
   const trpc = useTRPC();
   const trimmed = query.trim();
   const result = useQuery(
@@ -105,21 +93,10 @@ function UnifiedResults({
 }
 
 /** The lexical BM25 surface (`search.fields`) — bare id+score hits named against a card-list map. */
-function FieldsResults({
-  query,
-  label,
-}: {
-  readonly query: string;
-  readonly label: string;
-}): ReactElement {
+function FieldsResults({ query, label }: { readonly query: string; readonly label: string }): ReactElement {
   const trpc = useTRPC();
   const trimmed = query.trim();
-  const hits = useQuery(
-    trpc.search.fields.queryOptions(
-      { query: trimmed, topN: CORPUS_SEARCH_TOP_N },
-      { enabled: trimmed !== "" },
-    ),
-  );
+  const hits = useQuery(trpc.search.fields.queryOptions({ query: trimmed, topN: CORPUS_SEARCH_TOP_N }, { enabled: trimmed !== "" }));
   const catalog = useQuery(trpc.character.list.queryOptions({ limit: NAME_MAP_LIMIT }));
 
   if (hits.isPending) {
@@ -160,13 +137,7 @@ function FieldsResults({
   );
 }
 
-function NoMatches({
-  label,
-  query,
-}: {
-  readonly label: string;
-  readonly query: string;
-}): ReactElement {
+function NoMatches({ label, query }: { readonly label: string; readonly query: string }): ReactElement {
   return (
     <Stack align="center" className="p-block" gap="field">
       <Icon icon={Search} size="lg" />
@@ -308,15 +279,7 @@ function DiscoverHitRow({ hit }: { readonly hit: DiscoverHit }): ReactElement {
 }
 
 /** A memory (digest) hit — a snippet + which chat it came from. Read-only preview. */
-function DigestHitRow({
-  chatId,
-  text,
-  score,
-}: {
-  readonly chatId: ChatId;
-  readonly text: string;
-  readonly score: number;
-}): ReactElement {
+function DigestHitRow({ chatId, text, score }: { readonly chatId: ChatId; readonly text: string; readonly score: number }): ReactElement {
   return (
     <ListRow
       data-testid={testId("corpusSearchHit")}
@@ -329,13 +292,7 @@ function DigestHitRow({
 }
 
 /** An avatar caption hit — read-only preview. */
-function ImageHitRow({
-  caption,
-  score,
-}: {
-  readonly caption: string | null;
-  readonly score: number;
-}): ReactElement {
+function ImageHitRow({ caption, score }: { readonly caption: string | null; readonly score: number }): ReactElement {
   return (
     <ListRow
       data-testid={testId("corpusSearchHit")}
@@ -357,9 +314,7 @@ function ScoreBadge({ score }: { readonly score: number }): ReactElement {
 }
 
 /** Group a character's evidence segments by chat so the preview reads per-conversation. */
-function groupByChat(
-  segments: readonly DiscoverSegment[],
-): readonly (readonly [ChatId, readonly DiscoverSegment[]])[] {
+function groupByChat(segments: readonly DiscoverSegment[]): readonly (readonly [ChatId, readonly DiscoverSegment[]])[] {
   const byChat = new Map<ChatId, DiscoverSegment[]>();
   for (const segment of segments) {
     const bucket = byChat.get(segment.chatId) ?? [];

@@ -74,8 +74,7 @@ const keyRegexCache = new Map<string, RegExp>();
 // Scripts that write WITHOUT word separators (scriptio continua) fall back to substring matching —
 // a whole-word boundary would make the key unmatchable in running text (`北京` must fire inside
 // `我去北京了`). Latin/Cyrillic/Greek/etc. keep whole-word boundaries.
-const BOUNDARYLESS_SCRIPT =
-  /[\p{sc=Han}\p{sc=Hiragana}\p{sc=Katakana}\p{sc=Hangul}\p{sc=Thai}\p{sc=Lao}\p{sc=Khmer}\p{sc=Myanmar}\p{sc=Tibetan}]/u;
+const BOUNDARYLESS_SCRIPT = /[\p{sc=Han}\p{sc=Hiragana}\p{sc=Katakana}\p{sc=Hangul}\p{sc=Thai}\p{sc=Lao}\p{sc=Khmer}\p{sc=Myanmar}\p{sc=Tibetan}]/u;
 
 /** Compile-or-return the cached RegExp for a lowercased key: Unicode whole-word for spaced scripts,
  *  substring for boundary-less scripts. Updates the LRU position on hit so the cap doesn't evict hot keys. */
@@ -105,17 +104,12 @@ export function keyRegex(key: string): RegExp {
  *  Empty array = no fire. Shared by the server's keyword scan / WI-at-depth partition and (future) the
  *  client's live entry-key preview. */
 export function matchEntryKeys(keys: readonly string[], haystack: string): string[] {
-  return keys
-    .map((key) => key.trim().toLowerCase())
-    .filter((key) => key.length > 0 && keyRegex(key).test(haystack));
+  return keys.map((key) => key.trim().toLowerCase()).filter((key) => key.length > 0 && keyRegex(key).test(haystack));
 }
 
 /** Build the lowercased keyword-scan haystack: recent message text + the supplied names (char +
  *  personas). ST parity (`world_info_include_names`) — keyword entries should fire when the convo is
  *  ABOUT someone, not just when the name is typed. */
-export function buildKeywordHaystack(
-  recentMessages: readonly string[],
-  names: readonly string[],
-): string {
+export function buildKeywordHaystack(recentMessages: readonly string[], names: readonly string[]): string {
   return [...recentMessages, ...names.filter((n) => n.length > 0)].join("\n").toLowerCase();
 }

@@ -72,10 +72,7 @@ function toPromise(received: Promise<unknown> | (() => unknown)): Promise<unknow
 }
 
 expect.extend({
-  async toThrowTRPCError(
-    received: Promise<unknown> | (() => unknown),
-    code: TrpcErrorCode,
-  ): Promise<MatcherResult> {
+  async toThrowTRPCError(received: Promise<unknown> | (() => unknown), code: TrpcErrorCode): Promise<MatcherResult> {
     let resolved: unknown;
     try {
       resolved = await toPromise(received);
@@ -86,8 +83,7 @@ expect.extend({
         const message = (e as Error | null)?.message ?? "";
         return {
           pass: false,
-          message: (): string =>
-            `expected TRPCError "${code}", but got ${got}: ${excerpt(message)}`,
+          message: (): string => `expected TRPCError "${code}", but got ${got}: ${excerpt(message)}`,
         };
       }
       const pass = trpcError.code === code;
@@ -101,15 +97,11 @@ expect.extend({
     }
     return {
       pass: false,
-      message: (): string =>
-        `expected the promise to reject with TRPCError "${code}", but it resolved with: ${stringify(resolved)}`,
+      message: (): string => `expected the promise to reject with TRPCError "${code}", but it resolved with: ${stringify(resolved)}`,
     };
   },
 
-  async toThrowProviderError(
-    received: Promise<unknown> | (() => unknown),
-    kind: ProviderErrorKind,
-  ): Promise<MatcherResult> {
+  async toThrowProviderError(received: Promise<unknown> | (() => unknown), kind: ProviderErrorKind): Promise<MatcherResult> {
     // Dynamic on purpose (see the header note) — module-cached after the first use.
     const { ProviderError } = await import("@orb/server/infra/providers");
     let resolved: unknown;
@@ -121,23 +113,19 @@ expect.extend({
         const message = (e as Error | null)?.message ?? "";
         return {
           pass: false,
-          message: (): string =>
-            `expected ProviderError "${kind}", but got ${got}: ${excerpt(message)}`,
+          message: (): string => `expected ProviderError "${kind}", but got ${got}: ${excerpt(message)}`,
         };
       }
       const pass = e.kind === kind;
       return {
         pass,
         message: (): string =>
-          pass
-            ? `expected ProviderError NOT to be "${kind}", but it was`
-            : `expected ProviderError "${kind}", but got "${e.kind}" — ${excerpt(e.message)}`,
+          pass ? `expected ProviderError NOT to be "${kind}", but it was` : `expected ProviderError "${kind}", but got "${e.kind}" — ${excerpt(e.message)}`,
       };
     }
     return {
       pass: false,
-      message: (): string =>
-        `expected the promise to reject with ProviderError "${kind}", but it resolved with: ${stringify(resolved)}`,
+      message: (): string => `expected the promise to reject with ProviderError "${kind}", but it resolved with: ${stringify(resolved)}`,
     };
   },
 });

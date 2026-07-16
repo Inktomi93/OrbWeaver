@@ -10,9 +10,7 @@ export function blockKeyStr(k: BlockKey): string {
 }
 
 /** Input MUST be best-first. */
-export function dedupeRankedBlocks<T extends { readonly blockKey: BlockKey }>(
-  ranked: readonly T[],
-): T[] {
+export function dedupeRankedBlocks<T extends { readonly blockKey: BlockKey }>(ranked: readonly T[]): T[] {
   const seen = new Set<string>();
   const out: T[] = [];
   for (const row of ranked) {
@@ -26,9 +24,7 @@ export function dedupeRankedBlocks<T extends { readonly blockKey: BlockKey }>(
 }
 
 /** Collapse fork/import copies. Input MUST be best-first. */
-export function collapseByContentHash<T extends { readonly contentHash: string }>(
-  ranked: readonly T[],
-): T[] {
+export function collapseByContentHash<T extends { readonly contentHash: string }>(ranked: readonly T[]): T[] {
   const seen = new Set<string>();
   const out: T[] = [];
   for (const row of ranked) {

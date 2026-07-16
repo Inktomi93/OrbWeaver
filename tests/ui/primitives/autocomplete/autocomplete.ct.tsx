@@ -56,10 +56,7 @@ test("disabled: the input is inert", async ({ mount, page }) => {
   await expect(input).toHaveAttribute("data-disabled", "");
 });
 
-test("inside a <Field>, the label associates with the input and aria-describedby is wired", async ({
-  mount,
-  page,
-}) => {
+test("inside a <Field>, the label associates with the input and aria-describedby is wired", async ({ mount, page }) => {
   await mount(
     <Field description="Press Enter to add" label="Tag">
       <Autocomplete items={TAGS} />
@@ -90,16 +87,10 @@ test("side: overrides the Positioner's requested placement", async ({ mount, pag
   await input.click();
   await input.pressSequentially("r");
   await expect(page.getByRole("option", { name: "romance" })).toBeVisible();
-  await expect(page.locator('[data-slot="autocomplete-positioner"]')).toHaveAttribute(
-    "data-side",
-    "top",
-  );
+  await expect(page.locator('[data-slot="autocomplete-positioner"]')).toHaveAttribute("data-side", "top");
 });
 
-test("filters correctly when the parent re-renders and passes a freshly-DERIVED items array (the real consumer shape)", async ({
-  mount,
-  page,
-}) => {
+test("filters correctly when the parent re-renders and passes a freshly-DERIVED items array (the real consumer shape)", async ({ mount, page }) => {
   const cmp = await mount(<DerivedItemsStory />);
   // Force parent re-renders — `items` is a NEW filtered/mapped array reference each render, the
   // normal React case A's doc claims Base UI's filter drops. If that were true, the popup would be
@@ -114,10 +105,7 @@ test("filters correctly when the parent re-renders and passes a freshly-DERIVED 
   await expect(page.getByRole("option", { name: "adventure" })).toHaveCount(0);
 });
 
-test("keyboard: arrow highlights an item, Enter selects it into the input", async ({
-  mount,
-  page,
-}) => {
+test("keyboard: arrow highlights an item, Enter selects it into the input", async ({ mount, page }) => {
   await mount(<Autocomplete aria-label="Tag" items={TAGS} />);
   const input = page.getByRole("combobox");
   await input.click();

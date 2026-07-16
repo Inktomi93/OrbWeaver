@@ -10,9 +10,7 @@ import { assertCredentialAllowed } from "./firewall";
 const ROLE = "rerank";
 
 /** Bind the rerank dispatcher to the wired backend registry. */
-export function createRerankRole(
-  deps: ProviderDeps,
-): (req: RerankRequest) => Promise<RerankResult> {
+export function createRerankRole(deps: ProviderDeps): (req: RerankRequest) => Promise<RerankResult> {
   return async (req) => {
     assertCredentialAllowed({ role: ROLE, source: req.credential.source });
     const backend = requireBackend(deps.backends, backendForSource(req.credential.source), ROLE);

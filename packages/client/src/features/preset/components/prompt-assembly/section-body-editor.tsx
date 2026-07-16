@@ -52,12 +52,7 @@ function headerCopy(section: PromptSection): { label: string; oneLiner: string }
   return { label: "Literal text", oneLiner: "Your own text, sent exactly as written." };
 }
 
-export function SectionBodyEditor({
-  form,
-  section,
-  index,
-  onBack,
-}: SectionBodyEditorProps): ReactElement {
+export function SectionBodyEditor({ form, section, index, onBack }: SectionBodyEditorProps): ReactElement {
   const { label, oneLiner } = headerCopy(section);
   return (
     <Stack gap="section">
@@ -86,22 +81,11 @@ export function SectionBodyEditor({
 }
 
 /** The body — literal MacroField · templated tri-state · shared WI wrapper · plain explainer. */
-function SectionBody({
-  form,
-  section,
-  index,
-}: Omit<SectionBodyEditorProps, "onBack">): ReactElement {
+function SectionBody({ form, section, index }: Omit<SectionBodyEditorProps, "onBack">): ReactElement {
   if (section.type === "literal") {
     return (
       <form.AppField name={`sections[${index}].content`}>
-        {(field): ReactElement => (
-          <field.MacroField
-            label="Text"
-            suggestions={PRESET_PROMPT_MACROS}
-            rows={BODY_ROWS}
-            className={BODY_MIN_H}
-          />
-        )}
+        {(field): ReactElement => <field.MacroField label="Text" suggestions={PRESET_PROMPT_MACROS} rows={BODY_ROWS} className={BODY_MIN_H} />}
       </form.AppField>
     );
   }
@@ -133,13 +117,8 @@ function deriveTemplateMode(template: string | undefined): TemplateMode {
 /** Default / Custom / Silent tri-state for a templated marker. DEFAULT ghosts the built-in template (or,
  *  for the empty-default markers, shows the plain-language explainer instead of a bare ghost); CUSTOM
  *  reveals the MacroTextarea bound to `template`; SILENT records `template = ""` (render nothing). */
-function TemplatedMarkerBody({
-  form,
-  section,
-  index,
-}: Omit<SectionBodyEditorProps, "onBack">): ReactElement | null {
-  const template =
-    section.type === "marker" && "template" in section ? section.template : undefined;
+function TemplatedMarkerBody({ form, section, index }: Omit<SectionBodyEditorProps, "onBack">): ReactElement | null {
+  const template = section.type === "marker" && "template" in section ? section.template : undefined;
   // Mode is LOCAL so Custom stays active with an as-yet-unwritten body (else an empty custom derives back).
   const [mode, setMode] = useState<TemplateMode>(() => deriveTemplateMode(template));
   if (section.type !== "marker" || !isTemplatedMarker(section.marker)) {
@@ -164,11 +143,7 @@ function TemplatedMarkerBody({
 
   return (
     <Stack gap="field">
-      <ToggleGroup
-        aria-label="Template mode"
-        value={[mode]}
-        onValueChange={(picked): void => pick((picked[0] ?? "default") as TemplateMode)}
-      >
+      <ToggleGroup aria-label="Template mode" value={[mode]} onValueChange={(picked): void => pick((picked[0] ?? "default") as TemplateMode)}>
         <Toggle value="default" aria-label="Use the built-in default">
           Default
         </Toggle>
@@ -201,14 +176,7 @@ interface TemplateModeBodyProps {
 }
 
 /** The per-mode body: Custom editor · Silent note · empty-default explainer · ghosted built-in default. */
-function TemplateModeBody({
-  mode,
-  template,
-  marker,
-  factoryDefault,
-  emptyDefault,
-  onChange,
-}: TemplateModeBodyProps): ReactElement {
+function TemplateModeBody({ mode, template, marker, factoryDefault, emptyDefault, onChange }: TemplateModeBodyProps): ReactElement {
   if (mode === "custom") {
     return (
       <Field label="Template">
@@ -233,8 +201,7 @@ function TemplateModeBody({
   if (emptyDefault) {
     return (
       <Text size="micro" tone="muted">
-        {MARKER_COPY[marker].oneLiner} There's no built-in text — switch to Custom to write your
-        own.
+        {MARKER_COPY[marker].oneLiner} There's no built-in text — switch to Custom to write your own.
       </Text>
     );
   }
@@ -252,15 +219,8 @@ function TemplateModeBody({
 
 /** The shared World-Info wrapper (§3.5): `formatStrings.wiFormat` (default `{{entry}}`) framing EACH
  *  lorebook entry — one wrapper, shared by both WI markers (hence the shared-scope hint). */
-function WorldInfoBody({
-  form,
-  section,
-}: {
-  readonly form: AssemblyForm;
-  readonly section: PromptSection;
-}): ReactElement {
-  const oneLiner =
-    section.type === "marker" ? MARKER_COPY[section.marker].oneLiner : "Lorebook entries.";
+function WorldInfoBody({ form, section }: { readonly form: AssemblyForm; readonly section: PromptSection }): ReactElement {
+  const oneLiner = section.type === "marker" ? MARKER_COPY[section.marker].oneLiner : "Lorebook entries.";
   return (
     <Stack gap="field">
       <Text size="micro" tone="muted">

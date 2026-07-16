@@ -23,16 +23,11 @@ const APPLY_SCRIPT = new vm.Script("text.replace(regex, replacer)", {
  * raised by the replacer — both surface to the kit executor's `onScriptFailure`. It does not
  * swallow-and-return the unmodified text: a silent pass-through would defeat the guard's observability.
  */
-export function createRegexApplyReplace(
-  timeoutMs: number = REGEX_APPLY_TIMEOUT_MS,
-): (text: string, regex: RegExp, replacer: RegexReplacer) => string {
+export function createRegexApplyReplace(timeoutMs: number = REGEX_APPLY_TIMEOUT_MS): (text: string, regex: RegExp, replacer: RegexReplacer) => string {
   return (text: string, regex: RegExp, replacer: RegexReplacer): string => {
     // The contextified object IS the sandbox's global — no ambient host globals. codeGeneration off is
     // belt-and-suspenders: the fixed script never eval()s.
-    const context = vm.createContext(
-      { text, regex, replacer },
-      { codeGeneration: { strings: false, wasm: false } },
-    );
+    const context = vm.createContext({ text, regex, replacer }, { codeGeneration: { strings: false, wasm: false } });
     const result: unknown = APPLY_SCRIPT.runInContext(context, { timeout: timeoutMs });
     if (typeof result !== "string") {
       throw new TypeError(`regex applyReplace produced a non-string result (${typeof result})`);

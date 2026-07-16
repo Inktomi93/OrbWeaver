@@ -17,15 +17,10 @@ export async function integrityProbe(db: Db): Promise<IntegrityReport> {
   const ic = await db.all<Record<string, unknown>>(sql`PRAGMA integrity_check`);
   // integrity_check returns one unnamed column per row — take the value without keying on the (snake_case)
   // column name (sidesteps the Biome⇄tsc literal-key dance).
-  const integrityCheck = ic
-    .map((r) => String(Object.values(r)[0] ?? ""))
-    .filter((s) => s.length > 0);
+  const integrityCheck = ic.map((r) => String(Object.values(r)[0] ?? "")).filter((s) => s.length > 0);
   const ok = fk.length === 0 && integrityCheck.every((s) => s === "ok");
   if (!ok) {
-    getLog().warn(
-      { fkViolations: fk.length, integrityCheck },
-      "debug: db integrity check found issues",
-    );
+    getLog().warn({ fkViolations: fk.length, integrityCheck }, "debug: db integrity check found issues");
   }
   return { ok, foreignKeyViolations: fk, integrityCheck };
 }

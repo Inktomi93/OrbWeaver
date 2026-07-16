@@ -64,11 +64,7 @@ function fullSites(base: Omit<GateRunCtx, "report">, gateName: string): string[]
 }
 
 /** The scoped-run site set for one gate. */
-function scopedSites(
-  base: Omit<GateRunCtx, "report">,
-  selection: { scope: Scope; inScope: (rel: string) => boolean },
-  gateName: string,
-): string[] {
+function scopedSites(base: Omit<GateRunCtx, "report">, selection: { scope: Scope; inScope: (rel: string) => boolean }, gateName: string): string[] {
   const { pass } = runScopedPass([noCallerUserIdGate, busCoverageGate], base, selection);
   const findings = pass.gates.find((g) => g.name === gateName)?.findings ?? [];
   return findings.map((f) => `${f.file}:${f.line}`).sort();
@@ -122,8 +118,7 @@ test("scope-isolation: an OUT-of-scope violation is invisible to the scoped run 
 // on a scoped run it is a whole-project gate → DEFERRED, never run → zero findings (even though the firing
 // condition is present in the project).
 const BUS_FIRING_TREE: Readonly<Record<string, string>> = {
-  "packages/contracts/src/chat/index.ts":
-    'export const CHAT_BUS_EVENT_TYPES = { neverEmitted: "neverEmitted" } as const;\n',
+  "packages/contracts/src/chat/index.ts": 'export const CHAT_BUS_EVENT_TYPES = { neverEmitted: "neverEmitted" } as const;\n',
   "packages/server/src/domain/chat/x.ts": 'export const q = "somethingElse";\n',
 };
 

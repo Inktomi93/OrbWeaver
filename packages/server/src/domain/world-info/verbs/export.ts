@@ -5,11 +5,7 @@
 import type { BulkImportLorebookInput } from "@orb/contracts/world-info";
 import { slugifyHandle } from "@orb/kit/slug";
 import { buildWorldBookFile } from "#kit/serde/world-info";
-import type {
-  ExportedWorldBook,
-  ExportWorldBook,
-  WorldInfoExportContext,
-} from "../contract/export";
+import type { ExportedWorldBook, ExportWorldBook, WorldInfoExportContext } from "../contract/export";
 import { listBookEntries, loadOwnedBook } from "../persistence/queries";
 
 export function createExport(ctx: WorldInfoExportContext): ExportWorldBook {

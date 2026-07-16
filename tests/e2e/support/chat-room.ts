@@ -66,9 +66,7 @@ export async function waitForAppReady(page: Page): Promise<void> {
  *  introspection handle) — the deterministic "subscribed" gate before mutating, so a `chatUpdated` event
  *  always has a subscriber (no race; the orb equivalent of neo's `chat-stream-state` == "open"). */
 export async function waitForStreamOpen(page: Page): Promise<void> {
-  await expect
-    .poll(async (): Promise<number> => busLive(page), { timeout: 15_000 })
-    .toBeGreaterThanOrEqual(1);
+  await expect.poll(async (): Promise<number> => busLive(page), { timeout: 15_000 }).toBeGreaterThanOrEqual(1);
 }
 
 /** Drive the real library→draft→send flow to CREATE one committed chat (one real turn). Returns once the
@@ -140,9 +138,7 @@ export async function renameOpenChat(page: Page, title: string): Promise<void> {
   const input = page.getByRole("textbox", { name: "Chat title" });
   await expect(input).toBeVisible();
   await input.fill(title);
-  const resp = page.waitForResponse(
-    (r) => r.url().includes("/api/trpc/chat.updateTitle") && r.status() < 500,
-  );
+  const resp = page.waitForResponse((r) => r.url().includes("/api/trpc/chat.updateTitle") && r.status() < 500);
   await page.getByRole("button", { name: "Save" }).click();
   await resp;
 }
@@ -159,9 +155,7 @@ export async function renameFirstChatViaRowKebab(page: Page, title: string): Pro
   const input = page.getByRole("textbox", { name: "Chat title" });
   await expect(input).toBeVisible();
   await input.fill(title);
-  const resp = page.waitForResponse(
-    (r) => r.url().includes("/api/trpc/chat.updateTitle") && r.status() < 500,
-  );
+  const resp = page.waitForResponse((r) => r.url().includes("/api/trpc/chat.updateTitle") && r.status() < 500);
   await page.getByRole("button", { name: "Save" }).click();
   await resp;
 }

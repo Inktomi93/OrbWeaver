@@ -23,10 +23,7 @@ export async function readAgentSdkCatalogSnapshot(db: Db): Promise<AgentSdkCatal
   }
   const parsed = agentSdkCatalogSnapshotSchema.safeParse(value);
   if (!parsed.success) {
-    getLog().warn(
-      { key: SNAPSHOT_KEY },
-      "connection: persisted agent-sdk catalog snapshot failed validation",
-    );
+    getLog().warn({ key: SNAPSHOT_KEY }, "connection: persisted agent-sdk catalog snapshot failed validation");
     return null;
   }
   const snapshot = parsed.data;
@@ -34,10 +31,7 @@ export async function readAgentSdkCatalogSnapshot(db: Db): Promise<AgentSdkCatal
   return snapshot;
 }
 
-export async function writeAgentSdkCatalogSnapshot(
-  db: Db,
-  snapshot: AgentSdkCatalogSnapshot,
-): Promise<void> {
+export async function writeAgentSdkCatalogSnapshot(db: Db, snapshot: AgentSdkCatalogSnapshot): Promise<void> {
   // Snapshot is JSON-shaped at runtime; cast bridges interface → index-signature only.
   const value = snapshot as JsonValue;
   await db

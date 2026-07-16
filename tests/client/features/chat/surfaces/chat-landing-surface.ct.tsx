@@ -35,10 +35,7 @@ test("renders the hero, recents, and character quick-picks", async ({ mount, pag
   await expect(component.getByText("Bolt")).toBeVisible();
 });
 
-test("with the LIST docked (showRecents=false) the landing drops its Recent chats — no duplicate (#13)", async ({
-  mount,
-  page,
-}) => {
+test("with the LIST docked (showRecents=false) the landing drops its Recent chats — no duplicate (#13)", async ({ mount, page }) => {
   await routeTrpc(page, { "chat.listChats": [RECENT], "character.list": charPage });
 
   const component = await mount(<ChatLandingSurfaceStory showRecents={false} />);
@@ -79,10 +76,7 @@ test("the hero primary fires onNewChat when characters exist", async ({ mount, p
   await expect(page.getByTestId("new-count")).toHaveText("1");
 });
 
-test("an empty DB swaps the primary to 'Create your first character' → onBrowseCharacters", async ({
-  mount,
-  page,
-}) => {
+test("an empty DB swaps the primary to 'Create your first character' → onBrowseCharacters", async ({ mount, page }) => {
   await routeTrpc(page, {
     "chat.listChats": [],
     "character.list": { items: [], nextCursor: null },

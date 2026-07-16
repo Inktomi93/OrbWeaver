@@ -22,11 +22,7 @@ import type { ReactElement } from "react";
 import { ASSISTANT_PREFILL_WARNING, MESSAGE_ROLE_ITEMS } from "#lib";
 import { useRoomOverridesForm } from "../hooks/use-room-overrides-form";
 import type { RoomOverridesFormValues } from "../lib/room-overrides-form-model";
-import {
-  fromRoomOverridesForm,
-  isAuthorsNotePrefill,
-  toRoomOverridesForm,
-} from "../lib/room-overrides-form-model";
+import { fromRoomOverridesForm, isAuthorsNotePrefill, toRoomOverridesForm } from "../lib/room-overrides-form-model";
 
 export interface RoomOverridesFormProps {
   /** The form's stable identity for seed/remount (committed → `room-overrides:${chatId}`; draft →
@@ -42,18 +38,10 @@ export interface RoomOverridesFormProps {
 }
 
 /** The Overrides tab body — the four host-allowlist fields as autosaving textareas. */
-export function RoomOverridesForm({
-  entityId,
-  roomOverrides,
-  isHost,
-  save,
-}: RoomOverridesFormProps): ReactElement {
+export function RoomOverridesForm({ entityId, roomOverrides, isHost, save }: RoomOverridesFormProps): ReactElement {
   // Adapt the surface's overrides-level `save` to the factory's form-values-level persist fn — the
   // form↔wire mapping (`fromRoomOverridesForm`) lives HERE so callers deal in domain `RoomOverrides`.
-  const factorySave =
-    isHost && save !== undefined
-      ? (values: RoomOverridesFormValues): Promise<unknown> => save(fromRoomOverridesForm(values))
-      : undefined;
+  const factorySave = isHost && save !== undefined ? (values: RoomOverridesFormValues): Promise<unknown> => save(fromRoomOverridesForm(values)) : undefined;
 
   const { form, mountKey } = useRoomOverridesForm({
     entityId,
@@ -72,12 +60,7 @@ export function RoomOverridesForm({
 
       <form.AppField name="mainPrompt">
         {(field): ReactElement => (
-          <field.TextareaField
-            label="Main prompt"
-            description="Replaces the system / main prompt for this chat."
-            disabled={!isHost}
-            rows={4}
-          />
+          <field.TextareaField label="Main prompt" description="Replaces the system / main prompt for this chat." disabled={!isHost} rows={4} />
         )}
       </form.AppField>
 
@@ -117,18 +100,11 @@ export function RoomOverridesForm({
         <Row gap="field">
           <form.AppField name="authorsNoteDepth">
             {(field): ReactElement => (
-              <field.NumberField
-                label="Depth"
-                description="0 = at the tail (just before the new turn); higher = further back."
-                min={0}
-                disabled={!isHost}
-              />
+              <field.NumberField label="Depth" description="0 = at the tail (just before the new turn); higher = further back." min={0} disabled={!isHost} />
             )}
           </form.AppField>
           <form.AppField name="authorsNoteRole">
-            {(field): ReactElement => (
-              <field.SelectField label="Role" items={MESSAGE_ROLE_ITEMS} disabled={!isHost} />
-            )}
+            {(field): ReactElement => <field.SelectField label="Role" items={MESSAGE_ROLE_ITEMS} disabled={!isHost} />}
           </form.AppField>
         </Row>
         <form.Subscribe selector={(state): boolean => isAuthorsNotePrefill(state.values)}>

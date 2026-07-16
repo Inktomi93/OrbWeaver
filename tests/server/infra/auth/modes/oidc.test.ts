@@ -26,18 +26,12 @@ function deps(over: Partial<ResolveDeps> = {}): ResolveDeps {
 
 describe("verifyPkceState", () => {
   test("a matching single-use transaction is returned", async () => {
-    const result = await verifyPkceState(
-      deps({ oidcStore: store((s) => Promise.resolve(tx(s))) }),
-      "state-abc",
-    );
+    const result = await verifyPkceState(deps({ oidcStore: store((s) => Promise.resolve(tx(s))) }), "state-abc");
     expect(result).toEqual(tx("state-abc"));
   });
 
   test("a replayed/forged state (store returns null) → null (fail-closed)", async () => {
-    const result = await verifyPkceState(
-      deps({ oidcStore: store(() => Promise.resolve(null)) }),
-      "state-abc",
-    );
+    const result = await verifyPkceState(deps({ oidcStore: store(() => Promise.resolve(null)) }), "state-abc");
     expect(result).toBeNull();
   });
 
@@ -46,18 +40,12 @@ describe("verifyPkceState", () => {
   });
 
   test("an empty state → null", async () => {
-    const result = await verifyPkceState(
-      deps({ oidcStore: store((s) => Promise.resolve(tx(s))) }),
-      "",
-    );
+    const result = await verifyPkceState(deps({ oidcStore: store((s) => Promise.resolve(tx(s))) }), "");
     expect(result).toBeNull();
   });
 
   test("a stored row whose state disagrees → null (defensive)", async () => {
-    const result = await verifyPkceState(
-      deps({ oidcStore: store(() => Promise.resolve(tx("a-different-state"))) }),
-      "state-abc",
-    );
+    const result = await verifyPkceState(deps({ oidcStore: store(() => Promise.resolve(tx("a-different-state"))) }), "state-abc");
     expect(result).toBeNull();
   });
 });

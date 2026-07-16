@@ -9,14 +9,7 @@ import { isPlainObject } from "@orb/kit/guards";
 
 // The constraint axis the classifier discriminates. Derived from the tuple so dispatch stays exhaustive
 // (a new kind fails any `assertNever` over it) and the union is never re-spelled inline.
-export const CONSTRAINT_KINDS = [
-  "unique",
-  "foreign-key",
-  "check",
-  "not-null",
-  "primary-key",
-  "unknown",
-] as const;
+export const CONSTRAINT_KINDS = ["unique", "foreign-key", "check", "not-null", "primary-key", "unknown"] as const;
 export type ConstraintKind = (typeof CONSTRAINT_KINDS)[number];
 
 /** A classified constraint failure: the kind + the raw code/message that identified it. */

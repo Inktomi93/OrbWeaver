@@ -45,10 +45,7 @@ function tokenCount(message: MessageView): number | null {
 
 /** The always-hidden-until-opted-in per-message chip strip. Renders nothing when every gated datum is
  *  absent (a draft greeting row, or every toggle off) — never an empty `<Row>` shell. */
-export function MessageMetadataRow({
-  message,
-  visibility,
-}: MessageMetadataRowProps): ReactElement | null {
+export function MessageMetadataRow({ message, visibility }: MessageMetadataRowProps): ReactElement | null {
   const tokens = tokenCount(message);
   const chips: ReactElement[] = [];
 
@@ -86,18 +83,10 @@ export function MessageMetadataRow({
   }
   // PD-130 — quiet metadata (north-star P5): the gen duration is inline micro-mono muted text, NOT a
   // pill, and appears only when the turn recorded a complete gen window.
-  const genLabel = visibility.showGenerationTimer
-    ? genDurationLabel(message.genStartedAt, message.genFinishedAt)
-    : null;
+  const genLabel = visibility.showGenerationTimer ? genDurationLabel(message.genStartedAt, message.genFinishedAt) : null;
   if (genLabel !== null) {
     chips.push(
-      <Text
-        key="gen-duration"
-        size="micro"
-        tone="muted"
-        className="font-mono"
-        data-slot="message-metadata-gen-duration"
-      >
+      <Text key="gen-duration" size="micro" tone="muted" className="font-mono" data-slot="message-metadata-gen-duration">
         {genLabel}
       </Text>,
     );

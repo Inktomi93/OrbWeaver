@@ -47,10 +47,7 @@ test("mounts with the persisted default values rendered", async ({ mount, page }
   await stub(page);
   await mount(<AppearanceSettingsStory />);
   await expect(page.getByRole("combobox", { name: "Chat display" })).toContainText("Bubble");
-  await expect(page.getByRole("slider", { name: "Chat width (%)" })).toHaveAttribute(
-    "aria-valuenow",
-    String(DEFAULT_USER_SETTINGS.appearance.chatWidthPct),
-  );
+  await expect(page.getByRole("slider", { name: "Chat width (%)" })).toHaveAttribute("aria-valuenow", String(DEFAULT_USER_SETTINGS.appearance.chatWidthPct));
   await expect(page.getByRole("slider", { name: "Text size", exact: true })).toHaveAttribute(
     "aria-valuenow",
     String(DEFAULT_USER_SETTINGS.appearance.fontScale),
@@ -62,57 +59,38 @@ test("chatStyle select fires the mutation with the correct patch key", async ({ 
   await mount(<AppearanceSettingsStory />);
   await page.getByRole("combobox", { name: "Chat display" }).click();
   await page.getByRole("option", { name: "Flat", exact: true }).click();
-  await expect
-    .poll(() => lastPatch(trpc)?.["chatStyle"], { intervals: [20, 50, 100] })
-    .toBe("flat");
+  await expect.poll(() => lastPatch(trpc)?.["chatStyle"], { intervals: [20, 50, 100] }).toBe("flat");
 });
 
-test("chatWidthPct slider clamps at its own MIN/MAX and patches chatWidthPct", async ({
-  mount,
-  page,
-}) => {
+test("chatWidthPct slider clamps at its own MIN/MAX and patches chatWidthPct", async ({ mount, page }) => {
   const trpc = await stub(page);
   await mount(<AppearanceSettingsStory />);
   const slider = page.getByRole("slider", { name: "Chat width (%)" });
 
   await slider.press("Home");
   await expect(slider).toHaveAttribute("aria-valuenow", String(CHAT_WIDTH_MIN));
-  await expect
-    .poll(() => lastPatch(trpc)?.["chatWidthPct"], { intervals: [20, 50, 100] })
-    .toBe(CHAT_WIDTH_MIN);
+  await expect.poll(() => lastPatch(trpc)?.["chatWidthPct"], { intervals: [20, 50, 100] }).toBe(CHAT_WIDTH_MIN);
 
   await slider.press("End");
   await expect(slider).toHaveAttribute("aria-valuenow", String(CHAT_WIDTH_MAX));
-  await expect
-    .poll(() => lastPatch(trpc)?.["chatWidthPct"], { intervals: [20, 50, 100] })
-    .toBe(CHAT_WIDTH_MAX);
+  await expect.poll(() => lastPatch(trpc)?.["chatWidthPct"], { intervals: [20, 50, 100] }).toBe(CHAT_WIDTH_MAX);
 });
 
-test("fontScale slider clamps at its own MIN/MAX and patches fontScale", async ({
-  mount,
-  page,
-}) => {
+test("fontScale slider clamps at its own MIN/MAX and patches fontScale", async ({ mount, page }) => {
   const trpc = await stub(page);
   await mount(<AppearanceSettingsStory />);
   const slider = page.getByRole("slider", { name: "Text size", exact: true });
 
   await slider.press("Home");
   await expect(slider).toHaveAttribute("aria-valuenow", String(FONT_SCALE_MIN));
-  await expect
-    .poll(() => lastPatch(trpc)?.["fontScale"], { intervals: [20, 50, 100] })
-    .toBe(FONT_SCALE_MIN);
+  await expect.poll(() => lastPatch(trpc)?.["fontScale"], { intervals: [20, 50, 100] }).toBe(FONT_SCALE_MIN);
 
   await slider.press("End");
   await expect(slider).toHaveAttribute("aria-valuenow", String(FONT_SCALE_MAX));
-  await expect
-    .poll(() => lastPatch(trpc)?.["fontScale"], { intervals: [20, 50, 100] })
-    .toBe(FONT_SCALE_MAX);
+  await expect.poll(() => lastPatch(trpc)?.["fontScale"], { intervals: [20, 50, 100] }).toBe(FONT_SCALE_MAX);
 });
 
-test("avatar size/shape/aspect/ring selects each patch the correct key", async ({
-  mount,
-  page,
-}) => {
+test("avatar size/shape/aspect/ring selects each patch the correct key", async ({ mount, page }) => {
   const trpc = await stub(page);
   await mount(<AppearanceSettingsStory />);
 
@@ -122,21 +100,15 @@ test("avatar size/shape/aspect/ring selects each patch the correct key", async (
 
   await page.getByRole("combobox", { name: "Avatar shape" }).click();
   await page.getByRole("option", { name: "Square", exact: true }).click();
-  await expect
-    .poll(() => lastPatch(trpc)?.["avatarShape"], { intervals: [20, 50, 100] })
-    .toBe("square");
+  await expect.poll(() => lastPatch(trpc)?.["avatarShape"], { intervals: [20, 50, 100] }).toBe("square");
 
   await page.getByRole("combobox", { name: "Avatar aspect" }).click();
   await page.getByRole("option", { name: "Portrait (2:3)" }).click();
-  await expect
-    .poll(() => lastPatch(trpc)?.["avatarAspect"], { intervals: [20, 50, 100] })
-    .toBe("portrait");
+  await expect.poll(() => lastPatch(trpc)?.["avatarAspect"], { intervals: [20, 50, 100] }).toBe("portrait");
 
   await page.getByRole("combobox", { name: "Avatar ring" }).click();
   await page.getByRole("option", { name: "Accent" }).click();
-  await expect
-    .poll(() => lastPatch(trpc)?.["avatarRing"], { intervals: [20, 50, 100] })
-    .toBe("accent");
+  await expect.poll(() => lastPatch(trpc)?.["avatarRing"], { intervals: [20, 50, 100] }).toBe("accent");
 
   // Every intermediate autosave carries the FULL patch — the final settled call still holds all four.
   await expect
@@ -149,10 +121,7 @@ test("avatar size/shape/aspect/ring selects each patch the correct key", async (
     });
 });
 
-test("background fit/dim/blur sliders clamp at their own MIN/MAX once an image kind is chosen", async ({
-  mount,
-  page,
-}) => {
+test("background fit/dim/blur sliders clamp at their own MIN/MAX once an image kind is chosen", async ({ mount, page }) => {
   const trpc = await stub(page);
   await mount(<AppearanceSettingsStory />);
 
@@ -189,18 +158,13 @@ test("background fit/dim/blur sliders clamp at their own MIN/MAX once an image k
 // Single-column-of-SECTIONS (owner ruling — Discord grammar): every subcategory SECTION shares the same
 // left edge + full column width and stacks in registry order (never two sections side by side). Fields
 // WITHIN a section may pair up — this asserts SECTION boxes only.
-test("subcategory sections are a single column, stacked in registry order", async ({
-  mount,
-  page,
-}) => {
+test("subcategory sections are a single column, stacked in registry order", async ({ mount, page }) => {
   await stub(page);
   await mount(<AppearanceSettingsStory />);
   await page.getByRole("heading", { name: "Message style" }).waitFor();
 
   const boxes = await page.evaluate(() => {
-    const sections = [
-      ...document.querySelectorAll<HTMLElement>('[id^="settings-anchor-appearance-"]'),
-    ];
+    const sections = [...document.querySelectorAll<HTMLElement>('[id^="settings-anchor-appearance-"]')];
     const parent = sections[0]?.parentElement;
     return {
       count: sections.length,
@@ -228,10 +192,7 @@ test("subcategory sections are a single column, stacked in registry order", asyn
 // Effects redesign (owner ruling — the ToggleGroup multi-select read ugly): the frosted-glass surfaces
 // are independent SWITCH rows now (setting-row grammar), each toggling `blurSurfaces` membership. Assert
 // a real switch (role=switch), not a toggle-group option, and that flipping it patches the array field.
-test("Effects renders switch rows; toggling a surface patches blurSurfaces", async ({
-  mount,
-  page,
-}) => {
+test("Effects renders switch rows; toggling a surface patches blurSurfaces", async ({ mount, page }) => {
   const trpc = await stub(page);
   await mount(<AppearanceSettingsStory />);
 
@@ -241,18 +202,13 @@ test("Effects renders switch rows; toggling a surface patches blurSurfaces", asy
   await expect(page.getByRole("switch", { name: "Prose shadow" })).toBeVisible();
 
   await panels.click();
-  await expect
-    .poll(() => lastPatch(trpc)?.["blurSurfaces"], { intervals: [20, 50, 100] })
-    .toContain("panels");
+  await expect.poll(() => lastPatch(trpc)?.["blurSurfaces"], { intervals: [20, 50, 100] }).toContain("panels");
 });
 
 // UIP-404 row grammar (owner items 6+7): form fields render horizontal — label+description LEFT, control
 // docked RIGHT in the fixed ~200px control column — and a select is sized to that column, never 100% of
 // the pane. Autosave binding stays intact (the other tests above prove the patches still fire).
-test("settings fields use the horizontal row grammar and selects are not full-width", async ({
-  mount,
-  page,
-}) => {
+test("settings fields use the horizontal row grammar and selects are not full-width", async ({ mount, page }) => {
   await stub(page);
   await mount(<AppearanceSettingsStory />);
   const combo = page.getByRole("combobox", { name: "Chat display" });
@@ -262,9 +218,7 @@ test("settings fields use the horizontal row grammar and selects are not full-wi
     const root = "data-slot";
     const field = trigger.closest(`[${root}='field-root']`);
     const col = trigger.closest(`[${root}='field-control-col']`);
-    const controlColToken = getComputedStyle(document.documentElement).getPropertyValue(
-      "--width-control-col",
-    );
+    const controlColToken = getComputedStyle(document.documentElement).getPropertyValue("--width-control-col");
     return {
       orientation: field?.getAttribute("data-orientation") ?? null,
       colWidth: Math.round(col?.getBoundingClientRect().width ?? -1),
@@ -285,10 +239,7 @@ test("settings fields use the horizontal row grammar and selects are not full-wi
 // keeps (nearly) the full pane width. The pane is its own <Container>, so it adapts to the pane, not the
 // modal chrome. (My settings surface has no opacity-0-in-flow REVEAL consumer — this fixed control column
 // was the only in-flow fixed-width sibling; the reveal cluster itself lives in the chat lane.)
-test("at a narrow pane width the horizontal field stacks — the control column can't starve the label", async ({
-  mount,
-  page,
-}) => {
+test("at a narrow pane width the horizontal field stacks — the control column can't starve the label", async ({ mount, page }) => {
   await stub(page);
   await mount(<AppearanceSettingsNarrowStory />);
   const combo = page.getByRole("combobox", { name: "Chat display" });

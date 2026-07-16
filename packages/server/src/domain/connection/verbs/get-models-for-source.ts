@@ -41,10 +41,7 @@ function vllmModelForRole(role: RoutingRoleKey): string {
 }
 
 /** null for a non-derive role — local-light serves the three derive roles only. */
-function localLightModelForRole(
-  role: RoutingRoleKey,
-  trio: ConnectionContext["localLightDefaults"],
-): string | null {
+function localLightModelForRole(role: RoutingRoleKey, trio: ConnectionContext["localLightDefaults"]): string | null {
   if (EMBED_ROLES.has(role)) {
     return role === "imageEmbed" ? trio.imageEmbed : trio.embed;
   }
@@ -68,10 +65,7 @@ function orEntryToSourceModel(entry: ModelCatalogEntry): SourceModelEntry {
 }
 
 /** Key presence only — no fetch. DomainNoCredentialError means "no key"; any other throw re-throws. */
-async function hasCredential(
-  ctx: ConnectionContext,
-  params: GetModelsForSourceParams,
-): Promise<boolean> {
+async function hasCredential(ctx: ConnectionContext, params: GetModelsForSourceParams): Promise<boolean> {
   try {
     await ctx.resolveCredential({ principal: params.principal, source: params.source });
     return true;
@@ -84,10 +78,7 @@ async function hasCredential(
 }
 
 /** Keyless browse stays legal — models stay populated, only the state goes needs-key. */
-async function openrouterArm(
-  ctx: ConnectionContext,
-  params: GetModelsForSourceParams,
-): Promise<SourceModelsResult> {
+async function openrouterArm(ctx: ConnectionContext, params: GetModelsForSourceParams): Promise<SourceModelsResult> {
   const snapshot = await readCatalogSnapshot(ctx.db);
   const defaultModelId = orDefaultForRole(params.role);
   if (snapshot === null || snapshot.models.length === 0) {
@@ -111,10 +102,7 @@ async function openrouterArm(
 }
 
 /** Owner-gated. Non-owner → owner-only, but the curated list is still returned so the disabled option renders honestly. */
-async function maxProSubArm(
-  ctx: ConnectionContext,
-  params: GetModelsForSourceParams,
-): Promise<SourceModelsResult> {
+async function maxProSubArm(ctx: ConnectionContext, params: GetModelsForSourceParams): Promise<SourceModelsResult> {
   const owner = ctx.isOwner(params.principal);
   const snapshot = await readAgentSdkCatalogSnapshot(ctx.db);
   const models: SourceModelEntry[] =
@@ -137,10 +125,7 @@ async function maxProSubArm(
 }
 
 /** Key-presence only, never a fetch. No key → needs-key; resolves → needs-probe (client fetches models on picker open). */
-async function customOpenAiArm(
-  ctx: ConnectionContext,
-  params: GetModelsForSourceParams,
-): Promise<SourceModelsResult> {
+async function customOpenAiArm(ctx: ConnectionContext, params: GetModelsForSourceParams): Promise<SourceModelsResult> {
   let defaultModelId: string | null = null;
   let keyed = false;
   try {
@@ -198,10 +183,7 @@ function vllmArm(ctx: ConnectionContext, params: GetModelsForSourceParams): Sour
 /** local-light — the injected builtin trio (the domain must not runtime-import infra). ONE entry for a
  *  derive role; empty + `ok` for a non-derive role (the client never asks). `dimensions: 1024` on the
  *  embeds (the fixed shared space). */
-function localLightArm(
-  ctx: ConnectionContext,
-  params: GetModelsForSourceParams,
-): SourceModelsResult {
+function localLightArm(ctx: ConnectionContext, params: GetModelsForSourceParams): SourceModelsResult {
   const id = localLightModelForRole(params.role, ctx.localLightDefaults);
   if (id === null) {
     return {
@@ -227,9 +209,7 @@ function localLightArm(
   };
 }
 
-export function createGetModelsForSource(
-  ctx: ConnectionContext,
-): ConnectionService["getModelsForSource"] {
+export function createGetModelsForSource(ctx: ConnectionContext): ConnectionService["getModelsForSource"] {
   return (params: GetModelsForSourceParams): Promise<SourceModelsResult> => {
     switch (params.source) {
       case "openrouter":

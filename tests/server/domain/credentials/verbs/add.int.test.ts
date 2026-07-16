@@ -82,11 +82,7 @@ describe("add", () => {
     const h = makeHarness(db);
     const svc = createCredentialsService({ ...h.ctx, box: createSecretBox(null) });
     const owner = await seedUser(db, { id: "user_o", role: "user" });
-    await expect(
-      svc.add({ principal: principal(owner), provider: "openrouter", key: "sk-1" }),
-    ).rejects.toMatchObject({ code: "credentials_disabled" });
-    await expect(
-      svc.add({ principal: principal(owner), provider: "openrouter", key: "sk-1" }),
-    ).rejects.toThrow(DomainOperationError);
+    await expect(svc.add({ principal: principal(owner), provider: "openrouter", key: "sk-1" })).rejects.toMatchObject({ code: "credentials_disabled" });
+    await expect(svc.add({ principal: principal(owner), provider: "openrouter", key: "sk-1" })).rejects.toThrow(DomainOperationError);
   });
 });

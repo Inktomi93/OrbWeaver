@@ -48,9 +48,7 @@ function skipStringLiteral(raw: string, open: number): number {
 function tryParse(slice: string): Record<string, unknown> | null {
   try {
     const parsed: unknown = JSON.parse(slice);
-    return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)
-      ? (parsed as Record<string, unknown>)
-      : null;
+    return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : null;
   } catch {
     return null;
   }

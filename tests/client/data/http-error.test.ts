@@ -30,9 +30,7 @@ describe("throwHttpError", () => {
     // 204-style / bodyless failure: the em-dash separator must not appear with nothing after it.
     const response = new Response(null, { status: 500, statusText: "Internal Server Error" });
 
-    await expect(throwHttpError("upload-asset", response)).rejects.toThrow(
-      "upload-asset: 500 Internal Server Error",
-    );
+    await expect(throwHttpError("upload-asset", response)).rejects.toThrow("upload-asset: 500 Internal Server Error");
     // Guard the boundary precisely — no trailing separator on the empty path.
     await expect(throwHttpError("upload-asset", response)).rejects.toThrow(ENDS_AT_STATUS_TEXT);
   });
@@ -45,9 +43,7 @@ describe("throwHttpError", () => {
       value: () => Promise.reject(new Error("stream torn")),
     });
 
-    await expect(throwHttpError("import-characters", response)).rejects.toThrow(
-      "import-characters: 502 Bad Gateway",
-    );
+    await expect(throwHttpError("import-characters", response)).rejects.toThrow("import-characters: 502 Bad Gateway");
   });
 
   test("the prefix + status + statusText are all preserved verbatim from the response", async () => {

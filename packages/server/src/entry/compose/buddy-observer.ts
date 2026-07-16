@@ -82,11 +82,7 @@ export function createBuddyObserverEnv(args: {
       })),
     // An agent principal resolves to its owner; a human/unknown resolves to null.
     resolveAgentOwner: async (userId: UserId): Promise<UserId | null> => {
-      const rows = await args.db
-        .select({ kind: users.kind, ownerUserId: users.ownerUserId })
-        .from(users)
-        .where(eq(users.id, userId))
-        .limit(1);
+      const rows = await args.db.select({ kind: users.kind, ownerUserId: users.ownerUserId }).from(users).where(eq(users.id, userId)).limit(1);
       const row = rows[0];
       return row !== undefined && row.kind === "agent" ? row.ownerUserId : null;
     },

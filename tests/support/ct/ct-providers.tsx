@@ -36,12 +36,7 @@ export interface CtProvidersProps {
  * everything else mounts flush against the component root.
  */
 export function CtProviders({ children, theme }: CtProvidersProps): ReactElement {
-  const body =
-    theme !== undefined && Object.keys(theme).length > 0 ? (
-      <ThemeScope tokens={theme}>{children}</ThemeScope>
-    ) : (
-      children
-    );
+  const body = theme !== undefined && Object.keys(theme).length > 0 ? <ThemeScope tokens={theme}>{children}</ThemeScope> : children;
   return (
     <ToastProvider>
       <TooltipProvider closeDelay={0} delay={0}>

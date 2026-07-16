@@ -16,12 +16,8 @@ const NATE = castId<PersonaId>("persona_testrenderaaaa");
 const NOW_MS = 1_783_080_000_000; // 2026-07-03T12:00:00Z — precomputed literal
 
 const CTX = {
-  characterNamesById: new Map<CharacterId, RowCharacterName>([
-    [KIRA, { name: "Kira of the Vale" }],
-  ]),
-  personaNamesById: new Map<PersonaId, RowPersonaName>([
-    [NATE, { name: "Nate", description: "a developer" }],
-  ]),
+  characterNamesById: new Map<CharacterId, RowCharacterName>([[KIRA, { name: "Kira of the Vale" }]]),
+  personaNamesById: new Map<PersonaId, RowPersonaName>([[NATE, { name: "Nate", description: "a developer" }]]),
   speakerCharName: "Kira",
   fallbackPersonaName: "Nate",
   nowMs: NOW_MS,
@@ -33,9 +29,7 @@ describe("renderMessageForDisplay", () => {
   });
 
   test("a row's own stamps retarget {{char}}/{{user}} to ITS speaker/author via the producer", () => {
-    expect(renderMessageForDisplay("{{char}} nods at {{user}}.", CTX, KIRA, NATE)).toBe(
-      "Kira of the Vale nods at Nate.",
-    );
+    expect(renderMessageForDisplay("{{char}} nods at {{user}}.", CTX, KIRA, NATE)).toBe("Kira of the Vale nods at Nate.");
   });
 
   test("no producer entry + no ctx default floors to kit's own literal ('Character'/'User')", () => {
@@ -43,9 +37,7 @@ describe("renderMessageForDisplay", () => {
       characterNamesById: new Map<CharacterId, RowCharacterName>(),
       personaNamesById: new Map<PersonaId, RowPersonaName>(),
     };
-    expect(renderMessageForDisplay("{{char}} greets {{user}}.", bareCtx)).toBe(
-      "Character greets User.",
-    );
+    expect(renderMessageForDisplay("{{char}} greets {{user}}.", bareCtx)).toBe("Character greets User.");
   });
 
   test("runs markdownOnly display scripts; the engine skips promptOnly on DISPLAY", () => {
@@ -78,9 +70,7 @@ describe("renderMessageForDisplay", () => {
   test("does NOT run fixMarkdown by default — a censoring lone asterisk survives as authored (#34)", () => {
     // The ST auto-fix is OPT-IN (autoFixMarkdown, default off): running it on a settled body auto-closes
     // a deliberate lone asterisk into a stray emphasis run (`f*ck` → italic). Off ⇒ render as-authored.
-    expect(renderMessageForDisplay("you can't use a f*cking diagram.", CTX)).toBe(
-      "you can't use a f*cking diagram.",
-    );
+    expect(renderMessageForDisplay("you can't use a f*cking diagram.", CTX)).toBe("you can't use a f*cking diagram.");
   });
 
   test("runs fixMarkdown when autoFixMarkdown is ON (the ST auto_fix_generated_markdown opt-in)", () => {

@@ -37,9 +37,7 @@ describe("workloads.cancel", () => {
       status: "running",
     });
     const s = makeService(db);
-    await expect(s.cancel({ id, caller: principal("user_bob") })).rejects.toBeInstanceOf(
-      DomainNotFoundError,
-    );
+    await expect(s.cancel({ id, caller: principal("user_bob") })).rejects.toBeInstanceOf(DomainNotFoundError);
     // The row is untouched — still running (the stranger's cancel mutated NOTHING).
     expect((await s.get({ id, caller: principal("user_alice") })).status).toBe("running");
   });

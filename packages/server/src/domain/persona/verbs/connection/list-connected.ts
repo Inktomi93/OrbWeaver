@@ -5,15 +5,9 @@
 import type { PersonaContext } from "../../context";
 import type { ListConnectedParams } from "../../contract/params";
 import type { PersonaService } from "../../contract/service";
-import {
-  detailOf,
-  ensureCharacterOwned,
-  listConnectedPersonasWithAvatar,
-} from "../../persistence/queries";
+import { detailOf, ensureCharacterOwned, listConnectedPersonasWithAvatar } from "../../persistence/queries";
 
-export function createListConnected(
-  ctx: PersonaContext,
-): PersonaService["listConnectedToCharacter"] {
+export function createListConnected(ctx: PersonaContext): PersonaService["listConnectedToCharacter"] {
   return async ({ principal, characterId }: ListConnectedParams) => {
     const ownerId = principal.userId;
     await ensureCharacterOwned(ctx.db, ownerId, characterId);

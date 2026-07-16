@@ -13,13 +13,7 @@ export function LightboxHarness(): ReactElement {
       <button type="button" onClick={(): void => setOpen(true)}>
         Open lightbox
       </button>
-      <Lightbox
-        open={open}
-        onOpenChange={setOpen}
-        src={{ kind: "asset", url: "/blob/a.png" }}
-        media="image"
-        alt="a"
-      />
+      <Lightbox open={open} onOpenChange={setOpen} src={{ kind: "asset", url: "/blob/a.png" }} media="image" alt="a" />
     </div>
   );
 }

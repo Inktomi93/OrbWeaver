@@ -13,14 +13,10 @@
 
 /** A parsed image target: an owned-CAS asset (by id) or an external URL. The chat domain resolves this to a
  *  model-fetchable URL via the injected `resolveImageUrl` op (asset→CAS URL/data-URI; external→gated). */
-export type ContentImageRef =
-  | { readonly kind: "asset"; readonly assetId: string }
-  | { readonly kind: "external"; readonly url: string };
+export type ContentImageRef = { readonly kind: "asset"; readonly assetId: string } | { readonly kind: "external"; readonly url: string };
 
 /** One ordered span of a tokenized message body. */
-export type ContentSpan =
-  | { readonly kind: "text"; readonly text: string }
-  | { readonly kind: "image"; readonly ref: ContentImageRef; readonly alt: string };
+export type ContentSpan = { readonly kind: "text"; readonly text: string } | { readonly kind: "image"; readonly ref: ContentImageRef; readonly alt: string };
 
 // `![alt](target)` — `alt` excludes `]`, `target` excludes whitespace + `)` (both linear, no backtracking →
 // ReDoS-safe). The title form `![a](u "t")` intentionally fails to match (the space) and falls through to text.

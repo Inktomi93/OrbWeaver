@@ -24,9 +24,7 @@ function ownsDefinition(root: string, feature: string): boolean {
   if (!existsSync(libDir)) {
     return false;
   }
-  return readdirSync(libDir, { withFileTypes: true }).some(
-    (e) => e.isFile() && DEFINITION_RE.test(e.name),
-  );
+  return readdirSync(libDir, { withFileTypes: true }).some((e) => e.isFile() && DEFINITION_RE.test(e.name));
 }
 
 export const gate: GateDescriptor = {
@@ -62,15 +60,13 @@ export const gate: GateDescriptor = {
   mustPass: [
     {
       files: {
-        "packages/client/src/features/__g_ownssection/lib/__g-ownssection-section.tsx":
-          "export const g = 1;\n",
+        "packages/client/src/features/__g_ownssection/lib/__g-ownssection-section.tsx": "export const g = 1;\n",
       },
       why: "a lib/*-section.tsx file counts as the feature's registered definition",
     },
     {
       files: {
-        "packages/client/src/features/__g_ownschrome/lib/__g-ownschrome-chrome.tsx":
-          "export const g = 1;\n",
+        "packages/client/src/features/__g_ownschrome/lib/__g-ownschrome-chrome.tsx": "export const g = 1;\n",
       },
       why: "a lib/*-chrome.tsx file (the chrome-widget kind) also counts",
     },

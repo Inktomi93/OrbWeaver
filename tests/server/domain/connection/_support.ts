@@ -7,11 +7,7 @@
 //   • fetchOrCatalog    — returns the configured OR catalog (the live fetch is faked).
 //   • loadUserSettings  — returns DEFAULT_USER_SETTINGS with a configurable `routing.roleDefaults`.
 
-import type {
-  AgentSdkModel,
-  CredentialSource,
-  ModelCatalogEntry,
-} from "../../../../packages/contracts/src/connection/index.ts";
+import type { AgentSdkModel, CredentialSource, ModelCatalogEntry } from "../../../../packages/contracts/src/connection/index.ts";
 import type {
   CustomOpenAiCredential,
   LocalLightCredential,
@@ -108,8 +104,7 @@ export function makeConnHarness(db: Db): ConnHarness {
     },
     fetchOrCatalog: () => Promise.resolve([...orCatalog]),
     fetchAgentSdkModels: () => Promise.resolve([...agentSdkCatalog]),
-    loadUserSettings: () =>
-      Promise.resolve({ ...DEFAULT_USER_SETTINGS, routing: { roleDefaults } }),
+    loadUserSettings: () => Promise.resolve({ ...DEFAULT_USER_SETTINGS, routing: { roleDefaults } }),
     // apiKeySource: "none" signals host login active (contract/service.ts).
     verifyClaudeAuth: ({ credential, model }) => {
       verifyCalls.push({ source: credential.source, model });

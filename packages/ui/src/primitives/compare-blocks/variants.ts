@@ -9,8 +9,7 @@ import { tv } from "#lib";
 export const compareBlocksVariants = tv({
   slots: {
     root: "flex flex-col gap-block",
-    acceptAllRow:
-      "flex cursor-pointer items-center gap-row rounded-control border border-border bg-muted px-block py-row",
+    acceptAllRow: "flex cursor-pointer items-center gap-row rounded-control border border-border bg-muted px-block py-row",
     acceptAllLabel: "text-label leading-label font-medium text-foreground",
     block: "flex flex-col gap-field",
     blockLabel: "text-label leading-label font-medium text-muted-foreground",

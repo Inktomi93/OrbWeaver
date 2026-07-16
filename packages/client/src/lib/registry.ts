@@ -24,11 +24,7 @@ export interface ContributorRegistry<Def extends { readonly id: string }> {
  * tsc fails the build on a missing or extra member, so completeness is a compile fact, not a gate.
  * `list()` preserves `ids` order.
  */
-export function createRegistry<Id extends string, Def>(
-  name: string,
-  ids: readonly Id[],
-  definitions: Record<Id, Def>,
-): Registry<Id, Def> {
+export function createRegistry<Id extends string, Def>(name: string, ids: readonly Id[], definitions: Record<Id, Def>): Registry<Id, Def> {
   const map = new Map<Id, Def>(ids.map((id) => [id, definitions[id]]));
   return {
     name,
@@ -53,10 +49,7 @@ export function createRegistry<Id extends string, Def>(
  * construction — the cross-feature extension seam never silently shadows an entry. `list()`
  * preserves `contributions` order.
  */
-export function createContributorRegistry<Def extends { readonly id: string }>(
-  name: string,
-  contributions: readonly Def[],
-): ContributorRegistry<Def> {
+export function createContributorRegistry<Def extends { readonly id: string }>(name: string, contributions: readonly Def[]): ContributorRegistry<Def> {
   const map = new Map<string, Def>();
   for (const def of contributions) {
     if (map.has(def.id)) {

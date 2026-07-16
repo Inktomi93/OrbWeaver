@@ -23,40 +23,24 @@ const useCharacterSelectionStore = createGatedStore<CharacterSelectionState>(
 /** Select a character (a library-row click) — the route swaps CONTENT to that character's detail card.
  *  Clears the facet selection so a stale facet never carries across characters. */
 export function selectCharacter(id: CharacterId): void {
-  useCharacterSelectionStore.setState(
-    { selectedCharacterId: id, selectedFacetId: null },
-    false,
-    "character-selection/select",
-  );
+  useCharacterSelectionStore.setState({ selectedCharacterId: id, selectedFacetId: null }, false, "character-selection/select");
 }
 
 /** Clear the selection (back to the Characters welcome state). Clears the facet too. */
 export function clearCharacterSelection(): void {
-  useCharacterSelectionStore.setState(
-    { selectedCharacterId: null, selectedFacetId: null },
-    false,
-    "character-selection/clear",
-  );
+  useCharacterSelectionStore.setState({ selectedCharacterId: null, selectedFacetId: null }, false, "character-selection/clear");
 }
 
 /** Drill into a card-content facet — a facet-row click reveals the CONTENT drill-in + the CONTEXT Field
  *  inspector (character-editor redesign; mirrors `selectPresetSection`). */
 export function selectCharacterFacet(id: string): void {
-  useCharacterSelectionStore.setState(
-    { selectedFacetId: id },
-    false,
-    "character-selection/select-facet",
-  );
+  useCharacterSelectionStore.setState({ selectedFacetId: id }, false, "character-selection/select-facet");
 }
 
 /** Clear the facet selection — CONTENT returns to the facet list, CONTEXT Field shows its EmptyState (also
  *  fired by the drill-in's ← Back). */
 export function clearCharacterFacet(): void {
-  useCharacterSelectionStore.setState(
-    { selectedFacetId: null },
-    false,
-    "character-selection/clear-facet",
-  );
+  useCharacterSelectionStore.setState({ selectedFacetId: null }, false, "character-selection/clear-facet");
 }
 
 /** Reactive: the currently-selected character id (`null` = none). A primitive selector (no fresh object). */

@@ -23,9 +23,7 @@ describe("remove", () => {
 
     await svc.remove({ principal: principal(owner), characterId: created.id });
 
-    await expect(
-      svc.get({ principal: principal(owner), characterId: created.id }),
-    ).rejects.toBeInstanceOf(CharacterNotFoundError);
+    await expect(svc.get({ principal: principal(owner), characterId: created.id })).rejects.toBeInstanceOf(CharacterNotFoundError);
     expect(h.reaps).toEqual([[avatar]]);
     expect(h.events).toEqual([]);
   });
@@ -52,8 +50,6 @@ describe("remove", () => {
       principal: principal(owner),
       input: { handle: "nyx", name: "Nyx", description: "d" },
     });
-    await expect(
-      svc.remove({ principal: principal(other), characterId: created.id }),
-    ).rejects.toBeInstanceOf(CharacterNotFoundError);
+    await expect(svc.remove({ principal: principal(other), characterId: created.id })).rejects.toBeInstanceOf(CharacterNotFoundError);
   });
 });

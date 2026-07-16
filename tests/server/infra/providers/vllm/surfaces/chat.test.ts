@@ -10,10 +10,7 @@ import { ProviderError } from "@orb/server/infra/providers";
 import { createVllmChat } from "@orb/server/infra/providers/vllm";
 import type { VllmEngineClient } from "@orb/server/infra/providers/vllm/engine";
 import { describe } from "vitest";
-import {
-  makeModelCapability,
-  makeResolvedCredential,
-} from "../../../../../support/factories/resolved-connection.ts";
+import { makeModelCapability, makeResolvedCredential } from "../../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../../support/fixtures";
 
 const CRED = makeResolvedCredential("vllm");
@@ -73,9 +70,7 @@ describe("createVllmChat", () => {
     ]);
     const deltas: { kind: string; text: string }[] = [];
     const chat = createVllmChat({ client, now: clock() });
-    const res = await chat(
-      chatReq({ onDelta: (d) => deltas.push({ kind: d.kind, text: d.text }) }),
-    );
+    const res = await chat(chatReq({ onDelta: (d) => deltas.push({ kind: d.kind, text: d.text }) }));
 
     expect(res.reply).toBe("Hello");
     expect(res.reasoning).toBe("thinking");

@@ -4,11 +4,7 @@
 import type { WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import {
-  emitWorkloadEvent,
-  getRecentWorkloadEvents,
-  subscribeWorkloadWake,
-} from "../../../../../packages/server/src/domain/workloads/engine/progress-bus.ts";
+import { emitWorkloadEvent, getRecentWorkloadEvents, subscribeWorkloadWake } from "../../../../../packages/server/src/domain/workloads/engine/progress-bus.ts";
 import { expect, test } from "../../../../support/fixtures";
 import { T0 } from "../_support.ts";
 
@@ -41,11 +37,7 @@ describe("progress-bus", () => {
       at: T0 + 2,
       result: { owners: 1, characters: 4 },
     });
-    expect(getRecentWorkloadEvents(id).map((e) => e.type)).toEqual([
-      "started",
-      "progress",
-      "succeeded",
-    ]);
+    expect(getRecentWorkloadEvents(id).map((e) => e.type)).toEqual(["started", "progress", "succeeded"]);
   });
 
   test("subscribeWorkloadWake fires the listener on every event + the unsubscribe stops it", () => {

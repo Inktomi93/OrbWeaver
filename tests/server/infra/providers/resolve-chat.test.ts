@@ -147,15 +147,11 @@ describe("resolveChat — budget mode (clamp + default)", () => {
   });
 
   test("clamps an over-range budget down to max", () => {
-    expect(
-      resolveChat({ effort: "high", thinkingBudgetTokens: 99_999 }, cap).reasoning.budgetTokens,
-    ).toBe(8192);
+    expect(resolveChat({ effort: "high", thinkingBudgetTokens: 99_999 }, cap).reasoning.budgetTokens).toBe(8192);
   });
 
   test("clamps an under-range budget up to min", () => {
-    expect(
-      resolveChat({ effort: "high", thinkingBudgetTokens: 10 }, cap).reasoning.budgetTokens,
-    ).toBe(1024);
+    expect(resolveChat({ effort: "high", thinkingBudgetTokens: 10 }, cap).reasoning.budgetTokens).toBe(1024);
   });
 
   test("defaults to the model's max budget when the user named no depth", () => {
@@ -170,9 +166,7 @@ describe("resolveChat — budget mode (clamp + default)", () => {
 describe("resolveChat — the Anthropic display gate", () => {
   test("a listed display mode is kept", () => {
     const cap = withReasoning({ mode: "effort", enabled: true, displayModes: ["summarized"] });
-    expect(
-      resolveChat({ effort: "high", thinkingDisplay: "summarized" }, cap).reasoning.display,
-    ).toBe("summarized");
+    expect(resolveChat({ effort: "high", thinkingDisplay: "summarized" }, cap).reasoning.display).toBe("summarized");
   });
 
   test("an unlisted display mode is dropped + warned", () => {

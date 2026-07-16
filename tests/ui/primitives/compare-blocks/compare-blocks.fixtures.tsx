@@ -13,18 +13,7 @@ export interface AcceptHarnessProps {
   readonly acceptAllLabel?: string;
 }
 
-export function AcceptHarness({
-  blocks,
-  initialAccepted,
-  acceptAllLabel,
-}: AcceptHarnessProps): ReactElement {
+export function AcceptHarness({ blocks, initialAccepted, acceptAllLabel }: AcceptHarnessProps): ReactElement {
   const [accepted, setAccepted] = useState<readonly boolean[]>(initialAccepted);
-  return (
-    <CompareBlocks
-      {...(acceptAllLabel === undefined ? {} : { acceptAllLabel })}
-      accepted={accepted}
-      blocks={blocks}
-      onAcceptedChange={setAccepted}
-    />
-  );
+  return <CompareBlocks {...(acceptAllLabel === undefined ? {} : { acceptAllLabel })} accepted={accepted} blocks={blocks} onAcceptedChange={setAccepted} />;
 }

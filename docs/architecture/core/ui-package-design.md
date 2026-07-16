@@ -154,7 +154,7 @@ enforces the seal column: a lib may only be imported from its sealed dir.
     families the appearance system drives) — this list names the load-bearing override targets, not the
     whole tree.
   - **spacing** — the 4px scale + the intent tokens (`gap-field/row/block/section/gutter`,
-    `p-row/block/section/gutter`) the grit gates point at.
+    `p-row/block/section/gutter`) the token gates point at.
   - **control heights** — `--control-sm/md/lg`, **POINTER-CONDITIONAL per D62 P1**: 44/48/56px at
     coarse (meets the touch floor), narrowing to 32/34/40px at `@media(pointer:fine)` via the token's
     `orb.pointerFine` extension. FLAG\[registry]: `Core-Path-Registry.md` D62 P1 is the authority on the
@@ -185,7 +185,7 @@ enforces the seal column: a lib may only be imported from its sealed dir.
 
 - Every styled primitive has a `variants.ts` exporting a `tv()` config; multi-part primitives use
   **`slots`** (D54). Component props extend `VariantProps<typeof x>` — **a bad variant is a `tsc`
-  error**; ad-hoc `className` styling on a primitive is lint-flagged (the token grit gates now
+  error**; ad-hoc `className` styling on a primitive is lint-flagged (the token gates now
   cover `packages/ui/src` — §8).
 - Class values reference THEME tokens only (`bg-primary`, `text-foreground`, `h-control-md`,
   `gap-row`, `rounded-control`, `z-overlay`) — raw values (`bg-[#…]`, `gap-[13px]`, `z-50`,
@@ -277,10 +277,10 @@ and the CT tests assert the CONTAINMENT properties, not just rendering:
 | resolver | ui's `package.json` omits contracts/db/server/client + client's omits the satellites | scaffold (done at package birth) |
 | lint (biome) | `noUndeclaredDependencies` / `noUnresolvedImports` on ui | free (repo-wide already) |
 | dep-cruiser | `ui-cake` (ui ⇏ contracts/db/server/client) · `ui-no-node-builtins` · `ui-satellite-seals` (echarts→`charts/` only; react-virtual→`virtual-list\|message-list` only; codemirror→`code-editor/`; streamdown/remark→`markdown/`; cmdk→`command/`; @dnd-kit→`sortable/`; diff→`diff/`; lucide→`icons/`) · `client-no-raw-satellites` (pre-wired backstop for Phase 6) | scaffold |
-| grit (token gates) | `no-color-literals` / `no-raw-z-index` / `no-raw-spacing` / `no-raw-typography` **extended to `packages/ui/src`** (D43: no `components/ui/` exemption). Allowlisted INSIDE ui: `src/layout/` + `src/markdown/` (they DEFINE the tokens / are the prose carve-out — the exact `features/_shared/layout/` precedent) | scaffold |
+| token gates (ts-morph, `scripts/check/gates/`) | `no-color-literals` / `no-raw-z-index` / `no-raw-spacing` / `no-raw-typography` **extended to `packages/ui/src`** (D43: no `components/ui/` exemption). Allowlisted INSIDE ui: `src/layout/` + `src/markdown/` (they DEFINE the tokens / are the prose carve-out — the exact `features/_shared/layout/` precedent) | scaffold |
 | test | tokens **freshness** test (§4) — the derived-theme invariant; the CT containment tests (§7) | per chunk |
 | runner split | Playwright CT (`.ct.tsx` under `tests/ui/**` mirror) on its OWN runner (`pnpm test:ct`) — **NOT in `pnpm check`** (browser tests never gate check; Spine-Testing §7) | scaffold |
-| deferred | `no-media-queries-in-features` as a grit rule (viewport-variant `sm:`/`md:`… prefixes + `@media` outside app-shell) — lands with the client-foundation wave where app-shell exists to allowlist; ui ships ZERO `@media` meanwhile (reviewable by grep until then) | Phase 6 |
+| deferred | `no-media-queries-in-features` as a gate (viewport-variant `sm:`/`md:`… prefixes + `@media` outside app-shell) — lands with the client-foundation wave where app-shell exists to allowlist; ui ships ZERO `@media` meanwhile (reviewable by grep until then) | Phase 6 |
 
 **CT wiring:** the root `playwright-ct.config.ts` gains `testDir: "tests"` (covers `tests/ui` +
 `tests/client`) and the real `ctViteConfig` (react plugin + `@tailwindcss/vite` + a CT-side css

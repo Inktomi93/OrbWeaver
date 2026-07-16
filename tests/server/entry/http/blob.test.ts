@@ -39,8 +39,7 @@ type Handler = (c: MockCtx) => Promise<Response> | Response;
 function makeCtx(principal: Principal | null, req: MockReq): MockCtx {
   return {
     get: (key: string): Principal | null => (key === "principal" ? principal : null),
-    body: (data: string | Uint8Array | null, status = 200): Response =>
-      new Response(data, { status }),
+    body: (data: string | Uint8Array | null, status = 200): Response => new Response(data, { status }),
     req: {
       param: (name: string): string => req.params?.[name] ?? "",
       query: (name: string): string | undefined => req.query?.[name],
@@ -114,9 +113,7 @@ describe("registerBlob", () => {
         return Promise.resolve(ORIGINAL);
       },
     };
-    const res = await blobHandler({ assets, cas })(
-      makeCtx(OWNER, { params: { hash: HASH }, query: { w: "96", f: "webp" } }),
-    );
+    const res = await blobHandler({ assets, cas })(makeCtx(OWNER, { params: { hash: HASH }, query: { w: "96", f: "webp" } }));
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe("image/webp");
     expect(new Uint8Array(await res.arrayBuffer())).toEqual(WEBP);
@@ -129,9 +126,7 @@ describe("registerBlob", () => {
       resolveVariant: (): Promise<undefined> => Promise.resolve(undefined),
     };
     const cas: BlobCasPort = { read: (): Promise<Uint8Array> => Promise.resolve(ORIGINAL) };
-    const res = await blobHandler({ assets, cas })(
-      makeCtx(OWNER, { params: { hash: HASH }, query: { w: "7777" } }),
-    );
+    const res = await blobHandler({ assets, cas })(makeCtx(OWNER, { params: { hash: HASH }, query: { w: "7777" } }));
     expect(res.status).toBe(404);
   });
 
@@ -145,9 +140,7 @@ describe("registerBlob", () => {
       },
     };
     const cas: BlobCasPort = { read: (): Promise<Uint8Array> => Promise.resolve(ORIGINAL) };
-    const res = await blobHandler({ assets, cas })(
-      makeCtx(OWNER, { params: { hash: HASH }, query: { w: "abc" } }),
-    );
+    const res = await blobHandler({ assets, cas })(makeCtx(OWNER, { params: { hash: HASH }, query: { w: "abc" } }));
     expect(res.status).toBe(404);
     expect(resolveCalled).toBe(false);
   });

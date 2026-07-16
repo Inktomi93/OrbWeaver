@@ -4,11 +4,7 @@
 // neither the sessions table nor its revoke machinery — dependency inversion). Each WRITE audits.
 
 import type { AdminContext } from "../context";
-import type {
-  ListSessionsParams,
-  RevokeSessionParams,
-  RevokeUserSessionsParams,
-} from "../contract/params";
+import type { ListSessionsParams, RevokeSessionParams, RevokeUserSessionsParams } from "../contract/params";
 import type { AdminService } from "../contract/service";
 import { requireAdmin } from "../guard";
 
@@ -34,9 +30,7 @@ export function createSessions(ctx: AdminContext): SessionVerbs {
     );
   };
 
-  const revokeUserSessions: AdminService["revokeUserSessions"] = async (
-    params: RevokeUserSessionsParams,
-  ) => {
+  const revokeUserSessions: AdminService["revokeUserSessions"] = async (params: RevokeUserSessionsParams) => {
     requireAdmin(params.principal);
     const revoked = await ctx.sessions.revokeAllForUser(params.userId);
     await ctx.audit(

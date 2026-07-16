@@ -8,12 +8,7 @@
 
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import type { DiscoveryContext } from "../context";
-import type {
-  AskCardAnswer,
-  CharacterComparison,
-  CharacterComparisonDeep,
-  ComparisonNarrative,
-} from "../contract/results";
+import type { AskCardAnswer, CharacterComparison, CharacterComparisonDeep, ComparisonNarrative } from "../contract/results";
 import type { AnalyzeDeps, DiscoveryService } from "../contract/service";
 import { readCharacterMessageSamples } from "../persistence/message-reads";
 import { readOwnedCardFacet } from "../persistence/summary-reads";
@@ -28,13 +23,9 @@ const ANALYZE_TEMPERATURE = 0.3;
 // contract — the messages projection has no length guarantee).
 const SCENE_MAX_CHARS = 1200;
 
-export function createAnalyze(
-  ctx: DiscoveryContext,
-  deps: AnalyzeDeps,
-): Pick<DiscoveryService, "compareCharactersDeep" | "askCard"> {
+export function createAnalyze(ctx: DiscoveryContext, deps: AnalyzeDeps): Pick<DiscoveryService, "compareCharactersDeep" | "askCard"> {
   return {
-    compareCharactersDeep: (userId, idA, idB) =>
-      compareCharactersDeep(ctx, deps, { userId, idA, idB }),
+    compareCharactersDeep: (userId, idA, idB) => compareCharactersDeep(ctx, deps, { userId, idA, idB }),
     askCard: (userId, characterId, question) => askCard(ctx, userId, characterId, question),
   };
 }
@@ -69,20 +60,17 @@ async function compareCharactersDeep(
   if (base === null) {
     return null;
   }
-  const result = await ctx.summarize(
-    [{ systemPrompt: COMPARE_SYSTEM, userPrompt: buildComparePrompt(base) }],
-    {
-      jsonSchema: NARRATIVE_SCHEMA,
-      maxTokens: NARRATIVE_MAX_TOKENS,
-      temperature: ANALYZE_TEMPERATURE,
-    },
-  );
+  const result = await ctx.summarize([{ systemPrompt: COMPARE_SYSTEM, userPrompt: buildComparePrompt(base) }], {
+    jsonSchema: NARRATIVE_SCHEMA,
+    maxTokens: NARRATIVE_MAX_TOKENS,
+    temperature: ANALYZE_TEMPERATURE,
+  });
   return { ...base, narrative: parseNarrative(result.items[0]?.text) };
 }
 
 function buildComparePrompt(cmp: CharacterComparison): string {
   const line = (c: CharacterComparison["a"]): string =>
-    `${c.name} — genre: ${c.genre ?? "?"}, tone: ${c.tone ?? "?"}${c.pitch ? `, pitch: ${c.pitch}` : ""}`;
+    `${c.name} — genre: ${c.genre ?? "?"}, tone: ${c.tone ?? "?"}${c.pitch !== null && c.pitch !== "" ? `, pitch: ${c.pitch}` : ""}`;
   return [
     `A: ${line(cmp.a)}`,
     `B: ${line(cmp.b)}`,
@@ -123,21 +111,17 @@ const ANSWER_SCHEMA = {
 } as const;
 
 /** null when the character isn't owned/distilled. Otherwise answers from the recent PLAYED scenes. */
-async function askCard(
-  ctx: DiscoveryContext,
-  userId: UserId,
-  characterId: CharacterId,
-  question: string,
-): Promise<AskCardAnswer | null> {
+async function askCard(ctx: DiscoveryContext, userId: UserId, characterId: CharacterId, question: string): Promise<AskCardAnswer | null> {
   const card = await readOwnedCardFacet(ctx.db, userId, characterId);
   if (card === undefined) {
     return null;
   }
   const samples = await readCharacterMessageSamples(ctx.db, userId, characterId, ASK_SAMPLE_LIMIT);
-  const result = await ctx.summarize(
-    [{ systemPrompt: ASK_SYSTEM, userPrompt: buildAskPrompt(card.name, question, samples) }],
-    { jsonSchema: ANSWER_SCHEMA, maxTokens: ANSWER_MAX_TOKENS, temperature: ANALYZE_TEMPERATURE },
-  );
+  const result = await ctx.summarize([{ systemPrompt: ASK_SYSTEM, userPrompt: buildAskPrompt(card.name, question, samples) }], {
+    jsonSchema: ANSWER_SCHEMA,
+    maxTokens: ANSWER_MAX_TOKENS,
+    temperature: ANALYZE_TEMPERATURE,
+  });
   const parsed = parseAnswer(result.items[0]?.text);
   return {
     characterId,
@@ -148,17 +132,8 @@ async function askCard(
   };
 }
 
-function buildAskPrompt(
-  name: string,
-  question: string,
-  samples: readonly { content: string }[],
-): string {
-  const scenes =
-    samples.length === 0
-      ? "(no played scenes)"
-      : samples
-          .map((s, i) => `Scene ${i + 1}:\n${s.content.slice(0, SCENE_MAX_CHARS)}`)
-          .join("\n\n");
+function buildAskPrompt(name: string, question: string, samples: readonly { content: string }[]): string {
+  const scenes = samples.length === 0 ? "(no played scenes)" : samples.map((s, i) => `Scene ${i + 1}:\n${s.content.slice(0, SCENE_MAX_CHARS)}`).join("\n\n");
   return `Character: ${name}\n\nQuestion: ${question}\n\nRecent scenes:\n${scenes}`;
 }
 

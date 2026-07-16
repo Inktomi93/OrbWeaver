@@ -107,10 +107,7 @@ export interface ComputeChatDuplicatesDeps {
 /** The tier-0 blockIdx range a tier-`k` digest covers — the memory tier-grid seam (PD-39). The fanOut math
  *  stays ONE-HOMED in chat/memory (`resolveTier0Range`); discovery receives the resolver bound over the live
  *  memory config at the entry root and never spells `fanOut` itself. Tier 0 is the identity range. */
-export type Tier0RangeOp = (
-  tier: number,
-  blockIdx: number,
-) => { readonly startIdx: number; readonly endIdx: number };
+export type Tier0RangeOp = (tier: number, blockIdx: number) => { readonly startIdx: number; readonly endIdx: number };
 
 /** Deps for the standalone `computeThemes`. */
 export interface ComputeThemesDeps {
@@ -132,15 +129,8 @@ export interface ComputeHubScoresDeps {
 export interface ViewsDeps {
   readonly themes: (userId: UserId, level?: ThemeLevel) => Promise<ThemeRow[]>;
   readonly duplicateCharacters: (userId: UserId) => Promise<DuplicateCharacterPair[]>;
-  readonly duplicateChats: (
-    userId: UserId,
-    opts?: { relation?: DuplicateRelation },
-  ) => Promise<DuplicateChatPair[]>;
-  readonly similar: (
-    userId: UserId,
-    characterId: CharacterId,
-    topN: number,
-  ) => Promise<DossierNeighbor[]>;
+  readonly duplicateChats: (userId: UserId, opts?: { relation?: DuplicateRelation }) => Promise<DuplicateChatPair[]>;
+  readonly similar: (userId: UserId, characterId: CharacterId, topN: number) => Promise<DossierNeighbor[]>;
 }
 
 /** Deps for the standalone `computeCooccurrence` pass. */
@@ -187,11 +177,7 @@ export interface DiscoveryContext {
   /** The cross-domain `similar` seam — search's `similarCharacters`, narrowed to {@link DossierNeighbor} and
    *  bound at the entry root. discovery's only retrieval dependency (analytics ≠ retrieval); enters here so it
    *  threads into the {@link ViewsDeps} the service builds. */
-  readonly similar: (
-    userId: UserId,
-    characterId: CharacterId,
-    topN: number,
-  ) => Promise<DossierNeighbor[]>;
+  readonly similar: (userId: UserId, characterId: CharacterId, topN: number) => Promise<DossierNeighbor[]>;
 }
 
 /** What `createDiscoveryService` receives from the entry root; identical to {@link DiscoveryContext}. */
@@ -208,26 +194,16 @@ export interface DiscoveryService {
   // ── near-duplicate characters (workload compute + owner-scoped read) ────────
   /** Recompute every owner's near-duplicate CHARACTER pairs (within-owner, within-space all-pairs cosine,
    *  content-hash collapsed, CSLS-ranked) — a full atomic replace of `duplicate_character_pairs`. */
-  readonly computeDuplicatePairs: (
-    opts?: ComputeDuplicatesOptions,
-  ) => Promise<DuplicateComputeStats>;
+  readonly computeDuplicatePairs: (opts?: ComputeDuplicatesOptions) => Promise<DuplicateComputeStats>;
   /** The owner's near-duplicate character pairs, CSLS-ranked (highest first). */
-  readonly duplicateCharacters: (
-    userId: UserId,
-    opts?: DuplicateCharactersOptions,
-  ) => Promise<DuplicateCharacterPair[]>;
+  readonly duplicateCharacters: (userId: UserId, opts?: DuplicateCharactersOptions) => Promise<DuplicateCharacterPair[]>;
 
   // ── near-duplicate chats (the chat near-dup arm — Jaccard of segment content-hashes + fork lineage) ──
   /** Recompute every owner's near-duplicate CHAT pairs — Jaccard of segment content-hash sets (NOT centroid
    *  cosine), fork-root labelled (`forked` vs `duplicate`) — a full atomic replace of `duplicate_chat_pairs`. */
-  readonly computeChatDuplicatePairs: (
-    opts?: ComputeChatDuplicatesOptions,
-  ) => Promise<DuplicateChatComputeStats>;
+  readonly computeChatDuplicatePairs: (opts?: ComputeChatDuplicatesOptions) => Promise<DuplicateChatComputeStats>;
   /** The owner's near-duplicate chat pairs, Jaccard-ranked (highest first), with fork `relation`. */
-  readonly duplicateChats: (
-    userId: UserId,
-    opts?: DuplicateChatsOptions,
-  ) => Promise<DuplicateChatPair[]>;
+  readonly duplicateChats: (userId: UserId, opts?: DuplicateChatsOptions) => Promise<DuplicateChatPair[]>;
 
   // ── distill (character summaries + staged tag suggestions) ───────────────
   /** Distill a character's card into `character_summaries` facets and stage its labels as pending tag
@@ -244,35 +220,19 @@ export interface DiscoveryService {
   /** The owner's distilled catalog overview — per-facet card counts + top tags + co-tagged pairs. */
   readonly catalog: (userId: UserId) => Promise<CatalogStats>;
   /** Compare two of the owner's distilled cards by facets (shared/distinct tags + a redundancy signal). */
-  readonly compareCharacters: (
-    userId: UserId,
-    idA: CharacterId,
-    idB: CharacterId,
-  ) => Promise<CharacterComparison | null>;
+  readonly compareCharacters: (userId: UserId, idA: CharacterId, idB: CharacterId) => Promise<CharacterComparison | null>;
 
   // ── analyze (semantic understanding — LLM narrative over the diff + grounded card Q&A) ──────────────
   /** {@link compareCharacters} plus a grounded LLM narrative over the same diff. null on self/foreign/undistilled. */
-  readonly compareCharactersDeep: (
-    userId: UserId,
-    idA: CharacterId,
-    idB: CharacterId,
-  ) => Promise<CharacterComparisonDeep | null>;
+  readonly compareCharactersDeep: (userId: UserId, idA: CharacterId, idB: CharacterId) => Promise<CharacterComparisonDeep | null>;
   /** Answer a free-text question about ONE owned/distilled character from its recent PLAYED scenes (SEMANTIC
    *  content only). null when the character isn't owned/distilled. */
-  readonly askCard: (
-    userId: UserId,
-    characterId: CharacterId,
-    question: string,
-  ) => Promise<AskCardAnswer | null>;
+  readonly askCard: (userId: UserId, characterId: CharacterId, question: string) => Promise<AskCardAnswer | null>;
 
   // ── swipes (regeneration hotspots — the assistant slots with the most alternate takes in one chat) ──
   /** The owner's chat's assistant slots with \>1 variant (re-rolled spots), most takes first (default 20).
    *  Owner-belted via `characters.ownerId` — a foreign chat returns [] (no leak). */
-  readonly swipeHotspots: (
-    userId: UserId,
-    chatId: ChatId,
-    limit?: number,
-  ) => Promise<SwipeHotspot[]>;
+  readonly swipeHotspots: (userId: UserId, chatId: ChatId, limit?: number) => Promise<SwipeHotspot[]>;
 
   // ── archetypes + projection (owner-scoped reads; live compute over card embeddings) ──────────────────
   /** The owner's character archetypes — k-means clusters of their card embeddings, largest first. */
@@ -310,18 +270,11 @@ export interface DiscoveryService {
   /** The caption-facet distributions over the owner's captioned avatars. */
   readonly imageFacets: (userId: UserId) => Promise<ImageFacets>;
   /** Drill a caption facet value to the characters whose avatar carries it. */
-  readonly charactersByImageFacet: (
-    userId: UserId,
-    facet: ImageFacetKey,
-    value: string,
-  ) => Promise<ImageFacetMember[]>;
+  readonly charactersByImageFacet: (userId: UserId, facet: ImageFacetKey, value: string) => Promise<ImageFacetMember[]>;
 
   // ── similarity (discovery-native in-RAM analytics; ZERO search — the two-cosine-access-patterns rule) ──
   /** The owner's character similarity graph — all-pairs card cosine over `minSimilarity` → edges. */
-  readonly similarityGraph: (
-    userId: UserId,
-    opts?: SimilarityGraphOptions,
-  ) => Promise<SimilarityGraph>;
+  readonly similarityGraph: (userId: UserId, opts?: SimilarityGraphOptions) => Promise<SimilarityGraph>;
   /** "More like THIS chat" — the k nearest chats by segment-centroid cosine, owner-scoped, self excluded. */
   readonly similarChats: (userId: UserId, chatId: ChatId, limit?: number) => Promise<SimilarChat[]>;
 
@@ -329,17 +282,10 @@ export interface DiscoveryService {
   /** The corpus HOME view — index coverage + top scene/arc themes + near-duplicate counts. */
   readonly home: (userId: UserId) => Promise<HomeView>;
   /** One theme's DETAIL view — the cluster + its story-time timeline + member characters, `null` if no match. */
-  readonly themeDetail: (
-    userId: UserId,
-    clusterIdx: number,
-    level: ThemeLevel,
-  ) => Promise<ThemeDetail | null>;
+  readonly themeDetail: (userId: UserId, clusterIdx: number, level: ThemeLevel) => Promise<ThemeDetail | null>;
   /** One character's composed DOSSIER — distilled headline facets + portrait↔card alignment (in-RAM cosine) +
    *  nearest neighbours (the injected `similar` search seam). `null` when the character isn't owned/distilled. */
-  readonly characterDossier: (
-    userId: UserId,
-    characterId: CharacterId,
-  ) => Promise<CharacterDossier | null>;
+  readonly characterDossier: (userId: UserId, characterId: CharacterId) => Promise<CharacterDossier | null>;
 
   // ── cooccurrence (workload compute + owner-scoped reads) ─────────────────────
   /** Recompute every owner's keyword×keyword cooccurrence + per-character keyword profiles — atomic per-owner replace. */
@@ -347,17 +293,9 @@ export interface DiscoveryService {
   /** The owner's most-used distilled scene keywords (summed over their character profiles), count-descending. */
   readonly topKeywords: (userId: UserId, opts?: TopKeywordsOptions) => Promise<KeywordCount[]>;
   /** The keywords that co-occur with `keyword` in the owner's scenes, count-descending. */
-  readonly cooccurringKeywords: (
-    userId: UserId,
-    keyword: string,
-    limit?: number,
-  ) => Promise<KeywordCount[]>;
+  readonly cooccurringKeywords: (userId: UserId, keyword: string, limit?: number) => Promise<KeywordCount[]>;
   /** One character's keyword profile (the keywords its scenes anchor on), count-descending. */
-  readonly characterKeywords: (
-    userId: UserId,
-    characterId: CharacterId,
-    limit?: number,
-  ) => Promise<KeywordCount[]>;
+  readonly characterKeywords: (userId: UserId, characterId: CharacterId, limit?: number) => Promise<KeywordCount[]>;
 
   // ── hubness (workload-driven; CSLS values written via the injected writeHubScores seam) ─────────────
   /** Compute + write `character_embeddings.hub_score` (CSLS mean-cosine, per-space, content-collapsed). */

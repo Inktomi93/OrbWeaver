@@ -210,9 +210,7 @@ function wovenOrbSvg(spec: EntitySpec, size: number, seedSuffix: string): string
       `<ellipse cx="${cx.toFixed(2)}" cy="${cy.toFixed(2)}" rx="${rx.toFixed(2)}" ry="${ry.toFixed(2)}" fill="none" stroke="${col}" stroke-width="${m.stroke.toFixed(2)}" stroke-opacity="${op.toFixed(3)}"/>`,
     );
   }
-  parts.push(
-    `<g transform="rotate(${((tilt * 180) / Math.PI).toFixed(2)} ${cx} ${cy})">${ringGroup.join("")}</g>`,
-  );
+  parts.push(`<g transform="rotate(${((tilt * 180) / Math.PI).toFixed(2)} ${cx} ${cy})">${ringGroup.join("")}</g>`);
 
   // Woven arc-threads — curves that lace across the orb, tying the rings into a weave.
   const threadGroup: string[] = [];
@@ -266,9 +264,7 @@ function wovenOrbSvg(spec: EntitySpec, size: number, seedSuffix: string): string
 
 async function rasterizeAvatar(spec: EntitySpec): Promise<number> {
   const svg = wovenOrbSvg(spec, AVATAR_SIZE, "avatar");
-  const png = await sharp(Buffer.from(svg))
-    .png({ compressionLevel: 9, palette: true, quality: 90 })
-    .toBuffer();
+  const png = await sharp(Buffer.from(svg)).png({ compressionLevel: 9, palette: true, quality: 90 }).toBuffer();
   await writeFile(join(AVATAR_DIR, `${spec.file}.png`), png);
   return png.byteLength;
 }
@@ -304,9 +300,7 @@ async function main(): Promise<void> {
     process.stdout.write(`gallery ${spec.file}-gallery.webp  ${bytes} bytes\n`);
   }
 
-  process.stdout.write(
-    `\ntotal ${total} bytes across ${ENTITIES.length + galleryEntities.length} files\n`,
-  );
+  process.stdout.write(`\ntotal ${total} bytes across ${ENTITIES.length + galleryEntities.length} files\n`);
   process.stdout.write(`out: ${OUT_DIR}\n`);
 }
 

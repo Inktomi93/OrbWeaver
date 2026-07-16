@@ -8,14 +8,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 // avatar tokens are authored in rem; the rendered box resolves to px (root = 16px).
 const ROOT_PX = 16;
 
-const MEMBERS = [
-  { name: "Nate Ward" },
-  { name: "Robin Song" },
-  { name: "Ash Vale" },
-  { name: "Quinn Rye" },
-  { name: "Devon Lark" },
-  { name: "Sam Post" },
-];
+const MEMBERS = [{ name: "Nate Ward" }, { name: "Robin Song" }, { name: "Ash Vale" }, { name: "Quinn Rye" }, { name: "Devon Lark" }, { name: "Sam Post" }];
 
 test("under max renders every avatar and no overflow chip", async ({ mount }) => {
   const component = await mount(<AvatarStack items={MEMBERS.slice(0, 3)} max={5} />);

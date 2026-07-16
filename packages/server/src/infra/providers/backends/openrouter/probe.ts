@@ -23,10 +23,7 @@ interface OrProbeClient {
  * clock (the domain may layer its own throttle state on top). The reason is sanitized — never raw upstream
  * markup/secrets.
  */
-export async function probeOpenRouterCredential(
-  client: OrProbeClient,
-  now: () => number,
-): Promise<CredentialHealth> {
+export async function probeOpenRouterCredential(client: OrProbeClient, now: () => number): Promise<CredentialHealth> {
   const checkedAt = now();
   try {
     await client.credits.getCredits();

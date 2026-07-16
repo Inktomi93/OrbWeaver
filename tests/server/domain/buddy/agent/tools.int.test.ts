@@ -17,15 +17,8 @@ const FROZEN_AT = 1_750_000_000_000;
 
 /** Seed a chat with the given user as its `role='host'` participant — present when `leftSeq` is null, a
  *  departed ex-host (handoff-via-leave, D18) when it carries a value. */
-async function seedHostChat(
-  db: Awaited<ReturnType<typeof freshDb>>,
-  chatId: string,
-  userId: UserId,
-  leftSeq: number | null,
-): Promise<void> {
-  await db
-    .insert(chats)
-    .values({ id: castId<ChatId>(chatId), createdAt: FROZEN_AT, updatedAt: FROZEN_AT });
+async function seedHostChat(db: Awaited<ReturnType<typeof freshDb>>, chatId: string, userId: UserId, leftSeq: number | null): Promise<void> {
+  await db.insert(chats).values({ id: castId<ChatId>(chatId), createdAt: FROZEN_AT, updatedAt: FROZEN_AT });
   await db.insert(chatParticipants).values({
     id: castId<ChatParticipantId>(`chat_participant_${chatId}`),
     chatId: castId<ChatId>(chatId),

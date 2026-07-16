@@ -21,25 +21,11 @@ export interface SelectFieldProps {
   readonly disabled?: boolean;
 }
 
-export function SelectField({
-  label,
-  description,
-  hint,
-  items,
-  placeholder,
-  disabled,
-}: SelectFieldProps): ReactElement {
+export function SelectField({ label, description, hint, items, placeholder, disabled }: SelectFieldProps): ReactElement {
   const field = useFieldContext<string>();
   const error = touchedFieldError(field.state.meta);
   return (
-    <Field
-      label={label}
-      description={description}
-      hint={hint}
-      error={error}
-      disabled={disabled ?? false}
-      name={field.name}
-    >
+    <Field label={label} description={description} hint={hint} error={error} disabled={disabled ?? false} name={field.name}>
       {/* eslint-disable-next-line jsx-a11y/control-has-associated-label */}
       <Select
         items={items}

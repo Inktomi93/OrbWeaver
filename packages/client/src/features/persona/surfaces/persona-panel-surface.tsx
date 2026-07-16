@@ -61,11 +61,7 @@ function PanelBody(): ReactElement {
   const currentId = settings.config.seeds.currentPersonaId;
   const defaultId = settings.config.seeds.defaultPersonaId;
   // Mirrors useViewer.currentPersona: current-pointer -> default-pointer -> first owned -> null.
-  const current =
-    personas.find((persona) => persona.id === currentId) ??
-    personas.find((persona) => persona.id === defaultId) ??
-    personas[0] ??
-    null;
+  const current = personas.find((persona) => persona.id === currentId) ?? personas.find((persona) => persona.id === defaultId) ?? personas[0] ?? null;
 
   const setCurrent = (personaId: PersonaId): void => {
     setSeed.mutate({ section: "seeds", patch: { currentPersonaId: personaId } });
@@ -89,11 +85,7 @@ function PanelBody(): ReactElement {
     <Popover>
       <PanelTrigger current={current} />
       {/* max-h-(--available-height) caps the whole panel to the viewport, not just a nested list peephole. */}
-      <PopoverPopup
-        align="end"
-        className="max-h-(--available-height) w-(--container-cq-sm) overflow-y-auto"
-        side="right"
-      >
+      <PopoverPopup align="end" className="max-h-(--available-height) w-(--container-cq-sm) overflow-y-auto" side="right">
         <Container size="md">
           <Stack gap="row">
             <AccountStrip />
@@ -136,12 +128,8 @@ function PanelBody(): ReactElement {
                     isDefault={persona.id === defaultId}
                     expanded={persona.id === expandedId}
                     onSetCurrent={(): void => setCurrent(persona.id)}
-                    onSetDefault={(): void =>
-                      setSeed.mutate({ section: "seeds", patch: { defaultPersonaId: persona.id } })
-                    }
-                    onToggleExpand={(): void =>
-                      setExpandedId((prev) => (prev === persona.id ? null : persona.id))
-                    }
+                    onSetDefault={(): void => setSeed.mutate({ section: "seeds", patch: { defaultPersonaId: persona.id } })}
+                    onToggleExpand={(): void => setExpandedId((prev) => (prev === persona.id ? null : persona.id))}
                     onDelete={(): void => onDelete(persona.id)}
                   />
                 ))
@@ -157,8 +145,7 @@ function PanelBody(): ReactElement {
 
 /** The rail avatar button that opens the panel — shows the Current persona. */
 function PanelTrigger({ current }: { readonly current: PersonaListItem | null }): ReactElement {
-  const avatarSrc =
-    current === null || current.avatarHash === null ? {} : { src: blobUrl(current.avatarHash) };
+  const avatarSrc = current === null || current.avatarHash === null ? {} : { src: blobUrl(current.avatarHash) };
   const label = current === null ? "Account & personas" : `Playing as ${current.name}`;
   return (
     <Tooltip>
@@ -168,11 +155,7 @@ function PanelTrigger({ current }: { readonly current: PersonaListItem | null })
             render={
               <Button intent="ghost" size="icon" aria-label={label}>
                 <Avatar fallbackDelay={0} hueSeed={current?.id ?? "none"} size="md" {...avatarSrc}>
-                  {current === null ? (
-                    <Icon icon={CircleUser} size="md" />
-                  ) : (
-                    initialsFor(current.name)
-                  )}
+                  {current === null ? <Icon icon={CircleUser} size="md" /> : initialsFor(current.name)}
                 </Avatar>
               </Button>
             }
@@ -187,11 +170,7 @@ function PanelTrigger({ current }: { readonly current: PersonaListItem | null })
 /** Opens the account modal via `#state` write (never a `#features/auth` import). */
 function AccountStrip(): ReactElement {
   return (
-    <Button
-      intent="ghost"
-      className="w-full justify-between"
-      onClick={(): void => openModal("account")}
-    >
+    <Button intent="ghost" className="w-full justify-between" onClick={(): void => openModal("account")}>
       <Row gap="field" align="center" className="min-w-0">
         <Avatar fallbackDelay={0} size="sm">
           <Icon icon={CircleUser} size="sm" />
@@ -204,15 +183,8 @@ function AccountStrip(): ReactElement {
 }
 
 /** The "playing as" identity + the create affordance. */
-function PersonaHeader({
-  current,
-  onNew,
-}: {
-  readonly current: PersonaListItem | null;
-  readonly onNew: () => void;
-}): ReactElement {
-  const avatarSrc =
-    current === null || current.avatarHash === null ? {} : { src: blobUrl(current.avatarHash) };
+function PersonaHeader({ current, onNew }: { readonly current: PersonaListItem | null; readonly onNew: () => void }): ReactElement {
+  const avatarSrc = current === null || current.avatarHash === null ? {} : { src: blobUrl(current.avatarHash) };
   return (
     <Row gap="row" align="center" className="justify-between">
       <Row gap="field" align="center" className="min-w-0">

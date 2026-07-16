@@ -12,13 +12,7 @@ import { describe } from "vitest";
 import { cardTokenSize } from "../../../../../packages/server/src/domain/character/substrate/card-tokens.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
-import {
-  makeHarness,
-  principal,
-  seedCharacterStats,
-  seedRawCharacter,
-  seedUser,
-} from "../_support.ts";
+import { makeHarness, principal, seedCharacterStats, seedRawCharacter, seedUser } from "../_support.ts";
 
 describe("list", () => {
   test("returns the owner's characters newest-first, excluding other owners", async () => {
@@ -321,8 +315,7 @@ describe("list — sort (recent / alpha) + stale-cursor rejection", () => {
       input: {
         handle: "big",
         name: "Big",
-        description:
-          "An elaborate, sprawling description with a great deal of text so its token estimate is clearly the larger of the two.",
+        description: "An elaborate, sprawling description with a great deal of text so its token estimate is clearly the larger of the two.",
       },
     });
     await svc.create({

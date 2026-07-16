@@ -2,12 +2,7 @@
 // the resolved principal; ownership scopes off principal.userId, never a users read. The synthetic-identity
 // ops (Mint/Find/FindByImportHash/FindByHandle) are internal and act on an already-resolved ownerId.
 
-import type {
-  CharacterListCursor,
-  CharacterListSort,
-  CreateCharacterInput,
-  UpdateCharacterInput,
-} from "@orb/contracts/character";
+import type { CharacterListCursor, CharacterListSort, CreateCharacterInput, UpdateCharacterInput } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
 import type { CharacterId, CharacterSnapshotId, ChatId, UserId } from "@orb/kit/ids";
 

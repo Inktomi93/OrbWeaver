@@ -13,24 +13,8 @@ import type { RegexScript } from "@orb/contracts/regex";
 import type { TagStatus } from "@orb/contracts/tag";
 import type { EntryMetadata } from "@orb/contracts/world-info";
 import type { Db } from "@orb/db";
-import {
-  assets,
-  characterBooks,
-  characters,
-  characterTags,
-  tags,
-  worldBooks,
-  worldEntries,
-} from "@orb/db";
-import type {
-  AssetId,
-  CharacterId,
-  Handle,
-  TagId,
-  UserId,
-  WorldBookId,
-  WorldEntryId,
-} from "@orb/kit/ids";
+import { assets, characterBooks, characters, characterTags, tags, worldBooks, worldEntries } from "@orb/db";
+import type { AssetId, CharacterId, Handle, TagId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ExportContext } from "../../../../packages/server/src/domain/export/context.ts";
 import { FROZEN_AT_MS } from "../../../support/clock.ts";
@@ -42,7 +26,6 @@ const FROZEN_AT = FROZEN_AT_MS;
 // An 8×8 PNG (distinct from the 256×256 placeholder) — a real, decodable PNG so `writeCardChunk` accepts
 // it as a base image; being distinct lets a test prove the AVATAR (not the placeholder) was embedded.
 // biome-ignore format: keep the blob on one line so the noSecrets suppression attaches to it.
-// biome-ignore lint/security/noSecrets: a base64-encoded 8×8 PNG, not a credential.
 const AVATAR_PNG_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAAEUlEQVR4nGM4ISeHFTEMLQkAkL9BAbKfPiIAAAAASUVORK5CYII=";
 
 export const AVATAR_PNG: Uint8Array = new Uint8Array(Buffer.from(AVATAR_PNG_BASE64, "base64"));
@@ -167,10 +150,7 @@ interface SeedCharacterOverrides {
 }
 
 /** Insert a flat `characters` row (D28 — no version table); returns its branded id. */
-export async function seedCharacter(
-  db: Db,
-  overrides: SeedCharacterOverrides,
-): Promise<CharacterId> {
+export async function seedCharacter(db: Db, overrides: SeedCharacterOverrides): Promise<CharacterId> {
   const { id: idOverride, handle, ...columns } = overrides;
   const id = castId<CharacterId>(idOverride ?? "character_c");
   await db.insert(characters).values({
@@ -199,11 +179,7 @@ export async function seedCharacter(
   return id;
 }
 
-export async function seedWorldBook(
-  db: Db,
-  ownerId: UserId,
-  id = "world_book_b",
-): Promise<WorldBookId> {
+export async function seedWorldBook(db: Db, ownerId: UserId, id = "world_book_b"): Promise<WorldBookId> {
   const bookId = castId<WorldBookId>(id);
   await db.insert(worldBooks).values({
     id: bookId,
@@ -245,11 +221,7 @@ export async function seedWorldEntry(db: Db, overrides: SeedEntryOverrides): Pro
   return id;
 }
 
-export async function seedCharacterBook(
-  db: Db,
-  characterId: CharacterId,
-  worldBookId: WorldBookId,
-): Promise<void> {
+export async function seedCharacterBook(db: Db, characterId: CharacterId, worldBookId: WorldBookId): Promise<void> {
   await db.insert(characterBooks).values({ characterId, worldBookId, createdAt: FROZEN_AT });
 }
 
@@ -259,12 +231,7 @@ export async function seedTag(db: Db, ownerId: UserId, name: string): Promise<Ta
   return id;
 }
 
-export async function seedCharacterTag(
-  db: Db,
-  characterId: CharacterId,
-  tagId: TagId,
-  status: TagStatus = "pending",
-): Promise<void> {
+export async function seedCharacterTag(db: Db, characterId: CharacterId, tagId: TagId, status: TagStatus = "pending"): Promise<void> {
   await db.insert(characterTags).values({ characterId, tagId, status, createdAt: FROZEN_AT });
 }
 

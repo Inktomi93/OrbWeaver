@@ -5,17 +5,10 @@
 // devDependency — runtime client→server is unresolvable, the cake).
 
 import { CSRF_HEADER } from "@orb/contracts/identity";
-// biome-ignore lint/correctness/noUndeclaredDependencies: type-only import from the devDependency (the sanctioned client↔server contract seam — UI-Gates §11.3 `client ⇏ @orb/server` physics is about RUNTIME imports).
 import type { AppRouter } from "@orb/server";
 import type { QueryClient } from "@tanstack/react-query";
 import type { TRPCClient } from "@trpc/client";
-import {
-  createTRPCClient,
-  httpBatchLink,
-  httpSubscriptionLink,
-  loggerLink,
-  splitLink,
-} from "@trpc/client";
+import { createTRPCClient, httpBatchLink, httpSubscriptionLink, loggerLink, splitLink } from "@trpc/client";
 import type { TRPCOptionsProxy } from "@trpc/tanstack-react-query";
 import { createTRPCContext, createTRPCOptionsProxy } from "@trpc/tanstack-react-query";
 import { formatTrpcOp, IS_DEV } from "#lib";

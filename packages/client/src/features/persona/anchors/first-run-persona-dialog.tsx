@@ -65,31 +65,17 @@ export function FirstRunPersonaDialog(): ReactElement | null {
         <Stack gap="block">
           <DialogTitle>Who are you in the story?</DialogTitle>
           <DialogDescription>
-            Chats speak to you through a persona — the name (and optional description) characters
-            see as you. Create yours to get started; you can refine it any time from the avatar at
-            the rail's foot.
+            Chats speak to you through a persona — the name (and optional description) characters see as you. Create yours to get started; you can refine it any
+            time from the avatar at the rail's foot.
           </DialogDescription>
           <Field label="Name">
-            <Input
-              autoComplete="off"
-              value={name}
-              onValueChange={(value): void => setName(value)}
-              data-testid={testId("firstRunPersonaName")}
-            />
+            <Input autoComplete="off" value={name} onValueChange={(value): void => setName(value)} data-testid={testId("firstRunPersonaName")} />
           </Field>
           {/* An always-visible description, not a hint tooltip: 2+ hints would duplicate accessible names. */}
           <Field label="Description" description="Optional — how characters should picture you.">
-            <Textarea
-              value={description}
-              onChange={(event): void => setDescription(event.target.value)}
-            />
+            <Textarea value={description} onChange={(event): void => setDescription(event.target.value)} />
           </Field>
-          <Button
-            intent="primary"
-            disabled={!canSubmit}
-            data-testid={testId("firstRunPersonaCreate")}
-            onClick={(): void => void submit()}
-          >
+          <Button intent="primary" disabled={!canSubmit} data-testid={testId("firstRunPersonaCreate")} onClick={(): void => void submit()}>
             {pending ? "Creating…" : "Create persona"}
           </Button>
         </Stack>

@@ -25,25 +25,12 @@ export interface SandboxFrameProps {
  * CSP blocks any fetch/exfil. Interactivity is doored not walled — a trusted card later flips
  * `allow-scripts`, a one-attribute change here.
  */
-export function SandboxFrame({
-  html,
-  css,
-  themeTokens,
-  title,
-  complete = true,
-  heightPx = DEFAULT_HEIGHT_PX,
-  className,
-}: SandboxFrameProps): ReactElement {
+export function SandboxFrame({ html, css, themeTokens, title, complete = true, heightPx = DEFAULT_HEIGHT_PX, className }: SandboxFrameProps): ReactElement {
   const style: CSSProperties = { height: `${heightPx}px` };
 
   if (!complete) {
     return (
-      <div
-        className="w-full animate-pulse rounded-card border border-border bg-muted"
-        style={style}
-        data-slot="sandbox-frame-skeleton"
-        aria-hidden={true}
-      />
+      <div className="w-full animate-pulse rounded-card border border-border bg-muted" style={style} data-slot="sandbox-frame-skeleton" aria-hidden={true} />
     );
   }
 

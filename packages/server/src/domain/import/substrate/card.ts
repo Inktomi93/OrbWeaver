@@ -12,13 +12,7 @@ import type { AssetId } from "@orb/kit/ids";
 import { readCardChunk } from "@orb/kit/png-card-chunk";
 import { slugifyHandle } from "@orb/kit/slug";
 import { sha256Hex } from "#kit/content-hash";
-import {
-  cardFromJson,
-  extractLorebook,
-  loreEntryColumns,
-  loreEntryMetadata,
-  selectBestCharacterBook,
-} from "#kit/serde/card";
+import { cardFromJson, extractLorebook, loreEntryColumns, loreEntryMetadata, selectBestCharacterBook } from "#kit/serde/card";
 import { ImportCardError } from "../contract/errors";
 
 // UTF-8 BOM codepoint — Windows exports + some editors prepend one and `JSON.parse` rejects it.
@@ -34,9 +28,7 @@ interface ParsedCard {
 const DEFAULT_BOOK_NAME = "Imported Lorebook";
 
 function asRecord(v: unknown): Record<string, unknown> | null {
-  return typeof v === "object" && v !== null && !Array.isArray(v)
-    ? (v as Record<string, unknown>)
-    : null;
+  return typeof v === "object" && v !== null && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
 }
 
 // selectBestCharacterBook disambiguates a card that embeds a book twice (most-named-entries wins).
@@ -57,10 +49,7 @@ function extractBulkImportLorebook(raw: unknown): BulkImportLorebookInput | null
   if (entries.length === 0) {
     return null;
   }
-  const name =
-    typeof book["name"] === "string" && book["name"].trim().length > 0
-      ? book["name"]
-      : DEFAULT_BOOK_NAME;
+  const name = typeof book["name"] === "string" && book["name"].trim().length > 0 ? book["name"] : DEFAULT_BOOK_NAME;
   const description = typeof book["description"] === "string" ? book["description"] : null;
   return { name, description, entries };
 }
@@ -76,10 +65,7 @@ function extractCardTags(raw: unknown): string[] {
     return [];
   }
   const root = raw as Record<string, unknown>;
-  const data =
-    typeof root["data"] === "object" && root["data"] !== null
-      ? (root["data"] as Record<string, unknown>)
-      : root;
+  const data = typeof root["data"] === "object" && root["data"] !== null ? (root["data"] as Record<string, unknown>) : root;
   const fromData = Array.isArray(data["tags"]) ? data["tags"] : [];
   const rootTags = root["tags"];
   const candidate = fromData.length > 0 || !Array.isArray(rootTags) ? fromData : rootTags;
@@ -121,10 +107,7 @@ export function importFileHash(bytes: Uint8Array): string {
 }
 
 /** @throws {@link ImportCardError} card_invalid when the normalized card fails the canonical schema. */
-export function cardToCreateInput(
-  card: CharacterCard,
-  avatarAssetId: AssetId | null,
-): CreateCharacterInput {
+export function cardToCreateInput(card: CharacterCard, avatarAssetId: AssetId | null): CreateCharacterInput {
   const candidate = {
     handle: slugifyHandle(card.name),
     name: card.name,
@@ -146,10 +129,7 @@ export function cardToCreateInput(
   };
   const result = createCharacterSchema.safeParse(candidate);
   if (!result.success) {
-    throw new ImportCardError(
-      "card_invalid",
-      `imported card failed validation: ${result.error.message}`,
-    );
+    throw new ImportCardError("card_invalid", `imported card failed validation: ${result.error.message}`);
   }
   return result.data;
 }

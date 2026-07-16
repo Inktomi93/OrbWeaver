@@ -41,8 +41,7 @@ const missingMessage = (channel: WarningChannel, code: string): string =>
   "warning code is silently dead (D41 bans speculative codes). Wire the emit or add a cited DEFERRED " +
   "entry (scripts/check/gates/warning-code-coverage.ts). See Core-Path-Registry.md D41.";
 const staleMessage = (channel: WarningChannel, code: string): string =>
-  `${channel.tuple} DEFERRED member "${code}" now HAS an emit site — delete its stale allowlist entry ` +
-  "(scripts/check/gates/warning-code-coverage.ts).";
+  `${channel.tuple} DEFERRED member "${code}" now HAS an emit site — delete its stale allowlist entry (scripts/check/gates/warning-code-coverage.ts).`;
 
 /** The string-literal member keys of a `[...] as const` tuple declaration. */
 function tupleMembers(home: SourceFile, tuple: string): string[] {
@@ -51,26 +50,18 @@ function tupleMembers(home: SourceFile, tuple: string): string[] {
   if (arr === undefined) {
     return [];
   }
-  return arr
-    .getElements()
-    .flatMap((el) => (el.isKind(SyntaxKind.StringLiteral) ? [el.getLiteralText()] : []));
+  return arr.getElements().flatMap((el) => (el.isKind(SyntaxKind.StringLiteral) ? [el.getLiteralText()] : []));
 }
 
 /** Every string-ish literal in the emit scope (minus the home file), concatenated (comments excluded). */
-function emitCorpus(
-  project: { getSourceFiles: () => SourceFile[] },
-  channel: WarningChannel,
-): string {
+function emitCorpus(project: { getSourceFiles: () => SourceFile[] }, channel: WarningChannel): string {
   const parts: string[] = [];
   for (const sf of project.getSourceFiles()) {
     const path = sf.getFilePath();
     if (!channel.emitScope.test(path) || channel.homeFile.test(path)) {
       continue;
     }
-    for (const kind of [
-      SyntaxKind.StringLiteral,
-      SyntaxKind.NoSubstitutionTemplateLiteral,
-    ] as const) {
+    for (const kind of [SyntaxKind.StringLiteral, SyntaxKind.NoSubstitutionTemplateLiteral] as const) {
       for (const lit of sf.getDescendantsOfKind(kind)) {
         parts.push(lit.getLiteralText());
       }
@@ -79,10 +70,7 @@ function emitCorpus(
   return ` ${parts.join(" ")} `;
 }
 
-function channelViolations(
-  project: { getSourceFiles: () => SourceFile[] },
-  channel: WarningChannel,
-): Violation[] {
+function channelViolations(project: { getSourceFiles: () => SourceFile[] }, channel: WarningChannel): Violation[] {
   const home = project.getSourceFiles().find((sf) => channel.homeFile.test(sf.getFilePath()));
   if (home === undefined) {
     return []; // tuple home not in the project (placeholder tree) — vacuous
@@ -139,8 +127,7 @@ export const gate: GateDescriptor = {
   mustFlag: [
     {
       files: {
-        "packages/contracts/src/chat/index.ts":
-          'export const CHAT_WARNING_CODES = ["never_emitted"] as const;\n',
+        "packages/contracts/src/chat/index.ts": 'export const CHAT_WARNING_CODES = ["never_emitted"] as const;\n',
         "packages/server/src/domain/chat/x.ts": 'export const q = "something_else";\n',
       },
       expect: { messageIncludes: "NO emit site" },
@@ -150,8 +137,7 @@ export const gate: GateDescriptor = {
       // the tuple home file is EXCLUDED from its own emit corpus: the member string appears in the home
       // declaration but there is no separate emit site, so it still flags (the home copy doesn't count).
       files: {
-        "packages/contracts/src/chat/index.ts":
-          'export const CHAT_WARNING_CODES = ["home_only"] as const;\n',
+        "packages/contracts/src/chat/index.ts": 'export const CHAT_WARNING_CODES = ["home_only"] as const;\n',
       },
       expect: { messageIncludes: "NO emit site" },
       why: "the tuple home file is excluded from its own emit corpus — a home-only member has no emit, flags",
@@ -160,8 +146,7 @@ export const gate: GateDescriptor = {
   mustPass: [
     {
       files: {
-        "packages/contracts/src/chat/index.ts":
-          'export const CHAT_WARNING_CODES = ["emitted_code"] as const;\n',
+        "packages/contracts/src/chat/index.ts": 'export const CHAT_WARNING_CODES = ["emitted_code"] as const;\n',
         "packages/server/src/domain/chat/x.ts": 'export const q = "emitted_code";\n',
       },
       why: "the code's discriminator appears as an emit literal in the channel scope — covered, passes",

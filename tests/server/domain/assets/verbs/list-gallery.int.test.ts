@@ -17,12 +17,7 @@ const PNG = "image/png";
 const ALL = 100;
 const PAGE = 2;
 
-async function addAsset(
-  svc: AssetsService,
-  owner: UserId,
-  tail: number,
-  subjectCharacterId?: CharacterId,
-): Promise<GalleryItemView> {
+async function addAsset(svc: AssetsService, owner: UserId, tail: number, subjectCharacterId?: CharacterId): Promise<GalleryItemView> {
   const asset = await svc.store({
     principal: principal(owner),
     bytes: pngBytes(tail),
@@ -69,9 +64,7 @@ describe("listGallery", () => {
     expect(filtered.map((r) => r.galleryItemId)).toEqual([heroItem.galleryItemId]);
 
     const all = await svc.listGallery({ principal: principal(owner), limit: ALL });
-    expect(new Set(all.map((r) => r.galleryItemId))).toEqual(
-      new Set([heroItem.galleryItemId, looseItem.galleryItemId]),
-    );
+    expect(new Set(all.map((r) => r.galleryItemId))).toEqual(new Set([heroItem.galleryItemId, looseItem.galleryItemId]));
   });
 
   test("deleting the character nulls subjectCharacterId (the item survives)", async () => {

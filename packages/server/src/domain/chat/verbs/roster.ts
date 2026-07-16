@@ -12,19 +12,8 @@
 // non-nominee accept is refused with not_turn_owner.
 
 import type { CharacterCard } from "@orb/contracts/character";
-import type {
-  ChatBusEvent,
-  GroupConfig,
-  ParticipantView,
-  RoomOverrides,
-} from "@orb/contracts/chat";
-import {
-  DEFAULT_GROUP_CONFIG,
-  DEFAULT_ROOM_OVERRIDES,
-  groupConfigSchema,
-  roomOverridesSchema,
-  TALKATIVENESS_DEFAULT,
-} from "@orb/contracts/chat";
+import type { ChatBusEvent, GroupConfig, ParticipantView, RoomOverrides } from "@orb/contracts/chat";
+import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES, groupConfigSchema, roomOverridesSchema, TALKATIVENESS_DEFAULT } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { chatParticipants, chats } from "@orb/db";
 import { batchMany } from "@orb/db/kit";
@@ -138,10 +127,7 @@ async function characterParticipantView(
 
 /** `setGroupConfig` — host-only. Parses the lenient GroupConfigInput into a fully-defaulted GroupConfig,
  *  merges into chatMetadata.group, persists, emits chatUpdated. */
-function createSetGroupConfig(
-  ctx: ChatContext,
-  emit: EmitChatEvent,
-): ChatService["setGroupConfig"] {
+function createSetGroupConfig(ctx: ChatContext, emit: EmitChatEvent): ChatService["setGroupConfig"] {
   return async ({ principal, chatId, config }: SetGroupConfigParams) => {
     const { chat } = await requireHost(ctx, principal, chatId);
     const parsed = groupConfigSchema.parse(config);
@@ -165,10 +151,7 @@ function createSetGroupConfig(
 }
 
 /** `setRoomOverrides` — host-only. The four-field allowlist default-denies a stray field. */
-function createSetRoomOverrides(
-  ctx: ChatContext,
-  emit: EmitChatEvent,
-): ChatService["setRoomOverrides"] {
+function createSetRoomOverrides(ctx: ChatContext, emit: EmitChatEvent): ChatService["setRoomOverrides"] {
   return async ({ principal, chatId, overrides }: SetRoomOverridesParams) => {
     const { chat } = await requireHost(ctx, principal, chatId);
     const parsed = roomOverridesSchema.safeParse(overrides);
@@ -216,10 +199,7 @@ function createGetRoomOverridesForChat(ctx: ChatContext): ChatService["getRoomOv
 
 /** `addCharacterToChat` — host-only; the character participant-insert chokepoint. Stamps a fresh member
  *  row at the current canon head, emits chatUpdated, returns the resolved roster row. */
-function createAddCharacterToChat(
-  ctx: ChatContext,
-  emit: EmitChatEvent,
-): ChatService["addCharacterToChat"] {
+function createAddCharacterToChat(ctx: ChatContext, emit: EmitChatEvent): ChatService["addCharacterToChat"] {
   return async ({ principal, chatId, characterId }: AddCharacterToChatParams) => {
     await requireHost(ctx, principal, chatId);
     // The character must be the host's (owner-scoped read — foreign == missing, leak-free). A roster
@@ -299,17 +279,11 @@ function createSeatAgent(ctx: ChatContext, emit: EmitChatEvent): ChatService["se
     const roster = await loadRoster(ctx.db, chatId);
     const ownerPresent = roster.some((p) => p.kind === "human" && p.userId === ownerUserId);
     if (!ownerPresent) {
-      throw new ChatOperationError(
-        CHAT_OP_CODES.ownerNotPresent,
-        `chat ${chatId}: the agent's owner is not a present member`,
-      );
+      throw new ChatOperationError(CHAT_OP_CODES.ownerNotPresent, `chat ${chatId}: the agent's owner is not a present member`);
     }
     const { agentUserId } = await ctx.provisionAgentPrincipal({ ownerUserId, sourceKind });
     if (!(await ctx.resolveAgentEnabled(agentUserId))) {
-      throw new ChatOperationError(
-        CHAT_OP_CODES.agentDisabled,
-        `chat ${chatId}: agent principal ${agentUserId} is disabled`,
-      );
+      throw new ChatOperationError(CHAT_OP_CODES.agentDisabled, `chat ${chatId}: agent principal ${agentUserId} is disabled`);
     }
     const at = ctx.now();
     const joinSeq = await loadMaxMessageSeq(ctx.db, chatId);
@@ -346,20 +320,11 @@ async function updateCharacterParticipant(
   const rows = await ctx.db
     .update(chatParticipants)
     .set(patch)
-    .where(
-      and(
-        eq(chatParticipants.chatId, chatId),
-        eq(chatParticipants.characterId, characterId),
-        isNull(chatParticipants.leftSeq),
-      ),
-    )
+    .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.characterId, characterId), isNull(chatParticipants.leftSeq)))
     .returning();
   const row = rows.at(0);
   if (row === undefined) {
-    throw new ChatOperationError(
-      CHAT_OP_CODES.participantNotFound,
-      `chat ${chatId}: character ${characterId} is not a present participant`,
-    );
+    throw new ChatOperationError(CHAT_OP_CODES.participantNotFound, `chat ${chatId}: character ${characterId} is not a present participant`);
   }
   const card = await ctx.getCard({ ownerId, characterId });
   return characterParticipantView(row, card, ctx.resolveAssetHash);
@@ -379,33 +344,19 @@ export async function setParticipantActivePersona(
   },
 ): Promise<void> {
   const { chatId, targetUserId, personaId } = params;
-  const targetRow = and(
-    eq(chatParticipants.chatId, chatId),
-    eq(chatParticipants.userId, targetUserId),
-    isNull(chatParticipants.leftSeq),
-  );
+  const targetRow = and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.userId, targetUserId), isNull(chatParticipants.leftSeq));
   // Read the prior value first: the bus event carries `from`, the pre-switch persona a client reducer diffs against.
-  const before = await db
-    .select({ activePersonaId: chatParticipants.activePersonaId })
-    .from(chatParticipants)
-    .where(targetRow)
-    .limit(1);
+  const before = await db.select({ activePersonaId: chatParticipants.activePersonaId }).from(chatParticipants).where(targetRow).limit(1);
   const prior = before.at(0);
   if (prior === undefined) {
-    throw new ChatOperationError(
-      CHAT_OP_CODES.participantNotFound,
-      `chat ${chatId}: user ${targetUserId} is not a present participant`,
-    );
+    throw new ChatOperationError(CHAT_OP_CODES.participantNotFound, `chat ${chatId}: user ${targetUserId} is not a present participant`);
   }
   await db.update(chatParticipants).set({ activePersonaId: personaId }).where(targetRow);
   await emit({ type: "personaSwitched", chatId, from: prior.activePersonaId, to: personaId });
 }
 
 /** `setParticipantDisabled` — host-only mute/unmute (cards/WI still contribute; excluded from arbitration). */
-function createSetParticipantDisabled(
-  ctx: ChatContext,
-  emit: EmitChatEvent,
-): ChatService["setParticipantDisabled"] {
+function createSetParticipantDisabled(ctx: ChatContext, emit: EmitChatEvent): ChatService["setParticipantDisabled"] {
   return async ({ principal, chatId, characterId, disabled }: SetParticipantDisabledParams) => {
     await requireHost(ctx, principal, chatId);
     const view = await updateCharacterParticipant(ctx, {
@@ -420,16 +371,8 @@ function createSetParticipantDisabled(
 }
 
 /** `setParticipantTalkativeness` — host-only 0–1 natural-arbitration sampling weight. */
-function createSetParticipantTalkativeness(
-  ctx: ChatContext,
-  emit: EmitChatEvent,
-): ChatService["setParticipantTalkativeness"] {
-  return async ({
-    principal,
-    chatId,
-    characterId,
-    talkativeness,
-  }: SetParticipantTalkativenessParams) => {
+function createSetParticipantTalkativeness(ctx: ChatContext, emit: EmitChatEvent): ChatService["setParticipantTalkativeness"] {
+  return async ({ principal, chatId, characterId, talkativeness }: SetParticipantTalkativenessParams) => {
     await requireHost(ctx, principal, chatId);
     const view = await updateCharacterParticipant(ctx, {
       chatId,
@@ -453,9 +396,7 @@ function createKick(ctx: ChatContext, emit: EmitChatEvent): ChatService["kick"] 
       return;
     }
     const leftSeq = await loadMaxMessageSeq(ctx.db, chatId);
-    await ctx.emitNotification({ type: "kicked", recipientUserId: userId, chatId }, [
-      markUserLeftStatement(ctx.db, chatId, userId, leftSeq),
-    ]);
+    await ctx.emitNotification({ type: "kicked", recipientUserId: userId, chatId }, [markUserLeftStatement(ctx.db, chatId, userId, leftSeq)]);
     await emit({ type: "chatUpdated", chatId });
     // The kicked user's row is already leftSeq-stamped (no longer enumerated), so they ride extraUserIds.
     await ctx.emitChatChanged(chatId, { detail: true, extraUserIds: [userId] });
@@ -497,23 +438,16 @@ async function resolveDroppedCharacterSeatIds(
   roster: readonly (typeof chatParticipants.$inferSelect)[],
 ): Promise<ChatParticipantId[]> {
   const characterSeats = roster.flatMap((p) =>
-    p.kind === "character" && p.characterId !== null && p.leftSeq === null
-      ? [{ id: p.id, characterId: p.characterId }]
-      : [],
+    p.kind === "character" && p.characterId !== null && p.leftSeq === null ? [{ id: p.id, characterId: p.characterId }] : [],
   );
-  const cards = await Promise.all(
-    characterSeats.map((s) => ctx.getCard({ ownerId: newOwnerUserId, characterId: s.characterId })),
-  );
+  const cards = await Promise.all(characterSeats.map((s) => ctx.getCard({ ownerId: newOwnerUserId, characterId: s.characterId })));
   return characterSeats.flatMap((s, i) => (cards[i] === null ? [s.id] : []));
 }
 
 /** `nominateHostHandoff` — host-only, step 1. Persists the pending nominee, emits chatUpdated, and notifies
  *  the nominee. The nominee must be a present non-host member — otherwise a leak-free NOT_FOUND. No role
  *  swap happens here; only the nominee's accept promotes. */
-function createNominateHostHandoff(
-  ctx: ChatContext,
-  emit: EmitChatEvent,
-): ChatService["nominateHostHandoff"] {
+function createNominateHostHandoff(ctx: ChatContext, emit: EmitChatEvent): ChatService["nominateHostHandoff"] {
   return async ({ principal, chatId, userId }: NominateHostHandoffParams): Promise<void> => {
     await requireHost(ctx, principal, chatId);
     const roster = await loadRoster(ctx.db, chatId);
@@ -521,9 +455,7 @@ function createNominateHostHandoff(
     if (nominee === undefined || nominee.role === "host") {
       throw new ChatNotFoundError(chatId);
     }
-    await ctx.emitNotification({ type: "handoff-nominated", recipientUserId: userId, chatId }, [
-      setPendingHostStatement(ctx.db, chatId, userId, ctx.now()),
-    ]);
+    await ctx.emitNotification({ type: "handoff-nominated", recipientUserId: userId, chatId }, [setPendingHostStatement(ctx.db, chatId, userId, ctx.now())]);
     await emit({ type: "chatUpdated", chatId });
     await ctx.audit(
       {
@@ -542,18 +474,12 @@ function createNominateHostHandoff(
  *  chats.pendingHostUserId, else not_turn_owner. On pass, atomically swaps roles, drops the outgoing host's
  *  character seats the new host doesn't own, and clears the nomination in one batch; emits chatUpdated and
  *  notifies the previous host. */
-function createAcceptHostHandoff(
-  ctx: ChatContext,
-  emit: EmitChatEvent,
-): ChatService["acceptHostHandoff"] {
+function createAcceptHostHandoff(ctx: ChatContext, emit: EmitChatEvent): ChatService["acceptHostHandoff"] {
   return async ({ principal, chatId }: AcceptHostHandoffParams): Promise<void> => {
     await requireParticipant(ctx, principal, chatId);
     const pending = await loadPendingHostUserId(ctx.db, chatId);
     if (pending === null || pending !== principal.userId) {
-      throw new ChatOperationError(
-        CHAT_OP_CODES.notTurnOwner,
-        `chat ${chatId}: only the nominated member may accept the host handoff`,
-      );
+      throw new ChatOperationError(CHAT_OP_CODES.notTurnOwner, `chat ${chatId}: only the nominated member may accept the host handoff`);
     }
     // The previous host (for the post-swap notification) may be absent if they left after nominating.
     const roster = await loadRoster(ctx.db, chatId);
@@ -568,11 +494,7 @@ function createAcceptHostHandoff(
       }),
       ...droppedSeatIds.map((id) => markParticipantLeftStatement(ctx.db, id, dropSeq)),
     ];
-    if (
-      oldHost?.userId !== undefined &&
-      oldHost.userId !== null &&
-      oldHost.userId !== principal.userId
-    ) {
+    if (oldHost?.userId !== undefined && oldHost.userId !== null && oldHost.userId !== principal.userId) {
       await ctx.emitNotification(
         {
           type: "handoff-accepted",

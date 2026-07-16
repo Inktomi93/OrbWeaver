@@ -39,9 +39,6 @@ export function subscribeAllChatEvents(listener: (entry: ChatLiveEvent) => void)
 /** The room's live event stream, scoped to one `chatId` and torn down on `signal` abort. `on()` begins
  *  buffering the instant it is called, so a caller invoking this before the durable replay loses no event
  *  in the gap (the subscription dedupes the overlap by the monotonic seq). */
-export function subscribeChatEvents(
-  chatId: ChatId,
-  signal: AbortSignal,
-): AsyncIterable<ChatLiveEvent> {
+export function subscribeChatEvents(chatId: ChatId, signal: AbortSignal): AsyncIterable<ChatLiveEvent> {
   return bus.subscribe(chatId, signal);
 }

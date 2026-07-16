@@ -5,11 +5,7 @@
 // against the two halves diverging).
 
 import type { BulkImportLorebookInput } from "@orb/contracts/world-info";
-import {
-  buildWorldBookFile,
-  parseWorldBookFile,
-  WORLD_INFO_SCHEMA_KIND,
-} from "@orb/server/kit/serde/world-info";
+import { buildWorldBookFile, parseWorldBookFile, WORLD_INFO_SCHEMA_KIND } from "@orb/server/kit/serde/world-info";
 import { describe } from "vitest";
 import { expect, test } from "../../../../support/fixtures";
 

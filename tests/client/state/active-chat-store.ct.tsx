@@ -9,9 +9,7 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import { ActiveChatStoreProbe } from "./_ct-stories";
 
-test("new-chat mints a fresh sessionKey each time and carries the roster seed", async ({
-  mount,
-}) => {
+test("new-chat mints a fresh sessionKey each time and carries the roster seed", async ({ mount }) => {
   const probe = await mount(<ActiveChatStoreProbe />);
   const state = probe.locator("output");
 
@@ -20,49 +18,35 @@ test("new-chat mints a fresh sessionKey each time and carries the roster seed", 
 
   // A blank new chat → a fresh draft + a NEW session key (so the composer remounts clean).
   await probe.getByRole("button", { name: "new blank" }).click();
-  await expect(state).toHaveText(
-    "handle=draft:draft-2 session=draft-2 seed=none openOverlayPanel=none",
-  );
+  await expect(state).toHaveText("handle=draft:draft-2 session=draft-2 seed=none openOverlayPanel=none");
 
   // A seeded new chat (the character-library "start chat with X") → the roster rides on the draft.
   await probe.getByRole("button", { name: "new with aria" }).click();
-  await expect(state).toHaveText(
-    "handle=draft:draft-3 session=draft-3 seed=char_probe_aria openOverlayPanel=none",
-  );
+  await expect(state).toHaveText("handle=draft:draft-3 session=draft-3 seed=char_probe_aria openOverlayPanel=none");
 });
 
-test("commitDraft promotes the handle WITHOUT changing sessionKey (no mid-turn remount)", async ({
-  mount,
-}) => {
+test("commitDraft promotes the handle WITHOUT changing sessionKey (no mid-turn remount)", async ({ mount }) => {
   const probe = await mount(<ActiveChatStoreProbe />);
   const state = probe.locator("output");
 
   // Seed a draft (session=draft-2 after one new-chat click).
   await probe.getByRole("button", { name: "new with aria" }).click();
-  await expect(state).toHaveText(
-    "handle=draft:draft-2 session=draft-2 seed=char_probe_aria openOverlayPanel=none",
-  );
+  await expect(state).toHaveText("handle=draft:draft-2 session=draft-2 seed=char_probe_aria openOverlayPanel=none");
 
   // First send commits the draft → the handle flips to committed, but the session key is UNCHANGED
   // (the whole point — the surface must not remount while the first generation is streaming).
   await probe.getByRole("button", { name: "commit draft" }).click();
-  await expect(state).toHaveText(
-    "handle=committed:chat_probe_commit session=draft-2 seed=char_probe_aria openOverlayPanel=none",
-  );
+  await expect(state).toHaveText("handle=committed:chat_probe_commit session=draft-2 seed=char_probe_aria openOverlayPanel=none");
 });
 
-test("selectChat makes an existing chat active and keys the slot by its chat id", async ({
-  mount,
-}) => {
+test("selectChat makes an existing chat active and keys the slot by its chat id", async ({ mount }) => {
   const probe = await mount(<ActiveChatStoreProbe />);
   const state = probe.locator("output");
 
   await probe.getByRole("button", { name: "select chat" }).click();
   // A committed handle, the seed cleared, and the session key IS the chat id (so re-selecting the same
   // chat is idempotent and switching chats naturally remounts the slot).
-  await expect(state).toHaveText(
-    "handle=committed:chat_probe_select session=chat_probe_select seed=none openOverlayPanel=none",
-  );
+  await expect(state).toHaveText("handle=committed:chat_probe_select session=chat_probe_select seed=none openOverlayPanel=none");
 });
 
 test("commitDraft is a no-op once the active chat is already committed", async ({ mount }) => {
@@ -74,9 +58,7 @@ test("commitDraft is a no-op once the active chat is already committed", async (
 
   // The active chat is no longer a draft → commitDraft must not clobber it (the guard).
   await probe.getByRole("button", { name: "commit draft" }).click();
-  await expect(state).toHaveText(
-    "handle=committed:chat_probe_select session=chat_probe_select seed=none openOverlayPanel=none",
-  );
+  await expect(state).toHaveText("handle=committed:chat_probe_select session=chat_probe_select seed=none openOverlayPanel=none");
 });
 
 test("commitDraft for a stale draft does NOT hijack a NEWER active draft", async ({ mount }) => {
@@ -85,22 +67,16 @@ test("commitDraft for a stale draft does NOT hijack a NEWER active draft", async
 
   // Draft A (session=draft-2) is in flight…
   await probe.getByRole("button", { name: "new with aria" }).click();
-  await expect(state).toHaveText(
-    "handle=draft:draft-2 session=draft-2 seed=char_probe_aria openOverlayPanel=none",
-  );
+  await expect(state).toHaveText("handle=draft:draft-2 session=draft-2 seed=char_probe_aria openOverlayPanel=none");
 
   // …the user starts a NEW chat (draft B, session=draft-3) before A's first send resolves.
   await probe.getByRole("button", { name: "new blank" }).click();
-  await expect(state).toHaveText(
-    "handle=draft:draft-3 session=draft-3 seed=none openOverlayPanel=none",
-  );
+  await expect(state).toHaveText("handle=draft:draft-3 session=draft-3 seed=none openOverlayPanel=none");
 
   // A's late-resolving commit fires for draftKey draft-2 — the guard MUST reject it (draft-3 is active
   // now), or the handle would flip to chat A while sessionKey stays draft B's (the split-brain hijack).
   await probe.getByRole("button", { name: "commit stale draft-2", exact: true }).click();
-  await expect(state).toHaveText(
-    "handle=draft:draft-3 session=draft-3 seed=none openOverlayPanel=none",
-  );
+  await expect(state).toHaveText("handle=draft:draft-3 session=draft-3 seed=none openOverlayPanel=none");
 });
 
 test("commitDraft for a stale draft does NOT hijack the landing state", async ({ mount }) => {
@@ -109,9 +85,7 @@ test("commitDraft for a stale draft does NOT hijack the landing state", async ({
 
   // Draft A (session=draft-2) is in flight…
   await probe.getByRole("button", { name: "new with aria" }).click();
-  await expect(state).toHaveText(
-    "handle=draft:draft-2 session=draft-2 seed=char_probe_aria openOverlayPanel=none",
-  );
+  await expect(state).toHaveText("handle=draft:draft-2 session=draft-2 seed=char_probe_aria openOverlayPanel=none");
 
   // …the user closes it back to landing (session=draft-3) before A's first send resolves.
   await probe.getByRole("button", { name: "go landing" }).click();
@@ -123,9 +97,7 @@ test("commitDraft for a stale draft does NOT hijack the landing state", async ({
   await expect(state).toHaveText("handle=landing session=draft-3 seed=none openOverlayPanel=none");
 });
 
-test("goToLanding returns to the landing handle with a fresh session key (J1)", async ({
-  mount,
-}) => {
+test("goToLanding returns to the landing handle with a fresh session key (J1)", async ({ mount }) => {
   const probe = await mount(<ActiveChatStoreProbe />);
   const state = probe.locator("output");
 
@@ -139,9 +111,7 @@ test("goToLanding returns to the landing handle with a fresh session key (J1)", 
   await expect(state).toHaveText("handle=landing session=draft-2 seed=none openOverlayPanel=none");
 });
 
-test("selectChatFromList selects the chat AND closes the LIST slide-over (dual-write)", async ({
-  mount,
-}) => {
+test("selectChatFromList selects the chat AND closes the LIST slide-over (dual-write)", async ({ mount }) => {
   const probe = await mount(<ActiveChatStoreProbe />);
   const state = probe.locator("output");
 
@@ -149,14 +119,10 @@ test("selectChatFromList selects the chat AND closes the LIST slide-over (dual-w
   await expect(state).toContainText("openOverlayPanel=list");
 
   await probe.getByRole("button", { name: "select from list" }).click();
-  await expect(state).toHaveText(
-    "handle=committed:chat_probe_list session=chat_probe_list seed=none openOverlayPanel=none",
-  );
+  await expect(state).toHaveText("handle=committed:chat_probe_list session=chat_probe_list seed=none openOverlayPanel=none");
 });
 
-test("chatDeletedFromList is a no-op unless the deleted chat IS the active one", async ({
-  mount,
-}) => {
+test("chatDeletedFromList is a no-op unless the deleted chat IS the active one", async ({ mount }) => {
   const probe = await mount(<ActiveChatStoreProbe />);
   const state = probe.locator("output");
 

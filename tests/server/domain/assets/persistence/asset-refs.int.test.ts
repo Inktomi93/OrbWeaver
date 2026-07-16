@@ -13,10 +13,7 @@
 import * as schema from "@orb/db";
 import { is } from "drizzle-orm";
 import { getTableConfig, SQLiteTable } from "drizzle-orm/sqlite-core";
-import {
-  ASSET_REFS,
-  DERIVED_ASSET_COLUMNS,
-} from "../../../../../packages/server/src/domain/assets/persistence/asset-refs.ts";
+import { ASSET_REFS, DERIVED_ASSET_COLUMNS } from "../../../../../packages/server/src/domain/assets/persistence/asset-refs.ts";
 import { expect, test } from "../../../../support/fixtures";
 
 /** `table.column` key for a registry entry or a schema FK. */
@@ -47,9 +44,7 @@ function schemaAssetFkColumns(): Set<string> {
   return keys;
 }
 
-function registryKeys(
-  refs: readonly { table: SQLiteTable; column: { name: string } }[],
-): Set<string> {
+function registryKeys(refs: readonly { table: SQLiteTable; column: { name: string } }[]): Set<string> {
   return new Set(refs.map((r) => keyOf(getTableConfig(r.table).name, r.column.name)));
 }
 

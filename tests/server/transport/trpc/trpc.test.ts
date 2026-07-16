@@ -145,10 +145,7 @@ interface BeltSurface {
 
 /** A belt row for one invites-router verb: the probe is the chat-service verb mock — proving both the
  *  belt refusal (never called) and the capable-path wiring (called once). */
-function inviteSurface(
-  verb: keyof ChatService,
-  drive: (ctx: Context) => Promise<unknown>,
-): BeltSurface {
+function inviteSurface(verb: keyof ChatService, drive: (ctx: Context) => Promise<unknown>): BeltSurface {
   return {
     path: `invites.${verb}`,
     make: (): ReturnType<BeltSurface["make"]> => {
@@ -170,9 +167,7 @@ const beltSurfaces: readonly BeltSurface[] = [
   inviteSurface("declineInvite", (ctx) => caller(ctx).invites.declineInvite({ inviteId })),
   inviteSurface("kick", (ctx) => caller(ctx).invites.kick({ chatId, userId: kickTarget })),
   inviteSurface("selfLeave", (ctx) => caller(ctx).invites.selfLeave({ chatId })),
-  inviteSurface("nominateHostHandoff", (ctx) =>
-    caller(ctx).invites.nominateHostHandoff({ chatId, userId: kickTarget }),
-  ),
+  inviteSurface("nominateHostHandoff", (ctx) => caller(ctx).invites.nominateHostHandoff({ chatId, userId: kickTarget })),
   inviteSurface("acceptHostHandoff", (ctx) => caller(ctx).invites.acceptHostHandoff({ chatId })),
   {
     path: "notifications.list",

@@ -43,10 +43,7 @@ const ROW_COLS = {
 } as const;
 
 // Build the durable-first INSERT…RETURNING (unexecuted). File-local — the two executors below own the run.
-function buildInsertNotification(
-  db: Db,
-  row: NotificationInsert,
-): AwaitableBatchStmt<NotificationRow[]> {
+function buildInsertNotification(db: Db, row: NotificationInsert): AwaitableBatchStmt<NotificationRow[]> {
   return db
     .insert(notifications)
     .values({
@@ -61,10 +58,7 @@ function buildInsertNotification(
 }
 
 /** Durable-first INSERT (db-driven monotonic `seq`); returns the stored row. */
-export async function insertNotification(
-  db: Db,
-  row: NotificationInsert,
-): Promise<NotificationRow> {
+export async function insertNotification(db: Db, row: NotificationInsert): Promise<NotificationRow> {
   const inserted = await buildInsertNotification(db, row);
   return inserted[0] as NotificationRow;
 }
@@ -72,11 +66,7 @@ export async function insertNotification(
 /** Tx-atomic insert: run the producer's membership-transition statements + the notification INSERT in one
  *  `db.batch`, so a crash can never leave the transition committed with no durable notification. The
  *  after-commit fan-out is the caller's. */
-export async function insertNotificationWith(
-  db: Db,
-  row: NotificationInsert,
-  coStatements: readonly BatchStmt[],
-): Promise<NotificationRow> {
+export async function insertNotificationWith(db: Db, row: NotificationInsert, coStatements: readonly BatchStmt[]): Promise<NotificationRow> {
   const results = await db.batch(batchMany([...coStatements, buildInsertNotification(db, row)]));
   // The INSERT is the last statement; it always yields exactly one RETURNING row.
   const inserted = results.at(-1) as NotificationRow[];
@@ -96,12 +86,7 @@ export async function selectInbox(
     isNull(notifications.dismissedAt),
     cursor === undefined ? undefined : lt(notifications.seq, cursor),
   );
-  return await db
-    .select(ROW_COLS)
-    .from(notifications)
-    .where(scoped)
-    .orderBy(desc(notifications.seq))
-    .limit(limit);
+  return await db.select(ROW_COLS).from(notifications).where(scoped).orderBy(desc(notifications.seq)).limit(limit);
 }
 
 /** Idempotent recipient-scoped read-flip: set `readAt` only if currently null, pinned to the caller. Returns
@@ -115,20 +100,14 @@ export async function markReadScoped(
   const updated = await db
     .update(notifications)
     .set({ readAt: sql`coalesce(${notifications.readAt}, ${now})` })
-    .where(
-      and(eq(notifications.id, notificationId), eq(notifications.recipientUserId, recipientUserId)),
-    )
+    .where(and(eq(notifications.id, notificationId), eq(notifications.recipientUserId, recipientUserId)))
     .returning(ROW_COLS);
   return updated[0];
 }
 
 /** Bulk recipient-scoped read-flip: set `readAt` on every one of the caller's unread rows in one UPDATE.
  *  Dismissed rows are included (dismissing doesn't imply read). Returns the count of rows touched. */
-export async function markAllReadScoped(
-  db: Db,
-  recipientUserId: NotificationEvent["recipientUserId"],
-  now: number,
-): Promise<number> {
+export async function markAllReadScoped(db: Db, recipientUserId: NotificationEvent["recipientUserId"], now: number): Promise<number> {
   const updated = await db
     .update(notifications)
     .set({ readAt: now })
@@ -147,9 +126,7 @@ export async function dismissScoped(
   const updated = await db
     .update(notifications)
     .set({ dismissedAt: sql`coalesce(${notifications.dismissedAt}, ${now})` })
-    .where(
-      and(eq(notifications.id, notificationId), eq(notifications.recipientUserId, recipientUserId)),
-    )
+    .where(and(eq(notifications.id, notificationId), eq(notifications.recipientUserId, recipientUserId)))
     .returning(ROW_COLS);
   return updated[0];
 }

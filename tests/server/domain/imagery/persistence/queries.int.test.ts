@@ -21,9 +21,7 @@ beforeEach(async () => {
 
 async function seedOwnedAsset(): Promise<{ owner: UserId; assetId: AssetId }> {
   const owner = castId<UserId>("user_owner");
-  await db
-    .insert(users)
-    .values({ id: owner, handle: castId<Handle>("owner"), role: "user", enabled: true });
+  await db.insert(users).values({ id: owner, handle: castId<Handle>("owner"), role: "user", enabled: true });
   const assetId = castId<AssetId>("asset_gen");
   await db.insert(assets).values({
     id: assetId,

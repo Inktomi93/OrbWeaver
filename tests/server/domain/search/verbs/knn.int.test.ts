@@ -100,9 +100,7 @@ describe("knn", () => {
       rerank: () => Promise.reject(new Error("rerank not supported on this backend")),
     });
 
-    await expect(svc.knn({ ownerId: owner, query: "q", topN: 5, rerank: true })).rejects.toThrow(
-      "rerank not supported",
-    );
+    await expect(svc.knn({ ownerId: owner, query: "q", topN: 5, rerank: true })).rejects.toThrow("rerank not supported");
   });
 
   test("a query that embeds to nothing throws a typed SearchError", async () => {
@@ -110,8 +108,6 @@ describe("knn", () => {
     const owner = await seedUser(db, { handle: "owner" });
 
     const svc = makeSearch(db, { embedVector: () => null });
-    await expect(svc.knn({ ownerId: owner, query: "   ", topN: 5 })).rejects.toBeInstanceOf(
-      SearchError,
-    );
+    await expect(svc.knn({ ownerId: owner, query: "   ", topN: 5 })).rejects.toBeInstanceOf(SearchError);
   });
 });

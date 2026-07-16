@@ -5,19 +5,13 @@ import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { AutoSaveRow } from "./setting-row.fixtures";
 
-test("wires the label to the caller's control — clicking the label focuses it", async ({
-  mount,
-  page,
-}) => {
+test("wires the label to the caller's control — clicking the label focuses it", async ({ mount, page }) => {
   await mount(<AutoSaveRow />);
   await page.getByText("Auto-save").click();
   await expect(page.getByRole("textbox")).toBeFocused();
 });
 
-test("the info-glyph tooltip's hint is reachable as an accessible name and shows on hover", async ({
-  mount,
-  page,
-}) => {
+test("the info-glyph tooltip's hint is reachable as an accessible name and shows on hover", async ({ mount, page }) => {
   const hint = "Saves your draft automatically every 30 seconds";
   await mount(<AutoSaveRow hint={hint} />);
   const trigger = page.getByRole("button", { name: hint });
@@ -29,10 +23,7 @@ test("the info-glyph tooltip's hint is reachable as an accessible name and shows
   await expect(popup).toHaveText(hint);
 });
 
-test("renders an always-visible description under the label in the muted token", async ({
-  mount,
-  page,
-}) => {
+test("renders an always-visible description under the label in the muted token", async ({ mount, page }) => {
   await mount(<AutoSaveRow description="Saves your draft every 30 seconds" />);
   const desc = page.getByText("Saves your draft every 30 seconds");
   await expect(desc).toBeVisible();

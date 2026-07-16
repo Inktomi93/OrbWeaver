@@ -7,15 +7,7 @@ import { createDiscoveryService } from "@orb/server/domain/discovery";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
-import {
-  FROZEN_AT,
-  makeDiscoveryHarness,
-  seedCharacter,
-  seedHostedChat,
-  seedMessage,
-  seedMessageVariant,
-  seedUser,
-} from "../_support.ts";
+import { FROZEN_AT, makeDiscoveryHarness, seedCharacter, seedHostedChat, seedMessage, seedMessageVariant, seedUser } from "../_support.ts";
 
 function svcFor(db: Db): ReturnType<typeof createDiscoveryService> {
   return createDiscoveryService(makeDiscoveryHarness(db).ctx);
@@ -66,10 +58,7 @@ describe("swipeHotspots", () => {
     });
 
     const hotspots = await svcFor(db).swipeHotspots(owner, chat);
-    expect(hotspots.map((h) => h.messageId)).toEqual([
-      expect.stringContaining("m1"),
-      expect.stringContaining("m2"),
-    ]);
+    expect(hotspots.map((h) => h.messageId)).toEqual([expect.stringContaining("m1"), expect.stringContaining("m2")]);
     expect(hotspots[0]?.variantCount).toBe(3);
     expect(hotspots[0]?.snippet).toBe("The chosen take for m1.");
     expect(hotspots[0]?.characterName).toBe("Hero");

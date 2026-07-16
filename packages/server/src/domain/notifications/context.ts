@@ -8,10 +8,6 @@ import type { Db } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import type { NotificationsContext } from "./contract/service";
 
-export function createNotificationsContext(
-  db: Db,
-  now: () => number,
-  isAgentRecipient: (userId: UserId) => Promise<boolean>,
-): NotificationsContext {
+export function createNotificationsContext(db: Db, now: () => number, isAgentRecipient: (userId: UserId) => Promise<boolean>): NotificationsContext {
   return { db, now, isAgentRecipient };
 }

@@ -59,12 +59,7 @@ function readReport(): StructureReport {
   try {
     raw = readFileSync(REPORT_PATH, "utf-8");
   } catch {
-    print(
-      ANSI.red(
-        `check:show — couldn't read ${REPORT_PATH}\n` +
-          "  Run `pnpm check:structure` first to generate it.",
-      ),
-    );
+    print(ANSI.red(`check:show — couldn't read ${REPORT_PATH}\n  Run \`pnpm check:structure\` first to generate it.`));
     process.exit(EXIT_MISSING_REPORT);
   }
   return JSON.parse(raw) as StructureReport;
@@ -147,9 +142,7 @@ function main(): void {
   }
 
   print(
-    report.ok
-      ? ANSI.green("✓ check:structure passed (filter view)\n")
-      : ANSI.red(`✗ check:structure FAILED — ${report.total} violation(s) across its gates\n`),
+    report.ok ? ANSI.green("✓ check:structure passed (filter view)\n") : ANSI.red(`✗ check:structure FAILED — ${report.total} violation(s) across its gates\n`),
   );
 
   for (const g of report.gates) {

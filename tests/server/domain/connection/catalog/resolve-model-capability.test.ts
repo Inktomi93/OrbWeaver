@@ -48,8 +48,7 @@ describe("resolveModelCapability — openrouter synthesis arm", () => {
 });
 
 describe("resolveModelCapability — anth-direct sampling seed (D68-C, fail-closed per shape)", () => {
-  const direct = (model: string): ModelCapability["sampling"] =>
-    resolveModelCapability(model, "openrouter", "anthropic-messages").sampling;
+  const direct = (model: string): ModelCapability["sampling"] => resolveModelCapability(model, "openrouter", "anthropic-messages").sampling;
 
   test("every curated Claude resolves empty sampling on the anthropic-direct shape (unverified ⇒ {})", () => {
     // Until the W9 probe opens an entry, a curated Claude on the direct wire honors NO sampling knob — the
@@ -65,12 +64,8 @@ describe("resolveModelCapability — anth-direct sampling seed (D68-C, fail-clos
   });
 
   test("the direct seed NEVER leaks to the cli/openai shapes (curated Claude keeps {} there too)", () => {
-    expect(resolveModelCapability("claude-opus-4-8", "max-pro-sub", "agent-sdk").sampling).toEqual(
-      {},
-    );
-    expect(
-      resolveModelCapability("claude-haiku-4-5", "openrouter", "chat-completions").sampling,
-    ).toEqual({});
+    expect(resolveModelCapability("claude-opus-4-8", "max-pro-sub", "agent-sdk").sampling).toEqual({});
+    expect(resolveModelCapability("claude-haiku-4-5", "openrouter", "chat-completions").sampling).toEqual({});
   });
 });
 

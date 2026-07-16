@@ -47,21 +47,13 @@ let msgCounter = 0;
 /** FK parent for owner-scoped rows. "Owner" here is the D23 OWNING-USER sense (characters.ownerId),
  *  not the `owner` ROLE — the default first user takes the role for realism, but any SECOND seeded
  *  user must pass role "user" (the D40 `users_single_owner_unique` index allows exactly one owner row). */
-export async function seedUser(
-  db: Db,
-  id = "user_owner",
-  role: "owner" | "user" = "owner",
-): Promise<UserId> {
+export async function seedUser(db: Db, id = "user_owner", role: "owner" | "user" = "owner"): Promise<UserId> {
   const uid = castId<UserId>(id);
   const seeded = await seedUserRow(db, { id: uid, handle: castId<Handle>(id), role });
   return seeded.id;
 }
 
-export async function seedCharacter(
-  db: Db,
-  ownerId: UserId,
-  opts: { id?: string; name?: string } = {},
-): Promise<CharacterId> {
+export async function seedCharacter(db: Db, ownerId: UserId, opts: { id?: string; name?: string } = {}): Promise<CharacterId> {
   const id = castId<CharacterId>(opts.id ?? "character_a");
   await db.insert(characters).values({
     id,
@@ -73,11 +65,7 @@ export async function seedCharacter(
   return id;
 }
 
-export async function seedPersona(
-  db: Db,
-  ownerId: UserId,
-  opts: { id?: string; name?: string } = {},
-): Promise<PersonaId> {
+export async function seedPersona(db: Db, ownerId: UserId, opts: { id?: string; name?: string } = {}): Promise<PersonaId> {
   const id = castId<PersonaId>(opts.id ?? "persona_a");
   await db.insert(personas).values({
     id,
@@ -142,12 +130,7 @@ interface MessageSeed {
   variants: VariantSeed[];
 }
 
-function variantRow(
-  messageId: MessageId,
-  n: number,
-  idx: number,
-  v: VariantSeed,
-): typeof messageVariants.$inferInsert {
+function variantRow(messageId: MessageId, n: number, idx: number, v: VariantSeed): typeof messageVariants.$inferInsert {
   const metadata =
     v.reasoningDuration === undefined
       ? null
@@ -188,9 +171,7 @@ export async function seedMessage(db: Db, opts: MessageSeed): Promise<MessageId>
     personaId: opts.personaId ?? null,
     createdAt: opts.createdAt ?? T0,
   });
-  const stmts: BatchStmt[] = opts.variants.map((v, idx) =>
-    db.insert(messageVariants).values(variantRow(messageId, n, idx, v)),
-  );
+  const stmts: BatchStmt[] = opts.variants.map((v, idx) => db.insert(messageVariants).values(variantRow(messageId, n, idx, v)));
   await db.batch(batchMany(stmts));
   const selectedIdx = opts.selectedIdx ?? 0;
   await db
@@ -202,19 +183,11 @@ export async function seedMessage(db: Db, opts: MessageSeed): Promise<MessageId>
 
 // ── Direct rollup-row seeders (for the read-verb tests — no canon needed). ──
 
-export async function seedOwnerStats(
-  db: Db,
-  ownerId: UserId,
-  o: Partial<typeof ownerStats.$inferInsert> = {},
-): Promise<void> {
+export async function seedOwnerStats(db: Db, ownerId: UserId, o: Partial<typeof ownerStats.$inferInsert> = {}): Promise<void> {
   await db.insert(ownerStats).values({ ownerId, computedAt: T0, ...o });
 }
 
-export async function seedCharacterStats(
-  db: Db,
-  characterId: CharacterId,
-  o: Partial<typeof characterStats.$inferInsert> = {},
-): Promise<void> {
+export async function seedCharacterStats(db: Db, characterId: CharacterId, o: Partial<typeof characterStats.$inferInsert> = {}): Promise<void> {
   await db.insert(characterStats).values({
     id: castId<CharacterStatId>(`character_stat_${characterId}`),
     characterId,
@@ -223,12 +196,7 @@ export async function seedCharacterStats(
   });
 }
 
-export async function seedDailyStats(
-  db: Db,
-  ownerId: UserId,
-  day: string,
-  o: Partial<typeof dailyStats.$inferInsert> = {},
-): Promise<void> {
+export async function seedDailyStats(db: Db, ownerId: UserId, day: string, o: Partial<typeof dailyStats.$inferInsert> = {}): Promise<void> {
   await db.insert(dailyStats).values({
     id: castId<DailyStatId>(`daily_stat_${day}`),
     ownerId,
@@ -238,11 +206,7 @@ export async function seedDailyStats(
   });
 }
 
-export async function seedModelStats(
-  db: Db,
-  ownerId: UserId,
-  o: { model: string; provider: string } & Partial<typeof modelStats.$inferInsert>,
-): Promise<void> {
+export async function seedModelStats(db: Db, ownerId: UserId, o: { model: string; provider: string } & Partial<typeof modelStats.$inferInsert>): Promise<void> {
   await db.insert(modelStats).values({
     id: castId<ModelStatId>(`model_stat_${o.model}_${o.provider}`),
     ownerId,

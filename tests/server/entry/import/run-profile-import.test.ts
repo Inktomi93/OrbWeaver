@@ -24,23 +24,20 @@ const OWNER: Principal = {
 
 // A readable bare-V2 JSON card (no PNG → no avatar store). Authored as a string so its snake_case wire
 // keys don't trip useNamingConvention.
-const CARD_JSON =
-  '{"spec":"chara_card_v2","spec_version":"2.0","data":{"name":"Tester","description":"A test character."}}';
+const CARD_JSON = '{"spec":"chara_card_v2","spec_version":"2.0","data":{"name":"Tester","description":"A test character."}}';
 const cardBytes = (): Uint8Array => new TextEncoder().encode(CARD_JSON);
 const garbageBytes = (): Uint8Array => new TextEncoder().encode("not a character card");
 const SHA256_HEX = /^[0-9a-f]{64}$/u;
 
 // A store that never fires for these JSON-card tests (typed const → contextual, no explicit-return noise).
 const noopAssets: ImportAssetPort = {
-  store: (): Promise<{ assetId: AssetId }> =>
-    Promise.resolve({ assetId: castId<AssetId>("ast_x") }),
+  store: (): Promise<{ assetId: AssetId }> => Promise.resolve({ assetId: castId<AssetId>("ast_x") }),
 };
 
 // PD-108's handle-match edit-in-place is pinned at the domain level; these driver tests don't exercise it —
 // `update` never fires (no test seeds a handle match) and `findByHandle` always misses.
 const neverUpdate: Pick<ImportCharacterPort, "update"> = {
-  update: (): Promise<{ id: CharacterId }> =>
-    Promise.resolve({ id: castId<CharacterId>("chr_unused") }),
+  update: (): Promise<{ id: CharacterId }> => Promise.resolve({ id: castId<CharacterId>("chr_unused") }),
 };
 const noHandleMatch: Pick<ImportCharacterPort, "findByHandle"> = {
   findByHandle: (): Promise<null> => Promise.resolve(null),
@@ -125,8 +122,7 @@ describe("runProfileImport", () => {
         createCount += 1;
         return Promise.resolve({ id: castId<CharacterId>("chr_new") });
       },
-      findByImportHash: (): Promise<{ characterId: CharacterId }> =>
-        Promise.resolve({ characterId: castId<CharacterId>("chr_existing") }),
+      findByImportHash: (): Promise<{ characterId: CharacterId }> => Promise.resolve({ characterId: castId<CharacterId>("chr_existing") }),
       ...neverUpdate,
       ...noHandleMatch,
     };
@@ -146,8 +142,7 @@ describe("runProfileImport", () => {
 
   test("isolates an unreadable card — the batch continues, the failure is recorded", async () => {
     const character: ImportCharacterPort = {
-      create: (): Promise<{ id: CharacterId }> =>
-        Promise.resolve({ id: castId<CharacterId>("chr_ok") }),
+      create: (): Promise<{ id: CharacterId }> => Promise.resolve({ id: castId<CharacterId>("chr_ok") }),
       findByImportHash: (): Promise<null> => Promise.resolve(null),
       ...neverUpdate,
       ...noHandleMatch,
@@ -174,8 +169,7 @@ describe("runProfileImport", () => {
   test("scopes the dedup lookup to the principal's userId", async () => {
     let seenOwner: string | null = null;
     const character: ImportCharacterPort = {
-      create: (): Promise<{ id: CharacterId }> =>
-        Promise.resolve({ id: castId<CharacterId>("chr") }),
+      create: (): Promise<{ id: CharacterId }> => Promise.resolve({ id: castId<CharacterId>("chr") }),
       findByImportHash: (p): Promise<null> => {
         seenOwner = p.ownerId;
         return Promise.resolve(null);
@@ -197,14 +191,12 @@ describe("runProfileImport", () => {
 
   test("carries the card's tags as card/pending suggestions to the created character", async () => {
     const character: ImportCharacterPort = {
-      create: (): Promise<{ id: CharacterId }> =>
-        Promise.resolve({ id: castId<CharacterId>("chr_tagged") }),
+      create: (): Promise<{ id: CharacterId }> => Promise.resolve({ id: castId<CharacterId>("chr_tagged") }),
       findByImportHash: (): Promise<null> => Promise.resolve(null),
       ...neverUpdate,
       ...noHandleMatch,
     };
-    const tagged =
-      '{"spec":"chara_card_v2","spec_version":"2.0","data":{"name":"Tagged","description":"x","tags":["bard","fantasy"]}}';
+    const tagged = '{"spec":"chara_card_v2","spec_version":"2.0","data":{"name":"Tagged","description":"x","tags":["bard","fantasy"]}}';
     const rec = recordingTag();
 
     await runProfileImport({

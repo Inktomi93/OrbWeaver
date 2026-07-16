@@ -37,9 +37,7 @@ describe("round-trip + miss", () => {
     expect(await cache.read(OWNER_A, HASH, ICON_KEY)).toBeUndefined();
 
     await cache.put(OWNER_A, HASH, ICON_KEY, WEBP_BYTES);
-    expect(new Uint8Array((await cache.read(OWNER_A, HASH, ICON_KEY)) ?? new Uint8Array())).toEqual(
-      WEBP_BYTES,
-    );
+    expect(new Uint8Array((await cache.read(OWNER_A, HASH, ICON_KEY)) ?? new Uint8Array())).toEqual(WEBP_BYTES);
   });
 
   test("removeAll drops every variant of a blob", async () => {
@@ -61,9 +59,7 @@ describe("per-user isolation (D21)", () => {
 describe("guards", () => {
   test("an invalid width and a non-hash both throw", async () => {
     const cache = createVariantCache(root);
-    await expect(
-      cache.put(OWNER_A, HASH, { kind: "icon", width: 0 }, WEBP_BYTES),
-    ).rejects.toThrow();
+    await expect(cache.put(OWNER_A, HASH, { kind: "icon", width: 0 }, WEBP_BYTES)).rejects.toThrow();
     await expect(cache.read(OWNER_A, "not-a-hash", ICON_KEY)).resolves.toBeUndefined();
     await expect(cache.removeAll(OWNER_A, "not-a-hash")).rejects.toThrow();
   });
@@ -78,12 +74,8 @@ describe("kind discriminator (icon vs. portrait, #67)", () => {
     await cache.put(OWNER_A, HASH, ICON_KEY, WEBP_BYTES);
     await cache.put(OWNER_A, HASH, PORTRAIT_KEY, PORTRAIT_WEBP_BYTES);
 
-    expect(new Uint8Array((await cache.read(OWNER_A, HASH, ICON_KEY)) ?? new Uint8Array())).toEqual(
-      WEBP_BYTES,
-    );
-    expect(
-      new Uint8Array((await cache.read(OWNER_A, HASH, PORTRAIT_KEY)) ?? new Uint8Array()),
-    ).toEqual(PORTRAIT_WEBP_BYTES);
+    expect(new Uint8Array((await cache.read(OWNER_A, HASH, ICON_KEY)) ?? new Uint8Array())).toEqual(WEBP_BYTES);
+    expect(new Uint8Array((await cache.read(OWNER_A, HASH, PORTRAIT_KEY)) ?? new Uint8Array())).toEqual(PORTRAIT_WEBP_BYTES);
   });
 
   test("removeAll drops BOTH kinds for a blob (one recursive rm of the shared per-hash directory)", async () => {

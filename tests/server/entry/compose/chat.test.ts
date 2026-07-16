@@ -16,11 +16,7 @@ function row(role: TurnMessage["role"], text: string, name?: string): TurnMessag
 
 describe("splitAgentHistory — seed + prompt tail", () => {
   test("splits at the last assistant row: prior turns seed, the trailing user rows are the prompt", () => {
-    const split = splitAgentHistory([
-      row("user", "hello"),
-      row("assistant", "hi there"),
-      row("user", "next question"),
-    ]);
+    const split = splitAgentHistory([row("user", "hello"), row("assistant", "hi there"), row("user", "next question")]);
     expect(split).not.toBeNull();
     expect(split?.seed).toEqual([
       { role: "user", content: "hello" },
@@ -30,21 +26,13 @@ describe("splitAgentHistory — seed + prompt tail", () => {
   });
 
   test("a multi-row user tail joins with the contract joiner (the comparator's user-run rule)", () => {
-    const split = splitAgentHistory([
-      row("assistant", "greeting"),
-      row("user", "part a"),
-      row("user", "part b"),
-    ]);
+    const split = splitAgentHistory([row("assistant", "greeting"), row("user", "part a"), row("user", "part b")]);
     expect(split?.prompt).toBe(`part a${AGENT_PROMPT_TAIL_JOINER}part b`);
     expect(split?.seed).toEqual([{ role: "assistant", content: "greeting" }]);
   });
 
   test("the wire `name` label is stamped into seed + prompt text (frames carry no name field)", () => {
-    const split = splitAgentHistory([
-      row("user", "hello", "Alice"),
-      row("assistant", "hi", "Nyx"),
-      row("user", "and then?", "Alice"),
-    ]);
+    const split = splitAgentHistory([row("user", "hello", "Alice"), row("assistant", "hi", "Nyx"), row("user", "and then?", "Alice")]);
     expect(split?.seed).toEqual([
       { role: "user", content: "Alice: hello" },
       { role: "assistant", content: "Nyx: hi" },
@@ -63,9 +51,7 @@ describe("splitAgentHistory — seed + prompt tail", () => {
   });
 
   test("a tool row anywhere returns null (tools never ride the agent-sdk arm)", () => {
-    expect(
-      splitAgentHistory([row("user", "go"), row("tool", "result"), row("user", "next")]),
-    ).toBeNull();
+    expect(splitAgentHistory([row("user", "go"), row("tool", "result"), row("user", "next")])).toBeNull();
   });
 
   test("an empty-text tail returns null rather than sending a blank prompt", () => {

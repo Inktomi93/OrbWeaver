@@ -15,11 +15,7 @@ const BAR_BORDER_RADIUS = [0, BAR_BORDER_RADIUS_PX, BAR_BORDER_RADIUS_PX, 0];
 // Fixed gutter reserved for the bar-end value label (containLabel only accounts for axis labels).
 const VALUE_LABEL_GUTTER_PX = 64;
 
-export function buildBarListOption(
-  items: readonly BarListItem[],
-  valueFormatter: (value: number) => string,
-  colors: ChartColors,
-): OrbChartOption {
+export function buildBarListOption(items: readonly BarListItem[], valueFormatter: (value: number) => string, colors: ChartColors): OrbChartOption {
   return {
     grid: { left: 8, right: VALUE_LABEL_GUTTER_PX, top: 4, bottom: 4, containLabel: true },
     tooltip: {

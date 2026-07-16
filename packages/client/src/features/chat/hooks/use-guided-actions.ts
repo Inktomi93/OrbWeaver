@@ -56,11 +56,7 @@ const useGuidedImpersonateMutation = createEntityMutation<GuidedTurnVars, unknow
 
 // An empty steer omits the whole `guided` object — `input:""` isn't enough, the server would still
 // resolve the guided template into a dangling scaffold.
-function steerFor(
-  action: GuidedActionKind,
-  input: string,
-  person?: GuidedImpersonatePerson,
-): GuidedSteerInput | undefined {
+function steerFor(action: GuidedActionKind, input: string, person?: GuidedImpersonatePerson): GuidedSteerInput | undefined {
   if (input.trim() === "") {
     return;
   }
@@ -79,13 +75,11 @@ interface GuidedStartChatResult {
   readonly chat: { readonly id: ChatId };
 }
 
-const useGuidedStartChatMutation = createEntityMutation<GuidedStartChatVars, GuidedStartChatResult>(
-  {
-    options: (trpc) => trpc.chat.startChat.mutationOptions(),
-    busDriven: true,
-    errorToast: "Couldn't guide the opening.",
-  },
-);
+const useGuidedStartChatMutation = createEntityMutation<GuidedStartChatVars, GuidedStartChatResult>({
+  options: (trpc) => trpc.chat.startChat.mutationOptions(),
+  busDriven: true,
+  errorToast: "Couldn't guide the opening.",
+});
 
 export interface UseGuidedActionsOptions {
   readonly handle: ChatHandle;
@@ -115,9 +109,7 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
   const impersonate = useGuidedImpersonateMutation({ trpc, invalidation });
   const startChat = useGuidedStartChatMutation({ trpc, invalidation });
 
-  const tailQuery = useGatedQuery(chatId, (id) =>
-    trpc.chat.listMessages.queryOptions({ chatId: id }),
-  );
+  const tailQuery = useGatedQuery(chatId, (id) => trpc.chat.listMessages.queryOptions({ chatId: id }));
   const tailAssistantMessageId = useMemo<MessageId | null>(() => {
     const tail = tailQuery.data?.messages.at(-1);
     return tail !== undefined && tail.role === "assistant" ? tail.id : null;
@@ -148,12 +140,7 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
   };
 
   return {
-    isPending:
-      generate.isPending ||
-      swipe.isPending ||
-      continueTurn.isPending ||
-      impersonate.isPending ||
-      openingPending,
+    isPending: generate.isPending || swipe.isPending || continueTurn.isPending || impersonate.isPending || openingPending,
     tailAssistantMessageId,
     fireResponse: (input): void => {
       if (chatId === null) {
@@ -167,22 +154,14 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
         return;
       }
       const guided = steerFor("swipe", input);
-      swipe.mutate(
-        guided === undefined
-          ? { chatId, messageId: tailAssistantMessageId }
-          : { chatId, messageId: tailAssistantMessageId, guided },
-      );
+      swipe.mutate(guided === undefined ? { chatId, messageId: tailAssistantMessageId } : { chatId, messageId: tailAssistantMessageId, guided });
     },
     fireContinue: (input): void => {
       if (chatId === null || tailAssistantMessageId === null) {
         return;
       }
       const guided = steerFor("continue", input);
-      continueTurn.mutate(
-        guided === undefined
-          ? { chatId, messageId: tailAssistantMessageId }
-          : { chatId, messageId: tailAssistantMessageId, guided },
-      );
+      continueTurn.mutate(guided === undefined ? { chatId, messageId: tailAssistantMessageId } : { chatId, messageId: tailAssistantMessageId, guided });
     },
     fireImpersonate: (input, person): void => {
       if (chatId === null) {

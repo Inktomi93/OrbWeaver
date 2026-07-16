@@ -31,11 +31,7 @@ export function foldChain(entries: readonly DeltaEntry[]): Record<string, string
 /** Build the `chats.runtime_variables` cache UPDATE — rides the mutating event's EXISTING batch (atomic with the
  *  canon write / pointer flip / delete). An empty fold writes `null` (the "nothing folded" read contract, never
  *  a `{}` sentinel). */
-export function runtimeVariablesUpdateStatement(
-  db: Db,
-  chatId: ChatId,
-  cache: Record<string, string>,
-): BatchStmt {
+export function runtimeVariablesUpdateStatement(db: Db, chatId: ChatId, cache: Record<string, string>): BatchStmt {
   const value = Object.keys(cache).length > 0 ? cache : null;
   return batchStmt(db.update(chats).set({ runtimeVariables: value }).where(eq(chats.id, chatId)));
 }

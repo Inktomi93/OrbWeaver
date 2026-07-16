@@ -1,10 +1,4 @@
-import type {
-  ChatBusEvent,
-  ChatContentPart,
-  InviteView,
-  MessageSlot,
-  MessageView,
-} from "@orb/contracts/chat";
+import type { ChatBusEvent, ChatContentPart, InviteView, MessageSlot, MessageView } from "@orb/contracts/chat";
 import { expectTypeOf, test } from "vitest";
 
 // Type-level pins for the chat contract (moved out of `.contract.test.ts` per core/Spine-Testing.md §1 — the
@@ -14,11 +8,7 @@ import { expectTypeOf, test } from "vitest";
  *  declares K. The union collapses to `false` only when NO member has K — if a member GAINS K the union
  *  widens to `boolean`, so the `false` pin goes red. This is stronger than `not.toHaveProperty`, which
  *  only inspects the union's SHARED keys (a key on one member would slip past it). */
-type UnionMemberHasKey<U, K extends PropertyKey> = U extends unknown
-  ? K extends keyof U
-    ? true
-    : false
-  : never;
+type UnionMemberHasKey<U, K extends PropertyKey> = U extends unknown ? (K extends keyof U ? true : false) : never;
 
 // ── D26: the SLOT carries no content/reasoning/economics; the JOIN view (slot + variant) does ─────────
 test("MessageSlot has no content/reasoning/economics key; MessageView carries content (D26)", () => {
@@ -53,14 +43,8 @@ test("InviteView has no token field at the type level (no redeem-token leak)", (
 // A translator maps parts by `type`; this pin makes ADDING a member a visible red HERE (update the
 // literal union below + audit every translator's dispatch — the D45 image-parts landing discipline).
 test("ChatContentPart is exactly text|image|tool-call|tool-result; tool parts carry the wire join", () => {
-  expectTypeOf<ChatContentPart["type"]>().toEqualTypeOf<
-    "text" | "image" | "tool-call" | "tool-result"
-  >();
+  expectTypeOf<ChatContentPart["type"]>().toEqualTypeOf<"text" | "image" | "tool-call" | "tool-result">();
   // The exchange join: both tool members carry toolCallId; neither leaks a parsed-arguments object.
-  expectTypeOf<
-    Extract<ChatContentPart, { type: "tool-call" }>["arguments"]
-  >().toEqualTypeOf<string>();
-  expectTypeOf<
-    Extract<ChatContentPart, { type: "tool-result" }>["content"]
-  >().toEqualTypeOf<string>();
+  expectTypeOf<Extract<ChatContentPart, { type: "tool-call" }>["arguments"]>().toEqualTypeOf<string>();
+  expectTypeOf<Extract<ChatContentPart, { type: "tool-result" }>["content"]>().toEqualTypeOf<string>();
 });

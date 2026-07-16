@@ -62,11 +62,7 @@ describe("sessions.provisionIdentity — INSERT (first SSO login) + JIT", () => 
 
   test("REFUSES the reserved __agent__ handle namespace — no SSO match/create (FLAG[PD-17])", async () => {
     const before = await rowCount();
-    await expect(
-      svc.provisionIdentity(
-        identity({ handle: castId<Handle>("__agent__buddy__x"), externalId: null }),
-      ),
-    ).rejects.toThrow();
+    await expect(svc.provisionIdentity(identity({ handle: castId<Handle>("__agent__buddy__x"), externalId: null }))).rejects.toThrow();
     expect(await rowCount()).toBe(before);
   });
 
@@ -198,12 +194,8 @@ describe("sessions.provisionIdentity — the OWNER exemption invariant (D17)", (
 describe("sessions.provisionIdentity — rename stability (externalId is the key)", () => {
   test("a handle rename updates the SAME row (no duplicate tenant)", async () => {
     vi.stubEnv("OWNER_HANDLES", "x");
-    const first = asProvisioned(
-      await svc.provisionIdentity(identity({ handle: castId<Handle>("old-name") })),
-    );
-    const second = asProvisioned(
-      await svc.provisionIdentity(identity({ handle: castId<Handle>("new-name") })),
-    );
+    const first = asProvisioned(await svc.provisionIdentity(identity({ handle: castId<Handle>("old-name") })));
+    const second = asProvisioned(await svc.provisionIdentity(identity({ handle: castId<Handle>("new-name") })));
     expect(second.userId).toBe(first.userId);
     expect(await rowCount()).toBe(1);
     const row = (await db.select().from(users).where(eq(users.id, first.userId)))[0];
@@ -212,12 +204,8 @@ describe("sessions.provisionIdentity — rename stability (externalId is the key
 
   test("externalId null keys on handle (single-user / non-SSO path)", async () => {
     vi.stubEnv("OWNER_HANDLES", "x");
-    const first = asProvisioned(
-      await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("solo") })),
-    );
-    const second = asProvisioned(
-      await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("solo") })),
-    );
+    const first = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("solo") })));
+    const second = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("solo") })));
     expect(second.userId).toBe(first.userId);
     expect(await rowCount()).toBe(1);
   });
@@ -226,18 +214,14 @@ describe("sessions.provisionIdentity — rename stability (externalId is the key
 describe("sessions.provisionIdentity — email (mutable attribute, keep-on-null)", () => {
   test("persists the email claim on INSERT", async () => {
     vi.stubEnv("OWNER_HANDLES", "x");
-    const result = asProvisioned(
-      await svc.provisionIdentity(identity({ email: "alice@example.com" })),
-    );
+    const result = asProvisioned(await svc.provisionIdentity(identity({ email: "alice@example.com" })));
     const row = (await db.select().from(users).where(eq(users.id, result.userId)))[0];
     expect(row?.email).toBe("alice@example.com");
   });
 
   test("refreshes a CHANGED email on UPDATE", async () => {
     vi.stubEnv("OWNER_HANDLES", "x");
-    const first = asProvisioned(
-      await svc.provisionIdentity(identity({ email: "old@example.com" })),
-    );
+    const first = asProvisioned(await svc.provisionIdentity(identity({ email: "old@example.com" })));
     await svc.provisionIdentity(identity({ email: "new@example.com" }));
     const row = (await db.select().from(users).where(eq(users.id, first.userId)))[0];
     expect(row?.email).toBe("new@example.com");
@@ -245,9 +229,7 @@ describe("sessions.provisionIdentity — email (mutable attribute, keep-on-null)
 
   test("keep-on-null: a login carrying NO email never wipes a stored one", async () => {
     vi.stubEnv("OWNER_HANDLES", "x");
-    const first = asProvisioned(
-      await svc.provisionIdentity(identity({ email: "keep@example.com" })),
-    );
+    const first = asProvisioned(await svc.provisionIdentity(identity({ email: "keep@example.com" })));
     await svc.provisionIdentity(identity({ email: null }));
     const row = (await db.select().from(users).where(eq(users.id, first.userId)))[0];
     expect(row?.email).toBe("keep@example.com");
@@ -273,9 +255,7 @@ describe("sessions.provisionIdentity — UPDATE role policy", () => {
     const again = asProvisioned(await svc.provisionIdentity(identity({ groups: ["eng"] })));
     expect(again.role).toBe("user");
     // And back up when re-added.
-    const promoted = asProvisioned(
-      await svc.provisionIdentity(identity({ groups: ["Orb Admins"] })),
-    );
+    const promoted = asProvisioned(await svc.provisionIdentity(identity({ groups: ["Orb Admins"] })));
     expect(promoted.role).toBe("admin");
   });
 

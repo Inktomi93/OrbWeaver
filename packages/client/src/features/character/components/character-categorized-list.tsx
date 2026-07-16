@@ -49,11 +49,7 @@ export function CharacterCategorizedList<T extends { readonly id: string }>({
             }
           />
           <CollapsiblePanel>
-            <Stack
-              aria-label={group.tag === null ? "Uncategorized" : group.tag.name}
-              gap="row"
-              role="list"
-            >
+            <Stack aria-label={group.tag === null ? "Uncategorized" : group.tag.name} gap="row" role="list">
               {group.items.map((item) => (
                 <Row key={item.id}>{renderRow(item)}</Row>
               ))}

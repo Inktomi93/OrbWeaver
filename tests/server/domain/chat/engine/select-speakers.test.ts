@@ -9,10 +9,7 @@ import type { CharacterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import type { ArbiterCandidate } from "../../../../../packages/server/src/domain/chat/contract/arbitration";
-import {
-  resolveMentions,
-  selectSpeakers,
-} from "../../../../../packages/server/src/domain/chat/engine/select-speakers";
+import { resolveMentions, selectSpeakers } from "../../../../../packages/server/src/domain/chat/engine/select-speakers";
 import { expect, test } from "../../../../support/fixtures";
 
 /** A seeded Park-Miller (MINSTD) LCG — the INJECTED PRNG stand-in (D46; no `Math.random`, no bitwise). */
@@ -43,25 +40,20 @@ function candidate(ref: SpeakerRef, over: Partial<ArbiterCandidate> = {}): Arbit
   };
 }
 /** A character candidate keyed by short name (the common case). */
-const cc = (k: string, over: Partial<ArbiterCandidate> = {}): ArbiterCandidate =>
-  candidate(charRef(k), over);
+const cc = (k: string, over: Partial<ArbiterCandidate> = {}): ArbiterCandidate => candidate(charRef(k), over);
 
 const POLICIES: GroupConfig["policy"][] = ["natural", "list", "pooled", "manual", "smart"];
 
 describe("selectSpeakers — determinism", () => {
   test("same inputs + same PRNG seed → identical order (natural)", () => {
     const candidates = [cc("a"), cc("b"), cc("c"), cc("d")];
-    const run = (): SpeakerRef[] =>
-      selectSpeakers({ candidates, policy: "natural", lastSpeaker: null, rng: seededRng(42) });
+    const run = (): SpeakerRef[] => selectSpeakers({ candidates, policy: "natural", lastSpeaker: null, rng: seededRng(42) });
     expect(keys(run())).toEqual(keys(run()));
   });
 
   test("a different seed can produce a different order (the rng is the only entropy)", () => {
     const candidates = [cc("a"), cc("b"), cc("c"), cc("d")];
-    const orderFor = (seed: number): string[] =>
-      keys(
-        selectSpeakers({ candidates, policy: "natural", lastSpeaker: null, rng: seededRng(seed) }),
-      );
+    const orderFor = (seed: number): string[] => keys(selectSpeakers({ candidates, policy: "natural", lastSpeaker: null, rng: seededRng(seed) }));
     // Across these seeds at least two distinct orders appear (the weighted sample actually samples).
     const orders = new Set([1, 2, 3, 4, 5].map((s) => orderFor(s).join(",")));
     expect(orders.size).toBeGreaterThan(1);
@@ -76,9 +68,7 @@ describe("selectSpeakers — determinism", () => {
       rng: seededRng(7),
     });
     const byStr = (a: string, b: string): number => a.localeCompare(b);
-    expect([...keys(out)].sort(byStr)).toEqual(
-      [charRef("a"), charRef("b"), charRef("c")].map(speakerKey).sort(byStr),
-    );
+    expect([...keys(out)].sort(byStr)).toEqual([charRef("a"), charRef("b"), charRef("c")].map(speakerKey).sort(byStr));
   });
 });
 
@@ -161,11 +151,7 @@ describe("selectSpeakers — AI-driven kinds: an agent is arbiter-selectable (D6
   });
 
   test("a muted/left agent is never selected (the eligibility predicate is kind-blind)", () => {
-    const candidates = [
-      candidate(agentRef("muted"), { disabled: true }),
-      candidate(agentRef("left"), { leftSeq: 5 }),
-      cc("present"),
-    ];
+    const candidates = [candidate(agentRef("muted"), { disabled: true }), candidate(agentRef("left"), { leftSeq: 5 }), cc("present")];
     const out = selectSpeakers({
       candidates,
       policy: "list",

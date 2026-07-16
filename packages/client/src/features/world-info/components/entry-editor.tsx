@@ -99,11 +99,7 @@ export function EntryEditor({ entry, onDeleted }: EntryEditorProps): ReactElemen
 
         <form.AppField name="title">
           {(field): ReactElement => (
-            <field.TextField
-              label="Title"
-              hint="A short label for the entry list — never injected into the prompt."
-              placeholder="Entry title"
-            />
+            <field.TextField label="Title" hint="A short label for the entry list — never injected into the prompt." placeholder="Entry title" />
           )}
         </form.AppField>
 
@@ -132,10 +128,7 @@ export function EntryEditor({ entry, onDeleted }: EntryEditorProps): ReactElemen
         {/* Keyword triggers — the built free-text chip Combobox (no `items`: pure free-text entry). */}
         <form.Subscribe selector={(state): readonly string[] => state.values.keys}>
           {(keys): ReactElement => (
-            <Field
-              label="Keyword triggers"
-              description="Enter or comma commits a keyword. Matched case-insensitively, whole-word, against recent messages."
-            >
+            <Field label="Keyword triggers" description="Enter or comma commits a keyword. Matched case-insensitively, whole-word, against recent messages.">
               <Combobox
                 aria-label="Keyword triggers"
                 value={keys}
@@ -149,61 +142,35 @@ export function EntryEditor({ entry, onDeleted }: EntryEditorProps): ReactElemen
 
         <Row gap="block" align="start">
           <form.AppField name="enabled">
-            {(field): ReactElement => (
-              <field.SwitchField
-                label="Enabled"
-                hint="A disabled entry never fires, even when its keywords match."
-              />
-            )}
+            {(field): ReactElement => <field.SwitchField label="Enabled" hint="A disabled entry never fires, even when its keywords match." />}
           </form.AppField>
           <form.AppField name="ignoreBudget">
             {(field): ReactElement => (
-              <field.SwitchField
-                label="Always include"
-                hint="Bypass the per-turn world-info token budget — must-have lore that's never dropped."
-              />
+              <field.SwitchField label="Always include" hint="Bypass the per-turn world-info token budget — must-have lore that's never dropped." />
             )}
           </form.AppField>
         </Row>
 
         <Row gap="block" align="start">
           <form.AppField name="priority">
-            {(field): ReactElement => (
-              <field.NumberField
-                label="Priority"
-                hint="Higher sorts first and injects earlier when the budget is tight."
-              />
-            )}
+            {(field): ReactElement => <field.NumberField label="Priority" hint="Higher sorts first and injects earlier when the budget is tight." />}
           </form.AppField>
-          <form.AppField name="scopeMode">
-            {(field): ReactElement => (
-              <field.SelectField label="Fire mode" items={SCOPE_MODE_ITEMS} />
-            )}
-          </form.AppField>
+          <form.AppField name="scopeMode">{(field): ReactElement => <field.SelectField label="Fire mode" items={SCOPE_MODE_ITEMS} />}</form.AppField>
         </Row>
 
         {/* At-depth injection opt-in — depth/role reveal only when on; `position` shows only when OFF (an
             injected entry leaves the system half, so the WI anchor bucket is moot). */}
         <form.AppField name="injectEnabled">
           {(field): ReactElement => (
-            <field.SwitchField
-              label="Inject at a depth in history"
-              hint="Splice this entry into the chat history at a depth instead of the system prompt."
-            />
+            <field.SwitchField label="Inject at a depth in history" hint="Splice this entry into the chat history at a depth instead of the system prompt." />
           )}
         </form.AppField>
         <form.Subscribe selector={(state): boolean => state.values.injectEnabled}>
           {(injectEnabled): ReactElement =>
             injectEnabled ? (
               <Row gap="field" align="start">
-                <form.AppField name="injectDepth">
-                  {(field): ReactElement => <field.NumberField label="Depth" min={0} />}
-                </form.AppField>
-                <form.AppField name="injectRole">
-                  {(field): ReactElement => (
-                    <field.SelectField label="Role" items={MESSAGE_ROLE_ITEMS} />
-                  )}
-                </form.AppField>
+                <form.AppField name="injectDepth">{(field): ReactElement => <field.NumberField label="Depth" min={0} />}</form.AppField>
+                <form.AppField name="injectRole">{(field): ReactElement => <field.SelectField label="Role" items={MESSAGE_ROLE_ITEMS} />}</form.AppField>
               </Row>
             ) : (
               <form.AppField name="position">
@@ -231,13 +198,7 @@ export function EntryEditor({ entry, onDeleted }: EntryEditorProps): ReactElemen
 }
 
 /** The delete affordance (a destructive kebab-free inline button → AlertDialog confirm). */
-function DeleteEntryAction({
-  title,
-  onDelete,
-}: {
-  readonly title: string;
-  readonly onDelete: () => void;
-}): ReactElement {
+function DeleteEntryAction({ title, onDelete }: { readonly title: string; readonly onDelete: () => void }): ReactElement {
   return (
     <ConfirmDialog
       confirmLabel="Delete"

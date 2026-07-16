@@ -39,10 +39,7 @@ async function mintOrAdopt(
     await ctx.db.batch(batchMany(agentMintStatements(ctx.db, row)));
     return { agentUserId: row.agentUserId, created: true };
   } catch (err) {
-    const winner =
-      isConstraintViolation(err)?.kind === "unique"
-        ? await selectIdByHandle(ctx.db, row.handle)
-        : undefined;
+    const winner = isConstraintViolation(err)?.kind === "unique" ? await selectIdByHandle(ctx.db, row.handle) : undefined;
     if (winner === undefined) {
       throw err;
     }
@@ -50,12 +47,8 @@ async function mintOrAdopt(
   }
 }
 
-export function createProvisionAgent(
-  ctx: SessionsContext,
-): Pick<SessionsService, "provisionAgentPrincipal"> {
-  async function provisionAgentPrincipal(
-    params: ProvisionAgentParams,
-  ): Promise<ProvisionAgentResult> {
+export function createProvisionAgent(ctx: SessionsContext): Pick<SessionsService, "provisionAgentPrincipal"> {
+  async function provisionAgentPrincipal(params: ProvisionAgentParams): Promise<ProvisionAgentResult> {
     // HUMAN only (no nested agents); a non-human/unknown owner collapses to a leak-free not-found.
     const owner = await selectMintOwner(ctx.db, params.ownerUserId);
     if (owner === undefined || owner.kind !== "human") {

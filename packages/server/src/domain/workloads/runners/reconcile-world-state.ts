@@ -4,12 +4,7 @@
 
 import type { Runner } from "../contract/runner";
 
-export const reconcileWorldStateRunner: Runner<"reconcile-world-state"> = (
-  _ctx,
-  _params,
-  report,
-  _signal,
-) => {
+export const reconcileWorldStateRunner: Runner<"reconcile-world-state"> = (_ctx, _params, report, _signal) => {
   report({ message: "world-state reconcile is a v2 stub (no-op)" });
   return Promise.resolve({ deferred: true });
 };

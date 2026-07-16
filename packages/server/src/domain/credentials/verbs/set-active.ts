@@ -14,20 +14,14 @@ export function createSetActive(ctx: CredentialContext): CredentialsService["set
   return async (params: SetActiveParams): Promise<CredentialView> => {
     const ownerId = params.principal.userId;
     const { credentialId } = params;
-    const row = requireOwned(
-      await fetchOwnedCredential(ctx.db, ownerId, credentialId),
-      credentialId,
-    );
+    const row = requireOwned(await fetchOwnedCredential(ctx.db, ownerId, credentialId), credentialId);
     await promoteActive(ctx.db, {
       ownerId,
       credentialId,
       provider: row.provider,
       now: ctx.now(),
     });
-    const updated = requireOwned(
-      await fetchOwnedCredential(ctx.db, ownerId, credentialId),
-      credentialId,
-    );
+    const updated = requireOwned(await fetchOwnedCredential(ctx.db, ownerId, credentialId), credentialId);
     ctx.emitUserEvent(ownerId, { type: "credentialsChanged", credentialId });
     return toCredentialView(updated);
   };

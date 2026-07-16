@@ -19,9 +19,7 @@ test("POSTs the raw zip File as the body with the CSRF + zip headers, and return
   let capturedRequest: { url: string; init: RequestInit } | undefined;
   vi.stubGlobal("fetch", (url: string, init: RequestInit) => {
     capturedRequest = { url, init };
-    return Promise.resolve(
-      new Response(JSON.stringify({ workloadId: "workload_ct_1" }), { status: 202 }),
-    );
+    return Promise.resolve(new Response(JSON.stringify({ workloadId: "workload_ct_1" }), { status: 202 }));
   });
 
   const zip = new File(["PK"], "backup.zip", { type: "application/zip" });
@@ -40,13 +38,10 @@ test("POSTs the raw zip File as the body with the CSRF + zip headers, and return
 test("throws with the server message on a non-OK response (e.g. the 409 single-active lock)", async () => {
   vi.stubGlobal("fetch", () =>
     Promise.resolve(
-      new Response(
-        JSON.stringify({ error: "a bundle import is already running for this account" }),
-        {
-          status: 409,
-          statusText: "Conflict",
-        },
-      ),
+      new Response(JSON.stringify({ error: "a bundle import is already running for this account" }), {
+        status: 409,
+        statusText: "Conflict",
+      }),
     ),
   );
   const zip = new File(["PK"], "backup.zip", { type: "application/zip" });

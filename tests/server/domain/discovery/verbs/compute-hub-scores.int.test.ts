@@ -74,9 +74,7 @@ describe("computeCharacterHubScores", () => {
     await svc.computeCharacterHubScores();
 
     const byId = hubById(hubScores);
-    expect(byId.get("character_embedding_character_a")).toBe(
-      byId.get("character_embedding_character_b"),
-    );
+    expect(byId.get("character_embedding_character_a")).toBe(byId.get("character_embedding_character_b"));
   });
 
   // The owner ruling: csls analyzes YOUR OWN library only — owner B's vectors NEVER enter owner A's hubness.
@@ -120,10 +118,7 @@ describe("computeCharacterHubScores", () => {
     expect(stats.rowsScored).toBe(2);
     expect(hubScores.calls).toHaveLength(2);
     const scoredIds = [...hubById(hubScores).keys()].sort();
-    expect(scoredIds).toEqual([
-      "character_embedding_character_a",
-      "character_embedding_character_b",
-    ]);
+    expect(scoredIds).toEqual(["character_embedding_character_a", "character_embedding_character_b"]);
   });
 });
 

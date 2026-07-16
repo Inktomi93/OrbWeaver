@@ -11,20 +11,10 @@ import type { Principal, UserRole } from "@orb/contracts/identity";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import { assets, characterStats, characterSummaries, characters } from "@orb/db";
-import type {
-  AssetId,
-  CharacterId,
-  CharacterSnapshotId,
-  CharacterStatId,
-  Handle,
-  UserId,
-} from "@orb/kit/ids";
+import type { AssetId, CharacterId, CharacterSnapshotId, CharacterStatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { CharacterContext } from "../../../../packages/server/src/domain/character/context.ts";
-import type {
-  AttachCardTagOp,
-  DetachCardTagOp,
-} from "../../../../packages/server/src/domain/character/contract/service.ts";
+import type { AttachCardTagOp, DetachCardTagOp } from "../../../../packages/server/src/domain/character/contract/service.ts";
 import { createFrozenClock, FROZEN_AT_MS } from "../../../support/clock.ts";
 import { principal as makePrincipal } from "../../../support/factories/principal.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
@@ -79,8 +69,7 @@ export function makeHarness(db: Db): CharacterHarness {
     db,
     now: (): number => clock.now(),
     newCharacterId: (): CharacterId => castId<CharacterId>(ids.next("character")),
-    newSnapshotId: (): CharacterSnapshotId =>
-      castId<CharacterSnapshotId>(ids.next("character_snapshot")),
+    newSnapshotId: (): CharacterSnapshotId => castId<CharacterSnapshotId>(ids.next("character_snapshot")),
     audit: (entry: AuditCall["entry"], at: number): Promise<void> => {
       audits.push({ entry, at });
       return Promise.resolve();
@@ -185,10 +174,7 @@ interface SeedRawCharacterOverrides {
 
 /** Insert a flat `characters` row DIRECTLY (bypassing the service) — for seeding import-provenance /
  *  synthetic / cross-owner / starred rows the CRUD wire can't author. Returns the branded id. */
-export async function seedRawCharacter(
-  db: Db,
-  overrides: SeedRawCharacterOverrides,
-): Promise<CharacterId> {
+export async function seedRawCharacter(db: Db, overrides: SeedRawCharacterOverrides): Promise<CharacterId> {
   const id = castId<CharacterId>(overrides.id ?? "character_seed");
   await db.insert(characters).values({
     id,
@@ -230,10 +216,7 @@ export async function seedCharacterStats(
 
 /** Seed a `character_summaries` distillation row carrying `elevatorPitch` — the FIX-#2 LIST-subtitle denorm
  *  source (LEFT JOINed by the library list). `model` is the only other NOT-NULL column (no default). */
-export async function seedCharacterSummary(
-  db: Db,
-  args: { readonly characterId: CharacterId; readonly elevatorPitch: string | null },
-): Promise<void> {
+export async function seedCharacterSummary(db: Db, args: { readonly characterId: CharacterId; readonly elevatorPitch: string | null }): Promise<void> {
   await db.insert(characterSummaries).values({
     characterId: args.characterId,
     elevatorPitch: args.elevatorPitch,
@@ -243,10 +226,6 @@ export async function seedCharacterSummary(
 
 /** Build a Principal for a given user id + role (cookie-resolved by default). Delegates to the shared
  *  `support/factories/principal` — character keeps its existing positional `(id, role, handle?)` convention. */
-export function principal(
-  userId: UserId,
-  role: UserRole = "user",
-  handle: string = userId,
-): Principal {
+export function principal(userId: UserId, role: UserRole = "user", handle: string = userId): Principal {
   return makePrincipal(userId, { role, handle: castId<Handle>(handle) });
 }

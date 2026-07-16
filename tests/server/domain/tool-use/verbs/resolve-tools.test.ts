@@ -3,15 +3,11 @@
 // request bodies).
 
 import { z } from "zod";
-import {
-  createToolUseService,
-  ToolNotFoundError,
-} from "../../../../../packages/server/src/domain/tool-use";
+import { createToolUseService, ToolNotFoundError } from "../../../../../packages/server/src/domain/tool-use";
 import { expect, test } from "../../../../support/fixtures";
 import { defOf, makeHarness } from "../_support";
 
-const okHandler = (): Promise<{ ok: true; value: unknown }> =>
-  Promise.resolve({ ok: true, value: null });
+const okHandler = (): Promise<{ ok: true; value: unknown }> => Promise.resolve({ ok: true, value: null });
 
 test("an unknown name THROWS ToolNotFoundError (attach-time wiring bug, not model data)", () => {
   const svc = createToolUseService(makeHarness().ctx);

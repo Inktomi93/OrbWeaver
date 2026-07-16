@@ -27,10 +27,7 @@ const UNTITLED = makeChatSummary({
 const ADVENTURE_ROW = /A grand adventure/u;
 const UNTITLED_ROW = /Untitled chat/u;
 
-test("renders each chat row (title + participant names), with a fallback title/subtitle", async ({
-  mount,
-  page,
-}) => {
+test("renders each chat row (title + participant names), with a fallback title/subtitle", async ({ mount, page }) => {
   await routeTrpc(page, { "chat.listChats": [ADVENTURE, UNTITLED] });
 
   const component = await mount(<ChatListSurfaceStory />);
@@ -62,10 +59,7 @@ test("the header + button fires onNewChat (the J2 picker trigger)", async ({ mou
   await expect(page.getByTestId("new-count")).toHaveText("1");
 });
 
-test("the search field filters the rows client-side (title + participants)", async ({
-  mount,
-  page,
-}) => {
+test("the search field filters the rows client-side (title + participants)", async ({ mount, page }) => {
   await routeTrpc(page, { "chat.listChats": [ADVENTURE, UNTITLED] });
 
   const component = await mount(<ChatListSurfaceStory />);

@@ -42,12 +42,7 @@ async function seedSummary(
   });
 }
 
-async function seedAvatarAsset(
-  db: Db,
-  id: string,
-  ownerId: UserId,
-  hash: string,
-): Promise<AssetId> {
+async function seedAvatarAsset(db: Db, id: string, ownerId: UserId, hash: string): Promise<AssetId> {
   const assetId = castId<AssetId>(id);
   await db.insert(assets).values({
     id: assetId,
@@ -136,25 +131,14 @@ describe("browseCharacters", () => {
     });
     const svc = svcFor(db);
 
-    expect((await svc.browseCharacters(owner, { genre: "fantasy" })).map((r) => r.name)).toEqual([
-      "Bravo",
-    ]);
-    expect((await svc.browseCharacters(owner, { tone: "tense" })).map((r) => r.name)).toEqual([
-      "Alpha",
-    ]);
+    expect((await svc.browseCharacters(owner, { genre: "fantasy" })).map((r) => r.name)).toEqual(["Bravo"]);
+    expect((await svc.browseCharacters(owner, { tone: "tense" })).map((r) => r.name)).toEqual(["Alpha"]);
     // exact tag membership, case-insensitive.
-    expect((await svc.browseCharacters(owner, { tag: "airships" })).map((r) => r.name)).toEqual([
-      "Bravo",
-    ]);
+    expect((await svc.browseCharacters(owner, { tag: "airships" })).map((r) => r.name)).toEqual(["Bravo"]);
     // q substring over name/pitch/tags.
-    expect((await svc.browseCharacters(owner, { q: "DREAD" })).map((r) => r.name)).toEqual([
-      "Alpha",
-    ]);
+    expect((await svc.browseCharacters(owner, { q: "DREAD" })).map((r) => r.name)).toEqual(["Alpha"]);
     // name sort.
-    expect((await svc.browseCharacters(owner, { sort: "name" })).map((r) => r.name)).toEqual([
-      "Alpha",
-      "Bravo",
-    ]);
+    expect((await svc.browseCharacters(owner, { sort: "name" })).map((r) => r.name)).toEqual(["Alpha", "Bravo"]);
     // limit caps.
     expect(await svc.browseCharacters(owner, { limit: 1 })).toHaveLength(1);
   });

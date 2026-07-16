@@ -49,10 +49,7 @@ interface QueryArgs {
 
 /** A fake `query` return: the held-open stream is never iterated for discovery; only `supportedModels()`
  *  + `interrupt()` are used. `supportedModels` resolves the daemon rows; `interrupt` records it fired. */
-function fakeQuery(
-  models: readonly unknown[],
-  interruptSpy: () => void,
-): (args: QueryArgs) => FakeQuery {
+function fakeQuery(models: readonly unknown[], interruptSpy: () => void): (args: QueryArgs) => FakeQuery {
   return (_args: QueryArgs): FakeQuery => ({
     supportedModels: (): Promise<readonly unknown[]> => Promise.resolve(models),
     interrupt: (): Promise<undefined> => {
@@ -114,8 +111,7 @@ describe("agent-sdk fetchModels (supportedModels discovery)", () => {
       const query = vi.fn(
         (): FakeQuery => ({
           // Never resolves — models the wedged daemon the timeout exists to defend against.
-          supportedModels: (): Promise<readonly unknown[]> =>
-            new Promise<readonly unknown[]>(() => undefined),
+          supportedModels: (): Promise<readonly unknown[]> => new Promise<readonly unknown[]>(() => undefined),
           interrupt: (): Promise<undefined> => {
             interruptSpy();
             return Promise.resolve(undefined);
@@ -144,8 +140,7 @@ describe("agent-sdk fetchModels (supportedModels discovery)", () => {
     const interruptSpy = vi.fn();
     const query = vi.fn(
       (): FakeQuery => ({
-        supportedModels: (): Promise<readonly unknown[]> =>
-          Promise.reject(new Error("spawn crashed")),
+        supportedModels: (): Promise<readonly unknown[]> => Promise.reject(new Error("spawn crashed")),
         interrupt: (): Promise<undefined> => {
           interruptSpy();
           return Promise.resolve(undefined);

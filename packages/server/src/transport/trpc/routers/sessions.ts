@@ -42,14 +42,9 @@ export const sessionsRouter = t.router({
   // `userId`); no `withSubscriptionErrors` wrapper — the source is a pure in-memory relay that reads no
   // domain (nothing throws a `DomainError` mid-stream), and no `tracked()` — live-only, resume is
   // deliberately unsupported (the client blanket-invalidates on reconnect).
-  streamUserEvents: authedProcedure.subscription(({ ctx, signal }) =>
-    streamUserEventsFor(ctx.auth.userId, signal ?? new AbortController().signal),
-  ),
+  streamUserEvents: authedProcedure.subscription(({ ctx, signal }) => streamUserEventsFor(ctx.auth.userId, signal ?? new AbortController().signal)),
 });
 
-async function* streamUserEventsFor(
-  userId: UserId,
-  signal: AbortSignal,
-): AsyncGenerator<UserBusEvent> {
+async function* streamUserEventsFor(userId: UserId, signal: AbortSignal): AsyncGenerator<UserBusEvent> {
   yield* subscribeUserEvents(userId, signal);
 }

@@ -4,10 +4,7 @@ import type { MemberCardView, MemberCardVisibility } from "@orb/contracts/chat";
 import type { AssetId, CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import {
-  clampMemberCard,
-  resolveCardVisibility,
-} from "../../../../../../packages/server/src/domain/chat/substrate/auth";
+import { clampMemberCard, resolveCardVisibility } from "../../../../../../packages/server/src/domain/chat/substrate/auth";
 import { expect, test } from "../../../../../support/fixtures";
 
 const CHAR = castId<CharacterId>("character_aria");

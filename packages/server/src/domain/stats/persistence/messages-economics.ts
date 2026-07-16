@@ -37,10 +37,7 @@ interface ModelEconomicsRow {
 
 /** Per-character economics — the selected assistant-variant totals, owner-scoped. One row per character
  *  that has ≥1 assistant generation. */
-export async function readCharacterEconomics(
-  db: Db,
-  ownerId: UserId,
-): Promise<CharacterEconomics[]> {
+export async function readCharacterEconomics(db: Db, ownerId: UserId): Promise<CharacterEconomics[]> {
   const rows = await db.all<EconomicsRow>(sql`
     SELECT m.character_id AS characterId,
            COUNT(*) AS generations,
@@ -59,22 +56,19 @@ export async function readCharacterEconomics(
     // Raw-SQL boundary mint: `m.character_id` is the branded characters.id column; sql`` rows come back
     // untyped.
     characterId: castId<CharacterId>(r.characterId),
-    generations: Number(r.generations ?? 0),
-    tokensIn: Number(r.tokensIn ?? 0),
-    tokensOut: Number(r.tokensOut ?? 0),
-    costUsd: Number(r.costUsd ?? 0),
-    cacheReadTokens: Number(r.cacheReadTokens ?? 0),
-    cacheWriteTokens: Number(r.cacheWriteTokens ?? 0),
+    generations: Number(r.generations),
+    tokensIn: Number(r.tokensIn),
+    tokensOut: Number(r.tokensOut),
+    costUsd: Number(r.costUsd),
+    cacheReadTokens: Number(r.cacheReadTokens),
+    cacheWriteTokens: Number(r.cacheWriteTokens),
   }));
 }
 
 /** Per-(character, model) economics — the selected assistant-variant totals split by model, owner-scoped.
  *  `genTimeMs`/`genSamples` sum only variants carrying both gen timestamps. Model-less generations are
  *  excluded. */
-export async function readCharacterModelEconomics(
-  db: Db,
-  ownerId: UserId,
-): Promise<CharacterModelEconomics[]> {
+export async function readCharacterModelEconomics(db: Db, ownerId: UserId): Promise<CharacterModelEconomics[]> {
   const rows = await db.all<ModelEconomicsRow>(sql`
     SELECT m.character_id AS characterId,
            v.model AS model,
@@ -97,11 +91,11 @@ export async function readCharacterModelEconomics(
   return rows.map((r) => ({
     characterId: castId<CharacterId>(r.characterId),
     model: r.model,
-    provider: r.provider ?? null,
-    generations: Number(r.generations ?? 0),
-    tokensOut: Number(r.tokensOut ?? 0),
-    genTimeMs: Number(r.genTimeMs ?? 0),
-    genSamples: Number(r.genSamples ?? 0),
-    costUsd: Number(r.costUsd ?? 0),
+    provider: r.provider,
+    generations: Number(r.generations),
+    tokensOut: Number(r.tokensOut),
+    genTimeMs: Number(r.genTimeMs),
+    genSamples: Number(r.genSamples),
+    costUsd: Number(r.costUsd),
   }));
 }

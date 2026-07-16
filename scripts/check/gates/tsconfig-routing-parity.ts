@@ -161,10 +161,8 @@ export const gate: GateDescriptor = {
       files: {
         "tsconfig.base.json":
           '{ "compilerOptions": { "noEmit": true, "strict": true, "target": "es2025", "lib": ["es2025"], "module": "esnext", "moduleResolution": "bundler" } }\n',
-        "packages/client/tsconfig.json":
-          '{ "extends": "../../tsconfig.base.json", "compilerOptions": { "lib": ["es2025", "dom"] }, "include": ["src"] }\n',
-        "packages/server/tsconfig.json":
-          '{ "extends": "../../tsconfig.base.json", "include": ["src", "../client/src"] }\n',
+        "packages/client/tsconfig.json": '{ "extends": "../../tsconfig.base.json", "compilerOptions": { "lib": ["es2025", "dom"] }, "include": ["src"] }\n',
+        "packages/server/tsconfig.json": '{ "extends": "../../tsconfig.base.json", "include": ["src", "../client/src"] }\n',
         "packages/client/src/a.ts": "export const a = 1;\n",
         "packages/server/src/b.ts": "export const b = 2;\n",
       },
@@ -179,10 +177,8 @@ export const gate: GateDescriptor = {
       files: {
         "tsconfig.base.json":
           '{ "compilerOptions": { "noEmit": true, "strict": true, "target": "es2025", "lib": ["es2025"], "module": "esnext", "moduleResolution": "bundler" } }\n',
-        "packages/client/tsconfig.json":
-          '{ "extends": "../../tsconfig.base.json", "compilerOptions": { "lib": ["es2025", "dom"] }, "include": ["src"] }\n',
-        "packages/server/tsconfig.json":
-          '{ "extends": "../../tsconfig.base.json", "include": ["src"] }\n',
+        "packages/client/tsconfig.json": '{ "extends": "../../tsconfig.base.json", "compilerOptions": { "lib": ["es2025", "dom"] }, "include": ["src"] }\n',
+        "packages/server/tsconfig.json": '{ "extends": "../../tsconfig.base.json", "include": ["src"] }\n',
         "packages/client/src/a.ts": "export const a = 1;\n",
         "packages/server/src/b.ts": "export const b = 2;\n",
       },

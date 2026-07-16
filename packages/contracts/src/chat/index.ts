@@ -53,16 +53,12 @@ export const participantKindSchema = z.enum(PARTICIPANT_KINDS);
 // AI-driven AND userId-backed. `USER_BACKED_KINDS` is the human/agent shared column shape (both FK `users`).
 export const AI_DRIVEN_KINDS = ["character", "agent"] as const satisfies readonly ParticipantKind[];
 export const USER_BACKED_KINDS = ["human", "agent"] as const satisfies readonly ParticipantKind[];
-export const isAiDriven = (k: ParticipantKind): boolean =>
-  (AI_DRIVEN_KINDS as readonly ParticipantKind[]).includes(k);
-export const isUserBacked = (k: ParticipantKind): boolean =>
-  (USER_BACKED_KINDS as readonly ParticipantKind[]).includes(k);
+export const isAiDriven = (k: ParticipantKind): boolean => (AI_DRIVEN_KINDS as readonly ParticipantKind[]).includes(k);
+export const isUserBacked = (k: ParticipantKind): boolean => (USER_BACKED_KINDS as readonly ParticipantKind[]).includes(k);
 
 /** The identity of ONE AI-driven speaker (D60). A `character` FKs `characters.id`; an `agent` FKs its
  *  `users` row (self-attributed). NOT a Set/Map key directly — use {@link speakerKey}. */
-export type SpeakerRef =
-  | { readonly kind: "character"; readonly characterId: CharacterId }
-  | { readonly kind: "agent"; readonly userId: UserId };
+export type SpeakerRef = { readonly kind: "character"; readonly characterId: CharacterId } | { readonly kind: "agent"; readonly userId: UserId };
 
 /** The stable string key for a {@link SpeakerRef}. Kind-prefixed so a characterId and a userId can't collide. */
 export function speakerKey(ref: SpeakerRef): string {
@@ -158,12 +154,7 @@ export interface ChatInjection {
 /** The four injection positions as a tuple — the ONE runtime home for the `ChatInjection["position"]`
  *  axis (`satisfies` binds it to the interface, so a widened union fails `tsc` here; §5.5 no inline
  *  re-spell). The db carries its OWN tuple checked against the same wire type (schema/chat.ts). */
-export const CHAT_INJECTION_POSITIONS = [
-  "before_prompt",
-  "in_static",
-  "in_prompt",
-  "in_chat",
-] as const satisfies readonly ChatInjection["position"][];
+export const CHAT_INJECTION_POSITIONS = ["before_prompt", "in_static", "in_prompt", "in_chat"] as const satisfies readonly ChatInjection["position"][];
 
 /** The `setChatInjection` wire INPUT — the `ChatInjection` fields a client authors + the optional `id`
  *  (present ⇒ update; absent ⇒ create). `chatId`/`principal` are added at the transport edge (the router
@@ -237,9 +228,7 @@ export interface AssembleContext {
   castNotMuted?: AssembleCharacter[];
   /** Who is generating: `single` (per-speaker, `{{char}}` = that character) vs `cast` (narrator, `{{char}}`
    *  = the whole cast). Solo is always `single`. */
-  speaker?:
-    | { kind: "single"; character: AssembleCharacter }
-    | { kind: "cast"; members: AssembleCharacter[]; active: AssembleCharacter };
+  speaker?: { kind: "single"; character: AssembleCharacter } | { kind: "cast"; members: AssembleCharacter[]; active: AssembleCharacter };
   /** Other present cast whose cards merge into THIS turn's character section (`cardScope: "merged"`). */
   coSpeakers?: AssembleCharacter[] | undefined;
   /** The identity of the per-speaker turn's active character — drives the `cardScope: "scoped"` egocentric
@@ -403,7 +392,7 @@ export const varOpSchema = z.discriminatedUnion("op", [
 export const variableDeltaSchema = z.array(varOpSchema);
 
 export const toolCallRecordSchema = z.object({
-  // biome-ignore lint/plugin/no-raw-id: PROVIDER-emitted opaque tool-call handle (OpenAI `call_…`/Anthropic id) — never an orbweaver-minted brand; provenance-faithful, joins a tool-call to its result on the wire (tool-use-design/03 §3 types it `string`).
+  // @orb-gate-ignore no-raw-id PROVIDER-emitted opaque tool-call handle (OpenAI `call_…`/Anthropic id) — never an orbweaver-minted brand; provenance-faithful, joins a tool-call to its result on the wire (tool-use-design/03 §3 types it `string`).
   toolCallId: z.string(),
   name: z.string(),
   /** RAW model-emitted JSON string (provenance-faithful; parsed once, at execute). */
@@ -488,16 +477,12 @@ export interface PersonaNameEntry {
 
 /** Rebuild the `characterNamesById` lookup `resolveRowMacros` takes, from the wire array. Pure;
  *  last-write-wins on a duplicate id. */
-export function buildCharacterNameMap(
-  entries: readonly CharacterNameEntry[],
-): ReadonlyMap<CharacterId, RowCharacterName> {
+export function buildCharacterNameMap(entries: readonly CharacterNameEntry[]): ReadonlyMap<CharacterId, RowCharacterName> {
   return new Map(entries.map((e) => [e.id, { name: e.name }]));
 }
 
 /** Rebuild the `personaNamesById` lookup `resolveRowMacros` takes, from the wire array. */
-export function buildPersonaNameMap(
-  entries: readonly PersonaNameEntry[],
-): ReadonlyMap<PersonaId, RowPersonaName> {
+export function buildPersonaNameMap(entries: readonly PersonaNameEntry[]): ReadonlyMap<PersonaId, RowPersonaName> {
   return new Map(entries.map((e) => [e.id, { name: e.name, description: e.description }]));
 }
 
@@ -524,9 +509,7 @@ export interface PersonaAvatarEntry {
 
 /** Rebuild the `personaAvatarsById` lookup `resolveRowAttribution` takes, from the wire array. Pure;
  *  last-write-wins on a duplicate id (mirrors {@link buildPersonaNameMap}). */
-export function buildPersonaAvatarMap(
-  entries: readonly PersonaAvatarEntry[],
-): ReadonlyMap<PersonaId, string | null> {
+export function buildPersonaAvatarMap(entries: readonly PersonaAvatarEntry[]): ReadonlyMap<PersonaId, string | null> {
   return new Map(entries.map((e) => [e.id, e.avatarHash]));
 }
 
@@ -535,9 +518,7 @@ export function buildPersonaAvatarMap(
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
 /** A stream delta wrapped inside a `ChatBusEvent` of `type: "delta"`. */
-export type ChatDeltaEvent =
-  | { chatId: ChatId; kind: "text"; text: string }
-  | { chatId: ChatId; kind: "reasoning"; text: string };
+export type ChatDeltaEvent = { chatId: ChatId; kind: "text"; text: string } | { chatId: ChatId; kind: "reasoning"; text: string };
 
 /** One part of a history turn's content on the PROVIDER-SEND path (D45). A turn is ALWAYS a content-part
  *  array; a text-only turn is a one-element `[{ type:"text" }]` (no `if(hasImage)` branch — the no-special-case
@@ -730,16 +711,11 @@ export const AUTHORS_NOTE_DEFAULT_ROLE: MessageRole = "system";
  *  to `{prompt}` by {@link roomAuthorsNoteSchema} BEFORE this runs, so the guard only ever sees the object.
  *  D66-B (W5, ruling A): the assistant\@depth-0 prefill WRITE-reject is REMOVED — authored prefill is
  *  persistable; the SHAPE delivery gate normalizes it on a `assistantPrefill:false` model. Shape only. */
-const roomAuthorsNoteDirectiveSchema = injectionDirectiveSchema
-  .partial()
-  .extend({ prompt: overrideField });
+const roomAuthorsNoteDirectiveSchema = injectionDirectiveSchema.partial().extend({ prompt: overrideField });
 
 /** The stored room author's note: the shared injection directive, coercing a LEGACY bare string → `{prompt}`
  *  so pre-#22 `chatMetadata` blobs round-trip losslessly (the migration seam). */
-export const roomAuthorsNoteSchema = z.preprocess(
-  (raw) => (typeof raw === "string" ? { prompt: raw } : raw),
-  roomAuthorsNoteDirectiveSchema,
-);
+export const roomAuthorsNoteSchema = z.preprocess((raw) => (typeof raw === "string" ? { prompt: raw } : raw), roomAuthorsNoteDirectiveSchema);
 export type RoomAuthorsNote = z.infer<typeof roomAuthorsNoteSchema>;
 
 /** The host-only per-room overrides — exactly four fields ("jailbreak" IS post_history). `.strict()`
@@ -765,12 +741,7 @@ export const DEFAULT_ROOM_OVERRIDES: RoomOverrides = {};
  *  widen left→right: `name-avatar` (the conservative floor) → `sheet` (presentable identity) → `sheet+lore`
  *  (+ the character's world-info) → `full` (+ prompt-steering internals). Host-set; the owner/host always
  *  sees `full`; the member view is read-only + while-present. */
-export const MEMBER_CARD_VISIBILITY_LEVELS = [
-  "name-avatar",
-  "sheet",
-  "sheet+lore",
-  "full",
-] as const;
+export const MEMBER_CARD_VISIBILITY_LEVELS = ["name-avatar", "sheet", "sheet+lore", "full"] as const;
 export type MemberCardVisibility = (typeof MEMBER_CARD_VISIBILITY_LEVELS)[number];
 export const memberCardVisibilitySchema = z.enum(MEMBER_CARD_VISIBILITY_LEVELS);
 
@@ -898,12 +869,7 @@ const TALKATIVENESS_MAX = 1;
 /** The default talkativeness weight (Part III §1) — the natural-arbitration sampling weight. */
 export const TALKATIVENESS_DEFAULT = 0.5;
 /** The 0–1 talkativeness weight schema (default {@link TALKATIVENESS_DEFAULT}). */
-export const talkativenessSchema = z
-  .number()
-  .min(TALKATIVENESS_MIN)
-  .max(TALKATIVENESS_MAX)
-  .catch(TALKATIVENESS_DEFAULT)
-  .default(TALKATIVENESS_DEFAULT);
+export const talkativenessSchema = z.number().min(TALKATIVENESS_MIN).max(TALKATIVENESS_MAX).catch(TALKATIVENESS_DEFAULT).default(TALKATIVENESS_DEFAULT);
 
 /** The RESOLVED per-participant content-render policy (D44 §12.0/§12.3) — `override ?? global`. The chat
  *  domain resolves each character's tri-state overrides against the deployment effective config at

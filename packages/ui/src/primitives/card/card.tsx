@@ -25,12 +25,5 @@ export function Card({ className, padding, interactive, ...props }: CardProps): 
           onKeyDown: props.onKeyDown ?? activateOnKey,
         }
       : undefined;
-  return (
-    <div
-      {...props}
-      {...a11y}
-      className={cn(cardVariants({ padding, interactive }), className)}
-      data-slot="card-root"
-    />
-  );
+  return <div {...props} {...a11y} className={cn(cardVariants({ padding, interactive }), className)} data-slot="card-root" />;
 }

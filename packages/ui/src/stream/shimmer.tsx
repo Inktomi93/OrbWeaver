@@ -12,12 +12,7 @@ export interface StreamShimmerProps {
 // `role="status"`'s accessible name is "name from author," not computed from content.
 export function StreamShimmer({ label, className }: StreamShimmerProps): ReactElement {
   return (
-    <span
-      role="status"
-      aria-label={label}
-      data-slot="stream-shimmer"
-      className={cn("flex w-full flex-col gap-field", className)}
-    >
+    <span role="status" aria-label={label} data-slot="stream-shimmer" className={cn("flex w-full flex-col gap-field", className)}>
       <Skeleton variant="text" className="h-block w-full" />
       <Skeleton variant="text" className="h-block" />
     </span>

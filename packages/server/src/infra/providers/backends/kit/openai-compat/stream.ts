@@ -11,11 +11,7 @@ import type {
   ChatMessageToolCall,
   ChatToolCallDelta,
 } from "../wire-schemas";
-import {
-  collectReasoningDetailsText,
-  extractChatReasoning,
-  extractChatReply,
-} from "../wire-schemas";
+import { collectReasoningDetailsText, extractChatReasoning, extractChatReply } from "../wire-schemas";
 
 export interface StreamDelta {
   readonly kind: "text" | "reasoning";
@@ -38,10 +34,7 @@ export interface MapTurnContext {
 }
 
 /** Latch the generation handle (`gen-…`) on first non-empty sight; every chunk repeats the same id. */
-function latchGenerationId(
-  current: string | undefined,
-  chunkId: string | undefined,
-): string | undefined {
+function latchGenerationId(current: string | undefined, chunkId: string | undefined): string | undefined {
   if (current !== undefined) {
     return current;
   }
@@ -101,10 +94,7 @@ interface ToolCallAccumulator {
   arguments: string;
 }
 
-function accumulateToolCallDeltas(
-  acc: Map<number, ToolCallAccumulator>,
-  fragments: readonly ChatToolCallDelta[] | undefined,
-): void {
+function accumulateToolCallDeltas(acc: Map<number, ToolCallAccumulator>, fragments: readonly ChatToolCallDelta[] | undefined): void {
   if (fragments === undefined) {
     return;
   }
@@ -134,10 +124,7 @@ function assembleToolCalls(acc: Map<number, ToolCallAccumulator>): ChatMessageTo
 
 // `reasoningDetails` wins when it carries text (some routes populate both channels for the same CoT —
 // reading both would double it); the legacy `reasoning` string is the fallback.
-function dispatchDelta(
-  delta: ChatCompletionStreamDelta,
-  onDelta: ((delta: StreamDelta) => void) | undefined,
-): string {
+function dispatchDelta(delta: ChatCompletionStreamDelta, onDelta: ((delta: StreamDelta) => void) | undefined): string {
   let appended = "";
   if (typeof delta.content === "string" && delta.content.length > 0) {
     appended = delta.content;
@@ -181,15 +168,9 @@ function mapUsage(view: ChatCompletionResult, ctx: MapTurnContext): ChatUsage {
   };
 }
 
-export function mapChatCompletionToTurnResult(
-  view: ChatCompletionResult,
-  ctx: MapTurnContext,
-): ChatResult {
+export function mapChatCompletionToTurnResult(view: ChatCompletionResult, ctx: MapTurnContext): ChatResult {
   const chatFinish = view.choices?.[0]?.finishReason ?? null;
-  const reasoning =
-    ctx.reasoning !== undefined && ctx.reasoning.length > 0
-      ? ctx.reasoning
-      : extractChatReasoning(view);
+  const reasoning = ctx.reasoning !== undefined && ctx.reasoning.length > 0 ? ctx.reasoning : extractChatReasoning(view);
   const toolCalls = mapToolCalls(view.choices?.[0]?.message?.toolCalls);
   return {
     reply: extractChatReply(view),
@@ -211,9 +192,7 @@ export function mapChatCompletionToTurnResult(
   };
 }
 
-function mapToolCalls(
-  calls: readonly ChatMessageToolCall[] | undefined,
-): readonly ToolCallInput[] | undefined {
+function mapToolCalls(calls: readonly ChatMessageToolCall[] | undefined): readonly ToolCallInput[] | undefined {
   if (calls === undefined || calls.length === 0) {
     return;
   }

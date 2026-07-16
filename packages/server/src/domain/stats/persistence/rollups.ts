@@ -62,11 +62,7 @@ export async function readOverview(db: Db, ownerId: UserId): Promise<OwnerStatsV
   };
 }
 
-export async function readCharacter(
-  db: Db,
-  ownerId: UserId,
-  characterId: CharacterId,
-): Promise<CharacterStatsView | null> {
+export async function readCharacter(db: Db, ownerId: UserId, characterId: CharacterId): Promise<CharacterStatsView | null> {
   // character_stats has no ownerId — scope via JOIN characters on the owner; name off the flat row.
   const row = (
     await db
@@ -120,11 +116,7 @@ export async function readCharacter(
   };
 }
 
-export async function readLeaderboard(
-  db: Db,
-  ownerId: UserId,
-  opts: LeaderboardOpts = {},
-): Promise<LeaderboardRow[]> {
+export async function readLeaderboard(db: Db, ownerId: UserId, opts: LeaderboardOpts = {}): Promise<LeaderboardRow[]> {
   const sort = opts.sort ?? "assistantTurns";
   const limit = Math.min(opts.limit ?? DEFAULT_LIMIT, MAX_LIMIT);
   // Mapped Record — a new LeaderboardSort member is a `tsc` error if its arm is missing (exhaustive-dispatch).
@@ -157,16 +149,12 @@ export async function readLeaderboard(
   }));
 }
 
-export async function readTimeseries(
-  db: Db,
-  ownerId: UserId,
-  opts: TimeseriesOpts = {},
-): Promise<DailyPoint[]> {
+export async function readTimeseries(db: Db, ownerId: UserId, opts: TimeseriesOpts = {}): Promise<DailyPoint[]> {
   const where = [eq(dailyStats.ownerId, ownerId)];
-  if (opts.from) {
+  if (opts.from !== undefined && opts.from !== "") {
     where.push(gte(dailyStats.day, opts.from));
   }
-  if (opts.to) {
+  if (opts.to !== undefined && opts.to !== "") {
     where.push(lte(dailyStats.day, opts.to));
   }
   const rows = await db
@@ -187,11 +175,7 @@ export async function readTimeseries(
   }));
 }
 
-export async function readByModel(
-  db: Db,
-  ownerId: UserId,
-  opts: { limit?: number | undefined } = {},
-): Promise<ModelStatRow[]> {
+export async function readByModel(db: Db, ownerId: UserId, opts: { limit?: number | undefined } = {}): Promise<ModelStatRow[]> {
   const rows = await db
     .select()
     .from(modelStats)
@@ -245,12 +229,7 @@ export async function readByModel(
 }
 
 export async function readFreshness(db: Db, ownerId: UserId): Promise<StatsFreshness> {
-  const o = (
-    await db
-      .select({ computedAt: ownerStats.computedAt })
-      .from(ownerStats)
-      .where(eq(ownerStats.ownerId, ownerId))
-  )[0];
+  const o = (await db.select({ computedAt: ownerStats.computedAt }).from(ownerStats).where(eq(ownerStats.ownerId, ownerId)))[0];
   if (!o) {
     return { computedAt: null, stale: false, hasData: false };
   }
@@ -299,9 +278,9 @@ export async function readPersonaUsage(db: Db, ownerId: UserId): Promise<Persona
     // untyped.
     personaId: castId<PersonaId>(r.personaId),
     name: r.name,
-    chatCount: Number(r.chatCount ?? 0),
-    messageCount: Number(r.messageCount ?? 0),
-    tokensOut: Number(r.tokensOut ?? 0),
+    chatCount: Number(r.chatCount),
+    messageCount: Number(r.messageCount),
+    tokensOut: Number(r.tokensOut),
     lastUsedAt: r.lastUsedAt ?? null,
   }));
 }
@@ -339,11 +318,7 @@ function temporalFrom(days: { day: string; count: number }[]): TemporalStats {
 }
 
 async function dailyActivity(db: Db, ownerId: UserId): Promise<{ day: string; count: number }[]> {
-  const rows = await db
-    .select()
-    .from(dailyStats)
-    .where(eq(dailyStats.ownerId, ownerId))
-    .orderBy(dailyStats.day);
+  const rows = await db.select().from(dailyStats).where(eq(dailyStats.ownerId, ownerId)).orderBy(dailyStats.day);
   // A day's "activity" = messages exchanged + chats opened that day.
   return rows.map((r) => ({ day: r.day, count: r.userTurns + r.assistantTurns + r.chatsCreated }));
 }
@@ -359,10 +334,7 @@ export async function readWrapped(db: Db, ownerId: UserId): Promise<WrappedSumma
   if (!o) {
     return null;
   }
-  const [leaderboard, days] = await Promise.all([
-    readLeaderboard(db, ownerId, { sort: "assistantTurns", limit: 1 }),
-    dailyActivity(db, ownerId),
-  ]);
+  const [leaderboard, days] = await Promise.all([readLeaderboard(db, ownerId, { sort: "assistantTurns", limit: 1 }), dailyActivity(db, ownerId)]);
   const top = leaderboard[0];
   const temporal = temporalFrom(days);
   return {

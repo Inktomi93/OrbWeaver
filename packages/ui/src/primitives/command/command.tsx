@@ -40,18 +40,10 @@ export function Command({ className, onEscape, onKeyDown, ...rest }: CommandProp
       onEscape?.();
     }
   };
-  return (
-    <BaseCommandRoot
-      className={cn(slots.root(), className)}
-      data-slot="command-root"
-      onKeyDown={handleKeyDown}
-      {...rest}
-    />
-  );
+  return <BaseCommandRoot className={cn(slots.root(), className)} data-slot="command-root" onKeyDown={handleKeyDown} {...rest} />;
 }
 
-export interface CommandInputProps
-  extends Omit<ComponentProps<typeof BaseCommandInput>, "className"> {
+export interface CommandInputProps extends Omit<ComponentProps<typeof BaseCommandInput>, "className"> {
   className?: string;
 }
 
@@ -60,29 +52,21 @@ export function CommandInput({ className, ...rest }: CommandInputProps): ReactEl
   return (
     <div className={slots.inputWrapper()} data-slot="command-input-wrapper">
       <Icon icon={Search} size="sm" />
-      <BaseCommandInput
-        className={cn(slots.input(), className)}
-        data-slot="command-input"
-        {...rest}
-      />
+      <BaseCommandInput className={cn(slots.input(), className)} data-slot="command-input" {...rest} />
     </div>
   );
 }
 
-export interface CommandListProps
-  extends Omit<ComponentProps<typeof BaseCommandList>, "className"> {
+export interface CommandListProps extends Omit<ComponentProps<typeof BaseCommandList>, "className"> {
   className?: string;
 }
 
 /** The scrollable listbox. No height is forced — the caller bounds it via `className`. */
 export function CommandList({ className, ...rest }: CommandListProps): ReactElement {
-  return (
-    <BaseCommandList className={cn(slots.list(), className)} data-slot="command-list" {...rest} />
-  );
+  return <BaseCommandList className={cn(slots.list(), className)} data-slot="command-list" {...rest} />;
 }
 
-export interface CommandEmptyProps
-  extends Omit<ComponentProps<typeof BaseCommandEmpty>, "className"> {
+export interface CommandEmptyProps extends Omit<ComponentProps<typeof BaseCommandEmpty>, "className"> {
   className?: string;
 }
 
@@ -98,8 +82,7 @@ export function CommandEmpty({ className, children, ...rest }: CommandEmptyProps
   );
 }
 
-export interface CommandGroupProps
-  extends Omit<ComponentProps<typeof BaseCommandGroup>, "className"> {
+export interface CommandGroupProps extends Omit<ComponentProps<typeof BaseCommandGroup>, "className"> {
   className?: string;
 }
 
@@ -114,18 +97,10 @@ export function CommandGroup({ className, heading, ...rest }: CommandGroupProps)
         {heading}
       </span>
     );
-  return (
-    <BaseCommandGroup
-      className={cn(slots.group(), className)}
-      data-slot="command-group"
-      heading={styledHeading}
-      {...rest}
-    />
-  );
+  return <BaseCommandGroup className={cn(slots.group(), className)} data-slot="command-group" heading={styledHeading} {...rest} />;
 }
 
-export interface CommandItemProps
-  extends Omit<ComponentProps<typeof BaseCommandItem>, "className"> {
+export interface CommandItemProps extends Omit<ComponentProps<typeof BaseCommandItem>, "className"> {
   className?: string;
 }
 
@@ -136,41 +111,25 @@ export interface CommandItemProps
  * visible label matches nothing.
  */
 export function CommandItem({ className, ...rest }: CommandItemProps): ReactElement {
-  return (
-    <BaseCommandItem className={cn(slots.item(), className)} data-slot="command-item" {...rest} />
-  );
+  return <BaseCommandItem className={cn(slots.item(), className)} data-slot="command-item" {...rest} />;
 }
 
-export interface CommandSeparatorProps
-  extends Omit<ComponentProps<typeof BaseCommandSeparator>, "className"> {
+export interface CommandSeparatorProps extends Omit<ComponentProps<typeof BaseCommandSeparator>, "className"> {
   className?: string;
 }
 
 /** A divider between groups/items — cmdk hides it during a search unless `alwaysRender` is set. */
 export function CommandSeparator({ className, ...rest }: CommandSeparatorProps): ReactElement {
-  return (
-    <BaseCommandSeparator
-      className={cn(slots.separator(), className)}
-      data-slot="command-separator"
-      {...rest}
-    />
-  );
+  return <BaseCommandSeparator className={cn(slots.separator(), className)} data-slot="command-separator" {...rest} />;
 }
 
-export interface CommandLoadingProps
-  extends Omit<ComponentProps<typeof BaseCommandLoading>, "className"> {
+export interface CommandLoadingProps extends Omit<ComponentProps<typeof BaseCommandLoading>, "className"> {
   className?: string;
 }
 
 /** Progressbar shown while async suggestions load — render conditionally around it. */
 export function CommandLoading({ className, ...rest }: CommandLoadingProps): ReactElement {
-  return (
-    <BaseCommandLoading
-      className={cn(slots.loading(), className)}
-      data-slot="command-loading"
-      {...rest}
-    />
-  );
+  return <BaseCommandLoading className={cn(slots.loading(), className)} data-slot="command-loading" {...rest} />;
 }
 
 /** Announces the live filtered-result count to screen readers. Must render under `<Command>`. */

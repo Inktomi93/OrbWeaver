@@ -11,11 +11,7 @@ import { batchMany, digestThemeAssignments, messages } from "@orb/db";
 import type { ChatDigestId, ChatId, UserId } from "@orb/kit/ids";
 import { asc, eq, inArray } from "drizzle-orm";
 import type { Tier0RangeOp } from "../contract/service";
-import {
-  readSegmentBlockSpans,
-  readTier0DigestSpans,
-  readTierKDigestSpans,
-} from "../persistence/embed-store-reads";
+import { readSegmentBlockSpans, readTier0DigestSpans, readTierKDigestSpans } from "../persistence/embed-store-reads";
 
 interface SeqSpan {
   readonly seqStart: number;
@@ -28,10 +24,7 @@ interface Stamp {
   readonly span: SeqSpan;
 }
 
-async function readMessagesByChat(
-  db: Db,
-  chatIds: readonly ChatId[],
-): Promise<Map<ChatId, { seq: number; createdAt: number }[]>> {
+async function readMessagesByChat(db: Db, chatIds: readonly ChatId[]): Promise<Map<ChatId, { seq: number; createdAt: number }[]>> {
   const byChat = new Map<ChatId, { seq: number; createdAt: number }[]>();
   if (chatIds.length === 0) {
     return byChat;
@@ -53,10 +46,7 @@ async function readMessagesByChat(
 }
 
 // `chatMsgs` is already seq-ascending; the lower-median is at index floor((n-1)/2).
-function medianAt(
-  chatMsgs: readonly { seq: number; createdAt: number }[] | undefined,
-  span: SeqSpan,
-): number | null {
+function medianAt(chatMsgs: readonly { seq: number; createdAt: number }[] | undefined, span: SeqSpan): number | null {
   if (chatMsgs === undefined) {
     return null;
   }
@@ -97,15 +87,8 @@ function tierKSeqSpan(
  * the count of digests stamped. Standalone `(db, tier0RangeOf, ownerId?)` so the service factory and
  * `computeThemes` both drive it with the ctx-bound grid op.
  */
-export async function backfillMsgMidAt(
-  db: Db,
-  tier0RangeOf: Tier0RangeOp,
-  ownerId?: UserId | null,
-): Promise<{ stamped: number }> {
-  const [tier0Spans, tierKDigests] = await Promise.all([
-    readTier0DigestSpans(db, ownerId),
-    readTierKDigestSpans(db, ownerId),
-  ]);
+export async function backfillMsgMidAt(db: Db, tier0RangeOf: Tier0RangeOp, ownerId?: UserId | null): Promise<{ stamped: number }> {
+  const [tier0Spans, tierKDigests] = await Promise.all([readTier0DigestSpans(db, ownerId), readTierKDigestSpans(db, ownerId)]);
   if (tier0Spans.length === 0 && tierKDigests.length === 0) {
     return { stamped: 0 };
   }
@@ -140,12 +123,7 @@ export async function backfillMsgMidAt(
     if (at === null) {
       continue;
     }
-    updates.push(
-      db
-        .update(digestThemeAssignments)
-        .set({ msgMidAt: at })
-        .where(eq(digestThemeAssignments.digestId, digestId)),
-    );
+    updates.push(db.update(digestThemeAssignments).set({ msgMidAt: at }).where(eq(digestThemeAssignments.digestId, digestId)));
   }
   if (updates.length > 0) {
     await db.batch(batchMany(updates));

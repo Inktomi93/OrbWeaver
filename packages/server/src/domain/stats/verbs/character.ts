@@ -7,10 +7,7 @@ import { readCharacter } from "../persistence/rollups";
 // Scoped to the owner's characters (character_stats has no ownerId — D23; the read JOINs characters).
 
 export function createCharacter(ctx: StatsContext): Pick<StatsService, "character"> {
-  async function character(
-    ownerId: UserId,
-    characterId: CharacterId,
-  ): Promise<CharacterStatsView | null> {
+  async function character(ownerId: UserId, characterId: CharacterId): Promise<CharacterStatsView | null> {
     return await readCharacter(ctx.db, ownerId, characterId);
   }
   return { character };

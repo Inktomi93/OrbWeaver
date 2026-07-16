@@ -3,13 +3,7 @@
 // `handle.openWithPayload(payload)` opens the drawer imperatively WITHOUT any trigger association
 // and routes the payload to the Root render-function children (Base UI drawer re-exports the dialog
 // createHandle mechanism).
-import {
-  createDrawerHandle,
-  Drawer,
-  DrawerPopup,
-  DrawerTitle,
-  DrawerTrigger,
-} from "@orb/ui/drawer";
+import { createDrawerHandle, Drawer, DrawerPopup, DrawerTitle, DrawerTrigger } from "@orb/ui/drawer";
 import type { ReactElement } from "react";
 import { useState } from "react";
 

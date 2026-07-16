@@ -23,8 +23,6 @@ describe("resolveCookieSession (via the cookie mode) — inert at infra post-D40
   });
 
   test("our cookie present → STILL null (infra never reads the cookie; the seam owns it)", async () => {
-    expect(
-      await resolveCookie(headers({ cookie: `${SESSION_COOKIE_NAME}=tok-abc` }), cfg(), {}),
-    ).toBeNull();
+    expect(await resolveCookie(headers({ cookie: `${SESSION_COOKIE_NAME}=tok-abc` }), cfg(), {})).toBeNull();
   });
 });

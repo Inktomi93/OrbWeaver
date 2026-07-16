@@ -14,10 +14,7 @@ type CharacterDetail = inferOutput<Trpc["character"]["update"]>;
 
 /** §4.1 "New" — the minimal create (handle auto-derived from name). `busDriven` — `charactersChanged`
  *  refreshes `character.list`; the caller selects the returned character to open its editor. */
-export const useCreateCharacter = createEntityMutation<
-  inferInput<Trpc["character"]["create"]>,
-  inferOutput<Trpc["character"]["create"]>
->({
+export const useCreateCharacter = createEntityMutation<inferInput<Trpc["character"]["create"]>, inferOutput<Trpc["character"]["create"]>>({
   options: (trpc) => trpc.character.create.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't create the character.",
@@ -34,11 +31,7 @@ export const useCreateCharacter = createEntityMutation<
  *  NB: the LIST row's star chip reads the SORT-discriminated `character.list` infinite query, whose exact
  *  key isn't derivable from these vars (the sort lives in the out-of-scope view-prefs store) — it still
  *  reconciles via the `charactersChanged` bus echo. */
-export const useUpdateCharacter = createEntityMutation<
-  inferInput<Trpc["character"]["update"]>,
-  CharacterDetail,
-  CharacterDetail
->({
+export const useUpdateCharacter = createEntityMutation<inferInput<Trpc["character"]["update"]>, CharacterDetail, CharacterDetail>({
   options: (trpc) => trpc.character.update.mutationOptions(),
   optimistic: {
     readKey: (trpc, vars) => trpc.character.get.queryKey({ characterId: vars.characterId }),
@@ -62,20 +55,14 @@ export const useUpdateCharacter = createEntityMutation<
 });
 
 /** §4.6 bulk: archive/unarchive many. `busDriven` — `charactersChanged` covers `character.list`. */
-export const useBulkArchiveCharacters = createEntityMutation<
-  inferInput<Trpc["character"]["bulkArchive"]>,
-  unknown
->({
+export const useBulkArchiveCharacters = createEntityMutation<inferInput<Trpc["character"]["bulkArchive"]>, unknown>({
   options: (trpc) => trpc.character.bulkArchive.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't archive the selected characters.",
 });
 
 /** §4.6 bulk: attach a tag to many. `busDriven` — `charactersChanged` covers `character.list`. */
-export const useBulkAddCardTag = createEntityMutation<
-  inferInput<Trpc["character"]["bulkAddCardTag"]>,
-  unknown
->({
+export const useBulkAddCardTag = createEntityMutation<inferInput<Trpc["character"]["bulkAddCardTag"]>, unknown>({
   options: (trpc) => trpc.character.bulkAddCardTag.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't tag the selected characters.",
@@ -85,20 +72,14 @@ export const useBulkAddCardTag = createEntityMutation<
  *  `busDriven` — the verb emits `charactersChanged` (its OWN event family, unlike a generic tag detach which
  *  would leave the character chips stale), so the bus echo reconciles the acting + other devices; NOT an
  *  `invalidates` entry (the star-toggle precedent — a self-invalidate would double-refetch). */
-export const useBulkRemoveCardTag = createEntityMutation<
-  inferInput<Trpc["character"]["bulkRemoveCardTag"]>,
-  unknown
->({
+export const useBulkRemoveCardTag = createEntityMutation<inferInput<Trpc["character"]["bulkRemoveCardTag"]>, unknown>({
   options: (trpc) => trpc.character.bulkRemoveCardTag.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't remove the tag.",
 });
 
 /** §4.6 bulk: delete many. `busDriven` — `charactersChanged` covers `character.list`. */
-export const useBulkRemoveCharacters = createEntityMutation<
-  inferInput<Trpc["character"]["bulkRemove"]>,
-  unknown
->({
+export const useBulkRemoveCharacters = createEntityMutation<inferInput<Trpc["character"]["bulkRemove"]>, unknown>({
   options: (trpc) => trpc.character.bulkRemove.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't delete the selected characters.",

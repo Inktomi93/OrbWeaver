@@ -27,10 +27,7 @@ describe("attach card tag by name", () => {
     const tagRows = await db.select().from(tags).where(eq(tags.ownerId, owner));
     expect(tagRows.map((t) => t.name)).toEqual(["hero"]);
 
-    const junction = await db
-      .select()
-      .from(characterTags)
-      .where(eq(characterTags.characterId, characterId));
+    const junction = await db.select().from(characterTags).where(eq(characterTags.characterId, characterId));
     expect(junction).toHaveLength(1);
     expect(junction[0]?.tagId).toBe(tagRows[0]?.id);
     expect(junction[0]?.status).toBe("accepted");
@@ -52,10 +49,7 @@ describe("attach card tag by name", () => {
 
     // Reused the existing row — no second "hero" tag minted.
     expect(await db.select().from(tags).where(eq(tags.ownerId, owner))).toHaveLength(1);
-    const junction = await db
-      .select()
-      .from(characterTags)
-      .where(eq(characterTags.characterId, characterId));
+    const junction = await db.select().from(characterTags).where(eq(characterTags.characterId, characterId));
     expect(junction[0]?.tagId).toBe(existing);
   });
 
@@ -65,16 +59,10 @@ describe("attach card tag by name", () => {
     const svc = createTagService(makeTagHarness(db).ctx);
     const characterId = await seedCharacter(db, owner);
 
-    expect(await svc.attachCardTagByName({ ownerId: owner, characterId, tagName: "hero" })).toBe(
-      true,
-    );
-    expect(await svc.attachCardTagByName({ ownerId: owner, characterId, tagName: "hero" })).toBe(
-      false,
-    );
+    expect(await svc.attachCardTagByName({ ownerId: owner, characterId, tagName: "hero" })).toBe(true);
+    expect(await svc.attachCardTagByName({ ownerId: owner, characterId, tagName: "hero" })).toBe(false);
 
-    expect(
-      await db.select().from(characterTags).where(eq(characterTags.characterId, characterId)),
-    ).toHaveLength(1);
+    expect(await db.select().from(characterTags).where(eq(characterTags.characterId, characterId))).toHaveLength(1);
     expect(await db.select().from(tags).where(eq(tags.ownerId, owner))).toHaveLength(1);
   });
 
@@ -97,10 +85,7 @@ describe("attach card tag by name", () => {
     const ownerTags = await db.select().from(tags).where(eq(tags.ownerId, owner));
     expect(ownerTags).toHaveLength(1);
     expect(ownerTags[0]?.id).not.toBe(foreignTag);
-    const junction = await db
-      .select()
-      .from(characterTags)
-      .where(eq(characterTags.characterId, characterId));
+    const junction = await db.select().from(characterTags).where(eq(characterTags.characterId, characterId));
     expect(junction[0]?.tagId).toBe(ownerTags[0]?.id);
   });
 
@@ -114,10 +99,7 @@ describe("attach card tag by name", () => {
 
     const tagRows = await db.select().from(tags).where(eq(tags.ownerId, owner));
     expect(tagRows[0]?.source).toBe("manual");
-    const junction = await db
-      .select()
-      .from(characterTags)
-      .where(eq(characterTags.characterId, characterId));
+    const junction = await db.select().from(characterTags).where(eq(characterTags.characterId, characterId));
     expect(junction[0]?.status).toBe("accepted");
   });
 
@@ -139,10 +121,7 @@ describe("attach card tag by name", () => {
     const tagRows = await db.select().from(tags).where(eq(tags.ownerId, owner));
     expect(tagRows[0]?.name).toBe("bard");
     expect(tagRows[0]?.source).toBe("card");
-    const junction = await db
-      .select()
-      .from(characterTags)
-      .where(eq(characterTags.characterId, characterId));
+    const junction = await db.select().from(characterTags).where(eq(characterTags.characterId, characterId));
     expect(junction[0]?.status).toBe("pending");
   });
 
@@ -163,10 +142,7 @@ describe("attach card tag by name", () => {
     });
     expect(reattached).toBe(false); // already attached → a no-op, NOT a downgrade
 
-    const junction = await db
-      .select()
-      .from(characterTags)
-      .where(eq(characterTags.characterId, characterId));
+    const junction = await db.select().from(characterTags).where(eq(characterTags.characterId, characterId));
     expect(junction).toHaveLength(1);
     expect(junction[0]?.status).toBe("accepted"); // still accepted — the no-op left it untouched
     // the tag keeps the source it was born with (manual); a re-attach doesn't restamp source.
@@ -180,9 +156,7 @@ describe("attach card tag by name", () => {
     const svc = createTagService(makeTagHarness(db).ctx);
     const characterId = await seedCharacter(db, owner);
 
-    expect(await svc.attachCardTagByName({ ownerId: owner, characterId, tagName: "   " })).toBe(
-      false,
-    );
+    expect(await svc.attachCardTagByName({ ownerId: owner, characterId, tagName: "   " })).toBe(false);
     expect(await db.select().from(tags).where(eq(tags.ownerId, owner))).toHaveLength(0);
   });
 
@@ -199,10 +173,7 @@ describe("attach card tag by name", () => {
     expect(tagRows).toHaveLength(1);
     // First-write casing + whitespace-collapse is the stored display form.
     expect(tagRows[0]?.name).toBe("Mentor");
-    const junction = await db
-      .select()
-      .from(characterTags)
-      .where(eq(characterTags.characterId, characterId));
+    const junction = await db.select().from(characterTags).where(eq(characterTags.characterId, characterId));
     expect(junction).toHaveLength(1);
   });
 });
@@ -231,10 +202,7 @@ describe("cross-source tag dedupe", () => {
     expect(tagRows[0]?.id).toBe(manual.id); // the card attach reused the manually-created row
     expect(tagRows[0]?.name).toBe("Female"); // first-write display casing kept
 
-    const junction = await db
-      .select()
-      .from(characterTags)
-      .where(eq(characterTags.characterId, characterId));
+    const junction = await db.select().from(characterTags).where(eq(characterTags.characterId, characterId));
     expect(junction).toHaveLength(1);
     expect(junction[0]?.tagId).toBe(manual.id);
   });
@@ -252,9 +220,7 @@ describe("cross-source tag dedupe", () => {
       tagName: "female",
       source: "card",
     });
-    await expect(
-      svc.createTag({ principal: principal(owner), input: { name: "FEMALE" } }),
-    ).rejects.toThrow();
+    await expect(svc.createTag({ principal: principal(owner), input: { name: "FEMALE" } })).rejects.toThrow();
 
     expect(await db.select().from(tags).where(eq(tags.ownerId, owner))).toHaveLength(1);
   });

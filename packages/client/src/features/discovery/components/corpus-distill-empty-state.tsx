@@ -18,11 +18,7 @@ export interface CorpusDistillEmptyStateProps {
 }
 
 /** Empty state for the distillation-gated discovery surfaces, with a "Go to Refinery" primary CTA. */
-export function CorpusDistillEmptyState({
-  title,
-  description,
-  secondaryAction,
-}: CorpusDistillEmptyStateProps): ReactElement {
+export function CorpusDistillEmptyState({ title, description, secondaryAction }: CorpusDistillEmptyStateProps): ReactElement {
   return (
     <EmptyState
       icon={<Icon icon={Sparkles} size="lg" />}

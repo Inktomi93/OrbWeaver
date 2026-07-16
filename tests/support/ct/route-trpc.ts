@@ -85,9 +85,7 @@ interface TrpcErrorMarker {
  * Scripted failure sentinel — a responder that returns this gets an ERROR envelope. Fail-then-
  * succeed scripts close over a counter: `echo: () => (n++ === 0 ? trpcError() : data)`.
  */
-export function trpcError(
-  opts: { readonly code?: TrpcErrorCode; readonly message?: string } = {},
-): TrpcErrorMarker {
+export function trpcError(opts: { readonly code?: TrpcErrorCode; readonly message?: string } = {}): TrpcErrorMarker {
   return {
     [ERROR_MARK]: true,
     code: opts.code ?? "INTERNAL_SERVER_ERROR",
@@ -156,8 +154,7 @@ export async function routeTrpc(page: Page, routes: TrpcRoutes): Promise<TrpcRec
       const input = byIndex[String(i)];
       record(proc, input);
       const responder = routes[proc];
-      const data =
-        typeof responder === "function" ? (responder as (x: unknown) => unknown)(input) : responder;
+      const data = typeof responder === "function" ? (responder as (x: unknown) => unknown)(input) : responder;
       if (isTrpcError(data)) {
         return {
           error: { code: errorNumber(data.code), message: data.message, data: { code: data.code } },

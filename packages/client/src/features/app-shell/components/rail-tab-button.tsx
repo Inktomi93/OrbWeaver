@@ -17,20 +17,9 @@ export interface RailTabButtonProps {
   readonly onClick: () => void;
 }
 
-export function RailTabButton({
-  label,
-  icon,
-  active = false,
-  onClick,
-}: RailTabButtonProps): ReactElement {
+export function RailTabButton({ label, icon, active = false, onClick }: RailTabButtonProps): ReactElement {
   return (
-    <Button
-      intent="ghost"
-      aria-current={active ? "page" : undefined}
-      data-active={active ? "" : undefined}
-      className="shell-tab-button"
-      onClick={onClick}
-    >
+    <Button intent="ghost" aria-current={active ? "page" : undefined} data-active={active ? "" : undefined} className="shell-tab-button" onClick={onClick}>
       <Icon icon={icon} size="sm" aria-hidden={true} />
       <Text as="span" size="micro" className="shell-tab-label">
         {label}

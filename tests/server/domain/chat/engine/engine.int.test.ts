@@ -16,29 +16,13 @@ import { eq } from "drizzle-orm";
 import { beforeEach, describe, vi } from "vitest";
 import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context";
 import { ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors";
-import type {
-  TurnPrep,
-  TurnRequest,
-  TurnStreamChunk,
-} from "../../../../../packages/server/src/domain/chat/contract/results";
+import type { TurnPrep, TurnRequest, TurnStreamChunk } from "../../../../../packages/server/src/domain/chat/contract/results";
 import { createTurnEngine } from "../../../../../packages/server/src/domain/chat/engine/engine";
 import { tryAcquireLock } from "../../../../../packages/server/src/domain/chat/persistence/lock";
-import {
-  loadCanonHistory,
-  loadMaxMessageSeq,
-} from "../../../../../packages/server/src/domain/chat/persistence/queries";
+import { loadCanonHistory, loadMaxMessageSeq } from "../../../../../packages/server/src/domain/chat/persistence/queries";
 import { freshDb } from "../../../../support/db";
 import { expect, test } from "../../../../support/fixtures";
-import {
-  FROZEN_AT,
-  makeChatContext,
-  seedCharacter,
-  seedChat,
-  seedMessage,
-  seedParticipant,
-  seedUser,
-  testConnection,
-} from "../_support";
+import { FROZEN_AT, makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser, testConnection } from "../_support";
 
 const HOST = castId<UserId>("user_host");
 const MEMBER = castId<UserId>("user_member");
@@ -331,9 +315,7 @@ describe("createTurnEngine — R3 stats real-wire (the REAL applyStatsDelta land
     // A character-voiced assistant turn (speakerCharacterId set) so ALL FOUR grains touch — most notably
     // character_stats (skipped for a null character). OK_TURN's economics: content "Hi there", tokensIn 4,
     // tokensOut 2, model "test-model".
-    const outcome = await engine.runTurn(
-      prepOf(chatId, { runAsUserId: HOST, speakerCharacterId: char }),
-    );
+    const outcome = await engine.runTurn(prepOf(chatId, { runAsUserId: HOST, speakerCharacterId: char }));
     expect(outcome.aborted).toBe(false);
 
     // ownerStats — attributed to the host (runAsUserId), the token economics folded in.
@@ -343,10 +325,7 @@ describe("createTurnEngine — R3 stats real-wire (the REAL applyStatsDelta land
     expect(owner?.tokensOut).toBe(2);
 
     // characterStats — the speaker's row (NO ownerId column, D23), same assistant-turn contribution.
-    const [character] = await db
-      .select()
-      .from(characterStats)
-      .where(eq(characterStats.characterId, char));
+    const [character] = await db.select().from(characterStats).where(eq(characterStats.characterId, char));
     expect(character?.assistantTurns).toBe(1);
     expect(character?.tokensOut).toBe(2);
 
@@ -360,10 +339,7 @@ describe("createTurnEngine — R3 stats real-wire (the REAL applyStatsDelta land
 
 describe("createTurnEngine — D46 runtime plane (delta persist + cache recompute)", () => {
   async function runtimeCache(chatId: ChatId): Promise<Record<string, string> | null> {
-    const [row] = await db
-      .select({ runtimeVariables: chats.runtimeVariables })
-      .from(chats)
-      .where(eq(chats.id, chatId));
+    const [row] = await db.select({ runtimeVariables: chats.runtimeVariables }).from(chats).where(eq(chats.id, chatId));
     return row?.runtimeVariables ?? null;
   }
 

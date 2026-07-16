@@ -28,15 +28,8 @@ import { seedUser } from "../_support.ts";
 const AT = 1_750_000_000_000;
 
 // Insert a raw `user_settings` row with a crafted (possibly legacy/corrupt) blob + version column.
-async function insertRaw(
-  db: Db,
-  userId: UserId,
-  schemaVersion: number,
-  config: Record<string, unknown>,
-): Promise<void> {
-  await db
-    .insert(userSettings)
-    .values({ userId, schemaVersion, config: config as unknown as UserSettings, updatedAt: AT });
+async function insertRaw(db: Db, userId: UserId, schemaVersion: number, config: Record<string, unknown>): Promise<void> {
+  await db.insert(userSettings).values({ userId, schemaVersion, config: config as unknown as UserSettings, updatedAt: AT });
 }
 
 describe("readUserSettings", () => {

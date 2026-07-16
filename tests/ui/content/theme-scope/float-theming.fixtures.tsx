@@ -10,13 +10,7 @@ import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement, ReactNode } from "react";
 import { useRef } from "react";
 
-export function ThemedFloatScope({
-  accent,
-  children,
-}: {
-  readonly accent: string;
-  readonly children: ReactNode;
-}): ReactElement {
+export function ThemedFloatScope({ accent, children }: { readonly accent: string; readonly children: ReactNode }): ReactElement {
   const portalRef = useRef<HTMLDivElement>(null);
   return (
     <ThemeScope tokens={{ accent }}>

@@ -24,11 +24,7 @@ test("tooth 2 fires when a manifest-listed test file no longer exists on disk", 
     },
     (root) => {
       const violations = monotonicTests.run(ctxAt(root));
-      expect(
-        violations.some(
-          (v) => v.file === "tests/server/gone.test.ts" && NO_LONGER_EXISTS_RE.test(v.message),
-        ),
-      ).toBe(true);
+      expect(violations.some((v) => v.file === "tests/server/gone.test.ts" && NO_LONGER_EXISTS_RE.test(v.message))).toBe(true);
     },
   );
 });

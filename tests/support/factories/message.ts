@@ -51,10 +51,7 @@ export function makeMessage(overrides: Partial<MessageRow> = {}): MessageRow {
 
 /** The D26 3-step dance over a real db: slot → variant idx 0 → `selectedVariantId` pointer. An absent
  *  `chatId` seeds a bare chat first (FK-clean on an empty db). */
-export async function seedMessage(
-  db: Db,
-  overrides: SeedMessageOptions = {},
-): Promise<SeededMessage> {
+export async function seedMessage(db: Db, overrides: SeedMessageOptions = {}): Promise<SeededMessage> {
   const { content, ...slotOverrides } = overrides;
   const chatId = slotOverrides.chatId ?? (await seedChat(db)).id;
   const slot = makeMessage({ ...slotOverrides, chatId });

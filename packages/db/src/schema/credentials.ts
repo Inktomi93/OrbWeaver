@@ -65,9 +65,7 @@ export const userCredentials = sqliteTable(
     index("user_credentials_owner_idx").on(table.ownerId),
     // one-active-per-(user,provider): SQLite UNIQUE ignores rows failing the WHERE predicate, so any
     // number of inactive rows for a slot coexist with the single active one.
-    uniqueIndex("user_credentials_active_unique")
-      .on(table.ownerId, table.provider)
-      .where(sql`${table.active} = 1`),
+    uniqueIndex("user_credentials_active_unique").on(table.ownerId, table.provider).where(sql`${table.active} = 1`),
     check("user_credentials_provider_check", sql.raw(`provider in (${PROVIDER_CHECK_LIST})`)),
   ],
 );

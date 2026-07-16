@@ -13,10 +13,7 @@ import { cannedQuip } from "./canned";
 type ReactorDeps = Pick<BuddyObserverEnv, "db" | "now" | "newQuipId" | "summarize" | "emit">;
 
 const COOLDOWN_MS = 90_000;
-const BYPASS_COOLDOWN: ReadonlySet<BuddySignalKind> = new Set<BuddySignalKind>([
-  "workload:failed",
-  "trace:error-spike",
-]);
+const BYPASS_COOLDOWN: ReadonlySet<BuddySignalKind> = new Set<BuddySignalKind>(["workload:failed", "trace:error-spike"]);
 const MAX_CAS_ATTEMPTS = 3;
 const QUIP_KEEP = 20;
 const STAT_NUDGE = 2;
@@ -71,14 +68,10 @@ export async function react(deps: ReactorDeps, signal: BuddySignal): Promise<voi
   try {
     await reactInner(deps, signal);
   } catch (err) {
-    getLog().warn(
-      { err, kind: signal.kind, userId: signal.userId },
-      "buddy observer: react failed (swallowed — the reactor never throws into the loop)",
-    );
+    getLog().warn({ err, kind: signal.kind, userId: signal.userId }, "buddy observer: react failed (swallowed — the reactor never throws into the loop)");
   }
 }
 
-// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: the CAS loop + the throttle/dedup re-checks after a lost race are one cohesive reaction step; splitting them hides the retry contract.
 async function reactInner(deps: ReactorDeps, signal: BuddySignal): Promise<void> {
   const bypass = BYPASS_COOLDOWN.has(signal.kind);
   let row = await loadBuddy(deps.db, signal.userId);
@@ -119,13 +112,9 @@ async function reactInner(deps: ReactorDeps, signal: BuddySignal): Promise<void>
       });
       return;
     }
-    // biome-ignore lint/performance/noAwaitInLoops: the reload is the retry's whole point — it must observe the winner's write before recomputing.
     row = await loadBuddy(deps.db, signal.userId);
   }
-  getLog().debug(
-    { kind: signal.kind, userId: signal.userId },
-    "buddy observer: CAS retries exhausted — reaction dropped",
-  );
+  getLog().debug({ kind: signal.kind, userId: signal.userId }, "buddy observer: CAS retries exhausted — reaction dropped");
 }
 
 async function afterReact(
@@ -141,12 +130,7 @@ async function afterReact(
     readonly at: number;
   },
 ): Promise<void> {
-  const { text, fromCanned } = await generateQuip(
-    deps,
-    signal,
-    { name: outcome.name, personality: outcome.personality },
-    outcome.nextMood,
-  );
+  const { text, fromCanned } = await generateQuip(deps, signal, { name: outcome.name, personality: outcome.personality }, outcome.nextMood);
   const quipId = deps.newQuipId();
   await insertQuip(deps.db, {
     id: quipId,

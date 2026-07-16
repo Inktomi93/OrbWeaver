@@ -8,10 +8,7 @@ import type { CharacterId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe, vi } from "vitest";
 import type { CastName } from "../../../../../packages/server/src/domain/chat/contract/arbitration";
-import {
-  CHAT_OP_CODES,
-  ChatOperationError,
-} from "../../../../../packages/server/src/domain/chat/contract/errors";
+import { CHAT_OP_CODES, ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors";
 import type { TurnOutcome } from "../../../../../packages/server/src/domain/chat/contract/results";
 import { runAutoMode } from "../../../../../packages/server/src/domain/chat/engine/auto-mode";
 import { expect, test } from "../../../../support/fixtures";
@@ -121,8 +118,7 @@ describe("runAutoMode — locked (a concurrent turn holds the lock)", () => {
       delayMs: 0,
       delay: noDelay,
       nextSpeaker: (): Promise<CastName | null> => Promise.resolve(sp("a")),
-      runTurn: (): Promise<TurnOutcome> =>
-        Promise.reject(new ChatOperationError(CHAT_OP_CODES.locked, "in flight")),
+      runTurn: (): Promise<TurnOutcome> => Promise.reject(new ChatOperationError(CHAT_OP_CODES.locked, "in flight")),
     });
     expect(result.stopReason).toBe("locked");
     expect(result.turns).toBe(0);

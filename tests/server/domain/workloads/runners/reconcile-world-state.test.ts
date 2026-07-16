@@ -8,12 +8,7 @@ import { fakeEnv, makeRunnerContext } from "../_support.ts";
 
 describe("reconcile-world-state runner (v2 stub)", () => {
   test("is a no-op returning deferred", async () => {
-    const result = await reconcileWorldStateRunner(
-      makeRunnerContext(fakeEnv()),
-      {},
-      vi.fn(),
-      new AbortController().signal,
-    );
+    const result = await reconcileWorldStateRunner(makeRunnerContext(fakeEnv()), {}, vi.fn(), new AbortController().signal);
     expect(result).toEqual({ deferred: true });
   });
 });

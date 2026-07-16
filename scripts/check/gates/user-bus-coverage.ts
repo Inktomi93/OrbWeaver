@@ -49,10 +49,7 @@ function literalCorpus(project: { getSourceFiles: () => SourceFile[] }): string 
     if (!EMIT_SCOPE.test(sf.getFilePath())) {
       continue;
     }
-    for (const kind of [
-      SyntaxKind.StringLiteral,
-      SyntaxKind.NoSubstitutionTemplateLiteral,
-    ] as const) {
+    for (const kind of [SyntaxKind.StringLiteral, SyntaxKind.NoSubstitutionTemplateLiteral] as const) {
       for (const lit of sf.getDescendantsOfKind(kind)) {
         parts.push(lit.getLiteralText());
       }
@@ -63,9 +60,7 @@ function literalCorpus(project: { getSourceFiles: () => SourceFile[] }): string 
 
 /** The whole-tree reconciliation shared by the legacy Check and the single-pass `run` descriptor. */
 function reconcileUserBusCoverage(project: Project): Violation[] {
-  const contracts = project
-    .getSourceFiles()
-    .find((sf) => CONTRACTS_USER_BUS.test(sf.getFilePath()));
+  const contracts = project.getSourceFiles().find((sf) => CONTRACTS_USER_BUS.test(sf.getFilePath()));
   if (contracts === undefined) {
     return []; // contracts not in the project (placeholder tree) — vacuous
   }
@@ -108,8 +103,7 @@ export const gate: GateDescriptor = {
   mustFlag: [
     {
       files: {
-        "packages/contracts/src/user-bus/index.ts":
-          'export const USER_BUS_EVENT_TYPES = { neverEmitted: "neverEmitted" } as const;\n',
+        "packages/contracts/src/user-bus/index.ts": 'export const USER_BUS_EVENT_TYPES = { neverEmitted: "neverEmitted" } as const;\n',
         "packages/server/src/domain/settings/x.ts": 'export const q = "somethingElse";\n',
       },
       expect: { messageIncludes: "NO server emit site" },
@@ -123,16 +117,14 @@ export const gate: GateDescriptor = {
   mustPass: [
     {
       files: {
-        "packages/contracts/src/user-bus/index.ts":
-          'export const USER_BUS_EVENT_TYPES = { emitted: "emitted" } as const;\n',
+        "packages/contracts/src/user-bus/index.ts": 'export const USER_BUS_EVENT_TYPES = { emitted: "emitted" } as const;\n',
         "packages/server/src/domain/settings/x.ts": 'export const q = "emitted";\n',
       },
       why: "the member's discriminator appears as a server emit literal — covered, passes",
     },
     {
       files: {
-        "packages/contracts/src/user-bus/index.ts":
-          'export const USER_BUS_EVENT_TYPES = { connectionsChanged: "connectionsChanged" } as const;\n',
+        "packages/contracts/src/user-bus/index.ts": 'export const USER_BUS_EVENT_TYPES = { connectionsChanged: "connectionsChanged" } as const;\n',
         "packages/server/src/domain/settings/x.ts": 'export const q = "somethingElse";\n',
       },
       why: "a member with NO emit site but a DEFERRED entry present (connectionsChanged) — the deferred-covers-it branch, passes",

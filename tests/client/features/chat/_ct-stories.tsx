@@ -20,13 +20,7 @@ import {
   MessageThreadAnchor,
   NewChatPicker,
 } from "@orb/client/features/chat";
-import type {
-  ChatContextState,
-  ChatSurfaceAnchor,
-  ChatSurfaceContribution,
-  ContextTabDef,
-  MessageRenderContext,
-} from "@orb/client/lib";
+import type { ChatContextState, ChatSurfaceAnchor, ChatSurfaceContribution, ContextTabDef, MessageRenderContext } from "@orb/client/lib";
 import { createContributorRegistry } from "@orb/client/lib";
 import type { ActiveChatHandle, ChatHandle } from "@orb/client/state";
 import {
@@ -40,17 +34,8 @@ import {
   useSectionRegistry,
   useTurnPhase,
 } from "@orb/client/state";
-import type {
-  CharacterNameEntry,
-  MessageView,
-  ParticipantView,
-  PersonaNameEntry,
-} from "@orb/contracts/chat";
-import {
-  buildCharacterNameMap,
-  buildPersonaNameMap,
-  DEFAULT_GROUP_CONFIG,
-} from "@orb/contracts/chat";
+import type { CharacterNameEntry, MessageView, ParticipantView, PersonaNameEntry } from "@orb/contracts/chat";
+import { buildCharacterNameMap, buildPersonaNameMap, DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { AssetId, CharacterId, ChatId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
@@ -76,23 +61,13 @@ import { ReasoningBlock } from "../../../../packages/client/src/features/chat/co
 import { SpeakAsSelect } from "../../../../packages/client/src/features/chat/components/speak-as-select";
 import { SwipeStrip } from "../../../../packages/client/src/features/chat/components/swipe-strip";
 import { AttachmentUrlContext } from "../../../../packages/client/src/features/chat/hooks/attachment-url-context";
-import type {
-  MemberCastRow,
-  MemberPersonRow,
-} from "../../../../packages/client/src/features/chat/lib/member-rows";
-import {
-  CtChatContributorSectionRegistry,
-  CtDataProviders,
-  CtRealSectionRegistry,
-} from "../../../support/ct/ct-data-providers";
+import type { MemberCastRow, MemberPersonRow } from "../../../../packages/client/src/features/chat/lib/member-rows";
+import { CtChatContributorSectionRegistry, CtDataProviders, CtRealSectionRegistry } from "../../../support/ct/ct-data-providers";
 import { CHAT_ID, COMPOSER_CHAT_ID, makeMessageView } from "./fixtures";
 
 // The door's empty chat-surface registry (§6c/M8) — stories that don't test the seam itself pass this,
 // mirroring main.tsx's zero-contribution assembly (no visual change over today's layout).
-const NO_SURFACE_CONTRIBUTORS = createContributorRegistry<ChatSurfaceContribution>(
-  "chat-surface",
-  [],
-);
+const NO_SURFACE_CONTRIBUTORS = createContributorRegistry<ChatSurfaceContribution>("chat-surface", []);
 
 // ── Pure-render stories (no data layer) ─────────────────────────────────────────────────────────
 
@@ -156,11 +131,7 @@ export function MessageRowStory({
     participants === undefined
       ? undefined
       : new Map(
-          participants
-            .filter(
-              (p): p is ParticipantView & { characterId: CharacterId } => p.characterId !== null,
-            )
-            .map((p) => [p.characterId, p] as const),
+          participants.filter((p): p is ParticipantView & { characterId: CharacterId } => p.characterId !== null).map((p) => [p.characterId, p] as const),
         );
   // The story's own producer, built with the REAL contracts builders (never a hand-rolled Map) so
   // `MessageRow` sees exactly the shape `message-list-surface.tsx` would merge from the wire.
@@ -208,9 +179,7 @@ export interface MessageActionsRowStoryProps {
  *  Wrapped in a `.group` host (the reveal hook the real `message-row` provides, UIP-305): the cluster
  *  rests hidden (opacity-0 / pointer-events-none) and reveals on hover/focus-within — the CT hovers the
  *  host before interacting. */
-export function MessageActionsRowStory({
-  message,
-}: MessageActionsRowStoryProps = {}): ReactElement {
+export function MessageActionsRowStory({ message }: MessageActionsRowStoryProps = {}): ReactElement {
   return (
     <CtDataProviders>
       <div className="group" data-testid="actions-host">
@@ -226,9 +195,7 @@ interface MessageEditTextareaStoryInnerProps {
 
 /** Drives the external edit-draft store (PD-119) so the textarea mounts already "in edit mode" —
  *  the same store `<MessageActionsRow>`'s Edit button flips in the real row. */
-function MessageEditTextareaStoryInner({
-  message,
-}: MessageEditTextareaStoryInnerProps): ReactElement {
+function MessageEditTextareaStoryInner({ message }: MessageEditTextareaStoryInnerProps): ReactElement {
   useEffect(() => {
     startEditingMessage(message.id, message.content);
     return (): void => cancelEditingMessage(message.id);
@@ -241,14 +208,10 @@ export interface MessageEditTextareaStoryProps {
 }
 
 /** The edit-in-place textarea in isolation, pre-seeded into edit mode via the real draft store. */
-export function MessageEditTextareaStory({
-  message,
-}: MessageEditTextareaStoryProps = {}): ReactElement {
+export function MessageEditTextareaStory({ message }: MessageEditTextareaStoryProps = {}): ReactElement {
   return (
     <CtDataProviders>
-      <MessageEditTextareaStoryInner
-        message={message ?? makeMessageView({ content: "Hello there" })}
-      />
+      <MessageEditTextareaStoryInner message={message ?? makeMessageView({ content: "Hello there" })} />
     </CtDataProviders>
   );
 }
@@ -287,13 +250,7 @@ export function MessageContentSpansStory({
           ...(characterName === undefined ? {} : { speakerCharName: characterName }),
           ...(userName === undefined ? {} : { fallbackPersonaName: userName }),
         };
-  return (
-    <MessageContent
-      content={content}
-      render={{ trust, allowExternal }}
-      renderContext={renderContext}
-    />
-  );
+  return <MessageContent content={content} render={{ trust, allowExternal }} renderContext={renderContext} />;
 }
 
 function GhostRowInner(): ReactElement {
@@ -357,10 +314,7 @@ export interface ReasoningBlockStoryProps {
 /** The bare `<ReasoningBlock>` — a pure-render leaf (no chat-store dependency), so the CT test drives
  *  its TTFT/auto-collapse/toggle behavior by mounting with props and re-`update()`-ing them, exactly
  *  like `crossfade-image.ct.tsx` drives a prop transition. */
-export function ReasoningBlockStory({
-  reasoning,
-  thinking,
-}: ReasoningBlockStoryProps): ReactElement {
+export function ReasoningBlockStory({ reasoning, thinking }: ReasoningBlockStoryProps): ReactElement {
   return (
     <div style={{ width: 360 }}>
       <ReasoningBlock reasoning={reasoning} thinking={thinking} />
@@ -383,11 +337,7 @@ export function GhostRowScriptedStory({ chunks }: GhostRowScriptedStoryProps): R
   const [next, setNext] = useState(0);
   return (
     <div style={{ width: 360 }}>
-      <GhostMessageRow
-        chatId={SCRIPTED_CHAT_ID}
-        chatStyle="bubble"
-        streaming={useTurnPhase(SCRIPTED_CHAT_ID) === "streaming"}
-      />
+      <GhostMessageRow chatId={SCRIPTED_CHAT_ID} chatStyle="bubble" streaming={useTurnPhase(SCRIPTED_CHAT_ID) === "streaming"} />
       <button
         type="button"
         data-testid="begin"
@@ -430,9 +380,7 @@ export interface SwipeStripStoryProps {
 export function SwipeStripStory({ message }: SwipeStripStoryProps = {}): ReactElement {
   return (
     <CtDataProviders>
-      <SwipeStrip
-        message={message ?? makeMessageView({ variantCount: 3, selectedVariantIdx: 1 })}
-      />
+      <SwipeStrip message={message ?? makeMessageView({ variantCount: 3, selectedVariantIdx: 1 })} />
     </CtDataProviders>
   );
 }
@@ -454,11 +402,7 @@ function SurfaceHarness({ committed }: SurfaceHarnessProps): ReactElement {
   return (
     <div style={{ height: 480 }}>
       <MessageThreadAnchor>
-        <MessageListSurface
-          handle={handle}
-          busDeps={busDeps}
-          surfaceContributors={NO_SURFACE_CONTRIBUTORS}
-        />
+        <MessageListSurface handle={handle} busDeps={busDeps} surfaceContributors={NO_SURFACE_CONTRIBUTORS} />
       </MessageThreadAnchor>
     </div>
   );
@@ -469,9 +413,7 @@ export interface MessageListSurfaceStoryProps {
 }
 
 /** The keystone surface in a bounded box (so the message-list seal has a real scroll window). */
-export function MessageListSurfaceStory({
-  committed = true,
-}: MessageListSurfaceStoryProps): ReactElement {
+export function MessageListSurfaceStory({ committed = true }: MessageListSurfaceStoryProps): ReactElement {
   return (
     <CtDataProviders>
       <SurfaceHarness committed={committed} />
@@ -495,11 +437,7 @@ function ReplaySeedHarness(): ReactElement {
   return (
     <div style={{ height: 480 }}>
       <MessageThreadAnchor>
-        <MessageListSurface
-          handle={handle}
-          busDeps={busDeps}
-          surfaceContributors={NO_SURFACE_CONTRIBUTORS}
-        />
+        <MessageListSurface handle={handle} busDeps={busDeps} surfaceContributors={NO_SURFACE_CONTRIBUTORS} />
       </MessageThreadAnchor>
       <button type="button" data-testid="commit-draft" onClick={(): void => setCommitted(true)}>
         commit
@@ -530,17 +468,9 @@ function StoppingHarness(): ReactElement {
   return (
     <div style={{ height: 480 }}>
       <MessageThreadAnchor>
-        <MessageListSurface
-          handle={committedChat(CHAT_ID)}
-          busDeps={busDeps}
-          surfaceContributors={NO_SURFACE_CONTRIBUTORS}
-        />
+        <MessageListSurface handle={committedChat(CHAT_ID)} busDeps={busDeps} surfaceContributors={NO_SURFACE_CONTRIBUTORS} />
       </MessageThreadAnchor>
-      <button
-        type="button"
-        data-testid="mark-stopping"
-        onClick={(): void => chatStream.markStopping(CHAT_ID)}
-      >
+      <button type="button" data-testid="mark-stopping" onClick={(): void => chatStream.markStopping(CHAT_ID)}>
         stop
       </button>
     </div>
@@ -565,20 +495,12 @@ export interface ComposerStoryProps {
 
 function ComposerStoryInner({ committed = true }: ComposerStoryProps): ReactElement {
   const [value, setValue] = useState("");
-  const [startedChatId, setStartedChatId] = useState<ChatId | null>(
-    committed ? COMPOSER_CHAT_ID : null,
-  );
-  const handle: ChatHandle =
-    startedChatId !== null ? committedChat(startedChatId) : draftChat("draft_ct_composer");
+  const [startedChatId, setStartedChatId] = useState<ChatId | null>(committed ? COMPOSER_CHAT_ID : null);
+  const handle: ChatHandle = startedChatId !== null ? committedChat(startedChatId) : draftChat("draft_ct_composer");
 
   return (
     <div>
-      <Composer
-        handle={handle}
-        value={value}
-        onChange={setValue}
-        onCommitted={(id): void => setStartedChatId(id)}
-      />
+      <Composer handle={handle} value={value} onChange={setValue} onCommitted={(id): void => setStartedChatId(id)} />
       {/* Turn-lifecycle drivers (mirrors GhostRowStory above) — the CT clicks these to move
           `chatStream`'s slot through pending/streaming/stopping/aborted without a real SSE round-trip
           (Stop's immediate-feedback half is client-only; only the eventual close needs the bus). */}
@@ -652,9 +574,7 @@ export interface ChatListSurfaceStoryProps {
 /** The Chats-section LIST surface + its anchor, wired to the real data layer (routeTrpc stubs
  *  `chat.listChats`). Records select / new-chat clicks into visible markers so a CT can assert the
  *  callbacks fire with the right id. */
-export function ChatListSurfaceStory({
-  activeChatId = null,
-}: ChatListSurfaceStoryProps): ReactElement {
+export function ChatListSurfaceStory({ activeChatId = null }: ChatListSurfaceStoryProps): ReactElement {
   return (
     <CtDataProviders>
       <ChatListInner activeChatId={activeChatId} />
@@ -692,11 +612,7 @@ function ChatListInner({ activeChatId }: { readonly activeChatId: string | null 
 /** The Chats-section LANDING surface (J1), wired to the real data layer (routeTrpc stubs
  *  `chat.listChats` + `character.list`). Records select / start-chat / new-chat / browse clicks into
  *  visible markers so a CT can assert the write-intent callbacks fire with the right id. */
-export function ChatLandingSurfaceStory({
-  showRecents,
-}: {
-  readonly showRecents?: boolean;
-} = {}): ReactElement {
+export function ChatLandingSurfaceStory({ showRecents }: { readonly showRecents?: boolean } = {}): ReactElement {
   return (
     <CtDataProviders>
       <ChatLandingInner showRecents={showRecents} />
@@ -704,11 +620,7 @@ export function ChatLandingSurfaceStory({
   );
 }
 
-function ChatLandingInner({
-  showRecents,
-}: {
-  readonly showRecents: boolean | undefined;
-}): ReactElement {
+function ChatLandingInner({ showRecents }: { readonly showRecents: boolean | undefined }): ReactElement {
   const [selected, setSelected] = useState("none");
   const [started, setStarted] = useState("none");
   const [newCount, setNewCount] = useState(0);
@@ -779,12 +691,7 @@ function ChatRoomHarness({ committed }: { readonly committed: boolean }): ReactE
   const draftSeed = committed ? undefined : { characterIds: [castId<CharacterId>("char_ct_room")] };
   return (
     <div style={{ height: 480 }}>
-      <ChatRoomSurface
-        busDeps={busDeps}
-        draftSeed={draftSeed}
-        initialHandle={handle}
-        surfaceContributors={NO_SURFACE_CONTRIBUTORS}
-      />
+      <ChatRoomSurface busDeps={busDeps} draftSeed={draftSeed} initialHandle={handle} surfaceContributors={NO_SURFACE_CONTRIBUTORS} />
     </div>
   );
 }
@@ -796,9 +703,7 @@ export interface ChatRoomSurfaceStoryProps {
 
 /** The composed chat-room pane (transcript + composer) — a seeded draft by default (proves the empty
  *  transcript + live composer with NO server read), or a committed chat (reads `listMessages`). */
-export function ChatRoomSurfaceStory({
-  committed = false,
-}: ChatRoomSurfaceStoryProps): ReactElement {
+export function ChatRoomSurfaceStory({ committed = false }: ChatRoomSurfaceStoryProps): ReactElement {
   return (
     <CtDataProviders>
       <ChatRoomHarness committed={committed} />
@@ -850,9 +755,7 @@ export interface ChatContextTabContributorStoryProps {
 /** The chat-context contributor seam (§6c) LIVE: a fake `ContextTabDef<ChatContextState>` registered at
  *  a CtChatContributorSectionRegistry door (mirroring main.tsx) in place of the empty M3 registry, mounted
  *  through the real `SectionContextHost` → `defineContextTabs` → `resolveContextTabs` path. */
-export function ChatContextTabContributorStory({
-  visible,
-}: ChatContextTabContributorStoryProps): ReactElement {
+export function ChatContextTabContributorStory({ visible }: ChatContextTabContributorStoryProps): ReactElement {
   useEffect(() => {
     selectChat(CHAT_ID);
   }, []);
@@ -862,10 +765,7 @@ export function ChatContextTabContributorStory({
     when: () => visible,
     body: (): ReactElement => <div data-testid="ct-fake-context-tab-body">fake tab body</div>,
   };
-  const contextContributors = createContributorRegistry<ContextTabDef<ChatContextState>>(
-    "chat-context",
-    [fakeTab],
-  );
+  const contextContributors = createContributorRegistry<ContextTabDef<ChatContextState>>("chat-context", [fakeTab]);
   return (
     <CtDataProviders>
       <CtChatContributorSectionRegistry contextContributors={contextContributors}>
@@ -890,11 +790,7 @@ const CT_SURFACE_CONTRIBUTION_ID = "ct-fake-surface-contribution";
  *  given anchor, registered at a `CtChatContributorSectionRegistry` door in place of the empty registry,
  *  mounted through the REAL `chats` section's `content()` → `ChatContent` → `ChatRoomSurface`/`MessageRow`
  *  anchor-consumer path (chat-room-surface.tsx / message-row.tsx). */
-export function ChatSurfaceContributorStory({
-  anchor,
-  visible,
-  committed = true,
-}: ChatSurfaceContributorStoryProps): ReactElement {
+export function ChatSurfaceContributorStory({ anchor, visible, committed = true }: ChatSurfaceContributorStoryProps): ReactElement {
   useEffect(() => {
     if (committed) {
       selectChat(CHAT_ID);
@@ -908,21 +804,15 @@ export function ChatSurfaceContributorStory({
           id: CT_SURFACE_CONTRIBUTION_ID,
           anchor: "message-footer",
           when: () => visible,
-          body: (): ReactElement => (
-            <div data-testid="ct-fake-surface-contribution">fake footer</div>
-          ),
+          body: (): ReactElement => <div data-testid="ct-fake-surface-contribution">fake footer</div>,
         }
       : {
           id: CT_SURFACE_CONTRIBUTION_ID,
           anchor,
           when: () => visible,
-          body: (): ReactElement => (
-            <div data-testid="ct-fake-surface-contribution">fake {anchor}</div>
-          ),
+          body: (): ReactElement => <div data-testid="ct-fake-surface-contribution">fake {anchor}</div>,
         };
-  const surfaceContributors = createContributorRegistry<ChatSurfaceContribution>("chat-surface", [
-    fakeContribution,
-  ]);
+  const surfaceContributors = createContributorRegistry<ChatSurfaceContribution>("chat-surface", [fakeContribution]);
   return (
     <CtDataProviders>
       <CtChatContributorSectionRegistry surfaceContributors={surfaceContributors}>
@@ -954,9 +844,7 @@ export interface DraftContextPanelStoryProps {
  *  the solo case: the Overrides tab renders from `draftConfig` and writes to the draft-config store on
  *  edit. A ≥2-cast seed additionally reads `character.get` per cast id (the Members roster) — the
  *  `.ct.tsx` routeTrpc-stubs those for that case. */
-export function DraftContextPanelStory({
-  characterIds = [],
-}: DraftContextPanelStoryProps): ReactElement {
+export function DraftContextPanelStory({ characterIds = [] }: DraftContextPanelStoryProps): ReactElement {
   useEffect(() => {
     startNewChat({ characterIds });
   }, [characterIds]);
@@ -1034,11 +922,7 @@ export interface MembersPanelStoryProps {
   readonly withPeople?: boolean;
   readonly memberView?: boolean;
 }
-export function MembersPanelStory({
-  omitForceTurn = false,
-  withPeople = false,
-  memberView = false,
-}: MembersPanelStoryProps): ReactElement {
+export function MembersPanelStory({ omitForceTurn = false, withPeople = false, memberView = false }: MembersPanelStoryProps): ReactElement {
   const [lastAction, setLastAction] = useState("");
   const people: MemberPersonRow[] = withPeople
     ? [
@@ -1099,14 +983,10 @@ export function MembersPanelStory({
           {...(memberView
             ? {}
             : {
-                onSetDisabled: (id: CharacterId, disabled: boolean): void =>
-                  setLastAction(`disabled:${id}:${disabled}`),
-                onSetTalkativeness: (id: CharacterId, t: number): void =>
-                  setLastAction(`talkativeness:${id}:${t}`),
+                onSetDisabled: (id: CharacterId, disabled: boolean): void => setLastAction(`disabled:${id}:${disabled}`),
+                onSetTalkativeness: (id: CharacterId, t: number): void => setLastAction(`talkativeness:${id}:${t}`),
               })}
-          {...(omitForceTurn || memberView
-            ? {}
-            : { onForceTurn: (id: CharacterId): void => setLastAction(`force:${id}`) })}
+          {...(omitForceTurn || memberView ? {} : { onForceTurn: (id: CharacterId): void => setLastAction(`force:${id}`) })}
           {...(withPeople && !memberView
             ? {
                 onInvitePeople: (): void => setLastAction("invite"),
@@ -1235,12 +1115,7 @@ export function MembersReseedStory(): ReactElement {
         <button type="button" data-testid="bump-aria" onClick={(): void => setAriaWeight(0.8)}>
           bump
         </button>
-        <MembersPanel
-          people={[]}
-          cast={cast}
-          onSetDisabled={(): void => undefined}
-          onSetTalkativeness={(): void => undefined}
-        />
+        <MembersPanel people={[]} cast={cast} onSetDisabled={(): void => undefined} onSetTalkativeness={(): void => undefined} />
       </div>
     </CtDataProviders>
   );
@@ -1248,11 +1123,7 @@ export function MembersReseedStory(): ReactElement {
 
 /** The composer-adjacent speak-as dropdown (speak-as-select.tsx). A committed handle by default (reads
  *  the `chat.getChat` roster + fires `chat.generate`); `committed=false` mounts a draft (renders `null`). */
-export function SpeakAsSelectStory({
-  committed = true,
-}: {
-  readonly committed?: boolean;
-}): ReactElement {
+export function SpeakAsSelectStory({ committed = true }: { readonly committed?: boolean }): ReactElement {
   const handle: ChatHandle = committed ? committedChat(CHAT_ID) : draftChat("draft_ct_speak_as");
   return (
     <CtDataProviders>
@@ -1272,21 +1143,12 @@ export function SpeakAsSelectStory({
 /** The per-character gallery modal (grid + lightbox + destructive-remove confirm) over the stubbed
  *  network: the `.ct.tsx` scripts `assets.listGallery` (the curated grid) + `assets.removeFromGallery`.
  *  Starts OPEN so the CT drives grid → lightbox → confirm without a trigger. */
-export function CharacterGalleryDialogStory({
-  characterName = "Aria",
-}: {
-  readonly characterName?: string;
-}): ReactElement {
+export function CharacterGalleryDialogStory({ characterName = "Aria" }: { readonly characterName?: string }): ReactElement {
   const [open, setOpen] = useState(true);
   return (
     <CtDataProviders>
       <div>
-        <CharacterGalleryDialog
-          open={open}
-          onOpenChange={setOpen}
-          characterId={castId<CharacterId>("character_ct_gallery")}
-          characterName={characterName}
-        />
+        <CharacterGalleryDialog open={open} onOpenChange={setOpen} characterId={castId<CharacterId>("character_ct_gallery")} characterName={characterName} />
       </div>
     </CtDataProviders>
   );
@@ -1296,11 +1158,7 @@ export function JoinInviteDialogStory({ token }: { readonly token: string }): Re
   const [done, setDone] = useState(false);
   return (
     <CtDataProviders>
-      {done ? (
-        <p data-testid="ct-join-done">join dialog closed</p>
-      ) : (
-        <JoinInviteDialog token={token} onDone={(): void => setDone(true)} />
-      )}
+      {done ? <p data-testid="ct-join-done">join dialog closed</p> : <JoinInviteDialog token={token} onDone={(): void => setDone(true)} />}
     </CtDataProviders>
   );
 }
@@ -1312,9 +1170,7 @@ const CT_ATTACH_ASSET_ID = castId<AssetId>("asset_ct_attach");
 
 /** A valid 1×1 transparent PNG data URL — an ASSET src (own origin) renders it directly (no network, no
  *  `onError` broken-fallback), so the CT can assert the real `<img>` src deterministically. */
-const CT_PNG_DATA_URL =
-  // biome-ignore lint/security/noSecrets: a fixed 1×1 transparent PNG data URL (a render fixture), not a credential.
-  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+const CT_PNG_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
 
 export interface AttachmentMediaStoryProps {
   /** `true` mounts the context EMPTY (the provider-less / still-loading placeholder path); default provides
@@ -1335,8 +1191,8 @@ export function AttachmentMediaStory({ empty = false }: AttachmentMediaStoryProp
   } as const;
   const map = new Map<AssetId, string>(empty ? [] : [[CT_ATTACH_ASSET_ID, CT_PNG_DATA_URL]]);
   return (
-    <AttachmentUrlContext.Provider value={map}>
+    <AttachmentUrlContext value={map}>
       <MessageMediaBlock block={block} allowExternal={false} />
-    </AttachmentUrlContext.Provider>
+    </AttachmentUrlContext>
   );
 }

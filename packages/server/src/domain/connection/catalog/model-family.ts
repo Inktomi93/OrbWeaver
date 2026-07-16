@@ -11,17 +11,7 @@
 // The detectable families. A plain `as const` tuple (NOT a `z.enum`/`export type` — those are gated outside
 // `contract/`); the `other` member is the catch-all. resolve-model-capability derives its caps key from
 // this one tuple (no second family list).
-export const MODEL_FAMILIES = [
-  "anthropic",
-  "openai",
-  "google",
-  "meta",
-  "deepseek",
-  "qwen",
-  "mistral",
-  "xai",
-  "other",
-] as const;
+export const MODEL_FAMILIES = ["anthropic", "openai", "google", "meta", "deepseek", "qwen", "mistral", "xai", "other"] as const;
 
 // File-local (non-exported — no-inline-types only flags EXPORTED type homes outside contract/). The
 // resolver re-derives the same union from MODEL_FAMILIES for its caps Record key.

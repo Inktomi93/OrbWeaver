@@ -7,11 +7,7 @@ import type { BlockKey } from "@orb/contracts/search";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import {
-  blockKeyStr,
-  collapseByContentHash,
-  dedupeRankedBlocks,
-} from "../../../../../packages/server/src/domain/search/substrate/dedupe.ts";
+import { blockKeyStr, collapseByContentHash, dedupeRankedBlocks } from "../../../../../packages/server/src/domain/search/substrate/dedupe.ts";
 import { expect, test } from "../../../../support/fixtures";
 
 const CHAT = castId<ChatId>("chat_a");
@@ -24,9 +20,7 @@ function key(over: Partial<BlockKey> = {}): BlockKey {
 
 describe("blockKeyStr", () => {
   test("is stable + includes every key field", () => {
-    expect(blockKeyStr(key({ tier: 1, blockIdx: 3, scopedCharacterId: CHAR_Y }))).toBe(
-      "chat_a|1|3|character_y",
-    );
+    expect(blockKeyStr(key({ tier: 1, blockIdx: 3, scopedCharacterId: CHAR_Y }))).toBe("chat_a|1|3|character_y");
   });
 });
 
@@ -41,10 +35,7 @@ describe("dedupeRankedBlocks", () => {
   });
 
   test("does NOT collapse two POVs of the same scene (differ only in scopedCharacterId)", () => {
-    const out = dedupeRankedBlocks([
-      { blockKey: key({ scopedCharacterId: CHAR_X }) },
-      { blockKey: key({ scopedCharacterId: CHAR_Y }) },
-    ]);
+    const out = dedupeRankedBlocks([{ blockKey: key({ scopedCharacterId: CHAR_X }) }, { blockKey: key({ scopedCharacterId: CHAR_Y }) }]);
     expect(out).toHaveLength(2);
   });
 });

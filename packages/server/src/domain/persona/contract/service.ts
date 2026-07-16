@@ -36,16 +36,8 @@ export interface PersonaContext {
    *  second device's list refetches. Fire-and-forget. */
   readonly emitUserEvent: EmitUserEvent;
 
-  readonly requireChatAuthorOrHost: (
-    principal: Principal,
-    chatId: ChatId,
-    targetUserId: UserId,
-  ) => Promise<void>;
-  readonly setChatActivePersona: (
-    chatId: ChatId,
-    targetUserId: UserId,
-    personaId: PersonaId | null,
-  ) => Promise<void>;
+  readonly requireChatAuthorOrHost: (principal: Principal, chatId: ChatId, targetUserId: UserId) => Promise<void>;
+  readonly setChatActivePersona: (chatId: ChatId, targetUserId: UserId, personaId: PersonaId | null) => Promise<void>;
   /** Re-point the global seed pointers after `remove` deletes `deletedId`. Enforces "never no current
    *  persona while you own one": re-points to default → first remaining → null. No-op when neither pointer
    *  named the deleted id. Fires after the row deletion commits. */

@@ -14,18 +14,8 @@ export type FieldOrientation = "vertical" | "horizontal";
 const FieldOrientationContext = createContext<FieldOrientation>("vertical");
 
 /** Sets the ambient `<Field>` orientation for its subtree. */
-export function FieldLayout({
-  orientation,
-  children,
-}: {
-  readonly orientation: FieldOrientation;
-  readonly children: ReactNode;
-}): ReactElement {
-  return (
-    <FieldOrientationContext.Provider value={orientation}>
-      {children}
-    </FieldOrientationContext.Provider>
-  );
+export function FieldLayout({ orientation, children }: { readonly orientation: FieldOrientation; readonly children: ReactNode }): ReactElement {
+  return <FieldOrientationContext value={orientation}>{children}</FieldOrientationContext>;
 }
 
 export interface FieldProps extends Omit<FieldRootProps, "className"> {
@@ -83,13 +73,7 @@ export function Field({
       <Tooltip>
         <TooltipTrigger
           render={
-            <Button
-              aria-label={hintAriaLabel}
-              className={slots.hintTrigger()}
-              intent="ghost"
-              size="icon"
-              type="button"
-            >
+            <Button aria-label={hintAriaLabel} className={slots.hintTrigger()} intent="ghost" size="icon" type="button">
               <Icon icon={Info} size="xs" />
             </Button>
           }

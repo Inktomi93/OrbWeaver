@@ -13,16 +13,11 @@ import type { TagContext } from "../contract/service";
 import { insertOwnedTagsIfAbsent } from "../persistence/queries";
 
 /** Parse tag-library bytes and merge them into the owner's namespace (idempotent, dedup by folded name). */
-export function createImport(
-  ctx: TagContext,
-): (ownerId: UserId, bytes: Uint8Array) => Promise<TagLibraryImportResult> {
+export function createImport(ctx: TagContext): (ownerId: UserId, bytes: Uint8Array) => Promise<TagLibraryImportResult> {
   return async (ownerId: UserId, bytes: Uint8Array): Promise<TagLibraryImportResult> => {
     const library = parseTagLibrary(bytes);
     if (library === null) {
-      throw new DomainOperationError(
-        "tag_library_unparseable",
-        "the file is not a valid orb tag-library export",
-      );
+      throw new DomainOperationError("tag_library_unparseable", "the file is not a valid orb tag-library export");
     }
 
     const seen = new Set<string>();

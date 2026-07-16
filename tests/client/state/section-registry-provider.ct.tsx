@@ -5,16 +5,10 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import { SectionRegistryProbe } from "./_ct-stories";
 
-test("SectionRegistryProvider renders children and delivers the registry to a nested consumer", async ({
-  mount,
-}) => {
+test("SectionRegistryProvider renders children and delivers the registry to a nested consumer", async ({ mount }) => {
   const probe = await mount(<SectionRegistryProbe />);
   const out = probe.locator("output");
   await expect(out).toBeVisible();
   // All seven sections reached the consumer — the provider delivered the total registry, not a partial one.
-  await Promise.all(
-    ["chats", "characters", "corpus", "worldInfo", "presets", "refinery", "analytics"].map((id) =>
-      expect(out).toContainText(id),
-    ),
-  );
+  await Promise.all(["chats", "characters", "corpus", "worldInfo", "presets", "refinery", "analytics"].map((id) => expect(out).toContainText(id)));
 });

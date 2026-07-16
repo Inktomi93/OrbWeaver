@@ -42,9 +42,7 @@ function resolveRgb(color: string): readonly [number, number, number] | null {
 function relativeLuminance([r, g, b]: readonly [number, number, number]): number {
   const lin = (channel: number): number => {
     const c = channel / SRGB_MAX;
-    return c <= SRGB_THRESHOLD
-      ? c / SRGB_LINEAR_DIV
-      : ((c + SRGB_OFFSET) / SRGB_SCALE) ** SRGB_GAMMA;
+    return c <= SRGB_THRESHOLD ? c / SRGB_LINEAR_DIV : ((c + SRGB_OFFSET) / SRGB_SCALE) ** SRGB_GAMMA;
   };
   return LUMA_R * lin(r) + LUMA_G * lin(g) + LUMA_B * lin(b);
 }

@@ -24,17 +24,11 @@ test("parseRunAt: empty/unparseable → undefined (run now); a valid datetime-lo
 test("isDeferredWorkload: queued + scheduledAt well past createdAt; not for a near/non-deferred or non-queued row", () => {
   const createdAt = 1_750_000_000_000;
   // A user-deferred run: scheduledAt minutes+ ahead of createdAt.
-  expect(
-    isDeferredWorkload({ status: "queued", createdAt, scheduledAt: createdAt + 600_000 }),
-  ).toBe(true);
+  expect(isDeferredWorkload({ status: "queued", createdAt, scheduledAt: createdAt + 600_000 })).toBe(true);
   // A normal run: scheduledAt ≈ createdAt (within the insert-latency lead) → NOT deferred.
-  expect(isDeferredWorkload({ status: "queued", createdAt, scheduledAt: createdAt + 5 })).toBe(
-    false,
-  );
+  expect(isDeferredWorkload({ status: "queued", createdAt, scheduledAt: createdAt + 5 })).toBe(false);
   // Already running (fired) → not a pending deferred row even if scheduledAt was future.
-  expect(
-    isDeferredWorkload({ status: "running", createdAt, scheduledAt: createdAt + 600_000 }),
-  ).toBe(false);
+  expect(isDeferredWorkload({ status: "running", createdAt, scheduledAt: createdAt + 600_000 })).toBe(false);
 });
 
 test("isWaitingOnDependencies: queued + non-empty dependsOn only", () => {
@@ -51,11 +45,7 @@ test("dependencyWaitLabel: singular vs plural", () => {
 });
 
 test("isDependencyFailure: matches the server dependency_failed message, not a normal runtime failure", () => {
-  expect(
-    isDependencyFailure(
-      "a dependency did not succeed (a non-success terminal, or an absent dependency) — the dependent cannot run",
-    ),
-  ).toBe(true);
+  expect(isDependencyFailure("a dependency did not succeed (a non-success terminal, or an absent dependency) — the dependent cannot run")).toBe(true);
   expect(isDependencyFailure("runtime: provider unreachable")).toBe(false);
   expect(isDependencyFailure(null)).toBe(false);
 });

@@ -99,9 +99,7 @@ describe("reconcileStats", () => {
     expect(owner?.chats).toBe(1);
     expect(owner?.computedAt).toBe(T0 + 999);
 
-    const char = (
-      await db.select().from(characterStats).where(eq(characterStats.characterId, characterId))
-    )[0];
+    const char = (await db.select().from(characterStats).where(eq(characterStats.characterId, characterId)))[0];
     expect(char?.assistantTurns).toBe(1);
     expect(char?.assistantWords).toBe(3);
     expect(char?.swipes).toBe(1);
@@ -161,9 +159,7 @@ describe("reconcileStats", () => {
     expect(owner?.tokensOut).toBe(35); // 24 + 11
 
     // character_stats is UNCHANGED — the agent row carries no characterId, so it never folds to a char row.
-    const char = (
-      await db.select().from(characterStats).where(eq(characterStats.characterId, characterId))
-    )[0];
+    const char = (await db.select().from(characterStats).where(eq(characterStats.characterId, characterId)))[0];
     expect(char?.assistantTurns).toBe(1); // still just the character's own turn
     expect(char?.tokensIn).toBe(12);
     // No stray character_stats row was minted for the agent (there is exactly one char row — the character's).

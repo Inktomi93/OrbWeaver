@@ -2,10 +2,7 @@
 // (features/chat/lib/gen-duration). Pins the both-bounds-present-and-ordered guard (matching the stats
 // gen-time axis) and the sub-second-`ms` / else-`N.Ns` label formatting.
 
-import {
-  genDurationLabel,
-  genDurationMs,
-} from "../../../../../packages/client/src/features/chat/lib/gen-duration";
+import { genDurationLabel, genDurationMs } from "../../../../../packages/client/src/features/chat/lib/gen-duration";
 import { expect, test } from "../../../../support/fixtures";
 
 test("genDurationMs returns the ordered window gf − gs", () => {

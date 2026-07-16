@@ -26,13 +26,7 @@
 
 import type { CrewConfig, CrewEditNote } from "@orb/contracts/crew";
 import { CREW_EDIT_PROPOSAL_STATUSES } from "@orb/contracts/crew";
-import type {
-  ChatId,
-  ChatInjectionId,
-  CrewEditProposalId,
-  MessageId,
-  MessageVariantId,
-} from "@orb/kit/ids";
+import type { ChatId, ChatInjectionId, CrewEditProposalId, MessageId, MessageVariantId } from "@orb/kit/ids";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import { sql } from "drizzle-orm";
 import {
@@ -145,13 +139,8 @@ export const crewEditProposals = sqliteTable(
   },
   (t) => [
     // ONE pending proposal per variant — a re-run REPLACES (the buddy replace-on-new semantic, durable).
-    uniqueIndex("crew_edit_proposals_pending_variant_unique")
-      .on(t.variantId)
-      .where(sql`status = 'pending'`),
-    check(
-      "crew_edit_proposals_status_check",
-      sql.raw(`status in (${checkList(CREW_EDIT_PROPOSAL_STATUSES)})`),
-    ),
+    uniqueIndex("crew_edit_proposals_pending_variant_unique").on(t.variantId).where(sql`status = 'pending'`),
+    check("crew_edit_proposals_status_check", sql.raw(`status in (${checkList(CREW_EDIT_PROPOSAL_STATUSES)})`)),
   ],
 );
 
@@ -195,8 +184,5 @@ export const crewGuides = sqliteTable(
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
     updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
-  (t) => [
-    primaryKey({ columns: [t.chatId, t.guideKey] }),
-    check("crew_guides_role_check", sql.raw(`role in (${checkList(MESSAGE_ROLES)})`)),
-  ],
+  (t) => [primaryKey({ columns: [t.chatId, t.guideKey] }), check("crew_guides_role_check", sql.raw(`role in (${checkList(MESSAGE_ROLES)})`))],
 );

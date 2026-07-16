@@ -48,10 +48,7 @@ test("disabled blocks input and drops the interactive skin", async ({ mount }) =
   await expect(input).toHaveCSS("opacity", "0.5");
 });
 
-test("inside a <Field>, the label associates and aria-describedby wires the description", async ({
-  mount,
-  page,
-}) => {
+test("inside a <Field>, the label associates and aria-describedby wires the description", async ({ mount, page }) => {
   await mount(
     <Field description="Shown to other players" label="Display name">
       <Input />

@@ -16,71 +16,38 @@ type CredentialRow = typeof userCredentials.$inferSelect;
 const LIMIT_ONE = 1;
 
 /** Owner-scoped fetch of one credential by id (active OR inactive) — `undefined` if missing/not-owned. */
-export function fetchOwnedCredential(
-  db: Db,
-  ownerId: UserId,
-  credentialId: UserCredentialId,
-): Promise<CredentialRow | undefined> {
+export function fetchOwnedCredential(db: Db, ownerId: UserId, credentialId: UserCredentialId): Promise<CredentialRow | undefined> {
   return fetchOwned(db, userCredentials, credentialId, ownerId);
 }
 
 /** The user's ACTIVE credential for a provider, or `undefined`. The partial unique index guarantees at
  *  most one active row per `(owner, provider)`, so this is at most one row. */
-export async function loadActiveCredential(
-  db: Db,
-  ownerId: UserId,
-  provider: CredentialProvider,
-): Promise<CredentialRow | undefined> {
+export async function loadActiveCredential(db: Db, ownerId: UserId, provider: CredentialProvider): Promise<CredentialRow | undefined> {
   const rows = await db
     .select()
     .from(userCredentials)
-    .where(
-      and(
-        eq(userCredentials.ownerId, ownerId),
-        eq(userCredentials.provider, provider),
-        eq(userCredentials.active, true),
-      ),
-    )
+    .where(and(eq(userCredentials.ownerId, ownerId), eq(userCredentials.provider, provider), eq(userCredentials.active, true)))
     .limit(LIMIT_ONE);
   return rows[0];
 }
 
 /** Every credential the user owns, ordered `(provider, createdAt)` for a stable list view. */
 export function listOwnedCredentials(db: Db, ownerId: UserId): Promise<CredentialRow[]> {
-  return db
-    .select()
-    .from(userCredentials)
-    .where(eq(userCredentials.ownerId, ownerId))
-    .orderBy(asc(userCredentials.provider), asc(userCredentials.createdAt));
+  return db.select().from(userCredentials).where(eq(userCredentials.ownerId, ownerId)).orderBy(asc(userCredentials.provider), asc(userCredentials.createdAt));
 }
 
 /** The existing row in this `(owner, provider, label)` slot (the rotate-vs-insert decision), or `undefined`. */
-export async function findSlotLabelRow(
-  db: Db,
-  ownerId: UserId,
-  provider: CredentialProvider,
-  label: string,
-): Promise<{ id: UserCredentialId } | undefined> {
+export async function findSlotLabelRow(db: Db, ownerId: UserId, provider: CredentialProvider, label: string): Promise<{ id: UserCredentialId } | undefined> {
   const rows = await db
     .select({ id: userCredentials.id })
     .from(userCredentials)
-    .where(
-      and(
-        eq(userCredentials.ownerId, ownerId),
-        eq(userCredentials.provider, provider),
-        eq(userCredentials.label, label),
-      ),
-    )
+    .where(and(eq(userCredentials.ownerId, ownerId), eq(userCredentials.provider, provider), eq(userCredentials.label, label)))
     .limit(LIMIT_ONE);
   return rows[0];
 }
 
 /** Does the user already have any credential in this `(owner, provider)` slot? (first-in-slot ⇒ active). */
-export async function hasAnyInSlot(
-  db: Db,
-  ownerId: UserId,
-  provider: CredentialProvider,
-): Promise<boolean> {
+export async function hasAnyInSlot(db: Db, ownerId: UserId, provider: CredentialProvider): Promise<boolean> {
   const rows = await db
     .select({ id: userCredentials.id })
     .from(userCredentials)
@@ -160,51 +127,25 @@ export function promoteActive(
       db
         .update(userCredentials)
         .set({ active: false, updatedAt: args.now })
-        .where(
-          and(
-            eq(userCredentials.ownerId, args.ownerId),
-            eq(userCredentials.provider, args.provider),
-          ),
-        ),
-      db
-        .update(userCredentials)
-        .set({ active: true, updatedAt: args.now })
-        .where(eq(userCredentials.id, args.credentialId)),
+        .where(and(eq(userCredentials.ownerId, args.ownerId), eq(userCredentials.provider, args.provider))),
+      db.update(userCredentials).set({ active: true, updatedAt: args.now }).where(eq(userCredentials.id, args.credentialId)),
     ]),
   );
 }
 
 /** Delete a credential (owner-scoped). Nothing references credential rows by FK, so a plain DELETE is the
  *  whole operation (a chat resolves the user's ACTIVE credential at turn time — no per-chat pin). */
-export function deleteOwnedCredential(
-  db: Db,
-  ownerId: UserId,
-  credentialId: UserCredentialId,
-): Promise<unknown> {
-  return db
-    .delete(userCredentials)
-    .where(and(eq(userCredentials.id, credentialId), eq(userCredentials.ownerId, ownerId)));
+export function deleteOwnedCredential(db: Db, ownerId: UserId, credentialId: UserCredentialId): Promise<unknown> {
+  return db.delete(userCredentials).where(and(eq(userCredentials.id, credentialId), eq(userCredentials.ownerId, ownerId)));
 }
 
 /** Mark a credential revoked by id — the runner path (no owner scope). Sets `revokedAt` only. Idempotent. */
-export function setRevokedById(
-  db: Db,
-  credentialId: UserCredentialId,
-  revokedAt: number,
-): Promise<unknown> {
-  return db
-    .update(userCredentials)
-    .set({ revokedAt, updatedAt: revokedAt })
-    .where(eq(userCredentials.id, credentialId));
+export function setRevokedById(db: Db, credentialId: UserCredentialId, revokedAt: number): Promise<unknown> {
+  return db.update(userCredentials).set({ revokedAt, updatedAt: revokedAt }).where(eq(userCredentials.id, credentialId));
 }
 
 /** Clear a revocation (owner-scoped) — the user knows the key is good again. */
-export function clearRevokedOwned(
-  db: Db,
-  ownerId: UserId,
-  credentialId: UserCredentialId,
-  now: number,
-): Promise<unknown> {
+export function clearRevokedOwned(db: Db, ownerId: UserId, credentialId: UserCredentialId, now: number): Promise<unknown> {
   return db
     .update(userCredentials)
     .set({ revokedAt: null, updatedAt: now })

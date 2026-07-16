@@ -12,9 +12,12 @@ type RerankRunner = RoleClients["rerank"];
  * (it returned a capped subset) keep their incoming order AFTER the ranked ones; unscorable candidates are
  * appended last (recall-preserving). The result is capped to `topN`. Rerank rejections propagate.
  */
-export async function applyRerank<
-  T extends { readonly id: string; readonly sourceText: string | null },
->(query: string, candidates: readonly T[], rerank: RerankRunner, topN: number): Promise<T[]> {
+export async function applyRerank<T extends { readonly id: string; readonly sourceText: string | null }>(
+  query: string,
+  candidates: readonly T[],
+  rerank: RerankRunner,
+  topN: number,
+): Promise<T[]> {
   const scorable: T[] = [];
   const unscorable: T[] = [];
   for (const c of candidates) {

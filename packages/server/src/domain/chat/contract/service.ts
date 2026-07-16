@@ -140,15 +140,11 @@ export interface ChatService {
   /** Paged canon read — each slot joined to its selected variant + the page's macro name producer. */
   readonly listMessages: (params: ListMessagesParams) => Promise<MessagesPage>;
   /** The full sibling-variant set for one slot — `{variantId, idx}[]` ordered by idx, no content. */
-  readonly listMessageVariants: (
-    params: ListMessageVariantsParams,
-  ) => Promise<MessageVariantSummary[]>;
+  readonly listMessageVariants: (params: ListMessageVariantsParams) => Promise<MessageVariantSummary[]>;
   /** The resolved present roster. */
   readonly listParticipants: (params: ListParticipantsParams) => Promise<ParticipantView[]>;
   /** Resume the SSE token log from a cursor (late-subscriber ramp-up). */
-  readonly replayStreamEvents: (
-    params: ReplayStreamEventsParams,
-  ) => Promise<ChatStreamReplayEvent[]>;
+  readonly replayStreamEvents: (params: ReplayStreamEventsParams) => Promise<ChatStreamReplayEvent[]>;
   /** The retained stream-log replay-cursor bounds (min/max seq). */
   readonly streamEventBounds: (params: StreamEventBoundsParams) => Promise<StreamEventBounds>;
   /** Resume the durable chat-bus log from a cursor (the `chat.streamMessages` SSE reconnect replay). */
@@ -247,17 +243,11 @@ export interface ChatService {
   /** Host-only write of the four-field `chatMetadata.roomOverrides` allowlist. */
   readonly setRoomOverrides: (params: SetRoomOverridesParams) => Promise<RoomOverrides>;
   readonly getGroupConfigForChat: (params: GetGroupConfigForChatParams) => Promise<GroupConfig>;
-  readonly getRoomOverridesForChat: (
-    params: GetRoomOverridesForChatParams,
-  ) => Promise<RoomOverrides>;
+  readonly getRoomOverridesForChat: (params: GetRoomOverridesForChatParams) => Promise<RoomOverrides>;
   /** Mute/unmute a roster participant (host-only; cards/WI still contribute). */
-  readonly setParticipantDisabled: (
-    params: SetParticipantDisabledParams,
-  ) => Promise<ParticipantView>;
+  readonly setParticipantDisabled: (params: SetParticipantDisabledParams) => Promise<ParticipantView>;
   /** Set a participant's 0–1 arbitration sampling weight (host-only). */
-  readonly setParticipantTalkativeness: (
-    params: SetParticipantTalkativenessParams,
-  ) => Promise<ParticipantView>;
+  readonly setParticipantTalkativeness: (params: SetParticipantTalkativenessParams) => Promise<ParticipantView>;
 
   // ── invites (the one participant-insert chokepoint) ──────────
   /** Mint a share-link / targeted invite (host-only). Returns the persisted `InviteView` + the raw token

@@ -43,9 +43,7 @@ describe("createTheme", () => {
       principal: principal(a, "user"),
       input: { name: "Mine", override: {} },
     });
-    await expect(
-      h.svc.createTheme({ principal: principal(a, "user"), input: { name: "Mine", override: {} } }),
-    ).rejects.toThrow(DomainConflictError);
+    await expect(h.svc.createTheme({ principal: principal(a, "user"), input: { name: "Mine", override: {} } })).rejects.toThrow(DomainConflictError);
   });
 
   test("two different users may each use the same theme name", async () => {
@@ -53,12 +51,8 @@ describe("createTheme", () => {
     const h = makeHarness(db);
     const a = await seedUser(db, { id: "user_a" });
     const b = await seedUser(db, { id: "user_b" });
-    await expect(
-      h.svc.createTheme({ principal: principal(a, "user"), input: { name: "Mine", override: {} } }),
-    ).resolves.toBeDefined();
-    await expect(
-      h.svc.createTheme({ principal: principal(b, "user"), input: { name: "Mine", override: {} } }),
-    ).resolves.toBeDefined();
+    await expect(h.svc.createTheme({ principal: principal(a, "user"), input: { name: "Mine", override: {} } })).resolves.toBeDefined();
+    await expect(h.svc.createTheme({ principal: principal(b, "user"), input: { name: "Mine", override: {} } })).resolves.toBeDefined();
   });
 
   test("custom CSS with `position: fixed` is rejected (a containment break)", async () => {

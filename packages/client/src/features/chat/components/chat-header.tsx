@@ -27,10 +27,7 @@ export interface ChatHeaderSurfaceProps {
 
 type CharacterParticipant = ReturnType<typeof filterCharacters>[number];
 
-export function ChatHeaderSurface({
-  chatId,
-  multiHumanCapable = false,
-}: ChatHeaderSurfaceProps): ReactElement {
+export function ChatHeaderSurface({ chatId, multiHumanCapable = false }: ChatHeaderSurfaceProps): ReactElement {
   const trpc = useTRPC();
   const { data: chat } = useQuery(trpc.chat.getChat.queryOptions({ chatId }));
   const title = chat?.title ?? "Untitled chat";
@@ -58,14 +55,7 @@ export function ChatHeaderSurface({
           {title}
         </Text>
         {memberCount > 0 ? (
-          <Button
-            type="button"
-            intent="ghost"
-            size="sm"
-            aria-label={`Members — ${memberCount}`}
-            onClick={toggleMembersPanel}
-            className="whitespace-nowrap"
-          >
+          <Button type="button" intent="ghost" size="sm" aria-label={`Members — ${memberCount}`} onClick={toggleMembersPanel} className="whitespace-nowrap">
             <Icon icon={Users} size="sm" />
             <Text as="span" size="micro" tone="muted" transform="caps" aria-hidden={true}>
               {memberCount}
@@ -73,34 +63,19 @@ export function ChatHeaderSurface({
           </Button>
         ) : null}
       </Row>
-      <ChatOptionsMenu
-        chatId={chatId}
-        title={chat?.title ?? null}
-        characters={castMembers}
-        isHost={isHost}
-        multiHumanCapable={multiHumanCapable}
-      />
+      <ChatOptionsMenu chatId={chatId} title={chat?.title ?? null} characters={castMembers} isHost={isHost} multiHumanCapable={multiHumanCapable} />
     </Row>
   );
 }
 
-function CastAvatars({
-  cast,
-}: {
-  readonly cast: readonly CharacterParticipant[];
-}): ReactElement | null {
+function CastAvatars({ cast }: { readonly cast: readonly CharacterParticipant[] }): ReactElement | null {
   if (cast.length === 0) {
     return null;
   }
   const lead = cast[0];
   if (cast.length === 1 && lead !== undefined) {
     return (
-      <Avatar
-        size="sm"
-        fallbackDelay={0}
-        hueSeed={lead.characterId}
-        {...(lead.avatarHash === null ? {} : { src: blobUrl(lead.avatarHash) })}
-      >
+      <Avatar size="sm" fallbackDelay={0} hueSeed={lead.characterId} {...(lead.avatarHash === null ? {} : { src: blobUrl(lead.avatarHash) })}>
         {initialsFor(lead.displayName)}
       </Avatar>
     );
@@ -144,22 +119,14 @@ export function DraftChatHeader({ characterIds }: DraftChatHeaderProps): ReactEl
   );
 }
 
-function DraftCastAvatars({
-  cast,
-}: {
-  readonly cast: readonly { readonly name: string; readonly avatarHash: string | null }[];
-}): ReactElement | null {
+function DraftCastAvatars({ cast }: { readonly cast: readonly { readonly name: string; readonly avatarHash: string | null }[] }): ReactElement | null {
   if (cast.length === 0) {
     return null;
   }
   const lead = cast[0];
   if (cast.length === 1 && lead !== undefined) {
     return (
-      <Avatar
-        size="sm"
-        fallbackDelay={0}
-        {...(lead.avatarHash === null ? {} : { src: blobUrl(lead.avatarHash) })}
-      >
+      <Avatar size="sm" fallbackDelay={0} {...(lead.avatarHash === null ? {} : { src: blobUrl(lead.avatarHash) })}>
         {initialsFor(lead.name)}
       </Avatar>
     );

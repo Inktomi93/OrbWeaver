@@ -14,12 +14,7 @@ import type { CredentialSource, ResolvedCredential } from "#credentials";
 
 // The chat-completion machinery a turn is addressed by — distinct from `CredentialSource` (one source can
 // serve several apis). Every dispatch switch over `api` uses `assertNever` for exhaustiveness.
-export const CHAT_APIS = [
-  "agent-sdk",
-  "chat-completions",
-  "responses",
-  "anthropic-messages",
-] as const;
+export const CHAT_APIS = ["agent-sdk", "chat-completions", "responses", "anthropic-messages"] as const;
 export type ChatApi = (typeof CHAT_APIS)[number];
 export const chatApiSchema = z.enum(CHAT_APIS);
 
@@ -223,15 +218,7 @@ export interface ResolvedConnection {
 
 /** The inference roles `connection.resolveRole` resolves a connection for. `resolveRole`'s dispatch is
  *  a mapped Record so a new role missing its resolver is a tsc error. */
-export const ROUTING_ROLE_KEYS = [
-  "chat",
-  "agent",
-  "embed",
-  "rerank",
-  "imageEmbed",
-  "summarize",
-  "generateImage",
-] as const;
+export const ROUTING_ROLE_KEYS = ["chat", "agent", "embed", "rerank", "imageEmbed", "summarize", "generateImage"] as const;
 export type RoutingRoleKey = (typeof ROUTING_ROLE_KEYS)[number];
 export const routingRoleKeySchema = z.enum(ROUTING_ROLE_KEYS);
 

@@ -12,18 +12,13 @@ import { initialArrivals, NO_ARRIVALS, nextArrivals } from "../lib/new-arrivals"
 
 const GHOST_APPEND_KEY = "__ghost__";
 
-type ChatRowItem =
-  | { readonly kind: "message"; readonly view: MessageView }
-  | { readonly kind: "ghost"; readonly id: string };
+type ChatRowItem = { readonly kind: "message"; readonly view: MessageView } | { readonly kind: "ghost"; readonly id: string };
 
 export function messageItemKey(item: ChatRowItem): string {
   return item.kind === "ghost" ? item.id : item.view.id;
 }
 
-export function useMessageItems(
-  messages: readonly MessageView[],
-  chatId: ChatId | null,
-): readonly ChatRowItem[] {
+export function useMessageItems(messages: readonly MessageView[], chatId: ChatId | null): readonly ChatRowItem[] {
   const phase = useTurnPhase(chatId);
   const base: ChatRowItem[] = messages.map((view) => ({ kind: "message", view }));
 
@@ -43,10 +38,7 @@ interface ArrivalTracking {
 
 // setState-during-render, because the answer must exist in the same render the new row first mounts;
 // an effect would be one commit too late.
-export function useNewArrivalKeys(
-  items: readonly ChatRowItem[],
-  chatId: ChatId,
-): ReadonlySet<string> {
+export function useNewArrivalKeys(items: readonly ChatRowItem[], chatId: ChatId): ReadonlySet<string> {
   const [tracking, setTracking] = useState<ArrivalTracking | null>(null);
 
   // Expire `fresh` one frame after the arrival render commits — the arriving row already latched its

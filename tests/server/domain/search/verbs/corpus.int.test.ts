@@ -6,15 +6,7 @@
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
-import {
-  makeSearch,
-  seedCharacter,
-  seedChat,
-  seedChatDigest,
-  seedChatSegment,
-  seedUser,
-  vec,
-} from "../_support.ts";
+import { makeSearch, seedCharacter, seedChat, seedChatDigest, seedChatSegment, seedUser, vec } from "../_support.ts";
 
 describe("corpus", () => {
   test("dedupes a block present in BOTH lenses to one hit (mixB keeps the digest)", async () => {
@@ -62,9 +54,7 @@ describe("corpus", () => {
     const svc = makeSearch(db, {
       embedVector: () => vec(1),
       rerank: (_q, documents) => {
-        const ordered = [...documents].sort(
-          (a, b) => (a.id.startsWith("s|") ? -1 : 1) - (b.id.startsWith("s|") ? -1 : 1),
-        );
+        const ordered = [...documents].sort((a, b) => (a.id.startsWith("s|") ? -1 : 1) - (b.id.startsWith("s|") ? -1 : 1));
         return Promise.resolve({
           hits: ordered.map((d, i) => ({ id: d.id, score: ordered.length - i })),
           model: "rerank",

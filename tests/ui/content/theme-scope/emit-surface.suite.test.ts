@@ -3,10 +3,7 @@
 // source of truth for what's themeable; this test proves `clampThemeTokens` can never emit a
 // stale/typo'd `--*` custom property that doesn't trace back to a real token.
 import { TOKENS } from "@orb/ui/tokens";
-import {
-  clampThemeTokens,
-  THEME_SCOPE_EMIT_VARS,
-} from "../../../../packages/ui/src/content/theme-scope/clamp";
+import { clampThemeTokens, THEME_SCOPE_EMIT_VARS } from "../../../../packages/ui/src/content/theme-scope/clamp";
 import { expect, test } from "../../../support/fixtures";
 
 const LEADING_DASHES_RE = /^--/u;
@@ -40,9 +37,7 @@ test("THEME_SCOPE_EMIT_VARS matches what clampThemeTokens ACTUALLY emits when ev
   expect(Object.keys(vars).sort()).toEqual([...THEME_SCOPE_EMIT_VARS].sort());
 });
 
-test.each(
-  THEME_SCOPE_EMIT_VARS,
-)("%s corresponds to a real token in the generated TOKENS map", (cssVar) => {
+test.each(THEME_SCOPE_EMIT_VARS)("%s corresponds to a real token in the generated TOKENS map", (cssVar) => {
   const path = cssVarToTokenPath(cssVar);
   const token = TOKENS[path as keyof typeof TOKENS];
   expect(token, `${cssVar} -> TOKENS["${path}"] must exist`).toBeDefined();

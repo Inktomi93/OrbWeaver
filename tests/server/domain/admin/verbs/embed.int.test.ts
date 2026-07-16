@@ -21,9 +21,7 @@ describe("admin.embedCharacterCard", () => {
     const svc = createAdminService(h.ctx);
     const plain = await seedUser(db, { id: "user_plain", handle: "plain" });
 
-    const err = await svc
-      .embedCharacterCard({ principal: principal(plain, "user"), characterId: CHARACTER_ID })
-      .catch((e: unknown) => e);
+    const err = await svc.embedCharacterCard({ principal: principal(plain, "user"), characterId: CHARACTER_ID }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(DomainForbiddenError);
     expect(h.embedded).toHaveLength(0);
     expect(h.audits).toHaveLength(0);
@@ -36,9 +34,7 @@ describe("admin.embedCharacterCard", () => {
     const svc = createAdminService(h.ctx);
     const admin = await seedUser(db, { id: "user_adm", role: "admin", handle: "adm" });
 
-    const err = await svc
-      .embedCharacterCard({ principal: principal(admin, "admin"), characterId: CHARACTER_ID })
-      .catch((e: unknown) => e);
+    const err = await svc.embedCharacterCard({ principal: principal(admin, "admin"), characterId: CHARACTER_ID }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(DomainNotFoundError);
     expect(h.audits).toHaveLength(0);
   });

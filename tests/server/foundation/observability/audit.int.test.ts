@@ -4,11 +4,7 @@
 
 import type { Db } from "@orb/db";
 import { auditLogs } from "@orb/db";
-import {
-  getAuditFailureSnapshot,
-  logAudit,
-  resetAuditFailureCount,
-} from "@orb/server/foundation/observability";
+import { getAuditFailureSnapshot, logAudit, resetAuditFailureCount } from "@orb/server/foundation/observability";
 import { describe } from "vitest";
 import { freshDb } from "../../../support/db";
 import { expect, test } from "../../../support/fixtures";
@@ -52,9 +48,7 @@ describe("logAudit — failure path (never breaks the primary channel)", () => {
       },
     } as unknown as Db;
 
-    await expect(
-      logAudit(brokenDb, { actorUserId: null, action: "will.fail" }, FAIL_STAMP),
-    ).resolves.toBeUndefined();
+    await expect(logAudit(brokenDb, { actorUserId: null, action: "will.fail" }, FAIL_STAMP)).resolves.toBeUndefined();
 
     const snap = getAuditFailureSnapshot();
     expect(snap.count).toBe(1);

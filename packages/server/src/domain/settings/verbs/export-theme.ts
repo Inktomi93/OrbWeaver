@@ -15,9 +15,7 @@ import { listOwnedThemes } from "../persistence/theme-queries";
 const THEME_BACKUP_FILENAME = "themes.json";
 
 /** Read the owner's owned themes and serialize them to a theme-backup portable file. */
-export function createExportTheme(
-  ctx: SettingsContext,
-): (ownerId: UserId) => Promise<SettingsPortableFile> {
+export function createExportTheme(ctx: SettingsContext): (ownerId: UserId) => Promise<SettingsPortableFile> {
   return async (ownerId: UserId): Promise<SettingsPortableFile> => {
     const rows = await listOwnedThemes(ctx.db, ownerId);
     const themes: CanonicalTheme[] = rows.map((row) => ({

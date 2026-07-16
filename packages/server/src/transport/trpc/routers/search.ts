@@ -82,25 +82,21 @@ export const searchRouter = t.router({
     }),
   ),
 
-  fields: authedProcedure
-    .input(z.object({ query: z.string().min(1), topN: z.number().int().positive() }))
-    .query(({ ctx, input }) =>
-      ctx.services.search.fields({
-        ownerId: ctx.auth.userId,
-        query: input.query,
-        topN: input.topN,
-      }),
-    ),
+  fields: authedProcedure.input(z.object({ query: z.string().min(1), topN: z.number().int().positive() })).query(({ ctx, input }) =>
+    ctx.services.search.fields({
+      ownerId: ctx.auth.userId,
+      query: input.query,
+      topN: input.topN,
+    }),
+  ),
 
-  suggest: authedProcedure
-    .input(z.object({ query: z.string().min(1), limit: z.number().int().positive() }))
-    .query(({ ctx, input }) =>
-      ctx.services.search.suggest({
-        ownerId: ctx.auth.userId,
-        query: input.query,
-        limit: input.limit,
-      }),
-    ),
+  suggest: authedProcedure.input(z.object({ query: z.string().min(1), limit: z.number().int().positive() })).query(({ ctx, input }) =>
+    ctx.services.search.suggest({
+      ownerId: ctx.auth.userId,
+      query: input.query,
+      limit: input.limit,
+    }),
+  ),
 
   discover: authedProcedure.input(searchInput).query(({ ctx, input }) =>
     ctx.services.search.discover({

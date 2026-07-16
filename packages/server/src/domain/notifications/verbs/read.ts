@@ -12,16 +12,9 @@ import { dismissScoped, markAllReadScoped, markReadScoped } from "../persistence
 
 const ENTITY = "notification";
 
-export function createRead(
-  ctx: NotificationsContext,
-): Pick<NotificationsService, "markRead" | "markAllRead" | "dismiss"> {
+export function createRead(ctx: NotificationsContext): Pick<NotificationsService, "markRead" | "markAllRead" | "dismiss"> {
   async function markRead(params: MarkReadParams): Promise<InboxView> {
-    const row = await markReadScoped(
-      ctx.db,
-      params.principal.userId,
-      params.notificationId,
-      ctx.now(),
-    );
+    const row = await markReadScoped(ctx.db, params.principal.userId, params.notificationId, ctx.now());
     if (row === undefined) {
       throw new DomainNotFoundError(ENTITY, params.notificationId);
     }
@@ -34,12 +27,7 @@ export function createRead(
   }
 
   async function dismiss(params: DismissParams): Promise<InboxView> {
-    const row = await dismissScoped(
-      ctx.db,
-      params.principal.userId,
-      params.notificationId,
-      ctx.now(),
-    );
+    const row = await dismissScoped(ctx.db, params.principal.userId, params.notificationId, ctx.now());
     if (row === undefined) {
       throw new DomainNotFoundError(ENTITY, params.notificationId);
     }

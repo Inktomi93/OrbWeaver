@@ -45,8 +45,6 @@ describe("setActive", () => {
       provider: "openrouter",
       key: "k",
     });
-    await expect(
-      svc.setActive({ principal: principal(bob), credentialId: aliceCred.id }),
-    ).rejects.toMatchObject({ code: "credential_not_found" });
+    await expect(svc.setActive({ principal: principal(bob), credentialId: aliceCred.id })).rejects.toMatchObject({ code: "credential_not_found" });
   });
 });

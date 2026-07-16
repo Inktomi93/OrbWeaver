@@ -8,15 +8,7 @@
 import type { ThemeOverride } from "@orb/contracts/theme";
 
 // The flat palette color keys both theme forms carry (each field a color STRING; "" = unset → inherit).
-const THEME_COLOR_KEYS = [
-  "background",
-  "accent",
-  "borderColor",
-  "speaker",
-  "dialogueColor",
-  "narrationColor",
-  "bodyColor",
-] as const;
+const THEME_COLOR_KEYS = ["background", "accent", "borderColor", "speaker", "dialogueColor", "narrationColor", "bodyColor"] as const;
 
 /** The flat palette-color fields shared by every theme form value shape (both editors extend this). */
 export interface ThemeColorFields {

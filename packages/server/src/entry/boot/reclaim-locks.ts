@@ -24,9 +24,6 @@ export async function reclaimLocksOnBoot(deps: ReclaimLocksDeps): Promise<number
     staleThresholdMs: BOOT_STALE_THRESHOLD_MS,
   });
   const chatLocks = await reclaimChatLocksOnBoot(deps.db, deps.holder);
-  getLog().info(
-    { reaped, chatLocks },
-    "boot/reclaim-locks: reaped orphaned in-flight workloads + chat turn-locks",
-  );
+  getLog().info({ reaped, chatLocks }, "boot/reclaim-locks: reaped orphaned in-flight workloads + chat turn-locks");
   return reaped + chatLocks;
 }

@@ -13,10 +13,7 @@ const VIEWER = castId<UserId>("user_viewer");
 const OTHER = castId<UserId>("user_other");
 const CHAR = castId<CharacterId>("char_speaker");
 
-function participant(
-  renderPolicy: RenderPolicy | undefined,
-  characterId: CharacterId = CHAR,
-): ReadonlyMap<CharacterId, ParticipantView> {
+function participant(renderPolicy: RenderPolicy | undefined, characterId: CharacterId = CHAR): ReadonlyMap<CharacterId, ParticipantView> {
   const view: ParticipantView = {
     id: castId("participant_1"),
     chatId: castId("chat_1"),

@@ -8,10 +8,7 @@ import type { ModelId } from "@orb/kit/ids";
 import type { RerankRequest, RerankResult } from "@orb/server/infra/providers";
 import { ProviderError } from "@orb/server/infra/providers";
 import type { LocalLightModelCache } from "@orb/server/infra/providers/backends/local-light";
-import {
-  createLocalLightBackend,
-  DEFAULT_RERANK_MODEL,
-} from "@orb/server/infra/providers/backends/local-light";
+import { createLocalLightBackend, DEFAULT_RERANK_MODEL } from "@orb/server/infra/providers/backends/local-light";
 import { describe } from "vitest";
 import { makeResolvedCredential } from "../../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../../support/fixtures";
@@ -84,11 +81,7 @@ describe("createLocalLightRerank", () => {
       credential: CRED,
       model: MODEL,
       query: "q",
-      documents: [
-        { id: "keep", text: "real text" },
-        { id: "blank", text: "   " },
-        { id: "missing" },
-      ],
+      documents: [{ id: "keep", text: "real text" }, { id: "blank", text: "   " }, { id: "missing" }],
     });
 
     expect(res.hits.map((h) => h.id)).toEqual(["keep"]);

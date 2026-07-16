@@ -12,11 +12,7 @@ export interface ClientErrorPayload {
 }
 
 /** Build the report payload from a caught render error + its (DEV-only, possibly null) owner stack. */
-export function buildClientErrorPayload(
-  error: Error,
-  ownerStack: string | null,
-  url: string,
-): ClientErrorPayload {
+export function buildClientErrorPayload(error: Error, ownerStack: string | null, url: string): ClientErrorPayload {
   return {
     message: error.message,
     ...(error.stack === undefined ? {} : { stack: error.stack }),

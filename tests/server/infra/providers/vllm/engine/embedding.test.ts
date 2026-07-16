@@ -1,12 +1,6 @@
 // Unit tests for the shared embed-wire helpers — pure math + prompt templating (no IO).
 
-import {
-  DOC_INSTRUCTION,
-  normalizeVector,
-  QUERY_INSTRUCTION,
-  toEmbedPrompt,
-  truncateToDim,
-} from "@orb/server/infra/providers/vllm/engine";
+import { DOC_INSTRUCTION, normalizeVector, QUERY_INSTRUCTION, toEmbedPrompt, truncateToDim } from "@orb/server/infra/providers/vllm/engine";
 import { describe } from "vitest";
 import { expect, test } from "../../../../../support/fixtures";
 

@@ -6,15 +6,7 @@
 import type { CredentialSource } from "@orb/contracts/credentials";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-  CommandLoading,
-} from "@orb/ui/command";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandLoading } from "@orb/ui/command";
 import { useFuzzySearch } from "@orb/ui/fuzzy-search";
 import { ChevronDown, Icon } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
@@ -100,18 +92,8 @@ export function ModelPicker(props: ModelPickerProps): ReactElement {
     >
       <PopoverTrigger
         render={
-          <Button
-            intent="secondary"
-            size="sm"
-            aria-label={ariaLabel}
-            className="min-w-0 flex-1 justify-start"
-          >
-            <Text
-              as="span"
-              size="body"
-              tone={value === "" ? "muted" : "default"}
-              className="truncate"
-            >
+          <Button intent="secondary" size="sm" aria-label={ariaLabel} className="min-w-0 flex-1 justify-start">
+            <Text as="span" size="body" tone={value === "" ? "muted" : "default"} className="truncate">
               {triggerLabel}
             </Text>
             <Icon icon={ChevronDown} size="sm" className="ms-auto shrink-0" />
@@ -120,21 +102,11 @@ export function ModelPicker(props: ModelPickerProps): ReactElement {
       />
       <PopoverPopup align="start" className="p-0">
         <Command shouldFilter={false} onEscape={(): void => setOpen(false)} label={ariaLabel}>
-          <CommandInput
-            aria-label={ariaLabel}
-            placeholder="Search models…"
-            value={query}
-            onValueChange={setQuery}
-          />
+          <CommandInput aria-label={ariaLabel} placeholder="Search models…" value={query} onValueChange={setQuery} />
 
           {view.showChips ? (
             <Row gap="field" align="center" className="border-b border-border px-block py-field">
-              <ToggleGroup
-                aria-label="Filter models"
-                multiple={true}
-                value={chips}
-                onValueChange={setChips}
-              >
+              <ToggleGroup aria-label="Filter models" multiple={true} value={chips} onValueChange={setChips}>
                 <Toggle value={VISION_CHIP} size="sm">
                   Vision
                 </Toggle>
@@ -160,24 +132,14 @@ export function ModelPicker(props: ModelPickerProps): ReactElement {
             {view.recentEntries.length > 0 ? (
               <CommandGroup heading="Recent">
                 {view.recentEntries.map((entry) => (
-                  <ModelItem
-                    key={`recent-${entry.id}`}
-                    entry={entry}
-                    active={entry.id === value}
-                    onSelect={commit}
-                  />
+                  <ModelItem key={`recent-${entry.id}`} entry={entry} active={entry.id === value} onSelect={commit} />
                 ))}
               </CommandGroup>
             ) : null}
 
             <CommandGroup heading="All models">
               {view.capped.map((entry) => (
-                <ModelItem
-                  key={entry.id}
-                  entry={entry}
-                  active={entry.id === value}
-                  onSelect={commit}
-                />
+                <ModelItem key={entry.id} entry={entry} active={entry.id === value} onSelect={commit} />
               ))}
             </CommandGroup>
 
@@ -190,27 +152,13 @@ export function ModelPicker(props: ModelPickerProps): ReactElement {
             ) : null}
 
             {view.allowsFreeText ? (
-              <CommandItem
-                value={`__free-text__${query}`}
-                keywords={[query]}
-                disabled={query.trim() === ""}
-                onSelect={(): void => commit(query)}
-              >
-                <Text size="body">
-                  {query.trim() === ""
-                    ? "Type a model id to use it"
-                    : `Use “${query.trim()}” as typed`}
-                </Text>
+              <CommandItem value={`__free-text__${query}`} keywords={[query]} disabled={query.trim() === ""} onSelect={(): void => commit(query)}>
+                <Text size="body">{query.trim() === "" ? "Type a model id to use it" : `Use “${query.trim()}” as typed`}</Text>
               </CommandItem>
             ) : null}
           </CommandList>
 
-          <Row
-            gap="field"
-            align="center"
-            justify="between"
-            className="border-t border-border px-block py-field"
-          >
+          <Row gap="field" align="center" justify="between" className="border-t border-border px-block py-field">
             <Text size="micro" tone="muted">
               {footerSyncedLabel(result?.fetchedAt ?? null, view.allowsFreeText)}
             </Text>
@@ -246,12 +194,7 @@ function usePickerView(
 
   // custom_openai's fetched /models ids arrive as bare strings — lift them to entries so one render path covers every source.
   const pool = useMemo<readonly SourceModelEntry[]>(
-    () =>
-      allowsFreeText
-        ? (customModels ?? []).map(
-            (id) => ({ id, label: id, origin: "catalog" }) as SourceModelEntry,
-          )
-        : (result?.models ?? []),
+    () => (allowsFreeText ? (customModels ?? []).map((id) => ({ id, label: id, origin: "catalog" }) as SourceModelEntry) : (result?.models ?? [])),
     [allowsFreeText, customModels, result?.models],
   );
   const poolById = useMemo(() => new Map(pool.map((entry) => [entry.id, entry] as const)), [pool]);
@@ -288,12 +231,7 @@ function ModelItem({
   const context = formatContextLength(entry.contextLength ?? undefined);
   const price = formatPromptPrice(entry.promptPrice ?? undefined);
   return (
-    <CommandItem
-      value={entry.id}
-      keywords={[entry.label]}
-      data-active={active ? true : undefined}
-      onSelect={(): void => onSelect(entry.id)}
-    >
+    <CommandItem value={entry.id} keywords={[entry.label]} data-active={active ? true : undefined} onSelect={(): void => onSelect(entry.id)}>
       <Stack gap="field" className="min-w-0 flex-1">
         <Row gap="field" align="center" className="min-w-0">
           <Text as="span" size="body" weight="medium" className="truncate">

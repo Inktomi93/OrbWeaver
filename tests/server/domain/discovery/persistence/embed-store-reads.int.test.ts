@@ -125,9 +125,7 @@ describe("hub reads are OWNER-SCOPED (csls analyzes YOUR OWN library only — ne
     });
 
     // A's reads see ONLY A's rows (never B's) — the owner-local hub space.
-    expect((await readCharacterHubVectors(db, a)).map((r) => r.id)).toEqual([
-      "character_embedding_character_a",
-    ]);
+    expect((await readCharacterHubVectors(db, a)).map((r) => r.id)).toEqual(["character_embedding_character_a"]);
     expect((await readDigestHubVectors(db, a)).map((r) => r.id)).toEqual(["chat_digest_a"]);
     expect((await readSegmentHubVectors(db, a)).map((r) => r.id)).toEqual(["chat_segment_a"]);
     expect((await readImageHubVectors(db, a)).map((r) => r.id)).toEqual(["image_embedding_a"]);

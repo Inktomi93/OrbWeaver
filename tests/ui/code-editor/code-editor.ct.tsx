@@ -1,12 +1,7 @@
 import type { CodeEditorDiagnostic } from "@orb/ui/code-editor";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
-import {
-  CompletionsEditor,
-  ControlledEditor,
-  DiagnosticsEditor,
-  ReadOnlyEditor,
-} from "./code-editor.fixtures";
+import { CompletionsEditor, ControlledEditor, DiagnosticsEditor, ReadOnlyEditor } from "./code-editor.fixtures";
 
 const INITIAL_CSS = "body { color: red; }";
 
@@ -56,16 +51,12 @@ test("readOnly blocks edits", async ({ mount }) => {
 // which Chromium doesn't route through the same paste pipeline) bypasses that entirely — CM6's
 // own paste handler checks `state.readOnly`, a SEPARATE facet. If only `editable` were set (the
 // pre-fix shape), this paste would still land a change.
-test("readOnly ALSO blocks a real clipboard paste (EditorState.readOnly, not just the editable facet)", async ({
-  mount,
-  page,
-}) => {
+test("readOnly ALSO blocks a real clipboard paste (EditorState.readOnly, not just the editable facet)", async ({ mount, page }) => {
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
   await page.evaluate(() => navigator.clipboard.writeText("INJECTED"));
   const component = await mount(<ReadOnlyEditor value="locked" />);
   const content = component.locator(".cm-content");
   await content.click();
-  // biome-ignore lint/security/noSecrets: a Playwright key-combo string ("Control or Meta" modifier), not a secret.
   await page.keyboard.press("ControlOrMeta+V");
   await expect(content).toHaveText("locked");
 });
@@ -78,17 +69,13 @@ test("a non-readOnly editor accepts the same real clipboard paste", async ({ mou
   const component = await mount(<ControlledEditor initialValue="" />);
   const content = component.locator(".cm-content");
   await content.click();
-  // biome-ignore lint/security/noSecrets: a Playwright key-combo string ("Control or Meta" modifier), not a secret.
   await page.keyboard.press("ControlOrMeta+V");
   await expect(content).toContainText("PASTED");
 });
 
 test("the token theme is applied (background resolves the design token)", async ({ mount }) => {
   const component = await mount(<ControlledEditor initialValue={INITIAL_CSS} />);
-  await expect(component.locator(".cm-editor")).toHaveCSS(
-    "background-color",
-    TOKENS["color.background"].value,
-  );
+  await expect(component.locator(".cm-editor")).toHaveCSS("background-color", TOKENS["color.background"].value);
 });
 
 test("no `diagnostics` prop means no lint gutter at all", async ({ mount }) => {
@@ -96,9 +83,7 @@ test("no `diagnostics` prop means no lint gutter at all", async ({ mount }) => {
   await expect(component.locator(".cm-gutter-lint")).toHaveCount(0);
 });
 
-test("diagnostics render as an inline mark under the span AND a gutter marker per line", async ({
-  mount,
-}) => {
+test("diagnostics render as an inline mark under the span AND a gutter marker per line", async ({ mount }) => {
   const component = await mount(
     <DiagnosticsEditor
       initialValue={DIAGNOSTICS_CSS}
@@ -114,15 +99,9 @@ test("diagnostics render as an inline mark under the span AND a gutter marker pe
   await expect(component.locator(".cm-lint-marker-warning")).toHaveCount(1);
 });
 
-test("diagnostics re-render on prop change without remounting or losing the cursor", async ({
-  mount,
-}) => {
+test("diagnostics re-render on prop change without remounting or losing the cursor", async ({ mount }) => {
   const component = await mount(
-    <DiagnosticsEditor
-      initialValue={DIAGNOSTICS_CSS}
-      initialDiagnostics={[ERROR_DIAGNOSTIC]}
-      nextDiagnostics={[ERROR_DIAGNOSTIC, WARNING_DIAGNOSTIC]}
-    />,
+    <DiagnosticsEditor initialValue={DIAGNOSTICS_CSS} initialDiagnostics={[ERROR_DIAGNOSTIC]} nextDiagnostics={[ERROR_DIAGNOSTIC, WARNING_DIAGNOSTIC]} />,
   );
   const content = component.locator(".cm-content");
   await expect(component.locator(".cm-lint-marker")).toHaveCount(1);
@@ -131,7 +110,6 @@ test("diagnostics re-render on prop change without remounting or losing the curs
   // reset the fresh view's cursor to position 0, so the NEXT keystroke would land at the start
   // instead of continuing the doc, which the final `output` text below would catch.
   await content.click();
-  // biome-ignore lint/security/noSecrets: a Playwright key-combo string ("Control or Meta" modifier), not a secret.
   await content.press("ControlOrMeta+End");
   await content.pressSequentially("A");
 
@@ -144,9 +122,7 @@ test("diagnostics re-render on prop change without remounting or losing the curs
   await expect(component.getByRole("status")).toHaveText(`${DIAGNOSTICS_CSS}AB`);
 });
 
-test("diagnostics are exposed via aria-describedby + an aria-live region, not just visually", async ({
-  mount,
-}) => {
+test("diagnostics are exposed via aria-describedby + an aria-live region, not just visually", async ({ mount }) => {
   const component = await mount(
     <DiagnosticsEditor
       initialValue={DIAGNOSTICS_CSS}
@@ -163,9 +139,7 @@ test("diagnostics are exposed via aria-describedby + an aria-live region, not ju
   await expect(liveRegion).toContainText("Warning: Prefer a hex value over a named color");
 });
 
-test("severity is signaled beyond color — underline style + gutter marker shape differ", async ({
-  mount,
-}) => {
+test("severity is signaled beyond color — underline style + gutter marker shape differ", async ({ mount }) => {
   const component = await mount(
     <DiagnosticsEditor
       initialValue={DIAGNOSTICS_CSS}
@@ -202,12 +176,8 @@ test("no `completions` prop means no autocomplete tooltip on typing", async ({ m
   await expect(component.locator(".cm-tooltip-autocomplete")).toHaveCount(0);
 });
 
-test("typing a matching prefix opens the autocomplete tooltip listing the completions vocabulary", async ({
-  mount,
-}) => {
-  const component = await mount(
-    <CompletionsEditor initialValue="" completions={THEME_VAR_COMPLETIONS} />,
-  );
+test("typing a matching prefix opens the autocomplete tooltip listing the completions vocabulary", async ({ mount }) => {
+  const component = await mount(<CompletionsEditor initialValue="" completions={THEME_VAR_COMPLETIONS} />);
   const content = component.locator(".cm-content");
   await content.click();
   await content.pressSequentially("--color-p");
@@ -218,12 +188,8 @@ test("typing a matching prefix opens the autocomplete tooltip listing the comple
   await expect(tooltip).not.toContainText("--radius-card");
 });
 
-test("accepting a completion inserts the FULL themeable var name into the document", async ({
-  mount,
-}) => {
-  const component = await mount(
-    <CompletionsEditor initialValue="" completions={THEME_VAR_COMPLETIONS} />,
-  );
+test("accepting a completion inserts the FULL themeable var name into the document", async ({ mount }) => {
+  const component = await mount(<CompletionsEditor initialValue="" completions={THEME_VAR_COMPLETIONS} />);
   const content = component.locator(".cm-content");
   await content.click();
   await content.pressSequentially("--color-p");

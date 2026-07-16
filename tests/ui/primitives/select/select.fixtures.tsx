@@ -16,11 +16,5 @@ const ITEMS = [
  * story).
  */
 export function RenderValueStory(): ReactElement {
-  return (
-    <Select
-      defaultValue="beta"
-      items={ITEMS}
-      renderValue={(value): string => `Selected: ${String(value)}`}
-    />
-  );
+  return <Select defaultValue="beta" items={ITEMS} renderValue={(value): string => `Selected: ${String(value)}`} />;
 }

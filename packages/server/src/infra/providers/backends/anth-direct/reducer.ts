@@ -68,39 +68,28 @@ function classifyBlock(type: string): BlockKind {
   }
 }
 
-function applyMessageStart(
-  acc: Acc,
-  event: RawMessageStreamEvent & { type: "message_start" },
-): void {
+function applyMessageStart(acc: Acc, event: RawMessageStreamEvent & { type: "message_start" }): void {
   const usage = isRecord(event.message.usage) ? event.message.usage : undefined;
   acc.inputTokens = usageNum(usage, "input_tokens");
   acc.cacheReadTokens = usageNum(usage, "cache_read_input_tokens");
   acc.cacheWriteTokens = usageNum(usage, "cache_creation_input_tokens");
-  const creation = isRecord(usage?.["cache_creation"]) ? usage?.["cache_creation"] : undefined;
+  const creation = isRecord(usage?.["cache_creation"]) ? usage["cache_creation"] : undefined;
   acc.cacheCreation5mTokens = usageNumOrNull(creation, "ephemeral_5m_input_tokens");
   acc.cacheCreation1hTokens = usageNumOrNull(creation, "ephemeral_1h_input_tokens");
 }
 
 // OR's /v1/messages passthrough delivers input/cache usage in message_delta, not message_start (which OR
 // sends all-null). Max-merge across both envelopes so whichever carries the real value wins.
-function applyMessageDelta(
-  acc: Acc,
-  event: RawMessageStreamEvent & { type: "message_delta" },
-): void {
+function applyMessageDelta(acc: Acc, event: RawMessageStreamEvent & { type: "message_delta" }): void {
   acc.stopReason = event.delta.stop_reason;
   const usage = isRecord(event.usage) ? event.usage : undefined;
   acc.outputTokens = usageNum(usage, "output_tokens");
   acc.inputTokens = Math.max(acc.inputTokens, usageNum(usage, "input_tokens"));
   acc.cacheReadTokens = Math.max(acc.cacheReadTokens, usageNum(usage, "cache_read_input_tokens"));
-  acc.cacheWriteTokens = Math.max(
-    acc.cacheWriteTokens,
-    usageNum(usage, "cache_creation_input_tokens"),
-  );
+  acc.cacheWriteTokens = Math.max(acc.cacheWriteTokens, usageNum(usage, "cache_creation_input_tokens"));
   const creation = isRecord(usage?.["cache_creation"]) ? usage["cache_creation"] : undefined;
-  acc.cacheCreation5mTokens =
-    usageNumOrNull(creation, "ephemeral_5m_input_tokens") ?? acc.cacheCreation5mTokens;
-  acc.cacheCreation1hTokens =
-    usageNumOrNull(creation, "ephemeral_1h_input_tokens") ?? acc.cacheCreation1hTokens;
+  acc.cacheCreation5mTokens = usageNumOrNull(creation, "ephemeral_5m_input_tokens") ?? acc.cacheCreation5mTokens;
+  acc.cacheCreation1hTokens = usageNumOrNull(creation, "ephemeral_1h_input_tokens") ?? acc.cacheCreation1hTokens;
 }
 
 function applyBlockDelta(

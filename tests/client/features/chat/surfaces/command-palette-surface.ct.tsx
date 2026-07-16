@@ -29,10 +29,7 @@ test("renders the Threads / Go to / Create groups with their rows", async ({ mou
   await expect(page.getByRole("option", { name: "New character" })).toBeVisible();
 });
 
-test("the search input filters rows across groups (matches on thread title)", async ({
-  mount,
-  page,
-}) => {
+test("the search input filters rows across groups (matches on thread title)", async ({ mount, page }) => {
   await routeTrpc(page, { "chat.listChats": [ADVENTURE] });
 
   const component = await mount(<CommandPaletteSurfaceStory />);

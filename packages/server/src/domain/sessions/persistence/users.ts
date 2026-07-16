@@ -52,34 +52,20 @@ const PROVISION_COLS = {
 
 /** `authenticate` lookup (PD-83): the local-login credential row for a handle. `passwordHash` is null for
  *  an SSO-only row (fails verification against the dummy hash — never a fast reject). */
-export async function selectAuthByHandle(
-  db: Db,
-  handle: Handle,
-): Promise<{ id: UserId; passwordHash: string | null; enabled: boolean } | undefined> {
-  const rows = await db
-    .select({ id: users.id, passwordHash: users.passwordHash, enabled: users.enabled })
-    .from(users)
-    .where(eq(users.handle, handle))
-    .limit(1);
+export async function selectAuthByHandle(db: Db, handle: Handle): Promise<{ id: UserId; passwordHash: string | null; enabled: boolean } | undefined> {
+  const rows = await db.select({ id: users.id, passwordHash: users.passwordHash, enabled: users.enabled }).from(users).where(eq(users.handle, handle)).limit(1);
   return rows.at(0);
 }
 
 /** `loadUserById` lookup: the live row for a bare user id. */
-export async function selectForProvisionById(
-  db: Db,
-  id: UserId,
-): Promise<ProvisionRow | undefined> {
+export async function selectForProvisionById(db: Db, id: UserId): Promise<ProvisionRow | undefined> {
   const rows = await db.select(PROVISION_COLS).from(users).where(eq(users.id, id)).limit(1);
   return rows.at(0);
 }
 
 /** `ensureUser` lookup by handle. */
 export async function selectIdByHandle(db: Db, handle: Handle): Promise<UserId | undefined> {
-  const rows = await db
-    .select({ id: users.id })
-    .from(users)
-    .where(eq(users.handle, handle))
-    .limit(1);
+  const rows = await db.select({ id: users.id }).from(users).where(eq(users.handle, handle)).limit(1);
   return rows.at(0)?.id;
 }
 
@@ -92,15 +78,8 @@ export async function selectKindById(db: Db, id: UserId): Promise<UserKind | und
 
 /** The `provisionAgentPrincipal` owner-gate read: the prospective owner's kind + enabled state. A human may
  *  own agents; a non-human or disabled owner is refused. */
-export async function selectMintOwner(
-  db: Db,
-  id: UserId,
-): Promise<{ kind: UserKind; enabled: boolean } | undefined> {
-  const rows = await db
-    .select({ kind: users.kind, enabled: users.enabled })
-    .from(users)
-    .where(eq(users.id, id))
-    .limit(1);
+export async function selectMintOwner(db: Db, id: UserId): Promise<{ kind: UserKind; enabled: boolean } | undefined> {
+  const rows = await db.select({ kind: users.kind, enabled: users.enabled }).from(users).where(eq(users.id, id)).limit(1);
   return rows.at(0);
 }
 
@@ -140,33 +119,19 @@ export function agentMintStatements(
 /** The current owner's id, or `undefined` if none exists yet. `provisionIdentity` reads this to enforce the
  *  "exactly one owner" singleton before a policy-matching second login writes `role=owner`. */
 export async function selectOwnerUserId(db: Db): Promise<UserId | undefined> {
-  const rows = await db
-    .select({ id: users.id })
-    .from(users)
-    .where(eq(users.role, "owner"))
-    .limit(1);
+  const rows = await db.select({ id: users.id }).from(users).where(eq(users.role, "owner")).limit(1);
   return rows.at(0)?.id;
 }
 
 /** `provisionIdentity` lookup by the stable SSO subject (the rename-safe key). */
-export async function selectForProvisionByExternalId(
-  db: Db,
-  externalId: ExternalId,
-): Promise<ProvisionRow | undefined> {
-  const rows = await db
-    .select(PROVISION_COLS)
-    .from(users)
-    .where(eq(users.externalId, externalId))
-    .limit(1);
+export async function selectForProvisionByExternalId(db: Db, externalId: ExternalId): Promise<ProvisionRow | undefined> {
+  const rows = await db.select(PROVISION_COLS).from(users).where(eq(users.externalId, externalId)).limit(1);
   return rows.at(0);
 }
 
 /** `provisionIdentity` / `ensureUser` lookup by handle (single-user rows / first SSO login of an existing
  *  handle). */
-export async function selectForProvisionByHandle(
-  db: Db,
-  handle: Handle,
-): Promise<ProvisionRow | undefined> {
+export async function selectForProvisionByHandle(db: Db, handle: Handle): Promise<ProvisionRow | undefined> {
   const rows = await db.select(PROVISION_COLS).from(users).where(eq(users.handle, handle)).limit(1);
   return rows.at(0);
 }

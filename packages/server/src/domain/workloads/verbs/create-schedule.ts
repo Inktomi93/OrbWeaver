@@ -16,9 +16,7 @@ import { startWorkloadInput } from "../contract/workload-params";
 import { insertSchedule } from "../persistence/schedule-queries";
 import { assertKindSupportsMode } from "../substrate/authorize";
 
-export function createCreateSchedule(
-  ctx: WorkloadServiceContext,
-): Pick<WorkloadService, "createSchedule"> {
+export function createCreateSchedule(ctx: WorkloadServiceContext): Pick<WorkloadService, "createSchedule"> {
   async function createSchedule(params: CreateScheduleParams): Promise<{ id: WorkloadScheduleId }> {
     const input = startWorkloadInput.parse(params.input);
     assertKindSupportsMode(input.kind, params.mode);
@@ -27,10 +25,7 @@ export function createCreateSchedule(
     }
     const ownerId = params.caller !== null ? params.caller.userId : params.ownerId;
     if (ownerId === null) {
-      throw new DomainOperationError(
-        "owner_required",
-        "a schedule must have an owner (no caller and no explicit ownerId)",
-      );
+      throw new DomainOperationError("owner_required", "a schedule must have an owner (no caller and no explicit ownerId)");
     }
     const now = ctx.now();
     const id = ctx.newScheduleId();

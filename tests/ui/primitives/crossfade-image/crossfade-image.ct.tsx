@@ -4,10 +4,8 @@
 import { CrossfadeImage } from "@orb/ui/crossfade-image";
 import { expect, test } from "@playwright/experimental-ct-react";
 
-const ONE_PX_SVG =
-  "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='1' height='1'><rect width='1' height='1' fill='red'/></svg>";
-const OTHER_PX_SVG =
-  "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='1' height='1'><rect width='1' height='1' fill='blue'/></svg>";
+const ONE_PX_SVG = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='1' height='1'><rect width='1' height='1' fill='red'/></svg>";
+const OTHER_PX_SVG = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='1' height='1'><rect width='1' height='1' fill='blue'/></svg>";
 
 test("reserves the aspect box via aspectRatio even when src is null", async ({ mount, page }) => {
   await mount(<CrossfadeImage alt="Portrait" aspectRatio="16 / 9" src={null} />);
@@ -25,16 +23,10 @@ test("reserves the aspect box via aspectRatio even when src is null", async ({ m
 
 test("alt is applied to the rendered image", async ({ mount, page }) => {
   await mount(<CrossfadeImage alt="Nate's avatar" aspectRatio="1" src={ONE_PX_SVG} />);
-  await expect(page.locator('[data-slot="crossfade-image-current"]')).toHaveAttribute(
-    "alt",
-    "Nate's avatar",
-  );
+  await expect(page.locator('[data-slot="crossfade-image-current"]')).toHaveAttribute("alt", "Nate's avatar");
 });
 
-test("on src change the new image fades in over the old, which is then dropped", async ({
-  mount,
-  page,
-}) => {
+test("on src change the new image fades in over the old, which is then dropped", async ({ mount, page }) => {
   const component = await mount(<CrossfadeImage alt="Portrait" aspectRatio="1" src={ONE_PX_SVG} />);
 
   const current = page.locator('[data-slot="crossfade-image-current"]');
@@ -44,9 +36,7 @@ test("on src change the new image fades in over the old, which is then dropped",
   await component.update(<CrossfadeImage alt="Portrait" aspectRatio="1" src={OTHER_PX_SVG} />);
 
   // The new image is a real transition (nonzero duration) — contrasts with the reduced-motion case.
-  const transitionDuration = await current.evaluate(
-    (el) => getComputedStyle(el).transitionDuration,
-  );
+  const transitionDuration = await current.evaluate((el) => getComputedStyle(el).transitionDuration);
   expect(transitionDuration).not.toBe("0s");
 
   // The outgoing image is kept around as the static background layer while the new one fades in...
@@ -58,10 +48,7 @@ test("on src change the new image fades in over the old, which is then dropped",
   await expect(previous).toHaveCount(0);
 });
 
-test("under prefers-reduced-motion the swap is instant (no transition)", async ({
-  mount,
-  page,
-}) => {
+test("under prefers-reduced-motion the swap is instant (no transition)", async ({ mount, page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
 
   const component = await mount(<CrossfadeImage alt="Portrait" aspectRatio="1" src={ONE_PX_SVG} />);
@@ -75,29 +62,18 @@ test("under prefers-reduced-motion the swap is instant (no transition)", async (
   await expect(page.locator('[data-slot="crossfade-image-previous"]')).toHaveCount(0);
 });
 
-test("a src that fails to load renders the broken-image fallback, not a native broken <img>", async ({
-  mount,
-  page,
-}) => {
+test("a src that fails to load renders the broken-image fallback, not a native broken <img>", async ({ mount, page }) => {
   await mount(<CrossfadeImage alt="Portrait" aspectRatio="1" src="/does-not-exist-404.png" />);
 
   await expect(page.locator('[data-slot="crossfade-image-fallback"]')).toBeVisible();
   await expect(page.locator('[data-slot="crossfade-image-current"]')).toHaveCount(0);
 });
 
-test("the fallback replaces the previous layer too, once the incoming src fails", async ({
-  mount,
-  page,
-}) => {
+test("the fallback replaces the previous layer too, once the incoming src fails", async ({ mount, page }) => {
   const component = await mount(<CrossfadeImage alt="Portrait" aspectRatio="1" src={ONE_PX_SVG} />);
-  await expect(page.locator('[data-slot="crossfade-image-current"]')).toHaveAttribute(
-    "src",
-    ONE_PX_SVG,
-  );
+  await expect(page.locator('[data-slot="crossfade-image-current"]')).toHaveAttribute("src", ONE_PX_SVG);
 
-  await component.update(
-    <CrossfadeImage alt="Portrait" aspectRatio="1" src="/does-not-exist-404.png" />,
-  );
+  await component.update(<CrossfadeImage alt="Portrait" aspectRatio="1" src="/does-not-exist-404.png" />);
 
   await expect(page.locator('[data-slot="crossfade-image-fallback"]')).toBeVisible();
   await expect(page.locator('[data-slot="crossfade-image-previous"]')).toHaveCount(0);

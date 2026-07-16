@@ -37,9 +37,7 @@ export function CorpusSimilarityTab(): ReactElement {
   return (
     <QueryBoundary
       fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="line" />}
-      renderError={(_error, retry): ReactElement => (
-        <QueryErrorState label="similarity" onRetry={retry} />
-      )}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label="similarity" onRetry={retry} />}
     >
       <SimilarityBody />
     </QueryBoundary>
@@ -74,12 +72,7 @@ function SimilarityBody(): ReactElement {
         ) : (
           <Stack gap="row">
             {dupArt.map((pair) => (
-              <PairRow
-                key={`${pair.characterIdA}-${pair.characterIdB}`}
-                left={pair.nameA}
-                right={pair.nameB}
-                score={pair.similarity}
-              />
+              <PairRow key={`${pair.characterIdA}-${pair.characterIdB}`} left={pair.nameA} right={pair.nameB} score={pair.similarity} />
             ))}
           </Stack>
         )}
@@ -91,13 +84,7 @@ function SimilarityBody(): ReactElement {
         ) : (
           <Stack gap="row">
             {dupChats.map((pair) => (
-              <PairRow
-                key={pair.id}
-                left={pair.titleA ?? "Untitled"}
-                right={pair.titleB ?? "Untitled"}
-                score={pair.similarity}
-                badge={pair.relation}
-              />
+              <PairRow key={pair.id} left={pair.titleA ?? "Untitled"} right={pair.titleB ?? "Untitled"} score={pair.similarity} badge={pair.relation} />
             ))}
           </Stack>
         )}
@@ -123,18 +110,8 @@ function NearestPairs(): ReactElement {
     <Section heading="Nearest pairs">
       <Stack gap="block">
         <Row gap="block" className="flex-wrap">
-          <ParamSelect
-            label="Min cosine"
-            value={minSimilarity}
-            items={MIN_SIMILARITY_ITEMS}
-            onValueChange={setMinSimilarity}
-          />
-          <ParamSelect
-            label="Max nodes"
-            value={maxNodes}
-            items={MAX_NODES_ITEMS}
-            onValueChange={setMaxNodes}
-          />
+          <ParamSelect label="Min cosine" value={minSimilarity} items={MIN_SIMILARITY_ITEMS} onValueChange={setMinSimilarity} />
+          <ParamSelect label="Max nodes" value={maxNodes} items={MAX_NODES_ITEMS} onValueChange={setMaxNodes} />
         </Row>
         <NearestPairsList
           isPending={graph.isPending}

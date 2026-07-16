@@ -11,10 +11,7 @@ import type { Violation } from "../harness.ts";
 const CLIENT_SRC = "/packages/client/src/";
 
 /** The two persist-minting factories — the ONLY sanctioned `persist(` call sites. */
-const FACTORY_FILES = new Set([
-  "packages/client/src/state/create-persisted-store.ts",
-  "packages/client/src/state/create-entity-draft-store.ts",
-]);
+const FACTORY_FILES = new Set(["packages/client/src/state/create-persisted-store.ts", "packages/client/src/state/create-entity-draft-store.ts"]);
 
 /** The keys a persist options object MUST carry (the irreversibility guard). */
 const REQUIRED_KEYS = ["version", "partialize", "migrate"] as const;
@@ -85,9 +82,7 @@ export const gate: GateDescriptor = {
     if (rel === undefined) {
       return;
     }
-    const violations = FACTORY_FILES.has(rel)
-      ? factoryOptionViolations(sf, rel)
-      : rawPersistViolations(sf, rel);
+    const violations = FACTORY_FILES.has(rel) ? factoryOptionViolations(sf, rel) : rawPersistViolations(sf, rel);
     for (const v of violations) {
       const token = v.message === RAW_PERSIST_MESSAGE ? "raw persist()" : "persist opts";
       ctx.report({ file: v.file, line: v.line, column: 0, message: v.message, token });

@@ -47,10 +47,7 @@ test("P0: the lightbox action buttons stay on-screen at 1280×800", async ({ mou
   expect(await buttonBottom(page, "Close")).toBeLessThan(800);
 });
 
-test("P0: the lightbox action buttons stay on-screen at the tighter 1366×768", async ({
-  mount,
-  page,
-}) => {
+test("P0: the lightbox action buttons stay on-screen at the tighter 1366×768", async ({ mount, page }) => {
   await page.setViewportSize({ width: 1366, height: 768 });
   await routeTrpc(page, { "assets.listGallery": () => [ITEM] });
 
@@ -61,10 +58,7 @@ test("P0: the lightbox action buttons stay on-screen at the tighter 1366×768", 
   expect(await buttonBottom(page, "Close")).toBeLessThan(768);
 });
 
-test("P2: removal goes through a confirm — the mutation fires only AFTER confirming", async ({
-  mount,
-  page,
-}) => {
+test("P2: removal goes through a confirm — the mutation fires only AFTER confirming", async ({ mount, page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   const trpc = await routeTrpc(page, {
     "assets.listGallery": () => [ITEM],
@@ -81,9 +75,7 @@ test("P2: removal goes through a confirm — the mutation fires only AFTER confi
 
   // Confirming fires the removal with the item's id.
   await page.getByRole("button", { name: "Remove", exact: true }).click();
-  await expect
-    .poll(() => trpc.count("assets.removeFromGallery"), { intervals: [20, 50, 100] })
-    .toBeGreaterThanOrEqual(1);
+  await expect.poll(() => trpc.count("assets.removeFromGallery"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
   expect(trpc.lastInput("assets.removeFromGallery")).toEqual({ galleryItemId: "galleryitem_ct_1" });
 });
 

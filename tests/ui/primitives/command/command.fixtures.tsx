@@ -3,15 +3,7 @@
 // DerivedItemsStory proves the real consumer pattern — a parent that re-renders and passes a
 // freshly-mapped array of CommandItems (the R7 "collection-prop" acceptance shape, adapted to
 // cmdk's children-based API: items keyed + valued by id, not inferred from textContent).
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-  CommandStatus,
-} from "@orb/ui/command";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandStatus } from "@orb/ui/command";
 import type { ReactElement } from "react";
 import { useState } from "react";
 
@@ -38,12 +30,7 @@ export function CommandPaletteStory(): ReactElement {
           </CommandGroup>
           <CommandGroup heading="Actions">
             {ACTIONS.map((action) => (
-              <CommandItem
-                disabled={action === "Delete file"}
-                key={action}
-                onSelect={setSelected}
-                value={action}
-              >
+              <CommandItem disabled={action === "Delete file"} key={action} onSelect={setSelected} value={action}>
                 {action}
               </CommandItem>
             ))}

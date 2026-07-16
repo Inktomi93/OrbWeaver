@@ -123,16 +123,11 @@ describe("cardFromJson", () => {
   });
 
   test("uses the fallback name when the card carries none", () => {
-    expect(cardFromJson({ data: { description: "x" } }, "From Filename").name).toBe(
-      "From Filename",
-    );
+    expect(cardFromJson({ data: { description: "x" } }, "From Filename").name).toBe("From Filename");
   });
 
   test("drops the ST creator-notes placeholder", () => {
-    const card = cardFromJson(
-      { data: { name: "X", creator_notes: "Creator's notes go here." } },
-      "fb",
-    );
+    const card = cardFromJson({ data: { name: "X", creator_notes: "Creator's notes go here." } }, "fb");
     expect(card.creatorNotes).toBeNull();
   });
 });
@@ -201,10 +196,7 @@ describe("residualData (PD-127 — unknown top-level data.* keys)", () => {
   });
 
   test("typed columns win on key collision (a stale residual can't shadow a real field)", () => {
-    const card = buildCardV3(
-      { ...fullFields(), residualData: { name: "Stale Name", description: "Stale desc" } },
-      [],
-    );
+    const card = buildCardV3({ ...fullFields(), residualData: { name: "Stale Name", description: "Stale desc" } }, []);
     expect(card.data.name).toBe(fullFields().name);
     expect(card.data.description).toBe(fullFields().description);
   });

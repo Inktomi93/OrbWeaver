@@ -32,11 +32,7 @@ export function createDuplicate(ctx: WorldInfoContext): WorldInfoService["duplic
         description: source.description,
         createdAt: at,
       }),
-      ...entries.map((e) =>
-        ctx.db
-          .insert(worldEntries)
-          .values({ ...e, id: ctx.newEntryId(), worldBookId: newBookId, createdAt: at }),
-      ),
+      ...entries.map((e) => ctx.db.insert(worldEntries).values({ ...e, id: ctx.newEntryId(), worldBookId: newBookId, createdAt: at })),
     ];
     await ctx.db.batch(batchMany(stmts));
 

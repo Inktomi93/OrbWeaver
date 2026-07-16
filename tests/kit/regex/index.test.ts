@@ -1,11 +1,6 @@
 import type { ProcessMacroOptions } from "@orb/kit/macro";
 import type { RegexScriptInput } from "@orb/kit/regex";
-import {
-  executeRegexScripts,
-  MAX_FIND_REGEX_LENGTH,
-  REGEX_PLACEMENTS,
-  SubstituteFindRegex,
-} from "@orb/kit/regex";
+import { executeRegexScripts, MAX_FIND_REGEX_LENGTH, REGEX_PLACEMENTS, SubstituteFindRegex } from "@orb/kit/regex";
 import { vi } from "vitest";
 import { expect, test } from "../../support/fixtures";
 
@@ -62,12 +57,8 @@ test("{{match}} expands to the whole match without macro-evaluating it", () => {
 
 test("placement filtering: a script only runs for a placement in its list", () => {
   const scripts = [script({ placement: ["AI_OUTPUT"], findRegex: "x", replaceString: "y" })];
-  expect(
-    executeRegexScripts({ text: "x", scripts, placement: "USER_INPUT", ctx: macroOpts() }),
-  ).toBe("x");
-  expect(
-    executeRegexScripts({ text: "x", scripts, placement: "AI_OUTPUT", ctx: macroOpts() }),
-  ).toBe("y");
+  expect(executeRegexScripts({ text: "x", scripts, placement: "USER_INPUT", ctx: macroOpts() })).toBe("x");
+  expect(executeRegexScripts({ text: "x", scripts, placement: "AI_OUTPUT", ctx: macroOpts() })).toBe("y");
 });
 
 test("markdownOnly runs on DISPLAY only; promptOnly skips DISPLAY", () => {
@@ -79,12 +70,8 @@ test("markdownOnly runs on DISPLAY only; promptOnly skips DISPLAY", () => {
       replaceString: "b",
     }),
   ];
-  expect(
-    executeRegexScripts({ text: "a", scripts: md, placement: "AI_OUTPUT", ctx: macroOpts() }),
-  ).toBe("a");
-  expect(
-    executeRegexScripts({ text: "a", scripts: md, placement: "DISPLAY", ctx: macroOpts() }),
-  ).toBe("b");
+  expect(executeRegexScripts({ text: "a", scripts: md, placement: "AI_OUTPUT", ctx: macroOpts() })).toBe("a");
+  expect(executeRegexScripts({ text: "a", scripts: md, placement: "DISPLAY", ctx: macroOpts() })).toBe("b");
 
   const prompt = [
     script({
@@ -94,12 +81,8 @@ test("markdownOnly runs on DISPLAY only; promptOnly skips DISPLAY", () => {
       replaceString: "b",
     }),
   ];
-  expect(
-    executeRegexScripts({ text: "a", scripts: prompt, placement: "DISPLAY", ctx: macroOpts() }),
-  ).toBe("a");
-  expect(
-    executeRegexScripts({ text: "a", scripts: prompt, placement: "AI_OUTPUT", ctx: macroOpts() }),
-  ).toBe("b");
+  expect(executeRegexScripts({ text: "a", scripts: prompt, placement: "DISPLAY", ctx: macroOpts() })).toBe("a");
+  expect(executeRegexScripts({ text: "a", scripts: prompt, placement: "AI_OUTPUT", ctx: macroOpts() })).toBe("b");
 });
 
 test("disabled scripts are skipped", () => {

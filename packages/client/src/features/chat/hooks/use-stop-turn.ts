@@ -1,17 +1,18 @@
 // `useStopTurn` — the composer's mid-stream STOP (scout §"composer" + UI-Arch §5 "lifecycle slices as
-// DU transitions"). On click: `chatStream.markStopping(chatId)` fires FIRST — immediate feedback (the
-// button reflects "stopping" before any network round-trip) and the store-level double-abort guard —
-// THEN the `abort` verb fires. The slot does NOT close here: it closes only when the bus delivers the
-// server's `turnAborted` (or a race-won `turnCompleted`) — read via `useTurnPhase`, never optimistic.
-// `abort` (domain/chat/verbs/turn.ts `createAbort`) is idempotent server-side too (a no-in-flight abort
-// is a no-op) — the store guard + the server guard are belt-and-suspenders, not redundant with each
-// other (the store guard is what makes the SECOND CLICK feel instant-safe; the server guard is what
-// makes a genuinely-raced double network call harmless).
+// DU transitions"). On click: `markTurnStopping(chatId)` (data/bus's thin wrapper over the store's
+// `chatStream.markStopping`) fires FIRST — immediate feedback (the button reflects "stopping" before
+// any network round-trip) and the store-level double-abort guard — THEN the `abort` verb fires. The
+// slot does NOT close here: it closes only when the bus delivers the server's `turnAborted` (or a
+// race-won `turnCompleted`) — read via `useTurnPhase`, never optimistic. `abort`
+// (domain/chat/verbs/turn.ts `createAbort`) is idempotent server-side too (a no-in-flight abort is a
+// no-op) — the store guard + the server guard are belt-and-suspenders, not redundant with each other
+// (the store guard is what makes the SECOND CLICK feel instant-safe; the server guard is what makes a
+// genuinely-raced double network call harmless).
 
 import type { ChatId } from "@orb/kit/ids";
-import { createEntityMutation, useInvalidation, useTRPC } from "#data";
+import { createEntityMutation, markTurnStopping, useInvalidation, useTRPC } from "#data";
 import type { TurnSlot } from "#state";
-import { chatStream, useTurnPhase } from "#state";
+import { useTurnPhase } from "#state";
 
 interface AbortVars {
   readonly chatId: ChatId;
@@ -45,7 +46,7 @@ export function useStopTurn(chatId: ChatId | null): UseStopTurnResult {
     if (chatId === null || !canStop) {
       return; // idempotent: idle / already-stopping / terminal — nothing to do
     }
-    chatStream.markStopping(chatId);
+    markTurnStopping(chatId);
     abort.mutate({ chatId });
   };
 

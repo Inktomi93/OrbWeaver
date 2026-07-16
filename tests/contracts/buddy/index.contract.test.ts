@@ -53,30 +53,10 @@ for (const axis of ENUM_AXES) {
 test("the canonical tuples pin their exact member sets", () => {
   expect([...RARITIES]).toEqual(["common", "uncommon", "rare", "epic", "legendary"]);
   expect([...SPECIES]).toEqual(["mote", "scribe", "ember", "loom", "pixel", "wisp"]);
-  expect([...HATS]).toEqual([
-    "none",
-    "crown",
-    "tophat",
-    "antenna",
-    "halo",
-    "wizard",
-    "beanie",
-    "bow",
-  ]);
+  expect([...HATS]).toEqual(["none", "crown", "tophat", "antenna", "halo", "wizard", "beanie", "bow"]);
   expect([...STAT_NAMES]).toEqual(["LORE", "WIT", "WARMTH", "MISCHIEF", "FOCUS"]);
   expect([...BOND_TIERS]).toEqual(["stranger", "acquaintance", "friend", "bestie"]);
-  expect([...MOODS]).toEqual([
-    "content",
-    "working",
-    "queasy",
-    "excited",
-    "sleepy",
-    "proud",
-    "anxious",
-    "playful",
-    "curious",
-    "grumpy",
-  ]);
+  expect([...MOODS]).toEqual(["content", "working", "queasy", "excited", "sleepy", "proud", "anxious", "playful", "curious", "grumpy"]);
 });
 
 // ── The weight/threshold maps are exhaustive over their axes (a missing key is a compile error via

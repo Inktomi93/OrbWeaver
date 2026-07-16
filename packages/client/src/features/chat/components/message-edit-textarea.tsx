@@ -101,14 +101,7 @@ export function MessageEditTextarea({ message, onSave }: MessageEditTextareaProp
         disabled={editMessage.isPending}
       />
       <Row gap="field" justify="end">
-        <Button
-          type="button"
-          intent="ghost"
-          size="sm"
-          disabled={editMessage.isPending}
-          aria-label="Cancel edit"
-          onClick={cancel}
-        >
+        <Button type="button" intent="ghost" size="sm" disabled={editMessage.isPending} aria-label="Cancel edit" onClick={cancel}>
           <Icon icon={X} size="sm" />
         </Button>
         <Button

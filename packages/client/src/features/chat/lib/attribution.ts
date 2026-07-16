@@ -80,8 +80,7 @@ function resolveUserAttribution(input: ResolveRowAttributionInput): RowAttributi
   if (persona === undefined) {
     return DEFAULT_USER_ATTRIBUTION;
   }
-  const avatarHash =
-    (personaId === null ? undefined : input.personaAvatarsById?.get(personaId)) ?? null;
+  const avatarHash = (personaId === null ? undefined : input.personaAvatarsById?.get(personaId)) ?? null;
   return {
     name: persona.name,
     kind: "persona",
@@ -112,9 +111,7 @@ function resolveAssistantAttribution(input: ResolveRowAttributionInput): RowAttr
   };
 }
 
-function isMultiCharacterRoom(
-  participants: ReadonlyMap<CharacterId, ParticipantView> | undefined,
-): boolean {
+function isMultiCharacterRoom(participants: ReadonlyMap<CharacterId, ParticipantView> | undefined): boolean {
   if (participants === undefined) {
     return false;
   }
@@ -136,9 +133,7 @@ function isMultiCharacterRoom(
  *  theme. Derived from roster composition by count, never an isGroup branch. */
 const SOLO_COUNT = 1;
 const TRUE_SOLO_SEATS = 2;
-export function resolveRoomTheme(
-  participants: readonly ParticipantView[] | undefined,
-): ThemeScopeTokens | undefined {
+export function resolveRoomTheme(participants: readonly ParticipantView[] | undefined): ThemeScopeTokens | undefined {
   if (participants === undefined) {
     return;
   }
@@ -153,18 +148,13 @@ export function resolveRoomTheme(
       soleCharacterOverride = participant.themeOverride ?? undefined;
     }
   }
-  const trueSolo =
-    humanCount === SOLO_COUNT &&
-    characterCount === SOLO_COUNT &&
-    participants.length === TRUE_SOLO_SEATS;
+  const trueSolo = humanCount === SOLO_COUNT && characterCount === SOLO_COUNT && participants.length === TRUE_SOLO_SEATS;
   return trueSolo ? soleCharacterOverride : undefined;
 }
 
 /** For the merged-narrator `<speaker>`-split path: name -\> the character's authored themeOverride. Only
  *  characters with an override are included (others fall through to the hash tint). */
-export function speakerThemesByName(
-  participants: ReadonlyMap<CharacterId, ParticipantView> | undefined,
-): ReadonlyMap<string, ThemeScopeTokens> {
+export function speakerThemesByName(participants: ReadonlyMap<CharacterId, ParticipantView> | undefined): ReadonlyMap<string, ThemeScopeTokens> {
   const byName = new Map<string, ThemeScopeTokens>();
   if (participants === undefined) {
     return byName;

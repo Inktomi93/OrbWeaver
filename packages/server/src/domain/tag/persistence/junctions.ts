@@ -9,28 +9,9 @@
 import type { Principal } from "@orb/contracts/identity";
 import type { TagStatus, TagTargetType } from "@orb/contracts/tag";
 import type { Db, OwnedTable } from "@orb/db";
-import {
-  characters,
-  characterTags,
-  chatTags,
-  fetchOwned,
-  personas,
-  personaTags,
-  presets,
-  presetTags,
-  worldBooks,
-  worldBookTags,
-} from "@orb/db";
+import { characters, characterTags, chatTags, fetchOwned, personas, personaTags, presets, presetTags, worldBooks, worldBookTags } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type {
-  CharacterId,
-  ChatId,
-  PersonaId,
-  PresetId,
-  TagId,
-  UserId,
-  WorldBookId,
-} from "@orb/kit/ids";
+import type { CharacterId, ChatId, PersonaId, PresetId, TagId, UserId, WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
 import type { RequireParticipant } from "../contract/service";
@@ -60,8 +41,7 @@ async function ensureOwnedTarget(args: {
 
 const TARGET_GUARDS: Record<TagTargetType, TargetGuard> = {
   // membership IS the scope (chats have no owner). The injected gate rejects a non-member.
-  chat: ({ principal, requireParticipant, targetId }) =>
-    requireParticipant(principal, castId<ChatId>(targetId)),
+  chat: ({ principal, requireParticipant, targetId }) => requireParticipant(principal, castId<ChatId>(targetId)),
   character: ({ db, principal, targetId }) =>
     ensureOwnedTarget({
       db,
@@ -86,8 +66,7 @@ const TARGET_GUARDS: Record<TagTargetType, TargetGuard> = {
       ownerId: principal.userId,
       label: "persona",
     }),
-  preset: ({ db, principal, targetId }) =>
-    ensureOwnedTarget({ db, table: presets, targetId, ownerId: principal.userId, label: "preset" }),
+  preset: ({ db, principal, targetId }) => ensureOwnedTarget({ db, table: presets, targetId, ownerId: principal.userId, label: "preset" }),
 };
 
 /** Gate access to an attach/detach target. Target-derived types verify ownership; chat (D30) routes through
@@ -178,16 +157,10 @@ export async function attachCharacterTag(args: {
 
 /** Detach one tag from a character, idempotently, reporting whether a row was removed. The mirror of
  *  {@link attachCharacterTag}. The tag row itself is left intact. */
-export async function detachCharacterTag(args: {
-  readonly db: Db;
-  readonly characterId: CharacterId;
-  readonly tagId: TagId;
-}): Promise<boolean> {
+export async function detachCharacterTag(args: { readonly db: Db; readonly characterId: CharacterId; readonly tagId: TagId }): Promise<boolean> {
   const deleted = await args.db
     .delete(characterTags)
-    .where(
-      and(eq(characterTags.characterId, args.characterId), eq(characterTags.tagId, args.tagId)),
-    )
+    .where(and(eq(characterTags.characterId, args.characterId), eq(characterTags.tagId, args.tagId)))
     .returning({ tagId: characterTags.tagId });
   return deleted.length > 0;
 }
@@ -205,9 +178,7 @@ const BULK_INSERTERS: Record<TagTargetType, JunctionBulkInserter> = {
   character: ({ db, targetId, tagIds, status }) =>
     db
       .insert(characterTags)
-      .values(
-        tagIds.map((tagId) => ({ characterId: castId<CharacterId>(targetId), tagId, status })),
-      )
+      .values(tagIds.map((tagId) => ({ characterId: castId<CharacterId>(targetId), tagId, status })))
       .onConflictDoUpdate({
         target: [characterTags.characterId, characterTags.tagId],
         set: { status },
@@ -215,9 +186,7 @@ const BULK_INSERTERS: Record<TagTargetType, JunctionBulkInserter> = {
   chat: ({ db, targetId, tagIds, taggerId }) =>
     db
       .insert(chatTags)
-      .values(
-        tagIds.map((tagId) => ({ chatId: castId<ChatId>(targetId), tagId, ownerId: taggerId })),
-      )
+      .values(tagIds.map((tagId) => ({ chatId: castId<ChatId>(targetId), tagId, ownerId: taggerId })))
       .onConflictDoNothing(),
   worldBook: ({ db, targetId, tagIds }) =>
     db
@@ -260,44 +229,14 @@ type JunctionDeleter = (args: DetachArgs) => Promise<unknown>;
 
 const DELETERS: Record<TagTargetType, JunctionDeleter> = {
   character: ({ db, targetId, tagId }) =>
-    db
-      .delete(characterTags)
-      .where(
-        and(
-          eq(characterTags.characterId, castId<CharacterId>(targetId)),
-          eq(characterTags.tagId, tagId),
-        ),
-      ),
+    db.delete(characterTags).where(and(eq(characterTags.characterId, castId<CharacterId>(targetId)), eq(characterTags.tagId, tagId))),
   // D30 per-user overlay: the tagger removes ONLY their own row (ownerId in the predicate).
   chat: ({ db, targetId, tagId, taggerId }) =>
-    db
-      .delete(chatTags)
-      .where(
-        and(
-          eq(chatTags.chatId, castId<ChatId>(targetId)),
-          eq(chatTags.tagId, tagId),
-          eq(chatTags.ownerId, taggerId),
-        ),
-      ),
+    db.delete(chatTags).where(and(eq(chatTags.chatId, castId<ChatId>(targetId)), eq(chatTags.tagId, tagId), eq(chatTags.ownerId, taggerId))),
   worldBook: ({ db, targetId, tagId }) =>
-    db
-      .delete(worldBookTags)
-      .where(
-        and(
-          eq(worldBookTags.worldBookId, castId<WorldBookId>(targetId)),
-          eq(worldBookTags.tagId, tagId),
-        ),
-      ),
-  persona: ({ db, targetId, tagId }) =>
-    db
-      .delete(personaTags)
-      .where(
-        and(eq(personaTags.personaId, castId<PersonaId>(targetId)), eq(personaTags.tagId, tagId)),
-      ),
-  preset: ({ db, targetId, tagId }) =>
-    db
-      .delete(presetTags)
-      .where(and(eq(presetTags.presetId, castId<PresetId>(targetId)), eq(presetTags.tagId, tagId))),
+    db.delete(worldBookTags).where(and(eq(worldBookTags.worldBookId, castId<WorldBookId>(targetId)), eq(worldBookTags.tagId, tagId))),
+  persona: ({ db, targetId, tagId }) => db.delete(personaTags).where(and(eq(personaTags.personaId, castId<PersonaId>(targetId)), eq(personaTags.tagId, tagId))),
+  preset: ({ db, targetId, tagId }) => db.delete(presetTags).where(and(eq(presetTags.presetId, castId<PresetId>(targetId)), eq(presetTags.tagId, tagId))),
 };
 
 /** Detach a tag from a target. Per-type semantics live in {@link DELETERS} (chat removes only the tagger's

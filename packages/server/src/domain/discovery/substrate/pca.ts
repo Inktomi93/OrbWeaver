@@ -31,11 +31,7 @@ function orthogonalize(v: Float64Array, u: Float64Array): void {
   }
 }
 
-function topComponent(
-  rows: readonly Float64Array[],
-  d: number,
-  against: Float64Array | null,
-): Float64Array {
+function topComponent(rows: readonly Float64Array[], d: number, against: Float64Array | null): Float64Array {
   let v = new Float64Array(d);
   for (let j = 0; j < d; j += 1) {
     v[j] = Math.sin(j + 1);

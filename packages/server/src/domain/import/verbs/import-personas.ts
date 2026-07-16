@@ -16,11 +16,7 @@ import type { ImportPersonaInput } from "../contract/views";
 import { requireProfile } from "../guard";
 
 export function createImportPersonas(ctx: ImportContext): ImportService["importPersonas"] {
-  return async ({
-    personas: input,
-  }: {
-    readonly personas: readonly ImportPersonaInput[];
-  }): Promise<ImportPersonasResult> => {
+  return async ({ personas: input }: { readonly personas: readonly ImportPersonaInput[] }): Promise<ImportPersonasResult> => {
     const profile = requireProfile(ctx);
 
     const personas: BulkImportPersonaInput[] = input.map((pi) => ({

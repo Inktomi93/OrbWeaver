@@ -55,10 +55,7 @@ function mirrorViolation(ctx: CheckContext, f: string, name: string): Violation 
       : undefined;
   }
   const nonDomainProducer = NON_DOMAIN_PRODUCERS[name];
-  const producerPath =
-    nonDomainProducer === undefined
-      ? join(ctx.root, DOMAIN_REL, name)
-      : join(ctx.root, nonDomainProducer);
+  const producerPath = nonDomainProducer === undefined ? join(ctx.root, DOMAIN_REL, name) : join(ctx.root, nonDomainProducer);
   return existsSync(producerPath)
     ? undefined
     : {
@@ -86,8 +83,7 @@ function scanDbStructure(ctx: CheckContext): Violation[] {
       {
         file: `${SCHEMA_REL}/${BARREL_FILE}`,
         line: 0,
-        message:
-          "the schema barrel index.ts is missing — every schema file must be re-exported from it (Tier-1-DB.md).",
+        message: "the schema barrel index.ts is missing — every schema file must be re-exported from it (Tier-1-DB.md).",
       },
     ];
   }

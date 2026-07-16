@@ -35,12 +35,7 @@ export function assertParticipant<T>(membership: T | undefined, chatId: ChatId):
 /** Route a chat-resource action through the ONE injected `can()` seam, returning the verdict as a boolean (a
  *  `DomainForbiddenError` from the seam = deny). `can()` makes the DECISION; the chat-coded/leak-free error
  *  shaping is the caller's. A non-forbidden error (a real bug) is never swallowed — it propagates. */
-function permits(
-  can: Can,
-  principal: Principal,
-  action: ChatAction,
-  role: ParticipantRole,
-): boolean {
+function permits(can: Can, principal: Principal, action: ChatAction, role: ParticipantRole): boolean {
   try {
     can(principal, action, { kind: "chat", roster: { role } });
     return true;
@@ -59,17 +54,9 @@ function permits(
  * {@link ChatOperationError}(`not_host`). Host-only surfaces: reseed/reorder/group-config/room-overrides/
  * invites/kick/handoff/anchor-reassignment/memberCardVisibility.
  */
-export function assertHost(
-  can: Can,
-  principal: Principal,
-  role: ParticipantRole,
-  chatId: ChatId,
-): void {
+export function assertHost(can: Can, principal: Principal, role: ParticipantRole, chatId: ChatId): void {
   if (!permits(can, principal, "host", role)) {
-    throw new ChatOperationError(
-      CHAT_OP_CODES.notHost,
-      `chat ${chatId}: this action requires the room host`,
-    );
+    throw new ChatOperationError(CHAT_OP_CODES.notHost, `chat ${chatId}: this action requires the room host`);
   }
 }
 
@@ -94,9 +81,6 @@ export function assertAuthorOrHost(
     return;
   }
   if (!permits(can, principal, "host", role)) {
-    throw new ChatOperationError(
-      CHAT_OP_CODES.notAuthor,
-      `chat ${chatId}: this action requires the message author or the room host`,
-    );
+    throw new ChatOperationError(CHAT_OP_CODES.notAuthor, `chat ${chatId}: this action requires the message author or the room host`);
   }
 }

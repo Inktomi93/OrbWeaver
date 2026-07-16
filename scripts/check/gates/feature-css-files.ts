@@ -39,8 +39,7 @@ export const gate: GateDescriptor = {
   mustPass: [
     {
       files: {
-        "packages/client/src/features/app-shell/surfaces/shell.css":
-          ".shell-grid { display: grid; }\n",
+        "packages/client/src/features/app-shell/surfaces/shell.css": ".shell-grid { display: grid; }\n",
       },
       why: "the ONE allowlisted feature-tier file (the structural layout engine) passes",
     },

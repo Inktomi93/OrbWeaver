@@ -44,24 +44,14 @@ function isByProxy(identity: TurnIdentity): boolean {
 
 /** Throws `ChatOperationError('consent_required')` when a hosted-credential (max-pro-sub) turn is triggered
  *  by someone other than the funding host and the owner has not consented. Fail-closed: no consent ⇒ refuse. */
-export function assertMaxProSubConsent(params: {
-  readonly source: CredentialSource;
-  readonly identity: TurnIdentity;
-  readonly ownerConsent: boolean;
-}): void {
+export function assertMaxProSubConsent(params: { readonly source: CredentialSource; readonly identity: TurnIdentity; readonly ownerConsent: boolean }): void {
   if (params.source === MAX_PRO_SUB && isByProxy(params.identity) && !params.ownerConsent) {
-    throw new ChatOperationError(
-      CHAT_OP_CODES.consentRequired,
-      "a non-owner-triggered max-pro-sub turn requires explicit owner consent",
-    );
+    throw new ChatOperationError(CHAT_OP_CODES.consentRequired, "a non-owner-triggered max-pro-sub turn requires explicit owner consent");
   }
 }
 
 /** Derive the owner-consent value the infra firewall re-verifies at dispatch. Called AFTER
  *  {@link assertMaxProSubConsent}, so a by-proxy non-consented hosted turn has already thrown. */
-export function resolveOwnerConsented(params: {
-  readonly identity: TurnIdentity;
-  readonly ownerConsent: boolean;
-}): boolean {
+export function resolveOwnerConsented(params: { readonly identity: TurnIdentity; readonly ownerConsent: boolean }): boolean {
   return !isByProxy(params.identity) || params.ownerConsent;
 }

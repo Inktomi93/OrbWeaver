@@ -15,6 +15,5 @@ import type { AssetsService } from "../contract/service";
 import { listImageAssetIdRows } from "../persistence/queries";
 
 export function createListImageAssetIds(ctx: AssetsContext): AssetsService["listImageAssetIds"] {
-  return (ownerId?: UserId | null): Promise<readonly AssetId[]> =>
-    listImageAssetIdRows(ctx.db, ownerId);
+  return (ownerId?: UserId | null): Promise<readonly AssetId[]> => listImageAssetIdRows(ctx.db, ownerId);
 }

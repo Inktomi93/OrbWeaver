@@ -20,8 +20,7 @@ export function createUpdate(ctx: PersonaContext): PersonaService["update"] {
       // The FK proves the asset exists, never that it's the caller's.
       await ensureAssetOwned(ctx.db, ownerId, input.avatarAssetId);
     }
-    const metadata =
-      input.metadata === undefined ? undefined : normalizeWriteMetadata(input.metadata);
+    const metadata = input.metadata === undefined ? undefined : normalizeWriteMetadata(input.metadata);
     const edits = stripUndefined({
       name: input.name,
       title: input.title,

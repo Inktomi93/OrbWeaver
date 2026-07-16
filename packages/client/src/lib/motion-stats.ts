@@ -8,14 +8,7 @@
 
 // translate/scale/rotate are CSS Transforms L2 individual properties that Tailwind v4 compiles its
 // scale-*/translate-* utilities to, and composite exactly like transform.
-const COMPOSITOR_SAFE_PROPS = new Set([
-  "transform",
-  "opacity",
-  "filter",
-  "translate",
-  "scale",
-  "rotate",
-]);
+const COMPOSITOR_SAFE_PROPS = new Set(["transform", "opacity", "filter", "translate", "scale", "rotate"]);
 
 // Ring cap — a long session must not grow this unbounded.
 const LOAF_RING_CAP = 64;
@@ -204,8 +197,7 @@ export function activeAnimations(): readonly AnimationRecord[] {
     const record: AnimationRecord = {
       target: resolveSurfaceLabel(anim.effect),
       properties,
-      compositorClean:
-        properties.length > 0 && properties.every((p) => COMPOSITOR_SAFE_PROPS.has(p)),
+      compositorClean: properties.length > 0 && properties.every((p) => COMPOSITOR_SAFE_PROPS.has(p)),
     };
     return anim.id === "" ? record : { ...record, id: anim.id };
   });

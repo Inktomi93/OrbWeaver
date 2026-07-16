@@ -50,9 +50,7 @@ export interface MemberRowActions {
   /** Sole-host leave archives the room — the confirm copy must say so (FINAL-Chats §8.3). */
   readonly leaveArchivesRoom?: boolean | undefined;
   readonly onSetDisabled?: ((characterId: CharacterId, disabled: boolean) => void) | undefined;
-  readonly onSetTalkativeness?:
-    | ((characterId: CharacterId, talkativeness: number) => void)
-    | undefined;
+  readonly onSetTalkativeness?: ((characterId: CharacterId, talkativeness: number) => void) | undefined;
   readonly onForceTurn?: ((characterId: CharacterId) => void) | undefined;
   readonly onViewCharacter?: ((characterId: CharacterId) => void) | undefined;
   /** Panel focus bookkeeping: called when a KICK is confirmed so the panel can land focus on a

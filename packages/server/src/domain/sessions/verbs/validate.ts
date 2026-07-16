@@ -10,19 +10,11 @@ import { selectForValidation, slideExpiry } from "../persistence/sessions";
 // refresh the cookie Max-Age (else the cookie would die 30d after LOGIN regardless of activity).
 
 export function createValidate(ctx: SessionsContext): Pick<SessionsService, "validate"> {
-  async function validate(
-    token: string,
-    onSlide?: (expiresAt: number) => void,
-  ): Promise<ValidatedSession | null> {
+  async function validate(token: string, onSlide?: (expiresAt: number) => void): Promise<ValidatedSession | null> {
     const now = ctx.now();
     const session = await selectForValidation(ctx.db, ctx.hashToken(token));
     // Gating `enabled` to null here IS how disable takes effect next request.
-    if (
-      session === undefined ||
-      session.revokedAt !== null ||
-      session.expiresAt <= now ||
-      !session.enabled
-    ) {
+    if (session === undefined || session.revokedAt !== null || session.expiresAt <= now || !session.enabled) {
       return null;
     }
     if (now - session.lastSeenAt > ctx.slideThrottleMs) {

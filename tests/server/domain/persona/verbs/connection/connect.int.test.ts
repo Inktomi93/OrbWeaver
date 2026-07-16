@@ -37,12 +37,7 @@ describe("connectToCharacter", () => {
     const rows = await db
       .select()
       .from(characterPersonas)
-      .where(
-        and(
-          eq(characterPersonas.characterId, character),
-          eq(characterPersonas.personaId, persona.id),
-        ),
-      );
+      .where(and(eq(characterPersonas.characterId, character), eq(characterPersonas.personaId, persona.id)));
     expect(rows).toHaveLength(1);
     expect(h.audits.filter((a) => a.entry.action === "persona.connectToCharacter")).toHaveLength(2);
   });

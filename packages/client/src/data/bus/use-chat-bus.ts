@@ -63,10 +63,7 @@ export function useChatBus(chatId: ChatId | null, deps: ChatBusDeps): void {
 
 /** The subscription input: `skipToken` for a draft (no chat), `{ chatId, lastEventId: "0" }` for a
  *  just-created chat (seed the durable replay from this chat's baseline), else a plain `{ chatId }`. */
-function subscriptionInput(
-  chatId: ChatId | null,
-  seeded: boolean,
-): typeof skipToken | { readonly chatId: ChatId; readonly lastEventId?: string } {
+function subscriptionInput(chatId: ChatId | null, seeded: boolean): typeof skipToken | { readonly chatId: ChatId; readonly lastEventId?: string } {
   if (chatId === null) {
     return skipToken;
   }

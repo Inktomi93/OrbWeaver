@@ -87,22 +87,16 @@ describe("buildPortableAssetFilename / parsePortableAssetFilename", () => {
 
     test("a non-hash first segment (not 64 hex)", () => {
       expect(parsePortableAssetFilename(`nothex__${id}__avatar__${mimeHex}.png`)).toBeUndefined();
-      expect(
-        parsePortableAssetFilename(`${"a".repeat(63)}__${id}__avatar__${mimeHex}.png`),
-      ).toBeUndefined();
+      expect(parsePortableAssetFilename(`${"a".repeat(63)}__${id}__avatar__${mimeHex}.png`)).toBeUndefined();
     });
 
     test("an id of the wrong TypeID prefix (a character id smuggled in)", () => {
       const foreign = mintTypeId(ID_PREFIX.character);
-      expect(
-        parsePortableAssetFilename(`${HASH_A}__${foreign}__avatar__${mimeHex}.png`),
-      ).toBeUndefined();
+      expect(parsePortableAssetFilename(`${HASH_A}__${foreign}__avatar__${mimeHex}.png`)).toBeUndefined();
     });
 
     test("an unknown asset kind", () => {
-      expect(
-        parsePortableAssetFilename(`${HASH_A}__${id}__notakind__${mimeHex}.png`),
-      ).toBeUndefined();
+      expect(parsePortableAssetFilename(`${HASH_A}__${id}__notakind__${mimeHex}.png`)).toBeUndefined();
     });
 
     test("a non-hex (or empty) mime segment", () => {

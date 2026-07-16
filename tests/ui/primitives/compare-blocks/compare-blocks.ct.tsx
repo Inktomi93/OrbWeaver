@@ -13,13 +13,8 @@ const TWO_BLOCKS: readonly CompareBlock[] = [
   { label: "Class", before: "Rogue", after: "Assassin" },
 ];
 
-test("a single block renders one before/after pair with intent-token tints", async ({
-  mount,
-  page,
-}) => {
-  await mount(
-    <CompareBlocks blocks={[{ before: "The cat sat.", after: "The cat sat quietly." }]} />,
-  );
+test("a single block renders one before/after pair with intent-token tints", async ({ mount, page }) => {
+  await mount(<CompareBlocks blocks={[{ before: "The cat sat.", after: "The cat sat quietly." }]} />);
   const before = page.locator('[data-slot="compare-block-before"]');
   const after = page.locator('[data-slot="compare-block-after"]');
   await expect(before).toHaveCSS("background-color", TOKENS["color.destructive"].value);
@@ -39,18 +34,12 @@ test("N blocks render one pair per item, each with its own label", async ({ moun
   await expect(page.locator('[data-slot="compare-block"]')).toHaveCount(2);
 });
 
-test("no accepted/onAcceptedChange renders zero checkboxes (pure read-only review)", async ({
-  mount,
-  page,
-}) => {
+test("no accepted/onAcceptedChange renders zero checkboxes (pure read-only review)", async ({ mount, page }) => {
   await mount(<CompareBlocks blocks={[{ before: "a", after: "b" }]} />);
   await expect(page.getByRole("checkbox")).toHaveCount(0);
 });
 
-test("a single block with accept wiring shows exactly one checkbox — no accept-all", async ({
-  mount,
-  page,
-}) => {
+test("a single block with accept wiring shows exactly one checkbox — no accept-all", async ({ mount, page }) => {
   await mount(<AcceptHarness blocks={[{ before: "a", after: "b" }]} initialAccepted={[false]} />);
   await expect(page.getByRole("checkbox")).toHaveCount(1);
 });
@@ -66,17 +55,8 @@ test("accepting one block reports only that block's index as accepted", async ({
   await expect(checkboxes.first()).toHaveAttribute("aria-checked", "mixed");
 });
 
-test("accept-all accepts every block; partial acceptance reports as indeterminate", async ({
-  mount,
-  page,
-}) => {
-  await mount(
-    <AcceptHarness
-      acceptAllLabel="Accept all changes"
-      blocks={TWO_BLOCKS}
-      initialAccepted={[true, false]}
-    />,
-  );
+test("accept-all accepts every block; partial acceptance reports as indeterminate", async ({ mount, page }) => {
+  await mount(<AcceptHarness acceptAllLabel="Accept all changes" blocks={TWO_BLOCKS} initialAccepted={[true, false]} />);
   await expect(page.getByText("Accept all changes")).toBeVisible();
   const checkboxes = page.getByRole("checkbox");
   await expect(checkboxes.first()).toHaveAttribute("aria-checked", "mixed");

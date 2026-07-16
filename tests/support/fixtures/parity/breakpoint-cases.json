@@ -50,9 +50,7 @@
         }
       ],
       "appendUserTurn": "u2 the new turn (volatile)",
-      "injections": [
-        { "position": "in_chat", "depth": 0, "role": "user", "content": "(steer: be terse)" }
-      ],
+      "injections": [{ "position": "in_chat", "depth": 0, "role": "user", "content": "(steer: be terse)" }],
       "groupConfig": { "output": "per-speaker", "cardScope": "merged" },
       "scopedTargetId": null,
       "namesBehavior": "default",
@@ -136,9 +134,7 @@
         }
       ],
       "appendUserTurn": "u2 the new turn (volatile)",
-      "injections": [
-        { "position": "in_chat", "depth": 1, "role": "assistant", "content": "...continues" }
-      ],
+      "injections": [{ "position": "in_chat", "depth": 1, "role": "assistant", "content": "...continues" }],
       "groupConfig": { "output": "per-speaker", "cardScope": "merged" },
       "scopedTargetId": null,
       "namesBehavior": "default",

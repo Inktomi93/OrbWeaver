@@ -33,18 +33,14 @@ describe("get", () => {
       principal: principal(owner),
       input: { handle: "secret", name: "Secret", description: "d" },
     });
-    await expect(
-      svc.get({ principal: principal(other), characterId: created.id }),
-    ).rejects.toBeInstanceOf(CharacterNotFoundError);
+    await expect(svc.get({ principal: principal(other), characterId: created.id })).rejects.toBeInstanceOf(CharacterNotFoundError);
   });
 
   test("a missing id throws CharacterNotFoundError", async () => {
     const db = await freshDb();
     const svc = createCharacterService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: "owner" });
-    await expect(
-      svc.get({ principal: principal(owner), characterId: castId<CharacterId>("character_ghost") }),
-    ).rejects.toBeInstanceOf(CharacterNotFoundError);
+    await expect(svc.get({ principal: principal(owner), characterId: castId<CharacterId>("character_ghost") })).rejects.toBeInstanceOf(CharacterNotFoundError);
   });
 });
 

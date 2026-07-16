@@ -26,10 +26,7 @@ export function createImages(ctx: SearchContext): SearchService["images"] {
     const embedded = await ctx.roleClients.imageEmbed({ kind: "text", input: query });
     const queryVector = embedded.vectors[0];
     if (queryVector === null || queryVector === undefined) {
-      throw new SearchError(
-        SEARCH_EMPTY_QUERY,
-        "the query embedded to no vector — nothing to scan",
-      );
+      throw new SearchError(SEARCH_EMPTY_QUERY, "the query embedded to no vector — nothing to scan");
     }
 
     const pool = await nearestImages(ctx.db, {
@@ -49,17 +46,8 @@ export function createImages(ctx: SearchContext): SearchService["images"] {
     }));
 
     const ordered =
-      params.rerank === true
-        ? await applyRerank(
-            query,
-            rerankPoolByScores(ranked, RERANK_POOL_FACTOR * topN),
-            ctx.roleClients.rerank,
-            topN,
-          )
-        : ranked;
+      params.rerank === true ? await applyRerank(query, rerankPoolByScores(ranked, RERANK_POOL_FACTOR * topN), ctx.roleClients.rerank, topN) : ranked;
 
-    return ordered
-      .slice(0, topN)
-      .map((r) => ({ assetId: r.assetId, score: r.score, lens, caption: r.caption }));
+    return ordered.slice(0, topN).map((r) => ({ assetId: r.assetId, score: r.score, lens, caption: r.caption }));
   };
 }

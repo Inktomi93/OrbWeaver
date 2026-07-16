@@ -71,7 +71,7 @@ export function EntryListEditor<TItem>({
                 </Button>
               }
               clickable={true}
-              // biome-ignore lint/suspicious/noArrayIndexKey: entries render in array order and are edited in place — the index IS the row identity (the character-greeting-preview precedent).
+              // biome-ignore lint/suspicious/noArrayIndexKey: entries are a positional, id-less list edited in place by index — the index IS the row identity.
               key={index}
               onClick={(): void => onEdit(index)}
               subtitle={getSubtitle(item, index)}

@@ -74,19 +74,12 @@ export function ConfirmDialog({
       <AlertDialogPopup {...(forceRender === undefined ? {} : { forceRender })}>
         <Stack gap="block">
           <AlertDialogTitle>{title}</AlertDialogTitle>
-          {description === undefined ? null : (
-            <AlertDialogDescription>{description}</AlertDialogDescription>
-          )}
+          {description === undefined ? null : <AlertDialogDescription>{description}</AlertDialogDescription>}
           <AlertDialogActions>
             <AlertDialogClose render={<Button intent="ghost">{cancelLabel}</Button>} />
             <AlertDialogClose
               render={
-                <Button
-                  disabled={confirmDisabled}
-                  intent={confirmIntent}
-                  loading={confirmLoading}
-                  onClick={onConfirm}
-                >
+                <Button disabled={confirmDisabled} intent={confirmIntent} loading={confirmLoading} onClick={onConfirm}>
                   {confirmLabel}
                 </Button>
               }

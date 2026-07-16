@@ -11,17 +11,9 @@ const TOO_YOUNG = "13";
 
 export function FieldValidityStory(): ReactElement {
   return (
-    <Field
-      label="Age"
-      validate={(value): string | null => (value === TOO_YOUNG ? "Too young" : null)}
-      validationMode="onChange"
-    >
+    <Field label="Age" validate={(value): string | null => (value === TOO_YOUNG ? "Too young" : null)} validationMode="onChange">
       <Input />
-      <FieldValidity>
-        {(validity): ReactElement => (
-          <span>{validity.validity.valid === false ? "field is invalid" : "field is valid"}</span>
-        )}
-      </FieldValidity>
+      <FieldValidity>{(validity): ReactElement => <span>{validity.validity.valid === false ? "field is invalid" : "field is valid"}</span>}</FieldValidity>
     </Field>
   );
 }

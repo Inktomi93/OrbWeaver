@@ -9,19 +9,7 @@ import type { ModelCapability, ResolvedConnection } from "@orb/contracts/connect
 import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
-import {
-  assets,
-  characters,
-  chatEvents,
-  chatParticipants,
-  chatStreamEvents,
-  chats,
-  messages,
-  messageVariants,
-  pendingTurns,
-  personas,
-  users,
-} from "@orb/db";
+import { assets, characters, chatEvents, chatParticipants, chatStreamEvents, chats, messages, messageVariants, pendingTurns, personas, users } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
 import type {
@@ -47,10 +35,7 @@ import type { MessageRole } from "@orb/kit/message-role";
 import { can } from "@orb/server/domain/admin";
 import { and, eq, isNull } from "drizzle-orm";
 import type { ChatContext } from "../../../../packages/server/src/domain/chat/context";
-import type {
-  TurnRequest,
-  TurnStreamChunk,
-} from "../../../../packages/server/src/domain/chat/contract/results";
+import type { TurnRequest, TurnStreamChunk } from "../../../../packages/server/src/domain/chat/contract/results";
 import { FROZEN_AT_MS } from "../../../support/clock.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 
@@ -118,12 +103,7 @@ export async function seedPersona(
 }
 
 /** Insert a minimal `assets` row (the #67 persona-avatar-hash join target); returns its branded id. */
-export async function seedAsset(
-  db: Db,
-  ownerId: UserId,
-  key: string,
-  overrides: { readonly hash?: string } = {},
-): Promise<AssetId> {
+export async function seedAsset(db: Db, ownerId: UserId, key: string, overrides: { readonly hash?: string } = {}): Promise<AssetId> {
   const id = castId<AssetId>(`asset_${key}`);
   await db.insert(assets).values({
     id,
@@ -241,9 +221,7 @@ export async function seedMessage(
  *  resolves the real `users` publics; here the handle/name derive from the id — the `fork.ts` test precedent).
  *  Byte-identical across fork/invites/start-chat/read; call fresh per test (after `db = await freshDb()`) so it
  *  closes over the current test's db. */
-export function makeLoadParticipantViews(
-  db: Db,
-): (chatId: ChatId) => Promise<readonly ParticipantView[]> {
+export function makeLoadParticipantViews(db: Db): (chatId: ChatId) => Promise<readonly ParticipantView[]> {
   return async (chatId: ChatId): Promise<readonly ParticipantView[]> => {
     const rows = await db
       .select()
@@ -272,45 +250,24 @@ export function makeLoadParticipantViews(
 }
 
 /** Append an extra variant (swipe) to an existing slot — for the `variantCount` / `selectedVariantIdx` reads. */
-export async function addVariant(
-  db: Db,
-  messageId: MessageId,
-  idx: number,
-  content: string,
-): Promise<MessageVariantId> {
+export async function addVariant(db: Db, messageId: MessageId, idx: number, content: string): Promise<MessageVariantId> {
   const variantId = castId<MessageVariantId>(`variant_${messageId}_${idx}`);
-  await db
-    .insert(messageVariants)
-    .values({ id: variantId, messageId, idx, content, createdAt: FROZEN_AT });
+  await db.insert(messageVariants).values({ id: variantId, messageId, idx, content, createdAt: FROZEN_AT });
   return variantId;
 }
 
 /** Insert a durable chat-bus log row. */
-export async function seedChatEvent(
-  db: Db,
-  chatId: ChatId,
-  seq: number,
-  text: string,
-): Promise<ChatEventId> {
+export async function seedChatEvent(db: Db, chatId: ChatId, seq: number, text: string): Promise<ChatEventId> {
   const id = castId<ChatEventId>(`chat_event_${chatId}_${seq}`);
   const payload: ChatBusEvent = { type: "delta", chatId, delta: { chatId, kind: "text", text } };
-  await db
-    .insert(chatEvents)
-    .values({ id, chatId, seq, type: "delta", payload, createdAt: FROZEN_AT });
+  await db.insert(chatEvents).values({ id, chatId, seq, type: "delta", payload, createdAt: FROZEN_AT });
   return id;
 }
 
 /** Insert a resumable SSE token-log row. */
-export async function seedStreamEvent(
-  db: Db,
-  chatId: ChatId,
-  seq: number,
-  delta: string,
-): Promise<ChatStreamEventId> {
+export async function seedStreamEvent(db: Db, chatId: ChatId, seq: number, delta: string): Promise<ChatStreamEventId> {
   const id = castId<ChatStreamEventId>(`stream_event_${chatId}_${seq}`);
-  await db
-    .insert(chatStreamEvents)
-    .values({ id, chatId, seq, kind: "text", delta, messageId: null, createdAt: FROZEN_AT });
+  await db.insert(chatStreamEvents).values({ id, chatId, seq, kind: "text", delta, messageId: null, createdAt: FROZEN_AT });
   return id;
 }
 
@@ -435,11 +392,7 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     // Default = the REAL ownership read against the seeded `personas` (mirrors the root's `verifyPersonaOwned`)
     // so the `reattributePersona` tests need no per-test override; a test may override to force a verdict.
     verifyPersonaOwned: async ({ ownerId, personaId }) => {
-      const rows = await db
-        .select({ ownerId: personas.ownerId })
-        .from(personas)
-        .where(eq(personas.id, personaId))
-        .limit(1);
+      const rows = await db.select({ ownerId: personas.ownerId }).from(personas).where(eq(personas.id, personaId)).limit(1);
       return rows[0]?.ownerId === ownerId;
     },
     embeddingsStore: notStubbed,

@@ -11,13 +11,7 @@ import { Container, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import {
-  createEntityMutation,
-  QueryBoundary,
-  QueryErrorState,
-  useInvalidation,
-  useTRPC,
-} from "#data";
+import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { useFocusOnMount } from "#lib";
 import { settingsAnchorId } from "#state";
 import { AppearanceEffectsSection } from "../components/appearance-effects-section";
@@ -73,9 +67,7 @@ export function AppearanceSettingsSurface(): ReactElement {
     <Stack ref={surfaceRef} tabIndex={-1} className="outline-none">
       <QueryBoundary
         fallback={<Text tone="muted">Loading your appearance settings…</Text>}
-        renderError={(_error, retry): ReactElement => (
-          <QueryErrorState label="your appearance settings" onRetry={retry} />
-        )}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label="your appearance settings" onRetry={retry} />}
       >
         <FieldLayout orientation="horizontal">
           <Container>
@@ -94,8 +86,7 @@ function AppearanceForm(): ReactElement {
   const { data } = useSuspenseQuery(trpc.settings.getUserSettings.queryOptions());
   const update = useUpdateAppearance({ trpc, invalidation });
 
-  const save = (values: AppearanceSettings): Promise<unknown> =>
-    update.mutateAsync({ section: "appearance", patch: values as Record<string, unknown> });
+  const save = (values: AppearanceSettings): Promise<unknown> => update.mutateAsync({ section: "appearance", patch: values as Record<string, unknown> });
 
   const { form, mountKey } = useAppearanceForm({
     entityId: APPEARANCE_ENTITY_ID,
@@ -106,11 +97,7 @@ function AppearanceForm(): ReactElement {
   return (
     <Stack key={mountKey} gap="section">
       <Stack gap="section">
-        <Section
-          divider={true}
-          heading="Message style"
-          id={anchor(APPEARANCE_SUBCATEGORY_IDS.messageStyle)}
-        >
+        <Section divider={true} heading="Message style" id={anchor(APPEARANCE_SUBCATEGORY_IDS.messageStyle)}>
           <form.AppField name="chatStyle">
             {(field): ReactElement => (
               <field.SelectField
@@ -121,13 +108,7 @@ function AppearanceForm(): ReactElement {
             )}
           </form.AppField>
           <form.AppField name="density">
-            {(field): ReactElement => (
-              <field.SelectField
-                label="Density"
-                description="Compact tightens spacing throughout the app."
-                items={DENSITY_ITEMS}
-              />
-            )}
+            {(field): ReactElement => <field.SelectField label="Density" description="Compact tightens spacing throughout the app." items={DENSITY_ITEMS} />}
           </form.AppField>
           <form.AppField name="elevation">
             {(field): ReactElement => (
@@ -150,23 +131,10 @@ function AppearanceForm(): ReactElement {
 
         <Section divider={true} heading="Avatars" id={anchor(APPEARANCE_SUBCATEGORY_IDS.avatars)}>
           <form.AppField name="showInChatAvatars">
-            {(field): ReactElement => (
-              <field.SwitchField
-                label="Show avatars in chat"
-                description="Hide to show only the speaker's name on each message."
-              />
-            )}
+            {(field): ReactElement => <field.SwitchField label="Show avatars in chat" description="Hide to show only the speaker's name on each message." />}
           </form.AppField>
-          <form.AppField name="avatarSize">
-            {(field): ReactElement => (
-              <field.SelectField label="Avatar size" items={AVATAR_SIZE_ITEMS} />
-            )}
-          </form.AppField>
-          <form.AppField name="avatarShape">
-            {(field): ReactElement => (
-              <field.SelectField label="Avatar shape" items={AVATAR_SHAPE_ITEMS} />
-            )}
-          </form.AppField>
+          <form.AppField name="avatarSize">{(field): ReactElement => <field.SelectField label="Avatar size" items={AVATAR_SIZE_ITEMS} />}</form.AppField>
+          <form.AppField name="avatarShape">{(field): ReactElement => <field.SelectField label="Avatar shape" items={AVATAR_SHAPE_ITEMS} />}</form.AppField>
           <form.AppField name="avatarAspect">
             {(field): ReactElement => (
               <field.SelectField
@@ -176,11 +144,7 @@ function AppearanceForm(): ReactElement {
               />
             )}
           </form.AppField>
-          <form.AppField name="avatarRing">
-            {(field): ReactElement => (
-              <field.SelectField label="Avatar ring" items={AVATAR_RING_ITEMS} />
-            )}
-          </form.AppField>
+          <form.AppField name="avatarRing">{(field): ReactElement => <field.SelectField label="Avatar ring" items={AVATAR_RING_ITEMS} />}</form.AppField>
         </Section>
 
         <Section divider={true} heading="Sizing" id={anchor(APPEARANCE_SUBCATEGORY_IDS.sizing)}>
@@ -210,82 +174,42 @@ function AppearanceForm(): ReactElement {
         <Section divider={true} heading="Motion" id={anchor(APPEARANCE_SUBCATEGORY_IDS.motion)}>
           <form.AppField name="reducedMotion">
             {(field): ReactElement => (
-              <field.SwitchField
-                label="Reduce motion"
-                description="Freeze animations and transitions, beyond your system's own reduced-motion setting."
-              />
+              <field.SwitchField label="Reduce motion" description="Freeze animations and transitions, beyond your system's own reduced-motion setting." />
             )}
           </form.AppField>
         </Section>
 
-        <Section
-          divider={true}
-          heading="Message details"
-          id={anchor(APPEARANCE_SUBCATEGORY_IDS.messageDetails)}
-        >
+        <Section divider={true} heading="Message details" id={anchor(APPEARANCE_SUBCATEGORY_IDS.messageDetails)}>
           <form.AppField name="showTimestamps">
-            {(field): ReactElement => (
-              <field.SwitchField
-                label="Show timestamps"
-                description="A time chip on every message."
-              />
-            )}
+            {(field): ReactElement => <field.SwitchField label="Show timestamps" description="A time chip on every message." />}
           </form.AppField>
           <form.AppField name="showMessageId">
-            {(field): ReactElement => (
-              <field.SwitchField
-                label="Show message ID"
-                description="The message's stable id, for scripting/reference."
-              />
-            )}
+            {(field): ReactElement => <field.SwitchField label="Show message ID" description="The message's stable id, for scripting/reference." />}
           </form.AppField>
           <form.AppField name="showModelIcon">
-            {(field): ReactElement => (
-              <field.SwitchField
-                label="Show model"
-                description="Which model generated the message, when known."
-              />
-            )}
+            {(field): ReactElement => <field.SwitchField label="Show model" description="Which model generated the message, when known." />}
           </form.AppField>
           <form.AppField name="showTokenCount">
-            {(field): ReactElement => (
-              <field.SwitchField
-                label="Show token count"
-                description="The message's token usage, when known."
-              />
-            )}
+            {(field): ReactElement => <field.SwitchField label="Show token count" description="The message's token usage, when known." />}
           </form.AppField>
           <form.AppField name="showGenerationTimer">
             {(field): ReactElement => (
-              <field.SwitchField
-                label="Show generation time"
-                description="How long the model took to generate the message, when known."
-              />
+              <field.SwitchField label="Show generation time" description="How long the model took to generate the message, when known." />
             )}
           </form.AppField>
           <form.AppField name="showGenerationCost">
             {(field): ReactElement => (
-              <field.SwitchField
-                label="Show generation cost"
-                description="A click-to-reveal per-message cost, settled on demand against OpenRouter."
-              />
+              <field.SwitchField label="Show generation cost" description="A click-to-reveal per-message cost, settled on demand against OpenRouter." />
             )}
           </form.AppField>
           <form.AppField name="showLLMReasoningIcon">
             {(field): ReactElement => (
-              <field.SwitchField
-                label="Show reasoning icon"
-                description="A small glyph on the reasoning disclosure, alongside its Thinking/Thought label."
-              />
+              <field.SwitchField label="Show reasoning icon" description="A small glyph on the reasoning disclosure, alongside its Thinking/Thought label." />
             )}
           </form.AppField>
         </Section>
 
-        <Section
-          divider={true}
-          heading="Message actions"
-          id={anchor(APPEARANCE_SUBCATEGORY_IDS.messageActions)}
-        >
+        <Section divider={true} heading="Message actions" id={anchor(APPEARANCE_SUBCATEGORY_IDS.messageActions)}>
           <form.AppField name="messageActions">
             {(field): ReactElement => (
               <field.SelectField
@@ -297,11 +221,7 @@ function AppearanceForm(): ReactElement {
           </form.AppField>
         </Section>
 
-        <Section
-          divider={true}
-          heading="Background"
-          id={anchor(APPEARANCE_SUBCATEGORY_IDS.background)}
-        >
+        <Section divider={true} heading="Background" id={anchor(APPEARANCE_SUBCATEGORY_IDS.background)}>
           <form.AppField name="backgroundImageKind">
             {(field): ReactElement => (
               <field.SelectField
@@ -320,13 +240,7 @@ function AppearanceForm(): ReactElement {
                 <>
                   {kind === "seeded" && (
                     <form.AppField name="backgroundSeededId">
-                      {(field): ReactElement => (
-                        <field.SelectField
-                          label="Seeded image"
-                          placeholder="Choose a background"
-                          items={SEEDED_BACKGROUND_ITEMS}
-                        />
-                      )}
+                      {(field): ReactElement => <field.SelectField label="Seeded image" placeholder="Choose a background" items={SEEDED_BACKGROUND_ITEMS} />}
                     </form.AppField>
                   )}
                   {kind === "external" && (
@@ -346,18 +260,13 @@ function AppearanceForm(): ReactElement {
                           currentHash={hash}
                           onUploaded={(stored): void => {
                             form.setFieldValue("backgroundAssetId", stored.assetId);
-                            // biome-ignore lint/security/noSecrets: false positive — an appearance form-field NAME, not a credential.
                             form.setFieldValue("backgroundAssetHash", stored.hash);
                           }}
                         />
                       )}
                     </form.Subscribe>
                   )}
-                  <form.AppField name="backgroundFit">
-                    {(field): ReactElement => (
-                      <field.SelectField label="Fit" items={BACKGROUND_FIT_ITEMS} />
-                    )}
-                  </form.AppField>
+                  <form.AppField name="backgroundFit">{(field): ReactElement => <field.SelectField label="Fit" items={BACKGROUND_FIT_ITEMS} />}</form.AppField>
                   <form.AppField name="backgroundDim">
                     {(field): ReactElement => (
                       <field.SliderField

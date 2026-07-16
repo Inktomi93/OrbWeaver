@@ -21,13 +21,7 @@ import { RunWorkloadDialog } from "../components/run-workload-dialog";
 import { SchedulesSection } from "../components/schedules-section";
 import { WorkloadRow } from "../components/workload-row";
 import { useCancelWorkload, useRetryWorkload } from "../hooks/use-workload-mutations";
-import {
-  isActiveWorkloadStatus,
-  WORKLOAD_FILTER_EMPTY_COPY,
-  WORKLOAD_FILTER_LABELS,
-  WORKLOAD_FILTERS,
-  workloadFilterMatches,
-} from "../lib/workloads-model";
+import { isActiveWorkloadStatus, WORKLOAD_FILTER_EMPTY_COPY, WORKLOAD_FILTER_LABELS, WORKLOAD_FILTERS, workloadFilterMatches } from "../lib/workloads-model";
 import { WORKLOADS_SUBCATEGORY_IDS } from "../lib/workloads-nav";
 
 type WorkloadItem = inferOutput<Trpc["workloads"]["list"]>[number];
@@ -47,9 +41,7 @@ export function WorkloadsSettingsSurface(): ReactElement {
     <Stack ref={surfaceRef} tabIndex={-1} className="outline-none">
       <QueryBoundary
         fallback={<Text tone="muted">Loading workloads…</Text>}
-        renderError={(_error, retry): ReactElement => (
-          <QueryErrorState label="your workloads" onRetry={retry} />
-        )}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label="your workloads" onRetry={retry} />}
       >
         <Container>
           <WorkloadsPaneBody />
@@ -69,9 +61,7 @@ function WorkloadsPaneBody(): ReactElement {
   const isOwner = viewer.globalRole === "owner";
   const isPrivileged = isOwner || viewer.globalRole === "admin";
 
-  const usersQuery = useGatedQuery(isPrivileged ? "admin-users" : null, () =>
-    trpc.admin.listUsers.queryOptions(),
-  );
+  const usersQuery = useGatedQuery(isPrivileged ? "admin-users" : null, () => trpc.admin.listUsers.queryOptions());
   const users = usersQuery.data ?? [];
   const handleByUserId = new Map(users.map((user) => [user.id as string, user.handle as string]));
 
@@ -90,11 +80,7 @@ function WorkloadsPaneBody(): ReactElement {
 
   return (
     <Stack gap="section" data-testid={testId("workloadsSection")}>
-      <Section
-        divider={true}
-        heading="Jobs"
-        id={settingsAnchorId("workloads", WORKLOADS_SUBCATEGORY_IDS.jobs)}
-      >
+      <Section divider={true} heading="Jobs" id={settingsAnchorId("workloads", WORKLOADS_SUBCATEGORY_IDS.jobs)}>
         <Tabs
           value={filter}
           onValueChange={(value): void => {
@@ -112,18 +98,12 @@ function WorkloadsPaneBody(): ReactElement {
                   </TabsTab>
                 ))}
               </TabsList>
-              <Button
-                intent="primary"
-                data-testid={testId("workloadsRunButton")}
-                onClick={(): void => setRunOpen(true)}
-              >
+              <Button intent="primary" data-testid={testId("workloadsRunButton")} onClick={(): void => setRunOpen(true)}>
                 Run a workload…
               </Button>
             </Row>
             {WORKLOAD_FILTERS.map((id) => {
-              const rows = workloads.filter((workload) =>
-                workloadFilterMatches(id, workload.status),
-              );
+              const rows = workloads.filter((workload) => workloadFilterMatches(id, workload.status));
               return (
                 <TabsPanel key={id} value={id}>
                   {rows.length === 0 ? (
@@ -155,11 +135,7 @@ function WorkloadsPaneBody(): ReactElement {
         </Tabs>
       </Section>
 
-      <SchedulesSection
-        viewerIsOwner={isOwner}
-        viewerUserId={viewer.userId}
-        users={isPrivileged ? users : []}
-      />
+      <SchedulesSection viewerIsOwner={isOwner} viewerUserId={viewer.userId} users={isPrivileged ? users : []} />
 
       <RunWorkloadDialog
         open={runOpen}
@@ -167,10 +143,7 @@ function WorkloadsPaneBody(): ReactElement {
         viewerIsOwner={isOwner}
         users={isOwner ? users : []}
         dependencyCandidates={workloads
-          .filter(
-            (workload) =>
-              isActiveWorkloadStatus(workload.status) && workload.ownerId === viewer.userId,
-          )
+          .filter((workload) => isActiveWorkloadStatus(workload.status) && workload.ownerId === viewer.userId)
           .map((workload) => ({
             id: workload.id as string,
             kind: workload.kind,

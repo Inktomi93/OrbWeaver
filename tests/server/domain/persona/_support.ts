@@ -133,10 +133,7 @@ interface SeedCharacterOverrides {
 }
 
 /** Insert a flat `characters` row (D28 — no version table); returns its branded id. */
-export async function seedCharacter(
-  db: Db,
-  overrides: SeedCharacterOverrides,
-): Promise<CharacterId> {
+export async function seedCharacter(db: Db, overrides: SeedCharacterOverrides): Promise<CharacterId> {
   const id = castId<CharacterId>(overrides.id ?? "character_c");
   await db.insert(characters).values({
     id,
@@ -153,10 +150,6 @@ export async function seedCharacter(
 
 /** Build a Principal for a given user id + role (cookie-resolved by default). Delegates to the shared
  *  `support/factories/principal` — persona keeps its existing positional `(id, role, handle?)` convention. */
-export function principal(
-  userId: UserId,
-  role: UserRole = "user",
-  handle: string = userId,
-): Principal {
+export function principal(userId: UserId, role: UserRole = "user", handle: string = userId): Principal {
   return makePrincipal(userId, { role, handle: castId<Handle>(handle) });
 }

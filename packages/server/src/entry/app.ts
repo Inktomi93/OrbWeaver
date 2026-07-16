@@ -12,24 +12,13 @@ import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { Hono } from "hono";
 import type { ExportService } from "#domain/export";
 import { env } from "#foundation/env";
-import {
-  observability,
-  observabilityErrorHandler,
-  registerDebugRoutes,
-} from "#foundation/observability";
+import { observability, observabilityErrorHandler, registerDebugRoutes } from "#foundation/observability";
 import { hasCsrfHeader } from "#infra/auth";
 import { clientIp, ipAllowlistMiddleware, parseAllowlist, peerIp } from "#infra/network";
 import type { PresenceRegistry, RateLimitGate, Services } from "../transport/trpc";
 import { appRouter, createContext } from "../transport/trpc";
 import type { AuthSeam } from "./auth";
-import type {
-  AuthSessionsPort,
-  BlobAssetsPort,
-  BlobCasPort,
-  LocalAuthenticator,
-  OidcRoutesDeps,
-  UploadAssetsPort,
-} from "./http";
+import type { AuthSessionsPort, BlobAssetsPort, BlobCasPort, LocalAuthenticator, OidcRoutesDeps, UploadAssetsPort } from "./http";
 import {
   registerAuthMeta,
   registerAuthRoutes,
@@ -118,8 +107,7 @@ function readSessionToken(headers: Headers): string | null {
 export function createApp(deps: AppDeps): Hono<AppEnv> {
   const app = new Hono<AppEnv>();
 
-  const multiHumanCapable = (): boolean =>
-    MULTI_HUMAN_CAPABLE[env.AUTH_MODE](deps.services.settings.getEffectiveConfig());
+  const multiHumanCapable = (): boolean => MULTI_HUMAN_CAPABLE[env.AUTH_MODE](deps.services.settings.getEffectiveConfig());
 
   // Hono's onError is the only hook for a handler that throws without returning a Response; without this
   // the request-root span would seal as "ok" and the error would bypass pino/`/api/_debug`.
@@ -142,10 +130,7 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
       ...(peer !== undefined ? { peerIp: peer } : {}),
       onSessionSlide: (expiresAt: number): void => {
         if (token !== null) {
-          c.header(
-            "Set-Cookie",
-            serializeSessionCookie(token, (expiresAt - deps.now()) / MS_PER_SECOND),
-          );
+          c.header("Set-Cookie", serializeSessionCookie(token, (expiresAt - deps.now()) / MS_PER_SECOND));
         }
       },
     });
@@ -171,9 +156,7 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
           services: deps.services,
           rateLimit: deps.rateLimit,
           presence: deps.presence,
-          multiHumanCapable: MULTI_HUMAN_CAPABLE[env.AUTH_MODE](
-            deps.services.settings.getEffectiveConfig(),
-          ),
+          multiHumanCapable: MULTI_HUMAN_CAPABLE[env.AUTH_MODE](deps.services.settings.getEffectiveConfig()),
           csrfHeaderPresent: hasCsrfHeader(c.req.raw.headers),
           clientIp: clientIp(c),
         }),

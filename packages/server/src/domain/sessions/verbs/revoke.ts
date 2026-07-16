@@ -1,11 +1,7 @@
 import type { SessionId, UserId } from "@orb/kit/ids";
 import { getLog, logAudit } from "#foundation/observability";
 import type { SessionsContext, SessionsService } from "../contract/service";
-import {
-  revokeAllForUser as revokeAllForUserQuery,
-  revokeById,
-  revokeByTokenHash,
-} from "../persistence/sessions";
+import { revokeAllForUser as revokeAllForUserQuery, revokeById, revokeByTokenHash } from "../persistence/sessions";
 
 // The three revoke paths — by token (logout), by id (admin kick one device), all-for-user (admin disable /
 // kick-all). Each is ONE atomic `UPDATE … WHERE revokedAt IS NULL RETURNING`, so there is no read-then-
@@ -15,9 +11,7 @@ import {
 const AUTH_LOGOUT = "AUTH_LOGOUT";
 const SESSION_ENTITY = "session";
 
-export function createRevoke(
-  ctx: SessionsContext,
-): Pick<SessionsService, "revokeByToken" | "revoke" | "revokeAllForUser"> {
+export function createRevoke(ctx: SessionsContext): Pick<SessionsService, "revokeByToken" | "revoke" | "revokeAllForUser"> {
   async function revokeByToken(token: string): Promise<void> {
     const now = ctx.now();
     const revoked = await revokeByTokenHash(ctx.db, ctx.hashToken(token), now);

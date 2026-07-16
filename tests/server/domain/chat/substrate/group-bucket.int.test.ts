@@ -15,14 +15,7 @@ import { recallMemory } from "../../../../../packages/server/src/domain/chat/mem
 import { resolveGroupBucketCharacterId } from "../../../../../packages/server/src/domain/chat/substrate/group-bucket";
 import { freshDb } from "../../../../support/db";
 import { expect, test } from "../../../../support/fixtures";
-import {
-  makeChatContext,
-  seedCharacter,
-  seedChat,
-  seedMessage,
-  seedParticipant,
-  seedUser,
-} from "../_support";
+import { makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../_support";
 import { fakeEmbeddingsStore, fakeSummarize } from "../memory/_support";
 
 const BUILD_CFG = { blockSize: 2, verbatimWindow: 0, fanOut: 4, maxTier: 1 } as const;

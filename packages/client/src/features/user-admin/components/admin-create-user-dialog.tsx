@@ -27,37 +27,23 @@ export interface AdminCreateUserDialogProps {
 }
 
 /** The dialog shell — the form body mounts fresh per open (Base UI unmounts closed popups). */
-export function AdminCreateUserDialog({
-  open,
-  onOpenChange,
-  viewerIsOwner,
-}: AdminCreateUserDialogProps): ReactElement {
+export function AdminCreateUserDialog({ open, onOpenChange, viewerIsOwner }: AdminCreateUserDialogProps): ReactElement {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogPopup data-testid={testId("adminCreateUserDialog")}>
         <Stack gap="block">
           <DialogTitle>Create user</DialogTitle>
           <DialogDescription>
-            Mint a loginable local account. Admins can manage users and system settings; only the
-            box owner can change roles later.
+            Mint a loginable local account. Admins can manage users and system settings; only the box owner can change roles later.
           </DialogDescription>
-          <CreateUserFormBody
-            viewerIsOwner={viewerIsOwner}
-            onDone={(): void => onOpenChange(false)}
-          />
+          <CreateUserFormBody viewerIsOwner={viewerIsOwner} onDone={(): void => onOpenChange(false)} />
         </Stack>
       </DialogPopup>
     </Dialog>
   );
 }
 
-function CreateUserFormBody({
-  viewerIsOwner,
-  onDone,
-}: {
-  readonly viewerIsOwner: boolean;
-  readonly onDone: () => void;
-}): ReactElement {
+function CreateUserFormBody({ viewerIsOwner, onDone }: { readonly viewerIsOwner: boolean; readonly onDone: () => void }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const createUser = useCreateUser({ trpc, invalidation });
@@ -76,11 +62,7 @@ function CreateUserFormBody({
 
   return (
     <Stack gap="block">
-      <form.AppField name="handle">
-        {(field): ReactElement => (
-          <field.TextField label="Handle" placeholder="e.g. mira" autoComplete="off" />
-        )}
-      </form.AppField>
+      <form.AppField name="handle">{(field): ReactElement => <field.TextField label="Handle" placeholder="e.g. mira" autoComplete="off" />}</form.AppField>
       <form.AppField name="password">
         {(field): ReactElement => (
           <field.TextField
@@ -93,13 +75,7 @@ function CreateUserFormBody({
       </form.AppField>
       {viewerIsOwner ? (
         <form.AppField name="role">
-          {(field): ReactElement => (
-            <field.SelectField
-              label="Role"
-              description="Admins manage users, workloads, and system settings."
-              items={ROLE_ITEMS}
-            />
-          )}
+          {(field): ReactElement => <field.SelectField label="Role" description="Admins manage users, workloads, and system settings." items={ROLE_ITEMS} />}
         </form.AppField>
       ) : null}
       {createUser.error === null ? null : (

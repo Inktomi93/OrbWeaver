@@ -44,9 +44,7 @@ export function VariablesTab({ form }: { readonly form: AppForm }): ReactElement
           editIndex={editIndex}
           emptyText="No variables yet."
           getSubtitle={(variable): string => variable.question}
-          getTitle={(variable): string =>
-            variable.name === "" ? "Unnamed variable" : variable.name
-          }
+          getTitle={(variable): string => (variable.name === "" ? "Unnamed variable" : variable.name)}
           heading="Variables"
           helperText="Choice blocks the chat asks you to answer — each fills a matching macro in your prompt."
           items={variables}
@@ -55,13 +53,7 @@ export function VariablesTab({ form }: { readonly form: AppForm }): ReactElement
           onRemove={(index): void => {
             void form.removeFieldValue("variables", index);
           }}
-          renderEditor={(index): ReactElement => (
-            <VariableEditorDialog
-              form={form}
-              index={index}
-              onClose={(): void => setEditIndex(null)}
-            />
-          )}
+          renderEditor={(index): ReactElement => <VariableEditorDialog form={form} index={index} onClose={(): void => setEditIndex(null)} />}
         />
       )}
     </form.Subscribe>

@@ -23,11 +23,7 @@ import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc } from "../../../../support/ct/route-trpc";
 import { routeChatStream } from "../../../../support/ct/route-trpc-subscription";
-import {
-  MessageListReplaySeedStory,
-  MessageListStoppingStory,
-  MessageListSurfaceStory,
-} from "../_ct-stories";
+import { MessageListReplaySeedStory, MessageListStoppingStory, MessageListSurfaceStory } from "../_ct-stories";
 import { CHAT_ID, makeMacroNameProducer, makeMessagesPage, makeMessageView } from "../fixtures";
 
 const USER_VIEW = makeMessageView({
@@ -77,15 +73,11 @@ const TURN: ChatBusEvent[] = [
   { type: "turnCompleted", chatId: CHAT_ID, intent: "send", messageId: AI_VIEW.id },
 ];
 
-test("renders canon, then streams a turn and swaps the ghost for the canonical row", async ({
-  mount,
-  page,
-}) => {
+test("renders canon, then streams a turn and swaps the ghost for the canonical row", async ({ mount, page }) => {
   let listCall = 0;
   const trpc = await routeTrpc(page, {
     // First read = just the user turn; the post-turnCompleted refetch adds the assistant reply.
-    "chat.listMessages": () =>
-      makeMessagesPage(listCall++ === 0 ? [USER_VIEW] : [USER_VIEW, AI_VIEW]),
+    "chat.listMessages": () => makeMessagesPage(listCall++ === 0 ? [USER_VIEW] : [USER_VIEW, AI_VIEW]),
     ...ROSTER_STUB,
   });
   await routeChatStream(page, { events: TURN });
@@ -129,9 +121,7 @@ test("renders canon, then streams a turn and swaps the ghost for the canonical r
 
   // The turn completes → listMessages refetches → the assistant reply lands as a canonical row.
   await expect(component.getByText("Hello world")).toBeVisible();
-  await expect
-    .poll(() => trpc.count("chat.listMessages"), { intervals: [20, 50, 100] })
-    .toBeGreaterThanOrEqual(2);
+  await expect.poll(() => trpc.count("chat.listMessages"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(2);
 });
 
 // The bare START of a turn — turnStarted with NO deltas (the "pending" TTFT phase, before the ghost
@@ -154,10 +144,7 @@ const TURN_START_ONLY: ChatBusEvent[] = [
   },
 ];
 
-test("pending phase (turnStarted, no deltas yet): the TTFT shimmer renders with REAL rendered width, not collapsed", async ({
-  mount,
-  page,
-}) => {
+test("pending phase (turnStarted, no deltas yet): the TTFT shimmer renders with REAL rendered width, not collapsed", async ({ mount, page }) => {
   await routeTrpc(page, {
     "chat.listMessages": () => makeMessagesPage([USER_VIEW]),
     ...ROSTER_STUB,
@@ -208,10 +195,7 @@ const HEAD_DELTAS: ChatBusEvent[] = [
 // MOUNTED + its text VISIBLE the instant Stop is hit — before the fix, three render seams excluded
 // `stopping` and the ghost blanked/unmounted on click. `mark-stopping` drives the client-only
 // `markStopping` (streaming→stopping, no bus event).
-test("the ghost row stays mounted with its streamed text after Stop (stopping phase)", async ({
-  mount,
-  page,
-}) => {
+test("the ghost row stays mounted with its streamed text after Stop (stopping phase)", async ({ mount, page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await routeTrpc(page, {
     "chat.listMessages": () => makeMessagesPage([USER_VIEW]),
@@ -235,10 +219,7 @@ test("the ghost row stays mounted with its streamed text after Stop (stopping ph
 // handle flips draft→committed within ONE mount (the real first-send shape; the stable session key means
 // no remount). The just-created chat's subscription must carry `lastEventId:"0"` so the server replays
 // this chat's durable head deltas that raced past the fresh attach.
-test("a just-created chat (draft→committed) seeds lastEventId '0' and streams the head deltas", async ({
-  mount,
-  page,
-}) => {
+test("a just-created chat (draft→committed) seeds lastEventId '0' and streams the head deltas", async ({ mount, page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await routeTrpc(page, { "chat.listMessages": () => makeMessagesPage([]), ...ROSTER_STUB });
   const stream = await routeChatStream(page, { events: HEAD_DELTAS });
@@ -254,17 +235,12 @@ test("a just-created chat (draft→committed) seeds lastEventId '0' and streams 
   // The scripted head deltas animate the ghost (recovered because the subscription seeded the cursor)...
   await expect(component.getByText("Hello world")).toBeVisible();
   // ...and the committed subscription carried the replay cursor (bounded to THIS chat's baseline).
-  await expect
-    .poll(() => stream.lastInput(), { intervals: [20, 50, 100] })
-    .toMatchObject({ chatId: CHAT_ID, lastEventId: "0" });
+  await expect.poll(() => stream.lastInput(), { intervals: [20, 50, 100] }).toMatchObject({ chatId: CHAT_ID, lastEventId: "0" });
 });
 
 // The complement: an EXISTING chat opened directly subscribes with NO cursor (never re-replays a finished
 // turn as a ghost — the re-animate glitch the capture-once transition-detection guard closes).
-test("an existing committed chat subscribes with NO replay cursor (never re-replays prior turns)", async ({
-  mount,
-  page,
-}) => {
+test("an existing committed chat subscribes with NO replay cursor (never re-replays prior turns)", async ({ mount, page }) => {
   await routeTrpc(page, {
     "chat.listMessages": () => makeMessagesPage([USER_VIEW]),
     ...ROSTER_STUB,

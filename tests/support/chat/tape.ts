@@ -22,11 +22,7 @@
 import type { ProviderErrorKind } from "@orb/server/infra/providers";
 import { ProviderError } from "@orb/server/infra/providers";
 import type { RunChatTurnOp } from "../../../packages/server/src/domain/chat/contract/context";
-import type {
-  TurnEconomics,
-  TurnRequest,
-  TurnStreamChunk,
-} from "../../../packages/server/src/domain/chat/contract/results";
+import type { TurnEconomics, TurnRequest, TurnStreamChunk } from "../../../packages/server/src/domain/chat/contract/results";
 
 /** The default per-turn economics a scripted `reply` reports (matches the hand-rolled chat int fakes —
  *  `{ tokensIn: 4, tokensOut: 2, model: "test-model" }` — so a converted test's stats deltas stay identical).
@@ -56,9 +52,7 @@ export interface RateLimitOptions {
   readonly resetsAt?: number;
 }
 
-type TapeEntry =
-  | { readonly kind: "reply"; readonly text: string; readonly options: ReplyOptions }
-  | { readonly kind: "throw"; readonly error: ProviderError };
+type TapeEntry = { readonly kind: "reply"; readonly text: string; readonly options: ReplyOptions } | { readonly kind: "throw"; readonly error: ProviderError };
 
 /** A fluent, ordered script of role responses (the FIFO the runner dequeues). Each method returns the tape so a
  *  multi-turn round scripts inline: `tape().reply("hi").reply("there").error()`. */
@@ -89,9 +83,7 @@ export function tape(): Tape {
           kind: options.kind ?? "server",
           retryable: options.retryable ?? false,
           message: options.message ?? "scripted error",
-          ...(options.apiErrorStatus !== undefined
-            ? { apiErrorStatus: options.apiErrorStatus }
-            : {}),
+          ...(options.apiErrorStatus !== undefined ? { apiErrorStatus: options.apiErrorStatus } : {}),
         }),
       });
       return self;

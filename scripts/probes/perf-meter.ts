@@ -283,11 +283,7 @@ async function markStep(page: PageHandle, idx: number, label: string): Promise<v
 
 /** Dispatch ONE non-pause step, marking it first so its window starts at dispatch (throws on
  *  locator/timeout failure — counted by the caller, same contract as record.ts). */
-async function dispatchStep(
-  page: PageHandle,
-  idx: number,
-  step: Exclude<Step, { kind: "pause" }>,
-): Promise<void> {
+async function dispatchStep(page: PageHandle, idx: number, step: Exclude<Step, { kind: "pause" }>): Promise<void> {
   if (step.kind === "wheel" || step.kind === "wheelburst") {
     const loc = page.locator(step.selector).first();
     await loc.waitFor({ state: "visible", timeout: STEP_TIMEOUT_MS });
@@ -311,8 +307,7 @@ async function dispatchStep(
     return;
   }
   await loc.waitFor({ state: "visible", timeout: STEP_TIMEOUT_MS });
-  const label =
-    step.kind === "fill" ? `fill ${step.selector}=${step.value}` : `${step.kind} ${step.selector}`;
+  const label = step.kind === "fill" ? `fill ${step.selector}=${step.value}` : `${step.kind} ${step.selector}`;
   await markStep(page, idx, label);
   if (step.kind === "click") {
     await loc.click({ timeout: STEP_TIMEOUT_MS });
@@ -356,14 +351,10 @@ function buildReports(data: MeterData): StepReport[] {
   };
   return marks.map((mk, i) => {
     const end = windowEnd(i);
-    const inWin = <T extends { readonly t: number }>(xs: readonly T[]): T[] =>
-      xs.filter((x) => x.t >= mk.t && x.t < end);
+    const inWin = <T extends { readonly t: number }>(xs: readonly T[]): T[] => xs.filter((x) => x.t >= mk.t && x.t < end);
     const lts = inWin(data.longTasks);
     const clicks = inWin(data.events).filter((e) => e.type === "click" || e.type === "pointerup");
-    const worstClick = clicks.reduce<PerfEvent | null>(
-      (acc, c) => (acc === null || c.dur > acc.dur ? c : acc),
-      null,
-    );
+    const worstClick = clicks.reduce<PerfEvent | null>((acc, c) => (acc === null || c.dur > acc.dur ? c : acc), null);
     const gaps = inWin(data.rafGaps);
     return {
       idx: mk.idx,
@@ -387,10 +378,7 @@ function printTable(reports: readonly StepReport[]): void {
   print("idx  longTasks(total/worst)  click(dur/delay)  rafGap  shift  label");
   for (const r of reports) {
     const lt = `${String(r.longTaskCount).padStart(2)} (${String(r.longTaskTotalMs).padStart(MS_PAD_4)}/${String(r.longTaskWorstMs).padStart(MS_PAD_4)})`;
-    const click =
-      r.clickDurMs === null
-        ? "      —     "
-        : `${String(r.clickDurMs).padStart(MS_PAD_5)}/${String(r.clickInputDelayMs).padStart(MS_PAD_4)}`;
+    const click = r.clickDurMs === null ? "      —     " : `${String(r.clickDurMs).padStart(MS_PAD_5)}/${String(r.clickInputDelayMs).padStart(MS_PAD_4)}`;
     print(
       [
         String(r.idx).padStart(IDX_PAD),
@@ -455,9 +443,7 @@ async function main(): Promise<number> {
   if (profilePath !== null) {
     print(`profile  ${profilePath}  (Chrome DevTools Performance panel / speedscope.app)`);
   }
-  print(
-    `steps    ${reports.length} · page errors ${pageErrors.length} · step failures ${failures}`,
-  );
+  print(`steps    ${reports.length} · page errors ${pageErrors.length} · step failures ${failures}`);
   print("");
   printTable(reports);
   if (pageErrors.length > 0) {
@@ -468,9 +454,7 @@ async function main(): Promise<number> {
     }
   }
 
-  const breachSteps = reports.filter(
-    (r) => r.longTaskCount > 0 || (r.clickDurMs ?? 0) > CLICK_DUR_BREACH_MS,
-  );
+  const breachSteps = reports.filter((r) => r.longTaskCount > 0 || (r.clickDurMs ?? 0) > CLICK_DUR_BREACH_MS);
   const worstLt = reports.reduce((a, r) => Math.max(a, r.longTaskWorstMs), 0);
   const worstClick = reports.reduce((a, r) => Math.max(a, r.clickDurMs ?? 0), 0);
   const pairs: ResultPair[] = [

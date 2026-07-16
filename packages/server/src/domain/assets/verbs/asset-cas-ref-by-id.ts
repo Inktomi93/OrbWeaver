@@ -12,6 +12,5 @@ import type { AssetsService } from "../contract/service";
 import { loadAssetCasRefById } from "../persistence/queries";
 
 export function createAssetCasRefById(ctx: AssetsContext): AssetsService["assetCasRefById"] {
-  return (assetId: AssetId): Promise<AssetCasRef | undefined> =>
-    loadAssetCasRefById(ctx.db, assetId);
+  return (assetId: AssetId): Promise<AssetCasRef | undefined> => loadAssetCasRefById(ctx.db, assetId);
 }

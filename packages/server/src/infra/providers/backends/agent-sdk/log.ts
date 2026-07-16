@@ -1,14 +1,8 @@
 // agent-sdk `provider.*` event wrappers over the shared kit sink (`providerLog`). Doctrine: logs are
 // METADATA only — never prompt/RP/system-prompt content (Tier-2-Foundation esoteric #12).
 
-import type {
-  ProviderCapabilityLog,
-  ProviderTurnUsage,
-} from "@orb/server/infra/providers/backends/kit";
-import {
-  logProviderCapability as kitLogProviderCapability,
-  providerLog,
-} from "@orb/server/infra/providers/backends/kit";
+import type { ProviderCapabilityLog, ProviderTurnUsage } from "@orb/server/infra/providers/backends/kit";
+import { logProviderCapability as kitLogProviderCapability, providerLog } from "@orb/server/infra/providers/backends/kit";
 import type { ContextUsage, DynamicContextChannel, ProviderError } from "../../contract";
 import type { SeededSessionDecision } from "./session";
 
@@ -49,10 +43,7 @@ export function logProviderSession(entry: {
 }
 
 /** `provider.error` via `toLog()`; on spawn/CLI death the runner attaches a bounded `stderrTail`. */
-export function logProviderError(
-  err: ProviderError,
-  extra?: { readonly stderrTail?: string },
-): void {
+export function logProviderError(err: ProviderError, extra?: { readonly stderrTail?: string }): void {
   providerLog(BACKEND, "error", "provider.error", {
     ...err.toLog(),
     ...(extra?.stderrTail !== undefined ? { stderrTail: extra.stderrTail } : {}),
@@ -69,26 +60,17 @@ export function logProviderRetry(fields: Record<string, unknown>): void {
 }
 
 /** `provider.drift` — served/billed model differs from requested (overage/rate-limit fallback). */
-export function logProviderDrift(entry: {
-  readonly requested: string;
-  readonly billed: readonly string[];
-}): void {
+export function logProviderDrift(entry: { readonly requested: string; readonly billed: readonly string[] }): void {
   providerLog(BACKEND, "warn", "provider.drift", { ...entry });
 }
 
 /** `provider.refusal` — category + retried flag only, never the refusal banner text. */
-export function logProviderRefusal(entry: {
-  readonly category: string | null;
-  readonly retried: boolean;
-}): void {
+export function logProviderRefusal(entry: { readonly category: string | null; readonly retried: boolean }): void {
   providerLog(BACKEND, "warn", "provider.refusal", { ...entry });
 }
 
 /** `provider.leak` — a tool leaked past the locked tool-less config; only tool NAMES ride the line. */
-export function logProviderLeak(entry: {
-  readonly model: string;
-  readonly toolNames: readonly string[];
-}): void {
+export function logProviderLeak(entry: { readonly model: string; readonly toolNames: readonly string[] }): void {
   providerLog(BACKEND, "error", "provider.leak", { ...entry });
 }
 
@@ -99,20 +81,12 @@ export function logProviderCompaction(fields: Record<string, unknown>): void {
 
 /** `provider.dialog` — the non-interactive turn declined an MCP elicitation/user-dialog; `kind` is a
  *  metadata classifier only, never the dialog message/payload. */
-export function logProviderDialog(entry: {
-  readonly source: "elicitation" | "user-dialog";
-  readonly kind: string;
-}): void {
+export function logProviderDialog(entry: { readonly source: "elicitation" | "user-dialog"; readonly kind: string }): void {
   providerLog(BACKEND, "warn", "provider.dialog", { ...entry });
 }
 
 /** `provider.summarize` — one line per batch, metadata only (never prompt/summary text). */
-export function logProviderSummarize(entry: {
-  readonly items: number;
-  readonly ok: number;
-  readonly fail: number;
-  readonly durationMs: number;
-}): void {
+export function logProviderSummarize(entry: { readonly items: number; readonly ok: number; readonly fail: number; readonly durationMs: number }): void {
   providerLog(BACKEND, "info", "provider.summarize", { ...entry });
 }
 
@@ -138,9 +112,6 @@ export interface ProviderMcpServerHealth {
   readonly status: string;
   readonly error?: string | undefined;
 }
-export function logProviderMcp(entry: {
-  readonly unhealthy: boolean;
-  readonly servers: readonly ProviderMcpServerHealth[];
-}): void {
+export function logProviderMcp(entry: { readonly unhealthy: boolean; readonly servers: readonly ProviderMcpServerHealth[] }): void {
   providerLog(BACKEND, entry.unhealthy ? "warn" : "debug", "provider.mcp", { ...entry });
 }

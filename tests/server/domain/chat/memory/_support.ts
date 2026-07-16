@@ -9,11 +9,7 @@ import type { Db } from "@orb/db";
 import { chatDigestSpeakers, chatDigests, chatSegments } from "@orb/db";
 import type { CharacterId, ChatDigestId, ChatId, ChatSegmentId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type {
-  EmbeddingsStoreOp,
-  StoreDigestParams,
-  StoreSegmentParams,
-} from "../../../../../packages/server/src/domain/chat/contract/context";
+import type { EmbeddingsStoreOp, StoreDigestParams, StoreSegmentParams } from "../../../../../packages/server/src/domain/chat/contract/context";
 import type { MemoryScope } from "../../../../../packages/server/src/domain/chat/memory/types";
 import { seedMessage } from "../_support";
 
@@ -26,12 +22,7 @@ export const GROUP_CHAR = castId<CharacterId>("character_group");
 
 /** Seed `n` assistant messages (seq 1..n) voiced by `characterId` — byte-identical across build/segments,
  *  build/digests (both closed over module-level `db`/`aria`; hoisted to take both as params). */
-export async function seedTurns(
-  db: Db,
-  chatId: ChatId,
-  characterId: CharacterId,
-  n: number,
-): Promise<void> {
+export async function seedTurns(db: Db, chatId: ChatId, characterId: CharacterId, n: number): Promise<void> {
   for (let seq = 1; seq <= n; seq += 1) {
     // biome-ignore lint/performance/noAwaitInLoops: ordered seed inserts in a test.
     await seedMessage(db, chatId, seq, { characterId, content: `turn ${seq}` });
@@ -66,16 +57,13 @@ export async function seedDigest(
   },
 ): Promise<ChatDigestId> {
   const scoped = opts.scopedCharacterId ?? GROUP_CHAR;
-  const id = castId<ChatDigestId>(
-    `chat_digest_${opts.chatId}_${scoped}_${opts.tier}_${opts.blockIdx}`,
-  );
+  const id = castId<ChatDigestId>(`chat_digest_${opts.chatId}_${scoped}_${opts.tier}_${opts.blockIdx}`);
   const anchor = opts.topicAnchor ?? `[anchor ${opts.tier}.${opts.blockIdx}]`;
   const keywords = opts.keywords ?? [`kw${opts.tier}${opts.blockIdx}`];
   // Default the stored `text` to the facet-shaped body `{{memory}}` surfaces (anchor [+ keywords]) — so a seed
   // that sets only anchor/keywords produces the matching `{{memory}}` text (the §2b distilled body). With no
   // keywords it is the bare anchor (mirrors the `facet()` helper the recall tests assert against).
-  const text =
-    opts.text ?? (keywords.length > 0 ? `${anchor}\nkeywords: ${keywords.join(", ")}` : anchor);
+  const text = opts.text ?? (keywords.length > 0 ? `${anchor}\nkeywords: ${keywords.join(", ")}` : anchor);
   await db.insert(chatDigests).values({
     id,
     chatId: opts.chatId,
@@ -93,9 +81,7 @@ export async function seedDigest(
   });
   const speakers = opts.speakers ?? [];
   if (speakers.length > 0) {
-    await db
-      .insert(chatDigestSpeakers)
-      .values(speakers.map((characterId) => ({ digestId: id, characterId })));
+    await db.insert(chatDigestSpeakers).values(speakers.map((characterId) => ({ digestId: id, characterId })));
   }
   return id;
 }

@@ -15,11 +15,7 @@ import type { AnthClient } from "@orb/server/infra/providers/backends/anth-direc
 import { createAnthDirectBackend } from "@orb/server/infra/providers/backends/anth-direct";
 import { describe, vi } from "vitest";
 import { anthEvent, anthStream } from "../../../../../support/factories/anth-wire.ts";
-import {
-  makeModelCapability,
-  makeOpenRouterCredential,
-  makeResolvedCredential,
-} from "../../../../../support/factories/resolved-connection.ts";
+import { makeModelCapability, makeOpenRouterCredential, makeResolvedCredential } from "../../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../../support/fixtures";
 
 const MODEL = "anthropic/claude-opus-4-5";
@@ -35,9 +31,7 @@ const CAPABILITY = makeModelCapability({
   },
 });
 
-function makeRequest(
-  overrides: Partial<AnthropicMessagesChatRequest> = {},
-): AnthropicMessagesChatRequest {
+function makeRequest(overrides: Partial<AnthropicMessagesChatRequest> = {}): AnthropicMessagesChatRequest {
   const base: AnthropicMessagesChatRequest = {
     api: "anthropic-messages",
     credential: makeOpenRouterCredential({ apiKey: "sk-or-secret" }),
@@ -96,10 +90,7 @@ function fakeClient(events: RawMessageStreamEvent[]): {
   return { client, captured };
 }
 
-function runTurn(
-  backend: ReturnType<typeof createAnthDirectBackend>,
-  req: ChatRequest,
-): Promise<unknown> {
+function runTurn(backend: ReturnType<typeof createAnthDirectBackend>, req: ChatRequest): Promise<unknown> {
   const run = backend.runChatTurn;
   if (run === undefined) {
     throw new Error("anth-direct backend must wire runChatTurn");
@@ -138,9 +129,7 @@ describe("createAnthDirectBackend — the sealed factory", () => {
   test("THE SUB-EXCLUSION: a max-pro-sub credential fails BEFORE any client is constructed", async () => {
     const getClient = vi.fn(() => fakeClient([]).client);
     const backend = createAnthDirectBackend({ ...DEPS, getClient });
-    await expect(
-      runTurn(backend, makeRequest({ credential: makeResolvedCredential("max-pro-sub") })),
-    ).rejects.toThrow(ProviderError);
+    await expect(runTurn(backend, makeRequest({ credential: makeResolvedCredential("max-pro-sub") }))).rejects.toThrow(ProviderError);
     expect(getClient).not.toHaveBeenCalled();
   });
 });

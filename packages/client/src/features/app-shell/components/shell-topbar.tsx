@@ -33,25 +33,12 @@ export interface TopbarIconButtonProps {
 /** One tooltip-wrapped topbar icon button — the label is both the tooltip text AND the aria-label.
  *  Exported so the fullscreen/context-toggle chrome widgets (features/app-shell/lib) render the SAME
  *  affordance shape the list-panel toggle uses. */
-export function TopbarIconButton({
-  label,
-  icon,
-  pressed,
-  expanded,
-  onClick,
-}: TopbarIconButtonProps): ReactElement {
+export function TopbarIconButton({ label, icon, pressed, expanded, onClick }: TopbarIconButtonProps): ReactElement {
   return (
     <Tooltip>
       <TooltipTrigger
         render={
-          <Button
-            intent="ghost"
-            size="icon"
-            aria-label={label}
-            aria-pressed={pressed}
-            aria-expanded={expanded}
-            onClick={onClick}
-          >
+          <Button intent="ghost" size="icon" aria-label={label} aria-pressed={pressed} aria-expanded={expanded} onClick={onClick}>
             <Icon icon={icon} size="sm" />
           </Button>
         }
@@ -61,13 +48,7 @@ export function TopbarIconButton({
   );
 }
 
-export function ShellTopbar({
-  title,
-  header,
-  trail,
-  listMode,
-  onToggleList,
-}: ShellTopbarProps): ReactElement {
+export function ShellTopbar({ title, header, trail, listMode, onToggleList }: ShellTopbarProps): ReactElement {
   const listCollapsed = listMode === "collapsed";
   return (
     <header className="shell-topbar">

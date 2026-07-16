@@ -11,15 +11,7 @@ export interface ButtonProps extends BaseButtonProps, VariantProps<typeof button
   loading?: boolean;
 }
 
-export function Button({
-  className,
-  intent,
-  size,
-  loading = false,
-  disabled = false,
-  focusableWhenDisabled,
-  ...rest
-}: ButtonProps): ReactElement {
+export function Button({ className, intent, size, loading = false, disabled = false, focusableWhenDisabled, ...rest }: ButtonProps): ReactElement {
   return (
     <BaseButton
       data-slot="button"

@@ -10,11 +10,7 @@ import { castId } from "@orb/kit/ids";
 import { deepMergeRequestBody } from "@orb/server/kit/custom-parameters";
 import type { ChatHistoryMessage, ChatRequest, ChatResult } from "../../../contract";
 import { ProviderError } from "../../../contract";
-import type {
-  ChatCompletionStreamChunk,
-  OpenAiSamplingInput,
-  StreamReduceOptions,
-} from "../../kit";
+import type { ChatCompletionStreamChunk, OpenAiSamplingInput, StreamReduceOptions } from "../../kit";
 import {
   applyIncludeExclude,
   buildOpenAiSamplingFields,
@@ -137,10 +133,7 @@ export function reshapeChunk(raw: unknown, map: ResponseMap): ChatCompletionStre
           ...(completionTokens !== undefined ? { completionTokens } : {}),
         }
       : undefined;
-  const error =
-    errorMessage !== undefined
-      ? { message: errorMessage, code: readNumber(raw, map.errorCodePath) ?? 0 }
-      : undefined;
+  const error = errorMessage !== undefined ? { message: errorMessage, code: readNumber(raw, map.errorCodePath) ?? 0 } : undefined;
   const toolCalls = rawToolCallDeltas(readPath(raw, map.toolCallsPath));
   return {
     choices: [
@@ -192,7 +185,6 @@ function rawToolResultMessages(content: readonly ChatContentPart[]): Record<stri
   const out: Record<string, unknown>[] = [];
   for (const part of content) {
     if (part.type === "tool-result") {
-      // biome-ignore lint/style/useNamingConvention: OpenAI-compatible wire field name (snake_case).
       out.push({ role: "tool", tool_call_id: part.toolCallId, content: part.content });
     }
   }
@@ -208,16 +200,13 @@ function rawTurnMessage(turn: ChatHistoryMessage): Record<string, unknown> | nul
   return {
     role: turn.role,
     content: text,
-    // biome-ignore lint/style/useNamingConvention: OpenAI-compatible wire field name (snake_case).
     ...(toolCalls.length > 0 ? { tool_calls: toolCalls } : {}),
     ...(turn.name !== undefined ? { name: turn.name } : {}),
   };
 }
 
 function buildMessages(req: ChatCompletionsRequest): readonly Record<string, unknown>[] {
-  const systemText = [req.systemPrompt.static.trim(), req.systemPrompt.dynamic.trim()]
-    .filter((part) => part.length > 0)
-    .join("\n\n");
+  const systemText = [req.systemPrompt.static.trim(), req.systemPrompt.dynamic.trim()].filter((part) => part.length > 0).join("\n\n");
   const messages: Record<string, unknown>[] = [];
   if (systemText.length > 0) {
     messages.push({ role: SYSTEM_ROLE, content: systemText });
@@ -238,33 +227,21 @@ function buildMessages(req: ChatCompletionsRequest): readonly Record<string, unk
 // The user's per-endpoint request transforms (PD-13) apply LAST — AFTER the preset's `customParameters`
 // deep-merge — so `includeBody`/`excludeBody` are the endpoint's final word (a field the server rejects is
 // stripped even if a preset re-added it).
-function buildBody(
-  req: ChatCompletionsRequest,
-  includeBody: Record<string, unknown> | null,
-  excludeBody: readonly string[] | null,
-): Record<string, unknown> {
+function buildBody(req: ChatCompletionsRequest, includeBody: Record<string, unknown> | null, excludeBody: readonly string[] | null): Record<string, unknown> {
   const base: Record<string, unknown> = {
     model: req.model,
     messages: buildMessages(req),
     stream: true,
     ...buildOpenAiSamplingFields(samplingFromIntent(req.params)),
     ...(req.tools !== undefined ? { tools: rawWireTools(req.tools) } : {}),
-    // biome-ignore lint/style/useNamingConvention: OpenAI-compatible wire field names (snake_case).
     ...(req.toolChoice !== undefined ? { tool_choice: rawToolChoice(req.toolChoice) } : {}),
-    // biome-ignore lint/style/useNamingConvention: OpenAI-compatible wire field names (snake_case).
-    ...(req.responseFormat !== undefined
-      ? { response_format: rawResponseFormat(req.responseFormat) }
-      : {}),
+    ...(req.responseFormat !== undefined ? { response_format: rawResponseFormat(req.responseFormat) } : {}),
   };
-  const withCustom =
-    req.customParameters === undefined ? base : deepMergeRequestBody(base, req.customParameters);
+  const withCustom = req.customParameters === undefined ? base : deepMergeRequestBody(base, req.customParameters);
   return applyIncludeExclude(withCustom, includeBody, excludeBody);
 }
 
-function buildHeaders(
-  apiKey: string | null,
-  extra: Record<string, string> | null,
-): Record<string, string> {
+function buildHeaders(apiKey: string | null, extra: Record<string, string> | null): Record<string, string> {
   return {
     "content-type": JSON_CONTENT_TYPE,
     ...(apiKey !== null && apiKey.length > 0 ? { authorization: `Bearer ${apiKey}` } : {}),
@@ -276,17 +253,12 @@ function errorPrefix(baseUrl: string): string {
   return `custom-byo (${baseUrl})`;
 }
 
-async function* oneChunk(
-  chunk: ChatCompletionStreamChunk,
-): AsyncGenerator<ChatCompletionStreamChunk> {
+async function* oneChunk(chunk: ChatCompletionStreamChunk): AsyncGenerator<ChatCompletionStreamChunk> {
   await Promise.resolve(); // makes this a genuine async iterable
   yield chunk;
 }
 
-async function* reshapeSse(
-  source: AsyncGenerator<unknown>,
-  map: ResponseMap,
-): AsyncGenerator<ChatCompletionStreamChunk> {
+async function* reshapeSse(source: AsyncGenerator<unknown>, map: ResponseMap): AsyncGenerator<ChatCompletionStreamChunk> {
   for await (const raw of source) {
     yield reshapeChunk(raw, map);
   }
@@ -342,21 +314,14 @@ async function fetchAndReduce(args: {
     }
     const contentType = (res.headers.get("content-type") ?? "").toLowerCase();
     // Default to SSE; only an explicit non-stream JSON content-type diverts to the single-body path.
-    const nonStreamJson =
-      contentType.includes(JSON_CONTENT_TYPE) && !contentType.includes("event-stream");
+    const nonStreamJson = contentType.includes(JSON_CONTENT_TYPE) && !contentType.includes("event-stream");
     let view: Awaited<ReturnType<typeof reduceChatCompletionStream>>;
     try {
       if (nonStreamJson) {
         const json: unknown = await res.json().catch((): null => null);
-        view = await reduceChatCompletionStream(
-          oneChunk(reshapeChunk(json, withResponseMap(BODY_DEFAULT_MAP, responseMap))),
-          reduceOpts,
-        );
+        view = await reduceChatCompletionStream(oneChunk(reshapeChunk(json, withResponseMap(BODY_DEFAULT_MAP, responseMap))), reduceOpts);
       } else {
-        view = await reduceChatCompletionStream(
-          reshapeSse(parseOpenAiSse(res.body), withResponseMap(STREAM_DEFAULT_MAP, responseMap)),
-          reduceOpts,
-        );
+        view = await reduceChatCompletionStream(reshapeSse(parseOpenAiSse(res.body), withResponseMap(STREAM_DEFAULT_MAP, responseMap)), reduceOpts);
       }
     } catch (err) {
       if (err instanceof ProviderError) {
@@ -370,10 +335,7 @@ async function fetchAndReduce(args: {
   }
 }
 
-export async function runChatTurn(
-  req: ChatRequest,
-  deps: CustomByoRunnerDeps,
-): Promise<ChatResult> {
+export async function runChatTurn(req: ChatRequest, deps: CustomByoRunnerDeps): Promise<ChatResult> {
   if (req.api !== "chat-completions") {
     throw new ProviderError({
       kind: "invalid",
@@ -406,8 +368,7 @@ export async function runChatTurn(
         responseMap: cred.responseMap,
         markCommitted,
       }),
-    (err): ProviderError =>
-      err instanceof ProviderError ? err : providerErrorFromHttp(err, errorPrefix(cred.baseUrl)),
+    (err): ProviderError => (err instanceof ProviderError ? err : providerErrorFromHttp(err, errorPrefix(cred.baseUrl))),
     {
       ...(req.signal !== undefined ? { signal: req.signal } : {}),
       now: deps.now,

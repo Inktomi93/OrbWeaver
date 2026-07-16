@@ -8,10 +8,7 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import type { Stream } from "@anthropic-ai/sdk/core/streaming";
-import type {
-  MessageCreateParams,
-  RawMessageStreamEvent,
-} from "@anthropic-ai/sdk/resources/messages";
+import type { MessageCreateParams, RawMessageStreamEvent } from "@anthropic-ai/sdk/resources/messages";
 
 const ANTH_CLIENT_CACHE_MAX = 64;
 

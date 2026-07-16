@@ -20,10 +20,7 @@ const DEFAULT_PERSONA: Omit<CreatePersonaInput, "avatarAssetId"> = {
 };
 
 export interface DefaultPersonaSeederDeps {
-  readonly createPersona: (args: {
-    readonly principal: Principal;
-    readonly input: CreatePersonaInput;
-  }) => Promise<{ readonly id: PersonaId }>;
+  readonly createPersona: (args: { readonly principal: Principal; readonly input: CreatePersonaInput }) => Promise<{ readonly id: PersonaId }>;
   /** Store the bundled "You" avatar art → its asset id, or `null` when the pack ships none / the store fails. */
   readonly storeAvatar: (principal: Principal) => Promise<AssetId | null>;
   readonly isSeeded: (principal: Principal) => Promise<boolean>;
@@ -47,14 +44,10 @@ export function createDefaultPersonaSeeder(deps: DefaultPersonaSeederDeps): Defa
       return;
     }
     const avatarAssetId = await deps.storeAvatar(principal);
-    const input: CreatePersonaInput =
-      avatarAssetId !== null ? { ...DEFAULT_PERSONA, avatarAssetId } : DEFAULT_PERSONA;
+    const input: CreatePersonaInput = avatarAssetId !== null ? { ...DEFAULT_PERSONA, avatarAssetId } : DEFAULT_PERSONA;
     const created = await deps.createPersona({ principal, input });
     await deps.markSeeded(principal, created.id);
-    log.info(
-      { userId: principal.userId, personaId: created.id },
-      "persona: seeded default persona",
-    );
+    log.info({ userId: principal.userId, personaId: created.id }, "persona: seeded default persona");
   }
 
   return {
@@ -71,10 +64,7 @@ export function createDefaultPersonaSeeder(deps: DefaultPersonaSeederDeps): Defa
           settled.add(principal.userId);
         })
         .catch((err: unknown): void => {
-          log.error(
-            { userId: principal.userId, err: errorMessage(err) },
-            "persona: default persona seed failed",
-          );
+          log.error({ userId: principal.userId, err: errorMessage(err) }, "persona: default persona seed failed");
         })
         .finally((): void => {
           inFlight.delete(principal.userId);

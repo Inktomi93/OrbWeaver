@@ -6,10 +6,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc, trpcError } from "../../support/ct/route-trpc";
 import { EchoBoundaryStory } from "./_ct-stories";
 
-test("renders suspended data through the boundary and records the decoded input", async ({
-  mount,
-  page,
-}) => {
+test("renders suspended data through the boundary and records the decoded input", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     echo: (input: unknown) => ({ message: `pong:${(input as { message: string }).message}` }),
   });
@@ -22,10 +19,7 @@ test("renders suspended data through the boundary and records the decoded input"
   expect(trpc.lastInput("echo")).toEqual({ message: "ping" });
 });
 
-test("error surface → retry refetches (the reset handshake, not a re-render)", async ({
-  mount,
-  page,
-}) => {
+test("error surface → retry refetches (the reset handshake, not a re-render)", async ({ mount, page }) => {
   let call = 0;
   const trpc = await routeTrpc(page, {
     echo: (): unknown => (call++ === 0 ? trpcError({ message: "boom" }) : { message: "recovered" }),

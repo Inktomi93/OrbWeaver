@@ -24,11 +24,7 @@ interface LinkCandidate {
   readonly assetId: AssetId;
 }
 
-async function storeCard(
-  ctx: AssetsContext,
-  ownerId: UserId,
-  card: BackfillCard,
-): Promise<LinkCandidate | undefined> {
+async function storeCard(ctx: AssetsContext, ownerId: UserId, card: BackfillCard): Promise<LinkCandidate | undefined> {
   const stored = await storeBlob(ctx.db, ctx.cas, {
     ownerId,
     bytes: card.bytes,

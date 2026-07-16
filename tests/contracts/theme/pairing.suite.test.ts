@@ -4,13 +4,7 @@
 // keeps the copies byte-equivalent — identical field-key sets, identical enum members, identical
 // font allowlist. Tests may import both packages; the packages never import each other.
 
-import {
-  THEME_CHAT_STYLES,
-  THEME_DENSITIES,
-  THEME_FONT_ALLOWLIST,
-  THEME_RADII,
-  themeOverrideSchema,
-} from "@orb/contracts/theme";
+import { THEME_CHAT_STYLES, THEME_DENSITIES, THEME_FONT_ALLOWLIST, THEME_RADII, themeOverrideSchema } from "@orb/contracts/theme";
 import {
   THEME_SCOPE_CHAT_STYLES,
   THEME_SCOPE_DENSITIES,

@@ -29,8 +29,6 @@ describe("detachGlobal", () => {
     const other = await seedUser(db, { handle: "other" });
     const theirs = await svc.createBook({ principal: principal(other), input: { name: "T" } });
 
-    await expect(
-      svc.detachGlobal({ principal: principal(owner), bookId: theirs.id }),
-    ).rejects.toBeInstanceOf(WorldInfoNotFoundError);
+    await expect(svc.detachGlobal({ principal: principal(owner), bookId: theirs.id })).rejects.toBeInstanceOf(WorldInfoNotFoundError);
   });
 });

@@ -17,10 +17,7 @@ const PERSONAS = [
   { id: "persona_2", name: "Mira", avatarHash: null, starred: true },
 ];
 
-test("composes identity + resolves the current-persona pointer to a name + avatar", async ({
-  mount,
-  page,
-}) => {
+test("composes identity + resolves the current-persona pointer to a name + avatar", async ({ mount, page }) => {
   await routeTrpc(page, {
     "sessions.me": IDENTITY,
     "settings.getUserSettings": { config: { seeds: { currentPersonaId: "persona_1" } } },
@@ -35,10 +32,7 @@ test("composes identity + resolves the current-persona pointer to a name + avata
   await expect(page.getByTestId("viewer-persona-avatar")).toHaveText("sha-ronan");
 });
 
-test("a null pointer with personas present resolves the default fallback (never no persona)", async ({
-  mount,
-  page,
-}) => {
+test("a null pointer with personas present resolves the default fallback (never no persona)", async ({ mount, page }) => {
   await routeTrpc(page, {
     "sessions.me": IDENTITY,
     "settings.getUserSettings": {
@@ -53,10 +47,7 @@ test("a null pointer with personas present resolves the default fallback (never 
   await expect(page.getByTestId("viewer-persona")).toHaveText("Mira");
 });
 
-test("a null pointer with no default falls back to the first owned persona", async ({
-  mount,
-  page,
-}) => {
+test("a null pointer with no default falls back to the first owned persona", async ({ mount, page }) => {
   await routeTrpc(page, {
     "sessions.me": IDENTITY,
     "settings.getUserSettings": { config: { seeds: { currentPersonaId: null } } },
@@ -68,10 +59,7 @@ test("a null pointer with no default falls back to the first owned persona", asy
   await expect(page.getByTestId("viewer-persona")).toHaveText("Ronan");
 });
 
-test("a stale pointer (id absent from persona.list) resolves the fallback persona", async ({
-  mount,
-  page,
-}) => {
+test("a stale pointer (id absent from persona.list) resolves the fallback persona", async ({ mount, page }) => {
   await routeTrpc(page, {
     "sessions.me": IDENTITY,
     "settings.getUserSettings": { config: { seeds: { currentPersonaId: "persona_deleted" } } },

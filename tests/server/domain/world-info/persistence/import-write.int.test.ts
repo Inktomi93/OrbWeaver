@@ -79,10 +79,7 @@ describe("createBulkImportLorebook", () => {
     // metadata is validated through entryMetadataSchema at the write seam.
     expect(entries[0]?.metadata?.scopeMode).toBe("always");
 
-    const attach = await db
-      .select()
-      .from(characterBooks)
-      .where(eq(characterBooks.characterId, character.id));
+    const attach = await db.select().from(characterBooks).where(eq(characterBooks.characterId, character.id));
     expect(attach).toHaveLength(1);
     expect(attach[0]?.role).toBe("primary");
     expect(attach[0]?.worldBookId).toBe(result.worldBookId);
@@ -170,8 +167,6 @@ describe("createBulkImportLorebook", () => {
     const db = await freshDb();
     const owner = await seedUser(db, {});
     const op = createBulkImportLorebook(importCtx(db));
-    await expect(
-      op({ ownerId: owner.id, characterId: castId("character_missing"), book: book() }),
-    ).rejects.toBeInstanceOf(DomainNotFoundError);
+    await expect(op({ ownerId: owner.id, characterId: castId("character_missing"), book: book() })).rejects.toBeInstanceOf(DomainNotFoundError);
   });
 });

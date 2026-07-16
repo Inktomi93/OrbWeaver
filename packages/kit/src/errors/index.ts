@@ -72,10 +72,7 @@ export class DomainOperationError extends DomainError {
 export class DomainRateLimitError extends DomainError {
   readonly msBeforeNext: number | undefined;
   readonly remainingPoints: number | undefined;
-  constructor(
-    message: string,
-    msBeforeNextOrOpts?: number | { msBeforeNext?: number; remainingPoints?: number },
-  ) {
+  constructor(message: string, msBeforeNextOrOpts?: number | { msBeforeNext?: number; remainingPoints?: number }) {
     super(message);
     this.name = this.constructor.name;
     if (typeof msBeforeNextOrOpts === "number") {

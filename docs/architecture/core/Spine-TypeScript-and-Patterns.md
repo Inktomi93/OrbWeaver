@@ -6,7 +6,7 @@ updated: 2026-07-13
 
 # Orbweaver — Spine: TypeScript & Patterns (Types, Schemas, Dispatch)
 
-Canonical doc for spine §7.4 (types & schemas) and §7.5 (string-union dispatch) — cited elsewhere as "the §7.4 rule" / "spine §7.5"; `AGENTS.md` §5.4/§5.5 point here. The gates are LIVE: `no-inline-types` (GritQL, `tools/grit/`), `no-inline-union-redecl` (`scripts/check/gates/`), `exhaustive-dispatch` (compile-time by construction — the mapped-`Record`/`assertNever` pattern below; constitution row in `Core-0-Architecture-and-Structure.md §7`).
+Canonical doc for spine §7.4 (types & schemas) and §7.5 (string-union dispatch) — cited elsewhere as "the §7.4 rule" / "spine §7.5"; `AGENTS.md` §5.4/§5.5 point here. The gates are LIVE: `no-inline-types` (`scripts/check/gates/`), `no-inline-union-redecl` (`scripts/check/gates/`), `exhaustive-dispatch` (compile-time by construction — the mapped-`Record`/`assertNever` pattern below; constitution row in `Core-0-Architecture-and-Structure.md §7`).
 
 ## Types & schemas — one home, one direction, no inline (spine §7.4)
 
@@ -20,7 +20,7 @@ The rule: **one home per shape, derived by who needs it; flows DOWN only.** (Neo
 | **client-only view** | client | client |
 | **pure primitive shape** | `kit` | anyone (it's the bottom) |
 
-**The gate — `no-inline-types` (GritQL, live):** no exported `type`/`interface`/`z.object` (and no structural cast) declared OUTSIDE `db` schema / `contracts` / a domain's `contract/` / `kit`. Inline shapes in `verbs/`, `persistence/`, `service.ts`, transport, or client components are RED. Companion: `types-in-contract` (`scripts/check/gates/`) requires each feature's `contract/service.ts` to declare its exported service interface and bans exported `ReturnType<typeof fn>` for `context.ts`.
+**The gate — `no-inline-types` (ts-morph, live):** no exported `type`/`interface`/`z.object` (and no structural cast) declared OUTSIDE `db` schema / `contracts` / a domain's `contract/` / `kit`. Inline shapes in `verbs/`, `persistence/`, `service.ts`, transport, or client components are RED. Companion: `types-in-contract` (`scripts/check/gates/`) requires each feature's `contract/service.ts` to declare its exported service interface and bans exported `ReturnType<typeof fn>` for `context.ts`.
 
 ## House TypeScript style
 
@@ -56,7 +56,7 @@ A string axis is an `as const` tuple; its union is **derived**, never re-spelled
 - **`Record<LiteralUnion,V>` over index signatures** (index sigs force bracket access under `noPropertyAccessFromIndexSignature` + lose key safety); **`Map` for open/dynamic keys** (`.get()` is `V | undefined`, matching `noUncheckedIndexedAccess`).
 - **`?` vs `| undefined` are NOT interchangeable under `exactOptionalPropertyTypes`**: `x?: T` = may be **absent** (can't pass explicit `undefined`); `x: T | undefined` = must be **present**, may be undefined. Choose by intent — default `?` for genuinely-absent fields.
 - **`interface` for hand-authored object shapes, `type` for unions/aliases** — but in practice most domain models are `z.infer<typeof schema>` (a `type`). `interface extends` over `&` for composition (`extends` errors on conflicts; `&` silently → `never`).
-- **Banned habits:** `any` ⚙️ (use `unknown` + narrow — `catch` is already `unknown`) · non-null `!` ⚙️ (`noNonNullAssertion`; use a guard / `?? throw`) · `as` assertions by review (prefer `satisfies`/narrowing/zod; ID casts hard-gated by `no-loose-id-cast`/`no-mint-via-cast` GritQL); `as any as T` is a hard no.
+- **Banned habits:** `any` ⚙️ (use `unknown` + narrow — `catch` is already `unknown`) · non-null `!` ⚙️ (`noNonNullAssertion`; use a guard / `?? throw`) · `as` assertions by review (prefer `satisfies`/narrowing/zod; ID casts hard-gated by the `no-loose-id-cast`/`no-mint-via-cast` gates); `as any as T` is a hard no.
 - **`@total-typescript/ts-reset` is on** — one root `reset.d.ts` pulled into every package's compilation via `tsconfig.base.json`'s `include` (`${configDir}/../../reset.d.ts`). It hardens dishonest built-ins: `JSON.parse()` / `Response.json()` return `unknown` (you MUST narrow — pairs with the zod-at-the-boundary rule), `[].filter(Boolean)` strips `null`/`undefined` from the result type, `Array.includes`/`Set.has` widen correctly. Write code expecting these stricter signatures. Declaration-only, zero runtime cost.
 
 ## 5. `erasableSyntaxOnly` — the forbidden set (+ erasable replacement)
@@ -70,7 +70,7 @@ The compiler flag catches most of these; **decorators it does NOT catch** — th
 | constructor **parameter properties** (`constructor(public x)`) | generates field assignments | declare the field + assign in the body |
 | `import x = require()` / `export =` | CommonJS, not ESM (also fights `verbatimModuleSyntax`) | `import`/`export` (+ `import type`) |
 | `<T>expr` angle-bracket assertion | not erasable; illegal in `.tsx` anyway | `expr as T` |
-| **decorators — legacy AND Stage-3** ⚙️ | not erasable; node's type-stripping has no decorator runtime → **runtime error**. The `erasableSyntaxOnly` flag does NOT flag them | function composition / zod validation; **NO `reflect-metadata` DI**. Gated by `tools/grit/no-decorators.grit` (the compiler is silent here). |
+| **decorators — legacy AND Stage-3** ⚙️ | not erasable; node's type-stripping has no decorator runtime → **runtime error**. The `erasableSyntaxOnly` flag does NOT flag them | function composition / zod validation; **NO `reflect-metadata` DI**. Gated by `scripts/check/gates/no-decorators.ts` (the compiler is silent here). |
 
 ## 6. Classes vs factory services
 

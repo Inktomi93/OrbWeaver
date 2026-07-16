@@ -4,15 +4,7 @@
 // why that seam is story-side, not beforeMount). The `.ct.tsx` beside this file mounts ONLY these
 // exports. This file is the template every client feature agent copies.
 
-import {
-  createCollectionSurface,
-  createEntityMutation,
-  QueryBoundary,
-  useGatedQuery,
-  useInvalidation,
-  useTRPC,
-  useViewer,
-} from "@orb/client/data";
+import { createCollectionSurface, createEntityMutation, QueryBoundary, useGatedQuery, useInvalidation, useTRPC, useViewer } from "@orb/client/data";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { CreateTagInput, TagView } from "@orb/contracts/tag";
 import type { ChatId } from "@orb/kit/ids";
@@ -122,10 +114,7 @@ function InvalidationReader({ chatId }: { readonly chatId: ChatId }): ReactEleme
 export function InvalidationStory({ chatId }: { readonly chatId: ChatId }): ReactElement {
   return (
     <CtDataProviders>
-      <QueryBoundary
-        fallback={<p>loading…</p>}
-        renderError={(e): ReactElement => <p>{String(e)}</p>}
-      >
+      <QueryBoundary fallback={<p>loading…</p>} renderError={(e): ReactElement => <p>{String(e)}</p>}>
         <InvalidationReader chatId={chatId} />
       </QueryBoundary>
     </CtDataProviders>
@@ -141,10 +130,7 @@ interface NotificationsParams {
 
 const useNotificationsSurface = createCollectionSurface({
   query: (trpc, params: NotificationsParams) =>
-    trpc.notifications.list.infiniteQueryOptions(
-      { limit: params.limit },
-      { getNextPageParam: (last) => last.nextCursor ?? undefined },
-    ),
+    trpc.notifications.list.infiniteQueryOptions({ limit: params.limit }, { getNextPageParam: (last) => last.nextCursor ?? undefined }),
   itemsOf: (page) => page.items,
   idOf: (item) => item.id,
 });
@@ -159,9 +145,7 @@ function NotificationsList(): ReactElement {
           <li key={item.id}>{item.type}</li>
         ))}
       </ul>
-      <p data-testid="surface-state">
-        {`pending=${surface.isPending} hasNext=${surface.hasNextPage} fetchingNext=${surface.isFetchingNextPage}`}
-      </p>
+      <p data-testid="surface-state">{`pending=${surface.isPending} hasNext=${surface.hasNextPage} fetchingNext=${surface.isFetchingNextPage}`}</p>
       <button type="button" onClick={surface.listProps.onEndApproach}>
         approach-end
       </button>
@@ -172,10 +156,7 @@ function NotificationsList(): ReactElement {
 export function NotificationsSurfaceStory(): ReactElement {
   return (
     <CtDataProviders>
-      <QueryBoundary
-        fallback={<p>loading…</p>}
-        renderError={(e): ReactElement => <p>{String(e)}</p>}
-      >
+      <QueryBoundary fallback={<p>loading…</p>} renderError={(e): ReactElement => <p>{String(e)}</p>}>
         <NotificationsList />
       </QueryBoundary>
     </CtDataProviders>
@@ -223,11 +204,7 @@ function TagCreateOptimisticInner(): ReactElement {
           <li key={tag.id}>{tag.name}</li>
         ))}
       </ul>
-      {mutation.error !== null && (
-        <p role="alert">
-          {mutation.error instanceof Error ? mutation.error.message : String(mutation.error)}
-        </p>
-      )}
+      {mutation.error !== null && <p role="alert">{mutation.error instanceof Error ? mutation.error.message : String(mutation.error)}</p>}
       <button type="button" onClick={(): void => mutation.mutate({ input: { name: "new-tag" } })}>
         create
       </button>
@@ -238,10 +215,7 @@ function TagCreateOptimisticInner(): ReactElement {
 export function TagCreateOptimisticStory(): ReactElement {
   return (
     <CtDataProviders>
-      <QueryBoundary
-        fallback={<p>loading…</p>}
-        renderError={(e): ReactElement => <p>{String(e)}</p>}
-      >
+      <QueryBoundary fallback={<p>loading…</p>} renderError={(e): ReactElement => <p>{String(e)}</p>}>
         <TagCreateOptimisticInner />
       </QueryBoundary>
     </CtDataProviders>
@@ -263,11 +237,7 @@ function TagCreateColdCacheInner(): ReactElement {
 
   return (
     <div>
-      {mutation.error !== null && (
-        <p role="alert">
-          {mutation.error instanceof Error ? mutation.error.message : String(mutation.error)}
-        </p>
-      )}
+      {mutation.error !== null && <p role="alert">{mutation.error instanceof Error ? mutation.error.message : String(mutation.error)}</p>}
       <button type="button" onClick={(): void => mutation.mutate({ input: { name: "new-tag" } })}>
         create
       </button>
@@ -305,23 +275,16 @@ function TagCreateVariablesInner(): ReactElement {
 
   return (
     <div>
-      {mutation.pendingVariables !== undefined && (
-        <p data-testid="ghost-row">creating: {mutation.pendingVariables.input.name}</p>
-      )}
+      {mutation.pendingVariables !== undefined && <p data-testid="ghost-row">creating: {mutation.pendingVariables.input.name}</p>}
       {mutation.error !== null && (
         <div role="alert">
-          <span>
-            {mutation.error instanceof Error ? mutation.error.message : String(mutation.error)}
-          </span>
+          <span>{mutation.error instanceof Error ? mutation.error.message : String(mutation.error)}</span>
           <button type="button" onClick={mutation.retry}>
             Retry
           </button>
         </div>
       )}
-      <button
-        type="button"
-        onClick={(): void => mutation.mutate({ input: { name: "variables-tag" } })}
-      >
+      <button type="button" onClick={(): void => mutation.mutate({ input: { name: "variables-tag" } })}>
         create
       </button>
     </div>
@@ -355,10 +318,7 @@ function ViewerProbe(): ReactElement {
 export function ViewerStory(): ReactElement {
   return (
     <CtDataProviders>
-      <QueryBoundary
-        fallback={<p>loading…</p>}
-        renderError={(e): ReactElement => <p>{String(e)}</p>}
-      >
+      <QueryBoundary fallback={<p>loading…</p>} renderError={(e): ReactElement => <p>{String(e)}</p>}>
         <ViewerProbe />
       </QueryBoundary>
     </CtDataProviders>

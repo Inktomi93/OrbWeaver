@@ -3,30 +3,22 @@
 // on the entry (read back through resolveTools).
 
 import { z } from "zod";
-import {
-  createToolUseService,
-  ToolNameCollisionError,
-} from "../../../../../packages/server/src/domain/tool-use";
+import { createToolUseService, ToolNameCollisionError } from "../../../../../packages/server/src/domain/tool-use";
 import { expect, test } from "../../../../support/fixtures";
 import { defOf, makeHarness } from "../_support";
 
-const okHandler = (): Promise<{ ok: true; value: unknown }> =>
-  Promise.resolve({ ok: true, value: null });
+const okHandler = (): Promise<{ ok: true; value: unknown }> => Promise.resolve({ ok: true, value: null });
 
 test("a duplicate name throws ToolNameCollisionError (boot-fatal; never last-write-wins)", () => {
   const svc = createToolUseService(makeHarness().ctx);
   svc.register(defOf({ name: "tick_clock", schema: z.object({}), handler: okHandler }));
-  expect(() =>
-    svc.register(defOf({ name: "tick_clock", schema: z.object({}), handler: okHandler })),
-  ).toThrow(ToolNameCollisionError);
+  expect(() => svc.register(defOf({ name: "tick_clock", schema: z.object({}), handler: okHandler }))).toThrow(ToolNameCollisionError);
 });
 
 test("a name outside the OpenAI∩MCP charset refuses at registration", () => {
   const svc = createToolUseService(makeHarness().ctx);
   for (const bad of ["Tick", "9start", "has-dash", "has space", ""]) {
-    expect(() =>
-      svc.register(defOf({ name: bad, schema: z.object({}), handler: okHandler })),
-    ).toThrow(ToolNameCollisionError);
+    expect(() => svc.register(defOf({ name: bad, schema: z.object({}), handler: okHandler }))).toThrow(ToolNameCollisionError);
   }
 });
 

@@ -2,12 +2,7 @@
 // static/dynamic halves leak-free), and toSdkGeneration (map resolve-chat's decision to SDK shape — all
 // gating/clamp/guard logic lives in resolve-chat, this file only maps SDK vocab).
 
-import type {
-  EffortLevel,
-  HookJSONOutput,
-  Options,
-  ThinkingConfig,
-} from "@anthropic-ai/claude-agent-sdk";
+import type { EffortLevel, HookJSONOutput, Options, ThinkingConfig } from "@anthropic-ai/claude-agent-sdk";
 import { SYSTEM_PROMPT_DYNAMIC_BOUNDARY } from "@anthropic-ai/claude-agent-sdk";
 
 import type { ModelCapability } from "@orb/contracts/connection";
@@ -15,12 +10,7 @@ import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { UserIntent } from "@orb/contracts/preset";
 import { env } from "#foundation/env";
 import { getLog } from "#foundation/observability";
-import type {
-  OrSkinTierModels,
-  ResolvedChatKnobs,
-  ResolvedReasoning,
-  ResolvedWarning,
-} from "../../contract";
+import type { OrSkinTierModels, ResolvedChatKnobs, ResolvedReasoning, ResolvedWarning } from "../../contract";
 import { ProviderError } from "../../contract";
 import { resolveChat } from "../../resolve-chat";
 import type { ClaudeRuntimeOverrides } from "./env";
@@ -57,8 +47,7 @@ export function disciplineOptions(
         throw new ProviderError({
           kind: "invalid",
           retryable: false,
-          message:
-            "agent-sdk: an openrouter (mode-2) turn requires orSkinTierModels (derived by connection).",
+          message: "agent-sdk: an openrouter (mode-2) turn requires orSkinTierModels (derived by connection).",
         });
       }
       return {
@@ -67,7 +56,8 @@ export function disciplineOptions(
       };
     case "vllm":
       return { ...base, env: buildClaudeVllmEnv(overrides) };
-    default:
+    case "local-light":
+    case "custom_openai":
       throw new ProviderError({
         kind: "invalid",
         retryable: false,
@@ -125,9 +115,7 @@ function stripBoundaryMarker(text: string): string {
 
 // Joins static+dynamic into ONE leak-free string. The SDK's [static, BOUNDARY, dynamic] array form is
 // forbidden here: the bundled CLI's array split is flag-gated OFF, so the marker reaches the model verbatim.
-export function buildSystemPrompt(
-  sp: { static: string; dynamic: string } | undefined,
-): string | string[] | undefined {
+export function buildSystemPrompt(sp: { static: string; dynamic: string } | undefined): string | string[] | undefined {
   if (sp === undefined) {
     return;
   }
@@ -191,10 +179,7 @@ function buildThinking(reasoning: ResolvedReasoning): ThinkingConfig {
   return { type: "enabled", ...displayPart };
 }
 
-function buildGenerationOptions(
-  params: UserIntent,
-  resolved: ResolvedChatKnobs,
-): SdkGenerationOptions {
+function buildGenerationOptions(params: UserIntent, resolved: ResolvedChatKnobs): SdkGenerationOptions {
   const options: SdkGenerationOptions = {};
   const { reasoning } = resolved;
   if (reasoning.enabled) {
@@ -212,17 +197,11 @@ function buildGenerationOptions(
   return options;
 }
 
-function buildEnvOverrides(
-  params: UserIntent,
-  resolved: ResolvedChatKnobs,
-): ClaudeRuntimeOverrides {
+function buildEnvOverrides(params: UserIntent, resolved: ResolvedChatKnobs): ClaudeRuntimeOverrides {
   const compMode = params.compaction?.mode;
   const disableAutoCompact = compMode === "off" || compMode === "managed";
   const thresholdPct = params.compaction?.thresholdPct;
-  const autoCompactPct =
-    compMode === "auto" && thresholdPct !== undefined
-      ? Math.round(thresholdPct * PCT_SCALE)
-      : undefined;
+  const autoCompactPct = compMode === "auto" && thresholdPct !== undefined ? Math.round(thresholdPct * PCT_SCALE) : undefined;
   return {
     maxOutputTokens: resolved.maxOutputTokens,
     maxContextTokens: params.maxContextTokens,

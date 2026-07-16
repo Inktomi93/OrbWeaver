@@ -65,10 +65,7 @@ export function createSecretBox(key: Buffer | null): SecretBox {
       decipher.setAAD(Buffer.from(aad, "utf8"));
       decipher.setAuthTag(Buffer.from(sealed.tag, "base64"));
       // final() throws if the tag/AAD/key don't verify — a wrong key or a lifted row fails LOUDLY.
-      return Buffer.concat([
-        decipher.update(Buffer.from(sealed.ciphertext, "base64")),
-        decipher.final(),
-      ]).toString("utf8");
+      return Buffer.concat([decipher.update(Buffer.from(sealed.ciphertext, "base64")), decipher.final()]).toString("utf8");
     },
   };
 }

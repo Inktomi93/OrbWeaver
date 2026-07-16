@@ -20,31 +20,19 @@ import { CRED_SOURCES } from "@orb/contracts/credentials";
 import type { BackendKey, ProviderBackend, ResolvedCredential } from "@orb/server/infra/providers";
 import { backendForSource, ProviderError } from "@orb/server/infra/providers";
 import { describe } from "vitest";
-import {
-  makeCustomOpenAiCredential,
-  makeOpenRouterCredential,
-  makeResolvedCredential,
-} from "../../../../support/factories/resolved-connection";
+import { makeCustomOpenAiCredential, makeOpenRouterCredential, makeResolvedCredential } from "../../../../support/factories/resolved-connection";
 import { expect, test } from "../../../../support/fixtures";
 
 /** The five roles this runner covers; the method name is BOTH the ProviderBackend impl key and the spy
  *  tag. Single-home tuple + derived union (no inline re-decl, Spine-TypeScript §7.5). */
-const EMBED_SHAPED_METHODS = [
-  "embed",
-  "rerank",
-  "summarize",
-  "generateImage",
-  "imageEmbed",
-] as const;
+const EMBED_SHAPED_METHODS = ["embed", "rerank", "summarize", "generateImage", "imageEmbed"] as const;
 type EmbedShapedMethod = (typeof EMBED_SHAPED_METHODS)[number];
 
 export interface EmbedShapedRoleSpec {
   readonly method: EmbedShapedMethod;
   /** The dispatcher factory (e.g. `createEmbedRole`). Typed loosely because each role has its own
    *  request/result pair; the runner only drives `create(deps)(req)` and observes the spy tag. */
-  readonly create: (deps: {
-    backends: ReadonlyMap<BackendKey, ProviderBackend>;
-  }) => (req: never) => Promise<unknown>;
+  readonly create: (deps: { backends: ReadonlyMap<BackendKey, ProviderBackend> }) => (req: never) => Promise<unknown>;
   /** The sources the firewall permits for this role — the ONLY per-role policy input. Denied = the rest. */
   readonly allowedSources: readonly CredentialSource[];
   /** Build a minimal in-shape role request carrying the given credential. */
@@ -97,9 +85,7 @@ export function runEmbedShapedRoleTests(spec: EmbedShapedRoleSpec): void {
   const req = (source: CredentialSource): never => spec.makeReq(credFor(source)) as never;
 
   describe(`create${spec.method} role — source → the sealed ${spec.method} backend (allowed rows)`, () => {
-    test.each(
-      spec.allowedSources,
-    )(`%s routes to its derived backend's ${spec.method} impl`, async (source) => {
+    test.each(spec.allowedSources)(`%s routes to its derived backend's ${spec.method} impl`, async (source) => {
       const calls: string[] = [];
       await spec.create({ backends: allBackends(spec.method, calls) })(req(source));
       // The routed backend is the REAL dispatch derivation, not a hand-mapped expectation.
@@ -126,9 +112,7 @@ export function runEmbedShapedRoleTests(spec: EmbedShapedRoleSpec): void {
 
     test("an UNWIRED backend fail-closes (a missing composition-root wire)", async () => {
       const role = spec.create({ backends: new Map<BackendKey, ProviderBackend>() });
-      await expect(role(req(spec.allowedSources[0] as CredentialSource))).rejects.toBeInstanceOf(
-        ProviderError,
-      );
+      await expect(role(req(spec.allowedSources[0] as CredentialSource))).rejects.toBeInstanceOf(ProviderError);
     });
 
     test(`a backend that doesn't implement ${spec.method} fail-closes (not a call on undefined)`, async () => {

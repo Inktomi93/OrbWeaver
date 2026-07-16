@@ -5,10 +5,7 @@ import { TOKENS } from "@orb/ui/tokens";
 import { ToolCallBlock } from "@orb/ui/tool-call-block";
 import { expect, test } from "@playwright/experimental-ct-react";
 
-test("success: pretty-prints arguments and result JSON, no error styling", async ({
-  mount,
-  page,
-}) => {
+test("success: pretty-prints arguments and result JSON, no error styling", async ({ mount, page }) => {
   await mount(
     <ToolCallBlock
       defaultOpen={true}
@@ -30,10 +27,7 @@ test("success: pretty-prints arguments and result JSON, no error styling", async
   await expect(pres.nth(1)).toHaveText('{\n  "total": 17\n}');
 });
 
-test("isError renders the danger token badge + the result document as the error section", async ({
-  mount,
-  page,
-}) => {
+test("isError renders the danger token badge + the result document as the error section", async ({ mount, page }) => {
   await mount(
     <ToolCallBlock
       defaultOpen={true}
@@ -53,10 +47,7 @@ test("isError renders the danger token badge + the result document as the error 
   await expect(badge).toHaveCSS("background-color", TOKENS["color.destructive"].value);
 });
 
-test("result === null renders the neutral requested-not-run badge and no result section", async ({
-  mount,
-  page,
-}) => {
+test("result === null renders the neutral requested-not-run badge and no result section", async ({ mount, page }) => {
   await mount(
     <ToolCallBlock
       defaultOpen={true}
@@ -75,10 +66,7 @@ test("result === null renders the neutral requested-not-run badge and no result 
   await expect(page.locator("pre")).toHaveCount(1); // arguments only — no result section
 });
 
-test("malformed arguments JSON falls back to the raw string, never blank", async ({
-  mount,
-  page,
-}) => {
+test("malformed arguments JSON falls back to the raw string, never blank", async ({ mount, page }) => {
   await mount(
     <ToolCallBlock
       defaultOpen={true}
@@ -95,10 +83,7 @@ test("malformed arguments JSON falls back to the raw string, never blank", async
   await expect(page.locator("pre").first()).toHaveText("{not valid json");
 });
 
-test("malformed result JSON also falls back to the raw string, never blank", async ({
-  mount,
-  page,
-}) => {
+test("malformed result JSON also falls back to the raw string, never blank", async ({ mount, page }) => {
   await mount(
     <ToolCallBlock
       defaultOpen={true}
@@ -129,10 +114,7 @@ test("the status region announces state via aria-live=polite", async ({ mount, p
       }}
     />,
   );
-  await expect(page.locator('[data-slot="tool-call-block-status"]')).toHaveAttribute(
-    "aria-live",
-    "polite",
-  );
+  await expect(page.locator('[data-slot="tool-call-block-status"]')).toHaveAttribute("aria-live", "polite");
 });
 
 test("closed by default; clicking the summary reveals the body", async ({ mount, page }) => {

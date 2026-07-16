@@ -1,8 +1,8 @@
 // Gate: zustand-selector-derived (UI-Lib-Zustand.md §A/§C-1, UI-Gates-and-Lessons.md §7/§11.5) —
 // Zustand v5 dropped v4's implicit shallow equality (`Object.is`), so a selector that DERIVES a fresh
 // object/array every render spins `useSyncExternalStore` forever unless wrapped in `useShallow(...)`.
-// RUNTIME-only, no compile signal — hence a gate. The ts-morph half of the two-layer belt (`tools/grit/
-// zustand-selector-stability.grit` catches the narrow concise-arrow-body case); reasons over the full selector body across both call shapes.
+// RUNTIME-only, no compile signal — hence a gate. The deep half of the two-layer belt
+// (`zustand-selector-stability.ts` catches the narrow concise-arrow-body case); reasons over the full selector body across both call shapes.
 import type { ArrowFunction, FunctionExpression } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
@@ -11,16 +11,7 @@ import type { GateDescriptor } from "../contract.ts";
 // inside state/ (a props-seeded context store per UI-Lib-Zustand.md §A "initialize-with-props" could
 // live under features/**/hooks/ too).
 const HOOK_STORE_RE = /^use[A-Z].*Store$/u;
-const ARRAY_REBUILD_METHODS = new Set([
-  "map",
-  "filter",
-  "flatMap",
-  "slice",
-  "concat",
-  "toSorted",
-  "toReversed",
-  "toSpliced",
-]);
+const ARRAY_REBUILD_METHODS = new Set(["map", "filter", "flatMap", "slice", "concat", "toSorted", "toReversed", "toSpliced"]);
 const OBJECT_DERIVE_METHODS = new Set(["keys", "values", "entries"]);
 // The leftmost identifier name of a CallExpression's callee — bare `foo(...)`, NOT `x.foo(...)` (a
 // PropertyAccessExpression callee, e.g. `useXStore.getState()`/`.subscribe()`, returns undefined —
@@ -93,11 +84,7 @@ function collectReturnedExpressions(fn: Node, out: Node[]): void {
 // diagnostic-legibility.ts's `unwrap`).
 function unwrap(node: Node): Node {
   let n = node;
-  while (
-    Node.isAsExpression(n) ||
-    Node.isSatisfiesExpression(n) ||
-    Node.isParenthesizedExpression(n)
-  ) {
+  while (Node.isAsExpression(n) || Node.isSatisfiesExpression(n) || Node.isParenthesizedExpression(n)) {
     n = n.getExpression();
   }
   return n;
@@ -115,11 +102,7 @@ function calleeDerivationKind(call: Node): string | undefined {
   }
   const receiver = callee.getExpression();
   const name = callee.getName();
-  if (
-    Node.isIdentifier(receiver) &&
-    receiver.getText() === "Object" &&
-    OBJECT_DERIVE_METHODS.has(name)
-  ) {
+  if (Node.isIdentifier(receiver) && receiver.getText() === "Object" && OBJECT_DERIVE_METHODS.has(name)) {
     return `Object.${name}(...) derivation`;
   }
   return ARRAY_REBUILD_METHODS.has(name) ? `array-rebuilding .${name}(...) call` : undefined;
@@ -141,9 +124,7 @@ function freshDerivationKind(raw: Node): string | undefined {
   }
   if (Node.isBinaryExpression(expr)) {
     const op = expr.getOperatorToken().getText();
-    return op === "??" || op === "||" || op === "&&"
-      ? (freshDerivationKind(expr.getLeft()) ?? freshDerivationKind(expr.getRight()))
-      : undefined;
+    return op === "??" || op === "||" || op === "&&" ? (freshDerivationKind(expr.getLeft()) ?? freshDerivationKind(expr.getRight())) : undefined;
   }
   return Node.isCallExpression(expr) ? calleeDerivationKind(expr) : undefined;
 }
@@ -192,8 +173,7 @@ export const gate: GateDescriptor = {
   },
   mustFlag: [
     {
-      files:
-        "declare const useXStore: (sel: (s: { a: number; b: number }) => unknown) => unknown;\nexport const v = useXStore((s) => ({ a: s.a, b: s.b }));\n",
+      files: "declare const useXStore: (sel: (s: { a: number; b: number }) => unknown) => unknown;\nexport const v = useXStore((s) => ({ a: s.a, b: s.b }));\n",
       at: "packages/client/src/state/x.ts",
       why: "a selector returning a fresh object literal — the v5 Object.is footgun",
     },
@@ -204,14 +184,12 @@ export const gate: GateDescriptor = {
       why: "the fresh branch on the far side of a ?? — the stable-default branch alone can't mask it",
     },
     {
-      files:
-        "declare const useXStore: (sel: (s: { a: number; b: number }) => unknown) => unknown;\nexport const v = useXStore((s) => [s.a, s.b]);\n",
+      files: "declare const useXStore: (sel: (s: { a: number; b: number }) => unknown) => unknown;\nexport const v = useXStore((s) => [s.a, s.b]);\n",
       at: "packages/client/src/state/arr.ts",
       why: "a selector returning a fresh array literal — the v5 Object.is footgun",
     },
     {
-      files:
-        "declare const useXStore: (sel: (s: { a: number }) => unknown) => unknown;\nexport const v = useXStore((s) => {\n  return { a: s.a };\n});\n",
+      files: "declare const useXStore: (sel: (s: { a: number }) => unknown) => unknown;\nexport const v = useXStore((s) => {\n  return { a: s.a };\n});\n",
       at: "packages/client/src/state/block.ts",
       why: "a block-bodied selector that returns a fresh object literal — reasoned over the full body",
     },
@@ -242,8 +220,7 @@ export const gate: GateDescriptor = {
   ],
   mustPass: [
     {
-      files:
-        "declare const useXStore: (sel: (s: { a: number }) => unknown) => unknown;\nexport const v = useXStore((s) => s.a);\n",
+      files: "declare const useXStore: (sel: (s: { a: number }) => unknown) => unknown;\nexport const v = useXStore((s) => s.a);\n",
       at: "packages/client/src/state/ok.ts",
       why: "a single-field selector passes — it returns a stable primitive, no fresh reference",
     },
@@ -272,8 +249,7 @@ export const gate: GateDescriptor = {
       why: "a ternary whose branches are both stable references (no fresh literal on either side) — passes",
     },
     {
-      files:
-        "declare const useMemo: (fn: () => unknown, deps: unknown[]) => unknown;\nexport const v = useMemo(() => ({ a: 1 }), []);\n",
+      files: "declare const useMemo: (fn: () => unknown, deps: unknown[]) => unknown;\nexport const v = useMemo(() => ({ a: 1 }), []);\n",
       at: "packages/client/src/state/non-store.ts",
       why: "a non-store call (callee doesn't match use<X>Store / useStore) is out of scope — passes",
     },
@@ -284,8 +260,7 @@ export const gate: GateDescriptor = {
       why: "an indirect (by-reference) selector is out of this AST-only gate's reach — passes",
     },
     {
-      files:
-        "declare const useXStore: (sel: (s: { a: number; b: number }) => unknown) => unknown;\nexport const v = useXStore((s) => ({ a: s.a, b: s.b }));\n",
+      files: "declare const useXStore: (sel: (s: { a: number; b: number }) => unknown) => unknown;\nexport const v = useXStore((s) => ({ a: s.a, b: s.b }));\n",
       at: "packages/server/src/domain/x/verbs/act.ts",
       why: "scope: non-client files are not scanned — only packages/client/src, passes",
     },

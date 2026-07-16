@@ -32,16 +32,14 @@ export const gate: GateDescriptor = {
   },
   mustFlag: [
     {
-      files:
-        'import { EventEmitter } from "node:events";\nexport const bus = new EventEmitter();\n',
+      files: 'import { EventEmitter } from "node:events";\nexport const bus = new EventEmitter();\n',
       at: "packages/server/src/transport/trpc/__probe-bus.ts",
       why: "a bespoke `new EventEmitter()` under transport/, outside bus-channel.ts's own home — reintroduces the pre-M9 pattern",
     },
   ],
   mustPass: [
     {
-      files:
-        'import { EventEmitter } from "node:events";\nexport const bus = new EventEmitter();\n',
+      files: 'import { EventEmitter } from "node:events";\nexport const bus = new EventEmitter();\n',
       at: "packages/server/src/transport/trpc/bus-channel.ts",
       why: "the primitive's OWN home is exempt — this is where `new EventEmitter()` is SUPPOSED to live",
     },

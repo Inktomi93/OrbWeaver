@@ -9,9 +9,7 @@ import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
 import { makeService, principal, seedUser, T0 } from "../_support.ts";
 
-async function seedAliceSchedule(
-  db: Parameters<typeof makeService>[0],
-): Promise<WorkloadScheduleId> {
+async function seedAliceSchedule(db: Parameters<typeof makeService>[0]): Promise<WorkloadScheduleId> {
   const alice = await seedUser(db, "user_alice");
   const s = makeService(db);
   const { id } = await s.createSchedule({
@@ -43,9 +41,7 @@ describe("workloads.updateSchedule", () => {
     const id = await seedAliceSchedule(db);
     await seedUser(db, "user_bob");
     const s = makeService(db);
-    await expect(
-      s.updateSchedule({ id, caller: principal("user_bob"), cadence: "weekly" }),
-    ).rejects.toBeInstanceOf(DomainNotFoundError);
+    await expect(s.updateSchedule({ id, caller: principal("user_bob"), cadence: "weekly" })).rejects.toBeInstanceOf(DomainNotFoundError);
     const [still] = await s.listSchedules({ caller: principal("user_alice") });
     expect(still?.cadence).toBe("daily"); // untouched
   });

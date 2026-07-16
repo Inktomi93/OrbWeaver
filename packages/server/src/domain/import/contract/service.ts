@@ -9,12 +9,7 @@ import type { BulkImportPersonaInput, BulkImportPersonasResult } from "@orb/cont
 import type { BulkImportLorebookInput, BulkImportLorebookResult } from "@orb/contracts/world-info";
 import type { AssetId, CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 import type { ImportCharacterInput } from "./params";
-import type {
-  ImportCharacterResult,
-  ImportChatsResult,
-  ImportedCharacterRef,
-  ImportPersonasResult,
-} from "./results";
+import type { ImportCharacterResult, ImportChatsResult, ImportedCharacterRef, ImportPersonasResult } from "./results";
 import type { ImportChatsInput, ImportPersonaInput } from "./views";
 
 export type CreateImportedCharacter = (args: {
@@ -25,37 +20,19 @@ export type CreateImportedCharacter = (args: {
 }) => Promise<ImportedCharacterRef>;
 
 /** Re-import dedup oracle: id of the caller's existing character carrying `importHash`, or null. */
-export type FindCharacterByImportHash = (args: {
-  readonly ownerId: UserId;
-  readonly importHash: string;
-}) => Promise<CharacterId | null>;
+export type FindCharacterByImportHash = (args: { readonly ownerId: UserId; readonly importHash: string }) => Promise<CharacterId | null>;
 
 /** (ownerId, handle) re-import match oracle; fires only after FindCharacterByImportHash misses. */
-type FindCharacterByHandle = (args: {
-  readonly ownerId: UserId;
-  readonly handle: string;
-}) => Promise<CharacterId | null>;
+type FindCharacterByHandle = (args: { readonly ownerId: UserId; readonly handle: string }) => Promise<CharacterId | null>;
 
 /** Edits an existing character's card in place for the handle-match re-import path. */
-type UpdateImportedCharacter = (args: {
-  readonly ownerId: UserId;
-  readonly characterId: CharacterId;
-  readonly input: UpdateCharacterInput;
-}) => Promise<void>;
+type UpdateImportedCharacter = (args: { readonly ownerId: UserId; readonly characterId: CharacterId; readonly input: UpdateCharacterInput }) => Promise<void>;
 
 /** CAS-stores the card/avatar PNG bytes and returns the asset id (one blob serves both roles). */
-export type StoreImportAsset = (args: {
-  readonly ownerId: UserId;
-  readonly bytes: Uint8Array;
-  readonly mime: string;
-}) => Promise<AssetId>;
+export type StoreImportAsset = (args: { readonly ownerId: UserId; readonly bytes: Uint8Array; readonly mime: string }) => Promise<AssetId>;
 
 /** Attaches one author-shipped card tag by name as a card/pending suggestion; idempotent, race-safe. */
-type AttachImportedCardTag = (args: {
-  readonly ownerId: UserId;
-  readonly characterId: CharacterId;
-  readonly tagName: string;
-}) => Promise<boolean>;
+type AttachImportedCardTag = (args: { readonly ownerId: UserId; readonly characterId: CharacterId; readonly tagName: string }) => Promise<boolean>;
 
 /** World-info-owned lorebook bulk-import write op; optional (card-only upload path skips embedded books). */
 type BulkImportLorebookOp = (args: {
@@ -78,10 +55,7 @@ type BulkImportChatsOp = (args: {
 }) => Promise<BulkImportChatsResult>;
 
 /** Persona-owned bulk-import write op (dedup-by-name); returned idByName feeds chat attribution. */
-type BulkImportPersonasOp = (args: {
-  readonly ownerId: UserId;
-  readonly personas: readonly BulkImportPersonaInput[];
-}) => Promise<BulkImportPersonasResult>;
+type BulkImportPersonasOp = (args: { readonly ownerId: UserId; readonly personas: readonly BulkImportPersonaInput[] }) => Promise<BulkImportPersonasResult>;
 
 /** Profile-wave deps: no db handle or id minters here — each entity write is an injected owning-domain op. */
 export interface ImportProfileDeps {
@@ -112,7 +86,5 @@ export interface ImportService {
   /** Imports loose ST chat .jsonl files into an existing owned character. Requires ctx.profile. */
   readonly importChats: (input: ImportChatsInput) => Promise<ImportChatsResult>;
   /** Imports a profile's personas; must run before the chat importers (populates personaByUserName). */
-  readonly importPersonas: (input: {
-    readonly personas: readonly ImportPersonaInput[];
-  }) => Promise<ImportPersonasResult>;
+  readonly importPersonas: (input: { readonly personas: readonly ImportPersonaInput[] }) => Promise<ImportPersonasResult>;
 }

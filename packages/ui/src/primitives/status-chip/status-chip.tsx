@@ -30,9 +30,7 @@ const STATUS_ICON: Partial<Record<StatusChipStatus, LucideIcon>> = {
   failed: AlertTriangle,
 };
 
-export interface StatusChipProps
-  extends Omit<ComponentProps<"div">, "children">,
-    VariantProps<typeof statusChipVariants> {
+export interface StatusChipProps extends Omit<ComponentProps<"div">, "children">, VariantProps<typeof statusChipVariants> {
   status: StatusChipStatus;
   /** Optional detail text, e.g. "3 of 5 files". */
   summary?: string;
@@ -45,28 +43,13 @@ export interface StatusChipProps
 }
 
 /** Background-job state chip. The root is `role="status"`/`aria-live="polite"` so a transition is announced. */
-export function StatusChip({
-  className,
-  status,
-  summary,
-  timestamp,
-  onRetry,
-  retryLabel = "Retry",
-  size,
-  ...rest
-}: StatusChipProps): ReactElement {
+export function StatusChip({ className, status, summary, timestamp, onRetry, retryLabel = "Retry", size, ...rest }: StatusChipProps): ReactElement {
   const meta = STATUS_META[status];
   const glyph = STATUS_ICON[status];
   const slots = statusChipVariants({ size });
 
   return (
-    <div
-      {...rest}
-      aria-live="polite"
-      className={cn(slots.root(), className)}
-      data-slot="status-chip-root"
-      role="status"
-    >
+    <div {...rest} aria-live="polite" className={cn(slots.root(), className)} data-slot="status-chip-root" role="status">
       <Badge data-slot="status-chip-badge" intent={meta.intent} size={size}>
         {status === "running" ? (
           <Spinner label={meta.label} size="sm" />
@@ -88,13 +71,7 @@ export function StatusChip({
         </span>
       )}
       {status === "failed" && onRetry !== undefined ? (
-        <Button
-          data-slot="status-chip-retry"
-          intent="secondary"
-          onClick={onRetry}
-          size="sm"
-          type="button"
-        >
+        <Button data-slot="status-chip-retry" intent="secondary" onClick={onRetry} size="sm" type="button">
           {retryLabel}
         </Button>
       ) : null}

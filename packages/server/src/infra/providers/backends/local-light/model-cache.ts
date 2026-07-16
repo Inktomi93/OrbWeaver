@@ -5,15 +5,7 @@
 
 import process from "node:process";
 import type { DataType, DeviceType } from "@huggingface/transformers";
-import {
-  AutoModel,
-  AutoModelForSequenceClassification,
-  AutoProcessor,
-  AutoTokenizer,
-  env,
-  RawImage,
-  Tensor,
-} from "@huggingface/transformers";
+import { AutoModel, AutoModelForSequenceClassification, AutoProcessor, AutoTokenizer, env, RawImage, Tensor } from "@huggingface/transformers";
 import type { ImageInput } from "@orb/contracts/role-clients";
 import { l2Normalize } from "@orb/kit/vector-math";
 import { getLog } from "#foundation/observability";
@@ -30,11 +22,7 @@ const DEFAULT_DTYPE: DataType = "fp32";
  *  Tensor leaks) — raw un-normalized Float32Arrays; role files own L2-normalization and MRL truncation. */
 export interface LocalLightModelCache {
   readonly embedTexts: (modelId: string, texts: readonly string[]) => Promise<Float32Array[]>;
-  readonly scorePairs: (
-    modelId: string,
-    query: string,
-    documents: readonly string[],
-  ) => Promise<number[]>;
+  readonly scorePairs: (modelId: string, query: string, documents: readonly string[]) => Promise<number[]>;
   readonly embedImages: (modelId: string, images: readonly ImageInput[]) => Promise<Float32Array[]>;
   readonly embedClipTexts: (modelId: string, texts: readonly string[]) => Promise<Float32Array[]>;
 }
@@ -113,10 +101,7 @@ function isTransformersLoaderEscape(err: unknown): boolean {
     return false;
   }
   const { stack } = err;
-  return (
-    stack.includes("@huggingface/transformers") &&
-    TRANSFORMERS_LOADER_FRAMES.some((frame) => stack.includes(frame))
-  );
+  return stack.includes("@huggingface/transformers") && TRANSFORMERS_LOADER_FRAMES.some((frame) => stack.includes(frame));
 }
 
 // Installed lazily and kept for the process lifetime — a single hung getSession can emit multiple
@@ -161,28 +146,19 @@ async function ownModelLoad<T>(load: () => Promise<T>): Promise<T> {
 }
 
 // On failure with a non-CPU device, retry once on CPU so a missing/broken CUDA EP never bricks embeddings.
-async function loadWithCpuFallback<T>(
-  device: DeviceType,
-  build: (device: DeviceType) => Promise<T>,
-): Promise<T> {
+async function loadWithCpuFallback<T>(device: DeviceType, build: (device: DeviceType) => Promise<T>): Promise<T> {
   try {
     return await ownModelLoad(() => build(device));
   } catch (err) {
     if (device === CPU_DEVICE) {
       throw err;
     }
-    getLog().warn(
-      { err: String(err), device },
-      "local-light: model load failed on device; retrying on cpu",
-    );
+    getLog().warn({ err: String(err), device }, "local-light: model load failed on device; retrying on cpu");
     return await ownModelLoad(() => build(CPU_DEVICE));
   }
 }
 
-export function createMemo<T>(
-  load: (id: string) => Promise<T>,
-  dispose: (value: T) => void,
-): (id: string) => Promise<T> {
+export function createMemo<T>(load: (id: string) => Promise<T>, dispose: (value: T) => void): (id: string) => Promise<T> {
   const entries = new Map<string, Promise<T>>();
   return (id) => {
     const existing = entries.get(id);
@@ -224,17 +200,13 @@ export function createModelCache(config: ModelCacheConfig = {}): LocalLightModel
   }
 
   const jinaEmbedder = createMemo(
-    (id) =>
-      loadWithCpuFallback(device, (dev) => AutoModel.from_pretrained(id, { device: dev, dtype })),
+    (id) => loadWithCpuFallback(device, (dev) => AutoModel.from_pretrained(id, { device: dev, dtype })),
     (m) => {
       void m.dispose();
     },
   );
   const reranker = createMemo(
-    (id) =>
-      loadWithCpuFallback(device, (dev) =>
-        AutoModelForSequenceClassification.from_pretrained(id, { device: dev, dtype }),
-      ),
+    (id) => loadWithCpuFallback(device, (dev) => AutoModelForSequenceClassification.from_pretrained(id, { device: dev, dtype })),
     (m) => {
       void m.dispose();
     },
@@ -248,10 +220,7 @@ export function createModelCache(config: ModelCacheConfig = {}): LocalLightModel
     () => undefined,
   );
 
-  const embedJinaTexts = async (
-    modelId: string,
-    texts: readonly string[],
-  ): Promise<Float32Array[]> => {
+  const embedJinaTexts = async (modelId: string, texts: readonly string[]): Promise<Float32Array[]> => {
     const [proc, model] = await Promise.all([processor(modelId), jinaEmbedder(modelId)]);
     const inputs = await proc([...texts], null, { padding: true, truncation: true });
     const out = (await model(inputs)) as Record<string, unknown>;

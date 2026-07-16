@@ -11,10 +11,7 @@ interface MessageEditDraftState {
   readonly drafts: Readonly<Record<string, string>>;
 }
 
-const useMessageEditDraftStore = createGatedStore<MessageEditDraftState>(
-  "message-edit-draft",
-  (): MessageEditDraftState => ({ drafts: {} }),
-);
+const useMessageEditDraftStore = createGatedStore<MessageEditDraftState>("message-edit-draft", (): MessageEditDraftState => ({ drafts: {} }));
 
 /** Enter edit mode for `messageId`, seeding the draft with the message's current content — call once,
  *  from the Edit action's click handler. Re-entering an already-editing row reseeds the draft (a

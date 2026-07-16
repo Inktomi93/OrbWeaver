@@ -57,10 +57,7 @@ export function createOidcStore(db: Db, now: () => number): DomainOidcStore {
 
     /** Scheduled GC path; never touches a live row, so a concurrent in-flight PKCE flow is safe. */
     async deleteExpired(before: number): Promise<number> {
-      const reaped = await db
-        .delete(oidcTransactions)
-        .where(lte(oidcTransactions.expiresAt, before))
-        .returning({ state: oidcTransactions.state });
+      const reaped = await db.delete(oidcTransactions).where(lte(oidcTransactions.expiresAt, before)).returning({ state: oidcTransactions.state });
       return reaped.length;
     },
   };

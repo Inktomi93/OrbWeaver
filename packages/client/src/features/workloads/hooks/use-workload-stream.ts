@@ -21,11 +21,7 @@ export interface WorkloadStreamDeps {
 }
 
 /** Tail one active workload's SSE stream: progress → the row buffer, everything else → invalidate. */
-export function useWorkloadStream({
-  workloadId,
-  invalidation,
-  onProgress,
-}: WorkloadStreamDeps): void {
+export function useWorkloadStream({ workloadId, invalidation, onProgress }: WorkloadStreamDeps): void {
   const trpc = useTRPC();
   const refetchList = (): void => {
     invalidation.invalidateFilters([trpc.workloads.list.pathFilter()]);

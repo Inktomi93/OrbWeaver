@@ -21,13 +21,7 @@ const OK_STATUS_MAX = 300;
 const SEARCH_MAX_BYTES = 2_000_000;
 // Per-gif transfer + buffer cap for import (DoS bound); isAllowedImageBuffer adds the dimension/pixel cap.
 export const GIF_IMPORT_MAX_BYTES = 8_388_608; // 8 MiB
-const IMPORT_CONTENT_TYPES: readonly string[] = [
-  "image/gif",
-  "image/webp",
-  "image/png",
-  "image/jpeg",
-  "image/avif",
-];
+const IMPORT_CONTENT_TYPES: readonly string[] = ["image/gif", "image/webp", "image/png", "image/jpeg", "image/avif"];
 
 const TRAILING_DOT_RE = /\.$/;
 

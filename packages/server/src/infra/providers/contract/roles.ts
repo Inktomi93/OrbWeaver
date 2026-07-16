@@ -3,13 +3,7 @@
 // `credential`/`model`/`signal`. RESULT shapes live in `@orb/contracts/providers`, not redeclared here.
 
 import type { ResolvedCredential } from "@orb/contracts/credentials";
-import type {
-  ImageEmbedInput,
-  ImageInput,
-  RepetitionDetection,
-  RerankDocument,
-  RerankQuery,
-} from "@orb/contracts/role-clients";
+import type { ImageEmbedInput, ImageInput, RepetitionDetection, RerankDocument, RerankQuery } from "@orb/contracts/role-clients";
 import type { ModelId } from "@orb/kit/ids";
 
 interface RoleRequestCommon {

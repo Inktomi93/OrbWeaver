@@ -9,11 +9,8 @@ interface ReducedMotionQuery {
 
 /** `true` when the user has `prefers-reduced-motion: reduce` set, read fresh at call time. */
 export function prefersReducedMotionNow(): boolean {
-  const matchMediaFn = (globalThis as { matchMedia?: (query: string) => ReducedMotionQuery })
-    .matchMedia;
-  return (
-    typeof matchMediaFn === "function" && matchMediaFn("(prefers-reduced-motion: reduce)").matches
-  );
+  const matchMediaFn = (globalThis as { matchMedia?: (query: string) => ReducedMotionQuery }).matchMedia;
+  return typeof matchMediaFn === "function" && matchMediaFn("(prefers-reduced-motion: reduce)").matches;
 }
 
 /** The scroll `behavior` to use right now for an imperative `scrollTo`/`scrollIntoView` call —

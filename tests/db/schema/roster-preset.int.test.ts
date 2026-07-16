@@ -5,14 +5,7 @@
 // wipes members; character delete drops the member row but the preset survives — D23 derive-not-stamp).
 
 import type { Db } from "@orb/db";
-import {
-  characters,
-  isConstraintViolation,
-  personas,
-  rosterPresetMembers,
-  rosterPresets,
-  users,
-} from "@orb/db";
+import { characters, isConstraintViolation, personas, rosterPresetMembers, rosterPresets, users } from "@orb/db";
 import type { CharacterId, PersonaId, RosterPresetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
@@ -37,12 +30,7 @@ async function seedCharacter(db: Db, ownerId: UserId, id: string): Promise<Chara
   return characterId;
 }
 
-async function seedPreset(
-  db: Db,
-  ownerId: UserId,
-  id: string,
-  name: string,
-): Promise<RosterPresetId> {
+async function seedPreset(db: Db, ownerId: UserId, id: string, name: string): Promise<RosterPresetId> {
   const presetId = castId<RosterPresetId>(id);
   await db.insert(rosterPresets).values({ id: presetId, ownerId, name });
   return presetId;
@@ -66,9 +54,7 @@ test("unique(ownerId, name): a dupe name for one owner collides; the same name a
   const ownerA = await seedUser(db, { id: "user_rp_ua", handle: "rp-ua" });
   const ownerB = await seedUser(db, { id: "user_rp_ub", handle: "rp-ub" });
   await seedPreset(db, ownerA, "roster_preset_u1", "Party");
-  await expect(seedPreset(db, ownerA, "roster_preset_u2", "Party")).rejects.toSatisfy(
-    isConstraintErr,
-  );
+  await expect(seedPreset(db, ownerA, "roster_preset_u2", "Party")).rejects.toSatisfy(isConstraintErr);
   // Same name, different owner — allowed.
   await expect(seedPreset(db, ownerB, "roster_preset_u3", "Party")).resolves.toBeDefined();
 });
@@ -79,9 +65,7 @@ test("owner delete CASCADEs the preset; persona delete SET NULLs the anchor", as
   const personaId = castId<PersonaId>("persona_rp_c");
   await db.insert(personas).values({ id: personaId, ownerId, name: "POV", description: "" });
   const id = castId<RosterPresetId>("roster_preset_c");
-  await db
-    .insert(rosterPresets)
-    .values({ id, ownerId, name: "Anchored", anchorPersonaId: personaId });
+  await db.insert(rosterPresets).values({ id, ownerId, name: "Anchored", anchorPersonaId: personaId });
 
   await db.delete(personas).where(eq(personas.id, personaId));
   const afterPersona = await db.select().from(rosterPresets).where(eq(rosterPresets.id, id));
@@ -97,15 +81,10 @@ test("roster_preset_members: composite PK dupe collides; born disabled=false", a
   const presetId = await seedPreset(db, ownerId, "roster_preset_m", "Crew");
   const characterId = await seedCharacter(db, ownerId, "character_rp_m");
   await db.insert(rosterPresetMembers).values({ presetId, characterId, position: 0 });
-  const rows = await db
-    .select()
-    .from(rosterPresetMembers)
-    .where(eq(rosterPresetMembers.presetId, presetId));
+  const rows = await db.select().from(rosterPresetMembers).where(eq(rosterPresetMembers.presetId, presetId));
   expect(rows[0]?.disabled).toBe(false);
   expect(rows[0]?.talkativeness).toBeNull();
-  await expect(
-    db.insert(rosterPresetMembers).values({ presetId, characterId, position: 1 }),
-  ).rejects.toSatisfy(isConstraintErr);
+  await expect(db.insert(rosterPresetMembers).values({ presetId, characterId, position: 1 })).rejects.toSatisfy(isConstraintErr);
 });
 
 test("member CASCADEs: preset delete wipes members; character delete drops the member, preset survives", async () => {
@@ -119,19 +98,12 @@ test("member CASCADEs: preset delete wipes members; character delete drops the m
 
   // Character delete → its member row goes, the OTHER member + the preset survive.
   await db.delete(characters).where(eq(characters.id, charA));
-  const afterChar = await db
-    .select()
-    .from(rosterPresetMembers)
-    .where(eq(rosterPresetMembers.presetId, presetId));
+  const afterChar = await db.select().from(rosterPresetMembers).where(eq(rosterPresetMembers.presetId, presetId));
   expect(afterChar).toHaveLength(1);
   expect(afterChar[0]?.characterId).toBe(charB);
-  expect(await db.select().from(rosterPresets).where(eq(rosterPresets.id, presetId))).toHaveLength(
-    1,
-  );
+  expect(await db.select().from(rosterPresets).where(eq(rosterPresets.id, presetId))).toHaveLength(1);
 
   // Preset delete → remaining members CASCADE away.
   await db.delete(rosterPresets).where(eq(rosterPresets.id, presetId));
-  expect(
-    await db.select().from(rosterPresetMembers).where(eq(rosterPresetMembers.presetId, presetId)),
-  ).toHaveLength(0);
+  expect(await db.select().from(rosterPresetMembers).where(eq(rosterPresetMembers.presetId, presetId))).toHaveLength(0);
 });

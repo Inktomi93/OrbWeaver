@@ -21,14 +21,8 @@ const ALICE_ID = castId<CharacterId>("char_alice_render");
 const BOB_ID = castId<CharacterId>("char_bob_render");
 const NATE_PERSONA_ID = castId<PersonaId>("persona_nate_render");
 
-const EMPTY_CHARACTER_NAMES: ReadonlyMap<CharacterId, RowCharacterName> = new Map<
-  CharacterId,
-  RowCharacterName
->();
-const EMPTY_PERSONA_NAMES: ReadonlyMap<PersonaId, RowPersonaName> = new Map<
-  PersonaId,
-  RowPersonaName
->();
+const EMPTY_CHARACTER_NAMES: ReadonlyMap<CharacterId, RowCharacterName> = new Map<CharacterId, RowCharacterName>();
+const EMPTY_PERSONA_NAMES: ReadonlyMap<PersonaId, RowPersonaName> = new Map<PersonaId, RowPersonaName>();
 
 test("no roster/producer threaded at all: a defined context with empty producer maps (never undefined)", () => {
   const result = resolveMessageRenderContext({
@@ -84,9 +78,7 @@ test("a non-character participant never counts toward the solo/group split", () 
 });
 
 test("fallbackPersonaName + description resolve the chat ANCHOR persona id against the producer", () => {
-  const personaNamesById = new Map<PersonaId, RowPersonaName>([
-    [NATE_PERSONA_ID, { name: "Nate", description: "the pinned host POV" }],
-  ]);
+  const personaNamesById = new Map<PersonaId, RowPersonaName>([[NATE_PERSONA_ID, { name: "Nate", description: "the pinned host POV" }]]);
   const result = resolveMessageRenderContext({
     characterNamesById: EMPTY_CHARACTER_NAMES,
     personaNamesById,
@@ -98,9 +90,7 @@ test("fallbackPersonaName + description resolve the chat ANCHOR persona id again
 });
 
 test("no anchor persona id set: fallbackPersonaName stays undefined (kit's own floor applies later)", () => {
-  const personaNamesById = new Map<PersonaId, RowPersonaName>([
-    [NATE_PERSONA_ID, { name: "Nate", description: "" }],
-  ]);
+  const personaNamesById = new Map<PersonaId, RowPersonaName>([[NATE_PERSONA_ID, { name: "Nate", description: "" }]]);
   const result = resolveMessageRenderContext({
     characterNamesById: EMPTY_CHARACTER_NAMES,
     personaNamesById,

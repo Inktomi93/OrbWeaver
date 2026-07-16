@@ -20,9 +20,6 @@ export function publishNotification(view: InboxView): void {
 }
 
 /** The recipient's live notification stream, scoped to one `userId` and torn down on `signal` abort. */
-export function subscribeNotifications(
-  userId: UserId,
-  signal: AbortSignal,
-): AsyncIterable<InboxView> {
+export function subscribeNotifications(userId: UserId, signal: AbortSignal): AsyncIterable<InboxView> {
   return bus.subscribe(userId, signal);
 }

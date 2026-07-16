@@ -29,10 +29,7 @@ async function enqueueDue(deps: ScheduleTickDeps, schedule: WorkloadScheduleRow)
       return;
     }
     if (err instanceof DomainError) {
-      log.warn(
-        { scheduleId: schedule.id, kind: schedule.kind, err: err.message },
-        "schedule-tick: enqueue rejected (advancing anyway)",
-      );
+      log.warn({ scheduleId: schedule.id, kind: schedule.kind, err: err.message }, "schedule-tick: enqueue rejected (advancing anyway)");
       return;
     }
     throw err;
@@ -46,7 +43,6 @@ export async function tickWorkloadSchedules(deps: ScheduleTickDeps): Promise<voi
     const at = deps.now();
     // biome-ignore lint/performance/noAwaitInLoops: sequential by design — each start respects the single-active DB lock.
     await enqueueDue(deps, schedule);
-    // biome-ignore lint/performance/noAwaitInLoops: the advance must follow its own enqueue.
     await advanceSchedule(deps.db, schedule.id, at + CADENCE_INTERVAL_MS[schedule.cadence], at);
   }
 }

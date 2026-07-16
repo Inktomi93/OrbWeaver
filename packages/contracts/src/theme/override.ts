@@ -12,29 +12,12 @@ import { isSafeColor } from "@orb/kit/safe-color";
 import { z } from "zod";
 
 /** Fonts a user may pick — an allowlist; anything else drops. */
-export const THEME_FONT_ALLOWLIST = [
-  "Geist",
-  "ui-sans-serif",
-  "ui-serif",
-  "ui-monospace",
-  "Georgia",
-  "Times New Roman",
-  "Iowan Old Style",
-] as const;
+export const THEME_FONT_ALLOWLIST = ["Geist", "ui-sans-serif", "ui-serif", "ui-monospace", "Georgia", "Times New Roman", "Iowan Old Style"] as const;
 export type ThemeFont = (typeof THEME_FONT_ALLOWLIST)[number];
 
 // Painted by `@orb/client` `MESSAGE_ROW_SKINS` (`Record<ChatStyle, RowSkin>`) — a new member here fails
 // tsc there until it's painted.
-export const THEME_CHAT_STYLES = [
-  "bubble",
-  "flat",
-  "document",
-  "echo",
-  "whisper",
-  "hush",
-  "ripple",
-  "tide",
-] as const;
+export const THEME_CHAT_STYLES = ["bubble", "flat", "document", "echo", "whisper", "hush", "ripple", "tide"] as const;
 export type ThemeChatStyle = (typeof THEME_CHAT_STYLES)[number];
 
 export const THEME_DENSITIES = ["comfortable", "compact"] as const;

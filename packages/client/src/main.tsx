@@ -29,29 +29,13 @@ import { notificationsChrome } from "#features/notifications";
 import { personasPane } from "#features/persona";
 import { presetsSection } from "#features/preset";
 import { refinerySection } from "#features/refinery";
-import {
-  accountPane,
-  appearancePane,
-  automationPane,
-  chatBehaviorPane,
-  regexPane,
-  settingsModal,
-  systemPane,
-  tagsPane,
-  themeModal,
-} from "#features/settings";
+import { accountPane, appearancePane, automationPane, chatBehaviorPane, regexPane, settingsModal, systemPane, tagsPane, themeModal } from "#features/settings";
 import { analyticsSection } from "#features/stats";
 import { adminPane } from "#features/user-admin";
 import { backupPane, workloadsPane } from "#features/workloads";
 import { worldInfoSection } from "#features/world-info";
 import type { ChatContextState, ChatSurfaceContribution, ContextTabDef } from "#lib";
-import {
-  AppErrorBoundary,
-  bindNotify,
-  buildClientErrorPayload,
-  createContributorRegistry,
-  createRegistry,
-} from "#lib";
+import { AppErrorBoundary, bindNotify, buildClientErrorPayload, createContributorRegistry, createRegistry } from "#lib";
 import type { ChromeEntry } from "#state";
 import {
   ChromeRegistryProvider,
@@ -98,17 +82,11 @@ const trpcClient = createTrpcClient();
 
 // The chat-context contributor seam (§6c): EMPTY but typed at M3 — the door → factory → mint → resolve
 // → render path is compiled and exercised with zero contributions; M8 only appends array members.
-const chatContextContributors = createContributorRegistry<ContextTabDef<ChatContextState>>(
-  "chat-context",
-  [],
-);
+const chatContextContributors = createContributorRegistry<ContextTabDef<ChatContextState>>("chat-context", []);
 
 // The chat-surface contributor seam (§6c/M8): EMPTY but typed — the door → factory → 3 anchors path is
 // compiled and exercised with zero contributions; rpg/crew append array members later.
-const chatSurfaceContributors = createContributorRegistry<ChatSurfaceContribution>(
-  "chat-surface",
-  [],
-);
+const chatSurfaceContributors = createContributorRegistry<ChatSurfaceContribution>("chat-surface", []);
 
 // The ONE section assembly (G1/G8): total over SECTION_IDS by tsc; delivered as a context value so
 // app-shell reads it (incl. the use-shell-layout hook) without a #features import.
@@ -136,11 +114,7 @@ const modals = createRegistry("modals", MODAL_SLOT_IDS, {
 // The ONE chrome assembly (shell-chrome-unification.md §A/§D, G8): an OPEN contributor registry (no
 // closed id vocabulary — CHROME_ZONES is the closed axis, entries are growth) delivered as a context
 // value so app-shell renders the topbar.trail zone blind (no #features import).
-const chrome = createContributorRegistry<ChromeEntry>("chrome", [
-  notificationsChrome,
-  fullscreenChrome,
-  contextToggleChrome,
-]);
+const chrome = createContributorRegistry<ChromeEntry>("chrome", [notificationsChrome, fullscreenChrome, contextToggleChrome]);
 
 // The ONE settings-pane assembly (§8/G8): total over SETTINGS_CATEGORY_IDS by tsc; delivered as a
 // context value so the settings host reads it without importing any pane body directly.
@@ -195,11 +169,7 @@ createRoot(rootEl).render(
           <AppErrorBoundary
             onError={reportClientError}
             renderFallback={(): ReactElement => (
-              <Stack
-                align="center"
-                justify="center"
-                className="min-h-dvh bg-background text-foreground"
-              >
+              <Stack align="center" justify="center" className="min-h-dvh bg-background text-foreground">
                 <EmptyState
                   icon={<Icon icon={AlertTriangle} size="lg" />}
                   title="Something went wrong"

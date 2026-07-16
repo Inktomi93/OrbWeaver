@@ -9,37 +9,25 @@ import { createEntityMutation } from "#data";
 
 type PersonaDetail = inferOutput<Trpc["persona"]["get"]>;
 
-export const useCreatePersona = createEntityMutation<
-  inferInput<Trpc["persona"]["create"]>,
-  PersonaDetail
->({
+export const useCreatePersona = createEntityMutation<inferInput<Trpc["persona"]["create"]>, PersonaDetail>({
   options: (trpc) => trpc.persona.create.mutationOptions(),
   busDriven: true, // emits `personasChanged` → USER_BUS_FILTERS covers persona.path (list + get).
   errorToast: "Couldn't create the persona.",
 });
 
-export const useUpdatePersona = createEntityMutation<
-  inferInput<Trpc["persona"]["update"]>,
-  PersonaDetail
->({
+export const useUpdatePersona = createEntityMutation<inferInput<Trpc["persona"]["update"]>, PersonaDetail>({
   options: (trpc) => trpc.persona.update.mutationOptions(),
   busDriven: true, // emits `personasChanged` → USER_BUS_FILTERS covers persona.path (list + get).
   errorToast: "Couldn't save the persona.",
 });
 
-export const useRemovePersona = createEntityMutation<
-  inferInput<Trpc["persona"]["remove"]>,
-  unknown
->({
+export const useRemovePersona = createEntityMutation<inferInput<Trpc["persona"]["remove"]>, unknown>({
   options: (trpc) => trpc.persona.remove.mutationOptions(),
   busDriven: true, // emits `personasChanged` → USER_BUS_FILTERS covers persona.path (list + get).
   errorToast: "Couldn't delete the persona.",
 });
 
-export const useDuplicatePersona = createEntityMutation<
-  inferInput<Trpc["persona"]["duplicate"]>,
-  PersonaDetail
->({
+export const useDuplicatePersona = createEntityMutation<inferInput<Trpc["persona"]["duplicate"]>, PersonaDetail>({
   options: (trpc) => trpc.persona.duplicate.mutationOptions(),
   busDriven: true, // emits `personasChanged` → USER_BUS_FILTERS covers persona.path (list + get).
   errorToast: "Couldn't duplicate the persona.",

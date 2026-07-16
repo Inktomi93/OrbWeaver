@@ -30,20 +30,14 @@ test("indeterminate hides the value readout", async ({ mount, page }) => {
   await expect(page.locator('[data-slot="progress-value"]')).toBeEmpty();
 });
 
-test("an in-progress bar has no data-complete and wears the primary token", async ({
-  mount,
-  page,
-}) => {
+test("an in-progress bar has no data-complete and wears the primary token", async ({ mount, page }) => {
   await mount(<Progress aria-label="Uploading" value={72} />);
   const indicator = page.locator('[data-slot="progress-indicator"]');
   await expect(indicator).not.toHaveAttribute("data-complete", "");
   await expect(indicator).toHaveCSS("background-color", TOKENS["color.primary"].value);
 });
 
-test("a completed bar (value === max) sets data-complete and swaps to the success token", async ({
-  mount,
-  page,
-}) => {
+test("a completed bar (value === max) sets data-complete and swaps to the success token", async ({ mount, page }) => {
   await mount(<Progress aria-label="Uploading" value={100} />);
   const indicator = page.locator('[data-slot="progress-indicator"]');
   await expect(indicator).toHaveAttribute("data-complete", "");

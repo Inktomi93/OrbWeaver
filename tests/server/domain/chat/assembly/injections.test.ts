@@ -2,10 +2,7 @@
 // semantics: depth-from-end, clamp-once, depth-DESC, assistant@0→1 floor; system→user framing).
 import type { ChatInjection } from "@orb/contracts/chat";
 import { describe } from "vitest";
-import {
-  frameInjection,
-  spliceInChatInjections,
-} from "../../../../../packages/server/src/domain/chat/assembly/injections";
+import { frameInjection, spliceInChatInjections } from "../../../../../packages/server/src/domain/chat/assembly/injections";
 import { expect, test } from "../../../../support/fixtures";
 
 const HIST = [
@@ -59,9 +56,7 @@ describe("spliceInChatInjections", () => {
   });
 
   test("assistant @ depth 0 floors to depth 1 (no trailing-assistant prefill)", () => {
-    const out = spliceInChatInjections(HIST, [
-      inj({ depth: 0, role: "assistant", content: "cont" }),
-    ]);
+    const out = spliceInChatInjections(HIST, [inj({ depth: 0, role: "assistant", content: "cont" })]);
     expect(out.at(-1)).toEqual({ role: "user", content: "tail" });
     expect(out[HIST.length - 1]).toEqual({ role: "assistant", content: "cont" });
   });
@@ -75,19 +70,14 @@ describe("spliceInChatInjections", () => {
     // Input is high-then-low in array order, so passing this PROVES the ascending sort ran (array order
     // alone would put "high" on top). ST semantics: "Ordered from low/top to high/bottom" — lower `order`
     // sits higher (smaller index), higher `order` lands closer to the tail. (Was DESC — inverted vs ST.)
-    const out = spliceInChatInjections(HIST, [
-      inj({ depth: 1, order: 200, content: "high" }),
-      inj({ depth: 1, order: 10, content: "low" }),
-    ]);
+    const out = spliceInChatInjections(HIST, [inj({ depth: 1, order: 200, content: "high" }), inj({ depth: 1, order: 10, content: "low" })]);
     const low = out.findIndex((m) => m.content === "[Note from user: low]");
     const high = out.findIndex((m) => m.content === "[Note from user: high]");
     expect(low).toBeLessThan(high);
   });
 
   test("resolveContent is applied BEFORE framing", () => {
-    const out = spliceInChatInjections(HIST, [inj({ depth: 0, content: "RAW" })], (c) =>
-      c.toLowerCase(),
-    );
+    const out = spliceInChatInjections(HIST, [inj({ depth: 0, content: "RAW" })], (c) => c.toLowerCase());
     expect(out.at(-1)).toEqual({ role: "user", content: "[Note from user: raw]" });
   });
 

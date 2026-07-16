@@ -13,9 +13,7 @@ import { readUserSettings } from "../persistence/queries";
 const USER_SETTINGS_BACKUP_FILENAME = "user-settings.json";
 
 /** Read the owner's settings, project to the share-safe allowlist, and serialize to a portable file. */
-export function createExportUserSettings(
-  ctx: SettingsContext,
-): (ownerId: UserId) => Promise<SettingsPortableFile> {
+export function createExportUserSettings(ctx: SettingsContext): (ownerId: UserId) => Promise<SettingsPortableFile> {
   return async (ownerId: UserId): Promise<SettingsPortableFile> => {
     const { config } = await readUserSettings(ctx.db, ownerId);
     const bytes = buildUserSettingsBackup(projectShareSafe(config));

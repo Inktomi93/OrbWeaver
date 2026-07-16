@@ -9,11 +9,7 @@
 // `export.ts` is the round-trip twin.
 
 import { parseWorldBookFile } from "#kit/serde/world-info";
-import type {
-  ImportWorldBook,
-  ImportWorldBookContext,
-  ImportWorldBookOutcome,
-} from "../contract/import";
+import type { ImportWorldBook, ImportWorldBookContext, ImportWorldBookOutcome } from "../contract/import";
 
 export function createImport(ctx: ImportWorldBookContext): ImportWorldBook {
   return async ({ ownerId, bytes }): Promise<ImportWorldBookOutcome> => {

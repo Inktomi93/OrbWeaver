@@ -86,28 +86,8 @@ test("test-mirror: contract enum tuples match the expected members (db columns d
   // Pins contract drift — the buddies rarity/species/hat/mood columns + CHECKs import these tuples.
   expect([...RARITIES]).toEqual(["common", "uncommon", "rare", "epic", "legendary"]);
   expect([...SPECIES]).toEqual(["mote", "scribe", "ember", "loom", "pixel", "wisp"]);
-  expect([...HATS]).toEqual([
-    "none",
-    "crown",
-    "tophat",
-    "antenna",
-    "halo",
-    "wizard",
-    "beanie",
-    "bow",
-  ]);
-  expect([...MOODS]).toEqual([
-    "content",
-    "working",
-    "queasy",
-    "excited",
-    "sleepy",
-    "proud",
-    "anxious",
-    "playful",
-    "curious",
-    "grumpy",
-  ]);
+  expect([...HATS]).toEqual(["none", "crown", "tophat", "antenna", "halo", "wizard", "beanie", "bow"]);
+  expect([...MOODS]).toEqual(["content", "working", "queasy", "excited", "sleepy", "proud", "anxious", "playful", "curious", "grumpy"]);
   expect([...STAT_NAMES]).toEqual(["LORE", "WIT", "WARMTH", "MISCHIEF", "FOCUS"]);
 });
 
@@ -126,9 +106,7 @@ test("buddies columns accept every contract enum member (rarity/species/eye/hat/
   ];
   const rawIds = specs.map((_, i) => `user_enum_${i}`);
 
-  await db
-    .insert(users)
-    .values(rawIds.map((raw) => ({ id: castId<UserId>(raw), handle: castId<Handle>(raw) })));
+  await db.insert(users).values(rawIds.map((raw) => ({ id: castId<UserId>(raw), handle: castId<Handle>(raw) })));
   await db.insert(buddies).values(
     specs.map((spec, i) => {
       const userId = castId<UserId>(rawIds[i] ?? "");
@@ -145,9 +123,7 @@ test("buddies rarity CHECK rejects an out-of-tuple value", async () => {
   let caught: unknown;
   try {
     // Cast past the column's literal type to exercise the SQL CHECK at runtime.
-    await db
-      .insert(buddies)
-      .values({ ...buddyValues(userId), rarity: "mythic" as unknown as Rarity });
+    await db.insert(buddies).values({ ...buddyValues(userId), rarity: "mythic" as unknown as Rarity });
   } catch (err) {
     caught = err;
   }
@@ -230,9 +206,7 @@ test("deleting the user cascades buddy + turns + quips (two-hop)", async () => {
   const db = await freshDb();
   const userId = await seedUser(db, { id: "user_cascade" });
   await db.insert(buddies).values(buddyValues(userId));
-  await db
-    .insert(buddyTurns)
-    .values({ id: castId<BuddyTurnId>("buddy_turn_c"), userId, role: "user", content: "x" });
+  await db.insert(buddyTurns).values({ id: castId<BuddyTurnId>("buddy_turn_c"), userId, role: "user", content: "x" });
   await db.insert(buddyQuips).values({
     id: castId<BuddyQuipId>("buddy_quip_c"),
     userId,

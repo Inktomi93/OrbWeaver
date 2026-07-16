@@ -4,20 +4,8 @@
 // silently route workload roles to vLLM even when the user pinned OpenRouter.
 
 import type { Principal } from "@orb/contracts/identity";
-import type {
-  EmbedResult,
-  ImageEmbedResult,
-  RerankResult,
-  SummarizeResult,
-} from "@orb/contracts/providers";
-import type {
-  ImageEmbedInput,
-  RerankDocument,
-  RerankQuery,
-  RoleClients,
-  SummarizeInput,
-  SummarizeOptions,
-} from "@orb/contracts/role-clients";
+import type { EmbedResult, ImageEmbedResult, RerankResult, SummarizeResult } from "@orb/contracts/providers";
+import type { ImageEmbedInput, RerankDocument, RerankQuery, RoleClients, SummarizeInput, SummarizeOptions } from "@orb/contracts/role-clients";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ConnectionService } from "#domain/connection";
@@ -45,10 +33,7 @@ function ownerPrincipal(ownerId: UserId): Principal {
  * Bind a `RoleClients` bundle for one user by resolving each derive-role's `{credential, model}` once via
  * `connection.resolveRole`, then binding a callable per role over the executor.
  */
-export async function bindRoleClientsForUser(
-  deps: RoleClientsBinderDeps,
-  ownerId: UserId,
-): Promise<RoleClients> {
+export async function bindRoleClientsForUser(deps: RoleClientsBinderDeps, ownerId: UserId): Promise<RoleClients> {
   const principal = ownerPrincipal(ownerId);
   const [embedConn, rerankConn, imageEmbedConn, summarizeConn] = await Promise.all([
     deps.connection.resolveRole({ role: "embed", principal }),
@@ -57,10 +42,7 @@ export async function bindRoleClientsForUser(
     deps.connection.resolveRole({ role: "summarize", principal }),
   ]);
   return {
-    embed: (
-      input: string | string[],
-      opts?: { inputType?: "query" | "document"; instruction?: string },
-    ): Promise<EmbedResult> =>
+    embed: (input: string | string[], opts?: { inputType?: "query" | "document"; instruction?: string }): Promise<EmbedResult> =>
       deps.executor.embed({
         credential: embedConn.credential,
         model: embedConn.model,
@@ -68,11 +50,7 @@ export async function bindRoleClientsForUser(
         ...(opts?.inputType !== undefined ? { inputType: opts.inputType } : {}),
         ...(opts?.instruction !== undefined ? { instruction: opts.instruction } : {}),
       }),
-    rerank: (
-      query: RerankQuery,
-      documents: RerankDocument[],
-      opts?: { instruction?: string },
-    ): Promise<RerankResult> =>
+    rerank: (query: RerankQuery, documents: RerankDocument[], opts?: { instruction?: string }): Promise<RerankResult> =>
       deps.executor.rerank({
         credential: rerankConn.credential,
         model: rerankConn.model,
@@ -95,9 +73,7 @@ export async function bindRoleClientsForUser(
         ...(opts?.temperature !== undefined ? { temperature: opts.temperature } : {}),
         ...(opts?.minP !== undefined ? { minP: opts.minP } : {}),
         ...(opts?.jsonSchema !== undefined ? { jsonSchema: opts.jsonSchema } : {}),
-        ...(opts?.repetitionDetection !== undefined
-          ? { repetitionDetection: opts.repetitionDetection }
-          : {}),
+        ...(opts?.repetitionDetection !== undefined ? { repetitionDetection: opts.repetitionDetection } : {}),
       }),
     embedModel: embedConn.model,
     rerankModel: rerankConn.model,

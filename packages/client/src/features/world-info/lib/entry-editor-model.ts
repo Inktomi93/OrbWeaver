@@ -70,10 +70,7 @@ export function entryFormFromEntity(entry: EntryView): EntryFormValues {
 }
 
 /** Re-nest the flat form into the `updateEntry` input, PRESERVING any unknown metadata keys on `base`. */
-export function entryUpdateInputFromForm(
-  values: EntryFormValues,
-  base: EntryMetadata | null,
-): UpdateEntryInput {
+export function entryUpdateInputFromForm(values: EntryFormValues, base: EntryMetadata | null): UpdateEntryInput {
   return {
     title: values.title,
     description: values.description.trim() === "" ? null : values.description,
@@ -90,10 +87,7 @@ export function entryUpdateInputFromForm(
  *  scope + a disabled inject OMIT their keys so the read path falls back to its defaults, never a pinned
  *  literal; every OTHER (unknown, ST-imported) key on `base` rides through untouched (rebuilt without the
  *  three managed keys rather than deleted — noDelete). */
-function buildMetadata(
-  values: EntryFormValues,
-  base: EntryMetadata | null,
-): Record<string, unknown> {
+function buildMetadata(values: EntryFormValues, base: EntryMetadata | null): Record<string, unknown> {
   const metadata: Record<string, unknown> = { position: values.position };
   for (const [key, value] of Object.entries(base ?? {})) {
     if (key !== "scopeMode" && key !== "inject" && key !== "position") {

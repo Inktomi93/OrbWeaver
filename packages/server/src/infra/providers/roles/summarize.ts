@@ -11,9 +11,7 @@ import { assertCredentialAllowed } from "./firewall";
 const ROLE = "summarize";
 
 /** Bind the summarize dispatcher to the wired backend registry. */
-export function createSummarizeRole(
-  deps: ProviderDeps,
-): (req: SummarizeRequest) => Promise<SummarizeResult> {
+export function createSummarizeRole(deps: ProviderDeps): (req: SummarizeRequest) => Promise<SummarizeResult> {
   return async (req) => {
     assertCredentialAllowed({ role: ROLE, source: req.credential.source });
     const backend = requireBackend(deps.backends, backendForSource(req.credential.source), ROLE);

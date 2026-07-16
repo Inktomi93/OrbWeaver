@@ -9,18 +9,14 @@ import type { DetachFromCharacterParams } from "../../contract/params";
 import type { WorldInfoService } from "../../contract/service";
 import { ensureCharacterOwned } from "../../persistence/ownership";
 
-export function createDetachFromCharacter(
-  ctx: WorldInfoContext,
-): WorldInfoService["detachFromCharacter"] {
+export function createDetachFromCharacter(ctx: WorldInfoContext): WorldInfoService["detachFromCharacter"] {
   return async ({ principal, characterId, bookId }: DetachFromCharacterParams) => {
     const ownerId = principal.userId;
     await ensureCharacterOwned(ctx.db, ownerId, characterId);
     const at = ctx.now();
     const removed = await ctx.db
       .delete(characterBooks)
-      .where(
-        and(eq(characterBooks.characterId, characterId), eq(characterBooks.worldBookId, bookId)),
-      )
+      .where(and(eq(characterBooks.characterId, characterId), eq(characterBooks.worldBookId, bookId)))
       .returning({ worldBookId: characterBooks.worldBookId });
     if (removed.length === 0) {
       return { detached: false };

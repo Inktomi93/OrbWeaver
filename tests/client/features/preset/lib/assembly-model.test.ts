@@ -76,9 +76,7 @@ test("triggersPillLabel: lists the turn-types' human labels, comma-joined", () =
 });
 
 test("addableSections offers a literal + every marker NOT already placed", () => {
-  const placed: PromptSection[] = [
-    { type: "marker", id: "h", name: "h", marker: "chat_history", role: "system", enabled: true },
-  ];
+  const placed: PromptSection[] = [{ type: "marker", id: "h", name: "h", marker: "chat_history", role: "system", enabled: true }];
   const options = addableSections(placed);
   expect(options[0]?.marker).toBe(null); // literal first
   const markers = options.map((o) => o.marker);

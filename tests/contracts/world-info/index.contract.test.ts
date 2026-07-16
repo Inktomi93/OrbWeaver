@@ -100,9 +100,7 @@ test("entryMetadataWriteSchema accepts a valid blob and a lenient open record", 
   // unknown keys are tolerated (open record).
   expect(entryMetadataWriteSchema.safeParse({ whatever: 1 }).success).toBe(true);
   // a non-system/user assistant injection at a safe depth passes.
-  expect(
-    entryMetadataWriteSchema.safeParse({ inject: { depth: 1, role: "assistant" } }).success,
-  ).toBe(true);
+  expect(entryMetadataWriteSchema.safeParse({ inject: { depth: 1, role: "assistant" } }).success).toBe(true);
 });
 
 // D66-B (W5, ruling A): the assistant@depth-0 WRITE-reject is REMOVED — authored prefill is now
@@ -112,12 +110,8 @@ test("entryMetadataWriteSchema ACCEPTS assistant-role at depth 0 (normalized at 
   const prefill = { inject: { depth: 0, role: "assistant" } };
   expect(entryMetadataWriteSchema.safeParse(prefill).success).toBe(true);
   // depth 0 with role user/system stays valid.
-  expect(entryMetadataWriteSchema.safeParse({ inject: { depth: 0, role: "user" } }).success).toBe(
-    true,
-  );
-  expect(entryMetadataWriteSchema.safeParse({ inject: { depth: 0, role: "system" } }).success).toBe(
-    true,
-  );
+  expect(entryMetadataWriteSchema.safeParse({ inject: { depth: 0, role: "user" } }).success).toBe(true);
+  expect(entryMetadataWriteSchema.safeParse({ inject: { depth: 0, role: "system" } }).success).toBe(true);
 });
 
 test("entryMetadataWriteSchema rejects a typo'd scopeMode at write time", () => {

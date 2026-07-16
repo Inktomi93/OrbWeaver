@@ -71,9 +71,7 @@ describe("applyReceivePostProcess — orchestrator", () => {
   });
 
   test("dropIncompleteSentence flag alone cuts the trailing fragment", () => {
-    expect(
-      applyReceivePostProcess("Sentence one. half two", cfg({ dropIncompleteSentence: true })),
-    ).toBe("Sentence one.");
+    expect(applyReceivePostProcess("Sentence one. half two", cfg({ dropIncompleteSentence: true }))).toBe("Sentence one.");
   });
 
   test("combined: single-line FIRST, then drop-incomplete, then trim", () => {

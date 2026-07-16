@@ -1,25 +1,12 @@
 // SDK-message-stream → {@link ChatResult} reducer plus chat-turn orchestration (spawn + per-chat resume).
 // `consumeTurnStream` is isolated from the spawn so it's unit-testable with a hand-built stream.
 
-import type {
-  Query,
-  SDKAssistantMessageError,
-  SDKControlGetContextUsageResponse,
-  SDKMessage,
-} from "@anthropic-ai/claude-agent-sdk";
+import type { Query, SDKAssistantMessageError, SDKControlGetContextUsageResponse, SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { secondsToMs } from "@orb/kit/time";
 import { getLog } from "#foundation/observability";
-import type {
-  AgentSdkChatRequest,
-  ChatEvent,
-  ChatResult,
-  ChatUsage,
-  ContextUsage,
-  RateLimitSnapshot,
-  ResolvedWarning,
-} from "../../contract";
+import type { AgentSdkChatRequest, ChatEvent, ChatResult, ChatUsage, ContextUsage, RateLimitSnapshot, ResolvedWarning } from "../../contract";
 import { normalizeFinishReason, ProviderError } from "../../contract";
 import { resolveDynamicContext } from "../../resolve-chat";
 import { refreshHostSubTokenIfMode1 } from "./host-token";
@@ -37,20 +24,9 @@ import {
   logProviderTurn,
 } from "./log";
 import type { SeededSessionDecision, SessionCache } from "./session";
-import {
-  buildSystemPrompt,
-  disciplineOptions,
-  dynamicContextOptions,
-  observabilityOptions,
-  toSdkGeneration,
-} from "./translate";
+import { buildSystemPrompt, disciplineOptions, dynamicContextOptions, observabilityOptions, toSdkGeneration } from "./translate";
 import type { AgentSdkDeps, TurnStreamContext } from "./types";
-import {
-  assertInitFrameShape,
-  classifyAssistantError,
-  classifyResultSubtype,
-  classifyTerminalReason,
-} from "./verify";
+import { assertInitFrameShape, classifyAssistantError, classifyResultSubtype, classifyTerminalReason } from "./verify";
 
 /** chatId-derived metadata label only — never the user's chat title text (RP content stays out of the SDK's transcript store). */
 function sdkChatTitle(chatId: string | undefined): string {
@@ -82,11 +58,7 @@ function isAbortError(error: unknown): boolean {
   return error instanceof Error && error.name === "AbortError";
 }
 
-export async function runChatTurn(
-  req: AgentSdkChatRequest,
-  deps: AgentSdkDeps,
-  sessions: SessionCache,
-): Promise<ChatResult> {
+export async function runChatTurn(req: AgentSdkChatRequest, deps: AgentSdkDeps, sessions: SessionCache): Promise<ChatResult> {
   // Mode-1 (Max sub) only: proactively refresh an expired host OAuth token before the spawn — the spawned
   // runtime's own refresh can't persist through the ephemeral-dir symlink. Best-effort, never throws.
   await refreshHostSubTokenIfMode1(req.credential, deps.refreshHostSubToken);
@@ -146,9 +118,7 @@ export async function runChatTurn(
     ...(chatId !== undefined ? { chatId } : {}),
     ...(req.onEvent !== undefined ? { onEvent: req.onEvent } : {}),
     ...(req.onDelta !== undefined ? { onDelta: req.onDelta } : {}),
-    ...(chatId !== undefined
-      ? { onSessionId: (sessionId: string): void => sessions.record(chatId, sessionId) }
-      : {}),
+    ...(chatId !== undefined ? { onSessionId: (sessionId: string): void => sessions.record(chatId, sessionId) } : {}),
     configuredMaxOutputTokens: gen.envOverrides.maxOutputTokens ?? null,
     configuredMaxContextTokens: gen.envOverrides.maxContextTokens ?? null,
   });
@@ -201,29 +171,18 @@ async function resolveResume(
   };
 }
 
-function logSessionDecision(
-  chatId: string | undefined,
-  resume: string | undefined,
-  disposition: SeededSessionDecision["disposition"],
-): void {
+function logSessionDecision(chatId: string | undefined, resume: string | undefined, disposition: SeededSessionDecision["disposition"]): void {
   if (chatId === undefined || disposition === "resumed" || disposition === "fresh") {
     return;
   }
   logProviderSession({ chatId, sessionId: resume ?? null, disposition });
 }
 
-function appendWarnings(
-  result: ChatResult,
-  warnings: readonly ResolvedWarning[],
-  at: number,
-  onEvent: ((event: ChatEvent) => void) | undefined,
-): ChatResult {
+function appendWarnings(result: ChatResult, warnings: readonly ResolvedWarning[], at: number, onEvent: ((event: ChatEvent) => void) | undefined): ChatResult {
   if (warnings.length === 0) {
     return result;
   }
-  const events = warnings.map(
-    ({ code, message }): ChatEvent => ({ kind: "warning", at, code, message }),
-  );
+  const events = warnings.map(({ code, message }): ChatEvent => ({ kind: "warning", at, code, message }));
   for (const event of events) {
     onEvent?.(event);
   }
@@ -247,7 +206,7 @@ async function probeContextUsage(query: Query): Promise<ContextUsage | undefined
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<undefined>((resolve) => {
     timer = setTimeout(() => resolve(undefined), CONTEXT_USAGE_PROBE_TIMEOUT_MS);
-    timer.unref?.();
+    timer.unref();
   });
   let usage: ContextUsage | undefined;
   try {
@@ -264,10 +223,7 @@ async function probeContextUsage(query: Query): Promise<ContextUsage | undefined
 }
 
 /** Reduce an SDK message stream into a {@link ChatResult}; throws {@link ProviderError} on any failure result. */
-export async function consumeTurnStream(
-  stream: AsyncIterable<SDKMessage>,
-  ctx: TurnStreamContext,
-): Promise<ChatResult> {
+export async function consumeTurnStream(stream: AsyncIterable<SDKMessage>, ctx: TurnStreamContext): Promise<ChatResult> {
   const acc = new TurnAccumulator(ctx);
   try {
     for await (const message of stream) {
@@ -283,9 +239,7 @@ export async function consumeTurnStream(
 }
 
 // Split out so `await` sees a concrete Promise (biome's useAwaitThenable can't resolve an optional callback property inline).
-async function runContextUsageProbe(
-  probe: (() => Promise<ContextUsage | undefined>) | undefined,
-): Promise<ContextUsage | undefined> {
+async function runContextUsageProbe(probe: (() => Promise<ContextUsage | undefined>) | undefined): Promise<ContextUsage | undefined> {
   if (probe === undefined) {
     return;
   }
@@ -312,8 +266,13 @@ function dispatch(acc: TurnAccumulator, message: SDKMessage): void {
     case "stream_event":
       handleStreamEvent(acc, message);
       break;
-    default:
+    case "user":
+    case "tool_progress":
+    case "tool_use_summary":
+    case "prompt_suggestion":
+    case "conversation_reset":
       getLog().debug({ messageType: message.type }, "agent-sdk: unhandled sdk message type");
+      break;
   }
 }
 
@@ -440,10 +399,7 @@ class TurnAccumulator {
     // CLI stderr tail is diagnostics for a spawn/subprocess death only — a classified upstream error doesn't get one.
     const spawnDeath = perr.kind === "server" || perr.kind === "unknown";
     const tail = spawnDeath ? this.ctx.stderrTail?.() : undefined;
-    logProviderError(
-      perr,
-      tail !== undefined && tail.length > 0 ? { stderrTail: tail } : undefined,
-    );
+    logProviderError(perr, tail !== undefined && tail.length > 0 ? { stderrTail: tail } : undefined);
     return perr;
   }
 
@@ -503,10 +459,7 @@ function handleSystem(acc: TurnAccumulator, message: Narrow<"system">): void {
     handleStatus(acc, message);
   } else if (message.subtype === "thinking_tokens") {
     acc.reasoningTokens = message.estimated_tokens;
-  } else if (
-    message.subtype === "model_refusal_fallback" ||
-    message.subtype === "model_refusal_no_fallback"
-  ) {
+  } else if (message.subtype === "model_refusal_fallback" || message.subtype === "model_refusal_no_fallback") {
     handleRefusal(acc, message);
   } else if (message.subtype === "init") {
     assertInitFrameShape(message);
@@ -517,9 +470,7 @@ function handleSystem(acc: TurnAccumulator, message: Narrow<"system">): void {
 
 function handleRefusal(
   acc: TurnAccumulator,
-  message:
-    | (Narrow<"system"> & { subtype: "model_refusal_fallback" })
-    | (Narrow<"system"> & { subtype: "model_refusal_no_fallback" }),
+  message: (Narrow<"system"> & { subtype: "model_refusal_fallback" }) | (Narrow<"system"> & { subtype: "model_refusal_no_fallback" }),
 ): void {
   const retried = message.subtype === "model_refusal_fallback";
   acc.emit({
@@ -534,10 +485,7 @@ function handleRefusal(
   logProviderRefusal({ category: message.api_refusal_category ?? null, retried });
 }
 
-function handleCompactBoundary(
-  acc: TurnAccumulator,
-  message: Narrow<"system"> & { subtype: "compact_boundary" },
-): void {
+function handleCompactBoundary(acc: TurnAccumulator, message: Narrow<"system"> & { subtype: "compact_boundary" }): void {
   const meta = message.compact_metadata;
   acc.emit({
     kind: "compaction",
@@ -548,16 +496,10 @@ function handleCompactBoundary(
     durationMs: meta.duration_ms,
     preserved: meta.preserved_messages !== undefined || meta.preserved_segment !== undefined,
   });
-  getLog().info(
-    { trigger: meta.trigger, preTokens: meta.pre_tokens, postTokens: meta.post_tokens },
-    "agent-sdk: context compacted",
-  );
+  getLog().info({ trigger: meta.trigger, preTokens: meta.pre_tokens, postTokens: meta.post_tokens }, "agent-sdk: context compacted");
 }
 
-function handleApiRetry(
-  acc: TurnAccumulator,
-  message: Narrow<"system"> & { subtype: "api_retry" },
-): void {
+function handleApiRetry(acc: TurnAccumulator, message: Narrow<"system"> & { subtype: "api_retry" }): void {
   acc.lastRetryError = message.error;
   acc.emit({
     kind: "api_retry",
@@ -590,10 +532,7 @@ function handleApiRetry(
   }
 }
 
-function handleStatus(
-  acc: TurnAccumulator,
-  message: Narrow<"system"> & { subtype: "status" },
-): void {
+function handleStatus(acc: TurnAccumulator, message: Narrow<"system"> & { subtype: "status" }): void {
   acc.emit({
     kind: "status",
     at: acc.ctx.now(),
@@ -659,10 +598,7 @@ function handleAuthStatus(acc: TurnAccumulator, message: Narrow<"auth_status">):
     error: message.error,
   });
   // Warn unconditionally — auth state changing mid-turn is a ban-risk canary.
-  getLog().warn(
-    { isAuthenticating: message.isAuthenticating, authError: message.error },
-    "agent-sdk: auth status change",
-  );
+  getLog().warn({ isAuthenticating: message.isAuthenticating, authError: message.error }, "agent-sdk: auth status change");
 }
 
 function accumulateUsage(acc: TurnAccumulator, message: Narrow<"result">): void {
@@ -674,17 +610,13 @@ function accumulateUsage(acc: TurnAccumulator, message: Narrow<"result">): void 
     acc.usageAcc.costUsd += modelUsage.costUSD;
     acc.usageAcc.webSearchRequests += modelUsage.webSearchRequests;
     // Prefer the configured cap over the model's reported capability, so provenance reflects the user's budget.
-    acc.usageAcc.contextWindow = Math.max(
-      acc.usageAcc.contextWindow,
-      acc.ctx.configuredMaxContextTokens ?? modelUsage.contextWindow,
-    );
-    acc.usageAcc.maxOutputTokens = Math.max(
-      acc.usageAcc.maxOutputTokens,
-      acc.ctx.configuredMaxOutputTokens ?? modelUsage.maxOutputTokens,
-    );
+    acc.usageAcc.contextWindow = Math.max(acc.usageAcc.contextWindow, acc.ctx.configuredMaxContextTokens ?? modelUsage.contextWindow);
+    acc.usageAcc.maxOutputTokens = Math.max(acc.usageAcc.maxOutputTokens, acc.ctx.configuredMaxOutputTokens ?? modelUsage.maxOutputTokens);
   }
-  const cacheCreation = message.usage.cache_creation;
-  if (cacheCreation) {
+  // The SDK types usage.cache_creation as required, but it's absent when no prompt-cache write occurred
+  // (runtime-optional) — annotate as optional so the guard is honest, not "unnecessary".
+  const cacheCreation = message.usage.cache_creation as Narrow<"result">["usage"]["cache_creation"] | undefined;
+  if (cacheCreation !== undefined) {
     acc.usageAcc.cacheCreation5mTokens = cacheCreation.ephemeral_5m_input_tokens;
     acc.usageAcc.cacheCreation1hTokens = cacheCreation.ephemeral_1h_input_tokens;
   }
@@ -706,7 +638,9 @@ function detectModelDowngrade(acc: TurnAccumulator, message: Narrow<"result">): 
 // Firewall tripwire: with the tool-less config, permission_denials must be empty; a non-empty list means a
 // tool leaked past the roleplay firewall. tool_input is deliberately not surfaced (could carry content).
 function checkPermissionDenials(acc: TurnAccumulator, message: Narrow<"result">): void {
-  const denials = message.permission_denials;
+  // The SDK types permission_denials as required, but the CLI omits it entirely on tool-less turns
+  // (runtime-optional) — annotate as optional so the absent/empty guard is honest, not "unnecessary".
+  const denials = message.permission_denials as Narrow<"result">["permission_denials"] | undefined;
   if (denials === undefined || denials.length === 0) {
     return;
   }
@@ -748,14 +682,9 @@ interface ResultClassification {
 }
 
 // Precedence, most-specific first: retry/rate-limit assistant-error code, then terminal reason, then generic subtype.
-function classifyResult(
-  acc: TurnAccumulator,
-  message: Narrow<"result"> & { subtype: Exclude<Narrow<"result">["subtype"], "success"> },
-): ResultClassification {
+function classifyResult(acc: TurnAccumulator, message: Narrow<"result"> & { subtype: Exclude<Narrow<"result">["subtype"], "success"> }): ResultClassification {
   const rateLimited = acc.rateLimit?.status === "rejected" || acc.lastRetryError === "rate_limit";
-  const specific: SDKAssistantMessageError | undefined = rateLimited
-    ? "rate_limit"
-    : acc.lastRetryError;
+  const specific: SDKAssistantMessageError | undefined = rateLimited ? "rate_limit" : acc.lastRetryError;
   if (specific !== undefined) {
     return { classified: classifyAssistantError(specific), detail: specific };
   }
@@ -768,10 +697,7 @@ function classifyResult(
   return { classified: classifyResultSubtype(message.subtype), detail: message.subtype };
 }
 
-function buildResultError(
-  acc: TurnAccumulator,
-  message: Narrow<"result"> & { subtype: Exclude<Narrow<"result">["subtype"], "success"> },
-): ProviderError {
+function buildResultError(acc: TurnAccumulator, message: Narrow<"result"> & { subtype: Exclude<Narrow<"result">["subtype"], "success"> }): ProviderError {
   const { classified, detail } = classifyResult(acc, message);
   const errorDetail = message.errors.length > 0 ? `: ${message.errors.join("; ")}` : "";
   return new ProviderError({
@@ -782,9 +708,7 @@ function buildResultError(
     detail,
     ...(acc.errorSessionId !== undefined ? { sessionId: acc.errorSessionId } : {}),
     ...(message.terminal_reason !== undefined ? { terminalReason: message.terminal_reason } : {}),
-    ...(classified.kind === "rate_limit" && acc.rateLimit?.resetsAt !== undefined
-      ? { resetsAt: acc.rateLimit.resetsAt }
-      : {}),
+    ...(classified.kind === "rate_limit" && acc.rateLimit?.resetsAt !== undefined ? { resetsAt: acc.rateLimit.resetsAt } : {}),
   });
 }
 

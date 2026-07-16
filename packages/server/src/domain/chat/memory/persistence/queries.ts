@@ -6,14 +6,7 @@
 // `dim`/`hubScore` vector columns are search's/discovery's and are NEVER selected here.
 
 import type { Db } from "@orb/db";
-import {
-  chatDigestSpeakers,
-  chatDigests,
-  chatParticipants,
-  chatSegments,
-  messages,
-  messageVariants,
-} from "@orb/db";
+import { chatDigestSpeakers, chatDigests, chatParticipants, chatSegments, messages, messageVariants } from "@orb/db";
 import type { CharacterId, ChatDigestId, ChatId } from "@orb/kit/ids";
 import { and, asc, eq, inArray, lte, max } from "drizzle-orm";
 import type { DigestRow, MsgRow, WitnessInterval } from "../types";
@@ -31,11 +24,7 @@ export async function loadChatMeta(db: Db, chatId: ChatId): Promise<{ maxSeq: nu
 /** The canon a block is built from — every slot (seq ≤ `throughSeq`) ⋈ its SELECTED variant (D26), oldest→
  *  newest, projected to {@link MsgRow}. The build slices this into fixed `blockSize` blocks. `throughSeq` is
  *  the aged-out cutoff (`maxSeq − verbatimWindow`) — the protected tip is never read here. */
-export async function loadCanonThroughSeq(
-  db: Db,
-  chatId: ChatId,
-  throughSeq: number,
-): Promise<MsgRow[]> {
+export async function loadCanonThroughSeq(db: Db, chatId: ChatId, throughSeq: number): Promise<MsgRow[]> {
   return await db
     .select({
       seq: messages.seq,
@@ -53,11 +42,7 @@ export async function loadCanonThroughSeq(
 
 /** The `(tier:blockIdx) → content_hash` map for one scope bucket (the digest staleness gate — re-summarize a
  *  block iff missing or its hash changed). Keyed by the `${tier}:${blockIdx}` string the build looks up. */
-export async function loadDigestHashes(
-  db: Db,
-  chatId: ChatId,
-  scopedCharacterId: CharacterId,
-): Promise<Map<string, string>> {
+export async function loadDigestHashes(db: Db, chatId: ChatId, scopedCharacterId: CharacterId): Promise<Map<string, string>> {
   const rows = await db
     .select({
       tier: chatDigests.tier,
@@ -65,9 +50,8 @@ export async function loadDigestHashes(
       contentHash: chatDigests.contentHash,
     })
     .from(chatDigests)
-    .where(
-      and(eq(chatDigests.chatId, chatId), eq(chatDigests.scopedCharacterId, scopedCharacterId)),
-    );
+    .where(and(eq(chatDigests.chatId, chatId), eq(chatDigests.scopedCharacterId, scopedCharacterId)));
+  // @orb-gate-ignore persistence-no-in-memory-state: query-local lookup map for digest hashes
   const out = new Map<string, string>();
   for (const r of rows) {
     out.set(`${r.tier}:${r.blockIdx}`, r.contentHash);
@@ -82,6 +66,7 @@ export async function loadSegmentHashes(db: Db, chatId: ChatId): Promise<Map<num
     .select({ blockIdx: chatSegments.blockIdx, contentHash: chatSegments.contentHash })
     .from(chatSegments)
     .where(eq(chatSegments.chatId, chatId));
+  // @orb-gate-ignore persistence-no-in-memory-state: query-local lookup map for segment hashes
   const out = new Map<number, string>();
   for (const r of rows) {
     out.set(r.blockIdx, r.contentHash);
@@ -92,20 +77,11 @@ export async function loadSegmentHashes(db: Db, chatId: ChatId): Promise<Map<num
 /** The NON-vector digest facets for one scope bucket (mixA's tier-0 read, tiered's all-tiers read, and the
  *  consolidation child read), ordered tier-asc then blockIdx-asc (chronological within a tier). `tier`
  *  filters to one tier when given (mixA = tier 0; the consolidation reads tier k). */
-export async function loadDigestsForScope(
-  db: Db,
-  chatId: ChatId,
-  scopedCharacterId: CharacterId,
-  tier?: number,
-): Promise<DigestRow[]> {
+export async function loadDigestsForScope(db: Db, chatId: ChatId, scopedCharacterId: CharacterId, tier?: number): Promise<DigestRow[]> {
   const where =
     tier === undefined
       ? and(eq(chatDigests.chatId, chatId), eq(chatDigests.scopedCharacterId, scopedCharacterId))
-      : and(
-          eq(chatDigests.chatId, chatId),
-          eq(chatDigests.scopedCharacterId, scopedCharacterId),
-          eq(chatDigests.tier, tier),
-        );
+      : and(eq(chatDigests.chatId, chatId), eq(chatDigests.scopedCharacterId, scopedCharacterId), eq(chatDigests.tier, tier));
   const rows = await db
     .select({
       id: chatDigests.id,
@@ -126,10 +102,8 @@ export async function loadDigestsForScope(
 
 /** The `digestId → contained character ids` map (the `chat_digest_speakers` join) for a set of digests — the
  *  consolidation unions its children's speakers up a tier. No-op (empty) on an empty id list. */
-export async function loadDigestSpeakers(
-  db: Db,
-  digestIds: readonly ChatDigestId[],
-): Promise<Map<ChatDigestId, CharacterId[]>> {
+export async function loadDigestSpeakers(db: Db, digestIds: readonly ChatDigestId[]): Promise<Map<ChatDigestId, CharacterId[]>> {
+  // @orb-gate-ignore persistence-no-in-memory-state: query-local lookup map for digest speakers
   const out = new Map<ChatDigestId, CharacterId[]>();
   if (digestIds.length === 0) {
     return out;
@@ -150,11 +124,7 @@ export async function loadDigestSpeakers(
  *  `chat_participants` presence episode for `(chatId, characterId)`, joinSeq-ascending. A kick→re-add is two
  *  rows ⇒ two intervals (the kicked span is genuinely absent). The build/recall LOGIC takes these as data —
  *  this read is the engine's source (it never reaches into the LOGIC; determinism stays in the pure layer). */
-export async function loadWitnessHorizons(
-  db: Db,
-  chatId: ChatId,
-  characterId: CharacterId,
-): Promise<WitnessInterval[]> {
+export async function loadWitnessHorizons(db: Db, chatId: ChatId, characterId: CharacterId): Promise<WitnessInterval[]> {
   const rows = await db
     .select({ joinSeq: chatParticipants.joinSeq, leftSeq: chatParticipants.leftSeq })
     .from(chatParticipants)
@@ -166,10 +136,7 @@ export async function loadWitnessHorizons(
 /** The `blockIdx → seq-span` map for a chat's segments (the recall WITNESSING filter resolves a digest's
  *  block range to its `messages.seq` span via `chat_segments`, then tests it against the speaker's horizons —
  *  §4). Segments are chat-wide (not scope-keyed), so one map serves both the shared + scoped buckets. */
-export async function loadSegmentSpans(
-  db: Db,
-  chatId: ChatId,
-): Promise<Map<number, { seqStart: number; seqEnd: number }>> {
+export async function loadSegmentSpans(db: Db, chatId: ChatId): Promise<Map<number, { seqStart: number; seqEnd: number }>> {
   const rows = await db
     .select({
       blockIdx: chatSegments.blockIdx,
@@ -178,6 +145,7 @@ export async function loadSegmentSpans(
     })
     .from(chatSegments)
     .where(eq(chatSegments.chatId, chatId));
+  // @orb-gate-ignore persistence-no-in-memory-state: query-local lookup map for segment spans
   const out = new Map<number, { seqStart: number; seqEnd: number }>();
   for (const r of rows) {
     out.set(r.blockIdx, { seqStart: r.seqStart, seqEnd: r.seqEnd });

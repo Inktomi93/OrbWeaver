@@ -5,12 +5,7 @@
 
 import type { ToolUseContext } from "../context";
 import type { ToolCallBatch, ToolCallInput, ToolExecutionContext } from "../contract/params";
-import type {
-  RegisteredTool,
-  ResolvedToolSet,
-  RunOutcome,
-  ToolCallRecord,
-} from "../contract/results";
+import type { RegisteredTool, ResolvedToolSet, RunOutcome, ToolCallRecord } from "../contract/results";
 import { checkToolCapability } from "../substrate/capability";
 
 interface CallOutcome {
@@ -39,31 +34,20 @@ function serializeOutcome(name: string, outcome: RunOutcome): CallOutcome {
   }
 }
 
-async function runCall(
-  ctx: ToolUseContext,
-  entry: RegisteredTool,
-  call: ToolCallInput,
-  exec: ToolExecutionContext,
-): Promise<CallOutcome> {
+async function runCall(ctx: ToolUseContext, entry: RegisteredTool, call: ToolCallInput, exec: ToolExecutionContext): Promise<CallOutcome> {
   let parsedJson: unknown;
   try {
     parsedJson = JSON.parse(call.arguments);
   } catch {
     return errorOutcome(`malformed arguments (not JSON) for ${call.name}`);
   }
-  const outcome = await entry.run(parsedJson, exec, () =>
-    checkToolCapability(entry.capability, exec, ctx.can),
-  );
+  const outcome = await entry.run(parsedJson, exec, () => checkToolCapability(entry.capability, exec, ctx.can));
   return serializeOutcome(call.name, outcome);
 }
 
 export function createExecuteToolCalls(
   ctx: ToolUseContext,
-): (
-  set: ResolvedToolSet,
-  calls: ToolCallBatch,
-  exec: ToolExecutionContext,
-) => Promise<readonly ToolCallRecord[]> {
+): (set: ResolvedToolSet, calls: ToolCallBatch, exec: ToolExecutionContext) => Promise<readonly ToolCallRecord[]> {
   return async (set, calls, exec): Promise<readonly ToolCallRecord[]> => {
     const byName = new Map(set.entries.map((entry) => [entry.name, entry]));
     const records: ToolCallRecord[] = [];

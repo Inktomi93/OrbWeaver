@@ -11,8 +11,7 @@ import type { Violation } from "../harness.ts";
 /** Current legit raw-motion files → reason (continuous loop / isolated hover / the a11y kill-switch — no
  *  coordination partner to desync from; not worth a token migration). */
 const ALLOWLIST: Record<string, string> = {
-  "packages/client/src/styles/globals.css":
-    "`orb-weave-shimmer 3s ease-in-out` — a continuous decorative loop; nothing coordinates with it.",
+  "packages/client/src/styles/globals.css": "`orb-weave-shimmer 3s ease-in-out` — a continuous decorative loop; nothing coordinates with it.",
   "packages/ui/src/styles/globals.css":
     "the reduced-motion floor's `0.01ms !important` duration killers (a11y kill-switch, must be a raw " +
     "sub-frame value) + the media-grid spotlight's `ease-out` (isolated hover effect).",
@@ -31,16 +30,14 @@ const STALE_ENTRY_MESSAGE_PREFIX =
 // `--motion-*`/`--shell-*` definitions are out of scope). `\banimation\b` etc. avoid matching e.g.
 // `animation-name`/`animation-delay` (a delay is a duration too, but the audit's inventory is durations
 // on the run/shorthand — keep the scope to what the drift surface actually is: run duration + timing).
-const MOTION_DECL_RE =
-  /(?:^|[;{])\s*(?<prop>transition|animation|transition-duration|animation-duration|transition-timing-function)\s*:\s*(?<value>[^;}]+)/gu;
+const MOTION_DECL_RE = /(?:^|[;{])\s*(?<prop>transition|animation|transition-duration|animation-duration|transition-timing-function)\s*:\s*(?<value>[^;}]+)/gu;
 
 // A raw time literal: a number (int/decimal) immediately followed by `s`/`ms`, NOT inside a `var(`/`calc(`
 // (those resolve a token). `0`/`0s`/`0ms` is a deliberate no-transition, allowed.
 const RAW_TIME_RE = /(?<![\w.-])(?<num>\d*\.?\d+)(?<unit>ms|s)\b/gu;
 // A raw easing: the bare CSS keywords + cubic-bezier(...). `linear` is ALLOWED (continuous loops);
 // `steps(...)`/`step-start`/`step-end` are discrete timing with no token home — not matched.
-const RAW_EASE_RE =
-  /\b(?:ease-in-out|ease-in|ease-out|ease)\b(?!-(?:expo|out-expo))|cubic-bezier\s*\(/gu;
+const RAW_EASE_RE = /\b(?:ease-in-out|ease-in|ease-out|ease)\b(?!-(?:expo|out-expo))|cubic-bezier\s*\(/gu;
 
 /** Strip `var(...)` and `calc(...)` groups from a declaration value so their inner token time/easing
  *  literals (e.g. `var(--motion-base)` when a token happened to inline a bezier) don't false-fire — a
@@ -88,16 +85,10 @@ function offenceLines(text: string): number[] {
 
 /** The offender scan over every CSS file in the two src trees (fs, not ts-morph — CSS isn't in the
  *  project). Returns new-offender violations + which allowlisted files still carry a raw motion value. */
-function scanCss(
-  root: string,
-  allowlist: Record<string, string>,
-): { violations: Violation[]; seenAllowlisted: Set<string> } {
+function scanCss(root: string, allowlist: Record<string, string>): { violations: Violation[]; seenAllowlisted: Set<string> } {
   const violations: Violation[] = [];
   const seenAllowlisted = new Set<string>();
-  const files = [
-    ...globSync("packages/ui/src/**/*.css", { cwd: root }),
-    ...globSync("packages/client/src/**/*.css", { cwd: root }),
-  ];
+  const files = [...globSync("packages/ui/src/**/*.css", { cwd: root }), ...globSync("packages/client/src/**/*.css", { cwd: root })];
   for (const rel of files) {
     const text = readFileSync(`${root}/${rel}`, "utf8");
     const lines = offenceLines(text);
@@ -155,8 +146,7 @@ export const gate: GateDescriptor = {
   mustPass: [
     {
       files: {
-        "packages/ui/src/x/ok.css":
-          ".a { transition: opacity var(--motion-base) var(--ease-out-expo); }\n",
+        "packages/ui/src/x/ok.css": ".a { transition: opacity var(--motion-base) var(--ease-out-expo); }\n",
       },
       why: "the transition uses var(--motion-*)/var(--ease-*) tokens — on-token, passes",
     },

@@ -59,11 +59,7 @@ function navigationTarget(key: string, currentIndex: number, rowCount: number): 
   }
 }
 
-function typeaheadTarget(
-  rows: readonly MembersRow[],
-  buffer: string,
-  start: number,
-): number | null {
+function typeaheadTarget(rows: readonly MembersRow[], buffer: string, start: number): number | null {
   for (let step = 0; step < rows.length; step += 1) {
     const index = (start + step + rows.length) % rows.length;
     if (rows[index]?.displayName.toLowerCase().startsWith(buffer) === true) {
@@ -83,9 +79,7 @@ export function MembersPanel(props: MembersPanelProps): ReactElement {
   const pendingFocusRef = useRef<{ key: string; index: number; wasPerson: boolean } | null>(null);
   const typeaheadRef = useRef<{ buffer: string; at: number }>({ buffer: "", at: 0 });
 
-  const effectiveActiveKey = rows.some((r) => r.key === activeKey)
-    ? activeKey
-    : (rows[0]?.key ?? null);
+  const effectiveActiveKey = rows.some((r) => r.key === activeKey) ? activeKey : (rows[0]?.key ?? null);
 
   const registerRef = (key: string, el: HTMLButtonElement | null): void => {
     if (el === null) {
@@ -116,10 +110,7 @@ export function MembersPanel(props: MembersPanelProps): ReactElement {
     }
     if (event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey) {
       const prior = typeaheadRef.current;
-      const buffer =
-        event.timeStamp - prior.at <= TYPEAHEAD_RESET_MS
-          ? prior.buffer + event.key.toLowerCase()
-          : event.key.toLowerCase();
+      const buffer = event.timeStamp - prior.at <= TYPEAHEAD_RESET_MS ? prior.buffer + event.key.toLowerCase() : event.key.toLowerCase();
       typeaheadRef.current = { buffer, at: event.timeStamp };
       const start = buffer.length === 1 ? currentIndex + 1 : currentIndex;
       const target = typeaheadTarget(rows, buffer, start);
@@ -192,24 +183,13 @@ export function MembersPanel(props: MembersPanelProps): ReactElement {
                   People
                 </Text>
                 {onInvitePeople === undefined ? null : (
-                  <Button
-                    type="button"
-                    intent="ghost"
-                    size="sm"
-                    ref={inviteRef}
-                    onClick={onInvitePeople}
-                    data-testid={testId("invitePeopleButton")}
-                  >
+                  <Button type="button" intent="ghost" size="sm" ref={inviteRef} onClick={onInvitePeople} data-testid={testId("invitePeopleButton")}>
                     <Icon icon={UserPlus} size="sm" />
                     Invite people
                   </Button>
                 )}
               </Row>
-              {people.length === 0 ? (
-                <Text tone="muted">No one else is here yet — share an invite.</Text>
-              ) : (
-                people.map(rowProps)
-              )}
+              {people.length === 0 ? <Text tone="muted">No one else is here yet — share an invite.</Text> : people.map(rowProps)}
             </Stack>
           ) : null}
 

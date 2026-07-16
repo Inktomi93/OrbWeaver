@@ -2,10 +2,7 @@ import type { BlockKey } from "@orb/contracts/search";
 import type { CharacterId, ChatDigestId, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import {
-  blockKeyStr,
-  formatMemory,
-} from "../../../../../../packages/server/src/domain/chat/memory/recall/format";
+import { blockKeyStr, formatMemory } from "../../../../../../packages/server/src/domain/chat/memory/recall/format";
 import type { DigestRow } from "../../../../../../packages/server/src/domain/chat/memory/types";
 import { expect, test } from "../../../../../support/fixtures";
 

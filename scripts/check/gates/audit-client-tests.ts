@@ -12,18 +12,7 @@ const ASSERTION_HELPER_RE = /^(?:expect|assert)[A-Z0-9]/u;
 const TEST_FILE_RE = /\.test\.tsx?$/u;
 
 // Excludes `extend` (test.extend defines a fixture) so a local `it` (async-iterator pattern) isn't mistaken for a test.
-const TEST_MODIFIERS = new Set([
-  "only",
-  "skip",
-  "todo",
-  "concurrent",
-  "sequential",
-  "each",
-  "for",
-  "fails",
-  "runIf",
-  "skipIf",
-]);
+const TEST_MODIFIERS = new Set(["only", "skip", "todo", "concurrent", "sequential", "each", "for", "fails", "runIf", "skipIf"]);
 
 function relPath(root: string, abs: string): string {
   return abs.startsWith(root) ? abs.slice(root.length + 1) : abs;
@@ -71,17 +60,12 @@ function isDescribeCall(call: TsMorphNode): boolean {
 
 function isLifecycleHookCall(call: TsMorphNode): boolean {
   const name = getCalleeName(call);
-  return (
-    name === "beforeEach" || name === "afterEach" || name === "beforeAll" || name === "afterAll"
-  );
+  return name === "beforeEach" || name === "afterEach" || name === "beforeAll" || name === "afterAll";
 }
 
 function callbackFromCall(call: TsMorphNode): ArrowFunction | FunctionExpression | undefined {
   const args = call.asKind(SyntaxKind.CallExpression)?.getArguments() ?? [];
-  return args.find(
-    (a): a is ArrowFunction | FunctionExpression =>
-      Node.isArrowFunction(a) || Node.isFunctionExpression(a),
-  );
+  return args.find((a): a is ArrowFunction | FunctionExpression => Node.isArrowFunction(a) || Node.isFunctionExpression(a));
 }
 
 function walksToExpectCall(cursor: TsMorphNode | undefined): boolean {
@@ -139,11 +123,7 @@ function bodyOfFunctionLike(node: TsMorphNode | undefined): TsMorphNode | undefi
 }
 
 function bodyFromDeclaration(decl: TsMorphNode): TsMorphNode | undefined {
-  if (
-    Node.isFunctionDeclaration(decl) ||
-    Node.isFunctionExpression(decl) ||
-    Node.isArrowFunction(decl)
-  ) {
+  if (Node.isFunctionDeclaration(decl) || Node.isFunctionExpression(decl) || Node.isArrowFunction(decl)) {
     return decl.getBody();
   }
   return Node.isVariableDeclaration(decl) ? bodyOfFunctionLike(decl.getInitializer()) : undefined;
@@ -163,11 +143,7 @@ function resolveCalleeBody(call: TsMorphNode): TsMorphNode | undefined {
   return bodies[0];
 }
 
-function assertsViaExpectOrHelper(
-  node: TsMorphNode,
-  seen: Set<TsMorphNode> = new Set(),
-  depth = 0,
-): boolean {
+function assertsViaExpectOrHelper(node: TsMorphNode, seen: Set<TsMorphNode> = new Set(), depth = 0): boolean {
   if (depth > MAX_HELPER_DEPTH || seen.has(node)) {
     return false;
   }
@@ -301,8 +277,7 @@ function scanAuditClientTests({ root, project }: CheckContext): Violation[] {
       violations.push({
         file: rel,
         line: stmt.getStartLineNumber(),
-        message:
-          "bare `expect(x);` with no matcher chain — assertion incomplete (Spine-Testing.md §5)",
+        message: "bare `expect(x);` with no matcher chain — assertion incomplete (Spine-Testing.md §5)",
       });
     }
   }
@@ -367,10 +342,7 @@ export const gate: GateDescriptor = {
       why: "a test with a matcher-chained expect — the audited shape holds, passes",
     },
     {
-      files:
-        // biome-ignore lint/security/noSecrets: a fixture SOURCE string (a helper function + a test call), not a secret.
-        "function expectOk(x: number): void {\n  expect(x).toBeGreaterThan(0);\n}\n" +
-        'test("asserts via a helper", () => {\n  expectOk(1);\n});\n',
+      files: 'function expectOk(x: number): void {\n  expect(x).toBeGreaterThan(0);\n}\ntest("asserts via a helper", () => {\n  expectOk(1);\n});\n',
       at: "tests/tooling/helper.test.ts",
       why: "rule 1: the assertion lives inside a resolved assertion helper — transitively resolved, passes",
     },
@@ -385,8 +357,7 @@ export const gate: GateDescriptor = {
       why: "rule 2: a sync callback (no async keyword) is not required to await",
     },
     {
-      files:
-        'test("async with await", async () => {\n  await Promise.resolve();\n  expect(1).toBe(1);\n});\n',
+      files: 'test("async with await", async () => {\n  await Promise.resolve();\n  expect(1).toBe(1);\n});\n',
       at: "tests/tooling/awaited.test.ts",
       why: "rule 2: an async callback that awaits passes",
     },

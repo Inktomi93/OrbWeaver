@@ -10,23 +10,11 @@ import { expect, test } from "../../../support/fixtures";
 
 // The registry's orb-only entity dirs (bare names), i.e. the full portable set MINUS the ST-shared
 // characters/chats — the positive orb signal the route passes in.
-const ORB_ONLY = new Set([
-  "assets",
-  "gallery",
-  "tags",
-  "themes",
-  "user-settings",
-  "presets",
-  "world-info",
-  "personas",
-]);
+const ORB_ONLY = new Set(["assets", "gallery", "tags", "themes", "user-settings", "presets", "world-info", "personas"]);
 
 describe("sniffTreeLayout", () => {
   test("orb bundle: an orb-only entity dir routes to the bundle importer, no prefix", () => {
-    const layout = sniffTreeLayout(
-      ["characters/Aria.png", "personas/me.json", "presets/rp.json"],
-      ORB_ONLY,
-    );
+    const layout = sniffTreeLayout(["characters/Aria.png", "personas/me.json", "presets/rp.json"], ORB_ONLY);
     expect(layout).toEqual({ kind: "orb", stagePrefix: "" });
   });
 
@@ -36,10 +24,7 @@ describe("sniffTreeLayout", () => {
   });
 
   test("ST single profile: settings.json marks a profile → ST loop under a synthetic wrapper", () => {
-    const layout = sniffTreeLayout(
-      ["characters/Aria.png", "settings.json", "chats/Aria/2024.jsonl"],
-      ORB_ONLY,
-    );
+    const layout = sniffTreeLayout(["characters/Aria.png", "settings.json", "chats/Aria/2024.jsonl"], ORB_ONLY);
     expect(layout).toEqual({ kind: "st", stagePrefix: "profile/" });
   });
 
@@ -54,14 +39,7 @@ describe("sniffTreeLayout", () => {
   });
 
   test("multi-profile ST root: subdirs each look like a profile → ST loop, no prefix", () => {
-    const layout = sniffTreeLayout(
-      [
-        "default-user/characters/Aria.png",
-        "default-user/settings.json",
-        "second-user/characters/Bob.png",
-      ],
-      ORB_ONLY,
-    );
+    const layout = sniffTreeLayout(["default-user/characters/Aria.png", "default-user/settings.json", "second-user/characters/Bob.png"], ORB_ONLY);
     expect(layout).toEqual({ kind: "st", stagePrefix: "" });
   });
 
@@ -83,10 +61,7 @@ describe("sniffTreeLayout", () => {
   test("a nested subdir carrying an orb-only dir is NOT treated as an ST profile", () => {
     // second-user has a `personas/` orb dir → it is not an ST profile, and no top ST marker exists → reject
     // rather than mis-routing a half-orb tree to the ST loop.
-    const layout = sniffTreeLayout(
-      ["default-user/characters/A.png", "second-user/personas/me.json"],
-      ORB_ONLY,
-    );
+    const layout = sniffTreeLayout(["default-user/characters/A.png", "second-user/personas/me.json"], ORB_ONLY);
     expect(layout.kind).toBe("reject");
   });
 });

@@ -132,9 +132,7 @@ function contractCountViolations(doc: string, activeCount: number): Violation[] 
     ];
   }
   const declared = Number(match.groups?.["count"]);
-  return declared === activeCount
-    ? []
-    : [{ file: DOC_REL, line: 0, message: COUNT_CONTRACT_MISMATCH(declared, activeCount) }];
+  return declared === activeCount ? [] : [{ file: DOC_REL, line: 0, message: COUNT_CONTRACT_MISMATCH(declared, activeCount) }];
 }
 
 /** The contract-conformance reconciliation shared by the descriptor's `run` and its self-test. */
@@ -145,17 +143,14 @@ function reconcileContract(root: string): Violation[] {
       {
         file: DOC_REL,
         line: 0,
-        message:
-          "docs/architecture/core/Core-Enforcement-Active-Gates.md is missing (docs/architecture/core/Core-Enforcement-Active-Gates.md).",
+        message: "docs/architecture/core/Core-Enforcement-Active-Gates.md is missing (docs/architecture/core/Core-Enforcement-Active-Gates.md).",
       },
     ];
   }
   const doc = readFileSync(docPath, "utf-8");
   const descriptors = discoverDescriptorMeta(join(root, GATES_DIR_REL));
   const active = new Set(descriptors.filter((d) => d.status === STATUS_ACTIVE).map((d) => d.name));
-  const dormant = new Set(
-    descriptors.filter((d) => d.status === STATUS_DORMANT).map((d) => d.name),
-  );
+  const dormant = new Set(descriptors.filter((d) => d.status === STATUS_DORMANT).map((d) => d.name));
   return [
     ...contractCountViolations(doc, active.size),
     ...reconcileTable(active, activeTableGateNames(doc), DOC_ACTIVE_MISSING, DOC_ACTIVE_ORPHAN),

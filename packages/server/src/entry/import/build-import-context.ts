@@ -22,14 +22,8 @@ export interface ImportCharacterPort {
     readonly characterId: CharacterId;
     readonly input: UpdateCharacterInput;
   }) => Promise<{ readonly id: CharacterId }>;
-  readonly findByImportHash: (params: {
-    readonly ownerId: UserId;
-    readonly importHash: string;
-  }) => Promise<{ readonly characterId: CharacterId } | null>;
-  readonly findByHandle: (params: {
-    readonly ownerId: UserId;
-    readonly handle: string;
-  }) => Promise<{ readonly characterId: CharacterId } | null>;
+  readonly findByImportHash: (params: { readonly ownerId: UserId; readonly importHash: string }) => Promise<{ readonly characterId: CharacterId } | null>;
+  readonly findByHandle: (params: { readonly ownerId: UserId; readonly handle: string }) => Promise<{ readonly characterId: CharacterId } | null>;
 }
 
 /** The `assets` front-door slice the driver wires the import avatar-store op to. `maxBytes` (PD-94) is the
@@ -117,8 +111,7 @@ export function buildImportContext(wiring: ImportContextWiring): ImportContext {
       return stored.assetId;
     },
     // Author-shipped card tags land as card/pending suggestions (the user's "Accept" flips them later).
-    attachCardTag: ({ ownerId: oid, characterId, tagName }) =>
-      attachCardTag({ ownerId: oid, characterId, tagName, source: "card", status: "pending" }),
+    attachCardTag: ({ ownerId: oid, characterId, tagName }) => attachCardTag({ ownerId: oid, characterId, tagName, source: "card", status: "pending" }),
     ...(importLorebook !== undefined ? { importLorebook } : {}),
     ...(profile !== undefined ? { profile } : {}),
   };

@@ -10,12 +10,7 @@ import type { Violation } from "../harness.ts";
 
 // The flat state tier — direct children only (a path with a further "/" after this prefix is nested).
 const STATE_DIR = "/packages/client/src/state/";
-const MINT_CALLEES = new Set([
-  "create",
-  "createStore",
-  "createGatedStore",
-  "createEntityDraftStore",
-]);
+const MINT_CALLEES = new Set(["create", "createStore", "createGatedStore", "createEntityDraftStore"]);
 const MAX_FIELDS = 10;
 
 // A direct child of state/ (no extra path segment): `.../state/chat-stream.ts` yes,
@@ -187,8 +182,7 @@ export const gate: GateDescriptor = {
   },
   mustFlag: [
     {
-      files:
-        "declare const create: (f: () => unknown) => unknown;\nexport const useA = create(() => ({}));\nexport const useB = create(() => ({}));\n",
+      files: "declare const create: (f: () => unknown) => unknown;\nexport const useA = create(() => ({}));\nexport const useB = create(() => ({}));\n",
       at: "packages/client/src/state/grab-bag.ts",
       why: "two store-minting calls in one file — the grab-bag store smell §5 forbids (one store per file)",
     },
@@ -217,8 +211,7 @@ export const gate: GateDescriptor = {
   ],
   mustPass: [
     {
-      files:
-        "declare const create: (f: () => unknown) => unknown;\nconst useOne = create(() => ({}));\n",
+      files: "declare const create: (f: () => unknown) => unknown;\nconst useOne = create(() => ({}));\n",
       at: "packages/client/src/state/one.ts",
       why: "one mint, handle NOT exported, small initializer — the sanctioned single-store shape, passes",
     },
@@ -232,12 +225,9 @@ export const gate: GateDescriptor = {
     {
       // scope: nested state buckets + index.ts + non-state files are not the flat store tier.
       files: {
-        "packages/client/src/state/sub/nested.ts":
-          'export const useX = createGatedStore("x", () => ({ n: 0 }));\n',
-        "packages/client/src/state/index.ts":
-          'export const useX = createGatedStore("x", () => ({ n: 0 }));\n',
-        "packages/client/src/data/x.ts":
-          'export const useX = createGatedStore("x", () => ({ n: 0 }));\n',
+        "packages/client/src/state/sub/nested.ts": 'export const useX = createGatedStore("x", () => ({ n: 0 }));\n',
+        "packages/client/src/state/index.ts": 'export const useX = createGatedStore("x", () => ({ n: 0 }));\n',
+        "packages/client/src/data/x.ts": 'export const useX = createGatedStore("x", () => ({ n: 0 }));\n',
       },
       why: "scope: nested state buckets + index.ts barrel + non-state files are out of the flat tier — passes",
     },

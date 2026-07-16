@@ -31,13 +31,7 @@ export interface CharacterProvenanceSectionProps {
 
 const SCORE_DECIMALS = 2;
 
-export function CharacterProvenanceSection({
-  importedFrom,
-  importHash,
-  extensions,
-  residualData,
-  refinery,
-}: CharacterProvenanceSectionProps): ReactElement {
+export function CharacterProvenanceSection({ importedFrom, importHash, extensions, residualData, refinery }: CharacterProvenanceSectionProps): ReactElement {
   return (
     <Stack gap="section">
       <Section heading="Card quality">
@@ -52,9 +46,7 @@ export function CharacterProvenanceSection({
 
       {importedFrom === null && importHash === null ? null : (
         <Section heading="Provenance">
-          {importedFrom === null ? null : (
-            <ProvenanceRow label="Imported from" value={importedFrom} />
-          )}
+          {importedFrom === null ? null : <ProvenanceRow label="Imported from" value={importedFrom} />}
           {importHash === null ? null : <ProvenanceRow label="Import hash" value={importHash} />}
         </Section>
       )}
@@ -70,13 +62,7 @@ export function CharacterProvenanceSection({
 }
 
 /** A muted read-only provenance row (label + mono value). */
-function ProvenanceRow({
-  label,
-  value,
-}: {
-  readonly label: string;
-  readonly value: string;
-}): ReactElement {
+function ProvenanceRow({ label, value }: { readonly label: string; readonly value: string }): ReactElement {
   return (
     <Row gap="row" align="center" className="flex-wrap">
       <Text size="micro" tone="muted" transform="caps">
@@ -90,13 +76,7 @@ function ProvenanceRow({
 }
 
 /** A collapsed read-only JSON dump of a hygiene-only round-trip blob (rendered only when non-empty). */
-function JsonViewer({
-  label,
-  value,
-}: {
-  readonly label: string;
-  readonly value: Record<string, unknown> | null;
-}): ReactElement | null {
+function JsonViewer({ label, value }: { readonly label: string; readonly value: Record<string, unknown> | null }): ReactElement | null {
   if (value === null || Object.keys(value).length === 0) {
     return null;
   }
@@ -104,12 +84,7 @@ function JsonViewer({
     <Collapsible>
       <CollapsibleTrigger>{label}</CollapsibleTrigger>
       <CollapsiblePanel>
-        <Text
-          as="div"
-          size="code"
-          tone="muted"
-          className="overflow-auto whitespace-pre-wrap font-mono"
-        >
+        <Text as="div" size="code" tone="muted" className="overflow-auto whitespace-pre-wrap font-mono">
           {JSON.stringify(value, null, 2)}
         </Text>
       </CollapsiblePanel>

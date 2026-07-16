@@ -79,11 +79,7 @@ test("capability denial + chat-scope-without-roster are data, never a dead turn;
   );
   const set = svc.resolveTools(["gated"]);
   // Null roster (non-chat consumer) → denial before can() is even consulted.
-  const noRoster = await svc.executeToolCalls(
-    set,
-    [{ toolCallId: "c1", name: "gated", arguments: "{}" }],
-    execOf({ chatId: null, roster: null }),
-  );
+  const noRoster = await svc.executeToolCalls(set, [{ toolCallId: "c1", name: "gated", arguments: "{}" }], execOf({ chatId: null, roster: null }));
   expect(noRoster[0]?.isError).toBe(true);
   expect(noRoster[0]?.result).toContain("not permitted");
   expect(invoked).toBe(0);

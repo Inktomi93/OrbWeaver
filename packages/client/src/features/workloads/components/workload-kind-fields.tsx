@@ -5,11 +5,7 @@
 import type { ReactElement } from "react";
 import type { AppFormInstance } from "#forms";
 import type { WorkloadRunValues } from "../lib/workloads-model";
-import {
-  INDEX_SOURCE_ITEMS,
-  isRunnableWorkloadKind,
-  WORKLOAD_PARAM_SHAPE_BY_KIND,
-} from "../lib/workloads-model";
+import { INDEX_SOURCE_ITEMS, isRunnableWorkloadKind, WORKLOAD_PARAM_SHAPE_BY_KIND } from "../lib/workloads-model";
 
 /** The active kind's param controls, shared byte-for-byte between the run and schedule dialogs. */
 export function WorkloadParamFields<TValues extends WorkloadRunValues & { readonly kind: string }>({
@@ -24,18 +20,9 @@ export function WorkloadParamFields<TValues extends WorkloadRunValues & { readon
         if (shape === "index") {
           return (
             <>
-              <form.AppField name="source">
-                {(field): ReactElement => (
-                  <field.SelectField label="What to index" items={INDEX_SOURCE_ITEMS} />
-                )}
-              </form.AppField>
+              <form.AppField name="source">{(field): ReactElement => <field.SelectField label="What to index" items={INDEX_SOURCE_ITEMS} />}</form.AppField>
               <form.AppField name="force">
-                {(field): ReactElement => (
-                  <field.SwitchField
-                    label="Re-embed everything"
-                    description="Ignore matching content and rebuild every vector."
-                  />
-                )}
+                {(field): ReactElement => <field.SwitchField label="Re-embed everything" description="Ignore matching content and rebuild every vector." />}
               </form.AppField>
             </>
           );
@@ -43,37 +30,21 @@ export function WorkloadParamFields<TValues extends WorkloadRunValues & { readon
         if (shape === "force") {
           return (
             <form.AppField name="force">
-              {(field): ReactElement => (
-                <field.SwitchField
-                  label="Re-embed everything"
-                  description="Ignore matching content and rebuild every vector."
-                />
-              )}
+              {(field): ReactElement => <field.SwitchField label="Re-embed everything" description="Ignore matching content and rebuild every vector." />}
             </form.AppField>
           );
         }
         if (shape === "dryRun") {
           return (
             <form.AppField name="dryRun">
-              {(field): ReactElement => (
-                <field.SwitchField
-                  label="Dry run"
-                  description="Report what the pass would do without changing anything."
-                />
-              )}
+              {(field): ReactElement => <field.SwitchField label="Dry run" description="Report what the pass would do without changing anything." />}
             </form.AppField>
           );
         }
         if (shape === "k") {
           return (
             <form.AppField name="k">
-              {(field): ReactElement => (
-                <field.NumberField
-                  label="Cluster count"
-                  description="Leave empty for the automatic default."
-                  min={1}
-                />
-              )}
+              {(field): ReactElement => <field.NumberField label="Cluster count" description="Leave empty for the automatic default." min={1} />}
             </form.AppField>
           );
         }

@@ -7,18 +7,11 @@
 import type { CharacterEconomics, CharacterModelEconomics } from "@orb/contracts/stats";
 import type { UserId } from "@orb/kit/ids";
 import type { StatsContext, StatsService } from "../contract/service";
-import {
-  readCharacterEconomics,
-  readCharacterModelEconomics,
-} from "../persistence/messages-economics";
+import { readCharacterEconomics, readCharacterModelEconomics } from "../persistence/messages-economics";
 
-export function createEconomics(
-  ctx: StatsContext,
-): Pick<StatsService, "characterEconomics" | "characterModelEconomics"> {
+export function createEconomics(ctx: StatsContext): Pick<StatsService, "characterEconomics" | "characterModelEconomics"> {
   return {
-    characterEconomics: (ownerId: UserId): Promise<CharacterEconomics[]> =>
-      readCharacterEconomics(ctx.db, ownerId),
-    characterModelEconomics: (ownerId: UserId): Promise<CharacterModelEconomics[]> =>
-      readCharacterModelEconomics(ctx.db, ownerId),
+    characterEconomics: (ownerId: UserId): Promise<CharacterEconomics[]> => readCharacterEconomics(ctx.db, ownerId),
+    characterModelEconomics: (ownerId: UserId): Promise<CharacterModelEconomics[]> => readCharacterModelEconomics(ctx.db, ownerId),
   };
 }

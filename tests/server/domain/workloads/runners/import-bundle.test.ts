@@ -10,12 +10,7 @@ import { fakeEnv, makeRunnerContext, RUNNER_OWNER_ID } from "../_support.ts";
 describe("import-bundle runner", () => {
   test("threads the owner + token to importBundle and returns its counts", async () => {
     const env = fakeEnv();
-    const result = await importBundleRunner(
-      makeRunnerContext(env),
-      { token: "import-bundle-xyz.zip" },
-      vi.fn(),
-      new AbortController().signal,
-    );
+    const result = await importBundleRunner(makeRunnerContext(env), { token: "import-bundle-xyz.zip" }, vi.fn(), new AbortController().signal);
     expect(env.import.importBundle).toHaveBeenCalledWith({
       ownerId: RUNNER_OWNER_ID,
       token: "import-bundle-xyz.zip",
@@ -27,12 +22,7 @@ describe("import-bundle runner", () => {
   test("a null-owner (ownerless) row throws — a bundle must be scoped to the uploader", async () => {
     const env = fakeEnv();
     await expect(
-      importBundleRunner(
-        makeRunnerContext(env, { ownerId: null }),
-        { token: "import-bundle-xyz.zip" },
-        vi.fn(),
-        new AbortController().signal,
-      ),
+      importBundleRunner(makeRunnerContext(env, { ownerId: null }), { token: "import-bundle-xyz.zip" }, vi.fn(), new AbortController().signal),
     ).rejects.toThrow("no target owner");
     expect(env.import.importBundle).not.toHaveBeenCalled();
   });

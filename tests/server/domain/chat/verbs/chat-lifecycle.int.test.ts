@@ -16,14 +16,7 @@ import { createChatLifecycle } from "../../../../../packages/server/src/domain/c
 import { freshDb } from "../../../../support/db";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../support/fixtures";
-import {
-  FROZEN_AT,
-  makeChatContext,
-  seedChat,
-  seedParticipant,
-  seedPersona,
-  seedUser,
-} from "../_support";
+import { FROZEN_AT, makeChatContext, seedChat, seedParticipant, seedPersona, seedUser } from "../_support";
 
 let db: Db;
 let emitted: ChatBusEvent[];
@@ -66,9 +59,7 @@ describe("chat-row flags (host-only)", () => {
     expect(row?.title).toBe("Renamed");
     expect(emitted).toEqual([{ type: "chatUpdated", chatId }]);
 
-    const err = await life
-      .updateTitle({ principal: principal(member), chatId, title: "no" })
-      .catch((e: unknown) => e);
+    const err = await life.updateTitle({ principal: principal(member), chatId, title: "no" }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
     expect((err as ChatOperationError).code).toBe("not_host");
   });
@@ -102,9 +93,7 @@ describe("chat-row flags (host-only)", () => {
     expect(rows).toHaveLength(0);
     expect(emitted).toEqual([{ type: "chatDeleted", chatId }]);
     // The best-effort forensic row (entity_id is the D24-sanctioned soft ref — it outlives the chat).
-    expect(audits).toEqual([
-      { actorUserId: host, action: "chat.delete", entityType: "chat", entityId: chatId },
-    ]);
+    expect(audits).toEqual([{ actorUserId: host, action: "chat.delete", entityType: "chat", entityId: chatId }]);
   });
 
   test("a member's refused delete writes NO audit row (existence-before-audit order)", async () => {
@@ -140,9 +129,7 @@ describe("setChatAnchorPersona — the manual/host Anchor re-pin (#4, FINAL-Pers
     expect(row?.anchorPersonaId).toBe(hostPersona);
     expect(emitted).toEqual([{ type: "chatUpdated", chatId }]);
 
-    const err = await life
-      .setChatAnchorPersona({ principal: principal(member), chatId, personaId: hostPersona })
-      .catch((e: unknown) => e);
+    const err = await life.setChatAnchorPersona({ principal: principal(member), chatId, personaId: hostPersona }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
     expect((err as ChatOperationError).code).toBe("not_host");
   });
@@ -167,9 +154,7 @@ describe("setChatAnchorPersona — the manual/host Anchor re-pin (#4, FINAL-Pers
     const foreignPersona = await seedPersona(db, outsider, "foreign_p");
     const life = createChatLifecycle(makeChatContext(db), { emit });
 
-    const err = await life
-      .setChatAnchorPersona({ principal: principal(host), chatId, personaId: foreignPersona })
-      .catch((e: unknown) => e);
+    const err = await life.setChatAnchorPersona({ principal: principal(host), chatId, personaId: foreignPersona }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
     expect((err as ChatOperationError).code).toBe("not_persona_owner");
     const [row] = await db.select().from(chats).where(eq(chats.id, chatId));

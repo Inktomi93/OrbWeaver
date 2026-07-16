@@ -116,8 +116,7 @@ export const gate: GateDescriptor = {
     },
     {
       files: {
-        "docs/architecture/core/Core-Audits-and-Debt.md":
-          "| PD-7 | active debt |\n| PD-7 | a second row with the same id |\n",
+        "docs/architecture/core/Core-Audits-and-Debt.md": "| PD-7 | active debt |\n| PD-7 | a second row with the same id |\n",
       },
       expect: { messageIncludes: "appears 2× across the PD registry" },
       why: "the same PD-7 row twice in the registry — the concurrent-append dupe arm (distinct message + code path)",

@@ -1,10 +1,4 @@
-import type {
-  PortabilityRegistry,
-  PortableEntity,
-  PortableFile,
-  PortableImportOutcome,
-  PortableKind,
-} from "@orb/contracts/portability";
+import type { PortabilityRegistry, PortableEntity, PortableFile, PortableImportOutcome, PortableKind } from "@orb/contracts/portability";
 import { PORTABLE_IMPORT_ORDER, PORTABLE_KINDS } from "@orb/contracts/portability";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -12,18 +6,7 @@ import { expect, test } from "../../support/fixtures";
 
 // ── Kind membership: the closed set is EXACTLY the design's §2 eight, no more, no less ──────────────────
 test("PORTABLE_KINDS pins the ten portable entity kinds", () => {
-  expect([...PORTABLE_KINDS]).toEqual([
-    "character",
-    "chat",
-    "persona",
-    "world-info",
-    "preset",
-    "theme",
-    "user-settings",
-    "tag",
-    "gallery",
-    "assets",
-  ]);
+  expect([...PORTABLE_KINDS]).toEqual(["character", "chat", "persona", "world-info", "preset", "theme", "user-settings", "tag", "gallery", "assets"]);
 });
 
 // Exhaustiveness over the derived union: a Record<PortableKind, …> fails tsc if a member is added or removed,
@@ -47,18 +30,7 @@ test("PortableKind has no member beyond the tuple", () => {
 // ── The fixed dependency import order (the ONE cross-entity rule, as data) ──────────────────────────────
 test("PORTABLE_IMPORT_ORDER pins the exact dependency order", () => {
   // personas / world-info / tags before characters; characters + personas before chats.
-  expect([...PORTABLE_IMPORT_ORDER]).toEqual([
-    "assets",
-    "user-settings",
-    "tag",
-    "persona",
-    "world-info",
-    "character",
-    "gallery",
-    "preset",
-    "theme",
-    "chat",
-  ]);
+  expect([...PORTABLE_IMPORT_ORDER]).toEqual(["assets", "user-settings", "tag", "persona", "world-info", "character", "gallery", "preset", "theme", "chat"]);
 });
 
 test("PORTABLE_IMPORT_ORDER is a permutation of PORTABLE_KINDS (every kind exactly once)", () => {
@@ -69,9 +41,7 @@ test("PORTABLE_IMPORT_ORDER is a permutation of PORTABLE_KINDS (every kind exact
 const SAMPLE_OWNER = castId<UserId>("user-alice");
 
 test("PortableEntity descriptor shape is buildable and iterable", async () => {
-  const rows: readonly PortableFile[] = [
-    { filename: "my-preset.json", bytes: new Uint8Array([1, 2]) },
-  ];
+  const rows: readonly PortableFile[] = [{ filename: "my-preset.json", bytes: new Uint8Array([1, 2]) }];
   const descriptor: PortableEntity = {
     kind: "preset",
     dir: "presets/",

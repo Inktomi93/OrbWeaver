@@ -49,10 +49,7 @@ function CompareBody(): ReactElement {
   const idA = castId<CharacterId>(a);
   const idB = castId<CharacterId>(b);
 
-  const items: SelectItems<string> = [
-    { value: NONE, label: "Pick a character" },
-    ...catalog.map((c) => ({ value: c.characterId, label: c.name })),
-  ];
+  const items: SelectItems<string> = [{ value: NONE, label: "Pick a character" }, ...catalog.map((c) => ({ value: c.characterId, label: c.name }))];
 
   const onPickA = (value: string): void => {
     setA(value);
@@ -64,11 +61,7 @@ function CompareBody(): ReactElement {
   };
 
   return (
-    <Stack
-      className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
-      data-testid={testId("corpusCompareTab")}
-      gap="section"
-    >
+    <Stack className="min-h-0 flex-1 overflow-y-auto overscroll-contain" data-testid={testId("corpusCompareTab")} gap="section">
       <ComparePickers itemsA={items} itemsB={items} a={a} b={b} onA={onPickA} onB={onPickB} />
       {ready ? (
         <CompareResult idA={idA} idB={idB} deep={deep} onDeep={(): void => setDeep(true)} />
@@ -98,18 +91,8 @@ function ComparePickers({
 }): ReactElement {
   return (
     <Row align="center" gap="field">
-      <Select
-        items={itemsA}
-        value={a}
-        onValueChange={(next): void => onA(next as string)}
-        aria-label="First character"
-      />
-      <Select
-        items={itemsB}
-        value={b}
-        onValueChange={(next): void => onB(next as string)}
-        aria-label="Second character"
-      />
+      <Select items={itemsA} value={a} onValueChange={(next): void => onA(next as string)} aria-label="First character" />
+      <Select items={itemsB} value={b} onValueChange={(next): void => onB(next as string)} aria-label="Second character" />
     </Row>
   );
 }
@@ -127,9 +110,7 @@ function CompareResult({
 }): ReactElement {
   const trpc = useTRPC();
   const diff = useQuery(trpc.discovery.compareCharacters.queryOptions({ idA, idB }));
-  const deepDiff = useQuery(
-    trpc.discovery.compareCharactersDeep.queryOptions({ idA, idB }, { enabled: deep }),
-  );
+  const deepDiff = useQuery(trpc.discovery.compareCharactersDeep.queryOptions({ idA, idB }, { enabled: deep }));
 
   if (diff.isPending) {
     return <Text tone="muted">Comparing…</Text>;
@@ -147,8 +128,7 @@ function CompareResult({
       <Section heading="Facet diff">
         <Stack gap="field">
           <Text size="micro" tone="muted">
-            Genre: {cmp.sameGenre ? "same" : "different"} · Tone:{" "}
-            {cmp.sameTone ? "same" : "different"} · Redundancy:{" "}
+            Genre: {cmp.sameGenre ? "same" : "different"} · Tone: {cmp.sameTone ? "same" : "different"} · Redundancy:{" "}
             {cmp.redundancy.toFixed(REDUNDANCY_PRECISION)}
           </Text>
           <TagLine label="Shared" tags={cmp.sharedTags} />
@@ -159,18 +139,9 @@ function CompareResult({
 
       <Section heading="Deep compare">
         {deep ? (
-          <DeepNarrative
-            isPending={deepDiff.isPending}
-            error={deepDiff.error}
-            narrative={deepDiff.data?.narrative ?? null}
-          />
+          <DeepNarrative isPending={deepDiff.isPending} error={deepDiff.error} narrative={deepDiff.data?.narrative ?? null} />
         ) : (
-          <Button
-            intent="primary"
-            size="sm"
-            data-testid={testId("corpusCompareDeep")}
-            onClick={onDeep}
-          >
+          <Button intent="primary" size="sm" data-testid={testId("corpusCompareDeep")} onClick={onDeep}>
             <Icon icon={Sparkles} size="sm" />
             Deep compare
           </Button>
@@ -217,13 +188,7 @@ function DeepNarrative({
   );
 }
 
-function TagLine({
-  label,
-  tags,
-}: {
-  readonly label: string;
-  readonly tags: readonly string[];
-}): ReactElement {
+function TagLine({ label, tags }: { readonly label: string; readonly tags: readonly string[] }): ReactElement {
   return (
     <Row align="center" gap="field" className="flex-wrap">
       <Text size="micro" tone="muted" transform="caps">

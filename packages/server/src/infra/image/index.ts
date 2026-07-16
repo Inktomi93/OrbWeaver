@@ -113,10 +113,9 @@ export function createImageAdapter(): ImageAdapter {
     },
 
     async probe(bytes): Promise<ImageInfo> {
+      // sharp's `Metadata.format`/`width`/`height` are non-optional: metadata() only resolves for bytes
+      // it successfully decoded (it throws otherwise), so these are always populated at this point.
       const meta = await sharp(bytes).metadata();
-      if (meta.format === undefined || meta.width === undefined || meta.height === undefined) {
-        throw new Error("image: not a decodable raster image");
-      }
       return { format: meta.format, width: meta.width, height: meta.height };
     },
   };

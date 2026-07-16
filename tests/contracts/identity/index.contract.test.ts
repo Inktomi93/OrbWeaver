@@ -68,9 +68,7 @@ test("Principal pins the D19 shape: userId+role+handle+externalId+via, no caller
     externalId: SAMPLE_EXTERNAL_ID,
     via: "fallback",
   };
-  expect(Object.keys(principal).sort()).toEqual(
-    ["externalId", "handle", "role", "userId", "via"].sort(),
-  );
+  expect(Object.keys(principal).sort()).toEqual(["externalId", "handle", "role", "userId", "via"].sort());
   // D19: the caller is `Principal.userId` — there is NO `callerUserId`, NO `isOwner` (owner⊇admin lives
   // in the can() seam), and NO `groups` (role is the sole carried authz axis — ledger §2).
   expect("callerUserId" in principal).toBe(false);

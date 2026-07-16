@@ -24,10 +24,7 @@ export type BulkImportLorebook = (args: {
 
 /** Lands a lone book with NO character attach; dedupes on (ownerId, name): existing book edited in place,
  *  otherwise a fresh unattached book is created. */
-export type ImportStandaloneLorebook = (args: {
-  readonly ownerId: UserId;
-  readonly book: BulkImportLorebookInput;
-}) => Promise<BulkImportLorebookResult>;
+export type ImportStandaloneLorebook = (args: { readonly ownerId: UserId; readonly book: BulkImportLorebookInput }) => Promise<BulkImportLorebookResult>;
 
 export interface ImportWorldBookContext {
   readonly importStandalone: ImportStandaloneLorebook;
@@ -41,7 +38,4 @@ export interface ImportWorldBookOutcome {
 }
 
 /** Never throws for a malformed file — returns \{ ok:false, error \}. */
-export type ImportWorldBook = (args: {
-  readonly ownerId: UserId;
-  readonly bytes: Uint8Array;
-}) => Promise<ImportWorldBookOutcome>;
+export type ImportWorldBook = (args: { readonly ownerId: UserId; readonly bytes: Uint8Array }) => Promise<ImportWorldBookOutcome>;

@@ -55,37 +55,23 @@ test("keeper.bookId validates the world_book TypeID prefix (the wibook spec-drif
 
 test("crewConfigSchema rejects a wrong version and an out-of-union proseAudit mode", () => {
   expect(crewConfigSchema.safeParse({ version: 2 }).success).toBe(false);
-  expect(crewConfigSchema.safeParse({ version: 1, proseAudit: { mode: "hourly" } }).success).toBe(
-    false,
-  );
+  expect(crewConfigSchema.safeParse({ version: 1, proseAudit: { mode: "hourly" } }).success).toBe(false);
 });
 
 // ── the status tuples (the db CHECK sources) ───────────────────────────────────────────────────────────
 
 test("CREW_EDIT_PROPOSAL_STATUSES is the pinned 5-member lifecycle (incl. superseded + stale)", () => {
-  expect(CREW_EDIT_PROPOSAL_STATUSES).toEqual([
-    "pending",
-    "accepted",
-    "dismissed",
-    "superseded",
-    "stale",
-  ]);
+  expect(CREW_EDIT_PROPOSAL_STATUSES).toEqual(["pending", "accepted", "dismissed", "superseded", "stale"]);
   expect(crewEditProposalStatusSchema.options).toEqual(CREW_EDIT_PROPOSAL_STATUSES);
 });
 
 test("CARD_EVOLUTION_PROPOSAL_STATUSES is the pinned 4-member lifecycle (no stale arm)", () => {
-  expect(CARD_EVOLUTION_PROPOSAL_STATUSES).toEqual([
-    "pending",
-    "accepted",
-    "dismissed",
-    "superseded",
-  ]);
+  expect(CARD_EVOLUTION_PROPOSAL_STATUSES).toEqual(["pending", "accepted", "dismissed", "superseded"]);
   expect(cardEvolutionProposalStatusSchema.options).toEqual(CARD_EVOLUTION_PROPOSAL_STATUSES);
 });
 
 // ── the column-leaf schemas ────────────────────────────────────────────────────────────────────────────
 
-// biome-ignore lint/security/noSecrets: false positive — "cardEvolutionChangeSchema" is a zod schema name in the test title, not a credential.
 test("cardEvolutionChangeSchema pins the conservative evolvable field set and the op union", () => {
   const change = {
     field: "personality",
@@ -95,9 +81,7 @@ test("cardEvolutionChangeSchema pins the conservative evolvable field set and th
   };
   expect(cardEvolutionChangeSchema.parse(change)).toEqual(change);
   // Steering internals are the author's, not play's — never proposable.
-  expect(cardEvolutionChangeSchema.safeParse({ ...change, field: "systemPrompt" }).success).toBe(
-    false,
-  );
+  expect(cardEvolutionChangeSchema.safeParse({ ...change, field: "systemPrompt" }).success).toBe(false);
   expect(cardEvolutionChangeSchema.safeParse({ ...change, field: "name" }).success).toBe(false);
   expect(cardEvolutionChangeSchema.safeParse({ ...change, op: "delete" }).success).toBe(false);
   expect(cardEvolutionChangeSchema.safeParse({ ...change, text: "" }).success).toBe(false);
@@ -110,9 +94,7 @@ test("crewEditNoteSchema pins the two note kinds and the length cap", () => {
   });
   expect(crewEditNoteSchema.safeParse({ kind: "style", note: "x" }).success).toBe(false);
   expect(crewEditNoteSchema.safeParse({ kind: "continuity", note: "" }).success).toBe(false);
-  expect(crewEditNoteSchema.safeParse({ kind: "prose", note: "n".repeat(301) }).success).toBe(
-    false,
-  );
+  expect(crewEditNoteSchema.safeParse({ kind: "prose", note: "n".repeat(301) }).success).toBe(false);
 });
 
 test("crewSpanSchema requires non-negative integer seq bounds", () => {

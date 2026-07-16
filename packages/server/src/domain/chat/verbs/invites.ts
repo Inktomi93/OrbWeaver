@@ -11,15 +11,7 @@
 // refusal, never silently degraded to a share-link.
 
 import { randomBytes } from "node:crypto";
-import type {
-  ChatBusEvent,
-  ChatMacroNameProducer,
-  GroupConfig,
-  InvitePreview,
-  InviteView,
-  ParticipantView,
-  PersonaAvatarEntry,
-} from "@orb/contracts/chat";
+import type { ChatBusEvent, ChatMacroNameProducer, GroupConfig, InvitePreview, InviteView, ParticipantView, PersonaAvatarEntry } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
 import { isReservedAgentHandle } from "@orb/contracts/identity";
 import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
@@ -61,16 +53,7 @@ interface InviteDeps {
 }
 
 /** The invite slice of `ChatService` this grouped file owns. */
-type InviteVerbs = Pick<
-  ChatService,
-  | "createInvite"
-  | "previewInvite"
-  | "redeemInvite"
-  | "acceptInvite"
-  | "revokeInvite"
-  | "declineInvite"
-  | "listInvites"
->;
+type InviteVerbs = Pick<ChatService, "createInvite" | "previewInvite" | "redeemInvite" | "acceptInvite" | "revokeInvite" | "declineInvite" | "listInvites">;
 
 /** The invite-lifecycle verb bundle. `deps` carries the two collaborators deliberately not on `ChatContext`. */
 export function createInvites(ctx: ChatContext, deps: InviteDeps): InviteVerbs {
@@ -105,13 +88,7 @@ interface ToChatDetailInput {
   readonly viewerUserId: UserId;
 }
 
-function toChatDetail({
-  chat,
-  participants,
-  macroNames,
-  personaAvatars,
-  viewerUserId,
-}: ToChatDetailInput): ChatDetail {
+function toChatDetail({ chat, participants, macroNames, personaAvatars, viewerUserId }: ToChatDetailInput): ChatDetail {
   const viewer = participants.find((p) => p.userId === viewerUserId);
   return {
     id: chat.id,
@@ -154,17 +131,11 @@ function createCreateInvite(ctx: ChatContext): ChatService["createInvite"] {
       // Invites are the human membership chokepoint — an agent enters a room only via `seatAgent`, never
       // an invite. Refuse the reserved `__agent__` namespace, leak-free as "no invitable user".
       if (isReservedAgentHandle(input.invitedHandle)) {
-        throw new DomainOperationError(
-          "invite_target_unknown",
-          "no invitable user with that exact handle",
-        );
+        throw new DomainOperationError("invite_target_unknown", "no invitable user with that exact handle");
       }
       invitedUserId = await ctx.resolveHandle(input.invitedHandle);
       if (invitedUserId === null) {
-        throw new DomainOperationError(
-          "invite_target_unknown",
-          "no invitable user with that exact handle",
-        );
+        throw new DomainOperationError("invite_target_unknown", "no invitable user with that exact handle");
       }
     }
     const at = ctx.now();

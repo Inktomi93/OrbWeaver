@@ -77,11 +77,7 @@ function parseSoul(raw: string): Soul | null {
 
 /** Author the soul: the injected vLLM `summarize` with guided decoding, seeded by the bones + the
  *  per-roll inspiration seed; canned fallback on engine-down / parse failure. */
-export async function generateSoul(
-  roleClients: RoleClients,
-  bones: CompanionBones,
-  inspirationSeed: number,
-): Promise<Soul> {
+export async function generateSoul(roleClients: RoleClients, bones: CompanionBones, inspirationSeed: number): Promise<Soul> {
   const statLine = STAT_NAMES.map((s) => `${s} ${bones.stats[s]}`).join(", ");
   const userPrompt =
     `Species: ${bones.species}. Rarity: ${bones.rarity}. Eyes: ${bones.eye}. Hat: ${bones.hat}.` +

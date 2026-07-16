@@ -13,12 +13,7 @@
 
 import type { ChatModelId } from "@orb/contracts/connection";
 import { DEFAULT_CHAT_MODEL_ID } from "@orb/contracts/connection";
-import {
-  chatModelForTier,
-  detectChatModelTier,
-  getChatModel,
-  isChatModelId,
-} from "../catalog/chat-models";
+import { chatModelForTier, detectChatModelTier, getChatModel, isChatModelId } from "../catalog/chat-models";
 
 /** Resolve an agent-sdk chat model id, healing within the user's tier when possible (file header) and only
  *  falling to {@link DEFAULT_CHAT_MODEL_ID} for a truly unrecognized id or `null`. */

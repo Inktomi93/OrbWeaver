@@ -32,18 +32,12 @@ function groupByModel(rows: readonly CardVector[]): Map<string, CardVector[]> {
   return groups;
 }
 
-export function createSimilarityGraph(
-  ctx: DiscoveryContext,
-): Pick<DiscoveryService, "similarityGraph"> {
+export function createSimilarityGraph(ctx: DiscoveryContext): Pick<DiscoveryService, "similarityGraph"> {
   return { similarityGraph: (userId, opts) => similarityGraph(ctx.db, userId, opts) };
 }
 
 /** The owner's character similarity graph: nodes are the highest-degree characters, edges filtered to kept nodes. */
-async function similarityGraph(
-  db: Db,
-  ownerId: UserId,
-  opts: SimilarityGraphOptions = {},
-): Promise<SimilarityGraph> {
+async function similarityGraph(db: Db, ownerId: UserId, opts: SimilarityGraphOptions = {}): Promise<SimilarityGraph> {
   const minSimilarity = opts.minSimilarity ?? DEFAULT_MIN_SIMILARITY;
   const maxNodes = opts.maxNodes ?? DEFAULT_MAX_NODES;
 

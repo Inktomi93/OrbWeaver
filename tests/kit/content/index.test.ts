@@ -5,9 +5,7 @@ import { expect, test } from "../../support/fixtures";
 
 describe("tokenizeContent", () => {
   test("plain text → a single text span", () => {
-    expect(tokenizeContent("hello world")).toEqual<ContentSpan[]>([
-      { kind: "text", text: "hello world" },
-    ]);
+    expect(tokenizeContent("hello world")).toEqual<ContentSpan[]>([{ kind: "text", text: "hello world" }]);
   });
 
   test("empty body → one empty text span (the byte-identical path)", () => {
@@ -36,14 +34,10 @@ describe("tokenizeContent", () => {
   });
 
   test("a malformed `![` is left as literal text", () => {
-    expect(tokenizeContent("text ![broken(asset:a) end")).toEqual<ContentSpan[]>([
-      { kind: "text", text: "text ![broken(asset:a) end" },
-    ]);
+    expect(tokenizeContent("text ![broken(asset:a) end")).toEqual<ContentSpan[]>([{ kind: "text", text: "text ![broken(asset:a) end" }]);
   });
 
   test("a markdown title form falls through to text (strict matcher)", () => {
-    expect(tokenizeContent('![a](asset:x "title")')).toEqual<ContentSpan[]>([
-      { kind: "text", text: '![a](asset:x "title")' },
-    ]);
+    expect(tokenizeContent('![a](asset:x "title")')).toEqual<ContentSpan[]>([{ kind: "text", text: '![a](asset:x "title")' }]);
   });
 });

@@ -27,8 +27,7 @@ function buildThemePatch(
   css?: string | null;
   updatedAt: number;
 } {
-  const override =
-    input.override === undefined ? undefined : themeOverrideSchema.parse(input.override);
+  const override = input.override === undefined ? undefined : themeOverrideSchema.parse(input.override);
   if (input.css !== undefined && input.css !== null) {
     const { errors } = validateThemeCss(input.css);
     if (errors.length > 0) {

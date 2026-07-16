@@ -14,10 +14,7 @@ type WireRole = "user" | "assistant";
  * Returns "" for an empty/whitespace render. The `in_chat` position is not handled here — that is the
  * SHAPE splice's job ({@link spliceInChatInjections}).
  */
-export function renderInjection(
-  injection: ChatInjection,
-  resolveContent: (content: string) => string = (c) => c,
-): string {
+export function renderInjection(injection: ChatInjection, resolveContent: (content: string) => string = (c) => c): string {
   return frameInjection(injection.role, resolveContent(injection.content));
 }
 
@@ -32,11 +29,7 @@ export function renderInjection(
  *
  * `originalRole` names the original role when a caller auto-converted system→user for the wire.
  */
-export function frameInjection(
-  role: MessageRole,
-  content: string,
-  originalRole?: "system",
-): string {
+export function frameInjection(role: MessageRole, content: string, originalRole?: "system"): string {
   const trimmed = content.trim();
   if (trimmed.length === 0) {
     return "";
@@ -93,10 +86,7 @@ export function spliceInChatInjections<T extends { role: WireRole; content: stri
   if (injections === undefined || injections.length === 0) {
     return [...history];
   }
-  const inChat = injections.filter(
-    (i) =>
-      i.position === "in_chat" && !(opts.excludePromptTail === true && isPromptTailInjection(i)),
-  );
+  const inChat = injections.filter((i) => i.position === "in_chat" && !(opts.excludePromptTail === true && isPromptTailInjection(i)));
   if (inChat.length === 0) {
     return [...history];
   }
@@ -112,21 +102,17 @@ export function spliceInChatInjections<T extends { role: WireRole; content: stri
   // Primary: depth desc (deepest splices first). Secondary: `order` asc — within one depth, lower order
   // lands first/top. Absent order ⇒ default 100; equal depth+order keeps array/rack order.
   const defaultOrder = 100;
-  const sorted = clamped.sort(
-    (a, b) => b.depth - a.depth || (a.inj.order ?? defaultOrder) - (b.inj.order ?? defaultOrder),
-  );
+  const sorted = clamped.sort((a, b) => b.depth - a.depth || (a.inj.order ?? defaultOrder) - (b.inj.order ?? defaultOrder));
   // The last stable canon row: a depth-1 assistant injection landing same-role against it would mutate
   // the cached prefix once squashed → re-frame it to a user operator note instead.
   const boundaryLen = opts.prefixBoundaryLen;
-  const stableTailRole =
-    boundaryLen !== undefined && boundaryLen >= 1 ? history[boundaryLen - 1]?.role : undefined;
+  const stableTailRole = boundaryLen !== undefined && boundaryLen >= 1 ? history[boundaryLen - 1]?.role : undefined;
   const result: (T | { role: WireRole; content: string })[] = [...history];
   for (const { inj, depth } of sorted) {
     // A depth-1 assistant injection sits immediately above the volatile tail — adjacent to the last stable
     // canon row. When that row is also assistant, keeping the injection assistant-role would fold it into
     // the cached prefix → re-frame it to a user note.
-    const wouldMutatePrefix =
-      inj.role === "assistant" && depth === 1 && stableTailRole === "assistant";
+    const wouldMutatePrefix = inj.role === "assistant" && depth === 1 && stableTailRole === "assistant";
     const effectiveRole: WireRole = inj.role === "system" || wouldMutatePrefix ? "user" : inj.role;
     const originalRole = inj.role === "system" ? "system" : undefined;
     const framed = frameInjection(effectiveRole, resolveContent(inj.content), originalRole);

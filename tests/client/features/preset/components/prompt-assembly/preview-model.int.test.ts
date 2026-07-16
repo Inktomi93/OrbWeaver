@@ -4,17 +4,10 @@
 // order asc within depth — the P1 ST-parity semantics). DISPLAY ONLY — no macro is resolved (BUILD-SPEC §7/§10).
 
 import type { PromptSection } from "@orb/contracts/preset";
-import {
-  assemblePreview,
-  splitMacroTokens,
-} from "../../../../../../packages/client/src/features/preset/components/prompt-assembly/preview-model";
+import { assemblePreview, splitMacroTokens } from "../../../../../../packages/client/src/features/preset/components/prompt-assembly/preview-model";
 import { expect, test } from "../../../../../support/fixtures";
 
-function literal(
-  id: string,
-  content: string,
-  extra: Partial<Extract<PromptSection, { type: "literal" }>> = {},
-): PromptSection {
+function literal(id: string, content: string, extra: Partial<Extract<PromptSection, { type: "literal" }>> = {}): PromptSection {
   return { type: "literal", id, name: id, role: "system", content, enabled: true, ...extra };
 }
 
@@ -63,11 +56,7 @@ test("only enabled, lens-firing, in-flow sections appear; grouped by consecutive
 });
 
 test("the include predicate drops a section it excludes", () => {
-  const sections = [
-    literal("normalOnly", "aaaa", { trigger: ["normal"] }),
-    literal("always", "bbbb"),
-    pivot("hist"),
-  ];
+  const sections = [literal("normalOnly", "aaaa", { trigger: ["normal"] }), literal("always", "bbbb"), pivot("hist")];
   const firesSwipe = (section: PromptSection): boolean => {
     const trigger = "trigger" in section ? section.trigger : undefined;
     return trigger === undefined || trigger.length === 0 || trigger.includes("swipe");

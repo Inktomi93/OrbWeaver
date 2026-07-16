@@ -126,10 +126,7 @@ export const rpgGames = sqliteTable(
     // HIDDEN — GM-only narrative spine.
     storyArcSecret: text("story_arc_secret").notNull().default(""),
     // HIDDEN — the twist bank.
-    plotTwists: text("plot_twists", { mode: "json" })
-      .$type<readonly string[]>()
-      .notNull()
-      .default(sql`'[]'`),
+    plotTwists: text("plot_twists", { mode: "json" }).$type<readonly string[]>().notNull().default(sql`'[]'`),
     artStylePrompt: text("art_style_prompt").notNull().default(""),
     // The one active map (forward FK — rpg_maps is defined below; the thunk resolves it).
     activeMapId: text("active_map_id")
@@ -146,10 +143,7 @@ export const rpgGames = sqliteTable(
   (t) => [
     uniqueIndex("rpg_games_chat_unique").on(t.chatId),
     check("rpg_games_status_check", sql.raw(`status in (${checkList(RPG_GAME_STATUSES)})`)),
-    check(
-      "rpg_games_active_state_check",
-      sql.raw(`active_state in (${checkList(RPG_ACTIVE_STATES)})`),
-    ),
+    check("rpg_games_active_state_check", sql.raw(`active_state in (${checkList(RPG_ACTIVE_STATES)})`)),
     check("rpg_games_morale_check", sql.raw(`morale between ${MORALE_MIN} and ${MORALE_MAX}`)),
   ],
 );
@@ -176,22 +170,10 @@ export const rpgSnapshots = sqliteTable(
     calendarDate: text("calendar_date"),
     location: text("location").notNull().default(""),
     weather: text("weather", { mode: "json" }).$type<RpgWeather>(),
-    presentCharacters: text("present_characters", { mode: "json" })
-      .$type<readonly RpgPresentCharacter[]>()
-      .notNull()
-      .default(sql`'[]'`),
-    recentEvents: text("recent_events", { mode: "json" })
-      .$type<readonly string[]>()
-      .notNull()
-      .default(sql`'[]'`),
-    partyState: text("party_state", { mode: "json" })
-      .$type<readonly RpgPartyVolatile[]>()
-      .notNull()
-      .default(sql`'[]'`),
-    widgetValues: text("widget_values", { mode: "json" })
-      .$type<RpgWidgetValues>()
-      .notNull()
-      .default(sql`'{}'`),
+    presentCharacters: text("present_characters", { mode: "json" }).$type<readonly RpgPresentCharacter[]>().notNull().default(sql`'[]'`),
+    recentEvents: text("recent_events", { mode: "json" }).$type<readonly string[]>().notNull().default(sql`'[]'`),
+    partyState: text("party_state", { mode: "json" }).$type<readonly RpgPartyVolatile[]>().notNull().default(sql`'[]'`),
+    widgetValues: text("widget_values", { mode: "json" }).$type<RpgWidgetValues>().notNull().default(sql`'{}'`),
     fieldLocks: text("field_locks", { mode: "json" }).$type<RpgFieldLocks>(),
     committed: integer("committed").notNull().default(0),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
@@ -229,14 +211,8 @@ export const rpgNpcs = sqliteTable(
     updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
   () => [
-    check(
-      "rpg_npcs_description_source_check",
-      sql.raw(`description_source in (${checkList(RPG_NPC_DESCRIPTION_SOURCES)})`),
-    ),
-    check(
-      "rpg_npcs_reputation_check",
-      sql.raw(`reputation between ${REPUTATION_MIN} and ${REPUTATION_MAX}`),
-    ),
+    check("rpg_npcs_description_source_check", sql.raw(`description_source in (${checkList(RPG_NPC_DESCRIPTION_SOURCES)})`)),
+    check("rpg_npcs_reputation_check", sql.raw(`reputation between ${REPUTATION_MIN} and ${REPUTATION_MAX}`)),
   ],
 );
 
@@ -267,10 +243,7 @@ export const rpgParty = sqliteTable(
   (t) => [
     // XOR: exactly one of characterId / userId is set (mirrors chat_participants).
     check("rpg_party_actor_xor_check", sql.raw("(character_id is null) <> (user_id is null)")),
-    check(
-      "rpg_party_provenance_check",
-      sql.raw(`provenance in (${checkList(RPG_PARTY_PROVENANCES)})`),
-    ),
+    check("rpg_party_provenance_check", sql.raw(`provenance in (${checkList(RPG_PARTY_PROVENANCES)})`)),
     // One seat per actor.
     uniqueIndex("rpg_party_game_character_unique").on(t.gameId, t.characterId),
     uniqueIndex("rpg_party_game_user_unique").on(t.gameId, t.userId),
@@ -302,10 +275,7 @@ export const rpgClocks = sqliteTable(
     check("rpg_clocks_segments_check", sql.raw(`segments in (${CLOCK_SEGMENTS_LIST})`)),
     check("rpg_clocks_filled_check", sql.raw("filled between 0 and segments")),
     check("rpg_clocks_kind_check", sql.raw(`kind in (${checkList(RPG_CLOCK_KINDS)})`)),
-    check(
-      "rpg_clocks_visibility_check",
-      sql.raw(`visibility in (${checkList(RPG_CLOCK_VISIBILITIES)})`),
-    ),
+    check("rpg_clocks_visibility_check", sql.raw(`visibility in (${checkList(RPG_CLOCK_VISIBILITIES)})`)),
     check("rpg_clocks_status_check", sql.raw(`status in (${checkList(RPG_CLOCK_STATUSES)})`)),
   ],
 );
@@ -341,10 +311,7 @@ export const rpgQuests = sqliteTable(
     name: text("name").notNull(),
     status: text("status", { enum: RPG_QUEST_STATUSES }).notNull().default("active"),
     description: text("description").notNull().default(""),
-    objectives: text("objectives", { mode: "json" })
-      .$type<readonly RpgQuestObjective[]>()
-      .notNull()
-      .default(sql`'[]'`),
+    objectives: text("objectives", { mode: "json" }).$type<readonly RpgQuestObjective[]>().notNull().default(sql`'[]'`),
     // HIDDEN — GM notes.
     gmNotes: text("gm_notes").notNull().default(""),
     discoveredAt: integer("discovered_at").notNull().default(sql`(unixepoch() * 1000)`),
@@ -391,10 +358,7 @@ export const rpgHudWidgets = sqliteTable(
   },
   () => [
     check("rpg_hud_widgets_type_check", sql.raw(`type in (${checkList(RPG_WIDGET_TYPES)})`)),
-    check(
-      "rpg_hud_widgets_position_check",
-      sql.raw(`position in (${checkList(RPG_WIDGET_POSITIONS)})`),
-    ),
+    check("rpg_hud_widgets_position_check", sql.raw(`position in (${checkList(RPG_WIDGET_POSITIONS)})`)),
   ],
 );
 
@@ -438,12 +402,7 @@ export const rpgCheckpoints = sqliteTable(
     trigger: text("trigger", { enum: RPG_CHECKPOINT_TRIGGERS }).notNull(),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
-  () => [
-    check(
-      "rpg_checkpoints_trigger_check",
-      sql.raw(`trigger in (${checkList(RPG_CHECKPOINT_TRIGGERS)})`),
-    ),
-  ],
+  () => [check("rpg_checkpoints_trigger_check", sql.raw(`trigger in (${checkList(RPG_CHECKPOINT_TRIGGERS)})`))],
 );
 
 // ═══ 10b. rpg_pending_checks — the check request/resolve handshake (one pending per target) ═══════════
@@ -472,18 +431,10 @@ export const rpgPendingChecks = sqliteTable(
   },
   (t) => [
     check("rpg_pending_checks_dc_check", sql.raw(`dc between ${DC_MIN} and ${DC_MAX}`)),
-    check(
-      "rpg_pending_checks_requested_by_check",
-      sql.raw(`requested_by in (${checkList(RPG_PENDING_CHECK_REQUESTERS)})`),
-    ),
-    check(
-      "rpg_pending_checks_status_check",
-      sql.raw(`status in (${checkList(RPG_PENDING_CHECK_STATUSES)})`),
-    ),
+    check("rpg_pending_checks_requested_by_check", sql.raw(`requested_by in (${checkList(RPG_PENDING_CHECK_REQUESTERS)})`)),
+    check("rpg_pending_checks_status_check", sql.raw(`status in (${checkList(RPG_PENDING_CHECK_STATUSES)})`)),
     // One `pending` row per target (the request/resolve handshake).
-    uniqueIndex("rpg_pending_checks_target_pending_unique")
-      .on(t.targetPartyMemberId)
-      .where(sql`status = 'pending'`),
+    uniqueIndex("rpg_pending_checks_target_pending_unique").on(t.targetPartyMemberId).where(sql`status = 'pending'`),
   ],
 );
 
@@ -507,10 +458,7 @@ export const rpgEncounters = sqliteTable(
     endedAt: integer("ended_at"),
   },
   (t) => [
-    check(
-      "rpg_encounters_status_check",
-      sql.raw(`status in (${checkList(RPG_ENCOUNTER_STATUSES)})`),
-    ),
+    check("rpg_encounters_status_check", sql.raw(`status in (${checkList(RPG_ENCOUNTER_STATUSES)})`)),
     // One `active` encounter per game (the workloads single-active pattern).
     uniqueIndex("rpg_encounters_game_active_unique").on(t.gameId).where(sql`status = 'active'`),
   ],

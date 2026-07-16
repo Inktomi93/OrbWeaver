@@ -12,11 +12,7 @@ import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { ChatNotFoundError } from "../../../packages/server/src/domain/chat/contract/errors";
 import { expect, test } from "../fixtures";
-import {
-  assertEventSequence,
-  assertStaticPrefixStable,
-  assertTokenTotalsConsistent,
-} from "./assertions";
+import { assertEventSequence, assertStaticPrefixStable, assertTokenTotalsConsistent } from "./assertions";
 import { scenario } from "./scenario";
 import { tape } from "./tape";
 
@@ -96,8 +92,6 @@ describe("scenario.chat — leak-free NOT_FOUND for a non-member (can() default-
     const chat = await scenario.chat(tape().reply("Hi there"), { characters: ["aria"] });
     const stranger = chat.principal(castId<UserId>("user_stranger"));
 
-    await expect(
-      chat.turn.send({ principal: stranger, chatId: chat.chatId, content: "hi" }),
-    ).rejects.toBeInstanceOf(ChatNotFoundError);
+    await expect(chat.turn.send({ principal: stranger, chatId: chat.chatId, content: "hi" })).rejects.toBeInstanceOf(ChatNotFoundError);
   });
 });

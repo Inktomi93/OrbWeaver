@@ -4,10 +4,7 @@
 import { createImageAdapter } from "@orb/server/infra/image";
 import sharp from "sharp";
 import { beforeAll, describe } from "vitest";
-import {
-  BANNER_WIDTHS,
-  snapBannerWidth,
-} from "../../../../packages/server/src/domain/assets/substrate/variant-policy.ts";
+import { BANNER_WIDTHS, snapBannerWidth } from "../../../../packages/server/src/domain/assets/substrate/variant-policy.ts";
 import { expect, test } from "../../../support/fixtures";
 
 const SRC_WIDTH = 400;

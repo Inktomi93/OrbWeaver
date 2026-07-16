@@ -22,20 +22,13 @@ import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors";
  * per-chat lock so the count can't be raced). Translates the limiter's `DomainRateLimitError` into
  * `ChatOperationError('budget_exceeded')`; any other error propagates unchanged.
  */
-export async function debitTurnBudget(
-  op: DebitBudgetOp,
-  triggeredBy: UserId,
-  budget: number | null,
-): Promise<void> {
+export async function debitTurnBudget(op: DebitBudgetOp, triggeredBy: UserId, budget: number | null): Promise<void> {
   try {
     await op(triggeredBy, budget);
   } catch (err) {
     if (err instanceof DomainRateLimitError) {
       // biome-ignore lint/style/useErrorCause: ChatOperationError(code,message) has no `cause` slot by design — the `budget_exceeded` code is the signal; the limiter's window detail isn't surfaced to the chat caller.
-      throw new ChatOperationError(
-        CHAT_OP_CODES.budgetExceeded,
-        "per-member turn budget exhausted",
-      );
+      throw new ChatOperationError(CHAT_OP_CODES.budgetExceeded, "per-member turn budget exhausted");
     }
     throw err;
   }

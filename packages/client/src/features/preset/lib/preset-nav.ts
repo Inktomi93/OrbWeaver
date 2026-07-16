@@ -7,35 +7,14 @@
 // import it, they don't re-spell it) — and the DESCRIPTOR-driven sampling/reasoning/verbosity vocab is NOT here
 // (it lives in capability-panel-model.ts, iterated from `ModelCapabilityView` — the panel GATE).
 
-import type {
-  CompactionMode,
-  ContinuePostfix,
-  NamesBehavior,
-  ThinkingDisplay,
-} from "@orb/contracts/preset";
-import {
-  COMPACTION_MODES,
-  CONTINUE_POSTFIX_TYPES,
-  NAMES_BEHAVIOR,
-  THINKING_DISPLAYS,
-} from "@orb/contracts/preset";
+import type { CompactionMode, ContinuePostfix, NamesBehavior, ThinkingDisplay } from "@orb/contracts/preset";
+import { COMPACTION_MODES, CONTINUE_POSTFIX_TYPES, NAMES_BEHAVIOR, THINKING_DISPLAYS } from "@orb/contracts/preset";
 import type { SelectItems } from "@orb/ui/select";
 
 /** The editor's tab ids, in strip order (UI-Arch §4.2 Presets tabbed editor). Params-related tabs
  *  (Quality/Sampling/Reasoning/Output) render the descriptor-driven panel; the rest edit `PromptConfig`
  *  structure directly. */
-const PRESET_EDITOR_TAB_IDS = [
-  "quality",
-  "sampling",
-  "reasoning",
-  "output",
-  "prompt",
-  "templates",
-  "postProcess",
-  "compaction",
-  "variables",
-  "regex",
-] as const;
+const PRESET_EDITOR_TAB_IDS = ["quality", "sampling", "reasoning", "output", "prompt", "templates", "postProcess", "compaction", "variables", "regex"] as const;
 
 /** The tab-id union (file-local — §7.4 forbids an exported bare `type` alias in a feature lib; consumers
  *  read it via the `PresetEditorTab.id` interface field, or derive from `PRESET_EDITOR_TAB_IDS`). */

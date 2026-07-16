@@ -3,12 +3,7 @@
 // table (no-direct-users-read). The cross-boundary input shapes (`RouteChatAssignment`, the `ChatApi`/`CredentialSource`
 // axes, `RoutingRoleKey`) live in `@orb/contracts/connection`; the verb param wrappers live here.
 
-import type {
-  ChatApi,
-  CredentialSource,
-  RouteChatAssignment,
-  RoutingRoleKey,
-} from "@orb/contracts/connection";
+import type { ChatApi, CredentialSource, RouteChatAssignment, RoutingRoleKey } from "@orb/contracts/connection";
 import type { Principal } from "@orb/contracts/identity";
 import type { ModelId } from "@orb/kit/ids";
 

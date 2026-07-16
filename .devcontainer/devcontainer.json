@@ -12,20 +12,10 @@
   // NET_ADMIN/NET_RAW let init-firewall.sh manage iptables. no-new-privileges=false
   // overrides this host's daemon.json default (which is true) FOR THIS CONTAINER ONLY,
   // so the firewall's `sudo` can escalate. Host-wide hardening is unaffected.
-  "runArgs": [
-    "--cap-add=NET_ADMIN",
-    "--cap-add=NET_RAW",
-    "--security-opt",
-    "no-new-privileges=false"
-  ],
+  "runArgs": ["--cap-add=NET_ADMIN", "--cap-add=NET_RAW", "--security-opt", "no-new-privileges=false"],
   "customizations": {
     "vscode": {
-      "extensions": [
-        "anthropic.claude-code",
-        "biomejs.biome",
-        "dbaeumer.vscode-eslint",
-        "editorconfig.editorconfig"
-      ],
+      "extensions": ["anthropic.claude-code", "biomejs.biome", "dbaeumer.vscode-eslint", "editorconfig.editorconfig"],
       "settings": {
         // Editor/formatter/TS settings live in the committed .vscode/settings.json,
         // which VS Code also reads inside the container — single source of truth.

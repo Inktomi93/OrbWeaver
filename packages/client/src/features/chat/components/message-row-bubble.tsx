@@ -30,18 +30,11 @@ export function renderSingleBubble(args: {
   const headerBand = args.decoration?.headerBand;
   if (headerBand !== undefined) {
     return (
-      <Stack
-        data-slot="message-bubble"
-        className={withoutBubblePadding(args.bubbleClassName)}
-        style={args.decoration?.style}
-      >
+      <Stack data-slot="message-bubble" className={withoutBubblePadding(args.bubbleClassName)} style={args.decoration?.style}>
         <Stack
           aria-hidden="true"
           data-slot="message-band"
-          className={cn(
-            "rounded-t-card",
-            headerBand.initial !== undefined && "items-center justify-start pt-block",
-          )}
+          className={cn("rounded-t-card", headerBand.initial !== undefined && "items-center justify-start pt-block")}
           style={headerBand.style}
         >
           {headerBand.initial === undefined ? null : (
@@ -75,12 +68,7 @@ export function renderSingleBubble(args: {
             className="absolute inset-y-0 right-0 w-(--immersive-echo-feather) items-end justify-center pe-block"
             style={edgeTile.style}
           >
-            <Text
-              as="span"
-              weight="bold"
-              className="text-primary-foreground"
-              style={{ fontSize: "var(--spacing-avatar-hero)", lineHeight: "1" }}
-            >
+            <Text as="span" weight="bold" className="text-primary-foreground" style={{ fontSize: "var(--spacing-avatar-hero)", lineHeight: "1" }}>
               {edgeTile.initial}
             </Text>
           </Stack>
@@ -90,12 +78,7 @@ export function renderSingleBubble(args: {
     );
   }
   return (
-    <Row
-      align="start"
-      data-slot="message-bubble"
-      className={withoutBubblePadding(args.bubbleClassName)}
-      style={args.decoration?.style}
-    >
+    <Row align="start" data-slot="message-bubble" className={withoutBubblePadding(args.bubbleClassName)} style={args.decoration?.style}>
       {args.role === "user" ? null : args.weldedAvatar}
       <Stack gap="row" className="min-w-0 flex-1 px-block py-row">
         {args.content}

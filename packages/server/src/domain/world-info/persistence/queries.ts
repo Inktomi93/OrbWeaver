@@ -5,22 +5,8 @@
 
 import { entryMetadataSchema } from "@orb/contracts/world-info";
 import type { Db } from "@orb/db";
-import {
-  characterBooks,
-  chatBooks,
-  globalBooks,
-  personaBooks,
-  worldBooks,
-  worldEntries,
-} from "@orb/db";
-import type {
-  CharacterId,
-  ChatId,
-  PersonaId,
-  UserId,
-  WorldBookId,
-  WorldEntryId,
-} from "@orb/kit/ids";
+import { characterBooks, chatBooks, globalBooks, personaBooks, worldBooks, worldEntries } from "@orb/db";
+import type { CharacterId, ChatId, PersonaId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { and, desc, eq } from "drizzle-orm";
 import type { BookAttachmentView, BookView, EntryView, WorldBookRole } from "../contract/views";
 
@@ -57,11 +43,7 @@ function toAttachmentView(row: BookRow, role: WorldBookRole | null): BookAttachm
   return { ...toBookView(row), role };
 }
 
-export async function loadOwnedBook(
-  db: Db,
-  ownerId: UserId,
-  bookId: WorldBookId,
-): Promise<BookRow | undefined> {
+export async function loadOwnedBook(db: Db, ownerId: UserId, bookId: WorldBookId): Promise<BookRow | undefined> {
   const rows = await db
     .select()
     .from(worldBooks)
@@ -70,11 +52,7 @@ export async function loadOwnedBook(
   return rows[0];
 }
 
-export async function loadOwnedEntry(
-  db: Db,
-  ownerId: UserId,
-  entryId: WorldEntryId,
-): Promise<EntryRow | undefined> {
+export async function loadOwnedEntry(db: Db, ownerId: UserId, entryId: WorldEntryId): Promise<EntryRow | undefined> {
   const rows = await db
     .select({ entry: worldEntries })
     .from(worldEntries)
@@ -85,29 +63,17 @@ export async function loadOwnedEntry(
 }
 
 export async function listOwnedBooks(db: Db, ownerId: UserId): Promise<BookRow[]> {
-  const rows = await db
-    .select()
-    .from(worldBooks)
-    .where(eq(worldBooks.ownerId, ownerId))
-    .orderBy(desc(worldBooks.createdAt));
+  const rows = await db.select().from(worldBooks).where(eq(worldBooks.ownerId, ownerId)).orderBy(desc(worldBooks.createdAt));
   return rows;
 }
 
 // The caller guards book ownership first (so this can't probe a foreign book's entry set).
 export async function listBookEntries(db: Db, bookId: WorldBookId): Promise<EntryRow[]> {
-  const rows = await db
-    .select()
-    .from(worldEntries)
-    .where(eq(worldEntries.worldBookId, bookId))
-    .orderBy(desc(worldEntries.priority));
+  const rows = await db.select().from(worldEntries).where(eq(worldEntries.worldBookId, bookId)).orderBy(desc(worldEntries.priority));
   return rows;
 }
 
-export async function listCharacterBooks(
-  db: Db,
-  ownerId: UserId,
-  characterId: CharacterId,
-): Promise<BookAttachmentView[]> {
+export async function listCharacterBooks(db: Db, ownerId: UserId, characterId: CharacterId): Promise<BookAttachmentView[]> {
   const rows = await db
     .select({ book: worldBooks, role: characterBooks.role })
     .from(characterBooks)
@@ -140,18 +106,11 @@ export async function listChatBooks(db: Db, chatId: ChatId): Promise<BookAttachm
 
 /** Reverse of listChatBooks. A book attached to zero chats returns []. */
 export async function listChatIdsForBook(db: Db, bookId: WorldBookId): Promise<ChatId[]> {
-  const rows = await db
-    .select({ chatId: chatBooks.chatId })
-    .from(chatBooks)
-    .where(eq(chatBooks.worldBookId, bookId));
+  const rows = await db.select({ chatId: chatBooks.chatId }).from(chatBooks).where(eq(chatBooks.worldBookId, bookId));
   return rows.map((r) => r.chatId);
 }
 
-export async function listPersonaBooks(
-  db: Db,
-  ownerId: UserId,
-  personaId: PersonaId,
-): Promise<BookAttachmentView[]> {
+export async function listPersonaBooks(db: Db, ownerId: UserId, personaId: PersonaId): Promise<BookAttachmentView[]> {
   const rows = await db
     .select({ book: worldBooks })
     .from(personaBooks)

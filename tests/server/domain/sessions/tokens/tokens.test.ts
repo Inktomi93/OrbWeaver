@@ -1,9 +1,5 @@
 import { describe } from "vitest";
-import {
-  createTokenHasher,
-  SESSION_TTL_MS,
-  SLIDE_THROTTLE_MS,
-} from "../../../../../packages/server/src/domain/sessions/tokens/tokens";
+import { createTokenHasher, SESSION_TTL_MS, SLIDE_THROTTLE_MS } from "../../../../../packages/server/src/domain/sessions/tokens/tokens";
 import { expect, test } from "../../../../support/fixtures";
 
 // Invariant #3: the token is never stored — only its PEPPERED hash; the hasher THROWS (loud
@@ -54,9 +50,7 @@ describe("createTokenHasher", () => {
 
 describe("timing constants", () => {
   test("SESSION_TTL_MS is 30 days", () => {
-    expect(SESSION_TTL_MS).toBe(
-      TTL_DAYS * HOURS_PER_DAY * MINUTES_PER_HOUR * SECONDS_PER_MINUTE * MS_PER_SECOND,
-    );
+    expect(SESSION_TTL_MS).toBe(TTL_DAYS * HOURS_PER_DAY * MINUTES_PER_HOUR * SECONDS_PER_MINUTE * MS_PER_SECOND);
   });
 
   test("SLIDE_THROTTLE_MS is 5 minutes", () => {

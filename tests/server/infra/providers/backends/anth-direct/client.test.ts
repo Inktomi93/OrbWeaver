@@ -14,11 +14,7 @@
 // belt prevents). The belt pins ALL SIX ambient knobs (apiKey/authToken/baseURL + credentials/config/profile).
 
 import Anthropic from "@anthropic-ai/sdk";
-import {
-  createAnthClientCache,
-  createOpenRouterAnthClient,
-  OPENROUTER_ANTHROPIC_BASE_URL,
-} from "@orb/server/infra/providers/backends/anth-direct";
+import { createAnthClientCache, createOpenRouterAnthClient, OPENROUTER_ANTHROPIC_BASE_URL } from "@orb/server/infra/providers/backends/anth-direct";
 import { beforeEach, describe, vi } from "vitest";
 import { expect, test } from "../../../../../support/fixtures";
 

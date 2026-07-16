@@ -23,10 +23,7 @@ interface TextRun {
   readonly highlighted: boolean;
 }
 
-function mergeRanges(
-  text: string,
-  ranges: readonly HighlightedTextRange[],
-): HighlightedTextRange[] {
+function mergeRanges(text: string, ranges: readonly HighlightedTextRange[]): HighlightedTextRange[] {
   const valid = ranges
     .map((range) => ({
       start: Math.max(0, Math.min(range.start, range.end)),
@@ -73,12 +70,7 @@ function splitRuns(text: string, ranges: readonly HighlightedTextRange[]): TextR
  * announce them; a styled `<span>` would not). The first highlight scrolls into view instantly on
  * mount and whenever `ranges` genuinely changes value.
  */
-export function HighlightedText({
-  className,
-  text,
-  ranges,
-  ...props
-}: HighlightedTextProps): ReactElement {
+export function HighlightedText({ className, text, ranges, ...props }: HighlightedTextProps): ReactElement {
   const firstMarkRef = useRef<HTMLElement | null>(null);
   const runs = splitRuns(text, ranges);
   const firstHighlightIndex = runs.findIndex((run) => run.highlighted);
@@ -99,12 +91,12 @@ export function HighlightedText({
     <div {...props} className={cn(slots.root(), className)} data-slot="highlighted-text-root">
       {runs.map((run, index) => {
         if (!run.highlighted) {
-          // biome-ignore lint/suspicious/noArrayIndexKey: runs are positional text segments derived fresh from text+ranges every render — there is no stabler identity.
+          // biome-ignore lint/suspicious/noArrayIndexKey: runs are positional text segments derived fresh from text+ranges every render — no stabler identity exists.
           return <span key={index}>{run.text}</span>;
         }
         return (
           <mark
-            // biome-ignore lint/suspicious/noArrayIndexKey: runs are positional text segments derived fresh from text+ranges every render — there is no stabler identity.
+            // biome-ignore lint/suspicious/noArrayIndexKey: runs are positional text segments derived fresh from text+ranges every render — no stabler identity exists.
             key={index}
             ref={index === firstHighlightIndex ? firstMarkRef : undefined}
             className={slots.mark()}

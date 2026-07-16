@@ -41,10 +41,7 @@ function outstanding(): unknown[] {
   ];
 }
 
-test("share-link mode mints and shows the raw /join link ONCE with the copy affordance", async ({
-  mount,
-  page,
-}) => {
+test("share-link mode mints and shows the raw /join link ONCE with the copy affordance", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "invites.listInvites": () => [],
     "invites.createInvite": () => MINT,
@@ -54,9 +51,7 @@ test("share-link mode mints and shows the raw /join link ONCE with the copy affo
   const dialog = page.getByTestId("invite-dialog");
   await dialog.getByRole("button", { name: "Create link" }).click();
 
-  await expect
-    .poll(() => trpc.count("invites.createInvite"), { intervals: [20, 50, 100] })
-    .toBeGreaterThanOrEqual(1);
+  await expect.poll(() => trpc.count("invites.createInvite"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
   // An untargeted mint: no invitedHandle on the wire.
   const input = trpc.lastInput("invites.createInvite") as {
     input?: { invitedHandle?: unknown };
@@ -70,10 +65,7 @@ test("share-link mode mints and shows the raw /join link ONCE with the copy affo
   await expect(page.getByTestId("invite-copy-link")).toBeVisible();
 });
 
-test("handle mode sends the targeted invite with the limits on the wire", async ({
-  mount,
-  page,
-}) => {
+test("handle mode sends the targeted invite with the limits on the wire", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "invites.listInvites": () => [],
     "invites.createInvite": () => MINT,
@@ -86,9 +78,7 @@ test("handle mode sends the targeted invite with the limits on the wire", async 
   await dialog.getByRole("textbox", { name: "Max uses" }).fill("3");
   await dialog.getByRole("button", { name: "Send invite" }).click();
 
-  await expect
-    .poll(() => trpc.count("invites.createInvite"), { intervals: [20, 50, 100] })
-    .toBeGreaterThanOrEqual(1);
+  await expect.poll(() => trpc.count("invites.createInvite"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
   const input = trpc.lastInput("invites.createInvite") as {
     input?: { invitedHandle?: unknown; maxUses?: unknown };
   };
@@ -96,15 +86,11 @@ test("handle mode sends the targeted invite with the limits on the wire", async 
   expect(input.input?.maxUses).toBe(3);
 });
 
-test("an unknown handle renders the coded refusal INLINE — never a silent share link", async ({
-  mount,
-  page,
-}) => {
+test("an unknown handle renders the coded refusal INLINE — never a silent share link", async ({ mount, page }) => {
   await routeTrpc(page, {
     "invites.listInvites": () => [],
     // The verb's invite_target_unknown maps to BAD_REQUEST at transport (error-mapping.ts).
-    "invites.createInvite": () =>
-      trpcError({ code: "BAD_REQUEST", message: "no invitable user with that handle" }),
+    "invites.createInvite": () => trpcError({ code: "BAD_REQUEST", message: "no invitable user with that handle" }),
   });
 
   await mount(<InviteDialogStory />);
@@ -133,10 +119,7 @@ test("an empty handle is a field validation error (no wire call)", async ({ moun
   expect(trpc.count("invites.createInvite")).toBe(0);
 });
 
-test("the outstanding list renders per-invite status/uses and revokes a pending invite", async ({
-  mount,
-  page,
-}) => {
+test("the outstanding list renders per-invite status/uses and revokes a pending invite", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "invites.listInvites": () => outstanding(),
     "invites.revokeInvite": () => null,
@@ -153,9 +136,7 @@ test("the outstanding list renders per-invite status/uses and revokes a pending 
   const revokes = list.getByRole("button", { name: REVOKE_RE });
   await expect(revokes).toHaveCount(1);
   await revokes.click();
-  await expect
-    .poll(() => trpc.count("invites.revokeInvite"), { intervals: [20, 50, 100] })
-    .toBeGreaterThanOrEqual(1);
+  await expect.poll(() => trpc.count("invites.revokeInvite"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
   const input = trpc.lastInput("invites.revokeInvite") as { inviteId?: unknown };
   expect(input.inviteId).toBe("chatinvite_ct_a");
 });

@@ -3,10 +3,7 @@
 
 import { createConnectionService } from "@orb/server/domain/connection";
 import { afterEach, describe } from "vitest";
-import {
-  __resetOrModelCache,
-  seedOrModelCache,
-} from "../../../../../packages/server/src/domain/connection/substrate/or-model-cache.ts";
+import { __resetOrModelCache, seedOrModelCache } from "../../../../../packages/server/src/domain/connection/substrate/or-model-cache.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
 import { makeConnHarness, makeOrEntry } from "../_support.ts";
@@ -28,10 +25,7 @@ describe("getModelCapability", () => {
 
   test("an OR id synthesizes from the seeded TTL cache", async () => {
     const h = makeConnHarness(await freshDb());
-    seedOrModelCache(
-      [makeOrEntry({ id: "openai/gpt-5", supportedParameters: ["temperature", "top_k"] })],
-      h.clock.now(),
-    );
+    seedOrModelCache([makeOrEntry({ id: "openai/gpt-5", supportedParameters: ["temperature", "top_k"] })], h.clock.now());
     const svc = createConnectionService(h.ctx);
 
     const cap = await svc.getModelCapability({

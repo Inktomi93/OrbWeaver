@@ -15,15 +15,17 @@ export interface TreeImportStarted {
   readonly workloadId: string;
 }
 
-/** `webkitRelativePath` is present on a directory-picked File in the browser, but the DOM lib that declares
- *  it isn't in every tsconfig's `lib` (the whole-graph typecheck compiles under Node's `File`). */
+/** `webkitRelativePath` is present on a directory-picked File in a real browser, but it's a non-standard
+ *  Chromium extension the DOM lib types as always-`string` — jsdom (and any spec-faithful `File`) doesn't
+ *  implement it at all, so it's genuinely `undefined` at runtime despite the type. Read it through
+ *  `unknown` so TS can't "prove" the always-present lie away. */
 interface WithRelativePath {
   readonly webkitRelativePath?: string;
 }
 
 /** The browser's directory-relative path for a picked file (`characters/Aria.png`), or its bare name. */
 export function relativePathOf(file: File): string {
-  const rel = (file as File & WithRelativePath).webkitRelativePath;
+  const rel = (file as unknown as WithRelativePath).webkitRelativePath;
   return rel !== undefined && rel.length > 0 ? rel : file.name;
 }
 

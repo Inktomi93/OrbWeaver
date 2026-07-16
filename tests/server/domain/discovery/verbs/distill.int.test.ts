@@ -89,10 +89,7 @@ describe("distillCharacters", () => {
     expect(summarize.schemas[0]).toBeDefined();
 
     // The summary row carries the parsed facets + the CONFIGURED model id (not the reply's `model`).
-    const summary = await db
-      .select()
-      .from(characterSummaries)
-      .where(eq(characterSummaries.characterId, character));
+    const summary = await db.select().from(characterSummaries).where(eq(characterSummaries.characterId, character));
     expect(summary[0]).toMatchObject({
       genre: "fantasy",
       tone: "whimsical",
@@ -174,18 +171,14 @@ describe("distillCharacters", () => {
     await db
       .update(characterTags)
       .set({ status: "accepted" })
-      .where(
-        and(eq(characterTags.characterId, character), eq(characterTags.tagId, acceptedId as TagId)),
-      );
+      .where(and(eq(characterTags.characterId, character), eq(characterTags.tagId, acceptedId as TagId)));
 
     // Re-run distill (same reply). The accepted tag must STAY accepted (onConflictDoNothing).
     await svc.distillCharacters({ characterId: character, ownerId: owner });
     const afterRerun = await db
       .select({ status: characterTags.status })
       .from(characterTags)
-      .where(
-        and(eq(characterTags.characterId, character), eq(characterTags.tagId, acceptedId as TagId)),
-      );
+      .where(and(eq(characterTags.characterId, character), eq(characterTags.tagId, acceptedId as TagId)));
     expect(afterRerun[0]?.status).toBe("accepted");
   });
 });

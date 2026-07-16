@@ -8,20 +8,9 @@
 import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
 import type { ChatId, MessageId, UserId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import {
-  getGroupConfig,
-  getRoomOverrides,
-  parseChatMetadata,
-} from "../../../../../packages/server/src/domain/chat/contract/metadata.ts";
-import type {
-  CreateInviteParams,
-  RedeemInviteParams,
-  SendParams,
-} from "../../../../../packages/server/src/domain/chat/contract/params.ts";
-import type {
-  CreateInviteResult,
-  TurnOutcome,
-} from "../../../../../packages/server/src/domain/chat/contract/results.ts";
+import { getGroupConfig, getRoomOverrides, parseChatMetadata } from "../../../../../packages/server/src/domain/chat/contract/metadata.ts";
+import type { CreateInviteParams, RedeemInviteParams, SendParams } from "../../../../../packages/server/src/domain/chat/contract/params.ts";
+import type { CreateInviteResult, TurnOutcome } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
 import type { ChatSummary } from "../../../../../packages/server/src/domain/chat/contract/views.ts";
 import { expect, test } from "../../../../support/fixtures";
 
@@ -38,9 +27,7 @@ describe("parseChatMetadata", () => {
     // group is parsed AND fully-defaulted (the lenient input fills the omitted knobs).
     expect(parsed.group?.output).toBe("per-speaker");
     expect(parsed.group?.policy).toBe("list");
-    expect(parsed.group?.output === "per-speaker" ? parsed.group.cardScope : undefined).toBe(
-      "merged",
-    );
+    expect(parsed.group?.output === "per-speaker" ? parsed.group.cardScope : undefined).toBe("merged");
     expect(parsed.roomOverrides).toEqual({
       scenario: "a tavern at dusk",
       mainPrompt: "stay in character",

@@ -9,10 +9,7 @@ import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { like } from "drizzle-orm";
 import { describe } from "vitest";
-import {
-  createMemberBudget,
-  createRateLimiter,
-} from "../../../packages/server/src/transport/rate-limit.ts";
+import { createMemberBudget, createRateLimiter } from "../../../packages/server/src/transport/rate-limit.ts";
 import { freshDb } from "../../support/db.ts";
 import { expect, test } from "../../support/fixtures";
 
@@ -108,10 +105,7 @@ describe("rate-limit: createMemberBudget (PD-14)", () => {
       await budget.debit(memberA, null);
     }
 
-    const rows = await db
-      .select()
-      .from(rateLimitBuckets)
-      .where(like(rateLimitBuckets.key, "member-budget:%"));
+    const rows = await db.select().from(rateLimitBuckets).where(like(rateLimitBuckets.key, "member-budget:%"));
     expect(rows).toHaveLength(0);
   });
 

@@ -7,12 +7,8 @@ import type { WorkloadService, WorkloadServiceContext } from "../contract/servic
 import { listSchedulesQuery } from "../persistence/schedule-queries";
 import { resolveListOwnerFilter } from "../substrate/authorize";
 
-export function createListSchedules(
-  ctx: WorkloadServiceContext,
-): Pick<WorkloadService, "listSchedules"> {
-  async function listSchedules(
-    params: ListSchedulesParams,
-  ): Promise<readonly WorkloadScheduleRow[]> {
+export function createListSchedules(ctx: WorkloadServiceContext): Pick<WorkloadService, "listSchedules"> {
+  async function listSchedules(params: ListSchedulesParams): Promise<readonly WorkloadScheduleRow[]> {
     // A schedule row's owner is NOT NULL, so a `null` scope (an admin explicitly asking for null-owned) can
     // match nothing — only a concrete owner id narrows; undefined leaves it deployment-wide.
     const scoped = resolveListOwnerFilter(ctx.isAdmin, params.caller, params.ownerId ?? undefined);

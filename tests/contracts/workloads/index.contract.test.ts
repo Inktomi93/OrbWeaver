@@ -82,15 +82,7 @@ test("INDEX_SOURCES is [text, image, all]; WORKLOAD_SOURCES prepends the `none` 
 });
 
 test("WORKLOAD_STATUSES is exactly the 7-member lifecycle tuple", () => {
-  expect(WORKLOAD_STATUSES).toEqual([
-    "queued",
-    "running",
-    "succeeded",
-    "failed",
-    "cancelling",
-    "cancelled",
-    "worker_died",
-  ]);
+  expect(WORKLOAD_STATUSES).toEqual(["queued", "running", "succeeded", "failed", "cancelling", "cancelled", "worker_died"]);
   expect(workloadStatusSchema.options).toEqual(WORKLOAD_STATUSES);
 });
 

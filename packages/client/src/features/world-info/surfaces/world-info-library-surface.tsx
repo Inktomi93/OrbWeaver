@@ -18,12 +18,7 @@ import { useFocusOnMount } from "#lib";
 import { clearWorldBookSelection, selectWorldBook, useSelectedWorldBookId } from "#state";
 import { BookDetailsDialog } from "../components/book-details-dialog";
 import { WorldInfoLibraryRow } from "../components/world-info-library-row";
-import {
-  useCreateWorldBook,
-  useDuplicateWorldBook,
-  useRemoveWorldBook,
-  useUpdateWorldBook,
-} from "../hooks/use-world-info-mutations";
+import { useCreateWorldBook, useDuplicateWorldBook, useRemoveWorldBook, useUpdateWorldBook } from "../hooks/use-world-info-mutations";
 
 const NEW_BOOK_NAME = "New book";
 
@@ -34,29 +29,20 @@ export interface WorldInfoLibrarySurfaceProps {
 }
 
 /** The World Info LIST body (rendered inside the shell's `worldInfo` LIST slot). */
-export function WorldInfoLibrarySurface({
-  onSelectBook,
-}: WorldInfoLibrarySurfaceProps): ReactElement {
+export function WorldInfoLibrarySurface({ onSelectBook }: WorldInfoLibrarySurfaceProps): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
 
   return (
     <Stack ref={surfaceRef} className="h-full outline-none" gap="block" tabIndex={-1}>
-      <LibrarySurfaceShell
-        errorLabel="Couldn't load your books."
-        loadingLabel="Loading your books…"
-      >
+      <LibrarySurfaceShell errorLabel="Couldn't load your books." loadingLabel="Loading your books…">
         <BookList onSelectBook={onSelectBook ?? selectWorldBook} />
       </LibrarySurfaceShell>
     </Stack>
   );
 }
 
-function BookList({
-  onSelectBook,
-}: {
-  readonly onSelectBook: (id: WorldBookId) => void;
-}): ReactElement {
+function BookList({ onSelectBook }: { readonly onSelectBook: (id: WorldBookId) => void }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const { data: books } = useSuspenseQuery(trpc.worldInfo.listBooks.queryOptions());
@@ -74,8 +60,7 @@ function BookList({
 
   const globalIds = new Set(globalBooks.map((b) => b.id));
   const needle = deferredQuery.trim().toLowerCase();
-  const filtered =
-    needle === "" ? books : books.filter((b) => b.name.toLowerCase().includes(needle));
+  const filtered = needle === "" ? books : books.filter((b) => b.name.toLowerCase().includes(needle));
 
   const onCreate = (): void => {
     void create.mutateAsync({ input: { name: NEW_BOOK_NAME } }).then((created) => {
@@ -118,11 +103,7 @@ function BookList({
                 </Button>
               ) : undefined
             }
-            description={
-              needle === ""
-                ? "Create a world book to hold keyword-triggered lore your characters can draw on."
-                : "No book matches your search."
-            }
+            description={needle === "" ? "Create a world book to hold keyword-triggered lore your characters can draw on." : "No book matches your search."}
             icon={<Icon icon={needle === "" ? BookOpen : Search} size="lg" />}
             title={needle === "" ? "No books yet" : "No matches"}
           />

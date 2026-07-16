@@ -20,12 +20,7 @@ export interface RailProps {
   readonly railFoot?: ReactNode;
 }
 
-export function Rail({
-  activeSection,
-  onSelectSection,
-  onOpenModal,
-  railFoot,
-}: RailProps): ReactElement {
+export function Rail({ activeSection, onSelectSection, onOpenModal, railFoot }: RailProps): ReactElement {
   // Pure registry render: sections derive from the section registry (order/grouping/mobile curation),
   // modal affordances derive from the modal registry via each def's `trigger.placement` — no parallel
   // maps. A new section is a registered SectionDefinition; a new rail modal a registered ModalDefinition.
@@ -47,13 +42,7 @@ export function Rail({
               {sections
                 .filter((d) => d.rail.group === group)
                 .map((d) => (
-                  <RailButton
-                    key={d.id}
-                    label={d.rail.label}
-                    icon={d.rail.icon}
-                    active={d.id === activeSection}
-                    onClick={(): void => onSelectSection(d.id)}
-                  />
+                  <RailButton key={d.id} label={d.rail.label} icon={d.rail.icon} active={d.id === activeSection} onClick={(): void => onSelectSection(d.id)} />
                 ))}
             </div>
           ))}
@@ -63,12 +52,7 @@ export function Rail({
 
         <div className="shell-rail-actions">
           {footerModals.map((m) => (
-            <RailButton
-              key={m.id}
-              label={m.trigger.label}
-              icon={m.trigger.icon}
-              onClick={(): void => onOpenModal(m.id)}
-            />
+            <RailButton key={m.id} label={m.trigger.label} icon={m.trigger.icon} onClick={(): void => onOpenModal(m.id)} />
           ))}
           <div className="shell-rail-avatar">{railFoot}</div>
         </div>
@@ -76,20 +60,10 @@ export function Rail({
 
       <div className="shell-rail-mobile">
         {mobilePrimary.map((d) => (
-          <RailTabButton
-            key={d.id}
-            label={d.rail.label}
-            icon={d.rail.icon}
-            active={d.id === activeSection}
-            onClick={(): void => onSelectSection(d.id)}
-          />
+          <RailTabButton key={d.id} label={d.rail.label} icon={d.rail.icon} active={d.id === activeSection} onClick={(): void => onSelectSection(d.id)} />
         ))}
         {youModal === undefined ? null : (
-          <RailTabButton
-            label={youModal.trigger.label}
-            icon={youModal.trigger.icon}
-            onClick={(): void => onOpenModal(youModal.id)}
-          />
+          <RailTabButton label={youModal.trigger.label} icon={youModal.trigger.icon} onClick={(): void => onOpenModal(youModal.id)} />
         )}
       </div>
     </nav>

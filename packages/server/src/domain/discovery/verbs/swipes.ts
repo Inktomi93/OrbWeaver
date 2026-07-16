@@ -20,12 +20,7 @@ export function createSwipes(ctx: DiscoveryContext): Pick<DiscoveryService, "swi
   };
 }
 
-async function swipeHotspots(
-  db: Db,
-  ownerId: UserId,
-  chatId: ChatId,
-  limit: number = DEFAULT_LIMIT,
-): Promise<SwipeHotspot[]> {
+async function swipeHotspots(db: Db, ownerId: UserId, chatId: ChatId, limit: number = DEFAULT_LIMIT): Promise<SwipeHotspot[]> {
   const rows = await readSwipeHotspots(db, ownerId, chatId, limit);
   return rows.map((r) => ({
     messageId: r.messageId,

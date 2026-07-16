@@ -95,10 +95,7 @@ export const characters = sqliteTable(
     // Card author's freeform version STRING (e.g. "1.2") — NEVER an int counter (D28).
     cardVersion: text("card_version"),
     // Typed promotion (D28): the card's regex scripts. ALWAYS a list; default `[]`, never null.
-    regexScripts: text("regex_scripts", { mode: "json" })
-      .$type<RegexScript[]>()
-      .notNull()
-      .default(sql`'[]'`),
+    regexScripts: text("regex_scripts", { mode: "json" }).$type<RegexScript[]>().notNull().default(sql`'[]'`),
     // Residual `data.extensions` MINUS the promoted-to-column fields — genuinely-unknown vendor extras only.
     extensions: text("extensions", { mode: "json" }).$type<Record<string, unknown>>(),
     // Residual TOP-LEVEL `data.*` keys MINUS the promoted-to-column fields (PD-127) — the sibling of

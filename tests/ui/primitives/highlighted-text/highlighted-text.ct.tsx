@@ -7,9 +7,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 
 const TEXT = "The quick brown fox jumps over the lazy dog";
 
-test("multiple non-overlapping ranges each render as a real mark with the correct text", async ({
-  mount,
-}) => {
+test("multiple non-overlapping ranges each render as a real mark with the correct text", async ({ mount }) => {
   const component = await mount(
     <HighlightedText
       text={TEXT}
@@ -26,9 +24,7 @@ test("multiple non-overlapping ranges each render as a real mark with the correc
   await expect(component).toContainText(TEXT);
 });
 
-test("overlapping ranges merge into a single mark (the chosen simplest-correct behavior)", async ({
-  mount,
-}) => {
+test("overlapping ranges merge into a single mark (the chosen simplest-correct behavior)", async ({ mount }) => {
   const component = await mount(
     <HighlightedText
       text={TEXT}
@@ -43,9 +39,7 @@ test("overlapping ranges merge into a single mark (the chosen simplest-correct b
   await expect(marks.first()).toHaveText("quick brown");
 });
 
-test("adjacent ranges (touching, non-overlapping offsets) also merge into one mark", async ({
-  mount,
-}) => {
+test("adjacent ranges (touching, non-overlapping offsets) also merge into one mark", async ({ mount }) => {
   const component = await mount(
     <HighlightedText
       text={TEXT}
@@ -86,16 +80,11 @@ test("the first highlight scrolls into view on mount", async ({ mount, page }) =
   );
 
   const scrollParent = page.getByTestId("scroll-parent");
-  await expect
-    .poll(() => scrollParent.evaluate((el) => el.scrollTop), { intervals: [20, 50, 100] })
-    .toBeGreaterThan(0);
+  await expect.poll(() => scrollParent.evaluate((el) => el.scrollTop), { intervals: [20, 50, 100] }).toBeGreaterThan(0);
   await expect(page.locator("mark")).toBeInViewport();
 });
 
-test("scroll-to-first re-fires when ranges changes to a new offset (the find-next case)", async ({
-  mount,
-  page,
-}) => {
+test("scroll-to-first re-fires when ranges changes to a new offset (the find-next case)", async ({ mount, page }) => {
   const line = "Lorem ipsum dolor sit amet, consectetur adipiscing elit.\n";
   const filler = line.repeat(200);
   const text = `${filler}FIRST${filler}SECOND`;
@@ -109,9 +98,7 @@ test("scroll-to-first re-fires when ranges changes to a new offset (the find-nex
     </div>,
   );
   const scrollParent = page.getByTestId("scroll-parent");
-  await expect
-    .poll(() => scrollParent.evaluate((el) => el.scrollTop), { intervals: [20, 50, 100] })
-    .toBeGreaterThan(0);
+  await expect.poll(() => scrollParent.evaluate((el) => el.scrollTop), { intervals: [20, 50, 100] }).toBeGreaterThan(0);
   const scrollAfterFirst = await scrollParent.evaluate((el) => el.scrollTop);
 
   await component.update(
@@ -120,15 +107,10 @@ test("scroll-to-first re-fires when ranges changes to a new offset (the find-nex
     </div>,
   );
 
-  await expect
-    .poll(() => scrollParent.evaluate((el) => el.scrollTop), { intervals: [20, 50, 100] })
-    .toBeGreaterThan(scrollAfterFirst);
+  await expect.poll(() => scrollParent.evaluate((el) => el.scrollTop), { intervals: [20, 50, 100] }).toBeGreaterThan(scrollAfterFirst);
 });
 
-test("a parent re-render with an equal-but-fresh ranges array does not re-fire the scroll", async ({
-  mount,
-  page,
-}) => {
+test("a parent re-render with an equal-but-fresh ranges array does not re-fire the scroll", async ({ mount, page }) => {
   const line = "Lorem ipsum dolor sit amet, consectetur adipiscing elit.\n";
   const filler = line.repeat(100);
   const text = `${filler}TARGET`;
@@ -140,9 +122,7 @@ test("a parent re-render with an equal-but-fresh ranges array does not re-fire t
     </div>,
   );
   const scrollParent = page.getByTestId("scroll-parent");
-  await expect
-    .poll(() => scrollParent.evaluate((el) => el.scrollTop), { intervals: [20, 50, 100] })
-    .toBeGreaterThan(0);
+  await expect.poll(() => scrollParent.evaluate((el) => el.scrollTop), { intervals: [20, 50, 100] }).toBeGreaterThan(0);
 
   // The reader scrolls back up to read from the top.
   await scrollParent.evaluate((el) => {

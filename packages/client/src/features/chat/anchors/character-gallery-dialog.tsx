@@ -24,11 +24,7 @@ import { ConfirmDialog } from "#components";
 import type { Trpc } from "#data";
 import { SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { GalleryGifSearchPanel } from "../components/gallery-gif-search-panel";
-import {
-  GALLERY_PAGE_LIMIT,
-  useAddToGallery,
-  useRemoveFromGallery,
-} from "../hooks/use-character-gallery";
+import { GALLERY_PAGE_LIMIT, useAddToGallery, useRemoveFromGallery } from "../hooks/use-character-gallery";
 
 type AddPickerMode = "owned" | "gifs";
 
@@ -73,14 +69,7 @@ interface GalleryGridBodyProps {
 }
 
 // Pending reads as a skeleton, never the empty state.
-function GalleryGridBody({
-  isPending,
-  gridItems,
-  galleryLabel,
-  characterName,
-  onActivate,
-  onAddClick,
-}: GalleryGridBodyProps): ReactElement {
+function GalleryGridBody({ isPending, gridItems, galleryLabel, characterName, onActivate, onAddClick }: GalleryGridBodyProps): ReactElement {
   if (isPending) {
     return <SkeletonRows count={6} shape="line" />;
   }
@@ -99,15 +88,7 @@ function GalleryGridBody({
       />
     );
   }
-  return (
-    <MediaGrid
-      items={gridItems}
-      ariaLabel={galleryLabel}
-      gapToken="row"
-      onActivate={onActivate}
-      className="max-h-96"
-    />
-  );
+  return <MediaGrid items={gridItems} ariaLabel={galleryLabel} gapToken="row" onActivate={onActivate} className="max-h-96" />;
 }
 
 export interface CharacterGalleryDialogProps {
@@ -117,12 +98,7 @@ export interface CharacterGalleryDialogProps {
   readonly characterName: string;
 }
 
-export function CharacterGalleryDialog({
-  open,
-  onOpenChange,
-  characterId,
-  characterName,
-}: CharacterGalleryDialogProps): ReactElement {
+export function CharacterGalleryDialog({ open, onOpenChange, characterId, characterName }: CharacterGalleryDialogProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const gallery = useQuery(
@@ -189,13 +165,7 @@ export function CharacterGalleryDialog({
             <Stack gap="block" className="min-h-0">
               <DialogTitle>Gallery image</DialogTitle>
               <Stack className="min-h-0 flex-1 overflow-y-auto">
-                <CrossfadeImage
-                  src={blobUrl(lightbox.hash)}
-                  alt="Gallery image"
-                  aspectRatio={1}
-                  fit="contain"
-                  className="max-h-96"
-                />
+                <CrossfadeImage src={blobUrl(lightbox.hash)} alt="Gallery image" aspectRatio={1} fit="contain" className="max-h-96" />
               </Stack>
               <Row justify="between" align="center" gap="row" className="shrink-0">
                 <Button intent="destructive" onClick={(): void => setRemoveConfirmOpen(true)}>
@@ -219,12 +189,7 @@ export function CharacterGalleryDialog({
         </DialogPopup>
       </Dialog>
 
-      <GalleryAddPicker
-        open={pickerOpen}
-        onOpenChange={setPickerOpen}
-        characterId={characterId}
-        existingAssetIds={existingAssetIds}
-      />
+      <GalleryAddPicker open={pickerOpen} onOpenChange={setPickerOpen} characterId={characterId} existingAssetIds={existingAssetIds} />
     </>
   );
 }
@@ -236,12 +201,7 @@ interface GalleryAddPickerProps {
   readonly existingAssetIds: ReadonlySet<AssetId>;
 }
 
-function GalleryAddPicker({
-  open,
-  onOpenChange,
-  characterId,
-  existingAssetIds,
-}: GalleryAddPickerProps): ReactElement {
+function GalleryAddPicker({ open, onOpenChange, characterId, existingAssetIds }: GalleryAddPickerProps): ReactElement {
   const [mode, setMode] = useState<AddPickerMode>("owned");
 
   const close = (next: boolean): void => {
@@ -271,11 +231,7 @@ function GalleryAddPicker({
           </ToggleGroup>
 
           {mode === "owned" ? (
-            <OwnedAssetPicker
-              characterId={characterId}
-              existingAssetIds={existingAssetIds}
-              onDone={(): void => close(false)}
-            />
+            <OwnedAssetPicker characterId={characterId} existingAssetIds={existingAssetIds} onDone={(): void => close(false)} />
           ) : (
             <GalleryGifSearchPanel characterId={characterId} />
           )}
@@ -291,20 +247,14 @@ interface OwnedAssetPickerProps {
   readonly onDone: () => void;
 }
 
-function OwnedAssetPicker({
-  characterId,
-  existingAssetIds,
-  onDone,
-}: OwnedAssetPickerProps): ReactElement {
+function OwnedAssetPicker({ characterId, existingAssetIds, onDone }: OwnedAssetPickerProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const owned = useQuery(trpc.assets.listOwned.queryOptions({ limit: GALLERY_PAGE_LIMIT }));
   const add = useAddToGallery({ trpc, invalidation });
   const [selected, setSelected] = useState<ReadonlySet<MediaGridKey>>(new Set());
 
-  const candidates = (owned.data ?? []).filter(
-    (a) => a.mime.startsWith("image/") && !existingAssetIds.has(a.assetId),
-  );
+  const candidates = (owned.data ?? []).filter((a) => a.mime.startsWith("image/") && !existingAssetIds.has(a.assetId));
   const gridItems = candidates.map(toOwnedGridItem);
 
   const toggle = (id: MediaGridKey): void => {
@@ -329,23 +279,9 @@ function OwnedAssetPicker({
   if (owned.isPending) {
     body = <SkeletonRows count={6} shape="line" />;
   } else if (candidates.length === 0) {
-    body = (
-      <EmptyState
-        icon={<Icon icon={Images} size="lg" />}
-        title="Nothing left to add"
-        description="Every image you own is already in this gallery."
-      />
-    );
+    body = <EmptyState icon={<Icon icon={Images} size="lg" />} title="Nothing left to add" description="Every image you own is already in this gallery." />;
   } else {
-    body = (
-      <MediaGrid
-        items={gridItems}
-        ariaLabel="Your images"
-        gapToken="row"
-        selection={{ selectedIds: selected, onToggle: toggle }}
-        className="max-h-96"
-      />
-    );
+    body = <MediaGrid items={gridItems} ariaLabel="Your images" gapToken="row" selection={{ selectedIds: selected, onToggle: toggle }} className="max-h-96" />;
   }
 
   return (

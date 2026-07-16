@@ -26,20 +26,10 @@
  */
 
 import process from "node:process";
-import type {
-  Options,
-  SDKMessage,
-  SDKUserMessage,
-  SessionStore,
-} from "@anthropic-ai/claude-agent-sdk";
+import type { Options, SDKMessage, SDKUserMessage, SessionStore } from "@anthropic-ai/claude-agent-sdk";
 import { query } from "@anthropic-ai/claude-agent-sdk";
 import type { ChatResult } from "@orb/server/infra/providers";
-import {
-  buildClaudeOpenRouterEnv,
-  buildClaudeSdkEnv,
-  consumeTurnStream,
-  firewallBase,
-} from "@orb/server/infra/providers/backends/agent-sdk";
+import { buildClaudeOpenRouterEnv, buildClaudeSdkEnv, consumeTurnStream, firewallBase } from "@orb/server/infra/providers/backends/agent-sdk";
 import { InMemorySessionStore } from "@orb/server/infra/providers/backends/agent-sdk/session";
 
 // ── CLI ────────────────────────────────────────────────────────────────────────────────────────────────
@@ -67,14 +57,8 @@ const TURN_CAP = 6;
 const TURN_FLOOR = 1;
 const DEFAULT_TURNS = 3;
 const DECIMAL_RADIX = 10;
-const REQUESTED_TURNS = Number.parseInt(
-  argValue("--turns") ?? String(DEFAULT_TURNS),
-  DECIMAL_RADIX,
-);
-const TURNS = Math.min(
-  Math.max(Number.isNaN(REQUESTED_TURNS) ? DEFAULT_TURNS : REQUESTED_TURNS, TURN_FLOOR),
-  TURN_CAP,
-);
+const REQUESTED_TURNS = Number.parseInt(argValue("--turns") ?? String(DEFAULT_TURNS), DECIMAL_RADIX);
+const TURNS = Math.min(Math.max(Number.isNaN(REQUESTED_TURNS) ? DEFAULT_TURNS : REQUESTED_TURNS, TURN_FLOOR), TURN_CAP);
 /** Per-turn watchdog — a wedged spawn/stream can't hang the probe (a cold worker boot fits in 45s). */
 const TURN_TIMEOUT_MS = 45_000;
 /** Reply excerpt length in verbose logs. */
@@ -96,12 +80,8 @@ const OR_PROBE_TIER_MODELS = {
 } as const;
 
 /** The per-mode firewall env — the SAME builders a real turn uses (mode-1 via catalog.ts's path). */
-function probeEnv(
-  overrides: Parameters<typeof buildClaudeSdkEnv>[0],
-): Record<string, string | undefined> {
-  return MODE === "or"
-    ? buildClaudeOpenRouterEnv(OR_PROBE_KEY, OR_PROBE_TIER_MODELS, overrides)
-    : buildClaudeSdkEnv(overrides);
+function probeEnv(overrides: Parameters<typeof buildClaudeSdkEnv>[0]): Record<string, string | undefined> {
+  return MODE === "or" ? buildClaudeOpenRouterEnv(OR_PROBE_KEY, OR_PROBE_TIER_MODELS, overrides) : buildClaudeSdkEnv(overrides);
 }
 
 // ── Fixtures ───────────────────────────────────────────────────────────────────────────────────────────
@@ -306,11 +286,7 @@ async function runHeldOpen(): Promise<void> {
  *  stream carries all N turns back-to-back; each `result` frame ends a turn. We drive the next prompt in
  *  as soon as a turn settles (the wall clock spans send→result), reusing the shared `consumeTurnStream`
  *  reducer per slice via a re-buffering async generator. */
-async function consumeHeldStream(
-  stream: AsyncIterable<SDKMessage>,
-  feed: PromptFeed,
-  abortController: AbortController,
-): Promise<void> {
+async function consumeHeldStream(stream: AsyncIterable<SDKMessage>, feed: PromptFeed, abortController: AbortController): Promise<void> {
   const iterator = stream[Symbol.asyncIterator]();
   for (let turn = 0; turn < TURNS; turn++) {
     const t0 = Date.now();
@@ -320,11 +296,7 @@ async function consumeHeldStream(
     // The watchdog aborts the WHOLE held-open query on a wedged turn, then rejects — so a stuck worker
     // can't grind quota and the verdict never prints a fabricated row.
     // biome-ignore lint/performance/noAwaitInLoops: turns are sequential BY DESIGN — the next prompt is released only after this turn's `result` frame settles, keeping per-turn attribution clean.
-    const r = await withWatchdog(
-      sliceOneTurn(iterator, turn + 1),
-      `held-open turn ${turn + 1}`,
-      () => abortController.abort(),
-    );
+    const r = await withWatchdog(sliceOneTurn(iterator, turn + 1), `held-open turn ${turn + 1}`, () => abortController.abort());
     push("held-open", turn + 1, Date.now() - t0, r);
   }
 }
@@ -333,10 +305,7 @@ async function consumeHeldStream(
  *  slice through `consumeTurnStream`. FAILS LOUDLY if the stream ends before this turn's `result` frame —
  *  a held-open turn that produced no result must NOT be silently recorded as a zero-usage row (that was
  *  the artifact the old single-user-turn bug printed). */
-async function sliceOneTurn(
-  iterator: AsyncIterator<SDKMessage>,
-  turn: number,
-): Promise<ChatResult> {
+async function sliceOneTurn(iterator: AsyncIterator<SDKMessage>, turn: number): Promise<ChatResult> {
   const slice: SDKMessage[] = [];
   let sawResult = false;
   for (;;) {
@@ -388,9 +357,7 @@ function report(): void {
   const spawnSavedMs = baseWall - heldWall;
 
   console.log("\n=== verdict (warm turns, ≥2) ===");
-  console.log(
-    `mode=${MODE === "or" ? "mode-2 OR skin" : "mode-1 Max sub"} model=${MODEL} turns=${TURNS}`,
-  );
+  console.log(`mode=${MODE === "or" ? "mode-2 OR skin" : "mode-1 Max sub"} model=${MODEL} turns=${TURNS}`);
   console.log(
     `spawn overhead saved/turn ≈ ${spawnSavedMs.toFixed(0)}ms ` +
       `(baseline warm wall ${baseWall.toFixed(0)}ms − held-open warm wall ${heldWall.toFixed(0)}ms)`,
@@ -403,9 +370,7 @@ function report(): void {
 
 // ── Main ───────────────────────────────────────────────────────────────────────────────────────────────
 async function main(): Promise<void> {
-  console.log(
-    `sdk-session-probe — model=${MODEL} (${MODE === "or" ? "mode-2 OR skin" : "mode-1 Max sub"}; spends real quota/credits; turns=${TURNS})\n`,
-  );
+  console.log(`sdk-session-probe — model=${MODEL} (${MODE === "or" ? "mode-2 OR skin" : "mode-1 Max sub"}; spends real quota/credits; turns=${TURNS})\n`);
   console.log("── baseline (fresh query per turn, resume by session) ──");
   await runBaseline();
   console.log("── held-open (one query, streamInput batch) ──");

@@ -11,16 +11,7 @@ import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
-import {
-  EMBED_MODEL,
-  IMAGE_EMBED_MODEL,
-  makeIndexerHarness,
-  makeStoreHarness,
-  seedAsset,
-  seedCharacter,
-  seedUser,
-  TEST_CAPTION,
-} from "../_support.ts";
+import { EMBED_MODEL, IMAGE_EMBED_MODEL, makeIndexerHarness, makeStoreHarness, seedAsset, seedCharacter, seedUser, TEST_CAPTION } from "../_support.ts";
 
 const CARD_TEXT = "Bryn — a lighthouse keeper who collects shipwreck letters.";
 const IMG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 5, 6, 7, 8]);
@@ -43,10 +34,7 @@ describe("onCharacterUpdated", () => {
 
     expect(ih.loadCardText).toHaveBeenCalledWith(characterId);
     expect(storeH.roleClients.embed).toHaveBeenCalledTimes(1);
-    const rows = await db
-      .select()
-      .from(characterEmbeddings)
-      .where(eq(characterEmbeddings.characterId, characterId));
+    const rows = await db.select().from(characterEmbeddings).where(eq(characterEmbeddings.characterId, characterId));
     expect(rows).toHaveLength(1);
     expect(rows[0]?.model).toBe(EMBED_MODEL);
   });
@@ -94,12 +82,7 @@ describe("onCharacterUpdated — a flag edit triggers ZERO embed work (owner rul
     // Zero embed AND zero canon read (the skip is BEFORE loadCardText) AND no vector row.
     expect(storeH.roleClients.embed).not.toHaveBeenCalled();
     expect(ih.loadCardText).not.toHaveBeenCalled();
-    expect(
-      await db
-        .select()
-        .from(characterEmbeddings)
-        .where(eq(characterEmbeddings.characterId, characterId)),
-    ).toHaveLength(0);
+    expect(await db.select().from(characterEmbeddings).where(eq(characterEmbeddings.characterId, characterId))).toHaveLength(0);
   });
 
   test("a content edit (contentChanged=true) embeds a NEVER-embedded card", async () => {
@@ -118,12 +101,7 @@ describe("onCharacterUpdated — a flag edit triggers ZERO embed work (owner rul
     });
 
     expect(storeH.roleClients.embed).toHaveBeenCalledTimes(1);
-    expect(
-      await db
-        .select()
-        .from(characterEmbeddings)
-        .where(eq(characterEmbeddings.characterId, characterId)),
-    ).toHaveLength(1);
+    expect(await db.select().from(characterEmbeddings).where(eq(characterEmbeddings.characterId, characterId))).toHaveLength(1);
   });
 
   // Belt 2 (the store content-hash gate): even for a content event, an UNCHANGED projected embed text (a
@@ -168,12 +146,7 @@ describe("onCharacterUpdated — a flag edit triggers ZERO embed work (owner rul
 
     expect(storeH.roleClients.embed).toHaveBeenCalledTimes(2);
     // Still one row per (character, model) — the second embed UPSERTs the vector, it does not duplicate.
-    expect(
-      await db
-        .select()
-        .from(characterEmbeddings)
-        .where(eq(characterEmbeddings.characterId, characterId)),
-    ).toHaveLength(1);
+    expect(await db.select().from(characterEmbeddings).where(eq(characterEmbeddings.characterId, characterId))).toHaveLength(1);
   });
 });
 
@@ -192,10 +165,7 @@ describe("onAssetCreated", () => {
     expect(ih.loadAssetBytes).toHaveBeenCalledWith(assetId);
     expect(storeH.roleClients.summarize).toHaveBeenCalledTimes(1);
     expect(storeH.roleClients.imageEmbed).toHaveBeenCalledTimes(2);
-    const rows = await db
-      .select()
-      .from(imageEmbeddings)
-      .where(eq(imageEmbeddings.assetId, assetId));
+    const rows = await db.select().from(imageEmbeddings).where(eq(imageEmbeddings.assetId, assetId));
     expect(rows).toHaveLength(2);
     expect(rows.every((r) => r.model === IMAGE_EMBED_MODEL)).toBe(true);
     expect(rows.find((r) => r.lens === "image-raw")?.caption).toBeNull();

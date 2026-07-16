@@ -21,12 +21,7 @@ interface ShapeStages {
 
 /** Why SHAPE did / didn't place the §8 cache breakpoint — the abort taxonomy, content-free. The axis is
  *  declared once as a tuple and DERIVED (no inline-union re-spell; §7.5). */
-const BREAKPOINT_DECISIONS = [
-  "placed",
-  "no-stable-prefix",
-  "in-prefix-injection-or-squash",
-  "second-volatile-tail",
-] as const;
+const BREAKPOINT_DECISIONS = ["placed", "no-stable-prefix", "in-prefix-injection-or-squash", "second-volatile-tail"] as const;
 type BreakpointDecision = (typeof BREAKPOINT_DECISIONS)[number];
 
 interface ShapeTrace {
@@ -54,10 +49,7 @@ interface ShapeTrace {
  *   • a prefix-internal squash merged  → "in-prefix-injection-or-squash"
  *   • otherwise (a nudge/continuation appended a second tail) → "second-volatile-tail"
  */
-export function buildShapeTrace(
-  stages: ShapeStages,
-  cacheBreakpointFromEnd: number | undefined,
-): ShapeTrace {
+export function buildShapeTrace(stages: ShapeStages, cacheBreakpointFromEnd: number | undefined): ShapeTrace {
   const squashMerges = stages.injected.length - stages.squashed.length;
   const stableCount = stages.withTail.length - 1;
   let breakpointDecision: BreakpointDecision;

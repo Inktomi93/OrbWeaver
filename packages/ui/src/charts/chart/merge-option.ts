@@ -14,10 +14,7 @@ export interface MergeChartOptionParams {
  * overridable when `reducedMotion` is true; otherwise the caller's `option.animation` is honored,
  * defaulting to `true`).
  */
-export function mergeChartOption(
-  option: OrbChartOption,
-  { label, reducedMotion }: MergeChartOptionParams,
-): OrbChartOption {
+export function mergeChartOption(option: OrbChartOption, { label, reducedMotion }: MergeChartOptionParams): OrbChartOption {
   return {
     aria: { enabled: true, decal: { show: false }, label: { description: label } },
     ...option,

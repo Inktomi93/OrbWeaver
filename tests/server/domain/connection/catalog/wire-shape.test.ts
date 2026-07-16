@@ -4,19 +4,10 @@
 
 import type { CredentialSource } from "@orb/contracts/connection";
 import { describe } from "vitest";
-import {
-  deriveWireShape,
-  WIRE_SHAPES,
-} from "../../../../../packages/server/src/domain/connection/catalog/wire-shape.ts";
+import { deriveWireShape, WIRE_SHAPES } from "../../../../../packages/server/src/domain/connection/catalog/wire-shape.ts";
 import { expect, test } from "../../../../support/fixtures";
 
-const SOURCES: readonly CredentialSource[] = [
-  "max-pro-sub",
-  "openrouter",
-  "vllm",
-  "local-light",
-  "custom_openai",
-];
+const SOURCES: readonly CredentialSource[] = ["max-pro-sub", "openrouter", "vllm", "local-light", "custom_openai"];
 
 describe("deriveWireShape — the (api, source) → wire-shape key", () => {
   test("chat-completions → openai-compat for EVERY source (api-determined)", () => {
@@ -40,12 +31,7 @@ describe("deriveWireShape — the (api, source) → wire-shape key", () => {
   });
 
   test("every produced shape is a member of the WIRE_SHAPES union (no orphan string)", () => {
-    for (const api of [
-      "chat-completions",
-      "responses",
-      "agent-sdk",
-      "anthropic-messages",
-    ] as const) {
+    for (const api of ["chat-completions", "responses", "agent-sdk", "anthropic-messages"] as const) {
       expect(WIRE_SHAPES).toContain(deriveWireShape(api, "openrouter"));
     }
   });

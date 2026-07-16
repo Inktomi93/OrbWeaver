@@ -15,11 +15,7 @@ interface DuplicatePair {
 }
 
 /** hubs is index-aligned to vecs; pass all-zero hubs for a pure-cosine ranking. Returned pairs are unsorted. */
-export function pairsAboveThreshold(
-  vecs: readonly Float32Array[],
-  hubs: readonly number[],
-  threshold: number,
-): DuplicatePair[] {
+export function pairsAboveThreshold(vecs: readonly Float32Array[], hubs: readonly number[], threshold: number): DuplicatePair[] {
   const n = vecs.length;
   if (n < 2) {
     return [];

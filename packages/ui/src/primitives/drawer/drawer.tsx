@@ -26,9 +26,7 @@ const SWIPE_BY_SIDE: Record<DrawerSide, "down" | "left" | "right"> = {
   right: "right",
 };
 
-export interface DrawerProps<Payload = unknown>
-  extends Omit<BaseRootProps<Payload>, "swipeDirection">,
-    VariantProps<typeof drawerVariants> {}
+export interface DrawerProps<Payload = unknown> extends Omit<BaseRootProps<Payload>, "swipeDirection">, VariantProps<typeof drawerVariants> {}
 
 /**
  * Drawer root — seals Base UI Drawer (swipe-to-dismiss, focus trap, Esc, scroll lock come free).
@@ -47,9 +45,7 @@ export function DrawerTrigger<Payload = unknown>(props: BaseTriggerProps<Payload
   return <BaseDrawer.Trigger {...props} />;
 }
 
-export interface DrawerPopupProps
-  extends Omit<BasePopupProps, "className">,
-    VariantProps<typeof drawerVariants> {
+export interface DrawerPopupProps extends Omit<BasePopupProps, "className">, VariantProps<typeof drawerVariants> {
   className?: string;
   /** Portal target — defaults to the themed portal root from context; an explicit node/ref overrides. */
   container?: BasePortalProps["container"];
@@ -71,11 +67,7 @@ export function DrawerPopup(props: DrawerPopupProps): ReactElement {
   const slots = drawerVariants({ side });
   return (
     <BaseDrawer.Portal container={container ?? portalContainer} keepMounted={keepMounted}>
-      <BaseDrawer.Backdrop
-        className={slots.backdrop()}
-        data-slot="drawer-backdrop"
-        forceRender={forceRender}
-      />
+      <BaseDrawer.Backdrop className={slots.backdrop()} data-slot="drawer-backdrop" forceRender={forceRender} />
       <BaseDrawer.Viewport className={slots.viewport()} data-slot="drawer-viewport">
         <BaseDrawer.Popup className={slots.popup({ className })} data-slot="drawer-popup" {...rest}>
           <BaseDrawer.Content className={slots.content()} data-slot="drawer-content">
@@ -104,9 +96,7 @@ export interface DrawerDescriptionProps extends Omit<BaseDescriptionProps, "clas
 /** Supporting copy under the drawer title (wired to `aria-describedby`). */
 export function DrawerDescription(props: DrawerDescriptionProps): ReactElement {
   const { className, ...rest } = props;
-  return (
-    <BaseDrawer.Description className={drawerVariants().description({ className })} {...rest} />
-  );
+  return <BaseDrawer.Description className={drawerVariants().description({ className })} {...rest} />;
 }
 
 /** Closes the drawer. Unstyled passthrough — compose your own control via `render`. */
@@ -114,9 +104,7 @@ export function DrawerClose(props: BaseCloseProps): ReactElement {
   return <BaseDrawer.Close {...props} />;
 }
 
-export interface DrawerSwipeAreaProps
-  extends Omit<BaseSwipeAreaProps, "className">,
-    VariantProps<typeof drawerVariants> {
+export interface DrawerSwipeAreaProps extends Omit<BaseSwipeAreaProps, "className">, VariantProps<typeof drawerVariants> {
   className?: string;
 }
 
@@ -127,13 +115,7 @@ export interface DrawerSwipeAreaProps
 export function DrawerSwipeArea(props: DrawerSwipeAreaProps): ReactElement {
   const { className, side, ...rest } = props;
   const slots = drawerVariants({ side });
-  return (
-    <BaseDrawer.SwipeArea
-      className={slots.swipeArea({ className })}
-      data-slot="drawer-swipe-area"
-      {...rest}
-    />
-  );
+  return <BaseDrawer.SwipeArea className={slots.swipeArea({ className })} data-slot="drawer-swipe-area" {...rest} />;
 }
 
 /**
@@ -141,6 +123,7 @@ export function DrawerSwipeArea(props: DrawerSwipeAreaProps): ReactElement {
  * the DrawerIndent/DrawerIndentBackground depth effect. Renders no element.
  */
 export function DrawerProvider(props: BaseProviderProps): ReactElement {
+  // @orb-gate-ignore no-context-provider Base UI's Drawer.Provider is a namespace COMPONENT, not a React Context — the React-19 `<Context.Provider>` deprecation the gate targets doesn't apply.
   return <BaseDrawer.Provider {...props} />;
 }
 
@@ -154,13 +137,7 @@ export interface DrawerIndentProps extends Omit<BaseIndentProps, "className"> {
  */
 export function DrawerIndent(props: DrawerIndentProps): ReactElement {
   const { className, ...rest } = props;
-  return (
-    <BaseDrawer.Indent
-      className={drawerVariants().indent({ className })}
-      data-slot="drawer-indent"
-      {...rest}
-    />
-  );
+  return <BaseDrawer.Indent className={drawerVariants().indent({ className })} data-slot="drawer-indent" {...rest} />;
 }
 
 export interface DrawerIndentBackgroundProps extends Omit<BaseIndentBackgroundProps, "className"> {
@@ -173,13 +150,7 @@ export interface DrawerIndentBackgroundProps extends Omit<BaseIndentBackgroundPr
  */
 export function DrawerIndentBackground(props: DrawerIndentBackgroundProps): ReactElement {
   const { className, ...rest } = props;
-  return (
-    <BaseDrawer.IndentBackground
-      className={drawerVariants().indentBackground({ className })}
-      data-slot="drawer-indent-background"
-      {...rest}
-    />
-  );
+  return <BaseDrawer.IndentBackground className={drawerVariants().indentBackground({ className })} data-slot="drawer-indent-background" {...rest} />;
 }
 
 /**
@@ -187,8 +158,6 @@ export function DrawerIndentBackground(props: DrawerIndentBackgroundProps): Reac
  * the mobile soft keyboard via `--drawer-keyboard-inset`. Must sit inside `<Drawer>` wrapping the
  * popup, not around the whole Drawer.
  */
-export function DrawerVirtualKeyboardProvider(
-  props: BaseVirtualKeyboardProviderProps,
-): ReactElement {
+export function DrawerVirtualKeyboardProvider(props: BaseVirtualKeyboardProviderProps): ReactElement {
   return <BaseDrawer.VirtualKeyboardProvider {...props} />;
 }

@@ -6,31 +6,16 @@
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { cardContentHash } from "#kit/serde/card";
 import type { CharacterContext } from "../context";
-import {
-  CHARACTER_HANDLE_RESERVED,
-  CharacterNotFoundError,
-  CharacterOperationError,
-} from "../contract/errors";
+import { CHARACTER_HANDLE_RESERVED, CharacterNotFoundError, CharacterOperationError } from "../contract/errors";
 import type { UpdateCharacterParams } from "../contract/params";
 import type { CharacterService } from "../contract/service";
 import { writeCardInPlace } from "../persistence/card";
-import {
-  canonicalTagsOf,
-  cardOf,
-  detailOf,
-  ensureAssetOwned,
-  loadOwnedCharacterRow,
-  loadOwnedCharacterWithAvatar,
-} from "../persistence/queries";
+import { canonicalTagsOf, cardOf, detailOf, ensureAssetOwned, loadOwnedCharacterRow, loadOwnedCharacterWithAvatar } from "../persistence/queries";
 import { changedCardFields, flagEdits, mergeCard } from "../substrate/card-merge";
 import { cardTokenSize } from "../substrate/card-tokens";
 import { isReservedGroupHandle } from "../substrate/group-character";
 
-function changedIdentityFields(
-  input: UpdateCharacterParams["input"],
-  current: Record<string, unknown>,
-  handleChanged: boolean,
-): string[] {
+function changedIdentityFields(input: UpdateCharacterParams["input"], current: Record<string, unknown>, handleChanged: boolean): string[] {
   const flags = Object.entries(flagEdits(input))
     .filter(([key, value]) => JSON.stringify(value) !== JSON.stringify(current[key]))
     .map(([key]) => key);
@@ -39,10 +24,7 @@ function changedIdentityFields(
 
 function guardHandle(input: UpdateCharacterParams["input"]): void {
   if (input.handle !== undefined && isReservedGroupHandle(input.handle)) {
-    throw new CharacterOperationError(
-      CHARACTER_HANDLE_RESERVED,
-      `handle "${input.handle}" is reserved for synthetic group characters`,
-    );
+    throw new CharacterOperationError(CHARACTER_HANDLE_RESERVED, `handle "${input.handle}" is reserved for synthetic group characters`);
   }
 }
 
@@ -70,9 +52,7 @@ async function applyEdit(
     tokenSize: cardTokenSize(next),
     ...flagEdits(input),
     // Inline narrow: exactOptionalPropertyTypes rejects `handle: string | undefined` against the required column.
-    ...(input.handle !== undefined && input.handle !== current.handle
-      ? { handle: input.handle }
-      : {}),
+    ...(input.handle !== undefined && input.handle !== current.handle ? { handle: input.handle } : {}),
   });
   if (!written) {
     throw new CharacterNotFoundError(characterId);
@@ -86,10 +66,7 @@ async function applyEdit(
       entityType: "character",
       entityId: characterId,
       metadata: {
-        fields: [
-          ...changedCardFields(cardOf(current), next),
-          ...changedIdentityFields(input, current, handleChanged),
-        ],
+        fields: [...changedCardFields(cardOf(current), next), ...changedIdentityFields(input, current, handleChanged)],
       },
     },
     at,

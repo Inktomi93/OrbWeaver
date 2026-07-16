@@ -30,8 +30,7 @@ const RATE_LIMIT_AUTHED_DEFAULT = 600;
 // Load a local .env before parsing. override:true so a checked-in dev .env wins over a stale shell
 // export. Two escape hatches (VITEST, ORB_ENV_NO_OVERRIDE=1) keep the override from fighting a one-off
 // invocation that wants its own shell vars honored.
-const skipOverride =
-  process.env["VITEST"] !== undefined || process.env["ORB_ENV_NO_OVERRIDE"] !== undefined;
+const skipOverride = process.env["VITEST"] !== undefined || process.env["ORB_ENV_NO_OVERRIDE"] !== undefined;
 loadDotenv({ override: !skipOverride, quiet: true });
 
 const envSchema = z
@@ -179,13 +178,7 @@ const envSchema = z
     // Fail fast at boot if oidc is selected without the credentials to run it — a misconfigured deploy
     // must not silently fall back to owner-on-the-public-FQDN.
     if (val.AUTH_MODE === "oidc") {
-      const required = [
-        "OIDC_ISSUER",
-        "OIDC_CLIENT_ID",
-        "OIDC_CLIENT_SECRET",
-        "OIDC_REDIRECT_URIS",
-        "SESSION_SECRET",
-      ] as const;
+      const required = ["OIDC_ISSUER", "OIDC_CLIENT_ID", "OIDC_CLIENT_SECRET", "OIDC_REDIRECT_URIS", "SESSION_SECRET"] as const;
       for (const key of required) {
         if (val[key] === undefined) {
           ctx.addIssue({

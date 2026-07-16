@@ -17,23 +17,13 @@ export interface RoomOverridesTabProps {
   readonly isHost: boolean;
 }
 
-export function RoomOverridesTab({
-  chatId,
-  roomOverrides,
-  isHost,
-}: RoomOverridesTabProps): ReactElement {
+export function RoomOverridesTab({ chatId, roomOverrides, isHost }: RoomOverridesTabProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const setOverrides = useSetRoomOverrides({ trpc, invalidation });
-  const save = (overrides: RoomOverrides): Promise<unknown> =>
-    setOverrides.mutateAsync({ chatId, overrides }).catch(() => undefined);
+  const save = (overrides: RoomOverrides): Promise<unknown> => setOverrides.mutateAsync({ chatId, overrides }).catch(() => undefined);
 
   return (
-    <RoomOverridesForm
-      entityId={`${ROOM_OVERRIDES_ENTITY_PREFIX}${chatId}`}
-      roomOverrides={roomOverrides}
-      isHost={isHost}
-      save={isHost ? save : undefined}
-    />
+    <RoomOverridesForm entityId={`${ROOM_OVERRIDES_ENTITY_PREFIX}${chatId}`} roomOverrides={roomOverrides} isHost={isHost} save={isHost ? save : undefined} />
   );
 }

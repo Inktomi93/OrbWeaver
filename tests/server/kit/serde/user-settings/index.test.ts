@@ -68,9 +68,7 @@ describe("parseUserSettingsBackup", () => {
   test("null for non-JSON / empty / foreign schemaKind", () => {
     expect(parseUserSettingsBackup(new TextEncoder().encode("{nope"))).toBeNull();
     expect(parseUserSettingsBackup(new Uint8Array())).toBeNull();
-    const foreign = new TextEncoder().encode(
-      JSON.stringify({ schemaKind: "orb.theme", schemaVersion: 1, settings: {} }),
-    );
+    const foreign = new TextEncoder().encode(JSON.stringify({ schemaKind: "orb.theme", schemaVersion: 1, settings: {} }));
     expect(parseUserSettingsBackup(foreign)).toBeNull();
   });
 

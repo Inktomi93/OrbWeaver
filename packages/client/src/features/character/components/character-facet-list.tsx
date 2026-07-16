@@ -13,11 +13,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import type { AppFormInstance } from "#forms";
 import type { CharacterCardFacet } from "../lib/character-card-facets";
-import {
-  CHARACTER_CARD_FACETS,
-  CHARACTER_FACET_TIER_LABELS,
-  CHARACTER_FACET_TIERS,
-} from "../lib/character-card-facets";
+import { CHARACTER_CARD_FACETS, CHARACTER_FACET_TIER_LABELS, CHARACTER_FACET_TIERS } from "../lib/character-card-facets";
 import type { CharacterCardFormValues } from "../lib/character-card-form-model";
 import { CharacterFacetRow } from "./character-facet-row";
 
@@ -46,7 +42,13 @@ function facetFilled(id: CharacterCardFacet["id"], values: CharacterCardFormValu
       return values.regexScripts.length > 0;
     case "provenance":
       return values.creator.trim() !== "" || values.cardVersion.trim() !== "";
-    default:
+    case "description":
+    case "personality":
+    case "scenario":
+    case "exampleMessages":
+    case "systemPrompt":
+    case "postHistoryInstructions":
+    case "creatorNotes":
       return values[id].trim() !== "";
   }
 }
@@ -61,17 +63,17 @@ function facetTokens(id: CharacterCardFacet["id"], values: CharacterCardFormValu
     case "provenance":
     case "regexScripts":
       return null;
-    default:
+    case "description":
+    case "personality":
+    case "scenario":
+    case "exampleMessages":
+    case "systemPrompt":
+    case "postHistoryInstructions":
       return estimateTokens(values[id]);
   }
 }
 
-export function CharacterFacetList({
-  form,
-  selectedFacetId,
-  focusFacetId,
-  onSelect,
-}: CharacterFacetListProps): ReactElement {
+export function CharacterFacetList({ form, selectedFacetId, focusFacetId, onSelect }: CharacterFacetListProps): ReactElement {
   return (
     <form.Subscribe selector={(s): CharacterCardFormValues => s.values}>
       {(values): ReactElement => (

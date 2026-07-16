@@ -187,9 +187,7 @@ async function main(): Promise<void> {
       const res = await fetch(url, { method: req.method });
       fired += 1;
       const rid = res.headers.get("x-request-id");
-      process.stderr.write(
-        `probe-fire: ${req.method} ${req.path} → ${res.status} (rid=${rid ?? "?"})\n`,
-      );
+      process.stderr.write(`probe-fire: ${req.method} ${req.path} → ${res.status} (rid=${rid ?? "?"})\n`);
       if (rid === null) {
         missingRid += 1;
       } else {
@@ -212,9 +210,7 @@ async function main(): Promise<void> {
       headers: { "x-debug-token": debugToken },
     });
     if (!detailRes.ok) {
-      process.stderr.write(
-        `probe-fire: no trace recorded for rid=${rid} (HTTP ${detailRes.status})\n`,
-      );
+      process.stderr.write(`probe-fire: no trace recorded for rid=${rid} (HTTP ${detailRes.status})\n`);
       continue;
     }
     const trace = (await detailRes.json()) as RequestTrace;

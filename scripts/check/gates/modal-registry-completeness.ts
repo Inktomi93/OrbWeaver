@@ -85,12 +85,7 @@ function claim(key: string, def: ModalDef, seen: Map<string, Seen>): Seen | unde
   return firstOwner;
 }
 
-function checkModalDef(
-  def: ModalDef,
-  out: Violation[],
-  seenIds: Map<string, Seen>,
-  seenSingletons: Map<string, Seen>,
-): void {
+function checkModalDef(def: ModalDef, out: Violation[], seenIds: Map<string, Seen>, seenSingletons: Map<string, Seen>): void {
   const id = modalId(def.init);
   const idOwner = id === undefined ? undefined : claim(id, def, seenIds);
   if (idOwner !== undefined) {
@@ -101,10 +96,7 @@ function checkModalDef(
     });
   }
   const placement = triggerPlacement(def.init);
-  const singletonOwner =
-    placement !== undefined && SINGLETON_PLACEMENTS.has(placement)
-      ? claim(placement, def, seenSingletons)
-      : undefined;
+  const singletonOwner = placement !== undefined && SINGLETON_PLACEMENTS.has(placement) ? claim(placement, def, seenSingletons) : undefined;
   if (singletonOwner !== undefined) {
     out.push({
       file: rel(def.path),
@@ -122,12 +114,7 @@ function checkModalDef(
   }
 }
 
-function checkModalDefs(
-  sf: SourceFile,
-  out: Violation[],
-  seenIds: Map<string, Seen>,
-  seenSingletons: Map<string, Seen>,
-): void {
+function checkModalDefs(sf: SourceFile, out: Violation[], seenIds: Map<string, Seen>, seenSingletons: Map<string, Seen>): void {
   const path = sf.getFilePath();
   const coLocated = MODAL_FILE_RE.test(path);
   for (const decl of sf.getVariableDeclarations()) {
@@ -209,28 +196,23 @@ export const gate: GateDescriptor = {
       why: "a ModalDefinition outside a `*-modal` file — the co-location arm",
     },
     {
-      files:
-        "export const xModal: ModalDefinition = { id: 'x', trigger: { placement: 'content' }, body: { planned: '' } };\n",
+      files: "export const xModal: ModalDefinition = { id: 'x', trigger: { placement: 'content' }, body: { planned: '' } };\n",
       at: "packages/client/src/features/x/lib/x-modal.ts",
       expect: { messageIncludes: "empty" },
       why: "a DECLARED-PLANNED modal with an empty reason — the planned-reason arm",
     },
     {
       files: {
-        "packages/client/src/features/a/lib/a-modal.ts":
-          "export const aModal: ModalDefinition = { id: 'x', trigger: { placement: 'avatar' } };\n",
-        "packages/client/src/features/b/lib/b-modal.ts":
-          "export const bModal: ModalDefinition = { id: 'y', trigger: { placement: 'avatar' } };\n",
+        "packages/client/src/features/a/lib/a-modal.ts": "export const aModal: ModalDefinition = { id: 'x', trigger: { placement: 'avatar' } };\n",
+        "packages/client/src/features/b/lib/b-modal.ts": "export const bModal: ModalDefinition = { id: 'y', trigger: { placement: 'avatar' } };\n",
       },
       expect: { messageIncludes: "singleton placement" },
       why: "two modals claiming the `avatar` singleton placement — the singleton-placement arm",
     },
     {
       files: {
-        "packages/client/src/features/a/lib/a-modal.ts":
-          "export const aModal: ModalDefinition = { id: 'dup', trigger: { placement: 'content' } };\n",
-        "packages/client/src/features/b/lib/b-modal.ts":
-          "export const bModal: ModalDefinition = { id: 'dup', trigger: { placement: 'content' } };\n",
+        "packages/client/src/features/a/lib/a-modal.ts": "export const aModal: ModalDefinition = { id: 'dup', trigger: { placement: 'content' } };\n",
+        "packages/client/src/features/b/lib/b-modal.ts": "export const bModal: ModalDefinition = { id: 'dup', trigger: { placement: 'content' } };\n",
       },
       expect: { messageIncludes: "already claimed by" },
       why: "two co-located ModalDefinitions declaring the SAME id — the shadow-def duplicate-id arm",
@@ -244,14 +226,12 @@ export const gate: GateDescriptor = {
   ],
   mustPass: [
     {
-      files:
-        "export const themeModal: ModalDefinition = { id: 'theme', trigger: { placement: 'rail-footer' }, body: () => null };\n",
+      files: "export const themeModal: ModalDefinition = { id: 'theme', trigger: { placement: 'rail-footer' }, body: () => null };\n",
       at: "packages/client/src/features/settings/lib/theme-modal.tsx",
       why: "a FULL co-located modal (function body, repeatable rail-footer placement) — passes",
     },
     {
-      files:
-        "export const draftModal: ModalDefinition = { id: 'draft', trigger: { placement: 'content' }, body: { planned: 'build pending' } };\n",
+      files: "export const draftModal: ModalDefinition = { id: 'draft', trigger: { placement: 'content' }, body: { planned: 'build pending' } };\n",
       at: "packages/client/src/features/x/lib/draft-modal.tsx",
       why: "a DECLARED-PLANNED modal — non-empty reason, no function body — passes",
     },

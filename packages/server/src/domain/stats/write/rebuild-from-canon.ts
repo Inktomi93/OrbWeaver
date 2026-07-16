@@ -5,15 +5,7 @@
 // Owner-scoping is membership-derived: the owner's chats are those with a character participant they own.
 
 import type { BatchStmt, Db } from "@orb/db";
-import {
-  batchMany,
-  characterStats,
-  chunkRows,
-  dailyStats,
-  modelStats,
-  ownerStats,
-  rowsPerInsert,
-} from "@orb/db";
+import { batchMany, characterStats, chunkRows, dailyStats, modelStats, ownerStats, rowsPerInsert } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { utcDay, wordCount } from "@orb/kit/stats-tally";
@@ -187,7 +179,7 @@ const freshOwner = (): OwnerAccum => ({
 
 function get<V>(map: Map<string, V>, key: string, mk: () => V): V {
   let v = map.get(key);
-  if (!v) {
+  if (v === undefined) {
     v = mk();
     map.set(key, v);
   }
@@ -249,11 +241,10 @@ interface ReconcileOpts {
 /** Full rebuild of the stats rollups from canon. `ownerId` scopes to one user; omit to rebuild every owner
  *  that owns a character. Aborts cooperatively between owners via `signal`. */
 export async function reconcileStats(db: Db, opts: ReconcileOpts): Promise<ReconcileStatsResult> {
-  const owners = opts.ownerId
-    ? [opts.ownerId]
-    : (
-        await db.all<{ ownerId: string }>(sql`SELECT DISTINCT owner_id AS ownerId FROM characters`)
-      ).map((r) => r.ownerId);
+  const owners =
+    opts.ownerId !== undefined && opts.ownerId !== ""
+      ? [opts.ownerId]
+      : (await db.all<{ ownerId: string }>(sql`SELECT DISTINCT owner_id AS ownerId FROM characters`)).map((r) => r.ownerId);
 
   const now = opts.now();
   let totalChars = 0;
@@ -607,11 +598,7 @@ function ownerExtrema(owner: OwnerAccum, meta: ChatMeta): void {
   owner.firstChatAt = first;
 }
 
-function buildCharRows(
-  charMap: Map<string, CharAccum>,
-  meta: ChatMeta,
-  now: number,
-): (typeof characterStats.$inferInsert)[] {
+function buildCharRows(charMap: Map<string, CharAccum>, meta: ChatMeta, now: number): (typeof characterStats.$inferInsert)[] {
   return [...charMap.entries()].map(([characterId, c]) => {
     const m = meta.chatByChar.get(characterId);
     const lastActivityAt = Math.max(c.lastMsgAt, m?.maxChatUpdated ?? 0) || null;
@@ -644,12 +631,7 @@ function buildCharRows(
   });
 }
 
-function buildOwnerRow(
-  ownerId: UserId,
-  owner: OwnerAccum,
-  meta: ChatMeta,
-  now: number,
-): typeof ownerStats.$inferInsert {
+function buildOwnerRow(ownerId: UserId, owner: OwnerAccum, meta: ChatMeta, now: number): typeof ownerStats.$inferInsert {
   return {
     ownerId,
     characters: meta.library.characters,
@@ -681,12 +663,7 @@ function buildOwnerRow(
   };
 }
 
-function buildDayRows(
-  ownerId: UserId,
-  dayMap: Map<string, DayAccum>,
-  meta: ChatMeta,
-  now: number,
-): (typeof dailyStats.$inferInsert)[] {
+function buildDayRows(ownerId: UserId, dayMap: Map<string, DayAccum>, meta: ChatMeta, now: number): (typeof dailyStats.$inferInsert)[] {
   const dayKeys = new Set([...dayMap.keys(), ...meta.chatsCreatedByDay.keys()]);
   return [...dayKeys].map((day) => {
     const d = dayMap.get(day) ?? freshDay();
@@ -711,11 +688,7 @@ function buildDayRows(
   });
 }
 
-function buildModelRows(
-  ownerId: UserId,
-  modelMap: Map<string, ModelEntry>,
-  now: number,
-): (typeof modelStats.$inferInsert)[] {
+function buildModelRows(ownerId: UserId, modelMap: Map<string, ModelEntry>, now: number): (typeof modelStats.$inferInsert)[] {
   return [...modelMap.values()].map(({ model, provider, acc }) => ({
     id: mintTypeId(ID_PREFIX.modelStat),
     ownerId,
@@ -747,11 +720,7 @@ interface OwnerRollupRows {
  *  — D23). owner_stats is ALWAYS written (even all-zeros) so freshness distinguishes computed-empty. */
 async function writeOwner(db: Db, ownerId: string, rows: OwnerRollupRows): Promise<void> {
   const stmts: BatchStmt[] = [
-    db
-      .delete(characterStats)
-      .where(
-        sql`${characterStats.characterId} IN (SELECT id FROM characters WHERE owner_id = ${ownerId})`,
-      ),
+    db.delete(characterStats).where(sql`${characterStats.characterId} IN (SELECT id FROM characters WHERE owner_id = ${ownerId})`),
     db.delete(ownerStats).where(eq(ownerStats.ownerId, castId<UserId>(ownerId))),
     db.delete(dailyStats).where(eq(dailyStats.ownerId, castId<UserId>(ownerId))),
     db.delete(modelStats).where(eq(modelStats.ownerId, castId<UserId>(ownerId))),
@@ -769,11 +738,7 @@ async function writeOwner(db: Db, ownerId: string, rows: OwnerRollupRows): Promi
   await db.batch(batchMany(stmts));
 }
 
-async function computeOwner(
-  db: Db,
-  ownerId: string,
-  now: number,
-): Promise<{ charCount: number; dayCount: number; modelCount: number }> {
+async function computeOwner(db: Db, ownerId: string, now: number): Promise<{ charCount: number; dayCount: number; modelCount: number }> {
   const a: Accums = {
     owner: freshOwner(),
     charMap: new Map<string, CharAccum>(),

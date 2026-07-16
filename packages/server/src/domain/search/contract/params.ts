@@ -94,15 +94,7 @@ export type SearchScope =
 /** The retrieval-surface axis the unified `search()` dispatches over — one member per underlying verb.
  *  A new member fails `tsc` at the `UnifiedSearchResult` union + the exhaustive dispatch (no inline
  *  re-declaration; `SEARCH_TARGETS` is the one home). */
-export const SEARCH_TARGETS = [
-  "entities",
-  "characters",
-  "discover",
-  "segments",
-  "digests",
-  "corpus",
-  "images",
-] as const;
+export const SEARCH_TARGETS = ["entities", "characters", "discover", "segments", "digests", "corpus", "images"] as const;
 export type SearchTarget = (typeof SEARCH_TARGETS)[number];
 
 /** The omnibox call: one query text, one target surface, one scope. `lens` is required only when

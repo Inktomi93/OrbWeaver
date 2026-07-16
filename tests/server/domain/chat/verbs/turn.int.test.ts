@@ -26,33 +26,16 @@ import type { ChatContext } from "../../../../../packages/server/src/domain/chat
 import { ChatNotFoundError } from "../../../../../packages/server/src/domain/chat/contract/errors";
 import type { TurnStreamChunk } from "../../../../../packages/server/src/domain/chat/contract/results";
 import { createTurnEngine } from "../../../../../packages/server/src/domain/chat/engine/engine";
-import {
-  loadPendingTurns,
-  loadPendingTurnsForReclaim,
-} from "../../../../../packages/server/src/domain/chat/persistence/invites";
+import { loadPendingTurns, loadPendingTurnsForReclaim } from "../../../../../packages/server/src/domain/chat/persistence/invites";
 import { tryAcquireLock } from "../../../../../packages/server/src/domain/chat/persistence/lock";
-import {
-  loadCanonHistory,
-  loadMaxMessageSeq,
-} from "../../../../../packages/server/src/domain/chat/persistence/queries";
+import { loadCanonHistory, loadMaxMessageSeq } from "../../../../../packages/server/src/domain/chat/persistence/queries";
 import { createTurn } from "../../../../../packages/server/src/domain/chat/verbs/turn";
 import { freshDb } from "../../../../support/db";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../support/fixtures";
-import {
-  FROZEN_AT,
-  makeChatContext,
-  seedCharacter,
-  seedChat,
-  seedMessage,
-  seedParticipant,
-  seedPendingTurn,
-  seedUser,
-  testConnection,
-} from "../_support";
+import { FROZEN_AT, makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedPendingTurn, seedUser, testConnection } from "../_support";
 
-const card = (name: string): CharacterCard =>
-  ({ name, description: "", avatarAssetId: null, regexScripts: [] }) as unknown as CharacterCard;
+const card = (name: string): CharacterCard => ({ name, description: "", avatarAssetId: null, regexScripts: [] }) as unknown as CharacterCard;
 
 function principal(userId: UserId): Principal {
   return makePrincipal(userId, { handle: castId<Handle>("h") });
@@ -202,9 +185,7 @@ async function seedRoom(
   const group: Record<string, unknown> = {
     output: opts.output ?? "per-speaker",
     policy,
-    ...(opts.autoMode === true
-      ? { autoMode: true, autoModeMaxTurns: opts.autoModeMaxTurns ?? 2, autoModeDelayMs: 0 }
-      : {}),
+    ...(opts.autoMode === true ? { autoMode: true, autoModeMaxTurns: opts.autoModeMaxTurns ?? 2, autoModeDelayMs: 0 } : {}),
   };
   const chatId = await seedChat(db, "a", { metadata: { group } });
   await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
@@ -302,8 +283,7 @@ describe("send — volatile-macro FREEZE at commit (Chat-Macro-Resolution §0 / 
 
     await h.turn.send({ principal: principal(host), chatId, content: "the time is {{time}}" });
 
-    const stored =
-      (await loadCanonHistory(db, chatId)).find((r) => r.role === "user")?.content ?? "";
+    const stored = (await loadCanonHistory(db, chatId)).find((r) => r.role === "user")?.content ?? "";
     expect(stored).toMatch(FROZEN_TIME_RE);
     expect(stored).not.toContain("{{time}}");
   });
@@ -405,8 +385,7 @@ describe("send — presence cast-gating (PD-70)", () => {
     const h = harness(db, room.names, {
       onForeignInputs: ({ personaIds }) => seen.push(personaIds),
       // The member is away (no live SSE); the host is driving the turn.
-      readPresence: (userId) =>
-        Promise.resolve({ userId, online: userId !== room.member, lastSeenAt: null }),
+      readPresence: (userId) => Promise.resolve({ userId, online: userId !== room.member, lastSeenAt: null }),
     });
 
     await h.turn.send({ principal: principal(room.host), chatId: room.chatId, content: "hi" });
@@ -579,9 +558,7 @@ describe("send — the D19 triple (run-as-host attribution)", () => {
     const stranger = await seedUser(db, "stranger");
     const h = harness(db, names);
 
-    await expect(
-      h.turn.send({ principal: principal(stranger), chatId, content: "hi" }),
-    ).rejects.toBeInstanceOf(ChatNotFoundError);
+    await expect(h.turn.send({ principal: principal(stranger), chatId, content: "hi" })).rejects.toBeInstanceOf(ChatNotFoundError);
   });
 });
 
@@ -683,9 +660,7 @@ describe("send / drainDeferredTurns — host-offline defer + reclaim (D16 / Part
 
     expect(report).toStrictEqual({ ran: 0, dropped: 1 });
     expect(await loadPendingTurns(db, chatId)).toHaveLength(0); // consumed (dropped), no reboot re-run
-    expect((await loadCanonHistory(db, chatId)).filter((m) => m.role === "assistant")).toHaveLength(
-      0,
-    );
+    expect((await loadCanonHistory(db, chatId)).filter((m) => m.role === "assistant")).toHaveLength(0);
     // The frozen triggeredBy member is told their owed reply never ran + why (the kick/handoff inbox precedent).
     expect(h.notifications).toHaveLength(1);
     expect(h.notifications[0]).toStrictEqual({
@@ -714,9 +689,7 @@ describe("send / drainDeferredTurns — host-offline defer + reclaim (D16 / Part
     expect(requeued[0]?.triggeredBy).toBe(member);
     expect(requeued[0]?.runAsUserId).toBe(host);
     expect(h.notifications).toHaveLength(0); // NO spam on a temporal requeue
-    expect((await loadCanonHistory(db, chatId)).filter((m) => m.role === "assistant")).toHaveLength(
-      0,
-    );
+    expect((await loadCanonHistory(db, chatId)).filter((m) => m.role === "assistant")).toHaveLength(0);
   });
 
   test("two concurrent drains claim each row exactly once (no double-run / double-spend)", async () => {
@@ -730,15 +703,15 @@ describe("send / drainDeferredTurns — host-offline defer + reclaim (D16 / Part
       const chatId = await seedChat(db, `c${i}`, {
         metadata: { group: { output: "per-speaker", policy: "natural" } },
       });
-      // biome-ignore lint/performance/noAwaitInLoops: sequential deterministic fixture seeding.
+
       await seedParticipant(db, { chatId, key: `h${i}`, userId: host, role: "host" });
-      // biome-ignore lint/performance/noAwaitInLoops: sequential deterministic fixture seeding.
+
       await seedParticipant(db, { chatId, key: `m${i}`, userId: member, role: "member" });
-      // biome-ignore lint/performance/noAwaitInLoops: sequential deterministic fixture seeding.
+
       const cid = await seedCharacter(db, host, `aria${i}`);
-      // biome-ignore lint/performance/noAwaitInLoops: sequential deterministic fixture seeding.
+
       await seedParticipant(db, { chatId, key: `aria${i}`, characterId: cid, joinSeq: 0 });
-      // biome-ignore lint/performance/noAwaitInLoops: sequential deterministic fixture seeding.
+
       await seedPendingTurn(db, { chatId, key: `p${i}`, triggeredBy: member, runAsUserId: host });
       chatIds.push(chatId);
     }
@@ -752,10 +725,7 @@ describe("send / drainDeferredTurns — host-offline defer + reclaim (D16 / Part
     });
 
     // Two overlapping drains race the same 4 candidate rows.
-    const [a, b] = await Promise.all([
-      h.turn.drainDeferredTurns({ all: true }),
-      h.turn.drainDeferredTurns({ hostUserId: host }),
-    ]);
+    const [a, b] = await Promise.all([h.turn.drainDeferredTurns({ all: true }), h.turn.drainDeferredTurns({ hostUserId: host })]);
 
     // Across BOTH drains, exactly 4 rows ran (each claimed once); the losers skipped.
     expect(a.ran + b.ran).toBe(4);
@@ -1097,9 +1067,7 @@ describe("swipe — append-variant on an existing assistant slot (D26)", () => {
       content: "hi",
     });
     const h = harness(db, names);
-    await expect(
-      h.turn.swipe({ principal: principal(host), chatId, messageId }),
-    ).rejects.toBeInstanceOf(ChatNotFoundError);
+    await expect(h.turn.swipe({ principal: principal(host), chatId, messageId })).rejects.toBeInstanceOf(ChatNotFoundError);
   });
 });
 
@@ -1132,9 +1100,7 @@ describe("continueTurn / undoContinue / revertContinue — extend in place (D26)
       content: "plain",
     });
     const h = harness(db, names);
-    await expect(
-      h.turn.undoContinue({ principal: principal(host), chatId, messageId }),
-    ).rejects.toMatchObject({ code: "no_continuation" });
+    await expect(h.turn.undoContinue({ principal: principal(host), chatId, messageId })).rejects.toMatchObject({ code: "no_continuation" });
   });
 });
 
@@ -1361,9 +1327,7 @@ describe("cross-chat IDOR (F1) — swipe/continue/undo must be scoped to chatId"
 
     // B's continuation is intact: bob's undo did NOT restore the pre-continue content.
     const canonB = await loadCanonHistory(db, room.victimChat);
-    expect(canonB.find((row) => row.id === room.victimMessageId)?.content).toBe(
-      "victim canonHi there",
-    );
+    expect(canonB.find((row) => row.id === room.victimMessageId)?.content).toBe("victim canonHi there");
   });
 });
 
@@ -1395,9 +1359,6 @@ describe("storage stays RAW (D51) — macros in message content are never resolv
     // …and a FRESH re-read of the persisted canon (real libSQL, not the in-memory return value) proves the
     // row was never mutated at write: the stored content is the SAME literal macro text.
     const canon = await loadCanonHistory(db, chatId);
-    expect(canon.map((m) => m.content)).toEqual([
-      "{{user}} waves at {{char}}.",
-      "{{char}} nods at {{user}}.",
-    ]);
+    expect(canon.map((m) => m.content)).toEqual(["{{user}} waves at {{char}}.", "{{char}} nods at {{user}}."]);
   });
 });

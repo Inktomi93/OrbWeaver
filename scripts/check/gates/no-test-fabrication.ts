@@ -182,8 +182,7 @@ export const gate: GateDescriptor = {
       why: "`satisfies Y` re-checks the literal on every change — the sanctioned shape, passes",
     },
     {
-      files:
-        "export const a = { n: 1 } as const;\nexport const b = { n: 1 } as unknown;\nexport const c = [1] as any;\n",
+      files: "export const a = { n: 1 } as const;\nexport const b = { n: 1 } as unknown;\nexport const c = [1] as any;\n",
       at: "tests/tooling/exempt.test.ts",
       why: "`as const`/`as unknown`/`as any` are the exempt cast types — passes",
     },
@@ -193,8 +192,7 @@ export const gate: GateDescriptor = {
       why: "a `// FABRICATION-OK` comment on the SAME line exempts the deliberate-fabrication site — passes",
     },
     {
-      files:
-        "// FABRICATION-OK: negative-space never-cast\nexport const a = {} as unknown as Widget;\n",
+      files: "// FABRICATION-OK: negative-space never-cast\nexport const a = {} as unknown as Widget;\n",
       at: "tests/tooling/escape-above.test.ts",
       why: "a `// FABRICATION-OK` comment on the line ABOVE exempts the site — passes",
     },

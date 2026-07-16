@@ -23,15 +23,10 @@ test("renders content in a scrollable viewport", async ({ mount, page }) => {
   await viewport.evaluate((el) => {
     el.scrollTop = el.scrollHeight;
   });
-  await expect
-    .poll(() => viewport.evaluate((el) => el.scrollTop), { intervals: [20, 50, 100] })
-    .toBeGreaterThan(0);
+  await expect.poll(() => viewport.evaluate((el) => el.scrollTop), { intervals: [20, 50, 100] }).toBeGreaterThan(0);
 });
 
-test("onScroll forwards to the scrolling viewport (chat autoscroll seam)", async ({
-  mount,
-  page,
-}) => {
+test("onScroll forwards to the scrolling viewport (chat autoscroll seam)", async ({ mount, page }) => {
   // The handler receives a React SyntheticEvent (non-serializable across CT's function-prop
   // boundary), so it just counts invocations — proving onScroll reached the scrolling Viewport
   // rather than dying on the non-scrolling Root.
@@ -69,9 +64,7 @@ test("renders the corner square only on both-axis overflow", async ({ mount, pag
   const viewport = page.locator('[data-slot="scroll-area-viewport"]');
   await expect(viewport).toBeVisible();
 
-  const bothAxes = await viewport.evaluate(
-    (el) => el.scrollHeight > el.clientHeight && el.scrollWidth > el.clientWidth,
-  );
+  const bothAxes = await viewport.evaluate((el) => el.scrollHeight > el.clientHeight && el.scrollWidth > el.clientWidth);
   expect(bothAxes).toBe(true);
 
   // Base UI renders the Corner (self-sized from the scrollbar thickness) only when both axes overflow.
@@ -92,10 +85,7 @@ test("no corner when only one axis overflows", async ({ mount, page }) => {
   await expect(page.locator('[data-slot="scroll-area-corner"]')).toHaveCount(0);
 });
 
-test("the vertical and horizontal scrollbar/thumb data-slots each resolve to exactly one element", async ({
-  mount,
-  page,
-}) => {
+test("the vertical and horizontal scrollbar/thumb data-slots each resolve to exactly one element", async ({ mount, page }) => {
   // Both axes overflow so both scrollbars render — the case that previously collided under the
   // shared "scroll-area-scrollbar"/"scroll-area-thumb" data-slot (a Playwright strict-mode locator
   // resolving to 2 elements). Suffixing by orientation gives each a unique locator.

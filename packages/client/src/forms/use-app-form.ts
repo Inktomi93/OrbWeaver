@@ -47,28 +47,11 @@ export const { useAppForm, withForm, withFieldGroup } = createFormHook({
 type Wildcard = any;
 
 declare function pinAppFormOptions<TValues extends object>(
-  opts: Parameters<
-    typeof useAppForm<
-      TValues,
-      Wildcard,
-      Wildcard,
-      Wildcard,
-      Wildcard,
-      Wildcard,
-      Wildcard,
-      Wildcard,
-      Wildcard,
-      Wildcard,
-      Wildcard,
-      Wildcard
-    >
-  >[0],
+  opts: Parameters<typeof useAppForm<TValues, Wildcard, Wildcard, Wildcard, Wildcard, Wildcard, Wildcard, Wildcard, Wildcard, Wildcard, Wildcard, Wildcard>>[0],
 ): void;
 
 /** The real `useAppForm` options shape for a concrete `TValues` (see `pinAppFormOptions` above). */
-export type AppFormOptions<TValues extends object> = Parameters<
-  typeof pinAppFormOptions<TValues>
->[0];
+export type AppFormOptions<TValues extends object> = Parameters<typeof pinAppFormOptions<TValues>>[0];
 
 /**
  * The real `useAppForm` RETURN (form instance) type for a concrete `TValues` — the SAME pin as
@@ -77,18 +60,5 @@ export type AppFormOptions<TValues extends object> = Parameters<
  * typed `AppFormOptions<TValues>` call — this keeps both derivations locked to one instantiation).
  */
 export type AppFormInstance<TValues extends object> = ReturnType<
-  typeof useAppForm<
-    TValues,
-    Wildcard,
-    Wildcard,
-    Wildcard,
-    Wildcard,
-    Wildcard,
-    Wildcard,
-    Wildcard,
-    Wildcard,
-    Wildcard,
-    Wildcard,
-    Wildcard
-  >
+  typeof useAppForm<TValues, Wildcard, Wildcard, Wildcard, Wildcard, Wildcard, Wildcard, Wildcard, Wildcard, Wildcard, Wildcard, Wildcard>
 >;

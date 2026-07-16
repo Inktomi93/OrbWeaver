@@ -16,9 +16,7 @@ describe("sniffMime", () => {
 
   test("recognizes WEBP by its marker at offset 8 (RIFF....WEBP)", () => {
     // "RIFF" + 4 size bytes + "WEBP" — the helper checks the W/E/B at offset 8.
-    const webp = new Uint8Array([
-      0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50,
-    ]);
+    const webp = new Uint8Array([0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50]);
     expect(sniffMime(webp)).toBe("image/webp");
   });
 

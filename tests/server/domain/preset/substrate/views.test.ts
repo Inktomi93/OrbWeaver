@@ -10,10 +10,7 @@ import type { presets } from "@orb/db";
 import type { PresetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import {
-  toPresetDetail,
-  toPresetSummary,
-} from "../../../../../packages/server/src/domain/preset/substrate/views.ts";
+import { toPresetDetail, toPresetSummary } from "../../../../../packages/server/src/domain/preset/substrate/views.ts";
 import { expect, test } from "../../../../support/fixtures";
 import { FROZEN_AT } from "../_support.ts";
 

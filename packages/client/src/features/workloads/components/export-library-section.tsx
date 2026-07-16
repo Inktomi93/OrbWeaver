@@ -12,17 +12,11 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { SettingCheckboxRow } from "#components";
 import { downloadUrl, testId } from "#lib";
-import {
-  buildLibraryExportHref,
-  EXPORTABLE_KINDS,
-  PORTABLE_KIND_LABELS,
-} from "../lib/portability-model";
+import { buildLibraryExportHref, EXPORTABLE_KINDS, PORTABLE_KIND_LABELS } from "../lib/portability-model";
 
 /** The export controls: per-kind checkboxes + the download button. */
 export function ExportLibrarySection(): ReactElement {
-  const [selected, setSelected] = useState<ReadonlySet<PortableKind>>(
-    () => new Set(EXPORTABLE_KINDS),
-  );
+  const [selected, setSelected] = useState<ReadonlySet<PortableKind>>(() => new Set(EXPORTABLE_KINDS));
 
   const toggle = (kind: PortableKind, next: boolean): void => {
     setSelected((prev) => {
@@ -43,8 +37,7 @@ export function ExportLibrarySection(): ReactElement {
   return (
     <Stack gap="block">
       <Text tone="muted" size="body">
-        Download a zip of your library to back it up or move it to another Orbweaver. Media
-        (avatars, gallery, generated images) always travels with it.
+        Download a zip of your library to back it up or move it to another Orbweaver. Media (avatars, gallery, generated images) always travels with it.
       </Text>
       <Fieldset>
         <FieldsetLegend>Include</FieldsetLegend>
@@ -59,12 +52,7 @@ export function ExportLibrarySection(): ReactElement {
         ))}
       </Fieldset>
       <Row justify="end">
-        <Button
-          intent="primary"
-          disabled={selected.size === 0}
-          onClick={download}
-          data-testid={testId("backupExportButton")}
-        >
+        <Button intent="primary" disabled={selected.size === 0} onClick={download} data-testid={testId("backupExportButton")}>
           <Icon icon={Download} size="sm" />
           Download my library
         </Button>

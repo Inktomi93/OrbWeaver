@@ -23,12 +23,7 @@ import { makeHarness, pngBytes, principal, seedCharacter, seedUser } from "../_s
 
 const PNG = "image/png";
 
-async function seedAssetRow(
-  db: Awaited<ReturnType<typeof freshDb>>,
-  owner: string,
-  raw: string,
-  hash: string,
-): Promise<AssetId> {
+async function seedAssetRow(db: Awaited<ReturnType<typeof freshDb>>, owner: string, raw: string, hash: string): Promise<AssetId> {
   const id = castId<AssetId>(raw);
   await db.insert(assets).values({
     id,
@@ -101,14 +96,8 @@ describe("assets maintenance persistence", () => {
       { characterId: theirs, assetId: stored.assetId },
     ]);
 
-    const mineRow = await db
-      .select({ avatar: characters.avatarAssetId })
-      .from(characters)
-      .where(eq(characters.id, mine));
-    const theirsRow = await db
-      .select({ avatar: characters.avatarAssetId })
-      .from(characters)
-      .where(eq(characters.id, theirs));
+    const mineRow = await db.select({ avatar: characters.avatarAssetId }).from(characters).where(eq(characters.id, mine));
+    const theirsRow = await db.select({ avatar: characters.avatarAssetId }).from(characters).where(eq(characters.id, theirs));
     expect(mineRow[0]?.avatar).toBe(stored.assetId);
     // The owner-scoped WHERE means the foreign character is NOT relinked (never cross-owner).
     expect(theirsRow[0]?.avatar).toBeNull();

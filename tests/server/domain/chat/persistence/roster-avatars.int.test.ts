@@ -101,8 +101,6 @@ describe("persistence/roster-avatars — multi-human coverage is member-gated, n
         { characterId: null, activePersonaId: memberPersona },
       ],
     });
-    expect(new Set(producer.map((p) => p.avatarHash))).toEqual(
-      new Set(["hash_host", "hash_member"]),
-    );
+    expect(new Set(producer.map((p) => p.avatarHash))).toEqual(new Set(["hash_host", "hash_member"]));
   });
 });

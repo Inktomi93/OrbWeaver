@@ -30,11 +30,7 @@ interface TurnEconomicsInput {
 }
 
 /** Set `target[key]` only when `value` is a real number (omit absent economics). */
-function setNum(
-  target: Record<string, number>,
-  key: string,
-  value: number | null | undefined,
-): void {
+function setNum(target: Record<string, number>, key: string, value: number | null | undefined): void {
   if (typeof value === "number") {
     target[key] = value;
   }
@@ -54,9 +50,7 @@ function modelSliceFor(model: string | null, e: TurnEconomicsInput): Record<stri
     modelGenerations: 1,
     // A gen-time sample is counted only when a gen time is present, symmetric with the delete mirror.
     modelGenSamples: has(e.genTimeMs) ? 1 : 0,
-    ...(typeof e.reasoning === "string" && e.reasoning.trim().length > 0
-      ? { modelReasoningGenerations: 1 }
-      : {}),
+    ...(typeof e.reasoning === "string" && e.reasoning.trim().length > 0 ? { modelReasoningGenerations: 1 } : {}),
     ...(has(e.tokensIn) ? { modelTokensIn: e.tokensIn } : {}),
     ...(has(e.tokensOut) ? { modelTokensOut: e.tokensOut } : {}),
     ...(has(e.costUsd) ? { modelCostUsd: e.costUsd } : {}),
@@ -198,12 +192,7 @@ function hasReasoningText(reasoning: string | null): boolean {
  * `+1` (a MAX candidate can't be retracted).
  */
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: a flat signed field-mapping of the rebuild's fold — every ternary is one column, no nesting; splitting it would scatter the drift-gate mirror.
-export function canonMessageDelta(params: {
-  readonly ownerId: UserId;
-  readonly row: CanonRowInput;
-  readonly sign: 1 | -1;
-  readonly now: number;
-}): StatsDelta {
+export function canonMessageDelta(params: { readonly ownerId: UserId; readonly row: CanonRowInput; readonly sign: 1 | -1; readonly now: number }): StatsDelta {
   const { row, sign } = params;
   const isUser = row.role === "user";
   const isAssistant = row.role === "assistant";
@@ -245,7 +234,7 @@ export function canonMessageDelta(params: {
     genSamples: gen !== null ? sign : 0,
     reasoningGenerations: reasoningGen,
     variantMessages: settled ? sign : 0,
-    activeIdxSum: settled ? (row.selectedIdx ?? 0) * sign : 0,
+    activeIdxSum: settled ? row.selectedIdx * sign : 0,
     ...(sign > 0 && row.contextWindow !== null ? { maxContextTokens: row.contextWindow } : {}),
     lastAt: sign > 0 ? row.createdAt : params.now,
     now: params.now,
@@ -300,12 +289,7 @@ function canonModelSlice(
  * rebuild's `foldSwipe`/`foldSwipeChar`: swipes credit the re-roll counters + scalar tokens but not the
  * daily token slice, and their model bucket carries no cost/cache.
  */
-export function swipeVariantDelta(params: {
-  readonly ownerId: UserId;
-  readonly row: SwipeRowInput;
-  readonly sign: 1 | -1;
-  readonly now: number;
-}): StatsDelta {
+export function swipeVariantDelta(params: { readonly ownerId: UserId; readonly row: SwipeRowInput; readonly sign: 1 | -1; readonly now: number }): StatsDelta {
   const { row, sign } = params;
   const gen = genDurationMs(row.genStartedAt, row.genFinishedAt);
   const reasoningMs = reasoningMsOf(row.metadata) * sign;
@@ -381,10 +365,7 @@ export function chatCreatedDelta(params: {
  * rebuild mints a `character_stats` row only for characters with canon messages, so a per-char zero row
  * here would be manufactured drift.
  */
-export function newCharacterDelta(params: {
-  readonly ownerId: UserId;
-  readonly now: number;
-}): StatsDelta {
+export function newCharacterDelta(params: { readonly ownerId: UserId; readonly now: number }): StatsDelta {
   return {
     ownerId: params.ownerId,
     characterId: null,

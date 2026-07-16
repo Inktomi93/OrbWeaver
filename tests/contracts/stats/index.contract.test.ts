@@ -25,9 +25,7 @@ test("statsDeltaSchema parses the minimal grain-only delta and round-trips (no d
   // No `.default()` anywhere → an omitted increment stays absent (the delta is a sparse patch); a
   // round-trip that silently grew `tokensIn: 0` keys would double-count under `col = col + excluded.col`.
   expect(parsed).toEqual(value);
-  expect(Object.keys(parsed).sort()).toEqual(
-    ["characterId", "day", "model", "now", "ownerId", "provider"].sort(),
-  );
+  expect(Object.keys(parsed).sort()).toEqual(["characterId", "day", "model", "now", "ownerId", "provider"].sort());
 });
 
 test("a MESSAGE delta carries the scalar + daily + model slices together and round-trips", () => {

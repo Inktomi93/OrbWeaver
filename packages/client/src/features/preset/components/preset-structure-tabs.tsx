@@ -12,12 +12,7 @@ import { useState } from "react";
 import type { AppFormInstance } from "#forms";
 import { clearPresetSection, selectPresetSection, useSelectedPresetSectionId } from "#state";
 import { makeSection } from "../lib/assembly-model";
-import {
-  COMPACTION_MODE_ITEMS,
-  CONTINUE_POSTFIX_ITEMS,
-  NAMES_BEHAVIOR_ITEMS,
-  THINKING_DISPLAY_ITEMS,
-} from "../lib/preset-nav";
+import { COMPACTION_MODE_ITEMS, CONTINUE_POSTFIX_ITEMS, NAMES_BEHAVIOR_ITEMS, THINKING_DISPLAY_ITEMS } from "../lib/preset-nav";
 import { AssemblyToolbar } from "./assembly-toolbar";
 import { GuidedActionsSection } from "./guided-actions-section";
 import { MessageHandlingSection } from "./message-handling-section";
@@ -42,22 +37,9 @@ interface PresetStructureTabsProps {
 }
 
 /** Render one structural tab's fields (direct-bound to the nested `PromptConfig`). */
-export function PresetStructureTabs({
-  form,
-  tab,
-  onRevealSection,
-  onDismissSection,
-  capability,
-}: PresetStructureTabsProps): ReactElement {
+export function PresetStructureTabs({ form, tab, onRevealSection, onDismissSection, capability }: PresetStructureTabsProps): ReactElement {
   if (tab === "prompt") {
-    return (
-      <PromptTab
-        form={form}
-        onRevealSection={onRevealSection}
-        onDismissSection={onDismissSection}
-        capability={capability}
-      />
-    );
+    return <PromptTab form={form} onRevealSection={onRevealSection} onDismissSection={onDismissSection} capability={capability} />;
   }
   if (tab === "templates") {
     return <TemplatesTab form={form} />;
@@ -102,19 +84,10 @@ function PromptTab({
     <Stack gap="block">
       <form.Subscribe selector={(state): readonly PromptSection[] => state.values.sections}>
         {(sections): ReactElement => {
-          const index =
-            selectedSectionId === null ? -1 : sections.findIndex((s) => s.id === selectedSectionId);
+          const index = selectedSectionId === null ? -1 : sections.findIndex((s) => s.id === selectedSectionId);
           const selected = index === -1 ? undefined : sections[index];
           if (selected !== undefined) {
-            return (
-              <SectionBodyEditor
-                key={selected.id}
-                form={form}
-                section={selected}
-                index={index}
-                onBack={onDismissSection ?? clearPresetSection}
-              />
-            );
+            return <SectionBodyEditor key={selected.id} form={form} section={selected} index={index} onBack={onDismissSection ?? clearPresetSection} />;
           }
           return (
             <Stack gap="block">
@@ -123,17 +96,9 @@ function PromptTab({
               <ZoneSummaryStrip zones={deriveZones(sections)} />
 
               {mode === "preview" ? (
-                <AssemblyPreview
-                  preview={assemblePreview(sections)}
-                  onSelectBlock={onSelectPreviewBlock}
-                />
+                <AssemblyPreview preview={assemblePreview(sections)} onSelectBlock={onSelectPreviewBlock} />
               ) : (
-                <AssemblyRack
-                  form={form}
-                  selectedSectionId={selectedSectionId}
-                  onSelectSection={onSelectSection}
-                  onAddChatHistory={onAddChatHistory}
-                />
+                <AssemblyRack form={form} selectedSectionId={selectedSectionId} onSelectSection={onSelectSection} onAddChatHistory={onAddChatHistory} />
               )}
             </Stack>
           );
@@ -143,11 +108,7 @@ function PromptTab({
       <CollapsedSection title="Message delivery">
         <form.AppField name="namesBehavior">
           {(field): ReactElement => (
-            <field.SelectField
-              label="Speaker names"
-              description="Whether and how speaker names are attached to each message."
-              items={NAMES_BEHAVIOR_ITEMS}
-            />
+            <field.SelectField label="Speaker names" description="Whether and how speaker names are attached to each message." items={NAMES_BEHAVIOR_ITEMS} />
           )}
         </form.AppField>
         <form.AppField name="continuePostfix">
@@ -171,11 +132,7 @@ function PromptTab({
         </form.AppField>
         <form.AppField name="params.thinkingDisplay">
           {(field): ReactElement => (
-            <field.SelectField
-              label="Reasoning display"
-              description="How the model's reasoning is shown, when it reasons."
-              items={THINKING_DISPLAY_ITEMS}
-            />
+            <field.SelectField label="Reasoning display" description="How the model's reasoning is shown, when it reasons." items={THINKING_DISPLAY_ITEMS} />
           )}
         </form.AppField>
       </CollapsedSection>
@@ -192,13 +149,7 @@ function PromptTab({
 }
 
 /** A collapsed (closed-by-default) disclosure Section under the rack — Message delivery / Guided actions. */
-function CollapsedSection({
-  title,
-  children,
-}: {
-  readonly title: string;
-  readonly children: ReactElement | readonly ReactElement[];
-}): ReactElement {
+function CollapsedSection({ title, children }: { readonly title: string; readonly children: ReactElement | readonly ReactElement[] }): ReactElement {
   return (
     <Collapsible>
       <CollapsibleTrigger>
@@ -217,26 +168,18 @@ function TemplatesTab({ form }: { readonly form: AppForm }): ReactElement {
   return (
     <Section heading="Inline reasoning parsing">
       <Text size="micro" tone="muted">
-        A fallback that splits an inline reasoning block out of the reply when the model has no
-        native reasoning channel. Native reasoning is always preferred.
+        A fallback that splits an inline reasoning block out of the reply when the model has no native reasoning channel. Native reasoning is always preferred.
       </Text>
       <form.AppField name="reasoningParse.autoParse">
         {(field): ReactElement => (
-          <field.SwitchField
-            label="Parse inline reasoning tags"
-            description="Split a `<think>…</think>`-style block into the reasoning channel."
-          />
+          <field.SwitchField label="Parse inline reasoning tags" description="Split a `<think>…</think>`-style block into the reasoning channel." />
         )}
       </form.AppField>
       <form.AppField name="reasoningParse.prefix">
-        {(field): ReactElement => (
-          <field.TextField label="Opening tag" description="The block's start marker." />
-        )}
+        {(field): ReactElement => <field.TextField label="Opening tag" description="The block's start marker." />}
       </form.AppField>
       <form.AppField name="reasoningParse.suffix">
-        {(field): ReactElement => (
-          <field.TextField label="Closing tag" description="The block's end marker." />
-        )}
+        {(field): ReactElement => <field.TextField label="Closing tag" description="The block's end marker." />}
       </form.AppField>
     </Section>
   );
@@ -249,36 +192,16 @@ function PostProcessTab({ form }: { readonly form: AppForm }): ReactElement {
         Cleanup applied to the model's reply before it lands in the chat.
       </Text>
       <form.AppField name="postProcess.collapseNewlines">
-        {(field): ReactElement => (
-          <field.SwitchField
-            label="Collapse blank lines"
-            description="Merge runs of blank lines into one."
-          />
-        )}
+        {(field): ReactElement => <field.SwitchField label="Collapse blank lines" description="Merge runs of blank lines into one." />}
       </form.AppField>
       <form.AppField name="postProcess.trimTrailingWhitespace">
-        {(field): ReactElement => (
-          <field.SwitchField
-            label="Trim trailing whitespace"
-            description="Strip line-end spaces."
-          />
-        )}
+        {(field): ReactElement => <field.SwitchField label="Trim trailing whitespace" description="Strip line-end spaces." />}
       </form.AppField>
       <form.AppField name="postProcess.dropIncompleteSentence">
-        {(field): ReactElement => (
-          <field.SwitchField
-            label="Drop a dangling sentence"
-            description="Remove a final sentence the model didn't finish."
-          />
-        )}
+        {(field): ReactElement => <field.SwitchField label="Drop a dangling sentence" description="Remove a final sentence the model didn't finish." />}
       </form.AppField>
       <form.AppField name="postProcess.singleLine">
-        {(field): ReactElement => (
-          <field.SwitchField
-            label="Single line"
-            description="Flatten the whole reply to one line."
-          />
-        )}
+        {(field): ReactElement => <field.SwitchField label="Single line" description="Flatten the whole reply to one line." />}
       </form.AppField>
     </Section>
   );
@@ -301,11 +224,7 @@ function CompactionTab({ form }: { readonly form: AppForm }): ReactElement {
       </form.AppField>
       <form.AppField name="params.compaction.instructions">
         {(field): ReactElement => (
-          <field.TextareaField
-            label="Summary instructions"
-            description="How to steer the summary (leave blank for the RP-tuned default)."
-            rows={3}
-          />
+          <field.TextareaField label="Summary instructions" description="How to steer the summary (leave blank for the RP-tuned default)." rows={3} />
         )}
       </form.AppField>
     </Section>

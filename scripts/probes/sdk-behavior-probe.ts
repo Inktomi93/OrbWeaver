@@ -15,27 +15,11 @@
  */
 
 import process from "node:process";
-import type {
-  ModelInfo,
-  Options,
-  Query,
-  SDKMessage,
-  SessionStore,
-} from "@anthropic-ai/claude-agent-sdk";
+import type { ModelInfo, Options, Query, SDKMessage, SessionStore } from "@anthropic-ai/claude-agent-sdk";
 import { query, SYSTEM_PROMPT_DYNAMIC_BOUNDARY } from "@anthropic-ai/claude-agent-sdk";
 import type { ChatResult } from "@orb/server/infra/providers";
-import {
-  buildClaudeOpenRouterEnv,
-  buildClaudeSdkEnv,
-  consumeTurnStream,
-  dynamicContextOptions,
-} from "@orb/server/infra/providers/backends/agent-sdk";
-import {
-  buildSeedFrames,
-  InMemorySessionStore,
-  seedSessionId,
-  toSeedTurns,
-} from "@orb/server/infra/providers/backends/agent-sdk/session";
+import { buildClaudeOpenRouterEnv, buildClaudeSdkEnv, consumeTurnStream, dynamicContextOptions } from "@orb/server/infra/providers/backends/agent-sdk";
+import { buildSeedFrames, InMemorySessionStore, seedSessionId, toSeedTurns } from "@orb/server/infra/providers/backends/agent-sdk/session";
 
 // ── CLI ────────────────────────────────────────────────────────────────────────────────────────────────
 const args = process.argv.slice(2);
@@ -44,9 +28,7 @@ function argValue(flag: string): string | undefined {
   return i >= 0 ? args[i + 1] : undefined;
 }
 const MODEL_FLAG = argValue("--model");
-const ONLY = new Set(
-  (argValue("--scenario") ?? argValue("-s"))?.split(",").map((s) => s.trim()) ?? [],
-);
+const ONLY = new Set((argValue("--scenario") ?? argValue("-s"))?.split(",").map((s) => s.trim()) ?? []);
 const VERBOSE = args.includes("--verbose");
 /** so1 (structured-output matrix) axes: `--models a,b,c` overrides the live family map; `--dry-run` prints
  *  the planned matrix (model × schema cell count + quota warning) WITHOUT spawning a single turn. */
@@ -71,12 +53,8 @@ const OR_PROBE_TIER_MODELS = {
   haiku: "anthropic/claude-haiku-4.5",
 } as const;
 /** The per-mode firewall env — the SAME builders a real turn uses. */
-function probeEnv(
-  overrides: Parameters<typeof buildClaudeSdkEnv>[0],
-): Record<string, string | undefined> {
-  return MODE === "or"
-    ? buildClaudeOpenRouterEnv(OR_PROBE_KEY, OR_PROBE_TIER_MODELS, overrides)
-    : buildClaudeSdkEnv(overrides);
+function probeEnv(overrides: Parameters<typeof buildClaudeSdkEnv>[0]): Record<string, string | undefined> {
+  return MODE === "or" ? buildClaudeOpenRouterEnv(OR_PROBE_KEY, OR_PROBE_TIER_MODELS, overrides) : buildClaudeSdkEnv(overrides);
 }
 const MODEL = MODEL_FLAG ?? (MODE === "or" ? "anthropic/claude-haiku-4.5" : "claude-haiku-4-5");
 
@@ -118,9 +96,7 @@ function verdict(scenario: string, pass: boolean, detail: string): void {
 }
 function show(scenario: string, r: ChatResult): void {
   if (VERBOSE) {
-    console.log(
-      `\n[${scenario}] reply:\n${r.reply}\n[reasoning]: ${JSON.stringify(r.reasoning)}\n`,
-    );
+    console.log(`\n[${scenario}] reply:\n${r.reply}\n[reasoning]: ${JSON.stringify(r.reasoning)}\n`);
   }
 }
 
@@ -206,10 +182,7 @@ function reportedLeak(reply: string): boolean {
 async function p1(): Promise<void> {
   const store = new InMemorySessionStore();
   const sessionId = seedSessionId("probe-p1", toSeedTurns(SEED));
-  await store.append(
-    { projectKey: "probe", sessionId },
-    buildSeedFrames(toSeedTurns(SEED), sessionId),
-  );
+  await store.append({ projectKey: "probe", sessionId }, buildSeedFrames(toSeedTurns(SEED), sessionId));
   const r = await runTurn({
     prompt: POSITION_QUESTION,
     store,
@@ -233,10 +206,7 @@ async function p1(): Promise<void> {
 async function p2(): Promise<void> {
   const store = new InMemorySessionStore();
   const sessionId = seedSessionId("probe-p2", toSeedTurns(SEED));
-  await store.append(
-    { projectKey: "probe", sessionId },
-    buildSeedFrames(toSeedTurns(SEED), sessionId),
-  );
+  await store.append({ projectKey: "probe", sessionId }, buildSeedFrames(toSeedTurns(SEED), sessionId));
   const r = await runTurn({
     prompt: POSITION_QUESTION,
     store,
@@ -258,10 +228,7 @@ async function p2(): Promise<void> {
 async function p3(): Promise<void> {
   const store = new InMemorySessionStore();
   const sessionId = seedSessionId("probe-p3", toSeedTurns(SEED));
-  await store.append(
-    { projectKey: "probe", sessionId },
-    buildSeedFrames(toSeedTurns(SEED), sessionId),
-  );
+  await store.append({ projectKey: "probe", sessionId }, buildSeedFrames(toSeedTurns(SEED), sessionId));
   const r = await runTurn({
     prompt: POSITION_QUESTION,
     store,
@@ -276,11 +243,7 @@ async function p3(): Promise<void> {
   const hookPos = order.indexOf(CW.hook);
   const tailPos = order.indexOf(CW.promptTail);
   const rel = relativePos(hookPos, tailPos);
-  verdict(
-    "p3",
-    sawHook && clean,
-    `hook additionalContext — seen=${sawHook} at ${rel}; order=${order.join(">")}; leak=${clean ? "none" : "LEAKED"}`,
-  );
+  verdict("p3", sawHook && clean, `hook additionalContext — seen=${sawHook} at ${rel}; order=${order.join(">")}; leak=${clean ? "none" : "LEAKED"}`);
 }
 
 /** b1: the LIVE "system"-mode shape after the boundary upgrade — the native
@@ -307,12 +270,9 @@ async function b1(): Promise<void> {
   const sawDynamic = order.includes(CW.systemDynamic);
   const clean = !reportedLeak(first.reply);
   // Second turn: change ONLY the dynamic suffix — the static prefix stays byte-identical (cache probe).
-  const second = await runBoundaryTurn(
-    `Dynamic scene note, revised. Codeword ${CW.systemDynamic}.`,
-  );
+  const second = await runBoundaryTurn(`Dynamic scene note, revised. Codeword ${CW.systemDynamic}.`);
   show("b1", second);
-  const cache = (r: ChatResult): string =>
-    `read=${r.usage.cacheReadTokens} write=${r.usage.cacheWriteTokens}`;
+  const cache = (r: ChatResult): string => `read=${r.usage.cacheReadTokens} write=${r.usage.cacheWriteTokens}`;
   verdict(
     "b1",
     sawDynamic && clean,
@@ -327,8 +287,7 @@ async function b1(): Promise<void> {
 async function rz1(): Promise<void> {
   const store = new InMemorySessionStore();
   const r = await runTurn({
-    prompt:
-      "Think step by step, then answer: what is 17 times 23? Give only the number as the answer.",
+    prompt: "Think step by step, then answer: what is 17 times 23? Give only the number as the answer.",
     store,
     systemPrompt: "You are a careful calculator.",
     thinking: { type: "adaptive", display: "summarized" },
@@ -381,11 +340,7 @@ async function rz3(): Promise<void> {
     thinking: { type: "disabled" },
   });
   show("rz3", r);
-  verdict(
-    "rz3",
-    r.reasoning.length === 0,
-    `thinking disabled: reasoning.length=${r.reasoning.length} (want 0); reply="${r.reply.slice(0, SNIP_MINI)}"`,
-  );
+  verdict("rz3", r.reasoning.length === 0, `thinking disabled: reasoning.length=${r.reasoning.length} (want 0); reply="${r.reply.slice(0, SNIP_MINI)}"`);
 }
 
 // ── continue / prefill scenarios ───────────────────────────────────────────────────────────────────
@@ -433,16 +388,12 @@ async function pf1(): Promise<void> {
     { role: "assistant" as const, content: "The three primary colors are red, blue, and" },
   ];
   const sessionId = seedSessionId("probe-pf1", toSeedTurns(canon));
-  await store.append(
-    { projectKey: "probe", sessionId },
-    buildSeedFrames(toSeedTurns(canon), sessionId),
-  );
+  await store.append({ projectKey: "probe", sessionId }, buildSeedFrames(toSeedTurns(canon), sessionId));
   let threw = "";
   let reply = "";
   try {
     const r = await runTurn({
-      prompt:
-        "Continue exactly from where your previous message stopped, adding only the next word.",
+      prompt: "Continue exactly from where your previous message stopped, adding only the next word.",
       store,
       resume: sessionId,
       systemPrompt: "You are precise.",
@@ -543,10 +494,8 @@ const SO_SCHEMAS: readonly SchemaCase[] = [
       required: ["title", "salience", "entities", "summary"],
       additionalProperties: false,
     },
-    systemPrompt:
-      "You distill a short roleplay scene into a compact memory digest. Output only the JSON.",
-    userPrompt:
-      "Scene: Mara, a smuggler, met Captain Voss aboard the derelict station and struck a tense bargain over stolen coordinates. Digest it.",
+    systemPrompt: "You distill a short roleplay scene into a compact memory digest. Output only the JSON.",
+    userPrompt: "Scene: Mara, a smuggler, met Captain Voss aboard the derelict station and struck a tense bargain over stolen coordinates. Digest it.",
     check: (v) => {
       if (!isRecord(v)) {
         return "not an object";
@@ -585,8 +534,7 @@ const SO_SCHEMAS: readonly SchemaCase[] = [
       additionalProperties: false,
     },
     systemPrompt: "You are a strict reviewer. Output only the JSON.",
-    userPrompt:
-      "Review this plan and rate confidence 0-10: 'Ship the migration tonight with no backup.' Give a verdict.",
+    userPrompt: "Review this plan and rate confidence 0-10: 'Ship the migration tonight with no backup.' Give a verdict.",
     check: (v) => {
       if (!isRecord(v)) {
         return "not an object";
@@ -690,13 +638,8 @@ async function reduceStructuredTurn(stream: AsyncIterable<SDKMessage>): Promise<
 /** Classify a reduced structured-output turn against a schema case. Precedence: retry-exhaustion terminal
  *  → api-error (failed subtype) → valid (structured_output parses + validates) → prose-leak (no structured
  *  frame, or it fails validation — the model returned prose the caller would mis-parse). */
-function classifyStructured(
-  reduced: Awaited<ReturnType<typeof reduceStructuredTurn>>,
-  schemaCase: SchemaCase,
-): { outcome: SoOutcome; detail: string } {
-  const RETRY_EXHAUST =
-    reduced.terminalReason === "structured_output_retry_exhausted" ||
-    reduced.subtype === "error_max_structured_output_retries";
+function classifyStructured(reduced: Awaited<ReturnType<typeof reduceStructuredTurn>>, schemaCase: SchemaCase): { outcome: SoOutcome; detail: string } {
+  const RETRY_EXHAUST = reduced.terminalReason === "structured_output_retry_exhausted" || reduced.subtype === "error_max_structured_output_retries";
   if (RETRY_EXHAUST) {
     return { outcome: "retry-exhausted", detail: reduced.terminalReason || reduced.subtype };
   }
@@ -720,11 +663,7 @@ function classifyStructured(
 /** Run ONE structured-output cell (a model × schema), bounded by the per-cell watchdog. Never throws — a
  *  spawn/transport failure becomes an `api-error` cell so the matrix always completes. `thinking` is set
  *  only on the bounded thinking-axis cells. */
-async function runStructuredCell(
-  model: string,
-  schemaCase: SchemaCase,
-  thinking?: Options["thinking"],
-): Promise<SoCell> {
+async function runStructuredCell(model: string, schemaCase: SchemaCase, thinking?: Options["thinking"]): Promise<SoCell> {
   const startedAt = Date.now();
   const abortController = new AbortController();
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -755,10 +694,7 @@ async function runStructuredCell(
         ...(thinking !== undefined ? { thinking } : {}),
       },
     });
-    const reduced = await Promise.race([
-      reduceStructuredTurn(stream as AsyncIterable<SDKMessage>),
-      watchdog,
-    ]);
+    const reduced = await Promise.race([reduceStructuredTurn(stream as AsyncIterable<SDKMessage>), watchdog]);
     const { outcome, detail } = classifyStructured(reduced, schemaCase);
     return {
       model,
@@ -855,9 +791,7 @@ function printSoPlan(models: readonly string[], sonnetModel: string | undefined)
   );
   console.log(`  models: ${models.join(", ")}`);
   console.log(`  schemas: ${SO_SCHEMAS.map((s) => s.id).join(", ")}`);
-  console.log(
-    `  ⚠ each cell spends real ${MODE === "or" ? "OR credits" : "Max-sub quota"} (cap ${SO_OUTPUT_CAP_TOKENS} out-tokens/cell)`,
-  );
+  console.log(`  ⚠ each cell spends real ${MODE === "or" ? "OR credits" : "Max-sub quota"} (cap ${SO_OUTPUT_CAP_TOKENS} out-tokens/cell)`);
   return total;
 }
 
@@ -882,14 +816,10 @@ function renderSoMatrix(models: readonly string[], cells: readonly SoCell[]): vo
   const valid = cells.filter((c) => c.outcome === "valid").length;
   const totalTokensOut = cells.reduce((n, c) => n + c.tokensOut, 0);
   const totalCost = cells.reduce((n, c) => n + c.costUsd, 0);
-  console.log(
-    `\n  totals: ${valid}/${cells.length} cells valid · out-tokens=${totalTokensOut} · cost=$${totalCost.toFixed(COST_DECIMALS)}`,
-  );
+  console.log(`\n  totals: ${valid}/${cells.length} cells valid · out-tokens=${totalTokensOut} · cost=$${totalCost.toFixed(COST_DECIMALS)}`);
   // Per-cell detail lines for the non-valid cells (the FLAG list an operator inspects).
   for (const c of cells.filter((x) => x.outcome !== "valid")) {
-    console.log(
-      `  FLAG [${c.model} / ${c.schemaId}] ${c.outcome}: ${c.detail} (turns=${c.numTurns}, ${c.durationMs}ms)`,
-    );
+    console.log(`  FLAG [${c.model} / ${c.schemaId}] ${c.outcome}: ${c.detail} (turns=${c.numTurns}, ${c.durationMs}ms)`);
   }
 }
 
@@ -951,9 +881,7 @@ async function main(): Promise<void> {
     ["pf1", pf1],
     ["so1", so1],
   ];
-  console.log(
-    `sdk-behavior-probe — model=${MODEL} (${MODE === "or" ? "mode-2 OR skin" : "mode-1 Max sub"}; spends real quota/credits)\n`,
-  );
+  console.log(`sdk-behavior-probe — model=${MODEL} (${MODE === "or" ? "mode-2 OR skin" : "mode-1 Max sub"}; spends real quota/credits)\n`);
   for (const [name, run] of all) {
     if (ONLY.size > 0 && !ONLY.has(name)) {
       continue;

@@ -48,9 +48,7 @@ describe("removeFromGallery", () => {
     });
     const item = await svc.addToGallery({ principal: principal(owner), assetId: asset.assetId });
 
-    await expect(
-      svc.removeFromGallery({ principal: principal(other), galleryItemId: item.galleryItemId }),
-    ).rejects.toBeInstanceOf(DomainNotFoundError);
+    await expect(svc.removeFromGallery({ principal: principal(other), galleryItemId: item.galleryItemId })).rejects.toBeInstanceOf(DomainNotFoundError);
     expect(await svc.listGallery({ principal: principal(owner), limit: ALL })).toHaveLength(1);
   });
 

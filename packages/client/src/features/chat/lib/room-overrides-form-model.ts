@@ -67,9 +67,6 @@ export function isAuthorsNotePrefill(values: RoomOverridesFormValues): boolean {
   return (
     values.authorsNote.trim() !== "" &&
     // Align with the save's own coercion: a cleared depth writes the default, not 0.
-    isAssistantPrefill(
-      values.authorsNoteRole as MessageRole,
-      values.authorsNoteDepth ?? AUTHORS_NOTE_DEFAULT_DEPTH,
-    )
+    isAssistantPrefill(values.authorsNoteRole as MessageRole, values.authorsNoteDepth ?? AUTHORS_NOTE_DEFAULT_DEPTH)
   );
 }

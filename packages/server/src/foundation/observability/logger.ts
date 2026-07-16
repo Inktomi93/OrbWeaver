@@ -192,10 +192,6 @@ export function getRequestUserId(): string | undefined {
 
 /** Security-relevant events. One consistently-tagged pino line so the whole security trail is greppable
  *  as `security:true` and filterable by `event`. Emitted at warn (rejections/blocks, not errors). */
-export function securityEvent(
-  event: string,
-  fields: Record<string, unknown> = {},
-  message?: string,
-): void {
+export function securityEvent(event: string, fields: Record<string, unknown> = {}, message?: string): void {
   getLog().warn({ security: true, event, ...fields }, message ?? `security: ${event}`);
 }

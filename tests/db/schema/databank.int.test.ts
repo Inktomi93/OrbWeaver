@@ -19,14 +19,7 @@ import {
   isConstraintViolation,
   users,
 } from "@orb/db";
-import type {
-  AssetId,
-  CharacterId,
-  ChatId,
-  DocumentChunkId,
-  DocumentId,
-  UserId,
-} from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, DocumentChunkId, DocumentId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../support/db";
@@ -115,9 +108,7 @@ test("unique(ownerId, importHash) dedups within a user; owner CASCADE + sourceAs
     extractorVersion: "v1",
   });
   // Same (ownerId, importHash) → collides.
-  await expect(seedDoc(db, ownerId, "document_db_b2", "dup-hash")).rejects.toSatisfy(
-    isConstraintErr,
-  );
+  await expect(seedDoc(db, ownerId, "document_db_b2", "dup-hash")).rejects.toSatisfy(isConstraintErr);
 
   // Asset delete → sourceAssetId SET NULL, document survives.
   await db.delete(assets).where(eq(assets.id, assetId));
@@ -149,25 +140,17 @@ test("scope junctions: composite PK + CASCADE both sides (doc delete wipes; scop
   await db.insert(chatDocuments).values({ chatId, documentId: docId });
 
   // Composite PK: a dupe attach collides.
-  await expect(
-    db.insert(characterDocuments).values({ characterId, documentId: docId }),
-  ).rejects.toSatisfy(isConstraintErr);
+  await expect(db.insert(characterDocuments).values({ characterId, documentId: docId })).rejects.toSatisfy(isConstraintErr);
 
   // Scope delete (the character) → its junction row goes, the DOCUMENT survives.
   await db.delete(characters).where(eq(characters.id, characterId));
-  expect(
-    await db.select().from(characterDocuments).where(eq(characterDocuments.documentId, docId)),
-  ).toHaveLength(0);
+  expect(await db.select().from(characterDocuments).where(eq(characterDocuments.documentId, docId))).toHaveLength(0);
   expect(await db.select().from(documents).where(eq(documents.id, docId))).toHaveLength(1);
 
   // Document delete → the remaining junction rows CASCADE away.
   await db.delete(documents).where(eq(documents.id, docId));
-  expect(
-    await db.select().from(globalDocuments).where(eq(globalDocuments.documentId, docId)),
-  ).toHaveLength(0);
-  expect(
-    await db.select().from(chatDocuments).where(eq(chatDocuments.documentId, docId)),
-  ).toHaveLength(0);
+  expect(await db.select().from(globalDocuments).where(eq(globalDocuments.documentId, docId))).toHaveLength(0);
+  expect(await db.select().from(chatDocuments).where(eq(chatDocuments.documentId, docId))).toHaveLength(0);
 });
 
 test("document_chunks: vector round-trip, unique(documentId,chunkIdx,model), document CASCADE", async () => {
@@ -212,7 +195,5 @@ test("document_chunks: vector round-trip, unique(documentId,chunkIdx,model), doc
 
   // Document delete → chunks CASCADE.
   await db.delete(documents).where(eq(documents.id, docId));
-  expect(
-    await db.select().from(documentChunks).where(eq(documentChunks.documentId, docId)),
-  ).toHaveLength(0);
+  expect(await db.select().from(documentChunks).where(eq(documentChunks.documentId, docId))).toHaveLength(0);
 });

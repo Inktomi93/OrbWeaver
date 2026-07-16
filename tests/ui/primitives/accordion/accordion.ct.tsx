@@ -2,13 +2,7 @@
 // exposing aria-expanded and revealing its panel. Base UI owns the open/close + ARIA wiring; per
 // the 1.6 APG update, focus travels in PLAIN TAB ORDER (roving nav was deprecated), so a Tab from
 // one trigger lands on the next regardless of open state.
-import {
-  Accordion,
-  AccordionHeader,
-  AccordionItem,
-  AccordionPanel,
-  AccordionTrigger,
-} from "@orb/ui/accordion";
+import { Accordion, AccordionHeader, AccordionItem, AccordionPanel, AccordionTrigger } from "@orb/ui/accordion";
 import { expect, test } from "@playwright/experimental-ct-react";
 
 test("opens an item on click and another via keyboard", async ({ mount, page }) => {
@@ -42,10 +36,7 @@ test("opens an item on click and another via keyboard", async ({ mount, page }) 
   await expect(page.getByText("Body two")).toBeVisible();
 });
 
-test("single-open mode (the default) closes the previous item when a new one opens", async ({
-  mount,
-  page,
-}) => {
+test("single-open mode (the default) closes the previous item when a new one opens", async ({ mount, page }) => {
   await mount(
     <Accordion>
       <AccordionItem value="one">
@@ -67,10 +58,7 @@ test("single-open mode (the default) closes the previous item when a new one ope
   await expect(page.getByText("Body one")).toBeVisible();
   await page.getByRole("button", { name: "Section two" }).click();
   await expect(page.getByText("Body two")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Section one" })).toHaveAttribute(
-    "aria-expanded",
-    "false",
-  );
+  await expect(page.getByRole("button", { name: "Section one" })).toHaveAttribute("aria-expanded", "false");
 });
 
 test("multiple mode keeps several sections open at once", async ({ mount, page }) => {
@@ -93,14 +81,8 @@ test("multiple mode keeps several sections open at once", async ({ mount, page }
 
   await page.getByRole("button", { name: "Section one" }).click();
   await page.getByRole("button", { name: "Section two" }).click();
-  await expect(page.getByRole("button", { name: "Section one" })).toHaveAttribute(
-    "aria-expanded",
-    "true",
-  );
-  await expect(page.getByRole("button", { name: "Section two" })).toHaveAttribute(
-    "aria-expanded",
-    "true",
-  );
+  await expect(page.getByRole("button", { name: "Section one" })).toHaveAttribute("aria-expanded", "true");
+  await expect(page.getByRole("button", { name: "Section two" })).toHaveAttribute("aria-expanded", "true");
   await expect(page.getByText("Body one")).toBeVisible();
   await expect(page.getByText("Body two")).toBeVisible();
 });

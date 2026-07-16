@@ -25,10 +25,7 @@ function rank(level: MemberCardVisibility): number {
  * the host-configured level. (The GLOBAL owner/admin
  * override is the caller's concern — it passes `full` directly; this resolves the per-chat resource role.)
  */
-export function resolveCardVisibility(
-  viewerRole: ParticipantRole,
-  configured: MemberCardVisibility,
-): MemberCardVisibility {
+export function resolveCardVisibility(viewerRole: ParticipantRole, configured: MemberCardVisibility): MemberCardVisibility {
   return viewerRole === "host" ? "full" : configured;
 }
 

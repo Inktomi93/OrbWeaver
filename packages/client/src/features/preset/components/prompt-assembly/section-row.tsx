@@ -60,12 +60,7 @@ function sectionLabels(section: PromptSection): { name: string; subtitle: string
 
 /** Has this templated marker a NON-default (custom or silent) template set? Drives the template-state dot. */
 function hasCustomTemplate(section: PromptSection): boolean {
-  return (
-    section.type === "marker" &&
-    isTemplatedMarker(section.marker) &&
-    "template" in section &&
-    section.template !== undefined
-  );
+  return section.type === "marker" && isTemplatedMarker(section.marker) && "template" in section && section.template !== undefined;
 }
 
 /** Is this a templated marker whose card/room override is locked? Drives the lock cue. (`in` narrows the
@@ -114,44 +109,21 @@ function SectionCues({ section }: { readonly section: PromptSection }): ReactEle
   );
 }
 
-export function SectionRow({
-  form,
-  section,
-  index,
-  zone,
-  selected,
-  onSelect,
-}: SectionRowProps): ReactElement {
+export function SectionRow({ form, section, index, zone, selected, onSelect }: SectionRowProps): ReactElement {
   const { name, subtitle } = sectionLabels(section);
   const tokens = estimateSectionTokens(section);
-  const rowClass = [
-    "rounded-card border",
-    selected ? "border-primary bg-accent" : "border-border",
-    section.enabled ? "" : "opacity-60",
-  ].join(" ");
+  const rowClass = ["rounded-card border", selected ? "border-primary bg-accent" : "border-border", section.enabled ? "" : "opacity-60"].join(" ");
   const zoneAccent = zone === "post" ? "bg-warning" : "bg-info";
 
   return (
-    <Row
-      gap="row"
-      align="center"
-      padding="row"
-      data-selected={selected ? "" : undefined}
-      data-zone={zone}
-      className={rowClass}
-    >
+    <Row gap="row" align="center" padding="row" data-selected={selected ? "" : undefined} data-zone={zone} className={rowClass}>
       <Stack aria-hidden={true} className={`w-1 self-stretch rounded-full ${zoneAccent}`} />
 
       <Badge intent={zone === "post" ? "warning" : "info"} size="sm">
         {sectionGlyph(section)}
       </Badge>
 
-      <Button
-        intent="ghost"
-        size="sm"
-        className="min-w-0 flex-1 justify-start text-left"
-        onClick={(): void => onSelect(section.id)}
-      >
+      <Button intent="ghost" size="sm" className="min-w-0 flex-1 justify-start text-left" onClick={(): void => onSelect(section.id)}>
         <Text size="body" weight="medium" className="truncate">
           {name}
         </Text>
@@ -162,21 +134,13 @@ export function SectionRow({
 
       <SectionCues section={section} />
 
-      <Text
-        size="code"
-        tone="muted"
-        className={section.enabled ? "tabular-nums" : "tabular-nums line-through"}
-      >
+      <Text size="code" tone="muted" className={section.enabled ? "tabular-nums" : "tabular-nums line-through"}>
         ~{tokens}
       </Text>
 
       <form.AppField name={`sections[${index}].enabled`}>
         {(field): ReactElement => (
-          <Switch
-            aria-label={`${name} enabled`}
-            checked={field.state.value}
-            onCheckedChange={(next): void => field.handleChange(next)}
-          />
+          <Switch aria-label={`${name} enabled`} checked={field.state.value} onCheckedChange={(next): void => field.handleChange(next)} />
         )}
       </form.AppField>
     </Row>

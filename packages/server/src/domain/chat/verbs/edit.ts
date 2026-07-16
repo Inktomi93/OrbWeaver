@@ -93,11 +93,7 @@ type EditVerbs = Pick<
 
 /** Loads a slot joined to its selected variant and verifies it belongs to `chatId` — a missing or
  *  foreign-chat slot collapses to one leak-free NOT_FOUND. */
-async function loadSlotInChat(
-  ctx: ChatContext,
-  chatId: ChatId,
-  messageId: MessageId,
-): Promise<MessageView> {
+async function loadSlotInChat(ctx: ChatContext, chatId: ChatId, messageId: MessageId): Promise<MessageView> {
   const view = await loadMessageView(ctx.db, messageId);
   if (view === undefined || view.chatId !== chatId) {
     throw new ChatNotFoundError(chatId);
@@ -106,11 +102,7 @@ async function loadSlotInChat(
 }
 
 /** Re-reads a slot's MessageView after a write. A racing delete surfaces as a leak-free NOT_FOUND. */
-async function reloadSlot(
-  ctx: ChatContext,
-  chatId: ChatId,
-  messageId: MessageId,
-): Promise<MessageView> {
+async function reloadSlot(ctx: ChatContext, chatId: ChatId, messageId: MessageId): Promise<MessageView> {
   const view = await loadMessageView(ctx.db, messageId);
   if (view === undefined) {
     throw new ChatNotFoundError(chatId);
@@ -172,9 +164,7 @@ async function applyRunOnEditRegex(
   }
   const { chatId, hostUserId } = args;
   const model = args.slot.model ?? "";
-  const castCharacterIds = args.roster.flatMap((r) =>
-    r.kind === "character" && r.characterId !== null ? [r.characterId] : [],
-  );
+  const castCharacterIds = args.roster.flatMap((r) => (r.kind === "character" && r.characterId !== null ? [r.characterId] : []));
   const personaIds = args.editorPersonaId !== null ? [args.editorPersonaId] : [];
   const foreign = await deps.resolveForeignInputs({
     chatId,
@@ -183,9 +173,7 @@ async function applyRunOnEditRegex(
     anchorPersonaId: args.anchorPersonaId,
     personaIds,
   });
-  const cards = await Promise.all(
-    castCharacterIds.map((characterId) => ctx.getCard({ ownerId: hostUserId, characterId })),
-  );
+  const cards = await Promise.all(castCharacterIds.map((characterId) => ctx.getCard({ ownerId: hostUserId, characterId })));
   const scripts = resolveHostTierRegexScripts({
     hostGlobal: foreign.globalRegexScripts,
     preset: foreign.promptConfig.regexScripts,
@@ -194,11 +182,7 @@ async function applyRunOnEditRegex(
   if (scripts.length === 0) {
     return args.content;
   }
-  const assembleContext = await gatherAssembleContext(
-    ctx,
-    { chatId, runAsUserId: hostUserId, model, castCharacterIds, personaIds },
-    foreign,
-  );
+  const assembleContext = await gatherAssembleContext(ctx, { chatId, runAsUserId: hostUserId, model, castCharacterIds, personaIds }, foreign);
   return executeRegexScripts({
     text: args.content,
     scripts,
@@ -224,11 +208,7 @@ type VariantRow = Awaited<ReturnType<typeof loadVariantsByMessageIds>>[number];
 
 /** Maps a slot + one of its variants to the canonMessageDelta message-stream row. Attribution is
  *  slot-level; economics + gen bounds + idx are the variant's own. */
-function canonRowOf(
-  slot: MessageView,
-  variant: VariantRow,
-  variantCount: number,
-): Parameters<typeof canonMessageDelta>[0]["row"] {
+function canonRowOf(slot: MessageView, variant: VariantRow, variantCount: number): Parameters<typeof canonMessageDelta>[0]["row"] {
   return {
     characterId: slot.characterId,
     role: slot.role,
@@ -253,10 +233,7 @@ function canonRowOf(
 
 /** Maps a slot + one of its variants to the swipeVariantDelta swipe-stream row (no cost/cache/context — a
  *  swipe credits the re-roll counters + scalar tokens only). */
-function swipeRowOf(
-  slot: MessageView,
-  variant: VariantRow,
-): Parameters<typeof swipeVariantDelta>[0]["row"] {
+function swipeRowOf(slot: MessageView, variant: VariantRow): Parameters<typeof swipeVariantDelta>[0]["row"] {
   return {
     characterId: slot.characterId,
     msgCreatedAt: slot.createdAt,
@@ -284,17 +261,9 @@ function createSelectVariant(ctx: ChatContext, emit: EmitChatEvent): ChatService
     }
     // Re-folds chats.runtime_variables for the new pointer in the same batch as the flip: the newly-selected
     // variant's delta replaces this slot's contribution, so a swipe to a variant that never set X rewinds X.
-    const [currentDeltas, newDelta] = await Promise.all([
-      loadVariableDeltas(ctx.db, chatId),
-      loadVariantDelta(ctx.db, variantId),
-    ]);
-    const postEntries = currentDeltas.map((e) =>
-      e.messageId === messageId ? { seq: e.seq, delta: newDelta } : e,
-    );
-    const statements = [
-      selectActiveVariantStatement(ctx.db, messageId, variantId),
-      runtimeVariablesUpdateStatement(ctx.db, chatId, foldChain(postEntries)),
-    ];
+    const [currentDeltas, newDelta] = await Promise.all([loadVariableDeltas(ctx.db, chatId), loadVariantDelta(ctx.db, variantId)]);
+    const postEntries = currentDeltas.map((e) => (e.messageId === messageId ? { seq: e.seq, delta: newDelta } : e));
+    const statements = [selectActiveVariantStatement(ctx.db, messageId, variantId), runtimeVariablesUpdateStatement(ctx.db, chatId, foldChain(postEntries))];
     // A selection flip changes what reconcileStats folds: push the same 4-part signed swap the engine's
     // append-variant arm proves (-old-as-message, +old-as-swipe, -new-as-swipe, +new-as-message).
     const now = ctx.now();
@@ -380,10 +349,7 @@ function createEditMessage(ctx: ChatContext, deps: EditDeps): ChatService["editM
 
 /** `setMessageHidden` — author-or-host. Holds the slot out of assembly (or restores it) — a pure slot-flag
  *  write, no content change. Emits messageHidden. */
-function createSetMessageHidden(
-  ctx: ChatContext,
-  emit: EmitChatEvent,
-): ChatService["setMessageHidden"] {
+function createSetMessageHidden(ctx: ChatContext, emit: EmitChatEvent): ChatService["setMessageHidden"] {
   return async ({ principal, chatId, messageId, hidden }: SetMessageHiddenParams) => {
     const slot = await loadSlotInChat(ctx, chatId, messageId);
     await requireAuthorOrHost(ctx, principal, chatId, slot.authorUserId);
@@ -437,10 +403,7 @@ function createEditReasoning(ctx: ChatContext, emit: EmitChatEvent): ChatService
 }
 
 /** `clearReasoning` — author-or-host. Nulls the selected variant's reasoning. Emits reasoningCleared. */
-function createClearReasoning(
-  ctx: ChatContext,
-  emit: EmitChatEvent,
-): ChatService["clearReasoning"] {
+function createClearReasoning(ctx: ChatContext, emit: EmitChatEvent): ChatService["clearReasoning"] {
   return async ({ principal, chatId, messageId }: ClearReasoningParams) => {
     const slot = await loadSlotInChat(ctx, chatId, messageId);
     await requireAuthorOrHost(ctx, principal, chatId, slot.authorUserId);
@@ -456,10 +419,7 @@ function createClearReasoning(
 
 /** `deleteMessages` — gates each target's author independently, then deletes the set (variants cascade).
  *  Emits messagesDeleted. An empty set is an idempotent no-op. */
-function createDeleteMessages(
-  ctx: ChatContext,
-  emit: EmitChatEvent,
-): ChatService["deleteMessages"] {
+function createDeleteMessages(ctx: ChatContext, emit: EmitChatEvent): ChatService["deleteMessages"] {
   return async ({ principal, chatId, messageIds }: DeleteMessagesParams): Promise<void> => {
     if (messageIds.length === 0) {
       return;
@@ -470,11 +430,7 @@ function createDeleteMessages(
       if (slot === undefined || slot.chatId !== chatId) {
         throw new ChatNotFoundError(chatId);
       }
-      assertAuthorOrHost(
-        ctx.can,
-        { principal, role: membership.role, authorUserId: slot.authorUserId },
-        chatId,
-      );
+      assertAuthorOrHost(ctx.can, { principal, role: membership.role, authorUserId: slot.authorUserId }, chatId);
     }
     // Each removed slot's selected-variant contribution + its non-selected swipes are subtracted in the
     // same batch as the delete. Rows are read before the delete lands.
@@ -490,9 +446,7 @@ function createDeleteMessages(
       ctx.applyStatsDelta(statements, ctx.db, swipeVariantDelta({ ownerId, row, sign: -1, now }));
     }
     // Re-folds chats.runtime_variables over the chain minus the deleted slots, in the same batch as the delete.
-    const remainingDeltas = (await loadVariableDeltas(ctx.db, chatId)).filter(
-      (e) => !messageIds.includes(e.messageId),
-    );
+    const remainingDeltas = (await loadVariableDeltas(ctx.db, chatId)).filter((e) => !messageIds.includes(e.messageId));
     statements.push(runtimeVariablesUpdateStatement(ctx.db, chatId, foldChain(remainingDeltas)));
     await ctx.db.batch(batchMany(statements));
     await emit({ type: "messagesDeleted", chatId, messageIds: [...messageIds] });
@@ -521,11 +475,7 @@ interface ResequencePlan {
 
 /** Computes the {@link ResequencePlan} for moving movingId so its seq becomes (clamped) toSeq. Only the
  *  contiguous block between the old and new position is permuted; existing seq values are reused. */
-function planResequence(
-  ordered: readonly { readonly id: MessageId; readonly seq: number }[],
-  movingId: MessageId,
-  toSeq: number,
-): ResequencePlan | null {
+function planResequence(ordered: readonly { readonly id: MessageId; readonly seq: number }[], movingId: MessageId, toSeq: number): ResequencePlan | null {
   const moving = ordered.find((m) => m.id === movingId);
   if (moving === undefined) {
     return null;
@@ -552,7 +502,7 @@ function planResequence(
   const slotSeqs = ordered.slice(lo, hi + 1).map((m) => m.seq);
   const assignments = newOrder.slice(lo, hi + 1).flatMap((m, i) => {
     const seq = slotSeqs[i];
-    return m !== undefined && seq !== undefined ? [{ id: m.id, seq }] : [];
+    return seq !== undefined ? [{ id: m.id, seq }] : [];
   });
   // parkHi is the block's own last seq, not the chat maxSeq, since only the affected block is lifted +
   // re-stamped; by = maxSeq + 1 still parks the block strictly above every existing seq.
@@ -577,9 +527,7 @@ function createMoveMessage(ctx: ChatContext, emit: EmitChatEvent): ChatService["
       newSeqById.set(a.id, a.seq);
     }
     const deltas = await loadVariableDeltas(ctx.db, chatId);
-    const refolded = foldChain(
-      deltas.map((e) => ({ seq: newSeqById.get(e.messageId) ?? e.seq, delta: e.delta })),
-    );
+    const refolded = foldChain(deltas.map((e) => ({ seq: newSeqById.get(e.messageId) ?? e.seq, delta: e.delta })));
     await ctx.db.batch(
       batchMany([
         shiftSeqRangeStatement(ctx.db, {
@@ -598,10 +546,7 @@ function createMoveMessage(ctx: ChatContext, emit: EmitChatEvent): ChatService["
 
 /** `duplicateMessage` — author-or-host. Copies the slot's attribution + its selected variant's content/
  *  economics to a fresh tail slot. Emits messageCommitted. */
-function createDuplicateMessage(
-  ctx: ChatContext,
-  emit: EmitChatEvent,
-): ChatService["duplicateMessage"] {
+function createDuplicateMessage(ctx: ChatContext, emit: EmitChatEvent): ChatService["duplicateMessage"] {
   return async ({ principal, chatId, messageId }: DuplicateMessageParams) => {
     const slot = await loadSlotInChat(ctx, chatId, messageId);
     await requireAuthorOrHost(ctx, principal, chatId, slot.authorUserId);
@@ -677,16 +622,8 @@ function createDuplicateMessage(
 
 /** `reattributeMessages` — host-only. Re-voices a set of slots to a characterId. Emits one messageEdited
  *  per slot. An empty set is a no-op. */
-function createReattributeMessages(
-  ctx: ChatContext,
-  emit: EmitChatEvent,
-): ChatService["reattributeMessages"] {
-  return async ({
-    principal,
-    chatId,
-    messageIds,
-    characterId,
-  }: ReattributeMessagesParams): Promise<void> => {
+function createReattributeMessages(ctx: ChatContext, emit: EmitChatEvent): ChatService["reattributeMessages"] {
+  return async ({ principal, chatId, messageIds, characterId }: ReattributeMessagesParams): Promise<void> => {
     await requireHost(ctx, principal, chatId);
     if (messageIds.length === 0) {
       return;
@@ -697,17 +634,9 @@ function createReattributeMessages(
         throw new ChatNotFoundError(chatId);
       }
     }
-    await ctx.db.batch(
-      batchMany([reattributeMessagesStatement(ctx.db, chatId, messageIds, characterId)]),
-    );
+    await ctx.db.batch(batchMany([reattributeMessagesStatement(ctx.db, chatId, messageIds, characterId)]));
     const views = await Promise.all(messageIds.map((id) => loadMessageView(ctx.db, id)));
-    await Promise.all(
-      views.flatMap((view) =>
-        view !== undefined
-          ? [emit({ type: "messageEdited", chatId, messageId: view.id, view })]
-          : [],
-      ),
-    );
+    await Promise.all(views.flatMap((view) => (view !== undefined ? [emit({ type: "messageEdited", chatId, messageId: view.id, view })] : [])));
   };
 }
 
@@ -715,16 +644,8 @@ function createReattributeMessages(
  *  user-role slots. Four belts, all validated before any write: (a) belongs to chatId, (b) is a user row
  *  with a non-null author, (c) clears the per-slot author-or-host gate, and (d) targets a persona owned by
  *  that row's author. Emits one messageEdited per re-stamped slot. An empty set is a no-op. */
-function createReattributePersona(
-  ctx: ChatContext,
-  emit: EmitChatEvent,
-): ChatService["reattributePersona"] {
-  return async ({
-    principal,
-    chatId,
-    messageIds,
-    personaId,
-  }: ReattributePersonaParams): Promise<void> => {
+function createReattributePersona(ctx: ChatContext, emit: EmitChatEvent): ChatService["reattributePersona"] {
+  return async ({ principal, chatId, messageIds, personaId }: ReattributePersonaParams): Promise<void> => {
     if (messageIds.length === 0) {
       return;
     }
@@ -737,40 +658,20 @@ function createReattributePersona(
         throw new ChatNotFoundError(chatId);
       }
       if (slot.role !== "user" || slot.authorUserId === null) {
-        throw new ChatOperationError(
-          CHAT_OP_CODES.notUserMessage,
-          `chat ${chatId}: only a user message carries an authoring persona`,
-        );
+        throw new ChatOperationError(CHAT_OP_CODES.notUserMessage, `chat ${chatId}: only a user message carries an authoring persona`);
       }
-      assertAuthorOrHost(
-        ctx.can,
-        { principal, role: membership.role, authorUserId: slot.authorUserId },
-        chatId,
-      );
+      assertAuthorOrHost(ctx.can, { principal, role: membership.role, authorUserId: slot.authorUserId }, chatId);
       authorIds.push(slot.authorUserId);
     }
     // Belt (d): the target persona must be owned by each targeted row's author, checked once per distinct author.
     const distinctAuthors = [...new Set(authorIds)];
-    const ownership = await Promise.all(
-      distinctAuthors.map((ownerId) => ctx.verifyPersonaOwned({ ownerId, personaId })),
-    );
+    const ownership = await Promise.all(distinctAuthors.map((ownerId) => ctx.verifyPersonaOwned({ ownerId, personaId })));
     if (ownership.some((owned) => !owned)) {
-      throw new ChatOperationError(
-        CHAT_OP_CODES.notPersonaOwner,
-        `chat ${chatId}: the target persona must be owned by the message author`,
-      );
+      throw new ChatOperationError(CHAT_OP_CODES.notPersonaOwner, `chat ${chatId}: the target persona must be owned by the message author`);
     }
-    await ctx.db.batch(
-      batchMany([reattributePersonaStatement(ctx.db, chatId, messageIds, personaId)]),
-    );
+    await ctx.db.batch(batchMany([reattributePersonaStatement(ctx.db, chatId, messageIds, personaId)]));
     const views = await Promise.all(messageIds.map((id) => loadMessageView(ctx.db, id)));
-    await Promise.all(
-      views.flatMap((view) =>
-        view !== undefined
-          ? [emit({ type: "messageEdited", chatId, messageId: view.id, view })]
-          : [],
-      ),
-    );
+    await Promise.all(views.flatMap((view) => (view !== undefined ? [emit({ type: "messageEdited", chatId, messageId: view.id, view })] : [])));
   };
 }
 

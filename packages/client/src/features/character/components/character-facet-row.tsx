@@ -25,43 +25,21 @@ export interface CharacterFacetRowProps {
   readonly onSelect: (id: CharacterCardFacet["id"]) => void;
 }
 
-export function CharacterFacetRow({
-  facet,
-  selected,
-  filled,
-  tokens,
-  focusOnMount,
-  onSelect,
-}: CharacterFacetRowProps): ReactElement {
+export function CharacterFacetRow({ facet, selected, filled, tokens, focusOnMount, onSelect }: CharacterFacetRowProps): ReactElement {
   const buttonRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     if (focusOnMount) {
       buttonRef.current?.focus();
     }
   }, [focusOnMount]);
-  const rowClass = selected
-    ? "rounded-card border border-primary bg-accent"
-    : "rounded-card border border-border";
+  const rowClass = selected ? "rounded-card border border-primary bg-accent" : "rounded-card border border-border";
   return (
-    <Row
-      gap="row"
-      align="center"
-      padding="row"
-      data-selected={selected ? "" : undefined}
-      data-filled={filled ? "" : undefined}
-      className={rowClass}
-    >
+    <Row gap="row" align="center" padding="row" data-selected={selected ? "" : undefined} data-filled={filled ? "" : undefined} className={rowClass}>
       <Badge intent={filled ? "info" : "neutral"} size="sm">
         <Icon icon={facet.glyph} size="sm" />
       </Badge>
 
-      <Button
-        ref={buttonRef}
-        intent="ghost"
-        size="sm"
-        className="min-w-0 flex-1 justify-start text-left"
-        onClick={(): void => onSelect(facet.id)}
-      >
+      <Button ref={buttonRef} intent="ghost" size="sm" className="min-w-0 flex-1 justify-start text-left" onClick={(): void => onSelect(facet.id)}>
         <Text size="body" weight="medium" className="truncate">
           {facet.label}
         </Text>

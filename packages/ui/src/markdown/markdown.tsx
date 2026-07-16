@@ -4,13 +4,7 @@ import { Streamdown } from "streamdown";
 import { cn, usePrefersReducedMotion } from "#lib";
 import { MARKDOWN_MATH_PLUGIN } from "./math";
 import { MARKDOWN_MERMAID_OPTIONS } from "./mermaid";
-import {
-  MARKDOWN_REMARK_PLUGINS,
-  TIER_A_UNTRUSTED_ELEMENTS,
-  TRUSTED_ALLOWED_TAGS,
-  TRUSTED_LITERAL_TAG_CONTENT,
-  untrustedUrlTransform,
-} from "./policy";
+import { MARKDOWN_REMARK_PLUGINS, TIER_A_UNTRUSTED_ELEMENTS, TRUSTED_ALLOWED_TAGS, TRUSTED_LITERAL_TAG_CONTENT, untrustedUrlTransform } from "./policy";
 import { MARKDOWN_SHIKI_PLUGIN } from "./shiki-plugin";
 
 const TRUSTS = ["trusted", "untrusted"] as const;
@@ -95,10 +89,7 @@ export function Markdown({ trust, mode, children, className }: MarkdownProps): R
 
   if (children.length > MAX_RENDER_LENGTH) {
     return (
-      <pre
-        className={cn("max-h-[60cqh] overflow-auto whitespace-pre-wrap text-body", className)}
-        data-slot="markdown-oversized"
-      >
+      <pre className={cn("max-h-[60cqh] overflow-auto whitespace-pre-wrap text-body", className)} data-slot="markdown-oversized">
         {children}
       </pre>
     );

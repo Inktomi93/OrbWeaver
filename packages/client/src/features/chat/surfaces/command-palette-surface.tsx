@@ -4,14 +4,7 @@
 // route, which owns the section registry. cmdk owns search/filtering/keyboard nav — do not reimplement.
 
 import type { ChatId } from "@orb/kit/ids";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@orb/ui/command";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@orb/ui/command";
 import { Icon, MessagesSquare, Plus, Users } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
 import { useSuspenseQuery } from "@tanstack/react-query";
@@ -60,49 +53,29 @@ export function CommandPaletteSurface({ goToSections }: CommandPaletteSurfacePro
 
   return (
     <Stack ref={surfaceRef} tabIndex={-1} className="outline-none h-full">
-      <Command
-        className="rounded-card border shadow-overlay h-full flex flex-col"
-        label="Command palette"
-        onEscape={closeModal}
-      >
-        <CommandInput
-          aria-label="Search commands"
-          placeholder="Jump to a thread, section, or action…"
-        />
+      <Command className="rounded-card border shadow-overlay h-full flex flex-col" label="Command palette" onEscape={closeModal}>
+        <CommandInput aria-label="Search commands" placeholder="Jump to a thread, section, or action…" />
         <CommandList className="max-h-96">
           <CommandEmpty>No matches.</CommandEmpty>
 
-          <QueryBoundary fallback={null} renderError={(): ReactElement => <></>}>
+          <QueryBoundary fallback={null} renderError={(): null => null}>
             <ThreadsGroup onJump={jumpToChat} />
           </QueryBoundary>
 
           <CommandGroup heading="Go to">
             {goToSections.map((section) => (
-              <CommandItem
-                key={section.id}
-                keywords={[section.label]}
-                onSelect={(): void => jumpToSection(section.id)}
-                value={`goto:${section.id}`}
-              >
+              <CommandItem key={section.id} keywords={[section.label]} onSelect={(): void => jumpToSection(section.id)} value={`goto:${section.id}`}>
                 {section.label}
               </CommandItem>
             ))}
           </CommandGroup>
 
           <CommandGroup heading="Create">
-            <CommandItem
-              keywords={["new", "chat", "thread"]}
-              onSelect={newChat}
-              value="create:chat"
-            >
+            <CommandItem keywords={["new", "chat", "thread"]} onSelect={newChat} value="create:chat">
               <Icon icon={Plus} size="sm" />
               New chat
             </CommandItem>
-            <CommandItem
-              keywords={["new", "character"]}
-              onSelect={newCharacter}
-              value="create:character"
-            >
+            <CommandItem keywords={["new", "character"]} onSelect={newCharacter} value="create:character">
               <Icon icon={Users} size="sm" />
               New character
             </CommandItem>
@@ -141,11 +114,7 @@ interface ThreadRowProps {
 function ThreadRow({ chat, onJump }: ThreadRowProps): ReactElement {
   const title = chat.title ?? "Untitled chat";
   return (
-    <CommandItem
-      keywords={[title, ...chat.participantNames]}
-      onSelect={(): void => onJump(chat.id)}
-      value={chat.id}
-    >
+    <CommandItem keywords={[title, ...chat.participantNames]} onSelect={(): void => onJump(chat.id)} value={chat.id}>
       <Icon icon={MessagesSquare} size="sm" />
       {title}
     </CommandItem>

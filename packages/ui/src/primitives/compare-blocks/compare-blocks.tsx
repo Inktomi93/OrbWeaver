@@ -26,13 +26,7 @@ export interface CompareBlocksProps {
  * side also carries a glyph plus visually-hidden text, so the distinction never rests on tint alone.
  * Distinct from `@orb/ui/diff` (token-level jsdiff segments) — this renders two whole strings side-by-side.
  */
-export function CompareBlocks({
-  blocks,
-  accepted,
-  onAcceptedChange,
-  acceptAllLabel = "Accept all",
-  className,
-}: CompareBlocksProps): ReactElement {
+export function CompareBlocks({ blocks, accepted, onAcceptedChange, acceptAllLabel = "Accept all", className }: CompareBlocksProps): ReactElement {
   const slots = compareBlocksVariants();
   const canAccept = accepted !== undefined && onAcceptedChange !== undefined;
 
@@ -57,22 +51,16 @@ export function CompareBlocks({
       {canAccept && blocks.length > 1 ? (
         // biome-ignore lint/a11y/noLabelWithoutControl: the Checkbox control is nested inside.
         <label className={slots.acceptAllRow()} data-slot="compare-blocks-accept-all">
-          <Checkbox
-            checked={allAccepted}
-            indeterminate={someAccepted}
-            onCheckedChange={(value: boolean): void => setAll(value)}
-          />
+          <Checkbox checked={allAccepted} indeterminate={someAccepted} onCheckedChange={(value: boolean): void => setAll(value)} />
           <span className={slots.acceptAllLabel()}>{acceptAllLabel}</span>
         </label>
       ) : null}
       {blocks.map((block, index) => {
         const name = block.label ?? `change ${index + 1}`;
         return (
-          // biome-ignore lint/suspicious/noArrayIndexKey: blocks is a fixed-order review snapshot for the lifetime of the review — there is no reorder/insert case.
+          // biome-ignore lint/suspicious/noArrayIndexKey: blocks is a fixed-order review snapshot for the lifetime of the review — no reorder/insert case.
           <div className={slots.block()} data-slot="compare-block" key={index}>
-            {block.label !== undefined ? (
-              <h3 className={slots.blockLabel()}>{block.label}</h3>
-            ) : null}
+            {block.label !== undefined ? <h3 className={slots.blockLabel()}>{block.label}</h3> : null}
             <div className={slots.pair()}>
               <div className={slots.panel({ side: "before" })} data-slot="compare-block-before">
                 <span className={slots.sideHeader()}>
@@ -92,10 +80,7 @@ export function CompareBlocks({
             {canAccept ? (
               // biome-ignore lint/a11y/noLabelWithoutControl: the Checkbox control is nested inside.
               <label className={slots.acceptRow()} data-slot="compare-block-accept">
-                <Checkbox
-                  checked={accepted?.[index] ?? false}
-                  onCheckedChange={(value: boolean): void => setOne(index, value)}
-                />
+                <Checkbox checked={accepted[index] ?? false} onCheckedChange={(value: boolean): void => setOne(index, value)} />
                 <span className={slots.acceptLabel()}>
                   Accept<span className={slots.srOnly()}> {name}</span>
                 </span>

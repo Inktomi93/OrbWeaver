@@ -25,13 +25,7 @@ export interface StreamTextProps {
  * reveal once characters start arriving. Domain-free — for a markdown-rendered stream, use
  * `useSmoothText` directly and feed its output into `@orb/ui/markdown` instead.
  */
-export function StreamText({
-  text,
-  status,
-  cps = DEFAULT_CPS,
-  shimmerLabel = "Loading",
-  className,
-}: StreamTextProps): ReactElement {
+export function StreamText({ text, status, cps = DEFAULT_CPS, shimmerLabel = "Loading", className }: StreamTextProps): ReactElement {
   const paced = useSmoothText(text, { enabled: status === "streaming", cps });
   if (status === "streaming" && paced.length === 0) {
     return <StreamShimmer label={shimmerLabel} className={className} />;

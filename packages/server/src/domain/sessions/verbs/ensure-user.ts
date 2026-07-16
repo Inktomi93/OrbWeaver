@@ -17,9 +17,7 @@ export function createEnsureUser(ctx: SessionsContext): Pick<SessionsService, "e
     // FLAG[PD-17]: refuse the reserved __agent__ namespace — a forward-header deployment must get a hard
     // refusal, never a JIT-create or match against an agent's row.
     if (isReservedAgentHandle(handle)) {
-      throw new DomainForbiddenError(
-        "the __agent__ handle namespace is reserved for agent principals",
-      );
+      throw new DomainForbiddenError("the __agent__ handle namespace is reserved for agent principals");
     }
     const existing = await selectIdByHandle(ctx.db, handle);
     if (existing !== undefined) {

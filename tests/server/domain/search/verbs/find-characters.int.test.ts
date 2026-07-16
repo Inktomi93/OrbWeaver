@@ -5,15 +5,7 @@
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
-import {
-  makeSearch,
-  seedAsset,
-  seedCharacter,
-  seedCharacterEmbedding,
-  seedCharacterSummary,
-  seedUser,
-  vec,
-} from "../_support.ts";
+import { makeSearch, seedAsset, seedCharacter, seedCharacterEmbedding, seedCharacterSummary, seedUser, vec } from "../_support.ts";
 
 describe("findCharacters", () => {
   test("enriches hits with summary facets + the avatar CAS hash", async () => {

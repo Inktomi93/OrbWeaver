@@ -98,17 +98,7 @@ export const updateCharacterSchema = createCharacterSchema.partial().extend({
 export type UpdateCharacterInput = z.infer<typeof updateCharacterSchema>;
 
 // Each sort needs its own keyset, so the wire cursor is discriminated by `sort`. Default = `recent`.
-export const CHARACTER_LIST_SORTS = [
-  "recent",
-  "alpha",
-  "starred",
-  "newest",
-  "oldest",
-  "mostChats",
-  "fewestChats",
-  "largestCards",
-  "smallestCards",
-] as const;
+export const CHARACTER_LIST_SORTS = ["recent", "alpha", "starred", "newest", "oldest", "mostChats", "fewestChats", "largestCards", "smallestCards"] as const;
 export type CharacterListSort = (typeof CHARACTER_LIST_SORTS)[number];
 export const characterListSortSchema = z.enum(CHARACTER_LIST_SORTS);
 

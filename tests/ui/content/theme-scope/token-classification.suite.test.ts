@@ -32,9 +32,7 @@ function cssVarToTokenPath(cssVar: string): string {
 }
 
 // Class 1 — derived from the emit surface (single source: THEME_SCOPE_EMIT_VARS), scoped to colours.
-const EMITTED = new Set(
-  THEME_SCOPE_EMIT_VARS.filter((v) => v.startsWith("--color-")).map(cssVarToTokenPath),
-);
+const EMITTED = new Set(THEME_SCOPE_EMIT_VARS.filter((v) => v.startsWith("--color-")).map(cssVarToTokenPath));
 
 // Class 2 — seed-covered, acceptably static under a custom theme, with rationale.
 //   • scrim: a translucent DIMMING overlay (modal/sheet/rail-overlay backdrop). A scrim darkens whatever
@@ -89,13 +87,8 @@ test("the three classes PARTITION every --color-* token (no unclassified token c
   const classified = new Set([...EMITTED, ...SEED_COVERED, ...STATIC_RATIONALE]);
   // Every real colour token is classified (a new tokens.json colour fails here until it is placed).
   const unclassified = ALL_COLOR_TOKENS.filter((path) => !classified.has(path));
-  expect(
-    unclassified,
-    "unclassified --color-* tokens — place each in a class in this file",
-  ).toEqual([]);
+  expect(unclassified, "unclassified --color-* tokens — place each in a class in this file").toEqual([]);
   // …and every classified path is a real token (a stale/renamed classification fails here).
   const stale = [...classified].filter((path) => !ALL_COLOR_TOKENS.includes(path));
-  expect(stale, "classified paths with no matching token — a rename left a stale entry").toEqual(
-    [],
-  );
+  expect(stale, "classified paths with no matching token — a rename left a stale entry").toEqual([]);
 });

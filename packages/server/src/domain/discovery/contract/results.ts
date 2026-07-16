@@ -1,14 +1,7 @@
 // domain/discovery/contract/results — the verb output shapes for discovery's read/compute surface.
 
 import type { DuplicateRelation } from "@orb/contracts/discovery";
-import type {
-  CharacterId,
-  ChatId,
-  DuplicateCharacterPairId,
-  DuplicateChatPairId,
-  MessageId,
-  ThemeClusterId,
-} from "@orb/kit/ids";
+import type { CharacterId, ChatId, DuplicateCharacterPairId, DuplicateChatPairId, MessageId, ThemeClusterId } from "@orb/kit/ids";
 import type { ThemeLevel } from "./params";
 
 // ── near-duplicate characters ─────────────────────────────────────────────────

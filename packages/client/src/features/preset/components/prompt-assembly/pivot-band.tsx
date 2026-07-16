@@ -23,12 +23,7 @@ export interface PivotBandProps {
 export function PivotBand({ form, index, duplicate }: PivotBandProps): ReactElement {
   if (duplicate) {
     return (
-      <Row
-        gap="row"
-        align="center"
-        padding="row"
-        className="rounded-card border border-warning bg-warning/10"
-      >
+      <Row gap="row" align="center" padding="row" className="rounded-card border border-warning bg-warning/10">
         <Icon icon={AlertTriangle} size="sm" />
         <Text size="micro" tone="warning" className="flex-1">
           Duplicate chat history — only the first one splits the conversation. Remove this one.
@@ -54,11 +49,7 @@ export function PivotBand({ form, index, duplicate }: PivotBandProps): ReactElem
         </Stack>
         <form.AppField name={`sections[${index}].enabled`}>
           {(field): ReactElement => (
-            <Switch
-              aria-label="Chat history enabled"
-              checked={field.state.value}
-              onCheckedChange={(next): void => field.handleChange(next)}
-            />
+            <Switch aria-label="Chat history enabled" checked={field.state.value} onCheckedChange={(next): void => field.handleChange(next)} />
           )}
         </form.AppField>
       </Row>

@@ -84,11 +84,7 @@ type DuplicateIdCheck = {
 };
 
 /** Records a section def's `id` against `seenIds`; flags a second def claiming an already-owned id. */
-function checkDuplicateId(
-  check: DuplicateIdCheck,
-  seenIds: Map<string, SeenId>,
-  out: Violation[],
-): void {
+function checkDuplicateId(check: DuplicateIdCheck, seenIds: Map<string, SeenId>, out: Violation[]): void {
   if (check.id === undefined) {
     return;
   }
@@ -124,11 +120,7 @@ function checkSectionDefs(sf: SourceFile, out: Violation[], seenIds: Map<string,
     if (init === undefined || !Node.isObjectLiteralExpression(init)) {
       continue;
     }
-    checkDuplicateId(
-      { name: decl.getName(), path, line: decl.getStartLineNumber(), id: sectionId(init) },
-      seenIds,
-      out,
-    );
+    checkDuplicateId({ name: decl.getName(), path, line: decl.getStartLineNumber(), id: sectionId(init) }, seenIds, out);
     const reason = plannedReason(init);
     if (reason === undefined) {
       continue;
@@ -224,15 +216,13 @@ export const gate: GateDescriptor = {
       why: "a SectionDefinition outside a `*-section` file — the co-location arm",
     },
     {
-      files:
-        "export const xSection: SectionDefinition = { id: 'x', content: { planned: '' }, context: { kind: 'none' } };\n",
+      files: "export const xSection: SectionDefinition = { id: 'x', content: { planned: '' }, context: { kind: 'none' } };\n",
       at: "packages/client/src/features/x/lib/x-section.ts",
       expect: { messageIncludes: "empty" },
       why: "a DECLARED-PLANNED section with an empty reason — the planned-reason arm (O1)",
     },
     {
-      files:
-        "export const xSection: SectionDefinition = { id: 'x', content: { planned: 'soon' }, list: () => null, context: { kind: 'none' } };\n",
+      files: "export const xSection: SectionDefinition = { id: 'x', content: { planned: 'soon' }, list: () => null, context: { kind: 'none' } };\n",
       at: "packages/client/src/features/x/lib/x-section.ts",
       expect: { messageIncludes: "real body" },
       why: "a planned section that also wires a list — the badge-wearing half-build arm (O1)",
@@ -242,7 +232,7 @@ export const gate: GateDescriptor = {
         "export const xSection: SectionDefinition = { id: 'x', content: { planned: 'soon' }, context: defineContextTabs({ useContextState: () => null, tabs: [] }) };\n",
       at: "packages/client/src/features/x/lib/x-section.ts",
       expect: { messageIncludes: "real body" },
-      // biome-ignore lint/security/noSecrets: a fixture WHY string (prose), not a secret.
+
       why: "a planned section wired `context: defineContextTabs(…)` — a CallExpression the plain object-literal check can't see (M3 amendment)",
     },
     {
@@ -270,14 +260,12 @@ export const gate: GateDescriptor = {
   ],
   mustPass: [
     {
-      files:
-        "export const refinerySection: SectionDefinition = { id: 'refinery', content: { planned: 'build pending' }, context: { kind: 'none' } };\n",
+      files: "export const refinerySection: SectionDefinition = { id: 'refinery', content: { planned: 'build pending' }, context: { kind: 'none' } };\n",
       at: "packages/client/src/features/refinery/lib/refinery-section.ts",
       why: "the founding DECLARED-PLANNED section — non-empty reason, fully placeholder — passes (O1)",
     },
     {
-      files:
-        "export const chatsSection: SectionDefinition = { id: 'chats', content: () => null, context: { kind: 'none' } };\n",
+      files: "export const chatsSection: SectionDefinition = { id: 'chats', content: () => null, context: { kind: 'none' } };\n",
       at: "packages/client/src/features/chat/lib/chats-section.tsx",
       why: "a FULL co-located section (function content) — passes",
     },

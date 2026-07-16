@@ -14,10 +14,7 @@ import { InvalidationStory } from "./_ct-stories";
 
 const CHAT_ID = castId<ChatId>("chat_ctinvalidationtest");
 
-test("invalidate() (via the hook's live context) refetches the mounted getChat query", async ({
-  mount,
-  page,
-}) => {
+test("invalidate() (via the hook's live context) refetches the mounted getChat query", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "chat.getChat": (input: unknown) => ({
       title: `room for ${(input as { chatId: string }).chatId}`,

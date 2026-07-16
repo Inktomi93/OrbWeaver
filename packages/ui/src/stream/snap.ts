@@ -9,8 +9,7 @@ const GRAPHEME_WINDOW = 256;
 const GRAPHEME_LOOKAHEAD_PADDING = 16;
 const WHITESPACE_RE = /\s/u;
 
-const graphemeSegmenter: Intl.Segmenter | null =
-  typeof Intl !== "undefined" && "Segmenter" in Intl ? new Intl.Segmenter() : null;
+const graphemeSegmenter: Intl.Segmenter | null = typeof Intl !== "undefined" && "Segmenter" in Intl ? new Intl.Segmenter() : null;
 
 /** Pulls a cut index back to the nearest grapheme-cluster boundary ≤ `index`, so a slice never splits a cluster. */
 export function snapToGraphemeBoundary(text: string, index: number): number {
@@ -18,14 +17,9 @@ export function snapToGraphemeBoundary(text: string, index: number): number {
     return Math.max(0, Math.min(index, text.length));
   }
   const anchor = text.lastIndexOf(" ", index);
-  const start =
-    anchor >= 0 && index - anchor <= GRAPHEME_WINDOW
-      ? anchor + 1
-      : Math.max(0, index - GRAPHEME_WINDOW);
+  const start = anchor >= 0 && index - anchor <= GRAPHEME_WINDOW ? anchor + 1 : Math.max(0, index - GRAPHEME_WINDOW);
   let boundary = start;
-  for (const seg of graphemeSegmenter.segment(
-    text.slice(start, index + GRAPHEME_LOOKAHEAD_PADDING),
-  )) {
+  for (const seg of graphemeSegmenter.segment(text.slice(start, index + GRAPHEME_LOOKAHEAD_PADDING))) {
     const abs = start + seg.index;
     if (abs > index) {
       break;

@@ -39,12 +39,7 @@ function macroCtx(over?: {
 }): RowMacroNameContext {
   return {
     characterNamesById: new Map((over?.chars ?? []).map(([id, name]) => [id, { name }])),
-    personaNamesById: new Map(
-      (over?.personas ?? []).map(([id, name, description]) => [
-        id,
-        { name, description: description ?? "" },
-      ]),
-    ),
+    personaNamesById: new Map((over?.personas ?? []).map(([id, name, description]) => [id, { name, description: description ?? "" }])),
   };
 }
 
@@ -64,9 +59,7 @@ describe("memory/build/substrate/transcript", () => {
     expect(speakerLabel(row(1), ctx)).toBe("Aria");
     expect(speakerLabel(row(1, { characterId: cole }), ctx)).toBe(cole); // unknown → id fallback
     expect(speakerLabel(row(1, { characterId: null, authorUserId: nate }), ctx)).toBe("User");
-    expect(
-      speakerLabel(row(1, { characterId: null, authorUserId: null, role: "system" }), ctx),
-    ).toBe("System");
+    expect(speakerLabel(row(1, { characterId: null, authorUserId: null, role: "system" }), ctx)).toBe("System");
   });
 
   test("renderTranscript renders Label: body lines oldest→newest", () => {
@@ -140,20 +133,14 @@ describe("memory/build/substrate/transcript", () => {
   });
 
   test("G2: PERSONA reattribution busts the hash (memory self-heals — was persona-blind before)", () => {
-    const base = [
-      row(1, { characterId: null, authorUserId: nate, personaId: mara, content: "hi" }),
-    ];
+    const base = [row(1, { characterId: null, authorUserId: nate, personaId: mara, content: "hi" })];
     const h = blockHash("0:0", base);
     // same speaker (authorUserId) + same content, only the authoring persona re-stamped → the hash MUST change
     // (pre-fix this was a silent no-op: personaId was not folded, so the digest never re-embedded).
-    const reattributed = [
-      row(1, { characterId: null, authorUserId: nate, personaId: vex, content: "hi" }),
-    ];
+    const reattributed = [row(1, { characterId: null, authorUserId: nate, personaId: vex, content: "hi" })];
     expect(blockHash("0:0", reattributed)).not.toBe(h);
     // and a null-persona row hashes distinctly from a stamped one (the fold distinguishes absence).
-    const unstamped = [
-      row(1, { characterId: null, authorUserId: nate, personaId: null, content: "hi" }),
-    ];
+    const unstamped = [row(1, { characterId: null, authorUserId: nate, personaId: null, content: "hi" })];
     expect(blockHash("0:0", unstamped)).not.toBe(h);
   });
 
@@ -176,27 +163,18 @@ describe("memory/build/substrate/transcript", () => {
   });
 
   test("renderTranscript with an empty producer floors every macro (no raw id leak on {{user}})", () => {
-    const rows = [
-      row(1, { characterId: null, authorUserId: nate, personaId: mara, content: "{{user}}" }),
-    ];
+    const rows = [row(1, { characterId: null, authorUserId: nate, personaId: mara, content: "{{user}}" })];
     expect(renderTranscript(rows, EMPTY_CTX)).toBe("User: User"); // label + body both floor to "User"
   });
 
   test("blockSpeakerIds returns distinct character ids in first-seen order", () => {
-    const rows = [
-      row(1, { characterId: aria }),
-      row(2, { characterId: cole }),
-      row(3, { characterId: aria }),
-    ];
+    const rows = [row(1, { characterId: aria }), row(2, { characterId: cole }), row(3, { characterId: aria })];
     expect(blockSpeakerIds(rows)).toEqual([aria, cole]);
   });
 
   test("blockSpeakerIds excludes agent-authored rows (character-only index — doc 02 §5 recorded limit)", () => {
     const buddy = castId<UserId>("user_buddy");
-    const rows = [
-      row(1, { characterId: aria }),
-      row(2, { characterId: null, authorUserId: buddy }),
-    ];
+    const rows = [row(1, { characterId: aria }), row(2, { characterId: null, authorUserId: buddy })];
     expect(blockSpeakerIds(rows)).toEqual([aria]); // the agent line is not speaker-indexed (by design, v1)
   });
 });

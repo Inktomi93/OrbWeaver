@@ -4,11 +4,7 @@
 // principal.userId (never a users read — no-direct-users-read gate).
 
 import type { Principal } from "@orb/contracts/identity";
-import type {
-  CreatePersonaInput,
-  PersonaBackupInput,
-  UpdatePersonaInput,
-} from "@orb/contracts/persona";
+import type { CreatePersonaInput, PersonaBackupInput, UpdatePersonaInput } from "@orb/contracts/persona";
 import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 
 export type { CreatePersonaInput, UpdatePersonaInput } from "@orb/contracts/persona";

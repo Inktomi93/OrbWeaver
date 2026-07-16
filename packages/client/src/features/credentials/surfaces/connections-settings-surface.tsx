@@ -19,13 +19,7 @@ import { Text } from "@orb/ui/text";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
-import {
-  createEntityMutation,
-  QueryBoundary,
-  QueryErrorState,
-  useInvalidation,
-  useTRPC,
-} from "#data";
+import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { useFocusOnMount } from "#lib";
 import { settingsAnchorId } from "#state";
 import { AddCredentialDialog } from "../components/add-credential-dialog";
@@ -73,9 +67,7 @@ export function ConnectionsSettingsSurface(): ReactElement {
     <Stack ref={surfaceRef} tabIndex={-1} className="outline-none">
       <QueryBoundary
         fallback={<Text tone="muted">Loading your connections…</Text>}
-        renderError={(_error, retry): ReactElement => (
-          <QueryErrorState label="your connections" onRetry={retry} />
-        )}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label="your connections" onRetry={retry} />}
       >
         <Container>
           <Stack gap="section">
@@ -91,9 +83,7 @@ export function ConnectionsSettingsSurface(): ReactElement {
 
 /** Scroll the Saved keys section into view (the red status-dot action). */
 function scrollToKeys(): void {
-  document
-    .getElementById(anchor(CONNECTIONS_SUBCATEGORY_IDS.keys))
-    ?.scrollIntoView({ behavior: scrollBehavior() });
+  document.getElementById(anchor(CONNECTIONS_SUBCATEGORY_IDS.keys))?.scrollIntoView({ behavior: scrollBehavior() });
 }
 
 /** Section (a): the 7 role slots as compact rows, autosaved to `routing.roleDefaults`. */
@@ -104,8 +94,7 @@ function ModelRolesSection(): ReactElement {
   const { data: viewer } = useSuspenseQuery(trpc.sessions.me.queryOptions());
   const { data: credentials } = useSuspenseQuery(trpc.credentials.list.queryOptions());
   const isOwner = viewer.globalRole === "owner";
-  const customCredentialId =
-    credentials.find((cred) => cred.provider === "custom_openai" && cred.active)?.id ?? null;
+  const customCredentialId = credentials.find((cred) => cred.provider === "custom_openai" && cred.active)?.id ?? null;
   const update = useUpdateRouting({ trpc, invalidation });
 
   const save = (values: RoutingForm): Promise<unknown> =>
@@ -123,26 +112,14 @@ function ModelRolesSection(): ReactElement {
   return (
     <Section divider={true} heading="Model roles" id={anchor(CONNECTIONS_SUBCATEGORY_IDS.roles)}>
       <Text size="micro" tone="muted">
-        Pick the provider and model for each role. Leave a row on “Default” to let the app choose.
-        Changes save automatically.
+        Pick the provider and model for each role. Leave a row on “Default” to let the app choose. Changes save automatically.
       </Text>
       <FieldLayout orientation="horizontal">
         <Stack key={mountKey} gap="block">
           {ROLE_SLOTS_ORDERED.map((slot) => (
-            <RoleSlotRow
-              key={slot.role}
-              slot={slot}
-              form={form}
-              isOwner={isOwner}
-              customCredentialId={customCredentialId}
-              onScrollToKeys={scrollToKeys}
-            />
+            <RoleSlotRow key={slot.role} slot={slot} form={form} isOwner={isOwner} customCredentialId={customCredentialId} onScrollToKeys={scrollToKeys} />
           ))}
-          <form.Subscribe
-            selector={(state): string | null =>
-              embedDimensionWarning(state.values.embed, state.values.imageEmbed)
-            }
-          >
+          <form.Subscribe selector={(state): string | null => embedDimensionWarning(state.values.embed, state.values.imageEmbed)}>
             {(warning): ReactElement | null =>
               warning === null ? null : (
                 <Row gap="field" align="center" role="alert">
@@ -215,9 +192,7 @@ function OpenRouterBalanceTile(): ReactElement | null {
   if (data === undefined) {
     return null;
   }
-  return (
-    <StatFigure label="OpenRouter balance" value={`$${(data.total - data.used).toFixed(2)}`} />
-  );
+  return <StatFigure label="OpenRouter balance" value={`$${(data.total - data.used).toFixed(2)}`} />;
 }
 
 /** Section (b): the saved-key library — add + per-key set-active/remove/health. */
@@ -232,8 +207,8 @@ function SavedKeysSection(): ReactElement {
     <Section divider={true} heading="Saved keys" id={anchor(CONNECTIONS_SUBCATEGORY_IDS.keys)}>
       <Row gap="field" align="center" justify="between" className="flex-wrap">
         <Text size="micro" tone="muted">
-          Your provider API keys. One key is active per provider; roles resolve their key from the
-          active one for their source. Keys are encrypted and never shown again.
+          Your provider API keys. One key is active per provider; roles resolve their key from the active one for their source. Keys are encrypted and never
+          shown again.
         </Text>
         <Button intent="primary" size="sm" onClick={(): void => setAddOpen(true)}>
           <Icon icon={Plus} size="sm" />
@@ -262,24 +237,14 @@ function SavedKeysSection(): ReactElement {
                 {PROVIDER_LABELS[provider]}
               </Text>
               {rows.map((credential) => (
-                <CredentialKeyRow
-                  key={credential.id}
-                  credential={credential}
-                  trpc={trpc}
-                  invalidation={invalidation}
-                />
+                <CredentialKeyRow key={credential.id} credential={credential} trpc={trpc} invalidation={invalidation} />
               ))}
             </Stack>
           ))}
         </Stack>
       )}
 
-      <AddCredentialDialog
-        open={addOpen}
-        onOpenChange={setAddOpen}
-        trpc={trpc}
-        invalidation={invalidation}
-      />
+      <AddCredentialDialog open={addOpen} onOpenChange={setAddOpen} trpc={trpc} invalidation={invalidation} />
     </Section>
   );
 }

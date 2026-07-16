@@ -12,19 +12,13 @@ import { requireOwned } from "../substrate/credential-not-found";
 
 const DEFAULT_REASON = "manually revoked by user";
 
-export function createMarkRevokedByUser(
-  ctx: CredentialContext,
-): CredentialsService["markRevokedByUser"] {
+export function createMarkRevokedByUser(ctx: CredentialContext): CredentialsService["markRevokedByUser"] {
   return async (params: MarkRevokedByUserParams): Promise<void> => {
     const ownerId = params.principal.userId;
     const { credentialId } = params;
     requireOwned(await fetchOwnedCredential(ctx.db, ownerId, credentialId), credentialId);
     await setRevokedById(ctx.db, credentialId, ctx.now());
-    securityEvent(
-      "credential_revoked",
-      { credentialId, reason: params.reason ?? DEFAULT_REASON, path: "user" },
-      "credentials: marked revoked (user)",
-    );
+    securityEvent("credential_revoked", { credentialId, reason: params.reason ?? DEFAULT_REASON, path: "user" }, "credentials: marked revoked (user)");
     ctx.emitUserEvent(ownerId, { type: "credentialsChanged", credentialId });
   };
 }

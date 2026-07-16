@@ -26,12 +26,7 @@ export const SUMMARIZER_CONTEXT_FLOOR = 4096;
  * `null` when even the single newest message overflows (the caller skips-and-flags — never silent truncation).
  * `contextTokens ≤ 0` ⇒ no room at all ⇒ `null`.
  */
-export function fitBlockToBudget(
-  rows: readonly MsgRow[],
-  macroNames: RowMacroNameContext,
-  contextTokens: number,
-  systemPromptTokens: number,
-): MsgRow[] | null {
+export function fitBlockToBudget(rows: readonly MsgRow[], macroNames: RowMacroNameContext, contextTokens: number, systemPromptTokens: number): MsgRow[] | null {
   const budget = contextTokens - systemPromptTokens - OUTPUT_RESERVE_TOKENS;
   if (budget <= 0) {
     return null;

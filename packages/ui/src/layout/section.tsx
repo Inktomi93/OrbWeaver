@@ -12,13 +12,7 @@ export interface SectionProps extends ComponentProps<"section"> {
  *
  * Usage: `<Section heading="Sampling">…fields…</Section>` · `<Section heading="Effects" divider>…`.
  */
-export function Section({
-  className,
-  heading,
-  divider = false,
-  children,
-  ...props
-}: SectionProps): ReactElement {
+export function Section({ className, heading, divider = false, children, ...props }: SectionProps): ReactElement {
   const slots = sectionVariants({ divider });
   return (
     <section {...props} className={slots.root({ className })}>

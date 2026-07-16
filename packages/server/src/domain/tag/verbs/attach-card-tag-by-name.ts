@@ -13,13 +13,7 @@ import { attachCharacterTag } from "../persistence/junctions";
 import { findTagIdByName, insertTagIfAbsent } from "../persistence/queries";
 
 export function createAttachCardTagByName(ctx: TagContext): TagService["attachCardTagByName"] {
-  return async ({
-    ownerId,
-    characterId,
-    tagName,
-    source = "manual",
-    status = "accepted",
-  }: AttachCardTagByNameParams): Promise<boolean> => {
+  return async ({ ownerId, characterId, tagName, source = "manual", status = "accepted" }: AttachCardTagByNameParams): Promise<boolean> => {
     const name = normalizeTagName(tagName);
     if (name === "") {
       return false;
@@ -35,10 +29,7 @@ export function createAttachCardTagByName(ctx: TagContext): TagService["attachCa
     if (tagId === undefined) {
       // Unreachable: the INSERT conflicted, so an owned row that folds to this name exists and the
       // lookup re-reads it.
-      throw new DomainOperationError(
-        "tag_resolve_failed",
-        `resolve-or-create tag "${name}" found no row after a unique conflict`,
-      );
+      throw new DomainOperationError("tag_resolve_failed", `resolve-or-create tag "${name}" found no row after a unique conflict`);
     }
     const newlyAttached = await attachCharacterTag({ db: ctx.db, characterId, tagId, status });
     // Best-effort audit only on a new attach — a re-import/re-add no-op writes no row, so a bulk re-import

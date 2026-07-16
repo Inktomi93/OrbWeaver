@@ -40,11 +40,7 @@ export interface RetryOptions {
  * AND a clock is injected, wait until it; otherwise exponential backoff (`base * 2^(attempt-1)`) with
  * ±20% jitter, capped at `maxMs`.
  */
-export function computeBackoffMs(
-  attempt: number,
-  err: ProviderError,
-  opts: RetryOptions = {},
-): number {
+export function computeBackoffMs(attempt: number, err: ProviderError, opts: RetryOptions = {}): number {
   const baseMs = opts.baseMs ?? DEFAULT_BASE_MS;
   const maxMs = opts.maxMs ?? DEFAULT_MAX_MS;
   if (err.kind === "rate_limit" && err.resetsAt !== undefined && opts.now !== undefined) {
@@ -109,6 +105,7 @@ export async function runWithPreCommitRetry<T>(
       const mapped = classify(raw);
       const exhausted = attempt >= maxAttempts;
       // Can't retry once a delta streamed (replay duplicates tokens); non-retryable kinds also bail.
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- FALSE POSITIVE: the typed-lint checker over-narrows `committed` to the `false` literal inside this `catch` (it can't see across the `await op(markCommitted)` that a real runner uses to mutate it synchronously mid-stream before throwing). Confirmed a real runner calls `markCommitted()` then throws in the same `op` call — this guard is load-bearing (prevents a retry from replaying already-streamed tokens to the caller).
       if (committed || !mapped.retryable || exhausted) {
         throw raw;
       }

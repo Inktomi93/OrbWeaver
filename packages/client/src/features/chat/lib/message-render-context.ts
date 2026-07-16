@@ -21,9 +21,7 @@ const SOLO_CAST_FLOOR = 1;
 
 // Never participants[0] (same anti-guess rule as attribution's Narrator fallback), and never "" (an
 // empty string is a real value to the kit atom's ?? floor check, not "absent").
-function resolveDefaultCharacterName(
-  participants: ReadonlyMap<CharacterId, ParticipantView> | undefined,
-): string | undefined {
+function resolveDefaultCharacterName(participants: ReadonlyMap<CharacterId, ParticipantView> | undefined): string | undefined {
   if (participants === undefined) {
     return;
   }
@@ -39,9 +37,7 @@ function resolveDefaultCharacterName(
 }
 
 // In roster insertion order so the joined string matches the server's ctx.cast join byte-for-byte.
-function resolveCastNames(
-  participants: ReadonlyMap<CharacterId, ParticipantView> | undefined,
-): readonly string[] | undefined {
+function resolveCastNames(participants: ReadonlyMap<CharacterId, ParticipantView> | undefined): readonly string[] | undefined {
   if (participants === undefined) {
     return;
   }
@@ -56,24 +52,17 @@ function resolveCastNames(
 
 /** Every row in a chat shares one of these; per-row macro retargets ride the message's own
  *  characterId/personaId instead of a per-row context rebuild. */
-export function resolveMessageRenderContext(
-  input: ResolveMessageRenderContextInput,
-): MessageRenderContext {
+export function resolveMessageRenderContext(input: ResolveMessageRenderContextInput): MessageRenderContext {
   const speakerCharName = resolveDefaultCharacterName(input.participants);
   const cast = resolveCastNames(input.participants);
-  const anchorPersona =
-    input.anchorPersonaId === null || input.anchorPersonaId === undefined
-      ? undefined
-      : input.personaNamesById.get(input.anchorPersonaId);
+  const anchorPersona = input.anchorPersonaId === null || input.anchorPersonaId === undefined ? undefined : input.personaNamesById.get(input.anchorPersonaId);
   return {
     characterNamesById: input.characterNamesById,
     personaNamesById: input.personaNamesById,
     ...(speakerCharName === undefined ? {} : { speakerCharName }),
     ...(cast === undefined ? {} : { cast }),
     ...(anchorPersona === undefined ? {} : { fallbackPersonaName: anchorPersona.name }),
-    ...(anchorPersona === undefined
-      ? {}
-      : { fallbackPersonaDescription: anchorPersona.description }),
+    ...(anchorPersona === undefined ? {} : { fallbackPersonaDescription: anchorPersona.description }),
     ...(input.autoFixMarkdown === undefined ? {} : { autoFixMarkdown: input.autoFixMarkdown }),
   };
 }

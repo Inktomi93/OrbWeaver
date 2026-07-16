@@ -37,20 +37,10 @@ export function CharacterFilterChips({
 }: CharacterFilterChipsProps): ReactElement {
   return (
     <Row aria-label="Filters" className="flex-wrap" gap="field" role="group">
-      <Toggle
-        aria-label="Show only favorites"
-        onPressedChange={onToggleFavorites}
-        pressed={favoritesOnly}
-        size="sm"
-      >
+      <Toggle aria-label="Show only favorites" onPressedChange={onToggleFavorites} pressed={favoritesOnly} size="sm">
         Favorites
       </Toggle>
-      <Toggle
-        aria-label="Show archived characters"
-        onPressedChange={onToggleArchived}
-        pressed={showArchived}
-        size="sm"
-      >
+      <Toggle aria-label="Show archived characters" onPressedChange={onToggleArchived} pressed={showArchived} size="sm">
         Archived
       </Toggle>
       {availableTags.map((tag) => (

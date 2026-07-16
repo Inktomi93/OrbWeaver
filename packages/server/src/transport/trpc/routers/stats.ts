@@ -28,41 +28,29 @@ export const statsRouter = t.router({
         })
         .optional(),
     )
-    .query(({ ctx, input }) =>
-      ctx.services.stats.leaderboard(ctx.auth.userId, { sort: input?.sort, limit: input?.limit }),
-    ),
+    .query(({ ctx, input }) => ctx.services.stats.leaderboard(ctx.auth.userId, { sort: input?.sort, limit: input?.limit })),
 
   timeseries: authedProcedure
     .input(z.object({ from: z.string().optional(), to: z.string().optional() }).optional())
-    .query(({ ctx, input }) =>
-      ctx.services.stats.timeseries(ctx.auth.userId, { from: input?.from, to: input?.to }),
-    ),
+    .query(({ ctx, input }) => ctx.services.stats.timeseries(ctx.auth.userId, { from: input?.from, to: input?.to })),
 
   byModel: authedProcedure
     .input(z.object({ limit: z.number().int().positive().optional() }).optional())
-    .query(({ ctx, input }) =>
-      ctx.services.stats.byModel(ctx.auth.userId, { limit: input?.limit }),
-    ),
+    .query(({ ctx, input }) => ctx.services.stats.byModel(ctx.auth.userId, { limit: input?.limit })),
 
   freshness: authedProcedure.query(({ ctx }) => ctx.services.stats.freshness(ctx.auth.userId)),
 
-  personaUsage: authedProcedure.query(({ ctx }) =>
-    ctx.services.stats.personaUsage(ctx.auth.userId),
-  ),
+  personaUsage: authedProcedure.query(({ ctx }) => ctx.services.stats.personaUsage(ctx.auth.userId)),
 
   wrapped: authedProcedure.query(({ ctx }) => ctx.services.stats.wrapped(ctx.auth.userId)),
 
   temporal: authedProcedure.query(({ ctx }) => ctx.services.stats.temporal(ctx.auth.userId)),
 
-  activityHeatmap: authedProcedure.query(({ ctx }) =>
-    ctx.services.stats.activityHeatmap(ctx.auth.userId),
-  ),
+  activityHeatmap: authedProcedure.query(({ ctx }) => ctx.services.stats.activityHeatmap(ctx.auth.userId)),
 
   momentum: authedProcedure
     .input(z.object({ limit: z.number().int().positive().optional() }).optional())
     .query(({ ctx, input }) => ctx.services.stats.momentum(ctx.auth.userId, input?.limit)),
 
-  latency: authedProcedure
-    .input(latencyScopeSchema)
-    .query(({ ctx, input }) => ctx.services.stats.latency(ctx.auth.userId, input)),
+  latency: authedProcedure.input(latencyScopeSchema).query(({ ctx, input }) => ctx.services.stats.latency(ctx.auth.userId, input)),
 });

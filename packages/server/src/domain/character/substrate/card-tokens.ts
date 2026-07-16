@@ -14,14 +14,7 @@ import { estimateTokens } from "@orb/kit/tokens";
 /** The card fields that contribute to the heft estimate (the prompt-reaching content). */
 type CardTextFields = Pick<
   CharacterCard,
-  | "name"
-  | "description"
-  | "personality"
-  | "scenario"
-  | "exampleMessages"
-  | "systemPrompt"
-  | "postHistoryInstructions"
-  | "greetings"
+  "name" | "description" | "personality" | "scenario" | "exampleMessages" | "systemPrompt" | "postHistoryInstructions" | "greetings"
 >;
 
 /** Advisory token estimate for a card's definition (name + the free-text fields + every greeting). */

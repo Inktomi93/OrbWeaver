@@ -11,10 +11,7 @@ import { SYSTEM_PROMPT_DYNAMIC_BOUNDARY } from "@anthropic-ai/claude-agent-sdk";
 import type { ModelCapability } from "@orb/contracts/connection";
 import type { ResolvedCredential } from "@orb/contracts/credentials";
 import { ProviderError } from "@orb/server/infra/providers";
-import {
-  disciplineOptions,
-  dynamicContextOptions,
-} from "@orb/server/infra/providers/backends/agent-sdk";
+import { disciplineOptions, dynamicContextOptions } from "@orb/server/infra/providers/backends/agent-sdk";
 import { describe } from "vitest";
 // `toSdkGeneration` is an @internal helper (not on the agent-sdk barrel), so — like resolve-chat /
 // local-light's model-cache — the test reaches it by relative path. It MAPS resolve-chat's resolved
@@ -22,10 +19,7 @@ import { describe } from "vitest";
 // covered by resolve-chat.test.ts).
 // `buildSystemPrompt` is likewise not on the agent-sdk barrel (its only consumer is the sibling
 // runner.ts); the test reaches it by the same relative path as `toSdkGeneration`.
-import {
-  buildSystemPrompt,
-  toSdkGeneration,
-} from "../../../../../../packages/server/src/infra/providers/backends/agent-sdk/translate.ts";
+import { buildSystemPrompt, toSdkGeneration } from "../../../../../../packages/server/src/infra/providers/backends/agent-sdk/translate.ts";
 import { expect, test } from "../../../../../support/fixtures";
 
 const OR_KEY = "sk-or-translate-test";
@@ -41,8 +35,7 @@ const LOOPBACK_BASE_RE = /^http:\/\/127\.0\.0\.1:/u;
 // The exact cowork bundle `tools:[]` does NOT remove — must be stripped on EVERY spawn (translate.ts).
 const COWORK_DENYLIST = ["DesignSync", "Monitor", "PushNotification", "RemoteTrigger"];
 
-const cred = (value: Record<string, unknown>): ResolvedCredential =>
-  value as unknown as ResolvedCredential;
+const cred = (value: Record<string, unknown>): ResolvedCredential => value as unknown as ResolvedCredential;
 
 const OR_CRED = cred({ source: "openrouter", apiKey: OR_KEY, credentialId: null });
 const VLLM_CRED = cred({ source: "vllm", credentialId: null });
@@ -193,9 +186,7 @@ describe("toSdkGeneration — maps the resolved decision into SDK Options", () =
   });
 
   test("the resolved, range-clamped output cap lands on the env overrides", () => {
-    expect(
-      toSdkGeneration({ maxOutputTokens: 999_999 }, EFFORT_CAP).envOverrides.maxOutputTokens,
-    ).toBe(4096);
+    expect(toSdkGeneration({ maxOutputTokens: 999_999 }, EFFORT_CAP).envOverrides.maxOutputTokens).toBe(4096);
   });
 
   test("forwards resolve-chat's warnings (the runner emits them as `warning` events)", () => {

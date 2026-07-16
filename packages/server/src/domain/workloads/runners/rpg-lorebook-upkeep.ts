@@ -5,12 +5,7 @@
 
 import type { Runner } from "../contract/runner";
 
-export const rpgLorebookUpkeepRunner: Runner<"rpg-lorebook-upkeep"> = (
-  _ctx,
-  _params,
-  report,
-  _signal,
-) => {
+export const rpgLorebookUpkeepRunner: Runner<"rpg-lorebook-upkeep"> = (_ctx, _params, report, _signal) => {
   report({
     message: "rpg-lorebook-upkeep is an R1-subset stub (no-op); the real crew runner lands later",
   });

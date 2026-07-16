@@ -4,13 +4,7 @@
 // composing the injected stats economics op — this file stays the pure-semantics half.
 
 import type { Db } from "@orb/db";
-import {
-  assets,
-  characters,
-  chatParticipants,
-  digestThemeAssignments,
-  themeClusters,
-} from "@orb/db";
+import { assets, characters, chatParticipants, digestThemeAssignments, themeClusters } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { and, asc, desc, eq, isNotNull, notExists, sql } from "drizzle-orm";
 import type { DiscoveryContext } from "../context";
@@ -20,9 +14,7 @@ import type { DiscoveryService } from "../contract/service";
 
 const THEME_DRIFT_TOP = 6;
 
-export function createInsights(
-  ctx: DiscoveryContext,
-): Pick<DiscoveryService, "themeDrift" | "unusedCharacters"> {
+export function createInsights(ctx: DiscoveryContext): Pick<DiscoveryService, "themeDrift" | "unusedCharacters"> {
   return {
     themeDrift: (userId, level) => themeDrift(ctx.db, userId, level),
     unusedCharacters: (userId) => unusedCharacters(ctx.db, userId),
@@ -30,11 +22,7 @@ export function createInsights(
 }
 
 /** Month bucket derives from the digest's msgMidAt; assignments without a stamp are skipped. */
-async function themeDrift(
-  db: Db,
-  ownerId: UserId,
-  level: ThemeLevel = "scene",
-): Promise<ThemeDriftBucket[]> {
+async function themeDrift(db: Db, ownerId: UserId, level: ThemeLevel = "scene"): Promise<ThemeDriftBucket[]> {
   const bucket = sql<string>`strftime('%Y-%m', ${digestThemeAssignments.msgMidAt} / 1000, 'unixepoch')`;
   const count = sql<number>`count(*)`;
   const rows = await db
@@ -46,13 +34,7 @@ async function themeDrift(
     })
     .from(digestThemeAssignments)
     .innerJoin(themeClusters, eq(themeClusters.id, digestThemeAssignments.themeClusterId))
-    .where(
-      and(
-        eq(themeClusters.ownerId, ownerId),
-        eq(themeClusters.level, level),
-        isNotNull(digestThemeAssignments.msgMidAt),
-      ),
-    )
+    .where(and(eq(themeClusters.ownerId, ownerId), eq(themeClusters.level, level), isNotNull(digestThemeAssignments.msgMidAt)))
     .groupBy(bucket, themeClusters.clusterIdx)
     .orderBy(asc(bucket), desc(count));
 
@@ -89,12 +71,7 @@ async function unusedCharacters(db: Db, ownerId: UserId): Promise<UnusedCharacte
           db
             .select({ one: sql`1` })
             .from(chatParticipants)
-            .where(
-              and(
-                eq(chatParticipants.characterId, characters.id),
-                eq(chatParticipants.kind, "character"),
-              ),
-            ),
+            .where(and(eq(chatParticipants.characterId, characters.id), eq(chatParticipants.kind, "character"))),
         ),
       ),
     )

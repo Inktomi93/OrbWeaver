@@ -42,12 +42,7 @@ export interface EngineStatusRecord {
 const registry = new Map<VllmEngine, EngineStatusRecord>();
 
 /** Record the current lifecycle state for an engine. `at` is the injected epoch-ms write time. */
-export function setEngineStatus(
-  engine: VllmEngine,
-  status: Status,
-  detail: string,
-  at: number,
-): void {
+export function setEngineStatus(engine: VllmEngine, status: Status, detail: string, at: number): void {
   registry.set(engine, { status, detail, updatedAt: at });
 }
 

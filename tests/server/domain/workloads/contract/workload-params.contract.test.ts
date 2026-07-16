@@ -4,11 +4,7 @@
 
 import { WORKLOAD_KINDS } from "@orb/contracts/workloads";
 import { describe } from "vitest";
-import {
-  PARAMS_SCHEMAS,
-  parseParamsForKind,
-  startWorkloadInput,
-} from "../../../../../packages/server/src/domain/workloads/contract/workload-params.ts";
+import { PARAMS_SCHEMAS, parseParamsForKind, startWorkloadInput } from "../../../../../packages/server/src/domain/workloads/contract/workload-params.ts";
 import { expect, test } from "../../../../support/fixtures";
 
 describe("workload-params", () => {

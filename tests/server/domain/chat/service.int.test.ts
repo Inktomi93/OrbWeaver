@@ -15,23 +15,13 @@ import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
 import type { ChatService } from "../../../../packages/server/src/domain/chat";
 import { createActiveTurns } from "../../../../packages/server/src/domain/chat/active-turns";
-import type {
-  ChatContext,
-  ChatServiceDeps,
-} from "../../../../packages/server/src/domain/chat/context";
+import type { ChatContext, ChatServiceDeps } from "../../../../packages/server/src/domain/chat/context";
 import type { TurnStreamChunk } from "../../../../packages/server/src/domain/chat/contract/results";
 import { createChatService } from "../../../../packages/server/src/domain/chat/service";
 import { freshDb } from "../../../support/db";
 import { principal as makePrincipal } from "../../../support/factories/principal.ts";
 import { expect, test } from "../../../support/fixtures";
-import {
-  makeChatContext,
-  seedCharacter,
-  seedChat,
-  seedParticipant,
-  seedUser,
-  testConnection,
-} from "./_support";
+import { makeChatContext, seedCharacter, seedChat, seedParticipant, seedUser, testConnection } from "./_support";
 
 let db: Db;
 
@@ -39,8 +29,7 @@ beforeEach(async () => {
   db = await freshDb();
 });
 
-const card = (name: string): CharacterCard =>
-  ({ name, description: "", avatarAssetId: null, regexScripts: [] }) as unknown as CharacterCard;
+const card = (name: string): CharacterCard => ({ name, description: "", avatarAssetId: null, regexScripts: [] }) as unknown as CharacterCard;
 
 function principal(userId: UserId): Principal {
   return makePrincipal(userId, { handle: castId<Handle>("h") });
@@ -78,21 +67,15 @@ function makeService(names: Readonly<Record<string, string>>): {
     runChatTurn: scripted("Hi there"),
     applyStatsDelta: (_b: unknown, _d: Db, _delta: StatsDelta): void => undefined,
     getCard: ({ characterId }) => Promise.resolve(card(names[characterId] ?? "Unknown")),
-    mintSyntheticGroupCharacter: () =>
-      Promise.resolve({ characterId: castId<CharacterId>("character_group") }),
+    mintSyntheticGroupCharacter: () => Promise.resolve({ characterId: castId<CharacterId>("character_group") }),
     resolveUserPublics: () => Promise.resolve(null),
     // D44 §12.0 — a CHARACTER seat opted into trusted HTML; humans resolve to the untrusted floor. Proves
     // the resolved policy is threaded onto ParticipantView (the client's render-trust data source).
     resolveRenderPolicy: ({ characterId }) =>
-      Promise.resolve(
-        characterId === null
-          ? { trustHtml: false, forbidExternalMedia: true }
-          : { trustHtml: true, forbidExternalMedia: false },
-      ),
+      Promise.resolve(characterId === null ? { trustHtml: false, forbidExternalMedia: true } : { trustHtml: true, forbidExternalMedia: false }),
     // D44 §12.1/§12.5 — a CHARACTER seat carries a raw theme override; a human seat resolves to null.
     // Proves the RAW (unmerged) value is threaded onto ParticipantView, not re-resolved against a global.
-    resolveThemeOverride: ({ characterId }) =>
-      Promise.resolve(characterId === null ? null : { accent: "oklch(0.7 0.14 250)" }),
+    resolveThemeOverride: ({ characterId }) => Promise.resolve(characterId === null ? null : { accent: "oklch(0.7 0.14 250)" }),
   });
   const deps: ChatServiceDeps = {
     emit: (event) => {

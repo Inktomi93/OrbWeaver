@@ -4,14 +4,7 @@
 
 import type { SessionKey, SessionStore, SessionStoreEntry } from "@anthropic-ai/claude-agent-sdk";
 import type { SeedTurn } from "./frames";
-import {
-  buildSeedFrames,
-  isBranchDivergence,
-  seedSessionId,
-  sessionContainsSeedPrefix,
-  sessionMatchesSeed,
-  toSeedTurns,
-} from "./frames";
+import { buildSeedFrames, isBranchDivergence, seedSessionId, sessionContainsSeedPrefix, sessionMatchesSeed, toSeedTurns } from "./frames";
 
 // "" is internal-only for the main transcript's subpath — never handed back to the SDK, where "" is invalid.
 const MAIN_TRANSCRIPT_SUBPATH = "";
@@ -54,14 +47,7 @@ function canReplace(store: SessionStore): store is ReplaceableSessionStore {
  */
 export interface SeededSessionDecision {
   readonly sessionId: string | null;
-  readonly disposition:
-    | "resumed"
-    | "forked"
-    | "reseeded"
-    | "seeded"
-    | "readopted"
-    | "fresh"
-    | "cleared";
+  readonly disposition: "resumed" | "forked" | "reseeded" | "seeded" | "readopted" | "fresh" | "cleared";
 }
 
 /**
@@ -103,9 +89,7 @@ export class InMemorySessionStore implements ReplaceableSessionStore {
     }
     const id = composite(key);
     const existing = this.entries.get(id) ?? [];
-    const seen = new Set(
-      existing.map((e) => e.uuid).filter((u): u is string => typeof u === "string"),
-    );
+    const seen = new Set(existing.map((e) => e.uuid).filter((u): u is string => typeof u === "string"));
     for (const entry of entries) {
       if (typeof entry.uuid === "string") {
         if (seen.has(entry.uuid)) {
@@ -166,10 +150,7 @@ export class SessionCache {
    * `forkSession`: it mints a random id, but swipe-back discovery is content-addressed (recomputes a
    * branch's id with `seedSessionId` from canon alone) — a random fork id would be unfindable on return.
    */
-  async ensureSeededSession(
-    chatId: string,
-    seed: readonly SeedTurn[],
-  ): Promise<SeededSessionDecision> {
+  async ensureSeededSession(chatId: string, seed: readonly SeedTurn[]): Promise<SeededSessionDecision> {
     const turns = toSeedTurns(seed);
     if (turns.length === 0) {
       this.byChat.delete(chatId);
@@ -196,10 +177,7 @@ export class SessionCache {
       // Non-branch divergence (no shared prefix, e.g. window-slide): reseed in place — preserving the
       // lineage buys nothing here, so the cheapest rewrite (same id, changed suffix) wins.
       if (canReplace(this.store)) {
-        await this.store.replace(
-          { projectKey: INTERNAL_PROJECT_KEY, sessionId: recorded },
-          buildSeedFrames(turns, recorded),
-        );
+        await this.store.replace({ projectKey: INTERNAL_PROJECT_KEY, sessionId: recorded }, buildSeedFrames(turns, recorded));
         return { sessionId: recorded, disposition: "reseeded" };
       }
     }
@@ -212,10 +190,7 @@ export class SessionCache {
    * prefix (exact or grown-superset) — the live subprocess appends its own frames after a turn runs, so
    * the pre-turn seed becomes a strict prefix of the stored lineage.
    */
-  private async readoptDeterministicCandidate(
-    chatId: string,
-    turns: readonly SeedTurn[],
-  ): Promise<SeededSessionDecision | null> {
+  private async readoptDeterministicCandidate(chatId: string, turns: readonly SeedTurn[]): Promise<SeededSessionDecision | null> {
     for (let salt = 0; salt < MAX_SEED_SALT; salt++) {
       const sessionId = seedSessionId(chatId, turns, salt);
       // biome-ignore lint/performance/noAwaitInLoops: inherently sequential — a salted candidate is consulted only after the lower salt proved absent/mismatched.
@@ -229,20 +204,13 @@ export class SessionCache {
   }
 
   /** Seek (or seed) the deterministic lineage for this seed state; returns `fresh` past the salt ceiling. */
-  private async seedFresh(
-    chatId: string,
-    turns: readonly SeedTurn[],
-    seededAs: "seeded" | "forked" = "seeded",
-  ): Promise<SeededSessionDecision> {
+  private async seedFresh(chatId: string, turns: readonly SeedTurn[], seededAs: "seeded" | "forked" = "seeded"): Promise<SeededSessionDecision> {
     for (let salt = 0; salt < MAX_SEED_SALT; salt++) {
       const sessionId = seedSessionId(chatId, turns, salt);
       // biome-ignore lint/performance/noAwaitInLoops: inherently sequential — salt N is consulted only after salt N-1's stored transcript proved diverged.
       const rows = await this.loadSession(sessionId);
       if (rows.length === 0) {
-        await this.store.append(
-          { projectKey: INTERNAL_PROJECT_KEY, sessionId },
-          buildSeedFrames(turns, sessionId),
-        );
+        await this.store.append({ projectKey: INTERNAL_PROJECT_KEY, sessionId }, buildSeedFrames(turns, sessionId));
         this.byChat.set(chatId, sessionId);
         return { sessionId, disposition: seededAs };
       }

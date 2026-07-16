@@ -18,21 +18,11 @@ const onRender: ProfilerOnRenderCallback = (id, phase, actualDuration) => {
   if (actualDuration < SLOW_COMMIT_MS) {
     return;
   }
-  console.warn(
-    `%c${logClock()} [perf]%c slow commit ${id} ${Math.round(actualDuration)}ms (${phase})`,
-    PERF_STYLE,
-    MUTED_STYLE,
-  );
+  console.warn(`%c${logClock()} [perf]%c slow commit ${id} ${Math.round(actualDuration)}ms (${phase})`, PERF_STYLE, MUTED_STYLE);
 };
 
 /** Dev-only slow-commit logger; in prod it renders children bare. */
-export function RenderProfiler({
-  id,
-  children,
-}: {
-  readonly id: string;
-  readonly children: ReactNode;
-}): ReactNode {
+export function RenderProfiler({ id, children }: { readonly id: string; readonly children: ReactNode }): ReactNode {
   if (!IS_DEV) {
     return children;
   }

@@ -6,9 +6,7 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import { ChromeRegistryProbe } from "./_ct-stories";
 
-test("useChromeRegistry resolves the real registered topbar.trail widgets inside the provider", async ({
-  mount,
-}) => {
+test("useChromeRegistry resolves the real registered topbar.trail widgets inside the provider", async ({ mount }) => {
   const probe = await mount(<ChromeRegistryProbe />);
   const out = probe.locator("output");
   await expect(out).toContainText("ids=notifications-bell,fullscreen-toggle,context-toggle");

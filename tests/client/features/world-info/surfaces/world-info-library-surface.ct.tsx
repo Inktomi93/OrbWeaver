@@ -35,7 +35,5 @@ test("lists books, marks the global one, and New fires createBook", async ({ mou
   await expect(page.getByText("Global")).toHaveCount(1);
 
   await page.getByRole("button", { name: "New", exact: true }).click();
-  await expect
-    .poll(() => trpc.count("worldInfo.createBook"), { intervals: [20, 50, 100] })
-    .toBeGreaterThanOrEqual(1);
+  await expect.poll(() => trpc.count("worldInfo.createBook"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
 });

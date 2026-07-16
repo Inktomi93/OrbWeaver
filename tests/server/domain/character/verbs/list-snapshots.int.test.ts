@@ -41,8 +41,6 @@ describe("listSnapshots", () => {
       principal: principal(owner),
       input: { handle: "nyx", name: "Nyx", description: "d" },
     });
-    await expect(
-      svc.listSnapshots({ principal: principal(other), characterId: created.id }),
-    ).rejects.toBeInstanceOf(CharacterNotFoundError);
+    await expect(svc.listSnapshots({ principal: principal(other), characterId: created.id })).rejects.toBeInstanceOf(CharacterNotFoundError);
   });
 });

@@ -11,11 +11,7 @@ import { emitWorkloadEvent } from "./progress-bus";
 const DEFAULT_STALE_THRESHOLD_MS = 15_000;
 const REAPED_MESSAGE = "worker heartbeat went stale — row reaped (worker_died)";
 
-export async function reapOrphanedWorkloads(args: {
-  db: Db;
-  now: number;
-  staleThresholdMs?: number;
-}): Promise<number> {
+export async function reapOrphanedWorkloads(args: { db: Db; now: number; staleThresholdMs?: number }): Promise<number> {
   const threshold = args.staleThresholdMs ?? DEFAULT_STALE_THRESHOLD_MS;
   const stale = await findStaleInFlight(args.db, args.now - threshold);
   const error: WorkloadError = { kind: "worker_died", message: REAPED_MESSAGE };

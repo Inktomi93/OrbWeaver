@@ -62,10 +62,7 @@ const TERMINAL_TYPES = new Set(["response.completed", "response.incomplete"]);
 interface OpenRouterResponsesClient {
   readonly beta: {
     readonly responses: {
-      readonly send: (
-        request: { readonly responsesRequest: ResponsesRequest },
-        options?: { readonly signal?: AbortSignal },
-      ) => Promise<unknown>;
+      readonly send: (request: { readonly responsesRequest: ResponsesRequest }, options?: { readonly signal?: AbortSignal }) => Promise<unknown>;
     };
   };
 }
@@ -134,10 +131,7 @@ function buildResponsesToolChoice(choice: ToolChoice): OpenAIResponsesToolChoice
 
 // The ONE OR wire that carries a verbosity field; emits `format`/`verbosity` only when set, else undefined
 // (keeps a plain turn from emitting an empty `text: {}`).
-function buildResponsesText(
-  format: ResponseFormat | undefined,
-  verbosity: Verbosity | undefined,
-): ResponsesRequest["text"] {
+function buildResponsesText(format: ResponseFormat | undefined, verbosity: Verbosity | undefined): ResponsesRequest["text"] {
   if (format === undefined && verbosity === undefined) {
     return;
   }
@@ -158,18 +152,11 @@ function buildResponsesText(
 }
 
 function promptCacheKey(model: string, instructions: string): string {
-  return createHash("sha1")
-    .update(`${model} ${instructions}`)
-    .digest("hex")
-    .slice(0, PROMPT_CACHE_KEY_LEN);
+  return createHash("sha1").update(`${model} ${instructions}`).digest("hex").slice(0, PROMPT_CACHE_KEY_LEN);
 }
 
 // `includeReasoning` is false on the mandatory-reasoning replay.
-function buildResponsesBody(
-  req: OpenRouterChatRequest,
-  resolved: ResolvedChatKnobs,
-  includeReasoning: boolean,
-): ResponsesRequest {
+function buildResponsesBody(req: OpenRouterChatRequest, resolved: ResolvedChatKnobs, includeReasoning: boolean): ResponsesRequest {
   const isAnthropic = isAnthropicModel(req.model);
   const instructions = joinSystemPrompt(req.systemPrompt);
   const provider = resolveProviderPreferences(req.model, req.providerRouting);
@@ -183,23 +170,15 @@ function buildResponsesBody(
     // Anthropic cacheControl is a measured no-op here (stripped by the Responses→Messages wrap); kept for
     // forward-compat. Non-Anthropic routes get the sticky promptCacheKey instead.
     ...(isAnthropic && instructions.length > 0 ? { cacheControl: ANTHROPIC_CACHE_5M } : {}),
-    ...(!isAnthropic && instructions.length > 0
-      ? { promptCacheKey: promptCacheKey(req.model, instructions) }
-      : {}),
-    ...(resolved.sampling.temperature !== undefined
-      ? { temperature: resolved.sampling.temperature }
-      : {}),
+    ...(!isAnthropic && instructions.length > 0 ? { promptCacheKey: promptCacheKey(req.model, instructions) } : {}),
+    ...(resolved.sampling.temperature !== undefined ? { temperature: resolved.sampling.temperature } : {}),
     ...(resolved.sampling.topP !== undefined ? { topP: resolved.sampling.topP } : {}),
     ...(resolved.sampling.topK !== undefined ? { topK: resolved.sampling.topK } : {}),
-    ...(resolved.maxOutputTokens !== undefined
-      ? { maxOutputTokens: resolved.maxOutputTokens }
-      : {}),
+    ...(resolved.maxOutputTokens !== undefined ? { maxOutputTokens: resolved.maxOutputTokens } : {}),
     ...(includeReasoning ? { reasoning: { ...reasoningBlock, summary: REASONING_SUMMARY } } : {}),
     ...(provider !== undefined ? { provider } : {}),
     ...(req.tools !== undefined ? { tools: buildResponsesTools(req.tools) } : {}),
-    ...(req.toolChoice !== undefined
-      ? { toolChoice: buildResponsesToolChoice(req.toolChoice) }
-      : {}),
+    ...(req.toolChoice !== undefined ? { toolChoice: buildResponsesToolChoice(req.toolChoice) } : {}),
     ...(text !== undefined ? { text } : {}),
     plugins: withContextCompressionPlugin(req.params),
   };
@@ -226,10 +205,7 @@ function readResponsesEvent(event: StreamEvents): {
   if (event.type === "response.output_text.delta") {
     return { text: event.delta };
   }
-  if (
-    event.type === "response.reasoning_text.delta" ||
-    event.type === "response.reasoning_summary_text.delta"
-  ) {
+  if (event.type === "response.reasoning_text.delta" || event.type === "response.reasoning_summary_text.delta") {
     return { reasoning: event.delta };
   }
   if (TERMINAL_TYPES.has(event.type) && "response" in event) {
@@ -288,17 +264,17 @@ function mapResponsesUsage(
     model: ctx.model,
     tokensIn: u?.inputTokens ?? 0,
     tokensOut: u?.outputTokens ?? 0,
-    cacheReadTokens: u?.inputTokensDetails?.cachedTokens ?? 0,
+    cacheReadTokens: u?.inputTokensDetails.cachedTokens ?? 0,
     cacheWriteTokens: 0,
     cacheCreation5mTokens: null,
     cacheCreation1hTokens: null,
-    reasoningTokens: u?.outputTokensDetails?.reasoningTokens ?? null,
+    reasoningTokens: u?.outputTokensDetails.reasoningTokens ?? null,
     contextWindow: ctx.contextWindow,
     maxOutputTokens: ctx.maxOutputTokens,
     webSearchRequests: 0,
     costUsd: u?.cost ?? 0,
     costDetails:
-      cd !== null && cd !== undefined
+      cd !== undefined
         ? {
             totalUsd: cd.upstreamInferenceCost ?? 0,
             promptUsd: cd.upstreamInferenceInputCost,
@@ -329,9 +305,7 @@ function flattenResponsesOutput(final: OpenResponsesResult | undefined): string 
 }
 
 // `function_call` items on the terminal response carry FULL arguments — no fragment reassembly needed.
-function extractResponsesToolCalls(
-  final: OpenResponsesResult | undefined,
-): readonly ToolCallInput[] | undefined {
+function extractResponsesToolCalls(final: OpenResponsesResult | undefined): readonly ToolCallInput[] | undefined {
   const calls: ToolCallInput[] = [];
   for (const item of final?.output ?? []) {
     if (item.type === "function_call" && "callId" in item) {
@@ -392,10 +366,7 @@ async function drainOnce(args: {
   const chatId = castId<ChatId>(req.chatId ?? "");
   const idle = turnAbortSignal(req.signal);
   try {
-    const result = await client.beta.responses.send(
-      { responsesRequest: body },
-      { signal: idle.signal },
-    );
+    const result = await client.beta.responses.send({ responsesRequest: body }, { signal: idle.signal });
     if (!isEventStream(result)) {
       throw new ProviderError({
         kind: "server",
@@ -425,11 +396,7 @@ async function drainOnce(args: {
 }
 
 /** Runs one Responses-API turn, incl. the mandatory-reasoning strip-and-replay-once fallback. */
-export async function runResponsesTurn(
-  client: OpenRouterResponsesClient,
-  req: OpenRouterChatRequest,
-  deps: OpenRouterChatDeps,
-): Promise<ChatResult> {
+export async function runResponsesTurn(client: OpenRouterResponsesClient, req: OpenRouterChatRequest, deps: OpenRouterChatDeps): Promise<ChatResult> {
   const startedAt = deps.now();
   const retryOpts = {
     ...(req.signal !== undefined ? { signal: req.signal } : {}),
@@ -447,8 +414,7 @@ export async function runResponsesTurn(
           req,
           markCommitted,
         }),
-      (err): ProviderError =>
-        err instanceof ProviderError ? err : providerErrorFromHttp(err, errorPrefix(req.model)),
+      (err): ProviderError => (err instanceof ProviderError ? err : providerErrorFromHttp(err, errorPrefix(req.model))),
       retryOpts,
     );
 

@@ -27,16 +27,10 @@ describe("attachToChat", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]?.worldBookId).toBe(book.id);
     // Only the REAL insert emits + audits — the idempotent re-attach is silent.
-    expect(harness.wiEvents).toEqual([
-      { type: "wiBookAttached", chatId, surface: "chat", bookId: book.id },
-    ]);
-    expect(harness.audits.filter((a) => a.entry.action === "worldInfo.attachToChat")).toHaveLength(
-      1,
-    );
+    expect(harness.wiEvents).toEqual([{ type: "wiBookAttached", chatId, surface: "chat", bookId: book.id }]);
+    expect(harness.audits.filter((a) => a.entry.action === "worldInfo.attachToChat")).toHaveLength(1);
     // The user-bus freshness emit fires ONCE (the real insert only) to the acting host / book owner.
-    expect(harness.userEvents).toEqual([
-      { userId: host, event: { type: "worldInfoChanged", bookId: book.id } },
-    ]);
+    expect(harness.userEvents).toEqual([{ userId: host, event: { type: "worldInfoChanged", bookId: book.id } }]);
   });
 
   test("a chat-guard rejection propagates — nothing writes, emits, or audits", async () => {
@@ -48,9 +42,7 @@ describe("attachToChat", () => {
     const chatId = await seedChat(db);
     const book = await svc.createBook({ principal: principal(member), input: { name: "B" } });
 
-    await expect(
-      svc.attachToChat({ principal: principal(member), chatId, bookId: book.id }),
-    ).rejects.toBe(refusal);
+    await expect(svc.attachToChat({ principal: principal(member), chatId, bookId: book.id })).rejects.toBe(refusal);
     expect(await db.select().from(chatBooks)).toHaveLength(0);
     expect(harness.wiEvents).toEqual([]);
     expect(harness.audits.some((a) => a.entry.action === "worldInfo.attachToChat")).toBe(false);
@@ -65,9 +57,7 @@ describe("attachToChat", () => {
     const chatId = await seedChat(db);
     const theirs = await svc.createBook({ principal: principal(other), input: { name: "T" } });
 
-    await expect(
-      svc.attachToChat({ principal: principal(host), chatId, bookId: theirs.id }),
-    ).rejects.toBeInstanceOf(WorldInfoNotFoundError);
+    await expect(svc.attachToChat({ principal: principal(host), chatId, bookId: theirs.id })).rejects.toBeInstanceOf(WorldInfoNotFoundError);
     expect(harness.wiEvents).toEqual([]);
   });
 });

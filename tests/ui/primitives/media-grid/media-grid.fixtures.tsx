@@ -22,21 +22,11 @@ interface BasicGridProps {
 }
 
 /** A bounded-parent grid at a fixed pixel width — deterministic column count for assertions. */
-export function BasicGrid({
-  itemCount,
-  widthPx,
-  heightPx,
-  minCellWidth,
-}: BasicGridProps): ReactElement {
+export function BasicGrid({ itemCount, widthPx, heightPx, minCellWidth }: BasicGridProps): ReactElement {
   const items = makeItems(itemCount);
   return (
     <div style={{ height: heightPx, width: widthPx }}>
-      <MediaGrid
-        ariaLabel="Fixture grid"
-        className="h-full"
-        items={items}
-        minCellWidth={minCellWidth}
-      />
+      <MediaGrid ariaLabel="Fixture grid" className="h-full" items={items} minCellWidth={minCellWidth} />
     </div>
   );
 }
@@ -68,12 +58,7 @@ export function AnimatedDispatchGrid(): ReactElement {
   ];
   return (
     <div style={{ height: 300, width: 300 }}>
-      <MediaGrid
-        ariaLabel="Animated dispatch"
-        className="h-full"
-        items={items}
-        minCellWidth={100}
-      />
+      <MediaGrid ariaLabel="Animated dispatch" className="h-full" items={items} minCellWidth={100} />
     </div>
   );
 }
@@ -119,13 +104,7 @@ export function ActivatableGrid({ itemCount }: SelectableGridProps): ReactElemen
   const items = makeItems(itemCount);
   return (
     <div style={{ height: 300, width: 300 }}>
-      <MediaGrid
-        ariaLabel="Activatable grid"
-        className="h-full"
-        items={items}
-        minCellWidth={100}
-        onActivate={(item): void => setActivated(item.alt)}
-      />
+      <MediaGrid ariaLabel="Activatable grid" className="h-full" items={items} minCellWidth={100} onActivate={(item): void => setActivated(item.alt)} />
       <p data-testid="activated">{activated ?? "none"}</p>
     </div>
   );

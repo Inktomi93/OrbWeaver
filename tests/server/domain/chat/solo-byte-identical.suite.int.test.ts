@@ -19,24 +19,13 @@ import type { Db } from "@orb/db";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import type {
-  TurnEngine,
-  TurnRequest,
-} from "../../../../packages/server/src/domain/chat/contract/results";
+import type { TurnEngine, TurnRequest } from "../../../../packages/server/src/domain/chat/contract/results";
 import { createTurnEngine } from "../../../../packages/server/src/domain/chat/engine/engine";
 import { driveRound } from "../../../../packages/server/src/domain/chat/engine/round";
 import { loadCanonHistory } from "../../../../packages/server/src/domain/chat/persistence/queries";
 import { freshDb } from "../../../support/db";
 import { expect, test } from "../../../support/fixtures";
-import {
-  makeChatContext,
-  scriptedRoleTurn,
-  seedCharacter,
-  seedChat,
-  seedMessage,
-  seedUser,
-  testConnection,
-} from "./_support";
+import { makeChatContext, scriptedRoleTurn, seedCharacter, seedChat, seedMessage, seedUser, testConnection } from "./_support";
 
 const HOST = castId<UserId>("user_host");
 const ARIA = castId<CharacterId>("character_aria");
@@ -138,9 +127,7 @@ function wireBytes(req: TurnRequest): string {
 }
 
 function historyText(req: TurnRequest): string {
-  return req.history
-    .flatMap((m) => m.content.map((p) => (p.type === "text" ? p.text : "")))
-    .join("\n");
+  return req.history.flatMap((m) => m.content.map((p) => (p.type === "text" ? p.text : ""))).join("\n");
 }
 
 /** Each posture gets its OWN fresh db with the SAME chat key — so every id (seeded rows AND the

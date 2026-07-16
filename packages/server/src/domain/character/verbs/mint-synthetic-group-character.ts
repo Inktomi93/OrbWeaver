@@ -7,11 +7,7 @@
 
 import { cardContentHash } from "#kit/serde/card";
 import type { CharacterContext } from "../context";
-import {
-  CHARACTER_HANDLE_CONFLICT,
-  CHARACTER_HANDLE_RESERVED,
-  CharacterOperationError,
-} from "../contract/errors";
+import { CHARACTER_HANDLE_CONFLICT, CHARACTER_HANDLE_RESERVED, CharacterOperationError } from "../contract/errors";
 import type { MintGroupCharParams } from "../contract/params";
 import type { CharacterRef } from "../contract/results";
 import type { CharacterService } from "../contract/service";
@@ -24,22 +20,14 @@ import { buildGroupCard, groupHandle } from "../substrate/group-character";
  *  non-synthetic squatter is refused loudly (create/update now refuse this namespace, so this is defense-in-
  *  depth; `findSyntheticGroupCharacter` guards the same way — the mint must never author narrator turns / file
  *  shared digests under a real user card). Extracted to keep the verb closure under the complexity gate. */
-function adoptSynthetic(
-  row: { readonly id: CharacterRef["characterId"]; readonly synthetic: boolean },
-  handle: string,
-): CharacterRef {
+function adoptSynthetic(row: { readonly id: CharacterRef["characterId"]; readonly synthetic: boolean }, handle: string): CharacterRef {
   if (row.synthetic) {
     return { characterId: row.id };
   }
-  throw new CharacterOperationError(
-    CHARACTER_HANDLE_RESERVED,
-    `handle "${handle}" is occupied by a non-synthetic character`,
-  );
+  throw new CharacterOperationError(CHARACTER_HANDLE_RESERVED, `handle "${handle}" is occupied by a non-synthetic character`);
 }
 
-export function createMintSyntheticGroupCharacter(
-  ctx: CharacterContext,
-): CharacterService["mintSyntheticGroupCharacter"] {
+export function createMintSyntheticGroupCharacter(ctx: CharacterContext): CharacterService["mintSyntheticGroupCharacter"] {
   return async ({ ownerId, chatId }: MintGroupCharParams) => {
     const handle = groupHandle(chatId);
     const existing = await findByOwnerHandle(ctx.db, ownerId, handle);
@@ -65,7 +53,7 @@ export function createMintSyntheticGroupCharacter(
       if (err instanceof CharacterOperationError && err.code === CHARACTER_HANDLE_CONFLICT) {
         const raced = await findByOwnerHandle(ctx.db, ownerId, handle);
         // The winner is another mint's synthetic row (only the mint inserts into this namespace) — guard it.
-        if (raced !== undefined && raced.synthetic) {
+        if (raced?.synthetic === true) {
           return { characterId: raced.id };
         }
       }

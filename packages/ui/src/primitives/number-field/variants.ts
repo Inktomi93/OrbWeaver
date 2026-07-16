@@ -5,13 +5,9 @@ import { FOCUS_RING_INSET, tv } from "#lib";
 export const numberFieldVariants = tv({
   slots: {
     root: "flex w-full flex-col gap-field data-disabled:pointer-events-none data-disabled:opacity-50",
-    scrubArea:
-      "flex w-fit cursor-ew-resize select-none items-center gap-row text-label font-medium leading-label text-muted-foreground",
+    scrubArea: "flex w-fit cursor-ew-resize select-none items-center gap-row text-label font-medium leading-label text-muted-foreground",
     scrubCursor: "flex text-foreground",
-    group: [
-      "flex w-full items-stretch overflow-hidden rounded-control border border-border bg-input",
-      "data-invalid:border-destructive",
-    ],
+    group: ["flex w-full items-stretch overflow-hidden rounded-control border border-border bg-input", "data-invalid:border-destructive"],
     decrement: [
       "group flex size-touch-target shrink-0 cursor-pointer select-none items-center justify-center border-r border-border text-foreground",
       "transition-colors duration-(--motion-fast) ease-out-expo hover:bg-accent active:bg-accent/80",

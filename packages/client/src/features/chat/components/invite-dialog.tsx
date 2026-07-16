@@ -38,9 +38,7 @@ export function InviteDialog({ chatId, open, onOpenChange }: InviteDialogProps):
       <DialogPopup data-testid={testId("inviteDialog")}>
         <Stack gap="block">
           <DialogTitle>Invite people</DialogTitle>
-          <DialogDescription>
-            Anyone with an invite link can join until it expires or runs out of uses.
-          </DialogDescription>
+          <DialogDescription>Anyone with an invite link can join until it expires or runs out of uses.</DialogDescription>
           <InviteMintForm chatId={chatId} />
           <Separator />
           <OutstandingInvites chatId={chatId} />
@@ -148,24 +146,16 @@ function InviteMintForm({ chatId }: { readonly chatId: ChatId }): ReactElement {
           </form.Subscribe>
 
           <Row gap="field" align="start">
-            <form.AppField name="expiry">
-              {(field): ReactElement => (
-                <field.SelectField label="Expires" items={INVITE_EXPIRY_ITEMS} />
-              )}
-            </form.AppField>
+            <form.AppField name="expiry">{(field): ReactElement => <field.SelectField label="Expires" items={INVITE_EXPIRY_ITEMS} />}</form.AppField>
             <form.AppField name="maxUses">
-              {(field): ReactElement => (
-                <field.NumberField label="Max uses" hint="Empty = unlimited." min={1} step={1} />
-              )}
+              {(field): ReactElement => <field.NumberField label="Max uses" hint="Empty = unlimited." min={1} step={1} />}
             </form.AppField>
           </Row>
 
           <Row gap="field" justify="end">
             <form.Subscribe selector={(state): string => state.values.mode}>
               {(mode): ReactElement => (
-                <form.SubmitButton data-testid={testId("inviteSubmit")}>
-                  {mode === "handle" ? "Send invite" : "Create link"}
-                </form.SubmitButton>
+                <form.SubmitButton data-testid={testId("inviteSubmit")}>{mode === "handle" ? "Send invite" : "Create link"}</form.SubmitButton>
               )}
             </form.Subscribe>
           </Row>
@@ -176,13 +166,7 @@ function InviteMintForm({ chatId }: { readonly chatId: ChatId }): ReactElement {
                 {mintedLink}
               </Text>
               <Row gap="field" align="center">
-                <Button
-                  type="button"
-                  intent="secondary"
-                  size="sm"
-                  onClick={(): void => void copyLink(mintedLink)}
-                  data-testid={testId("inviteCopyLink")}
-                >
+                <Button type="button" intent="secondary" size="sm" onClick={(): void => void copyLink(mintedLink)} data-testid={testId("inviteCopyLink")}>
                   Copy link
                 </Button>
                 <Text size="micro" tone="muted">
@@ -224,11 +208,7 @@ function OutstandingInvites({ chatId }: { readonly chatId: ChatId }): ReactEleme
         Outstanding invites
       </Text>
       {invites.map((invite) => (
-        <InviteRow
-          key={invite.id}
-          invite={invite}
-          onRevoke={(inviteId): void => revoke.mutate({ chatId, inviteId })}
-        />
+        <InviteRow key={invite.id} invite={invite} onRevoke={(inviteId): void => revoke.mutate({ chatId, inviteId })} />
       ))}
     </Stack>
   );
@@ -242,21 +222,9 @@ const STATUS_INTENT: Record<InviteView["status"], "info" | "success" | "neutral"
   revoked: "danger",
 };
 
-function InviteRow({
-  invite,
-  onRevoke,
-}: {
-  readonly invite: InviteView;
-  readonly onRevoke: (inviteId: ChatInviteId) => void;
-}): ReactElement {
-  const uses =
-    invite.maxUses === null
-      ? "unlimited uses"
-      : `${invite.remainingUses ?? 0} of ${invite.maxUses} uses left`;
-  const expiry =
-    invite.expiresAt === null
-      ? "never expires"
-      : `expires ${timeLib.formatRelative(invite.expiresAt)}`;
+function InviteRow({ invite, onRevoke }: { readonly invite: InviteView; readonly onRevoke: (inviteId: ChatInviteId) => void }): ReactElement {
+  const uses = invite.maxUses === null ? "unlimited uses" : `${invite.remainingUses ?? 0} of ${invite.maxUses} uses left`;
+  const expiry = invite.expiresAt === null ? "never expires" : `expires ${timeLib.formatRelative(invite.expiresAt)}`;
   return (
     <Row gap="field" align="center" justify="between" data-slot="invite-row">
       <Row gap="field" align="center" className="min-w-0">

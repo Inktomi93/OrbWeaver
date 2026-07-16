@@ -33,12 +33,7 @@ import type {
 } from "#domain/workloads";
 import type { Cas } from "#infra/storage";
 import { stageDirectory } from "#infra/storage";
-import type {
-  ImportAssetPort,
-  ImportCharacterPort,
-  ImportTagPort,
-  ImportWorldInfoPort,
-} from "../import";
+import type { ImportAssetPort, ImportCharacterPort, ImportTagPort, ImportWorldInfoPort } from "../import";
 import {
   createNodeFsImportPort,
   IMPORT_MAX_DECOMPRESSED_BYTES,
@@ -62,12 +57,7 @@ export interface RunnerEnvDeps {
   readonly cas: Cas;
   readonly discovery: Pick<
     DiscoveryService,
-    | "computeThemes"
-    | "computeDuplicatePairs"
-    | "computeChatDuplicatePairs"
-    | "computeCharacterHubScores"
-    | "distillCharacters"
-    | "computeCooccurrence"
+    "computeThemes" | "computeDuplicatePairs" | "computeChatDuplicatePairs" | "computeCharacterHubScores" | "distillCharacters" | "computeCooccurrence"
   >;
   readonly connection: Pick<ConnectionService, "refreshCatalog" | "refreshAgentSdkCatalog">;
   readonly embeddings: Pick<EmbeddingsService, "embedCorpus" | "embedAssets">;
@@ -107,10 +97,7 @@ function resolveStagedPath(stagingRoot: string, handle: string): string {
   const root = resolve(stagingRoot);
   const target = resolve(root, handle);
   if (target === root || !target.startsWith(root + sep)) {
-    throw new DomainOperationError(
-      "staged_path_escape",
-      `staged handle escapes the staging root: ${handle}`,
-    );
+    throw new DomainOperationError("staged_path_escape", `staged handle escapes the staging root: ${handle}`);
   }
   return target;
 }
@@ -144,8 +131,7 @@ function bindImportAll(
     // A folder-upload override resolves the server-minted handle to a PROPER STRICT DESCENDANT of the staging
     // root (throws on any traversal attempt, before any fs read) — the same containment belt the HTTP ingest
     // uses; absent ⇒ the env-configured root.
-    const profileRoot =
-      stagedDir !== undefined ? resolveStagedPath(stagingRoot, stagedDir) : defaultProfileRoot;
+    const profileRoot = stagedDir !== undefined ? resolveStagedPath(stagingRoot, stagedDir) : defaultProfileRoot;
     try {
       const { scanned, changed } = await runProfileDirImport({
         fs,
@@ -180,36 +166,21 @@ const DEFAULT_ST_PROFILE_DIR = ".st-data";
 
 /** Bind the `assets-backfill` op. The workload seam is count-only, so the root gathers the staged cards:
  *  characters with a recorded card but no linked avatar whose card blob is still in the CAS. */
-function bindBackfillAvatars(
-  db: Db,
-  cas: Cas,
-  assets: Pick<AssetsService, "backfillAvatars">,
-): WorkloadRunnerEnv["assets"]["backfillAvatars"] {
+function bindBackfillAvatars(db: Db, cas: Cas, assets: Pick<AssetsService, "backfillAvatars">): WorkloadRunnerEnv["assets"]["backfillAvatars"] {
   return async ({ ownerId, dryRun }) => {
     const scope =
       ownerId === null
         ? and(isNull(characters.avatarAssetId), isNotNull(characters.importHash))
-        : and(
-            eq(characters.ownerId, ownerId),
-            isNull(characters.avatarAssetId),
-            isNotNull(characters.importHash),
-          );
-    const rows = await db
-      .select({ id: characters.id, ownerId: characters.ownerId, importHash: characters.importHash })
-      .from(characters)
-      .where(scope);
+        : and(eq(characters.ownerId, ownerId), isNull(characters.avatarAssetId), isNotNull(characters.importHash));
+    const rows = await db.select({ id: characters.id, ownerId: characters.ownerId, importHash: characters.importHash }).from(characters).where(scope);
 
-    const byOwner = new Map<
-      UserId,
-      { characterId: CharacterId; bytes: Uint8Array; importHash: string }[]
-    >();
+    const byOwner = new Map<UserId, { characterId: CharacterId; bytes: Uint8Array; importHash: string }[]>();
     for (const row of rows) {
       const importHash = row.importHash;
       // biome-ignore lint/performance/noAwaitInLoops: per-character CAS probe during a maintenance-time gather — not a hot path.
       if (importHash === null || !(await cas.exists(row.ownerId, importHash))) {
         continue;
       }
-      // biome-ignore lint/performance/noAwaitInLoops: per-character CAS byte read (same maintenance-time gather).
       const bytes = await cas.read(row.ownerId, importHash);
       const cards = byOwner.get(row.ownerId) ?? [];
       cards.push({ characterId: row.id, bytes, importHash });
@@ -234,10 +205,7 @@ function bindBackfillAvatars(
  *  a staged folder-upload tree (`stageDirectory`, already sanitized + capped at the HTTP ingest) through the
  *  SAME entity routing. The staged upload (a file OR a directory) is removed in a `finally` (success and
  *  error) via the contained-rm belt. */
-function bindImportBundle(
-  getRegistry: () => PortabilityRegistry,
-  stagingRoot: string,
-): WorkloadRunnerEnv["import"]["importBundle"] {
+function bindImportBundle(getRegistry: () => PortabilityRegistry, stagingRoot: string): WorkloadRunnerEnv["import"]["importBundle"] {
   return async ({ ownerId, token, source, signal }) => {
     const stagedPath = resolveStagedPath(stagingRoot, token);
     try {
@@ -347,10 +315,7 @@ export function buildWorkloadRunnerEnv(deps: RunnerEnvDeps): WorkloadRunnerEnv {
       // Both lanes run under allSettled so one lane's failure never discards the other's refresh; a failed
       // lane reports null (distinct from 0 = a real empty catalog). Only rethrows when BOTH lanes failed.
       refreshCatalogSnapshot: async ({ signal }): Promise<CatalogOut> => {
-        const [or, agentSdk] = await Promise.allSettled([
-          deps.connection.refreshCatalog({ signal }),
-          deps.connection.refreshAgentSdkCatalog({ signal }),
-        ]);
+        const [or, agentSdk] = await Promise.allSettled([deps.connection.refreshCatalog({ signal }), deps.connection.refreshAgentSdkCatalog({ signal })]);
         if (or.status === "rejected" && agentSdk.status === "rejected") {
           throw or.reason;
         }

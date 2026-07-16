@@ -4,12 +4,7 @@
 // rows (unrecognized kind → failed in place, never starves the queue) and enforces DAG dependsOn ordering
 // (a dep still active → skip; any non-success terminal or absent dep → fail with `dependency_failed`).
 
-import type {
-  WorkloadKind,
-  WorkloadMode,
-  WorkloadSource,
-  WorkloadStatus,
-} from "@orb/contracts/workloads";
+import type { WorkloadKind, WorkloadMode, WorkloadSource, WorkloadStatus } from "@orb/contracts/workloads";
 import { WORKLOAD_KINDS } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import { workloads } from "@orb/db";
@@ -23,32 +18,22 @@ import { parseParamsForKind } from "../contract/workload-params";
 import type { WorkloadRowAnyKind } from "../contract/workload-row";
 
 // The terminal states `markTerminal` may stamp (an in-flight → terminal flip).
-const TERMINAL_STATUSES = [
-  "succeeded",
-  "failed",
-  "cancelled",
-  "worker_died",
-] as const satisfies readonly WorkloadStatus[];
+const TERMINAL_STATUSES = ["succeeded", "failed", "cancelled", "worker_died"] as const satisfies readonly WorkloadStatus[];
 type TerminalStatus = (typeof TERMINAL_STATUSES)[number];
 
-const isTerminalStatus = (status: WorkloadStatus): status is TerminalStatus =>
-  (TERMINAL_STATUSES as readonly WorkloadStatus[]).includes(status);
+const isTerminalStatus = (status: WorkloadStatus): status is TerminalStatus => (TERMINAL_STATUSES as readonly WorkloadStatus[]).includes(status);
 
 // The only terminal a dependency may reach for the dependent to run; any other terminal is a dependency failure.
 const TERMINAL_SUCCESS_STATUS = "succeeded" as const satisfies WorkloadStatus;
 
-const DEPENDENCY_FAILED_MESSAGE =
-  "a dependency did not succeed (a non-success terminal, or an absent dependency) — the dependent cannot run";
+const DEPENDENCY_FAILED_MESSAGE = "a dependency did not succeed (a non-success terminal, or an absent dependency) — the dependent cannot run";
 
 /** The verdict for a dependent's `dependsOn` set: `ready` (all deps succeeded), `waiting` (at least one dep
  *  still active), `failed` (fail-fast — a single failed/absent dep short-circuits even if others are active). */
 const DEPENDENCY_GATES = ["ready", "waiting", "failed"] as const;
 type DependencyGate = (typeof DEPENDENCY_GATES)[number];
 
-async function resolveDependencyGate(
-  db: Db,
-  dependsOn: readonly WorkloadId[],
-): Promise<DependencyGate> {
+async function resolveDependencyGate(db: Db, dependsOn: readonly WorkloadId[]): Promise<DependencyGate> {
   const rows = await db
     .select({ id: workloads.id, status: workloads.status })
     .from(workloads)
@@ -96,8 +81,7 @@ interface WorkloadListFilter {
   readonly limit?: number;
 }
 
-const isKnownKind = (kind: string): kind is WorkloadKind =>
-  (WORKLOAD_KINDS as readonly string[]).includes(kind);
+const isKnownKind = (kind: string): kind is WorkloadKind => (WORKLOAD_KINDS as readonly string[]).includes(kind);
 
 /** Narrow a raw row to the typed `WorkloadRowAnyKind`, or `null` for a poison row (unrecognized kind, or a
  *  params blob that fails its kind schema). The one place the JSON columns are narrowed. */
@@ -176,8 +160,7 @@ export async function markTerminal(
     now: number;
   },
 ): Promise<boolean> {
-  const guard: WorkloadStatus[] =
-    args.status === "succeeded" ? ["running"] : [...IN_FLIGHT_STATUSES];
+  const guard: WorkloadStatus[] = args.status === "succeeded" ? ["running"] : [...IN_FLIGHT_STATUSES];
   const moved = await db
     .update(workloads)
     .set({
@@ -192,25 +175,14 @@ export async function markTerminal(
 }
 
 /** The raw status of one row (`undefined` when absent). */
-export async function loadWorkloadStatus(
-  db: Db,
-  id: WorkloadId,
-): Promise<WorkloadStatus | undefined> {
-  const rows = await db
-    .select({ status: workloads.status })
-    .from(workloads)
-    .where(eq(workloads.id, id))
-    .limit(1);
+export async function loadWorkloadStatus(db: Db, id: WorkloadId): Promise<WorkloadStatus | undefined> {
+  const rows = await db.select({ status: workloads.status }).from(workloads).where(eq(workloads.id, id)).limit(1);
   return rows[0]?.status;
 }
 
 /** Race-safe, idempotent cancel: tries `queued → cancelled`, then `running → cancelling` on 0 rows. No
  *  SELECT-then-act gap — each arm is a status-guarded UPDATE. */
-export async function markCancelling(
-  db: Db,
-  id: WorkloadId,
-  now: number,
-): Promise<CancelWorkloadResult> {
+export async function markCancelling(db: Db, id: WorkloadId, now: number): Promise<CancelWorkloadResult> {
   const cancelledQueued = await db
     .update(workloads)
     .set({ status: "cancelled", updatedAt: now })
@@ -227,22 +199,13 @@ export async function markCancelling(
   if (cancellingRunning.length > 0) {
     return { status: "cancelling" };
   }
-  const current = await db
-    .select({ status: workloads.status })
-    .from(workloads)
-    .where(eq(workloads.id, id))
-    .limit(1);
+  const current = await db.select({ status: workloads.status }).from(workloads).where(eq(workloads.id, id)).limit(1);
   return { status: current[0]?.status === "cancelling" ? "cancelling" : null };
 }
 
 /** Fail a queued row in place (poison-row + dependency-failed paths) — `markTerminal` only transitions
  *  from in-flight states. Returns whether it moved. */
-export async function failQueuedRow(
-  db: Db,
-  id: WorkloadId,
-  error: string,
-  now: number,
-): Promise<boolean> {
+export async function failQueuedRow(db: Db, id: WorkloadId, error: string, now: number): Promise<boolean> {
   const moved = await db
     .update(workloads)
     .set({ status: "failed", error, updatedAt: now })
@@ -259,10 +222,7 @@ export async function loadWorkload(db: Db, id: WorkloadId): Promise<WorkloadRowA
 }
 
 /** Filtered list (kind/status/owner/since), newest-first, hard-capped 500. Poison rows are filtered out. */
-export async function listWorkloads(
-  db: Db,
-  params: WorkloadListFilter,
-): Promise<WorkloadRowAnyKind[]> {
+export async function listWorkloads(db: Db, params: WorkloadListFilter): Promise<WorkloadRowAnyKind[]> {
   const filters: SQL[] = [];
   if (params.kind !== undefined) {
     filters.push(eq(workloads.kind, params.kind));
@@ -294,10 +254,7 @@ export async function listWorkloads(
 /** The next runnable row, or `null`. Windows the queue head and returns the first dispatchable row: a
  *  poison row is failed in place (never thrown, to avoid starving the queue on the same head row); a row
  *  whose `dependsOn` gate is `waiting` is skipped, `failed` is failed in place. */
-export async function nextRunnableWorkload(
-  db: Db,
-  now: number,
-): Promise<WorkloadRowAnyKind | null> {
+export async function nextRunnableWorkload(db: Db, now: number): Promise<WorkloadRowAnyKind | null> {
   const head = await db
     .select()
     .from(workloads)
@@ -323,10 +280,7 @@ export async function nextRunnableWorkload(
           message: DEPENDENCY_FAILED_MESSAGE,
         };
         await failQueuedRow(db, view.id, error.message, now);
-        getLog().warn(
-          { workloadId: view.id, dependsOn: view.dependsOn },
-          "workloads: failed dependent — a dependency did not succeed (dependency_failed)",
-        );
+        getLog().warn({ workloadId: view.id, dependsOn: view.dependsOn }, "workloads: failed dependent — a dependency did not succeed (dependency_failed)");
         continue;
       }
     }
@@ -336,16 +290,11 @@ export async function nextRunnableWorkload(
 }
 
 /** In-flight rows whose lease went stale (`updatedAt < staleBefore`) — the reaper's sweep input. */
-export async function findStaleInFlight(
-  db: Db,
-  staleBefore: number,
-): Promise<WorkloadRowAnyKind[]> {
+export async function findStaleInFlight(db: Db, staleBefore: number): Promise<WorkloadRowAnyKind[]> {
   const rows = await db
     .select()
     .from(workloads)
-    .where(
-      and(inArray(workloads.status, [...IN_FLIGHT_STATUSES]), lt(workloads.updatedAt, staleBefore)),
-    );
+    .where(and(inArray(workloads.status, [...IN_FLIGHT_STATUSES]), lt(workloads.updatedAt, staleBefore)));
   return rows.flatMap((row) => {
     const view = toView(row);
     return view === null ? [] : [view];

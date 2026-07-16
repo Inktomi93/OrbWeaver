@@ -1,10 +1,5 @@
 import type { DocOrigin, ScraperKind } from "@orb/contracts/databank";
-import {
-  DOC_ORIGINS,
-  docOriginSchema,
-  SCRAPER_KINDS,
-  scraperKindSchema,
-} from "@orb/contracts/databank";
+import { DOC_ORIGINS, docOriginSchema, SCRAPER_KINDS, scraperKindSchema } from "@orb/contracts/databank";
 import { expect, test } from "../../support/fixtures";
 
 test("DOC_ORIGINS is exactly the pinned origin axis [upload, web, youtube, wiki, text]", () => {

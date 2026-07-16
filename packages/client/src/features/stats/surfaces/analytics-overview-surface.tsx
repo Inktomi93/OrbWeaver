@@ -19,25 +19,13 @@ import { useRef } from "react";
 import { QueryBoundary, useTRPC } from "#data";
 import { testId, timeLib, useFocusOnMount } from "#lib";
 import { setActiveSection } from "#state";
-import {
-  formatCompact,
-  formatDurationMs,
-  formatMs,
-  formatPercent,
-  formatSignedDelta,
-  momentumBarItems,
-} from "../lib/analytics-view-model";
+import { formatCompact, formatDurationMs, formatMs, formatPercent, formatSignedDelta, momentumBarItems } from "../lib/analytics-view-model";
 
 export function AnalyticsOverviewSurface(): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
   return (
-    <Stack
-      ref={surfaceRef}
-      tabIndex={-1}
-      className="h-full min-h-0 outline-none"
-      data-testid={testId("analyticsOverviewSurface")}
-    >
+    <Stack ref={surfaceRef} tabIndex={-1} className="h-full min-h-0 outline-none" data-testid={testId("analyticsOverviewSurface")}>
       <QueryBoundary
         fallback={<Text tone="muted">Loading your analytics…</Text>}
         renderError={(_error, retry): ReactElement => (
@@ -79,9 +67,7 @@ function OverviewBody(): ReactElement {
   return (
     <Stack className="h-full min-h-0 overflow-y-auto overscroll-contain" gap="section">
       <Text size="micro" tone="muted">
-        {freshness.computedAt === null
-          ? "Not computed yet"
-          : `Updated ${timeLib.formatRelative(freshness.computedAt)}`}
+        {freshness.computedAt === null ? "Not computed yet" : `Updated ${timeLib.formatRelative(freshness.computedAt)}`}
       </Text>
 
       <Section heading="Year in review">
@@ -115,10 +101,7 @@ function OverviewBody(): ReactElement {
         <Row gap="block" className="flex-wrap">
           <StatFigure label="Active days" value={formatCompact(temporal.activeDays)} />
           <StatFigure label="Longest streak" value={`${temporal.longestStreakDays}d`} />
-          <StatFigure
-            label="Busiest day"
-            value={temporal.busiestDay === null ? "—" : formatCompact(temporal.busiestDay.count)}
-          />
+          <StatFigure label="Busiest day" value={temporal.busiestDay === null ? "—" : formatCompact(temporal.busiestDay.count)} />
         </Row>
       </Section>
 
@@ -180,11 +163,7 @@ function MomentumColumn({
   }
   return (
     <Stack className="min-w-48 flex-1">
-      <BarList
-        items={rows}
-        label={label}
-        valueFormatter={(value): string => formatSignedDelta(sign * value)}
-      />
+      <BarList items={rows} label={label} valueFormatter={(value): string => formatSignedDelta(sign * value)} />
     </Stack>
   );
 }

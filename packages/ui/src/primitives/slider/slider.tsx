@@ -12,8 +12,7 @@ function thumbCount(value: number | readonly number[] | null | undefined): numbe
 }
 
 // `orientation` is narrowed OUT: Base UI accepts "vertical" but the variants ship no vertical CSS branch.
-export interface SliderProps<Value extends number | readonly number[] = number>
-  extends Omit<SliderRootProps<Value>, "orientation"> {
+export interface SliderProps<Value extends number | readonly number[] = number> extends Omit<SliderRootProps<Value>, "orientation"> {
   className?: string;
   /** Visible, auto-associated label. A plain string also seeds the thumb `aria-label` for the single-thumb case. */
   label?: ReactNode;
@@ -24,9 +23,7 @@ export interface SliderProps<Value extends number | readonly number[] = number>
 }
 
 /** Single or range: pass a scalar for one thumb, or an array (`value={[lo, hi]}`) for a range. */
-export function Slider<Value extends number | readonly number[] = number>(
-  props: SliderProps<Value>,
-): ReactElement {
+export function Slider<Value extends number | readonly number[] = number>(props: SliderProps<Value>): ReactElement {
   const { className, label, thumbLabels, showValue = false, formatValue, ...rootProps } = props;
   const count = thumbCount(rootProps.value ?? rootProps.defaultValue);
   const isRange = count > 1;

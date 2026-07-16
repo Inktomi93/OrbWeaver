@@ -61,9 +61,7 @@ export interface SettingsService {
   /** Whole-blob replace (first-touch seeds the row). Serialized per user. */
   readonly updateUserSettings: (params: UpdateUserSettingsParams) => Promise<UserSettingsView>;
   /** Deep-merge one namespace + re-validate the whole blob. Serialized per user. */
-  readonly updateUserSettingsSection: (
-    params: UpdateUserSettingsSectionParams,
-  ) => Promise<UserSettingsView>;
+  readonly updateUserSettingsSection: (params: UpdateUserSettingsSectionParams) => Promise<UserSettingsView>;
   /** The lenient typed-blob loader for cross-feature callers (raw `userId`, not a gated user-facing verb). */
   readonly loadUserSettings: (userId: UserId) => Promise<UserSettings>;
 

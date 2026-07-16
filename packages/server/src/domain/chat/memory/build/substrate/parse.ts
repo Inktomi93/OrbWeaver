@@ -57,10 +57,7 @@ function parseKeywordList(s: string): string[] {
  *  block (the inverse of {@link parseDigest} over what `chat_digests` actually stores — anchor + keywords; the
  *  facts body is not persisted, FLAG[no-digest-body]). A null anchor → just the keywords; no keywords → just
  *  the anchor. */
-export function renderDigestFacets(d: {
-  readonly topicAnchor: string | null;
-  readonly keywords: readonly string[];
-}): string {
+export function renderDigestFacets(d: { readonly topicAnchor: string | null; readonly keywords: readonly string[] }): string {
   const anchor = d.topicAnchor ?? "";
   if (d.keywords.length === 0) {
     return anchor;

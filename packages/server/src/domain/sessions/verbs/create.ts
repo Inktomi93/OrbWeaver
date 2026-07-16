@@ -21,9 +21,7 @@ export function createCreate(ctx: SessionsContext): Pick<SessionsService, "creat
     // FLAG[PD-17]: an agent principal is structurally sessionless — refuse the mint outright so a future
     // caller bug can never hand an agent a live cookie.
     if ((await selectKindById(ctx.db, params.userId)) === "agent") {
-      throw new DomainForbiddenError(
-        "agent principals are sessionless — no BFF session may be minted",
-      );
+      throw new DomainForbiddenError("agent principals are sessionless — no BFF session may be minted");
     }
     const token = randomBytes(RANDOM_TOKEN_BYTES).toString("base64url");
     const sessionId = mintTypeId(ID_PREFIX.session);

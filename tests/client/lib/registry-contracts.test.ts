@@ -14,9 +14,7 @@ interface State {
 const DUPLICATE_TAB_RE = /duplicate tab id "a"/u;
 
 function tab(id: string, when?: (s: State) => boolean): ContextTabDef<State> {
-  return when === undefined
-    ? { id, label: id, body: (s) => s.n }
-    : { id, label: id, when, body: (s) => s.n };
+  return when === undefined ? { id, label: id, body: (s) => s.n } : { id, label: id, when, body: (s) => s.n };
 }
 
 describe("resolveContextTabs", () => {

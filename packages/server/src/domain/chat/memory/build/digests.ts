@@ -11,37 +11,12 @@ import type { RowMacroNameContext } from "@orb/kit/macro";
 import { estimateTokens } from "@orb/kit/tokens";
 import type { ChatContext } from "../../context";
 import { resolveCfg } from "../constants";
-import {
-  loadCanonThroughSeq,
-  loadChatMeta,
-  loadDigestHashes,
-  loadDigestSpeakers,
-  loadDigestsForScope,
-} from "../persistence/queries";
-import type {
-  BlockSpan,
-  DigestRow,
-  MemoryConfig,
-  MemoryPassCounts,
-  MemoryScope,
-  WitnessInterval,
-} from "../types";
+import { loadCanonThroughSeq, loadChatMeta, loadDigestHashes, loadDigestSpeakers, loadDigestsForScope } from "../persistence/queries";
+import type { BlockSpan, DigestRow, MemoryConfig, MemoryPassCounts, MemoryScope, WitnessInterval } from "../types";
 import { parseDigest, renderDigestFacets } from "./substrate/parse";
-import {
-  CONSOLIDATION_SYSTEM_PROMPT,
-  consolidationUserPrompt,
-  DIGEST_SYSTEM_PROMPT,
-  digestUserPrompt,
-} from "./substrate/prompts";
+import { CONSOLIDATION_SYSTEM_PROMPT, consolidationUserPrompt, DIGEST_SYSTEM_PROMPT, digestUserPrompt } from "./substrate/prompts";
 import { fitBlockToBudget, SUMMARIZER_CONTEXT_FLOOR } from "./substrate/token-guard";
-import {
-  blockHash,
-  blockSpeakerIds,
-  consolidationHash,
-  EMPTY_MACRO_NAMES,
-  renderTranscript,
-  sliceBlocks,
-} from "./substrate/transcript";
+import { blockHash, blockSpeakerIds, consolidationHash, EMPTY_MACRO_NAMES, renderTranscript, sliceBlocks } from "./substrate/transcript";
 import { spanWitnessed } from "./substrate/witnessing";
 
 /** `witnessing`, when present, is the scoped-build gate: only blocks the scope character was present for (its
@@ -71,10 +46,7 @@ interface PassCounts {
 
 /** Generate (and self-heal) the digests for ONE chat + scope bucket. Never blocks a reply — the caller runs
  *  it off the hot path. `mode: 'off'` → a no-op. */
-export async function generateDigests(
-  ctx: ChatContext,
-  args: GenerateDigestsArgs,
-): Promise<MemoryPassCounts> {
+export async function generateDigests(ctx: ChatContext, args: GenerateDigestsArgs): Promise<MemoryPassCounts> {
   const startedAt = ctx.now();
   const cfg = resolveCfg(args.config);
   const { chatId, scopedCharacterId } = args.scope;
@@ -106,10 +78,7 @@ export async function generateDigests(
 
   const canon = await loadCanonThroughSeq(ctx.db, chatId, cutoff);
   const allBlocks = sliceBlocks(canon, cfg.blockSize);
-  const blocks =
-    args.witnessing === undefined
-      ? allBlocks
-      : allBlocks.filter((b) => spanWitnessed(b.seqStart, b.seqEnd, args.witnessing ?? []));
+  const blocks = args.witnessing === undefined ? allBlocks : allBlocks.filter((b) => spanWitnessed(b.seqStart, b.seqEnd, args.witnessing ?? []));
   const existing = await loadDigestHashes(ctx.db, chatId, scopedCharacterId);
 
   const counts = await buildTier0(ctx, args, { blocks, existing, macroNames });
@@ -148,21 +117,14 @@ async function buildTier0(
       counts.skipped += 1;
       continue;
     }
-    const fitted = fitBlockToBudget(
-      block.rows,
-      env.macroNames,
-      ctx.summarizerContextTokens,
-      systemPromptTokens,
-    );
+    const fitted = fitBlockToBudget(block.rows, env.macroNames, ctx.summarizerContextTokens, systemPromptTokens);
     if (fitted === null) {
       counts.skippedTokenGuard += 1;
       continue;
     }
     const transcript = renderTranscript(fitted, env.macroNames);
     // biome-ignore lint/performance/noAwaitInLoops: the summarizer is metered + the in-flight set guards spend — blocks are summarized sequentially, not fanned out (knowledge-cluster esoteric).
-    const res = await ctx.summarize([
-      { systemPrompt: DIGEST_SYSTEM_PROMPT, userPrompt: digestUserPrompt(transcript) },
-    ]);
+    const res = await ctx.summarize([{ systemPrompt: DIGEST_SYSTEM_PROMPT, userPrompt: digestUserPrompt(transcript) }]);
     const raw = res.items.at(0)?.text ?? "";
     // Don't store a blank digest — it'd skip forever under the content-hash staleness gate. Leave un-digested.
     if (raw.trim().length === 0) {
@@ -170,7 +132,6 @@ async function buildTier0(
       continue;
     }
     const parsed = parseDigest(raw);
-    // biome-ignore lint/performance/noAwaitInLoops: the digest must be stored before the next block (and before consolidation reads it back) — the writes are ordered, not parallel.
     await ctx.embeddingsStore({
       lens: "digest",
       key: { chatId, tier: 0, blockIdx: block.blockIdx, scopedCharacterId },
@@ -238,9 +199,7 @@ async function consolidateTiers(
     }
     const groups = groupByParent(children, cfg.fanOut);
     const childIds = children.map((c) => c.id);
-    // biome-ignore lint/performance/noAwaitInLoops: same sequential-tier dependency as the children read above.
     const speakerMap = await loadDigestSpeakers(ctx.db, childIds);
-    // biome-ignore lint/performance/noAwaitInLoops: the parent writes for this tier must land before the next tier reads them.
     const pass = await writeConsolidations(ctx, scope, cfg, {
       tier,
       groups,
@@ -301,7 +260,6 @@ async function writeConsolidations(
       continue;
     }
     const parsed = parseDigest(raw);
-    // biome-ignore lint/performance/noAwaitInLoops: ordered write (the next tier reads it back) — not parallelizable.
     await ctx.embeddingsStore({
       lens: "digest",
       key: {
@@ -336,10 +294,7 @@ function groupByParent(children: readonly DigestRow[], fanOut: number): Map<numb
 }
 
 /** Union a group's contained characters (first-seen order) for the parent digest's `chat_digest_speakers`. */
-function unionSpeakers(
-  group: readonly DigestRow[],
-  speakerMap: ReadonlyMap<string, CharacterId[]>,
-): CharacterId[] {
+function unionSpeakers(group: readonly DigestRow[], speakerMap: ReadonlyMap<string, CharacterId[]>): CharacterId[] {
   const seen = new Set<CharacterId>();
   const out: CharacterId[] = [];
   for (const child of group) {

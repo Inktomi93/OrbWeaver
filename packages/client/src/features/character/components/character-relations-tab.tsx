@@ -59,10 +59,7 @@ function LinkedBooksSection({ characterId }: CharacterRelationsTabProps): ReactE
               title={book.name}
               subtitle={book.role ?? "auxiliary"}
               actions={
-                <Button
-                  intent="ghost"
-                  onClick={(): void => detach.mutate({ characterId, bookId: book.id })}
-                >
+                <Button intent="ghost" onClick={(): void => detach.mutate({ characterId, bookId: book.id })}>
                   Unlink
                 </Button>
               }
@@ -85,12 +82,7 @@ function LinkedBooksSection({ characterId }: CharacterRelationsTabProps): ReactE
                     title={book.name}
                     {...(book.description === null ? {} : { subtitle: book.description })}
                     actions={
-                      <Button
-                        intent="ghost"
-                        onClick={(): void =>
-                          attach.mutate({ characterId, bookId: book.id, role: "auxiliary" })
-                        }
-                      >
+                      <Button intent="ghost" onClick={(): void => attach.mutate({ characterId, bookId: book.id, role: "auxiliary" })}>
                         Link
                       </Button>
                     }
@@ -109,9 +101,7 @@ function LinkedBooksSection({ characterId }: CharacterRelationsTabProps): ReactE
 function ConnectedPersonasSection({ characterId }: CharacterRelationsTabProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const connectedQuery = useQuery(
-    trpc.persona.listConnectedToCharacter.queryOptions({ characterId }),
-  );
+  const connectedQuery = useQuery(trpc.persona.listConnectedToCharacter.queryOptions({ characterId }));
   const allPersonasQuery = useQuery(trpc.persona.list.queryOptions());
   const connect = useConnectPersonaToCharacter({ trpc, invalidation });
   const disconnect = useDisconnectPersonaFromCharacter({ trpc, invalidation });
@@ -133,10 +123,7 @@ function ConnectedPersonasSection({ characterId }: CharacterRelationsTabProps): 
               title={persona.name}
               {...(persona.title === null ? {} : { subtitle: persona.title })}
               actions={
-                <Button
-                  intent="ghost"
-                  onClick={(): void => disconnect.mutate({ characterId, personaId: persona.id })}
-                >
+                <Button intent="ghost" onClick={(): void => disconnect.mutate({ characterId, personaId: persona.id })}>
                   Disconnect
                 </Button>
               }
@@ -159,10 +146,7 @@ function ConnectedPersonasSection({ characterId }: CharacterRelationsTabProps): 
                     title={persona.name}
                     {...(persona.title === null ? {} : { subtitle: persona.title })}
                     actions={
-                      <Button
-                        intent="ghost"
-                        onClick={(): void => connect.mutate({ characterId, personaId: persona.id })}
-                      >
+                      <Button intent="ghost" onClick={(): void => connect.mutate({ characterId, personaId: persona.id })}>
                         Connect
                       </Button>
                     }

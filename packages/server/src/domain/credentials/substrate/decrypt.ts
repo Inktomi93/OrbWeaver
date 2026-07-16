@@ -11,10 +11,7 @@ export function decryptSealed(box: SecretBox, sealed: Sealed, aad: string): stri
   try {
     return box.decrypt(sealed, aad);
   } catch (err) {
-    getLog().error(
-      { err: errorMessage(err) },
-      "credentials: failed to decrypt user key (treating as absent — CREDENTIALS_KEY rotated?)",
-    );
+    getLog().error({ err: errorMessage(err) }, "credentials: failed to decrypt user key (treating as absent — CREDENTIALS_KEY rotated?)");
     return null;
   }
 }

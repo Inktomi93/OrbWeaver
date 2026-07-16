@@ -55,10 +55,7 @@ describe("sessions.authenticate", () => {
 
   test("a DISABLED row is refused even with the correct password", async () => {
     const userId = await svc.ensureUser("alice");
-    await db
-      .update(users)
-      .set({ passwordHash: storedHash, enabled: false })
-      .where(eq(users.id, userId));
+    await db.update(users).set({ passwordHash: storedHash, enabled: false }).where(eq(users.id, userId));
     expect(await svc.authenticate("alice", PASSWORD)).toBeNull();
   });
 });

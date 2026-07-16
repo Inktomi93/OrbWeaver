@@ -18,11 +18,7 @@ type ParticipantInsertRow = typeof chatParticipants.$inferInsert;
 /** The roster read (listParticipants / arbitration substrate). Default = PRESENT members only
  *  (`leftSeq IS NULL` — Part III §1); `includePast` returns the full history (kicked/left rows) for the host
  *  audit + `from-join`/`full` visibility resolution. Ordered by join order (`joinSeq`, then row id). */
-export async function loadRoster(
-  db: Db,
-  chatId: ChatId,
-  includePast = false,
-): Promise<(typeof chatParticipants.$inferSelect)[]> {
+export async function loadRoster(db: Db, chatId: ChatId, includePast = false): Promise<(typeof chatParticipants.$inferSelect)[]> {
   const base = db.select().from(chatParticipants).$dynamic();
   const scoped = includePast
     ? base.where(eq(chatParticipants.chatId, chatId))
@@ -38,20 +34,11 @@ export async function loadRoster(
  * the live delta must mirror the rebuild (the drift-gate contract). `excludeChatId` is a belt: at the
  * `startChat` call site the new room's rows are not yet inserted.
  */
-export async function characterSeatedInAnotherChat(
-  db: Db,
-  characterId: CharacterId,
-  excludeChatId: ChatId,
-): Promise<boolean> {
+export async function characterSeatedInAnotherChat(db: Db, characterId: CharacterId, excludeChatId: ChatId): Promise<boolean> {
   const rows = await db
     .select({ id: chatParticipants.id })
     .from(chatParticipants)
-    .where(
-      and(
-        eq(chatParticipants.characterId, characterId),
-        ne(chatParticipants.chatId, excludeChatId),
-      ),
-    )
+    .where(and(eq(chatParticipants.characterId, characterId), ne(chatParticipants.chatId, excludeChatId)))
     .limit(LIMIT_ONE);
   return rows.length > 0;
 }

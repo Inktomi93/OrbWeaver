@@ -30,20 +30,14 @@ const DEFAULT_STRICT = true;
  * on a successful match (both halves trimmed), or `null` when there is no match. Both tags are required: an
  * opening tag with no closing tag does not match — we never strip a half-open block.
  */
-export function parseReasoningTags(
-  content: string,
-  options: ReasoningParseOptions,
-): ParsedReasoning | null {
+export function parseReasoningTags(content: string, options: ReasoningParseOptions): ParsedReasoning | null {
   const { prefix, suffix } = options;
   if (prefix.length === 0 || suffix.length === 0) {
     return null;
   }
   const strict = options.strict ?? DEFAULT_STRICT;
   const anchor = strict ? "^\\s*?" : "";
-  const pattern = new RegExp(
-    `${anchor}${escapeRegExp(prefix)}(?<body>.*?)${escapeRegExp(suffix)}`,
-    "su",
-  );
+  const pattern = new RegExp(`${anchor}${escapeRegExp(prefix)}(?<body>.*?)${escapeRegExp(suffix)}`, "su");
   const match = pattern.exec(content);
   // biome-ignore lint/suspicious/noUnnecessaryConditions: false positive — biome models `RegExp.exec` non-nullable, but it returns `RegExpExecArray | null` (no match → null), so the guard is real.
   if (match === null) {

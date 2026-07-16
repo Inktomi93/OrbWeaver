@@ -24,9 +24,7 @@ function toItem(r: VllmChatCompletionResult): SummarizeResultItem {
 }
 
 /** Bind the summarize role to the engine client + knobs. */
-export function createVllmSummarize(
-  deps: VllmSummarizeDeps,
-): (req: SummarizeRequest) => Promise<SummarizeResult> {
+export function createVllmSummarize(deps: VllmSummarizeDeps): (req: SummarizeRequest) => Promise<SummarizeResult> {
   return async (req) => {
     const items: (SummarizeResultItem | undefined)[] = new Array(req.inputs.length).fill(undefined);
     let next = 0;

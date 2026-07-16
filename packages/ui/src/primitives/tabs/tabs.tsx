@@ -31,49 +31,22 @@ export interface TabsPanelProps extends BaseTabsPanelProps {
 }
 
 export function Tabs({ className, ...rest }: TabsProps): ReactElement {
-  return (
-    <BaseTabs.Root
-      className={cn(tabsVariants().root(), className)}
-      data-slot="tabs-root"
-      {...rest}
-    />
-  );
+  return <BaseTabs.Root className={cn(tabsVariants().root(), className)} data-slot="tabs-root" {...rest} />;
 }
 
 // Seal default: arrow keys ACTIVATE as they move (Base UI defaults activateOnFocus to false).
 export function TabsList({ className, ...rest }: TabsListProps): ReactElement {
-  return (
-    <BaseTabs.List
-      activateOnFocus={true}
-      className={cn(tabsVariants().list(), className)}
-      data-slot="tabs-list"
-      {...rest}
-    />
-  );
+  return <BaseTabs.List activateOnFocus={true} className={cn(tabsVariants().list(), className)} data-slot="tabs-list" {...rest} />;
 }
 
 export function TabsTab({ className, ...rest }: TabsTabProps): ReactElement {
-  return (
-    <BaseTabs.Tab className={cn(tabsVariants().tab(), className)} data-slot="tabs-tab" {...rest} />
-  );
+  return <BaseTabs.Tab className={cn(tabsVariants().tab(), className)} data-slot="tabs-tab" {...rest} />;
 }
 
 export function TabsIndicator({ className, ...rest }: TabsIndicatorProps): ReactElement {
-  return (
-    <BaseTabs.Indicator
-      className={cn(tabsVariants().indicator(), className)}
-      data-slot="tabs-indicator"
-      {...rest}
-    />
-  );
+  return <BaseTabs.Indicator className={cn(tabsVariants().indicator(), className)} data-slot="tabs-indicator" {...rest} />;
 }
 
 export function TabsPanel({ className, ...rest }: TabsPanelProps): ReactElement {
-  return (
-    <BaseTabs.Panel
-      className={cn(tabsVariants().panel(), className)}
-      data-slot="tabs-panel"
-      {...rest}
-    />
-  );
+  return <BaseTabs.Panel className={cn(tabsVariants().panel(), className)} data-slot="tabs-panel" {...rest} />;
 }

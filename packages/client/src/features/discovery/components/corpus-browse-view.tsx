@@ -70,18 +70,8 @@ export function CorpusBrowseView(): ReactElement {
         <ParamSelect label="Tag" value={tag} items={tagItems} onValueChange={setTag} />
         <ParamSelect label="Sort" value={sort} items={SORT_ITEMS} onValueChange={setSort} />
       </Row>
-      <Input
-        aria-label="Filter the catalog"
-        onValueChange={setQ}
-        placeholder="Filter by name or tag…"
-        value={q}
-      />
-      <BrowseRows
-        error={rows.error}
-        isPending={rows.isPending}
-        onRetry={rows.refetch}
-        rows={rows.data ?? []}
-      />
+      <Input aria-label="Filter the catalog" onValueChange={setQ} placeholder="Filter by name or tag…" value={q} />
+      <BrowseRows error={rows.error} isPending={rows.isPending} onRetry={rows.refetch} rows={rows.data ?? []} />
     </Stack>
   );
 }
@@ -121,12 +111,7 @@ function BrowseRows({
     );
   }
   return (
-    <Stack
-      aria-label="Distilled catalog"
-      className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
-      gap="row"
-      role="list"
-    >
+    <Stack aria-label="Distilled catalog" className="min-h-0 flex-1 overflow-y-auto overscroll-contain" gap="row" role="list">
       {rows.map((row) => (
         <BrowseCharacterRow key={row.characterId} row={row} />
       ))}
@@ -154,12 +139,6 @@ function BrowseCharacterRow({ row }: { readonly row: BrowseRow }): ReactElement 
   );
 }
 
-function toSelectItems(
-  allLabel: string,
-  values: readonly { readonly value: string; readonly count: number }[],
-): SelectItems<string> {
-  return [
-    { value: ANY_VALUE, label: allLabel },
-    ...values.map((v) => ({ value: v.value, label: `${v.value} (${v.count})` })),
-  ];
+function toSelectItems(allLabel: string, values: readonly { readonly value: string; readonly count: number }[]): SelectItems<string> {
+  return [{ value: ANY_VALUE, label: allLabel }, ...values.map((v) => ({ value: v.value, label: `${v.value} (${v.count})` }))];
 }

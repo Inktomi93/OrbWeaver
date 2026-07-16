@@ -22,13 +22,7 @@ export function createChatChangedEmitter(db: Db): EmitChatChanged {
       const rows = await db
         .select({ userId: chatParticipants.userId })
         .from(chatParticipants)
-        .where(
-          and(
-            eq(chatParticipants.chatId, chatId),
-            eq(chatParticipants.kind, "human"),
-            isNull(chatParticipants.leftSeq),
-          ),
-        );
+        .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.kind, "human"), isNull(chatParticipants.leftSeq)));
       for (const row of rows) {
         if (row.userId !== null) {
           recipients.add(row.userId);

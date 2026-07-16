@@ -43,10 +43,7 @@ test("description renders muted below the control", async ({ mount, page }) => {
   await expect(description).toHaveCSS("color", TOKENS["color.muted-foreground"].value);
 });
 
-test("a hinted field's control accname is the label ALONE (the More-info button is a sibling)", async ({
-  mount,
-  page,
-}) => {
+test("a hinted field's control accname is the label ALONE (the More-info button is a sibling)", async ({ mount, page }) => {
   await mount(
     <Field hint="Saved every 30 seconds" label="Display name">
       <Input />
@@ -76,10 +73,7 @@ test("the hint accname fix holds in the horizontal orientation too", async ({ mo
   await expect(page.getByRole("button", { name: "More info about Display name" })).toBeVisible();
 });
 
-test("two hinted fields on one surface get DISTINCT hint-trigger accnames", async ({
-  mount,
-  page,
-}) => {
+test("two hinted fields on one surface get DISTINCT hint-trigger accnames", async ({ mount, page }) => {
   await mount(
     <>
       <Field hint="Shown on your profile" label="Display name">
@@ -94,10 +88,7 @@ test("two hinted fields on one surface get DISTINCT hint-trigger accnames", asyn
   await expect(page.getByRole("button", { name: "More info about Notes" })).toBeVisible();
 });
 
-test("a hinted field with no label falls back to the plain 'More info' name", async ({
-  mount,
-  page,
-}) => {
+test("a hinted field with no label falls back to the plain 'More info' name", async ({ mount, page }) => {
   await mount(
     <Field hint="Saved every 30 seconds" label="">
       <Input />
@@ -106,10 +97,7 @@ test("a hinted field with no label falls back to the plain 'More info' name", as
   await expect(page.getByRole("button", { name: "More info", exact: true })).toBeVisible();
 });
 
-test("composes Checkbox/Switch/RadioGroup — every control registers independently", async ({
-  mount,
-  page,
-}) => {
+test("composes Checkbox/Switch/RadioGroup — every control registers independently", async ({ mount, page }) => {
   await mount(
     <>
       <Field label="Terms">
@@ -131,20 +119,13 @@ test("composes Checkbox/Switch/RadioGroup — every control registers independen
   await expect(page.getByRole("radiogroup")).toBeVisible();
 });
 
-test("validate/validationMode flow through — internal validation drives data-invalid", async ({
-  mount,
-  page,
-}) => {
+test("validate/validationMode flow through — internal validation drives data-invalid", async ({ mount, page }) => {
   // Field only renders its OWN `error` prop as visible text (§ field.tsx doc-comment); internal
   // `validate` results still drive `data-invalid` on the control without one (see FieldValidity
   // below for surfacing the message text itself). Confirms passing `validate` doesn't force
   // `invalid` — Base UI's own computation must be free to run un-overridden.
   await mount(
-    <Field
-      label="Age"
-      validate={(value): string | null => (value === "13" ? "Too young" : null)}
-      validationMode="onChange"
-    >
+    <Field label="Age" validate={(value): string | null => (value === "13" ? "Too young" : null)} validationMode="onChange">
       <Input />
     </Field>,
   );

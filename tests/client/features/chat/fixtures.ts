@@ -18,9 +18,7 @@ export interface MessagesPageFixture {
 /** The empty `ChatMacroNameProducer` (Chat-Macro-Resolution.md §1) — the CT default for a chat with no
  *  roster/history-persona ids to resolve; still a real (if empty) shape, never routeTrpc's generic
  *  unlisted-procedure `null`. */
-export function makeMacroNameProducer(
-  overrides: Partial<ChatMacroNameProducer> = {},
-): ChatMacroNameProducer {
+export function makeMacroNameProducer(overrides: Partial<ChatMacroNameProducer> = {}): ChatMacroNameProducer {
   return {
     characterNames: [],
     personaNames: [],
@@ -29,10 +27,7 @@ export function makeMacroNameProducer(
 }
 
 /** Wrap a `chat.listMessages` stub's messages array into its actual `MessagesPage` wire shape. */
-export function makeMessagesPage(
-  messages: readonly MessageView[],
-  macroNames: ChatMacroNameProducer = makeMacroNameProducer(),
-): MessagesPageFixture {
+export function makeMessagesPage(messages: readonly MessageView[], macroNames: ChatMacroNameProducer = makeMacroNameProducer()): MessagesPageFixture {
   return { messages, macroNames, personaAvatars: [] };
 }
 

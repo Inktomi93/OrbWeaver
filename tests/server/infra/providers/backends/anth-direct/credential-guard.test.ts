@@ -6,11 +6,7 @@
 import { ProviderError } from "@orb/server/infra/providers";
 import { requireAnthDirectKey } from "@orb/server/infra/providers/backends/anth-direct";
 import { describe } from "vitest";
-import {
-  makeCustomOpenAiCredential,
-  makeOpenRouterCredential,
-  makeResolvedCredential,
-} from "../../../../../support/factories/resolved-connection.ts";
+import { makeCustomOpenAiCredential, makeOpenRouterCredential, makeResolvedCredential } from "../../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../../support/fixtures";
 
 describe("requireAnthDirectKey — fail-closed source guard (the sub-exclusion tier-1)", () => {
@@ -20,17 +16,11 @@ describe("requireAnthDirectKey — fail-closed source guard (the sub-exclusion t
   });
 
   test("THE SUB-EXCLUSION: a max-pro-sub credential throws invalid (never drives the paid endpoint)", () => {
-    expect(() => requireAnthDirectKey(makeResolvedCredential("max-pro-sub"))).toThrow(
-      ProviderError,
-    );
+    expect(() => requireAnthDirectKey(makeResolvedCredential("max-pro-sub"))).toThrow(ProviderError);
   });
 
   test("every non-openrouter source throws a typed invalid error", () => {
-    const creds = [
-      makeResolvedCredential("vllm"),
-      makeResolvedCredential("local-light"),
-      makeCustomOpenAiCredential(),
-    ];
+    const creds = [makeResolvedCredential("vllm"), makeResolvedCredential("local-light"), makeCustomOpenAiCredential()];
     for (const cred of creds) {
       expect(() => requireAnthDirectKey(cred)).toThrow(ProviderError);
     }

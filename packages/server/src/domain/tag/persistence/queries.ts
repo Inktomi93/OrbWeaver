@@ -4,17 +4,7 @@
 
 import type { TagSource, TagSuggestionView, TagView, TagWithUsage } from "@orb/contracts/tag";
 import type { Db } from "@orb/db";
-import {
-  batchMany,
-  characters as charactersTable,
-  characterTags,
-  chatTags,
-  fetchOwned,
-  personaTags,
-  presetTags,
-  tags,
-  worldBookTags,
-} from "@orb/db";
+import { batchMany, characters as charactersTable, characterTags, chatTags, fetchOwned, personaTags, presetTags, tags, worldBookTags } from "@orb/db";
 import type { CharacterId, TagId, UserId } from "@orb/kit/ids";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import type { SQLiteColumn, SQLiteTable } from "drizzle-orm/sqlite-core";
@@ -44,11 +34,7 @@ export function loadOwnedTag(db: Db, tagId: TagId, ownerId: UserId): Promise<Tag
 /** Every tag the owner has, ordered: manually-ordered first (sortOrder ASC), then unordered by name
  *  (`sort_order IS NULL` sinks the nulls last; name is the fallback — mirrors the TagView contract). */
 export function listOwnedTags(db: Db, ownerId: UserId): Promise<TagRow[]> {
-  return db
-    .select()
-    .from(tags)
-    .where(eq(tags.ownerId, ownerId))
-    .orderBy(sql`${tags.sortOrder} is null`, tags.sortOrder, tags.name);
+  return db.select().from(tags).where(eq(tags.ownerId, ownerId)).orderBy(sql`${tags.sortOrder} is null`, tags.sortOrder, tags.name);
 }
 
 /** Race-safe create: insert a tag, no-op on the `(ownerId, lower(name))` functional unique conflict, and
@@ -73,11 +59,7 @@ export async function insertTagIfAbsent(args: {
 }
 
 /** The owner's tag id whose name folds to `name` (case-insensitive), or `undefined`. */
-export async function findTagIdByName(
-  db: Db,
-  ownerId: UserId,
-  name: string,
-): Promise<TagId | undefined> {
+export async function findTagIdByName(db: Db, ownerId: UserId, name: string): Promise<TagId | undefined> {
   const rows = await db
     .select({ id: tags.id })
     .from(tags)
@@ -86,11 +68,7 @@ export async function findTagIdByName(
 }
 
 /** The subset of `ids` that the owner actually owns (the bulk-attach ownership belt — one query, not N). */
-export async function fetchOwnedTagIds(
-  db: Db,
-  ownerId: UserId,
-  ids: readonly TagId[],
-): Promise<TagId[]> {
+export async function fetchOwnedTagIds(db: Db, ownerId: UserId, ids: readonly TagId[]): Promise<TagId[]> {
   if (ids.length === 0) {
     return [];
   }
@@ -103,10 +81,7 @@ export async function fetchOwnedTagIds(
 
 /** Bulk-insert prepared tag rows for one owner, idempotently: each row no-ops on the functional unique
  *  conflict. Returns the count actually created. Caller pre-normalizes each name and mints each id. */
-export async function insertOwnedTagsIfAbsent(
-  db: Db,
-  values: readonly (typeof tags.$inferInsert)[],
-): Promise<number> {
+export async function insertOwnedTagsIfAbsent(db: Db, values: readonly (typeof tags.$inferInsert)[]): Promise<number> {
   if (values.length === 0) {
     return 0;
   }
@@ -119,12 +94,7 @@ export async function insertOwnedTagsIfAbsent(
 }
 
 /** Apply an owner-scoped partial patch; returns the updated row, or `undefined` if no owned row matched. */
-export async function updateOwnedTag(
-  db: Db,
-  tagId: TagId,
-  ownerId: UserId,
-  patch: Partial<typeof tags.$inferInsert>,
-): Promise<TagRow | undefined> {
+export async function updateOwnedTag(db: Db, tagId: TagId, ownerId: UserId, patch: Partial<typeof tags.$inferInsert>): Promise<TagRow | undefined> {
   const updated = await db
     .update(tags)
     .set(patch)
@@ -145,11 +115,7 @@ export async function deleteOwnedTag(db: Db, tagId: TagId, ownerId: UserId): Pro
 
 /** Set the manual sort order: position i → `sortOrder = i`, owner-scoped. One libSQL batch. Caller
  *  guarantees `orderedIds` is non-empty. */
-export async function setTagOrderBatch(
-  db: Db,
-  ownerId: UserId,
-  orderedIds: readonly TagId[],
-): Promise<void> {
+export async function setTagOrderBatch(db: Db, ownerId: UserId, orderedIds: readonly TagId[]): Promise<void> {
   const stmts = orderedIds.map((id, idx) =>
     db
       .update(tags)
@@ -164,12 +130,7 @@ export async function setTagOrderBatch(
  *  (a source row already covered by the target is dropped first, so the repoint UPDATE never hits a PK
  *  conflict). `character_tags` preserves the strongest status — an `accepted` source row upgrades a
  *  `pending` target row before the collision-delete. */
-export async function mergeTagBatch(
-  db: Db,
-  ownerId: UserId,
-  sourceTagId: TagId,
-  targetTagId: TagId,
-): Promise<void> {
+export async function mergeTagBatch(db: Db, ownerId: UserId, sourceTagId: TagId, targetTagId: TagId): Promise<void> {
   const stmts = [
     // character: accepted source row upgrades pending target row before the collision-delete.
     db
@@ -184,9 +145,7 @@ export async function mergeTagBatch(
             db
               .select({ id: characterTags.characterId })
               .from(characterTags)
-              .where(
-                and(eq(characterTags.tagId, sourceTagId), eq(characterTags.status, "accepted")),
-              ),
+              .where(and(eq(characterTags.tagId, sourceTagId), eq(characterTags.status, "accepted"))),
           ),
         ),
       ),
@@ -195,19 +154,10 @@ export async function mergeTagBatch(
       .where(
         and(
           eq(characterTags.tagId, sourceTagId),
-          inArray(
-            characterTags.characterId,
-            db
-              .select({ id: characterTags.characterId })
-              .from(characterTags)
-              .where(eq(characterTags.tagId, targetTagId)),
-          ),
+          inArray(characterTags.characterId, db.select({ id: characterTags.characterId }).from(characterTags).where(eq(characterTags.tagId, targetTagId))),
         ),
       ),
-    db
-      .update(characterTags)
-      .set({ tagId: targetTagId })
-      .where(eq(characterTags.tagId, sourceTagId)),
+    db.update(characterTags).set({ tagId: targetTagId }).where(eq(characterTags.tagId, sourceTagId)),
 
     // chat: dedupe on chatId (ownerId is invariant across both tags' rows).
     db
@@ -215,13 +165,7 @@ export async function mergeTagBatch(
       .where(
         and(
           eq(chatTags.tagId, sourceTagId),
-          inArray(
-            chatTags.chatId,
-            db
-              .select({ id: chatTags.chatId })
-              .from(chatTags)
-              .where(eq(chatTags.tagId, targetTagId)),
-          ),
+          inArray(chatTags.chatId, db.select({ id: chatTags.chatId }).from(chatTags).where(eq(chatTags.tagId, targetTagId))),
         ),
       ),
     db.update(chatTags).set({ tagId: targetTagId }).where(eq(chatTags.tagId, sourceTagId)),
@@ -232,19 +176,10 @@ export async function mergeTagBatch(
       .where(
         and(
           eq(worldBookTags.tagId, sourceTagId),
-          inArray(
-            worldBookTags.worldBookId,
-            db
-              .select({ id: worldBookTags.worldBookId })
-              .from(worldBookTags)
-              .where(eq(worldBookTags.tagId, targetTagId)),
-          ),
+          inArray(worldBookTags.worldBookId, db.select({ id: worldBookTags.worldBookId }).from(worldBookTags).where(eq(worldBookTags.tagId, targetTagId))),
         ),
       ),
-    db
-      .update(worldBookTags)
-      .set({ tagId: targetTagId })
-      .where(eq(worldBookTags.tagId, sourceTagId)),
+    db.update(worldBookTags).set({ tagId: targetTagId }).where(eq(worldBookTags.tagId, sourceTagId)),
 
     // persona
     db
@@ -252,13 +187,7 @@ export async function mergeTagBatch(
       .where(
         and(
           eq(personaTags.tagId, sourceTagId),
-          inArray(
-            personaTags.personaId,
-            db
-              .select({ id: personaTags.personaId })
-              .from(personaTags)
-              .where(eq(personaTags.tagId, targetTagId)),
-          ),
+          inArray(personaTags.personaId, db.select({ id: personaTags.personaId }).from(personaTags).where(eq(personaTags.tagId, targetTagId))),
         ),
       ),
     db.update(personaTags).set({ tagId: targetTagId }).where(eq(personaTags.tagId, sourceTagId)),
@@ -269,13 +198,7 @@ export async function mergeTagBatch(
       .where(
         and(
           eq(presetTags.tagId, sourceTagId),
-          inArray(
-            presetTags.presetId,
-            db
-              .select({ id: presetTags.presetId })
-              .from(presetTags)
-              .where(eq(presetTags.tagId, targetTagId)),
-          ),
+          inArray(presetTags.presetId, db.select({ id: presetTags.presetId }).from(presetTags).where(eq(presetTags.tagId, targetTagId))),
         ),
       ),
     db.update(presetTags).set({ tagId: targetTagId }).where(eq(presetTags.tagId, sourceTagId)),
@@ -289,11 +212,7 @@ export async function mergeTagBatch(
 /** Every `pending` character-tag suggestion for the owner (optionally narrowed to one character), joined to
  *  its tag row so the review UI renders the chip with name + colors. `character_tags` carries no ownerId, so
  *  the owner gate reaches `characters.ownerId` via the innerJoin. */
-export async function listPendingCharacterSuggestions(
-  db: Db,
-  ownerId: UserId,
-  characterId?: CharacterId,
-): Promise<TagSuggestionView[]> {
+export async function listPendingCharacterSuggestions(db: Db, ownerId: UserId, characterId?: CharacterId): Promise<TagSuggestionView[]> {
   const conds = [eq(charactersTable.ownerId, ownerId), eq(characterTags.status, "pending")];
   if (characterId !== undefined) {
     conds.push(eq(characterTags.characterId, characterId));
@@ -322,12 +241,7 @@ export async function listPendingCharacterSuggestions(
 // to N×5 NULL rows at typical tag counts).
 
 /** Count junction rows per tag for the given tag ids, on one junction's tagId column. */
-async function countByTag(
-  db: Db,
-  table: SQLiteTable,
-  tagCol: SQLiteColumn,
-  ids: readonly TagId[],
-): Promise<Record<string, number>> {
+async function countByTag(db: Db, table: SQLiteTable, tagCol: SQLiteColumn, ids: readonly TagId[]): Promise<Record<string, number>> {
   const rows = await db
     .select({ tagId: tagCol, n: sql<number>`count(*)` })
     .from(table)
@@ -359,8 +273,7 @@ export async function listOwnedTagsWithUsage(db: Db, ownerId: UserId): Promise<T
       presets: presets[row.id] ?? 0,
       total: 0,
     };
-    usage.total =
-      usage.characters + usage.chats + usage.worldBooks + usage.personas + usage.presets;
+    usage.total = usage.characters + usage.chats + usage.worldBooks + usage.personas + usage.presets;
     return { ...toTagView(row), usage };
   });
 }

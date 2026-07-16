@@ -20,9 +20,7 @@ type SearchGifsAdapterOp = (args: {
 /** The Tenor image fetch+guard op (`infra/network/fetchTenorGifImage`). FAIL-CLOSED host allowlist + the
  *  magic/dimension guard live inside it; it throws on a bad host / non-2xx / rejected buffer. Returns the
  *  validated bytes + the sniffed mime the verb stamps on `storeAsset`. */
-type FetchGifImageOp = (
-  url: string,
-) => Promise<{ readonly bytes: Uint8Array; readonly mime: string }>;
+type FetchGifImageOp = (url: string) => Promise<{ readonly bytes: Uint8Array; readonly mime: string }>;
 
 /** Resolve the acting principal's `gif-search` (Tenor) key (`credentials.resolveGifSearchKey`) — `null`
  *  when the user has no live credential (the verb surfaces the no-credential floor). */

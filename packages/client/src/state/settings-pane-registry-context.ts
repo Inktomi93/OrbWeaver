@@ -13,9 +13,7 @@ export const SettingsPaneRegistryContext = createContext<SettingsPaneRegistry | 
 export function useSettingsPaneRegistry(): SettingsPaneRegistry {
   const registry = useContext(SettingsPaneRegistryContext);
   if (registry === null) {
-    throw new Error(
-      "useSettingsPaneRegistry: no SettingsPaneRegistryProvider mounted (assemble in main.tsx)",
-    );
+    throw new Error("useSettingsPaneRegistry: no SettingsPaneRegistryProvider mounted (assemble in main.tsx)");
   }
   return registry;
 }

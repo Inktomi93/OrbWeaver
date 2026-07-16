@@ -66,11 +66,7 @@ export function RegexTab({ form }: { readonly form: AppForm }): ReactElement {
             // instances are invariant in their value type, so narrowing this PromptConfig form to the
             // dialog's minimal `RegexScriptsFormValues` shape needs one cast (a library-invariance escape,
             // never an Id launder — runtime-identical, the field paths exist).
-            <RegexEditorDialog
-              form={form as unknown as AppFormInstance<RegexScriptsFormValues>}
-              index={index}
-              onClose={(): void => setEditIndex(null)}
-            />
+            <RegexEditorDialog form={form as unknown as AppFormInstance<RegexScriptsFormValues>} index={index} onClose={(): void => setEditIndex(null)} />
           )}
         />
       )}

@@ -35,9 +35,7 @@ function fixture(): ReactElement {
   );
 }
 
-test("reading vars drive the message bubble's computed line-height / letter-spacing / body-scale / paragraph-spacing / justify", async ({
-  mount,
-}) => {
+test("reading vars drive the message bubble's computed line-height / letter-spacing / body-scale / paragraph-spacing / justify", async ({ mount }) => {
   const cmp = await mount(fixture());
   const bubble = cmp.getByTestId("reading-bubble");
 
@@ -55,8 +53,7 @@ test("reading vars drive the message bubble's computed line-height / letter-spac
       rootFontPx,
       textBodyRem: Number.parseFloat(cs.getPropertyValue("--text-body")),
       bodyScaleVar: Number.parseFloat(cs.getPropertyValue("--reading-body-scale")),
-      paragraphMarginTopPx:
-        secondP === undefined ? Number.NaN : Number.parseFloat(getComputedStyle(secondP).marginTop),
+      paragraphMarginTopPx: secondP === undefined ? Number.NaN : Number.parseFloat(getComputedStyle(secondP).marginTop),
     };
   });
 

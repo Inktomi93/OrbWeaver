@@ -1,8 +1,4 @@
-import type {
-  CredentialSource as CredentialSourceViaConnection,
-  ModelCapability,
-  ModelCatalogEntry,
-} from "@orb/contracts/connection";
+import type { CredentialSource as CredentialSourceViaConnection, ModelCapability, ModelCatalogEntry } from "@orb/contracts/connection";
 import {
   CACHE_MIN_FLOOR,
   CHAT_APIS,

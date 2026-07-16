@@ -92,9 +92,7 @@ const DOCUMENTED_STATIC = new Map<string, string>([
 test("every consumed --color-*-foreground/-border custom property is emitted by ThemeScope or documented as static (#16)", () => {
   const emitted = new Set<string>(THEME_SCOPE_EMIT_VARS);
   const consumed = scanConsumedVars();
-  const unaccounted = [...consumed]
-    .filter((name) => !(emitted.has(name) || DOCUMENTED_STATIC.has(name)))
-    .sort();
+  const unaccounted = [...consumed].filter((name) => !(emitted.has(name) || DOCUMENTED_STATIC.has(name))).sort();
   expect(
     unaccounted,
     "consumed but neither emitted by ThemeScope (clamp.ts THEME_SCOPE_EMIT_VARS) nor documented in " +
@@ -112,7 +110,5 @@ test("DOCUMENTED_STATIC entries are all still actually consumed (no stale rows)"
 test("DOCUMENTED_STATIC entries are NOT already covered by THEME_SCOPE_EMIT_VARS (no dead allowlist rows)", () => {
   const emitted = new Set<string>(THEME_SCOPE_EMIT_VARS);
   const redundant = [...DOCUMENTED_STATIC.keys()].filter((name) => emitted.has(name));
-  expect(redundant, "DOCUMENTED_STATIC entry already emitted by ThemeScope — delete it").toEqual(
-    [],
-  );
+  expect(redundant, "DOCUMENTED_STATIC entry already emitted by ThemeScope — delete it").toEqual([]);
 });

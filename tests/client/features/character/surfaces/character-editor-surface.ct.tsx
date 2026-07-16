@@ -44,10 +44,7 @@ async function routeEditor(page: Page): Promise<void> {
   });
 }
 
-test("renders the hero (name · handle · New chat) and the live greeting bubble", async ({
-  mount,
-  page,
-}) => {
+test("renders the hero (name · handle · New chat) and the live greeting bubble", async ({ mount, page }) => {
   await routeEditor(page);
   const component = await mount(<CharacterEditorSurfaceStory />);
 
@@ -57,10 +54,7 @@ test("renders the hero (name · handle · New chat) and the live greeting bubble
   await expect(component.getByText("Hello, traveler. What brings you to my door?")).toBeVisible();
 });
 
-test("§6.5 the save-bar carries the token split and gates Save until the draft is dirty", async ({
-  mount,
-  page,
-}) => {
+test("§6.5 the save-bar carries the token split and gates Save until the draft is dirty", async ({ mount, page }) => {
   await routeEditor(page);
   const component = await mount(<CharacterEditorSurfaceStory />);
 
@@ -75,10 +69,7 @@ test("§6.5 the save-bar carries the token split and gates Save until the draft 
   await expect(component.getByRole("button", { name: "Save" })).toBeEnabled();
 });
 
-test("§6.4 a facet row drills CONTENT into that field's body editor (a drill-in, not a modal)", async ({
-  mount,
-  page,
-}) => {
+test("§6.4 a facet row drills CONTENT into that field's body editor (a drill-in, not a modal)", async ({ mount, page }) => {
   await routeEditor(page);
   const component = await mount(<CharacterEditorSurfaceStory />);
 
@@ -95,10 +86,7 @@ test("§6.4 a facet row drills CONTENT into that field's body editor (a drill-in
   await expect(component.getByRole("button", { name: REGEX_ROW })).toBeVisible();
 });
 
-test("§6.3 example messages render as parsed <START> blocks in the facet drill-in", async ({
-  mount,
-  page,
-}) => {
+test("§6.3 example messages render as parsed <START> blocks in the facet drill-in", async ({ mount, page }) => {
   await routeEditor(page);
   const component = await mount(<CharacterEditorSurfaceStory />);
 
@@ -108,10 +96,7 @@ test("§6.3 example messages render as parsed <START> blocks in the facet drill-
   await expect(component.getByText("bye — Farewell.")).toBeVisible();
 });
 
-test("§6.1 the spoiler eye blurs the drilled card-text container and clears on toggle-off", async ({
-  mount,
-  page,
-}) => {
+test("§6.1 the spoiler eye blurs the drilled card-text container and clears on toggle-off", async ({ mount, page }) => {
   await routeEditor(page);
   const component = await mount(<CharacterEditorSurfaceStory />);
 
@@ -131,10 +116,7 @@ test("§6.1 the spoiler eye blurs the drilled card-text container and clears on 
   await expect(fields.first()).not.toHaveClass(BLUR_CLASS_RE);
 });
 
-test("§6.2 removing a tag chip fires bulkRemoveCardTag by name — immediate, never the save-bar pill", async ({
-  mount,
-  page,
-}) => {
+test("§6.2 removing a tag chip fires bulkRemoveCardTag by name — immediate, never the save-bar pill", async ({ mount, page }) => {
   const tagged = makeCharacterDetail({ tags: [makeTagFixture({ id: "tag_rpg", name: "rpg" })] });
   let removedInput: unknown = null;
   await routeTrpc(page, {
@@ -150,9 +132,7 @@ test("§6.2 removing a tag chip fires bulkRemoveCardTag by name — immediate, n
 
   await component.getByRole("button", { name: "Remove rpg" }).click();
   // The by-name detach fires with THIS character's id (an immediate junction write).
-  await expect
-    .poll(() => removedInput, { intervals: [20, 50, 100] })
-    .toEqual({ tagName: "rpg", characterIds: ["char_ct_1"] });
+  await expect.poll(() => removedInput, { intervals: [20, 50, 100] }).toEqual({ tagName: "rpg", characterIds: ["char_ct_1"] });
   // Tag CRUD is immediate-commit — it must never light the draft save-bar pill (§2).
   await expect(component.getByText("Unsaved")).toHaveCount(0);
 });

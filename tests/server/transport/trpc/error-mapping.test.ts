@@ -29,27 +29,19 @@ describe("classifyDomainError — one case per subclass", () => {
   });
 
   test("DomainNoCredentialError → PRECONDITION_FAILED (checked before Operation)", () => {
-    expect(classifyDomainError(new DomainNoCredentialError("openrouter"))?.code).toBe(
-      "PRECONDITION_FAILED",
-    );
+    expect(classifyDomainError(new DomainNoCredentialError("openrouter"))?.code).toBe("PRECONDITION_FAILED");
   });
 
   test("DomainOperationError → BAD_REQUEST", () => {
-    expect(classifyDomainError(new DomainOperationError("bad_input", "no"))?.code).toBe(
-      "BAD_REQUEST",
-    );
+    expect(classifyDomainError(new DomainOperationError("bad_input", "no"))?.code).toBe("BAD_REQUEST");
   });
 
   test("DomainRateLimitError → TOO_MANY_REQUESTS", () => {
-    expect(classifyDomainError(new DomainRateLimitError("slow down"))?.code).toBe(
-      "TOO_MANY_REQUESTS",
-    );
+    expect(classifyDomainError(new DomainRateLimitError("slow down"))?.code).toBe("TOO_MANY_REQUESTS");
   });
 
   test("DomainUnavailableError → SERVICE_UNAVAILABLE", () => {
-    expect(classifyDomainError(new DomainUnavailableError("down"))?.code).toBe(
-      "SERVICE_UNAVAILABLE",
-    );
+    expect(classifyDomainError(new DomainUnavailableError("down"))?.code).toBe("SERVICE_UNAVAILABLE");
   });
 });
 

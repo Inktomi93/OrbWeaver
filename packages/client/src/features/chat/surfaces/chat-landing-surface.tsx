@@ -45,20 +45,9 @@ export function ChatLandingSurface(props: ChatLandingSurfaceProps): ReactElement
   useFocusOnMount(surfaceRef);
 
   return (
-    <Stack
-      ref={surfaceRef}
-      tabIndex={-1}
-      className="h-full min-h-0 overflow-y-auto outline-none"
-      align="center"
-      padding="section"
-    >
+    <Stack ref={surfaceRef} tabIndex={-1} className="h-full min-h-0 overflow-y-auto outline-none" align="center" padding="section">
       <Stack className="w-full max-w-(--width-shell-content)" gap="section">
-        <QueryBoundary
-          fallback={<LandingSkeleton />}
-          renderError={(_error, retry): ReactElement => (
-            <QueryErrorState label="your landing" onRetry={retry} />
-          )}
-        >
+        <QueryBoundary fallback={<LandingSkeleton />} renderError={(_error, retry): ReactElement => <QueryErrorState label="your landing" onRetry={retry} />}>
           <LandingBody {...props} />
         </QueryBoundary>
       </Stack>
@@ -66,19 +55,10 @@ export function ChatLandingSurface(props: ChatLandingSurfaceProps): ReactElement
   );
 }
 
-function LandingBody({
-  onSelect,
-  onStartChat,
-  onNewChat,
-  onBrowseCharacters,
-  showRecents = true,
-}: ChatLandingSurfaceProps): ReactElement {
+function LandingBody({ onSelect, onStartChat, onNewChat, onBrowseCharacters, showRecents = true }: ChatLandingSurfaceProps): ReactElement {
   const trpc = useTRPC();
   const [{ data: chats }, { data: characterPage }] = useSuspenseQueries({
-    queries: [
-      trpc.chat.listChats.queryOptions({}),
-      trpc.character.list.queryOptions({ limit: QUICK_PICKS_LIMIT }),
-    ],
+    queries: [trpc.chat.listChats.queryOptions({}), trpc.character.list.queryOptions({ limit: QUICK_PICKS_LIMIT })],
   });
   const recents = chats.slice(0, RECENTS_LIMIT);
   const quickPicks = characterPage.items.slice(0, QUICK_PICKS_LIMIT);
@@ -146,8 +126,7 @@ interface RecentRowProps {
 
 function RecentRow({ chat, onSelect }: RecentRowProps): ReactElement {
   const title = chat.title ?? "Untitled chat";
-  const subtitle =
-    chat.participantNames.length > 0 ? chat.participantNames.join(", ") : "No characters";
+  const subtitle = chat.participantNames.length > 0 ? chat.participantNames.join(", ") : "No characters";
   const when = chat.lastMessageAt ?? chat.updatedAt;
   return (
     <ListRow

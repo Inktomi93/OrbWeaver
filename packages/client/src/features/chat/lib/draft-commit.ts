@@ -33,10 +33,7 @@ export interface DraftCommit {
 
 /** Read the active draft's config + seed into the `startChat` commit shape. Non-reactive (a commit-time
  *  snapshot, like `readDraftConfig`). A committed handle yields an empty carry + the (empty) seed cast. */
-export function resolveDraftCommit(
-  handle: ChatHandle,
-  draftSeed: DraftSeed | undefined,
-): DraftCommit {
+export function resolveDraftCommit(handle: ChatHandle, draftSeed: DraftSeed | undefined): DraftCommit {
   const draftKey = handle.kind === "draft" ? handle.draftKey : null;
   const config = draftKey === null ? EMPTY_DRAFT_CONFIG : readDraftConfig(draftKey);
   const characterIds = [...(draftSeed?.characterIds ?? []), ...(config.addedCharacterIds ?? [])];

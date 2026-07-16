@@ -9,10 +9,7 @@
 import process from "node:process";
 import type { ModelId } from "@orb/kit/ids";
 import type { RerankRequest, RerankResult } from "@orb/server/infra/providers";
-import {
-  createLocalLightBackend,
-  DEFAULT_RERANK_MODEL,
-} from "@orb/server/infra/providers/backends/local-light";
+import { createLocalLightBackend, DEFAULT_RERANK_MODEL } from "@orb/server/infra/providers/backends/local-light";
 import { describe } from "vitest";
 import { makeResolvedCredential } from "../../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../../support/fixtures";

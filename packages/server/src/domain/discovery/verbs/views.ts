@@ -11,28 +11,18 @@ import type { DiscoveryContext } from "../context";
 import type { ThemeLevel } from "../contract/params";
 import type { CharacterDossier, HomeView, ThemeDetail } from "../contract/results";
 import type { DiscoveryService, ViewsDeps } from "../contract/service";
-import {
-  readCorpusCoverage,
-  readOwnedPortraitPairs,
-  readThemeClusterMembers,
-  readThemeClusterTimeline,
-} from "../persistence/embed-store-reads";
+import { readCorpusCoverage, readOwnedPortraitPairs, readThemeClusterMembers, readThemeClusterTimeline } from "../persistence/embed-store-reads";
 import { readOwnedCardFacet } from "../persistence/summary-reads";
 
 const HOME_TOP_THEMES = 8;
 const THEME_DETAIL_MEMBERS = 15;
 const DOSSIER_SIMILAR_TOP_N = 8;
 
-export function createViews(
-  ctx: DiscoveryContext,
-  deps: ViewsDeps,
-): Pick<DiscoveryService, "home" | "themeDetail" | "characterDossier"> {
+export function createViews(ctx: DiscoveryContext, deps: ViewsDeps): Pick<DiscoveryService, "home" | "themeDetail" | "characterDossier"> {
   return {
     home: (userId) => home(ctx.db, userId, deps),
-    themeDetail: (userId, clusterIdx, level) =>
-      themeDetail(ctx.db, deps, { ownerId: userId, clusterIdx, level }),
-    characterDossier: (userId, characterId) =>
-      characterDossier(ctx.db, deps, { ownerId: userId, characterId }),
+    themeDetail: (userId, clusterIdx, level) => themeDetail(ctx.db, deps, { ownerId: userId, clusterIdx, level }),
+    characterDossier: (userId, characterId) => characterDossier(ctx.db, deps, { ownerId: userId, characterId }),
   };
 }
 
@@ -53,45 +43,28 @@ async function home(db: Db, ownerId: UserId, deps: ViewsDeps): Promise<HomeView>
 }
 
 /** null when no cluster matches (clusterIdx, level) for the owner. */
-async function themeDetail(
-  db: Db,
-  deps: ViewsDeps,
-  args: { ownerId: UserId; clusterIdx: number; level: ThemeLevel },
-): Promise<ThemeDetail | null> {
+async function themeDetail(db: Db, deps: ViewsDeps, args: { ownerId: UserId; clusterIdx: number; level: ThemeLevel }): Promise<ThemeDetail | null> {
   const { ownerId, clusterIdx, level } = args;
   const list = await deps.themes(ownerId, level);
   const theme = list.find((t) => t.clusterIdx === clusterIdx && t.level === level);
   if (theme === undefined) {
     return null;
   }
-  const [timeline, members] = await Promise.all([
-    readThemeClusterTimeline(db, theme.id),
-    readThemeClusterMembers(db, theme.id, THEME_DETAIL_MEMBERS),
-  ]);
+  const [timeline, members] = await Promise.all([readThemeClusterTimeline(db, theme.id), readThemeClusterMembers(db, theme.id, THEME_DETAIL_MEMBERS)]);
   return { ...theme, timeline, members };
 }
 
 /** null when the character isn't owned/distilled. Composes the distilled headline facets, the in-RAM
  *  portrait↔card cosine (null when there's no paired vector), and the injected `similar` neighbours. */
-async function characterDossier(
-  db: Db,
-  deps: ViewsDeps,
-  args: { ownerId: UserId; characterId: CharacterId },
-): Promise<CharacterDossier | null> {
+async function characterDossier(db: Db, deps: ViewsDeps, args: { ownerId: UserId; characterId: CharacterId }): Promise<CharacterDossier | null> {
   const { ownerId, characterId } = args;
   const card = await readOwnedCardFacet(db, ownerId, characterId);
   if (card === undefined) {
     return null;
   }
-  const [pairs, similar] = await Promise.all([
-    readOwnedPortraitPairs(db, ownerId),
-    deps.similar(ownerId, characterId, DOSSIER_SIMILAR_TOP_N),
-  ]);
+  const [pairs, similar] = await Promise.all([readOwnedPortraitPairs(db, ownerId), deps.similar(ownerId, characterId, DOSSIER_SIMILAR_TOP_N)]);
   const pair = pairs.find((p) => p.characterId === characterId);
-  const portrait =
-    pair === undefined
-      ? null
-      : { avatarHash: pair.avatarHash, alignment: cosineSim(pair.cardVec, pair.imageVec) };
+  const portrait = pair === undefined ? null : { avatarHash: pair.avatarHash, alignment: cosineSim(pair.cardVec, pair.imageVec) };
   return {
     characterId,
     name: card.name,

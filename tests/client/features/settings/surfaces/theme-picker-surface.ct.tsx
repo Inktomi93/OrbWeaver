@@ -40,12 +40,7 @@ const OWNED = {
   updatedAt: NOW,
 };
 const THEMES = [
-  seed(
-    "theme_00000000000000000000000001",
-    "Hearth",
-    "oklch(0.158 0.006 60)",
-    "oklch(0.72 0.175 52)",
-  ),
+  seed("theme_00000000000000000000000001", "Hearth", "oklch(0.158 0.006 60)", "oklch(0.72 0.175 52)"),
   seed("theme_00000000000000000000000002", "Mocha", "oklch(0.15 0.015 250)", "oklch(0.7 0.14 250)"),
   seed("theme_00000000000000000000000003", "Light", "oklch(0.98 0.004 75)", "oklch(0.55 0.16 50)"),
   OWNED,
@@ -73,10 +68,7 @@ test("renders the seed palettes + the owned theme", async ({ mount, page }) => {
   await expect(component.getByText("My Theme", { exact: true })).toBeVisible();
 });
 
-test("Hearth is active when no theme is explicitly selected (selectedThemeId null)", async ({
-  mount,
-  page,
-}) => {
+test("Hearth is active when no theme is explicitly selected (selectedThemeId null)", async ({ mount, page }) => {
   await stub(page);
   const component = await mount(<ThemePickerStory />);
   await expect(component.getByLabel("Active theme")).toBeVisible();
@@ -95,10 +87,7 @@ test("a seed offers Customize; an owned theme offers Edit + Delete", async ({ mo
   await expect(page.getByRole("menuitem", { name: "Delete" })).toBeVisible();
 });
 
-test("Delete does not destroy immediately — it opens an AlertDialog confirm (F4)", async ({
-  mount,
-  page,
-}) => {
+test("Delete does not destroy immediately — it opens an AlertDialog confirm (F4)", async ({ mount, page }) => {
   await stub(page);
   const component = await mount(<ThemePickerStory />);
   await component.getByRole("button", { name: "My Theme actions" }).click();

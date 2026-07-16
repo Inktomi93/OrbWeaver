@@ -66,18 +66,9 @@ interface SegmentScopeParams {
 }
 
 export function segmentScopeCond(params: SegmentScopeParams): SQL | undefined {
-  const belts: (SQL | undefined)[] = [
-    eq(chatSegments.model, params.model),
-    inArray(chatSegments.chatId, [...params.chatIds]),
-  ];
+  const belts: (SQL | undefined)[] = [eq(chatSegments.model, params.model), inArray(chatSegments.chatId, [...params.chatIds])];
   if (params.candidates !== undefined) {
-    belts.push(
-      or(
-        ...params.candidates.map((k) =>
-          and(eq(chatSegments.chatId, k.chatId), eq(chatSegments.blockIdx, k.blockIdx)),
-        ),
-      ),
-    );
+    belts.push(or(...params.candidates.map((k) => and(eq(chatSegments.chatId, k.chatId), eq(chatSegments.blockIdx, k.blockIdx)))));
   }
   return and(...belts);
 }

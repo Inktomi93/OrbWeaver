@@ -14,10 +14,7 @@ import { GatedQueryStory } from "./_ct-stories";
 
 const CHAT_ID = castId<ChatId>("chat_gatedquerytest01");
 
-test("a real id flows the query end-to-end (queryOptions fires, resolves, renders)", async ({
-  mount,
-  page,
-}) => {
+test("a real id flows the query end-to-end (queryOptions fires, resolves, renders)", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "chat.getChat": (input: unknown) => ({
       title: `room for ${(input as { chatId: string }).chatId}`,
@@ -31,10 +28,7 @@ test("a real id flows the query end-to-end (queryOptions fires, resolves, render
   expect(trpc.lastInput("chat.getChat")).toEqual({ chatId: CHAT_ID });
 });
 
-test("a null id never builds the real key — skipToken keeps the procedure UNCALLED", async ({
-  mount,
-  page,
-}) => {
+test("a null id never builds the real key — skipToken keeps the procedure UNCALLED", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "chat.getChat": (): never => {
       throw new Error("must never be called — the gated-off branch must never build the real key");

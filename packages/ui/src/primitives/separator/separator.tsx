@@ -15,12 +15,5 @@ export interface SeparatorProps extends Omit<BaseSeparatorProps, "className"> {
  */
 export function Separator(props: SeparatorProps): ReactElement {
   const { className, orientation = "horizontal", ...rest } = props;
-  return (
-    <BaseSeparator
-      data-slot="separator"
-      className={separatorVariants({ orientation, className })}
-      orientation={orientation}
-      {...rest}
-    />
-  );
+  return <BaseSeparator data-slot="separator" className={separatorVariants({ orientation, className })} orientation={orientation} {...rest} />;
 }

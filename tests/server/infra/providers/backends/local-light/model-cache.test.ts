@@ -79,9 +79,7 @@ describe("createMemo", () => {
 
   test("does NOT cache a rejected load — a later call retries (no failure poisoning)", async () => {
     const load = vi.fn((id: string) =>
-      load.mock.calls.length === 1
-        ? Promise.reject(new Error("Unable to get model file path or buffer."))
-        : Promise.resolve(`model:${id}`),
+      load.mock.calls.length === 1 ? Promise.reject(new Error("Unable to get model file path or buffer.")) : Promise.resolve(`model:${id}`),
     );
     const memo = createMemo(load, noDispose);
 

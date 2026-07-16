@@ -4,10 +4,7 @@
 // Converts the SDK's `number[]` OR base64 embedding into the `Float32Array` the store consumes. Imports
 // `backends/kit` DOWN; never a sibling backend.
 
-import type {
-  CreateEmbeddingsRequestBody,
-  CreateEmbeddingsResponse,
-} from "@openrouter/sdk/models/operations";
+import type { CreateEmbeddingsRequestBody, CreateEmbeddingsResponse } from "@openrouter/sdk/models/operations";
 import type { EmbedRequest, EmbedResult } from "../../../../contract";
 import { ProviderError } from "../../../../contract";
 import { providerErrorFromHttp } from "../../../kit";
@@ -59,10 +56,7 @@ export async function runEmbed(client: OrEmbedClient, req: EmbedRequest): Promis
   };
   let response: CreateEmbeddingsResponse;
   try {
-    response = await client.embeddings.generate(
-      { requestBody },
-      req.signal !== undefined ? { signal: req.signal } : undefined,
-    );
+    response = await client.embeddings.generate({ requestBody }, req.signal !== undefined ? { signal: req.signal } : undefined);
   } catch (err) {
     throw providerErrorFromHttp(err, errorPrefix(req.model));
   }

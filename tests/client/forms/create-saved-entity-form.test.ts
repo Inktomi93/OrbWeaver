@@ -13,20 +13,7 @@ interface Values {
   avatarAssetId: string | null;
 }
 
-function headlessForm(): FormApi<
-  Values,
-  never,
-  never,
-  never,
-  never,
-  never,
-  never,
-  never,
-  never,
-  never,
-  never,
-  never
-> {
+function headlessForm(): FormApi<Values, never, never, never, never, never, never, never, never, never, never, never> {
   const form = new FormApi({
     defaultValues: { name: "", avatarAssetId: null } as Values,
   });

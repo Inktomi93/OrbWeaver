@@ -9,12 +9,7 @@ import { fakeEnv, makeRunnerContext, RUNNER_OWNER_ID } from "../_support.ts";
 describe("group-character-backfill runner", () => {
   test("runs the group-room sweep and returns its counts", async () => {
     const env = fakeEnv();
-    const result = await groupCharacterBackfillRunner(
-      makeRunnerContext(env),
-      {},
-      vi.fn(),
-      new AbortController().signal,
-    );
+    const result = await groupCharacterBackfillRunner(makeRunnerContext(env), {}, vi.fn(), new AbortController().signal);
     expect(env.character.backfillGroupCharacters).toHaveBeenCalledWith({
       ownerId: RUNNER_OWNER_ID,
       signal: expect.any(AbortSignal),

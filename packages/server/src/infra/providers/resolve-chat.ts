@@ -5,19 +5,11 @@
 import type { EffortLevel, ModelCapability, Range, Verbosity } from "@orb/contracts/connection";
 import type { UserIntent } from "@orb/contracts/preset";
 import { QUALITY_EFFORT } from "@orb/contracts/preset";
-import type {
-  DynamicContextChannel,
-  ResolvedChatKnobs,
-  ResolvedReasoning,
-  ResolvedSampling,
-  ResolvedWarning,
-} from "./contract";
+import type { DynamicContextChannel, ResolvedChatKnobs, ResolvedReasoning, ResolvedSampling, ResolvedWarning } from "./contract";
 
 const EFFORT_OFF = "none";
-const ADAPTIVE_BUDGET_WARNING =
-  "reasoning budget ignored: adaptive model takes effort only (an explicit budget 400s the model)";
-const DYNAMIC_CONTEXT_DEMOTED_WARNING =
-  "dynamic context 'hook' ignored: model does not honor a mid-conversation system channel — using the system block";
+const ADAPTIVE_BUDGET_WARNING = "reasoning budget ignored: adaptive model takes effort only (an explicit budget 400s the model)";
+const DYNAMIC_CONTEXT_DEMOTED_WARNING = "dynamic context 'hook' ignored: model does not honor a mid-conversation system channel — using the system block";
 const VERBOSITY_DROPPED_WARNING = "verbosity ignored: model does not expose a verbosity level";
 
 function clampRange(value: number, range: Range): number {
@@ -31,12 +23,7 @@ function mintTurnId(): string {
   return `turn_${turnCounter}`;
 }
 
-function resolveNumeric(
-  label: string,
-  value: number | undefined,
-  range: Range | undefined,
-  warnings: ResolvedWarning[],
-): number | undefined {
+function resolveNumeric(label: string, value: number | undefined, range: Range | undefined, warnings: ResolvedWarning[]): number | undefined {
   if (value === undefined) {
     return;
   }
@@ -50,12 +37,7 @@ function resolveNumeric(
   return clampRange(value, range);
 }
 
-function resolveFlag<T>(
-  label: string,
-  value: T | undefined,
-  supported: boolean | undefined,
-  warnings: ResolvedWarning[],
-): T | undefined {
+function resolveFlag<T>(label: string, value: T | undefined, supported: boolean | undefined, warnings: ResolvedWarning[]): T | undefined {
   if (value === undefined) {
     return;
   }
@@ -77,11 +59,7 @@ function effectiveEffort(params: UserIntent): UserIntent["effort"] {
   return params.quality !== undefined ? QUALITY_EFFORT[params.quality] : undefined;
 }
 
-function resolveEffort(
-  effort: UserIntent["effort"],
-  levels: readonly EffortLevel[] | undefined,
-  warnings: ResolvedWarning[],
-): EffortLevel | undefined {
+function resolveEffort(effort: UserIntent["effort"], levels: readonly EffortLevel[] | undefined, warnings: ResolvedWarning[]): EffortLevel | undefined {
   if (effort === undefined || effort === EFFORT_OFF) {
     return;
   }
@@ -95,10 +73,7 @@ function resolveEffort(
   return effort;
 }
 
-function resolveBudget(
-  requested: number | undefined,
-  range: Range | undefined,
-): number | undefined {
+function resolveBudget(requested: number | undefined, range: Range | undefined): number | undefined {
   const value = requested ?? range?.max;
   if (value === undefined) {
     return;
@@ -124,11 +99,7 @@ function resolveDisplay(
   return wanted;
 }
 
-function resolveReasoning(
-  params: UserIntent,
-  capability: ModelCapability,
-  warnings: ResolvedWarning[],
-): ResolvedReasoning {
+function resolveReasoning(params: UserIntent, capability: ModelCapability, warnings: ResolvedWarning[]): ResolvedReasoning {
   const r = capability.reasoning;
   const effort = effectiveEffort(params);
   const enabled = r.enabled && effort !== undefined && effort !== EFFORT_OFF;
@@ -158,35 +129,16 @@ function resolveReasoning(
   };
 }
 
-function resolveSampling(
-  params: UserIntent,
-  capability: ModelCapability,
-  warnings: ResolvedWarning[],
-): ResolvedSampling {
+function resolveSampling(params: UserIntent, capability: ModelCapability, warnings: ResolvedWarning[]): ResolvedSampling {
   // DEFER(quality-sampling): quality maps only to the reasoning axis today; per-model quality→sampling
   // numbers are pending live tuning, so sampling reads only the user's own knobs until then.
   const s = capability.sampling;
   const temperature = resolveNumeric("temperature", params.temperature, s.temperature, warnings);
   const topP = resolveNumeric("topP", params.topP, s.topP, warnings);
   const topK = resolveNumeric("topK", params.topK, s.topK, warnings);
-  const freq = resolveNumeric(
-    "frequencyPenalty",
-    params.frequencyPenalty,
-    s.frequencyPenalty,
-    warnings,
-  );
-  const pres = resolveNumeric(
-    "presencePenalty",
-    params.presencePenalty,
-    s.presencePenalty,
-    warnings,
-  );
-  const rep = resolveNumeric(
-    "repetitionPenalty",
-    params.repetitionPenalty,
-    s.repetitionPenalty,
-    warnings,
-  );
+  const freq = resolveNumeric("frequencyPenalty", params.frequencyPenalty, s.frequencyPenalty, warnings);
+  const pres = resolveNumeric("presencePenalty", params.presencePenalty, s.presencePenalty, warnings);
+  const rep = resolveNumeric("repetitionPenalty", params.repetitionPenalty, s.repetitionPenalty, warnings);
   const minP = resolveNumeric("minP", params.minP, s.minP, warnings);
   const seed = resolveFlag("seed", params.seed, s.seed, warnings);
   const logitBias = resolveFlag("logitBias", params.logitBias, s.logitBias, warnings);
@@ -205,11 +157,7 @@ function resolveSampling(
   };
 }
 
-function resolveVerbosity(
-  wanted: UserIntent["verbosity"],
-  levels: readonly Verbosity[] | undefined,
-  warnings: ResolvedWarning[],
-): Verbosity | undefined {
+function resolveVerbosity(wanted: UserIntent["verbosity"], levels: readonly Verbosity[] | undefined, warnings: ResolvedWarning[]): Verbosity | undefined {
   if (wanted === undefined) {
     return;
   }
@@ -220,11 +168,7 @@ function resolveVerbosity(
   return wanted;
 }
 
-export function resolveDynamicContext(
-  params: UserIntent,
-  capability: ModelCapability,
-  warnings: ResolvedWarning[],
-): DynamicContextChannel {
+export function resolveDynamicContext(params: UserIntent, capability: ModelCapability, warnings: ResolvedWarning[]): DynamicContextChannel {
   const midConvCapable = capability.turns?.midConversationSystem ?? false;
   const knob = params.advanced?.dynamicContext;
   if (knob === "system") {
@@ -246,10 +190,7 @@ export function resolveChat(params: UserIntent, capability: ModelCapability): Re
   const sampling = resolveSampling(params, capability, warnings);
   const dynamicContextChannel = resolveDynamicContext(params, capability, warnings);
   const verbosity = resolveVerbosity(params.verbosity, capability.verbosity, warnings);
-  const maxOutputTokens =
-    params.maxOutputTokens !== undefined
-      ? clampRange(params.maxOutputTokens, capability.output.maxTokens)
-      : undefined;
+  const maxOutputTokens = params.maxOutputTokens !== undefined ? clampRange(params.maxOutputTokens, capability.output.maxTokens) : undefined;
   return {
     turnId: mintTurnId(),
     reasoning,

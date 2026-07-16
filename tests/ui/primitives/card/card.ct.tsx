@@ -14,9 +14,7 @@ test("is the card token surface", async ({ mount }) => {
   await expect(card).toHaveCSS("background-color", TOKENS["color.card"].value);
 });
 
-test("padding variants differ (none resets, section pads on the token scale)", async ({
-  mount,
-}) => {
+test("padding variants differ (none resets, section pads on the token scale)", async ({ mount }) => {
   const none = await mount(<Card padding="none">Panel</Card>);
   const nonePad = await none.evaluate((el) => getComputedStyle(el).paddingTop);
   expect(Math.round(Number.parseFloat(nonePad))).toBe(NONE_PX);
@@ -32,10 +30,7 @@ test("interactive adds the pointer affordance", async ({ mount }) => {
   expect(cursor).toBe("pointer");
 });
 
-test("interactive is keyboard-operable: role/tabIndex + Enter/Space fire onClick", async ({
-  mount,
-  page,
-}) => {
+test("interactive is keyboard-operable: role/tabIndex + Enter/Space fire onClick", async ({ mount, page }) => {
   const clicks: string[] = [];
   const card = await mount(
     <Card

@@ -149,14 +149,7 @@ export function CharacterLibrarySurfaceStory(): ReactElement {
  *  the Delete button clipped at. `trpc` is read inside the provider tree (the surface's own wiring). */
 function BulkBarInner(): ReactElement {
   const trpc = useTRPC();
-  return (
-    <CharacterBulkBar
-      ids={["char_a", "char_b", "char_c"]}
-      onClear={(): void => undefined}
-      selectedCount={3}
-      trpc={trpc}
-    />
-  );
+  return <CharacterBulkBar ids={["char_a", "char_b", "char_c"]} onClear={(): void => undefined} selectedCount={3} trpc={trpc} />;
 }
 
 export function CharacterBulkBarStory(): ReactElement {

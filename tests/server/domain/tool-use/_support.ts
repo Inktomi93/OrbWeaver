@@ -7,12 +7,7 @@ import type { Can, Principal } from "@orb/contracts/identity";
 import { DomainForbiddenError } from "@orb/kit/errors";
 import { castId } from "@orb/kit/ids";
 import type { z } from "zod";
-import type {
-  ToolDefinition,
-  ToolExecutionContext,
-  ToolHandler,
-  ToolUseContext,
-} from "../../../../packages/server/src/domain/tool-use";
+import type { ToolDefinition, ToolExecutionContext, ToolHandler, ToolUseContext } from "../../../../packages/server/src/domain/tool-use";
 import { FROZEN_AT_MS } from "../../../support/clock.ts";
 import { principal as makePrincipal } from "../../../support/factories/principal.ts";
 

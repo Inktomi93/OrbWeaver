@@ -26,16 +26,7 @@ import {
   userSettings as userSettingsTable,
   worldBooks,
 } from "@orb/db";
-import type {
-  ChatId,
-  ChatParticipantId,
-  Handle,
-  MessageAssetId,
-  MessageId,
-  MessageVariantId,
-  UserId,
-  WorkloadId,
-} from "@orb/kit/ids";
+import type { ChatId, ChatParticipantId, Handle, MessageAssetId, MessageId, MessageVariantId, UserId, WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { loadWorkload, runWorkload } from "@orb/server/domain/workloads";
 import type { ExportDeps, ImportBundleDeps } from "@orb/server/entry/http";
@@ -56,10 +47,7 @@ vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
 // A minimal valid PNG (signature + a zero-length IEND) — `isPng` passes so the export-character avatar read
 // embeds it directly (no image transcode), and the kit codec can weld the card tEXt chunk into it. Same
 // fixture shape as tests/server/domain/import/verbs/import-character.test.ts.
-const PNG_1X1 = Uint8Array.from([
-  0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44,
-  0xae, 0x42, 0x60, 0x82,
-]);
+const PNG_1X1 = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82]);
 const GALLERY_BYTES = new TextEncoder().encode("gallery-blob-bytes-🖼");
 const INLINE_BYTES = new TextEncoder().encode("inline-chat-image-bytes-📷");
 // #67 — a user-ATTACHED inline image (kind `attachment`), carried by a `message_assets` structural row on
@@ -83,8 +71,7 @@ interface MockCtx {
 function makeCtx(principal: Principal | null, raw?: Request): MockCtx {
   return {
     get: (key): Principal | null => (key === "principal" ? principal : null),
-    json: (b, status = 200): Response =>
-      new Response(JSON.stringify(b), { status, headers: { "content-type": "application/json" } }),
+    json: (b, status = 200): Response => new Response(JSON.stringify(b), { status, headers: { "content-type": "application/json" } }),
     body: (data, status = 200): Response => new Response(data, { status }),
     req: {
       query: (): string | undefined => undefined,
@@ -95,7 +82,10 @@ function makeCtx(principal: Principal | null, raw?: Request): MockCtx {
 function libraryHandler(deps: ExportDeps): Handler {
   const routes = new Map<string, Handler>();
   const mockApp = {
-    get: (path: string, fn: Handler): unknown => (routes.set(path, fn), mockApp),
+    get: (path: string, fn: Handler): unknown => {
+      routes.set(path, fn);
+      return mockApp;
+    },
   };
   // FABRICATION-OK: narrowing a captured mock app to Hono's registrar param — a test seam, not a domain value.
   registerExport(mockApp as unknown as Parameters<typeof registerExport>[0], deps);
@@ -108,7 +98,10 @@ function libraryHandler(deps: ExportDeps): Handler {
 function bundleHandler(deps: ImportBundleDeps): Handler {
   const routes = new Map<string, Handler>();
   const mockApp = {
-    post: (path: string, fn: Handler): unknown => (routes.set(path, fn), mockApp),
+    post: (path: string, fn: Handler): unknown => {
+      routes.set(path, fn);
+      return mockApp;
+    },
   };
   // FABRICATION-OK: narrowing a captured mock app to Hono's registrar param — a test seam, not a domain value.
   registerImportBundle(mockApp as unknown as Parameters<typeof registerImportBundle>[0], deps);
@@ -120,11 +113,7 @@ function bundleHandler(deps: ImportBundleDeps): Handler {
 }
 
 describe("P-8: the full-library bundle round-trips into a fresh box, self-contained + idempotent", () => {
-  test("every entity + every asset-bearing reference travels; a re-import writes zero dupes", async ({
-    db,
-    app,
-    clock,
-  }) => {
+  test("every entity + every asset-bearing reference travels; a re-import writes zero dupes", async ({ db, app, clock }) => {
     // ── SEED one-of-everything for the owner on the SOURCE box ──────────────────────────────────────────
     await seedUser(db, { id: OWNER_ID, handle: castId<Handle>("p8-source-owner") });
     const owner = principalOf(OWNER_ID);
@@ -317,11 +306,7 @@ describe("P-8: the full-library bundle round-trips into a fresh box, self-contai
         if (row === null) {
           throw new Error("import-bundle workload row missing after start");
         }
-        await runWorkload(
-          makeRunnerDeps(freshDatabase, fresh.runnerEnv),
-          row,
-          new AbortController().signal,
-        );
+        await runWorkload(makeRunnerDeps(freshDatabase, fresh.runnerEnv), row, new AbortController().signal);
         const done = await loadWorkload(freshDatabase, workloadId);
         expect(done?.status).toBe("succeeded");
         return done?.result as { imported: number; skipped: number; failed: number };
@@ -357,10 +342,7 @@ describe("P-8: the full-library bundle round-trips into a fresh box, self-contai
         characterId: character.id,
       });
       expect(sourceCard).not.toBeNull();
-      const avatarRestored =
-        freshAvatarId === null || freshAvatarId === undefined
-          ? null
-          : await fresh.assets.loadAssetBytes(freshAvatarId);
+      const avatarRestored = freshAvatarId === null || freshAvatarId === undefined ? null : await fresh.assets.loadAssetBytes(freshAvatarId);
       expect(avatarRestored).not.toBeNull();
       expect([...(avatarRestored ?? [])]).toEqual([...(sourceCard?.bytes ?? [])]);
 
@@ -373,13 +355,8 @@ describe("P-8: the full-library bundle round-trips into a fresh box, self-contai
       expect(freshGallery[0]?.subject).toBe(freshCharId);
 
       // The self-contained entities all landed under the target owner.
-      const rowsFor = async (
-        table: typeof presetsTable | typeof themesTable | typeof tagsTable | typeof personasTable,
-      ): Promise<number> => {
-        const rows = await freshDatabase
-          .select({ id: table.id })
-          .from(table)
-          .where(eq(table.ownerId, targetId));
+      const rowsFor = async (table: typeof presetsTable | typeof themesTable | typeof tagsTable | typeof personasTable): Promise<number> => {
+        const rows = await freshDatabase.select({ id: table.id }).from(table).where(eq(table.ownerId, targetId));
         return rows.length;
       };
       expect(await rowsFor(presetsTable)).toBe(1);
@@ -391,10 +368,7 @@ describe("P-8: the full-library bundle round-trips into a fresh box, self-contai
         .from(tagsTable)
         .where(and(eq(tagsTable.ownerId, targetId), eq(tagsTable.name, "adventure")));
       expect(freshTags).toHaveLength(1);
-      const freshBooks = await freshDatabase
-        .select({ id: worldBooks.id })
-        .from(worldBooks)
-        .where(eq(worldBooks.ownerId, targetId));
+      const freshBooks = await freshDatabase.select({ id: worldBooks.id }).from(worldBooks).where(eq(worldBooks.ownerId, targetId));
       expect(freshBooks).toHaveLength(1);
 
       // The chat re-seated its host + character (handle-layout resolved on import).
@@ -438,22 +412,10 @@ describe("P-8: the full-library bundle round-trips into a fresh box, self-contai
       // Count every entity scoped to the target owner (chat via its host seat; gallery via its asset owner;
       // user-settings is the per-user singleton row) — the whole self-contained proof, per entity.
       const countAll = async (): Promise<Record<string, number>> => {
-        const owned = async (
-          table: typeof presetsTable | typeof themesTable | typeof tagsTable | typeof personasTable,
-        ): Promise<number> =>
-          (
-            await freshDatabase
-              .select({ id: table.id })
-              .from(table)
-              .where(eq(table.ownerId, targetId))
-          ).length;
+        const owned = async (table: typeof presetsTable | typeof themesTable | typeof tagsTable | typeof personasTable): Promise<number> =>
+          (await freshDatabase.select({ id: table.id }).from(table).where(eq(table.ownerId, targetId))).length;
         return {
-          character: (
-            await freshDatabase
-              .select({ id: charactersTable.id })
-              .from(charactersTable)
-              .where(eq(charactersTable.ownerId, targetId))
-          ).length,
+          character: (await freshDatabase.select({ id: charactersTable.id }).from(charactersTable).where(eq(charactersTable.ownerId, targetId))).length,
           chat: (
             await freshDatabase
               .select({ chatId: chatParticipants.chatId })
@@ -461,20 +423,11 @@ describe("P-8: the full-library bundle round-trips into a fresh box, self-contai
               .where(and(eq(chatParticipants.userId, targetId), eq(chatParticipants.role, "host")))
           ).length,
           persona: await owned(personasTable),
-          worldInfo: (
-            await freshDatabase
-              .select({ id: worldBooks.id })
-              .from(worldBooks)
-              .where(eq(worldBooks.ownerId, targetId))
-          ).length,
+          worldInfo: (await freshDatabase.select({ id: worldBooks.id }).from(worldBooks).where(eq(worldBooks.ownerId, targetId))).length,
           preset: await owned(presetsTable),
           theme: await owned(themesTable),
-          userSettings: (
-            await freshDatabase
-              .select({ id: userSettingsTable.userId })
-              .from(userSettingsTable)
-              .where(eq(userSettingsTable.userId, targetId))
-          ).length,
+          userSettings: (await freshDatabase.select({ id: userSettingsTable.userId }).from(userSettingsTable).where(eq(userSettingsTable.userId, targetId)))
+            .length,
           tag: await owned(tagsTable),
           gallery: (
             await freshDatabase
@@ -483,12 +436,7 @@ describe("P-8: the full-library bundle round-trips into a fresh box, self-contai
               .innerJoin(assetsTable, eq(assetsTable.id, galleryItems.assetId))
               .where(eq(assetsTable.ownerId, targetId))
           ).length,
-          assets: (
-            await freshDatabase
-              .select({ id: assetsTable.id })
-              .from(assetsTable)
-              .where(eq(assetsTable.ownerId, targetId))
-          ).length,
+          assets: (await freshDatabase.select({ id: assetsTable.id }).from(assetsTable).where(eq(assetsTable.ownerId, targetId))).length,
           // #67 — the attachment retaining rows (via the target-owned asset join) — a re-import must not
           // double them (the chat-skip on `importHash` guarantees it).
           messageAssets: (
@@ -504,9 +452,7 @@ describe("P-8: the full-library bundle round-trips into a fresh box, self-contai
       const before = await countAll();
       // Sanity: the first import actually landed one of everything (no silent zero-count "idempotency").
       for (const [entity, n] of Object.entries(before)) {
-        expect(n, `entity "${entity}" should have landed at least one row`).toBeGreaterThanOrEqual(
-          1,
-        );
+        expect(n, `entity "${entity}" should have landed at least one row`).toBeGreaterThanOrEqual(1);
       }
       const report2 = await runImport();
       expect(report2.failed).toBe(0);

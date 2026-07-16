@@ -6,10 +6,7 @@ import { can } from "@orb/server/domain/admin";
 import { createPersonaService, PersonaNotFoundError } from "@orb/server/domain/persona";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
-import {
-  requireAuthorOrHost,
-  setParticipantActivePersona,
-} from "../../../../../packages/server/src/domain/chat/index.ts";
+import { requireAuthorOrHost, setParticipantActivePersona } from "../../../../../packages/server/src/domain/chat/index.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
 import { seedChat, seedParticipant } from "../../chat/_support.ts";
@@ -187,8 +184,7 @@ describe("setActivePersona", () => {
     const events: ChatBusEvent[] = [];
     // Bind the REAL chat fns exactly as compose does: the guard over {db, can}; the roster write over db + emit.
     const harness = makeHarness(db, {
-      requireChatAuthorOrHost: (p, cid, target) =>
-        requireAuthorOrHost({ db, can }, p, cid, target).then(() => undefined),
+      requireChatAuthorOrHost: (p, cid, target) => requireAuthorOrHost({ db, can }, p, cid, target).then(() => undefined),
       setChatActivePersona: (cid, target, pid) =>
         setParticipantActivePersona(
           db,
@@ -218,10 +214,7 @@ describe("setActivePersona", () => {
     });
 
     // The write actually landed on the participant row (not a stubbed resolve).
-    const [row] = await db
-      .select({ activePersonaId: chatParticipants.activePersonaId })
-      .from(chatParticipants)
-      .where(eq(chatParticipants.chatId, chatId));
+    const [row] = await db.select({ activePersonaId: chatParticipants.activePersonaId }).from(chatParticipants).where(eq(chatParticipants.chatId, chatId));
     expect(row?.activePersonaId).toBe(created.id);
     // The real roster write emits personaSwitched (from null → the new persona).
     expect(events).toEqual([{ type: "personaSwitched", chatId, from: null, to: created.id }]);
@@ -231,8 +224,7 @@ describe("setActivePersona", () => {
     const db = await freshDb();
     let wrote = false;
     const harness = makeHarness(db, {
-      requireChatAuthorOrHost: (p, cid, target) =>
-        requireAuthorOrHost({ db, can }, p, cid, target).then(() => undefined),
+      requireChatAuthorOrHost: (p, cid, target) => requireAuthorOrHost({ db, can }, p, cid, target).then(() => undefined),
       setChatActivePersona: () => {
         wrote = true;
         return Promise.resolve();

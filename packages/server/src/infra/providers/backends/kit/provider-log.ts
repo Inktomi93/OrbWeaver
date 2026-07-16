@@ -9,12 +9,7 @@ import { getLog } from "#foundation/observability";
 export const PROVIDER_LOG_LEVELS = ["debug", "info", "warn", "error"] as const;
 type ProviderLogLevel = (typeof PROVIDER_LOG_LEVELS)[number];
 
-export function providerLog(
-  backend: string,
-  level: ProviderLogLevel,
-  event: string,
-  fields: Record<string, unknown> = {},
-): void {
+export function providerLog(backend: string, level: ProviderLogLevel, event: string, fields: Record<string, unknown> = {}): void {
   getLog()[level]({ provider: true, backend, event, ...fields }, event);
 }
 

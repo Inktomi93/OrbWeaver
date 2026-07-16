@@ -9,18 +9,12 @@ import { generateAvatarCaption } from "./caption";
 
 /** `character.updated` → re-embed the card text (`store(kind='card', lens='card-text')`). Idempotent: the
  *  store verb hash-gates, so a no-op edit is a cheap noop (no re-embed). */
-export async function onCharacterUpdated(
-  ctx: EmbeddingsIndexerContext,
-  event: CharacterUpdatedEvent,
-): Promise<void> {
+export async function onCharacterUpdated(ctx: EmbeddingsIndexerContext, event: CharacterUpdatedEvent): Promise<void> {
   // `character.updated` fires on every card write, including identity-flag edits (star/archive/theme) that
   // change no embeddable content. The emit site stamps `contentChanged`; a flag-only edit skips entirely
   // here — zero canon read, zero store, zero model touch.
   if (!event.contentChanged) {
-    getLog().debug(
-      { characterId: event.characterId },
-      "embeddings indexer: flag-only edit (no content change) — skipped",
-    );
+    getLog().debug({ characterId: event.characterId }, "embeddings indexer: flag-only edit (no content change) — skipped");
     return;
   }
   const text = await ctx.loadCardText(event.characterId);
@@ -38,19 +32,13 @@ export async function onCharacterUpdated(
   // A content edit whose projected embed text is nonetheless unchanged short-circuits to `noop`; surface it
   // at debug so an absent embed is explainable.
   if (result.outcome === "noop") {
-    getLog().debug(
-      { characterId: event.characterId },
-      "embeddings indexer: card text unchanged — re-embed skipped",
-    );
+    getLog().debug({ characterId: event.characterId }, "embeddings indexer: card text unchanged — re-embed skipped");
   }
 }
 
 /** `asset.created` → embed both avatar lenses: `image-raw` then `image-captioned`. Both share the bytes'
  *  content_hash, so a re-index dedups. Idempotent — a duplicate delivery is a cheap noop. */
-export async function onAssetCreated(
-  ctx: EmbeddingsIndexerContext,
-  event: AssetCreatedEvent,
-): Promise<void> {
+export async function onAssetCreated(ctx: EmbeddingsIndexerContext, event: AssetCreatedEvent): Promise<void> {
   const bytes = await ctx.loadAssetBytes(event.assetId);
   if (bytes === undefined) {
     return;

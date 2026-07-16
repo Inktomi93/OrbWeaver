@@ -4,28 +4,26 @@
 // across a remount (rules-of-hooks).
 
 import { Text } from "@orb/ui/text";
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 import { QueryBoundary } from "#data";
 import type { ResolvedContextTabs } from "#lib";
 import type { SectionDefinition } from "#state";
 import { ContextTabsPanel } from "./context-tabs-panel";
 import { SectionPlaceholder } from "./section-placeholder";
 
-const CONTEXT_PLACEHOLDER = (
-  <SectionPlaceholder title="Details" description="Select something to see its details here." />
-);
+const CONTEXT_PLACEHOLDER = <SectionPlaceholder title="Details" description="Select something to see its details here." />;
 
 export interface SectionContextHostProps {
   readonly definition: SectionDefinition;
 }
 
-export function SectionContextHost({ definition }: SectionContextHostProps): ReactElement {
+export function SectionContextHost({ definition }: SectionContextHostProps): ReactNode {
   const { context } = definition;
   if (context.kind === "none") {
     return CONTEXT_PLACEHOLDER;
   }
   if (context.kind === "single") {
-    return <>{context.body()}</>;
+    return context.body();
   }
   return (
     <QueryBoundary fallback={<Text tone="muted">Loading details…</Text>}>

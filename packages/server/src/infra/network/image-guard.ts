@@ -6,13 +6,7 @@
 import type { SniffedImage } from "@orb/kit/image-sniff";
 import { sniffImageBytes } from "@orb/kit/image-sniff";
 
-const IMAGE_REJECT_REASONS = [
-  "not-image",
-  "mime-not-allowed",
-  "too-large",
-  "dimensions-unknown",
-  "dimensions-exceeded",
-] as const;
+const IMAGE_REJECT_REASONS = ["not-image", "mime-not-allowed", "too-large", "dimensions-unknown", "dimensions-exceeded"] as const;
 type ImageRejectReason = (typeof IMAGE_REJECT_REASONS)[number];
 
 /** Thrown by {@link isAllowedImageBuffer} on any rejection; carries the typed reason for branching. */
@@ -41,10 +35,7 @@ const DEFAULT_MAX_PIXELS = 40_000_000;
 
 /** Validates REMOTE image bytes against the caps/allow-set; enforcement order: not-image → too-large →
  *  mime-not-allowed → dimensions-unknown → dimensions-exceeded. Never trusts remote Content-Type. */
-export function isAllowedImageBuffer(
-  bytes: Uint8Array,
-  caps: Partial<ImageGuardCaps> = {},
-): SniffedImage {
+export function isAllowedImageBuffer(bytes: Uint8Array, caps: Partial<ImageGuardCaps> = {}): SniffedImage {
   const maxBytes = caps.maxBytes ?? DEFAULT_MAX_BYTES;
   const maxDimension = caps.maxDimension ?? DEFAULT_MAX_DIMENSION;
   const maxPixels = caps.maxPixels ?? DEFAULT_MAX_PIXELS;
@@ -55,16 +46,10 @@ export function isAllowedImageBuffer(
     throw new ImageRejectedError("not-image", "buffer matches no known image signature");
   }
   if (bytes.byteLength > maxBytes) {
-    throw new ImageRejectedError(
-      "too-large",
-      `image is ${bytes.byteLength} bytes, over the ${maxBytes}-byte cap`,
-    );
+    throw new ImageRejectedError("too-large", `image is ${bytes.byteLength} bytes, over the ${maxBytes}-byte cap`);
   }
   if (caps.allowedMime !== undefined && !caps.allowedMime.includes(sniffed.mime)) {
-    throw new ImageRejectedError(
-      "mime-not-allowed",
-      `mime ${sniffed.mime} is not in the allow-set`,
-    );
+    throw new ImageRejectedError("mime-not-allowed", `mime ${sniffed.mime} is not in the allow-set`);
   }
   if (sniffed.width === null || sniffed.height === null) {
     if (requireDimensions) {
@@ -73,16 +58,10 @@ export function isAllowedImageBuffer(
     return sniffed;
   }
   if (sniffed.width > maxDimension || sniffed.height > maxDimension) {
-    throw new ImageRejectedError(
-      "dimensions-exceeded",
-      `image ${sniffed.width}×${sniffed.height} exceeds the ${maxDimension}px per-axis cap`,
-    );
+    throw new ImageRejectedError("dimensions-exceeded", `image ${sniffed.width}×${sniffed.height} exceeds the ${maxDimension}px per-axis cap`);
   }
   if (sniffed.width * sniffed.height > maxPixels) {
-    throw new ImageRejectedError(
-      "dimensions-exceeded",
-      `image ${sniffed.width}×${sniffed.height} exceeds the ${maxPixels}-pixel cap`,
-    );
+    throw new ImageRejectedError("dimensions-exceeded", `image ${sniffed.width}×${sniffed.height} exceeds the ${maxPixels}-pixel cap`);
   }
   return sniffed;
 }

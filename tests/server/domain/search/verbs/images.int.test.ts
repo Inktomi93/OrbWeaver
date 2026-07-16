@@ -158,8 +158,6 @@ describe("images", () => {
     const owner = await seedUser(db, { handle: "owner" });
 
     const svc = makeSearch(db, { imageEmbedVector: () => null });
-    await expect(
-      svc.images({ ownerId: owner, query: "anything", topN: 5, lens: "image-captioned" }),
-    ).rejects.toBeInstanceOf(SearchError);
+    await expect(svc.images({ ownerId: owner, query: "anything", topN: 5, lens: "image-captioned" })).rejects.toBeInstanceOf(SearchError);
   });
 });

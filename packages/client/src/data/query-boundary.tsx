@@ -19,9 +19,7 @@ export interface QueryBoundaryProps {
   readonly children: ReactNode;
 }
 
-const defaultRenderError = (_error: unknown, retry: () => void): ReactNode => (
-  <QueryErrorState label="this" onRetry={retry} />
-);
+const defaultRenderError = (_error: unknown, retry: () => void): ReactNode => <QueryErrorState label="this" onRetry={retry} />;
 
 interface CatchState {
   readonly error: unknown | null;
@@ -55,11 +53,7 @@ class QueryErrorCatch extends Component<CatchProps, CatchState> {
   }
 }
 
-export function QueryBoundary({
-  fallback,
-  renderError = defaultRenderError,
-  children,
-}: QueryBoundaryProps): ReactElement {
+export function QueryBoundary({ fallback, renderError = defaultRenderError, children }: QueryBoundaryProps): ReactElement {
   return (
     <QueryErrorResetBoundary>
       {({ reset }): ReactElement => (

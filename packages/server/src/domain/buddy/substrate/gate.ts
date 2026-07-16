@@ -11,28 +11,17 @@ import { allowMutation } from "../agency/rate-limit";
 import type { Proposal } from "../contract/results";
 
 /** Stash a proposal (the only effect of a propose_* tool); returns its id. Replaces any prior one. */
-export function proposeAction(
-  userId: Parameters<typeof stashProposal>[0],
-  proposal: Proposal,
-  now: number,
-): string {
+export function proposeAction(userId: Parameters<typeof stashProposal>[0], proposal: Proposal, now: number): string {
   return stashProposal(userId, proposal, now);
 }
 
 /** The user's outstanding proposal, if any — `ask` surfaces it on the result. */
-export function pendingProposal(
-  userId: Parameters<typeof peekProposal>[0],
-  now: number,
-): Proposal | null {
+export function pendingProposal(userId: Parameters<typeof peekProposal>[0], now: number): Proposal | null {
   return peekProposal(userId, now);
 }
 
 /** Consume the proposal by id (the `confirm` execute path), or null if expired / id-mismatched. */
-export function claimProposal(
-  userId: Parameters<typeof takeProposal>[0],
-  proposalId: string,
-  now: number,
-): Proposal | null {
+export function claimProposal(userId: Parameters<typeof takeProposal>[0], proposalId: string, now: number): Proposal | null {
   return takeProposal(userId, proposalId, now);
 }
 
@@ -43,9 +32,6 @@ export function dropProposal(userId: Parameters<typeof clearProposal>[0]): void 
 
 /** Whether a confirmed mutation is within the hourly budget (records a slot when true; the capability
  *  ceiling). */
-export function withinMutationBudget(
-  userId: Parameters<typeof allowMutation>[0],
-  now: number,
-): boolean {
+export function withinMutationBudget(userId: Parameters<typeof allowMutation>[0], now: number): boolean {
   return allowMutation(userId, now);
 }

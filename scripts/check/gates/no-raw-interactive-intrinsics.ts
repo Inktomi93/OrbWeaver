@@ -38,12 +38,7 @@ function isBannedIntrinsic(el: JsxOpeningElement | JsxSelfClosingElement): boole
   if (tag !== "a") {
     return false;
   }
-  return el
-    .getAttributes()
-    .some(
-      (attr) =>
-        attr.getKind() === SyntaxKind.JsxAttribute && attr.getFirstChild()?.getText() === "href",
-    );
+  return el.getAttributes().some((attr) => attr.getKind() === SyntaxKind.JsxAttribute && attr.getFirstChild()?.getText() === "href");
 }
 
 // A banned raw intrinsic (button/input/select/textarea, or <a href>) in features/** (excluding
@@ -53,8 +48,7 @@ const passSeenBurnDown = new Set<string>();
 
 /** The banned tag of a JSX element node, or undefined (a trailing return expression — no fall-off-end). */
 function bannedTagOf(node: Node): string | undefined {
-  const el =
-    node.asKind(SyntaxKind.JsxOpeningElement) ?? node.asKind(SyntaxKind.JsxSelfClosingElement);
+  const el = node.asKind(SyntaxKind.JsxOpeningElement) ?? node.asKind(SyntaxKind.JsxSelfClosingElement);
   return el !== undefined && isBannedIntrinsic(el) ? el.getTagNameNode().getText() : undefined;
 }
 
@@ -65,10 +59,7 @@ export const gate: GateDescriptor = {
   scopeSafety: "incremental-safe",
   message: MESSAGE,
   fix: "reach for the matching @orb/ui primitive (Button, TextField, Select, TextArea, Link) — never a hand-rolled <button>/<input>/<select>/<textarea>/<a href>.",
-  scanRoot: (p) =>
-    p.includes("packages/client/src/features/") &&
-    p.endsWith(".tsx") &&
-    !p.includes("packages/client/src/features/app-shell/"),
+  scanRoot: (p) => p.includes("packages/client/src/features/") && p.endsWith(".tsx") && !p.includes("packages/client/src/features/app-shell/"),
   kinds: [SyntaxKind.JsxOpeningElement, SyntaxKind.JsxSelfClosingElement],
   begin: () => {
     passSeenBurnDown.clear();
@@ -141,7 +132,6 @@ export const gate: GateDescriptor = {
       why: "an <a name> with no href is a non-interactive anchor target — stays legal",
     },
     {
-      // biome-ignore lint/security/noSecrets: a JSX fixture snippet (a raw <button>), not a secret.
       files: 'export const G = <button type="button">Shell</button>;\n',
       at: "packages/client/src/features/app-shell/thing.tsx",
       why: "app-shell is EXEMPT (shell-tier) — out of scanRoot, so a raw button there passes",

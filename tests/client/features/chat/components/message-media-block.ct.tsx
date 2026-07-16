@@ -10,9 +10,7 @@ import { AttachmentMediaStory } from "../_ct-stories";
 const MEDIA_IMG = '[data-slot="message-media"]';
 const PNG_DATA_SRC = /^data:image\/png/u;
 
-test("a resolved asset ref renders the real image at its blob url (no placeholder)", async ({
-  mount,
-}) => {
+test("a resolved asset ref renders the real image at its blob url (no placeholder)", async ({ mount }) => {
   // The story provides its own resolved (data-URL) blob src for the asset via the context.
   const component = await mount(<AttachmentMediaStory />);
   const img = component.locator(MEDIA_IMG);
@@ -22,9 +20,7 @@ test("a resolved asset ref renders the real image at its blob url (no placeholde
   await expect(component.getByText("[image]")).toHaveCount(0);
 });
 
-test("an unresolved asset ref degrades to the [image] placeholder, never a broken img", async ({
-  mount,
-}) => {
+test("an unresolved asset ref degrades to the [image] placeholder, never a broken img", async ({ mount }) => {
   // Empty context map (the provider-less / still-loading state).
   const component = await mount(<AttachmentMediaStory empty={true} />);
   await expect(component.getByText("[image]")).toBeVisible();

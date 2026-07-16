@@ -23,9 +23,7 @@ function pickedFile(relPath: string, bytes = "x"): File {
 }
 
 test("relativePathOf prefers webkitRelativePath, falls back to the bare name", () => {
-  expect(relativePathOf(pickedFile("default-user/characters/Aria.png"))).toBe(
-    "default-user/characters/Aria.png",
-  );
+  expect(relativePathOf(pickedFile("default-user/characters/Aria.png"))).toBe("default-user/characters/Aria.png");
   expect(relativePathOf(new File(["x"], "loose.png"))).toBe("loose.png");
 });
 
@@ -33,9 +31,7 @@ test("POSTs multipart with each part's relative path as its filename + the CSRF 
   let captured: { url: string; init: RequestInit } | undefined;
   vi.stubGlobal("fetch", (url: string, init: RequestInit) => {
     captured = { url, init };
-    return Promise.resolve(
-      new Response(JSON.stringify({ workloadId: "workload_ct_1" }), { status: 202 }),
-    );
+    return Promise.resolve(new Response(JSON.stringify({ workloadId: "workload_ct_1" }), { status: 202 }));
   });
 
   const files = [pickedFile("backup/characters/Aria.png"), pickedFile("backup/personas/me.json")];

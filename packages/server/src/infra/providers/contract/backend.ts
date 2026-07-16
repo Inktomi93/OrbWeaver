@@ -25,14 +25,7 @@ import type {
   ProbeRequest,
   VerifyAuthRequest,
 } from "./diagnostics";
-import type {
-  EmbedRequest,
-  ImageEmbedRequest,
-  ImageGenerateRequest,
-  ImageGenerateResult,
-  RerankRequest,
-  SummarizeRequest,
-} from "./roles";
+import type { EmbedRequest, ImageEmbedRequest, ImageGenerateRequest, ImageGenerateResult, RerankRequest, SummarizeRequest } from "./roles";
 
 // --- The sealed backend-key axis (the `runner`) ------------------------------
 /** The sealed backend keys a role dispatches to. `custom-openai` (hyphen) is the runner key; the
@@ -40,27 +33,12 @@ import type {
  *  `local-light` is the in-process transformers.js/ONNX backend (D39 — embed/rerank/imageEmbed only).
  *  `anth-direct` (D67) is the direct Anthropic-Messages chat backend — the `anthropic-messages` api over
  *  the DIRECT transport (we own the body), reached ONLY through the `openrouter` source in v1. */
-export const BACKEND_KEYS = [
-  "agent-sdk",
-  "anth-direct",
-  "openrouter",
-  "vllm",
-  "local-light",
-  "custom-openai",
-] as const;
+export const BACKEND_KEYS = ["agent-sdk", "anth-direct", "openrouter", "vllm", "local-light", "custom-openai"] as const;
 export type BackendKey = (typeof BACKEND_KEYS)[number];
 
 // --- The inference-role axis -------------------------------------------------
 /** The 7 inference roles `connection.resolveRole` resolves and the firewall gates. */
-export const PROVIDER_ROLES = [
-  "chat",
-  "agent",
-  "embed",
-  "rerank",
-  "imageEmbed",
-  "summarize",
-  "generateImage",
-] as const;
+export const PROVIDER_ROLES = ["chat", "agent", "embed", "rerank", "imageEmbed", "summarize", "generateImage"] as const;
 export type ProviderRole = (typeof PROVIDER_ROLES)[number];
 
 // --- The sealed-backend contract ---------------------------------------------
@@ -84,9 +62,7 @@ export interface ProviderBackend {
   readonly rerank?: ((req: RerankRequest) => Promise<RerankResult>) | undefined;
   readonly imageEmbed?: ((req: ImageEmbedRequest) => Promise<ImageEmbedResult>) | undefined;
   readonly summarize?: ((req: SummarizeRequest) => Promise<SummarizeResult>) | undefined;
-  readonly generateImage?:
-    | ((req: ImageGenerateRequest) => Promise<ImageGenerateResult>)
-    | undefined;
+  readonly generateImage?: ((req: ImageGenerateRequest) => Promise<ImageGenerateResult>) | undefined;
   // ── Diagnostics (the family-agnostic credential surfaces; a backend implements only what it serves) ──
   readonly probe?: ((req: ProbeRequest) => Promise<CredentialHealth>) | undefined;
   readonly accountCredits?: ((req: AccountCreditsRequest) => Promise<AccountCredits>) | undefined;
@@ -96,9 +72,7 @@ export interface ProviderBackend {
   readonly fetchCatalog?: ((req: FetchCatalogRequest) => Promise<ModelCatalogEntry[]>) | undefined;
   /** The agent-sdk `supportedModels()` discovery — only the agent-sdk backend serves it (OR serves
    *  `fetchCatalog`). Distinct verb so the two catalogs never co-mingle at the dispatch. */
-  readonly fetchModels?:
-    | ((req: FetchAgentSdkModelsRequest) => Promise<AgentSdkModel[]>)
-    | undefined;
+  readonly fetchModels?: ((req: FetchAgentSdkModelsRequest) => Promise<AgentSdkModel[]>) | undefined;
 }
 
 /** The backend registry the composition root fills (one entry per WIRED backend). A role that resolves

@@ -46,13 +46,7 @@ export function AccountSurface(): ReactElement {
   const canLogout = mode === "local" || mode === "oidc";
 
   return (
-    <Stack
-      ref={surfaceRef}
-      tabIndex={-1}
-      gap="block"
-      className="outline-none"
-      data-testid={testId("accountSurface")}
-    >
+    <Stack ref={surfaceRef} tabIndex={-1} gap="block" className="outline-none" data-testid={testId("accountSurface")}>
       <Row gap="row" align="center">
         <Text weight="semibold" className="min-w-0 truncate font-mono">
           {handle ?? "—"}
@@ -74,9 +68,7 @@ export function AccountSurface(): ReactElement {
         </Button>
       ) : (
         <Text size="label" tone="muted">
-          {mode === "single-user"
-            ? "Single-user mode — no session to sign out of."
-            : "Sign out at your identity provider / reverse proxy."}
+          {mode === "single-user" ? "Single-user mode — no session to sign out of." : "Sign out at your identity provider / reverse proxy."}
         </Text>
       )}
     </Stack>

@@ -23,12 +23,7 @@
 // static DDL built from the tuples — never re-spelled (users.ts pattern).
 
 import type { ChatTriggerType, DomainTriggerType } from "@orb/contracts/automation";
-import {
-  AUTOMATION_FIRE_OUTCOMES,
-  AUTOMATION_TRIGGER_BUSES,
-  CHAT_TRIGGER_TYPES,
-  DOMAIN_TRIGGER_TYPES,
-} from "@orb/contracts/automation";
+import { AUTOMATION_FIRE_OUTCOMES, AUTOMATION_TRIGGER_BUSES, CHAT_TRIGGER_TYPES, DOMAIN_TRIGGER_TYPES } from "@orb/contracts/automation";
 import type { AutomationFireId, AutomationRuleId, ChatId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import {
@@ -96,17 +91,11 @@ export const automationRules = sqliteTable(
     predicateCel: text("predicate_cel"),
     // The ordered action arms — `AutomationAction[]` (doc 03; the union lands with the domain).
     // Zod-validated at write + lazy-parsed at read (fault-isolation — see header).
-    actions: text("actions", { mode: "json" })
-      .$type<readonly Record<string, unknown>[]>()
-      .notNull(),
+    actions: text("actions", { mode: "json" }).$type<readonly Record<string, unknown>[]>().notNull(),
     // The cascade opt-in (03 §4) — without it, automation-initiated events never re-trigger rules.
-    matchAutomationEvents: integer("match_automation_events", { mode: "boolean" })
-      .notNull()
-      .default(false),
+    matchAutomationEvents: integer("match_automation_events", { mode: "boolean" }).notNull().default(false),
     cooldownSeconds: integer("cooldown_seconds").notNull().default(0),
-    maxFiresPerHour: integer("max_fires_per_hour")
-      .notNull()
-      .default(RULE_MAX_FIRES_PER_HOUR_DEFAULT),
+    maxFiresPerHour: integer("max_fires_per_hour").notNull().default(RULE_MAX_FIRES_PER_HOUR_DEFAULT),
     // Increments on predicate_error/action_error, resets on a clean fire; auto-disable at 20 (02 §1).
     consecutiveErrors: integer("consecutive_errors").notNull().default(0),
     // The last skip reason (host debug surface).
@@ -119,10 +108,7 @@ export const automationRules = sqliteTable(
     // The dispatch hot path: enabled rules of a chat for one trigger (04 §1).
     index("automation_rules_chat_enabled").on(t.chatId, t.enabled, t.triggerType),
     check("automation_rules_name_check", sql.raw(`length(name) <= ${RULE_NAME_MAX_CHARS}`)),
-    check(
-      "automation_rules_trigger_bus_check",
-      sql.raw(`trigger_bus in (${checkList(AUTOMATION_TRIGGER_BUSES)})`),
-    ),
+    check("automation_rules_trigger_bus_check", sql.raw(`trigger_bus in (${checkList(AUTOMATION_TRIGGER_BUSES)})`)),
     // The bus↔tuple pairing (the kind-shape CHECK pattern): each bus admits ONLY its own tuple's
     // members, both derived from the contracts tuples — a cross-bus trigger name is unrepresentable.
     check(
@@ -147,9 +133,7 @@ export const automationBudgets = sqliteTable("automation_budgets", {
     .primaryKey()
     .references(() => chats.id, { onDelete: "cascade" }),
   maxFiresPerHour: integer("max_fires_per_hour").notNull().default(CHAT_MAX_FIRES_PER_HOUR_DEFAULT),
-  maxSpendActionsPerDay: integer("max_spend_actions_per_day")
-    .notNull()
-    .default(CHAT_MAX_SPEND_ACTIONS_PER_DAY_DEFAULT),
+  maxSpendActionsPerDay: integer("max_spend_actions_per_day").notNull().default(CHAT_MAX_SPEND_ACTIONS_PER_DAY_DEFAULT),
   // NULL = no dollar ceiling (local-only setups).
   maxUsdPerDay: real("max_usd_per_day").default(CHAT_MAX_USD_PER_DAY_DEFAULT),
   usdSpentToday: real("usd_spent_today").notNull().default(0),
@@ -190,10 +174,7 @@ export const automationFires = sqliteTable(
   (t) => [
     // The per-hour budget COUNT + the host's per-rule fire history, one indexed read (04 §1).
     index("automation_fires_rule_time").on(t.ruleId, t.firedAt),
-    check(
-      "automation_fires_outcome_check",
-      sql.raw(`outcome in (${checkList(AUTOMATION_FIRE_OUTCOMES)})`),
-    ),
+    check("automation_fires_outcome_check", sql.raw(`outcome in (${checkList(AUTOMATION_FIRE_OUTCOMES)})`)),
   ],
 );
 
@@ -219,9 +200,6 @@ export const globalVariables = sqliteTable(
     primaryKey({ columns: [t.ownerId, t.key] }),
     check("global_variables_key_check", sql.raw(`length(key) <= ${GLOBAL_VAR_KEY_MAX_CHARS}`)),
     // ≤ 64 KiB of BYTES — length() on TEXT counts characters, so cast to BLOB for the byte cap.
-    check(
-      "global_variables_value_check",
-      sql.raw(`length(cast(value as blob)) <= ${GLOBAL_VAR_VALUE_MAX_BYTES}`),
-    ),
+    check("global_variables_value_check", sql.raw(`length(cast(value as blob)) <= ${GLOBAL_VAR_VALUE_MAX_BYTES}`)),
   ],
 );

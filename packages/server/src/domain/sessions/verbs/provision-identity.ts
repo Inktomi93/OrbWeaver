@@ -6,13 +6,7 @@ import { newId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
 import type { ProvisionResult } from "../contract/results";
 import type { SessionsContext, SessionsService } from "../contract/service";
-import {
-  insertUser,
-  selectForProvisionByExternalId,
-  selectForProvisionByHandle,
-  selectOwnerUserId,
-  updateUser,
-} from "../persistence/users";
+import { insertUser, selectForProvisionByExternalId, selectForProvisionByHandle, selectOwnerUserId, updateUser } from "../persistence/users";
 import { deriveIdentityAccess, reDeriveRoleOnLogin } from "../substrate/role-policy";
 
 // The SSO seam upsert. Keys on the stable `externalId` first (a username rename updates `handle` on the
@@ -26,10 +20,7 @@ import { deriveIdentityAccess, reDeriveRoleOnLogin } from "../substrate/role-pol
 type ExistingUser = NonNullable<Awaited<ReturnType<typeof selectForProvisionByHandle>>>;
 
 /** Match by the stable `externalId` first (rename-safe), then by `handle`. */
-async function findExisting(
-  ctx: SessionsContext,
-  identity: ResolvedIdentity,
-): Promise<ExistingUser | undefined> {
+async function findExisting(ctx: SessionsContext, identity: ResolvedIdentity): Promise<ExistingUser | undefined> {
   if (identity.externalId !== null) {
     const byExternal = await selectForProvisionByExternalId(ctx.db, identity.externalId);
     if (byExternal !== undefined) {
@@ -64,12 +55,8 @@ async function updateExisting(
   }
   if (Object.keys(changes).length > 0) {
     await updateUser(ctx.db, existing.id, { ...changes, updatedAt: ctx.now() });
-    const roleChange =
-      changes.role !== undefined ? { roleChanged: { from: existing.role, to: changes.role } } : {};
-    getLog().info(
-      { handle: identity.handle, externalId: identity.externalId, ...roleChange },
-      "user: provisioned SSO identity (updated)",
-    );
+    const roleChange = changes.role !== undefined ? { roleChanged: { from: existing.role, to: changes.role } } : {};
+    getLog().info({ handle: identity.handle, externalId: identity.externalId, ...roleChange }, "user: provisioned SSO identity (updated)");
   }
   return {
     outcome: "provisioned",
@@ -80,11 +67,7 @@ async function updateExisting(
 }
 
 /** First-login INSERT (race-tolerant) + re-read by the keyed column to return the canonical row. */
-async function insertNew(
-  ctx: SessionsContext,
-  identity: ResolvedIdentity,
-  resolvedRole: UserRole,
-): Promise<ProvisionResult> {
+async function insertNew(ctx: SessionsContext, identity: ResolvedIdentity, resolvedRole: UserRole): Promise<ProvisionResult> {
   const now = ctx.now();
   await insertUser(ctx.db, {
     id: newId<UserId>(),
@@ -102,14 +85,9 @@ async function insertNew(
       : await selectForProvisionByHandle(ctx.db, identity.handle);
   if (settled === undefined) {
     // Unreachable: either our insert succeeded or a concurrent one did.
-    throw new Error(
-      `provisionIdentity: row missing after insert (handle=${identity.handle}, externalId=${identity.externalId ?? "null"})`,
-    );
+    throw new Error(`provisionIdentity: row missing after insert (handle=${identity.handle}, externalId=${identity.externalId ?? "null"})`);
   }
-  getLog().info(
-    { handle: identity.handle, externalId: identity.externalId, role: settled.role },
-    "user: provisioned SSO identity (created)",
-  );
+  getLog().info({ handle: identity.handle, externalId: identity.externalId, role: settled.role }, "user: provisioned SSO identity (created)");
   return {
     outcome: "provisioned",
     userId: settled.id,
@@ -121,12 +99,7 @@ async function insertNew(
 /** The box has exactly one owner. When the owner policy would mint a second owner, downgrade to `user`
  *  (warned) so the write never surfaces as a raw unique violation. A re-login of the same owner row keeps
  *  `owner`. */
-function reconcileOwnerSingleton(
-  derivedRole: UserRole,
-  ownerId: UserId | undefined,
-  existing: ExistingUser | undefined,
-  identity: ResolvedIdentity,
-): UserRole {
+function reconcileOwnerSingleton(derivedRole: UserRole, ownerId: UserId | undefined, existing: ExistingUser | undefined, identity: ResolvedIdentity): UserRole {
   if (derivedRole !== "owner") {
     return derivedRole;
   }
@@ -140,16 +113,12 @@ function reconcileOwnerSingleton(
   return "user";
 }
 
-export function createProvisionIdentity(
-  ctx: SessionsContext,
-): Pick<SessionsService, "provisionIdentity"> {
+export function createProvisionIdentity(ctx: SessionsContext): Pick<SessionsService, "provisionIdentity"> {
   async function provisionIdentity(identity: ResolvedIdentity): Promise<ProvisionResult> {
     // FLAG[PD-17]: refuse the reserved `__agent__` namespace — no agent row is ever matched, updated, or
     // shadow-created via the SSO seam.
     if (isReservedAgentHandle(identity.handle)) {
-      throw new DomainForbiddenError(
-        "the __agent__ handle namespace is reserved for agent principals",
-      );
+      throw new DomainForbiddenError("the __agent__ handle namespace is reserved for agent principals");
     }
     const existing = await findExisting(ctx, identity);
     const ownerId = await selectOwnerUserId(ctx.db);

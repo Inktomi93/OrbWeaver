@@ -53,60 +53,35 @@ body {
 @supports (backdrop-filter: blur(1px)) {
   html[data-blur-panels] .shell-panel {
     backdrop-filter: blur(var(--blur-strength)) saturate(1.4);
-    background-color: color-mix(
-      in oklab,
-      var(--color-sidebar) var(--blur-fill-chrome),
-      transparent
-    );
+    background-color: color-mix(in oklab, var(--color-sidebar) var(--blur-fill-chrome), transparent);
   }
   html[data-blur-composer] [data-slot="composer"] {
     backdrop-filter: blur(var(--blur-strength)) saturate(1.4);
-    background-color: color-mix(
-      in oklab,
-      var(--color-sidebar) var(--blur-fill-chrome),
-      transparent
-    );
+    background-color: color-mix(in oklab, var(--color-sidebar) var(--blur-fill-chrome), transparent);
   }
   /* The reading/document content backing upgrades to glass in lock-step with the side panels, so a
    * frosted look carries through instead of leaving it an opaque slab beside glass panels. */
-  html[data-blur-panels] .shell-grid[data-has-bg-image][data-section]:not([data-section="chats"])
-    .shell-main {
+  html[data-blur-panels] .shell-grid[data-has-bg-image][data-section]:not([data-section="chats"]) .shell-main {
     backdrop-filter: blur(var(--blur-strength)) saturate(1.4);
     background-color: color-mix(in oklab, var(--color-card) var(--blur-fill-chrome), transparent);
   }
   html[data-blur-modals] [data-slot="dialog-popup"],
   html[data-blur-modals] [data-slot="alert-dialog-popup"] {
     backdrop-filter: blur(var(--blur-strength)) saturate(1.4);
-    background-color: color-mix(
-      in oklab,
-      var(--color-popover) var(--blur-fill-chrome),
-      transparent
-    );
+    background-color: color-mix(in oklab, var(--color-popover) var(--blur-fill-chrome), transparent);
   }
   /* Per-role bubble base so the glass tints as that bubble, not a generic grey. */
   html[data-blur-messages] [data-role="user"] [data-slot="message-bubble"] {
     backdrop-filter: blur(var(--blur-strength)) saturate(1.4);
-    background-color: color-mix(
-      in oklab,
-      var(--color-user-bubble) var(--blur-fill-dense),
-      transparent
-    );
+    background-color: color-mix(in oklab, var(--color-user-bubble) var(--blur-fill-dense), transparent);
   }
   html[data-blur-messages] [data-role="assistant"] [data-slot="message-bubble"] {
     backdrop-filter: blur(var(--blur-strength)) saturate(1.4);
-    background-color: color-mix(
-      in oklab,
-      var(--color-ai-bubble) var(--blur-fill-dense),
-      transparent
-    );
+    background-color: color-mix(in oklab, var(--color-ai-bubble) var(--blur-fill-dense), transparent);
   }
   html[data-blur-messages] [data-role="system"] [data-slot="message-bubble"] {
     backdrop-filter: blur(var(--blur-strength)) saturate(1.4);
-    background-color: color-mix(
-      in oklab,
-      var(--color-system-bubble) var(--blur-fill-dense),
-      transparent
-    );
+    background-color: color-mix(in oklab, var(--color-system-bubble) var(--blur-fill-dense), transparent);
   }
 }
 
@@ -170,19 +145,11 @@ html[data-justify-body-text] [data-slot="message-bubble"] {
  * Dialog/AlertDialog, which portal to document.body outside .shell-grid/ThemeScope. */
 html[data-theme-colorization] {
   --color-border: color-mix(in oklab, var(--color-primary) 22%, var(--color-foreground) 6%);
-  --color-sidebar-border: color-mix(
-    in oklab,
-    var(--color-primary) 22%,
-    var(--color-sidebar-foreground) 6%
-  );
+  --color-sidebar-border: color-mix(in oklab, var(--color-primary) 22%, var(--color-sidebar-foreground) 6%);
 }
 html[data-theme-colorization] .shell-grid {
   --color-border: color-mix(in oklab, var(--color-primary) 22%, var(--color-foreground) 6%);
-  --color-sidebar-border: color-mix(
-    in oklab,
-    var(--color-primary) 22%,
-    var(--color-sidebar-foreground) 6%
-  );
+  --color-sidebar-border: color-mix(in oklab, var(--color-primary) 22%, var(--color-sidebar-foreground) 6%);
 }
 
 /* appearance.surfaceTexture=grain — opt-in film-grain overlay on shell chrome + cards only, never
@@ -207,20 +174,8 @@ html[data-texture="grain"] [data-slot="card-root"] {
 /* Chat-list edge-fade: dissolves softly under the header/composer via mask-image rather than
  * hard-clipping. */
 [data-slot="message-list-scroll"] {
-  -webkit-mask-image: linear-gradient(
-    to bottom,
-    transparent,
-    black var(--fade-edge-stop),
-    black calc(100% - var(--fade-edge-stop)),
-    transparent
-  );
-  mask-image: linear-gradient(
-    to bottom,
-    transparent,
-    black var(--fade-edge-stop),
-    black calc(100% - var(--fade-edge-stop)),
-    transparent
-  );
+  -webkit-mask-image: linear-gradient(to bottom, transparent, black var(--fade-edge-stop), black calc(100% - var(--fade-edge-stop)), transparent);
+  mask-image: linear-gradient(to bottom, transparent, black var(--fade-edge-stop), black calc(100% - var(--fade-edge-stop)), transparent);
 }
 
 /* Hairline avatar border: keeps an avatar from dissolving into a blurred/photo background.

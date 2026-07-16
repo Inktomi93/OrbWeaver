@@ -178,10 +178,7 @@ test("an invalid timezone falls back to the server-local clock and warns", () =>
   const warnings: string[] = [];
   // Invalid zone ⇒ same rendering as supplying no zone at all (both use the server-local default),
   // which keeps the assertion deterministic regardless of the test runner's TZ.
-  const withBadZone = processMacros(
-    "{{isodate}}",
-    opts({ nowMs: FIXED_NOW_MS, timezone: "Not/AZone", onWarn: (m) => warnings.push(m) }),
-  );
+  const withBadZone = processMacros("{{isodate}}", opts({ nowMs: FIXED_NOW_MS, timezone: "Not/AZone", onWarn: (m) => warnings.push(m) }));
   const serverLocal = processMacros("{{isodate}}", opts({ nowMs: FIXED_NOW_MS }));
   expect(withBadZone).toBe(serverLocal);
   expect(warnings.some((w) => w.includes("invalid timezone"))).toBe(true);
@@ -287,10 +284,7 @@ test("postProcess is applied to each resolved macro value", () => {
 
 test("a self-referential field trips the depth budget and warns instead of looping forever", () => {
   const warnings: string[] = [];
-  const out = processMacros(
-    "{{appearance}}",
-    opts({ appearance: "{{appearance}}", onWarn: (m) => warnings.push(m) }),
-  );
+  const out = processMacros("{{appearance}}", opts({ appearance: "{{appearance}}", onWarn: (m) => warnings.push(m) }));
   expect(out).toBe("");
   expect(warnings.some((w) => w.includes("depth limit"))).toBe(true);
 });
@@ -372,10 +366,7 @@ test("{{else}} splits case-insensitively (Else / ELSE both work)", () => {
 
 test("the depth budget warns exactly ONCE, not once per recursion level", () => {
   const warnings: string[] = [];
-  processMacros(
-    "{{appearance}}",
-    opts({ appearance: "{{appearance}}", onWarn: (m) => warnings.push(m) }),
-  );
+  processMacros("{{appearance}}", opts({ appearance: "{{appearance}}", onWarn: (m) => warnings.push(m) }));
   expect(warnings.filter((w) => w.includes("depth limit"))).toHaveLength(1);
 });
 

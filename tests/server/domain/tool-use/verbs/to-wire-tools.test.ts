@@ -8,8 +8,7 @@ import { defOf, makeHarness } from "../_support";
 
 test("projects name/description + the cached schema, in resolve order", () => {
   const svc = createToolUseService(makeHarness().ctx);
-  const okHandler = (): Promise<{ ok: true; value: unknown }> =>
-    Promise.resolve({ ok: true, value: null });
+  const okHandler = (): Promise<{ ok: true; value: unknown }> => Promise.resolve({ ok: true, value: null });
   svc.register(defOf({ name: "second", schema: z.object({}), handler: okHandler }));
   svc.register(defOf({ name: "first", schema: z.object({ x: z.string() }), handler: okHandler }));
   const wire = svc.toWireTools(svc.resolveTools(["first", "second"]));

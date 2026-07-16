@@ -3,13 +3,7 @@
 // `handle.openWithPayload(payload)` opens the dialog imperatively WITHOUT any trigger association and
 // routes the payload to the Root's render-function children — the "one confirm dialog opened from N
 // sources without threading state" primitive (Base UI 1.x createHandle).
-import {
-  createDialogHandle,
-  Dialog,
-  DialogDescription,
-  DialogPopup,
-  DialogTitle,
-} from "@orb/ui/dialog";
+import { createDialogHandle, Dialog, DialogDescription, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import type { ReactElement } from "react";
 import { useState } from "react";
 

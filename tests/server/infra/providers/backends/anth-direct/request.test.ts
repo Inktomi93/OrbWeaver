@@ -9,15 +9,9 @@ import type { ModelCapability } from "@orb/contracts/connection";
 import type { ModelId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { AnthropicMessagesChatRequest } from "@orb/server/infra/providers";
-import {
-  anthHistoryCacheOffsets,
-  buildAnthMessageParams,
-} from "@orb/server/infra/providers/backends/anth-direct";
+import { anthHistoryCacheOffsets, buildAnthMessageParams } from "@orb/server/infra/providers/backends/anth-direct";
 import { describe } from "vitest";
-import {
-  makeModelCapability,
-  makeOpenRouterCredential,
-} from "../../../../../support/factories/resolved-connection.ts";
+import { makeModelCapability, makeOpenRouterCredential } from "../../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../../support/fixtures";
 
 const MODEL = "anthropic/claude-opus-4-5";
@@ -40,9 +34,7 @@ const CAPABILITY: ModelCapability = makeModelCapability({
   },
 });
 
-function makeRequest(
-  overrides: Partial<AnthropicMessagesChatRequest> = {},
-): AnthropicMessagesChatRequest {
+function makeRequest(overrides: Partial<AnthropicMessagesChatRequest> = {}): AnthropicMessagesChatRequest {
   const base: AnthropicMessagesChatRequest = {
     api: "anthropic-messages",
     credential: makeOpenRouterCredential({ apiKey: "sk-or-secret" }),

@@ -7,11 +7,7 @@ import type { Db } from "@orb/db";
 import { assets, characterPersonas, characters, personas } from "@orb/db";
 import type { AssetId, CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 import { and, desc, eq } from "drizzle-orm";
-import {
-  AssetNotFoundError,
-  PersonaCharacterNotFoundError,
-  PersonaNotFoundError,
-} from "../contract/errors";
+import { AssetNotFoundError, PersonaCharacterNotFoundError, PersonaNotFoundError } from "../contract/errors";
 import type { PersonaDetail } from "../contract/views";
 
 const LIMIT_ONE = 1;
@@ -27,11 +23,7 @@ interface PersonaWithAvatar {
 }
 
 /** One owned persona + its avatar, or undefined when not found / not the caller's. */
-export async function loadOwnedPersonaWithAvatar(
-  db: Db,
-  ownerId: UserId,
-  personaId: PersonaId,
-): Promise<PersonaWithAvatar | undefined> {
+export async function loadOwnedPersonaWithAvatar(db: Db, ownerId: UserId, personaId: PersonaId): Promise<PersonaWithAvatar | undefined> {
   const rows = await db
     .select({ persona: personas, avatar: assets })
     .from(personas)
@@ -42,10 +34,7 @@ export async function loadOwnedPersonaWithAvatar(
 }
 
 /** The owner's personas + avatars, newest first. */
-export async function listOwnedPersonasWithAvatar(
-  db: Db,
-  ownerId: UserId,
-): Promise<PersonaWithAvatar[]> {
+export async function listOwnedPersonasWithAvatar(db: Db, ownerId: UserId): Promise<PersonaWithAvatar[]> {
   const rows = await db
     .select({ persona: personas, avatar: assets })
     .from(personas)
@@ -57,11 +46,7 @@ export async function listOwnedPersonasWithAvatar(
 
 /** The caller's existing owned persona with this exact `name`, or null — the `(ownerId, name)` backup-import
  *  dedup key. Newest wins when names collide. */
-export async function findOwnedPersonaByName(
-  db: Db,
-  ownerId: UserId,
-  name: string,
-): Promise<PersonaId | null> {
+export async function findOwnedPersonaByName(db: Db, ownerId: UserId, name: string): Promise<PersonaId | null> {
   const rows = await db
     .select({ id: personas.id })
     .from(personas)
@@ -72,11 +57,7 @@ export async function findOwnedPersonaByName(
 }
 
 /** Personas connected to a character (via `character_personas`), owner-scoped, newest first. */
-export async function listConnectedPersonasWithAvatar(
-  db: Db,
-  ownerId: UserId,
-  characterId: CharacterId,
-): Promise<PersonaWithAvatar[]> {
+export async function listConnectedPersonasWithAvatar(db: Db, ownerId: UserId, characterId: CharacterId): Promise<PersonaWithAvatar[]> {
   const rows = await db
     .select({ persona: personas, avatar: assets })
     .from(characterPersonas)
@@ -89,16 +70,8 @@ export async function listConnectedPersonasWithAvatar(
 
 /** Gate: the character must belong to the caller. A foreign/absent character collapses to
  *  {@link PersonaCharacterNotFoundError} (no existence leak). */
-export async function ensureCharacterOwned(
-  db: Db,
-  ownerId: UserId,
-  characterId: CharacterId,
-): Promise<void> {
-  const rows = await db
-    .select({ ownerId: characters.ownerId })
-    .from(characters)
-    .where(eq(characters.id, characterId))
-    .limit(LIMIT_ONE);
+export async function ensureCharacterOwned(db: Db, ownerId: UserId, characterId: CharacterId): Promise<void> {
+  const rows = await db.select({ ownerId: characters.ownerId }).from(characters).where(eq(characters.id, characterId)).limit(LIMIT_ONE);
   if (rows[0]?.ownerId !== ownerId) {
     throw new PersonaCharacterNotFoundError(characterId);
   }
@@ -107,11 +80,7 @@ export async function ensureCharacterOwned(
 /** Gate: a supplied avatar asset must belong to the caller (the FK alone proves existence, never
  *  ownership). A foreign/absent asset collapses to {@link AssetNotFoundError} (no existence leak). */
 export async function ensureAssetOwned(db: Db, ownerId: UserId, assetId: AssetId): Promise<void> {
-  const rows = await db
-    .select({ ownerId: assets.ownerId })
-    .from(assets)
-    .where(eq(assets.id, assetId))
-    .limit(LIMIT_ONE);
+  const rows = await db.select({ ownerId: assets.ownerId }).from(assets).where(eq(assets.id, assetId)).limit(LIMIT_ONE);
   if (rows[0]?.ownerId !== ownerId) {
     throw new AssetNotFoundError(assetId);
   }
@@ -119,16 +88,8 @@ export async function ensureAssetOwned(db: Db, ownerId: UserId, assetId: AssetId
 
 /** Gate: the persona must belong to the caller. A foreign/absent persona collapses to
  *  {@link PersonaNotFoundError} (no existence leak). */
-export async function ensurePersonaOwned(
-  db: Db,
-  ownerId: UserId,
-  personaId: PersonaId,
-): Promise<void> {
-  const rows = await db
-    .select({ ownerId: personas.ownerId })
-    .from(personas)
-    .where(eq(personas.id, personaId))
-    .limit(LIMIT_ONE);
+export async function ensurePersonaOwned(db: Db, ownerId: UserId, personaId: PersonaId): Promise<void> {
+  const rows = await db.select({ ownerId: personas.ownerId }).from(personas).where(eq(personas.id, personaId)).limit(LIMIT_ONE);
   if (rows[0]?.ownerId !== ownerId) {
     throw new PersonaNotFoundError(personaId);
   }

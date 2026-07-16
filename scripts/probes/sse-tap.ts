@@ -37,11 +37,7 @@ import type { AppRouter } from "@orb/server/transport/trpc";
 import { createTRPCClient, httpSubscriptionLink } from "@trpc/client";
 
 if (typeof globalThis.EventSource === "undefined") {
-  const result = spawnSync(
-    process.execPath,
-    [...process.execArgv, "--experimental-eventsource", ...process.argv.slice(1)],
-    { stdio: "inherit" },
-  );
+  const result = spawnSync(process.execPath, [...process.execArgv, "--experimental-eventsource", ...process.argv.slice(1)], { stdio: "inherit" });
   process.exit(result.status ?? 1);
 }
 
@@ -94,9 +90,7 @@ const sub = client.chat.streamMessages.subscribe(
       // Narrow on the `__subscriptionError` sentinel before touching `.type`, which only
       // real events carry (see withSubscriptionErrors, transport/trpc/subscriptions.ts).
       if ("__subscriptionError" in data) {
-        process.stdout.write(
-          `${ts}  seq=${envelope.id}  ! subscription-error  code=${data.code}  ${data.message}\n`,
-        );
+        process.stdout.write(`${ts}  seq=${envelope.id}  ! subscription-error  code=${data.code}  ${data.message}\n`);
         return;
       }
       process.stdout.write(`${ts}  seq=${envelope.id}  ${data.type}  ${JSON.stringify(data)}\n`);

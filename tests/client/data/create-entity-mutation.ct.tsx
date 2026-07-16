@@ -20,11 +20,7 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc, trpcError } from "../../support/ct/route-trpc";
-import {
-  TagCreateColdCacheStory,
-  TagCreateOptimisticStory,
-  TagCreateVariablesStory,
-} from "./_ct-stories";
+import { TagCreateColdCacheStory, TagCreateOptimisticStory, TagCreateVariablesStory } from "./_ct-stories";
 
 interface FixtureTag {
   readonly id: string;
@@ -50,10 +46,7 @@ function makeTag(id: string, name: string): FixtureTag {
   };
 }
 
-test("cache-optimistic: the pending tag lands in the list before settle, then reconciles", async ({
-  mount,
-  page,
-}) => {
+test("cache-optimistic: the pending tag lands in the list before settle, then reconciles", async ({ mount, page }) => {
   const tags: FixtureTag[] = [];
   const trpc = await routeTrpc(page, {
     "tag.listTags": () => tags,
@@ -78,10 +71,7 @@ test("cache-optimistic: the pending tag lands in the list before settle, then re
   await expect(page.getByTestId("tag-list")).toContainText("new-tag");
 });
 
-test("rollback: a failed mutation reverts the optimistic row, surfacing the sticky error", async ({
-  mount,
-  page,
-}) => {
+test("rollback: a failed mutation reverts the optimistic row, surfacing the sticky error", async ({ mount, page }) => {
   const tags: FixtureTag[] = [];
   const trpc = await routeTrpc(page, {
     "tag.listTags": () => tags,
@@ -100,10 +90,7 @@ test("rollback: a failed mutation reverts the optimistic row, surfacing the stic
   expect(trpc.count("tag.createTag")).toBe(1);
 });
 
-test("cold-cache rollback: a failed mutation against a never-fetched query REMOVES the phantom row", async ({
-  mount,
-  page,
-}) => {
+test("cold-cache rollback: a failed mutation against a never-fetched query REMOVES the phantom row", async ({ mount, page }) => {
   // No `listTags` responder + no reader in the story → that query is never fetched (COLD). The
   // optimistic write creates the cache entry; onError's snapshot is undefined. The old code did
   // setQueryData(key, undefined) (a v5 no-op) and the phantom row stuck; the fix removeQueries it.
@@ -124,10 +111,7 @@ test("cold-cache rollback: a failed mutation against a never-fetched query REMOV
   expect(trpc.count("tag.listTags")).toBe(0);
 });
 
-test("sticky error clears on the NEXT mutate — a retried success removes the banner", async ({
-  mount,
-  page,
-}) => {
+test("sticky error clears on the NEXT mutate — a retried success removes the banner", async ({ mount, page }) => {
   const tags: FixtureTag[] = [];
   let call = 0;
   await routeTrpc(page, {
@@ -153,10 +137,7 @@ test("sticky error clears on the NEXT mutate — a retried success removes the b
   await expect(page.getByTestId("tag-list")).toContainText("new-tag");
 });
 
-test("variables-mode: a failed create surfaces error + retry; retry re-fires the SAME variables", async ({
-  mount,
-  page,
-}) => {
+test("variables-mode: a failed create surfaces error + retry; retry re-fires the SAME variables", async ({ mount, page }) => {
   const tags: FixtureTag[] = [];
   let call = 0;
   const trpc = await routeTrpc(page, {
@@ -181,8 +162,5 @@ test("variables-mode: a failed create surfaces error + retry; retry re-fires the
 
   // Both attempts carried the identical variables — retry() re-fires `mutation.variables` verbatim.
   expect(trpc.count("tag.createTag")).toBe(2);
-  expect(trpc.inputs("tag.createTag")).toEqual([
-    { input: { name: "variables-tag" } },
-    { input: { name: "variables-tag" } },
-  ]);
+  expect(trpc.inputs("tag.createTag")).toEqual([{ input: { name: "variables-tag" } }, { input: { name: "variables-tag" } }]);
 });

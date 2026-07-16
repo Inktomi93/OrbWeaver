@@ -14,10 +14,7 @@ import { resolveSeededBackgroundUrl } from "#lib";
 /** `null` ⇒ no image renders (kind `none`, an empty/stale seeded id, a blank external url, or a
  *  not-yet-uploaded `asset` with no stored hash). */
 export function resolveBackgroundUrl(
-  a: Pick<
-    AppearanceSettings,
-    "backgroundImageKind" | "backgroundSeededId" | "backgroundExternalUrl" | "backgroundAssetHash"
-  >,
+  a: Pick<AppearanceSettings, "backgroundImageKind" | "backgroundSeededId" | "backgroundExternalUrl" | "backgroundAssetHash">,
 ): string | null {
   if (a.backgroundImageKind === "seeded") {
     return resolveSeededBackgroundUrl(a.backgroundSeededId) ?? null;

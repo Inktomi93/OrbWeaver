@@ -29,20 +29,12 @@ const ownerUser = alias(users, "owner_user");
 const userViewCols = { ...userCols, ownerHandle: ownerUser.handle } as const;
 
 export async function loadUser(db: Db, userId: UserId): Promise<AdminUserView | undefined> {
-  const rows = await db
-    .select(userViewCols)
-    .from(users)
-    .leftJoin(ownerUser, eq(ownerUser.id, users.ownerUserId))
-    .where(eq(users.id, userId))
-    .limit(LIMIT_ONE);
+  const rows = await db.select(userViewCols).from(users).leftJoin(ownerUser, eq(ownerUser.id, users.ownerUserId)).where(eq(users.id, userId)).limit(LIMIT_ONE);
   return rows[0];
 }
 
 /** kind filters the Humans/Agents tab; absent = all. */
 export function listUsers(db: Db, kind?: UserKind): Promise<AdminUserView[]> {
-  const base = db
-    .select(userViewCols)
-    .from(users)
-    .leftJoin(ownerUser, eq(ownerUser.id, users.ownerUserId));
+  const base = db.select(userViewCols).from(users).leftJoin(ownerUser, eq(ownerUser.id, users.ownerUserId));
   return kind === undefined ? base : base.where(eq(users.kind, kind));
 }

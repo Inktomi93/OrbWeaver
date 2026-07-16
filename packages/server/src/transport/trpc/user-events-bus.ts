@@ -26,15 +26,11 @@ export function publishUserEvent(userId: UserId, event: UserBusEvent): void {
  *  (getChat) refetches too (the lifecycle/create/delete case); omitted on the message-commit terminal
  *  path, where the per-chat bus already drives every subscribed device's getChat. */
 export function publishChatChanged(userId: UserId, chatId: ChatId | undefined): void {
-  const event: UserBusEvent =
-    chatId === undefined ? { type: "chatsChanged" } : { type: "chatsChanged", chatId };
+  const event: UserBusEvent = chatId === undefined ? { type: "chatsChanged" } : { type: "chatsChanged", chatId };
   bus.publish(userId, event);
 }
 
 /** The user's live entity-changed stream, scoped to one `userId` and torn down on `signal` abort. */
-export function subscribeUserEvents(
-  userId: UserId,
-  signal: AbortSignal,
-): AsyncIterable<UserBusEvent> {
+export function subscribeUserEvents(userId: UserId, signal: AbortSignal): AsyncIterable<UserBusEvent> {
   return bus.subscribe(userId, signal);
 }

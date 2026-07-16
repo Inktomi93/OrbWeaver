@@ -58,9 +58,7 @@ export interface TagService {
   /** Enumerate the owner's staged (`status:'pending'`) character-tag suggestions — the Accept/Reject review
    *  queue. `characterId` narrows to one editor's suggestions; absent = the whole pending inbox. Read-only:
    *  Accept = `attachTag(status:'accepted')`, Reject = `detachTag`. */
-  readonly listPendingSuggestions: (
-    params: ListPendingSuggestionsParams,
-  ) => Promise<TagSuggestionView[]>;
+  readonly listPendingSuggestions: (params: ListPendingSuggestionsParams) => Promise<TagSuggestionView[]>;
   readonly pruneUnusedTags: (params: PruneUnusedTagsParams) => Promise<PruneUnusedResult>;
   readonly setTagOrder: (params: SetTagOrderParams) => Promise<void>;
   readonly attachTag: (params: AttachTagParams) => Promise<void>;

@@ -43,14 +43,10 @@ function stubSessions(overrides: Partial<SessionsService>): SessionsService {
     listForUser: unused("listForUser"),
     ensureUser: unused("ensureUser") as SessionsService["ensureUser"],
     provisionIdentity: unused("provisionIdentity") as SessionsService["provisionIdentity"],
-    // biome-ignore lint/security/noSecrets: a verb name literal, not a secret (high-entropy false positive).
     loadUserById: unused("loadUserById") as SessionsService["loadUserById"],
-    // biome-ignore lint/security/noSecrets: a verb name literal, not a secret (high-entropy false positive).
     resolveHandle: unused("resolveHandle") as SessionsService["resolveHandle"],
     authenticate: unused("authenticate") as SessionsService["authenticate"],
-    provisionAgentPrincipal: unused(
-      "provisionAgentPrincipal",
-    ) as SessionsService["provisionAgentPrincipal"],
+    provisionAgentPrincipal: unused("provisionAgentPrincipal") as SessionsService["provisionAgentPrincipal"],
     ...overrides,
   };
 }
@@ -270,12 +266,7 @@ test("isAdmin is true for owner/admin, false otherwise, and never throws", async
 test("createHostPrincipalResolver mints the host Principal from the LIVE row (real role carried)", async () => {
   const resolve = createHostPrincipalResolver(
     stubSessions({
-      loadUserById: (userId) =>
-        Promise.resolve(
-          userId === FALLBACK_UID
-            ? { role: "owner", handle: castId<Handle>("owner"), externalId: null }
-            : null,
-        ),
+      loadUserById: (userId) => Promise.resolve(userId === FALLBACK_UID ? { role: "owner", handle: castId<Handle>("owner"), externalId: null } : null),
     }),
   );
 
@@ -290,9 +281,7 @@ test("createHostPrincipalResolver mints the host Principal from the LIVE row (re
 });
 
 test("createHostPrincipalResolver degrades an unknown id to role=user (fail-closed for privileged gates)", async () => {
-  const resolve = createHostPrincipalResolver(
-    stubSessions({ loadUserById: () => Promise.resolve(null) }),
-  );
+  const resolve = createHostPrincipalResolver(stubSessions({ loadUserById: () => Promise.resolve(null) }));
   const principal = await resolve(COOKIE_UID);
   expect(principal.role).toBe("user");
   expect(principal.userId).toBe(COOKIE_UID);

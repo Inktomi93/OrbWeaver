@@ -4,15 +4,7 @@
 
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
-import {
-  ActivatableGrid,
-  AnimatedDispatchGrid,
-  BasicGrid,
-  DerivedItemsGrid,
-  MixedContentGrid,
-  SelectableGrid,
-  UnboundedGrid,
-} from "./media-grid.fixtures";
+import { ActivatableGrid, AnimatedDispatchGrid, BasicGrid, DerivedItemsGrid, MixedContentGrid, SelectableGrid, UnboundedGrid } from "./media-grid.fixtures";
 
 const ITEM_COUNT = 30;
 const MIN_CELL_WIDTH_PX = 100;
@@ -21,14 +13,7 @@ const NARROW_PX = 220; // → 2 columns at the same floor
 const NAV_ITEM_COUNT = 9; // 3x3, fully mounted — no virtualization truncation to fight in nav tests
 
 test("renders only a window of a 30-item grid", async ({ mount }) => {
-  const component = await mount(
-    <BasicGrid
-      heightPx={300}
-      itemCount={ITEM_COUNT}
-      minCellWidth={MIN_CELL_WIDTH_PX}
-      widthPx={WIDE_PX}
-    />,
-  );
+  const component = await mount(<BasicGrid heightPx={300} itemCount={ITEM_COUNT} minCellWidth={MIN_CELL_WIDTH_PX} widthPx={WIDE_PX} />);
   await expect(component.getByRole("gridcell", { name: "Item 0" })).toBeVisible();
   const rendered = await component.getByRole("gridcell").count();
   expect(rendered).toBeGreaterThan(0);
@@ -38,23 +23,17 @@ test("renders only a window of a 30-item grid", async ({ mount }) => {
 });
 
 test("column count is derived from the container width (responsive)", async ({ mount }) => {
-  const wide = await mount(
-    <BasicGrid heightPx={300} itemCount={6} minCellWidth={MIN_CELL_WIDTH_PX} widthPx={WIDE_PX} />,
-  );
+  const wide = await mount(<BasicGrid heightPx={300} itemCount={6} minCellWidth={MIN_CELL_WIDTH_PX} widthPx={WIDE_PX} />);
   await expect(wide.getByRole("grid")).toHaveAttribute("aria-colcount", "3");
   await expect(wide.getByRole("grid")).toHaveAttribute("aria-rowcount", "2");
   await wide.unmount();
 
-  const narrow = await mount(
-    <BasicGrid heightPx={300} itemCount={6} minCellWidth={MIN_CELL_WIDTH_PX} widthPx={NARROW_PX} />,
-  );
+  const narrow = await mount(<BasicGrid heightPx={300} itemCount={6} minCellWidth={MIN_CELL_WIDTH_PX} widthPx={NARROW_PX} />);
   await expect(narrow.getByRole("grid")).toHaveAttribute("aria-colcount", "2");
   await expect(narrow.getByRole("grid")).toHaveAttribute("aria-rowcount", "3");
 });
 
-test("cells reserve an identical square box whether or not media has loaded (no layout shift)", async ({
-  mount,
-}) => {
+test("cells reserve an identical square box whether or not media has loaded (no layout shift)", async ({ mount }) => {
   const component = await mount(<MixedContentGrid widthPx={WIDE_PX} />);
   const imaged = component.getByRole("gridcell", { name: "Has image" });
   const placeholder = component.getByRole("gridcell", { name: "No image yet" });
@@ -67,47 +46,22 @@ test("cells reserve an identical square box whether or not media has loaded (no 
   expect(Math.abs(placeholderBox.width - placeholderBox.height)).toBeLessThan(1);
   // Identical reserved size regardless of whether the cell has an image.
   expect(Math.abs(imagedBox.width - placeholderBox.width)).toBeLessThan(1);
-  await expect(placeholder.locator('[data-slot="media-grid-placeholder"]')).toHaveCSS(
-    "background-color",
-    TOKENS["color.muted"].value,
-  );
+  await expect(placeholder.locator('[data-slot="media-grid-placeholder"]')).toHaveCSS("background-color", TOKENS["color.muted"].value);
 });
 
 test("animated items render the original url, not the thumbnail variant", async ({ mount }) => {
   const component = await mount(<AnimatedDispatchGrid />);
-  await expect(component.getByRole("gridcell", { name: "Static" }).locator("img")).toHaveAttribute(
-    "src",
-    "thumb-static.png",
-  );
-  await expect(
-    component.getByRole("gridcell", { name: "Animated" }).locator("img"),
-  ).toHaveAttribute("src", "full-animated.png");
+  await expect(component.getByRole("gridcell", { name: "Static" }).locator("img")).toHaveAttribute("src", "thumb-static.png");
+  await expect(component.getByRole("gridcell", { name: "Animated" }).locator("img")).toHaveAttribute("src", "full-animated.png");
 });
 
 test("each cell carries its item's alt as the accessible name", async ({ mount }) => {
-  const component = await mount(
-    <BasicGrid
-      heightPx={300}
-      itemCount={NAV_ITEM_COUNT}
-      minCellWidth={MIN_CELL_WIDTH_PX}
-      widthPx={WIDE_PX}
-    />,
-  );
+  const component = await mount(<BasicGrid heightPx={300} itemCount={NAV_ITEM_COUNT} minCellWidth={MIN_CELL_WIDTH_PX} widthPx={WIDE_PX} />);
   await expect(component.getByRole("gridcell", { name: "Item 4" })).toBeVisible();
 });
 
-test("roving tabindex: only the focused cell is a tab stop, arrows move it by row/column", async ({
-  mount,
-  page,
-}) => {
-  const component = await mount(
-    <BasicGrid
-      heightPx={300}
-      itemCount={NAV_ITEM_COUNT}
-      minCellWidth={MIN_CELL_WIDTH_PX}
-      widthPx={WIDE_PX}
-    />,
-  );
+test("roving tabindex: only the focused cell is a tab stop, arrows move it by row/column", async ({ mount, page }) => {
+  const component = await mount(<BasicGrid heightPx={300} itemCount={NAV_ITEM_COUNT} minCellWidth={MIN_CELL_WIDTH_PX} widthPx={WIDE_PX} />);
   const item0 = component.getByRole("gridcell", { name: "Item 0" });
   const item1 = component.getByRole("gridcell", { name: "Item 1" });
   const item4 = component.getByRole("gridcell", { name: "Item 4" });
@@ -132,9 +86,7 @@ test("roving tabindex: only the focused cell is a tab stop, arrows move it by ro
   await expect(item0).toBeFocused();
 });
 
-test("selection mode: click toggles aria-selected + the checkmark badge, both directions", async ({
-  mount,
-}) => {
+test("selection mode: click toggles aria-selected + the checkmark badge, both directions", async ({ mount }) => {
   const component = await mount(<SelectableGrid itemCount={6} />);
   const cell = component.getByRole("gridcell", { name: "Item 1" });
   await expect(cell).toHaveAttribute("aria-selected", "false");
@@ -143,10 +95,7 @@ test("selection mode: click toggles aria-selected + the checkmark badge, both di
   await cell.click();
   await expect(cell).toHaveAttribute("aria-selected", "true");
   await expect(component.getByTestId("selected-count")).toHaveText("1 selected");
-  await expect(cell.locator('[data-slot="media-grid-selected-badge"]')).toHaveCSS(
-    "background-color",
-    TOKENS["color.primary"].value,
-  );
+  await expect(cell.locator('[data-slot="media-grid-selected-badge"]')).toHaveCSS("background-color", TOKENS["color.primary"].value);
 
   await cell.click();
   await expect(cell).toHaveAttribute("aria-selected", "false");
@@ -170,9 +119,7 @@ test("the tripwire THROWS when the parent gives no bounded height", async ({ mou
 
 // R7 (ui-primitive-contract, the systemic gap missing from all 3 virtual seals): the parent
 // re-renders passing a freshly-DERIVED items array — not a stable module-const reference.
-test("renders correctly when the parent passes a freshly-derived items array each render", async ({
-  mount,
-}) => {
+test("renders correctly when the parent passes a freshly-derived items array each render", async ({ mount }) => {
   const component = await mount(<DerivedItemsGrid />);
   await expect(component.getByRole("gridcell", { name: "Alpha" })).toBeVisible();
 

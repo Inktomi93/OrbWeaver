@@ -31,8 +31,7 @@ export const useStarChat = createEntityMutation<StarChatVars, unknown, ChatSumma
   options: (trpc) => trpc.chat.star.mutationOptions(),
   optimistic: {
     readKey: (trpc) => trpc.chat.listChats.queryKey({}),
-    update: (old, vars) =>
-      old?.map((chat) => (chat.id === vars.chatId ? { ...chat, star: vars.star } : chat)),
+    update: (old, vars) => old?.map((chat) => (chat.id === vars.chatId ? { ...chat, star: vars.star } : chat)),
   },
   busDriven: true,
   errorToast: "Couldn't update the star.",

@@ -25,11 +25,7 @@ interface MutablePatch {
 
 /** Assemble the patch from the optional inputs + re-gate MODE support / bulk authority when the kind or mode
  *  changes. Split out so the verb body stays a flat load → check → write (cognitive-complexity budget). */
-function resolveUpdatePatch(
-  ctx: WorkloadServiceContext,
-  existing: WorkloadScheduleRow,
-  params: UpdateScheduleParams,
-): MutablePatch {
+function resolveUpdatePatch(ctx: WorkloadServiceContext, existing: WorkloadScheduleRow, params: UpdateScheduleParams): MutablePatch {
   const patch: MutablePatch = {};
   let effectiveKind = existing.kind;
   let effectiveMode = existing.mode;
@@ -56,9 +52,7 @@ function resolveUpdatePatch(
   return patch;
 }
 
-export function createUpdateSchedule(
-  ctx: WorkloadServiceContext,
-): Pick<WorkloadService, "updateSchedule"> {
+export function createUpdateSchedule(ctx: WorkloadServiceContext): Pick<WorkloadService, "updateSchedule"> {
   async function updateSchedule(params: UpdateScheduleParams): Promise<WorkloadScheduleRow> {
     const existing = await loadSchedule(ctx.db, params.id);
     if (existing === null || !isVisibleToCaller(ctx.isAdmin, params.caller, existing.ownerId)) {

@@ -15,9 +15,7 @@ export const SectionRegistryContext = createContext<SectionRegistry | null>(null
 export function useSectionRegistry(): SectionRegistry {
   const registry = useContext(SectionRegistryContext);
   if (registry === null) {
-    throw new Error(
-      "useSectionRegistry: no SectionRegistryProvider mounted (assemble in main.tsx)",
-    );
+    throw new Error("useSectionRegistry: no SectionRegistryProvider mounted (assemble in main.tsx)");
   }
   return registry;
 }

@@ -70,13 +70,7 @@ test("every tag-row control clears the 32px tap-target floor", async ({ mount, p
     ["delete button", page.getByRole("button", { name: "Delete adventure" })],
   ];
 
-  const sides = await Promise.all(
-    controls.map(async ([label, locator]) => [label, await shortSide(locator)] as const),
-  );
-  const undersized = sides
-    .filter(([, side]) => side < TAP_FAIL_PX)
-    .map(([label, side]) => `${label}: ${side.toFixed(1)}px`);
-  expect(undersized, `controls below the ${TAP_FAIL_PX}px floor: ${undersized.join(", ")}`).toEqual(
-    [],
-  );
+  const sides = await Promise.all(controls.map(async ([label, locator]) => [label, await shortSide(locator)] as const));
+  const undersized = sides.filter(([, side]) => side < TAP_FAIL_PX).map(([label, side]) => `${label}: ${side.toFixed(1)}px`);
+  expect(undersized, `controls below the ${TAP_FAIL_PX}px floor: ${undersized.join(", ")}`).toEqual([]);
 });

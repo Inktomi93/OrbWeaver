@@ -1,7 +1,4 @@
-import type {
-  FieldsetLegendProps as BaseLegendProps,
-  FieldsetRootProps as BaseRootProps,
-} from "@base-ui/react/fieldset";
+import type { FieldsetLegendProps as BaseLegendProps, FieldsetRootProps as BaseRootProps } from "@base-ui/react/fieldset";
 import { Fieldset as BaseFieldset } from "@base-ui/react/fieldset";
 import type { ReactElement } from "react";
 import { cn } from "#lib";
@@ -23,22 +20,10 @@ export interface FieldsetLegendProps extends Omit<BaseLegendProps, "className"> 
  */
 export function Fieldset(props: FieldsetProps): ReactElement {
   const { className, ...rest } = props;
-  return (
-    <BaseFieldset.Root
-      className={cn(slots.root(), className)}
-      data-slot="fieldset-root"
-      {...rest}
-    />
-  );
+  return <BaseFieldset.Root className={cn(slots.root(), className)} data-slot="fieldset-root" {...rest} />;
 }
 
 export function FieldsetLegend(props: FieldsetLegendProps): ReactElement {
   const { className, ...rest } = props;
-  return (
-    <BaseFieldset.Legend
-      className={cn(slots.legend(), className)}
-      data-slot="fieldset-legend"
-      {...rest}
-    />
-  );
+  return <BaseFieldset.Legend className={cn(slots.legend(), className)} data-slot="fieldset-legend" {...rest} />;
 }

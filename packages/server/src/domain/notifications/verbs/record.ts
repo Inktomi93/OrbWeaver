@@ -23,10 +23,7 @@ export function createRecord(ctx: NotificationsContext): Pick<NotificationsServi
     // the table. Refuse it loud at this one write chokepoint, before the INSERT/coStatements batch, so a
     // refusal never half-commits a producer's membership transition.
     if (await ctx.isAgentRecipient(event.recipientUserId)) {
-      throw new DomainOperationError(
-        "agent_recipient",
-        "an agent principal has no inbox — a notification cannot be addressed to one (D60)",
-      );
+      throw new DomainOperationError("agent_recipient", "an agent principal has no inbox — a notification cannot be addressed to one (D60)");
     }
     const row = {
       id: mintTypeId(ID_PREFIX.notification),

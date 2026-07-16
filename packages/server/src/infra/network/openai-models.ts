@@ -33,7 +33,7 @@ export async function fetchOpenAiModels(args: FetchOpenAiModelsArgs): Promise<st
     const res = await safeFetch(`${args.baseUrl.replace(TRAILING_SLASH_RE, "")}/models`, {
       maxBytes: MODELS_MAX_BYTES,
       headers: {
-        ...(args.apiKey ? { authorization: `Bearer ${args.apiKey}` } : {}),
+        ...(args.apiKey !== null && args.apiKey !== "" ? { authorization: `Bearer ${args.apiKey}` } : {}),
         ...(args.headers ?? {}),
       },
     });

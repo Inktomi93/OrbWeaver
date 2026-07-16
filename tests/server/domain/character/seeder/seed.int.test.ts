@@ -9,21 +9,14 @@
 import type { Principal } from "@orb/contracts/identity";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import type { CharacterDetail, CharacterService } from "@orb/server/domain/character";
-import {
-  createCharacterService,
-  createDefaultCharacterSeeder,
-  DEFAULT_CHARACTER_CARDS,
-  WELCOME_ASSISTANT_HANDLE,
-} from "@orb/server/domain/character";
+import { createCharacterService, createDefaultCharacterSeeder, DEFAULT_CHARACTER_CARDS, WELCOME_ASSISTANT_HANDLE } from "@orb/server/domain/character";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
 import { makeHarness, principal, seedRawCharacter, seedUser } from "../_support.ts";
 
 const ALL_HANDLES = DEFAULT_CHARACTER_CARDS.map((c) => c.input.handle);
-const ASSISTANT_CARD = DEFAULT_CHARACTER_CARDS.find(
-  (c) => c.input.handle === WELCOME_ASSISTANT_HANDLE,
-);
+const ASSISTANT_CARD = DEFAULT_CHARACTER_CARDS.find((c) => c.input.handle === WELCOME_ASSISTANT_HANDLE);
 
 interface MarkCall {
   readonly userId: UserId;
@@ -207,9 +200,7 @@ describe("createDefaultCharacterSeeder", () => {
     }
     // The welcome assistant's tags landed on the seeded assistant character.
     const assistant = await svc.findByHandle({ ownerId: owner, handle: WELCOME_ASSISTANT_HANDLE });
-    const assistantTags = attach.calls
-      .filter((c) => c.characterId === assistant?.characterId)
-      .map((c) => c.tagName);
+    const assistantTags = attach.calls.filter((c) => c.characterId === assistant?.characterId).map((c) => c.tagName);
     expect(assistantTags).toEqual([...(ASSISTANT_CARD?.tags ?? [])]);
   });
 });

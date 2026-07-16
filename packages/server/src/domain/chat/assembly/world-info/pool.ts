@@ -9,20 +9,9 @@
 
 import type { AssembleWorldEntry } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
-import {
-  characterBooks,
-  chatBooks,
-  globalBooks,
-  personaBooks,
-  worldBooks,
-  worldEntries,
-} from "@orb/db";
+import { characterBooks, chatBooks, globalBooks, personaBooks, worldBooks, worldEntries } from "@orb/db";
 import type { CharacterId, ChatId, PersonaId, UserId, WorldEntryId } from "@orb/kit/ids";
-import {
-  resolveEntryInjection,
-  resolveEntryPosition,
-  resolveEntryScope,
-} from "@orb/kit/world-info";
+import { resolveEntryInjection, resolveEntryPosition, resolveEntryScope } from "@orb/kit/world-info";
 import { and, eq, inArray } from "drizzle-orm";
 
 interface WorldInfoPoolTarget {
@@ -60,10 +49,7 @@ function extractKeys(raw: unknown): string[] {
 }
 
 /** Project a book-expansion row → the assembler `AssembleWorldEntry`. */
-function fromBookExpansion(
-  row: BookExpansionRow,
-  source: AssembleWorldEntry["source"],
-): AssembleWorldEntry {
+function fromBookExpansion(row: BookExpansionRow, source: AssembleWorldEntry["source"]): AssembleWorldEntry {
   const keys = extractKeys(row.keys);
   const inject = resolveEntryInjection(row.metadata);
   return {
@@ -95,10 +81,7 @@ function dedupeByEntryId(sources: readonly AssembleWorldEntry[][]): AssembleWorl
 
 /** Fetch the merged, deduped per-turn World-Info pool — four parallel SQL reads, one Map-based dedup. There
  *  is no master toggle; an empty result (no books attached) is the "no lore" path. */
-export async function loadWorldInfoPool(
-  db: Db,
-  target: WorldInfoPoolTarget,
-): Promise<AssembleWorldEntry[]> {
+export async function loadWorldInfoPool(db: Db, target: WorldInfoPoolTarget): Promise<AssembleWorldEntry[]> {
   const castIds = [...target.castCharacterIds];
   const personaIds = [...target.personaIds];
 

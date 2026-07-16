@@ -23,17 +23,10 @@ import type {
   SetAgencyParams,
   SetReactionsParams,
 } from "./params";
-import type {
-  AskBuddyResult,
-  BuddyTurnView,
-  ClearBuddyChatResult,
-  ConfirmBuddyResult,
-} from "./results";
+import type { AskBuddyResult, BuddyTurnView, ClearBuddyChatResult, ConfirmBuddyResult } from "./results";
 import type { BuddyView } from "./views";
 
-type ResolveAgentConnectionOp = (params: {
-  readonly principal: Principal;
-}) => Promise<ResolvedConnection>;
+type ResolveAgentConnectionOp = (params: { readonly principal: Principal }) => Promise<ResolvedConnection>;
 
 /** DI bundle the buddy verbs close over. */
 export interface BuddyContext {

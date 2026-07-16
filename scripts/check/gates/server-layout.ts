@@ -7,15 +7,7 @@ import type { GateDescriptor } from "../contract.ts";
 import type { Violation } from "../harness.ts";
 
 const SERVER_SRC = "packages/server/src";
-const ALLOWED_ENTRIES: ReadonlySet<string> = new Set([
-  "entry",
-  "transport",
-  "domain",
-  "infra",
-  "foundation",
-  "kit",
-  "index.ts",
-]);
+const ALLOWED_ENTRIES: ReadonlySet<string> = new Set(["entry", "transport", "domain", "infra", "foundation", "kit", "index.ts"]);
 
 /** The fs scan shared by the legacy Check and the single-pass `run` descriptor. */
 function scanServerLayout(root: string): Violation[] {

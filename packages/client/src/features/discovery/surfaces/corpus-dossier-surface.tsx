@@ -38,19 +38,11 @@ export interface CorpusDossierSurfaceProps {
   readonly onBack: () => void;
 }
 
-export function CorpusDossierSurface({
-  characterId,
-  onBack,
-}: CorpusDossierSurfaceProps): ReactElement {
+export function CorpusDossierSurface({ characterId, onBack }: CorpusDossierSurfaceProps): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
   return (
-    <Stack
-      ref={surfaceRef}
-      tabIndex={-1}
-      className="h-full min-h-0 outline-none"
-      data-testid={testId("corpusDossierSurface")}
-    >
+    <Stack ref={surfaceRef} tabIndex={-1} className="h-full min-h-0 outline-none" data-testid={testId("corpusDossierSurface")}>
       <QueryBoundary
         fallback={<Text tone="muted">Loading dossier…</Text>}
         renderError={(_error, retry): ReactElement => (
@@ -68,20 +60,10 @@ export function CorpusDossierSurface({
   );
 }
 
-function DossierBody({
-  characterId,
-  onBack,
-}: {
-  readonly characterId: CharacterId;
-  readonly onBack: () => void;
-}): ReactElement {
+function DossierBody({ characterId, onBack }: { readonly characterId: CharacterId; readonly onBack: () => void }): ReactElement {
   const trpc = useTRPC();
-  const { data: dossier } = useSuspenseQuery(
-    trpc.discovery.characterDossier.queryOptions({ characterId }),
-  );
-  const { data: keywords } = useSuspenseQuery(
-    trpc.discovery.characterKeywords.queryOptions({ characterId, limit: KEYWORD_LIMIT }),
-  );
+  const { data: dossier } = useSuspenseQuery(trpc.discovery.characterDossier.queryOptions({ characterId }));
+  const { data: keywords } = useSuspenseQuery(trpc.discovery.characterKeywords.queryOptions({ characterId, limit: KEYWORD_LIMIT }));
 
   if (dossier === null) {
     return (
@@ -122,9 +104,7 @@ function DossierBody({
               {facet}
             </Text>
           ) : null}
-          {dossier.elevatorPitch !== null ? (
-            <Text tone="muted">{dossier.elevatorPitch}</Text>
-          ) : null}
+          {dossier.elevatorPitch !== null ? <Text tone="muted">{dossier.elevatorPitch}</Text> : null}
         </Stack>
       </Row>
 
@@ -173,23 +153,15 @@ function DossierBody({
         ) : (
           <Stack gap="row" role="list">
             {dossier.similar.map((neighbor) => {
-              const neighborSrc =
-                neighbor.avatarHash === null ? {} : { src: blobUrl(neighbor.avatarHash) };
-              const neighborFacet = [neighbor.genre, neighbor.tone]
-                .filter((v) => v !== null)
-                .join(" · ");
+              const neighborSrc = neighbor.avatarHash === null ? {} : { src: blobUrl(neighbor.avatarHash) };
+              const neighborFacet = [neighbor.genre, neighbor.tone].filter((v) => v !== null).join(" · ");
               return (
                 <ListRow
                   key={neighbor.characterId}
                   clickable={true}
                   onClick={(): void => selectCorpusCharacter(neighbor.characterId)}
                   leading={
-                    <Avatar
-                      fallbackDelay={0}
-                      hueSeed={neighbor.characterId}
-                      size="sm"
-                      {...neighborSrc}
-                    >
+                    <Avatar fallbackDelay={0} hueSeed={neighbor.characterId} size="sm" {...neighborSrc}>
                       {initialsFor(neighbor.name)}
                     </Avatar>
                   }
@@ -226,9 +198,7 @@ function SimilarArtSection({ characterId }: { readonly characterId: CharacterId 
 
 function SimilarArtBody({ characterId }: { readonly characterId: CharacterId }): ReactElement {
   const trpc = useTRPC();
-  const art = useQuery(
-    trpc.search.similarArt.queryOptions({ characterId, topN: SIMILAR_ART_TOP_N }),
-  );
+  const art = useQuery(trpc.search.similarArt.queryOptions({ characterId, topN: SIMILAR_ART_TOP_N }));
 
   if (art.isPending) {
     return <SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />;
@@ -275,12 +245,7 @@ function AskPanel({ characterId }: { readonly characterId: CharacterId }): React
   const [draft, setDraft] = useState("");
   const [question, setQuestion] = useState<string | null>(null);
 
-  const answer = useQuery(
-    trpc.discovery.askCard.queryOptions(
-      { characterId, question: question ?? "" },
-      { enabled: question !== null && question !== "" },
-    ),
-  );
+  const answer = useQuery(trpc.discovery.askCard.queryOptions({ characterId, question: question ?? "" }, { enabled: question !== null && question !== "" }));
 
   const ask = (): void => {
     const trimmed = draft.trim();
@@ -300,23 +265,12 @@ function AskPanel({ characterId }: { readonly characterId: CharacterId }): React
             placeholder="What drives them? How do they treat allies?"
             value={draft}
           />
-          <Button
-            intent="primary"
-            size="sm"
-            data-testid={testId("corpusAskSubmit")}
-            onClick={ask}
-            disabled={draft.trim() === ""}
-          >
+          <Button intent="primary" size="sm" data-testid={testId("corpusAskSubmit")} onClick={ask} disabled={draft.trim() === ""}>
             <Icon icon={Sparkles} size="sm" />
             Ask
           </Button>
         </Row>
-        <AskAnswer
-          isPending={answer.isFetching}
-          hasQuestion={question !== null}
-          error={answer.error}
-          data={answer.data ?? null}
-        />
+        <AskAnswer isPending={answer.isFetching} hasQuestion={question !== null} error={answer.error} data={answer.data ?? null} />
       </Stack>
     </Section>
   );

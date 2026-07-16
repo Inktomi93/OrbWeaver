@@ -33,22 +33,19 @@ export const gate: GateDescriptor = {
   },
   mustFlag: [
     {
-      files:
-        "export function f(qc: { invalidateQueries: (x?: unknown) => void }) {\n  qc.invalidateQueries();\n}\n",
+      files: "export function f(qc: { invalidateQueries: (x?: unknown) => void }) {\n  qc.invalidateQueries();\n}\n",
       at: "packages/client/src/features/a/mutation.ts",
       why: "a loose invalidateQueries call outside the seam — the neo 81-site sprawl reborn",
     },
   ],
   mustPass: [
     {
-      files:
-        "export function f(qc: { cancelQueries: (x?: unknown) => void }) {\n  qc.cancelQueries();\n}\n",
+      files: "export function f(qc: { cancelQueries: (x?: unknown) => void }) {\n  qc.cancelQueries();\n}\n",
       at: "packages/client/src/features/a/mutation2.ts",
       why: ".cancelQueries (createEntityMutation's optimistic flow) is a different concern — not flagged",
     },
     {
-      files:
-        "export function f(qc: { invalidateQueries: (x?: unknown) => void }) {\n  qc.invalidateQueries();\n}\n",
+      files: "export function f(qc: { invalidateQueries: (x?: unknown) => void }) {\n  qc.invalidateQueries();\n}\n",
       at: "packages/client/src/data/invalidation.ts",
       why: "the ONE sanctioned invalidateQueries call — the seam file itself is scanRoot-excluded, passes",
     },

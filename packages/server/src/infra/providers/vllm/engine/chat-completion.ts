@@ -52,10 +52,7 @@ export function cleanJsonSchema<T>(schema: T): T {
         obj[key] = walk(value);
       }
     }
-    const isObjectType =
-      obj["type"] === "object" &&
-      obj["properties"] !== undefined &&
-      !("additionalProperties" in obj);
+    const isObjectType = obj["type"] === "object" && obj["properties"] !== undefined && !("additionalProperties" in obj);
     if (isObjectType) {
       obj["additionalProperties"] = false;
     }
@@ -64,13 +61,9 @@ export function cleanJsonSchema<T>(schema: T): T {
   return walk(schema) as T;
 }
 
-type ContentPart =
-  | { readonly type: "text"; readonly text: string }
-  | { readonly type: "image_url"; readonly image_url: { readonly url: string } };
+type ContentPart = { readonly type: "text"; readonly text: string } | { readonly type: "image_url"; readonly image_url: { readonly url: string } };
 
-async function toWireMessage(
-  m: VllmChatMessage,
-): Promise<{ role: string; content: string | ContentPart[] }> {
+async function toWireMessage(m: VllmChatMessage): Promise<{ role: string; content: string | ContentPart[] }> {
   if (m.images === undefined || m.images.length === 0) {
     return { role: m.role, content: m.text };
   }
@@ -113,9 +106,7 @@ function buildBody(req: VllmChatCompletionRequest, messages: unknown): Record<st
     ...(req.maxTokens !== undefined ? { max_tokens: req.maxTokens } : {}),
     ...(req.temperature !== undefined ? { temperature: req.temperature } : {}),
     ...(req.minP !== undefined ? { min_p: req.minP } : {}),
-    ...(req.repetitionDetection !== undefined
-      ? { repetition_detection: repetitionBlock(req.repetitionDetection) }
-      : {}),
+    ...(req.repetitionDetection !== undefined ? { repetition_detection: repetitionBlock(req.repetitionDetection) } : {}),
     ...(req.jsonSchema !== undefined
       ? {
           response_format: {
@@ -128,17 +119,9 @@ function buildBody(req: VllmChatCompletionRequest, messages: unknown): Record<st
   // biome-ignore-end lint/style/useNamingConvention: OpenAI/vLLM wire field names (snake_case).
 }
 
-export async function runVllmChatCompletion(
-  client: VllmEngineClient,
-  req: VllmChatCompletionRequest,
-): Promise<VllmChatCompletionResult> {
+export async function runVllmChatCompletion(client: VllmEngineClient, req: VllmChatCompletionRequest): Promise<VllmChatCompletionResult> {
   const messages = await Promise.all(req.messages.map(toWireMessage));
-  const response = await client.enginePost<ChatCompletionsResponse>(
-    "gen",
-    "/v1/chat/completions",
-    buildBody(req, messages),
-    req.signal,
-  );
+  const response = await client.enginePost<ChatCompletionsResponse>("gen", "/v1/chat/completions", buildBody(req, messages), req.signal);
   return {
     text: response.choices[0]?.message.content ?? "",
     tokensIn: response.usage?.prompt_tokens ?? null,

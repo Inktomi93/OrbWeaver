@@ -43,9 +43,7 @@ function agentSdkCatalog(count: number): AgentSdkCatalog {
 
 /** Build the runner-env with ONLY the two connection verbs wired (the rest of `RunnerEnvDeps` is unused by
  *  `refreshCatalogSnapshot`; cast the frame so the test states exactly what it exercises). */
-function buildEnv(
-  connection: RunnerEnvDeps["connection"],
-): ReturnType<typeof buildWorkloadRunnerEnv> {
+function buildEnv(connection: RunnerEnvDeps["connection"]): ReturnType<typeof buildWorkloadRunnerEnv> {
   // FABRICATION-OK: deliberate partial deps — `refreshCatalogSnapshot` closes over ONLY `deps.connection`.
   return buildWorkloadRunnerEnv({ connection } as RunnerEnvDeps);
 }
@@ -65,9 +63,7 @@ describe("buildWorkloadRunnerEnv — refreshCatalogSnapshot fan-out", () => {
   test("agent-sdk lane fails → its count is null, OR lane still refreshes (run succeeds)", async () => {
     const env = buildEnv({
       refreshCatalog: vi.fn(async () => orCatalog(42)),
-      refreshAgentSdkCatalog: vi.fn(() =>
-        Promise.reject(new Error("agent-sdk catalog unavailable")),
-      ),
+      refreshAgentSdkCatalog: vi.fn(() => Promise.reject(new Error("agent-sdk catalog unavailable"))),
     });
     const result = await env.connection.refreshCatalogSnapshot({ signal });
     // null (could-not-refresh), NEVER 0 — 0 would conflate a failed lane with a real empty catalog.
@@ -87,9 +83,7 @@ describe("buildWorkloadRunnerEnv — refreshCatalogSnapshot fan-out", () => {
     const orFailure = new Error("no OpenRouter key");
     const env = buildEnv({
       refreshCatalog: vi.fn(() => Promise.reject(orFailure)),
-      refreshAgentSdkCatalog: vi.fn(() =>
-        Promise.reject(new Error("agent-sdk catalog unavailable")),
-      ),
+      refreshAgentSdkCatalog: vi.fn(() => Promise.reject(new Error("agent-sdk catalog unavailable"))),
     });
     await expect(env.connection.refreshCatalogSnapshot({ signal })).rejects.toBe(orFailure);
   });
@@ -158,14 +152,10 @@ const ESCAPING_HANDLES = ["..", ".", "../victim", "/etc", ""] as const;
 const ESCAPE_ERROR = /escapes the staging root/;
 
 describe("buildWorkloadRunnerEnv — import.importAll staging containment", () => {
-  test.each(
-    ESCAPING_HANDLES,
-  )("stagedDir %j throws before any fs mutation (root + sibling survive)", async (stagedDir) => {
+  test.each(ESCAPING_HANDLES)("stagedDir %j throws before any fs mutation (root + sibling survive)", async (stagedDir) => {
     const { stagingRoot, victim, victimFile } = await makeStaging();
     const env = stagingEnv(stagingRoot);
-    await expect(
-      env.import.importAll({ ownerId: OWNER_ID, dryRun: false, stagedDir, signal: signal2 }),
-    ).rejects.toThrow(ESCAPE_ERROR);
+    await expect(env.import.importAll({ ownerId: OWNER_ID, dryRun: false, stagedDir, signal: signal2 })).rejects.toThrow(ESCAPE_ERROR);
     // Zero fs mutation: the staging root, the sibling dir, AND its file all still exist.
     expect(await exists(stagingRoot)).toBe(true);
     expect(await exists(victim)).toBe(true);
@@ -190,14 +180,10 @@ describe("buildWorkloadRunnerEnv — import.importAll staging containment", () =
 });
 
 describe("buildWorkloadRunnerEnv — import.importBundle staging containment", () => {
-  test.each(
-    ESCAPING_HANDLES,
-  )("token %j throws before any fs read or rm (root + sibling survive)", async (token) => {
+  test.each(ESCAPING_HANDLES)("token %j throws before any fs read or rm (root + sibling survive)", async (token) => {
     const { stagingRoot, victim, victimFile } = await makeStaging();
     const env = stagingEnv(stagingRoot);
-    await expect(
-      env.import.importBundle({ ownerId: OWNER_ID, token, source: "dir", signal: signal2 }),
-    ).rejects.toThrow(ESCAPE_ERROR);
+    await expect(env.import.importBundle({ ownerId: OWNER_ID, token, source: "dir", signal: signal2 })).rejects.toThrow(ESCAPE_ERROR);
     expect(await exists(stagingRoot)).toBe(true);
     expect(await exists(victim)).toBe(true);
     expect(await exists(victimFile)).toBe(true);

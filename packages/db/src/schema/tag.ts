@@ -27,15 +27,7 @@
 // junction row is gone).
 
 import { TAG_FOLDER_TYPES, TAG_SOURCES, TAG_STATUSES } from "@orb/contracts/tag";
-import type {
-  CharacterId,
-  ChatId,
-  PersonaId,
-  PresetId,
-  TagId,
-  UserId,
-  WorldBookId,
-} from "@orb/kit/ids";
+import type { CharacterId, ChatId, PersonaId, PresetId, TagId, UserId, WorldBookId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import {
   check,
@@ -92,9 +84,7 @@ export const tags = sqliteTable(
     // CHECK since `NULL in (...)` is NULL, never FALSE).
     source: text("source", { enum: TAG_SOURCES }),
     // NONE | OPEN | CLOSED — derives TAG_FOLDER_TYPES. The tags-as-folders state; defaults to a plain tag.
-    folderType: text("folder_type", { enum: TAG_FOLDER_TYPES })
-      .notNull()
-      .default(DEFAULT_FOLDER_TYPE),
+    folderType: text("folder_type", { enum: TAG_FOLDER_TYPES }).notNull().default(DEFAULT_FOLDER_TYPE),
     // Manual ordering position; NULL = unordered (name fallback).
     sortOrder: integer("sort_order"),
     // ST is_hidden_on_character_card — chip suppressed on rows/cards while the tag keeps filtering.

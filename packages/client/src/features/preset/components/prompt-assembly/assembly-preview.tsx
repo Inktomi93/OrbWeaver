@@ -55,13 +55,7 @@ function groupKey(zone: string, index: number, group: RoleGroup): string {
 }
 
 /** One role block: a header + its contiguous same-role blocks. */
-function RoleGroupView({
-  group,
-  onSelect,
-}: {
-  readonly group: RoleGroup;
-  readonly onSelect: (sectionId: string) => void;
-}): ReactElement {
+function RoleGroupView({ group, onSelect }: { readonly group: RoleGroup; readonly onSelect: (sectionId: string) => void }): ReactElement {
   return (
     <Stack gap="field">
       <Text size="micro" tone="muted" transform="caps" weight="semibold">
@@ -75,13 +69,7 @@ function RoleGroupView({
 }
 
 /** The inset conversation band — the pivot horizon with the spliced sections shown at their depth. */
-function ConversationBand({
-  preview,
-  onSelect,
-}: {
-  readonly preview: AssembledPreview;
-  readonly onSelect: (sectionId: string) => void;
-}): ReactElement {
+function ConversationBand({ preview, onSelect }: { readonly preview: AssembledPreview; readonly onSelect: (sectionId: string) => void }): ReactElement {
   if (preview.missingPivot) {
     return (
       <Text size="micro" tone="warning">
@@ -107,15 +95,7 @@ function ConversationBand({
           your conversation splices in here
         </Text>
       ) : (
-        preview.splices.map((entry) => (
-          <SpliceView
-            key={entry.section.id}
-            block={entry}
-            depth={entry.depth}
-            order={entry.order}
-            onSelect={onSelect}
-          />
-        ))
+        preview.splices.map((entry) => <SpliceView key={entry.section.id} block={entry} depth={entry.depth} order={entry.order} onSelect={onSelect} />)
       )}
     </Stack>
   );
@@ -144,13 +124,7 @@ function SpliceView({
 }
 
 /** One preview block — a click-through ghost Button of its name + macro-chipped display text. */
-function BlockView({
-  block,
-  onSelect,
-}: {
-  readonly block: PreviewBlock;
-  readonly onSelect: (sectionId: string) => void;
-}): ReactElement {
+function BlockView({ block, onSelect }: { readonly block: PreviewBlock; readonly onSelect: (sectionId: string) => void }): ReactElement {
   return (
     <Button
       intent="ghost"

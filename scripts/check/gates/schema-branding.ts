@@ -31,12 +31,7 @@ function relPath(root: string, abs: string): string {
   return abs.startsWith(root) ? abs.slice(root.length + 1) : abs;
 }
 
-function toColumn(
-  pa: PropertyAssignment,
-  table: string,
-  constName: string,
-  file: string,
-): Column | undefined {
+function toColumn(pa: PropertyAssignment, table: string, constName: string, file: string): Column | undefined {
   const init = pa.getInitializer();
   if (init === undefined) {
     return;
@@ -174,8 +169,7 @@ export const gate: GateDescriptor = {
       why: "a branded pk id (`.$type<TId>()`) — the sanctioned shape, passes",
     },
     {
-      files:
-        'export const t = sqliteTable("t", {\n  // plain-id: intentionally plain, not a TypeID entity\n  id: text("id").primaryKey(),\n});\n',
+      files: 'export const t = sqliteTable("t", {\n  // plain-id: intentionally plain, not a TypeID entity\n  id: text("id").primaryKey(),\n});\n',
       at: "packages/db/src/schema/plain.ts",
       why: "an unbranded pk id marked with a leading // plain-id: comment — the escape hatch, passes",
     },

@@ -43,31 +43,20 @@ export function AdminUserSessionsDialog(props: AdminUserSessionsDialogProps): Re
       <DialogPopup size="lg" data-testid={testId("adminSessionsDialog")}>
         <Stack gap="block">
           <DialogTitle>Sessions — {props.handle}</DialogTitle>
-          <DialogDescription>
-            Revoking a session signs that device out on its next request.
-          </DialogDescription>
+          <DialogDescription>Revoking a session signs that device out on its next request.</DialogDescription>
 
           <Row align="center" justify="between">
             <Text size="label" tone="muted">
               {activeCount} active{rows.length > activeCount ? ` / ${rows.length} total` : ""}
             </Text>
-            <Button
-              intent="destructive"
-              size="sm"
-              disabled={activeCount === 0 || mutating}
-              onClick={(): void => setConfirmRevokeAll(true)}
-            >
+            <Button intent="destructive" size="sm" disabled={activeCount === 0 || mutating} onClick={(): void => setConfirmRevokeAll(true)}>
               Revoke all
             </Button>
           </Row>
 
           {sessions.isPending ? <Text tone="muted">Loading sessions…</Text> : null}
-          {sessions.isError ? (
-            <Text tone="destructive">Couldn't load the sessions — try reopening this dialog.</Text>
-          ) : null}
-          {sessions.isSuccess && rows.length === 0 ? (
-            <Text tone="muted">No sessions on record — they've never signed in.</Text>
-          ) : null}
+          {sessions.isError ? <Text tone="destructive">Couldn't load the sessions — try reopening this dialog.</Text> : null}
+          {sessions.isSuccess && rows.length === 0 ? <Text tone="muted">No sessions on record — they've never signed in.</Text> : null}
 
           <Stack gap="field">
             {rows.map((session) => {
@@ -78,7 +67,7 @@ export function AdminUserSessionsDialog(props: AdminUserSessionsDialogProps): Re
                   title={session.userAgent ?? "Unknown device"}
                   subtitle={
                     revoked
-                      ? `Revoked ${timeLib.formatRelative(session.revokedAt ?? session.lastSeenAt)}`
+                      ? `Revoked ${timeLib.formatRelative(session.revokedAt)}`
                       : `Last seen ${timeLib.formatRelative(session.lastSeenAt)} · expires ${timeLib.formatRelative(session.expiresAt)}`
                   }
                   actions={

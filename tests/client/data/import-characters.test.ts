@@ -36,9 +36,7 @@ test("POSTs every file under the repeated `file` field with the CSRF header", as
 });
 
 test("throws on a non-OK response", async () => {
-  vi.stubGlobal("fetch", () =>
-    Promise.resolve(new Response(null, { status: 415, statusText: "Unsupported Media Type" })),
-  );
+  vi.stubGlobal("fetch", () => Promise.resolve(new Response(null, { status: 415, statusText: "Unsupported Media Type" })));
   const file = new File(["bytes"], "bad.txt", { type: "text/plain" });
   await expect(importCharacters([file])).rejects.toThrow("415");
 });

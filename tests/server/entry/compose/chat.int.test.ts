@@ -76,12 +76,7 @@ interface SeededEditTarget {
 describe("D53 ReDoS watchdog — composed at the editMessage seam (real createServices)", () => {
   /** Seed the host + their `UserSettings.regex.scripts` (through the REAL settings verb — not blob-poking) +
    *  a solo room with one host-authored USER slot. Returns the ids the edit call needs. */
-  async function seedEditTarget(
-    db: Db,
-    services: Services,
-    scripts: readonly RegexScript[],
-    content: string,
-  ): Promise<SeededEditTarget> {
+  async function seedEditTarget(db: Db, services: Services, scripts: readonly RegexScript[], content: string): Promise<SeededEditTarget> {
     const host = await seedUser(db, "host");
     const principal = hostPrincipal(host);
 
@@ -105,16 +100,8 @@ describe("D53 ReDoS watchdog — composed at the editMessage seam (real createSe
 
   // The vitest default 5s timeout is the HARD tripwire: an unwired watchdog hangs the catastrophic backtrack
   // over REDOS_INPUT for minutes → the run dies red (see the file header for the standalone timing evidence).
-  test("the ReDoS pattern is interrupted by the composed watchdog: content UNCHANGED", async ({
-    db,
-    services,
-  }) => {
-    const { chatId, messageId, principal } = await seedEditTarget(
-      db,
-      services,
-      [REDOS_SCRIPT()],
-      "orig",
-    );
+  test("the ReDoS pattern is interrupted by the composed watchdog: content UNCHANGED", async ({ db, services }) => {
+    const { chatId, messageId, principal } = await seedEditTarget(db, services, [REDOS_SCRIPT()], "orig");
 
     const view = await services.chat.editMessage({
       principal,
@@ -129,16 +116,8 @@ describe("D53 ReDoS watchdog — composed at the editMessage seam (real createSe
     expect(view.content).not.toContain("SHOULD_NOT_APPLY");
   });
 
-  test("REVERSE pin: a benign runOnEdit USER_INPUT script DOES apply through the same composed path (seam is live)", async ({
-    db,
-    services,
-  }) => {
-    const { chatId, messageId, principal } = await seedEditTarget(
-      db,
-      services,
-      [BENIGN_SCRIPT()],
-      "orig",
-    );
+  test("REVERSE pin: a benign runOnEdit USER_INPUT script DOES apply through the same composed path (seam is live)", async ({ db, services }) => {
+    const { chatId, messageId, principal } = await seedEditTarget(db, services, [BENIGN_SCRIPT()], "orig");
 
     const view = await services.chat.editMessage({
       principal,

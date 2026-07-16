@@ -3,11 +3,7 @@
 // owner-only; openrouter/custom_openai decrypt the user's active row; a missing/revoked BYO credential is
 // DomainNoCredentialError with no silent host-fallback (would spend the owner's quota).
 
-import type {
-  CustomOpenAiCredential,
-  OpenRouterCredential,
-  ResolvedCredential,
-} from "@orb/contracts/credentials";
+import type { CustomOpenAiCredential, OpenRouterCredential, ResolvedCredential } from "@orb/contracts/credentials";
 import { DomainNoCredentialError, DomainOperationError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import type { CredentialContext } from "../context";
@@ -17,13 +13,7 @@ import type { CredentialsService } from "../contract/service";
 import { aadFor } from "../persistence/aad";
 import { loadActiveCredential } from "../persistence/queries";
 import { decryptSealed } from "../substrate/decrypt";
-import {
-  mintCustomOpenAi,
-  mintLocalLight,
-  mintMaxProSub,
-  mintOpenRouter,
-  mintVllm,
-} from "../substrate/mint";
+import { mintCustomOpenAi, mintLocalLight, mintMaxProSub, mintOpenRouter, mintVllm } from "../substrate/mint";
 import { parseCustomOpenAiEndpoint } from "../substrate/parse-metadata";
 
 function assertNever(value: never): never {
@@ -31,13 +21,8 @@ function assertNever(value: never): never {
 }
 
 /** The user's active OpenRouter key, or the typed no-credential floor (active-but-revoked falls through). */
-async function resolveOpenRouter(
-  ctx: CredentialContext,
-  ownerId: UserId,
-): Promise<OpenRouterCredential> {
-  const active = ctx.box.enabled
-    ? await loadActiveCredential(ctx.db, ownerId, "openrouter")
-    : undefined;
+async function resolveOpenRouter(ctx: CredentialContext, ownerId: UserId): Promise<OpenRouterCredential> {
+  const active = ctx.box.enabled ? await loadActiveCredential(ctx.db, ownerId, "openrouter") : undefined;
   if (active === undefined || active.revokedAt !== null) {
     throw new DomainNoCredentialError("openrouter");
   }
@@ -49,22 +34,14 @@ async function resolveOpenRouter(
 }
 
 /** The user's active custom_openai endpoint (the active row IS the endpoint selection). */
-async function resolveCustomOpenAi(
-  ctx: CredentialContext,
-  ownerId: UserId,
-): Promise<CustomOpenAiCredential> {
-  const active = ctx.box.enabled
-    ? await loadActiveCredential(ctx.db, ownerId, "custom_openai")
-    : undefined;
+async function resolveCustomOpenAi(ctx: CredentialContext, ownerId: UserId): Promise<CustomOpenAiCredential> {
+  const active = ctx.box.enabled ? await loadActiveCredential(ctx.db, ownerId, "custom_openai") : undefined;
   if (active === undefined || active.revokedAt !== null) {
     throw new DomainNoCredentialError("custom_openai");
   }
   const endpoint = parseCustomOpenAiEndpoint(active.metadata);
   if (endpoint === null) {
-    throw new DomainOperationError(
-      CREDENTIALS_OP_CODES.metadataInvalid,
-      "custom_openai credential is missing its baseUrl metadata.",
-    );
+    throw new DomainOperationError(CREDENTIALS_OP_CODES.metadataInvalid, "custom_openai credential is missing its baseUrl metadata.");
   }
   // apiKey may be empty (a no-auth local server) → null. A decrypt failure is also "no key" (null).
   const plaintext = decryptSealed(ctx.box, active, aadFor(ownerId, "custom_openai"));

@@ -9,15 +9,7 @@ import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
-import {
-  makeSearch,
-  seedAsset,
-  seedCharacter,
-  seedCharacterEmbedding,
-  seedCharacterSummary,
-  seedUser,
-  vec,
-} from "../_support.ts";
+import { makeSearch, seedAsset, seedCharacter, seedCharacterEmbedding, seedCharacterSummary, seedUser, vec } from "../_support.ts";
 
 describe("similarCharacters", () => {
   test("returns the nearest neighbours of the seed, excluding the seed itself", async () => {

@@ -44,9 +44,7 @@ describe("create", () => {
     });
 
     // Exactly one user-bus emit — `personasChanged`, keyed to the acting owner, carrying the new id.
-    expect(h.userEvents).toEqual([
-      { userId: owner, event: { type: "personasChanged", personaId: detail.id } },
-    ]);
+    expect(h.userEvents).toEqual([{ userId: owner, event: { type: "personasChanged", personaId: detail.id } }]);
   });
 
   test("stores typed metadata (placement) and a null avatar joins to a null hash", async () => {

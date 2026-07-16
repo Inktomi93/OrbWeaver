@@ -23,7 +23,4 @@ export interface PresetImportOutcome {
 export type ExportPresets = (args: { readonly ownerId: UserId }) => Promise<PresetExportFile[]>;
 
 /** Idempotent on (ownerId, name): merges an existing same-named preset in place, else creates fresh. */
-export type ImportPreset = (args: {
-  readonly ownerId: UserId;
-  readonly bytes: Uint8Array;
-}) => Promise<PresetImportOutcome>;
+export type ImportPreset = (args: { readonly ownerId: UserId; readonly bytes: Uint8Array }) => Promise<PresetImportOutcome>;

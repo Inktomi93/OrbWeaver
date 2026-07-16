@@ -7,10 +7,7 @@ import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { WorldInfoNotFoundError } from "../../../../../packages/server/src/domain/world-info/contract/errors.ts";
-import {
-  ensureCharacterOwned,
-  ensurePersonaOwned,
-} from "../../../../../packages/server/src/domain/world-info/persistence/ownership.ts";
+import { ensureCharacterOwned, ensurePersonaOwned } from "../../../../../packages/server/src/domain/world-info/persistence/ownership.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
 import { seedCharacter, seedPersona, seedUser } from "../_support.ts";
@@ -24,12 +21,8 @@ describe("ensureCharacterOwned", () => {
     const theirs = await seedCharacter(db, { ownerId: other, id: "character_theirs" });
 
     await expect(ensureCharacterOwned(db, owner, mine)).resolves.toBeUndefined();
-    await expect(ensureCharacterOwned(db, owner, theirs)).rejects.toBeInstanceOf(
-      WorldInfoNotFoundError,
-    );
-    await expect(
-      ensureCharacterOwned(db, owner, castId<CharacterId>("character_ghost")),
-    ).rejects.toBeInstanceOf(WorldInfoNotFoundError);
+    await expect(ensureCharacterOwned(db, owner, theirs)).rejects.toBeInstanceOf(WorldInfoNotFoundError);
+    await expect(ensureCharacterOwned(db, owner, castId<CharacterId>("character_ghost"))).rejects.toBeInstanceOf(WorldInfoNotFoundError);
   });
 });
 
@@ -42,11 +35,7 @@ describe("ensurePersonaOwned", () => {
     const theirs = await seedPersona(db, { ownerId: other, id: "persona_theirs" });
 
     await expect(ensurePersonaOwned(db, owner, mine)).resolves.toBeUndefined();
-    await expect(ensurePersonaOwned(db, owner, theirs)).rejects.toBeInstanceOf(
-      WorldInfoNotFoundError,
-    );
-    await expect(
-      ensurePersonaOwned(db, owner, castId<PersonaId>("persona_ghost")),
-    ).rejects.toBeInstanceOf(WorldInfoNotFoundError);
+    await expect(ensurePersonaOwned(db, owner, theirs)).rejects.toBeInstanceOf(WorldInfoNotFoundError);
+    await expect(ensurePersonaOwned(db, owner, castId<PersonaId>("persona_ghost"))).rejects.toBeInstanceOf(WorldInfoNotFoundError);
   });
 });

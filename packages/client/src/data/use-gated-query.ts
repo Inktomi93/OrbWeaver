@@ -4,12 +4,7 @@
 // gates upstream. `TKey`/`TError` thread the caller's real tRPC-proxy types through (its key is a
 // branded DataTag tuple and its error doesn't structurally satisfy `Error`), so a fixed
 // `readonly unknown[]`/`Error` would reject the real proxy output.
-import type {
-  DefaultError,
-  QueryKey,
-  UseQueryOptions,
-  UseQueryResult,
-} from "@tanstack/react-query";
+import type { DefaultError, QueryKey, UseQueryOptions, UseQueryResult } from "@tanstack/react-query";
 import { skipToken, useQuery } from "@tanstack/react-query";
 
 type GatedOptions<TData, TError, TKey extends QueryKey> = Pick<
@@ -30,8 +25,6 @@ export function useGatedQuery<TId, TData, TError = DefaultError, TKey extends Qu
   optionsFor: (id: TId) => GatedOptions<TData, TError, TKey>,
 ): UseQueryResult<TData, TError> {
   return useQuery<TData, TError, TData, TKey>(
-    id === null || id === undefined
-      ? { queryKey: GATED_OFF_KEY as unknown as TKey, queryFn: skipToken }
-      : optionsFor(id),
+    id === null || id === undefined ? { queryKey: GATED_OFF_KEY as unknown as TKey, queryFn: skipToken } : optionsFor(id),
   );
 }

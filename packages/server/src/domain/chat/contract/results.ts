@@ -45,16 +45,7 @@ export interface TurnSpeakerShape {
   readonly speakerRef: SpeakerRef;
 }
 
-const TURN_KINDS = [
-  "send",
-  "swipe",
-  "continue",
-  "generate",
-  "impersonate",
-  "opening",
-  "auto",
-  "force",
-] as const;
+const TURN_KINDS = ["send", "swipe", "continue", "generate", "impersonate", "opening", "auto", "force"] as const;
 export type TurnKind = (typeof TURN_KINDS)[number];
 
 /**

@@ -21,9 +21,7 @@ function rerankQueryText(query: RerankQuery): string {
 }
 
 /** Bind the rerank role to a model cache (the real transformers.js cache, or a test fake). */
-export function createLocalLightRerank(
-  cache: LocalLightModelCache,
-): (req: RerankRequest) => Promise<RerankResult> {
+export function createLocalLightRerank(cache: LocalLightModelCache): (req: RerankRequest) => Promise<RerankResult> {
   return async (req) => {
     throwIfAborted(req.signal);
     const modelId = resolveModelId(req.model, DEFAULT_RERANK_MODEL);
@@ -38,10 +36,7 @@ export function createLocalLightRerank(
     }
     // Instruction-aware rerankers (Qwen3-Reranker) consume a literal `<Instruct>`-style prefix on the
     // query; the default MS MARCO cross-encoder treats this as identity when no instruction is given.
-    const query =
-      req.instruction !== undefined && req.instruction.length > 0
-        ? `${req.instruction} ${baseQuery}`
-        : baseQuery;
+    const query = req.instruction !== undefined && req.instruction.length > 0 ? `${req.instruction} ${baseQuery}` : baseQuery;
 
     // Empty-text documents can't be scored by a text cross-encoder — filter before scoring (contract).
     const kept = req.documents.filter((doc) => (doc.text ?? "").trim().length > 0);
@@ -56,9 +51,7 @@ export function createLocalLightRerank(
     );
     throwIfAborted(req.signal);
 
-    const hits = kept
-      .map((doc, i) => ({ id: doc.id, score: scores[i] ?? 0 }))
-      .sort((a, b) => b.score - a.score);
+    const hits = kept.map((doc, i) => ({ id: doc.id, score: scores[i] ?? 0 })).sort((a, b) => b.score - a.score);
     // `topN` undefined → all scored docs; otherwise the top-N (clamped non-negative for slice safety).
     const limited = req.topN === undefined ? hits : hits.slice(0, Math.max(0, req.topN));
 

@@ -149,15 +149,7 @@ export const CADENCE_INTERVAL_MS = {
 /** The row's lifecycle state. `queued → running → {succeeded | failed | cancelled | worker_died}`, with
  *  `cancelling` the in-flight "stop requested" state before `cancelled`. `worker_died` is the reaper's
  *  terminal for an orphaned in-flight row. */
-export const WORKLOAD_STATUSES = [
-  "queued",
-  "running",
-  "succeeded",
-  "failed",
-  "cancelling",
-  "cancelled",
-  "worker_died",
-] as const;
+export const WORKLOAD_STATUSES = ["queued", "running", "succeeded", "failed", "cancelling", "cancelled", "worker_died"] as const;
 
 export type WorkloadStatus = (typeof WORKLOAD_STATUSES)[number];
 
@@ -166,8 +158,4 @@ export const workloadStatusSchema = z.enum(WORKLOAD_STATUSES);
 /** The statuses that hold a kind's single-active slot — the db `workloads_kind_active` partial unique
  *  index derives its predicate list from this tuple. `cancelling` MUST stay in the set — dropping it
  *  wedges the kind forever after a mid-cancel crash. */
-export const ACTIVE_WORKLOAD_STATUSES = [
-  "queued",
-  "running",
-  "cancelling",
-] as const satisfies readonly WorkloadStatus[];
+export const ACTIVE_WORKLOAD_STATUSES = ["queued", "running", "cancelling"] as const satisfies readonly WorkloadStatus[];

@@ -11,19 +11,13 @@ import { listGalleryItemsForExport } from "../persistence/queries";
 
 const GALLERY_FILENAME = "gallery.json";
 
-export function createExportGallery(
-  ctx: AssetsContext,
-): (ownerId: UserId) => Promise<GalleryPortableFile> {
+export function createExportGallery(ctx: AssetsContext): (ownerId: UserId) => Promise<GalleryPortableFile> {
   return async (ownerId: UserId): Promise<GalleryPortableFile> => {
     const rows = await listGalleryItemsForExport(ctx.db, ownerId);
 
     // Resolve id → handle once per distinct subject character (bounded parallelism, no await-in-loop).
     const resolve = ctx.resolveCharacterHandle;
-    const distinctIds = [
-      ...new Set(
-        rows.flatMap((r) => (r.subjectCharacterId !== null ? [r.subjectCharacterId] : [])),
-      ),
-    ];
+    const distinctIds = [...new Set(rows.flatMap((r) => (r.subjectCharacterId !== null ? [r.subjectCharacterId] : [])))];
     const handleById = new Map<CharacterId, string | null>();
     if (resolve !== undefined) {
       const resolved = await Promise.all(distinctIds.map((id) => resolve(id)));
@@ -34,8 +28,7 @@ export function createExportGallery(
 
     const items: CanonicalGalleryItem[] = rows.map((r) => ({
       assetId: r.assetId,
-      subjectCharacterHandle:
-        r.subjectCharacterId !== null ? (handleById.get(r.subjectCharacterId) ?? null) : null,
+      subjectCharacterHandle: r.subjectCharacterId !== null ? (handleById.get(r.subjectCharacterId) ?? null) : null,
       createdAt: r.createdAt,
     }));
     return { filename: GALLERY_FILENAME, bytes: buildGallery({ items }) };

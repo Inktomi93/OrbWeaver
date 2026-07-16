@@ -11,12 +11,7 @@ import type { ReactElement } from "react";
 
 function NotFound(): ReactElement {
   return (
-    <Stack
-      align="center"
-      justify="center"
-      gap="block"
-      className="min-h-dvh bg-background text-foreground"
-    >
+    <Stack align="center" justify="center" gap="block" className="min-h-dvh bg-background text-foreground">
       <Heading level={1}>not found</Heading>
       <Text size="label" tone="muted">
         that route doesn’t exist.

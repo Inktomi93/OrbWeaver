@@ -50,8 +50,7 @@ function PresetUsageBody({ presetId }: PresetUsageContextProps): ReactElement {
       </Section>
       <Section heading="Where it's used">
         <Text size="micro" tone="muted">
-          Chats choose a preset when you start or configure them. Per-chat bindings appear here once
-          the chat configuration surface lands.
+          Chats choose a preset when you start or configure them. Per-chat bindings appear here once the chat configuration surface lands.
         </Text>
       </Section>
     </Stack>

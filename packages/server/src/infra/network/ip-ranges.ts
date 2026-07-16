@@ -67,10 +67,7 @@ function splitEmbeddedV4(ip: string): V6Split | null {
     return null;
   }
   let head = ip.slice(0, lastColon + 1);
-  const tailGroups = [
-    ((v4 >> HEXTET_SHIFT) & HEXTET_MASK).toString(HEX_RADIX),
-    (v4 & HEXTET_MASK).toString(HEX_RADIX),
-  ];
+  const tailGroups = [((v4 >> HEXTET_SHIFT) & HEXTET_MASK).toString(HEX_RADIX), (v4 & HEXTET_MASK).toString(HEX_RADIX)];
   // head now ends with ':' — drop it so the split below is clean, unless head is just "::".
   if (head.endsWith(":") && !head.endsWith("::")) {
     head = head.slice(0, -1);
@@ -104,16 +101,11 @@ function parseIpv6(ip: string): bigint | null {
   if (doubleColon.length > DOUBLE_COLON_SPLIT_PARTS) {
     return null;
   }
-  const left = doubleColon[0] ? doubleColon[0].split(":") : [];
+  const left = doubleColon[0] !== undefined && doubleColon[0] !== "" ? doubleColon[0].split(":") : [];
   const compressed = doubleColon.length === DOUBLE_COLON_SPLIT_PARTS;
-  const right = compressed && doubleColon[1] ? doubleColon[1].split(":") : [];
+  const right = compressed && doubleColon[1] !== undefined && doubleColon[1] !== "" ? doubleColon[1].split(":") : [];
   const groups = compressed
-    ? [
-        ...left,
-        ...new Array(V6_GROUPS - left.length - right.length - tailGroups.length).fill("0"),
-        ...right,
-        ...tailGroups,
-      ]
+    ? [...left, ...new Array(V6_GROUPS - left.length - right.length - tailGroups.length).fill("0"), ...right, ...tailGroups]
     : [...left, ...tailGroups];
   if (groups.length !== V6_GROUPS) {
     return null;

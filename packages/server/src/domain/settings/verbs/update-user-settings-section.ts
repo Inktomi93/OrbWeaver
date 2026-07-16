@@ -10,19 +10,14 @@ import type { SettingsContext, SettingsService } from "../contract/service";
 import { readUserSettings, writeUserConfig } from "../persistence/queries";
 import { deepMergePlain } from "../substrate/merge";
 
-export function createUpdateUserSettingsSection(
-  ctx: SettingsContext,
-): SettingsService["updateUserSettingsSection"] {
+export function createUpdateUserSettingsSection(ctx: SettingsContext): SettingsService["updateUserSettingsSection"] {
   return (params) => {
     const ownerId = params.principal.userId;
     const { section, patch } = params.input;
     return ctx.serializeUserWrite(ownerId, async () => {
       const current = (await readUserSettings(ctx.db, ownerId)).config;
       const existing = current[section];
-      const mergedSection = deepMergePlain(
-        isPlainObject(existing) ? existing : {},
-        patch,
-      ) as UserSettings[typeof section];
+      const mergedSection = deepMergePlain(isPlainObject(existing) ? existing : {}, patch) as UserSettings[typeof section];
       const at = ctx.now();
       await writeUserConfig(ctx.db, ownerId, { ...current, [section]: mergedSection }, at);
       await ctx.audit(

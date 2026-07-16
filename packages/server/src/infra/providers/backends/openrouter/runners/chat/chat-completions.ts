@@ -49,16 +49,9 @@ const REASONING_OFF = "none";
  * lookback window, unlike a single breakpoint). Returns the array unchanged when no offset clears the
  * floor or its target content isn't a plain string.
  */
-export function placeHistoryCacheBreakpoint(
-  messages: ChatMessages[],
-  systemStatic: string,
-  offsetFromEnd: number,
-  cacheMinTokens: number,
-): ChatMessages[] {
+export function placeHistoryCacheBreakpoint(messages: ChatMessages[], systemStatic: string, offsetFromEnd: number, cacheMinTokens: number): ChatMessages[] {
   const offsets = computeCacheBreakpointOffsets({
-    messageTokens: messages.map((m) =>
-      typeof m.content === "string" ? estimateTokens(m.content) : 0,
-    ),
+    messageTokens: messages.map((m) => (typeof m.content === "string" ? estimateTokens(m.content) : 0)),
     systemStaticTokens: estimateTokens(systemStatic),
     offsetFromEnd,
     cacheMinTokens,
@@ -100,9 +93,7 @@ function historyCacheOffsets(req: OpenRouterChatRequest): readonly number[] {
   }
   const messages = buildHistoryMessages(req.history);
   return computeCacheBreakpointOffsets({
-    messageTokens: messages.map((m) =>
-      typeof m.content === "string" ? estimateTokens(m.content) : 0,
-    ),
+    messageTokens: messages.map((m) => (typeof m.content === "string" ? estimateTokens(m.content) : 0)),
     systemStaticTokens: estimateTokens(req.systemPrompt.static),
     offsetFromEnd,
     cacheMinTokens: historyCacheMinTokens(req),
@@ -141,21 +132,12 @@ function emitCapabilityReceipt(req: OpenRouterChatRequest, resolved: ResolvedCha
 }
 
 // `customParameters` are overlaid UNDER the runner-owned fields — owned wins (preset-hijack firewall).
-function buildChatBody(
-  req: OpenRouterChatRequest,
-  resolved: ResolvedChatKnobs,
-  includeReasoning: boolean,
-): ChatRequest {
+function buildChatBody(req: OpenRouterChatRequest, resolved: ResolvedChatKnobs, includeReasoning: boolean): ChatRequest {
   const systemMessage = buildSystemMessage(req.systemPrompt, isAnthropicModel(req.model));
   const cacheOffset = historyCacheGateOffset(req);
   const history =
     cacheOffset !== undefined
-      ? placeHistoryCacheBreakpoint(
-          buildHistoryMessages(req.history),
-          req.systemPrompt.static,
-          cacheOffset,
-          historyCacheMinTokens(req),
-        )
+      ? placeHistoryCacheBreakpoint(buildHistoryMessages(req.history), req.systemPrompt.static, cacheOffset, historyCacheMinTokens(req))
       : buildHistoryMessages(req.history);
   const messages: ChatMessages[] = systemMessage !== null ? [systemMessage, ...history] : history;
   const provider = resolveProviderPreferences(req.model, req.providerRouting);
@@ -164,15 +146,11 @@ function buildChatBody(
     messages,
     stream: true,
     ...chatSamplingFields(resolved.sampling, resolved.maxOutputTokens),
-    ...(includeReasoning
-      ? { reasoning: effortToOpenAIReasoning(buildReasoningRequest(resolved.reasoning)) }
-      : {}),
+    ...(includeReasoning ? { reasoning: effortToOpenAIReasoning(buildReasoningRequest(resolved.reasoning)) } : {}),
     ...(provider !== undefined ? { provider } : {}),
     ...(req.tools !== undefined ? { tools: buildWireTools(req.tools) } : {}),
     ...(req.toolChoice !== undefined ? { toolChoice: buildToolChoice(req.toolChoice) } : {}),
-    ...(req.responseFormat !== undefined
-      ? { responseFormat: buildChatResponseFormat(req.responseFormat) }
-      : {}),
+    ...(req.responseFormat !== undefined ? { responseFormat: buildChatResponseFormat(req.responseFormat) } : {}),
     plugins: withContextCompressionPlugin(req.params),
   };
   return mergeCustomParameters(owned, req.customParameters);
@@ -222,10 +200,7 @@ async function streamOnce(args: {
 
 interface OpenRouterChatClient {
   readonly chat: {
-    readonly send: (
-      request: { readonly chatRequest: ChatRequest },
-      options?: { readonly signal?: AbortSignal },
-    ) => Promise<unknown>;
+    readonly send: (request: { readonly chatRequest: ChatRequest }, options?: { readonly signal?: AbortSignal }) => Promise<unknown>;
   };
 }
 
@@ -237,20 +212,14 @@ function isChunkStream(value: unknown): value is AsyncIterable<ChatStreamChunk> 
   return typeof value === "object" && value !== null && Symbol.asyncIterator in value;
 }
 
-async function* reshapeStream(
-  source: AsyncIterable<ChatStreamChunk>,
-): AsyncGenerator<ReturnType<typeof reshapeChatStreamChunk>> {
+async function* reshapeStream(source: AsyncIterable<ChatStreamChunk>): AsyncGenerator<ReturnType<typeof reshapeChatStreamChunk>> {
   for await (const chunk of source) {
     yield reshapeChatStreamChunk(chunk);
   }
 }
 
 /** Runs one chat-completions turn, incl. the mandatory-reasoning strip-and-replay-once fallback. */
-export async function runChatCompletionTurn(
-  client: OpenRouterChatClient,
-  req: OpenRouterChatRequest,
-  deps: OpenRouterChatDeps,
-): Promise<ChatResult> {
+export async function runChatCompletionTurn(client: OpenRouterChatClient, req: OpenRouterChatRequest, deps: OpenRouterChatDeps): Promise<ChatResult> {
   const startedAt = deps.now();
   const retryOpts = {
     ...(req.signal !== undefined ? { signal: req.signal } : {}),
@@ -259,9 +228,7 @@ export async function runChatCompletionTurn(
   };
   const resolved = resolveChat(req.params, req.capability);
   const reasoning = effortToOpenAIReasoning(buildReasoningRequest(resolved.reasoning));
-  const run = (
-    includeReasoning: boolean,
-  ): Promise<{ view: ChatCompletionResult; reasoning: string }> =>
+  const run = (includeReasoning: boolean): Promise<{ view: ChatCompletionResult; reasoning: string }> =>
     runWithPreCommitRetry(
       (markCommitted) =>
         streamOnce({
@@ -270,8 +237,7 @@ export async function runChatCompletionTurn(
           req,
           markCommitted,
         }),
-      (err): ProviderError =>
-        err instanceof ProviderError ? err : providerErrorFromHttp(err, errorPrefix(req.model)),
+      (err): ProviderError => (err instanceof ProviderError ? err : providerErrorFromHttp(err, errorPrefix(req.model))),
       retryOpts,
     );
 

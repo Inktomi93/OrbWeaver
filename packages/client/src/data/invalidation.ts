@@ -31,10 +31,7 @@ export interface Invalidation {
 }
 
 type BusFilterMap = {
-  readonly [K in ChatBusEvent["type"]]: (
-    event: Extract<ChatBusEvent, { type: K }>,
-    trpc: Trpc,
-  ) => readonly InvalidateFilter[];
+  readonly [K in ChatBusEvent["type"]]: (event: Extract<ChatBusEvent, { type: K }>, trpc: Trpc) => readonly InvalidateFilter[];
 };
 
 const nothing = (): readonly InvalidateFilter[] => [];
@@ -42,11 +39,7 @@ const nothing = (): readonly InvalidateFilter[] => [];
 // The open chat's detail reads (no chat list) — the room read, message list, and the swipe strip's
 // step-target resolver.
 function chatDetailReads(trpc: Trpc, chatId: ChatBusEvent["chatId"]): readonly InvalidateFilter[] {
-  return [
-    trpc.chat.getChat.queryFilter({ chatId }),
-    trpc.chat.listMessages.pathFilter(),
-    trpc.chat.listMessageVariants.pathFilter(),
-  ];
+  return [trpc.chat.getChat.queryFilter({ chatId }), trpc.chat.listMessages.pathFilter(), trpc.chat.listMessageVariants.pathFilter()];
 }
 
 // Detail reads plus the chat list, for non-terminal canon events the server fires no chatsChanged for.
@@ -77,26 +70,11 @@ const BUS_FILTERS: BusFilterMap = {
 
   personaSwitched: (e, trpc) => [trpc.chat.getChat.queryFilter({ chatId: e.chatId })],
 
-  wiBookAttached: (e, trpc) => [
-    trpc.worldInfo.pathFilter(),
-    trpc.chat.getChat.queryFilter({ chatId: e.chatId }),
-  ],
-  wiBookDetached: (e, trpc) => [
-    trpc.worldInfo.pathFilter(),
-    trpc.chat.getChat.queryFilter({ chatId: e.chatId }),
-  ],
-  wiEntryAttached: (e, trpc) => [
-    trpc.worldInfo.pathFilter(),
-    trpc.chat.getChat.queryFilter({ chatId: e.chatId }),
-  ],
-  wiEntryDetached: (e, trpc) => [
-    trpc.worldInfo.pathFilter(),
-    trpc.chat.getChat.queryFilter({ chatId: e.chatId }),
-  ],
-  wiEntryScopeChanged: (e, trpc) => [
-    trpc.worldInfo.pathFilter(),
-    trpc.chat.getChat.queryFilter({ chatId: e.chatId }),
-  ],
+  wiBookAttached: (e, trpc) => [trpc.worldInfo.pathFilter(), trpc.chat.getChat.queryFilter({ chatId: e.chatId })],
+  wiBookDetached: (e, trpc) => [trpc.worldInfo.pathFilter(), trpc.chat.getChat.queryFilter({ chatId: e.chatId })],
+  wiEntryAttached: (e, trpc) => [trpc.worldInfo.pathFilter(), trpc.chat.getChat.queryFilter({ chatId: e.chatId })],
+  wiEntryDetached: (e, trpc) => [trpc.worldInfo.pathFilter(), trpc.chat.getChat.queryFilter({ chatId: e.chatId })],
+  wiEntryScopeChanged: (e, trpc) => [trpc.worldInfo.pathFilter(), trpc.chat.getChat.queryFilter({ chatId: e.chatId })],
 
   chatCreated: (_e, trpc) => [trpc.chat.listChats.pathFilter()],
   chatDeleted: (e, trpc) => chatReads(trpc, e.chatId),
@@ -111,10 +89,7 @@ const BUS_FILTERS: BusFilterMap = {
 // domain read; this is the freshness driver for every surface the chat bus doesn't reach. Coarse by
 // design — each member path-invalidates its whole domain root.
 type UserBusFilterMap = {
-  readonly [K in UserBusEvent["type"]]: (
-    event: Extract<UserBusEvent, { type: K }>,
-    trpc: Trpc,
-  ) => readonly InvalidateFilter[];
+  readonly [K in UserBusEvent["type"]]: (event: Extract<UserBusEvent, { type: K }>, trpc: Trpc) => readonly InvalidateFilter[];
 };
 
 const USER_BUS_FILTERS: UserBusFilterMap = {
@@ -124,10 +99,7 @@ const USER_BUS_FILTERS: UserBusFilterMap = {
   worldInfoChanged: (_e, trpc) => [trpc.worldInfo.pathFilter()],
   tagsChanged: (_e, trpc) => [trpc.tag.pathFilter()],
   // Themes live under the settings router but are a distinct read surface.
-  themesChanged: (_e, trpc) => [
-    trpc.settings.listThemes.pathFilter(),
-    trpc.settings.getTheme.pathFilter(),
-  ],
+  themesChanged: (_e, trpc) => [trpc.settings.listThemes.pathFilter(), trpc.settings.getTheme.pathFilter()],
   // User settings only — not the app/global settings.
   settingsChanged: (_e, trpc) => [trpc.settings.getUserSettings.pathFilter()],
   credentialsChanged: (_e, trpc) => [trpc.credentials.pathFilter()],
@@ -137,11 +109,7 @@ const USER_BUS_FILTERS: UserBusFilterMap = {
   chatsChanged: (e, trpc) =>
     e.chatId === undefined
       ? [trpc.chat.listChats.pathFilter(), trpc.character.list.pathFilter()]
-      : [
-          trpc.chat.listChats.pathFilter(),
-          trpc.chat.getChat.queryFilter({ chatId: e.chatId }),
-          trpc.character.list.pathFilter(),
-        ],
+      : [trpc.chat.listChats.pathFilter(), trpc.chat.getChat.queryFilter({ chatId: e.chatId }), trpc.character.list.pathFilter()],
   // Deferred member — never emitted today; the map entry is ready for when it lands.
   connectionsChanged: (_e, trpc) => [trpc.connection.pathFilter()],
 };
@@ -149,18 +117,12 @@ const USER_BUS_FILTERS: UserBusFilterMap = {
 /** Every filter the user map covers — derived so a new member can't drift the gap-heal set. */
 function allUserRootFilters(trpc: Trpc): readonly InvalidateFilter[] {
   return (Object.keys(USER_BUS_EVENT_TYPES) as UserBusEvent["type"][]).flatMap((type) => {
-    const handler = USER_BUS_FILTERS[type] as (
-      e: UserBusEvent,
-      t: Trpc,
-    ) => readonly InvalidateFilter[];
+    const handler = USER_BUS_FILTERS[type] as (e: UserBusEvent, t: Trpc) => readonly InvalidateFilter[];
     return handler({ type } as UserBusEvent, trpc);
   });
 }
 
-export function createInvalidation(deps: {
-  readonly queryClient: QueryClient;
-  readonly trpc: Trpc;
-}): Invalidation {
+export function createInvalidation(deps: { readonly queryClient: QueryClient; readonly trpc: Trpc }): Invalidation {
   const invalidateFilters = (filters: readonly InvalidateFilter[]): void => {
     for (const filter of filters) {
       if (IS_DEV) {
@@ -172,10 +134,7 @@ export function createInvalidation(deps: {
   };
   return {
     invalidate: (event): void => {
-      const handler = BUS_FILTERS[event.type] as (
-        e: ChatBusEvent,
-        t: Trpc,
-      ) => readonly InvalidateFilter[];
+      const handler = BUS_FILTERS[event.type] as (e: ChatBusEvent, t: Trpc) => readonly InvalidateFilter[];
       const filters = handler(event, deps.trpc);
       if (IS_DEV) {
         busInvalidate(event.type, event.chatId, filters.map(filterKeyName));
@@ -183,10 +142,7 @@ export function createInvalidation(deps: {
       invalidateFilters(filters);
     },
     invalidateUser: (event): void => {
-      const handler = USER_BUS_FILTERS[event.type] as (
-        e: UserBusEvent,
-        t: Trpc,
-      ) => readonly InvalidateFilter[];
+      const handler = USER_BUS_FILTERS[event.type] as (e: UserBusEvent, t: Trpc) => readonly InvalidateFilter[];
       const filters = handler(event, deps.trpc);
       if (IS_DEV) {
         busInvalidate(event.type, "user", filters.map(filterKeyName));

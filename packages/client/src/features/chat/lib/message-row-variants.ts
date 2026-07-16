@@ -52,9 +52,7 @@ export interface BubbleDecoration {
   readonly style?: CSSProperties;
   /** Whisper's header-art band, rendered as a real block-level child above the bubble text (never a
    *  background layer, which would let text sit on bright art). `initial` set only on the no-image fallback. */
-  readonly headerBand?:
-    | { readonly style: CSSProperties; readonly initial?: string | undefined }
-    | undefined;
+  readonly headerBand?: { readonly style: CSSProperties; readonly initial?: string | undefined } | undefined;
   /** Echo's no-avatar fallback edge tile, painting the entity's hue field at the same geometry the
    *  portrait would use. Absent for the with-image Echo path and every other mode. */
   readonly edgeTile?: { readonly style: CSSProperties; readonly initial: string } | undefined;
@@ -81,11 +79,7 @@ function flatOuter(): string {
   return "w-full items-stretch";
 }
 function flatInner(role: MessageRole): string {
-  return cx(
-    "w-full px-section py-row",
-    BG_PHOTO_READING_SCRIM,
-    role === "system" && "text-muted-foreground",
-  );
+  return cx("w-full px-section py-row", BG_PHOTO_READING_SCRIM, role === "system" && "text-muted-foreground");
 }
 const iconLeftTreatment = (): AvatarTreatment => "icon-left";
 
@@ -160,8 +154,7 @@ function whisperDecoration(args: BubbleDecorationArgs): BubbleDecoration {
         style: {
           aspectRatio: "var(--aspect-banner)",
           backgroundColor: avatarFallbackHueVar(args.hueSeed),
-          backgroundImage:
-            "linear-gradient(to bottom, transparent, var(--color-ai-bubble) var(--immersive-whisper-feather))",
+          backgroundImage: "linear-gradient(to bottom, transparent, var(--color-ai-bubble) var(--immersive-whisper-feather))",
         },
       },
     };

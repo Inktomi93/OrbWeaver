@@ -114,10 +114,7 @@ test("Home/End jump roving focus to the first/last item", async ({ mount, page }
   await expect(page.getByRole("button", { name: "Left" })).toBeFocused();
 });
 
-test("disabled disables every item and drops the group from the tab order", async ({
-  mount,
-  page,
-}) => {
+test("disabled disables every item and drops the group from the tab order", async ({ mount, page }) => {
   await mount(
     <div>
       <button type="button">Before</button>

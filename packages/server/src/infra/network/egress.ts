@@ -25,19 +25,11 @@ export function privateEgressRanges(): readonly string[] {
 
 // A literal target skips undici's DNS lookup, so the connector must recognize and gate it directly.
 function literalHost(hostname: string): string | null {
-  const bare =
-    hostname.length > 1 && hostname.startsWith("[") && hostname.endsWith("]")
-      ? hostname.slice(1, -1)
-      : hostname;
+  const bare = hostname.length > 1 && hostname.startsWith("[") && hostname.endsWith("]") ? hostname.slice(1, -1) : hostname;
   return isIP(bare) === 0 ? null : bare;
 }
 
-export function shouldBlockEgress(
-  address: string,
-  hostname: string,
-  allowlist: ReadonlySet<string>,
-  ranges: readonly string[],
-): boolean {
+export function shouldBlockEgress(address: string, hostname: string, allowlist: ReadonlySet<string>, ranges: readonly string[]): boolean {
   if (!isInRanges(address, ranges)) {
     return false;
   }
@@ -56,7 +48,7 @@ export function installEgressFirewall(): void {
       .filter((h) => h.length > 0),
   );
   // Always allow the OIDC issuer host (LAN/private IP) — otherwise enabling the firewall breaks oidc mode.
-  if (env.OIDC_ISSUER) {
+  if (env.OIDC_ISSUER !== undefined) {
     try {
       allowlist.add(new URL(env.OIDC_ISSUER).hostname.toLowerCase());
     } catch {
@@ -72,16 +64,10 @@ export function installEgressFirewall(): void {
           return;
         }
         // node:dns: {all:true} yields LookupAddress[]; the default yields a single address string.
-        const addrs: string[] = Array.isArray(address)
-          ? address.map((a) => String((a as { address?: unknown }).address ?? a))
-          : [String(address)];
+        const addrs: string[] = Array.isArray(address) ? address.map((a) => String((a as { address?: unknown }).address ?? a)) : [String(address)];
         const blocked = addrs.find((a) => shouldBlockEgress(a, hostname, allowlist, ranges));
         if (blocked !== undefined) {
-          securityEvent(
-            "egress_blocked",
-            { hostname, address: blocked },
-            "security: egress SSRF blocked (private address)",
-          );
+          securityEvent("egress_blocked", { hostname, address: blocked }, "security: egress SSRF blocked (private address)");
           callback(new Error(`SSRF_BLOCKED: ${hostname} → ${blocked}`), address as string, family);
           return;
         }
@@ -93,11 +79,7 @@ export function installEgressFirewall(): void {
   const connect: buildConnector.connector = (options, callback): void => {
     const literal = literalHost(options.hostname);
     if (literal !== null && shouldBlockEgress(literal, options.hostname, allowlist, ranges)) {
-      securityEvent(
-        "egress_blocked",
-        { hostname: options.hostname, address: literal },
-        "security: egress SSRF blocked (private literal address)",
-      );
+      securityEvent("egress_blocked", { hostname: options.hostname, address: literal }, "security: egress SSRF blocked (private literal address)");
       callback(new Error(`SSRF_BLOCKED: ${options.hostname} → ${literal}`), null);
       return;
     }
@@ -105,10 +87,7 @@ export function installEgressFirewall(): void {
   };
 
   setGlobalDispatcher(new Agent({ connect }));
-  getLog().info(
-    { allowlist: [...allowlist] },
-    "security: egress firewall installed (private egress blocked)",
-  );
+  getLog().info({ allowlist: [...allowlist] }, "security: egress firewall installed (private egress blocked)");
 }
 
 // Defense-in-depth wrapper for any user-supplied URL fetch: response-size cap, content-type allowlist,
@@ -130,18 +109,10 @@ export interface SafeFetchResult {
   bytes: () => Promise<Uint8Array>;
 }
 
-export async function safeFetch(
-  url: string | URL,
-  options: SafeFetchOptions = {},
-): Promise<SafeFetchResult> {
+export async function safeFetch(url: string | URL, options: SafeFetchOptions = {}): Promise<SafeFetchResult> {
   const maxBytes = options.maxBytes ?? DEFAULT_MAX_BYTES;
   const maxRedirects = options.maxRedirects ?? DEFAULT_MAX_REDIRECTS;
-  const response = await followRedirects(
-    new URL(url),
-    maxRedirects,
-    options.signal,
-    options.headers,
-  );
+  const response = await followRedirects(new URL(url), maxRedirects, options.signal, options.headers);
   const contentType = enforceContentType(response, options.allowedContentTypes);
   let consumed = false;
   return {
@@ -180,9 +151,7 @@ export async function fetchImageBytes(url: string, maxBytes?: number): Promise<U
 const CREDENTIAL_HEADERS: readonly string[] = ["authorization", "cookie", "proxy-authorization"];
 
 function stripCredentialHeaders(headers: Record<string, string>): Record<string, string> {
-  return Object.fromEntries(
-    Object.entries(headers).filter(([k]) => !CREDENTIAL_HEADERS.includes(k.toLowerCase())),
-  );
+  return Object.fromEntries(Object.entries(headers).filter(([k]) => !CREDENTIAL_HEADERS.includes(k.toLowerCase())));
 }
 
 async function followRedirects(
@@ -204,10 +173,9 @@ async function followRedirects(
     }
     // biome-ignore lint/performance/noAwaitInLoops: redirect hops are inherently sequential — each Location depends on the prior response.
     lastResponse = await fetch(current, init);
-    const isRedirect =
-      lastResponse.status >= REDIRECT_STATUS_MIN && lastResponse.status < REDIRECT_STATUS_MAX;
+    const isRedirect = lastResponse.status >= REDIRECT_STATUS_MIN && lastResponse.status < REDIRECT_STATUS_MAX;
     const loc = isRedirect ? lastResponse.headers.get("location") : null;
-    if (!loc || hop === maxRedirects) {
+    if (loc === null || hop === maxRedirects) {
       break;
     }
     void lastResponse.body?.cancel().catch(() => undefined);
@@ -223,21 +191,15 @@ async function followRedirects(
   return lastResponse;
 }
 
-function enforceContentType(
-  response: Response,
-  allowed: readonly string[] | undefined,
-): string | null {
+function enforceContentType(response: Response, allowed: readonly string[] | undefined): string | null {
   const contentType = response.headers.get("content-type")?.split(";")[0]?.trim() ?? null;
-  if (allowed && allowed.length > 0 && !(contentType && allowed.includes(contentType))) {
+  if (allowed !== undefined && allowed.length > 0 && !(contentType !== null && allowed.includes(contentType))) {
     throw new Error(`safeFetch: disallowed content-type ${contentType ?? "(none)"}`);
   }
   return contentType;
 }
 
-async function readCapped(
-  reader: ReadableStreamDefaultReader<Uint8Array>,
-  maxBytes: number,
-): Promise<Uint8Array> {
+async function readCapped(reader: ReadableStreamDefaultReader<Uint8Array>, maxBytes: number): Promise<Uint8Array> {
   const chunks: Uint8Array[] = [];
   let total = 0;
   let chunk = await reader.read();

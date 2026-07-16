@@ -15,18 +15,10 @@ import { AssetNotFoundError } from "../contract/errors";
 import type { GalleryAddParams } from "../contract/params";
 import type { AssetsService } from "../contract/service";
 import type { GalleryItemView } from "../contract/views";
-import {
-  galleryItemViewById,
-  insertGalleryItem,
-  ownedAssetForGallery,
-} from "../persistence/queries";
+import { galleryItemViewById, insertGalleryItem, ownedAssetForGallery } from "../persistence/queries";
 
 export function createAddToGallery(ctx: AssetsContext): AssetsService["addToGallery"] {
-  return async ({
-    principal,
-    assetId,
-    subjectCharacterId,
-  }: GalleryAddParams): Promise<GalleryItemView> => {
+  return async ({ principal, assetId, subjectCharacterId }: GalleryAddParams): Promise<GalleryItemView> => {
     // Leak-free: missing / not-yours collapse into NOT_FOUND.
     const owned = await ownedAssetForGallery(ctx.db, principal.userId, assetId);
     if (owned === undefined) {

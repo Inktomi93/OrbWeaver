@@ -34,13 +34,7 @@ export interface AvatarUploadFieldProps {
 /** Bound avatar-upload field: `<Field>`-wrapped `<Avatar>` preview + `<FileDropzone>` picker. Upload
  *  failure surfaces inline (the `Field` error slot); a mid-upload/just-succeeded state rides the
  *  dropzone's own 8-state `loading`/`success` props — this field holds no separate spinner. */
-export function AvatarUploadField({
-  label,
-  description,
-  upload,
-  initialHash = null,
-  disabled = false,
-}: AvatarUploadFieldProps): ReactElement {
+export function AvatarUploadField({ label, description, upload, initialHash = null, disabled = false }: AvatarUploadFieldProps): ReactElement {
   const field = useFieldContext<AssetId | null>();
   const fieldError = touchedFieldError(field.state.meta);
   const [previewHash, setPreviewHash] = useState<string | null>(initialHash);
@@ -69,19 +63,9 @@ export function AvatarUploadField({
 
   const error = uploadError ?? fieldError;
   return (
-    <Field
-      label={label}
-      description={description}
-      error={error}
-      disabled={disabled}
-      name={field.name}
-    >
+    <Field label={label} description={description} error={error} disabled={disabled} name={field.name}>
       <Row gap="field" align="center">
-        <Avatar
-          size="lg"
-          fallbackDelay={0}
-          {...(previewHash === null ? {} : { src: blobUrl(previewHash) })}
-        >
+        <Avatar size="lg" fallbackDelay={0} {...(previewHash === null ? {} : { src: blobUrl(previewHash) })}>
           <Icon icon={CircleUser} size="lg" />
         </Avatar>
         <FileDropzone

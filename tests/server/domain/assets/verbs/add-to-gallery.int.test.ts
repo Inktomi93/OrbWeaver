@@ -105,9 +105,7 @@ describe("addToGallery", () => {
       mime: PNG,
     });
 
-    await expect(
-      svc.addToGallery({ principal: principal(owner), assetId: foreign.assetId }),
-    ).rejects.toBeInstanceOf(DomainNotFoundError);
+    await expect(svc.addToGallery({ principal: principal(owner), assetId: foreign.assetId })).rejects.toBeInstanceOf(DomainNotFoundError);
   });
 
   test("rejects a foreign subject character (leak-free NOT_FOUND)", async () => {

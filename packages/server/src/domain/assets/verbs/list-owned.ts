@@ -10,12 +10,6 @@ import type { AssetListItem } from "../contract/views";
 import { listOwnedAssetRows } from "../persistence/queries";
 
 export function createListOwned(ctx: AssetsContext): AssetsService["listOwned"] {
-  return ({
-    principal,
-    kind,
-    limit,
-    cursor,
-    cursorId,
-  }: ListOwnedParams): Promise<AssetListItem[]> =>
+  return ({ principal, kind, limit, cursor, cursorId }: ListOwnedParams): Promise<AssetListItem[]> =>
     listOwnedAssetRows(ctx.db, { ownerId: principal.userId, kind, limit, cursor, cursorId });
 }

@@ -14,9 +14,7 @@ import type { BuddyToolSpec } from "../contract/agent-turn";
  *  `ask` path uses {@link buildAgentInputs} (soul + tools). `soul`/`growth` null/absent before hatch. */
 export function buildSoulPrompt(
   soul: { readonly name: string; readonly personality: string } | null,
-  growth?:
-    | { readonly formTitle: string; readonly formBlurb: string; readonly bondTier: string }
-    | undefined,
+  growth?: { readonly formTitle: string; readonly formBlurb: string; readonly bondTier: string } | undefined,
 ): string {
   return buildBuddySystemPrompt(soul, growth);
 }
@@ -25,9 +23,7 @@ export function buildSoulPrompt(
  *  the injected `buildToolServer`). `soul`/`growth` are null/absent before hatch. */
 export function buildAgentInputs(args: {
   readonly soul: { readonly name: string; readonly personality: string } | null;
-  readonly growth?:
-    | { readonly formTitle: string; readonly formBlurb: string; readonly bondTier: string }
-    | undefined;
+  readonly growth?: { readonly formTitle: string; readonly formBlurb: string; readonly bondTier: string } | undefined;
   readonly db: Db;
   readonly userId: UserId;
   readonly now: () => number;

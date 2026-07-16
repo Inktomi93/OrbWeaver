@@ -6,12 +6,7 @@
 
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { CanonicalGalleryItem, GalleryExport } from "@orb/server/kit/serde/gallery";
-import {
-  buildGallery,
-  GALLERY_SCHEMA_KIND,
-  GALLERY_SCHEMA_VERSION,
-  parseGallery,
-} from "@orb/server/kit/serde/gallery";
+import { buildGallery, GALLERY_SCHEMA_KIND, GALLERY_SCHEMA_VERSION, parseGallery } from "@orb/server/kit/serde/gallery";
 import { describe } from "vitest";
 import { expect, test } from "../../../../support/fixtures";
 
@@ -60,9 +55,7 @@ describe("parseGallery", () => {
   });
 
   test("null for a foreign / absent schemaKind (a different portable file)", () => {
-    expect(
-      parseGallery(encode({ schemaKind: "orb.tag-library", schemaVersion: 1, items: [] })),
-    ).toBeNull();
+    expect(parseGallery(encode({ schemaKind: "orb.tag-library", schemaVersion: 1, items: [] }))).toBeNull();
     expect(parseGallery(encode({ items: [] }))).toBeNull();
   });
 
@@ -70,12 +63,7 @@ describe("parseGallery", () => {
     const bytes = encode({
       schemaKind: GALLERY_SCHEMA_KIND,
       schemaVersion: 1,
-      items: [
-        { assetId: ASSET_A, subjectCharacterHandle: "keep", createdAt: 5 },
-        { assetId: "" },
-        42,
-        { subjectCharacterHandle: "orphan" },
-      ],
+      items: [{ assetId: ASSET_A, subjectCharacterHandle: "keep", createdAt: 5 }, { assetId: "" }, 42, { subjectCharacterHandle: "orphan" }],
     });
     const gallery = parseGallery(bytes);
     expect(gallery?.items).toHaveLength(1);

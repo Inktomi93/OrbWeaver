@@ -42,13 +42,7 @@ export function LoginSurface(): ReactElement {
 }
 
 /** The per-mode arm dispatcher — pure (config in, arm out), router-free and CT-mountable directly. */
-export function LoginBody({
-  config,
-  onDone,
-}: {
-  readonly config: AuthConfig;
-  readonly onDone: () => void;
-}): ReactElement {
+export function LoginBody({ config, onDone }: { readonly config: AuthConfig; readonly onDone: () => void }): ReactElement {
   switch (config.mode) {
     case "local":
       return (
@@ -81,10 +75,8 @@ export function LoginBody({
         <Stack gap="block">
           <Heading level={1}>Authentication happens at your proxy</Heading>
           <Text size="label" tone="muted">
-            This deployment uses forward-auth — the reverse proxy should authenticate you and inject
-            identity headers before a request reaches the app. Seeing this page means it didn't:
-            check the proxy configuration (authentik/Authelia/oauth2-proxy) and the
-            FORWARD_AUTH_TRUSTED_PROXIES allowlist.
+            This deployment uses forward-auth — the reverse proxy should authenticate you and inject identity headers before a request reaches the app. Seeing
+            this page means it didn't: check the proxy configuration (authentik/Authelia/oauth2-proxy) and the FORWARD_AUTH_TRUSTED_PROXIES allowlist.
           </Text>
         </Stack>
       );

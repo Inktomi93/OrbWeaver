@@ -138,10 +138,7 @@ test("storedVersion beats the in-blob probe: a v2 blob with no in-blob version d
 test("embed/rerank/imageEmbed roleDefaults accept the three inference sources incl. local-light (D39)", () => {
   for (const role of ["embed", "rerank", "imageEmbed"] as const) {
     for (const source of ["openrouter", "vllm", "local-light"] as const) {
-      const parsed = parseUserSettings(
-        { routing: { roleDefaults: { [role]: { source } } } },
-        SCHEMA_VERSION_V2,
-      );
+      const parsed = parseUserSettings({ routing: { roleDefaults: { [role]: { source } } } }, SCHEMA_VERSION_V2);
       expect(parsed.routing.roleDefaults[role]?.source).toBe(source);
     }
   }
@@ -149,10 +146,7 @@ test("embed/rerank/imageEmbed roleDefaults accept the three inference sources in
 
 test("summarize roleDefault rejects local-light (chat-less tier) — heals to no preference", () => {
   // The subset omits local-light; an invalid stored source drops via the optional arm (no throw).
-  const parsed = parseUserSettings(
-    { routing: { roleDefaults: { summarize: { source: "local-light" } } } },
-    SCHEMA_VERSION_V2,
-  );
+  const parsed = parseUserSettings({ routing: { roleDefaults: { summarize: { source: "local-light" } } } }, SCHEMA_VERSION_V2);
   expect(parsed.routing.roleDefaults.summarize?.source).toBeUndefined();
 });
 
@@ -239,20 +233,14 @@ test("UserSettings.appearance self-heals per-field: a garbage knob degrades to i
 });
 
 test("UserSettings.appearance keeps valid overrides while healing invalid siblings", () => {
-  const parsed = parseUserSettings(
-    { appearance: { chatStyle: "document", avatarShape: "square", chatWidthPct: "bad" } },
-    USER_SETTINGS_SCHEMA_VERSION,
-  );
+  const parsed = parseUserSettings({ appearance: { chatStyle: "document", avatarShape: "square", chatWidthPct: "bad" } }, USER_SETTINGS_SCHEMA_VERSION);
   expect(parsed.appearance.chatStyle).toBe("document");
   expect(parsed.appearance.avatarShape).toBe("square");
   expect(parsed.appearance.chatWidthPct).toBe(60); // the healed sibling
 });
 
 test("UserSettings.appearance accepts the new avatarShape=rounded + avatarAspect/avatarRing values (§B.3)", () => {
-  const parsed = parseUserSettings(
-    { appearance: { avatarShape: "rounded", avatarAspect: "portrait", avatarRing: "accent" } },
-    USER_SETTINGS_SCHEMA_VERSION,
-  );
+  const parsed = parseUserSettings({ appearance: { avatarShape: "rounded", avatarAspect: "portrait", avatarRing: "accent" } }, USER_SETTINGS_SCHEMA_VERSION);
   expect(parsed.appearance.avatarShape).toBe("rounded");
   expect(parsed.appearance.avatarAspect).toBe("portrait");
   expect(parsed.appearance.avatarRing).toBe("accent");

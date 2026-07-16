@@ -11,6 +11,5 @@ runEmbedShapedRoleTests({
   method: "embed",
   create: createEmbedRole as never,
   allowedSources: ["openrouter", "vllm", "local-light"],
-  makeReq: (credential: ResolvedCredential): EmbedRequest =>
-    ({ credential, model: "m", input: "x" }) as EmbedRequest,
+  makeReq: (credential: ResolvedCredential): EmbedRequest => ({ credential, model: "m", input: "x" }) as EmbedRequest,
 });

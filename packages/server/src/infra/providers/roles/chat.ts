@@ -17,11 +17,7 @@ export function createChatRole(deps: ProviderDeps): (req: ChatRequest) => Promis
       api: req.api,
       ownerConsented: req.ownerConsented,
     });
-    const backend = requireBackend(
-      deps.backends,
-      deriveRunner(req.api, req.credential.source),
-      ROLE,
-    );
+    const backend = requireBackend(deps.backends, deriveRunner(req.api, req.credential.source), ROLE);
     return await requireRoleImpl(backend, backend.runChatTurn, ROLE)(req);
   };
 }

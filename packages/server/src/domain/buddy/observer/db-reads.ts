@@ -29,13 +29,7 @@ export function createBuddyObserverReads(db: Db): BuddyObserverReads {
       const rows = await db
         .select({ userId: chatParticipants.userId })
         .from(chatParticipants)
-        .where(
-          and(
-            eq(chatParticipants.chatId, castId<ChatId>(chatId)),
-            eq(chatParticipants.role, "host"),
-            isNull(chatParticipants.leftSeq),
-          ),
-        )
+        .where(and(eq(chatParticipants.chatId, castId<ChatId>(chatId)), eq(chatParticipants.role, "host"), isNull(chatParticipants.leftSeq)))
         .limit(1);
       return rows[0]?.userId ?? null;
     },

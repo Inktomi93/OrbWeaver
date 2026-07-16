@@ -37,8 +37,7 @@ export const gate: GateDescriptor = {
       why: "intra-providers consumption of the sealed symbol — legitimate, out of scanRoot, passes",
     },
     {
-      files:
-        'import { backendForSource } from "@orb/server";\nexport const b = backendForSource;\n',
+      files: 'import { backendForSource } from "@orb/server";\nexport const b = backendForSource;\n',
       at: "packages/server/src/infra/x.ts",
       why: "a sealed symbol (backendForSource) imported by infra/ itself — NOT a domain/transport/entry consumer, out of scanRoot, passes",
     },

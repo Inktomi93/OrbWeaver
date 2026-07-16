@@ -14,9 +14,7 @@ describe("validateThemeCss", () => {
   });
 
   test("@import warns but does not error", () => {
-    const result = validateThemeCss(
-      "@import url('https://evil.example/x.css'); .card { color: red; }",
-    );
+    const result = validateThemeCss("@import url('https://evil.example/x.css'); .card { color: red; }");
     expect(result.errors).toEqual([]);
     expect(result.warnings.length).toBe(1);
   });

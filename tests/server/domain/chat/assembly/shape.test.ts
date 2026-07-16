@@ -6,10 +6,7 @@ import type { ChatInjection } from "@orb/contracts/chat";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import {
-  computeHistoryBreakpoint,
-  shape,
-} from "../../../../../packages/server/src/domain/chat/assembly/shape";
+import { computeHistoryBreakpoint, shape } from "../../../../../packages/server/src/domain/chat/assembly/shape";
 import { expect, test } from "../../../../support/fixtures";
 
 const ARIA = castId<CharacterId>("character_aria");
@@ -60,16 +57,11 @@ describe("shape — the breakpoint", () => {
       { role: "user" as const, content: "u2", authorName: "User" },
       { role: "assistant" as const, content: "a2 tip", authorName: "Aria", characterId: ARIA },
     ];
-    expect(shape(soloInput({ canon: longer, appendUserTurn: "u3" })).cacheBreakpointFromEnd).toBe(
-      1,
-    );
+    expect(shape(soloInput({ canon: longer, appendUserTurn: "u3" })).cacheBreakpointFromEnd).toBe(1);
   });
 
   test("ABORT #1: a depth≥2 in_chat injection → undefined", () => {
-    expect(
-      shape(soloInput({ injections: [inChat({ depth: 2, content: "deep" })] }))
-        .cacheBreakpointFromEnd,
-    ).toBeUndefined();
+    expect(shape(soloInput({ injections: [inChat({ depth: 2, content: "deep" })] })).cacheBreakpointFromEnd).toBeUndefined();
   });
 
   // D66-C (W6) — the prefix-stable fix supersedes the old ABORT #2 for this case. A depth-1 assistant
@@ -78,9 +70,7 @@ describe("shape — the breakpoint", () => {
   // byte-identical → the breakpoint is now VALID (offset 1), not aborted, and the whole-conversation
   // re-bill (part 01 §1c) is prevented.
   test("W6 prefix-stable: a depth-1 assistant injection re-frames to a user note; the breakpoint HOLDS (offset 1)", () => {
-    const out = shape(
-      soloInput({ injections: [inChat({ depth: 1, role: "assistant", content: "cont" })] }),
-    );
+    const out = shape(soloInput({ injections: [inChat({ depth: 1, role: "assistant", content: "cont" })] }));
     expect(out.cacheBreakpointFromEnd).toBe(1);
     // The stable prefix is untouched; the re-framed note rides on the volatile user tail.
     expect(out.history).toEqual([
@@ -92,16 +82,11 @@ describe("shape — the breakpoint", () => {
   });
 
   test("ABORT #3: a group nudge appends a second volatile tail → undefined", () => {
-    expect(
-      shape(soloInput({ groupNudge: "[Write the next reply only as Aria.]" }))
-        .cacheBreakpointFromEnd,
-    ).toBeUndefined();
+    expect(shape(soloInput({ groupNudge: "[Write the next reply only as Aria.]" })).cacheBreakpointFromEnd).toBeUndefined();
   });
 
   test("first turn (no stable prefix) → undefined", () => {
-    expect(
-      shape(soloInput({ canon: [], appendUserTurn: "first" })).cacheBreakpointFromEnd,
-    ).toBeUndefined();
+    expect(shape(soloInput({ canon: [], appendUserTurn: "first" })).cacheBreakpointFromEnd).toBeUndefined();
   });
 
   test("narrator force round (ends on assistant → CONTINUATION_NUDGE) → undefined + a user tail", () => {
@@ -220,32 +205,22 @@ describe("shape — F2: adjacent distinct-character rows keep EACH speaker's lab
   ];
 
   test('"default" (multiCharacter): the merged assistant block keeps both "Aria:" and "Kai:"', () => {
-    const out = shape(
-      soloInput({ canon: groupCanon, appendUserTurn: null, namesBehavior: "default" }),
-    );
+    const out = shape(soloInput({ canon: groupCanon, appendUserTurn: null, namesBehavior: "default" }));
     expect(out.stages.multiCharacter).toBe(true);
     const assistant = out.history.find((r) => r.role === "assistant");
-    expect(assistant?.content).toBe(
-      "Aria: I think we should go north.\n\nKai: No, south is safer.",
-    );
+    expect(assistant?.content).toBe("Aria: I think we should go north.\n\nKai: No, south is safer.");
     // Kai's line is attributed to Kai, not swallowed under Aria.
     expect(assistant?.content).toContain("Kai: No, south is safer.");
   });
 
   test('"content": both rows are labeled by their own author', () => {
-    const out = shape(
-      soloInput({ canon: groupCanon, appendUserTurn: null, namesBehavior: "content" }),
-    );
+    const out = shape(soloInput({ canon: groupCanon, appendUserTurn: null, namesBehavior: "content" }));
     const assistant = out.history.find((r) => r.role === "assistant");
-    expect(assistant?.content).toBe(
-      "Aria: I think we should go north.\n\nKai: No, south is safer.",
-    );
+    expect(assistant?.content).toBe("Aria: I think we should go north.\n\nKai: No, south is safer.");
   });
 
   test('"completion": distinct authors stay UNMERGED so each keeps its own wire `name`', () => {
-    const out = shape(
-      soloInput({ canon: groupCanon, appendUserTurn: null, namesBehavior: "completion" }),
-    );
+    const out = shape(soloInput({ canon: groupCanon, appendUserTurn: null, namesBehavior: "completion" }));
     const asst = out.history.filter((r) => r.role === "assistant");
     expect(asst).toEqual([
       { role: "assistant", content: "I think we should go north.", name: "Aria" },
@@ -286,9 +261,7 @@ describe("computeHistoryBreakpoint — direct math", () => {
 
   test("stableCount < 1 (only the volatile tail) → undefined", () => {
     const withTail = [u("only")];
-    expect(
-      computeHistoryBreakpoint(withTail, withTail, withTail, { injections: [] }),
-    ).toBeUndefined();
+    expect(computeHistoryBreakpoint(withTail, withTail, withTail, { injections: [] })).toBeUndefined();
   });
 
   test("scoped-fold collapse (finalLen < stableCount) → undefined (the quirk guard)", () => {
@@ -409,18 +382,14 @@ describe("shape — W6 role-handling strategy + prefix-stable goldens", () => {
         roleHandlingFloor: "merge",
       }),
     );
-    expect(out.history.filter((r) => r.role === "assistant")).toEqual([
-      { role: "assistant", content: "First.\n\nSecond." },
-    ]);
+    expect(out.history.filter((r) => r.role === "assistant")).toEqual([{ role: "assistant", content: "First.\n\nSecond." }]);
   });
 
   test("prefix-stable golden: the STABLE prefix bytes are IDENTICAL with and without an active boundary injection", () => {
     // The re-frame keeps the cached prefix byte-for-byte the same whether or not the depth-1 assistant note
     // is active — the whole-conversation re-bill (part 01 §1c) is prevented.
     const clean = shape(soloInput({ injections: [] }));
-    const withNote = shape(
-      soloInput({ injections: [inChat({ depth: 1, role: "assistant", content: "steer" })] }),
-    );
+    const withNote = shape(soloInput({ injections: [inChat({ depth: 1, role: "assistant", content: "steer" })] }));
     // The stable prefix (everything but the last, volatile, row) is identical.
     expect(withNote.history.slice(0, -1)).toEqual(clean.history.slice(0, -1));
     // Only the volatile tail differs (the re-framed note rides on it), and the breakpoint still holds.

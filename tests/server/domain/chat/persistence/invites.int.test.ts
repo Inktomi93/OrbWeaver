@@ -22,14 +22,7 @@ import {
 } from "../../../../../packages/server/src/domain/chat/persistence/invites";
 import { freshDb } from "../../../../support/db";
 import { expect, test } from "../../../../support/fixtures";
-import {
-  FROZEN_AT,
-  seedChat,
-  seedMessage,
-  seedParticipant,
-  seedPendingTurn,
-  seedUser,
-} from "../_support";
+import { FROZEN_AT, seedChat, seedMessage, seedParticipant, seedPendingTurn, seedUser } from "../_support";
 
 let db: Db;
 
@@ -323,10 +316,7 @@ describe("persistence/invites — pending_turns (deferred, boot-reclaimed)", () 
     });
 
     const queued = await loadPendingTurns(db, chatA);
-    expect(queued.map((p) => p.id)).toStrictEqual([
-      castId<PendingTurnId>("pending_turn_p1"),
-      castId<PendingTurnId>("pending_turn_p2"),
-    ]);
+    expect(queued.map((p) => p.id)).toStrictEqual([castId<PendingTurnId>("pending_turn_p1"), castId<PendingTurnId>("pending_turn_p2")]);
 
     // The atomic claim deletes AND returns the winning row (the drain's exactly-once serializer).
     const claimed = await claimPendingTurn(db, castId<PendingTurnId>("pending_turn_p1"));
@@ -368,10 +358,7 @@ describe("persistence/invites — pending_turns (deferred, boot-reclaimed)", () 
 
     // hostA's return drains their two turns only (oldest-first, across chats); hostB's stays queued.
     const forHostA = await loadPendingTurnsForHost(db, hostA);
-    expect(forHostA.map((p) => p.id)).toStrictEqual([
-      castId<PendingTurnId>("pending_turn_a1"),
-      castId<PendingTurnId>("pending_turn_a2"),
-    ]);
+    expect(forHostA.map((p) => p.id)).toStrictEqual([castId<PendingTurnId>("pending_turn_a1"), castId<PendingTurnId>("pending_turn_a2")]);
     expect(await loadPendingTurnsForHost(db, hostB)).toHaveLength(1);
     expect(await loadPendingTurnsForReclaim(db)).toHaveLength(3);
   });

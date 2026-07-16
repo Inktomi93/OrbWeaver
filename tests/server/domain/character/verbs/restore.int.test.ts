@@ -39,9 +39,7 @@ describe("restore", () => {
     });
 
     expect(restored.description).toBe("original");
-    expect(h.events).toEqual([
-      { type: "character.updated", characterId: created.id, contentChanged: true },
-    ]);
+    expect(h.events).toEqual([{ type: "character.updated", characterId: created.id, contentChanged: true }]);
     // snapshot-current-first added a second history entry (the pre-restore "edited" card)
     const snaps = await svc.listSnapshots({ principal: principal(owner), characterId: created.id });
     expect(snaps).toHaveLength(2);

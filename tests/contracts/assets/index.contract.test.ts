@@ -18,17 +18,7 @@ import { expect, test } from "../../support/fixtures";
 // The ONE home for the union (§7.5). A drift here would mean the db enum / upload route / client have
 // re-spelled it — the whole point of this node.
 test("ASSET_KINDS is exactly the upload-wire axis [card, avatar, export, generated, gallery, attachment, document, sprite, background]", () => {
-  expect(ASSET_KINDS).toEqual([
-    "card",
-    "avatar",
-    "export",
-    "generated",
-    "gallery",
-    "attachment",
-    "document",
-    "sprite",
-    "background",
-  ]);
+  expect(ASSET_KINDS).toEqual(["card", "avatar", "export", "generated", "gallery", "attachment", "document", "sprite", "background"]);
   expect(assetKindSchema.options).toEqual(ASSET_KINDS);
 });
 
@@ -104,9 +94,7 @@ test("storedAssetSchema parses a well-formed upload response and rejects a malfo
     created: true,
   });
   expect(parsed.assetId).toBe(mintedAssetId);
-  expect(
-    storedAssetSchema.safeParse({ assetId: "not_an_asset_id", hash: SAMPLE_HASH }).success,
-  ).toBe(false);
+  expect(storedAssetSchema.safeParse({ assetId: "not_an_asset_id", hash: SAMPLE_HASH }).success).toBe(false);
 });
 
 // ── The variant KIND axis (#67 Phase 1 — the portrait smart-crop variant; the immersive-chat redo adds

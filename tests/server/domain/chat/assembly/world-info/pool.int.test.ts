@@ -4,15 +4,7 @@
 // (character → "character"; chat/persona/global → "chat"), the scope resolution (keys → keyword, keyless →
 // always), and the emergent no-lore path (nothing attached ⇒ empty pool — no master toggle, ST parity).
 import type { Db } from "@orb/db";
-import {
-  characterBooks,
-  chatBooks,
-  globalBooks,
-  personaBooks,
-  personas,
-  worldBooks,
-  worldEntries,
-} from "@orb/db";
+import { characterBooks, chatBooks, globalBooks, personaBooks, personas, worldBooks, worldEntries } from "@orb/db";
 import type { PersonaId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
@@ -40,15 +32,9 @@ async function seedPersona(owner: UserId, key: string): Promise<PersonaId> {
 }
 
 /** Insert a book + one entry; returns the book id. `keys` non-empty ⇒ the entry resolves keyword-scope. */
-async function seedBook(
-  owner: UserId,
-  key: string,
-  entry: { content: string; keys?: string[] },
-): Promise<WorldBookId> {
+async function seedBook(owner: UserId, key: string, entry: { content: string; keys?: string[] }): Promise<WorldBookId> {
   const bookId = castId<WorldBookId>(`world_book_${key}`);
-  await db
-    .insert(worldBooks)
-    .values({ id: bookId, ownerId: owner, name: key, createdAt: FROZEN_AT });
+  await db.insert(worldBooks).values({ id: bookId, ownerId: owner, name: key, createdAt: FROZEN_AT });
   await db.insert(worldEntries).values({
     id: castId<WorldEntryId>(`world_entry_${key}`),
     worldBookId: bookId,
@@ -88,9 +74,7 @@ describe("loadWorldInfoPool — the 4-scope union", () => {
     });
     await db.insert(globalBooks).values({ worldBookId: globalBook, createdAt: FROZEN_AT });
     await db.insert(globalBooks).values({ worldBookId: foreignGlobal, createdAt: FROZEN_AT });
-    await db
-      .insert(personaBooks)
-      .values({ personaId, worldBookId: personaBook, createdAt: FROZEN_AT });
+    await db.insert(personaBooks).values({ personaId, worldBookId: personaBook, createdAt: FROZEN_AT });
 
     const pool = await loadWorldInfoPool(db, {
       chatId,

@@ -19,11 +19,7 @@ const DEFAULT_CHAR_LIMIT = 30;
 
 /** The owner's most-used distilled scene keywords (summed over their character profiles), count-descending.
  *  `character_keyword_profiles` has no ownerId — owner derives via the `characters` join (D23). */
-export async function topKeywords(
-  db: Db,
-  ownerId: UserId,
-  opts: TopKeywordsOptions = {},
-): Promise<KeywordCount[]> {
+export async function topKeywords(db: Db, ownerId: UserId, opts: TopKeywordsOptions = {}): Promise<KeywordCount[]> {
   const limit = opts.limit ?? DEFAULT_TOP_LIMIT;
   const minCount = opts.minCount ?? DEFAULT_TOP_MIN_COUNT;
   const summed = sql<number>`sum(${characterKeywordProfiles.count})`;
@@ -41,42 +37,25 @@ export async function topKeywords(
 /** The keywords that co-occur with `keyword` in the owner's scenes, count-descending. `keyword_cooccurrence`
  *  KEEPS ownerId, so the scope is a direct filter; the pair is canonical A-before-B, so the "other" side is
  *  whichever column isn't the query keyword. */
-export async function cooccurringKeywords(
-  db: Db,
-  ownerId: UserId,
-  keyword: string,
-  limit = DEFAULT_COOCCUR_LIMIT,
-): Promise<KeywordCount[]> {
+export async function cooccurringKeywords(db: Db, ownerId: UserId, keyword: string, limit = DEFAULT_COOCCUR_LIMIT): Promise<KeywordCount[]> {
   const norm = normalizeKeyword(keyword) ?? keyword.trim().toLowerCase();
   const other = sql<string>`CASE WHEN ${keywordCooccurrence.keywordA} = ${norm} THEN ${keywordCooccurrence.keywordB} ELSE ${keywordCooccurrence.keywordA} END`;
   return await db
     .select({ keyword: other, count: keywordCooccurrence.count })
     .from(keywordCooccurrence)
-    .where(
-      and(
-        eq(keywordCooccurrence.ownerId, ownerId),
-        or(eq(keywordCooccurrence.keywordA, norm), eq(keywordCooccurrence.keywordB, norm)),
-      ),
-    )
+    .where(and(eq(keywordCooccurrence.ownerId, ownerId), or(eq(keywordCooccurrence.keywordA, norm), eq(keywordCooccurrence.keywordB, norm))))
     .orderBy(desc(keywordCooccurrence.count))
     .limit(limit);
 }
 
 /** One character's keyword profile (the keywords its scenes anchor on), count-descending. Owner belt via the
  *  `characters` join (`character_keyword_profiles` has no ownerId — a foreign character yields no rows). */
-export async function characterKeywords(
-  db: Db,
-  ownerId: UserId,
-  characterId: CharacterId,
-  limit = DEFAULT_CHAR_LIMIT,
-): Promise<KeywordCount[]> {
+export async function characterKeywords(db: Db, ownerId: UserId, characterId: CharacterId, limit = DEFAULT_CHAR_LIMIT): Promise<KeywordCount[]> {
   return await db
     .select({ keyword: characterKeywordProfiles.keyword, count: characterKeywordProfiles.count })
     .from(characterKeywordProfiles)
     .innerJoin(characters, eq(characters.id, characterKeywordProfiles.characterId))
-    .where(
-      and(eq(characters.ownerId, ownerId), eq(characterKeywordProfiles.characterId, characterId)),
-    )
+    .where(and(eq(characters.ownerId, ownerId), eq(characterKeywordProfiles.characterId, characterId)))
     .orderBy(desc(characterKeywordProfiles.count))
     .limit(limit);
 }

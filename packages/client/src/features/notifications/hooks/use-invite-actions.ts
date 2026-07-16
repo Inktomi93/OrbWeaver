@@ -10,19 +10,13 @@ import { createEntityMutation } from "#data";
 /** `redeemInvite`'s success twin — `{ chat, participant }` (the bell navigates into `chat.id`). */
 type AcceptResult = inferOutput<Trpc["invites"]["acceptInvite"]>;
 
-export const useAcceptInvite = createEntityMutation<
-  inferInput<Trpc["invites"]["acceptInvite"]>,
-  AcceptResult
->({
+export const useAcceptInvite = createEntityMutation<inferInput<Trpc["invites"]["acceptInvite"]>, AcceptResult>({
   options: (trpc) => trpc.invites.acceptInvite.mutationOptions(),
   invalidates: (trpc) => [trpc.chat.listChats.pathFilter()],
   errorToast: "Couldn't join — the invite is invalid or expired.",
 });
 
-export const useDeclineInvite = createEntityMutation<
-  inferInput<Trpc["invites"]["declineInvite"]>,
-  unknown
->({
+export const useDeclineInvite = createEntityMutation<inferInput<Trpc["invites"]["declineInvite"]>, unknown>({
   options: (trpc) => trpc.invites.declineInvite.mutationOptions(),
   invalidates: () => [],
   errorToast: "Couldn't decline the invite.",

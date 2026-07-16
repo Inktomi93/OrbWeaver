@@ -65,11 +65,7 @@ function touchAndEvict(ownerId: UserId, entry: IndexCacheEntry): void {
 }
 
 /** Cache hit (fresh) returns without touching the db; miss/stale rebuilds via `load` and caches it. */
-export async function getOrBuildFieldIndex(
-  ownerId: UserId,
-  nowMs: number,
-  load: () => Promise<readonly CardDoc[]>,
-): Promise<MiniSearch<CardDoc>> {
+export async function getOrBuildFieldIndex(ownerId: UserId, nowMs: number, load: () => Promise<readonly CardDoc[]>): Promise<MiniSearch<CardDoc>> {
   const cached = cache.get(ownerId);
   if (cached !== undefined && nowMs - cached.builtAtMs < FIELD_INDEX_TTL_MS) {
     touchAndEvict(ownerId, cached);
@@ -81,11 +77,7 @@ export async function getOrBuildFieldIndex(
 }
 
 /** Run the BM25 query (fuzzy + prefix + field boosts), return the top `topN` card ids by score. */
-export function queryFields(
-  index: MiniSearch<CardDoc>,
-  query: string,
-  topN: number,
-): FieldSearchHit[] {
+export function queryFields(index: MiniSearch<CardDoc>, query: string, topN: number): FieldSearchHit[] {
   return index
     .search(query)
     .slice(0, topN)
@@ -93,11 +85,7 @@ export function queryFields(
 }
 
 /** Autocomplete the partial query into whole-term suggestions (the `suggest` verb), top `limit` by score. */
-export function suggestFields(
-  index: MiniSearch<CardDoc>,
-  query: string,
-  limit: number,
-): SearchSuggestion[] {
+export function suggestFields(index: MiniSearch<CardDoc>, query: string, limit: number): SearchSuggestion[] {
   return index
     .autoSuggest(query, { fuzzy: FUZZY, prefix: true })
     .slice(0, limit)

@@ -56,14 +56,8 @@ const SAFETY_MARGIN = 64;
  * it alone exceeds the budget (an irreducible single oversized message; the caller may warn, but we
  * never silently drop the user's current turn).
  */
-export function fitHistoryToWindow(
-  history: readonly HistoryTurn[],
-  budget: HistoryBudget,
-): FitResult {
-  const ceiling = Math.min(
-    budget.windowTokens ?? Number.POSITIVE_INFINITY,
-    budget.softMaxTokens ?? Number.POSITIVE_INFINITY,
-  );
+export function fitHistoryToWindow(history: readonly HistoryTurn[], budget: HistoryBudget): FitResult {
+  const ceiling = Math.min(budget.windowTokens ?? Number.POSITIVE_INFINITY, budget.softMaxTokens ?? Number.POSITIVE_INFINITY);
   // No trustworthy ceiling → don't trim (e.g. custom-openai with no knob set).
   if (!Number.isFinite(ceiling)) {
     return { history: [...history], droppedCount: 0, earliestKeptMessageId: null };

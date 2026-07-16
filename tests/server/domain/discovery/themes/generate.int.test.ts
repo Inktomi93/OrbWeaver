@@ -8,14 +8,7 @@ import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
-import {
-  makeDiscoveryHarness,
-  makeSummarizeRecorder,
-  seedChatDigest,
-  seedHostedChat,
-  seedUser,
-  vec,
-} from "../_support.ts";
+import { makeDiscoveryHarness, makeSummarizeRecorder, seedChatDigest, seedHostedChat, seedUser, vec } from "../_support.ts";
 
 describe("computeThemes", () => {
   test("clusters solo digests, assigns every digest (full coverage), and names via summarize", async () => {
@@ -159,18 +152,12 @@ describe("computeThemes", () => {
 
     // Seed both owners' clusters via a global (bulk) recompute first.
     await svc.computeThemes({ k: 1 });
-    expect(await db.select().from(themeClusters).where(eq(themeClusters.ownerId, b))).toHaveLength(
-      1,
-    );
+    expect(await db.select().from(themeClusters).where(eq(themeClusters.ownerId, b))).toHaveLength(1);
 
     // Now recompute ONLY owner A (singular) — B's clusters must survive untouched.
     const stats = await svc.computeThemes({ k: 1, ownerId: a });
     expect(stats.ownersProcessed).toBe(1);
-    expect(await db.select().from(themeClusters).where(eq(themeClusters.ownerId, a))).toHaveLength(
-      1,
-    );
-    expect(await db.select().from(themeClusters).where(eq(themeClusters.ownerId, b))).toHaveLength(
-      1,
-    ); // NOT wiped by A's singular run
+    expect(await db.select().from(themeClusters).where(eq(themeClusters.ownerId, a))).toHaveLength(1);
+    expect(await db.select().from(themeClusters).where(eq(themeClusters.ownerId, b))).toHaveLength(1); // NOT wiped by A's singular run
   });
 });

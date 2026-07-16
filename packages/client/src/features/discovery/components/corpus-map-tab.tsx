@@ -36,9 +36,7 @@ export function CorpusMapTab(): ReactElement {
   return (
     <QueryBoundary
       fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="line" />}
-      renderError={(_error, retry): ReactElement => (
-        <QueryErrorState label="the map" onRetry={retry} />
-      )}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label="the map" onRetry={retry} />}
     >
       <MapBody />
     </QueryBoundary>
@@ -67,14 +65,7 @@ function MapBody(): ReactElement {
         {points.length} cards, projected by semantic similarity, colored by genre.
       </Text>
       <Stack className="aspect-square w-full">
-        <svg
-          viewBox={`0 0 ${VIEW} ${VIEW}`}
-          width="100%"
-          height="100%"
-          role="img"
-          aria-label="Corpus semantic map"
-          data-testid={testId("corpusContextMap")}
-        >
+        <svg viewBox={`0 0 ${VIEW} ${VIEW}`} width="100%" height="100%" role="img" aria-label="Corpus semantic map" data-testid={testId("corpusContextMap")}>
           {placed.map((point) => (
             <circle
               key={`${point.cx}-${point.cy}-${point.name}`}
@@ -102,18 +93,8 @@ function Legend({ palette }: { readonly palette: GenrePalette }): ReactElement |
     <Row align="center" gap="block" className="flex-wrap">
       {palette.legend.map((swatch) => (
         <Row key={swatch.genre} align="center" gap="field" className="shrink-0">
-          <svg
-            width={LEGEND_DOT}
-            height={LEGEND_DOT}
-            viewBox={`0 0 ${LEGEND_DOT} ${LEGEND_DOT}`}
-            aria-hidden={true}
-          >
-            <circle
-              cx={LEGEND_DOT / HALF}
-              cy={LEGEND_DOT / HALF}
-              r={LEGEND_DOT_R}
-              fill={swatch.fill}
-            />
+          <svg width={LEGEND_DOT} height={LEGEND_DOT} viewBox={`0 0 ${LEGEND_DOT} ${LEGEND_DOT}`} aria-hidden={true}>
+            <circle cx={LEGEND_DOT / HALF} cy={LEGEND_DOT / HALF} r={LEGEND_DOT_R} fill={swatch.fill} />
           </svg>
           <Text size="micro" tone="muted">
             {swatch.genre}
@@ -140,8 +121,7 @@ function normalize(points: readonly Point[]): readonly PlacedPoint[] {
   const minY = Math.min(...ys);
   const maxY = Math.max(...ys);
   const span = VIEW - PAD * 2;
-  const scale = (value: number, min: number, max: number): number =>
-    max === min ? VIEW / HALF : PAD + ((value - min) / (max - min)) * span;
+  const scale = (value: number, min: number, max: number): number => (max === min ? VIEW / HALF : PAD + ((value - min) / (max - min)) * span);
   return points.map((p) => ({
     name: p.name,
     genre: p.genre,

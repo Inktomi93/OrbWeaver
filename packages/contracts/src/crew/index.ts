@@ -30,35 +30,20 @@ export const crewConfigSchema = z.object({
       // null + enabled ⇒ the domain mints + attaches a book on first run.
       bookId: typeIdSchema(ID_PREFIX.worldBook).nullable().default(null),
       // Messages pending past the protect tail before a run enqueues.
-      minSpan: z
-        .number()
-        .int()
-        .min(KEEPER_MIN_SPAN_FLOOR)
-        .max(KEEPER_MIN_SPAN_CEIL)
-        .default(KEEPER_MIN_SPAN_DEFAULT),
+      minSpan: z.number().int().min(KEEPER_MIN_SPAN_FLOOR).max(KEEPER_MIN_SPAN_CEIL).default(KEEPER_MIN_SPAN_DEFAULT),
     })
     .prefault({}),
   cardEvolution: z
     .object({
       enabled: z.boolean().default(false),
-      minSpan: z
-        .number()
-        .int()
-        .min(CARD_MIN_SPAN_FLOOR)
-        .max(CARD_MIN_SPAN_CEIL)
-        .default(CARD_MIN_SPAN_DEFAULT),
+      minSpan: z.number().int().min(CARD_MIN_SPAN_FLOOR).max(CARD_MIN_SPAN_CEIL).default(CARD_MIN_SPAN_DEFAULT),
     })
     .prefault({}),
   director: z
     .object({
       enabled: z.boolean().default(false),
       // Assistant turns between passes.
-      cadenceTurns: z
-        .number()
-        .int()
-        .min(DIRECTOR_CADENCE_FLOOR)
-        .max(DIRECTOR_CADENCE_CEIL)
-        .default(DIRECTOR_CADENCE_DEFAULT),
+      cadenceTurns: z.number().int().min(DIRECTOR_CADENCE_FLOOR).max(DIRECTOR_CADENCE_CEIL).default(DIRECTOR_CADENCE_DEFAULT),
       // The host's standing direction ("slow burn", "keep it cozy") — rides every director pass.
       steer: z.string().max(DIRECTOR_STEER_MAX_CHARS).default(""),
     })
@@ -75,13 +60,7 @@ export type CrewConfig = z.infer<typeof crewConfigSchema>;
 
 /** The edit-proposal lifecycle. `superseded` = the variant is no longer selected at accept time;
  *  `stale` = the content hash moved — both are lazy accept-time refusals, never eager listeners. */
-export const CREW_EDIT_PROPOSAL_STATUSES = [
-  "pending",
-  "accepted",
-  "dismissed",
-  "superseded",
-  "stale",
-] as const;
+export const CREW_EDIT_PROPOSAL_STATUSES = ["pending", "accepted", "dismissed", "superseded", "stale"] as const;
 export type CrewEditProposalStatus = (typeof CREW_EDIT_PROPOSAL_STATUSES)[number];
 export const crewEditProposalStatusSchema = z.enum(CREW_EDIT_PROPOSAL_STATUSES);
 
@@ -96,12 +75,7 @@ export type CrewEditNote = z.infer<typeof crewEditNoteSchema>;
 
 /** The card-proposal lifecycle. No `stale` arm — card proposals supersede by a newer audit, not by
  *  content-hash drift. */
-export const CARD_EVOLUTION_PROPOSAL_STATUSES = [
-  "pending",
-  "accepted",
-  "dismissed",
-  "superseded",
-] as const;
+export const CARD_EVOLUTION_PROPOSAL_STATUSES = ["pending", "accepted", "dismissed", "superseded"] as const;
 export type CardEvolutionProposalStatus = (typeof CARD_EVOLUTION_PROPOSAL_STATUSES)[number];
 export const cardEvolutionProposalStatusSchema = z.enum(CARD_EVOLUTION_PROPOSAL_STATUSES);
 

@@ -29,11 +29,7 @@ export function assertKindSupportsMode(kind: WorkloadKind, mode: WorkloadMode): 
  * (unrestricted). An admin (owner∪admin, via the injected seam) sees every owner. Otherwise a caller sees
  * ONLY rows it owns (`row.ownerId === caller.userId`) — a `null`-owned system row is never a user's.
  */
-export function isVisibleToCaller(
-  isAdmin: IsAdmin,
-  caller: Principal | null,
-  ownerId: UserId | null,
-): boolean {
+export function isVisibleToCaller(isAdmin: IsAdmin, caller: Principal | null, ownerId: UserId | null): boolean {
   if (caller === null) {
     return true;
   }
@@ -49,11 +45,7 @@ export function isVisibleToCaller(
  * A `null` system caller or an admin keeps the requested filter (`requestedOwnerId`), so an admin gets the
  * deployment-wide view (undefined = all owners) or can narrow to one owner.
  */
-export function resolveListOwnerFilter(
-  isAdmin: IsAdmin,
-  caller: Principal | null,
-  requestedOwnerId: UserId | null | undefined,
-): UserId | null | undefined {
+export function resolveListOwnerFilter(isAdmin: IsAdmin, caller: Principal | null, requestedOwnerId: UserId | null | undefined): UserId | null | undefined {
   if (caller !== null && !isAdmin(caller)) {
     return caller.userId;
   }

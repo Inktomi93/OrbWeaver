@@ -29,9 +29,7 @@ describe("listUsers", () => {
     const db = await freshDb();
     const svc = createAdminService(makeHarness(db).ctx);
     const u = await seedUser(db, { id: "user_u", role: "user", handle: "u" });
-    await expect(svc.listUsers({ principal: principal(u, "user") })).rejects.toThrow(
-      DomainForbiddenError,
-    );
+    await expect(svc.listUsers({ principal: principal(u, "user") })).rejects.toThrow(DomainForbiddenError);
   });
 
   test("shows agents by default; the kind axis filters + ownerHandle names the owner (D60)", async () => {

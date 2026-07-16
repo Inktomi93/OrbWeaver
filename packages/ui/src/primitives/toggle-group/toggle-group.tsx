@@ -11,12 +11,7 @@ export interface ToggleGroupProps extends Omit<BaseToggleGroupProps<string>, "or
   "aria-labelledby"?: string;
 }
 
-export function ToggleGroup({
-  className,
-  "aria-label": ariaLabel,
-  "aria-labelledby": ariaLabelledby,
-  ...rest
-}: ToggleGroupProps): ReactElement {
+export function ToggleGroup({ className, "aria-label": ariaLabel, "aria-labelledby": ariaLabelledby, ...rest }: ToggleGroupProps): ReactElement {
   return (
     <BaseToggleGroup
       data-slot="toggle-group"

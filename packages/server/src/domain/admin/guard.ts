@@ -5,17 +5,7 @@
 // caller passes in (chat passes the {@link ChatRoster} it loaded — admin never reads chat's db).
 // Authorization is re-evaluated per call; the decision is never cached back onto the Principal.
 
-import type {
-  AgentAction,
-  AgentActor,
-  Can,
-  ChatAction,
-  ChatRoster,
-  GlobalAction,
-  Principal,
-  ResourceRef,
-  UserRole,
-} from "@orb/contracts/identity";
+import type { AgentAction, AgentActor, Can, ChatAction, ChatRoster, GlobalAction, Principal, ResourceRef, UserRole } from "@orb/contracts/identity";
 import { DomainForbiddenError } from "@orb/kit/errors";
 import type { IsAdmin, RequireAdmin, RequireOwner } from "./contract/guard";
 
@@ -55,11 +45,7 @@ function decideChat(action: ChatAction, roster: ChatRoster): void {
 
 // The impl param types are the broad unions (the overloaded `Can` couples action↔resource-kind at every
 // call site, so the `as` re-narrowing below is sound). Exhaustive over `resource.kind`.
-export const can: Can = (
-  principal: Principal,
-  action: GlobalAction | ChatAction,
-  resource: ResourceRef,
-): void => {
+export const can: Can = (principal: Principal, action: GlobalAction | ChatAction, resource: ResourceRef): void => {
   switch (resource.kind) {
     case "global":
       decideGlobal(principal, action as GlobalAction);

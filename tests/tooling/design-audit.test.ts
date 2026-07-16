@@ -296,22 +296,17 @@ test("a nested card is flagged; a non-nested one is not", () => {
 });
 
 test("gradient-clipped text is flagged; plain text is not", () => {
-  expect(checkGradientText({ selector: ".hero-h1", hasGradientText: true })?.rule).toBe(
-    "gradient-text",
-  );
+  expect(checkGradientText({ selector: ".hero-h1", hasGradientText: true })?.rule).toBe("gradient-text");
   expect(checkGradientText({ selector: ".body", hasGradientText: false })).toBeNull();
 });
 
 test("an <img> with a hover transform is flagged; a static one is not", () => {
-  expect(checkAnimatedImgHover({ selector: "img.card-art", hasHoverAnimation: true })?.rule).toBe(
-    "animated-img-hover",
-  );
+  expect(checkAnimatedImgHover({ selector: "img.card-art", hasHoverAnimation: true })?.rule).toBe("animated-img-hover");
   expect(checkAnimatedImgHover({ selector: "img.static", hasHoverAnimation: false })).toBeNull();
 });
 
 // ── severity ordering + the fail-on gate ─────────────────────────────────────
 
-// biome-ignore lint/security/noSecrets: the test title embeds the function name under test, not a secret.
 test("isAtOrAboveSeverity orders P0 as worst — P0 clears every floor, P3 clears only itself", () => {
   expect(isAtOrAboveSeverity("P0", "P1")).toBe(true);
   expect(isAtOrAboveSeverity("P1", "P1")).toBe(true);

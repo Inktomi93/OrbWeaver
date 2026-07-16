@@ -13,9 +13,7 @@ test("before reveal the secret is not in the DOM at all", async ({ mount, page }
   await expect(page.getByRole("button", { name: "Reveal" })).toBeVisible();
 });
 
-test("the placeholder is a neutral masked panel (token surface, not the secret)", async ({
-  mount,
-}) => {
+test("the placeholder is a neutral masked panel (token surface, not the secret)", async ({ mount }) => {
   const gate = await mount(<RevealGate>sk-secret-token-12345</RevealGate>);
   const placeholder = gate.locator('[data-slot="reveal-gate-placeholder"]');
   await expect(placeholder).toHaveCSS("background-color", TOKENS["color.muted"].value);
@@ -51,10 +49,7 @@ test("hideable=false omits the re-hide affordance", async ({ mount, page }) => {
   await expect(page.getByRole("button", { name: "Hide" })).toHaveCount(0);
 });
 
-test("uncontrolled: defaultRevealed seeds the initial state and toggles freely", async ({
-  mount,
-  page,
-}) => {
+test("uncontrolled: defaultRevealed seeds the initial state and toggles freely", async ({ mount, page }) => {
   await mount(<RevealGate defaultRevealed={true}>sk-secret-token-12345</RevealGate>);
 
   await expect(page.getByText("sk-secret-token-12345")).toBeVisible();
@@ -92,16 +87,10 @@ test("a custom label renders on the reveal trigger", async ({ mount, page }) => 
   await expect(page.getByRole("button", { name: "Show API key" })).toBeVisible();
 });
 
-test("the reveal trigger carries aria-expanded=false; the hide trigger aria-expanded=true", async ({
-  mount,
-  page,
-}) => {
+test("the reveal trigger carries aria-expanded=false; the hide trigger aria-expanded=true", async ({ mount, page }) => {
   await mount(<RevealGate>sk-secret-token-12345</RevealGate>);
 
-  await expect(page.getByRole("button", { name: "Reveal" })).toHaveAttribute(
-    "aria-expanded",
-    "false",
-  );
+  await expect(page.getByRole("button", { name: "Reveal" })).toHaveAttribute("aria-expanded", "false");
   await page.getByRole("button", { name: "Reveal" }).click();
   await expect(page.getByRole("button", { name: "Hide" })).toHaveAttribute("aria-expanded", "true");
 });
@@ -127,10 +116,7 @@ test("focus moves to the Hide trigger on reveal", async ({ mount, page }) => {
   await expect(page.getByRole("button", { name: "Hide" })).toBeFocused();
 });
 
-test("focus moves to the content wrapper on reveal when hideable=false", async ({
-  mount,
-  page,
-}) => {
+test("focus moves to the content wrapper on reveal when hideable=false", async ({ mount, page }) => {
   await mount(<RevealGate hideable={false}>sk-secret-token-12345</RevealGate>);
 
   await page.getByRole("button", { name: "Reveal" }).click();

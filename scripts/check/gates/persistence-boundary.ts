@@ -53,8 +53,7 @@ const UNREGISTERED_MESSAGE_PREFIX =
   "pref in the synced user_settings blob (UI-Theming-and-Content.md §12.1): ";
 
 const STALE_REGISTRY_MESSAGE_PREFIX =
-  "DEVICE_LOCAL_REGISTRY entry has NO createPersistedStore/createEntityDraftStore call site — delete " +
-  "the stale row in persistence-boundary.ts: ";
+  "DEVICE_LOCAL_REGISTRY entry has NO createPersistedStore/createEntityDraftStore call site — delete the stale row in persistence-boundary.ts: ";
 
 function clientRel(path: string): string | undefined {
   const idx = path.indexOf(CLIENT_SRC);
@@ -133,11 +132,7 @@ export const gate: GateDescriptor = {
       return;
     }
     // RAW-STORAGE arm: a storage identifier outside the file allowlist.
-    if (
-      node.isKind(SyntaxKind.Identifier) &&
-      STORAGE_IDENTIFIER_RE.test(node.getText()) &&
-      !RAW_STORAGE_ALLOWLIST.has(rel)
-    ) {
+    if (node.isKind(SyntaxKind.Identifier) && STORAGE_IDENTIFIER_RE.test(node.getText()) && !RAW_STORAGE_ALLOWLIST.has(rel)) {
       ctx.report(node, { token: node.getText(), offset: 0 });
       return;
     }

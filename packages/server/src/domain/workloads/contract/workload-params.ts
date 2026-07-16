@@ -157,17 +157,11 @@ export const startWorkloadInput = z.discriminatedUnion("kind", [
 export type StartWorkloadInput = z.infer<typeof startWorkloadInput>;
 
 /** Throws the Zod error on a malformed blob; the row-read path (toView) catches it for poison tolerance. */
-export function parseParamsForKind<K extends WorkloadKind>(
-  kind: K,
-  params: unknown,
-): ParamsByKind[K] {
+export function parseParamsForKind<K extends WorkloadKind>(kind: K, params: unknown): ParamsByKind[K] {
   return PARAMS_SCHEMAS[kind].parse(params) as ParamsByKind[K];
 }
 
 /** The single-active lock partition a row inserts under: index's own source, else the shared none sentinel. */
-export function resolveWorkloadSource<K extends WorkloadKind>(
-  kind: K,
-  params: ParamsByKind[K],
-): WorkloadSource {
+export function resolveWorkloadSource<K extends WorkloadKind>(kind: K, params: ParamsByKind[K]): WorkloadSource {
   return kind === "index" ? (params as ParamsByKind["index"]).source : NON_INDEX_SOURCE;
 }

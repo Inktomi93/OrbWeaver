@@ -7,9 +7,7 @@ import { resolveChoiceVariables } from "../../../../../packages/server/src/domai
 import { expect, test } from "../../../../support/fixtures";
 
 /** Build a ChoiceBlockSpec with the schema defaults applied (multiSelect false, separator ", ", randomPick false). */
-function spec(
-  over: Partial<ChoiceBlockSpec> & Pick<ChoiceBlockSpec, "name" | "options">,
-): ChoiceBlockSpec {
+function spec(over: Partial<ChoiceBlockSpec> & Pick<ChoiceBlockSpec, "name" | "options">): ChoiceBlockSpec {
   return {
     question: "q",
     multiSelect: false,
@@ -27,9 +25,7 @@ const FULL = { withRandomPick: true } as const;
 const MERGED = { withRandomPick: false } as const;
 
 test("unpicked variable falls back to defaultValue", () => {
-  const specs = [
-    spec({ name: "pov", options: [{ label: "1st", value: "first" }], defaultValue: "second" }),
-  ];
+  const specs = [spec({ name: "pov", options: [{ label: "1st", value: "first" }], defaultValue: "second" })];
   expect(resolveChoiceVariables(specs, {}, stubPrng(0), FULL)).toEqual({ pov: "second" });
 });
 
@@ -47,16 +43,12 @@ test("unpicked variable with no defaultValue falls back to options[0].value", ()
 });
 
 test("an empty-string pick counts as UNPICKED (falls back, not the empty string)", () => {
-  const specs = [
-    spec({ name: "pov", options: [{ label: "1st", value: "first" }], defaultValue: "def" }),
-  ];
+  const specs = [spec({ name: "pov", options: [{ label: "1st", value: "first" }], defaultValue: "def" })];
   expect(resolveChoiceVariables(specs, { pov: "" }, stubPrng(0), FULL)).toEqual({ pov: "def" });
 });
 
 test("a non-empty pick wins over the default", () => {
-  const specs = [
-    spec({ name: "pov", options: [{ label: "1st", value: "first" }], defaultValue: "def" }),
-  ];
+  const specs = [spec({ name: "pov", options: [{ label: "1st", value: "first" }], defaultValue: "def" })];
   expect(resolveChoiceVariables(specs, { pov: "chosen" }, stubPrng(0), FULL)).toEqual({
     pov: "chosen",
   });
@@ -125,9 +117,7 @@ test("MERGED mode (withRandomPick:false) SKIPS the random draw — stable passth
 });
 
 test("orphan-preserve: a stored pick with no declared variable survives", () => {
-  const specs = [
-    spec({ name: "pov", options: [{ label: "1st", value: "first" }], defaultValue: "def" }),
-  ];
+  const specs = [spec({ name: "pov", options: [{ label: "1st", value: "first" }], defaultValue: "def" })];
   const stored = { pov: "chosen", legacy: "kept" };
   expect(resolveChoiceVariables(specs, stored, stubPrng(0), FULL)).toEqual({
     pov: "chosen",

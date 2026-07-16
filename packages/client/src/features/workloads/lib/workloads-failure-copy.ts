@@ -12,18 +12,10 @@ const FAILURE_CLASSES: readonly FailureClass[] = [
   {
     // Listed first so it wins over any coincidental substring in a normal runtime error.
     match: ["a dependency did not succeed", "dependency_failed"],
-    friendly:
-      "This job never ran — one of the jobs it depends on didn't succeed. Retry after its dependencies finish.",
+    friendly: "This job never ran — one of the jobs it depends on didn't succeed. Retry after its dependencies finish.",
   },
   {
-    match: [
-      "model file",
-      "model buffer",
-      "onnx",
-      "no model",
-      "model not found",
-      "model unavailable",
-    ],
+    match: ["model file", "model buffer", "onnx", "no model", "model not found", "model unavailable"],
     friendly: "A required local model wasn't available. Check the model is installed, then retry.",
   },
   {

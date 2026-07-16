@@ -23,7 +23,7 @@ export function createBackfillTitles(ctx: WorldInfoContext): WorldInfoService["b
 
     const entries = await listBookEntries(ctx.db, bookId);
     const updates = entries
-      .filter((e) => (e.title ?? "").trim().length === 0)
+      .filter((e) => e.title.trim().length === 0)
       .map((e) => ({ id: e.id, title: (e.keys ?? []).join(", ").trim() }))
       .filter((u) => u.title.length > 0);
 
@@ -32,9 +32,7 @@ export function createBackfillTitles(ctx: WorldInfoContext): WorldInfoService["b
     }
 
     const at = ctx.now();
-    const stmts = updates.map((u) =>
-      ctx.db.update(worldEntries).set({ title: u.title }).where(eq(worldEntries.id, u.id)),
-    );
+    const stmts = updates.map((u) => ctx.db.update(worldEntries).set({ title: u.title }).where(eq(worldEntries.id, u.id)));
     await ctx.db.batch(batchMany(stmts));
 
     await ctx.audit(

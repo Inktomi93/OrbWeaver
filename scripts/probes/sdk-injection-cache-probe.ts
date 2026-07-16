@@ -35,19 +35,9 @@ import type { SDKMessage, SessionStore } from "@anthropic-ai/claude-agent-sdk";
 import { query } from "@anthropic-ai/claude-agent-sdk";
 import type { ChatInjection } from "@orb/contracts/chat";
 import type { ChatResult } from "@orb/server/infra/providers";
-import {
-  buildClaudeOpenRouterEnv,
-  buildClaudeSdkEnv,
-  consumeTurnStream,
-  dynamicContextOptions,
-} from "@orb/server/infra/providers/backends/agent-sdk";
+import { buildClaudeOpenRouterEnv, buildClaudeSdkEnv, consumeTurnStream, dynamicContextOptions } from "@orb/server/infra/providers/backends/agent-sdk";
 import type { SeedTurn } from "@orb/server/infra/providers/backends/agent-sdk/session";
-import {
-  InMemorySessionStore,
-  SessionCache,
-  seedSessionId,
-  toSeedTurns,
-} from "@orb/server/infra/providers/backends/agent-sdk/session";
+import { InMemorySessionStore, SessionCache, seedSessionId, toSeedTurns } from "@orb/server/infra/providers/backends/agent-sdk/session";
 import { AGENT_PROMPT_TAIL_JOINER } from "@orb/server/infra/providers/contract";
 // The PRODUCTION splice + squash, deep-imported like the assembly tests (no assembly barrel exists).
 import { spliceInChatInjections } from "../../packages/server/src/domain/chat/assembly/injections.ts";
@@ -60,9 +50,7 @@ function argValue(flag: string): string | undefined {
   return i >= 0 ? args[i + 1] : undefined;
 }
 const MODEL_FLAG = argValue("--model");
-const ONLY = new Set(
-  (argValue("--scenario") ?? argValue("-s"))?.split(",").map((s) => s.trim()) ?? [],
-);
+const ONLY = new Set((argValue("--scenario") ?? argValue("-s"))?.split(",").map((s) => s.trim()) ?? []);
 /** The FOLLOWUP scenario (`--scenario followup` | `f`) runs the two follow-up arms (ARM A structural
  *  isolation + ARM B the hook channel) INSTEAD of the 24-cell matrix + grow cells — it isolates the two
  *  mysteries the first live run surfaced (see the FOLLOWUP SCENARIO block below). */
@@ -86,12 +74,8 @@ const OR_PROBE_TIER_MODELS = {
   haiku: "anthropic/claude-haiku-4.5",
 } as const;
 /** The per-mode firewall env — the SAME builders a real turn uses. */
-function probeEnv(
-  overrides: Parameters<typeof buildClaudeSdkEnv>[0],
-): Record<string, string | undefined> {
-  return MODE === "or"
-    ? buildClaudeOpenRouterEnv(OR_PROBE_KEY, OR_PROBE_TIER_MODELS, overrides)
-    : buildClaudeSdkEnv(overrides);
+function probeEnv(overrides: Parameters<typeof buildClaudeSdkEnv>[0]): Record<string, string | undefined> {
+  return MODE === "or" ? buildClaudeOpenRouterEnv(OR_PROBE_KEY, OR_PROBE_TIER_MODELS, overrides) : buildClaudeSdkEnv(overrides);
 }
 const MODEL = MODEL_FLAG ?? (MODE === "or" ? "anthropic/claude-haiku-4.5" : "claude-haiku-4-5");
 
@@ -142,8 +126,7 @@ const AXIS_PAD = 8;
 const A_ID_PAD = 18;
 const CLASS_PAD = 13;
 /** Every codeword the probe plants (canon rows, the two tail questions, the SIGIL-* injections). */
-const CODEWORD_RE =
-  /\b(?:ALPHA|BRAVO|CHARLIE|DELTA|ECHO|FOXTROT|SIGIL-[A-Z0-9]+(?:-[A-Z0-9]+)*)\b/g;
+const CODEWORD_RE = /\b(?:ALPHA|BRAVO|CHARLIE|DELTA|ECHO|FOXTROT|SIGIL-[A-Z0-9]+(?:-[A-Z0-9]+)*)\b/g;
 const SIGIL_PREFIX = "SIGIL-";
 
 // ── Shared fixtures ────────────────────────────────────────────────────────────────────────────────────
@@ -212,11 +195,7 @@ interface Cell {
 }
 
 const MATRIX: readonly Cell[] = DEPTHS.flatMap((depth) =>
-  ROLES.flatMap((role) =>
-    STABILITIES.map(
-      (stability): Cell => ({ id: `d${depth}-${role}-${stability}`, depth, role, stability }),
-    ),
-  ),
+  ROLES.flatMap((role) => STABILITIES.map((stability): Cell => ({ id: `d${depth}-${role}-${stability}`, depth, role, stability }))),
 );
 
 /** The cell's injected codeword — cell-unique so cross-cell content-cache hits can never fake a sighting;
@@ -261,15 +240,9 @@ interface BuiltTurn {
  * composition-root module graph (services/sharp/transformers) into a hand-run probe. If splitAgentHistory
  * changes its boundary rule, update this mirror.
  */
-function buildShaped(
-  canon: readonly WireRow[],
-  tailQuestion: string,
-  injection: ChatInjection | null,
-): BuiltTurn {
+function buildShaped(canon: readonly WireRow[], tailQuestion: string, injection: ChatInjection | null): BuiltTurn {
   const withTail: WireRow[] = [...canon, { role: "user", content: tailQuestion }];
-  const shaped = squashSameRole(
-    spliceInChatInjections(withTail, injection === null ? undefined : [injection]),
-  );
+  const shaped = squashSameRole(spliceInChatInjections(withTail, injection === null ? undefined : [injection]));
   let lastAssistant = -1;
   for (let i = shaped.length - 1; i >= 0; i--) {
     if (shaped[i]?.role === "assistant") {
@@ -279,14 +252,10 @@ function buildShaped(
   }
   const tail = shaped.slice(lastAssistant + 1);
   if (tail.length === 0) {
-    throw new Error(
-      "probe canon must end with a user tail (assistant-final shape is continue-mode)",
-    );
+    throw new Error("probe canon must end with a user tail (assistant-final shape is continue-mode)");
   }
   const prompt = tail.map((r) => r.content).join(AGENT_PROMPT_TAIL_JOINER);
-  const seed = shaped
-    .slice(0, lastAssistant + 1)
-    .map((r): SeedTurn => ({ role: r.role, content: r.content }));
+  const seed = shaped.slice(0, lastAssistant + 1).map((r): SeedTurn => ({ role: r.role, content: r.content }));
   return { seed, prompt, injectedInSeed: seed.some((t) => t.content.includes(SIGIL_PREFIX)) };
 }
 
@@ -464,9 +433,7 @@ async function runMatrixCell(cell: Cell): Promise<void> {
   // serves stale injected bytes would fail here.
   const expectSigil = sigil(cell, cell.stability === "volatile" ? 2 : 1);
   const sawInjected = t2.result.reply.includes(expectSigil);
-  const lineageOk = seedChanged
-    ? !SAME_LINEAGE.has(d2.disposition)
-    : SAME_LINEAGE.has(d2.disposition);
+  const lineageOk = seedChanged ? !SAME_LINEAGE.has(d2.disposition) : SAME_LINEAGE.has(d2.disposition);
   // A seed-changed cell's CLASS (partial vs cold — layer (b) on a forked lineage) is the FINDING, not a
   // pass criterion; an unchanged-seed cell must classify prefix-cached.
   const classOk = seedChanged ? true : klass === "prefix-cached";
@@ -545,11 +512,7 @@ async function runGrowCell(g: GrowCell): Promise<void> {
   record(g.id, "t1", t1, `disp=${d1.disposition}`);
   // Canon grows the COMMITTED exchange: the bare tail question (injections are transport-side, never
   // canon) + the live reply — exactly the seed production's next turn would render.
-  const grown: readonly WireRow[] = [
-    ...CANON,
-    { role: "user", content: TAIL_QUESTION },
-    { role: "assistant", content: t1.result.reply },
-  ];
+  const grown: readonly WireRow[] = [...CANON, { role: "user", content: TAIL_QUESTION }, { role: "assistant", content: t1.result.reply }];
   const b2 = buildShaped(grown, GROW_TAIL_QUESTION, inj);
   const d2 = await cache.ensureSeededSession(chatId, b2.seed);
   const t2 = await runTurn({
@@ -559,9 +522,7 @@ async function runGrowCell(g: GrowCell): Promise<void> {
   });
   record(g.id, "t2", t2, `disp=${d2.disposition}`);
   const klass = classify(t2.result.usage.cacheReadTokens, t2.result.usage.cacheWriteTokens);
-  const lineageOk = g.expectSameLineage
-    ? SAME_LINEAGE.has(d2.disposition)
-    : !SAME_LINEAGE.has(d2.disposition);
+  const lineageOk = g.expectSameLineage ? SAME_LINEAGE.has(d2.disposition) : !SAME_LINEAGE.has(d2.disposition);
   // Turn-2 sigil visibility (same guard the matrix cells carry): an injected grow note must still reach the
   // model on the GROWN turn, else a "lineage-safe" verdict could secretly be the note having dropped out of
   // the request. g-none has no injection to see.
@@ -777,9 +738,7 @@ const HOOK_TURNS = 3;
 // IN-WORLD freshness check, not "list your codewords" — that reads as prompt-extraction and Haiku
 // REFUSES it (observed live 2026-07-10). The hook injects an in-world gate watchword each turn; the
 // tail asks for it in-character.
-const HOOK_TAIL_QUESTION =
-  "A gate guard stops you and asks for tonight's watchword before letting you pass. " +
-  "Answer with only the watchword, nothing else.";
+const HOOK_TAIL_QUESTION = "A gate guard stops you and asks for tonight's watchword before letting you pass. Answer with only the watchword, nothing else.";
 /** Distinct in-world watchword per turn — greppable + cell-unique (so a cross-turn content-cache hit can't
  *  fake a sighting) but framed as a fantasy watchword, not a machine codeword the model balks at echoing. */
 const HOOK_WATCHWORDS = ["SALTHOLLOW", "DUNEHART", "VEYRAGATE"] as const;
@@ -813,11 +772,7 @@ async function storedTranscript(cache: SessionCache, chatId: string): Promise<st
       if (!Array.isArray(content)) {
         return "";
       }
-      return content
-        .map((b) =>
-          typeof (b as { text?: unknown }).text === "string" ? (b as { text: string }).text : "",
-        )
-        .join("");
+      return content.map((b) => (typeof (b as { text?: unknown }).text === "string" ? (b as { text: string }).text : "")).join("");
     })
     .join("\n");
 }
@@ -911,25 +866,17 @@ function printPlan(mCells: readonly Cell[], gCells: readonly GrowCell[]): void {
     `PLAN — ${mCells.length} matrix cells + ${gCells.length} grow cells, 2 turns each = ${totalTurns} live turns ` +
       `(~${EST_TOKENS_PER_TURN} input tok touched/turn, mostly cache-read after t1; ⚠ real ${MODE === "or" ? "OR credits" : "Max-sub quota"})`,
   );
-  console.log(
-    "  deterministic layer-(a) predictions (FREE — seedSessionId is a pure content hash):",
-  );
+  console.log("  deterministic layer-(a) predictions (FREE — seedSessionId is a pure content hash):");
   for (const cell of mCells) {
     const chatId = `probe-inj-${cell.id}`;
     const b1 = buildShaped(CANON, TAIL_QUESTION, cellInjection(cell, 1));
     const b2 = buildShaped(CANON, TAIL_QUESTION, cellInjection(cell, 2));
     const seedChanged = predictSeedChanged(chatId, b1, b2);
-    const predicted = seedChanged
-      ? "fork → measure the re-bill (partial vs cold)"
-      : "resume/readopt → prefix-cached";
-    console.log(
-      `  ${cell.id}: inSeed=${b1.injectedInSeed} t2SeedChanged=${seedChanged} → predict ${predicted}`,
-    );
+    const predicted = seedChanged ? "fork → measure the re-bill (partial vs cold)" : "resume/readopt → prefix-cached";
+    console.log(`  ${cell.id}: inSeed=${b1.injectedInSeed} t2SeedChanged=${seedChanged} → predict ${predicted}`);
   }
   for (const g of gCells) {
-    console.log(
-      `  ${g.id}: predict ${g.expectSameLineage ? "readopt (position-stable)" : "fork (position drift)"} — ${g.note}`,
-    );
+    console.log(`  ${g.id}: predict ${g.expectSameLineage ? "readopt (position-stable)" : "fork (position drift)"} — ${g.note}`);
   }
 }
 
@@ -945,15 +892,9 @@ function renderMatrix(): void {
   console.log("\n=== turn-2 outcome by depth × role (stable | volatile) ===");
   for (const depth of DEPTHS) {
     for (const role of ROLES) {
-      const s = outcomes.find(
-        (o) => o.cell.depth === depth && o.cell.role === role && o.cell.stability === "stable",
-      );
-      const v = outcomes.find(
-        (o) => o.cell.depth === depth && o.cell.role === role && o.cell.stability === "volatile",
-      );
-      console.log(
-        `  d${depth} ${role.padEnd(ROLE_PAD)} stable=${fmtOutcome(s)}  volatile=${fmtOutcome(v)}`,
-      );
+      const s = outcomes.find((o) => o.cell.depth === depth && o.cell.role === role && o.cell.stability === "stable");
+      const v = outcomes.find((o) => o.cell.depth === depth && o.cell.role === role && o.cell.stability === "volatile");
+      console.log(`  d${depth} ${role.padEnd(ROLE_PAD)} stable=${fmtOutcome(s)}  volatile=${fmtOutcome(v)}`);
     }
   }
 }
@@ -1013,16 +954,12 @@ function printFollowupPlan(aCells: readonly ACell[]): void {
     `PLAN [followup] — ARM A: ${aCells.length} structural-isolation cells × 2 turns; ARM B: 1 hook arm × ${HOOK_TURNS} turns ` +
       `= ${totalTurns} live turns (~${EST_TOKENS_PER_TURN} input tok touched/turn, mostly cache-read; ⚠ real ${MODE === "or" ? "OR credits" : "Max-sub quota"})`,
   );
-  console.log(
-    "  ARM A — bytes held stable + lineage held; the FINDING is the layer-(b) class per axis:",
-  );
+  console.log("  ARM A — bytes held stable + lineage held; the FINDING is the layer-(b) class per axis:");
   for (const cell of aCells) {
     const b = buildShaped(CANON, TAIL_QUESTION, aInjection(cell));
     // A stable replay never changes the seed, so the layer-(a) prediction is always resume/readopt; the
     // free signal here is the BUCKET (does the note land in the hashed seed?).
-    console.log(
-      `  ${cell.id} [${cell.axis}]: inSeed=${b.injectedInSeed} → predict resume/readopt; class is the finding — ${cell.note}`,
-    );
+    console.log(`  ${cell.id} [${cell.axis}]: inSeed=${b.injectedInSeed} → predict resume/readopt; class is the finding — ${cell.note}`);
   }
   console.log(
     "  ARM B — hook channel: predict lineage-neutral (hook body stays out of the seed) + prefix-cached " +
@@ -1064,9 +1001,7 @@ async function runFollowup(): Promise<void> {
 
 // ── Main ───────────────────────────────────────────────────────────────────────────────────────────────
 async function main(): Promise<void> {
-  console.log(
-    `sdk-injection-cache-probe — model=${MODEL} (${MODE === "or" ? "mode-2 OR skin" : "mode-1 Max sub"}; spends real quota/credits)\n`,
-  );
+  console.log(`sdk-injection-cache-probe — model=${MODEL} (${MODE === "or" ? "mode-2 OR skin" : "mode-1 Max sub"}; spends real quota/credits)\n`);
   if (FOLLOWUP) {
     await runFollowup();
     return;

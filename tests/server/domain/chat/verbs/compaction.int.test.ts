@@ -41,10 +41,7 @@ function principal(userId: UserId): Principal {
 
 /** A deterministic summarizer stub that records its inputs + returns a fixed summary text. */
 function ctxWithSummarizer(text: string): ChatContext {
-  const summarize: ChatContext["summarize"] = (
-    inputs: SummarizeInput[],
-    _opts?: SummarizeOptions,
-  ) => {
+  const summarize: ChatContext["summarize"] = (inputs: SummarizeInput[], _opts?: SummarizeOptions) => {
     summarizeCalls.push(inputs);
     return Promise.resolve({
       items: [{ text, usage: { tokensIn: 1, tokensOut: 1, costUsd: null } }],
@@ -89,9 +86,7 @@ describe("compact — the manual lever (host)", () => {
   test("a member is refused (not_host)", async () => {
     const { member, chatId } = await seedRoom();
     const compaction = createCompaction(ctxWithSummarizer("x"), { emit });
-    const err = await compaction
-      .compact({ principal: principal(member), chatId })
-      .catch((e: unknown) => e);
+    const err = await compaction.compact({ principal: principal(member), chatId }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
     expect((err as ChatOperationError).code).toBe("not_host");
     expect(summarizeCalls).toHaveLength(0);

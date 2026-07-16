@@ -45,11 +45,7 @@ export function installLongTaskTracer(): void {
         if (entry.duration < LONG_TASK_MS) {
           continue;
         }
-        console.warn(
-          `%c${logClock()} [perf]%c long task ${Math.round(entry.duration)}ms · route ${route()}`,
-          PERF_STYLE,
-          MUTED_STYLE,
-        );
+        console.warn(`%c${logClock()} [perf]%c long task ${Math.round(entry.duration)}ms · route ${route()}`, PERF_STYLE, MUTED_STYLE);
       }
     });
     lt.observe({ type: "longtask", buffered: true });
@@ -67,9 +63,7 @@ export function installLongTaskTracer(): void {
           readonly target?: Node | null;
         };
         console.warn(
-          `%c${logClock()} [perf]%c slow ${timing.name} ${Math.round(entry.duration)}ms · ${describeTarget(
-            timing.target ?? null,
-          )} · route ${route()}`,
+          `%c${logClock()} [perf]%c slow ${timing.name} ${Math.round(entry.duration)}ms · ${describeTarget(timing.target ?? null)} · route ${route()}`,
           PERF_STYLE,
           MUTED_STYLE,
         );

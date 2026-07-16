@@ -15,15 +15,11 @@ interface GlobalSettingsVerbs {
 }
 
 export function createGlobalSettings(ctx: SettingsContext): GlobalSettingsVerbs {
-  const getGlobalSetting: SettingsService["getGlobalSetting"] = (key) =>
-    readGlobalSetting(ctx.db, key);
+  const getGlobalSetting: SettingsService["getGlobalSetting"] = (key) => readGlobalSetting(ctx.db, key);
 
   const setGlobalSetting: SettingsService["setGlobalSetting"] = async (key, value) => {
     if (key === APP_SETTINGS_KEY) {
-      throw new DomainOperationError(
-        SETTINGS_OP_CODES.reservedKey,
-        `setGlobalSetting: '${key}' is reserved (use updateAppSettings, not the generic setter)`,
-      );
+      throw new DomainOperationError(SETTINGS_OP_CODES.reservedKey, `setGlobalSetting: '${key}' is reserved (use updateAppSettings, not the generic setter)`);
     }
     const at = ctx.now();
     const view = await upsertGlobalSetting(ctx.db, key, value, at);

@@ -17,24 +17,13 @@ import { castId } from "@orb/kit/ids";
 import { beforeEach, describe, vi } from "vitest";
 import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context";
 import type { MemoryConfig } from "../../../../../packages/server/src/domain/chat/contract/memory";
-import type {
-  TurnPrep,
-  TurnStreamChunk,
-} from "../../../../../packages/server/src/domain/chat/contract/results";
+import type { TurnPrep, TurnStreamChunk } from "../../../../../packages/server/src/domain/chat/contract/results";
 import { createTurnEngine } from "../../../../../packages/server/src/domain/chat/engine/engine";
 import { generateDigests } from "../../../../../packages/server/src/domain/chat/memory/build/digests";
 import { generateSegments } from "../../../../../packages/server/src/domain/chat/memory/build/segments";
 import { freshDb } from "../../../../support/db";
 import { expect, test } from "../../../../support/fixtures";
-import {
-  makeChatContext,
-  seedCharacter,
-  seedChat,
-  seedMessage,
-  seedParticipant,
-  seedUser,
-  testConnection,
-} from "../_support";
+import { makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser, testConnection } from "../_support";
 import { fakeEmbeddingsStore, fakeSummarize } from "../memory/_support";
 
 const HOST = castId<UserId>("user_host");

@@ -138,11 +138,8 @@ export interface DebugRoutesOptions {
 
 /** Factory — the middleware closes over the gate config. Order: admin-cookie short-circuit, then the
  *  token check. The query-param token form is intentionally absent (it leaked into proxy access logs). */
-export function createDebugAuthMiddleware(
-  opts: DebugAuthOptions | string | undefined,
-): MiddlewareHandler {
-  const config: DebugAuthOptions =
-    typeof opts === "string" || opts === undefined ? { expectedToken: opts } : opts;
+export function createDebugAuthMiddleware(opts: DebugAuthOptions | string | undefined): MiddlewareHandler {
+  const config: DebugAuthOptions = typeof opts === "string" || opts === undefined ? { expectedToken: opts } : opts;
   return async (c: Context, next: Next) => {
     if (config.adminAuth !== undefined) {
       try {
@@ -196,9 +193,7 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = {})
     }),
   );
 
-  app.get("/api/_debug/errors", (c) =>
-    c.json({ errors: collectErrors(toLimit(c.req.query("limit"), DEFAULT_LIST_LIMIT)) }),
-  );
+  app.get("/api/_debug/errors", (c) => c.json({ errors: collectErrors(toLimit(c.req.query("limit"), DEFAULT_LIST_LIMIT)) }));
 
   app.get("/api/_debug/requests", (c) => {
     const userId = c.req.query("userId");
@@ -223,19 +218,13 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = {})
   });
   app.get("/api/_debug/traces/:requestId", (c) => {
     const traceRecord = getTraceByRequestId(c.req.param("requestId"));
-    return traceRecord === undefined
-      ? c.json({ error: "no trace recorded for that requestId" }, NOT_FOUND)
-      : c.json(traceRecord);
+    return traceRecord === undefined ? c.json({ error: "no trace recorded for that requestId" }, NOT_FOUND) : c.json(traceRecord);
   });
 
   if (db !== undefined) {
-    app.get("/api/_debug/db/stats", async (c) =>
-      c.json({ tables: await tableCounts(db), auditFailures: getAuditFailureSnapshot() }),
-    );
+    app.get("/api/_debug/db/stats", async (c) => c.json({ tables: await tableCounts(db), auditFailures: getAuditFailureSnapshot() }));
     app.get("/api/_debug/db/integrity", async (c) => c.json(await integrityProbe(db)));
-    app.get("/api/_debug/db/chat/:id", async (c) =>
-      c.json(await inspectChatState(db, castId<ChatId>(c.req.param("id")))),
-    );
+    app.get("/api/_debug/db/chat/:id", async (c) => c.json(await inspectChatState(db, castId<ChatId>(c.req.param("id")))));
   }
   if (assets !== undefined) {
     app.get("/api/_debug/db/assets", async (c) => c.json(await assets.fsck()));

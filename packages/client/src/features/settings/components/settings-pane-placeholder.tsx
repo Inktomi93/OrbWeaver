@@ -15,16 +15,6 @@ export interface SettingsPanePlaceholderProps {
 }
 
 /** The teaching placeholder for an unbuilt settings category (its distinct copy from the nav registry). */
-export function SettingsPanePlaceholder({
-  title,
-  description,
-}: SettingsPanePlaceholderProps): ReactElement {
-  return (
-    <EmptyState
-      className="h-full justify-center"
-      icon={<Icon icon={Sparkles} size="lg" />}
-      title={title}
-      description={description}
-    />
-  );
+export function SettingsPanePlaceholder({ title, description }: SettingsPanePlaceholderProps): ReactElement {
+  return <EmptyState className="h-full justify-center" icon={<Icon icon={Sparkles} size="lg" />} title={title} description={description} />;
 }

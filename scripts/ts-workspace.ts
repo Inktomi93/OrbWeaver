@@ -81,10 +81,7 @@ export type KindVisitor = (node: Node, sf: SourceFile) => void;
 /** ONE forEachDescendant pass over `files`, dispatching each node only to the visitors subscribed to its
  *  kind. This is the single-pass primitive: no `Map<SyntaxKind, Node[]>` materialization (holding 1.4M
  *  wrapped nodes alive is a memory cliff) — dispatch happens DURING the streaming walk (§1.4). */
-export function collectByKinds(
-  files: readonly SourceFile[],
-  byKind: ReadonlyMap<SyntaxKind, readonly KindVisitor[]>,
-): void {
+export function collectByKinds(files: readonly SourceFile[], byKind: ReadonlyMap<SyntaxKind, readonly KindVisitor[]>): void {
   if (byKind.size === 0) {
     return;
   }

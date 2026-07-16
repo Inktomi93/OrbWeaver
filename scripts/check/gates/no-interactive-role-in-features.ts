@@ -147,16 +147,11 @@ export const gate: GateDescriptor = {
     },
     {
       files: {
-        "packages/client/src/features/demo/components/menuitem.tsx":
-          'export const G = <Row role="menuitem" />;\n',
-        "packages/client/src/features/demo/components/tab.tsx":
-          'export const G = <Row role="tab" />;\n',
-        "packages/client/src/features/demo/components/slider.tsx":
-          'export const G = <Row role="slider" />;\n',
-        "packages/client/src/features/demo/components/treeitem.tsx":
-          'export const G = <Row role="treeitem" />;\n',
-        "packages/client/src/features/demo/components/gridcell.tsx":
-          'export const G = <Row role="gridcell" />;\n',
+        "packages/client/src/features/demo/components/menuitem.tsx": 'export const G = <Row role="menuitem" />;\n',
+        "packages/client/src/features/demo/components/tab.tsx": 'export const G = <Row role="tab" />;\n',
+        "packages/client/src/features/demo/components/slider.tsx": 'export const G = <Row role="slider" />;\n',
+        "packages/client/src/features/demo/components/treeitem.tsx": 'export const G = <Row role="treeitem" />;\n',
+        "packages/client/src/features/demo/components/gridcell.tsx": 'export const G = <Row role="gridcell" />;\n',
       },
       expect: { count: 5 },
       why: "a spread of five distinct widget roles across files — each flags",

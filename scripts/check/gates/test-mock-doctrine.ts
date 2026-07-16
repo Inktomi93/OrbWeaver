@@ -15,13 +15,7 @@ function checkMockCall(call: CallExpression, filePath: string): Violation | null
     return null;
   }
   const mockTarget = arg0.getText().replace(/['"]/gu, "");
-  if (
-    !(
-      mockTarget.startsWith(".") ||
-      mockTarget.startsWith("packages/") ||
-      mockTarget.startsWith("@orb/")
-    )
-  ) {
+  if (!(mockTarget.startsWith(".") || mockTarget.startsWith("packages/") || mockTarget.startsWith("@orb/"))) {
     return null;
   }
   return {
@@ -31,8 +25,7 @@ function checkMockCall(call: CallExpression, filePath: string): Violation | null
   };
 }
 
-const MOCK_MESSAGE =
-  "vi.mock on an internal module — fake at the edges, inject at the composition root (core/Spine-Testing.md §3).";
+const MOCK_MESSAGE = "vi.mock on an internal module — fake at the edges, inject at the composition root (core/Spine-Testing.md §3).";
 
 export const gate: GateDescriptor = {
   name: "test-mock-doctrine",

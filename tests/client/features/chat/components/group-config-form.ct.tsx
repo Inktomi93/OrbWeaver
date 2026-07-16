@@ -11,22 +11,16 @@ import { GroupConfigFormStory } from "../_ct-stories";
 
 const SAVED = '[data-testid="group-config-saved"]';
 
-test("renders the output discriminator + the always-visible toggles (seeded from config)", async ({
-  mount,
-}) => {
+test("renders the output discriminator + the always-visible toggles (seeded from config)", async ({ mount }) => {
   const component = await mount(<GroupConfigFormStory />);
 
   await expect(component.getByRole("button", { name: "Per-speaker" })).toBeVisible();
   await expect(component.getByRole("button", { name: "Narrator" })).toBeVisible();
   await expect(component.getByRole("switch", { name: "Label each speaker" })).toBeVisible();
-  await expect(
-    component.getByRole("switch", { name: "Nudge the group to stay in character" }),
-  ).toBeVisible();
+  await expect(component.getByRole("switch", { name: "Nudge the group to stay in character" })).toBeVisible();
 });
 
-test("switching output to narrator rebuilds the arm + re-derives the coupled speakerTags default", async ({
-  mount,
-}) => {
+test("switching output to narrator rebuilds the arm + re-derives the coupled speakerTags default", async ({ mount }) => {
   const component = await mount(<GroupConfigFormStory />);
 
   await component.getByRole("button", { name: "Narrator" }).click();
@@ -46,9 +40,7 @@ test("toggling group-nudge commits the whole config", async ({ mount }) => {
   await expect(component.locator(SAVED)).toContainText('"groupNudge":false');
 });
 
-test("the Advanced disclosure reveals policy · member-visibility · auto-mode", async ({
-  mount,
-}) => {
+test("the Advanced disclosure reveals policy · member-visibility · auto-mode", async ({ mount }) => {
   const component = await mount(<GroupConfigFormStory />);
 
   // Hidden at rest (progressive disclosure).
@@ -57,16 +49,10 @@ test("the Advanced disclosure reveals policy · member-visibility · auto-mode",
   await component.getByRole("button", { name: "Advanced" }).click();
 
   await expect(component.getByRole("combobox", { name: "Who speaks each round" })).toBeVisible();
-  await expect(
-    component.getByRole("combobox", { name: "How much of each member the others see" }),
-  ).toBeVisible();
-  await expect(
-    component.getByRole("switch", { name: "Let characters reply to each other" }),
-  ).toBeVisible();
+  await expect(component.getByRole("combobox", { name: "How much of each member the others see" })).toBeVisible();
+  await expect(component.getByRole("switch", { name: "Let characters reply to each other" })).toBeVisible();
   // Card-scope shows on the per-speaker default (narrator has no per-speaker card scope).
-  await expect(
-    component.getByRole("switch", { name: "Each character sees only their own card" }),
-  ).toBeVisible();
+  await expect(component.getByRole("switch", { name: "Each character sees only their own card" })).toBeVisible();
 });
 
 test("the scopedCards toggle maps to the per-speaker cardScope arm", async ({ mount }) => {

@@ -33,9 +33,7 @@ describe("snapshot", () => {
     expect(snaps[0]?.label).toBe("v1");
     // No `character.updated` domain event (card unchanged) — but the user-bus freshness emit DID fire.
     expect(h.events).toEqual([]);
-    expect(h.userEvents).toEqual([
-      { userId: owner, event: { type: "charactersChanged", characterId: created.id } },
-    ]);
+    expect(h.userEvents).toEqual([{ userId: owner, event: { type: "charactersChanged", characterId: created.id } }]);
   });
 
   test("snapshotting another user's character throws CharacterNotFoundError", async () => {
@@ -47,8 +45,6 @@ describe("snapshot", () => {
       principal: principal(owner),
       input: { handle: "nyx", name: "Nyx", description: "d" },
     });
-    await expect(
-      svc.snapshot({ principal: principal(other), characterId: created.id }),
-    ).rejects.toBeInstanceOf(CharacterNotFoundError);
+    await expect(svc.snapshot({ principal: principal(other), characterId: created.id })).rejects.toBeInstanceOf(CharacterNotFoundError);
   });
 });

@@ -12,10 +12,7 @@ import { castId } from "@orb/kit/ids";
 import type { AdminService } from "@orb/server/domain/admin";
 import { createAdminService } from "@orb/server/domain/admin";
 import type { AdminContext } from "../../../../packages/server/src/domain/admin/context.ts";
-import type {
-  AdminEngineStatus,
-  SessionAdminView,
-} from "../../../../packages/server/src/domain/admin/contract/views.ts";
+import type { AdminEngineStatus, SessionAdminView } from "../../../../packages/server/src/domain/admin/contract/views.ts";
 import { createFrozenClock } from "../../../support/clock.ts";
 import { principal as makePrincipal } from "../../../support/factories/principal.ts";
 import { createSeededIds } from "../../../support/ids.ts";
@@ -120,8 +117,7 @@ export function makeHarness(db: Db): AdminHarness {
       return Promise.resolve();
     },
     sessions: {
-      listForUser: (_userId: UserId): Promise<readonly SessionAdminView[]> =>
-        Promise.resolve(sessionList),
+      listForUser: (_userId: UserId): Promise<readonly SessionAdminView[]> => Promise.resolve(sessionList),
       revoke: (sessionId: string): Promise<void> => {
         revokedSessions.push(sessionId);
         return Promise.resolve();

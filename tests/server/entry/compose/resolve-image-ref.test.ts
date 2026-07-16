@@ -19,14 +19,12 @@ const CHAT = castId<ChatId>("chat_a");
 const ASSET_ID = "asset_pic1";
 
 const assetRef = (assetId = ASSET_ID): ContentImageRef => ({ kind: "asset", assetId });
-const dataUri = (mime: string, bytes: number[]): string =>
-  `data:${mime};base64,${Buffer.from(bytes).toString("base64")}`;
+const dataUri = (mime: string, bytes: number[]): string => `data:${mime};base64,${Buffer.from(bytes).toString("base64")}`;
 
 /** Assets fake: the named owner + a fixed mime, with 1-byte content. `undefined` owner = a gone row. */
 function assetsOwnedBy(owner: UserId | undefined): ImageRefAssets {
   return {
-    assetCasRefById: () =>
-      Promise.resolve(owner === undefined ? undefined : { ownerId: owner, mime: "image/png" }),
+    assetCasRefById: () => Promise.resolve(owner === undefined ? undefined : { ownerId: owner, mime: "image/png" }),
     loadAssetBytes: () => Promise.resolve(new Uint8Array([7])),
   };
 }
@@ -35,7 +33,6 @@ const present =
   (userId: UserId, _chatId: ChatId): Promise<boolean> =>
     Promise.resolve(ids.includes(userId));
 
-// biome-ignore lint/security/noSecrets: the describe label is a function name, not a secret.
 describe("resolveImageRefToUrl", () => {
   test("external ref passes through when NOT forbidden (assets never touched)", async () => {
     const url = await resolveImageRefToUrl(assetsOwnedBy(HOST), present([]), false, {

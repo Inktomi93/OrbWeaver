@@ -3,10 +3,7 @@
 // wrong place), so test them directly. Ported nearly verbatim from neo-tavern's
 // macro-textarea-logic.test.ts — these functions never touched the macro catalog, so the port is a
 // straight copy.
-import {
-  computeMacroInsertion,
-  detectTrigger,
-} from "../../../../packages/ui/src/primitives/macro-textarea/macro-textarea-logic";
+import { computeMacroInsertion, detectTrigger } from "../../../../packages/ui/src/primitives/macro-textarea/macro-textarea-logic";
 import { expect, test } from "../../../support/fixtures";
 
 test("detectTrigger: returns null when there is no `{{` before the caret", () => {
@@ -65,11 +62,7 @@ test("computeMacroInsertion: preserves text after the trigger span", () => {
 });
 
 test("computeMacroInsertion: parameterized macro inserts `{{base::}}`, caret just inside closing braces", () => {
-  const { next, caret } = computeMacroInsertion(
-    "{{getv",
-    { start: 0, partial: "getv" },
-    "getvar::name",
-  );
+  const { next, caret } = computeMacroInsertion("{{getv", { start: 0, partial: "getv" }, "getvar::name");
   expect(next).toBe("{{getvar::}}");
   // caret sits before the closing `}}`
   expect(caret).toBe("{{getvar::}}".length - 2);

@@ -64,10 +64,7 @@ function checkZeroTabMint(sf: SourceFile, out: (line: number, message: string) =
       continue;
     }
     const tabsInit = tabs.getInitializer();
-    const isEmptyArray =
-      tabsInit !== undefined &&
-      Node.isArrayLiteralExpression(tabsInit) &&
-      tabsInit.getElements().length === 0;
+    const isEmptyArray = tabsInit !== undefined && Node.isArrayLiteralExpression(tabsInit) && tabsInit.getElements().length === 0;
     if (isEmptyArray && arg.getProperty("contributors") === undefined) {
       out(
         call.getStartLineNumber(),
@@ -88,9 +85,7 @@ function isStrictProjectionArg(typeArg: TypeNode): boolean {
   if (Node.isTypeReference(typeArg) && typeArg.getTypeArguments().length === 0) {
     const nameNode = typeArg.getTypeName();
     if (Node.isIdentifier(nameNode)) {
-      return nameNode
-        .getDefinitionNodes()
-        .some((def) => REGISTRY_CONTRACTS_RE.test(def.getSourceFile().getFilePath()));
+      return nameNode.getDefinitionNodes().some((def) => REGISTRY_CONTRACTS_RE.test(def.getSourceFile().getFilePath()));
     }
   }
   return false;
@@ -158,10 +153,7 @@ function checkBodiesSplit(sf: SourceFile, out: (line: number, message: string) =
       continue;
     }
     const typeNode = sig.getTypeNode();
-    if (
-      typeNode !== undefined &&
-      BODIES_RECORD_RE.test(typeNode.getText().replace(/\s+/g, " ").trim())
-    ) {
+    if (typeNode !== undefined && BODIES_RECORD_RE.test(typeNode.getText().replace(/\s+/g, " ").trim())) {
       flag(sig.getStartLineNumber());
     }
   }
@@ -186,8 +178,7 @@ export const gate: GateDescriptor = {
   scanRoot: (p) => p.includes(CLIENT_SRC),
   visitFile: (sf, ctx) => {
     const path = rel(sf.getFilePath());
-    const report = (line: number, message: string): void =>
-      ctx.report({ file: path, line, column: 0, message });
+    const report = (line: number, message: string): void => ctx.report({ file: path, line, column: 0, message });
     checkMintOnlyTabs(sf, report);
     checkZeroTabMint(sf, report);
     checkStrictProjection(sf, report);
@@ -248,8 +239,7 @@ export const gate: GateDescriptor = {
     },
     {
       files: {
-        "packages/client/src/lib/registry-contracts.ts":
-          "export interface CharacterContextState { readonly characterId: string }\n",
+        "packages/client/src/lib/registry-contracts.ts": "export interface CharacterContextState { readonly characterId: string }\n",
         "packages/client/src/features/character/lib/characters-section.tsx":
           'import type { CharacterContextState } from "../../../lib/registry-contracts";\n' +
           "declare function defineContextTabs<S>(spec: unknown): unknown;\n" +

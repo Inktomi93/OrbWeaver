@@ -39,13 +39,7 @@ export function createVariantCache(rootDir: string): VariantCache {
     if (!isAssetHash(hash)) {
       throw new Error(`variant-cache: not a valid content hash: ${JSON.stringify(hash)}`);
     }
-    return join(
-      rootDir,
-      ownerId,
-      hash.slice(0, SHARD_A_END),
-      hash.slice(SHARD_A_END, SHARD_B_END),
-      hash,
-    );
+    return join(rootDir, ownerId, hash.slice(0, SHARD_A_END), hash.slice(SHARD_A_END, SHARD_B_END), hash);
   }
 
   // `kind` folds into the filename, not a subdirectory, so `removeAll` still drops both with one rm.
@@ -53,8 +47,7 @@ export function createVariantCache(rootDir: string): VariantCache {
     if (!Number.isInteger(variant.width) || variant.width <= 0) {
       throw new Error(`variant-cache: invalid width ${variant.width}`);
     }
-    const filename =
-      variant.kind === "icon" ? `w${variant.width}.webp` : `${variant.kind}-w${variant.width}.webp`;
+    const filename = variant.kind === "icon" ? `w${variant.width}.webp` : `${variant.kind}-w${variant.width}.webp`;
     return join(hashDir(ownerId, hash), filename);
   }
 

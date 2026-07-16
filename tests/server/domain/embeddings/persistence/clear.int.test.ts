@@ -6,18 +6,10 @@
 // ADDITIVELY beside the old one, and the purge reclaims the old space leaving zero stale-space rows.
 
 import { characterEmbeddings, chatDigests, chatSegments, imageEmbeddings } from "@orb/db";
-import type {
-  CharacterEmbeddingId,
-  ChatDigestId,
-  ChatSegmentId,
-  ImageEmbeddingId,
-} from "@orb/kit/ids";
+import type { CharacterEmbeddingId, ChatDigestId, ChatSegmentId, ImageEmbeddingId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import {
-  clearVectorTable,
-  purgeStaleVectors,
-} from "../../../../../packages/server/src/domain/embeddings/persistence/clear.ts";
+import { clearVectorTable, purgeStaleVectors } from "../../../../../packages/server/src/domain/embeddings/persistence/clear.ts";
 import {
   upsertCharacterEmbedding,
   upsertChatDigest,
@@ -26,16 +18,7 @@ import {
 } from "../../../../../packages/server/src/domain/embeddings/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
-import {
-  EMBED_DIM,
-  EMBED_MODEL,
-  fakeVector,
-  IMAGE_EMBED_MODEL,
-  seedAsset,
-  seedCharacter,
-  seedChat,
-  seedUser,
-} from "../_support.ts";
+import { EMBED_DIM, EMBED_MODEL, fakeVector, IMAGE_EMBED_MODEL, seedAsset, seedCharacter, seedChat, seedUser } from "../_support.ts";
 
 const NOW = 1_750_000_000_000;
 const OLD_MODEL = "old-embed-model-v1";

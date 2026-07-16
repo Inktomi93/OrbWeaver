@@ -1,7 +1,4 @@
-import type {
-  ComboboxPositionerProps as BasePositionerProps,
-  ComboboxRootProps as BaseRootProps,
-} from "@base-ui/react/combobox";
+import type { ComboboxPositionerProps as BasePositionerProps, ComboboxRootProps as BaseRootProps } from "@base-ui/react/combobox";
 import { Combobox as BaseCombobox } from "@base-ui/react/combobox";
 import type { KeyboardEvent, ReactElement, ReactNode } from "react";
 import { useRef, useState } from "react";
@@ -192,11 +189,7 @@ export function Combobox({
                 {selected.map((chip) => (
                   <BaseCombobox.Chip className={slots.chip()} data-slot="combobox-chip" key={chip}>
                     {chip}
-                    <BaseCombobox.ChipRemove
-                      aria-label={`Remove ${chip}`}
-                      className={slots.chipRemove()}
-                      data-slot="combobox-chip-remove"
-                    >
+                    <BaseCombobox.ChipRemove aria-label={`Remove ${chip}`} className={slots.chipRemove()} data-slot="combobox-chip-remove">
                       <Icon icon={X} size="xs" />
                     </BaseCombobox.ChipRemove>
                   </BaseCombobox.Chip>
@@ -217,28 +210,15 @@ export function Combobox({
       </BaseCombobox.InputGroup>
       {suggestionsEnabled ? (
         <BaseCombobox.Portal container={container ?? portalContainer}>
-          <BaseCombobox.Positioner
-            align={align}
-            className={slots.positioner()}
-            data-slot="combobox-positioner"
-            side={side}
-            sideOffset={sideOffset}
-          >
+          <BaseCombobox.Positioner align={align} className={slots.positioner()} data-slot="combobox-positioner" side={side} sideOffset={sideOffset}>
             <BaseCombobox.Popup className={slots.popup()} data-slot="combobox-popup">
-              {arrow ? (
-                <BaseCombobox.Arrow className={slots.arrow()} data-slot="combobox-arrow" />
-              ) : null}
+              {arrow ? <BaseCombobox.Arrow className={slots.arrow()} data-slot="combobox-arrow" /> : null}
               <BaseCombobox.Empty className={slots.empty()} data-slot="combobox-empty">
                 {emptyContent}
               </BaseCombobox.Empty>
               <BaseCombobox.List className={slots.list()} data-slot="combobox-list">
                 {(item: string): ReactNode => (
-                  <BaseCombobox.Item
-                    className={slots.item()}
-                    data-slot="combobox-item"
-                    key={item}
-                    value={item}
-                  >
+                  <BaseCombobox.Item className={slots.item()} data-slot="combobox-item" key={item} value={item}>
                     {item}
                   </BaseCombobox.Item>
                 )}

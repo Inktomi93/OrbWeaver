@@ -2,13 +2,7 @@
 // ConnectionService (selection, not execution). Every cross-feature/infra dep arrives as an injected op,
 // wired at the composition root; connection sideways-imports no sibling runtime.
 
-import type {
-  AgentSdkModel,
-  CredentialSource,
-  ModelCapability,
-  ModelCatalogEntry,
-  ResolvedConnection,
-} from "@orb/contracts/connection";
+import type { AgentSdkModel, CredentialSource, ModelCapability, ModelCatalogEntry, ResolvedConnection } from "@orb/contracts/connection";
 import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { Principal } from "@orb/contracts/identity";
 import type { AccountCredits, GenerationCost, VerifyAuthResult } from "@orb/contracts/providers";
@@ -26,44 +20,26 @@ import type {
   ResolveRoleParams,
   TestClaudeAuthParams,
 } from "./params";
-import type {
-  AgentSdkCatalogSnapshot,
-  CatalogSnapshot,
-  OrSkinTierModels,
-  SourceModelsResult,
-} from "./results";
+import type { AgentSdkCatalogSnapshot, CatalogSnapshot, OrSkinTierModels, SourceModelsResult } from "./results";
 
 /** credentials.resolve — resolve the brand-protected credential for a `{principal, source}`. */
-type ResolveCredentialOp = (params: {
-  readonly principal: Principal;
-  readonly source: CredentialSource;
-}) => Promise<ResolvedCredential>;
+type ResolveCredentialOp = (params: { readonly principal: Principal; readonly source: CredentialSource }) => Promise<ResolvedCredential>;
 
 /** infra/providers.fetchOrCatalog — the live OpenRouter `/models` fetch (keyless, no credential). */
-type FetchOrCatalogOp = (req: {
-  readonly signal?: AbortSignal | undefined;
-}) => Promise<ModelCatalogEntry[]>;
+type FetchOrCatalogOp = (req: { readonly signal?: AbortSignal | undefined }) => Promise<ModelCatalogEntry[]>;
 
 /** infra/providers.fetchAgentSdkModels — the live agent-sdk `supportedModels()` discovery. */
-type FetchAgentSdkModelsOp = (req: {
-  readonly signal?: AbortSignal | undefined;
-}) => Promise<AgentSdkModel[]>;
+type FetchAgentSdkModelsOp = (req: { readonly signal?: AbortSignal | undefined }) => Promise<AgentSdkModel[]>;
 
 /** settings.loadUserSettings — the parsed per-user UserSettings; connection is a consumer, not an owner. */
 type LoadUserSettingsOp = (userId: UserId) => Promise<UserSettings>;
 
 /** infra/providers.verifyAuth — the host-Claude auth-verify diagnostic (which credential the spawned
  *  runtime used). The credential is the owner-gated `max-pro-sub` mint this domain resolves first. */
-type VerifyClaudeAuthOp = (req: {
-  readonly credential: ResolvedCredential;
-  readonly model: string;
-}) => Promise<VerifyAuthResult>;
+type VerifyClaudeAuthOp = (req: { readonly credential: ResolvedCredential; readonly model: string }) => Promise<VerifyAuthResult>;
 
 /** infra/providers.accountCredits — the OpenRouter credit-balance read. */
-type AccountCreditsOp = (req: {
-  readonly credential: ResolvedCredential;
-  readonly signal?: AbortSignal | undefined;
-}) => Promise<AccountCredits>;
+type AccountCreditsOp = (req: { readonly credential: ResolvedCredential; readonly signal?: AbortSignal | undefined }) => Promise<AccountCredits>;
 
 /** infra/providers.generationCost — the settled upstream cost of one generation, read with the billing key. */
 type GenerationCostOp = (req: {
@@ -114,9 +90,7 @@ export interface ConnectionService {
   readonly refreshCatalog: (params: RefreshCatalogParams) => Promise<CatalogSnapshot>;
   /** The agent-sdk daemon's family→version catalog, separate from the OR catalog verbs above. */
   readonly getAgentSdkCatalog: (params: GetCatalogParams) => Promise<AgentSdkCatalogSnapshot>;
-  readonly refreshAgentSdkCatalog: (
-    params: RefreshCatalogParams,
-  ) => Promise<AgentSdkCatalogSnapshot>;
+  readonly refreshAgentSdkCatalog: (params: RefreshCatalogParams) => Promise<AgentSdkCatalogSnapshot>;
   /** The max-pro-sub health check: resolve the owner-gated credential, then run a tiny SDK verify turn. */
   readonly testClaudeAuth: (params: TestClaudeAuthParams) => Promise<VerifyAuthResult>;
   /** The caller's OpenRouter credit balance. No/revoked key → `DomainNoCredentialError`, never a fabricated zero. */

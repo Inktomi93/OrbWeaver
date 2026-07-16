@@ -32,9 +32,7 @@ function setup(): ReturnType<typeof createInvalidation> & {
 }
 
 function isInvalidated(queryClient: QueryClient, queryKey: readonly unknown[]): boolean {
-  return (
-    queryClient.getQueryCache().find({ queryKey: [...queryKey] })?.state.isInvalidated ?? false
-  );
+  return queryClient.getQueryCache().find({ queryKey: [...queryKey] })?.state.isInvalidated ?? false;
 }
 
 // ── The exhaustive event→filter contract ─────────────────────────────────────────────────────────
@@ -142,9 +140,7 @@ describe("invalidation — the bus half (invalidate)", () => {
 
     // One whole-map assertion → a drift in ANY single event's filters shows exactly which event + which
     // keys changed (far more legible than 26 × 5 bare `toBe`s).
-    const expected = Object.fromEntries(
-      Object.entries(EXPECTED).map(([type, ks]) => [type, [...ks].sort()]),
-    );
+    const expected = Object.fromEntries(Object.entries(EXPECTED).map(([type, ks]) => [type, [...ks].sort()]));
     expect(actual).toEqual(expected);
   });
 });
@@ -219,9 +215,7 @@ describe("invalidation — the USER-bus half (invalidateUser)", () => {
       actual[type] = USER_TRACKED_KEYS.filter((k) => isInvalidated(queryClient, keys[k])).sort();
     }
 
-    const expected = Object.fromEntries(
-      Object.entries(USER_EXPECTED).map(([type, ks]) => [type, [...ks].sort()]),
-    );
+    const expected = Object.fromEntries(Object.entries(USER_EXPECTED).map(([type, ks]) => [type, [...ks].sort()]));
     expect(actual).toEqual(expected);
   });
 

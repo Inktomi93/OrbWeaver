@@ -34,19 +34,13 @@ export function validateThemeCss(css: string): CssValidationResult {
   const warnings: string[] = [];
 
   if (IMPORT_RE.test(css)) {
-    warnings.push(
-      "@import can load an untrusted stylesheet or leak data via the request — consider removing it.",
-    );
+    warnings.push("@import can load an untrusted stylesheet or leak data via the request — consider removing it.");
   }
   if (POSITION_FIXED_RE.test(css)) {
-    errors.push(
-      "`position: fixed` is not allowed — it can escape the theme's scope over the app chrome.",
-    );
+    errors.push("`position: fixed` is not allowed — it can escape the theme's scope over the app chrome.");
   }
   if (POSITION_STICKY_RE.test(css)) {
-    errors.push(
-      "`position: sticky` is not allowed — it can escape the theme's scope over the app chrome.",
-    );
+    errors.push("`position: sticky` is not allowed — it can escape the theme's scope over the app chrome.");
   }
 
   return { errors, warnings };

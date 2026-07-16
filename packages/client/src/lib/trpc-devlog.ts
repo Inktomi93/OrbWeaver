@@ -57,9 +57,6 @@ function redactSensitive(value: unknown, depth = 0): unknown {
 function compactJson(value: unknown): string {
   try {
     const str = JSON.stringify(value);
-    if (str === undefined) {
-      return "";
-    }
     return str.length > INPUT_MAX_CHARS ? `${str.slice(0, INPUT_TRUNCATE_AT)}…` : str;
   } catch {
     return "[unserializable]";
@@ -68,13 +65,8 @@ function compactJson(value: unknown): string {
 
 /** Unwrap the tRPC success envelope (`{ result: { data } }`) without depending on its type. */
 function extractData(result: unknown): unknown {
-  const inner =
-    typeof result === "object" && result !== null && "result" in result
-      ? (result as { readonly result: unknown }).result
-      : undefined;
-  return typeof inner === "object" && inner !== null && "data" in inner
-    ? (inner as { readonly data: unknown }).data
-    : undefined;
+  const inner = typeof result === "object" && result !== null && "result" in result ? (result as { readonly result: unknown }).result : undefined;
+  return typeof inner === "object" && inner !== null && "data" in inner ? (inner as { readonly data: unknown }).data : undefined;
 }
 
 function summarizeResult(data: unknown): string {
@@ -102,29 +94,14 @@ export function formatTrpcOp(entry: TrpcOpLogEntry): void {
   const prefix = `%c${logClock()} [trpc]`;
   if (entry.direction === "up") {
     const inputStr = entry.input === undefined ? "" : compactJson(redactSensitive(entry.input));
-    console.info(
-      `${prefix} %c→ ${entry.type} ${entry.path}%c ${inputStr}`,
-      PREFIX_STYLE,
-      PATH_STYLE,
-      MUTED_STYLE,
-    );
+    console.info(`${prefix} %c→ ${entry.type} ${entry.path}%c ${inputStr}`, PREFIX_STYLE, PATH_STYLE, MUTED_STYLE);
     return;
   }
   const ms = `${Math.round(entry.elapsedMs)}ms`;
   if (entry.result instanceof Error) {
-    console.error(
-      `${prefix} %c✗ ${entry.type} ${entry.path}%c ${ms} · ${entry.result.message}`,
-      PREFIX_STYLE,
-      ERROR_STYLE,
-      MUTED_STYLE,
-    );
+    console.error(`${prefix} %c✗ ${entry.type} ${entry.path}%c ${ms} · ${entry.result.message}`, PREFIX_STYLE, ERROR_STYLE, MUTED_STYLE);
     return;
   }
   const summary = summarizeResult(extractData(entry.result));
-  console.info(
-    `${prefix} %c← ${entry.type} ${entry.path}%c ${ms} · ${summary}`,
-    PREFIX_STYLE,
-    PATH_STYLE,
-    MUTED_STYLE,
-  );
+  console.info(`${prefix} %c← ${entry.type} ${entry.path}%c ${ms} · ${summary}`, PREFIX_STYLE, PATH_STYLE, MUTED_STYLE);
 }

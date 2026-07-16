@@ -12,14 +12,7 @@ import type { AddCredentialParams } from "../contract/params";
 import type { CredentialsService } from "../contract/service";
 import type { CredentialView } from "../contract/views";
 import { aadFor } from "../persistence/aad";
-import {
-  fetchOwnedCredential,
-  findSlotLabelRow,
-  hasAnyInSlot,
-  insertSealed,
-  rotateSealed,
-  toCredentialView,
-} from "../persistence/queries";
+import { fetchOwnedCredential, findSlotLabelRow, hasAnyInSlot, insertSealed, rotateSealed, toCredentialView } from "../persistence/queries";
 
 const DEFAULT_LABEL = "default";
 
@@ -28,12 +21,10 @@ export function createAdd(ctx: CredentialContext): CredentialsService["add"] {
     const ownerId = params.principal.userId;
     const { provider } = params;
     if (!ctx.box.enabled) {
-      throw new DomainOperationError(
-        CREDENTIALS_OP_CODES.disabled,
-        "Per-user credential storage is disabled (no CREDENTIALS_KEY configured).",
-      );
+      throw new DomainOperationError(CREDENTIALS_OP_CODES.disabled, "Per-user credential storage is disabled (no CREDENTIALS_KEY configured).");
     }
-    const label = params.label?.trim() || DEFAULT_LABEL;
+    const trimmedLabel = params.label?.trim();
+    const label = trimmedLabel !== undefined && trimmedLabel !== "" ? trimmedLabel : DEFAULT_LABEL;
     const metadata = params.metadata ?? null;
     const sealed = ctx.box.encrypt(params.key.trim(), aadFor(ownerId, provider));
     const now = ctx.now();
@@ -60,9 +51,7 @@ export function createAdd(ctx: CredentialContext): CredentialsService["add"] {
       });
     } catch (err) {
       if (isConstraintViolation(err)?.kind === "unique") {
-        const conflict = new CredentialsConflictError(
-          `A ${provider} credential already exists for this slot — refresh and retry.`,
-        );
+        const conflict = new CredentialsConflictError(`A ${provider} credential already exists for this slot — refresh and retry.`);
         conflict.cause = err;
         throw conflict;
       }
@@ -73,17 +62,10 @@ export function createAdd(ctx: CredentialContext): CredentialsService["add"] {
   };
 }
 
-async function reloadView(
-  ctx: CredentialContext,
-  ownerId: UserId,
-  id: UserCredentialId,
-): Promise<CredentialView> {
+async function reloadView(ctx: CredentialContext, ownerId: UserId, id: UserCredentialId): Promise<CredentialView> {
   const row = await fetchOwnedCredential(ctx.db, ownerId, id);
   if (row === undefined) {
-    throw new DomainOperationError(
-      CREDENTIALS_OP_CODES.notFound,
-      `credential ${id} vanished immediately after write`,
-    );
+    throw new DomainOperationError(CREDENTIALS_OP_CODES.notFound, `credential ${id} vanished immediately after write`);
   }
   return toCredentialView(row);
 }

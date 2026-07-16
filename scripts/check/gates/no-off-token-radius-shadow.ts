@@ -111,13 +111,7 @@ export const gate: GateDescriptor = {
   // none; the parity oracle is the legacy behavior, not the spec's illustrative scanRoot).
   scanRoot: (p) => p.includes("packages/client/src/") || p.includes("packages/ui/src/"),
 
-  kinds: [
-    SyntaxKind.StringLiteral,
-    SyntaxKind.NoSubstitutionTemplateLiteral,
-    SyntaxKind.TemplateHead,
-    SyntaxKind.TemplateMiddle,
-    SyntaxKind.TemplateTail,
-  ],
+  kinds: [SyntaxKind.StringLiteral, SyntaxKind.NoSubstitutionTemplateLiteral, SyntaxKind.TemplateHead, SyntaxKind.TemplateMiddle, SyntaxKind.TemplateTail],
 
   begin: () => {
     passSeenAllowlisted.clear();
@@ -170,7 +164,8 @@ export const gate: GateDescriptor = {
       why: "the DC8 blind spot itself: stock-scale radius+shadow in a className → one finding per token",
     },
     {
-      files: "export const v = tv({ base: `shadow-lg ${MOTION}` });\n",
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: test fixture
+      files: "export const v = tv({ base: `shadow-lg \\${MOTION}` });\n",
       at: "packages/ui/src/x/variants.ts",
       why: "interpolated template PART (TemplateHead) inside tv() — the case a plain-string scan misses",
     },

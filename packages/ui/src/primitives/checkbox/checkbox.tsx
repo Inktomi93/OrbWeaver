@@ -15,11 +15,7 @@ export function Checkbox({ className, ...rest }: CheckboxProps): ReactElement {
   const slots = checkboxVariants();
   return (
     <BaseCheckbox.Root className={cn(slots.root(), className)} data-slot="checkbox-root" {...rest}>
-      <BaseCheckbox.Indicator
-        className={slots.indicator()}
-        data-slot="checkbox-indicator"
-        keepMounted={true}
-      >
+      <BaseCheckbox.Indicator className={slots.indicator()} data-slot="checkbox-indicator" keepMounted={true}>
         <Icon className={slots.check()} icon={Check} size="xs" />
         <Icon className={slots.dash()} icon={Minus} size="xs" />
         <Icon className={slots.readOnlyIcon()} icon={Lock} size="xs" />

@@ -24,18 +24,12 @@ const MISSING_APIKEY_RE = /apiKeySource/u;
 
 /** The wired verify fn (the backend always sets it; the cast drops the contract's `| undefined` — the
  *  runner.test ChatTurn precedent). */
-type VerifyFn = (req: {
-  readonly credential: ResolvedCredential;
-  readonly model: string;
-}) => Promise<VerifyAuthResult>;
+type VerifyFn = (req: { readonly credential: ResolvedCredential; readonly model: string }) => Promise<VerifyAuthResult>;
 
 /** Wrap a stream into a fake SDK `Query` that ALSO exposes an `accountInfo` control method — the live-Query
  *  shape `verifyAuth` probes. A bare `streamOf` (no method) exercises the "no control channel" absence path;
  *  the caller supplies `accountInfo` so a test can make it resolve or throw. */
-function queryOf(
-  messages: readonly unknown[],
-  accountInfo: () => Promise<unknown>,
-): AsyncGenerator<never> {
+function queryOf(messages: readonly unknown[], accountInfo: () => Promise<unknown>): AsyncGenerator<never> {
   const stream = streamOf(messages) as AsyncGenerator<never> & {
     accountInfo: () => Promise<unknown>;
   };
@@ -70,9 +64,7 @@ const successResult = {
 describe("agent-sdk verifyAuth", () => {
   test("a healthy host-login probe: apiKeySource surfaced, reply trimmed, cost reported, account enriched", async () => {
     const accountInfo = vi.fn(() => Promise.resolve(ACCOUNT_INFO_RESPONSE));
-    const fakeQuery = vi.fn((_args: { options?: Record<string, unknown> }) =>
-      queryOf([initMsg, assistantMsg, successResult], accountInfo),
-    );
+    const fakeQuery = vi.fn((_args: { options?: Record<string, unknown> }) => queryOf([initMsg, assistantMsg, successResult], accountInfo));
     const backend = createAgentSdkBackend({
       now: () => 0,
       query: fakeQuery as never,
@@ -170,8 +162,6 @@ describe("agent-sdk verifyAuth", () => {
       refreshHostSubToken: () => Promise.resolve(false),
     });
 
-    await expect(
-      (backend.verifyAuth as VerifyFn)({ credential: SUB_CRED, model: MODEL }),
-    ).rejects.toThrow(MISSING_APIKEY_RE);
+    await expect((backend.verifyAuth as VerifyFn)({ credential: SUB_CRED, model: MODEL })).rejects.toThrow(MISSING_APIKEY_RE);
   });
 });

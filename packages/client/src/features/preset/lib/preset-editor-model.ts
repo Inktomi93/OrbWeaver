@@ -7,11 +7,7 @@ import type { PromptConfig, UserIntent } from "@orb/contracts/preset";
 import { THINK_PREFIX_DEFAULT, THINK_SUFFIX_DEFAULT } from "@orb/contracts/preset";
 
 /** Assign `value` to `target[key]` only when defined — keeps the merge branch-free. */
-function assignIfDefined<T extends object, K extends keyof T>(
-  target: T,
-  key: K,
-  value: T[K] | undefined,
-): void {
+function assignIfDefined<T extends object, K extends keyof T>(target: T, key: K, value: T[K] | undefined): void {
   if (value !== undefined) {
     target[key] = value;
   }
@@ -37,9 +33,7 @@ export function seedConfig(server: PromptConfig): PromptConfig {
 
 /** `true` when a postProcess block does something (any flag on) — else it round-trips to unset. */
 function hasPostProcess(pp: NonNullable<PromptConfig["postProcess"]>): boolean {
-  return (
-    pp.collapseNewlines || pp.trimTrailingWhitespace || pp.dropIncompleteSentence || pp.singleLine
-  );
+  return pp.collapseNewlines || pp.trimTrailingWhitespace || pp.dropIncompleteSentence || pp.singleLine;
 }
 
 /** `true` when a reasoningParse block was engaged (autoParse on, or a non-default tag set) — else unset. */
@@ -54,9 +48,7 @@ function normalizeParams(params: UserIntent): UserIntent {
     return params;
   }
   const hasCompaction =
-    compaction.mode !== undefined ||
-    compaction.thresholdPct !== undefined ||
-    (compaction.instructions !== undefined && compaction.instructions.trim() !== "");
+    compaction.mode !== undefined || compaction.thresholdPct !== undefined || (compaction.instructions !== undefined && compaction.instructions.trim() !== "");
   if (hasCompaction) {
     return params;
   }

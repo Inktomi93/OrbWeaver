@@ -10,11 +10,7 @@
 // Deps not on `ChatContext`: `loadParticipantViews` resolves the roster read-model; `resolveConnection`
 // resolves the model the previews need; `resolveForeignInputs` is the foreign half of the assemble ctx.
 
-import type {
-  ChatMacroNameProducer,
-  ParticipantView,
-  PersonaAvatarEntry,
-} from "@orb/contracts/chat";
+import type { ChatMacroNameProducer, ParticipantView, PersonaAvatarEntry } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
 import type { PromptConfig } from "@orb/contracts/preset";
@@ -78,10 +74,7 @@ import { buildPrompt, previewSection } from "../substrate/assembly-access";
 /** The collaborators not on `ChatContext` (see the file header). */
 interface ReadDeps {
   readonly loadParticipantViews: (chatId: ChatId) => Promise<readonly ParticipantView[]>;
-  readonly resolveConnection: (args: {
-    readonly runAsUserId: UserId;
-    readonly chatId: ChatId;
-  }) => Promise<ResolvedConnection>;
+  readonly resolveConnection: (args: { readonly runAsUserId: UserId; readonly chatId: ChatId }) => Promise<ResolvedConnection>;
   /** The foreign half of the assemble ctx (preset/persona/settings). The chat-internal half is gathered
    *  by `gatherAssembleContext`. */
   readonly resolveForeignInputs: ResolveForeignInputsOp;
@@ -129,13 +122,7 @@ interface ToChatDetailInput {
   readonly viewerUserId: UserId;
 }
 
-function toChatDetail({
-  chat,
-  participants,
-  macroNames,
-  personaAvatars,
-  viewerUserId,
-}: ToChatDetailInput): ChatDetail {
+function toChatDetail({ chat, participants, macroNames, personaAvatars, viewerUserId }: ToChatDetailInput): ChatDetail {
   const viewer = participants.find((p) => p.userId === viewerUserId);
   return {
     id: chat.id,
@@ -190,28 +177,15 @@ const EMPTY_STATS = { messageCount: 0, lastMessageAt: null } as const;
 
 /** Resolve a set of chat rows → `ChatSummary[]` (the canon stats batched in one read; the names per chat).
  *  Shared by listChats / listForks / getChatLineage. */
-async function buildSummaries(
-  db: Db,
-  deps: ReadDeps,
-  rows: readonly ChatRowView[],
-): Promise<ChatSummary[]> {
+async function buildSummaries(db: Db, deps: ReadDeps, rows: readonly ChatRowView[]): Promise<ChatSummary[]> {
   if (rows.length === 0) {
     return [];
   }
   const chatIds = rows.map((r) => r.id);
   const stats = await loadChatMessageStats(db, chatIds);
   const characterIdsByChat = await loadChatParticipantCharacterIds(db, chatIds);
-  const enriched = await Promise.all(
-    rows.map(async (row) => ({ row, names: await deps.loadParticipantViews(row.id) })),
-  );
-  return enriched.map(({ row, names }) =>
-    toChatSummary(
-      row,
-      stats.get(row.id) ?? EMPTY_STATS,
-      names,
-      characterIdsByChat.get(row.id) ?? [],
-    ),
-  );
+  const enriched = await Promise.all(rows.map(async (row) => ({ row, names: await deps.loadParticipantViews(row.id) })));
+  return enriched.map(({ row, names }) => toChatSummary(row, stats.get(row.id) ?? EMPTY_STATS, names, characterIdsByChat.get(row.id) ?? []));
 }
 
 /** Resolve the {@link PreviewInputs} for a chat: the present roster → host + cast + personas, then the
@@ -232,18 +206,12 @@ async function resolvePreviewInputs(
   if (hostUserId === null) {
     throw new ChatNotFoundError(chatId);
   }
-  const castIds = roster.flatMap((r) =>
-    r.kind === "character" && r.characterId !== null ? [r.characterId] : [],
-  );
+  const castIds = roster.flatMap((r) => (r.kind === "character" && r.characterId !== null ? [r.characterId] : []));
   const castCharacterIds =
-    speakerCharacterId !== null &&
-    speakerCharacterId !== undefined &&
-    castIds.includes(speakerCharacterId)
+    speakerCharacterId !== null && speakerCharacterId !== undefined && castIds.includes(speakerCharacterId)
       ? [speakerCharacterId, ...castIds.filter((id) => id !== speakerCharacterId)]
       : castIds;
-  const personaIds = roster.flatMap((r) =>
-    r.kind === "human" && r.activePersonaId !== null ? [r.activePersonaId] : [],
-  );
+  const personaIds = roster.flatMap((r) => (r.kind === "human" && r.activePersonaId !== null ? [r.activePersonaId] : []));
   const connection = await deps.resolveConnection({ runAsUserId: hostUserId, chatId });
   const foreign = await deps.resolveForeignInputs({
     chatId,
@@ -257,12 +225,7 @@ async function resolvePreviewInputs(
 
 /** Build the assemble ctx for a preview from the resolved {@link PreviewInputs}. No persist, no turn. An
  *  optional `guided` steer mirrors a real turn's steered assembly. */
-async function buildPreviewContext(
-  ctx: ChatContext,
-  inputs: PreviewInputs,
-  chatId: ChatId,
-  guided?: GuidedSteer,
-): ReturnType<typeof gatherAssembleContext> {
+async function buildPreviewContext(ctx: ChatContext, inputs: PreviewInputs, chatId: ChatId, guided?: GuidedSteer): ReturnType<typeof gatherAssembleContext> {
   return await gatherAssembleContext(
     ctx,
     {
@@ -354,12 +317,7 @@ const MAX_LIMIT = 100;
 /** `listMessages` — a paged canon read (each slot joined to its selected variant), chronological, + the
  *  page's {@link ChatMacroNameProducer}. The `excludedFromPrompt` flag rides each `MessageView`. */
 function createListMessages(ctx: ChatContext, deps: ReadDeps): ChatService["listMessages"] {
-  return async ({
-    principal,
-    chatId,
-    beforeSeq,
-    limit,
-  }: ListMessagesParams): Promise<MessagesPage> => {
+  return async ({ principal, chatId, beforeSeq, limit }: ListMessagesParams): Promise<MessagesPage> => {
     await requireParticipant(ctx, principal, chatId);
     const pageSize = Math.min(limit ?? DEFAULT_LIMIT, MAX_LIMIT);
     const page = await loadMessagesPage(ctx.db, chatId, beforeSeq, pageSize);
@@ -375,11 +333,7 @@ function createListMessages(ctx: ChatContext, deps: ReadDeps): ChatService["list
 /** `listMessageVariants` — the full sibling-variant set for one slot, ordered by idx, no content. A
  *  foreign-chat/unknown `messageId` collapses to a leak-free NOT_FOUND. */
 function createListMessageVariants(ctx: ChatContext): ChatService["listMessageVariants"] {
-  return async ({
-    principal,
-    chatId,
-    messageId,
-  }: ListMessageVariantsParams): Promise<MessageVariantSummary[]> => {
+  return async ({ principal, chatId, messageId }: ListMessageVariantsParams): Promise<MessageVariantSummary[]> => {
     await requireParticipant(ctx, principal, chatId);
     const rows = await loadMessageVariantSummaries(ctx.db, chatId, messageId);
     if (rows.length === 0) {
@@ -400,12 +354,7 @@ function createListParticipants(ctx: ChatContext, deps: ReadDeps): ChatService["
 /** `previewAssembly` — the BUILD product + the debug trace for a hypothetical turn (host/admin debug
  *  surface). A `guided` steer is routed through the same gather→build a real turn uses. */
 function createPreviewAssembly(ctx: ChatContext, deps: ReadDeps): ChatService["previewAssembly"] {
-  return async ({
-    principal,
-    chatId,
-    speakerCharacterId,
-    guided,
-  }: PreviewAssemblyParams): Promise<AssemblyPreview> => {
+  return async ({ principal, chatId, speakerCharacterId, guided }: PreviewAssemblyParams): Promise<AssemblyPreview> => {
     const membership = await requireParticipant(ctx, principal, chatId);
     const inputs = await resolvePreviewInputs(ctx, deps, chatId, {
       anchorPersonaId: membership.chat.anchorPersonaId,
@@ -419,11 +368,7 @@ function createPreviewAssembly(ctx: ChatContext, deps: ReadDeps): ChatService["p
 
 /** `peekPrompt` — the assembled prompt for the NEXT real turn (no generation). The BUILD product only. */
 function createPeekPrompt(ctx: ChatContext, deps: ReadDeps): ChatService["peekPrompt"] {
-  return async ({
-    principal,
-    chatId,
-    speakerCharacterId,
-  }: PeekPromptParams): Promise<AssembledPrompt> => {
+  return async ({ principal, chatId, speakerCharacterId }: PeekPromptParams): Promise<AssembledPrompt> => {
     const membership = await requireParticipant(ctx, principal, chatId);
     const inputs = await resolvePreviewInputs(ctx, deps, chatId, {
       anchorPersonaId: membership.chat.anchorPersonaId,
@@ -436,10 +381,7 @@ function createPeekPrompt(ctx: ChatContext, deps: ReadDeps): ChatService["peekPr
 
 /** `getActivePresetConfig` — the resolved `PromptConfig` the chat assembles against. No assemble ctx is
  *  built (only the config is needed). */
-function createGetActivePresetConfig(
-  ctx: ChatContext,
-  deps: ReadDeps,
-): ChatService["getActivePresetConfig"] {
+function createGetActivePresetConfig(ctx: ChatContext, deps: ReadDeps): ChatService["getActivePresetConfig"] {
   return async ({ principal, chatId }: GetActivePresetConfigParams): Promise<PromptConfig> => {
     const membership = await requireParticipant(ctx, principal, chatId);
     const inputs = await resolvePreviewInputs(ctx, deps, chatId, {
@@ -452,12 +394,7 @@ function createGetActivePresetConfig(
 /** `previewSection` — render ONE preset section against the live assemble ctx (the COMPOSER/editor preview).
  *  An unknown `sectionId` is a leak-free NOT_FOUND (the section, not the chat). */
 function createPreviewSection(ctx: ChatContext, deps: ReadDeps): ChatService["previewSection"] {
-  return async ({
-    principal,
-    chatId,
-    sectionId,
-    speakerCharacterId,
-  }: PreviewSectionParams): Promise<SectionPreview> => {
+  return async ({ principal, chatId, sectionId, speakerCharacterId }: PreviewSectionParams): Promise<SectionPreview> => {
     const membership = await requireParticipant(ctx, principal, chatId);
     const inputs = await resolvePreviewInputs(ctx, deps, chatId, {
       anchorPersonaId: membership.chat.anchorPersonaId,
@@ -474,11 +411,7 @@ function createPreviewSection(ctx: ChatContext, deps: ReadDeps): ChatService["pr
 
 /** `replayStreamEvents` — resume the resumable SSE token log from a cursor (late-subscriber ramp-up). */
 function createReplayStreamEvents(ctx: ChatContext): ChatService["replayStreamEvents"] {
-  return async ({
-    principal,
-    chatId,
-    afterSeq,
-  }: ReplayStreamEventsParams): Promise<ChatStreamReplayEvent[]> => {
+  return async ({ principal, chatId, afterSeq }: ReplayStreamEventsParams): Promise<ChatStreamReplayEvent[]> => {
     await requireParticipant(ctx, principal, chatId);
     return await loadStreamReplay(ctx.db, chatId, afterSeq);
   };

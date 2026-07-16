@@ -60,9 +60,7 @@ export function CorpusVisualsTab(): ReactElement {
   return (
     <QueryBoundary
       fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />}
-      renderError={(_error, retry): ReactElement => (
-        <QueryErrorState label="the visuals" onRetry={retry} />
-      )}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label="the visuals" onRetry={retry} />}
     >
       <VisualsBody />
     </QueryBoundary>
@@ -75,11 +73,7 @@ function VisualsBody(): ReactElement {
   const { data: portrait } = useSuspenseQuery(trpc.discovery.portraitAlignment.queryOptions());
 
   return (
-    <Stack
-      className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
-      data-testid={testId("corpusVisualsTab")}
-      gap="section"
-    >
+    <Stack className="min-h-0 flex-1 overflow-y-auto overscroll-contain" data-testid={testId("corpusVisualsTab")} gap="section">
       <PortraitFit report={portrait} />
       <FacetExplorer facets={facets} />
     </Stack>
@@ -109,17 +103,9 @@ function PortraitFit({ report }: { readonly report: PortraitReport }): ReactElem
                 key={character.characterId}
                 clickable={true}
                 onClick={(): void => selectCorpusCharacter(character.characterId)}
-                leading={
-                  <CharacterAvatar
-                    id={character.characterId}
-                    name={character.name}
-                    hash={character.avatarHash}
-                  />
-                }
+                leading={<CharacterAvatar id={character.characterId} name={character.name} hash={character.avatarHash} />}
                 title={character.name}
-                subtitle={[character.artStyle, character.rating]
-                  .filter((v) => v !== null && v !== "")
-                  .join(" · ")}
+                subtitle={[character.artStyle, character.rating].filter((v) => v !== null && v !== "").join(" · ")}
                 actions={
                   <Badge intent="neutral" size="sm">
                     {character.alignment.toFixed(ALIGNMENT_PRECISION)}
@@ -164,12 +150,7 @@ function FacetExplorer({ facets }: { readonly facets: ImageFacets }): ReactEleme
       ) : (
         <Stack gap="block" data-testid={testId("corpusFacetDrill")}>
           <Row gap="block" className="flex-wrap">
-            <ParamSelect
-              label="Facet"
-              value={facetKey}
-              items={facetItems}
-              onValueChange={onFacet}
-            />
+            <ParamSelect label="Facet" value={facetKey} items={facetItems} onValueChange={onFacet} />
             <ParamSelect label="Value" value={value} items={valueItems} onValueChange={setValue} />
           </Row>
           {rows.length === 0 ? (
@@ -193,13 +174,7 @@ function FacetExplorer({ facets }: { readonly facets: ImageFacets }): ReactEleme
   );
 }
 
-function FacetDrill({
-  facet,
-  value,
-}: {
-  readonly facet: FacetKey;
-  readonly value: string;
-}): ReactElement {
+function FacetDrill({ facet, value }: { readonly facet: FacetKey; readonly value: string }): ReactElement {
   const trpc = useTRPC();
   const members = useQuery(trpc.discovery.charactersByImageFacet.queryOptions({ facet, value }));
 
@@ -223,9 +198,7 @@ function FacetDrill({
           key={member.characterId}
           clickable={true}
           onClick={(): void => selectCorpusCharacter(member.characterId)}
-          leading={
-            <CharacterAvatar id={member.characterId} name={member.name} hash={member.avatarHash} />
-          }
+          leading={<CharacterAvatar id={member.characterId} name={member.name} hash={member.avatarHash} />}
           title={member.name}
           subtitle={member.caption ?? ""}
         />
@@ -234,15 +207,7 @@ function FacetDrill({
   );
 }
 
-function CharacterAvatar({
-  id,
-  name,
-  hash,
-}: {
-  readonly id: CharacterId;
-  readonly name: string;
-  readonly hash: string | null;
-}): ReactElement {
+function CharacterAvatar({ id, name, hash }: { readonly id: CharacterId; readonly name: string; readonly hash: string | null }): ReactElement {
   const avatarSrc = hash === null ? {} : { src: blobUrl(hash) };
   return (
     <Avatar fallbackDelay={0} hueSeed={id} size="sm" {...avatarSrc}>

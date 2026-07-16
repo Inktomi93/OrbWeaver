@@ -5,14 +5,6 @@ import type { ReactElement, ReactNode } from "react";
 import type { SectionRegistry } from "./section-registry-context";
 import { SectionRegistryContext } from "./section-registry-context";
 
-export function SectionRegistryProvider({
-  value,
-  children,
-}: {
-  readonly value: SectionRegistry;
-  readonly children: ReactNode;
-}): ReactElement {
-  return (
-    <SectionRegistryContext.Provider value={value}>{children}</SectionRegistryContext.Provider>
-  );
+export function SectionRegistryProvider({ value, children }: { readonly value: SectionRegistry; readonly children: ReactNode }): ReactElement {
+  return <SectionRegistryContext value={value}>{children}</SectionRegistryContext>;
 }

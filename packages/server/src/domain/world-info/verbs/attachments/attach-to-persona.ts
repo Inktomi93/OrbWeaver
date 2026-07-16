@@ -14,18 +14,12 @@ import { loadOwnedBook } from "../../persistence/queries";
 export function createAttachToPersona(ctx: WorldInfoContext): WorldInfoService["attachToPersona"] {
   return async ({ principal, personaId, bookId }: AttachToPersonaParams) => {
     const ownerId = principal.userId;
-    const [, book] = await Promise.all([
-      ensurePersonaOwned(ctx.db, ownerId, personaId),
-      loadOwnedBook(ctx.db, ownerId, bookId),
-    ]);
+    const [, book] = await Promise.all([ensurePersonaOwned(ctx.db, ownerId, personaId), loadOwnedBook(ctx.db, ownerId, bookId)]);
     if (book === undefined) {
       throw new WorldInfoNotFoundError("world_book", bookId);
     }
     const at = ctx.now();
-    await ctx.db
-      .insert(personaBooks)
-      .values({ personaId, worldBookId: bookId, createdAt: at })
-      .onConflictDoNothing();
+    await ctx.db.insert(personaBooks).values({ personaId, worldBookId: bookId, createdAt: at }).onConflictDoNothing();
     await ctx.audit(
       {
         actorUserId: ownerId,

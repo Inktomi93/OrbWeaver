@@ -47,11 +47,7 @@ export function makeNotificationsService(db: Db, now: () => number): Notificatio
     db,
     now,
     isAgentRecipient: async (userId) => {
-      const rows = await db
-        .select({ kind: users.kind })
-        .from(users)
-        .where(eq(users.id, userId))
-        .limit(1);
+      const rows = await db.select({ kind: users.kind }).from(users).where(eq(users.id, userId)).limit(1);
       return rows[0]?.kind === "agent";
     },
   });

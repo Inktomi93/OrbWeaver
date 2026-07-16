@@ -22,11 +22,7 @@ export function SectionPlaceholder({
   weave = false,
 }: SectionPlaceholderProps): ReactElement {
   if (weave) {
-    return (
-      <EmptyState decoration={<WeaveGlyph size={48} />} title={title} description={description} />
-    );
+    return <EmptyState decoration={<WeaveGlyph size={48} />} title={title} description={description} />;
   }
-  return (
-    <EmptyState icon={<Icon icon={Sparkles} size="lg" />} title={title} description={description} />
-  );
+  return <EmptyState icon={<Icon icon={Sparkles} size="lg" />} title={title} description={description} />;
 }

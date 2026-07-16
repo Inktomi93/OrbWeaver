@@ -13,14 +13,8 @@ import type { AssetsContext } from "../context";
 import type { AssetsService } from "../contract/service";
 import type { AssetBlobRef } from "../contract/views";
 
-export function createResolveChatAssetRefs(
-  ctx: AssetsContext,
-): AssetsService["resolveChatAssetRefs"] {
-  return (
-    callerId: UserId,
-    chatId: ChatId,
-    assetIds: readonly AssetId[],
-  ): Promise<readonly AssetBlobRef[]> => {
+export function createResolveChatAssetRefs(ctx: AssetsContext): AssetsService["resolveChatAssetRefs"] {
+  return (callerId: UserId, chatId: ChatId, assetIds: readonly AssetId[]): Promise<readonly AssetBlobRef[]> => {
     if (assetIds.length === 0 || ctx.loadChatAssetRefs === undefined) {
       return Promise.resolve([]);
     }

@@ -43,19 +43,11 @@ export function LoginArmStory({ config }: { readonly config: AuthConfig }): Reac
   );
 }
 
-export function LoginLocalFormStory({
-  defaultHandle,
-}: {
-  readonly defaultHandle: string | null;
-}): ReactElement {
+export function LoginLocalFormStory({ defaultHandle }: { readonly defaultHandle: string | null }): ReactElement {
   const [loggedIn, setLoggedIn] = useState(false);
   return (
     <div style={{ width: 360, padding: 16 }}>
-      {loggedIn ? (
-        <p data-testid="ct-logged-in">logged in</p>
-      ) : (
-        <LoginLocalForm defaultHandle={defaultHandle} onLoggedIn={(): void => setLoggedIn(true)} />
-      )}
+      {loggedIn ? <p data-testid="ct-logged-in">logged in</p> : <LoginLocalForm defaultHandle={defaultHandle} onLoggedIn={(): void => setLoggedIn(true)} />}
     </div>
   );
 }

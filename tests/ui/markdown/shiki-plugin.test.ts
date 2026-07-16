@@ -15,9 +15,7 @@ import { expect, test } from "../../support/fixtures";
 // any drift in the plugin's shape fails `tsc` here too, not just a hand-copied local interface.
 type ThemeSlot = ReturnType<typeof MARKDOWN_SHIKI_PLUGIN.getThemes>[number];
 type HighlightOptions = Parameters<typeof MARKDOWN_SHIKI_PLUGIN.highlight>[0];
-type HighlightResult = Parameters<
-  NonNullable<Parameters<typeof MARKDOWN_SHIKI_PLUGIN.highlight>[1]>
->[0];
+type HighlightResult = Parameters<NonNullable<Parameters<typeof MARKDOWN_SHIKI_PLUGIN.highlight>[1]>>[0];
 
 // A `ThemeSlot` is `string (BundledTheme name) | ThemeRegistrationAny (all-optional object)`, so the
 // fields this token-source proof reads are statically absent. Rather than cast a fabricated shape over
@@ -34,18 +32,10 @@ function asShikiTheme(theme: ThemeSlot): {
   }[];
 } {
   if (typeof theme === "string") {
-    throw new Error(
-      `getThemes() returned a bundled-theme NAME (${theme}), not the seeded theme object`,
-    );
+    throw new Error(`getThemes() returned a bundled-theme NAME (${theme}), not the seeded theme object`);
   }
   const { type, bg, fg, colors, settings } = theme;
-  if (
-    type === undefined ||
-    bg === undefined ||
-    fg === undefined ||
-    colors === undefined ||
-    settings === undefined
-  ) {
+  if (type === undefined || bg === undefined || fg === undefined || colors === undefined || settings === undefined) {
     throw new Error("a seeded theme is missing a field the token-source proof asserts on");
   }
   return { type, bg, fg, colors, settings };

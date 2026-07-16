@@ -109,8 +109,7 @@ export function loadReference(): Reference {
 }
 
 /** The unskip marker — the parity test greps for nothing; this is the human signal. */
-export const UNSKIP_WHEN =
-  "UNSKIP when chat assembly lands (Phase 5 step 2 — wire runOrbweaverShape).";
+export const UNSKIP_WHEN = "UNSKIP when chat assembly lands (Phase 5 step 2 — wire runOrbweaverShape).";
 
 /**
  * THE SEAM. orbweaver's chat assembly (SHAPE phase) plugs in here: given a ShapeCase, return the
@@ -129,9 +128,7 @@ export function runOrbweaverShape(c: ShapeCase): ShapeResult {
       role: m.role,
       content: m.content,
       ...(m.authorName !== undefined ? { authorName: m.authorName } : {}),
-      ...(m.characterId !== undefined && m.characterId !== null
-        ? { characterId: castId<CharacterId>(m.characterId) }
-        : {}),
+      ...(m.characterId !== undefined && m.characterId !== null ? { characterId: castId<CharacterId>(m.characterId) } : {}),
     })),
     appendUserTurn: c.appendUserTurn,
     injections: c.injections.map(
@@ -177,9 +174,6 @@ export function rollingDelta(turn1: ShapeResult, turn2: ShapeResult): RollingDel
     offsetInvariant: turn1.cacheBreakpointFromEnd === turn2.cacheBreakpointFromEnd,
     turn1TargetIdx: turn1.targetIdx,
     turn2TargetIdx: turn2.targetIdx,
-    placementAdvance:
-      turn1.targetIdx !== null && turn2.targetIdx !== null
-        ? turn2.targetIdx - turn1.targetIdx
-        : null,
+    placementAdvance: turn1.targetIdx !== null && turn2.targetIdx !== null ? turn2.targetIdx - turn1.targetIdx : null,
   };
 }

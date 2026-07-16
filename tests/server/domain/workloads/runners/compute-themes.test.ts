@@ -10,12 +10,7 @@ import { fakeEnv, makeRunnerContext, RUNNER_OWNER_ID } from "../_support.ts";
 describe("compute-themes runner", () => {
   test("uses the per-run k", async () => {
     const env = fakeEnv();
-    const result = await computeThemesRunner(
-      makeRunnerContext(env),
-      { k: 5 },
-      vi.fn(),
-      new AbortController().signal,
-    );
+    const result = await computeThemesRunner(makeRunnerContext(env), { k: 5 }, vi.fn(), new AbortController().signal);
     expect(env.discovery.computeThemes).toHaveBeenCalledWith({
       ownerId: RUNNER_OWNER_ID,
       k: 5,

@@ -43,8 +43,7 @@ describe("probeKeyDecrypt", () => {
     const rotatedCtx = {
       ...harnessA.ctx,
       box: createSecretBox(ROTATED_KEY),
-      newCredentialId: (): UserCredentialId =>
-        castId<UserCredentialId>(`user_credential_${credCounter++}`),
+      newCredentialId: (): UserCredentialId => castId<UserCredentialId>(`user_credential_${credCounter++}`),
     };
     const svcB = createCredentialsService(rotatedCtx);
     const result = await svcB.probeKeyDecrypt();

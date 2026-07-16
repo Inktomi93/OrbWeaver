@@ -91,13 +91,10 @@ function needsRefresh(oauth: ClaudeAiOauth, now: number): boolean {
   return oauth.expiresAt - now <= EXPIRY_SKEW_MS;
 }
 
-async function requestRefresh(
-  refreshToken: string,
-  deps: ResolvedHostTokenDeps,
-): Promise<OAuthTokenResponse | null> {
+async function requestRefresh(refreshToken: string, deps: ResolvedHostTokenDeps): Promise<OAuthTokenResponse | null> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REFRESH_TIMEOUT_MS);
-  timer.unref?.();
+  timer.unref();
   try {
     const res = await deps.fetch(OAUTH_TOKEN_URL, {
       method: "POST",
@@ -114,29 +111,17 @@ async function requestRefresh(
     });
     if (!res.ok) {
       // Status only — a 400/401 body could echo the token; never surface it.
-      securityEvent(
-        "host_sub_token_refresh_failed",
-        { httpStatus: res.status },
-        "security: host Max-sub OAuth refresh rejected by the token endpoint",
-      );
+      securityEvent("host_sub_token_refresh_failed", { httpStatus: res.status }, "security: host Max-sub OAuth refresh rejected by the token endpoint");
       return null;
     }
     const body = (await res.json()) as unknown;
     if (!isTokenResponse(body)) {
-      securityEvent(
-        "host_sub_token_refresh_failed",
-        { reason: "malformed_response" },
-        "security: host Max-sub OAuth refresh returned an unexpected shape",
-      );
+      securityEvent("host_sub_token_refresh_failed", { reason: "malformed_response" }, "security: host Max-sub OAuth refresh returned an unexpected shape");
       return null;
     }
     return body;
   } catch {
-    securityEvent(
-      "host_sub_token_refresh_failed",
-      { reason: "network_error" },
-      "security: host Max-sub OAuth refresh request failed (network/timeout)",
-    );
+    securityEvent("host_sub_token_refresh_failed", { reason: "network_error" }, "security: host Max-sub OAuth refresh request failed (network/timeout)");
     return null;
   } finally {
     clearTimeout(timer);
@@ -153,12 +138,7 @@ function isTokenResponse(body: unknown): body is OAuthTokenResponse {
 
 // The real host file is a regular file (not a symlink), so this rename-over is correct — it does not
 // recreate the ephemeral-dir symlink-clobber bug.
-async function writeRefreshedCredentials(
-  path: string,
-  full: HostCredentials,
-  updated: ClaudeAiOauth,
-  now: number,
-): Promise<boolean> {
+async function writeRefreshedCredentials(path: string, full: HostCredentials, updated: ClaudeAiOauth, now: number): Promise<boolean> {
   const next: HostCredentials = { ...full, claudeAiOauth: updated };
   const tmp = `${path}.orb-${process.pid}-${now}.tmp`;
   try {
@@ -175,10 +155,7 @@ async function writeRefreshedCredentials(
   }
 }
 
-export async function refreshHostSubTokenIfMode1(
-  credential: ResolvedCredential,
-  refresh: () => Promise<boolean>,
-): Promise<void> {
+export async function refreshHostSubTokenIfMode1(credential: ResolvedCredential, refresh: () => Promise<boolean>): Promise<void> {
   if (credential.source !== "max-pro-sub") {
     return;
   }
@@ -222,10 +199,7 @@ async function runRefresh(deps: ResolvedHostTokenDeps): Promise<boolean> {
   };
   const wrote = await writeRefreshedCredentials(deps.credentialsPath, full, updated, now);
   if (wrote) {
-    getLog().info(
-      { event: "host_sub_token_refreshed", expiresAt: updated.expiresAt },
-      "agent-sdk: refreshed the host Max-sub OAuth token before spawn",
-    );
+    getLog().info({ event: "host_sub_token_refreshed", expiresAt: updated.expiresAt }, "agent-sdk: refreshed the host Max-sub OAuth token before spawn");
   }
   return wrote;
 }

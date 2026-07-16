@@ -18,11 +18,7 @@ import type { CharacterId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { asc, eq } from "drizzle-orm";
 import { beforeEach, describe, vi } from "vitest";
-import type {
-  TurnEngine,
-  TurnOutcome,
-  TurnPrep,
-} from "../../../../../packages/server/src/domain/chat/contract/results";
+import type { TurnEngine, TurnOutcome, TurnPrep } from "../../../../../packages/server/src/domain/chat/contract/results";
 import { createStartChat } from "../../../../../packages/server/src/domain/chat/verbs/start-chat";
 import { freshDb } from "../../../../support/db";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
@@ -77,10 +73,7 @@ const notReached = (): never => {
 };
 
 function makeDeps(
-  over: {
-    readonly engine?: TurnEngine;
-    readonly resolveConnection?: () => Promise<ResolvedConnection>;
-  } = {},
+  over: { readonly engine?: TurnEngine; readonly resolveConnection?: () => Promise<ResolvedConnection> } = {},
 ): Parameters<typeof createStartChat>[1] {
   return {
     emit,
@@ -200,10 +193,7 @@ describe("startChat — lazy room creation + opening", () => {
     const aria = await seedCharacter(db, host, "aria");
     const borg = await seedCharacter(db, host, "borg");
     const ctx = makeChatContext(db, {
-      getCard: ({ characterId }) =>
-        Promise.resolve(
-          characterId === aria ? cardWith("Aria", "Aria hi") : cardWith("Borg", "Borg hi"),
-        ),
+      getCard: ({ characterId }) => Promise.resolve(characterId === aria ? cardWith("Aria", "Aria hi") : cardWith("Borg", "Borg hi")),
     });
 
     const { startChat } = createStartChat(ctx, makeDeps());
@@ -219,8 +209,7 @@ describe("startChat — lazy room creation + opening", () => {
     const aria = await seedCharacter(db, host, "aria");
     const mute = await seedCharacter(db, host, "mute");
     const ctx = makeChatContext(db, {
-      getCard: ({ characterId }) =>
-        Promise.resolve(characterId === aria ? cardWith("Aria", "Aria hi") : cardWith("Mute", "")),
+      getCard: ({ characterId }) => Promise.resolve(characterId === aria ? cardWith("Aria", "Aria hi") : cardWith("Mute", "")),
     });
 
     const { startChat } = createStartChat(ctx, makeDeps());
@@ -259,17 +248,14 @@ describe("startChat — lazy room creation + opening", () => {
     const host = await seedUser(db, "host");
     const aria = await seedCharacter(db, host, "aria");
     const engineOutcome: TurnOutcome = { messages: [], aborted: false };
-    const runTurn = vi.fn(
-      (_prep: TurnPrep): Promise<TurnOutcome> => Promise.resolve(engineOutcome),
-    );
+    const runTurn = vi.fn((_prep: TurnPrep): Promise<TurnOutcome> => Promise.resolve(engineOutcome));
     const ctx = makeChatContext(db, {
       getCard: () => Promise.resolve(cardWith("Aria", "ignored")),
     });
 
     const deps = makeDeps({
       engine: { runTurn },
-      resolveConnection: () =>
-        Promise.resolve({ model: "test-model" } as unknown as ResolvedConnection),
+      resolveConnection: () => Promise.resolve({ model: "test-model" } as unknown as ResolvedConnection),
     });
     const { startChat } = createStartChat(ctx, deps);
     const { chat, opening } = await startChat({
@@ -298,16 +284,13 @@ describe("startChat — lazy room creation + opening", () => {
     const host = await seedUser(db, "host");
     const aria = await seedCharacter(db, host, "aria");
     const engineOutcome: TurnOutcome = { messages: [], aborted: false };
-    const runTurn = vi.fn(
-      (_prep: TurnPrep): Promise<TurnOutcome> => Promise.resolve(engineOutcome),
-    );
+    const runTurn = vi.fn((_prep: TurnPrep): Promise<TurnOutcome> => Promise.resolve(engineOutcome));
     const ctx = makeChatContext(db, {
       getCard: () => Promise.resolve(cardWith("Aria", "ignored")),
     });
     const deps = makeDeps({
       engine: { runTurn },
-      resolveConnection: () =>
-        Promise.resolve({ model: "test-model" } as unknown as ResolvedConnection),
+      resolveConnection: () => Promise.resolve({ model: "test-model" } as unknown as ResolvedConnection),
     });
     const { startChat } = createStartChat(ctx, deps);
 
@@ -332,11 +315,7 @@ describe("startChat — lazy room creation + opening", () => {
     const { startChat } = createStartChat(ctx, makeDeps());
     const { chat } = await startChat({ principal: principal(host), characterIds: [aria] });
 
-    const roster = await db
-      .select()
-      .from(chatParticipants)
-      .where(eq(chatParticipants.chatId, chat.id))
-      .orderBy(asc(chatParticipants.joinSeq));
+    const roster = await db.select().from(chatParticipants).where(eq(chatParticipants.chatId, chat.id)).orderBy(asc(chatParticipants.joinSeq));
     expect(roster).toHaveLength(2);
     expect(roster.filter((r) => r.role === "host")).toHaveLength(1);
     expect(roster.every((r) => r.joinSeq === 0)).toBe(true);
@@ -446,8 +425,7 @@ describe("startChat — anchor default-seed (the starter's active persona)", () 
     const fallback = await seedPersona(host, "persona_fallback");
     const ctx = makeChatContext(db, {
       getCard: () => Promise.resolve(cardWith("Aria", "hi")),
-      resolveConnectedPersona: (userId, characterIds) =>
-        Promise.resolve(userId === host && characterIds[0] === aria ? connected : null),
+      resolveConnectedPersona: (userId, characterIds) => Promise.resolve(userId === host && characterIds[0] === aria ? connected : null),
       resolveDefaultPersona: () => Promise.resolve(fallback),
     });
 

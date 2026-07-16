@@ -17,9 +17,7 @@ export class SpaceMismatchError extends Error {
   readonly expectedDim: number;
   readonly actualDim: number;
   constructor(model: string, expectedDim: number, actualDim: number) {
-    super(
-      `embeddings.store: vector dim mismatch for model '${model}' — declared space dim ${expectedDim}, embedder returned ${actualDim}`,
-    );
+    super(`embeddings.store: vector dim mismatch for model '${model}' — declared space dim ${expectedDim}, embedder returned ${actualDim}`);
     this.name = "SpaceMismatchError";
     this.model = model;
     this.expectedDim = expectedDim;

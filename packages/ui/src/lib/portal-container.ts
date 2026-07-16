@@ -10,11 +10,7 @@ import { createContext, useContext } from "react";
 type MaybeShadowRoot = typeof globalThis extends { ShadowRoot: new () => infer T } ? T : never;
 
 // The sentinel is `undefined`, never `null` — floating-ui treats `container={null}` as "pending" and waits.
-export type PortalContainer =
-  | HTMLElement
-  | MaybeShadowRoot
-  | RefObject<HTMLElement | MaybeShadowRoot | null>
-  | undefined;
+export type PortalContainer = HTMLElement | MaybeShadowRoot | RefObject<HTMLElement | MaybeShadowRoot | null> | undefined;
 
 export const PortalContainerContext = createContext<PortalContainer>(undefined);
 

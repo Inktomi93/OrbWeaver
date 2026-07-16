@@ -19,8 +19,7 @@ const MSG = {
   verb: "verb has no test — add a .test.ts or .int.test.ts at its mirror (core/Spine-Testing.md §5).",
   persistence: "persistence file has no .int.test.ts at its mirror (core/Spine-Testing.md §5).",
   contract: "contract schema has no .contract.test.ts at its mirror (core/Spine-Testing.md §5).",
-  sharedContract:
-    "shared contract schema has no .contract.test.ts at its mirror (core/Spine-Testing.md §5).",
+  sharedContract: "shared contract schema has no .contract.test.ts at its mirror (core/Spine-Testing.md §5).",
   infra:
     "infra/foundation file with runtime logic has no test — security belts/adapters/dispatchers get a .test.ts or .int.test.ts at their mirror (core/Spine-Testing.md §5). Pure-type + index files are exempt.",
   runner:
@@ -43,9 +42,7 @@ function hasTest(root: string, pkg: string, rel: string, kinds: readonly string[
 }
 
 function hasSchema(text: string): boolean {
-  return (
-    text.includes("z.object(") || text.includes("z.enum(") || text.includes("z.discriminatedUnion(")
-  );
+  return text.includes("z.object(") || text.includes("z.enum(") || text.includes("z.discriminatedUnion(");
 }
 
 // A workloads runner is a D58 no-op STUB (inert — the kind exists so `RUNNERS`/exhaustive-dispatch stay
@@ -91,29 +88,17 @@ function pushDomain(root: string, rel: string, sf: SourceFile, out: Violation[])
   if (rel.includes("/persistence/") && !hasTest(root, "server", rel, [".int.test.ts"])) {
     out.push(missing("server", rel, MSG.persistence));
   }
-  if (
-    rel.includes("/contract/") &&
-    hasSchema(sf.getFullText()) &&
-    !hasTest(root, "server", rel, [".contract.test.ts"])
-  ) {
+  if (rel.includes("/contract/") && hasSchema(sf.getFullText()) && !hasTest(root, "server", rel, [".contract.test.ts"])) {
     out.push(missing("server", rel, MSG.contract));
   }
-  if (
-    rel.includes("/workloads/runners/") &&
-    !isDeferredStubRunner(sf.getFullText()) &&
-    !hasTest(root, "server", rel, [".test.ts", ".int.test.ts"])
-  ) {
+  if (rel.includes("/workloads/runners/") && !isDeferredStubRunner(sf.getFullText()) && !hasTest(root, "server", rel, [".test.ts", ".int.test.ts"])) {
     out.push(missing("server", rel, MSG.runner));
   }
 }
 
 function pushInfra(root: string, rel: string, sf: SourceFile, out: Violation[]): void {
   const inTier = rel.startsWith("infra/") || rel.startsWith("foundation/");
-  if (
-    inTier &&
-    hasCallableExport(sf) &&
-    !hasTest(root, "server", rel, [".test.ts", ".int.test.ts"])
-  ) {
+  if (inTier && hasCallableExport(sf) && !hasTest(root, "server", rel, [".test.ts", ".int.test.ts"])) {
     out.push(missing("server", rel, MSG.infra));
   }
 }
@@ -174,16 +159,14 @@ export const gate: GateDescriptor = {
   mustFlag: [
     {
       files: {
-        "packages/server/src/domain/chat/verbs/start-chat.ts":
-          "export const createStartChat = 1;\n",
+        "packages/server/src/domain/chat/verbs/start-chat.ts": "export const createStartChat = 1;\n",
       },
       expect: { messageIncludes: "verb has no test" },
       why: "a domain verb file with no mirror .test/.int.test — an untested behavioral surface (§5)",
     },
     {
       files: {
-        "packages/server/src/domain/chat/persistence/chat-store.ts":
-          "export const createChatStore = 1;\n",
+        "packages/server/src/domain/chat/persistence/chat-store.ts": "export const createChatStore = 1;\n",
       },
       expect: { messageIncludes: "persistence file has no .int.test" },
       why: "a domain persistence file with no mirror .int.test — the persistence arm (distinct message)",
@@ -197,16 +180,14 @@ export const gate: GateDescriptor = {
     },
     {
       files: {
-        "packages/server/src/infra/providers/backends/agent-sdk/env-firewall.ts":
-          "export function firewall(): void {}\n",
+        "packages/server/src/infra/providers/backends/agent-sdk/env-firewall.ts": "export function firewall(): void {}\n",
       },
       expect: { messageIncludes: "infra/foundation file with runtime logic has no test" },
       why: "an infra/ file with a callable export (runtime logic) and no mirror test — the infra arm (PD-blindspot)",
     },
     {
       files: {
-        "packages/server/src/domain/workloads/runners/recall.ts":
-          "export const run = (ctx: { env: { x: number } }) => ctx.env.x;\n",
+        "packages/server/src/domain/workloads/runners/recall.ts": "export const run = (ctx: { env: { x: number } }) => ctx.env.x;\n",
       },
       expect: { messageIncludes: "workloads runner with real logic has no test" },
       why: "a workloads runner that touches ctx.env (real logic, NOT a D58 stub) with no mirror test — the runner arm",
@@ -222,16 +203,14 @@ export const gate: GateDescriptor = {
   mustPass: [
     {
       files: {
-        "packages/server/src/domain/chat/verbs/start-chat.ts":
-          "export const createStartChat = 1;\n",
+        "packages/server/src/domain/chat/verbs/start-chat.ts": "export const createStartChat = 1;\n",
         "tests/server/domain/chat/verbs/start-chat.test.ts": "export const t = 1;\n",
       },
       why: "the verb file has its mirror .test.ts — presence satisfied, passes",
     },
     {
       files: {
-        "packages/server/src/domain/workloads/runners/stub.ts":
-          "export const run = () => ({ deferred: true });\n",
+        "packages/server/src/domain/workloads/runners/stub.ts": "export const run = () => ({ deferred: true });\n",
       },
       why: "a D58 no-op stub runner (deferred: true, never touches ctx.env) — exempt until filled in, passes",
     },

@@ -31,18 +31,8 @@ export function engineBaseUrl(engine: VllmEngine): string {
 /** The injected HTTP surface the surfaces close over (the real impl, or a test fake). One generic POST +
  *  one streaming POST cover all five roles; surfaces never construct URLs or map transport errors. */
 export interface VllmEngineClient {
-  readonly enginePost: <T>(
-    engine: VllmEngine,
-    path: string,
-    body: unknown,
-    signal?: AbortSignal,
-  ) => Promise<T>;
-  readonly engineStream: (
-    engine: VllmEngine,
-    path: string,
-    body: unknown,
-    signal?: AbortSignal,
-  ) => Promise<ReadableStream<Uint8Array>>;
+  readonly enginePost: <T>(engine: VllmEngine, path: string, body: unknown, signal?: AbortSignal) => Promise<T>;
+  readonly engineStream: (engine: VllmEngine, path: string, body: unknown, signal?: AbortSignal) => Promise<ReadableStream<Uint8Array>>;
   readonly baseUrl: (engine: VllmEngine) => string;
 }
 
@@ -50,9 +40,7 @@ export interface VllmEngineClient {
 function unreachable(engine: VllmEngine, url: string, cause: unknown): ProviderError {
   const known = getEngineStatus(engine);
   const story =
-    known !== undefined
-      ? `supervisor says '${known.status}'${known.detail.length > 0 ? ` (${known.detail})` : ""}`
-      : "still warming, or engines disabled?";
+    known !== undefined ? `supervisor says '${known.status}'${known.detail.length > 0 ? ` (${known.detail})` : ""}` : "still warming, or engines disabled?";
   return new ProviderError({
     kind: "server",
     // `failed` (breaker open) is the one state backing off cannot fix — everything else is transient.
@@ -69,8 +57,7 @@ function unreachable(engine: VllmEngine, url: string, cause: unknown): ProviderE
 async function httpError(engine: VllmEngine, path: string, res: Response): Promise<ProviderError> {
   const text = await res.text().catch(() => "");
   return new ProviderError({
-    kind:
-      res.status === HTTP_BAD_REQUEST || res.status === HTTP_UNPROCESSABLE ? "invalid" : "server",
+    kind: res.status === HTTP_BAD_REQUEST || res.status === HTTP_UNPROCESSABLE ? "invalid" : "server",
     retryable: res.status >= HTTP_SERVER_ERROR_FLOOR,
     apiErrorStatus: res.status,
     message: `vllm ${engine} ${path} → HTTP ${res.status}: ${text.slice(0, ERROR_TEXT_CAP)}`,
@@ -78,12 +65,7 @@ async function httpError(engine: VllmEngine, path: string, res: Response): Promi
 }
 
 /** POST a JSON body to an engine endpoint; typed JSON back or a mapped {@link ProviderError}. */
-async function enginePost<T>(
-  engine: VllmEngine,
-  path: string,
-  body: unknown,
-  signal?: AbortSignal,
-): Promise<T> {
+async function enginePost<T>(engine: VllmEngine, path: string, body: unknown, signal?: AbortSignal): Promise<T> {
   const url = `${engineBaseUrl(engine)}${path}`;
   let res: Response;
   try {
@@ -103,12 +85,7 @@ async function enginePost<T>(
 }
 
 /** POST a JSON body and return the raw SSE byte stream (the chat surface drives the reducer over it). */
-async function engineStream(
-  engine: VllmEngine,
-  path: string,
-  body: unknown,
-  signal?: AbortSignal,
-): Promise<ReadableStream<Uint8Array>> {
+async function engineStream(engine: VllmEngine, path: string, body: unknown, signal?: AbortSignal): Promise<ReadableStream<Uint8Array>> {
   const url = `${engineBaseUrl(engine)}${path}`;
   let res: Response;
   try {

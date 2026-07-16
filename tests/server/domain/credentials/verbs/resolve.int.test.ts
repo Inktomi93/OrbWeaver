@@ -40,12 +40,8 @@ describe("resolve", () => {
     });
     expect(resolved).toMatchObject({ source: "max-pro-sub", credentialId: null });
 
-    await expect(
-      svc.resolve({ principal: principal(admin, "admin"), source: "max-pro-sub" }),
-    ).rejects.toThrow(DomainForbiddenError);
-    await expect(
-      svc.resolve({ principal: principal(user, "user"), source: "max-pro-sub" }),
-    ).rejects.toThrow(DomainForbiddenError);
+    await expect(svc.resolve({ principal: principal(admin, "admin"), source: "max-pro-sub" })).rejects.toThrow(DomainForbiddenError);
+    await expect(svc.resolve({ principal: principal(user, "user"), source: "max-pro-sub" })).rejects.toThrow(DomainForbiddenError);
   });
 
   test("openrouter round-trips: add seals the key, resolve decrypts the SAME plaintext", async () => {
@@ -73,22 +69,16 @@ describe("resolve", () => {
     // bound to `alice|openrouter`; decrypting it as `bob|openrouter` fails the GCM tag check.
     await db.update(userCredentials).set({ ownerId: bob }).where(eq(userCredentials.id, added.id));
 
-    await expect(svc.resolve({ principal: principal(bob), source: "openrouter" })).rejects.toThrow(
-      DomainNoCredentialError,
-    );
+    await expect(svc.resolve({ principal: principal(bob), source: "openrouter" })).rejects.toThrow(DomainNoCredentialError);
     // Alice (the original AAD slot) no longer owns the row, so she has nothing to resolve either.
-    await expect(
-      svc.resolve({ principal: principal(alice), source: "openrouter" }),
-    ).rejects.toThrow(DomainNoCredentialError);
+    await expect(svc.resolve({ principal: principal(alice), source: "openrouter" })).rejects.toThrow(DomainNoCredentialError);
   });
 
   test("a missing credential is the typed no-credential floor (no silent host fallback)", async () => {
     const db = await freshDb();
     const svc = createCredentialsService(makeHarness(db).ctx);
     const owner = await seedUser(db, { id: "user_o", role: "user" });
-    await expect(
-      svc.resolve({ principal: principal(owner), source: "openrouter" }),
-    ).rejects.toThrow(DomainNoCredentialError);
+    await expect(svc.resolve({ principal: principal(owner), source: "openrouter" })).rejects.toThrow(DomainNoCredentialError);
   });
 
   test("a revoked active credential does NOT resolve (falls through to the floor)", async () => {
@@ -101,9 +91,7 @@ describe("resolve", () => {
       key: "sk-or",
     });
     await svc.markRevokedByUser({ principal: principal(owner), credentialId: added.id });
-    await expect(
-      svc.resolve({ principal: principal(owner), source: "openrouter" }),
-    ).rejects.toThrow(DomainNoCredentialError);
+    await expect(svc.resolve({ principal: principal(owner), source: "openrouter" })).rejects.toThrow(DomainNoCredentialError);
   });
 
   test("custom_openai resolves the active endpoint from metadata (baseUrl + key)", async () => {
@@ -140,8 +128,6 @@ describe("resolve", () => {
       .set({ metadata: { kind: "custom_openai" } as unknown as ProviderMetadata })
       .where(eq(userCredentials.id, added.id));
 
-    await expect(
-      svc.resolve({ principal: principal(owner), source: "custom_openai" }),
-    ).rejects.toMatchObject({ code: "credential_metadata_invalid" });
+    await expect(svc.resolve({ principal: principal(owner), source: "custom_openai" })).rejects.toMatchObject({ code: "credential_metadata_invalid" });
   });
 });

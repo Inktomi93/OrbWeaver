@@ -58,10 +58,7 @@ export const automationTriggerSchema = z.discriminatedUnion("bus", [
 export type AutomationTrigger = z.infer<typeof automationTriggerSchema>;
 
 /** The two source buses — tied to the trigger union's discriminant. */
-export const AUTOMATION_TRIGGER_BUSES = [
-  "chat",
-  "domain",
-] as const satisfies readonly AutomationTrigger["bus"][];
+export const AUTOMATION_TRIGGER_BUSES = ["chat", "domain"] as const satisfies readonly AutomationTrigger["bus"][];
 export type AutomationTriggerBus = (typeof AUTOMATION_TRIGGER_BUSES)[number];
 
 /** Every terminal a dispatch can record for a rule×event: the fire log is the per-hour budget source

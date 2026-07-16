@@ -5,14 +5,7 @@
 
 import type { Db } from "@orb/db";
 import { chatParticipants, chats, messages, messageVariants, personas } from "@orb/db";
-import type {
-  ChatId,
-  ChatParticipantId,
-  MessageId,
-  MessageVariantId,
-  PersonaId,
-  UserId,
-} from "@orb/kit/ids";
+import type { ChatId, ChatParticipantId, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import { eq } from "drizzle-orm";
@@ -93,9 +86,7 @@ async function seedSlot(args: {
     personaId: args.personaId ?? null,
     createdAt: FROZEN_AT,
   });
-  const ids = args.variantContents.map((_c, i) =>
-    castId<MessageVariantId>(`variant_${args.key}_${i}`),
-  );
+  const ids = args.variantContents.map((_c, i) => castId<MessageVariantId>(`variant_${args.key}_${i}`));
   await db.insert(messageVariants).values(
     args.variantContents.map((content, i) => ({
       id: ids[i] as MessageVariantId,
@@ -124,9 +115,7 @@ describe("exportChat — D29 host gate", () => {
 
     expect(await exportChat({ principal: principal(member), chatId })).toBeNull();
     expect(await exportChat({ principal: principal(outsider), chatId })).toBeNull();
-    expect(
-      await exportChat({ principal: principal(host), chatId: castId<ChatId>("chat_missing") }),
-    ).toBeNull();
+    expect(await exportChat({ principal: principal(host), chatId: castId<ChatId>("chat_missing") })).toBeNull();
     expect(await exportChat({ principal: principal(host), chatId })).not.toBeNull();
   });
 
@@ -228,10 +217,7 @@ describe("exportChat — the D26/D28 assembly", () => {
 
     const out = await createExportChat(ctx)({ principal: principal(host), chatId });
     expect(out).not.toBeNull();
-    const header = JSON.parse((out?.text ?? "").trim().split("\n")[0] ?? "") as Record<
-      string,
-      unknown
-    >;
+    const header = JSON.parse((out?.text ?? "").trim().split("\n")[0] ?? "") as Record<string, unknown>;
     // biome-ignore lint/style/useNamingConvention: the ST wire key is snake_case by format.
     expect(header["chat_metadata"]).toMatchObject({ note_prompt: "keep it tense" });
   });

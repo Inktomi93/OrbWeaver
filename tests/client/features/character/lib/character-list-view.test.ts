@@ -7,15 +7,8 @@ import type { CharacterId, ChatId, TagId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 // Deep import the PURE lib module (NOT the "@orb/client/features/character" barrel): a barrel import drags
 // browser TSX into the dom-less root typecheck:graph program (the theme clamp.ts relative-import precedent).
-import type {
-  FilterableRow,
-  ResumableChat,
-} from "../../../../../packages/client/src/features/character/lib/character-list-view";
-import {
-  filterByChips,
-  groupByTag,
-  resumeTargets,
-} from "../../../../../packages/client/src/features/character/lib/character-list-view";
+import type { FilterableRow, ResumableChat } from "../../../../../packages/client/src/features/character/lib/character-list-view";
+import { filterByChips, groupByTag, resumeTargets } from "../../../../../packages/client/src/features/character/lib/character-list-view";
 import { expect, test } from "../../../../support/fixtures";
 
 const tag = (id: string, name: string, isHiddenOnCard = false): FilterableRow["tags"][number] => ({
@@ -24,9 +17,7 @@ const tag = (id: string, name: string, isHiddenOnCard = false): FilterableRow["t
   isHiddenOnCard,
 });
 
-const row = (
-  over: Partial<FilterableRow> & { readonly id?: string },
-): FilterableRow & { id: string } => ({
+const row = (over: Partial<FilterableRow> & { readonly id?: string }): FilterableRow & { id: string } => ({
   id: over.id ?? "char_x",
   starred: over.starred ?? false,
   archived: over.archived ?? false,
@@ -35,12 +26,8 @@ const row = (
 
 test("filterByChips: archived rows hidden unless showArchived is opted in", () => {
   const rows = [row({ id: "a" }), row({ id: "b", archived: true })];
-  expect(
-    filterByChips(rows, { favoritesOnly: false, showArchived: false, tagFilter: [] }),
-  ).toHaveLength(1);
-  expect(
-    filterByChips(rows, { favoritesOnly: false, showArchived: true, tagFilter: [] }),
-  ).toHaveLength(2);
+  expect(filterByChips(rows, { favoritesOnly: false, showArchived: false, tagFilter: [] })).toHaveLength(1);
+  expect(filterByChips(rows, { favoritesOnly: false, showArchived: true, tagFilter: [] })).toHaveLength(2);
 });
 
 test("filterByChips: favoritesOnly keeps only starred; tagFilter is conjunctive (AND)", () => {
@@ -64,18 +51,10 @@ test("filterByChips: favoritesOnly keeps only starred; tagFilter is conjunctive 
 test("groupByTag: multi-tag rows appear under EACH group; untagged fall to the Uncategorized tail", () => {
   const rpg = tag("t_rpg", "rpg");
   const noir = tag("t_noir", "noir");
-  const rows = [
-    row({ id: "a", tags: [rpg, noir] }),
-    row({ id: "b", tags: [rpg] }),
-    row({ id: "c", tags: [] }),
-  ];
+  const rows = [row({ id: "a", tags: [rpg, noir] }), row({ id: "b", tags: [rpg] }), row({ id: "c", tags: [] })];
   const groups = groupByTag(rows);
   // Named groups sort by tag name (noir < rpg), Uncategorized always last.
-  expect(groups.map((g) => (g.tag === null ? "__uncat" : g.tag.name))).toEqual([
-    "noir",
-    "rpg",
-    "__uncat",
-  ]);
+  expect(groups.map((g) => (g.tag === null ? "__uncat" : g.tag.name))).toEqual(["noir", "rpg", "__uncat"]);
   const rpgGroup = groups.find((g) => g.tag?.name === "rpg");
   expect(rpgGroup?.items.map((r) => r.id)).toEqual(["a", "b"]);
   const uncat = groups.find((g) => g.tag === null);

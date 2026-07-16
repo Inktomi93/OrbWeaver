@@ -15,7 +15,6 @@ const TYPES_CONST = "CHAT_BUS_EVENT_TYPES";
 /** Declared-not-emitted members, each with its tracked citation. Delete an entry the moment its
  *  emit site lands (the gate flags a stale entry). */
 const DEFERRED: Record<string, string> = {
-  // biome-ignore lint/security/noSecrets: a citation string (a code path), not a secret.
   chatOpened: "stream-attach synthesis unbuilt — see the FLAG comment in verbs/start-chat.ts",
   historyTruncated: "retained-window synthesis unbuilt",
   expression:
@@ -24,8 +23,7 @@ const DEFERRED: Record<string, string> = {
 
 const MISSING_MESSAGE_PREFIX =
   "ChatBusEvent member has NO server emit site and no DEFERRED entry — a declared-never-emitted bus member is silently dead wire (D50 — see Core-Laws-and-Precedents.md §7 D50). Wire the emit or add a cited DEFERRED entry: ";
-const STALE_MESSAGE_PREFIX =
-  "DEFERRED bus member now HAS an emit site — delete its stale allowlist entry in bus-coverage.ts: ";
+const STALE_MESSAGE_PREFIX = "DEFERRED bus member now HAS an emit site — delete its stale allowlist entry in bus-coverage.ts: ";
 
 /** Parse the discriminator keys out of the CHAT_BUS_EVENT_TYPES object literal (the one home). */
 function busEventTypes(contracts: SourceFile): string[] {
@@ -52,10 +50,7 @@ function literalCorpus(project: { getSourceFiles: () => SourceFile[] }): string 
     if (!EMIT_SCOPE.test(sf.getFilePath())) {
       continue;
     }
-    for (const kind of [
-      SyntaxKind.StringLiteral,
-      SyntaxKind.NoSubstitutionTemplateLiteral,
-    ] as const) {
+    for (const kind of [SyntaxKind.StringLiteral, SyntaxKind.NoSubstitutionTemplateLiteral] as const) {
       for (const lit of sf.getDescendantsOfKind(kind)) {
         parts.push(lit.getLiteralText());
       }
@@ -107,8 +102,7 @@ export const gate: GateDescriptor = {
   mustFlag: [
     {
       files: {
-        "packages/contracts/src/chat/index.ts":
-          'export const CHAT_BUS_EVENT_TYPES = { neverEmitted: "neverEmitted" } as const;\n',
+        "packages/contracts/src/chat/index.ts": 'export const CHAT_BUS_EVENT_TYPES = { neverEmitted: "neverEmitted" } as const;\n',
         "packages/server/src/domain/chat/x.ts": 'export const q = "somethingElse";\n',
       },
       expect: { messageIncludes: "NO server emit site" },
@@ -118,16 +112,14 @@ export const gate: GateDescriptor = {
   mustPass: [
     {
       files: {
-        "packages/contracts/src/chat/index.ts":
-          'export const CHAT_BUS_EVENT_TYPES = { emitted: "emitted" } as const;\n',
+        "packages/contracts/src/chat/index.ts": 'export const CHAT_BUS_EVENT_TYPES = { emitted: "emitted" } as const;\n',
         "packages/server/src/domain/chat/x.ts": 'export const q = "emitted";\n',
       },
       why: "the member's discriminator appears as a server emit literal — covered, passes",
     },
     {
       files: {
-        "packages/contracts/src/chat/index.ts":
-          'export const CHAT_BUS_EVENT_TYPES = { chatOpened: "chatOpened" } as const;\n',
+        "packages/contracts/src/chat/index.ts": 'export const CHAT_BUS_EVENT_TYPES = { chatOpened: "chatOpened" } as const;\n',
         "packages/server/src/domain/chat/x.ts": 'export const q = "somethingElse";\n',
       },
       why: "a member with NO emit site but a DEFERRED entry present (chatOpened) — the deferred-covers-it branch, passes",

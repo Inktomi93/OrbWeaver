@@ -2,32 +2,24 @@
 // canonical tuples in @orb/contracts/workloads, so a kind flipping stub→built needs zero client edits.
 
 import type { IndexSource, WorkloadKind, WorkloadStatus } from "@orb/contracts/workloads";
-import {
-  ACTIVE_WORKLOAD_STATUSES,
-  INDEX_SOURCES,
-  WORKLOAD_KIND_MODES,
-  WORKLOAD_KINDS,
-} from "@orb/contracts/workloads";
+import { ACTIVE_WORKLOAD_STATUSES, INDEX_SOURCES, WORKLOAD_KIND_MODES, WORKLOAD_KINDS } from "@orb/contracts/workloads";
 import type { BadgeProps } from "@orb/ui/badge";
 import type { SelectItems } from "@orb/ui/select";
 import type { inferInput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 
-/** The kinds the run dialog offers: singular-capable + built (not a stub). */
+/** The kinds the run dialog offers: singular-capable + built (not a stub). Every `singular: true` mode is
+ *  already `stub: false` by construction, so the filter only needs `.singular`. */
 export const RUNNABLE_WORKLOAD_KINDS: readonly WorkloadKind[] = WORKLOAD_KINDS.filter(
   (kind) =>
     WORKLOAD_KIND_MODES[kind].singular &&
-    !WORKLOAD_KIND_MODES[kind].stub &&
     // import-bundle is singular+built but route-started (mints its own staging token) — never a user run.
     kind !== "import-bundle",
 );
 
 /** Owner-only maintenance kinds: built, bulk-capable, not singular (a deployment-wide sweep, no per-user target). */
 export const MAINTENANCE_WORKLOAD_KINDS: readonly WorkloadKind[] = WORKLOAD_KINDS.filter(
-  (kind) =>
-    WORKLOAD_KIND_MODES[kind].bulk &&
-    !WORKLOAD_KIND_MODES[kind].singular &&
-    !WORKLOAD_KIND_MODES[kind].stub,
+  (kind) => WORKLOAD_KIND_MODES[kind].bulk && !WORKLOAD_KIND_MODES[kind].singular && !WORKLOAD_KIND_MODES[kind].stub,
 );
 
 /** Whether a kind is an owner-only maintenance (bulk-only built) kind. */
@@ -72,9 +64,9 @@ export const WORKLOAD_KIND_LABELS: Record<WorkloadKind, string> = {
   "rpg-recruit-card": "RPG recruit card",
 };
 
-const RUNNABLE_KIND_OPTIONS: SelectItems<string> = WORKLOAD_KINDS.filter((kind) =>
-  (RUNNABLE_WORKLOAD_KINDS as readonly WorkloadKind[]).includes(kind),
-).map((kind) => ({ value: kind as string, label: WORKLOAD_KIND_LABELS[kind] }));
+const RUNNABLE_KIND_OPTIONS: SelectItems<string> = WORKLOAD_KINDS.filter((kind) => (RUNNABLE_WORKLOAD_KINDS as readonly WorkloadKind[]).includes(kind)).map(
+  (kind) => ({ value: kind as string, label: WORKLOAD_KIND_LABELS[kind] }),
+);
 
 const MAINTENANCE_KIND_OPTIONS: SelectItems<string> = WORKLOAD_KINDS.filter((kind) =>
   (MAINTENANCE_WORKLOAD_KINDS as readonly WorkloadKind[]).includes(kind),
@@ -160,10 +152,7 @@ const RECENT_STATUSES = ["succeeded", "cancelled"] as const satisfies readonly W
 const FAILED_STATUSES = ["failed", "worker_died"] as const satisfies readonly WorkloadStatus[];
 
 /** Whether a row's status lands in a filter tab. */
-export function workloadFilterMatches(
-  filter: (typeof WORKLOAD_FILTERS)[number],
-  status: WorkloadStatus,
-): boolean {
+export function workloadFilterMatches(filter: (typeof WORKLOAD_FILTERS)[number], status: WorkloadStatus): boolean {
   switch (filter) {
     case "all":
       return true;
@@ -180,10 +169,7 @@ export function workloadFilterMatches(
 export const WORKLOAD_PARAM_SHAPES = ["none", "force", "dryRun", "k", "managed", "index"] as const;
 
 /** Kind → param-control shape (exhaustive). Stub kinds are `none` (real empty schemas server-side). */
-export const WORKLOAD_PARAM_SHAPE_BY_KIND: Record<
-  WorkloadKind,
-  (typeof WORKLOAD_PARAM_SHAPES)[number]
-> = {
+export const WORKLOAD_PARAM_SHAPE_BY_KIND: Record<WorkloadKind, (typeof WORKLOAD_PARAM_SHAPES)[number]> = {
   index: "index",
   "distill-characters": "none",
   "compute-themes": "k",
@@ -277,10 +263,7 @@ export interface WorkloadRunValues {
 type StartWorkloadWire = inferInput<Trpc["workloads"]["start"]>;
 
 /** Assemble the wire `start.input` for a kind — the params object carries only the kind's own tunable. */
-export function buildStartInput(
-  kind: WorkloadKind,
-  values: WorkloadRunValues,
-): StartWorkloadWire["input"] {
+export function buildStartInput(kind: WorkloadKind, values: WorkloadRunValues): StartWorkloadWire["input"] {
   const shape = WORKLOAD_PARAM_SHAPE_BY_KIND[kind];
   let params: Record<string, unknown> = {};
   if (shape === "force" && values.force) {
@@ -303,12 +286,10 @@ export function workloadResultPreview(result: unknown): string | null {
     return null;
   }
   const text = JSON.stringify(result);
-  if (text === undefined || text === "{}") {
+  if (text === "{}") {
     return null;
   }
-  return text.length > RESULT_PREVIEW_MAX_CHARS
-    ? `${text.slice(0, RESULT_PREVIEW_MAX_CHARS)}…`
-    : text;
+  return text.length > RESULT_PREVIEW_MAX_CHARS ? `${text.slice(0, RESULT_PREVIEW_MAX_CHARS)}…` : text;
 }
 
 /** The row-local live-progress view model. `pct: null` renders the indeterminate bar. */
@@ -328,8 +309,7 @@ export function toProgressView(fields: {
 }): WorkloadProgressView {
   const { pct, current, total, message } = fields;
   const haveCounts = current !== undefined && total !== undefined;
-  const derivedPct =
-    pct ?? (haveCounts && total > 0 ? Math.round((current / total) * PERCENT_SCALE) : null);
+  const derivedPct = pct ?? (haveCounts && total > 0 ? Math.round((current / total) * PERCENT_SCALE) : null);
   const label = message ?? (haveCounts ? `${current} of ${total}` : null);
   return { pct: derivedPct, label };
 }

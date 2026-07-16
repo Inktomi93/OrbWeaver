@@ -5,13 +5,7 @@
 import type { NotificationEvent } from "@orb/contracts/notifications";
 import type { Db } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
-import type {
-  DismissParams,
-  ListInboxParams,
-  MarkAllReadParams,
-  MarkReadParams,
-  RecordParams,
-} from "./params";
+import type { DismissParams, ListInboxParams, MarkAllReadParams, MarkReadParams, RecordParams } from "./params";
 import type { ListInboxResult, MarkAllReadResult } from "./results";
 import type { InboxView } from "./views";
 

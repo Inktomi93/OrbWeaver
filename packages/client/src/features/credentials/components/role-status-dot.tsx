@@ -52,24 +52,11 @@ export interface RoleStatusDotProps {
 export function RoleStatusDot({ state, source, onScrollToKeys }: RoleStatusDotProps): ReactElement {
   const tone = roleDotTone(state, source);
   const label = TONE_LABEL[tone];
-  const dot = (
-    <Text
-      as="span"
-      aria-hidden={true}
-      className={`size-2 shrink-0 rounded-full ${TONE_CLASS[tone]}`}
-    />
-  );
+  const dot = <Text as="span" aria-hidden={true} className={`size-2 shrink-0 rounded-full ${TONE_CLASS[tone]}`} />;
 
   if (tone === "needs-key") {
     return (
-      <Button
-        intent="ghost"
-        size="sm"
-        aria-label={label}
-        title={label}
-        className="size-control-sm shrink-0 p-0"
-        onClick={onScrollToKeys}
-      >
+      <Button intent="ghost" size="sm" aria-label={label} title={label} className="size-control-sm shrink-0 p-0" onClick={onScrollToKeys}>
         {dot}
       </Button>
     );

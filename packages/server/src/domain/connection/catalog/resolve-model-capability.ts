@@ -2,24 +2,13 @@
 // verbatim; openrouter synthesizes from catalog `supportedParameters` + family; vllm/local-light are static;
 // custom_openai is a conservative baseline pending BYO profile. `infra/providers` never imports this.
 
-import type {
-  AgentSdkModel,
-  ChatApi,
-  CredentialSource,
-  ModelCapability,
-  Range,
-} from "@orb/contracts/connection";
+import type { AgentSdkModel, ChatApi, CredentialSource, ModelCapability, Range } from "@orb/contracts/connection";
 import type { ModelId } from "@orb/kit/ids";
 import { getChatModel } from "./chat-models";
 import type { MODEL_FAMILIES } from "./model-family";
 import { detectModelFamily } from "./model-family";
 import { resolveAgentSdkAlias } from "./resolve-agent-sdk-alias";
-import {
-  NON_CACHING_TURNS,
-  refineAnthDirectSampling,
-  refineCuratedTurns,
-  synthesizeAnthropicTurns,
-} from "./turns";
+import { NON_CACHING_TURNS, refineAnthDirectSampling, refineCuratedTurns, synthesizeAnthropicTurns } from "./turns";
 import type { WIRE_SHAPES } from "./wire-shape";
 import { deriveWireShape } from "./wire-shape";
 
@@ -65,9 +54,7 @@ function synthesizeReasoning(family: Family): ModelCapability["reasoning"] {
   const displayModes = caps.display ? (["summarized", "omitted"] as const) : undefined;
   if (caps.effort) {
     const effortLevels =
-      family === "anthropic"
-        ? (["low", "medium", "high", "xhigh", "max"] as const)
-        : (["minimal", "low", "medium", "high", "xhigh"] as const);
+      family === "anthropic" ? (["low", "medium", "high", "xhigh", "max"] as const) : (["minimal", "low", "medium", "high", "xhigh"] as const);
     return {
       mode: "effort",
       enabled: true,
@@ -136,20 +123,14 @@ function synthesizeOpenRouter(
   const window = entry?.contextLength ?? OR_DEFAULT_WINDOW;
   // On the anthropic-direct shape, sampling refines to fail-closed {} until the probe opens the model's entry.
   const sampling = refineAnthDirectSampling(model, wireShape, synthesizeSampling(supported));
-  const verbosity =
-    family === "openai" && supported.has("verbosity")
-      ? (["low", "medium", "high"] as const)
-      : undefined;
+  const verbosity = family === "openai" && supported.has("verbosity") ? (["low", "medium", "high"] as const) : undefined;
   return {
     reasoning: synthesizeReasoning(family),
     sampling,
     ...(verbosity ? { verbosity: [...verbosity] } : {}),
     output: { maxTokens: { min: MIN_OUTPUT, max: Math.min(window, OUTPUT_CAP) } },
     context: { window },
-    turns:
-      family === "anthropic"
-        ? synthesizeAnthropicTurns(model, wireShape)
-        : { ...NON_CACHING_TURNS },
+    turns: family === "anthropic" ? synthesizeAnthropicTurns(model, wireShape) : { ...NON_CACHING_TURNS },
   };
 }
 
@@ -178,11 +159,7 @@ function staticProfile(window: number, fullSampling: boolean): ModelCapability {
 }
 
 /** `sampling` refines only on the `anthropic-direct` shape; reasoning/output/context stay shape-invariant. */
-function withCuratedTurns(
-  curated: { readonly capability: ModelCapability },
-  id: ModelId | string,
-  wireShape: WireShape,
-): ModelCapability {
+function withCuratedTurns(curated: { readonly capability: ModelCapability }, id: ModelId | string, wireShape: WireShape): ModelCapability {
   return {
     ...curated.capability,
     sampling: refineAnthDirectSampling(id, wireShape, curated.capability.sampling),
@@ -197,9 +174,7 @@ export function resolveModelCapability(
   source: CredentialSource,
   api: ChatApi,
   caches?: {
-    readonly orEntry?:
-      | { contextLength: number | null; supportedParameters: readonly string[] }
-      | undefined;
+    readonly orEntry?: { contextLength: number | null; supportedParameters: readonly string[] } | undefined;
     readonly agentSdkModels?: readonly AgentSdkModel[] | null | undefined;
     /** The custom_openai credential's user-declared context window (`metadata.contextWindow`); falls back
      *  to the conservative default when unset. Only the custom_openai arm reads it. */

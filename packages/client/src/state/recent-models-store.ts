@@ -29,9 +29,7 @@ function sanitize(v: unknown): RecentBySource {
     if (!Array.isArray(ids)) {
       continue;
     }
-    out[source] = ids
-      .filter((id): id is string => typeof id === "string")
-      .slice(0, RECENT_MODELS_CAP);
+    out[source] = ids.filter((id): id is string => typeof id === "string").slice(0, RECENT_MODELS_CAP);
   }
   return out;
 }
@@ -46,28 +44,17 @@ function migrate(persisted: unknown): RecentModelsState {
   return { bySource: sanitize(p.bySource) };
 }
 
-const useRecentModelsStore = createPersistedStore<RecentModelsState>(
-  "recent-models",
-  (): RecentModelsState => DEFAULT_STATE,
-  {
-    version: PERSIST_VERSION,
-    migrate,
-    partialize: (s): RecentModelsState => s,
-  },
-);
+const useRecentModelsStore = createPersistedStore<RecentModelsState>("recent-models", (): RecentModelsState => DEFAULT_STATE, {
+  version: PERSIST_VERSION,
+  migrate,
+  partialize: (s): RecentModelsState => s,
+});
 
 /** Push a picked id to the front of a source's device-local MRU (de-duped, capped) and persist it. */
 export function pushRecentModel(source: string, id: string): void {
   const { bySource } = useRecentModelsStore.getState();
-  const next = [id, ...(bySource[source] ?? []).filter((existing) => existing !== id)].slice(
-    0,
-    RECENT_MODELS_CAP,
-  );
-  useRecentModelsStore.setState(
-    { bySource: { ...bySource, [source]: next } },
-    false,
-    "recent-models/push",
-  );
+  const next = [id, ...(bySource[source] ?? []).filter((existing) => existing !== id)].slice(0, RECENT_MODELS_CAP);
+  useRecentModelsStore.setState({ bySource: { ...bySource, [source]: next } }, false, "recent-models/push");
 }
 
 /** A stable empty tuple — keeps both the selector and the snapshot read zustand-selector-derived clean (no

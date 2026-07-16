@@ -7,13 +7,7 @@
 import type { ImageEmbedInput, ImageEmbedPair, ImageInput } from "@orb/contracts/role-clients";
 import type { ImageEmbedRequest, ImageEmbedResult } from "../../contract";
 import type { VllmEngineClient } from "../engine";
-import {
-  DOC_INSTRUCTION,
-  normalizeVector,
-  QUERY_INSTRUCTION,
-  toDataUri,
-  truncateToDim,
-} from "../engine";
+import { DOC_INSTRUCTION, normalizeVector, QUERY_INSTRUCTION, toDataUri, truncateToDim } from "../engine";
 
 // A "server rejected the `dimensions` param" message — the trigger for the full-dim fallback.
 const DIMENSIONS_REJECTED_RE = /dimensions/i;
@@ -25,9 +19,7 @@ export interface VllmImageEmbedDeps {
   readonly concurrency: number;
 }
 
-type ContentPart =
-  | { readonly type: "text"; readonly text: string }
-  | { readonly type: "image_url"; readonly image_url: { readonly url: string } };
+type ContentPart = { readonly type: "text"; readonly text: string } | { readonly type: "image_url"; readonly image_url: { readonly url: string } };
 interface WireMessage {
   readonly role: "system" | "user";
   readonly content: ContentPart[];
@@ -52,9 +44,7 @@ async function imageParts(img: ImageInput): Promise<ContentPart[]> {
 }
 
 async function pairParts(pair: ImageEmbedPair): Promise<ContentPart[]> {
-  const parts: ContentPart[] = [
-    { type: "image_url", image_url: { url: await toDataUri(pair.image) } },
-  ];
+  const parts: ContentPart[] = [{ type: "image_url", image_url: { url: await toDataUri(pair.image) } }];
   if (pair.text.trim().length > 0) {
     parts.push({ type: "text", text: pair.text });
   }
@@ -62,26 +52,17 @@ async function pairParts(pair: ImageEmbedPair): Promise<ContentPart[]> {
 }
 
 // Normalize the three input shapes into one list of conversations (null = a filtered/empty slot).
-async function toConversations(
-  input: ImageEmbedInput,
-  queryInstruction: string,
-): Promise<(WireMessage[] | null)[]> {
+async function toConversations(input: ImageEmbedInput, queryInstruction: string): Promise<(WireMessage[] | null)[]> {
   if (input.kind === "text") {
     const texts = Array.isArray(input.input) ? input.input : [input.input];
-    return texts.map((t) =>
-      t.trim().length > 0 ? toMessages(queryInstruction, [{ type: "text", text: t }]) : null,
-    );
+    return texts.map((t) => (t.trim().length > 0 ? toMessages(queryInstruction, [{ type: "text", text: t }]) : null));
   }
   if (input.kind === "image") {
     const images = Array.isArray(input.input) ? input.input : [input.input];
-    return await Promise.all(
-      images.map(async (img) => toMessages(DOC_INSTRUCTION, await imageParts(img))),
-    );
+    return await Promise.all(images.map(async (img) => toMessages(DOC_INSTRUCTION, await imageParts(img))));
   }
   const pairs = Array.isArray(input.input) ? input.input : [input.input];
-  return await Promise.all(
-    pairs.map(async (pair) => toMessages(DOC_INSTRUCTION, await pairParts(pair))),
-  );
+  return await Promise.all(pairs.map(async (pair) => toMessages(DOC_INSTRUCTION, await pairParts(pair))));
 }
 
 // One messages-shaped /v1/embeddings request with the MRL `dimensions` fallback.
@@ -92,37 +73,23 @@ async function embedOne(
   const { model, messages, dim, signal } = opts;
   const base = { model, add_generation_prompt: true, messages };
   try {
-    return await client.enginePost<OpenAiEmbeddingsResponse>(
-      "embed",
-      "/v1/embeddings",
-      { ...base, dimensions: dim },
-      signal,
-    );
+    return await client.enginePost<OpenAiEmbeddingsResponse>("embed", "/v1/embeddings", { ...base, dimensions: dim }, signal);
   } catch (err) {
     if (err instanceof Error && DIMENSIONS_REJECTED_RE.test(err.message)) {
-      return await client.enginePost<OpenAiEmbeddingsResponse>(
-        "embed",
-        "/v1/embeddings",
-        base,
-        signal,
-      );
+      return await client.enginePost<OpenAiEmbeddingsResponse>("embed", "/v1/embeddings", base, signal);
     }
     throw err;
   }
 }
 
 /** Bind the imageEmbed role to the engine client + knobs. */
-export function createVllmImageEmbed(
-  deps: VllmImageEmbedDeps,
-): (req: ImageEmbedRequest) => Promise<ImageEmbedResult> {
+export function createVllmImageEmbed(deps: VllmImageEmbedDeps): (req: ImageEmbedRequest) => Promise<ImageEmbedResult> {
   return async (req) => {
     const dim = deps.embedDim; // image rides the SAME dim as text (one multimodal space)
     const queryInstruction = req.input.instruction ?? QUERY_INSTRUCTION;
     const conversations = await toConversations(req.input, queryInstruction);
 
-    const vectors: (Float32Array<ArrayBuffer> | null)[] = new Array(conversations.length).fill(
-      null,
-    );
+    const vectors: (Float32Array<ArrayBuffer> | null)[] = new Array(conversations.length).fill(null);
     let next = 0;
     const worker = async (): Promise<void> => {
       while (next < conversations.length) {

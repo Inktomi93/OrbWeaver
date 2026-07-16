@@ -113,11 +113,7 @@ function readVocabs(project: Project): readonly Vocab[] {
 /** The sanctioned homes for a vocab-keyed map: the vocabulary tuple + door (shell-store/main.tsx, shared
  *  by both vocabs) and the vocab's own co-located definition files. */
 function isAllowlisted(repoRelPath: string, vocab: Vocab): boolean {
-  return (
-    repoRelPath.endsWith("/state/shell-store.ts") ||
-    repoRelPath.endsWith("/client/src/main.tsx") ||
-    vocab.isDefFile(repoRelPath)
-  );
+  return repoRelPath.endsWith("/state/shell-store.ts") || repoRelPath.endsWith("/client/src/main.tsx") || vocab.isDefFile(repoRelPath);
 }
 
 /** A parallel vocab map = an object literal whose NAMED keys are ALL vocab ids, ≥2 of them. Requiring
@@ -271,31 +267,24 @@ export const gate: GateDescriptor = {
   mustFlag: [
     {
       files: {
-        "packages/client/src/state/shell-store.ts":
-          'export const SECTION_IDS = ["chats", "characters", "corpus"] as const;\n',
-        "packages/client/src/features/x/lib/panel-defaults.ts":
-          "export const M = {\n  chats: { list: 1 },\n  characters: { list: 2 },\n};\n",
+        "packages/client/src/state/shell-store.ts": 'export const SECTION_IDS = ["chats", "characters", "corpus"] as const;\n',
+        "packages/client/src/features/x/lib/panel-defaults.ts": "export const M = {\n  chats: { list: 1 },\n  characters: { list: 2 },\n};\n",
       },
       expect: { messageIncludes: "parallel section map" },
       why: "a re-declared per-section map (≥2 SectionId keys) outside the sanctioned homes — the target bug",
     },
     {
       files: {
-        "packages/client/src/state/shell-store.ts":
-          'export const SECTION_IDS = ["chats", "characters", "corpus"] as const;\n',
+        "packages/client/src/state/shell-store.ts": 'export const SECTION_IDS = ["chats", "characters", "corpus"] as const;\n',
         "packages/client/src/features/x/lib/rail-sections.ts":
-          "export const RAIL_SECTIONS = [\n" +
-          '  { id: "chats", label: "Chats" },\n' +
-          '  { id: "characters", label: "Characters" },\n' +
-          "];\n",
+          'export const RAIL_SECTIONS = [\n  { id: "chats", label: "Chats" },\n  { id: "characters", label: "Characters" },\n];\n',
       },
       expect: { messageIncludes: "array literal" },
       why: "an array of `{ id: … }` elements covering ≥2 SectionIds — the deleted RAIL_SECTIONS shape",
     },
     {
       files: {
-        "packages/client/src/state/shell-store.ts":
-          'export const SECTION_IDS = ["chats", "characters", "corpus"] as const;\n',
+        "packages/client/src/state/shell-store.ts": 'export const SECTION_IDS = ["chats", "characters", "corpus"] as const;\n',
         "packages/client/src/features/x/lib/labels.ts":
           'import type { SectionId } from "../../../state/shell-store";\n' +
           "declare function build(): Record<SectionId, string>;\n" +
@@ -306,43 +295,33 @@ export const gate: GateDescriptor = {
     },
     {
       files: {
-        "packages/client/src/state/shell-store.ts":
-          'export const MODAL_SLOT_IDS = ["theme", "settings", "account"] as const;\n',
-        "packages/client/src/features/x/lib/you-rows.ts":
-          "export const ROWS = {\n  theme: { label: 1 },\n  settings: { label: 2 },\n};\n",
+        "packages/client/src/state/shell-store.ts": 'export const MODAL_SLOT_IDS = ["theme", "settings", "account"] as const;\n',
+        "packages/client/src/features/x/lib/you-rows.ts": "export const ROWS = {\n  theme: { label: 1 },\n  settings: { label: 2 },\n};\n",
       },
       expect: { messageIncludes: "parallel modal map" },
       why: "a re-declared per-modal map (≥2 ModalSlotId keys) — the deleted YOU_MODAL_ROWS shape",
     },
     {
       files: {
-        "packages/client/src/state/shell-store.ts":
-          'export const MODAL_SLOT_IDS = ["theme", "settings", "account"] as const;\n',
+        "packages/client/src/state/shell-store.ts": 'export const MODAL_SLOT_IDS = ["theme", "settings", "account"] as const;\n',
         "packages/client/src/features/x/lib/rail-actions.ts":
-          "export const RAIL_ACTIONS = [\n" +
-          '  { id: "theme", label: "Theme" },\n' +
-          '  { id: "settings", label: "Settings" },\n' +
-          "];\n",
+          'export const RAIL_ACTIONS = [\n  { id: "theme", label: "Theme" },\n  { id: "settings", label: "Settings" },\n];\n',
       },
       expect: { messageIncludes: "the deleted RAIL_SECTIONS/RAIL_ACTIONS shape" },
       why: "an array of `{ id: … }` elements covering ≥2 ModalSlotIds — the deleted RAIL_ACTIONS shape",
     },
     {
       files: {
-        "packages/client/src/state/shell-store.ts":
-          'export const MODAL_SLOT_IDS = ["theme", "settings", "account"] as const;\n',
-        "packages/client/src/features/x/lib/you-modal-ids.ts":
-          'export const YOU_MODAL_IDS = ["account", "settings", "theme"];\n',
+        "packages/client/src/state/shell-store.ts": 'export const MODAL_SLOT_IDS = ["theme", "settings", "account"] as const;\n',
+        "packages/client/src/features/x/lib/you-modal-ids.ts": 'export const YOU_MODAL_IDS = ["account", "settings", "theme"];\n',
       },
       expect: { messageIncludes: "the deleted YOU_MODAL_IDS shape" },
       why: "a bare string array of ≥2 ModalSlotIds outside an allowlisted home — the deleted YOU_MODAL_IDS shape (the G2 gap a fresh verifier found: a bare id array has zero object elements, invisible to the `{id:…}` array arm)",
     },
     {
       files: {
-        "packages/client/src/state/shell-store.ts":
-          'export const SETTINGS_CATEGORY_IDS = ["account", "appearance", "tags"] as const;\n',
-        "packages/client/src/features/x/lib/settings-labels.ts":
-          "export const LABELS = {\n  account: { label: 1 },\n  appearance: { label: 2 },\n};\n",
+        "packages/client/src/state/shell-store.ts": 'export const SETTINGS_CATEGORY_IDS = ["account", "appearance", "tags"] as const;\n',
+        "packages/client/src/features/x/lib/settings-labels.ts": "export const LABELS = {\n  account: { label: 1 },\n  appearance: { label: 2 },\n};\n",
       },
       expect: { messageIncludes: "parallel settings map" },
       why: "a re-declared per-category map (≥2 SettingsCategoryId keys) outside the sanctioned homes — the M6.1 arm",
@@ -351,8 +330,7 @@ export const gate: GateDescriptor = {
   mustPass: [
     {
       files: {
-        "packages/client/src/state/shell-store.ts":
-          'export const SECTION_IDS = ["chats", "characters", "corpus"] as const;\n',
+        "packages/client/src/state/shell-store.ts": 'export const SECTION_IDS = ["chats", "characters", "corpus"] as const;\n',
         "packages/client/src/features/x/lib/derived.ts":
           "declare const registry: { list: () => { id: string; mobilePrimary: boolean }[] };\n" +
           "export const MOBILE_PRIMARY_SECTIONS = registry.list().filter((d) => d.mobilePrimary);\n",
@@ -361,8 +339,7 @@ export const gate: GateDescriptor = {
     },
     {
       files: {
-        "packages/client/src/state/shell-store.ts":
-          'export const SECTION_IDS = ["chats", "characters", "corpus"] as const;\n',
+        "packages/client/src/state/shell-store.ts": 'export const SECTION_IDS = ["chats", "characters", "corpus"] as const;\n',
         "packages/client/src/features/x/lib/mixed-array.ts":
           "declare const registry: { list: () => { id: string }[] };\n" +
           'export const NOT_A_SECTION_MAP = [{ id: "chats" }, { other: "value" }];\n' +
@@ -380,19 +357,15 @@ export const gate: GateDescriptor = {
     },
     {
       files: {
-        "packages/client/src/state/shell-store.ts":
-          'export const MODAL_SLOT_IDS = ["theme", "settings", "account"] as const;\n',
-        "packages/client/src/features/x/lib/foreign-strings.ts":
-          'export const NOT_A_MODAL_LIST = ["theme", "someOtherFeature"];\n',
+        "packages/client/src/state/shell-store.ts": 'export const MODAL_SLOT_IDS = ["theme", "settings", "account"] as const;\n',
+        "packages/client/src/features/x/lib/foreign-strings.ts": 'export const NOT_A_MODAL_LIST = ["theme", "someOtherFeature"];\n',
       },
       why: "a foreign string in the mix isn't pure vocab-space (the string-array false-positive guard), passes",
     },
     {
       files: {
-        "packages/client/src/state/shell-store.ts":
-          'export const SETTINGS_CATEGORY_IDS = ["account", "appearance", "tags"] as const;\n',
-        "packages/client/src/features/x/lib/appearance-pane.tsx":
-          "export const M = { account: 1, appearance: 2 };\n",
+        "packages/client/src/state/shell-store.ts": 'export const SETTINGS_CATEGORY_IDS = ["account", "appearance", "tags"] as const;\n',
+        "packages/client/src/features/x/lib/appearance-pane.tsx": "export const M = { account: 1, appearance: 2 };\n",
       },
       why: "a SettingsCategoryId-keyed object literal inside a co-located *-pane.tsx def file — allowlisted, must pass",
     },

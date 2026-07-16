@@ -16,11 +16,7 @@
   "htmlReporter": { "fileName": "reports/mutation/gate.html" },
 
   "_mutate_comment": "EXACTLY the highest-stakes files — no globs. Keep tight: break is calibrated to this set's measured score. (PD-114 dropped the phantom domain/chat/routing.ts — prompt assembly is assembly/assemble.ts.)",
-  "mutate": [
-    "packages/server/src/domain/chat/assembly/assemble.ts",
-    "packages/server/src/domain/credentials/verbs/resolve.ts",
-    "!packages/**/*.d.ts"
-  ],
+  "mutate": ["packages/server/src/domain/chat/assembly/assemble.ts", "packages/server/src/domain/credentials/verbs/resolve.ts", "!packages/**/*.d.ts"],
 
   "_ignore_comment": "Prune the sandbox copy — same shape as the base config. .cache/** (8.8G vLLM venv; its lib64 symlink crashes copyfile EISDIR) and .models/** (25G HF weights) MUST be excluded or the sandbox copy explodes. data/** + *.db* (the dev database) are pruned too — ignorePatterns is ACTIVE now that the sandbox patch makes a NORMAL sandbox work (it was a no-op under the old --inPlace).",
   "ignorePatterns": [

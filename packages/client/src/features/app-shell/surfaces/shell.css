@@ -52,9 +52,7 @@
   text-shadow: none;
 }
 @supports (backdrop-filter: blur(1px)) {
-  .shell-grid[data-has-bg-image][data-section="chats"]
-    .shell-content
-    [data-slot="empty-state-root"] {
+  .shell-grid[data-has-bg-image][data-section="chats"] .shell-content [data-slot="empty-state-root"] {
     backdrop-filter: blur(calc(var(--blur-strength) / 2)) saturate(1.2);
   }
 }
@@ -194,8 +192,7 @@
   border-radius: inherit;
   background:
     linear-gradient(transparent, transparent) padding-box,
-    linear-gradient(180deg, oklch(from var(--color-primary) l c h / 0.45), oklch(1 0 0 / 0.03))
-    border-box;
+    linear-gradient(180deg, oklch(from var(--color-primary) l c h / 0.45), oklch(1 0 0 / 0.03)) border-box;
 }
 
 .shell-rail .shell-tab-button {
@@ -428,9 +425,7 @@
     backdrop-filter: none;
     background-color: revert;
   }
-  html[data-blur-panels]
-    .shell-grid[data-has-bg-image][data-section]:not([data-section="chats"])
-    .shell-main {
+  html[data-blur-panels] .shell-grid[data-has-bg-image][data-section]:not([data-section="chats"]) .shell-main {
     backdrop-filter: none;
     background-color: var(--color-card);
   }

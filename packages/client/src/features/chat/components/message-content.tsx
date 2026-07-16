@@ -28,11 +28,7 @@ function assertNever(value: never): never {
 // biome can't infer `z.infer` of the contracts discriminatedUnion (it reads `block` as `never` →
 // "unreachable case" on every arm); tsc resolves the union + the assertNever exhaustiveness correctly.
 // Same resolver gap as data/bus/apply-chat-bus-event.ts (which suppresses the identical rule).
-function renderBlock(
-  block: MessageContentBlock,
-  key: string,
-  render: RowRenderPolicy,
-): ReactElement {
+function renderBlock(block: MessageContentBlock, key: string, render: RowRenderPolicy): ReactElement {
   const { trust, allowExternal } = render;
   switch (block.kind) {
     // biome-ignore lint/suspicious/noUnnecessaryConditions: contracts z.infer resolver gap (see above).
@@ -50,12 +46,7 @@ function renderBlock(
     // biome-ignore lint/suspicious/noUnnecessaryConditions: contracts z.infer resolver gap (see above).
     case "html-card":
       return block.trust === "tierB" ? (
-        <SandboxFrame
-          key={key}
-          html={block.html}
-          {...(block.css === undefined ? {} : { css: block.css })}
-          title="Rich content card"
-        />
+        <SandboxFrame key={key} html={block.html} {...(block.css === undefined ? {} : { css: block.css })} title="Rich content card" />
       ) : (
         <Markdown key={key} trust="untrusted" mode="static">
           {block.html}
@@ -76,9 +67,7 @@ function renderSegment(text: string, ctx: SegmentContext): ReactElement {
   const blocks = toContentBlocks(text);
   return (
     <Stack key={ctx.listKey} gap="row">
-      {blocks.map((block, index) =>
-        renderBlock(block, `${ctx.keyPrefix}${index}-${block.kind}`, ctx.render),
-      )}
+      {blocks.map((block, index) => renderBlock(block, `${ctx.keyPrefix}${index}-${block.kind}`, ctx.render))}
     </Stack>
   );
 }
@@ -96,18 +85,8 @@ export interface MessageContentProps {
   readonly speakerThemes?: ReadonlyMap<string, ThemeScopeTokens> | undefined;
 }
 
-export function MessageContent({
-  content,
-  render,
-  renderContext,
-  rowCharacterId,
-  rowPersonaId,
-  speakerThemes,
-}: MessageContentProps): ReactElement {
-  const resolvedContent =
-    renderContext === undefined
-      ? content
-      : renderMessageForDisplay(content, renderContext, rowCharacterId, rowPersonaId);
+export function MessageContent({ content, render, renderContext, rowCharacterId, rowPersonaId, speakerThemes }: MessageContentProps): ReactElement {
+  const resolvedContent = renderContext === undefined ? content : renderMessageForDisplay(content, renderContext, rowCharacterId, rowPersonaId);
   const spans = parseSpeakerSpans(resolvedContent);
 
   const [onlySpan] = spans;

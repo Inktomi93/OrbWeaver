@@ -14,10 +14,7 @@ const CHIP_SELECTOR = '[data-slot="combobox-chip"]';
 const EXACT_ADV = /^adv$/u;
 const NON_EMPTY = /.+/u;
 
-test("selecting a suggestion commits it as a chip and clears the draft", async ({
-  mount,
-  page,
-}) => {
+test("selecting a suggestion commits it as a chip and clears the draft", async ({ mount, page }) => {
   await mount(<Combobox aria-label="Tag" items={TAGS} />);
   const input = page.getByRole("combobox");
   await input.click();
@@ -35,10 +32,7 @@ test("the labeled remove button removes a chip", async ({ mount, page }) => {
   await expect(page.locator(CHIP_SELECTOR, { hasText: "mystery" })).toBeVisible();
 });
 
-test("keyboard: Enter commits typed free text as a chip alongside suggestions", async ({
-  mount,
-  page,
-}) => {
+test("keyboard: Enter commits typed free text as a chip alongside suggestions", async ({ mount, page }) => {
   await mount(<Combobox aria-label="Tag" items={TAGS} />);
   const input = page.getByRole("combobox");
   await input.click();
@@ -66,10 +60,7 @@ test("keyboard: Backspace on an empty draft removes the last chip", async ({ mou
   await expect(page.locator(CHIP_SELECTOR, { hasText: "adventure" })).toBeVisible();
 });
 
-test("keyboard: arrow highlights a suggestion, Enter defers to native selection (not free text)", async ({
-  mount,
-  page,
-}) => {
+test("keyboard: arrow highlights a suggestion, Enter defers to native selection (not free text)", async ({ mount, page }) => {
   await mount(<Combobox aria-label="Tag" items={TAGS} />);
   const input = page.getByRole("combobox");
   await input.click();
@@ -92,9 +83,7 @@ test("free-text entries dedup and trim on commit", async ({ mount, page }) => {
 });
 
 test("maxItems caps free-text commits and suggestion selection", async ({ mount, page }) => {
-  await mount(
-    <Combobox aria-label="Tag" defaultValue={["adventure", "mystery"]} items={TAGS} maxItems={2} />,
-  );
+  await mount(<Combobox aria-label="Tag" defaultValue={["adventure", "mystery"]} items={TAGS} maxItems={2} />);
   const input = page.getByRole("combobox");
   await input.click();
   await input.pressSequentially("thriller");
@@ -118,10 +107,7 @@ test("works with NO suggestions — pure free-text chip entry, no popup", async 
   await expect(page.getByRole("listbox")).toHaveCount(0);
 });
 
-test("filters correctly when the parent re-renders and passes a freshly-DERIVED items array (the real consumer shape)", async ({
-  mount,
-  page,
-}) => {
+test("filters correctly when the parent re-renders and passes a freshly-DERIVED items array (the real consumer shape)", async ({ mount, page }) => {
   const cmp = await mount(<DerivedItemsStory />);
   const rerender = cmp.getByTestId("rerender");
   await rerender.click();
@@ -162,10 +148,7 @@ test("disabled: the input is inert", async ({ mount, page }) => {
   await expect(input).toHaveAttribute("data-disabled", "");
 });
 
-test("inside a <Field>, the label associates with the input and aria-describedby is wired", async ({
-  mount,
-  page,
-}) => {
+test("inside a <Field>, the label associates with the input and aria-describedby is wired", async ({ mount, page }) => {
   await mount(
     <Field description="Press Enter to add" label="Tags">
       <Combobox items={TAGS} />
@@ -196,8 +179,5 @@ test("side: overrides the Positioner's requested placement", async ({ mount, pag
   await input.click();
   await input.pressSequentially("r");
   await expect(page.getByRole("option", { name: "romance" })).toBeVisible();
-  await expect(page.locator('[data-slot="combobox-positioner"]')).toHaveAttribute(
-    "data-side",
-    "top",
-  );
+  await expect(page.locator('[data-slot="combobox-positioner"]')).toHaveAttribute("data-side", "top");
 });

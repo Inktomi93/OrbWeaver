@@ -3,12 +3,7 @@
 // oversized → top rung; non-usable widths → undefined (the route 404s them).
 
 import { describe } from "vitest";
-import {
-  BANNER_WIDTHS,
-  BLOB_WIDTHS,
-  snapBannerWidth,
-  snapBlobWidth,
-} from "../../../../../packages/server/src/domain/assets/substrate/variant-policy.ts";
+import { BANNER_WIDTHS, BLOB_WIDTHS, snapBannerWidth, snapBlobWidth } from "../../../../../packages/server/src/domain/assets/substrate/variant-policy.ts";
 import { expect, test } from "../../../../support/fixtures";
 
 describe("snapBlobWidth", () => {

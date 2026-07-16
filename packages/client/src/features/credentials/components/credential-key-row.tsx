@@ -16,12 +16,7 @@ import { useState } from "react";
 import { ConfirmDialog } from "#components";
 import type { Invalidation, Trpc } from "#data";
 import { timeLib } from "#lib";
-import {
-  useFetchModels,
-  useRemoveCredential,
-  useSetActiveCredential,
-  useTestCredentialHealth,
-} from "../hooks/use-connections-mutations";
+import { useFetchModels, useRemoveCredential, useSetActiveCredential, useTestCredentialHealth } from "../hooks/use-connections-mutations";
 
 type CredentialListItem = inferOutput<Trpc["credentials"]["list"]>[number];
 
@@ -32,16 +27,10 @@ export interface CredentialKeyRowProps {
 }
 
 /** The Test-result the row holds (session-ephemeral, never persisted). custom_openai rows report a reachability line from fetchModels; every other provider reports CredentialHealth verbatim. */
-type TestResult =
-  | { readonly kind: "health"; readonly health: CredentialHealth }
-  | { readonly kind: "custom"; readonly modelCount: number | null };
+type TestResult = { readonly kind: "health"; readonly health: CredentialHealth } | { readonly kind: "custom"; readonly modelCount: number | null };
 
 /** A provider credential's row: label + status chips, a health probe, set-active, and a confirmed remove. */
-export function CredentialKeyRow({
-  credential,
-  trpc,
-  invalidation,
-}: CredentialKeyRowProps): ReactElement {
+export function CredentialKeyRow({ credential, trpc, invalidation }: CredentialKeyRowProps): ReactElement {
   const deps = { trpc, invalidation };
   const setActive = useSetActiveCredential(deps);
   const remove = useRemoveCredential(deps);
@@ -100,21 +89,11 @@ export function CredentialKeyRow({
             Test
           </Button>
           {credential.active || revoked ? null : (
-            <Button
-              intent="secondary"
-              size="sm"
-              disabled={setActive.isPending}
-              onClick={(): void => setActive.mutate({ credentialId: credential.id })}
-            >
+            <Button intent="secondary" size="sm" disabled={setActive.isPending} onClick={(): void => setActive.mutate({ credentialId: credential.id })}>
               Set active
             </Button>
           )}
-          <Button
-            intent="ghost"
-            size="sm"
-            aria-label={`Remove the ${label} key`}
-            onClick={(): void => setDeleteOpen(true)}
-          >
+          <Button intent="ghost" size="sm" aria-label={`Remove the ${label} key`} onClick={(): void => setDeleteOpen(true)}>
             <Icon icon={Trash2} size="sm" />
           </Button>
           <ConfirmDialog
@@ -134,9 +113,7 @@ export function CredentialKeyRow({
 /** The Test-result text — the health status or the custom reachability line. */
 function formatTestResult(result: TestResult, isCustom: boolean): string {
   if (result.kind === "custom") {
-    return result.modelCount === null
-      ? "unreachable or no /models"
-      : `reachable — ${result.modelCount} model${result.modelCount === 1 ? "" : "s"}`;
+    return result.modelCount === null ? "unreachable or no /models" : `reachable — ${result.modelCount} model${result.modelCount === 1 ? "" : "s"}`;
   }
   return formatHealth(result.health, isCustom);
 }

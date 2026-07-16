@@ -25,10 +25,7 @@ interface NearestImagesParams {
   readonly limit: number;
 }
 
-export async function nearestImages(
-  db: ReadOnlyDb,
-  params: NearestImagesParams,
-): Promise<NearestImage[]> {
+export async function nearestImages(db: ReadOnlyDb, params: NearestImagesParams): Promise<NearestImage[]> {
   const distance = sql<number>`vector_distance_cos(${imageEmbeddings.embedding}, vector32(${toVectorBlob(params.queryVector)}))`;
   const rows = await db
     .select({
@@ -39,13 +36,7 @@ export async function nearestImages(
     })
     .from(imageEmbeddings)
     .innerJoin(assets, eq(imageEmbeddings.assetId, assets.id))
-    .where(
-      and(
-        eq(assets.ownerId, params.ownerId),
-        eq(imageEmbeddings.model, params.model),
-        eq(imageEmbeddings.lens, params.lens),
-      ),
-    )
+    .where(and(eq(assets.ownerId, params.ownerId), eq(imageEmbeddings.model, params.model), eq(imageEmbeddings.lens, params.lens)))
     .orderBy(distance)
     .limit(params.limit);
   return rows;
@@ -97,10 +88,7 @@ interface NearestAvatarCharactersParams {
 }
 
 /** Synthetic (group-memory) characters are excluded (no real avatar). */
-export async function nearestAvatarCharacters(
-  db: ReadOnlyDb,
-  params: NearestAvatarCharactersParams,
-): Promise<NearestAvatarCharacter[]> {
+export async function nearestAvatarCharacters(db: ReadOnlyDb, params: NearestAvatarCharactersParams): Promise<NearestAvatarCharacter[]> {
   const distance = sql<number>`vector_distance_cos(${imageEmbeddings.embedding}, vector32(${toVectorBlob(params.queryVector)}))`;
   const rows = await db
     .select({

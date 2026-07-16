@@ -66,10 +66,7 @@ export function createExportCharacter(ctx: ExportContext): ExportService["export
     }
   }
 
-  return async ({
-    principal,
-    characterId,
-  }: ExportCharacterParams): Promise<ExportedCard | null> => {
+  return async ({ principal, characterId }: ExportCharacterParams): Promise<ExportedCard | null> => {
     const ownerId = principal.userId;
     const charRow = await fetchOwned(ctx.db, characters, characterId, ownerId);
     if (charRow === undefined) {
@@ -81,9 +78,7 @@ export function createExportCharacter(ctx: ExportContext): ExportService["export
       .select({ name: tags.name })
       .from(characterTags)
       .innerJoin(tags, eq(characterTags.tagId, tags.id))
-      .where(
-        and(eq(characterTags.characterId, characterId), eq(characterTags.status, ACCEPTED_STATUS)),
-      );
+      .where(and(eq(characterTags.characterId, characterId), eq(characterTags.status, ACCEPTED_STATUS)));
     const acceptedTags = tagRows.map((row) => row.name);
 
     // Walk the character's attached books (primary + auxiliary) → their entries. De-duped by entry id (a

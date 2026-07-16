@@ -22,10 +22,7 @@ interface AssetRowRef {
 /** Every `(id, hash)` index row for ONE owner (the sweep partition — GC/fsck/rebuild each walk this owner's
  *  blobs against it). Owner-scoped in the WHERE. */
 export async function loadOwnerAssetRows(db: Db, ownerId: UserId): Promise<AssetRowRef[]> {
-  return await db
-    .select({ id: assets.id, hash: assets.hash })
-    .from(assets)
-    .where(eq(assets.ownerId, ownerId));
+  return await db.select({ id: assets.id, hash: assets.hash }).from(assets).where(eq(assets.ownerId, ownerId));
 }
 
 /** The distinct owners that have at least one index row. `fsck`'s dangling/corrupt pass iterates THESE (an

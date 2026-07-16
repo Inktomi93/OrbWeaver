@@ -50,14 +50,8 @@ describe("admin session verbs", () => {
     const svc = createAdminService(makeHarness(db).ctx);
     const u = await seedUser(db, { id: "user_u", role: "user", handle: "u" });
     const p = principal(u, "user");
-    await expect(svc.listSessions({ principal: p, userId: u })).rejects.toThrow(
-      DomainForbiddenError,
-    );
-    await expect(
-      svc.revokeSession({ principal: p, sessionId: castId<SessionId>("session_x") }),
-    ).rejects.toThrow(DomainForbiddenError);
-    await expect(svc.revokeUserSessions({ principal: p, userId: u })).rejects.toThrow(
-      DomainForbiddenError,
-    );
+    await expect(svc.listSessions({ principal: p, userId: u })).rejects.toThrow(DomainForbiddenError);
+    await expect(svc.revokeSession({ principal: p, sessionId: castId<SessionId>("session_x") })).rejects.toThrow(DomainForbiddenError);
+    await expect(svc.revokeUserSessions({ principal: p, userId: u })).rejects.toThrow(DomainForbiddenError);
   });
 });

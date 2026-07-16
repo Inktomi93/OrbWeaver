@@ -8,11 +8,7 @@ import { describe, vi } from "vitest";
 import type { WorkloadRunnerDeps } from "../../../../../packages/server/src/domain/workloads/contract/service.ts";
 import { getRecentWorkloadEvents } from "../../../../../packages/server/src/domain/workloads/engine/progress-bus.ts";
 import { runWorkload } from "../../../../../packages/server/src/domain/workloads/engine/runner.ts";
-import {
-  loadWorkload,
-  loadWorkloadStatus,
-  markTerminal,
-} from "../../../../../packages/server/src/domain/workloads/persistence/queries.ts";
+import { loadWorkload, loadWorkloadStatus, markTerminal } from "../../../../../packages/server/src/domain/workloads/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
 import { fakeEnv, makeRunnerDeps, seedWorkloadRow, T0 } from "../_support.ts";
@@ -47,9 +43,7 @@ describe("runWorkload", () => {
     const env = {
       ...fakeEnv(),
       stats: {
-        reconcileStats: vi.fn((_args: { signal: AbortSignal }) =>
-          Promise.reject(new Error("boom")),
-        ),
+        reconcileStats: vi.fn((_args: { signal: AbortSignal }) => Promise.reject(new Error("boom"))),
       },
     };
     const audit = vi.fn<WorkloadRunnerDeps["audit"]>(() => Promise.resolve());

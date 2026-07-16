@@ -17,10 +17,7 @@ function sha256(bytes: Uint8Array): string {
   return createHash("sha256").update(bytes).digest("hex");
 }
 
-async function avatarOf(
-  db: Awaited<ReturnType<typeof freshDb>>,
-  characterId: string,
-): Promise<string | null | undefined> {
+async function avatarOf(db: Awaited<ReturnType<typeof freshDb>>, characterId: string): Promise<string | null | undefined> {
   const rows = await db
     .select({ avatarAssetId: characters.avatarAssetId })
     .from(characters)

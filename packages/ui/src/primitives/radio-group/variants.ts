@@ -5,8 +5,7 @@ import { FOCUS_RING, FOCUS_RING_DESTRUCTIVE, tv } from "#lib";
 export const radioGroupVariants = tv({
   slots: {
     root: "flex flex-col gap-row",
-    label:
-      "inline-flex cursor-pointer items-center gap-row text-body leading-body text-foreground has-data-readonly:cursor-default",
+    label: "inline-flex cursor-pointer items-center gap-row text-body leading-body text-foreground has-data-readonly:cursor-default",
     item: [
       "relative inline-flex size-section shrink-0 cursor-pointer items-center justify-center rounded-full border border-border bg-input",
       "transition-colors duration-(--motion-fast) ease-out-expo",

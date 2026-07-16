@@ -7,11 +7,7 @@ import { createPasswordHasher } from "#infra/auth";
 import type { SessionsContext } from "./contract/service";
 import { createTokenHasher, SESSION_TTL_MS, SLIDE_THROTTLE_MS } from "./tokens/tokens";
 
-export function createSessionsContext(
-  db: Db,
-  now: () => number,
-  sessionSecret: string | null,
-): SessionsContext {
+export function createSessionsContext(db: Db, now: () => number, sessionSecret: string | null): SessionsContext {
   return {
     db,
     now,

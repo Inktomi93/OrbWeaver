@@ -5,12 +5,7 @@
 
 import type { Runner } from "../contract/runner";
 
-export const refreshModelCatalogRunner: Runner<"refresh-model-catalog"> = async (
-  ctx,
-  _params,
-  report,
-  signal,
-) => {
+export const refreshModelCatalogRunner: Runner<"refresh-model-catalog"> = async (ctx, _params, report, signal) => {
   report({ message: "refreshing provider model catalogs" });
   const result = await ctx.env.connection.refreshCatalogSnapshot({ signal });
   return { models: result.models, agentSdkModels: result.agentSdkModels };

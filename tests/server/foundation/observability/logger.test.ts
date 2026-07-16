@@ -71,11 +71,7 @@ describe("getLog output shape", () => {
     runInRequest(requestId, () => {
       // pino child loggers expose bindings() — verify requestId is bound without depending on
       // the ring (which is silenced by LOG_LEVEL=silent in the test environment).
-      expect(
-        (getLog() as unknown as { bindings: () => Record<string, unknown> }).bindings()[
-          "requestId"
-        ],
-      ).toBe(requestId);
+      expect((getLog() as unknown as { bindings: () => Record<string, unknown> }).bindings()["requestId"]).toBe(requestId);
     });
   });
 });

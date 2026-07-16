@@ -11,16 +11,7 @@ import { beforeEach, describe } from "vitest";
 import { createFrozenClock } from "../../../../support/clock";
 import { freshDb } from "../../../../support/db";
 import { expect, test } from "../../../../support/fixtures";
-import {
-  AGENT,
-  ALICE,
-  BOB,
-  inviteEvent,
-  makeNotificationsService,
-  principal,
-  seedAgent,
-  seedUser,
-} from "../_support";
+import { AGENT, ALICE, BOB, inviteEvent, makeNotificationsService, principal, seedAgent, seedUser } from "../_support";
 
 let db: Db;
 let svc: NotificationsService;
@@ -105,9 +96,7 @@ describe("record — coStatements ride the SAME batch (PD-24 tx-atomicity)", () 
       .set({ handle: castId("alice3") })
       .where(eq(users.id, ALICE));
 
-    await expect(
-      svc.record({ event: inviteEvent(ALICE), coStatements: [good, bad] }),
-    ).rejects.toThrow();
+    await expect(svc.record({ event: inviteEvent(ALICE), coStatements: [good, bad] })).rejects.toThrow();
     // NOTHING committed — not the transition, not the notification (one implicit transaction).
     const [row] = await db.select().from(users).where(eq(users.id, ALICE));
     expect(row?.handle).toBe("alice");

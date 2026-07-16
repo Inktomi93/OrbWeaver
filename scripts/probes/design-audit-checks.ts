@@ -40,9 +40,7 @@ const SRGB_GAMMA_EXPONENT = 2.4;
 
 function linearizeChannel(channel: number): number {
   const c = channel / RGB_MAX_CHANNEL;
-  return c <= SRGB_GAMMA_THRESHOLD
-    ? c / SRGB_LINEAR_DIVISOR
-    : ((c + SRGB_GAMMA_OFFSET) / SRGB_GAMMA_DIVISOR) ** SRGB_GAMMA_EXPONENT;
+  return c <= SRGB_GAMMA_THRESHOLD ? c / SRGB_LINEAR_DIVISOR : ((c + SRGB_GAMMA_OFFSET) / SRGB_GAMMA_DIVISOR) ** SRGB_GAMMA_EXPONENT;
 }
 
 const LUMINANCE_R_WEIGHT = 0.2126;
@@ -50,11 +48,7 @@ const LUMINANCE_G_WEIGHT = 0.7152;
 const LUMINANCE_B_WEIGHT = 0.0722;
 
 export function relativeLuminance(c: Rgb): number {
-  return (
-    LUMINANCE_R_WEIGHT * linearizeChannel(c.r) +
-    LUMINANCE_G_WEIGHT * linearizeChannel(c.g) +
-    LUMINANCE_B_WEIGHT * linearizeChannel(c.b)
-  );
+  return LUMINANCE_R_WEIGHT * linearizeChannel(c.r) + LUMINANCE_G_WEIGHT * linearizeChannel(c.g) + LUMINANCE_B_WEIGHT * linearizeChannel(c.b);
 }
 
 const CONTRAST_OFFSET = 0.05;
@@ -76,9 +70,7 @@ const LARGE_BOLD_TEXT_PX = WCAG_LARGE_BOLD_TEXT_PT * PT_TO_PX; // ~18.67px
 const BOLD_WEIGHT = 700;
 
 export function isLargeText(fontSizePx: number, fontWeight: number): boolean {
-  return (
-    fontSizePx >= LARGE_TEXT_PX || (fontSizePx >= LARGE_BOLD_TEXT_PX && fontWeight >= BOLD_WEIGHT)
-  );
+  return fontSizePx >= LARGE_TEXT_PX || (fontSizePx >= LARGE_BOLD_TEXT_PX && fontWeight >= BOLD_WEIGHT);
 }
 
 export const NORMAL_MIN_RATIO = 4.5;
@@ -128,9 +120,7 @@ export function checkContrast(input: ContrastInput): Finding | null {
         severity: "P0",
         selector: input.selector,
         value: `${worst.toFixed(2)}:1 worst-stop (need ${minRatio}:1)`,
-        message:
-          "text over a gradient backdrop fails contrast against at least one color stop — the " +
-          "'text bled unreadable over the picture' defect",
+        message: "text over a gradient backdrop fails contrast against at least one color stop — the 'text bled unreadable over the picture' defect",
       };
     }
     return null;
@@ -187,9 +177,7 @@ export function checkImageDistortion(input: ImageDistortionInput): Finding | nul
     severity: deviationPct >= DISTORTION_SEVERE_PCT ? "P1" : "P2",
     selector,
     value: `${deviationPct.toFixed(1)}% aspect deviation (natural ${naturalRatio.toFixed(2)}, rendered ${renderedRatio.toFixed(2)})`,
-    message:
-      "image is squished/stretched — rendered aspect ratio doesn't match its source; use object-fit " +
-      "or fix explicit width/height",
+    message: "image is squished/stretched — rendered aspect ratio doesn't match its source; use object-fit or fix explicit width/height",
   };
 }
 
@@ -215,10 +203,7 @@ export function checkTapTarget(input: TapTargetInput, pointerCoarse: boolean): F
       return null;
     }
     const severity: Severity = shortSide < TAP_COARSE_FAIL_PX ? "P1" : "P2";
-    const floor =
-      severity === "P1"
-        ? `${TAP_COARSE_FAIL_PX}px hard floor`
-        : `${TAP_COARSE_WARN_PX}px recommended minimum`;
+    const floor = severity === "P1" ? `${TAP_COARSE_FAIL_PX}px hard floor` : `${TAP_COARSE_WARN_PX}px recommended minimum`;
     return {
       rule: "tap-target",
       severity,
@@ -298,9 +283,7 @@ export function checkTabIndexSmell(input: TabIndexInput): Finding | null {
     severity: "P2",
     selector: input.selector,
     value: `tabindex=${input.tabIndex}`,
-    message:
-      "positive tabindex overrides natural DOM order — breaks predictable keyboard navigation; " +
-      'use tabindex="0" and reorder in the DOM instead',
+    message: 'positive tabindex overrides natural DOM order — breaks predictable keyboard navigation; use tabindex="0" and reorder in the DOM instead',
   };
 }
 
@@ -335,8 +318,7 @@ export function checkNestedCard(input: NestedCardInput): Finding | null {
     severity: "P3",
     selector: input.selector,
     value: "card inside card",
-    message:
-      "a card-like element (shadow/border + radius/background) is nested inside another — flatten to one visual container",
+    message: "a card-like element (shadow/border + radius/background) is nested inside another — flatten to one visual container",
   };
 }
 
@@ -351,8 +333,7 @@ export function checkGradientText(input: GradientTextInput): Finding | null {
     severity: "P3",
     selector: input.selector,
     value: "background-clip: text",
-    message:
-      "gradient-clipped text — contrast against every backdrop it can appear on is indeterminate; verify manually or use a solid color",
+    message: "gradient-clipped text — contrast against every backdrop it can appear on is indeterminate; verify manually or use a solid color",
   };
 }
 
@@ -370,8 +351,7 @@ export function checkAnimatedImgHover(input: AnimatedImgHoverInput): Finding | n
     severity: "P3",
     selector: input.selector,
     value: "hover transform/transition",
-    message:
-      "image animates (scale/rotate/translate) on hover — confirm this is intentional, not inherited card-hover motion",
+    message: "image animates (scale/rotate/translate) on hover — confirm this is intentional, not inherited card-hover motion",
   };
 }
 
@@ -393,11 +373,7 @@ export type RawSamples = {
 };
 
 /** Runs one check over one sample array, pushing every non-null Finding. */
-function pushFindings<T>(
-  findings: Finding[],
-  items: readonly T[],
-  check: (item: T) => Finding | null,
-): void {
+function pushFindings<T>(findings: Finding[], items: readonly T[], check: (item: T) => Finding | null): void {
   for (const item of items) {
     const f = check(item);
     if (f !== null) {

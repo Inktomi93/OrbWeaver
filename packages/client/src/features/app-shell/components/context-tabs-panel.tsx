@@ -23,10 +23,7 @@ export interface ContextTabsPanelProps {
   readonly actions?: ReactNode;
 }
 
-export function ContextTabsPanel({
-  tabs: entries,
-  actions,
-}: ContextTabsPanelProps): ReactElement | null {
+export function ContextTabsPanel({ tabs: entries, actions }: ContextTabsPanelProps): ReactElement | null {
   const contextTab = useContextTab();
   // A few tabs stretch to fill the strip; a crowded strip (5+ in this narrow panel) can't fit at
   // every panel width, so it packs tabs at their natural width, tightens their padding, and scrolls.
@@ -58,9 +55,7 @@ export function ContextTabsPanel({
   // Fit is the MEASURED state, not the static tab count: a strip that actually overflows must scroll
   // (with the fade cue) and its tabs must NOT be flex-1-forced, regardless of how few tabs it holds.
   const fits = stretch && !overflowing;
-  const listClassName = fits
-    ? "min-w-0 w-full overflow-x-auto"
-    : `min-w-0 w-full overflow-x-auto gap-field${overflowing ? " scroll-fade-x" : ""}`;
+  const listClassName = fits ? "min-w-0 w-full overflow-x-auto" : `min-w-0 w-full overflow-x-auto gap-field${overflowing ? " scroll-fade-x" : ""}`;
 
   return (
     <Tabs
@@ -71,11 +66,7 @@ export function ContextTabsPanel({
       <Row align="center" gap="row" className="min-w-0 shrink-0">
         <TabsList ref={listRef} aria-label="Detail" className={listClassName}>
           {entries.map((entry) => (
-            <TabsTab
-              key={entry.id}
-              value={entry.id}
-              className={fits ? "flex-1" : "shrink-0 px-field"}
-            >
+            <TabsTab key={entry.id} value={entry.id} className={fits ? "flex-1" : "shrink-0 px-field"}>
               {entry.label}
             </TabsTab>
           ))}

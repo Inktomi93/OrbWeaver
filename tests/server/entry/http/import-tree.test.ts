@@ -11,12 +11,7 @@ import { mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Principal } from "@orb/contracts/identity";
-import type {
-  PortabilityRegistry,
-  PortableEntity,
-  PortableFile,
-  PortableKind,
-} from "@orb/contracts/portability";
+import type { PortabilityRegistry, PortableEntity, PortableFile, PortableKind } from "@orb/contracts/portability";
 import type { Handle, UserId, WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ImportTreeDeps } from "@orb/server/entry/http";
@@ -38,8 +33,7 @@ const COOKIE_OWNER: Principal = { ...OWNER, via: "cookie" };
 /** An empty export stream — the route never calls exportAll, so a done-on-first-next iterator suffices. */
 const EMPTY_EXPORT: AsyncIterable<PortableFile> = {
   [Symbol.asyncIterator]: () => ({
-    next: (): Promise<IteratorResult<PortableFile>> =>
-      Promise.resolve({ done: true, value: undefined }),
+    next: (): Promise<IteratorResult<PortableFile>> => Promise.resolve({ done: true, value: undefined }),
   }),
 };
 
@@ -102,13 +96,7 @@ function guardCtx(principal: Principal | null, headers?: Record<string, string>)
 }
 
 let stagingDir: string;
-const startSpy =
-  vi.fn<
-    (p: {
-      input: { kind: string; params: Record<string, unknown> };
-      ownerId: UserId | null;
-    }) => Promise<{ id: WorkloadId }>
-  >();
+const startSpy = vi.fn<(p: { input: { kind: string; params: Record<string, unknown> }; ownerId: UserId | null }) => Promise<{ id: WorkloadId }>>();
 
 function deps(): ImportTreeDeps {
   return { workloads: { start: startSpy }, registry: fakeRegistry(), stagingDir };
@@ -199,12 +187,7 @@ describe("registerImportTree — belt chain + guard", () => {
 });
 
 describe("registerImportTree — fail-closed path sanitization (nothing staged, no start)", () => {
-  for (const bad of [
-    "wrap/../../etc/passwd",
-    "/abs/characters/Aria.png",
-    "wrap/a\\b.png",
-    "wrap/characters/\0.png",
-  ]) {
+  for (const bad of ["wrap/../../etc/passwd", "/abs/characters/Aria.png", "wrap/a\\b.png", "wrap/characters/\0.png"]) {
     test(`rejects ${JSON.stringify(bad)} → 400`, async () => {
       const res = await handler()(makeCtx(OWNER, formOf(fileOf(bad))));
       expect(res.status).toBe(400);
@@ -239,11 +222,7 @@ describe("registerImportTree — DoS caps", () => {
 
 describe("registerImportTree — layout sniff dispatch (caller-scoped ownerId)", () => {
   test("orb bundle tree → import-bundle {source:dir}, staged normalized to entity dirs at root", async () => {
-    const form = formOf(
-      fileOf("backup/characters/Aria.png"),
-      fileOf("backup/personas/me.json"),
-      fileOf("backup/presets/rp.json"),
-    );
+    const form = formOf(fileOf("backup/characters/Aria.png"), fileOf("backup/personas/me.json"), fileOf("backup/presets/rp.json"));
     const res = await handler()(makeCtx(OWNER, form));
     expect(res.status).toBe(202);
     expect(startSpy).toHaveBeenCalledTimes(1);
@@ -253,17 +232,11 @@ describe("registerImportTree — layout sniff dispatch (caller-scoped ownerId)",
     expect(call?.ownerId).toBe(OWNER.userId);
     // The picked-folder wrapper is stripped: the staged tree has entity dirs at its root.
     const token = call?.input.params["token"] as string;
-    expect(await readdir(join(stagingDir, token))).toEqual(
-      expect.arrayContaining(["characters", "personas", "presets"]),
-    );
+    expect(await readdir(join(stagingDir, token))).toEqual(expect.arrayContaining(["characters", "personas", "presets"]));
   });
 
   test("ST profile tree → import-st {stagedDir}, re-nested under one profile subdir", async () => {
-    const form = formOf(
-      fileOf("default-user/characters/Aria.png"),
-      fileOf("default-user/settings.json"),
-      fileOf("default-user/chats/Aria/2024.jsonl"),
-    );
+    const form = formOf(fileOf("default-user/characters/Aria.png"), fileOf("default-user/settings.json"), fileOf("default-user/chats/Aria/2024.jsonl"));
     const res = await handler()(makeCtx(OWNER, form));
     expect(res.status).toBe(202);
     const call = startSpy.mock.calls[0]?.[0];
@@ -274,9 +247,7 @@ describe("registerImportTree — layout sniff dispatch (caller-scoped ownerId)",
     const roots = await readdir(join(stagingDir, token), { withFileTypes: true });
     const dirs = roots.filter((e) => e.isDirectory());
     expect(dirs).toHaveLength(1);
-    expect(await readdir(join(stagingDir, token, dirs[0]?.name ?? ""))).toEqual(
-      expect.arrayContaining(["characters", "settings.json", "chats"]),
-    );
+    expect(await readdir(join(stagingDir, token, dirs[0]?.name ?? ""))).toEqual(expect.arrayContaining(["characters", "settings.json", "chats"]));
   });
 
   test("ambiguous (orb dir + ST settings.json) → 400, nothing staged", async () => {

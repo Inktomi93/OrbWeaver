@@ -58,9 +58,7 @@ export const INVITE_FORM_DEFAULTS: InviteFormValues = {
 
 /** The plain-function field validator (`onDynamic` shape): a targeted invite needs the exact handle;
  *  maxUses, when set, must be a positive integer. The verb remains the enforcement floor. */
-export function validateInviteForm(
-  values: InviteFormValues,
-): { fields: Record<string, string> } | undefined {
+export function validateInviteForm(values: InviteFormValues): { fields: Record<string, string> } | undefined {
   const fields: Record<string, string> = {};
   if (values.mode === "handle" && values.handle.trim().length === 0) {
     fields["handle"] = "Enter their exact handle.";
@@ -75,8 +73,7 @@ export function validateInviteForm(
  *  handler, not render — the render-determinism rule doesn't bind here); expiry presets resolve to an
  *  absolute `expiresAt` epoch because that is the wire shape (`createInviteSchema`). */
 export function toCreateInviteInput(values: InviteFormValues, now: number): CreateInviteInput {
-  const expiryKey: InviteExpiryKey =
-    values.expiry in EXPIRY_MS ? (values.expiry as InviteExpiryKey) : "never";
+  const expiryKey: InviteExpiryKey = values.expiry in EXPIRY_MS ? (values.expiry as InviteExpiryKey) : "never";
   const expiryMs = EXPIRY_MS[expiryKey];
   return {
     ...(values.mode === "handle" ? { invitedHandle: castId<Handle>(values.handle.trim()) } : {}),

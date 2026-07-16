@@ -6,10 +6,7 @@ import { FOCUS_RING, tv } from "#lib";
 export const sortableVariants = tv({
   slots: {
     root: "flex flex-col gap-row",
-    item: [
-      "group/sortable-item relative flex items-center gap-field rounded-control",
-      "data-dragging:opacity-50",
-    ],
+    item: ["group/sortable-item relative flex items-center gap-field rounded-control", "data-dragging:opacity-50"],
     handle: [
       "inline-flex h-control-sm w-control-sm shrink-0 cursor-grab items-center justify-center",
       "rounded-control text-muted-foreground",

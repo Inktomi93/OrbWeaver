@@ -53,11 +53,7 @@ function PreviewBody({ chatId }: AssemblyPreviewPanelProps): ReactElement {
         What the model will see on the next turn. Read-only.
       </Text>
 
-      <TokenEstimate
-        staticText={prompt.static}
-        dynamicText={prompt.dynamic}
-        injections={prompt.afterHistory}
-      />
+      <TokenEstimate staticText={prompt.static} dynamicText={prompt.dynamic} injections={prompt.afterHistory} />
 
       <OverrideSources sources={trace.overrideSources} />
 
@@ -71,7 +67,7 @@ function PreviewBody({ chatId }: AssemblyPreviewPanelProps): ReactElement {
               <Text
                 // The afterHistory entries are positional + contentful, with no stable id on the wire;
                 // the index is the stable key within one immutable preview render.
-                // biome-ignore lint/suspicious/noArrayIndexKey: positional, id-less, render-immutable list.
+                // biome-ignore lint/suspicious/noArrayIndexKey: afterHistory entries are positional + id-less; the index is stable within one immutable preview render.
                 key={index}
                 size="code"
                 className="whitespace-pre-wrap"
@@ -109,9 +105,7 @@ function TokenEstimate({
       <Stack gap="field">
         <TokenLine label="System — static" value={staticTokens} />
         <TokenLine label="System — dynamic" value={dynamicTokens} />
-        {injectionTokens > 0 ? (
-          <TokenLine label="In-history injections" value={injectionTokens} />
-        ) : null}
+        {injectionTokens > 0 ? <TokenLine label="In-history injections" value={injectionTokens} /> : null}
         <TokenLine label="Total" value={total} />
         <Text size="micro" tone="muted">
           Estimated locally (QuadChars) — the real count is the provider's post-turn usage.
@@ -122,13 +116,7 @@ function TokenEstimate({
 }
 
 /** One token-estimate row — label + a right-aligned mono count (`≈` marks it advisory). */
-function TokenLine({
-  label,
-  value,
-}: {
-  readonly label: string;
-  readonly value: number;
-}): ReactElement {
+function TokenLine({ label, value }: { readonly label: string; readonly value: number }): ReactElement {
   return (
     <Row gap="block" justify="between" align="center">
       <Text size="label" tone="muted">
@@ -140,11 +128,7 @@ function TokenLine({
 }
 
 /** The resolved source of each room-overrideable field ("room override" / "from <Name>" / "merged"). */
-function OverrideSources({
-  sources,
-}: {
-  readonly sources: AssembleTrace["overrideSources"];
-}): ReactElement | null {
+function OverrideSources({ sources }: { readonly sources: AssembleTrace["overrideSources"] }): ReactElement | null {
   if (sources === undefined) {
     return null;
   }
@@ -175,15 +159,7 @@ function OverrideSources({
 }
 
 /** One labelled raw-text block (whitespace preserved so the prompt reads as the model receives it). */
-function PromptText({
-  heading,
-  text,
-  emptyLabel,
-}: {
-  readonly heading: string;
-  readonly text: string;
-  readonly emptyLabel: string;
-}): ReactElement {
+function PromptText({ heading, text, emptyLabel }: { readonly heading: string; readonly text: string; readonly emptyLabel: string }): ReactElement {
   return (
     <Section heading={heading}>
       {text.trim() === "" ? (
@@ -211,20 +187,10 @@ function TraceSummary({ trace }: { readonly trace: AssembleTrace }): ReactElemen
       <Stack gap="field">
         <TraceLine label="Static sections" value={sectionList(trace.staticSections)} />
         <TraceLine label="Dynamic sections" value={sectionList(trace.dynamicSections)} />
-        <TraceLine
-          label="World info"
-          value={`${trace.worldInfoIncluded} included, ${trace.worldInfoDropped.length} dropped`}
-        />
+        <TraceLine label="World info" value={`${trace.worldInfoIncluded} included, ${trace.worldInfoDropped.length} dropped`} />
         <TraceLine label="Injections" value={String(trace.chatInjectionsIncluded)} />
-        {trace.matchedKeys.length > 0 ? (
-          <TraceLine
-            label="Matched keys"
-            value={trace.matchedKeys.map((match) => match.key).join(", ")}
-          />
-        ) : null}
-        {trace.staticCacheBusters.length > 0 ? (
-          <TraceLine label="Cache busters" value={trace.staticCacheBusters.join(", ")} />
-        ) : null}
+        {trace.matchedKeys.length > 0 ? <TraceLine label="Matched keys" value={trace.matchedKeys.map((match) => match.key).join(", ")} /> : null}
+        {trace.staticCacheBusters.length > 0 ? <TraceLine label="Cache busters" value={trace.staticCacheBusters.join(", ")} /> : null}
         {activeFlags.length > 0 ? (
           <Row gap="field" align="center">
             {activeFlags.map((flag) => (
@@ -239,13 +205,7 @@ function TraceSummary({ trace }: { readonly trace: AssembleTrace }): ReactElemen
   );
 }
 
-function TraceLine({
-  label,
-  value,
-}: {
-  readonly label: string;
-  readonly value: ReactNode;
-}): ReactElement {
+function TraceLine({ label, value }: { readonly label: string; readonly value: ReactNode }): ReactElement {
   return (
     <Row gap="block" justify="between" align="center">
       <Text size="label" tone="muted">

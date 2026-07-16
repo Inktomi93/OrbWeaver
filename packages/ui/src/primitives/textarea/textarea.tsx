@@ -11,15 +11,5 @@ export interface TextareaProps extends ComponentPropsWithRef<"textarea"> {
 // Field.Control so inside a <Field> it registers with the field context (label/aria/validity);
 // works standalone too — outside a Field.Root, Field.Control degrades to a plain control.
 export function Textarea({ className, ...rest }: TextareaProps): ReactElement {
-  return (
-    <BaseField.Control
-      render={
-        <textarea
-          {...rest}
-          className={cn(textareaVariants(), className)}
-          data-slot="textarea-root"
-        />
-      }
-    />
-  );
+  return <BaseField.Control render={<textarea {...rest} className={cn(textareaVariants(), className)} data-slot="textarea-root" />} />;
 }

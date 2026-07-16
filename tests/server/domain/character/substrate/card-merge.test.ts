@@ -4,10 +4,7 @@
 
 import type { CharacterCard, UpdateCharacterInput } from "@orb/contracts/character";
 import { describe } from "vitest";
-import {
-  flagEdits,
-  mergeCard,
-} from "../../../../../packages/server/src/domain/character/substrate/card-merge.ts";
+import { flagEdits, mergeCard } from "../../../../../packages/server/src/domain/character/substrate/card-merge.ts";
 import { buildGroupCard } from "../../../../../packages/server/src/domain/character/substrate/group-character.ts";
 import { expect, test } from "../../../../support/fixtures";
 
@@ -53,9 +50,9 @@ describe("flagEdits", () => {
     expect(flagEdits({ themeOverride: null } as UpdateCharacterInput)).toEqual({
       themeOverride: null,
     });
-    expect(
-      flagEdits({ themeOverride: { accent: "oklch(0.7 0.14 250)" } } as UpdateCharacterInput),
-    ).toEqual({ themeOverride: { accent: "oklch(0.7 0.14 250)" } });
+    expect(flagEdits({ themeOverride: { accent: "oklch(0.7 0.14 250)" } } as UpdateCharacterInput)).toEqual({
+      themeOverride: { accent: "oklch(0.7 0.14 250)" },
+    });
     expect(flagEdits({} as UpdateCharacterInput)).not.toHaveProperty("themeOverride");
   });
 });

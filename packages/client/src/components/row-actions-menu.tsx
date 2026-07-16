@@ -80,12 +80,7 @@ export function RowActionsMenu({
       <Menu>
         <MenuTrigger
           render={
-            <Button
-              aria-label={label}
-              intent="ghost"
-              size={triggerSize}
-              {...(reveal ? { className: ROW_REVEAL } : {})}
-            >
+            <Button aria-label={label} intent="ghost" size={triggerSize} {...(reveal ? { className: ROW_REVEAL } : {})}>
               <Icon icon={icon} size="sm" />
             </Button>
           }

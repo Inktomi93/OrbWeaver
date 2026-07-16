@@ -15,21 +15,10 @@ import type { EntryView } from "@orb/contracts/world-info";
 import { worldBooks, worldEntries } from "@orb/db";
 import type { UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import {
-  buildKeywordHaystack,
-  matchEntryKeys,
-  resolveEntryInjection,
-  resolveEntryPosition,
-  resolveEntryScope,
-} from "@orb/kit/world-info";
+import { buildKeywordHaystack, matchEntryKeys, resolveEntryInjection, resolveEntryPosition, resolveEntryScope } from "@orb/kit/world-info";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
-import {
-  loadOwnedBook,
-  loadOwnedEntry,
-  toBookView,
-  toEntryView,
-} from "../../../../../packages/server/src/domain/world-info/persistence/queries.ts";
+import { loadOwnedBook, loadOwnedEntry, toBookView, toEntryView } from "../../../../../packages/server/src/domain/world-info/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
 import { seedUser } from "../_support.ts";
@@ -52,11 +41,7 @@ async function seedBook(db: DbHandle, ownerId: UserId, id: string): Promise<Worl
   return bookId;
 }
 
-async function seedEntry(
-  db: DbHandle,
-  bookId: WorldBookId,
-  overrides: { id: string; keys?: string[] | null; metadata?: unknown },
-): Promise<WorldEntryId> {
+async function seedEntry(db: DbHandle, bookId: WorldBookId, overrides: { id: string; keys?: string[] | null; metadata?: unknown }): Promise<WorldEntryId> {
   const entryId = castId<WorldEntryId>(overrides.id);
   await db.insert(worldEntries).values({
     id: entryId,

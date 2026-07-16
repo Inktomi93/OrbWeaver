@@ -10,12 +10,7 @@ import { DEFAULT_GUIDED_ACTIONS } from "@orb/contracts/preset";
 import { resolveGuidedInstruction } from "@orb/kit/guided";
 import type { ChatId } from "@orb/kit/ids";
 import type { MacroContext, ProcessMacroOptions, RowMacroStamps } from "@orb/kit/macro";
-import {
-  createMacroContext,
-  createVolatileOnlyRegistry,
-  processMacros,
-  resolveRowMacros,
-} from "@orb/kit/macro";
+import { createMacroContext, createVolatileOnlyRegistry, processMacros, resolveRowMacros } from "@orb/kit/macro";
 import type { HistoryMacroNames } from "../contract/results";
 
 // Commit-time freeze registry: resolves ONLY the nondeterministic macros ({{roll}}/{{random}}/{{time}}/…),
@@ -29,11 +24,7 @@ function u<T>(v: T | null | undefined): T | undefined {
 
 /** Assign `value` to `target[key]` only when defined (omit, never `undefined`, under
  *  exactOptionalPropertyTypes). */
-function setIf<K extends keyof ProcessMacroOptions>(
-  target: ProcessMacroOptions,
-  key: K,
-  value: ProcessMacroOptions[K] | undefined,
-): void {
+function setIf<K extends keyof ProcessMacroOptions>(target: ProcessMacroOptions, key: K, value: ProcessMacroOptions[K] | undefined): void {
   if (value !== undefined) {
     target[key] = value;
   }
@@ -64,11 +55,7 @@ interface MacroExtras {
 
 /** The ONE AssembleContext → `ProcessMacroOptions` mapping, shared by `renderMacros` and
  *  `buildTurnMacroContext`. `persona` decides `{{user}}`/`{{persona}}`; `env` is the shared reference. */
-function macroOptionsFor(
-  ctx: AssembleContext,
-  persona: AssemblePersona | null | undefined,
-  extras: MacroExtras = {},
-): ProcessMacroOptions {
+function macroOptionsFor(ctx: AssembleContext, persona: AssemblePersona | null | undefined, extras: MacroExtras = {}): ProcessMacroOptions {
   const opts: ProcessMacroOptions = {
     char: charForSpeaker(ctx),
     user: persona?.name ?? "User",
@@ -111,12 +98,7 @@ function macroOptionsFor(
  * card-derived sections, active for user-authored). `original` is the preset Main-Prompt/Jailbreak,
  * threaded only while rendering the two overridable markers.
  */
-export function renderMacros(
-  text: string,
-  ctx: AssembleContext,
-  persona: AssemblePersona | null | undefined,
-  original?: string,
-): string {
+export function renderMacros(text: string, ctx: AssembleContext, persona: AssemblePersona | null | undefined, original?: string): string {
   return processMacros(text, macroOptionsFor(ctx, persona, { original }));
 }
 
@@ -127,16 +109,8 @@ export function renderMacros(
  * resolved-at-read. Exact inverse of `renderHistoryMacros`' names-only pass. Applied to a user turn's
  * composer text at send, before the row is persisted.
  */
-export function freezeVolatileMacros(
-  text: string,
-  ctx: AssembleContext,
-  args?: { readonly random?: (() => number) | undefined },
-): string {
-  return processMacros(
-    text,
-    macroOptionsFor(ctx, ctx.activePersona, { random: args?.random }),
-    VOLATILE_ONLY_REGISTRY,
-  );
+export function freezeVolatileMacros(text: string, ctx: AssembleContext, args?: { readonly random?: (() => number) | undefined }): string {
+  return processMacros(text, macroOptionsFor(ctx, ctx.activePersona, { random: args?.random }), VOLATILE_ONLY_REGISTRY);
 }
 
 /**
@@ -208,8 +182,7 @@ export function resolveGuidedActionText(
   if (GUIDED_SCAFFOLD_ONLY_ACTIONS[args.action] && args.input.trim().length === 0) {
     return "";
   }
-  const config =
-    ctx.promptConfig.guidedActions?.[args.action] ?? DEFAULT_GUIDED_ACTIONS[args.action];
+  const config = ctx.promptConfig.guidedActions?.[args.action] ?? DEFAULT_GUIDED_ACTIONS[args.action];
   return resolveGuidedInstruction(
     config.prompt,
     args.input,

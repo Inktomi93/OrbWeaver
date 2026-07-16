@@ -22,22 +22,15 @@ test("untrusted: a <script> tag is stripped and never executes", async ({ mount,
   });
   const tag = "script";
   const payload = `<${tag}>alert(1)</${tag}>`;
-  const cmp = await mount(
-    <Markdown trust="untrusted" mode="static">{`hello ${payload} world`}</Markdown>,
-  );
+  const cmp = await mount(<Markdown trust="untrusted" mode="static">{`hello ${payload} world`}</Markdown>);
   await expect(cmp).toContainText("hello");
   expect(await cmp.locator("script").count()).toBe(0);
   expect(alerted).toBe(false);
 });
 
-test("untrusted: an external image neither renders NOR prefetches (no img, no preload link)", async ({
-  mount,
-  page,
-}) => {
+test("untrusted: an external image neither renders NOR prefetches (no img, no preload link)", async ({ mount, page }) => {
   const url = ["http://evil", ".test/pixel.png"].join("");
-  const cmp = await mount(
-    <Markdown trust="untrusted" mode="static">{`text ![x](${url}) more`}</Markdown>,
-  );
+  const cmp = await mount(<Markdown trust="untrusted" mode="static">{`text ![x](${url}) more`}</Markdown>);
   await expect(cmp).toContainText("text");
   // img is dropped from the untrusted allowlist (D44 §12.3) — no <img> AND, critically, no
   // <link rel=preload as=image> exfil (Streamdown emits that for markdown images; verified).
@@ -83,13 +76,10 @@ test("trusted: ~~real strikethrough~~ (double tilde) still works", async ({ moun
     </Markdown>,
   );
   await expect(cmp.getByText("struck")).toBeVisible();
-  // biome-ignore lint/security/noSecrets: a CSS attribute-selector literal, not a secret.
   expect(await cmp.locator('del, s, [data-streamdown="del"]').count()).toBeGreaterThan(0);
 });
 
-test("trusted: a fenced code block renders with the language header + copy/download controls", async ({
-  mount,
-}) => {
+test("trusted: a fenced code block renders with the language header + copy/download controls", async ({ mount }) => {
   // The code block renders (text present) and the `controls` default (copy + download) is wired.
   const md = "```js\nconst answer = 42;\n```";
   const cmp = await mount(
@@ -103,9 +93,7 @@ test("trusted: a fenced code block renders with the language header + copy/downl
   await expect(cmp.getByText(ERROR_FALLBACK)).toHaveCount(0);
 });
 
-test("trusted: a fenced code block is REAL Shiki-highlighted, not inert (D44 §12/UI-Gates §11.6)", async ({
-  mount,
-}) => {
+test("trusted: a fenced code block is REAL Shiki-highlighted, not inert (D44 §12/UI-Gates §11.6)", async ({ mount }) => {
   // The regression this plugin fixes: Streamdown 2.5 dropped bundled Shiki, so an unwired `plugins.code`
   // renders every token at `--sdm-c:inherit` (no color ever written, verified empirically pre-fix — every
   // span shared one `text-[var(--sdm-c,inherit)]` with no inline `--sdm-c`). Assert the OPPOSITE — the
@@ -129,9 +117,7 @@ test("trusted: a fenced code block is REAL Shiki-highlighted, not inert (D44 §1
     .poll(
       async () =>
         codeSpans.evaluateAll((spans) => {
-          const colors = spans
-            .map((s) => s.style.getPropertyValue("--sdm-c").trim())
-            .filter(Boolean);
+          const colors = spans.map((s) => s.style.getPropertyValue("--sdm-c").trim()).filter(Boolean);
           return new Set(colors).size;
         }),
       { timeout: 5000 },
@@ -151,9 +137,7 @@ test("trusted: inline math ($…$) renders a KaTeX element", async ({ mount }) =
   await expect(cmp.getByText(ERROR_FALLBACK)).toHaveCount(0);
 });
 
-test("trusted: a mermaid diagram renders OR degrades to the graceful token-styled error (never white-screens)", async ({
-  mount,
-}) => {
+test("trusted: a mermaid diagram renders OR degrades to the graceful token-styled error (never white-screens)", async ({ mount }) => {
   const md = "```mermaid\ngraph TD; A-->B;\n```";
   const cmp = await mount(
     <Markdown trust="trusted" mode="static">
@@ -168,9 +152,7 @@ test("trusted: a mermaid diagram renders OR degrades to the graceful token-style
   await expect(cmp.getByText(ERROR_FALLBACK)).toHaveCount(0);
 });
 
-test("GUARDRAIL #54 — untrusted: a mermaid fence does NOT render a diagram (renders inert code)", async ({
-  mount,
-}) => {
+test("GUARDRAIL #54 — untrusted: a mermaid fence does NOT render a diagram (renders inert code)", async ({ mount }) => {
   // D44 §12.2 / #54: Mermaid renders arbitrary diagram DSL through a heavy lazy engine — an UNTRUSTED
   // ```mermaid fence must NOT become a diagram. The seal withholds the `mermaid` option under untrusted,
   // so the fence degrades to an inert Shiki code block: no rendered <svg> diagram, and the diagram DSL
@@ -189,16 +171,12 @@ test("GUARDRAIL #54 — untrusted: a mermaid fence does NOT render a diagram (re
   // No mermaid DIAGRAM container is mounted (Streamdown tags a rendered diagram `data-streamdown="mermaid"`
   // / `"mermaid-block"`), and the seal's Mermaid error surface never fires. (A plain code block still has
   // its own copy/download ICON svgs — so we assert on the diagram container, not a blanket `svg` count.)
-  // biome-ignore lint/security/noSecrets: a CSS attribute selector for the mermaid diagram container, not a secret.
   await expect(cmp.locator('[data-streamdown="mermaid"]')).toHaveCount(0);
-  // biome-ignore lint/security/noSecrets: a CSS attribute selector for the mermaid diagram container, not a secret.
   await expect(cmp.locator('[data-streamdown="mermaid-block"]')).toHaveCount(0);
   await expect(cmp.locator('[data-slot="markdown-mermaid-error"]')).toHaveCount(0);
 });
 
-test("trusted: a complete <speaker> tag renders its NAME as literal text (allowedTags passthrough)", async ({
-  mount,
-}) => {
+test("trusted: a complete <speaker> tag renders its NAME as literal text (allowedTags passthrough)", async ({ mount }) => {
   // allowedTags {speaker:[]} + literalTagContent lets a raw <speaker>NAME</speaker> that reaches the
   // renderer survive as a real element carrying literal NAME text (the streaming-path fallback; the
   // settled path consumes tags upstream in message-content.tsx).
@@ -213,9 +191,7 @@ test("trusted: a complete <speaker> tag renders its NAME as literal text (allowe
   expect(await cmp.locator("speaker").count()).toBeGreaterThan(0);
 });
 
-test("untrusted: a <speaker> tag is NOT granted element passthrough (no <speaker> element)", async ({
-  mount,
-}) => {
+test("untrusted: a <speaker> tag is NOT granted element passthrough (no <speaker> element)", async ({ mount }) => {
   // The trusted-only passthrough must not leak to untrusted content — the internal marker gets no
   // special standing there (sanitize drops the unknown element; its text may remain, harmless).
   const cmp = await mount(
@@ -226,9 +202,7 @@ test("untrusted: a <speaker> tag is NOT granted element passthrough (no <speaker
   expect(await cmp.locator("speaker").count()).toBe(0);
 });
 
-test("large-block guard (issue 195): a pathologically large block skips Streamdown for a plain fallback", async ({
-  mount,
-}) => {
+test("large-block guard (issue 195): a pathologically large block skips Streamdown for a plain fallback", async ({ mount }) => {
   const huge = "a".repeat(25_000);
   const cmp = await mount(
     <Markdown trust="trusted" mode="static">
@@ -247,9 +221,7 @@ test("large-block guard (issue 195): a pathologically large block skips Streamdo
 // CONSUMER goldens (ghost-message-row.ct.tsx) that drive the paced store + `holdTornSpeaker` end-to-end;
 // holding a TORN `<speaker>` tag is the consumer's pre-pass, not a seal concern, so it lives there.
 
-test("streaming: an unterminated code fence repairs to a code block (never flashes literal backticks)", async ({
-  mount,
-}) => {
+test("streaming: an unterminated code fence repairs to a code block (never flashes literal backticks)", async ({ mount }) => {
   // parseIncompleteMarkdown (on by default; its EFFECT engages only in streaming mode) closes the
   // still-open fence so the body renders as code, not raw ``` text.
   const md = "Here:\n```js\nconst x = 1;";
@@ -290,9 +262,7 @@ test("streaming mode: a torn fence repairs into a code block", async ({ mount })
   await expect(cmp.getByText(ERROR_FALLBACK)).toHaveCount(0);
 });
 
-test("static mode: the SAME torn fence renders safely without white-screening (repair not engaged)", async ({
-  mount,
-}) => {
+test("static mode: the SAME torn fence renders safely without white-screening (repair not engaged)", async ({ mount }) => {
   const cmp = await mount(
     <Markdown trust="trusted" mode="static">
       {TORN_FENCE}
@@ -307,12 +277,9 @@ test("static mode: the SAME torn fence renders safely without white-screening (r
 // #34: a SETTLED body's dangling/censoring asterisk must NOT be auto-closed into a stray emphasis run
 // (the repair is streaming-only). The real greeting pattern: an intended narration italic, then a
 // censored word mid-paragraph, then more text — the exact shape that italicized "cking diagram." live.
-const GREETING_PATTERN =
-  "*A doesn't look up.*\n\nyours can't use a f*cking diagram.\n\nSo here's the deal.";
+const GREETING_PATTERN = "*A doesn't look up.*\n\nyours can't use a f*cking diagram.\n\nSo here's the deal.";
 
-test("static: a lone censoring asterisk stays literal — no stray emphasis run (the #34 fix)", async ({
-  mount,
-}) => {
+test("static: a lone censoring asterisk stays literal — no stray emphasis run (the #34 fix)", async ({ mount }) => {
   const cmp = await mount(
     <Markdown trust="trusted" mode="static">
       {GREETING_PATTERN}
@@ -333,9 +300,7 @@ test("static: a lone censoring asterisk stays literal — no stray emphasis run 
 const JFC_GREETING =
   "*JFC doesn't look up.*\n\nLet me save us both an hour. Users are real, and yours can't use a f*cking diagram.\n\nSo here's the deal, User: tell me what you're building.";
 
-test("static UNTRUSTED (the greeting's real tier): the censoring asterisk stays literal — ONE italic", async ({
-  mount,
-}) => {
+test("static UNTRUSTED (the greeting's real tier): the censoring asterisk stays literal — ONE italic", async ({ mount }) => {
   const cmp = await mount(
     <Markdown trust="untrusted" mode="static">
       {JFC_GREETING}
@@ -346,9 +311,7 @@ test("static UNTRUSTED (the greeting's real tier): the censoring asterisk stays 
   await expect(cmp).toContainText("f*cking diagram.");
 });
 
-test("streaming: a complete message still renders its markdown (bold + list)", async ({
-  mount,
-}) => {
+test("streaming: a complete message still renders its markdown (bold + list)", async ({ mount }) => {
   const md = "**Ready.**\n\n- one\n- two";
   const cmp = await mount(
     <Markdown trust="trusted" mode="streaming">
@@ -360,10 +323,7 @@ test("streaming: a complete message still renders its markdown (bold + list)", a
   await expect(cmp.getByText(ERROR_FALLBACK)).toHaveCount(0);
 });
 
-test("reduced motion: streaming content still renders fully (fade/caret suppressed, no lost text)", async ({
-  mount,
-  page,
-}) => {
+test("reduced motion: streaming content still renders fully (fade/caret suppressed, no lost text)", async ({ mount, page }) => {
   // Under reduced-motion the seal forces animated=false/isAnimating=false; the content must land in
   // full, visible, exactly as without motion (no reveal held back by a suppressed fade).
   await page.emulateMedia({ reducedMotion: "reduce" });

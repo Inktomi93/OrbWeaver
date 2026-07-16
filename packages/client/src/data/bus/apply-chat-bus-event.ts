@@ -81,7 +81,6 @@ export function applyChatBusEvent(event: ChatBusEvent, deps: ChatBusDeps): void 
     // biome-ignore lint/suspicious/noUnnecessaryConditions: see the WiBusEvent note above.
     case "wiEntryDetached":
     // biome-ignore lint/suspicious/noUnnecessaryConditions: see the WiBusEvent note above.
-    // biome-ignore lint/security/noSecrets: a bus discriminator, not a secret.
     case "wiEntryScopeChanged":
     case "chatCreated":
     case "chatDeleted":

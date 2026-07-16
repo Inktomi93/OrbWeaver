@@ -17,9 +17,6 @@ import type { AssetsService } from "../contract/service";
 import type { AssetBlobRef } from "../contract/views";
 import { selectOwnedAssetRefs } from "../persistence/queries";
 
-export function createResolveOwnedAssetRefs(
-  ctx: AssetsContext,
-): AssetsService["resolveOwnedAssetRefs"] {
-  return (ownerId: UserId, assetIds: readonly AssetId[]): Promise<readonly AssetBlobRef[]> =>
-    selectOwnedAssetRefs(ctx.db, ownerId, assetIds);
+export function createResolveOwnedAssetRefs(ctx: AssetsContext): AssetsService["resolveOwnedAssetRefs"] {
+  return (ownerId: UserId, assetIds: readonly AssetId[]): Promise<readonly AssetBlobRef[]> => selectOwnedAssetRefs(ctx.db, ownerId, assetIds);
 }

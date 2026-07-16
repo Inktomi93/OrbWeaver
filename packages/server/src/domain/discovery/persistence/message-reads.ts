@@ -15,10 +15,7 @@ interface ForgottenGemCandidateRow {
   readonly lastActiveAt: number;
 }
 
-export async function readForgottenGemCandidates(
-  db: Db,
-  ownerId: UserId,
-): Promise<ForgottenGemCandidateRow[]> {
+export async function readForgottenGemCandidates(db: Db, ownerId: UserId): Promise<ForgottenGemCandidateRow[]> {
   const messageCount = sql<number>`count(${messages.id})`;
   const lastActiveAt = sql<number>`max(${messages.createdAt})`;
   const rows = await db
@@ -32,13 +29,7 @@ export async function readForgottenGemCandidates(
     .from(messages)
     .innerJoin(characters, eq(characters.id, messages.characterId))
     .leftJoin(assets, eq(assets.id, characters.avatarAssetId))
-    .where(
-      and(
-        eq(characters.ownerId, ownerId),
-        eq(characters.synthetic, false),
-        eq(messages.role, "assistant"),
-      ),
-    )
+    .where(and(eq(characters.ownerId, ownerId), eq(characters.synthetic, false), eq(messages.role, "assistant")))
     .groupBy(characters.id);
   return rows.map((r) => ({
     characterId: r.characterId,
@@ -58,23 +49,11 @@ interface CharacterMessageSample {
  *  corpus `askCard` answers from. Owner-belted via `characters.ownerId` ∩ `characters.id = messages.characterId`
  *  (a foreign character reads zero rows), synthetic excluded. SELECTs `message_variants.content` +
  *  `messages.createdAt` ONLY — NEVER an economics column (tokens/cost live on `message_variants`, stats-private). */
-export async function readCharacterMessageSamples(
-  db: Db,
-  ownerId: UserId,
-  characterId: CharacterId,
-  limit: number,
-): Promise<CharacterMessageSample[]> {
+export async function readCharacterMessageSamples(db: Db, ownerId: UserId, characterId: CharacterId, limit: number): Promise<CharacterMessageSample[]> {
   return await db
     .select({ content: messageVariants.content, createdAt: messages.createdAt })
     .from(messages)
-    .innerJoin(
-      characters,
-      and(
-        eq(characters.id, messages.characterId),
-        eq(characters.ownerId, ownerId),
-        eq(characters.synthetic, false),
-      ),
-    )
+    .innerJoin(characters, and(eq(characters.id, messages.characterId), eq(characters.ownerId, ownerId), eq(characters.synthetic, false)))
     .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
     .where(and(eq(messages.characterId, characterId), eq(messages.role, "assistant")))
     .orderBy(desc(messages.createdAt))
@@ -94,12 +73,7 @@ interface SwipeHotspotRow {
  *  with \>1 take, most takes first. Owner-belted via `characters.ownerId` ∩ `characters.id = messages.characterId`
  *  (a foreign chat's messages belong to another owner → zero rows, no leak). `snippet` is the SELECTED variant's
  *  content (SEMANTIC only); the COUNT join + the selected-content join never touch an economics column. */
-export async function readSwipeHotspots(
-  db: Db,
-  ownerId: UserId,
-  chatId: ChatId,
-  limit: number,
-): Promise<SwipeHotspotRow[]> {
+export async function readSwipeHotspots(db: Db, ownerId: UserId, chatId: ChatId, limit: number): Promise<SwipeHotspotRow[]> {
   const selected = aliasedTable(messageVariants, "selected_variant");
   const variantCount = sql<number>`count(${messageVariants.id})`;
   return await db
@@ -112,10 +86,7 @@ export async function readSwipeHotspots(
       snippet: selected.content,
     })
     .from(messages)
-    .innerJoin(
-      characters,
-      and(eq(characters.id, messages.characterId), eq(characters.ownerId, ownerId)),
-    )
+    .innerJoin(characters, and(eq(characters.id, messages.characterId), eq(characters.ownerId, ownerId)))
     .innerJoin(messageVariants, eq(messageVariants.messageId, messages.id))
     .leftJoin(selected, eq(selected.id, messages.selectedVariantId))
     .where(and(eq(messages.chatId, chatId), eq(messages.role, "assistant")))

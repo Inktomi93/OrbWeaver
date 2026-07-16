@@ -54,10 +54,7 @@ test("onValueChange reports the parsed number", async ({ mount, page }) => {
   await expect.poll(() => seen.at(-1), { intervals: [20, 50, 100] }).toBe(2);
 });
 
-test("scrub area is present and labeled; steppers still clamp to min/max", async ({
-  mount,
-  page,
-}) => {
+test("scrub area is present and labeled; steppers still clamp to min/max", async ({ mount, page }) => {
   await mount(<NumberField defaultValue={0} max={10} min={0} scrubLabel="Weight" />);
   await expect(page.getByText("Weight")).toBeVisible();
   // Steppers keep their clamp: decrement disabled at the floor, increment steps within range.
@@ -86,10 +83,7 @@ test("disabled blocks the steppers and drops the interactive skin", async ({ mou
   await expect(page.getByRole("textbox")).toBeDisabled();
 });
 
-test("read-only: blocks steppers but keeps the token skin + shows the lock glyph", async ({
-  mount,
-  page,
-}) => {
+test("read-only: blocks steppers but keeps the token skin + shows the lock glyph", async ({ mount, page }) => {
   await mount(<NumberField defaultValue={5} readOnly={true} />);
   const increment = page.getByLabel("Increase");
   await expect(increment).toHaveAttribute("data-readonly", "");
@@ -104,26 +98,17 @@ test("read-only: blocks steppers but keeps the token skin + shows the lock glyph
   await expect(page.getByRole("textbox")).toHaveValue("5");
 });
 
-test("inside an invalid <Field>, data-invalid lands and the border swaps to destructive", async ({
-  mount,
-  page,
-}) => {
+test("inside an invalid <Field>, data-invalid lands and the border swaps to destructive", async ({ mount, page }) => {
   await mount(
     <Field error="Out of range" label="Weight">
       <NumberField defaultValue={5} />
     </Field>,
   );
   await expect(page.getByRole("textbox")).toHaveAttribute("data-invalid", "");
-  await expect(page.locator('[data-slot="number-field-group"]')).toHaveCSS(
-    "border-top-color",
-    TOKENS["color.destructive"].value,
-  );
+  await expect(page.locator('[data-slot="number-field-group"]')).toHaveCSS("border-top-color", TOKENS["color.destructive"].value);
 });
 
-test("inside a <Field>, the input associates and aria-describedby wires the description", async ({
-  mount,
-  page,
-}) => {
+test("inside a <Field>, the input associates and aria-describedby wires the description", async ({ mount, page }) => {
   await mount(
     <Field description="In pounds" label="Weight">
       <NumberField defaultValue={5} />

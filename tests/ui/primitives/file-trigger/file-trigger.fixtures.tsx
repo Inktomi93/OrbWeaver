@@ -21,11 +21,7 @@ export function FileTriggerHarness({ disabled = false }: FileTriggerHarnessProps
           <li key={name}>{name}</li>
         ))}
       </ul>
-      <FileTrigger
-        accept="image/*"
-        disabled={disabled}
-        onFilesSelected={(files): void => setNames(files.map((file) => file.name))}
-      >
+      <FileTrigger accept="image/*" disabled={disabled} onFilesSelected={(files): void => setNames(files.map((file) => file.name))}>
         {({ open }): ReactElement => <Button onClick={open}>Replace portrait</Button>}
       </FileTrigger>
     </div>

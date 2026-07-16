@@ -13,11 +13,7 @@ import type { AssetId, CharacterId, Handle, UserId, WorldBookId } from "@orb/kit
 import { castId } from "@orb/kit/ids";
 import type { UploadAssetsPort, UploadDeps } from "@orb/server/entry/http";
 import { registerUpload } from "@orb/server/entry/http";
-import type {
-  ImportCharacterPort,
-  ImportTagPort,
-  ImportWorldInfoPort,
-} from "@orb/server/entry/import";
+import type { ImportCharacterPort, ImportTagPort, ImportWorldInfoPort } from "@orb/server/entry/import";
 import { describe } from "vitest";
 import { expect, test } from "../../../support/fixtures";
 
@@ -30,8 +26,7 @@ const OWNER: Principal = {
 };
 const ASSET_ROUTE = "POST /api/assets/upload";
 const IMPORT_ROUTE = "POST /api/import";
-const CARD_JSON =
-  '{"spec":"chara_card_v2","spec_version":"2.0","data":{"name":"Tester","description":"A test character."}}';
+const CARD_JSON = '{"spec":"chara_card_v2","spec_version":"2.0","data":{"name":"Tester","description":"A test character."}}';
 
 interface MockCtx {
   readonly get: (key: string) => Principal | null;
@@ -49,8 +44,7 @@ function makeCtx(principal: Principal | null, form: FormData): MockCtx {
         status,
         headers: { "content-type": "application/json" },
       }),
-    body: (data: string | Uint8Array | null, status = 200): Response =>
-      new Response(data, { status }),
+    body: (data: string | Uint8Array | null, status = 200): Response => new Response(data, { status }),
     req: { formData: (): Promise<FormData> => Promise.resolve(form) },
   };
 }
@@ -103,11 +97,7 @@ function guardCtx(principal: Principal | null, headers?: Record<string, string>)
   };
 }
 
-async function runGuard(
-  deps: UploadDeps,
-  key: string,
-  ctx: GuardCtx,
-): Promise<{ readonly status: number | null; readonly nexted: boolean }> {
+async function runGuard(deps: UploadDeps, key: string, ctx: GuardCtx): Promise<{ readonly status: number | null; readonly nexted: boolean }> {
   let nexted = false;
   // Narrowing the real Hono `Handler` (chain[0]) to the minimal middleware call-shape to run it on a stub ctx.
   // FABRICATION-OK: not a fabricated domain value — GuardMw is a test-local function type.
@@ -144,8 +134,7 @@ const noopTag: ImportTagPort = {
 };
 // A no-op embedded-lorebook port (the W1 write is proven in the world-info + run-profile-import suites).
 const noopWorldInfo: ImportWorldInfoPort = {
-  importLorebook: () =>
-    Promise.resolve({ worldBookId: castId<WorldBookId>("wbk_0"), entryCount: 0, replaced: false }),
+  importLorebook: () => Promise.resolve({ worldBookId: castId<WorldBookId>("wbk_0"), entryCount: 0, replaced: false }),
 };
 const okDeps: UploadDeps = {
   assets: okAssets,
@@ -228,10 +217,7 @@ describe("registerUpload — import delegate", () => {
 
   test("card file → delegates to runProfileImport → imported result", async () => {
     const form = new FormData();
-    form.append(
-      "file",
-      new File([new TextEncoder().encode(CARD_JSON)], "Aria.json", { type: "application/json" }),
-    );
+    form.append("file", new File([new TextEncoder().encode(CARD_JSON)], "Aria.json", { type: "application/json" }));
     const res = await handlerFor(okDeps, IMPORT_ROUTE)(makeCtx(OWNER, form));
     expect(res.status).toBe(200);
     const result = (await res.json()) as { imported: unknown[]; failed: unknown[] };
@@ -261,11 +247,7 @@ describe("registerUpload — auth+CSRF guard (belt order, before the body is rea
     });
 
     test(`${key}: cookie session WITH the CSRF header → passes to the body cap`, async () => {
-      const { status, nexted } = await runGuard(
-        okDeps,
-        key,
-        guardCtx(COOKIE_OWNER, { [CSRF_HEADER]: "1" }),
-      );
+      const { status, nexted } = await runGuard(okDeps, key, guardCtx(COOKIE_OWNER, { [CSRF_HEADER]: "1" }));
       expect(status).toBeNull();
       expect(nexted).toBe(true);
     });

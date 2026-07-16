@@ -15,9 +15,7 @@ const THEME_IMPORT_BACKUP = "theme.importBackup";
 const THEME_ENTITY = "theme";
 
 /** Parse theme-backup bytes and merge them into the owner's theme library (idempotent, dedup by name). */
-export function createImportTheme(
-  ctx: SettingsContext,
-): (ownerId: UserId, bytes: Uint8Array) => Promise<SettingsImportOutcome> {
+export function createImportTheme(ctx: SettingsContext): (ownerId: UserId, bytes: Uint8Array) => Promise<SettingsImportOutcome> {
   return async (ownerId: UserId, bytes: Uint8Array): Promise<SettingsImportOutcome> => {
     const backup = parseThemeBackup(bytes);
     if (backup === null) {

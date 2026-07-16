@@ -1,12 +1,4 @@
-import {
-  Popover,
-  PopoverArrow,
-  PopoverClose,
-  PopoverDescription,
-  PopoverPopup,
-  PopoverTitle,
-  PopoverTrigger,
-} from "@orb/ui/popover";
+import { Popover, PopoverArrow, PopoverClose, PopoverDescription, PopoverPopup, PopoverTitle, PopoverTrigger } from "@orb/ui/popover";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { PopoverHandleHarness } from "./popover-handle.fixtures";
@@ -116,10 +108,7 @@ test("no backdrop element when the prop is omitted", async ({ mount, page }) => 
 // createHandle: opening the popover imperatively via the detached handle routes the trigger payload
 // to the Root's render-function children (harness in ./popover-handle.fixtures — Playwright CT needs
 // the mounted component in its own module).
-test("opens imperatively via a detached handle and routes the trigger payload to content", async ({
-  mount,
-  page,
-}) => {
+test("opens imperatively via a detached handle and routes the trigger payload to content", async ({ mount, page }) => {
   await mount(<PopoverHandleHarness />);
 
   const popup = page.locator('[data-slot="popover-popup"]');

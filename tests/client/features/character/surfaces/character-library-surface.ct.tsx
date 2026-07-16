@@ -36,15 +36,10 @@ const PAGE_1_CURSOR = { createdAt: BOLT.createdAt, id: BOLT.id };
 /** A two-page keyset series: page 1 = [ARIA, BOLT] + a cursor; page 2 = [CASSIUS], exhausted. */
 function twoPageResponder(input: unknown): unknown {
   const cursor = (input as { cursor?: unknown } | undefined)?.cursor;
-  return cursor === undefined
-    ? { items: [ARIA, BOLT], nextCursor: PAGE_1_CURSOR }
-    : { items: [CASSIUS], nextCursor: null };
+  return cursor === undefined ? { items: [ARIA, BOLT], nextCursor: PAGE_1_CURSOR } : { items: [CASSIUS], nextCursor: null };
 }
 
-test("renders the first page, then auto-fetches the next page (tail-fetch guard)", async ({
-  mount,
-  page,
-}) => {
+test("renders the first page, then auto-fetches the next page (tail-fetch guard)", async ({ mount, page }) => {
   await routeTrpc(page, { "character.list": twoPageResponder });
 
   const component = await mount(<CharacterLibrarySurfaceStory />);
@@ -86,10 +81,7 @@ test("a search with no matches shows the 'no matches' empty state", async ({ mou
   await expect(component.getByText("No matches")).toBeVisible();
 });
 
-test("a read failure shows the error state with a working Retry (rule 1 — no dead ends)", async ({
-  mount,
-  page,
-}) => {
+test("a read failure shows the error state with a working Retry (rule 1 — no dead ends)", async ({ mount, page }) => {
   // First read fails; after Retry the responder recovers — the list renders without a remount.
   let failed = false;
   await routeTrpc(page, {
@@ -133,10 +125,7 @@ async function routeThree(page: Page): Promise<void> {
   });
 }
 
-test("§4.2 the favorites strip surfaces starred characters as select-only avatars", async ({
-  mount,
-  page,
-}) => {
+test("§4.2 the favorites strip surfaces starred characters as select-only avatars", async ({ mount, page }) => {
   await routeThree(page);
   const component = await mount(<CharacterLibrarySurfaceStory />);
   const strip = component.getByRole("list", { name: "Favorite characters" });
@@ -154,10 +143,7 @@ test("§4.5 the Favorites filter chip narrows to starred rows", async ({ mount, 
   await expect(component.getByText("Cassius")).toHaveCount(0);
 });
 
-test("§4.3 the Group toggle switches to categorized view (an Uncategorized bucket)", async ({
-  mount,
-  page,
-}) => {
+test("§4.3 the Group toggle switches to categorized view (an Uncategorized bucket)", async ({ mount, page }) => {
   await routeThree(page);
   const component = await mount(<CharacterLibrarySurfaceStory />);
   await component.getByRole("button", { name: "Group by tag" }).click();
@@ -179,9 +165,7 @@ test("§4.6 bulk mode reveals row checkboxes + the selection bar", async ({ moun
 // D1 — a chip-induced empty over the loaded window must NOT show search copy nor dead-end: a favorite that
 // lives only on a LATER page is reachable via a Load more affordance. Page 1 is large enough that the
 // virtual list does not auto-tail-fetch, so filtering to favorites (none on page 1) yields the chip-empty.
-const PAGE1_FILLERS = Array.from({ length: 40 }, (_, i) =>
-  makeCharacterSummary({ id: `char_fill_${i}`, name: `Filler ${i}`, createdAt: 9000 - i }),
-);
+const PAGE1_FILLERS = Array.from({ length: 40 }, (_, i) => makeCharacterSummary({ id: `char_fill_${i}`, name: `Filler ${i}`, createdAt: 9000 - i }));
 const LATE_FAVORITE = makeCharacterSummary({
   id: "char_late_fav",
   name: "Zephyr",
@@ -190,10 +174,7 @@ const LATE_FAVORITE = makeCharacterSummary({
 });
 const PAGE1_CURSOR_LATE = { createdAt: 8961, id: "char_fill_39" };
 
-test("D1 a favorites-chip empty over the loaded window offers Load more, reaching a later-page favorite", async ({
-  mount,
-  page,
-}) => {
+test("D1 a favorites-chip empty over the loaded window offers Load more, reaching a later-page favorite", async ({ mount, page }) => {
   await routeTrpc(page, {
     "character.list": (input: unknown) =>
       (input as { cursor?: unknown } | undefined)?.cursor === undefined
@@ -215,10 +196,7 @@ test("D1 a favorites-chip empty over the loaded window offers Load more, reachin
   await expect(component.getByText("Zephyr")).toBeVisible();
 });
 
-test("D2 the bulk Tag action opens a picker and applies a tag to the selection", async ({
-  mount,
-  page,
-}) => {
+test("D2 the bulk Tag action opens a picker and applies a tag to the selection", async ({ mount, page }) => {
   await routeTrpc(page, {
     "character.list": () => ({ items: [STARLA, BOLT2, TAGGED], nextCursor: null }),
     "chat.listChats": () => [],
@@ -236,10 +214,7 @@ test("D2 the bulk Tag action opens a picker and applies a tag to the selection",
   await expect(component.getByRole("button", { name: "Tag", exact: true })).toHaveCount(0);
 });
 
-test("D4 the create dialog gates Create on BOTH name and description, with the requirement shown", async ({
-  mount,
-  page,
-}) => {
+test("D4 the create dialog gates Create on BOTH name and description, with the requirement shown", async ({ mount, page }) => {
   await routeThree(page);
   const component = await mount(<CharacterLibrarySurfaceStory />);
   await component.getByRole("button", { name: "New or import a character" }).click();
@@ -254,9 +229,7 @@ test("D4 the create dialog gates Create on BOTH name and description, with the r
   // Name alone is not enough — description is required (§4.1).
   await expect(create).toBeDisabled();
 
-  await page
-    .getByRole("textbox", { name: "Character description" })
-    .fill("A sharp-tongued map-maker.");
+  await page.getByRole("textbox", { name: "Character description" }).fill("A sharp-tongued map-maker.");
   await expect(create).toBeEnabled();
   await expect(page.getByText("A name and a description are both required.")).toHaveCount(0);
 });

@@ -15,23 +15,11 @@ export interface TextareaFieldProps {
   readonly rows?: number;
 }
 
-export function TextareaField({
-  label,
-  description,
-  placeholder,
-  disabled,
-  rows,
-}: TextareaFieldProps): ReactElement {
+export function TextareaField({ label, description, placeholder, disabled, rows }: TextareaFieldProps): ReactElement {
   const field = useFieldContext<string>();
   const error = touchedFieldError(field.state.meta);
   return (
-    <Field
-      label={label}
-      description={description}
-      error={error}
-      disabled={disabled ?? false}
-      name={field.name}
-    >
+    <Field label={label} description={description} error={error} disabled={disabled ?? false} name={field.name}>
       <Textarea
         value={field.state.value}
         onChange={(e): void => {

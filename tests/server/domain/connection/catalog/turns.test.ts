@@ -23,15 +23,12 @@ type Sampling = ModelCapability["sampling"];
 
 // (model, source, api) tuples for the two cache-bearing shapes each Claude reaches:
 //   openai-compat (Claude-via-OR chat-completions) and anthropic-cli (agent-sdk / max-pro-sub).
-const compat = (model: string): Turns =>
-  resolveModelCapability(model, "openrouter", "chat-completions").turns;
-const cli = (model: string): Turns =>
-  resolveModelCapability(model, "max-pro-sub", "agent-sdk").turns;
+const compat = (model: string): Turns => resolveModelCapability(model, "openrouter", "chat-completions").turns;
+const cli = (model: string): Turns => resolveModelCapability(model, "max-pro-sub", "agent-sdk").turns;
 // anthropic-direct = the OR-key `/v1/messages` skin. It DOES cache (probe-confirmed 2026-07-10: 13001 read
 // once the reducer read usage from `message_delta`, where OR delivers it — not `message_start`). So its cell
 // is explicitPromptCache:true like every other cache-bearing Anthropic wire.
-const direct = (model: string): Turns =>
-  resolveModelCapability(model, "openrouter", "anthropic-messages").turns;
+const direct = (model: string): Turns => resolveModelCapability(model, "openrouter", "anthropic-messages").turns;
 
 describe("cache gate — explicitPromptCache is an ANTHROPIC-FAMILY fact (ruling 3)", () => {
   test("anthropic Claude ⇒ true on BOTH cache-bearing shapes", () => {

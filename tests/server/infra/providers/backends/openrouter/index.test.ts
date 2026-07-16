@@ -6,13 +6,7 @@
 import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { ModelId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type {
-  ChatRequest,
-  EmbedRequest,
-  ProviderBackend,
-  SummarizeRequest,
-  SummarizeResult,
-} from "@orb/server/infra/providers";
+import type { ChatRequest, EmbedRequest, ProviderBackend, SummarizeRequest, SummarizeResult } from "@orb/server/infra/providers";
 import type { OrClient } from "@orb/server/infra/providers/backends/openrouter";
 import { createOpenRouterBackend } from "@orb/server/infra/providers/backends/openrouter";
 import { describe } from "vitest";

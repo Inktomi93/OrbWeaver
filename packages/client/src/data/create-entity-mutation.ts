@@ -12,9 +12,7 @@ import type { Trpc } from "./trpc";
 
 /** What the tRPC proxy's `.mutationOptions()` provides — derived off the real `UseMutationOptions`
  *  so a rename/reshape breaks here at compile time, not silently at a consumer. */
-type BaseMutationOptions<TVars, TData, TError = DefaultError> = Required<
-  Pick<UseMutationOptions<TData, TError, TVars>, "mutationKey">
-> &
+type BaseMutationOptions<TVars, TData, TError = DefaultError> = Required<Pick<UseMutationOptions<TData, TError, TVars>, "mutationKey">> &
   Pick<UseMutationOptions<TData, TError, TVars>, "mutationFn">;
 
 interface EntityMutationBase<TVars, TData, TRead> {
@@ -44,12 +42,7 @@ type FreshnessSource<TVars> =
       readonly invalidates: (trpc: Trpc, vars: TVars) => readonly InvalidateFilter[];
     };
 
-export type EntityMutationConfig<TVars, TData, TRead = unknown> = EntityMutationBase<
-  TVars,
-  TData,
-  TRead
-> &
-  FreshnessSource<TVars>;
+export type EntityMutationConfig<TVars, TData, TRead = unknown> = EntityMutationBase<TVars, TData, TRead> & FreshnessSource<TVars>;
 
 /** A `busDriven` mutation reconciles via the bus, not itself — its settle invalidates nothing. */
 const NO_INVALIDATION = (): readonly InvalidateFilter[] => [];
@@ -90,9 +83,7 @@ export function createEntityMutation<TVars, TData, TRead = unknown>(
         // Cancel in-flight refetches so they can't clobber the optimistic write.
         await context.client.cancelQueries({ queryKey: readKey });
         const snapshot = context.client.getQueryData<TRead>(readKey);
-        context.client.setQueryData<TRead>(readKey, (old) =>
-          config.optimistic === undefined ? old : config.optimistic.update(old, vars),
-        );
+        context.client.setQueryData<TRead>(readKey, (old) => (config.optimistic === undefined ? old : config.optimistic.update(old, vars)));
         // Return the snapshot rather than close over it — rollback reads it from onError's arg, so
         // concurrent mutations each roll back their own.
         return { snapshot, readKey };

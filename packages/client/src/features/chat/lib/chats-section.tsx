@@ -10,13 +10,7 @@ import { MessagesSquare } from "@orb/ui/icons";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { QueryBoundary } from "#data";
-import type {
-  ChatContextState,
-  ChatSurfaceContribution,
-  CommittedChatContext,
-  ContextTabDef,
-  ContributorRegistry,
-} from "#lib";
+import type { ChatContextState, ChatSurfaceContribution, CommittedChatContext, ContextTabDef, ContributorRegistry } from "#lib";
 import { defineContextTabs } from "#lib";
 import type { SectionDefinition } from "#state";
 import { chatDeletedFromList, openModal, selectChatFromList } from "#state";
@@ -27,12 +21,7 @@ import { ChatContent } from "../components/chat-content";
 import { ChatsTopbarHeader } from "../components/chats-topbar-header";
 import type { CommittedMembersTabProps } from "../components/committed-members-tab";
 import { CommittedMembersTab } from "../components/committed-members-tab";
-import {
-  DraftGroupConfigTabBody,
-  DraftInjectionsTab,
-  DraftMembersTabBody,
-  DraftOverridesTabBody,
-} from "../components/draft-context-tabs";
+import { DraftGroupConfigTabBody, DraftInjectionsTab, DraftMembersTabBody, DraftOverridesTabBody } from "../components/draft-context-tabs";
 import { CommittedGroupConfigTab } from "../components/group-config-form";
 import { InjectionsManager } from "../components/injections-manager";
 import { RoomOverridesTab } from "../components/room-overrides-tab";
@@ -77,16 +66,8 @@ const CHAT_CONTEXT_TABS: readonly ContextTabDef<ChatContextState>[] = [
   {
     id: "members",
     label: "Members",
-    when: (s) =>
-      s.phase === "committed"
-        ? membersTabJustified(s.participants, s.multiHumanCapable)
-        : s.cast.length >= GROUP_FLOOR,
-    body: (s) =>
-      s.phase === "committed" ? (
-        <CommittedMembersTab {...toMembersTabProps(s)} />
-      ) : (
-        <DraftMembersTabBody draftKey={s.draftKey} cast={s.cast} />
-      ),
+    when: (s) => (s.phase === "committed" ? membersTabJustified(s.participants, s.multiHumanCapable) : s.cast.length >= GROUP_FLOOR),
+    body: (s) => (s.phase === "committed" ? <CommittedMembersTab {...toMembersTabProps(s)} /> : <DraftMembersTabBody draftKey={s.draftKey} cast={s.cast} />),
   },
   {
     id: "overrides",
@@ -101,16 +82,10 @@ const CHAT_CONTEXT_TABS: readonly ContextTabDef<ChatContextState>[] = [
   {
     id: "group",
     label: "Group",
-    when: (s) =>
-      s.phase === "committed"
-        ? s.isHost && resolveIsGroupChat(s.participants)
-        : s.cast.length >= GROUP_FLOOR,
+    when: (s) => (s.phase === "committed" ? s.isHost && resolveIsGroupChat(s.participants) : s.cast.length >= GROUP_FLOOR),
     body: (s) =>
       s.phase === "committed" ? (
-        <QueryBoundary
-          fallback={queryFallback("group settings")}
-          renderError={queryRenderError("group settings")}
-        >
+        <QueryBoundary fallback={queryFallback("group settings")} renderError={queryRenderError("group settings")}>
           <CommittedGroupConfigTab chatId={s.chatId} />
         </QueryBoundary>
       ) : (
@@ -128,10 +103,7 @@ const CHAT_CONTEXT_TABS: readonly ContextTabDef<ChatContextState>[] = [
     label: "Injections",
     body: (s) =>
       s.phase === "committed" ? (
-        <QueryBoundary
-          fallback={queryFallback("injections")}
-          renderError={queryRenderError("injections")}
-        >
+        <QueryBoundary fallback={queryFallback("injections")} renderError={queryRenderError("injections")}>
           <InjectionsManager chatId={s.chatId} isHost={s.isHost} />
         </QueryBoundary>
       ) : (
@@ -154,11 +126,7 @@ export function makeChatsSection(
     },
     list: () => (
       <ChatListAnchor>
-        <ChatListSurface
-          onDeletedChat={chatDeletedFromList}
-          onNewChat={(): void => openModal("newChat")}
-          onSelect={selectChatFromList}
-        />
+        <ChatListSurface onDeletedChat={chatDeletedFromList} onNewChat={(): void => openModal("newChat")} onSelect={selectChatFromList} />
       </ChatListAnchor>
     ),
     content: () => <ChatContent surfaceContributors={chatSurfaceContributors} />,
@@ -167,10 +135,7 @@ export function makeChatsSection(
     context: defineContextTabs<ChatContextState>({
       useContextState: useChatContextState,
       tabs: CHAT_CONTEXT_TABS,
-      actions: (s) =>
-        s.phase === "draft" ? (
-          <DraftAddMemberPopover draftKey={s.draftKey} existingCharacterIds={s.cast} />
-        ) : null,
+      actions: (s) => (s.phase === "draft" ? <DraftAddMemberPopover draftKey={s.draftKey} existingCharacterIds={s.cast} /> : null),
       contributors: chatContextContributors,
     }),
   };

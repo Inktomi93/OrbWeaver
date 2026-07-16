@@ -27,18 +27,10 @@ export function BackupSettingsSurface(): ReactElement {
     <Stack ref={surfaceRef} tabIndex={-1} className="outline-none">
       <Container>
         <Stack gap="section" data-testid={testId("backupSection")}>
-          <Section
-            divider={true}
-            heading="Export"
-            id={settingsAnchorId("backup", BACKUP_SUBCATEGORY_IDS.export)}
-          >
+          <Section divider={true} heading="Export" id={settingsAnchorId("backup", BACKUP_SUBCATEGORY_IDS.export)}>
             <ExportLibrarySection />
           </Section>
-          <Section
-            divider={true}
-            heading="Import"
-            id={settingsAnchorId("backup", BACKUP_SUBCATEGORY_IDS.import)}
-          >
+          <Section divider={true} heading="Import" id={settingsAnchorId("backup", BACKUP_SUBCATEGORY_IDS.import)}>
             <ImportLibrarySection />
           </Section>
         </Stack>

@@ -47,7 +47,7 @@ The UI enforcement families:
   the lib→group map lives in that rule + §11.3). "client ⇏ raw satellite libs" is RESOLVER physics (the
   libs aren't in client's `package.json`), a deliberate NON-rule — not a dep-cruiser rule.
   `client ⇏ @orb/server` (wire types come from `@orb/contracts`).
-- **Token gates (Biome grit, `tools/grit/`).** `no-color-literals` (incl. named non-token colors +
+- **Token gates (ts-morph, `scripts/check/gates/`).** `no-color-literals` (incl. named non-token colors +
   the theme-aware `--scrim`), `no-raw-spacing`, `no-raw-typography`, `no-raw-z-index`,
   `no-arbitrary-tw-values` — over ALL feature + ui TSX, no `components/ui/`-style exemption (§11.0/§11.4).
 - **Compose-only keystone (ESLint, `eslint.config.js`).** A feature ASSEMBLES `@orb/ui` primitives +
@@ -61,7 +61,7 @@ The UI enforcement families:
 - **Structural (ts-morph, `scripts/check/gates/`).** The UI structural family: `ui-primitive-structure`
   (the §13.7 primitive/CT contract), `client-structure`/`feature-structure` (the §2.1 slice shape),
   `state-files` (the §5 Zustand discipline), the two selector-stability gates
-  (`zustand-selector-stability.grit` = the fast narrow literal belt; `zustand-selector-derived.ts` = the
+  (`zustand-selector-stability.ts` = the fast narrow literal belt; `zustand-selector-derived.ts` = the
   full-body/second-call-shape comprehensive belt), `no-effect-on-shared-selection` (§5.1),
   `persistence-boundary` (§12.1), `no-interactive-role-in-features` (closes the layout-kit
   interactive-role escape hatch), `surface-a11y-focus`, the registry keystones (`registry-pairing`
@@ -216,7 +216,7 @@ per-theme `color-scheme`).
   is null. *Gate `no-fake-disabled-id`.*
 - **Zustand selector stability** — a fresh `{}`/`[]` per render spins `useSyncExternalStore` (runtime-only,
   no compile signal). Split per-token stream fields from lifecycle fields so chrome physically cannot
-  subscribe to token churn. *Gates: `zustand-selector-stability.grit` (narrow) + `zustand-selector-derived.ts`
+  subscribe to token churn. *Gates: `zustand-selector-stability.ts` (narrow) + `zustand-selector-derived.ts`
   (full-body, both call shapes).*
 - **Registry-pairing keystone.** RAIL\_SLOTS ↔ MODAL\_SLOTS id-pairing was unguarded in neo (a missing body
   shipped as "the panel won't open"). *Gate `registry-pairing`.*

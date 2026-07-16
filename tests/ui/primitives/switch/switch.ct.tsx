@@ -31,10 +31,7 @@ test("keyboard toggles too, and checked wears the primary token", async ({ mount
 // token values (not "barely a difference"); (2) the visible track must be a generous rectangle with a
 // SUBSTANTIAL thumb travel (the old design collapsed to ~4px travel on fine pointers). done ≠ rendered
 // — these assert the RENDERED geometry/colour, not the source. ──
-test("checked vs unchecked wear DIFFERENT track token values (the on/off distinction pin)", async ({
-  mount,
-  page,
-}) => {
+test("checked vs unchecked wear DIFFERENT track token values (the on/off distinction pin)", async ({ mount, page }) => {
   // The two states must map to genuinely different tokens — the "barely shows a difference" regression.
   expect(TOKENS["color.input"].value).not.toBe(TOKENS["color.primary"].value);
   await mount(<Switch aria-label="Streaming" />);
@@ -46,10 +43,7 @@ test("checked vs unchecked wear DIFFERENT track token values (the on/off distinc
   expect(on).not.toBe(off); // rendered colours actually diverge on/off, not just the source classes
 });
 
-test("the track is a generous rectangle and the thumb travels a substantial distance", async ({
-  mount,
-  page,
-}) => {
+test("the track is a generous rectangle and the thumb travels a substantial distance", async ({ mount, page }) => {
   await mount(<Switch aria-label="Streaming" />);
   const control = page.getByRole("switch");
   const thumb = control.locator('[data-slot="switch-thumb"]');
@@ -63,9 +57,7 @@ test("the track is a generous rectangle and the thumb travels a substantial dist
   // floor, Task #76). The old fine-pointer travel was ~4px; assert well past that so a regression toward
   // a near-square track fails here. Poll past the 130ms transform transition (the thumb slides,
   // boundingBox tracks the transform mid-animation).
-  await expect
-    .poll(async () => (await thumb.boundingBox())?.x ?? 0, { intervals: [20, 50, 100] })
-    .toBeGreaterThan(offX + 12);
+  await expect.poll(async () => (await thumb.boundingBox())?.x ?? 0, { intervals: [20, 50, 100] }).toBeGreaterThan(offX + 12);
 });
 
 test("onCheckedChange reports the next state", async ({ mount, page }) => {
@@ -82,10 +74,7 @@ test("onCheckedChange reports the next state", async ({ mount, page }) => {
   await expect.poll(() => seen.at(-1), { intervals: [20, 50, 100] }).toBe(true);
 });
 
-test("read-only: blocks toggling but keeps the checked token + shows the lock glyph", async ({
-  mount,
-  page,
-}) => {
+test("read-only: blocks toggling but keeps the checked token + shows the lock glyph", async ({ mount, page }) => {
   await mount(<Switch aria-label="Autopilot" checked={true} readOnly={true} />);
   const control = page.getByRole("switch");
   await expect(control).toHaveAttribute("data-readonly", "");
@@ -100,10 +89,7 @@ test("read-only: blocks toggling but keeps the checked token + shows the lock gl
   await expect(control).toHaveAttribute("aria-checked", "true");
 });
 
-test("read-only off state: unchecked token holds and the lock glyph still shows", async ({
-  mount,
-  page,
-}) => {
+test("read-only off state: unchecked token holds and the lock glyph still shows", async ({ mount, page }) => {
   await mount(<Switch aria-label="Autopilot" checked={false} readOnly={true} />);
   const control = page.getByRole("switch");
   await expect(control).toHaveAttribute("aria-checked", "false");
@@ -124,10 +110,7 @@ test("disabled blocks toggling and drops the interactive skin", async ({ mount, 
   await expect(control).toHaveAttribute("aria-checked", "false");
 });
 
-test("inside an invalid <Field>, data-invalid lands and the border swaps to destructive", async ({
-  mount,
-  page,
-}) => {
+test("inside an invalid <Field>, data-invalid lands and the border swaps to destructive", async ({ mount, page }) => {
   await mount(
     <Field error="Required" label="Streaming">
       <Switch />
@@ -138,10 +121,7 @@ test("inside an invalid <Field>, data-invalid lands and the border swaps to dest
   await expect(control).toHaveCSS("border-top-color", TOKENS["color.destructive"].value);
 });
 
-test("inside a <Field>, the label associates and aria-describedby wires the description", async ({
-  mount,
-  page,
-}) => {
+test("inside a <Field>, the label associates and aria-describedby wires the description", async ({ mount, page }) => {
   await mount(
     <Field description="Live-updates as tokens arrive" label="Streaming">
       <Switch />

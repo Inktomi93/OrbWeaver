@@ -34,10 +34,7 @@ export function repoRel(root: string, absPath: string): string {
 /** Is a repo-relative path actually loaded in this run's project? A ratchet stale-arm must only judge a
  *  file that is present — a synthetic conformance tree omits real allowlisted files, so an unloaded
  *  entry must not falsely flag stale. */
-export function fileLoaded(
-  ctx: Pick<GateRunCtx, "root" | "project">,
-  repoRelPath: string,
-): boolean {
+export function fileLoaded(ctx: Pick<GateRunCtx, "root" | "project">, repoRelPath: string): boolean {
   return ctx.project.getSourceFile(`${ctx.root}/${repoRelPath}`) !== undefined;
 }
 
@@ -49,10 +46,7 @@ function locate(node: Node): { readonly line: number; readonly column: number } 
 
 /** Locate a TOKEN inside a node: `offset` is its 0-based index into `node.getText()`, so the caret
  *  lands on the offending lexeme, not the enclosing string. */
-function locateToken(
-  node: Node,
-  offset: number,
-): { readonly line: number; readonly column: number } {
+function locateToken(node: Node, offset: number): { readonly line: number; readonly column: number } {
   return node.getSourceFile().getLineAndColumnAtPos(node.getStart() + offset);
 }
 
@@ -96,17 +90,40 @@ function isNode(v: Node | Finding): v is Node {
   return typeof (v as Node).getSourceFile === "function";
 }
 
+/** Walk from the reported node up to its statement/file boundary, looking for a
+ *  `// @orb-gate-ignore <gate-name>` suppression comment. Stops at the statement boundary so a comment
+ *  above an unrelated sibling doesn't leak a suppression onto this node. */
+function hasGateIgnore(node: Node, gateName: string): boolean {
+  const ignoreRe = new RegExp(`//\\s*@orb-gate-ignore\\s+${gateName}\\b`);
+  let scanNode: any = node;
+  while (scanNode) {
+    if (typeof scanNode.getLeadingCommentRanges === "function") {
+      const comments = scanNode.getLeadingCommentRanges();
+      if (comments.some((c: any) => ignoreRe.test(c.getText()))) {
+        return true;
+      }
+    }
+    const kindName = typeof scanNode.getKindName === "function" ? scanNode.getKindName() : "";
+    if (kindName === "SourceFile" || kindName.includes("Statement")) {
+      break;
+    }
+    scanNode = typeof scanNode.getParent === "function" ? scanNode.getParent() : undefined;
+  }
+  return false;
+}
+
 function makeGateRun(gate: GateDescriptor, ctxBase: Omit<GateRunCtx, "report">): GateRun {
   const sink: Finding[] = [];
-  const report = (
-    nodeOrFinding: Node | Finding,
-    atToken?: { readonly token: string; readonly offset: number },
-  ): void => {
+  const report = (nodeOrFinding: Node | Finding, atToken?: { readonly token: string; readonly offset: number }): void => {
     if (!isNode(nodeOrFinding)) {
       sink.push(nodeOrFinding);
       return;
     }
     const node = nodeOrFinding;
+    if (hasGateIgnore(node, gate.name)) {
+      return;
+    }
+
     const file = repoRel(ctxBase.root, node.getSourceFile().getFilePath());
     if (atToken === undefined) {
       const { line, column } = locate(node);
@@ -151,12 +168,7 @@ function indexByKind(runs: readonly GateRun[]): Map<SyntaxKind, GateRun[]> {
 }
 
 /** One file's node walk — dispatch each descendant to the in-scanRoot subscribers of its kind. */
-function walkFile(
-  sf: SourceFile,
-  rel: string,
-  byKind: ReadonlyMap<SyntaxKind, readonly GateRun[]>,
-  errors: ToolError[],
-): void {
+function walkFile(sf: SourceFile, rel: string, byKind: ReadonlyMap<SyntaxKind, readonly GateRun[]>, errors: ToolError[]): void {
   sf.forEachDescendant((node) => {
     const subs = byKind.get(node.getKind());
     if (subs === undefined) {
@@ -176,13 +188,8 @@ function runVisit(run: GateRun, node: Node, sf: SourceFile): void {
 
 /** The pass over a given descriptor set and fileset. Each node is touched once; only subscribed gates
  *  see it. Whole-project `run` gates get their declared pass over the SAME project. */
-export function runPass(
-  gates: readonly GateDescriptor[],
-  ctxBase: Omit<GateRunCtx, "report">,
-): PassResult {
-  const runs: readonly GateRun[] = gates
-    .filter((g) => g.status === "active")
-    .map((g) => makeGateRun(g, ctxBase));
+export function runPass(gates: readonly GateDescriptor[], ctxBase: Omit<GateRunCtx, "report">): PassResult {
+  const runs: readonly GateRun[] = gates.filter((g) => g.status === "active").map((g) => makeGateRun(g, ctxBase));
   const errors: ToolError[] = [];
 
   for (const run of runs) {

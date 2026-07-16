@@ -37,11 +37,7 @@ export async function listReadableThemes(db: Db, ownerId: UserId): Promise<Theme
 }
 
 /** One theme readable by this owner: their own row OR any seed. */
-export async function readableTheme(
-  db: Db,
-  ownerId: UserId,
-  id: ThemeId,
-): Promise<ThemeRow | undefined> {
+export async function readableTheme(db: Db, ownerId: UserId, id: ThemeId): Promise<ThemeRow | undefined> {
   const rows = await db
     .select()
     .from(themes)
@@ -53,28 +49,17 @@ export async function readableTheme(
 /** The caller's owned theme rows only (never a seed), oldest-first. The portable theme-backup export reads
  *  this — seeds are code-authored and never travel. */
 export async function listOwnedThemes(db: Db, ownerId: UserId): Promise<ThemeRow[]> {
-  return await db
-    .select()
-    .from(themes)
-    .where(eq(themes.ownerId, ownerId))
-    .orderBy(asc(themes.createdAt));
+  return await db.select().from(themes).where(eq(themes.ownerId, ownerId)).orderBy(asc(themes.createdAt));
 }
 
 /** Load an owned theme row (never a seed). */
-export function loadOwnedTheme(
-  db: Db,
-  id: ThemeId,
-  ownerId: UserId,
-): Promise<ThemeRow | undefined> {
+export function loadOwnedTheme(db: Db, id: ThemeId, ownerId: UserId): Promise<ThemeRow | undefined> {
   return fetchOwned(db, themes, id, ownerId);
 }
 
 /** The caller's own theme NAMES (for the duplicate-verb's free-name-suffix computation). */
 export async function listOwnedThemeNames(db: Db, ownerId: UserId): Promise<string[]> {
-  const rows = await db
-    .select({ name: themes.name })
-    .from(themes)
-    .where(eq(themes.ownerId, ownerId));
+  const rows = await db.select({ name: themes.name }).from(themes).where(eq(themes.ownerId, ownerId));
   return rows.map((r) => r.name);
 }
 
@@ -87,10 +72,7 @@ export async function insertTheme(db: Db, row: ThemeInsert): Promise<void> {
 /** Idempotent batch insert for the portable theme-backup import: skip any row whose `(ownerId, name)`
  *  already exists. Returns how many rows were newly inserted — a re-import of the same backup creates
  *  zero. */
-export async function insertOwnedThemesIfAbsent(
-  db: Db,
-  values: readonly (typeof themes.$inferInsert)[],
-): Promise<number> {
+export async function insertOwnedThemesIfAbsent(db: Db, values: readonly (typeof themes.$inferInsert)[]): Promise<number> {
   if (values.length === 0) {
     return 0;
   }
@@ -103,12 +85,7 @@ export async function insertOwnedThemesIfAbsent(
 }
 
 /** Patch an owned row. Returns the updated row, or `undefined` when nothing matched. */
-export async function updateOwnedTheme(
-  db: Db,
-  id: ThemeId,
-  ownerId: UserId,
-  patch: ThemePatch,
-): Promise<ThemeRow | undefined> {
+export async function updateOwnedTheme(db: Db, id: ThemeId, ownerId: UserId, patch: ThemePatch): Promise<ThemeRow | undefined> {
   const updated = await db
     .update(themes)
     .set(patch)
@@ -133,10 +110,7 @@ export function isThemeNameConflict(err: unknown): boolean {
 
 /** Overwrite (or first-insert) one seed row by its fixed sentinel id — the boot-reseed write. Idempotent in
  *  one round trip. */
-export async function upsertSeedTheme(
-  db: Db,
-  row: Omit<ThemeInsert, "ownerId"> & { readonly ownerId: null },
-): Promise<void> {
+export async function upsertSeedTheme(db: Db, row: Omit<ThemeInsert, "ownerId"> & { readonly ownerId: null }): Promise<void> {
   await db
     .insert(themes)
     .values(row)

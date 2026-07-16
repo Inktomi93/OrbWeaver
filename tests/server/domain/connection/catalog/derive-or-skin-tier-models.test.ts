@@ -6,10 +6,7 @@
 
 import type { AgentSdkModel } from "@orb/contracts/connection";
 import { describe } from "vitest";
-import {
-  deriveOrSkinTierModels,
-  toOpenRouterSlug,
-} from "../../../../../packages/server/src/domain/connection/catalog/derive-or-skin-tier-models.ts";
+import { deriveOrSkinTierModels, toOpenRouterSlug } from "../../../../../packages/server/src/domain/connection/catalog/derive-or-skin-tier-models.ts";
 import { expect, test } from "../../../../support/fixtures";
 
 /** A daemon row for a tier alias → its current resolved wire id. */
@@ -36,11 +33,7 @@ const OR_IDS = [
   "openai/gpt-5",
 ];
 
-const DAEMON = [
-  row("opus", "claude-opus-4-8"),
-  row("sonnet", "claude-sonnet-5"),
-  row("haiku", "claude-haiku-4-5-20251001"),
-];
+const DAEMON = [row("opus", "claude-opus-4-8"), row("sonnet", "claude-sonnet-5"), row("haiku", "claude-haiku-4-5-20251001")];
 
 describe("toOpenRouterSlug — the id→slug transform", () => {
   test("strips an 8-digit date suffix", () => {
@@ -73,21 +66,13 @@ describe("deriveOrSkinTierModels — daemon + OR agree", () => {
 describe("deriveOrSkinTierModels — daemon id NOT in the OR list → newest same-family fallback", () => {
   test("falls to the newest same-family OR id when the daemon's resolved slug is absent", () => {
     // The daemon says sonnet-9, but the OR list only carries sonnet-5 / sonnet-4.6 → newest = sonnet-5.
-    const daemon = [
-      row("opus", "claude-opus-4-8"),
-      row("sonnet", "claude-sonnet-9"),
-      row("haiku", "claude-haiku-4-5"),
-    ];
+    const daemon = [row("opus", "claude-opus-4-8"), row("sonnet", "claude-sonnet-9"), row("haiku", "claude-haiku-4-5")];
     const tiers = deriveOrSkinTierModels(daemon, OR_IDS);
     expect(tiers.sonnet).toBe("anthropic/claude-sonnet-5");
   });
 
   test("numeric-aware compare beats lexicographic (4.10 > 4.9)", () => {
-    const orIds = [
-      "anthropic/claude-opus-4.9",
-      "anthropic/claude-opus-4.10",
-      "anthropic/claude-opus-4.8",
-    ];
+    const orIds = ["anthropic/claude-opus-4.9", "anthropic/claude-opus-4.10", "anthropic/claude-opus-4.8"];
     // Daemon names a version absent from OR → newest same-family. 4.10 must beat 4.9 (segment-wise int
     // compare) — a lexicographic sort would wrongly pick 4.9.
     const daemon = [row("opus", "claude-opus-4-99")];

@@ -4,13 +4,7 @@
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import {
-  bucket5m,
-  chatSignal,
-  presenceSignal,
-  traceSignal,
-  workloadSignal,
-} from "../../../../../packages/server/src/domain/buddy/observer/signals.ts";
+import { bucket5m, chatSignal, presenceSignal, traceSignal, workloadSignal } from "../../../../../packages/server/src/domain/buddy/observer/signals.ts";
 import { expect, test } from "../../../../support/fixtures";
 
 const U = castId<UserId>("user_1");

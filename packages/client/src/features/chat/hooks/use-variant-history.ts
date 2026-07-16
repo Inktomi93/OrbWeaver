@@ -39,9 +39,7 @@ export function useVariantHistory(message: MessageView): VariantHistory {
   );
 
   return useMemo<VariantHistory>(() => {
-    const byIdx = new Map<number, MessageVariantId>(
-      (query.data ?? []).map((v) => [v.idx, v.variantId] as const),
-    );
+    const byIdx = new Map<number, MessageVariantId>((query.data ?? []).map((v) => [v.idx, v.variantId] as const));
     // The current selection is always known immediately (the `MessageView` prop itself), even before the
     // fetch resolves or while gated off — no one-frame gap where the shown idx looks "unseen".
     if (!byIdx.has(selectedVariantIdx)) {

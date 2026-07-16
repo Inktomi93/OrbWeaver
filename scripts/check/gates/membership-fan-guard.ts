@@ -29,8 +29,7 @@ export const gate: GateDescriptor = {
   },
   mustFlag: [
     {
-      files:
-        'export function leak(emitUserEvent: (u: string, e: unknown) => void): void {\n  emitUserEvent("u1", { type: "chatsChanged" });\n}\n',
+      files: 'export function leak(emitUserEvent: (u: string, e: unknown) => void): void {\n  emitUserEvent("u1", { type: "chatsChanged" });\n}\n',
       at: "packages/server/src/domain/chat/verbs/__probe.ts",
       expect: { count: 2 },
       why: "an actor-only emitUserEvent identifier inside domain/chat — every occurrence (param + call) is its own finding",
@@ -43,8 +42,7 @@ export const gate: GateDescriptor = {
       why: "the sanctioned member-fan op (emitChatChanged) — not the banned identifier",
     },
     {
-      files:
-        "export const use = (emitUserEvent: (u: string, e: unknown) => void) => emitUserEvent;\n",
+      files: "export const use = (emitUserEvent: (u: string, e: unknown) => void) => emitUserEvent;\n",
       at: "packages/server/src/domain/persona/verbs/__probe-other.ts",
       why: "emitUserEvent OUTSIDE domain/chat (a genuinely single-owner domain) — scanRoot excludes it, passes",
     },

@@ -35,10 +35,7 @@ export function makePersona(overrides: Partial<PersonaRow> = {}): PersonaRow {
 
 /** `makePersona` then insert, FK-clean on an empty db: an absent `ownerId` seeds a fresh owner user
  *  first (explicit `ownerId` reuses the caller's user — no extra row). */
-export async function seedPersona(
-  db: Db,
-  overrides: Partial<PersonaRow> = {},
-): Promise<PersonaRow> {
+export async function seedPersona(db: Db, overrides: Partial<PersonaRow> = {}): Promise<PersonaRow> {
   const ownerId = overrides.ownerId ?? (await seedUser(db)).id;
   const row = makePersona({ ...overrides, ownerId });
   await db.insert(personas).values(row);

@@ -27,11 +27,7 @@ interface ReorderableListProps {
  * surfaces the call count + last payload as plain text nodes — CT mount props are serialized, so a
  * closure spy can't be read back from the test; the DOM is the only channel.
  */
-export function ReorderableList({
-  itemCount = 3,
-  handle = false,
-  disabled = false,
-}: ReorderableListProps): ReactElement {
+export function ReorderableList({ itemCount = 3, handle = false, disabled = false }: ReorderableListProps): ReactElement {
   const [items, setItems] = useState<FixtureItem[]>(() => makeItems(itemCount));
   const [reorderCount, setReorderCount] = useState(0);
   const [lastOrder, setLastOrder] = useState("");
@@ -78,9 +74,7 @@ const DERIVED_SOURCE: readonly FixtureItem[] = [
 export function DerivedItemsList(): ReactElement {
   const [order, setOrder] = useState<string[]>(["a", "b", "c"]);
   const [bump, setBump] = useState(0);
-  const items = order
-    .map((id) => DERIVED_SOURCE.find((entry) => entry.id === id))
-    .filter((entry): entry is FixtureItem => entry !== undefined);
+  const items = order.map((id) => DERIVED_SOURCE.find((entry) => entry.id === id)).filter((entry): entry is FixtureItem => entry !== undefined);
 
   return (
     <div>

@@ -30,10 +30,8 @@ function render(files: Readonly<Record<string, string>>): string {
 
 test("the reporter groups by gate, prints the reason ONCE, and lists every token as path:line:col", () => {
   const out = render({
-    "packages/ui/src/overlay/dialog.tsx":
-      'export const A = <div className="rounded-lg shadow-md" />;\n',
-    "packages/server/src/domain/chat/engine/turn.ts":
-      "export function f(callerUserId: string) {}\n",
+    "packages/ui/src/overlay/dialog.tsx": 'export const A = <div className="rounded-lg shadow-md" />;\n',
+    "packages/server/src/domain/chat/engine/turn.ts": "export function f(callerUserId: string) {}\n",
   });
 
   // Group header with the per-gate count + the reason once (message + fix), NOT repeated per occurrence.

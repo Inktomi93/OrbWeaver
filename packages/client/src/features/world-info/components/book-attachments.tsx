@@ -14,10 +14,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
-import {
-  useAttachWorldBookGlobal,
-  useDetachWorldBookGlobal,
-} from "../hooks/use-world-info-mutations";
+import { useAttachWorldBookGlobal, useDetachWorldBookGlobal } from "../hooks/use-world-info-mutations";
 import { CharacterAttachRow, PersonaAttachRow } from "./attachment-rows";
 
 export interface BookAttachmentsProps {
@@ -78,12 +75,7 @@ function PersonasSection({ bookId }: BookAttachmentsProps): ReactElement {
       ) : (
         <Stack gap="row">
           {personas.map((persona) => (
-            <PersonaAttachRow
-              key={persona.id}
-              bookId={bookId}
-              personaId={persona.id}
-              personaName={persona.name}
-            />
+            <PersonaAttachRow key={persona.id} bookId={bookId} personaId={persona.id} personaName={persona.name} />
           ))}
         </Stack>
       )}
@@ -103,24 +95,14 @@ function CharactersSection({ bookId }: BookAttachmentsProps): ReactElement {
         <Text tone="muted">No characters yet.</Text>
       ) : (
         <Stack gap="row">
-          <Button
-            intent="ghost"
-            size="sm"
-            aria-expanded={open}
-            onClick={(): void => setOpen((prev) => !prev)}
-          >
+          <Button intent="ghost" size="sm" aria-expanded={open} onClick={(): void => setOpen((prev) => !prev)}>
             <Icon icon={open ? ChevronDown : ChevronRight} size="sm" />
             {open ? "Hide characters" : `Attach to a character (${characters.length})`}
           </Button>
           {open ? (
             <Stack gap="row">
               {characters.map((character) => (
-                <CharacterAttachRow
-                  key={character.id}
-                  bookId={bookId}
-                  characterId={character.id}
-                  characterName={character.name}
-                />
+                <CharacterAttachRow key={character.id} bookId={bookId} characterId={character.id} characterName={character.name} />
               ))}
             </Stack>
           ) : null}

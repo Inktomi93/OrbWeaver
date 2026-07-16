@@ -15,9 +15,7 @@ const SETTINGS_IMPORT_BACKUP = "settings.importBackup";
 const SETTINGS_ENTITY = "settings";
 
 /** Parse user-settings-backup bytes and per-namespace-merge them into the owner's settings (idempotent). */
-export function createImportUserSettings(
-  ctx: SettingsContext,
-): (ownerId: UserId, bytes: Uint8Array) => Promise<SettingsImportOutcome> {
+export function createImportUserSettings(ctx: SettingsContext): (ownerId: UserId, bytes: Uint8Array) => Promise<SettingsImportOutcome> {
   return async (ownerId: UserId, bytes: Uint8Array): Promise<SettingsImportOutcome> => {
     const parsed = parseUserSettingsBackup(bytes);
     if (parsed === null) {

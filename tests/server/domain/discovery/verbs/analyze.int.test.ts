@@ -12,15 +12,7 @@ import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
 import type { SummarizeRecorder } from "../_support.ts";
-import {
-  FROZEN_AT,
-  makeDiscoveryHarness,
-  makeSummarizeRecorder,
-  seedCharacter,
-  seedHostedChat,
-  seedMessage,
-  seedUser,
-} from "../_support.ts";
+import { FROZEN_AT, makeDiscoveryHarness, makeSummarizeRecorder, seedCharacter, seedHostedChat, seedMessage, seedUser } from "../_support.ts";
 
 async function seedCard(
   db: Db,
@@ -112,9 +104,7 @@ describe("compareCharactersDeep", () => {
 
     expect(await svc.compareCharactersDeep(owner, a, a)).toBeNull(); // self
     expect(await svc.compareCharactersDeep(owner, a, foreign)).toBeNull(); // foreign belt
-    expect(
-      await svc.compareCharactersDeep(owner, a, castId<CharacterId>("character_missing")),
-    ).toBeNull();
+    expect(await svc.compareCharactersDeep(owner, a, castId<CharacterId>("character_missing"))).toBeNull();
     // No summarize call happened — the belt short-circuits before inference.
     expect(summarize.calls).toEqual([]);
   });
@@ -148,9 +138,7 @@ describe("askCard", () => {
       characterId: hero,
       variant: { content: "Hero swore an oath to the queen." },
     });
-    const summarize = makeSummarizeRecorder([
-      JSON.stringify({ answer: "They wield a moonblade.", grounded: true }),
-    ]);
+    const summarize = makeSummarizeRecorder([JSON.stringify({ answer: "They wield a moonblade.", grounded: true })]);
 
     const ans = await svcFor(db, summarize).askCard(owner, hero, "What weapon?");
     expect(ans).not.toBeNull();

@@ -24,14 +24,7 @@ import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
 import type { AssetsHarness } from "../_support.ts";
-import {
-  makeHarness,
-  pngBytes,
-  principal,
-  seedCharacter,
-  seedUser,
-  setCharacterAvatar,
-} from "../_support.ts";
+import { makeHarness, pngBytes, principal, seedCharacter, seedUser, setCharacterAvatar } from "../_support.ts";
 
 const PNG = "image/png";
 const TWO_HOURS_MS = 2 * 3_600_000;
@@ -40,12 +33,7 @@ const MS_PER_SECOND = 1000;
 /** Insert this owner's `user_settings` row with the given `appearance` overrides merged onto defaults —
  *  the JSON blob the PD-131 live-source scan reads. `undefined` `assetId` leaves the pin cleared (kind
  *  `none`), modelling a removed background. */
-async function seedBackgroundPin(
-  db: Awaited<ReturnType<typeof freshDb>>,
-  owner: UserId,
-  assetId?: string,
-  hash?: string,
-): Promise<void> {
+async function seedBackgroundPin(db: Awaited<ReturnType<typeof freshDb>>, owner: UserId, assetId?: string, hash?: string): Promise<void> {
   const appearance =
     assetId === undefined
       ? DEFAULT_USER_SETTINGS.appearance
@@ -62,12 +50,7 @@ async function seedBackgroundPin(
 }
 
 /** Force a blob's mtime to a fixed epoch-ms (the grace check reads `cas.mtimeMs`). */
-async function setBlobMtime(
-  h: AssetsHarness,
-  owner: UserId,
-  hash: string,
-  atMs: number,
-): Promise<void> {
+async function setBlobMtime(h: AssetsHarness, owner: UserId, hash: string, atMs: number): Promise<void> {
   const seconds = atMs / MS_PER_SECOND;
   await utimes(h.ctx.cas.blobPath(owner, hash), seconds, seconds);
 }

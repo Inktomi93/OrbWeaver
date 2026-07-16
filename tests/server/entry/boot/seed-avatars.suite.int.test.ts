@@ -14,18 +14,11 @@ import type { AssetId, CharacterId, UserId } from "@orb/kit/ids";
 import { createAssetsService } from "@orb/server/domain/assets";
 import { createCharacterService, createDefaultCharacterSeeder } from "@orb/server/domain/character";
 import { describe, onTestFinished } from "vitest";
-import {
-  readSeedAvatar,
-  readSeedGalleryPiece,
-} from "../../../../packages/server/src/entry/boot/seed-assets/index.ts";
+import { readSeedAvatar, readSeedGalleryPiece } from "../../../../packages/server/src/entry/boot/seed-assets/index.ts";
 import { freshDb } from "../../../support/db.ts";
 import { expect, test } from "../../../support/fixtures";
 import { makeHarness as makeAssetsHarness } from "../../domain/assets/_support.ts";
-import {
-  makeHarness as makeCharacterHarness,
-  principal,
-  seedUser,
-} from "../../domain/character/_support.ts";
+import { makeHarness as makeCharacterHarness, principal, seedUser } from "../../domain/character/_support.ts";
 
 /** In-memory settings latch (isSeeded/markSeeded), keyed by userId — the compose wiring of the real latch is
  *  proven in the compose slice test; here we only need the seeder to run once. */
@@ -124,10 +117,7 @@ describe("seed imagery: default-character avatars + starter gallery", () => {
     const list = await h.characters.list({ principal: h.actor });
     expect(list.items.length).toBeGreaterThan(0);
     for (const card of list.items) {
-      expect(
-        card.avatarAssetId,
-        `character ${card.handle} should have a seeded avatar`,
-      ).not.toBeNull();
+      expect(card.avatarAssetId, `character ${card.handle} should have a seeded avatar`).not.toBeNull();
     }
   });
 

@@ -1,12 +1,7 @@
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import {
-  createPresetService,
-  ensureSystemDefaultPreset,
-  PresetNotFoundError,
-  SYSTEM_DEFAULT_PRESET_ID,
-} from "@orb/server/domain/preset";
+import { createPresetService, ensureSystemDefaultPreset, PresetNotFoundError, SYSTEM_DEFAULT_PRESET_ID } from "@orb/server/domain/preset";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
@@ -50,9 +45,7 @@ describe("update (owned)", () => {
     const a = await seedUser(db, "a");
     const b = await seedUser(db, "b");
     const bsPreset = await seedPreset(db, { id: castId<PresetId>("preset_b"), ownerId: b });
-    await expect(svc.update({ userId: a, id: bsPreset, name: "Hijack" })).rejects.toThrow(
-      PresetNotFoundError,
-    );
+    await expect(svc.update({ userId: a, id: bsPreset, name: "Hijack" })).rejects.toThrow(PresetNotFoundError);
   });
 });
 

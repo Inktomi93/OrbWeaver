@@ -9,12 +9,7 @@ import { makeAuthConfig as cfg, headers } from "./_support";
 
 describe("MODE_RESOLVERS — exhaustive over AUTH_MODE", () => {
   test("has exactly the four modes (a 5th would fail tsc on the mapped-type Record)", () => {
-    expect(Object.keys(MODE_RESOLVERS).sort()).toEqual([
-      "forward-header",
-      "local",
-      "oidc",
-      "single-user",
-    ]);
+    expect(Object.keys(MODE_RESOLVERS).sort()).toEqual(["forward-header", "local", "oidc", "single-user"]);
   });
 
   test("single-user resolves to null (delegates to the unconditional owner fallback)", async () => {
@@ -22,9 +17,7 @@ describe("MODE_RESOLVERS — exhaustive over AUTH_MODE", () => {
   });
 
   test("cookie modes resolve to null at infra (the seam owns the cookie read — D40)", async () => {
-    expect(
-      await MODE_RESOLVERS.local(headers({ cookie: "__Host-orb_session=t" }), cfg(), {}),
-    ).toBeNull();
+    expect(await MODE_RESOLVERS.local(headers({ cookie: "__Host-orb_session=t" }), cfg(), {})).toBeNull();
     expect(await MODE_RESOLVERS.oidc(headers(), cfg(), {})).toBeNull();
   });
 
@@ -38,11 +31,7 @@ describe("MODE_RESOLVERS — exhaustive over AUTH_MODE", () => {
   });
 
   test("forward-header unsigned path is FAIL-CLOSED when FORWARD_AUTH_TRUSTED_PROXIES is unset (B1)", async () => {
-    const res = await MODE_RESOLVERS["forward-header"](
-      headers({ "x-authentik-username": "alice" }),
-      cfg({ mode: "forward-header" }),
-      {},
-    );
+    const res = await MODE_RESOLVERS["forward-header"](headers({ "x-authentik-username": "alice" }), cfg({ mode: "forward-header" }), {});
     expect(res).toBeNull();
   });
 });
@@ -54,9 +43,7 @@ describe("ownerFallbackAllowed", () => {
 
   test("SSO mode → allowed only on a local origin", () => {
     expect(ownerFallbackAllowed(headers({ host: "localhost" }), cfg({ mode: "oidc" }))).toBe(true);
-    expect(ownerFallbackAllowed(headers({ host: "chat.example.com" }), cfg({ mode: "oidc" }))).toBe(
-      false,
-    );
+    expect(ownerFallbackAllowed(headers({ host: "chat.example.com" }), cfg({ mode: "oidc" }))).toBe(false);
   });
 });
 

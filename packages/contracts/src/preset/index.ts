@@ -7,11 +7,7 @@ import type { MessageRole } from "@orb/kit/message-role";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import { z } from "zod";
 import type { EffortLevel as ModelEffortLevel } from "#connection";
-import {
-  EFFORT_LEVELS as MODEL_EFFORT_LEVELS,
-  roleHandlingSchema,
-  VERBOSITY_LEVELS,
-} from "#connection";
+import { EFFORT_LEVELS as MODEL_EFFORT_LEVELS, roleHandlingSchema, VERBOSITY_LEVELS } from "#connection";
 import { regexScriptSchema } from "#regex";
 import { defineVersionedConfig } from "#versioned-config";
 
@@ -87,11 +83,7 @@ export const generationKnobSchemas = {
   presencePenalty: z.number().min(PENALTY_MIN).max(PENALTY_MAX).optional(),
   repetitionPenalty: z.number().min(REPETITION_PENALTY_MIN).max(REPETITION_PENALTY_MAX).optional(),
   seed: z.number().int().optional(),
-  compactionThresholdPct: z
-    .number()
-    .min(COMPACTION_THRESHOLD_MIN)
-    .max(COMPACTION_THRESHOLD_MAX)
-    .optional(),
+  compactionThresholdPct: z.number().min(COMPACTION_THRESHOLD_MIN).max(COMPACTION_THRESHOLD_MAX).optional(),
 } as const;
 
 // `.strict()` rejects unknown keys (a typo'd field is a real bug). We use `.strict()` on a plain
@@ -157,32 +149,19 @@ export type UserIntent = z.infer<typeof userIntentSchema>;
 // Guided actions — the config half (the resolver + ZWSP neutralization live in `@orb/kit/guided`).
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 
-export const GUIDED_ACTION_KINDS = [
-  "response",
-  "swipe",
-  "impersonate",
-  "rewrite",
-  "opening",
-  "continue",
-] as const satisfies readonly string[];
+export const GUIDED_ACTION_KINDS = ["response", "swipe", "impersonate", "rewrite", "opening", "continue"] as const satisfies readonly string[];
 export type GuidedActionKind = (typeof GUIDED_ACTION_KINDS)[number];
 
 // The `impersonate` action's `{{person}}` word — spliced verbatim into "{{person}}-person perspective"
 // templates. ONE importable union so the composer picker and the domain steer field can't drift apart.
-export const GUIDED_IMPERSONATE_PERSONS = [
-  "first",
-  "second",
-  "third",
-] as const satisfies readonly string[];
+export const GUIDED_IMPERSONATE_PERSONS = ["first", "second", "third"] as const satisfies readonly string[];
 export type GuidedImpersonatePerson = (typeof GUIDED_IMPERSONATE_PERSONS)[number];
 export const guidedActionKindSchema = z.enum(GUIDED_ACTION_KINDS);
 
 const OPENING_DEFAULT_PROMPT =
   "[Open the scene: write your first message to me, in character — set the scene and greet me as {{char}} would. Stay fully in character. {{input}}]";
-const CONTINUE_DEFAULT_PROMPT =
-  "[Take the following into special consideration while continuing your previous message: {{input}}]";
-const RESPONSE_DEFAULT_PROMPT =
-  "[Take the following into special consideration for your next message: {{input}}]";
+const CONTINUE_DEFAULT_PROMPT = "[Take the following into special consideration while continuing your previous message: {{input}}]";
+const RESPONSE_DEFAULT_PROMPT = "[Take the following into special consideration for your next message: {{input}}]";
 const IMPERSONATE_DEFAULT_PROMPT =
   "[Forget all other previous instructions. For this turn only, write in the {{person}}-person perspective AS {{user}} (not {{char}}). Limit yourself strictly to {{user}}'s voice and actions; do NOT narrate {{char}}'s reaction or the surrounding scene. Guidance: {{input}}]";
 const REWRITE_DEFAULT_PROMPT =
@@ -250,19 +229,10 @@ function rejectForbiddenKeys(obj: Record<string, unknown>, ctx: z.RefinementCtx)
 // Recursive lenient JSON validator; the key check rejects FORBIDDEN_KEYS at every level.
 const jsonValueSchema: z.ZodType<unknown> = z.lazy(
   (): z.ZodType<unknown> =>
-    z.union([
-      z.string(),
-      z.number(),
-      z.boolean(),
-      z.null(),
-      z.array(jsonValueSchema),
-      z.record(z.string(), jsonValueSchema).superRefine(rejectForbiddenKeys),
-    ]),
+    z.union([z.string(), z.number(), z.boolean(), z.null(), z.array(jsonValueSchema), z.record(z.string(), jsonValueSchema).superRefine(rejectForbiddenKeys)]),
 );
 
-export const customParametersSchema: z.ZodType<CustomParameters> = z
-  .record(z.string(), jsonValueSchema)
-  .superRefine(rejectForbiddenKeys);
+export const customParametersSchema: z.ZodType<CustomParameters> = z.record(z.string(), jsonValueSchema).superRefine(rejectForbiddenKeys);
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 // PromptConfig — the `presets.config` blob: an ordered (= array index) list of sections + generation
@@ -286,11 +256,7 @@ const TEMPLATED_MARKERS = [
 ] as const satisfies readonly string[];
 type TemplatedMarker = (typeof TEMPLATED_MARKERS)[number];
 
-export const PLAIN_MARKERS = [
-  "chat_history",
-  "world_info_before",
-  "world_info_after",
-] as const satisfies readonly string[];
+export const PLAIN_MARKERS = ["chat_history", "world_info_before", "world_info_after"] as const satisfies readonly string[];
 
 export const MARKER_TYPES = [...TEMPLATED_MARKERS, ...PLAIN_MARKERS] as const;
 export type MarkerType = (typeof MARKER_TYPES)[number];
@@ -302,14 +268,7 @@ export const NAMES_BEHAVIOR = ["none", "default", "content", "completion"] as co
 export type NamesBehavior = (typeof NAMES_BEHAVIOR)[number];
 
 // Generation types a section's `trigger` can gate on (ST `injection_trigger`).
-export const GENERATION_TYPES = [
-  "normal",
-  "continue",
-  "impersonate",
-  "swipe",
-  "regenerate",
-  "quiet",
-] as const;
+export const GENERATION_TYPES = ["normal", "continue", "impersonate", "swipe", "regenerate", "quiet"] as const;
 export type GenerationType = (typeof GENERATION_TYPES)[number];
 
 // Continuation delimiter inserted between existing tip + new chunk on a continue turn.
@@ -365,11 +324,7 @@ const templatedMarkerSection = z.object({
 });
 
 // Regular union (not discriminatedUnion): both marker branches share `type: "marker"`.
-export const promptSectionSchema = z.union([
-  literalSection,
-  plainMarkerSection,
-  templatedMarkerSection,
-]);
+export const promptSectionSchema = z.union([literalSection, plainMarkerSection, templatedMarkerSection]);
 export type PromptSection = z.infer<typeof promptSectionSchema>;
 
 /** Hard-coded defaults the assembler uses when a preset doesn't supply a `formatStrings.<key>`. */
@@ -515,10 +470,7 @@ function insertChatHistoryPivot(lifted: RawSection[]): void {
   }
 }
 
-export const CONFIG_LIFTS: Record<
-  number,
-  (config: Record<string, unknown>) => Record<string, unknown>
-> = {
+export const CONFIG_LIFTS: Record<number, (config: Record<string, unknown>) => Record<string, unknown>> = {
   1: (c): Record<string, unknown> => {
     const sections = Array.isArray(c["sections"]) ? (c["sections"] as RawSection[]) : [];
     const jailbreak = sections.find((s): boolean => isMarker(s, "jailbreak"));
@@ -542,10 +494,7 @@ export const CONFIG_LIFTS: Record<
 
 /** Walk a raw config blob forward through {@link CONFIG_LIFTS} — mirrors `defineVersionedConfig`'s
  *  internal lift loop for the STRICT file path (validates and REJECTS after lifting, no degrade). */
-function liftConfigForward(
-  config: Record<string, unknown>,
-  fromVersion: number,
-): Record<string, unknown> {
+function liftConfigForward(config: Record<string, unknown>, fromVersion: number): Record<string, unknown> {
   let out = config;
   let version = fromVersion;
   for (let lift = CONFIG_LIFTS[version]; lift !== undefined; lift = CONFIG_LIFTS[version]) {
@@ -557,9 +506,7 @@ function liftConfigForward(
 
 /** The version a versioned blob probes as: its positive-integer `schemaVersion`, else v1 (the floor). */
 function probeSchemaVersion(value: unknown): number {
-  return typeof value === "number" && Number.isInteger(value) && value >= SCHEMA_VERSION_V1
-    ? value
-    : SCHEMA_VERSION_V1;
+  return typeof value === "number" && Number.isInteger(value) && value >= SCHEMA_VERSION_V1 ? value : SCHEMA_VERSION_V1;
 }
 
 /** The starter arrangement (used when a chat pins no preset). */
@@ -573,8 +520,7 @@ export const DEFAULT_PROMPT_CONFIG: PromptConfig = {
       marker: "main_prompt",
       role: "system",
       enabled: true,
-      template:
-        "You are {{char}} in an immersive, ongoing roleplay with {{user}}. Stay in character; write {{char}}'s perspective only.",
+      template: "You are {{char}} in an immersive, ongoing roleplay with {{user}}. Stay in character; write {{char}}'s perspective only.",
     },
     {
       type: "marker",
@@ -822,10 +768,7 @@ const ST_IDENTIFIER_TO_MARKER: Record<string, MarkerType> = {
 };
 
 const PLAIN_MARKER_SET: ReadonlySet<string> = new Set(PLAIN_MARKERS);
-const OVERRIDABLE_MARKERS: ReadonlySet<MarkerType> = new Set<MarkerType>([
-  "main_prompt",
-  "post_history",
-]);
+const OVERRIDABLE_MARKERS: ReadonlySet<MarkerType> = new Set<MarkerType>(["main_prompt", "post_history"]);
 
 // ST character_names_behavior enum → NamesBehavior.
 const ST_NAMES_BEHAVIOR: Record<number, NamesBehavior> = {
@@ -861,9 +804,7 @@ const stOrderEntrySchema = z.object({
 const stPresetSchema = z
   .object({
     prompts: z.array(stPromptSchema).optional(),
-    prompt_order: z
-      .array(z.object({ character_id: z.number(), order: z.array(stOrderEntrySchema) }))
-      .optional(),
+    prompt_order: z.array(z.object({ character_id: z.number(), order: z.array(stOrderEntrySchema) })).optional(),
   })
   .loose();
 // biome-ignore-end lint/style/useNamingConvention: SillyTavern wire field names (snake_case)
@@ -899,9 +840,7 @@ function triggerOf(prompt: StPrompt): GenerationType[] | undefined {
   if (t === undefined || t.length === 0) {
     return;
   }
-  const valid = t.filter((v): v is GenerationType =>
-    (GENERATION_TYPES as readonly string[]).includes(v),
-  );
+  const valid = t.filter((v): v is GenerationType => (GENERATION_TYPES as readonly string[]).includes(v));
   return valid.length > 0 ? valid : undefined;
 }
 
@@ -910,18 +849,13 @@ function injectOf(prompt: StPrompt): SectionInject | undefined {
   if (prompt.injection_position !== ST_INJECTION_ABSOLUTE) {
     return;
   }
-  const depth = Number.isFinite(prompt.injection_depth)
-    ? (prompt.injection_depth as number)
-    : ST_DEFAULT_DEPTH;
+  const depth = Number.isFinite(prompt.injection_depth) ? (prompt.injection_depth as number) : ST_DEFAULT_DEPTH;
   const order = prompt.injection_order;
   return order !== undefined && order !== ST_DEFAULT_ORDER ? { depth, order } : { depth };
 }
 
 /** The optional `inject`/`trigger` fields, present only when set (shared by both section branches). */
-function injectTriggerFields(
-  inject: SectionInject | undefined,
-  trigger: GenerationType[] | undefined,
-): { inject?: SectionInject; trigger?: GenerationType[] } {
+function injectTriggerFields(inject: SectionInject | undefined, trigger: GenerationType[] | undefined): { inject?: SectionInject; trigger?: GenerationType[] } {
   return {
     ...(inject !== undefined ? { inject } : {}),
     ...(trigger !== undefined ? { trigger } : {}),
@@ -929,10 +863,7 @@ function injectTriggerFields(
 }
 
 /** The override-block fields a templated marker carries when it's one of the two overridable slots. */
-function overrideFields(
-  prompt: StPrompt,
-  marker: MarkerType,
-): { template?: string; forbidCharacterOverride?: boolean } {
+function overrideFields(prompt: StPrompt, marker: MarkerType): { template?: string; forbidCharacterOverride?: boolean } {
   if (!OVERRIDABLE_MARKERS.has(marker)) {
     return {};
   }
@@ -986,8 +917,7 @@ function pickOrder(orders: StOrderGroup[]): StOrderGroup["order"] {
   if (orders.length === 0) {
     return [];
   }
-  return orders.reduce((best, o): StOrderGroup => (o.order.length > best.order.length ? o : best))
-    .order;
+  return orders.reduce((best, o): StOrderGroup => (o.order.length > best.order.length ? o : best)).order;
 }
 
 const readNum = (raw: Record<string, unknown>, k: string): number | undefined => {
@@ -999,12 +929,7 @@ const setNum = (out: Record<string, unknown>, k: string, v: number | undefined):
     out[k] = v;
   }
 };
-const setNumAbove = (
-  out: Record<string, unknown>,
-  k: string,
-  v: number | undefined,
-  floor: number,
-): void => {
+const setNumAbove = (out: Record<string, unknown>, k: string, v: number | undefined, floor: number): void => {
   if (v !== undefined && v > floor) {
     out[k] = v;
   }
@@ -1091,16 +1016,11 @@ function namesBehaviorOf(raw: unknown): NamesBehavior | undefined {
   if (typeof raw === "number") {
     return ST_NAMES_BEHAVIOR[raw];
   }
-  return typeof raw === "string" && (NAMES_BEHAVIOR as readonly string[]).includes(raw)
-    ? (raw as NamesBehavior)
-    : undefined;
+  return typeof raw === "string" && (NAMES_BEHAVIOR as readonly string[]).includes(raw) ? (raw as NamesBehavior) : undefined;
 }
 
 /** The authored walk: the prompt_order if present, else the prompts[] declaration order (all enabled). */
-function buildWalk(
-  order: StOrderGroup["order"],
-  prompts: StPrompt[],
-): { identifier: string; enabled: boolean }[] {
+function buildWalk(order: StOrderGroup["order"], prompts: StPrompt[]): { identifier: string; enabled: boolean }[] {
   if (order.length > 0) {
     return order.map((e): { identifier: string; enabled: boolean } => ({
       identifier: e.identifier,
@@ -1114,10 +1034,7 @@ function buildWalk(
 }
 
 /** Build the section list from the id→prompt map walked in the authored order. */
-function buildSections(
-  byId: Map<string, StPrompt>,
-  walk: { identifier: string; enabled: boolean }[],
-): PromptSection[] {
+function buildSections(byId: Map<string, StPrompt>, walk: { identifier: string; enabled: boolean }[]): PromptSection[] {
   const sections: PromptSection[] = [];
   for (const entry of walk) {
     const prompt = byId.get(entry.identifier);
@@ -1144,13 +1061,10 @@ function collectDroppableFields(rawObj: Record<string, unknown>): StDroppedField
 export function importStChatCompletionPreset(raw: unknown): StImportResult {
   const parsed = stPresetSchema.safeParse(raw);
   if (!(parsed.success && (parsed.data.prompts || parsed.data.prompt_order))) {
-    throw new Error(
-      "Not a SillyTavern Chat Completion preset (expected prompts[] + prompt_order).",
-    );
+    throw new Error("Not a SillyTavern Chat Completion preset (expected prompts[] + prompt_order).");
   }
   const data = parsed.data;
-  const rawObj: Record<string, unknown> =
-    raw !== null && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const rawObj: Record<string, unknown> = raw !== null && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
 
   const prompts = data.prompts ?? [];
   const byId = new Map<string, StPrompt>(prompts.map((p): [string, StPrompt] => [p.identifier, p]));
@@ -1163,8 +1077,7 @@ export function importStChatCompletionPreset(raw: unknown): StImportResult {
 
   const namesBehavior = namesBehaviorOf(rawObj["names_behavior"]);
   const rawPostfix = rawObj["continue_postfix"];
-  const continuePostfix =
-    typeof rawPostfix === "string" ? ST_CONTINUE_POSTFIX[rawPostfix] : undefined;
+  const continuePostfix = typeof rawPostfix === "string" ? ST_CONTINUE_POSTFIX[rawPostfix] : undefined;
 
   // Construct + validate via the canonical (lenient) parser — fills defaults, runs the lift, drops
   // anything malformed to a safe shape so the importer can never emit an invalid PromptConfig.
@@ -1204,9 +1117,7 @@ export function buildPresetFile(name: string, config: PromptConfig): PresetFile 
   };
 }
 
-export type ParsePresetResult =
-  | { ok: true; name: string; config: PromptConfig }
-  | { ok: false; error: string };
+export type ParsePresetResult = { ok: true; name: string; config: PromptConfig } | { ok: false; error: string };
 
 /** Parse an `orb.preset` file. Validates the envelope, LIFTS an older config forward through the
  *  `CONFIG_LIFTS` chain (a v1/v2-era orb config imports — the config blob carries its own schemaVersion),
@@ -1232,9 +1143,7 @@ export function parsePresetFile(raw: unknown): ParsePresetResult {
   // missing/garbage envelope version falls back to the config blob's own probe (floored at v1).
   const envelopeVersion = o["schemaVersion"];
   const startVersion =
-    typeof envelopeVersion === "number" &&
-    Number.isInteger(envelopeVersion) &&
-    envelopeVersion >= SCHEMA_VERSION_V1
+    typeof envelopeVersion === "number" && Number.isInteger(envelopeVersion) && envelopeVersion >= SCHEMA_VERSION_V1
       ? envelopeVersion
       : probeSchemaVersion((rawConfig as Record<string, unknown>)["schemaVersion"]);
   const lifted = liftConfigForward(rawConfig as Record<string, unknown>, startVersion);
@@ -1246,7 +1155,6 @@ export function parsePresetFile(raw: unknown): ParsePresetResult {
     };
   }
   const rawName = o["name"];
-  const name =
-    typeof rawName === "string" && rawName.trim().length > 0 ? rawName : "Imported preset";
+  const name = typeof rawName === "string" && rawName.trim().length > 0 ? rawName : "Imported preset";
   return { ok: true, name, config: result.data };
 }

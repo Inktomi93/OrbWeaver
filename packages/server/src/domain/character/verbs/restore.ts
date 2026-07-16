@@ -10,14 +10,7 @@ import { CharacterNotFoundError } from "../contract/errors";
 import type { RestoreParams } from "../contract/params";
 import type { CharacterService } from "../contract/service";
 import { appendSnapshot, writeCardInPlace } from "../persistence/card";
-import {
-  canonicalTagsOf,
-  cardOf,
-  detailOf,
-  loadOwnedCharacterRow,
-  loadOwnedCharacterWithAvatar,
-  loadSnapshotContent,
-} from "../persistence/queries";
+import { canonicalTagsOf, cardOf, detailOf, loadOwnedCharacterRow, loadOwnedCharacterWithAvatar, loadSnapshotContent } from "../persistence/queries";
 import { cardTokenSize } from "../substrate/card-tokens";
 
 const PRE_RESTORE_LABEL = "auto: before restore";

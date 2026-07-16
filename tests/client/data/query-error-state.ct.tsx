@@ -21,10 +21,7 @@ test("renders the label + a Retry that fires onRetry", async ({ mount }) => {
   expect(retried).toBe(1);
 });
 
-test("QueryBoundary defaults renderError to QueryErrorState when omitted", async ({
-  mount,
-  page,
-}) => {
+test("QueryBoundary defaults renderError to QueryErrorState when omitted", async ({ mount, page }) => {
   let call = 0;
   const trpc = await routeTrpc(page, {
     echo: (): unknown => (call++ === 0 ? trpcError({ message: "boom" }) : { message: "recovered" }),

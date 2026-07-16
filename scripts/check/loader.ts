@@ -17,25 +17,19 @@ function nonEmptyArray(v: unknown): boolean {
 function assertMeta(g: Record<string, unknown>, rel: string): void {
   const base = BASENAME_RE.exec(rel)?.[1];
   if (typeof g["name"] !== "string" || g["name"] !== base) {
-    throw new Error(
-      `gate ${rel}: descriptor.name (${String(g["name"])}) must equal the filename (${base})`,
-    );
+    throw new Error(`gate ${rel}: descriptor.name (${String(g["name"])}) must equal the filename (${base})`);
   }
   if (typeof g["docRow"] !== "string" || g["docRow"].length === 0) {
     throw new Error(`gate ${rel}: descriptor.docRow (the enforcement-doc citation) is required`);
   }
   if (typeof g["message"] !== "string" || g["message"].length === 0) {
-    throw new Error(
-      `gate ${rel}: descriptor.message (the reason, printed once per group) is required`,
-    );
+    throw new Error(`gate ${rel}: descriptor.message (the reason, printed once per group) is required`);
   }
   if (g["status"] !== "active" && g["status"] !== "dormant") {
     throw new Error(`gate ${rel}: descriptor.status must be "active" | "dormant"`);
   }
   if (g["scopeSafety"] !== "incremental-safe" && g["scopeSafety"] !== "whole-project") {
-    throw new Error(
-      `gate ${rel}: descriptor.scopeSafety must be "incremental-safe" | "whole-project"`,
-    );
+    throw new Error(`gate ${rel}: descriptor.scopeSafety must be "incremental-safe" | "whole-project"`);
   }
 }
 
@@ -43,9 +37,7 @@ function assertMeta(g: Record<string, unknown>, rel: string): void {
 function assertBehavior(g: Record<string, unknown>, rel: string): void {
   const hasVisit = typeof g["visit"] === "function";
   if (hasVisit && !nonEmptyArray(g["kinds"])) {
-    throw new Error(
-      `gate ${rel}: a \`visit\` gate must declare a non-empty \`kinds\` subscription`,
-    );
+    throw new Error(`gate ${rel}: a \`visit\` gate must declare a non-empty \`kinds\` subscription`);
   }
   if (!hasVisit && typeof g["run"] !== "function" && typeof g["visitFile"] !== "function") {
     throw new Error(`gate ${rel}: a descriptor must have at least one of visit / visitFile / run`);
@@ -54,9 +46,7 @@ function assertBehavior(g: Record<string, unknown>, rel: string): void {
     throw new Error(`gate ${rel}: descriptor.mustFlag needs ≥1 self-proof example (§1.6)`);
   }
   if (!nonEmptyArray(g["mustPass"])) {
-    throw new Error(
-      `gate ${rel}: descriptor.mustPass needs ≥1 false-positive-guard example (§1.6)`,
-    );
+    throw new Error(`gate ${rel}: descriptor.mustPass needs ≥1 false-positive-guard example (§1.6)`);
   }
 }
 

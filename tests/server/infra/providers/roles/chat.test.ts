@@ -3,12 +3,7 @@
 // fail-closes on an invalid (api, source) pairing even when the firewall ALLOWS the source. This mirror
 // asserts the actual backend selected per pairing + every fail-closed path of THIS dispatcher.
 
-import type {
-  ChatRequest,
-  ChatResult,
-  ProviderBackend,
-  ResolvedCredential,
-} from "@orb/server/infra/providers";
+import type { ChatRequest, ChatResult, ProviderBackend, ResolvedCredential } from "@orb/server/infra/providers";
 import { createChatRole, ProviderError } from "@orb/server/infra/providers";
 import { describe } from "vitest";
 import { expect, test } from "../../../../support/fixtures";
@@ -99,18 +94,14 @@ describe("createChatRole — fail-closed (firewall + sealed dispatch)", () => {
   test("max-pro-sub without consent is refused at the firewall, before any backend runs", async () => {
     const calls: string[] = [];
     const role = createChatRole({ backends: allBackends(calls) });
-    await expect(
-      role(chatReq({ api: "agent-sdk", credential: cred("max-pro-sub") })),
-    ).rejects.toBeInstanceOf(ProviderError);
+    await expect(role(chatReq({ api: "agent-sdk", credential: cred("max-pro-sub") }))).rejects.toBeInstanceOf(ProviderError);
     expect(calls).toEqual([]);
   });
 
   test("local-light is not in the chat source policy → firewall-denied (fail-closed)", async () => {
     const calls: string[] = [];
     const role = createChatRole({ backends: allBackends(calls) });
-    await expect(
-      role(chatReq({ api: "chat-completions", credential: cred("local-light") })),
-    ).rejects.toBeInstanceOf(ProviderError);
+    await expect(role(chatReq({ api: "chat-completions", credential: cred("local-light") }))).rejects.toBeInstanceOf(ProviderError);
     expect(calls).toEqual([]);
   });
 
@@ -119,25 +110,17 @@ describe("createChatRole — fail-closed (firewall + sealed dispatch)", () => {
     // invalid pairing — the sub is reachable ONLY through agent-sdk. deriveRunner must throw.
     const calls: string[] = [];
     const role = createChatRole({ backends: allBackends(calls) });
-    await expect(
-      role(
-        chatReq({ api: "chat-completions", credential: cred("max-pro-sub"), ownerConsented: true }),
-      ),
-    ).rejects.toBeInstanceOf(ProviderError);
+    await expect(role(chatReq({ api: "chat-completions", credential: cred("max-pro-sub"), ownerConsented: true }))).rejects.toBeInstanceOf(ProviderError);
     expect(calls).toEqual([]);
   });
 
   test("an UNWIRED backend fail-closes (a missing composition-root wire, not a silent default)", async () => {
     const role = createChatRole({ backends: new Map() });
-    await expect(
-      role(chatReq({ api: "chat-completions", credential: cred("openrouter") })),
-    ).rejects.toBeInstanceOf(ProviderError);
+    await expect(role(chatReq({ api: "chat-completions", credential: cred("openrouter") }))).rejects.toBeInstanceOf(ProviderError);
   });
 
   test("a backend that doesn't implement runChatTurn fail-closes (not a call on undefined)", async () => {
     const role = createChatRole({ backends: new Map([["openrouter", { key: "openrouter" }]]) });
-    await expect(
-      role(chatReq({ api: "chat-completions", credential: cred("openrouter") })),
-    ).rejects.toBeInstanceOf(ProviderError);
+    await expect(role(chatReq({ api: "chat-completions", credential: cred("openrouter") }))).rejects.toBeInstanceOf(ProviderError);
   });
 });

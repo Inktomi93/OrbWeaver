@@ -16,16 +16,7 @@ import { parsePortableAssetFilename } from "../../../../../packages/server/src/d
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
 import type { AssetsHarness } from "../_support.ts";
-import {
-  makeHarness,
-  pngBytes,
-  principal,
-  seedCharacter,
-  seedChatRow,
-  seedParticipant,
-  seedUser,
-  setCharacterAvatar,
-} from "../_support.ts";
+import { makeHarness, pngBytes, principal, seedCharacter, seedChatRow, seedParticipant, seedUser, setCharacterAvatar } from "../_support.ts";
 
 const PNG = "image/png";
 
@@ -37,12 +28,7 @@ function seedingService(h: AssetsHarness): SeedingService {
   return createAssetsService({ ...h.ctx, newAssetId: () => mintTypeId(ID_PREFIX.asset) });
 }
 
-function store(
-  svc: SeedingService,
-  owner: UserId,
-  bytes: Uint8Array,
-  kind: AssetKind,
-): Promise<StoredAsset> {
+function store(svc: SeedingService, owner: UserId, bytes: Uint8Array, kind: AssetKind): Promise<StoredAsset> {
   return svc.store({ principal: principal(owner), bytes, kind, mime: PNG });
 }
 

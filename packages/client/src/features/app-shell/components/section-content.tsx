@@ -31,12 +31,7 @@ function pushRecent(window: readonly SectionId[], active: SectionId): SectionId[
   return [active, ...window.filter((id) => id !== active)].slice(0, KEEP_MOUNTED_LIMIT);
 }
 
-export function SectionContent({
-  activeSection,
-  contentBySection,
-  fallback,
-  focusAnchorRef,
-}: SectionContentProps): ReactElement {
+export function SectionContent({ activeSection, contentBySection, fallback, focusAnchorRef }: SectionContentProps): ReactElement {
   const activeBody = contentBySection[activeSection];
   // Advanced via React's "adjust state during render" pattern, not a mid-render ref mutation (which react-hooks/refs bans as a concurrent-safety hazard).
   const hasActiveBody = activeBody !== undefined;

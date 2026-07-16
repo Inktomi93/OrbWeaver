@@ -164,25 +164,14 @@ import type { Locator, Page } from "@playwright/test";
 import sharp from "sharp";
 import { artifactDir, routeSlug } from "./_kit/artifacts.ts";
 import type { CapturedRequest, LocalStorageSeed, ProbeSession } from "./_kit/browser.ts";
-import {
-  buildUrl,
-  DEFAULT_BASE,
-  DEFAULT_DEBUG_TOKEN,
-  launchProbeSession,
-  settle,
-} from "./_kit/browser.ts";
+import { buildUrl, DEFAULT_BASE, DEFAULT_DEBUG_TOKEN, launchProbeSession, settle } from "./_kit/browser.ts";
 import { resolveFfmpeg } from "./_kit/ffmpeg.ts";
 import type { Viewport } from "./_kit/flags.ts";
 import { parseViewport, splitFirstEq, splitLastEq } from "./_kit/flags.ts";
 import type { ResultPair } from "./_kit/result.ts";
 import { print, printResult } from "./_kit/result.ts";
 import type { Rgb } from "./design-audit-checks.ts";
-import {
-  contrastRatio,
-  isLargeText,
-  LARGE_MIN_RATIO,
-  NORMAL_MIN_RATIO,
-} from "./design-audit-checks.ts";
+import { contrastRatio, isLargeText, LARGE_MIN_RATIO, NORMAL_MIN_RATIO } from "./design-audit-checks.ts";
 
 // SSIM floor for --diff. 0.98 tolerates antialiasing wobble while catching any
 // real layout/content change; tune per-surface later if flux demands.
@@ -596,10 +585,7 @@ async function navigate(page: Page, opts: Args, url: string): Promise<string | n
     .catch(() => undefined);
   // Even a non-OK nav may still render something worth waiting for (SPA error page).
   if (opts.waitSelector !== null) {
-    await page
-      .locator(opts.waitSelector)
-      .first()
-      .waitFor({ state: "visible", timeout: WAIT_SELECTOR_TIMEOUT_MS });
+    await page.locator(opts.waitSelector).first().waitFor({ state: "visible", timeout: WAIT_SELECTOR_TIMEOUT_MS });
   }
   return navError;
 }
@@ -657,9 +643,7 @@ async function runSteps(page: Page, steps: readonly Step[]): Promise<number> {
           continue;
         } catch (retryErr) {
           failures += 1;
-          print(
-            `STEP FAILED (after churn retry)  ${step.kind} ${step.selector}: ${errorMessage(retryErr)}`,
-          );
+          print(`STEP FAILED (after churn retry)  ${step.kind} ${step.selector}: ${errorMessage(retryErr)}`);
           continue;
         }
       }
@@ -705,8 +689,7 @@ type EvalOutcome = { expr: string; text: string };
 // A bare function LITERAL passed to page.evaluate(string) evaluates to the FUNCTION, never invokes it
 // — so `async () => {…}` silently returns undefined (the worst failure mode). Detect a function literal
 // (arrow or `function`) and auto-invoke it as `(<expr>)()`. A plain value/expression is left untouched.
-const FN_LITERAL_RE =
-  /^\s*(?:async\s+)?(?:function\b|(?:async\s*)?\([^)]*\)\s*=>|[A-Za-z_$][\w$]*\s*=>)/u;
+const FN_LITERAL_RE = /^\s*(?:async\s+)?(?:function\b|(?:async\s*)?\([^)]*\)\s*=>|[A-Za-z_$][\w$]*\s*=>)/u;
 function wrapEvalExpr(expr: string): string {
   return FN_LITERAL_RE.test(expr) ? `(${expr})()` : expr;
 }
@@ -724,8 +707,7 @@ const CHURN_SIGNATURES = [
 function isContextChurn(message: string): boolean {
   return CHURN_SIGNATURES.some((sig) => message.includes(sig));
 }
-const CHURN_LINE =
-  "[snap] server churned mid-run (HMR/restart?) — step failed for environmental reasons";
+const CHURN_LINE = "[snap] server churned mid-run (HMR/restart?) — step failed for environmental reasons";
 
 async function captureEvals(page: Page, exprs: readonly string[]): Promise<EvalOutcome[]> {
   const results: EvalOutcome[] = [];
@@ -945,10 +927,7 @@ function compositeForeground(fg: Rgb, bg: Rgb, opacity: number): Rgb {
 // sees behind the foreground — the fixed photo layer + any scrim + the element's own translucent bg all
 // baked into real pixels — without the glyphs contaminating the number.
 function ringBackdrop(data: Buffer, width: number, height: number, channels: number): Rgb {
-  const ring = Math.max(
-    1,
-    Math.min(SAMPLE_RING_MAX_PX, Math.floor(Math.min(width, height) * SAMPLE_RING_FRAC)),
-  );
+  const ring = Math.max(1, Math.min(SAMPLE_RING_MAX_PX, Math.floor(Math.min(width, height) * SAMPLE_RING_FRAC)));
   const rs: number[] = [];
   const gs: number[] = [];
   const bs: number[] = [];
@@ -970,11 +949,7 @@ function ringBackdrop(data: Buffer, width: number, height: number, channels: num
 // Screenshot the element's box (clamped into the viewport — an overflowing clip makes Playwright throw)
 // and read the composited backdrop from real pixels. Returns an error (never a fabricated color) when the
 // box is empty/off-screen or the shot/decode fails — the caller reports UNRESOLVED loudly.
-async function pixelSampleBackdrop(
-  page: Page,
-  box: Box,
-  viewport: Viewport,
-): Promise<{ rgb: Rgb } | { error: string }> {
+async function pixelSampleBackdrop(page: Page, box: Box, viewport: Viewport): Promise<{ rgb: Rgb } | { error: string }> {
   const x = Math.max(0, Math.floor(box.x));
   const y = Math.max(0, Math.floor(box.y));
   const width = Math.min(Math.ceil(box.width), viewport.width - x);
@@ -1006,16 +981,11 @@ async function resolveContrastBackdrop(
 ): Promise<{ rgb: Rgb; method: "css-resolve" | "pixel-sample" } | { error: string }> {
   if (!forcePixel && facts.backdrop.kind === "flat") {
     const rgb = parseRgbString(facts.backdrop.color);
-    return rgb === null
-      ? { error: `unparseable backdrop (${facts.backdrop.color})` }
-      : { rgb, method: "css-resolve" };
+    return rgb === null ? { error: `unparseable backdrop (${facts.backdrop.color})` } : { rgb, method: "css-resolve" };
   }
   const sampled = await pixelSampleBackdrop(page, facts.box, viewport);
   if ("error" in sampled) {
-    const why =
-      facts.backdrop.kind === "indeterminate"
-        ? "over background-image"
-        : "transparent ancestor chain";
+    const why = facts.backdrop.kind === "indeterminate" ? "over background-image" : "transparent ancestor chain";
     return {
       error: `UNRESOLVED  ${why}; pixel sample failed (${sampled.error}) — refusing a fabricated flat baseline`,
     };
@@ -1023,12 +993,7 @@ async function resolveContrastBackdrop(
   return { rgb: sampled.rgb, method: "pixel-sample" };
 }
 
-async function checkContrast(
-  page: Page,
-  selector: string,
-  forcePixel: boolean,
-  viewport: Viewport,
-): Promise<ContrastOutcome> {
+async function checkContrast(page: Page, selector: string, forcePixel: boolean, viewport: Viewport): Promise<ContrastOutcome> {
   let facts: ContrastFacts;
   try {
     facts = (await page.evaluate(buildContrastScript(selector))) as ContrastFacts;
@@ -1077,12 +1042,7 @@ async function checkContrast(
   };
 }
 
-async function captureContrasts(
-  page: Page,
-  selectors: readonly string[],
-  forcePixel: boolean,
-  viewport: Viewport,
-): Promise<ContrastOutcome[]> {
+async function captureContrasts(page: Page, selectors: readonly string[], forcePixel: boolean, viewport: Viewport): Promise<ContrastOutcome[]> {
   const results: ContrastOutcome[] = [];
   for (const selector of selectors) {
     // biome-ignore lint/performance/noAwaitInLoops: argv-ordered, independent checks — same discipline as captureEvals/runSteps.
@@ -1217,10 +1177,7 @@ function buildMapScript(selector: string): string {
 
 type MapEntry = { role: string; name: string; selector: string };
 
-async function captureMap(
-  page: Page,
-  selector: string,
-): Promise<{ entries: MapEntry[] | null; error: string | null }> {
+async function captureMap(page: Page, selector: string): Promise<{ entries: MapEntry[] | null; error: string | null }> {
   try {
     const result = (await page.evaluate(buildMapScript(selector))) as MapEntry[] | null;
     if (result === null) {
@@ -1262,12 +1219,7 @@ async function capture(page: Page, opts: Args, plan: ShotPlan): Promise<CaptureO
       outcome.evalResults = await captureEvals(page, opts.eval);
     }
     if (opts.contrast.length > 0) {
-      outcome.contrastResults = await captureContrasts(
-        page,
-        opts.contrast,
-        opts.contrastPixel,
-        opts.viewport,
-      );
+      outcome.contrastResults = await captureContrasts(page, opts.contrast, opts.contrastPixel, opts.viewport);
     }
     if (opts.map) {
       const mapped = await captureMap(page, opts.mapSelector);
@@ -1339,9 +1291,7 @@ async function captureShot(page: Page, opts: Args, out: string, mask: Locator[])
 //      block (style.length === 0). Canonical case: v3 var syntax `w-[--foo]`
 //      compiling under v4 to `width: --foo` (bare ident, no var()). Mode 1
 //      can't see it because the SELECTOR exists.
-async function scanDeadCss(
-  page: Page,
-): Promise<{ dead: Array<{ token: string; count: number }>; empty: string[] }> {
+async function scanDeadCss(page: Page): Promise<{ dead: Array<{ token: string; count: number }>; empty: string[] }> {
   // NOTE: the body ships as a STRING — tsx (esbuild keepNames) decorates
   // function expressions with a __name helper that doesn't exist inside the
   // browser context; a serialized IIFE evaluates untransformed. (Also the root
@@ -1418,12 +1368,7 @@ type ShotPlan = {
 
 type ReportCtx = ShotPlan & { failed: CapturedRequest[] };
 
-function printSummary(
-  session: ProbeSession,
-  outcome: CaptureOutcome,
-  opts: Args,
-  ctx: ReportCtx,
-): void {
+function printSummary(session: ProbeSession, outcome: CaptureOutcome, opts: Args, ctx: ReportCtx): void {
   let shotDisplay = ctx.out;
   if (!ctx.produceShot) {
     shotDisplay = "(none — --no-shot)";
@@ -1456,9 +1401,7 @@ function printAriaBlock(opts: Args, ariaText: string | null): void {
     print(`  ${l}`);
   }
   if (lines.length > ARIA_MAX_LINES) {
-    print(
-      `  … +${lines.length - ARIA_MAX_LINES} more — scope with --aria <selector> or --aria-depth N`,
-    );
+    print(`  … +${lines.length - ARIA_MAX_LINES} more — scope with --aria <selector> or --aria-depth N`);
   }
 }
 
@@ -1497,21 +1440,15 @@ function printMapBlock(opts: Args, entries: MapEntry[] | null, error: string | n
     print(`  … +${list.length - ARIA_MAX_LINES} more — scope with --map <selector>`);
   }
   // Two recurring foot-guns worth reprinting where the selectors are chosen: engine-mixing + virtual rows.
-  print(
-    "  NOTE: one selector engine per target — never concatenate a CSS selector with a role= selector.",
-  );
-  print(
-    "  NOTE: a virtualized/composite row often needs --jsclick (raw click); role= locators flake.",
-  );
+  print("  NOTE: one selector engine per target — never concatenate a CSS selector with a role= selector.");
+  print("  NOTE: a virtualized/composite row often needs --jsclick (raw click); role= locators flake.");
 }
 
 function printCaptureLog(session: ProbeSession, failed: CapturedRequest[]): void {
   if (failed.length > 0) {
     print("\n--- failed requests ---");
     for (const r of failed) {
-      print(
-        `  ${r.method.padEnd(METHOD_PAD)} ${r.type.padEnd(TYPE_PAD)} ${r.status ?? "—"} ${r.failed ?? ""} ${r.url}`,
-      );
+      print(`  ${r.method.padEnd(METHOD_PAD)} ${r.type.padEnd(TYPE_PAD)} ${r.status ?? "—"} ${r.failed ?? ""} ${r.url}`);
     }
   }
   if (session.consoleLines.length > 0) {
@@ -1580,24 +1517,14 @@ type DiffOutcome = { diffPairs: ResultPair[]; ssimFailed: boolean };
 
 function compareSsim(ffmpeg: string, out: string, baselinePath: string): DiffOutcome {
   // SSIM via ffmpeg (no extra deps): stderr ends with "... All:0.9876 (…)".
-  const ssimRes = spawnSync(
-    ffmpeg,
-    ["-i", out, "-i", baselinePath, "-lavfi", "ssim", "-f", "null", "-"],
-    { stdio: ["ignore", "ignore", "pipe"] },
-  );
+  const ssimRes = spawnSync(ffmpeg, ["-i", out, "-i", baselinePath, "-lavfi", "ssim", "-f", "null", "-"], { stdio: ["ignore", "ignore", "pipe"] });
   const ssimAll = SSIM_ALL_RE.exec(ssimRes.stderr?.toString() ?? "")?.groups?.["all"];
   const ssim = ssimAll === undefined ? null : Number(ssimAll);
   // Difference heatmap — bright pixels = changed regions.
   const diffPng = out.replace(PNG_EXT_RE, "-diff.png");
-  spawnSync(
-    ffmpeg,
-    ["-y", "-i", out, "-i", baselinePath, "-filter_complex", "blend=all_mode=difference", diffPng],
-    { stdio: ["ignore", "ignore", "pipe"] },
-  );
+  spawnSync(ffmpeg, ["-y", "-i", out, "-i", baselinePath, "-filter_complex", "blend=all_mode=difference", diffPng], { stdio: ["ignore", "ignore", "pipe"] });
   const pass = ssim !== null && ssim >= DIFF_SSIM_THRESHOLD;
-  print(
-    `DIFF         ssim=${ssim ?? "unparseable"} (threshold ${DIFF_SSIM_THRESHOLD}) → ${pass ? "PASS" : "FAIL"}`,
-  );
+  print(`DIFF         ssim=${ssim ?? "unparseable"} (threshold ${DIFF_SSIM_THRESHOLD}) → ${pass ? "PASS" : "FAIL"}`);
   print(`diff heatmap ${diffPng}`);
   return {
     diffPairs: [
@@ -1622,9 +1549,7 @@ async function runBaselineOrDiff(opts: Args, out: string, name: string): Promise
   const baselinePath = join(await artifactDir("baselines"), `${name}.png`);
   const ffmpeg = resolveFfmpeg();
   if (ffmpeg === null) {
-    print(
-      "DIFF         skipped — ffmpeg not found (set FFMPEG_BIN or rebuild the dev container); SSIM unavailable",
-    );
+    print("DIFF         skipped — ffmpeg not found (set FFMPEG_BIN or rebuild the dev container); SSIM unavailable");
     return { diffPairs: [["diff", "SKIPPED-NO-FFMPEG"]], ssimFailed: false };
   }
   if (!existsSync(baselinePath)) {
@@ -1672,9 +1597,7 @@ async function snap(opts: Args): Promise<number> {
   const outcome = await capture(session.page, opts, plan);
   await session.browser.close();
 
-  const failed = [...session.requests.values()].filter(
-    (r) => r.failed !== null || (r.status ?? 0) >= HTTP_ERROR_STATUS_MIN,
-  );
+  const failed = [...session.requests.values()].filter((r) => r.failed !== null || (r.status ?? 0) >= HTTP_ERROR_STATUS_MIN);
   const ctx: ReportCtx = { ...plan, failed };
   printSummary(session, outcome, opts, ctx);
   printAriaBlock(opts, outcome.ariaText);
@@ -1688,13 +1611,7 @@ async function snap(opts: Args): Promise<number> {
 
   const contrastFails = outcome.contrastResults.filter((c) => c.failed).length;
   // Exit non-zero if anything observably went wrong, so `snap` is CI-usable.
-  const red =
-    outcome.navError !== null ||
-    session.pageErrors.length > 0 ||
-    failed.length > 0 ||
-    outcome.stepFailures > 0 ||
-    contrastFails > 0 ||
-    ssimFailed;
+  const red = outcome.navError !== null || session.pageErrors.length > 0 || failed.length > 0 || outcome.stepFailures > 0 || contrastFails > 0 || ssimFailed;
   printResult("snap", [
     ["out", produceShot ? out : "(none)"],
     ["aria", outcome.ariaText === null ? "no" : "yes"],

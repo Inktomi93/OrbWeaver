@@ -20,31 +20,17 @@ export interface RadioGroupItemProps extends RadioRootProps {
 }
 
 export function RadioGroup({ className, ...rest }: RadioGroupProps): ReactElement {
-  return (
-    <BaseRadioGroup
-      className={cn(slots.root(), className)}
-      data-slot="radio-group-root"
-      {...rest}
-    />
-  );
+  return <BaseRadioGroup className={cn(slots.root(), className)} data-slot="radio-group-root" {...rest} />;
 }
 
 // `readOnly` renders distinctly from `disabled`: the circle keeps its normal token colors and a Lock
 // glyph replaces the selected dot as the non-color "you can't touch this" signal.
-export function RadioGroupItem({
-  className,
-  children,
-  ...rest
-}: RadioGroupItemProps): ReactElement {
+export function RadioGroupItem({ className, children, ...rest }: RadioGroupItemProps): ReactElement {
   return (
     // biome-ignore lint/a11y/noLabelWithoutControl: the Radio.Root control is nested inside.
     <label className={slots.label()} data-slot="radio-group-item-label">
       <Radio.Root className={cn(slots.item(), className)} data-slot="radio-group-item" {...rest}>
-        <Radio.Indicator
-          className={slots.indicator()}
-          data-slot="radio-group-item-indicator"
-          keepMounted={true}
-        >
+        <Radio.Indicator className={slots.indicator()} data-slot="radio-group-item-indicator" keepMounted={true}>
           <span className={slots.dot()} />
           <Icon className={slots.readOnlyIcon()} icon={Lock} size="xs" />
         </Radio.Indicator>

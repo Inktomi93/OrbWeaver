@@ -5,12 +5,6 @@ import type { ReactElement, ReactNode } from "react";
 import type { ModalRegistry } from "./modal-registry-context";
 import { ModalRegistryContext } from "./modal-registry-context";
 
-export function ModalRegistryProvider({
-  value,
-  children,
-}: {
-  readonly value: ModalRegistry;
-  readonly children: ReactNode;
-}): ReactElement {
-  return <ModalRegistryContext.Provider value={value}>{children}</ModalRegistryContext.Provider>;
+export function ModalRegistryProvider({ value, children }: { readonly value: ModalRegistry; readonly children: ReactNode }): ReactElement {
+  return <ModalRegistryContext value={value}>{children}</ModalRegistryContext>;
 }

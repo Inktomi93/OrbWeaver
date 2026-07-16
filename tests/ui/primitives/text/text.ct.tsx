@@ -10,13 +10,10 @@ import { expect, test } from "@playwright/experimental-ct-react";
 // expected px straight from the TOKENS value (root = 16px — the stack.ct gap-token precedent) so the
 // assertion stays token-driven, never a hardcoded rem/px literal (contract §4.2 spirit).
 const ROOT_PX = 16;
-const sizePx = (
-  path: "text.body" | "text.label" | "text.title" | "text.headline" | "text.code" | "text.micro",
-): string => `${Number.parseFloat(TOKENS[path].value) * ROOT_PX}px`;
+const sizePx = (path: "text.body" | "text.label" | "text.title" | "text.headline" | "text.code" | "text.micro"): string =>
+  `${Number.parseFloat(TOKENS[path].value) * ROOT_PX}px`;
 
-test("Text body default lands the body size + foreground tone tokens on a <p>", async ({
-  mount,
-}) => {
+test("Text body default lands the body size + foreground tone tokens on a <p>", async ({ mount }) => {
   const text = await mount(<Text>hello</Text>);
   await expect(text).toHaveCSS("font-size", sizePx("text.body"));
   await expect(text).toHaveCSS("color", TOKENS["color.foreground"].value);
@@ -24,9 +21,7 @@ test("Text body default lands the body size + foreground tone tokens on a <p>", 
   expect(tag).toBe("p");
 });
 
-test("Text size=label tone=muted rides the label + muted-foreground tokens (the route-stub case)", async ({
-  mount,
-}) => {
+test("Text size=label tone=muted rides the label + muted-foreground tokens (the route-stub case)", async ({ mount }) => {
   const text = await mount(
     <Text size="label" tone="muted">
       auth isn’t wired yet.
@@ -36,9 +31,7 @@ test("Text size=label tone=muted rides the label + muted-foreground tokens (the 
   await expect(text).toHaveCSS("color", TOKENS["color.muted-foreground"].value);
 });
 
-test("Text as=span/div renders the requested intrinsic (polymorphic body element)", async ({
-  mount,
-}) => {
+test("Text as=span/div renders the requested intrinsic (polymorphic body element)", async ({ mount }) => {
   const span = await mount(<Text as="span">inline</Text>);
   expect(await span.evaluate((el) => el.tagName.toLowerCase())).toBe("span");
   await span.unmount();
@@ -57,15 +50,11 @@ test("Heading level renders the matching REAL h1-h6 tag", async ({ mount, page }
     </div>,
   );
   // One real h1..h6 exists per level (a styled <div> heading would fail these role/tag lookups).
-  const tags = await page.evaluate(() =>
-    [1, 2, 3, 4, 5, 6].map((n) => document.querySelectorAll(`h${n}`).length),
-  );
+  const tags = await page.evaluate(() => [1, 2, 3, 4, 5, 6].map((n) => document.querySelectorAll(`h${n}`).length));
   expect(tags).toEqual([1, 1, 1, 1, 1, 1]);
 });
 
-test("Heading level drives the default size — h1 headline steps down to h2 title (the ~1.2 scale)", async ({
-  mount,
-}) => {
+test("Heading level drives the default size — h1 headline steps down to h2 title (the ~1.2 scale)", async ({ mount }) => {
   const h1 = await mount(<Heading level={1}>admin</Heading>);
   await expect(h1).toHaveCSS("font-size", sizePx("text.headline"));
   await expect(h1).toHaveCSS("color", TOKENS["color.foreground"].value);
@@ -93,9 +82,7 @@ test("code size rides the code token and switches to the mono font stack", async
   expect(family.toLowerCase()).toContain("mono");
 });
 
-test("size=micro rides the micro type + tracking tokens (the section-label voice)", async ({
-  mount,
-}) => {
+test("size=micro rides the micro type + tracking tokens (the section-label voice)", async ({ mount }) => {
   const text = await mount(<Text size="micro">members</Text>);
   await expect(text).toHaveCSS("font-size", sizePx("text.micro"));
   // The micro tracking token is applied (not the default "normal").

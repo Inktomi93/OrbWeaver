@@ -19,12 +19,9 @@ import { makeCharacterDetail } from "../fixtures";
 // mappers accept — the honest bridge the fixture file itself documents (branded ids are compile-time only;
 // `routeTrpc` fulfils raw JSON). A single `as` (never `as unknown as`) keeps the no-test-fabrication gate.
 type CardDetail = Parameters<typeof characterCardFormFromDetail>[0];
-const card = (over: Partial<ReturnType<typeof makeCharacterDetail>> = {}): CardDetail =>
-  makeCharacterDetail(over) as CardDetail;
+const card = (over: Partial<ReturnType<typeof makeCharacterDetail>> = {}): CardDetail => makeCharacterDetail(over) as CardDetail;
 
-const form = (
-  over: Partial<typeof DEFAULT_CHARACTER_CARD_FORM> = {},
-): typeof DEFAULT_CHARACTER_CARD_FORM => ({ ...DEFAULT_CHARACTER_CARD_FORM, ...over });
+const form = (over: Partial<typeof DEFAULT_CHARACTER_CARD_FORM> = {}): typeof DEFAULT_CHARACTER_CARD_FORM => ({ ...DEFAULT_CHARACTER_CARD_FORM, ...over });
 
 // ── characterCardFormFromDetail (read → form) ──────────────────────────────────────────────────────
 
@@ -39,9 +36,7 @@ test("characterCardFormFromDetail seeds one empty greeting slot when the card ha
 });
 
 test("characterCardFormFromDetail flattens a present depthPrompt into its three siblings", () => {
-  const values = characterCardFormFromDetail(
-    card({ depthPrompt: { prompt: "stay in character", depth: 2, role: "assistant" } }),
-  );
+  const values = characterCardFormFromDetail(card({ depthPrompt: { prompt: "stay in character", depth: 2, role: "assistant" } }));
   expect(values.depthPromptText).toBe("stay in character");
   expect(values.depthPromptDepth).toBe(2);
   expect(values.depthPromptRole).toBe("assistant");
@@ -67,11 +62,11 @@ test("characterUpdateFromForm keeps greeting[0] but drops trailing empty alterna
 
 test("characterUpdateFromForm re-nests depthPrompt, or null when the note text is empty", () => {
   expect(characterUpdateFromForm(form({ depthPromptText: "" })).depthPrompt).toBeNull();
-  expect(
-    characterUpdateFromForm(
-      form({ depthPromptText: "note", depthPromptDepth: 3, depthPromptRole: "user" }),
-    ).depthPrompt,
-  ).toEqual({ prompt: "note", depth: 3, role: "user" });
+  expect(characterUpdateFromForm(form({ depthPromptText: "note", depthPromptDepth: 3, depthPromptRole: "user" })).depthPrompt).toEqual({
+    prompt: "note",
+    depth: 3,
+    role: "user",
+  });
 });
 
 // ── §6.5 token field sets ────────────────────────────────────────────────────────────────────────
@@ -81,9 +76,7 @@ test("permanentTokenCount counts description but NOT creatorNotes / name / greet
   expect(permanentTokenCount(form({ creatorNotes: "a long note about the author" }))).toBe(base);
   expect(permanentTokenCount(form({ name: "Some Long Name Here" }))).toBe(base);
   expect(permanentTokenCount(form({ greetings: ["a very long opening line indeed"] }))).toBe(base);
-  expect(
-    permanentTokenCount(form({ description: "a lengthy backstory paragraph" })),
-  ).toBeGreaterThan(base);
+  expect(permanentTokenCount(form({ description: "a lengthy backstory paragraph" }))).toBeGreaterThan(base);
 });
 
 test("totalTokenCount adds name + the ACTIVE greeting on top of permanent", () => {

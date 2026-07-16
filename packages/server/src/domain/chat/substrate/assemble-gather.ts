@@ -23,13 +23,7 @@ import type { ForeignInputs } from "../contract/foreign";
 import type { MsgRow } from "../contract/memory";
 import type { GuidedSteer } from "../contract/params";
 import { recallMemory } from "../memory/recall/recall";
-import {
-  loadCanonHistory,
-  loadChatInjections,
-  loadChatRow,
-  loadStoredVariables,
-  loadVariableDeltas,
-} from "../persistence/queries";
+import { loadCanonHistory, loadChatInjections, loadChatRow, loadStoredVariables, loadVariableDeltas } from "../persistence/queries";
 import { resolveHostTierRegexScripts } from "./regex-tier";
 import { foldChain } from "./runtime-variables";
 import { resolveChoiceVariables } from "./variables";
@@ -75,9 +69,7 @@ async function loadCastCards(
 }
 
 /** Map a persisted `chat_injections` row → the `ChatInjection` wire shape (omit `order` when null). */
-function toChatInjection(
-  row: Awaited<ReturnType<typeof loadChatInjections>>[number],
-): ChatInjection {
+function toChatInjection(row: Awaited<ReturnType<typeof loadChatInjections>>[number]): ChatInjection {
   return {
     position: row.position,
     depth: row.depth,
@@ -118,9 +110,7 @@ async function gatherMemory(
     groupCharacterId: sharedCharId,
     // FLAG[recall-livewindow-cutoff]: the exact per-speaker liveWindowCutoffSeq comes from the engine's
     // post-assemble history-budget fit — unavailable here. Left undefined (no live-window trim this round).
-    ...(args.foreign.memoryConfig !== undefined && args.foreign.memoryConfig !== null
-      ? { config: args.foreign.memoryConfig }
-      : {}),
+    ...(args.foreign.memoryConfig !== undefined && args.foreign.memoryConfig !== null ? { config: args.foreign.memoryConfig } : {}),
     recent: args.recent,
     names: args.names,
   });
@@ -167,12 +157,9 @@ export async function gatherAssembleContext(
   // Two-plane env seed: resolve the config plane (ChoiceBlock picks → concrete map), then overlay the
   // runtime fold cache so a played `{{setvar}}` wins over the config default. Handed to the macro env by
   // reference — within-turn setvars mutate it in place; the turn flushes the delta at commit.
-  const resolvedConfig = resolveChoiceVariables(
-    foreign.promptConfig.variables,
-    storedVariables ?? {},
-    args.prng ?? ((): number => 0),
-    { withRandomPick: args.prng !== undefined },
-  );
+  const resolvedConfig = resolveChoiceVariables(foreign.promptConfig.variables, storedVariables ?? {}, args.prng ?? ((): number => 0), {
+    withRandomPick: args.prng !== undefined,
+  });
   const runtimeCache = foldChain(variableDeltas);
   const mergedVariables: Record<string, string> = { ...resolvedConfig, ...runtimeCache };
 
@@ -242,9 +229,7 @@ export async function gatherAssembleContext(
       ...(lastMessage !== undefined ? { lastMessage } : {}),
       ...(lastUserMessage !== undefined ? { lastUserMessage } : {}),
       ...(lastCharMessage !== undefined ? { lastCharMessage } : {}),
-      ...(args.pendingUserText !== undefined
-        ? { pendingUserText: args.pendingUserText, currentInput: args.pendingUserText }
-        : {}),
+      ...(args.pendingUserText !== undefined ? { pendingUserText: args.pendingUserText, currentInput: args.pendingUserText } : {}),
       ...(args.guided !== undefined ? { guided: args.guided } : {}),
     },
     out,

@@ -14,10 +14,6 @@ export function PresetContent(): ReactElement {
     return <PresetLibraryWelcome />;
   }
   return (
-    <PresetEditorSurface
-      presetId={selectedPresetId}
-      onRevealSection={(): void => revealContextPanel("section")}
-      onDismissSection={dismissPresetSection}
-    />
+    <PresetEditorSurface presetId={selectedPresetId} onRevealSection={(): void => revealContextPanel("section")} onDismissSection={dismissPresetSection} />
   );
 }

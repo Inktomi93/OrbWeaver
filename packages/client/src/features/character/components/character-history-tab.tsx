@@ -15,10 +15,7 @@ import { useMemo } from "react";
 import { ConfirmDialog } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { timeLib } from "#lib";
-import {
-  useRestoreCharacter,
-  useSnapshotCharacter,
-} from "../hooks/use-character-context-mutations";
+import { useRestoreCharacter, useSnapshotCharacter } from "../hooks/use-character-context-mutations";
 
 export interface CharacterHistoryTabProps {
   readonly characterId: CharacterId;
@@ -38,10 +35,7 @@ export function CharacterHistoryTab({ characterId }: CharacterHistoryTabProps): 
   const restore = useRestoreCharacter({ trpc, invalidation });
 
   // Reverse-chron (newest first) — the browse-log reading order, independent of the read's own ordering.
-  const rows = useMemo(
-    () => [...(snapshotsQuery.data ?? [])].sort((a, b) => b.createdAt - a.createdAt),
-    [snapshotsQuery.data],
-  );
+  const rows = useMemo(() => [...(snapshotsQuery.data ?? [])].sort((a, b) => b.createdAt - a.createdAt), [snapshotsQuery.data]);
 
   return (
     <Stack gap="block">
@@ -50,9 +44,7 @@ export function CharacterHistoryTab({ characterId }: CharacterHistoryTabProps): 
       </Button>
 
       {rows.length === 0 ? (
-        <Text tone="muted">
-          No snapshots yet. Take one to capture this character's current state.
-        </Text>
+        <Text tone="muted">No snapshots yet. Take one to capture this character's current state.</Text>
       ) : (
         <Stack gap="row">
           {rows.map((row) => (

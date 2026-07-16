@@ -6,10 +6,7 @@ import type { Db } from "@orb/db";
 import type { CharacterId, ChatId, ChatParticipantId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
-import {
-  buildInitialRosterRows,
-  loadRoster,
-} from "../../../../../packages/server/src/domain/chat/persistence/roster";
+import { buildInitialRosterRows, loadRoster } from "../../../../../packages/server/src/domain/chat/persistence/roster";
 import { freshDb } from "../../../../support/db";
 import { expect, test } from "../../../../support/fixtures";
 import { FROZEN_AT, seedChat, seedParticipant, seedUser } from "../_support";
@@ -38,10 +35,7 @@ describe("loadRoster", () => {
     });
 
     const present = await loadRoster(db, chatId);
-    expect(present.map((p) => p.id)).toEqual([
-      castId<ChatParticipantId>("chat_participant_h"),
-      castId<ChatParticipantId>("chat_participant_m"),
-    ]);
+    expect(present.map((p) => p.id)).toEqual([castId<ChatParticipantId>("chat_participant_h"), castId<ChatParticipantId>("chat_participant_m")]);
   });
 
   test("includePast returns the full history (departed rows) for host audit / visibility", async () => {

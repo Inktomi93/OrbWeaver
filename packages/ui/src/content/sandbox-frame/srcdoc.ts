@@ -7,8 +7,7 @@
 export const SANDBOX_ATTR = "";
 
 /** `default-src 'none'` denies everything by default; no `connect-src` so the frame can't fetch/exfil. */
-const CSP =
-  "default-src 'none'; img-src 'self'; media-src 'self'; style-src 'unsafe-inline'; font-src 'self'";
+const CSP = "default-src 'none'; img-src 'self'; media-src 'self'; style-src 'unsafe-inline'; font-src 'self'";
 
 // A theme var carrying CSS-escape chars could break out of the <style> — drop it (the caller already clamps).
 const CSS_ESCAPE = /[<>{}]/u;

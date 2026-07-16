@@ -4,10 +4,7 @@
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import {
-  listUsers,
-  loadUser,
-} from "../../../../../packages/server/src/domain/admin/persistence/queries.ts";
+import { listUsers, loadUser } from "../../../../../packages/server/src/domain/admin/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
 import { seedUser } from "../_support.ts";

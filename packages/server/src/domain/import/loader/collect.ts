@@ -7,13 +7,7 @@
 
 import { slugifyHandle } from "@orb/kit/slug";
 import { parseChatJsonl } from "#kit/serde/chat";
-import type {
-  CollectedCard,
-  CollectedChat,
-  CollectedPersona,
-  CollectResult,
-  ImportFsPort,
-} from "../contract/views";
+import type { CollectedCard, CollectedChat, CollectedPersona, CollectResult, ImportFsPort } from "../contract/views";
 import { importFileHash, parseCardPng } from "../substrate/card";
 import { parseStPersonas } from "../substrate/persona";
 
@@ -73,11 +67,7 @@ function disambiguate(state: CollectState, base: string, file: string): string {
   return handle;
 }
 
-async function collectCards(
-  fs: ImportFsPort,
-  profileDir: string,
-  state: CollectState,
-): Promise<void> {
+async function collectCards(fs: ImportFsPort, profileDir: string, state: CollectState): Promise<void> {
   const charsDir = fs.join(profileDir, "characters");
   for (const ent of await listDir(fs, charsDir)) {
     if (ent.kind !== "file" || !PNG_EXT.test(ent.name)) {
@@ -101,12 +91,7 @@ async function collectCards(
   }
 }
 
-async function collectChatsForDir(
-  fs: ImportFsPort,
-  chatsDir: string,
-  dirName: string,
-  state: CollectState,
-): Promise<void> {
+async function collectChatsForDir(fs: ImportFsPort, chatsDir: string, dirName: string, state: CollectState): Promise<void> {
   const handle = slugifyHandle(dirName);
   if (state.skippedHandles.has(handle)) {
     return;
@@ -123,7 +108,6 @@ async function collectChatsForDir(
       state.skippedChats.push(fs.join(dirName, fileEnt.name));
       continue;
     }
-    // biome-ignore lint/performance/noAwaitInLoops: see above — sequential per-file read during the collection scan.
     const bytes = await fs.readFile(filePath);
     const parsed = parseChatJsonl(new TextDecoder().decode(bytes), {
       fileName: fileEnt.name,
@@ -147,10 +131,9 @@ function fuzzyPair(state: CollectState): { chatDir: string; handle: string }[] {
     if (g.card !== undefined || g.chats.length === 0) {
       continue;
     }
-    const candidates = [
-      handle.replace(TRAILING_DIGITS, "").replace(TRAILING_HYPHENS, ""),
-      SPEC_WRAPPER.exec(handle)?.[1],
-    ].filter((b): b is string => b !== undefined && b.length > 0 && b !== handle);
+    const candidates = [handle.replace(TRAILING_DIGITS, "").replace(TRAILING_HYPHENS, ""), SPEC_WRAPPER.exec(handle)?.[1]].filter(
+      (b): b is string => b !== undefined && b.length > 0 && b !== handle,
+    );
     for (const base of candidates) {
       const target = state.byHandle.get(base);
       if (target?.card !== undefined && !state.skippedHandles.has(base)) {
@@ -189,16 +172,10 @@ async function collectPersonas(fs: ImportFsPort, profileDir: string): Promise<Co
   return out;
 }
 
-export async function collectBundlesFromDir(
-  fs: ImportFsPort,
-  profileDir: string,
-  skipCharacterNames: readonly string[] = [],
-): Promise<CollectResult> {
+export async function collectBundlesFromDir(fs: ImportFsPort, profileDir: string, skipCharacterNames: readonly string[] = []): Promise<CollectResult> {
   const state: CollectState = {
     byHandle: new Map<string, Group>(),
-    skip: new Set(
-      skipCharacterNames.map((s) => s.trim().toLowerCase()).filter((s) => s.length > 0),
-    ),
+    skip: new Set(skipCharacterNames.map((s) => s.trim().toLowerCase()).filter((s) => s.length > 0)),
     skippedHandles: new Set<string>(),
     unreadableCards: [],
     skippedChats: [],

@@ -29,13 +29,7 @@ export interface BookDetailsDialogProps {
 }
 
 /** The book details dialog — a name field + a description textarea, seeded with the current values. */
-export function BookDetailsDialog({
-  open,
-  onOpenChange,
-  currentName,
-  currentDescription,
-  onSave,
-}: BookDetailsDialogProps): ReactElement {
+export function BookDetailsDialog({ open, onOpenChange, currentName, currentDescription, onSave }: BookDetailsDialogProps): ReactElement {
   const [name, setName] = useState(currentName);
   const [description, setDescription] = useState(currentDescription ?? "");
 
@@ -75,16 +69,8 @@ export function BookDetailsDialog({
                 autoFocus={true}
               />
             </Field>
-            <Field
-              label="Description"
-              description="An optional note for the library — never injected."
-            >
-              <Textarea
-                value={description}
-                onChange={(event): void => setDescription(event.target.value)}
-                placeholder="Optional"
-                rows={3}
-              />
+            <Field label="Description" description="An optional note for the library — never injected.">
+              <Textarea value={description} onChange={(event): void => setDescription(event.target.value)} placeholder="Optional" rows={3} />
             </Field>
             <Row gap="field" justify="end">
               <DialogClose render={<Button intent="ghost">Cancel</Button>} />

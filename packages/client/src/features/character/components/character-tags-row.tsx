@@ -61,9 +61,7 @@ export function CharacterTagsRow({ characterId, tags, trpc }: CharacterTagsRowPr
               size="icon"
               intent="ghost"
               aria-label={`Remove ${tag.name}`}
-              onClick={(): void =>
-                removeTag.mutate({ tagName: tag.name, characterIds: [characterId] })
-              }
+              onClick={(): void => removeTag.mutate({ tagName: tag.name, characterIds: [characterId] })}
             >
               <Icon icon={X} size="xs" />
             </Button>
@@ -78,15 +76,8 @@ export function CharacterTagsRow({ characterId, tags, trpc }: CharacterTagsRowPr
         <DialogPopup>
           <Stack gap="block">
             <DialogTitle>Tag this character</DialogTitle>
-            <DialogDescription>
-              Attach an existing tag, or type a new one to create it.
-            </DialogDescription>
-            <Input
-              aria-label="Tag name"
-              onValueChange={setTagName}
-              placeholder="e.g. adventure"
-              value={tagName}
-            />
+            <DialogDescription>Attach an existing tag, or type a new one to create it.</DialogDescription>
+            <Input aria-label="Tag name" onValueChange={setTagName} placeholder="e.g. adventure" value={tagName} />
             <Row gap="field" justify="end">
               <DialogClose render={<Button intent="ghost">Cancel</Button>} />
               <Button disabled={tagName.trim() === ""} intent="primary" onClick={applyTag}>

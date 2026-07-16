@@ -10,18 +10,9 @@ import type { BuddyQuipId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import type { BuddySignal } from "../../../../../packages/server/src/domain/buddy/contract/signals.ts";
-import type {
-  BuddyBusEvent,
-  BuddyObserverEnv,
-} from "../../../../../packages/server/src/domain/buddy/index.ts";
+import type { BuddyBusEvent, BuddyObserverEnv } from "../../../../../packages/server/src/domain/buddy/index.ts";
 import { react } from "../../../../../packages/server/src/domain/buddy/observer/react.ts";
-import {
-  casReact,
-  insertBuddy,
-  loadBuddy,
-  loadRecentQuips,
-  setBuddyFlag,
-} from "../../../../../packages/server/src/domain/buddy/persistence/queries.ts";
+import { casReact, insertBuddy, loadBuddy, loadRecentQuips, setBuddyFlag } from "../../../../../packages/server/src/domain/buddy/persistence/queries.ts";
 import { roll } from "../../../../../packages/server/src/domain/buddy/substrate/roll.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";

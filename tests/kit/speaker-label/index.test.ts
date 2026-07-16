@@ -25,9 +25,7 @@ test("parseSpeakerSpans: empty content is also the no-op shape", () => {
 });
 
 test("parseSpeakerSpans: a single marker attributes everything after it to that speaker", () => {
-  expect(parseSpeakerSpans("<speaker>Alice</speaker>Hello there!")).toEqual([
-    { speaker: "Alice", text: "Hello there!" },
-  ]);
+  expect(parseSpeakerSpans("<speaker>Alice</speaker>Hello there!")).toEqual([{ speaker: "Alice", text: "Hello there!" }]);
 });
 
 test("parseSpeakerSpans: text before the first marker is a preceding null-speaker span (narrator preamble)", () => {
@@ -46,15 +44,11 @@ test("parseSpeakerSpans: multiple markers split into ordered per-speaker spans",
 });
 
 test("parseSpeakerSpans: attrs on the open tag are tolerated", () => {
-  expect(parseSpeakerSpans('<speaker data-x="1">Alice</speaker>Hi!')).toEqual([
-    { speaker: "Alice", text: "Hi!" },
-  ]);
+  expect(parseSpeakerSpans('<speaker data-x="1">Alice</speaker>Hi!')).toEqual([{ speaker: "Alice", text: "Hi!" }]);
 });
 
 test("parseSpeakerSpans: an empty/blank speaker name normalizes to a null-speaker span", () => {
-  expect(parseSpeakerSpans("<speaker>   </speaker>Narration text.")).toEqual([
-    { speaker: null, text: "Narration text." },
-  ]);
+  expect(parseSpeakerSpans("<speaker>   </speaker>Narration text.")).toEqual([{ speaker: null, text: "Narration text." }]);
 });
 
 test("parseSpeakerSpans: a trailing marker with no following text yields an empty text span (no crash)", () => {
@@ -68,9 +62,7 @@ test("LEADING_SPEAKER_TAG matches a leading <speaker> open-tag case-insensitivel
 });
 
 test("speakerTagsToPlain converts inline markers to `Name: ` attribution", () => {
-  expect(speakerTagsToPlain("<speaker>Alice</speaker>Hello <speaker>Bob</speaker>Hi")).toBe(
-    "Alice: Hello Bob: Hi",
-  );
+  expect(speakerTagsToPlain("<speaker>Alice</speaker>Hello <speaker>Bob</speaker>Hi")).toBe("Alice: Hello Bob: Hi");
 });
 
 test("speakerTagsToPlain is a no-op on content with no markers", () => {

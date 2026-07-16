@@ -10,14 +10,10 @@ import { authedProcedure, t } from "../trpc";
 export const hubRouter = t.router({
   // A read (search) — cacheable by the client; the acting principal's own gif-search key is resolved
   // server-side (never on the wire). `limit` is clamped 1..50 at the schema (the gif-count DoS bound).
-  searchGifs: authedProcedure
-    .input(gifSearchParamsSchema)
-    .query(({ ctx, input }) => ctx.services.hub.searchGifs({ principal: ctx.auth, ...input })),
+  searchGifs: authedProcedure.input(gifSearchParamsSchema).query(({ ctx, input }) => ctx.services.hub.searchGifs({ principal: ctx.auth, ...input })),
 
   // Import one gif into the caller's gallery (optionally as a character's subject). The subject character
   // ownership is gated EARLY (leak-free NOT_FOUND before any fetch); the URL host is re-validated against
   // the Tenor allowlist and the bytes magic-validated before the store.
-  importGif: authedProcedure
-    .input(gifImportParamsSchema)
-    .mutation(({ ctx, input }) => ctx.services.hub.importGif({ principal: ctx.auth, ...input })),
+  importGif: authedProcedure.input(gifImportParamsSchema).mutation(({ ctx, input }) => ctx.services.hub.importGif({ principal: ctx.auth, ...input })),
 });

@@ -16,12 +16,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { RowActionsMenu } from "#components";
 import { useInvalidation, useTRPC } from "#data";
-import {
-  useArchiveChat,
-  useDeleteChat,
-  useStarChat,
-  useUpdateChatTitle,
-} from "../hooks/use-chat-row-mutations";
+import { useArchiveChat, useDeleteChat, useStarChat, useUpdateChatTitle } from "../hooks/use-chat-row-mutations";
 import { RenameChatDialog } from "./rename-chat-dialog";
 
 export interface ChatListRowMenuProps {
@@ -35,13 +30,7 @@ export interface ChatListRowMenuProps {
 }
 
 /** The kebab menu + its rename/delete overlays for one chat-list row. */
-export function ChatListRowMenu({
-  chatId,
-  title,
-  starred,
-  archived,
-  onDeleted,
-}: ChatListRowMenuProps): ReactElement {
+export function ChatListRowMenu({ chatId, title, starred, archived, onDeleted }: ChatListRowMenuProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const updateTitle = useUpdateChatTitle({ trpc, invalidation });
@@ -78,8 +67,7 @@ export function ChatListRowMenu({
         label="Chat actions"
         destructive={{
           title: "Delete this chat?",
-          description:
-            "This permanently deletes the chat and its messages for everyone. This can't be undone.",
+          description: "This permanently deletes the chat and its messages for everyone. This can't be undone.",
           onConfirm: confirmDelete,
         }}
       >
@@ -98,13 +86,7 @@ export function ChatListRowMenu({
       </RowActionsMenu>
 
       {/* Rename — a single controlled input (the §13.4 single-rename carve-out, not a form factory). */}
-      <RenameChatDialog
-        open={renameOpen}
-        onOpenChange={setRenameOpen}
-        value={renameValue}
-        onValueChange={setRenameValue}
-        onSave={saveRename}
-      />
+      <RenameChatDialog open={renameOpen} onOpenChange={setRenameOpen} value={renameValue} onValueChange={setRenameValue} onSave={saveRename} />
     </>
   );
 }

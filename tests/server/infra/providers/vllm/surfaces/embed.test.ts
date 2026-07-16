@@ -160,11 +160,7 @@ describe("createVllmEmbed", () => {
     const hangingClient: VllmEngineClient = {
       enginePost: <T>(_e: unknown, _p: string, _b: unknown, signal?: AbortSignal): Promise<T> =>
         new Promise<T>((_resolve, reject) => {
-          signal?.addEventListener(
-            "abort",
-            () => reject(new Error("engine request aborted (timeout)")),
-            { once: true },
-          );
+          signal?.addEventListener("abort", () => reject(new Error("engine request aborted (timeout)")), { once: true });
         }),
       engineStream: () => Promise.reject(new Error("embed must not stream")),
       baseUrl: () => "http://127.0.0.1:0",
@@ -176,8 +172,6 @@ describe("createVllmEmbed", () => {
       concurrency: 4,
       requestTimeoutMs: 50,
     });
-    await expect(embed({ credential: CRED, model: MODEL, input: "hello" })).rejects.toThrow(
-      TIMEOUT_ABORT_RE,
-    );
+    await expect(embed({ credential: CRED, model: MODEL, input: "hello" })).rejects.toThrow(TIMEOUT_ABORT_RE);
   });
 });

@@ -77,16 +77,12 @@ describe("can({kind:'chat', roster}) — the resource-role arm", () => {
 
   test("'host' passes the room host, denies a plain member", () => {
     expect(() => can(member, "host", { kind: "chat", roster: { role: "host" } })).not.toThrow();
-    expect(() => can(member, "host", { kind: "chat", roster: { role: "member" } })).toThrow(
-      DomainForbiddenError,
-    );
+    expect(() => can(member, "host", { kind: "chat", roster: { role: "member" } })).toThrow(DomainForbiddenError);
   });
 
   test("the global role does NOT grant chat-host authority (resource axis is orthogonal)", () => {
     // An owner who is only a plain MEMBER of the room is not the host — owner⊇admin is the GLOBAL axis only.
-    expect(() => can(pr("owner"), "host", { kind: "chat", roster: { role: "member" } })).toThrow(
-      DomainForbiddenError,
-    );
+    expect(() => can(pr("owner"), "host", { kind: "chat", roster: { role: "member" } })).toThrow(DomainForbiddenError);
   });
 });
 

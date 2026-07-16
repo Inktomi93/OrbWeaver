@@ -1,11 +1,6 @@
 // The typed per-verb authority matrix + default-deny (chat.md Part III §11/§12 inv #12).
 import { describe } from "vitest";
-import {
-  authorityForSurface,
-  CHAT_SURFACE_AUTHORITY,
-  CHAT_VERB_AUTHORITY,
-  DENY,
-} from "../../../../../../packages/server/src/domain/chat/substrate/auth";
+import { authorityForSurface, CHAT_SURFACE_AUTHORITY, CHAT_VERB_AUTHORITY, DENY } from "../../../../../../packages/server/src/domain/chat/substrate/auth";
 import { expect, test } from "../../../../../support/fixtures";
 
 describe("CHAT_VERB_AUTHORITY — the per-verb matrix", () => {

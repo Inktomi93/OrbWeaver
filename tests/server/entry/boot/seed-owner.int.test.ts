@@ -42,13 +42,9 @@ test("backfills a non-owner OWNER-handle row to role=owner + returns its id", as
   expect(row?.role).toBe("owner");
 });
 
-test("idempotent — a second run keeps role=owner and does not re-stamp updated_at", async ({
-  clock,
-}) => {
+test("idempotent — a second run keeps role=owner and does not re-stamp updated_at", async ({ clock }) => {
   const db = await freshDb();
-  await db
-    .insert(users)
-    .values({ id: OWNER_ID, handle: castId<Handle>("owner"), role: "user", updatedAt: 1 });
+  await db.insert(users).values({ id: OWNER_ID, handle: castId<Handle>("owner"), role: "user", updatedAt: 1 });
 
   await seedOwner({
     db,
@@ -73,9 +69,7 @@ test("idempotent — a second run keeps role=owner and does not re-stamp updated
   expect(afterSecond?.updatedAt).toBe(stampedAt);
 });
 
-test("refuses a multi-handle owner set — fail-fast, not a UNIQUE loop (D17: exactly one owner)", async ({
-  clock,
-}) => {
+test("refuses a multi-handle owner set — fail-fast, not a UNIQUE loop (D17: exactly one owner)", async ({ clock }) => {
   const db = await freshDb();
   await expect(
     seedOwner({
@@ -103,9 +97,7 @@ test("leaves a non-OWNER-handle row untouched (stays role=user)", async ({ clock
   expect(row?.role).toBe("user");
 });
 
-test("AUTH_MODE=local: a fresh owner is form-loginable via the real authenticate path", async ({
-  clock,
-}) => {
+test("AUTH_MODE=local: a fresh owner is form-loginable via the real authenticate path", async ({ clock }) => {
   const db = await freshDb();
   // Real sessions service = real ensureUser (JIT-create) + real scrypt verify over the same pepper.
   const sessions = createSessionsService({ db, now: clock.now, sessionSecret: PEPPER });
@@ -176,9 +168,7 @@ test("re-boot does NOT clobber a subsequently-rotated owner password", async ({ 
   expect(await sessions.authenticate("owner", rotatedPassword)).not.toBeNull();
 });
 
-test("no initialPassword (single-user / SSO): the owner row is seeded WITHOUT a password", async ({
-  clock,
-}) => {
+test("no initialPassword (single-user / SSO): the owner row is seeded WITHOUT a password", async ({ clock }) => {
   const db = await freshDb();
   const sessions = createSessionsService({ db, now: clock.now, sessionSecret: PEPPER });
 

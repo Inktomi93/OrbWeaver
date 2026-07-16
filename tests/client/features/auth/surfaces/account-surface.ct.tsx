@@ -9,10 +9,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { AccountSurfaceStory } from "../_ct-stories";
 
-async function stubAuth(
-  page: Page,
-  opts: { mode: string; handle: string; role: string },
-): Promise<void> {
+async function stubAuth(page: Page, opts: { mode: string; handle: string; role: string }): Promise<void> {
   await page.route("**/api/auth/config", (route) =>
     route.fulfill({
       status: 200,
@@ -36,10 +33,7 @@ async function stubAuth(
   );
 }
 
-test("renders the viewer identity + a sign-out affordance in a cookie mode (local)", async ({
-  mount,
-  page,
-}) => {
+test("renders the viewer identity + a sign-out affordance in a cookie mode (local)", async ({ mount, page }) => {
   await stubAuth(page, { mode: "local", handle: "owner", role: "owner" });
   await mount(<AccountSurfaceStory />);
   const surface = page.getByTestId("account-surface");
@@ -51,10 +45,7 @@ test("renders the viewer identity + a sign-out affordance in a cookie mode (loca
   await expect(page.getByTestId("account-logout")).toBeVisible();
 });
 
-test("forward-header mode shows the proxy sign-out note instead of a logout button (no cookie session)", async ({
-  mount,
-  page,
-}) => {
+test("forward-header mode shows the proxy sign-out note instead of a logout button (no cookie session)", async ({ mount, page }) => {
   await stubAuth(page, { mode: "forward-header", handle: "proxied", role: "user" });
   await mount(<AccountSurfaceStory />);
   await expect(page.getByTestId("account-surface")).toBeVisible();

@@ -34,9 +34,7 @@ const CONFIG = ((await import("../../.dependency-cruiser.cjs")) as { default: Dc
 // here fires with nothing → FAILS. (recommended-strict's inherited rules aren't in our `forbidden`
 // literal, so they're out of scope — dep-cruiser ships them tested.) `no-orphans` is severity "ignore"
 // (disabled until code lands) so it's excluded.
-const ACTIVE_RULES = [...(CONFIG.forbidden ?? []), ...(CONFIG.required ?? [])]
-  .filter((r) => r.severity !== "ignore")
-  .map((r) => r.name);
+const ACTIVE_RULES = [...(CONFIG.forbidden ?? []), ...(CONFIG.required ?? [])].filter((r) => r.severity !== "ignore").map((r) => r.name);
 
 const ROOT = join(import.meta.dirname, "..", "..");
 const VAL = "export const t = 1;\n";
@@ -78,16 +76,10 @@ function writeAllFixtures(): void {
   fx("packages/contracts/src/__dc/up.ts", `import "../../../db/src/__dc/target.ts";\n`);
   fx("packages/db/src/__dc/up.ts", `import "../../../server/src/foundation/__dc/target.ts";\n`);
   fx(`${S}/foundation/__dc/toclient.ts`, `import "../../../../client/src/__dc/target.ts";\n`);
-  fx(
-    "packages/client/src/__dc/value.ts",
-    `import { t } from "../../../server/src/foundation/__dc/target.ts";\nexport const u = t;\n`,
-  );
+  fx("packages/client/src/__dc/value.ts", `import { t } from "../../../server/src/foundation/__dc/target.ts";\nexport const u = t;\n`);
   // negative: client→server TYPE-ONLY must NOT fire
   fx(`${S}/foundation/__dc/ty.ts`, "export type Ty = number;\n");
-  fx(
-    "packages/client/src/__dc/typeonly.ts",
-    `import type { Ty } from "../../../server/src/foundation/__dc/ty.ts";\nexport const a: Ty = 1;\n`,
-  );
+  fx("packages/client/src/__dc/typeonly.ts", `import type { Ty } from "../../../server/src/foundation/__dc/ty.ts";\nexport const a: Ty = 1;\n`);
 
   // ── client feature isolation (UI-Arch §2.1/§11.0; mirrors domain isolation below) ──
   fx("packages/client/src/features/__dc_cfeat/index.ts", VAL);
@@ -96,26 +88,17 @@ function writeAllFixtures(): void {
   // client-features-no-cross: feature A imports feature B's internals at RUNTIME.
   fx("packages/client/src/features/__dc_cfeat/cross.ts", `import "../__dc_cfeat2/index.ts";\n`);
   // client-feature-front-door: a non-feature caller (routes/) imports a feature INTERNAL, not its index.
-  fx(
-    "packages/client/src/routes/__dc_frontdoor.ts",
-    `import "../features/__dc_cfeat/internal.ts";\n`,
-  );
+  fx("packages/client/src/routes/__dc_frontdoor.ts", `import "../features/__dc_cfeat/internal.ts";\n`);
   // confirm-uses-composite: a features/** module importing the raw @orb/ui/alert-dialog primitive
   // instead of the tier-2 ConfirmDialog composite (client-architecture-lockdown.md §16 G7).
-  fx(
-    "packages/client/src/features/__dc_confirm/alert.ts",
-    `import { AlertDialog } from "@orb/ui/alert-dialog";\nexport const g = AlertDialog;\n`,
-  );
+  fx("packages/client/src/features/__dc_confirm/alert.ts", `import { AlertDialog } from "@orb/ui/alert-dialog";\nexport const g = AlertDialog;\n`);
 
   fx(`${S}/foundation/__dc/up.ts`, `import "../../domain/__dc_feat/index.ts";\n`);
   fx(`${S}/infra/__dc/up.ts`, `import "../../domain/__dc_feat/index.ts";\n`);
   fx(`${S}/infra/__dc/db.ts`, `import "../../../../db/src/__dc/target.ts";\n`);
   fx(`${S}/domain/__dc_feat/up.ts`, `import "../../transport/__dc/target.ts";\n`);
   fx(`${S}/transport/__dc/up.ts`, `import "../../entry/__dc/target.ts";\n`);
-  fx(
-    `${S}/transport/trpc/routers/__dc.ts`,
-    `import { t } from "../../../../../db/src/__dc/target.ts";\nexport const u = t;\n`,
-  );
+  fx(`${S}/transport/trpc/routers/__dc.ts`, `import { t } from "../../../../../db/src/__dc/target.ts";\nexport const u = t;\n`);
   fx(`${S}/transport/jobs/__dc.ts`, VAL);
   fx(`${S}/transport/trpc/__dc.ts`, `import "../jobs/__dc.ts";\n`);
   fx(`${S}/kit/__dc/up.ts`, `import "../../domain/__dc_feat/index.ts";\n`);
@@ -132,10 +115,7 @@ function writeAllFixtures(): void {
 
   fx(`${S}/infra/providers/backends/__dc_back/i.ts`, VAL);
   fx(`${S}/infra/providers/backends/__dc_back2/i.ts`, VAL);
-  fx(
-    `${S}/domain/__dc_feat/usebackend.ts`,
-    `import "../../infra/providers/backends/__dc_back/i.ts";\n`,
-  );
+  fx(`${S}/domain/__dc_feat/usebackend.ts`, `import "../../infra/providers/backends/__dc_back/i.ts";\n`);
   fx(`${S}/infra/providers/backends/__dc_back/cross.ts`, `import "../__dc_back2/i.ts";\n`);
   fx(`${S}/infra/providers/vllm/surfaces/__dc_s2.ts`, VAL);
   fx(`${S}/infra/providers/vllm/surfaces/__dc_s1.ts`, `import "./__dc_s2.ts";\n`);
@@ -152,10 +132,7 @@ function writeAllFixtures(): void {
 
   // not-to-dev-dep: a production src file importing a PURE devDependency. drizzle-kit is db's devDep;
   // db's runtime drizzle-orm resolves as `npm` (not `npm-dev`) so it would NOT fire — only pure devDeps do.
-  fx(
-    "packages/db/src/__dc/devdep.ts",
-    `import { defineConfig } from "drizzle-kit";\nexport const x = defineConfig;\n`,
-  );
+  fx("packages/db/src/__dc/devdep.ts", `import { defineConfig } from "drizzle-kit";\nexport const x = defineConfig;\n`);
 
   // ── @orb/ui (the frontend cake leaf — ui-package-design.md §8) ──
   // ui-cake: a deep relative escape into contracts (the resolver can't see relative paths).
@@ -164,10 +141,7 @@ function writeAllFixtures(): void {
   // ui-no-node-builtins: browser package importing node:*.
   fx("packages/ui/src/__dc/node.ts", `import "node:fs";\n`);
   // ui-satellite-seals: a sealed lib imported OUTSIDE its one seal dir (diff belongs to src/diff/ only).
-  fx(
-    "packages/ui/src/__dc/sealbreach.ts",
-    `import { diffChars } from "diff";\nexport const d = diffChars;\n`,
-  );
+  fx("packages/ui/src/__dc/sealbreach.ts", `import { diffChars } from "diff";\nexport const d = diffChars;\n`);
   // ui-satellite-seals: the media-grid carve-out's regex is exact-dir-match (`primitives/media-grid/`)
   // — a look-alike sibling dir name must still fire, proving the added alternative isn't overly broad.
   fx(
@@ -175,15 +149,9 @@ function writeAllFixtures(): void {
     `import { useVirtualizer } from "@tanstack/react-virtual";\nexport const v = useVirtualizer;\n`,
   );
   // ui-satellite-seals (minisearch): minisearch belongs to primitives/macro-textarea/ only.
-  fx(
-    "packages/ui/src/__dc/minisearch-sealbreach.ts",
-    `import MiniSearch from "minisearch";\nexport const m = MiniSearch;\n`,
-  );
+  fx("packages/ui/src/__dc/minisearch-sealbreach.ts", `import MiniSearch from "minisearch";\nexport const m = MiniSearch;\n`);
   // search-minisearch-seal: minisearch (server side) belongs to domain/search/substrate/field-index.ts only.
-  fx(
-    "packages/server/src/domain/search/__dc/minisearch-sealbreach.ts",
-    `import MiniSearch from "minisearch";\nexport const m = MiniSearch;\n`,
-  );
+  fx("packages/server/src/domain/search/__dc/minisearch-sealbreach.ts", `import MiniSearch from "minisearch";\nexport const m = MiniSearch;\n`);
 
   // ── The @orb/ui INTERNAL cake (groups → primitives → lib/tokens) ──
   fx("packages/ui/src/primitives/__dc_prim/i.ts", VAL);
@@ -193,10 +161,7 @@ function writeAllFixtures(): void {
   // ui-primitives-below-groups: a primitive reaching UP into a group.
   fx("packages/ui/src/primitives/__dc_prim/up.ts", `import "../../markdown/__dc_g/i.ts";\n`);
   // ui-groups-independent: group→group sideways (charts → markdown) at runtime.
-  fx(
-    "packages/ui/src/charts/__dc_g/cross.ts",
-    `import { t } from "../../markdown/__dc_g/i.ts";\nexport const u = t;\n`,
-  );
+  fx("packages/ui/src/charts/__dc_g/cross.ts", `import { t } from "../../markdown/__dc_g/i.ts";\nexport const u = t;\n`);
 
   // ── The @orb/client INTERNAL cake (main → routes → features → forms/data → state → lib) ──
   fx("packages/client/src/state/__dc_t/i.ts", VAL);
@@ -210,10 +175,7 @@ function writeAllFixtures(): void {
   // client-data-direction: the data layer reaching UP into forms.
   fx("packages/client/src/data/__dc_up.ts", `import "../forms/__dc_t/i.ts";\n`);
   // client-forms-direction: a form factory VALUE-importing the data layer (type-only is exempt).
-  fx(
-    "packages/client/src/forms/__dc_up.ts",
-    `import { t } from "../data/__dc_t/i.ts";\nexport const u = t;\n`,
-  );
+  fx("packages/client/src/forms/__dc_up.ts", `import { t } from "../data/__dc_t/i.ts";\nexport const u = t;\n`);
   // client-features-below-routes: a feature importing a route module.
   fx("packages/client/src/features/__dc_cfeat/uproute.ts", `import "../../routes/__dc_rt.ts";\n`);
   // client-nothing-imports-main: anything importing the composition root (the real main.tsx).
@@ -237,19 +199,11 @@ interface Violation {
 function runCruise(): Violation[] {
   let stdout: string;
   try {
-    stdout = execFileSync(
-      "pnpm",
-      [
-        "exec",
-        "depcruise",
-        "packages",
-        "--config",
-        ".dependency-cruiser.cjs",
-        "--output-type",
-        "json",
-      ],
-      { cwd: ROOT, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 },
-    );
+    stdout = execFileSync("pnpm", ["exec", "depcruise", "packages", "--config", ".dependency-cruiser.cjs", "--output-type", "json"], {
+      cwd: ROOT,
+      encoding: "utf8",
+      maxBuffer: 64 * 1024 * 1024,
+    });
   } catch (err) {
     // depcruise exits non-zero when violations exist — the JSON is on stdout.
     stdout = (err as { stdout?: string }).stdout ?? "";
@@ -263,11 +217,7 @@ beforeAll(() => {
   writeAllFixtures();
   const violations = runCruise();
   firedRules = new Set(violations.map((v) => v.rule.name));
-  fixtureFiles = new Set(
-    violations
-      .flatMap((v) => [v.from, v.to])
-      .filter((p) => DC_FIXTURE_RE.test(p) || p === EMBEDDINGS),
-  );
+  fixtureFiles = new Set(violations.flatMap((v) => [v.from, v.to]).filter((p) => DC_FIXTURE_RE.test(p) || p === EMBEDDINGS));
 });
 
 afterAll(() => {

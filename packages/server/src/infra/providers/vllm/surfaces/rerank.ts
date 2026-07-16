@@ -23,9 +23,7 @@ interface VllmRerankResponse {
   readonly results: ReadonlyArray<{ readonly index: number; readonly relevance_score: number }>;
 }
 
-type ContentPart =
-  | { readonly type: "text"; readonly text: string }
-  | { readonly type: "image_url"; readonly image_url: { readonly url: string } };
+type ContentPart = { readonly type: "text"; readonly text: string } | { readonly type: "image_url"; readonly image_url: { readonly url: string } };
 interface ScoreParam {
   readonly content: ContentPart[];
 }
@@ -36,10 +34,7 @@ function scorable(d: RerankDocument): boolean {
 }
 
 // text/image/combo → ScoreMultiModalParam parts (image first, mirroring the cookbook).
-async function toScoreParam(
-  text: string | undefined,
-  image: RerankDocument["image"],
-): Promise<ScoreParam> {
+async function toScoreParam(text: string | undefined, image: RerankDocument["image"]): Promise<ScoreParam> {
   const content: ContentPart[] = [];
   if (image !== undefined) {
     content.push({ type: "image_url", image_url: { url: await toDataUri(image) } });
@@ -51,12 +46,7 @@ async function toScoreParam(
 }
 
 // Map the engine response → contract hits (request-order indexes → caller ids), sorted desc, sliced to topN.
-function toRerankResult(
-  response: VllmRerankResponse,
-  documents: readonly RerankDocument[],
-  topN: number | undefined,
-  model: string,
-): RerankResult {
+function toRerankResult(response: VllmRerankResponse, documents: readonly RerankDocument[], topN: number | undefined, model: string): RerankResult {
   const hits: RerankHit[] = response.results
     .filter((r) => documents[r.index] !== undefined)
     .map((r) => ({ id: (documents[r.index] as RerankDocument).id, score: r.relevance_score }))
@@ -69,9 +59,7 @@ function toRerankResult(
 }
 
 /** Bind the rerank role to the engine client. */
-export function createVllmRerank(
-  deps: VllmRerankDeps,
-): (req: RerankRequest) => Promise<RerankResult> {
+export function createVllmRerank(deps: VllmRerankDeps): (req: RerankRequest) => Promise<RerankResult> {
   return async (req) => {
     const docs = req.documents.filter(scorable);
     if (docs.length === 0) {
@@ -84,10 +72,7 @@ export function createVllmRerank(
     let query: string | ScoreParam;
     let documents: string[] | ScoreParam[];
     if (multimodal) {
-      query =
-        typeof req.query === "string"
-          ? req.query
-          : await toScoreParam(req.query.text, req.query.image);
+      query = typeof req.query === "string" ? req.query : await toScoreParam(req.query.text, req.query.image);
       documents = await Promise.all(docs.map((d) => toScoreParam(d.text, d.image)));
     } else {
       query = typeof req.query === "string" ? req.query : (req.query.text ?? "");
@@ -103,12 +88,7 @@ export function createVllmRerank(
       truncate_prompt_tokens: TRUNCATE_TO_MODEL_MAX,
       truncation_side: TRUNCATION_SIDE_RIGHT,
     };
-    const response = await deps.client.enginePost<VllmRerankResponse>(
-      "rerank",
-      "/v1/rerank",
-      body,
-      req.signal,
-    );
+    const response = await deps.client.enginePost<VllmRerankResponse>("rerank", "/v1/rerank", body, req.signal);
     return toRerankResult(response, docs, req.topN, req.model);
   };
 }

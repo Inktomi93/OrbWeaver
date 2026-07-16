@@ -8,9 +8,7 @@ import { expect, test } from "../../support/fixtures";
 describe("theme entity/input schemas", () => {
   test("createThemeInput enforces the name cap and trims", () => {
     expect(createThemeInputSchema.parse({ name: "  Hearth  ", override: {} }).name).toBe("Hearth");
-    expect(() =>
-      createThemeInputSchema.parse({ name: "x".repeat(THEME_NAME_MAX + 1), override: {} }),
-    ).toThrow();
+    expect(() => createThemeInputSchema.parse({ name: "x".repeat(THEME_NAME_MAX + 1), override: {} })).toThrow();
   });
 
   test("the entity view parses with derived isSeed + nullable css", () => {

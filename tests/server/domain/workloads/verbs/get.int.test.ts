@@ -19,9 +19,7 @@ describe("workloads.get", () => {
 
   test("a missing row is a DomainNotFoundError", async () => {
     const s = makeService(await freshDb());
-    await expect(
-      s.get({ id: castId<WorkloadId>("workload_absent"), caller: null }),
-    ).rejects.toBeInstanceOf(DomainNotFoundError);
+    await expect(s.get({ id: castId<WorkloadId>("workload_absent"), caller: null })).rejects.toBeInstanceOf(DomainNotFoundError);
   });
 
   // ── F3 authz ──
@@ -35,9 +33,7 @@ describe("workloads.get", () => {
       ownerId: alice,
     });
     const s = makeService(db);
-    await expect(s.get({ id, caller: principal("user_bob") })).rejects.toBeInstanceOf(
-      DomainNotFoundError,
-    );
+    await expect(s.get({ id, caller: principal("user_bob") })).rejects.toBeInstanceOf(DomainNotFoundError);
     // The gate has teeth, not a blanket deny — the owner reads its own row.
     expect((await s.get({ id, caller: principal("user_alice") })).ownerId).toBe(alice);
   });

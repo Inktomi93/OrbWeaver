@@ -26,8 +26,6 @@ describe("getTag", () => {
     const svc = createTagService(makeTagHarness(db).ctx);
     const tagId = await seedTag(db, owner, { id: "tag_a", name: "alpha" });
 
-    await expect(svc.getTag({ principal: principal(other), tagId })).rejects.toThrow(
-      TagNotFoundError,
-    );
+    await expect(svc.getTag({ principal: principal(other), tagId })).rejects.toThrow(TagNotFoundError);
   });
 });

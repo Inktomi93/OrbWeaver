@@ -4,12 +4,7 @@
 // picker's Recent group renders FROM: unshift (most-recent-first) · de-dupe on re-pick · cap · per-source
 // isolation. Persistence itself is the createPersistedStore door (its own slice test); this pins the logic.
 
-import {
-  clearAllRecentModels,
-  pushRecentModel,
-  RECENT_MODELS_CAP,
-  readRecentModels,
-} from "@orb/client/state";
+import { clearAllRecentModels, pushRecentModel, RECENT_MODELS_CAP, readRecentModels } from "@orb/client/state";
 import { beforeEach, describe } from "vitest";
 import { expect, test } from "../../support/fixtures";
 

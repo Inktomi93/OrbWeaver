@@ -37,9 +37,7 @@ test("embedResultSchema parses, round-trips, and carries the null filtered-input
   expect(parsed.vectors[0]).toBeInstanceOf(Float32Array);
   expect(parsed.vectors[1]).toBeNull();
   // usage halves are nullable for unmetered (in-process) families.
-  expect(
-    embedResultSchema.parse({ ...value, usage: { promptTokens: null, totalTokens: null } }),
-  ).toEqual({
+  expect(embedResultSchema.parse({ ...value, usage: { promptTokens: null, totalTokens: null } })).toEqual({
     ...value,
     usage: { promptTokens: null, totalTokens: null },
   });
@@ -53,10 +51,7 @@ test("embedResultSchema rejects a plain number[] vector (must be Float32Array)",
   };
   expect(embedResultSchema.safeParse(bad).success).toBe(false);
   // Missing the model provenance is also invalid.
-  expect(
-    embedResultSchema.safeParse({ vectors: [vecA], usage: { promptTokens: 1, totalTokens: 1 } })
-      .success,
-  ).toBe(false);
+  expect(embedResultSchema.safeParse({ vectors: [vecA], usage: { promptTokens: 1, totalTokens: 1 } }).success).toBe(false);
 });
 
 test("rerankResultSchema parses, round-trips, and preserves caller ids (not indices)", () => {
@@ -122,9 +117,7 @@ test("generationCostSchema parses, round-trips, and keeps the nullable token cou
   const nulled: GenerationCost = { totalCost: 0.05, tokensPrompt: null, tokensCompletion: null };
   expect(generationCostSchema.parse(nulled)).toEqual(nulled);
   // totalCost is required + numeric.
-  expect(generationCostSchema.safeParse({ tokensPrompt: 1, tokensCompletion: 1 }).success).toBe(
-    false,
-  );
+  expect(generationCostSchema.safeParse({ tokensPrompt: 1, tokensCompletion: 1 }).success).toBe(false);
 });
 
 test("endpointInspectionSchema parses a success result + round-trips (no error field)", () => {

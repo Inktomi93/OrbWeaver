@@ -24,12 +24,7 @@ import { expect, test } from "../../../../support/fixtures";
 test("the runnable set is the contract's singular-capable built kinds, minus route-started import-bundle", () => {
   // Singular + built (stub:false), EXCEPT `import-bundle` — it is singular but ROUTE-started (the upload route
   // mints its staging-token param), so the picker never offers it.
-  const expected = WORKLOAD_KINDS.filter(
-    (kind) =>
-      WORKLOAD_KIND_MODES[kind].singular &&
-      !WORKLOAD_KIND_MODES[kind].stub &&
-      kind !== "import-bundle",
-  );
+  const expected = WORKLOAD_KINDS.filter((kind) => WORKLOAD_KIND_MODES[kind].singular && !WORKLOAD_KIND_MODES[kind].stub && kind !== "import-bundle");
   expect(RUNNABLE_WORKLOAD_KINDS).toEqual(expected);
   // The load-bearing exclusions as of the current contract: bulk-only stubs + the global catalog pass + the
   // route-started bundle import.
@@ -45,12 +40,7 @@ test("the maintenance set is the BUILT bulk-only kinds (stub:false), stubs exclu
   // Built (stub:false) + bulk-capable + NOT singular — compute-cooccurrence, the assets GC/fsck maintenance
   // kinds, and refresh-model-catalog, in WORKLOAD_KINDS order. A stub flipping built (stub→false) joins here
   // with zero client edits.
-  expect([...MAINTENANCE_WORKLOAD_KINDS]).toEqual([
-    "compute-cooccurrence",
-    "assets-gc",
-    "assets-fsck",
-    "refresh-model-catalog",
-  ]);
+  expect([...MAINTENANCE_WORKLOAD_KINDS]).toEqual(["compute-cooccurrence", "assets-gc", "assets-fsck", "refresh-model-catalog"]);
   // No maintenance kind is singular-capable (the two sets are disjoint), none is a stub, none is runnable.
   for (const kind of MAINTENANCE_WORKLOAD_KINDS) {
     expect(WORKLOAD_KIND_MODES[kind].bulk).toBe(true);
@@ -74,12 +64,8 @@ test("friendlyWorkloadError maps known classes; unmapped returns null (row falls
   expect(friendlyWorkloadError("Unable to get model file path or buffer.")).toBe(
     "A required local model wasn't available. Check the model is installed, then retry.",
   );
-  expect(friendlyWorkloadError("ECONNREFUSED 127.0.0.1:8000")).toBe(
-    "A network or provider call failed. Check the connection, then retry.",
-  );
-  expect(friendlyWorkloadError("HTTP 429 Too Many Requests")).toBe(
-    "The provider rate-limited this run. Wait a moment, then retry.",
-  );
+  expect(friendlyWorkloadError("ECONNREFUSED 127.0.0.1:8000")).toBe("A network or provider call failed. Check the connection, then retry.");
+  expect(friendlyWorkloadError("HTTP 429 Too Many Requests")).toBe("The provider rate-limited this run. Wait a moment, then retry.");
   // Case-insensitive match.
   expect(friendlyWorkloadError("Request TIMED OUT after 30s")).not.toBeNull();
   // Nothing matches → null (the row surfaces the raw string verbatim).
@@ -119,9 +105,7 @@ test("buildStartInput carries ONLY the kind's own tunable, omitted at its defaul
 test("the filter tabs partition every status: all admits everything; running/recent/failed are disjoint", () => {
   for (const status of WORKLOAD_STATUSES) {
     expect(workloadFilterMatches("all", status)).toBe(true);
-    const buckets = WORKLOAD_FILTERS.filter(
-      (filter) => filter !== "all" && workloadFilterMatches(filter, status),
-    );
+    const buckets = WORKLOAD_FILTERS.filter((filter) => filter !== "all" && workloadFilterMatches(filter, status));
     // Every status lands in exactly ONE non-all bucket — no orphan, no double-count.
     expect(buckets).toHaveLength(1);
   }

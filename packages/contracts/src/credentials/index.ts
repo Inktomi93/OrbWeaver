@@ -15,13 +15,7 @@ const MIN_NON_EMPTY = 1;
 
 // Dispatch axis: every member needs a resolver arm + an infra/providers runner (tsc's assertNever
 // red-flags a gap). `@orb/contracts/connection` re-exports this verbatim (under its own name).
-export const CRED_SOURCES = [
-  "max-pro-sub",
-  "openrouter",
-  "vllm",
-  "local-light",
-  "custom_openai",
-] as const;
+export const CRED_SOURCES = ["max-pro-sub", "openrouter", "vllm", "local-light", "custom_openai"] as const;
 export type CredentialSource = (typeof CRED_SOURCES)[number];
 export const credentialSourceSchema = z.enum(CRED_SOURCES);
 
@@ -30,14 +24,7 @@ export const credentialSourceSchema = z.enum(CRED_SOURCES);
 // runner must land TOGETHER (never a stranded partial).
 // `gif-search` is a non-LLM storage-only slot (never dispatched, no runner) resolved by its own verb
 // (`resolveGifSearchKey`) so it stays outside the LLM credential lifecycle / turn-time `assertNever`.
-export const CRED_PROVIDERS = [
-  "openrouter",
-  "anthropic",
-  "openai",
-  "google_vertex",
-  "custom_openai",
-  "gif-search",
-] as const;
+export const CRED_PROVIDERS = ["openrouter", "anthropic", "openai", "google_vertex", "custom_openai", "gif-search"] as const;
 export type CredentialProvider = (typeof CRED_PROVIDERS)[number];
 export const credentialProviderSchema = z.enum(CRED_PROVIDERS);
 
@@ -162,9 +149,4 @@ export type CustomOpenAiCredential = CredentialBrand & {
 
 /** The decrypted-credential shape every provider runner consumes. Constructed ONLY through the
  *  `domain/credentials/substrate/mint` factories. */
-export type ResolvedCredential =
-  | MaxProSubCredential
-  | OpenRouterCredential
-  | VllmCredential
-  | LocalLightCredential
-  | CustomOpenAiCredential;
+export type ResolvedCredential = MaxProSubCredential | OpenRouterCredential | VllmCredential | LocalLightCredential | CustomOpenAiCredential;

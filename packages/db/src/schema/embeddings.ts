@@ -220,13 +220,7 @@ export const chatDigests = sqliteTable(
     // (never an in-place overwrite of the old space, never an inconsistent orphan). The old space is
     // reclaimed by the purge+reindex path (`purgeStaleVectors` in the bulk `index` reindex). Dropping
     // scopedCharacterId would bleed a scoped bucket's rows into the shared (group-as-character) bucket.
-    uniqueIndex("chat_digests_scope_unique").on(
-      t.chatId,
-      t.scopedCharacterId,
-      t.tier,
-      t.blockIdx,
-      t.model,
-    ),
+    uniqueIndex("chat_digests_scope_unique").on(t.chatId, t.scopedCharacterId, t.tier, t.blockIdx, t.model),
     index("chat_digests_chat_idx").on(t.chatId),
   ],
 );

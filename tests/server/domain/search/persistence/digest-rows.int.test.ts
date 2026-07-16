@@ -4,21 +4,10 @@
 // foreign owner's digest is never returned), the within-chat belt, and the candidate restriction.
 
 import { describe } from "vitest";
-import {
-  nearestDigests,
-  nearestSegments,
-} from "../../../../../packages/server/src/domain/search/persistence/digest-rows.ts";
+import { nearestDigests, nearestSegments } from "../../../../../packages/server/src/domain/search/persistence/digest-rows.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
-import {
-  EMBED_MODEL,
-  seedCharacter,
-  seedChat,
-  seedChatDigest,
-  seedChatSegment,
-  seedUser,
-  vec,
-} from "../_support.ts";
+import { EMBED_MODEL, seedCharacter, seedChat, seedChatDigest, seedChatSegment, seedUser, vec } from "../_support.ts";
 
 describe("nearestDigests", () => {
   test("returns within-chat digests ascending by distance", async () => {

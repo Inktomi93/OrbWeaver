@@ -48,10 +48,7 @@ test("showValue renders the formatted readout", async ({ mount, page }) => {
   await expect(page.locator("output")).toHaveText("50");
 });
 
-test("range: two thumbs report [lo, hi] and both are keyboard-operable", async ({
-  mount,
-  page,
-}) => {
+test("range: two thumbs report [lo, hi] and both are keyboard-operable", async ({ mount, page }) => {
   const seen: number[][] = [];
   await mount(
     <Slider
@@ -108,10 +105,7 @@ test("disabled blocks stepping and drops the interactive skin", async ({ mount, 
   await expect(thumb).toHaveAttribute("aria-valuenow", "50");
 });
 
-test("inside an invalid <Field>, data-invalid lands and the track swaps to the destructive token", async ({
-  mount,
-  page,
-}) => {
+test("inside an invalid <Field>, data-invalid lands and the track swaps to the destructive token", async ({ mount, page }) => {
   await mount(
     <Field error="Out of range" label="Volume">
       <Slider defaultValue={50} />
@@ -122,10 +116,7 @@ test("inside an invalid <Field>, data-invalid lands and the track swaps to the d
   await expect(thumbEl).toHaveCSS("border-top-color", TOKENS["color.destructive"].value);
 });
 
-test("inside a <Field>, the slider associates and aria-describedby wires the description", async ({
-  mount,
-  page,
-}) => {
+test("inside a <Field>, the slider associates and aria-describedby wires the description", async ({ mount, page }) => {
   await mount(
     <Field description="0 to 100" label="Volume">
       <Slider defaultValue={50} />

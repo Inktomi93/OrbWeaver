@@ -8,47 +8,13 @@
 // gate scopes only `packages/server/src/domain`).
 
 import type { ImageLens } from "@orb/contracts/embeddings";
-import type {
-  EmbedResult,
-  ImageEmbedResult,
-  RerankResult,
-  SummarizeResult,
-} from "@orb/contracts/providers";
-import type {
-  ImageEmbedInput,
-  RerankDocument,
-  RerankQuery,
-  RoleClients,
-  SummarizeInput,
-} from "@orb/contracts/role-clients";
+import type { EmbedResult, ImageEmbedResult, RerankResult, SummarizeResult } from "@orb/contracts/providers";
+import type { ImageEmbedInput, RerankDocument, RerankQuery, RoleClients, SummarizeInput } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
-import {
-  assets,
-  characterEmbeddings,
-  characterSummaries,
-  characters,
-  chatDigestSpeakers,
-  chatDigests,
-  chatSegments,
-  chats,
-  imageEmbeddings,
-} from "@orb/db";
-import type {
-  AssetId,
-  CharacterEmbeddingId,
-  CharacterId,
-  ChatDigestId,
-  ChatId,
-  ChatSegmentId,
-  Handle,
-  ImageEmbeddingId,
-  UserId,
-} from "@orb/kit/ids";
+import { assets, characterEmbeddings, characterSummaries, characters, chatDigestSpeakers, chatDigests, chatSegments, chats, imageEmbeddings } from "@orb/db";
+import type { AssetId, CharacterEmbeddingId, CharacterId, ChatDigestId, ChatId, ChatSegmentId, Handle, ImageEmbeddingId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type {
-  SearchContext,
-  SearchService,
-} from "../../../../packages/server/src/domain/search/index.ts";
+import type { SearchContext, SearchService } from "../../../../packages/server/src/domain/search/index.ts";
 import { createSearchService } from "../../../../packages/server/src/domain/search/index.ts";
 import { FROZEN_AT_MS } from "../../../support/clock.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
@@ -120,8 +86,7 @@ function makeFakeRoleClients(controls: FakeRoleClientControls = {}): RoleClients
         model: imageEmbedModel,
       });
     },
-    summarize: (_inputs: SummarizeInput[]): Promise<SummarizeResult> =>
-      Promise.resolve({ items: [], model: "test-summarize-model" }),
+    summarize: (_inputs: SummarizeInput[]): Promise<SummarizeResult> => Promise.resolve({ items: [], model: "test-summarize-model" }),
     embedModel,
     rerankModel: "test-rerank-model",
     imageEmbedModel,
@@ -132,11 +97,7 @@ function makeFakeRoleClients(controls: FakeRoleClientControls = {}): RoleClients
 
 /** Build the search service over a real db + a scripted role-clients bundle + the frozen clock. `now` is
  *  overridable so the lexical-index TTL-freshness path can be exercised deterministically. */
-export function makeSearch(
-  db: Db,
-  controls?: FakeRoleClientControls,
-  now: () => number = (): number => FROZEN_AT_MS,
-): SearchService {
+export function makeSearch(db: Db, controls?: FakeRoleClientControls, now: () => number = (): number => FROZEN_AT_MS): SearchService {
   const ctx: SearchContext = { db, roleClients: makeFakeRoleClients(controls), now };
   return createSearchService(ctx);
 }
@@ -164,10 +125,7 @@ interface SeedCharacterOverrides {
 }
 
 /** Insert a flat `characters` row (the producer the card embedding + summary FK to). */
-export async function seedCharacter(
-  db: Db,
-  overrides: SeedCharacterOverrides,
-): Promise<CharacterId> {
+export async function seedCharacter(db: Db, overrides: SeedCharacterOverrides): Promise<CharacterId> {
   const id = castId<CharacterId>(overrides.id ?? "character_seed");
   await db.insert(characters).values({
     id,
@@ -185,11 +143,7 @@ export async function seedCharacter(
 
 /** Insert a `chat_digest_speakers` row (a digest CONTAINS this character — the co-star credit join
  *  `resolveSegmentDisplay` expands for group blocks). */
-export async function seedChatDigestSpeaker(
-  db: Db,
-  digestId: ChatDigestId,
-  characterId: CharacterId,
-): Promise<void> {
+export async function seedChatDigestSpeaker(db: Db, digestId: ChatDigestId, characterId: CharacterId): Promise<void> {
   await db.insert(chatDigestSpeakers).values({ digestId, characterId });
 }
 
@@ -203,13 +157,8 @@ interface SeedCharacterEmbeddingOverrides {
 }
 
 /** Insert a `character_embeddings` row (the card-space vector `knn` scans). */
-export async function seedCharacterEmbedding(
-  db: Db,
-  overrides: SeedCharacterEmbeddingOverrides,
-): Promise<CharacterEmbeddingId> {
-  const id = castId<CharacterEmbeddingId>(
-    overrides.id ?? `character_embedding_${overrides.characterId}`,
-  );
+export async function seedCharacterEmbedding(db: Db, overrides: SeedCharacterEmbeddingOverrides): Promise<CharacterEmbeddingId> {
+  const id = castId<CharacterEmbeddingId>(overrides.id ?? `character_embedding_${overrides.characterId}`);
   await db.insert(characterEmbeddings).values({
     id,
     characterId: overrides.characterId,
@@ -231,10 +180,7 @@ interface SeedCharacterSummaryOverrides {
 }
 
 /** Insert a `character_summaries` row (discovery's distilled facets `findCharacters` enriches with). */
-export async function seedCharacterSummary(
-  db: Db,
-  overrides: SeedCharacterSummaryOverrides,
-): Promise<void> {
+export async function seedCharacterSummary(db: Db, overrides: SeedCharacterSummaryOverrides): Promise<void> {
   await db.insert(characterSummaries).values({
     characterId: overrides.characterId,
     genre: overrides.genre ?? null,
@@ -278,10 +224,7 @@ interface SeedImageEmbeddingOverrides {
 }
 
 /** Insert an `image_embeddings` row (the cross-modal lens the `images` verb scans; D34 lens axis). */
-export async function seedImageEmbedding(
-  db: Db,
-  o: SeedImageEmbeddingOverrides,
-): Promise<ImageEmbeddingId> {
+export async function seedImageEmbedding(db: Db, o: SeedImageEmbeddingOverrides): Promise<ImageEmbeddingId> {
   const lens: ImageLens = o.lens ?? "image-captioned";
   const id = castId<ImageEmbeddingId>(o.id ?? `image_embedding_${o.assetId}_${lens}`);
   await db.insert(imageEmbeddings).values({
@@ -322,9 +265,7 @@ interface SeedDigestOverrides {
 
 /** Insert a `chat_digests` row (the distilled lens `digests`/`corpus` scan). */
 export async function seedChatDigest(db: Db, o: SeedDigestOverrides): Promise<ChatDigestId> {
-  const id = castId<ChatDigestId>(
-    o.id ?? `chat_digest_${o.chatId}_${o.scopedCharacterId}_${o.tier ?? 0}_${o.blockIdx}`,
-  );
+  const id = castId<ChatDigestId>(o.id ?? `chat_digest_${o.chatId}_${o.scopedCharacterId}_${o.tier ?? 0}_${o.blockIdx}`);
   await db.insert(chatDigests).values({
     id,
     chatId: o.chatId,

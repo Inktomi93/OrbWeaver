@@ -1,10 +1,7 @@
 // backends/openrouter account — the diagnostic account verbs (credit balance + per-generation cost). The
 // SDK client is a fake.
 
-import {
-  getOpenRouterCredits,
-  getOpenRouterGenerationCost,
-} from "@orb/server/infra/providers/backends/openrouter";
+import { getOpenRouterCredits, getOpenRouterGenerationCost } from "@orb/server/infra/providers/backends/openrouter";
 import { describe } from "vitest";
 import { expect, test } from "../../../../../support/fixtures";
 
@@ -15,8 +12,7 @@ describe("getOpenRouterCredits", () => {
   test("maps total + used off the credits data", async () => {
     const client = {
       credits: {
-        getCredits: (): Promise<unknown> =>
-          Promise.resolve({ data: { totalCredits: 10, totalUsage: 3 } }),
+        getCredits: (): Promise<unknown> => Promise.resolve({ data: { totalCredits: 10, totalUsage: 3 } }),
       },
     } as unknown as CreditsClient;
     expect(await getOpenRouterCredits(client)).toEqual({ total: 10, used: 3 });

@@ -179,9 +179,7 @@ export function makeDiscoveryHarness(
     newDuplicateCharacterPairId: seededMinter<DuplicateCharacterPairId>("duplicate_character_pair"),
     newThemeClusterId: seededMinter<ThemeClusterId>("theme_cluster"),
     newKeywordCooccurrenceId: seededMinter<KeywordCooccurrenceId>("keyword_cooccurrence"),
-    newCharacterKeywordProfileId: seededMinter<CharacterKeywordProfileId>(
-      "character_keyword_profile",
-    ),
+    newCharacterKeywordProfileId: seededMinter<CharacterKeywordProfileId>("character_keyword_profile"),
     newDuplicateChatPairId: seededMinter<DuplicateChatPairId>("duplicate_chat_pair"),
     summarize: summarize.op,
     summarizerModel: overrides.summarizerModel ?? "test-summarize-model",
@@ -281,12 +279,7 @@ export async function seedHostedChat(db: Db, id: string, ownerId: UserId): Promi
 /** Seed a DEPARTED `role='host'` row on an existing chat (a `leftSeq`-stamped ex-host that coexists with the
  *  present host after a handoff-via-leave, D18). The owner derivation must NOT re-attribute the chat's digest
  *  to this stale row. */
-export async function seedDepartedHost(
-  db: Db,
-  chatId: ChatId,
-  userId: UserId,
-  leftSeq = 5,
-): Promise<void> {
+export async function seedDepartedHost(db: Db, chatId: ChatId, userId: UserId, leftSeq = 5): Promise<void> {
   await db.insert(chatParticipants).values({
     id: castId<ChatParticipantId>(`chat_participant_departed_${chatId}`),
     chatId,
@@ -445,10 +438,7 @@ export async function seedMessage(
       genFinishedAt: overrides.variant.genFinishedAt ?? null,
       createdAt: overrides.createdAt,
     });
-    await db
-      .update(messages)
-      .set({ selectedVariantId: variantId })
-      .where(eq(messages.id, messageId));
+    await db.update(messages).set({ selectedVariantId: variantId }).where(eq(messages.id, messageId));
   }
 }
 

@@ -14,11 +14,7 @@
 
 import type { ChatApi, ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
 import { modelCapabilitySchema } from "@orb/contracts/connection";
-import type {
-  CustomOpenAiCredential,
-  OpenRouterCredential,
-  ResolvedCredential,
-} from "@orb/contracts/credentials";
+import type { CustomOpenAiCredential, OpenRouterCredential, ResolvedCredential } from "@orb/contracts/credentials";
 import type { ModelId, UserCredentialId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 
@@ -50,9 +46,7 @@ export function makeResolvedCredential(source: KeylessSource = "vllm"): Resolved
 
 /** A brand-protected KEYED `openrouter` credential (W1h). Carries a real `apiKey`; `credentialId` defaults
  *  to null (env-seeded) — override with `{ credentialId }` for a stored-row credential. */
-export function makeOpenRouterCredential(
-  overrides: Partial<Omit<OpenRouterCredential, "source" | keyof CredentialBrandMarker>> = {},
-): OpenRouterCredential {
+export function makeOpenRouterCredential(overrides: Partial<Omit<OpenRouterCredential, "source" | keyof CredentialBrandMarker>> = {}): OpenRouterCredential {
   return brand<OpenRouterCredential>({
     source: "openrouter",
     apiKey: overrides.apiKey ?? "sk-or-test",
@@ -95,9 +89,7 @@ export function makeModelCapability(overrides: Partial<ModelCapability> = {}): M
 
 /** A `ResolvedConnection` over the keyless vLLM chat marker; override any axis (a different capability, a
  *  keyed credential built elsewhere, a specific model id). */
-export function makeResolvedConnection(
-  overrides: Partial<ResolvedConnection> = {},
-): ResolvedConnection {
+export function makeResolvedConnection(overrides: Partial<ResolvedConnection> = {}): ResolvedConnection {
   return {
     api: "chat-completions" as ChatApi,
     model: castId<ModelId>("test-model"),

@@ -32,12 +32,7 @@ import { useCharacterForm } from "../hooks/use-character-form";
 import { useUpdateCharacter } from "../hooks/use-character-mutations";
 import type { CharacterCardFacet } from "../lib/character-card-facets";
 import type { CharacterCardFormValues } from "../lib/character-card-form-model";
-import {
-  characterCardFormFromDetail,
-  characterUpdateDiff,
-  permanentTokenCount,
-  totalTokenCount,
-} from "../lib/character-card-form-model";
+import { characterCardFormFromDetail, characterUpdateDiff, permanentTokenCount, totalTokenCount } from "../lib/character-card-form-model";
 import { clearCharacterForm, publishCharacterForm } from "../lib/character-editor-bridge";
 
 export interface CharacterEditorSurfaceProps {
@@ -46,10 +41,7 @@ export interface CharacterEditorSurfaceProps {
   readonly onRevealField?: (() => void) | undefined;
 }
 
-export function CharacterEditorSurface({
-  characterId,
-  onRevealField,
-}: CharacterEditorSurfaceProps): ReactElement {
+export function CharacterEditorSurface({ characterId, onRevealField }: CharacterEditorSurfaceProps): ReactElement {
   return (
     <QueryBoundary
       fallback={<Text tone="muted">Loading character…</Text>}
@@ -62,19 +54,12 @@ export function CharacterEditorSurface({
         </Text>
       )}
     >
-      <CharacterEditorBody
-        characterId={characterId}
-        onRevealField={onRevealField}
-        key={characterId}
-      />
+      <CharacterEditorBody characterId={characterId} onRevealField={onRevealField} key={characterId} />
     </QueryBoundary>
   );
 }
 
-function CharacterEditorBody({
-  characterId,
-  onRevealField,
-}: CharacterEditorSurfaceProps): ReactElement {
+function CharacterEditorBody({ characterId, onRevealField }: CharacterEditorSurfaceProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const update = useUpdateCharacter({ trpc, invalidation });
@@ -108,10 +93,7 @@ function CharacterEditorBody({
   // The bus-driven chat list — the hero's chat count derives from it in render, never an effect.
   const chatsQuery = useQuery(trpc.chat.listChats.queryOptions({}));
   const chats = useMemo(() => chatsQuery.data ?? [], [chatsQuery.data]);
-  const chatCount = useMemo(
-    () => chats.filter((chat) => chat.participantCharacterIds.includes(data.id)).length,
-    [chats, data.id],
-  );
+  const chatCount = useMemo(() => chats.filter((chat) => chat.participantCharacterIds.includes(data.id)).length, [chats, data.id]);
 
   // Always a fresh chat with this character. Clear any per-character filter so the fresh draft isn't
   // shown behind a stale scope chip.
@@ -156,8 +138,7 @@ function CharacterEditorBody({
             <form.Subscribe selector={(s): CharacterCardFormValues => s.values}>
               {(values): ReactElement => (
                 <Text size="micro" tone="muted" className="font-mono">
-                  {totalTokenCount(values, activeGreetingIndex)} total ·{" "}
-                  {permanentTokenCount(values)} permanent
+                  {totalTokenCount(values, activeGreetingIndex)} total · {permanentTokenCount(values)} permanent
                 </Text>
               )}
             </form.Subscribe>
@@ -169,18 +150,9 @@ function CharacterEditorBody({
             </Button>
             {/* Save is primary only while dirty — at rest the hero "Start chat" is the region's one
                 primary. */}
-            <form.Subscribe
-              selector={(s): readonly [boolean, boolean, boolean] =>
-                [s.canSubmit, s.isSubmitting, s.isDefaultValue] as const
-              }
-            >
+            <form.Subscribe selector={(s): readonly [boolean, boolean, boolean] => [s.canSubmit, s.isSubmitting, s.isDefaultValue] as const}>
               {([canSubmit, isSubmitting, isDefaultValue]): ReactElement => (
-                <Button
-                  type="submit"
-                  intent={isDefaultValue ? "secondary" : "primary"}
-                  disabled={!canSubmit || isSubmitting}
-                  loading={isSubmitting}
-                >
+                <Button type="submit" intent={isDefaultValue ? "secondary" : "primary"} disabled={!canSubmit || isSubmitting} loading={isSubmitting}>
                   Save
                 </Button>
               )}
@@ -201,12 +173,7 @@ function CharacterEditorBody({
           {/* A master facet list; click a row and the list is replaced by the full-width facet body
               editor (← Back to return). */}
           {selectedFacetId === null ? (
-            <CharacterFacetList
-              form={form}
-              selectedFacetId={null}
-              focusFacetId={backFocusFacetId}
-              onSelect={onSelectFacet}
-            />
+            <CharacterFacetList form={form} selectedFacetId={null} focusFacetId={backFocusFacetId} onSelect={onSelectFacet} />
           ) : (
             <CharacterFacetEditor
               form={form}

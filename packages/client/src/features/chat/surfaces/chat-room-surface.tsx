@@ -45,21 +45,12 @@ function resolveRoomAnchor(
 ): readonly { readonly id: string; readonly node: ReactNode }[] {
   return registry
     .list()
-    .filter(
-      (c): c is Extract<ChatSurfaceContribution, { anchor: typeof anchor }> => c.anchor === anchor,
-    )
+    .filter((c): c is Extract<ChatSurfaceContribution, { anchor: typeof anchor }> => c.anchor === anchor)
     .filter((c) => c.when?.(state) ?? true)
     .map((c) => ({ id: c.id, node: c.body(state) }));
 }
 
-export function ChatRoomSurface({
-  initialHandle,
-  busDeps,
-  draftSeed,
-  onChatStarted,
-  onChatForked,
-  surfaceContributors,
-}: ChatRoomSurfaceProps): ReactElement {
+export function ChatRoomSurface({ initialHandle, busDeps, draftSeed, onChatStarted, onChatForked, surfaceContributors }: ChatRoomSurfaceProps): ReactElement {
   const [handle, setHandle] = useState<ChatHandle>(initialHandle);
   const [draftText, setDraftText] = useState("");
   const trpc = useTRPC();
@@ -74,9 +65,7 @@ export function ChatRoomSurface({
   // Sole-character chrome takeover: in a true-solo room, that character's theme override wins at the
   // chat root; multi-human/group keeps the viewer's own theme (undefined here).
   const roomChatId = isCommitted(handle) ? handle.id : null;
-  const { data: roomChat } = useGatedQuery(roomChatId, (id) =>
-    trpc.chat.getChat.queryOptions({ chatId: id }),
-  );
+  const { data: roomChat } = useGatedQuery(roomChatId, (id) => trpc.chat.getChat.queryOptions({ chatId: id }));
   const roomTheme = resolveRoomTheme(roomChat?.participants);
 
   const surfaceRef = useRef<HTMLDivElement>(null);
@@ -84,34 +73,19 @@ export function ChatRoomSurface({
 
   const roomState: ChatRoomSurfaceState = { chatId: roomChatId };
   const flankContributions = resolveRoomAnchor(surfaceContributors, "thread-flank", roomState);
-  const aboveComposerContributions = resolveRoomAnchor(
-    surfaceContributors,
-    "above-composer",
-    roomState,
-  );
+  const aboveComposerContributions = resolveRoomAnchor(surfaceContributors, "above-composer", roomState);
 
   const thread = (
     <Stack className="min-h-0 flex-1">
       <MessageThreadAnchor>
-        <MessageListSurface
-          busDeps={busDeps}
-          handle={handle}
-          draftSeed={draftSeed}
-          onChatForked={onChatForked}
-          surfaceContributors={surfaceContributors}
-        />
+        <MessageListSurface busDeps={busDeps} handle={handle} draftSeed={draftSeed} onChatForked={onChatForked} surfaceContributors={surfaceContributors} />
       </MessageThreadAnchor>
     </Stack>
   );
 
   return (
     <ThemeScope tokens={roomTheme ?? {}} className="contents">
-      <Stack
-        gap="block"
-        className="h-full px-block pb-block outline-none"
-        ref={surfaceRef}
-        tabIndex={-1}
-      >
+      <Stack gap="block" className="h-full px-block pb-block outline-none" ref={surfaceRef} tabIndex={-1}>
         {isCommitted(handle) ? <ChatCastBar chatId={handle.id} /> : null}
         {/* Zero flank contributions ⇒ the thread renders alone (today's exact layout, no visual
          *  change); ≥1 ⇒ a flank column appears beside it (§17 M8). The `Container` + `@max-lg`
@@ -139,13 +113,7 @@ export function ChatRoomSurface({
         {aboveComposerContributions.map((c) => (
           <Fragment key={c.id}>{c.node}</Fragment>
         ))}
-        <ComposerSlot
-          handle={handle}
-          value={draftText}
-          onChange={setDraftText}
-          draftSeed={draftSeed}
-          onCommitted={onCommitted}
-        />
+        <ComposerSlot handle={handle} value={draftText} onChange={setDraftText} draftSeed={draftSeed} onCommitted={onCommitted} />
       </Stack>
     </ThemeScope>
   );
@@ -165,10 +133,7 @@ function ComposerSlot(props: ComposerSlotProps): ReactElement {
     return <Composer {...props} tailRole={null} />;
   }
   return (
-    <QueryBoundary
-      fallback={<Composer {...props} tailRole={null} />}
-      renderError={(): ReactElement => <Composer {...props} tailRole={null} />}
-    >
+    <QueryBoundary fallback={<Composer {...props} tailRole={null} />} renderError={(): ReactElement => <Composer {...props} tailRole={null} />}>
       <ComposerTailGate {...props} chatId={chatId} />
     </QueryBoundary>
   );
@@ -176,9 +141,7 @@ function ComposerSlot(props: ComposerSlotProps): ReactElement {
 
 function ComposerTailGate(props: ComposerSlotProps & { readonly chatId: ChatId }): ReactElement {
   const trpc = useTRPC();
-  const { data: messagesPage } = useSuspenseQuery(
-    trpc.chat.listMessages.queryOptions({ chatId: props.chatId }),
-  );
+  const { data: messagesPage } = useSuspenseQuery(trpc.chat.listMessages.queryOptions({ chatId: props.chatId }));
   const tailRole: MessageRole | null = messagesPage.messages.at(-1)?.role ?? null;
   return <Composer {...props} tailRole={tailRole} />;
 }

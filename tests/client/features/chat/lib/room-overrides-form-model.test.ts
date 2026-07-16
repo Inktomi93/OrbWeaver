@@ -79,9 +79,7 @@ test("fromRoomOverridesForm: non-empty text is carried; a non-empty authorsNote 
 });
 
 test("fromRoomOverridesForm: a cleared (null) authorsNote depth writes the house default, not 0", () => {
-  const out = fromRoomOverridesForm(
-    form({ authorsNote: "stay noir", authorsNoteDepth: null, authorsNoteRole: "system" }),
-  );
+  const out = fromRoomOverridesForm(form({ authorsNote: "stay noir", authorsNoteDepth: null, authorsNoteRole: "system" }));
 
   expect(out.authorsNote?.depth).toBe(AUTHORS_NOTE_DEFAULT_DEPTH);
 });
@@ -104,36 +102,16 @@ test("fromRoomOverridesForm SEND-GUARD: an invalid note (assistant@depth-0) is W
 // ── isAuthorsNotePrefill (the null-depth alignment) ────────────────────────────────────────────────
 
 test("isAuthorsNotePrefill: assistant role AT depth 0 with a note ⇒ true (the guarded combination)", () => {
-  expect(
-    isAuthorsNotePrefill(
-      form({ authorsNote: "note", authorsNoteRole: "assistant", authorsNoteDepth: 0 }),
-    ),
-  ).toBe(true);
+  expect(isAuthorsNotePrefill(form({ authorsNote: "note", authorsNoteRole: "assistant", authorsNoteDepth: 0 }))).toBe(true);
 });
 
 test("isAuthorsNotePrefill: a CLEARED (null) depth ⇒ false — it coerces to the default (≥1), not 0", () => {
   // The F5 alignment: null depth saves as AUTHORS_NOTE_DEFAULT_DEPTH, so no false prefill warning.
-  expect(
-    isAuthorsNotePrefill(
-      form({ authorsNote: "note", authorsNoteRole: "assistant", authorsNoteDepth: null }),
-    ),
-  ).toBe(false);
+  expect(isAuthorsNotePrefill(form({ authorsNote: "note", authorsNoteRole: "assistant", authorsNoteDepth: null }))).toBe(false);
 });
 
 test("isAuthorsNotePrefill: assistant at the default depth, a non-assistant role, or an empty note ⇒ false", () => {
-  expect(
-    isAuthorsNotePrefill(
-      form({ authorsNote: "note", authorsNoteRole: "assistant", authorsNoteDepth: 4 }),
-    ),
-  ).toBe(false);
-  expect(
-    isAuthorsNotePrefill(
-      form({ authorsNote: "note", authorsNoteRole: "system", authorsNoteDepth: 0 }),
-    ),
-  ).toBe(false);
-  expect(
-    isAuthorsNotePrefill(
-      form({ authorsNote: "", authorsNoteRole: "assistant", authorsNoteDepth: 0 }),
-    ),
-  ).toBe(false);
+  expect(isAuthorsNotePrefill(form({ authorsNote: "note", authorsNoteRole: "assistant", authorsNoteDepth: 4 }))).toBe(false);
+  expect(isAuthorsNotePrefill(form({ authorsNote: "note", authorsNoteRole: "system", authorsNoteDepth: 0 }))).toBe(false);
+  expect(isAuthorsNotePrefill(form({ authorsNote: "", authorsNoteRole: "assistant", authorsNoteDepth: 0 }))).toBe(false);
 });

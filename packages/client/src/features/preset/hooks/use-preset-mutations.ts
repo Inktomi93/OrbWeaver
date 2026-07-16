@@ -10,10 +10,7 @@ import { createEntityMutation } from "#data";
 
 /** Create a new (empty-default or seeded) preset. Refetches the library list; resolves to the created row
  *  (its id) so the caller can open it. */
-export const useCreatePreset = createEntityMutation<
-  inferInput<Trpc["preset"]["create"]>,
-  inferOutput<Trpc["preset"]["create"]>
->({
+export const useCreatePreset = createEntityMutation<inferInput<Trpc["preset"]["create"]>, inferOutput<Trpc["preset"]["create"]>>({
   options: (trpc) => trpc.preset.create.mutationOptions(),
   invalidates: (trpc) => [trpc.preset.list.pathFilter()],
   errorToast: "Couldn't create the preset.",
@@ -34,10 +31,7 @@ export const useRemovePreset = createEntityMutation<inferInput<Trpc["preset"]["r
 });
 
 /** Reset a preset's config back to the starter arrangement. Refetches the list + the open editor row. */
-export const useResetPreset = createEntityMutation<
-  inferInput<Trpc["preset"]["resetToDefault"]>,
-  unknown
->({
+export const useResetPreset = createEntityMutation<inferInput<Trpc["preset"]["resetToDefault"]>, unknown>({
   options: (trpc) => trpc.preset.resetToDefault.mutationOptions(),
   invalidates: (trpc) => [trpc.preset.list.pathFilter(), trpc.preset.get.pathFilter()],
   errorToast: "Couldn't reset the preset.",

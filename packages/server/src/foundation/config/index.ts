@@ -9,9 +9,7 @@ interface PackageManifest {
 }
 
 // Three levels up from src/foundation/config to packages/server, where package.json lives.
-const manifest = JSON.parse(
-  readFileSync(new URL("../../../package.json", import.meta.url), "utf8"),
-) as PackageManifest;
+const manifest = JSON.parse(readFileSync(new URL("../../../package.json", import.meta.url), "utf8")) as PackageManifest;
 
 /** The `@orb/server` package version. */
 export const APP_VERSION: string = manifest.version;

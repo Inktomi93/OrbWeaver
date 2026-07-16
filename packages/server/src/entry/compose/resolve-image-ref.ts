@@ -7,9 +7,7 @@ import type { AssetId, ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 
 export interface ImageRefAssets {
-  readonly assetCasRefById: (
-    id: AssetId,
-  ) => Promise<{ readonly ownerId: UserId; readonly mime: string } | undefined>;
+  readonly assetCasRefById: (id: AssetId) => Promise<{ readonly ownerId: UserId; readonly mime: string } | undefined>;
   readonly loadAssetBytes: (id: AssetId) => Promise<Uint8Array | null>;
 }
 

@@ -13,10 +13,7 @@ import type { ModelId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { logger } from "@orb/server/foundation/observability";
 import type { OpenRouterChatRequest } from "@orb/server/infra/providers";
-import {
-  placeHistoryCacheBreakpoint,
-  runChatCompletionTurn,
-} from "@orb/server/infra/providers/backends/openrouter";
+import { placeHistoryCacheBreakpoint, runChatCompletionTurn } from "@orb/server/infra/providers/backends/openrouter";
 import { describe, vi } from "vitest";
 import { expect, test } from "../../../../../../../support/fixtures";
 
@@ -136,11 +133,7 @@ describe("runChatCompletionTurn — wire shaping", () => {
 
   test("non-Anthropic: the system prompt collapses to a string + no provider pin", async () => {
     const { client, captured } = streamingClient(OK_STREAM);
-    await runChatCompletionTurn(
-      client,
-      makeRequest({ model: castId<ModelId>(OPENAI_MODEL) }),
-      DEPS,
-    );
+    await runChatCompletionTurn(client, makeRequest({ model: castId<ModelId>(OPENAI_MODEL) }), DEPS);
     expect(systemMessage(captured).content).toBe("You are a bot.\n\nBe terse.");
     expect(captured.chatRequest?.["provider"]).toBeUndefined();
   });
@@ -207,14 +200,8 @@ describe("runChatCompletionTurn — wire shaping", () => {
     const spy = vi.spyOn(logger, "debug");
     const { client } = streamingClient(OK_STREAM);
     // temperature applies; seed is dropped (CAPABILITY exposes no seed flag).
-    await runChatCompletionTurn(
-      client,
-      makeRequest({ params: { temperature: 0.3, effort: "high", seed: 5 } }),
-      DEPS,
-    );
-    const line = spy.mock.calls.find(
-      (c) => (c[0] as { event?: string }).event === "provider.sampling",
-    );
+    await runChatCompletionTurn(client, makeRequest({ params: { temperature: 0.3, effort: "high", seed: 5 } }), DEPS);
+    const line = spy.mock.calls.find((c) => (c[0] as { event?: string }).event === "provider.sampling");
     expect(line).toBeDefined();
     const fields = line?.[0] as Record<string, unknown>;
     expect(fields["backend"]).toBe("openrouter");
@@ -230,20 +217,14 @@ describe("runChatCompletionTurn — wire shaping", () => {
   test("disables OpenRouter middle-out by default via the context-compression plugin", async () => {
     const { client, captured } = streamingClient(OK_STREAM);
     await runChatCompletionTurn(client, makeRequest(), DEPS);
-    expect(captured.chatRequest?.["plugins"]).toEqual([
-      { id: "context-compression", enabled: false },
-    ]);
+    expect(captured.chatRequest?.["plugins"]).toEqual([{ id: "context-compression", enabled: false }]);
   });
 
   test("surfaces a resolve-chat dropped knob as a `warning` event (in events AND via onEvent)", async () => {
     const { client } = streamingClient(OK_STREAM);
     const onEvent = vi.fn();
     // CAPABILITY exposes no `seed` flag → resolve-chat drops it + warns.
-    const result = await runChatCompletionTurn(
-      client,
-      makeRequest({ params: { effort: "high", seed: 5 }, onEvent }),
-      DEPS,
-    );
+    const result = await runChatCompletionTurn(client, makeRequest({ params: { effort: "high", seed: 5 }, onEvent }), DEPS);
     const warnings = result.events.filter((e) => e.kind === "warning");
     expect(warnings).toEqual([
       {
@@ -381,8 +362,7 @@ describe("runChatCompletionTurn — retry + error classification", () => {
   test("a 401 surfaces as a typed auth_failed ProviderError", async () => {
     const client: ChatClient = {
       chat: {
-        send: (): Promise<unknown> =>
-          Promise.reject(Object.assign(new Error("bad key"), { statusCode: 401 })),
+        send: (): Promise<unknown> => Promise.reject(Object.assign(new Error("bad key"), { statusCode: 401 })),
       },
     };
     await expect(runChatCompletionTurn(client, makeRequest(), DEPS)).rejects.toMatchObject({
@@ -429,9 +409,7 @@ describe("the history cache breakpoint placement", () => {
   // ~7500 chars ⇒ well over the token floor (estimateTokens ≈ chars/4).
   const longText = "word ".repeat(1500);
 
-  function asMessages(
-    items: { role: string; content: string }[],
-  ): Parameters<typeof placeHistoryCacheBreakpoint>[0] {
+  function asMessages(items: { role: string; content: string }[]): Parameters<typeof placeHistoryCacheBreakpoint>[0] {
     return items as unknown as Parameters<typeof placeHistoryCacheBreakpoint>[0];
   }
 
@@ -471,12 +449,7 @@ describe("the history cache breakpoint placement", () => {
   });
 
   test("leaves the array unchanged when the prefix is below the floor", () => {
-    const placed = placeHistoryCacheBreakpoint(
-      asMessages([{ role: "user", content: "tiny" }]),
-      "",
-      0,
-      CACHE_MIN,
-    );
+    const placed = placeHistoryCacheBreakpoint(asMessages([{ role: "user", content: "tiny" }]), "", 0, CACHE_MIN);
     expect(placed[0]?.content).toBe("tiny");
   });
 
@@ -521,8 +494,7 @@ describe("the OR cache-placement gate reads the resolved turns flags (W3)", () =
       return 0;
     }
     // messages[0] is the system message (always a cache block on Anthropic) — count history blocks only.
-    return messages.slice(1).filter((m) => Array.isArray((m as { content: unknown }).content))
-      .length;
+    return messages.slice(1).filter((m) => Array.isArray((m as { content: unknown }).content)).length;
   }
 
   test("Opus-4.8 floor (1024): a modest history clears the floor and gets the pair", async () => {
@@ -541,11 +513,7 @@ describe("the OR cache-placement gate reads the resolved turns flags (W3)", () =
 
   test("no turns cell (explicitPromptCache absent) ⇒ the gate does NOT place a history breakpoint", async () => {
     const { client, captured } = streamingClient(OK_STREAM);
-    await runChatCompletionTurn(
-      client,
-      makeRequest({ history: longHistory(6), historyCacheBreakpointFromEnd: 1 }),
-      DEPS,
-    );
+    await runChatCompletionTurn(client, makeRequest({ history: longHistory(6), historyCacheBreakpointFromEnd: 1 }), DEPS);
     expect(blockCount(captured)).toBe(0);
   });
 
@@ -553,9 +521,7 @@ describe("the OR cache-placement gate reads the resolved turns flags (W3)", () =
     const spy = vi.spyOn(logger, "info");
     const { client } = streamingClient(OK_STREAM);
     await runChatCompletionTurn(client, cacheReq(1024, 6), DEPS);
-    const cacheLine = spy.mock.calls.find(
-      (c) => (c[0] as { event?: string }).event === "provider.cache",
-    );
+    const cacheLine = spy.mock.calls.find((c) => (c[0] as { event?: string }).event === "provider.cache");
     expect(cacheLine).toBeDefined();
     const fields = cacheLine?.[0] as Record<string, unknown>;
     expect(fields["backend"]).toBe("openrouter");
@@ -571,14 +537,8 @@ describe("the OR cache-placement gate reads the resolved turns flags (W3)", () =
   test("a non-cache turn (explicitPromptCache false) emits NO provider.cache line", async () => {
     const spy = vi.spyOn(logger, "info");
     const { client } = streamingClient(OK_STREAM);
-    await runChatCompletionTurn(
-      client,
-      makeRequest({ model: castId<ModelId>(OPENAI_MODEL) }),
-      DEPS,
-    );
-    const cacheLine = spy.mock.calls.find(
-      (c) => (c[0] as { event?: string }).event === "provider.cache",
-    );
+    await runChatCompletionTurn(client, makeRequest({ model: castId<ModelId>(OPENAI_MODEL) }), DEPS);
+    const cacheLine = spy.mock.calls.find((c) => (c[0] as { event?: string }).event === "provider.cache");
     expect(cacheLine).toBeUndefined();
   });
 });

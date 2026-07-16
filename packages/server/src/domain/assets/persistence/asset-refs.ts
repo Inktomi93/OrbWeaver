@@ -10,17 +10,7 @@
 // silently reaped ~1h after upload.
 
 import type { Db } from "@orb/db";
-import {
-  characterSprites,
-  characters,
-  documents,
-  galleryItems,
-  imageryGenerations,
-  messageAssets,
-  personas,
-  rpgNpcs,
-  userSettings,
-} from "@orb/db";
+import { characterSprites, characters, documents, galleryItems, imageryGenerations, messageAssets, personas, rpgNpcs, userSettings } from "@orb/db";
 import type { AssetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { inArray, isNotNull, sql } from "drizzle-orm";
@@ -49,12 +39,11 @@ export const DERIVED_ASSET_COLUMNS: readonly string[] = ["image_embeddings.asset
  *  under-inclusion is the silent-reap data-loss bug this closes, so a present, non-empty value joins the
  *  set unconditionally. Mirrors `selectInlineReferencedContents` (the chat-canon `asset:` JSON live-source). */
 async function selectSettingsReferencedAssetIds(db: Db): Promise<Set<AssetId>> {
+  // @orb-gate-ignore persistence-no-in-memory-state: query-local accumulator for GC live-set
   const live = new Set<AssetId>();
   const rows = await db
     .selectDistinct({
-      id: sql<
-        string | null
-      >`json_extract(${userSettings.config}, '$.appearance.backgroundAssetId')`,
+      id: sql<string | null>`json_extract(${userSettings.config}, '$.appearance.backgroundAssetId')`,
     })
     .from(userSettings);
   for (const row of rows) {
@@ -68,13 +57,11 @@ async function selectSettingsReferencedAssetIds(db: Db): Promise<Set<AssetId>> {
 /** The whole-corpus live set `collectGarbage` sweeps every blob against — the FK registry UNIONED with the
  *  JSON settings live-source (so a JSON-pinned background is as GC-safe as an FK-referenced avatar). */
 export async function selectAllReferencedAssetIds(db: Db): Promise<Set<AssetId>> {
+  // @orb-gate-ignore persistence-no-in-memory-state: query-local accumulator for GC live-set
   const live = new Set<AssetId>();
   for (const ref of ASSET_REFS) {
     // biome-ignore lint/performance/noAwaitInLoops: sequential DISTINCT reads over the fixed tiny registry — a maintenance-time sweep, not a hot path.
-    const rows = await db
-      .selectDistinct({ id: ref.column })
-      .from(ref.table)
-      .where(isNotNull(ref.column));
+    const rows = await db.selectDistinct({ id: ref.column }).from(ref.table).where(isNotNull(ref.column));
     for (const row of rows) {
       const id = row.id as AssetId | null;
       if (id !== null) {
@@ -90,10 +77,8 @@ export async function selectAllReferencedAssetIds(db: Db): Promise<Set<AssetId>>
 
 /** The subset of `candidateIds` still referenced — the targeted check `reapIfOrphan` runs on ids
  *  `character.remove` just orphaned. Absent from the result ⇒ safe to reap. */
-export async function selectReferencedAmong(
-  db: Db,
-  candidateIds: readonly AssetId[],
-): Promise<Set<AssetId>> {
+export async function selectReferencedAmong(db: Db, candidateIds: readonly AssetId[]): Promise<Set<AssetId>> {
+  // @orb-gate-ignore persistence-no-in-memory-state: query-local accumulator for GC candidate check
   const referenced = new Set<AssetId>();
   if (candidateIds.length === 0) {
     return referenced;

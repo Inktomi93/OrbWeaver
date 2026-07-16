@@ -6,10 +6,7 @@ import { ListRow } from "@orb/ui/list-row";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 
-test("clickable body is a NATIVE <button> element (side-eye item 13), not a role='button' div", async ({
-  mount,
-  page,
-}) => {
+test("clickable body is a NATIVE <button> element (side-eye item 13), not a role='button' div", async ({ mount, page }) => {
   await mount(<ListRow clickable={true} title="Elara" />);
   const body = page.locator('[data-slot="list-row-body"]');
   await expect(body).toHaveJSProperty("tagName", "BUTTON");
@@ -42,10 +39,7 @@ test("non-clickable row is a static <div> body with no button role", async ({ mo
   await expect(page.locator('[data-slot="list-row-body"]')).toHaveJSProperty("tagName", "DIV");
 });
 
-test("trailing action is a separate tab stop, not nested in the row's accessible name", async ({
-  mount,
-  page,
-}) => {
+test("trailing action is a separate tab stop, not nested in the row's accessible name", async ({ mount, page }) => {
   const rowClicks: string[] = [];
   const actionClicks: string[] = [];
   await mount(
@@ -114,10 +108,7 @@ test("disabled removes the row from tab order and marks aria-disabled", async ({
   expect(clicks.length).toBe(0);
 });
 
-test("title and subtitle truncate with the full text recoverable via the title attribute", async ({
-  mount,
-  page,
-}) => {
+test("title and subtitle truncate with the full text recoverable via the title attribute", async ({ mount, page }) => {
   const longTitle = "A".repeat(200);
   const longSubtitle = "B".repeat(200);
   await mount(<ListRow subtitle={longSubtitle} title={longTitle} />);
@@ -125,13 +116,8 @@ test("title and subtitle truncate with the full text recoverable via the title a
   await expect(page.getByText(longSubtitle)).toHaveAttribute("title", longSubtitle);
 });
 
-test("subtitleReveal display-swaps the subtitle on :focus-within (in the content column, not actions)", async ({
-  mount,
-  page,
-}) => {
-  await mount(
-    <ListRow clickable={true} subtitle="the pitch" subtitleReveal="handle · 42" title="Elara" />,
-  );
+test("subtitleReveal display-swaps the subtitle on :focus-within (in the content column, not actions)", async ({ mount, page }) => {
+  await mount(<ListRow clickable={true} subtitle="the pitch" subtitleReveal="handle · 42" title="Elara" />);
   const subtitle = page.locator('[data-slot="list-row-subtitle"]');
   const reveal = page.locator('[data-slot="list-row-subtitle-reveal"]');
   // Rest: the subtitle shows, the reveal is display:none (zero layout — no rest-state cost).
@@ -155,14 +141,10 @@ test.describe("coarse pointer — density heights", () => {
 
   test("compact density is shorter than the default density", async ({ mount, page }) => {
     const compact = await mount(<ListRow density="compact" title="Elara" />);
-    const compactHeight = await page
-      .locator('[data-slot="list-row-body"]')
-      .evaluate((el) => el.getBoundingClientRect().height);
+    const compactHeight = await page.locator('[data-slot="list-row-body"]').evaluate((el) => el.getBoundingClientRect().height);
     await compact.unmount();
     const defaultRow = await mount(<ListRow title="Elara" />);
-    const defaultHeight = await page
-      .locator('[data-slot="list-row-body"]')
-      .evaluate((el) => el.getBoundingClientRect().height);
+    const defaultHeight = await page.locator('[data-slot="list-row-body"]').evaluate((el) => el.getBoundingClientRect().height);
     await defaultRow.unmount();
     expect(compactHeight).toBeLessThan(defaultHeight);
   });
@@ -178,10 +160,7 @@ test("renders the leading slot", async ({ mount, page }) => {
 // chat row announce as "UC Untitled chat owner, Niko" instead of "Untitled chat, owner Niko". The
 // leading glyph is still VISIBLE (in the DOM) but hidden from the accessibility tree, so `getByRole`
 // (Playwright, screen readers, agent nav) resolves the row by its title alone.
-test("leading slot is aria-hidden — its text never leaks into the row's accessible name", async ({
-  mount,
-  page,
-}) => {
+test("leading slot is aria-hidden — its text never leaks into the row's accessible name", async ({ mount, page }) => {
   await mount(<ListRow clickable={true} leading={<span>ZZ</span>} title="Elara" />);
   await expect(page.getByText("ZZ")).toBeVisible();
   await expect(page.getByRole("button", { name: "Elara", exact: true })).toBeVisible();

@@ -18,12 +18,7 @@ export interface PresetRenameDialogProps {
 }
 
 /** The rename dialog — a single text field seeded with the current name. */
-export function PresetRenameDialog({
-  open,
-  onOpenChange,
-  currentName,
-  onRename,
-}: PresetRenameDialogProps): ReactElement {
+export function PresetRenameDialog({ open, onOpenChange, currentName, onRename }: PresetRenameDialogProps): ReactElement {
   const [name, setName] = useState(currentName);
 
   const trimmed = name.trim();

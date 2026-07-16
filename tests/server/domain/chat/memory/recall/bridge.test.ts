@@ -2,10 +2,7 @@ import type { CharacterId, ChatDigestId, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { computeBridge } from "../../../../../../packages/server/src/domain/chat/memory/recall/bridge";
-import type {
-  DigestRow,
-  MemoryScope,
-} from "../../../../../../packages/server/src/domain/chat/memory/types";
+import type { DigestRow, MemoryScope } from "../../../../../../packages/server/src/domain/chat/memory/types";
 import { expect, test } from "../../../../../support/fixtures";
 
 const chatId = castId<ChatId>("chat_b");
@@ -73,18 +70,7 @@ describe("memory/recall/bridge — adversarial coverage (uncovered-only depth, b
   test("tier-2 cover: a tier-2 digest hides the tier-1 AND tier-0 digests inside its span (highest-tier-first)", () => {
     // fanOut 2: tier-0 0..5, tier-1 0..2, tier-2 0 (covers tier-0 0..3). lastTier0=5 → fine zone [4,5].
     // The coarse zone [0,4) is covered by the SINGLE tier-2 block 0 — neither tier-1 nor tier-0 inside it surfaces.
-    const digests = [
-      dr(0, 0),
-      dr(0, 1),
-      dr(0, 2),
-      dr(0, 3),
-      dr(0, 4),
-      dr(0, 5),
-      dr(1, 0),
-      dr(1, 1),
-      dr(1, 2),
-      dr(2, 0),
-    ];
+    const digests = [dr(0, 0), dr(0, 1), dr(0, 2), dr(0, 3), dr(0, 4), dr(0, 5), dr(1, 0), dr(1, 1), dr(1, 2), dr(2, 0)];
     const keys = computeBridge(scope, digests, 2);
     expect(keys).toEqual([
       { chatId, tier: 2, blockIdx: 0, scopedCharacterId: groupChar },

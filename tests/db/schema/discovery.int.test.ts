@@ -73,10 +73,7 @@ async function seedDigest(db: Db, chatId: ChatId, id: string): Promise<ChatDiges
     .insert(users)
     .values({ id: ownerId, handle: castId<Handle>("h-digest-owner") })
     .onConflictDoNothing();
-  await db
-    .insert(characters)
-    .values({ id: groupChar, handle: "group", ownerId, contentHash: "hash-card", name: "Group" })
-    .onConflictDoNothing();
+  await db.insert(characters).values({ id: groupChar, handle: "group", ownerId, contentHash: "hash-card", name: "Group" }).onConflictDoNothing();
   await db.insert(chatDigests).values({
     id: digestId,
     chatId,
@@ -139,10 +136,7 @@ test("duplicate_character_pairs round-trips a per-type FK pair (cslsScore/simila
     model: MODEL,
   });
 
-  const rows = await db
-    .select()
-    .from(duplicateCharacterPairs)
-    .where(eq(duplicateCharacterPairs.id, id));
+  const rows = await db.select().from(duplicateCharacterPairs).where(eq(duplicateCharacterPairs.id, id));
   expect(rows).toHaveLength(1);
   expect(rows[0]?.characterIdA).toBe(a);
   expect(rows[0]?.characterIdB).toBe(b);
@@ -401,14 +395,9 @@ test("character_keyword_profiles DERIVE ownerId (no column), FK character CASCAD
   const ownerId = await seedUser(db, { id: "user_ckp", handle: "h-user_ckp" });
   const characterId = await seedCharacter(db, ownerId, "character_ckp");
   const id = castId<CharacterKeywordProfileId>("character_keyword_profile_one");
-  await db
-    .insert(characterKeywordProfiles)
-    .values({ id, characterId, keyword: "brooding", count: 4 });
+  await db.insert(characterKeywordProfiles).values({ id, characterId, keyword: "brooding", count: 4 });
 
-  const rows = await db
-    .select()
-    .from(characterKeywordProfiles)
-    .where(eq(characterKeywordProfiles.id, id));
+  const rows = await db.select().from(characterKeywordProfiles).where(eq(characterKeywordProfiles.id, id));
   expect(rows).toHaveLength(1);
   // DERIVE (D23) — no ownerId column (owner via characterId → characters.ownerId).
   expect(Object.keys(rows[0] ?? {})).not.toContain("ownerId");
@@ -447,10 +436,7 @@ test("character_summaries is keyed by characterId, DERIVE ownerId (no column), a
     model: MODEL,
   });
 
-  const rows = await db
-    .select()
-    .from(characterSummaries)
-    .where(eq(characterSummaries.characterId, characterId));
+  const rows = await db.select().from(characterSummaries).where(eq(characterSummaries.characterId, characterId));
   expect(rows).toHaveLength(1);
   expect(rows[0]?.genre).toBe("fantasy");
   // JSON facet columns default to [] (never null).
@@ -508,9 +494,7 @@ test("theme_clusters KEEPS ownerId (D23) and round-trips the centroid vector32 (
   }
   expect(isConstraintViolation(caught)?.kind).toBe("unique");
   await seedThemeCluster(db, { ownerId, id: "theme_cluster_arc", level: "arc", clusterIdx: 0 });
-  expect(
-    await db.select().from(themeClusters).where(eq(themeClusters.ownerId, ownerId)),
-  ).toHaveLength(2);
+  expect(await db.select().from(themeClusters).where(eq(themeClusters.ownerId, ownerId))).toHaveLength(2);
 
   // CASCADE on owner delete.
   await db.delete(users).where(eq(users.id, ownerId));
@@ -535,12 +519,7 @@ test("digest_theme_assignments uses a composite PK, DERIVE ownerId, and CASCADEs
   const rows = await db
     .select()
     .from(digestThemeAssignments)
-    .where(
-      and(
-        eq(digestThemeAssignments.digestId, digestId),
-        eq(digestThemeAssignments.themeClusterId, themeClusterId),
-      ),
-    );
+    .where(and(eq(digestThemeAssignments.digestId, digestId), eq(digestThemeAssignments.themeClusterId, themeClusterId)));
   expect(rows).toHaveLength(1);
   expect(rows[0]?.msgMidAt).toBe(1700);
   expect(rows[0]?.computedAt).toBeTypeOf("number");

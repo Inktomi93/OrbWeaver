@@ -51,9 +51,7 @@ describe("importTheme", () => {
     const result = await createImportTheme(ctx)(owner, bytes);
     expect(result).toEqual({ ok: true, created: true });
 
-    const view = (await h.svc.listThemes({ principal: principal(owner, "user") })).find(
-      (v) => v.name === "Risky",
-    );
+    const view = (await h.svc.listThemes({ principal: principal(owner, "user") })).find((v) => v.name === "Risky");
     expect(view?.css).toBeNull(); // unsafe CSS dropped
     expect(view?.override).toEqual({ accent: "#123456" }); // palette preserved
   });

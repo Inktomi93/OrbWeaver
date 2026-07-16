@@ -45,10 +45,7 @@ export function createDigests(ctx: SearchContext): SearchService["digests"] {
     const embedded = await ctx.roleClients.embed(text, { inputType: "query" });
     const queryVector = embedded.vectors[0];
     if (queryVector === null || queryVector === undefined) {
-      throw new SearchError(
-        SEARCH_EMPTY_QUERY,
-        "the query embedded to no vector — nothing to scan",
-      );
+      throw new SearchError(SEARCH_EMPTY_QUERY, "the query embedded to no vector — nothing to scan");
     }
 
     const pool = await nearestDigests(ctx.db, {
@@ -62,10 +59,7 @@ export function createDigests(ctx: SearchContext): SearchService["digests"] {
 
     const terms = params.keywordMatch ? queryTerms(text) : null;
     const ranked = pool
-      .filter(
-        (r) =>
-          1 - r.distance >= params.minScore || (terms !== null && keywordHit(r.keywords, terms)),
-      )
+      .filter((r) => 1 - r.distance >= params.minScore || (terms !== null && keywordHit(r.keywords, terms)))
       .map((r) => {
         const blockKey = {
           chatId: r.chatId,
@@ -89,10 +83,7 @@ export function createDigests(ctx: SearchContext): SearchService["digests"] {
         ),
       );
 
-    const ordered =
-      params.mode === "mixC"
-        ? await applyRerank(text, ranked, ctx.roleClients.rerank, ranked.length)
-        : ranked;
+    const ordered = params.mode === "mixC" ? await applyRerank(text, ranked, ctx.roleClients.rerank, ranked.length) : ranked;
 
     return ordered.map((c) => ({ blockKey: c.blockKey, score: c.score, text: c.sourceText }));
   };

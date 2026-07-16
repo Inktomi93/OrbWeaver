@@ -8,20 +8,9 @@ import { SearchError } from "@orb/server/domain/search";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
-import {
-  makeSearch,
-  seedCharacter,
-  seedChat,
-  seedChatSegment,
-  seedUser,
-  vec,
-} from "../_support.ts";
+import { makeSearch, seedCharacter, seedChat, seedChatSegment, seedUser, vec } from "../_support.ts";
 
-function opts(
-  chat: ChatId,
-  scopedCharacterId: CharacterId | undefined,
-  over: Partial<MemoryQueryOptions> = {},
-): MemoryQueryOptions {
+function opts(chat: ChatId, scopedCharacterId: CharacterId | undefined, over: Partial<MemoryQueryOptions> = {}): MemoryQueryOptions {
   return {
     scope: { chat },
     queryText: "anything",
@@ -35,9 +24,7 @@ function opts(
   };
 }
 
-async function seedOwnerChatChar(
-  db: Awaited<ReturnType<typeof freshDb>>,
-): Promise<{ chat: ChatId; char: CharacterId }> {
+async function seedOwnerChatChar(db: Awaited<ReturnType<typeof freshDb>>): Promise<{ chat: ChatId; char: CharacterId }> {
   const owner = await seedUser(db, { handle: "owner" });
   const char = await seedCharacter(db, { id: "character_pov", ownerId: owner, name: "POV" });
   const chat = await seedChat(db, "chat_a");
@@ -87,11 +74,7 @@ describe("segments", () => {
   test("the candidates restriction scores only the given blocks", async () => {
     const db = await freshDb();
     const { chat, char } = await seedOwnerChatChar(db);
-    await Promise.all(
-      [0, 1, 2].map((blockIdx) =>
-        seedChatSegment(db, { chatId: chat, blockIdx, embedding: vec(1) }),
-      ),
-    );
+    await Promise.all([0, 1, 2].map((blockIdx) => seedChatSegment(db, { chatId: chat, blockIdx, embedding: vec(1) })));
 
     const svc = makeSearch(db, { embedVector: () => vec(1) });
     const hits = await svc.segments(

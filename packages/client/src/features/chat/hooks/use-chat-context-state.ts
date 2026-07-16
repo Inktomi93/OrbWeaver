@@ -18,9 +18,7 @@ export function useChatContextState(): ChatContextState | null {
   const draftKey = handle.kind === "draft" ? handle.draftKey : "";
   const draftConfig = useDraftConfig(draftKey);
   const chatQueries = useSuspenseQueries({
-    queries: (chatId === null ? [] : [chatId]).map((id) =>
-      trpc.chat.getChat.queryOptions({ chatId: id }),
-    ),
+    queries: (chatId === null ? [] : [chatId]).map((id) => trpc.chat.getChat.queryOptions({ chatId: id })),
   });
 
   const chatQuery = chatQueries[0];
@@ -38,9 +36,7 @@ export function useChatContextState(): ChatContextState | null {
     };
   }
   if (handle.kind === "draft") {
-    const cast = [
-      ...new Set([...(draftSeed?.characterIds ?? []), ...(draftConfig.addedCharacterIds ?? [])]),
-    ];
+    const cast = [...new Set([...(draftSeed?.characterIds ?? []), ...(draftConfig.addedCharacterIds ?? [])])];
     return { phase: "draft", draftKey: handle.draftKey, cast };
   }
   return null;

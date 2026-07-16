@@ -6,11 +6,7 @@
 import type { BarListItem } from "@orb/ui/bar-list";
 
 /** Map any labelled-count rows into pre-ranked BarList items (array order IS the rank — callers pre-sort). */
-export function toBarItems<T>(
-  rows: readonly T[],
-  label: (row: T) => string,
-  value: (row: T) => number,
-): BarListItem[] {
+export function toBarItems<T>(rows: readonly T[], label: (row: T) => string, value: (row: T) => number): BarListItem[] {
   return rows.map((row, index) => ({
     // The label is human-facing and may repeat across rows; the index keeps the React/ECharts key unique.
     id: `${index}-${label(row)}`,
@@ -23,12 +19,7 @@ export function toBarItems<T>(
 /** The token `fill` refs the map colors genres with — set on the SVG `fill` ATTRIBUTE (a token reference,
  *  never a className/style: features may not className raw SVG, so `fill="var(--color-*)"` is the one
  *  belt-clean channel). The N most-common genres claim a fill in frequency order; the rest (+ null) go muted. */
-export const GENRE_FILLS = [
-  "var(--color-primary)",
-  "var(--color-success)",
-  "var(--color-warning)",
-  "var(--color-destructive)",
-] as const;
+export const GENRE_FILLS = ["var(--color-primary)", "var(--color-success)", "var(--color-warning)", "var(--color-destructive)"] as const;
 export const GENRE_FILL_MUTED = "var(--color-muted-foreground)";
 
 /** One legend entry — a genre value paired with the token fill its points render in. */
@@ -60,20 +51,15 @@ export function assignGenreColors(genres: readonly (string | null)[]): GenrePale
     }
   }
 
-  const ranked = [...counts.entries()]
-    .sort((a, b) => b[1].count - a[1].count || a[1].firstSeen - b[1].firstSeen)
-    .slice(0, GENRE_FILLS.length);
+  const ranked = [...counts.entries()].sort((a, b) => b[1].count - a[1].count || a[1].firstSeen - b[1].firstSeen).slice(0, GENRE_FILLS.length);
 
-  const byGenre = new Map<string, string>(
-    ranked.map(([genre], index) => [genre, GENRE_FILLS[index] ?? GENRE_FILL_MUTED]),
-  );
+  const byGenre = new Map<string, string>(ranked.map(([genre], index) => [genre, GENRE_FILLS[index] ?? GENRE_FILL_MUTED]));
 
   return {
     legend: ranked.map(([genre], index) => ({
       genre,
       fill: GENRE_FILLS[index] ?? GENRE_FILL_MUTED,
     })),
-    fillFor: (genre): string =>
-      genre === null ? GENRE_FILL_MUTED : (byGenre.get(genre) ?? GENRE_FILL_MUTED),
+    fillFor: (genre): string => (genre === null ? GENRE_FILL_MUTED : (byGenre.get(genre) ?? GENRE_FILL_MUTED)),
   };
 }

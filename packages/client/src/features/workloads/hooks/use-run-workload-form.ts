@@ -10,11 +10,7 @@ export const useRunWorkloadForm = createSavedEntityForm<RunWorkloadFormValues>({
   defaultValues: RUN_WORKLOAD_FORM_DEFAULTS,
   options: {
     validators: {
-      onDynamic: ({
-        value,
-      }: {
-        value: RunWorkloadFormValues;
-      }): { fields: Record<string, string> } | undefined =>
+      onDynamic: ({ value }: { value: RunWorkloadFormValues }): { fields: Record<string, string> } | undefined =>
         value.bulk && workloadKindNeedsBulkTarget(value.kind) && value.targetOwnerId === ""
           ? { fields: { targetOwnerId: "Pick the user to import into." } }
           : undefined,

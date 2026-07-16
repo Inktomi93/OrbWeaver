@@ -464,11 +464,7 @@ const COLLECT_SAMPLES_JS = `(async () => {
 
 type CaptureOutcome = { navError: string | null; clickFailed: boolean; samples: RawSamples | null };
 
-async function navigateAndReveal(
-  page: Awaited<ReturnType<typeof launchProbeSession>>["page"],
-  opts: Args,
-  url: string,
-): Promise<CaptureOutcome> {
+async function navigateAndReveal(page: Awaited<ReturnType<typeof launchProbeSession>>["page"], opts: Args, url: string): Promise<CaptureOutcome> {
   const resp = await page.goto(url, { waitUntil: "domcontentloaded", timeout: NAV_TIMEOUT_MS });
   let navError: string | null = null;
   if (!resp) {
@@ -528,10 +524,7 @@ function printFindingsTable(findings: readonly Finding[]): void {
   const sorted = [...findings].sort((a, b) => a.severity.localeCompare(b.severity));
   print("severity  rule                  selector                                message");
   for (const f of sorted) {
-    const truncated =
-      f.message.length > MESSAGE_COL_WIDTH
-        ? `${f.message.slice(0, MESSAGE_COL_WIDTH)}…`
-        : f.message;
+    const truncated = f.message.length > MESSAGE_COL_WIDTH ? `${f.message.slice(0, MESSAGE_COL_WIDTH)}…` : f.message;
     const severityCol = f.severity.padEnd(SEVERITY_COL);
     const ruleCol = f.rule.padEnd(RULE_COL);
     const selectorCol = f.selector.slice(0, SELECTOR_MAX_LEN).padEnd(SELECTOR_COL);
@@ -558,8 +551,7 @@ async function main(): Promise<number> {
 
   const findings = samples === null ? [] : collectFindings(samples);
   const counts = countBySeverity(findings);
-  const failed =
-    navError !== null || findings.some((f) => isAtOrAboveSeverity(f.severity, opts.failOn));
+  const failed = navError !== null || findings.some((f) => isAtOrAboveSeverity(f.severity, opts.failOn));
 
   await writeFile(
     outPath,

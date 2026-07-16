@@ -7,10 +7,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 
 const NON_EMPTY = /.+/u;
 
-test("inside a <Field>, the label associates with the textarea (Field.Control registration)", async ({
-  mount,
-  page,
-}) => {
+test("inside a <Field>, the label associates with the textarea (Field.Control registration)", async ({ mount, page }) => {
   await mount(
     <Field label="Bio" description="A short blurb">
       <Textarea />
@@ -32,10 +29,7 @@ test("accepts multi-line input", async ({ mount, page }) => {
   await expect(control).toHaveValue("A tavern at dusk.\nRain on the shutters.");
 });
 
-test("inside an invalid <Field>, data-invalid lands and the border swaps to destructive", async ({
-  mount,
-  page,
-}) => {
+test("inside an invalid <Field>, data-invalid lands and the border swaps to destructive", async ({ mount, page }) => {
   await mount(
     <Field error="Required" label="Bio">
       <Textarea />

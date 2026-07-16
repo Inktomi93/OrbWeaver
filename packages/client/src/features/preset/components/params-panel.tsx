@@ -15,13 +15,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import type { AppFormInstance } from "#forms";
 import type { ResolvedSamplingKnob } from "../lib/capability-panel-model";
-import {
-  QUALITY_OPTIONS,
-  reasoningControlFor,
-  samplingKnobsFor,
-  supportsSeed,
-  verbosityLevelsFor,
-} from "../lib/capability-panel-model";
+import { QUALITY_OPTIONS, reasoningControlFor, samplingKnobsFor, supportsSeed, verbosityLevelsFor } from "../lib/capability-panel-model";
 
 type AppForm = AppFormInstance<PromptConfig>;
 
@@ -41,8 +35,7 @@ export function ParamsPanel({ form, capability, axis }: ParamsPanelProps): React
     return (
       <Section heading="Model parameters">
         <Text tone="muted">
-          Connect a chat model in Connections to tune sampling, reasoning, and output — these
-          controls show only the knobs your model honors.
+          Connect a chat model in Connections to tune sampling, reasoning, and output — these controls show only the knobs your model honors.
         </Text>
       </Section>
     );
@@ -60,20 +53,13 @@ function QualityDial({ form }: { readonly form: AppForm }): ReactElement {
   return (
     <Section heading="Quality">
       <Text size="micro" tone="muted">
-        The primary dial — the resolver maps it onto this model's reasoning and sampling. Fine-tune
-        the raw knobs in the other tabs.
+        The primary dial — the resolver maps it onto this model's reasoning and sampling. Fine-tune the raw knobs in the other tabs.
       </Text>
       <form.AppField name="params.quality">
         {(field): ReactElement => {
           const current = (field.state.value as Quality | undefined) ?? "";
           return (
-            <RadioGroup
-              value={current}
-              onValueChange={(next): void =>
-                field.handleChange(next === "" ? undefined : (next as Quality))
-              }
-              aria-label="Quality"
-            >
+            <RadioGroup value={current} onValueChange={(next): void => field.handleChange(next === "" ? undefined : (next as Quality))} aria-label="Quality">
               <Stack gap="field">
                 {QUALITY_OPTIONS.map((option) => (
                   <RadioGroupItem key={option.value} value={option.value}>
@@ -89,13 +75,7 @@ function QualityDial({ form }: { readonly form: AppForm }): ReactElement {
   );
 }
 
-function SamplingSection({
-  form,
-  capability,
-}: {
-  readonly form: AppForm;
-  readonly capability: ModelCapability;
-}): ReactElement {
+function SamplingSection({ form, capability }: { readonly form: AppForm; readonly capability: ModelCapability }): ReactElement {
   const knobs = samplingKnobsFor(capability);
   if (knobs.length === 0 && !supportsSeed(capability)) {
     return (
@@ -115,12 +95,7 @@ function SamplingSection({
         ))}
         {supportsSeed(capability) ? (
           <form.AppField name="params.seed">
-            {(field): ReactElement => (
-              <field.NumberField
-                label="Seed"
-                description="A fixed seed for reproducible sampling (leave blank for random)."
-              />
-            )}
+            {(field): ReactElement => <field.NumberField label="Seed" description="A fixed seed for reproducible sampling (leave blank for random)." />}
           </form.AppField>
         ) : null}
       </Stack>
@@ -129,13 +104,7 @@ function SamplingSection({
 }
 
 /** One optional numeric sampling knob — an override switch gating a bounded slider. */
-function OptionalKnobRow({
-  form,
-  knob,
-}: {
-  readonly form: AppForm;
-  readonly knob: ResolvedSamplingKnob;
-}): ReactElement {
+function OptionalKnobRow({ form, knob }: { readonly form: AppForm; readonly knob: ResolvedSamplingKnob }): ReactElement {
   const { label, description, range, step } = knob;
   const midpoint = rangeMidpoint(range, step);
   return (
@@ -146,11 +115,7 @@ function OptionalKnobRow({
         return (
           <Field label={label} description={description} name={field.name}>
             <Row gap="field" align="center" className="flex-wrap">
-              <Switch
-                checked={enabled}
-                onCheckedChange={(next): void => field.handleChange(next ? midpoint : undefined)}
-                aria-label={`Override ${label}`}
-              />
+              <Switch checked={enabled} onCheckedChange={(next): void => field.handleChange(next ? midpoint : undefined)} aria-label={`Override ${label}`} />
               {enabled ? (
                 <Slider
                   value={value}
@@ -183,13 +148,7 @@ function rangeMidpoint(range: Range, step: number): number {
   return Math.round(mid / step) * step;
 }
 
-function ReasoningSection({
-  form,
-  capability,
-}: {
-  readonly form: AppForm;
-  readonly capability: ModelCapability;
-}): ReactElement {
+function ReasoningSection({ form, capability }: { readonly form: AppForm; readonly capability: ModelCapability }): ReactElement {
   const control = reasoningControlFor(capability);
   if (!control.reasons) {
     return (
@@ -207,11 +166,7 @@ function ReasoningSection({
           return (
             <Stack gap="block">
               <Field label="Reasoning" name={field.name}>
-                <Switch
-                  checked={on}
-                  onCheckedChange={(next): void => field.handleChange(next ? undefined : "none")}
-                  aria-label="Enable reasoning"
-                />
+                <Switch checked={on} onCheckedChange={(next): void => field.handleChange(next ? undefined : "none")} aria-label="Enable reasoning" />
               </Field>
               {on && control.kind === "effort" ? (
                 <EffortDropdown
@@ -225,14 +180,11 @@ function ReasoningSection({
         }}
       </form.AppField>
 
-      {control.kind === "budget" && control.budgetRange !== undefined ? (
-        <BudgetSlider form={form} range={control.budgetRange} />
-      ) : null}
+      {control.kind === "budget" && control.budgetRange !== undefined ? <BudgetSlider form={form} range={control.budgetRange} /> : null}
 
       {control.kind === "adaptive" ? (
         <Text size="micro" tone="muted">
-          This model reasons adaptively — it self-budgets per turn, so there is no manual effort
-          dial.
+          This model reasons adaptively — it self-budgets per turn, so there is no manual effort dial.
         </Text>
       ) : null}
     </Section>
@@ -270,23 +222,11 @@ function EffortSelect({
   readonly onChange: (next: EffortLevel) => void;
 }): ReactElement {
   return (
-    <PanelSelect
-      items={items}
-      value={value ?? ""}
-      onChange={(next): void => onChange(next as EffortLevel)}
-      placeholder="Model default"
-      ariaLabel="Effort"
-    />
+    <PanelSelect items={items} value={value ?? ""} onChange={(next): void => onChange(next as EffortLevel)} placeholder="Model default" ariaLabel="Effort" />
   );
 }
 
-function BudgetSlider({
-  form,
-  range,
-}: {
-  readonly form: AppForm;
-  readonly range: Range;
-}): ReactElement {
+function BudgetSlider({ form, range }: { readonly form: AppForm; readonly range: Range }): ReactElement {
   return (
     <form.AppField name="params.thinkingBudgetTokens">
       {(field): ReactElement => {
@@ -294,17 +234,9 @@ function BudgetSlider({
         const enabled = value !== undefined;
         const seed = Math.round((range.min + range.max) / 2);
         return (
-          <Field
-            label="Thinking budget (tokens)"
-            description="Cap the tokens the model may spend reasoning."
-            name={field.name}
-          >
+          <Field label="Thinking budget (tokens)" description="Cap the tokens the model may spend reasoning." name={field.name}>
             <Row gap="field" align="center" className="flex-wrap">
-              <Switch
-                checked={enabled}
-                onCheckedChange={(next): void => field.handleChange(next ? seed : undefined)}
-                aria-label="Override thinking budget"
-              />
+              <Switch checked={enabled} onCheckedChange={(next): void => field.handleChange(next ? seed : undefined)} aria-label="Override thinking budget" />
               {enabled ? (
                 <Slider
                   value={value}
@@ -328,22 +260,13 @@ function BudgetSlider({
   );
 }
 
-function OutputSection({
-  form,
-  capability,
-}: {
-  readonly form: AppForm;
-  readonly capability: ModelCapability;
-}): ReactElement {
+function OutputSection({ form, capability }: { readonly form: AppForm; readonly capability: ModelCapability }): ReactElement {
   const verbosityLevels = verbosityLevelsFor(capability);
   return (
     <Section heading="Output">
       <form.AppField name="params.maxOutputTokens">
         {(field): ReactElement => (
-          <field.NumberField
-            label="Max output tokens"
-            description="Cap the length of the reply (leave blank for the model default)."
-          />
+          <field.NumberField label="Max output tokens" description="Cap the length of the reply (leave blank for the model default)." />
         )}
       </form.AppField>
       {verbosityLevels !== undefined ? (
@@ -355,17 +278,11 @@ function OutputSection({
               label: level,
             }));
             return (
-              <Field
-                label="Verbosity"
-                description="How terse or expansive the model's replies run."
-                name={field.name}
-              >
+              <Field label="Verbosity" description="How terse or expansive the model's replies run." name={field.name}>
                 <PanelSelect
                   items={items}
                   value={value ?? ""}
-                  onChange={(next): void =>
-                    field.handleChange(next === "" ? undefined : (next as Verbosity))
-                  }
+                  onChange={(next): void => field.handleChange(next === "" ? undefined : (next as Verbosity))}
                   placeholder="Model default"
                   ariaLabel="Verbosity"
                 />
@@ -392,13 +309,5 @@ function PanelSelect({
   /** The trigger's accessible name — the wrapping `<Field>` label isn't associated to the radix trigger. */
   readonly ariaLabel: string;
 }): ReactElement {
-  return (
-    <Select
-      items={items}
-      value={value}
-      onValueChange={(next): void => onChange(next ?? "")}
-      placeholder={placeholder}
-      aria-label={ariaLabel}
-    />
-  );
+  return <Select items={items} value={value} onValueChange={(next): void => onChange(next ?? "")} placeholder={placeholder} aria-label={ariaLabel} />;
 }

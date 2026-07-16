@@ -14,12 +14,7 @@ import type { ReactElement } from "react";
 import { Fragment } from "react";
 import type { ChatMessageSurfaceState, ChatSurfaceContribution, ContributorRegistry } from "#lib";
 import { cn } from "#lib";
-import {
-  toggleMessageSelected,
-  useIsEditingMessage,
-  useIsMessageSelected,
-  useSelectionActive,
-} from "#state";
+import { toggleMessageSelected, useIsEditingMessage, useIsMessageSelected, useSelectionActive } from "#state";
 import { AttachmentUrlProvider } from "../hooks/attachment-url-provider";
 import { useEnterMotion } from "../hooks/use-enter-motion";
 import { resolveRowAttribution, speakerThemesByName } from "../lib/attribution";
@@ -89,8 +84,7 @@ function resolveMessageFooter(
 ): readonly Extract<ChatSurfaceContribution, { anchor: "message-footer" }>[] {
   const state: ChatMessageSurfaceState = { message };
   return (registry?.list() ?? []).filter(
-    (c): c is Extract<ChatSurfaceContribution, { anchor: "message-footer" }> =>
-      c.anchor === "message-footer" && (c.when?.(state) ?? true),
+    (c): c is Extract<ChatSurfaceContribution, { anchor: "message-footer" }> => c.anchor === "message-footer" && (c.when?.(state) ?? true),
   );
 }
 
@@ -160,8 +154,7 @@ export function MessageRow({
     anchorPersonaId,
     autoFixMarkdown,
   });
-  const trainParagraphs =
-    !editing && skin.bubbleLayout === "trains" ? splitIntoTrainParagraphs(message.content) : null;
+  const trainParagraphs = !editing && skin.bubbleLayout === "trains" ? splitIntoTrainParagraphs(message.content) : null;
   const speakerThemes = speakerThemesByName(participants);
   const content = resolveRowContent({
     editing,
@@ -212,23 +205,11 @@ export function MessageRow({
         data-kind={attribution.kind}
         className={cn("group", skin.outer(role), enterClasses)}
       >
-        {selecting ? (
-          <Checkbox
-            aria-label="Select message"
-            checked={selected}
-            onCheckedChange={(): void => toggleMessageSelected(message.id)}
-          />
-        ) : null}
+        {selecting ? <Checkbox aria-label="Select message" checked={selected} onCheckedChange={(): void => toggleMessageSelected(message.id)} /> : null}
         <Row align="start" gap="row" data-slot="message-row-body">
           {leadingAvatar}
           <Stack gap="row" data-slot="message-content-column" className="min-w-0 flex-1">
-            <Row
-              justify="between"
-              align="center"
-              gap="field"
-              data-slot="message-name-row"
-              className={skin.chromeBacking}
-            >
+            <Row justify="between" align="center" gap="field" data-slot="message-name-row" className={skin.chromeBacking}>
               {attribution.name === null ? null : (
                 <Row gap="field" align="baseline" data-slot="message-attribution">
                   {renderAttributionName(attribution)}
@@ -256,9 +237,7 @@ export function MessageRow({
               renderContext,
               speakerThemes,
             })}
-            {editing ? null : (
-              <MessageMetadataRow message={message} visibility={metadataVisibility} />
-            )}
+            {editing ? null : <MessageMetadataRow message={message} visibility={metadataVisibility} />}
             {renderRowSwipe({ editing, showSwipes, role, greeting, message })}
             {footerContributions.length === 0 ? null : (
               <Stack gap="field" data-slot="message-footer">

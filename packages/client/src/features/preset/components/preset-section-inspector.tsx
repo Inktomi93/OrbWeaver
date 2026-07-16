@@ -19,11 +19,7 @@ import { hasRoleField } from "../lib/assembly-model";
 import { useAssemblyForm } from "../lib/preset-editor-bridge";
 import { deriveZones } from "./prompt-assembly/derive-zones";
 import { MARKER_COPY } from "./prompt-assembly/marker-copy";
-import {
-  SectionLocksControl,
-  SectionPlacementControl,
-  SectionTriggersControl,
-} from "./prompt-assembly/section-inspector-controls";
+import { SectionLocksControl, SectionPlacementControl, SectionTriggersControl } from "./prompt-assembly/section-inspector-controls";
 
 type AssemblyForm = AppFormInstance<PromptConfig>;
 
@@ -49,21 +45,14 @@ export function PresetSectionInspector({ onDismiss }: PresetSectionInspectorProp
         if (section === undefined) {
           return <SelectPrompt />;
         }
-        return (
-          <InspectorBody form={handle.form} section={section} index={index} onDismiss={onDismiss} />
-        );
+        return <InspectorBody form={handle.form} section={section} index={index} onDismiss={onDismiss} />;
       }}
     </handle.form.Subscribe>
   );
 }
 
 function SelectPrompt(): ReactElement {
-  return (
-    <EmptyState
-      title="Select a section to inspect it"
-      description="Pick a row from the rack to edit its placement and triggers here."
-    />
-  );
+  return <EmptyState title="Select a section to inspect it" description="Pick a row from the rack to edit its placement and triggers here." />;
 }
 
 interface InspectorBodyProps {
@@ -99,17 +88,11 @@ function InspectorBody({ form, section, index, onDismiss }: InspectorBodyProps):
       </Stack>
 
       <Section heading="Identity">
-        <form.AppField name={`sections[${index}].name`}>
-          {(field): ReactElement => <field.TextField label="Name" />}
-        </form.AppField>
+        <form.AppField name={`sections[${index}].name`}>{(field): ReactElement => <field.TextField label="Name" />}</form.AppField>
         {hasRoleField(section) ? (
           <form.AppField name={`sections[${index}].role`}>
             {(field): ReactElement => (
-              <field.SelectField
-                label="Spoken as"
-                description="Which conversation role this section is delivered with."
-                items={MESSAGE_ROLE_ITEMS}
-              />
+              <field.SelectField label="Spoken as" description="Which conversation role this section is delivered with." items={MESSAGE_ROLE_ITEMS} />
             )}
           </form.AppField>
         ) : (
@@ -119,9 +102,7 @@ function InspectorBody({ form, section, index, onDismiss }: InspectorBodyProps):
         )}
       </Section>
 
-      {section.type === "marker" && section.marker === "chat_history" ? null : (
-        <SectionPlacementControl form={form} section={section} index={index} />
-      )}
+      {section.type === "marker" && section.marker === "chat_history" ? null : <SectionPlacementControl form={form} section={section} index={index} />}
 
       <SectionTriggersControl form={form} section={section} index={index} />
       <SectionLocksControl form={form} section={section} index={index} />
@@ -183,10 +164,7 @@ function MoveToZoneButton({ form, section, index }: MoveToZoneButtonProps): Reac
     <form.Subscribe selector={(state): readonly PromptSection[] => state.values.sections}>
       {(sections): ReactElement | null => {
         const zones = deriveZones(sections);
-        if (
-          zones.missingPivot ||
-          (section.type === "marker" && section.marker === "chat_history")
-        ) {
+        if (zones.missingPivot || (section.type === "marker" && section.marker === "chat_history")) {
           return null;
         }
         const inSetup = zones.zoneOf(index) === "setup";

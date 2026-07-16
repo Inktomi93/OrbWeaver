@@ -21,19 +21,8 @@ import type { OpenRouterProviderRouting } from "@orb/contracts/connection";
 import type { UserIntent } from "@orb/contracts/preset";
 import { errorMessage } from "@orb/kit/error-message";
 import { deepMergeRequestBody } from "@orb/server/kit/custom-parameters";
-import type {
-  ChatCompletionStreamChunk,
-  ChatToolCallDelta,
-  ProviderSamplingDrop,
-  ReasoningRequest,
-} from "../../../../backends/kit";
-import {
-  cacheControlBlock,
-  chatHistoryText,
-  effectiveProviderRouting,
-  extractHttpErrorDiagnostic,
-  logProviderSampling,
-} from "../../../../backends/kit";
+import type { ChatCompletionStreamChunk, ChatToolCallDelta, ProviderSamplingDrop, ReasoningRequest } from "../../../../backends/kit";
+import { cacheControlBlock, chatHistoryText, effectiveProviderRouting, extractHttpErrorDiagnostic, logProviderSampling } from "../../../../backends/kit";
 import type {
   ChatEvent,
   ChatHistoryMessage,
@@ -58,10 +47,7 @@ const MANDATORY_REASONING_RE = /reasoning is mandatory/i;
 
 // For an Anthropic model with a non-empty static prefix, pin cache_control on that block (a top-level
 // directive would pin the volatile newest message instead, giving 0 cache writes).
-export function buildSystemMessage(
-  systemPrompt: { readonly static: string; readonly dynamic: string },
-  isAnthropic: boolean,
-): ChatSystemMessage | null {
+export function buildSystemMessage(systemPrompt: { readonly static: string; readonly dynamic: string }, isAnthropic: boolean): ChatSystemMessage | null {
   const staticText = systemPrompt.static.trim();
   const dynamicText = systemPrompt.dynamic.trim();
   if (staticText.length === 0 && dynamicText.length === 0) {
@@ -78,13 +64,8 @@ export function buildSystemMessage(
   return { role: SYSTEM_ROLE, content: joined };
 }
 
-export function joinSystemPrompt(systemPrompt: {
-  readonly static: string;
-  readonly dynamic: string;
-}): string {
-  return [systemPrompt.static.trim(), systemPrompt.dynamic.trim()]
-    .filter((part) => part.length > 0)
-    .join(PROMPT_JOINER);
+export function joinSystemPrompt(systemPrompt: { readonly static: string; readonly dynamic: string }): string {
+  return [systemPrompt.static.trim(), systemPrompt.dynamic.trim()].filter((part) => part.length > 0).join(PROMPT_JOINER);
 }
 
 function historyToolCalls(content: readonly ChatContentPart[]): ChatToolCall[] | undefined {
@@ -177,23 +158,14 @@ export function buildChatResponseFormat(format: ResponseFormat): ChatFormatJsonS
   };
 }
 
-export function chatSamplingFields(
-  sampling: ResolvedSampling,
-  maxOutputTokens: number | undefined,
-): Partial<ChatRequest> {
+export function chatSamplingFields(sampling: ResolvedSampling, maxOutputTokens: number | undefined): Partial<ChatRequest> {
   return {
     ...(sampling.temperature !== undefined ? { temperature: sampling.temperature } : {}),
     ...(sampling.topP !== undefined ? { topP: sampling.topP } : {}),
     ...(sampling.topK !== undefined ? { topK: sampling.topK } : {}),
-    ...(sampling.frequencyPenalty !== undefined
-      ? { frequencyPenalty: sampling.frequencyPenalty }
-      : {}),
-    ...(sampling.presencePenalty !== undefined
-      ? { presencePenalty: sampling.presencePenalty }
-      : {}),
-    ...(sampling.repetitionPenalty !== undefined
-      ? { repetitionPenalty: sampling.repetitionPenalty }
-      : {}),
+    ...(sampling.frequencyPenalty !== undefined ? { frequencyPenalty: sampling.frequencyPenalty } : {}),
+    ...(sampling.presencePenalty !== undefined ? { presencePenalty: sampling.presencePenalty } : {}),
+    ...(sampling.repetitionPenalty !== undefined ? { repetitionPenalty: sampling.repetitionPenalty } : {}),
     ...(sampling.minP !== undefined ? { minP: sampling.minP } : {}),
     ...(sampling.seed !== undefined ? { seed: sampling.seed } : {}),
     ...(sampling.logitBias !== undefined ? { logitBias: sampling.logitBias } : {}),
@@ -227,8 +199,7 @@ const SAMPLING_KNOBS = [
   "stop",
 ] as const;
 
-const CHAT_VERBOSITY_DROPPED =
-  "verbosity ignored: the chat-completions wire has no verbosity field";
+const CHAT_VERBOSITY_DROPPED = "verbosity ignored: the chat-completions wire has no verbosity field";
 
 function pickSampling(source: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
@@ -284,27 +255,19 @@ function toProviderPreferences(routing: OpenRouterProviderRouting): ProviderPref
     ...(routing.ignore !== undefined ? { ignore: routing.ignore } : {}),
     ...(routing.allow_fallbacks !== undefined ? { allowFallbacks: routing.allow_fallbacks } : {}),
     ...(routing.data_collection !== undefined ? { dataCollection: routing.data_collection } : {}),
-    ...(routing.require_parameters !== undefined
-      ? { requireParameters: routing.require_parameters }
-      : {}),
+    ...(routing.require_parameters !== undefined ? { requireParameters: routing.require_parameters } : {}),
     ...(routing.sort !== undefined ? { sort: routing.sort } : {}),
   };
 }
 
-export function resolveProviderPreferences(
-  model: string,
-  userRouting: OpenRouterProviderRouting | undefined,
-): ProviderPreferences | undefined {
+export function resolveProviderPreferences(model: string, userRouting: OpenRouterProviderRouting | undefined): ProviderPreferences | undefined {
   const effective = effectiveProviderRouting(model, userRouting);
   return effective === undefined ? undefined : toProviderPreferences(effective);
 }
 
 // Deep merge (owned wins at every leaf, incl. nested objects like a custom reasoning block); a shallow
 // spread gave the same top-level precedence but let an unrecognized nested object through untouched.
-export function mergeCustomParameters<T extends Record<string, unknown>>(
-  owned: T,
-  customParameters: Record<string, unknown> | undefined,
-): T {
+export function mergeCustomParameters<T extends Record<string, unknown>>(owned: T, customParameters: Record<string, unknown> | undefined): T {
   if (customParameters === undefined) {
     return owned;
   }
@@ -320,9 +283,7 @@ export function isMandatoryReasoningRejection(error: unknown): boolean {
 
 // Omitting this map is what silently killed the tool loop on the chat-completions runner: finishReason
 // normalized to "tool" but no calls were assembled, so the pipeline pivot returned null.
-function reshapeToolCallDeltas(
-  toolCalls: ChatStreamToolCall[] | undefined,
-): ChatToolCallDelta[] | undefined {
+function reshapeToolCallDeltas(toolCalls: ChatStreamToolCall[] | undefined): ChatToolCallDelta[] | undefined {
   if (toolCalls === undefined) {
     return;
   }
@@ -333,9 +294,7 @@ function reshapeToolCallDeltas(
       ? {
           function: {
             ...(call.function.name !== undefined ? { name: call.function.name } : {}),
-            ...(call.function.arguments !== undefined
-              ? { arguments: call.function.arguments }
-              : {}),
+            ...(call.function.arguments !== undefined ? { arguments: call.function.arguments } : {}),
           },
         }
       : {}),
@@ -344,17 +303,13 @@ function reshapeToolCallDeltas(
 
 function reshapeReasoningDetails(
   details: ReasoningDetailUnion[] | undefined,
-):
-  | Array<{ readonly type?: string | undefined; readonly text?: string | null | undefined }>
-  | undefined {
+): Array<{ readonly type?: string | undefined; readonly text?: string | null | undefined }> | undefined {
   if (details === undefined) {
     return;
   }
   return details.map((detail) => ({
     ...("type" in detail && typeof detail.type === "string" ? { type: detail.type } : {}),
-    ...("text" in detail && (typeof detail.text === "string" || detail.text === null)
-      ? { text: detail.text }
-      : {}),
+    ...("text" in detail && (typeof detail.text === "string" || detail.text === null) ? { text: detail.text } : {}),
   }));
 }
 
@@ -398,17 +353,13 @@ function reshapeCostDetails(cd: SdkChatUsage["costDetails"]): Record<string, num
     return;
   }
   return {
-    ...(cd.upstreamInferenceCost !== null && cd.upstreamInferenceCost !== undefined
-      ? { upstreamInferenceCost: cd.upstreamInferenceCost }
-      : {}),
+    ...(cd.upstreamInferenceCost !== null && cd.upstreamInferenceCost !== undefined ? { upstreamInferenceCost: cd.upstreamInferenceCost } : {}),
     upstreamInferencePromptCost: cd.upstreamInferencePromptCost,
     upstreamInferenceCompletionsCost: cd.upstreamInferenceCompletionsCost,
   };
 }
 
-function reshapePromptDetails(
-  ptd: SdkChatUsage["promptTokensDetails"],
-): Record<string, number> | undefined {
+function reshapePromptDetails(ptd: SdkChatUsage["promptTokensDetails"]): Record<string, number> | undefined {
   if (ptd === null || ptd === undefined) {
     return;
   }
@@ -418,9 +369,7 @@ function reshapePromptDetails(
   };
 }
 
-function reshapeCompletionDetails(
-  ctd: SdkChatUsage["completionTokensDetails"],
-): Record<string, number> | undefined {
+function reshapeCompletionDetails(ctd: SdkChatUsage["completionTokensDetails"]): Record<string, number> | undefined {
   const reasoningTokens = ctd?.reasoningTokens;
   if (reasoningTokens === null || reasoningTokens === undefined) {
     return;

@@ -73,8 +73,7 @@ function ListRowContent({
   subtitleReveal: string | undefined;
 }): ReactElement {
   // The subtitle hides on hover/focus only when a reveal is present, so it takes the exact line.
-  const subtitleSwap =
-    subtitleReveal === undefined ? "" : "group-hover:hidden group-focus-within:hidden";
+  const subtitleSwap = subtitleReveal === undefined ? "" : "group-hover:hidden group-focus-within:hidden";
   return (
     <>
       {leading === undefined ? null : (
@@ -89,21 +88,12 @@ function ListRowContent({
           {title}
         </span>
         {subtitle === undefined ? null : (
-          <span
-            className={slots.subtitle({ className: subtitleSwap })}
-            data-slot="list-row-subtitle"
-            title={subtitle}
-          >
+          <span className={slots.subtitle({ className: subtitleSwap })} data-slot="list-row-subtitle" title={subtitle}>
             {subtitle}
           </span>
         )}
         {subtitleReveal === undefined ? null : (
-          <span
-            aria-hidden={true}
-            className={slots.subtitleReveal()}
-            data-slot="list-row-subtitle-reveal"
-            title={subtitleReveal}
-          >
+          <span aria-hidden={true} className={slots.subtitleReveal()} data-slot="list-row-subtitle-reveal" title={subtitleReveal}>
             {subtitleReveal}
           </span>
         )}
@@ -134,12 +124,7 @@ function ListRowBody({
     // Non-clickable rows are a static <div> body — no role, no tab stop; onClick is honored only
     // when clickable.
     return (
-      <div
-        aria-current={ariaCurrent}
-        className={slots.body()}
-        data-selected={selected ? "" : undefined}
-        data-slot="list-row-body"
-      >
+      <div aria-current={ariaCurrent} className={slots.body()} data-selected={selected ? "" : undefined} data-slot="list-row-body">
         {children}
       </div>
     );
@@ -165,10 +150,7 @@ function ListRowBody({
 
 /** Tracks whether the observed element's width dropped at/below `threshold`. useLayoutEffect +
  *  ResizeObserver so the collapse settles before paint. */
-function useCollapsedBelow(
-  ref: RefObject<HTMLElement | null>,
-  threshold: number | undefined,
-): boolean {
+function useCollapsedBelow(ref: RefObject<HTMLElement | null>, threshold: number | undefined): boolean {
   const [collapsed, setCollapsed] = useState(false);
   useLayoutEffect(() => {
     const node = ref.current;
@@ -202,27 +184,12 @@ export function ListRow({
 }: ListRowProps): ReactElement {
   const slots = listRowVariants({ density, clickable });
   const rootRef = useRef<HTMLDivElement>(null);
-  const collapsed = useCollapsedBelow(
-    rootRef,
-    renderActions === undefined ? undefined : collapseBelow,
-  );
+  const collapsed = useCollapsedBelow(rootRef, renderActions === undefined ? undefined : collapseBelow);
   const resolvedActions = renderActions !== undefined ? renderActions(collapsed) : actions;
   return (
     <div className={slots.root({ className })} data-slot="list-row-root" ref={rootRef}>
-      <ListRowBody
-        clickable={clickable}
-        disabled={disabled}
-        onClick={onClick}
-        selected={selected}
-        slots={slots}
-      >
-        <ListRowContent
-          leading={leading}
-          slots={slots}
-          subtitle={subtitle}
-          subtitleReveal={subtitleReveal}
-          title={title}
-        />
+      <ListRowBody clickable={clickable} disabled={disabled} onClick={onClick} selected={selected} slots={slots}>
+        <ListRowContent leading={leading} slots={slots} subtitle={subtitle} subtitleReveal={subtitleReveal} title={title} />
       </ListRowBody>
       {resolvedActions === undefined ? null : (
         <div className={slots.actions()} data-slot="list-row-actions">

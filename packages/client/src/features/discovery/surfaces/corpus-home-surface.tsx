@@ -25,12 +25,7 @@ import type { Trpc } from "#data";
 import { QueryBoundary, useTRPC } from "#data";
 import { testId, timeLib, useFocusOnMount } from "#lib";
 import { selectCorpusCharacter } from "#state";
-import {
-  AllThemes,
-  FacetBars,
-  KeywordExplorer,
-  ThemeDrift,
-} from "../components/corpus-home-charts";
+import { AllThemes, FacetBars, KeywordExplorer, ThemeDrift } from "../components/corpus-home-charts";
 import { toBarItems } from "../lib/corpus-charts";
 
 type ThemeLevel = "scene" | "arc";
@@ -51,12 +46,7 @@ export function CorpusHomeSurface(): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
   return (
-    <Stack
-      ref={surfaceRef}
-      tabIndex={-1}
-      className="h-full min-h-0 outline-none"
-      data-testid={testId("corpusHomeSurface")}
-    >
+    <Stack ref={surfaceRef} tabIndex={-1} className="h-full min-h-0 outline-none" data-testid={testId("corpusHomeSurface")}>
       <QueryBoundary
         fallback={<Text tone="muted">Loading your corpus…</Text>}
         renderError={(_error, retry): ReactElement => (
@@ -91,31 +81,16 @@ function CorpusHomeBody(): ReactElement {
           <StatFigure label="Digests" value={home.coverage.digests.toString()} />
           <StatFigure label="Segments" value={home.coverage.segments.toString()} />
           <StatFigure label="Distilled" value={catalog.totalDistilled.toString()} />
-          <StatFigure
-            label="Duplicate characters"
-            value={home.duplicateCounts.characters.toString()}
-          />
+          <StatFigure label="Duplicate characters" value={home.duplicateCounts.characters.toString()} />
           <StatFigure label="Duplicate chats" value={home.duplicateCounts.chats.toString()} />
         </Row>
       </Section>
 
       <Section heading="Themes">
         <Stack gap="block">
-          <ThemeGroup
-            label="Scenes"
-            themes={home.topSceneThemes}
-            selected={theme}
-            onSelect={setTheme}
-          />
-          <ThemeGroup
-            label="Arcs"
-            themes={home.topArcThemes}
-            selected={theme}
-            onSelect={setTheme}
-          />
-          {theme !== null ? (
-            <ThemeDetailCard selection={theme} onDismiss={(): void => setTheme(null)} />
-          ) : null}
+          <ThemeGroup label="Scenes" themes={home.topSceneThemes} selected={theme} onSelect={setTheme} />
+          <ThemeGroup label="Arcs" themes={home.topArcThemes} selected={theme} onSelect={setTheme} />
+          {theme !== null ? <ThemeDetailCard selection={theme} onDismiss={(): void => setTheme(null)} /> : null}
         </Stack>
       </Section>
 
@@ -156,9 +131,7 @@ function CorpusHomeBody(): ReactElement {
                 key={gem.characterId}
                 clickable={true}
                 onClick={(): void => selectCorpusCharacter(gem.characterId)}
-                leading={
-                  <CharacterAvatar id={gem.characterId} name={gem.name} hash={gem.avatarHash} />
-                }
+                leading={<CharacterAvatar id={gem.characterId} name={gem.name} hash={gem.avatarHash} />}
                 title={gem.name}
                 subtitle={`${gem.messageCount} messages · ${gem.tokensOut.toString()} tokens · last active ${timeLib.formatRelative(gem.lastActiveAt)}`}
                 actions={<Money value={gem.costUsd} />}
@@ -180,13 +153,7 @@ function CorpusHomeBody(): ReactElement {
                 key={character.characterId}
                 clickable={true}
                 onClick={(): void => selectCorpusCharacter(character.characterId)}
-                leading={
-                  <CharacterAvatar
-                    id={character.characterId}
-                    name={character.name}
-                    hash={character.avatarHash}
-                  />
-                }
+                leading={<CharacterAvatar id={character.characterId} name={character.name} hash={character.avatarHash} />}
                 title={character.name}
                 subtitle="Collected but never played"
               />
@@ -244,11 +211,7 @@ function ThemeGroup({
             <ListRow
               key={row.id}
               clickable={true}
-              selected={
-                selected !== null &&
-                selected.clusterIdx === row.clusterIdx &&
-                selected.level === row.level
-              }
+              selected={selected !== null && selected.clusterIdx === row.clusterIdx && selected.level === row.level}
               onClick={(): void => onSelect({ clusterIdx: row.clusterIdx, level: row.level })}
               title={row.name ?? "Unnamed theme"}
               subtitle={`${row.size} digests`}
@@ -260,13 +223,7 @@ function ThemeGroup({
   );
 }
 
-function ThemeDetailCard({
-  selection,
-  onDismiss,
-}: {
-  readonly selection: ThemeSelection;
-  readonly onDismiss: () => void;
-}): ReactElement {
+function ThemeDetailCard({ selection, onDismiss }: { readonly selection: ThemeSelection; readonly onDismiss: () => void }): ReactElement {
   return (
     <Card padding="block">
       <QueryBoundary
@@ -286,13 +243,7 @@ function ThemeDetailCard({
   );
 }
 
-function ThemeDetailBody({
-  selection,
-  onDismiss,
-}: {
-  readonly selection: ThemeSelection;
-  readonly onDismiss: () => void;
-}): ReactElement {
+function ThemeDetailBody({ selection, onDismiss }: { readonly selection: ThemeSelection; readonly onDismiss: () => void }): ReactElement {
   const trpc = useTRPC();
   const { data: detail } = useSuspenseQuery(
     trpc.discovery.themeDetail.queryOptions({
@@ -336,15 +287,7 @@ function ThemeDetailBody({
   );
 }
 
-function CharacterAvatar({
-  id,
-  name,
-  hash,
-}: {
-  readonly id: CharacterId;
-  readonly name: string;
-  readonly hash: string | null;
-}): ReactElement {
+function CharacterAvatar({ id, name, hash }: { readonly id: CharacterId; readonly name: string; readonly hash: string | null }): ReactElement {
   const avatarSrc = hash === null ? {} : { src: blobUrl(hash) };
   return (
     <Avatar fallbackDelay={0} hueSeed={id} size="sm" {...avatarSrc}>
