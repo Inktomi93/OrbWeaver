@@ -60,6 +60,7 @@ import { MessageMediaBlock } from "../../../../packages/client/src/features/chat
 import type { MessageMetadataVisibility } from "../../../../packages/client/src/features/chat/components/message-metadata-row";
 import { MessageRow } from "../../../../packages/client/src/features/chat/components/message-row";
 import { ReasoningBlock } from "../../../../packages/client/src/features/chat/components/reasoning-block";
+import { RoomOverridesForm } from "../../../../packages/client/src/features/chat/components/room-overrides-form";
 import { SpeakAsSelect } from "../../../../packages/client/src/features/chat/components/speak-as-select";
 import { SwipeStrip } from "../../../../packages/client/src/features/chat/components/swipe-strip";
 import { AttachmentUrlContext } from "../../../../packages/client/src/features/chat/hooks/attachment-url-context";
@@ -902,6 +903,70 @@ export function GroupConfigFormStory(): ReactElement {
           config={DEFAULT_GROUP_CONFIG}
           save={(config): Promise<void> => {
             setSaved(JSON.stringify(config));
+            return Promise.resolve();
+          }}
+        />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+// ── Context-tab entity-switch stories (F1 leg-1 key-placement pins) ─────────────────────────────
+// Both forms mount under `ContextTabsPanel`, which keys by TAB id only. A chat switch with the tab open
+// keeps the SAME component instance unless the form is keyed by its entity identity ABOVE the hook owner.
+// These stories flip `entityId`+`config` on a button — exactly what a chat switch does to the tab body —
+// and record every save so the CT proves the switched-to chat's own values are saved, never the previous
+// chat's frozen seed. Two distinct `entityId`s (chat A / chat B) drive the remount.
+
+const SWITCH_CHAT_A = "chatA";
+const SWITCH_CHAT_B = "chatB";
+
+/** GroupConfigForm switch harness: A seeds groupNudge=true, B seeds groupNudge=false — a field the test
+ *  does NOT touch, so after a switch it must read B's seed (false), never A's frozen true. A button flips
+ *  to B (the chat-switch prop change); the readout shows the LAST saved config. */
+export function GroupConfigSwitchStory(): ReactElement {
+  const [chat, setChat] = useState<"a" | "b">("a");
+  const [saved, setSaved] = useState("");
+  const config = chat === "a" ? { ...DEFAULT_GROUP_CONFIG, groupNudge: true } : { ...DEFAULT_GROUP_CONFIG, groupNudge: false };
+  return (
+    <CtDataProviders>
+      <div style={{ width: 380 }}>
+        <button type="button" onClick={(): void => setChat("b")}>
+          switch chat
+        </button>
+        <div data-testid="group-config-saved">{saved}</div>
+        <GroupConfigForm
+          entityId={`group-config:${chat === "a" ? SWITCH_CHAT_A : SWITCH_CHAT_B}`}
+          config={config}
+          save={(next): Promise<void> => {
+            setSaved(JSON.stringify(next));
+            return Promise.resolve();
+          }}
+        />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** RoomOverridesForm switch harness: A seeds mainPrompt="A-prompt", B seeds "". A button flips to B; the
+ *  readout shows the LAST saved overrides (the mainPrompt field is the probe). */
+export function RoomOverridesSwitchStory(): ReactElement {
+  const [chat, setChat] = useState<"a" | "b">("a");
+  const [saved, setSaved] = useState("");
+  const overrides = chat === "a" ? { mainPrompt: "A-prompt" } : {};
+  return (
+    <CtDataProviders>
+      <div style={{ width: 380 }}>
+        <button type="button" onClick={(): void => setChat("b")}>
+          switch chat
+        </button>
+        <div data-testid="room-overrides-saved">{saved}</div>
+        <RoomOverridesForm
+          entityId={`room-overrides:${chat === "a" ? SWITCH_CHAT_A : SWITCH_CHAT_B}`}
+          roomOverrides={overrides}
+          isHost={true}
+          save={(next): Promise<void> => {
+            setSaved(JSON.stringify(next));
             return Promise.resolve();
           }}
         />

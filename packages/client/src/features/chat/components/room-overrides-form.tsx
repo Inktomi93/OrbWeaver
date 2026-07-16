@@ -38,13 +38,25 @@ export interface RoomOverridesFormProps {
   readonly save?: ((overrides: RoomOverrides) => Promise<unknown>) | undefined;
 }
 
-/** The Overrides tab body — the four host-allowlist fields as autosaving textareas. */
-export function RoomOverridesForm({ entityId, roomOverrides, isHost, save }: RoomOverridesFormProps): ReactElement {
+/**
+ * The Overrides tab body. Keyed on `entityId` so the whole hook-owning `RoomOverridesFormBody` (and its
+ * FormApi) dies + is reborn when the chat identity changes — this editor mounts under `ContextTabsPanel`,
+ * which keys by TAB id only, so a chat switch with the tab open would otherwise keep the SAME FormApi and
+ * its frozen seed, and one keystroke could autosave chat A's overrides into chat B. A `key` on the inner
+ * `<Stack>` (below the hook) would remount DOM only — the FormApi lives in the hook's `useState` and must
+ * be keyed ABOVE the hook owner (the character-editor precedent; stickler review
+ * 2026-07-16-merge-block-28523122).
+ */
+export function RoomOverridesForm(props: RoomOverridesFormProps): ReactElement {
+  return <RoomOverridesFormBody key={props.entityId} {...props} />;
+}
+
+function RoomOverridesFormBody({ entityId, roomOverrides, isHost, save }: RoomOverridesFormProps): ReactElement {
   // Adapt the surface's overrides-level `save` to the factory's form-values-level persist fn — the
   // form↔wire mapping (`fromRoomOverridesForm`) lives HERE so callers deal in domain `RoomOverrides`.
   const factorySave = isHost && save !== undefined ? (values: RoomOverridesFormValues): Promise<unknown> => save(fromRoomOverridesForm(values)) : undefined;
 
-  const { form, mountKey } = useRoomOverridesForm({
+  const { form } = useRoomOverridesForm({
     entityId,
     serverValues: toRoomOverridesForm(roomOverrides),
     // Read-only (no persist fn) unless a host save is supplied (spread, not `undefined` — exactOptional).
@@ -52,7 +64,7 @@ export function RoomOverridesForm({ entityId, roomOverrides, isHost, save }: Roo
   });
 
   return (
-    <Stack key={mountKey} gap="section">
+    <Stack gap="section">
       {/* ONE intro line (N4): per-field guidance moved to a `?` hint tooltip on each label. */}
       <Row gap="field" align="center">
         <Text as="span" tone="muted">
