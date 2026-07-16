@@ -99,6 +99,10 @@ function writeFixtures(): void {
     `${D}/workloads/runners/__g_runner.ts`,
     "export const gRunner = async (ctx: { env: { op: () => Promise<void> } }): Promise<void> => {\n  await ctx.env.op();\n};\n",
   );
+  // gate-ignore-inventory: a @orb-gate-ignore comment naming a gate that isn't registered. The
+  // gate's name-capture regex is `[a-zA-Z0-9-]+` (no underscore), so the fake name is kebab-case,
+  // not the `__g_` sentinel form.
+  fx("packages/server/src/__g_ignoreinv.ts", "// @orb-gate-ignore g-no-such-gate\nexport const x = 1;\n");
   // no-inline-union-redecl: an inline ≥3-member string-literal union alias.
   fx("packages/server/src/__g_union.ts", 'export type U = "a" | "b" | "c";\n');
   // commented-code: parked code in a // comment.
