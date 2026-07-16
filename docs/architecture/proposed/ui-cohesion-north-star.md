@@ -30,7 +30,7 @@ polish) is global and ships first. §6 is the rollout order for everything after
 `../core/client-architecture-lockdown.md`) and shell-chrome slice 1 landed AFTER this doc's 2026-07-13
 verification. Dead anchors are re-pointed and superseded bullets marked **[RE-ANCHORED]**/**[SUPERSEDED]**
 in place below; every correction re-verified against source 2026-07-15. The chrome MECHANISM
-(registry/zones/widgets) is owned by [`shell-chrome-unification.md`](shell-chrome-unification.md); this
+(registry/zones/widgets) is owned by [`shell-chrome-unification.md`](../history/shell-chrome-unification.md); this
 doc owns the PAINT (bands, ember budget, density, anatomy). On overlap: chrome doc wins on mechanism,
 this doc wins on visual spec.
 
@@ -43,10 +43,8 @@ and the derive-modernization program ([`derive-modernization-audit.md`](derive-m
    wave, zero collisions with anything below; ship first. **SHIPPED 2026-07-16** (commits
    `98a66524`..`89985c61`; PP5 minted `spacing.checkbox` per the §13.9 display-size family; PP3
    finding: popup ITEMS never bore focus rings — toast was the real popover-toned consumer).
-2. **Derive-W3 (plumbing mints + G26–G28)** — anytime from here; pairs with chrome §E-1, which
-   ABSORBS the `SECTION_GROUPS` double-spell (audit W3-#5) and whose chrome registry
-   context/provider rides the same `createRegistryContext` mint (whichever lands first, the other
-   consumes it).
+2. **Derive-W3 (plumbing mints + G26–G28)** — ✅ 2026-07-16 (registry contexts, drill stores, bound
+   fields, form-factory base all minted + sealed; §E-1 absorbed the `SECTION_GROUPS` double-spell).
 3. **Shell-chrome §E steps 1–3** — ✅ 2026-07-16 (full vocab mint · `assembleChrome` behavior union ·
    rail single-DOM cutover; the twins + `RailTabButton` + `rail-slots.ts` are dead).
 4. **N1–N5** (§4) — ✅ ALL FIVE 2026-07-16; **THE GATE IS MET — the §6 rollout may start.** One
@@ -61,9 +59,14 @@ and the derive-modernization program ([`derive-modernization-audit.md`](derive-m
    `mobile-tab`; the settings `account` pane deleted — §6's superseded Account item; `modal-registry-completeness`
    surface-reachability + `no-parallel-section-map` chrome arms landed, `shell-no-chrome-props` dropped-permanent;
    `UI-Architecture-and-Layout.md` §4.x updated). **The shell-chrome program is CLOSED.**
-6. **Derive-W1 (FormDialog rollup + G24)** — parallel-able with 4–5; MUST land before step 7 (the
-   rollout repaints exactly the features W1 migrates — see §6's pre-gate note).
-7. **§6 rollout** (characters → presets → sections → remainders), §7 autosave inside each lane.
+6. **Derive-W1 (FormDialog rollup + G24)** — ✅ 2026-07-16 (all 22 Dialog-root importers resolved:
+   16 migrated, 6 allowlisted with citations; `FormDialog`/`TagPickerDialog`/`RelationManagerSection`
+   minted; gate count 130). The §6 pre-gate is satisfied.
+7. **§6 rollout** (characters → presets → sections → remainders), §7 autosave inside each lane —
+   **← NEXT; the remaining mass of the program.** Steps 1–6 are all ✅: the mechanism era and the
+   chats template are done; what remains of the north star IS this rollout (plus the derive-W4/5/6
+   tail below). The characters stop also mints the character-detail contributor registry (the one
+   named seam gap, seam-coverage table).
 
 Independent, anytime: **derive-W4/W5/W6** (mech waves — G29 battery adoption · small dupes + the G4
 `settings-section-anchored` arm · dead/stale sweep + `PREBUILT[for:…]` markers; W6's orphan seals

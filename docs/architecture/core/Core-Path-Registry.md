@@ -4,9 +4,9 @@ status: active
 updated: 2026-07-16
 ---
 
-# Orbweaver — Path/Home Registry (D1–D72)
+# Orbweaver — Path/Home Registry (D1–D75)
 
-> THE decision registry — every ledger ruling D1–D72, one file (merged from the range files 2026-07-13, D66; each entry is a STANDING RULING per `Documentation-Law.md` §Ledger-entry style). Cite as `Core-Path-Registry.md D<n>` or `Core-Laws-and-Precedents.md §7 D<n>` — D-numbers are stable global ids; grep the id. `Core-Laws-and-Precedents.md` remains the master (its §7 points here); on any conflict the ledger wins over every other doc.
+> THE decision registry — every ledger ruling D1–D75, one file (merged from the range files 2026-07-13, D66; each entry is a STANDING RULING per `Documentation-Law.md` §Ledger-entry style). Cite as `Core-Path-Registry.md D<n>` or `Core-Laws-and-Precedents.md §7 D<n>` — D-numbers are stable global ids; grep the id. `Core-Laws-and-Precedents.md` remains the master (its §7 points here); on any conflict the ledger wins over every other doc.
 
 ## D1-D34
 
@@ -240,3 +240,19 @@ updated: 2026-07-16
 ## D72
 
 - **D72** — **A machine ships WITH its seal.** A shared machine (a composite, a factory, a skin fragment, a plumbing mint) ships in the SAME wave as the gate that closes its raw-path door — mint → migrate every site → SEAL, atomically; a composite without its gate is a DEFECT, not a milestone. The audit class "machine exists, adoption optional" is retired (root cause of the `WorkloadFormDialog`/`useBoundField`/`QueryErrorState` re-rot vs `ConfirmDialog`+G7 which held). Companion homes: ui skin fragments live in `ui/src/lib/` sealed by G25 `ui-skin-fragment-purity` (a new fragment = a new signature row — the gate grows with the tier); client registry/store plumbing lives behind mints (G26–G28, derive-W3). Program record: `../proposed/derive-modernization-audit.md` §0.
+
+## D73–D75
+
+- **D73** — **The `/api/_debug` surface is READ-ONLY introspection; the neo macros/regex eval routes are by-design-out.** neo needed `POST /api/_debug/macros/eval` + `/api/_debug/regex/execute` because its engines were server-only — the client had to round-trip to preview a script. Orbweaver dissolved the constraint: the macro engine (`@orb/kit/macro`) and regex engine (`@orb/kit/regex`) are ISOMORPHIC, so the client previews with the SAME code locally — zero server/client drift, no round-trip, no mutating endpoints on the debug surface. (The server-only node:vm ReDoS watchdog wraps `applyReplace` server-side only; client preview runs the engine unwatched — the user's own browser, their own regex.) If a "validate against the server" affordance is ever wanted, it is an authed tRPC verb in the owning domain — NEVER a debug route. Do not re-flag these routes as a parity gap.
+
+- **D74** — **`/healthz` stays minimal `{status}` (+ shutdown/key-mismatch reason); operational detail lives behind auth.** neo's health route carried a version + vLLM-engine-status + runnerOverride rider on an UNAUTHENTICATED endpoint — fingerprinting fodder, and orchestrator probes (docker healthcheck, k8s, uptime monitors) want a status code, not a payload. Orbweaver's split is deliberate: `/healthz` = liveness/readiness only; version/engines/runnerOverride = the auth-gated `/api/_debug/info`. If the client ever needs live engine status for UI, expose it as an `adminProcedure` query over the engine-status registry — never widen healthz. Do not re-flag the missing rider as a parity gap.
+
+- **D75** — **Ingress deltas vs neo are ACCEPTED: empty-body 403 + XFF-only (no `X-Real-IP`).** The IP-allowlist 403 returns an empty body (neo returned `{error:"Forbidden."}`) — only non-allowlisted peers ever see it, and an empty body hands a scanner nothing. The forwarded-client-IP resolver honors ONE canonical header — `X-Forwarded-For`, gated on the trusted TCP peer (PD-52 precedence) — never `X-Real-IP`; a second spoofable header is parsing surface with zero capability (every reverse proxy can emit XFF). Deployment consequence: a fronting proxy MUST be configured to send `X-Forwarded-For`. Do not re-flag either delta as a parity gap.
+
+## D73
+
+- **D73** — **Clusters are registries; the frame's own grammar is intrinsic.** Every global affordance in the shell frame is a `ChromeEntry` in ONE registry — zones as data (`CHROME_ZONES`: currently rail.nav · rail.end · topbar.trail — the tuple is the truth, not this list), entries derived (sections from `SectionDefinition.rail`, modals from `ModalDefinition.trigger` placements, widgets from co-located `features/<owner>/lib/<id>-chrome.tsx`), assembled ONCE at the door by the pure `state/assemble-chrome.ts` (dupe/zone/order algebra has ONE home there — consumers filter by zone and trust the order). The rail/topbar/You-sheet are blind lenses over the same resolved list; the You sheet is a PROJECTION, never a second derivation. The crisp line: clusters are registries, but the frame's own panel grammar (list/detail toggles positionally bound to their panels) stays intrinsic — never registry-fed. The shell accepts ZERO ReactNode chrome props (`railFoot`/`topbarTrail` died; `AppShellProps` deleted). Modal-trigger placements align with chrome zones (`rail.end`/`topbar.trail`/`mobile-tab`/`surface`). Enforcers: `chrome-registry-completeness` · `no-parallel-section-map` (chrome arm) · `modal-registry-completeness` (surface-reachability arm). Program record: `../history/shell-chrome-unification.md`.
+
+## D74
+
+- **D74** — **You ⊃ Identity ⊃ Account.** YOU is not a page — it is the mobile projection of shell chrome (the sheet where `mobile:"sheet"` entries land; a real modal — portal/focus-trap/scrim — never a CSS fake). IDENTITY is ONE chrome widget (`features/persona/lib/persona-chrome.tsx`) with two lenses over one data fetch: `body("bar")` = the avatar chip + popover, `body("sheet")` = the same sections inline (this is where mobile persona switching lives). ACCOUNT is a leaf modal (handle · role · sign-out) reached ONLY from inside Identity, placement `surface` — exactly one concept named "account" exists (the settings account PANE died 2026-07-16; it returns as a pane only if account settings grow real weight — a future D-note, not structure now).

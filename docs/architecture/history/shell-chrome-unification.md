@@ -1,10 +1,14 @@
 ---
-kind: spec
-status: draft
+kind: history
+status: shipped
 updated: 2026-07-16
 ---
 
-# Shell Chrome Unification (proposed program — Fable design, owner-approved for AFTER the lockdown)
+# Shell Chrome Unification (SHIPPED program — graduated to history 2026-07-16)
+
+> **CLOSED: §E steps 1–7 all landed 2026-07-16.** The mechanism is LAW in
+> `../core/UI-Architecture-and-Layout.md` §4.x; the standing rulings are D73/D74
+> (`../core/Core-Path-Registry.md`). This record is history, not law.
 
 > **STATUS: design of record. Slice 1 (`topbar.trail`) SHIPPED (N1); the rail/sheet/prop-kill waves remain.**
 > **Sequencing across the three programs lives in ONE home: `ui-cohesion-north-star.md` header ("Sequencing")**
@@ -103,7 +107,7 @@ shell accepts zero ReactNode chrome props; `app-root.tsx` slims to §7 residue.
 ## B. You vs Account — a containment chain: You ⊃ Identity ⊃ Account
 
 | Thing | What it is | Presentation |
-|---|---|---|
+| - | - | - |
 | **You** | NOT a page — the mobile PROJECTION of shell chrome (the drawer where `mobile:"sheet"` rail entries land). No content of its own. | Bottom-sheet drawer (modal slot `"you"`, app-shell-owned) |
 | **Identity** | A chrome widget (persona switcher + Account strip). ONE widget, two lenses: `body("bar")` = avatar chip + popover (desktop); `body("sheet")` = same sections inline in the You sheet. | Both |
 | **Account** | A leaf modal (auth card: handle · role · sign-out). Reached only from inside Identity. Placement `"surface"`. | Centered dialog |
@@ -116,12 +120,12 @@ weight (a D-note, not speculative structure now).
 ## C. CSS-transform verdict — YES for the bar, projection (not CSS) for the sheet
 
 - **Rail bar = ONE DOM list, CSS-reflowed.** Today `rail.tsx` renders every button TWICE (`.shell-rail-desktop`
-  + `.shell-rail-mobile`, `RailButton` vs `RailTabButton`) and the one `@media` flips `display`. The single-DOM
-  design: one flat grouped list with `data-mobile="tab|sheet"` per entry; inside the existing one
-  `@media (max-width:48rem)` — `flex-direction: column→row`, `[data-mobile="sheet"]{display:none}` (curation as CSS
-  visibility over the same DOM; `display:none` also removes them from the a11y tree), labels shown on mobile via
-  CSS, brand/spacer hidden + overflow "You" button shown. **Dies:** `.shell-rail-desktop`, `.shell-rail-mobile`,
-  `RailTabButton`, the double render.
+  - `.shell-rail-mobile`, `RailButton` vs `RailTabButton`) and the one `@media` flips `display`. The single-DOM
+    design: one flat grouped list with `data-mobile="tab|sheet"` per entry; inside the existing one
+    `@media (max-width:48rem)` — `flex-direction: column→row`, `[data-mobile="sheet"]{display:none}` (curation as CSS
+    visibility over the same DOM; `display:none` also removes them from the a11y tree), labels shown on mobile via
+    CSS, brand/spacer hidden + overflow "You" button shown. **Dies:** `.shell-rail-desktop`, `.shell-rail-mobile`,
+    `RailTabButton`, the double render.
 - **You sheet CANNOT be pure CSS** — it's a real modal (portal into the themed root, focus trap, scrim, Escape,
   `aria-modal`). CSS can restyle nodes; it cannot re-parent into a portal, trap focus, or make the background
   inert. A "CSS-only sheet" would be a fake modal that fails keyboard + SR users. **BUT** the maintenance
@@ -135,7 +139,7 @@ weight (a D-note, not speculative structure now).
 
 Door: `assembleChrome(...)` + `ChromeRegistryProvider` in `main.tsx`. Gate family (mirror the existing pattern):
 **`chrome-registry-completeness`** (new; mirror `modal-registry-completeness`: widget co-location
-`features/<owner>/lib/<id>-chrome.tsx`, dupe-id, zone ∈ CHROME_ZONES, a `rail.*` widget must declare `mobile`, a
+`features/<owner>/lib/<id>-chrome.tsx`, dupe-id, zone ∈ CHROME\_ZONES, a `rail.*` widget must declare `mobile`, a
 `topbar.*` must not); **`modal-registry-completeness`** update (new placement vocab; singleton shrinks to
 `mobile-tab`; a `"surface"` modal needs ≥1 `openModal("<id>")` call site); **`shell-no-chrome-props`** (new arm in
 `client-structure`: `AppShellProps`/`ShellTopbarProps`/`RailProps` may declare no ReactNode chrome slot props —
@@ -143,7 +147,7 @@ the rotted seam becomes unspellable); **`no-parallel-section-map`** extend (a ha
 the door/`-chrome.tsx` is RED). Chrome adds no id tuple — it's a contributor-style OPEN set over a CLOSED zone
 vocabulary (zones are architecture, entries are growth).
 
-## E. Migration sketch (each step green; ~one executor wave each)
+## E. Migration sketch (each step green; \~one executor wave each)
 
 > **N1 took a vertical slice — a minimal mint + step 4 — via `createContributorRegistry`, skipping steps 1–2's
 > `assembleChrome`. Statuses below reflect that. The remainder still stands as written.**
@@ -190,7 +194,7 @@ vocabulary (zones are architecture, entries are growth).
    (file + front-door export + door registration + `SETTINGS_CATEGORY_IDS` member; nav/search derive from the
    registry, so no stale row). Gates landed + bite-proven (conformance): `modal-registry-completeness` (singleton
    shrinks to `mobile-tab`; new `surface`-reachability arm — a `surface` modal needs ≥1 `openModal(id)` opener);
-   `no-parallel-section-map` (chrome arm — a hand array of ≥2 CHROME_ZONES-zoned entries outside the
+   `no-parallel-section-map` (chrome arm — a hand array of ≥2 CHROME\_ZONES-zoned entries outside the
    door/`*-chrome.tsx` is RED). `shell-no-chrome-props` **DROPPED (permanent)** — the seam is already
    type-deleted (`AppShellProps` gone) and the remaining app-shell ReactNode props can't be cut by a name
    allowlist without guarding nothing (verdict: `Core-Enforcement-Deferred-Dropped.md`). `UI-Architecture-and-Layout.md`
