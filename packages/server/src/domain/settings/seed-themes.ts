@@ -1,7 +1,9 @@
 // domain/settings/seed-themes — boot seeder. ensureSeedThemes upserts the three seed palettes at their
 // fixed sentinel ids, overwriting on every boot: seeds are un-editable by construction, so an overwrite
-// can never clobber user data. Hearth mirrors @orb/ui/styles/theme.css's live OKLCH ramp verbatim; Mocha
-// is a cool-hued dark variant; Light is a luminance-inverted variant of the same warm hue family.
+// can never clobber user data. Hearth mirrors @orb/ui's base TOKENS ramp; Mocha/Light mirror the
+// SEED_THEME_VALUE_SETS[mocha|light] vars — the SAME OKLCH the theme.css [data-theme] blocks emit. These
+// three OVERRIDEs are pinned byte-equal to those @orb/ui values by tests/server/domain/settings/
+// seed-theme-pairing.suite.test.ts (the cake forbids server↔ui imports, so the test is the enforcer).
 
 import type { ThemeOverride } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
@@ -9,11 +11,11 @@ import { getLog } from "#foundation/observability";
 import { THEME_HEARTH_ID, THEME_HEARTH_NAME, THEME_LIGHT_ID, THEME_LIGHT_NAME, THEME_MOCHA_ID, THEME_MOCHA_NAME } from "./constants";
 import { upsertSeedTheme } from "./persistence/theme-queries";
 
-const HEARTH_OVERRIDE: ThemeOverride = {
+export const HEARTH_OVERRIDE: ThemeOverride = {
   accent: "oklch(0.72 0.175 52)",
   userBubble: { bg: "oklch(0.255 0.007 60)", fg: "oklch(0.955 0.004 75)" },
   aiBubble: { bg: "oklch(0.205 0.006 60)", fg: "oklch(0.955 0.004 75)" },
-  systemBubble: { bg: "oklch(0.255 0.006 60)", fg: "oklch(0.705 0.008 65)" },
+  systemBubble: { bg: "oklch(0.255 0.006 60)", fg: "oklch(0.74 0.008 65)" },
   speaker: "oklch(0.72 0.175 52)",
   dialogueColor: "oklch(0.955 0.004 75)",
   narrationColor: "oklch(0.78 0.02 70)",
@@ -25,7 +27,7 @@ const HEARTH_OVERRIDE: ThemeOverride = {
   density: "comfortable",
 };
 
-const MOCHA_OVERRIDE: ThemeOverride = {
+export const MOCHA_OVERRIDE: ThemeOverride = {
   accent: "oklch(0.7 0.14 250)",
   userBubble: { bg: "oklch(0.26 0.02 250)", fg: "oklch(0.95 0.01 250)" },
   aiBubble: { bg: "oklch(0.21 0.015 250)", fg: "oklch(0.95 0.01 250)" },
@@ -41,7 +43,7 @@ const MOCHA_OVERRIDE: ThemeOverride = {
   density: "comfortable",
 };
 
-const LIGHT_OVERRIDE: ThemeOverride = {
+export const LIGHT_OVERRIDE: ThemeOverride = {
   accent: "oklch(0.55 0.16 50)",
   userBubble: { bg: "oklch(0.93 0.02 60)", fg: "oklch(0.25 0.02 60)" },
   aiBubble: { bg: "oklch(0.97 0.006 60)", fg: "oklch(0.22 0.02 60)" },
