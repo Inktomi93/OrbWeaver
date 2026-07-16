@@ -73,7 +73,7 @@ kit ─┬─→ contracts ─┬─→ db ─→ server          (backend arm, 
 
 #### 1.1 The headline win — neo's lint rules become package physics
 
-neo enforced the UI boundaries with lint. orbweaver makes them **resolver physics** (boundaries are packages, not lint) — LIVE, enforced by the package.json dep sets + `.dependency-cruiser.cjs` (`ui-cake` · `ui-no-node-builtins` · `ui-satellite-seals` · `client-no-raw-satellites`):
+neo enforced the UI boundaries with lint. orbweaver makes them **resolver physics** (boundaries are packages, not lint) — LIVE, enforced by the package.json dep sets + `.dependency-cruiser.cjs` (`ui-cake` · `ui-no-node-builtins` · `ui-satellite-seals`):
 
 | neo lint rule | orbweaver |
 | - | - |

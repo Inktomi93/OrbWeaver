@@ -173,7 +173,7 @@ wave BEFORE feature agents (§11.7).
 - **TWO named editor factories** (homed in `client/forms`, §2.1): `createSavedEntityForm` (button-gated)
   and `createAutosaveEntityForm` (listener-debounced; **`reset` removed from its type** — calling it is
   the autosave infinite loop). The full six-obligation contract is §13.4. Keep neo's single
-  `createFormHook`/`createFormHookContexts` instance (gate `tanstack-form-only-in-shared`). *Gate
+  `createFormHook`/`createFormHookContexts` instance (gate `no-direct-useform`). *Gate
   `no-form-reset-in-autosave`.* **Amended by D66 A4:** A4 made AUTOSAVE the standing save model (no manual
   Save button; program doc §7), so `createSavedEntityForm` + the `save-bar` primitive are now orphaned
   pending a no-consumer-remaining removal decision. Both factories still exist (D43/D54 list them); do
