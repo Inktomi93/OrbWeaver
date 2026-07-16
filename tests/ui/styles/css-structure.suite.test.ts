@@ -139,6 +139,7 @@ const ALLOWED_LITERALS = new Set([
   "1px", // hairline borders (a stroke width, not a shell dimension)
   "0px", // --list-track/--context-track collapsed-track resets
   "0.125rem", // the mobile tab icon/label gap (a spacing intent, not shell geometry)
+  "1.25rem", // the topbar chip/toggle divider LENGTH (a decorative stroke, not shell geometry — N1)
 ]);
 const LITERAL_RE = /\d*\.?\d+(?:rem|px)/gu;
 

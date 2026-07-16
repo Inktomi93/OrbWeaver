@@ -83,6 +83,11 @@
 .shell-grid[data-elevation="ramp"] .shell-panel-header {
   border-block-end: none;
 }
+/* The rail brand is on the same chrome horizon as the panel headers, so ramp drops its hairline too — the
+ * region hairlines all disappear together for the seamless ramp look. */
+.shell-grid[data-elevation="ramp"] .shell-rail-brand {
+  border-block-end: none;
+}
 /* :where() here too so a bg image's transparent rule still wins over elevation=ramp. */
 .shell-grid:where([data-elevation="ramp"]) .shell-main {
   background: var(--color-card);
@@ -121,13 +126,22 @@
   flex-direction: column;
   align-items: center;
   gap: var(--spacing-row);
-  padding-block: var(--spacing-block);
+  /* No top padding: the brand cell is the rail's chrome-row header and must sit flush at y=0 so its
+   * bottom hairline lands on the SAME baseline as the list/topbar/context headers (P1, D66). */
+  padding-block-start: 0;
+  padding-block-end: var(--spacing-block);
 }
+/* The brand is the rail's chrome-row header — a full-width chrome-row cell with the shared bottom hairline,
+ * on the one horizon (P1). align-self:stretch overrides the rail's align-items:center so the hairline spans
+ * the whole rail width. */
 .shell-rail-brand {
   display: flex;
+  align-self: stretch;
   align-items: center;
   justify-content: center;
-  padding-block-end: var(--spacing-row);
+  height: var(--dimension-chrome-row);
+  padding-inline: var(--spacing-block);
+  border-block-end: 1px solid var(--color-sidebar-border);
   color: var(--color-muted-foreground);
 }
 .shell-rail-sections {
@@ -310,6 +324,14 @@
   align-items: center;
   gap: var(--spacing-row);
   min-width: 0;
+}
+/* The one seam in the trail: separates the bordered ⌘K chip (group 1) from the ghost toggle cluster
+ * (group 2) so the topbar reads as exactly two groups (P1/N1). */
+.shell-topbar-divider {
+  flex: none;
+  width: 1px;
+  height: 1.25rem;
+  background: var(--color-border);
 }
 .shell-content {
   flex: 1 1 auto;

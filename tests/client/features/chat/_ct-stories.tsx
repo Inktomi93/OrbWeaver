@@ -48,6 +48,7 @@ import { CharacterGalleryDialog } from "../../../../packages/client/src/features
 import { ChatCastBar } from "../../../../packages/client/src/features/chat/components/chat-cast-bar";
 import { ChatHeaderSurface } from "../../../../packages/client/src/features/chat/components/chat-header";
 import { ChatOptionsMenu } from "../../../../packages/client/src/features/chat/components/chat-options-menu";
+import { ActiveChatOptionsMenu } from "../../../../packages/client/src/features/chat/components/chat-options-topbar";
 import { GhostMessageRow } from "../../../../packages/client/src/features/chat/components/ghost-message-row";
 import { GroupConfigForm } from "../../../../packages/client/src/features/chat/components/group-config-form";
 import { InviteDialog } from "../../../../packages/client/src/features/chat/components/invite-dialog";
@@ -897,16 +898,31 @@ export function ChatCastBarStory(): ReactElement {
   );
 }
 
-/** The topbar chat-identity header (chat-header.tsx) — the roster + the server-resolved host gate come
- *  from the routeTrpc `chat.getChat` stub the `.ct.tsx` sets per case (`viewerIsHost` gates the ⋯ menu's
- *  host-only "Preview request…" item). `chat.listMessages` feeds the menu's guided turn actions. */
+/** The topbar chat-identity header LEAD (chat-header.tsx) — avatar/title + the member-count chip. The
+ *  roster comes from the routeTrpc `chat.getChat` stub the `.ct.tsx` sets per case. (The ⋯ options menu
+ *  moved to the topbar TRAIL — ChatOptionsTopbarStory owns its host-gate coverage now.) */
 export function ChatHeaderStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div>
+        <ChatHeaderSurface chatId={CHAT_ID} />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The active chat's options ⋯ menu as it renders at the END of the topbar TRAIL (chat-options-topbar.tsx).
+ *  Drives the production path over the stubbed network: `chat.getChat` supplies the roster + the
+ *  server-resolved host gate (`viewerIsHost` gates the ⋯ menu's host-only "Preview request…" item),
+ *  `chat.listMessages` feeds the menu's guided turn actions. The inner `ActiveChatOptionsMenu` takes the id
+ *  as a prop (the chrome wrapper's `useActiveChatId` narrowing needs no store seed here). */
+export function ChatOptionsTopbarStory(): ReactElement {
   return (
     <CtDataProviders>
       {/* A wrapping div so `component` is the WRAPPER (the ⋯ menu popup renders through a Portal — item
           assertions use the PAGE locator, the ChatOptionsMenuStory precedent). */}
       <div>
-        <ChatHeaderSurface chatId={CHAT_ID} />
+        <ActiveChatOptionsMenu chatId={CHAT_ID} />
       </div>
     </CtDataProviders>
   );
