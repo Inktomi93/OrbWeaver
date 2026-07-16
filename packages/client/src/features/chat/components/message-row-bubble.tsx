@@ -68,7 +68,7 @@ export function renderSingleBubble(args: {
             className="absolute inset-y-0 right-0 w-(--immersive-echo-feather) items-end justify-center pe-block"
             style={edgeTile.style}
           >
-            <Text as="span" weight="bold" className="text-primary-foreground" style={{ fontSize: "var(--spacing-avatar-hero)", lineHeight: "1" }}>
+            <Text as="span" weight="bold" className="text-primary-foreground leading-none" style={{ fontSize: "var(--spacing-avatar-hero)" }}>
               {edgeTile.initial}
             </Text>
           </Stack>
