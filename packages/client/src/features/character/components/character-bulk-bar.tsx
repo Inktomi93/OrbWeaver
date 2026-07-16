@@ -9,13 +9,10 @@
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
-import { Dialog, DialogClose, DialogDescription, DialogPopup, DialogTitle } from "@orb/ui/dialog";
-import { Input } from "@orb/ui/input";
-import { Row, Stack } from "@orb/ui/layout";
 import { SelectionBar } from "@orb/ui/selection-bar";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { ConfirmDialog } from "#components";
+import { ConfirmDialog, TagPickerDialog } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation } from "#data";
 import { useBulkAddCardTag, useBulkArchiveCharacters, useBulkRemoveCharacters } from "../hooks/use-character-mutations";
@@ -35,17 +32,10 @@ export function CharacterBulkBar({ ids, selectedCount, onClear, trpc }: Characte
   const bulkRemove = useBulkRemoveCharacters({ trpc, invalidation });
   const [tagOpen, setTagOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [tagName, setTagName] = useState("");
   const characterIds = ids.map((id) => castId<CharacterId>(id));
 
-  const applyTag = (): void => {
-    const trimmed = tagName.trim();
-    if (trimmed === "") {
-      return;
-    }
-    bulkTag.mutate({ tagName: trimmed, characterIds });
-    setTagOpen(false);
-    setTagName("");
+  const applyTag = (name: string): void => {
+    bulkTag.mutate({ tagName: name, characterIds });
     onClear();
   };
 
@@ -76,22 +66,14 @@ export function CharacterBulkBar({ ids, selectedCount, onClear, trpc }: Characte
           Delete
         </Button>
       </SelectionBar>
-      <Dialog onOpenChange={setTagOpen} open={tagOpen}>
-        <DialogPopup>
-          <Stack gap="block">
-            <DialogTitle>{`Tag ${selectedCount} character${selectedCount === 1 ? "" : "s"}`}</DialogTitle>
-            {/* Plain children — DialogDescription IS the <p>; a nested <Text> (also <p>) is invalid HTML. */}
-            <DialogDescription>Attach an existing tag, or type a new one to create it.</DialogDescription>
-            <Input aria-label="Tag name" onValueChange={setTagName} placeholder="e.g. adventure" value={tagName} />
-            <Row gap="field" justify="end">
-              <DialogClose render={<Button intent="ghost">Cancel</Button>} />
-              <Button disabled={tagName.trim() === ""} intent="primary" onClick={applyTag}>
-                Apply
-              </Button>
-            </Row>
-          </Stack>
-        </DialogPopup>
-      </Dialog>
+      <TagPickerDialog
+        confirmLabel="Apply"
+        description="Attach an existing tag, or type a new one to create it."
+        onOpenChange={setTagOpen}
+        onSubmit={applyTag}
+        open={tagOpen}
+        title={`Tag ${selectedCount} character${selectedCount === 1 ? "" : "s"}`}
+      />
       <ConfirmDialog
         confirmLabel="Delete"
         description="This permanently deletes them. This can't be undone."

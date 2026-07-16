@@ -5,11 +5,10 @@ import react, { reactCompilerPreset } from "@vitejs/plugin-react";
 import { defineConfig, searchForWorkspaceRoot } from "vite";
 import checker from "vite-plugin-checker";
 
-// @orb/client build — fully es2025, React-Compiler full-compile from day one (D54). Config-only for
-// now: it LOADS + `vite build` fails ONLY at the missing `index.html` entry. The app entry
-// (index.html + src/main.tsx) and the hand-written code-based route tree (src/routes/ — no file-based
-// codegen, UI-Arch §6.1) are the client-app's first task. Every non-default option below is annotated
-// with its why; the full rationale + cites live in history/client-tooling-setup.md §7.
+// @orb/client build — fully es2025, React-Compiler full-compile from day one (D54). Entry is
+// index.html + src/main.tsx with a hand-written code-based route tree (src/routes/ — no file-based
+// codegen, UI-Arch §6.1). Every non-default option below is annotated with its why; the full
+// rationale + cites live in history/client-tooling-setup.md §7.
 //
 // Intra-package imports use the package.json `#*` subpath field (resolved natively by Vite) — there is
 // NO `@`/tsconfig-paths alias (orbweaver principle #2). No `base` (served at root), no version
@@ -100,7 +99,8 @@ export default defineConfig({
     // the app builds. (Use build.rolldownOptions — NEVER the deprecated rollupOptions — for any manual
     // output config; none needed today, Rolldown auto-chunks.)
     chunkSizeWarningLimit: 1500,
-    // Provisional output dir — reconciled with the server's static-serve path when the entry lands.
+    // The canonical bundle location: the server's SPA registrar (entry/http/spa.ts) serves this dir —
+    // CLIENT_DIST_DIR defaults to packages/client/dist and must move with any change here.
     outDir: "dist",
     emptyOutDir: true,
   },
@@ -110,9 +110,8 @@ export default defineConfig({
     // for the proxy + CSP + auth-redirect assumptions).
     strictPort: true,
     proxy: {
-      // Vite is the dev front door; the Hono server owns the API and serves the built bundle in prod.
-      // PROVISIONAL: the server HTTP transport isn't wired yet — target/prefix are placeholders
-      // (mirrors neo's split) and get reconciled when the server entry lands.
+      // Vite is the dev front door; the Hono server owns the API and serves the built bundle in prod
+      // (entry/http/spa.ts — hashed-asset cache + index.html history fallback).
       "/api": {
         target: "http://127.0.0.1:8788",
         changeOrigin: true,

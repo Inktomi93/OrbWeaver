@@ -3,14 +3,13 @@
 // only action is Create. On create, seeds both global pointers (current + default).
 
 import { Button } from "@orb/ui/button";
-import { Dialog, DialogDescription, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { Field } from "@orb/ui/field";
 import { Input } from "@orb/ui/input";
-import { Stack } from "@orb/ui/layout";
 import { Textarea } from "@orb/ui/textarea";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { FormDialog } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { notify, testId } from "#lib";
 import { useSetPersonaSeed } from "../hooks/use-persona-identity";
@@ -55,31 +54,25 @@ export function FirstRunPersonaDialog(): ReactElement | null {
 
   return (
     // Forced-open: onOpenChange is deliberately inert, the only way out is creating the persona.
-    <Dialog
-      open={true}
+    <FormDialog
+      description="Chats speak to you through a persona — the name (and optional description) characters see as you. Create yours to get started; you can refine it any time from the avatar at the rail's foot."
       onOpenChange={(): void => {
         // Ignored by design.
       }}
+      open={true}
+      testKey="firstRunPersonaDialog"
+      title="Who are you in the story?"
     >
-      <DialogPopup data-testid={testId("firstRunPersonaDialog")}>
-        <Stack gap="block">
-          <DialogTitle>Who are you in the story?</DialogTitle>
-          <DialogDescription>
-            Chats speak to you through a persona — the name (and optional description) characters see as you. Create yours to get started; you can refine it any
-            time from the avatar at the rail's foot.
-          </DialogDescription>
-          <Field label="Name">
-            <Input autoComplete="off" value={name} onValueChange={(value): void => setName(value)} data-testid={testId("firstRunPersonaName")} />
-          </Field>
-          {/* An always-visible description, not a hint tooltip: 2+ hints would duplicate accessible names. */}
-          <Field label="Description" description="Optional — how characters should picture you.">
-            <Textarea value={description} onChange={(event): void => setDescription(event.target.value)} />
-          </Field>
-          <Button intent="primary" disabled={!canSubmit} data-testid={testId("firstRunPersonaCreate")} onClick={(): void => void submit()}>
-            {pending ? "Creating…" : "Create persona"}
-          </Button>
-        </Stack>
-      </DialogPopup>
-    </Dialog>
+      <Field label="Name">
+        <Input autoComplete="off" value={name} onValueChange={(value): void => setName(value)} data-testid={testId("firstRunPersonaName")} />
+      </Field>
+      {/* An always-visible description, not a hint tooltip: 2+ hints would duplicate accessible names. */}
+      <Field label="Description" description="Optional — how characters should picture you.">
+        <Textarea value={description} onChange={(event): void => setDescription(event.target.value)} />
+      </Field>
+      <Button intent="primary" disabled={!canSubmit} data-testid={testId("firstRunPersonaCreate")} onClick={(): void => void submit()}>
+        {pending ? "Creating…" : "Create persona"}
+      </Button>
+    </FormDialog>
   );
 }

@@ -10,7 +10,6 @@ import type { TagId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { ColorField } from "@orb/ui/color-field";
-import { Dialog, DialogClose, DialogDescription, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { Icon, Trash2 } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";
@@ -19,7 +18,7 @@ import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { ConfirmDialog } from "#components";
+import { ConfirmDialog, FormDialog } from "#components";
 import type { Invalidation, Trpc } from "#data";
 import { useMergeTags, useRemoveTag, useRenameTag, useUpdateTagStyle } from "../hooks/use-tag-settings-mutations";
 import { FOLDER_TYPE_ITEMS, usageBreakdown, usageTotalLabel } from "../lib/tags-settings-model";
@@ -165,27 +164,21 @@ function TagMergeControl({ tag, others, trpc, invalidation }: TagSettingsRowProp
       <Button intent="secondary" size="sm" disabled={others.length === 0} onClick={(): void => setOpen(true)}>
         Merge into…
       </Button>
-      <Dialog onOpenChange={setOpen} open={open}>
-        <DialogPopup>
-          <Stack gap="block">
-            <DialogTitle>{`Merge "${tag.name}" into another tag`}</DialogTitle>
-            <DialogDescription>Every attachment moves to the tag you pick, then this tag is deleted. This can't be undone.</DialogDescription>
-            <Select
-              aria-label="Merge target tag"
-              items={items}
-              onValueChange={(value: TagId | null): void => setTarget(value)}
-              placeholder="Choose a tag…"
-              value={target}
-            />
-            <Row gap="field" justify="end">
-              <DialogClose render={<Button intent="ghost">Cancel</Button>} />
-              <Button disabled={target === null} intent="primary" onClick={confirmMerge}>
-                Merge
-              </Button>
-            </Row>
-          </Stack>
-        </DialogPopup>
-      </Dialog>
+      <FormDialog
+        description="Every attachment moves to the tag you pick, then this tag is deleted. This can't be undone."
+        onOpenChange={setOpen}
+        open={open}
+        submit={{ label: "Merge", onSubmit: confirmMerge, disabled: target === null }}
+        title={`Merge "${tag.name}" into another tag`}
+      >
+        <Select
+          aria-label="Merge target tag"
+          items={items}
+          onValueChange={(value: TagId | null): void => setTarget(value)}
+          placeholder="Choose a tag…"
+          value={target}
+        />
+      </FormDialog>
     </>
   );
 }

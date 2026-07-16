@@ -6,16 +6,15 @@
 
 import type { UserId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
-import { Dialog, DialogDescription, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { Row, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { ConfirmDialog } from "#components";
+import { ConfirmDialog, FormDialog } from "#components";
 import { useInvalidation, useTRPC } from "#data";
-import { testId, timeLib } from "#lib";
+import { timeLib } from "#lib";
 import { useRevokeSession, useRevokeUserSessions } from "../hooks/use-admin-mutations";
 
 export interface AdminUserSessionsDialogProps {
@@ -39,66 +38,66 @@ export function AdminUserSessionsDialog(props: AdminUserSessionsDialogProps): Re
   const mutating = revokeOne.isPending || revokeAll.isPending;
 
   return (
-    <Dialog open={props.open} onOpenChange={props.onOpenChange}>
-      <DialogPopup size="lg" data-testid={testId("adminSessionsDialog")}>
-        <Stack gap="block">
-          <DialogTitle>Sessions — {props.handle}</DialogTitle>
-          <DialogDescription>Revoking a session signs that device out on its next request.</DialogDescription>
+    <FormDialog
+      description="Revoking a session signs that device out on its next request."
+      onOpenChange={props.onOpenChange}
+      open={props.open}
+      size="lg"
+      testKey="adminSessionsDialog"
+      title={`Sessions — ${props.handle}`}
+    >
+      <Row align="center" justify="between">
+        <Text size="label" tone="muted">
+          {activeCount} active{rows.length > activeCount ? ` / ${rows.length} total` : ""}
+        </Text>
+        <Button intent="destructive" size="sm" disabled={activeCount === 0 || mutating} onClick={(): void => setConfirmRevokeAll(true)}>
+          Revoke all
+        </Button>
+      </Row>
 
-          <Row align="center" justify="between">
-            <Text size="label" tone="muted">
-              {activeCount} active{rows.length > activeCount ? ` / ${rows.length} total` : ""}
-            </Text>
-            <Button intent="destructive" size="sm" disabled={activeCount === 0 || mutating} onClick={(): void => setConfirmRevokeAll(true)}>
-              Revoke all
-            </Button>
-          </Row>
+      {sessions.isPending ? <Text tone="muted">Loading sessions…</Text> : null}
+      {sessions.isError ? <Text tone="destructive">Couldn't load the sessions — try reopening this dialog.</Text> : null}
+      {sessions.isSuccess && rows.length === 0 ? <Text tone="muted">No sessions on record — they've never signed in.</Text> : null}
 
-          {sessions.isPending ? <Text tone="muted">Loading sessions…</Text> : null}
-          {sessions.isError ? <Text tone="destructive">Couldn't load the sessions — try reopening this dialog.</Text> : null}
-          {sessions.isSuccess && rows.length === 0 ? <Text tone="muted">No sessions on record — they've never signed in.</Text> : null}
+      <Stack gap="field">
+        {rows.map((session) => {
+          const revoked = session.revokedAt !== null;
+          return (
+            <ListRow
+              key={session.id}
+              title={session.userAgent ?? "Unknown device"}
+              subtitle={
+                revoked
+                  ? `Revoked ${timeLib.formatRelative(session.revokedAt)}`
+                  : `Last seen ${timeLib.formatRelative(session.lastSeenAt)} · expires ${timeLib.formatRelative(session.expiresAt)}`
+              }
+              actions={
+                revoked ? null : (
+                  <Button
+                    intent="destructive"
+                    size="sm"
+                    disabled={mutating}
+                    aria-label={`Revoke session — ${session.userAgent ?? session.id}`}
+                    onClick={(): void => revokeOne.mutate({ sessionId: session.id })}
+                  >
+                    Revoke
+                  </Button>
+                )
+              }
+            />
+          );
+        })}
+      </Stack>
 
-          <Stack gap="field">
-            {rows.map((session) => {
-              const revoked = session.revokedAt !== null;
-              return (
-                <ListRow
-                  key={session.id}
-                  title={session.userAgent ?? "Unknown device"}
-                  subtitle={
-                    revoked
-                      ? `Revoked ${timeLib.formatRelative(session.revokedAt)}`
-                      : `Last seen ${timeLib.formatRelative(session.lastSeenAt)} · expires ${timeLib.formatRelative(session.expiresAt)}`
-                  }
-                  actions={
-                    revoked ? null : (
-                      <Button
-                        intent="destructive"
-                        size="sm"
-                        disabled={mutating}
-                        aria-label={`Revoke session — ${session.userAgent ?? session.id}`}
-                        onClick={(): void => revokeOne.mutate({ sessionId: session.id })}
-                      >
-                        Revoke
-                      </Button>
-                    )
-                  }
-                />
-              );
-            })}
-          </Stack>
-        </Stack>
-
-        <ConfirmDialog
-          confirmLabel="Revoke all"
-          description={`Every live session for ${props.handle} is revoked — their next request from any device is signed out.`}
-          forceRender={true}
-          onConfirm={(): void => revokeAll.mutate({ userId: props.userId })}
-          onOpenChange={setConfirmRevokeAll}
-          open={confirmRevokeAll}
-          title="Revoke all sessions?"
-        />
-      </DialogPopup>
-    </Dialog>
+      <ConfirmDialog
+        confirmLabel="Revoke all"
+        description={`Every live session for ${props.handle} is revoked — their next request from any device is signed out.`}
+        forceRender={true}
+        onConfirm={(): void => revokeAll.mutate({ userId: props.userId })}
+        onOpenChange={setConfirmRevokeAll}
+        open={confirmRevokeAll}
+        title="Revoke all sessions?"
+      />
+    </FormDialog>
   );
 }

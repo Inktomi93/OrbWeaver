@@ -6,16 +6,15 @@
 // the closed popup, so a reopen never shows the previous password.
 
 import type { UserId } from "@orb/kit/ids";
-import { Button } from "@orb/ui/button";
-import { Dialog, DialogDescription, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { Field } from "@orb/ui/field";
 import { Input } from "@orb/ui/input";
 import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { FormDialog, FormSubmitButton } from "#components";
 import { useInvalidation, useTRPC } from "#data";
-import { notify, testId } from "#lib";
+import { notify } from "#lib";
 import { useResetPassword } from "../hooks/use-admin-mutations";
 import { ADMIN_MIN_PASSWORD_LENGTH } from "../lib/admin-model";
 
@@ -29,15 +28,15 @@ export interface AdminResetPasswordDialogProps {
 /** The dialog shell — the body mounts fresh per open (Base UI unmounts closed popups). */
 export function AdminResetPasswordDialog(props: AdminResetPasswordDialogProps): ReactElement {
   return (
-    <Dialog open={props.open} onOpenChange={props.onOpenChange}>
-      <DialogPopup data-testid={testId("adminResetPasswordDialog")}>
-        <Stack gap="block">
-          <DialogTitle>Reset password — {props.handle}</DialogTitle>
-          <DialogDescription>Sets a new local password and revokes every live session — they'll need to sign in again on all devices.</DialogDescription>
-          <ResetPasswordBody userId={props.userId} onDone={(): void => props.onOpenChange(false)} />
-        </Stack>
-      </DialogPopup>
-    </Dialog>
+    <FormDialog
+      description="Sets a new local password and revokes every live session — they'll need to sign in again on all devices."
+      onOpenChange={props.onOpenChange}
+      open={props.open}
+      testKey="adminResetPasswordDialog"
+      title={`Reset password — ${props.handle}`}
+    >
+      <ResetPasswordBody userId={props.userId} onDone={(): void => props.onOpenChange(false)} />
+    </FormDialog>
   );
 }
 
@@ -86,11 +85,12 @@ function ResetPasswordBody({ userId, onDone }: { readonly userId: UserId; readon
           Couldn't reset the password — try again.
         </Text>
       ) : null}
-      <Stack align="end">
-        <Button intent="primary" disabled={resetPassword.isPending} data-testid={testId("adminResetPasswordSubmit")} onClick={(): void => void submit()}>
-          {resetPassword.isPending ? "Resetting…" : "Reset password"}
-        </Button>
-      </Stack>
+      <FormSubmitButton
+        disabled={resetPassword.isPending}
+        label={resetPassword.isPending ? "Resetting…" : "Reset password"}
+        onSubmit={(): void => void submit()}
+        testKey="adminResetPasswordSubmit"
+      />
     </Stack>
   );
 }
