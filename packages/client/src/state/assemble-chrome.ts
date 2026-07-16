@@ -6,12 +6,12 @@
 // zone against `CHROME_ZONES`, and imposes the canonical per-zone order (the sort below), so a consumer
 // filters by zone and TRUSTS the order — the order algebra has ONE home, here.
 //
-// PLACEMENT_ZONE maps TODAY's `MODAL_TRIGGER_PLACEMENTS` (the §E-7 vocab tightening is not this wave).
-// Only `rail-footer → rail.end` maps: the rail consumes these rail.end entries as its footer affordances
-// (§E-3 single-DOM cutover). `topbar-command` (⌘K) is DELIBERATELY absent — the topbar still renders its bespoke ⌘K chip (whose
-// modal id is already derived from the trigger placement); folding ⌘K into a generically-rendered
-// topbar.trail entry is a VISIBLE change deferred to N1's skin pass. `content`/`mobile-tab` have no chrome
-// zone today (a feature surface · the mobile bar). The persona identity avatar is no longer a modal
+// PLACEMENT_ZONE maps the `MODAL_TRIGGER_PLACEMENTS` that surface as chrome. Only `rail.end → rail.end`
+// maps: the rail consumes these rail.end entries as its footer affordances (§E-3 single-DOM cutover).
+// `topbar.trail` (⌘K) is DELIBERATELY absent — the topbar still renders its bespoke ⌘K chip (whose modal id
+// is already derived from the trigger placement); folding ⌘K into a generically-rendered topbar.trail entry
+// is a VISIBLE change deferred to N1's skin pass. `surface`/`mobile-tab` have no chrome zone (a feature
+// surface reached by `openModal(id)` · the mobile bar). The persona identity avatar is no longer a modal
 // placement at all — it's a `rail.end` WIDGET entry (`personaChrome`, §E-6), passed straight through below.
 
 import type { ChromeEntry, ChromeZone } from "./chrome-registry";
@@ -23,7 +23,7 @@ const CHROME_ZONE_SET = new Set<string>(CHROME_ZONES);
 
 /** Which modal-trigger placements surface as a chrome entry, and in which zone (today's vocab). */
 const PLACEMENT_ZONE: Partial<Record<ModalTriggerPlacement, ChromeZone>> = {
-  "rail-footer": "rail.end",
+  "rail.end": "rail.end",
 };
 
 export interface AssembleChromeInput {

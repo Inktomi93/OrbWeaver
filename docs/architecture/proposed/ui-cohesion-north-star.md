@@ -56,9 +56,11 @@ and the derive-modernization program ([`derive-modernization-audit.md`](derive-m
    edit-Save, demoted); every applicable §9 line passed with live evidence; lane-wide verifier +
    side-eye passes ran at the gate.
 5. **Shell-chrome §E steps 5–7** (You-sheet projection + mobile persona · `railFoot` kill · vocab/law)
-   — **steps 5+6 ✅ 2026-07-16** (mobile persona switching shipped; `railFoot` + `AppShellProps`
-   dead; placement `avatar` retired). Step 7 remains: vocab rename, the settings `account` pane
-   deletion (see §6's superseded Account item), the remaining §D gates, law updates.
+   — **✅ ALL DONE 2026-07-16.** steps 5+6 (mobile persona switching shipped; `railFoot` + `AppShellProps`
+   dead; placement `avatar` retired); step 7 (vocab tightened to `rail.end`/`topbar.trail`/`surface`/
+   `mobile-tab`; the settings `account` pane deleted — §6's superseded Account item; `modal-registry-completeness`
+   surface-reachability + `no-parallel-section-map` chrome arms landed, `shell-no-chrome-props` dropped-permanent;
+   `UI-Architecture-and-Layout.md` §4.x updated). **The shell-chrome program is CLOSED.**
 6. **Derive-W1 (FormDialog rollup + G24)** — parallel-able with 4–5; MUST land before step 7 (the
    rollout repaints exactly the features W1 migrates — see §6's pre-gate note).
 7. **§6 rollout** (characters → presets → sections → remainders), §7 autosave inside each lane.
@@ -436,11 +438,11 @@ per-section switch. That channel shape is N4's ONE design decision; G3 (mint-onl
    - **Streaming caret + typing dots.** OPEN, verified: `ghost-message-row.tsx` has neither the
      2px primary caret nor the typing dots today. Verify-live what streaming actually shows, then
      build the missing chrome (respecting `reducedMotion`). Fold into the N3/N4 chat lane.
-   - **Account — [SUPERSEDED 2026-07-15 by the shell-chrome §B ruling: You ⊃ Identity ⊃ Account].**
-     The declared-planned settings `account` pane DIES at shell-chrome §E-7 (its planned-reason is
-     stale — auth IS wired, in the modal). Account stays the leaf MODAL (`auth/lib/account-modal.tsx`
-     → `auth/surfaces/account-surface.tsx`), reached from inside the Identity widget. Auth #50
-     completion targets the modal body. Do not build a pane.
+   - **Account — [SUPERSEDED 2026-07-15 by the shell-chrome §B ruling: You ⊃ Identity ⊃ Account;
+     RESOLVED 2026-07-16].** The declared-planned settings `account` pane is DELETED (shell-chrome §E-7 —
+     file + front-door export + door registration + `SETTINGS_CATEGORY_IDS` member gone). Account stays the
+     leaf MODAL (`auth/lib/account-modal.tsx` → `auth/surfaces/account-surface.tsx`, placement `surface`),
+     reached from inside the Identity widget. Auth #50 completion targets the modal body. Do not build a pane.
    - **@orb/ui chart-module registration — `Scatter` + `Heatmap`/`VisualMap`.** OPEN (2026-07-13):
      the ECharts seal (`packages/ui/src/charts/chart/echarts-setup.ts`) registers Bar/Line only.
      Two shipped surfaces are capped by it: the Corpus Map is an inert SVG scatter (click-through is

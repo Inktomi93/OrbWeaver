@@ -29,7 +29,7 @@ import { notificationsChrome } from "#features/notifications";
 import { personaChrome, personasPane } from "#features/persona";
 import { presetsSection } from "#features/preset";
 import { refinerySection } from "#features/refinery";
-import { accountPane, appearancePane, automationPane, chatBehaviorPane, regexPane, settingsModal, systemPane, tagsPane, themeModal } from "#features/settings";
+import { appearancePane, automationPane, chatBehaviorPane, regexPane, settingsModal, systemPane, tagsPane, themeModal } from "#features/settings";
 import { analyticsSection } from "#features/stats";
 import { adminPane } from "#features/user-admin";
 import { backupPane, workloadsPane } from "#features/workloads";
@@ -128,7 +128,6 @@ const chrome = createContributorRegistry(
 // The ONE settings-pane assembly (§8/G8): total over SETTINGS_CATEGORY_IDS by tsc; delivered as a
 // context value so the settings host reads it without importing any pane body directly.
 const settingsPanes = createRegistry("settings-panes", SETTINGS_CATEGORY_IDS, {
-  account: accountPane,
   personas: personasPane,
   appearance: appearancePane,
   tags: tagsPane,

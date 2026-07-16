@@ -8,6 +8,6 @@ export const settingsModal: ModalDefinition = {
   id: "settings",
   title: "Settings",
   size: "xl",
-  trigger: { placement: "rail-footer", label: "Settings", icon: Settings },
+  trigger: { placement: "rail.end", label: "Settings", icon: Settings },
   body: (): ReturnType<typeof SettingsShell> => <SettingsShell />,
 };

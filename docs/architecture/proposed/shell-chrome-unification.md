@@ -184,9 +184,18 @@ vocabulary (zones are architecture, entries are growth).
    `shell-no-chrome-props` gate is DEFERRED to step 7 with rationale: a ReactNode-prop denylist
    cannot distinguish the rotted chrome-slot seam from legitimate composition (`ShellTopbarProps`
    header/trail are ReactNode by design), and both offending props are deleted.
-7. **Vocabulary + law** — ○ NOT DONE. `rail-footer`→`rail.end`, `content`→`surface`; delete the settings `account`
-   pane; land the remaining gates (prove each bites); update `UI-Architecture-and-Layout.md` §4.x; D-ledger entries
-   for (a) clusters-are-registries / frame-grammar-is-intrinsic, (b) You ⊃ Identity ⊃ Account.
+7. **Vocabulary + law** — ● DONE (2026-07-16). `MODAL_TRIGGER_PLACEMENTS` = `["rail.end", "topbar.trail",
+   "mobile-tab", "surface"]` (`rail-footer`→`rail.end`, `topbar-command`→`topbar.trail`, `content`→`surface`);
+   every modal def + `assemble-chrome`'s `PLACEMENT_ZONE` swept. The settings `account` pane DELETED
+   (file + front-door export + door registration + `SETTINGS_CATEGORY_IDS` member; nav/search derive from the
+   registry, so no stale row). Gates landed + bite-proven (conformance): `modal-registry-completeness` (singleton
+   shrinks to `mobile-tab`; new `surface`-reachability arm — a `surface` modal needs ≥1 `openModal(id)` opener);
+   `no-parallel-section-map` (chrome arm — a hand array of ≥2 CHROME_ZONES-zoned entries outside the
+   door/`*-chrome.tsx` is RED). `shell-no-chrome-props` **DROPPED (permanent)** — the seam is already
+   type-deleted (`AppShellProps` gone) and the remaining app-shell ReactNode props can't be cut by a name
+   allowlist without guarding nothing (verdict: `Core-Enforcement-Deferred-Dropped.md`). `UI-Architecture-and-Layout.md`
+   §4.x updated to the one-registry/zones/containment-chain reality. D-ledger entries for (a) clusters-are-registries /
+   frame-grammar-is-intrinsic and (b) You ⊃ Identity ⊃ Account are minted by the orchestrator (Core-Path-Registry).
 
 **Deleted at the end:** `railFoot` + `topbarTrail` props, `RailTabButton`, both rail DOM twins, `YouSheet`'s
 filters, `rail-slots.ts`, placement `avatar`, the planned account pane. **Watchpoints:** hooks-over-registry-list

@@ -119,7 +119,7 @@ test("CONTEXT follows the active section (§4.2 rule 1): a rail switch swaps the
 
 test("a footer modal trigger (derived from the modal registry) opens its real body", async ({ mount, page }) => {
   const shell = await mount(<AppShellStory />);
-  // The rail-footer "Settings" button DERIVES from the modal registry (settingsModal.trigger).
+  // The rail.end "Settings" button DERIVES from the modal registry (settingsModal.trigger).
   await shell.getByRole("button", { name: "Settings" }).click();
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();

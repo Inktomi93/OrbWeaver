@@ -17,6 +17,6 @@ function CommandModalBody(): ReturnType<typeof CommandPaletteSurface> {
 export const commandModal: ModalDefinition = {
   id: "command",
   title: "Jump to…",
-  trigger: { placement: "topbar-command", label: "Jump to…", icon: Command },
+  trigger: { placement: "topbar.trail", label: "Jump to…", icon: Command },
   body: CommandModalBody,
 };

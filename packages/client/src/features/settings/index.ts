@@ -3,7 +3,6 @@
 // `SettingsShell` (J11 — a left category nav + one pane column); Appearance is its first REAL pane (the
 // #31 surface migrated in). The theme picker (J8) mounts over the `theme` modal slot.
 
-export { accountPane } from "./lib/account-pane";
 export { appearancePane } from "./lib/appearance-pane";
 export { automationPane } from "./lib/automation-pane";
 export { chatBehaviorPane } from "./lib/chat-behavior-pane";

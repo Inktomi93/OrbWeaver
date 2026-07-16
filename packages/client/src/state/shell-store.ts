@@ -21,7 +21,6 @@ export type ModalSlotId = (typeof MODAL_SLOT_IDS)[number];
  *  `settingsCategory`/`openSettingsTo` already navigated by category as a bare string, i.e. this was
  *  always shell vocabulary, just untyped. */
 export const SETTINGS_CATEGORY_IDS = [
-  "account",
   "personas",
   "appearance",
   "tags",

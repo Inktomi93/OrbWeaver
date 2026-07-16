@@ -26,17 +26,7 @@ import { notificationsChrome } from "@orb/client/features/notifications";
 import { personaChrome, personasPane } from "@orb/client/features/persona";
 import { presetsSection } from "@orb/client/features/preset";
 import { refinerySection } from "@orb/client/features/refinery";
-import {
-  accountPane,
-  appearancePane,
-  automationPane,
-  chatBehaviorPane,
-  regexPane,
-  settingsModal,
-  systemPane,
-  tagsPane,
-  themeModal,
-} from "@orb/client/features/settings";
+import { appearancePane, automationPane, chatBehaviorPane, regexPane, settingsModal, systemPane, tagsPane, themeModal } from "@orb/client/features/settings";
 import { analyticsSection } from "@orb/client/features/stats";
 import { adminPane } from "@orb/client/features/user-admin";
 import { backupPane, workloadsPane } from "@orb/client/features/workloads";
@@ -126,7 +116,6 @@ const realModalRegistry: ModalRegistry = createRegistry<ModalSlotId, ModalDefini
 // The settings host reads the settings-pane registry as a runtime context (mirrors main.tsx's door).
 
 const REAL_SETTINGS_PANES: Record<SettingsCategoryId, SettingsPaneDefinition> = {
-  account: accountPane,
   personas: personasPane,
   appearance: appearancePane,
   tags: tagsPane,

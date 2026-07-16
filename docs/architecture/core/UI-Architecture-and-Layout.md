@@ -120,7 +120,7 @@ packages/client/
     state/              # ALL gated Zustand stores, FLAT (gate state:files: one create/file, ≤10 fields, no exported set/getState)
     features/           # the slices — cross-feature reads ONLY via trpc.* (§11.0); NO _shared/ drawer
       app-shell/        #   the 4-region rail shell (§4.1); the ONLY viewport @media site (§4b ax2);
-                        #     the clamp-width overlay (§11.1); RAIL_SLOTS ↔ MODAL_SLOTS registries (gate check:registry-pairing)
+                        #     the clamp-width overlay (§11.1); the assembled chrome registry over CHROME_ZONES (gate chrome-registry-completeness)
       auth/ character/ chat/ corpus/ credentials/ notifications/ persona/ preset/ settings/ user-admin/ workloads/ world-info/
                         #   (`corpus` is the SECTION/feature name; the owning DOMAIN is `discovery` — the
                         #     rename landed domain-side only, per the feature-structure gate note)
@@ -179,16 +179,19 @@ DESKTOP (wide):   [ RAIL | LIST | CONTENT | CONTEXT ]
             Chats · Characters · Corpus (primary; `corpus` is the SECTION/feature name — the owning
             DOMAIN is `discovery`, the rename landed domain-side only, per the feature-structure gate
             note) | World Info · Presets · Refinery (authoring)
-            | Analytics (insight) → spacer → Theme · Settings · avatar. Seven is the CEILING —
-            anything further goes to modals/settings. Sections are `RAIL_SECTIONS`/`RAIL_SLOTS`
-            entries (`app-shell/lib/rail-slots.ts`), id-paired with MODAL_SLOTS (gate check:registry-pairing).
+            | Analytics (insight) → spacer → Theme · Settings · persona Identity. Seven is the CEILING —
+            anything further goes to modals/settings. The rail renders ONE assembled chrome registry
+            (`assembleChrome` at the main.tsx door → `CHROME_ZONES`): `rail.nav` = section entries derived
+            from each `SectionDefinition.rail`, `rail.end` = the Theme/Settings modal triggers + the persona
+            Identity widget (`personaChrome`) — one flat DOM list, CSS-reflowed to the mobile bar (§C), never
+            a hand map (gate `no-parallel-section-map` chrome arm; `chrome-registry-completeness`).
   LIST    — the active section's collection: header row (micro-caps title + create "+") → search →
             ListRow rows. Side panel. Per-section DEFAULTS (user toggle wins thereafter):
             docked for Chats/Characters/World Info/Presets AND Corpus (amended 2026-07-13: the built
             Corpus LIST IS the search omnibox — the section's primary entry point — so collapsing it
             hid the only way in; the original "collapsed" premise assumed search lived in CONTENT);
-            collapsed for the content-first hubs (Refinery/Analytics) — a SECTION_PANEL_DEFAULTS map
-            beside RAIL_SECTIONS.
+            collapsed for the content-first hubs (Refinery/Analytics) — each section's `panelDefaults`
+            on its `SectionDefinition`.
   CONTENT — the fluid hero: HEADER bar (active entity · scene chip · thread actions) + the THREAD
             (chat/editor surface, prose capped 65–75ch) + the COMPOSER (pill input · attach · Send,
             mid-stream STOP, optimistic send). With NOTHING selected the Chats section renders the
@@ -197,13 +200,16 @@ DESKTOP (wide):   [ RAIL | LIST | CONTENT | CONTEXT ]
             (the `--width-shell-content` clamp) — CONTEXT is a fixed `--dimension-panel` column, not a
             width recipient (`client-architecture-lockdown.md` §15).
   CONTEXT — the right detail panel (active artifact's detail + config; tabs). Side panel. Every
-            section defaults collapsed (`SECTION_PANEL_DEFAULTS`, `rail-slots.ts`); the persisted
+            section defaults collapsed (each `SectionDefinition.panelDefaults`); the persisted
             per-panel override wins thereafter.
 
 MOBILE:  RAIL → BOTTOM tab bar (D62 P3, supersedes the earlier top-bar note): Chats · Characters ·
-         Corpus · You (You = account/settings sheet + overflow sections; everything also reachable
-         via ⌘K). LIST/CONTEXT → full-screen / sheets; single column; land on CONTENT, never on an
-         open list sheet. (Mobile is a responsive LAYOUT, never a theme.)
+         Corpus · You. You is the mobile PROJECTION of shell chrome (§B) — a blind projection over the
+         SAME resolved chrome list: `mobile:"sheet"` rail entries + the `rail.end` chrome (incl. the persona
+         Identity widget's `body("sheet")` lens, so mobile persona switching lives here). Containment chain:
+         You ⊃ Identity ⊃ Account (the account leaf modal). Everything is also reachable via ⌘K.
+         LIST/CONTEXT → full-screen / sheets; single column; land on CONTENT, never on an open list sheet.
+         (Mobile is a responsive LAYOUT, never a theme.)
 ```
 
 - **Refinery is a first-class rail section + feature surface** (Score→Rewrite→Analyze; schema anticipates it — D28). Its sub-parts (stage-stepper, assay, issue-list, compare-diff → `@orb/ui/diff`, guidance-bar) are app components over the primitives.
@@ -218,13 +224,13 @@ The shell is Discord's anatomy with different nouns; the mapping is LAW so no la
 
 | Discord | Orbweaver | Owns |
 | - | - | - |
-| Server rail | RAIL | which facet — sections + theme/settings/avatar at the foot |
+| Server rail | RAIL | which facet — sections (`rail.nav`) + theme/settings/persona-Identity at the foot (`rail.end` chrome) |
 | Channel sidebar | LIST | the section's collection: header row (micro-caps title + create `+`) → search → `ListRow`s. Finding. |
 | Chat pane | CONTENT | the artifact you're in: identity header + working surface. Doing. |
 | Members panel | CONTEXT | detail + config of CONTENT's active artifact. Closable; never navigation. |
 | Quick switcher | `command` modal (⌘K) | jump to any thread/section/create action |
-| User settings overlay | `settings` modal, full-bleed variant | USER group (Account · Personas · Appearance · Chat behavior) + APP group (Connections · Automation · System · Admin). Generation config is NOT settings — it is the Presets section. |
-| Avatar chip | rail-foot avatar → `account` modal | quick identity card; links into Settings |
+| User settings overlay | `settings` modal, full-bleed variant | USER group (Personas · Appearance · Chat behavior) + APP group (Connections · Automation · System · Admin). Generation config is NOT settings — it is the Presets section. (No Account PANE — Account is the leaf modal below.) |
+| Identity widget | persona `rail.end` chrome (`personaChrome`) → `account` leaf modal | the persona switcher + Account strip; the account card (handle · role · sign-out) is a leaf MODAL reached from inside Identity, NOT a settings pane (§B, You ⊃ Identity ⊃ Account) |
 
 > \[!NOTE]
 > LIST-header rulings AMENDED by ledger D66 (`Core-Path-Registry.md` D66 A1/A2; north-star §3): the
@@ -250,7 +256,7 @@ Per-section grid (end-state; the D62 program builds toward it):
 
 1. LIST selection drives CONTENT; CONTEXT follows CONTENT. CONTEXT holds actions ON the artifact, never navigation (§5.1 writer-only).
 2. Per-section selection is REMEMBERED — rail-switching away and back restores the section exactly (selection stores + `<Activity>` pane-keeping, §4a).
-3. Per-section panel DEFAULTS, user override wins (the `SECTION_PANEL_DEFAULTS` map sets only the initial value; the persisted per-panel mode wins thereafter).
+3. Per-section panel DEFAULTS, user override wins (each `SectionDefinition.panelDefaults` sets only the initial value; the persisted per-panel mode wins thereafter).
 4. Cross-section actions carry their subject in ONE action path (`startNewChat({characterIds})` + `setActiveSection`) — the user lands ready to act.
 5. Modals are for interrupts and pickers ONLY (new-chat picker, add-member, theme, settings, account, ⌘K). Section content NEVER lives in a modal — it is a CONTEXT tab or a CONTENT state.
 6. Focus mode = both side panels collapsed (`toggleFocus`); the topbar reopen affordances are the way back.
