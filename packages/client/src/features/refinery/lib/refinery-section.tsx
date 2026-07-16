@@ -7,7 +7,7 @@ import type { SectionDefinition } from "#state";
 
 export const refinerySection: SectionDefinition = {
   id: "refinery",
-  rail: { label: "Refinery", icon: FlaskConical, group: "authoring" },
+  rail: { label: "Refinery", icon: FlaskConical, group: "authoring", mobile: "sheet" },
   panelDefaults: { list: "collapsed", context: "collapsed" },
   placeholder: {
     title: "Refinery",

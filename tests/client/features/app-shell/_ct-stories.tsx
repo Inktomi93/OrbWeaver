@@ -11,11 +11,12 @@
 // "No QueryClient set" and renders nothing (the beforeMount chrome only stacks Toast/Tooltip/Theme).
 // The Rail leaf alone needs no data layer (RailStory stays bare).
 //
-// SHELL.CSS (L6/J12): the rail renders BOTH layouts — the desktop icon column + the mobile bottom tab
-// bar — and shell.css's `@media` shows exactly one (`display:none` on the other, which also removes it
-// from the a11y tree). AppShell imports shell.css itself, but the bare RailStory does not, so import it
-// HERE too — otherwise both blocks render and every section name resolves to TWO buttons. At the CT's
-// desktop viewport (1280px > 48rem) this hides the mobile bar, matching production.
+// SHELL.CSS (L6/J12): the rail is now ONE DOM list that shell.css's `@media` reflows — the desktop icon
+// column vs the mobile bottom tab bar — with `[data-mobile="sheet"]` entries + the desktop-only chrome
+// hidden (`display:none`, which also removes them from the a11y tree). AppShell imports shell.css itself,
+// but the bare RailStory does not, so import it HERE too — otherwise the reflow rules are absent and the
+// desktop label spans render inline (doubling each section's visible text). At the CT's desktop viewport
+// (1280px > 48rem) the desktop icon column shows, matching production.
 
 import { AppShell } from "@orb/client/features/app-shell";
 import type { ReactElement } from "react";

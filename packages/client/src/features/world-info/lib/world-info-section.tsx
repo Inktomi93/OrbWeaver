@@ -15,7 +15,7 @@ import { WorldInfoLibrarySurface } from "../surfaces/world-info-library-surface"
 
 export const worldInfoSection: SectionDefinition = {
   id: "worldInfo",
-  rail: { label: "World Info", icon: BookOpen, group: "authoring" },
+  rail: { label: "World Info", icon: BookOpen, group: "authoring", mobile: "sheet" },
   panelDefaults: { list: "docked", context: "collapsed" },
   placeholder: {
     title: "World Info",

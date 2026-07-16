@@ -19,7 +19,7 @@ import { CharacterLibrarySurface } from "../surfaces/character-library-surface";
 
 export const charactersSection: SectionDefinition = {
   id: "characters",
-  rail: { label: "Characters", icon: Users, group: "primary", mobilePrimary: true },
+  rail: { label: "Characters", icon: Users, group: "primary", mobile: "tab" },
   panelDefaults: { list: "docked", context: "collapsed" },
   placeholder: {
     title: "Characters",

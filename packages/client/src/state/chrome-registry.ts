@@ -9,14 +9,15 @@
 
 import type { LucideIcon } from "@orb/ui/icons";
 import type { ReactNode } from "react";
-import type { SectionGroup } from "./section-registry";
+import type { MobileCuration, SectionGroup } from "./section-registry";
 import type { ModalSlotId, SectionId } from "./shell-store";
 
 export const CHROME_ZONES = ["rail.nav", "rail.end", "topbar.trail"] as const;
 export type ChromeZone = (typeof CHROME_ZONES)[number];
 
-/** A rail entry's mobile fate — an EXPLICIT decision (replaces the section registry's `mobilePrimary?`). */
-export type MobileCuration = "tab" | "sheet";
+/** A rail entry's mobile fate (`MobileCuration`) is homed in `section-registry.ts` beside the rail's
+ *  other vocabulary — re-exported here so a chrome consumer imports the whole zone vocab from one place. */
+export type { MobileCuration } from "./section-registry";
 /** Which lens renders a widget: the always-mounted bar DOM, or the You-sheet projection. Only `"bar"`
  *  has a consumer this wave; the sheet lens lands §E-5. */
 export type ChromePresentation = "bar" | "sheet";

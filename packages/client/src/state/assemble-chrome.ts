@@ -7,8 +7,8 @@
 // filters by zone and TRUSTS the order — the order algebra has ONE home, here.
 //
 // PLACEMENT_ZONE maps TODAY's `MODAL_TRIGGER_PLACEMENTS` (the §E-7 vocab tightening is not this wave).
-// Only `rail-footer → rail.end` maps: those rail.end entries are assembled-but-unconsumed until §E-3.
-// `topbar-command` (⌘K) is DELIBERATELY absent — the topbar still renders its bespoke ⌘K chip (whose
+// Only `rail-footer → rail.end` maps: the rail consumes these rail.end entries as its footer affordances
+// (§E-3 single-DOM cutover). `topbar-command` (⌘K) is DELIBERATELY absent — the topbar still renders its bespoke ⌘K chip (whose
 // modal id is already derived from the trigger placement); folding ⌘K into a generically-rendered
 // topbar.trail entry is a VISIBLE change deferred to N1's skin pass. `avatar`/`content`/`mobile-tab`
 // have no chrome zone today (route-injected railFoot · a feature surface · the mobile bar).
@@ -32,7 +32,7 @@ export interface AssembleChromeInput {
 }
 
 /** A rail section as a `rail.nav` chrome entry: `order = index` preserves the SECTION_IDS tuple order
- *  the rail groups by; `mobilePrimary` becomes the explicit `tab`/`sheet` curation. */
+ *  the rail groups by; the section's explicit `mobile` curation carries straight through. */
 function sectionEntry(def: SectionDefinition, index: number): ChromeEntry {
   return {
     id: def.id,
@@ -41,7 +41,7 @@ function sectionEntry(def: SectionDefinition, index: number): ChromeEntry {
     zone: "rail.nav",
     group: def.rail.group,
     order: index,
-    mobile: def.rail.mobilePrimary === true ? "tab" : "sheet",
+    mobile: def.rail.mobile,
     behavior: { kind: "section", sectionId: def.id },
   };
 }

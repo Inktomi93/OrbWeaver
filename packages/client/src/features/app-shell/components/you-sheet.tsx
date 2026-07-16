@@ -12,7 +12,7 @@ import type { ModalSlotId, SectionId } from "#state";
 import { closeModal, openModal, setActiveSection, useActiveSection, useModalRegistry, useSectionRegistry } from "#state";
 
 /** The You bottom-sheet body: the desktop-rail-footer + avatar modals, in the same order the desktop
- *  rail renders them (rail-footer group, then avatar) + the overflow (non-`mobilePrimary`) sections. */
+ *  rail renders them (rail-footer group, then avatar) + the overflow (`mobile: "sheet"`) sections. */
 export function YouSheet(): ReactElement {
   const activeSection = useActiveSection();
   const modals = useModalRegistry().list();
@@ -21,7 +21,7 @@ export function YouSheet(): ReactElement {
     .map((def) => ({ id: def.id, label: def.title, icon: def.trigger.icon }));
   const overflowSections = useSectionRegistry()
     .list()
-    .filter((d) => d.rail.mobilePrimary !== true);
+    .filter((d) => d.rail.mobile === "sheet");
 
   const openYouModal = (id: ModalSlotId): void => {
     openModal(id);

@@ -118,7 +118,7 @@ export function makeChatsSection(
 ): SectionDefinition {
   return {
     id: "chats",
-    rail: { label: "Chats", icon: MessagesSquare, group: "primary", mobilePrimary: true },
+    rail: { label: "Chats", icon: MessagesSquare, group: "primary", mobile: "tab" },
     panelDefaults: { list: "docked", context: "collapsed" },
     placeholder: {
       title: "Chats",

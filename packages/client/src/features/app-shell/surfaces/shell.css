@@ -106,7 +106,9 @@
   --context-track: var(--panel-w);
 }
 
-/* Rail — one component, two layouts: desktop icon column vs mobile bottom tab bar, swapped by the @media below. */
+/* Rail — ONE component, ONE flat DOM list. This is the desktop icon column; the @media below reflows the
+ * SAME DOM into the mobile bottom tab bar (no twin blocks). The flex-column layout lives on .shell-rail
+ * itself now (the old .shell-rail-desktop wrapper is gone). */
 .shell-rail {
   grid-column: 1;
   grid-row: 1;
@@ -115,17 +117,11 @@
   background: var(--color-sidebar);
   color: var(--color-sidebar-foreground);
   border-inline-end: 1px solid var(--color-sidebar-border);
-}
-.shell-rail-desktop {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: var(--spacing-row);
-  height: 100%;
   padding-block: var(--spacing-block);
-}
-.shell-rail-mobile {
-  display: none;
 }
 .shell-rail-brand {
   display: flex;
@@ -195,20 +191,15 @@
     linear-gradient(180deg, oklch(from var(--color-primary) l c h / 0.45), oklch(1 0 0 / 0.03)) border-box;
 }
 
-.shell-rail .shell-tab-button {
-  flex: 1 1 0;
-  min-width: 0;
-  height: var(--rail-w);
-  flex-direction: column;
-  gap: 0.125rem;
-  border-radius: 0;
-  color: var(--color-muted-foreground);
-}
-.shell-rail .shell-tab-button[data-active] {
-  color: var(--color-primary);
-}
-.shell-tab-label {
+/* The button's label rides under the icon on the mobile bar; on the desktop icon column the tooltip
+ * carries it, so it's hidden here (but stays the accessible name via the button's aria-label). */
+.shell-rail-button-label {
   line-height: 1;
+  display: none;
+}
+/* The mobile-only "You" overflow tab has no place on the desktop icon column. */
+.shell-rail-button[data-rail-mobile-only] {
+  display: none;
 }
 
 /* Side panels (the clamp-overlay) */
@@ -374,23 +365,62 @@
     grid-column: 1;
     grid-row: 1;
   }
+  /* The SAME rail DOM reflows into the bottom tab bar: the column becomes a row, the nav-group / footer
+   * wrappers collapse (display:contents) so their buttons flow into the row directly, desktop-only chrome
+   * hides, and each remaining button becomes a thumb-reach tab. */
   .shell-rail {
     grid-column: 1;
     grid-row: 2;
     width: auto;
     border-inline-end: none;
     border-block-start: 1px solid var(--color-sidebar-border);
-    padding-block-end: env(safe-area-inset-bottom);
-  }
-  .shell-rail-desktop {
-    display: none;
-  }
-  .shell-rail-mobile {
-    display: flex;
     flex-direction: row;
     align-items: stretch;
     justify-content: space-around;
+    gap: 0;
+    padding-block: 0;
+    padding-block-end: env(safe-area-inset-bottom);
+  }
+  .shell-rail-sections,
+  .shell-rail-group,
+  .shell-rail-actions {
+    display: contents;
+  }
+  .shell-rail-brand,
+  .shell-rail-spacer,
+  .shell-rail-avatar {
+    display: none;
+  }
+  .shell-rail .shell-rail-button {
+    flex: 1 1 0;
+    min-width: 0;
+    width: auto;
     height: var(--rail-w);
+    flex-direction: column;
+    gap: 0.125rem;
+    border-radius: 0;
+    color: var(--color-muted-foreground);
+  }
+  /* The desktop active ember box + glow (::before/::after) is a rail-column affordance only — the tab
+   * uses colour alone (the old .shell-tab-button active look). */
+  .shell-rail .shell-rail-button[data-active] {
+    background: none;
+    color: var(--color-primary);
+  }
+  .shell-rail .shell-rail-button[data-active]::before,
+  .shell-rail .shell-rail-button[data-active]::after {
+    content: none;
+  }
+  .shell-rail-button-label {
+    display: block;
+  }
+  /* Sheet-curated entries fold into the You sheet — hidden here (display:none also removes them from AT). */
+  .shell-rail .shell-rail-button[data-mobile="sheet"] {
+    display: none;
+  }
+  /* The "You" overflow tab appears only on the bar. */
+  .shell-rail .shell-rail-button[data-rail-mobile-only] {
+    display: inline-flex;
   }
   /* docked never resolves on mobile; matched only so a stray docked value can't fall through to the desktop grid-track rule. */
   .shell-panel[data-panel-mode="docked"],

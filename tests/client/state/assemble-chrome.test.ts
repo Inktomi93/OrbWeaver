@@ -9,10 +9,10 @@ import { Command } from "@orb/ui/icons";
 import { describe } from "vitest";
 import { expect, test } from "../../support/fixtures";
 
-function section(id: SectionDefinition["id"], mobilePrimary: boolean): SectionDefinition {
+function section(id: SectionDefinition["id"], mobile: SectionDefinition["rail"]["mobile"]): SectionDefinition {
   return {
     id,
-    rail: { label: id, icon: Command, group: "primary", mobilePrimary },
+    rail: { label: id, icon: Command, group: "primary", mobile },
     panelDefaults: { list: "docked", context: "collapsed" },
     placeholder: { title: id, description: id },
     content: { planned: "test" },
@@ -34,8 +34,8 @@ function widget(id: string, zone: ChromeZone, order?: number): ChromeEntry {
 }
 
 describe("assembleChrome", () => {
-  test("derives a rail.nav entry per section, mapping mobilePrimary → tab|sheet", () => {
-    const entries = assembleChrome({ sections: [section("chats", true), section("presets", false)], modals: [], widgets: [] });
+  test("derives a rail.nav entry per section, carrying its explicit mobile curation", () => {
+    const entries = assembleChrome({ sections: [section("chats", "tab"), section("presets", "sheet")], modals: [], widgets: [] });
     const chats = entries.find((e) => e.id === "chats");
     const presets = entries.find((e) => e.id === "presets");
     expect(chats).toMatchObject({ zone: "rail.nav", mobile: "tab", behavior: { kind: "section", sectionId: "chats" } });
