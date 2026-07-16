@@ -106,7 +106,7 @@ export function MessageEditTextarea({ message, onSave }: MessageEditTextareaProp
         </Button>
         <Button
           type="button"
-          intent="primary"
+          intent="secondary"
           size="sm"
           loading={editMessage.isPending}
           disabled={onSave === undefined && text.length === 0}
