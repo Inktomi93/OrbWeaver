@@ -1,13 +1,16 @@
 ---
-kind: program
-status: active
+kind: history
+status: shipped
 updated: 2026-07-16
 ---
 
-# Derive/Modernization Program — mint → migrate → SEAL (from the 2026-07-15 full-read audit)
+# Derive/Modernization Program — mint → migrate → SEAL (CLOSED 2026-07-16 — all six waves landed)
+
+> **PROGRAM COMPLETE: W1–W6 all landed 2026-07-16; gates G24–G29 + the G4 arm live (count 132); the
+> jscpd ratchet fired (5% → 2%). The §0 doctrine is law as D72. This record graduates to history.**
 
 > **Provenance:** 12 parallel Opus auditors read ALL of `packages/client/src` + `packages/ui/src` in
-> full (~570 files, ~54.5k lines); orchestrator spot-verified the load-bearing claims. Excluded by
+> full (\~570 files, \~54.5k lines); orchestrator spot-verified the load-bearing claims. Excluded by
 > instruction (tracked elsewhere): north-star PP1–PP5 / N1–N5 / §6 board, shell-chrome §E remainder,
 > O4. **This doc is the ONLY tracker for what the sweep surfaced.**
 >
@@ -89,7 +92,7 @@ species file.
 `POPUP_SURFACE` (select/autocomplete/combobox byte-identical + menu/popover) · `OVERLAY_ARROW`
 (6 seals) · `SCRIM(tier)` (popover-z ×3 + modal-z ×3) · `ITEM_ROW` (autocomplete≡combobox; select/
 menu layer state-attrs) · `SELECTION_CONTROL` + `TOUCH_TARGET_PSEUDO` (checkbox/radio/+switch) ·
-`CONTROL_SIZE` (button≡toggle) · `FIELD_CONTROL` (input/textarea/select) · `DISABLED_STATE` (~17
+`CONTROL_SIZE` (button≡toggle) · `FIELD_CONTROL` (input/textarea/select) · `DISABLED_STATE` (\~17
 files) · `ACCENT_HOVER`. Fix the two paint defects in the same pass: toast's PARTIAL hand focus-ring
 (`toast/variants.ts:24,26` → compose `FOCUS_RING`) and avatar's `ring-(--color-primary)` →
 `ring-ring` (`avatar/variants.ts:32`). Restructure `alert-dialog` to COMPOSE dialog's popup/scaffold
@@ -132,7 +135,13 @@ re-spelling the arrow. `mustPass`: composing the constant; `lib/` itself.
 `SECTION_GROUPS` spelled twice (`state/section-registry.ts:15` + `app-shell/lib/rail-slots.ts:5`):
 **ABSORBED by chrome §E-1** (the SectionGroup re-home) — do not double-do.
 
-## W4 — battery adoption + `render-error-via-battery` (G29)
+## W4 — battery adoption + `render-error-via-battery` (G29) — **LANDED 2026-07-16**
+
+> The audit's "7 arms" was a snapshot undercount — the full sweep found 20 (+ the `queryRenderError`
+> clone helper, deleted); all migrated per D72, 3 genuinely-custom surfaces allowlisted with
+> citations (chat-room composer-always-renders · persona avatar-placeholder degrade · palette null).
+> `QueryInlineStates` landed in data/ for the two admin dialog/poll reads; the gallery dialog
+> deferred with reasoning (its skeleton/empty UX is richer than the helper's slots). G29 at count 131.
 
 **Migrate:** the 7 hand `renderError` arms → `QueryErrorState`
 (`preset/surfaces/preset-editor-surface.tsx:50` · `preset/components/preset-usage-context.tsx:24` ·
@@ -151,7 +160,16 @@ be rare-to-zero; a genuinely-custom error UI earns an allowlist entry with a cit
 `isPending` ladder class stays R-review (predicate too fuzzy to gate honestly — do NOT ship a
 half-gate).
 
-## W5 — small derive/dupe fixes (one mech-executor wave; jscpd ratchet after)
+## W5 — small derive/dupe fixes (one mech-executor wave; jscpd ratchet after) — **LANDED 2026-07-16**
+
+> All 11 items resolved with fresh re-sweeps correcting the snapshot (item 3's preset "twin" was a
+> hint, excluded; item 9's real offenders were Host Claude + Model catalog/Card embeddings). G4 arm
+> `settings-section-anchored` at count 132. Token batch consolidated here: highlight's no-op
+> light-dark(X,X) COLLAPSED to plain oklch (polarity-independent by nature); `spacing.slider-thumb`
+> minted (the last size-section display coupling dies); shiki ORB\_LIGHT now DERIVES from
+> `SEED_THEME_VALUE_SETS.light`. Deferred with PD-143: ScoreBadge (single consumer),
+> MacroPreviewField (genuinely diverged). **The jscpd ratchet FIRED: threshold 5% → 2%** (measured
+> floor 1.38% lines / 1.68% tokens; tsx 0.80%).
 
 | # | Fix | Sites | Conf |
 | - | - | - | - |
@@ -160,14 +178,19 @@ half-gate).
 | 3 | hoist `PERSON_LABEL` + shared Impersonate submenu | `composer-wand.tsx:17` + `chat-options-menu.tsx:28` (+`preset/…/guided-actions-section.tsx:130`) | high |
 | 4 | hoist `headerCopy` + `sectionGlyph` → `preset/lib/assembly-model.ts` | `preset-section-inspector.tsx:66`+`section-body-editor.tsx:47`; `section-body-editor.tsx:38`+`section-row.tsx:37` | med |
 | 5 | `RhythmFigures({temporal})` | `analytics-overview-surface.tsx:100` + `analytics-time-tab.tsx:53` | med |
-| 6 | discovery: `characterFacetLine` (×4) · shared `CharacterAvatar` (×2 defined, ~3 inlined; the app-wide ~15-file Avatar+initials+hueSeed idiom = a SEPARATE tier-2 decision, flag at build) · promote `ScoreBadge` | `discovery/components/corpus-search-results.tsx` et al | med |
+| 6 | discovery: `characterFacetLine` (×4) · shared `CharacterAvatar` (×2 defined, \~3 inlined; the app-wide \~15-file Avatar+initials+hueSeed idiom = a SEPARATE tier-2 decision, flag at build) · promote `ScoreBadge` | `discovery/components/corpus-search-results.tsx` et al | med |
 | 7 | `useWorkloadSubscription({onProgress,onTerminal})` adapter | `bundle-workload-tracker.tsx:26` + `use-workload-stream.ts:29` | med |
 | 8 | ONE home for the `ROW_REVEAL` posture literal (hoist beside `row-actions-menu`'s copy; candidate G25-client signature later) | `character-card.tsx:44` + `components/row-actions-menu.tsx:23` | med |
 | 9 | **G4 ARM (gate, same wave): `settings-section-anchored`** — a heading-bearing `<Section` in a `*-settings-surface.tsx` without `id={settingsAnchorId(…)}` → RED (kills the invisible-to-nav/search class); fix the two live offenders + the stale index entry | `credentials/surfaces/connections-settings-surface.tsx:164,189` (+ subcategory in `connections-pane.tsx`) · `settings/lib/appearance-pane.tsx:124` (`surfaceTexture`) | med |
 | 10 | `NEW_INJECTION` seed ×2 · `MaintenanceKindNote` copy ×2 | `injections-manager.tsx:42`+`draft-context-tabs.tsx:29`; `{run-workload,create-schedule}-dialog.tsx` | low |
 | 11 | shiki `ORB_LIGHT` derives from `SEED_THEME_VALUE_SETS.light` (kills the admitted silent-drift trap) | `ui/src/markdown/shiki-plugin.ts:124` | high |
 
-## W6 — dead/stale sweep (RULED: the orphan seals are intentional pre-builds)
+## W6 — dead/stale sweep (RULED: the orphan seals are intentional pre-builds) — **LANDED 2026-07-16**
+
+> The four seals carry `PREBUILT[for:…]` markers + Deferred-Dropped rows (the self-cleaning
+> contract). Proven-dead deletes landed; three audit-listed "dead" exports had GAINED consumers
+> (CT story front-doors) and were correctly SKIPPED — the snapshot-staleness lesson. All 8
+> stale-comment repoints fact-checked against current code.
 
 **OWNER RULING (Nate, 2026-07-15): the four orphan seals are INTENTIONAL pre-builds — KEEP.**
 Make the ruling structural so hygiene never re-flags them: each gets a greppable
@@ -233,10 +256,10 @@ bare contract tuples are the SANCTIONED copy-home, not violations.
   side-eye on the visible skins.
 - **W1 before the §6 rollout** (the rollout repaints those features — land the composite + G24 first).
   Executor + verifier + side-eye (dialogs live).
-- **W3 anytime; pairs naturally with chrome §E-1** (SECTION_GROUPS absorption). Executor (mints) +
+- **W3 anytime; pairs naturally with chrome §E-1** (SECTION\_GROUPS absorption). Executor (mints) +
   mech-executor (migrations) + verifier (gate honesty — each seal proven to bite the real shape).
 - **W4/W5/W6-mechanical:** independent mech-executor waves, verifier on the two new gate arms.
-- Gate count 125 → ~131 (G24–G29 + the G4 arm). Every gate: full ritual, scanRoot proven to fire.
+- Gate count 125 → \~131 (G24–G29 + the G4 arm). Every gate: full ritual, scanRoot proven to fire.
 - **Plan RATIFIED by the owner 2026-07-16** (docs synced: north-star "Sequencing" is the ONE ordered
   queue across all three programs; shell-chrome carries the W3/§E-1 pairing). **Outstanding owner
   ask: mint the §0 D-entry** (a law-level act) — the doctrine is applied by this program either way.

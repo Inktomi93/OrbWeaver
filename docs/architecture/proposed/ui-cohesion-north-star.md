@@ -36,7 +36,7 @@ this doc wins on visual spec.
 
 **Sequencing (the game plan, updated 2026-07-16 — verified-open work only; the lockdown itself is
 CLOSED). Three programs, ONE ordered queue:** this doc's lanes (paint), shell-chrome §E (mechanism),
-and the derive-modernization program ([`derive-modernization-audit.md`](derive-modernization-audit.md)
+and the derive-modernization program ([`derive-modernization-audit.md`](../history/derive-modernization-audit.md)
 — mint → migrate → SEAL; gates G24–G29 + a G4 arm) interleave as follows:
 
 1. **UI-polish wave: PP1–PP5 (§5) + derive-W2 (ui skin-fragment tier) + gate G25** — ONE ui-package

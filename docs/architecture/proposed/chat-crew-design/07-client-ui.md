@@ -83,7 +83,7 @@ packages/client/src/features/crew/
 > fake-contributor CTs. U5's "registry addition" therefore SHRINKS to the chip itself; verify at CW5
 > that `MessageView` covers the `{chatId, messageId, variantId}` need and extend the state ADDITIVELY
 > if not. The `character` detail-page section seam does NOT exist yet — tracked in
-> `../derive-modernization-audit.md` §Seam-coverage (build M8-style, empty + CT, at the north-star §6
+> `../../history/derive-modernization-audit.md` §Seam-coverage (build M8-style, empty + CT, at the north-star §6
 > characters stop or crew CW3, whichever lands first).
 
 | Registry (chat-owned, populated at `main.tsx`) | crew contribution |
