@@ -4,8 +4,9 @@
 // this as an INJECTED op wired at the compose root.
 //
 // REFERENCE-carry, not content-clone: the SAME world_books are re-pointed at the new character id via fresh
-// character_books rows (role + createdAt preserved from the source attach). The books themselves are
-// standalone entities and are NEVER cloned. A source with zero attachments copies nothing.
+// character_books rows (role preserved; createdAt is FRESH — the carry is a new attach at ctx.now(), not a
+// copy of the source timestamp). The books themselves are standalone entities and are NEVER cloned. A
+// source with zero attachments copies nothing.
 
 import { characterBooks } from "@orb/db";
 import { eq } from "drizzle-orm";
