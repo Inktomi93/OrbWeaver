@@ -200,8 +200,9 @@ lands) and **pinned by `tests/tooling/check-gates.int.test.ts`** — it derives 
 | `no-raw-matchmedia` | raw `matchMedia()` call outside the one-home reduced-motion lib |
 | `no-context-provider` | React 19 deprecates `<Context.Provider>` — render `<Context>` directly instead (Spine-TypeScript-and-Patterns.md §1) |
 | `no-forward-ref` | React 19 deprecates `forwardRef` — pass `ref` as a normal prop instead (Spine-TypeScript-and-Patterns.md §1) |
+| `gate-ignore-inventory` | every `// @orb-gate-ignore <name>` suppression under `packages/**` must name a REAL registered gate — stale suppression rot RED |
 
-The table mirrors `report.ts`'s `loadGates()`-discovered `status:"active"` set (132 registered gates);
+The table mirrors `report.ts`'s `loadGates()`-discovered `status:"active"` set (133 registered gates);
 the discovered descriptor set is the runtime truth.
 
 The 7th fired-trigger gate (PD-116), `solo-byte-identical`, is NOT a static gate — it is the
