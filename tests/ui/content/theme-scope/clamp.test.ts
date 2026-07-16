@@ -145,3 +145,27 @@ test("an over-long value (payload attempt) is dropped even if it looks color-ish
   const long = `#${"a".repeat(200)}`;
   expect(clampThemeTokens({ accent: long }).vars["--color-primary"]).toBeUndefined();
 });
+
+test("colorScheme is DERIVED from the base oklch L polarity (light-dark arm + native controls)", () => {
+  // A light base (L above the FG pivot) ⇒ near-black derived text ⇒ a LIGHT surface ⇒ "light"; a dark
+  // base ⇒ "dark". The pivot is the SAME FG_PIVOT_L (0.62) the foreground flip uses, so scheme polarity
+  // and text polarity can never disagree.
+  expect(clampThemeTokens({ background: "oklch(0.98 0.004 75)" }).colorScheme).toBe("light");
+  expect(clampThemeTokens({ background: "oklch(0.158 0.006 60)" }).colorScheme).toBe("dark");
+  // Boundary: strictly `> 0.62` is light, so the pivot itself resolves "dark" and one step over flips.
+  expect(clampThemeTokens({ background: "oklch(0.62 0.01 60)" }).colorScheme).toBe("dark");
+  expect(clampThemeTokens({ background: "oklch(0.63 0.01 60)" }).colorScheme).toBe("light");
+  // colorScheme is NOT a custom property — it never leaks into the vars emit surface.
+  expect("colorScheme" in clampThemeTokens({ background: "oklch(0.98 0.004 75)" }).vars).toBe(false);
+});
+
+test("colorScheme is OMITTED when polarity is not statically knowable (non-oklch base, or no base)", () => {
+  // A safe-but-not-oklch base (named color / rgb()) is legal for the vars, but its polarity can't be read
+  // statically — fail open to the inherited scheme rather than guess.
+  const named = clampThemeTokens({ background: "ivory" });
+  expect(named.vars["--color-background"]).toBe("ivory");
+  expect(named.colorScheme).toBeUndefined();
+  expect(clampThemeTokens({ background: "rgb(20, 20, 30)" }).colorScheme).toBeUndefined();
+  // No base at all ⇒ nothing to derive from.
+  expect(clampThemeTokens({ accent: "#abc" }).colorScheme).toBeUndefined();
+});
