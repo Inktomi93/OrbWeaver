@@ -1,5 +1,5 @@
 // The active-chat store: which chat is the CONTENT hero showing. Writers only call a module action;
-// readers are render-only (the composition reader in routes/home-page.tsx, or mirror readers like the
+// readers are render-only (the composition reader in routes/app-root.tsx, or mirror readers like the
 // persona panel's "This chat" section that key a Query off the returned id). Subscribe-and-effect on
 // the pointer is banned (gate `no-effect-on-shared-selection`) — derive in render instead.
 //

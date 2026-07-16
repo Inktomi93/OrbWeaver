@@ -1,8 +1,8 @@
-// Unit: THE FORM BRIDGE lifecycle + stale-handle guards (features/preset/lib/preset-editor-bridge). This
-// is the ONE net-new piece of machinery (BUILD-SPEC §2.3) and the highest-risk item — tested thoroughly.
-// PURE module-state paths (publish / clear / read / republish + `resolveAssemblySection`'s three guard
-// branches) run in the node lane; the `useSyncExternalStore` SUBSCRIPTION firing needs a browser render
-// and lives in the sibling CT (preset-editor-bridge.ct.tsx).
+// Unit: `resolveAssemblySection`'s stale-handle guards (features/preset/lib/preset-editor-bridge). The
+// underlying bridge's publish/clear/read/republish contract is generic and already covered by
+// `tests/client/forms/create-form-handle-bridge.test.ts` — this file tests only what's preset-specific
+// (the guard's three branches). The `useSyncExternalStore` SUBSCRIPTION firing needs a browser render and
+// lives in the sibling CT (preset-editor-bridge.ct.tsx).
 //
 // The form handle here is a MINIMAL fake: the guard only reads `form.state.values.sections`, so a
 // hand-built object cast to the 20+-generic AppFormInstance is enough — a real TanStack form is a hook,
@@ -11,13 +11,7 @@
 import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
 import type { PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { afterEach } from "vitest";
-import {
-  clearAssemblyForm,
-  publishAssemblyForm,
-  readAssemblyForm,
-  resolveAssemblySection,
-} from "../../../../../packages/client/src/features/preset/lib/preset-editor-bridge";
+import { resolveAssemblySection } from "../../../../../packages/client/src/features/preset/lib/preset-editor-bridge";
 import type { AppFormInstance } from "../../../../../packages/client/src/forms";
 import { expect, test } from "../../../../support/fixtures";
 
@@ -37,31 +31,6 @@ function fakeForm(sections: readonly PromptSection[]): AppFormInstance<PromptCon
 function section(id: string): PromptSection {
   return { type: "literal", id, name: id, role: "system", content: "x", enabled: true };
 }
-
-// The bridge is a module singleton — reset between tests so a leaked handle can't taint the next.
-afterEach(() => {
-  clearAssemblyForm();
-});
-
-test("publish then read returns the handle; clear resets to null", () => {
-  expect(readAssemblyForm()).toBeNull();
-
-  const form = fakeForm([section("s1")]);
-  publishAssemblyForm({ presetId: PRESET_A, form });
-  expect(readAssemblyForm()).toEqual({ presetId: PRESET_A, form });
-
-  clearAssemblyForm();
-  expect(readAssemblyForm()).toBeNull();
-});
-
-test("republish (a remount) replaces the prior handle with the fresh one", () => {
-  const first = fakeForm([section("s1")]);
-  const second = fakeForm([section("s2")]);
-  publishAssemblyForm({ presetId: PRESET_A, form: first });
-  publishAssemblyForm({ presetId: PRESET_A, form: second });
-
-  expect(readAssemblyForm()?.form).toBe(second);
-});
 
 test("guard resolves a live section when handle + preset + id all match", () => {
   const form = fakeForm([section("s1"), section("s2")]);

@@ -1,7 +1,7 @@
 // The `/join` link landing (the multi-human invites lane) — the preview-then-confirm dialog the SPA
 // root mounts when it captures a `?join=<token>` handoff (lib/join-token.ts). An ANCHOR (it owns its
 // Dialog — the surface-purity rule; the first-run-persona-dialog precedent), mounted as an AppShell
-// sibling by home-page.tsx while the deployment is multi-human capable.
+// sibling by app-root.tsx while the deployment is multi-human capable.
 //
 // Flow: mount → `invites.previewInvite({ token })` (a mutation by transport design — the token rides
 // the POST body, never a GET URL) → the MINIMAL preview (room · host · member count · mode — Part III

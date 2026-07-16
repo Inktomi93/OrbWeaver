@@ -113,11 +113,9 @@
     "lucide-react": "catalog:",
     "minisearch": "catalog:",
     "rehype-katex": "catalog:",
-    "remark": "catalog:",
     "remark-gfm": "catalog:",
     "remark-math": "catalog:",
     "streamdown": "catalog:",
-    "strip-markdown": "catalog:",
     "tailwind-merge": "catalog:",
     "tailwind-variants": "catalog:",
     "zod": "catalog:"

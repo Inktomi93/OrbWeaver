@@ -1,3 +1,7 @@
+// PREBUILT[for:ui-package-design.md §6.3.1] — no current consumer (chat renders Markdown+pacing
+// directly, not through this plain-text wrapper); sealed as the sanctioned convenience composition
+// of `useSmoothText`+`StreamShimmer` for any future plain-text (non-Markdown) streaming surface.
+// Delete this marker (and re-check for consumers) if that plan is ever dropped instead of built.
 import type { ReactElement } from "react";
 import { StreamShimmer } from "./shimmer";
 import { useSmoothText } from "./use-smooth-text";

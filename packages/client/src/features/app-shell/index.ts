@@ -5,7 +5,6 @@
 // any other feature (shell-chrome-unification.md §A) — no self-privilege.
 
 export { YouSheet } from "./components/you-sheet";
-export { useIsMobileViewport } from "./hooks/use-is-mobile-viewport";
 export type { ShellLayout } from "./hooks/use-shell-layout";
 export { useShellLayout } from "./hooks/use-shell-layout";
 export { contextToggleChrome } from "./lib/context-toggle-chrome";

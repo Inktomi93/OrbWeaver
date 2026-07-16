@@ -1,7 +1,7 @@
 // Unit: the PREVIEW view-model (features/preset/components/prompt-assembly/preview-model). PURE, node
 // lane, DEEP import (not the feature barrel — dom-less graph). Proves the macro tokenizer, the setup/post
-// role grouping, the enabled + optional include-predicate filters, and the splice ordering (depth desc,
-// order asc within depth — the P1 ST-parity semantics). DISPLAY ONLY — no macro is resolved (BUILD-SPEC §7/§10).
+// role grouping, the enabled filter, and the splice ordering (depth desc, order asc within depth — the
+// P1 ST-parity semantics). DISPLAY ONLY — no macro is resolved (BUILD-SPEC §7/§10).
 
 import type { PromptSection } from "@orb/contracts/preset";
 import { assemblePreview, splitMacroTokens } from "../../../../../../packages/client/src/features/preset/components/prompt-assembly/preview-model";
@@ -14,8 +14,6 @@ function literal(id: string, content: string, extra: Partial<Extract<PromptSecti
 function pivot(id: string, enabled = true): PromptSection {
   return { type: "marker", id, name: id, marker: "chat_history", role: "system", enabled };
 }
-
-const always = (): boolean => true;
 
 test("splitMacroTokens splits prose and {{macro}} references, trimming inner whitespace", () => {
   expect(splitMacroTokens("Hi {{char}}, I'm {{ user }}.")).toEqual([
@@ -36,7 +34,7 @@ test("plain text yields a single text token; empty string yields none", () => {
   expect(splitMacroTokens("")).toEqual([]);
 });
 
-test("only enabled, lens-firing, in-flow sections appear; grouped by consecutive role", () => {
+test("only enabled, in-flow sections appear; grouped by consecutive role", () => {
   const sections = [
     literal("a", "aaaa"),
     literal("b", "bbbb", { role: "user" }),
@@ -44,7 +42,7 @@ test("only enabled, lens-firing, in-flow sections appear; grouped by consecutive
     pivot("hist"),
     literal("c", "cccc"),
   ];
-  const preview = assemblePreview(sections, always);
+  const preview = assemblePreview(sections);
 
   // setup groups: [system: a] then [user: b] (the disabled section is dropped).
   expect(preview.setup.map((g) => g.role)).toEqual(["system", "user"]);
@@ -55,17 +53,6 @@ test("only enabled, lens-firing, in-flow sections appear; grouped by consecutive
   expect(preview.historyEnabled).toBe(true);
 });
 
-test("the include predicate drops a section it excludes", () => {
-  const sections = [literal("normalOnly", "aaaa", { trigger: ["normal"] }), literal("always", "bbbb"), pivot("hist")];
-  const firesSwipe = (section: PromptSection): boolean => {
-    const trigger = "trigger" in section ? section.trigger : undefined;
-    return trigger === undefined || trigger.length === 0 || trigger.includes("swipe");
-  };
-  const preview = assemblePreview(sections, firesSwipe);
-  const ids = preview.setup.flatMap((g) => g.blocks.map((b) => b.section.id));
-  expect(ids).toEqual(["always"]); // the normal-only section is filtered out under the swipe lens
-});
-
 test("spliced sections route to the band, ordered depth DESC then order ASC (P1 semantics)", () => {
   const sections = [
     pivot("hist"),
@@ -74,7 +61,7 @@ test("spliced sections route to the band, ordered depth DESC then order ASC (P1 
     literal("deeper", "c", { inject: { depth: 10, order: 100 } }),
     literal("inflow", "d"),
   ];
-  const preview = assemblePreview(sections, always);
+  const preview = assemblePreview(sections);
 
   // depth 10 first; then within depth 4, order 5 before order 200.
   expect(preview.splices.map((s) => s.section.id)).toEqual(["deeper", "low-order", "high-order"]);
@@ -83,7 +70,7 @@ test("spliced sections route to the band, ordered depth DESC then order ASC (P1 
 });
 
 test("missing pivot flags the band; everything falls to setup", () => {
-  const preview = assemblePreview([literal("a", "aaaa")], always);
+  const preview = assemblePreview([literal("a", "aaaa")]);
   expect(preview.missingPivot).toBe(true);
   expect(preview.setup.flatMap((g) => g.blocks.map((b) => b.section.id))).toEqual(["a"]);
 });
@@ -108,7 +95,7 @@ test("a templated marker previews its factory default; a plain marker exposes no
     },
     pivot("hist"),
   ];
-  const preview = assemblePreview(sections, always);
+  const preview = assemblePreview(sections);
   const blocks = preview.setup.flatMap((g) => g.blocks);
   const desc = blocks.find((b) => b.section.id === "desc");
   const wi = blocks.find((b) => b.section.id === "wi");

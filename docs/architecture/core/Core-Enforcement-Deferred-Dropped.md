@@ -46,6 +46,21 @@ false-fire or be vacuous. Numbers reference neo's `scripts/check/`.
 | `fetch-fn-in-features` | bans a raw `fetch(` in `features/**` — multipart/binary goes to a `data/` fetch fn beside the existing four (`upload-asset.ts`/`import-tree.ts`/`import-bundle.ts`/`import-characters.ts`); everything else is tRPC (`client-architecture-lockdown.md` §10/§16 R5) | the first `fetch(`-in-features offender appears (zero today) |
 | `shell-no-chrome-props` (shell-chrome §D) | the shell's component prop TYPES declare no feature-chrome ReactNode slot (the dead `railFoot`/`topbarTrail` injection seam) | DROPPED (permanent) 2026-07-16 — the seam it would guard is already type-DELETED: `AppShellProps` no longer exists and `AppShell()` takes zero props (`routes/app-root.tsx`), so the rot is unspellable at the strongest tier (compile). The REMAINING app-shell ReactNode props are a MIX of frame-grammar slots (`header`/`trail`/`actions`/`children`) and legitimate content composition (`ModalHost.body`, `SectionContent.fallback`, `SectionPlaceholder.description`); a prop-NAME allowlist cannot distinguish rot from legit composition (the §E-6 deferral rationale), and widening the allowlist to those content names makes it a name-denylist that guards nothing (the audit's no-half-gate rule) — as does a denylist of only the two dead names (any new name slips it). `no-parallel-section-map` (chrome arm) + `chrome-registry-completeness` already force new chrome through the registry. shell-chrome-unification.md §D/§E-7. |
 
+### PREBUILT orphan seals (W6 ruling — owner, 2026-07-15)
+
+Four sealed primitives were flagged as consumer-less by the derive-modernization audit; the owner
+ruled them intentional pre-builds, not dead code — each carries a greppable `PREBUILT[for:<design-doc>]`
+header naming its consumer. Contract: when the consumer lands, the marker deletes in the same edit
+(the O1 self-cleaning shape); a `PREBUILT` whose cited doc is deleted is a Documentation-Law defect —
+catch it at the next audit of this table.
+
+| Seal | Cited consumer | Header lives at |
+| - | - | - |
+| `@orb/ui/diff` | `refinery` pipeline compare sub-part (D62 §4.1; refinery is a declared-PLANNED section, `client-architecture-lockdown.md` §6a) | `packages/ui/src/diff/diff.tsx` |
+| `charts/meter` (`Meter` + `SegmentedClock`) | rpg HUD widgets (`rpg-design/11-client-ui.md` — resource/pool + progress-clock rows) | `packages/ui/src/charts/meter/meter.tsx`, `packages/ui/src/charts/meter/segmented-clock.tsx` |
+| `stream/stream-text.tsx` | no named feature — sanctioned convenience wrapper over `useSmoothText`+`StreamShimmer` for a future plain-text streaming surface (`ui-package-design.md` §6.3.1) | `packages/ui/src/stream/stream-text.tsx` |
+| `primitives/status-chip` | workloads/automation run-status chips (`automation-design/03-actions.md`; statuses mirror `workloads-deferred-designs.md` run lifecycle) | `packages/ui/src/primitives/status-chip/status-chip.tsx` |
+
 ### Dropped (do not port)
 
 | neo gate | Why N/A |

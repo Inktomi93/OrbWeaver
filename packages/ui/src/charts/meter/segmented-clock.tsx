@@ -1,3 +1,7 @@
+// PREBUILT[for:rpg-design/11-client-ui.md] — no current consumer; sealed for the rpg HUD's
+// progress-clock rows (`<SegmentedClock segments filled>` per the client-contract table, §"HUD
+// widget vocabulary"). Delete this marker (and re-check for consumers) if that plan is ever
+// dropped instead of built.
 // A segmented circle showing filled/segments — same hand-rolled ARIA mechanism as <Meter> (role="meter").
 import type { ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";

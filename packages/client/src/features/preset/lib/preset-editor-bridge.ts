@@ -27,9 +27,6 @@ export const publishAssemblyForm = bridge.publish;
 /** Clear the handle — the editor's unmount cleanup. The inspector's subscribers then see `null`. */
 export const clearAssemblyForm = bridge.clear;
 
-/** Non-reactive snapshot of the current handle (the delete/guard code path + tests read it directly). */
-export const readAssemblyForm = bridge.read;
-
 /** Reactive: the currently-published handle (`null` = no editor mounted). */
 export const useAssemblyForm = bridge.useHandle;
 
