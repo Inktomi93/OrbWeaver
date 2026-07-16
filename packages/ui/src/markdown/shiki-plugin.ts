@@ -119,7 +119,8 @@ function buildTheme(name: string, type: "light" | "dark", fg: string, bg: string
 }
 
 // Dark literals: TOKENS["color.*"].value. Light literals: transcribed from the [data-theme="light"]
-// override block in styles/globals.css — a palette edit there needs the matching edit here.
+// override block GENERATED into styles/theme.css (source: src/tokens/themes/light.json) — a palette
+// edit there needs the matching edit here.
 const ORB_DARK = buildTheme("orbweaver-dark", "dark", TOKENS["color.foreground"].value, TOKENS["color.card"].value);
 const ORB_LIGHT = buildTheme("orbweaver-light", "light", "oklch(0.24 0.01 60)", "oklch(0.995 0.003 75)");
 

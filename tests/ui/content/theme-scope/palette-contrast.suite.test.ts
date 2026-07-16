@@ -8,7 +8,7 @@
 // are ALPHA-COMPOSITED over their backdrop before measuring — a naive contrast on an alpha value lies
 // (the same reason snap.ts's --contrast grew compositeOver). The static values are read from the
 // generated TOKENS map and the derivation constants from clamp.ts, so both are drift-free single sources.
-import { TOKENS } from "@orb/ui/tokens";
+import { SEED_THEME_VALUE_SETS, TOKENS } from "@orb/ui/tokens";
 import { THEME_DERIVATION } from "../../../../packages/ui/src/content/theme-scope/clamp";
 import type { Rgb } from "../../../../scripts/probes/design-audit-checks";
 import { contrastRatio, LARGE_MIN_RATIO, NORMAL_MIN_RATIO } from "../../../../scripts/probes/design-audit-checks";
@@ -64,6 +64,52 @@ function compositeOver(fg: Oklch, backdrop: Rgb): Rgb {
   };
 }
 const rgbOf = (path: keyof typeof TOKENS): Rgb => oklchToRgb(parseOklch(TOKENS[path].value));
+
+// ── Per-seed-palette intent-token sweep (W2). The 9 semantic-intent tokens are POLARITY-AWARE
+// `light-dark(<light-arm>, <dark-arm>)` values (light arm FIRST per CSS syntax) — one static token, two
+// hand-tuned arms selected by the inherited color-scheme. A single static value physically cannot clear
+// AA-NORMAL 4.5:1 as text on BOTH a near-black and a near-white surface, so we assert the CORRECT arm per
+// palette. The palette list is DERIVED from SEED_THEME_VALUE_SETS (never a hand list) + the base Hearth
+// palette, so a future third value-set is auto-covered. ──
+const LIGHT_DARK_RE = /^light-dark\(\s*(.+?)\s*,\s*(.+)\s*\)$/u;
+/** The matching arm of a `light-dark(<light>, <dark>)` value (light FIRST), or the value itself for a plain oklch. */
+function resolveArm(value: string, scheme: "light" | "dark"): string {
+  const m = LIGHT_DARK_RE.exec(value);
+  if (m === null) {
+    return value;
+  }
+  return scheme === "light" ? (m[1] ?? value) : (m[2] ?? value);
+}
+interface Palette {
+  readonly name: string;
+  readonly colorScheme: "light" | "dark";
+  /** Value-set overrides (`--color-*` → oklch); intent tokens are NOT overridden, so they fall to base TOKENS. */
+  readonly vars: Readonly<Record<string, string>>;
+}
+// Hearth = the base TOKENS themselves (no value-set), dark scheme. The seed value-sets follow.
+const PALETTES: readonly Palette[] = [
+  { name: "hearth", colorScheme: "dark", vars: {} },
+  ...Object.entries(SEED_THEME_VALUE_SETS).map(([name, set]): Palette => ({ name, colorScheme: set.colorScheme, vars: set.vars })),
+];
+/** A token resolved IN a palette: the value-set override if present, else the base token — then the
+ *  light-dark() arm picked by the palette's color-scheme (a plain oklch passes through resolveArm). */
+function resolveTokenRgb(path: keyof typeof TOKENS, palette: Palette): Rgb {
+  const raw = palette.vars[TOKENS[path].cssVar] ?? TOKENS[path].value;
+  return oklchToRgb(parseOklch(resolveArm(raw, palette.colorScheme)));
+}
+
+// Text-role intents (rendered AS `text-*`): destructive/success/warning + info. highlight is a text-mark
+// BACKGROUND (never text), so it is pill-only below. The surfaces every intent text sits on.
+const INTENT_TEXT_SURFACES = ["color.background", "color.card", "color.popover"] as const;
+const INTENT_TEXT_TOKENS = ["color.destructive", "color.success", "color.warning", "color.info"] as const;
+// Pill-role intents (solid `bg-*` + its `text-*-foreground`). info has NO foreground yet (north-star PP1),
+// so it is text-only above; highlight is pill-only (background mark).
+const INTENT_PILL_PAIRS = [
+  ["color.destructive", "color.destructive-foreground"],
+  ["color.success", "color.success-foreground"],
+  ["color.warning", "color.warning-foreground"],
+  ["color.highlight", "color.highlight-foreground"],
+] as const;
 
 // ── The clamp.ts derivation, recomputed numerically from the SHARED constants (THEME_DERIVATION). ──
 // DELIBERATE formula mirror, NOT a call into clamp.ts: this suite tests a PROPERTY (WCAG contrast of the
@@ -128,38 +174,32 @@ test("static seed tokens (theme.css :root) — every body-text pairing clears WC
   }
 });
 
-test("static seed tokens — solid semantic-intent surfaces clear the 3:1 UI/large-text floor", () => {
-  // primary/success/warning/highlight are SOLID accent buttons+badges (medium/bold labels = the WCAG
-  // large-text carve); all clear 4.5 comfortably. destructive is NO LONGER in this group — it now clears
-  // AA-NORMAL as both a solid button AND as `text-destructive`, asserted in the dedicated test below.
-  const buttonPairs: ReadonlyArray<readonly [keyof typeof TOKENS, keyof typeof TOKENS]> = [
-    ["color.primary-foreground", "color.primary"],
-    ["color.success-foreground", "color.success"],
-    ["color.warning-foreground", "color.warning"],
-    ["color.highlight-foreground", "color.highlight"],
-  ];
-  for (const [fg, bg] of buttonPairs) {
-    const ratio = contrastRatio(rgbOf(fg), rgbOf(bg));
-    expect(ratio, `${fg} on ${bg}`).toBeGreaterThanOrEqual(LARGE_MIN_RATIO);
-  }
+test("static PRIMARY solid surface clears the 3:1 UI/large-text floor", () => {
+  // primary is a SOLID accent button+badge (medium/bold label = the WCAG large-text carve). The semantic
+  // INTENTS (destructive/success/warning/highlight) are no longer asserted here — they are polarity-aware
+  // light-dark() tokens now swept per-palette at the stronger AA-NORMAL 4.5:1 floor in the test below.
+  const ratio = contrastRatio(rgbOf("color.primary-foreground"), rgbOf("color.primary"));
+  expect(ratio, "primary-foreground on primary").toBeGreaterThanOrEqual(LARGE_MIN_RATIO);
 });
 
-test("static destructive clears WCAG AA-NORMAL 4.5:1 in BOTH roles it renders in", () => {
-  // destructive renders two ways, and the seed values (destructive 0.65 + a DARK destructive-foreground)
-  // are tuned so NORMAL-size text clears 4.5:1 in each — the fix for the side-eye receipts (old 0.62 gave
-  // 4.49:1 text-on-card + 3.65:1 pill, both sub-AA-normal; a single red couldn't clear both — white-on-red
-  // wants a darker red, red-text-on-dark a lighter one — so the foreground flipped dark, palette-family
-  // convention). Theme-independent: destructive is a STATIC semantic token (token-classification suite),
-  // so these ratios hold under every theme, light or dark.
-  //   role 1 — `text-destructive` (validation error / danger label) on the darkest CHROME surfaces it can
-  //     sit on (background/card/popover — popover 0.245 is the lightest chrome = the worst case).
-  for (const surface of ["color.background", "color.card", "color.popover"] as const) {
-    const ratio = contrastRatio(rgbOf("color.destructive"), rgbOf(surface));
-    expect(ratio, `text-destructive on ${surface}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
+test.each(
+  PALETTES.map((p) => [p.name, p] as const),
+)("intent tokens clear WCAG AA-NORMAL 4.5:1 (correct light-dark arm) on the %s palette — text on bg/card/popover + pill", (_name, palette) => {
+  // role 1 — `text-*` (validation label / status text) on every chrome surface the intent can sit on
+  // (background/card/popover). highlight is excluded — it is a text-mark BACKGROUND, never text.
+  for (const intent of INTENT_TEXT_TOKENS) {
+    const fg = resolveTokenRgb(intent, palette);
+    for (const surface of INTENT_TEXT_SURFACES) {
+      const ratio = contrastRatio(fg, resolveTokenRgb(surface, palette));
+      expect(ratio, `${intent} as text on ${surface} @ ${palette.name}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
+    }
   }
-  //   role 2 — the solid `bg-destructive` + `text-destructive-foreground` button/badge/pill.
-  const pill = contrastRatio(rgbOf("color.destructive-foreground"), rgbOf("color.destructive"));
-  expect(pill, "destructive-foreground on destructive (solid pill)").toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
+  // role 2 — the solid `bg-*` + `text-*-foreground` pill (destructive/success/warning/highlight; info
+  // has no foreground yet). Subsumes the former Hearth-only destructive special-case across ALL palettes.
+  for (const [bg, foreground] of INTENT_PILL_PAIRS) {
+    const ratio = contrastRatio(resolveTokenRgb(foreground, palette), resolveTokenRgb(bg, palette));
+    expect(ratio, `${foreground} on ${bg} (pill) @ ${palette.name}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
+  }
 });
 
 test("clamp DERIVED neutral chrome clears AA on every realistic light + dark base", () => {

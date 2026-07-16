@@ -103,6 +103,43 @@ function parseOklch(value: string): readonly [number, number, number] {
   return [Number(m[1]), Number(m[2]), Number(m[3])];
 }
 
+// The polarity-aware intent tokens (W2): each is ONE static `light-dark(<light-arm>, <dark-arm>)`
+// value — light arm FIRST per CSS syntax — selected by the inherited color-scheme. Per-palette AA is
+// enforced in palette-contrast.suite.test.ts; here we just prove the shape + that each arm is a real
+// oklch parseOklch can still consume.
+const LIGHT_DARK_RE = /^light-dark\(\s*(.+?)\s*,\s*(.+)\s*\)$/u;
+
+/** The matching arm of a CSS `light-dark(<light>, <dark>)` value (light-arm FIRST), or the value itself when it isn't a light-dark() form. parseOklch stays strict — callers resolve the arm before parsing. */
+function resolveArm(value: string, scheme: "light" | "dark"): string {
+  const m = LIGHT_DARK_RE.exec(value);
+  if (m === null) {
+    return value;
+  }
+  return scheme === "light" ? (m[1] ?? value) : (m[2] ?? value);
+}
+
+const INTENT_LIGHT_DARK_TOKENS = [
+  "color.destructive",
+  "color.destructive-foreground",
+  "color.success",
+  "color.success-foreground",
+  "color.warning",
+  "color.warning-foreground",
+  "color.info",
+  "color.highlight",
+  "color.highlight-foreground",
+] as const;
+
+test.each(INTENT_LIGHT_DARK_TOKENS)("%s is a light-dark() token whose BOTH arms are real oklch literals (dark arm = the byte-identical original)", (path) => {
+  const value = TOKENS[path].value;
+  expect(value, `${path} must be a light-dark() value`).toMatch(LIGHT_DARK_RE);
+  // Both arms must survive strict parseOklch (the value itself would throw — resolveArm unwraps first).
+  expect(() => parseOklch(resolveArm(value, "light"))).not.toThrow();
+  expect(() => parseOklch(resolveArm(value, "dark"))).not.toThrow();
+  // resolveArm on a plain oklch (a surface token) is a pass-through.
+  expect(resolveArm(TOKENS["color.card"].value, "light")).toBe(TOKENS["color.card"].value);
+});
+
 function relLuminance([L, C, hDeg]: readonly [number, number, number]): number {
   const h = (hDeg * Math.PI) / 180;
   const a = C * Math.cos(h);
