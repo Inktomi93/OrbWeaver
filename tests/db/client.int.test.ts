@@ -3,6 +3,10 @@
 // no FK-bearing tables (users/audit have none), so the constraint test exercises a UNIQUE violation;
 // the foreign-key arm of isConstraintViolation is exercised by the Wave-1 slices that land real FKs.
 
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { pid } from "node:process";
 import { assertReferentialIntegrity, createDb, isConstraintViolation, runMigrations, users } from "@orb/db";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -11,6 +15,7 @@ import { freshDb } from "../support/db";
 import { expect, test } from "../support/fixtures";
 
 const FK_ON = 1;
+const BUSY_TIMEOUT_MS = 5000;
 // The committed baseline + the runMigrations FK-dance + assertReferentialIntegrity's throw path (freshDb
 // PUSHes, so it exercises none of these).
 const MIGRATIONS_DIR = "packages/db/src/migrations";
@@ -22,6 +27,32 @@ test("createDb turns foreign_keys ON and the readback sticks", async () => {
   const db = await createDb(":memory:");
   const row = await db.get<Record<string, number>>(sql`PRAGMA foreign_keys`);
   expect(row?.["foreign_keys"]).toBe(FK_ON);
+});
+
+test("createDb applies the tuning PRAGMAs on a file db (WAL + busy_timeout stick)", async () => {
+  // WAL is file-only, so this needs a real file — :memory: reports journal_mode=memory (the next test).
+  // mkdtemp gives OS-provided uniqueness (no ambient Date.now — test-determinism gate); pid keeps the
+  // prefix readable across parallel workers.
+  const path = join(mkdtempSync(join(tmpdir(), `orb-pragma-${pid}-`)), "t.db");
+  try {
+    const db = await createDb(`file:${path}`);
+    // journal_mode reads back on `journal_mode`; busy_timeout reads back on `timeout` (libSQL column name).
+    const journal = await db.get<Record<string, string>>(sql`PRAGMA journal_mode`);
+    const timeout = await db.get<Record<string, number>>(sql`PRAGMA busy_timeout`);
+    expect(journal?.["journal_mode"]).toBe("wal");
+    expect(timeout?.["timeout"]).toBe(BUSY_TIMEOUT_MS);
+  } finally {
+    for (const suffix of ["", "-wal", "-shm"]) {
+      rmSync(`${path}${suffix}`, { force: true });
+    }
+  }
+});
+
+test("createDb still boots a :memory: db (the WAL readback assert is file-only)", async () => {
+  // :memory: correctly reports journal_mode=memory; createDb must NOT boot-refuse on that.
+  const db = await createDb(":memory:");
+  const journal = await db.get<Record<string, string>>(sql`PRAGMA journal_mode`);
+  expect(journal?.["journal_mode"]).toBe("memory");
 });
 
 test("assertReferentialIntegrity passes on the freshly-applied schema", async () => {

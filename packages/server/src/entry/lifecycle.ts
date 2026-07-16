@@ -21,7 +21,7 @@ import { createOidcStore, createSessionsService, ownerHandles } from "#domain/se
 import { loadWorkload, nextRunnableWorkload, reapOrphanedWorkloads, runWorkload, subscribeWorkloadWake } from "#domain/workloads";
 import { env } from "#foundation/env";
 import { getLog } from "#foundation/observability";
-import { createPasswordHasher } from "#infra/auth";
+import { createForwardJwtVerifier, createPasswordHasher } from "#infra/auth";
 import { credentialsKeyFromEnv } from "#infra/crypto";
 import { installEgressFirewall } from "#infra/network";
 import { detectGpu } from "#infra/providers";
@@ -300,7 +300,7 @@ export function createLifecycle(): Lifecycle {
     const app = createApp({
       now,
       db,
-      seam: createAuthSeam({ sessions: built.sessions }),
+      seam: createAuthSeam({ sessions: built.sessions, verifyForwardJwt: createForwardJwtVerifier() }),
       services: built.services,
       rateLimit: createRateLimitGate({ db, now }),
       presence: built.presence,

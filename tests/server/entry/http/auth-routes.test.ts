@@ -7,6 +7,7 @@
 // test-resolvable, so the registrar runs over a captured mock app + context.
 
 import type { ResolvedIdentity, UserRole } from "@orb/contracts/identity";
+import type { Db } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { AuthRoutesDeps, AuthSessionsPort, LocalAuthenticator, OidcClaimMap, OidcRoutesDeps } from "@orb/server/entry/http";
@@ -66,12 +67,25 @@ function makeCtx(req: MockReq): MockCtx {
   };
 }
 
+// A never-touched Db stand-in: the mock harness only reaches route REGISTRATION (which builds the login
+// limiter object but never calls it). The db-touching behavioral paths (throttle, mint) live in the int
+// test over a real freshDb.
+// The mock harness reaches only route REGISTRATION (builds the login limiter object but never calls it);
+// the db-touching paths run over a real freshDb in the int test.
+// FABRICATION-OK: never-dereferenced registration-only stand-in.
+const STUB_DB = {} as unknown as Db;
+
 function routesOf(deps: AuthRoutesDeps): Map<string, Handler> {
   const routes = new Map<string, Handler>();
   const record =
     (method: string) =>
-    (path: string, routeHandler: Handler): unknown => {
-      routes.set(`${method} ${path}`, routeHandler);
+    (path: string, ...handlers: Handler[]): unknown => {
+      // The login route registers as (path, bodyLimit-middleware, handler); capture the FINAL arg (the real
+      // handler) so the pure registration assertions still resolve the route's terminal handler.
+      const terminal = handlers.at(-1);
+      if (terminal !== undefined) {
+        routes.set(`${method} ${path}`, terminal);
+      }
       return app;
     };
   const app = { get: record("GET"), post: record("POST") };
@@ -146,76 +160,52 @@ const ownerAuth =
   (): Promise<UserId | null> =>
     Promise.resolve(userId);
 
-describe("local login", () => {
-  test("valid credentials → 200, sets the session cookie, mints via sessions.create", async () => {
-    const rec = recordingSessions();
-    const deps: AuthRoutesDeps = {
-      sessions: rec.sessions,
-      now: (): number => NOW,
-      authenticate: ownerAuth(castId<UserId>("usr_owner")),
-    };
-    const res = await handlerFor(
-      deps,
-      "POST /api/auth/login",
-    )(
-      makeCtx({
-        parseBody: { handle: "owner", password: "hunter2pw" },
-        headers: { "user-agent": "vitest" },
-      }),
-    );
-    expect(res.status).toBe(200);
-    const cookie = res.headers.get("set-cookie") ?? "";
-    expect(cookie).toContain(`${COOKIE}=tok-123`);
-    expect(cookie).toContain("Max-Age=2592000");
-    expect(rec.createdFor).toBe("usr_owner");
-    expect(rec.createdUa).toBe("vitest");
-  });
-
-  test("bad credentials → 401, no cookie", async () => {
-    const rec = recordingSessions();
-    const deps: AuthRoutesDeps = {
-      sessions: rec.sessions,
-      now: (): number => NOW,
-      authenticate: ownerAuth(null),
-    };
-    const res = await handlerFor(deps, "POST /api/auth/login")(makeCtx({ parseBody: { handle: "owner", password: "wrong-pass" } }));
-    expect(res.status).toBe(401);
-    expect(res.headers.get("set-cookie")).toBeNull();
-    expect(rec.createdFor).toBeNull();
-  });
-
-  test("missing fields → 400", async () => {
-    const rec = recordingSessions();
-    const deps: AuthRoutesDeps = {
-      sessions: rec.sessions,
-      now: (): number => NOW,
-      authenticate: ownerAuth(castId<UserId>("usr_owner")),
-    };
-    const res = await handlerFor(deps, "POST /api/auth/login")(makeCtx({ parseBody: { handle: "owner" } }));
-    expect(res.status).toBe(400);
-  });
-
+// The login HANDLER's behavioral paths (valid/bad/missing creds, the per-IP throttle, the body cap) run
+// through the REAL Hono app + a freshDb in auth-routes.int.test.ts — the throttle needs a live limiter
+// (db) and `clientIp` needs a real conninfo env, neither of which the mock ctx provides. Here we only
+// assert the mode-conditional REGISTRATION (pure).
+describe("local login — registration", () => {
   test("login route is NOT registered without an authenticator", () => {
     const rec = recordingSessions();
-    const deps: AuthRoutesDeps = { sessions: rec.sessions, now: (): number => NOW };
+    const deps: AuthRoutesDeps = { sessions: rec.sessions, now: (): number => NOW, db: STUB_DB };
     expect(routesOf(deps).has("POST /api/auth/login")).toBe(false);
+  });
+
+  test("login route IS registered with an authenticator", () => {
+    const rec = recordingSessions();
+    const deps: AuthRoutesDeps = { sessions: rec.sessions, now: (): number => NOW, db: STUB_DB, authenticate: ownerAuth(castId<UserId>("usr_owner")) };
+    expect(routesOf(deps).has("POST /api/auth/login")).toBe(true);
   });
 });
 
-describe("logout", () => {
-  test("with a session cookie → revokes the token + clears the cookie (204)", async () => {
+// CSRF gate is enforced here (header read is pure); revoke/clear ride the mock ctx. The cross-site
+// force-logout attack: a top-level POST with the session cookie (SameSite=Lax rides it) but NO custom
+// header must NOT revoke.
+describe("logout — CSRF gate", () => {
+  const CSRF = "x-orb-csrf";
+
+  test("WITHOUT the CSRF header → 403, does NOT revoke (blocks cross-site force-logout)", async () => {
     const rec = recordingSessions();
-    const deps: AuthRoutesDeps = { sessions: rec.sessions, now: (): number => NOW };
+    const deps: AuthRoutesDeps = { sessions: rec.sessions, now: (): number => NOW, db: STUB_DB };
     const res = await handlerFor(deps, "POST /api/auth/logout")(makeCtx({ headers: { cookie: `${COOKIE}=tok-123` } }));
+    expect(res.status).toBe(403);
+    expect(rec.revoked).toBeNull();
+    expect(res.headers.get("set-cookie")).toBeNull();
+  });
+
+  test("WITH the CSRF header + a session cookie → revokes the token + clears the cookie (204)", async () => {
+    const rec = recordingSessions();
+    const deps: AuthRoutesDeps = { sessions: rec.sessions, now: (): number => NOW, db: STUB_DB };
+    const res = await handlerFor(deps, "POST /api/auth/logout")(makeCtx({ headers: { cookie: `${COOKIE}=tok-123`, [CSRF]: "1" } }));
     expect(res.status).toBe(204);
     expect(rec.revoked).toBe("tok-123");
     expect(res.headers.get("set-cookie")).toContain("Max-Age=0");
   });
 
-  test("without a cookie → still clears, does not revoke (204)", async () => {
+  test("WITH the CSRF header but no cookie → still clears, does not revoke (204)", async () => {
     const rec = recordingSessions();
-    const deps: AuthRoutesDeps = { sessions: rec.sessions, now: (): number => NOW };
-    const res = await handlerFor(deps, "POST /api/auth/logout")(makeCtx({}));
+    const deps: AuthRoutesDeps = { sessions: rec.sessions, now: (): number => NOW, db: STUB_DB };
+    const res = await handlerFor(deps, "POST /api/auth/logout")(makeCtx({ headers: { [CSRF]: "1" } }));
     expect(res.status).toBe(204);
     expect(rec.revoked).toBeNull();
     expect(res.headers.get("set-cookie")).toContain("Max-Age=0");
@@ -335,12 +325,13 @@ describe("OIDC route registration", () => {
 
   test("OIDC routes present only when oidc deps are supplied", () => {
     const rec = recordingSessions();
-    const withoutOidc: AuthRoutesDeps = { sessions: rec.sessions, now: (): number => NOW };
+    const withoutOidc: AuthRoutesDeps = { sessions: rec.sessions, now: (): number => NOW, db: STUB_DB };
     expect(routesOf(withoutOidc).has("GET /api/auth/oidc/login")).toBe(false);
 
     const withOidc: AuthRoutesDeps = {
       sessions: rec.sessions,
       now: (): number => NOW,
+      db: STUB_DB,
       oidc: oidcStub(),
     };
     const routes = routesOf(withOidc);
@@ -433,6 +424,7 @@ describe("OIDC login — the redirect_uri allowlist gate", () => {
     const deps: AuthRoutesDeps = {
       sessions: recordingSessions().sessions,
       now: (): number => NOW,
+      db: STUB_DB,
       oidc: rec.deps,
     };
     const res = await handlerFor(deps, "GET /api/auth/oidc/login")(makeCtx({ headers: { "x-forwarded-host": "evil.example", "x-forwarded-proto": "https" } }));
@@ -474,6 +466,7 @@ describe("OIDC callback — single-use state consume (replay/forgery/TTL gate)",
     const deps: AuthRoutesDeps = {
       sessions: session.sessions,
       now: (): number => NOW,
+      db: STUB_DB,
       oidc: {
         // Must NOT run when the state consume fails — the 401 short-circuits before the token exchange.
         getConfig: (): Promise<never> => {
@@ -519,5 +512,76 @@ describe("OIDC callback — single-use state consume (replay/forgery/TTL gate)",
     expect(res.status).toBe(401);
     expect(h.consumedWith()).toBe(""); // no `state` query → the empty-string consume key → null → 401
     expect(h.getConfigCalls()).toBe(0);
+  });
+});
+
+// The callback fails GRACEFULLY (4xx, no session) — not 500 — when the IdP redirects back with a standard
+// `?error=` (declined consent / access_denied). The txn is consumed FIRST (single-use preserved), THEN the
+// IdP error short-circuits BEFORE the token exchange, so `getConfig` is never reached and no cookie mints.
+// The token-exchange THROW path (replayed/expired code, transient IdP fault) can't be unit-tested here —
+// `authorizationCodeGrant` is a module-level `openid-client` import, not an injected dep (see the R7 note
+// above); it shares the SAME fail-closed handler as this `?error=` branch (both route through
+// exchangeCodeForClaims / the 401 `oidc login failed:` response).
+describe("OIDC callback — IdP error param fails closed (declined consent / access_denied)", () => {
+  const CALLBACK_BASE = "https://app.example/api/auth/oidc/callback";
+  const tx: OidcTransaction = { state: "s1", codeVerifier: "cv1", nonce: "n1", redirectUri: CALLBACK_BASE, createdAt: NOW };
+  const callbackUrl = (query: Record<string, string>): string => {
+    const u = new URL(CALLBACK_BASE);
+    for (const [k, v] of Object.entries(query)) {
+      u.searchParams.set(k, v);
+    }
+    return u.href;
+  };
+
+  function errorCallbackDeps(): { deps: AuthRoutesDeps; session: SessionRecorder; getConfigCalls: () => number; consumed: () => number } {
+    let getConfigCalls = 0;
+    let consumed = 0;
+    const session = recordingSessions();
+    const deps: AuthRoutesDeps = {
+      sessions: session.sessions,
+      now: (): number => NOW,
+      db: STUB_DB,
+      oidc: {
+        // Must NOT run on an IdP-error callback — the 401 short-circuits before the token exchange.
+        getConfig: (): Promise<never> => {
+          getConfigCalls += 1;
+          return Promise.reject(new Error("getConfig must not run on an IdP-error callback"));
+        },
+        redirectAllowlist: [CALLBACK_BASE],
+        scope: "openid profile email",
+        claims: { usernameClaim: "preferred_username", uidClaim: "sub", groupsClaim: "groups", emailClaim: "email" },
+        store: {
+          mint: (): Promise<void> => Promise.resolve(),
+          // The single-use consume STILL fires on the error path — a failed login must not leave a replayable txn.
+          consume: (): Promise<OidcTransaction | null> => {
+            consumed += 1;
+            return Promise.resolve(tx);
+          },
+        },
+      },
+    };
+    return { deps, session, getConfigCalls: () => getConfigCalls, consumed: () => consumed };
+  }
+
+  test("valid state + `?error=access_denied` → 401 (not 500), txn consumed, no token exchange, no session", async () => {
+    const h = errorCallbackDeps();
+    const res = await handlerFor(h.deps, "GET /api/auth/oidc/callback")(makeCtx({ url: callbackUrl({ state: "s1", error: "access_denied" }) }));
+    expect(res.status).toBe(401);
+    expect(h.consumed()).toBe(1); // single-use txn consume STILL happened (not replayable)
+    expect(h.getConfigCalls()).toBe(0); // never reached the token exchange
+    expect(h.session.createdFor).toBeNull(); // no session minted
+    expect(res.headers.get("set-cookie")).toBeNull(); // no partial cookie on the error path
+    const decoded = JSON.parse(await res.text()) as { error: string };
+    expect(decoded.error).toContain("access_denied"); // the sanitized standard code is surfaced
+  });
+
+  test("a malformed IdP `error` value is NOT reflected raw — replaced by a generic marker", async () => {
+    const h = errorCallbackDeps();
+    // Free-text with spaces / punctuation must never reach the response body (reflection guard).
+    const res = await handlerFor(h.deps, "GET /api/auth/oidc/callback")(makeCtx({ url: callbackUrl({ state: "s1", error: "<script>alert(1)</script>" }) }));
+    expect(res.status).toBe(401);
+    const decoded = JSON.parse(await res.text()) as { error: string };
+    expect(decoded.error).not.toContain("<script>");
+    expect(decoded.error).toContain("token_exchange_failed"); // the generic fallback marker
   });
 });

@@ -39,6 +39,21 @@ export type LibSqlWrap = (client: Client) => Client;
 // `PRAGMA foreign_keys` reads back 1 when enforcement is ON.
 const FK_ENABLED = 1;
 const FILE_SCHEME = "file:";
+const WAL = "wal";
+
+// Per-connection tuning, set at every createDb. journal_mode goes first — the others assume WAL.
+// busy_timeout is load-bearing: the workloads worker races HTTP request writes, and without a wait a
+// concurrent write throws SQLITE_BUSY immediately instead of retrying for up to 5s. synchronous=NORMAL
+// is the safe-under-WAL fsync level; cache_size/mmap_size/temp_store are throughput. libSQL honors all
+// six (readback: mmap_size floors to a page boundary, busy_timeout reads back under the `timeout` column).
+const TUNING_PRAGMAS = [
+  "journal_mode = WAL",
+  "busy_timeout = 5000",
+  "synchronous = NORMAL",
+  "cache_size = -1048576",
+  "mmap_size = 2147483648",
+  "temp_store = MEMORY",
+] as const;
 
 // drizzle's returned handle carries `$client` at runtime; `Db` (the public type) intentionally hides it.
 // This local (non-exported) accessor is the one place we reach it — for `close()`, which has no
@@ -63,10 +78,13 @@ function localPath(url: string): string | undefined {
 }
 
 /**
- * Construct the db. Sets `PRAGMA foreign_keys = ON` on the connection AND reads it back — REFUSING to
- * boot if it didn't stick (SQLite defaults FK enforcement OFF and the schema is FK-dense, so a silent
- * OFF would let orphan writes through). The optional `wrap` decorates the client (OTel) before drizzle
- * binds it.
+ * Construct the db. Sets `PRAGMA foreign_keys = ON` + the six-PRAGMA tuning block on the connection AND
+ * reads BOTH back — REFUSING to boot if either didn't stick. FK enforcement defaults OFF on SQLite and
+ * the schema is FK-dense, so a silent OFF would let orphan writes through; WAL is the durability mode the
+ * shutdown checkpoint (`preCloseHousekeeping`) and busy_timeout assume, so a silent fallback to the
+ * rollback journal on a `file:` db is a boot-refuse (a `:memory:` db correctly reports `memory` — WAL is
+ * file-only, so the readback is only asserted for `file:` URLs). The optional `wrap` decorates the
+ * client (OTel) before drizzle binds it.
  */
 export async function createDb(url: string, wrap?: LibSqlWrap): Promise<Db> {
   const base = createClient({ url });
@@ -76,6 +94,20 @@ export async function createDb(url: string, wrap?: LibSqlWrap): Promise<Db> {
   const value = readback.rows[0]?.["foreign_keys"];
   if (value !== FK_ENABLED) {
     throw new Error(`@orb/db: PRAGMA foreign_keys did not stick (read back ${String(value)}); refusing to boot — the FK-dense schema requires enforcement ON.`);
+  }
+  for (const pragma of TUNING_PRAGMAS) {
+    // biome-ignore lint/performance/noAwaitInLoops: PRAGMAs must apply sequentially in order — journal_mode = WAL first, the rest assume it; Promise.all would race the mode switch.
+    await client.execute(`PRAGMA ${pragma}`);
+  }
+  // WAL is file-only; a `:memory:`/non-file db reports `memory` and that's correct, so only assert on files.
+  if (localPath(url) !== undefined) {
+    const mode = await client.execute("PRAGMA journal_mode");
+    const journalMode = mode.rows[0]?.["journal_mode"];
+    if (journalMode !== WAL) {
+      throw new Error(
+        `@orb/db: PRAGMA journal_mode did not stick (read back ${String(journalMode)}, expected ${WAL}); refusing to boot — the WAL shutdown checkpoint + busy_timeout wait assume WAL on a file db.`,
+      );
+    }
   }
   return drizzle(client, { schema });
 }

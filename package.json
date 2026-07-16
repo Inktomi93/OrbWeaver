@@ -101,6 +101,7 @@
     "eslint-plugin-react-hooks": "catalog:",
     "eslint-plugin-tsdoc": "catalog:",
     "hono": "catalog:",
+    "jose": "catalog:",
     "jscpd": "catalog:",
     "knip": "^6.26.0",
     "lefthook": "catalog:",

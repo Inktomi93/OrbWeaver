@@ -30,5 +30,7 @@ export { registerImportTree } from "./import-tree";
 export type { JoinDeps } from "./join";
 export { registerJoin } from "./join";
 export { securityHeaders } from "./security-headers";
+export type { SpaDeps } from "./spa";
+export { registerSpa, resolveSpaDistDir } from "./spa";
 export type { UploadAssetsPort, UploadDeps } from "./upload";
 export { registerUpload } from "./upload";

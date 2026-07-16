@@ -52,6 +52,9 @@ const envSchema = z
     DEBUG_TOKEN: z.string().min(1).optional(),
 
     DATABASE_URL: z.string().min(1).default("file:./orbweaver.db"),
+    // The built client bundle (`vite build` output) the SPA registrar serves in prod. cwd-relative like
+    // ASSETS_DIR (`pnpm start` runs at the repo root). Missing bundle: prod boot-fatal, dev skipped.
+    CLIENT_DIST_DIR: z.string().min(1).default("./packages/client/dist"),
     // Content-addressed asset blob root (card PNGs, avatars); the DB holds metadata, bytes live here.
     ASSETS_DIR: z.string().min(1).default("./data/assets"),
     // The controlled root the bundle-import extractor stages its per-upload dir under (a portability zip
