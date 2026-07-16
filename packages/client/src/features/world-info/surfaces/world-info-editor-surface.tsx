@@ -16,7 +16,7 @@ import { useToastManager } from "@orb/ui/toast";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
-import { QueryBoundary, useInvalidation, useTRPC } from "#data";
+import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { useFocusOnMount } from "#lib";
 import { clearWorldEntrySelection, selectWorldEntry, useSelectedWorldEntryId } from "#state";
 import { BookDetailsDialog } from "../components/book-details-dialog";
@@ -39,14 +39,7 @@ export function WorldInfoEditorSurface({ bookId }: WorldInfoEditorSurfaceProps):
     <Stack ref={surfaceRef} tabIndex={-1} className="h-full min-h-0 overflow-y-auto overflow-x-hidden outline-none">
       <QueryBoundary
         fallback={<Text tone="muted">Loading the book…</Text>}
-        renderError={(_error, retry): ReactElement => (
-          <Text tone="muted">
-            Couldn't load the book.{" "}
-            <Button intent="ghost" onClick={retry}>
-              Retry
-            </Button>
-          </Text>
-        )}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label="the book" onRetry={retry} />}
       >
         <BookEditor bookId={bookId} />
       </QueryBoundary>

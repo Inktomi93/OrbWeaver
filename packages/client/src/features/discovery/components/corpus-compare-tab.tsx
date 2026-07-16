@@ -14,7 +14,7 @@ import { Text } from "@orb/ui/text";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { QueryBoundary, useTRPC } from "#data";
+import { QueryBoundary, QueryErrorState, useTRPC } from "#data";
 import { testId } from "#lib";
 
 const NONE = "";
@@ -24,14 +24,7 @@ export function CorpusCompareTab(): ReactElement {
   return (
     <QueryBoundary
       fallback={<Text tone="muted">Loading characters…</Text>}
-      renderError={(_error, retry): ReactElement => (
-        <Text tone="muted">
-          Couldn't load characters.{" "}
-          <Button intent="ghost" onClick={retry}>
-            Retry
-          </Button>
-        </Text>
-      )}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label="characters" onRetry={retry} />}
     >
       <CompareBody />
     </QueryBoundary>

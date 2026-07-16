@@ -5,13 +5,12 @@
 
 import type { CharacterId } from "@orb/kit/ids";
 import { estimateTokens } from "@orb/kit/tokens";
-import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { QueryBoundary, useTRPC } from "#data";
+import { QueryBoundary, QueryErrorState, useTRPC } from "#data";
 import type { AppFormInstance } from "#forms";
 import { MESSAGE_ROLE_ITEMS } from "#lib";
 import { useSelectedCharacterFacetId, useSelectedCharacterId } from "#state";
@@ -44,14 +43,7 @@ export function CharacterFacetInspector({ characterId }: CharacterFacetInspector
   return (
     <QueryBoundary
       fallback={<Text tone="muted">Loading…</Text>}
-      renderError={(_error, retry): ReactElement => (
-        <Text tone="muted">
-          Couldn't load this field.{" "}
-          <Button intent="ghost" onClick={retry}>
-            Retry
-          </Button>
-        </Text>
-      )}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label="this field" onRetry={retry} />}
     >
       <InspectorLoader form={resolved.form} facetId={selectedFacetId as CharacterFacetId} characterId={characterId} />
     </QueryBoundary>

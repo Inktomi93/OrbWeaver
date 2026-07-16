@@ -4,14 +4,13 @@
 // hour-of-day histogram + the peak cell). Read-only analytics.
 
 import { BarList } from "@orb/ui/bar-list";
-import { Button } from "@orb/ui/button";
 import { Histogram } from "@orb/ui/histogram";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { StatFigure } from "@orb/ui/stat-figure";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { QueryBoundary, useTRPC } from "#data";
+import { QueryBoundary, QueryErrorState, useTRPC } from "#data";
 import { testId } from "#lib";
 import { dailyTokenBuckets, dailyTurnBuckets, formatCompact, formatPeak, hourHistogramBuckets, weekdayBarItems } from "../lib/analytics-view-model";
 
@@ -19,14 +18,7 @@ export function AnalyticsTimeTab(): ReactElement {
   return (
     <QueryBoundary
       fallback={<Text tone="muted">Loading activity…</Text>}
-      renderError={(_error, retry): ReactElement => (
-        <Text tone="muted">
-          Couldn't load activity.{" "}
-          <Button intent="ghost" onClick={retry}>
-            Retry
-          </Button>
-        </Text>
-      )}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label="activity" onRetry={retry} />}
     >
       <TimeBody />
     </QueryBoundary>

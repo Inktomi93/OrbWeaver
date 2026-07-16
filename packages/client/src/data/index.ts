@@ -29,6 +29,8 @@ export type { AppMeta } from "./query-client";
 export { createAppQueryClient } from "./query-client";
 export type { QueryErrorStateProps } from "./query-error-state";
 export { QueryErrorState } from "./query-error-state";
+export type { QueryInlineStatesProps } from "./query-inline-states";
+export { QueryInlineStates } from "./query-inline-states";
 export type { SkeletonRowShape, SkeletonRowsProps } from "./skeleton-rows";
 export { SkeletonRows } from "./skeleton-rows";
 export type { Trpc } from "./trpc";

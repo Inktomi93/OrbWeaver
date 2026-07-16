@@ -5,11 +5,10 @@
 // pairs with the tabs so `S` never crosses the shell seam. `makeChatsSection` takes the chat-context
 // contributor registry (§6c) so rpg/crew can graft tabs at the door without importing chat.
 
-import { Button } from "@orb/ui/button";
 import { MessagesSquare } from "@orb/ui/icons";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { QueryBoundary } from "#data";
+import { QueryBoundary, QueryErrorState } from "#data";
 import type { ChatContextState, ChatSurfaceContribution, CommittedChatContext, ContextTabDef, ContributorRegistry } from "#lib";
 import { defineContextTabs } from "#lib";
 import type { SectionDefinition } from "#state";
@@ -51,17 +50,6 @@ function queryFallback(label: string): ReactElement {
   return <Text tone="muted">{`Loading ${label}…`}</Text>;
 }
 
-function queryRenderError(label: string): (error: unknown, retry: () => void) => ReactElement {
-  return (_error, retry): ReactElement => (
-    <Text tone="muted">
-      {`Couldn't load ${label}.`}{" "}
-      <Button intent="ghost" onClick={retry}>
-        Retry
-      </Button>
-    </Text>
-  );
-}
-
 // Flat declared order encodes the Members-default (§6b): members first ⇒ the generic resolve picks it as
 // the active tab whenever visible, else the first visible tab. Each body narrows on `s.phase`.
 const CHAT_CONTEXT_TABS: readonly ContextTabDef<ChatContextState>[] = [
@@ -87,7 +75,10 @@ const CHAT_CONTEXT_TABS: readonly ContextTabDef<ChatContextState>[] = [
     when: (s) => (s.phase === "committed" ? s.isHost && resolveIsGroupChat(s.participants) : s.cast.length >= GROUP_FLOOR),
     body: (s) =>
       s.phase === "committed" ? (
-        <QueryBoundary fallback={queryFallback("group settings")} renderError={queryRenderError("group settings")}>
+        <QueryBoundary
+          fallback={queryFallback("group settings")}
+          renderError={(_error, retry): ReactElement => <QueryErrorState label="group settings" onRetry={retry} />}
+        >
           <CommittedGroupConfigTab chatId={s.chatId} />
         </QueryBoundary>
       ) : (
@@ -105,7 +96,10 @@ const CHAT_CONTEXT_TABS: readonly ContextTabDef<ChatContextState>[] = [
     label: "Injections",
     body: (s) =>
       s.phase === "committed" ? (
-        <QueryBoundary fallback={queryFallback("injections")} renderError={queryRenderError("injections")}>
+        <QueryBoundary
+          fallback={queryFallback("injections")}
+          renderError={(_error, retry): ReactElement => <QueryErrorState label="injections" onRetry={retry} />}
+        >
           <InjectionsManager chatId={s.chatId} isHost={s.isHost} />
         </QueryBoundary>
       ) : (

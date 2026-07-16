@@ -13,7 +13,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { ConfirmDialog, FormDialog } from "#components";
-import { useInvalidation, useTRPC } from "#data";
+import { QueryInlineStates, useInvalidation, useTRPC } from "#data";
 import { timeLib } from "#lib";
 import { useRevokeSession, useRevokeUserSessions } from "../hooks/use-admin-mutations";
 
@@ -55,9 +55,13 @@ export function AdminUserSessionsDialog(props: AdminUserSessionsDialogProps): Re
         </Button>
       </Row>
 
-      {sessions.isPending ? <Text tone="muted">Loading sessions…</Text> : null}
-      {sessions.isError ? <Text tone="destructive">Couldn't load the sessions — try reopening this dialog.</Text> : null}
-      {sessions.isSuccess && rows.length === 0 ? <Text tone="muted">No sessions on record — they've never signed in.</Text> : null}
+      <QueryInlineStates
+        status={sessions}
+        isEmpty={rows.length === 0}
+        pending="Loading sessions…"
+        error="Couldn't load the sessions — try reopening this dialog."
+        empty="No sessions on record — they've never signed in."
+      />
 
       <Stack gap="field">
         {rows.map((session) => {

@@ -13,7 +13,7 @@ import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useRef } from "react";
-import { QueryBoundary, useTRPC } from "#data";
+import { QueryBoundary, QueryErrorState, useTRPC } from "#data";
 import { testId, timeLib, useFocusOnMount } from "#lib";
 import { formatCompact, formatMs, formatPercent } from "../lib/analytics-view-model";
 
@@ -29,14 +29,7 @@ export function AnalyticsCharacterSurface({ characterId, onBack }: AnalyticsChar
     <Stack ref={surfaceRef} tabIndex={-1} className="h-full min-h-0 outline-none" data-testid={testId("analyticsCharacterSurface")}>
       <QueryBoundary
         fallback={<Text tone="muted">Loading character stats…</Text>}
-        renderError={(_error, retry): ReactElement => (
-          <Text tone="muted">
-            Couldn't load these stats.{" "}
-            <Button intent="ghost" onClick={retry}>
-              Retry
-            </Button>
-          </Text>
-        )}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label="these stats" onRetry={retry} />}
       >
         <CharacterBody characterId={characterId} onBack={onBack} />
       </QueryBoundary>

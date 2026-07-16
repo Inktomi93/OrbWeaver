@@ -12,12 +12,11 @@ import type { AssembleTrace } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import { estimateTokens } from "@orb/kit/tokens";
 import { Badge } from "@orb/ui/badge";
-import { Button } from "@orb/ui/button";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
-import { QueryBoundary, useTRPC } from "#data";
+import { QueryBoundary, QueryErrorState, useTRPC } from "#data";
 
 export interface AssemblyPreviewPanelProps {
   readonly chatId: ChatId;
@@ -28,14 +27,7 @@ export function AssemblyPreviewPanel({ chatId }: AssemblyPreviewPanelProps): Rea
   return (
     <QueryBoundary
       fallback={<Text tone="muted">Assembling the preview…</Text>}
-      renderError={(_error, retry): ReactElement => (
-        <Stack gap="block">
-          <Text tone="muted">Couldn't assemble the preview.</Text>
-          <Button intent="ghost" onClick={retry}>
-            Retry
-          </Button>
-        </Stack>
-      )}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label="the preview" onRetry={retry} />}
     >
       <PreviewBody chatId={chatId} />
     </QueryBoundary>

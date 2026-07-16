@@ -19,7 +19,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
 import { ConfirmDialog } from "#components";
-import { QueryBoundary, useGatedQuery, useInvalidation, useTRPC } from "#data";
+import { QueryBoundary, QueryErrorState, useGatedQuery, useInvalidation, useTRPC } from "#data";
 import { useFocusOnMount } from "#lib";
 import { ParamsPanel } from "../components/params-panel";
 import { PresetStructureTabs } from "../components/preset-structure-tabs";
@@ -47,14 +47,7 @@ export function PresetEditorSurface({ presetId, onRevealSection, onDismissSectio
     <Stack ref={surfaceRef} tabIndex={-1} className="h-full min-h-0 overflow-y-auto overflow-x-hidden outline-none">
       <QueryBoundary
         fallback={<Text tone="muted">Loading the preset…</Text>}
-        renderError={(_error, retry): ReactElement => (
-          <Text tone="muted">
-            Couldn't load the preset.{" "}
-            <Button intent="ghost" onClick={retry}>
-              Retry
-            </Button>
-          </Text>
-        )}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label="the preset" onRetry={retry} />}
       >
         <PresetEditor presetId={presetId} onRevealSection={onRevealSection} onDismissSection={onDismissSection} />
       </QueryBoundary>

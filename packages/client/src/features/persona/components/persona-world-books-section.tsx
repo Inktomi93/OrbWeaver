@@ -4,7 +4,6 @@
 // UI just never offers more than one at a time.
 
 import type { PersonaId, WorldBookId } from "@orb/kit/ids";
-import { Button } from "@orb/ui/button";
 import { Field } from "@orb/ui/field";
 import { BookOpen, Icon } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
@@ -13,7 +12,7 @@ import { Select } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { QueryBoundary, useInvalidation, useTRPC } from "#data";
+import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { useAttachBookToPersona, useDetachBookFromPersona } from "../hooks/use-persona-lorebooks";
 
 const NONE_VALUE = "none";
@@ -27,14 +26,7 @@ export function PersonaLoreBookField({ personaId }: PersonaLoreBookFieldProps): 
   return (
     <QueryBoundary
       fallback={<Text tone="muted">Loading world books…</Text>}
-      renderError={(_error, retry): ReactElement => (
-        <Row gap="row" align="center">
-          <Text tone="muted">Couldn't load world books.</Text>
-          <Button intent="ghost" onClick={retry}>
-            Retry
-          </Button>
-        </Row>
-      )}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label="world books" onRetry={retry} />}
     >
       <LoreBookSelect personaId={personaId} />
     </QueryBoundary>

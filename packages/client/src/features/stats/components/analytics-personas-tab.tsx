@@ -3,13 +3,12 @@
 // bar-list + per-persona detail rows. Read-only analytics.
 
 import { BarList } from "@orb/ui/bar-list";
-import { Button } from "@orb/ui/button";
 import { Section, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { QueryBoundary, useTRPC } from "#data";
+import { QueryBoundary, QueryErrorState, useTRPC } from "#data";
 import { testId, timeLib } from "#lib";
 import { formatCompact, personaBarItems } from "../lib/analytics-view-model";
 
@@ -17,14 +16,7 @@ export function AnalyticsPersonasTab(): ReactElement {
   return (
     <QueryBoundary
       fallback={<Text tone="muted">Loading persona usage…</Text>}
-      renderError={(_error, retry): ReactElement => (
-        <Text tone="muted">
-          Couldn't load persona usage.{" "}
-          <Button intent="ghost" onClick={retry}>
-            Retry
-          </Button>
-        </Text>
-      )}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label="persona usage" onRetry={retry} />}
     >
       <PersonasBody />
     </QueryBoundary>

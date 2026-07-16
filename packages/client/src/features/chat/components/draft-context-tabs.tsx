@@ -6,12 +6,11 @@
 import type { ChatInjectionInput, RoomOverrides } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG, groupConfigSchema, TALKATIVENESS_DEFAULT } from "@orb/contracts/chat";
 import type { CharacterId } from "@orb/kit/ids";
-import { Button } from "@orb/ui/button";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQueries } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useRef } from "react";
-import { QueryBoundary, useTRPC } from "#data";
+import { QueryBoundary, QueryErrorState, useTRPC } from "#data";
 import type { DraftConfig } from "#state";
 import { setDraftGroupConfig, setDraftInjections, setDraftRoomOverrides, setDraftRosterOverride, useDraftConfig } from "#state";
 import { GROUP_CONFIG_ENTITY_PREFIX } from "../hooks/use-group-config-form";
@@ -76,14 +75,7 @@ export function DraftMembersTabBody({ draftKey, cast }: DraftMembersTabBodyProps
   return (
     <QueryBoundary
       fallback={<Text tone="muted">Loading roster…</Text>}
-      renderError={(_error, retry): ReactElement => (
-        <Text tone="muted">
-          Couldn't load the roster.{" "}
-          <Button intent="ghost" onClick={retry}>
-            Retry
-          </Button>
-        </Text>
-      )}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label="the roster" onRetry={retry} />}
     >
       <DraftMembersRoster draftKey={draftKey} characterIds={cast} rosterOverrides={cfg.rosterOverrides} />
     </QueryBoundary>
