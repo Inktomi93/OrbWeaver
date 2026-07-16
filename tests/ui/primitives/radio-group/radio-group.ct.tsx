@@ -4,6 +4,7 @@ import { Field } from "@orb/ui/field";
 import { RadioGroup, RadioGroupItem } from "@orb/ui/radio-group";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
+import { resolvedTokenColor } from "../../../support/ct/resolved-token-color";
 
 const NON_EMPTY = /.+/u;
 
@@ -105,7 +106,7 @@ test("inside an invalid <Field>, data-invalid lands on every item and the border
   // actually matters for this assertion (the token skin).
   const ai = page.locator('[data-slot="radio-group-item"]').first();
   await expect(ai).toHaveAttribute("data-invalid", "");
-  await expect(ai).toHaveCSS("border-top-color", TOKENS["color.destructive"].value);
+  await expect(ai).toHaveCSS("border-top-color", resolvedTokenColor("color.destructive"));
 });
 
 test("inside a <Field>, the group registers — aria-describedby wires the description", async ({ mount, page }) => {

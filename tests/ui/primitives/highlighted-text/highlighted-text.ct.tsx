@@ -2,8 +2,8 @@
 // elements (SR-announceable), overlapping/adjacent ranges merge into one run, and the first
 // highlight scrolls into view on mount (ui-primitive carve-out work-order item 11).
 import { HighlightedText } from "@orb/ui/highlighted-text";
-import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
+import { resolvedTokenColor } from "../../../support/ct/resolved-token-color";
 
 const TEXT = "The quick brown fox jumps over the lazy dog";
 
@@ -63,8 +63,8 @@ test("empty ranges render plain text with no marks", async ({ mount }) => {
 test("the mark wears the highlight token pair, not a raw color", async ({ mount }) => {
   const component = await mount(<HighlightedText text={TEXT} ranges={[{ start: 0, end: 3 }]} />);
   const mark = component.locator("mark").first();
-  await expect(mark).toHaveCSS("background-color", TOKENS["color.highlight"].value);
-  await expect(mark).toHaveCSS("color", TOKENS["color.highlight-foreground"].value);
+  await expect(mark).toHaveCSS("background-color", resolvedTokenColor("color.highlight"));
+  await expect(mark).toHaveCSS("color", resolvedTokenColor("color.highlight-foreground"));
 });
 
 test("the first highlight scrolls into view on mount", async ({ mount, page }) => {

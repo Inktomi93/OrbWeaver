@@ -4,6 +4,7 @@
 import { StatusChip } from "@orb/ui/status-chip";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
+import { resolvedTokenColor } from "../../../support/ct/resolved-token-color";
 
 test("idle renders the neutral (muted) badge token with the Idle label", async ({ mount }) => {
   const component = await mount(<StatusChip status="idle" />);
@@ -26,7 +27,7 @@ test("succeeded carries the Check icon glyph plus the success token background",
   const badge = component.locator('[data-slot="status-chip-badge"]');
   await expect(badge).toHaveText("Succeeded");
   await expect(badge.locator("svg")).toBeVisible();
-  await expect(badge).toHaveCSS("background-color", TOKENS["color.success"].value);
+  await expect(badge).toHaveCSS("background-color", resolvedTokenColor("color.success"));
 });
 
 test("failed carries an icon glyph (never color alone) plus the destructive token background", async ({ mount }) => {
@@ -34,7 +35,7 @@ test("failed carries an icon glyph (never color alone) plus the destructive toke
   const badge = component.locator('[data-slot="status-chip-badge"]');
   await expect(badge).toHaveText("Failed");
   await expect(badge.locator("svg")).toBeVisible();
-  await expect(badge).toHaveCSS("background-color", TOKENS["color.destructive"].value);
+  await expect(badge).toHaveCSS("background-color", resolvedTokenColor("color.destructive"));
 });
 
 test("the root is a role=status aria-live=polite region", async ({ mount, page }) => {

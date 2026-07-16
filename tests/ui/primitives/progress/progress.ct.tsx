@@ -3,6 +3,7 @@
 import { Progress } from "@orb/ui/progress";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
+import { resolvedTokenColor } from "../../../support/ct/resolved-token-color";
 
 test("determinate progress reflects its value", async ({ mount, page }) => {
   await mount(<Progress aria-label="Uploading" value={72} />);
@@ -41,5 +42,5 @@ test("a completed bar (value === max) sets data-complete and swaps to the succes
   await mount(<Progress aria-label="Uploading" value={100} />);
   const indicator = page.locator('[data-slot="progress-indicator"]');
   await expect(indicator).toHaveAttribute("data-complete", "");
-  await expect(indicator).toHaveCSS("background-color", TOKENS["color.success"].value);
+  await expect(indicator).toHaveCSS("background-color", resolvedTokenColor("color.success"));
 });

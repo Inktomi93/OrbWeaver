@@ -5,6 +5,7 @@ import { LogViewer } from "@orb/ui/log-viewer";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
+import { resolvedTokenColor } from "../../../support/ct/resolved-token-color";
 
 function makeLines(count: number): string[] {
   return Array.from({ length: count }, (_, index) => `line ${index}`);
@@ -35,8 +36,8 @@ test("warn and error lines carry a non-color glyph plus the intent token color",
   await expect(warnLine.locator("svg")).toBeVisible();
   await expect(errorLine.locator("svg")).toBeVisible();
 
-  await expect(warnLine).toHaveCSS("color", TOKENS["color.warning"].value);
-  await expect(errorLine).toHaveCSS("color", TOKENS["color.destructive"].value);
+  await expect(warnLine).toHaveCSS("color", resolvedTokenColor("color.warning"));
+  await expect(errorLine).toHaveCSS("color", resolvedTokenColor("color.destructive"));
   await expect(infoLine).toHaveCSS("color", TOKENS["color.muted-foreground"].value);
 });
 

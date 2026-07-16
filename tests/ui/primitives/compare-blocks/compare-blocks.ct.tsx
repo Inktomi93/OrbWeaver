@@ -4,8 +4,8 @@
 // colorblind reader can still tell the sides apart. Accept/accept-all is controlled.
 import type { CompareBlock } from "@orb/ui/compare-blocks";
 import { CompareBlocks } from "@orb/ui/compare-blocks";
-import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
+import { resolvedTokenColor } from "../../../support/ct/resolved-token-color";
 import { AcceptHarness } from "./compare-blocks.fixtures";
 
 const TWO_BLOCKS: readonly CompareBlock[] = [
@@ -17,8 +17,8 @@ test("a single block renders one before/after pair with intent-token tints", asy
   await mount(<CompareBlocks blocks={[{ before: "The cat sat.", after: "The cat sat quietly." }]} />);
   const before = page.locator('[data-slot="compare-block-before"]');
   const after = page.locator('[data-slot="compare-block-after"]');
-  await expect(before).toHaveCSS("background-color", TOKENS["color.destructive"].value);
-  await expect(after).toHaveCSS("background-color", TOKENS["color.success"].value);
+  await expect(before).toHaveCSS("background-color", resolvedTokenColor("color.destructive"));
+  await expect(after).toHaveCSS("background-color", resolvedTokenColor("color.success"));
   await expect(page.getByText("The cat sat.", { exact: true })).toBeVisible();
   await expect(page.getByText("The cat sat quietly.")).toBeVisible();
   // Non-color signal: the sides carry sr-only text beyond the tint alone.

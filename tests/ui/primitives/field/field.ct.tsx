@@ -9,6 +9,7 @@ import { RadioGroup, RadioGroupItem } from "@orb/ui/radio-group";
 import { Switch } from "@orb/ui/switch";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
+import { resolvedTokenColor } from "../../../support/ct/resolved-token-color";
 import { FieldValidityStory } from "./field-validity.fixtures";
 
 test("wires the label to the composed control", async ({ mount, page }) => {
@@ -29,7 +30,7 @@ test("error renders destructive and marks the control data-invalid", async ({ mo
     </Field>,
   );
   const error = page.getByText("Required");
-  await expect(error).toHaveCSS("color", TOKENS["color.destructive"].value);
+  await expect(error).toHaveCSS("color", resolvedTokenColor("color.destructive"));
   await expect(page.getByLabel("Name")).toHaveAttribute("data-invalid", "");
 });
 

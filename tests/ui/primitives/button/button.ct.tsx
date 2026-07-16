@@ -4,6 +4,7 @@
 import { Button } from "@orb/ui/button";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
+import { resolvedTokenColor } from "../../../support/ct/resolved-token-color";
 
 const TOUCH_FLOOR_PX = 44;
 
@@ -14,7 +15,7 @@ test("primary intent lands as the primary token background", async ({ mount }) =
 
 test("destructive intent swaps to the destructive token", async ({ mount }) => {
   const button = await mount(<Button intent="destructive">Delete</Button>);
-  await expect(button).toHaveCSS("background-color", TOKENS["color.destructive"].value);
+  await expect(button).toHaveCSS("background-color", resolvedTokenColor("color.destructive"));
 });
 
 // The ≥44px touch floor is a COARSE-pointer guarantee (D62 P1) — control heights narrow on fine

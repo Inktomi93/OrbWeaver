@@ -6,6 +6,7 @@
 import { StatFigure } from "@orb/ui/stat-figure";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
+import { resolvedTokenColor } from "../../../support/ct/resolved-token-color";
 
 test("renders label + value with no chart when trend is omitted", async ({ mount }) => {
   const component = await mount(<StatFigure label="Documents indexed" value="1,204" />);
@@ -19,14 +20,14 @@ test("an up delta shows the chevron-up glyph and the success token color", async
   const delta = component.locator('[data-slot="stat-figure-delta"]');
   await expect(delta).toBeVisible();
   await expect(delta.locator("svg")).toBeVisible();
-  await expect(delta).toHaveCSS("color", TOKENS["color.success"].value);
+  await expect(delta).toHaveCSS("color", resolvedTokenColor("color.success"));
 });
 
 test("a down delta shows the chevron-down glyph and the destructive token color", async ({ mount }) => {
   const component = await mount(<StatFigure delta={{ text: "-3 today", direction: "down" }} label="Documents indexed" value="1,204" />);
   const delta = component.locator('[data-slot="stat-figure-delta"]');
   await expect(delta.locator("svg")).toBeVisible();
-  await expect(delta).toHaveCSS("color", TOKENS["color.destructive"].value);
+  await expect(delta).toHaveCSS("color", resolvedTokenColor("color.destructive"));
 });
 
 test("a flat delta shows the dash glyph and the muted-foreground token color", async ({ mount }) => {

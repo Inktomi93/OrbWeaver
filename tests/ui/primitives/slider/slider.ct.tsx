@@ -2,8 +2,8 @@
 // clamp holds, and the drag surface meets the 44px touch floor.
 import { Field } from "@orb/ui/field";
 import { Slider } from "@orb/ui/slider";
-import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
+import { resolvedTokenColor } from "../../../support/ct/resolved-token-color";
 
 const TOUCH_FLOOR_PX = 44;
 const NON_EMPTY = /.+/u;
@@ -113,7 +113,7 @@ test("inside an invalid <Field>, data-invalid lands and the track swaps to the d
   );
   const thumbEl = page.locator('[data-slot="slider-thumb"]');
   await expect(thumbEl).toHaveAttribute("data-invalid", "");
-  await expect(thumbEl).toHaveCSS("border-top-color", TOKENS["color.destructive"].value);
+  await expect(thumbEl).toHaveCSS("border-top-color", resolvedTokenColor("color.destructive"));
 });
 
 test("inside a <Field>, the slider associates and aria-describedby wires the description", async ({ mount, page }) => {
