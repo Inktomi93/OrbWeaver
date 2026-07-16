@@ -24,6 +24,7 @@ Dispositions: **REALIZED** (code is the doc; set is a historical record) · **PA
 | `rpg-design/` | **FUTURE** | Riders: 14 tables (gmUserId seat-as-data encoded), 475-line contracts, 15 brands, 10 stub runners. `tool-propose` ceiling is SPEC-ONLY | R1-proper domain (services, RpgContext, 26-tool registry, turn graft, encounter engine) → R11. Requires tool-use registrant path |
 | `chat-crew-design/` | **FUTURE** | Riders: 4 tables, contracts, 4 stub workload kinds (guides correctly verb-not-workload) | Whole domain; needs rpg precedent + tool-use T6 structured output |
 | `plugin-design/` | **FUTURE** (pure paper) | Nothing — no schema, no contracts, `quickjs-emscripten` not installed | Everything; last in order (needs automation Tier-1 + tool-use registry). Ruled by D46 |
+| `autosave-form-doctrine.md` | **FUTURE** (ratified 2026-07-16 → D78; dispatch LIVE) | Design only — born from the stickler live-P0 review; the lane-h tactical preset patch precedes it | L0 MINT (session boundary in a new module + CT-1..6) → L1 preset ∥ L2 character ∥ L3 per-chat ∥ L4 settings+persona → SEAL (delete old hook export + G-A `no-manual-autosave-flush`) |
 
 ## Cross-program build order (docs' own dependency map)
 

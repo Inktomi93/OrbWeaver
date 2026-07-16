@@ -1,18 +1,20 @@
 ---
 kind: spec
-status: draft
+status: active
 updated: 2026-07-16
 ---
 
 # Autosave-Form Doctrine — session-boundary identity (MINT → MIGRATE → SEAL)
 
-> **Status: DRAFT, awaiting owner ratification.** Authored from the 2026-07-16 stickler merge-block
-> review (`reports/stickler/2026-07-16-merge-block-28523122.md`) — both P0s were live-reproduced and
-> their mechanics traced into TanStack form-core source; every claim below carries that evidence.
-> On ratification: add the `INDEX.md` disposition row (FUTURE, this file, lanes L0–L4 below), mint
-> the D-entry (§Ledger), and dispatch the lanes. ASSUMES the tactical preset patch
-> (`lane-h-preset-p0s`) lands first — that patch makes the preset editor *correct*; this program
-> makes the whole class *unspellable*.
+> **Status: RATIFIED 2026-07-16 (owner) — D78 minted (`Core-Path-Registry.md`), PD-145 tracks the
+> three EXPOSED consumers until L2/L3, INDEX.md row added, L0 dispatched.** Authored from the
+> 2026-07-16 stickler merge-block review (`reports/stickler/2026-07-16-merge-block-28523122.md`) —
+> both P0s were live-reproduced and their mechanics traced into TanStack form-core source; every
+> claim below carries that evidence. Wave mechanics under the per-commit gate battery: L0 mints the
+> boundary in a NEW module alongside the untouched old hook (every commit stays green); L1–L4
+> migrate consumers; the SEAL lane deletes the old export + arms G-A — the old shape still dies in
+> the SAME wave (atomic per D72). L1 queues behind the tactical preset patch
+> (`lane-h-preset-p0s`) and ports its CT pins onto the boundary.
 
 ## §0 The defect class this kills (evidence-grounded)
 
