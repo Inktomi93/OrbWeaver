@@ -19,10 +19,11 @@ import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
-import { useTRPC } from "#data";
+import { useAuthConfig, useTRPC } from "#data";
 import type { ChatContextState } from "#lib";
 import { setContextTab, setPanelMode } from "#state";
-import { filterCharacters } from "../lib/roster";
+import { deriveChatTitle } from "../lib/chat-summary-row";
+import { filterCharacters, membersTabJustified } from "../lib/roster";
 
 export interface ChatHeaderSurfaceProps {
   readonly chatId: ChatId;
@@ -34,18 +35,30 @@ interface CommittedIdentity {
   readonly cast: readonly CharacterParticipant[];
   readonly title: string;
   readonly memberCount: number;
+  /** The member-count chip renders behind the SAME predicate that gates the Members context tab
+   *  (`membersTabJustified` — chats-section.tsx's `when`), so the chip can never open a tab that
+   *  doesn't exist (a 1:1 chat would land on Overrides — a mislabeled dead-end). */
+  readonly membersJustified: boolean;
 }
 
 /** The committed chat's identity (avatars/title/member-count), read from the shared `getChat` query
  *  (plain useQuery — degrades to a neutral title, never suspends). The ONE home for the topbar LEAD and
- *  the context BAND to derive their identity from. */
+ *  the context BAND to derive their identity from. Title fallback = `deriveChatTitle` (the one home —
+ *  stored titles are "" until renamed; a blank title never renders). */
 function useCommittedIdentity(chatId: ChatId): CommittedIdentity {
   const trpc = useTRPC();
   const { data: chat } = useQuery(trpc.chat.getChat.queryOptions({ chatId }));
+  const { data: authConfig } = useAuthConfig();
+  const participants = chat?.participants ?? [];
+  const cast = filterCharacters(participants);
   return {
-    cast: filterCharacters(chat?.participants ?? []),
-    title: chat?.title ?? "Untitled chat",
-    memberCount: (chat?.participants ?? []).filter((p) => p.leftSeq === null).length,
+    cast,
+    title: deriveChatTitle(
+      chat?.title ?? null,
+      cast.map((c) => c.displayName),
+    ),
+    memberCount: participants.filter((p) => p.leftSeq === null).length,
+    membersJustified: membersTabJustified(participants, authConfig?.multiHumanCapable === true),
   };
 }
 
@@ -63,7 +76,7 @@ function ChatIdentityCluster({ avatars, title }: { readonly avatars: ReactNode; 
 }
 
 export function ChatHeaderSurface({ chatId }: ChatHeaderSurfaceProps): ReactElement {
-  const { cast, title, memberCount } = useCommittedIdentity(chatId);
+  const { cast, title, memberCount, membersJustified } = useCommittedIdentity(chatId);
   // The chip is entry-only — it ALWAYS opens Context on Members, never toggles closed (D66 §2 members
   // row; the collapse affordance belongs to the context header's own control).
   const openMembersPanel = (): void => {
@@ -74,7 +87,7 @@ export function ChatHeaderSurface({ chatId }: ChatHeaderSurfaceProps): ReactElem
   return (
     <Row gap="row" align="center" className="min-w-0">
       <ChatIdentityCluster avatars={<CastAvatars cast={cast} />} title={title} />
-      {memberCount > 0 ? (
+      {membersJustified ? (
         <Button type="button" intent="ghost" size="sm" aria-label={`Members — ${memberCount}`} onClick={openMembersPanel} className="whitespace-nowrap">
           <Icon icon={Users} size="sm" />
           <Text as="span" size="micro" tone="muted" transform="caps" aria-hidden={true}>

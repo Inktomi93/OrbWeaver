@@ -16,7 +16,10 @@ export function Section({ className, heading, divider = false, children, ...prop
   const slots = sectionVariants({ divider });
   return (
     <section {...props} className={slots.root({ className })}>
-      {heading === undefined ? null : <h2 className={slots.heading()}>{heading}</h2>}
+      {/* h3, not h2: a Section is always a SUB-heading of its hosting surface (a dialog's Title and a
+          drawer's Title render h2), so h2 here flattened e.g. the settings modal's whole hierarchy to
+          one level. The skin is unchanged — hierarchy is carried by weight, not size. */}
+      {heading === undefined ? null : <h3 className={slots.heading()}>{heading}</h3>}
       {children}
     </section>
   );

@@ -188,7 +188,7 @@ export function PersonaPanelRow({
       <Collapsible onOpenChange={onToggleExpand} open={expanded}>
         <CollapsiblePanel>
           <Stack className="rounded-card border border-border p-block" gap="section">
-            <PersonaEditor persona={persona} />
+            <PersonaEditor persona={persona} onRequestDelete={(): void => setDeleteOpen(true)} />
           </Stack>
         </CollapsiblePanel>
       </Collapsible>

@@ -14,6 +14,18 @@ const DEFAULT_SCROLL_END_THRESHOLD_PX = 80;
 // Tolerance for matching virtual-core's own last scrollTop write vs. a genuine external scroll.
 const PROGRAMMATIC_SCROLL_EPSILON_PX = 2;
 
+// An edge fades only when more than this many px of content lie beyond it — sub-pixel rounding must
+// not flicker the fade on an unscrolled list.
+const EDGE_FADE_EPSILON_PX = 1;
+
+/** Edge-fade state for the styles-tier mask (`client/styles/globals.css` keys on these attributes):
+ *  an edge dissolves ONLY while content is actually scrolled past it, so a short thread never renders
+ *  its first/last rows half-faded against nothing. */
+function updateEdgeFades(el: HTMLElement): void {
+  el.toggleAttribute("data-fade-top", el.scrollTop > EDGE_FADE_EPSILON_PX);
+  el.toggleAttribute("data-fade-bottom", el.scrollHeight - el.scrollTop - el.clientHeight > EDGE_FADE_EPSILON_PX);
+}
+
 // Merges keepMounted's forced indices into rangeExtractor's base range; sorted ascending because
 // virtual-core requires ascending indices from its range extractors.
 function composeRangeExtractor<T>(
@@ -195,10 +207,15 @@ export function MessageList<T>({
   }, [virtualizer, followTail]);
 
   // A scroll position matching virtual-core's last recorded write is its own drift/re-pin — ignore
-  // it. Anything else was moved externally (wheel/touch/keyboard/AT/scrollIntoView) and is trustworthy.
+  // it for FOLLOW intent (edge fades track every scroll, whoever moved it). Anything else was moved
+  // externally (wheel/touch/keyboard/AT/scrollIntoView) and is trustworthy.
   const onScrollTracked = (): void => {
     const el = scrollRef.current;
     if (el === null) {
+      return;
+    }
+    updateEdgeFades(el);
+    if (!followTail) {
       return;
     }
     const expected = programmaticTopRef.current;
@@ -234,6 +251,24 @@ export function MessageList<T>({
   // Unbounded-height tripwire: thrown, not warned — identical to virtual-list.
   useLayoutEffect(() => assertBoundedScrollHeight(scrollRef.current, "MessageList"), []);
 
+  // Seed + track edge-fade state outside scroll events: mount, content growth (a streaming ghost, a
+  // prepend) and container resizes all change whether an edge has hidden content behind it.
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    if (el === null) {
+      return;
+    }
+    updateEdgeFades(el);
+    const viewport = viewportNodeRef.current;
+    if (viewport === null || typeof ResizeObserver === "undefined") {
+      return;
+    }
+    const observer = new ResizeObserver(() => updateEdgeFades(el));
+    observer.observe(viewport);
+    observer.observe(el);
+    return (): void => observer.disconnect();
+  }, []);
+
   return (
     <div
       ref={(node): void => {
@@ -246,7 +281,7 @@ export function MessageList<T>({
       }}
       role="log"
       aria-live="polite"
-      onScroll={followTail ? onScrollTracked : undefined}
+      onScroll={onScrollTracked}
       className={cn("overflow-auto overscroll-contain", className)}
       data-slot="message-list-scroll"
     >

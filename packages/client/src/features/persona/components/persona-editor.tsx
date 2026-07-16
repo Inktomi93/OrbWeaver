@@ -9,7 +9,7 @@ import type { PersonaDescriptionPosition } from "@orb/kit/persona";
 import { PERSONA_DESCRIPTION_POSITIONS } from "@orb/kit/persona";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
-import { Copy, Download, Icon } from "@orb/ui/icons";
+import { Copy, Download, Icon, Trash2 } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
@@ -41,10 +41,14 @@ const POSITION_ITEMS: SelectItems<string> = PERSONA_DESCRIPTION_POSITIONS.map((v
 
 export interface PersonaEditorProps {
   readonly persona: PersonaDetail;
+  /** Opens the row's delete confirm (the tier-2 ConfirmDialog the row already owns). An always-visible
+   *  way out of the create-on-click flow: "New persona" instantly persists a row, so the freshly-opened
+   *  autosave editor must offer an explicit discard — the row's own delete is hover-revealed only. */
+  readonly onRequestDelete: () => void;
 }
 
 /** The persona DETAILS — autosaving, no repeated avatar/name (the panel-row's expand-to-edit body). */
-export function PersonaEditor({ persona }: PersonaEditorProps): ReactElement {
+export function PersonaEditor({ persona, onRequestDelete }: PersonaEditorProps): ReactElement {
   const trpc = useTRPC();
   const client = useTRPCClient();
   const invalidation = useInvalidation();
@@ -134,6 +138,10 @@ export function PersonaEditor({ persona }: PersonaEditorProps): ReactElement {
       <ProvenanceChip metadata={baseMetadata} />
 
       <Row gap="row" align="center" className="justify-end">
+        <Button intent="ghost" size="sm" onClick={onRequestDelete}>
+          <Icon icon={Trash2} size="sm" />
+          Delete
+        </Button>
         <Button intent="ghost" size="sm" onClick={(): void => duplicate.mutate({ personaId: persona.id })}>
           <Icon icon={Copy} size="sm" />
           Duplicate

@@ -4,7 +4,16 @@
 // why that seam is story-side, not beforeMount). The `.ct.tsx` beside this file mounts ONLY these
 // exports. This file is the template every client feature agent copies.
 
-import { createCollectionSurface, createEntityMutation, QueryBoundary, useGatedQuery, useInvalidation, useTRPC, useViewer } from "@orb/client/data";
+import {
+  createCollectionSurface,
+  createEntityMutation,
+  QueryBoundary,
+  useGatedQuery,
+  useInvalidation,
+  useOnlineStatus,
+  useTRPC,
+  useViewer,
+} from "@orb/client/data";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { CreateTagInput, TagView } from "@orb/contracts/tag";
 import type { ChatId } from "@orb/kit/ids";
@@ -39,6 +48,33 @@ export function EchoBoundaryStory(): ReactElement {
       >
         <EchoReader />
       </QueryBoundary>
+    </CtDataProviders>
+  );
+}
+
+// Bare probe for `useOnlineStatus` — renders the live boolean so the CT can flip the context's
+// network emulation and assert the hook tracks the browser online/offline events end-to-end.
+export function OnlineStatusProbeStory(): ReactElement {
+  const online = useOnlineStatus();
+  return <output data-testid="online-status">{online ? "online" : "offline"}</output>;
+}
+
+// Defers mounting the suspending reader behind a click, so the offline CT can cut the network AFTER
+// the harness assets load but BEFORE the query exists — `networkMode:"online"` then PAUSES it at
+// mount (fetchStatus "paused", no request), the exact silent-skeleton state the boundary's offline
+// line exists for.
+export function DeferredEchoBoundaryStory(): ReactElement {
+  const [show, setShow] = useState(false);
+  return (
+    <CtDataProviders>
+      <button type="button" onClick={(): void => setShow(true)}>
+        load
+      </button>
+      {show ? (
+        <QueryBoundary fallback={<p>loading…</p>} renderError={(e): ReactElement => <p role="alert">{String(e)}</p>}>
+          <EchoReader />
+        </QueryBoundary>
+      ) : null}
     </CtDataProviders>
   );
 }

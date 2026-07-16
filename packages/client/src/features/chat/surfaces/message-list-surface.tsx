@@ -191,7 +191,9 @@ function ChatThread({ chatId, chatStyle, onChatForked, surfaceContributors }: Ch
         renderItem={renderItem}
         scrollContainerRef={jump.scrollContainerRef}
         gapToken="block"
-        className="h-full"
+        // py-block: the first/last rows breathe off the topbar/composer edges instead of butting the
+        // scroll container's border (12px is inside the virtualizer's overscan + isAtEnd tolerances).
+        className="h-full py-block"
       />
       <JumpToLatestPill count={jump.count} visible={jump.visible} onJump={jump.onJump} />
     </Stack>

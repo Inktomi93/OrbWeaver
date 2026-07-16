@@ -46,7 +46,9 @@ export function CharacterFacetRow({ facet, selected, filled, preview, focusOnMou
       </Badge>
 
       <Button ref={buttonRef} intent="ghost" size="sm" className="min-w-0 flex-1 justify-start text-left" onClick={(): void => onSelect(facet.id)}>
-        <Text size="body" weight="medium" className="truncate">
+        {/* The LABEL keeps its full width (shrink-0); only the preview/subtitle truncates — a filled
+            row must never ellipsize "Personality" down to "P…" to fit its own preview. */}
+        <Text size="body" weight="medium" className="shrink-0">
           {facet.label}
         </Text>
         <Text size="micro" tone="muted" className="truncate">

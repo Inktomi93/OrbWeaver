@@ -97,6 +97,16 @@ export function Markdown({ trust, mode, children, className }: MarkdownProps): R
 
   // Emphasis/italic reads as narration in this app's prose voice — the base className tints every
   // rendered <em> with --color-narration, re-themed for free per palette.
+  // Streamdown's root div HARDCODES its own spacing utilities (a 1rem block gap + whitespace-normal +
+  // first/last-child margin trims) and twMerges our className over them. Its dist is deliberately NOT a
+  // Tailwind source (its raw spacing would fight the reading-typography tokens —
+  // `--reading-paragraph-spacing` owns prose spacing via the higher-specificity
+  // `[data-slot="message-bubble"] p + p` rule), so those defaults were DEADCSS in the DOM. The base
+  // className below neutralizes them with COMPILED equivalents: `space-y-0` replaces the 1rem gap via
+  // the twMerge conflict group; the other three dedupe to the identical literal, which this scanned
+  // source makes real. All four are visual no-ops (preflight zeroes margins) — the rendering is
+  // byte-identical, minus the dead classes. (Don't spell the replaced gap utility here — Tailwind
+  // scans comments, and the literal would resurrect it as an unused rule.)
   return (
     <MarkdownErrorBoundary>
       <Streamdown
@@ -107,7 +117,7 @@ export function Markdown({ trust, mode, children, className }: MarkdownProps): R
         {...mermaidProp}
         // Incomplete-markdown repair is a streaming concern only; a settled body must render as-authored.
         parseIncompleteMarkdown={mode === "streaming"}
-        className={cn("[&_em]:text-narration", className) ?? ""}
+        className={cn("space-y-0 whitespace-normal [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_em]:text-narration", className) ?? ""}
         {...(animate ? { isAnimating: true, animated: STREAMING_ANIMATION } : {})}
         {...(mode === "streaming" ? { caret: "block" as const } : {})}
         {...(untrusted
