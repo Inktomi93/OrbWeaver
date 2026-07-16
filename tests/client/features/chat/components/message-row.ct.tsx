@@ -12,6 +12,7 @@ import { castId } from "@orb/kit/ids";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
+import type { MessageMetadataVisibility } from "../../../../../packages/client/src/features/chat/components/message-metadata-row";
 import { MessageRowStory } from "../_ct-stories";
 
 const AI_BUBBLE = /bg-ai-bubble/u;
@@ -19,6 +20,7 @@ const USER_BUBBLE = /bg-user-bubble/u;
 const PROSE_BODY = /text-prose-body/u;
 const FULL_WIDTH = /w-full/u;
 const ALIGN_END = /items-end/u;
+const FONT_MONO = /font-mono/u;
 
 const BUBBLE = '[data-slot="message-bubble"]';
 const ROW = '[data-slot="message-row"]';
@@ -105,6 +107,84 @@ test("bubble style tints a user row with the user-bubble token + right-alignment
   const component = await mount(<MessageRowStory chatStyle="bubble" messageRole="user" />);
   await expect(component.locator(BUBBLE)).toHaveClass(USER_BUBBLE);
   await expect(component.locator(ROW)).toHaveClass(ALIGN_END);
+});
+
+// ── D66 N3: content-sized bubbles (w-fit) + quiet metadata + name-row timestamp ────────────────────
+const METADATA_ROW = '[data-slot="message-metadata-row"]';
+const TIMESTAMP = '[data-slot="message-metadata-timestamp"]';
+const TOKENS_SLOT = '[data-slot="message-metadata-tokens"]';
+
+/** All metadata toggles off by default — flip only what a test needs (the story omits ⇒ hidden). */
+function meta(overrides: Partial<MessageMetadataVisibility>): MessageMetadataVisibility {
+  return {
+    showTimestamps: false,
+    showMessageId: false,
+    showModelIcon: false,
+    showTokenCount: false,
+    showGenerationTimer: false,
+    showGenerationCost: false,
+    ...overrides,
+  };
+}
+
+test("bubble: a two-word reply hugs its text — bubble width well under the content column (w-fit, N3)", async ({ mount }) => {
+  const component = await mount(
+    <MessageRowStory chatStyle="bubble" messageRole="assistant" content="Hi there" characterId={ALICE_ID} participants={[alice()]} />,
+  );
+  const bubbleBox = await component.locator(BUBBLE).boundingBox();
+  const columnBox = await component.locator(CONTENT_COLUMN).boundingBox();
+  expect(bubbleBox?.width).toBeGreaterThan(0);
+  // The two-word bubble hugs its content (fit-content), never stretched to fill the reading column (its
+  // flex parent would otherwise stretch it) — the exact w-fit behavior N3 adds to the bubble family.
+  expect(bubbleBox?.width ?? 0).toBeLessThan((columnBox?.width ?? 0) * 0.6);
+});
+
+test("showTimestamps: the timestamp is micro-mono text INSIDE the name row, not a pill (P5)", async ({ mount }) => {
+  const component = await mount(
+    <MessageRowStory
+      chatStyle="bubble"
+      messageRole="assistant"
+      characterId={ALICE_ID}
+      participants={[alice()]}
+      metadataVisibility={meta({ showTimestamps: true })}
+    />,
+  );
+  // Lives beside the speaker name in the name row (P5's "inline time"), not in the metadata footer.
+  const ts = component.locator(NAME_ROW).locator(TIMESTAMP);
+  await expect(ts).toHaveCount(1);
+  await expect(ts).toHaveClass(FONT_MONO);
+  // A quiet <span> Text (P5 voice), never a @orb/ui Badge — the slot is preserved (rule 0.7).
+  expect(await ts.evaluate((el) => el.tagName.toLowerCase())).toBe("span");
+});
+
+test("showTimestamps off: no timestamp element (respecting the toggle)", async ({ mount }) => {
+  const component = await mount(
+    <MessageRowStory chatStyle="bubble" messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} metadataVisibility={meta({})} />,
+  );
+  await expect(component.locator(TIMESTAMP)).toHaveCount(0);
+});
+
+test("showTokenCount: the token count is inline micro-mono text (no Badge pill); the metadata row renders", async ({ mount }) => {
+  const component = await mount(
+    <MessageRowStory
+      chatStyle="bubble"
+      messageRole="assistant"
+      characterId={ALICE_ID}
+      participants={[alice()]}
+      metadataVisibility={meta({ showTokenCount: true })}
+    />,
+  );
+  await expect(component.locator(METADATA_ROW)).toHaveCount(1);
+  const tok = component.locator(TOKENS_SLOT);
+  await expect(tok).toContainText("128 tok");
+  await expect(tok).toHaveClass(FONT_MONO);
+});
+
+test("every metadata toggle off: the metadata row renders nothing at all (no empty shell)", async ({ mount }) => {
+  const component = await mount(
+    <MessageRowStory chatStyle="bubble" messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} metadataVisibility={meta({})} />,
+  );
+  await expect(component.locator(METADATA_ROW)).toHaveCount(0);
 });
 
 test("document style drops the bubble for prose-body", async ({ mount }) => {
@@ -603,21 +683,22 @@ test("a FILLED mode (echo) does NOT chip its chrome — scoped to the no-fill mo
   expect(bg).toBe(TRANSPARENT);
 });
 
-// ── The action-cluster reveal is NOT the Wave-1 opacity-0-in-flow starve (measured no-op) ──────────
-// message-actions-reveal.ts's `"hover"` posture dims the cluster to `opacity-40` at rest (VISIBLE, always
-// in-flow), NOT `opacity-0` (invisible-but-claiming-width, the Wave-1 P0). This pins the two facts that
-// make it safe: (a) the cluster is on-screen at rest (opacity 0.4, a real box) so its footprint is never
-// a surprise, and (b) opposite an icon-only cluster a normal speaker name doesn't overflow the name row.
-test("action cluster is dim-at-rest (opacity, in-flow) and never starves a normal name (Wave-1 audit no-op)", async ({ mount }) => {
+// ── A3 hidden-at-rest reveal is NOT the Wave-1 opacity-0-in-flow starve (measured no-op) ────────────
+// message-actions-reveal.ts's `"hover"` posture (D66 A3) now HIDES the cluster at rest (opacity-0 +
+// pointer-events-none), revealing on hover/focus-within/coarse. The Wave-1 "opacity-0 in-flow starves a
+// flex sibling" P0 is still absent: opacity + pointer-events change NO layout, so the cluster keeps its
+// box (footprint identical at rest vs revealed) and a normal speaker name never overflows the name row.
+test("action cluster is hidden-at-rest (opacity 0, in-flow, inert) and never starves a normal name (A3 geometry pin)", async ({ mount }) => {
   const component = await mount(<MessageRowStory chatStyle="bubble" messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} />);
   const actions = component.locator('[data-slot="message-actions-row"]');
   const nameRow = component.locator(NAME_ROW);
-  // Dim-at-rest via OPACITY (§B.1), never display:none — a real box that's visibly dim, so its width is
-  // on-screen and intentional (the opposite of Wave-1's invisible-but-in-flow content).
-  await expect(actions).toHaveCSS("opacity", "0.4");
+  // Hidden-at-rest via OPACITY + pointer-events (A3), never display:none — the cluster still lays out a
+  // real box (so its footprint is stable, not a surprise on reveal), it's just invisible AND inert.
+  await expect(actions).toHaveCSS("opacity", "0");
+  await expect(actions).toHaveCSS("pointer-events", "none");
   const actionsBox = await actions.boundingBox();
   expect(actionsBox?.width).toBeGreaterThan(0); // in flow, occupying real space at rest
-  // The name row doesn't overflow its own box — the icon-only cluster leaves room for the name (no
+  // The name row doesn't overflow its own box — the icon+⋯ cluster leaves room for the name (no
   // sibling-starve). scrollWidth ≤ clientWidth ⇒ nothing clipped/pushed past the edge.
   const overflow = await nameRow.evaluate((el) => el.scrollWidth > el.clientWidth + 1);
   expect(overflow).toBe(false);

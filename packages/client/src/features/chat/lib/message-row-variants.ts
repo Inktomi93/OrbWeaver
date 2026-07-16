@@ -73,7 +73,11 @@ function bubbleOuter(role: MessageRole): string {
   return cx("mx-auto w-full max-w-(--width-shell-content)", alignFor(role));
 }
 function bubbleInner(role: MessageRole): string {
-  return cx("max-w-prose rounded-card px-block py-row", BUBBLE_TOKENS[role]);
+  // `w-fit` (D66 N3) so a short reply hugs its text instead of stretching the whole reading column;
+  // `max-w-prose` still caps the long-form line length. Inherited by exactly the five bubble-family
+  // skins whose `inner: bubbleInner` (bubble/echo/whisper/ripple/tide) — flat/document/hush own their
+  // own full-width inner and are untouched.
+  return cx("w-fit max-w-prose rounded-card px-block py-row", BUBBLE_TOKENS[role]);
 }
 function flatOuter(): string {
   return "w-full items-stretch";

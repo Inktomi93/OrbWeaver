@@ -25,6 +25,7 @@ import { GreetingSwipeStrip } from "./greeting-swipe-strip";
 import { MessageActionsRow } from "./message-actions-row";
 import { MessageContent } from "./message-content";
 import { MessageEditTextarea } from "./message-edit-textarea";
+import { MessageTimestamp } from "./message-metadata-row";
 import { renderSingleBubble } from "./message-row-bubble";
 import { SwipeStrip } from "./swipe-strip";
 
@@ -130,7 +131,7 @@ export function renderRowBubble(args: {
   );
 }
 
-export function renderAttributionName(attribution: RowAttribution): ReactElement | null {
+function renderAttributionName(attribution: RowAttribution): ReactElement | null {
   if (attribution.name === null) {
     return null;
   }
@@ -196,6 +197,26 @@ export function renderRowAvatar(args: {
     >
       {initialsFor(args.attribution.name)}
     </Avatar>
+  );
+}
+
+// The name-row left cluster (D66 N3): the speaker name (when a roster is threaded) + the quiet inline
+// timestamp beside it. Split out (not inlined in message-row.tsx) so the row body stays under the
+// cognitive-complexity ceiling. Renders nothing when there is neither a name nor a shown timestamp.
+export function renderRowIdentity(args: { readonly attribution: RowAttribution; readonly message: MessageView; readonly showTimestamp: boolean }): ReactNode {
+  const { attribution, message, showTimestamp } = args;
+  if (attribution.name === null && !showTimestamp) {
+    return null;
+  }
+  return (
+    <Row gap="field" align="baseline">
+      {attribution.name === null ? null : (
+        <Row gap="field" align="baseline" data-slot="message-attribution">
+          {renderAttributionName(attribution)}
+        </Row>
+      )}
+      <MessageTimestamp message={message} show={showTimestamp} />
+    </Row>
   );
 }
 

@@ -57,6 +57,7 @@ import { MessageActionsRow } from "../../../../packages/client/src/features/chat
 import { MessageContent } from "../../../../packages/client/src/features/chat/components/message-content";
 import { MessageEditTextarea } from "../../../../packages/client/src/features/chat/components/message-edit-textarea";
 import { MessageMediaBlock } from "../../../../packages/client/src/features/chat/components/message-media-block";
+import type { MessageMetadataVisibility } from "../../../../packages/client/src/features/chat/components/message-metadata-row";
 import { MessageRow } from "../../../../packages/client/src/features/chat/components/message-row";
 import { ReasoningBlock } from "../../../../packages/client/src/features/chat/components/reasoning-block";
 import { SpeakAsSelect } from "../../../../packages/client/src/features/chat/components/speak-as-select";
@@ -108,6 +109,9 @@ export interface MessageRowStoryProps {
   readonly avatarAspect?: "square" | "portrait";
   readonly avatarRing?: "none" | "accent";
   readonly showInChatAvatars?: boolean;
+  /** WS3/N3 — the per-toggle metadata-chip visibility (timestamp → name row, the rest → metadata row).
+   *  Omitted ⇒ every datum hidden (the `MessageRow` NO_METADATA_VISIBLE default). */
+  readonly metadataVisibility?: MessageMetadataVisibility;
 }
 
 /** One row in a chosen chatStyle — the variant-mechanism CT mounts this three times; also the
@@ -127,6 +131,7 @@ export function MessageRowStory({
   avatarAspect,
   avatarRing,
   showInChatAvatars,
+  metadataVisibility,
 }: MessageRowStoryProps): ReactElement {
   const participantsMap =
     participants === undefined
@@ -154,8 +159,9 @@ export function MessageRowStory({
     <CtDataProviders>
       <MessageThreadAnchor>
         <MessageRow
-          message={makeMessageView({ role: messageRole, content, characterId, personaId })}
+          message={makeMessageView({ role: messageRole, content, characterId, personaId, tokensOut: 128, model: "ct/model-x" })}
           chatStyle={chatStyle}
+          metadataVisibility={metadataVisibility}
           avatarSize={avatarSize}
           avatarShape={avatarShape}
           avatarAspect={avatarAspect}

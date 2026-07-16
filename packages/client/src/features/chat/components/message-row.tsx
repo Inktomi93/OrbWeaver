@@ -26,11 +26,11 @@ import type { GreetingBinding } from "../lib/synth-greeting-row";
 import type { MessageMetadataVisibility } from "./message-metadata-row";
 import { MessageMetadataRow } from "./message-metadata-row";
 import {
-  renderAttributionName,
   renderContextBoundaryDivider,
   renderRowActions,
   renderRowAvatar,
   renderRowBubble,
+  renderRowIdentity,
   renderRowSwipe,
   resolveRowContent,
 } from "./message-row-parts";
@@ -210,11 +210,7 @@ export function MessageRow({
           {leadingAvatar}
           <Stack gap="row" data-slot="message-content-column" className="min-w-0 flex-1">
             <Row justify="between" align="center" gap="field" data-slot="message-name-row" className={skin.chromeBacking}>
-              {attribution.name === null ? null : (
-                <Row gap="field" align="baseline" data-slot="message-attribution">
-                  {renderAttributionName(attribution)}
-                </Row>
-              )}
+              {renderRowIdentity({ attribution, message, showTimestamp: metadataVisibility.showTimestamps })}
               {renderRowActions({
                 editing,
                 selecting,
