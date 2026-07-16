@@ -445,7 +445,22 @@ per-section switch. That channel shape is N4's ONE design decision; G3 (mint-onl
    on **JFC**…"). **[CORRECTED]** the Options color swatches ALREADY use `field.ColorField` with
    labels (`character-appearance-tab.tsx:240-258`) — verify rendered labels are visible, else a
    sizing fix only, not a rebuild.
-2. **Presets** — 10 tabs (`lib/preset-nav.ts` `PRESET_EDITOR_TABS` typed tuple) → 4 groups:
+2. **Presets** — **✅ SHIPPED 2026-07-16** (commit `7e57ca0b`; lane verifier CONFIRMED; full static
+   battery + 6,020 node tests green on the merged tree). Landed: `PRESET_EDITOR_GROUPS`
+   (Generation/Prompt/Context/Transforms) with the ten leaves as typed sub-tabs, leaf content
+   UNCHANGED (a default-less `leafContent()` switch makes tsc exhaustiveness prove the 10-leaf
+   mapping); the A4 autosave flip (`use-preset-form` → `createAutosaveEntityForm`,
+   SaveBar/DirtyPill/SubmitButton deleted, the shared `AutosaveStatus` REUSED; reset-to-starter via
+   a remount nonce, never `form.reset`; every §7 array-trap site flushes explicitly — CT-pinned for
+   add AND remove); the section detail's bottom row → ONE `⋯` `RowActionsMenu` (Delete
+   ConfirmDialog-gated — a spec-directed change from the prior undo-toast); rack ember demoted
+   (custom pill → neutral, selection → the chats-pattern 10%-primary tint + left bar; the toolbar
+   Add is the rack's one primary, `Every generation` the detail's one ember toggle). FLAGGED for a
+   sanction decision: a checked `Switch` renders ember from the PRIMITIVE
+   (`data-checked:bg-primary`) — de-embering needs a sanctioned variant (rule 0.3); the SETUP/POST
+   zone pills ride `info`/`warning` (functional zone colors, not ember). Deferred to the
+   quiet-window side-eye pass: tab-strip stacking + AutosaveStatus pixels. Original spec (now the
+   record): 10 tabs (`lib/preset-nav.ts` `PRESET_EDITOR_TABS` typed tuple) → 4 groups:
    **Generation** (Quality·Sampling·Reasoning·Output) · **Prompt** (Prompt·Templates) · **Context**
    (Compaction·Variables) · **Transforms** (Post-process·Regex); old tabs become sub-navigation
    inside each, content moves UNCHANGED (regroup, not rewrite). `Save preset` → autosave (§7).
@@ -459,9 +474,12 @@ per-section switch. That channel shape is N4's ONE design decision; G3 (mint-onl
 4. **Ported open remainders — THE one UI to-do board** (every open UI item from the archived
    D62-era records, each CODE-VERIFIED 2026-07-13; the history docs are closed — nothing UI-shaped
    is tracked anywhere but here):
-   - **UIP-404 — `SettingRow` row-grammar adoption.** OPEN, verified: `SettingRow` renders in only
-     3 files; the appearance pane still composes `Grid`/`Section`/`Stack`. The persona settings
-     pane already adopted it — use it as the pattern. Fold into the Settings stop of the rollout.
+   - **UIP-404 — `SettingRow` row-grammar adoption. RESOLVED-STALE 2026-07-16 (settings stop):**
+     the 2026-07-13 premise rotted before the lane ran — the appearance pane has since moved onto
+     the form-factory `Field`/`SwitchField`/`SelectField` grammar (the A4 conversion), and its
+     effects/reading sub-sections already ride `SettingRow` via `SettingSwitchRow`
+     (`appearance-effects-section.tsx`). Nothing left to adopt; zero code. (Original premise: only
+     3 files rendered `SettingRow`; the persona pane was the adoption pattern.)
    - **Streaming caret + typing dots.** OPEN, verified: `ghost-message-row.tsx` has neither the
      2px primary caret nor the typing dots today. Verify-live what streaming actually shows, then
      build the missing chrome (respecting `reducedMotion`). Fold into the N3/N4 chat lane.
@@ -470,12 +488,13 @@ per-section switch. That channel shape is N4's ONE design decision; G3 (mint-onl
      file + front-door export + door registration + `SETTINGS_CATEGORY_IDS` member gone). Account stays the
      leaf MODAL (`auth/lib/account-modal.tsx` → `auth/surfaces/account-surface.tsx`, placement `surface`),
      reached from inside the Identity widget. Auth #50 completion targets the modal body. Do not build a pane.
-   - **@orb/ui chart-module registration — `Scatter` + `Heatmap`/`VisualMap`.** OPEN (2026-07-13):
-     the ECharts seal (`packages/ui/src/charts/chart/echarts-setup.ts`) registers Bar/Line only.
-     Two shipped surfaces are capped by it: the Corpus Map is an inert SVG scatter (click-through is
-     belt-blocked on raw SVG — needs a real `Scatter` primitive) and Analytics decomposes the 7×24
-     activity matrix into histogram+bar-list (a true heatmap needs `HeatmapChart`+`VisualMapComponent`).
-     One ui-package task unlocks both; the consuming client code is already shaped for it.
+   - **@orb/ui chart-module registration — `Scatter` + `Heatmap`/`VisualMap`. RESOLVED 2026-07-16**
+     (commit `6f6b1493`; lane verifier CONFIRMED): the seal registers
+     ScatterChart+HeatmapChart+VisualMapComponent; the two new primitives follow the charts-family
+     conventions with CTs; BOTH capped surfaces flipped — the Corpus Map is a real interactive
+     `Scatter` (click-select live) and Analytics renders the true 7×24 heatmap; the orphaned
+     `corpusContextMap` test-id was removed with the dead SVG scatter. (Original: the ECharts seal
+     registered Bar/Line only, capping both surfaces.)
    - **Chat-scoped discovery drills — `discovery.swipeHotspots` + `discovery.similarChats`.** OPEN,
      verified: both server verbs are routed + tested but take a `chatId` (a chat's most-re-rolled
      assistant slots; "more like THIS chat"), so they belong to a FUTURE per-chat drill, NOT the
@@ -487,14 +506,12 @@ per-section switch. That channel shape is N4's ONE design decision; G3 (mint-onl
      registry replaced `settings-nav.ts`'s `built:false` flag). Fold into the Settings stop of the
      rollout alongside UIP-404. (Automation is likewise `{placeholder: true}` but is feature-scope,
      not cohesion.)
-   - **Autosave micro-status on settings panes.** OPEN, re-verified 2026-07-15: §7 specifies a live
-     `Saved / Saving… / Save failed — retry` status, but no pane renders it — every pane shows only
-     the static "Changes save automatically" caption (`settings/surfaces/appearance-settings-surface.tsx`,
-     `settings/surfaces/regex-settings-surface.tsx`, and post-M6
-     `credentials/surfaces/connections-settings-surface.tsx`). The autosave WRITE path exists; the
-     user-facing status affordance does not. App-wide A4 gap — needs its own pass (one shared status
-     primitive fed by the section mutation state, replacing the static caption). Fold into the
-     Settings stop of the rollout alongside UIP-404.
+   - **Autosave micro-status on settings panes. RESOLVED 2026-07-16** (commit `081468f3`, the
+     settings stop; lane verifier CONFIRMED): every autosaving pane now renders the live shared
+     `AutosaveStatus` (from the characters-stop mint, `forms/autosave-status.tsx`) fed by its
+     section mutation state — appearance, regex, system, and connections (`ModelRolesSection`) —
+     and the static "Changes save automatically" caption is deleted. Retry is a real affordance.
+     (Original A4 gap: the write path existed, no pane rendered a live status.)
    - **Devtools FAB in snaps.** RESOLVED (2026-07-13): `main.tsx` now also checks `isProbeMode()`
      (`orb:probe-mode`) before rendering `DevTools`, so `pnpm snap --probe` captures no longer show
      the FAB.
