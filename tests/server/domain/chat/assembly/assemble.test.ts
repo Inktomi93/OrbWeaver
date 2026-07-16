@@ -211,3 +211,25 @@ describe("assemblePrompt — merged co-speaker scenario (F6: single emission)", 
     expect(all.split("ARIA-SCENARIO").length - 1).toBe(1);
   });
 });
+
+describe("assemblePrompt — PD-140/D25: implicit compact_summary prepend", () => {
+  test("a preset with no compact_summary section still delivers ctx.compactSummary (stateless-runner safety net)", () => {
+    const config = configOf([marker({ marker: "main_prompt", template: "sys" }), marker({ marker: "chat_history" })]);
+    const out = assemblePrompt(config, ctxOf({ compactSummary: "the summary so far" }));
+    expect(out.static).toContain("the summary so far");
+    expect(out.trace.compactSummaryIncluded).toBe(true);
+  });
+
+  test("no synthesis when there's no compactSummary to deliver", () => {
+    const config = configOf([marker({ marker: "main_prompt", template: "sys" }), marker({ marker: "chat_history" })]);
+    const out = assemblePrompt(config, ctxOf());
+    expect(out.trace.compactSummaryIncluded).toBe(false);
+    expect(out.trace.dynamicSections).not.toContain("__synthetic-compact-summary");
+  });
+
+  test("an existing enabled compact_summary section wins — no duplicate synthesis", () => {
+    const config = configOf([marker({ marker: "main_prompt", template: "sys" }), marker({ marker: "compact_summary" }), marker({ marker: "chat_history" })]);
+    const out = assemblePrompt(config, ctxOf({ compactSummary: "the summary so far" }));
+    expect(out.static.split("the summary so far").length - 1).toBe(1);
+  });
+});
