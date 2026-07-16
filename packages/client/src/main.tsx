@@ -21,7 +21,7 @@ import { createRoot } from "react-dom/client";
 import { createAppQueryClient, createTrpcClient, TRPCProvider } from "#data";
 import { contextToggleChrome, fullscreenChrome, youModal } from "#features/app-shell";
 import { accountModal } from "#features/auth";
-import { charactersSection } from "#features/character";
+import { makeCharactersSection } from "#features/character";
 import { chatOptionsChrome, commandModal, makeChatsSection, newChatModal } from "#features/chat";
 import { connectionsPane } from "#features/credentials";
 import { corpusSection } from "#features/discovery";
@@ -34,7 +34,7 @@ import { analyticsSection } from "#features/stats";
 import { adminPane } from "#features/user-admin";
 import { backupPane, workloadsPane } from "#features/workloads";
 import { worldInfoSection } from "#features/world-info";
-import type { ChatContextState, ChatSurfaceContribution, ContextTabDef } from "#lib";
+import type { CharacterDetailContribution, ChatContextState, ChatSurfaceContribution, ContextTabDef } from "#lib";
 import { AppErrorBoundary, bindNotify, buildClientErrorPayload, createContributorRegistry, createRegistry } from "#lib";
 import {
   assembleChrome,
@@ -88,11 +88,16 @@ const chatContextContributors = createContributorRegistry<ContextTabDef<ChatCont
 // compiled and exercised with zero contributions; rpg/crew append array members later.
 const chatSurfaceContributors = createContributorRegistry<ChatSurfaceContribution>("chat-surface", []);
 
+// The character-detail contributor seam (§6c): EMPTY but typed — the door → factory → editor-body anchor
+// path is compiled and exercised with zero contributions; the crew feature appends its card-evolution
+// review section later (crew 07-client-ui §4.2), grafting into the editor WITHOUT importing character.
+const characterDetailContributors = createContributorRegistry<CharacterDetailContribution>("character-detail", []);
+
 // The ONE section assembly (G1/G8): total over SECTION_IDS by tsc; delivered as a context value so
 // app-shell reads it (incl. the use-shell-layout hook) without a #features import.
 const sections = createRegistry("sections", SECTION_IDS, {
   chats: makeChatsSection(chatContextContributors, chatSurfaceContributors),
-  characters: charactersSection,
+  characters: makeCharactersSection(characterDetailContributors),
   corpus: corpusSection,
   worldInfo: worldInfoSection,
   presets: presetsSection,

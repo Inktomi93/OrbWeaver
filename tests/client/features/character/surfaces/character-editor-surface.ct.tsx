@@ -13,7 +13,7 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { CharacterEditorSurfaceStory } from "../_ct-stories";
+import { CharacterDetailContributorStory, CharacterEditorSurfaceStory } from "../_ct-stories";
 import { makeCharacterDetail, makeTagFixture } from "../fixtures";
 
 const TOKEN_SPLIT_RE = /\d+ total · \d+ permanent/;
@@ -208,4 +208,32 @@ test("§6.2 removing a tag chip fires bulkRemoveCardTag by name — an immediate
   // autosave (character.update) whose status stays "Saved".
   await expect(component.getByText("Saved")).toBeVisible();
   expect(cardUpdated).toBe(false);
+});
+
+// ── The character-DETAIL contributor seam (client-architecture-lockdown.md §6c — the one named seam gap) ──
+// A fake `CharacterDetailContribution` at the `editor-sections` anchor, registered at a door-mirroring
+// `CtCharacterContributorSectionRegistry` in place of main.tsx's empty registry, mounted through the REAL
+// `characters` section's `content()` → `CharacterContent` → `CharacterEditorSurface` anchor-consumer path.
+
+test("a fake editor-sections contribution renders as a review section in the editor body", async ({ mount, page }) => {
+  await routeEditor(page);
+
+  const component = await mount(<CharacterDetailContributorStory visible={true} />);
+
+  // The editor mounts (its hero name proves the real section→content→surface path ran), and the fake
+  // review section renders in the contributed sections region beside it.
+  await expect(component.getByRole("textbox", { name: "Name" })).toHaveValue("Aria Nightshade");
+  await expect(component.getByTestId("ct-fake-detail-section")).toBeVisible();
+  await expect(page.locator('[data-slot="character-editor-sections"]')).toHaveCount(1);
+});
+
+test("a fake editor-sections contribution's `when:false` renders NO sections region (today's layout, unchanged)", async ({ mount, page }) => {
+  await routeEditor(page);
+
+  const component = await mount(<CharacterDetailContributorStory visible={false} />);
+
+  // The editor still mounts, but the contribution is `when`-gated out — zero sections ⇒ no wrapper at all.
+  await expect(component.getByRole("textbox", { name: "Name" })).toHaveValue("Aria Nightshade");
+  await expect(component.getByTestId("ct-fake-detail-section")).toHaveCount(0);
+  await expect(page.locator('[data-slot="character-editor-sections"]')).toHaveCount(0);
 });
