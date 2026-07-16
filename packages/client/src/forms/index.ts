@@ -13,5 +13,6 @@ export type { FormHandleBridge } from "./create-form-handle-bridge";
 export { createFormHandleBridge } from "./create-form-handle-bridge";
 export type { SavedEntityFormArgs, SavedEntityFormConfig } from "./create-saved-entity-form";
 export { createSavedEntityForm } from "./create-saved-entity-form";
+export { mirrorDraft, readDraftSeed } from "./entity-form-base";
 export type { AppFormInstance } from "./use-app-form";
 export { useAppForm, withFieldGroup, withForm } from "./use-app-form";

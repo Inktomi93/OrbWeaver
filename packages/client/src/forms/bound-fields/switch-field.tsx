@@ -4,8 +4,7 @@
 import { Field } from "@orb/ui/field";
 import { Switch } from "@orb/ui/switch";
 import type { ReactElement, ReactNode } from "react";
-import { useFieldContext } from "../contexts";
-import { touchedFieldError } from "./field-error";
+import { useBoundField } from "./use-bound-field";
 
 export interface SwitchFieldProps {
   readonly label: ReactNode;
@@ -16,11 +15,10 @@ export interface SwitchFieldProps {
   readonly disabled?: boolean;
 }
 
-export function SwitchField({ label, description, hint, disabled }: SwitchFieldProps): ReactElement {
-  const field = useFieldContext<boolean>();
-  const error = touchedFieldError(field.state.meta);
+export function SwitchField(props: SwitchFieldProps): ReactElement {
+  const { field, fieldProps } = useBoundField<boolean>(props);
   return (
-    <Field label={label} description={description} hint={hint} error={error} disabled={disabled ?? false} name={field.name}>
+    <Field {...fieldProps}>
       {/* eslint-disable-next-line jsx-a11y/control-has-associated-label */}
       <Switch
         checked={field.state.value}

@@ -7,8 +7,7 @@ import { Field } from "@orb/ui/field";
 import type { SelectItems } from "@orb/ui/select";
 import { Select } from "@orb/ui/select";
 import type { ReactElement, ReactNode } from "react";
-import { useFieldContext } from "../contexts";
-import { touchedFieldError } from "./field-error";
+import { useBoundField } from "./use-bound-field";
 
 export interface SelectFieldProps {
   readonly label: ReactNode;
@@ -21,15 +20,14 @@ export interface SelectFieldProps {
   readonly disabled?: boolean;
 }
 
-export function SelectField({ label, description, hint, items, placeholder, disabled }: SelectFieldProps): ReactElement {
-  const field = useFieldContext<string>();
-  const error = touchedFieldError(field.state.meta);
+export function SelectField(props: SelectFieldProps): ReactElement {
+  const { field, fieldProps } = useBoundField<string>(props);
   return (
-    <Field label={label} description={description} hint={hint} error={error} disabled={disabled ?? false} name={field.name}>
+    <Field {...fieldProps}>
       {/* eslint-disable-next-line jsx-a11y/control-has-associated-label */}
       <Select
-        items={items}
-        placeholder={placeholder}
+        items={props.items}
+        placeholder={props.placeholder}
         value={field.state.value}
         onValueChange={(value): void => {
           field.handleChange(value as string);

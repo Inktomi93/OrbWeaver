@@ -6,10 +6,9 @@ import type { UpdateMetaOptions } from "@tanstack/react-form";
 import { revalidateLogic } from "@tanstack/react-form";
 import { useEffect, useRef, useState } from "react";
 import type { EntityDraftStore } from "#state";
+import { DEFAULT_DEBOUNCE_MS, focusFirstInvalidField, mirrorDraft, readDraftSeed } from "./entity-form-base";
 import type { AppFormOptions } from "./use-app-form";
 import { useAppForm } from "./use-app-form";
-
-const DEFAULT_DEBOUNCE_MS = 500;
 
 /** The authored per-entity config — `formOptions()`-shaped. */
 export interface SavedEntityFormConfig<TValues extends object> {
@@ -54,7 +53,7 @@ export function createSavedEntityForm<TValues extends object>(config: SavedEntit
 
     // Draft read is a plain store read (not a subscription), promoted after mount, never merged into
     // the seed — the mount seed stays server-only so isDefaultValue tracks server truth.
-    const draftSeed = config.draft?.readDraft(entityId);
+    const draftSeed = readDraftSeed(config.draft, entityId);
 
     // onSubmit stores the saved row + bumps the tick; the effect below re-baselines outside the submit
     // path (isSubmitSuccessful alone can't carry the saved value).
@@ -76,16 +75,14 @@ export function createSavedEntityForm<TValues extends object>(config: SavedEntit
         setSaveTick((t) => t + 1);
         config.draft?.clearDraft(entityId);
       },
-      onSubmitInvalid: (): void => {
-        document.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
-      },
+      onSubmitInvalid: focusFirstInvalidField,
       ...(config.draft === undefined
         ? {}
         : {
             listeners: {
               onChange: ({ formApi }: { formApi: { state: { values: TValues; isDefaultValue: boolean } } }): void => {
                 if (!formApi.state.isDefaultValue) {
-                  config.draft?.setDraft(entityId, formApi.state.values);
+                  mirrorDraft(config.draft, entityId, formApi.state.values);
                 }
               },
               onChangeDebounceMs: DEFAULT_DEBOUNCE_MS,
@@ -127,7 +124,7 @@ export function createSavedEntityForm<TValues extends object>(config: SavedEntit
       }
       return (): void => {
         if (!form.state.isDefaultValue) {
-          config.draft?.setDraft(entityId, form.state.values);
+          mirrorDraft(config.draft, entityId, form.state.values);
         }
       };
     }, [entityId, form]);

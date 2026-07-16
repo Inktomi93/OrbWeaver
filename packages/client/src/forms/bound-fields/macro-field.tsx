@@ -1,4 +1,4 @@
-// Bound macro-aware textarea — useFieldContext<string>() binding @orb/ui/macro-textarea inside <Field>.
+// Bound macro-aware textarea — useBoundField<string>() binding @orb/ui/macro-textarea inside <Field>.
 // The macro catalog is passed in as `suggestions` (ui imports no domain registry). `showTokenCount`
 // renders a live "~N tokens" line below the field, computed via the one kit estimator — promoted here
 // instead of hand-assembled per call site.
@@ -10,8 +10,7 @@ import type { MacroSuggestion } from "@orb/ui/macro-textarea";
 import { MacroTextarea } from "@orb/ui/macro-textarea";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
-import { useFieldContext } from "../contexts";
-import { touchedFieldError } from "./field-error";
+import { useBoundField } from "./use-bound-field";
 
 export interface MacroFieldProps {
   readonly label: ReactNode;
@@ -31,26 +30,25 @@ export interface MacroFieldProps {
   readonly showTokenCount?: boolean;
 }
 
-export function MacroField({ label, description, hint, suggestions, placeholder, rows, disabled, className, showTokenCount }: MacroFieldProps): ReactElement {
-  const field = useFieldContext<string>();
-  const error = touchedFieldError(field.state.meta);
+export function MacroField(props: MacroFieldProps): ReactElement {
+  const { field, fieldProps } = useBoundField<string>(props);
   return (
     <>
-      <Field label={label} description={description} hint={hint} error={error} disabled={disabled ?? false} name={field.name}>
+      <Field {...fieldProps}>
         <MacroTextarea
           value={field.state.value}
           onChange={(next): void => {
             field.handleChange(next);
           }}
           onBlur={field.handleBlur}
-          suggestions={suggestions}
-          disabled={disabled ?? false}
-          {...(placeholder === undefined ? {} : { placeholder })}
-          {...(rows === undefined ? {} : { rows })}
-          {...(className === undefined ? {} : { className })}
+          suggestions={props.suggestions}
+          disabled={props.disabled ?? false}
+          {...(props.placeholder === undefined ? {} : { placeholder: props.placeholder })}
+          {...(props.rows === undefined ? {} : { rows: props.rows })}
+          {...(props.className === undefined ? {} : { className: props.className })}
         />
       </Field>
-      {showTokenCount === true ? (
+      {props.showTokenCount === true ? (
         <Row gap="row" align="center" className="justify-end">
           <Text size="micro" tone="muted" className="font-mono">
             ~{estimateTokens(field.state.value)} tokens

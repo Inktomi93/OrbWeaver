@@ -1,4 +1,4 @@
-// Bound text field — `useFieldContext<string>()` + the `<Field>`-wrapped `<Input>`. CONTROLLED
+// Bound text field — `useBoundField<string>()` + the `<Field>`-wrapped `<Input>`. CONTROLLED
 // (`value=`, never `defaultValue=`) ALWAYS: an uncontrolled input ignores `form.reset(saved)` and
 // reseeds, silently breaking the save/discard/reseed lifecycle (UI-Lib-TanStack-Form.md §9 — the
 // ui-libraries example's `defaultValue` binding is the documented trap, INVERTED here on purpose).
@@ -6,8 +6,7 @@
 import { Field } from "@orb/ui/field";
 import { Input } from "@orb/ui/input";
 import type { ReactElement, ReactNode } from "react";
-import { useFieldContext } from "../contexts";
-import { touchedFieldError } from "./field-error";
+import { useBoundField } from "./use-bound-field";
 
 export interface TextFieldProps {
   readonly label: ReactNode;
@@ -25,20 +24,19 @@ export interface TextFieldProps {
   readonly autoComplete?: string;
 }
 
-export function TextField({ label, description, hint, placeholder, disabled, type, autoComplete }: TextFieldProps): ReactElement {
-  const field = useFieldContext<string>();
-  const error = touchedFieldError(field.state.meta);
+export function TextField(props: TextFieldProps): ReactElement {
+  const { field, fieldProps } = useBoundField<string>(props);
   return (
-    <Field label={label} description={description} hint={hint} error={error} disabled={disabled ?? false} name={field.name}>
+    <Field {...fieldProps}>
       <Input
         value={field.state.value}
         onChange={(e): void => {
           field.handleChange(e.target.value);
         }}
         onBlur={field.handleBlur}
-        placeholder={placeholder}
-        type={type ?? "text"}
-        autoComplete={autoComplete}
+        placeholder={props.placeholder}
+        type={props.type ?? "text"}
+        autoComplete={props.autoComplete}
       />
     </Field>
   );

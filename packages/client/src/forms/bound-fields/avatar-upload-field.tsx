@@ -1,4 +1,4 @@
-// Bound avatar-upload field — useFieldContext<AssetId | null>() binding a FileDropzone (pick) + Avatar
+// Bound avatar-upload field — useBoundField<AssetId | null>() binding a FileDropzone (pick) + Avatar
 // (preview) pair. `upload` is injected, never imported: forms/ may reach state/+lib/, never data/ — the
 // consuming feature binds the real uploadAsset pre-bound to its AssetKind at composition.
 
@@ -13,8 +13,7 @@ import { CircleUser, Icon } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
-import { useFieldContext } from "../contexts";
-import { touchedFieldError } from "./field-error";
+import { useBoundField } from "./use-bound-field";
 
 /** Client-side pre-check ceiling — mirrors the `FileDropzone` doc example's own avatar-size precedent. */
 const MAX_AVATAR_BYTES = 20_000_000;
@@ -34,9 +33,9 @@ export interface AvatarUploadFieldProps {
 /** Bound avatar-upload field: `<Field>`-wrapped `<Avatar>` preview + `<FileDropzone>` picker. Upload
  *  failure surfaces inline (the `Field` error slot); a mid-upload/just-succeeded state rides the
  *  dropzone's own 8-state `loading`/`success` props — this field holds no separate spinner. */
-export function AvatarUploadField({ label, description, upload, initialHash = null, disabled = false }: AvatarUploadFieldProps): ReactElement {
-  const field = useFieldContext<AssetId | null>();
-  const fieldError = touchedFieldError(field.state.meta);
+export function AvatarUploadField(props: AvatarUploadFieldProps): ReactElement {
+  const { upload, initialHash = null, disabled = false } = props;
+  const { field, fieldProps } = useBoundField<AssetId | null>(props);
   const [previewHash, setPreviewHash] = useState<string | null>(initialHash);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -61,9 +60,9 @@ export function AvatarUploadField({ label, description, upload, initialHash = nu
     }
   }
 
-  const error = uploadError ?? fieldError;
+  const error = uploadError ?? fieldProps.error;
   return (
-    <Field label={label} description={description} error={error} disabled={disabled} name={field.name}>
+    <Field {...fieldProps} error={error}>
       <Row gap="field" align="center">
         <Avatar size="lg" fallbackDelay={0} {...(previewHash === null ? {} : { src: blobUrl(previewHash) })}>
           <Icon icon={CircleUser} size="lg" />
