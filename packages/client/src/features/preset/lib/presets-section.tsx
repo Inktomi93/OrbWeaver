@@ -18,7 +18,7 @@ import { PresetLibrarySurface } from "../surfaces/preset-library-surface";
 
 export const presetsSection: SectionDefinition = {
   id: "presets",
-  rail: { label: "Presets", icon: SlidersHorizontal, group: "authoring" },
+  rail: { label: "Presets", icon: SlidersHorizontal, group: "authoring", mobile: "sheet" },
   panelDefaults: { list: "docked", context: "collapsed" },
   placeholder: {
     title: "Presets",

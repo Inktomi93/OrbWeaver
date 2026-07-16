@@ -18,13 +18,20 @@ export const SECTION_GROUPS = ["primary", "authoring", "insight"] as const;
 /** The rail's section-group axis, derived from the SECTION_GROUPS tuple (no inline re-spell). */
 export type SectionGroup = (typeof SECTION_GROUPS)[number];
 
+/** A rail entry's mobile fate — an EXPLICIT decision (shell-chrome-unification.md §A): `"tab"` = a
+ *  curated thumb-reach bottom-bar tab, `"sheet"` = folds into the mobile You sheet. Homed here with the
+ *  rail's other vocabulary (SECTION_GROUPS) so `chrome-registry.ts` derives `ChromeEntry.mobile` from it
+ *  the same one-directional way it derives `group` from `SectionGroup` — no second spelling, no cycle. */
+export type MobileCuration = "tab" | "sheet";
+
 /** A section's rail-button identity + mobile-tab curation. */
 export interface RailEntry {
   readonly label: string;
   readonly icon: LucideIcon;
   readonly group: SectionGroup;
-  /** Only mobilePrimary sections show in the mobile bottom-tab bar; the rest fold into the You sheet. */
-  readonly mobilePrimary?: boolean;
+  /** The section's bottom-tab-vs-You-sheet fate — an EXPLICIT decision per section: `"tab"` shows it in
+   *  the mobile bottom bar, `"sheet"` folds it into the You sheet. */
+  readonly mobile: MobileCuration;
 }
 
 /** A section's honest placeholder copy — a distinct (title, description) per section (gate-checked). */

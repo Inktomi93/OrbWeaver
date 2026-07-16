@@ -19,7 +19,7 @@ import { CorpusListSurface } from "../surfaces/corpus-list-surface";
 
 export const corpusSection: SectionDefinition = {
   id: "corpus",
-  rail: { label: "Corpus", icon: Library, group: "primary", mobilePrimary: true },
+  rail: { label: "Corpus", icon: Library, group: "primary", mobile: "tab" },
   panelDefaults: { list: "docked", context: "collapsed" },
   placeholder: {
     title: "Corpus",

@@ -17,7 +17,7 @@ import { AnalyticsListSurface } from "../surfaces/analytics-list-surface";
 
 export const analyticsSection: SectionDefinition = {
   id: "analytics",
-  rail: { label: "Analytics", icon: ChartColumn, group: "insight" },
+  rail: { label: "Analytics", icon: ChartColumn, group: "insight", mobile: "sheet" },
   panelDefaults: { list: "collapsed", context: "collapsed" },
   placeholder: {
     title: "Analytics",

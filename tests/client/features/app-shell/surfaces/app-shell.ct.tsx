@@ -17,8 +17,8 @@ import { makeChatSummary } from "../../chat/fixtures";
 import { ShellCascadeFixture } from "../_cascade-fixtures";
 import { AppShellRealChatsStory, AppShellStory, AppShellWidthProbeStory, ModalScrollStory } from "../_ct-stories";
 
-/** The thumb-reach budget (L6/J12): rendered mobile-bar buttons (mobilePrimary sections + "You") must
- *  never exceed this — a def flipping `mobilePrimary: true` must not silently balloon the bar. */
+/** The thumb-reach budget (L6/J12): rendered mobile-bar buttons (`mobile: "tab"` sections + "You") must
+ *  never exceed this — a def flipping to `mobile: "tab"` must not silently balloon the bar. */
 const MAX_MOBILE_TAB_BUTTONS = 4;
 
 // Below the shell's `@media (max-width: 48rem)` breakpoint (768px) — the bottom-bar layout (L6/J12).
@@ -304,9 +304,11 @@ test("mobile: the bottom bar is the curated four; overflow + footer affordances 
   await expect(page.getByRole("button", { name: "Refinery" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Analytics" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Switch theme" })).toHaveCount(0);
-  // The ballooning guard: rendered mobile-bar buttons (mobilePrimary sections + "You") must never
-  // exceed the thumb-reach budget — a def flipping `mobilePrimary: true` must not silently balloon it.
-  const tabCount = await page.locator(".shell-rail-mobile").getByRole("button").count();
+  // The ballooning guard: rendered mobile-bar buttons (`mobile: "tab"` sections + "You") must never
+  // exceed the thumb-reach budget — a def flipping to `mobile: "tab"` must not silently balloon it. The
+  // rail is now ONE DOM list (no `.shell-rail-mobile` twin); `getByRole` counts only the VISIBLE buttons,
+  // so the `[data-mobile="sheet"]` entries (display:none on the bar) are correctly excluded.
+  const tabCount = await page.locator(".shell-rail").getByRole("button").count();
   expect(tabCount).toBeLessThanOrEqual(MAX_MOBILE_TAB_BUTTONS);
 });
 
