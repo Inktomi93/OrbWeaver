@@ -6,6 +6,8 @@ export { cn } from "@orb/ui/lib";
 export { busDupCheck, busInvalidate, busSubscribe, busUnsubscribe } from "./bus-devlog";
 export type { ClientErrorPayload } from "./client-error-report";
 export { buildClientErrorPayload } from "./client-error-report";
+export type { RegistryContext } from "./create-registry-context";
+export { createRegistryContext } from "./create-registry-context";
 export { IS_DEV } from "./dev-flag";
 export { downloadJson, downloadUrl, slugifyFilename } from "./download-json";
 export type { AppErrorBoundaryProps } from "./error-boundary";
