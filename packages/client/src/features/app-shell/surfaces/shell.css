@@ -291,6 +291,12 @@
   padding-inline: var(--spacing-block);
   border-block-end: 1px solid var(--color-sidebar-border);
 }
+/* Content↔Context binding (north-star §4 N4 / P4): the Context band carries a 2px ember top edge as an
+ * INSET box-shadow (not a border) — identical over glass, and unaffected by ramp's `.shell-panel-header`
+ * border drop. Rides --color-primary, so a custom/seed theme retints it. */
+.shell-panel[data-panel-side="context"] .shell-panel-header {
+  box-shadow: inset 0 2px 0 color-mix(in oklab, var(--color-primary) 55%, transparent);
+}
 .shell-panel-body {
   flex: 1 1 auto;
   min-height: 0;

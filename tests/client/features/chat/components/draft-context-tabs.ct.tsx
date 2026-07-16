@@ -20,8 +20,9 @@ test("a draft's CONTEXT panel renders the editable Overrides tab (host — autos
 
   // The Overrides tab is present and active (no server read gated it).
   await expect(component.getByRole("tab", { name: "Overrides" })).toBeVisible();
-  // Host copy — a draft is authored by (and only visible to) its creator, so it is always editable.
-  await expect(component.getByText("Changes save automatically.")).toBeVisible();
+  // Host copy — a draft is authored by (and only visible to) its creator, so it is always editable. The
+  // per-field guidance collapsed to ONE intro line (N4); it ends with the autosave affordance.
+  await expect(component.getByText("Empty fields inherit from the character or preset. Saved automatically.")).toBeVisible();
 
   // The four host-allowlist override fields render, editable (not disabled — the draft is host).
   const labels = ["Main prompt", "Post-history instructions", "Scenario", "Author's note"];

@@ -43,7 +43,7 @@ import type { THEME_SCOPE_CHAT_STYLES } from "@orb/ui/theme-scope";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
-import { SectionContextHost } from "../../../../packages/client/src/features/app-shell/components/section-context-host";
+import { SectionContextHeader, SectionContextHost } from "../../../../packages/client/src/features/app-shell/components/section-context-host";
 import { CharacterGalleryDialog } from "../../../../packages/client/src/features/chat/anchors/character-gallery-dialog";
 import { ChatCastBar } from "../../../../packages/client/src/features/chat/components/chat-cast-bar";
 import { ChatHeaderSurface } from "../../../../packages/client/src/features/chat/components/chat-header";
@@ -742,6 +742,30 @@ export function ChatContextPanelStory(): ReactElement {
     <CtDataProviders>
       <CtRealSectionRegistry>
         <ChatContextHostHarness />
+      </CtRealSectionRegistry>
+    </CtDataProviders>
+  );
+}
+
+// Mounts the chats section's CONTEXT BAND identity (N4/P4) through the real `SectionContextHeader` — the
+// shell's band consumer — over the chats `defineContextTabs` `header` slot. The `key` mirrors the shell's
+// per-section remount.
+function ChatContextHeaderHarness(): ReactElement {
+  const registry = useSectionRegistry();
+  return <SectionContextHeader key="chats" definition={registry.get("chats")} />;
+}
+
+/** The chats def supplies the CONTEXT-band identity (N4): a DRAFT (empty cast, no network) names the new
+ *  chat, proving the definition-owned header channel carries the chat identity end-to-end through the real
+ *  section → mint → `SectionContextHeader` path. */
+export function ChatContextHeaderDraftStory(): ReactElement {
+  useEffect(() => {
+    startNewChat({ characterIds: [] });
+  }, []);
+  return (
+    <CtDataProviders>
+      <CtRealSectionRegistry>
+        <ChatContextHeaderHarness />
       </CtRealSectionRegistry>
     </CtDataProviders>
   );

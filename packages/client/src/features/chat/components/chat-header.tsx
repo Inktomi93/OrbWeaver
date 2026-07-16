@@ -1,8 +1,12 @@
-// The active chat's identity for the shell topbar LEAD: lead avatar/AvatarStack, title, and the member-count
-// chip (entry-only — always opens the Context panel on Members). The chat-options ⋯ moved to the END of the
-// topbar TRAIL cluster (chatOptionsChrome → chat-options-topbar.tsx, ui-cohesion-north-star §4 N1). Reads the
-// same chat.getChat query the room already suspends on via a plain useQuery, so the always-present topbar
-// never suspends on its own account — it degrades to a neutral title until the cache populates.
+// The active chat's identity — reused across TWO shell surfaces from one cluster:
+//  · the topbar LEAD (`ChatHeaderSurface` / `DraftChatHeader`): lead avatar/AvatarStack, title, and the
+//    member-count chip (entry-only — always opens the Context panel on Members). The chat-options ⋯ moved
+//    to the END of the topbar TRAIL cluster (chatOptionsChrome → chat-options-topbar.tsx, north-star §4 N1).
+//  · the CONTEXT-panel BAND (`ChatContextHeader`, north-star §4 N4 / P4): the same avatar + title, NO chip
+//    (the members entry lives on the topbar — one home, §2/§9), definition-owned via the `defineContextTabs`
+//    `header` slot in chats-section.tsx.
+// Both read the same chat.getChat query the room already suspends on via a plain useQuery, so neither
+// surface suspends on its own account — each degrades to a neutral title until the cache populates.
 
 import { blobUrl } from "@orb/contracts/assets";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
@@ -14,8 +18,9 @@ import { Icon, Users } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useQueries, useQuery } from "@tanstack/react-query";
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 import { useTRPC } from "#data";
+import type { ChatContextState } from "#lib";
 import { setContextTab, setPanelMode } from "#state";
 import { filterCharacters } from "../lib/roster";
 
@@ -25,12 +30,40 @@ export interface ChatHeaderSurfaceProps {
 
 type CharacterParticipant = ReturnType<typeof filterCharacters>[number];
 
-export function ChatHeaderSurface({ chatId }: ChatHeaderSurfaceProps): ReactElement {
+interface CommittedIdentity {
+  readonly cast: readonly CharacterParticipant[];
+  readonly title: string;
+  readonly memberCount: number;
+}
+
+/** The committed chat's identity (avatars/title/member-count), read from the shared `getChat` query
+ *  (plain useQuery — degrades to a neutral title, never suspends). The ONE home for the topbar LEAD and
+ *  the context BAND to derive their identity from. */
+function useCommittedIdentity(chatId: ChatId): CommittedIdentity {
   const trpc = useTRPC();
   const { data: chat } = useQuery(trpc.chat.getChat.queryOptions({ chatId }));
-  const title = chat?.title ?? "Untitled chat";
-  const cast = filterCharacters(chat?.participants ?? []);
-  const memberCount = (chat?.participants ?? []).filter((p) => p.leftSeq === null).length;
+  return {
+    cast: filterCharacters(chat?.participants ?? []),
+    title: chat?.title ?? "Untitled chat",
+    memberCount: (chat?.participants ?? []).filter((p) => p.leftSeq === null).length,
+  };
+}
+
+/** The shared identity cluster — lead avatar(s) + truncating title. The topbar surface appends the
+ *  member-count chip; the context header renders it bare. Consumers own the `<Row>` wrapper. */
+function ChatIdentityCluster({ avatars, title }: { readonly avatars: ReactNode; readonly title: string }): ReactElement {
+  return (
+    <>
+      {avatars}
+      <Text size="title" weight="semibold" className="truncate">
+        {title}
+      </Text>
+    </>
+  );
+}
+
+export function ChatHeaderSurface({ chatId }: ChatHeaderSurfaceProps): ReactElement {
+  const { cast, title, memberCount } = useCommittedIdentity(chatId);
   // The chip is entry-only — it ALWAYS opens Context on Members, never toggles closed (D66 §2 members
   // row; the collapse affordance belongs to the context header's own control).
   const openMembersPanel = (): void => {
@@ -40,10 +73,7 @@ export function ChatHeaderSurface({ chatId }: ChatHeaderSurfaceProps): ReactElem
 
   return (
     <Row gap="row" align="center" className="min-w-0">
-      <CastAvatars cast={cast} />
-      <Text size="title" weight="semibold" className="truncate">
-        {title}
-      </Text>
+      <ChatIdentityCluster avatars={<CastAvatars cast={cast} />} title={title} />
       {memberCount > 0 ? (
         <Button type="button" intent="ghost" size="sm" aria-label={`Members — ${memberCount}`} onClick={openMembersPanel} className="whitespace-nowrap">
           <Icon icon={Users} size="sm" />
@@ -80,12 +110,31 @@ function CastAvatars({ cast }: { readonly cast: readonly CharacterParticipant[] 
   );
 }
 
+/** The CONTEXT-panel band identity (north-star §4 N4 / P4) — the active chat's avatar + title, phase-aware,
+ *  fed by the `defineContextTabs` `header` slot (chats-section.tsx). No member chip: the members entry is
+ *  the topbar's (one home). */
+export function ChatContextHeader({ state }: { readonly state: ChatContextState }): ReactElement {
+  if (state.phase === "committed") {
+    return <CommittedContextIdentity chatId={state.chatId} />;
+  }
+  return <DraftChatHeader characterIds={state.cast} />;
+}
+
+function CommittedContextIdentity({ chatId }: { readonly chatId: ChatId }): ReactElement {
+  const { cast, title } = useCommittedIdentity(chatId);
+  return (
+    <Row gap="row" align="center" className="min-w-0">
+      <ChatIdentityCluster avatars={<CastAvatars cast={cast} />} title={title} />
+    </Row>
+  );
+}
+
 export interface DraftChatHeaderProps {
   readonly characterIds: readonly CharacterId[];
 }
 
-/** The draft topbar identity: seeded character avatar(s) + name. No options menu — a draft has no
- *  chat-level actions yet. */
+/** The draft identity (topbar LEAD + context band): seeded character avatar(s) + name. No options menu /
+ *  no member chip — a draft has no chat-level actions yet. */
 export function DraftChatHeader({ characterIds }: DraftChatHeaderProps): ReactElement {
   const trpc = useTRPC();
   const results = useQueries({
@@ -99,10 +148,7 @@ export function DraftChatHeader({ characterIds }: DraftChatHeaderProps): ReactEl
   const title = first.length > 0 ? first : "New chat";
   return (
     <Row gap="row" align="center" className="min-w-0">
-      <DraftCastAvatars cast={cast} />
-      <Text size="title" weight="semibold" className="truncate">
-        {title}
-      </Text>
+      <ChatIdentityCluster avatars={<DraftCastAvatars cast={cast} />} title={title} />
     </Row>
   );
 }

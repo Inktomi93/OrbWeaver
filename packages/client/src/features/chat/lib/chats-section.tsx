@@ -18,6 +18,7 @@ import { ChatListAnchor } from "../anchors/chat-list-anchor";
 import { DraftAddMemberPopover } from "../components/add-member-popover";
 import { AssemblyPreviewPanel } from "../components/assembly-preview-panel";
 import { ChatContent } from "../components/chat-content";
+import { ChatContextHeader } from "../components/chat-header";
 import { ChatListHeader } from "../components/chat-list-header";
 import { ChatsTopbarHeader } from "../components/chats-topbar-header";
 import type { CommittedMembersTabProps } from "../components/committed-members-tab";
@@ -138,6 +139,8 @@ export function makeChatsSection(
     context: defineContextTabs<ChatContextState>({
       useContextState: useChatContextState,
       tabs: CHAT_CONTEXT_TABS,
+      // The CONTEXT-panel BAND identity (N4/P4) — the active chat's avatar + title, definition-owned.
+      header: (s) => <ChatContextHeader state={s} />,
       actions: (s) => (s.phase === "draft" ? <DraftAddMemberPopover draftKey={s.draftKey} existingCharacterIds={s.cast} /> : null),
       contributors: chatContextContributors,
     }),

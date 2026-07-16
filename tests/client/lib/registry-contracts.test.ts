@@ -47,6 +47,17 @@ describe("resolveContextTabs", () => {
     const resolved = resolveContextTabs(spec, { n: 5 });
     expect(resolved.actions).toBe(5);
   });
+
+  test("binds the header band identity against the same state (N4), undefined when absent", () => {
+    const withHeader: ContextTabsSpec<State> = {
+      useContextState: () => ({ n: 7 }),
+      tabs: [tab("a")],
+      header: (s) => s.n,
+    };
+    expect(resolveContextTabs(withHeader, { n: 7 }).header).toBe(7);
+    const noHeader: ContextTabsSpec<State> = { useContextState: () => ({ n: 1 }), tabs: [tab("a")] };
+    expect(resolveContextTabs(noHeader, { n: 1 }).header).toBeUndefined();
+  });
 });
 
 describe("defineContextTabs", () => {

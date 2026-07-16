@@ -16,6 +16,7 @@
 // Empty ⇒ inherit (the map seam in `use-room-overrides-form.ts` omits empty fields on save).
 
 import type { RoomOverrides } from "@orb/contracts/chat";
+import { Icon, Info } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
@@ -52,26 +53,27 @@ export function RoomOverridesForm({ entityId, roomOverrides, isHost, save }: Roo
 
   return (
     <Stack key={mountKey} gap="section">
-      <Text size="label" tone="muted">
-        {isHost
-          ? "Overrides for this chat only. Leave a field empty to inherit from the character or preset. Changes save automatically."
-          : "Only the host can edit these overrides. Empty fields inherit from the character or preset."}
-      </Text>
+      {/* ONE intro line (N4): per-field guidance moved to a `?` hint tooltip on each label. */}
+      <Row gap="field" align="center">
+        <Text as="span" tone="muted">
+          <Icon icon={Info} size="xs" />
+        </Text>
+        <Text size="micro" tone="muted">
+          {isHost
+            ? "Empty fields inherit from the character or preset. Saved automatically."
+            : "Only the host can edit these overrides. Empty fields inherit from the character or preset."}
+        </Text>
+      </Row>
 
       <form.AppField name="mainPrompt">
         {(field): ReactElement => (
-          <field.TextareaField label="Main prompt" description="Replaces the system / main prompt for this chat." disabled={!isHost} rows={4} />
+          <field.TextareaField label="Main prompt" hint="Replaces the system / main prompt for this chat." disabled={!isHost} rows={4} />
         )}
       </form.AppField>
 
       <form.AppField name="postHistory">
         {(field): ReactElement => (
-          <field.TextareaField
-            label="Post-history instructions"
-            description="Appended after the chat history (the jailbreak slot)."
-            disabled={!isHost}
-            rows={3}
-          />
+          <field.TextareaField label="Post-history instructions" hint="Appended after the chat history (the jailbreak slot)." disabled={!isHost} rows={3} />
         )}
       </form.AppField>
 
@@ -79,7 +81,7 @@ export function RoomOverridesForm({ entityId, roomOverrides, isHost, save }: Roo
         {(field): ReactElement => (
           <field.TextareaField
             label="Scenario"
-            description="The shared situation — replaces each character's own scenario for this chat."
+            hint="The shared situation — replaces each character's own scenario for this chat."
             disabled={!isHost}
             rows={3}
           />
@@ -91,7 +93,7 @@ export function RoomOverridesForm({ entityId, roomOverrides, isHost, save }: Roo
           {(field): ReactElement => (
             <field.TextareaField
               label="Author's note"
-              description="A steering note spliced into the chat history at the depth + role below."
+              hint="A steering note spliced into the chat history at the depth + role below."
               disabled={!isHost}
               rows={2}
             />
@@ -100,7 +102,7 @@ export function RoomOverridesForm({ entityId, roomOverrides, isHost, save }: Roo
         <Row gap="field">
           <form.AppField name="authorsNoteDepth">
             {(field): ReactElement => (
-              <field.NumberField label="Depth" description="0 = at the tail (just before the new turn); higher = further back." min={0} disabled={!isHost} />
+              <field.NumberField label="Depth" hint="0 = at the tail (just before the new turn); higher = further back." min={0} disabled={!isHost} />
             )}
           </form.AppField>
           <form.AppField name="authorsNoteRole">
