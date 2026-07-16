@@ -6,7 +6,7 @@
 
 import type { RegexScript } from "@orb/contracts/regex";
 import { REGEX_PLACEMENTS, SubstituteFindRegex } from "@orb/kit/regex";
-import { Container, Stack } from "@orb/ui/layout";
+import { Container, Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
@@ -14,6 +14,7 @@ import { useRef, useState } from "react";
 import type { RegexScriptsFormValues } from "#components";
 import { EntryListEditor, RegexEditorDialog } from "#components";
 import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
+import { AutosaveStatus } from "#forms";
 import { useFocusOnMount } from "#lib";
 import { settingsAnchorId } from "#state";
 import { REGEX_SETTINGS_ENTITY_ID, useRegexSettingsForm } from "../hooks/use-regex-settings-form";
@@ -77,7 +78,7 @@ function RegexSettingsForm(): ReactElement {
 
   const save = (values: RegexScriptsFormValues): Promise<unknown> => update.mutateAsync({ section: "regex", patch: { scripts: values.regexScripts } });
 
-  const { form, mountKey } = useRegexSettingsForm({
+  const { form, mountKey, saveState, retrySave } = useRegexSettingsForm({
     entityId: REGEX_SETTINGS_ENTITY_ID,
     serverValues: { regexScripts: data.config.regex.scripts },
     save,
@@ -116,9 +117,12 @@ function RegexSettingsForm(): ReactElement {
           />
         )}
       </form.Subscribe>
-      <Text size="micro" tone="muted">
-        Changes save automatically and sync across your devices.
-      </Text>
+      <Row gap="field" align="center">
+        <AutosaveStatus state={saveState} onRetry={retrySave} />
+        <Text size="micro" tone="muted">
+          · Synced across your devices.
+        </Text>
+      </Row>
     </Stack>
   );
 }

@@ -7,11 +7,12 @@ import { useRef } from "react";
 
 import type { AppearanceSettings } from "@orb/contracts/settings";
 import { FieldLayout } from "@orb/ui/field";
-import { Container, Section, Stack } from "@orb/ui/layout";
+import { Container, Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
+import { AutosaveStatus } from "#forms";
 import { useFocusOnMount } from "#lib";
 import { settingsAnchorId } from "#state";
 import { AppearanceEffectsSection } from "../components/appearance-effects-section";
@@ -88,7 +89,7 @@ function AppearanceForm(): ReactElement {
 
   const save = (values: AppearanceSettings): Promise<unknown> => update.mutateAsync({ section: "appearance", patch: values as Record<string, unknown> });
 
-  const { form, mountKey } = useAppearanceForm({
+  const { form, mountKey, saveState, retrySave } = useAppearanceForm({
     entityId: APPEARANCE_ENTITY_ID,
     serverValues: data.config.appearance,
     save,
@@ -298,9 +299,12 @@ function AppearanceForm(): ReactElement {
 
         <AppearanceEffectsSection form={form} />
       </Stack>
-      <Text size="micro" tone="muted">
-        Changes save automatically and sync across your devices.
-      </Text>
+      <Row gap="field" align="center">
+        <AutosaveStatus state={saveState} onRetry={retrySave} />
+        <Text size="micro" tone="muted">
+          · Synced across your devices.
+        </Text>
+      </Row>
     </Stack>
   );
 }

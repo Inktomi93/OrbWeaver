@@ -12,11 +12,12 @@ import { useRef } from "react";
 
 import type { AppSettings, EffectiveAppConfig } from "@orb/contracts/settings";
 import { FieldLayout } from "@orb/ui/field";
-import { Container, Section, Stack } from "@orb/ui/layout";
+import { Container, Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQueries } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
+import { AutosaveStatus } from "#forms";
 import { useFocusOnMount } from "#lib";
 import { settingsAnchorId } from "#state";
 import { SYSTEM_SETTINGS_ENTITY_ID, useSystemSettingsForm } from "../hooks/use-system-settings-form";
@@ -87,7 +88,7 @@ function SystemForm(): ReactElement {
     return result;
   };
 
-  const { form, mountKey } = useSystemSettingsForm({
+  const { form, mountKey, saveState, retrySave } = useSystemSettingsForm({
     entityId: SYSTEM_SETTINGS_ENTITY_ID,
     serverValues: serverForm,
     save,
@@ -208,9 +209,13 @@ function SystemForm(): ReactElement {
           </form.AppField>
         </Section>
       </Stack>
-      <Text size="micro" tone="muted">
-        Values reflect the effective configuration — environment defaults with any saved overrides applied. Only the fields you change are saved as overrides.
-      </Text>
+      <Row gap="field" align="center">
+        <AutosaveStatus state={saveState} onRetry={retrySave} />
+        <Text size="micro" tone="muted">
+          · Values reflect the effective configuration — environment defaults with any saved overrides applied. Only the fields you change are saved as
+          overrides.
+        </Text>
+      </Row>
     </Stack>
   );
 }
