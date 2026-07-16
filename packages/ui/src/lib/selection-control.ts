@@ -11,4 +11,4 @@ import { FOCUS_RING, FOCUS_RING_DESTRUCTIVE } from "./focus-ring";
 export const TOUCH_TARGET_PSEUDO =
   "before:absolute before:top-1/2 before:left-1/2 before:size-touch-target before:-translate-x-1/2 before:-translate-y-1/2 before:content-['']";
 
-export const SELECTION_CONTROL = `relative inline-flex size-section shrink-0 cursor-pointer items-center justify-center border border-border bg-input transition-colors duration-(--motion-fast) ease-out-expo outline-none ${FOCUS_RING} ${DISABLED_STATE} data-readonly:cursor-default data-invalid:border-destructive ${FOCUS_RING_DESTRUCTIVE} ${TOUCH_TARGET_PSEUDO}`;
+export const SELECTION_CONTROL = `relative inline-flex size-checkbox shrink-0 cursor-pointer items-center justify-center border border-border bg-input transition-colors duration-(--motion-fast) ease-out-expo outline-none ${FOCUS_RING} ${DISABLED_STATE} data-readonly:cursor-default data-invalid:border-destructive ${FOCUS_RING_DESTRUCTIVE} ${TOUCH_TARGET_PSEUDO}`;
