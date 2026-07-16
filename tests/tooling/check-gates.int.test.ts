@@ -55,6 +55,10 @@ function runStructure(): string {
     return execFileSync("pnpm", ["exec", "tsx", "scripts/check/report.ts"], {
       cwd: ROOT,
       encoding: "utf8",
+      // The fixture-run report (every gate firing on its __g_ fixture) exceeds execFileSync's 1MB default
+      // buffer — a truncated tail would silently drop the last-sorted gates from `fired` (a false anti-drift
+      // failure). 64MB headroom keeps the whole report captured as the gate/fixture set grows.
+      maxBuffer: 64 * 1024 * 1024,
     });
   } catch (err) {
     // report.ts exits 1 when a gate fires — the report is on stdout.
@@ -505,6 +509,10 @@ function writeFixtures(): void {
     "packages/client/src/features/__g_selstab/hooks/__g_h.ts",
     "declare const useGStore: (sel: (s: { a: number }) => unknown) => unknown;\nexport const v = useGStore((s) => ({ a: s.a }));\n",
   );
+  // registry-context-via-mint: a hand createContext typed over a *Registry outside the mint home (G26).
+  fx("packages/client/src/features/__g_regctx/hooks/__g_h.ts", "export const GRegCtx = createContext<Registry<string, number> | null>(null);\n");
+  // selection-store-via-factory: a per-section selection store minting the raw createGatedStore door (G27).
+  fx("packages/client/src/state/__g_gdrill-selection-store.ts", 'export const useGDrill = createGatedStore("g-drill-selection", () => ({ id: null }));\n');
 }
 
 // Registered gates that CANNOT be driven by an injected `__g_` fixture — whole-corpus ratchets whose

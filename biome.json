@@ -574,6 +574,29 @@
       }
     },
     {
+      "includes": ["packages/client/src/lib/create-registry-context.tsx"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noComponentHookFactories": "off"
+          },
+          "style": {
+            "useNamingConvention": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["packages/client/src/state/create-drill-selection-store.ts"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noComponentHookFactories": "off"
+          }
+        }
+      }
+    },
+    {
       "includes": ["tests/**"],
       "linter": {
         "rules": {

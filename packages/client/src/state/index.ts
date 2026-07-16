@@ -77,6 +77,8 @@ export {
   selectCorpusCharacter,
   useSelectedCorpusCharacterId,
 } from "./corpus-selection-store";
+export type { DrillSelectionStore, PrimaryDrillStore } from "./create-drill-selection-store";
+export { createDrillSelectionStore } from "./create-drill-selection-store";
 export type { EntityDraftStore, EntityDraftStoreConfig } from "./create-entity-draft-store";
 export { createEntityDraftStore } from "./create-entity-draft-store";
 export type { GatedSet, GatedStoreHook } from "./create-gated-store";

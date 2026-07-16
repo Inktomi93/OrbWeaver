@@ -1,10 +1,7 @@
-// The settings-pane registry Provider (client-architecture-lockdown.md §8) — split from the context+hook
+// The settings-pane-registry Provider (client-architecture-lockdown.md §8) — split from the context+hook
 // file so a JSX module never mixes a hook export with a component export (useComponentExportOnlyModules).
+// The Provider is the createRegistryContext mint's Provider, bound to the settings-pane registry.
 
-import type { ReactElement, ReactNode } from "react";
-import type { SettingsPaneRegistry } from "./settings-pane-registry-context";
-import { SettingsPaneRegistryContext } from "./settings-pane-registry-context";
+import { settingsPaneRegistryContext } from "./settings-pane-registry-context";
 
-export function SettingsPaneRegistryProvider({ value, children }: { readonly value: SettingsPaneRegistry; readonly children: ReactNode }): ReactElement {
-  return <SettingsPaneRegistryContext value={value}>{children}</SettingsPaneRegistryContext>;
-}
+export const SettingsPaneRegistryProvider = settingsPaneRegistryContext.Provider;
