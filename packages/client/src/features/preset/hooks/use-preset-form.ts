@@ -27,7 +27,8 @@ export function usePresetForm(args: AutosaveEntityFormArgs<PromptConfig>): {
   mountKey: string;
   saveState: AutosaveSaveState;
   retrySave: () => void;
+  closeForReseed: () => void;
 } {
-  const { form, mountKey, saveState, retrySave } = useAutosavePresetForm(args);
-  return { form: form as AppFormInstance<PromptConfig>, mountKey, saveState, retrySave };
+  const { form, mountKey, saveState, retrySave, closeForReseed } = useAutosavePresetForm(args);
+  return { form: form as AppFormInstance<PromptConfig>, mountKey, saveState, retrySave, closeForReseed };
 }
