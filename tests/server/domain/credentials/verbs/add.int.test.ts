@@ -77,6 +77,30 @@ describe("add", () => {
     expect(view.hasMetadata).toBe(true);
   });
 
+  test("a fresh insert audits credential.add (rotated:false) attributed to the owner (PD-142)", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const svc = createCredentialsService(h.ctx);
+    const owner = await seedUser(db, { id: "user_o", role: "user" });
+    const view = await svc.add({ principal: principal(owner), provider: "openrouter", key: "sk-1" });
+    const audit = h.audits.find((a) => a.entry.action === "credential.add");
+    expect(audit?.entry).toMatchObject({ actorUserId: owner, entityType: "credential", entityId: view.id });
+    expect(audit?.entry.metadata).toMatchObject({ provider: "openrouter", rotated: false });
+  });
+
+  test("a rotation audits credential.add (rotated:true) on the same row (PD-142)", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const svc = createCredentialsService(h.ctx);
+    const owner = await seedUser(db, { id: "user_o", role: "user" });
+    const first = await svc.add({ principal: principal(owner), provider: "openrouter", key: "sk-old" });
+    await svc.add({ principal: principal(owner), provider: "openrouter", key: "sk-new" });
+    const rotated = h.audits.filter((a) => a.entry.action === "credential.add");
+    expect(rotated).toHaveLength(2);
+    expect(rotated[1]?.entry).toMatchObject({ actorUserId: owner, entityId: first.id });
+    expect(rotated[1]?.entry.metadata).toMatchObject({ rotated: true });
+  });
+
   test("a disabled SecretBox refuses to store (credentials_disabled)", async () => {
     const db = await freshDb();
     const h = makeHarness(db);
@@ -84,5 +108,7 @@ describe("add", () => {
     const owner = await seedUser(db, { id: "user_o", role: "user" });
     await expect(svc.add({ principal: principal(owner), provider: "openrouter", key: "sk-1" })).rejects.toMatchObject({ code: "credentials_disabled" });
     await expect(svc.add({ principal: principal(owner), provider: "openrouter", key: "sk-1" })).rejects.toThrow(DomainOperationError);
+    // No store happened, so nothing was audited.
+    expect(h.audits).toHaveLength(0);
   });
 });

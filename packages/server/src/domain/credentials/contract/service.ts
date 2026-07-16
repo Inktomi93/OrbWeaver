@@ -8,6 +8,7 @@ import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { UserCredentialId } from "@orb/kit/ids";
 import type { RequireOwner } from "#domain/admin";
+import type { AuditEntry } from "#foundation/observability";
 import type { SecretBox } from "#infra/crypto";
 import type {
   AddCredentialParams,
@@ -54,6 +55,11 @@ export interface CredentialContext {
   readonly probe: ProbeOp;
   readonly inspect: InspectOp;
   readonly fetchModels: FetchModelsOp;
+  /** The db-bound best-effort `logAudit`, wired at the composition root (PD-142). Every credential mutation
+   *  writes a durable `audit_logs` row IN ADDITION TO the ephemeral `securityEvent`/`emitUserEvent` — a leaked
+   *  or rotated key must leave a persistent forensic trail, not just a pino line that ages out. Best-effort:
+   *  the audit channel never breaks the primary mutation (see `foundation/observability/audit.ts`). */
+  readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   /** Fires `credentialsChanged` with the owner's `userId` after every user-facing credential mutation's
    *  durable write, so a second device's list refetches. */
   readonly emitUserEvent: EmitUserEvent;

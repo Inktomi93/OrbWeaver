@@ -13,7 +13,9 @@ export function createClearRevoked(ctx: CredentialContext): CredentialsService["
     const ownerId = params.principal.userId;
     const { credentialId } = params;
     requireOwned(await fetchOwnedCredential(ctx.db, ownerId, credentialId), credentialId);
-    await clearRevokedOwned(ctx.db, ownerId, credentialId, ctx.now());
+    const now = ctx.now();
+    await clearRevokedOwned(ctx.db, ownerId, credentialId, now);
+    await ctx.audit({ actorUserId: ownerId, action: "credential.clearRevoked", entityType: "credential", entityId: credentialId }, now);
     ctx.emitUserEvent(ownerId, { type: "credentialsChanged", credentialId });
   };
 }

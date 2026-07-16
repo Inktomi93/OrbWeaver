@@ -15,6 +15,7 @@ export function createRemove(ctx: CredentialContext): CredentialsService["remove
     const { credentialId } = params;
     requireOwned(await fetchOwnedCredential(ctx.db, ownerId, credentialId), credentialId);
     await deleteOwnedCredential(ctx.db, ownerId, credentialId);
+    await ctx.audit({ actorUserId: ownerId, action: "credential.remove", entityType: "credential", entityId: credentialId }, ctx.now());
     ctx.emitUserEvent(ownerId, { type: "credentialsChanged", credentialId });
   };
 }

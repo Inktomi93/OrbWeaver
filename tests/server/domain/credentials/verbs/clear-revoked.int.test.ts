@@ -18,6 +18,16 @@ describe("clearRevoked", () => {
     expect(rows[0]?.revokedAt).toBeNull();
   });
 
+  test("clearing a revocation audits credential.clearRevoked attributed to the owner (PD-142)", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const { svc, owner, cred } = await seedCredential(db, h);
+    await svc.markRevokedByUser({ principal: principal(owner), credentialId: cred.id });
+    await svc.clearRevoked({ principal: principal(owner), credentialId: cred.id });
+    const audit = h.audits.find((a) => a.entry.action === "credential.clearRevoked");
+    expect(audit?.entry).toMatchObject({ actorUserId: owner, entityType: "credential", entityId: cred.id });
+  });
+
   test("rejects a credential the caller does not own (code credential_not_found)", async () => {
     const db = await freshDb();
     const svc = createCredentialsService(makeHarness(db).ctx);

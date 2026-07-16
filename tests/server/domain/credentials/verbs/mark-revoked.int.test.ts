@@ -16,4 +16,15 @@ describe("markRevoked", () => {
     const rows = await db.select().from(userCredentials).where(eq(userCredentials.id, cred.id));
     expect(rows[0]?.revokedAt).not.toBeNull();
   });
+
+  test("audits credential.markRevoked as SYSTEM-attributed (actorUserId null — no owner proven) (PD-142)", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const { svc, cred } = await seedCredential(db, h);
+
+    await svc.markRevoked({ credentialId: cred.id, reason: "provider 401" });
+    const audit = h.audits.find((a) => a.entry.action === "credential.markRevoked");
+    expect(audit?.entry).toMatchObject({ actorUserId: null, entityType: "credential", entityId: cred.id });
+    expect(audit?.entry.metadata).toMatchObject({ reason: "provider 401", path: "runner" });
+  });
 });
