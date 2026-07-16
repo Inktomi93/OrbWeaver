@@ -1,7 +1,9 @@
 // CharacterFacetRow — one row in the CONTENT facet master list. A domain composition of Row + Badge + a
-// ghost Button (not ListRow — glyph badge, two-line name/subtitle button, filled-state cue, ~token
-// estimate). Anatomy left→right: glyph badge · label+subtitle button (drills into the facet) · a
-// "filled"/"empty" cue · the ~token estimate. The selected facet gets accent border + fill.
+// ghost Button (not ListRow — glyph badge, two-line button). Anatomy left→right: glyph badge · button that
+// drills into the facet (line 1 = label; line 2 = a content preview when filled, else the subtitle) · a
+// muted "Add…" invite on EMPTY rows only. ZERO ember: no primary action badge (P5/ember ration); the
+// selected facet reads as a 2px left ember bar + a 10% primary tint (the chats-lane selection pattern),
+// never a full accent border/fill.
 
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
@@ -16,23 +18,27 @@ export interface CharacterFacetRowProps {
   readonly facet: CharacterCardFacet;
   /** This facet is the CONTENT-drilled / CONTEXT-inspected one (accent border + fill). */
   readonly selected: boolean;
-  /** Whether the facet currently holds authored content (drives the "filled" cue). */
+  /** Whether the facet currently holds authored content (drives the preview vs "Add…" affordance). */
   readonly filled: boolean;
-  /** The facet's live ~token estimate, or `null` for the non-prompt facets (creator notes / provenance). */
-  readonly tokens: number | null;
+  /** A short preview of the authored content for a filled row, or `null` when empty (shows "Add…"). */
+  readonly preview: string | null;
   /** Restore keyboard focus to this row's button on mount (set by the list for the facet Back just returned from). */
   readonly focusOnMount: boolean;
   readonly onSelect: (id: CharacterCardFacet["id"]) => void;
 }
 
-export function CharacterFacetRow({ facet, selected, filled, tokens, focusOnMount, onSelect }: CharacterFacetRowProps): ReactElement {
+export function CharacterFacetRow({ facet, selected, filled, preview, focusOnMount, onSelect }: CharacterFacetRowProps): ReactElement {
   const buttonRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     if (focusOnMount) {
       buttonRef.current?.focus();
     }
   }, [focusOnMount]);
-  const rowClass = selected ? "rounded-card border border-primary bg-accent" : "rounded-card border border-border";
+  // Selection = a 2px left ember bar + a 10% primary tint (rides --color-primary so custom themes retint
+  // it), matching the chats-lane list-row pattern; the constant left-border width keeps rows from shifting.
+  const rowClass = selected
+    ? "rounded-card border border-border border-l-2 border-l-primary bg-primary/10"
+    : "rounded-card border border-border border-l-2 border-l-transparent";
   return (
     <Row gap="row" align="center" padding="row" data-selected={selected ? "" : undefined} data-filled={filled ? "" : undefined} className={rowClass}>
       <Badge intent={filled ? "info" : "neutral"} size="sm">
@@ -44,21 +50,15 @@ export function CharacterFacetRow({ facet, selected, filled, tokens, focusOnMoun
           {facet.label}
         </Text>
         <Text size="micro" tone="muted" className="truncate">
-          {facet.subtitle}
+          {filled && preview !== null ? preview : facet.subtitle}
         </Text>
       </Button>
 
-      {filled ? (
-        <Badge intent="primary" size="sm">
-          Set
-        </Badge>
-      ) : null}
-
-      {tokens !== null ? (
-        <Text size="code" tone="muted" className="tabular-nums">
-          ~{tokens}
+      {filled ? null : (
+        <Text size="micro" tone="muted">
+          Add…
         </Text>
-      ) : null}
+      )}
     </Row>
   );
 }

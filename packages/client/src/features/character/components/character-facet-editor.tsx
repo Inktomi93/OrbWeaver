@@ -3,10 +3,9 @@
 // body. Binds the form directly (in-region, no bridge). Big multi-line text authors here; small
 // inputs/selects live in the CONTEXT Field tab.
 
-import { estimateTokens } from "@orb/kit/tokens";
 import { Button } from "@orb/ui/button";
 import { FieldLayout } from "@orb/ui/field";
-import { ArrowLeft, Icon } from "@orb/ui/icons";
+import { ChevronLeft, Icon } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Markdown } from "@orb/ui/markdown";
 import { Text } from "@orb/ui/text";
@@ -24,7 +23,6 @@ import { parseExampleBlocks } from "../lib/example-messages";
 import type { CharacterProvenanceSectionProps } from "./character-provenance-section";
 import { CharacterProvenanceSection } from "./character-provenance-section";
 import { CharacterRegexScriptsField } from "./character-regex-scripts-field";
-import { CharacterTokenCounter } from "./character-token-counter";
 
 type CardForm = AppFormInstance<CharacterCardFormValues>;
 
@@ -55,7 +53,7 @@ export function CharacterFacetEditor({ form, facetId, trusted, readOnly, onBack 
     <Stack gap="section">
       <Row gap="row" align="center">
         <Button ref={backRef} intent="ghost" size="sm" onClick={onBack}>
-          <Icon icon={ArrowLeft} size="sm" />
+          <Icon icon={ChevronLeft} size="sm" />
           Back
         </Button>
       </Row>
@@ -93,7 +91,7 @@ function FacetBody({
   switch (facetId) {
     case "description":
       return (
-        <CountedMacroField
+        <SpoilerMacroField
           form={form}
           name="description"
           label="Description"
@@ -104,11 +102,11 @@ function FacetBody({
       );
     case "personality":
       return (
-        <CountedMacroField form={form} name="personality" label="Personality" hint="A summary of traits and temperament." spoilerBlur={spoilerBlur} rows={16} />
+        <SpoilerMacroField form={form} name="personality" label="Personality" hint="A summary of traits and temperament." spoilerBlur={spoilerBlur} rows={16} />
       );
     case "scenario":
       return (
-        <CountedMacroField
+        <SpoilerMacroField
           form={form}
           name="scenario"
           label="Scenario"
@@ -129,26 +127,24 @@ function FacetBody({
       );
     case "systemPrompt":
       return (
-        <CountedMacroField
+        <SpoilerMacroField
           form={form}
           name="systemPrompt"
           label="System prompt"
           hint="Overrides the assembled system prompt for this character."
           spoilerBlur={false}
           rows={16}
-          showTokenCount={true}
         />
       );
     case "postHistoryInstructions":
       return (
-        <CountedMacroField
+        <SpoilerMacroField
           form={form}
           name="postHistoryInstructions"
           label="Post-history instructions"
           hint="Injected after the chat history, just before the model responds."
           spoilerBlur={false}
           rows={16}
-          showTokenCount={true}
         />
       );
     case "depthPrompt":
@@ -160,15 +156,15 @@ function FacetBody({
   }
 }
 
-/** One macro-aware field; the whole container blurs at rest when the spoiler eye is on. */
-function CountedMacroField({
+/** One macro-aware field; the whole container blurs at rest when the spoiler eye is on. Per-field token
+ *  counts live in the CONTEXT Field tab (P5 — one surface-level readout in the editor header), never here. */
+function SpoilerMacroField({
   form,
   name,
   label,
   hint,
   spoilerBlur,
   rows,
-  showTokenCount = true,
 }: {
   readonly form: CardForm;
   readonly name: "description" | "personality" | "scenario" | "systemPrompt" | "postHistoryInstructions";
@@ -176,14 +172,11 @@ function CountedMacroField({
   readonly hint: string;
   readonly spoilerBlur: boolean;
   readonly rows: number;
-  readonly showTokenCount?: boolean;
 }): ReactElement {
   return (
     <Stack gap="field" data-slot="character-spoiler-field" className={spoilerClass(spoilerBlur)}>
       <form.AppField name={name}>
-        {(field): ReactElement => (
-          <field.MacroField label={label} hint={hint} suggestions={CHARACTER_CARD_MACROS} rows={rows} showTokenCount={showTokenCount} />
-        )}
+        {(field): ReactElement => <field.MacroField label={label} hint={hint} suggestions={CHARACTER_CARD_MACROS} rows={rows} />}
       </form.AppField>
     </Stack>
   );
@@ -200,7 +193,6 @@ function DepthPromptFacet({ form }: { readonly form: CardForm }): ReactElement {
             hint="A recurring note spliced into history at a fixed depth. Set its depth and role in the Field panel."
             suggestions={CHARACTER_CARD_MACROS}
             rows={16}
-            showTokenCount={true}
           />
         )}
       </form.AppField>
@@ -264,9 +256,6 @@ function ExampleMessagesField({
           </form.Subscribe>
         )}
       </Stack>
-      <form.Subscribe selector={(s): string => s.values.exampleMessages}>
-        {(value): ReactElement => <CharacterTokenCounter tokens={estimateTokens(value)} />}
-      </form.Subscribe>
       <Button type="button" size="sm" intent={editing ? "secondary" : "ghost"} aria-pressed={editing} onClick={(): void => setEditing((e) => !e)}>
         {editing ? "Done editing" : "Expand to edit"}
       </Button>
