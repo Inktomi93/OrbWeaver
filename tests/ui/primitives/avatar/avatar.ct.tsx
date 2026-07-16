@@ -72,7 +72,7 @@ test("square shape uses the control radius token; size rides the DISPLAY-avatar 
   const root = page.locator('[data-slot="avatar-root"]');
   // square = --radius-control (0.375rem = 6px)
   await expect(root).toHaveCSS("border-radius", "6px");
-  // lg = --spacing-avatar-lg (2.125rem = 34px) — DECOUPLED from the control tokens (was 56px control-lg).
+  // lg = --spacing-avatar-lg (2.5rem = 40px) — DECOUPLED from the control tokens (was 56px control-lg).
   await expect(root).toHaveCSS("width", `${avatarLgPx}px`);
 });
 

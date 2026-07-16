@@ -53,7 +53,7 @@ test("falls back to initials when no image src is given", async ({ mount }) => {
 test("size passes through to every avatar, matching avatar's own size scale", async ({ mount }) => {
   const component = await mount(<AvatarStack items={MEMBERS.slice(0, 2)} size="lg" />);
   const item = component.locator('[data-slot="avatar-stack-item"]').first();
-  // lg = --spacing-avatar-lg (2.125rem = 34px), the same DISPLAY-avatar token avatar's own size="lg"
+  // lg = --spacing-avatar-lg (2.5rem = 40px), the same DISPLAY-avatar token avatar's own size="lg"
   // resolves to (D62: avatar sizes decoupled from the control-height scale).
   const avatarLgPx = `${Number.parseFloat(TOKENS["spacing.avatar-lg"].value) * ROOT_PX}px`;
   await expect(item).toHaveCSS("width", avatarLgPx);
