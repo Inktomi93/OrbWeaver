@@ -15,13 +15,18 @@ export function createSetActive(ctx: CredentialContext): CredentialsService["set
     const ownerId = params.principal.userId;
     const { credentialId } = params;
     const row = requireOwned(await fetchOwnedCredential(ctx.db, ownerId, credentialId), credentialId);
+    const now = ctx.now();
     await promoteActive(ctx.db, {
       ownerId,
       credentialId,
       provider: row.provider,
-      now: ctx.now(),
+      now,
     });
     const updated = requireOwned(await fetchOwnedCredential(ctx.db, ownerId, credentialId), credentialId);
+    await ctx.audit(
+      { actorUserId: ownerId, action: "credential.setActive", entityType: "credential", entityId: credentialId, metadata: { provider: row.provider } },
+      now,
+    );
     ctx.emitUserEvent(ownerId, { type: "credentialsChanged", credentialId });
     return toCredentialView(updated);
   };

@@ -233,6 +233,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     probe: (credential): Promise<CredentialHealth> => diagnostics.probe({ credential }),
     inspect: (req): Promise<EndpointInspection> => diagnostics.inspect(req),
     fetchModels: fetchOpenAiModels,
+    audit,
     emitUserEvent: publishUserEvent,
   });
   const vllmAvailable = !deps.vllmDisabled;

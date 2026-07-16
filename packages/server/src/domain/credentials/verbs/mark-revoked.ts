@@ -10,7 +10,20 @@ import { setRevokedById } from "../persistence/queries";
 
 export function createMarkRevoked(ctx: CredentialContext): CredentialsService["markRevoked"] {
   return async (params: MarkRevokedParams): Promise<void> => {
-    await setRevokedById(ctx.db, params.credentialId, ctx.now());
+    const now = ctx.now();
+    await setRevokedById(ctx.db, params.credentialId, now);
+    // Runner-internal revoke: no owner is proven (the runner holds only the id), so the durable row is
+    // system-attributed (`actorUserId: null`) with the id it revoked as the soft-ref entity.
+    await ctx.audit(
+      {
+        actorUserId: null,
+        action: "credential.markRevoked",
+        entityType: "credential",
+        entityId: params.credentialId,
+        metadata: { reason: params.reason, path: "runner" },
+      },
+      now,
+    );
     securityEvent(
       "credential_revoked",
       { credentialId: params.credentialId, reason: params.reason, path: "runner" },

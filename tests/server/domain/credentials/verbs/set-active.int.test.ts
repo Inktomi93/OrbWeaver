@@ -35,6 +35,18 @@ describe("setActive", () => {
     expect(byId.get(first.id)).toBe(false);
   });
 
+  test("promoting a credential audits credential.setActive attributed to the owner (PD-142)", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const svc = createCredentialsService(h.ctx);
+    const owner = await seedUser(db, { id: "user_o", role: "user" });
+    await svc.add({ principal: principal(owner), provider: "openrouter", key: "k1", label: "a" });
+    const second = await svc.add({ principal: principal(owner), provider: "openrouter", key: "k2", label: "b" });
+    await svc.setActive({ principal: principal(owner), credentialId: second.id });
+    const audit = h.audits.find((a) => a.entry.action === "credential.setActive");
+    expect(audit?.entry).toMatchObject({ actorUserId: owner, entityType: "credential", entityId: second.id });
+  });
+
   test("a not-owned credential id collapses to CredentialsNotFoundError (400, no existence leak)", async () => {
     const db = await freshDb();
     const svc = createCredentialsService(makeHarness(db).ctx);

@@ -39,9 +39,17 @@ interface InspectCall {
   readonly model: string;
 }
 
+/** A recorded `audit` op call (PD-142) — tests assert every credential mutation writes a durable row. */
+interface AuditCall {
+  readonly entry: Parameters<CredentialContext["audit"]>[0];
+  readonly at: number;
+}
+
 /** The harness: the CredentialContext + the recorders/setters for the faked injected ops. */
 export interface CredentialHarness {
   readonly ctx: CredentialContext;
+  /** The recorded `audit` op calls (PD-142 — assert each mutation writes a durable audit row). */
+  readonly audits: AuditCall[];
   /** Credentials handed to the faked `probe` op (testHealth). */
   readonly probed: ResolvedCredential[];
   readonly setProbeResult: (result: CredentialHealth) => void;
@@ -84,6 +92,7 @@ export function principal(userId: UserId, role: UserRole = "user"): Principal {
 /** Build the CredentialContext over a real db with the real SecretBox/guard + recording fake ops. */
 export function makeHarness(db: Db): CredentialHarness {
   const clock = createFrozenClock(FROZEN_AT);
+  const audits: AuditCall[] = [];
   const probed: ResolvedCredential[] = [];
   const inspected: InspectCall[] = [];
   const fetched: FetchModelsArgs[] = [];
@@ -101,6 +110,10 @@ export function makeHarness(db: Db): CredentialHarness {
     newCredentialId: (): UserCredentialId => nextCredentialId(),
     box: createSecretBox(TEST_KEY),
     requireOwner,
+    audit: (entry: AuditCall["entry"], at: number): Promise<void> => {
+      audits.push({ entry, at });
+      return Promise.resolve();
+    },
     probe: (credential: ResolvedCredential): Promise<CredentialHealth> => {
       probed.push(credential);
       return Promise.resolve(probeResult);
@@ -119,6 +132,7 @@ export function makeHarness(db: Db): CredentialHarness {
 
   return {
     ctx,
+    audits,
     probed,
     setProbeResult: (result: CredentialHealth): void => {
       probeResult = result;
