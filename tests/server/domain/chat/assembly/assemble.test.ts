@@ -224,7 +224,7 @@ describe("assemblePrompt — PD-140/D25: implicit compact_summary prepend", () =
     const config = configOf([marker({ marker: "main_prompt", template: "sys" }), marker({ marker: "chat_history" })]);
     const out = assemblePrompt(config, ctxOf());
     expect(out.trace.compactSummaryIncluded).toBe(false);
-    expect(out.trace.dynamicSections).not.toContain("__synthetic-compact-summary");
+    expect(out.trace.staticSections).not.toContain("__synthetic-compact-summary");
   });
 
   test("an existing enabled compact_summary section wins — no duplicate synthesis", () => {
