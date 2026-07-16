@@ -78,7 +78,7 @@ function ConversationBand({ preview, onSelect }: { readonly preview: AssembledPr
     );
   }
   return (
-    <Stack gap="field" className="rounded-card border border-border bg-accent/40 p-block">
+    <Stack gap="field" className="rounded-card border border-border bg-muted p-block">
       <Row gap="row" align="center">
         <Icon icon={MessagesSquare} size="sm" />
         <Text size="body" weight="semibold" transform="caps" className="flex-1">
