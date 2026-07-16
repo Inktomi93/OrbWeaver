@@ -8,10 +8,12 @@ export { WorldInfoNotFoundError } from "./contract/errors";
 export type { ExportedWorldBook, ExportWorldBook, WorldInfoExportContext } from "./contract/export";
 export type {
   BulkImportLorebook,
+  CopyCharacterBooks,
   ImportStandaloneLorebook,
   ImportWorldBook,
   ImportWorldBookContext,
   ImportWorldBookOutcome,
+  WorldInfoDuplicateCarryContext,
   WorldInfoImportContext,
 } from "./contract/import";
 export type {
@@ -22,6 +24,7 @@ export type {
 } from "./contract/params";
 export type { WorldInfoService } from "./contract/service";
 export type { BookAttachmentView, BookView, EntryView, WorldBookRole } from "./contract/views";
+export { createCopyCharacterBooks } from "./persistence/duplicate-carry";
 export {
   createBulkImportLorebook,
   createImportStandaloneLorebook,

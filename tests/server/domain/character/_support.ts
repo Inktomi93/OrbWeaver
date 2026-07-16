@@ -15,6 +15,7 @@ import type { AssetId, CharacterId, CharacterSnapshotId, CharacterStatId, Handle
 import { castId } from "@orb/kit/ids";
 import type { CharacterContext } from "../../../../packages/server/src/domain/character/context.ts";
 import type { AttachCardTagOp, DetachCardTagOp } from "../../../../packages/server/src/domain/character/contract/service.ts";
+import { createCopyCharacterBooks } from "../../../../packages/server/src/domain/world-info/index.ts";
 import { createFrozenClock, FROZEN_AT_MS } from "../../../support/clock.ts";
 import { principal as makePrincipal } from "../../../support/factories/principal.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
@@ -89,6 +90,9 @@ export function makeHarness(db: Db): CharacterHarness {
       tagDetaches.push(args);
       return Promise.resolve(tagDetachResult);
     },
+    // PD-141: the REAL world-info carry (db-bound, deterministic) so a test can assert junction rows land —
+    // faithful to compose, which wires this same persistence factory.
+    copyCharacterBooks: createCopyCharacterBooks({ db, now: (): number => clock.now() }),
     // PD user-bus lane: records the emit so a test can assert `charactersChanged` fires after a durable write.
     emitUserEvent: (userId: UserId, event: UserBusEvent): void => {
       userEvents.push({ userId, event });
