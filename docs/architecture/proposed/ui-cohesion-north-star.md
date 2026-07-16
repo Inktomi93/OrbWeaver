@@ -47,13 +47,18 @@ and the derive-modernization program ([`derive-modernization-audit.md`](derive-m
    ABSORBS the `SECTION_GROUPS` double-spell (audit W3-#5) and whose chrome registry
    context/provider rides the same `createRegistryContext` mint (whichever lands first, the other
    consumes it).
-3. **Shell-chrome §E steps 1–3** (full mint + `assembleChrome` behavior union + rail single-DOM
-   cutover) — BEFORE N1, so N1's rail-brand cell and topbar-cluster skin land ONCE on the final DOM,
-   not on the doomed `.shell-rail-desktop`/`.shell-rail-mobile` twins.
-4. **N1–N5** (§4) — the chats lane, in order; N5's checklist gates the §6 rollout.
+3. **Shell-chrome §E steps 1–3** — ✅ 2026-07-16 (full vocab mint · `assembleChrome` behavior union ·
+   rail single-DOM cutover; the twins + `RailTabButton` + `rail-slots.ts` are dead).
+4. **N1–N5** (§4) — ✅ ALL FIVE 2026-07-16; **THE GATE IS MET — the §6 rollout may start.** One
+   baseline live-measured at zero drift (flat/ramp ± glass); list band + ember selection; the
+   message row de-noised (8-skin geometry suite re-verified); context identity header + ember edge
+   via the §6b-posture header channel; the ember census found ONE stray across 56 Buttons (inline
+   edit-Save, demoted); every applicable §9 line passed with live evidence; lane-wide verifier +
+   side-eye passes ran at the gate.
 5. **Shell-chrome §E steps 5–7** (You-sheet projection + mobile persona · `railFoot` kill · vocab/law)
-   — no file collision with the chats lane; may run parallel to N2–N5. Step 7 deletes the settings
-   `account` pane (see §6's superseded Account item).
+   — **steps 5+6 ✅ 2026-07-16** (mobile persona switching shipped; `railFoot` + `AppShellProps`
+   dead; placement `avatar` retired). Step 7 remains: vocab rename, the settings `account` pane
+   deletion (see §6's superseded Account item), the remaining §D gates, law updates.
 6. **Derive-W1 (FormDialog rollup + G24)** — parallel-able with 4–5; MUST land before step 7 (the
    rollout repaints exactly the features W1 migrates — see §6's pre-gate note).
 7. **§6 rollout** (characters → presets → sections → remainders), §7 autosave inside each lane.
