@@ -12,7 +12,7 @@ import { useEffect, useState } from "react";
 import { useAuthConfig, useInvalidation, useUserBus } from "#data";
 import { AppShell } from "#features/app-shell";
 import { clearJoinParam, JoinInviteDialog, readJoinToken } from "#features/chat";
-import { FirstRunPersonaDialog, PersonaPanelSurface } from "#features/persona";
+import { FirstRunPersonaDialog } from "#features/persona";
 import { isCommitted, useActiveChatHandle, useActiveDraftSeed, useActiveSection, useSelectedCharacterId } from "#state";
 
 export function AppRoot(): ReactElement {
@@ -65,7 +65,7 @@ export function AppRoot(): ReactElement {
   return (
     <>
       <AriaAnnouncer message={routeAnnouncement} />
-      <AppShell railFoot={<PersonaPanelSurface />} />
+      <AppShell />
       {/* Renders nothing once the viewer owns a persona; forces the create flow on a fresh account. */}
       <FirstRunPersonaDialog />
       {/* The /join link landing — mounts only when a token arrived and the deployment is capable. */}

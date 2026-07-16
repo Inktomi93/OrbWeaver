@@ -6,8 +6,8 @@
 // (3) the PLANNED discipline — `body: { planned }` needs a non-empty reason AND no real function body
 //     (a planned modal wiring a real body is dishonest);
 // (4) the SINGLETON-PLACEMENT arm — the rail/topbar/mobile-bar derivation assumes exactly ONE modal per
-//     `avatar`/`topbar-command`/`mobile-tab`; two claiming a singleton placement → RED (`rail-footer`/
-//     `content` may repeat);
+//     `topbar-command`/`mobile-tab`; two claiming a singleton placement → RED (`rail-footer`/`content` may
+//     repeat — `content` now carries both new-chat AND the account modal, §E-5);
 // (5) the ANTI-GOD-MAP arm — a `modals={{…}}` object literal in a route file (the deleted override map).
 import type { ObjectLiteralExpression, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
@@ -19,7 +19,7 @@ const CLIENT_SRC = "/packages/client/src/";
 const MODAL_FILE_RE = /\/features\/[^/]+\/lib\/[^/]+-modal\.tsx?$/;
 const ROUTES_DIR = "/packages/client/src/routes/";
 /** Placements the derivation renders as EXACTLY ONE affordance — a second claimant breaks the .find(). */
-const SINGLETON_PLACEMENTS = new Set(["avatar", "topbar-command", "mobile-tab"]);
+const SINGLETON_PLACEMENTS = new Set(["topbar-command", "mobile-tab"]);
 
 function rel(path: string): string {
   const idx = path.indexOf("/packages/");
@@ -101,7 +101,7 @@ function checkModalDef(def: ModalDef, out: Violation[], seenIds: Map<string, See
     out.push({
       file: rel(def.path),
       line: def.line,
-      message: `ModalDefinition "${def.name}" claims the singleton placement "${placement}", already claimed by "${singletonOwner.name}" (${singletonOwner.file}) — the rail/topbar/mobile-bar derivation renders exactly ONE affordance per avatar/topbar-command/mobile-tab — client-architecture-lockdown.md §6d.`,
+      message: `ModalDefinition "${def.name}" claims the singleton placement "${placement}", already claimed by "${singletonOwner.name}" (${singletonOwner.file}) — the rail/topbar/mobile-bar derivation renders exactly ONE affordance per topbar-command/mobile-tab — client-architecture-lockdown.md §6d.`,
     });
   }
   const reason = plannedReason(def.init);
@@ -168,8 +168,8 @@ export const gate: GateDescriptor = {
   status: "active",
   scopeSafety: "whole-project",
   message:
-    "a modal is dishonest: a ModalDefinition not co-located in a feature modal file, a duplicate id, a DECLARED-PLANNED modal with an empty reason, two modals claiming a singleton placement (avatar/topbar-command/mobile-tab), or a route re-forming the `modals` override god-map — client-architecture-lockdown.md §6d.",
-  fix: "co-locate the definition; a planned modal is a non-empty reason (no function body); one modal per avatar/topbar-command/mobile-tab; a route is a thin mount — modals ride the registry.",
+    "a modal is dishonest: a ModalDefinition not co-located in a feature modal file, a duplicate id, a DECLARED-PLANNED modal with an empty reason, two modals claiming a singleton placement (topbar-command/mobile-tab), or a route re-forming the `modals` override god-map — client-architecture-lockdown.md §6d.",
+  fix: "co-locate the definition; a planned modal is a non-empty reason (no function body); one modal per topbar-command/mobile-tab; a route is a thin mount — modals ride the registry.",
   run: (ctx) => {
     const out: Violation[] = [];
     const seenIds = new Map<string, Seen>();
@@ -203,11 +203,11 @@ export const gate: GateDescriptor = {
     },
     {
       files: {
-        "packages/client/src/features/a/lib/a-modal.ts": "export const aModal: ModalDefinition = { id: 'x', trigger: { placement: 'avatar' } };\n",
-        "packages/client/src/features/b/lib/b-modal.ts": "export const bModal: ModalDefinition = { id: 'y', trigger: { placement: 'avatar' } };\n",
+        "packages/client/src/features/a/lib/a-modal.ts": "export const aModal: ModalDefinition = { id: 'x', trigger: { placement: 'mobile-tab' } };\n",
+        "packages/client/src/features/b/lib/b-modal.ts": "export const bModal: ModalDefinition = { id: 'y', trigger: { placement: 'mobile-tab' } };\n",
       },
       expect: { messageIncludes: "singleton placement" },
-      why: "two modals claiming the `avatar` singleton placement — the singleton-placement arm",
+      why: "two modals claiming the `mobile-tab` singleton placement — the singleton-placement arm",
     },
     {
       files: {

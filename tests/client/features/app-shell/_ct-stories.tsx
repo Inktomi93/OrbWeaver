@@ -18,7 +18,10 @@
 // desktop label spans render inline (doubling each section's visible text). At the CT's desktop viewport
 // (1280px > 48rem) the desktop icon column shows, matching production.
 
-import { AppShell } from "@orb/client/features/app-shell";
+import { AppShell, YouSheet } from "@orb/client/features/app-shell";
+import { createContributorRegistry } from "@orb/client/lib";
+import type { ChromeEntry } from "@orb/client/state";
+import { ChromeRegistryProvider } from "@orb/client/state";
 import type { ReactElement } from "react";
 import { useEffect } from "react";
 import { CustomThemeStyle } from "../../../../packages/client/src/features/app-shell/components/custom-theme-style";
@@ -27,7 +30,13 @@ import "../../../../packages/client/src/features/app-shell/surfaces/shell.css";
 import type { ModalSlotId } from "../../../../packages/client/src/state/shell-store";
 import { openModal } from "../../../../packages/client/src/state/shell-store";
 import "../../../../packages/client/src/styles/globals.css";
-import { CtChatContributorSectionRegistry, CtDataProviders, CtFakeModalRegistry, CtFakeSectionRegistry } from "../../../support/ct/ct-data-providers";
+import {
+  CtChatContributorSectionRegistry,
+  CtDataProviders,
+  CtFakeModalRegistry,
+  CtFakeSectionRegistry,
+  CtStandInChromeRegistry,
+} from "../../../support/ct/ct-data-providers";
 
 /** The full shell with chats CONTENT+CONTEXT slots + a corpus LIST/CONTENT slot; other sections fall
  *  back. The chats `context` slot backs the CONTEXT-follows-section CT (§4.2 rule 1). */
@@ -114,19 +123,46 @@ export function ModalScrollStory({ modalId }: { readonly modalId: ModalSlotId })
   );
 }
 
-/** The Rail in isolation — a11y + keyboard nav over real <button>s, registry-driven. `railFoot` is a
- *  route-composed slot (production: `PersonaPanelSurface`); this story stands in a bare named button so
- *  the avatar slot stays part of the a11y-baseline assertion without pulling in the persona feature. */
+/** The Rail in isolation — a11y + keyboard nav over real <button>s, registry-driven. The persona identity
+ *  is now a `rail.end` chrome widget (`personaChrome`, §E-6, no more `railFoot` prop); `CtStandInChromeRegistry`
+ *  swaps a bare "Account" button for its data-backed body so the footer-slot a11y baseline stays covered
+ *  without pulling the persona feature (and its queries) into this dataless mount. */
 export function RailStory(): ReactElement {
   return (
     <CtFakeSectionRegistry>
-      <Rail
-        activeSection="chats"
-        onSelectSection={(): void => undefined}
-        onOpenModal={(): void => undefined}
-        railFoot={<button type="button">Account</button>}
-      />
+      <CtStandInChromeRegistry>
+        <Rail activeSection="chats" onSelectSection={(): void => undefined} onOpenModal={(): void => undefined} />
+      </CtStandInChromeRegistry>
     </CtFakeSectionRegistry>
+  );
+}
+
+/** The YouSheet projection in isolation (§E-5): a custom chrome registry with a fake `rail.end` widget
+ *  whose `body("sheet")` renders a marker + a `mobile:"sheet"` overflow section — proof the sheet is a
+ *  BLIND PROJECTION over the resolved chrome list (a widget's sheet lens + an overflow section both appear),
+ *  not a second hand-maintained derivation. */
+export function YouSheetProjectionStory(): ReactElement {
+  const chrome = createContributorRegistry<ChromeEntry>("chrome", [
+    {
+      id: "fake-identity",
+      label: "Fake identity",
+      zone: "rail.end",
+      mobile: "sheet",
+      behavior: { kind: "widget", body: (presentation): ReactElement => <div data-testid="sheet-lens">lens:{presentation}</div> },
+    },
+    {
+      id: "fake-overflow",
+      label: "Fake overflow section",
+      zone: "rail.nav",
+      mobile: "sheet",
+      order: 0,
+      behavior: { kind: "section", sectionId: "analytics" },
+    },
+  ]);
+  return (
+    <ChromeRegistryProvider value={chrome}>
+      <YouSheet />
+    </ChromeRegistryProvider>
   );
 }
 

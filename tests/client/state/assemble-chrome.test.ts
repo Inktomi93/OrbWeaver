@@ -1,6 +1,6 @@
 // assembleChrome (state/assemble-chrome.ts) — the PURE door assembly. Pins the three-source derivation
 // (rail sections → rail.nav · mapped modal triggers → rail.end · widgets pass through), the placement→zone
-// map (only rail-footer maps today; topbar-command/avatar/content/mobile-tab do NOT), the dupe-id and
+// map (only rail-footer maps today; topbar-command/content/mobile-tab do NOT), the dupe-id and
 // zone-validation throws, and the canonical `(order, id)` per-zone order.
 
 import type { ChromeEntry, ChromeZone, ModalDefinition, SectionDefinition } from "@orb/client/state";
@@ -48,10 +48,11 @@ describe("assembleChrome", () => {
     expect(entries[0]).toMatchObject({ id: "settings", zone: "rail.end", behavior: { kind: "modal", modalId: "settings" } });
   });
 
-  test("produces NO chrome entry for unmapped placements (topbar-command/avatar/content/mobile-tab)", () => {
+  test("produces NO chrome entry for unmapped placements (topbar-command/content/mobile-tab)", () => {
     const entries = assembleChrome({
       sections: [],
-      modals: [modal("command", "topbar-command"), modal("account", "avatar"), modal("newChat", "content"), modal("you", "mobile-tab")],
+      // `content` repeats (new-chat + account, §E-5) — an unmapped placement, so still zero chrome entries.
+      modals: [modal("command", "topbar-command"), modal("account", "content"), modal("newChat", "content"), modal("you", "mobile-tab")],
       widgets: [],
     });
     expect(entries).toHaveLength(0);

@@ -26,7 +26,7 @@ import { chatOptionsChrome, commandModal, makeChatsSection, newChatModal } from 
 import { connectionsPane } from "#features/credentials";
 import { corpusSection } from "#features/discovery";
 import { notificationsChrome } from "#features/notifications";
-import { personasPane } from "#features/persona";
+import { personaChrome, personasPane } from "#features/persona";
 import { presetsSection } from "#features/preset";
 import { refinerySection } from "#features/refinery";
 import { accountPane, appearancePane, automationPane, chatBehaviorPane, regexPane, settingsModal, systemPane, tagsPane, themeModal } from "#features/settings";
@@ -121,7 +121,7 @@ const chrome = createContributorRegistry(
   assembleChrome({
     sections: sections.list(),
     modals: modals.list(),
-    widgets: [notificationsChrome, fullscreenChrome, contextToggleChrome, chatOptionsChrome],
+    widgets: [notificationsChrome, fullscreenChrome, contextToggleChrome, chatOptionsChrome, personaChrome],
   }),
 );
 
