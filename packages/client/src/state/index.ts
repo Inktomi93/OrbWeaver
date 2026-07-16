@@ -22,6 +22,8 @@ export {
   selectAnalyticsCharacter,
   useSelectedAnalyticsCharacterId,
 } from "./analytics-selection-store";
+export type { AssembleChromeInput } from "./assemble-chrome";
+export { assembleChrome } from "./assemble-chrome";
 export type { CharacterViewMode } from "./character-library-store";
 export {
   CHARACTER_VIEW_MODES,
@@ -67,7 +69,7 @@ export {
   useTurnSlot,
   useTurnSpeakerCharacterId,
 } from "./chat-stream";
-export type { ChromeEntry, ChromeZone } from "./chrome-registry";
+export type { ChromeEntry, ChromeEntryBehavior, ChromePresentation, ChromeZone, MobileCuration } from "./chrome-registry";
 export { CHROME_ZONES } from "./chrome-registry";
 export type { ChromeRegistry } from "./chrome-registry-context";
 export { ChromeRegistryContext, useChromeRegistry } from "./chrome-registry-context";
@@ -148,6 +150,7 @@ export type {
   SectionGroup,
   SectionPlaceholderCopy,
 } from "./section-registry";
+export { SECTION_GROUPS } from "./section-registry";
 export type { SectionRegistry } from "./section-registry-context";
 export { SectionRegistryContext, useSectionRegistry } from "./section-registry-context";
 export { SectionRegistryProvider } from "./section-registry-provider";

@@ -36,8 +36,8 @@ import { backupPane, workloadsPane } from "#features/workloads";
 import { worldInfoSection } from "#features/world-info";
 import type { ChatContextState, ChatSurfaceContribution, ContextTabDef } from "#lib";
 import { AppErrorBoundary, bindNotify, buildClientErrorPayload, createContributorRegistry, createRegistry } from "#lib";
-import type { ChromeEntry } from "#state";
 import {
+  assembleChrome,
   ChromeRegistryProvider,
   MODAL_SLOT_IDS,
   ModalRegistryProvider,
@@ -111,10 +111,15 @@ const modals = createRegistry("modals", MODAL_SLOT_IDS, {
   you: youModal,
 });
 
-// The ONE chrome assembly (shell-chrome-unification.md §A/§D, G8): an OPEN contributor registry (no
-// closed id vocabulary — CHROME_ZONES is the closed axis, entries are growth) delivered as a context
+// The ONE chrome assembly (shell-chrome-unification.md §A/§D/§E-2, G8): `assembleChrome` DERIVES the rail
+// section + mapped modal-trigger entries and combines them with the feature-owned WIDGET entries into one
+// dupe-checked, zone-validated, canonically-ordered list; `createContributorRegistry` (the door mint, G8)
+// wraps it. An OPEN registry (CHROME_ZONES is the closed axis, entries are growth) delivered as a context
 // value so app-shell renders the topbar.trail zone blind (no #features import).
-const chrome = createContributorRegistry<ChromeEntry>("chrome", [notificationsChrome, fullscreenChrome, contextToggleChrome]);
+const chrome = createContributorRegistry(
+  "chrome",
+  assembleChrome({ sections: sections.list(), modals: modals.list(), widgets: [notificationsChrome, fullscreenChrome, contextToggleChrome] }),
+);
 
 // The ONE settings-pane assembly (§8/G8): total over SETTINGS_CATEGORY_IDS by tsc; delivered as a
 // context value so the settings host reads it without importing any pane body directly.

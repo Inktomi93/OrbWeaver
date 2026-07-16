@@ -10,5 +10,6 @@ export const fullscreenChrome: ChromeEntry = {
   label: "Focus mode",
   zone: "topbar.trail",
   order: 20,
-  body: (): ReturnType<typeof FullscreenToggle> => <FullscreenToggle />,
+  // A topbar toggle — the same affordance in bar and sheet lenses; `presentation` is unused today.
+  behavior: { kind: "widget", body: (_presentation): ReturnType<typeof FullscreenToggle> => <FullscreenToggle /> },
 };

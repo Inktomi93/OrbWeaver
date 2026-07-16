@@ -14,5 +14,7 @@ export const notificationsChrome: ChromeEntry = {
   label: "Notifications",
   zone: "topbar.trail",
   useVisible: (): boolean => useAuthConfig().data?.multiHumanCapable === true,
-  body: (): ReactElement => <NotificationBell />,
+  // The `presentation` lens is ignored today — the bell renders identically in bar and sheet; a
+  // sheet-specific projection (if any) lands §E-5.
+  behavior: { kind: "widget", body: (_presentation): ReactElement => <NotificationBell /> },
 };

@@ -10,9 +10,11 @@ import type { ReactNode } from "react";
 import type { ContextDefinition } from "#lib";
 import type { PanelMode, PanelName, SectionId } from "./shell-store";
 
-// The rail's section groups, in divider order — the `--spacing-section` grouping. Module-local: only the
-// `SectionGroup` type is exported here; rail-slots.ts keeps its own values tuple for the rail's grouping.
-const SECTION_GROUPS = ["primary", "authoring", "insight"] as const;
+// The rail's section groups, in divider order — the `--spacing-section` grouping: primary (everyday
+// collections) · authoring (create/refine) · insight (analyze). The ONE home for the group axis (state
+// owns shell vocabulary, §5 rule 5): the rail consumes these values for its divider order (importing DOWN
+// from #state), and `ChromeEntry.group` derives its type from `SectionGroup` — no second spelling anywhere.
+export const SECTION_GROUPS = ["primary", "authoring", "insight"] as const;
 /** The rail's section-group axis, derived from the SECTION_GROUPS tuple (no inline re-spell). */
 export type SectionGroup = (typeof SECTION_GROUPS)[number];
 

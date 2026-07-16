@@ -69,6 +69,23 @@ function checkChromeEntry(def: ChromeDef, out: Violation[], seenIds: Map<string,
       message: `ChromeEntry "${def.name}" declares zone "${zone}", not one of CHROME_ZONES (rail.nav/rail.end/topbar.trail) — shell-chrome-unification.md §A.`,
     });
   }
+  // The mobile-curation axis is RAIL-ONLY: a rail.* widget must declare its mobile-tab-vs-You-sheet fate
+  // (`mobile: "tab"|"sheet"`), a topbar.* widget must NOT (there is no mobile bar for it). §D.
+  const hasMobile = def.init.getProperty("mobile") !== undefined;
+  if (zone !== undefined && zone.startsWith("rail.") && !hasMobile) {
+    out.push({
+      file: rel(def.path),
+      line: def.line,
+      message: `ChromeEntry "${def.name}" is a rail widget (zone "${zone}") but declares no \`mobile\` — a rail.* widget's tab-vs-You-sheet fate is EXPLICIT (mobile: "tab"|"sheet") — shell-chrome-unification.md §D.`,
+    });
+  }
+  if (zone !== undefined && zone.startsWith("topbar.") && hasMobile) {
+    out.push({
+      file: rel(def.path),
+      line: def.line,
+      message: `ChromeEntry "${def.name}" is a topbar widget (zone "${zone}") but declares \`mobile\` — mobile curation is a rail-only axis — shell-chrome-unification.md §D.`,
+    });
+  }
 }
 
 function checkChromeDefs(sf: SourceFile, out: Violation[], seenIds: Map<string, Seen>): void {
@@ -102,8 +119,8 @@ export const gate: GateDescriptor = {
   status: "active",
   scopeSafety: "whole-project",
   message:
-    "a chrome widget is dishonest: a ChromeEntry not co-located in a feature chrome file, a duplicate id across defs, or a zone outside CHROME_ZONES — shell-chrome-unification.md §A.",
-  fix: "co-locate the definition at features/<owner>/lib/<id>-chrome.tsx; give every ChromeEntry a unique id; use a real CHROME_ZONES member.",
+    "a chrome widget is dishonest: a ChromeEntry not co-located in a feature chrome file, a duplicate id across defs, a zone outside CHROME_ZONES, a rail.* widget missing `mobile`, or a topbar.* widget declaring `mobile` — shell-chrome-unification.md §A/§D.",
+  fix: "co-locate the definition at features/<owner>/lib/<id>-chrome.tsx; give every ChromeEntry a unique id; use a real CHROME_ZONES member; declare `mobile` on rail.* widgets only.",
   run: (ctx) => {
     const out: Violation[] = [];
     const seenIds = new Map<string, Seen>();
@@ -139,12 +156,37 @@ export const gate: GateDescriptor = {
       expect: { messageIncludes: "not one of CHROME_ZONES" },
       why: "a zone string outside CHROME_ZONES — the zone arm",
     },
+    {
+      files: "export const railChrome: ChromeEntry = { id: 'r', zone: 'rail.nav', label: 'R', behavior: { kind: 'widget', body: () => null } };\n",
+      at: "packages/client/src/features/x/lib/rail-chrome.tsx",
+      expect: { messageIncludes: "declares no `mobile`" },
+      why: "a rail.* widget with no `mobile` — the rail-mobile-required arm (§D)",
+    },
+    {
+      files:
+        "export const barChrome: ChromeEntry = { id: 'b', zone: 'topbar.trail', label: 'B', mobile: 'tab', behavior: { kind: 'widget', body: () => null } };\n",
+      at: "packages/client/src/features/x/lib/bar-chrome.tsx",
+      expect: { messageIncludes: "mobile curation is a rail-only axis" },
+      why: "a topbar.* widget declaring `mobile` — the topbar-no-mobile arm (§D)",
+    },
   ],
   mustPass: [
     {
-      files: "export const xChrome: ChromeEntry = { id: 'x', zone: 'topbar.trail', label: 'X', body: () => null };\n",
+      files: "export const xChrome: ChromeEntry = { id: 'x', zone: 'topbar.trail', label: 'X', behavior: { kind: 'widget', body: () => null } };\n",
       at: "packages/client/src/features/x/lib/x-chrome.tsx",
-      why: "a FULL co-located chrome widget (real zone, unique id) — passes",
+      why: "a FULL co-located topbar.trail widget (real zone, unique id, no mobile) — passes",
+    },
+    {
+      files:
+        "export const navChrome: ChromeEntry = { id: 'nav', zone: 'rail.nav', label: 'Nav', mobile: 'sheet', behavior: { kind: 'widget', body: () => null } };\n",
+      at: "packages/client/src/features/x/lib/nav-chrome.tsx",
+      why: "a `rail.nav` widget declaring `mobile` — a real CHROME_ZONES member with the required rail axis (§E-1/§D)",
+    },
+    {
+      files:
+        "export const endChrome: ChromeEntry = { id: 'end', zone: 'rail.end', label: 'End', mobile: 'sheet', behavior: { kind: 'widget', body: () => null } };\n",
+      at: "packages/client/src/features/x/lib/end-chrome.tsx",
+      why: "a `rail.end` widget declaring `mobile` — a real CHROME_ZONES member with the required rail axis (§E-1/§D)",
     },
   ],
 };

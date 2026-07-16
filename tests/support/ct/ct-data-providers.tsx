@@ -44,7 +44,6 @@ import { worldInfoSection } from "@orb/client/features/world-info";
 import type { ChatContextState, ChatSurfaceContribution, ContextTabDef, ContributorRegistry } from "@orb/client/lib";
 import { createContributorRegistry, createRegistry } from "@orb/client/lib";
 import type {
-  ChromeEntry,
   ChromeRegistry,
   ModalDefinition,
   ModalRegistry,
@@ -57,6 +56,7 @@ import type {
   SettingsPaneRegistry,
 } from "@orb/client/state";
 import {
+  assembleChrome,
   ChromeRegistryProvider,
   MODAL_SLOT_IDS,
   ModalRegistryProvider,
@@ -149,7 +149,10 @@ const realSettingsPaneRegistry: SettingsPaneRegistry = createRegistry<SettingsCa
 // AppShell reads the chrome registry (its topbar.trail render) as a runtime context (mirrors main.tsx's
 // door). The section-registry providers below nest it, so every shell CT gets all four registries.
 
-const realChromeRegistry: ChromeRegistry = createContributorRegistry<ChromeEntry>("chrome", [notificationsChrome, fullscreenChrome, contextToggleChrome]);
+const realChromeRegistry: ChromeRegistry = createContributorRegistry(
+  "chrome",
+  assembleChrome({ sections: realRegistry.list(), modals: realModalRegistry.list(), widgets: [notificationsChrome, fullscreenChrome, contextToggleChrome] }),
+);
 
 /** The real 7-section + 6-modal + 12-settings-pane + 3-chrome registries — for CTs that drive real
  *  content (the route CT). */
