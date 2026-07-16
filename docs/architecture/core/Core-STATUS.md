@@ -17,8 +17,8 @@ BUILT** (verified corpus-wide 2026-07-13 — chat engine incl. the pending\_turn
 multiplayer, all six provider backends + the turn-shaping axis, search/discovery/stats, portability);
 what's unbuilt backend-side is the parked future programs + short tails, all mapped in
 `../proposed/INDEX.md`. **Current lane:** `../proposed/ui-cohesion-north-star.md` (D66 UI-cohesion
-program — the remaining work is predominantly frontend). **Ledger cursor: D69**
-(`Core-Path-Registry.md` — D67 anth-direct · D68 sampling completeness · D69 turn-shaping axis).
+program — the remaining work is predominantly frontend). **Ledger cursor: D77**
+(`Core-Path-Registry.md` — D75 debug-surface read-only · D76 healthz minimal · D77 ingress XFF-only + empty-403).
 
 ## Verify
 

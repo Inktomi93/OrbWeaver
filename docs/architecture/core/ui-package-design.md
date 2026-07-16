@@ -79,12 +79,17 @@ packages/ui/
     layout/             # Stack · Row · Section · Toolbar · Container · Grid (owns container-type —
                         #   §4-tier model; Toolbar = Base UI Toolbar for roving-tabindex + our layout
                         #   skin; Grid = fill-and-sort grid, BUILT)
-    charts/             # seals ECharts (D52) — BUILT: chart/ + bar-list/ + histogram/ + stat-figure/
+    charts/             # seals ECharts (D52) — BUILT: chart/ + bar-list/ + histogram/ + heatmap/ +
+                        #   scatter/ + stat-figure/
+      labeled-chart-frame/ # the shared label/empty-state chart frame — layout only, NOT an ECharts
+                        #   seal; exported ./labeled-chart-frame
       meter/            # Meter (linear/arc/bipolar + milestones/dangerBelow) + SegmentedClock —
                         #   plain CSS/SVG, NOT the chart lib (D52/D58; rpg-design/11 §2); exported ./meter
     markdown/           # seals Streamdown — TWO trust policies (UI-Gates §11.6)
                         #   + math.ts (KaTeX) + shiki-plugin.ts (Shiki code highlight —
-                        #   Streamdown 2.5 dropped its bundled Shiki) — Tier-A allowlist lives HERE (D44 §12.2)
+                        #   Streamdown 2.5 dropped its bundled Shiki) + mermaid.tsx (token-styled Mermaid
+                        #   theme + error component — Mermaid ships inside Streamdown) — Tier-A allowlist
+                        #   lives HERE (D44 §12.2)
     stream/             # useSmoothText pacer + TTFT shimmer (BUILT; §6.3.1 — pure string-math)
     content/            # sandbox-frame/ · message-media/ · theme-scope/ · lightbox/ — each a sealed
                         #   dir (D44 — the security trio + lightbox)
@@ -121,7 +126,7 @@ enforces the seal column: a lib may only be imported from its sealed dir.
 | `@base-ui/react` | every Base UI wrap (`primitives/`, `layout/toolbar`) | THE headless primitive (D42); react + react-dom peers ride it (§1) |
 | `tailwind-variants` (+ `tailwind-merge`) | `lib/` — the `cn` merge + configured `tv` (§5) | subsumes cva/clsx as the styling primitive; `tailwind-merge` is a direct dep only so `createTV`'s `twMergeConfig` can register the custom `--text-*` size classGroup (§5) |
 | `lucide-react` | `primitives/icons/` (gate `icons-lucide-only`) | the ONE icon set |
-| `@tanstack/react-virtual` | `primitives/virtual-list/` + `primitives/message-list/` | `directDomUpdates` + core chat APIs (D54) |
+| `@tanstack/react-virtual` | `primitives/virtual-list/` + `primitives/message-list/` + `primitives/media-grid/` | `directDomUpdates` + core chat APIs (D54) |
 | `streamdown` + `remark-gfm` | `markdown/` | two trust policies |
 | `katex` + `rehype-katex` + `remark-math` | `markdown/math.ts` | Streamdown bundles Mermaid but not KaTeX — this seal supplies the whole `$…$`/`$$…$$` stack + stylesheet |
 | `@shikijs/core` + `@shikijs/engine-javascript` + `@shikijs/langs` | `markdown/shiki-plugin.ts` | Streamdown 2.5 dropped its bundled Shiki — the seal re-supplies code highlighting via `plugins.code` (lazy JS-regex engine, both mode literals baked) |
@@ -276,8 +281,8 @@ and the CT tests assert the CONTAINMENT properties, not just rendering:
 | - | - | - |
 | resolver | ui's `package.json` omits contracts/db/server/client + client's omits the satellites | scaffold (done at package birth) |
 | lint (biome) | `noUndeclaredDependencies` / `noUnresolvedImports` on ui | free (repo-wide already) |
-| dep-cruiser | `ui-cake` (ui ⇏ contracts/db/server/client) · `ui-no-node-builtins` · `ui-satellite-seals` (echarts→`charts/` only; react-virtual→`virtual-list\|message-list` only; codemirror→`code-editor/`; streamdown/remark→`markdown/`; cmdk→`command/`; @dnd-kit→`sortable/`; diff→`diff/`; lucide→`icons/`). Client's "no raw satellites" is a DELIBERATE non-rule (resolver physics + biome `noUndeclaredDependencies` — a dep-cruiser twin would be unfireable-by-construction), not a wired rule. | scaffold |
-| token gates (ts-morph, `scripts/check/gates/`) | `no-color-literals` / `no-raw-z-index` / `no-raw-spacing` / `no-raw-typography` **extended to `packages/ui/src`** (D43: no `components/ui/` exemption). Allowlisted INSIDE ui: `src/layout/` + `src/markdown/` (they DEFINE the tokens / are the prose carve-out — the exact `features/_shared/layout/` precedent) | scaffold |
+| dep-cruiser | `ui-cake` (ui ⇏ contracts/db/server/client) · `ui-no-node-builtins` · `ui-satellite-seals` (echarts→`charts/` only; react-virtual→`virtual-list\|message-list\|media-grid` only; codemirror→`code-editor/`; streamdown/remark→`markdown/`; cmdk→`command/`; @dnd-kit→`sortable/`; diff→`diff/`; lucide→`icons/`). Client's "no raw satellites" is a DELIBERATE non-rule (resolver physics + biome `noUndeclaredDependencies` — a dep-cruiser twin would be unfireable-by-construction), not a wired rule. | scaffold |
+| token gates (ts-morph, `scripts/check/gates/`) | `no-color-literals` / `no-raw-z-index` / `no-raw-spacing-in-features` / `no-raw-typography-in-features` **extended to `packages/ui/src`** (D43: no `components/ui/` exemption). Allowlisted INSIDE ui: `src/layout/` + `src/markdown/` (they DEFINE the tokens / are the prose carve-out — the exact `features/_shared/layout/` precedent) | scaffold |
 | test | tokens **freshness** test (§4) — the derived-theme invariant; the CT containment tests (§7) | per chunk |
 | runner split | Playwright CT (`.ct.tsx` under `tests/ui/**` mirror) on its OWN runner (`pnpm test:ct`) — **NOT in `pnpm check`** (browser tests never gate check; Spine-Testing §7) | scaffold |
 | deferred | `no-media-queries-in-features` as a gate (viewport-variant `sm:`/`md:`… prefixes + `@media` outside app-shell) — lands with the client-foundation wave where app-shell exists to allowlist; ui ships ZERO `@media` meanwhile (reviewable by grep until then) | Phase 6 |

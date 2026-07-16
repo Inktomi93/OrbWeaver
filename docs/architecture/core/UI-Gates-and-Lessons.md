@@ -48,8 +48,10 @@ The UI enforcement families:
   libs aren't in client's `package.json`), a deliberate NON-rule — not a dep-cruiser rule.
   `client ⇏ @orb/server` (wire types come from `@orb/contracts`).
 - **Token gates (ts-morph, `scripts/check/gates/`).** `no-color-literals` (incl. named non-token colors +
-  the theme-aware `--scrim`), `no-raw-spacing`, `no-raw-typography`, `no-raw-z-index`,
-  `no-arbitrary-tw-values` — over ALL feature + ui TSX, no `components/ui/`-style exemption (§11.0/§11.4).
+  the theme-aware `--scrim`), `no-raw-spacing-in-features`, `no-raw-typography-in-features`,
+  `no-raw-z-index`, `no-arbitrary-tw-values` — over ALL feature + ui TSX (the `-in-features` suffix is
+  historical; scanRoot = client + ui src, only `ui/layout` + `ui/markdown` allowlisted), no
+  `components/ui/`-style exemption (§11.0/§11.4).
 - **Compose-only keystone (ESLint, `eslint.config.js`).** A feature ASSEMBLES `@orb/ui` primitives +
   the layout kit; it never PAINTS — no `className`/`style` on a raw intrinsic element anywhere in
   `packages/client/src`, three exact exemptions: `features/app-shell/**` (the SHELL-tier painter),
@@ -64,8 +66,9 @@ The UI enforcement families:
   (`zustand-selector-stability.ts` = the fast narrow literal belt; `zustand-selector-derived.ts` = the
   full-body/second-call-shape comprehensive belt), `no-effect-on-shared-selection` (§5.1),
   `persistence-boundary` (§12.1), `no-interactive-role-in-features` (closes the layout-kit
-  interactive-role escape hatch), `surface-a11y-focus`, the registry keystones (`registry-pairing`
-  RAIL↔MODAL bijection, `modal-body-not-placeholder`, `placeholder-copy-registry`), and the
+  interactive-role escape hatch), `surface-a11y-focus`, the registry keystones (the
+  `modal-/section-/chrome-registry-completeness` trio — `registry-pairing` RETIRED at M4, the
+  rail↔modal bijection is structural — plus `modal-body-not-placeholder`, `placeholder-copy-registry`), and the
   client-foundation belts (`no-array-literal-querykey`, `no-inline-invalidate-outside-seam`,
   `bus-onData-no-store-write`, `no-form-reset-in-autosave`, `persist-partialize-and-total-migrate`).
 - **Tests.** The token-freshness invariant (§3 derived theme) + the CT containment tests on the D44
@@ -75,10 +78,11 @@ The UI enforcement families:
 lanes per §11.7): `no-raw-interactive-intrinsics` (raw `<button>/<input>/<select>/<textarea>/<a>` banned
 in `features/**` regardless of className), `no-arbitrary-tw-values` (bracket-value utilities banned in
 features AND ui), `empty-state-has-action` (§4.3 rule 1's mechanical half), CT state-coverage (every
-interactive primitive's CT asserts focus-visible ring + disabled opacity). **Not yet gated —
-prerequisite is a CI browser lane (`ci.yml` has none):** the ARIA-tree goldens (`toMatchAriaSnapshot`
+interactive primitive's CT asserts focus-visible ring + disabled opacity). **Not yet gated — the
+CI-browser-lane prerequisite is MET (`ci.yml` installs Playwright chromium + runs `pnpm verify --full`);
+the goldens themselves are unbuilt:** the ARIA-tree goldens (`toMatchAriaSnapshot`
 over the canonical shell states) and screenshot goldens (`toHaveScreenshot` × {desktop, mobile},
-probe-mode on, animations off) — the "visual-regression as a gate" commitment, honest law-awaiting-CI.
+probe-mode on, animations off) — the "visual-regression as a gate" commitment.
 
 **No directory is exempt from a boundary rule** (the `_shared` + `components/ui/` exemptions are what
 rotted neo — §11.0).
@@ -126,7 +130,7 @@ three seams. The three standing rulings (also D43 (1)/(2)/(3)):
   `applyChatBusEvent(event,deps)` is a pure, extracted, exhaustive switch over a server-authoritative
   discriminated union, node-testable against a real QueryClient with no SSE; the hook is a thin
   transport adapter. Slot lifecycle is owned by the TERMINAL turn events; `openSlot` is idempotent with
-  a lazy id factory. *Gate `no-inline-cache-surgery-in-stream`.*
+  a lazy id factory. *Gate `chat-stream-writes-in-bus-only`.*
 - **Per-mutation error channels, never multiplexed.** TanStack v5 mutation errors are sticky until the
   next fire; `a.error ?? b.error` leaks action A's failure into B's surface. One error slot per
   mutation. *Gate `no-multiplexed-mutation-error`.*
@@ -186,7 +190,7 @@ wave BEFORE feature agents (§11.7).
   One `client/data/invalidation.ts` maps domain-event → `queryFilter()`s; mutation `onSettled` + bus
   handlers call `invalidate(event)`. *Gate `no-inline-invalidate-outside-seam`.*
 - **`@orb/contracts` owns every wire DTO; the client never imports `#server/*`.** *Physics:
-  `client ⇏ @orb/server`. Gate `no-client-wire-redeclare`.*
+  `client ⇏ @orb/server`. dep-cruiser `client-no-backend-runtime`.*
 
 ### 11.4 Close the token hole + extend gates past `globals.css`
 
@@ -219,7 +223,8 @@ per-theme `color-scheme`).
   subscribe to token churn. *Gates: `zustand-selector-stability.ts` (narrow) + `zustand-selector-derived.ts`
   (full-body, both call shapes).*
 - **Registry-pairing keystone.** RAIL\_SLOTS ↔ MODAL\_SLOTS id-pairing was unguarded in neo (a missing body
-  shipped as "the panel won't open"). *Gate `registry-pairing`.*
+  shipped as "the panel won't open"). *Gate `modal-registry-completeness` (`registry-pairing` RETIRED at
+  M4 — the rail DERIVES modal affordances from the registry; the bijection is structural).*
 - **Typed test-id registry.** A `testId(...)` typed map makes a `data-testid` typo a type error. *Gate
   `testid-typed-only`.*
 

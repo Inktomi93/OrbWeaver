@@ -223,7 +223,7 @@ the descriptor's `status` field is ground truth.
 
 | Gate | Enforces | Activation trigger |
 | - | - | - |
-| `component-size-ui` | `packages/ui/src` LOC ceiling (450) — the ui twin of `component-size` | W1-1 splits `table.tsx` (461 > 450), then registers it |
+| `component-size-ui` | `packages/ui/src` LOC ceiling (450) — the ui twin of `component-size` | trigger MET (W1-1 done: `table.tsx` is 376 lines at `primitives/table/`; ui max file 376 < 450) — the flip to `active` is an owner decision, still dormant |
 | `monotonic-tests` | a green `check` can't be reached by deleting/disabling tests (a committed baseline manifest) | first real client test suite + committed baseline |
 | `audit-client-tests` | AST anti-patterns in `*.test.ts` (empty describe/hook, no-assertion, missing `await`) | client tests exist |
 

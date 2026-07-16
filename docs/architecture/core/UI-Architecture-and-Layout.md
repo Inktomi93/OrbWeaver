@@ -12,7 +12,7 @@ updated: 2026-07-13
 >
 > **§-map (cross-doc `§N` references resolve here):** §0–§6.3.1 → `UI-Architecture-and-Layout.md` · §7–§11.8 → `UI-Gates-and-Lessons.md` · §12–§12.8 → `UI-Theming-and-Content.md` · §13–§13.9 → `UI-Primitives-and-Reuse.md`.
 >
-> **Build state:** `@orb/ui` is BUILT (the primitive fleet: Base UI wraps, layout kit, charts/meter, markdown/stream, the D44 security trio, the carve-out set — `packages/ui/src` is the inventory; `packages/ui/package.json#exports` the public surface). The `@orb/client` data/forms/state primitives are BUILT (`packages/client/src/{data,forms,state}`). Most feature slices carry real code; `corpus`/`credentials`/`user-admin` remain reserved `.gitkeep` stubs. Current build status + the open UI board are NOT restated here — they live in the active program doc (`../proposed/ui-cohesion-north-star.md` §0b/§6) and the code. Per-primitive build decisions: `ui-package-design.md`.
+> **Build state:** `@orb/ui` is BUILT (the primitive fleet: Base UI wraps, layout kit, charts/meter, markdown/stream, the D44 security trio, the carve-out set — `packages/ui/src` is the inventory; `packages/ui/package.json#exports` the public surface). The `@orb/client` data/forms/state primitives are BUILT (`packages/client/src/{data,forms,state}`). Every feature slice carries real code (no `.gitkeep` stubs remain; `refinery` is the minimal planned-section member). Current build status + the open UI board are NOT restated here — they live in the active program doc (`../proposed/ui-cohesion-north-star.md` §0b/§6) and the code. Per-primitive build decisions: `ui-package-design.md`.
 >
 > **Ledger D66 amends four D62-era rulings below (UI-relevant, all LANDED):** the LIST gets a real `.shell-panel-header` band (A1), the list-header **New** is the panel's ONE `primary` button (A2), message-action clusters rest HIDDEN not dimmed (A3), and every editor AUTOSAVES — no Save/Set/Discard (A4). Where §4.1/§4.2/§4.3 below still read as the D62 posture, the ledger D66 amendment WINS (`Core-Path-Registry.md` D66; full text `../proposed/ui-cohesion-north-star.md` §3). The inline `> [!NOTE]` flags mark each conflict rather than silently overwriting the standing D62 law text.
 
@@ -98,7 +98,7 @@ The law that survives any file-level churn:
 
 #### 2.1 `@orb/client` — the feature-slice tree
 
-**State: BUILT.** The tree below is committed law (gate `client-structure` enforces the per-feature shape the moment a slice gets real code); `data/`, `forms/`, `state/` are populated per the §13.1 contracts, most feature slices carry real code, and `corpus`/`credentials`/`user-admin` remain reserved `.gitkeep` stubs. **orbweaver is NOT FSD** (no `entities/`/`shared/` layers) — flat feature-slice, neo's proven shape minus the three §-noted deletions, plus `data/`+`forms/` elevated to top-level peers of `state/`.
+**State: BUILT.** The tree below is committed law (gate `client-structure` enforces the per-feature shape the moment a slice gets real code); `data/`, `forms/`, `state/` are populated per the §13.1 contracts, and every feature slice carries real code (no `.gitkeep` stubs remain). **orbweaver is NOT FSD** (no `entities/`/`shared/` layers) — flat feature-slice, neo's proven shape minus the three §-noted deletions, plus `data/`+`forms/` elevated to top-level peers of `state/`.
 
 ```
 packages/client/
@@ -117,13 +117,13 @@ packages/client/
       create-collection-surface.ts · query-boundary.tsx · use-gated-query.ts · bus/
     forms/              # the editor factories — the SINGLE createFormHook instance — §13.1/§13.4
       use-app-form.ts · create-saved-entity-form.ts · create-autosave-entity-form.ts · bound-fields/
-    state/              # ALL gated Zustand stores, FLAT (gate state:files: one create/file, ≤10 fields, no exported set/getState)
+    state/              # ALL gated Zustand stores, FLAT (gate `state-files`: one create/file, ≤10 fields, no exported set/getState)
     features/           # the slices — cross-feature reads ONLY via trpc.* (§11.0); NO _shared/ drawer
       app-shell/        #   the 4-region rail shell (§4.1); the ONLY viewport @media site (§4b ax2);
                         #     the clamp-width overlay (§11.1); the assembled chrome registry over CHROME_ZONES (gate chrome-registry-completeness)
-      auth/ character/ chat/ corpus/ credentials/ notifications/ persona/ preset/ settings/ user-admin/ workloads/ world-info/
-                        #   (`corpus` is the SECTION/feature name; the owning DOMAIN is `discovery` — the
-                        #     rename landed domain-side only, per the feature-structure gate note)
+      auth/ character/ chat/ credentials/ discovery/ notifications/ persona/ preset/ refinery/ settings/ stats/ user-admin/ workloads/ world-info/
+                        #   (`corpus` is the SECTION name — `discovery/lib/corpus-section.tsx`; the owning
+                        #     feature dir + DOMAIN are both `discovery`)
         <feature>/      #   { surfaces/ (containment CONSUMERS, @container) · anchors/ (containment PROVIDERS) ·
                         #     components/ (leaf) · hooks/ · lib/ · index.ts (the front door) }
     lib/                # cross-cutting display/util seams: message-render · time · cn re-export · download-json · notify
@@ -317,7 +317,7 @@ The client targets **React 19 + the React Compiler** (LIVE: the compiler runs fu
 
 **Axis 2.** The one genuinely viewport-dependent reflow, in the SHELL: 3-pane ⇄ stack, drawer ⇄ sheet. Tiny (neo: one `clamp()` width var + the overlay model, §11.2). `no-media-queries-in-features` keeps it there.
 
-**Axis 3 — capability, NOT size.** hover/pointer are media-query-only (container queries can't see them). **Pointer-conditional floor (AMENDED — D62 P1; was "unconditional"):** interactive primitives meet the ≥44px touch floor at `@media (pointer: coarse)` via token control-heights; fine pointers get the desktop scale — `control-sm` 32px · `control-md` 34px · `control-lg` 40px · icon 34px (sm raised 28→32, the Task-#76 side-eye floor) — emitted as a token-layer `pointer: fine` override (THIS layer, never features; nothing to branch). An interactive element with a sub-44px visual box on coarse pointers wraps in a ≥44px hit area. `data-density="compact"` remains the separate spacing axis (ship COMFORTABLE; compact exists in shell.css — never build a parallel compact path). Hover is only ever an *enhancement* (`@media (hover:hover)`); **every hover action has a tap-equivalent** (and a `:focus-within` keyboard equivalent, §4.3 rule 4). Base UI suppresses tooltips on touch for free. *Gate `touch-target-floor`: asserts the floor per-pointer (one coarse-emulated CT pass).*
+**Axis 3 — capability, NOT size.** hover/pointer are media-query-only (container queries can't see them). **Pointer-conditional floor (AMENDED — D62 P1; was "unconditional"):** interactive primitives meet the ≥44px touch floor at `@media (pointer: coarse)` via token control-heights; fine pointers get the desktop scale — `control-sm` 32px · `control-md` 34px · `control-lg` 40px · icon 34px (sm raised 28→32, the Task-#76 side-eye floor) — emitted as a token-layer `pointer: fine` override (THIS layer, never features; nothing to branch). An interactive element with a sub-44px visual box on coarse pointers wraps in a ≥44px hit area. `data-density="compact"` remains the separate spacing axis (ship COMFORTABLE; compact exists in shell.css — never build a parallel compact path). Hover is only ever an *enhancement* (`@media (hover:hover)`); **every hover action has a tap-equivalent** (and a `:focus-within` keyboard equivalent, §4.3 rule 4). Base UI suppresses tooltips on touch for free. *Enforced as CT — `tests/ui/touch-target-floor.suite.ct.tsx` (not a `scripts/check/gates/` gate): asserts the floor per-pointer (one coarse-emulated CT pass).*
 
 **Axis 4 — mobile platform CSS, baked into 3 primitives:**
 
@@ -330,7 +330,7 @@ The client targets **React 19 + the React Compiler** (LIVE: the compiler runs fu
 ### 5. State
 
 - **Server state → TanStack Query** (+ tRPC via `@trpc/tanstack-react-query`). NEVER in zustand.
-- **Client/UI state → Zustand** (DECIDED — D42; not Jotai/TanStack Store: gated-zustand is more machine-enforceable for amnesiac agents than free-form atoms). Gated by `state:files`: one `create(` per file, ≤10 top-level fields, no exported `set`/`getState`/store handle, `persist({name})` namespaced. Draft stores via `createEntityDraftStore`.
+- **Client/UI state → Zustand** (DECIDED — D42; not Jotai/TanStack Store: gated-zustand is more machine-enforceable for amnesiac agents than free-form atoms). Gated by `state-files`: one `create(` per file, ≤10 top-level fields, no exported `set`/`getState`/store handle, `persist({name})` namespaced. Draft stores via `createEntityDraftStore`.
 - **Local-state-first** — `useState`/props unless genuinely cross-tree; stores only for global concerns (active selection, theme, the stream buffer).
 - **Lifecycle slices modeled as discriminated-union transitions**, not ad-hoc `setState` — the stream/turn lifecycle (`turnStarted → delta → turnCompleted|turnAborted`, the ghost slot) is a state machine; model it explicitly inside the store. No XState.
 
@@ -362,7 +362,7 @@ The tab title still tracks the active entity even with the URL pinned to `/`: re
 
 #### 6.1 TanStack — keep, with discipline
 
-> **`QueryClient` defaults (born-compliant — from the full-docs mine, `../history/UI-Lib-TanStack-Query.md`):** `staleTime: Infinity` (the SSE bus drives freshness — **NOT `'static'`**, which silently ignores `invalidateQueries`) · `gcTime: 5*60_000` · `refetchOnWindowFocus: false` (bus owns liveness) · **`refetchOnReconnect: true`** (SSE-gap catch-up — disabling it is the actual bug) · `refetchOnMount: true` · `networkMode: 'online'` · `structuralSharing: true` · `throwOnError: false` (the `<QueryBoundary>` opts in per-tree) · mutations `retry: 0` · global error toasts via `QueryCache`/`MutationCache` `onError` keyed off `meta`. **Gate-boundary note:** `no-inline-cache-surgery-in-stream` must scope to stream/subscription bodies only — it must NOT trip on the legitimate `setQueryData` inside `createEntityMutation.onMutate`. Adopt `skipToken` (kills the `castId<X>("")` sentinel). The `@tanstack/eslint-plugin-query` discipline rules are LIVE in `eslint.config.js` (dormant until client Query code lands).
+> **`QueryClient` defaults (born-compliant — from the full-docs mine, `../history/UI-Lib-TanStack-Query.md`):** `staleTime: Infinity` (the SSE bus drives freshness — **NOT `'static'`**, which silently ignores `invalidateQueries`) · `gcTime: 5*60_000` · `refetchOnWindowFocus: false` (bus owns liveness) · **`refetchOnReconnect: true`** (SSE-gap catch-up — disabling it is the actual bug) · `refetchOnMount: true` · `networkMode: 'online'` · `structuralSharing: true` · `throwOnError: false` (the `<QueryBoundary>` opts in per-tree) · mutations `retry: 0` · global error toasts via `QueryCache`/`MutationCache` `onError` keyed off `meta`. **Gate-boundary note (as built):** cache surgery is gated by `client-cache-surgery-only-in-data`, whose scanRoot exempts `data/` wholesale — the legitimate `setQueryData` inside `createEntityMutation.onMutate` (`data/create-entity-mutation.ts`) cannot trip it; stream-store writes are separately gated by `chat-stream-writes-in-bus-only`. Adopt `skipToken` (kills the `castId<X>("")` sentinel). The `@tanstack/eslint-plugin-query` discipline rules are LIVE in `eslint.config.js` (dormant until client Query code lands).
 >
 > **Reference companions** (`history/`, re-homed 2026-07-09 — full-read examples + deep-docs mines; the distilled verdicts are already folded into the cited spec sections, so these are evidence/provenance, not extra law):
 >

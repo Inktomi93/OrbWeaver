@@ -123,8 +123,8 @@ packages/server/src/
 
 ## 4. The per-feature template — the legibility engine
 
-**Every feature is the same eight slots.** Learn one, know all. Scales from `persona` (7 files) to the
-40+-file features without changing shape.
+**Every feature is the same eight slots.** Learn one, know all. Scales from `hub` (8 files) to the
+90+-file `chat` without changing shape.
 
 ```
 domain/<feature>/

@@ -101,7 +101,7 @@ The **provider-send model** — what is transmitted *to the model as input* — 
 - **`no-external-media-without-gate`** (`scripts/check/gates/`) — any raw `<img>`/`<audio>`/`<video>` in a feature must route through `MessageMedia`.
 - **`theme-override-only-via-scope`** (`scripts/check/gates/`) — a `--color-*` override applies only via `<ThemeScope>` (values clamped at the boundary), never spread as a raw `style` prop.
 - **`persistence-boundary`** — synced prefs go in the `user_settings` blob, not raw browser storage (§12.1 PERSISTENCE).
-- **CSP-headers-present** — the app-document CSP exists + is tight (`security-headers.ts`).
+- **CSP-headers-present** — the app-document CSP exists + is tight (`security-headers.ts`); enforced as a TEST (`tests/server/entry/http/security-headers.test.ts`, per-directive pins), not a `scripts/check/gates/` gate.
 
 The `@orb/ui` halves ship as CT containment tests (the sandbox/CSP attrs are string-asserted, hostile `ThemeScope` values rejected). The lint/route halves that need message-render code activate with the Phase-5/6 chat wiring.
 
