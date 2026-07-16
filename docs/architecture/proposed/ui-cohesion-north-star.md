@@ -464,8 +464,16 @@ per-section switch. That channel shape is N4's ONE design decision; G3 (mint-onl
    travel). Rack rows adopted `quiet` (`47ac8ef5`: section-row + pivot-band; `Every generation`
    stays the surface's one accent toggle; params-panel knobs + `SwitchField` form fields stay
    default). The SETUP/POST zone pills ride `info`/`warning` (functional zone colors, not accent). Deferred to the
-   quiet-window side-eye pass: tab-strip stacking + AutosaveStatus pixels. Original spec (now the
-   record): 10 tabs (`lib/preset-nav.ts` `PRESET_EDITOR_TABS` typed tuple) → 4 groups:
+   quiet-window side-eye pass: tab-strip stacking + AutosaveStatus pixels. **P0 POSTSCRIPT
+   (2026-07-16, same day):** the frontier stickler review live-reproduced two P0s in the autosave
+   conversion this record originally shipped — (F1) preset switch rendered the previous preset's
+   config with one keystroke cross-writing it, (F2) reset-to-starter durably overwritten by the
+   teardown flush 22ms later — both invisible to the lane's own CONFIRMED verifier (runtime
+   form-lifecycle, not static). Fixed same day: `0423713a` (key the hook owner by
+   `presetId:resetNonce` + await-refetch reseed + `closeForReseed` flush guard) and `d02be885`
+   (the same key-placement class fixed on room-overrides + group-config), every pin bite-proven.
+   The class dies structurally in the ratified D78 program (`autosave-form-doctrine.md`). Original
+   spec (now the record): 10 tabs (`lib/preset-nav.ts` `PRESET_EDITOR_TABS` typed tuple) → 4 groups:
    **Generation** (Quality·Sampling·Reasoning·Output) · **Prompt** (Prompt·Templates) · **Context**
    (Compaction·Variables) · **Transforms** (Post-process·Regex); old tabs become sub-navigation
    inside each, content moves UNCHANGED (regroup, not rewrite). `Save preset` → autosave (§7).

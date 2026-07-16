@@ -207,7 +207,7 @@ Exposure legend: **EXPOSED** = identity can change while the hook-owning compone
 | - | - | - | - | - |
 | preset editor (`preset-editor-surface.tsx` PresetEditor) | presetId | F1/F2 site; tactical patch pending (lane-h) | L1: boundary + `reseed(row.config)` for reset; delete nonce machinery + 7 manual flushes (inspector ⋯ delete/duplicate/move, structure-tabs add, regex/variables add+remove, rack reorder) | M |
 | character editor (`character-editor-surface.tsx` CharacterEditorBody) | characterId | safe-by-key (`key={characterId}`) — the contract this program retires | L2: boundary; delete the parent key + inner `<form key>` | M |
-| character theme (`character-appearance-tab.tsx` ThemeControls) | characterId | **EXPOSED** — mounted by the Options CONTEXT tab (`characters-section.tsx`), which `ContextTabsPanel` keys by TAB ID only; switching characters with Options open keeps the FormApi | L2 | S |
+| character theme (`character-appearance-tab.tsx` ThemeControls) | characterId | safe-by-key **[CORRECTED 2026-07-16: the EXPOSED claim was a false positive** — `character-appearance-tab.tsx:92` already keys `ThemeControls` by `characterId` above the hook; verified twice (lane-h + its verifier)] | L2 (retires the key convention) | S |
 | room-overrides (`room-overrides-form.tsx`, committed + draft arms) | chatId / draftKey | **EXPOSED** — same context-host shape (`chats-section.tsx` Overrides tab) | L3 | S |
 | group-config (`group-config-form.tsx`, committed + draft arms) | chatId / draftKey | **EXPOSED** — same shape (Group tab) | L3 | S |
 | injection rows (`injections-manager.tsx` InjectionRow) | injection.id | safe-by-key by construction (the list `.map` key IS the entity id) | L3: boundary (the list key stays as list identity; harmless) | S |
