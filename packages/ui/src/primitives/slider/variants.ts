@@ -1,11 +1,11 @@
-import { FOCUS_RING, tv } from "#lib";
+import { DISABLED_STATE, FOCUS_RING, tv } from "#lib";
 
 // The slider skin. The control row is h-control-sm so the drag surface meets the ≥44px touch
 // floor (§4b axis 3); the visible track stays h-field. Base UI positions Indicator/Thumb inline.
 // The header row carries the optional Label + Value readout above the control.
 export const sliderVariants = tv({
   slots: {
-    root: "flex w-full flex-col gap-field data-disabled:pointer-events-none data-disabled:opacity-50",
+    root: `flex w-full flex-col gap-field ${DISABLED_STATE}`,
     header: "flex w-full items-baseline justify-between gap-row",
     label: "text-label font-medium leading-label text-foreground",
     value: "text-label leading-label text-muted-foreground tabular-nums",

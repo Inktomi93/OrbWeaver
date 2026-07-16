@@ -1,4 +1,4 @@
-import { FOCUS_RING, tv } from "#lib";
+import { DISABLED_STATE, FOCUS_RING, tv } from "#lib";
 
 // `body` is the ONE clickable/selected/disabled surface (a `group` parent so title/subtitle can flip
 // color off `data-selected`); `actions` is a plain sibling slot that never inherits those states.
@@ -12,7 +12,7 @@ export const listRowVariants = tv({
     body: [
       "group flex flex-1 items-center gap-row rounded-control outline-none",
       "transition-colors duration-(--motion-fast) ease-out-expo",
-      "data-selected:bg-accent data-disabled:pointer-events-none data-disabled:opacity-50",
+      `data-selected:bg-accent ${DISABLED_STATE}`,
     ],
     leading: "flex shrink-0 items-center justify-center text-muted-foreground",
     // `min-w-24` is the title-column floor: name/subtitle never collapse below a readable width, so

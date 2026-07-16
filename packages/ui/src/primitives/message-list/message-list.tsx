@@ -2,29 +2,17 @@ import type { Range } from "@tanstack/react-virtual";
 import { defaultRangeExtractor, useVirtualizer } from "@tanstack/react-virtual";
 import type { ReactElement, ReactNode, Ref } from "react";
 import { useCallback, useImperativeHandle, useLayoutEffect, useRef } from "react";
-import { cn, usePrefersReducedMotion } from "#lib";
-import { TOKENS } from "#tokens";
-
-// Local duplicate of virtual-list's gap-token→px conversion; each sealed dir owns its own.
-const GAP_TOKENS = ["field", "row", "block", "section", "gutter"] as const;
-type MessageListGapToken = (typeof GAP_TOKENS)[number];
-const ROOT_FONT_SIZE_PX = 16;
+import type { GapToken } from "#lib";
+import { assertBoundedScrollHeight, cn, gapPxFor, usePrefersReducedMotion } from "#lib";
 
 // Chat rows are tall/variable; deeper overscan than virtual-list's default avoids pop-in on scrollback.
 const DEFAULT_OVERSCAN = 10;
-
-// Unbounded scroll container makes windowing a no-op — must throw, not warn.
-const UNBOUNDED_HEIGHT_VIEWPORT_MULTIPLIER = 3;
 
 // 80px reads as "pinned to end" for real content; the library's 1px default is too tight for sub-pixel rounding.
 const DEFAULT_SCROLL_END_THRESHOLD_PX = 80;
 
 // Tolerance for matching virtual-core's own last scrollTop write vs. a genuine external scroll.
 const PROGRAMMATIC_SCROLL_EPSILON_PX = 2;
-
-function gapPxFor(token: MessageListGapToken): number {
-  return Number.parseFloat(TOKENS[`spacing.${token}`].value) * ROOT_FONT_SIZE_PX;
-}
 
 // Merges keepMounted's forced indices into rangeExtractor's base range; sorted ascending because
 // virtual-core requires ascending indices from its range extractors.
@@ -70,7 +58,7 @@ export interface MessageListProps<T> {
   /** Rows rendered beyond the visible window on each side; default is deeper than virtual-list's. */
   readonly overscan?: number;
   /** Gap between rows as a spacing intent token. */
-  readonly gapToken?: MessageListGapToken;
+  readonly gapToken?: GapToken;
   /** How close to the true end (px) still counts as "pinned" for `followOnAppend`/`isAtEnd`. */
   readonly scrollEndThreshold?: number;
   /**
@@ -153,7 +141,7 @@ export function MessageList<T>({
     getScrollElement: () => scrollRef.current,
     estimateSize,
     overscan,
-    gap: gapToken === undefined ? 0 : gapPxFor(gapToken),
+    gap: gapPxFor(gapToken),
     getItemKey: (index) => getItemKey(itemAt(index), index),
     // exactOptionalPropertyTypes distinguishes an omitted prop from one set to undefined.
     ...(composedRangeExtractor === undefined ? {} : { rangeExtractor: composedRangeExtractor }),
@@ -244,23 +232,7 @@ export function MessageList<T>({
   );
 
   // Unbounded-height tripwire: thrown, not warned — identical to virtual-list.
-  useLayoutEffect(() => {
-    const el = scrollRef.current;
-    if (el === null) {
-      return;
-    }
-    const maxHeightPx = window.innerHeight * UNBOUNDED_HEIGHT_VIEWPORT_MULTIPLIER;
-    const measuredPx = el.getBoundingClientRect().height;
-    if (measuredPx > maxHeightPx) {
-      throw new Error(
-        `MessageList: the scroll container measured ${Math.round(measuredPx)}px tall — over ` +
-          `${UNBOUNDED_HEIGHT_VIEWPORT_MULTIPLIER}× the viewport (${Math.round(maxHeightPx)}px). ` +
-          "The parent gave the list no bounded height, so every row is 'visible' and " +
-          "virtualization is a no-op. Fix: constrain the parent (e.g. h-full inside a sized " +
-          "layout region) so the list scrolls inside a real window.",
-      );
-    }
-  }, []);
+  useLayoutEffect(() => assertBoundedScrollHeight(scrollRef.current, "MessageList"), []);
 
   return (
     <div

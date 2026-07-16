@@ -29,7 +29,7 @@ export const avatarVariants = tv({
     ring: {
       none: {},
       accent: {
-        root: "shadow-glow ring-2 ring-(--color-primary) ring-offset-2 ring-offset-background",
+        root: "shadow-glow ring-2 ring-ring ring-offset-2 ring-offset-background",
       },
     },
     // String keys so VariantProps stays string-typed; avatar.tsx computes the hue bucket and always passes it.

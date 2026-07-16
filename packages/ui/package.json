@@ -37,6 +37,7 @@
     "./icons": "./src/primitives/icons/index.ts",
     "./input": "./src/primitives/input/index.ts",
     "./kbd": "./src/primitives/kbd/index.ts",
+    "./labeled-chart-frame": "./src/charts/labeled-chart-frame/index.ts",
     "./layout": "./src/layout/index.ts",
     "./lib": "./src/lib/index.ts",
     "./lightbox": "./src/content/lightbox/index.ts",

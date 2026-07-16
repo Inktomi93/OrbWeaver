@@ -1,11 +1,12 @@
-import { tv } from "#lib";
+import { SCRIM_BASE, tv } from "#lib";
 
 // `side` variant places the panel and wires the live swipe transform to Base UI's --drawer-* vars
-// (transition suspended while data-swiping so the gesture tracks 1:1).
+// (transition suspended while data-swiping so the gesture tracks 1:1). The backdrops compose
+// SCRIM_BASE (the bare `bg-scrim` fill) but keep their OWN `--motion-layout` fade — a drawer's scrim
+// tracks the sliding panel, not the standard overlay fade of SCRIM(tier).
 export const drawerVariants = tv({
   slots: {
-    backdrop:
-      "fixed inset-0 z-(--z-modal) bg-scrim transition-opacity duration-(--motion-layout) ease-out-expo data-starting-style:opacity-0 data-ending-style:opacity-0",
+    backdrop: `${SCRIM_BASE} z-(--z-modal) transition-opacity duration-(--motion-layout) ease-out-expo data-starting-style:opacity-0 data-ending-style:opacity-0`,
     viewport: "fixed inset-0 z-(--z-modal)",
     popup:
       "fixed flex flex-col bg-card text-card-foreground shadow-overlay transition-transform duration-(--motion-layout) ease-out-expo data-swiping:transition-none",
@@ -13,8 +14,7 @@ export const drawerVariants = tv({
     content: "min-h-0 w-full flex-1 flex flex-col overflow-y-auto overscroll-contain p-section",
     swipeArea: "fixed z-(--z-overlay) touch-none",
     indent: "transition-transform duration-(--motion-layout) ease-out-expo data-active:scale-95",
-    indentBackground:
-      "pointer-events-none fixed inset-0 bg-scrim opacity-0 transition-opacity duration-(--motion-layout) ease-out-expo data-active:opacity-100",
+    indentBackground: `pointer-events-none opacity-0 ${SCRIM_BASE} transition-opacity duration-(--motion-layout) ease-out-expo data-active:opacity-100`,
     title: "text-title leading-title font-semibold",
     description: "mt-field text-body leading-body text-muted-foreground",
   },

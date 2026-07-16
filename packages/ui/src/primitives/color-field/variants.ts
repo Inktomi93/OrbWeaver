@@ -1,4 +1,4 @@
-import { FOCUS_RING, tv } from "#lib";
+import { DISABLED_STATE, FOCUS_RING, tv } from "#lib";
 
 // The color-field skin: `swatch` is the plain chip (shared by the display-only ColorSwatch and the
 // editable ColorField's trigger), `swatchTrigger` adds the button affordance (focus ring, disabled,
@@ -14,7 +14,7 @@ export const colorFieldVariants = tv({
       "transition-colors duration-(--motion-fast) ease-out-expo",
       "outline-none",
       FOCUS_RING,
-      "cursor-pointer data-disabled:pointer-events-none data-disabled:opacity-50",
+      `cursor-pointer ${DISABLED_STATE}`,
       // The 8-state contract's loading/success arms (ui-package-design §5) — disabled/error/hover/
       // focus-visible/active ride pseudo-classes or Base UI's own data-invalid elsewhere; these two
       // need explicit skin since nothing native drives them.

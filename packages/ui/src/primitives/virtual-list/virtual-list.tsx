@@ -2,26 +2,11 @@ import type { Range } from "@tanstack/react-virtual";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { ReactElement, ReactNode } from "react";
 import { useLayoutEffect, useRef } from "react";
-import { cn, prefersReducedMotionNow } from "#lib";
-import { TOKENS } from "#tokens";
-
-// Intent-token gap between rows (maps to the --spacing-* scale — never a raw px).
-const GAP_TOKENS = ["field", "row", "block", "section", "gutter"] as const;
-type VirtualListGapToken = (typeof GAP_TOKENS)[number];
-
-// The virtualizer's `gap` option is a px number; spacing tokens are authored in rem.
-const ROOT_FONT_SIZE_PX = 16;
+import type { GapToken } from "#lib";
+import { assertBoundedScrollHeight, cn, gapPxFor, prefersReducedMotionNow } from "#lib";
 
 // TanStack's own default, made explicit.
 const DEFAULT_OVERSCAN = 1;
-
-// A scroll element taller than this many viewports at mount means the parent gave the list no
-// bounded height, so the whole list is the "window" and virtualization is a no-op — thrown, not warned.
-const UNBOUNDED_HEIGHT_VIEWPORT_MULTIPLIER = 3;
-
-function gapPxFor(token: VirtualListGapToken): number {
-  return Number.parseFloat(TOKENS[`spacing.${token}`].value) * ROOT_FONT_SIZE_PX;
-}
 
 export interface VirtualListProps<T> {
   readonly items: readonly T[];
@@ -36,7 +21,7 @@ export interface VirtualListProps<T> {
   /** Rows rendered beyond the visible window on each side. Defaults to the lib default (1). */
   readonly overscan?: number;
   /** Gap between rows as a spacing intent token. */
-  readonly gapToken?: VirtualListGapToken;
+  readonly gapToken?: GapToken;
   /**
    * Round-robins rows across N lanes instead of one column. Passthrough only: this seal stays a 1D
    * row list, so a `lanes>1` caller owns the lane→horizontal-position CSS via `data-lane`.
@@ -97,7 +82,7 @@ export function VirtualList<T>({
     getScrollElement: () => scrollRef.current,
     estimateSize,
     overscan,
-    gap: gapToken === undefined ? 0 : gapPxFor(gapToken),
+    gap: gapPxFor(gapToken),
     getItemKey: (index) => getItemKey(itemAt(index), index),
     // exactOptionalPropertyTypes: a bare key here would widen lanes: number (no | undefined) and fail tsc.
     ...(lanes === undefined ? {} : { lanes }),
@@ -110,23 +95,7 @@ export function VirtualList<T>({
   });
 
   // The unbounded-window tripwire — thrown, not warned.
-  useLayoutEffect(() => {
-    const el = scrollRef.current;
-    if (el === null) {
-      return;
-    }
-    const maxHeightPx = window.innerHeight * UNBOUNDED_HEIGHT_VIEWPORT_MULTIPLIER;
-    const measuredPx = el.getBoundingClientRect().height;
-    if (measuredPx > maxHeightPx) {
-      throw new Error(
-        `VirtualList: the scroll container measured ${Math.round(measuredPx)}px tall — over ` +
-          `${UNBOUNDED_HEIGHT_VIEWPORT_MULTIPLIER}× the viewport (${Math.round(maxHeightPx)}px). ` +
-          "The parent gave the list no bounded height, so every row is 'visible' and " +
-          "virtualization is a no-op. Fix: constrain the parent (e.g. h-full inside a sized " +
-          "layout region) so the list scrolls inside a real window.",
-      );
-    }
-  }, []);
+  useLayoutEffect(() => assertBoundedScrollHeight(scrollRef.current, "VirtualList"), []);
 
   // With directDomUpdates, React re-renders exactly when the rendered range changes, so this effect
   // fires once per window shift, never per scroll frame. Duplicate-fetch guarding is the caller's.

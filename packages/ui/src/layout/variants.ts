@@ -1,5 +1,5 @@
 // layout/ is the gate-allowlisted home that DEFINES the spacing-intent mapping; features consume the variants.
-import { FOCUS_RING, tv } from "#lib";
+import { DISABLED_STATE_NATIVE, FOCUS_RING, tv } from "#lib";
 
 const GAP = {
   field: "gap-field",
@@ -84,7 +84,7 @@ export const toolbarVariants = tv({
 
 // Meets the touch floor via h-control-sm, pointer-conditional (44px coarse/unknown, 32px fine).
 export const toolbarButtonVariants = tv({
-  base: `inline-flex h-control-sm min-w-control-sm select-none items-center justify-center gap-field rounded-control text-foreground text-label hover:bg-accent focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 ${FOCUS_RING}`,
+  base: `inline-flex h-control-sm min-w-control-sm select-none items-center justify-center gap-field rounded-control text-foreground text-label hover:bg-accent focus-visible:outline-none ${DISABLED_STATE_NATIVE} ${FOCUS_RING}`,
 });
 
 export const toolbarSeparatorVariants = tv({

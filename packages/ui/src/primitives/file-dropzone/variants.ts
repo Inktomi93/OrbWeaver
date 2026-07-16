@@ -1,4 +1,4 @@
-import { FOCUS_RING_HAS, tv } from "#lib";
+import { DISABLED_STATE, FOCUS_RING_HAS, tv } from "#lib";
 
 // The dropzone skin. The native `<input type="file">` is the topmost element (absolutely
 // positioned, opacity-0, covering the full box) so every click/keyboard/drop interaction lands on
@@ -12,7 +12,7 @@ export const fileDropzoneVariants = tv({
       "relative flex flex-col items-center justify-center gap-field rounded-card border-2 border-dashed border-border bg-input/30 p-section text-center",
       "transition-colors duration-(--motion-fast) ease-out-expo",
       FOCUS_RING_HAS,
-      "data-disabled:pointer-events-none data-disabled:opacity-50",
+      DISABLED_STATE,
       "data-drag-over:border-primary data-drag-over:bg-accent/15",
       // The 8-state contract's loading/success arms (ui-package-design §5) — the toast.tsx
       // `data-type` border-tint precedent, applied here via plain boolean data-attributes.

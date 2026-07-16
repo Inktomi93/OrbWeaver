@@ -1,4 +1,4 @@
-import { FOCUS_RING, tv } from "#lib";
+import { DISABLED_STATE_NATIVE, FOCUS_RING, tv } from "#lib";
 
 /**
  * Slot classes for the reveal-gate (ui-package-design §6.1 / work-order #17). This is a
@@ -10,11 +10,11 @@ export const revealGateVariants = tv({
   slots: {
     root: "flex flex-col gap-field",
     placeholder: "flex items-center gap-row rounded-control border border-dashed border-border bg-muted p-row text-muted-foreground",
-    trigger: `inline-flex cursor-pointer items-center gap-field rounded-control text-label leading-label font-medium text-foreground outline-none transition-colors duration-(--motion-fast) ease-out-expo hover:text-primary disabled:pointer-events-none disabled:opacity-50 ${FOCUS_RING}`,
+    trigger: `inline-flex cursor-pointer items-center gap-field rounded-control text-label leading-label font-medium text-foreground outline-none transition-colors duration-(--motion-fast) ease-out-expo hover:text-primary ${DISABLED_STATE_NATIVE} ${FOCUS_RING}`,
     // tabIndex={-1} focus target when !hideable — no visible focus ring of its own (the reveal
     // already gave the user the result; this is a silent landing spot, not a control).
     content: "flex flex-col items-start gap-field outline-none",
-    hideTrigger: `inline-flex cursor-pointer items-center gap-field self-start text-label leading-label text-muted-foreground outline-none transition-colors duration-(--motion-fast) ease-out-expo hover:text-foreground disabled:pointer-events-none disabled:opacity-50 ${FOCUS_RING}`,
+    hideTrigger: `inline-flex cursor-pointer items-center gap-field self-start text-label leading-label text-muted-foreground outline-none transition-colors duration-(--motion-fast) ease-out-expo hover:text-foreground ${DISABLED_STATE_NATIVE} ${FOCUS_RING}`,
     srOnly: "sr-only",
   },
 });

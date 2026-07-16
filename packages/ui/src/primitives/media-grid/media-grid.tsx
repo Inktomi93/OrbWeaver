@@ -1,25 +1,10 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { KeyboardEvent, ReactElement } from "react";
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
-import { cn, prefersReducedMotionNow } from "#lib";
+import type { GapToken } from "#lib";
+import { assertBoundedScrollHeight, cn, gapPxFor, prefersReducedMotionNow } from "#lib";
 import { Check, Icon } from "#primitives/icons";
-import { TOKENS } from "#tokens";
 import { mediaGridVariants } from "./variants";
-
-// Duplicated from virtual-list's own gap-token conversion rather than shared (independent primitives).
-const GAP_TOKENS = ["field", "row", "block", "section", "gutter"] as const;
-type MediaGridGapToken = (typeof GAP_TOKENS)[number];
-const ROOT_FONT_SIZE_PX = 16;
-
-function gapPxFor(token: MediaGridGapToken | undefined): number {
-  if (token === undefined) {
-    return 0;
-  }
-  return Number.parseFloat(TOKENS[`spacing.${token}`].value) * ROOT_FONT_SIZE_PX;
-}
-
-// Same tripwire as VirtualList — an unbounded scroll parent makes virtualization a no-op.
-const UNBOUNDED_HEIGHT_VIEWPORT_MULTIPLIER = 3;
 
 const DEFAULT_MIN_CELL_WIDTH_PX = 96;
 const DEFAULT_OVERSCAN = 2;
@@ -90,7 +75,7 @@ export interface MediaGridProps<T extends MediaGridItem> {
   /** Minimum cell width (px) the responsive column count is derived from. Default 96. */
   readonly minCellWidth?: number;
   /** Gap between cells (both axes) as a spacing intent token. */
-  readonly gapToken?: MediaGridGapToken;
+  readonly gapToken?: GapToken;
   /** Rows rendered beyond the visible window on each side. Defaults to 2. */
   readonly overscan?: number;
   /**
@@ -253,23 +238,7 @@ export function MediaGrid<T extends MediaGridItem>({
   useLayoutEffect(() => attachSpotlight(scrollRef.current), []);
 
   // Unbounded-window tripwire: thrown, not warned. Identical to VirtualList's.
-  useLayoutEffect(() => {
-    const el = scrollRef.current;
-    if (el === null) {
-      return;
-    }
-    const maxHeightPx = window.innerHeight * UNBOUNDED_HEIGHT_VIEWPORT_MULTIPLIER;
-    const measuredPx = el.getBoundingClientRect().height;
-    if (measuredPx > maxHeightPx) {
-      throw new Error(
-        `MediaGrid: the scroll container measured ${Math.round(measuredPx)}px tall — over ` +
-          `${UNBOUNDED_HEIGHT_VIEWPORT_MULTIPLIER}× the viewport (${Math.round(maxHeightPx)}px). ` +
-          "The parent gave the grid no bounded height, so every row is 'visible' and " +
-          "virtualization is a no-op. Fix: constrain the parent (e.g. h-full inside a sized " +
-          "layout region) so the grid scrolls inside a real window.",
-      );
-    }
-  }, []);
+  useLayoutEffect(() => assertBoundedScrollHeight(scrollRef.current, "MediaGrid", "grid"), []);
 
   // Retries every render until the pending target cell has mounted (post scrollToIndex) — cheap
   // Map lookup, no-op once satisfied.

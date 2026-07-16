@@ -1,4 +1,4 @@
-import { OVERLAY_MOTION, tv } from "#lib";
+import { OVERLAY_ARROW, OVERLAY_MOTION, SCRIM, tv } from "#lib";
 
 // Shared item skin — every clickable menu row wears it, so highlight/disabled/touch-floor behave
 // identically. `data-highlighted` is Base UI's own hover/rove state.
@@ -15,8 +15,8 @@ export const menuVariants = tv({
     linkItem: `${itemBase} cursor-pointer no-underline`,
     submenuTrigger: `${itemBase} justify-between data-popup-open:bg-accent data-popup-open:text-accent-foreground`,
     itemIndicator: "inline-flex shrink-0 items-center justify-center text-foreground",
-    arrow: "size-row rotate-45 border border-border bg-popover",
-    backdrop: `fixed inset-0 z-(--z-popover) bg-scrim ${OVERLAY_MOTION.backdropFade("fast")}`,
+    arrow: OVERLAY_ARROW,
+    backdrop: SCRIM("popover"),
     separator: "my-field border-t border-border",
     group: "",
     groupLabel: "px-row py-field text-label leading-label text-muted-foreground",
