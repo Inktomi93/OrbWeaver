@@ -8,7 +8,7 @@ import { estimateTokens } from "@orb/kit/tokens";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary, QueryErrorState, useTRPC } from "#data";
 import type { AppFormInstance } from "#forms";
@@ -38,7 +38,7 @@ export function CharacterFacetInspector({ characterId }: CharacterFacetInspector
 
   const resolved = resolveCharacterForm(handle, selectedCharacterId);
   if (resolved === null || selectedFacetId === null) {
-    return <SelectFacet />;
+    return <SelectFacet characterId={characterId} />;
   }
   return (
     <QueryBoundary
@@ -72,8 +72,31 @@ function InspectorLoader({
   return <InspectorBody form={form} facetId={facetId} readOnly={readOnly} />;
 }
 
-function SelectFacet(): ReactElement {
-  return <EmptyState title="Open a field to inspect it" description="Pick a field from the list to edit its details here." />;
+/** The empty state, naming the character being edited (P4 — empty states name the entity). Reads the name
+ *  from the cached `character.get` (the editor surface already fetched it); before it resolves, falls back
+ *  to a generic prompt. */
+function SelectFacet({ characterId }: { readonly characterId: CharacterId }): ReactElement {
+  const trpc = useTRPC();
+  const { data } = useQuery(trpc.character.get.queryOptions({ characterId }));
+  const name = data?.name ?? "";
+  return (
+    <EmptyState
+      title="Open a field to inspect it"
+      description={
+        name === "" ? (
+          "Pick a field from the list to inspect it here."
+        ) : (
+          <>
+            Pick a field on{" "}
+            <Text as="span" weight="semibold">
+              {name}
+            </Text>{" "}
+            to inspect it here.
+          </>
+        )
+      }
+    />
+  );
 }
 
 /** The thin per-facet detail body — small knobs + counts only; the big text authors in CONTENT. */
@@ -132,19 +155,36 @@ function FacetDetail({
   }
 }
 
-/** depthPrompt's SMALL knobs — the Depth stepper + Role select (the note TEXT authors in CONTENT). */
+/** depthPrompt's SMALL knobs — the Depth stepper + Role select + the note's exact char/token count (the
+ *  note TEXT authors in CONTENT; the count lives here, P5 — one surface-level readout in the editor header). */
 function DepthDetail({ form }: { readonly form: CardForm }): ReactElement {
   return (
-    <Section heading="Injection point">
-      <form.AppField name="depthPromptDepth">
-        {(field): ReactElement => <field.NumberField label="Depth" description="How far back in history the note is spliced." min={0} />}
-      </form.AppField>
-      <form.AppField name="depthPromptRole">
-        {(field): ReactElement => (
-          <field.SelectField label="Role" description="Which conversation role the note is delivered with." items={MESSAGE_ROLE_ITEMS} />
-        )}
-      </form.AppField>
-    </Section>
+    <Stack gap="section">
+      <Section heading="Injection point">
+        <form.AppField name="depthPromptDepth">
+          {(field): ReactElement => <field.NumberField label="Depth" description="How far back in history the note is spliced." min={0} />}
+        </form.AppField>
+        <form.AppField name="depthPromptRole">
+          {(field): ReactElement => (
+            <field.SelectField label="Role" description="Which conversation role the note is delivered with." items={MESSAGE_ROLE_ITEMS} />
+          )}
+        </form.AppField>
+      </Section>
+      <Section heading="Details">
+        <form.Subscribe selector={(s): string => s.values.depthPromptText}>
+          {(value): ReactElement => (
+            <Row gap="block" align="center" className="flex-wrap">
+              <Text size="micro" tone="muted" className="tabular-nums">
+                {value.length} characters
+              </Text>
+              <Text size="code" tone="muted" className="tabular-nums">
+                ~{estimateTokens(value)} tokens
+              </Text>
+            </Row>
+          )}
+        </form.Subscribe>
+      </Section>
+    </Stack>
   );
 }
 

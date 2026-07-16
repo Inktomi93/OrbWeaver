@@ -1,13 +1,13 @@
 // CharacterFacetList — the CONTENT master list of card-content facets (character-editor redesign, from
 // assembly-rack.tsx). The facets render GROUPED BY TIER (Voice / Extras / Advanced) with a heading per
 // group — THE hierarchy the audit found missing ("nine same-weight fields, nothing chunked"). It reads the
-// live draft form to compute each facet's filled-state + ~token estimate in render (`form.Subscribe` over
-// the whole values object — the blessed live read, character-advanced-tab precedent).
+// live draft form to compute each facet's filled-state + content preview in render (`form.Subscribe` over
+// the whole values object — the blessed live read, character-advanced-tab precedent). Token counts live in
+// the editor header readout (P5), never per-row.
 //
 // Clicking a row calls `onSelect(facetId)` — the surface writes the local selection AND reveals the CONTEXT
 // Field tab (two-things-at-once, mirroring the preset rack's `onSelectSection`).
 
-import { estimateTokens } from "@orb/kit/tokens";
 import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
@@ -53,23 +53,33 @@ function facetFilled(id: CharacterCardFacet["id"], values: CharacterCardFormValu
   }
 }
 
-/** A facet's live ~token estimate, or `null` for the facets that never reach the model (creator notes /
- *  provenance / regex scripts — clerical, not prompt content). */
-function facetTokens(id: CharacterCardFacet["id"], values: CharacterCardFormValues): number | null {
+/** A short content preview for a FILLED facet row (reads as content, not metadata) — `null` when empty.
+ *  depthPrompt previews its note text; regexScripts a count; provenance the creator/version; the rest the
+ *  field's own text (the row truncates it). Kept in sync with `facetFilled` (same non-empty definition). */
+function facetPreview(id: CharacterCardFacet["id"], values: CharacterCardFormValues): string | null {
   switch (id) {
-    case "depthPrompt":
-      return estimateTokens(values.depthPromptText);
-    case "creatorNotes":
-    case "provenance":
-    case "regexScripts":
-      return null;
+    case "depthPrompt": {
+      const text = values.depthPromptText.trim();
+      return text === "" ? null : text;
+    }
+    case "regexScripts": {
+      const count = values.regexScripts.length;
+      return count === 0 ? null : `${count} ${count === 1 ? "script" : "scripts"}`;
+    }
+    case "provenance": {
+      const parts = [values.creator.trim(), values.cardVersion.trim()].filter((part) => part !== "");
+      return parts.length === 0 ? null : parts.join(" · ");
+    }
     case "description":
     case "personality":
     case "scenario":
     case "exampleMessages":
     case "systemPrompt":
     case "postHistoryInstructions":
-      return estimateTokens(values[id]);
+    case "creatorNotes": {
+      const text = values[id].trim();
+      return text === "" ? null : text;
+    }
   }
 }
 
@@ -91,7 +101,7 @@ export function CharacterFacetList({ form, selectedFacetId, focusFacetId, onSele
                     facet={facet}
                     selected={facet.id === selectedFacetId}
                     filled={facetFilled(facet.id, values)}
-                    tokens={facetTokens(facet.id, values)}
+                    preview={facetPreview(facet.id, values)}
                     focusOnMount={facet.id === focusFacetId}
                     onSelect={onSelect}
                   />

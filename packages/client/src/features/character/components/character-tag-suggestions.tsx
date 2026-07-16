@@ -36,47 +36,49 @@ export function CharacterTagSuggestions({ characterId, trpc }: CharacterTagSugge
   return (
     <Row gap="field" align="center" className="flex-wrap" data-slot="character-tag-suggestions">
       {pending.length > 0 && (
-        <Text size="micro" tone="muted">
-          {pending.length} {pending.length === 1 ? "suggestion" : "suggestions"}
-        </Text>
+        <Row gap="field" align="center" className="flex-wrap">
+          <Text size="micro" weight="semibold" tone="muted" transform="caps">
+            Suggested
+          </Text>
+          {pending.map((suggestion) => (
+            <Badge key={suggestion.id} intent="info" size="sm">
+              <Icon icon={Sparkles} size="sm" />
+              {suggestion.name}
+              <Button
+                type="button"
+                size="icon"
+                intent="ghost"
+                aria-label={`Accept ${suggestion.name}`}
+                onClick={(): void =>
+                  accept.mutate({
+                    tagId: suggestion.id,
+                    targetType: "character",
+                    targetId: characterId,
+                    status: "accepted",
+                  })
+                }
+              >
+                <Icon icon={Check} size="xs" />
+              </Button>
+              <Button
+                type="button"
+                size="icon"
+                intent="ghost"
+                aria-label={`Dismiss ${suggestion.name}`}
+                onClick={(): void =>
+                  reject.mutate({
+                    tagId: suggestion.id,
+                    targetType: "character",
+                    targetId: characterId,
+                  })
+                }
+              >
+                <Icon icon={X} size="xs" />
+              </Button>
+            </Badge>
+          ))}
+        </Row>
       )}
-      {pending.map((suggestion) => (
-        <Badge key={suggestion.id} intent="info" size="sm">
-          <Icon icon={Sparkles} size="sm" />
-          {suggestion.name}
-          <Button
-            type="button"
-            size="icon"
-            intent="ghost"
-            aria-label={`Accept ${suggestion.name}`}
-            onClick={(): void =>
-              accept.mutate({
-                tagId: suggestion.id,
-                targetType: "character",
-                targetId: characterId,
-                status: "accepted",
-              })
-            }
-          >
-            <Icon icon={Check} size="xs" />
-          </Button>
-          <Button
-            type="button"
-            size="icon"
-            intent="ghost"
-            aria-label={`Dismiss ${suggestion.name}`}
-            onClick={(): void =>
-              reject.mutate({
-                tagId: suggestion.id,
-                targetType: "character",
-                targetId: characterId,
-              })
-            }
-          >
-            <Icon icon={X} size="xs" />
-          </Button>
-        </Badge>
-      ))}
       <Button type="button" size="sm" intent="ghost" disabled={suggest.isPending} onClick={(): void => suggest.mutate({ characterId })}>
         <Icon icon={Sparkles} size="sm" />
         {suggest.isPending ? "Suggesting…" : "Suggest tags"}
