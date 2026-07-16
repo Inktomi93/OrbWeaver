@@ -22,7 +22,7 @@ import { createAppQueryClient, createTrpcClient, TRPCProvider } from "#data";
 import { contextToggleChrome, fullscreenChrome, youModal } from "#features/app-shell";
 import { accountModal } from "#features/auth";
 import { charactersSection } from "#features/character";
-import { commandModal, makeChatsSection, newChatModal } from "#features/chat";
+import { chatOptionsChrome, commandModal, makeChatsSection, newChatModal } from "#features/chat";
 import { connectionsPane } from "#features/credentials";
 import { corpusSection } from "#features/discovery";
 import { notificationsChrome } from "#features/notifications";
@@ -118,7 +118,11 @@ const modals = createRegistry("modals", MODAL_SLOT_IDS, {
 // value so app-shell renders the topbar.trail zone blind (no #features import).
 const chrome = createContributorRegistry(
   "chrome",
-  assembleChrome({ sections: sections.list(), modals: modals.list(), widgets: [notificationsChrome, fullscreenChrome, contextToggleChrome] }),
+  assembleChrome({
+    sections: sections.list(),
+    modals: modals.list(),
+    widgets: [notificationsChrome, fullscreenChrome, contextToggleChrome, chatOptionsChrome],
+  }),
 );
 
 // The ONE settings-pane assembly (§8/G8): total over SETTINGS_CATEGORY_IDS by tsc; delivered as a

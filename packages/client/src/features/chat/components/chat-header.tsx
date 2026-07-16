@@ -1,7 +1,8 @@
-// The active chat's identity for the shell topbar: lead avatar/AvatarStack, title, member-count chip
-// (toggles the Context panel to Members), and the (options) menu. Reads the same chat.getChat query the
-// room already suspends on via a plain useQuery, so the always-present topbar never suspends on its own
-// account — it degrades to a neutral title until the cache populates.
+// The active chat's identity for the shell topbar LEAD: lead avatar/AvatarStack, title, and the member-count
+// chip (entry-only — always opens the Context panel on Members). The chat-options ⋯ moved to the END of the
+// topbar TRAIL cluster (chatOptionsChrome → chat-options-topbar.tsx, ui-cohesion-north-star §4 N1). Reads the
+// same chat.getChat query the room already suspends on via a plain useQuery, so the always-present topbar
+// never suspends on its own account — it degrades to a neutral title until the cache populates.
 
 import { blobUrl } from "@orb/contracts/assets";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
@@ -15,55 +16,42 @@ import { Text } from "@orb/ui/text";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
-import { setContextTab, setPanelMode, usePanelOverride } from "#state";
+import { setContextTab, setPanelMode } from "#state";
 import { filterCharacters } from "../lib/roster";
-import { ChatOptionsMenu } from "./chat-options-menu";
 
 export interface ChatHeaderSurfaceProps {
   readonly chatId: ChatId;
-  /** Forwarded to the options menu's membership rows; single-user installs render none of them. */
-  readonly multiHumanCapable?: boolean;
 }
 
 type CharacterParticipant = ReturnType<typeof filterCharacters>[number];
 
-export function ChatHeaderSurface({ chatId, multiHumanCapable = false }: ChatHeaderSurfaceProps): ReactElement {
+export function ChatHeaderSurface({ chatId }: ChatHeaderSurfaceProps): ReactElement {
   const trpc = useTRPC();
   const { data: chat } = useQuery(trpc.chat.getChat.queryOptions({ chatId }));
   const title = chat?.title ?? "Untitled chat";
   const cast = filterCharacters(chat?.participants ?? []);
   const memberCount = (chat?.participants ?? []).filter((p) => p.leftSeq === null).length;
-  // Undefined reads as closed (the panel's runtime default), so the first click opens.
-  const contextOverride = usePanelOverride("chats", "context");
-  const toggleMembersPanel = (): void => {
-    const isOpen = contextOverride === "docked" || contextOverride === "overlay";
-    if (isOpen) {
-      setPanelMode("context", "collapsed");
-      return;
-    }
+  // The chip is entry-only — it ALWAYS opens Context on Members, never toggles closed (D66 §2 members
+  // row; the collapse affordance belongs to the context header's own control).
+  const openMembersPanel = (): void => {
     setContextTab("members");
     setPanelMode("context", "docked");
   };
-  const castMembers = cast.map((c) => ({ characterId: c.characterId, name: c.displayName }));
-  const isHost = chat?.viewerIsHost === true;
 
   return (
-    <Row gap="row" align="center" justify="between" className="min-w-0">
-      <Row gap="row" align="center" className="min-w-0">
-        <CastAvatars cast={cast} />
-        <Text size="title" weight="semibold" className="truncate">
-          {title}
-        </Text>
-        {memberCount > 0 ? (
-          <Button type="button" intent="ghost" size="sm" aria-label={`Members — ${memberCount}`} onClick={toggleMembersPanel} className="whitespace-nowrap">
-            <Icon icon={Users} size="sm" />
-            <Text as="span" size="micro" tone="muted" transform="caps" aria-hidden={true}>
-              {memberCount}
-            </Text>
-          </Button>
-        ) : null}
-      </Row>
-      <ChatOptionsMenu chatId={chatId} title={chat?.title ?? null} characters={castMembers} isHost={isHost} multiHumanCapable={multiHumanCapable} />
+    <Row gap="row" align="center" className="min-w-0">
+      <CastAvatars cast={cast} />
+      <Text size="title" weight="semibold" className="truncate">
+        {title}
+      </Text>
+      {memberCount > 0 ? (
+        <Button type="button" intent="ghost" size="sm" aria-label={`Members — ${memberCount}`} onClick={openMembersPanel} className="whitespace-nowrap">
+          <Icon icon={Users} size="sm" />
+          <Text as="span" size="micro" tone="muted" transform="caps" aria-hidden={true}>
+            {memberCount}
+          </Text>
+        </Button>
+      ) : null}
     </Row>
   );
 }

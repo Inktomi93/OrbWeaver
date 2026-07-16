@@ -203,6 +203,7 @@ export function AppShell({ railFoot }: AppShellProps): ReactElement {
                       />
                       <TooltipPopup side="bottom">Jump to…</TooltipPopup>
                     </Tooltip>
+                    <div className="shell-topbar-divider" aria-hidden="true" />
                     <TopbarTrailChrome />
                   </>
                 }
