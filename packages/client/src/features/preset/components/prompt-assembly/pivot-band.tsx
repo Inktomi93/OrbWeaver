@@ -33,7 +33,7 @@ export function PivotBand({ form, index, duplicate }: PivotBandProps): ReactElem
   }
 
   return (
-    <Stack gap="field" className="rounded-card border border-border bg-accent/40 p-row">
+    <Stack gap="field" className="rounded-card border border-border bg-muted p-row">
       <Text size="micro" tone="muted" transform="caps">
         setup · sent before the conversation
       </Text>
