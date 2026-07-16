@@ -3,10 +3,13 @@
 // a hand-rolled useAppForm outside a factory is the review flag (and `no-direct-useform` bans raw
 // useForm everywhere but here).
 
+export type { AutosaveStatusProps } from "./autosave-status";
+export { AutosaveStatus } from "./autosave-status";
 export { useFieldContext, useFormContext } from "./contexts";
 export type {
   AutosaveEntityFormArgs,
   AutosaveEntityFormConfig,
+  AutosaveSaveState,
 } from "./create-autosave-entity-form";
 export { createAutosaveEntityForm } from "./create-autosave-entity-form";
 export type { FormHandleBridge } from "./create-form-handle-bridge";
