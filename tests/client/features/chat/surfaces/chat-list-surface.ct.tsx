@@ -1,9 +1,9 @@
 // CT: the Chats-section LIST surface end-to-end (UIP-301/302/303 + J5). Drives the PRODUCTION path —
 // `chat.listChats` (routeTrpc, an UNPAGED `ChatSummary[]`) → `useSuspenseQuery` in `<QueryBoundary>` →
 // the `@orb/ui/list-row` rows. Asserts: rows render (title + participant names); selecting a row fires
-// `onSelect` with the chat id; the `+` header button fires `onNewChat`; the search field filters
-// client-side; the active row paints `aria-current`; the per-row kebab opens the actions menu; an empty
-// list shows its own state.
+// `onSelect` with the chat id; the empty-state New button fires `onNewChat` (the header New moved to the
+// LIST chrome band — chat-list-header.tsx); the search field filters client-side; the active row paints
+// `aria-current`; the per-row kebab opens the actions menu; an empty list shows its own state.
 //
 // NOTE (mirrors the other surface CTs): `trpc.chat.listChats` is stubbed at the NETWORK (routeTrpc) — the
 // tRPC proxy builds the path structurally, so the CT runs regardless of the transport verb landing.
@@ -49,12 +49,14 @@ test("selecting a row fires onSelect with that chat's id", async ({ mount, page 
   await expect(page.getByTestId("selected")).toHaveText("chat_adventure");
 });
 
-test("the header + button fires onNewChat (the J2 picker trigger)", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": [ADVENTURE] });
+test("the empty-state New button fires onNewChat (the J2 picker trigger)", async ({ mount, page }) => {
+  // The header New moved to the LIST chrome band (`chat-list-header.tsx`, north-star §4 N2) — outside this
+  // surface. The surface's own `onNewChat` wiring now lives on the empty-state News, exercised here.
+  await routeTrpc(page, { "chat.listChats": [] });
 
   const component = await mount(<ChatListSurfaceStory />);
   await expect(page.getByTestId("new-count")).toHaveText("0");
-  await component.getByRole("button", { name: "Start a new chat" }).click();
+  await component.getByRole("button", { name: "New chat" }).click();
 
   await expect(page.getByTestId("new-count")).toHaveText("1");
 });

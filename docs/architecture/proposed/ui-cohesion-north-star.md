@@ -277,12 +277,13 @@ Files: `surfaces/shell.css`, `components/panel-chrome.tsx`, `components/shell-to
   EmptyState News in the same file are fine as-is (empty state = its own surface).
 - Search row directly under the band, full width, `--spacing-block` inset. Row/group gaps come
   from the layout primitives' defaults — never override them per-surface.
-- **Horizontal scrollbar — diagnose live, then fix.** **[CORRECTED]** the design review blamed a
-  non-shrinking row child, but `list-row/variants.ts` already has root `min-w-0`, title `truncate`,
-  and a deliberate `min-w-24` content floor. Reproduce against the longest title
-  (`e2e-multitab-1783892616781`), find the actual overflowing box (snap `--eval` on
-  `scrollWidth>clientWidth` walkers), and fix THAT (likely the panel body needs `overflow-x: hidden`
-  or an ancestor sets an intrinsic min-width). Do not blind-patch the primitive.
+- **Horizontal scrollbar — RESOLVED at build (2026-07-16), and the [CORRECTED] hypothesis was
+  itself corrected by live measurement:** the overflowing box WAS the primitive — list-row's `body`
+  slot had `min-width: auto`, so its automatic minimum resolved to the title's full nowrap
+  min-content (750px vs a 265px panel); the `min-w-24` content floor cannot enable truncation (a
+  floor only RAISES min-content). An ancestor `overflow-x: hidden` would have clipped the kebab
+  off-screen (measured past the viewport). Fix: `min-w-0` restored on `body` — root-caused, not
+  blind-patched; kebab in-frame, title ellipsizes, scrollWidth==clientWidth.
 - Row polish: selected row = 2px left ember bar + `color-mix(in oklab, var(--color-primary) 10%,
   transparent)` tint replacing the flat `--color-accent` fill; relative time already mono/micro and
   hover-revealed in `list-row/variants.ts:40` — keep; row `⋯` (`[aria-label="Chat actions"]`) becomes

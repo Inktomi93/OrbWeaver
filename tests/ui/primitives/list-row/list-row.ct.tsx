@@ -79,11 +79,14 @@ test("trailing action is a separate tab stop, not nested in the row's accessible
   expect(rowClicks.length).toBe(0);
 });
 
-test("selected applies the accent token surface + aria-current", async ({ mount, page }) => {
+test("selected reads via a 2px left ember bar (rides --color-primary) + aria-current", async ({ mount, page }) => {
   await mount(<ListRow clickable={true} selected={true} title="Elara" />);
   const row = page.getByRole("button", { name: "Elara" });
   await expect(row).toHaveAttribute("aria-current", "true");
-  await expect(row).toHaveCSS("background-color", TOKENS["color.accent"].value);
+  // north-star §4 N2: the flat --color-accent fill is replaced by a 2px left bar + 10% primary tint,
+  // both riding --color-primary so a custom theme retints selection.
+  await expect(row).toHaveCSS("border-left-width", "2px");
+  await expect(row).toHaveCSS("border-left-color", TOKENS["color.primary"].value);
 });
 
 test("disabled removes the row from tab order and marks aria-disabled", async ({ mount, page }) => {

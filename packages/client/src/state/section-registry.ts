@@ -51,6 +51,10 @@ export interface SectionDefinition {
   readonly panelDefaults: Record<PanelName, PanelMode>;
   readonly placeholder: SectionPlaceholderCopy;
   readonly list?: () => ReactNode;
+  /** Content for the LIST panel's `.shell-panel-header` chrome band (north-star §4 N2, D66 A1) — the
+   *  section title/count + the panel's ONE primary action. Definition-owned so the domain-agnostic shell
+   *  never names a feature; absent ⇒ the band renders empty-but-present (the P1 baseline horizon). */
+  readonly listHeader?: () => ReactNode;
   /** REQUIRED — a real content pane, or the DECLARED-PLANNED arm (`{ planned: "<reason>" }`). */
   readonly content: (() => ReactNode) | { readonly planned: string };
   readonly header?: () => ReactNode;
