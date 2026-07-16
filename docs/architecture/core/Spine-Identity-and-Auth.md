@@ -70,7 +70,7 @@ Built: an agent is a real `users` row (`kind:'agent'`, `users_agent_shape` CHECK
 
 ## BFF session ≠ SDK chat session
 
-Two unrelated concepts sharing a word: the BFF browser session (`sessions` table — identity) vs the agent-sdk prompt-cache lineage (`sdk_sessions` table, backend-internal, D8). Separate tables, homes, tiers; never merge or cross-reference them.
+Two unrelated concepts sharing a word: the BFF browser session (`sessions` table — identity) vs the agent-sdk prompt-cache lineage (`session_entries` table, backend-internal, D8). Separate tables, homes, tiers; never merge or cross-reference them.
 
 ## Persona — three axes, three homes
 

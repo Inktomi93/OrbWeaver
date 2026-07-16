@@ -190,7 +190,7 @@ Each domain follows the 8-slot template in `Core-0-Architecture-and-Structure.md
 IS the domain name:** `packages/server/src/domain/<name>/` — and for built domains the code + its file
 headers ARE the doc (per-domain prose gutted per `Documentation-Law.md`). Special cases: `memory` lives
 at `domain/chat/memory/` (a chat subsystem; boundary: `Knowledge-Cluster.md`); `character` snapshot-UX:
-the retired FINAL-Character competition doc (yeeted under D66; git history has it) §7/§12; `stats`↔`discovery` seam: the stats-discovery-seam doc (parked in `../proposed/` — see its `INDEX.md`);
+the retired FINAL-Character competition doc (yeeted under D66; git history has it) §7/§12; `stats`↔`discovery` seam: [stats-discovery-seam.md](../history/stats-discovery-seam.md) (REALIZED);
 participants/agents/identity → the pointer subsection below.
 
 | Domain | Origin | Owns |
@@ -223,8 +223,9 @@ participants/agents/identity → the pointer subsection below.
 Phase-7/8 additive domains (post-chat grafts — D47/D48/D49; scripting D46): **imagery** BUILT
 (`domain/imagery/` — chat-facing image gen, prompt-template modes, `/imagine` via automation);
 **gallery** BUILT (`domain/assets` gallery v1/v2 verbs + `domain/hub` gif search/import —
-[gallery.md](../history/gallery.md) · [gallery-design.md](../history/gallery-design.md)); unbuilt →
-tool-use · databank · expressions · automation design sets (parked in `../proposed/` — see its `INDEX.md`).
+[gallery.md](../history/gallery.md) · [gallery-design.md](../history/gallery-design.md)); **tool-use**
+BUILT (`domain/tool-use/` — registry/resolve/execute verbs, wired at `entry/compose`); unbuilt →
+databank · expressions · automation design sets (parked in `../proposed/` — see its `INDEX.md`).
 
 ### Participants, agents & identity
 

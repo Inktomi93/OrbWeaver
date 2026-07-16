@@ -16,7 +16,7 @@ Five sealed adapters. Each is a factory returning an opaque handle; `entry/` con
 
 The db-free Strategy executor turning request `Headers` into a pre-row `ResolvedIdentity` (or `null`). One contract (`contract.ts`: `AuthConfig`/`ResolveDeps`/`IdentityResolution`/`ModeResolver` + the NEW MODE CHECKLIST), four modes (`single-user | local | forward-header | oidc`) behind ONE dispatcher (`dispatch.ts`: `MODE_RESOLVERS` + the origin-gated owner fallback). Owns:
 
-- **The mode dispatcher** — `resolveIdentity(headers, config, deps)` + `ownerFallbackAllowed`/`isLocalOrigin`. ONE branch point; modes never import each other.
+- **The mode dispatcher** — `resolve(headers, deps)` + `ownerFallbackAllowed`/`isLocalOrigin`. ONE branch point; modes never import each other.
 - **JWT/JWKS verification** (`jwks.ts`) — `jwksFor` (fail-closed JWKS build from the forwarded literal-or-URL; LRU-bounded, sha256-keyed, `ASSUMES(single-replica)`) + jose `jwtVerify` with a pinned RS256/ES256 alg allowlist, composed by `createForwardJwtVerifier()` into the `ForwardJwtVerifier` port the seam injects (`verifyForwardJwt`, wired at `entry/lifecycle.ts`).
 - **The pre-row `ResolvedIdentity`** — `{ externalId, handle, groups }`; **NO `userId`** by design (infra must not know DB row ids).
 - **The per-request signals** — `viaCookie`, `viaFallback`, `hasCsrfHeader` (`csrf.ts`); the gate itself is enforced at the seam/ladder.
@@ -65,7 +65,7 @@ Composition asymmetry: storage/crypto/network/image are *called by* domains via 
 | `ipAllowlistMiddleware` | `entry/app.ts` | Hono chain |
 | `Cas` / `VariantCache` | `entry/` | `assets.context`, export, the blob route |
 | `imageTransform` | `entry/` | `assets.resolve-variant` |
-| `resolveIdentity` + `ResolveDeps` | `entry/auth/seam.ts` | the seam calls infra; deps injected into infra |
+| `resolve` + `ResolveDeps` | `entry/auth/seam.ts` | the seam calls infra; deps injected into infra |
 
 ## Spine intersections
 

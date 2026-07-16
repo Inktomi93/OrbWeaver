@@ -250,7 +250,7 @@ dead-code/dead-export/dead-dependency lane — LIVE in `pnpm check` as the `deps
 Structural duplication the per-file biome/gate rules can't see. Scans `packages/**/src` (TS + CSS;
 the centralized `tests/` mirror, migrations, fixtures, and `*.d.ts` are excluded — mirror duplication
 is intentional). **CI lane, not the pre-commit fast check** (whole-tree scan). Gate: the build fails
-over **5%** duplication (`threshold`) — ratchet down as the codebase matures. `pnpm cpd` (console) /
+over **2%** duplication (`threshold`) — ratchet down as the codebase matures. `pnpm cpd` (console) /
 `pnpm cpd:report` (HTML → `reports/cpd`). Active now: vacuous on the comment-only placeholder tree,
 fires the moment real code lands.
 

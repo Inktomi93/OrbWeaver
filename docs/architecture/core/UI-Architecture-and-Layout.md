@@ -116,7 +116,7 @@ packages/client/
       trpc.ts · query-client.ts · invalidation.ts · create-entity-mutation.ts ·
       create-collection-surface.ts · query-boundary.tsx · use-gated-query.ts · bus/
     forms/              # the editor factories — the SINGLE createFormHook instance — §13.1/§13.4
-      use-app-form.ts · create-saved-entity-form.ts · create-autosave-entity-form.tsx · bound-fields/
+      use-app-form.ts · create-saved-entity-form.ts · create-autosave-entity-form.ts · bound-fields/
     state/              # ALL gated Zustand stores, FLAT (gate state:files: one create/file, ≤10 fields, no exported set/getState)
     features/           # the slices — cross-feature reads ONLY via trpc.* (§11.0); NO _shared/ drawer
       app-shell/        #   the 4-region rail shell (§4.1); the ONLY viewport @media site (§4b ax2);
