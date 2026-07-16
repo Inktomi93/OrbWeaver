@@ -1,17 +1,17 @@
 // PresetSectionInspector — the CONTEXT Section-tab body. Reads the live editor form through the form
 // bridge (`useAssemblyForm()` — CONTENT + CONTEXT are sibling shell regions with no shared React
-// ancestor). A stale section id after delete/undo yields the EmptyState, never a throw. Anatomy: header ·
-// identity · placement/triggers/override-lock clusters · footer (Duplicate/Move-to-zone/Delete). The
-// section body lives in the CENTER `SectionBodyEditor`, not here.
+// ancestor). A stale section id after delete yields the EmptyState, never a throw. Anatomy: header (title +
+// the ONE ⋯ actions menu — Duplicate/Move-to-zone/Delete, north-star §2/§6.2) · identity ·
+// placement/triggers/override-lock clusters. The section body lives in the CENTER `SectionBodyEditor`.
 
 import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
-import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
-import { Copy, GitFork, Icon, Trash2 } from "@orb/ui/icons";
+import { Copy, GitFork, Icon } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
+import { MenuItem } from "@orb/ui/menu";
 import { Text } from "@orb/ui/text";
-import { useToastManager } from "@orb/ui/toast";
 import type { ReactElement } from "react";
+import { RowActionsMenu } from "#components";
 import type { AppFormInstance } from "#forms";
 import { MESSAGE_ROLE_ITEMS } from "#lib";
 import { useSelectedPresetId, useSelectedPresetSectionId } from "#state";
@@ -65,17 +65,20 @@ function InspectorBody({ form, section, index, onDismiss }: InspectorBodyProps):
   const { label, oneLiner } = headerCopy(section);
   return (
     <Stack gap="section" className="min-h-0 overflow-y-auto">
-      <Stack gap="field">
-        <Text size="title" weight="semibold">
-          {label}
-        </Text>
-        <Text size="micro" tone="muted">
-          {oneLiner}
-        </Text>
-        <Text size="code" tone="muted">
-          {section.id}
-        </Text>
-      </Stack>
+      <Row gap="field" align="start" justify="between">
+        <Stack gap="field" className="min-w-0">
+          <Text size="title" weight="semibold" className="truncate">
+            {label}
+          </Text>
+          <Text size="micro" tone="muted">
+            {oneLiner}
+          </Text>
+          <Text size="code" tone="muted">
+            {section.id}
+          </Text>
+        </Stack>
+        <SectionActionsMenu form={form} section={section} index={index} onDismiss={onDismiss} />
+      </Row>
 
       <Section heading="Identity">
         <form.AppField name={`sections[${index}].name`}>{(field): ReactElement => <field.TextField label="Name" />}</form.AppField>
@@ -96,60 +99,55 @@ function InspectorBody({ form, section, index, onDismiss }: InspectorBodyProps):
 
       <SectionTriggersControl form={form} section={section} index={index} />
       <SectionLocksControl form={form} section={section} index={index} />
-
-      <InspectorFooter form={form} section={section} index={index} onDismiss={onDismiss} />
     </Stack>
   );
 }
 
-/** Duplicate · Move-to-zone (splice across the pivot) · Delete (recoverable — undo toast re-inserts). */
-function InspectorFooter({ form, section, index, onDismiss }: InspectorBodyProps): ReactElement {
-  const toast = useToastManager();
-  // Recoverable delete: capture the removed section + index, drop it, dismiss, then offer an Undo re-insert.
+/** The ONE section-actions ⋯ menu (north-star §2 / §6.2) — Duplicate · Move-to-zone (conditional) items,
+ *  Delete as the ConfirmDialog-wired destructive. Replaces the old bottom Duplicate/Move/Delete button row.
+ *  Every array mutation flushes the autosave (§7 TRAP: structural array ops don't fire the onChange listener). */
+function SectionActionsMenu({ form, section, index, onDismiss }: InspectorBodyProps): ReactElement {
   const onDelete = (): void => {
-    const removed = section;
-    const removedIndex = index;
-    void form.removeFieldValue("sections", removedIndex);
-    onDismiss();
-    toast.add({
-      title: "Section removed",
-      actionProps: {
-        children: "Undo",
-        onClick: (): void => {
-          void form.insertFieldValue("sections", removedIndex, removed);
-        },
-      },
+    void form.removeFieldValue("sections", index).then(() => {
+      void form.handleSubmit();
     });
+    onDismiss();
   };
   return (
-    <Row gap="field" align="center" justify="between" className="flex-wrap">
-      <Button intent="ghost" size="sm" onClick={(): void => duplicate(form, section, index)}>
+    <RowActionsMenu
+      label="Section actions"
+      destructive={{
+        title: "Delete this section?",
+        description: "This removes the section from the preset's prompt arrangement. This can't be undone.",
+        onConfirm: onDelete,
+      }}
+    >
+      <MenuItem onClick={(): void => duplicate(form, section, index)}>
         <Icon icon={Copy} size="sm" />
         Duplicate
-      </Button>
-      <MoveToZoneButton form={form} section={section} index={index} />
-      <Button intent="destructive" size="sm" onClick={onDelete}>
-        <Icon icon={Trash2} size="sm" />
-        Delete
-      </Button>
-    </Row>
+      </MenuItem>
+      <MoveToZoneItem form={form} section={section} index={index} />
+    </RowActionsMenu>
   );
 }
 
-/** Duplicate the section just below itself with a fresh id (content preserved). */
+/** Duplicate the section just below itself with a fresh id (content preserved), then flush the autosave. */
 function duplicate(form: AssemblyForm, section: PromptSection, index: number): void {
   const clone: PromptSection = { ...section, id: globalThis.crypto.randomUUID() };
   void form.insertFieldValue("sections", index + 1, clone);
+  // §7 TRAP: the array insert doesn't fire the autosave listener — flush explicitly.
+  void form.handleSubmit();
 }
 
-interface MoveToZoneButtonProps {
+interface MoveToZoneItemProps {
   readonly form: AssemblyForm;
   readonly section: PromptSection;
   readonly index: number;
 }
 
-/** Move-to-zone — splice the section across the pivot to the OTHER zone; the label flips by current zone. */
-function MoveToZoneButton({ form, section, index }: MoveToZoneButtonProps): ReactElement | null {
+/** Move-to-zone menu item — splice the section across the pivot to the OTHER zone; the label flips by
+ *  current zone. Renders nothing when there's no pivot or the section IS the pivot. */
+function MoveToZoneItem({ form, section, index }: MoveToZoneItemProps): ReactElement | null {
   return (
     <form.Subscribe selector={(state): readonly PromptSection[] => state.values.sections}>
       {(sections): ReactElement | null => {
@@ -160,16 +158,16 @@ function MoveToZoneButton({ form, section, index }: MoveToZoneButtonProps): Reac
         const inSetup = zones.zoneOf(index) === "setup";
         const to = inSetup ? zones.pivotIndex + 1 : zones.pivotIndex;
         return (
-          <Button
-            intent="ghost"
-            size="sm"
+          <MenuItem
             onClick={(): void => {
               form.moveFieldValues("sections", index, to > index ? to - 1 : to);
+              // §7 TRAP: the array move doesn't fire the autosave listener — flush explicitly.
+              void form.handleSubmit();
             }}
           >
             <Icon icon={GitFork} size="sm" />
             {inSetup ? "Move below" : "Move above"}
-          </Button>
+          </MenuItem>
         );
       }}
     </form.Subscribe>

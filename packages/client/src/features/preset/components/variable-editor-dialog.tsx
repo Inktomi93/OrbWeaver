@@ -95,7 +95,8 @@ function OptionList({ form, index }: { readonly form: AppForm; readonly index: n
                     intent="ghost"
                     size="sm"
                     onClick={(): void => {
-                      void form.removeFieldValue(optionsName, j);
+                      // §7 TRAP: the array remove doesn't fire the autosave listener — flush after it lands.
+                      void form.removeFieldValue(optionsName, j).then(() => form.handleSubmit());
                     }}
                   >
                     Remove
@@ -104,7 +105,15 @@ function OptionList({ form, index }: { readonly form: AppForm; readonly index: n
               ))
             )}
             <Row>
-              <Button intent="secondary" size="sm" onClick={(): void => form.pushFieldValue(optionsName, makeOption())}>
+              <Button
+                intent="secondary"
+                size="sm"
+                onClick={(): void => {
+                  form.pushFieldValue(optionsName, makeOption());
+                  // §7 TRAP: the array push doesn't fire the autosave listener — flush explicitly.
+                  void form.handleSubmit();
+                }}
+              >
                 <Icon icon={Plus} size="sm" />
                 Add option
               </Button>

@@ -41,6 +41,8 @@ export function RegexTab({ form }: { readonly form: AppForm }): ReactElement {
     // AFTER the push yields one PAST the new item's real index (an out-of-bounds phantom row on Done).
     const newIndex = form.state.values.regexScripts.length;
     form.pushFieldValue("regexScripts", makeScript());
+    // Array structural mutations don't fire the autosave onChange listener (§7 TRAP) — flush explicitly.
+    void form.handleSubmit();
     setEditIndex(newIndex);
   };
 
@@ -59,7 +61,8 @@ export function RegexTab({ form }: { readonly form: AppForm }): ReactElement {
           onAdd={onAdd}
           onEdit={setEditIndex}
           onRemove={(index): void => {
-            void form.removeFieldValue("regexScripts", index);
+            // §7 TRAP: the array remove doesn't fire the autosave listener — flush after it lands.
+            void form.removeFieldValue("regexScripts", index).then(() => form.handleSubmit());
           }}
           renderEditor={(index): ReactElement => (
             // The shared dialog binds only `regexScripts[*]`, which PromptConfig carries; TanStack form

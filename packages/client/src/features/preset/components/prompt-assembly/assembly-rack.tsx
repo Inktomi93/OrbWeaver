@@ -40,6 +40,8 @@ export function AssemblyRack({ form, selectedSectionId, onSelectSection, onAddCh
           const move = diffMove(before, orderedKeys);
           if (move !== null) {
             form.moveFieldValues("sections", move.from, move.to);
+            // Array structural mutations don't fire the autosave onChange listener (§7 TRAP) — flush.
+            void form.handleSubmit();
           }
         };
 

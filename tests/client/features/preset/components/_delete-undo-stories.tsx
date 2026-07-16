@@ -1,60 +1,65 @@
-// CT story module for the section-inspector recoverable delete (BUILD-SPEC §3.5; the P0 1b fix). A CT only
-// mounts from a NON-test module (Spine-Testing §7). This composes the REAL cross-region shape: a publisher
-// owns a real preset form and publishes it to THE FORM BRIDGE + drives the selection store; the sibling
-// `PresetSectionInspector` reads both. Delete must offer an Undo toast whose action re-inserts the removed
-// section at its original index. A `<output>` mirrors the live form's section ids so the CT can assert the
-// deletion AND the restoration (the inspector itself falls to its EmptyState after dismiss).
+// CT story module for the section-inspector ⋯ actions menu (north-star §2/§6.2 + §7 autosave trap). A CT
+// only mounts from a NON-test module (Spine-Testing §7). This composes the REAL cross-region shape: a
+// publisher owns a real AUTOSAVE preset form, publishes it to THE FORM BRIDGE + drives the selection store;
+// the sibling `PresetSectionInspector` reads both. The Delete lives in the header ⋯ menu, ConfirmDialog-wired
+// (the recoverable undo-toast retired at §6.2), and Duplicate/Move sit beside it. Every structural array
+// op flushes the autosave — `removeFieldValue`/`insertFieldValue` don't fire the onChange listener (§7 TRAP).
+// A `<output>` mirrors the live form's section ids AND the last-saved count so the CT asserts the mutation
+// AND its persistence.
 
-import { createSavedEntityForm } from "@orb/client/forms";
+import type { AppFormInstance } from "@orb/client/forms";
+import { createAutosaveEntityForm } from "@orb/client/forms";
 import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { Toaster, ToastProvider } from "@orb/ui/toast";
 import type { ReactElement } from "react";
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { PresetSectionInspector } from "../../../../../packages/client/src/features/preset/components/preset-section-inspector";
 import { clearAssemblyForm, publishAssemblyForm } from "../../../../../packages/client/src/features/preset/lib/preset-editor-bridge";
 import { clearPresetSection, selectPreset, selectPresetSection } from "../../../../../packages/client/src/state";
 
 const STORY_PRESET = castId<PresetId>("preset_delundostoryy");
 
-// `sec_del` sits in the MIDDLE (index 1 of 3) ON PURPOSE: deleting the LAST element makes
-// `insertFieldValue(index, …)` and a plain append produce the SAME array, so a middle target is the only
-// fixture that can distinguish restore-at-original-index from append-to-end.
+// `sec_del` sits in the MIDDLE (index 1 of 3): a middle target is the only fixture that distinguishes a
+// duplicate/insert-at-index from an append-to-end (identical for the tail).
 const SECTIONS: PromptSection[] = [
   { type: "literal", id: "sec_a", name: "Alpha", role: "system", content: "a", enabled: true },
   { type: "literal", id: "sec_del", name: "DeleteMe", role: "system", content: "d", enabled: true },
   { type: "literal", id: "sec_z", name: "Zeta", role: "system", content: "z", enabled: true },
 ];
 
-const useStoryForm = createSavedEntityForm<PromptConfig>({
-  defaultValues: DEFAULT_PROMPT_CONFIG,
-  save: (values: PromptConfig): Promise<PromptConfig> => Promise.resolve(values),
-});
+const useAutosaveStoryForm = createAutosaveEntityForm<PromptConfig>({ defaultValues: DEFAULT_PROMPT_CONFIG });
 
-/** Owns the real form: publishes it to the bridge, selects preset + the `sec_del` section, and mirrors the
- *  live section-id order for the CT to assert against. */
+/** Owns the real AUTOSAVE form: publishes it to the bridge, selects preset + the `sec_del` section, and
+ *  mirrors the live section-id order + the last-saved section count for the CT to assert against. */
 function DeleteUndoPublisher(): ReactElement {
-  const { form } = useStoryForm({
+  const [savedCount, setSavedCount] = useState(-1);
+  const saveRef = useRef((values: PromptConfig): Promise<void> => {
+    setSavedCount(values.sections.length);
+    return Promise.resolve();
+  });
+  const { form } = useAutosaveStoryForm({
     entityId: STORY_PRESET,
     serverValues: { ...DEFAULT_PROMPT_CONFIG, sections: [...SECTIONS] },
+    save: saveRef.current,
   });
   useEffect(() => {
-    publishAssemblyForm({ presetId: STORY_PRESET, form });
+    publishAssemblyForm({ presetId: STORY_PRESET, form: form as AppFormInstance<PromptConfig> });
     selectPreset(STORY_PRESET);
     selectPresetSection("sec_del");
     return (): void => clearAssemblyForm();
   }, [form]);
   return (
     <form.Subscribe selector={(state): readonly PromptSection[] => state.values.sections}>
-      {(sections): ReactElement => <output>{`ids=${sections.map((s) => s.id).join(",")}`}</output>}
+      {(sections): ReactElement => <output>{`ids=${sections.map((s) => s.id).join(",")} savedCount=${savedCount}`}</output>}
     </form.Subscribe>
   );
 }
 
-/** The cross-sibling story: publisher (CONTENT) + inspector (CONTEXT), wrapped in the toast provider so the
- *  Undo affordance renders. `onDismiss` is the bare selection-clear (the route adds the mobile-sheet close). */
+/** The cross-sibling story: publisher (CONTENT) + inspector (CONTEXT), wrapped in the toast provider (the
+ *  ConfirmDialog + any toast render inside it). `onDismiss` is the bare selection-clear. */
 export function DeleteUndoStory(): ReactElement {
   return (
     <ToastProvider>

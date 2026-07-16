@@ -1,44 +1,80 @@
 // The preset EDITOR's tab registry + the static generation-select vocabularies (W10 Panel A — UI-Arch
-// §4.2 Presets row: "tabbed editor (Sampling · Output · Quality · Reasoning · Templates · Post-process ·
-// Compaction · Prompt)"). Registry-as-data: the tab strip renders from `PRESET_EDITOR_TABS`, so a new tab
-// is a data edit and the id union is derived from the tuple (§11.1 derive-don't-respell). The select
-// vocabularies here are the STATIC enum→label maps (thinking-display, names-behavior, continue-postfix,
-// compaction-mode) — the message-role map is the shared `#lib/message-role-labels` (the ONE map; features
-// import it, they don't re-spell it) — and the DESCRIPTOR-driven sampling/reasoning/verbosity vocab is NOT here
-// (it lives in capability-panel-model.ts, iterated from `ModelCapabilityView` — the panel GATE).
+// §4.2 Presets row). north-star §6.2: the ten leaf tabs regroup into FOUR primary groups (Generation ·
+// Prompt · Context · Transforms), the leaves becoming sub-navigation inside each group — the leaf CONTENT
+// is unchanged (a regroup, not a rewrite). Registry-as-data: the group strip renders from
+// `PRESET_EDITOR_GROUPS`, so re-homing a leaf is a data edit and the leaf-id union is derived from the
+// group tuple (§11.1 derive-don't-respell). The select vocabularies here are the STATIC enum→label maps
+// (thinking-display, names-behavior, continue-postfix, compaction-mode) — the message-role map is the
+// shared `#lib/message-role-labels` (the ONE map; features import it, they don't re-spell it) — and the
+// DESCRIPTOR-driven sampling/reasoning/verbosity vocab is NOT here (it lives in capability-panel-model.ts,
+// iterated from `ModelCapabilityView` — the panel GATE).
 
 import type { CompactionMode, ContinuePostfix, NamesBehavior, ThinkingDisplay } from "@orb/contracts/preset";
 import { COMPACTION_MODES, CONTINUE_POSTFIX_TYPES, NAMES_BEHAVIOR, THINKING_DISPLAYS } from "@orb/contracts/preset";
 import type { SelectItems } from "@orb/ui/select";
 
-/** The editor's tab ids, in strip order (UI-Arch §4.2 Presets tabbed editor). Params-related tabs
- *  (Quality/Sampling/Reasoning/Output) render the descriptor-driven panel; the rest edit `PromptConfig`
- *  structure directly. */
-const PRESET_EDITOR_TAB_IDS = ["quality", "sampling", "reasoning", "output", "prompt", "templates", "postProcess", "compaction", "variables", "regex"] as const;
+/** The four primary groups + their sub-tabs, in strip order (north-star §6.2). Each leaf `id` still drives
+ *  exactly one content panel (unchanged) — the grouping is the ONLY new structure. Keyed off `as const` so
+ *  the leaf-id union derives from the tuple and a new leaf is a `tsc` error until it has a label + a home. */
+const PRESET_EDITOR_GROUP_TUPLE = [
+  {
+    id: "generation",
+    label: "Generation",
+    tabs: [
+      { id: "quality", label: "Quality" },
+      { id: "sampling", label: "Sampling" },
+      { id: "reasoning", label: "Reasoning" },
+      { id: "output", label: "Output" },
+    ],
+  },
+  {
+    id: "prompt",
+    label: "Prompt",
+    tabs: [
+      { id: "prompt", label: "Prompt" },
+      { id: "templates", label: "Templates" },
+    ],
+  },
+  {
+    id: "context",
+    label: "Context",
+    tabs: [
+      { id: "compaction", label: "Compaction" },
+      { id: "variables", label: "Variables" },
+    ],
+  },
+  {
+    id: "transforms",
+    label: "Transforms",
+    tabs: [
+      { id: "postProcess", label: "Post-process" },
+      { id: "regex", label: "Regex" },
+    ],
+  },
+] as const;
 
-/** The tab-id union (file-local — §7.4 forbids an exported bare `type` alias in a feature lib; consumers
- *  read it via the `PresetEditorTab.id` interface field, or derive from `PRESET_EDITOR_TAB_IDS`). */
-type PresetEditorTabId = (typeof PRESET_EDITOR_TAB_IDS)[number];
+/** The leaf-tab-id union (file-local — §7.4 forbids an exported bare `type` alias in a feature lib;
+ *  consumers read it via the `PresetEditorTab.id` interface field). Derived from the group tuple's leaves. */
+type PresetEditorTabId = (typeof PRESET_EDITOR_GROUP_TUPLE)[number]["tabs"][number]["id"];
 
-/** One editor tab (label + the section id it drives). */
+/** The primary-group id union (file-local, same §7.4 rule). */
+type PresetEditorGroupId = (typeof PRESET_EDITOR_GROUP_TUPLE)[number]["id"];
+
+/** One leaf editor tab (label + the content id it drives). */
 export interface PresetEditorTab {
   readonly id: PresetEditorTabId;
   readonly label: string;
 }
 
-/** The tab strip, in render order. Keyed off the tuple so a new tab id is a `tsc` error until it has a label. */
-export const PRESET_EDITOR_TABS: readonly PresetEditorTab[] = [
-  { id: "quality", label: "Quality" },
-  { id: "sampling", label: "Sampling" },
-  { id: "reasoning", label: "Reasoning" },
-  { id: "output", label: "Output" },
-  { id: "prompt", label: "Prompt" },
-  { id: "templates", label: "Templates" },
-  { id: "postProcess", label: "Post-process" },
-  { id: "compaction", label: "Compaction" },
-  { id: "variables", label: "Variables" },
-  { id: "regex", label: "Regex" },
-];
+/** One primary group (its own id/label + the leaf tabs it homes as sub-navigation). */
+export interface PresetEditorGroup {
+  readonly id: PresetEditorGroupId;
+  readonly label: string;
+  readonly tabs: readonly PresetEditorTab[];
+}
+
+/** The primary group strip, in render order — the four top-level tabs; each renders its `tabs` as sub-nav. */
+export const PRESET_EDITOR_GROUPS: readonly PresetEditorGroup[] = PRESET_EDITOR_GROUP_TUPLE;
 
 // ── The static enum→label select vocabularies (the non-descriptor knobs) ────────────────────────────
 
