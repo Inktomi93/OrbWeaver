@@ -6,8 +6,7 @@
 import type { ReactElement, ReactNode } from "react";
 import { WeaveGlyph } from "#lib";
 import type { ModalSlotId, SectionId } from "#state";
-import { useModalRegistry, useSectionRegistry } from "#state";
-import { SECTION_GROUPS } from "../lib/rail-slots";
+import { SECTION_GROUPS, useModalRegistry, useSectionRegistry } from "#state";
 import { RailButton } from "./rail-button";
 import { RailTabButton } from "./rail-tab-button";
 

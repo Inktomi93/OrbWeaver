@@ -503,8 +503,11 @@ export function ChromeRegistryProbe(): ReactElement {
 
 function ChromeRegistryReader(): ReactElement {
   const registry = useChromeRegistry();
+  // The registry now also carries the derived rail.nav/rail.end entries; this probe asserts the
+  // topbar.trail widgets (the consumed zone), so it filters to that zone.
   const ids = registry
     .list()
+    .filter((e) => e.zone === "topbar.trail")
     .map((e) => e.id)
     .join(",");
   return (

@@ -11,5 +11,6 @@ export const contextToggleChrome: ChromeEntry = {
   label: "Detail panel",
   zone: "topbar.trail",
   order: 30,
-  body: (): ReturnType<typeof ContextToggle> => <ContextToggle />,
+  // A topbar toggle — the same affordance in bar and sheet lenses; `presentation` is unused today.
+  behavior: { kind: "widget", body: (_presentation): ReturnType<typeof ContextToggle> => <ContextToggle /> },
 };

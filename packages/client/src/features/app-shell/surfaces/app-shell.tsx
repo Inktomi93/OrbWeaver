@@ -42,10 +42,9 @@ export interface AppShellProps {
  *  precedent). `false` ⇒ render NOTHING (no gap — preserves the bell's no-flash rule). */
 function TopbarTrailChrome(): ReactElement {
   const chrome = useChromeRegistry();
-  const entries = chrome
-    .list()
-    .filter((e) => e.zone === "topbar.trail")
-    .toSorted((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  // The per-zone order is owned by assembleChrome (canonical `(order, id)` sort at the door), so this
+  // consumer only filters — no re-sort.
+  const entries = chrome.list().filter((e) => e.zone === "topbar.trail");
   return (
     <>
       {entries.map((entry) => (
@@ -57,7 +56,12 @@ function TopbarTrailChrome(): ReactElement {
 
 function TrailWidget({ entry }: { readonly entry: ChromeEntry }): ReactNode {
   const visible = entry.useVisible?.() ?? true;
-  return visible ? entry.body() : null;
+  // topbar.trail carries only WIDGET entries this wave; modal/section rendering in the trail lands with
+  // the §E-3 rail cutover + the ⌘K skin pass.
+  if (!visible || entry.behavior.kind !== "widget") {
+    return null;
+  }
+  return entry.behavior.body("bar");
 }
 
 export function AppShell({ railFoot }: AppShellProps): ReactElement {
