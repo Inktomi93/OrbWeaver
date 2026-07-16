@@ -40,7 +40,9 @@ and the derive-modernization program ([`derive-modernization-audit.md`](derive-m
 — mint → migrate → SEAL; gates G24–G29 + a G4 arm) interleave as follows:
 
 1. **UI-polish wave: PP1–PP5 (§5) + derive-W2 (ui skin-fragment tier) + gate G25** — ONE ui-package
-   wave, zero collisions with anything below; ship first.
+   wave, zero collisions with anything below; ship first. **SHIPPED 2026-07-16** (commits
+   `98a66524`..`89985c61`; PP5 minted `spacing.checkbox` per the §13.9 display-size family; PP3
+   finding: popup ITEMS never bore focus rings — toast was the real popover-toned consumer).
 2. **Derive-W3 (plumbing mints + G26–G28)** — anytime from here; pairs with chrome §E-1, which
    ABSORBS the `SECTION_GROUPS` double-spell (audit W3-#5) and whose chrome registry
    context/provider rides the same `createRegistryContext` mint (whichever lands first, the other

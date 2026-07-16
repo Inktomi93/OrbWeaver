@@ -29,11 +29,12 @@ REAL violation shape, Core-Enforcement row + count bump, `__g_` fixture or `UNFI
 scanRoot proven to fire). A composite without its seal is a DEFECT, not a milestone. Growth
 (rpg/crew/expressions/plugins) then lands on walls, not conventions.
 
-**Proposed D-ledger entry (owner mints — a law-level act):** *"A shared machine (composite, factory,
-skin fragment, plumbing mint) ships WITH the gate that closes its raw-path door, in the same wave.
-The audit class 'machine exists, adoption optional' is retired."* Companion doctrine: ui skin
-fragments home in `ui/src/lib/` with purity signatures (§W2); client registry/store plumbing homes
-behind mints (§W3).
+**D-ledger entry: MINTED as D72** (2026-07-16, under the owner's ratification of this program +
+"fully implement everything properly" directive — flag raised in the wave report): *"A shared
+machine (composite, factory, skin fragment, plumbing mint) ships WITH the gate that closes its
+raw-path door, in the same wave. The audit class 'machine exists, adoption optional' is retired."*
+Companion doctrine: ui skin fragments home in `ui/src/lib/` with purity signatures (§W2); client
+registry/store plumbing homes behind mints (§W3).
 
 **Standing tripwire ratchet:** after W1+W5 land, lower the `jscpd` threshold from 5% toward the
 post-migration measured floor (client tsx was 3.15% after the 2026-07-13 consolidation) so the next
@@ -64,7 +65,15 @@ surfaces — decided at migration, each entry cited); an allowlisted file that s
 file hand-assembling Dialog+DialogTitle+footer. `mustPass`: a `FormDialog` consumer + an allowlisted
 species file.
 
-## W2 — the ui skin-fragment tier + `ui-skin-fragment-purity` (G25)
+## W2 — the ui skin-fragment tier + `ui-skin-fragment-purity` (G25) — **LANDED 2026-07-16**
+
+> Shipped as the north-star Sequencing step-1 wave (commits `98a66524` fragments+migrations,
+> `c48bebee` G25, `b1a7e5c4` CT light-dark repair) alongside PP1–PP5. Delta from spec, all verified:
+> the popup ITEM skins never bore focus rings (Base UI roving `data-highlighted`) — the real
+> popover-toned ring consumers were toast's close/action; drawer keeps its own scrim motion via
+> `SCRIM_BASE` (genuine divergence); select keeps `min-w-(--anchor-width)` vs the lock-width twins.
+> G25 ships 6 signature rows (both disabled-state pairs included). The slider THUMB still rides
+> `size-section` (same coupling class PP5 fixed for checkbox/radio) — flagged, unsanctioned, W5-adjacent.
 
 **Mint/migrate:** extract to `ui/src/lib/` (the `FOCUS_RING`/`OVERLAY_MOTION` precedent):
 `POPUP_SURFACE` (select/autocomplete/combobox byte-identical + menu/popover) · `OVERLAY_ARROW`
