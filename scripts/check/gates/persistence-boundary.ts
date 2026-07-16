@@ -33,9 +33,6 @@ const DEVICE_LOCAL_REGISTRY: Record<string, string> = {
     "library sort/view/filter-chip/bulk-mode/spoiler-blur browse prefs — per-device LIST/editor chrome, " +
     "not a synced setting (a returning user on another device does not expect their tag-filter OR their " +
     "screen-share spoiler-blur to follow; FINAL-Character §4/§6.1/§12.1)",
-  "character-card-draft":
-    "unsaved character-card editor draft — per-device crash-survival mirror (§13.4 obligation-5), never a " +
-    "synced setting; a confirmed Save/Discard clears it (FINAL-Character §6.5)",
   "recent-models":
     "the per-source Recent-models MRU in the connections model picker — 'what I recently picked on THIS " +
     "machine' is a convenience affordance, never synced routing truth (the actual selection persists " +

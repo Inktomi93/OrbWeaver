@@ -184,6 +184,9 @@ function GreetingActions({
           intent="ghost"
           onClick={(): void => {
             void form.removeFieldValue("greetings", index);
+            // Array structural mutations don't fire the autosave onChange listener (§7 TRAP) — flush
+            // explicitly so a removed alternate actually persists.
+            void form.handleSubmit();
             onActiveIndexChange(Math.max(0, index - 1));
           }}
         >
@@ -197,6 +200,9 @@ function GreetingActions({
         intent="ghost"
         onClick={(): void => {
           form.pushFieldValue("greetings", "");
+          // Structural push doesn't fire the autosave onChange listener (§7 TRAP) — flush explicitly
+          // so the new slot persists; the editor then autosaves its content on the first keystroke.
+          void form.handleSubmit();
           onStartAlternate(greetingCount);
         }}
       >

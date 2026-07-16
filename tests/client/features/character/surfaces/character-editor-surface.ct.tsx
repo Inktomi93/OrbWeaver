@@ -1,10 +1,12 @@
 // CT: the §6 character CONTENT editor end-to-end. Drives the PRODUCTION path — `character.get` (routeTrpc)
-// → `createSavedEntityForm` → the pinned hero band + the facet master-list → drill-in + the sticky save-bar
-// (the character-editor redesign REPLACED the flat Main/Advanced tabs with a facet list that drills into a
-// full-width body editor). Asserts: the hero renders the character's name (draft field) + handle + New-chat
-// CTA; the live-themed greeting bubble shows `greetings[0]`; the save-bar carries the §6.5 token split;
-// editing the name lights the dirty pill + enables Save (the draft commit-model, §2); clicking a facet row
-// drills CONTENT into that field's body (a CONTENT drill-in, never a modal — §11 pain-point 1).
+// → `createAutosaveEntityForm` → the pinned hero band + the facet master-list → drill-in + the sticky
+// header (the character-editor redesign REPLACED the flat Main/Advanced tabs with a facet list that drills
+// into a full-width body editor). Asserts: the hero renders the character's name (draft field) + handle +
+// New-chat CTA; the live-themed greeting bubble shows `greetings[0]`; the header carries the §6.5 token
+// split; AUTOSAVE (D66 A4 / north-star §7) — editing the name debounce-persists a diff and the shared
+// AutosaveStatus reads "Saved" (no Save/Discard buttons); the §7 array-field TRAP — adding + removing a
+// greeting alternate flushes explicitly so the structural mutation persists; clicking a facet row drills
+// CONTENT into that field's body (a CONTENT drill-in, never a modal — §11 pain-point 1).
 //
 // `character.get`/`chat.listChats`/`character.update` are stubbed at the NETWORK (routeTrpc).
 
@@ -27,14 +29,28 @@ const DESCRIPTION_ROW = /Description/;
 // false-fire on the multi-line dialogue literal).
 const EXAMPLE_MESSAGES = ["<START>", "hi — Greetings.", "<START>", "bye — Farewell."].join("\n");
 
+const GREETING_0 = "Hello, traveler. What brings you to my door?";
+
 const CARD = makeCharacterDetail({
   name: "Aria Nightshade",
   handle: "aria",
   description: "A wandering cartographer with a sharp tongue.",
-  greetings: ["Hello, traveler. What brings you to my door?"],
+  greetings: [GREETING_0],
   systemPrompt: "You are Aria.",
   exampleMessages: EXAMPLE_MESSAGES,
 });
+
+// A two-greeting card for the §7 array-TRAP removal path (needs a content-bearing alternate to remove).
+const GREETINGS_CARD = makeCharacterDetail({
+  name: "Aria Nightshade",
+  handle: "aria",
+  greetings: ["First hello.", "Second hello."],
+});
+
+/** The shape the editor sends to `character.update`: the changed-keys diff under `input`. */
+interface UpdateCall {
+  readonly input?: { readonly name?: string; readonly greetings?: readonly string[] };
+}
 
 async function routeEditor(page: Page): Promise<void> {
   await routeTrpc(page, {
@@ -54,19 +70,70 @@ test("renders the hero (name · handle · New chat) and the live greeting bubble
   await expect(component.getByText("Hello, traveler. What brings you to my door?")).toBeVisible();
 });
 
-test("§6.5 the save-bar carries the token split and gates Save until the draft is dirty", async ({ mount, page }) => {
-  await routeEditor(page);
+test("§6.5/§7 the header carries the token split + AutosaveStatus, and editing debounce-persists a diff", async ({ mount, page }) => {
+  let updateInput: UpdateCall | null = null;
+  await routeTrpc(page, {
+    "character.get": () => CARD,
+    "chat.listChats": () => [],
+    "character.update": (input: unknown) => {
+      updateInput = input as UpdateCall;
+      return CARD;
+    },
+  });
   const component = await mount(<CharacterEditorSurfaceStory />);
 
   // The split reads "N total · M permanent" (mono, off the draft).
   await expect(component.getByText(TOKEN_SPLIT_RE)).toBeVisible();
-  // Clean: no dirty pill (Save stays enabled by the factory — DirtyPill, not the button, signals dirty).
-  await expect(component.getByText("Unsaved")).toHaveCount(0);
+  // Autosave everywhere (§7): the live status stands where Save used to — no Save/Discard buttons.
+  await expect(component.getByText("Saved")).toBeVisible();
+  await expect(component.getByRole("button", { name: "Save" })).toHaveCount(0);
+  await expect(component.getByRole("button", { name: "Discard changes" })).toHaveCount(0);
 
-  // Editing a draft field lights the pill.
+  // Editing a draft field debounce-persists ONLY the changed key (never a full-object PUT).
   await component.getByRole("textbox", { name: "Name" }).fill("Aria N.");
-  await expect(component.getByText("Unsaved")).toBeVisible();
-  await expect(component.getByRole("button", { name: "Save" })).toBeEnabled();
+  await expect.poll(() => updateInput, { intervals: [100, 200, 300, 500] }).toEqual({ characterId: "char_ct_1", input: { name: "Aria N." } });
+});
+
+test("§7 array TRAP — adding an opening flushes the structural push, then its content autosaves", async ({ mount, page }) => {
+  let updateInput: UpdateCall | null = null;
+  await routeTrpc(page, {
+    "character.get": () => CARD, // one greeting
+    "chat.listChats": () => [],
+    "character.update": (input: unknown) => {
+      updateInput = input as UpdateCall;
+      return CARD;
+    },
+  });
+  const component = await mount(<CharacterEditorSurfaceStory />);
+
+  // Add opening → pushFieldValue + an explicit handleSubmit flush (the push alone never fires onChange);
+  // the new slot then autosaves its content on the first keystroke.
+  await component.getByRole("button", { name: "Add opening" }).click();
+  await component.getByLabel("Opening 2").fill("A second greeting.");
+
+  // The 2nd greeting reaches the server (proving the add path persists, not silently dropped).
+  await expect.poll(() => updateInput?.input?.greetings, { intervals: [100, 200, 300, 500] }).toEqual([GREETING_0, "A second greeting."]);
+});
+
+test("§7 array TRAP — removing an alternate flushes the structural removal to the server", async ({ mount, page }) => {
+  let updateInput: UpdateCall | null = null;
+  await routeTrpc(page, {
+    "character.get": () => GREETINGS_CARD, // two greetings
+    "chat.listChats": () => [],
+    "character.update": (input: unknown) => {
+      updateInput = input as UpdateCall;
+      return GREETINGS_CARD;
+    },
+  });
+  const component = await mount(<CharacterEditorSurfaceStory />);
+
+  // Select the 2nd opening + enter edit mode → the "Remove opening" affordance appears (index > 0).
+  await component.getByRole("button", { name: "Opening 2" }).click();
+  await component.getByRole("button", { name: "Edit" }).click();
+  await component.getByRole("button", { name: "Remove opening" }).click();
+
+  // removeFieldValue doesn't fire onChange either — the explicit flush persists the shrunk array.
+  await expect.poll(() => updateInput?.input?.greetings, { intervals: [50, 100, 200, 300] }).toEqual(["First hello."]);
 });
 
 test("§6.4 a facet row drills CONTENT into that field's body editor (a drill-in, not a modal)", async ({ mount, page }) => {
@@ -116,13 +183,17 @@ test("§6.1 the spoiler eye blurs the drilled card-text container and clears on 
   await expect(fields.first()).not.toHaveClass(BLUR_CLASS_RE);
 });
 
-test("§6.2 removing a tag chip fires bulkRemoveCardTag by name — immediate, never the save-bar pill", async ({ mount, page }) => {
+test("§6.2 removing a tag chip fires bulkRemoveCardTag by name — an immediate commit outside the card form", async ({ mount, page }) => {
   const tagged = makeCharacterDetail({ tags: [makeTagFixture({ id: "tag_rpg", name: "rpg" })] });
   let removedInput: unknown = null;
+  let cardUpdated = false;
   await routeTrpc(page, {
     "character.get": () => tagged,
     "chat.listChats": () => [],
-    "character.update": () => tagged,
+    "character.update": () => {
+      cardUpdated = true;
+      return tagged;
+    },
     "character.bulkRemoveCardTag": (input: unknown) => {
       removedInput = input;
       return { removed: 1 };
@@ -133,6 +204,8 @@ test("§6.2 removing a tag chip fires bulkRemoveCardTag by name — immediate, n
   await component.getByRole("button", { name: "Remove rpg" }).click();
   // The by-name detach fires with THIS character's id (an immediate junction write).
   await expect.poll(() => removedInput, { intervals: [20, 50, 100] }).toEqual({ tagName: "rpg", characterIds: ["char_ct_1"] });
-  // Tag CRUD is immediate-commit — it must never light the draft save-bar pill (§2).
-  await expect(component.getByText("Unsaved")).toHaveCount(0);
+  // Tags are an immediate-commit identity write OUTSIDE the card form — they must never trip the card
+  // autosave (character.update) whose status stays "Saved".
+  await expect(component.getByText("Saved")).toBeVisible();
+  expect(cardUpdated).toBe(false);
 });

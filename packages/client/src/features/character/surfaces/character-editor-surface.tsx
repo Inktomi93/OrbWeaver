@@ -1,13 +1,13 @@
-// The Characters CONTENT when a row is selected. One always-editing bound form over the draft
+// The Characters CONTENT when a row is selected. One always-editing AUTOSAVE form over the draft
 // card-content fields, with a key={mountKey} full remount on character switch. The hero name is a
 // draft field; the hero portrait/star/archive + the tags row are immediate identity commits outside
-// the form. The save-bar carries the token split, the dirty pill, Discard, and Save.
+// the form. Autosave everywhere (D66 A4 / north-star §7): no Save/Discard — the header carries the
+// token split + the shared AutosaveStatus (Saved / Saving… / Save failed — Retry) where Save used to be.
 //
 // Hero chat affordances: "New chat" always starts a fresh thread with this character; "N chats ›"
 // scopes the Chats list to this character and switches sections.
 
 import type { CharacterId } from "@orb/kit/ids";
-import { Button } from "@orb/ui/button";
 import { Stack } from "@orb/ui/layout";
 import { SaveBar } from "@orb/ui/save-bar";
 import { Text } from "@orb/ui/text";
@@ -15,6 +15,7 @@ import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
+import { AutosaveStatus } from "#forms";
 import { useFocusOnMount } from "#lib";
 import {
   clearCharacterFacet,
@@ -77,7 +78,7 @@ function CharacterEditorBody({ characterId, onRevealField }: CharacterEditorSurf
     return characterCardFormFromDetail(saved);
   };
 
-  const { form, mountKey, discard } = useCharacterForm({
+  const { form, mountKey, saveState, retrySave } = useCharacterForm({
     entityId: data.id,
     serverValues: characterCardFormFromDetail(data),
     save,
@@ -135,21 +136,8 @@ function CharacterEditorBody({ characterId, onRevealField }: CharacterEditorSurf
                 </Text>
               )}
             </form.Subscribe>
-            <form.AppForm>
-              <form.DirtyPill />
-            </form.AppForm>
-            <Button type="button" intent="ghost" onClick={discard}>
-              Discard changes
-            </Button>
-            {/* Save is primary only while dirty — at rest the hero "Start chat" is the region's one
-                primary. */}
-            <form.Subscribe selector={(s): readonly [boolean, boolean, boolean] => [s.canSubmit, s.isSubmitting, s.isDefaultValue] as const}>
-              {([canSubmit, isSubmitting, isDefaultValue]): ReactElement => (
-                <Button type="submit" intent={isDefaultValue ? "secondary" : "primary"} disabled={!canSubmit || isSubmitting} loading={isSubmitting}>
-                  Save
-                </Button>
-              )}
-            </form.Subscribe>
+            {/* Autosave everywhere (§7): the live status stands where Save/Discard used to. */}
+            <AutosaveStatus state={saveState} onRetry={retrySave} />
           </SaveBar>
 
           <CharacterHeroBand

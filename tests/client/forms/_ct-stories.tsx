@@ -20,7 +20,8 @@
 // A button bumps a counter spread into a fresh `serverValues` object each click — the clobber
 // trigger (new server identity, identical content) without any network.
 
-import { createAutosaveEntityForm, createSavedEntityForm } from "@orb/client/forms";
+import type { AutosaveSaveState } from "@orb/client/forms";
+import { AutosaveStatus, createAutosaveEntityForm, createSavedEntityForm } from "@orb/client/forms";
 import { createEntityDraftStore } from "@orb/client/state";
 import type { ReactElement } from "react";
 import { useState } from "react";
@@ -215,6 +216,28 @@ export function AutosaveFailedSaveStory(): ReactElement {
     <div>
       <FailedSaveFormPane />
       <FailedSaveObservers />
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------------------------
+// AutosaveStatusStory — drives the shared AutosaveStatus affordance (north-star §7 / D66 A4) through
+// its three lifecycle states. CT (not headless) because the ERROR-state retry is a real interactive
+// affordance whose click must fire `onRetry` — a render + click contract that wants a live DOM (§7).
+// The retry counter is the observation channel proving the affordance is a button, not styled text.
+export function AutosaveStatusStory(): ReactElement {
+  const [state, setState] = useState<AutosaveSaveState>("saved");
+  const [retries, setRetries] = useState(0);
+  return (
+    <div>
+      <AutosaveStatus state={state} onRetry={(): void => setRetries((n) => n + 1)} />
+      <output data-testid="autosave-status-retries">{retries}</output>
+      <button type="button" onClick={(): void => setState("saving")}>
+        set saving
+      </button>
+      <button type="button" onClick={(): void => setState("error")}>
+        set error
+      </button>
     </div>
   );
 }

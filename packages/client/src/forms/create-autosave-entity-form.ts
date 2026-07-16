@@ -3,7 +3,7 @@
 // live draft mirror is an infinite loop.
 
 import { revalidateLogic } from "@tanstack/react-form";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { EntityDraftStore } from "#state";
 import { DEFAULT_DEBOUNCE_MS, focusFirstInvalidField, mirrorDraft, readDraftSeed } from "./entity-form-base";
 import type { AppFormInstance, AppFormOptions } from "./use-app-form";
@@ -23,6 +23,10 @@ export interface AutosaveEntityFormConfig<TValues extends object> {
   readonly debounceMs?: number;
   readonly options?: Partial<Omit<AppFormOptions<TValues>, "defaultValues" | "onSubmit">>;
 }
+
+/** The autosave lifecycle the shared `AutosaveStatus` affordance renders (north-star §7 / D66 A4). */
+const AUTOSAVE_SAVE_STATES = ["saved", "saving", "error"] as const;
+export type AutosaveSaveState = (typeof AUTOSAVE_SAVE_STATES)[number];
 
 export interface AutosaveEntityFormArgs<TValues extends object> {
   readonly entityId: string;
@@ -44,6 +48,10 @@ export function createAutosaveEntityForm<TValues extends object>(
   form: AutosaveForm<TValues>;
   /** Spread as `key={mountKey}` — id change remounts + reseeds. */
   mountKey: string;
+  /** The live save lifecycle for `AutosaveStatus` (Saved / Saving… / Save failed — retry). */
+  saveState: AutosaveSaveState;
+  /** Re-run the pending save (the AutosaveStatus retry affordance); bypasses the onChange dirty guard. */
+  retrySave: () => void;
 } {
   // biome-ignore lint/nursery/noComponentHookFactories: the D54 §13.1 editor-factory pattern — module-scope factory call sites give the returned hook a stable identity (see create-saved-entity-form.ts).
   return function useAutosaveEntityForm({ entityId, serverValues, save: callTimeSave }: AutosaveEntityFormArgs<TValues>) {
@@ -56,13 +64,26 @@ export function createAutosaveEntityForm<TValues extends object>(
       ...draftSeed,
     });
 
+    // The save lifecycle the AutosaveStatus affordance renders. Starts "saved" — an untouched mount is
+    // in sync with the server row. onSubmit drives it: saving → saved, or → error (which lights retry).
+    const [saveState, setSaveState] = useState<AutosaveSaveState>("saved");
+
     const form = useAppForm({
       validationLogic: revalidateLogic(),
       ...config.options,
       defaultValues: seedRef.current,
       onSubmit: async ({ value }: { value: TValues }) => {
-        await save?.(value);
-        config.draft?.clearDraft(entityId);
+        setSaveState("saving");
+        try {
+          await save?.(value);
+          config.draft?.clearDraft(entityId);
+          setSaveState("saved");
+        } catch (error) {
+          // Record the failed lifecycle for the retry affordance, then re-throw so the listener's own
+          // `.catch` and the injected save's errorToast still run (and clearDraft is correctly skipped).
+          setSaveState("error");
+          throw error;
+        }
       },
       onSubmitInvalid: focusFirstInvalidField,
       listeners: {
@@ -116,6 +137,12 @@ export function createAutosaveEntityForm<TValues extends object>(
       }
     }, [entityId, draftSeed]);
 
-    return { form: form as AutosaveForm<TValues>, mountKey: entityId };
+    const retrySave = (): void => {
+      // Direct submit — bypasses the onChange !isDefaultValue guard so an explicit user retry always
+      // re-attempts the held edit; the same swallow as the listener (the save's errorToast is the UI).
+      form.handleSubmit().catch(() => undefined);
+    };
+
+    return { form: form as AutosaveForm<TValues>, mountKey: entityId, saveState, retrySave };
   };
 }
