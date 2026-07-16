@@ -60,13 +60,14 @@ async function runSinglePass(root: string): Promise<void> {
   const report = toStructureReport(pass, gatesByName);
   writeStructureReport(root, report);
 
+  // Set exitCode (never process.exit) so the buffered stdout write above drains before the process ends —
+  // process.exit() drops an unflushed pipe buffer, truncating a large report mid-line (the fixture-run
+  // report the check-gates anti-drift test parses).
   if (pass.toolErrors.length > 0) {
-    process.exit(EXIT_TOOL_ERROR); // a gate threw — the checker is broken, not your code
+    process.exitCode = EXIT_TOOL_ERROR; // a gate threw — the checker is broken, not your code
+    return;
   }
-  if (report.total > 0) {
-    process.exit(EXIT_VIOLATIONS);
-  }
-  process.exitCode = EXIT_CLEAN;
+  process.exitCode = report.total > 0 ? EXIT_VIOLATIONS : EXIT_CLEAN;
 }
 
 // Direct-run guard: importing this module (e.g. a test) does NOT execute a run.
