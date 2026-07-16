@@ -49,6 +49,16 @@ export const adminPane: SettingsPaneDefinition = {
         },
       ],
     },
+    {
+      id: ADMIN_SUBCATEGORY_IDS.catalog,
+      label: "Model catalog",
+      keywords: ["models", "catalog", "sync", "refresh", "openrouter", "providers"],
+    },
+    {
+      id: ADMIN_SUBCATEGORY_IDS.embeddings,
+      label: "Card embeddings",
+      keywords: ["embeddings", "cards", "reindex", "vectors", "backfill", "characters"],
+    },
   ],
   body: () => <AdminSettingsSurface />,
 };

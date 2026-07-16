@@ -2,5 +2,6 @@
 // `<Section>` anchor stamps; split out to avoid a pane↔surface import cycle.
 export const CONNECTIONS_SUBCATEGORY_IDS = {
   roles: "model-roles",
+  hostClaude: "host-claude",
   keys: "saved-keys",
 } as const;

@@ -16,6 +16,7 @@ import { setDraftGroupConfig, setDraftInjections, setDraftRoomOverrides, setDraf
 import { GROUP_CONFIG_ENTITY_PREFIX } from "../hooks/use-group-config-form";
 import type { InjectionFormValues } from "../hooks/use-injection-row-form";
 import { fromInjectionForm } from "../hooks/use-injection-row-form";
+import { NEW_INJECTION } from "../lib/injection-seed";
 import type { MemberCastRow } from "../lib/member-rows";
 import { ROOM_OVERRIDES_ENTITY_PREFIX } from "../lib/room-overrides-form-model";
 import { GroupConfigForm } from "./group-config-form";
@@ -25,12 +26,6 @@ import { RoomOverridesForm } from "./room-overrides-form";
 
 const EMPTY_ROOM_OVERRIDES: RoomOverrides = {};
 const NO_INJECTIONS: readonly ChatInjectionInput[] = [];
-const NEW_DRAFT_INJECTION: ChatInjectionInput = {
-  position: "in_chat",
-  depth: 0,
-  role: "system",
-  content: "",
-};
 
 export interface DraftTabBodyProps {
   readonly draftKey: string;
@@ -142,7 +137,7 @@ export function DraftInjectionsTab({ draftKey }: DraftTabBodyProps): ReactElemen
     <InjectionsList
       rows={rows}
       isHost={true}
-      onAdd={(): void => setDraftInjections(draftKey, [...current, { ...NEW_DRAFT_INJECTION }])}
+      onAdd={(): void => setDraftInjections(draftKey, [...current, { ...NEW_INJECTION }])}
       onSave={(key, values: InjectionFormValues): Promise<unknown> => {
         const next = current.map((inj) => (keyFor(inj) === key ? fromInjectionForm(values) : inj));
         setDraftInjections(draftKey, next);

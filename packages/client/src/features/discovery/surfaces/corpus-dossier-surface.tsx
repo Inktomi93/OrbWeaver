@@ -6,10 +6,7 @@
 // character's recent PLAYED scenes via `askCard` and shows the answer with a grounded/ungrounded badge —
 // the surface's ONE primary is Ask.
 
-import { blobUrl } from "@orb/contracts/assets";
 import type { CharacterId } from "@orb/kit/ids";
-import { initialsFor } from "@orb/kit/initials";
-import { Avatar } from "@orb/ui/avatar";
 import { Badge } from "@orb/ui/badge";
 import { BarList } from "@orb/ui/bar-list";
 import { Button } from "@orb/ui/button";
@@ -25,7 +22,9 @@ import { useRef, useState } from "react";
 import { QueryBoundary, QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { testId, useFocusOnMount } from "#lib";
 import { selectCorpusCharacter } from "#state";
+import { CharacterAvatar } from "../components/character-avatar";
 import { CorpusDistillEmptyState } from "../components/corpus-distill-empty-state";
+import { characterFacetLine } from "../lib/character-facet";
 import { toBarItems } from "../lib/corpus-charts";
 
 const ALIGNMENT_PRECISION = 2;
@@ -73,9 +72,8 @@ function DossierBody({ characterId, onBack }: { readonly characterId: CharacterI
     );
   }
 
-  const facet = [dossier.genre, dossier.tone].filter((v) => v !== null).join(" · ");
+  const facet = characterFacetLine(dossier.genre, dossier.tone);
   const avatarHash = dossier.portrait?.avatarHash ?? null;
-  const avatarSrc = avatarHash === null ? {} : { src: blobUrl(avatarHash) };
 
   return (
     <Stack className="h-full min-h-0 overflow-y-auto overscroll-contain" gap="section">
@@ -85,9 +83,7 @@ function DossierBody({ characterId, onBack }: { readonly characterId: CharacterI
       </Button>
 
       <Row align="center" gap="block">
-        <Avatar fallbackDelay={0} hueSeed={characterId} size="lg" {...avatarSrc}>
-          {initialsFor(dossier.name)}
-        </Avatar>
+        <CharacterAvatar id={characterId} name={dossier.name} hash={avatarHash} size="lg" />
         <Stack gap="field">
           <Text size="title" weight="semibold">
             {dossier.name}
@@ -146,18 +142,13 @@ function DossierBody({ characterId, onBack }: { readonly characterId: CharacterI
         ) : (
           <Stack gap="row" role="list">
             {dossier.similar.map((neighbor) => {
-              const neighborSrc = neighbor.avatarHash === null ? {} : { src: blobUrl(neighbor.avatarHash) };
-              const neighborFacet = [neighbor.genre, neighbor.tone].filter((v) => v !== null).join(" · ");
+              const neighborFacet = characterFacetLine(neighbor.genre, neighbor.tone);
               return (
                 <ListRow
                   key={neighbor.characterId}
                   clickable={true}
                   onClick={(): void => selectCorpusCharacter(neighbor.characterId)}
-                  leading={
-                    <Avatar fallbackDelay={0} hueSeed={neighbor.characterId} size="sm" {...neighborSrc}>
-                      {initialsFor(neighbor.name)}
-                    </Avatar>
-                  }
+                  leading={<CharacterAvatar id={neighbor.characterId} name={neighbor.name} hash={neighbor.avatarHash} />}
                   title={neighbor.name}
                   subtitle={neighbor.elevatorPitch ?? (neighborFacet === "" ? "" : neighborFacet)}
                   actions={
@@ -208,27 +199,20 @@ function SimilarArtBody({ characterId }: { readonly characterId: CharacterId }):
   }
   return (
     <Stack gap="row" role="list">
-      {art.data.map((hit) => {
-        const src = hit.avatarHash === null ? {} : { src: blobUrl(hit.avatarHash) };
-        return (
-          <ListRow
-            key={hit.characterId}
-            clickable={true}
-            onClick={(): void => selectCorpusCharacter(hit.characterId)}
-            leading={
-              <Avatar fallbackDelay={0} hueSeed={hit.characterId} size="sm" {...src}>
-                {initialsFor(hit.name)}
-              </Avatar>
-            }
-            title={hit.name}
-            actions={
-              <Badge intent="neutral" size="sm">
-                {hit.score.toFixed(ALIGNMENT_PRECISION)}
-              </Badge>
-            }
-          />
-        );
-      })}
+      {art.data.map((hit) => (
+        <ListRow
+          key={hit.characterId}
+          clickable={true}
+          onClick={(): void => selectCorpusCharacter(hit.characterId)}
+          leading={<CharacterAvatar id={hit.characterId} name={hit.name} hash={hit.avatarHash} />}
+          title={hit.name}
+          actions={
+            <Badge intent="neutral" size="sm">
+              {hit.score.toFixed(ALIGNMENT_PRECISION)}
+            </Badge>
+          }
+        />
+      ))}
     </Stack>
   );
 }

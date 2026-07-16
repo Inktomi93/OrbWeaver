@@ -9,15 +9,12 @@
 // onSelect/onNewChat/onDeletedChat.
 
 import type { ChatId } from "@orb/kit/ids";
-import { initialsFor } from "@orb/kit/initials";
-import { Avatar } from "@orb/ui/avatar";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, MessagesSquare, Plus, X } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";
-import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
@@ -25,10 +22,11 @@ import type { ReactElement } from "react";
 import { useDeferredValue, useRef, useState } from "react";
 import type { Trpc } from "#data";
 import { QueryBoundary, QueryErrorState, SkeletonRows, useTRPC } from "#data";
-import { timeLib, useFocusOnMount } from "#lib";
+import { useFocusOnMount } from "#lib";
 import type { ChatListCharacterFilter } from "#state";
 import { clearChatListCharacterFilter, useActiveChatId, useChatListCharacterFilter } from "#state";
 import { ChatListRowMenu } from "../components/chat-list-row-menu";
+import { ChatSummaryRow } from "../components/chat-summary-row";
 import { filterChats } from "../lib/filter-chats";
 
 const SKELETON_ROW_COUNT = 5;
@@ -171,33 +169,15 @@ interface ChatListRowProps {
 }
 
 function ChatListRow({ chat, selected, onSelect, onDeletedChat }: ChatListRowProps): ReactElement {
-  const title = chat.title ?? "Untitled chat";
-  const subtitle = chat.participantNames.length > 0 ? chat.participantNames.join(", ") : "No characters";
-  const when = chat.lastMessageAt ?? chat.updatedAt;
-
   return (
-    <ListRow
-      actions={
-        <Row align="center" gap="field">
-          <Text className="whitespace-nowrap font-mono" size="micro" tone="muted">
-            {timeLib.formatRelative(when)}
-          </Text>
-          <ChatListRowMenu archived={chat.archived} chatId={chat.id} onDeleted={onDeletedChat} starred={chat.star} title={chat.title} />
-        </Row>
-      }
+    <ChatSummaryRow
+      chat={chat}
       // `group` roots the row so the kebab's hover/focus-within reveal (P3) fires on row hover (the
       // character-card precedent); the reveal lives on RowActionsMenu's `reveal`.
       className="group"
-      clickable={true}
-      leading={
-        <Avatar fallbackDelay={0} hueSeed={chat.id} size="sm">
-          {initialsFor(title)}
-        </Avatar>
-      }
-      onClick={(): void => onSelect(chat.id)}
+      menu={<ChatListRowMenu archived={chat.archived} chatId={chat.id} onDeleted={onDeletedChat} starred={chat.star} title={chat.title} />}
+      onSelect={onSelect}
       selected={selected}
-      subtitle={subtitle}
-      title={title}
     />
   );
 }

@@ -19,6 +19,7 @@ import { useRef } from "react";
 import { QueryBoundary, QueryErrorState, useTRPC } from "#data";
 import { testId, timeLib, useFocusOnMount } from "#lib";
 import { setActiveSection } from "#state";
+import { RhythmFigures } from "../components/rhythm-figures";
 import { formatCompact, formatDurationMs, formatMs, formatPercent, formatSignedDelta, momentumBarItems } from "../lib/analytics-view-model";
 
 export function AnalyticsOverviewSurface(): ReactElement {
@@ -90,13 +91,7 @@ function OverviewBody(): ReactElement {
         </Stack>
       </Section>
 
-      <Section heading="Rhythm">
-        <Row gap="block" className="flex-wrap">
-          <StatFigure label="Active days" value={formatCompact(temporal.activeDays)} />
-          <StatFigure label="Longest streak" value={`${temporal.longestStreakDays}d`} />
-          <StatFigure label="Busiest day" value={temporal.busiestDay === null ? "—" : formatCompact(temporal.busiestDay.count)} />
-        </Row>
-      </Section>
+      <RhythmFigures temporal={temporal} />
 
       <Section heading="Economics">
         <Row gap="block" className="flex-wrap">

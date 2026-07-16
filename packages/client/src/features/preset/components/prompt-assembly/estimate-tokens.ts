@@ -1,17 +1,10 @@
 // Token-estimate seam for the Assembly rack + summary strip — pure, node-safe. The `~token` figure a
-// section row displays is a UI hint only: a chars/4 heuristic over the section's author text, never a
-// server call or a macro resolution against live chat data.
+// section row displays is a UI hint only: the ONE `@orb/kit/tokens` estimator over the section's author
+// text, never a server call or a macro resolution against live chat data.
 
 import type { MarkerType, PromptSection } from "@orb/contracts/preset";
 import { DEFAULT_MARKER_TEMPLATES } from "@orb/contracts/preset";
-
-/** Divisor for the chars→tokens heuristic (the ~4-chars-per-token rule of thumb). */
-const CHARS_PER_TOKEN = 4;
-
-/** Estimate a text blob's token count (chars/4, rounded up). Empty text ⇒ 0. */
-export function estimateTokens(text: string): number {
-  return Math.ceil(text.length / CHARS_PER_TOKEN);
-}
+import { estimateTokens } from "@orb/kit/tokens";
 
 /** A templated marker is exactly a key of `DEFAULT_MARKER_TEMPLATES` (an unset `template` is absent, so
  *  `"template" in section` is unreliable). */

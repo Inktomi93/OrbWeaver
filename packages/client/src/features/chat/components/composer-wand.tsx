@@ -3,22 +3,16 @@
 // swipe/continue disable when the transcript has no tail assistant slot to target. Draft shows the
 // degenerate "Guide the opening" instead.
 
-import { GUIDED_IMPERSONATE_PERSONS } from "@orb/contracts/preset";
 import type { ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Icon, WandSparkles } from "@orb/ui/icons";
-import { Menu, MenuItem, MenuPopup, MenuSubmenuRoot, MenuSubmenuTrigger, MenuTrigger } from "@orb/ui/menu";
+import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@orb/ui/menu";
 import type { ReactElement } from "react";
 import { testId } from "#lib";
 import type { ChatHandle, DraftSeed } from "#state";
 import { isCommitted, useTurnPhase } from "#state";
 import { useGuidedActions } from "../hooks/use-guided-actions";
-
-const PERSON_LABEL: Record<(typeof GUIDED_IMPERSONATE_PERSONS)[number], string> = {
-  first: "1st person",
-  second: "2nd person",
-  third: "3rd person",
-};
+import { ImpersonateSubmenu } from "./impersonate-submenu";
 
 export interface ComposerWandProps {
   readonly handle: ChatHandle;
@@ -68,16 +62,7 @@ export function ComposerWand({ handle, value, onChange, draftSeed, onCommitted, 
             <MenuItem disabled={!canTargetTail} onClick={(): void => fireAndClear(guided.fireContinue)}>
               Guided continue
             </MenuItem>
-            <MenuSubmenuRoot>
-              <MenuSubmenuTrigger>Impersonate</MenuSubmenuTrigger>
-              <MenuPopup>
-                {GUIDED_IMPERSONATE_PERSONS.map((person) => (
-                  <MenuItem key={person} onClick={(): void => fireAndClear((input) => guided.fireImpersonate(input, person))}>
-                    {PERSON_LABEL[person]}
-                  </MenuItem>
-                ))}
-              </MenuPopup>
-            </MenuSubmenuRoot>
+            <ImpersonateSubmenu onPick={(person): void => fireAndClear((input) => guided.fireImpersonate(input, person))} />
           </>
         ) : (
           <MenuItem onClick={(): void => fireAndClear(guided.fireOpening)}>Guide the opening</MenuItem>

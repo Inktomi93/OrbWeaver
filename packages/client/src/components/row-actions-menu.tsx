@@ -17,11 +17,7 @@ import { Menu, MenuItem, MenuPopup, MenuSeparator, MenuTrigger } from "@orb/ui/m
 import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
 import { ConfirmDialog } from "./confirm-dialog";
-
-// A3 hidden-at-rest: rest hidden, revealed on hover/focus-within, always-on for coarse pointers
-// (the character-card ROW_REVEAL string, homed here as the one reveal posture for row action clusters).
-const ROW_REVEAL =
-  "opacity-0 transition-opacity duration-(--motion-fast) ease-out-expo group-hover:opacity-100 group-focus-within:opacity-100 pointer-coarse:opacity-100";
+import { ROW_REVEAL } from "./row-reveal";
 
 /** The optional destructive menu item + its ConfirmDialog (state owned by RowActionsMenu). */
 export interface RowDestructiveAction {

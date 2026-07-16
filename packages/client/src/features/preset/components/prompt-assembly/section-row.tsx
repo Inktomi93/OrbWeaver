@@ -6,13 +6,13 @@
 import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
-import { Anchor, Hash, Icon, Lock, Pencil, Sparkles, Zap } from "@orb/ui/icons";
+import { Hash, Icon, Lock, Zap } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import type { AppFormInstance } from "#forms";
-import { isTemplatedMarker, sectionKind, triggersPillLabel } from "../../lib/assembly-model";
+import { isTemplatedMarker, sectionGlyphIcon, triggersPillLabel } from "../../lib/assembly-model";
 import { estimateSectionTokens } from "./estimate-tokens";
 import { MARKER_COPY } from "./marker-copy";
 
@@ -31,15 +31,6 @@ export interface SectionRowProps {
   readonly selected: boolean;
   /** Select this section → reveal the inspector (the route-built choreography, §3.4). */
   readonly onSelect: (sectionId: string) => void;
-}
-
-/** The glyph for a section (literal · templated marker · plain marker). */
-function sectionGlyph(section: PromptSection): ReactElement {
-  const kind = sectionKind(section);
-  if (kind === "literal") {
-    return <Icon icon={Pencil} size="sm" />;
-  }
-  return <Icon icon={kind === "templatedMarker" ? Sparkles : Anchor} size="sm" />;
 }
 
 /** The plain-language name + subtitle for a section (marker copy for markers; the author's name for a
@@ -120,7 +111,7 @@ export function SectionRow({ form, section, index, zone, selected, onSelect }: S
       <Stack aria-hidden={true} className={`w-1 self-stretch rounded-full ${zoneAccent}`} />
 
       <Badge intent={zone === "post" ? "warning" : "info"} size="sm">
-        {sectionGlyph(section)}
+        <Icon icon={sectionGlyphIcon(section)} size="sm" />
       </Badge>
 
       <Button intent="ghost" size="sm" className="min-w-0 flex-1 justify-start text-left" onClick={(): void => onSelect(section.id)}>

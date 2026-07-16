@@ -44,10 +44,12 @@ const SEED_COVERED = new Set<string>(["color.scrim"]);
 // Class 3 — static with rationale (semantic-intent or theme-independent).
 //   • destructive/success/warning/info/highlight (+ their foregrounds): SEMANTIC-intent colours — a
 //     delete is red, a success green, a warning amber on EVERY palette (WCAG-legibility is the constraint,
-//     not palette-tracking). The seed value-sets deliberately do NOT re-author them; instead each is ONE
-//     static token with light-dark() polarity arms (D71) — the active arm follows color-scheme (seed
-//     blocks flip it; the clamp derives it for custom themes). Locked to their AA floors per palette AND
-//     per polarity by the palette-contrast per-value-set sweep.
+//     not palette-tracking). The seed value-sets deliberately do NOT re-author them; the 4 divergent
+//     intents (destructive/success/warning/info) are ONE static token with light-dark() polarity arms
+//     (D71) — the active arm follows color-scheme (seed blocks flip it; the clamp derives it for custom
+//     themes). highlight (+ its foreground) is POLARITY-INDEPENDENT (a text-mark BACKGROUND, never text) —
+//     a single plain oklch (the former no-op light-dark(X,X) was collapsed, §W6). All locked to their AA
+//     floors per palette AND per polarity by the palette-contrast per-value-set sweep.
 //   • sidebar-primary: an unused reserved alias of `primary` (0 consumers — the rail active state reads
 //     `--color-primary` directly). No chrome renders it, so nothing to theme.
 //   • chart-1..5: a categorical data-viz ramp — the five hues are chosen for mutual DISTINGUISHABILITY,

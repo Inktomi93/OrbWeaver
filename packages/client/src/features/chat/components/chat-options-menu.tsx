@@ -4,7 +4,6 @@
 // the plain continue/reroll/impersonate. Delete cascades hard, through an AlertDialog confirm, never an
 // undo-toast.
 
-import { GUIDED_IMPERSONATE_PERSONS } from "@orb/contracts/preset";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { Crown, Download, Icon, Images, LogOut, MessagesSquare, Pencil, UserPlus, X } from "@orb/ui/icons";
 import { MenuItem, MenuLinkItem, MenuPopup, MenuSeparator, MenuSubmenuRoot, MenuSubmenuTrigger } from "@orb/ui/menu";
@@ -17,6 +16,7 @@ import { CharacterGalleryDialog } from "../anchors/character-gallery-dialog";
 import { useDeleteChat, useUpdateChatTitle } from "../hooks/use-chat-row-mutations";
 import { useGuidedActions } from "../hooks/use-guided-actions";
 import { useSelfLeave } from "../hooks/use-membership-mutations";
+import { ImpersonateSubmenu } from "./impersonate-submenu";
 import { InviteDialog } from "./invite-dialog";
 import { RenameChatDialog } from "./rename-chat-dialog";
 
@@ -24,12 +24,6 @@ interface ChatOptionsCastMember {
   readonly characterId: CharacterId;
   readonly name: string;
 }
-
-const PERSON_LABEL: Record<(typeof GUIDED_IMPERSONATE_PERSONS)[number], string> = {
-  first: "1st person",
-  second: "2nd person",
-  third: "3rd person",
-};
 
 export interface ChatOptionsMenuProps {
   readonly chatId: ChatId;
@@ -140,16 +134,7 @@ export function ChatOptionsMenu({ chatId, title, characters, isHost, multiHumanC
         <MenuItem disabled={!canTargetTail} onClick={(): void => guided.fireSwipe("")}>
           Regenerate
         </MenuItem>
-        <MenuSubmenuRoot>
-          <MenuSubmenuTrigger>Impersonate</MenuSubmenuTrigger>
-          <MenuPopup>
-            {GUIDED_IMPERSONATE_PERSONS.map((person) => (
-              <MenuItem key={person} onClick={(): void => guided.fireImpersonate("", person)}>
-                {PERSON_LABEL[person]}
-              </MenuItem>
-            ))}
-          </MenuPopup>
-        </MenuSubmenuRoot>
+        <ImpersonateSubmenu onPick={(person): void => guided.fireImpersonate("", person)} />
 
         <MenuSeparator />
         {isHost && multiHumanCapable ? (

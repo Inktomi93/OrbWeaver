@@ -161,7 +161,7 @@ function HostClaudeSection(): ReactElement | null {
   };
 
   return (
-    <Section divider={true} heading="Host Claude">
+    <Section divider={true} heading="Host Claude" id={anchor(CONNECTIONS_SUBCATEGORY_IDS.hostClaude)}>
       <Row gap="field" align="center" justify="between" className="flex-wrap">
         <Text size="micro" tone="muted">
           Check that this box's Claude subscription can reach a model. Sends one tiny probe turn.

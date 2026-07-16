@@ -33,6 +33,7 @@ import {
   workloadKindNeedsBulkTarget,
 } from "../lib/workloads-model";
 import { parseRunAt } from "../lib/workloads-run-model";
+import { MaintenanceKindNote } from "./maintenance-kind-note";
 import { WorkloadParamFields } from "./workload-kind-fields";
 
 type AdminUser = inferOutput<Trpc["admin"]["listUsers"]>[number];
@@ -122,11 +123,7 @@ function RunWorkloadFormBody({
         <form.Subscribe selector={(state): string => state.values.kind}>
           {(kind): ReactElement | null => {
             if (isMaintenanceWorkloadKind(kind)) {
-              return (
-                <Text size="label" tone="muted">
-                  Runs across every deployment (maintenance) — there's no per-user version.
-                </Text>
-              );
+              return <MaintenanceKindNote verb="Runs" />;
             }
             return isRunnableWorkloadKind(kind) && WORKLOAD_KIND_MODES[kind].bulk ? (
               <form.AppField name="bulk">

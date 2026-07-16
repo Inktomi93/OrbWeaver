@@ -1,18 +1,12 @@
 // Unit: token estimation (features/preset/components/prompt-assembly/estimate-tokens). PURE, node lane,
-// DEEP import. Proves the chars/4 heuristic + the per-section-type text selection (literal content,
-// templated marker template-or-default, plain marker 0). A UI HINT only — never a server/macro call
-// (BUILD-SPEC §2.1).
+// DEEP import. Proves the per-section-type text selection (literal content, templated marker
+// template-or-default, plain marker 0) over the ONE `@orb/kit/tokens` estimator (tested in its own suite).
+// A UI HINT only — never a server/macro call (BUILD-SPEC §2.1).
 
 import type { PromptSection } from "@orb/contracts/preset";
 import { DEFAULT_MARKER_TEMPLATES } from "@orb/contracts/preset";
-import { estimateSectionTokens, estimateTokens } from "../../../../../../packages/client/src/features/preset/components/prompt-assembly/estimate-tokens";
+import { estimateSectionTokens } from "../../../../../../packages/client/src/features/preset/components/prompt-assembly/estimate-tokens";
 import { expect, test } from "../../../../../support/fixtures";
-
-test("estimateTokens is chars/4 rounded up; empty ⇒ 0", () => {
-  expect(estimateTokens("")).toBe(0);
-  expect(estimateTokens("abcd")).toBe(1); // 4/4
-  expect(estimateTokens("abcde")).toBe(2); // 5/4 → ceil
-});
 
 test("literal section estimates over its content", () => {
   const section: PromptSection = {

@@ -17,7 +17,7 @@ import { Archive, Copy, Icon, MessagesSquare, Star } from "@orb/ui/icons";
 import { ListRow } from "@orb/ui/list-row";
 import { MenuItem } from "@orb/ui/menu";
 import type { ReactElement } from "react";
-import { RowActionsMenu } from "#components";
+import { ROW_REVEAL, RowActionsMenu } from "#components";
 
 export interface CharacterCardItem {
   readonly id: string;
@@ -37,12 +37,6 @@ export interface CharacterCardItem {
   /** The accepted canonical tags (pending suggestions already excluded upstream). */
   readonly tags: readonly Pick<TagView, "id" | "name" | "isHiddenOnCard">[];
 }
-
-// The small Chat CTA fades in on row hover or :focus-within, always visible on a coarse pointer. The
-// wide `handle · tokenSize` metadata rides the list-row subtitleReveal slot instead, so it can never
-// contend with these buttons for width.
-const ROW_REVEAL =
-  "opacity-0 transition-opacity duration-(--motion-fast) ease-out-expo group-hover:opacity-100 group-focus-within:opacity-100 pointer-coarse:opacity-100";
 
 export interface CharacterCardTileProps {
   readonly character: CharacterCardItem;

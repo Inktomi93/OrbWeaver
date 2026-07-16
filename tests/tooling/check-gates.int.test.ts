@@ -524,6 +524,12 @@ function writeFixtures(): void {
   // render-error-via-battery: a hand-rolled `renderError` arm (not QueryErrorState-rooted) in a client
   // file outside the allowlist — the read-error drift G29 seals (derive-modernization-audit.md §W4).
   fx("packages/client/src/features/__g_rerror/components/__g_rerror.tsx", "export const G = <B renderError={() => <Text>failed</Text>} />;\n");
+  // settings-section-anchored: a heading-bearing <Section> with no `id` in a *-settings-surface.tsx — the
+  // invisible-to-nav/search class the G4 arm seals (derive-modernization-audit.md §W5 item 9).
+  fx(
+    "packages/client/src/features/__g_settingsanchor/surfaces/__g_settingsanchor-settings-surface.tsx",
+    'export const G = <Section heading="Host Claude"><span>x</span></Section>;\n',
+  );
 }
 
 // Registered gates that CANNOT be driven by an injected `__g_` fixture — whole-corpus ratchets whose

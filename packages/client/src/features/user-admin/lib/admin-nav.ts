@@ -3,4 +3,6 @@
 export const ADMIN_SUBCATEGORY_IDS = {
   users: "users",
   engines: "engines",
+  catalog: "model-catalog",
+  embeddings: "card-embeddings",
 } as const;
