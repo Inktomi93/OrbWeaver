@@ -4,9 +4,9 @@
 import { Skeleton } from "@orb/ui/skeleton";
 import { expect, test } from "@playwright/experimental-ct-react";
 
-// --spacing-avatar-md is 1.875rem → 30px at the 16px root. A pointer-INDEPENDENT token, so the
+// --spacing-avatar-md is 2rem → 32px at the 16px root. A pointer-INDEPENDENT token, so the
 // caller-height assertion is stable regardless of the CT's pointer (control-* narrows on fine).
-const AVATAR_MD_PX = 30;
+const AVATAR_MD_PX = 32;
 const SHIMMER_CLASS = /orb-skeleton-shimmer/u;
 const MUTED_CLASS = /bg-muted/u;
 
