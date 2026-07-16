@@ -165,8 +165,8 @@ cross-feature op in its `contract`; the runtime op is wired at the composition r
 `context.ts`).
 
 **Feature-root files are locked** to `index.ts` / `service.ts` / `context.ts` / `guard.ts` — plus a
-handful of individually-sanctioned domain singletons (chat's `bus.ts` / `active-turns.ts` /
-`connected-persona.ts`, buddy's `bus.ts`, preset/settings' `constants.ts` + seed files) that fit no
+handful of individually-sanctioned domain singletons (chat's `bus.ts` / `active-turns.ts`, buddy's
+`bus.ts`, preset/settings' `constants.ts` + seed files) that fit no
 verb/substrate/subsystem. The allowlist lives in the `feature-structure` gate; anything else at the root
 is RED.
 
