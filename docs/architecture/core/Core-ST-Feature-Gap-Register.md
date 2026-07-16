@@ -95,7 +95,7 @@ orbweaver rebuilt the vector substrate (embeddings/search/memory) but it is **ca
 
 | Feature | What it is (ST) | Status | Difficulty | Note / home |
 | - | - | - | - | - |
-| token-counter panel | count tokens of pasted text | PARTIAL | TRIVIAL | a character-editor counter is BUILT (`character/components/character-token-counter.tsx`); the standalone paste-text panel is unscheduled |
+| token-counter panel | count tokens of pasted text | PARTIAL | TRIVIAL | the character-editor counting is BUILT (per-facet in `character/components/character-facet-inspector.tsx`, card totals in `character/surfaces/character-editor-surface.tsx`); the standalone paste-text panel is unscheduled |
 | Translate | per-message + auto translation | STILL-GAP | MODERATE | unscheduled; would be a `summarize`-style request-shaper over the `chat` role; no new backends |
 | Caption (standalone, ad-hoc) | "describe this image" → text | PARTIAL | MODERATE | the vision call runs inside the embeddings indexer; needs a user-facing ad-hoc verb |
 | Scrapers | web/file/youtube/wiki → Data Bank | STILL-GAP | MODERATE | simple fetchers, homeless until the Data Bank lands; databank staging |

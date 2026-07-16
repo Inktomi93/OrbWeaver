@@ -66,7 +66,7 @@ infra/providers/
 
 ## The boot binder (the composition seam)
 
-`entry/compose/role-clients.ts` mints the `RoleClients` bundle — **keep the bundle** (the gold-standard cross-feature hub; 19 type-only importers), never per-role-op injection scatter. `bindRoleClientsForUser` resolves `connection.resolveRole({role})` PER ROLE (honoring `routing.roleDefaults.<role>` incl. the local-light arm) and binds each callable through the wired `ProviderExecutor`. There is NO vLLM-floor default and no `createDefaultRoleClients` — every context receives `roleClients` as a required entry-wired dep (a missing wire is a `tsc` error).
+`entry/compose/role-clients.ts` mints the `RoleClients` bundle — **keep the bundle** (the gold-standard cross-feature hub), never per-role-op injection scatter. `bindRoleClientsForUser` resolves `connection.resolveRole({role})` PER ROLE (honoring `routing.roleDefaults.<role>` incl. the local-light arm) and binds each callable through the wired `ProviderExecutor`. There is NO vLLM-floor default and no `createDefaultRoleClients` — every context receives `roleClients` as a required entry-wired dep (a missing wire is a `tsc` error).
 
 ## The inference roles are multi-backend & hardware-tiered
 

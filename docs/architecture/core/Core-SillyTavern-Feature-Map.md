@@ -58,7 +58,7 @@ ST-derived but built as first-class core, not "ST ports."
 | Welcome screen | D47 #7 | `chat/surfaces/chat-landing-surface.tsx` (hero + recent chats + quick-pick) | BUILT |
 | Reasoning render + effort picker | D47 #3 / D41 | `chat/components/reasoning-block.tsx` + `preset/…/params-panel.tsx` ReasoningSection | BUILT |
 | Gallery **v1** grid | D49 #2 | client over the assets gallery verbs | BUILT (v2 curation too — §2d) |
-| Token-counter | D49 #2 | `character/components/character-token-counter.tsx` (character editor) | PARTIAL — standalone paste-text panel unscheduled |
+| Token-counter | D49 #2 | split across the character editor: per-facet counts in `character/components/character-facet-inspector.tsx`, card totals in `character/surfaces/character-editor-surface.tsx` (via `totalTokenCount`/`permanentTokenCount`) | PARTIAL — standalone paste-text panel unscheduled |
 | Inline image display | D44 | `@orb/ui` `MessageMedia` + `chat/components/message-media-block.tsx` | BUILT |
 | `/imagine` command surface | D46 | a Tier-1 automation action; backend `chat.generateImage` exists, no client command surface | STILL-GAP — automation staging |
 | **Background** image | D44 / D63 | base surface COLOR = `ThemeOverride.background` token; decorative IMAGE = `appearance` settings via `<ThemeBackgroundLayer>` (D63) | BUILT |

@@ -21,7 +21,7 @@ neo solved each per-site; orbweaver seals each in a primitive. Row order is load
 | - | - | - |
 | **Virtual × React Compiler** — `useVirtualizer`'s return is internally mutable; the Compiler memo pass can flash the list | interior mutability (FIXED upstream) | **`@orb/ui/virtual-list`** owns `directDomUpdates: true` + `containerRef` (TanStack Virtual 3.14+, Compiler-E2E-tested — NOT `"use no memo"`, obsolete) + `measureElement` wiring. Features never call `useVirtualizer` (dep-cruiser `ui-satellite-seals`). |
 | **Form × React** — `isDirty` is event-based, never auto-clears after submit → `useStore(isDirty)+useEffect` loops forever; save bar stays "Unsaved" | TanStack Form persistent-dirty | the **`client/forms` factories** own the post-submit reset; the banned `useEffect`-on-`isDirty` autosave is gate-flagged |
-| **Form × Query × Zustand** — a background refetch reseeds the form and clobbers unsaved typing | three-lib interaction | a **`useSeedFormOnServerLoad`** guard (`seededRef + persistent-isDirty + reset`) baked into the saved-form factory |
+| **Form × Query × Zustand** — a background refetch reseeds the form and clobbers unsaved typing | three-lib interaction | the reseed guard inlined in `create-saved-entity-form.ts` (`seededRef` + `!form.state.isDirty` + `form.reset(serverValues)` — reseed only an untouched form) |
 | **Zustand × React** — a selector returning a fresh `{}`/`[]` per render spins `useSyncExternalStore` forever | referential instability | the **`createEntityDraftStore`** factory's frozen `EMPTY` (+ `useShallow` for multi-field selectors) + a gate flagging fresh literals |
 
 The two FORM rows are 2 of the six editor obligations the factories bake — the full contract is §13.4

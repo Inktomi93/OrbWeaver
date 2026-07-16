@@ -60,7 +60,7 @@ updated: 2026-07-13
 
 ### 13.3 The new gates (machine-enforced — added by D54)
 
-Enforcement state per gate: §8 (LIVE vs PARKED). The D54 set: `no-static-staletime-on-bus-keys` · `no-inline-cache-surgery-in-stream` (scoped to subscription/stream bodies — must NOT flag `createEntityMutation.onMutate`) · `persist-partialize-and-total-migrate` · `form-factory-for-multifield` · `virtualizer-only-in-seal` (LIVE — dep-cruiser `ui-satellite-seals`) · the upstream linters `@tanstack/eslint-plugin-query` + `eslint-plugin-react-hooks` (LIVE — `eslint.config.js`; the Compiler's Rules-of-React enforcement is load-bearing, not optional).
+Enforcement state per gate: §8 (LIVE vs PARKED). The D54 set (plan-time names; as-built in parens): `no-static-staletime-on-bus-keys` (built `no-static-staletime`) · `no-inline-cache-surgery-in-stream` (built `chat-stream-writes-in-bus-only`; scoped to subscription/stream bodies — must NOT flag `createEntityMutation.onMutate`) · `persist-partialize-and-total-migrate` · `form-factory-for-multifield` · `virtualizer-only-in-seal` (LIVE — dep-cruiser `ui-satellite-seals`) · the upstream linters `@tanstack/eslint-plugin-query` + `eslint-plugin-react-hooks` (LIVE — `eslint.config.js`; the Compiler's Rules-of-React enforcement is load-bearing, not optional).
 
 The Form factory bakes: pill off `!isDefaultValue` · **no hand-rolled `fieldValuesEqual`** (lib does deep compare) · post-submit-effect `reset(saved)` · version-locked `dontUpdateMeta` + a guard test · `useSelector` (not `useStore`).
 
