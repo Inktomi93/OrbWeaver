@@ -1,12 +1,11 @@
 // Horizontal ranked bars — array order is the rank; this component does not sort.
 import type { ReactElement } from "react";
-import { EmptyState } from "#primitives/empty-state";
 import type { OrbEChartsInstance } from "../chart";
 import { Chart } from "../chart";
 import { useChartTheme } from "../chart/use-chart-theme";
+import { LabeledChartFrame } from "../labeled-chart-frame";
 import type { BarListItem } from "./option";
 import { buildBarListOption } from "./option";
-import { barListVariants } from "./variants";
 
 export type { BarListItem } from "./option";
 
@@ -30,29 +29,20 @@ function defaultValueFormatter(value: number): string {
 }
 
 export function BarList({ items, label, valueFormatter = defaultValueFormatter, height, className, onChartReady }: BarListProps): ReactElement {
-  const slots = barListVariants();
   // Called unconditionally (before the empty-state branch) to satisfy rules-of-hooks.
   const colors = useChartTheme();
-
-  if (items.length === 0) {
-    return (
-      <div className={slots.root({ className })} data-slot="bar-list">
-        <EmptyState title={label} description="No data yet." />
-      </div>
-    );
-  }
+  const isEmpty = items.length === 0;
 
   return (
-    <div className={slots.root({ className })} data-slot="bar-list">
-      <p className={slots.heading()} data-slot="bar-list-heading">
-        {label}
-      </p>
-      <Chart
-        height={height ?? items.length * ROW_HEIGHT_PX + CHROME_HEIGHT_PX}
-        label={label}
-        onChartReady={onChartReady}
-        option={buildBarListOption(items, valueFormatter, colors)}
-      />
-    </div>
+    <LabeledChartFrame className={className} isEmpty={isEmpty} label={label} slot="bar-list">
+      {isEmpty ? null : (
+        <Chart
+          height={height ?? items.length * ROW_HEIGHT_PX + CHROME_HEIGHT_PX}
+          label={label}
+          onChartReady={onChartReady}
+          option={buildBarListOption(items, valueFormatter, colors)}
+        />
+      )}
+    </LabeledChartFrame>
   );
 }

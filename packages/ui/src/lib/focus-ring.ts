@@ -12,4 +12,9 @@ export const FOCUS_RING_HAS =
 
 export const FOCUS_RING_INSET = "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset";
 
+// _BARE is the offset-less ring for an inner icon button (autocomplete Clear, combobox ChipRemove)
+// whose parent group ALREADY carries the offset ring (FOCUS_RING_WITHIN) — an offset here would push
+// the child's ring outside the group box. No offset, no inset: the ring hugs the child's own edge.
+export const FOCUS_RING_BARE = "focus-visible:ring-2 focus-visible:ring-ring";
+
 export const FOCUS_RING_DESTRUCTIVE = "data-invalid:focus-visible:ring-destructive";

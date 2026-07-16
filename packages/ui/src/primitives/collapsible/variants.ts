@@ -1,4 +1,4 @@
-import { FOCUS_RING, tv } from "#lib";
+import { DISABLED_STATE, FOCUS_RING, tv } from "#lib";
 
 /**
  * Slot classes for the collapsible (ui-package-design §5). The panel animates its own height off
@@ -9,7 +9,7 @@ import { FOCUS_RING, tv } from "#lib";
 export const collapsibleVariants = tv({
   slots: {
     root: "flex flex-col",
-    trigger: `inline-flex cursor-pointer items-center gap-field text-label leading-label font-medium text-foreground outline-none data-disabled:pointer-events-none data-disabled:opacity-50 ${FOCUS_RING}`,
+    trigger: `inline-flex cursor-pointer items-center gap-field text-label leading-label font-medium text-foreground outline-none ${DISABLED_STATE} ${FOCUS_RING}`,
     panel:
       "h-(--collapsible-panel-height) overflow-hidden text-body leading-body text-muted-foreground transition-all duration-(--motion-layout) ease-out-expo data-starting-style:h-0 data-ending-style:h-0",
   },

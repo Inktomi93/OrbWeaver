@@ -1,4 +1,15 @@
-import { FOCUS_RING, FOCUS_RING_WITHIN, OVERLAY_MOTION, tv } from "#lib";
+import {
+  ACCENT_HOVER,
+  DISABLED_STATE_NATIVE,
+  FOCUS_RING,
+  FOCUS_RING_BARE,
+  FOCUS_RING_WITHIN,
+  ITEM_ROW,
+  OVERLAY_ARROW,
+  OVERLAY_MOTION,
+  POPUP_SURFACE,
+  tv,
+} from "#lib";
 
 // Chips render as pills flowing inline with the draft input inside ONE wrapping box (`chips` rides
 // `contents` so its children become direct flex items of `inputGroup`, wrapping line-by-line together).
@@ -18,22 +29,16 @@ export const comboboxVariants = tv({
     ],
     chipRemove: [
       "flex shrink-0 items-center justify-center rounded-full text-secondary-foreground/70 outline-none",
-      "hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring",
-      "disabled:pointer-events-none disabled:opacity-50",
+      // Offset-less ring — the ChipRemove sits INSIDE the chip; an offset ring would escape it.
+      `${ACCENT_HOVER} ${FOCUS_RING_BARE}`,
+      DISABLED_STATE_NATIVE,
     ],
     input: ["min-w-24 flex-1 bg-transparent px-field py-field text-body leading-body text-foreground outline-none", "placeholder:text-muted-foreground"],
     positioner: "z-(--z-popover) outline-none",
-    popup: [
-      "z-(--z-popover) max-h-(--available-height) w-(--anchor-width) overflow-y-auto rounded-card border border-border bg-popover p-field text-popover-foreground",
-      OVERLAY_MOTION.anchoredPopup,
-    ],
-    arrow: "size-row rotate-45 border border-border bg-popover",
+    popup: [POPUP_SURFACE, "w-(--anchor-width)", OVERLAY_MOTION.anchoredPopup],
+    arrow: OVERLAY_ARROW,
     list: "flex flex-col gap-field",
-    item: [
-      "flex min-h-touch-target cursor-pointer select-none items-center rounded-control px-block py-field text-body leading-body text-foreground outline-none",
-      "data-highlighted:bg-accent data-highlighted:text-accent-foreground",
-      "data-disabled:pointer-events-none data-disabled:opacity-50",
-    ],
+    item: ITEM_ROW,
     empty: "px-block py-field text-body leading-body text-muted-foreground",
     // Visually collapsed; must stay mounted — never hidden/display:none the Status element.
     status: "sr-only",

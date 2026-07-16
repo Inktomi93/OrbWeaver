@@ -1,4 +1,4 @@
-import { tv } from "#lib";
+import { ACCENT_HOVER, FOCUS_RING, tv } from "#lib";
 
 export const toastVariants = tv({
   slots: {
@@ -20,9 +20,7 @@ export const toastVariants = tv({
     content: "flex flex-col gap-field",
     title: "text-label leading-label font-semibold",
     description: "text-label leading-label text-muted-foreground",
-    close:
-      "absolute top-field right-field flex size-control-sm items-center justify-center rounded-control text-muted-foreground outline-none hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring",
-    action:
-      "mt-field inline-flex h-control-sm w-fit items-center justify-center gap-field whitespace-nowrap rounded-control bg-secondary px-block text-label leading-label font-medium text-secondary-foreground outline-none transition-colors duration-(--motion-fast) ease-out-expo hover:bg-accent hover:text-accent-foreground active:bg-accent/80 focus-visible:ring-2 focus-visible:ring-ring",
+    close: `absolute top-field right-field flex size-control-sm items-center justify-center rounded-control text-muted-foreground outline-none ${ACCENT_HOVER} ${FOCUS_RING}`,
+    action: `mt-field inline-flex h-control-sm w-fit items-center justify-center gap-field whitespace-nowrap rounded-control bg-secondary px-block text-label leading-label font-medium text-secondary-foreground outline-none transition-colors duration-(--motion-fast) ease-out-expo ${ACCENT_HOVER} active:bg-accent/80 ${FOCUS_RING}`,
   },
 });

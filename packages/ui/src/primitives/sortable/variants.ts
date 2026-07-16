@@ -1,4 +1,4 @@
-import { FOCUS_RING, tv } from "#lib";
+import { ACCENT_HOVER, DISABLED_STATE_NATIVE, FOCUS_RING, tv } from "#lib";
 
 // The sortable skin (ui-package-design §6.1 item 15; contract §2). @dnd-kit/react drives the
 // FLIP-style reposition transform + isDragging/isDropping state as inline styles/data-* — the tv()
@@ -10,10 +10,10 @@ export const sortableVariants = tv({
     handle: [
       "inline-flex h-control-sm w-control-sm shrink-0 cursor-grab items-center justify-center",
       "rounded-control text-muted-foreground",
-      "hover:bg-accent hover:text-accent-foreground active:cursor-grabbing",
+      `${ACCENT_HOVER} active:cursor-grabbing`,
       "outline-none",
       FOCUS_RING,
-      "disabled:pointer-events-none disabled:opacity-50",
+      DISABLED_STATE_NATIVE,
     ],
     content: "min-w-0 flex-1",
   },

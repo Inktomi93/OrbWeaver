@@ -1,8 +1,8 @@
-import { FOCUS_RING, FOCUS_RING_DESTRUCTIVE, tv } from "#lib";
+import { DISABLED_STATE, FOCUS_RING, FOCUS_RING_DESTRUCTIVE, TOUCH_TARGET_PSEUDO, tv } from "#lib";
 
 // The visible track rides pointer-independent display tokens, so the desktop switch stays generous
 // rather than collapsing toward a near-square toggle. The ≥44px touch floor is met separately by the
-// `before:size-touch-target` pseudo, so the visible track never has to carry the hit floor.
+// TOUCH_TARGET_PSEUDO hit area, so the visible track never has to carry the hit floor.
 export const switchVariants = tv({
   slots: {
     root: [
@@ -10,11 +10,12 @@ export const switchVariants = tv({
       "transition-colors duration-(--motion-fast) ease-out-expo",
       "outline-none",
       FOCUS_RING,
-      "data-checked:border-primary data-checked:bg-primary data-disabled:pointer-events-none data-disabled:opacity-50",
+      "data-checked:border-primary data-checked:bg-primary",
+      DISABLED_STATE,
       // Base UI sets data-invalid on the Root when wrapped in an invalid <Field> (FieldRootState).
       "data-invalid:border-destructive",
       FOCUS_RING_DESTRUCTIVE,
-      "before:absolute before:top-1/2 before:left-1/2 before:size-touch-target before:-translate-x-1/2 before:-translate-y-1/2 before:content-['']",
+      TOUCH_TARGET_PSEUDO,
     ],
     thumb: [
       "group relative flex aspect-square h-full items-center justify-center rounded-full bg-foreground",
