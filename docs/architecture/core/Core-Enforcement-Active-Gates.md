@@ -226,6 +226,7 @@ the descriptor's `status` field is ground truth.
 | `component-size-ui` | `packages/ui/src` LOC ceiling (450) — the ui twin of `component-size` | trigger MET (W1-1 done: `table.tsx` is 376 lines at `primitives/table/`; ui max file 376 < 450) — the flip to `active` is an owner decision, still dormant |
 | `monotonic-tests` | a green `check` can't be reached by deleting/disabling tests (a committed baseline manifest) | first real client test suite + committed baseline |
 | `audit-client-tests` | AST anti-patterns in `*.test.ts` (empty describe/hook, no-assertion, missing `await`) | client tests exist |
+| `no-manual-autosave-flush` | a single `features/**` function body calling BOTH a structural array op (push/remove/insert/moveFieldValues) AND `handleSubmit` — the retired §7-trap call-site flush (autosave-form-doctrine.md §7 G-A) | the D78 SEAL lane, once L1–L4 delete the \~10 existing manual flushes — flip `status` to `active` + move this row to the ACTIVE table + bump the count |
 
 ## Layer 4 — dependency-cruiser (`.dependency-cruiser.cjs`) — **ACTIVE**
 

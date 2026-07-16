@@ -584,7 +584,7 @@ test("every registered structural gate fires on its fixture (anti-drift)", () =>
 // from `registry`. Each has its own header explaining why + a residual self-test proving it still fires
 // (tests/tooling/{monotonic-tests}.residual.test.ts drives the monotonic gate directly). This is the ONE
 // sanctioned exemption from the file-vs-registry anti-drift check below.
-const DORMANT_GATES = new Set(["monotonic-tests", "audit-client-tests", "component-size-ui"]);
+const DORMANT_GATES = new Set(["monotonic-tests", "audit-client-tests", "component-size-ui", "no-manual-autosave-flush"]);
 
 test("every ACTIVE gate file in scripts/check/gates is run by report.ts (anti-drift)", () => {
   // A gate file whose descriptor is status:"active" but that report.ts's live pass never prints would be
