@@ -29,6 +29,7 @@ import { useAppearanceRootEffects } from "../hooks/use-appearance-root-effects";
 import { useSelectedTheme } from "../hooks/use-selected-theme";
 import { useShellLayout } from "../hooks/use-shell-layout";
 import { resolveBackgroundUrl } from "../lib/resolve-theme-background";
+import { resolveThemeScopeTokens } from "../lib/resolve-theme-scope-tokens";
 import "./shell.css";
 
 export interface AppShellProps {
@@ -88,7 +89,9 @@ export function AppShell({ railFoot }: AppShellProps): ReactElement {
     themeColorization: appearance.enableThemeColorization,
     surfaceTexture: appearance.surfaceTexture,
   });
-  const density = theme?.override.density ?? appearance.density;
+  // A seed theme paints from its generated [data-theme] block (keyed by `dataTheme` above), NOT its stored
+  // override — see resolve-theme-scope-tokens for the shadowing bug this prevents.
+  const { tokens: scopeTokens, density } = resolveThemeScopeTokens(theme, appearance.density);
   const bgUrl = resolveBackgroundUrl(appearance);
   // Warms the fetch during render so ThemeBackgroundLayer paints from cache instead of popping in.
   if (bgUrl !== null) {
@@ -148,7 +151,7 @@ export function AppShell({ railFoot }: AppShellProps): ReactElement {
     <TooltipProvider>
       {/* Mounted before .shell-grid in DOM order so it paints underneath; renders nothing when no image is set. */}
       <ThemeBackgroundLayer url={bgUrl} fit={appearance.backgroundFit} dim={appearance.backgroundDim} blur={appearance.backgroundBlur} />
-      <ThemeScope tokens={theme?.override ?? {}} className="contents">
+      <ThemeScope tokens={scopeTokens} className="contents">
         <PortalContainerContext value={portalRootRef}>
           <div
             className="shell-grid"
