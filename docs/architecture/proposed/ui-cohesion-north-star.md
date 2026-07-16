@@ -48,10 +48,12 @@ this doc wins on visual spec.
 
 Independent, anytime: **O4** — buddy-bus `defineBusChannel` adoption (server tier; lockdown §18).
 
-**Companion queue:** the 2026-07-15 full-read sweep of both packages surfaced three MORE non-uniform
-seam classes + a dupe/dead tail — [`derive-modernization-audit.md`](derive-modernization-audit.md)
-(W1 FormDialog rollup before the §6 rollout · W2 ui skin fragments WITH the PP lane · W3 plumbing
-mints anytime · W4/W5/W6 mechanical waves; W6 carries an owner ASK on the orphan build-ahead seals).
+**Companion program:** the 2026-07-15 full-read sweep surfaced three MORE non-uniform seam classes +
+a dupe/dead tail, now a GATED program (mint → migrate → SEAL, one wave each; gates G24–G29 + a G4
+arm) — [`derive-modernization-audit.md`](derive-modernization-audit.md). Merge points: W2+G25 ride
+WITH the PP lane (one ui-polish wave) · W1+G24 land BEFORE the §6 rollout · W3 pairs with chrome
+§E-1 · W4/W5/W6 are independent mech waves (W6's orphan seals RULED intentional pre-builds —
+`PREBUILT[for:…]` markers).
 
 ---
 
