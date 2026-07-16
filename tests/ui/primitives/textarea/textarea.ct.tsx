@@ -2,8 +2,8 @@
 // (border-border oklch) plus native field-sizing autosize.
 import { Field } from "@orb/ui/field";
 import { Textarea } from "@orb/ui/textarea";
-import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
+import { resolvedTokenColor } from "../../../support/ct/resolved-token-color";
 
 const NON_EMPTY = /.+/u;
 
@@ -38,7 +38,7 @@ test("inside an invalid <Field>, data-invalid lands and the border swaps to dest
   const control = page.getByRole("textbox");
   // Base UI Field.Control marks the control invalid — the seal keys its skin off data-invalid.
   await expect(control).toHaveAttribute("data-invalid", "");
-  await expect(control).toHaveCSS("border-top-color", TOKENS["color.destructive"].value);
+  await expect(control).toHaveCSS("border-top-color", resolvedTokenColor("color.destructive"));
 });
 
 test("wears the token skin and autosizes to content", async ({ mount, page }) => {

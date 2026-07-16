@@ -4,6 +4,7 @@
 import { Badge } from "@orb/ui/badge";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
+import { resolvedTokenColor } from "../../../support/ct/resolved-token-color";
 
 test("default intent is the neutral (muted) token background", async ({ mount }) => {
   const badge = await mount(<Badge>Draft</Badge>);
@@ -12,12 +13,12 @@ test("default intent is the neutral (muted) token background", async ({ mount })
 
 test("success intent lands as the success token background", async ({ mount }) => {
   const badge = await mount(<Badge intent="success">Active</Badge>);
-  await expect(badge).toHaveCSS("background-color", TOKENS["color.success"].value);
+  await expect(badge).toHaveCSS("background-color", resolvedTokenColor("color.success"));
 });
 
 test("danger intent swaps to the destructive token", async ({ mount }) => {
   const badge = await mount(<Badge intent="danger">Failed</Badge>);
-  await expect(badge).toHaveCSS("background-color", TOKENS["color.destructive"].value);
+  await expect(badge).toHaveCSS("background-color", resolvedTokenColor("color.destructive"));
 });
 
 test("md size carries more horizontal padding than sm", async ({ mount }) => {

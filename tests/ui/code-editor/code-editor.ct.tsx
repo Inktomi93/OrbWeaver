@@ -1,6 +1,7 @@
 import type { CodeEditorDiagnostic } from "@orb/ui/code-editor";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
+import { resolvedTokenColor } from "../../support/ct/resolved-token-color";
 import { CompletionsEditor, ControlledEditor, DiagnosticsEditor, ReadOnlyEditor } from "./code-editor.fixtures";
 
 const INITIAL_CSS = "body { color: red; }";
@@ -152,16 +153,16 @@ test("severity is signaled beyond color — underline style + gutter marker shap
   // Non-color signal #1: the underline STYLE differs (wavy vs dotted), not just its color.
   await expect(errorMark).toHaveCSS("text-decoration-style", "wavy");
   await expect(warningMark).toHaveCSS("text-decoration-style", "dotted");
-  await expect(errorMark).toHaveCSS("text-decoration-color", TOKENS["color.destructive"].value);
-  await expect(warningMark).toHaveCSS("text-decoration-color", TOKENS["color.warning"].value);
+  await expect(errorMark).toHaveCSS("text-decoration-color", resolvedTokenColor("color.destructive"));
+  await expect(warningMark).toHaveCSS("text-decoration-color", resolvedTokenColor("color.warning"));
 
   const errorMarker = component.locator(".cm-lint-marker-error");
   const warningMarker = component.locator(".cm-lint-marker-warning");
   // Non-color signal #2: the gutter marker SHAPE differs (circle vs triangle), not just its color.
   await expect(errorMarker).toHaveCSS("border-radius", "9999px");
   await expect(warningMarker).toHaveCSS("border-radius", "0px");
-  await expect(errorMarker).toHaveCSS("background-color", TOKENS["color.destructive"].value);
-  await expect(warningMarker).toHaveCSS("background-color", TOKENS["color.warning"].value);
+  await expect(errorMarker).toHaveCSS("background-color", resolvedTokenColor("color.destructive"));
+  await expect(warningMarker).toHaveCSS("background-color", resolvedTokenColor("color.warning"));
 });
 
 // WS3 — the `completions` prop (real inline autocomplete via @codemirror/autocomplete, replacing the

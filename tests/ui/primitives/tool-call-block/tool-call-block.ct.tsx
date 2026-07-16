@@ -1,9 +1,9 @@
 // CT: the tool-call-block seal — the D48 generic tool-invocation fallback block (tool-use-design/
 // 03 §4 + 05 §T7). THREE states driven ONLY by the record; arguments/result JSON.parse with a
 // raw-string fallback that never blanks; native <details> collapse.
-import { TOKENS } from "@orb/ui/tokens";
 import { ToolCallBlock } from "@orb/ui/tool-call-block";
 import { expect, test } from "@playwright/experimental-ct-react";
+import { resolvedTokenColor } from "../../../support/ct/resolved-token-color";
 
 test("success: pretty-prints arguments and result JSON, no error styling", async ({ mount, page }) => {
   await mount(
@@ -44,7 +44,7 @@ test("isError renders the danger token badge + the result document as the error 
   const badge = page.locator('[data-slot="tool-call-block-status"] span').first();
   await expect(badge).toHaveText("Error");
   await expect(page.getByText("clock not found")).toBeVisible();
-  await expect(badge).toHaveCSS("background-color", TOKENS["color.destructive"].value);
+  await expect(badge).toHaveCSS("background-color", resolvedTokenColor("color.destructive"));
 });
 
 test("result === null renders the neutral requested-not-run badge and no result section", async ({ mount, page }) => {

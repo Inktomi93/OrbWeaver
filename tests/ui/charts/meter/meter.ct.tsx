@@ -2,11 +2,11 @@
 // contracts import — the fixtures are RpgHudView-SHAPED literals), ARIA meter values, bipolar
 // milestone ticks, and the dangerBelow token swap asserted against the destructive oklch value.
 import { Meter } from "@orb/ui/meter";
-import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
+import { resolvedTokenColor } from "../../../support/ct/resolved-token-color";
 
 // --color-destructive — the danger INTENT token (a token swap, never a color calc).
-const DESTRUCTIVE = TOKENS["color.destructive"].value;
+const DESTRUCTIVE = resolvedTokenColor("color.destructive");
 
 test("linear renders from plain props with correct ARIA meter values", async ({ mount }) => {
   const component = await mount(<Meter kind="linear" value={30} max={60} label="HP" />);

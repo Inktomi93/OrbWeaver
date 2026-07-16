@@ -2,8 +2,8 @@
 // and the increment/decrement buttons meet the 44px touch floor.
 import { Field } from "@orb/ui/field";
 import { NumberField } from "@orb/ui/number-field";
-import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
+import { resolvedTokenColor } from "../../../support/ct/resolved-token-color";
 
 const TOUCH_FLOOR_PX = 44;
 const NON_EMPTY = /.+/u;
@@ -105,7 +105,7 @@ test("inside an invalid <Field>, data-invalid lands and the border swaps to dest
     </Field>,
   );
   await expect(page.getByRole("textbox")).toHaveAttribute("data-invalid", "");
-  await expect(page.locator('[data-slot="number-field-group"]')).toHaveCSS("border-top-color", TOKENS["color.destructive"].value);
+  await expect(page.locator('[data-slot="number-field-group"]')).toHaveCSS("border-top-color", resolvedTokenColor("color.destructive"));
 });
 
 test("inside a <Field>, the input associates and aria-describedby wires the description", async ({ mount, page }) => {

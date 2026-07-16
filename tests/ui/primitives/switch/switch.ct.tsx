@@ -5,6 +5,7 @@ import { Field } from "@orb/ui/field";
 import { Switch } from "@orb/ui/switch";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
+import { resolvedTokenColor } from "../../../support/ct/resolved-token-color";
 
 const NON_EMPTY = /.+/u;
 
@@ -118,7 +119,7 @@ test("inside an invalid <Field>, data-invalid lands and the border swaps to dest
   );
   const control = page.getByRole("switch");
   await expect(control).toHaveAttribute("data-invalid", "");
-  await expect(control).toHaveCSS("border-top-color", TOKENS["color.destructive"].value);
+  await expect(control).toHaveCSS("border-top-color", resolvedTokenColor("color.destructive"));
 });
 
 test("inside a <Field>, the label associates and aria-describedby wires the description", async ({ mount, page }) => {

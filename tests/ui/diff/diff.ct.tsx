@@ -1,6 +1,6 @@
 import { DiffView } from "@orb/ui/diff";
-import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
+import { resolvedTokenColor } from "../../support/ct/resolved-token-color";
 
 const BEFORE_LINES = "alpha\nbeta\ngamma\n";
 const AFTER_LINES = "alpha\ndelta\ngamma\n";
@@ -11,10 +11,10 @@ test("words mode renders added/removed segments with intent token colors", async
   const removed = component.locator("[data-diff=removed]");
   await expect(added).toContainText("brown");
   await expect(removed).toContainText("red");
-  await expect(added).toHaveCSS("background-color", TOKENS["color.success"].value);
-  await expect(added).toHaveCSS("color", TOKENS["color.success-foreground"].value);
-  await expect(removed).toHaveCSS("background-color", TOKENS["color.destructive"].value);
-  await expect(removed).toHaveCSS("color", TOKENS["color.destructive-foreground"].value);
+  await expect(added).toHaveCSS("background-color", resolvedTokenColor("color.success"));
+  await expect(added).toHaveCSS("color", resolvedTokenColor("color.success-foreground"));
+  await expect(removed).toHaveCSS("background-color", resolvedTokenColor("color.destructive"));
+  await expect(removed).toHaveCSS("color", resolvedTokenColor("color.destructive-foreground"));
   await expect(removed).toHaveCSS("text-decoration-line", "line-through");
   await expect(component.locator("[data-diff=unchanged]").first()).toContainText("the quick");
 });
