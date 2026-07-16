@@ -83,6 +83,7 @@
   --blur-strength: 14px;
   --blur-fill-chrome: 70%;
   --blur-fill-dense: 88%;
+  --blur-saturate: 1.4;
   --immersive-echo-feather: 55%;
   --immersive-whisper-feather: 70%;
   --immersive-stripe-width: 0.1875rem;
@@ -127,6 +128,7 @@
   --motion-base: 220ms;
   --motion-layout: 360ms;
   --motion-shimmer: 1300ms;
+  --motion-breathe: 3000ms;
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
 }
 

@@ -6,6 +6,7 @@
 //      tokens (WS0) — no raw rem/px literal reintroduced into the tracked properties.
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { BLUR_SURFACES } from "@orb/contracts/settings";
 import { expect, test } from "../../support/fixtures";
 
 const GLOBALS_CSS_PATH = join(import.meta.dirname, "../../../packages/ui/src/styles/globals.css");
@@ -14,6 +15,8 @@ const GLOBALS_CSS_PATH = join(import.meta.dirname, "../../../packages/ui/src/sty
 const THEME_CSS_PATH = join(import.meta.dirname, "../../../packages/ui/src/styles/theme.css");
 const THEMES_DIR = join(import.meta.dirname, "../../../packages/ui/src/tokens/themes");
 const SHELL_CSS_PATH = join(import.meta.dirname, "../../../packages/client/src/features/app-shell/surfaces/shell.css");
+// @orb/client's single stylesheet — home of the four hand-listed BLUR_SURFACES blocks (W5).
+const CLIENT_GLOBALS_CSS_PATH = join(import.meta.dirname, "../../../packages/client/src/styles/globals.css");
 
 /** Basenames of every seed value-set whose `$colorScheme` is "light" (drives the dark-variant exclusion). */
 function lightSeedThemeNames(): string[] {
@@ -161,4 +164,51 @@ test("shell.css: tracked geometry properties (height/width/inset-block/--rail-w/
   }
   // Guard against the regex silently matching nothing (a rename of these properties would go undetected).
   expect(checked, "expected to find tracked geometry declarations in shell.css").toBeGreaterThan(0);
+});
+
+// Blur-surface selector sync (W5) — the glass feature gates on html[data-blur-<surface>] attrs, and
+// four CSS blocks hand-list them. A drift here (a surface renamed/added in BLUR_SURFACES but not
+// mirrored into one of these blocks) is silent: the gate simply never fires for that surface.
+/** Finds the `{`-opened block immediately following `anchor` in `css`, and returns its full text (including braces). */
+function findAnchoredBlock(css: string, anchor: string, label: string): string {
+  const anchorIndex = css.indexOf(anchor);
+  expect(anchorIndex, `expected to find the "${label}" anchor`).toBeGreaterThanOrEqual(0);
+  const openBrace = css.indexOf("{", anchorIndex);
+  expect(openBrace, `expected an opening brace after the "${label}" anchor`).toBeGreaterThanOrEqual(0);
+  const closeBrace = findBlockEnd(css, openBrace);
+  return css.slice(anchorIndex, closeBrace + 1);
+}
+
+test("blur-surface selectors stay in sync with BLUR_SURFACES across all four hand-listed CSS blocks", () => {
+  const clientGlobalsCss = readFileSync(CLIENT_GLOBALS_CSS_PATH, "utf8");
+  const shellCss = readFileSync(SHELL_CSS_PATH, "utf8");
+
+  const blocks = [
+    { label: "client globals.css @supports backdrop-filter block", css: clientGlobalsCss, anchor: "@supports (backdrop-filter: blur(1px)) {" },
+    {
+      label: "client globals.css prefers-reduced-transparency block",
+      css: clientGlobalsCss,
+      anchor: "@media (prefers-reduced-transparency: reduce) {",
+    },
+    { label: "client globals.css prefers-contrast: high block", css: clientGlobalsCss, anchor: "@media (prefers-contrast: high) {" },
+    { label: "shell.css mobile blur kill-switch block", css: shellCss, anchor: "/* Mobile blur kill-switch" },
+  ];
+
+  expect(blocks.length, "expected exactly four hand-listed blur-surface CSS blocks").toBe(4);
+
+  for (const { label, css, anchor } of blocks) {
+    const block = findAnchoredBlock(css, anchor, label);
+    for (const surface of BLUR_SURFACES) {
+      expect(block, `${label} must reference data-blur-${surface}`).toContain(`data-blur-${surface}`);
+    }
+  }
+});
+
+// PART A pin (W5): the reading-scale vars are runtime-stamped by use-appearance-root-effects and
+// REMOVED on cleanup — without a fallback the calc() goes invalid-at-computed-value and font-size
+// silently reverts to inherited, instead of behaving like the already-fallback-guarded --font-scale.
+test("client globals.css: reading-scale calc()s carry a `, 1` fallback (unset-var invalid-calc footgun)", () => {
+  const css = readFileSync(CLIENT_GLOBALS_CSS_PATH, "utf8");
+  expect(css).toContain("var(--reading-body-scale, 1)");
+  expect(css).toContain("var(--reading-name-scale, 1)");
 });
