@@ -61,6 +61,35 @@ test("the track is a generous rectangle and the thumb travels a substantial dist
   await expect.poll(async () => (await thumb.boundingBox())?.x ?? 0, { intervals: [20, 50, 100] }).toBeGreaterThan(offX + 12);
 });
 
+// ── tone axis (north-star §5 PP1 precedent; owner-sanctioned 2026-07-16). `accent` (default) keeps
+// the ember-on-checked skin — the ONE sanctioned accent toggle per surface. `quiet` rides the derived
+// neutral ramp (`--color-secondary`) so a rack of per-row switches never multiplies the accent. The
+// on/off signal stays position-carried (thumb travel), so quiet holds a11y distinctness without ember. ──
+test("tone=quiet: checked rides the NEUTRAL secondary token, never ember", async ({ mount, page }) => {
+  // The whole point of the sanction: a quiet switch must NOT paint the accent when checked.
+  expect(TOKENS["color.secondary"].value).not.toBe(TOKENS["color.primary"].value);
+  await mount(<Switch aria-label="Row toggle" defaultChecked={true} tone="quiet" />);
+  const control = page.getByRole("switch");
+  await expect(control).toHaveCSS("background-color", TOKENS["color.secondary"].value);
+});
+
+test("tone=quiet: still toggles and the thumb still travels — state is position, not color", async ({ mount, page }) => {
+  await mount(<Switch aria-label="Row toggle" tone="quiet" />);
+  const control = page.getByRole("switch");
+  const thumb = control.locator('[data-slot="switch-thumb"]');
+  const offX = (await thumb.boundingBox())?.x ?? 0;
+  await expect(control).toHaveAttribute("aria-checked", "false");
+  await control.click();
+  await expect(control).toHaveAttribute("aria-checked", "true");
+  // Same 16px travel as accent (thumb translate is tone-independent) — the a11y on/off signal holds.
+  await expect.poll(async () => (await thumb.boundingBox())?.x ?? 0, { intervals: [20, 50, 100] }).toBeGreaterThan(offX + 12);
+});
+
+test("tone=accent (explicit) matches the default — checked wears ember", async ({ mount, page }) => {
+  await mount(<Switch aria-label="The one accent toggle" defaultChecked={true} tone="accent" />);
+  await expect(page.getByRole("switch")).toHaveCSS("background-color", TOKENS["color.primary"].value);
+});
+
 test("onCheckedChange reports the next state", async ({ mount, page }) => {
   const seen: boolean[] = [];
   await mount(
