@@ -455,10 +455,15 @@ per-section switch. That channel shape is N4's ONE design decision; G3 (mint-onl
    add AND remove); the section detail's bottom row → ONE `⋯` `RowActionsMenu` (Delete
    ConfirmDialog-gated — a spec-directed change from the prior undo-toast); rack ember demoted
    (custom pill → neutral, selection → the chats-pattern 10%-primary tint + left bar; the toolbar
-   Add is the rack's one primary, `Every generation` the detail's one ember toggle). FLAGGED for a
-   sanction decision: a checked `Switch` renders ember from the PRIMITIVE
-   (`data-checked:bg-primary`) — de-embering needs a sanctioned variant (rule 0.3); the SETUP/POST
-   zone pills ride `info`/`warning` (functional zone colors, not ember). Deferred to the
+   Add is the rack's one primary, `Every generation` the detail's one ember toggle). SANCTION RESOLVED
+   2026-07-16 (owner ruling: the accent is theme-driven — ember is only the default resolution —
+   so the primitive earns a real variant): `Switch` gained `tone: accent|quiet` (`878baeb1`;
+   `accent` default is RENDER-identical — verifier note: two `data-checked` utilities reorder in
+   the emitted root class string, proven non-conflicting and visually unchanged; `quiet`'s checked
+   track rides the theme-derived `--color-secondary`, a11y carried by tone-independent thumb
+   travel). Rack rows adopted `quiet` (`47ac8ef5`: section-row + pivot-band; `Every generation`
+   stays the surface's one accent toggle; params-panel knobs + `SwitchField` form fields stay
+   default). The SETUP/POST zone pills ride `info`/`warning` (functional zone colors, not accent). Deferred to the
    quiet-window side-eye pass: tab-strip stacking + AutosaveStatus pixels. Original spec (now the
    record): 10 tabs (`lib/preset-nav.ts` `PRESET_EDITOR_TABS` typed tuple) → 4 groups:
    **Generation** (Quality·Sampling·Reasoning·Output) · **Prompt** (Prompt·Templates) · **Context**
