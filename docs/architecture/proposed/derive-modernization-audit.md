@@ -163,6 +163,32 @@ still cite `routes/home-page.tsx` (`data/bus/use-user-bus.ts:5,12` · `state/act
 `lib/agent-tools.README.md:43` (50ms vs the real 100ms) + generated `--color-highlight` no-op
 `light-dark(X,X)` (tokens fix, low).
 
+## Seam coverage — the parked designs vs the built extension surfaces (verified 2026-07-16)
+
+The owner asked whether MORE contributor-style seams are needed for the feature backlog. Swept every
+parked design's client-hook expectations against the built surfaces. **The governing bar (the M8
+precedent + the M3 `contextHeader` deletion):** a seam is pre-built EMPTY only when a parked design
+NAMES the need; otherwise extension = tuple/union growth (compile-forced) and "no capability for an
+absent consumer" holds.
+
+| Design ask | Seam | Status |
+| - | - | - |
+| crew panel CONTEXT tab · rpg "Game" tab | `chat-context` contributor registry (`ContextTabDef<ChatContextState>`) | **BUILT (M8, empty)** |
+| crew edit-proposal chip / "audit this reply" (asked for a "NEW `message-footer` region") · rpg per-message chips | `chat-surface` registry, anchor `message-footer` | **BUILT (M8)** — crew's ask predates M8; its doc now carries the built-truth note (07-client-ui). Verify at CW5 that `MessageView` covers `{chatId,messageId,variantId}`; extend `ChatMessageSurfaceState` ADDITIVELY if not |
+| rpg HUD content-flank (crew 04 names it) | `chat-surface` anchor `thread-flank` (seam-owned responsive flank) | **BUILT (M8)** |
+| expressions v1 sprite holder (`#expression-holder` successor) | `thread-flank` fits; else a new `stage` anchor = ONE tuple + union arm (the designed extension move) | **COVERED — decide flank-vs-new-anchor at expressions build** |
+| expressions background layer | `ThemeOverride.background` token + ThemeScope/shell render (D44) — the theming pipeline, not a contributor seam | **HOMED (D44)** |
+| crew card-evolution review section on the CHARACTER detail page ("same registry pattern, owned by the character feature") | **DOES NOT EXIST** — zero contributor machinery in `features/character` | **THE ONE NAMED GAP.** Build M8-style (empty registry + factory param + fake-contributor CT) at the north-star §6 characters stop or crew CW3, whichever lands first |
+| tool-use / rpg tool chips | `TOOL_RENDERERS` (tool kind → chip renderer, D48 `<details>` fallback) — named by tool-use 03 §4 + crew 07 | **FUTURE — lands WITH tool-use's client phase; MUST be a door-assembled contributor registry, never a hand map** (record so it isn't improvised) |
+| crew spellchecker composer button | ruled IN-CHAT by crew's own doc (home: the composer feature) — no cross-feature seam named | **NO SEAM NEEDED** |
+| databank / hub-browse sections · agent-principal / automation panes · new modals/chrome | the section/modal/pane/chrome registries — closed-tuple growth, tsc-total | **COVERED (the registries ARE the seam)** |
+| new message content kinds (imagery D44 blocks, tool records) | `@orb/contracts` DU + the `assertNever` switch — compile-forced | **COVERED (contracts, not a seam)** |
+| new domain events (all designs) | the E4 bus ritual + G11 belts | **COVERED** |
+
+**Watch-list (no design names these yet — mint M8-style on the FIRST cross-feature ask, do not
+pre-build):** a composer-ACTION contributor (wand items / trailing affordances) · a command-palette
+contributor (the palette currently derives sections+modals).
+
 ## Clean verdicts (recorded so nobody re-audits)
 
 Seal integrity (echarts/lexical/shiki leak-free) · layout primitives (one GAP/ALIGN table) ·

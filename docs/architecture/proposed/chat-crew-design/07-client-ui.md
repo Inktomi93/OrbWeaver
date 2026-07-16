@@ -75,11 +75,22 @@ packages/client/src/features/crew/
   index.ts
 ```
 
+> **[BUILT-TRUTH 2026-07-16 — the chat seams EXIST (lockdown M8); do NOT rebuild them.]** The real
+> names: the context-tab seam is the `chat-context` `ContributorRegistry<ContextTabDef<ChatContextState>>`
+> and the surface seam is `CHAT_SURFACE_ANCHORS` (`thread-flank` · `above-composer` · `message-footer`)
+> with `ChatSurfaceContribution` (discriminated by anchor; `message-footer` carries
+> `ChatMessageSurfaceState { message: MessageView }`) — both assembled empty at the door with
+> fake-contributor CTs. U5's "registry addition" therefore SHRINKS to the chip itself; verify at CW5
+> that `MessageView` covers the `{chatId, messageId, variantId}` need and extend the state ADDITIVELY
+> if not. The `character` detail-page section seam does NOT exist yet — tracked in
+> `../derive-modernization-audit.md` §Seam-coverage (build M8-style, empty + CT, at the north-star §6
+> characters stop or crew CW3, whichever lands first).
+
 | Registry (chat-owned, populated at `main.tsx`) | crew contribution |
 |---|---|
-| `CHAT_CONTEXT_SLOTS` | the crew panel (tabs: **Members** · **Guides** · **Director** [host]) |
-| `CHAT_SURFACE_SLOTS` — **NEW region `message-footer`** (receives `{chatId, messageId, variantId}`) | the edit-proposal chip + the on-demand "audit this reply" action; the additive region is the ONE client-side chat touch (mirrors the server's one-injected-op discipline; rpg's chips rode `TOOL_RENDERERS` because its events ARE tool calls — crew proposals are not, so they need a message-anchored slot) |
-| `character` feature's detail-page section slot (same registry pattern, owned by the character feature) | the card-evolution review section |
+| the `chat-context` contributor registry (M8-built, empty) | the crew panel (tabs: **Members** · **Guides** · **Director** [host]) |
+| the `chat-surface` contributor registry, anchor `message-footer` (M8-built, empty) | the edit-proposal chip + the on-demand "audit this reply" action; the anchor is the ONE client-side chat touch (mirrors the server's one-injected-op discipline; rpg's chips rode `TOOL_RENDERERS` because its events ARE tool calls — crew proposals are not, so they need a message-anchored slot) |
+| `character` feature's detail-page section slot (same registry pattern, owned by the character feature — **UNBUILT, see note above**) | the card-evolution review section |
 
 Gating: every slot component gates on `useGatedQuery(trpc.crew.getConfig, chatId)` — server
 returns the clamped view; no row / all-off ⇒ render nothing, `use-crew-stream` never subscribes

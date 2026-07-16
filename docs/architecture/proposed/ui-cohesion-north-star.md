@@ -205,7 +205,9 @@ correct — a task touching it is off the rails.
   neutral ramp derives; every foreground/border/input fill is DERIVED. Consequences: new chrome
   references semantic tokens so themes retint it; accent tints via
   `color-mix(in oklab, var(--color-primary) N%, transparent)`; fixed STATUS hues (info/success/
-  warning) may be static AA pairs, neutral SURFACES must reuse a derived ramp member; never extend
+  warning/destructive/highlight) are ONE static token with `light-dark()` polarity arms (D71 —
+  AA-swept per palette by `palette-contrast`; the clamp derives `color-scheme` from the picked
+  background, so never hand-flip a scheme), neutral SURFACES must reuse a derived ramp member; never extend
   `clampThemeTokens`'s emit surface without its emit-surface + pairing tests; user color input goes
   through `color-field`/`isSafeColor`.
 - **Owner custom CSS** (`app-shell/components/custom-theme-style.tsx`) injects unlayered and wins —
@@ -357,8 +359,9 @@ per-section switch. That channel shape is N4's ONE design decision; G3 (mint-onl
 > interleaved, each still its own commit. Same territory, one dispatch.
 
 - **PP1 · Badge `soft` tone + real `info`** — `ui/primitives/badge/variants.ts` + `tokens.json`.
-  Add `color.info-foreground` (dark AA ≥4.5:1 pair for the existing unused `color.info`
-  `oklch(0.70 0.10 232)`; mirror the success/warning derivations) + regenerate. **[CORRECTED]** the
+  Add `color.info-foreground` (AA ≥4.5:1 pair for the existing unused `color.info`; per D71 it
+  ships as a `light-dark()` pair — mirror the success/warning arms; the per-palette
+  `palette-contrast` sweep will enforce both polarities) + regenerate. **[CORRECTED]** the
   variants file's "there is no info color token" comment is STALE — `color.info` exists, unused; fix
   the comment. Add `tone: solid|soft` (soft = `color-mix` 15% tint + `text-<intent>` + optional 30%
   border) for every intent; point `info` at `bg-info text-info-foreground` / soft pair. Migrate
@@ -535,7 +538,8 @@ flush explicitly, and CT the add AND remove persistence paths.
 `--color-narration` · `--color-speaker` (=primary). **Accent:** `--color-primary` +
 `-foreground`; tints via `color-mix(in oklab, var(--color-primary) 10–14%, transparent)`.
 **Status:** `--color-success/-foreground` · `--color-warning/-foreground` · `--color-info`
-(+ `-foreground` NEW in PP1) · `--color-destructive/-foreground`. **Lines:** `--color-border` ·
+(+ `-foreground` NEW in PP1) · `--color-destructive/-foreground` — all `light-dark()` polarity
+pairs (D71); the active arm follows `color-scheme`, never a per-theme re-author. **Lines:** `--color-border` ·
 `--color-sidebar-border`. **Bubbles:** `--color-user-bubble` · `--color-ai-bubble` (+foregrounds).
 **Space:** `--spacing-field` .375rem · `--spacing-row` .5 · `--spacing-block` .75 ·
 `--spacing-section` 1.5 · `--spacing-gutter` 2. **Radius:** `--radius-control` .375 ·
