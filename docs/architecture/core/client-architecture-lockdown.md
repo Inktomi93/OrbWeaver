@@ -92,7 +92,7 @@ Above the tiers: `routes/` composes features (never the reverse — `client-feat
 | Home | What it is | Hand-written? |
 | - | - | - |
 | `packages/ui/src/tokens/tokens.json` | THE value source (DTCG). Edit → `pnpm --filter @orb/ui tokens:build` regenerates | yes (the source) |
-| `packages/ui/src/styles/theme.css` | the generated Tailwind `@theme` — DO NOT EDIT | NO — generated, freshness-test-enforced |
+| `packages/ui/src/styles/theme.css` | the generated Tailwind `@theme` + the seed `[data-theme]` value-set blocks (sources: `ui/src/tokens/themes/*.json`, D71) — DO NOT EDIT | NO — generated, freshness-test-enforced |
 | `packages/ui/src/styles/globals.css` | ui's one CSS entry: imports tailwind + theme.css + the deliberately-UNLAYERED floors (reduced-motion floor, resets) | yes (floors only) |
 | `packages/ui/src/**/variants.ts` | component skins — `tv()` over token utilities; the ONLY styling-variation path | yes (token classes only — the token gates cover ui too, D43) |
 | `packages/client/src/styles/globals.css` | the client's single stylesheet: imports ui's CSS entry + the document-level shell defers (html/body `overflow: clip`, dvh, Base UI stacking, glass/contrast media rules) | yes |
