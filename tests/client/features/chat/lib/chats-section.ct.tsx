@@ -264,7 +264,7 @@ test("member loses the Preview tab and the overrides are read-only", async ({ mo
   // Preview is host-only (previewAssembly is a host debug surface) — hidden for a member.
   await expect(component.getByRole("tab", { name: "Preview" })).toHaveCount(0);
   // The main-prompt field seeded from the server value, but disabled (a member cannot edit).
-  const mainPrompt = component.getByLabel("Main prompt");
+  const mainPrompt = component.getByLabel("Main prompt", { exact: true });
   await expect(mainPrompt).toHaveValue("Be terse.");
   await expect(mainPrompt).toBeDisabled();
 });
@@ -289,7 +289,7 @@ test("migrated tabs obey the server host field, NOT the first-seat proxy (member
   await expect(component.getByRole("tab", { name: "Preview" })).toHaveCount(0);
   // Overrides seed from the server value but stay read-only — the member cannot edit even though a
   // host holds the first human seat.
-  const mainPrompt = component.getByLabel("Main prompt");
+  const mainPrompt = component.getByLabel("Main prompt", { exact: true });
   await expect(mainPrompt).toHaveValue("Be terse.");
   await expect(mainPrompt).toBeDisabled();
 });
@@ -372,7 +372,7 @@ test("host editing an override autosaves (setRoomOverrides fires, empty ⇒ omit
   });
 
   const component = await mount(<ChatContextPanelStory />);
-  await component.getByLabel("Scenario").fill("A rainy dock.");
+  await component.getByLabel("Scenario", { exact: true }).fill("A rainy dock.");
 
   await expect.poll(() => trpc.count("chat.setRoomOverrides"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
   const input = trpc.lastInput("chat.setRoomOverrides") as {
@@ -392,10 +392,10 @@ test("host sets the author's-note depth — the injection directive is saved (ta
   });
 
   const component = await mount(<ChatContextPanelStory />);
-  await component.getByLabel("Author's note").fill("Keep it tense.");
+  await component.getByLabel("Author's note", { exact: true }).fill("Keep it tense.");
   // The NumberField seeds the house default depth; clear before typing so the value replaces, not appends.
-  await component.getByLabel("Depth").clear();
-  await component.getByLabel("Depth").fill("2");
+  await component.getByLabel("Depth", { exact: true }).clear();
+  await component.getByLabel("Depth", { exact: true }).fill("2");
 
   await expect
     .poll(() => {
@@ -425,9 +425,9 @@ test("assistant role at depth 0 surfaces the author's-note prefill warning", asy
   });
 
   const component = await mount(<ChatContextPanelStory />);
-  await component.getByLabel("Author's note").fill("Whisper it.");
-  await component.getByLabel("Depth").clear();
-  await component.getByLabel("Depth").fill("0");
+  await component.getByLabel("Author's note", { exact: true }).fill("Whisper it.");
+  await component.getByLabel("Depth", { exact: true }).clear();
+  await component.getByLabel("Depth", { exact: true }).fill("0");
   await component.getByRole("combobox", { name: "Role" }).click();
   await page.getByRole("option", { name: "Assistant" }).click();
 
@@ -444,15 +444,15 @@ test("an invalid author's-note combo does NOT hostage a sibling edit; fixing it 
 
   const component = await mount(<ChatContextPanelStory />);
   // Put the note into the invalid assistant@depth-0 prefill combo.
-  await component.getByLabel("Author's note").fill("Whisper it.");
-  await component.getByLabel("Depth").clear();
-  await component.getByLabel("Depth").fill("0");
+  await component.getByLabel("Author's note", { exact: true }).fill("Whisper it.");
+  await component.getByLabel("Depth", { exact: true }).clear();
+  await component.getByLabel("Depth", { exact: true }).fill("0");
   await component.getByRole("combobox", { name: "Role" }).click();
   await page.getByRole("option", { name: "Assistant" }).click();
   await expect(component.getByText("response prefill", { exact: false })).toBeVisible();
 
   // A sibling edit STILL persists — the whole-blob write carries scenario with the invalid note WITHHELD.
-  await component.getByLabel("Scenario").fill("A rainy dock.");
+  await component.getByLabel("Scenario", { exact: true }).fill("A rainy dock.");
   await expect
     .poll(() => {
       const last = trpc.lastInput("chat.setRoomOverrides") as {
@@ -469,8 +469,8 @@ test("an invalid author's-note combo does NOT hostage a sibling edit; fixing it 
   expect(invalidTurn.overrides).not.toHaveProperty("authorsNote");
 
   // Fixing the combo (depth ≥ 1) resumes note saves — the directive now lands with its host-set depth/role.
-  await component.getByLabel("Depth").clear();
-  await component.getByLabel("Depth").fill("1");
+  await component.getByLabel("Depth", { exact: true }).clear();
+  await component.getByLabel("Depth", { exact: true }).fill("1");
   await expect
     .poll(() => {
       const last = trpc.lastInput("chat.setRoomOverrides") as {

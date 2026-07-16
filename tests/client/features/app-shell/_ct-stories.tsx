@@ -19,13 +19,15 @@
 // (1280px > 48rem) the desktop icon column shows, matching production.
 
 import { AppShell, YouSheet } from "@orb/client/features/app-shell";
-import { createContributorRegistry } from "@orb/client/lib";
-import type { ChromeEntry } from "@orb/client/state";
+import { createContributorRegistry, defineContextTabs, VOID_STATE } from "@orb/client/lib";
+import type { ChromeEntry, SectionDefinition } from "@orb/client/state";
 import { ChromeRegistryProvider } from "@orb/client/state";
-import type { ReactElement } from "react";
+import { MessagesSquare } from "@orb/ui/icons";
+import type { ReactElement, ReactNode } from "react";
 import { useEffect } from "react";
 import { CustomThemeStyle } from "../../../../packages/client/src/features/app-shell/components/custom-theme-style";
 import { Rail } from "../../../../packages/client/src/features/app-shell/components/rail";
+import { SectionContextHeader } from "../../../../packages/client/src/features/app-shell/components/section-context-host";
 import "../../../../packages/client/src/features/app-shell/surfaces/shell.css";
 import type { ModalSlotId } from "../../../../packages/client/src/state/shell-store";
 import { openModal } from "../../../../packages/client/src/state/shell-store";
@@ -163,6 +165,45 @@ export function YouSheetProjectionStory(): ReactElement {
     <ChromeRegistryProvider value={chrome}>
       <YouSheet />
     </ChromeRegistryProvider>
+  );
+}
+
+/** A minimal fake SectionDefinition for exercising `SectionContextHeader` (N4) in isolation — real
+ *  rail/placeholder vocabulary, a caller-supplied `context` arm. */
+function fakeHeaderSection(context: SectionDefinition["context"]): SectionDefinition {
+  return {
+    id: "chats",
+    rail: { label: "Chats", icon: MessagesSquare, group: "primary", mobile: "tab" },
+    panelDefaults: { list: "docked", context: "docked" },
+    placeholder: { title: "Chats", description: "Fake section for the header-channel CT." },
+    content: { planned: "ct" },
+    context,
+  };
+}
+
+// Minted at MODULE scope (like every production section) so `useResolved` has a stable identity.
+const FAKE_HEADER_CONTEXT = defineContextTabs<void>({
+  useContextState: () => VOID_STATE,
+  tabs: [{ id: "t", label: "T", body: (): ReactNode => null }],
+  header: (): ReactNode => <span>Fake identity</span>,
+});
+
+/** The definition-owned CONTEXT header channel (N4): a fake section mints a `header` through
+ *  `defineContextTabs`; `SectionContextHeader` renders it blind in the band (no per-section switch). */
+export function SectionContextHeaderChannelStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <SectionContextHeader definition={fakeHeaderSection(FAKE_HEADER_CONTEXT)} />
+    </CtDataProviders>
+  );
+}
+
+/** A section supplying NO header (a `none` context) falls back to the neutral "Details" band label. */
+export function SectionContextHeaderDefaultStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <SectionContextHeader definition={fakeHeaderSection({ kind: "none" })} />
+    </CtDataProviders>
   );
 }
 

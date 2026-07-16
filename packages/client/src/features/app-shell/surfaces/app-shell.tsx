@@ -20,7 +20,7 @@ import { ModalHost } from "../components/modal-host";
 import { PanelChrome } from "../components/panel-chrome";
 import { Rail } from "../components/rail";
 import { SectionContent } from "../components/section-content";
-import { SectionContextHost } from "../components/section-context-host";
+import { SectionContextHeader, SectionContextHost } from "../components/section-context-host";
 import { SectionPlaceholder } from "../components/section-placeholder";
 import { ShellTopbar } from "../components/shell-topbar";
 import { ThemeBackgroundLayer } from "../components/theme-background-layer";
@@ -213,11 +213,7 @@ export function AppShell(): ReactElement {
             <PanelChrome
               panel="context"
               label={`${layout.activeSectionLabel} details`}
-              header={
-                <Text size="label" weight="medium" tone="muted">
-                  Details
-                </Text>
-              }
+              header={<SectionContextHeader key={layout.activeSection} definition={activeDef} />}
               mode={layout.contextMode}
             >
               <RegionAnchor region="context">

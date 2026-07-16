@@ -32,10 +32,16 @@ export interface ResolvedContextTab {
   readonly node: ReactNode;
 }
 
-/** The resolved CONTEXT-panel tab strip — when-filtered, own tabs then contributors, declared order. */
+/** The resolved CONTEXT-panel tab strip — when-filtered, own tabs then contributors, declared order.
+ *  `header` is the definition-owned CONTEXT-panel BAND slot (north-star §4 N4, P4): the active entity's
+ *  identity, resolved from the SAME `S` the tabs read (a committed chat's avatar + title). It renders in
+ *  the `.shell-panel-header` band (a different mount point than `tabs`/`actions`, which fill the body), so
+ *  `SectionContextHeader` consumes `header` while `ContextTabsPanel` consumes `tabs`/`actions` — one
+ *  resolve, two band/body consumers. Absent ⇒ the band shows the neutral "Details" default. */
 export interface ResolvedContextTabs {
   readonly tabs: readonly ResolvedContextTab[];
   readonly actions?: ReactNode;
+  readonly header?: ReactNode;
 }
 
 /** A section's CONTEXT-panel model — the four legacy wirings (registry-tabs · chat's bespoke Tabs ·
@@ -58,6 +64,10 @@ export interface ContextTabsSpec<S> {
   readonly useContextState: () => S | null;
   readonly tabs: readonly ContextTabDef<S>[];
   readonly actions?: (state: S) => ReactNode;
+  /** The CONTEXT-panel BAND identity (north-star §4 N4, P4) — the active entity's avatar + title, drawn
+   *  from the SAME `S` the tabs read. Definition-owned + mint-supplied (never a route-fed prop or a
+   *  shell-side per-section switch); the shell renders it blind via `SectionContextHeader`. */
+  readonly header?: (state: S) => ReactNode;
   /** §6c — injected at the door (M8); merged after own tabs, same `when` gating. */
   readonly contributors?: ContributorRegistry<ContextTabDef<S>>;
 }
@@ -75,7 +85,7 @@ export function resolveContextTabs<S>(spec: ContextTabsSpec<S>, state: S): Resol
       tabs.push({ id: tab.id, label: tab.label, node: tab.body(state) });
     }
   }
-  return { tabs, actions: spec.actions?.(state) };
+  return { tabs, actions: spec.actions?.(state), header: spec.header?.(state) };
 }
 
 /** THE mint (§6b) — pairs a projection hook with its tabs/contributors, closed over by a named
