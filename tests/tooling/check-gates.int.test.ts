@@ -368,6 +368,10 @@ function writeFixtures(): void {
     "packages/client/src/features/__g_listrow/surfaces/__g_listrow-surface.tsx",
     'import { LibrarySurfaceShell } from "#components";\ndeclare const items: { id: string; name: string }[];\ndeclare function select(item: unknown): void;\nexport const G = () => (\n  <LibrarySurfaceShell>\n    {items.map((item) => <div key={item.id} onClick={() => select(item)}>{item.name}</div>)}\n  </LibrarySurfaceShell>\n);\n',
   );
+  // ui-skin-fragment-purity: a variants file OUTSIDE packages/ui/src/lib/ re-spelling a homed skin
+  // fragment (the OVERLAY_ARROW diamond) by hand — the derive-W2 G25 seal. scanRoot covers ui/src sans
+  // lib/, so a __g_ primitive variants file trips the real-tree scan.
+  fx("packages/ui/src/primitives/__g_skinfrag/variants.ts", 'export const gArrow = "size-row rotate-45 border border-border bg-popover";\n');
   // feature-css-files: a .css file under features/** outside the shell.css allowlist
   // (client-architecture-lockdown.md §4/§16 G14). Reads via fs.globSync, not ts-morph, so the real-tree
   // fixture is picked up regardless of tsconfig excludes.
