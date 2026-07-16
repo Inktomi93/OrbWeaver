@@ -6,13 +6,11 @@
 // while closed, so every open mounts a FRESH form — a reopened dialog never shows the previous
 // attempt's values.
 
-import { Button } from "@orb/ui/button";
-import { Dialog, DialogDescription, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import { FormDialog, FormSubmitButton } from "#components";
 import { useInvalidation, useTRPC } from "#data";
-import { testId } from "#lib";
 import { useCreateUser } from "../hooks/use-admin-mutations";
 import { useCreateUserForm } from "../hooks/use-create-user-form";
 import type { CreateUserFormValues } from "../lib/admin-model";
@@ -29,17 +27,15 @@ export interface AdminCreateUserDialogProps {
 /** The dialog shell — the form body mounts fresh per open (Base UI unmounts closed popups). */
 export function AdminCreateUserDialog({ open, onOpenChange, viewerIsOwner }: AdminCreateUserDialogProps): ReactElement {
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogPopup data-testid={testId("adminCreateUserDialog")}>
-        <Stack gap="block">
-          <DialogTitle>Create user</DialogTitle>
-          <DialogDescription>
-            Mint a loginable local account. Admins can manage users and system settings; only the box owner can change roles later.
-          </DialogDescription>
-          <CreateUserFormBody viewerIsOwner={viewerIsOwner} onDone={(): void => onOpenChange(false)} />
-        </Stack>
-      </DialogPopup>
-    </Dialog>
+    <FormDialog
+      description="Mint a loginable local account. Admins can manage users and system settings; only the box owner can change roles later."
+      onOpenChange={onOpenChange}
+      open={open}
+      testKey="adminCreateUserDialog"
+      title="Create user"
+    >
+      <CreateUserFormBody viewerIsOwner={viewerIsOwner} onDone={(): void => onOpenChange(false)} />
+    </FormDialog>
   );
 }
 
@@ -83,18 +79,14 @@ function CreateUserFormBody({ viewerIsOwner, onDone }: { readonly viewerIsOwner:
           Couldn't create the user — that handle may already be taken.
         </Text>
       )}
-      <Stack align="end">
-        <Button
-          intent="primary"
-          disabled={createUser.isPending}
-          data-testid={testId("adminCreateUserSubmit")}
-          onClick={(): void => {
-            void form.handleSubmit();
-          }}
-        >
-          {createUser.isPending ? "Creating…" : "Create user"}
-        </Button>
-      </Stack>
+      <FormSubmitButton
+        disabled={createUser.isPending}
+        label={createUser.isPending ? "Creating…" : "Create user"}
+        onSubmit={(): void => {
+          void form.handleSubmit();
+        }}
+        testKey="adminCreateUserSubmit"
+      />
     </Stack>
   );
 }

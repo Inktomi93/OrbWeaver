@@ -515,6 +515,12 @@ function writeFixtures(): void {
   fx("packages/client/src/state/__g_gdrill-selection-store.ts", 'export const useGDrill = createGatedStore("g-drill-selection", () => ({ id: null }));\n');
   // bound-field-via-hook: a bound field importing the raw useFieldContext door instead of useBoundField (G28).
   fx("packages/client/src/forms/bound-fields/__g_field.tsx", 'import { useFieldContext } from "../contexts";\nexport const f = useFieldContext;\n');
+  // dialog-via-composite: a features/** file importing the raw Dialog root from @orb/ui/dialog, not on the
+  // allowlist — the FormDialog/ConfirmDialog composite door (derive-modernization-audit.md §W1 G24).
+  fx(
+    "packages/client/src/features/__g_dialog/components/__g_dialog.tsx",
+    'import { Dialog, DialogPopup, DialogTitle } from "@orb/ui/dialog";\nexport const G = <Dialog><DialogPopup><DialogTitle>x</DialogTitle></DialogPopup></Dialog>;\n',
+  );
 }
 
 // Registered gates that CANNOT be driven by an injected `__g_` fixture — whole-corpus ratchets whose

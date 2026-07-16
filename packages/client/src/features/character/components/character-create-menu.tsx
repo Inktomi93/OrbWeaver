@@ -5,7 +5,7 @@
 
 import { slugifyHandle } from "@orb/kit/slug";
 import { Button } from "@orb/ui/button";
-import { Dialog, DialogClose, DialogDescription, DialogPopup, DialogTitle } from "@orb/ui/dialog";
+import { DialogClose } from "@orb/ui/dialog";
 import { FileDropzone } from "@orb/ui/file-dropzone";
 import { Icon, Plus } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
@@ -15,6 +15,7 @@ import { Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { FormDialog } from "#components";
 import { importCharacters, useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
 import { selectCharacter } from "#state";
@@ -89,50 +90,43 @@ export function CharacterCreateMenu(): ReactElement {
         </MenuPopup>
       </Menu>
 
-      <Dialog onOpenChange={setCreateOpen} open={createOpen}>
-        <DialogPopup>
-          <Stack gap="block">
-            <DialogTitle>New character</DialogTitle>
-            <DialogDescription>Give them a name and a one-line description — you can flesh out the rest in the editor.</DialogDescription>
-            <Stack gap="field">
-              <Text as="span" size="label" tone="muted">
-                Name
-              </Text>
-              <Input aria-label="Character name" onValueChange={setName} placeholder="Elara Vance" value={name} />
-              <Text as="span" size="label" tone="muted">
-                Description
-              </Text>
-              <Textarea
-                aria-label="Character description"
-                onChange={(event): void => setDescription(event.target.value)}
-                placeholder="A wandering cartographer with a sharp tongue."
-                value={description}
-              />
-            </Stack>
-            {incomplete ? (
-              <Text size="label" tone="muted">
-                A name and a description are both required.
-              </Text>
-            ) : null}
-            <Row gap="field" justify="end">
-              <DialogClose render={<Button intent="ghost">Cancel</Button>} />
-              <Button disabled={incomplete || create.isPending} intent="primary" onClick={onCreate}>
-                Create
-              </Button>
-            </Row>
-          </Stack>
-        </DialogPopup>
-      </Dialog>
+      <FormDialog
+        description="Give them a name and a one-line description — you can flesh out the rest in the editor."
+        onOpenChange={setCreateOpen}
+        open={createOpen}
+        title="New character"
+      >
+        <Stack gap="field">
+          <Text as="span" size="label" tone="muted">
+            Name
+          </Text>
+          <Input aria-label="Character name" onValueChange={setName} placeholder="Elara Vance" value={name} />
+          <Text as="span" size="label" tone="muted">
+            Description
+          </Text>
+          <Textarea
+            aria-label="Character description"
+            onChange={(event): void => setDescription(event.target.value)}
+            placeholder="A wandering cartographer with a sharp tongue."
+            value={description}
+          />
+        </Stack>
+        {incomplete ? (
+          <Text size="label" tone="muted">
+            A name and a description are both required.
+          </Text>
+        ) : null}
+        <Row gap="field" justify="end">
+          <DialogClose render={<Button intent="ghost">Cancel</Button>} />
+          <Button disabled={incomplete || create.isPending} intent="primary" onClick={onCreate}>
+            Create
+          </Button>
+        </Row>
+      </FormDialog>
 
-      <Dialog onOpenChange={setImportOpen} open={importOpen}>
-        <DialogPopup>
-          <Stack gap="block">
-            <DialogTitle>Import card</DialogTitle>
-            <DialogDescription>Drop a SillyTavern character card (PNG or JSON).</DialogDescription>
-            <FileDropzone accept={CARD_ACCEPT} multiple={true} onFilesSelected={({ accepted }): void => onImportFiles(accepted)} />
-          </Stack>
-        </DialogPopup>
-      </Dialog>
+      <FormDialog description="Drop a SillyTavern character card (PNG or JSON)." onOpenChange={setImportOpen} open={importOpen} title="Import card">
+        <FileDropzone accept={CARD_ACCEPT} multiple={true} onFilesSelected={({ accepted }): void => onImportFiles(accepted)} />
+      </FormDialog>
     </>
   );
 }

@@ -8,11 +8,12 @@
 
 import type { CredentialProvider, ProviderMetadata } from "@orb/contracts/credentials";
 import { Button } from "@orb/ui/button";
-import { Dialog, DialogClose, DialogDescription, DialogPopup, DialogTitle } from "@orb/ui/dialog";
+import { DialogClose } from "@orb/ui/dialog";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { FormDialog } from "#components";
 import type { Invalidation, Trpc } from "#data";
 import { useAddCredentialForm } from "../hooks/use-add-credential-form";
 import { useAddCredential, useFetchModels } from "../hooks/use-connections-mutations";
@@ -28,15 +29,14 @@ export interface AddCredentialDialogProps {
 
 export function AddCredentialDialog({ open, onOpenChange, trpc, invalidation }: AddCredentialDialogProps): ReactElement {
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogPopup>
-        <Stack gap="block">
-          <DialogTitle>Add a provider key</DialogTitle>
-          <DialogDescription>The key is encrypted at rest and never shown again — only its provider and label appear in the list.</DialogDescription>
-          <AddCredentialFormBody trpc={trpc} invalidation={invalidation} onDone={(): void => onOpenChange(false)} />
-        </Stack>
-      </DialogPopup>
-    </Dialog>
+    <FormDialog
+      description="The key is encrypted at rest and never shown again — only its provider and label appear in the list."
+      onOpenChange={onOpenChange}
+      open={open}
+      title="Add a provider key"
+    >
+      <AddCredentialFormBody trpc={trpc} invalidation={invalidation} onDone={(): void => onOpenChange(false)} />
+    </FormDialog>
   );
 }
 

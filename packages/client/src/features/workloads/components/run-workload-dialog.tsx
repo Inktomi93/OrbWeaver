@@ -16,6 +16,7 @@ import type { SelectOption } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
+import { FormDialog, FormSubmitButton } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
 import { timeLib } from "#lib";
@@ -32,7 +33,6 @@ import {
   workloadKindNeedsBulkTarget,
 } from "../lib/workloads-model";
 import { parseRunAt } from "../lib/workloads-run-model";
-import { WorkloadFormDialog, WorkloadSubmitButton } from "./workload-dialog-scaffold";
 import { WorkloadParamFields } from "./workload-kind-fields";
 
 type AdminUser = inferOutput<Trpc["admin"]["listUsers"]>[number];
@@ -57,7 +57,7 @@ export interface RunWorkloadDialogProps {
 
 export function RunWorkloadDialog({ open, onOpenChange, viewerIsOwner, users, dependencyCandidates }: RunWorkloadDialogProps): ReactElement {
   return (
-    <WorkloadFormDialog
+    <FormDialog
       description="Runs a background job over your own library. It queues immediately; progress shows live in the list."
       onOpenChange={onOpenChange}
       open={open}
@@ -65,7 +65,7 @@ export function RunWorkloadDialog({ open, onOpenChange, viewerIsOwner, users, de
       title="Run a workload"
     >
       <RunWorkloadFormBody dependencyCandidates={dependencyCandidates} onDone={(): void => onOpenChange(false)} users={users} viewerIsOwner={viewerIsOwner} />
-    </WorkloadFormDialog>
+    </FormDialog>
   );
 }
 
@@ -194,7 +194,7 @@ function RunWorkloadFormBody({
           Couldn't start the workload — a run of that kind may already be active.
         </Text>
       )}
-      <WorkloadSubmitButton
+      <FormSubmitButton
         disabled={start.isPending}
         label={start.isPending ? "Starting…" : "Run workload"}
         onSubmit={(): void => {

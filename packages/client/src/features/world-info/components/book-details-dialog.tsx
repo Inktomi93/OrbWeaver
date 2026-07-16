@@ -6,13 +6,14 @@
 // the library row kebab) and for editing the open book's header in CONTENT.
 
 import { Button } from "@orb/ui/button";
-import { Dialog, DialogClose, DialogPopup, DialogTitle } from "@orb/ui/dialog";
+import { DialogClose } from "@orb/ui/dialog";
 import { Field } from "@orb/ui/field";
 import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";
 import { Textarea } from "@orb/ui/textarea";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { FormDialog } from "#components";
 
 interface BookDetailsPatch {
   readonly name: string;
@@ -37,8 +38,7 @@ export function BookDetailsDialog({ open, onOpenChange, currentName, currentDesc
   const canSave = trimmedName !== "";
 
   return (
-    <Dialog
-      open={open}
+    <FormDialog
       onOpenChange={(next): void => {
         // Re-seed on each open so a cancelled edit doesn't carry into the next open.
         if (next) {
@@ -47,40 +47,39 @@ export function BookDetailsDialog({ open, onOpenChange, currentName, currentDesc
         }
         onOpenChange(next);
       }}
+      open={open}
+      title="Book details"
     >
-      <DialogPopup>
-        <DialogTitle>Book details</DialogTitle>
-        <form
-          onSubmit={(event): void => {
-            event.preventDefault();
-            if (canSave) {
-              onSave({ name: trimmedName, description: description.trim() });
-              onOpenChange(false);
-            }
-          }}
-        >
-          <Stack gap="block">
-            <Field label="Name">
-              <Input
-                value={name}
-                onValueChange={setName}
-                placeholder="Book name"
-                // eslint-disable-next-line jsx-a11y/no-autofocus
-                autoFocus={true}
-              />
-            </Field>
-            <Field label="Description" description="An optional note for the library — never injected.">
-              <Textarea value={description} onChange={(event): void => setDescription(event.target.value)} placeholder="Optional" rows={3} />
-            </Field>
-            <Row gap="field" justify="end">
-              <DialogClose render={<Button intent="ghost">Cancel</Button>} />
-              <Button intent="primary" type="submit" disabled={!canSave}>
-                Save
-              </Button>
-            </Row>
-          </Stack>
-        </form>
-      </DialogPopup>
-    </Dialog>
+      <form
+        onSubmit={(event): void => {
+          event.preventDefault();
+          if (canSave) {
+            onSave({ name: trimmedName, description: description.trim() });
+            onOpenChange(false);
+          }
+        }}
+      >
+        <Stack gap="block">
+          <Field label="Name">
+            <Input
+              value={name}
+              onValueChange={setName}
+              placeholder="Book name"
+              // eslint-disable-next-line jsx-a11y/no-autofocus
+              autoFocus={true}
+            />
+          </Field>
+          <Field label="Description" description="An optional note for the library — never injected.">
+            <Textarea value={description} onChange={(event): void => setDescription(event.target.value)} placeholder="Optional" rows={3} />
+          </Field>
+          <Row gap="field" justify="end">
+            <DialogClose render={<Button intent="ghost">Cancel</Button>} />
+            <Button intent="primary" type="submit" disabled={!canSave}>
+              Save
+            </Button>
+          </Row>
+        </Stack>
+      </form>
+    </FormDialog>
   );
 }

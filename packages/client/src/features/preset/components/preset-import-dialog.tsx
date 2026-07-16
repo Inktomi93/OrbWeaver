@@ -6,13 +6,14 @@
 import type { StDroppedField, StImportResult } from "@orb/contracts/preset";
 import { importStChatCompletionPreset } from "@orb/contracts/preset";
 import { Button } from "@orb/ui/button";
-import { Dialog, DialogClose, DialogDescription, DialogPopup, DialogTitle } from "@orb/ui/dialog";
+import { DialogClose } from "@orb/ui/dialog";
 import { FileDropzone } from "@orb/ui/file-dropzone";
 import { AlertTriangle, Icon } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { FormDialog } from "#components";
 
 /** The `.json` extension, stripped off the picked filename to seed the preset name. */
 const JSON_EXT = /\.json$/i;
@@ -57,62 +58,57 @@ export function PresetImportDialog({ open, onOpenChange, onImport, creating }: P
   };
 
   return (
-    <Dialog
-      open={open}
+    <FormDialog
+      description="Pick a SillyTavern Chat Completion preset (.json). It's parsed in your browser and saved as a new preset — nothing is uploaded."
       onOpenChange={(next): void => {
         if (!next) {
           reset();
         }
         onOpenChange(next);
       }}
+      open={open}
+      title="Import a SillyTavern preset"
     >
-      <DialogPopup>
-        <DialogTitle>Import a SillyTavern preset</DialogTitle>
-        <DialogDescription>
-          Pick a SillyTavern Chat Completion preset (.json). It's parsed in your browser and saved as a new preset — nothing is uploaded.
-        </DialogDescription>
+      <Stack gap="block">
+        <FileDropzone
+          accept="application/json,.json"
+          instructions="Drop a preset .json, or click to browse"
+          hint="SillyTavern Chat Completion presets only"
+          onFilesSelected={(result): void => {
+            const first = result.accepted[0];
+            if (first !== undefined) {
+              onFile(first);
+            }
+          }}
+        />
 
-        <Stack gap="block">
-          <FileDropzone
-            accept="application/json,.json"
-            instructions="Drop a preset .json, or click to browse"
-            hint="SillyTavern Chat Completion presets only"
-            onFilesSelected={(result): void => {
-              const first = result.accepted[0];
-              if (first !== undefined) {
-                onFile(first);
-              }
-            }}
-          />
+        {error !== null ? (
+          <Row gap="field" align="start">
+            <Icon icon={AlertTriangle} size="sm" />
+            <Text size="body" tone="destructive">
+              {error}
+            </Text>
+          </Row>
+        ) : null}
 
-          {error !== null ? (
-            <Row gap="field" align="start">
-              <Icon icon={AlertTriangle} size="sm" />
-              <Text size="body" tone="destructive">
-                {error}
-              </Text>
-            </Row>
-          ) : null}
+        {parsed !== null ? <ImportSummary parsed={parsed} /> : null}
+      </Stack>
 
-          {parsed !== null ? <ImportSummary parsed={parsed} /> : null}
-        </Stack>
-
-        <Row gap="field" justify="end">
-          <DialogClose render={<Button intent="ghost">Cancel</Button>} />
-          <Button
-            intent="primary"
-            disabled={parsed === null || creating}
-            onClick={(): void => {
-              if (parsed !== null) {
-                onImport({ name: parsed.name, config: parsed.result.config });
-              }
-            }}
-          >
-            Import preset
-          </Button>
-        </Row>
-      </DialogPopup>
-    </Dialog>
+      <Row gap="field" justify="end">
+        <DialogClose render={<Button intent="ghost">Cancel</Button>} />
+        <Button
+          intent="primary"
+          disabled={parsed === null || creating}
+          onClick={(): void => {
+            if (parsed !== null) {
+              onImport({ name: parsed.name, config: parsed.result.config });
+            }
+          }}
+        >
+          Import preset
+        </Button>
+      </Row>
+    </FormDialog>
   );
 }
 

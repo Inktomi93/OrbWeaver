@@ -14,6 +14,7 @@ import type { SelectItems } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
+import { FormDialog, FormSubmitButton } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
 import { useCreateScheduleForm } from "../hooks/use-create-schedule-form";
@@ -21,7 +22,6 @@ import { useCreateSchedule, useUpdateSchedule } from "../hooks/use-workload-muta
 import { buildStartInput, isMaintenanceWorkloadKind, isStartableWorkloadKind, workloadKindItems } from "../lib/workloads-model";
 import type { CreateScheduleFormValues } from "../lib/workloads-schedule-model";
 import { resolveScheduleMode, SCHEDULE_CADENCE_ITEMS, scheduleFormValuesFromRow, workloadKindBulkSchedulable } from "../lib/workloads-schedule-model";
-import { WorkloadFormDialog, WorkloadSubmitButton } from "./workload-dialog-scaffold";
 import { WorkloadParamFields } from "./workload-kind-fields";
 
 type ScheduleItem = inferOutput<Trpc["workloads"]["listSchedules"]>[number];
@@ -43,7 +43,7 @@ export interface EditScheduleDialogProps {
 
 export function CreateScheduleDialog({ open, onOpenChange, viewerIsOwner }: CreateScheduleDialogProps): ReactElement {
   return (
-    <WorkloadFormDialog
+    <FormDialog
       description="Runs a background job on a recurring cadence. Each run queues automatically and shows in the Jobs list."
       onOpenChange={onOpenChange}
       open={open}
@@ -51,13 +51,13 @@ export function CreateScheduleDialog({ open, onOpenChange, viewerIsOwner }: Crea
       title="Create a schedule"
     >
       <ScheduleFormBody onDone={(): void => onOpenChange(false)} viewerIsOwner={viewerIsOwner} />
-    </WorkloadFormDialog>
+    </FormDialog>
   );
 }
 
 export function EditScheduleDialog({ open, onOpenChange, viewerIsOwner, schedule }: EditScheduleDialogProps): ReactElement {
   return (
-    <WorkloadFormDialog
+    <FormDialog
       description="Retune this recurring job — change what it runs, its cadence, or (owner) its scope. Enable and pause stay on the row switch."
       onOpenChange={onOpenChange}
       open={open}
@@ -65,7 +65,7 @@ export function EditScheduleDialog({ open, onOpenChange, viewerIsOwner, schedule
       title="Edit schedule"
     >
       <ScheduleFormBody onDone={(): void => onOpenChange(false)} schedule={schedule} viewerIsOwner={viewerIsOwner} />
-    </WorkloadFormDialog>
+    </FormDialog>
   );
 }
 
@@ -148,7 +148,7 @@ function ScheduleFormBody({
           {isEdit ? "Couldn't update the schedule. Try again." : "Couldn't create the schedule. Try again."}
         </Text>
       ) : null}
-      <WorkloadSubmitButton
+      <FormSubmitButton
         disabled={isPending}
         label={submitLabel}
         onSubmit={(): void => {

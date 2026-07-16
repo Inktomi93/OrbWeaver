@@ -4,11 +4,12 @@
 // passes the current name (seed) + `onRename`; local input state is committed on submit.
 
 import { Button } from "@orb/ui/button";
-import { Dialog, DialogClose, DialogPopup, DialogTitle } from "@orb/ui/dialog";
+import { DialogClose } from "@orb/ui/dialog";
 import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { FormDialog } from "#components";
 
 export interface PresetRenameDialogProps {
   readonly open: boolean;
@@ -25,8 +26,7 @@ export function PresetRenameDialog({ open, onOpenChange, currentName, onRename }
   const canSave = trimmed !== "" && trimmed !== currentName;
 
   return (
-    <Dialog
-      open={open}
+    <FormDialog
       onOpenChange={(next): void => {
         // Re-seed on each open so a cancelled edit doesn't carry into the next rename.
         if (next) {
@@ -34,36 +34,35 @@ export function PresetRenameDialog({ open, onOpenChange, currentName, onRename }
         }
         onOpenChange(next);
       }}
+      open={open}
+      title="Rename preset"
     >
-      <DialogPopup>
-        <DialogTitle>Rename preset</DialogTitle>
-        <form
-          onSubmit={(event): void => {
-            event.preventDefault();
-            if (canSave) {
-              onRename(trimmed);
-              onOpenChange(false);
-            }
-          }}
-        >
-          <Stack gap="block">
-            <Input
-              value={name}
-              onValueChange={setName}
-              aria-label="Preset name"
-              placeholder="Preset name"
-              // eslint-disable-next-line jsx-a11y/no-autofocus
-              autoFocus={true}
-            />
-            <Row gap="field" justify="end">
-              <DialogClose render={<Button intent="ghost">Cancel</Button>} />
-              <Button intent="primary" type="submit" disabled={!canSave}>
-                Save
-              </Button>
-            </Row>
-          </Stack>
-        </form>
-      </DialogPopup>
-    </Dialog>
+      <form
+        onSubmit={(event): void => {
+          event.preventDefault();
+          if (canSave) {
+            onRename(trimmed);
+            onOpenChange(false);
+          }
+        }}
+      >
+        <Stack gap="block">
+          <Input
+            value={name}
+            onValueChange={setName}
+            aria-label="Preset name"
+            placeholder="Preset name"
+            // eslint-disable-next-line jsx-a11y/no-autofocus
+            autoFocus={true}
+          />
+          <Row gap="field" justify="end">
+            <DialogClose render={<Button intent="ghost">Cancel</Button>} />
+            <Button intent="primary" type="submit" disabled={!canSave}>
+              Save
+            </Button>
+          </Row>
+        </Stack>
+      </form>
+    </FormDialog>
   );
 }

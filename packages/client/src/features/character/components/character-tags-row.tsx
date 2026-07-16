@@ -9,13 +9,12 @@ import type { TagView } from "@orb/contracts/tag";
 import type { CharacterId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
-import { Dialog, DialogClose, DialogDescription, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { Icon, Plus, X } from "@orb/ui/icons";
-import { Input } from "@orb/ui/input";
-import { Row, Stack } from "@orb/ui/layout";
+import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { TagPickerDialog } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation } from "#data";
 import { useBulkAddCardTag, useBulkRemoveCardTag } from "../hooks/use-character-mutations";
@@ -33,16 +32,9 @@ export function CharacterTagsRow({ characterId, tags, trpc }: CharacterTagsRowPr
   const addTag = useBulkAddCardTag({ trpc, invalidation });
   const removeTag = useBulkRemoveCardTag({ trpc, invalidation });
   const [open, setOpen] = useState(false);
-  const [tagName, setTagName] = useState("");
 
-  const applyTag = (): void => {
-    const trimmed = tagName.trim();
-    if (trimmed === "") {
-      return;
-    }
-    addTag.mutate({ tagName: trimmed, characterIds: [characterId] });
-    setOpen(false);
-    setTagName("");
+  const applyTag = (name: string): void => {
+    addTag.mutate({ tagName: name, characterIds: [characterId] });
   };
 
   const visible = tags.filter((tag) => !tag.isHiddenOnCard);
@@ -72,21 +64,14 @@ export function CharacterTagsRow({ characterId, tags, trpc }: CharacterTagsRowPr
         <Icon icon={Plus} size="sm" />
         Add tag
       </Button>
-      <Dialog onOpenChange={setOpen} open={open}>
-        <DialogPopup>
-          <Stack gap="block">
-            <DialogTitle>Tag this character</DialogTitle>
-            <DialogDescription>Attach an existing tag, or type a new one to create it.</DialogDescription>
-            <Input aria-label="Tag name" onValueChange={setTagName} placeholder="e.g. adventure" value={tagName} />
-            <Row gap="field" justify="end">
-              <DialogClose render={<Button intent="ghost">Cancel</Button>} />
-              <Button disabled={tagName.trim() === ""} intent="primary" onClick={applyTag}>
-                Apply
-              </Button>
-            </Row>
-          </Stack>
-        </DialogPopup>
-      </Dialog>
+      <TagPickerDialog
+        confirmLabel="Apply"
+        description="Attach an existing tag, or type a new one to create it."
+        onOpenChange={setOpen}
+        onSubmit={applyTag}
+        open={open}
+        title="Tag this character"
+      />
     </Row>
   );
 }
