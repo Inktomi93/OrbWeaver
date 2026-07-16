@@ -93,7 +93,7 @@ function FilterChip({ filter }: { readonly filter: ChatListCharacterFilter }): R
       <Text size="micro" tone="muted" transform="caps">
         Filtered:
       </Text>
-      <Badge intent="info" size="sm">
+      <Badge intent="info" size="sm" tone="soft">
         {filter.name}
       </Badge>
       <Button aria-label={`Clear the ${filter.name} filter`} intent="ghost" onClick={clearChatListCharacterFilter} size="icon" type="button">

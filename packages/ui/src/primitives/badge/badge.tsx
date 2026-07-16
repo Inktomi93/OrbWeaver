@@ -10,8 +10,9 @@ export interface BadgeProps extends ComponentProps<"span">, VariantProps<typeof 
  * same primitive, so features never re-author them. Compose a leading `<Icon>` from
  * `@orb/ui/icons` as the first child for an icon+label chip (ui-package-design §6.1).
  *
- * Usage: `<Badge intent="success" size="sm">Active</Badge>`.
+ * Usage: `<Badge intent="success" size="sm">Active</Badge>`. `tone="soft"` swaps the filled pill for a
+ * tinted variant (15% background + intent-colored text + hairline border) — the status-chip look.
  */
-export function Badge({ className, intent, size, ...props }: BadgeProps): ReactElement {
-  return <span data-slot="badge" {...props} className={cn(badgeVariants({ intent, size }), className)} />;
+export function Badge({ className, intent, tone, size, ...props }: BadgeProps): ReactElement {
+  return <span data-slot="badge" {...props} className={cn(badgeVariants({ intent, tone, size }), className)} />;
 }

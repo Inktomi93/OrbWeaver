@@ -80,6 +80,10 @@ const DOCUMENTED_STATIC = new Map<string, string>([
     "audited-static (#16) — the highlight (search-match) semantic surface is outside the ThemeScope override subset (§12.1); a fixed base needs no derived fg.",
   ],
   [
+    "--color-info-foreground",
+    "audited-static (#16, north-star PP1) — the info semantic surface is a fixed status hue outside the ThemeScope override subset (§12.1; deliberately NOT in clampThemeTokens); a fixed base needs no derived fg.",
+  ],
+  [
     "--color-success-foreground",
     "audited-static (#16) — the success semantic surface is outside the ThemeScope override subset (§12.1); a fixed base needs no derived fg.",
   ],

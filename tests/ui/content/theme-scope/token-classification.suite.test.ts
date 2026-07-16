@@ -60,6 +60,7 @@ const STATIC_RATIONALE = new Set<string>([
   "color.warning",
   "color.warning-foreground",
   "color.info",
+  "color.info-foreground",
   "color.highlight",
   "color.highlight-foreground",
   "color.sidebar-primary",
