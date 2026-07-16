@@ -135,7 +135,7 @@ export function SectionRow({ form, section, index, zone, selected, onSelect }: S
 
       <form.AppField name={`sections[${index}].enabled`}>
         {(field): ReactElement => (
-          <Switch aria-label={`${name} enabled`} checked={field.state.value} onCheckedChange={(next): void => field.handleChange(next)} />
+          <Switch aria-label={`${name} enabled`} checked={field.state.value} onCheckedChange={(next): void => field.handleChange(next)} tone="quiet" />
         )}
       </form.AppField>
     </Row>

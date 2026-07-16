@@ -49,7 +49,7 @@ export function PivotBand({ form, index, duplicate }: PivotBandProps): ReactElem
         </Stack>
         <form.AppField name={`sections[${index}].enabled`}>
           {(field): ReactElement => (
-            <Switch aria-label="Chat history enabled" checked={field.state.value} onCheckedChange={(next): void => field.handleChange(next)} />
+            <Switch aria-label="Chat history enabled" checked={field.state.value} onCheckedChange={(next): void => field.handleChange(next)} tone="quiet" />
           )}
         </form.AppField>
       </Row>
