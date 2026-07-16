@@ -23,6 +23,7 @@
 // its own co-located *-pane.tsx defs) PLUS the zone-keyed chrome-entry array (arm 5, its own allowlist).
 import type { Expression, ObjectLiteralExpression, Project, SourceFile, TypeNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { readStringValue } from "../ast-read.ts";
 import type { GateDescriptor } from "../contract.ts";
 import type { Violation } from "../harness.ts";
 
@@ -74,8 +75,9 @@ function readTuple(project: Project, tupleConst: string): ReadonlySet<string> {
     const arr = Node.isAsExpression(init) ? init.getExpression() : init;
     if (Node.isArrayLiteralExpression(arr)) {
       for (const el of arr.getElements()) {
-        if (Node.isStringLiteral(el)) {
-          ids.add(el.getLiteralText());
+        const value = readStringValue(el);
+        if (value !== undefined) {
+          ids.add(value);
         }
       }
     }
@@ -151,7 +153,7 @@ function elementId(el: ObjectLiteralExpression): string | undefined {
     return;
   }
   const init = prop.getInitializer();
-  return init !== undefined && Node.isStringLiteral(init) ? init.getLiteralText() : undefined;
+  return init === undefined ? undefined : readStringValue(init);
 }
 
 /** An array literal whose elements are object literals each carrying an `id:` that is a vocab id, ≥2
@@ -176,11 +178,8 @@ function isVocabArray(arr: readonly ObjectLiteralExpression[], ids: ReadonlySet<
 function isVocabStringArray(elements: readonly Expression[], ids: ReadonlySet<string>): boolean {
   const covered = new Set<string>();
   for (const el of elements) {
-    if (!Node.isStringLiteral(el)) {
-      return false;
-    }
-    const text = el.getLiteralText();
-    if (!ids.has(text)) {
+    const text = readStringValue(el);
+    if (text === undefined || !ids.has(text)) {
       return false;
     }
     covered.add(text);
@@ -265,7 +264,7 @@ function elementZone(el: ObjectLiteralExpression, zones: ReadonlySet<string>): s
     return;
   }
   const init = prop.getInitializer();
-  const text = init !== undefined && Node.isStringLiteral(init) ? init.getLiteralText() : undefined;
+  const text = init === undefined ? undefined : readStringValue(init);
   return text !== undefined && zones.has(text) ? text : undefined;
 }
 
@@ -388,6 +387,14 @@ export const gate: GateDescriptor = {
       },
       expect: { messageIncludes: "the deleted YOU_MODAL_IDS shape" },
       why: "a bare string array of ≥2 ModalSlotIds outside an allowlisted home — the deleted YOU_MODAL_IDS shape (the G2 gap a fresh verifier found: a bare id array has zero object elements, invisible to the `{id:…}` array arm)",
+    },
+    {
+      files: {
+        "packages/client/src/state/shell-store.ts": 'export const MODAL_SLOT_IDS = ["theme", "settings", "account"] as const;\n',
+        "packages/client/src/features/x/lib/you-modal-ids.ts": 'export const YOU_MODAL_IDS = ["account" as const, "settings" as const];\n',
+      },
+      expect: { messageIncludes: "the deleted YOU_MODAL_IDS shape" },
+      why: "the same bare-id array with each element written `x as const` (AsExpression) — the wrapped-literal shape the plain StringLiteral element reader silently PASSED before hardening",
     },
     {
       files: {

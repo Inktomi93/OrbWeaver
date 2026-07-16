@@ -4,6 +4,7 @@
 // factories. Two arms: (1) RAW-STORAGE — a bare localStorage/sessionStorage/indexedDB identifier in
 // packages/client/src outside ALLOWLIST is RED. (2) REGISTRY — a ratchet: every persist-factory call site must name a DEVICE_LOCAL_REGISTRY entry.
 import { Node, SyntaxKind } from "ts-morph";
+import { readStringValue } from "../ast-read.ts";
 import type { GateDescriptor } from "../contract.ts";
 import { fileLoaded } from "../pass.ts";
 
@@ -63,12 +64,9 @@ function clientRel(path: string): string | undefined {
   return `packages/client/src/${path.slice(idx + CLIENT_SRC.length)}`;
 }
 
-/** `createPersistedStore("<name>", …)` → the name literal. */
+/** `createPersistedStore("<name>", …)` → the name literal (through any as/satisfies/paren wrapper). */
 function nameFromPersistedStore(arg: Node | undefined): string | undefined {
-  if (arg === undefined || !Node.isStringLiteral(arg)) {
-    return;
-  }
-  return arg.getLiteralText();
+  return arg === undefined ? undefined : readStringValue(arg);
 }
 
 /** `createEntityDraftStore({ name: "<name>", … })` → the name literal. */
@@ -81,10 +79,7 @@ function nameFromDraftStore(arg: Node | undefined): string | undefined {
     return;
   }
   const value = nameProp.getInitializer();
-  if (value === undefined || !Node.isStringLiteral(value)) {
-    return;
-  }
-  return value.getLiteralText();
+  return value === undefined ? undefined : readStringValue(value);
 }
 
 /** The literal name a factory call persists under, or undefined if `call` isn't a factory call. */
@@ -181,6 +176,12 @@ export const gate: GateDescriptor = {
       at: "packages/client/src/state/x.ts",
       expect: { messageIncludes: "not in DEVICE_LOCAL_REGISTRY" },
       why: "a persisted store name not in the registry — a new device-local persist is a reviewed act",
+    },
+    {
+      files: 'export const s = createPersistedStore("unregistered-name" as string, () => ({}));\n',
+      at: "packages/client/src/state/x.ts",
+      expect: { messageIncludes: "not in DEVICE_LOCAL_REGISTRY" },
+      why: 'the same unregistered name written `"unregistered-name" as string` (AsExpression) — the wrapped-literal shape the plain StringLiteral reader silently PASSED (skipping the ratchet) before hardening',
     },
   ],
   mustPass: [

@@ -10,6 +10,7 @@
 //     `*-settings-surface` body directly instead of reading it off the registry.
 import type { ObjectLiteralExpression, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { readStringValue } from "../ast-read.ts";
 import type { GateDescriptor } from "../contract.ts";
 import type { Violation } from "../harness.ts";
 
@@ -30,10 +31,10 @@ function objProp(obj: ObjectLiteralExpression, name: string): Node | undefined {
   return prop !== undefined && Node.isPropertyAssignment(prop) ? prop.getInitializer() : undefined;
 }
 
-/** A pane definition's declared `id` string literal, or undefined. */
+/** A pane definition's declared `id` string literal (through any as/satisfies/paren wrapper), or undefined. */
 function paneId(pane: ObjectLiteralExpression): string | undefined {
   const id = objProp(pane, "id");
-  return id !== undefined && Node.isStringLiteral(id) ? id.getLiteralText() : undefined;
+  return id === undefined ? undefined : readStringValue(id);
 }
 
 /** Does this subtree render a `<SettingsPanePlaceholder …>` (open or self-closing) JSX element — the
@@ -181,6 +182,14 @@ export const gate: GateDescriptor = {
       },
       expect: { messageIncludes: "already claimed by" },
       why: "two co-located SettingsPaneDefinitions declaring the SAME id — the shadow-def duplicate-id arm",
+    },
+    {
+      files: {
+        "packages/client/src/features/a/lib/a-pane.ts": "export const aPane: SettingsPaneDefinition = { id: 'dup' as never };\n",
+        "packages/client/src/features/b/lib/b-pane.ts": "export const bPane: SettingsPaneDefinition = { id: 'dup' as never };\n",
+      },
+      expect: { messageIncludes: "already claimed by" },
+      why: "duplicate ids written `'dup' as never` (AsExpression) — the wrapped-literal shape the plain StringLiteral reader silently PASSED before hardening",
     },
     {
       files: 'export const xPane: SettingsPaneDefinition = { id: \'x\', body: () => <SettingsPanePlaceholder title="X" description="d" /> };\n',

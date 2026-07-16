@@ -5,6 +5,7 @@
 // raw-literal inline style. Scope: packages/{ui,client}/src, and only a static literal value.
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
+import { unwrapExpression } from "../ast-read.ts";
 import type { GateDescriptor } from "../contract.ts";
 
 /** Legit off-Tailwind inline-style sinks → reason. EMPTY: the two known off-Tailwind radius sinks (ECharts
@@ -101,11 +102,15 @@ function isRawLiteralValue(value: string): boolean {
 /** The STATIC literal text of a value node — a plain string/number literal only. Returns `""` for a
  *  dynamic value (identifier, member read, interpolated template, conditional), which never trips
  *  `isRawLiteralValue` (an empty string is not a raw literal), so a dynamic value is deliberately skipped. */
-function staticLiteral(node: Node | undefined): string {
-  if (node?.isKind(SyntaxKind.StringLiteral) || node?.isKind(SyntaxKind.NoSubstitutionTemplateLiteral)) {
+function staticLiteral(raw: Node | undefined): string {
+  if (raw === undefined) {
+    return "";
+  }
+  const node = unwrapExpression(raw); // see through `"8px" as string` / `("8px")` / `"8px" satisfies X`
+  if (node.isKind(SyntaxKind.StringLiteral) || node.isKind(SyntaxKind.NoSubstitutionTemplateLiteral)) {
     return node.getLiteralText();
   }
-  if (node?.isKind(SyntaxKind.NumericLiteral)) {
+  if (node.isKind(SyntaxKind.NumericLiteral)) {
     return node.getText();
   }
   return "";
@@ -239,6 +244,11 @@ export const gate: GateDescriptor = {
       files: 'export const G = <div style={{ color: "#fff" }} />;\n',
       at: "packages/client/src/features/demo/components/hex.tsx",
       why: "a raw hex color in a JSX inline style — a token-backed color axis written off-token",
+    },
+    {
+      files: 'export const G = <div style={{ borderRadius: "8px" as string }} />;\n',
+      at: "packages/client/src/features/demo/components/cast.tsx",
+      why: 'a raw-literal inline style value wrapped in an AsExpression (`"8px" as string`) — the wrapped-literal shape the plain-literal reader silently PASSED before hardening',
     },
     {
       files: 'export function f(el: HTMLElement): void {\n  el.style.setProperty("gap", "12px");\n}\n',

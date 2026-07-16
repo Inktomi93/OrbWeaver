@@ -1,4 +1,5 @@
 import { Node, SyntaxKind } from "ts-morph";
+import { readStringValue } from "../ast-read.ts";
 import type { GateDescriptor } from "../contract.ts";
 
 export const gate: GateDescriptor = {
@@ -26,7 +27,7 @@ export const gate: GateDescriptor = {
     }
 
     const arg = args[0];
-    if (Node.isStringLiteral(arg) && arg.getLiteralValue() === "") {
+    if (arg !== undefined && readStringValue(arg) === "") {
       ctx.report(node);
     }
   },
@@ -44,6 +45,14 @@ export const gate: GateDescriptor = {
       files: {
         "packages/client/src/some-file.ts": `
           castId<Type>("");
+        `,
+      },
+    },
+    {
+      why: 'castId("" as ChatId) — the empty sentinel wrapped in an AsExpression; the plain StringLiteral reader passed it before hardening',
+      files: {
+        "packages/client/src/some-file.ts": `
+          castId("" as ChatId);
         `,
       },
     },

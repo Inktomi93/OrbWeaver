@@ -11,6 +11,7 @@
 // interface/type member under `client/src`.
 import type { SourceFile, TypeNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { readStringValue } from "../ast-read.ts";
 import type { GateDescriptor } from "../contract.ts";
 
 const CLIENT_SRC = "packages/client/src/";
@@ -34,7 +35,7 @@ function checkMintOnlyTabs(sf: SourceFile, out: (line: number, message: string) 
       continue;
     }
     const init = kind.getInitializer();
-    if (init === undefined || !Node.isStringLiteral(init) || init.getLiteralText() !== "tabs") {
+    if (init === undefined || readStringValue(init) !== "tabs") {
       continue;
     }
     if (obj.getProperty("useResolved") !== undefined) {
@@ -190,6 +191,12 @@ export const gate: GateDescriptor = {
       at: "packages/client/src/features/x/lib/x-section.tsx",
       expect: { messageIncludes: "hand-rolled" },
       why: 'arm 1 — a hand-rolled `{kind:"tabs",useResolved}` outside the mint file',
+    },
+    {
+      files: 'const badgeMint = { kind: "tabs" as const, useResolved: () => null };\n',
+      at: "packages/client/src/features/x/lib/x-section.tsx",
+      expect: { messageIncludes: "hand-rolled" },
+      why: 'arm 1 — `kind: "tabs" as const` (AsExpression) — the wrapped-literal shape the plain StringLiteral reader silently PASSED before hardening',
     },
     {
       files:
