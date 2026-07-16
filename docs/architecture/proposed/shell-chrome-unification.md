@@ -7,6 +7,9 @@ updated: 2026-07-15
 # Shell Chrome Unification (proposed program — Fable design, owner-approved for AFTER the lockdown)
 
 > **STATUS: design of record. Slice 1 (`topbar.trail`) SHIPPED (N1); the rail/sheet/prop-kill waves remain.**
+> **Sequencing vs the D66 cohesion program lives in ONE home: `ui-cohesion-north-star.md` header ("Sequencing")**
+> — §E steps 1–3 land BEFORE the cohesion N1 paint (rail brand/topbar skin style the post-cutover DOM once);
+> steps 5–7 may run parallel to cohesion N2–N5. Step 7's account-pane deletion is cross-recorded there (§6).
 > Authored by the Fable architect 2026-07-15 from the live app (screenshots) + the code. The owner ratified the
 > DIRECTION and sequenced the bulk AFTER the client-architecture lockdown (M0–M11, now promoted to `core/` as law).
 > This doc captures the full design so no work is lost.

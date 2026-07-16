@@ -1,7 +1,7 @@
 ---
 kind: program
 status: active
-updated: 2026-07-13
+updated: 2026-07-15
 ---
 
 # UI Cohesion — North Star (ledger D66)
@@ -25,6 +25,28 @@ and where the design review guessed wrong, the correction is stated inline and m
 **Strategy (Nate, 2026-07-13):** nail ONE rail entry end-to-end first — **Chats** — so every other
 section copies a working example instead of re-interpreting prose. §4 is that lane. §5 (primitive
 polish) is global and ships first. §6 is the rollout order for everything after.
+
+**DE-ROT 2026-07-15:** the client lockdown (M0–M11, promoted to core law —
+`../core/client-architecture-lockdown.md`) and shell-chrome slice 1 landed AFTER this doc's 2026-07-13
+verification. Dead anchors are re-pointed and superseded bullets marked **[RE-ANCHORED]**/**[SUPERSEDED]**
+in place below; every correction re-verified against source 2026-07-15. The chrome MECHANISM
+(registry/zones/widgets) is owned by [`shell-chrome-unification.md`](shell-chrome-unification.md); this
+doc owns the PAINT (bands, ember budget, density, anatomy). On overlap: chrome doc wins on mechanism,
+this doc wins on visual spec.
+
+**Sequencing (the game plan, 2026-07-15 — verified-open work only; the lockdown itself is CLOSED):**
+
+1. **PP1–PP5** (§5) — ui-package only, zero collisions with anything below; ship first (unchanged).
+2. **Shell-chrome §E steps 1–3** (full mint + `assembleChrome` behavior union + rail single-DOM
+   cutover) — BEFORE N1, so N1's rail-brand cell and topbar-cluster skin land ONCE on the final DOM,
+   not on the doomed `.shell-rail-desktop`/`.shell-rail-mobile` twins.
+3. **N1–N5** (§4) — the chats lane, in order; N5's checklist gates the §6 rollout.
+4. **Shell-chrome §E steps 5–7** (You-sheet projection + mobile persona · `railFoot` kill · vocab/law)
+   — no file collision with the chats lane; may run parallel to N2–N5. Step 7 deletes the settings
+   `account` pane (see §6's superseded Account item).
+5. **§6 rollout** (characters → presets → sections → remainders), §7 autosave inside each lane.
+
+Independent, anytime: **O4** — buddy-bus `defineBusChannel` adoption (server tier; lockdown §18).
 
 ---
 
@@ -113,12 +135,12 @@ always-visible button is not.
 
 | Action | The ONE owner | Delete / demote from |
 |---|---|---|
-| Create (New chat / character / preset) | List header band, single `primary` button | landing-hero duplicate (`chat-landing-surface.tsx:101`; empty-library variant `:96`), any content-area "+" |
+| Create (New chat / character / preset) | List header band, single `primary` button | any content-area "+" (the chat landing hero is ALREADY one primary via a mutually-exclusive ternary — see N5's [CORRECTED]; confirm, don't demote) |
 | Save / Discard | NOWHERE — autosave everywhere (§7); status text replaces buttons | `character-editor-surface.tsx` Discard/Save pair, `preset-editor-surface.tsx:187` Save preset (in the SaveBar block), per-field Set |
 | Per-entity manage (Duplicate · Archive · Export · Delete) | List-row `⋯` (hover-revealed) | Content-header duplicates; one Context-header `⋯` mirror allowed only when the row isn't visible |
 | Message actions (edit · fork · hide · copy · delete) | Message row hover cluster: `edit` + `fork` inline, rest under `⋯` | the always-on 5-icon strip |
 | Member controls (mute · force-turn · kebab) | Context → Members rows, hover `⋯` | any duplication; topbar chip is entry-only |
-| Members entry | Topbar member-count chip → always OPENS Context on Members tab (never toggles) | the collapse branch in `chat-header.tsx:44-47` (`toggleMembersPanel`) |
+| Members entry | Topbar member-count chip → always OPENS Context on Members tab (never toggles) | the collapse branch in `chat-header.tsx`'s `toggleMembersPanel` |
 | Field detail (Description, Scenario…) | Context → Field tab (drill-in) | per-row `Set` button → inline expand / drill-in |
 | Section actions (preset Context) | one `⋯` in the Section header | the bottom `Duplicate · Move below · Delete` button row |
 
@@ -207,21 +229,26 @@ focus-ring cluster, micro-caps voice) stands unchanged.
 Files: `surfaces/shell.css`, `components/panel-chrome.tsx`, `components/shell-topbar.tsx`,
 `components/rail.tsx`, `features/chat/components/chat-header.tsx`.
 
-- `PanelChrome` (currently header-optional; LIST passes none — see its D62 UIP-202 header comment,
-  now amended by A1): always render a `--dimension-chrome-row`-tall `.shell-panel-header` with a
-  `--color-sidebar-border` bottom hairline for BOTH panels. The list surface's title/action move into
-  that band (N2). Update the component's header comment to cite D66 A1.
+- `PanelChrome` (still header-optional, LIST passes none — re-verified 2026-07-15; its header comment
+  now documents the shell-chrome toggle ownership, not UIP-202): always render a
+  `--dimension-chrome-row`-tall `.shell-panel-header` with a `--color-sidebar-border` bottom hairline
+  for BOTH panels. The list surface's title/action move into that band (N2). Update the component's
+  header comment to cite D66 A1.
 - Rail brand: `WeaveGlyph` in a chrome-row-tall top cell, same bottom hairline, same baseline.
+  **Sequencing:** rides the shell-chrome §E-3 single-DOM rail cutover — build it there or after,
+  never on the current twin-DOM `rail.tsx`.
 - Confirm all four headers: `height: var(--dimension-chrome-row)`; `padding-inline: var(--spacing-block)`.
 - Elevation/glass compat: style the band ONLY via `.shell-panel-header` (the `ramp` border-drop rule
   at `shell.css:85` then covers it); NO opaque background (glass panels need the translucent fill).
-- Topbar right side becomes one uniform ghost icon cluster (`size="icon"` `intent="ghost"`): search,
-  focus, context-toggle; the `⌘K jump` chip stays the one bordered element with a 1px×20px
-  `--color-border` divider between chip and toggles. The identity-row `⋯` (chat options) moves to the
+- Topbar cluster — **[MECHANISM SHIPPED 2026-07-15, SKIN OPEN]**: the trail is now a registry render
+  of `topbar.trail` chrome widgets (shell-chrome slice 1; the doubled detail-panel close is gone).
+  N1's remaining topbar work is the SKIN, applied to the widget bodies: one uniform ghost icon cluster
+  (`size="icon"` `intent="ghost"`); the `⌘K jump` chip stays the one bordered element with a 1px×20px
+  `--color-border` divider between chip and toggles; the identity-row `⋯` (chat options) moves to the
   END of the cluster.
-- Member-count chip (`chat-header.tsx:72-81`): remove the collapse branch — the chip always
-  `setContextTab("members")` + `setPanelMode("context","docked")`. Collapse belongs to the context
-  header's own control.
+- Member-count chip (`chat-header.tsx` `toggleMembersPanel` — collapse branch re-verified live
+  2026-07-15): remove the collapse branch — the chip always `setContextTab("members")` +
+  `setPanelMode("context","docked")`. Collapse belongs to the context header's own control.
 - **Done when:** a horizontal guide at the band bottom crosses rail brand, list header, topbar, and
   context header with zero drift — in `elevation=flat` AND `ramp`, with and without glass panels; the
   topbar reads as exactly two groups.
@@ -230,7 +257,7 @@ Files: `surfaces/shell.css`, `components/panel-chrome.tsx`, `components/shell-to
 - "CHATS" micro-caps title + count into the N1 band; the band's only action is
   `Button intent="primary" size="sm"` **New** with `Plus` (A2). The current ghost `+`
   (`[aria-label="Start a new chat"]` header instance) is replaced; the two `intent="primary"`
-  EmptyState News (`chat-list-surface.tsx:150,170`) are fine as-is (empty state = its own surface).
+  EmptyState News in the same file are fine as-is (empty state = its own surface).
 - Search row directly under the band, full width, `--spacing-block` inset. Row/group gaps come
   from the layout primitives' defaults — never override them per-surface.
 - **Horizontal scrollbar — diagnose live, then fix.** **[CORRECTED]** the design review blamed a
@@ -271,18 +298,32 @@ Highest-impact fix; repeats every turn. All changes in the SHARED pieces — all
   `edit fork ⋯`; `expanded` pref shows the 3-cluster always; a two-word reply hugs its text; all 8
   skins render their signature geometry (§9 matrix); a resting viewport shows ZERO always-on action icons.
 
-### N4 · Chat Context — `features/chat/surfaces/chat-context-panel-surface.tsx` +
-`components/context-tabs-panel.tsx` + app-shell `panel-chrome.tsx`
+### N4 · Chat Context — app-shell `components/{section-context-host,context-tabs-panel,panel-chrome}.tsx`
++ `features/chat/lib/chats-section.tsx` + `features/chat/components/room-overrides-form.tsx`
+
+**[RE-ANCHORED 2026-07-15]** lockdown M3 DELETED `chat-context-panel-surface.tsx` +
+`draft-context-panel-surface.tsx`. Chat context is now `CHAT_CONTEXT_TABS` minted via
+`defineContextTabs` (`chats-section.tsx`), rendered by the blind `SectionContextHost` → the
+generalized `ContextTabsPanel`. M3 also deleted the never-fed `contextHeader` channel ("no capability
+for an absent consumer") — the identity header below IS that consumer now, so N4 re-introduces the
+channel DEFINITION-OWNED per the lockdown §6b posture (a resolved `header` slot beside `actions`,
+supplied through the mint / `ContextDefinition` arms), NEVER a route-fed prop or a shell-side
+per-section switch. That channel shape is N4's ONE design decision; G3 (mint-only) and G2
+(no-parallel-map) apply to it. The rest of N4 is paint.
+
 - **Identity header (P4):** context header shows the active chat's avatar + title (reuse the
-  `chat-header.tsx` cluster at `size="sm"`), not "Details".
+  `chat-header.tsx` cluster at `size="sm"`), not the current static "Details" `Text` in
+  `app-shell.tsx`'s context `PanelChrome`.
 - **Ember top edge:** one `shell.css` rule on `.shell-panel-header` scoped
   `[data-panel-side="context"]`: `box-shadow: inset 0 2px 0 color-mix(in oklab, var(--color-primary)
   55%, transparent)` — inset shadow, not border (identical over glass; unaffected by ramp's border drop).
 - **Tabs:** list fills the panel (`flex-1` tabs), active indicator `--color-primary` (verify —
   looked correct in `chat-context.png`).
-- **De-densify Overrides:** per-field helper sentences collapse to ONE intro line at tab top (muted
-  chip + `info` glyph: "Empty fields inherit from the character or preset. Saved automatically.") +
-  a `?` Tooltip per field label. `Depth` + `Role` share one row. Every field = `Field` primitive.
+- **De-densify Overrides:** per-field helper sentences (now the field `description`s in
+  `room-overrides-form.tsx`) collapse to ONE intro line at tab top (muted chip + `info` glyph:
+  "Empty fields inherit from the character or preset. Saved automatically.") + a `?` Tooltip per
+  field label. `Depth` (`authorsNoteDepth`) + `Role` (`authorsNoteRole`) share one row. Every
+  field = `Field` primitive.
 - **Done when:** Overrides has one helper line total; header names the chat; the ember edge renders
   over glass and under a light custom theme.
 
@@ -351,7 +392,8 @@ Highest-impact fix; repeats every turn. All changes in the SHARED pieces — all
    per-row ember toggles + `custom` pill + `POST` pill against P2 during the lane (they were the
    worst single-viewport ember count: ~15).
 3. **World Info / Corpus / Refinery / Analytics / Settings** — apply the north-star pattern
-   (N1 band + P2 ownership + §7 autosave) per section.
+   (N1 band + P2 ownership + §7 autosave) per section. (Refinery is a DECLARED-PLANNED section —
+   its stop applies when it's built, not before.)
 4. **Ported open remainders — THE one UI to-do board** (every open UI item from the archived
    D62-era records, each CODE-VERIFIED 2026-07-13; the history docs are closed — nothing UI-shaped
    is tracked anywhere but here):
@@ -361,8 +403,11 @@ Highest-impact fix; repeats every turn. All changes in the SHARED pieces — all
    - **Streaming caret + typing dots.** OPEN, verified: `ghost-message-row.tsx` has neither the
      2px primary caret nor the typing dots today. Verify-live what streaming actually shows, then
      build the missing chrome (respecting `reducedMotion`). Fold into the N3/N4 chat lane.
-   - **Account settings pane completion.** Surface exists (`auth/surfaces/account-surface.tsx`);
-     finish rides auth #50 — do not start independently.
+   - **Account — [SUPERSEDED 2026-07-15 by the shell-chrome §B ruling: You ⊃ Identity ⊃ Account].**
+     The declared-planned settings `account` pane DIES at shell-chrome §E-7 (its planned-reason is
+     stale — auth IS wired, in the modal). Account stays the leaf MODAL (`auth/lib/account-modal.tsx`
+     → `auth/surfaces/account-surface.tsx`), reached from inside the Identity widget. Auth #50
+     completion targets the modal body. Do not build a pane.
    - **@orb/ui chart-module registration — `Scatter` + `Heatmap`/`VisualMap`.** OPEN (2026-07-13):
      the ECharts seal (`packages/ui/src/charts/chart/echarts-setup.ts`) registers Bar/Line only.
      Two shipped surfaces are capped by it: the Corpus Map is an inert SVG scatter (click-through is
@@ -375,16 +420,18 @@ Highest-impact fix; repeats every turn. All changes in the SHARED pieces — all
      owner-wide Corpus section — the Corpus coverage pass (2026-07) deliberately left them
      unconsumed rather than forcing a chat concern into the corpus surfaces. Fold into the Chat lane
      when a chat-analytics drill is scheduled (the same select/scope wiring the corpus dossier uses).
-   - **Chat-behavior settings pane.** OPEN, verified: `settings-nav.ts:241` marks the category
-     `built: false` and no surface exists — an unbuilt placeholder category. Fold into the Settings
-     stop of the rollout alongside UIP-404. (Automation is likewise `built: false` but is
-     feature-scope, not cohesion.)
-   - **Autosave micro-status on settings panes.** OPEN, verified (2026-07-13): §7 specifies a live
-     `Saved / Saving… / Save failed — retry` status, but no settings pane renders it — every pane shows
-     only the static "Changes save automatically" caption (`appearance-settings-surface.tsx:361`,
-     `regex-settings-surface.tsx:139`, `connections-settings-surface.tsx:116`). The autosave WRITE path
-     exists; the user-facing status affordance does not. App-wide A4 gap — needs its own pass (one shared
-     status primitive fed by the section mutation state, replacing the static caption). Fold into the
+   - **Chat-behavior settings pane.** OPEN, re-verified 2026-07-15: registers honestly as
+     `body: {placeholder: true}` (`features/settings/lib/chat-behavior-pane.tsx` — the M6 pane
+     registry replaced `settings-nav.ts`'s `built:false` flag). Fold into the Settings stop of the
+     rollout alongside UIP-404. (Automation is likewise `{placeholder: true}` but is feature-scope,
+     not cohesion.)
+   - **Autosave micro-status on settings panes.** OPEN, re-verified 2026-07-15: §7 specifies a live
+     `Saved / Saving… / Save failed — retry` status, but no pane renders it — every pane shows only
+     the static "Changes save automatically" caption (`settings/surfaces/appearance-settings-surface.tsx`,
+     `settings/surfaces/regex-settings-surface.tsx`, and post-M6
+     `credentials/surfaces/connections-settings-surface.tsx`). The autosave WRITE path exists; the
+     user-facing status affordance does not. App-wide A4 gap — needs its own pass (one shared status
+     primitive fed by the section mutation state, replacing the static caption). Fold into the
      Settings stop of the rollout alongside UIP-404.
    - **Devtools FAB in snaps.** RESOLVED (2026-07-13): `main.tsx` now also checks `isProbeMode()`
      (`orb:probe-mode`) before rendering `DevTools`, so `pnpm snap --probe` captures no longer show
@@ -439,14 +486,16 @@ Highest-impact fix; repeats every turn. All changes in the SHARED pieces — all
 ## 7. The save model — AUTOSAVE EVERYWHERE (decided)
 
 No manual Save/Set/Discard button on any editor. The chat-overrides autosave
-(`chat-context-panel-surface.tsx`, "Changes save automatically") is the precedent; extend the same
-debounced-mutation pattern to characters and presets (client-side wiring on the existing
-`character.update`/`preset.update` mutations — NO server change; if a lane appears to need one, STOP
-and raise it). Every editor shows one identical status where its Save button was:
+(`features/chat/components/room-overrides-form.tsx` + `injections-manager.tsx`, "Changes save
+automatically" — re-anchored 2026-07-15, the M3-deleted surface's bodies moved here) is the precedent;
+extend the same debounced-mutation pattern to characters and presets (client-side wiring on the
+existing `character.update`/`preset.update` mutations — NO server change; if a lane appears to need
+one, STOP and raise it). Every editor shows one identical status where its Save button was:
 `Text size="micro" tone="muted"` — `Saved` / `Saving…` / `Save failed — retry` (retry = affordance,
-not silent). Destructive/irreversible actions keep their `AlertDialog` confirms. The orphaned
-`save-bar` primitive + `form.DirtyPill`/`form.SubmitButton` helpers stay in the package this program
-(D66 A4) — deleting them is a follow-up decision once no consumer remains.
+not silent). Destructive/irreversible actions keep their confirms via the tier-2 `ConfirmDialog`
+(raw `@orb/ui/alert-dialog` in features is G7-RED since M5). The orphaned `save-bar` primitive +
+`form.DirtyPill`/`form.SubmitButton` helpers stay in the package this program (D66 A4) — deleting
+them is a follow-up decision once no consumer remains.
 
 **TRAP (caught live 2026-07-13): `createAutosaveEntityForm`'s `onChange` listener fires only on
 scalar field `handleChange` — NOT on form-level array structural mutations (`pushFieldValue` /
