@@ -46,12 +46,29 @@ export function createAutosaveEntityForm<TValues extends object>(
   config: AutosaveEntityFormConfig<TValues>,
 ): (args: AutosaveEntityFormArgs<TValues>) => {
   form: AutosaveForm<TValues>;
-  /** Spread as `key={mountKey}` — id change remounts + reseeds. */
+  /**
+   * Spread as `key={mountKey}` on the component that CALLS this hook (the hook-OWNING component), NOT on
+   * a `<form>`/`<Stack>` below it. The FormApi lives in this hook's `useState`; a `key` on a descendant
+   * DOM node remounts only that DOM and the surviving FormApi keeps the OLD entity's frozen seed —
+   * switching entity then renders the previous entity's values and one keystroke persists them into the
+   * newly-selected row (stickler review 2026-07-16-merge-block-28523122). Key the hook owner and the
+   * whole form identity dies + is reborn (character-editor-surface.tsx keys `CharacterEditorBody`).
+   */
   mountKey: string;
   /** The live save lifecycle for `AutosaveStatus` (Saved / Saving… / Save failed — retry). */
   saveState: AutosaveSaveState;
   /** Re-run the pending save (the AutosaveStatus retry affordance); bypasses the onChange dirty guard. */
   retrySave: () => void;
+  /**
+   * Arm the teardown-flush suppression before a DELIBERATE same-identity reseed remount (reset-to-
+   * default). A keyed remount tears the form down field-by-field, and each field's unmount fires the
+   * `onFieldUnmount` flush — which on a dirty form would `handleSubmit` the PRE-reset values right back
+   * over the freshly-reset row (a durable no-op reset). Call this immediately before bumping the remount
+   * key so the outgoing instance's field unmounts skip the flush. Switching to a DIFFERENT entity needs
+   * no call: that flush is bound to the OUTGOING entity's `save` closure, so it can only write the old
+   * row (never the newly-selected one).
+   */
+  closeForReseed: () => void;
 } {
   // biome-ignore lint/nursery/noComponentHookFactories: the D54 §13.1 editor-factory pattern — module-scope factory call sites give the returned hook a stable identity (see create-saved-entity-form.ts).
   return function useAutosaveEntityForm({ entityId, serverValues, save: callTimeSave }: AutosaveEntityFormArgs<TValues>) {
@@ -63,6 +80,11 @@ export function createAutosaveEntityForm<TValues extends object>(
       ...serverValues,
       ...draftSeed,
     });
+
+    // Armed by `closeForReseed()` right before a same-identity reseed remount (reset-to-default) so the
+    // outgoing instance's field-unmount flushes are skipped — otherwise they re-persist the pre-reset
+    // values over the fresh row (stickler review 2026-07-16-merge-block-28523122).
+    const closingRef = useRef(false);
 
     // The save lifecycle the AutosaveStatus affordance renders. Starts "saved" — an untouched mount is
     // in sync with the server row. onSubmit drives it: saving → saved, or → error (which lights retry).
@@ -106,7 +128,9 @@ export function createAutosaveEntityForm<TValues extends object>(
         onChangeDebounceMs: config.debounceMs ?? DEFAULT_DEBOUNCE_MS,
         // A field unmounting flushes its pending edit — but only a real edit. Without the
         // !isDefaultValue guard, a field unmounting while still AT the seed (StrictMode's dev
-        // double-invoke, or any tab-away before an edit) would autosave the untouched seed.
+        // double-invoke, or any tab-away before an edit) would autosave the untouched seed. And when the
+        // whole form is torn down for a same-identity RESEED remount (reset-to-default), `closingRef`
+        // skips the flush entirely — else the pre-reset values re-persist over the fresh row.
         onFieldUnmount: ({
           formApi,
         }: {
@@ -115,6 +139,9 @@ export function createAutosaveEntityForm<TValues extends object>(
             handleSubmit: () => Promise<void>;
           };
         }) => {
+          if (closingRef.current) {
+            return;
+          }
           if (formApi.state.isValid && !formApi.state.isDefaultValue) {
             formApi.handleSubmit().catch(() => undefined);
           }
@@ -143,6 +170,10 @@ export function createAutosaveEntityForm<TValues extends object>(
       form.handleSubmit().catch(() => undefined);
     };
 
-    return { form: form as AutosaveForm<TValues>, mountKey: entityId, saveState, retrySave };
+    const closeForReseed = (): void => {
+      closingRef.current = true;
+    };
+
+    return { form: form as AutosaveForm<TValues>, mountKey: entityId, saveState, retrySave, closeForReseed };
   };
 }

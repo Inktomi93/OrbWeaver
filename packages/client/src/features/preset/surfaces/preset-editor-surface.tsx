@@ -18,7 +18,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@orb/ui/menu";
 import { Tabs, TabsIndicator, TabsList, TabsPanel, TabsTab } from "@orb/ui/tabs";
 import { Text } from "@orb/ui/text";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
 import { ConfirmDialog } from "#components";
@@ -49,16 +49,34 @@ export function PresetEditorSurface({ presetId, onRevealSection, onDismissSectio
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
 
+  // Reset-to-starter remounts the HOOK-OWNING `PresetEditor` (bumping this nonce into its mount key) so its
+  // whole FormApi dies and is reborn seeding from the freshly-written server row — NEVER `form.reset` (the
+  // autosave isDirty loop; no-form-reset-in-autosave gate). The nonce lives HERE, ABOVE the query boundary,
+  // so it composes into `PresetEditor`'s key — a key on a `<form>` BELOW the hook owner remounts DOM only
+  // and the frozen-seed FormApi survives (stickler review 2026-07-16-merge-block-28523122).
+  const [resetNonce, setResetNonce] = useState(0);
+
   return (
     <Stack ref={surfaceRef} tabIndex={-1} className="h-full min-h-0 overflow-y-auto overflow-x-hidden outline-none">
       <QueryBoundary
         fallback={<Text tone="muted">Loading the preset…</Text>}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="the preset" onRetry={retry} />}
       >
-        <PresetEditor presetId={presetId} onRevealSection={onRevealSection} onDismissSection={onDismissSection} />
+        <PresetEditor
+          key={`${presetId}:${resetNonce}`}
+          presetId={presetId}
+          onReseed={(): void => setResetNonce((n) => n + 1)}
+          onRevealSection={onRevealSection}
+          onDismissSection={onDismissSection}
+        />
       </QueryBoundary>
     </Stack>
   );
+}
+
+interface PresetEditorProps extends PresetEditorSurfaceProps {
+  /** Trigger the hook-owner remount onto the freshly-reset server row (the surface bumps the mount nonce). */
+  readonly onReseed: () => void;
 }
 
 interface LeafContentProps {
@@ -92,8 +110,9 @@ function leafContent(id: PresetEditorTab["id"], props: LeafContentProps): ReactE
   }
 }
 
-function PresetEditor({ presetId, onRevealSection, onDismissSection }: PresetEditorSurfaceProps): ReactElement {
+function PresetEditor({ presetId, onReseed, onRevealSection, onDismissSection }: PresetEditorProps): ReactElement {
   const trpc = useTRPC();
+  const queryClient = useQueryClient();
   const invalidation = useInvalidation();
   const { data: preset } = useSuspenseQuery(trpc.preset.get.queryOptions({ id: presetId }));
   const { data: settings } = useSuspenseQuery(trpc.settings.getUserSettings.queryOptions());
@@ -115,11 +134,7 @@ function PresetEditor({ presetId, onRevealSection, onDismissSection }: PresetEdi
     await update.mutateAsync({ id: presetId, config: merged });
   };
 
-  // Reset-to-starter remounts the form (bumping this nonce into the mount key) so it reseeds from the
-  // freshly-written server row — NEVER `form.reset`, which re-baselines a live autosave draft into the
-  // isDirty loop (no-form-reset-in-autosave gate; UI-Gates-and-Lessons.md §7 row 2).
-  const [resetNonce, setResetNonce] = useState(0);
-  const { form, mountKey, saveState, retrySave } = usePresetForm({
+  const { form, saveState, retrySave, closeForReseed } = usePresetForm({
     entityId: presetId,
     serverValues: seedConfig(server),
     save,
@@ -130,8 +145,13 @@ function PresetEditor({ presetId, onRevealSection, onDismissSection }: PresetEdi
     void (async (): Promise<void> => {
       try {
         await reset.mutateAsync({ id: presetId });
-        // The invalidation refetches `preset.get`; the nonce bump remounts the form onto the new starter.
-        setResetNonce((n) => n + 1);
+        // Reseed from the FRESH row: the mutation's own invalidation of `preset.get` is fire-and-forget, so
+        // await the editor's read explicitly before the remount — else `PresetEditor` re-suspends against the
+        // STALE cache and the starter never lands. Then arm the teardown-flush suppression (a dirty pre-reset
+        // form would otherwise re-persist its old values over the fresh row on unmount) and bump the nonce.
+        await queryClient.refetchQueries(trpc.preset.get.queryFilter({ id: presetId }));
+        closeForReseed();
+        onReseed();
       } catch {
         // The mutation's own errorToast already surfaced it; keep the current arrangement.
       }
@@ -149,7 +169,6 @@ function PresetEditor({ presetId, onRevealSection, onDismissSection }: PresetEdi
 
   return (
     <form
-      key={`${mountKey}:${resetNonce}`}
       onSubmit={(event): void => {
         event.preventDefault();
         event.stopPropagation();
