@@ -171,7 +171,7 @@ export function AppShell({ railFoot }: AppShellProps): ReactElement {
             <CustomThemeStyle css={theme?.css ?? null} />
             <Rail activeSection={layout.activeSection} onSelectSection={setActiveSection} onOpenModal={openModal} railFoot={railFoot} />
 
-            <PanelChrome panel="list" label={`${layout.activeSectionLabel} list`} mode={layout.listMode}>
+            <PanelChrome panel="list" label={`${layout.activeSectionLabel} list`} header={activeDef.listHeader?.()} mode={layout.listMode}>
               <RegionAnchor region="list">{listContent}</RegionAnchor>
             </PanelChrome>
 

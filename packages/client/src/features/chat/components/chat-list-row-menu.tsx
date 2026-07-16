@@ -65,6 +65,7 @@ export function ChatListRowMenu({ chatId, title, starred, archived, onDeleted }:
     <>
       <RowActionsMenu
         label="Chat actions"
+        reveal={true}
         destructive={{
           title: "Delete this chat?",
           description: "This permanently deletes the chat and its messages for everyone. This can't be undone.",

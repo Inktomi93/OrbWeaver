@@ -1,5 +1,7 @@
-// The chats-list surface: a header row, search field, and the caller's chats as list-row rows
-// (avatar/title/participants/relative time), select-to-open, with a per-row kebab menu. chat.listChats
+// The chats-list surface: a search field and the caller's chats as list-row rows
+// (avatar/title/participants/relative time), select-to-open, with a per-row kebab menu. The title +
+// count + New action live in the LIST chrome band now (`chat-list-header.tsx`, north-star §4 N2), not
+// here. chat.listChats
 // is a plain unpaged array, so this is a bounded useSuspenseQuery, not createCollectionSurface. Search
 // is a client-side useDeferredValue filter — there is no server-side search param. Reads its OWN
 // selection (`useActiveChatId`) so the chats-section definition composing it stays a pure data object
@@ -17,14 +19,13 @@ import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
-import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import { useDeferredValue, useState } from "react";
+import { useDeferredValue, useRef, useState } from "react";
 import type { Trpc } from "#data";
 import { QueryBoundary, QueryErrorState, SkeletonRows, useTRPC } from "#data";
-import { timeLib } from "#lib";
+import { timeLib, useFocusOnMount } from "#lib";
 import type { ChatListCharacterFilter } from "#state";
 import { clearChatListCharacterFilter, useActiveChatId, useChatListCharacterFilter } from "#state";
 import { ChatListRowMenu } from "../components/chat-list-row-menu";
@@ -47,24 +48,11 @@ export function ChatListSurface({ onSelect, onNewChat, onDeletedChat }: ChatList
   const deferredQuery = useDeferredValue(query, "");
   const clearSearch = (): void => setQuery("");
   const characterFilter = useChatListCharacterFilter();
+  const surfaceRef = useRef<HTMLDivElement>(null);
+  useFocusOnMount(surfaceRef);
 
   return (
-    <Stack className="h-full min-h-0" gap="block">
-      <Row align="center" justify="between">
-        <Text size="micro" weight="semibold" tone="muted" transform="caps">
-          Chats
-        </Text>
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button intent="ghost" size="icon" aria-label="Start a new chat" onClick={onNewChat}>
-                <Icon icon={Plus} size="sm" />
-              </Button>
-            }
-          />
-          <TooltipPopup side="bottom">New chat</TooltipPopup>
-        </Tooltip>
-      </Row>
+    <Stack className="h-full min-h-0 outline-none" gap="block" ref={surfaceRef} tabIndex={-1}>
       {characterFilter !== null ? <FilterChip filter={characterFilter} /> : null}
       <Input aria-label="Search chats" onValueChange={setQuery} placeholder="Search the weave…" value={query} />
       <Stack className="min-h-0 flex-1">
@@ -197,6 +185,9 @@ function ChatListRow({ chat, selected, onSelect, onDeletedChat }: ChatListRowPro
           <ChatListRowMenu archived={chat.archived} chatId={chat.id} onDeleted={onDeletedChat} starred={chat.star} title={chat.title} />
         </Row>
       }
+      // `group` roots the row so the kebab's hover/focus-within reveal (P3) fires on row hover (the
+      // character-card precedent); the reveal lives on RowActionsMenu's `reveal`.
+      className="group"
       clickable={true}
       leading={
         <Avatar fallbackDelay={0} hueSeed={chat.id} size="sm">

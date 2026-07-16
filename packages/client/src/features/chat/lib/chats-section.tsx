@@ -18,6 +18,7 @@ import { ChatListAnchor } from "../anchors/chat-list-anchor";
 import { DraftAddMemberPopover } from "../components/add-member-popover";
 import { AssemblyPreviewPanel } from "../components/assembly-preview-panel";
 import { ChatContent } from "../components/chat-content";
+import { ChatListHeader } from "../components/chat-list-header";
 import { ChatsTopbarHeader } from "../components/chats-topbar-header";
 import type { CommittedMembersTabProps } from "../components/committed-members-tab";
 import { CommittedMembersTab } from "../components/committed-members-tab";
@@ -129,6 +130,8 @@ export function makeChatsSection(
         <ChatListSurface onDeletedChat={chatDeletedFromList} onNewChat={(): void => openModal("newChat")} onSelect={selectChatFromList} />
       </ChatListAnchor>
     ),
+    // The LIST chrome-band content (§4 N2): "CHATS" title + count + the ONE primary New action.
+    listHeader: () => <ChatListHeader />,
     content: () => <ChatContent surfaceContributors={chatSurfaceContributors} />,
     // Topbar identity: committed roster header vs draft seed, resolved from #state/#data inside the body.
     header: () => <ChatsTopbarHeader />,
