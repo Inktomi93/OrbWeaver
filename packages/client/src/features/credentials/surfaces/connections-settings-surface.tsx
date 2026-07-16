@@ -20,6 +20,7 @@ import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
+import { AutosaveStatus } from "#forms";
 import { useFocusOnMount } from "#lib";
 import { settingsAnchorId } from "#state";
 import { AddCredentialDialog } from "../components/add-credential-dialog";
@@ -103,7 +104,7 @@ function ModelRolesSection(): ReactElement {
       patch: toRoutingSection(values) as Record<string, unknown>,
     });
 
-  const { form, mountKey } = useConnectionsForm({
+  const { form, mountKey, saveState, retrySave } = useConnectionsForm({
     entityId: CONNECTIONS_ENTITY_ID,
     serverValues: projectRoutingForm(data.config.routing),
     save,
@@ -111,9 +112,12 @@ function ModelRolesSection(): ReactElement {
 
   return (
     <Section divider={true} heading="Model roles" id={anchor(CONNECTIONS_SUBCATEGORY_IDS.roles)}>
-      <Text size="micro" tone="muted">
-        Pick the provider and model for each role. Leave a row on “Default” to let the app choose. Changes save automatically.
-      </Text>
+      <Row gap="field" align="center" justify="between" className="flex-wrap">
+        <Text size="micro" tone="muted">
+          Pick the provider and model for each role. Leave a row on “Default” to let the app choose.
+        </Text>
+        <AutosaveStatus state={saveState} onRetry={retrySave} />
+      </Row>
       <FieldLayout orientation="horizontal">
         <Stack key={mountKey} gap="block">
           {ROLE_SLOTS_ORDERED.map((slot) => (
