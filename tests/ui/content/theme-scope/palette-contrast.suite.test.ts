@@ -102,12 +102,13 @@ function resolveTokenRgb(path: keyof typeof TOKENS, palette: Palette): Rgb {
 // BACKGROUND (never text), so it is pill-only below. The surfaces every intent text sits on.
 const INTENT_TEXT_SURFACES = ["color.background", "color.card", "color.popover"] as const;
 const INTENT_TEXT_TOKENS = ["color.destructive", "color.success", "color.warning", "color.info"] as const;
-// Pill-role intents (solid `bg-*` + its `text-*-foreground`). info has NO foreground yet (north-star PP1),
-// so it is text-only above; highlight is pill-only (background mark).
+// Pill-role intents (solid `bg-*` + its `text-*-foreground`). info gained its foreground in north-star
+// PP1, so it is BOTH text (above) and a pill (here); highlight is pill-only (background mark).
 const INTENT_PILL_PAIRS = [
   ["color.destructive", "color.destructive-foreground"],
   ["color.success", "color.success-foreground"],
   ["color.warning", "color.warning-foreground"],
+  ["color.info", "color.info-foreground"],
   ["color.highlight", "color.highlight-foreground"],
 ] as const;
 
@@ -194,8 +195,8 @@ test.each(
       expect(ratio, `${intent} as text on ${surface} @ ${palette.name}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
     }
   }
-  // role 2 — the solid `bg-*` + `text-*-foreground` pill (destructive/success/warning/highlight; info
-  // has no foreground yet). Subsumes the former Hearth-only destructive special-case across ALL palettes.
+  // role 2 — the solid `bg-*` + `text-*-foreground` pill (destructive/success/warning/info/highlight).
+  // Subsumes the former Hearth-only destructive special-case across ALL palettes.
   for (const [bg, foreground] of INTENT_PILL_PAIRS) {
     const ratio = contrastRatio(resolveTokenRgb(foreground, palette), resolveTokenRgb(bg, palette));
     expect(ratio, `${foreground} on ${bg} (pill) @ ${palette.name}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);

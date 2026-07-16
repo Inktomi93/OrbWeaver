@@ -141,7 +141,7 @@ export function MemberRow(props: MemberRowProps): ReactElement {
 function RowStateBadges({ row }: { readonly row: MemberPersonRow | MemberCastRow }): ReactElement | null {
   if (row.kind === "cast") {
     return row.disabled ? (
-      <Badge size="sm" intent="neutral">
+      <Badge size="sm" intent="neutral" tone="soft">
         Muted
       </Badge>
     ) : null;
@@ -149,18 +149,18 @@ function RowStateBadges({ row }: { readonly row: MemberPersonRow | MemberCastRow
   return (
     <>
       {row.isHost ? (
-        <Badge size="sm">
+        <Badge size="sm" tone="soft">
           <Icon icon={Crown} size="xs" />
           Host
         </Badge>
       ) : null}
       {row.isViewer ? (
-        <Badge size="sm" intent="neutral">
+        <Badge size="sm" intent="neutral" tone="soft">
           you
         </Badge>
       ) : null}
       {row.pendingNominee ? (
-        <Badge size="sm" intent="info">
+        <Badge size="sm" intent="info" tone="soft">
           Nominated
         </Badge>
       ) : null}
