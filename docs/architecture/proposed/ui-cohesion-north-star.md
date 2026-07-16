@@ -6,6 +6,14 @@ updated: 2026-07-16
 
 # UI Cohesion — North Star (ledger D66)
 
+> **AS OF 2026-07-16 (end of the mechanism era):** §5 PP-lane ✅ · §4 chats lane N1–N5 ✅ (**the
+> gate is MET**, lane verifier-certified) · the shell-chrome program ✅ CLOSED (D73/D74;
+> `../history/shell-chrome-unification.md`) · the derive program ✅ CLOSED W1–W6 (gates 125→132,
+> jscpd ratcheted 5%→2%; `../history/derive-modernization-audit.md`) · the theme pipeline ✅ (D71).
+> **THE ONLY OPEN WORK IN THIS DOC IS §6 (the rollout, characters first) + §7 inside each stop**,
+> plus the deferred live side-eye lane pass (blocked on tree-quiet/HMR) and O4 (server tier).
+> Session lessons live in auto-memory; the queue below carries per-step landed records.
+
 **THE one active UI work doc.** Every UI/UX task dispatched after 2026-07-13 builds from THIS file.
 The prior program records (`ui-polish-punchlist.md`, `ux-flow-revamp.md`, `DESIGN-REVIEW-2026-07-01.md`)
 are ARCHIVED to `../history/` — they are history, not law; do not quote them as authority. Their open
@@ -30,9 +38,9 @@ polish) is global and ships first. §6 is the rollout order for everything after
 `../core/client-architecture-lockdown.md`) and shell-chrome slice 1 landed AFTER this doc's 2026-07-13
 verification. Dead anchors are re-pointed and superseded bullets marked **[RE-ANCHORED]**/**[SUPERSEDED]**
 in place below; every correction re-verified against source 2026-07-15. The chrome MECHANISM
-(registry/zones/widgets) is owned by [`shell-chrome-unification.md`](../history/shell-chrome-unification.md); this
-doc owns the PAINT (bands, ember budget, density, anatomy). On overlap: chrome doc wins on mechanism,
-this doc wins on visual spec.
+(registry/zones/widgets) is now LAW in `../core/UI-Architecture-and-Layout.md` §4.x (standing rulings
+D73/D74; the program record is [`shell-chrome-unification.md`](../history/shell-chrome-unification.md),
+history not law); this doc owns the PAINT (bands, ember budget, density, anatomy).
 
 **Sequencing (the game plan, updated 2026-07-16 — verified-open work only; the lockdown itself is
 CLOSED). Three programs, ONE ordered queue:** this doc's lanes (paint), shell-chrome §E (mechanism),
@@ -68,10 +76,11 @@ and the derive-modernization program ([`derive-modernization-audit.md`](../histo
    tail below). The characters stop also mints the character-detail contributor registry (the one
    named seam gap, seam-coverage table).
 
-Independent, anytime: **derive-W4/W5/W6** (mech waves — G29 battery adoption · small dupes + the G4
-`settings-section-anchored` arm · dead/stale sweep + `PREBUILT[for:…]` markers; W6's orphan seals
-RULED intentional pre-builds, owner 2026-07-15) · **O4** — buddy-bus `defineBusChannel` adoption
-(server tier; lockdown §18).
+Independent items: **derive-W4/W5/W6 — ✅ ALL LANDED 2026-07-16** (G29 + the G4 arm live; the four
+orphan seals carry `PREBUILT[for:…]` markers; PD-143 records the two honest deferrals; the jscpd
+ratchet fired). Still open: **O4** — buddy-bus `defineBusChannel` adoption (server tier; lockdown
+§18) · the **deferred side-eye lane pass** (run when the tree is quiet — live browsing reboots HMR
+under an active session) + its two receipts (40px avatar upload preview · toast focus ring).
 
 ---
 
@@ -248,11 +257,11 @@ focus-ring cluster, micro-caps voice) stands unchanged.
 
 ---
 
-## 4. THE NORTH-STAR LANE — Chats, end to end (build in this order)
+## 4. THE NORTH-STAR LANE — Chats, end to end — **✅ SHIPPED IN FULL 2026-07-16 (N1–N5; the gate is met)**
 
 > Files relative to `packages/client/src`, `ui/` = `packages/ui/src`. Every anchor verified 2026-07-13.
 
-### N1 · Chrome baseline — `features/app-shell/`
+### N1 · Chrome baseline — `features/app-shell/` — ✅ (four headers at y=48, zero drift, flat/ramp ± glass)
 Files: `surfaces/shell.css`, `components/panel-chrome.tsx`, `components/shell-topbar.tsx`,
 `components/rail.tsx`, `features/chat/components/chat-header.tsx`.
 
@@ -280,7 +289,7 @@ Files: `surfaces/shell.css`, `components/panel-chrome.tsx`, `components/shell-to
   context header with zero drift — in `elevation=flat` AND `ramp`, with and without glass panels; the
   topbar reads as exactly two groups.
 
-### N2 · Chats list — `features/chat/surfaces/chat-list-surface.tsx` + `ui/primitives/list-row/`
+### N2 · Chats list — ✅ (band + ONE ember New; overflow root-caused IN the primitive — see the corrected bullet; ember selection retints)
 - "CHATS" micro-caps title + count into the N1 band; the band's only action is
   `Button intent="primary" size="sm"` **New** with `Plus` (A2). The current ghost `+`
   (`[aria-label="Start a new chat"]` header instance) is replaced; the two `intent="primary"`
@@ -301,9 +310,8 @@ Files: `surfaces/shell.css`, `components/panel-chrome.tsx`, `components/shell-to
 - **Done when:** no horizontal scroll at any title length; ONE ember element in the panel (New);
   selection reads via the left bar; a custom light theme retints the tint (it rides `--color-primary`).
 
-### N3 · Message row — `features/chat/components/message-row.tsx`, `message-actions-row.tsx`,
-`message-metadata-row.tsx`, `lib/message-actions-reveal.ts`, `lib/message-row-variants.ts`
-Highest-impact fix; repeats every turn. All changes in the SHARED pieces — all 8 skins inherit.
+### N3 · Message row — ✅ (rest = name · inline time · fit bubble, ZERO always-on icons; `edit fork ⋯` on hover/focus; keyboard reveal verifier-proven)
+**✅ SHIPPED.** Highest-impact fix; repeats every turn. All changes landed in the SHARED pieces — all 8 skins inherit (geometry CT suite re-verified).
 
 - **Actions collapse (A3), respecting `messageActions`:** strip becomes `edit` + `fork` inline +
   `hide · copy · delete` under `⋯` in BOTH pref modes. `hover` (default): rest =
@@ -326,8 +334,7 @@ Highest-impact fix; repeats every turn. All changes in the SHARED pieces — all
   `edit fork ⋯`; `expanded` pref shows the 3-cluster always; a two-word reply hugs its text; all 8
   skins render their signature geometry (§9 matrix); a resting viewport shows ZERO always-on action icons.
 
-### N4 · Chat Context — app-shell `components/{section-context-host,context-tabs-panel,panel-chrome}.tsx`
-+ `features/chat/lib/chats-section.tsx` + `features/chat/components/room-overrides-form.tsx`
+### N4 · Chat Context — ✅ (identity header via the §6b-posture `header` slot beside `actions`; ember top edge retints; Overrides = ONE helper line + ? hints)
 
 **[RE-ANCHORED 2026-07-15]** lockdown M3 DELETED `chat-context-panel-surface.tsx` +
 `draft-context-panel-surface.tsx`. Chat context is now `CHAT_CONTEXT_TABS` minted via
@@ -355,7 +362,7 @@ per-section switch. That channel shape is N4's ONE design decision; G3 (mint-onl
 - **Done when:** Overrides has one helper line total; header names the chat; the ember edge renders
   over glass and under a light custom theme.
 
-### N5 · Chats ember sweep + landing
+### N5 · Chats ember sweep + landing — ✅ (census: 56 Buttons, ONE stray demoted; every applicable §9 line passed live)
 - Sweep `features/chat/**` with ast-grep for `<Button $$$>` (rule 0.9): survivors = list-header New,
   composer Send (`composer.tsx:256`), one primary per DIALOG. The landing hero is ALREADY one primary (a mutually-exclusive ternary — `:96` empty-library / `:101` New chat) and the browse affordance (`All characters →`, `:128`) is already `ghost` — N5's landing work is confirming the ember count, not demoting anything, `message-edit-textarea.tsx:117` save (inline editor → `secondary`),
   any others found.
@@ -365,7 +372,7 @@ per-section switch. That channel shape is N4's ONE design decision; G3 (mint-onl
 
 ---
 
-## 5. Primitive polish PP1–PP5 (global lane — ship FIRST, each its own commit)
+## 5. Primitive polish PP1–PP5 — **✅ ALL SHIPPED 2026-07-16** (with derive-W2; PP5 minted `spacing.checkbox`)
 
 > **This lane and derive-W2 are ONE ui-package wave** (Sequencing step 1): the skin-fragment tier +
 > gate G25 (`derive-modernization-audit.md` §W2) ships alongside PP1–PP5 — fragments first or
@@ -405,10 +412,11 @@ per-section switch. That channel shape is N4's ONE design decision; G3 (mint-onl
 
 ## 6. Rollout after the north star (in order) + ported remainders
 
-> **Pre-gate:** derive-W1 (the `FormDialog` rollup + gate G24, `derive-modernization-audit.md` §W1)
-> lands BEFORE this rollout starts — the rollout repaints exactly the features W1 migrates
-> (character/world-info/user-admin/persona/settings dialogs), so migrate-then-paint, never both at
-> once.
+> **Pre-gate: ✅ SATISFIED 2026-07-16** — derive-W1 (FormDialog + G24) landed; the rollout repaints
+> already-migrated dialogs. **This § is the open work.** Build order below; each stop follows the
+> chats-lane pattern (N1 band mechanics exist app-wide already — `PanelChrome` renders the band for
+> every section; each stop fills it, applies P2 ownership + §7 autosave, and runs its §9 lines).
+> The characters stop ALSO mints the character-detail contributor registry (the one named seam gap).
 
 1. **Characters** — content header autosave status (§7) replacing Discard/Save
    (`character-editor-surface.tsx:175-213`, incl. the dirty-primary ternary at `:204`); token counts
