@@ -162,9 +162,14 @@ vocabulary (zones are architecture, entries are growth).
    `topbar-command` deliberately unmapped — the bespoke ⌘K chip's unification is a VISIBLE change
    deferred to N1's skin pass. `rail.nav`/`rail.end` entries are assembled-but-unconsumed until step 3.
    Completeness gate: `rail.*` widgets must declare `mobile`; `topbar.*` must not.
-3. **Rail cutover** — ○ NOT DONE. Single-DOM chrome render; merge the two button components; CSS reflow inside the
-   existing `@media`; `mobilePrimary?:boolean` → `mobile: MobileCuration` across the 7 section defs. Delete the twin
-   blocks + `RailTabButton`.
+3. **Rail cutover** — ● DONE (2026-07-16). ONE nav from the assembled registry (brand → grouped
+   `rail.nav` → spacer → `rail.end` + railFoot avatar → the mobile-only You tab); the merged
+   `RailButton` carries a CSS-toggled label; the one `@media` reflows the SAME DOM
+   (`[data-mobile="sheet"]` hidden = out of the a11y tree). Twin blocks + `RailTabButton` +
+   `.shell-tab-*` deleted (zero external refs). The 7 defs migrated to REQUIRED
+   `mobile: MobileCuration`; the assembler shim died. NOTE: `MobileCuration` HOMES in
+   `section-registry.ts` (a chrome↔section type cycle trips `no-circular`); `chrome-registry.ts`
+   re-exports it — §A's vocab listing reads accordingly.
 4. **Topbar-trail cutover** — ● DONE (N1). Trail renders `zone("topbar.trail")`; bell carries `useVisible`;
    `topbarTrail` prop + app-root wiring deleted; hardcoded focus/context buttons → app-shell widget entries; the
    doubled detail-panel close is gone.
