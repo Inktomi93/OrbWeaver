@@ -514,11 +514,15 @@ per-section switch. That channel shape is N4's ONE design decision; G3 (mint-onl
      owner-wide Corpus section — the Corpus coverage pass (2026-07) deliberately left them
      unconsumed rather than forcing a chat concern into the corpus surfaces. Fold into the Chat lane
      when a chat-analytics drill is scheduled (the same select/scope wiring the corpus dossier uses).
-   - **Chat-behavior settings pane.** OPEN, re-verified 2026-07-15: registers honestly as
-     `body: {placeholder: true}` (`features/settings/lib/chat-behavior-pane.tsx` — the M6 pane
-     registry replaced `settings-nav.ts`'s `built:false` flag). Fold into the Settings stop of the
-     rollout alongside UIP-404. (Automation is likewise `{placeholder: true}` but is feature-scope,
-     not cohesion.)
+   - **Chat-behavior settings pane. → PD-146 (2026-07-16): NOT a cohesion fold-in — a half-built
+     parity FEATURE.** Registers `{placeholder: true}` (`features/settings/lib/chat-behavior-pane.tsx`),
+     but the data model is partly ALREADY THERE: `UserSettings.chat` carries `autoContinue`/
+     `continueOnSend`/`autoSwipe`/`customStoppingStrings` (`contracts/settings/index.ts:216-229`) —
+     schema-only-INERT (the turn engine honors none; verified). Reference design = neo's
+     `preferences-surface.tsx` (Chat & message handling + Streaming groups; 4 more client-local prefs
+     absent in orb: enterSends, smoothStream, smoothStreamCps, streamScrollMode). Moved OUT of the
+     Settings stop to PD-146 (own block, schema+behavior+pane scope) — it doesn't gate the D66 close.
+     (Automation is likewise `{placeholder: true}`, feature-scope not cohesion.)
    - **Autosave micro-status on settings panes. RESOLVED 2026-07-16** (commit `081468f3`, the
      settings stop; lane verifier CONFIRMED): every autosaving pane now renders the live shared
      `AutosaveStatus` (from the characters-stop mint, `forms/autosave-status.tsx`) fed by its
