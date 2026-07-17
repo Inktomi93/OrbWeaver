@@ -8,7 +8,7 @@
 // AND its persistence.
 
 import type { AppFormInstance, AutosaveSession } from "@orb/client/forms";
-import { createAutosaveEntityBoundary } from "@orb/client/forms";
+import { createAutosaveEntityForm } from "@orb/client/forms";
 import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { PresetId } from "@orb/kit/ids";
@@ -30,7 +30,7 @@ const SECTIONS: PromptSection[] = [
   { type: "literal", id: "sec_z", name: "Zeta", role: "system", content: "z", enabled: true },
 ];
 
-const StoryForm = createAutosaveEntityBoundary<PromptConfig>({ defaultValues: DEFAULT_PROMPT_CONFIG });
+const StoryForm = createAutosaveEntityForm<PromptConfig>({ defaultValues: DEFAULT_PROMPT_CONFIG });
 
 /** Publishes the boundary session's form to the bridge, selects preset + the `sec_del` section, and mirrors
  *  the live section-id order + the last-saved section count for the CT to assert against. */

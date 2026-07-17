@@ -597,7 +597,7 @@
       }
     },
     {
-      "includes": ["packages/client/src/forms/create-autosave-entity-boundary.tsx"],
+      "includes": ["packages/client/src/forms/create-autosave-entity-form.tsx"],
       "linter": {
         "rules": {
           "nursery": {

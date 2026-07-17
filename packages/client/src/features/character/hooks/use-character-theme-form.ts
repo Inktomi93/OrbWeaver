@@ -5,13 +5,13 @@
 // place wrong (autosave-form-doctrine.md §1/§8, D78 L2). `save` is supplied at call time
 // (character-appearance-tab.tsx). No `draft` mirror — a low-stakes tweak, not worth a crash-survival slot.
 
-import { createAutosaveEntityBoundary } from "#forms";
+import { createAutosaveEntityForm } from "#forms";
 import type { CharacterThemeFormValues } from "../lib/character-theme-form-model";
 import { EMPTY_CHARACTER_THEME_FORM } from "../lib/character-theme-form-model";
 
 const THEME_AUTOSAVE_DEBOUNCE_MS = 300;
 
-export const CharacterThemeForm = createAutosaveEntityBoundary<CharacterThemeFormValues>({
+export const CharacterThemeForm = createAutosaveEntityForm<CharacterThemeFormValues>({
   defaultValues: EMPTY_CHARACTER_THEME_FORM,
   debounceMs: THEME_AUTOSAVE_DEBOUNCE_MS,
 });

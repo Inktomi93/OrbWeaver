@@ -20,7 +20,7 @@ import { Icon, Info } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { createAutosaveEntityBoundary } from "#forms";
+import { createAutosaveEntityForm } from "#forms";
 import { ASSISTANT_PREFILL_WARNING, MESSAGE_ROLE_ITEMS } from "#lib";
 import type { RoomOverridesFormValues } from "../lib/room-overrides-form-model";
 import { EMPTY_ROOM_OVERRIDES_FORM, fromRoomOverridesForm, isAuthorsNotePrefill, toRoomOverridesForm } from "../lib/room-overrides-form-model";
@@ -33,7 +33,7 @@ import { EMPTY_ROOM_OVERRIDES_FORM, fromRoomOverridesForm, isAuthorsNotePrefill,
 // No module `config.save`: the persist fn closes over the live tRPC client (a React-context value
 // unreachable here) — the SURFACE supplies `save` per-instance. No draft mirror (the server row is the
 // durable store; a crash-mirror would duplicate synced truth — the appearance-form precedent).
-const RoomOverridesFormBoundary = createAutosaveEntityBoundary<RoomOverridesFormValues>({
+const RoomOverridesFormBoundary = createAutosaveEntityForm<RoomOverridesFormValues>({
   defaultValues: EMPTY_ROOM_OVERRIDES_FORM,
 });
 

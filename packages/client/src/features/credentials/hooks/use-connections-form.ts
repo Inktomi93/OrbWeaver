@@ -6,7 +6,7 @@
 // server-synced and autosaves within the debounce window.
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
-import { createAutosaveEntityBoundary } from "#forms";
+import { createAutosaveEntityForm } from "#forms";
 import type { RoutingForm } from "../lib/connections-model";
 import { projectRoutingForm } from "../lib/connections-model";
 
@@ -16,6 +16,6 @@ export const CONNECTIONS_ENTITY_ID = "connections-routing";
 /** The all-unset default, projected from the contract default routing section. */
 const DEFAULT_ROUTING_FORM: RoutingForm = projectRoutingForm(DEFAULT_USER_SETTINGS.routing);
 
-export const ConnectionsForm = createAutosaveEntityBoundary<RoutingForm>({
+export const ConnectionsForm = createAutosaveEntityForm<RoutingForm>({
   defaultValues: DEFAULT_ROUTING_FORM,
 });

@@ -15,7 +15,7 @@ import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useInvalidation, useTRPC } from "#data";
-import { createAutosaveEntityBoundary } from "#forms";
+import { createAutosaveEntityForm } from "#forms";
 import { MESSAGE_ROLE_ITEMS } from "#lib";
 import { useDeleteChatInjection, useSetChatInjection } from "../hooks/use-context-panel-mutations";
 import type { InjectionFormValues } from "../lib/injection-row-model";
@@ -28,7 +28,7 @@ import { NEW_INJECTION } from "../lib/injection-seed";
 // carries no stale FormApi — but the list `.map` key on `<InjectionRow>` already IS that identity (safe-by-
 // key by construction, autosave-form-doctrine.md §8; harmless double-key).
 
-const InjectionRowBoundary = createAutosaveEntityBoundary<InjectionFormValues>({
+const InjectionRowBoundary = createAutosaveEntityForm<InjectionFormValues>({
   defaultValues: DEFAULT_INJECTION_FORM,
 });
 

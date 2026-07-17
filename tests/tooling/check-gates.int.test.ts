@@ -316,6 +316,12 @@ function writeFixtures(): void {
     "packages/client/src/features/__g_multifield/components/__g_multifield.tsx",
     "export function GMultiField() {\n  return (\n    <div>\n      <Input value={a} onChange={set} />\n      <Select value={b} onValueChange={set} />\n      <Switch checked={c} onCheckedChange={set} />\n    </div>\n  );\n}\n",
   );
+  // no-manual-autosave-flush: a features/** function body calling BOTH a structural array op AND
+  // handleSubmit — the retired §7-trap call-site flush the D78 SEAL armed (autosave-form-doctrine.md §7 G-A).
+  fx(
+    "packages/client/src/features/__g_autoflush/lib/__g_autoflush.ts",
+    "export function gOnAdd(form: F): void {\n  form.pushFieldValue('items', v);\n  void form.handleSubmit();\n}\n",
+  );
   // ── ledger-gate wave (activated 2026-07-09) — fixtures for the newly-live gates ──
   // ownerid-registry: an ownerId column on a table NOT in the D23 OWNERID_ALLOWLIST.
   fx(
@@ -584,7 +590,7 @@ test("every registered structural gate fires on its fixture (anti-drift)", () =>
 // from `registry`. Each has its own header explaining why + a residual self-test proving it still fires
 // (tests/tooling/{monotonic-tests}.residual.test.ts drives the monotonic gate directly). This is the ONE
 // sanctioned exemption from the file-vs-registry anti-drift check below.
-const DORMANT_GATES = new Set(["monotonic-tests", "audit-client-tests", "component-size-ui", "no-manual-autosave-flush"]);
+const DORMANT_GATES = new Set(["monotonic-tests", "audit-client-tests", "component-size-ui"]);
 
 test("every ACTIVE gate file in scripts/check/gates is run by report.ts (anti-drift)", () => {
   // A gate file whose descriptor is status:"active" but that report.ts's live pass never prints would be

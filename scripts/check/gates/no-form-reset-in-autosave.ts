@@ -10,21 +10,21 @@ import type { Violation } from "../harness.ts";
 
 const CLIENT_SRC = "/packages/client/src/";
 const FACTORY_NAME = "createAutosaveEntityForm";
-const FACTORY_FILE = "packages/client/src/forms/create-autosave-entity-form.ts";
+const FACTORY_FILE = "packages/client/src/forms/create-autosave-entity-form.tsx";
 
 const RESET_MESSAGE =
   "reset() on an autosave form — reset re-baselines a live draft mirror into the TanStack Form " +
   "isDirty-never-clears loop (#1144). createAutosaveEntityForm strips reset by type; do not cast past it " +
-  "(UI-Gates-and-Lessons.md §7 row 2; forms/create-autosave-entity-form.ts).";
+  "(UI-Gates-and-Lessons.md §7 row 2; forms/create-autosave-entity-form.tsx).";
 
 const OMIT_MISSING_MESSAGE =
   'the reset type-strip (Omit<…, "reset">) is gone from the autosave factory\'s returned surface — ' +
   "reset MUST stay removed (it is the autosave infinite loop, UI-Gates-and-Lessons.md §7 row 2); " +
-  "restore the Omit in forms/create-autosave-entity-form.ts.";
+  "restore the Omit in forms/create-autosave-entity-form.tsx.";
 
 const RESET_PROP_MESSAGE =
   "the autosave factory's returned surface re-exposes `reset` — reset stays stripped so the call site " +
-  "cannot trigger the isDirty loop (UI-Gates-and-Lessons.md §7 row 2; forms/create-autosave-entity-form.ts).";
+  "cannot trigger the isDirty loop (UI-Gates-and-Lessons.md §7 row 2; forms/create-autosave-entity-form.tsx).";
 
 function clientRel(path: string): string | undefined {
   const idx = path.indexOf(CLIENT_SRC);
@@ -130,13 +130,13 @@ export const gate: GateDescriptor = {
     },
     {
       files: "export function createAutosaveEntityForm() {\n  return { field: 1 };\n}\n",
-      at: "packages/client/src/forms/create-autosave-entity-form.ts",
+      at: "packages/client/src/forms/create-autosave-entity-form.tsx",
       why: 'ARM B OMIT_MISSING — the factory file with no Omit<…,"reset"> strip on its surface',
       expect: { messageIncludes: "type-strip" },
     },
     {
       files: 'export function createAutosaveEntityForm(): Omit<{ reset: () => void; x: 1 }, "reset"> {\n  return { reset: () => {}, x: 1 };\n}\n',
-      at: "packages/client/src/forms/create-autosave-entity-form.ts",
+      at: "packages/client/src/forms/create-autosave-entity-form.tsx",
       why: "ARM B RESET_PROP — the factory file hands a `reset` property back through its returned object",
       expect: { messageIncludes: "re-exposes `reset`" },
     },
