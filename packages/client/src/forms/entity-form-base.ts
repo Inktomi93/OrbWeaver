@@ -25,3 +25,39 @@ export function readDraftSeed<TValues extends object>(draft: EntityDraftStore<TV
 export function mirrorDraft<TValues extends object>(draft: EntityDraftStore<TValues> | undefined, entityId: string, values: TValues): void {
   draft?.setDraft(entityId, values);
 }
+
+// The ONE structural-equal home for the forms layer (D54 note: `es-toolkit`'s isEqual is the adopt-when
+// trigger; a local deep-equal is equally sanctioned — kept local so the forms layer takes no new
+// dependency). The autosave boundary's save driver compares live `state.values` against the last-saved
+// snapshot with it: form values are mapper outputs (a FRESH object every render), so an `Object.is`
+// baseline compare always reads "changed" (footgun #6, UI-Lib-TanStack-Form). Form values are JSON-shaped
+// by construction — the contracts that back them are zod objects of strings/numbers/booleans/arrays/nested
+// objects, no Dates/Maps/Sets/functions — so a recursive structural walk is a complete equality for them.
+/** Structural deep-equality for JSON-shaped form values (the forms layer's ONE deep-equal, see header). */
+export function formValuesEqual(a: unknown, b: unknown): boolean {
+  if (Object.is(a, b)) {
+    return true;
+  }
+  if (typeof a !== "object" || typeof b !== "object" || a === null || b === null) {
+    return false;
+  }
+  const aIsArray = Array.isArray(a);
+  if (aIsArray !== Array.isArray(b)) {
+    return false;
+  }
+  if (aIsArray) {
+    const bArr = b as readonly unknown[];
+    const aArr = a as readonly unknown[];
+    if (aArr.length !== bArr.length) {
+      return false;
+    }
+    return aArr.every((item, i) => formValuesEqual(item, bArr[i]));
+  }
+  const aObj = a as Record<string, unknown>;
+  const bObj = b as Record<string, unknown>;
+  const aKeys = Object.keys(aObj);
+  if (aKeys.length !== Object.keys(bObj).length) {
+    return false;
+  }
+  return aKeys.every((key) => Object.hasOwn(bObj, key) && formValuesEqual(aObj[key], bObj[key]));
+}

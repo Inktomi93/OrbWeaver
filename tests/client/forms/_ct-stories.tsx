@@ -20,11 +20,11 @@
 // A button bumps a counter spread into a fresh `serverValues` object each click — the clobber
 // trigger (new server identity, identical content) without any network.
 
-import type { AutosaveSaveState } from "@orb/client/forms";
-import { AutosaveStatus, createAutosaveEntityForm, createSavedEntityForm } from "@orb/client/forms";
+import type { AutosaveSaveState, AutosaveSession } from "@orb/client/forms";
+import { AutosaveStatus, createAutosaveEntityBoundary, createAutosaveEntityForm, createSavedEntityForm } from "@orb/client/forms";
 import { createEntityDraftStore } from "@orb/client/state";
 import type { ReactElement } from "react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 interface StoryValues {
   readonly text: string;
@@ -433,6 +433,248 @@ export function SavedDraftUnmountFlushStory(): ReactElement {
       <SavedFlushDraftObserver />
       <button type="button" onClick={(): void => setMounted(false)}>
         unmount editor
+      </button>
+    </div>
+  );
+}
+
+// =============================================================================================
+// D78 SESSION-BOUNDARY stories (autosave-form-doctrine.md §10 CT-1..6) — mount the REAL boundary
+// (createAutosaveEntityBoundary) over a save SPY. The spy is a reactive draft-store channel (the
+// established observation pattern above): each save records a monotonically-numbered entry
+// `{ id: entityId, text: value.text }` under a per-call key, plus a running count — so a CT can pin
+// both HOW MANY saves fired and WHICH entity/value each carried. The stories drive entityId /
+// serverValues via host state and expose `reseed` through a button, exactly as a real consumer would.
+
+interface BoundaryValues {
+  readonly text: string;
+}
+
+// The spy channel — a reactive store the observer reads. `count` holds the running total; `last` holds
+// the most recent {id,text}; `log` holds a joined "id=text" trail so CT-3 can assert exactly-one-save.
+function createSaveSpy(name: string): {
+  readonly store: ReturnType<typeof createEntityDraftStore<{ readonly value: string }>>;
+  readonly record: (id: string, text: string) => void;
+} {
+  const store = createEntityDraftStore<{ readonly value: string }>({ name });
+  let count = 0;
+  const trail: string[] = [];
+  return {
+    store,
+    record: (id, text): void => {
+      count += 1;
+      trail.push(`${id}=${text}`);
+      store.setDraft("count", { value: String(count) });
+      store.setDraft("last", { value: `${id}=${text}` });
+      store.setDraft("log", { value: trail.join("|") });
+    },
+  };
+}
+
+// ---- CT-1 / CT-3: identity switch + teardown flush (one boundary, host-driven entityId) ------------
+const switchSpy = createSaveSpy("boundary-ct-switch");
+// No config.save — the per-instance save (below) closes over the live entityId, so each save is tagged
+// with the entity that owned it (CT-3 asserts the flush hit the OLD entity, not the switched-to one).
+const useSwitchBoundary = createAutosaveEntityBoundary<BoundaryValues>({
+  defaultValues: { text: "" },
+  debounceMs: 50,
+});
+
+function SwitchBoundaryStoryInner({ session, label }: { readonly session: AutosaveSession<BoundaryValues>; readonly label: string }): ReactElement {
+  return <session.form.AppField name="text">{(field): ReactElement => <field.TextField label={label} />}</session.form.AppField>;
+}
+
+/** CT-1 identity switch + CT-3 teardown flush: a single boundary whose entityId + serverValues flip. */
+export function BoundaryIdentitySwitchStory(): ReactElement {
+  const [entity, setEntity] = useState<{ readonly id: string; readonly server: BoundaryValues }>({
+    id: "A",
+    server: { text: "alpha" },
+  });
+  return (
+    <div>
+      {useSwitchBoundary({
+        entityId: entity.id,
+        serverValues: entity.server,
+        save: (values): Promise<void> => {
+          switchSpy.record(entity.id, values.text);
+          return Promise.resolve();
+        },
+        children: (session): ReactElement => <SwitchBoundaryStoryInner session={session} label={`${entity.id} text`} />,
+      })}
+      <SwitchSpyObserverFor spy={switchSpy} prefix="switch" />
+      <button type="button" onClick={(): void => setEntity({ id: "B", server: { text: "beta" } })}>
+        switch to B
+      </button>
+    </div>
+  );
+}
+
+// ---- CT-2 / CT-4: reseed discards + array ops persist ---------------------------------------------
+const reseedSpy = createSaveSpy("boundary-ct-reseed");
+// LONG debounce: the edit must stay PENDING (never autosaved) when reseed fires, so the ONLY way a
+// pre-reseed save could land is the discard-flagged teardown flush writing it back (the F2 defect CT-2
+// pins). A short debounce would autosave the edit first — a legitimate save, not the write-back.
+const useReseedBoundary = createAutosaveEntityBoundary<BoundaryValues>({
+  defaultValues: { text: "" },
+  debounceMs: 5000,
+});
+
+/** CT-2 reseed discards: edit → reseed(starter) → the field shows starter and no pre-reseed save lands. */
+export function BoundaryReseedStory(): ReactElement {
+  const sessionRef = useRef<AutosaveSession<BoundaryValues> | undefined>(undefined);
+  return (
+    <div>
+      {useReseedBoundary({
+        entityId: "reseed-entity",
+        serverValues: { text: "server value" },
+        save: (values): Promise<void> => {
+          reseedSpy.record("reseed-entity", values.text);
+          return Promise.resolve();
+        },
+        children: (session): ReactElement => {
+          sessionRef.current = session;
+          return <session.form.AppField name="text">{(field): ReactElement => <field.TextField label="Reseed text" />}</session.form.AppField>;
+        },
+      })}
+      <SwitchSpyObserverFor spy={reseedSpy} prefix="reseed" />
+      <button type="button" onClick={(): void => sessionRef.current?.reseed({ text: "starter value" })}>
+        reseed to starter
+      </button>
+    </div>
+  );
+}
+
+// A parameterized spy observer (the switch observer above is hard-bound to switchSpy). Distinct testids
+// per prefix so multiple stories in one page context never collide.
+function SwitchSpyObserverFor({ spy, prefix }: { readonly spy: ReturnType<typeof createSaveSpy>; readonly prefix: string }): ReactElement {
+  const count = spy.store.useDraft("count");
+  const last = spy.store.useDraft("last");
+  const log = spy.store.useDraft("log");
+  return (
+    <div>
+      <output data-testid={`${prefix}-count`}>{count.value ?? "0"}</output>
+      <output data-testid={`${prefix}-last`}>{last.value ?? ""}</output>
+      <output data-testid={`${prefix}-log`}>{log.value ?? ""}</output>
+    </div>
+  );
+}
+
+// ---- CT-4 array ops: push AND remove reach the spy with ZERO call-site flushes --------------------
+interface ArrayValues {
+  // Mutable (not readonly) — form-core's array helpers key on `DeepKeysOfType<T, any[]>`, and a readonly
+  // array is not assignable to `any[]`, so the field path would erase to `never`.
+  items: string[];
+}
+const arraySpy = createEntityDraftStore<{ readonly value: string }>({ name: "boundary-ct-array" });
+let arraySaveCount = 0;
+const useArrayBoundary = createAutosaveEntityBoundary<ArrayValues>({
+  defaultValues: { items: [] },
+  save: (values): Promise<void> => {
+    arraySaveCount += 1;
+    arraySpy.setDraft("state", { value: `${arraySaveCount}:${values.items.join(",")}` });
+    return Promise.resolve();
+  },
+  debounceMs: 50,
+});
+
+/** CT-4 array ops persist with zero call-site flushes: push + remove both reach the spy via the driver. */
+export function BoundaryArrayOpsStory(): ReactElement {
+  const sessionRef = useRef<AutosaveSession<ArrayValues> | undefined>(undefined);
+  return (
+    <div>
+      {useArrayBoundary({
+        entityId: "array-entity",
+        serverValues: { items: [] },
+        children: (session): ReactElement => {
+          sessionRef.current = session;
+          return (
+            <session.form.AppField name="items" mode="array">
+              {(field): ReactElement => <output data-testid="array-live">{JSON.stringify(field.state.value)}</output>}
+            </session.form.AppField>
+          );
+        },
+      })}
+      <ArraySpyObserver />
+      {/* NO form.handleSubmit() anywhere — the store-subscription driver owns persistence (the §7 trap dies). */}
+      <button type="button" onClick={(): void => sessionRef.current?.form.pushFieldValue("items", "one")}>
+        push item
+      </button>
+      <button type="button" onClick={(): void => void sessionRef.current?.form.removeFieldValue("items", 0)}>
+        remove item
+      </button>
+    </div>
+  );
+}
+
+function ArraySpyObserver(): ReactElement {
+  const state = arraySpy.useDraft("state");
+  return <output data-testid="array-spy">{state.value ?? ""}</output>;
+}
+
+// ---- CT-5 status: fail → error+Retry → success → saved; caption in saved only ---------------------
+let statusShouldFail = true;
+const useStatusBoundary = createAutosaveEntityBoundary<BoundaryValues>({
+  defaultValues: { text: "" },
+  save: (): Promise<void> => (statusShouldFail ? Promise.reject(new Error("CT: forced fail")) : Promise.resolve()),
+  debounceMs: 50,
+});
+
+/** CT-5 status lifecycle + caption: renders AutosaveStatus fed by the session (caption in `saved` only). */
+export function BoundaryStatusStory(): ReactElement {
+  return (
+    <div>
+      {useStatusBoundary({
+        entityId: "status-entity",
+        serverValues: { text: "" },
+        children: (session): ReactElement => (
+          <div>
+            <session.form.AppField name="text">{(field): ReactElement => <field.TextField label="Status text" />}</session.form.AppField>
+            <AutosaveStatus state={session.saveState} onRetry={session.retrySave} caption="Synced across your devices." />
+            <output data-testid="status-state">{session.saveState}</output>
+            <button
+              type="button"
+              onClick={(): void => {
+                statusShouldFail = false;
+              }}
+            >
+              make save succeed
+            </button>
+          </div>
+        ),
+      })}
+    </div>
+  );
+}
+
+// ---- CT-6 clean echo: serverValues change while clean re-baselines; while dirty keeps edits ---------
+// LONG debounce: the CT-6 dirty case needs a local edit to STAY unsaved (hasUnsavedEdits() true) when the
+// echo fires, so the echo is correctly kept out. A 50ms debounce would autosave the edit → clean → the
+// echo would (correctly) re-baseline, defeating the dirty-path assertion. The clean case still works: an
+// untouched form is clean regardless of debounce, so the first echo re-baselines immediately.
+const useEchoBoundary = createAutosaveEntityBoundary<BoundaryValues>({
+  defaultValues: { text: "" },
+  save: (): Promise<void> => Promise.resolve(),
+  debounceMs: 5000,
+});
+
+/** CT-6 clean server-echo: a fresh serverValues (changed content) re-baselines a clean form, but a dirty
+ *  form keeps its edit. entityId is CONSTANT (no remount) — only serverValues changes, inside the seal. */
+export function BoundaryCleanEchoStory(): ReactElement {
+  const [server, setServer] = useState<BoundaryValues>({ text: "echo-1" });
+  return (
+    <div>
+      {useEchoBoundary({
+        entityId: "echo-entity",
+        serverValues: server,
+        children: (session): ReactElement => (
+          <session.form.AppField name="text">{(field): ReactElement => <field.TextField label="Echo text" />}</session.form.AppField>
+        ),
+      })}
+      <button type="button" onClick={(): void => setServer({ text: "echo-2" })}>
+        clean echo
+      </button>
+      <button type="button" onClick={(): void => setServer({ text: "echo-3" })}>
+        dirty echo
       </button>
     </div>
   );
