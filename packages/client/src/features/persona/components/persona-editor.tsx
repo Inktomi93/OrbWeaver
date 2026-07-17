@@ -17,8 +17,9 @@ import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC, useTRPCClient } from "#data";
+import type { AutosaveSession } from "#forms";
 import { ASSISTANT_PREFILL_WARNING, downloadJson, MESSAGE_ROLE_ITEMS, notify, slugifyFilename } from "#lib";
-import { usePersonaForm } from "../hooks/use-persona-form";
+import { PersonaForm } from "../hooks/use-persona-form";
 import { useDuplicatePersona, useUpdatePersona } from "../hooks/use-persona-mutations";
 import { PERSONA_DESCRIPTION_MACROS } from "../lib/persona-description-macros";
 import type { PersonaFormValues } from "../lib/persona-editor-model";
@@ -47,13 +48,12 @@ export interface PersonaEditorProps {
   readonly onRequestDelete: () => void;
 }
 
-/** The persona DETAILS — autosaving, no repeated avatar/name (the panel-row's expand-to-edit body). */
+/** The persona DETAILS — autosaving, no repeated avatar/name (the panel-row's expand-to-edit body).
+ *  Mounted through the D78 session boundary (`PersonaForm`), which owns the persona.id key. */
 export function PersonaEditor({ persona, onRequestDelete }: PersonaEditorProps): ReactElement {
   const trpc = useTRPC();
-  const client = useTRPCClient();
   const invalidation = useInvalidation();
   const update = useUpdatePersona({ trpc, invalidation });
-  const duplicate = useDuplicatePersona({ trpc, invalidation });
   const baseMetadata: PersonaMetadata | null = persona.metadata;
 
   const save = (values: PersonaFormValues): Promise<unknown> =>
@@ -62,11 +62,27 @@ export function PersonaEditor({ persona, onRequestDelete }: PersonaEditorProps):
       input: personaInputFromForm(values, baseMetadata),
     });
 
-  const { form, mountKey } = usePersonaForm({
-    entityId: persona.id,
-    serverValues: personaFormFromEntity(persona),
-    save,
-  });
+  return (
+    <PersonaForm entityId={persona.id} serverValues={personaFormFromEntity(persona)} save={save}>
+      {(session): ReactElement => <PersonaEditorBody session={session} persona={persona} onRequestDelete={onRequestDelete} />}
+    </PersonaForm>
+  );
+}
+
+interface PersonaEditorBodyProps {
+  readonly session: AutosaveSession<PersonaFormValues>;
+  readonly persona: PersonaDetail;
+  readonly onRequestDelete: () => void;
+}
+
+/** The form-bearing persona details body — remounted per persona by the boundary's keyed Session. */
+function PersonaEditorBody({ session, persona, onRequestDelete }: PersonaEditorBodyProps): ReactElement {
+  const { form } = session;
+  const trpc = useTRPC();
+  const client = useTRPCClient();
+  const invalidation = useInvalidation();
+  const duplicate = useDuplicatePersona({ trpc, invalidation });
+  const baseMetadata: PersonaMetadata | null = persona.metadata;
 
   const onExport = async (): Promise<void> => {
     try {
@@ -78,7 +94,7 @@ export function PersonaEditor({ persona, onRequestDelete }: PersonaEditorProps):
   };
 
   return (
-    <Stack key={mountKey} gap="row">
+    <Stack gap="row">
       <form.AppField name="title">
         {(field): ReactElement => (
           <field.TextField label="Title" hint="A display subtitle for pickers — never injected into the prompt." placeholder="Optional" />

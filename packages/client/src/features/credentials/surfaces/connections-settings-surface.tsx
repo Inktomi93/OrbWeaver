@@ -7,6 +7,7 @@
 //       health probe. The secret is never rendered.
 
 import type { VerifyAuthResult } from "@orb/contracts/providers";
+import type { UserCredentialId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
@@ -20,13 +21,14 @@ import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
+import type { AutosaveSession } from "#forms";
 import { AutosaveStatus } from "#forms";
 import { useFocusOnMount } from "#lib";
 import { settingsAnchorId } from "#state";
 import { AddCredentialDialog } from "../components/add-credential-dialog";
 import { CredentialKeyRow } from "../components/credential-key-row";
 import { RoleSlotRow } from "../components/role-slot-row";
-import { CONNECTIONS_ENTITY_ID, useConnectionsForm } from "../hooks/use-connections-form";
+import { CONNECTIONS_ENTITY_ID, ConnectionsForm } from "../hooks/use-connections-form";
 import type { RoutingForm } from "../lib/connections-model";
 import {
   embedDimensionWarning,
@@ -104,12 +106,22 @@ function ModelRolesSection(): ReactElement {
       patch: toRoutingSection(values) as Record<string, unknown>,
     });
 
-  const { form, mountKey, saveState, retrySave } = useConnectionsForm({
-    entityId: CONNECTIONS_ENTITY_ID,
-    serverValues: projectRoutingForm(data.config.routing),
-    save,
-  });
+  return (
+    <ConnectionsForm entityId={CONNECTIONS_ENTITY_ID} serverValues={projectRoutingForm(data.config.routing)} save={save}>
+      {(session): ReactElement => <ModelRolesBody session={session} isOwner={isOwner} customCredentialId={customCredentialId} />}
+    </ConnectionsForm>
+  );
+}
 
+interface ModelRolesBodyProps {
+  readonly session: AutosaveSession<RoutingForm>;
+  readonly isOwner: boolean;
+  readonly customCredentialId: UserCredentialId | null;
+}
+
+/** The form-bearing role-slots body — remounted per epoch by the boundary's keyed Session. */
+function ModelRolesBody({ session, isOwner, customCredentialId }: ModelRolesBodyProps): ReactElement {
+  const { form, saveState, retrySave } = session;
   return (
     <Section divider={true} heading="Model roles" id={anchor(CONNECTIONS_SUBCATEGORY_IDS.roles)}>
       <Row gap="field" align="center" justify="between" className="flex-wrap">
@@ -119,7 +131,7 @@ function ModelRolesSection(): ReactElement {
         <AutosaveStatus state={saveState} onRetry={retrySave} />
       </Row>
       <FieldLayout orientation="horizontal">
-        <Stack key={mountKey} gap="block">
+        <Stack gap="block">
           {ROLE_SLOTS_ORDERED.map((slot) => (
             <RoleSlotRow key={slot.role} slot={slot} form={form} isOwner={isOwner} customCredentialId={customCredentialId} onScrollToKeys={scrollToKeys} />
           ))}

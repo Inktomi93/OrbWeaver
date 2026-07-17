@@ -17,10 +17,11 @@ import { Text } from "@orb/ui/text";
 import { useSuspenseQueries } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
+import type { AutosaveSession } from "#forms";
 import { AutosaveStatus } from "#forms";
 import { useFocusOnMount } from "#lib";
 import { settingsAnchorId } from "#state";
-import { SYSTEM_SETTINGS_ENTITY_ID, useSystemSettingsForm } from "../hooks/use-system-settings-form";
+import { SYSTEM_SETTINGS_ENTITY_ID, SystemSettingsAutosaveForm } from "../hooks/use-system-settings-form";
 import { LOG_LEVEL_ITEMS } from "../lib/log-level-items";
 import { SYSTEM_SUBCATEGORY_IDS } from "../lib/system-nav";
 import type { SystemSettingsForm } from "../lib/system-settings-model";
@@ -88,16 +89,26 @@ function SystemForm(): ReactElement {
     return result;
   };
 
-  const { form, mountKey, saveState, retrySave } = useSystemSettingsForm({
-    entityId: SYSTEM_SETTINGS_ENTITY_ID,
-    serverValues: serverForm,
-    save,
-  });
-
   const ownerOnly = viewer.globalRole !== "owner";
 
   return (
-    <Stack key={mountKey} gap="section">
+    <SystemSettingsAutosaveForm entityId={SYSTEM_SETTINGS_ENTITY_ID} serverValues={serverForm} save={save}>
+      {(session): ReactElement => <SystemFormBody session={session} ownerOnly={ownerOnly} />}
+    </SystemSettingsAutosaveForm>
+  );
+}
+
+interface SystemFormBodyProps {
+  readonly session: AutosaveSession<SystemSettingsForm>;
+  readonly ownerOnly: boolean;
+}
+
+/** The form-bearing System body — remounted per epoch by the boundary's keyed Session. */
+function SystemFormBody({ session, ownerOnly }: SystemFormBodyProps): ReactElement {
+  const { form, saveState, retrySave } = session;
+
+  return (
+    <Stack gap="section">
       <Stack gap="section">
         <Section divider={true} heading="Media & trust" id={anchor(SYSTEM_SUBCATEGORY_IDS.mediaTrust)}>
           <form.AppField name="forbidExternalMedia">
@@ -210,11 +221,11 @@ function SystemForm(): ReactElement {
         </Section>
       </Stack>
       <Row gap="field" align="center">
-        <AutosaveStatus state={saveState} onRetry={retrySave} />
-        <Text size="micro" tone="muted">
-          · Values reflect the effective configuration — environment defaults with any saved overrides applied. Only the fields you change are saved as
-          overrides.
-        </Text>
+        <AutosaveStatus
+          state={saveState}
+          onRetry={retrySave}
+          caption="Values reflect the effective configuration — environment defaults with any saved overrides applied. Only the fields you change are saved as overrides."
+        />
       </Row>
     </Stack>
   );
