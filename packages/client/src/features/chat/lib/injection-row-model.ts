@@ -1,8 +1,7 @@
-// The per-injection-row autosave form (task #28 — one row in the Injections tab). Each persisted
-// injection is edited in place by its OWN `useInjectionRowForm` instance (a component per row, keyed by
-// the injection id ⇒ stable `mountKey`), autosaving each change back through `chat.setChatInjection`
-// (upsert with the row's id). The factory is module-scope (stable hook identity, §13.1); the persist fn
-// arrives at CALL time (closes over the live tRPC client + the row's id/chatId) — the appearance-form seam.
+// The pure per-injection-row model — the wire<->flat mapping for the Injections tab's autosave rows, zero
+// react/forms/ui imports (node-lane-testable; kept out of the TSX component so it stays DOM-free). Each
+// persisted injection is edited in place by its OWN boundary instance (one per row, keyed by the injection
+// id), autosaving each change back through `chat.setChatInjection` (upsert with the row's id).
 //
 // ALL-STRINGS-plus-number projection: position/role are the wire unions but the bound `SelectField` is
 // string-valued by design (§ bound-fields), so the form works in `string` and the save seam casts back at
@@ -11,7 +10,6 @@
 
 import type { ChatInjection } from "@orb/contracts/chat";
 import type { MessageRole } from "@orb/kit/message-role";
-import { createAutosaveEntityForm } from "#forms";
 
 /** The row form's edit shape (see the header — position/role as strings, depth as the NumberField's
  *  `number | null`). */
@@ -22,7 +20,7 @@ export interface InjectionFormValues {
   readonly content: string;
 }
 
-const DEFAULT_INJECTION_FORM: InjectionFormValues = {
+export const DEFAULT_INJECTION_FORM: InjectionFormValues = {
   position: "in_chat",
   role: "system",
   depth: 0,
@@ -51,7 +49,3 @@ export function fromInjectionForm(values: InjectionFormValues): Pick<ChatInjecti
     content: values.content,
   };
 }
-
-export const useInjectionRowForm = createAutosaveEntityForm<InjectionFormValues>({
-  defaultValues: DEFAULT_INJECTION_FORM,
-});
