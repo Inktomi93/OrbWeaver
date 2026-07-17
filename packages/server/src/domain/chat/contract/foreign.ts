@@ -16,8 +16,19 @@
 import type { AssemblePersona } from "@orb/contracts/chat";
 import type { PromptConfig } from "@orb/contracts/preset";
 import type { RegexScript } from "@orb/contracts/regex";
+import type { ChatSettings } from "@orb/contracts/settings";
 import type { ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { MemoryConfig } from "./memory";
+
+/** The host's turn-behavior knobs the engine honors (PD-146) — the schema-real `UserSettings.chat` arm the
+ *  settings domain owns, picked (never re-spelled) to exactly the fields the SERVER turn path consumes:
+ *   • `customStoppingStrings` — extra stop strings merged into the generation request's stop set (pipeline).
+ *   • `autoContinue`          — after a length-capped reply, auto-issue ONE continue for the same speaker.
+ *   • `autoSwipe`             — after a too-short / blacklisted reply, auto-regenerate ONE swipe.
+ *  `enterSends`/`continueOnSend`/`smoothStream*` are CLIENT-honored (composer keydown / empty-send / stream
+ *  pacer) and carry no server arm, so they are deliberately absent here. All fields default off/empty ⇒ a
+ *  host who never touched the pane sees byte-identical behavior. */
+export type ChatBehaviorInputs = Pick<ChatSettings, "autoContinue" | "autoSwipe" | "customStoppingStrings">;
 
 /** The resolved personas for a turn (the persona domain owns the read — FOREIGN). `anchor` is `{{user}}` for
  *  card-derived sections (the chat-open anchor — `chats.anchorPersonaId`); `active` is `{{user}}` for
@@ -42,6 +53,8 @@ export interface ResolvedPersonas {
  *   • `memoryConfig`        — the resolved memory tuning (`AppSettings.memoryDefaults` ⊕ `UserSettings.memory`
  *                             enable, settings/admin) read by recall AND the post-turn build (threaded via
  *                             `TurnPrep.memoryConfig` — D36 opt-out on both sides); absent ⇒ the floor (`DEFAULTS`).
+ *   • `chatBehavior`        — the host's `UserSettings.chat` turn-behavior arm (PD-146 — {@link ChatBehaviorInputs}):
+ *                             custom stop strings + auto-continue/auto-swipe. All-off ⇒ byte-identical to today.
  */
 export interface ForeignInputs {
   readonly promptConfig: PromptConfig;
@@ -50,7 +63,18 @@ export interface ForeignInputs {
   readonly scanDepth: number;
   readonly injectionTokenBudget: number;
   readonly memoryConfig?: MemoryConfig | null | undefined;
+  /** Absent ⇒ the turn path defaults to {@link DEFAULT_CHAT_BEHAVIOR} (all-off — byte-identical to today),
+   *  mirroring the `memoryConfig` opt-out precedent above. The real composition-root op always supplies it. */
+  readonly chatBehavior?: ChatBehaviorInputs | undefined;
 }
+
+/** The PD-146 turn-behavior floor: no custom stops, no auto-continue, no auto-swipe. The one home the turn
+ *  path defaults to when a `ForeignInputs` omits `chatBehavior` (a test fake / the memory-opt-out precedent). */
+export const DEFAULT_CHAT_BEHAVIOR: ChatBehaviorInputs = {
+  autoContinue: false,
+  autoSwipe: { enabled: false, minLength: 0, blacklist: [] },
+  customStoppingStrings: [],
+};
 
 /**
  * The thin composition-root dep that resolves {@link ForeignInputs} from chat-supplied KEYS. The keys are the

@@ -7,7 +7,7 @@
 // behaviour. `setExisting` seeds the byte-identical dedup oracle; `setExistingHandle` seeds the PD-108
 // (ownerId, handle) match oracle.
 
-import type { CreateCharacterInput, UpdateCharacterInput } from "@orb/contracts/character";
+import type { AttachedBookRef, CreateCharacterInput, UpdateCharacterInput } from "@orb/contracts/character";
 import type { BulkImportChatInput } from "@orb/contracts/chat";
 import type { BulkImportPersonaInput } from "@orb/contracts/persona";
 import type { BulkImportLorebookInput } from "@orb/contracts/world-info";
@@ -63,6 +63,12 @@ interface LorebookCall {
   readonly book: BulkImportLorebookInput;
 }
 
+interface LinkBooksCall {
+  readonly ownerId: UserId;
+  readonly characterId: CharacterId;
+  readonly refs: readonly AttachedBookRef[];
+}
+
 export interface ImportHarness {
   readonly ctx: ImportContext;
   readonly ownerId: UserId;
@@ -76,6 +82,11 @@ export interface ImportHarness {
   readonly tagAttaches: TagAttachCall[];
   /** Every embedded-lorebook import the verb issued (the injected `importLorebook` op, W1). */
   readonly lorebooks: LorebookCall[];
+  /** Every attached-book re-link the verb issued (the injected `linkCarriedBooks` op, PD-144). */
+  readonly linkBooks: LinkBooksCall[];
+  /** Set what the fake `linkCarriedBooks` returns for the NEXT calls (default: links every carried ref). The
+   *  verb skips the embedded-clone fallback when `linked > 0`, so this drives the same-vs-foreign-install split. */
+  readonly setLinkOutcome: (outcome: (refs: readonly AttachedBookRef[]) => { linked: number; skipped: number }) => void;
   /** Seed the byte-identical dedup oracle: a re-import with this `importHash` resolves to `characterId`. */
   readonly setExisting: (importHash: string, characterId: CharacterId) => void;
   /** Seed the PD-108 (ownerId, handle) match oracle: a re-import deriving this `handle` resolves to
@@ -93,6 +104,8 @@ export function makeHarness(): ImportHarness {
   const findsByHandle: FindByHandleCall[] = [];
   const tagAttaches: TagAttachCall[] = [];
   const lorebooks: LorebookCall[] = [];
+  const linkBooks: LinkBooksCall[] = [];
+  let linkOutcome: (refs: readonly AttachedBookRef[]) => { linked: number; skipped: number } = (refs) => ({ linked: refs.length, skipped: 0 });
   const existingByHash = new Map<string, CharacterId>();
   const existingByHandle = new Map<string, CharacterId>();
   let created = 0;
@@ -132,6 +145,10 @@ export function makeHarness(): ImportHarness {
         replaced: false,
       });
     },
+    linkCarriedBooks: (args) => {
+      linkBooks.push(args);
+      return Promise.resolve(linkOutcome(args.refs));
+    },
   };
 
   return {
@@ -145,6 +162,10 @@ export function makeHarness(): ImportHarness {
     findsByHandle,
     tagAttaches,
     lorebooks,
+    linkBooks,
+    setLinkOutcome: (outcome): void => {
+      linkOutcome = outcome;
+    },
     setExisting: (importHash, characterId): void => {
       existingByHash.set(importHash, characterId);
     },

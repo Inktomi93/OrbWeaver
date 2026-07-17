@@ -11,6 +11,7 @@ import { generateAvatarCaption } from "./indexer/caption";
 import { createClearTable } from "./verbs/clear-table";
 import { createEmbedAssets } from "./verbs/embed-assets";
 import { createEmbedCorpus } from "./verbs/embed-corpus";
+import { createPurgeMemoryVectors } from "./verbs/purge-memory-vectors";
 import { createStore } from "./verbs/store";
 import { createWriteHubScores } from "./verbs/write-hub-scores";
 
@@ -25,5 +26,6 @@ export function createEmbeddingsService(ctx: EmbeddingsContext): EmbeddingsServi
       store,
       caption: (bytes): Promise<string> => generateAvatarCaption(ctx.roleClients, bytes),
     }),
+    purgeMemoryVectors: createPurgeMemoryVectors(ctx),
   };
 }

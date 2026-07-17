@@ -32,7 +32,7 @@ import type {
 } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
-import { can } from "@orb/server/domain/admin";
+import { can, canAgent } from "@orb/server/domain/admin";
 import { and, eq, isNull } from "drizzle-orm";
 import type { ChatContext } from "../../../../packages/server/src/domain/chat/context";
 import type { TurnRequest, TurnStreamChunk } from "../../../../packages/server/src/domain/chat/contract/results";
@@ -379,7 +379,11 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     generatePicture: notStubbed,
     resolveHandle: notStubbed,
     provisionAgentPrincipal: notStubbed,
-    resolveAgentEnabled: notStubbed,
+    // Agent-identity reads default to a loud stub (a test that seats an agent overrides them); the pure
+    // capability gate defaults to the REAL `canAgent` so an agent-speaker test gates for free.
+    resolveAgentActor: notStubbed,
+    resolveAgentSpeaker: notStubbed,
+    canAgent,
     // The startChat anchor default-seed: default "no user-level active persona" — an explicit
     // anchorPersonaId in a test flows unchanged; a seeding test overrides with a resolver fake.
     resolveDefaultPersona: () => Promise.resolve(null),

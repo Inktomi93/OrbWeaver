@@ -5,8 +5,8 @@
 //
 // Pure: no DB, no fs, no logger. A parse failure returns null, never throws.
 
-import type { CharacterCard, CreateCharacterInput } from "@orb/contracts/character";
-import { createCharacterSchema } from "@orb/contracts/character";
+import type { AttachedBookRef, CharacterCard, CreateCharacterInput } from "@orb/contracts/character";
+import { ATTACHED_BOOKS_WIRE_KEY, attachedBookRefSchema, createCharacterSchema } from "@orb/contracts/character";
 import type { BulkImportLorebookInput } from "@orb/contracts/world-info";
 import type { AssetId } from "@orb/kit/ids";
 import { readCardChunk } from "@orb/kit/png-card-chunk";
@@ -23,6 +23,9 @@ interface ParsedCard {
   readonly tags: readonly string[];
   /** Embedded ST character_book mapped to the canonical bulk-import shape, or null when the card ships none. */
   readonly book: BulkImportLorebookInput | null;
+  /** PD-144: carried attached-book REFERENCES (`{worldBookId, role}`), re-linked by id on import. Empty for a
+   *  foreign ST card / an orbweaver card with no attached books. Each ref is validated (invalid ones dropped). */
+  readonly attachedBooks: readonly AttachedBookRef[];
 }
 
 const DEFAULT_BOOK_NAME = "Imported Lorebook";
@@ -54,6 +57,30 @@ function extractBulkImportLorebook(raw: unknown): BulkImportLorebookInput | null
   return { name, description, entries };
 }
 
+// PD-144: pull the orbweaver-namespaced attached-book references off `data.orbweaver_attached_books` (V3
+// nests real fields under `data`; a bare root is tolerated). Each candidate is validated through the
+// canonical schema — a foreign/malformed entry is dropped, never thrown. The ownership gate runs later at
+// the re-link op; this only shapes the ids + roles.
+function extractAttachedBooks(raw: unknown): AttachedBookRef[] {
+  const root = asRecord(raw);
+  if (root === null) {
+    return [];
+  }
+  const data = asRecord(root["data"]) ?? root;
+  const candidates = data[ATTACHED_BOOKS_WIRE_KEY];
+  if (!Array.isArray(candidates)) {
+    return [];
+  }
+  const out: AttachedBookRef[] = [];
+  for (const candidate of candidates) {
+    const parsed = attachedBookRefSchema.safeParse(candidate);
+    if (parsed.success) {
+      out.push(parsed.data);
+    }
+  }
+  return out;
+}
+
 function toText(input: Uint8Array | string): string {
   const raw = typeof input === "string" ? input : new TextDecoder("utf-8").decode(input);
   return raw.charCodeAt(0) === UTF8_BOM ? raw.slice(1) : raw;
@@ -82,6 +109,7 @@ function fromText(text: string, fallbackName: string): ParsedCard | null {
       card: cardFromJson(parsed, fallbackName),
       tags: extractCardTags(parsed),
       book: extractBulkImportLorebook(parsed),
+      attachedBooks: extractAttachedBooks(parsed),
     };
   } catch {
     return null;

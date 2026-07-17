@@ -151,3 +151,86 @@ describe("updateUserSettingsSection", () => {
     expect((await h.svc.getUserSettings({ principal: p })).config.regex.scripts).toHaveLength(0);
   });
 });
+
+// PD-139a — an embed/imageEmbed model change is the trigger the PD-104 purge+reindex machine was missing.
+// The verb captures the two model ids pre-merge and fires the injected `onEmbedModelChanged` ONLY on an
+// actual change of either; the compose root wires that op to a bulk index/all/force reindex.
+describe("updateUserSettingsSection — PD-139a embed-model-change reindex trigger", () => {
+  test("changing routing.roleDefaults.embed.model enqueues the reindex exactly once", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const p = principal(await seedUser(db, { id: "user_embed" }), "user");
+    await h.svc.updateUserSettingsSection({
+      principal: p,
+      input: { section: "routing", patch: { roleDefaults: { embed: { model: "qwen3-embed-v2" } } } },
+    });
+    expect(h.onEmbedModelChanged).toHaveBeenCalledTimes(1);
+  });
+
+  test("changing routing.roleDefaults.imageEmbed.model also enqueues the reindex", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const p = principal(await seedUser(db, { id: "user_imageembed" }), "user");
+    await h.svc.updateUserSettingsSection({
+      principal: p,
+      input: { section: "routing", patch: { roleDefaults: { imageEmbed: { model: "jina-clip-v3" } } } },
+    });
+    expect(h.onEmbedModelChanged).toHaveBeenCalledTimes(1);
+  });
+
+  test("a routing patch that leaves BOTH model ids untouched does NOT enqueue", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const p = principal(await seedUser(db, { id: "user_routing_other" }), "user");
+    // A chat-role model change — not embed/imageEmbed — must not trip the reindex.
+    await h.svc.updateUserSettingsSection({
+      principal: p,
+      input: { section: "routing", patch: { roleDefaults: { chat: { model: "some-chat-model" } } } },
+    });
+    expect(h.onEmbedModelChanged).not.toHaveBeenCalled();
+  });
+
+  test("re-patching the SAME embed.model value does NOT re-enqueue (no actual change)", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const p = principal(await seedUser(db, { id: "user_embed_same" }), "user");
+    await h.svc.updateUserSettingsSection({
+      principal: p,
+      input: { section: "routing", patch: { roleDefaults: { embed: { model: "qwen3-embed-v2" } } } },
+    });
+    h.onEmbedModelChanged.mockClear();
+    await h.svc.updateUserSettingsSection({
+      principal: p,
+      input: { section: "routing", patch: { roleDefaults: { embed: { model: "qwen3-embed-v2" } } } },
+    });
+    expect(h.onEmbedModelChanged).not.toHaveBeenCalled();
+  });
+
+  test("a non-routing section patch does NOT enqueue", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const p = principal(await seedUser(db, { id: "user_nonrouting" }), "user");
+    await h.svc.updateUserSettingsSection({
+      principal: p,
+      input: { section: "memory", patch: { enabled: true } },
+    });
+    expect(h.onEmbedModelChanged).not.toHaveBeenCalled();
+  });
+
+  test("a fire-and-forget enqueue whose async start rejects does NOT fail the write", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const p = principal(await seedUser(db, { id: "user_embed_fail" }), "user");
+    // Mirror the compose wiring's shape: the op kicks off an async enqueue and swallows its own rejection
+    // (`void workloads.start(...).catch(...)`), so the settings write is never coupled to the enqueue result.
+    h.onEmbedModelChanged.mockImplementation(() => {
+      void Promise.reject(new Error("enqueue boom")).catch(() => undefined);
+    });
+    const view = await h.svc.updateUserSettingsSection({
+      principal: p,
+      input: { section: "routing", patch: { roleDefaults: { embed: { model: "qwen3-embed-v2" } } } },
+    });
+    expect(view.config.routing.roleDefaults.embed?.model).toBe("qwen3-embed-v2");
+    expect(h.onEmbedModelChanged).toHaveBeenCalledTimes(1);
+  });
+});

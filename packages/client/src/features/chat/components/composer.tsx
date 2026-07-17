@@ -3,7 +3,7 @@
 // upload to CAS and ride the send as attachmentAssetIds. continue-on-empty is real, tested groundwork
 // the Send button doesn't yet act on (parked until chat.continueTurn is exposed here).
 
-import type { ChatId } from "@orb/kit/ids";
+import type { ChatId, MessageId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import { Button } from "@orb/ui/button";
 import { CrossfadeImage } from "@orb/ui/crossfade-image";
@@ -18,19 +18,22 @@ import { useEffect, useRef, useState } from "react";
 import { testId } from "#lib";
 import type { ChatHandle } from "#state";
 import { isCommitted } from "#state";
+import { useChatBehaviorPrefs } from "../hooks/use-chat-behavior-prefs";
+import { useContinueTurn } from "../hooks/use-continue-turn";
 import { useGenerateImage } from "../hooks/use-generate-image";
 import type { DraftSeed } from "../hooks/use-send-message";
 import { useSendMessage } from "../hooks/use-send-message";
 import { useStopTurn } from "../hooks/use-stop-turn";
-import { isContinueEligible } from "../lib/continue-on-empty";
+import { shouldSendOnEnter } from "../lib/composer-send-keys";
+import { resolveContinueTarget } from "../lib/continue-on-empty";
 import { ComposerWand } from "./composer-wand";
 import { SpeakAsSelect } from "./speak-as-select";
 
-function resolvePlaceholder(committed: boolean, continueEligible: boolean): string {
+function resolvePlaceholder(committed: boolean, canContinue: boolean): string {
   if (!committed) {
     return "Write the scene, or type a message…";
   }
-  return continueEligible ? "Continue, or type a message…" : "Type a message…";
+  return canContinue ? "Continue, or type a message…" : "Type a message…";
 }
 
 // Client-side pre-check ceiling; the server re-caps at 64 MiB + magic-byte checks regardless.
@@ -60,11 +63,15 @@ export interface ComposerProps {
   readonly onCommitted?: ((chatId: ChatId) => void) | undefined;
   /** Null for a draft or an empty chat. */
   readonly tailRole?: MessageRole | null | undefined;
+  /** The tail assistant message's id (continue-on-empty's target) — null unless the tail is an assistant turn. */
+  readonly tailAssistantMessageId?: MessageId | null | undefined;
 }
 
-export function Composer({ handle, value, onChange, draftSeed, onCommitted, tailRole = null }: ComposerProps): ReactElement {
+export function Composer({ handle, value, onChange, draftSeed, onCommitted, tailRole = null, tailAssistantMessageId = null }: ComposerProps): ReactElement {
   const chatId = isCommitted(handle) ? handle.id : null;
   const stopTurn = useStopTurn(chatId);
+  const behaviorPrefs = useChatBehaviorPrefs();
+  const continueOnEmpty = useContinueTurn();
   const [attachments, setAttachments] = useState<readonly PendingAttachment[]>([]);
   // Mirrors `attachments` for the unmount-cleanup effect below — a cleanup closure would otherwise
   // revoke a stale list instead of the current one at actual unmount.
@@ -128,26 +135,41 @@ export function Composer({ handle, value, onChange, draftSeed, onCommitted, tail
     generateImage.generate(value);
     onChange("");
   };
-  const continueEligible = !canSubmitText && isContinueEligible(tailRole);
+  // Continue-on-empty target: the pure resolver keeps the pref/tail/chat guards out of the component.
+  const continueTarget = resolveContinueTarget({
+    continueOnSend: behaviorPrefs.continueOnSend,
+    tailRole,
+    hasText: canSubmitText,
+    chatId,
+    tailAssistantMessageId,
+  });
+  const canContinue = continueTarget !== null && !continueOnEmpty.isPending;
   const stopping = stopTurn.phase === "stopping";
   // Stop stays visible (disabled + spinner) until the bus's turnAborted/turnCompleted closes the slot.
   const showStop = stopTurn.canStop || stopping;
 
-  const placeholder = resolvePlaceholder(isCommitted(handle), continueEligible);
+  const placeholder = resolvePlaceholder(isCommitted(handle), canContinue);
 
   const submit = (): void => {
-    if (!canSubmit) {
+    if (canSubmit) {
+      sendMessage.send(
+        value,
+        attachments.map((a) => a.file),
+      );
       return;
     }
-    sendMessage.send(
-      value,
-      attachments.map((a) => a.file),
-    );
+    if (canContinue) {
+      continueOnEmpty.continueTurn(continueTarget.chatId, continueTarget.messageId);
+    }
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>): void => {
-    // isComposing guards CJK/IME candidate-confirm Enter from firing a half-composed send.
-    if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
+    if (
+      shouldSendOnEnter(
+        { key: event.key, shiftKey: event.shiftKey, metaKey: event.metaKey, ctrlKey: event.ctrlKey, isComposing: event.nativeEvent.isComposing },
+        behaviorPrefs.enterSends,
+      )
+    ) {
       event.preventDefault();
       submit();
     }
@@ -243,8 +265,8 @@ export function Composer({ handle, value, onChange, draftSeed, onCommitted, tail
               intent="primary"
               size="icon"
               data-testid={testId("composerSend")}
-              disabled={!canSubmit || sendMessage.isPending}
-              loading={sendMessage.isPending}
+              disabled={!(canSubmit || canContinue) || sendMessage.isPending || continueOnEmpty.isPending}
+              loading={sendMessage.isPending || continueOnEmpty.isPending}
               aria-label="Send message"
               onClick={submit}
               className="rounded-full"

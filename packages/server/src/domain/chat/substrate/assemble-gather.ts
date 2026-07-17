@@ -19,6 +19,7 @@ import type { GenerationType } from "@orb/contracts/preset";
 import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import { buildAssembleContext } from "../assembly/context";
 import type { ChatContext } from "../context";
+import type { AgentCastMember } from "../contract/context";
 import type { ForeignInputs } from "../contract/foreign";
 import type { MsgRow } from "../contract/memory";
 import type { GuidedSteer } from "../contract/params";
@@ -128,6 +129,8 @@ export async function gatherAssembleContext(
     readonly runAsUserId: UserId;
     readonly model: string;
     readonly castCharacterIds: readonly CharacterId[];
+    /** Present seated agents (D60), soul-resolved by `loadRoom`; threaded straight to the pure build core. */
+    readonly agentCast?: readonly AgentCastMember[] | undefined;
     readonly personaIds: readonly PersonaId[];
     readonly pendingUserText?: string | undefined;
     /** The one-turn typed steer — threaded to the BUILD, which resolves the action template once and
@@ -206,6 +209,7 @@ export async function gatherAssembleContext(
       chatId,
       ownerId: runAsUserId,
       castCharacterIds,
+      agentCast: args.agentCast,
       personaIds,
       promptConfig: foreign.promptConfig,
       personas: foreign.personas,

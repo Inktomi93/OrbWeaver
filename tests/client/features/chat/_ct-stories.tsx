@@ -502,16 +502,27 @@ export function MessageListStoppingStory(): ReactElement {
 export interface ComposerStoryProps {
   /** @defaultValue true — a committed chat (`COMPOSER_CHAT_ID`); `false` mounts a draft handle. */
   readonly committed?: boolean;
+  /** The tail turn role — `"assistant"` (+ `tailAssistantMessageId`) makes continue-on-empty eligible. */
+  readonly tailRole?: MessageRole | null;
+  /** The tail assistant message id continue-on-empty targets (PD-146). */
+  readonly tailAssistantMessageId?: MessageId | null;
 }
 
-function ComposerStoryInner({ committed = true }: ComposerStoryProps): ReactElement {
+function ComposerStoryInner({ committed = true, tailRole = null, tailAssistantMessageId = null }: ComposerStoryProps): ReactElement {
   const [value, setValue] = useState("");
   const [startedChatId, setStartedChatId] = useState<ChatId | null>(committed ? COMPOSER_CHAT_ID : null);
   const handle: ChatHandle = startedChatId !== null ? committedChat(startedChatId) : draftChat("draft_ct_composer");
 
   return (
     <div>
-      <Composer handle={handle} value={value} onChange={setValue} onCommitted={(id): void => setStartedChatId(id)} />
+      <Composer
+        handle={handle}
+        value={value}
+        onChange={setValue}
+        onCommitted={(id): void => setStartedChatId(id)}
+        tailRole={tailRole}
+        tailAssistantMessageId={tailAssistantMessageId}
+      />
       {/* Turn-lifecycle drivers (mirrors GhostRowStory above) — the CT clicks these to move
           `chatStream`'s slot through pending/streaming/stopping/aborted without a real SSE round-trip
           (Stop's immediate-feedback half is client-only; only the eventual close needs the bus). */}

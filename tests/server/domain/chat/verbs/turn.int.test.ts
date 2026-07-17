@@ -24,11 +24,12 @@ import { beforeEach, describe } from "vitest";
 import { createActiveTurns } from "../../../../../packages/server/src/domain/chat/active-turns";
 import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context";
 import { ChatNotFoundError } from "../../../../../packages/server/src/domain/chat/contract/errors";
+import type { ChatBehaviorInputs } from "../../../../../packages/server/src/domain/chat/contract/foreign";
 import type { TurnStreamChunk } from "../../../../../packages/server/src/domain/chat/contract/results";
 import { createTurnEngine } from "../../../../../packages/server/src/domain/chat/engine/engine";
 import { loadPendingTurns, loadPendingTurnsForReclaim } from "../../../../../packages/server/src/domain/chat/persistence/invites";
 import { tryAcquireLock } from "../../../../../packages/server/src/domain/chat/persistence/lock";
-import { loadCanonHistory, loadMaxMessageSeq } from "../../../../../packages/server/src/domain/chat/persistence/queries";
+import { loadCanonHistory, loadMaxMessageSeq, loadMessageView } from "../../../../../packages/server/src/domain/chat/persistence/queries";
 import { createTurn } from "../../../../../packages/server/src/domain/chat/verbs/turn";
 import { freshDb } from "../../../../support/db";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
@@ -42,16 +43,23 @@ function principal(userId: UserId): Principal {
 }
 
 /** A scripted role turn — text delta + a terminal `final` carrying the content/economics. */
-function scripted(content: string): ChatContext["runChatTurn"] {
+function scripted(content: string, finishReason?: string): ChatContext["runChatTurn"] {
   return () =>
     (async function* (): AsyncGenerator<TurnStreamChunk> {
       await Promise.resolve();
       yield { kind: "text", text: content };
       yield {
         kind: "final",
-        economics: { content, tokensIn: 4, tokensOut: 2, model: "test-model" },
+        economics: { content, tokensIn: 4, tokensOut: 2, model: "test-model", ...(finishReason !== undefined ? { finishReason } : {}) },
       };
     })();
+}
+
+/** One scripted generation the reply-tape yields in order (PD-146 auto-behaviors run a follow-up turn, so a
+ *  send fires ≥2 `runChatTurn` calls that must reply distinctly). */
+interface ScriptedReply {
+  readonly content: string;
+  readonly finishReason?: string;
 }
 
 /** A deterministic PRNG (Park-Miller LCG) — D46 (never `Math.random`). */
@@ -103,14 +111,25 @@ function harness(
     /** Override the engine's per-turn budget debit (default no-op). The drain requeue-path pins a thrower
      *  (`DomainRateLimitError` → `budget_exceeded`) to prove a temporal drop re-queues, not drops. */
     debitBudget?: (triggeredBy: UserId, budget: number | null) => Promise<void>;
+    /** A per-call reply sequence (PD-146 auto-behavior pins: the send fires a follow-up turn). Each
+     *  `runChatTurn` call yields the next reply; the last repeats once exhausted. Overrides `content`. */
+    replyTape?: readonly ScriptedReply[];
+    /** The host's PD-146 turn-behavior arm (custom stops + auto-continue/auto-swipe). Default all-off. */
+    chatBehavior?: ChatBehaviorInputs;
   } = {},
 ): Harness {
   const events: ChatBusEvent[] = [];
   const deltas: StatsDelta[] = [];
   const notifications: NotificationEvent[] = [];
+  let replyIdx = 0;
   const ctx = makeChatContext(database, {
     runChatTurn: (request) => {
       over.onChatRequest?.(request);
+      if (over.replyTape !== undefined && over.replyTape.length > 0) {
+        const reply = over.replyTape[Math.min(replyIdx, over.replyTape.length - 1)];
+        replyIdx += 1;
+        return scripted(reply?.content ?? "Hi there", reply?.finishReason)(request);
+      }
       return scripted(over.content ?? "Hi there")(request);
     },
     applyStatsDelta: (_b: unknown, _d: Db, delta: StatsDelta): void => {
@@ -158,6 +177,7 @@ function harness(
         globalRegexScripts: over.hostTierRegexScripts ?? [],
         scanDepth: 6,
         injectionTokenBudget: 0,
+        ...(over.chatBehavior !== undefined ? { chatBehavior: over.chatBehavior } : {}),
       });
     },
   });
@@ -532,6 +552,194 @@ describe("send — auto-mode AI→AI chain", () => {
     const canon = await loadCanonHistory(db, chatId);
     expect(canon.filter((m) => m.role === "assistant")).toHaveLength(4);
     expect(canon).toHaveLength(5);
+  });
+});
+
+describe("send — PD-146 custom stopping strings + auto-behaviors", () => {
+  const behaviorOff: ChatBehaviorInputs = {
+    autoContinue: false,
+    autoSwipe: { enabled: false, minLength: 0, blacklist: [] },
+    customStoppingStrings: [],
+  };
+
+  test("custom stopping strings reach the generation request's stop set", async () => {
+    const { host, chatId, names } = await seedRoom("natural", ["aria"]);
+    let seenStop: readonly string[] | undefined;
+    const h = harness(db, names, {
+      chatBehavior: { ...behaviorOff, customStoppingStrings: ["<END>", "\nUser:"] },
+      onChatRequest: (req) => {
+        seenStop = (req as { intent: { stop?: readonly string[] } }).intent.stop;
+      },
+    });
+
+    await h.turn.send({ principal: principal(host), chatId, content: "hi" });
+
+    expect(seenStop).toEqual(["<END>", "\nUser:"]);
+  });
+
+  test("no custom stops → the request carries no stop set (byte-identical)", async () => {
+    const { host, chatId, names } = await seedRoom("natural", ["aria"]);
+    let seenStop: readonly string[] | undefined = ["sentinel"];
+    const h = harness(db, names, {
+      chatBehavior: behaviorOff,
+      onChatRequest: (req) => {
+        seenStop = (req as { intent: { stop?: readonly string[] } }).intent.stop;
+      },
+    });
+
+    await h.turn.send({ principal: principal(host), chatId, content: "hi" });
+
+    expect(seenStop).toBeUndefined();
+  });
+
+  test("autoContinue fires ONE continue on a length-capped reply; the slot extends in place", async () => {
+    const { host, chatId, names } = await seedRoom("natural", ["aria"]);
+    let generations = 0;
+    const h = harness(db, names, {
+      chatBehavior: { ...behaviorOff, autoContinue: true },
+      onChatRequest: () => {
+        generations += 1;
+      },
+      replyTape: [
+        { content: "the thought was", finishReason: "length" },
+        { content: " finished at last", finishReason: "stop" },
+      ],
+    });
+
+    await h.turn.send({ principal: principal(host), chatId, content: "go" });
+
+    // One initial gen + one auto-continue = 2 generations; the continue extends the single assistant slot.
+    expect(generations).toBe(2);
+    const canon = await loadCanonHistory(db, chatId);
+    const assistants = canon.filter((m) => m.role === "assistant");
+    expect(assistants).toHaveLength(1);
+    expect(assistants[0]?.content).toContain("the thought was");
+    expect(assistants[0]?.content).toContain("finished at last");
+  });
+
+  test("autoContinue does NOT fire when the reply finished cleanly (finishReason ≠ length)", async () => {
+    const { host, chatId, names } = await seedRoom("natural", ["aria"]);
+    let generations = 0;
+    const h = harness(db, names, {
+      chatBehavior: { ...behaviorOff, autoContinue: true },
+      onChatRequest: () => {
+        generations += 1;
+      },
+      replyTape: [{ content: "all done here", finishReason: "stop" }],
+    });
+
+    await h.turn.send({ principal: principal(host), chatId, content: "go" });
+
+    expect(generations).toBe(1);
+    const canon = await loadCanonHistory(db, chatId);
+    expect(canon.filter((m) => m.role === "assistant")).toHaveLength(1);
+  });
+
+  test("autoContinue respects its bound: a persistently length-capped model continues only ONCE", async () => {
+    const { host, chatId, names } = await seedRoom("natural", ["aria"]);
+    let generations = 0;
+    const h = harness(db, names, {
+      chatBehavior: { ...behaviorOff, autoContinue: true },
+      onChatRequest: () => {
+        generations += 1;
+      },
+      // Every reply hits the length cap — the bound (1) must stop the loop after a single follow-up.
+      replyTape: [
+        { content: "a", finishReason: "length" },
+        { content: "b", finishReason: "length" },
+        { content: "c", finishReason: "length" },
+      ],
+    });
+
+    await h.turn.send({ principal: principal(host), chatId, content: "go" });
+
+    expect(generations).toBe(2); // initial + exactly one continue.
+  });
+
+  test("autoSwipe regenerates a too-short reply as a new selected variant", async () => {
+    const { host, chatId, names } = await seedRoom("natural", ["aria"]);
+    const h = harness(db, names, {
+      chatBehavior: { ...behaviorOff, autoSwipe: { enabled: true, minLength: 12, blacklist: [] } },
+      replyTape: [{ content: "too short" }, { content: "a comfortably long reply that clears the bar" }],
+    });
+
+    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "go" });
+
+    const tip = await loadMessageView(db, outcome.messages.at(-1)?.id ?? castId<MessageId>("x"));
+    expect(tip?.variantCount).toBe(2); // the reroll appended a second variant …
+    expect(tip?.content).toBe("a comfortably long reply that clears the bar"); // … and selected it.
+  });
+
+  test("autoSwipe fires on a blacklist hit (case-insensitive)", async () => {
+    const { host, chatId, names } = await seedRoom("natural", ["aria"]);
+    const h = harness(db, names, {
+      chatBehavior: { ...behaviorOff, autoSwipe: { enabled: true, minLength: 0, blacklist: ["Sorry"] } },
+      replyTape: [{ content: "i'm sorry, i can't help with that" }, { content: "sure, here is the scene" }],
+    });
+
+    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "go" });
+
+    const tip = await loadMessageView(db, outcome.messages.at(-1)?.id ?? castId<MessageId>("x"));
+    expect(tip?.variantCount).toBe(2);
+    expect(tip?.content).toBe("sure, here is the scene");
+  });
+
+  test("autoSwipe respects its bound: a persistently rejected model rerolls only ONCE", async () => {
+    const { host, chatId, names } = await seedRoom("natural", ["aria"]);
+    let generations = 0;
+    const h = harness(db, names, {
+      chatBehavior: { ...behaviorOff, autoSwipe: { enabled: true, minLength: 100, blacklist: [] } },
+      onChatRequest: () => {
+        generations += 1;
+      },
+      replyTape: [{ content: "nope" }, { content: "still short" }, { content: "again short" }],
+    });
+
+    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "go" });
+
+    expect(generations).toBe(2); // initial + exactly one swipe.
+    const tip = await loadMessageView(db, outcome.messages.at(-1)?.id ?? castId<MessageId>("x"));
+    expect(tip?.variantCount).toBe(2);
+  });
+
+  test("auto-swipe takes precedence over auto-continue on a reply that is both short AND length-capped", async () => {
+    const { host, chatId, names } = await seedRoom("natural", ["aria"]);
+    let generations = 0;
+    const h = harness(db, names, {
+      chatBehavior: { ...behaviorOff, autoContinue: true, autoSwipe: { enabled: true, minLength: 20, blacklist: [] } },
+      onChatRequest: () => {
+        generations += 1;
+      },
+      replyTape: [
+        { content: "cut off", finishReason: "length" }, // short (< 20) AND length-capped
+        { content: "a full, comfortably long swiped reply" },
+      ],
+    });
+
+    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "go" });
+
+    // Auto-swipe wins (one reroll); auto-continue never runs — so exactly 2 generations and a 2-variant slot.
+    expect(generations).toBe(2);
+    const tip = await loadMessageView(db, outcome.messages.at(-1)?.id ?? castId<MessageId>("x"));
+    expect(tip?.variantCount).toBe(2);
+  });
+
+  test("defaults (all-off): a short, length-capped reply triggers NO follow-up (byte-identical)", async () => {
+    const { host, chatId, names } = await seedRoom("natural", ["aria"]);
+    let generations = 0;
+    const h = harness(db, names, {
+      chatBehavior: behaviorOff,
+      onChatRequest: () => {
+        generations += 1;
+      },
+      replyTape: [{ content: "x", finishReason: "length" }],
+    });
+
+    await h.turn.send({ principal: principal(host), chatId, content: "go" });
+
+    expect(generations).toBe(1);
+    const canon = await loadCanonHistory(db, chatId);
+    expect(canon.filter((m) => m.role === "assistant")).toHaveLength(1);
   });
 });
 

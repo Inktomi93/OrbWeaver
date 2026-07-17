@@ -29,6 +29,10 @@ interface MaintenancePassCounts {
 export interface WorkloadEmbeddingsEnv {
   readonly embedCorpus: (args: { ownerId: UserId | null; force: boolean; signal: AbortSignal }) => Promise<EmbedPassResult>;
   readonly embedAssets: (args: { ownerId: UserId | null; force: boolean; signal: AbortSignal }) => Promise<EmbedPassResult>;
+  /** PD-139(b): reclaim the OLD chat-memory embed space (`chat_segments`/`chat_digests`) after a BULK
+   *  memory-backfill. The memory-backfill runner calls it only for the box-global pass, after the sweep,
+   *  and never on abort — the bulk-only + skip-on-abort guard the embedCorpus/embedAssets purge also uses. */
+  readonly purgeMemoryVectors: () => Promise<void>;
 }
 
 /** discovery.* — the semantics passes. `computeHubScores` computes then writes back internally — workloads

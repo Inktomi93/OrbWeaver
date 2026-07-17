@@ -15,8 +15,6 @@ const TYPES_CONST = "CHAT_BUS_EVENT_TYPES";
 /** Declared-not-emitted members, each with its tracked citation. Delete an entry the moment its
  *  emit site lands (the gate flags a stale entry). */
 const DEFERRED: Record<string, string> = {
-  chatOpened: "stream-attach synthesis unbuilt — see the FLAG comment in verbs/start-chat.ts",
-  historyTruncated: "retained-window synthesis unbuilt",
   expression:
     "classify emit site unbuilt — the member rides the baseline (union↔chat_events CHECK mirror); the emit lands with expressions E3 (expressions-design/02 §4; the chatOpened precedent)",
 };
@@ -119,10 +117,10 @@ export const gate: GateDescriptor = {
     },
     {
       files: {
-        "packages/contracts/src/chat/index.ts": 'export const CHAT_BUS_EVENT_TYPES = { chatOpened: "chatOpened" } as const;\n',
+        "packages/contracts/src/chat/index.ts": 'export const CHAT_BUS_EVENT_TYPES = { expression: "expression" } as const;\n',
         "packages/server/src/domain/chat/x.ts": 'export const q = "somethingElse";\n',
       },
-      why: "a member with NO emit site but a DEFERRED entry present (chatOpened) — the deferred-covers-it branch, passes",
+      why: "a member with NO emit site but a DEFERRED entry present (expression) — the deferred-covers-it branch, passes",
     },
   ],
 };

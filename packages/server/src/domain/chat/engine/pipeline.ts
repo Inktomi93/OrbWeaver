@@ -49,6 +49,9 @@ interface RunTurnPipelineArgs {
   readonly canon: readonly MessageView[];
   readonly connection: ResolvedConnection;
   readonly intent: UserIntent;
+  /** The host's `UserSettings.chat.customStoppingStrings` (PD-146), folded into the request's stop set
+   *  (Set-deduped after the intent's own stops). Absent/empty ⇒ the request `intent` is untouched. */
+  readonly extraStopSequences?: readonly string[] | undefined;
   readonly kind: TurnKind;
   /** The owner-consent verdict the engine derived, threaded onto the built TurnRequest so the infra
    *  firewall re-verifies it. */
@@ -153,10 +156,12 @@ function toShapeCanon(canon: readonly MessageView[], ctx: AssembleContext, macro
   return rows;
 }
 
-/** The history-budget reserve: the model window capped by the user's soft max, reserving the intent's
- *  output budget + the assembled system tokens. */
+/** The history-budget reserve: the model window capped by the user's soft max, reserving the EFFECTIVE
+ *  intent's output budget + the assembled system tokens. Reads the folded intent (PD-148) so a preset's own
+ *  `maxOutputTokens`/`maxContextTokens` budget the fit, not just a per-turn override. */
 function fitBudget(
   args: RunTurnPipelineArgs,
+  intent: UserIntent,
   systemTokens: number,
 ): {
   windowTokens: number;
@@ -164,10 +169,10 @@ function fitBudget(
   reserveOutputTokens: number;
   systemTokens: number;
 } {
-  const reserveOutputTokens = args.intent.maxOutputTokens ?? args.connection.capability.output.maxTokens.max;
+  const reserveOutputTokens = intent.maxOutputTokens ?? args.connection.capability.output.maxTokens.max;
   return {
     windowTokens: args.connection.capability.context.window,
-    softMaxTokens: args.intent.maxContextTokens,
+    softMaxTokens: intent.maxContextTokens,
     reserveOutputTokens,
     systemTokens,
   };
@@ -275,6 +280,38 @@ function applyReceiveTransforms(
   return { content, reasoning };
 }
 
+/** Field-wise merge of the two `advanced` escape-hatch blocks — the per-turn override wins per sub-field;
+ *  undefined when neither side sets it (so an untouched intent stays byte-identical). */
+function foldAdvanced(base: UserIntent["advanced"], override: UserIntent["advanced"]): UserIntent["advanced"] {
+  if (base === undefined) {
+    return override;
+  }
+  if (override === undefined) {
+    return base;
+  }
+  return { ...base, ...override };
+}
+
+/** Folds the EFFECTIVE generation params at the ONE seam (PD-148) — the value `resolveSampling` and the
+ *  fit-budget read: the preset's `params` is the BASE, the per-turn `UserIntent` OVERRIDES field-wise, and
+ *  the stop set is the UNION of preset stop + per-turn stop + the host's custom stops (PD-146), Set-deduped.
+ *  When the preset carries no params AND there are no custom stops, the per-turn intent is returned BY
+ *  REFERENCE — byte-identical to a chat on the DEFAULT preset (whose `params` is `{}`). */
+function foldGenerationParams(base: UserIntent, override: UserIntent, extras: readonly string[] | undefined): UserIntent {
+  const extraStops = extras ?? [];
+  if (Object.keys(base).length === 0 && extraStops.length === 0) {
+    return override;
+  }
+  const stops = [...(base.stop ?? []), ...(override.stop ?? []), ...extraStops];
+  const advanced = foldAdvanced(base.advanced, override.advanced);
+  return {
+    ...base,
+    ...override,
+    ...(advanced !== undefined ? { advanced } : {}),
+    ...(stops.length > 0 ? { stop: [...new Set(stops)] } : {}),
+  };
+}
+
 /** Executes one single-speaker turn: BUILD → SHAPE → FIT → REQUEST → REDUCE. Pure orchestration of
  *  injected ops; persists nothing. */
 export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPipelineResult> {
@@ -287,6 +324,12 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
           cardScope: args.shape.cardScope,
         })
       : args.assembleContext;
+
+  // FOLD (PD-148) — the effective generation params: the preset's `params` is the BASE, the per-turn
+  // `UserIntent` overrides field-wise, and the host's custom stops (PD-146) join the merged stop set. This is
+  // the ONE value SHAPE (roleHandling), FIT (budget), and REQUEST (wire intent) read — never `ctx.promptConfig.params`
+  // or `args.intent` directly, so a preset's sampling/stop settings actually reach the wire.
+  const effectiveIntent = foldGenerationParams(ctx.promptConfig.params, args.intent, args.extraStopSequences);
 
   // BUILD — the system-prompt halves + the after-history (in_chat) section splices.
   const assembled = buildPrompt(ctx.promptConfig, ctx);
@@ -307,15 +350,16 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
     namesBehavior: ctx.promptConfig.namesBehavior ?? "default",
     speakers,
     groupNudge: args.groupNudge ?? null,
-    // roleHandling is the preset's user-intent knob; SHAPE clamps it against the model's roleHandlingFloor.
+    // roleHandling is the preset's user-intent knob (per-turn override wins via the fold); SHAPE clamps it
+    // against the model's roleHandlingFloor.
     assistantPrefill: args.connection.capability.turns?.assistantPrefill === true,
-    roleHandling: ctx.promptConfig.params.advanced?.roleHandling,
+    roleHandling: effectiveIntent.advanced?.roleHandling,
     roleHandlingFloor: args.connection.capability.turns?.roleHandlingFloor,
   });
 
   // FIT — the history-budget tail.
   const systemTokens = estimateTokens([assembled.static, assembled.dynamic].join("\n\n"));
-  const fitted = fitHistory(shaped.history, fitBudget(args, systemTokens));
+  const fitted = fitHistory(shaped.history, fitBudget(args, effectiveIntent, systemTokens));
 
   // REQUEST — the one seam where the shaped string body becomes content-parts: tokenize embedded image
   // refs, resolve to URLs, gated by input.vision (a non-vision model drops them + we flag the turn).
@@ -334,7 +378,11 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
     chatId: args.chatId,
     prompt: assembled,
     history,
-    intent: args.intent,
+    intent: effectiveIntent,
+    // The preset's provider-passthrough blob (PD-148) — flows to the wire `customParameters` only when set,
+    // so a preset that carries none leaves the request byte-identical (the runner overlays it UNDER its
+    // owned fields; the two-layer prototype-pollution defense holds).
+    ...(ctx.promptConfig.customParameters !== undefined ? { customParameters: ctx.promptConfig.customParameters } : {}),
     kind: args.kind,
     ownerConsented: args.ownerConsented,
     cacheBreakpointFromEnd: shaped.cacheBreakpointFromEnd ?? null,

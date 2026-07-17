@@ -64,6 +64,9 @@ function realEngine(database: Db, requests: TurnRequest[]): TurnEngine {
   const ctx = makeChatContext(database, {
     runChatTurn: scriptedRoleTurn(requests),
     applyStatsDelta: (): void => undefined,
+    // The engine's canAgent('speak') gate reads the actor for an agent-authored turn (D60); an enabled
+    // actor lets the self-attribution turn through. A character turn never reaches this (the gate short-circuits).
+    resolveAgentActor: (id) => Promise.resolve({ kind: "agent", userId: id, ownerUserId: HOST, enabled: true }),
   });
   return createTurnEngine(ctx, {
     emit: (_e: ChatBusEvent): Promise<void> => Promise.resolve(),

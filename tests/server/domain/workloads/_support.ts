@@ -85,6 +85,8 @@ export function fakeEnv(overrides: { [K in keyof WorkloadRunnerEnv]?: Partial<Wo
         embedded: 2,
         skipped: 0,
       })),
+      purgeMemoryVectors: vi.fn(async () => undefined),
+      ...overrides.embeddings,
     },
     discovery: {
       computeThemes: vi.fn(async (_args: { ownerId: UserId | null; k: number; signal: AbortSignal }) => ({

@@ -60,7 +60,7 @@ export interface RunnerEnvDeps {
     "computeThemes" | "computeDuplicatePairs" | "computeChatDuplicatePairs" | "computeCharacterHubScores" | "distillCharacters" | "computeCooccurrence"
   >;
   readonly connection: Pick<ConnectionService, "refreshCatalog" | "refreshAgentSdkCatalog">;
-  readonly embeddings: Pick<EmbeddingsService, "embedCorpus" | "embedAssets">;
+  readonly embeddings: Pick<EmbeddingsService, "embedCorpus" | "embedAssets" | "purgeMemoryVectors">;
   readonly assets: Pick<AssetsService, "backfillAvatars" | "collectGarbage" | "fsck">;
   /** Chat's corpus sweeps, bound over the chat ctx at the root (built after chat). */
   readonly memoryBackfill: WorkloadMemoryEnv["backfill"];
@@ -80,6 +80,7 @@ export interface RunnerEnvDeps {
     readonly storeAvatar: ImportAssetPort["store"];
     readonly attachCardTag: ImportTagPort["attachCardTagByName"];
     readonly importLorebook: ImportWorldInfoPort["importLorebook"];
+    readonly linkCarriedBooks: ImportWorldInfoPort["linkCarriedBooks"];
     readonly bulkImportChats: BulkImportChats;
     readonly bulkImportPersonas: BulkImportPersonas;
     readonly enqueueBackfill: (args: { readonly ownerId: UserId }) => Promise<void>;
@@ -141,6 +142,7 @@ function bindImportAll(
         storeAvatar: deps.storeAvatar,
         attachCardTag: deps.attachCardTag,
         importLorebook: deps.importLorebook,
+        linkCarriedBooks: deps.linkCarriedBooks,
         bulkImportChats: deps.bulkImportChats,
         bulkImportPersonas: deps.bulkImportPersonas,
         enqueueBackfill: deps.enqueueBackfill,
@@ -248,6 +250,11 @@ export function buildWorkloadRunnerEnv(deps: RunnerEnvDeps): WorkloadRunnerEnv {
       embedAssets: async ({ ownerId, force, signal }): Promise<EmbedOut> => {
         const r = await deps.embeddings.embedAssets({ ownerId, force, signal });
         return { embedded: r.embedded, skipped: r.skipped };
+      },
+      // PD-139(b): the chat-memory old-space reclaim; the runner gates it to the bulk, non-aborted pass. The
+      // purge's row counts are advisory — the runner discards them (the sweep's own counts are the result).
+      purgeMemoryVectors: async (): Promise<void> => {
+        await deps.embeddings.purgeMemoryVectors();
       },
     },
     discovery: {

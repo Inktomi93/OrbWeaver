@@ -17,6 +17,7 @@ import { assets, characterBooks, characters, characterTags, tags, worldBooks, wo
 import type { AssetId, CharacterId, Handle, TagId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ExportContext } from "../../../../packages/server/src/domain/export/context.ts";
+import type { ParsedAgentAuthor } from "../../../../packages/server/src/kit/serde/chat/index.ts";
 import { FROZEN_AT_MS } from "../../../support/clock.ts";
 import { principal as makePrincipal } from "../../../support/factories/principal.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
@@ -49,7 +50,14 @@ const unused = (): never => {
   throw new Error("export tests do not exercise this CAS method");
 };
 
-export function makeHarness(db: Db): ExportHarness {
+/** Optional injected seams. `agentAuthors` seeds the PD-17 `resolveAgentAuthor` op: a userId → provenance
+ *  map (a fake standing in for the compose-root FK-walk + soul-drop). Absent ⇒ the op always resolves null
+ *  (no agent-authored rows), so every character/persona test exercises the pre-PD-17 fallback unchanged. */
+interface HarnessSeams {
+  readonly agentAuthors?: ReadonlyMap<UserId, ParsedAgentAuthor>;
+}
+
+export function makeHarness(db: Db, seams: HarnessSeams = {}): ExportHarness {
   const blobs = new Map<string, Uint8Array>();
   const reads: string[] = [];
   const transforms: TransformCall[] = [];
@@ -77,8 +85,10 @@ export function makeHarness(db: Db): ExportHarness {
     return Promise.resolve(AVATAR_PNG);
   };
 
+  const resolveAgentAuthor: ExportContext["resolveAgentAuthor"] = (agentUserId) => Promise.resolve(seams.agentAuthors?.get(agentUserId) ?? null);
+
   return {
-    ctx: { db, cas, imageTransform },
+    ctx: { db, cas, imageTransform, resolveAgentAuthor },
     putBlob: (ownerId, hash, bytes): void => {
       blobs.set(key(ownerId, hash), bytes);
     },
@@ -221,8 +231,13 @@ export async function seedWorldEntry(db: Db, overrides: SeedEntryOverrides): Pro
   return id;
 }
 
-export async function seedCharacterBook(db: Db, characterId: CharacterId, worldBookId: WorldBookId): Promise<void> {
-  await db.insert(characterBooks).values({ characterId, worldBookId, createdAt: FROZEN_AT });
+export async function seedCharacterBook(
+  db: Db,
+  characterId: CharacterId,
+  worldBookId: WorldBookId,
+  role: "primary" | "auxiliary" = "auxiliary",
+): Promise<void> {
+  await db.insert(characterBooks).values({ characterId, worldBookId, role, createdAt: FROZEN_AT });
 }
 
 export async function seedTag(db: Db, ownerId: UserId, name: string): Promise<TagId> {

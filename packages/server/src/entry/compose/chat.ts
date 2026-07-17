@@ -5,9 +5,9 @@
 // offline, so no request Principal exists). Two bridges: role-irrelevant ops use the cheap synthetic
 // `hostPrincipal`; role-sensitive ops (owner-gates) use the injected `resolveHostPrincipal`.
 
-import type { ChatBusEvent } from "@orb/contracts/chat";
+import type { AgentSpeakerIdentity, ChatBusEvent } from "@orb/contracts/chat";
 import type { ResolvedConnection, RouteChatAssignment } from "@orb/contracts/connection";
-import type { AgentSourceKind, Can, Principal } from "@orb/contracts/identity";
+import type { AgentSourceKind, Can, CanAgent, Principal } from "@orb/contracts/identity";
 import type { ChoiceBlockSpec, PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { RoleClients } from "@orb/contracts/role-clients";
@@ -160,6 +160,10 @@ export interface ChatComposeInput {
     readonly ownerUserId: UserId;
     readonly sourceKind: AgentSourceKind;
   }) => Promise<{ readonly agentUserId: UserId; readonly created: boolean }>;
+  /** The compose-root speaker-source dispatch (agent → owner+sourceKind → the registered soul resolver). */
+  readonly resolveAgentSpeaker: (agentUserId: UserId) => Promise<AgentSpeakerIdentity | null>;
+  /** The ONE agent capability gate (`domain/admin/guard.ts`) — injected so chat's engine never imports admin. */
+  readonly canAgent: CanAgent;
   readonly search: SearchService;
   readonly embeddings: EmbeddingsService;
   readonly runChatTurn: (req: ChatRequest) => Promise<ChatResult>;
@@ -347,6 +351,9 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
               // biome-ignore lint/suspicious/noExplicitAny: interface mismatch
               history: req.history as any,
               historyCacheBreakpointFromEnd: req.cacheBreakpointFromEnd ?? undefined,
+              // The preset's provider-passthrough blob (PD-148) rides the chat-completions/responses arm; the
+              // agent-sdk/anthropic-messages arms carry no wire customParameters by charter.
+              ...(req.customParameters !== undefined ? { customParameters: req.customParameters } : {}),
               ...(req.tools !== undefined ? { tools: req.tools } : {}),
               ...(req.toolChoice !== undefined ? { toolChoice: req.toolChoice } : {}),
               onDelta,
@@ -545,12 +552,24 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // record INSERTs the row (assigning seq) THEN the persisted view is published onto the live bus —
     // a dead bus path never loses an event (subscriptions replay from the table by seq).
     resolveHandle: (handle) => input.resolveHandle(handle),
-    // A missing row → disabled (fail-closed containment).
     provisionAgentPrincipal: (params) => input.provisionAgentPrincipal(params),
-    resolveAgentEnabled: async (agentUserId) => {
-      const rows = await db.select({ enabled: users.enabled }).from(users).where(eq(users.id, agentUserId)).limit(1);
-      return rows[0]?.enabled ?? false;
+    // The ONE agent kill-switch/identity read chat takes — resolve the principal to its AgentActor. Fail-closed:
+    // a missing/human/owner-less id yields null (refuses a seat, refuses every `canAgent` gate). Entry may read
+    // `users` directly (the `no-direct-users-read` chokepoint scopes only `domain/`).
+    resolveAgentActor: async (agentUserId) => {
+      const rows = await db
+        .select({ kind: users.kind, ownerUserId: users.ownerUserId, enabled: users.enabled })
+        .from(users)
+        .where(eq(users.id, agentUserId))
+        .limit(1);
+      const row = rows[0];
+      if (row === undefined || row.kind !== "agent" || row.ownerUserId === null) {
+        return null;
+      }
+      return { kind: "agent", userId: agentUserId, ownerUserId: row.ownerUserId, enabled: row.enabled };
     },
+    resolveAgentSpeaker: (agentUserId) => input.resolveAgentSpeaker(agentUserId),
+    canAgent: input.canAgent,
     // A solo-character founding with exactly ONE character_personas connection auto-anchors that persona;
     // 0 or 2+ connections (ambiguity) or a group founding falls through to the default seed.
     resolveConnectedPersona: async (userId, characterIds) => {
@@ -746,6 +765,12 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
         scanDepth: us.worldInfo.scanDepth,
         injectionTokenBudget: us.worldInfo.tokenBudget,
         memoryConfig,
+        // PD-146: the host's turn-behavior arm the engine honors (custom stops + auto-continue/auto-swipe).
+        chatBehavior: {
+          autoContinue: us.chat.autoContinue,
+          autoSwipe: us.chat.autoSwipe,
+          customStoppingStrings: us.chat.customStoppingStrings,
+        },
       };
     },
     debitBudget: memberBudget.debit,

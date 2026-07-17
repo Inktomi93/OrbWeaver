@@ -3,10 +3,10 @@
 // this. Every cross-feature/infra dependency is an injected op — chat never sideways-imports a sibling domain.
 
 import type { CharacterCard } from "@orb/contracts/character";
-import type { ChatBusEvent, GroupConfig, RenderPolicy, RoomOverrides, ToolCallRecord } from "@orb/contracts/chat";
+import type { AgentSpeakerIdentity, ChatBusEvent, GroupConfig, RenderPolicy, RoomOverrides, ToolCallRecord } from "@orb/contracts/chat";
 import type { CredentialSource, ResolvedConnection, RouteChatAssignment } from "@orb/contracts/connection";
 import type { ResolvedCredential } from "@orb/contracts/credentials";
-import type { AgentSourceKind, Can, ChatRoster, Principal } from "@orb/contracts/identity";
+import type { AgentActor, AgentSourceKind, Can, CanAgent, ChatRoster, Principal } from "@orb/contracts/identity";
 import type { PromptTemplateMode } from "@orb/contracts/imagery";
 import type { NotificationEvent, PresenceView } from "@orb/contracts/notifications";
 import type { ChoiceBlockSpec } from "@orb/contracts/preset";
@@ -164,8 +164,25 @@ type ProvisionAgentPrincipalOp = (params: {
   readonly sourceKind: AgentSourceKind;
 }) => Promise<{ readonly agentUserId: UserId; readonly created: boolean }>;
 
-/** Is this agent principal's kill switch on? A disabled agent is refused a seat and dropped from every cast. */
-type ResolveAgentEnabledOp = (agentUserId: UserId) => Promise<boolean>;
+/** Resolve the agent principal → its {@link AgentActor} (kind/owner/`enabled`), or `null` if the id is not a
+ *  live `kind:'agent'` row (fail-closed — a missing/human/gone id yields null, refusing a seat and every gate).
+ *  The ONE agent kill-switch/identity read chat takes; `seatAgent` refuses on `null`/disabled, the engine
+ *  builds the actor for the `canAgent('speak')` gate. Chat never reads `users` directly. */
+type ResolveAgentActorOp = (agentUserId: UserId) => Promise<AgentActor | null>;
+
+/** Voice a SEATED agent (D60; agent-principal-design/04 §5): resolve the agent's principal → its source's soul
+ *  identity (display name + system prompt), or `null` for an unhatched/unresolvable source. Chat stays
+ *  source-blind — the compose root dispatches on `agent_principals.sourceKind` through the
+ *  `AGENT_SPEAKER_SOURCES` registry; the resolved soul fills the same card-shaped slot a character card does. */
+type ResolveAgentSpeakerOp = (agentUserId: UserId) => Promise<AgentSpeakerIdentity | null>;
+
+/** One resolved AGENT cast member for a round (loadRoom → gather → build): the agent's principal id + its soul
+ *  identity. Its soul maps to a card-shaped `AssembleCharacter` in `cast`/`castMembers` so the per-speaker
+ *  SHAPE renders the agent's OWN card, riding the one turn path (agent-principal-design/04 §5). */
+export interface AgentCastMember {
+  readonly userId: UserId;
+  readonly identity: AgentSpeakerIdentity;
+}
 
 /** Server-derived SSE liveness for a userId (never client-asserted — a spoofable presence is a
  *  prompt-composition attack). Read once per round for cast-gating. */
@@ -292,7 +309,11 @@ export interface ChatContext {
   readonly emitNotification: NotificationsEmitOp;
   readonly resolveHandle: ResolveHandleOp;
   readonly provisionAgentPrincipal: ProvisionAgentPrincipalOp;
-  readonly resolveAgentEnabled: ResolveAgentEnabledOp;
+  readonly resolveAgentActor: ResolveAgentActorOp;
+  /** Voice a seated agent's soul (the compose-root `AGENT_SPEAKER_SOURCES` dispatch); null = unhatched. */
+  readonly resolveAgentSpeaker: ResolveAgentSpeakerOp;
+  /** The ONE agent capability gate (injected from `domain/admin/guard.ts` — chat never imports admin). */
+  readonly canAgent: CanAgent;
   readonly readPresence: PresenceReadOp;
   readonly generatePicture: GeneratePictureOp;
   readonly resolveDefaultPersona: ResolveDefaultPersonaOp;

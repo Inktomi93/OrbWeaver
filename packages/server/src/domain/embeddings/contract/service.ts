@@ -7,7 +7,7 @@ import type { RoleClients } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
 import type { AssetId, CharacterEmbeddingId, CharacterId, ChatDigestId, ChatSegmentId, ImageEmbeddingId, UserId } from "@orb/kit/ids";
 import type { ClearTableParams, EmbedPassParams, StoreParams, WriteHubScoresParams } from "./params";
-import type { BulkEmbedResult, StoreResult, WriteHubScoresResult } from "./results";
+import type { BulkEmbedResult, PurgeMemoryVectorsResult, StoreResult, WriteHubScoresResult } from "./results";
 
 /** Re-read a character card's embeddable text by id. `undefined` when deleted between emit and handler. */
 export type LoadCardText = (characterId: CharacterId) => Promise<string | undefined>;
@@ -54,6 +54,10 @@ export interface EmbeddingsService {
   /** Bulk image catch-up sweep: enumerate every image asset → re-read bytes → `store` both lenses. Caption
    *  generation only runs when a lens row is stale/missing (or `force`). Same resume/abort contract. */
   readonly embedAssets: (params: EmbedPassParams) => Promise<BulkEmbedResult>;
+  /** PD-139(b): reclaim the OLD chat-memory embed space — deletes `chat_segments`/`chat_digests` rows whose
+   *  `model` differs from the active `roleClients.embedModel`. BULK-ONLY + skip-on-abort is the caller's
+   *  guard (the memory-backfill runner), mirroring the embedCorpus/embedAssets purge. */
+  readonly purgeMemoryVectors: () => Promise<PurgeMemoryVectorsResult>;
 }
 
 /** The DI bundle the indexer handlers close over (assembled at `entry/`). */

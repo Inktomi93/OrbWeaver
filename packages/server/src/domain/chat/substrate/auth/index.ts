@@ -4,6 +4,7 @@
 // deciders is the feature-root `guard.ts` (the membership chokepoint).
 
 export {
+  buildAgentCardView,
   clampMemberCard,
   resolveCardVisibility,
 } from "./clamp";

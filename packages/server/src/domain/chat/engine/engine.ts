@@ -13,11 +13,12 @@
 
 import type { ChatBusEvent, MessageView, TurnAbortReason } from "@orb/contracts/chat";
 import { buildCharacterNameMap, buildPersonaNameMap } from "@orb/contracts/chat";
+import type { ChatRoster } from "@orb/contracts/identity";
 import type { ContinuePostfix } from "@orb/contracts/preset";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany, isConstraintViolation } from "@orb/db/kit";
-import type { CharacterId, ChatId, MessageId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, MessageId, UserId } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
 import { getLog } from "#foundation/observability";
 import type { ChatContext } from "../context";
@@ -127,6 +128,40 @@ function economicsCommon(e: TurnEconomics | null): EconomicsCommon {
 
 /** The loaded write target for an append-variant/continue turn, read pre-start. */
 type SlotTarget = NonNullable<Awaited<ReturnType<typeof loadSlotTarget>>>;
+
+/** The seat a `canAgent` verdict is made against. An agent participant is ALWAYS `role:'member'` (a character
+ *  can never be host, and an agent even less so); `canAgent` ignores the room today (present-membership is the
+ *  roster load's job — the present-predicate already dropped disabled/kicked agents), so this is the fixed seat. */
+const AGENT_SEAT_ROSTER: ChatRoster = { role: "member" };
+
+/** The agent principal whose voice THIS turn produces, or null for a character/human/narrator/impersonate turn.
+ *  A new-slot ASSISTANT carrying an `authorUserId` is a self-attributed agent speaker (the round driver stamps
+ *  it — agent-principal-design/02 §2); an append-variant/continue that re-voices an existing agent-authored
+ *  assistant row (authorUserId set, characterId null) is also an agent voice. */
+function agentSpeakerUserId(persist: TurnPersist, target: SlotTarget | null): UserId | null {
+  if (persist.mode === "new-slot") {
+    return persist.role === "assistant" ? (persist.authorUserId ?? null) : null;
+  }
+  return target !== null && target.role === "assistant" && target.characterId === null ? target.authorUserId : null;
+}
+
+/** The agent-speaker capability gate (D60; agent-principal-design/03 §2, inv 4). Before ANY agent-authored
+ *  generation the engine re-reads the principal FRESH and runs it through the ONE `canAgent('speak')` seam —
+ *  the belt on top of the present-predicate that (a) refuses a force-injected speaker the selection never
+ *  vetted and (b) kills an in-flight turn the instant `users.enabled` flips. A vanished/non-agent id (an
+ *  owner-delete cascade race) fails CLOSED. Pure pre-start refusal: emits nothing, no side effects. */
+async function gateAgentSpeaker(ctx: ChatContext, chatId: ChatId, persist: TurnPersist, target: SlotTarget | null): Promise<void> {
+  const agentUserId = agentSpeakerUserId(persist, target);
+  if (agentUserId === null) {
+    return;
+  }
+  const actor = await ctx.resolveAgentActor(agentUserId);
+  if (actor === null) {
+    throw new ChatOperationError(CHAT_OP_CODES.agentDisabled, `chat ${chatId}: agent speaker ${agentUserId} is not a live principal`);
+  }
+  // Throws DomainForbiddenError("agent principal disabled") when the kill switch is off — the containment flip.
+  ctx.canAgent(actor, "speak", AGENT_SEAT_ROSTER);
+}
 
 /** Re-reads a just-committed message's authoritative MessageView (append-variant/continue produce fields
  *  the in-memory insert params don't know, unlike a fresh slot). */
@@ -537,6 +572,10 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
     throw new ChatNotFoundError(prep.chatId);
   }
 
+  // The agent-speaker capability gate — a pre-start refusal (emits nothing) BEFORE turnStarted, so a disabled
+  // or force-injected agent principal is never voiced (D60; the belt on top of the present-predicate).
+  await gateAgentSpeaker(ctx, prep.chatId, persist, target);
+
   const intent = KIND_TO_INTENT[prep.kind];
   await deps.emit({
     type: "turnStarted",
@@ -569,6 +608,7 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
       historyMacroNames,
       connection: prep.connection,
       intent: prep.intent,
+      extraStopSequences: prep.extraStopSequences,
       kind: prep.kind,
       ownerConsented,
       chatId: prep.chatId,

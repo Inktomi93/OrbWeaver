@@ -17,8 +17,10 @@
 // Volatile macros freeze at the first user turn (`freezeGreetingVolatiles`, verbs/turn.ts) — a greeting
 // is malleable/swipeable until then.
 //
-// FLAG[chatOpened]: `startChat` emits only `chatCreated`. `chatOpened` is subscription-synthesized at the
-// participant stream-attach, never a domain emit.
+// FLAG[chatOpened]: `startChat` emits only `chatCreated`. `chatOpened` is NOT a domain emit — it is
+// synthesized per-subscription at the participant stream-attach (transport/trpc/routers/chat.ts's
+// `chatEventStream`, PD-134): a local per-viewer yield, never published on the bus, never logged to
+// `chat_events`. This verb deliberately stays silent on it (the marker guarding against a stray emit here).
 
 import type {
   ChatBusEvent,
@@ -329,6 +331,8 @@ async function runGeneratedOpening(
     runAsUserId: hostUserId,
     kind: "opening",
     intent: {},
+    // PD-146: a generated opening honors the host's custom stop strings too (all-off ⇒ byte-identical).
+    extraStopSequences: foreign.chatBehavior?.customStoppingStrings,
     memoryConfig: foreign.memoryConfig,
     speakerCharacterId: args.characterIds[0] ?? null,
     appendUserTurn: openingPrompt,

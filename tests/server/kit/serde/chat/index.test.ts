@@ -285,6 +285,32 @@ describe("buildChatJsonl", () => {
   });
 });
 
+describe("agent_author provenance (PD-17)", () => {
+  test("emitted ONLY when agentAuthor is present; absent turns carry no key", () => {
+    const withAgent = JSON.parse(buildChatJsonl(pchat([pmsg({ agentAuthor: { name: "Pip", sourceKind: "buddy" } })])).split("\n")[1] ?? "") as Record<
+      string,
+      unknown
+    >;
+    expect(withAgent["agent_author"]).toEqual({ name: "Pip", source_kind: "buddy" });
+    const without = JSON.parse(buildChatJsonl(pchat([pmsg()])).split("\n")[1] ?? "") as Record<string, unknown>;
+    expect(without["agent_author"]).toBeUndefined();
+  });
+
+  test("round-trips: build → parse → build carries agentAuthor intact (the drift guard covers the sidecar)", () => {
+    const source = pchat([pmsg({ agentAuthor: { name: "Pip", sourceKind: "buddy" } })]);
+    const reparsed = parseChatJsonl(buildChatJsonl(source), { fileName: "x.jsonl", charDirName: "Aria" });
+    expect(reparsed).not.toBeNull();
+    expect(reparsed?.messages[0]?.agentAuthor).toEqual({ name: "Pip", sourceKind: "buddy" });
+    expect(buildChatJsonl(reparsed as ParsedChat)).toBe(buildChatJsonl(source));
+  });
+
+  test("a blank/partial agent_author on the wire degrades to absent (no fabricated half-identity)", () => {
+    const badLine = JSON.stringify({ is_user: false, mes: "hi", agent_author: { name: "", source_kind: "buddy" } });
+    const parsed = parseChatJsonl(`${header()}\n${badLine}`, { fileName: "x.jsonl", charDirName: "Aria" });
+    expect(parsed?.messages[0]?.agentAuthor).toBeUndefined();
+  });
+});
+
 describe("buildChatTxt", () => {
   test("Author-labeled blocks per the PER-MESSAGE speaker; system stays 'System'", () => {
     const out = buildChatTxt(

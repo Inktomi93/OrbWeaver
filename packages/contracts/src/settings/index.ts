@@ -174,6 +174,11 @@ const WI_TOKEN_BUDGET_MIN = 0;
 const WI_TOKEN_BUDGET_MAX = 65_536;
 const WI_TOKEN_BUDGET_DEFAULT = 1024;
 const AUTO_SWIPE_MIN_LENGTH_DEFAULT = 0;
+// Smooth-stream pacing (client-honored — `@orb/ui/stream` useSmoothText): the trickle floor in chars/sec.
+// Range mirrors neo's Streaming pref; default OFF so the reveal tracks raw chunk cadence unless opted in.
+const SMOOTH_STREAM_CPS_MIN = 15;
+const SMOOTH_STREAM_CPS_MAX = 300;
+const SMOOTH_STREAM_CPS_DEFAULT = 80;
 const DUP_THRESHOLD_FLOOR = 0;
 const DUP_THRESHOLD_CEIL = 1;
 const COMPUTE_THEMES_K_MAX = 100;
@@ -215,6 +220,8 @@ const memorySchema = z
 
 const chatSchema = z
   .object({
+    // Client-honored (composer keydown): Enter sends by default; off → Enter is a newline and ⌘/Ctrl+Enter sends.
+    enterSends: z.boolean().catch(true).default(true),
     autoContinue: z.boolean().catch(false).default(false),
     continueOnSend: z.boolean().catch(true).default(true),
     autoSwipe: z
@@ -225,8 +232,13 @@ const chatSchema = z
       })
       .prefault({}),
     customStoppingStrings: z.array(z.string()).catch([]).default([]),
+    // Client-honored (the streaming ghost's `useSmoothText` pacer). Default OFF: raw chunk cadence.
+    smoothStream: z.boolean().catch(false).default(false),
+    smoothStreamCps: z.number().int().min(SMOOTH_STREAM_CPS_MIN).max(SMOOTH_STREAM_CPS_MAX).catch(SMOOTH_STREAM_CPS_DEFAULT).default(SMOOTH_STREAM_CPS_DEFAULT),
   })
   .prefault({});
+
+export type ChatSettings = z.infer<typeof chatSchema>;
 
 const personaSchema = z
   .object({
@@ -440,6 +452,8 @@ export type UserSettingsSection = (typeof USER_SETTINGS_SECTIONS)[number];
 export const DEFAULT_USER_SETTINGS: UserSettings = userSettingsSchema.parse({});
 
 export const DEFAULT_APPEARANCE_SETTINGS: AppearanceSettings = DEFAULT_USER_SETTINGS.appearance;
+
+export const DEFAULT_CHAT_SETTINGS: ChatSettings = DEFAULT_USER_SETTINGS.chat;
 
 const USER_SETTINGS_LIFTS: Record<number, (config: Record<string, unknown>) => Record<string, unknown>> = {
   1: (c) => {

@@ -13,7 +13,7 @@
 import { characters, chatParticipants, chats, messages, messageVariants, personas } from "@orb/db";
 import type { ChatId } from "@orb/kit/ids";
 import { and, asc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
-import type { ParsedChat, ParsedChatMessage, ParsedVariant } from "#kit/serde/chat";
+import type { ParsedAgentAuthor, ParsedChat, ParsedChatMessage, ParsedVariant } from "#kit/serde/chat";
 import { buildChatJsonl, buildChatTxt, classifyChat } from "#kit/serde/chat";
 import type { ExportContext } from "../context";
 import type { ExportChatParams } from "../contract/params";
@@ -56,17 +56,34 @@ async function loadSpeakerNames(ctx: ExportContext, slots: readonly MessageRow[]
   };
 }
 
+// Agent-authored assistant rows (AP2 self-attribution: authorUserId = an agent principal, characterId NULL)
+// resolve provenance through the injected `resolveAgentAuthor` op — export can't read users/agent_principals
+// directly, so the compose root walks agent → owner → source resolver and returns the leak-safe
+// `{name, sourceKind}`. Built once over the canon's distinct agent-candidate author ids; a non-agent id (or
+// an owner with nothing to voice) resolves to null and is simply absent from the map (degrades to fallback).
+async function loadAgentAuthors(ctx: ExportContext, slots: readonly MessageRow[]): Promise<Map<string, ParsedAgentAuthor>> {
+  const candidateIds = [
+    ...new Set(slots.flatMap((m) => (m.role === "assistant" && m.characterId === null && m.authorUserId !== null ? [m.authorUserId] : []))),
+  ];
+  const resolved = await Promise.all(candidateIds.map(async (id) => [id, await ctx.resolveAgentAuthor(id)] as const));
+  return new Map(resolved.flatMap(([id, provenance]) => (provenance !== null ? [[id, provenance] as const] : [])));
+}
+
 // Resolve this turn's speaker display name: a human turn is its authoring persona; an assistant turn is its
-// voicing character. FLAG[PD-17]: an agent-authored assistant row has no name source here yet, so it
-// degrades to the header character name.
+// voicing character — or, for an agent-authored row (PD-17), the resolved agent's own display name (an agent
+// principal voices with no card). A row with none of those sources degrades to the header character name.
 function resolveSpeakerName(
   m: MessageRow,
   names: { char: Map<string, string>; persona: Map<string, string> },
   fallback: { characterName: string; userName: string | null },
+  agentAuthor: ParsedAgentAuthor | undefined,
 ): string {
   if (m.role === "user") {
     const persona = m.personaId !== null ? names.persona.get(m.personaId) : undefined;
     return persona ?? fallback.userName ?? "User";
+  }
+  if (agentAuthor !== undefined) {
+    return agentAuthor.name;
   }
   if (m.characterId !== null) {
     return names.char.get(m.characterId) ?? fallback.characterName;
@@ -101,12 +118,14 @@ async function loadParsedMessages(
     byMessage.set(v.messageId, list);
   }
   const names = await loadSpeakerNames(ctx, slots);
+  const agentAuthors = await loadAgentAuthors(ctx, slots);
   return slots.map((m): ParsedChatMessage => {
     const variants = (byMessage.get(m.id) ?? []).sort((a, b) => a.idx - b.idx);
     const selected = variants.find((v) => v.id === m.selectedVariantId) ?? variants[0];
+    const agentAuthor = m.authorUserId !== null ? agentAuthors.get(m.authorUserId) : undefined;
     return {
       role: m.role,
-      speakerName: resolveSpeakerName(m, names, fallback),
+      speakerName: resolveSpeakerName(m, names, fallback, agentAuthor),
       content: selected?.content ?? "",
       sendDate: m.createdAt,
       model: selected?.model ?? null,
@@ -119,6 +138,9 @@ async function loadParsedMessages(
       metadata: null,
       activeVariantIdx: selected?.idx ?? null,
       variants: variants.map(toParsedVariant),
+      // Present only for an agent-authored row (PD-17); absent otherwise (exactOptional) → the serde emits
+      // `agent_author` only for agent turns, so human/character rows stay byte-identical.
+      ...(agentAuthor !== undefined ? { agentAuthor } : {}),
     };
   });
 }

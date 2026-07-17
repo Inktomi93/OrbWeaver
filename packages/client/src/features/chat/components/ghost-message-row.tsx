@@ -21,7 +21,9 @@ import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants";
 import { renderRowAvatar } from "./message-row-parts";
 import { ReasoningBlock } from "./reasoning-block";
 
-const GHOST_CPS = 40;
+// Fallback pace when smooth-streaming is on but the surface passed no explicit cps (matches the contract
+// default). The pref (`UserSettings.chat.smoothStreamCps`) overrides it via the `smoothStreamCps` prop.
+const DEFAULT_SMOOTH_STREAM_CPS = 80;
 
 // Module scope so the ghost component stays under the cognitive-complexity ceiling.
 function ghostFallbackTile(attribution: RowAttribution | undefined): {
@@ -68,6 +70,10 @@ export interface GhostMessageRowProps {
   readonly avatarRing?: "none" | "accent" | undefined;
   readonly showInChatAvatars?: boolean | undefined;
   readonly showLLMReasoningIcon?: boolean | undefined;
+  /** PD-146 — the `UserSettings.chat.smoothStream` pref: pace the reveal (default off ⇒ raw chunks). */
+  readonly smoothStream?: boolean | undefined;
+  /** PD-146 — the `UserSettings.chat.smoothStreamCps` pref: the trickle floor when `smoothStream` is on. */
+  readonly smoothStreamCps?: number | undefined;
   /** True only on the render the ghost genuinely appears; a mid-stream scrollback remount gets false. */
   readonly enterMotion?: boolean;
 }
@@ -85,6 +91,8 @@ export function GhostMessageRow({
   avatarRing = "none",
   showInChatAvatars = true,
   showLLMReasoningIcon = false,
+  smoothStream = false,
+  smoothStreamCps = DEFAULT_SMOOTH_STREAM_CPS,
   enterMotion = false,
 }: GhostMessageRowProps): ReactElement {
   const enterClasses = useEnterMotion(enterMotion);
@@ -93,7 +101,7 @@ export function GhostMessageRow({
   const thinking = useGhostThinking(chatId);
   const text = renderContext === undefined ? rawText : renderMessageForDisplay(rawText, renderContext, rowCharacterId);
   const reasoning = renderContext === undefined ? rawReasoning : renderMessageForDisplay(rawReasoning, renderContext, rowCharacterId);
-  const paced = useSmoothText(text, { enabled: streaming, cps: GHOST_CPS });
+  const paced = useSmoothText(text, { enabled: streaming && smoothStream, cps: smoothStreamCps });
   // Streamdown repairs the streaming markdown tail itself; the only pre-pass still needed here is
   // holding a torn <speaker> tag, then converting a complete one to a plain "Name:" prefix (the
   // untrusted seal drops the <speaker> element and its name child otherwise).

@@ -34,6 +34,7 @@ export function createSettingsContext(deps: SettingsServiceDeps): SettingsContex
     serializeUserWrite,
     newThemeId: deps.newThemeId,
     emitUserEvent: deps.emitUserEvent,
+    onEmbedModelChanged: deps.onEmbedModelChanged,
     getEffectiveConfig,
     reloadEffectiveConfig: () => reloadEffectiveConfig(deps.db),
   };

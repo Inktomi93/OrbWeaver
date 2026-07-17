@@ -87,12 +87,17 @@ describe("chat.streamMessages — durable delta replay over a real reads-slice (
 
     const sub = await caller(txCtx).chat.streamMessages({ chatId, lastEventId: "0" });
     const iterator = sub[Symbol.asyncIterator]();
+    // PD-134: `chatOpened` synthesizes first at attach (id = the resume cursor "0", non-advancing); no
+    // `historyTruncated` (cursor 0 is not < minSeq(1) - 1). Then the durable head replays.
+    const opened = await iterator.next();
     const a = await iterator.next();
     const b = await iterator.next();
     const c = await iterator.next();
     // Stop before the generator blocks on the (empty) live tail.
     await iterator.return?.(undefined);
 
+    expect(dataOf(opened.value).type).toBe("chatOpened");
+    expect(idOf(opened.value)).toBe("0");
     // The durable head replays ASCENDING with each durable seq as the tracked resume id.
     expect([idOf(a.value), idOf(b.value), idOf(c.value)]).toEqual(["1", "2", "3"]);
     expect([dataOf(a.value).type, dataOf(b.value).type, dataOf(c.value).type]).toEqual(["turnStarted", "delta", "delta"]);
@@ -137,7 +142,13 @@ describe("chat.streamMessages — durable delta replay over a real reads-slice (
 
     const sub = await caller(txCtx).chat.streamMessages({ chatId });
     const iterator = sub[Symbol.asyncIterator]();
-    const firstYield = iterator.next(); // starts the generator: subscribe live, skip replay (no cursor)
+    // The generator subscribes live, then synthesizes `chatOpened` at attach (PD-134; id "0", the
+    // null-cursor floor) BEFORE entering the live tail — no replay (no cursor).
+    const opened = await iterator.next();
+    expect(dataOf(opened.value).type).toBe("chatOpened");
+    expect(idOf(opened.value)).toBe("0");
+
+    const firstYield = iterator.next(); // resumes into the live loop
     // A live event published AFTER the subscribe attaches (seq past the durable head) is the only thing
     // that flows — its durable seq is 2 (the emit above was seq 1). Publish through the transport bus.
     publishChatEvent({
