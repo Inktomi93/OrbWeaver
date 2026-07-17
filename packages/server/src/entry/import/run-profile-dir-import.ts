@@ -51,6 +51,7 @@ export interface ProfileDirImportDeps {
   readonly storeAvatar: ImportAssetPort["store"];
   readonly attachCardTag: ImportTagPort["attachCardTagByName"];
   readonly importLorebook?: ImportWorldInfoPort["importLorebook"];
+  readonly linkCarriedBooks?: ImportWorldInfoPort["linkCarriedBooks"];
   readonly bulkImportChats: BulkImportChats;
   readonly bulkImportPersonas: BulkImportPersonas;
   readonly enqueueBackfill: (args: { readonly ownerId: UserId }) => Promise<void>;
@@ -167,6 +168,7 @@ export async function runProfileDirImport(deps: ProfileDirImportDeps): Promise<P
     storeAvatar: store,
     attachCardTag: deps.attachCardTag,
     ...(deps.importLorebook !== undefined ? { importLorebook: deps.importLorebook } : {}),
+    ...(deps.linkCarriedBooks !== undefined ? { linkCarriedBooks: deps.linkCarriedBooks } : {}),
     profile: {
       now: deps.now,
       personaByUserName: new Map(),

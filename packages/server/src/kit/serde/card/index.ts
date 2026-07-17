@@ -6,8 +6,8 @@
 // the IN/OUT halves hash-mirror so a re-import of an app-emitted card hashes identically to the original.
 
 import { createHash } from "node:crypto";
-import type { CardDepthPrompt, CharacterCard, CharacterCardV3 } from "@orb/contracts/character";
-import { CHARA_CARD_V3_SPEC, characterCardV3Schema } from "@orb/contracts/character";
+import type { AttachedBookRef, CardDepthPrompt, CharacterCard, CharacterCardV3 } from "@orb/contracts/character";
+import { ATTACHED_BOOKS_WIRE_KEY, CHARA_CARD_V3_SPEC, characterCardV3Schema } from "@orb/contracts/character";
 import type { RegexScript } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
 import { isPlainObject } from "@orb/kit/guards";
@@ -184,6 +184,9 @@ const PROMOTED_DATA_KEYS = new Set([
   "regex_scripts",
   "tags",
   "character_book",
+  // PD-144: the attached-book references are an external junction (re-linked by id on import), not residual
+  // `data.*` — keep them out of the preserved blob so they don't double-emit on a round-trip.
+  ATTACHED_BOOKS_WIRE_KEY,
 ]);
 
 /** TOP-LEVEL `data.*` keys MINUS the ones with a typed column (PD-127 — the top-level sibling of
@@ -316,6 +319,9 @@ export interface ExportCardFields {
   readonly residualData?: Record<string, unknown> | null;
   readonly regexScripts: RegexScript[];
   readonly depthPrompt: CardDepthPrompt | null;
+  /** PD-144: attached world-info book REFERENCES — the OUT-emitter rides them under
+   *  `data.orbweaver_attached_books`. Optional/absent-empty: a card with no attached books emits no key. */
+  readonly attachedBooks?: readonly AttachedBookRef[];
 }
 
 /** One attached lore entry projected for the OUT mapper. Carries the full round-trip payload — typed
@@ -482,6 +488,12 @@ export function loreEntryMetadata(entry: Record<string, unknown>): Record<string
  * is `characterCardV3Schema.parse`d so a malformed projection fails loud at the boundary, not silently on
  * the wire.
  */
+// PD-144: the namespaced attached-book-references field for the OUT wire — an empty object (no key) when the
+// card carries none, so `buildCardV3` just spreads it.
+function attachedBooksWire(refs: readonly AttachedBookRef[] | undefined): Record<string, unknown> {
+  return refs !== undefined && refs.length > 0 ? { [ATTACHED_BOOKS_WIRE_KEY]: refs } : {};
+}
+
 export function buildCardV3(fields: ExportCardFields, entries: ExportWorldEntry[]): CharacterCardV3 {
   // biome-ignore-start lint/style/useNamingConvention: ST Character-Card-V3 wire field names (snake_case)
   const { depth_prompt: _staleDepthPrompt, regex_scripts: _staleRegexScripts, ...baseExtensions } = fields.extensions ?? {};
@@ -508,6 +520,7 @@ export function buildCardV3(fields: ExportCardFields, entries: ExportWorldEntry[
     tags: fields.tags,
     extensions,
     ...(entries.length > 0 ? { character_book: { entries: entries.map(exportBookEntry) } } : {}),
+    ...attachedBooksWire(fields.attachedBooks),
   };
   return characterCardV3Schema.parse({
     spec: CHARA_CARD_V3_SPEC,

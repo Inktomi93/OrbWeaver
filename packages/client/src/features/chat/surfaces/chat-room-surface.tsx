@@ -142,6 +142,9 @@ function ComposerSlot(props: ComposerSlotProps): ReactElement {
 function ComposerTailGate(props: ComposerSlotProps & { readonly chatId: ChatId }): ReactElement {
   const trpc = useTRPC();
   const { data: messagesPage } = useSuspenseQuery(trpc.chat.listMessages.queryOptions({ chatId: props.chatId }));
-  const tailRole: MessageRole | null = messagesPage.messages.at(-1)?.role ?? null;
-  return <Composer {...props} tailRole={tailRole} />;
+  const tail = messagesPage.messages.at(-1);
+  const tailRole: MessageRole | null = tail?.role ?? null;
+  // continue-on-empty's target: only meaningful when the tail is an assistant turn.
+  const tailAssistantMessageId = tail !== undefined && tail.role === "assistant" ? tail.id : null;
+  return <Composer {...props} tailRole={tailRole} tailAssistantMessageId={tailAssistantMessageId} />;
 }

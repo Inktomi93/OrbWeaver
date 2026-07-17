@@ -146,6 +146,103 @@ describe("importCharacter", () => {
     expect(h.lorebooks).toHaveLength(0);
   });
 
+  // ── PD-144 — carried attached-book references ───────────────────────────────────────────────────────
+
+  const BOOK_A = "world_book_0000000000000000000000000a";
+  const BOOK_B = "world_book_0000000000000000000000000b";
+  const cardWithRefs = (refs: { worldBookId: string; role: string }[], includeEmbeddedBook = false): string =>
+    JSON.stringify({
+      spec: "chara_card_v3",
+      spec_version: "3.0",
+      data: {
+        name: "Aria",
+        description: "a bard",
+        orbweaver_attached_books: refs,
+        ...(includeEmbeddedBook
+          ? { character_book: { name: "Aria's World", entries: [{ keys: ["k"], content: "c", comment: "C", insertion_order: 1 }] } }
+          : {}),
+      },
+    });
+
+  test("carries the card's attached-book references to the injected re-link op (roles preserved)", async () => {
+    const h = makeHarness();
+    const svc = createImportService(h.ctx);
+    const card = cardWithRefs([
+      { worldBookId: BOOK_A, role: "primary" },
+      { worldBookId: BOOK_B, role: "auxiliary" },
+    ]);
+
+    const result = await svc.importCharacter({ card: { bytes: encoder.encode(card), filename: "aria.json" } });
+
+    expect(h.linkBooks).toHaveLength(1);
+    const call = h.linkBooks[0];
+    if (call === undefined) {
+      throw new Error("expected a recorded re-link call");
+    }
+    expect(call.ownerId).toBe(h.ownerId);
+    expect(call.characterId).toBe(result.characterId);
+    expect(call.refs).toEqual([
+      { worldBookId: BOOK_A, role: "primary" },
+      { worldBookId: BOOK_B, role: "auxiliary" },
+    ]);
+    expect(result.attachedBooksLinked).toBe(2);
+    expect(result.attachedBooksSkipped).toBe(0);
+  });
+
+  test("a resolved reference SKIPS the embedded-lorebook clone (no duplicate book on the same install)", async () => {
+    const h = makeHarness();
+    const svc = createImportService(h.ctx);
+    // The card carries BOTH an embedded book AND references; the default fake links every ref.
+    const card = cardWithRefs([{ worldBookId: BOOK_A, role: "primary" }], true);
+
+    const result = await svc.importCharacter({ card: { bytes: encoder.encode(card), filename: "aria.json" } });
+
+    expect(result.attachedBooksLinked).toBe(1);
+    // The reference IS the book on this install — cloning the embedded copy would double it.
+    expect(h.lorebooks).toHaveLength(0);
+  });
+
+  test("falls back to the embedded clone when NO reference resolves (foreign install)", async () => {
+    const h = makeHarness();
+    const svc = createImportService(h.ctx);
+    // Foreign install: none of the carried ids exist here → the re-link links nothing, skips all.
+    h.setLinkOutcome((refs) => ({ linked: 0, skipped: refs.length }));
+    const card = cardWithRefs([{ worldBookId: BOOK_A, role: "primary" }], true);
+
+    const result = await svc.importCharacter({ card: { bytes: encoder.encode(card), filename: "aria.json" } });
+
+    expect(result.attachedBooksLinked).toBe(0);
+    expect(result.attachedBooksSkipped).toBe(1);
+    // No reference resolved → the embedded book content is cloned so it isn't lost.
+    expect(h.lorebooks).toHaveLength(1);
+  });
+
+  test("reports inaccessible references as skipped (surfaced in the result)", async () => {
+    const h = makeHarness();
+    const svc = createImportService(h.ctx);
+    h.setLinkOutcome(() => ({ linked: 1, skipped: 1 }));
+    const card = cardWithRefs([
+      { worldBookId: BOOK_A, role: "primary" },
+      { worldBookId: BOOK_B, role: "auxiliary" },
+    ]);
+
+    const result = await svc.importCharacter({ card: { bytes: encoder.encode(card), filename: "aria.json" } });
+
+    expect(result.attachedBooksLinked).toBe(1);
+    expect(result.attachedBooksSkipped).toBe(1);
+  });
+
+  test("a card carrying NO references never calls the re-link op (regression pin)", async () => {
+    const h = makeHarness();
+    const svc = createImportService(h.ctx);
+
+    const result = await svc.importCharacter({ card: { bytes: encoder.encode(V3_JSON), filename: "aria.json" } });
+
+    expect(h.linkBooks).toHaveLength(0);
+    expect(result.attachedBooksLinked).toBe(0);
+    expect(result.attachedBooksSkipped).toBe(0);
+  });
+
   test("a card with no tags carries none (no tag-attach calls)", async () => {
     const h = makeHarness();
     const svc = createImportService(h.ctx);

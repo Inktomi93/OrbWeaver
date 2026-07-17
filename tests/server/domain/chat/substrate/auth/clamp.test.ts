@@ -1,10 +1,10 @@
 // The D22 member-card visibility clamp (chat.md Part III §7/§11).
 import type { CharacterCard } from "@orb/contracts/character";
 import type { MemberCardView, MemberCardVisibility } from "@orb/contracts/chat";
-import type { AssetId, CharacterId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { clampMemberCard, resolveCardVisibility } from "../../../../../../packages/server/src/domain/chat/substrate/auth";
+import { buildAgentCardView, clampMemberCard, resolveCardVisibility } from "../../../../../../packages/server/src/domain/chat/substrate/auth";
 import { expect, test } from "../../../../../support/fixtures";
 
 const CHAR = castId<CharacterId>("character_aria");
@@ -105,5 +105,15 @@ describe("resolveCardVisibility — the host always sees full", () => {
     expect(resolveCardVisibility("host", "sheet")).toBe("full");
     expect(resolveCardVisibility("member", "sheet")).toBe("sheet");
     expect(resolveCardVisibility("member", "name-avatar")).toBe("name-avatar");
+  });
+});
+
+// The D22 agent-seat projection (D60; agent-principal-design/06 §5) — a FIXED floor, no soul, no clamp ladder.
+describe("buildAgentCardView — the fixed agent-seat projection", () => {
+  test("packs exactly displayName + sourceKind + ownerHandle (and NEVER a soul prompt or avatar)", () => {
+    const view = buildAgentCardView({ displayName: "Pip", sourceKind: "buddy", ownerHandle: castId<Handle>("alex") });
+    expect(view).toStrictEqual({ displayName: "Pip", sourceKind: "buddy", ownerHandle: "alex" });
+    // The soul (steering internals) is owner-private — it must never appear on the room-shareable projection.
+    expect(Object.keys(view)).not.toContain("systemPrompt");
   });
 });

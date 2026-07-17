@@ -3,7 +3,7 @@
 // FLAG[PD-43]: CreateImportedCharacter/FindCharacterByImportHash need character to expose a
 // provenance-accepting create + an (ownerId, importHash) lookup; neither exists yet.
 
-import type { CreateCharacterInput, UpdateCharacterInput } from "@orb/contracts/character";
+import type { AttachedBookRef, CreateCharacterInput, UpdateCharacterInput } from "@orb/contracts/character";
 import type { BulkImportChatInput, BulkImportChatsResult } from "@orb/contracts/chat";
 import type { BulkImportPersonaInput, BulkImportPersonasResult } from "@orb/contracts/persona";
 import type { BulkImportLorebookInput, BulkImportLorebookResult } from "@orb/contracts/world-info";
@@ -41,6 +41,14 @@ type BulkImportLorebookOp = (args: {
   readonly book: BulkImportLorebookInput;
 }) => Promise<BulkImportLorebookResult>;
 
+/** World-info-owned re-link op for a portable card's carried attached-book references (PD-144); optional —
+ *  the card-only upload path omits it. Links only ids the importer OWNS, returns linked/skipped counts. */
+type LinkCarriedBooksOp = (args: {
+  readonly ownerId: UserId;
+  readonly characterId: CharacterId;
+  readonly refs: readonly AttachedBookRef[];
+}) => Promise<{ readonly linked: number; readonly skipped: number }>;
+
 /** Enqueues one memory-backfill workload for the owner, once per import run when a chat was written. */
 type EnqueueImportBackfill = (args: { readonly ownerId: UserId }) => Promise<void>;
 
@@ -77,6 +85,7 @@ export interface ImportContext {
   readonly storeAsset: StoreImportAsset;
   readonly attachCardTag: AttachImportedCardTag;
   readonly importLorebook?: BulkImportLorebookOp;
+  readonly linkCarriedBooks?: LinkCarriedBooksOp;
   readonly profile?: ImportProfileDeps;
 }
 

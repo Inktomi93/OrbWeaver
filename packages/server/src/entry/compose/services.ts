@@ -13,7 +13,7 @@ import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
 import type { CredentialHealth, ResolvedCredential } from "@orb/contracts/credentials";
 import type { DomainEvent } from "@orb/contracts/events";
-import type { Principal } from "@orb/contracts/identity";
+import type { AgentSourceKind, Principal } from "@orb/contracts/identity";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
 import type { AccountCredits, EndpointInspection, GenerationCost, VerifyAuthResult } from "@orb/contracts/providers";
 import type { RoleClients } from "@orb/contracts/role-clients";
@@ -33,7 +33,7 @@ import type { AssetId, Handle, PersonaId, SessionId, TypeIdOf, UserId, WorkloadI
 import { castId, ID_PREFIX, mintTypeId, newId } from "@orb/kit/ids";
 import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
-import { can, createAdminService, isAdmin, requireAdmin, requireOwner } from "#domain/admin";
+import { can, canAgent, createAdminService, isAdmin, requireAdmin, requireOwner } from "#domain/admin";
 import type { AssetsContext, AssetsService } from "#domain/assets";
 import { createAssetsService } from "#domain/assets";
 import type { BuddyAgentResult, BuddyToolServer } from "#domain/buddy";
@@ -64,7 +64,13 @@ import { createTagService } from "#domain/tag";
 import { createToolUseService } from "#domain/tool-use";
 import type { StartWorkloadInput, WorkloadRunnerEnv } from "#domain/workloads";
 import { createWorkloadService } from "#domain/workloads";
-import { createBulkImportLorebook, createCopyCharacterBooks, createImportStandaloneLorebook, createWorldInfoService } from "#domain/world-info";
+import {
+  createBulkImportLorebook,
+  createCopyCharacterBooks,
+  createImportStandaloneLorebook,
+  createLinkCarriedBooks,
+  createWorldInfoService,
+} from "#domain/world-info";
 import { env } from "#foundation/env";
 import type { AuditEntry } from "#foundation/observability";
 import { logAudit } from "#foundation/observability";
@@ -102,6 +108,9 @@ import type { DefaultPersonaSeeder } from "../boot";
 import { createDefaultPersonaSeeder } from "../boot";
 import { readSeedAvatar, readSeedGalleryPiece } from "../boot/seed-assets";
 import type { ImportWorldInfoPort } from "../import";
+import { createAgentAuthorResolver } from "./agent-author";
+import type { AgentSpeakerSourceResolver } from "./agent-speaker";
+import { createAgentSpeakerResolver } from "./agent-speaker";
 import { buildChatService } from "./chat";
 import type { EffectiveConfigWiring } from "./effective-config";
 import { createEffectiveConfigWiring } from "./effective-config";
@@ -188,6 +197,10 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   const eventBus = createDomainEventBus();
 
   const sessions = createSessionsService({ db, now, sessionSecret: deps.sessionSecret });
+  // PD-139(a): a settings write that changes the embed/imageEmbed model must enqueue a bulk purge+reindex.
+  // `workloads` is built far below, so this holder is late-bound after it exists; the settings op derefs it
+  // at request time (a settings write), never during boot. Until then it is an inert no-op.
+  let enqueueEmbedReindex: () => void = () => undefined;
   const settingsDeps: SettingsServiceDeps = {
     db,
     now,
@@ -196,6 +209,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     requireOwner,
     newThemeId: minter(ID_PREFIX.theme),
     emitUserEvent: publishUserEvent,
+    onEmbedModelChanged: () => enqueueEmbedReindex(),
   };
   const settings = createSettingsService(settingsDeps);
   const settingsCtx: SettingsContext = createSettingsContext(settingsDeps);
@@ -720,6 +734,18 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     isAdmin,
   });
 
+  // PD-139(a): bind the embed-model-change → bulk purge+reindex enqueue now that `workloads` exists. A
+  // box-level trigger: purge+reindex ALL sources (force) as a GLOBAL BULK sweep. `caller: null` is a trusted
+  // system trigger (bypasses the mode gate); `ownerId` is unused in bulk mode (the sweep spans every owner).
+  // Fire-and-forget: a duplicate run (an `index` is already active → DomainConflictError) or any enqueue
+  // failure is swallowed here — it must never fail the settings write that triggered it (mirrors the
+  // `emitUserEvent` treatment in updateUserSettingsSection).
+  enqueueEmbedReindex = (): void => {
+    void workloads
+      .start({ input: { kind: "index", params: { source: "all", force: true } }, caller: null, mode: "bulk", ownerId: null })
+      .catch(() => undefined);
+  };
+
   const admin = createAdminService({
     db,
     now,
@@ -801,7 +827,16 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     },
   });
 
-  const exportService = createExportService({ db, cas, imageTransform: imageAdapter.transform });
+  // The agent speaker-source registry — a mapped Record over AGENT_SOURCE_KINDS built HERE (where the source
+  // services live) so a new source kind fails tsc until it registers a resolver. Shared by BOTH the chat
+  // speaker dispatch (voices a seated agent) and the export author dispatch (PD-17 provenance); one owner-walk
+  // shape, one registry.
+  const agentSpeakerSources = { buddy: buddy.resolveSpeakerIdentity } satisfies Record<AgentSourceKind, AgentSpeakerSourceResolver>;
+  // PD-17: export resolves an agent-authored row's leak-safe provenance through this op. Distinct op from
+  // chat's resolveAgentSpeaker (export never sees the soul) — it drops the systemPrompt at the compose root.
+  const resolveAgentAuthor = createAgentAuthorResolver(db, agentSpeakerSources);
+
+  const exportService = createExportService({ db, cas, imageTransform: imageAdapter.transform, resolveAgentAuthor });
 
   const imagery = createImageryService({
     db,
@@ -822,6 +857,11 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       }
     },
   });
+
+  // The compose-root agent speaker dispatch (D60; agent-principal-design/04 §5): the read + dispatch over the
+  // shared `agentSpeakerSources` registry (above), extracted to `createAgentSpeakerResolver`. Chat never sees
+  // this map — it holds only the source-blind `resolveAgentSpeaker(agentUserId)` op.
+  const resolveAgentSpeaker = createAgentSpeakerResolver(db, agentSpeakerSources);
 
   // Chat is built last — it injects every service built above, the widest DI bundle in the system.
   const toolUse = createToolUseService({ can, clock: now });
@@ -849,6 +889,8 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     embeddings,
     resolveHandle: (handle) => sessions.resolveHandle(handle),
     provisionAgentPrincipal: (params) => sessions.provisionAgentPrincipal(params),
+    resolveAgentSpeaker,
+    canAgent,
     runChatTurn: executor.runChatTurn,
     readPresence: (userId) => Promise.resolve(presence.read(userId)),
     generatePicture: imagery.generatePicture,
@@ -876,6 +918,9 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       newBookId: minter(ID_PREFIX.worldBook),
       newEntryId: minter(ID_PREFIX.worldEntry),
     }),
+    // PD-144: re-link a portable card's carried attached-book references (owned-source gated); the
+    // persistence-factory twin of the duplicate carry, db + clock only.
+    linkCarriedBooks: createLinkCarriedBooks({ db, now }),
   };
 
   const bulkImportChats = createBulkImportChats({
@@ -930,6 +975,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     storeAvatar: assets.store,
     attachCardTag: tag.attachCardTagByName,
     importLorebook: importWorldInfo.importLorebook,
+    linkCarriedBooks: importWorldInfo.linkCarriedBooks,
     bulkImportChats,
     bulkImportPersonas,
     enqueueBackfill: enqueueImportBackfill,
@@ -959,6 +1005,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       storeAvatar: assets.store,
       attachCardTag: tag.attachCardTagByName,
       importLorebook: importWorldInfo.importLorebook,
+      linkCarriedBooks: importWorldInfo.linkCarriedBooks,
       bulkImportChats,
       bulkImportPersonas,
       enqueueBackfill: enqueueImportBackfill,

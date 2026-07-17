@@ -135,6 +135,7 @@ const noopTag: ImportTagPort = {
 // A no-op embedded-lorebook port (the W1 write is proven in the world-info + run-profile-import suites).
 const noopWorldInfo: ImportWorldInfoPort = {
   importLorebook: () => Promise.resolve({ worldBookId: castId<WorldBookId>("wbk_0"), entryCount: 0, replaced: false }),
+  linkCarriedBooks: () => Promise.resolve({ linked: 0, skipped: 0 }),
 };
 const okDeps: UploadDeps = {
   assets: okAssets,

@@ -282,7 +282,9 @@ function createSeatAgent(ctx: ChatContext, emit: EmitChatEvent): ChatService["se
       throw new ChatOperationError(CHAT_OP_CODES.ownerNotPresent, `chat ${chatId}: the agent's owner is not a present member`);
     }
     const { agentUserId } = await ctx.provisionAgentPrincipal({ ownerUserId, sourceKind });
-    if (!(await ctx.resolveAgentEnabled(agentUserId))) {
+    // Fail-closed: a null actor (not a live agent row) OR a disabled principal refuses the seat.
+    const actor = await ctx.resolveAgentActor(agentUserId);
+    if (actor === null || !actor.enabled) {
       throw new ChatOperationError(CHAT_OP_CODES.agentDisabled, `chat ${chatId}: agent principal ${agentUserId} is disabled`);
     }
     const at = ctx.now();

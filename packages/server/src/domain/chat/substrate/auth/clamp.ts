@@ -10,10 +10,10 @@
 // caller resolves + passes them — the clamp never fabricates them, it only gates what it is given.
 
 import type { CharacterCard } from "@orb/contracts/character";
-import type { MemberCardView, MemberCardVisibility } from "@orb/contracts/chat";
+import type { AgentCardView, MemberCardView, MemberCardVisibility } from "@orb/contracts/chat";
 import { MEMBER_CARD_VISIBILITY_LEVELS } from "@orb/contracts/chat";
-import type { ParticipantRole } from "@orb/contracts/identity";
-import type { CharacterId } from "@orb/kit/ids";
+import type { AgentSourceKind, ParticipantRole } from "@orb/contracts/identity";
+import type { CharacterId, Handle } from "@orb/kit/ids";
 
 /** The visibility rank (index in the canonical tuple) — derive-don't-respell the ordering. */
 function rank(level: MemberCardVisibility): number {
@@ -69,4 +69,16 @@ export function clampMemberCard(input: {
     postHistoryInstructions: atFull ? card.postHistoryInstructions : null,
     authorsNoteDepth: atFull ? (card.depthPrompt?.depth ?? null) : null,
   };
+}
+
+/**
+ * Build the D22 {@link AgentCardView} for an AGENT seat (D60; agent-principal-design/06 §5). Unlike
+ * {@link clampMemberCard} there is NO visibility ladder: an agent has no `characters` card to clamp, and its
+ * steering internals ARE its owner-private soul (the same privacy logic that hides a low-level card's
+ * internals), so the room-shareable answer to "who is this?" is a FIXED minimal projection — the soul display
+ * name (doc-04 speaker source) + the satellite `sourceKind` + the owner's public handle. Pure: the caller
+ * resolves the three inputs (chat holds no `users`/`agent_principals` read). NEVER the soul prompt or an avatar.
+ */
+export function buildAgentCardView(input: { readonly displayName: string; readonly sourceKind: AgentSourceKind; readonly ownerHandle: Handle }): AgentCardView {
+  return { displayName: input.displayName, sourceKind: input.sourceKind, ownerHandle: input.ownerHandle };
 }

@@ -8,7 +8,7 @@
 // the auxiliary single-speaker turns swipe/continueTurn(+undo/revert)/impersonate/generate. Every generating
 // verb threads the active-turns abort signal into the engine and its `guided` steer into GATHER→BUILD.
 
-import type { AssembleContext, ChatBusEvent, GroupConfig, MessageView, SpeakerRef } from "@orb/contracts/chat";
+import type { AssembleContext, ChatBusEvent, GroupConfig, MessageView, ParticipantKind, SpeakerRef } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG, isAiDriven, speakerKey } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
 import type { GenerationType } from "@orb/contracts/preset";
@@ -18,8 +18,10 @@ import { getLog } from "#foundation/observability";
 import type { ChatContext } from "../context";
 import type { ActiveTurns } from "../contract/active-turns";
 import type { ArbiterCandidate, AutoModeResult, CastName } from "../contract/arbitration";
+import type { AgentCastMember } from "../contract/context";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors";
-import type { ResolveForeignInputsOp } from "../contract/foreign";
+import type { ChatBehaviorInputs, ResolveForeignInputsOp } from "../contract/foreign";
+import { DEFAULT_CHAT_BEHAVIOR } from "../contract/foreign";
 import type { MemoryConfig } from "../contract/memory";
 import type {
   AbortParams,
@@ -44,6 +46,7 @@ import {
   setVariantContentStatement,
 } from "../persistence/canon-write";
 import { claimPendingTurn, insertPendingTurn, loadPendingTurnsForHost, loadPendingTurnsForReclaim } from "../persistence/invites";
+import { isBackingUserEnabled } from "../persistence/participant";
 import { loadCanonHistory, loadChatRow, loadContinueSnapshot, loadMaxMessageSeq, loadMessageView, loadSlotTarget } from "../persistence/queries";
 import { loadRoster } from "../persistence/roster";
 import { gatherAssembleContext } from "../substrate/assemble-gather";
@@ -100,14 +103,54 @@ function composeBodyWithAttachments(text: string, attachmentAssetIds: readonly A
 const CONTINUE_NUDGE = "[Continue the previous message from exactly where it left off, without repeating it.]";
 const IMPERSONATE_NUDGE = "[Write the next message as the user, in the user's own voice.]";
 
-/** The roster-derived turn substrate: the host, the character candidates (arbitration), their display names,
- *  the full present cast, and the present personas. */
+/** The roster-derived turn substrate: the host, the AI-driven candidates (character + agent — arbitration),
+ *  their display names, the character cast ids (WI/memory), the soul-resolved agent cast, and the present
+ *  personas. */
 interface Room {
   readonly hostUserId: UserId;
   readonly candidates: readonly ArbiterCandidate[];
   readonly castNames: readonly CastName[];
   readonly castCharacterIds: readonly CharacterId[];
+  readonly agentCast: readonly AgentCastMember[];
   readonly personaIds: readonly PersonaId[];
+}
+
+/** The roster fields an agent seat contributes — a structural slice of a present `chat_participants` agent
+ *  row (avoids a `chatParticipants` table import in a verb). */
+interface AgentSeatRow {
+  readonly userId: UserId;
+  readonly kind: ParticipantKind;
+  readonly talkativeness: number;
+  readonly disabled: boolean;
+  readonly leftSeq: number | null;
+}
+
+/** One present, principal-enabled, soul-resolved agent seat — the loadRoom intermediate. */
+interface ResolvedAgentSeat {
+  readonly userId: UserId;
+  readonly talkativeness: number;
+  readonly disabled: boolean;
+  readonly leftSeq: number | null;
+  readonly identity: AgentCastMember["identity"];
+}
+
+/** Resolve the present seated agents (D60) to their cast identity. The present-predicate ENABLED arm
+ *  (`isBackingUserEnabled`, read fresh via `resolveAgentActor`) drops a principal-disabled agent from EVERY
+ *  cast + arbitration pool the round after the flip (doc 03 §4 containment); an unhatched/unresolvable soul
+ *  (`resolveAgentSpeaker` → null) is likewise skipped. A MUTED agent (`participant.disabled`) survives here —
+ *  it stays in the cast and is filtered from arbitration by `isArbiterEligible`, exactly like a muted character. */
+async function resolveAgentSeats(ctx: ChatContext, agentRows: readonly AgentSeatRow[]): Promise<ResolvedAgentSeat[]> {
+  const resolved = await Promise.all(
+    agentRows.map(async (r): Promise<ResolvedAgentSeat | null> => {
+      const actor = await ctx.resolveAgentActor(r.userId);
+      if (actor === null || !isBackingUserEnabled(r.kind, actor.enabled)) {
+        return null;
+      }
+      const identity = await ctx.resolveAgentSpeaker(r.userId);
+      return identity === null ? null : { userId: r.userId, talkativeness: r.talkativeness, disabled: r.disabled, leftSeq: r.leftSeq, identity };
+    }),
+  );
+  return resolved.flatMap((a) => (a !== null ? [a] : []));
 }
 
 /** Loads the present roster → the {@link Room}. Hostless is unusable (leak-free NOT_FOUND). Cards read under
@@ -120,7 +163,11 @@ async function loadRoom(ctx: ChatContext, chatId: ChatId): Promise<Room> {
   }
   const aiRows = roster.filter((r) => isAiDriven(r.kind));
   const charRows = aiRows.flatMap((r) => (r.kind === "character" && r.characterId !== null ? [{ ...r, characterId: r.characterId }] : []));
-  const cards = await Promise.all(charRows.map((r) => ctx.getCard({ ownerId: hostUserId, characterId: r.characterId })));
+  const agentRows = aiRows.flatMap((r) => (r.kind === "agent" && r.userId !== null ? [{ ...r, userId: r.userId }] : []));
+  const [cards, agents] = await Promise.all([
+    Promise.all(charRows.map((r) => ctx.getCard({ ownerId: hostUserId, characterId: r.characterId }))),
+    resolveAgentSeats(ctx, agentRows),
+  ]);
   // An offline human's persona drops from the present-cast set for this round, since presence gates
   // which persona-book world-info joins the pool (a server-derived signal, never client-asserted).
   const humanPersonas = roster.flatMap((r) =>
@@ -128,19 +175,30 @@ async function loadRoom(ctx: ChatContext, chatId: ChatId): Promise<Room> {
   );
   const online = await Promise.all(humanPersonas.map((h) => ctx.readPresence(h.userId).then((p) => p.online)));
   const personaIds = humanPersonas.filter((_h, i) => online[i] === true).map((h) => h.personaId);
+
+  // AI-driven candidates: characters + agents share one arbitration pool (D60 — `isAiDriven`); an agent's
+  // talkativeness/disabled/leftSeq drive selection exactly like a character's.
+  const charCandidates: ArbiterCandidate[] = charRows.map((r) => ({
+    ref: { kind: "character", characterId: r.characterId },
+    talkativeness: r.talkativeness,
+    disabled: r.disabled,
+    leftSeq: r.leftSeq,
+  }));
+  const agentCandidates: ArbiterCandidate[] = agents.map((a) => ({
+    ref: { kind: "agent", userId: a.userId },
+    talkativeness: a.talkativeness,
+    disabled: a.disabled,
+    leftSeq: a.leftSeq,
+  }));
+  const charCastNames: CastName[] = charRows.map((r, i) => ({ ref: { kind: "character", characterId: r.characterId }, name: cards[i]?.name ?? "" }));
+  const agentCastNames: CastName[] = agents.map((a) => ({ ref: { kind: "agent", userId: a.userId }, name: a.identity.displayName }));
   return {
     hostUserId,
-    candidates: charRows.map((r) => ({
-      ref: { kind: "character", characterId: r.characterId },
-      talkativeness: r.talkativeness,
-      disabled: r.disabled,
-      leftSeq: r.leftSeq,
-    })),
-    castNames: charRows.map((r, i) => ({
-      ref: { kind: "character", characterId: r.characterId },
-      name: cards[i]?.name ?? "",
-    })),
+    candidates: [...charCandidates, ...agentCandidates],
+    castNames: [...charCastNames, ...agentCastNames],
+    // Character-only — the WI pool + memory bucket key on characterId; an agent has neither.
     castCharacterIds: charRows.map((r) => r.characterId),
+    agentCast: agents.map((a) => ({ userId: a.userId, identity: a.identity })),
     personaIds,
   };
 }
@@ -189,6 +247,9 @@ function lastSpeakerRef(row: { readonly characterId: CharacterId | null; readonl
 interface BuiltTurnContext {
   readonly assembleContext: AssembleContext;
   readonly memoryConfig: MemoryConfig | null | undefined;
+  /** The host's resolved turn-behavior arm (PD-146) — the custom stops the prep threads onto the request
+   *  + the auto-continue/auto-swipe knobs the send post-round hook gates on. Defaulted to all-off. */
+  readonly chatBehavior: ChatBehaviorInputs;
 }
 
 /** The turn's driving {@link TurnKind} → the `injection_trigger` {@link GenerationType} gate. Exhaustive
@@ -216,6 +277,9 @@ async function buildTurnContext(
     readonly model: string;
     readonly kind: TurnKind;
     readonly castCharacterIds: readonly CharacterId[];
+    /** The soul-resolved seated agents (D60) — appended to the assemble cast so an agent speaker rides the
+     *  one turn path. Empty ⇒ byte-identical to a character-only room. */
+    readonly agentCast: readonly AgentCastMember[];
     readonly personaIds: readonly PersonaId[];
     readonly anchorPersonaId: PersonaId | null;
     /** The triggering human's active persona — binds prompt-config `{{user}}` to the speaker, not
@@ -242,6 +306,7 @@ async function buildTurnContext(
       runAsUserId: args.runAsUserId,
       model: args.model,
       castCharacterIds: args.castCharacterIds,
+      agentCast: args.agentCast,
       personaIds: args.personaIds,
       generationType: GENERATION_TYPE_FOR_KIND[args.kind],
       prng: deps.prng,
@@ -251,7 +316,7 @@ async function buildTurnContext(
     foreign,
     out,
   );
-  return { assembleContext, memoryConfig: foreign.memoryConfig };
+  return { assembleContext, memoryConfig: foreign.memoryConfig, chatBehavior: foreign.chatBehavior ?? DEFAULT_CHAT_BEHAVIOR };
 }
 
 /** Persists a user message (a fresh slot + its one variant) and emits `messageCommitted`. Persists exactly
@@ -545,9 +610,136 @@ async function assertAttachmentsOwned(ctx: ChatContext, principalUserId: UserId,
   }
 }
 
+// ── PD-146 post-round auto-behaviors (server home for the schema-real UserSettings.chat auto-* knobs) ──
+// neo honors these CLIENT-side (use-chat-verbs) by re-issuing continue/swipe after the send resolves; orb is
+// server-authoritative, so the send verb runs them in-band and joins the follow-up rows onto its outcome.
+// continueOnSend has NO arm here — it is a purely CLIENT behavior (the composer calls chat.continueTurn on an
+// empty send; verified against neo, whose continueOnSend lives only in use-pref-sections/the composer). Its
+// server-read field stays inert BY DESIGN.
+
+/** The bound on each auto-behavior — ONE follow-up, never a loop (neo parity: a model that keeps hitting the
+ *  length cap needs a bigger `maxOutputTokens`, and one that keeps producing rejects needs a different prompt
+ *  — not an unbounded spend). Written as a bounded re-check so the shape stays extensible. */
+const AUTO_CONTINUE_MAX = 1;
+const AUTO_SWIPE_MAX = 1;
+
+/** The auxiliary verbs the send's post-round auto-behaviors re-enter (built once at {@link createTurn}). Each
+ *  re-runs the full member gate under the SAME principal + registers its OWN abort handle, so a user abort
+ *  during a follow-up is caught through the normal `abort(chatId, userId)` path. */
+interface AutoBehaviorDeps {
+  readonly swipe: ChatService["swipe"];
+  readonly continueTurn: ChatService["continueTurn"];
+}
+
+/** The tail assistant reply of a committed set — the row the auto-behaviors inspect (neo reads `.at(-1)`). */
+function tailAssistant(messages: readonly MessageView[]): MessageView | undefined {
+  return messages.findLast((m) => m.role === "assistant");
+}
+
+/** The auto-swipe rejection predicate (neo parity): the reply is too short (fewer than `minLength` chars) OR
+ *  contains a blacklisted phrase (case-insensitive substring; empty phrases ignored). */
+function isAutoSwipeRejected(content: string, cfg: ChatBehaviorInputs["autoSwipe"]): boolean {
+  const tooShort = content.length < cfg.minLength;
+  const blacklisted = cfg.blacklist.some((phrase) => phrase.length > 0 && content.toLowerCase().includes(phrase.toLowerCase()));
+  return tooShort || blacklisted;
+}
+
+/** Runs ONE auto-behavior follow-up (swipe/continue) and returns its committed tip, or null on any failure —
+ *  non-fatal, mirroring neo: the already-committed reply stands and the loop stops. */
+async function runAutoFollowUp(run: () => Promise<TurnOutcome>): Promise<MessageView | null> {
+  try {
+    const outcome = await run();
+    return outcome.messages.at(-1) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** The resolved auto-behavior frame: the acting principal + chat + the abort signal that short-circuits a
+ *  follow-up loop, shared by the swipe/continue loops. */
+interface AutoFrame {
+  readonly principal: SendParams["principal"];
+  readonly chatId: ChatId;
+  readonly signal: AbortSignal;
+}
+
+/** The bounded auto-swipe loop: regenerate the rejected reply, re-checking each fresh variant, up to the
+ *  bound. `tip` enters rejected (the caller's precedence gate proved it); stops when a variant passes, the
+ *  bound is hit, a swipe fails, or abort fires. */
+async function runAutoSwipe(auto: AutoBehaviorDeps, frame: AutoFrame, tip: MessageView, cfg: ChatBehaviorInputs["autoSwipe"]): Promise<MessageView[]> {
+  const rows: MessageView[] = [];
+  let current = tip;
+  for (let i = 0; i < AUTO_SWIPE_MAX && !frame.signal.aborted; i += 1) {
+    const target = current;
+    // biome-ignore lint/performance/noAwaitInLoops: each swipe re-checks the prior variant + takes the per-chat lock — inherently sequential (bound 1).
+    const next = await runAutoFollowUp(() => auto.swipe({ principal: frame.principal, chatId: frame.chatId, messageId: target.id }));
+    if (next === null) {
+      break;
+    }
+    rows.push(next);
+    current = next;
+    if (!isAutoSwipeRejected(next.content, cfg)) {
+      break;
+    }
+  }
+  return rows;
+}
+
+/** The bounded auto-continue loop: extend a length-capped reply via one continue, up to the bound. Stops
+ *  when the tip no longer finished at the length cap, the bound is hit, a continue fails, or abort fires. */
+async function runAutoContinue(auto: AutoBehaviorDeps, frame: AutoFrame, tip: MessageView): Promise<MessageView[]> {
+  const rows: MessageView[] = [];
+  let current = tip;
+  for (let i = 0; i < AUTO_CONTINUE_MAX && !frame.signal.aborted; i += 1) {
+    if (current.role !== "assistant" || current.finishReason !== "length") {
+      break;
+    }
+    const target = current;
+    // biome-ignore lint/performance/noAwaitInLoops: each continue extends the prior tip + takes the per-chat lock — inherently sequential (bound 1).
+    const next = await runAutoFollowUp(() => auto.continueTurn({ principal: frame.principal, chatId: frame.chatId, messageId: target.id }));
+    if (next === null) {
+      break;
+    }
+    rows.push(next);
+    current = next;
+  }
+  return rows;
+}
+
+/**
+ * The PD-146 post-round auto-behaviors, run at the verb level AFTER the engine released its per-chat lock
+ * (each follow-up re-acquires it fresh): auto-swipe takes PRECEDENCE over auto-continue — they are mutually
+ * exclusive (a too-short reply isn't a length-capped one). Returns the committed follow-up rows oldest-first,
+ * so the send joins them onto its outcome. Gated on the host's settings — all-off ⇒ [] ⇒ byte-identical.
+ */
+async function runAutoBehaviors(
+  auto: AutoBehaviorDeps,
+  args: {
+    readonly principal: SendParams["principal"];
+    readonly chatId: ChatId;
+    readonly committed: readonly MessageView[];
+    readonly behavior: ChatBehaviorInputs;
+    readonly signal: AbortSignal;
+  },
+): Promise<MessageView[]> {
+  const tip = tailAssistant(args.committed);
+  if (tip === undefined || args.signal.aborted) {
+    return [];
+  }
+  const frame: AutoFrame = { principal: args.principal, chatId: args.chatId, signal: args.signal };
+  if (args.behavior.autoSwipe.enabled && isAutoSwipeRejected(tip.content, args.behavior.autoSwipe)) {
+    return await runAutoSwipe(auto, frame, tip, args.behavior.autoSwipe);
+  }
+  if (args.behavior.autoContinue) {
+    return await runAutoContinue(auto, frame, tip);
+  }
+  return [];
+}
+
 /** `send` — persist the user message, build the one immutable assemble ctx, arbitrate the responders, drive
- *  the round, then (if autoMode) chain AI→AI. Member-gated; AI turns run as the host. */
-function createSend(ctx: ChatContext, deps: TurnDeps): ChatService["send"] {
+ *  the round, then (if autoMode) chain AI→AI, then (PD-146) run the host's post-round auto-behaviors.
+ *  Member-gated; AI turns run as the host. */
+function createSend(ctx: ChatContext, deps: TurnDeps, auto: AutoBehaviorDeps): ChatService["send"] {
   return async ({ principal, chatId, content, personaId, attachmentAssetIds, intent, guided }: SendParams): Promise<TurnOutcome> => {
     const membership = await requireParticipant(ctx, principal, chatId);
     const attachments = attachmentAssetIds ?? [];
@@ -566,7 +758,7 @@ function createSend(ctx: ChatContext, deps: TurnDeps): ChatService["send"] {
     // Built with the pending user text in the WI haystack before the user row commits; the engine reloads
     // canon (including the committed row) for the wire history.
     const sendOut: SendRegexSink = {};
-    const { assembleContext, memoryConfig } = await buildTurnContext(
+    const { assembleContext, memoryConfig, chatBehavior } = await buildTurnContext(
       ctx,
       deps,
       {
@@ -575,6 +767,7 @@ function createSend(ctx: ChatContext, deps: TurnDeps): ChatService["send"] {
         model: connection.model,
         kind: "send",
         castCharacterIds: room.castCharacterIds,
+        agentCast: room.agentCast,
         personaIds: room.personaIds,
         anchorPersonaId: membership.chat.anchorPersonaId,
         // biome-ignore lint/nursery/useNullishCoalescing: `??` would coalesce an EXPLICIT null into the active persona — only an omitted (undefined) param falls back (mirrors the row-stamp expression below).
@@ -628,6 +821,7 @@ function createSend(ctx: ChatContext, deps: TurnDeps): ChatService["send"] {
       runAsUserId: identity.runAsUserId,
       kind: "send",
       intent: intent ?? {},
+      extraStopSequences: chatBehavior.customStoppingStrings,
       memoryConfig,
       signal: handle.signal,
     };
@@ -640,7 +834,17 @@ function createSend(ctx: ChatContext, deps: TurnDeps): ChatService["send"] {
         signal: handle.signal,
         forcedIds: resolveMentionsVia(content, room.castNames),
       });
-      return { messages: [userView, ...committed], aborted: false };
+      // PD-146 post-round auto-behaviors: auto-swipe (too-short/blacklisted reply) takes precedence over
+      // auto-continue (length-capped reply) — a reply can't be both. Gated on the host's settings (all-off ⇒
+      // no follow-up, byte-identical), bounded, abort-aware; every follow-up row joins the send's result.
+      const followUps = await runAutoBehaviors(auto, {
+        principal,
+        chatId,
+        committed,
+        behavior: chatBehavior,
+        signal: handle.signal,
+      });
+      return { messages: [userView, ...committed, ...followUps], aborted: false };
     } finally {
       handle.release();
     }
@@ -667,12 +871,13 @@ function createForceCharacterTurn(ctx: ChatContext, deps: TurnDeps): ChatService
     }
     const connection = await deps.resolveConnection({ runAsUserId: identity.runAsUserId, chatId });
     const group = asPerSpeaker(membership.chat.metadata.group ?? DEFAULT_GROUP_CONFIG);
-    const { assembleContext, memoryConfig } = await buildTurnContext(ctx, deps, {
+    const { assembleContext, memoryConfig, chatBehavior } = await buildTurnContext(ctx, deps, {
       chatId,
       runAsUserId: identity.runAsUserId,
       model: connection.model,
       kind: "force",
       castCharacterIds: room.castCharacterIds,
+      agentCast: room.agentCast,
       personaIds: room.personaIds,
       anchorPersonaId: membership.chat.anchorPersonaId,
       triggerPersonaId: membership.activePersonaId,
@@ -687,6 +892,7 @@ function createForceCharacterTurn(ctx: ChatContext, deps: TurnDeps): ChatService
       runAsUserId: identity.runAsUserId,
       kind: "force",
       intent: intent ?? {},
+      extraStopSequences: chatBehavior.customStoppingStrings,
       memoryConfig,
       signal: handle.signal,
     };
@@ -732,6 +938,9 @@ interface TurnBase {
   readonly connection: ResolvedConnection;
   readonly assembleContext: AssembleContext;
   readonly memoryConfig: MemoryConfig | null | undefined;
+  /** The host's resolved turn-behavior arm (PD-146) — the custom stops each auxiliary prep threads onto
+   *  the request. Defaulted to all-off. */
+  readonly chatBehavior: ChatBehaviorInputs;
 }
 
 /** Resolves the {@link TurnBase} for an auxiliary turn. The AI runs as the host. These turns add no new user
@@ -757,18 +966,19 @@ async function resolveTurnBase(
     hostUserId: room.hostUserId,
   });
   const connection = await deps.resolveConnection({ runAsUserId: identity.runAsUserId, chatId });
-  const { assembleContext, memoryConfig } = await buildTurnContext(ctx, deps, {
+  const { assembleContext, memoryConfig, chatBehavior } = await buildTurnContext(ctx, deps, {
     chatId,
     runAsUserId: identity.runAsUserId,
     model: connection.model,
     kind: args.kind,
     castCharacterIds: room.castCharacterIds,
+    agentCast: room.agentCast,
     personaIds: room.personaIds,
     anchorPersonaId: args.anchorPersonaId,
     triggerPersonaId: args.triggerPersonaId,
     guided: args.guided,
   });
-  return { room, identity, connection, assembleContext, memoryConfig };
+  return { room, identity, connection, assembleContext, memoryConfig, chatBehavior };
 }
 
 /** Runs one engine turn under an active-turns registration, threading the abort signal into the engine and
@@ -812,7 +1022,7 @@ function createSwipe(ctx: ChatContext, deps: TurnDeps): ChatService["swipe"] {
     if (target === undefined || target.role !== "assistant") {
       throw new ChatNotFoundError(chatId);
     }
-    const { room, identity, connection, assembleContext, memoryConfig } = await resolveTurnBase(ctx, deps, {
+    const { room, identity, connection, assembleContext, memoryConfig, chatBehavior } = await resolveTurnBase(ctx, deps, {
       principal,
       chatId,
       kind: "swipe",
@@ -829,6 +1039,7 @@ function createSwipe(ctx: ChatContext, deps: TurnDeps): ChatService["swipe"] {
       runAsUserId: identity.runAsUserId,
       kind: "swipe",
       intent: intent ?? {},
+      extraStopSequences: chatBehavior.customStoppingStrings,
       memoryConfig,
       speakerCharacterId: target.characterId,
       persist: { mode: "append-variant", targetMessageId: messageId },
@@ -849,7 +1060,7 @@ function createContinueTurn(ctx: ChatContext, deps: TurnDeps): ChatService["cont
     if (target === undefined || target.role !== "assistant") {
       throw new ChatNotFoundError(chatId);
     }
-    const { room, identity, connection, assembleContext, memoryConfig } = await resolveTurnBase(ctx, deps, {
+    const { room, identity, connection, assembleContext, memoryConfig, chatBehavior } = await resolveTurnBase(ctx, deps, {
       principal,
       chatId,
       kind: "continue",
@@ -866,6 +1077,7 @@ function createContinueTurn(ctx: ChatContext, deps: TurnDeps): ChatService["cont
       runAsUserId: identity.runAsUserId,
       kind: "continue",
       intent: intent ?? {},
+      extraStopSequences: chatBehavior.customStoppingStrings,
       memoryConfig,
       speakerCharacterId: target.characterId,
       appendUserTurn: CONTINUE_NUDGE,
@@ -880,7 +1092,7 @@ function createContinueTurn(ctx: ChatContext, deps: TurnDeps): ChatService["cont
 function createImpersonate(ctx: ChatContext, deps: TurnDeps): ChatService["impersonate"] {
   return async ({ principal, chatId, personaId, intent, guided }: ImpersonateParams): Promise<TurnOutcome> => {
     const membership = await requireParticipant(ctx, principal, chatId);
-    const { identity, connection, assembleContext, memoryConfig } = await resolveTurnBase(ctx, deps, {
+    const { identity, connection, assembleContext, memoryConfig, chatBehavior } = await resolveTurnBase(ctx, deps, {
       principal,
       chatId,
       kind: "impersonate",
@@ -897,6 +1109,7 @@ function createImpersonate(ctx: ChatContext, deps: TurnDeps): ChatService["imper
       runAsUserId: identity.runAsUserId,
       kind: "impersonate",
       intent: intent ?? {},
+      extraStopSequences: chatBehavior.customStoppingStrings,
       memoryConfig,
       speakerCharacterId: null,
       appendUserTurn: IMPERSONATE_NUDGE,
@@ -916,7 +1129,7 @@ function createImpersonate(ctx: ChatContext, deps: TurnDeps): ChatService["imper
 function createGenerate(ctx: ChatContext, deps: TurnDeps): ChatService["generate"] {
   return async ({ principal, chatId, speakerCharacterId, intent, guided }: GenerateParams): Promise<TurnOutcome> => {
     const membership = await requireParticipant(ctx, principal, chatId);
-    const { room, identity, connection, assembleContext, memoryConfig } = await resolveTurnBase(ctx, deps, {
+    const { room, identity, connection, assembleContext, memoryConfig, chatBehavior } = await resolveTurnBase(ctx, deps, {
       principal,
       chatId,
       kind: "generate",
@@ -934,6 +1147,7 @@ function createGenerate(ctx: ChatContext, deps: TurnDeps): ChatService["generate
       runAsUserId: identity.runAsUserId,
       kind: "generate",
       intent: intent ?? {},
+      extraStopSequences: chatBehavior.customStoppingStrings,
       memoryConfig,
       speakerCharacterId: speaker,
       lockFree: true,
@@ -1019,12 +1233,13 @@ async function runDeferredRound(
     chatId: row.chatId,
   });
   const group = chat.metadata.group ?? DEFAULT_GROUP_CONFIG;
-  const { assembleContext, memoryConfig } = await buildTurnContext(ctx, deps, {
+  const { assembleContext, memoryConfig, chatBehavior } = await buildTurnContext(ctx, deps, {
     chatId: row.chatId,
     runAsUserId: row.runAsUserId,
     model: connection.model,
     kind: "send",
     castCharacterIds: room.castCharacterIds,
+    agentCast: room.agentCast,
     personaIds: room.personaIds,
     anchorPersonaId: chat.anchorPersonaId,
     // No live triggering human at drain — {{user}} binds to the chat anchor, not a presence-order human.
@@ -1039,6 +1254,7 @@ async function runDeferredRound(
     runAsUserId: row.runAsUserId,
     kind: "send",
     intent: {},
+    extraStopSequences: chatBehavior.customStoppingStrings,
     memoryConfig,
     signal: handle.signal,
   };
@@ -1135,12 +1351,16 @@ function createDrainDeferredTurns(ctx: ChatContext, deps: TurnDeps): ChatService
  *  internal (injected into `startChat`, not on `ChatService`); the engine path is a `kind:"opening"` runTurn
  *  with the opening instruction on `appendUserTurn`. */
 export function createTurn(ctx: ChatContext, deps: TurnDeps): TurnVerbs {
+  // Built once so `send`'s PD-146 post-round auto-behaviors re-enter the SAME swipe/continue verbs the
+  // service exposes (one home; the follow-ups clear every belt exactly like a manual swipe/continue).
+  const swipe = createSwipe(ctx, deps);
+  const continueTurn = createContinueTurn(ctx, deps);
   return {
-    send: createSend(ctx, deps),
+    send: createSend(ctx, deps, { swipe, continueTurn }),
     forceCharacterTurn: createForceCharacterTurn(ctx, deps),
     abort: createAbort(ctx, deps),
-    swipe: createSwipe(ctx, deps),
-    continueTurn: createContinueTurn(ctx, deps),
+    swipe,
+    continueTurn,
     impersonate: createImpersonate(ctx, deps),
     generate: createGenerate(ctx, deps),
     undoContinue: createUndoContinue(ctx, deps),

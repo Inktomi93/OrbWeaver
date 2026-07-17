@@ -7,6 +7,7 @@ import { injectionDirectiveSchema } from "@orb/kit/injection";
 import { z } from "zod";
 import { regexScriptSchema } from "#regex";
 import { themeOverrideSchema } from "#theme";
+import { worldBookRoleSchema } from "#world-info";
 
 const HANDLE_MIN = 1;
 const HANDLE_MAX = 200;
@@ -31,6 +32,20 @@ export const refinerySignalsSchema = z.object({
   analysis: z.record(z.string(), z.unknown()).nullable(),
 });
 export type RefinerySignals = z.infer<typeof refinerySignalsSchema>;
+
+// PD-144: one attached world-info book REFERENCE carried on a portable card — `{worldBookId, role}` mirrors
+// the `character_books` junction columns (`createdAt` is NOT carried — a re-link is a fresh attach). Books
+// are NEVER cloned/embedded through this channel: export bundles the references, import re-links each id it
+// can access on the importing install and skips the rest (the portability twin of the PD-141 duplicate carry).
+export const attachedBookRefSchema = z.object({
+  worldBookId: typeIdSchema(ID_PREFIX.worldBook),
+  role: worldBookRoleSchema,
+});
+export type AttachedBookRef = z.infer<typeof attachedBookRefSchema>;
+
+// The V3-wire key the references ride under (orbweaver-namespaced so it never collides with an ST `data.*`
+// field). The ONE literal home — the serde OUT-emitter + the import extractor read it from here.
+export const ATTACHED_BOOKS_WIRE_KEY = "orbweaver_attached_books";
 
 // Identity-free (no id/handle/ownerId — those are row identity columns, not card content).
 export const characterCardSchema = z.object({
@@ -194,6 +209,9 @@ const characterCardV3DataSchema = z
     tags: z.array(z.string()),
     extensions: z.record(z.string(), z.unknown()),
     character_book: characterBookSchema.optional(),
+    // PD-144: orbweaver-namespaced attached-book REFERENCES (never the book content). Optional so every
+    // existing/foreign card stays valid; validated on the OUT boundary so a malformed ref fails loud.
+    orbweaver_attached_books: z.array(attachedBookRefSchema).optional(),
   })
   .loose();
 

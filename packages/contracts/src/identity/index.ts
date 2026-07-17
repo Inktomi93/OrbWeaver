@@ -121,3 +121,9 @@ export interface AgentActor {
   readonly ownerUserId: UserId;
   readonly enabled: boolean;
 }
+
+/** The `canAgent` seam type — the ONE agent capability gate (`domain/admin/guard.ts`), injected into chat's
+ *  engine the way {@link Can} is (chat never imports admin). Throws `DomainForbiddenError` on deny (the kill
+ *  switch or an out-of-ceiling action), void on allow. The `room` is the seat the roster load established
+ *  (present-membership is upstream); the closed {@link AgentAction} union IS the ceiling. */
+export type CanAgent = (actor: AgentActor, action: AgentAction, room: ChatRoster) => void;

@@ -242,9 +242,10 @@ function writeFixtures(): void {
   fx("packages/server/src/domain/__g_role.ts", 'export const elevated = (p: { role: string }): boolean => p.role === "admin";\n');
   // bus-coverage: a DEFERRED-allowlisted member gaining an emit-site literal → the STALE arm fires
   // (proves the contracts-parse + corpus scan + both ratchet directions are alive). Must name a member
-  // STILL in the DEFERRED map — `personaSwitched`/`reasoningStreamDone` were wired (PD-117 wave 2), so
-  // this uses `chatOpened` (stream-attach synthesis still unbuilt; keep this in sync with bus-coverage.ts).
-  fx(`${D}/chat/__g_bus.ts`, 'export const staleDeferredEmit = "chatOpened";\n');
+  // STILL in the DEFERRED map — `personaSwitched`/`reasoningStreamDone` were wired (PD-117 wave 2), and
+  // `chatOpened`/`historyTruncated` were wired (PD-134/PD-135), so this uses `expression` (classify emit
+  // still unbuilt, lands with expressions E3; keep this in sync with bus-coverage.ts).
+  fx(`${D}/chat/__g_bus.ts`, 'export const staleDeferredEmit = "expression";\n');
   // user-bus-coverage: the STALE arm — the DEFERRED `connectionsChanged` member (no per-user connection
   // store yet) gains an emit-site literal in domain scope → "stale allowlist". Keep in sync with the
   // DEFERRED map in user-bus-coverage.ts (if a real per-user connection emit lands, retarget this fixture).

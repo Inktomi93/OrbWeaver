@@ -98,6 +98,17 @@ export function createExportCharacter(ctx: ExportContext): ExportService["export
       .innerJoin(worldEntries, eq(characterBooks.worldBookId, worldEntries.worldBookId))
       .where(eq(characterBooks.characterId, characterId));
 
+    // PD-144: bundle the attached-book REFERENCES (`{worldBookId, role}` per junction row) — carried so a
+    // same-install re-import restores the EXACT book links + roles (the embedded `character_book` above is a
+    // content clone for foreign installs; the references are the identity channel). Read directly off
+    // `character_books` — export's own law is to read `@orb/db` schema directly (it already reads this table
+    // for entries); the books themselves are never bundled, only their ids. Includes books with zero entries
+    // (dropped by the entry innerJoin above) — a reference is to the BOOK, not its entries.
+    const attachedBooks = await ctx.db
+      .select({ worldBookId: characterBooks.worldBookId, role: characterBooks.role })
+      .from(characterBooks)
+      .where(eq(characterBooks.characterId, characterId));
+
     const seen = new Set<string>();
     const entries: ExportWorldEntry[] = [];
     for (const entry of entryRows) {
@@ -136,6 +147,7 @@ export function createExportCharacter(ctx: ExportContext): ExportService["export
         residualData: parseRecord(charRow.residualData),
         regexScripts: charRow.regexScripts,
         depthPrompt: parseDepthPrompt(charRow.depthPrompt),
+        attachedBooks,
       },
       entries,
     );

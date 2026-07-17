@@ -128,7 +128,6 @@ export const userIntentSchema = z
     advanced: z
       .object({
         claudeEnv: z.record(z.string(), z.union([z.string(), z.null()])).optional(),
-        openrouterCustomParameters: z.record(z.string(), z.unknown()).optional(),
         // Where the volatile per-turn system-prompt half is delivered: "system" joins it into the cached
         // system-prompt string; "hook" delivers it at the message tail (cache-safe). Absent ⇒ the funnel
         // picks "hook" iff the model honors mid-conversation system, else "system".

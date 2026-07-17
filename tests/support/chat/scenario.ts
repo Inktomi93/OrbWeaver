@@ -28,7 +28,8 @@ import { castId } from "@orb/kit/ids";
 import { createActiveTurns } from "../../../packages/server/src/domain/chat/active-turns";
 import type { ActiveTurns } from "../../../packages/server/src/domain/chat/contract/active-turns";
 import type { ChatContext } from "../../../packages/server/src/domain/chat/contract/context";
-import type { ResolveForeignInputsOp } from "../../../packages/server/src/domain/chat/contract/foreign";
+import type { ChatBehaviorInputs, ResolveForeignInputsOp } from "../../../packages/server/src/domain/chat/contract/foreign";
+import { DEFAULT_CHAT_BEHAVIOR } from "../../../packages/server/src/domain/chat/contract/foreign";
 import type { MemoryConfig } from "../../../packages/server/src/domain/chat/contract/memory";
 import type { GuidedSteer } from "../../../packages/server/src/domain/chat/contract/params";
 import type { GroupOutput, TurnOutcome, TurnRequest } from "../../../packages/server/src/domain/chat/contract/results";
@@ -114,6 +115,9 @@ export interface ChatScenarioOptions {
   readonly injectionTokenBudget?: number;
   /** The resolved memory tuning (FOREIGN); absent ⇒ the engine's baked defaults. */
   readonly memoryConfig?: MemoryConfig | null;
+  /** The host's turn-behavior arm (FOREIGN — `UserSettings.chat`; PD-146). Default all-off ⇒ no custom
+   *  stops, no auto-continue, no auto-swipe (byte-identical to today). */
+  readonly chatBehavior?: ChatBehaviorInputs;
   /** Capture each wire `TurnRequest` before the tape replays (feeds `assertStaticPrefixStable`). */
   readonly onRequest?: (req: TurnRequest) => void;
   /** Extra `ChatContext` overrides merged over the defaults (an escape hatch for a seam the driver doesn't
@@ -248,6 +252,7 @@ async function buildChatScenario(script: Tape, options: ChatScenarioOptions): Pr
       scanDepth: options.scanDepth ?? 6,
       injectionTokenBudget: options.injectionTokenBudget ?? 0,
       ...(options.memoryConfig !== undefined ? { memoryConfig: options.memoryConfig } : {}),
+      chatBehavior: options.chatBehavior ?? DEFAULT_CHAT_BEHAVIOR,
     });
   const resolveForeignInputs = options.resolveForeignInputs ?? defaultForeign;
 

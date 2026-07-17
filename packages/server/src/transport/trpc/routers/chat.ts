@@ -10,6 +10,20 @@
 // nothing and stays open (a client may subscribe before `chat.start` commits), and the gate runs on
 // EVERY live yield so a kicked member's stream stops within the kick tx (the membership chokepoint
 // covers the SSE path). Any non-NotFound error propagates into `withSubscriptionErrors`' typed frame.
+//
+// SUBSCRIPTION-SIDE SYNTHESES (PD-134/PD-135). Two `ChatBusEvent` members are synthesized HERE, per
+// subscription, not published on the bus (no other subscriber sees them) and never logged to `chat_events`:
+//   • `chatOpened` — yielded once at attach after the membership probe admits the subscriber (the ST
+//     CHAT_CHANGED "on open, run setup" hook; the client reducer invalidates). PD-134.
+//   • `historyTruncated` — yielded on resume when the cursor predates the retained window (events after it
+//     were dropped, a gap replay can't fill), BEFORE the replay so the client refetches first. PD-135.
+// THE SYNTHETIC-ENVELOPE RULE: a synthetic carries the CURRENT resume cursor as its tracked id (never a
+// fresh/durable `seq`), so it does NOT advance or fake `lastEventId` — a reconnect re-sends that same id
+// and replays from the exact same durable point. Only real `chat_events` rows advance the cursor
+// (`resumeId advances only on durable cursor-carrying events`, Tier-4 §5 Esoteric #5). The truncation
+// predicate reads the retained window's floor off the SAME member-gated `chatEventBounds` probe the
+// membership gate already runs (`minSeq` = earliest retained row) — no extra persistence read: an EMPTY
+// replay is NOT the signal (a caught-up cursor also replays empty); truncation is `resumeSeq < minSeq - 1`.
 
 import { ASSET_LIST_LIMIT_MAX, assetIdSchema } from "@orb/contracts/assets";
 import type { ChatBusEvent } from "@orb/contracts/chat";
@@ -417,17 +431,17 @@ async function* chatEventStream(args: {
   const resumeSeq = parseResumeSeq(lastEventId);
   // Attach the live listener FIRST (`on()` buffers from this point) so the replay→live gap loses nothing.
   const live = subscribeChatEvents(chatId, signal ?? new AbortController().signal);
-  let maxSeq = resumeSeq ?? 0;
 
-  // Reconnect replay (durable log; member-gated). Withheld — not an error — while the gate says NOT_FOUND.
-  if (resumeSeq !== null && (await isMember(service, principal, chatId))) {
-    for (const entry of await service.replayChatEvents({
-      principal,
-      chatId,
-      afterSeq: resumeSeq,
-    })) {
-      yield tracked(String(entry.seq), entry.event);
-      maxSeq = entry.seq;
+  // The attach probe: membership + the retained-window bounds in ONE member-gated read. `null` = the
+  // withhold-not-throw NOT_FOUND (no chat yet / not a member) — synthesize nothing, replay nothing.
+  const bounds = await memberBounds(service, principal, chatId);
+  let maxSeq = resumeSeq ?? 0;
+  if (bounds !== null) {
+    for await (const env of attachSynthesesAndReplay({ service, principal, chatId, resumeSeq, bounds })) {
+      yield env;
+      // Track the highest durable seq for the live-loop dedup; synthetics carry the cursor id, so they
+      // never raise it (only real replay rows do).
+      maxSeq = Math.max(maxSeq, Number(env[0]));
     }
   }
 
@@ -438,7 +452,7 @@ async function* chatEventStream(args: {
     }
     // The PER-YIELD membership gate: a kicked member stops receiving within the kick tx; a pre-start
     // subscriber stays open and silent until the room exists and they are seated (withhold-not-throw).
-    if (!(await isMember(service, principal, chatId))) {
+    if ((await memberBounds(service, principal, chatId)) === null) {
       continue;
     }
     yield tracked(String(entry.seq), entry.event);
@@ -446,19 +460,55 @@ async function* chatEventStream(args: {
   }
 }
 
-// The withhold-not-throw membership probe: NOT_FOUND (no chat / not a member — the leak-free collapse)
-// → `false`; anything else is a real fault and propagates.
-async function isMember(service: ChatService, principal: Principal, chatId: ChatId): Promise<boolean> {
+/** The attach-time syntheses + reconnect replay (member already admitted). `chatOpened` fires once at
+ *  attach; `historyTruncated` fires (before the replay) only when the resume cursor predates the retained
+ *  window; the durable replay drains the rows after the cursor. Synthetics carry the CURRENT cursor as
+ *  their tracked id so they never advance `lastEventId` (the file-header synthetic-envelope rule). */
+async function* attachSynthesesAndReplay(args: {
+  readonly service: ChatService;
+  readonly principal: Principal;
+  readonly chatId: ChatId;
+  readonly resumeSeq: number | null;
+  readonly bounds: StreamEventBounds;
+}): AsyncGenerator<TrackedEnvelope<ChatBusEvent>> {
+  const { service, principal, chatId, resumeSeq, bounds } = args;
+  const cursorId = String(resumeSeq ?? 0);
+  // `chatOpened` (PD-134) — the per-subscription attach synthesis (the client reducer invalidates).
+  yield tracked(cursorId, { type: "chatOpened", chatId });
+
+  // A fresh subscribe (resumeSeq null) drains live only — no replay, no truncation check.
+  if (resumeSeq === null) {
+    return;
+  }
+  // `historyTruncated` (PD-135) — the cursor predates the retained window (`minSeq` = earliest retained
+  // row): events after it were dropped. Empty log (minSeq null) ⇒ no window ⇒ no gap; a caught-up cursor
+  // replays empty but is NOT truncated. Yielded BEFORE the replay (same non-advancing id) so the client
+  // refetches first.
+  if (bounds.minSeq !== null && resumeSeq < bounds.minSeq - 1) {
+    yield tracked(cursorId, { type: "historyTruncated", chatId });
+  }
+  for (const entry of await service.replayChatEvents({ principal, chatId, afterSeq: resumeSeq })) {
+    yield tracked(String(entry.seq), entry.event);
+  }
+}
+
+// The withhold-not-throw membership probe, carrying the retained-window bounds: NOT_FOUND (no chat / not a
+// member — the leak-free collapse) → `null`; anything else is a real fault and propagates. The returned
+// `{minSeq, maxSeq}` backs the `historyTruncated` predicate (no second read for the truncation check).
+async function memberBounds(service: ChatService, principal: Principal, chatId: ChatId): Promise<StreamEventBounds | null> {
   try {
-    await service.chatEventBounds({ principal, chatId });
-    return true;
+    return await service.chatEventBounds({ principal, chatId });
   } catch (err) {
     if (err instanceof DomainNotFoundError) {
-      return false;
+      return null;
     }
     throw err;
   }
 }
+
+/** The retained-window bounds the member-gated `chatEventBounds` probe returns (derived off the service
+ *  type — no new front-door export; the shape is `{ minSeq, maxSeq }`). */
+type StreamEventBounds = Awaited<ReturnType<ChatService["chatEventBounds"]>>;
 
 // A finite, non-error resume cursor, or `null` (first subscribe / a malformed or sentinel id).
 function parseResumeSeq(lastEventId: string | null): number | null {

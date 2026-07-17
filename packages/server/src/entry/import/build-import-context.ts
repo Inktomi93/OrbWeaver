@@ -3,7 +3,7 @@
 // bundle-delivery composition seam (adds importLorebook + the profile wave). The acting Principal is
 // resolved at the edge and passed in — identity is resolved once, never re-derived inside the domain.
 
-import type { CreateCharacterInput, UpdateCharacterInput } from "@orb/contracts/character";
+import type { AttachedBookRef, CreateCharacterInput, UpdateCharacterInput } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
 import type { TagSource, TagStatus } from "@orb/contracts/tag";
 import type { BulkImportLorebookInput, BulkImportLorebookResult } from "@orb/contracts/world-info";
@@ -51,14 +51,19 @@ export interface ImportTagPort {
   }) => Promise<boolean>;
 }
 
-/** The `world-info` front-door slice the driver wires the embedded-lorebook import to. Optional: a
- *  card-only composition may omit it (embedded books are then skipped). */
+/** The `world-info` front-door slice the driver wires the embedded-lorebook import + the PD-144 attached-book
+ *  re-link to. Optional: a card-only composition may omit them (embedded books / references are then skipped). */
 export interface ImportWorldInfoPort {
   readonly importLorebook: (params: {
     readonly ownerId: UserId;
     readonly characterId: CharacterId;
     readonly book: BulkImportLorebookInput;
   }) => Promise<BulkImportLorebookResult>;
+  readonly linkCarriedBooks: (params: {
+    readonly ownerId: UserId;
+    readonly characterId: CharacterId;
+    readonly refs: readonly AttachedBookRef[];
+  }) => Promise<{ readonly linked: number; readonly skipped: number }>;
 }
 
 /** The ports + acting principal the shared `ImportContext` wiring closes over. `importLorebook`/`profile`
@@ -69,6 +74,7 @@ export interface ImportContextWiring {
   readonly storeAvatar: ImportAssetPort["store"];
   readonly attachCardTag: ImportTagPort["attachCardTagByName"];
   readonly importLorebook?: ImportWorldInfoPort["importLorebook"];
+  readonly linkCarriedBooks?: ImportWorldInfoPort["linkCarriedBooks"];
   readonly profile?: ImportContext["profile"];
 }
 
@@ -77,7 +83,7 @@ export interface ImportContextWiring {
  * optional `importLorebook`/`profile` are spread only when defined, never assigned `undefined`.
  */
 export function buildImportContext(wiring: ImportContextWiring): ImportContext {
-  const { principal, character, storeAvatar, attachCardTag, importLorebook, profile } = wiring;
+  const { principal, character, storeAvatar, attachCardTag, importLorebook, linkCarriedBooks, profile } = wiring;
   const ownerId = principal.userId;
   const ctx: ImportContext = {
     ownerId,
@@ -113,6 +119,7 @@ export function buildImportContext(wiring: ImportContextWiring): ImportContext {
     // Author-shipped card tags land as card/pending suggestions (the user's "Accept" flips them later).
     attachCardTag: ({ ownerId: oid, characterId, tagName }) => attachCardTag({ ownerId: oid, characterId, tagName, source: "card", status: "pending" }),
     ...(importLorebook !== undefined ? { importLorebook } : {}),
+    ...(linkCarriedBooks !== undefined ? { linkCarriedBooks } : {}),
     ...(profile !== undefined ? { profile } : {}),
   };
   return ctx;

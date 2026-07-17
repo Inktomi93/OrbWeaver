@@ -15,7 +15,7 @@ import type {
 } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
 import type { ChatRoster } from "@orb/contracts/identity";
-import type { UserIntent } from "@orb/contracts/preset";
+import type { CustomParameters, UserIntent } from "@orb/contracts/preset";
 import type { CharacterId, ChatId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
@@ -99,6 +99,9 @@ export interface TurnRequest {
   /** The SHAPE-shaped history (egocentric-scoped, spliced, squashed, name-stamped). */
   readonly history: readonly TurnMessage[];
   readonly intent: UserIntent;
+  /** The preset's provider-passthrough blob (PD-148) — folded onto the wire request body UNDER the runner's
+   *  owned fields (the preset-hijack firewall). Absent when the preset carries none ⇒ byte-identical request. */
+  readonly customParameters?: CustomParameters | undefined;
   readonly kind: TurnKind;
   /** The owner-consent value the infra credential firewall re-verifies, already enforced by the engine's
    *  in-lock belt. */
@@ -168,6 +171,10 @@ export interface TurnPrep {
   readonly runAsUserId: UserId;
   readonly kind: TurnKind;
   readonly intent: UserIntent;
+  /** The host's `UserSettings.chat.customStoppingStrings` (PD-146), merged into the generation request's
+   *  stop set at the pipeline REQUEST seam (never mutating `intent`). Absent/empty ⇒ the request stop is
+   *  exactly `intent.stop` — byte-identical to a host who never set custom stops. */
+  readonly extraStopSequences?: readonly string[] | undefined;
   /** The resolved host memory config — the same resolution recall reads. Threaded so a host who disabled
    *  memory doesn't pay the summarizer/embed every turn. Absent falls back to the build's baked defaults;
    *  mode:"off" skips the whole build. */

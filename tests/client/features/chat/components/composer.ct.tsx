@@ -12,10 +12,25 @@
 // there is no restore logic and no race window (the removed phase-gate). To exercise the clear/keep
 // windows deterministically, `chat.send` is HELD (its listener stays alive) while the signal is driven.
 
+import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import type { MessageId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc";
 import { ComposerStory } from "../_ct-stories";
 import { COMPOSER_CHAT_ID } from "../fixtures";
+
+// A getUserSettings view with a chat-pref override — drives the composer's enterSends/continueOnSend read.
+function settingsWith(chat: Partial<(typeof DEFAULT_USER_SETTINGS)["chat"]>): unknown {
+  return {
+    userId: "user_ct_composer",
+    schemaVersion: 1,
+    config: { ...DEFAULT_USER_SETTINGS, chat: { ...DEFAULT_USER_SETTINGS.chat, ...chat } },
+    updatedAt: 0,
+  };
+}
+
+const TAIL_ASSISTANT_ID = castId<MessageId>("message_ct_tail_assistant");
 
 test("Send is disabled on an empty draft", async ({ mount }) => {
   const component = await mount(<ComposerStory />);
@@ -295,4 +310,42 @@ test("the wand is disabled while a Send is in flight (clear-on-commit reopened t
   // Fire Send — it stays in flight (held) → the wand disables even though the draft is still populated.
   await component.getByRole("button", { name: "Send message" }).click();
   await expect(wand).toBeDisabled();
+});
+
+// ── PD-146: enterSends ─────────────────────────────────────────────────────────────────────────────────
+test("enterSends OFF: Enter inserts a newline (no send); ⌘/Ctrl+Enter sends", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    "settings.getUserSettings": () => settingsWith({ enterSends: false }),
+    "chat.send": () => ({ ok: true }),
+  });
+  const component = await mount(<ComposerStory />);
+  const textarea = component.getByLabel("Message", { exact: true });
+  await textarea.fill("no send on enter");
+  // The pref read is async (a plain query) — wait until it has actually landed as `false` before asserting
+  // the negative, so this can't pass merely because the read hadn't resolved yet.
+  await expect.poll(() => trpc.count("settings.getUserSettings"), { intervals: [20, 50, 100] }).toBeGreaterThan(0);
+
+  await textarea.press("Enter");
+  // No send fired — plain Enter is a newline with the pref off.
+  await expect.poll(() => trpc.count("chat.send"), { intervals: [20, 50, 100] }).toBe(0);
+
+  // ⌘/Ctrl+Enter still sends.
+  await textarea.press("ControlOrMeta+Enter");
+  await expect.poll(() => trpc.count("chat.send"), { intervals: [20, 50, 100] }).toBe(1);
+});
+
+// ── PD-146: continue-on-empty (continueOnSend) ───────────────────────────────────────────────────────────
+test("continueOnSend: an empty Send on an assistant tail fires chat.continueTurn on that message", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    "settings.getUserSettings": () => settingsWith({ continueOnSend: true }),
+    "chat.continueTurn": () => ({ ok: true }),
+  });
+  // Committed chat, assistant tail → Send becomes the continue affordance (empty composer).
+  const component = await mount(<ComposerStory tailRole="assistant" tailAssistantMessageId={TAIL_ASSISTANT_ID} />);
+  const send = component.getByRole("button", { name: "Send message" });
+  await expect(send).toBeEnabled();
+  await send.click();
+
+  await expect.poll(() => trpc.count("chat.continueTurn"), { intervals: [20, 50, 100] }).toBe(1);
+  expect(trpc.lastInput("chat.continueTurn")).toMatchObject({ chatId: COMPOSER_CHAT_ID, messageId: TAIL_ASSISTANT_ID });
 });

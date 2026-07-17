@@ -9,6 +9,7 @@
 // cursor.
 
 import type { ParticipantKind } from "@orb/contracts/chat";
+import { isUserBacked } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { chatParticipants, chats } from "@orb/db";
@@ -77,6 +78,15 @@ export function isPresent(p: { readonly leftSeq: number | null }): boolean {
  *  arbiter-selected + is excluded from `{{groupNotMuted}}`. */
 export function isArbiterEligible(p: { readonly leftSeq: number | null; readonly disabled: boolean }): boolean {
   return p.leftSeq === null && !p.disabled;
+}
+
+/** The PRINCIPAL kill-switch arm of the present-and-contributing predicate (D60; agent-principal-design/02
+ *  §1.1, doc 03 §4): a USER-BACKED seat (`human`/`agent`) contributes only while its backing `users.enabled`
+ *  is true — a disabled agent principal drops from every cast + arbitration pool the round after the flip
+ *  (containment is a one-row flip, read fresh per round). A `character` seat has no backing user, so `enabled`
+ *  never gates it (returns `true` regardless). Consumes {@link isUserBacked} so a 5th kind is caught upstream. */
+export function isBackingUserEnabled(kind: ParticipantKind, enabled: boolean): boolean {
+  return isUserBacked(kind) ? enabled : true;
 }
 
 /** Bulk-insert participant rows (the initial host+character roster, or a host adding a character). */

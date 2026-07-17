@@ -5,8 +5,8 @@
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { RoleClients } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
-import { users } from "@orb/db";
-import type { UserId } from "@orb/kit/ids";
+import { messages, users } from "@orb/db";
+import type { MessageId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import type { BuddyObserverEnv, LiteChatEvent, LiteTrace, LiteWorkloadEvent } from "#domain/buddy";
@@ -36,11 +36,26 @@ const CHAT_KIND: Partial<Record<ChatBusEvent["type"], LiteChatEvent["kind"]>> = 
   turnAborted: "turn-aborted",
 };
 
-/** Map a chat bus event to the observer's lite shape; `null` for events the observer ignores. */
-function toLiteChat(event: ChatBusEvent, at: number): LiteChatEvent | null {
+/** The self-attributed author of a completed turn's committed message (agent rows carry `authorUserId`;
+ *  character/user rows carry null/none for this belt). The public `ChatBusEvent` deliberately omits turn
+ *  identity (D19), so the acting principal is resolved from the committed row here — an authorized server-side
+ *  `messages` read at the entry root, NOT a widening of the public bus. */
+async function resolveMessageAuthor(db: Db, messageId: MessageId): Promise<UserId | null> {
+  const rows = await db.select({ authorUserId: messages.authorUserId }).from(messages).where(eq(messages.id, messageId)).limit(1);
+  return rows[0]?.authorUserId ?? null;
+}
+
+/** Map a chat bus event to the observer's lite shape; `null` for events the observer ignores. Feeds the real
+ *  acting principal (AP3-2): a completed agent turn self-attributes, so the signal-router's self-drop belt
+ *  (PD-45) drops a seated buddy reacting to its OWN room turn. Only `turnCompleted` carries a committed
+ *  `messageId`; the other beats have no author to resolve (actingUserId stays null). */
+export async function resolveLiteChat(db: Db, event: ChatBusEvent, at: number): Promise<LiteChatEvent | null> {
   const kind = CHAT_KIND[event.type];
-  // actingUserId: null — the public ChatBusEvent carries no turn identity.
-  return kind === undefined ? null : { chatId: event.chatId, kind, actingUserId: null, at };
+  if (kind === undefined) {
+    return null;
+  }
+  const actingUserId = event.type === "turnCompleted" && event.messageId !== null ? await resolveMessageAuthor(db, event.messageId) : null;
+  return { chatId: event.chatId, kind, actingUserId, at };
 }
 
 /** Assemble the observer env from the composition root's primitives + the real event sources. */
@@ -68,10 +83,11 @@ export function createBuddyObserverEnv(args: {
       }),
     onChatEvent: (listener) =>
       subscribeAllChatEvents((entry) => {
-        const lite = toLiteChat(entry.event, args.now());
-        if (lite !== null) {
-          listener(lite);
-        }
+        void resolveLiteChat(args.db, entry.event, args.now()).then((lite) => {
+          if (lite !== null) {
+            listener(lite);
+          }
+        });
       }),
     readRecentTraces: (): readonly LiteTrace[] =>
       recentTraces(TRACE_SCAN_LIMIT).map((t) => ({

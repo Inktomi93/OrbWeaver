@@ -13,6 +13,8 @@ import { requireAdmin, requireOwner } from "@orb/server/domain/admin";
 import type { SettingsServiceDeps, ThemeView } from "@orb/server/domain/settings";
 import { createSettingsService } from "@orb/server/domain/settings";
 import type { AuditEntry } from "@orb/server/foundation/observability";
+import type { Mock } from "vitest";
+import { vi } from "vitest";
 import { createFrozenClock } from "../../../support/clock.ts";
 import { principal as makePrincipal } from "../../../support/factories/principal.ts";
 
@@ -28,6 +30,9 @@ export interface SettingsHarness {
   readonly deps: SettingsServiceDeps;
   readonly audits: AuditCall[];
   readonly clock: ReturnType<typeof createFrozenClock>;
+  /** PD-139a recorder: asserts an embed/imageEmbed model change enqueued the reindex (once), and a routing
+   *  patch that doesn't touch those ids does NOT. */
+  readonly onEmbedModelChanged: Mock<() => void>;
 }
 
 interface SeedUserOverrides {
@@ -61,6 +66,7 @@ export function principal(userId: UserId, role: UserRole, handle: string = userI
 export function makeHarness(db: Db): SettingsHarness {
   const clock = createFrozenClock(FROZEN_AT);
   const audits: AuditCall[] = [];
+  const onEmbedModelChanged: Mock<() => void> = vi.fn<() => void>();
   let themeCounter = 0;
   const deps: SettingsServiceDeps = {
     db,
@@ -77,8 +83,9 @@ export function makeHarness(db: Db): SettingsHarness {
     },
     // PD user-bus lane: no-op recorder (this harness's tests don't assert the emit; persona's do).
     emitUserEvent: (): void => undefined,
+    onEmbedModelChanged,
   };
-  return { svc: createSettingsService(deps), deps, audits, clock };
+  return { svc: createSettingsService(deps), deps, audits, clock, onEmbedModelChanged };
 }
 
 /** Find a seed theme by name in `ownerId`'s readable set (own ∪ seeds) — the

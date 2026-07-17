@@ -5,6 +5,7 @@ import { beforeEach, describe } from "vitest";
 import {
   assertForcedCharacterMember,
   isArbiterEligible,
+  isBackingUserEnabled,
   isPresent,
   markUserLeft,
   parseParticipant,
@@ -74,6 +75,20 @@ describe("present-and-contributing predicates", () => {
     expect(isArbiterEligible({ leftSeq: null, disabled: false })).toBe(true);
     expect(isArbiterEligible({ leftSeq: null, disabled: true })).toBe(false);
     expect(isArbiterEligible({ leftSeq: 2, disabled: false })).toBe(false);
+  });
+
+  // The principal kill-switch arm (D60; doc 03 §4): a user-backed seat contributes only while its backing
+  // user is enabled; a character seat (no backing user) is never gated by `enabled`.
+  test("isBackingUserEnabled gates only USER_BACKED kinds on the principal enabled flag", () => {
+    // agent: follows its principal's enabled flag (the containment one-row flip).
+    expect(isBackingUserEnabled("agent", true)).toBe(true);
+    expect(isBackingUserEnabled("agent", false)).toBe(false);
+    // human: also user-backed (a disabled human contributes nothing — moot in a live round, but the axis is coherent).
+    expect(isBackingUserEnabled("human", true)).toBe(true);
+    expect(isBackingUserEnabled("human", false)).toBe(false);
+    // character: NOT user-backed — `enabled` is never consulted (always contributes when present + unmuted).
+    expect(isBackingUserEnabled("character", false)).toBe(true);
+    expect(isBackingUserEnabled("character", true)).toBe(true);
   });
 });
 

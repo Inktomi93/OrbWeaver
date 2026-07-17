@@ -13,3 +13,10 @@ export interface BulkEmbedResult {
   readonly embedded: number;
   readonly skipped: number;
 }
+
+/** PD-139(b): rows reclaimed from the OLD embed space by the chat-memory purge — one count per model-keyed
+ *  chat-memory vector table. */
+export interface PurgeMemoryVectorsResult {
+  readonly segments: number;
+  readonly digests: number;
+}

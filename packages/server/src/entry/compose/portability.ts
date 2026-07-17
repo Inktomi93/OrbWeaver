@@ -50,6 +50,7 @@ export interface PortabilityDeps {
   readonly storeAvatar: ImportAssetPort["store"];
   readonly attachCardTag: ImportTagPort["attachCardTagByName"];
   readonly importLorebook: ImportWorldInfoPort["importLorebook"];
+  readonly linkCarriedBooks: ImportWorldInfoPort["linkCarriedBooks"];
   readonly bulkImportChats: BulkImportChats;
   readonly bulkImportPersonas: BulkImportPersonas;
   readonly enqueueBackfill: (args: { readonly ownerId: UserId }) => Promise<void>;
@@ -69,6 +70,7 @@ async function buildOwnerImport(deps: PortabilityDeps, ownerId: UserId): Promise
     storeAvatar: deps.storeAvatar,
     attachCardTag: deps.attachCardTag,
     importLorebook: deps.importLorebook,
+    linkCarriedBooks: deps.linkCarriedBooks,
     profile: {
       now: deps.now,
       personaByUserName: new Map(),

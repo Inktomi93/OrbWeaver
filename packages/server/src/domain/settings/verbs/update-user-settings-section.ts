@@ -10,6 +10,13 @@ import type { SettingsContext, SettingsService } from "../contract/service";
 import { readUserSettings, writeUserConfig } from "../persistence/queries";
 import { deepMergePlain } from "../substrate/merge";
 
+/** The two embed-space model ids a write can change — the tuple the PD-139a reindex trigger keys on. A
+ *  routing patch that leaves BOTH untouched (or a patch to any other section) must not enqueue a reindex. */
+function embedModelIds(config: UserSettings): readonly [embed: string | undefined, imageEmbed: string | undefined] {
+  const rd = config.routing.roleDefaults;
+  return [rd.embed?.model, rd.imageEmbed?.model];
+}
+
 export function createUpdateUserSettingsSection(ctx: SettingsContext): SettingsService["updateUserSettingsSection"] {
   return (params) => {
     const ownerId = params.principal.userId;
@@ -19,7 +26,8 @@ export function createUpdateUserSettingsSection(ctx: SettingsContext): SettingsS
       const existing = current[section];
       const mergedSection = deepMergePlain(isPlainObject(existing) ? existing : {}, patch) as UserSettings[typeof section];
       const at = ctx.now();
-      await writeUserConfig(ctx.db, ownerId, { ...current, [section]: mergedSection }, at);
+      const nextConfig = { ...current, [section]: mergedSection };
+      await writeUserConfig(ctx.db, ownerId, nextConfig, at);
       await ctx.audit(
         {
           actorUserId: ownerId,
@@ -32,6 +40,15 @@ export function createUpdateUserSettingsSection(ctx: SettingsContext): SettingsS
         at,
       );
       ctx.emitUserEvent(ownerId, { type: "settingsChanged" });
+      // PD-139a: an embed/imageEmbed model change strands the old `(model)` vector space, so it must drive a
+      // bulk purge+reindex. Compare the two ids pre/post-merge and fire the injected op ONLY on an actual
+      // change (a routing patch that doesn't touch them, or any other section, does not enqueue).
+      // Fire-and-forget, exactly like the emit above — a failed enqueue never fails this write.
+      const [beforeEmbed, beforeImageEmbed] = embedModelIds(current);
+      const [afterEmbed, afterImageEmbed] = embedModelIds(nextConfig);
+      if (afterEmbed !== beforeEmbed || afterImageEmbed !== beforeImageEmbed) {
+        ctx.onEmbedModelChanged();
+      }
       return readUserSettings(ctx.db, ownerId);
     });
   };

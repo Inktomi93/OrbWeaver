@@ -65,7 +65,7 @@ export async function runProfileImport(deps: ProfileImportDeps): Promise<Profile
     character,
     storeAvatar: assets.store,
     attachCardTag: tag.attachCardTagByName,
-    ...(worldInfo !== undefined ? { importLorebook: worldInfo.importLorebook } : {}),
+    ...(worldInfo !== undefined ? { importLorebook: worldInfo.importLorebook, linkCarriedBooks: worldInfo.linkCarriedBooks } : {}),
   });
 
   const service = createImportService(ctx);

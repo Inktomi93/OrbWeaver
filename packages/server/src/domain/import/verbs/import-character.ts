@@ -1,9 +1,11 @@
 // verb: importCharacter — one ST character card → one canonical character. Flow: parse bytes → hash whole
 // file → byte-identical dedup (return existing, created:false) → flatten+validate → PD-108 handle-match
 // (edit in place instead of insert) → else create fresh with provenance + CAS-store avatar → attach tags
-// → optionally carry the embedded lorebook. All cross-feature ops (create/lookup/update/store/attach) are
-// injected via context.ts — import never reads a db table directly.
+// → re-link carried attached-book references (PD-144), else carry the embedded lorebook clone (the fallback
+// when no reference resolves on this install). All cross-feature ops (create/lookup/update/store/attach/
+// re-link) are injected via context.ts — import never reads a db table directly.
 
+import type { AttachedBookRef } from "@orb/contracts/character";
 import type { CharacterId } from "@orb/kit/ids";
 import { isPng } from "@orb/kit/png-card-chunk";
 import type { ImportContext } from "../context";
@@ -59,6 +61,19 @@ async function attachCardTags(ctx: ImportContext, characterId: CharacterId, tags
   }
 }
 
+/** PD-144: re-link the carried attached-book references (owned-source gated in the op). No-op — 0/0 — when
+ *  the op is unwired (card-only slice) or the card carries none. */
+function relinkCarriedBooks(
+  ctx: ImportContext,
+  characterId: CharacterId,
+  refs: readonly AttachedBookRef[],
+): Promise<{ readonly linked: number; readonly skipped: number }> {
+  if (ctx.linkCarriedBooks === undefined || refs.length === 0) {
+    return Promise.resolve({ linked: 0, skipped: 0 });
+  }
+  return ctx.linkCarriedBooks({ ownerId: ctx.ownerId, characterId, refs });
+}
+
 export function createImportCharacter(ctx: ImportContext): ImportService["importCharacter"] {
   return async ({ card }: ImportCharacterInput): Promise<ImportCharacterResult> => {
     const { bytes, filename } = card;
@@ -72,13 +87,13 @@ export function createImportCharacter(ctx: ImportContext): ImportService["import
         png ? "PNG carries no readable ccv3/chara character-card chunk" : "bytes are not a readable V2/V3 character-card JSON",
       );
     }
-    const { card: characterCard, tags, book } = parsed;
+    const { card: characterCard, tags, book, attachedBooks } = parsed;
 
     const importHash = importFileHash(bytes);
 
     const existing = await ctx.findByImportHash({ ownerId: ctx.ownerId, importHash });
     if (existing !== null) {
-      return { characterId: existing, created: false, importHash };
+      return { characterId: existing, created: false, importHash, attachedBooksLinked: 0, attachedBooksSkipped: 0 };
     }
 
     const inputForNewHandle = cardToCreateInput(characterCard, null);
@@ -99,10 +114,16 @@ export function createImportCharacter(ctx: ImportContext): ImportService["import
     });
     await attachCardTags(ctx, characterId, tags);
 
-    if (ctx.importLorebook !== undefined && book !== null) {
+    // PD-144: re-link the carried attached-book REFERENCES by id (owned-source gated in the op). A resolved
+    // reference IS the book on this install, so when ANY reference links we SKIP the embedded-lorebook clone
+    // below — cloning it would duplicate the book (double primary). The clone stays the fallback for the
+    // foreign-install case (no reference resolved) + for cards that carry no references at all.
+    const { linked: attachedBooksLinked, skipped: attachedBooksSkipped } = await relinkCarriedBooks(ctx, characterId, attachedBooks);
+
+    if (ctx.importLorebook !== undefined && book !== null && attachedBooksLinked === 0) {
       await ctx.importLorebook({ ownerId: ctx.ownerId, characterId, book });
     }
 
-    return { characterId, created, importHash };
+    return { characterId, created, importHash, attachedBooksLinked, attachedBooksSkipped };
   };
 }

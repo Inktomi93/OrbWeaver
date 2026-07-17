@@ -179,6 +179,25 @@ test("USER_SETTINGS_SECTIONS includes persona (section-patchable via updateUserS
   expect(USER_SETTINGS_SECTIONS).toContain("persona");
 });
 
+// ── chat (PD-146) — the client-honored send/continue/stream behavior namespace ──
+
+test("UserSettings.chat reads the PD-146 defaults from an empty blob (Enter sends, smooth-stream off)", () => {
+  const parsed = parseUserSettings({});
+  expect(parsed.chat.enterSends).toBe(true);
+  expect(parsed.chat.continueOnSend).toBe(true);
+  expect(parsed.chat.autoContinue).toBe(false);
+  expect(parsed.chat.smoothStream).toBe(false);
+  expect(parsed.chat.smoothStreamCps).toBe(80);
+  expect(DEFAULT_USER_SETTINGS.chat.enterSends).toBe(true);
+  expect(DEFAULT_USER_SETTINGS.chat.smoothStream).toBe(false);
+});
+
+test("UserSettings.chat.smoothStreamCps self-heals an out-of-bounds value to the default (.catch)", () => {
+  // Stamp the current version so the v1 lift (which rebuilds the chat namespace) doesn't run.
+  expect(parseUserSettings({ schemaVersion: USER_SETTINGS_SCHEMA_VERSION, chat: { smoothStreamCps: 9999 } }).chat.smoothStreamCps).toBe(80);
+  expect(parseUserSettings({ schemaVersion: USER_SETTINGS_SCHEMA_VERSION, chat: { smoothStreamCps: 150 } }).chat.smoothStreamCps).toBe(150);
+});
+
 // ── appearance (D44 §12.1) — the additive display-only namespace ──
 
 test("UserSettings.appearance reads the §12.1 defaults from an empty blob (no version bump)", () => {

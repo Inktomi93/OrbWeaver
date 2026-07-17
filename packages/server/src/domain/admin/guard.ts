@@ -5,7 +5,7 @@
 // caller passes in (chat passes the {@link ChatRoster} it loaded — admin never reads chat's db).
 // Authorization is re-evaluated per call; the decision is never cached back onto the Principal.
 
-import type { AgentAction, AgentActor, Can, ChatAction, ChatRoster, GlobalAction, Principal, ResourceRef, UserRole } from "@orb/contracts/identity";
+import type { AgentAction, AgentActor, Can, CanAgent, ChatAction, ChatRoster, GlobalAction, Principal, ResourceRef, UserRole } from "@orb/contracts/identity";
 import { DomainForbiddenError } from "@orb/kit/errors";
 import type { IsAdmin, RequireAdmin, RequireOwner } from "./contract/guard";
 
@@ -62,8 +62,10 @@ export const can: Can = (principal: Principal, action: GlobalAction | ChatAction
 
 /** The agent-principal runtime gate. An agent is a speaker, never a caller (it has no `Principal`), so this
  *  is a new export of the same seam, not a second auth model. Pure verdict: the kill switch (`enabled`) +
- *  the closed-union check. FLAG[PD-17]: landed at AP1; callers inject it via `ChatContext` at AP2. */
-export const canAgent = (actor: AgentActor, action: AgentAction, _room: ChatRoster): void => {
+ *  the closed-union check. Injected into chat's engine via `ChatContext.canAgent` (chat never imports admin),
+ *  which gates every agent-speaker turn with `'speak'` before dispatch (D60; the 2-layer belt on top of the
+ *  present-predicate). */
+export const canAgent: CanAgent = (actor: AgentActor, action: AgentAction, _room: ChatRoster): void => {
   if (!actor.enabled) {
     throw new DomainForbiddenError("agent principal disabled");
   }

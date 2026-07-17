@@ -24,6 +24,7 @@ import { isCommitted, isLiveTurnPhase, useDraftConfig, useTurnPhase, useTurnSpea
 import { GhostMessageRow } from "../components/ghost-message-row";
 import { JumpToLatestPill } from "../components/jump-to-latest-pill";
 import { MessageRow } from "../components/message-row";
+import { useChatBehaviorPrefs } from "../hooks/use-chat-behavior-prefs";
 import { useChatStyle } from "../hooks/use-chat-style";
 import { useJumpToLatest } from "../hooks/use-jump-to-latest";
 import { useMessageAppearance } from "../hooks/use-message-appearance";
@@ -110,6 +111,7 @@ function ChatThread({ chatId, chatStyle, onChatForked, surfaceContributors }: Ch
   const activePersonaId = resolveViewerActivePersonaId(chatDetail.participants);
   const viewerUserId = resolveViewerUserId(chatDetail.participants);
   const messageAppearance = useMessageAppearance();
+  const behaviorPrefs = useChatBehaviorPrefs();
   const phase = useTurnPhase(chatId);
   // The live turn's voiced speaker, resolved through the SAME resolveRowAttribution the settled row
   // uses, so the ghost's immersive decoration matches what the canonical row will show once it settles.
@@ -149,6 +151,8 @@ function ChatThread({ chatId, chatStyle, onChatForked, surfaceContributors }: Ch
         avatarRing={messageAppearance.avatarRing}
         showInChatAvatars={messageAppearance.showInChatAvatars}
         showLLMReasoningIcon={messageAppearance.showLLMReasoningIcon}
+        smoothStream={behaviorPrefs.smoothStream}
+        smoothStreamCps={behaviorPrefs.smoothStreamCps}
         enterMotion={newArrivalKeys.has(item.id)}
       />
     ) : (

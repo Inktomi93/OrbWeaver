@@ -39,12 +39,26 @@ export interface ParsedVariant {
   readonly metadata: Record<string, unknown> | null;
 }
 
+/** Provenance for an AGENT-authored assistant row (D60 self-attribution; PD-17). An agent principal voices
+ *  with NO character card, so the only honest speaker source is the agent's own identity. This carries ONLY
+ *  what a shared export may reveal: the agent's DISPLAY `name` + its `sourceKind` label (e.g. `"buddy"`).
+ *  Deliberately NOT here: the owner (the agent `handle` embeds `ownerUserId` — never read), the soul
+ *  system-prompt, and any credential/secret. `sourceKind` is `string` (not the `AgentSourceKind` union) —
+ *  on the parse side it is a free-text provenance label off a possibly-foreign export, not a local enum. */
+export interface ParsedAgentAuthor {
+  readonly name: string;
+  readonly sourceKind: string;
+}
+
 /** One parsed/serializable chat message. `content` is `mes` (the RENDERED text — authoritative). `speakerName`
  *  is the per-turn author display NAME (the JSONL `name` field): the voicing character for an assistant row,
  *  the authoring persona for a user row — export RESOLVES it from ids before build; parse READS it off the
  *  line; import does NOT use it for attribution (it re-resolves via `personaByUserName`). `variants` is the
  *  multi-swipe pool (empty on the parse side when ≤1 real generation); `activeVariantIdx` is `swipe_id`
- *  remapped onto the surviving pool. */
+ *  remapped onto the surviving pool. `agentAuthor` is present ONLY on an agent-authored assistant row (PD-17);
+ *  absent for every human + character-voiced turn (so those export byte-identically). On IMPORT the field
+ *  round-trips through the serde but the import DOMAIN never re-links it to a local agent principal — a
+ *  foreign install has no matching agent, so the label stays provenance-only and no local agent is fabricated. */
 export interface ParsedChatMessage {
   readonly role: MessageRole;
   readonly speakerName: string | null;
@@ -60,6 +74,7 @@ export interface ParsedChatMessage {
   readonly metadata: Record<string, unknown> | null;
   readonly activeVariantIdx: number | null;
   readonly variants: readonly ParsedVariant[];
+  readonly agentAuthor?: ParsedAgentAuthor;
 }
 
 /** One parsed/serializable ST chat. `createDate` is the FILENAME date first (survives ST re-save/migration),
@@ -117,6 +132,10 @@ const rawExtraSchema = z
 
 const rawSwipeInfoSchema = z.object({ extra: z.unknown(), gen_started: z.unknown(), gen_finished: z.unknown() }).partial().loose();
 
+// The orb-specific agent-provenance sidecar (PD-17). Only `name`/`source_kind` are modelled; `.loose()` keeps
+// (but never emits) any foreign residue. A non-object → null (skip), same as every other wire view here.
+const rawAgentAuthorSchema = z.object({ name: z.unknown(), source_kind: z.unknown() }).partial().loose();
+
 const rawMessageSchema = z
   .object({
     name: z.unknown(),
@@ -130,6 +149,7 @@ const rawMessageSchema = z
     swipe_info: z.unknown(),
     gen_started: z.unknown(),
     gen_finished: z.unknown(),
+    agent_author: z.unknown(),
   })
   .partial()
   .loose();
@@ -326,6 +346,19 @@ function extractExtra(extra: unknown): {
   };
 }
 
+/** Coerce the `agent_author` sidecar → provenance, or null when absent/blank (PD-17). Both fields must be
+ *  non-empty strings — a partial/garbage sidecar degrades to "no provenance" (the row exports as a plain
+ *  assistant line), never a fabricated half-identity. */
+function parseAgentAuthor(v: unknown): ParsedAgentAuthor | null {
+  const a = asTyped(v, rawAgentAuthorSchema);
+  if (a === null) {
+    return null;
+  }
+  const name = nullIfEmpty(str(a.name));
+  const sourceKind = nullIfEmpty(str(a.source_kind));
+  return name !== null && sourceKind !== null ? { name, sourceKind } : null;
+}
+
 function roleOf(m: RawMessage): MessageRole {
   if (m.is_system === true) {
     return "system";
@@ -401,6 +434,7 @@ function parseMessageLine(line: string): ParsedChatMessage | null {
   const sid = parsed.swipe_id;
   const rawActive = typeof sid === "number" && sid >= 0 && sid < swipes.length ? sid : null;
   const { variants, activeVariantIdx } = buildVariants(swipes, parsed.swipe_info, rawActive);
+  const agentAuthor = parseAgentAuthor(parsed.agent_author);
   return {
     role: roleOf(parsed),
     speakerName: nullIfEmpty(str(parsed.name)),
@@ -416,6 +450,8 @@ function parseMessageLine(line: string): ParsedChatMessage | null {
     metadata: asObj(parsed.extra),
     activeVariantIdx,
     variants,
+    // Present only when the export carried a valid provenance sidecar; omitted (exactOptional) otherwise.
+    ...(agentAuthor !== null ? { agentAuthor } : {}),
   };
 }
 
@@ -510,6 +546,9 @@ export function buildChatJsonl(chat: ParsedChat): string {
       },
       gen_started: m.genStarted,
       gen_finished: m.genFinished,
+      // PD-17 provenance sidecar — emitted ONLY for an agent-authored row, so every human/character turn
+      // stays byte-identical. NO owner id, NO soul prompt: just the agent's display name + its source kind.
+      ...(m.agentAuthor !== undefined ? { agent_author: { name: m.agentAuthor.name, source_kind: m.agentAuthor.sourceKind } } : {}),
       ...(hasVariants
         ? {
             swipes: m.variants.map((v) => v.content),

@@ -36,7 +36,7 @@ function idOf(yielded: unknown): string {
 }
 
 describe("chat.streamMessages — durable-first resume", () => {
-  test("replays durable rows newer than lastEventId, ascending, before going live", async () => {
+  test("replays durable rows newer than lastEventId, ascending, before going live (after the chatOpened attach synthesis)", async () => {
     const replayChatEvents = vi.fn<ChatService["replayChatEvents"]>(async ({ afterSeq }) => [
       { seq: (afterSeq ?? 0) + 1, event: event("chatDeleted") },
       { seq: (afterSeq ?? 0) + 2, event: event() },
@@ -49,25 +49,32 @@ describe("chat.streamMessages — durable-first resume", () => {
 
     const sub = await caller(ctx).chat.streamMessages({ chatId: CHAT, lastEventId: "5" });
     const iterator = sub[Symbol.asyncIterator]();
+    // PD-134: `chatOpened` synthesizes FIRST at attach, carrying the resume cursor as its id (never
+    // advancing `lastEventId` — a reconnect re-sends "5" and replays from the same durable point).
+    const opened = await iterator.next();
     const first = await iterator.next();
     const second = await iterator.next();
     await iterator.return?.(undefined);
 
+    expect(dataOf(opened.value).type).toBe("chatOpened");
+    expect(idOf(opened.value)).toBe("5");
     // The durable replay ran with the resume cursor, member-gated…
     expect(replayChatEvents).toHaveBeenCalledWith({
       principal: expect.objectContaining({ userId: MEMBER }),
       chatId: CHAT,
       afterSeq: 5,
     });
-    // …and the missed events replay ASCENDING with their durable seq as the tracked id.
+    // …and the missed events replay ASCENDING with their durable seq as the tracked id (no `historyTruncated`:
+    // cursor 5 is INSIDE the retained window minSeq=1).
     expect(idOf(first.value)).toBe("6");
     expect(dataOf(first.value).type).toBe("chatDeleted");
     expect(idOf(second.value)).toBe("7");
   });
 
   test("withhold-not-throw: a NOT_FOUND gate silences yields (pre-start subscribe / kicked member) without tearing down", async () => {
-    // The gate flips: not-a-member (event 1) → member (event 2) → kicked (event 3) → member (event 4).
-    const verdicts = [false, true, false, true];
+    // The gate flips per probe: attach (not yet a member — no chatOpened) → event 1 withheld → event 2
+    // member → event 3 kicked → event 4 member. The first verdict is consumed by the attach probe.
+    const verdicts = [false, false, true, false, true];
     let call = 0;
     const chatEventBounds = vi.fn<ChatService["chatEventBounds"]>(() => {
       const allowed = verdicts[call] ?? true;
@@ -80,7 +87,8 @@ describe("chat.streamMessages — durable-first resume", () => {
       services: { chat: { replayChatEvents, chatEventBounds } },
     });
 
-    // First subscribe (no lastEventId): no durable replay — live only.
+    // First subscribe (no lastEventId): no durable replay — live only. The attach probe withholds
+    // (not-yet-a-member) so NO chatOpened is synthesized.
     const sub = await caller(ctx).chat.streamMessages({ chatId: CHAT });
     const iterator = sub[Symbol.asyncIterator]();
     const firstYield = iterator.next();
@@ -94,10 +102,114 @@ describe("chat.streamMessages — durable-first resume", () => {
     const second = await iterator.next();
     await iterator.return?.(undefined);
 
-    // Only the gate-passing events came through (1 and 3 withheld; the stream never errored).
+    // Only the gate-passing events came through (1 and 3 withheld; the stream never errored; no chatOpened).
     expect(idOf(first.value)).toBe("2");
+    expect(dataOf(first.value).type).toBe("chatUpdated");
     expect(idOf(second.value)).toBe("4");
     expect(replayChatEvents).not.toHaveBeenCalled();
+  });
+});
+
+// The subscription-side syntheses (PD-134 chatOpened + PD-135 historyTruncated): synthesized per
+// subscription in `chatEventStream`, never bus-published / logged. A synthetic carries the CURRENT resume
+// cursor as its tracked id, so it never advances `lastEventId` — a reconnect replays from the same point.
+describe("chat.streamMessages — synthesized attach/resume events (PD-134/PD-135)", () => {
+  test("PD-134: attach with membership yields `chatOpened` FIRST (fresh subscribe, id = the null-cursor floor '0'), no replay", async () => {
+    const chatEventBounds = vi.fn<ChatService["chatEventBounds"]>(async () => BOUNDS);
+    const replayChatEvents = vi.fn<ChatService["replayChatEvents"]>(async () => []);
+    const ctx = makeContext({
+      auth: principal("user", { userId: MEMBER }),
+      services: { chat: { replayChatEvents, chatEventBounds } },
+    });
+
+    const sub = await caller(ctx).chat.streamMessages({ chatId: CHAT });
+    const iterator = sub[Symbol.asyncIterator]();
+    const opened = await iterator.next();
+    await iterator.return?.(undefined);
+
+    expect(dataOf(opened.value).type).toBe("chatOpened");
+    expect(idOf(opened.value)).toBe("0");
+    // A fresh subscribe drains live only — the durable replay never runs.
+    expect(replayChatEvents).not.toHaveBeenCalled();
+  });
+
+  test("PD-135: a cursor PREDATING the retained window yields `historyTruncated` after chatOpened, BEFORE the retained rows", async () => {
+    // minSeq=5 ⇒ events 1..4 were dropped; resume cursor 1 predates the window (1 < 5 - 1) ⇒ truncated.
+    const chatEventBounds = vi.fn<ChatService["chatEventBounds"]>(async () => ({ minSeq: 5, maxSeq: 8 }));
+    const replayChatEvents = vi.fn<ChatService["replayChatEvents"]>(async () => [
+      { seq: 5, event: event("chatDeleted") },
+      { seq: 6, event: event() },
+    ]);
+    const ctx = makeContext({
+      auth: principal("user", { userId: MEMBER }),
+      services: { chat: { replayChatEvents, chatEventBounds } },
+    });
+
+    const sub = await caller(ctx).chat.streamMessages({ chatId: CHAT, lastEventId: "1" });
+    const iterator = sub[Symbol.asyncIterator]();
+    const opened = await iterator.next();
+    const truncated = await iterator.next();
+    const firstRow = await iterator.next();
+    const secondRow = await iterator.next();
+    await iterator.return?.(undefined);
+
+    expect(dataOf(opened.value).type).toBe("chatOpened");
+    // historyTruncated fires BEFORE replay, carrying the resume cursor id (non-advancing).
+    expect(dataOf(truncated.value).type).toBe("historyTruncated");
+    expect(idOf(truncated.value)).toBe("1");
+    // Then the retained rows the client can still resume replay ascending with their durable seq ids.
+    expect(dataOf(firstRow.value).type).toBe("chatDeleted");
+    expect(idOf(firstRow.value)).toBe("5");
+    expect(idOf(secondRow.value)).toBe("6");
+  });
+
+  test("PD-135: a cursor INSIDE the retained window replays WITHOUT `historyTruncated`", async () => {
+    // minSeq=1 ⇒ nothing dropped; resume cursor 3 is caught up within the window (3 < 1 - 1 is false).
+    const chatEventBounds = vi.fn<ChatService["chatEventBounds"]>(async () => ({ minSeq: 1, maxSeq: 6 }));
+    const replayChatEvents = vi.fn<ChatService["replayChatEvents"]>(async () => [{ seq: 4, event: event("chatDeleted") }]);
+    const ctx = makeContext({
+      auth: principal("user", { userId: MEMBER }),
+      services: { chat: { replayChatEvents, chatEventBounds } },
+    });
+
+    const sub = await caller(ctx).chat.streamMessages({ chatId: CHAT, lastEventId: "3" });
+    const iterator = sub[Symbol.asyncIterator]();
+    const opened = await iterator.next();
+    const next = await iterator.next();
+    await iterator.return?.(undefined);
+
+    expect(dataOf(opened.value).type).toBe("chatOpened");
+    // The very next yield is the retained row — NOT a historyTruncated frame.
+    expect(dataOf(next.value).type).toBe("chatDeleted");
+    expect(idOf(next.value)).toBe("4");
+  });
+
+  test("PD-134 round-trip: the chatOpened synthetic does NOT corrupt the resume cursor — replay runs from the same lastEventId", async () => {
+    // Even caught-up-at-window-floor (minSeq=1, cursor 0): resume replay uses the client cursor unchanged,
+    // and the synthetic id equals that cursor (never a faked/advanced durable seq).
+    const chatEventBounds = vi.fn<ChatService["chatEventBounds"]>(async () => ({ minSeq: 1, maxSeq: 2 }));
+    const replayChatEvents = vi.fn<ChatService["replayChatEvents"]>(async ({ afterSeq }) => [{ seq: (afterSeq ?? 0) + 1, event: event() }]);
+    const ctx = makeContext({
+      auth: principal("user", { userId: MEMBER }),
+      services: { chat: { replayChatEvents, chatEventBounds } },
+    });
+
+    const sub = await caller(ctx).chat.streamMessages({ chatId: CHAT, lastEventId: "0" });
+    const iterator = sub[Symbol.asyncIterator]();
+    const opened = await iterator.next();
+    const row = await iterator.next();
+    await iterator.return?.(undefined);
+
+    // The synthetic re-sends cursor "0" (no advance); a cursor 0 is NOT < minSeq(1) - 1, so no truncation.
+    expect(dataOf(opened.value).type).toBe("chatOpened");
+    expect(idOf(opened.value)).toBe("0");
+    expect(replayChatEvents).toHaveBeenCalledWith({
+      principal: expect.objectContaining({ userId: MEMBER }),
+      chatId: CHAT,
+      afterSeq: 0,
+    });
+    // The first durable row advances the cursor to its real seq.
+    expect(idOf(row.value)).toBe("1");
   });
 });
 

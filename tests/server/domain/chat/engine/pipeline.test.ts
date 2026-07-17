@@ -161,6 +161,22 @@ describe("runTurnPipeline — request shaping + fit", () => {
     expect(typeof result.cacheBreakpointFromEnd === "number" || result.cacheBreakpointFromEnd === null).toBe(true);
   });
 
+  test("PD-146: the host's custom stopping strings fold into the request intent's stop set (dedup, intent-first)", async () => {
+    const { args } = baseArgs({ intent: { stop: ["<END>"] } satisfies UserIntent, extraStopSequences: ["<END>", "\nUser:"] });
+    const result = await runTurnPipeline(args);
+    // resolveSampling reads request.intent.stop — the preset/intent stops come first, then the host's, Set-deduped.
+    expect(result.request.intent.stop).toEqual(["<END>", "\nUser:"]);
+  });
+
+  test("PD-146: no custom stops leaves the request intent untouched (byte-identical to today)", async () => {
+    const intent: UserIntent = { stop: ["<END>"] };
+    const withEmpty = await runTurnPipeline(baseArgs({ intent, extraStopSequences: [] }).args);
+    const withNone = await runTurnPipeline(baseArgs({ intent }).args);
+    // Empty/absent extras return the intent by reference — the request stop is exactly the caller's.
+    expect(withEmpty.request.intent).toBe(intent);
+    expect(withNone.request.intent).toBe(intent);
+  });
+
   test("the `completion` names-behavior threads the author into the wire `name` field", async () => {
     // names.ts sets `name` only under "completion" (content untouched); the pipeline must thread it to the
     // TurnMessage wire `name`. The user row's author is the active persona ("Alex").
@@ -420,6 +436,70 @@ describe("runTurnPipeline — roleHandling is the PRESET knob, clamped at SHAPE"
     });
     const result = await runTurnPipeline(args);
     expect(assistantRows(result.request)).toHaveLength(1);
+  });
+});
+
+describe("runTurnPipeline — PD-148: the preset params + customParameters fold into the wire request", () => {
+  const presetParams = (params: UserIntent): PromptConfig => ({ ...DEFAULT_PROMPT_CONFIG, params });
+
+  test("preset `params` are the BASE — a preset's sampling knobs reach the wire intent with no per-turn override", async () => {
+    const { args } = baseArgs({
+      intent: {} satisfies UserIntent,
+      assembleContext: ctxOf({ promptConfig: presetParams({ temperature: 0.7, topP: 0.9, seed: 42 }) }),
+    });
+    const result = await runTurnPipeline(args);
+    expect(result.request.intent.temperature).toBe(0.7);
+    expect(result.request.intent.topP).toBe(0.9);
+    expect(result.request.intent.seed).toBe(42);
+  });
+
+  test("per-turn `UserIntent` OVERRIDES the preset field-wise; preset-only fields survive", async () => {
+    const { args } = baseArgs({
+      intent: { temperature: 1.4 } satisfies UserIntent,
+      assembleContext: ctxOf({ promptConfig: presetParams({ temperature: 0.7, topP: 0.9 }) }),
+    });
+    const result = await runTurnPipeline(args);
+    expect(result.request.intent.temperature).toBe(1.4); // per-turn wins
+    expect(result.request.intent.topP).toBe(0.9); // preset-only survives
+  });
+
+  test("the stop set is the UNION of preset stop + per-turn stop + the host's custom stops, Set-deduped", async () => {
+    const { args } = baseArgs({
+      intent: { stop: ["B"] } satisfies UserIntent,
+      extraStopSequences: ["A", "C"],
+      assembleContext: ctxOf({ promptConfig: presetParams({ stop: ["A"] }) }),
+    });
+    const result = await runTurnPipeline(args);
+    // preset stop first, then per-turn, then the host's — deduped ("A" appears in preset + extras).
+    expect(result.request.intent.stop).toEqual(["A", "B", "C"]);
+  });
+
+  test("the preset `advanced` block merges field-wise — a per-turn sub-field overrides, siblings survive", async () => {
+    const { args } = baseArgs({
+      intent: { advanced: { roleHandling: "none" } } satisfies UserIntent,
+      assembleContext: ctxOf({ promptConfig: presetParams({ advanced: { roleHandling: "strict", squashSystemMessages: true } }) }),
+    });
+    const result = await runTurnPipeline(args);
+    expect(result.request.intent.advanced?.roleHandling).toBe("none"); // per-turn wins
+    expect(result.request.intent.advanced?.squashSystemMessages).toBe(true); // preset sibling survives
+  });
+
+  test("the preset's `customParameters` blob reaches the wire request", async () => {
+    const customParameters = { provider: { order: ["deepinfra"] }, mirostat: 2 };
+    const { args } = baseArgs({
+      assembleContext: ctxOf({ promptConfig: { ...DEFAULT_PROMPT_CONFIG, customParameters } }),
+    });
+    const result = await runTurnPipeline(args);
+    expect(result.request.customParameters).toEqual(customParameters);
+  });
+
+  test("a DEFAULT preset with an untouched `params` leaves the request byte-identical (intent by reference, no customParameters)", async () => {
+    const intent: UserIntent = { temperature: 0.8 };
+    const result = await runTurnPipeline(baseArgs({ intent }).args);
+    // DEFAULT_PROMPT_CONFIG.params is `{}` and carries no customParameters ⇒ the per-turn intent passes through
+    // by reference and the request carries no customParameters field.
+    expect(result.request.intent).toBe(intent);
+    expect(result.request.customParameters).toBeUndefined();
   });
 });
 

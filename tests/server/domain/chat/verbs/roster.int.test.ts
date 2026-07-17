@@ -636,7 +636,9 @@ describe("seatAgent — the ONE agent-seat chokepoint (D60, doc 04 §3)", () => 
   function seatRoster(opts: { enabled?: boolean } = {}): ReturnType<typeof createRoster> {
     const ctx = makeChatContext(db, {
       provisionAgentPrincipal: () => Promise.resolve({ agentUserId: Agent, created: true }),
-      resolveAgentEnabled: () => Promise.resolve(opts.enabled ?? true),
+      // The ONE agent kill-switch read: an AgentActor whose `enabled` drives the seat containment refusal
+      // (ownerUserId is unread by seatAgent — a placeholder in this double).
+      resolveAgentActor: () => Promise.resolve({ kind: "agent", userId: Agent, ownerUserId: Agent, enabled: opts.enabled ?? true }),
     });
     return createRoster(ctx, { emit });
   }

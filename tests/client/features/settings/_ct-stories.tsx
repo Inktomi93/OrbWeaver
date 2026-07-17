@@ -10,6 +10,7 @@ import type { ReactElement } from "react";
 // Rail precedent) — AppearanceSettingsSurface + SystemSettingsSurface are mounted by SettingsShell itself,
 // not exported standalone.
 import { AppearanceSettingsSurface } from "../../../../packages/client/src/features/settings/surfaces/appearance-settings-surface";
+import { ChatBehaviorSettingsSurface } from "../../../../packages/client/src/features/settings/surfaces/chat-behavior-settings-surface";
 import { RegexSettingsSurface } from "../../../../packages/client/src/features/settings/surfaces/regex-settings-surface";
 import { SystemSettingsSurface } from "../../../../packages/client/src/features/settings/surfaces/system-settings-surface";
 import { TagsSettingsSurface } from "../../../../packages/client/src/features/settings/surfaces/tags-settings-surface";
@@ -84,6 +85,18 @@ export function AppearanceSettingsStory(): ReactElement {
     <CtDataProviders>
       <div style={{ height: 900, overflow: "auto", width: 960 }}>
         <AppearanceSettingsSurface />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The real Chat-behavior pane (PD-146) in isolation — `getUserSettings` (read) and
+ *  `updateUserSettingsSection("chat")` (the autosave write) are stubbed per-test via routeTrpc. */
+export function ChatBehaviorSettingsStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ height: 900, overflow: "auto", width: 960 }}>
+        <ChatBehaviorSettingsSurface />
       </div>
     </CtDataProviders>
   );

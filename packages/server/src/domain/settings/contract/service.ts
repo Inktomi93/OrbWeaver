@@ -23,6 +23,13 @@ import type {
 } from "./params";
 import type { GlobalSettingView, ThemeView, UserSettingsView } from "./views";
 
+/** Injected cross-feature op (PD-139a): fired AFTER a user-settings write that CHANGED the box's
+ *  `routing.roleDefaults.embed.model` or `.imageEmbed.model`. Wired at the entry root to enqueue a bulk
+ *  purge+reindex (`workloads.start` index/all/force) — the trigger the PD-104 purge+reindex machine was
+ *  missing. Fire-and-forget by contract, exactly like `emitUserEvent`: it returns void and the wired op
+ *  swallows its own errors, so a failed or duplicate enqueue can NEVER fail the settings write. */
+type OnEmbedModelChanged = () => void;
+
 /** The DI bundle every verb closes over, wired at the composition root. */
 export interface SettingsContext {
   readonly db: Db;
@@ -39,6 +46,8 @@ export interface SettingsContext {
   /** User-bus live-freshness emit: user-settings writes fire `settingsChanged`, theme verbs fire
    *  `themesChanged`, after the durable write. AppSettings/GlobalSettings are global/admin — no emit. */
   readonly emitUserEvent: EmitUserEvent;
+  /** PD-139a: fired (fire-and-forget) after a write that changed the embed/imageEmbed model id. */
+  readonly onEmbedModelChanged: OnEmbedModelChanged;
 }
 
 /** What the entry composition root supplies to stand up the domain. */
@@ -50,6 +59,7 @@ export interface SettingsServiceDeps {
   readonly requireOwner: RequireOwner;
   readonly newThemeId: () => ThemeId;
   readonly emitUserEvent: EmitUserEvent;
+  readonly onEmbedModelChanged: OnEmbedModelChanged;
 }
 
 /** The settings API surface. UserSettings verbs scope by `principal.userId`; AppSettings verbs gate on the

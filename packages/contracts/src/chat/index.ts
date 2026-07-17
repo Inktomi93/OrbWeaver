@@ -34,7 +34,7 @@ import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import type { PersonaDescriptionPlacement } from "@orb/kit/persona";
 import { z } from "zod";
 import type { ChatApi, CredentialSource } from "#connection";
-import type { ParticipantRole } from "#identity";
+import type { AgentSourceKind, ParticipantRole } from "#identity";
 import { PARTICIPANT_ROLES } from "#identity";
 import type { GenerationType, PromptConfig, UserIntent } from "#preset";
 import type { RegexScript } from "#regex";
@@ -957,6 +957,20 @@ export interface MemberCardView {
   systemPrompt: string | null;
   postHistoryInstructions: string | null;
   authorsNoteDepth: number | null;
+}
+
+/** The D22 "who is this?" projection for an AGENT seat (D60; agent-principal-design/06 §5). An agent has no
+ *  `characters` card to clamp — its steering internals ARE its soul (owner-private by the same logic that
+ *  keeps a low-level card's internals private), so this is a FIXED minimal projection, NOT the level-clamped
+ *  {@link MemberCardView} ladder: the room-shareable floor only. `displayName` comes from the doc-04 speaker
+ *  source; `sourceKind`/`ownerHandle` from the `agent_principals` satellite + the owner link. Server-produced
+ *  read model (the roster chip's popover, D44 client wave); no soul prompt, no avatar (v1 — sprites are
+ *  client-local). */
+export interface AgentCardView {
+  readonly displayName: string;
+  readonly sourceKind: AgentSourceKind;
+  /** The owning human's public handle (`users.ownerUserId → users.handle`). */
+  readonly ownerHandle: Handle;
 }
 
 // ── Invites & the membership chokepoint (Part III §2; D16) ──

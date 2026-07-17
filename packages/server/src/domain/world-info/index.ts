@@ -13,6 +13,8 @@ export type {
   ImportWorldBook,
   ImportWorldBookContext,
   ImportWorldBookOutcome,
+  LinkCarriedBooks,
+  LinkCarriedBooksResult,
   WorldInfoDuplicateCarryContext,
   WorldInfoImportContext,
 } from "./contract/import";
@@ -29,6 +31,7 @@ export {
   createBulkImportLorebook,
   createImportStandaloneLorebook,
 } from "./persistence/import-write";
+export { createLinkCarriedBooks } from "./persistence/link-carried-books";
 export { createWorldInfoService } from "./service";
 export { createExport as createExportWorldBook } from "./verbs/export";
 export { createImport as createImportWorldBook } from "./verbs/import";
