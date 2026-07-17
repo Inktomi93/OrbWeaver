@@ -1,5 +1,6 @@
 // CT: the streaming ghost row + ghost isolation. Drives the chat-stream store in-browser (begin →
-// token…) and asserts: pending shows the TTFT shimmer; streaming reveals paced markdown; and more
+// token…) and asserts: the §6.4 phase affordances (pending → typing dots, streaming → the 2px primary
+// caret, neither at rest, both static under reduced motion); streaming reveals paced markdown; and more
 // tokens grow ONLY the ghost while the surface-level lifecycle read (`phase`) stays "streaming" — the
 // ghost-isolation invariant (token churn never leaves the one subscribed row).
 //
@@ -27,17 +28,69 @@ async function driveScript(component: MountResult, chunkCount: number): Promise<
 
 const THREE_HI = /Hi\s+Hi\s+Hi/u;
 
-test("pending shows the TTFT shimmer, then streaming reveals paced markdown", async ({ mount }) => {
+test("pending shows the typing dots, then streaming reveals paced markdown", async ({ mount }) => {
   const component = await mount(<GhostRowStory />);
   const phase = component.getByTestId("phase");
 
   await component.getByTestId("begin").click();
   await expect(phase).toHaveText("pending");
-  await expect(component.getByRole("status")).toBeVisible();
+  // The pending affordance is the three-dot typing pulse (role=status), not the shimmer.
+  await expect(component.locator('[data-slot="typing-dots"]')).toBeVisible();
+  await expect(component.locator(".orb-typing-dot")).toHaveCount(3);
 
   await component.getByTestId("token").click();
   await expect(phase).toHaveText("streaming");
   await expect(component.getByText("Hi")).toBeVisible();
+});
+
+// The §6.4 phase affordances: dots only while pending, caret only while streaming, neither at rest.
+test("§6.4 phase affordances: dots pending-only, caret streaming-only, neither at rest", async ({ mount }) => {
+  const component = await mount(<GhostRowStory />);
+  const dots = component.locator('[data-slot="typing-dots"]');
+  // The caret is Streamdown's `::after` on the last streamed block, retinted 2px primary; assert it via
+  // its computed left border (Streamdown emits no caret element to query for, only a pseudo-element).
+  const caretBorder = (): Promise<string> =>
+    component.locator('[data-slot="ghost-stream-body"] > * > *:last-child > *:last-child').evaluate((el) => getComputedStyle(el, "::after").borderLeftWidth);
+
+  // At rest (idle): no ghost body at all.
+  await expect(dots).toHaveCount(0);
+  await expect(component.locator('[data-slot="ghost-stream-body"]')).toHaveCount(0);
+
+  // Pending: dots visible, no stream body (so no caret).
+  await component.getByTestId("begin").click();
+  await expect(dots).toBeVisible();
+  await expect(component.locator('[data-slot="ghost-stream-body"]')).toHaveCount(0);
+
+  // Streaming: dots gone; the caret's 2px left border is painted on the last streamed block.
+  await component.getByTestId("token").click();
+  await expect(dots).toHaveCount(0);
+  await expect(component.getByText("Hi")).toBeVisible();
+  expect(await caretBorder()).toBe("2px");
+
+  // Settled (completeTurn → the slot leaves the live phases): the ghost row unmounts, no caret.
+  await component.getByTestId("complete").click();
+  await expect(component.locator('[data-slot="ghost-stream-body"]')).toHaveCount(0);
+});
+
+// Reduced motion: both affordances render their STATIC form — the dots visible (frozen, not blank) and
+// the caret a steady 2px bar (no blink). Under the reduced-motion floor `animation-duration` collapses
+// to ~0, so the computed animation state reads as effectively frozen at its resting frame.
+test("reduced motion: dots render static and the caret renders steady (no blink)", async ({ mount, page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  const component = await mount(<GhostRowStory />);
+
+  await component.getByTestId("begin").click();
+  const dots = component.locator(".orb-typing-dot").first();
+  await expect(dots).toBeVisible();
+  // The floor freezes the pulse: animation-duration collapses to the 0.01ms !important floor.
+  expect(await dots.evaluate((el) => getComputedStyle(el).animationDuration)).toBe("1e-05s");
+
+  await component.getByTestId("token").click();
+  await expect(component.getByText("Hi")).toBeVisible();
+  const caret = component.locator('[data-slot="ghost-stream-body"] > * > *:last-child > *:last-child');
+  // The caret bar still paints (2px primary), but its blink is frozen by the same floor.
+  expect(await caret.evaluate((el) => getComputedStyle(el, "::after").borderLeftWidth)).toBe("2px");
+  expect(await caret.evaluate((el) => getComputedStyle(el, "::after").animationDuration)).toBe("1e-05s");
 });
 
 test("more tokens grow only the ghost; the lifecycle phase read stays stable", async ({ mount }) => {
