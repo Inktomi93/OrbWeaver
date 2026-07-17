@@ -597,6 +597,16 @@
       }
     },
     {
+      "includes": ["packages/client/src/forms/create-autosave-entity-boundary.tsx"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noComponentHookFactories": "off"
+          }
+        }
+      }
+    },
+    {
       "includes": ["tests/**"],
       "linter": {
         "rules": {

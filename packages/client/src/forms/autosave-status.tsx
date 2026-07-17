@@ -13,10 +13,16 @@ export interface AutosaveStatusProps {
   readonly state: AutosaveSaveState;
   /** Re-run the pending save — wire to the factory's `retrySave`. */
   readonly onRetry: () => void;
+  /**
+   * A reassurance line rendered ONLY in the `saved` state (D78 §6): the settings panes' "Synced across
+   * your devices." / system-pane explainer moves HERE, replacing a sibling `Text`. Rendered inside the
+   * status structurally so "Save failed — Retry · <caption>" is unrepresentable.
+   */
+  readonly caption?: string;
 }
 
 /** The shared live-save readout. On `error` the retry is a real affordance (a ghost button), never text. */
-export function AutosaveStatus({ state, onRetry }: AutosaveStatusProps): ReactElement {
+export function AutosaveStatus({ state, onRetry, caption }: AutosaveStatusProps): ReactElement {
   if (state === "error") {
     return (
       <Row gap="field" align="center" data-slot="autosave-status">
@@ -26,6 +32,18 @@ export function AutosaveStatus({ state, onRetry }: AutosaveStatusProps): ReactEl
         <Button type="button" intent="ghost" size="sm" onClick={onRetry}>
           Retry
         </Button>
+      </Row>
+    );
+  }
+  if (state === "saved" && caption !== undefined) {
+    return (
+      <Row gap="field" align="center" data-slot="autosave-status">
+        <Text size="micro" tone="muted">
+          Saved
+        </Text>
+        <Text size="micro" tone="muted">
+          {caption}
+        </Text>
       </Row>
     );
   }
