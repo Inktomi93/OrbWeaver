@@ -1,12 +1,12 @@
 // CT story module for the preset CONTENT editor surface (Spine-Testing §7 — a CT mounts ONLY from a
-// non-test module). Drives the PRODUCTION path — `preset.get`/`settings.getUserSettings` (routeTrpc) →
-// `usePresetForm` (createAutosaveEntityForm) → the tabbed editor — so the two P0 regressions the stickler
-// review 2026-07-16-merge-block-28523122 found (preset-SWITCH renders the previous preset's config; RESET-
-// to-starter is a durable no-op) are pinned against the REAL surface, not a double.
+// non-test module). Drives the PRODUCTION path — `preset.get`/`settings.getUserSettings` (routeTrpc) → the
+// D78 session BOUNDARY (`PresetForm` = createAutosaveEntityBoundary) → the tabbed editor — so the two P0
+// regressions the stickler review 2026-07-16-merge-block-28523122 found (preset-SWITCH renders the previous
+// preset's config; RESET-to-starter is a durable no-op) are pinned against the REAL surface, not a double.
 //
 // The SWITCH story flips the surface's `presetId` prop on a button (the real rail behavior — the section
-// re-renders the editor with a new preset id) so the CT proves switching A→B remounts the hook-owning
-// `PresetEditor` and seeds from B's row (never A's surviving frozen seed).
+// re-renders the editor with a new preset id) so the CT proves switching A→B rekeys the boundary's Session
+// and seeds from B's row (never A's surviving frozen seed).
 
 import { PresetEditorSurface } from "@orb/client/features/preset";
 import type { PresetId } from "@orb/kit/ids";

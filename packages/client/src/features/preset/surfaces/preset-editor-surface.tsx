@@ -4,6 +4,12 @@
 // resolve capability for the user's configured chat-role connection, and show a connect-a-model note when
 // none is configured.
 //
+// D78 L1: mounts the autosave form through the session BOUNDARY (`PresetForm` = createAutosaveEntityBoundary)
+// — the factory owns entity identity (its keyed Session), the teardown flush, and reseed. Reset-to-starter
+// is now `session.reseed(seedConfig(row.config))` off the mutation-response row (§5) — no nonce machinery,
+// no manual mount key, no `closeForReseed`. Structural array ops persist via the boundary's store driver, so
+// the child components carry ZERO manual `handleSubmit` flushes (§10 CT-4 / the retired §7 trap).
+//
 // north-star §6.2: the ten leaf tabs render as FOUR primary groups (Generation · Prompt · Context ·
 // Transforms), each group's leaves shown as sub-navigation — leaf CONTENT is unchanged (a regroup). The
 // outer `Tabs` is the group strip; each group panel nests its own `Tabs` over its leaves.
@@ -11,6 +17,7 @@
 import type { ChatApi, ModelCapability } from "@orb/contracts/connection";
 import type { CredentialSource } from "@orb/contracts/credentials";
 import type { PromptConfig } from "@orb/contracts/preset";
+import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { PresetId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Icon, MoreHorizontal, RotateCcw } from "@orb/ui/icons";
@@ -18,24 +25,30 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@orb/ui/menu";
 import { Tabs, TabsIndicator, TabsList, TabsPanel, TabsTab } from "@orb/ui/tabs";
 import { Text } from "@orb/ui/text";
-import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
 import { ConfirmDialog } from "#components";
 import { QueryBoundary, QueryErrorState, useGatedQuery, useInvalidation, useTRPC } from "#data";
-import type { AppFormInstance } from "#forms";
-import { AutosaveStatus } from "#forms";
+import type { AppFormInstance, AutosaveSession } from "#forms";
+import { AutosaveStatus, createAutosaveEntityBoundary } from "#forms";
 import { useFocusOnMount } from "#lib";
 import { ParamsPanel } from "../components/params-panel";
 import { PresetStructureTabs } from "../components/preset-structure-tabs";
 import { RegexTab } from "../components/regex-tab";
 import { VariablesTab } from "../components/variables-tab";
-import { usePresetForm } from "../hooks/use-preset-form";
 import { useResetPreset, useUpdatePreset } from "../hooks/use-preset-mutations";
 import { clearAssemblyForm, publishAssemblyForm } from "../lib/preset-editor-bridge";
 import { mergeOnSubmit, seedConfig } from "../lib/preset-editor-model";
 import type { PresetEditorTab } from "../lib/preset-nav";
 import { PRESET_EDITOR_GROUPS } from "../lib/preset-nav";
+
+// The session-boundary autosave form (D78 §1). Module-scope so both the Boundary and its inner Session have
+// stable identities (never a per-render factory call). Entity identity, the teardown flush, and reseed live
+// INSIDE it — a consumer cannot mount it any way except keyed by `entityId`.
+const PresetForm = createAutosaveEntityBoundary<PromptConfig>({
+  defaultValues: DEFAULT_PROMPT_CONFIG,
+});
 
 export interface PresetEditorSurfaceProps {
   readonly presetId: PresetId;
@@ -49,34 +62,16 @@ export function PresetEditorSurface({ presetId, onRevealSection, onDismissSectio
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
 
-  // Reset-to-starter remounts the HOOK-OWNING `PresetEditor` (bumping this nonce into its mount key) so its
-  // whole FormApi dies and is reborn seeding from the freshly-written server row — NEVER `form.reset` (the
-  // autosave isDirty loop; no-form-reset-in-autosave gate). The nonce lives HERE, ABOVE the query boundary,
-  // so it composes into `PresetEditor`'s key — a key on a `<form>` BELOW the hook owner remounts DOM only
-  // and the frozen-seed FormApi survives (stickler review 2026-07-16-merge-block-28523122).
-  const [resetNonce, setResetNonce] = useState(0);
-
   return (
     <Stack ref={surfaceRef} tabIndex={-1} className="h-full min-h-0 overflow-y-auto overflow-x-hidden outline-none">
       <QueryBoundary
         fallback={<Text tone="muted">Loading the preset…</Text>}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="the preset" onRetry={retry} />}
       >
-        <PresetEditor
-          key={`${presetId}:${resetNonce}`}
-          presetId={presetId}
-          onReseed={(): void => setResetNonce((n) => n + 1)}
-          onRevealSection={onRevealSection}
-          onDismissSection={onDismissSection}
-        />
+        <PresetEditor presetId={presetId} onRevealSection={onRevealSection} onDismissSection={onDismissSection} />
       </QueryBoundary>
     </Stack>
   );
-}
-
-interface PresetEditorProps extends PresetEditorSurfaceProps {
-  /** Trigger the hook-owner remount onto the freshly-reset server row (the surface bumps the mount nonce). */
-  readonly onReseed: () => void;
 }
 
 interface LeafContentProps {
@@ -110,9 +105,8 @@ function leafContent(id: PresetEditorTab["id"], props: LeafContentProps): ReactE
   }
 }
 
-function PresetEditor({ presetId, onReseed, onRevealSection, onDismissSection }: PresetEditorProps): ReactElement {
+function PresetEditor({ presetId, onRevealSection, onDismissSection }: PresetEditorSurfaceProps): ReactElement {
   const trpc = useTRPC();
-  const queryClient = useQueryClient();
   const invalidation = useInvalidation();
   const { data: preset } = useSuspenseQuery(trpc.preset.get.queryOptions({ id: presetId }));
   const { data: settings } = useSuspenseQuery(trpc.settings.getUserSettings.queryOptions());
@@ -134,24 +128,45 @@ function PresetEditor({ presetId, onReseed, onRevealSection, onDismissSection }:
     await update.mutateAsync({ id: presetId, config: merged });
   };
 
-  const { form, saveState, retrySave, closeForReseed } = usePresetForm({
-    entityId: presetId,
-    serverValues: seedConfig(server),
-    save,
-  });
+  return (
+    <PresetForm entityId={presetId} serverValues={seedConfig(server)} save={save}>
+      {(session): ReactElement => (
+        <PresetEditorBody
+          session={session}
+          presetId={presetId}
+          presetName={preset.name}
+          capability={capability}
+          reset={reset}
+          onRevealSection={onRevealSection}
+          onDismissSection={onDismissSection}
+        />
+      )}
+    </PresetForm>
+  );
+}
+
+interface PresetEditorBodyProps {
+  readonly session: AutosaveSession<PromptConfig>;
+  readonly presetId: PresetId;
+  readonly presetName: string;
+  readonly capability: ModelCapability | undefined;
+  readonly reset: ReturnType<typeof useResetPreset>;
+  readonly onRevealSection?: (() => void) | undefined;
+  readonly onDismissSection?: (() => void) | undefined;
+}
+
+function PresetEditorBody({ session, presetId, presetName, capability, reset, onRevealSection, onDismissSection }: PresetEditorBodyProps): ReactElement {
+  const { form, saveState, retrySave, reseed } = session;
 
   const [resetOpen, setResetOpen] = useState(false);
   const confirmReset = (): void => {
     void (async (): Promise<void> => {
       try {
-        await reset.mutateAsync({ id: presetId });
-        // Reseed from the FRESH row: the mutation's own invalidation of `preset.get` is fire-and-forget, so
-        // await the editor's read explicitly before the remount — else `PresetEditor` re-suspends against the
-        // STALE cache and the starter never lands. Then arm the teardown-flush suppression (a dirty pre-reset
-        // form would otherwise re-persist its old values over the fresh row on unmount) and bump the nonce.
-        await queryClient.refetchQueries(trpc.preset.get.queryFilter({ id: presetId }));
-        closeForReseed();
-        onReseed();
+        // Reseed from the mutation's RESPONSE row (§5) — the verb returns the freshly-reset PresetDetail, so
+        // there is no post-invalidation cache read to race. `reseed` discard-flags the outgoing session so the
+        // dirty pre-reset form is dropped, never written back over the starter (the F2 write-back vector).
+        const row = await reset.mutateAsync({ id: presetId });
+        reseed(seedConfig(row.config));
       } catch {
         // The mutation's own errorToast already surfaced it; keep the current arrangement.
       }
@@ -159,27 +174,24 @@ function PresetEditor({ presetId, onReseed, onRevealSection, onDismissSection }:
   };
 
   // Publish the live form handle so the CONTEXT section inspector (a sibling shell region, no shared React
-  // ancestor) can bind `sections[i].*`; clears on unmount so a stale handle never outlives the editor.
+  // ancestor) can bind `sections[i].*`; clears on unmount so a stale handle never outlives the editor. The
+  // session's `form` is the boundary's widened surface minus `reset`; the bridge consumers are typed against
+  // the full `AppFormInstance` (the editor never calls `reset`), so widen once here.
+  const boundForm = form as AppFormInstance<PromptConfig>;
   useEffect(() => {
-    publishAssemblyForm({ presetId, form });
+    publishAssemblyForm({ presetId, form: boundForm });
     return (): void => clearAssemblyForm();
-  }, [presetId, form]);
+  }, [presetId, boundForm]);
 
-  const leafProps: LeafContentProps = { form, capability, onRevealSection, onDismissSection };
+  const leafProps: LeafContentProps = { form: boundForm, capability, onRevealSection, onDismissSection };
 
   return (
-    <form
-      onSubmit={(event): void => {
-        event.preventDefault();
-        event.stopPropagation();
-        void form.handleSubmit();
-      }}
-    >
+    <Stack>
       <Tabs defaultValue={PRESET_EDITOR_GROUPS[0]?.id}>
         <Stack gap="block" padding="block" className="sticky top-0 z-(--z-raised) bg-card">
           <Row align="center" justify="between" gap="field">
             <Text size="label" weight="medium">
-              {preset.name}
+              {presetName}
             </Text>
             <Row align="center" gap="field">
               {/* Autosave everywhere (§7): the live status stands where Save/Discard used to. */}
@@ -242,6 +254,6 @@ function PresetEditor({ presetId, onReseed, onRevealSection, onDismissSection }:
         confirmLabel="Reset"
         onConfirm={confirmReset}
       />
-    </form>
+    </Stack>
   );
 }

@@ -76,9 +76,8 @@ function PromptTab({
   };
 
   const onAdd = (marker: MarkerType | null): void => {
+    // The autosave BOUNDARY's store driver persists structural array ops (D78 §3) — no manual flush.
     form.pushFieldValue("sections", makeSection(marker));
-    // Array structural mutations don't fire the autosave onChange listener (§7 TRAP) — flush explicitly.
-    void form.handleSubmit();
   };
   const onAddChatHistory = (): void => onAdd("chat_history");
 

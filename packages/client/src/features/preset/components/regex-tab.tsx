@@ -1,6 +1,7 @@
 // The Regex tab — a ListRow list over `regexScripts[i]` (a find/replace rule run over prompt/display
 // text) plus an editor Dialog binding `regexScripts[i].*`. CRUD over the array via
-// `form.pushFieldValue`/`removeFieldValue`.
+// `form.pushFieldValue`/`removeFieldValue`. The autosave BOUNDARY's store driver persists structural array
+// ops (D78 §3), so add/remove carry NO manual `handleSubmit` flush.
 
 import type { PromptConfig } from "@orb/contracts/preset";
 import type { RegexScript } from "@orb/contracts/regex";
@@ -41,8 +42,6 @@ export function RegexTab({ form }: { readonly form: AppForm }): ReactElement {
     // AFTER the push yields one PAST the new item's real index (an out-of-bounds phantom row on Done).
     const newIndex = form.state.values.regexScripts.length;
     form.pushFieldValue("regexScripts", makeScript());
-    // Array structural mutations don't fire the autosave onChange listener (§7 TRAP) — flush explicitly.
-    void form.handleSubmit();
     setEditIndex(newIndex);
   };
 
@@ -61,8 +60,7 @@ export function RegexTab({ form }: { readonly form: AppForm }): ReactElement {
           onAdd={onAdd}
           onEdit={setEditIndex}
           onRemove={(index): void => {
-            // §7 TRAP: the array remove doesn't fire the autosave listener — flush after it lands.
-            void form.removeFieldValue("regexScripts", index).then(() => form.handleSubmit());
+            void form.removeFieldValue("regexScripts", index);
           }}
           renderEditor={(index): ReactElement => (
             // The shared dialog binds only `regexScripts[*]`, which PromptConfig carries; TanStack form

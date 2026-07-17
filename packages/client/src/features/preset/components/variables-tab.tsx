@@ -1,6 +1,7 @@
 // The Variables tab — a ListRow list over `variables[i]` plus an editor Dialog binding `variables[i].*`
 // on the direct-bind form. A variable is a `{{name}}` choice block the user answers at generation time;
-// the tab is CRUD over the array (`form.pushFieldValue`/`removeFieldValue`).
+// the tab is CRUD over the array (`form.pushFieldValue`/`removeFieldValue`). The autosave BOUNDARY's store
+// driver persists structural array ops (D78 §3), so add/remove carry NO manual `handleSubmit` flush.
 
 import type { ChoiceBlockSpec, PromptConfig } from "@orb/contracts/preset";
 import type { ReactElement } from "react";
@@ -33,8 +34,6 @@ export function VariablesTab({ form }: { readonly form: AppForm }): ReactElement
     // AFTER the push yields one PAST the new item's real index (an out-of-bounds phantom row on Done).
     const newIndex = form.state.values.variables.length;
     form.pushFieldValue("variables", makeVariable());
-    // Array structural mutations don't fire the autosave onChange listener (§7 TRAP) — flush explicitly.
-    void form.handleSubmit();
     setEditIndex(newIndex);
   };
 
@@ -53,8 +52,7 @@ export function VariablesTab({ form }: { readonly form: AppForm }): ReactElement
           onAdd={onAdd}
           onEdit={setEditIndex}
           onRemove={(index): void => {
-            // §7 TRAP: the array remove doesn't fire the autosave listener — flush after it lands.
-            void form.removeFieldValue("variables", index).then(() => form.handleSubmit());
+            void form.removeFieldValue("variables", index);
           }}
           renderEditor={(index): ReactElement => <VariableEditorDialog form={form} index={index} onClose={(): void => setEditIndex(null)} />}
         />

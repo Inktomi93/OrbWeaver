@@ -30,8 +30,10 @@ export const useRemovePreset = createEntityMutation<inferInput<Trpc["preset"]["r
   errorToast: "Couldn't delete the preset.",
 });
 
-/** Reset a preset's config back to the starter arrangement. Refetches the list + the open editor row. */
-export const useResetPreset = createEntityMutation<inferInput<Trpc["preset"]["resetToDefault"]>, unknown>({
+/** Reset a preset's config back to the starter arrangement. Refetches the list + the open editor row, and
+ *  RESOLVES to the freshly-reset PresetDetail so the editor's `reseed` can baseline off the response row
+ *  directly (D78 L1 §5 — never a post-invalidation cache read). */
+export const useResetPreset = createEntityMutation<inferInput<Trpc["preset"]["resetToDefault"]>, inferOutput<Trpc["preset"]["resetToDefault"]>>({
   options: (trpc) => trpc.preset.resetToDefault.mutationOptions(),
   invalidates: (trpc) => [trpc.preset.list.pathFilter(), trpc.preset.get.pathFilter()],
   errorToast: "Couldn't reset the preset.",
