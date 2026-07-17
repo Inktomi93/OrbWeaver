@@ -1,23 +1,11 @@
-// PREBUILT[for:D78 L1-L4] — the session-boundary autosave factory (autosave-form-doctrine.md §1–§6),
-// minted alongside the still-live hook factory (create-autosave-entity-form.ts) which every consumer
-// still rides until the L1–L4 migration lands. NO consumer imports this yet; knip tolerates it under
-// this marker until L1 flips the preset editor onto it. Delete the marker (and re-check for consumers)
-// only if D78 is dropped instead of built.
-//
-// SEAL must collapse this module onto the doctrine's canonical path and name:
-//   1. delete create-autosave-entity-form.ts (the old hook export) once L1–L4 have no consumers left;
-//   2. rename THIS file to create-autosave-entity-form.tsx and rename the export
-//      `createAutosaveEntityBoundary` → `createAutosaveEntityForm` (the doc's final single name);
-//   3. swap the #forms barrel: drop the old `createAutosaveEntityForm` + `AutosaveEntityFormArgs`
-//      re-exports, re-export THIS module's boundary under the canonical name, keep `AutosaveSession` /
-//      `AutosaveSaveState`;
-//   4. arm G-A `no-manual-autosave-flush` (full D72 ritual) and re-probe `no-form-reset-in-autosave`
-//      / `no-direct-useform` against the new surface;
-//   5. drop this file from the biome `noComponentHookFactories`-off override list ONLY if the collapse
-//      changes the factory-returns-a-component shape (it won't — keep the override, keyed to the new path).
-// The distinct interim name is deliberate: this factory returns a COMPONENT (a boundary), not a hook —
-// it is a genuinely different symbol from the old hook factory, not a vanity synonym, so both can coexist
-// in the barrel through the wave (no-vanity-alias flags renamed IMPORTS of one symbol, not two symbols).
+// createAutosaveEntityForm — the session-boundary autosave factory (autosave-form-doctrine.md §1–§6,
+// D78; SEAL landed 2026-07-16). The ONE way a feature mounts an autosave form: `const XForm =
+// createAutosaveEntityForm<TValues>(config)` at module scope, then `<XForm entityId serverValues save>
+// {(session) => …}</XForm>`. The factory OWNS identity, reseed, the teardown flush, the baseline, and the
+// save driver (the D78 ledger row); the internal Session hook is unexported, so the failure modes it kills
+// (§7) are unspellable rather than merely discouraged. `no-manual-autosave-flush` (G-A) bans the retired
+// call-site array flush; `no-form-reset-in-autosave` / `no-direct-useform` / `form-factory-for-multifield`
+// hold the rest. `noComponentHookFactories` is off for this file via a biome.json override (see the bottom).
 //
 // WHY a boundary component and not a hook (D78 §0–§2): the old factory delegated entity IDENTITY to an
 // invisible consumer convention ("put a React `key` above the component that calls the hook"). When a lane
@@ -38,10 +26,13 @@ import { revalidateLogic } from "@tanstack/react-form";
 import type { ReactElement, ReactNode } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { EntityDraftStore } from "#state";
-import type { AutosaveSaveState } from "./create-autosave-entity-form";
 import { DEFAULT_DEBOUNCE_MS, focusFirstInvalidField, formValuesEqual, mirrorDraft, readDraftSeed } from "./entity-form-base";
 import type { AppFormInstance, AppFormOptions } from "./use-app-form";
 import { useAppForm } from "./use-app-form";
+
+/** The autosave lifecycle the shared `AutosaveStatus` affordance renders (north-star §7 / D66 A4). */
+const AUTOSAVE_SAVE_STATES = ["saved", "saving", "error"] as const;
+export type AutosaveSaveState = (typeof AUTOSAVE_SAVE_STATES)[number];
 
 /** The AppForm surface the session hands its body, `reset` type-removed (calling it re-baselines defaults,
  *  which on a live autosave draft is the isDirty loop `no-form-reset-in-autosave` also bans). */
@@ -97,7 +88,7 @@ export interface AutosaveBoundaryProps<TValues extends object> {
  * not the consumer — owns the entity key. The internal Session is a closure component (never exported), so
  * wrong key placement is unspellable.
  */
-export function createAutosaveEntityBoundary<TValues extends object>(
+export function createAutosaveEntityForm<TValues extends object>(
   config: AutosaveEntityBoundaryConfig<TValues>,
 ): (props: AutosaveBoundaryProps<TValues>) => ReactElement {
   const debounceMs = config.debounceMs ?? DEFAULT_DEBOUNCE_MS;
@@ -258,7 +249,7 @@ export function createAutosaveEntityBoundary<TValues extends object>(
   }
 
   // noComponentHookFactories is off for THIS file via a biome.json override (the D54 §13.1 editor-factory
-  // pattern — this factory runs at MODULE scope, `const PresetForm = createAutosaveEntityBoundary(...)`, so
+  // pattern — this factory runs at MODULE scope, `const PresetForm = createAutosaveEntityForm(...)`, so
   // both Session and AutosaveBoundary have stable identities; a per-render factory call is what the rule
   // fears and cannot happen here — mirrors create-registry-context.tsx / create-drill-selection-store.ts).
   return function AutosaveBoundary({ entityId, serverValues, save: callTimeSave, children }: AutosaveBoundaryProps<TValues>): ReactElement {

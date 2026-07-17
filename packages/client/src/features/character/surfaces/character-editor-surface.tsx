@@ -18,7 +18,7 @@ import type { ReactElement, ReactNode } from "react";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import type { AppFormInstance, AutosaveSession } from "#forms";
-import { AutosaveStatus, createAutosaveEntityBoundary } from "#forms";
+import { AutosaveStatus, createAutosaveEntityForm } from "#forms";
 import type { CharacterDetailContribution, CharacterDetailState, ContributorRegistry } from "#lib";
 import { useFocusOnMount } from "#lib";
 import {
@@ -49,7 +49,7 @@ import { clearCharacterForm, publishCharacterForm } from "../lib/character-edito
 // have stable identities; the boundary owns the entity key, so a character switch remounts the form
 // (and the body's local drill-in/greeting state) — no consumer `key` to place wrong. NO `draft` mirror:
 // on autosave the confirmed server row IS the mirror (the persona/appearance precedent, obligation-5).
-const CharacterForm = createAutosaveEntityBoundary<CharacterCardFormValues>({ defaultValues: DEFAULT_CHARACTER_CARD_FORM });
+const CharacterForm = createAutosaveEntityForm<CharacterCardFormValues>({ defaultValues: DEFAULT_CHARACTER_CARD_FORM });
 
 export interface CharacterEditorSurfaceProps {
   readonly characterId: CharacterId;

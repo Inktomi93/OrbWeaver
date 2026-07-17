@@ -5,7 +5,7 @@
 // so the CT can assert add AND remove PERSIST. A CT only mounts from a NON-test module (Spine-Testing §7).
 
 import type { AppFormInstance } from "@orb/client/forms";
-import { createAutosaveEntityBoundary } from "@orb/client/forms";
+import { createAutosaveEntityForm } from "@orb/client/forms";
 import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { ReactElement } from "react";
@@ -15,7 +15,7 @@ import { VariablesTab } from "../../../../../packages/client/src/features/preset
 
 const STORY_PRESET = "preset_addflowstoryy";
 
-const StoryForm = createAutosaveEntityBoundary<PromptConfig>({ defaultValues: DEFAULT_PROMPT_CONFIG });
+const StoryForm = createAutosaveEntityForm<PromptConfig>({ defaultValues: DEFAULT_PROMPT_CONFIG });
 
 /** Mirror the last-saved array length + save count so the CT can prove the store driver persisted (CT-4). */
 function usePersistenceSpy(read: (config: PromptConfig) => number): {

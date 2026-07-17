@@ -7,11 +7,11 @@
 
 import type { AppearanceSettings } from "@orb/contracts/settings";
 import { DEFAULT_APPEARANCE_SETTINGS } from "@orb/contracts/settings";
-import { createAutosaveEntityBoundary } from "#forms";
+import { createAutosaveEntityForm } from "#forms";
 
 /** The singleton entity id — appearance is one row per user, so a fixed key. */
 export const APPEARANCE_ENTITY_ID = "appearance";
 
-export const AppearanceForm = createAutosaveEntityBoundary<AppearanceSettings>({
+export const AppearanceForm = createAutosaveEntityForm<AppearanceSettings>({
   defaultValues: DEFAULT_APPEARANCE_SETTINGS,
 });

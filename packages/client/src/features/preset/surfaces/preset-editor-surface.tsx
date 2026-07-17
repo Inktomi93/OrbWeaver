@@ -4,7 +4,7 @@
 // resolve capability for the user's configured chat-role connection, and show a connect-a-model note when
 // none is configured.
 //
-// D78 L1: mounts the autosave form through the session BOUNDARY (`PresetForm` = createAutosaveEntityBoundary)
+// D78 L1: mounts the autosave form through the session BOUNDARY (`PresetForm` = createAutosaveEntityForm)
 // — the factory owns entity identity (its keyed Session), the teardown flush, and reseed. Reset-to-starter
 // is now `session.reseed(seedConfig(row.config))` off the mutation-response row (§5) — no nonce machinery,
 // no manual mount key, no `closeForReseed`. Structural array ops persist via the boundary's store driver, so
@@ -31,7 +31,7 @@ import { useEffect, useRef, useState } from "react";
 import { ConfirmDialog } from "#components";
 import { QueryBoundary, QueryErrorState, useGatedQuery, useInvalidation, useTRPC } from "#data";
 import type { AppFormInstance, AutosaveSession } from "#forms";
-import { AutosaveStatus, createAutosaveEntityBoundary } from "#forms";
+import { AutosaveStatus, createAutosaveEntityForm } from "#forms";
 import { useFocusOnMount } from "#lib";
 import { ParamsPanel } from "../components/params-panel";
 import { PresetStructureTabs } from "../components/preset-structure-tabs";
@@ -46,7 +46,7 @@ import { PRESET_EDITOR_GROUPS } from "../lib/preset-nav";
 // The session-boundary autosave form (D78 §1). Module-scope so both the Boundary and its inner Session have
 // stable identities (never a per-render factory call). Entity identity, the teardown flush, and reseed live
 // INSIDE it — a consumer cannot mount it any way except keyed by `entityId`.
-const PresetForm = createAutosaveEntityBoundary<PromptConfig>({
+const PresetForm = createAutosaveEntityForm<PromptConfig>({
   defaultValues: DEFAULT_PROMPT_CONFIG,
 });
 

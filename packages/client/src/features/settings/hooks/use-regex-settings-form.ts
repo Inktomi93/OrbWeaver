@@ -7,11 +7,11 @@
 // settings is server-synced and autosaves within the debounce window.
 
 import type { RegexScriptsFormValues } from "#components";
-import { createAutosaveEntityBoundary } from "#forms";
+import { createAutosaveEntityForm } from "#forms";
 
 /** The singleton entity id — the regex library is one owner-global row, so a fixed key. */
 export const REGEX_SETTINGS_ENTITY_ID = "regex-settings";
 
-export const RegexSettingsForm = createAutosaveEntityBoundary<RegexScriptsFormValues>({
+export const RegexSettingsForm = createAutosaveEntityForm<RegexScriptsFormValues>({
   defaultValues: { regexScripts: [] },
 });

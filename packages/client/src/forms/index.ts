@@ -6,19 +6,15 @@
 export type { AutosaveStatusProps } from "./autosave-status";
 export { AutosaveStatus } from "./autosave-status";
 export { useFieldContext, useFormContext } from "./contexts";
-// D78 session boundary (PREBUILT for L1–L4) — the new autosave factory, coexisting with the old hook
-// factory below until the migration lands; SEAL collapses both onto one canonical name (see the module
-// header). Distinct name because it is a genuinely different symbol (a boundary component, not a hook).
+// D78 session-boundary autosave factory (autosave-form-doctrine.md §1–§6) — the ONE autosave form entry:
+// a module-scope `createAutosaveEntityForm<TValues>(config)` returns the boundary COMPONENT that owns
+// identity, reseed, the teardown flush, and the store-subscription save driver (the internal hook is
+// unexported by construction).
 export type {
   AutosaveBoundaryProps,
   AutosaveEntityBoundaryConfig,
-  AutosaveSession,
-} from "./create-autosave-entity-boundary";
-export { createAutosaveEntityBoundary } from "./create-autosave-entity-boundary";
-export type {
-  AutosaveEntityFormArgs,
-  AutosaveEntityFormConfig,
   AutosaveSaveState,
+  AutosaveSession,
 } from "./create-autosave-entity-form";
 export { createAutosaveEntityForm } from "./create-autosave-entity-form";
 export type { FormHandleBridge } from "./create-form-handle-bridge";

@@ -201,8 +201,9 @@ lands) and **pinned by `tests/tooling/check-gates.int.test.ts`** — it derives 
 | `no-context-provider` | React 19 deprecates `<Context.Provider>` — render `<Context>` directly instead (Spine-TypeScript-and-Patterns.md §1) |
 | `no-forward-ref` | React 19 deprecates `forwardRef` — pass `ref` as a normal prop instead (Spine-TypeScript-and-Patterns.md §1) |
 | `gate-ignore-inventory` | every `// @orb-gate-ignore <name>` suppression under `packages/**` must name a REAL registered gate — stale suppression rot RED |
+| `no-manual-autosave-flush` | a single `features/**` function body calling BOTH a structural array op (push/remove/insert/moveFieldValues) AND `handleSubmit` — the retired §7-trap call-site flush; the D78 session-boundary factory's store driver autosaves structural array ops (autosave-form-doctrine.md §7 G-A; armed at the SEAL 2026-07-16) |
 
-The table mirrors `report.ts`'s `loadGates()`-discovered `status:"active"` set (133 registered gates);
+The table mirrors `report.ts`'s `loadGates()`-discovered `status:"active"` set (134 registered gates);
 the discovered descriptor set is the runtime truth.
 
 The 7th fired-trigger gate (PD-116), `solo-byte-identical`, is NOT a static gate — it is the
@@ -226,7 +227,6 @@ the descriptor's `status` field is ground truth.
 | `component-size-ui` | `packages/ui/src` LOC ceiling (450) — the ui twin of `component-size` | trigger MET (W1-1 done: `table.tsx` is 376 lines at `primitives/table/`; ui max file 376 < 450) — the flip to `active` is an owner decision, still dormant |
 | `monotonic-tests` | a green `check` can't be reached by deleting/disabling tests (a committed baseline manifest) | first real client test suite + committed baseline |
 | `audit-client-tests` | AST anti-patterns in `*.test.ts` (empty describe/hook, no-assertion, missing `await`) | client tests exist |
-| `no-manual-autosave-flush` | a single `features/**` function body calling BOTH a structural array op (push/remove/insert/moveFieldValues) AND `handleSubmit` — the retired §7-trap call-site flush (autosave-form-doctrine.md §7 G-A) | the D78 SEAL lane, once L1–L4 delete the \~10 existing manual flushes — flip `status` to `active` + move this row to the ACTIVE table + bump the count |
 
 ## Layer 4 — dependency-cruiser (`.dependency-cruiser.cjs`) — **ACTIVE**
 

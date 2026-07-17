@@ -1,6 +1,6 @@
 // CT story module for the preset CONTENT editor surface (Spine-Testing §7 — a CT mounts ONLY from a
 // non-test module). Drives the PRODUCTION path — `preset.get`/`settings.getUserSettings` (routeTrpc) → the
-// D78 session BOUNDARY (`PresetForm` = createAutosaveEntityBoundary) → the tabbed editor — so the two P0
+// D78 session BOUNDARY (`PresetForm` = createAutosaveEntityForm) → the tabbed editor — so the two P0
 // regressions the stickler review 2026-07-16-merge-block-28523122 found (preset-SWITCH renders the previous
 // preset's config; RESET-to-starter is a durable no-op) are pinned against the REAL surface, not a double.
 //

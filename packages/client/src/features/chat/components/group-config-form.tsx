@@ -16,7 +16,7 @@ import { ToggleGroup } from "@orb/ui/toggle-group";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useInvalidation, useTRPC } from "#data";
-import { createAutosaveEntityBoundary } from "#forms";
+import { createAutosaveEntityForm } from "#forms";
 import { useSetGroupConfig } from "../hooks/use-context-panel-mutations";
 import type { GroupConfigFormValues } from "../lib/group-config-model";
 import { defaultSpeakerTags, fromGroupConfigForm, GROUP_CONFIG_ENTITY_PREFIX, toGroupConfigForm } from "../lib/group-config-model";
@@ -67,7 +67,7 @@ export interface GroupConfigFormProps {
 // No module `config.save` (the persist fn closes over the live tRPC client, unreachable here) — the
 // SURFACE supplies it per-instance. No draft mirror: the immediate-commit chat law persists the whole
 // config within the debounce window, so the server row IS the crash mirror (the room-overrides precedent).
-const GroupConfigFormBoundary = createAutosaveEntityBoundary<GroupConfigFormValues>({
+const GroupConfigFormBoundary = createAutosaveEntityForm<GroupConfigFormValues>({
   defaultValues: toGroupConfigForm(DEFAULT_GROUP_CONFIG),
 });
 

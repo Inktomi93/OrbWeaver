@@ -1,4 +1,5 @@
-// Gate: no-manual-autosave-flush — DORMANT (autosave-form-doctrine.md §7 G-A). RED when a single
+// Gate: no-manual-autosave-flush — ACTIVE (armed at the D78 SEAL, 2026-07-16; autosave-form-doctrine.md
+// §7 G-A). RED when a single
 // `features/**` function body contains BOTH a structural array op (`pushFieldValue` / `removeFieldValue`
 // / `insertFieldValue` / `moveFieldValues`) AND a `handleSubmit` call. Post-migration to the session
 // boundary (autosave-form-doctrine.md §3), the factory's store-subscription save driver persists
@@ -11,10 +12,9 @@
 // through a method chain (`form.x().handleSubmit()`), so the honest-authoring shapes can't slip the
 // method-name check — hardening only ever WIDENS detection.
 //
-// DORMANT because the manual flushes it bans still exist until the D78 SEAL lane's L1–L4 delete them;
-// active-now would RED the tree. ACTIVATES AT THE D78 SEAL LANE: flip `status` to "active" and move the
-// doc row from the DORMANT table to the ACTIVE table (Core-Enforcement-Active-Gates.md), bumping the
-// "(N registered gates)" count by one.
+// Held DORMANT through MINT→MIGRATE (active-now would have RED'd the tree while L1–L4 still carried the
+// ~14 manual flushes); armed at the D78 SEAL once those flushes were gone (the doc row lives in the ACTIVE
+// table of Core-Enforcement-Active-Gates.md).
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
 
@@ -73,8 +73,8 @@ function collectOwnCalls(node: Node, out: Node[]): void {
 
 export const gate: GateDescriptor = {
   name: "no-manual-autosave-flush",
-  docRow: "Core-Enforcement-Active-Gates.md (Layer 3 — DORMANT)",
-  status: "dormant",
+  docRow: "Core-Enforcement-Active-Gates.md (Layer 3 — ACTIVE)",
+  status: "active",
   scopeSafety: "incremental-safe",
   message: MESSAGE,
   fix: FIX,

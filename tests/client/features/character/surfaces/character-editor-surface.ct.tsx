@@ -1,5 +1,5 @@
 // CT: the §6 character CONTENT editor end-to-end. Drives the PRODUCTION path — `character.get` (routeTrpc)
-// → the D78 session boundary (`createAutosaveEntityBoundary`) → the pinned hero band + the facet
+// → the D78 session boundary (`createAutosaveEntityForm`) → the pinned hero band + the facet
 // master-list → drill-in + the sticky header (the character-editor redesign REPLACED the flat Main/Advanced
 // tabs with a facet list that drills into a full-width body editor). Asserts: the hero renders the
 // character's name (draft field) + handle + New-chat CTA; the live-themed greeting bubble shows

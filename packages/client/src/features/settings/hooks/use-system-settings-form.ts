@@ -11,7 +11,7 @@ import {
   DEFAULT_LOCAL_MULTI_USER,
   DEFAULT_MAX_IMAGE_BYTES,
 } from "@orb/contracts/settings";
-import { createAutosaveEntityBoundary } from "#forms";
+import { createAutosaveEntityForm } from "#forms";
 import type { SystemSettingsForm } from "../lib/system-settings-model";
 import { BYTES_PER_MB } from "../lib/system-settings-model";
 
@@ -33,6 +33,6 @@ const DEFAULT_SYSTEM_SETTINGS_FORM: SystemSettingsForm = {
   discreetLogin: DEFAULT_DISCREET_LOGIN,
 };
 
-export const SystemSettingsAutosaveForm = createAutosaveEntityBoundary<SystemSettingsForm>({
+export const SystemSettingsAutosaveForm = createAutosaveEntityForm<SystemSettingsForm>({
   defaultValues: DEFAULT_SYSTEM_SETTINGS_FORM,
 });
