@@ -8,6 +8,9 @@ import type { CharacterId } from "@orb/kit/ids";
 
 type GroupOutput = GroupConfig["output"];
 
+/** Group config is one blob per room, so the chat id (committed) / draft key keys the form's remount. */
+export const GROUP_CONFIG_ENTITY_PREFIX = "group-config:";
+
 export interface GroupConfigFormValues {
   readonly output: GroupOutput;
   readonly policy: GroupPolicy;

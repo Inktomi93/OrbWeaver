@@ -15,11 +15,22 @@ import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useInvalidation, useTRPC } from "#data";
+import { createAutosaveEntityBoundary } from "#forms";
 import { MESSAGE_ROLE_ITEMS } from "#lib";
 import { useDeleteChatInjection, useSetChatInjection } from "../hooks/use-context-panel-mutations";
-import type { InjectionFormValues } from "../hooks/use-injection-row-form";
-import { fromInjectionForm, toInjectionForm, useInjectionRowForm } from "../hooks/use-injection-row-form";
+import type { InjectionFormValues } from "../lib/injection-row-model";
+import { DEFAULT_INJECTION_FORM, fromInjectionForm, toInjectionForm } from "../lib/injection-row-model";
 import { NEW_INJECTION } from "../lib/injection-seed";
+
+// The per-injection-row session-boundary autosave form (D78 L3). Built at MODULE scope (stable component
+// identity, §13.1); the persist fn arrives per-instance (closes over the live tRPC client + the row's
+// id/chatId). The boundary owns the entity key (the row's stable key), so a row surviving a list reshuffle
+// carries no stale FormApi — but the list `.map` key on `<InjectionRow>` already IS that identity (safe-by-
+// key by construction, autosave-form-doctrine.md §8; harmless double-key).
+
+const InjectionRowBoundary = createAutosaveEntityBoundary<InjectionFormValues>({
+  defaultValues: DEFAULT_INJECTION_FORM,
+});
 
 type InjectionFields = Pick<ChatInjection, "position" | "role" | "depth" | "content">;
 
@@ -87,55 +98,56 @@ interface InjectionRowProps {
 }
 
 function InjectionRow({ row, isHost, onSave, onDelete }: InjectionRowProps): ReactElement {
-  const save = (values: InjectionFormValues): Promise<unknown> => onSave(row.key, values);
-
-  const { form, mountKey } = useInjectionRowForm({
-    entityId: row.key,
-    serverValues: toInjectionForm(row.value),
-    ...(isHost ? { save } : {}),
-  });
+  const save = isHost ? (values: InjectionFormValues): Promise<unknown> => onSave(row.key, values) : undefined;
 
   return (
-    <Section key={mountKey}>
-      <Stack gap="block">
-        <Row gap="block" align="center" justify="between">
-          <Text size="label" weight="medium" tone="muted">
-            Injection
-          </Text>
-          {isHost ? (
-            <Button intent="ghost" size="sm" aria-label="Remove injection" onClick={(): void => onDelete(row.key)}>
-              Remove
-            </Button>
-          ) : null}
-        </Row>
+    // `save` spread, not passed as `undefined` — exactOptionalPropertyTypes; a non-host row is read-only.
+    <InjectionRowBoundary entityId={row.key} serverValues={toInjectionForm(row.value)} {...(save === undefined ? {} : { save })}>
+      {({ form }): ReactElement => (
+        <Section>
+          <Stack gap="block">
+            <Row gap="block" align="center" justify="between">
+              <Text size="label" weight="medium" tone="muted">
+                Injection
+              </Text>
+              {isHost ? (
+                <Button intent="ghost" size="sm" aria-label="Remove injection" onClick={(): void => onDelete(row.key)}>
+                  Remove
+                </Button>
+              ) : null}
+            </Row>
 
-        <form.AppField name="position">
-          {(field): ReactElement => <field.SelectField label="Position" items={POSITION_ITEMS} disabled={!isHost} />}
-        </form.AppField>
+            <form.AppField name="position">
+              {(field): ReactElement => <field.SelectField label="Position" items={POSITION_ITEMS} disabled={!isHost} />}
+            </form.AppField>
 
-        <form.AppField name="role">{(field): ReactElement => <field.SelectField label="Role" items={MESSAGE_ROLE_ITEMS} disabled={!isHost} />}</form.AppField>
+            <form.AppField name="role">
+              {(field): ReactElement => <field.SelectField label="Role" items={MESSAGE_ROLE_ITEMS} disabled={!isHost} />}
+            </form.AppField>
 
-        <form.Subscribe selector={(state): string => state.values.position}>
-          {(position): ReactElement | null =>
-            position === "in_chat" ? (
-              <form.AppField name="depth">
-                {(field): ReactElement => (
-                  <field.NumberField
-                    label="Depth"
-                    description="0 = at the tail (just before the new turn); higher = further back."
-                    min={0}
-                    max={100}
-                    disabled={!isHost}
-                  />
-                )}
-              </form.AppField>
-            ) : null
-          }
-        </form.Subscribe>
+            <form.Subscribe selector={(state): string => state.values.position}>
+              {(position): ReactElement | null =>
+                position === "in_chat" ? (
+                  <form.AppField name="depth">
+                    {(field): ReactElement => (
+                      <field.NumberField
+                        label="Depth"
+                        description="0 = at the tail (just before the new turn); higher = further back."
+                        min={0}
+                        max={100}
+                        disabled={!isHost}
+                      />
+                    )}
+                  </form.AppField>
+                ) : null
+              }
+            </form.Subscribe>
 
-        <form.AppField name="content">{(field): ReactElement => <field.TextareaField label="Content" disabled={!isHost} rows={2} />}</form.AppField>
-      </Stack>
-    </Section>
+            <form.AppField name="content">{(field): ReactElement => <field.TextareaField label="Content" disabled={!isHost} rows={2} />}</form.AppField>
+          </Stack>
+        </Section>
+      )}
+    </InjectionRowBoundary>
   );
 }
 

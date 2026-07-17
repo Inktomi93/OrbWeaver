@@ -5,7 +5,7 @@
 // speakerTags default so the legible default follows the mode.
 
 import type { GroupConfig, GroupPolicy, MemberCardVisibility } from "@orb/contracts/chat";
-import { GROUP_POLICIES, MEMBER_CARD_VISIBILITY_LEVELS } from "@orb/contracts/chat";
+import { DEFAULT_GROUP_CONFIG, GROUP_POLICIES, MEMBER_CARD_VISIBILITY_LEVELS } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import { Accordion, AccordionItem, AccordionPanel, AccordionTrigger } from "@orb/ui/accordion";
 import { Stack } from "@orb/ui/layout";
@@ -16,10 +16,10 @@ import { ToggleGroup } from "@orb/ui/toggle-group";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useInvalidation, useTRPC } from "#data";
+import { createAutosaveEntityBoundary } from "#forms";
 import { useSetGroupConfig } from "../hooks/use-context-panel-mutations";
-import { GROUP_CONFIG_ENTITY_PREFIX, useGroupConfigForm } from "../hooks/use-group-config-form";
 import type { GroupConfigFormValues } from "../lib/group-config-model";
-import { defaultSpeakerTags, fromGroupConfigForm, toGroupConfigForm } from "../lib/group-config-model";
+import { defaultSpeakerTags, fromGroupConfigForm, GROUP_CONFIG_ENTITY_PREFIX, toGroupConfigForm } from "../lib/group-config-model";
 
 type GroupOutput = GroupConfig["output"];
 
@@ -59,118 +59,127 @@ export interface GroupConfigFormProps {
   readonly save?: ((config: GroupConfig) => Promise<unknown>) | undefined;
 }
 
-/**
- * Keyed on `entityId` so the whole hook-owning `GroupConfigFormBody` (and its FormApi) dies + is reborn
- * when the chat identity changes — this editor mounts under `ContextTabsPanel`, which keys by TAB id only,
- * so a chat switch with the tab open would otherwise keep the SAME FormApi and its frozen seed, and one
- * field flip could autosave chat A's group config into chat B. The FormApi lives in the hook's `useState`,
- * so the key must sit ABOVE the hook owner — a key on the inner `<Stack>` remounts DOM only (the
- * character-editor precedent; stickler review 2026-07-16-merge-block-28523122).
- */
-export function GroupConfigForm(props: GroupConfigFormProps): ReactElement {
-  return <GroupConfigFormBody key={props.entityId} {...props} />;
-}
+// The session-boundary autosave form (D78 L3). Built at MODULE scope (stable component identity, §13.1) —
+// the boundary OWNS the entity key: it keys its private Session by `entityId`, so a chat switch with the
+// Group tab open (this editor mounts under `ContextTabsPanel`, which keys by TAB id only) is a full
+// teardown/remount seeded from the new chat's config. Wrong key placement is unspellable — the lane-h
+// wrapper-split that hand-keyed `GroupConfigFormBody` is superseded (autosave-form-doctrine.md §1, §8).
+// No module `config.save` (the persist fn closes over the live tRPC client, unreachable here) — the
+// SURFACE supplies it per-instance. No draft mirror: the immediate-commit chat law persists the whole
+// config within the debounce window, so the server row IS the crash mirror (the room-overrides precedent).
+const GroupConfigFormBoundary = createAutosaveEntityBoundary<GroupConfigFormValues>({
+  defaultValues: toGroupConfigForm(DEFAULT_GROUP_CONFIG),
+});
 
-function GroupConfigFormBody({ entityId, config, save }: GroupConfigFormProps): ReactElement {
+/**
+ * The Group tab body. The boundary owns identity: it keys its private Session by `entityId`, so the whole
+ * form (its FormApi + this render-prop body) dies + is reborn when the chat identity changes — this editor
+ * mounts under `ContextTabsPanel`, which keys by TAB id only, so without the boundary a chat switch with
+ * the tab open would keep the SAME FormApi and its frozen seed, and one field flip could autosave chat A's
+ * group config into chat B. The boundary keys by `entityId` regardless of mount site, so BOTH mount arms
+ * (the committed Group tab and the draft arm in `draft-context-tabs.tsx`) are protected.
+ */
+export function GroupConfigForm({ entityId, config, save }: GroupConfigFormProps): ReactElement {
   const factorySave = save === undefined ? undefined : (values: GroupConfigFormValues): Promise<unknown> => save(fromGroupConfigForm(values));
 
-  const { form } = useGroupConfigForm({
-    entityId,
-    serverValues: toGroupConfigForm(config),
-    ...(factorySave === undefined ? {} : { save: factorySave }),
-  });
-
   return (
-    <Stack gap="section" data-slot="group-config-form">
-      <form.AppField name="output">
-        {(field): ReactElement => (
-          <Stack gap="field">
-            <Text size="label" weight="medium">
-              How the cast replies
-            </Text>
-            <ToggleGroup
-              value={[field.state.value]}
-              onValueChange={(value): void => {
-                const next = value[0];
-                if (next !== undefined && next !== field.state.value) {
-                  const output = next as GroupOutput;
-                  field.handleChange(output);
-                  form.setFieldValue("speakerTags", defaultSpeakerTags(output));
-                }
-              }}
-              aria-label="How the cast replies"
-            >
-              <Toggle value="per-speaker">Per-speaker</Toggle>
-              <Toggle value="narrator">Narrator</Toggle>
-            </ToggleGroup>
-            <Text size="micro" tone="muted">
-              {field.state.value === "narrator"
-                ? "One message voices everyone — you can't swipe individuals."
-                : "Each character replies in their own message — swipe them individually."}
-            </Text>
-          </Stack>
-        )}
-      </form.AppField>
-
-      <form.AppField name="speakerTags">{(field): ReactElement => <field.SwitchField label="Label each speaker" />}</form.AppField>
-
-      <form.AppField name="groupNudge">{(field): ReactElement => <field.SwitchField label="Nudge the group to stay in character" />}</form.AppField>
-
-      <Accordion>
-        <AccordionItem value="advanced">
-          <AccordionTrigger>Advanced</AccordionTrigger>
-          <AccordionPanel>
-            <Stack gap="section" className="pt-block">
-              <form.AppField name="policy">{(field): ReactElement => <field.SelectField label="Who speaks each round" items={POLICY_ITEMS} />}</form.AppField>
-
-              <form.Subscribe selector={(state): GroupOutput => state.values.output}>
-                {(output): ReactElement | null =>
-                  output === "per-speaker" ? (
-                    <form.AppField name="scopedCards">
-                      {(field): ReactElement => <field.SwitchField label="Each character sees only their own card" />}
-                    </form.AppField>
-                  ) : null
-                }
-              </form.Subscribe>
-
-              <form.AppField name="memberCardVisibility">
-                {(field): ReactElement => <field.SelectField label="How much of each member the others see" items={VISIBILITY_ITEMS} />}
-              </form.AppField>
-
+    // `save` spread, not passed as `undefined` — exactOptionalPropertyTypes; absent ⇒ the boundary is read-only.
+    <GroupConfigFormBoundary entityId={entityId} serverValues={toGroupConfigForm(config)} {...(factorySave === undefined ? {} : { save: factorySave })}>
+      {({ form }): ReactElement => (
+        <Stack gap="section" data-slot="group-config-form">
+          <form.AppField name="output">
+            {(field): ReactElement => (
               <Stack gap="field">
-                <form.AppField name="autoMode">
-                  {(field): ReactElement => (
-                    <field.SwitchField
-                      label="Let characters reply to each other"
-                      description="They keep the conversation going on their own — each auto-turn is a full generation you pay for."
-                    />
-                  )}
-                </form.AppField>
-                <form.Subscribe selector={(state): boolean => state.values.autoMode}>
-                  {(autoMode): ReactElement | null =>
-                    autoMode ? (
-                      <Stack gap="field">
-                        <form.AppField name="autoModeMaxTurns">
-                          {(field): ReactElement => <field.SliderField label="Max turns in a row" min={MAX_TURNS_MIN} max={MAX_TURNS_MAX} step={1} />}
-                        </form.AppField>
-                        <form.AppField name="autoModeDelayMs">
-                          {(field): ReactElement => (
-                            <field.SliderField label="Delay between turns" min={DELAY_MS_MIN} max={DELAY_MS_MAX} step={DELAY_MS_STEP} />
-                          )}
-                        </form.AppField>
-                        <form.AppField name="allowSelfResponses">
-                          {(field): ReactElement => <field.SwitchField label="Let a character reply to itself" />}
-                        </form.AppField>
-                      </Stack>
-                    ) : null
-                  }
-                </form.Subscribe>
+                <Text size="label" weight="medium">
+                  How the cast replies
+                </Text>
+                <ToggleGroup
+                  value={[field.state.value]}
+                  onValueChange={(value): void => {
+                    const next = value[0];
+                    if (next !== undefined && next !== field.state.value) {
+                      const output = next as GroupOutput;
+                      field.handleChange(output);
+                      form.setFieldValue("speakerTags", defaultSpeakerTags(output));
+                    }
+                  }}
+                  aria-label="How the cast replies"
+                >
+                  <Toggle value="per-speaker">Per-speaker</Toggle>
+                  <Toggle value="narrator">Narrator</Toggle>
+                </ToggleGroup>
+                <Text size="micro" tone="muted">
+                  {field.state.value === "narrator"
+                    ? "One message voices everyone — you can't swipe individuals."
+                    : "Each character replies in their own message — swipe them individually."}
+                </Text>
               </Stack>
-            </Stack>
-          </AccordionPanel>
-        </AccordionItem>
-      </Accordion>
-    </Stack>
+            )}
+          </form.AppField>
+
+          <form.AppField name="speakerTags">{(field): ReactElement => <field.SwitchField label="Label each speaker" />}</form.AppField>
+
+          <form.AppField name="groupNudge">{(field): ReactElement => <field.SwitchField label="Nudge the group to stay in character" />}</form.AppField>
+
+          <Accordion>
+            <AccordionItem value="advanced">
+              <AccordionTrigger>Advanced</AccordionTrigger>
+              <AccordionPanel>
+                <Stack gap="section" className="pt-block">
+                  <form.AppField name="policy">
+                    {(field): ReactElement => <field.SelectField label="Who speaks each round" items={POLICY_ITEMS} />}
+                  </form.AppField>
+
+                  <form.Subscribe selector={(state): GroupOutput => state.values.output}>
+                    {(output): ReactElement | null =>
+                      output === "per-speaker" ? (
+                        <form.AppField name="scopedCards">
+                          {(field): ReactElement => <field.SwitchField label="Each character sees only their own card" />}
+                        </form.AppField>
+                      ) : null
+                    }
+                  </form.Subscribe>
+
+                  <form.AppField name="memberCardVisibility">
+                    {(field): ReactElement => <field.SelectField label="How much of each member the others see" items={VISIBILITY_ITEMS} />}
+                  </form.AppField>
+
+                  <Stack gap="field">
+                    <form.AppField name="autoMode">
+                      {(field): ReactElement => (
+                        <field.SwitchField
+                          label="Let characters reply to each other"
+                          description="They keep the conversation going on their own — each auto-turn is a full generation you pay for."
+                        />
+                      )}
+                    </form.AppField>
+                    <form.Subscribe selector={(state): boolean => state.values.autoMode}>
+                      {(autoMode): ReactElement | null =>
+                        autoMode ? (
+                          <Stack gap="field">
+                            <form.AppField name="autoModeMaxTurns">
+                              {(field): ReactElement => <field.SliderField label="Max turns in a row" min={MAX_TURNS_MIN} max={MAX_TURNS_MAX} step={1} />}
+                            </form.AppField>
+                            <form.AppField name="autoModeDelayMs">
+                              {(field): ReactElement => (
+                                <field.SliderField label="Delay between turns" min={DELAY_MS_MIN} max={DELAY_MS_MAX} step={DELAY_MS_STEP} />
+                              )}
+                            </form.AppField>
+                            <form.AppField name="allowSelfResponses">
+                              {(field): ReactElement => <field.SwitchField label="Let a character reply to itself" />}
+                            </form.AppField>
+                          </Stack>
+                        ) : null
+                      }
+                    </form.Subscribe>
+                  </Stack>
+                </Stack>
+              </AccordionPanel>
+            </AccordionItem>
+          </Accordion>
+        </Stack>
+      )}
+    </GroupConfigFormBoundary>
   );
 }
 

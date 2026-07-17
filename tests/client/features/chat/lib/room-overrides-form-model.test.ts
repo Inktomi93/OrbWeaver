@@ -1,5 +1,6 @@
 // The room-overrides wire↔form mapping (lib/room-overrides-form-model.ts — the PURE half of the room-
-// overrides autosave form; the hook itself lives in hooks/use-room-overrides-form). The load-bearing
+// overrides autosave form; the boundary is the module-scope const in components/room-overrides-form.tsx).
+// The load-bearing
 // invariants: (1) empty text ⇒ INHERIT, so `fromRoomOverridesForm` OMITS the key entirely (a stored `""`
 // is not nullish → the assembler would treat it as override-to-empty, not inherit); (2) the send-guard
 // WITHHOLDS an invalid authorsNote (assistant-at-depth-0 prefill) so an unrelated sibling edit still
