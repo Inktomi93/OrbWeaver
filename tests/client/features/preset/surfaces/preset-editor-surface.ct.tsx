@@ -1,13 +1,13 @@
 // CT: the preset CONTENT editor's two P0 regressions (stickler review 2026-07-16-merge-block-28523122),
-// the live repros as tests. The presets stop flipped this editor to createAutosaveEntityForm but keyed the
-// remount on a `<form>` DOM node BELOW the hook-owning component, so the frozen-seed FormApi survived a
-// preset switch and a reset:
+// the live repros as tests — now pinned against the D78 L1 session BOUNDARY. The original P0 was a frozen
+// seed surviving a switch/reset because the remount key lived BELOW the hook owner; the boundary OWNS the
+// key (its keyed Session) so both pins ride the real production mechanism:
 //   • SWITCH pin — pick A (dirty) → B: the editor must show B's REAL config, and NO `preset.update` may
 //     fire against B carrying A's values (the "one keystroke persists the previous preset into the new
 //     one" bug). Asserted on the update save-spy (routeTrpc recorder — the house wire-payload pattern).
 //   • RESET pin — reset-to-starter: the editor must show the STARTER config AND no `preset.update` may
-//     write the pre-reset values back over the freshly-reset row (the durable no-op reset — the teardown
-//     `onFieldUnmount` flush, neutralized by `closeForReseed`).
+//     write the pre-reset values back over the freshly-reset row (the durable no-op reset — the boundary's
+//     discard-flagged teardown, driven by `session.reseed(row.config)` off the mutation response).
 //
 // The Quality dial (`params.quality`, first tab, no capability needed) is the visible+editable config
 // field: A = "fast", B = "deep", the starter = unset (no radio checked). `preset.get`/`settings.getUserSettings`
@@ -98,7 +98,7 @@ test("SWITCH pin — A(dirty)→B shows B's real config and never persists A's v
   await component.getByRole("radio", { name: BALANCED_RE }).click();
   await expect.poll(() => updatesAgainst(trpc, PRESET_A).at(-1)?.config?.params?.quality, { intervals: [100, 200, 300, 500] }).toBe("balanced");
 
-  // Switch A→B (the rail prop change). The hook-owning PresetEditor remounts on the new id and seeds from
+  // Switch A→B (the rail prop change). The boundary rekeys its Session on the new entityId and seeds from
   // B's REAL row — the header shows B and the dial shows B's "deep", NOT A's frozen edited "balanced" seed.
   await component.getByRole("button", { name: "switch to B" }).click();
   await expect(component.getByText("Preset B")).toBeVisible();
@@ -155,9 +155,9 @@ test("RESET pin — reset-to-starter shows the starter config and never writes t
   await expect(component.getByRole("radio", { name: BALANCED_RE })).not.toBeChecked();
   await expect(component.getByRole("radio", { name: DEEP_RE })).not.toBeChecked();
 
-  // THE PIN: the reset triggers a keyed remount whose teardown fires `onFieldUnmount` on the dirty form.
-  // With the frozen-seed bug (or without `closeForReseed`) that flush writes the pre-reset "balanced" back
-  // over the starter — a NEW `preset.update` past the snapshot. Wait the flush window out; assert none fired.
+  // THE PIN: the reset calls `session.reseed(starter)`, whose discard-flagged teardown must NOT flush the
+  // dirty pre-reset form. With the old frozen-seed bug (or a non-discard teardown) that flush writes the
+  // pre-reset "balanced" back over the starter — a NEW `preset.update` past the snapshot. Wait it out; none.
   await page.evaluate(() => new Promise<void>((resolve) => setTimeout(resolve, 700)));
   expect(trpc.count("preset.update")).toBe(updatesBeforeReset);
 });

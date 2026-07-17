@@ -39,9 +39,8 @@ export function AssemblyRack({ form, selectedSectionId, onSelectSection, onAddCh
           const before = sections.map((s) => s.id as SortableItemKey);
           const move = diffMove(before, orderedKeys);
           if (move !== null) {
+            // The autosave BOUNDARY's store driver persists the reorder (D78 §3) — no manual flush.
             form.moveFieldValues("sections", move.from, move.to);
-            // Array structural mutations don't fire the autosave onChange listener (§7 TRAP) — flush.
-            void form.handleSubmit();
           }
         };
 

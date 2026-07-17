@@ -105,12 +105,10 @@ function InspectorBody({ form, section, index, onDismiss }: InspectorBodyProps):
 
 /** The ONE section-actions ⋯ menu (north-star §2 / §6.2) — Duplicate · Move-to-zone (conditional) items,
  *  Delete as the ConfirmDialog-wired destructive. Replaces the old bottom Duplicate/Move/Delete button row.
- *  Every array mutation flushes the autosave (§7 TRAP: structural array ops don't fire the onChange listener). */
+ *  The autosave BOUNDARY's store driver persists every structural array op (D78 §3) — no manual flush. */
 function SectionActionsMenu({ form, section, index, onDismiss }: InspectorBodyProps): ReactElement {
   const onDelete = (): void => {
-    void form.removeFieldValue("sections", index).then(() => {
-      void form.handleSubmit();
-    });
+    void form.removeFieldValue("sections", index);
     onDismiss();
   };
   return (
@@ -131,12 +129,10 @@ function SectionActionsMenu({ form, section, index, onDismiss }: InspectorBodyPr
   );
 }
 
-/** Duplicate the section just below itself with a fresh id (content preserved), then flush the autosave. */
+/** Duplicate the section just below itself with a fresh id (content preserved). The store driver persists it. */
 function duplicate(form: AssemblyForm, section: PromptSection, index: number): void {
   const clone: PromptSection = { ...section, id: globalThis.crypto.randomUUID() };
   void form.insertFieldValue("sections", index + 1, clone);
-  // §7 TRAP: the array insert doesn't fire the autosave listener — flush explicitly.
-  void form.handleSubmit();
 }
 
 interface MoveToZoneItemProps {
@@ -161,8 +157,6 @@ function MoveToZoneItem({ form, section, index }: MoveToZoneItemProps): ReactEle
           <MenuItem
             onClick={(): void => {
               form.moveFieldValues("sections", index, to > index ? to - 1 : to);
-              // §7 TRAP: the array move doesn't fire the autosave listener — flush explicitly.
-              void form.handleSubmit();
             }}
           >
             <Icon icon={GitFork} size="sm" />

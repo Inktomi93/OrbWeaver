@@ -1,7 +1,7 @@
-// CT: the Regex-tab Add-flow off-by-one (BUILD-SPEC §8 P0 1a) AND the §7 AUTOSAVE array-trap. Adding a
-// script, naming it, and hitting Done must leave EXACTLY ONE row carrying the typed name — no phantom
-// duplicate — AND the add must PERSIST (structural `pushFieldValue` doesn't fire the autosave listener, so
-// the tab flushes explicitly). Remove persists the same way. The `<output>` mirrors the story's autosave spy.
+// CT: the Regex-tab Add-flow off-by-one (BUILD-SPEC §8 P0 1a) AND D78 §10 CT-4 array-op persistence. Adding
+// a script, naming it, and hitting Done must leave EXACTLY ONE row carrying the typed name — no phantom
+// duplicate — AND the add must PERSIST through the BOUNDARY's store driver with ZERO call-site flush. Remove
+// persists the same way. The `<output>` mirrors the story's autosave spy.
 //
 // The editor Dialog + its Done button portal to document.body (outside the mounted component root), so the
 // dialog interactions use `page`, not the component-scoped `mount` handle.
@@ -19,7 +19,7 @@ test("Regex: Add persists one row (no phantom), Remove persists the empty list",
 
   await expect(page.getByText("MyScript")).toBeVisible();
   await expect(page.getByText("New script")).toHaveCount(0);
-  // §7 TRAP: the add flush must have PERSISTED one script (savedLen=1).
+  // CT-4: the store driver must have PERSISTED one script (savedLen=1), no call-site flush needed.
   await expect(spy).toContainText("savedLen=1");
 
   await probe.getByRole("button", { name: "Remove" }).click();
