@@ -1,7 +1,8 @@
-// The System (AppSettings) autosave form, built on createAutosaveEntityForm at module scope. No draft
-// mirror: this is an admin-only, server-synced tier. `defaultValues` is a type-level fallback only — the
-// pane renders inside a QueryBoundary after getAppSettings resolves, so serverValues always fully
-// overrides these seeds.
+// The System (AppSettings) autosave form, mounted through the D78 session boundary (`SystemSettingsForm`)
+// at module scope — the boundary owns the (constant) entity key (autosave-form-doctrine.md §1/§8, D78 L4).
+// No draft mirror: this is an admin-only, server-synced tier. `defaultValues` is a type-level fallback
+// only — the pane renders inside a QueryBoundary after getAppSettings resolves, so serverValues always
+// fully overrides these seeds.
 
 import {
   DEFAULT_ALLOW_NON_OWNER_LOCAL_COMPUTE,
@@ -10,7 +11,7 @@ import {
   DEFAULT_LOCAL_MULTI_USER,
   DEFAULT_MAX_IMAGE_BYTES,
 } from "@orb/contracts/settings";
-import { createAutosaveEntityForm } from "#forms";
+import { createAutosaveEntityBoundary } from "#forms";
 import type { SystemSettingsForm } from "../lib/system-settings-model";
 import { BYTES_PER_MB } from "../lib/system-settings-model";
 
@@ -32,6 +33,6 @@ const DEFAULT_SYSTEM_SETTINGS_FORM: SystemSettingsForm = {
   discreetLogin: DEFAULT_DISCREET_LOGIN,
 };
 
-export const useSystemSettingsForm = createAutosaveEntityForm<SystemSettingsForm>({
+export const SystemSettingsAutosaveForm = createAutosaveEntityBoundary<SystemSettingsForm>({
   defaultValues: DEFAULT_SYSTEM_SETTINGS_FORM,
 });

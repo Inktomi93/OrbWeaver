@@ -14,10 +14,11 @@ import { useRef, useState } from "react";
 import type { RegexScriptsFormValues } from "#components";
 import { EntryListEditor, RegexEditorDialog } from "#components";
 import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
+import type { AutosaveSession } from "#forms";
 import { AutosaveStatus } from "#forms";
 import { useFocusOnMount } from "#lib";
 import { settingsAnchorId } from "#state";
-import { REGEX_SETTINGS_ENTITY_ID, useRegexSettingsForm } from "../hooks/use-regex-settings-form";
+import { REGEX_SETTINGS_ENTITY_ID, RegexSettingsForm } from "../hooks/use-regex-settings-form";
 import { REGEX_SUBCATEGORY_IDS } from "../lib/regex-nav";
 
 interface UpdateRegexVars {
@@ -61,42 +62,46 @@ export function RegexSettingsSurface(): ReactElement {
         renderError={(_error, retry): ReactElement => <QueryErrorState label="your regex scripts" onRetry={retry} />}
       >
         <Container>
-          <RegexSettingsForm />
+          <RegexSettingsFormPanel />
         </Container>
       </QueryBoundary>
     </Stack>
   );
 }
 
-/** Suspends on the synced settings read, then binds the autosave form to the `regex` section. */
-function RegexSettingsForm(): ReactElement {
+/** Suspends on the synced settings read, then binds the autosave form to the `regex` section through the
+ *  D78 session boundary — the boundary owns the (constant) entity key. */
+function RegexSettingsFormPanel(): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const { data } = useSuspenseQuery(trpc.settings.getUserSettings.queryOptions());
   const update = useUpdateRegex({ trpc, invalidation });
-  const [editIndex, setEditIndex] = useState<number | null>(null);
 
   const save = (values: RegexScriptsFormValues): Promise<unknown> => update.mutateAsync({ section: "regex", patch: { scripts: values.regexScripts } });
 
-  const { form, mountKey, saveState, retrySave } = useRegexSettingsForm({
-    entityId: REGEX_SETTINGS_ENTITY_ID,
-    serverValues: { regexScripts: data.config.regex.scripts },
-    save,
-  });
+  return (
+    <RegexSettingsForm entityId={REGEX_SETTINGS_ENTITY_ID} serverValues={{ regexScripts: data.config.regex.scripts }} save={save}>
+      {(session): ReactElement => <RegexSettingsFormBody session={session} />}
+    </RegexSettingsForm>
+  );
+}
 
-  // A structural array mutation (add/remove) does NOT trip the autosave form's field-level `onChange`
-  // listener — only a scalar field edit does — so the grown/shrunk `scripts` array would never persist.
-  // Flush it explicitly via `handleSubmit` (exactly what the listener would have called), same as remove.
+/** The form-bearing regex list — remounted per epoch by the boundary's keyed Session. The add/remove
+ *  handlers carry NO manual `handleSubmit` flush: the boundary's store-subscription driver persists the
+ *  structural array op (autosave-form-doctrine.md §3). */
+function RegexSettingsFormBody({ session }: { readonly session: AutosaveSession<RegexScriptsFormValues> }): ReactElement {
+  const { form, saveState, retrySave } = session;
+  const [editIndex, setEditIndex] = useState<number | null>(null);
+
   const onAdd = (): void => {
     // Capture the PRE-push length: pushFieldValue applies synchronously (the regex-tab precedent).
     const newIndex = form.state.values.regexScripts.length;
     form.pushFieldValue("regexScripts", makeScript());
     setEditIndex(newIndex);
-    void form.handleSubmit();
   };
 
   return (
-    <Stack gap="section" id={settingsAnchorId("regex", REGEX_SUBCATEGORY_IDS.scripts)} key={mountKey}>
+    <Stack gap="section" id={settingsAnchorId("regex", REGEX_SUBCATEGORY_IDS.scripts)}>
       <form.Subscribe selector={(state): readonly RegexScript[] => state.values.regexScripts}>
         {(scripts): ReactElement => (
           <EntryListEditor
@@ -111,17 +116,14 @@ function RegexSettingsForm(): ReactElement {
             onAdd={onAdd}
             onEdit={setEditIndex}
             onRemove={(index): void => {
-              void form.removeFieldValue("regexScripts", index).then(() => form.handleSubmit());
+              void form.removeFieldValue("regexScripts", index);
             }}
             renderEditor={(index): ReactElement => <RegexEditorDialog form={form} index={index} onClose={(): void => setEditIndex(null)} />}
           />
         )}
       </form.Subscribe>
       <Row gap="field" align="center">
-        <AutosaveStatus state={saveState} onRetry={retrySave} />
-        <Text size="micro" tone="muted">
-          · Synced across your devices.
-        </Text>
+        <AutosaveStatus state={saveState} onRetry={retrySave} caption="Synced across your devices." />
       </Row>
     </Stack>
   );

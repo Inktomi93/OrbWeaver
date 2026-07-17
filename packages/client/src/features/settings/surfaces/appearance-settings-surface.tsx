@@ -12,13 +12,14 @@ import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
+import type { AutosaveSession } from "#forms";
 import { AutosaveStatus } from "#forms";
 import { useFocusOnMount } from "#lib";
 import { settingsAnchorId } from "#state";
 import { AppearanceEffectsSection } from "../components/appearance-effects-section";
 import { AppearanceReadingSection } from "../components/appearance-reading-section";
 import { BackgroundUploadField } from "../components/background-upload-field";
-import { APPEARANCE_ENTITY_ID, useAppearanceForm } from "../hooks/use-appearance-form";
+import { APPEARANCE_ENTITY_ID, AppearanceForm } from "../hooks/use-appearance-form";
 import {
   BACKGROUND_BLUR_MAX,
   BACKGROUND_BLUR_MIN,
@@ -72,7 +73,7 @@ export function AppearanceSettingsSurface(): ReactElement {
       >
         <FieldLayout orientation="horizontal">
           <Container>
-            <AppearanceForm />
+            <AppearanceSettingsForm />
           </Container>
         </FieldLayout>
       </QueryBoundary>
@@ -80,8 +81,9 @@ export function AppearanceSettingsSurface(): ReactElement {
   );
 }
 
-/** Suspends on the synced settings read, then binds the autosave form to `appearance`. */
-function AppearanceForm(): ReactElement {
+/** Suspends on the synced settings read, then binds the autosave form to `appearance` through the D78
+ *  session boundary — the boundary owns the (constant) entity key, so no manual `key` to place wrong. */
+function AppearanceSettingsForm(): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const { data } = useSuspenseQuery(trpc.settings.getUserSettings.queryOptions());
@@ -89,14 +91,18 @@ function AppearanceForm(): ReactElement {
 
   const save = (values: AppearanceSettings): Promise<unknown> => update.mutateAsync({ section: "appearance", patch: values as Record<string, unknown> });
 
-  const { form, mountKey, saveState, retrySave } = useAppearanceForm({
-    entityId: APPEARANCE_ENTITY_ID,
-    serverValues: data.config.appearance,
-    save,
-  });
-
   return (
-    <Stack key={mountKey} gap="section">
+    <AppearanceForm entityId={APPEARANCE_ENTITY_ID} serverValues={data.config.appearance} save={save}>
+      {(session): ReactElement => <AppearanceFormBody session={session} />}
+    </AppearanceForm>
+  );
+}
+
+/** The form-bearing appearance body — remounted per epoch by the boundary's keyed Session. */
+function AppearanceFormBody({ session }: { readonly session: AutosaveSession<AppearanceSettings> }): ReactElement {
+  const { form, saveState, retrySave } = session;
+  return (
+    <Stack gap="section">
       <Stack gap="section">
         <Section divider={true} heading="Message style" id={anchor(APPEARANCE_SUBCATEGORY_IDS.messageStyle)}>
           <form.AppField name="chatStyle">
@@ -300,10 +306,7 @@ function AppearanceForm(): ReactElement {
         <AppearanceEffectsSection form={form} />
       </Stack>
       <Row gap="field" align="center">
-        <AutosaveStatus state={saveState} onRetry={retrySave} />
-        <Text size="micro" tone="muted">
-          · Synced across your devices.
-        </Text>
+        <AutosaveStatus state={saveState} onRetry={retrySave} caption="Synced across your devices." />
       </Row>
     </Stack>
   );
