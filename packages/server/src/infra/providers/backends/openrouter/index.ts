@@ -153,9 +153,10 @@ export function createOpenRouterBackend(deps: OpenRouterBackendDeps): ProviderBa
     summarize: async (req: SummarizeRequest): Promise<SummarizeResult> => await runSummarize(clientFor(req.credential, "summarize"), req),
     generateImage: async (req: ImageGenerateRequest): Promise<ImageGenerateResult> => await runGenerateImage(clientFor(req.credential, "generateImage"), req),
     probe: async (req: ProbeRequest): Promise<CredentialHealth> => await probeOpenRouterCredential(clientFor(req.credential, "probe"), deps.now),
-    accountCredits: async (req: AccountCreditsRequest): Promise<AccountCredits> => await getOpenRouterCredits(clientFor(req.credential, "accountCredits")),
+    accountCredits: async (req: AccountCreditsRequest): Promise<AccountCredits> =>
+      await getOpenRouterCredits(clientFor(req.credential, "accountCredits"), req.signal),
     generationCost: async (req: GenerationCostRequest): Promise<GenerationCost> =>
-      await getOpenRouterGenerationCost(clientFor(req.credential, "generationCost"), req.generationId),
+      await getOpenRouterGenerationCost(clientFor(req.credential, "generationCost"), req.generationId, req.signal),
     fetchCatalog: async (_req: FetchCatalogRequest): Promise<ModelCatalogEntry[]> => await fetchOrCatalog(getClient("")),
   };
 }

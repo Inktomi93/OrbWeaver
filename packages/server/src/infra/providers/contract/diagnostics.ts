@@ -13,10 +13,9 @@ import type { AgentSdkModel, ModelCatalogEntry } from "@orb/contracts/connection
 import type { CredentialHealth, ResolvedCredential } from "@orb/contracts/credentials";
 import type { AccountCredits, EndpointInspection, GenerationCost, VerifyAuthResult } from "@orb/contracts/providers";
 
-/** FLAG[PD-16]: Fields the credential-shaped diagnostic requests share. `signal` is the cross-surface
- *  cancellation hook. THREADED for `inspect` (the BYO inspector's fetch) and `verifyAuth` (the agent-sdk
- *  probe's AbortController). STILL unthreaded for the OpenRouter SDK ports (`accountCredits`/`generationCost`
- *  — `credits.getCredits()`/`generations.getGeneration()` take no options arg; blocked:upstream-sdk). */
+/** Fields the credential-shaped diagnostic requests share. `signal` is the cross-surface cancellation hook,
+ *  threaded through every arm: `inspect` (the BYO inspector's fetch), `verifyAuth` (the agent-sdk probe's
+ *  AbortController), and `accountCredits`/`generationCost` (the OpenRouter SDK's `RequestOptions`). */
 interface DiagnosticRequestCommon {
   /** Resolved by credentials, handed in — discriminated by `source` at the dispatcher. */
   readonly credential: ResolvedCredential;
