@@ -8,6 +8,7 @@ import type { EntryView } from "@orb/contracts/world-info";
 import type { WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
+import { useState } from "react";
 import { EntryEditor } from "../../../../packages/client/src/features/world-info/components/entry-editor";
 import { CtDataProviders } from "../../../support/ct/ct-data-providers";
 
@@ -45,6 +46,52 @@ export function EntryEditorStory(): ReactElement {
     <CtDataProviders>
       <div style={{ width: 560, padding: 16 }}>
         <EntryEditor entry={STORY_ENTRY} onDeleted={(): void => undefined} />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+// Two distinct entries for the F1 SWITCH pin. `content` is the tell of which seed is live — the test never
+// edits it: A's is "A-content", B's is "B-content". Entry B carries none of A's metadata quirks.
+const SWITCH_ENTRY_A: EntryView = {
+  id: castId<WorldEntryId>("world_entry_ctswitch0a"),
+  worldBookId: castId<WorldBookId>("world_book_ctstory0001"),
+  title: "Entry A",
+  description: "",
+  content: "A-content",
+  keys: [],
+  enabled: true,
+  priority: 0,
+  ignoreBudget: false,
+  metadata: null,
+};
+const SWITCH_ENTRY_B: EntryView = {
+  id: castId<WorldEntryId>("world_entry_ctswitch0b"),
+  worldBookId: castId<WorldBookId>("world_book_ctstory0001"),
+  title: "Entry B",
+  description: "",
+  content: "B-content",
+  keys: [],
+  enabled: true,
+  priority: 0,
+  ignoreBudget: false,
+  metadata: null,
+};
+
+/** The F1 SWITCH pin harness — one `EntryEditor` mount whose `entry` prop swaps A→B (exactly what the book
+ *  surface does when the selected entry changes: same component, new prop, no route/component remount). The
+ *  boundary must key its Session by entry id so B's session is a fresh mount seeded from B, never A's frozen
+ *  FormApi. Without it, one keystroke after the switch autosaves A's whole row (incl. content="A-content")
+ *  into entry B. */
+export function EntryEditorSwitchStory(): ReactElement {
+  const [entry, setEntry] = useState<EntryView>(SWITCH_ENTRY_A);
+  return (
+    <CtDataProviders>
+      <div style={{ width: 560, padding: 16 }}>
+        <button type="button" onClick={(): void => setEntry(SWITCH_ENTRY_B)}>
+          switch entry
+        </button>
+        <EntryEditor entry={entry} onDeleted={(): void => undefined} />
       </div>
     </CtDataProviders>
   );
