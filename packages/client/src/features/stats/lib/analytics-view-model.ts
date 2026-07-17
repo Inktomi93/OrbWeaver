@@ -11,6 +11,23 @@ import type { HistogramBucket } from "@orb/ui/histogram";
 /** Sun..Sat, index 0 = Sunday — matches the server's `dayOfWeek` / heatmap row ordering. */
 export const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
 
+/** The leaderboard sort axes — ids MIRROR the server `LEADERBOARD_SORTS` tuple
+ * (domain/stats/contract/params), the wire enum `leaderboard.sort` validates against; labels are the
+ * client-facing names. One home for both the LIST surface's toggle and the header's shared-cache count key. */
+export const ANALYTICS_SORT_OPTIONS = [
+  { id: "assistantTurns", label: "Replies" },
+  { id: "totalGenTimeMs", label: "Gen time" },
+  { id: "swipes", label: "Swipes" },
+  { id: "lastActivityAt", label: "Recent" },
+] as const;
+
+/** The default leaderboard sort — the count header shares this cache key with the list surface's initial
+ * query, so the band count never triggers an extra fetch. (The sort-id UNION is derived locally at each
+ * consumer via `(typeof ANALYTICS_SORT_OPTIONS)[number]["id"]` — a non-exported alias, per no-inline-types:
+ * an exported type alias belongs in a contract home, but this list-only vocabulary has no cross-boundary
+ * consumer.) */
+export const ANALYTICS_DEFAULT_SORT = "assistantTurns" as const;
+
 const MS_PER_SECOND = 1000;
 const MS_PER_MINUTE = 60_000;
 const MS_PER_HOUR = 3_600_000;

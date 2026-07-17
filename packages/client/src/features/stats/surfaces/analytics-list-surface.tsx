@@ -1,7 +1,9 @@
 // The Analytics LIST navigator — the character leaderboard. Reads `leaderboard` (owner-scoped ranked
-// rows) under a sort toggle whose keys mirror the server's `LEADERBOARD_SORTS` wire enum. Selecting a
-// row drills that character's stats into CONTENT (`selectAnalyticsCharacter`); the drilled row reads
-// selected. Per A2 there is no create action in this section — the sort toggle is the finder affordance.
+// rows) under a sort toggle whose keys mirror the server's `LEADERBOARD_SORTS` wire enum (the shared
+// `ANALYTICS_SORT_OPTIONS` vocabulary in analytics-view-model). Selecting a row drills that character's
+// stats into CONTENT (`selectAnalyticsCharacter`); the drilled row reads selected. Per A2 there is no
+// create action in this section — the "Analytics" title + count live in the `.shell-panel-header` band
+// (`analytics-list-header.tsx`, N1/N2), and the sort toggle is the finder affordance.
 
 import { Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
@@ -14,39 +16,28 @@ import { useRef, useState } from "react";
 import { QueryBoundary, QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { testId, useFocusOnMount } from "#lib";
 import { selectAnalyticsCharacter, useSelectedAnalyticsCharacterId } from "#state";
-import { formatCompact, formatDurationMs } from "../lib/analytics-view-model";
+import { ANALYTICS_DEFAULT_SORT, ANALYTICS_SORT_OPTIONS, formatCompact, formatDurationMs } from "../lib/analytics-view-model";
 
-// Mirrors the server `LEADERBOARD_SORTS` tuple (domain/stats/contract/params) — the wire enum the
-// `leaderboard.sort` input validates against. Labels are the client-facing names.
-const SORT_OPTIONS = [
-  { id: "assistantTurns", label: "Replies" },
-  { id: "totalGenTimeMs", label: "Gen time" },
-  { id: "swipes", label: "Swipes" },
-  { id: "lastActivityAt", label: "Recent" },
-] as const;
+// The sort-id union derived from the shared vocabulary (a local, non-exported alias — no-inline-types
+// gates EXPORTED types outside a contract home; this list-only union has no cross-boundary consumer).
+type SortId = (typeof ANALYTICS_SORT_OPTIONS)[number]["id"];
 
-type SortId = (typeof SORT_OPTIONS)[number]["id"];
-
-const DEFAULT_SORT: SortId = "assistantTurns";
 const SKELETON_ROW_COUNT = 6;
 
 export function AnalyticsListSurface(): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
-  const [sort, setSort] = useState<SortId>(DEFAULT_SORT);
+  const [sort, setSort] = useState<SortId>(ANALYTICS_DEFAULT_SORT);
 
   return (
     <Stack ref={surfaceRef} tabIndex={-1} className="h-full min-h-0 outline-none" data-testid={testId("analyticsListSurface")} gap="block">
-      <Text size="micro" weight="semibold" tone="muted" transform="caps">
-        Leaderboard
-      </Text>
       <ToggleGroup
         aria-label="Sort characters"
         data-testid={testId("analyticsLeaderboardSort")}
         value={[sort]}
-        onValueChange={(picked): void => setSort((picked[0] ?? DEFAULT_SORT) as SortId)}
+        onValueChange={(picked): void => setSort((picked[0] ?? ANALYTICS_DEFAULT_SORT) as SortId)}
       >
-        {SORT_OPTIONS.map((option) => (
+        {ANALYTICS_SORT_OPTIONS.map((option) => (
           <Toggle key={option.id} value={option.id} aria-label={`Sort by ${option.label}`}>
             {option.label}
           </Toggle>
