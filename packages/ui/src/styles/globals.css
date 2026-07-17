@@ -176,6 +176,76 @@
   }
 }
 
+/* Streaming ghost-row affordances (chat feature `ghost-message-row.tsx`). Two @keyframes a Tailwind
+ * transition can't express: a three-dot "typing" pulse for the pending (pre-first-token) window, and
+ * the block-caret blink riding the streamed text tail. Homed here (ui's unlayered floor) rather than
+ * the client stylesheet so the CT harness — which imports ui's globals, NOT the main.tsx-only client
+ * one — actually paints them (client-architecture-lockdown §4, the settings-flash-anchor precedent).
+ *
+ * Reduced-motion: BOTH the OS @media floor and the [data-reduced-motion="true"] block at the top of
+ * this file already freeze `animation-*` with !important, so the dots settle at their resting opacity
+ * (visible, static) and the caret rests steady (visible, no blink) — no per-utility reduced-motion
+ * rule needed. Each resting opacity is deliberately non-zero so a frozen frame is never invisible. */
+@keyframes orb-typing-dot {
+  0%,
+  60%,
+  100% {
+    opacity: 0.35;
+  }
+  30% {
+    opacity: 1;
+  }
+}
+.orb-typing-dot {
+  opacity: 0.35;
+  animation: orb-typing-dot var(--motion-breathe) ease-in-out infinite;
+}
+/* Stagger the three dots so they read as one "typing" group traveling left→right (guide §3.10),
+ * derived off the same breathe period rather than a new duration token. */
+.orb-typing-dot:nth-child(2) {
+  animation-delay: calc(var(--motion-breathe) / 6);
+}
+.orb-typing-dot:nth-child(3) {
+  animation-delay: calc(var(--motion-breathe) / 3);
+}
+
+/* The streaming caret: Streamdown (mode="streaming", `caret: "block"`) paints its own `::after` at the
+ * true text insertion point — the tail of the last rendered block — via a `--streamdown-caret` content
+ * glyph (a muted, static ▋). Inside the ghost's `ghost-stream-body` wrapper we replace that glyph with
+ * a 2px `--color-primary` bar and give it the blink. Scoping to `ghost-stream-body` (the wrapper around
+ * the streamed Markdown only) leaves settled rows (mode="static", no caret) and the ghost's reasoning
+ * block untouched; the caret still sits INSIDE `[data-slot="message-bubble"]`, so every §2b axis
+ * (skin/elevation/glass/bg-image) reaches it for free. The selector walks wrapper → Streamdown root
+ * div → the last block's `dir="auto"` contents-wrapper → the last leaf block (`<p>`/`<li>`/…), so the
+ * inline-block bar sits AFTER the final glyph rather than dropping to a new line below the block (which
+ * an `::after` on the contents-wrapper does). `content: ""` overrides Streamdown's own ▋ glyph. */
+@keyframes orb-stream-caret {
+  0%,
+  45% {
+    opacity: 1;
+  }
+  55%,
+  100% {
+    opacity: 0.2;
+  }
+}
+/* The wrapper is a data-slot marker the feature can't className (paint law); it must not add a box, so
+ * `display: contents` lives here — the streamed Markdown stays a direct flow child of the bubble. */
+[data-slot="ghost-stream-body"] {
+  display: contents;
+}
+[data-slot="ghost-stream-body"][data-streaming] > * > *:last-child > *:last-child::after {
+  content: "";
+  display: inline-block;
+  inline-size: 0;
+  block-size: 1em;
+  margin-inline-start: 0.1em;
+  vertical-align: text-bottom;
+  border-inline-start: 2px solid var(--color-primary);
+  opacity: 1;
+  animation: orb-stream-caret var(--motion-shimmer) ease-in-out infinite;
+}
+
 /* Jump-to-anchor flash ring (settings scroll-spy + any future anchor jump). An INSET box-shadow (not
  * outline) so the ring clips to the target's border-box instead of bleeding past a scroll container's
  * edge. Class-toggle, not imperative `el.style.*`, so it stays token-gated (no-off-token-inline-style). */

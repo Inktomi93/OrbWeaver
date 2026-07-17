@@ -28,6 +28,7 @@ import {
   chatStream,
   committedChat,
   draftChat,
+  isLiveTurnPhase,
   selectChat,
   startEditingMessage,
   startNewChat,
@@ -263,10 +264,12 @@ export function MessageContentSpansStory({
 
 function GhostRowInner(): ReactElement {
   const phase = useTurnPhase(CHAT_ID);
+  // Mount the ghost row ONLY while the turn is live — exactly as the production surface gates it
+  // (`message-list-surface.tsx` `isLiveTurnPhase`); at idle/completed the row is unmounted, not idling.
   return (
     <div>
       <div data-testid="phase">{phase}</div>
-      <GhostMessageRow chatId={CHAT_ID} chatStyle="bubble" streaming={phase === "streaming"} />
+      {isLiveTurnPhase(phase) ? <GhostMessageRow chatId={CHAT_ID} chatStyle="bubble" streaming={phase === "streaming"} /> : null}
     </div>
   );
 }

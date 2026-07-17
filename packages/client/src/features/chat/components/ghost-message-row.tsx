@@ -9,7 +9,7 @@ import { initialsFor } from "@orb/kit/initials";
 import { speakerTagsToPlain } from "@orb/kit/speaker-label";
 import { Row, Stack } from "@orb/ui/layout";
 import { Markdown } from "@orb/ui/markdown";
-import { StreamShimmer, useSmoothText } from "@orb/ui/stream";
+import { TypingDots, useSmoothText } from "@orb/ui/stream";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement } from "react";
 import type { MessageRenderContext } from "#lib";
@@ -34,10 +34,28 @@ function ghostFallbackTile(attribution: RowAttribution | undefined): {
   return { hueSeed: attribution.hueSeed, initial: initialsFor(attribution.name) };
 }
 
+// The bubble's streamed body: typing dots before the first token, else the paced Markdown. Extracted to
+// module scope so `GhostMessageRow` stays under the cognitive-complexity ceiling. The streaming caret is
+// Streamdown's own `caret: "block"` (`mode="streaming"`) `::after` at the true text insertion point;
+// `styles/globals.css` retints it to a 2px `--color-primary` blinking bar within the `ghost-stream-body`
+// scope (see the header). The wrapper is a data-slot marker only (no className — feature paint law).
+function GhostBubbleBody({ held, streaming }: { readonly held: string; readonly streaming: boolean }): ReactElement {
+  if (held.length === 0) {
+    return <TypingDots label="Generating a reply…" />;
+  }
+  return (
+    <div data-slot="ghost-stream-body" data-streaming={streaming ? "" : undefined}>
+      <Markdown trust="untrusted" mode={streaming ? "streaming" : "static"}>
+        {held}
+      </Markdown>
+    </div>
+  );
+}
+
 export interface GhostMessageRowProps {
   readonly chatId: ChatId;
   readonly chatStyle: keyof typeof MESSAGE_ROW_SKINS;
-  /** Pacing runs only while true; pending shows the TTFT shimmer instead. */
+  /** Pacing (and the streaming caret) run only while true; pending shows the typing dots instead. */
   readonly streaming: boolean;
   readonly renderContext?: MessageRenderContext | undefined;
   readonly rowCharacterId?: CharacterId | null | undefined;
@@ -110,13 +128,7 @@ export function GhostMessageRow({
     // otherwise shrink-to-fit).
     <Stack gap="row" data-slot="message-bubble" className={cn(skin.inner("assistant"), "w-full", decoration?.className)} style={decoration?.style}>
       {reasoning.length > 0 ? <ReasoningBlock reasoning={reasoning} thinking={thinking} showIcon={showLLMReasoningIcon} /> : null}
-      {held.length === 0 ? (
-        <StreamShimmer label="Generating a reply…" />
-      ) : (
-        <Markdown trust="untrusted" mode={streaming ? "streaming" : "static"}>
-          {held}
-        </Markdown>
-      )}
+      <GhostBubbleBody held={held} streaming={streaming} />
     </Stack>
   );
   const decoratedBubble =

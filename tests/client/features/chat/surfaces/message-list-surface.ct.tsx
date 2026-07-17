@@ -144,7 +144,7 @@ const TURN_START_ONLY: ChatBusEvent[] = [
   },
 ];
 
-test("pending phase (turnStarted, no deltas yet): the TTFT shimmer renders with REAL rendered width, not collapsed", async ({ mount, page }) => {
+test("pending phase (turnStarted, no deltas yet): the typing dots render with REAL rendered width, not collapsed", async ({ mount, page }) => {
   await routeTrpc(page, {
     "chat.listMessages": () => makeMessagesPage([USER_VIEW]),
     ...ROSTER_STUB,
@@ -153,11 +153,13 @@ test("pending phase (turnStarted, no deltas yet): the TTFT shimmer renders with 
 
   const component = await mount(<MessageListSurfaceStory />);
 
-  // Canon renders alongside the pending ghost.
+  // Canon renders alongside the pending ghost, whose pre-first-token affordance is the typing dots
+  // (§6.4) — a role=status region in the ghost bubble, laid out with real (non-collapsed) width.
   await expect(component.getByText("Ping?")).toBeVisible();
-  const shimmer = component.getByRole("status");
-  await expect(shimmer).toBeVisible();
-  const box = await shimmer.boundingBox();
+  const pending = component.getByRole("status");
+  await expect(pending).toBeVisible();
+  await expect(component.locator('[data-slot="typing-dots"] .orb-typing-dot')).toHaveCount(3);
+  const box = await pending.boundingBox();
   expect(box?.width).toBeGreaterThan(100);
 });
 
