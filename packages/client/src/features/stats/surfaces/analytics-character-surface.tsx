@@ -10,7 +10,7 @@ import { ArrowLeft, ChartColumn, Icon } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { StatFigure } from "@orb/ui/stat-figure";
 import { Text } from "@orb/ui/text";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useRef } from "react";
 import { QueryBoundary, QueryErrorState, useTRPC } from "#data";
@@ -41,13 +41,21 @@ function CharacterBody({ characterId, onBack }: { readonly characterId: Characte
   const trpc = useTRPC();
   const { data: stats } = useSuspenseQuery(trpc.stats.character.queryOptions({ characterId }));
   const { data: latency } = useSuspenseQuery(trpc.stats.latency.queryOptions({ kind: "character", characterId }));
+  // Non-suspending name read — only used to NAME the empty state (P4); the figures below already carry
+  // the name via `stats.name`, so this degrades quietly to a generic sentence until the cache populates.
+  const { data: character } = useQuery(trpc.character.get.queryOptions({ characterId }));
+  const drilledName = character?.name.trim() ?? "";
 
   if (stats === null) {
     return (
       <EmptyState
         icon={<Icon icon={ChartColumn} size="lg" />}
         title="No stats yet"
-        description="This character has no rolled-up activity. Play a chat with them, then come back."
+        description={
+          drilledName.length > 0
+            ? `${drilledName} has no rolled-up activity yet. Play a chat with them, then come back.`
+            : "This character has no rolled-up activity. Play a chat with them, then come back."
+        }
         action={
           <Button intent="secondary" size="sm" onClick={onBack}>
             <Icon icon={ArrowLeft} size="sm" />

@@ -152,6 +152,16 @@ export interface DraftChatContext {
  *  `defineContextTabs<ChatContextState>` unifies both the committed panel and its draft twin (§6b/§15). */
 export type ChatContextState = CommittedChatContext | DraftChatContext;
 
+/** The Analytics CONTEXT-panel state projection (O5 strict — a real named type, never void/any). The
+ *  three dimension tabs (Models/Time/Personas) are owner-scoped and IGNORE this state; it exists only so
+ *  the definition-owned `header` slot (P4) can name the leaderboard-drilled character. `null` = the
+ *  overview dashboard (nothing drilled) ⇒ the band shows the neutral "Analytics" identity. The projection
+ *  is ALWAYS present (never `null` from `useContextState`) so the owner-scoped tabs stay unconditionally
+ *  available whether or not a character is drilled. */
+export interface AnalyticsContextState {
+  readonly characterId: CharacterId | null;
+}
+
 /** The chat SURFACE-ANCHOR vocabulary (§6c/M8) — closed `as const` tuple, so an unlisted anchor is
  *  unspellable. `thread-flank`/`above-composer` are ROOM-level (mounted once per open room);
  *  `message-footer` is PER-ROW (mounted once per committed message). */
