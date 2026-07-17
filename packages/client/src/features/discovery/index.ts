@@ -8,6 +8,8 @@ export type { CorpusListAnchorProps } from "./anchors/corpus-list-anchor";
 export { CorpusListAnchor } from "./anchors/corpus-list-anchor";
 export { CorpusArchetypesTab } from "./components/corpus-archetypes-tab";
 export { CorpusCompareTab } from "./components/corpus-compare-tab";
+export { CorpusContextHeader } from "./components/corpus-context-header";
+export { CorpusListHeader } from "./components/corpus-list-header";
 export { CorpusMapTab } from "./components/corpus-map-tab";
 export { CorpusSimilarityTab } from "./components/corpus-similarity-tab";
 export { CorpusVisualsTab } from "./components/corpus-visuals-tab";
