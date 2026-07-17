@@ -151,11 +151,7 @@ function DossierBody({ characterId, onBack }: { readonly characterId: CharacterI
                   leading={<CharacterAvatar id={neighbor.characterId} name={neighbor.name} hash={neighbor.avatarHash} />}
                   title={neighbor.name}
                   subtitle={neighbor.elevatorPitch ?? (neighborFacet === "" ? "" : neighborFacet)}
-                  actions={
-                    <Badge intent="neutral" size="sm">
-                      {neighbor.score.toFixed(ALIGNMENT_PRECISION)}
-                    </Badge>
-                  }
+                  actions={<Score value={neighbor.score} />}
                 />
               );
             })}
@@ -206,14 +202,19 @@ function SimilarArtBody({ characterId }: { readonly characterId: CharacterId }):
           onClick={(): void => selectCorpusCharacter(hit.characterId)}
           leading={<CharacterAvatar id={hit.characterId} name={hit.name} hash={hit.avatarHash} />}
           title={hit.name}
-          actions={
-            <Badge intent="neutral" size="sm">
-              {hit.score.toFixed(ALIGNMENT_PRECISION)}
-            </Badge>
-          }
+          actions={<Score value={hit.score} />}
         />
       ))}
     </Stack>
+  );
+}
+
+/** Quiet metadata (§6.3 P5): a cosine/relevance score is a readout, not a pill — inline micro/mono/muted. */
+function Score({ value }: { readonly value: number }): ReactElement {
+  return (
+    <Text className="shrink-0 font-mono" size="micro" tone="muted">
+      {value.toFixed(ALIGNMENT_PRECISION)}
+    </Text>
   );
 }
 

@@ -12,6 +12,8 @@ import { CorpusListAnchor } from "../anchors/corpus-list-anchor";
 import { CorpusArchetypesTab } from "../components/corpus-archetypes-tab";
 import { CorpusCompareTab } from "../components/corpus-compare-tab";
 import { CorpusContent } from "../components/corpus-content";
+import { CorpusContextHeader } from "../components/corpus-context-header";
+import { CorpusListHeader } from "../components/corpus-list-header";
 import { CorpusMapTab } from "../components/corpus-map-tab";
 import { CorpusSimilarityTab } from "../components/corpus-similarity-tab";
 import { CorpusVisualsTab } from "../components/corpus-visuals-tab";
@@ -30,10 +32,16 @@ export const corpusSection: SectionDefinition = {
       <CorpusListSurface />
     </CorpusListAnchor>
   ),
+  // The LIST chrome-band content (§4 N1/N2): "CORPUS" title + distilled count. No create action —
+  // corpus is browse-shaped (§2), so the band carries title + count only (P2 trivially met).
+  listHeader: () => <CorpusListHeader />,
   content: () => <CorpusContent />,
   // Five owner-scoped analytics tabs, always available: Archetypes / Visuals / Map / Similarity / Compare.
   context: defineContextTabs<void>({
     useContextState: () => VOID_STATE,
+    // The CONTEXT-panel BAND identity (N4/P4) — the corpus subject + count. Owner-wide analytics, so the
+    // band names the SECTION (not the dossier character the tabs never rescope to — see the component).
+    header: () => <CorpusContextHeader />,
     tabs: [
       { id: "archetypes", label: "Archetypes", body: () => <CorpusArchetypesTab /> },
       { id: "visuals", label: "Visuals", body: () => <CorpusVisualsTab /> },

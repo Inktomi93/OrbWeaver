@@ -6,9 +6,8 @@
 // image target rides the caption-aware lens. Rendered only while the omnibox has a query (parent-gated).
 
 import type { ChatId } from "@orb/kit/ids";
-import { Badge } from "@orb/ui/badge";
 import { Icon, Images, MessagesSquare, Search } from "@orb/ui/icons";
-import { Row, Stack } from "@orb/ui/layout";
+import { Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
@@ -292,13 +291,13 @@ function ImageHitRow({ caption, score }: { readonly caption: string | null; read
   );
 }
 
+// Quiet metadata (§6.3 P5): a relevance score is a readout, not a pill — inline micro/mono/muted text,
+// matching the similarity-tab PairRow score and the N3 message-metadata treatment.
 function ScoreBadge({ score }: { readonly score: number }): ReactElement {
   return (
-    <Row align="center" className="shrink-0">
-      <Badge intent="neutral" size="sm">
-        {score.toFixed(SCORE_PRECISION)}
-      </Badge>
-    </Row>
+    <Text className="shrink-0 font-mono" size="micro" tone="muted">
+      {score.toFixed(SCORE_PRECISION)}
+    </Text>
   );
 }
 

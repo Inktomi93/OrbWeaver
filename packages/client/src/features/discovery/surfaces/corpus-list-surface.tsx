@@ -8,7 +8,7 @@
 
 import { Autocomplete } from "@orb/ui/autocomplete";
 import { Icon, Search } from "@orb/ui/icons";
-import { Row, Stack } from "@orb/ui/layout";
+import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { Toggle } from "@orb/ui/toggle";
 import { ToggleGroup } from "@orb/ui/toggle-group";
@@ -35,11 +35,6 @@ export function CorpusListSurface(): ReactElement {
 
   return (
     <Stack ref={surfaceRef} tabIndex={-1} className="h-full min-h-0 outline-none" data-testid={testId("corpusListSurface")} gap="block">
-      <Row align="center" justify="between">
-        <Text size="micro" weight="semibold" tone="muted" transform="caps">
-          Corpus
-        </Text>
-      </Row>
       <ToggleGroup
         aria-label="Search target"
         data-testid={testId("corpusSearchTarget")}
