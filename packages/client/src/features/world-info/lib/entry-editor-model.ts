@@ -1,4 +1,4 @@
-// The world-info entry editor model — the flat EntryFormValues the button-gated entry form binds, plus
+// The world-info entry editor model — the flat EntryFormValues the autosave entry form binds, plus
 // the two round-trip mappers. The wire shape nests per-entry behaviour in a loose `metadata` blob
 // (scopeMode/inject/position + preserved unknown ST keys); the form flattens it, and the save mapper
 // re-nests it while spreading the entry's existing metadata first so unknown ST-imported keys ride

@@ -1,15 +1,18 @@
-// CT: the full-fidelity ENTRY editor over the stubbed network. Proves the "everything included" claim end to
-// end — every contract field renders seeded from the entry, the BUILT `@orb/ui/combobox` keyword picker
-// commits a new chip, and Save fires `worldInfo.updateEntry` whose input carries EVERY field back (title /
-// content / keys incl. the added chip / enabled / priority / metadata.scopeMode / metadata.position) PLUS the
-// unknown ST-imported metadata key (`extra`) the save mapper preserves. The Combobox input + the Save button
-// portal within the mounted root, so `page` locators address them by their accessible names.
+// CT: the full-fidelity ENTRY editor over the stubbed network (D78 — an AUTOSAVE editor on the session
+// boundary). Proves the "everything included" claim end to end — every contract field renders seeded from
+// the entry, the BUILT `@orb/ui/combobox` keyword picker commits a new chip, and the store-driven autosave
+// (NO Save button) fires `worldInfo.updateEntry` whose input carries EVERY field back (title / content /
+// keys incl. the added chip / enabled / priority / metadata.scopeMode / metadata.position) PLUS the unknown
+// ST-imported metadata key (`extra`) the save mapper preserves. The second test is the F1 SWITCH pin: the
+// book surface swaps the `entry` prop on ONE mounted editor, so the boundary must key its Session by entry
+// id — else entry A's frozen form leaks into B. The Combobox input portals within the mounted root, so
+// `page` locators address it by accessible name.
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { EntryEditorStory } from "../_ct-stories";
+import { EntryEditorStory, EntryEditorSwitchStory } from "../_ct-stories";
 
-test("renders every field, commits a keyword chip, and saves the full input", async ({ mount, page }) => {
+test("renders every field, commits a keyword chip, and autosaves the full input", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "worldInfo.updateEntry": (input: unknown) => {
       const { entryId } = input as { entryId: string };
@@ -37,15 +40,15 @@ test("renders every field, commits a keyword chip, and saves the full input", as
   await expect(page.getByRole("button", { name: "Remove eldoria" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Remove capital" })).toBeVisible();
 
-  // Commit a new keyword chip through the picker (type → Enter).
+  // Commit a new keyword chip through the picker (type → Enter). This is a valid values change, so the
+  // boundary's store-subscription driver debounces then autosaves — NO Save button.
   const keywords = page.getByLabel("Keyword triggers");
   await keywords.fill("walls");
   await keywords.press("Enter");
   await expect(page.getByRole("button", { name: "Remove walls" })).toBeVisible();
 
-  // Save → updateEntry fires with the FULL input (every field + the added chip + the preserved unknown key).
-  await page.getByRole("button", { name: "Save entry" }).click();
-  await expect.poll(() => trpc.count("worldInfo.updateEntry"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
+  // Autosave → updateEntry fires with the FULL input (every field + the added chip + the preserved key).
+  await expect.poll(() => trpc.count("worldInfo.updateEntry"), { intervals: [100, 200, 300, 500] }).toBeGreaterThanOrEqual(1);
 
   const saved = trpc.lastInput("worldInfo.updateEntry") as {
     entryId: string;
@@ -87,4 +90,53 @@ test("delete: the icon trigger opens an uncontrolled confirm with no description
   await dialog.getByRole("button", { name: "Delete" }).click();
   await expect.poll(() => trpc.count("worldInfo.removeEntry"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
   expect((trpc.lastInput("worldInfo.removeEntry") as { entryId: string }).entryId).toBe("world_entry_ctstory0001");
+});
+
+// F1 SWITCH pin (autosave-form-doctrine.md §8/§10) — the book surface swaps the `entry` prop on ONE mounted
+// EntryEditor when the selected entry changes (no route/component remount), the exact F1 identity case. The
+// boundary keys its Session by entry id, so switching entries is a fresh mount seeded from the NEW entry.
+// A seeds content="A-content" (a field this test never edits — the tell of which seed is live); B seeds
+// content="B-content". Dirty A via Title, switch to B, edit B's Title: the autosave for B must carry B's own
+// untouched content ("B-content"), never A's frozen "A-content" (which a leaked A instance would re-save).
+test("SWITCH pin — switching entries autosaves the new entry, never the previous entry's frozen fields", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    "worldInfo.updateEntry": (input: unknown) => {
+      const { entryId } = input as { entryId: string };
+      return {
+        id: entryId,
+        worldBookId: "world_book_ctstory0001",
+        title: "saved",
+        description: null,
+        content: "saved",
+        keys: [],
+        enabled: true,
+        priority: 0,
+        ignoreBudget: false,
+        metadata: {},
+      };
+    },
+  });
+
+  await mount(<EntryEditorSwitchStory />);
+
+  // Entry A is live — dirty it via Title so A's FormApi is non-default; the debounced autosave carries A's
+  // whole row (incl. content="A-content").
+  await page.getByRole("textbox", { name: "Title" }).fill("A edited");
+  await expect
+    .poll(() => (trpc.lastInput("worldInfo.updateEntry") as { entryId: string } | undefined)?.entryId, { intervals: [100, 200, 300, 500] })
+    .toBe("world_entry_ctswitch0a");
+
+  // Switch to entry B (same mount, new `entry` prop). Edit B's Title; the autosave must be for B, carrying
+  // B's OWN content — a leaked A instance would autosave entryId A with content="A-content".
+  await page.getByRole("button", { name: "switch entry" }).click();
+  await expect(page.getByRole("textbox", { name: "Content" })).toHaveValue("B-content");
+  await page.getByRole("textbox", { name: "Title" }).fill("B edited");
+
+  await expect
+    .poll(() => (trpc.lastInput("worldInfo.updateEntry") as { entryId: string } | undefined)?.entryId, { intervals: [100, 200, 300, 500] })
+    .toBe("world_entry_ctswitch0b");
+  const saved = trpc.lastInput("worldInfo.updateEntry") as { entryId: string; input: { title: string; content: string } };
+  expect(saved.input.title).toBe("B edited");
+  expect(saved.input.content).toBe("B-content");
+  expect(saved.input.content).not.toBe("A-content");
 });
