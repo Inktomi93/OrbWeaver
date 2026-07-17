@@ -1,8 +1,10 @@
 // The Characters CONTENT when a row is selected. One always-editing AUTOSAVE form over the draft
-// card-content fields, with a key={mountKey} full remount on character switch. The hero name is a
-// draft field; the hero portrait/star/archive + the tags row are immediate identity commits outside
-// the form. Autosave everywhere (D66 A4 / north-star §7): no Save/Discard — the header carries the
-// token split + the shared AutosaveStatus (Saved / Saving… / Save failed — Retry) where Save used to be.
+// card-content fields, mounted through the D78 session boundary (`CharacterForm`) which OWNS the entity
+// key — a character switch is a boundary-driven teardown/remount seeded from the new server row, so there
+// is no manual `key` to place wrong (D78 L2, autosave-form-doctrine.md §1/§8). The hero name is a draft
+// field; the hero portrait/star/archive + the tags row are immediate identity commits outside the form.
+// Autosave everywhere (D66 A4 / north-star §7): no Save/Discard — the header carries the token split +
+// the shared AutosaveStatus (Saved / Saving… / Save failed — Retry) where Save used to be.
 //
 // Hero chat affordances: "New chat" always starts a fresh thread with this character; "N chats ›"
 // scopes the Chats list to this character and switches sections.
@@ -15,7 +17,8 @@ import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
-import { AutosaveStatus } from "#forms";
+import type { AppFormInstance, AutosaveSession } from "#forms";
+import { AutosaveStatus, createAutosaveEntityBoundary } from "#forms";
 import type { CharacterDetailContribution, CharacterDetailState, ContributorRegistry } from "#lib";
 import { useFocusOnMount } from "#lib";
 import {
@@ -30,12 +33,23 @@ import {
 import { CharacterFacetEditor } from "../components/character-facet-editor";
 import { CharacterFacetList } from "../components/character-facet-list";
 import { CharacterHeroBand } from "../components/character-hero-band";
-import { useCharacterForm } from "../hooks/use-character-form";
 import { useUpdateCharacter } from "../hooks/use-character-mutations";
 import type { CharacterCardFacet } from "../lib/character-card-facets";
 import type { CharacterCardFormValues } from "../lib/character-card-form-model";
-import { characterCardFormFromDetail, characterUpdateDiff, permanentTokenCount, totalTokenCount } from "../lib/character-card-form-model";
+import {
+  characterCardFormFromDetail,
+  characterUpdateDiff,
+  DEFAULT_CHARACTER_CARD_FORM,
+  permanentTokenCount,
+  totalTokenCount,
+} from "../lib/character-card-form-model";
 import { clearCharacterForm, publishCharacterForm } from "../lib/character-editor-bridge";
+
+// The character-card session boundary (D78 L2). Module-scope so both the boundary and its keyed Session
+// have stable identities; the boundary owns the entity key, so a character switch remounts the form
+// (and the body's local drill-in/greeting state) — no consumer `key` to place wrong. NO `draft` mirror:
+// on autosave the confirmed server row IS the mirror (the persona/appearance precedent, obligation-5).
+const CharacterForm = createAutosaveEntityBoundary<CharacterCardFormValues>({ defaultValues: DEFAULT_CHARACTER_CARD_FORM });
 
 export interface CharacterEditorSurfaceProps {
   readonly characterId: CharacterId;
@@ -67,7 +81,7 @@ export function CharacterEditorSurface({ characterId, detailContributors, onReve
       fallback={<Text tone="muted">Loading character…</Text>}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="this character" onRetry={retry} />}
     >
-      <CharacterEditorBody characterId={characterId} detailContributors={detailContributors} onRevealField={onRevealField} key={characterId} />
+      <CharacterEditorBody characterId={characterId} detailContributors={detailContributors} onRevealField={onRevealField} />
     </QueryBoundary>
   );
 }
@@ -78,16 +92,6 @@ function CharacterEditorBody({ characterId, detailContributors, onRevealField }:
   const update = useUpdateCharacter({ trpc, invalidation });
   const { data } = useSuspenseQuery(trpc.character.get.queryOptions({ characterId }));
 
-  const surfaceRef = useRef<HTMLDivElement>(null);
-  useFocusOnMount(surfaceRef);
-  const selectedFacetId = useSelectedCharacterFacetId();
-  // Activating a facet drops activeElement to <body>, so on Back we tell the re-mounting facet list
-  // which row should reclaim focus.
-  const [backFocusFacetId, setBackFocusFacetId] = useState<CharacterCardFacet["id"] | null>(null);
-
-  // The greeting the hero is previewing — lifted here so the save-bar total agrees.
-  const [activeGreetingIndex, setActiveGreetingIndex] = useState(0);
-
   const save = async (values: CharacterCardFormValues): Promise<CharacterCardFormValues> => {
     const saved = await update.mutateAsync({
       characterId,
@@ -97,11 +101,45 @@ function CharacterEditorBody({ characterId, detailContributors, onRevealField }:
     return characterCardFormFromDetail(saved);
   };
 
-  const { form, mountKey, saveState, retrySave } = useCharacterForm({
-    entityId: data.id,
-    serverValues: characterCardFormFromDetail(data),
-    save,
-  });
+  // The editor form rides the D78 session boundary: it OWNS the entity key (keyed by data.id), so a
+  // character switch is a full teardown/remount of the Session AND the form-bearing body — no manual
+  // `key` to place wrong (autosave-form-doctrine.md §1). `serverValues` re-baselines a clean form on a
+  // fresh server echo (§5); the character editor has no reset/revert affordance, so no `reseed` call.
+  return (
+    <CharacterForm entityId={data.id} serverValues={characterCardFormFromDetail(data)} save={save}>
+      {(session): ReactElement => (
+        <CharacterEditorForm data={data} trpc={trpc} session={session} detailContributors={detailContributors} onRevealField={onRevealField} />
+      )}
+    </CharacterForm>
+  );
+}
+
+interface CharacterEditorFormProps {
+  readonly data: Parameters<typeof characterCardFormFromDetail>[0];
+  readonly trpc: ReturnType<typeof useTRPC>;
+  readonly session: AutosaveSession<CharacterCardFormValues>;
+  readonly detailContributors: ContributorRegistry<CharacterDetailContribution>;
+  readonly onRevealField?: (() => void) | undefined;
+}
+
+/** The form-bearing editor body — remounted per character by the boundary's keyed Session, so the
+ *  per-character view state (active greeting, facet back-focus) resets with the entity, and the live
+ *  form handle it publishes to the CONTEXT inspector is always the current character's. */
+function CharacterEditorForm({ data, trpc, session, detailContributors, onRevealField }: CharacterEditorFormProps): ReactElement {
+  // The session hands a widened AppForm surface with `reset` type-removed; the editor threads `form` into
+  // ~6 children typed against the full AppFormInstance, so widen once here (reset MISUSE is caught by the
+  // no-form-reset-in-autosave gate, not the type — the feature has zero `.reset(` call sites).
+  const form = session.form as AppFormInstance<CharacterCardFormValues>;
+
+  const surfaceRef = useRef<HTMLDivElement>(null);
+  useFocusOnMount(surfaceRef);
+  const selectedFacetId = useSelectedCharacterFacetId();
+  // Activating a facet drops activeElement to <body>, so on Back we tell the re-mounting facet list
+  // which row should reclaim focus.
+  const [backFocusFacetId, setBackFocusFacetId] = useState<CharacterCardFacet["id"] | null>(null);
+
+  // The greeting the hero is previewing — lifted here so the save-bar total agrees.
+  const [activeGreetingIndex, setActiveGreetingIndex] = useState(0);
 
   // The bus-driven chat list — the hero's chat count derives from it in render, never an effect.
   const chatsQuery = useQuery(trpc.chat.listChats.queryOptions({}));
@@ -145,7 +183,6 @@ function CharacterEditorBody({ characterId, detailContributors, onRevealField }:
   return (
     <Stack ref={surfaceRef} tabIndex={-1} className="h-full overflow-y-auto outline-none">
       <form
-        key={mountKey}
         onSubmit={(event): void => {
           event.preventDefault();
           event.stopPropagation();
@@ -162,7 +199,7 @@ function CharacterEditorBody({ characterId, detailContributors, onRevealField }:
               )}
             </form.Subscribe>
             {/* Autosave everywhere (§7): the live status stands where Save/Discard used to. */}
-            <AutosaveStatus state={saveState} onRetry={retrySave} />
+            <AutosaveStatus state={session.saveState} onRetry={session.retrySave} />
           </SaveBar>
 
           <CharacterHeroBand

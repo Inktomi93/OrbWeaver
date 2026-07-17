@@ -1,12 +1,13 @@
 // CT: the §6 character CONTENT editor end-to-end. Drives the PRODUCTION path — `character.get` (routeTrpc)
-// → `createAutosaveEntityForm` → the pinned hero band + the facet master-list → drill-in + the sticky
-// header (the character-editor redesign REPLACED the flat Main/Advanced tabs with a facet list that drills
-// into a full-width body editor). Asserts: the hero renders the character's name (draft field) + handle +
-// New-chat CTA; the live-themed greeting bubble shows `greetings[0]`; the header carries the §6.5 token
-// split; AUTOSAVE (D66 A4 / north-star §7) — editing the name debounce-persists a diff and the shared
-// AutosaveStatus reads "Saved" (no Save/Discard buttons); the §7 array-field TRAP — adding + removing a
-// greeting alternate flushes explicitly so the structural mutation persists; clicking a facet row drills
-// CONTENT into that field's body (a CONTENT drill-in, never a modal — §11 pain-point 1).
+// → the D78 session boundary (`createAutosaveEntityBoundary`) → the pinned hero band + the facet
+// master-list → drill-in + the sticky header (the character-editor redesign REPLACED the flat Main/Advanced
+// tabs with a facet list that drills into a full-width body editor). Asserts: the hero renders the
+// character's name (draft field) + handle + New-chat CTA; the live-themed greeting bubble shows
+// `greetings[0]`; the header carries the §6.5 token split; AUTOSAVE (D66 A4 / north-star §7) — editing the
+// name debounce-persists a diff and the shared AutosaveStatus reads "Saved" (no Save/Discard buttons);
+// structural greeting array ops (add + remove) persist through the boundary's store-subscription driver
+// with ZERO call-site flush (D78 §3, the retired §7 TRAP); clicking a facet row drills CONTENT into that
+// field's body (a CONTENT drill-in, never a modal — §11 pain-point 1).
 //
 // `character.get`/`chat.listChats`/`character.update` are stubbed at the NETWORK (routeTrpc).
 
@@ -94,7 +95,7 @@ test("§6.5/§7 the header carries the token split + AutosaveStatus, and editing
   await expect.poll(() => updateInput, { intervals: [100, 200, 300, 500] }).toEqual({ characterId: "char_ct_1", input: { name: "Aria N." } });
 });
 
-test("§7 array TRAP — adding an opening flushes the structural push, then its content autosaves", async ({ mount, page }) => {
+test("§7/D78 — adding an opening persists the structural push via the store driver, then its content autosaves", async ({ mount, page }) => {
   let updateInput: UpdateCall | null = null;
   await routeTrpc(page, {
     "character.get": () => CARD, // one greeting
@@ -106,8 +107,8 @@ test("§7 array TRAP — adding an opening flushes the structural push, then its
   });
   const component = await mount(<CharacterEditorSurfaceStory />);
 
-  // Add opening → pushFieldValue + an explicit handleSubmit flush (the push alone never fires onChange);
-  // the new slot then autosaves its content on the first keystroke.
+  // Add opening → pushFieldValue; the D78 store-subscription driver persists the structural push with NO
+  // call-site flush. The new slot then autosaves its content on the first keystroke.
   await component.getByRole("button", { name: "Add opening" }).click();
   await component.getByLabel("Opening 2").fill("A second greeting.");
 
@@ -115,7 +116,7 @@ test("§7 array TRAP — adding an opening flushes the structural push, then its
   await expect.poll(() => updateInput?.input?.greetings, { intervals: [100, 200, 300, 500] }).toEqual([GREETING_0, "A second greeting."]);
 });
 
-test("§7 array TRAP — removing an alternate flushes the structural removal to the server", async ({ mount, page }) => {
+test("§7/D78 — removing an alternate persists the structural removal to the server via the store driver", async ({ mount, page }) => {
   let updateInput: UpdateCall | null = null;
   await routeTrpc(page, {
     "character.get": () => GREETINGS_CARD, // two greetings
@@ -132,7 +133,7 @@ test("§7 array TRAP — removing an alternate flushes the structural removal to
   await component.getByRole("button", { name: "Edit" }).click();
   await component.getByRole("button", { name: "Remove opening" }).click();
 
-  // removeFieldValue doesn't fire onChange either — the explicit flush persists the shrunk array.
+  // removeFieldValue routes through setFieldValue → the store driver debounce-persists the shrunk array.
   await expect.poll(() => updateInput?.input?.greetings, { intervals: [50, 100, 200, 300] }).toEqual(["First hello."]);
 });
 

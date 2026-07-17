@@ -178,10 +178,9 @@ function GreetingActions({
           size="sm"
           intent="ghost"
           onClick={(): void => {
+            // The D78 store-subscription driver persists structural array ops (removeFieldValue routes
+            // through setFieldValue) — no call-site flush (autosave-form-doctrine.md §3, G-A).
             void form.removeFieldValue("greetings", index);
-            // Array structural mutations don't fire the autosave onChange listener (§7 TRAP) — flush
-            // explicitly so a removed alternate actually persists.
-            void form.handleSubmit();
             onActiveIndexChange(Math.max(0, index - 1));
           }}
         >
@@ -194,10 +193,10 @@ function GreetingActions({
         size="sm"
         intent="ghost"
         onClick={(): void => {
+          // The D78 store-subscription driver persists the structural push (pushFieldValue routes through
+          // setFieldValue) — no call-site flush (autosave-form-doctrine.md §3, G-A). The new slot then
+          // autosaves its content on the first keystroke.
           form.pushFieldValue("greetings", "");
-          // Structural push doesn't fire the autosave onChange listener (§7 TRAP) — flush explicitly
-          // so the new slot persists; the editor then autosaves its content on the first keystroke.
-          void form.handleSubmit();
           onStartAlternate(greetingCount);
         }}
       >
