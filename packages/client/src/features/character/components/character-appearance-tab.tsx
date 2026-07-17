@@ -14,8 +14,9 @@ import { ThemeScope } from "@orb/ui/theme-scope";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
+import type { AutosaveSession } from "#forms";
 import { useUpdateCharacter } from "../hooks/use-character-mutations";
-import { useCharacterThemeForm } from "../hooks/use-character-theme-form";
+import { CharacterThemeForm } from "../hooks/use-character-theme-form";
 import type { CharacterThemeFormValues } from "../lib/character-theme-form-model";
 import { characterThemeFormFromOverride, EMPTY_CHARACTER_THEME_FORM, overrideFromCharacterThemeForm, THEME_INHERIT } from "../lib/character-theme-form-model";
 
@@ -89,7 +90,7 @@ function AppearanceTabBody({ characterId }: CharacterAppearanceTabProps): ReactE
 
   return (
     <Stack gap="section">
-      <ThemeControls key={characterId} characterId={characterId} serverValue={data.themeOverride} />
+      <ThemeControls characterId={characterId} serverValue={data.themeOverride} />
 
       <Section heading="Trust">
         <Row gap="field" className="flex-wrap">
@@ -129,7 +130,9 @@ interface ThemeControlsProps {
   readonly serverValue: Parameters<typeof characterThemeFormFromOverride>[0];
 }
 
-/** The §8.1 control cluster — an autosave form whose every debounced change persists `themeOverride`. */
+/** The §8.1 control cluster — an autosave form whose every debounced change persists `themeOverride`.
+ *  Mounted through the D78 session boundary (`CharacterThemeForm`), which OWNS the characterId key — a
+ *  character switch remounts the form seeded from the new override, no manual `key` to place wrong. */
 function ThemeControls({ characterId, serverValue }: ThemeControlsProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
@@ -141,12 +144,22 @@ function ThemeControls({ characterId, serverValue }: ThemeControlsProps): ReactE
       input: { themeOverride: overrideFromCharacterThemeForm(values) },
     });
 
-  const { form, mountKey } = useCharacterThemeForm({
-    entityId: characterId,
-    serverValues: characterThemeFormFromOverride(serverValue),
-    save,
-  });
+  return (
+    <CharacterThemeForm entityId={characterId} serverValues={characterThemeFormFromOverride(serverValue)} save={save}>
+      {(session): ReactElement => <ThemeControlsBody form={session.form} />}
+    </CharacterThemeForm>
+  );
+}
 
+interface ThemeControlsBodyProps {
+  readonly form: AutosaveSession<CharacterThemeFormValues>["form"];
+}
+
+/** The form-bearing theme controls — remounted per character by the boundary's keyed Session. */
+function ThemeControlsBody({ form }: ThemeControlsBodyProps): ReactElement {
+  // Reset to global = clear each field to its empty (Inherit) value. The store-subscription driver
+  // persists each setFieldValue (autosave-form-doctrine.md §3) — no call-site flush, no reseed (this is
+  // a live field edit, not a re-baseline to a server row).
   const resetToGlobal = (): void => {
     for (const name of THEME_FIELD_NAMES) {
       form.setFieldValue(name, EMPTY_CHARACTER_THEME_FORM[name]);
@@ -154,7 +167,7 @@ function ThemeControls({ characterId, serverValue }: ThemeControlsProps): ReactE
   };
 
   return (
-    <Stack key={mountKey} gap="block">
+    <Stack gap="block">
       <Row gap="field" align="center" className="justify-between">
         <Text size="label" weight="medium">
           Theme
