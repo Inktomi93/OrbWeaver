@@ -12,7 +12,7 @@ import { AgentModelHealError, ConnectionRoutingError } from "../contract/errors"
 import type { AgentOverride, ResolveChatCapabilityParams, ResolveRoleParams } from "../contract/params";
 import type { ConnectionService } from "../contract/service";
 import { getCachedAgentSdkModels } from "../substrate/agent-sdk-model-cache";
-import { resolveByoCapability, resolveCapability } from "../substrate/capability";
+import { resolveCapability } from "../substrate/capability";
 import { healToChatDefault } from "../substrate/heal-model";
 import { getCachedOrModels } from "../substrate/or-model-cache";
 import { pickOrModel } from "../substrate/pick-or-model";
@@ -121,7 +121,7 @@ function assertCoherent(api: ChatApi, source: CredentialSource): void {
     // own Anthropic key) all drive the agent-sdk backend, and vllm joins them via the local loopback agent
     // path (buildClaudeVllmEnv → 127.0.0.1:VLLM_GEN_PORT /v1/messages — deriveRunner + firewall already
     // route/allow it for the agent role); every other source is incoherent on this api.
-    if (source !== "max-pro-sub" && source !== "openrouter" && source !== "anthropic" && source !== "vllm") {
+    if (source !== "max-pro-sub" && source !== "openrouter" && source !== "vllm") {
       throw new ConnectionRoutingError(api, source);
     }
     return;
@@ -129,7 +129,7 @@ function assertCoherent(api: ChatApi, source: CredentialSource): void {
   if (api === "anthropic-messages") {
     // Two paid-key sources reach anth-direct: the openrouter skin and the first-party anthropic key (W11).
     // The free Max sub can never reach the direct paid endpoint (the sub-exclusion).
-    if (source !== "openrouter" && source !== "anthropic") {
+    if (source !== "openrouter") {
       throw new ConnectionRoutingError(api, source);
     }
     return;
@@ -148,8 +148,7 @@ function healAgentSdkModel(source: CredentialSource, model: string | null): Mode
   switch (source) {
     // Sub / first-party Anthropic key / OR skin legitimately run Claude models → the curated Claude heal.
     case "max-pro-sub":
-    case "anthropic":
-    case "openrouter":
+
       return healToChatDefault(model);
     // U0 local loopback agent path: Claude Code runs against the LOCAL vLLM engine, which serves ONLY the
     // slash-free alias (buildClaudeVllmEnv's ANTHROPIC_DEFAULT_*_MODEL). A Claude default id would 404 it.
@@ -227,21 +226,11 @@ export function createResolveRole(ctx: ConnectionContext): ConnectionService["re
       agentSdkModels: getCachedAgentSdkModels(ctx.now()),
       customContextWindow: credential.source === "custom_openai" ? credential.contextWindow : undefined,
     });
-    // N1 (comfyui-control §4.11.2c): a `byo:<name>` comfyui selection folds its per-workflow edit/knob
-    // capability (derived from the caller's saved workflow's placeholder scan) onto the static base — so a BYO
-    // edit workflow resolves edit-capable end-to-end. Owner-scoped: the acting principal's own workflow only.
-    const capability = await resolveByoCapability({
-      base: baseCapability,
-      model,
-      source: selection.source,
-      ownerId: params.principal.userId,
-      resolveByoWorkflowCapability: ctx.resolveByoWorkflowCapability,
-    });
     return {
       api: selection.api,
       model,
       credential,
-      capability,
+      capability: baseCapability,
     };
   };
 }

@@ -12,25 +12,26 @@ export * from "./agent-principals";
 export * from "./assets";
 export * from "./audit";
 export * from "./automation";
-export * from "./buddy";
+
 export * from "./character";
 export * from "./character-proposals";
 export * from "./chat";
 export * from "./credentials";
-export * from "./crew";
+
 export * from "./databank";
 export * from "./discovery";
 export * from "./embeddings";
-export * from "./expressions";
+
 export * from "./gallery";
 export * from "./imagery";
 export * from "./notifications";
 export * from "./persona";
+export * from "./plugin";
 export * from "./preset";
 export * from "./rate-limit";
 export * from "./relations";
 export * from "./roster-preset";
-export * from "./rpg";
+
 export * from "./sdk-session";
 export * from "./sessions";
 export * from "./settings";

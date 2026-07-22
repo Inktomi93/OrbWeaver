@@ -360,8 +360,7 @@ function runArm(deps: ArmExecutorDeps, action: AutomationAction, frame: Dispatch
     case "transform_draft":
       return Promise.resolve(armError(TRANSFORM_DRAFT_REFUSAL));
     // reserved arms (createRule refuses them; here for the exhaustiveness pin):
-    case "enqueue_crew_workload":
-    case "rpg_verb":
+
     case "force_activate_entries":
       return Promise.resolve(armError(reservedRefusal(type)));
     default: {

@@ -14,17 +14,12 @@
 
 import type { Db } from "@orb/db";
 import {
-  characterSprites,
   characters,
   chats,
-  documents,
   galleryItems,
   imageryGenerations,
   messageAssets,
   personas,
-  plugins,
-  poseLibrary,
-  rpgNpcs,
   userSettings,
 } from "@orb/db";
 import type { AssetId } from "@orb/kit/ids";
@@ -38,16 +33,10 @@ export const ASSET_REFS: readonly AssetRef[] = [
   { table: characters, column: characters.avatarAssetId },
   { table: personas, column: personas.avatarAssetId },
   { table: galleryItems, column: galleryItems.assetId },
-  { table: characterSprites, column: characterSprites.assetId },
-  { table: documents, column: documents.sourceAssetId },
-  { table: rpgNpcs, column: rpgNpcs.avatarAssetId },
+
   { table: imageryGenerations, column: imageryGenerations.assetId },
   { table: messageAssets, column: messageAssets.assetId },
-  // A BYO-imported OpenPose skeleton's blob is pinned by its pose_library entry (comfyui-control §4.12.2, C6c).
-  { table: poseLibrary, column: poseLibrary.assetId },
-  // A LIVE ref: an installed plugin's bundle bytes must never be swept (the FK is ON DELETE RESTRICT — 02 §3).
-  // `uninstallPlugin` reaps the asset EXPLICITLY after deleting the row, so the sweep never needs to.
-  { table: plugins, column: plugins.bundleAssetId },
+
 ];
 
 /** DERIVED asset-FK columns — regenerable rows that do NOT pin the blob. Held as `<table>.<column>`

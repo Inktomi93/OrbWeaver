@@ -4,8 +4,7 @@
 // gapped axes — `tools` / `output.structured` / `input.vision` / `input.imageEdit` — synthesize in ONE pass
 // here (tool-use-design 05 §U0 + imagery-design 05 §IC-A). `infra/providers` never imports this.
 
-import type { ComfyuiWorkflowCapability } from "@orb/contracts/comfyui-workflow";
-import { isCuratedComfyuiModel } from "@orb/contracts/comfyui-workflow";
+
 import type { AgentSdkModel, ChatApi, CredentialSource, EffortLevel, ModelCapability, Range } from "@orb/contracts/connection";
 import { EFFORT_LEVELS } from "@orb/contracts/connection";
 import type { ModelId } from "@orb/kit/ids";
@@ -57,17 +56,7 @@ const OUTPUT_CAP = 32_768;
 const OR_DEFAULT_WINDOW = 200_000; // when the catalog entry omits contextLength (cold cache)
 const VLLM_GEN_CONTEXT_WINDOW = 32_768;
 
-/** The diffusion knobs the local ComfyUI source honors (MA-8/D96 — capture-and-use per D95). Ranges mirror
- *  `@orb/contracts/imagery`'s `imageDiffusionParamsSchema` bounds; `sampler`/`scheduler`/`checkpoint` are
- *  PRESENCE flags (the live enum values come from the `probeComfyui` verb, never this static descriptor). */
-const COMFYUI_IMAGE_GEN_KNOBS: NonNullable<ModelCapability["imageGen"]> = {
-  steps: { min: 1, max: 150 },
-  cfg: { min: 0, max: 30 },
-  sampler: true,
-  scheduler: true,
-  seed: true,
-  checkpoint: true,
-};
+
 const CUSTOM_OPENAI_DEFAULT_WINDOW = 128_000;
 const LOCAL_LIGHT_WINDOW = 8192; // in-process embed/rerank tier — chat capability is moot here
 
@@ -294,29 +283,7 @@ function withCuratedTurns(curated: { readonly capability: ModelCapability }, id:
   };
 }
 
-/** Fold a resolved BYO workflow's per-workflow capability into a `comfyui`/`byo:` base descriptor (N1 —
- *  comfyui-control §4.11.2c). The workflow's placeholder scan is the ONE truth: its `imageGen` knob surface
- *  REPLACES the static comfyui knob set (the workflow honors only the diffusion tokens it declares), and its
- *  image levers derive the `input` axes — `imageEdit` ⇐ ANY edit lever (so the edit belt binds through the
- *  runner instead of the whole edit dropping / `editImage` throwing), `imageIdentity` ⇐ the identity lever
- *  (so the avatar-reference gate routes into `edit.references[]`). `vision` stays false (a comfyui workflow is
- *  image-generation, not chat multimodal input). `capability === null` (the caller has no such workflow) ⇒ the
- *  base descriptor is returned unchanged (edit-less — an unknown workflow claims nothing). */
-export function applyByoWorkflowCapability(base: ModelCapability, capability: ComfyuiWorkflowCapability | null): ModelCapability {
-  if (capability === null) {
-    return base;
-  }
-  const input: NonNullable<ModelCapability["input"]> = {
-    vision: false,
-    ...(capability.imageEdit ? { imageEdit: true } : {}),
-    ...(capability.levers.identity ? { imageIdentity: true } : {}),
-  };
-  return {
-    ...base,
-    ...(capability.imageGen !== undefined ? { imageGen: capability.imageGen } : {}),
-    ...(capability.imageEdit || capability.levers.identity ? { input } : {}),
-  };
-}
+
 
 /** Resolve the ONE capability descriptor for a `(model, source)` on the `api`-implied wire-shape; the
  *  curated lookup runs first, otherwise dispatch is exhaustive on `source`. */
@@ -350,45 +317,7 @@ export function resolveModelCapability(
     }
     case "openrouter":
       return synthesizeOpenRouter(model, wireShape, caches?.orEntry);
-    case "anthropic": {
-      // First-party Anthropic (W11): the curated lookup above resolves every known Claude id, so an
-      // uncurated dated id falls here → a conservative family profile on the anthropic-direct wire.
-      // Reasoning by family; sampling FAIL-CLOSED to {} (refineAnthDirectSampling, until a probe opens the
-      // model's entry); explicit-cache anthropic turns. No OR catalog entry exists for this source.
-      const family = detectModelFamily(model);
-      return {
-        reasoning: synthesizeReasoning(family),
-        sampling: refineAnthDirectSampling(model, wireShape, {}),
-        output: { maxTokens: { min: MIN_OUTPUT, max: OUTPUT_CAP } },
-        context: { window: OR_DEFAULT_WINDOW },
-        turns: synthesizeAnthropicTurns(model, wireShape),
-      };
-    }
-    case "venice":
-      // Hosted Venice image generation (MA-1) — a `generateImage`-only source. The chat axes
-      // (reasoning/sampling/context/turns) are moot (the image runner reads none of them); `input` is
-      // ABSENT so `capability.input.imageEdit` is undefined ⇒ the edit belt strips an edit payload (Venice
-      // is text→image only). Capability truth per D95: no advertised edit/vision → nothing claimed.
-      return staticProfile(VLLM_GEN_CONTEXT_WINDOW, false);
-    case "comfyui":
-      // Local ComfyUI image generation (MA-8/D96) — a `generateImage`-only source. Chat axes moot. A CURATED
-      // `orbgen:<role>` model drives the ported TS graph-builder engine, which HONORS the edit seam (img2img /
-      // inpaint / identity-lock / pose — comfyui-control §4.6/C6): it advertises `input.imageEdit` +
-      // `imageIdentity` so the B3 avatar-reference gate routes the avatar into the identity channel
-      // (`edit.references[]` → IPAdapter-FaceID / PuLID) rather than dropping it. A RAW checkpoint (the default
-      // text→image template) has NO edit channel, so `input` stays absent ⇒ the edit belt strips an edit
-      // payload (byte-identical to before). Whether identity resolves to IPAdapter vs an img2img fallback is the
-      // ARM's per-family decision (the domain knows only that the curated arm honors an identity reference);
-      // the live per-role grounding rides `probeComfyui` (`ComfyuiRoleAvailability.levers`), never this static
-      // descriptor. Advertises the diffusion knobs it honors (D95 capture-and-use) — the live enum VALUES come
-      // from `probeComfyui`. A `byo:<name>` model falls here `input`-absent (a raw checkpoint's posture) — its
-      // per-workflow edit capability is folded on AFTER this static resolve via `applyByoWorkflowCapability`
-      // (N1 — resolveRole does the owner-scoped workflow lookup; a pure resolver can't do a per-user async read).
-      return {
-        ...staticProfile(VLLM_GEN_CONTEXT_WINDOW, false),
-        imageGen: COMFYUI_IMAGE_GEN_KNOBS,
-        ...(isCuratedComfyuiModel(model) ? { input: { vision: false, imageEdit: true, imageIdentity: true } } : {}),
-      };
+
     case "vllm":
       // Guided decoding is native ⇒ structured output. The gen engine launches with
       // --enable-auto-tool-choice --tool-call-parser hermes (scripts/dev/vllm-engine.sh) and emits
