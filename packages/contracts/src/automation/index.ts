@@ -9,7 +9,7 @@ import type { AutomationRuleId, ChatId, PluginId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import { z } from "zod";
-import { crewMemberSchema } from "#crew";
+
 import { generateImageActionArgsSchema, imageDiffusionParamsSchema } from "#imagery";
 
 /** `ChatBusEvent` discriminators automation may trigger on — a subset of the frozen chat-bus union.
@@ -41,17 +41,7 @@ export const DOMAIN_TRIGGER_TYPES = [
   // v1 (wired)
   "character.updated",
   "asset.created",
-  // reserved: chat-crew
-  "crew.keeperRan",
-  "crew.editProposalCreated",
-  "crew.cardProposalCreated",
-  "crew.directorPassCompleted",
-  // reserved: rpg
-  "rpg.clockCompleted",
-  "rpg.sessionConcluded",
-  "rpg.encounterEnded",
-  "rpg.reputationMilestone",
-  "rpg.checkResolved",
+
 ] as const;
 export type DomainTriggerType = (typeof DOMAIN_TRIGGER_TYPES)[number];
 
@@ -156,16 +146,7 @@ export const LIVE_TRIGGERS = {
   // domain bus — v1 wired
   "character.updated": true,
   "asset.created": true,
-  // domain bus — reserved: chat-crew (D59) / rpg (D58)
-  "crew.keeperRan": false,
-  "crew.editProposalCreated": false,
-  "crew.cardProposalCreated": false,
-  "crew.directorPassCompleted": false,
-  "rpg.clockCompleted": false,
-  "rpg.sessionConcluded": false,
-  "rpg.encounterEnded": false,
-  "rpg.reputationMilestone": false,
-  "rpg.checkResolved": false,
+
 } as const satisfies Record<ChatTriggerType | DomainTriggerType, boolean>;
 
 // ── the action union (03) ───────────────────────────────────────────────────────────────────────
@@ -185,9 +166,6 @@ export const AUTOMATION_ACTION_TYPES = [
   "trigger_turn",
   "generate_image",
   "set_chat_background",
-  // reserved (typed, refused by createRule until their domains land — 03 §5):
-  "enqueue_crew_workload",
-  "rpg_verb",
   "force_activate_entries",
 ] as const;
 export type AutomationActionType = (typeof AUTOMATION_ACTION_TYPES)[number];
@@ -268,10 +246,7 @@ export const automationActionSchema = z.discriminatedUnion("type", [
     type: z.literal("set_chat_background"),
     instruction: z.string().max(AUTOBG_INSTRUCTION_MAX).optional(),
   }),
-  // ── reserved arms (typed, refused by createRule until their domains land — 03 §5) ──
-  z.object({ type: z.literal("enqueue_crew_workload"), member: crewMemberSchema }),
-  // rpg owns the `RpgAutomationVerb` vocabulary (rpg-design/09 §b, TBD) — typed loosely until it claims it.
-  z.object({ type: z.literal("rpg_verb"), verb: z.string(), args: z.record(z.string(), z.string()) }),
+
   z.object({ type: z.literal("force_activate_entries"), entryIds: z.array(z.string()) }),
 ]);
 export type AutomationAction = z.infer<typeof automationActionSchema>;
@@ -283,7 +258,7 @@ export const automationActionsSchema = z.array(automationActionSchema).min(AUTOM
  *  (`RuleValidationError`) until their domains land (03 §5). The v1-LIVE compile-pin over ALL arms is
  *  the domain engine's `ARM_EXECUTORS` mapped-type (A6, exhaustive-dispatch); this tuple is the write-edge
  *  refusal list A4 needs now. Membership is a `satisfies`-checked subset of the action types. */
-export const RESERVED_ACTION_TYPES = ["enqueue_crew_workload", "rpg_verb", "force_activate_entries"] as const satisfies readonly AutomationActionType[];
+export const RESERVED_ACTION_TYPES = ["force_activate_entries"] as const satisfies readonly AutomationActionType[];
 export type ReservedActionType = (typeof RESERVED_ACTION_TYPES)[number];
 
 // ── TriggerFact + the CEL activation (01 §2 / 02 §1) ──────────────────────────────────────────────

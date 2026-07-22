@@ -7,8 +7,7 @@ import { z } from "zod";
 import { DEFAULT_GROUP_CONFIG, groupConfigSchema } from "#chat";
 import { chatApiSchema, openRouterProviderRoutingSchema } from "#connection";
 import { credentialSourceSchema } from "#credentials";
-import type { HubKey } from "#hub";
-import { HUB_KEYS, HUB_NSFW_MODES } from "#hub";
+
 import { regexScriptSchema } from "#regex";
 import { MEMORY_RETRIEVAL_MODES } from "#search";
 // BG-C: the background source-kind vocabulary (`BACKGROUND_IMAGE_KINDS` / `BackgroundImageKind`) is homed in
@@ -87,17 +86,7 @@ const MAX_IMAGE_BYTES_FLOOR = 100_000;
 const MAX_IMAGE_BYTES_CEIL = 100_000_000;
 export const DEFAULT_MAX_IMAGE_BYTES = 5_000_000;
 
-// The card-hub operator kill switch (hub-browse doc 03 §4 / HB-B). `enabled` is the master (default ON);
-// `enabledHubs` is the per-hub allowlist (default: every v1 hub). An operator who wants zero third-party
-// hub egress flips `enabled` off and every hub verb + the avatar route return `hub-disabled`. The keys
-// land in the SAME unit as their first reader (`isHubEnabled`, resolved off the effective config) — a
-// config axis with no reader is the populate-never rot the sibling sets gate against.
-export const DEFAULT_HUB_ENABLED = true;
-export const hubSettingsSchema = z.object({
-  enabled: z.boolean().optional(),
-  enabledHubs: z.array(z.enum(HUB_KEYS)).optional(),
-});
-export type HubSettings = z.infer<typeof hubSettingsSchema>;
+
 
 // Every field `.nullable()` AS WELL AS `.optional().catch(undefined)`: null is the CLEAR sentinel.
 export const appSettingsSchema = z.object({
@@ -116,7 +105,7 @@ export const appSettingsSchema = z.object({
   allowNonOwnerMaxProSub: z.boolean().nullable().optional().catch(undefined),
   localMultiUser: z.boolean().nullable().optional().catch(undefined),
   discreetLogin: z.boolean().nullable().optional().catch(undefined),
-  hub: hubSettingsSchema.nullable().optional().catch(undefined),
+
 });
 
 export type AppSettings = z.infer<typeof appSettingsSchema>;
@@ -502,17 +491,7 @@ const regexSettingsSchema = z
 
 export type RegexSettings = z.infer<typeof regexSettingsSchema>;
 
-// The per-user CARD-HUB BROWSE prefs (hub-browse doc 03 §6; H6). Distinct tier from the operator
-// `hubSettingsSchema` kill switch above (AppSettings). `nsfw` is the browse-default tri-state persisted
-// per-user so the toggle survives a mount + a tab switch (the as-built control is the `nsfw` tri-state, not
-// the doc's original `includeNsfw` boolean — doc 03 §1 wire-drift). Additive + defaulted (the `appearance`
-// precedent — no schema-version bump; an old blob without it reads the SFW-first default).
-const hubBrowseSettingsSchema = z
-  .object({
-    nsfw: z.enum(HUB_NSFW_MODES).catch("exclude").default("exclude"),
-  })
-  .prefault({});
-export type HubBrowseSettings = z.infer<typeof hubBrowseSettingsSchema>;
+
 
 export const userSettingsSchema = z.object({
   // The DB also pins a `user_settings.schemaVersion` COLUMN (`storedVersion`), which BEATS this in-blob
@@ -532,7 +511,7 @@ export const userSettingsSchema = z.object({
   profile: profileSchema,
   appearance: appearanceSchema,
   theme: themeSettingsSchema,
-  hub: hubBrowseSettingsSchema,
+
 });
 
 export type UserSettings = z.infer<typeof userSettingsSchema>;
@@ -553,7 +532,7 @@ export const USER_SETTINGS_SECTIONS = [
   "profile",
   "appearance",
   "theme",
-  "hub",
+
 ] as const;
 export type UserSettingsSection = (typeof USER_SETTINGS_SECTIONS)[number];
 
@@ -660,12 +639,7 @@ export interface ResolvedVllmConcurrency {
   summarize: number;
 }
 
-/** The resolved card-hub kill switch — `isHubEnabled(key)` = `enabled && enabledHubs.includes(key)`. The
- *  floor is master-ON with every v1 hub allowed (doc 03 §4). */
-export interface ResolvedHubSettings {
-  enabled: boolean;
-  enabledHubs: HubKey[];
-}
+
 
 export interface EffectiveAppConfig {
   corpusAutoindex: boolean;
@@ -683,5 +657,5 @@ export interface EffectiveAppConfig {
   localMultiUser: boolean;
   discreetLogin: boolean;
   maxImageBytes: number;
-  hub: ResolvedHubSettings;
+
 }

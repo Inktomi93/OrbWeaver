@@ -7,18 +7,8 @@
 // `@orb/contracts/databank` (the workload row carries it as its result JSON the client reads), so the two
 // databank kinds reference it directly rather than re-spelling a workload-local twin (one home, D34).
 
-import type { CardEvolutionRunSummary, DirectorRunSummary, KeeperRunSummary, ProseAuditRunSummary } from "@orb/contracts/crew";
+
 import type { IngestRunResult } from "@orb/contracts/databank";
-import type {
-  RpgDirectorRunSummary,
-  RpgLorebookUpkeepRunSummary,
-  RpgRecapRunSummary,
-  RpgRecruitCardRunSummary,
-  RpgSceneDistillRunSummary,
-  RpgScenePlanRunSummary,
-  RpgSessionDistillRunSummary,
-  RpgWorldGenRunSummary,
-} from "@orb/contracts/rpg";
 import type { AssetId, MessageId } from "@orb/kit/ids";
 
 export interface EmbedPassResult {
@@ -137,21 +127,6 @@ export interface ResultByKind {
   "reconcile-stats": ReconcileStatsWorkloadResult;
   "refresh-model-catalog": CatalogRefreshResult;
   "reconcile-world-state": DeferredResult;
-  "crew-lorebook-keeper": KeeperRunSummary;
-  "crew-card-evolution": CardEvolutionRunSummary;
-  "crew-director": DirectorRunSummary;
-  "crew-prose-audit": ProseAuditRunSummary;
-  "expressions-sprite-sheet": SpriteSheetJobResult;
   "databank-ingest": IngestRunResult;
   "databank-reindex": IngestRunResult;
-  "rpg-world-gen": RpgWorldGenRunSummary;
-  "rpg-recap": RpgRecapRunSummary;
-  "rpg-session-distill": RpgSessionDistillRunSummary;
-  "rpg-director": RpgDirectorRunSummary;
-  "rpg-lorebook-upkeep": RpgLorebookUpkeepRunSummary;
-  "rpg-illustration": RpgIllustrationJobResult;
-  "rpg-npc-portrait": RpgNpcPortraitJobResult;
-  "rpg-scene-plan": RpgScenePlanRunSummary;
-  "rpg-scene-distill": RpgSceneDistillRunSummary;
-  "rpg-recruit-card": RpgRecruitCardRunSummary;
 }

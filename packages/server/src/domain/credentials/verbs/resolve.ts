@@ -3,7 +3,7 @@
 // owner-only; openrouter/custom_openai decrypt the user's active row; a missing/revoked BYO credential is
 // DomainNoCredentialError with no silent host-fallback (would spend the owner's quota).
 
-import type { AnthropicCredential, CustomOpenAiCredential, OpenRouterCredential, ResolvedCredential, VeniceCredential } from "@orb/contracts/credentials";
+import type { CustomOpenAiCredential, OpenRouterCredential, ResolvedCredential } from "@orb/contracts/credentials";
 import { DomainNoCredentialError, DomainOperationError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import type { CredentialContext } from "../context";
@@ -13,7 +13,7 @@ import type { CredentialsService } from "../contract/service";
 import { aadFor } from "../persistence/aad";
 import { loadActiveCredential } from "../persistence/queries";
 import { decryptSealed } from "../substrate/decrypt";
-import { mintAnthropic, mintComfyui, mintCustomOpenAi, mintLocalLight, mintMaxProSub, mintOpenRouter, mintVenice, mintVllm } from "../substrate/mint";
+import { mintCustomOpenAi, mintLocalLight, mintMaxProSub, mintOpenRouter, mintVllm } from "../substrate/mint";
 import { parseCustomOpenAiEndpoint } from "../substrate/parse-metadata";
 
 function assertNever(value: never): never {
@@ -33,33 +33,7 @@ async function resolveOpenRouter(ctx: CredentialContext, ownerId: UserId): Promi
   return mintOpenRouter(plaintext, active.id);
 }
 
-/** The user's active first-party Anthropic key (W11), or the typed no-credential floor (active-but-revoked
- *  falls through). Distinct AAD slot (`${userId}|anthropic`) — never shares the openrouter ciphertext. */
-async function resolveAnthropic(ctx: CredentialContext, ownerId: UserId): Promise<AnthropicCredential> {
-  const active = ctx.box.enabled ? await loadActiveCredential(ctx.db, ownerId, "anthropic") : undefined;
-  if (active === undefined || active.revokedAt !== null) {
-    throw new DomainNoCredentialError("anthropic");
-  }
-  const plaintext = decryptSealed(ctx.box, active, aadFor(ownerId, "anthropic"));
-  if (plaintext === null) {
-    throw new DomainNoCredentialError("anthropic");
-  }
-  return mintAnthropic(plaintext, active.id);
-}
 
-/** The user's active hosted-Venice image key (MA-1), or the typed no-credential floor (active-but-revoked
- *  falls through). Distinct AAD slot (`${userId}|venice`) — never shares another source's ciphertext. */
-async function resolveVenice(ctx: CredentialContext, ownerId: UserId): Promise<VeniceCredential> {
-  const active = ctx.box.enabled ? await loadActiveCredential(ctx.db, ownerId, "venice") : undefined;
-  if (active === undefined || active.revokedAt !== null) {
-    throw new DomainNoCredentialError("venice");
-  }
-  const plaintext = decryptSealed(ctx.box, active, aadFor(ownerId, "venice"));
-  if (plaintext === null) {
-    throw new DomainNoCredentialError("venice");
-  }
-  return mintVenice(plaintext, active.id);
-}
 
 /** The user's active custom_openai endpoint (the active row IS the endpoint selection). */
 async function resolveCustomOpenAi(ctx: CredentialContext, ownerId: UserId): Promise<CustomOpenAiCredential> {
@@ -96,16 +70,10 @@ export function createResolve(ctx: CredentialContext): CredentialsService["resol
         return mintVllm();
       case "local-light":
         return mintLocalLight();
-      case "comfyui":
-        return mintComfyui();
       case "max-pro-sub":
         return mintMaxProSub(principal, ctx.requireOwner);
       case "openrouter":
         return await resolveOpenRouter(ctx, principal.userId);
-      case "anthropic":
-        return await resolveAnthropic(ctx, principal.userId);
-      case "venice":
-        return await resolveVenice(ctx, principal.userId);
       case "custom_openai":
         return await resolveCustomOpenAi(ctx, principal.userId);
       default:

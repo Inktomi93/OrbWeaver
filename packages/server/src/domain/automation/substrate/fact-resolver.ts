@@ -39,15 +39,7 @@ const FACT_SHAPE = {
   // domain bus
   "character.updated": "characterId",
   "asset.created": "assetId",
-  "crew.keeperRan": "chatScope",
-  "crew.editProposalCreated": "chatScope",
-  "crew.cardProposalCreated": "chatScope",
-  "crew.directorPassCompleted": "chatScope",
-  "rpg.clockCompleted": "chatScope",
-  "rpg.sessionConcluded": "chatScope",
-  "rpg.encounterEnded": "chatScope",
-  "rpg.reputationMilestone": "chatScope",
-  "rpg.checkResolved": "chatScope",
+
 } as const satisfies Record<ChatTriggerType | DomainTriggerType, FactShape>;
 
 type TriggerType = keyof typeof FACT_SHAPE;

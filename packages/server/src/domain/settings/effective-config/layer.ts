@@ -2,13 +2,11 @@
 // Two floor origins: env-mirrored fields read foundation/env, born-in-DB fields read a code floor only an
 // admin override moves. Pure (no I/O, no cache) — cache + reload live in cache.ts.
 
-import { HUB_KEYS } from "@orb/contracts/hub";
+
 import type {
   AppSettings,
   EffectiveAppConfig,
-  HubSettings,
   RateLimits,
-  ResolvedHubSettings,
   ResolvedRateLimits,
   ResolvedVllmConcurrency,
   VllmConcurrency,
@@ -17,7 +15,6 @@ import {
   DEFAULT_ALLOW_NON_OWNER_LOCAL_COMPUTE,
   DEFAULT_ALLOW_NON_OWNER_MAX_PRO_SUB,
   DEFAULT_DISCREET_LOGIN,
-  DEFAULT_HUB_ENABLED,
   DEFAULT_LOCAL_MULTI_USER,
   DEFAULT_MAX_IMAGE_BYTES,
 } from "@orb/contracts/settings";
@@ -54,14 +51,7 @@ function resolveVllmConcurrency(o: VllmConcurrency | null | undefined): Resolved
   };
 }
 
-// Master-ON with every v1 hub allowed (doc 03 §4). `enabledHubs` floors to the full `HUB_KEYS` tuple, so a
-// new hub minted at H3 is enabled by default until an operator narrows the allowlist.
-function resolveHub(o: HubSettings | null | undefined): ResolvedHubSettings {
-  return {
-    enabled: o?.enabled ?? DEFAULT_HUB_ENABLED,
-    enabledHubs: o?.enabledHubs ?? [...HUB_KEYS],
-  };
-}
+
 
 /**
  * Resolve the stored override blob against the floor → the fully-present `EffectiveAppConfig`. Each field
@@ -85,6 +75,6 @@ export function layer(overrides: AppSettings): EffectiveAppConfig {
     maxImageBytes: overrides.maxImageBytes ?? DEFAULT_MAX_IMAGE_BYTES,
     localMultiUser: overrides.localMultiUser ?? DEFAULT_LOCAL_MULTI_USER,
     discreetLogin: overrides.discreetLogin ?? DEFAULT_DISCREET_LOGIN,
-    hub: resolveHub(overrides.hub),
+
   };
 }

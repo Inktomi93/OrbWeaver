@@ -9,15 +9,14 @@ import type { PortabilityRegistry } from "@orb/contracts/portability";
 import type { EffectiveAppConfig } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import { DomainRateLimitError } from "@orb/kit/errors";
-import type { ChatId, ChatTurnId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+
 import type { TRPCError } from "@trpc/server";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import type { ResponseMeta } from "@trpc/server/http";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import type { ExportService } from "#domain/export";
-import type { RpgTraceRecorder } from "#domain/rpg";
+
 import { env } from "#foundation/env";
 import { observability, observabilityErrorHandler, registerDebugRoutes } from "#foundation/observability";
 import { hasCsrfHeader } from "#infra/auth";
@@ -29,8 +28,6 @@ import type {
   AuthSessionsPort,
   BlobAssetsPort,
   BlobCasPort,
-  HubAvatarDeps,
-  ImportPosesPort,
   LocalAuthenticator,
   OidcRoutesDeps,
   UploadAssetsPort,
@@ -41,7 +38,7 @@ import {
   registerBlob,
   registerExport,
   registerHealthz,
-  registerHubAvatar,
+
   registerImportBundle,
   registerImportTree,
   registerJoin,
@@ -110,9 +107,7 @@ export interface AppDeps {
   readonly services: Services;
   readonly rateLimit: RateLimitGate;
   readonly presence: PresenceRegistry;
-  /** The rpg flight recorder (R-OBS), or `null` when tracing is off — its read port mounts at
-   *  `/api/_debug/rpg/traces` (host-only). */
-  readonly rpgTrace: RpgTraceRecorder | null;
+
   /** The single assets handle serves the blob owner-gate + the upload `store` + the import avatar-store + the
    *  BYO pose byte-ingest. */
   readonly assets: BlobAssetsPort & UploadAssetsPort & ImportAssetPort & ImportPosesPort;
@@ -240,14 +235,7 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
     credentialsKeyOk: deps.credentialsKeyOk,
   });
   registerBlob(app, { assets: deps.assets, cas: deps.cas });
-  registerHubAvatar(app, {
-    isHubEnabled: (hub) => {
-      const { enabled, enabledHubs } = deps.services.settings.getEffectiveConfig().hub;
-      return enabled && enabledHubs.includes(hub);
-    },
-    fetchAvatar: deps.hubAvatarFetch,
-    consumeAvatarRate: deps.hubAvatarConsumeRate,
-  });
+
   registerUpload(app, {
     assets: deps.assets,
     character: deps.character,
@@ -282,21 +270,6 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
 
   registerDebugRoutes(plain, {
     db: deps.db,
-    // The rpg flight recorder (R-OBS): adapt the branded-id recorder read to the string-keyed inspector port so
-    // foundation never imports the rpg types (the `AssetInspector` structural-injection precedent). Absent when
-    // tracing is off ⇒ the /rpg/traces route is not registered.
-    ...(deps.rpgTrace !== null
-      ? {
-          rpgTrace: {
-            recent: (filter: { chatId?: string; turnId?: string; limit?: number }): readonly object[] =>
-              deps.rpgTrace?.recent({
-                ...(filter.chatId !== undefined ? { chatId: castId<ChatId>(filter.chatId) } : {}),
-                ...(filter.turnId !== undefined ? { turnId: castId<ChatTurnId>(filter.turnId) } : {}),
-                ...(filter.limit !== undefined ? { limit: filter.limit } : {}),
-              }) ?? [],
-          },
-        }
-      : {}),
     auth: { expectedToken: env.DEBUG_TOKEN, adminAuth: { isAdmin: deps.seam.isAdmin } },
   });
 
