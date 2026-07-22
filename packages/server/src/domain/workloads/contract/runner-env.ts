@@ -3,9 +3,7 @@
 // root and threaded through the worker into every dispatch. Runners reach in via `ctx.env.<feature>.<op>`,
 // never a sideways import; each sub-interface is the minimal op subset that feature's runners use.
 
-
 import type { IngestRunResult, ReindexMode, ReindexScope } from "@orb/contracts/databank";
-
 
 import type { DocumentId, UserId } from "@orb/kit/ids";
 import type { Cas } from "#infra/storage";
@@ -19,7 +17,6 @@ import type {
   FsckReport,
   MemoryBackfillResult,
   ReconcileStatsWorkloadResult,
-
 } from "./workload-result";
 import type { ReportProgress } from "./workload-state";
 
@@ -116,8 +113,6 @@ export interface WorkloadMemoryEnv {
 export interface WorkloadCharacterEnv {
   readonly backfillGroupCharacters: (args: { ownerId: UserId | null; signal: AbortSignal }) => Promise<BackfillPassResult>;
 }
-
-
 
 /** The full cross-feature op bundle the runner context closes over (`ctx.env`). */
 export interface WorkloadRunnerEnv {

@@ -148,7 +148,6 @@ function healAgentSdkModel(source: CredentialSource, model: string | null): Mode
   switch (source) {
     // Sub / first-party Anthropic key / OR skin legitimately run Claude models → the curated Claude heal.
     case "max-pro-sub":
-
       return healToChatDefault(model);
     // U0 local loopback agent path: Claude Code runs against the LOCAL vLLM engine, which serves ONLY the
     // slash-free alias (buildClaudeVllmEnv's ANTHROPIC_DEFAULT_*_MODEL). A Claude default id would 404 it.

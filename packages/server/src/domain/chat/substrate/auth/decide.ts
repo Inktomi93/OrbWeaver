@@ -60,6 +60,14 @@ export function assertHost(can: Can, principal: Principal, role: ParticipantRole
   }
 }
 
+/** The host verdict as a BOOLEAN (assertHost's non-throwing twin) — for a projection that must BRANCH on host
+ *  authority rather than gate on it (the host-audience redaction seam, chat-crew-design/04 §2: the host sees the
+ *  hidden hand, a non-host is elided). Derives from the SAME `can()` seam, so a surface that relaxes its gate
+ *  inherits the correct redaction with no second authority model. */
+export function permitsHost(can: Can, principal: Principal, role: ParticipantRole): boolean {
+  return permits(can, principal, "host", role);
+}
+
 /**
  * Author-or-host gate (edit/delete a slot). The caller passes if they authored the slot
  * (`authorUserId === principal.userId`) OR the seam grants host authority (`can(…, 'host', …)`). A null

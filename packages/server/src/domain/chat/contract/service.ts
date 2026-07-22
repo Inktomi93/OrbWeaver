@@ -10,8 +10,10 @@
 // one participant-insert chokepoint AND the only public human-join path — there is no standalone `join`
 // verb. The two-party host handoff is modelled as two verbs (nominate + accept).
 
-import type { GroupConfig, RoomOverrides } from "@orb/contracts/chat";
+import type { AgentCardView, GroupConfig, RoomOverrides } from "@orb/contracts/chat";
+import type { ChatDocumentVisibility } from "@orb/contracts/databank";
 import type { PromptConfig } from "@orb/contracts/preset";
+import type { ThemeBackground } from "@orb/contracts/theme";
 import type {
   AbortParams,
   AcceptHostHandoffParams,
@@ -36,10 +38,12 @@ import type {
   GenerateImageParams,
   GenerateParams,
   GetActivePresetConfigParams,
+  GetAgentCardViewParams,
   GetChatLineageParams,
   GetChatParams,
   GetGroupConfigForChatParams,
   GetRoomOverridesForChatParams,
+  GetShapeTraceParams,
   GetStoredVariablesParams,
   GetVariablesParams,
   ImpersonateParams,
@@ -61,8 +65,10 @@ import type {
   ReattributeMessagesParams,
   ReattributePersonaParams,
   RedeemInviteParams,
+  RemoveCharacterFromChatParams,
   ReplayChatEventsParams,
   ReplayStreamEventsParams,
+  RequestAgentSeatParams,
   RevertContinueParams,
   RevokeInviteParams,
   SeatAgentParams,
@@ -70,18 +76,21 @@ import type {
   SelfLeaveParams,
   SendParams,
   SetChatAnchorPersonaParams,
+  SetChatBackgroundParams,
+  SetChatDocumentVisibilityParams,
   SetChatInjectionParams,
   SetGroupConfigParams,
   SetMessageHiddenParams,
-  SetParticipantDisabledParams,
-  SetParticipantTalkativenessParams,
   SetRoomOverridesParams,
+  SetRpgGamePointerParams,
+  SetSeatKnobsParams,
   SetVariablesParams,
   StarChatParams,
   StartChatParams,
   StreamEventBoundsParams,
   SwipeParams,
   UndoContinueParams,
+  UnseatAgentParams,
   UpdateTitleParams,
 } from "./params";
 import type {
@@ -112,6 +121,7 @@ import type {
   MessageView,
   ParticipantView,
   SectionPreview,
+  ShapeTrace,
   StreamEventBounds,
 } from "./views";
 
@@ -137,6 +147,9 @@ export interface ChatService {
   readonly previewSection: (params: PreviewSectionParams) => Promise<SectionPreview>;
   /** The assembled prompt for the NEXT real turn (no generation). */
   readonly peekPrompt: (params: PeekPromptParams) => Promise<AssembledPrompt>;
+  /** The content-free SHAPE trace for the next-turn shaping of the current canon (host/admin inspector,
+   *  PD-132). Re-runs SHAPE on demand — no content, nothing persists. */
+  readonly getShapeTrace: (params: GetShapeTraceParams) => Promise<ShapeTrace>;
   /** Paged canon read — each slot joined to its selected variant + the page's macro name producer. */
   readonly listMessages: (params: ListMessagesParams) => Promise<MessagesPage>;
   /** The full sibling-variant set for one slot — `{variantId, idx}[]` ordered by idx, no content. */
@@ -237,17 +250,46 @@ export interface ChatService {
   readonly setGroupConfig: (params: SetGroupConfigParams) => Promise<GroupConfig>;
   /** Add a character to the roster (host-only; the one character participant-insert chokepoint). */
   readonly addCharacterToChat: (params: AddCharacterToChatParams) => Promise<ParticipantView>;
+  /** Remove a character seat from the roster (host-only) — the symmetric drop for `addCharacterToChat`.
+   *  leftSeq-stamps the present character seat; an absent/already-left character is an idempotent no-op. The
+   *  only consumer is rpg's scene-cast prune (injected; no client caller — no tRPC row). */
+  readonly removeCharacterFromChat: (params: RemoveCharacterFromChatParams) => Promise<void>;
   /** Seat an agent principal in the roster (host-gated). The owner (whose agent) must be a present
    *  member; the principal is lazily minted. Idempotent re-seat. */
   readonly seatAgent: (params: SeatAgentParams) => Promise<ParticipantView>;
+  /** Unseat a seated agent from the roster (host-gated; the symmetric counterpart to `seatAgent`).
+   *  Agent-target-only (`kind='agent'`-scoped) — stamps `leftSeq`; a human userId matches no row. No
+   *  notification (agents hold no inbox). Re-seating is the normal `seatAgent` re-join upsert. */
+  readonly unseatAgent: (params: UnseatAgentParams) => Promise<void>;
+  /** The owner≠host seat-request (advisory): a present member asks the host to seat THEIR agent, via a
+   *  durable `agent-seat-requested` notification. Member-gated + owner-of-the-agent-gated; no state written
+   *  (the host then calls `seatAgent`, which re-verifies everything). */
+  readonly requestAgentSeat: (params: RequestAgentSeatParams) => Promise<void>;
   /** Host-only write of the four-field `chatMetadata.roomOverrides` allowlist. */
   readonly setRoomOverrides: (params: SetRoomOverridesParams) => Promise<RoomOverrides>;
+  /** Host-only write of the per-document databank retrieval-visibility override (D85 — the membership-widened
+   *  chat scope's governance knob; `chatMetadata.databankVisibility`). Set-semantics: `hidden` replaces the
+   *  whole excluded-document set. Returns the stored value. */
+  readonly setChatDocumentVisibility: (params: SetChatDocumentVisibilityParams) => Promise<ChatDocumentVisibility>;
+  /** Host-only write of the per-chat carried BACKGROUND source (BG-C — `chatMetadata.background`). Replaces
+   *  the whole blob (`kind:"none"` clears it). Returns the stored value. Applied client-side at the app-root
+   *  background layer in a true-solo room; INERT for every viewer in any other composition. */
+  readonly setChatBackground: (params: SetChatBackgroundParams) => Promise<ThemeBackground>;
+  /** GAP #4 — host-only write of the opaque `chatMetadata.rpg` game pointer (`{gameId}`), the SYNC `hasRpgGame`
+   *  signal. Called ONLY by rpg's `createGame` through the injected chat op; NOT routed. Merges into the sibling
+   *  sub-blobs (never nukes group/roomOverrides), emits `chatUpdated` so the chat client re-reads its ChatDetail. */
+  readonly setRpgGamePointer: (params: SetRpgGamePointerParams) => Promise<void>;
   readonly getGroupConfigForChat: (params: GetGroupConfigForChatParams) => Promise<GroupConfig>;
   readonly getRoomOverridesForChat: (params: GetRoomOverridesForChatParams) => Promise<RoomOverrides>;
-  /** Mute/unmute a roster participant (host-only; cards/WI still contribute). */
-  readonly setParticipantDisabled: (params: SetParticipantDisabledParams) => Promise<ParticipantView>;
-  /** Set a participant's 0–1 arbitration sampling weight (host-only). */
-  readonly setParticipantTalkativeness: (params: SetParticipantTalkativenessParams) => Promise<ParticipantView>;
+  /** The D22 "who is this agent?" projection for a present agent seat (member read; doc 06 §5). A fixed
+   *  minimal view — soul display name + `sourceKind` + owner handle; never the soul prompt/avatar. */
+  readonly getAgentCardView: (params: GetAgentCardViewParams) => Promise<AgentCardView>;
+  /** The ONE AI-seat knob write (host-only; D80) — participantId-keyed, kind-blind. Patches a PRESENT
+   *  character|agent seat's `talkativeness`/`disabled` (both optional; empty patch = no-op returning the
+   *  current view). Replaces the retired per-kind forking (`setParticipantDisabled`/
+   *  `setParticipantTalkativeness`/`setAgentSeatDisabled`) — one home, so no arm can be skipped again (agent
+   *  talkativeness, formerly unsettable, now works). A muted/tuned seat stays seated; cards/WI still contribute. */
+  readonly setSeatKnobs: (params: SetSeatKnobsParams) => Promise<ParticipantView>;
 
   // ── invites (the one participant-insert chokepoint) ──────────
   /** Mint a share-link / targeted invite (host-only). Returns the persisted `InviteView` + the raw token

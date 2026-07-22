@@ -60,7 +60,9 @@ export function clampMemberCard(input: {
     description: atSheet ? card.description : null,
     personality: atSheet ? card.personality : null,
     scenario: atSheet ? card.scenario : null,
-    greetings: atSheet ? card.greetings : null,
+    // MemberCardView.greetings is a clamped DISPLAY projection (string[]) — group-only isn't meaningful to a
+    // room member, so the object shape does NOT propagate here; project each greeting to its text.
+    greetings: atSheet ? card.greetings.map((g) => g.text) : null,
     exampleMessages: atSheet ? card.exampleMessages : null,
     tags: atSheet ? tags : null,
     creatorNotes: atSheet ? card.creatorNotes : null,

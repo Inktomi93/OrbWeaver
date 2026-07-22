@@ -11,20 +11,21 @@
 // The chat bus emit, the per-member budget debit, and the per-turn host policy are not ChatContext ops —
 // they're injected as engine deps wired at the entry composition root.
 
-import type { ChatBusEvent, MessageView, TurnAbortReason } from "@orb/contracts/chat";
+import type { AssembleContext, ChatBusEvent, MessageView, TurnAbortReason } from "@orb/contracts/chat";
 import { buildCharacterNameMap, buildPersonaNameMap } from "@orb/contracts/chat";
+import type { ResolvedConnection } from "@orb/contracts/connection";
 import type { ChatRoster } from "@orb/contracts/identity";
 import type { ContinuePostfix } from "@orb/contracts/preset";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany, isConstraintViolation } from "@orb/db/kit";
-import type { CharacterId, ChatId, MessageId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, ChatTurnId, MessageId, UserId } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
 import { getLog } from "#foundation/observability";
 import type { ChatContext } from "../context";
 import type { DebitBudgetOp, ResolveTurnPolicyOp } from "../contract/context";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors";
-import type { MemoryConfig, MemoryPassCounts, MemoryScope, WitnessInterval } from "../contract/memory";
+import type { MemoryConfig, MemoryPassCounts, MemoryScope, MsgRow, WitnessInterval } from "../contract/memory";
 import { TOOL_RECURSE_LIMIT_DEFAULT } from "../contract/metadata";
 import type { HistoryMacroNames, TurnEconomics, TurnEngine, TurnIntent, TurnKind, TurnOutcome, TurnPersist, TurnPrep } from "../contract/results";
 import {
@@ -34,7 +35,7 @@ import {
   continueVariantStatements,
   insertCanonMessageStatements,
 } from "../persistence/canon-write";
-import { releaseLock, tryAcquireLock } from "../persistence/lock";
+import { refreshLock, releaseLock, tryAcquireLock } from "../persistence/lock";
 import { loadChatMacroNameProducer } from "../persistence/macro-names";
 import { loadCanonHistory, loadCanonStatRows, loadMaxMessageSeq, loadMessageView, loadSlotTarget, loadVariableDeltas } from "../persistence/queries";
 import { loadRoster } from "../persistence/roster";
@@ -43,7 +44,7 @@ import { foldChain, runtimeVariablesUpdateStatement } from "../substrate/runtime
 import { assistantTurnDelta, canonMessageDelta, swipeVariantDelta } from "../substrate/stats-delta";
 import { debitTurnBudget } from "./budget";
 import { runTurnPipeline } from "./pipeline";
-import { committedOutcome } from "./result";
+import { abortedOutcome, committedOutcome } from "./result";
 import { assertMaxProSubConsent, resolveOwnerConsented } from "./turn-identity";
 
 /** The non-ctx engine deps wired at the composition root. */
@@ -74,6 +75,24 @@ interface EngineDeps {
       readonly signal?: AbortSignal | undefined;
     },
   ) => Promise<MemoryPassCounts>;
+  /** Injected witnessing-horizon reader (memory's `chat_participants` presence read) — the engine sources a
+   *  cast character's join/leave horizons to gate its SCOPED digest build. Injected (not imported) because the
+   *  engine may not reach `memory/` across the subsystem boundary; the domain root wires the real reader. */
+  readonly loadWitnessHorizons: (db: ChatContext["db"], chatId: ChatId, characterId: CharacterId) => Promise<WitnessInterval[]>;
+  /** Injected `{{memory}}` recall — the engine re-runs it PER SCOPED SPEAKER (its own bucket + horizons) so a
+   *  scoped round's each speaker recalls its OWN egocentric, witnessed memory. Injected across the subsystem
+   *  boundary like the builders above; the domain root wires the real `recallMemory`. */
+  readonly recallMemory: (
+    ctx: ChatContext,
+    args: {
+      readonly scope: MemoryScope;
+      readonly groupCharacterId: CharacterId;
+      readonly witnessing?: readonly WitnessInterval[] | undefined;
+      readonly config?: MemoryConfig | null | undefined;
+      readonly recent?: readonly MsgRow[] | undefined;
+      readonly names?: ReadonlyMap<CharacterId, string> | undefined;
+    },
+  ) => Promise<string>;
 }
 
 /** Maps the engine's turn-kind axis to the public bus `TurnIntent`. `opening`/`auto`/`force` surface as
@@ -149,9 +168,9 @@ function agentSpeakerUserId(persist: TurnPersist, target: SlotTarget | null): Us
  *  generation the engine re-reads the principal FRESH and runs it through the ONE `canAgent('speak')` seam —
  *  the belt on top of the present-predicate that (a) refuses a force-injected speaker the selection never
  *  vetted and (b) kills an in-flight turn the instant `users.enabled` flips. A vanished/non-agent id (an
- *  owner-delete cascade race) fails CLOSED. Pure pre-start refusal: emits nothing, no side effects. */
-async function gateAgentSpeaker(ctx: ChatContext, chatId: ChatId, persist: TurnPersist, target: SlotTarget | null): Promise<void> {
-  const agentUserId = agentSpeakerUserId(persist, target);
+ *  owner-delete cascade race) fails CLOSED. Pure pre-start refusal: emits nothing, no side effects. Takes the
+ *  pre-computed `agentUserId` ({@link agentSpeakerUserId}) so the connection swap keys on the same fact. */
+async function gateAgentSpeaker(ctx: ChatContext, chatId: ChatId, agentUserId: UserId | null): Promise<void> {
   if (agentUserId === null) {
     return;
   }
@@ -161,6 +180,21 @@ async function gateAgentSpeaker(ctx: ChatContext, chatId: ChatId, persist: TurnP
   }
   // Throws DomainForbiddenError("agent principal disabled") when the kill switch is off — the containment flip.
   ctx.canAgent(actor, "speak", AGENT_SEAT_ROSTER);
+}
+
+/** The pre-start gate + connection resolve for a turn: identify the agent speaker (if any), run the
+ *  `canAgent('speak')` capability gate, then resolve the EFFECTIVE connection. An agent speaker voices through
+ *  its OWN host-funded brain (`resolveRole('agent')`, D60; agent-principal-design/04 §5); a null resolution
+ *  (no coherent host-funded agent connection) falls back to the round connection, itself host-funded. A
+ *  character/human/narrator keeps the round connection BYTE-IDENTICALLY (agentUserId null short-circuits both).
+ *  Runs BEFORE the consent belt so the belt + the infra firewall gate on the source actually dispatched. */
+async function gateAndResolveConnection(ctx: ChatContext, prep: TurnPrep, persist: TurnPersist, target: SlotTarget | null): Promise<ResolvedConnection> {
+  const agentUserId = agentSpeakerUserId(persist, target);
+  await gateAgentSpeaker(ctx, prep.chatId, agentUserId);
+  if (agentUserId === null) {
+    return prep.connection;
+  }
+  return (await ctx.resolveAgentConnection(prep.runAsUserId, agentUserId)) ?? prep.connection;
 }
 
 /** Re-reads a just-committed message's authoritative MessageView (append-variant/continue produce fields
@@ -410,6 +444,10 @@ function buildCommitPlan(args: {
       characterId,
       authorUserId: persist.authorUserId ?? null,
       personaId: persist.personaId ?? null,
+      // Turn origin (03 §4) — stamped on the reply slot. Absent on `prep` ⇒ the DB default ('human'/0), so a
+      // human/character/agent turn is byte-identical; an automation `requestTurn` (A6) threads these through.
+      ...(prep.initiator !== undefined ? { initiator: prep.initiator } : {}),
+      ...(prep.automationDepth !== undefined ? { automationDepth: prep.automationDepth } : {}),
       now,
       variant,
     };
@@ -530,6 +568,45 @@ async function commitGeneration(args: {
   return view;
 }
 
+/** Fire-and-forget the injected expressions post-turn classify (expressions-design/02 §3): after the variant
+ *  commits, classify the speaker's affect and emit an ephemeral sprite-swap. Null op = expressions not wired
+ *  (byte-identical no-op — the memory-trigger posture). The op swallows its own errors; `.catch` covers a
+ *  synchronous throw so nothing reaches the reply path. */
+function fireExpressionClassify(ctx: ChatContext, view: MessageView): void {
+  if (ctx.expressions !== null) {
+    void ctx.expressions.onTurnCompleted(view.chatId, view.id, view.selectedVariantId).catch(() => undefined);
+  }
+}
+
+/** Fire-and-forget the rpg post-turn FLUSH (rpg-design/10 §R4): after the variant commits, flush the turn's
+ *  staged tool writes onto the committed variant, keyed by `turnId`. Null op = rpg not wired (byte-identical
+ *  no-op). Fire-and-forget with `.catch` — a background staging flush must NEVER turn a committed reply into an
+ *  abort; the reply already landed. Inert until the rpg tool registrants stage anything (R4 #2/#3). */
+function fireRpgTurnCompleted(ctx: ChatContext, view: MessageView, turnId: ChatTurnId): void {
+  if (ctx.rpg !== null) {
+    void ctx.rpg.onTurnCompleted(view.chatId, view.id, view.selectedVariantId, turnId).catch(() => undefined);
+  }
+}
+
+/** Fire-and-forget the rpg turn-abort CLEAR (rpg-design/10 §R4 hardening a): drop the turn's staged tool
+ *  writes so a dead turn never flushes into the next turn on this chat. Null op = rpg not wired. Fire-and-
+ *  forget — clearing staging must never mask the abort the caller is already surfacing. */
+function fireRpgTurnAborted(ctx: ChatContext, chatId: ChatId, turnId: ChatTurnId, reason: TurnAbortReason): void {
+  if (ctx.rpg !== null) {
+    void ctx.rpg.onTurnAborted(chatId, turnId, reason).catch(() => undefined);
+  }
+}
+
+/** Mark the turn eligible to feed the player's queued d20 into its first skill check (rpg-design/05 §6) — only
+ *  when its reply directly responds to the die-bearing latest user message (chat's slot-adjacency verdict). Sync
+ *  in-memory flag keyed by `turnId`; null op / non-game ⇒ no-op. A later GM/auto round is never marked, so a
+ *  stale die can't re-feed. */
+function markRpgDiceEligible(ctx: ChatContext, prep: TurnPrep, turnId: ChatTurnId): void {
+  if (prep.respondsToLatestUserTurn === true) {
+    ctx.rpg?.markDicePreRollEligible(turnId);
+  }
+}
+
 /** Scopes the loaded canon to the turn's context window: new-slot sees the full canon; append-variant
  *  regenerates from before the target slot; continue sees up to and including it. */
 function scopeCanon(canon: readonly MessageView[], persist: TurnPersist, target: SlotTarget | null): readonly MessageView[] {
@@ -539,20 +616,93 @@ function scopeCanon(canon: readonly MessageView[], persist: TurnPersist, target:
   return persist.mode === "append-variant" ? canon.filter((m) => m.seq < target.seq) : canon.filter((m) => m.seq <= target.seq);
 }
 
-/** Which abort reason a thrown error maps to (a caller-cancel AbortError → user; else error). */
-function abortReasonFor(err: unknown): TurnAbortReason {
+/** The abort reason the heartbeat stamps onto its internal AbortController when the turn-lock is lost mid-turn.
+ *  `signal.reason` carries it through `AbortSignal.any` to the provider stream, so the engine's catch can tell
+ *  a lock-fault abort ("stale") from a caller cancel ("user") — the provider itself only ever surfaces a bare
+ *  name-based AbortError, which erases the distinction. */
+class StaleLockAbort extends Error {
+  constructor() {
+    super("turn-lock lost mid-turn (stolen or gone)");
+    this.name = "StaleLockAbort";
+  }
+}
+
+/** Classify a post-turnStarted throw into its {@link TurnAbortReason}, consulting the turn's abort signal so a
+ *  lock-fault abort is distinguishable from a caller cancel. A settled (aborted) signal means the throw is an
+ *  abort, not a fault: `StaleLockAbort` reason → "stale" (the heartbeat killed it); any other aborted-signal
+ *  cause → "user" (the caller cancelled via `activeTurns`). A throw with an UN-aborted signal is a genuine
+ *  fault (provider/DB) → "error". */
+function abortReasonFor(err: unknown, signal: AbortSignal | undefined): TurnAbortReason {
+  if (signal?.aborted === true) {
+    return signal.reason instanceof StaleLockAbort ? "stale" : "user";
+  }
+  // Defensive belt for a provider that throws a name-based AbortError WITHOUT the signal reflecting it.
   return err instanceof Error && err.name === "AbortError" ? "user" : "error";
+}
+
+/** This turn's cascade depth (automation-design/03 §4): a human turn is 0; an automation/plugin-initiated turn
+ *  carries `parent + 1` on `prep`. Extracted so the nullish default stays OUT of `executeTurn`'s cognitive
+ *  budget — the value rides the `turnAborted` event (the abort commits no reply slot to read depth back from). */
+function turnCascadeDepth(prep: TurnPrep): number {
+  return prep.automationDepth ?? 0;
+}
+
+/** Per-speaker witnessed recall (D6): re-resolve `{{memory}}` for THIS speaker's own egocentric bucket,
+ *  horizon-filtered by its join/leave presence, and return a fresh assembleContext with that `memory`.
+ *
+ *  GATED to a genuinely SCOPED per-speaker turn voiced by a real cast character:
+ *    • `shape.cardScope === "scoped"` — merged/narrator/solo keep the round-level shared recall (the synthetic
+ *      group char has no participant seat → no horizons; scoping it would erase the bucket). Narrator resolves
+ *      to `cardScope: "merged"` (round.ts maps any non-per-speaker output → "merged"), so it never reaches the
+ *      scoped branch — the merged view is correct there.
+ *    • the speaker is a real character (`speakerCharacterId !== null`) — an agent seat has no memory bucket.
+ *    • `memoryRecall` was staged (memory on + a character to key on).
+ *  Any gate off ⇒ the round-level ctx passes through UNCHANGED (byte-identical). A speaker present since the
+ *  chat opened resolves the SAME pool as the round-level recall (its horizon covers everything) — no
+ *  regression; only a late-joiner / kicked-rejoined speaker sees a filtered, egocentric memory. */
+async function resolveSpeakerMemory(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): Promise<AssembleContext> {
+  const speakerCharId = prep.speakerCharacterId;
+  const recall = prep.memoryRecall;
+  if (prep.shape?.cardScope !== "scoped" || speakerCharId === null || recall === undefined || recall === null) {
+    return prep.assembleContext;
+  }
+  const witnessing = await deps.loadWitnessHorizons(ctx.db, prep.chatId, speakerCharId);
+  const memory = await deps.recallMemory(ctx, {
+    scope: { chatId: prep.chatId, scopedCharacterId: speakerCharId, isGroup: true },
+    groupCharacterId: recall.groupCharacterId,
+    witnessing,
+    config: recall.config,
+    recent: recall.recent,
+    names: recall.names,
+  });
+  return { ...prep.assembleContext, memory };
 }
 
 /** The turn body, parametrized by persist mode + lock-freedom: security belts → resolve persist target →
  *  turnStarted → assemble/generate → persist → turnCompleted. On a post-start error: emit turnAborted then
  *  rethrow. Pre-start refusals throw a coded error and emit nothing. */
 async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): Promise<TurnOutcome> {
-  // Security belts before any turnStarted: consent + budget debit attributed to triggeredBy.
+  // Absent persist mode = a new assistant slot. append-variant/continue load the write target before
+  // turnStarted — a missing target is a pre-start refusal (leak-free NOT_FOUND, emits nothing). Resolved
+  // FIRST (before the consent/budget belts) so the agent-speaker id + its connection are known while the
+  // belts still gate — a refused turn never debits budget, and the belt sees the ACTUAL connection.
+  const persist: TurnPersist = prep.persist ?? { mode: "new-slot", role: "assistant" };
+  const target = persist.mode === "new-slot" ? null : ((await loadSlotTarget(ctx.db, prep.chatId, persist.targetMessageId)) ?? null);
+  if (persist.mode !== "new-slot" && target === null) {
+    throw new ChatNotFoundError(prep.chatId);
+  }
+
+  // The agent-speaker capability gate + the per-agent connection swap (D60): a disabled/force-injected agent
+  // is refused pre-start (emits nothing), and a valid agent speaker voices through its OWN host-funded brain.
+  // A character/human keeps the round connection byte-identically.
+  const connection = await gateAndResolveConnection(ctx, prep, persist, target);
+
+  // Security belts before any turnStarted: consent + budget debit attributed to triggeredBy, on the
+  // EFFECTIVE connection (the agent's own, or the round connection).
   const policy = await deps.resolveTurnPolicy(prep.runAsUserId);
   const identity = { triggeredBy: prep.triggeredBy, runAsUserId: prep.runAsUserId };
   assertMaxProSubConsent({
-    source: prep.connection.credential.source,
+    source: connection.credential.source,
     identity,
     ownerConsent: policy.allowNonOwnerMaxProSub,
   });
@@ -564,26 +714,22 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
   });
   await debitTurnBudget(deps.debitBudget, prep.triggeredBy, policy.budget);
 
-  // Absent persist mode = a new assistant slot. append-variant/continue load the write target before
-  // turnStarted — a missing target is a pre-start refusal (leak-free NOT_FOUND, emits nothing).
-  const persist: TurnPersist = prep.persist ?? { mode: "new-slot", role: "assistant" };
-  const target = persist.mode === "new-slot" ? null : ((await loadSlotTarget(ctx.db, prep.chatId, persist.targetMessageId)) ?? null);
-  if (persist.mode !== "new-slot" && target === null) {
-    throw new ChatNotFoundError(prep.chatId);
-  }
-
-  // The agent-speaker capability gate — a pre-start refusal (emits nothing) BEFORE turnStarted, so a disabled
-  // or force-injected agent principal is never voiced (D60; the belt on top of the present-predicate).
-  await gateAgentSpeaker(ctx, prep.chatId, persist, target);
-
   const intent = KIND_TO_INTENT[prep.kind];
+  // This turn's OWN cascade depth (automation-design/03 §4), resolved once — a human turn is 0, an
+  // automation/plugin-initiated turn carries its parent+1. Rides `turnAborted` (below) so the automation
+  // fact-resolver can gate the cascade without a reply slot to read `getTurnOrigin` off (there is none on abort).
+  const abortDepth = turnCascadeDepth(prep);
+  // The turn's ephemeral identity (rpg-design/10 §R4) — minted once, threaded to the tool-exec frame + the rpg
+  // turn-end hooks so a turn-scoped registrant correlates the turn's tool writes to its commit/abort flush.
+  const turnId = ctx.newChatTurnId();
+  markRpgDiceEligible(ctx, prep, turnId);
   await deps.emit({
     type: "turnStarted",
     chatId: prep.chatId,
     intent,
-    api: prep.connection.api,
-    source: prep.connection.credential.source,
-    model: prep.connection.model,
+    api: connection.api,
+    source: connection.credential.source,
+    model: connection.model,
     speakerCharacterId: prep.speakerCharacterId,
     targetMessageId: persist.mode === "new-slot" ? null : persist.targetMessageId,
   });
@@ -597,16 +743,23 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
       characterNamesById: buildCharacterNameMap(macroProducer.characterNames),
       personaNamesById: buildPersonaNameMap(macroProducer.personaNames),
     };
+    // Per-speaker witnessed recall (D6): a scoped round's each speaker recalls its OWN egocentric memory,
+    // horizon-filtered by ITS join/leave presence — so a late joiner never recalls scenes before it arrived.
+    // Merged/narrator/solo/agent turns keep the round-level `memory` (byte-identical). A fresh shape, never a
+    // mutation of the immutable ctx (§5, the speaker-card precedent).
+    const speakerAssembleContext = await resolveSpeakerMemory(ctx, deps, prep);
     // The engine measures the wall-clock window around the role call and stamps it on the variant.
     const genStartedAt = ctx.now();
     const result = await runTurnPipeline({
       runChatTurn: ctx.runChatTurn,
       applyRegexReplace: ctx.applyRegexReplace,
       resolveImageUrl: (ref) => ctx.resolveImageUrl({ ownerId: prep.runAsUserId, chatId: prep.chatId, ref }),
-      assembleContext: prep.assembleContext,
+      assembleContext: speakerAssembleContext,
       canon: scopeCanon(canonAll, persist, target),
       historyMacroNames,
-      connection: prep.connection,
+      // The D50 `assembled_dynamic` PromptTransform op (04 §6); null ⇒ byte-identical dynamic half.
+      applyPromptTransforms: ctx.promptTransforms,
+      connection,
       intent: prep.intent,
       extraStopSequences: prep.extraStopSequences,
       kind: prep.kind,
@@ -625,6 +778,7 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
         triggeredBy: prep.triggeredBy,
         chatId: prep.chatId,
         roster: prep.toolRoster ?? null,
+        turnId,
         signal: prep.signal,
       },
       onDelta: (delta) => {
@@ -632,12 +786,7 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
       },
     });
     const genFinishedAt = ctx.now();
-    if (result.imageDropped) {
-      await deps.emit({ type: "warning", chatId: prep.chatId, code: "image_dropped" });
-    }
-    if (result.toolsUnsupported) {
-      await deps.emit({ type: "warning", chatId: prep.chatId, code: "tools_unsupported" });
-    }
+    await emitCapabilityDropWarnings(deps.emit, prep.chatId, result);
     // A display affordance only, distinct from turnCompleted (fires after persist below).
     if (result.reasoning !== null) {
       await deps.emit({ type: "reasoningStreamDone", chatId: prep.chatId });
@@ -696,8 +845,12 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
               macroNames,
             });
           }
+          // Each cast character's SCOPED bucket is gated by its own join/leave horizons — a member digests
+          // only the blocks it was present for (correct across kick→re-add). The shared group bucket above
+          // stays horizon-free (the merged/narrator build; digests.ts §22-23). The synthetic group char has
+          // no participant seat, so it would (correctly) never appear in `chars` here.
           await Promise.all(
-            chars.map((charId) =>
+            chars.map(async (charId) =>
               deps.generateDigests(ctx, {
                 scope: {
                   chatId: prep.chatId,
@@ -706,6 +859,7 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
                 },
                 config: memoryConfig,
                 macroNames,
+                witnessing: await deps.loadWitnessHorizons(ctx.db, prep.chatId, charId),
               }),
             ),
           );
@@ -722,21 +876,95 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
       });
     }
 
+    fireExpressionClassify(ctx, view);
+    fireRpgTurnCompleted(ctx, view, turnId);
+
     return committedOutcome([view]);
   } catch (err) {
-    await deps.emit({
-      type: "turnAborted",
-      chatId: prep.chatId,
-      intent,
-      reason: abortReasonFor(err),
-    });
-    throw err;
+    // An abort is a lifecycle OUTCOME, not an exception (owner ruling, lock-the-extensible-shape): the
+    // return-based `abortedOutcome` shape was designed (result.ts) and the plumbing above (round → verb
+    // `TurnOutcome.aborted/abortReason`) already propagates it. The `turnAborted` bus emission STAYS on
+    // every abort path (it is how the UI learns — the client is bus-driven, never reads this return).
+    //
+    // CLASSIFICATION BOUNDARY — which reasons RETURN vs THROW:
+    //   • "user"  (caller cancel via `prep.signal`)      → RETURN abortedOutcome — a clean, expected outcome.
+    //   • "stale" (the heartbeat's lock-loss abort)      → RETURN abortedOutcome — from THIS body's view it is
+    //       an abort; the LOUD surface is preserved OUTSIDE this catch: `runInLockWithHeartbeat` rejects the
+    //       Promise.race with `ChatOperationError(aborted)` and that rejection wins (settles first), so callers
+    //       still see a hard throw. This branch only settles the abandoned body cleanly (no unhandled reject).
+    //   • "error" (provider/DB fault — signal NOT aborted) → THROW: a real failure must stay a failure.
+    const reason = abortReasonFor(err, prep.signal);
+    // Carry the aborting turn's OWN cascade depth (automation-design/03 §4): an aborted turn commits no reply
+    // slot, so the automation fact-resolver cannot read this back through `getTurnOrigin` — it must ride the
+    // event. A depth ≥ 1 abort (this turn was itself automation-initiated) makes the `turnAborted` fact depth
+    // ≥ 1, so the cascade guard suppresses non-opted `turnAborted` rules (closes the retry-on-failure self-loop).
+    await deps.emit({ type: "turnAborted", chatId: prep.chatId, intent, reason, automationDepth: abortDepth });
+    // CLEAR the turn's staged tool writes on every abort path (user/stale/error) so a dead turn never flushes
+    // into the next turn on this chat (rpg-design/10 §R4 hardening a).
+    fireRpgTurnAborted(ctx, prep.chatId, turnId, reason);
+    if (reason === "error") {
+      throw err;
+    }
+    return abortedOutcome(reason);
+  }
+}
+
+/** The heartbeat fires at TTL/3, not TTL/2: TTL/3 survives ONE dropped/slow refresh (a missed tick still
+ *  leaves ~TTL/3 of slack before `expiresAt`, so the lock stays un-stealable), where TTL/2 leaves zero
+ *  margin if a single refresh runs late. */
+const LOCK_HEARTBEAT_DIVISOR = 3;
+
+/** Runs the turn body in-lock while a heartbeat extends the lock's TTL, so a turn that outruns the TTL is
+ *  NOT stealable mid-stream (the exact double-canon-write race the lock exists to prevent).
+ *
+ *  Fail-closed on a lost lock: {@link refreshLock} returns `false` when this holder no longer owns the row
+ *  (stolen via the stale-steal in {@link tryAcquireLock}, or the row went), and a thrown refresh is a DB
+ *  fault — either way the turn's canon claim is void. The engine's ONLY stop mechanism is the AbortSignal
+ *  the provider stream already honors, so the heartbeat aborts an internal controller (composed onto
+ *  `prep.signal`) to HALT the in-flight generation before it can `commitGeneration`, then rejects the run
+ *  with `aborted` (the "stale" arm the code documents). `aborted` — NOT `locked` — so it propagates loudly
+ *  (`driveRound` only yields gracefully on the pre-acquire `locked`); a lost lock mid-turn is a hard fault. */
+async function runInLockWithHeartbeat(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): Promise<TurnOutcome> {
+  const heartbeatController = new AbortController();
+  const composedSignal = prep.signal !== undefined ? AbortSignal.any([prep.signal, heartbeatController.signal]) : heartbeatController.signal;
+  let lockLost = false;
+  let rejectLockLost!: (err: unknown) => void;
+  const lockLostBarrier = new Promise<never>((_resolve, reject) => {
+    rejectLockLost = reject;
+  });
+  const tick = async (): Promise<void> => {
+    try {
+      if (await refreshLock(ctx.db, prep.chatId, deps.holder, ctx.now() + deps.lockTtlMs)) {
+        return;
+      }
+    } catch (err) {
+      getLog().error({ err, chatId: prep.chatId, holder: deps.holder }, "chat: turn-lock refresh FAILED (db fault) — aborting the turn");
+    }
+    if (lockLost) {
+      return;
+    }
+    lockLost = true;
+    getLog().error(
+      { chatId: prep.chatId, holder: deps.holder },
+      "chat: turn-lock LOST mid-turn (stolen/gone) — aborting the turn to stop the canon-write race",
+    );
+    // Abort with the sentinel so the abandoned turn body labels its `turnAborted` bus event "stale" (not the
+    // caller-cancel "user"); the race rejection below is the loud, caller-facing surface.
+    heartbeatController.abort(new StaleLockAbort());
+    rejectLockLost(new ChatOperationError(CHAT_OP_CODES.aborted, "turn-lock lost mid-turn (stolen or gone)"));
+  };
+  const beat = setInterval((): void => void tick(), Math.floor(deps.lockTtlMs / LOCK_HEARTBEAT_DIVISOR));
+  try {
+    return await Promise.race([executeTurn(ctx, deps, { ...prep, signal: composedSignal }), lockLostBarrier]);
+  } finally {
+    clearInterval(beat);
+    await releaseLock(ctx.db, prep.chatId, deps.holder);
   }
 }
 
 /** Builds the per-turn engine. `runTurn` acquires the per-chat lock (refusing `locked` if a turn is in
- *  flight), runs the lifecycle in-lock, and always releases it. A `prep.lockFree` turn skips the lock
- *  entirely so it runs concurrent with a locked send. */
+ *  flight), runs the lifecycle in-lock under a TTL heartbeat, and always releases it. A `prep.lockFree`
+ *  turn skips the lock (and the heartbeat) entirely so it runs concurrent with a locked send. */
 export function createTurnEngine(ctx: ChatContext, deps: EngineDeps): TurnEngine {
   const runTurn = async (prep: TurnPrep): Promise<TurnOutcome> => {
     if (prep.lockFree === true) {
@@ -752,11 +980,27 @@ export function createTurnEngine(ctx: ChatContext, deps: EngineDeps): TurnEngine
     if (!acquired) {
       throw new ChatOperationError(CHAT_OP_CODES.locked, "a turn is already in flight for this chat");
     }
-    try {
-      return await executeTurn(ctx, deps, prep);
-    } finally {
-      await releaseLock(ctx.db, prep.chatId, deps.holder);
-    }
+    return await runInLockWithHeartbeat(ctx, deps, prep);
   };
   return { runTurn };
+}
+
+/** Emit the domain `warning` events for the capability drops the pipeline flagged this turn (image parts,
+ *  tools, structured output). Extracted so the generation lifecycle stays under the cognitive-complexity cap.
+ *  @internal exported for the drop-warning unit test — the structured-output flag has no engine INPUT path yet
+ *  (no chat consumer sets `responseFormat`, 04 §3), so the emit branch is only reachable directly. */
+export async function emitCapabilityDropWarnings(
+  emit: (event: ChatBusEvent) => Promise<void>,
+  chatId: ChatId,
+  result: { readonly imageDropped: boolean; readonly toolsUnsupported: boolean; readonly structuredOutputUnsupported: boolean },
+): Promise<void> {
+  if (result.imageDropped) {
+    await emit({ type: "warning", chatId, code: "image_dropped" });
+  }
+  if (result.toolsUnsupported) {
+    await emit({ type: "warning", chatId, code: "tools_unsupported" });
+  }
+  if (result.structuredOutputUnsupported) {
+    await emit({ type: "warning", chatId, code: "structured_output_unsupported" });
+  }
 }

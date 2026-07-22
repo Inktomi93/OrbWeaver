@@ -14,11 +14,11 @@ import { fitHistoryToWindow } from "../assembly/history-budget";
 import {
   buildTurnMacroContext as buildTurnMacroContextImpl,
   freezeVolatileMacros as freezeVolatileMacrosImpl,
-  renderHistoryMacros as renderHistoryMacrosImpl,
   resolveGuidedActionText as resolveGuidedActionTextImpl,
 } from "../assembly/macros";
-import { shape } from "../assembly/shape";
+import { shape, toShapeCanon as toShapeCanonImpl } from "../assembly/shape";
 import { shapeContextForSpeaker as shapeContextForSpeakerImpl } from "../assembly/speaker-card";
+import { buildShapeTrace as buildShapeTraceImpl } from "../assembly/trace";
 
 /** BUILD: render the prompt config against the immutable assemble ctx → the static/dynamic halves + splices. */
 export function buildPrompt(...args: Parameters<typeof assemblePrompt>): ReturnType<typeof assemblePrompt> {
@@ -28,6 +28,19 @@ export function buildPrompt(...args: Parameters<typeof assemblePrompt>): ReturnT
 /** SHAPE: scope→splice→squash→name-stamp the wire history + compute the §8 breakpoint. */
 export function shapeTurn(...args: Parameters<typeof shape>): ReturnType<typeof shape> {
   return shape(...args);
+}
+
+/** SHAPE (canon pre-pass): map the loaded canon (`MessageView[]`) → SHAPE wire input rows, macro-resolved
+ *  per row. The legal `engine/` + `verbs/` → `assembly/` bridge for the ONE canon→shape mapping (shared by
+ *  the turn pipeline and the host/admin shape-trace preview). */
+export function toShapeCanon(...args: Parameters<typeof toShapeCanonImpl>): ReturnType<typeof toShapeCanonImpl> {
+  return toShapeCanonImpl(...args);
+}
+
+/** SHAPE (content-free trace): project shape()'s stage snapshots + the resolved breakpoint offset → the
+ *  host/admin `ShapeTrace` (`chat.getShapeTrace`; PD-132). The legal `verbs/` → `assembly/` bridge. */
+export function buildShapeTrace(...args: Parameters<typeof buildShapeTraceImpl>): ReturnType<typeof buildShapeTraceImpl> {
+  return buildShapeTraceImpl(...args);
 }
 
 /** The per-speaker CARD-SECTION shape (the two-axis `shape(ctx, speaker)`): pick the active
@@ -41,14 +54,6 @@ export function shapeContextForSpeaker(...args: Parameters<typeof shapeContextFo
  *  `engine/ → assembly/` bridge (a direct import is `domain-no-cross-subsystem`-illegal). */
 export function buildTurnMacroContext(...args: Parameters<typeof buildTurnMacroContextImpl>): ReturnType<typeof buildTurnMacroContextImpl> {
   return buildTurnMacroContextImpl(...args);
-}
-
-/** SHAPE (canon pre-pass): resolve `{{…}}` in a stored history row's body (resolve-on-READ; D26/D51 keep
- *  storage raw). `{{char}}` binds to the row's OWN speaker (or the cast for a user/narrator row),
- *  `{{user}}`/`{{persona}}` to the row's own persona — falling back to the chat ANCHOR for a null stamp
- *  (never the reader) — the client DISPLAY parity split. The legal `engine/ → assembly/` bridge. */
-export function renderHistoryMacros(...args: Parameters<typeof renderHistoryMacrosImpl>): ReturnType<typeof renderHistoryMacrosImpl> {
-  return renderHistoryMacrosImpl(...args);
 }
 
 /** FREEZE the VOLATILE (nondeterministic clock/PRNG) macros in `text` at COMMIT (Chat-Macro-Resolution.md

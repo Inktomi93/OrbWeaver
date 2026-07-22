@@ -20,7 +20,7 @@ import { and, eq, isNotNull, isNull } from "drizzle-orm";
 type ParticipantActor =
   | { readonly kind: "human"; readonly userId: UserId }
   | { readonly kind: "character"; readonly characterId: CharacterId }
-  // No agent rows exist until chat.seatAgent — this arm is correct and unreachable until then.
+  // Agent rows are minted by chat.seatAgent — this arm is reachable.
   | { readonly kind: "agent"; readonly userId: UserId };
 
 type ParticipantInsertRow = typeof chatParticipants.$inferInsert;

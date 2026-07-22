@@ -1,6 +1,7 @@
 // domain/chat/assembly/injections — the one positional-injection model: the role-framing rule
-// (`frameInjection`) + the depth splice (`spliceInChatInjections`). Shared frame()+splice consumed by
-// both BUILD (before/in-prompt section render) and SHAPE (the `in_chat` history splice) — one home, no drift.
+// (`frameInjection`) + the depth splice (`spliceInChatInjections`, with the optional `squashSystemMessages`
+// pre-merge of consecutive same-depth system runs). Shared frame()+splice consumed by both BUILD
+// (before/in-prompt section render) and SHAPE (the `in_chat` history splice) — one home, no drift.
 
 import type { ChatInjection } from "@orb/contracts/chat";
 import type { MessageRole } from "@orb/kit/message-role";
@@ -43,6 +44,24 @@ export function frameInjection(role: MessageRole, content: string, originalRole?
   return `[Note from user: ${trimmed}]`;
 }
 
+/** Collapse maximal runs of consecutive same-depth system-role injections into one entry, joining content
+ *  with the blank-line separator `squashSameRole` uses. Same depth ⇒ the entries splice adjacent (equal
+ *  distance from the tail), so this matches OUTPUT adjacency; a different depth or a non-system entry
+ *  breaks the run. The first entry keeps its extra fields (role/depth/order); later entries contribute
+ *  only content — mirroring `squashSameRole`'s first-wins merge. */
+function squashSystemNotes(sorted: readonly { inj: ChatInjection; depth: number }[]): { inj: ChatInjection; depth: number }[] {
+  const out: { inj: ChatInjection; depth: number }[] = [];
+  for (const entry of sorted) {
+    const last = out.at(-1);
+    if (last !== undefined && last.inj.role === "system" && entry.inj.role === "system" && last.depth === entry.depth) {
+      out[out.length - 1] = { inj: { ...last.inj, content: `${last.inj.content}\n\n${entry.inj.content}` }, depth: last.depth };
+      continue;
+    }
+    out.push(entry);
+  }
+  return out;
+}
+
 /** A depth-0 in_chat injection whose effective wire role is user (user, or system → user-with-framing).
  *  depth 0 = after the new user turn. Assistant-role depth-0 is not a tail injection (a trailing
  *  assistant message is response prefill; the splice normalizes it to depth 1). */
@@ -79,6 +98,12 @@ export function spliceInChatInjections<T extends { role: WireRole; content: stri
      *  rewrite bytes inside the cached prefix → re-framed to a user operator note instead. Absent ⇒ no
      *  re-frame. */
     prefixBoundaryLen?: number | undefined;
+    /** `params.advanced.squashSystemMessages`. `true` ⇒ merge CONSECUTIVE same-depth system-role
+     *  injections into ONE note BEFORE the system→user framing, so a run delivers a single
+     *  `[Note from system: …]` row instead of several. System notes are injection-origin (a canon row is
+     *  never system-role), so this only ever combines volatile injected rows — the stable prefix is
+     *  untouched. Orthogonal to the adjacent-same-role squash (`roleHandling`). Absent ⇒ no pre-merge. */
+    squashSystemMessages?: boolean;
   } = {},
 ): (T | { role: WireRole; content: string })[] {
   // Generic over the row shape: canon rows keep their authorName/characterId so the downstream
@@ -103,12 +128,15 @@ export function spliceInChatInjections<T extends { role: WireRole; content: stri
   // lands first/top. Absent order ⇒ default 100; equal depth+order keeps array/rack order.
   const defaultOrder = 100;
   const sorted = clamped.sort((a, b) => b.depth - a.depth || (a.inj.order ?? defaultOrder) - (b.inj.order ?? defaultOrder));
+  // squashSystemMessages: collapse consecutive same-depth system runs before the frame loop, so each run
+  // delivers ONE `[Note from system: …]` row (merge-before-convert) rather than several. Off ⇒ untouched.
+  const spliceList = opts.squashSystemMessages === true ? squashSystemNotes(sorted) : sorted;
   // The last stable canon row: a depth-1 assistant injection landing same-role against it would mutate
   // the cached prefix once squashed → re-frame it to a user operator note instead.
   const boundaryLen = opts.prefixBoundaryLen;
   const stableTailRole = boundaryLen !== undefined && boundaryLen >= 1 ? history[boundaryLen - 1]?.role : undefined;
   const result: (T | { role: WireRole; content: string })[] = [...history];
-  for (const { inj, depth } of sorted) {
+  for (const { inj, depth } of spliceList) {
     // A depth-1 assistant injection sits immediately above the volatile tail — adjacent to the last stable
     // canon row. When that row is also assistant, keeping the injection assistant-role would fold it into
     // the cached prefix → re-frame it to a user note.

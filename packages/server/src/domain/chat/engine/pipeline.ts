@@ -10,9 +10,11 @@
 // Single-speaker core: output is pinned per-speaker/merged (no narrator, no scoped egocentric fold); the
 // arbitration/auto-mode chunk extends this via the `shape` argument.
 
-import type { AssembleContext, ChatContentPart, ChatDeltaEvent, ChatInjection, MessageView, ToolCallRecord } from "@orb/contracts/chat";
+import type { AssembleContext, AssembledPrompt, ChatContentPart, ChatDeltaEvent, ChatInjection, MessageView, ToolCallRecord } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
 import type { UserIntent } from "@orb/contracts/preset";
+import { DEFAULT_MAX_OUTPUT_TOKENS } from "@orb/contracts/preset";
+import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type { ContentImageRef } from "@orb/kit/content";
 import { tokenizeContent } from "@orb/kit/content";
 import type { CharacterId, ChatId, MessageId, PersonaId, WorldEntryId } from "@orb/kit/ids";
@@ -24,18 +26,9 @@ import { applyReceivePostProcess } from "@orb/server/kit/post-process";
 import { parseReasoningTags } from "@orb/server/kit/reasoning";
 import { getLog } from "#foundation/observability";
 import type { ToolCallInput } from "#infra/providers";
-import type { ApplyRegexReplaceOp, ChatToolExecFrame, ChatToolOps, ChatToolSet, RunChatTurnOp } from "../contract/context";
+import type { ApplyPromptTransformsOp, ApplyRegexReplaceOp, ChatToolExecFrame, ChatToolOps, ChatToolSet, RunChatTurnOp } from "../contract/context";
 import type { HistoryMacroNames, TurnEconomics, TurnKind, TurnMessage, TurnRequest, TurnSpeakerShape } from "../contract/results";
-import { buildPrompt, buildTurnMacroContext, fitHistory, renderHistoryMacros, shapeContextForSpeaker, shapeTurn } from "../substrate/assembly-access";
-
-/** A SHAPE canon row (system rows never reach the delivered history). */
-interface ShapeCanonRow {
-  readonly role: "user" | "assistant";
-  readonly content: string;
-  readonly authorName?: string | null;
-  readonly characterId?: CharacterId | null;
-  readonly messageId: MessageId;
-}
+import { buildPrompt, buildTurnMacroContext, fitHistory, shapeContextForSpeaker, shapeTurn, toShapeCanon } from "../substrate/assembly-access";
 
 /** What `runTurnPipeline` consumes — the immutable assemble ctx + the loaded canon + the resolved connection
  *  + the turn axes. */
@@ -70,9 +63,17 @@ interface RunTurnPipelineArgs {
   readonly tools: ChatToolOps | null;
   /** Empty means no tools ride. */
   readonly attachedToolNames: readonly string[];
+  /** A structured-output request for this turn (D79). Absent on every turn today — the chat loop sets `tools`,
+   *  never `responseFormat` (mutually exclusive by construction, 04 §8); a future structured chat consumer
+   *  (crew CW2) sets it, and the gate below drops+warns when the model can't honor it. */
+  readonly responseFormat?: ResponseFormat | undefined;
   readonly toolRecurseLimit: number;
   /** The principal-blind identity frame `executeToolCalls` receives. */
   readonly toolExecFrame: ChatToolExecFrame;
+  /** The D50 PromptTransform apply op (04 §6) — applied at the `assembled_dynamic` point (end of BUILD, over
+   *  the dynamic half only). Null/absent (unwired / no registrar) ⇒ the dynamic half passes through
+   *  byte-identical (the engine threads `ChatContext.promptTransforms` straight through, `null` and all). */
+  readonly applyPromptTransforms?: ApplyPromptTransformsOp | null | undefined;
   /** The per-chat macro name producer `toShapeCanon` resolves each history row's own macro stamps
    *  against; absent means empty maps (every row falls through to its speaker-default floor). */
   readonly historyMacroNames?: HistoryMacroNames | undefined;
@@ -99,66 +100,21 @@ interface TurnPipelineResult {
   readonly toolRecords: readonly ToolCallRecord[];
   /** True when tools were attached but the model's capability lacks tools support (ran tool-less). */
   readonly toolsUnsupported: boolean;
+  /** True when a `responseFormat` was requested but the model's `capability.output.structured` isn't true →
+   *  the field was dropped and the turn proceeded free-text (D79 interactive-axis degrade, 04 §7). */
+  readonly structuredOutputUnsupported: boolean;
   /** The WI entries that fired this turn (budget-survived). */
   readonly worldInfoEntryIds: readonly WorldEntryId[];
   /** The id of the earliest message actually included in the assembled history this turn, or null. */
   readonly contextBoundaryMessageId: MessageId | null;
 }
 
-/** The wire authorName for a user/narrator row: the row's own stamped personaId resolved through the
- *  per-chat producer, not the current active persona. A null stamp or unresolvable id yields null, so
- *  `applyNamesBehavior` falls back to the active persona. */
-function userRowAuthorName(personaId: PersonaId | null, macroNames: HistoryMacroNames): string | null {
-  return personaId !== null ? (macroNames.personaNamesById.get(personaId)?.name ?? null) : null;
-}
-
-/** Maps the loaded canon to SHAPE wire rows: drops hidden + system rows, resolves each row's macros
- *  against its own stamps + the per-chat macroNames producer (matching client display resolution). */
-function toShapeCanon(canon: readonly MessageView[], ctx: AssembleContext, macroNames: HistoryMacroNames): ShapeCanonRow[] {
-  const nameById = new Map<CharacterId, string>();
-  const cast = ctx.cast ?? [];
-  const ids = ctx.castCharacterIds ?? [];
-  ids.forEach((id, i) => {
-    const name = cast[i]?.name;
-    if (id !== null && name !== undefined) {
-      nameById.set(id, name);
-    }
-  });
-  const rows: ShapeCanonRow[] = [];
-  for (const m of canon) {
-    if (m.excludedFromPrompt || m.role === "system") {
-      continue;
-    }
-    const stamps = { characterId: m.characterId, personaId: m.personaId };
-    if (m.role === "assistant") {
-      const authorName = m.characterId !== null ? (nameById.get(m.characterId) ?? null) : null;
-      rows.push({
-        role: "assistant",
-        content: renderHistoryMacros(m.content, stamps, ctx, {
-          producer: macroNames,
-          speakerCharName: authorName ?? undefined,
-        }),
-        characterId: m.characterId,
-        authorName,
-        messageId: m.id,
-      });
-    } else {
-      // User/narrator rows: {{user}}/{{persona}} resolve to this row's own stamped personaId, falling back
-      // to the active persona only when the stamp is null.
-      rows.push({
-        role: "user",
-        content: renderHistoryMacros(m.content, stamps, ctx, { producer: macroNames }),
-        authorName: userRowAuthorName(m.personaId, macroNames),
-        messageId: m.id,
-      });
-    }
-  }
-  return rows;
-}
-
-/** The history-budget reserve: the model window capped by the user's soft max, reserving the EFFECTIVE
- *  intent's output budget + the assembled system tokens. Reads the folded intent (PD-148) so a preset's own
- *  `maxOutputTokens`/`maxContextTokens` budget the fit, not just a per-turn override. */
+/** The history-budget reserve: the model window (soft-capped by the user's `maxContextTokens`), reserving
+ *  the EFFECTIVE intent's output budget + the assembled system tokens. `intent.maxOutputTokens` is already
+ *  MATERIALIZED to a concrete number by `runTurnPipeline` (never undefined here), so `reserveOutputTokens`
+ *  is the SAME value the runner sends as wire `max_tokens` — the two-source divergence that dropped all
+ *  history is closed. It must NOT fall back to `capability.output.maxTokens.max` (the slider ceiling / on a
+ *  self-hosted vLLM the whole window), which reserved the entire context and starved history (amnesia). */
 function fitBudget(
   args: RunTurnPipelineArgs,
   intent: UserIntent,
@@ -169,11 +125,13 @@ function fitBudget(
   reserveOutputTokens: number;
   systemTokens: number;
 } {
-  const reserveOutputTokens = intent.maxOutputTokens ?? args.connection.capability.output.maxTokens.max;
   return {
     windowTokens: args.connection.capability.context.window,
+    // Context Size (ST `openai_max_context`): the user's soft ceiling. Unset ⇒ undefined ⇒ the fit's
+    // `min(window, ∞)` resolves to the window, so context length and window line up by default.
     softMaxTokens: intent.maxContextTokens,
-    reserveOutputTokens,
+    // Materialized upstream — a concrete response length, mirroring the runner's `max_tokens`.
+    reserveOutputTokens: intent.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
     systemTokens,
   };
 }
@@ -312,6 +270,32 @@ function foldGenerationParams(base: UserIntent, override: UserIntent, extras: re
   };
 }
 
+/** Pins the effective output length to a concrete number: an explicit `maxOutputTokens` (preset/per-turn,
+ *  clamped later against the model's `output.maxTokens` at `resolveChat`) passes through; unset resolves to
+ *  the shared `DEFAULT_MAX_OUTPUT_TOKENS`. Returned BY REFERENCE when already set (byte-identical intent). */
+function materializeMaxOutput(intent: UserIntent): UserIntent {
+  if (intent.maxOutputTokens !== undefined) {
+    return intent;
+  }
+  return { ...intent, maxOutputTokens: DEFAULT_MAX_OUTPUT_TOKENS };
+}
+
+/** The D50 `assembled_dynamic` transform point (automation-design/04 §6): rewrite the BUILD output's DYNAMIC
+ *  half only (the static/cache-stable half is untransformable — 03 §1.2). Absent op / zero registrants ⇒ the
+ *  input is returned by reference (byte-identical). The vars env is the runtime fold cache off the immutable
+ *  assemble ctx (a per-speaker SHAPE never changes `variableValues`). */
+async function applyDynamicTransform(args: RunTurnPipelineArgs, built: AssembledPrompt): Promise<AssembledPrompt> {
+  const apply: ApplyPromptTransformsOp | null | undefined = args.applyPromptTransforms;
+  if (apply === undefined || apply === null) {
+    return built;
+  }
+  // `Promise.resolve` wrap: biome's nursery `useAwaitThenable` mis-resolves the cross-package
+  // `ApplyPromptTransformsOp` return as non-thenable (the documented `@orb/contracts` alias false positive);
+  // the wrap makes the await unambiguously thenable without a suppression (a no-op on an already-Promise).
+  const dynamic: string = await Promise.resolve(apply("assembled_dynamic", args.chatId, built.dynamic, args.assembleContext.variableValues ?? {}));
+  return dynamic === built.dynamic ? built : { ...built, dynamic };
+}
+
 /** Executes one single-speaker turn: BUILD → SHAPE → FIT → REQUEST → REDUCE. Pure orchestration of
  *  injected ops; persists nothing. */
 export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPipelineResult> {
@@ -329,10 +313,15 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
   // `UserIntent` overrides field-wise, and the host's custom stops (PD-146) join the merged stop set. This is
   // the ONE value SHAPE (roleHandling), FIT (budget), and REQUEST (wire intent) read — never `ctx.promptConfig.params`
   // or `args.intent` directly, so a preset's sampling/stop settings actually reach the wire.
-  const effectiveIntent = foldGenerationParams(ctx.promptConfig.params, args.intent, args.extraStopSequences);
+  // MATERIALIZE the effective output length ONCE (the single source of truth): both FIT (fitBudget's
+  // reserve) and the runner's wire `max_tokens` read `effectiveIntent.maxOutputTokens` from here — pinning
+  // the reserve to exactly what the runner generates. Unset ⇒ the shared response-length default (NOT the
+  // model's output-cap ceiling / window), so the fit-pass leaves history room instead of reserving it all.
+  const effectiveIntent = materializeMaxOutput(foldGenerationParams(ctx.promptConfig.params, args.intent, args.extraStopSequences));
 
-  // BUILD — the system-prompt halves + the after-history (in_chat) section splices.
-  const assembled = buildPrompt(ctx.promptConfig, ctx);
+  // BUILD — the system-prompt halves + the after-history (in_chat) section splices — then the D50
+  // `assembled_dynamic` PromptTransform point (04 §6): rewrite the dynamic half only (static is untransformable).
+  const assembled = await applyDynamicTransform(args, buildPrompt(ctx.promptConfig, ctx));
 
   // SHAPE — the wire history + the cache breakpoint.
   const inChatInjections: ChatInjection[] = [...(ctx.chatInjections ?? []).filter((i) => i.position === "in_chat"), ...assembled.afterHistory];
@@ -355,6 +344,7 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
     assistantPrefill: args.connection.capability.turns?.assistantPrefill === true,
     roleHandling: effectiveIntent.advanced?.roleHandling,
     roleHandlingFloor: args.connection.capability.turns?.roleHandlingFloor,
+    squashSystemMessages: effectiveIntent.advanced?.squashSystemMessages,
   });
 
   // FIT — the history-budget tail.
@@ -389,22 +379,25 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
     signal: args.signal,
   };
 
-  // REDUCE + the tool-recurse loop.
+  // REDUCE + the tool-recurse loop. The two request-builder gates chain (they touch disjoint fields, and by
+  // construction a turn sets tools OR responseFormat, never both — 04 §8).
   const attach = attachTools(args, baseRequest);
-  const loop = await runRecurseLoop({ args, request: attach.request, set: attach.set });
+  const structured = attachResponseFormat(args, attach.request);
+  const loop = await runRecurseLoop({ args, request: structured.request, set: attach.set });
   // RECEIVE, applied once over the depth-cumulative text (prose flows across recursion depths into one variant).
   const received = applyReceiveTransforms({ content: loop.content, reasoning: loop.reasoning }, args);
   return {
-    request: attach.request,
+    request: structured.request,
     content: received.content,
     reasoning: received.reasoning,
     economics: loop.economics,
-    cacheBreakpointFromEnd: attach.request.cacheBreakpointFromEnd,
+    cacheBreakpointFromEnd: structured.request.cacheBreakpointFromEnd,
     droppedCount: fitted.droppedCount,
     contextBoundaryMessageId: fitted.earliestKeptMessageId,
     imageDropped,
     toolRecords: loop.records,
     toolsUnsupported: attach.unsupported,
+    structuredOutputUnsupported: structured.unsupported,
     worldInfoEntryIds: ctx.wiTrace?.entryIds ?? [],
   };
 }
@@ -431,6 +424,19 @@ function attachTools(args: RunTurnPipelineArgs, baseRequest: TurnRequest): { req
     set,
     unsupported: false,
   };
+}
+
+// The structured-output request-builder gate (D79, mirror of attachTools): a requested responseFormat rides
+// only when `capability.output.structured` is true; unsupported drops it (the turn proceeds free-text) and
+// flags structured_output_unsupported. Absent responseFormat is the byte-identical no-op (today's every turn).
+function attachResponseFormat(args: RunTurnPipelineArgs, baseRequest: TurnRequest): { request: TurnRequest; unsupported: boolean } {
+  if (args.responseFormat === undefined) {
+    return { request: baseRequest, unsupported: false };
+  }
+  if (args.connection.capability.output.structured !== true) {
+    return { request: baseRequest, unsupported: true };
+  }
+  return { request: { ...baseRequest, responseFormat: args.responseFormat }, unsupported: false };
 }
 
 // The recurse loop: finishReason:"tool" is the only pivot, never text-sniffing. The exchange is

@@ -446,7 +446,8 @@ function createDeleteMessages(ctx: ChatContext, emit: EmitChatEvent): ChatServic
       ctx.applyStatsDelta(statements, ctx.db, swipeVariantDelta({ ownerId, row, sign: -1, now }));
     }
     // Re-folds chats.runtime_variables over the chain minus the deleted slots, in the same batch as the delete.
-    const remainingDeltas = (await loadVariableDeltas(ctx.db, chatId)).filter((e) => !messageIds.includes(e.messageId));
+    // A standalone (out-of-turn) delta entry carries `messageId === null` — never a deleted slot, so it survives.
+    const remainingDeltas = (await loadVariableDeltas(ctx.db, chatId)).filter((e) => e.messageId === null || !messageIds.includes(e.messageId));
     statements.push(runtimeVariablesUpdateStatement(ctx.db, chatId, foldChain(remainingDeltas)));
     await ctx.db.batch(batchMany(statements));
     await emit({ type: "messagesDeleted", chatId, messageIds: [...messageIds] });
@@ -527,7 +528,8 @@ function createMoveMessage(ctx: ChatContext, emit: EmitChatEvent): ChatService["
       newSeqById.set(a.id, a.seq);
     }
     const deltas = await loadVariableDeltas(ctx.db, chatId);
-    const refolded = foldChain(deltas.map((e) => ({ seq: newSeqById.get(e.messageId) ?? e.seq, delta: e.delta })));
+    // A standalone (out-of-turn) delta (`messageId === null`) is not reordered — it keeps its stamped seq.
+    const refolded = foldChain(deltas.map((e) => ({ seq: e.messageId === null ? e.seq : (newSeqById.get(e.messageId) ?? e.seq), delta: e.delta })));
     await ctx.db.batch(
       batchMany([
         shiftSeqRangeStatement(ctx.db, {

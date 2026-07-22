@@ -17,7 +17,7 @@ import type { AssemblePersona } from "@orb/contracts/chat";
 import type { PromptConfig } from "@orb/contracts/preset";
 import type { RegexScript } from "@orb/contracts/regex";
 import type { ChatSettings } from "@orb/contracts/settings";
-import type { ChatId, PersonaId, UserId } from "@orb/kit/ids";
+import type { ChatId, PersonaId, PresetId, UserId } from "@orb/kit/ids";
 import type { MemoryConfig } from "./memory";
 
 /** The host's turn-behavior knobs the engine honors (PD-146) — the schema-real `UserSettings.chat` arm the
@@ -92,4 +92,9 @@ export type ResolveForeignInputsOp = (args: {
   readonly anchorPersonaId: PersonaId | null;
   readonly personaIds: readonly PersonaId[];
   readonly triggerPersonaId?: PersonaId | null | undefined;
+  /** A feature-supplied GM-voice preset REDIRECT (rpg-design/02 §1.1 #1 — resolved by the caller's early
+   *  `rpg.resolvePresetOverride` hop): when present, the resolver assembles THIS preset (owned-or-system under
+   *  the host, else the normal default — the lenient-id rule) instead of the host's `UserSettings` default.
+   *  Absent ⇒ byte-identical to today. Inert until the turn path passes it (rpg-design/10 §R4 push 2). */
+  readonly presetOverride?: PresetId | undefined;
 }) => Promise<ForeignInputs>;

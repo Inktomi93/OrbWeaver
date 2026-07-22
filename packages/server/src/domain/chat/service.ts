@@ -5,11 +5,15 @@
 import type { ParticipantView } from "@orb/contracts/chat";
 import type { AssetId, ChatId } from "@orb/kit/ids";
 import type { ChatContext, ChatServiceDeps } from "./context";
+import type { RequestTurnOp } from "./contract/results";
 import type { ChatService } from "./contract/service";
 import { createTurnEngine } from "./engine/engine";
 import { generateDigests } from "./memory/build/digests";
 import { generateSegments } from "./memory/build/segments";
+import { loadWitnessHorizons } from "./memory/persistence/queries";
+import { recallMemory } from "./memory/recall/recall";
 import { loadRoster } from "./persistence/roster";
+import { REMOVED_CHARACTER_LABEL, REMOVED_MEMBER_LABEL, resolveAgentSeatName } from "./substrate/participant-name";
 import { createChatLifecycle } from "./verbs/chat-lifecycle";
 import { createCompaction } from "./verbs/compaction";
 import { createEdit } from "./verbs/edit";
@@ -19,10 +23,35 @@ import { createInvites } from "./verbs/invites";
 import { createRead } from "./verbs/read";
 import { createRoster } from "./verbs/roster";
 import { createStartChat } from "./verbs/start-chat";
-import { createTurn } from "./verbs/turn";
+import { createRequestTurn, createTurn } from "./verbs/turn";
 
-/** Assemble the full {@link ChatService} from the injected {@link ChatContext} + {@link ChatServiceDeps}. */
-export function createChatService(ctx: ChatContext, deps: ChatServiceDeps): ChatService {
+/** The room-facing display name for a seat — the ONE rule (R10 + owner ruling: no raw id ever renders), shared
+ *  with the seat-verb returns via {@link resolveAgentSeatName}. Character → the live card name, else the
+ *  removed-character label; human → publics displayName, else its handle, else the removed-member label; agent
+ *  → the AgentCardView soul name (sourceKind label for an unhatched buddy). `observer` is unseatable (never read). */
+async function resolveSeatDisplayName(
+  ctx: ChatContext,
+  r: Awaited<ReturnType<typeof loadRoster>>[number],
+  resolved: {
+    readonly publics: { displayName: string | null; handle: string | null } | null;
+    readonly card: { name: string } | null;
+  },
+): Promise<string> {
+  if (r.kind === "agent" && r.userId !== null) {
+    return await resolveAgentSeatName(ctx, r.userId);
+  }
+  if (r.kind === "human") {
+    return resolved.publics?.displayName ?? resolved.publics?.handle ?? REMOVED_MEMBER_LABEL;
+  }
+  return resolved.card !== null ? resolved.card.name : REMOVED_CHARACTER_LABEL;
+}
+
+/** Assemble the chat composition-root product: the routed {@link ChatService} PLUS the PRINCIPAL-FREE
+ *  `requestTurn` seam (automation-design/05 §AC-B). `requestTurn` is deliberately OFF `ChatService` — it is an
+ *  injected op the entry root hands automation's `trigger_turn` arm + the plugin membrane's `turn.trigger`,
+ *  never a routed verb (no principal; the turn triple is resolved internally, not passed). The return shape is
+ *  inline (not a named export) per `no-inline-types` — its one consumer destructures `{ service, requestTurn }`. */
+export function createChatService(ctx: ChatContext, deps: ChatServiceDeps): { readonly service: ChatService; readonly requestTurn: RequestTurnOp } {
   const engine = createTurnEngine(ctx, {
     emit: deps.emit,
     debitBudget: deps.debitBudget,
@@ -31,31 +60,24 @@ export function createChatService(ctx: ChatContext, deps: ChatServiceDeps): Chat
     lockTtlMs: deps.lockTtlMs,
     generateSegments,
     generateDigests,
+    loadWitnessHorizons,
+    recallMemory,
   });
 
-  // Reads the present roster and resolves CHARACTER name/avatar from ctx.getCard (owner-scoped to the room
-  // host); a human's displayName/handle/avatarAssetId resolve via ctx.resolveUserPublics.
+  // Reads the present roster and resolves each seat's CHARACTER decoration (name/avatar + render policy +
+  // theme/background overrides) from ONE ctx.resolveSeatDeco read (owner-scoped to the room host); a human's
+  // displayName/handle/avatarAssetId resolve via ctx.resolveUserPublics.
   const loadParticipantViews = async (chatId: ChatId): Promise<readonly ParticipantView[]> => {
     const rows = await loadRoster(ctx.db, chatId);
     const hostUserId = rows.find((r) => r.role === "host")?.userId ?? null;
     return Promise.all(
       rows.map(async (r): Promise<ParticipantView> => {
-        const card = r.characterId !== null && hostUserId !== null ? await ctx.getCard({ ownerId: hostUserId, characterId: r.characterId }) : null;
+        // ONE character read per seat: the card name/avatar + render policy + theme/background overrides.
+        const deco = await ctx.resolveSeatDeco({ ownerId: hostUserId, characterId: r.characterId });
         const publics = r.kind === "human" && r.userId !== null ? await ctx.resolveUserPublics(r.userId, r.activePersonaId) : null;
+        const displayName = await resolveSeatDisplayName(ctx, r, { publics, card: deco.card });
 
-        // The resolved per-participant render policy (override ?? global); keyed on the character override
-        // for AI seats, the global floor for humans.
-        const renderPolicy = await ctx.resolveRenderPolicy({
-          ownerId: hostUserId,
-          characterId: r.characterId,
-        });
-        // The raw per-character theme override (unmerged; null for a human seat or none set).
-        const themeOverride = await ctx.resolveThemeOverride({
-          ownerId: hostUserId,
-          characterId: r.characterId,
-        });
-
-        const avatarAssetId: AssetId | null = publics?.avatarAssetId ?? card?.avatarAssetId ?? null;
+        const avatarAssetId: AssetId | null = publics?.avatarAssetId ?? deco.card?.avatarAssetId ?? null;
         const avatarHash = await ctx.resolveAssetHash(avatarAssetId);
 
         return {
@@ -72,18 +94,22 @@ export function createChatService(ctx: ChatContext, deps: ChatServiceDeps): Chat
           joinSeq: r.joinSeq,
           leftSeq: r.leftSeq,
           joinHistoryVisibility: r.joinHistoryVisibility,
-          displayName: publics?.displayName ?? card?.name ?? r.userId ?? r.characterId ?? "",
+          displayName,
           handle: publics?.handle ?? null,
           avatarAssetId,
           avatarHash,
-          renderPolicy,
-          themeOverride,
+          renderPolicy: deco.renderPolicy,
+          themeOverride: deco.themeOverride,
+          backgroundOverride: deco.backgroundOverride,
         };
       }),
     );
   };
 
-  const turn = createTurn(ctx, {
+  // The turn collaborators, shared by the human verbs (createTurn) AND the non-human `requestTurn` seam
+  // (createRequestTurn) — ONE engine + one active-turns Set, so an autonomous turn locks/aborts/budgets on the
+  // same substrate a human send does.
+  const turnDeps = {
     engine,
     activeTurns: deps.activeTurns,
     emit: deps.emit,
@@ -91,7 +117,9 @@ export function createChatService(ctx: ChatContext, deps: ChatServiceDeps): Chat
     delay: deps.delay,
     resolveConnection: deps.resolveConnection,
     resolveForeignInputs: deps.resolveForeignInputs,
-  });
+  };
+  const turn = createTurn(ctx, turnDeps);
+  const requestTurn = createRequestTurn(ctx, turnDeps);
   const edit = createEdit(ctx, {
     emit: deps.emit,
     resolveForeignInputs: deps.resolveForeignInputs,
@@ -116,15 +144,18 @@ export function createChatService(ctx: ChatContext, deps: ChatServiceDeps): Chat
   const { compact } = createCompaction(ctx, { emit: deps.emit });
 
   return {
-    ...turn,
-    ...edit,
-    ...fork,
-    ...imageGen,
-    ...invites,
-    ...read,
-    ...startChat,
-    ...chatLifecycle,
-    ...roster,
-    compact,
+    service: {
+      ...turn,
+      ...edit,
+      ...fork,
+      ...imageGen,
+      ...invites,
+      ...read,
+      ...startChat,
+      ...chatLifecycle,
+      ...roster,
+      compact,
+    },
+    requestTurn,
   };
 }

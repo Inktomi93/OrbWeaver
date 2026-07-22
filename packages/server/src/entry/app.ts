@@ -24,21 +24,13 @@ import { clientIp, ipAllowlistMiddleware, parseAllowlist, peerIp } from "#infra/
 import type { PresenceRegistry, RateLimitGate, Services } from "../transport/trpc";
 import { appRouter, createContext } from "../transport/trpc";
 import type { AuthSeam } from "./auth";
-import type {
-  AuthSessionsPort,
-  BlobAssetsPort,
-  BlobCasPort,
-  LocalAuthenticator,
-  OidcRoutesDeps,
-  UploadAssetsPort,
-} from "./http";
+import type { AuthSessionsPort, BlobAssetsPort, BlobCasPort, LocalAuthenticator, OidcRoutesDeps, UploadAssetsPort } from "./http";
 import {
   registerAuthMeta,
   registerAuthRoutes,
   registerBlob,
   registerExport,
   registerHealthz,
-
   registerImportBundle,
   registerImportTree,
   registerJoin,

@@ -10,8 +10,8 @@
 // forker. Other human participants are NOT copied (a fresh `chat_participants` insert is invite/host-action
 // only). The compaction checkpoint copies only when covered by the fork point, else reset to null.
 
-import type { ChatBusEvent, ChatMacroNameProducer, ParticipantView, PersonaAvatarEntry } from "@orb/contracts/chat";
-import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES, variableDeltaSchema } from "@orb/contracts/chat";
+import type { ChatBusEvent, ParticipantView } from "@orb/contracts/chat";
+import { variableDeltaSchema } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { chatInjections, chatParticipants, chats, messages, messageVariants } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
@@ -23,12 +23,19 @@ import { ChatNotFoundError } from "../contract/errors";
 import type { ForkChatParams } from "../contract/params";
 import type { ForkResult } from "../contract/results";
 import type { ChatService } from "../contract/service";
-import type { ChatDetail } from "../contract/views";
 import { requireParticipant } from "../guard";
 import { loadChatMacroNameProducer } from "../persistence/macro-names";
-import { loadChatInjections, loadChatRow, loadMessageSlots, loadStoredVariables, loadVariantsByMessageIds } from "../persistence/queries";
+import {
+  loadChatInjections,
+  loadChatRow,
+  loadMessageSlots,
+  loadStandaloneVariableDeltas,
+  loadStoredVariables,
+  loadVariantsByMessageIds,
+} from "../persistence/queries";
 import { loadRoster } from "../persistence/roster";
 import { loadPersonaAvatarProducer } from "../persistence/roster-avatars";
+import { toChatDetail } from "../substrate/chat-detail";
 import { foldChain } from "../substrate/runtime-variables";
 import { canonMessageDelta, chatCreatedDelta, swipeVariantDelta } from "../substrate/stats-delta";
 
@@ -42,49 +49,10 @@ interface ForkDeps {
 /** The fork slice of `ChatService` this grouped file owns. */
 type ForkVerbs = Pick<ChatService, "forkChat">;
 
-type LoadedChatRow = NonNullable<Awaited<ReturnType<typeof loadChatRow>>>;
-
 /** A present character roster row with its `characterId` narrowed non-null. */
 type CharacterSeatRow = typeof chatParticipants.$inferSelect & {
   readonly characterId: CharacterId;
 };
-
-/** Map a loaded chat row + its resolved roster + macro name producer → `ChatDetail`. The same projection
- *  `read.ts`/`invites.ts`/`start-chat.ts` use. */
-interface ToChatDetailInput {
-  readonly chat: LoadedChatRow;
-  readonly participants: readonly ParticipantView[];
-  readonly macroNames: ChatMacroNameProducer;
-  readonly personaAvatars: readonly PersonaAvatarEntry[];
-  readonly viewerUserId: UserId;
-}
-
-function toChatDetail({ chat, participants, macroNames, personaAvatars, viewerUserId }: ToChatDetailInput): ChatDetail {
-  const viewer = participants.find((p) => p.userId === viewerUserId);
-  return {
-    id: chat.id,
-    title: chat.title,
-    star: chat.star,
-    archived: chat.archived,
-    parentChatId: chat.parentChatId,
-    forkedAt: chat.forkedAt,
-    anchorPersonaId: chat.anchorPersonaId,
-    participants,
-    viewerActivePersonaId: viewer?.activePersonaId ?? null,
-    viewerIsHost: viewer?.role === "host",
-    viewerUserId,
-    pendingHostUserId: chat.pendingHostUserId,
-    group: chat.metadata.group ?? DEFAULT_GROUP_CONFIG,
-    roomOverrides: chat.metadata.roomOverrides ?? DEFAULT_ROOM_OVERRIDES,
-    opening: chat.metadata.opening ?? null,
-    compactSummary: chat.compactSummary,
-    compactedAtSeq: chat.compactedAtSeq,
-    createdAt: chat.createdAt,
-    updatedAt: chat.updatedAt,
-    macroNames,
-    personaAvatars,
-  };
-}
 
 /** Build the deep-copy statements (per slot: a fresh slot with a null pointer, then every variant, then
  *  the remapped `selectedVariantId` flip — FK-safe in that order). */
@@ -241,12 +209,16 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
     const now = ctx.now();
     const newChatId = ctx.newChatId();
 
-    const [variables, slots, injections, roster] = await Promise.all([
+    const [variables, slots, injections, roster, standaloneDeltas] = await Promise.all([
       loadStoredVariables(ctx.db, chatId),
       loadMessageSlots(ctx.db, chatId, throughSeq),
       loadChatInjections(ctx.db, chatId),
       loadRoster(ctx.db, chatId),
+      loadStandaloneVariableDeltas(ctx.db, chatId),
     ]);
+    // Standalone (out-of-turn) variable deltas carry into the fork only up to the fork point — a truncated
+    // fork must not claim a delta stamped past its horizon (mirrors the compaction-checkpoint gate below).
+    const forkStandaloneDeltas = standaloneDeltas.filter((s) => throughSeq === undefined || s.seq <= throughSeq);
     // The fork carries only the character seats the forker owns. The canon is copied whole regardless,
     // so a dropped character's prior lines survive in the fork; only the live seat is gone.
     const keptCharacterSeats = await resolveOwnedCharacterSeats(ctx, principal.userId, roster);
@@ -261,13 +233,14 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
 
     // The fork's runtime cache is the fold of the copied selected-variant chain (recomputed from the
     // possibly-truncated `slots` — a partial fork must not claim the source's full-chain cache).
-    const forkRuntimeCache = foldChain(
-      slots.map((s) => {
+    const forkRuntimeCache = foldChain([
+      ...slots.map((s) => {
         const selected = variants.find((v) => v.id === s.selectedVariantId);
         const parsed = variableDeltaSchema.safeParse(selected?.variableDelta);
         return { seq: s.seq, delta: parsed.success ? parsed.data : [] };
       }),
-    );
+      ...forkStandaloneDeltas,
+    ]);
 
     const forker = roster.find((r) => r.userId === principal.userId);
     const participantRows: (typeof chatParticipants.$inferInsert)[] = [
@@ -307,6 +280,7 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
           metadata: source.metadata,
           variableValues: variables,
           runtimeVariables: Object.keys(forkRuntimeCache).length > 0 ? forkRuntimeCache : null,
+          standaloneVariableDeltas: forkStandaloneDeltas.length > 0 ? forkStandaloneDeltas : null,
           createdAt: now,
           updatedAt: now,
         }),

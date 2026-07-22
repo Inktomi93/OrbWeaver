@@ -15,7 +15,6 @@ import type {
   GetModelCapabilityParams,
   GetModelsForSourceParams,
   GetOrCreditsParams,
-
   RefreshCatalogParams,
   ResolveChatCapabilityParams,
   ResolveChatParams,
@@ -35,7 +34,6 @@ type FetchAgentSdkModelsOp = (req: { readonly signal?: AbortSignal | undefined }
 
 /** settings.loadUserSettings — the parsed per-user UserSettings; connection is a consumer, not an owner. */
 type LoadUserSettingsOp = (userId: UserId) => Promise<UserSettings>;
-
 
 /** infra/providers.verifyAuth — the host-Claude auth-verify diagnostic (which credential the spawned
  *  runtime used). The credential is the owner-gated `max-pro-sub` mint this domain resolves first. */

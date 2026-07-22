@@ -27,7 +27,6 @@ import { reconcileStatsRunner } from "../runners/reconcile-stats";
 import { reconcileWorldStateRunner } from "../runners/reconcile-world-state";
 import { refreshModelCatalogRunner } from "../runners/refresh-model-catalog";
 
-
 export const RUNNERS: { [K in WorkloadKind]: Runner<K> } = {
   index: indexRunner,
   "distill-characters": distillCharactersRunner,
@@ -48,5 +47,4 @@ export const RUNNERS: { [K in WorkloadKind]: Runner<K> } = {
 
   "databank-ingest": databankIngestRunner,
   "databank-reindex": databankReindexRunner,
-
 };

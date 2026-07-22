@@ -33,8 +33,6 @@ async function resolveOpenRouter(ctx: CredentialContext, ownerId: UserId): Promi
   return mintOpenRouter(plaintext, active.id);
 }
 
-
-
 /** The user's active custom_openai endpoint (the active row IS the endpoint selection). */
 async function resolveCustomOpenAi(ctx: CredentialContext, ownerId: UserId): Promise<CustomOpenAiCredential> {
   const active = ctx.box.enabled ? await loadActiveCredential(ctx.db, ownerId, "custom_openai") : undefined;

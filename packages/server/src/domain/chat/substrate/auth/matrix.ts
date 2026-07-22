@@ -50,6 +50,7 @@ export const CHAT_VERB_AUTHORITY = {
   getActivePresetConfig: "member",
   previewSection: "member",
   peekPrompt: "host", // the full next-turn prompt reveals merged member cards at FULL — host/admin only
+  getShapeTrace: "host", // the SHAPE-phase debug trace (content-free counts) is a host/admin inspector surface (PD-132)
   listMessages: "member",
   listMessageVariants: "member", // the full sibling-variant set for one slot — a present member may read it
   listParticipants: "member",
@@ -100,12 +101,19 @@ export const CHAT_VERB_AUTHORITY = {
   reattributePersona: "author-or-host", // author-or-host PER targeted row: a member re-stamps THEIR OWN user lines, the host any (the persona-attribution / {{user}} history fix — Chat-Macro-Resolution §5). The verb also asserts role==='user' + target-persona-owned-by-the-row's-author.
   setGroupConfig: "host",
   addCharacterToChat: "host",
+  removeCharacterFromChat: "host", // host-only, the symmetric drop for addCharacterToChat (rpg scene-cast prune consumer)
   seatAgent: "host",
+  unseatAgent: "host", // host-only, the symmetric counterpart to seatAgent (ungated chat surface, works single-human); kind='agent'-scoped inside the verb
+  requestAgentSeat: "member", // a present member asks the host to seat THEIR agent (advisory); the owner-of-the-agent match is a verb-level state check (the acceptHostHandoff precedent), and seatAgent re-verifies everything
   setRoomOverrides: "host",
+  setChatDocumentVisibility: "host", // D85 — the host governs which databank documents feed the shared room's retrieval (room-wide prompt content is the host's authority, the setRoomOverrides twin)
+  setChatBackground: "host", // BG-C — the host sets the per-chat carried background (room-wide chrome is the host's authority, the setRoomOverrides twin); asset-ownership additionally gated inside the verb
+  setRpgGamePointer: "host", // GAP #4 — the opaque metadata.rpg game-pointer stamp (the setRoomOverrides twin: a room-level metadata write). INJECTED-ONLY (not routed): rpg's createGame calls it as the acting host through compose; host-gated fail-closed even so
   getGroupConfigForChat: "member", // read the effective room config (it affects the member)
   getRoomOverridesForChat: "member",
-  setParticipantDisabled: "host",
-  setParticipantTalkativeness: "host",
+  getAgentCardView: "member", // "who is this agent?" — any present member may read the fixed D22 projection of a present agent seat (doc 06 §5); the target-is-a-present-agent-seat check is a verb-level state check
+
+  setSeatKnobs: "host", // the ONE participantId-keyed AI-seat knob write (D80 — the retired per-kind forking's replacement)
   createInvite: "host",
   previewInvite: "non-chat-scoped", // token-authenticated, PRE-membership (the accept = preview-then-confirm flow)
   redeemInvite: "non-chat-scoped", // the join chokepoint: token-gated, PRE-membership (role server-forced `member`)

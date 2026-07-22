@@ -123,7 +123,7 @@ async function buildTier0(
       continue;
     }
     const transcript = renderTranscript(fitted, env.macroNames);
-    // biome-ignore lint/performance/noAwaitInLoops: the summarizer is metered + the in-flight set guards spend — blocks are summarized sequentially, not fanned out (knowledge-cluster esoteric).
+    // biome-ignore lint/performance/noAwaitInLoops: the summarizer is metered + the in-flight set guards spend — blocks are summarized sequentially, not fanned out (core/Knowledge-Cluster.md esoteric).
     const res = await ctx.summarize([{ systemPrompt: DIGEST_SYSTEM_PROMPT, userPrompt: digestUserPrompt(transcript) }]);
     const raw = res.items.at(0)?.text ?? "";
     // Don't store a blank digest — it'd skip forever under the content-hash staleness gate. Leave un-digested.

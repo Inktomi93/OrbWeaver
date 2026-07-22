@@ -69,7 +69,11 @@ function isLockedRefusal(err: unknown): boolean {
   return err instanceof ChatOperationError && err.code === CHAT_OP_CODES.locked;
 }
 
-/** Drive ONE group round; a mid-round `locked` yields the round (returns what committed so far). */
+/** Drive ONE group round; a mid-round `locked` yields the round (returns what committed so far). An engine
+ *  turn that ABORTS mid-round (caller cancel / lock-stale — the return-based `abortedOutcome`) stops the loop
+ *  and yields an ABORTED outcome that STILL carries the speakers who committed before the abort — the caller
+ *  gets the whole truth (which rows landed) plus `aborted:true` + the reason, never a silent committed-looking
+ *  partial round. */
 export async function driveRound(params: DriveRoundParams): Promise<TurnOutcome> {
   const speakers = roundSpeakers(params);
   const multi = speakers.length > 1;
@@ -80,6 +84,9 @@ export async function driveRound(params: DriveRoundParams): Promise<TurnOutcome>
       // biome-ignore lint/performance/noAwaitInLoops: per-speaker sequencing is the invariant, not a perf miss.
       const outcome = await params.engine.runTurn(prep);
       committed.push(...outcome.messages);
+      if (outcome.aborted && outcome.abortReason !== undefined) {
+        return { messages: committed, aborted: true, abortReason: outcome.abortReason };
+      }
     } catch (err) {
       if (isLockedRefusal(err)) {
         break; // a human send interleaved — yield the round with what committed so far.

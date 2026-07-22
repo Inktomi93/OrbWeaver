@@ -43,8 +43,6 @@ export function mintLocalLight(): LocalLightCredential {
   return { source: "local-light", credentialId: null } as LocalLightCredential;
 }
 
-
-
 /** Mint a user-defined OpenAI-compatible endpoint credential. `apiKey` is `null` for no-auth local
  *  servers; `headers` is the per-endpoint request transform; `model` is the convenience default model
  *  string from `metadata.model`, `undefined` when the row carries none. `includeBody`/`excludeBody`/

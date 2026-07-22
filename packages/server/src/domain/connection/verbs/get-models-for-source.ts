@@ -209,8 +209,6 @@ function localLightArm(ctx: ConnectionContext, params: GetModelsForSourceParams)
   };
 }
 
-
-
 export function createGetModelsForSource(ctx: ConnectionContext): ConnectionService["getModelsForSource"] {
   return (params: GetModelsForSourceParams): Promise<SourceModelsResult> => {
     switch (params.source) {

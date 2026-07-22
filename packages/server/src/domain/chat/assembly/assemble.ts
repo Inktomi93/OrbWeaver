@@ -9,14 +9,16 @@
 // The system-block chat injections arrive already macro-resolved + role-framed from context.ts; this walk
 // emits them verbatim. `in_chat` injections are the SHAPE splice's job.
 //
-// FLAG[assemble-post-process]: the post-process pass (`applyAssemblePostProcess`) is not yet built — it
-// lands with RECEIVE. This chunk returns the raw `\n\n`-joined halves until then.
+// The rendered system halves run through the ASSEMBLE post-process pass (`applyAssemblePostProcess`, keyed
+// to the preset's `postProcess` block) after the section/injection walk, before the caller's cache split —
+// the transform is idempotent and only reorders whitespace, so it never busts the static-cache prefix.
 
 import type { AssembleCharacter, AssembleContext, AssembledPrompt, AssembleTrace, ChatInjection, SectionPreview } from "@orb/contracts/chat";
 import type { GenerationType, PromptConfig, PromptSection } from "@orb/contracts/preset";
 import { DEFAULT_MARKER_TEMPLATES } from "@orb/contracts/preset";
 import { globalMacroRegistry } from "@orb/kit/macro";
 import { normalizeExampleStart } from "@orb/kit/speaker-label";
+import { applyAssemblePostProcess } from "@orb/server/kit/post-process";
 import { renderMacros } from "./macros";
 
 // A macro whose value changes per render busts the cached static prefix. `/a^/` is unsatisfiable
@@ -634,10 +636,12 @@ export function assemblePrompt(rawConfig: PromptConfig, ctx: AssembleContext): A
   }
   trace.staticCacheBusters = [...acc.cacheBusters];
 
-  // FLAG[assemble-post-process]: raw join (the post-process kit lands with RECEIVE — header note).
+  // Post-process the joined system halves per the preset (collapseNewlines). No-op unless the preset opts
+  // in — an untouched preset returns byte-identical joins. Idempotent + whitespace-only → cache-safe.
+  const pp = config.postProcess;
   return {
-    static: acc.staticParts.join("\n\n"),
-    dynamic: acc.dynamicParts.join("\n\n"),
+    static: applyAssemblePostProcess(acc.staticParts.join("\n\n"), pp),
+    dynamic: applyAssemblePostProcess(acc.dynamicParts.join("\n\n"), pp),
     afterHistory: acc.afterHistory,
     sendHistory,
     trace,
