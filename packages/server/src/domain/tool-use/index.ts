@@ -8,6 +8,8 @@
 export type { ToolUseContext } from "./context";
 export { ToolNameCollisionError, ToolNotFoundError } from "./contract/errors";
 export type {
+  CreateAgentToolServer,
+  PluginToolSpec,
   ToolCallInput,
   ToolCapability,
   ToolDefinition,
@@ -17,7 +19,6 @@ export type {
   ToolSource,
 } from "./contract/params";
 export { TOOL_NAME_RE, TOOL_SOURCES } from "./contract/params";
-export type { ResolvedToolSet, ToolCallRecord } from "./contract/results";
+export type { PluginToolHandle, ResolvedToolSet, ToolCallRecord } from "./contract/results";
 export type { ToolUseService } from "./contract/service";
 export { createToolUseService } from "./service";
-export { projectArgSchema } from "./substrate/json-schema";

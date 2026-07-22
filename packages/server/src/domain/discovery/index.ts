@@ -1,5 +1,6 @@
 // domain/discovery — front door: the only legal external import; re-exports the slice's public surface.
-// Still deferred (see contract/service.ts ledger): similarArt, characterDossier.similar/.portrait, analyze/swipes.
+// similarArt is NOT here by design — "more like this avatar" is retrieval, built as search.similarArt
+// (2026-07-10; the dossier client queries it directly); discovery's image analytics stay retrieval-free.
 
 export type { DiscoveryContext } from "./context";
 export { DiscoveryError } from "./contract/errors";

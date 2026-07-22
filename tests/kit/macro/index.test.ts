@@ -1,4 +1,4 @@
-import type { ProcessMacroOptions } from "@orb/kit/macro";
+import type { GlobalVarWrite, MacroDiagnostic, ProcessMacroOptions } from "@orb/kit/macro";
 import {
   createDefaultRegistry,
   createMacroContext,
@@ -25,7 +25,7 @@ test("parseMacros splits literal text from a macro call and keeps args", () => {
   const ast = parseMacros("hi {{char}}!");
   expect(ast).toEqual([
     { type: "text", value: "hi " },
-    { type: "macro", name: "char", args: [], raw: "{{char}}" },
+    { type: "macro", name: "char", args: [], raw: "{{char}}", span: { offset: 3, line: 1, col: 4, length: 8 } },
     { type: "text", value: "!" },
   ]);
 });
@@ -49,6 +49,7 @@ test("parseMacros builds a block node with children", () => {
       args: ["x"],
       raw: "{{#if x}}",
       children: [{ type: "text", value: "body" }],
+      span: { offset: 0, line: 1, col: 1, length: 9 },
     },
   ]);
 });
@@ -383,4 +384,86 @@ test("output over the 1MB cap truncates to exactly the cap and warns once", () =
   const out = processMacros(oversized, opts({ onWarn: (m) => warnings.push(m) }));
   expect(out).toHaveLength(half * 2);
   expect(warnings.filter((w) => w.includes("output limit"))).toHaveLength(1);
+});
+
+// ── {{expr::<cel>}} macro (02 §3) — CEL surfaced inside templates over ctx.celBindings ─────────────
+
+test("{{expr}} renders a boolean CEL result as true/false", () => {
+  expect(processMacros('{{expr::vars.mood == "grim"}}', opts({ celBindings: { vars: { mood: "grim" } } }))).toBe("true");
+  expect(processMacros('{{expr::vars.mood == "grim"}}', opts({ celBindings: { vars: { mood: "calm" } } }))).toBe("false");
+});
+
+test("{{expr}} renders a number result as its text", () => {
+  expect(processMacros("{{expr::chat.messageCount}}", opts({ celBindings: { chat: { messageCount: 4 } } }))).toBe("4");
+});
+
+test("{{expr}} renders a string result verbatim", () => {
+  expect(processMacros("{{expr::vars.mood}}", opts({ celBindings: { vars: { mood: "grim" } } }))).toBe("grim");
+});
+
+// A CEL map literal `{...}` is deliberately NOT template-testable — its braces collide with the macro's
+// `}}` delimiter; the map→JSON coercion is proven by the cel golden "map result" + coerceExprResult.
+test("{{expr}} renders a list result as JSON", () => {
+  expect(processMacros('{{expr::["a", "b"]}}', opts())).toBe('["a","b"]');
+});
+
+test("{{expr}} with a parse error renders empty + an expr-error diagnostic at the call span", () => {
+  const diagnostics: MacroDiagnostic[] = [];
+  const out = processMacros("x {{expr::vars.}} y", opts({ diagnostics }));
+  expect(out).toBe("x  y");
+  expect(diagnostics[0]).toMatchObject({ severity: "error", code: "expr-error", span: { offset: 2 } });
+});
+
+test("{{expr}} with a runtime error (missing field, no celBindings) renders empty + diagnostic", () => {
+  const diagnostics: MacroDiagnostic[] = [];
+  const out = processMacros("{{expr::vars.mood}}", opts({ diagnostics }));
+  expect(out).toBe("");
+  expect(diagnostics[0]).toMatchObject({ code: "expr-error" });
+});
+
+test("{{expr}} resolves inner macros before evaluating (nesting order)", () => {
+  const out = processMacros('{{expr::"{{getvar::name}}" == "grim"}}', opts({ env: { name: "grim" }, celBindings: {} }));
+  expect(out).toBe("true");
+});
+
+// ── per-user global-variable macros (02 §4) — a SEPARATE plane from ctx.env ─────────────────────────
+
+test("{{getglobalvar}} reads the staged global plane; missing key → empty", () => {
+  expect(processMacros("{{getglobalvar::streak}}", opts({ globalVars: { streak: "7" } }))).toBe("7");
+  expect(processMacros("{{getglobalvar::nope}}", opts({ globalVars: { streak: "7" } }))).toBe("");
+  expect(processMacros("{{getglobalvar::x}}", opts())).toBe("");
+});
+
+test("{{setglobalvar}} collects ordered commit-time writes (last-write-wins) and renders nothing", () => {
+  const globalVarWrites: GlobalVarWrite[] = [];
+  const out = processMacros("{{setglobalvar::k::1}}{{setglobalvar::k::2}}", opts({ globalVarWrites }));
+  expect(out).toBe("");
+  expect(globalVarWrites).toEqual([
+    { key: "k", value: "1" },
+    { key: "k", value: "2" },
+  ]);
+});
+
+test("a same-render {{setglobalvar}} is visible to a later {{getglobalvar}}", () => {
+  const globalVars: Record<string, string> = { streak: "7" };
+  const out = processMacros("{{setglobalvar::streak::9}}{{getglobalvar::streak}}", opts({ globalVars, globalVarWrites: [] }));
+  expect(out).toBe("9");
+});
+
+test("the global plane is separate from runtime vars (env)", () => {
+  const out = processMacros("{{setvar::streak::env-val}}{{getglobalvar::streak}}", opts({ globalVars: { streak: "global-val" } }));
+  expect(out).toBe("global-val");
+});
+
+// ── rpg data-fed macros (rpg-design/06 §1) — a game turn stages `rpgMacros`; a non-game chat resolves empty ──
+
+test("rpg macros render EMPTY when nothing is staged (a non-game / non-rpg chat) — byte-identical", () => {
+  expect(processMacros("[{{rpgWorld}}][{{rpgSceneState}}][{{rpgMorale}}]", opts({ chatId: "chat_x" }))).toBe("[][][]");
+});
+
+test("rpg macros render their staged value by name (chat stays rpg-blind — the generic map)", () => {
+  const rpgMacros = { rpgWorld: "The Shattered Realm", rpgMorale: "Morale: high (72/100)", rpgSceneState: "Day 3, 14:30" };
+  expect(processMacros("{{rpgWorld}} | {{rpgMorale}} | {{rpgSceneState}}", opts({ chatId: "chat_x", rpgMacros }))).toBe(
+    "The Shattered Realm | Morale: high (72/100) | Day 3, 14:30",
+  );
 });

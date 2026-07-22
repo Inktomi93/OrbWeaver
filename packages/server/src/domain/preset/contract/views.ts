@@ -11,7 +11,8 @@ export interface PresetSummary {
   readonly id: PresetId;
   readonly name: string;
   readonly kind: string;
-  /** Derived (`ownerId IS NULL`): the one un-owned system-default row. Editing it COWs into a fork. */
+  /** Derived (`id === SYSTEM_DEFAULT_PRESET_ID`): the one shared system-default row. Editing it COWs into a
+   *  fork. Ownerless PACKAGED template rows are NOT flagged here — they never surface in the readable list. */
   readonly isSystemDefault: boolean;
   readonly createdAt: number;
   readonly updatedAt: number;

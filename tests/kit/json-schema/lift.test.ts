@@ -1,0 +1,156 @@
+// liftJsonSchema — the JSON-Schema → zod lift (PL-B). Three proofs: (1) the ROUND-TRIP golden — for every
+// supported construct, lift → projectJsonSchema is semantically equivalent to the guest input (the engine's
+// pin); (2) the TRUST BOUNDARY — the lifted zod actually ENFORCES the constraints (a guest cannot over-permit
+// its tool args); (3) CONSERVATIVE-OR-REFUSE — every unsupported construct is a typed refusal naming it,
+// never a silent strip.
+
+import { JsonSchemaLiftError, liftJsonSchema, MAX_LIFT_DEPTH, projectJsonSchema } from "@orb/kit/json-schema";
+import { expect, test } from "../../support/fixtures";
+
+/** Build a `properties`-chain of the given nesting depth ({ type:object, properties:{ child:{ …deeper } } }),
+ *  bottoming out in a string leaf — the shape a deeply-nested guest schema takes. */
+function nestObjects(depth: number): Record<string, unknown> {
+  let node: Record<string, unknown> = { type: "string" };
+  for (let i = 0; i < depth; i++) {
+    node = { type: "object", properties: { child: node }, additionalProperties: false };
+  }
+  return node;
+}
+
+/** Lift a guest schema then project it back, dropping the root `$schema` dialect envelope zod v4 emits (it
+ *  rides the wire but is not part of the guest's structural input — the round-trip is over the STRUCTURE). */
+function roundTrip(input: Record<string, unknown>): Record<string, unknown> {
+  const { $schema: _dialect, ...structure } = projectJsonSchema(liftJsonSchema(input));
+  return structure;
+}
+
+test("round-trip: a representative supported object projects back to its input", () => {
+  const input = {
+    type: "object",
+    properties: {
+      name: { type: "string", minLength: 1, maxLength: 40 },
+      count: { type: "integer", minimum: 0, maximum: 10 },
+      ratio: { type: "number" },
+      tags: { type: "array", items: { type: "string" }, minItems: 1, maxItems: 8 },
+      mood: { type: "string", enum: ["calm", "tense"] },
+      flag: { type: "boolean" },
+    },
+    required: ["name", "count"],
+    additionalProperties: false,
+  };
+  expect(roundTrip(input)).toEqual(input);
+});
+
+test("round-trip: nested object + array-of-object, every object node pinned closed", () => {
+  const input = {
+    type: "object",
+    properties: {
+      target: { type: "object", properties: { id: { type: "string" } }, required: ["id"], additionalProperties: false },
+      points: { type: "array", items: { type: "object", properties: { x: { type: "number" } }, additionalProperties: false } },
+    },
+    additionalProperties: false,
+  };
+  expect(roundTrip(input)).toEqual(input);
+});
+
+test("round-trip: a const literal survives", () => {
+  const input = { type: "object", properties: { kind: { type: "string", const: "fixed" } }, required: ["kind"], additionalProperties: false };
+  expect(roundTrip(input)).toEqual(input);
+});
+
+test("trust boundary: the lifted zod ENFORCES the guest constraints (accept valid, reject over-permitted)", () => {
+  const lifted = liftJsonSchema({
+    type: "object",
+    properties: {
+      name: { type: "string", minLength: 2 },
+      count: { type: "integer", minimum: 0 },
+      mood: { type: "string", enum: ["calm", "tense"] },
+    },
+    required: ["name"],
+    additionalProperties: false,
+  });
+  expect(lifted.safeParse({ name: "ok", count: 3, mood: "calm" }).success).toBe(true);
+  // Optional omitted → still valid.
+  expect(lifted.safeParse({ name: "ok" }).success).toBe(true);
+  // minLength violated.
+  expect(lifted.safeParse({ name: "x" }).success).toBe(false);
+  // integer minimum violated.
+  expect(lifted.safeParse({ name: "ok", count: -1 }).success).toBe(false);
+  // non-integer for integer.
+  expect(lifted.safeParse({ name: "ok", count: 1.5 }).success).toBe(false);
+  // enum off-list.
+  expect(lifted.safeParse({ name: "ok", mood: "furious" }).success).toBe(false);
+  // extra key — STRIPPED, not passed to the handler (z.object drops unknown keys; the wire schema still tells
+  // the model additionalProperties:false, and a smuggled key never reaches the guest handler).
+  const stripped = lifted.safeParse({ name: "ok", extra: 1 });
+  expect(stripped.success).toBe(true);
+  expect(stripped.success && "extra" in stripped.data).toBe(false);
+  // missing required.
+  expect(lifted.safeParse({ count: 1 }).success).toBe(false);
+});
+
+// CONSERVATIVE-OR-REFUSE: each unsupported construct is a typed refusal citing the construct — never a lift.
+const REFUSALS: ReadonlyArray<{ readonly why: string; readonly schema: Record<string, unknown> }> = [
+  { why: "non-object root", schema: { type: "string" } },
+  { why: "anyOf combinator", schema: { type: "object", properties: { x: { anyOf: [{ type: "string" }, { type: "number" }] } } } },
+  { why: "$ref", schema: { type: "object", properties: { x: { $ref: "#/$defs/Foo" } } } },
+  { why: "oneOf", schema: { type: "object", properties: { x: { oneOf: [{ type: "string" }] } } } },
+  { why: "allOf", schema: { type: "object", properties: { x: { allOf: [{ type: "string" }] } } } },
+  { why: "not", schema: { type: "object", properties: { x: { not: { type: "string" } } } } },
+  { why: "patternProperties", schema: { type: "object", patternProperties: { "^a": { type: "string" } } } },
+  { why: "additionalProperties:true (open bag)", schema: { type: "object", properties: {}, additionalProperties: true } },
+  { why: "additionalProperties schema", schema: { type: "object", properties: {}, additionalProperties: { type: "string" } } },
+  { why: "string format", schema: { type: "object", properties: { x: { type: "string", format: "email" } } } },
+  { why: "number multipleOf", schema: { type: "object", properties: { x: { type: "number", multipleOf: 2 } } } },
+  { why: "exclusiveMinimum", schema: { type: "object", properties: { x: { type: "number", exclusiveMinimum: 0 } } } },
+  { why: "nullable union (type array)", schema: { type: "object", properties: { x: { type: ["string", "null"] } } } },
+  { why: "OpenAPI nullable", schema: { type: "object", properties: { x: { type: "string", nullable: true } } } },
+  { why: "number enum (lossy)", schema: { type: "object", properties: { x: { enum: [1, 2, 3] } } } },
+  { why: "tuple items", schema: { type: "object", properties: { x: { type: "array", items: [{ type: "string" }] } } } },
+  { why: "array without items", schema: { type: "object", properties: { x: { type: "array" } } } },
+  { why: "uniqueItems", schema: { type: "object", properties: { x: { type: "array", items: { type: "string" }, uniqueItems: true } } } },
+  { why: "missing type", schema: { type: "object", properties: { x: {} } } },
+];
+
+test("conservative-or-refuse: every unsupported construct throws JsonSchemaLiftError, never a silent lift", () => {
+  for (const { why, schema } of REFUSALS) {
+    expect(() => liftJsonSchema(schema), why).toThrow(JsonSchemaLiftError);
+  }
+});
+
+test("a malformed regex pattern is a typed refusal, not a thrown SyntaxError", () => {
+  expect(() => liftJsonSchema({ type: "object", properties: { x: { type: "string", pattern: "(" } } })).toThrow(JsonSchemaLiftError);
+});
+
+/** Capture the `JsonSchemaLiftError` a schema provokes (fails the test if it does not refuse). */
+function refusalOf(schema: Record<string, unknown>): JsonSchemaLiftError {
+  try {
+    liftJsonSchema(schema);
+  } catch (err) {
+    if (err instanceof JsonSchemaLiftError) {
+      return err;
+    }
+    throw err;
+  }
+  throw new Error("expected liftJsonSchema to refuse, but it lifted");
+}
+
+test("the refusal names the offending construct + its path", () => {
+  const lift = refusalOf({ type: "object", properties: { inner: { type: "object", properties: { bad: { type: "string", format: "email" } } } } });
+  expect(lift.construct).toBe("format");
+  expect(lift.path).toContain("bad");
+});
+
+test("an over-deep guest schema is a TYPED refusal, not a stack-blowing RangeError (INFO-3 depth cap)", () => {
+  // Well past the cap — an unbounded recurse here would throw a V8 RangeError; the cap makes it a typed refusal.
+  const overDeep = nestObjects(MAX_LIFT_DEPTH + 50);
+  const lift = refusalOf(overDeep);
+  expect(lift).toBeInstanceOf(JsonSchemaLiftError);
+  expect(lift.construct).toBe("max-depth-exceeded");
+});
+
+test("a schema AT the depth cap still lifts (the cap is a ceiling, not an off-by-one)", () => {
+  // A leaf sits one level below the deepest object; nesting to the cap keeps every liftNode call within bound.
+  const atLimit = nestObjects(MAX_LIFT_DEPTH);
+  expect(() => liftJsonSchema(atLimit)).not.toThrow();
+});

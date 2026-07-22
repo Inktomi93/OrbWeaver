@@ -23,3 +23,8 @@ export const DISCOVER_SEGMENTS_PER_CHAR = 3;
 
 /** Max characters a discover evidence snippet carries. */
 export const SNIPPET_CHARS = 280;
+
+/** `documents` lens fallbacks (databank-design/05 §3.7 — ST's shipped `chunk_count_db`/`score_threshold`).
+ *  The real caller passes settings values; these keep the verb total when `k`/`minScore` are omitted. */
+export const DEFAULT_DOCUMENT_K = 5;
+export const DEFAULT_DOCUMENT_MIN_SCORE = 0.25;

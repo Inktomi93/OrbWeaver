@@ -9,7 +9,7 @@ import type { CardDepthPrompt } from "@orb/contracts/character";
 import { cardDepthPromptSchema } from "@orb/contracts/character";
 import { tagStatusSchema } from "@orb/contracts/tag";
 import { assets, characterBooks, characters, characterTags, tags, worldEntries } from "@orb/db";
-import { fetchOwned, parseRecord, parseStringArray } from "@orb/db/kit";
+import { fetchOwned, parseRecord, parseStringArray, parseStringArrayColumn } from "@orb/db/kit";
 import type { AssetId, UserId } from "@orb/kit/ids";
 import { writeCardChunk } from "@orb/kit/png-card-chunk";
 import { and, eq } from "drizzle-orm";
@@ -135,13 +135,19 @@ export function createExportCharacter(ctx: ExportContext): ExportService["export
         description: charRow.description,
         personality: charRow.personality,
         scenario: charRow.scenario,
-        greetings: parseStringArray(charRow.greetings),
+        // Trusted straight off the typed `$type<Greeting[]>()` column (the regexScripts precedent below) —
+        // buildCardV3 re-splits `groupOnly` entries into `group_only_greetings` on the wire.
+        greetings: charRow.greetings,
         exampleMessages: charRow.exampleMessages,
         systemPrompt: charRow.systemPrompt,
         postHistoryInstructions: charRow.postHistoryInstructions,
         creatorNotes: charRow.creatorNotes,
         creator: charRow.creator,
         cardVersion: charRow.cardVersion,
+        nickname: charRow.nickname,
+        source: parseStringArrayColumn(charRow.source),
+        creationDate: charRow.creationDate,
+        modificationDate: charRow.modificationDate,
         tags: acceptedTags,
         extensions: parseRecord(charRow.extensions),
         residualData: parseRecord(charRow.residualData),

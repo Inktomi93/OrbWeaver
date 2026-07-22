@@ -1,0 +1,28 @@
+[
+  { "name": "string eq true", "expr": "vars.mood == \"grim\"", "env": { "vars": { "mood": "grim" } }, "expected": true },
+  { "name": "string eq false", "expr": "vars.mood == \"grim\"", "env": { "vars": { "mood": "calm" } }, "expected": false },
+  { "name": "string lexical cmp", "expr": "vars.rank > \"b\"", "env": { "vars": { "rank": "c" } }, "expected": true },
+  { "name": "has guard present", "expr": "has(vars.mood) && vars.mood == \"grim\"", "env": { "vars": { "mood": "grim" } }, "expected": true },
+  { "name": "has guard absent, no error", "expr": "has(vars.mood)", "env": { "vars": {} }, "expected": false },
+  {
+    "name": "list membership true",
+    "expr": "\"e1\" in event.worldInfo.entryIds",
+    "env": { "event": { "worldInfo": { "entryIds": ["e1", "e2"] } } },
+    "expected": true
+  },
+  {
+    "name": "list membership false",
+    "expr": "\"e9\" in event.worldInfo.entryIds",
+    "env": { "event": { "worldInfo": { "entryIds": ["e1"] } } },
+    "expected": false
+  },
+  { "name": "now.hour window in", "expr": "now.hour >= 9 && now.hour < 17", "env": { "now": { "hour": 14 } }, "expected": true },
+  { "name": "now.hour window out", "expr": "now.hour >= 9 && now.hour < 17", "env": { "now": { "hour": 20 } }, "expected": false },
+  { "name": "numeric cmp", "expr": "chat.messageCount > 5", "env": { "chat": { "messageCount": 10 } }, "expected": true },
+  { "name": "non-boolean value passthrough", "expr": "vars.mood", "env": { "vars": { "mood": "grim" } }, "expected": "grim" },
+  { "name": "list result (JSON render)", "expr": "[\"a\", \"b\"]", "env": {}, "expected": ["a", "b"] },
+  { "name": "map result", "expr": "{\"k\": vars.mood}", "env": { "vars": { "mood": "grim" } }, "expected": { "k": "grim" } },
+  { "name": "missing field no has → skip", "expr": "vars.mood == \"x\"", "env": { "vars": {} }, "error": "eval" },
+  { "name": "cross-type cmp → error", "expr": "chat.messageCount > \"5\"", "env": { "chat": { "messageCount": 3 } }, "error": "eval" },
+  { "name": "syntax error → parse error", "expr": "vars.", "env": {}, "error": "parse" }
+]

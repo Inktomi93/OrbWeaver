@@ -6,17 +6,23 @@ import { z } from "zod";
 import { recordClientError } from "#foundation/observability";
 import { adminRouter } from "./routers/admin";
 import { assetsRouter } from "./routers/assets";
+import { automationRouter } from "./routers/automation";
 import { buddyRouter } from "./routers/buddy";
 import { characterRouter } from "./routers/character";
 import { chatRouter } from "./routers/chat";
 import { connectionRouter } from "./routers/connection";
 import { credentialsRouter } from "./routers/credentials";
+import { databankRouter } from "./routers/databank";
 import { discoveryRouter } from "./routers/discovery";
-import { hubRouter } from "./routers/hub";
+import { expressionsRouter } from "./routers/expressions";
+import { imageryRouter } from "./routers/imagery";
 import { invitesRouter } from "./routers/invites";
 import { notificationsRouter } from "./routers/notifications";
 import { personaRouter } from "./routers/persona";
+import { pluginRouter } from "./routers/plugin";
+import { posesRouter } from "./routers/poses";
 import { presetRouter } from "./routers/preset";
+import { rosterPresetRouter } from "./routers/roster-preset";
 import { searchRouter } from "./routers/search";
 import { sessionsRouter } from "./routers/sessions";
 import { settingsRouter } from "./routers/settings";
@@ -35,6 +41,8 @@ const CLIENT_ERROR_REQUEST_ID_MAX = 200;
 
 export const appRouter = t.router({
   health: publicProcedure.query(() => ({ ok: true }) as const),
+  // @test-fixture: the CT typed-read template — the client-data CTs (_ct-stories.tsx) type a suspense
+  // query against this echo; it ships as the minimal round-trip fixture, no production UI consumer.
   echo: publicProcedure.input(z.object({ message: z.string() })).query(({ input }) => ({ message: input.message })),
 
   // The client error boundary's fire-and-forget report. publicProcedure (anonymous-allowed): a render
@@ -58,17 +66,23 @@ export const appRouter = t.router({
 
   admin: adminRouter,
   assets: assetsRouter,
+  automation: automationRouter,
   buddy: buddyRouter,
   character: characterRouter,
   chat: chatRouter,
   connection: connectionRouter,
   credentials: credentialsRouter,
+  databank: databankRouter,
   discovery: discoveryRouter,
-  hub: hubRouter,
+  expressions: expressionsRouter,
+  imagery: imageryRouter,
   invites: invitesRouter,
   notifications: notificationsRouter,
   persona: personaRouter,
+  plugin: pluginRouter,
+  poses: posesRouter,
   preset: presetRouter,
+  rosterPreset: rosterPresetRouter,
   search: searchRouter,
   sessions: sessionsRouter,
   settings: settingsRouter,

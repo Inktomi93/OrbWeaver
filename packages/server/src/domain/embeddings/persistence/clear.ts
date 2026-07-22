@@ -5,8 +5,9 @@
 // added, this comment is the tripwire: a bare DELETE would then desync the shadow index.
 
 import type { Db } from "@orb/db";
-import { characterEmbeddings, chatDigests, chatSegments, imageEmbeddings } from "@orb/db";
-import { ne } from "drizzle-orm";
+import { characterEmbeddings, chatDigests, chatSegments, documentChunks, imageEmbeddings } from "@orb/db";
+import type { DocumentId } from "@orb/kit/ids";
+import { and, eq, gte, ne, or } from "drizzle-orm";
 import type { VectorTable } from "../contract/params";
 
 function assertNever(value: never): never {
@@ -32,6 +33,9 @@ export async function clearVectorTable(db: Db, table: VectorTable): Promise<void
       return;
     case "chat_segments":
       await db.delete(chatSegments);
+      return;
+    case "document_chunks":
+      await db.delete(documentChunks);
       return;
     default:
       assertNever(table);
@@ -63,7 +67,24 @@ export async function purgeStaleVectors(db: Db, table: VectorTable, activeModel:
       const rows = await db.delete(chatSegments).where(ne(chatSegments.model, activeModel)).returning({ id: chatSegments.id });
       return rows.length;
     }
+    case "document_chunks": {
+      const rows = await db.delete(documentChunks).where(ne(documentChunks.model, activeModel)).returning({ id: documentChunks.id });
+      return rows.length;
+    }
     default:
       return assertNever(table);
   }
+}
+
+/** databank-design/05 §2.4 — the reindex-shrink seam. After the ingest upserts a document's current chunks
+ *  (hash-gated no-ops keep it cheap), this reclaims the strays: tail rows (`chunkIdx >= keepCount`, a shrunk
+ *  chunk set) AND rows in a retired `(model)` space (`model != activeModel`), scoped to the one document.
+ *  Returns the count deleted. Store-then-prune (never clear-then-store) preserves the no-op economy — a
+ *  re-extract with unchanged text re-embeds nothing; the prune is one bounded DELETE. */
+export async function pruneDocumentChunks(db: Db, documentId: DocumentId, keepCount: number, activeModel: string): Promise<number> {
+  const rows = await db
+    .delete(documentChunks)
+    .where(and(eq(documentChunks.documentId, documentId), or(gte(documentChunks.chunkIdx, keepCount), ne(documentChunks.model, activeModel))))
+    .returning({ id: documentChunks.id });
+  return rows.length;
 }

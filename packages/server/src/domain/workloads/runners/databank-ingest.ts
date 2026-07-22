@@ -1,11 +1,14 @@
-// runner: databank-ingest — DB2-tables STUB (D49 #5; databank-design/02). The kind is born into the
-// `0000_baseline` kind CHECK with a no-op runner so `RUNNERS`/`exhaustive-dispatch` stay green; DB2
-// proper lands the real chunk/extract/embed ingest pass. Returns a `DeferredResult` (the D58
-// reconcile-world-state / crew-* stub precedent).
+// runner: databank-ingest — the post-upload chunk→embed→prune pass for ONE document (D49 #5;
+// databank-design/06 §3). Thin wrapper: it reaches the databank ingest subsystem through the injected env
+// (`ctx.env.databank.ingest`) — never a db reach or a `document_chunks` write from here (the runner tier is
+// above domain-no-cross-feature; the ONE vector write path stays behind `embeddings.store`). Idempotent end
+// to end (hash-gated no-ops + a bounded prune), so a crash-retry just runs it again.
 
 import type { Runner } from "../contract/runner";
 
-export const databankIngestRunner: Runner<"databank-ingest"> = (_ctx, _params, report, _signal) => {
-  report({ message: "databank-ingest is a DB2-tables stub (no-op); DB2 proper lands the runner" });
-  return Promise.resolve({ deferred: true });
+export const databankIngestRunner: Runner<"databank-ingest"> = async (ctx, params, report, signal) => {
+  report({ message: `databank-ingest: chunk+embed ${params.documentId}` });
+  const result = await ctx.env.databank.ingest({ documentId: params.documentId, signal });
+  report({ message: `databank-ingest: ${result.chunksUpserted} written, ${result.chunksNoop} noop, ${result.chunksPruned} pruned` });
+  return result;
 };

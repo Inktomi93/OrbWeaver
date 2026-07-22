@@ -6,7 +6,7 @@ import { existsSync, mkdtempSync, rmSync, symlinkSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
-import { env, processEnvSnapshot } from "#foundation/env";
+import { env, processEnvSnapshot, vllmAgentModelAlias } from "#foundation/env";
 import type { OrSkinTierModels } from "../../contract";
 
 // Non-Claude-namespaced app secrets the child has no business seeing (the Claude/Anthropic namespace is stripped wholesale below).
@@ -216,12 +216,41 @@ export function buildClaudeOpenRouterEnv(
   };
 }
 
+// mode-4: first-party Anthropic direct — the bundled runtime's NATIVE `x-api-key` path (W11 owner ruling:
+// a user may run their AGENTS on their own paid Anthropic key). ANTHROPIC_API_KEY carries the real key;
+// ANTHROPIC_BASE_URL is deliberately NOT set, so the runtime talks to api.anthropic.com directly (its
+// default). Same ambient-credential discipline as the anth-direct first-party client: every OAuth/identity/
+// service-account knob is pinned to `undefined` so no config-file/profile/OAuth resolution can fire, and the
+// EMPTY isolated config dir (the mode-2/3 asymmetry) keeps the host `~/.claude` sub out of the spawn.
+export function buildClaudeAnthEnv(anthropicApiKey: string, overrides: ClaudeRuntimeOverrides = {}): Record<string, string | undefined> {
+  if (anthropicApiKey.length === 0) {
+    throw new Error("buildClaudeAnthEnv: an Anthropic API key is required for the first-party agent path (mode-4).");
+  }
+  const configDir = emptyIsolatedConfigDir();
+  return {
+    ...hostEnvForClaudeChild(),
+    CLAUDE_CODE_DISABLE_CLAUDE_MDS: DISABLE_CLAUDE_MDS,
+    ...claudeRuntimeEnv(overrides),
+    ...claudeUserEnv(overrides.userEnv),
+    ANTHROPIC_API_KEY: anthropicApiKey,
+    // ANTHROPIC_BASE_URL intentionally UNSET — the native default (api.anthropic.com). No Bearer/OAuth path.
+    ANTHROPIC_AUTH_TOKEN: undefined,
+    CLAUDE_CONFIG_DIR: configDir,
+    ANTHROPIC_CONFIG_DIR: configDir,
+    CLAUDE_CODE_OAUTH_TOKEN: undefined,
+    ANTHROPIC_IDENTITY_TOKEN: undefined,
+    ANTHROPIC_IDENTITY_TOKEN_FILE: undefined,
+    ANTHROPIC_SERVICE_ACCOUNT_ID: undefined,
+  };
+}
+
 // mode-3: agent-sdk runtime pointed at the local vLLM gen engine (loopback-only, so no SSRF/egress concern).
 export function buildClaudeVllmEnv(overrides: ClaudeRuntimeOverrides = {}): Record<string, string | undefined> {
   const configDir = emptyIsolatedConfigDir();
   const baseUrl = `http://${LOOPBACK_HOST}:${env.VLLM_GEN_PORT}`;
-  // Claude Code can't resolve model ids containing "/" — the engine serves this slash-free alias via --served-model-name.
-  const model = env.VLLM_GEN_MODEL.split("/").pop() ?? env.VLLM_GEN_MODEL;
+  // Claude Code can't resolve model ids containing "/" — the engine serves this slash-free alias via
+  // --served-model-name. Shared with healModel (the connection heal) so the env + the resolved model agree.
+  const model = vllmAgentModelAlias();
   return {
     ...hostEnvForClaudeChild(),
     CLAUDE_CODE_DISABLE_CLAUDE_MDS: DISABLE_CLAUDE_MDS,

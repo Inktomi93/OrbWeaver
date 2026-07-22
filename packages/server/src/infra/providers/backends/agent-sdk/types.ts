@@ -3,6 +3,7 @@
 
 import type { query, SessionStore } from "@anthropic-ai/claude-agent-sdk";
 import type { ChatDeltaEvent, ChatEvent, ContextUsage } from "../../contract";
+import type { NormalizeImageBytes } from "../kit";
 import type { SeededSessionDecision } from "./session";
 
 /** Subset of SDK `Options` the firewall base (`disciplineOptions`) pins; spread into `query` options. */
@@ -21,6 +22,10 @@ export interface AgentSdkDeps {
   readonly now: () => number;
   readonly query: typeof query;
   readonly sessionStore: SessionStore;
+  /** The shared outbound-image seam (MA-10): a summarize item's images ride the SDK streaming-input prompt as
+   *  Anthropic content blocks. Bytes normalize (GIF → first-frame PNG) before base64; absent-injection ⇒ the
+   *  label-only passthrough (no decode). */
+  readonly normalizeImageBytes: NormalizeImageBytes;
   /** Pre-spawn mode-1 (Max sub) OAuth refresh so the ephemeral-dir symlink resolves fresh (host-token.ts).
    *  Best-effort — resolves `false`, never throws. */
   readonly refreshHostSubToken: () => Promise<boolean>;

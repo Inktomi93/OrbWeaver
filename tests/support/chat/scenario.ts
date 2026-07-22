@@ -34,6 +34,8 @@ import type { MemoryConfig } from "../../../packages/server/src/domain/chat/cont
 import type { GuidedSteer } from "../../../packages/server/src/domain/chat/contract/params";
 import type { GroupOutput, TurnOutcome, TurnRequest } from "../../../packages/server/src/domain/chat/contract/results";
 import { createTurnEngine } from "../../../packages/server/src/domain/chat/engine/engine";
+import { loadWitnessHorizons } from "../../../packages/server/src/domain/chat/memory/persistence/queries";
+import { recallMemory } from "../../../packages/server/src/domain/chat/memory/recall/recall";
 import { loadCanonHistory } from "../../../packages/server/src/domain/chat/persistence/queries";
 import { createTurn } from "../../../packages/server/src/domain/chat/verbs/turn";
 import { makeChatContext, seedCharacter, seedChat, seedParticipant, seedUser } from "../../server/domain/chat/_support";
@@ -121,7 +123,7 @@ export interface ChatScenarioOptions {
   /** Capture each wire `TurnRequest` before the tape replays (feeds `assertStaticPrefixStable`). */
   readonly onRequest?: (req: TurnRequest) => void;
   /** Extra `ChatContext` overrides merged over the defaults (an escape hatch for a seam the driver doesn't
-   *  surface — `readPresence`, `resolveThemeOverride`, …). Applied AFTER the driver's own wiring. */
+   *  surface — `readPresence`, `resolveSeatDeco`, …). Applied AFTER the driver's own wiring. */
   readonly ctx?: Partial<ChatContext>;
   /** Override the FOREIGN resolver (preset/persona/settings). The default returns `personas`/`promptConfig`
    *  verbatim; supply this to SPY on the chat-supplied keys (`triggerPersonaId`/`anchorPersonaId`/`personaIds`)
@@ -242,6 +244,8 @@ async function buildChatScenario(script: Tape, options: ChatScenarioOptions): Pr
     lockTtlMs: 60_000,
     generateSegments: () => Promise.resolve({ written: 0, skipped: 0 }),
     generateDigests: () => Promise.resolve({ written: 0, skipped: 0 }),
+    loadWitnessHorizons,
+    recallMemory,
   });
 
   const defaultForeign: ResolveForeignInputsOp = (): ReturnType<ResolveForeignInputsOp> =>

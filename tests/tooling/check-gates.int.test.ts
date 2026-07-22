@@ -32,9 +32,11 @@ const OK_RE = /✓\s+(?<gate>[a-zA-Z0-9-]+)/gu;
 const FIRED_RE = /✗\s+(?<gate>[a-zA-Z0-9-]+)/gu;
 const TS_EXT_RE = /\.ts$/u;
 const GATE_DIR = join(ROOT, "scripts", "check", "gates");
-// every gate file on disk (basename) — the source of truth for "what gates exist".
+// every gate file on disk (basename) — the source of truth for "what gates exist". `__g_*` are THIS suite's
+// throwaway probe fixtures, excluded so a fixture LEAKED by a killed prior run (readdir happens at module
+// load, BEFORE beforeAll's cleanFixtures) can't poison the anti-drift list into a one-run flake.
 const GATE_FILES = readdirSync(GATE_DIR)
-  .filter((f) => f.endsWith(".ts"))
+  .filter((f) => f.endsWith(".ts") && !f.startsWith("__g_"))
   .map((f) => f.replace(TS_EXT_RE, ""))
   .sort();
 
@@ -105,6 +107,8 @@ function writeFixtures(): void {
   fx("packages/server/src/__g_ignoreinv.ts", "// @orb-gate-ignore g-no-such-gate\nexport const x = 1;\n");
   // no-inline-union-redecl: an inline ≥3-member string-literal union alias.
   fx("packages/server/src/__g_union.ts", 'export type U = "a" | "b" | "c";\n');
+  // no-handwritten-wire-json-schema: a hand-authored JSON-Schema literal on a wire `schema` field (the D79 seal).
+  fx("packages/server/src/__g_wireschema.ts", 'export const rf = { name: "x", schema: { type: "object", properties: {} } };\n');
   // commented-code: parked code in a // comment.
   fx("packages/server/src/__g_commented.ts", "// const dead = 1;\nexport const live = 1;\n");
   // schema-branding: a db text id column without .$type<XId>().
@@ -154,6 +158,9 @@ function writeFixtures(): void {
   fx("tests/__g_imports.test.ts", `import { test, expect } from "vitest";\n`);
   // test-no-stubs: a test block with no assertions.
   fx("tests/__g_stub.test.ts", `import { test } from "support/test";\ntest("stub", () => {\n  const x = 1;\n});\n`);
+  // audit-client-tests: an async test with no await — the assertion is present so test-no-stubs stays
+  // quiet; only the deep auditor's missing-await arm fires (activated 2026-07-17).
+  fx("tests/__g_audit.test.ts", `import { expect, test } from "support/test";\ntest("g async", async () => {\n  expect(1).toBe(1);\n});\n`);
   // server-layout: an illegal directory at the root of server/src.
   fx("packages/server/src/__g_rogue_drawer/index.ts", "export const x = 1;\n");
   // package-layout: a loose file at the root of kit/src.
@@ -192,6 +199,9 @@ function writeFixtures(): void {
   // component-size: a client source over the 450-line cap (in lib/, not a feature, so it trips
   // component-size alone). 451 padded lines.
   fx("packages/client/src/lib/__g_oversize.ts", "// pad line\n".repeat(451));
+  // component-size-ui: the @orb/ui twin (activated 2026-07-17) — a ui source over the 450-line cap,
+  // in its own __g_ dir at the src root (the __g_motion/__g_defprops placement precedent).
+  fx("packages/ui/src/__g_oversize/__g_oversize.ts", "// pad line\n".repeat(451));
   // persistence-boundary: raw browser storage in a feature file (outside the two persist factories
   // + the boot/dev allowlist).
   fx("packages/client/src/features/__g_persistb/lib/__g_flag.ts", 'export const v = globalThis.localStorage.getItem("k");\n');
@@ -240,12 +250,26 @@ function writeFixtures(): void {
   fx(`${D}/chat/verbs/__g_me.ts`, "export const isOwner = (c: { ownerId: string }, u: string): boolean => c.ownerId === u;\n");
   // owner-role-split: a global-role literal comparison outside admin/guard.ts (D17).
   fx("packages/server/src/domain/__g_role.ts", 'export const elevated = (p: { role: string }): boolean => p.role === "admin";\n');
-  // bus-coverage: a DEFERRED-allowlisted member gaining an emit-site literal → the STALE arm fires
-  // (proves the contracts-parse + corpus scan + both ratchet directions are alive). Must name a member
-  // STILL in the DEFERRED map — `personaSwitched`/`reasoningStreamDone` were wired (PD-117 wave 2), and
-  // `chatOpened`/`historyTruncated` were wired (PD-134/PD-135), so this uses `expression` (classify emit
-  // still unbuilt, lands with expressions E3; keep this in sync with bus-coverage.ts).
-  fx(`${D}/chat/__g_bus.ts`, 'export const staleDeferredEmit = "expression";\n');
+  // assets-single-writer arm 1: storeBlob imported outside domain/assets (the CAS write chokepoint).
+  fx(`${D}/hub/__g_asw1.ts`, 'import { storeBlob } from "../assets/persistence/queries.ts";\nexport const s = storeBlob;\n');
+  // assets-single-writer arm 2: a raw insert(assets) outside domain/assets.
+  fx(`${D}/hub/__g_asw2.ts`, 'import { assets } from "@orb/db";\nexport const w = (db: { insert: (t: unknown) => void }) => db.insert(assets);\n');
+  // serde-core-seal: the PNG card-chunk engine imported outside the import/export serde homes.
+  fx(`${D}/hub/__g_serde.ts`, 'import { readCardChunk } from "@orb/kit/png-card-chunk";\nexport const r = readCardChunk;\n');
+  // fetch-fn-in-features: a client feature file hand-writing a bare global fetch( (the R5 offense).
+  fx("packages/client/src/features/__g_fetchfeat/lib/load.ts", 'export async function load() {\n  return await fetch("/api/x");\n}\n');
+  // dangling-refs arm 1: a gates-dir stub whose `gate` object cites a ghost doc. NOT exported — the loader
+  // skips it as un-ported (the __g_diaglegi precedent); the arm-1 scanner reads the local `gate` variable.
+  fx("scripts/check/gates/__g_dangl.ts", 'const gate = { docRow: "__g_ghost-nowhere.md" };\nexport const stub = gate;\n');
+  // suppressions: a marker in a file with NO baseline entry (budget 0) — the exceed arm fires.
+  fx(`${D}/hub/__g_suppr.ts`, "// biome-ignore lint/suspicious/noExplicitAny: fixture probe\nexport const g = 1;\n");
+  // monotonic-tests tooth 1: an unconditional skip with no allow-skip marker.
+  fx("tests/tooling/__g_skip.test.ts", 'import { test } from "support/test";\ntest.skip("g", () => {});\n');
+  // bus-coverage: NO fixture — its DEFERRED map is now EMPTY (the last deferral, `expression`, closed when the
+  // E3 classify emit landed). With no deferred member, neither STALE (needs a deferred member) nor MISSING
+  // (needs an un-emitted REAL member — a `__g_` file can't add one to the single-home union) is fixturable, so
+  // bus-coverage joins UNFIXTURABLE_GATES; the STALE mechanism stays proven by the `user-bus-coverage` twin
+  // below (its DEFERRED `connectionsChanged`). Keep in sync with the DEFERRED map in bus-coverage.ts.
   // user-bus-coverage: the STALE arm — the DEFERRED `connectionsChanged` member (no per-user connection
   // store yet) gains an emit-site literal in domain scope → "stale allowlist". Keep in sync with the
   // DEFERRED map in user-bus-coverage.ts (if a real per-user connection emit lands, retarget this fixture).
@@ -541,6 +565,13 @@ function writeFixtures(): void {
     "packages/client/src/features/__g_settingsanchor/surfaces/__g_settingsanchor-settings-surface.tsx",
     'export const G = <Section heading="Host Claude"><span>x</span></Section>;\n',
   );
+  // ct-no-oneshot-live-read-assert: a non-retrying `expect(await <locator>.boundingBox()).not.toBe(...)` in a
+  // *.ct.tsx — the exact DEF-14 layout-rect shape the HARD (zero-baseline) gate flags on sight. Unescaped +
+  // a plain value matcher → RED.
+  fx(
+    "tests/ui/primitives/__g_oneshot/__g_oneshot.ct.tsx",
+    'import { expect, test } from "@playwright/experimental-ct-react";\ntest("g", async ({ page }) => {\n  const el = page.locator("div");\n  expect(await el.boundingBox()).not.toBe(null);\n});\n',
+  );
 }
 
 // Registered gates that CANNOT be driven by an injected `__g_` fixture — whole-corpus ratchets whose
@@ -557,7 +588,27 @@ function writeFixtures(): void {
 // alter a program's resolved include/files, so it can't be fixture-driven. Its bite is proven by its
 // conformance mustFlag (a synthetic reach-back-include tree) + a real-tree break-confirm (misroute one
 // file → RED → restore byte-identical).
-const UNFIXTURABLE_GATES = new Set(["warning-code-coverage", "verify-registry-parity", "enforcement-registry-parity", "tsconfig-routing-parity"]);
+// bus-coverage: its DEFERRED map is EMPTY (every ChatBusEvent member now emits — the E3 classify emit closed
+// the last deferral). STALE needs a deferred member (none); MISSING needs an un-emitted REAL union member,
+// which a throwaway `__g_` file can't add to the single-home `CHAT_BUS_EVENT_TYPES`. Its bite stays proven by
+// its conformance mustFlag (a synthetic un-emitted member) + the `user-bus-coverage` twin's live STALE fixture.
+// bus-payload-allowlist: scopes to 5 EXACT bus-contract file paths (BUS_FILES) — a __g_ sentinel path
+// can't match. Bite proven by gate-conformance's mustFlag + the D16 real-file backup-pattern proof
+// (apiKey planted on user-bus settingsChanged → RED → restored).
+// rpg-bus-coverage: same shape as bus-coverage (the shared reconcile, scripts/check/bus-coverage-lib.ts) — its
+// DEFERRED map is EMPTY (every RpgBusEvent member emits via a verb's ctx.emitBus) and MISSING needs an
+// un-emitted REAL member a `__g_` file can't add to the single-home `RPG_BUS_EVENT_TYPES` array. Bite proven by
+// its conformance mustFlag (a synthetic array member with no emit) + the shared STALE mechanism the
+// user-bus-coverage twin live-fires.
+const UNFIXTURABLE_GATES = new Set([
+  "warning-code-coverage",
+  "verify-registry-parity",
+  "enforcement-registry-parity",
+  "tsconfig-routing-parity",
+  "bus-coverage",
+  "rpg-bus-coverage",
+  "bus-payload-allowlist",
+]);
 
 let registry = new Set<string>();
 let fired = new Set<string>();
@@ -591,7 +642,7 @@ test("every registered structural gate fires on its fixture (anti-drift)", () =>
 // from `registry`. Each has its own header explaining why + a residual self-test proving it still fires
 // (tests/tooling/{monotonic-tests}.residual.test.ts drives the monotonic gate directly). This is the ONE
 // sanctioned exemption from the file-vs-registry anti-drift check below.
-const DORMANT_GATES = new Set(["monotonic-tests", "audit-client-tests", "component-size-ui"]);
+const DORMANT_GATES = new Set<string>([]);
 
 test("every ACTIVE gate file in scripts/check/gates is run by report.ts (anti-drift)", () => {
   // A gate file whose descriptor is status:"active" but that report.ts's live pass never prints would be

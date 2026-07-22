@@ -3,35 +3,48 @@
 
 import type { CharacterCard } from "@orb/contracts/character";
 import type { DomainEvent } from "@orb/contracts/events";
+import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
-import type { AssetId, CharacterId, CharacterSnapshotId, UserId } from "@orb/kit/ids";
+import type { AssetId, CardEvolutionProposalId, CharacterId, CharacterSnapshotId, UserId } from "@orb/kit/ids";
 import type { AuditEntry } from "#foundation/observability";
 import type {
+  AcceptCardEvolutionParams,
   BulkAddCardTagParams,
   BulkArchiveParams,
   BulkRemoveCardTagParams,
   BulkRemoveParams,
   CreateCharacterParams,
+  DismissCardEvolutionParams,
   DuplicateCharacterParams,
   FindByHandleParams,
+  FindByImportedFromParams,
   FindByImportHashParams,
   FindGroupCharParams,
   GetCardParams,
   GetCharacterParams,
+  ListCardEvolutionProposalsParams,
   ListCharactersParams,
   ListSnapshotsParams,
   MintGroupCharParams,
+  ProposeCardEvolutionParams,
   RemoveCharacterParams,
   RestoreParams,
   SnapshotParams,
   UpdateCharacterParams,
 } from "./params";
-import type { CharacterRef, ListCharactersResult, SnapshotRef, SnapshotSummary } from "./results";
-import type { CharacterDetail } from "./views";
+import type { CharacterRef, ImportedFromMatch, ListCharactersResult, SnapshotRef, SnapshotSummary } from "./results";
+import type { CardEvolutionProposalView, CharacterDetail } from "./views";
 
 /** Best-effort reap of avatar assets a deleted character may have orphaned (FK is onDelete: set null). */
 export type ReapAssetsOp = (assetIds: readonly AssetId[]) => Promise<void>;
+
+/** Deletes a character's expression-sprite bindings BEFORE the character row delete, returning the freed
+ *  sprite assetIds so remove folds them into the `reapAssets` set (expressions-design/01 §8). Injected +
+ *  OPTIONAL: a deploy without the expressions leaf (tests/scripts) omits it and the FK cascade still wipes
+ *  the bindings — the now-unreferenced blobs are reclaimed by the next `assets:gc` mark-sweep instead of the
+ *  targeted reap. Explicit-delete-then-return because the FK cascade doesn't surface the freed ids. */
+type ReapCharacterSpritesOp = (characterId: CharacterId) => Promise<readonly AssetId[]>;
 
 /** Attaches a tag by name to one owned character; returns whether it was newly attached (idempotent). */
 export type AttachCardTagOp = (args: { readonly ownerId: UserId; readonly characterId: CharacterId; readonly tagName: string }) => Promise<boolean>;
@@ -49,9 +62,12 @@ export interface CharacterContext {
   readonly now: () => number;
   readonly newCharacterId: () => CharacterId;
   readonly newSnapshotId: () => CharacterSnapshotId;
+  readonly newProposalId: () => CardEvolutionProposalId;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   readonly emit: (event: DomainEvent) => void;
   readonly reapAssets: ReapAssetsOp;
+  /** Injected sprite-reap (expressions-design/01 §8); OPTIONAL — absent = the FK cascade + a later GC sweep. */
+  readonly reapCharacterSprites?: ReapCharacterSpritesOp;
   readonly attachCardTag: AttachCardTagOp;
   readonly detachCardTag: DetachCardTagOp;
   /** Carries attached world-info book references onto a duplicate (world-info owns the junction, D28). */
@@ -59,6 +75,10 @@ export interface CharacterContext {
   /** Fires charactersChanged with the owner's userId after each durable write; distinct from emit
    *  (which drives embedding re-index, not client cache). */
   readonly emitUserEvent: EmitUserEvent;
+  /** Materialize a user-pasted external carried-background URL into an owned CAS asset (side-eye F-P0-2) —
+   *  `update` runs it for a `kind:"external"` `backgroundOverride` so the persisted card background is always
+   *  same-origin-paintable (an external URL is CSP-blocked). Compose-built from infra + assets.store. */
+  readonly materializeBackground: MaterializeBackgroundOp;
 }
 
 export interface CharacterService {
@@ -90,8 +110,21 @@ export interface CharacterService {
   readonly listEmbeddableCharacterIds: (ownerId?: UserId | null) => Promise<readonly CharacterId[]>;
 
   readonly findByImportHash: (params: FindByImportHashParams) => Promise<CharacterRef | null>;
+  /** Batched provenance oracle (hub-injected): the owner's characters carrying any of `values` in
+   *  `importedFrom` — backs the hub search page's already-imported markers (doc 03 §2.1). */
+  readonly findByImportedFrom: (params: FindByImportedFromParams) => Promise<ImportedFromMatch[]>;
   readonly findByHandle: (params: FindByHandleParams) => Promise<CharacterRef | null>;
 
   readonly mintSyntheticGroupCharacter: (params: MintGroupCharParams) => Promise<CharacterRef>;
   readonly findSyntheticGroupCharacter: (params: FindGroupCharParams) => Promise<CharacterRef | null>;
+
+  // ── card-evolution proposals (chat-crew-design/02 §5) — propose-don't-dispose ──
+  /** ENV-ONLY (no principal): file/supersede a card-drift proposal for the character. Returns the new id. */
+  readonly proposeCardEvolution: (params: ProposeCardEvolutionParams) => Promise<CardEvolutionProposalId>;
+  /** The owner's PENDING proposals for one of their characters (the character-page review surface). */
+  readonly listCardEvolutionProposals: (params: ListCardEvolutionProposalsParams) => Promise<CardEvolutionProposalView[]>;
+  /** Owner-only; snapshots `pre-evolution` FIRST, folds the picked changes onto the card, flips → accepted. */
+  readonly acceptCardEvolution: (params: AcceptCardEvolutionParams) => Promise<void>;
+  /** Owner-only; a status flip to `dismissed` (never a delete — the audit trail survives). */
+  readonly dismissCardEvolution: (params: DismissCardEvolutionParams) => Promise<void>;
 }

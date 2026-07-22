@@ -1,4 +1,4 @@
-import { createTimeLib, epochToMs, isoToMs, secondsToMs, utcFormatToMs } from "@orb/kit/time";
+import { createTimeLib, epochToMs, isoToMs, secondsToMs } from "@orb/kit/time";
 import { expect, test } from "../../support/fixtures";
 
 test("epochToMs leaves a millisecond epoch (≥ 1e12) untouched", () => {
@@ -37,11 +37,6 @@ test("isoToMs reads a naive (no-offset) ISO string as UTC, not local", () => {
 
 test("isoToMs returns null for an unparseable string", () => {
   expect(isoToMs("not-a-date")).toBeNull();
-});
-
-test("a format token is read as UTC", () => {
-  expect(utcFormatToMs("1970-01-01", "yyyy-MM-dd")).toBe(0);
-  expect(utcFormatToMs("nope", "yyyy-MM-dd")).toBeNull();
 });
 
 // ── The DISPLAY half — deterministic under pinned locale/timeZone/now (the injectable config

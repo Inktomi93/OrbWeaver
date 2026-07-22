@@ -24,16 +24,22 @@ export function createRemove(ctx: CharacterContext): CharacterService["remove"] 
     const { avatarAssetId, handle } = row;
     const at = ctx.now();
 
+    // Free the expression-sprite bindings BEFORE the row delete so the freed assetIds are surfaced (the FK
+    // cascade wipes the bindings but doesn't return their ids — expressions-design/01 §8). Optional op: a
+    // deploy without the expressions leaf falls back to the cascade + a later GC sweep.
+    const spriteAssetIds = ctx.reapCharacterSprites !== undefined ? await ctx.reapCharacterSprites(characterId) : [];
+
     const deleted = await deleteOwnedCharacter(ctx.db, characterId, ownerId);
     if (!deleted) {
       throw new CharacterNotFoundError(characterId);
     }
 
-    if (avatarAssetId !== null) {
+    const reap = [...(avatarAssetId !== null ? [avatarAssetId] : []), ...spriteAssetIds];
+    if (reap.length > 0) {
       try {
-        await ctx.reapAssets([avatarAssetId]);
+        await ctx.reapAssets(reap);
       } catch (err) {
-        getLog().warn({ err, characterId }, "character: avatar reap failed (orphan heals on GC)");
+        getLog().warn({ err, characterId }, "character: avatar/sprite reap failed (orphan heals on GC)");
       }
     }
 

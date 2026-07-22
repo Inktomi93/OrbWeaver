@@ -26,6 +26,9 @@ export function securityHeaders(opts: { readonly dev: boolean }): MiddlewareHand
     contentSecurityPolicy: {
       defaultSrc: [SELF],
       scriptSrc: opts.dev ? [SELF, "'unsafe-inline'", "'unsafe-eval'"] : [SELF],
+      // blob: workers/SharedWorkers fall back to script-src without an explicit worker-src (which lacks blob:).
+      // Dev AND prod — the worker-backed feature runs in both.
+      workerSrc: [SELF, "blob:"],
       styleSrc: [SELF, "'unsafe-inline'"], // deliberate — see the header
       imgSrc: opts.dev ? [SELF, "blob:", "data:", TENOR_MEDIA] : [SELF, "blob:", TENOR_MEDIA],
       mediaSrc: [SELF, "blob:"],

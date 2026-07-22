@@ -12,10 +12,13 @@ import { createBackfillAvatars } from "./verbs/backfill-avatars";
 import { createCollectGarbage } from "./verbs/collect-garbage";
 import { createFsck } from "./verbs/fsck";
 import { createGetMetadata } from "./verbs/get-metadata";
+import { createImportPoses } from "./verbs/import-poses";
 import { createListGallery } from "./verbs/list-gallery";
 import { createListImageAssetIds } from "./verbs/list-image-asset-ids";
 import { createListOwned } from "./verbs/list-owned";
+import { createListOwnedPoses } from "./verbs/list-owned-poses";
 import { createLoadAssetBytes } from "./verbs/load-asset-bytes";
+import { createReadOwnedAssetBytes } from "./verbs/read-owned-asset-bytes";
 import { createReapIfOrphan } from "./verbs/reap-if-orphan";
 import { createRebuildFromTree } from "./verbs/rebuild-from-tree";
 import { createRemoveFromGallery } from "./verbs/remove-from-gallery";
@@ -30,6 +33,7 @@ export function createAssetsService(ctx: AssetsContext): AssetsService {
     getMetadata: createGetMetadata(ctx),
     resolveVariant: createResolveVariant(ctx),
     loadAssetBytes: createLoadAssetBytes(ctx),
+    readOwnedAssetBytes: createReadOwnedAssetBytes(ctx),
     assetCasRefById: createAssetCasRefById(ctx),
     listImageAssetIds: createListImageAssetIds(ctx),
     listOwned: createListOwned(ctx),
@@ -38,6 +42,8 @@ export function createAssetsService(ctx: AssetsContext): AssetsService {
     listGallery: createListGallery(ctx),
     resolveOwnedAssetRefs: createResolveOwnedAssetRefs(ctx),
     resolveChatAssetRefs: createResolveChatAssetRefs(ctx),
+    importPoses: createImportPoses(ctx),
+    listOwnedPoses: createListOwnedPoses(ctx),
     backfillAvatars: createBackfillAvatars(ctx),
     collectGarbage: createCollectGarbage(ctx),
     reapIfOrphan: createReapIfOrphan(ctx),

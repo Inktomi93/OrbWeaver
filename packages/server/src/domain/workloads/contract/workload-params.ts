@@ -5,8 +5,12 @@
 // Tunables are optional (no Zod .default()) — precedence (param → user setting → runner floor) resolves in
 // the runner. A kind with no tunables keeps an explicit z.object({}) so start() validates every kind uniformly.
 
+import { documentIdSchema, reindexModeSchema, reindexScopeSchema } from "@orb/contracts/databank";
+import { expressionLabelSchema, SPRITE_SHEET_MAX_LABELS, STYLE_PROMPT_MAX } from "@orb/contracts/expressions";
 import type { WorkloadKind, WorkloadSource } from "@orb/contracts/workloads";
 import { indexSourceSchema, NON_INDEX_SOURCE } from "@orb/contracts/workloads";
+import type { UserId } from "@orb/kit/ids";
+import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 
 const noParams = z.object({});
@@ -28,6 +32,64 @@ const stagedHandleSchema = z
   .refine((s) => !s.includes(".."), "must not contain a `..` traversal segment");
 
 const computeThemesParams = z.object({ k: z.number().int().positive().optional() });
+
+/** rpg-world-gen: session zero for ONE game (rpg-design/06 §4). Enqueued singular on the host. */
+const rpgWorldGenParams = z.object({ gameId: typeIdSchema(ID_PREFIX.rpgGame) });
+/** rpg-recap / rpg-session-distill: scoped to ONE game + ONE session (rpg-design/06 §3). */
+const rpgSessionScopedParams = z.object({ gameId: typeIdSchema(ID_PREFIX.rpgGame), sessionId: typeIdSchema(ID_PREFIX.rpgSession) });
+
+/** rpg-npc-portrait (rpg-design/10 §R9): generate/refresh ONE npc's portrait, scoped to its game. `dryRun`
+ *  returns the compiled prompt for host review without spending (08 §2 preview-before-spend). */
+const rpgNpcPortraitParams = z.object({
+  gameId: typeIdSchema(ID_PREFIX.rpgGame),
+  npcId: typeIdSchema(ID_PREFIX.rpgNpc),
+  dryRun: z.boolean().optional(),
+});
+/** rpg-illustration (rpg-design/10 §R9): a scene illustration for ONE game. `sceneMoment`/`purpose` are the
+ *  model's `request_illustration` args (the CG-worthy moment it chose); `force` bypasses the cadence gate
+ *  (08 §3 host "force"); `dryRun` compiles the prompt without spending (08 §2). */
+const rpgIllustrationParams = z.object({
+  gameId: typeIdSchema(ID_PREFIX.rpgGame),
+  sceneMoment: z.string(),
+  purpose: z.string().optional(),
+  force: z.boolean().optional(),
+  dryRun: z.boolean().optional(),
+});
+/** rpg-scene-plan (rpg-design/10 §R10 / 07 §2.1): the host's structured scene proposal for ONE game; the
+ *  optional `prompt` seeds the model's plan. */
+const rpgScenePlanParams = z.object({
+  gameId: typeIdSchema(ID_PREFIX.rpgGame),
+  prompt: z.string().optional(),
+});
+/** rpg-scene-distill (rpg-design/10 §R10 / 07 §2.3): the ≤200-word summary of ONE concluding scene. */
+const rpgSceneDistillParams = z.object({
+  gameId: typeIdSchema(ID_PREFIX.rpgGame),
+  sceneId: typeIdSchema(ID_PREFIX.rpgScene),
+});
+/** rpg-recruit-card (rpg-design/10 §R10 / 07 §3): generate the character card for ONE npc being recruited into
+ *  the roster. */
+const rpgRecruitCardParams = z.object({
+  gameId: typeIdSchema(ID_PREFIX.rpgGame),
+  npcId: typeIdSchema(ID_PREFIX.rpgNpc),
+});
+
+/** crew-lorebook-keeper + crew-card-evolution + crew-director: the run is scoped to ONE chat (chat-crew-design
+ *  /03 §0 — these crew params are uniformly `{ chatId }`). Enqueued singular on the chat HOST by the scheduler
+ *  / `runNow`. */
+const crewChatScopedParams = z.object({ chatId: typeIdSchema(ID_PREFIX.chat) });
+
+/** crew-prose-audit: one audited VARIANT (03 §4). The on-demand + every-turn arms both target one variant, so
+ *  the params carry it alongside the chat. Singular on the host. */
+const crewProseAuditParams = z.object({ chatId: typeIdSchema(ID_PREFIX.chat), variantId: typeIdSchema(ID_PREFIX.messageVariant) });
+
+/** databank-ingest: chunk+embed+prune ONE document (the post-upload path). `documentId` is required; the row
+ *  owner (`ctx.ownerId`) scopes the run. */
+const databankIngestParams = z.object({ documentId: documentIdSchema });
+
+/** databank-reindex: bulk derived-layer maintenance (param/model change, extractor upgrade). `scope` selects
+ *  one document or every document the row owner owns; `mode` is a tunable (optional — the runner floors it to
+ *  `chunk-embed`). The owner is `ctx.ownerId` (`null` = the box-wide bulk sweep). */
+const databankReindexParams = z.object({ scope: reindexScopeSchema, mode: reindexModeSchema.optional() });
 
 /** source is required (also the single-active lock dimension stamped into workloads.source). */
 const indexParams = z.object({ source: indexSourceSchema, force: z.boolean().optional() });
@@ -51,6 +113,19 @@ const importBundleParams = z.object({
   source: z.enum(["zip", "dir"]).optional(),
 });
 
+/** expressions-sprite-sheet (E4 §2): the resolved sheet-generation job. `matte` is REQUIRED here (the
+ *  enqueue verb resolved the arm — explicit \> wired-model \> flood — and stamped it, §4.3), unlike the OPTIONAL
+ *  wire field. `ownerId` is the requesting principal (bills + scopes the imagery call). The label/style bounds
+ *  mirror `@orb/contracts/expressions` (the wire already validated; this is the workloads defense-in-depth
+ *  re-parse). Labels re-normalize through `expressionLabelSchema` (idempotent — the verb already normalized). */
+const expressionsSpriteSheetParams = z.object({
+  characterId: typeIdSchema(ID_PREFIX.character),
+  labels: z.array(expressionLabelSchema).min(1).max(SPRITE_SHEET_MAX_LABELS),
+  stylePrompt: z.string().max(STYLE_PROMPT_MAX).optional(),
+  matte: z.enum(["model", "flood", "none"]),
+  ownerId: brandedId<UserId>(),
+});
+
 /** satisfies \{ [K in WorkloadKind]: ZodType \} forces an entry for every kind — a missing one is a tsc error. */
 export const PARAMS_SCHEMAS = {
   index: indexParams,
@@ -69,23 +144,23 @@ export const PARAMS_SCHEMAS = {
   "reconcile-stats": noParams,
   "refresh-model-catalog": noParams,
   "reconcile-world-state": noParams,
-  "crew-lorebook-keeper": noParams,
-  "crew-card-evolution": noParams,
-  "crew-director": noParams,
-  "crew-prose-audit": noParams,
-  "expressions-sprite-sheet": noParams,
-  "databank-ingest": noParams,
-  "databank-reindex": noParams,
-  "rpg-world-gen": noParams,
-  "rpg-recap": noParams,
-  "rpg-session-distill": noParams,
-  "rpg-director": noParams,
-  "rpg-lorebook-upkeep": noParams,
-  "rpg-illustration": noParams,
-  "rpg-npc-portrait": noParams,
-  "rpg-scene-plan": noParams,
-  "rpg-scene-distill": noParams,
-  "rpg-recruit-card": noParams,
+  "crew-lorebook-keeper": crewChatScopedParams,
+  "crew-card-evolution": crewChatScopedParams,
+  "crew-director": crewChatScopedParams,
+  "crew-prose-audit": crewProseAuditParams,
+  "expressions-sprite-sheet": expressionsSpriteSheetParams,
+  "databank-ingest": databankIngestParams,
+  "databank-reindex": databankReindexParams,
+  "rpg-world-gen": rpgWorldGenParams,
+  "rpg-recap": rpgSessionScopedParams,
+  "rpg-session-distill": rpgSessionScopedParams,
+  "rpg-director": rpgWorldGenParams,
+  "rpg-lorebook-upkeep": rpgSessionScopedParams,
+  "rpg-illustration": rpgIllustrationParams,
+  "rpg-npc-portrait": rpgNpcPortraitParams,
+  "rpg-scene-plan": rpgScenePlanParams,
+  "rpg-scene-distill": rpgSceneDistillParams,
+  "rpg-recruit-card": rpgRecruitCardParams,
 } as const satisfies { [K in WorkloadKind]: z.ZodType };
 
 export type ParamsByKind = { [K in WorkloadKind]: z.infer<(typeof PARAMS_SCHEMAS)[K]> };
@@ -153,6 +228,8 @@ export const startWorkloadInput = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("rpg-scene-distill"), params: PARAMS_SCHEMAS["rpg-scene-distill"] }),
   z.object({ kind: z.literal("rpg-recruit-card"), params: PARAMS_SCHEMAS["rpg-recruit-card"] }),
 ]);
+// NOTE: these five kinds keep `stub:true` in `@orb/contracts/workloads` WORKLOAD_KIND_MODES until their real
+// runners land (rpg-design/10 §R9/§R10) — the mode-policy flip rides the SAME change as each runner body.
 
 export type StartWorkloadInput = z.infer<typeof startWorkloadInput>;
 

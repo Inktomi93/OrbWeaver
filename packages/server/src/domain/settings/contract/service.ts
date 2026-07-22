@@ -1,7 +1,8 @@
 // The typed API surface: the `SettingsContext` DI bundle and the `SettingsService` interface. Cross-feature
 // deps arrive injected — admin's guard ops are type-only imports; the runtime ops wire at the entry root.
 
-import type { EffectiveAppConfig, UserSettings } from "@orb/contracts/settings";
+import type { BackgroundLibraryEntry, EffectiveAppConfig, UserSettings } from "@orb/contracts/settings";
+import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { ThemeId, UserId } from "@orb/kit/ids";
@@ -9,6 +10,7 @@ import type { JsonValue } from "@orb/kit/json";
 import type { AuditEntry } from "#foundation/observability";
 import type { RequireAdmin, RequireOwner } from "../../admin/contract/guard";
 import type {
+  AddExternalBackgroundParams,
   CreateThemeParams,
   DuplicateThemeParams,
   GetAppSettingsParams,
@@ -18,7 +20,6 @@ import type {
   RemoveThemeParams,
   UpdateAppSettingsParams,
   UpdateThemeParams,
-  UpdateUserSettingsParams,
   UpdateUserSettingsSectionParams,
 } from "./params";
 import type { GlobalSettingView, ThemeView, UserSettingsView } from "./views";
@@ -48,6 +49,11 @@ export interface SettingsContext {
   readonly emitUserEvent: EmitUserEvent;
   /** PD-139a: fired (fire-and-forget) after a write that changed the embed/imageEmbed model id. */
   readonly onEmbedModelChanged: OnEmbedModelChanged;
+  /** Materialize a user-pasted external background URL into an owned CAS asset (side-eye F-P0-2). Compose-built
+   *  from infra + assets.store; drives `addExternalBackground`. */
+  readonly materializeBackground: MaterializeBackgroundOp;
+  /** Mints the stable per-row id for a new `BackgroundLibraryEntry` (crypto uuid in prod; deterministic in tests). */
+  readonly newBackgroundEntryId: () => string;
 }
 
 /** What the entry composition root supplies to stand up the domain. */
@@ -60,6 +66,8 @@ export interface SettingsServiceDeps {
   readonly newThemeId: () => ThemeId;
   readonly emitUserEvent: EmitUserEvent;
   readonly onEmbedModelChanged: OnEmbedModelChanged;
+  readonly materializeBackground: MaterializeBackgroundOp;
+  readonly newBackgroundEntryId: () => string;
 }
 
 /** The settings API surface. UserSettings verbs scope by `principal.userId`; AppSettings verbs gate on the
@@ -68,10 +76,13 @@ export interface SettingsService {
   /** Read this user's typed/defaulted UserSettings. A never-touched account reads parsed defaults with no
    *  write (`updatedAt: 0`). */
   readonly getUserSettings: (params: GetUserSettingsParams) => Promise<UserSettingsView>;
-  /** Whole-blob replace (first-touch seeds the row). Serialized per user. */
-  readonly updateUserSettings: (params: UpdateUserSettingsParams) => Promise<UserSettingsView>;
   /** Deep-merge one namespace + re-validate the whole blob. Serialized per user. */
   readonly updateUserSettingsSection: (params: UpdateUserSettingsSectionParams) => Promise<UserSettingsView>;
+  /** Materialize a user-pasted external image URL into an owned CAS asset and return a ready
+   *  `BackgroundLibraryEntry` (side-eye F-P0-2). A DISCRETE action — the client appends the returned entry to
+   *  `appearance.backgroundLibrary` via the autosave form; NO paintable external URL is ever persisted. Throws
+   *  `DomainOperationError(background_unavailable)` on an unreachable / non-image / too-large URL. */
+  readonly addExternalBackground: (params: AddExternalBackgroundParams) => Promise<BackgroundLibraryEntry>;
   /** The lenient typed-blob loader for cross-feature callers (raw `userId`, not a gated user-facing verb). */
   readonly loadUserSettings: (userId: UserId) => Promise<UserSettings>;
 

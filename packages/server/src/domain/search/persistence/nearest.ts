@@ -3,9 +3,9 @@
 // characters.ownerId (never a users read) AND character_embeddings.model (never cross-space compare).
 
 import type { ReadOnlyDb } from "@orb/db";
-import { characterEmbeddings, characters } from "@orb/db";
-import type { CharacterId, UserId } from "@orb/kit/ids";
-import { and, eq, ne, sql } from "drizzle-orm";
+import { characterEmbeddings, characters, documentChunks, documents } from "@orb/db";
+import type { CharacterId, DocumentChunkId, DocumentId, UserId } from "@orb/kit/ids";
+import { and, eq, inArray, ne, sql } from "drizzle-orm";
 
 interface NearestCharacter {
   readonly characterId: CharacterId;
@@ -56,6 +56,63 @@ export async function nearestCharacters(db: ReadOnlyDb, params: NearestCharacter
     distance: r.distance,
     hubScore: r.hubScore,
     sourceText: `${r.name} ${r.description ?? ""}`.trim(),
+  }));
+}
+
+interface NearestDocumentChunk {
+  readonly chunkId: DocumentChunkId;
+  readonly documentId: DocumentId;
+  readonly documentName: string;
+  readonly chunkIdx: number;
+  readonly content: string;
+  readonly contentHash: string;
+  readonly distance: number;
+  readonly hubScore: number | null;
+}
+
+interface NearestDocumentChunksParams {
+  /** The scope allowlist (databank-design/05 §3.3 step 1) — applied in SQL BEFORE the cosine rank + before
+   *  content_hash collapse (the vector-scope-derived belt). An empty list is a caller bug (the verb
+   *  short-circuits earlier), never reached with `[]`. */
+  readonly documentIds: readonly DocumentId[];
+  readonly queryVector: Float32Array;
+  /** The `(model, dim)` space tag — same space the chunks were embedded in (invariant 6). */
+  readonly model: string;
+  readonly dim: number;
+  readonly limit: number;
+}
+
+/** Top-`limit` document chunks (cosine) within the scope allowlist + the active `(model, dim)` space,
+ *  ascending distance. Joins `documents` for the provenance name the slot renders. The scope predicate is a
+ *  WHERE (never a post-filter), the ONLY belt this table needs — ownership already resolved into the id set. */
+export async function nearestDocumentChunks(db: ReadOnlyDb, params: NearestDocumentChunksParams): Promise<NearestDocumentChunk[]> {
+  const distance = sql<number>`vector_distance_cos(${documentChunks.embedding}, vector32(${toVectorBlob(params.queryVector)}))`;
+  const rows = await db
+    .select({
+      chunkId: documentChunks.id,
+      documentId: documentChunks.documentId,
+      documentName: documents.name,
+      chunkIdx: documentChunks.chunkIdx,
+      content: documentChunks.content,
+      contentHash: documentChunks.contentHash,
+      distance,
+      hubScore: documentChunks.hubScore,
+    })
+    .from(documentChunks)
+    .innerJoin(documents, eq(documentChunks.documentId, documents.id))
+    .where(and(inArray(documentChunks.documentId, [...params.documentIds]), eq(documentChunks.model, params.model), eq(documentChunks.dim, params.dim)))
+    .orderBy(distance)
+    .limit(params.limit);
+
+  return rows.map((r) => ({
+    chunkId: r.chunkId,
+    documentId: r.documentId,
+    documentName: r.documentName,
+    chunkIdx: r.chunkIdx,
+    content: r.content,
+    contentHash: r.contentHash,
+    distance: r.distance,
+    hubScore: r.hubScore,
   }));
 }
 

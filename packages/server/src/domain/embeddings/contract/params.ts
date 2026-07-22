@@ -2,18 +2,21 @@
 
 import type { ImageLens } from "@orb/contracts/embeddings";
 import { IMAGE_LENSES } from "@orb/contracts/embeddings";
-import type { AssetId, CharacterId, ChatId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, DocumentId, UserId } from "@orb/kit/ids";
 
-/** The producer classes whose content the store verb embeds. */
-export const SOURCE_KINDS = ["card", "avatar", "chat-block"] as const;
+/** The producer classes whose content the store verb embeds. `document` (databank-design/05 §1) is the 4th
+ *  member — a databank source document's chunks feeding the 5th vector table. */
+export const SOURCE_KINDS = ["card", "avatar", "chat-block", "document"] as const;
 export type SourceKind = (typeof SOURCE_KINDS)[number];
 
-export const TEXT_LENSES = ["card-text", "segment", "digest"] as const;
+export const TEXT_LENSES = ["card-text", "segment", "digest", "chunk"] as const;
 export const SOURCE_LENSES = [...TEXT_LENSES, ...IMAGE_LENSES] as const;
 export type SourceLens = (typeof TEXT_LENSES)[number] | ImageLens;
 
-/** The primary vector tables `embeddings` owns — the single registry all callers derive from. */
-export const VECTOR_TABLES = ["character_embeddings", "image_embeddings", "chat_digests", "chat_segments"] as const;
+/** The primary vector tables `embeddings` owns — the single registry all callers derive from. `document_chunks`
+ *  is the 5th table (databank-design/05 §1; PD-139(c) — the runtime tuple gains it so the model-change purge
+ *  and hub-score seams cover it uniformly). */
+export const VECTOR_TABLES = ["character_embeddings", "image_embeddings", "chat_digests", "chat_segments", "document_chunks"] as const;
 export type VectorTable = (typeof VECTOR_TABLES)[number];
 
 // Store params: a discriminated union on `lens`. No ownerId/principal field — vector rows FK to their
@@ -103,8 +106,54 @@ export interface DigestStoreParams {
   readonly dim: number;
 }
 
+/** Embed a databank document chunk (databank-design/05 §2.1). `content` is the chunk slice (kit/chunk output,
+ *  incl. any overlap prefix) — the embed input; the store hashes it for the staleness gate. `(model, dim)` is
+ *  the caller-supplied active embed space; the `fkRefs` locate the chunk in its producer document. No
+ *  `ownerId` (D20 — owner derives via `documents.ownerId`); no `hubScore` (discovery-only). Unique key:
+ *  `(documentId, chunkIdx, model)`. */
+export interface DocumentChunkStoreParams {
+  readonly kind: "document";
+  readonly lens: "chunk";
+  readonly content: string;
+  readonly model: string;
+  readonly dim: number;
+  readonly fkRefs: {
+    readonly documentId: DocumentId;
+    readonly chunkIdx: number;
+    /** The non-overlap span offsets into `documents.extractedText` (source highlighting + lossless coverage). */
+    readonly charStart: number;
+    readonly charEnd: number;
+  };
+}
+
 /** The single write path's input — discriminated on `lens`. */
-export type StoreParams = CardTextStoreParams | ImageRawStoreParams | ImageCaptionedStoreParams | SegmentStoreParams | DigestStoreParams;
+export type StoreParams =
+  | CardTextStoreParams
+  | ImageRawStoreParams
+  | ImageCaptionedStoreParams
+  | SegmentStoreParams
+  | DigestStoreParams
+  | DocumentChunkStoreParams;
+
+/** `pruneDocumentChunks` input (databank-design/05 §2.4) — the reindex-shrink seam. After the ingest upserts
+ *  every current chunk (hash-gated no-ops keep it cheap), this deletes the strays: tail rows
+ *  (`chunkIdx >= keepCount`, a shrunk chunk set) AND rows in a retired `(model)` space (`model != model`).
+ *  The delete lives HERE — the table owner — because databank never touches `document_chunks` directly
+ *  (the single-write-path invariant); it mirrors `writeHubScores` as a narrow, named, non-`store` write. */
+export interface PruneDocumentChunksParams {
+  readonly documentId: DocumentId;
+  /** Delete rows with `chunkIdx >= keepCount` (the shrunk-tail reclaim). */
+  readonly keepCount: number;
+  /** … and ALL rows whose `model !== model` (retired-space cleanup). */
+  readonly model: string;
+}
+
+/** The databank chunk-count read (the DocumentView `chunkCount`/`embeddedCount` derivation). embeddings owns
+ *  `document_chunks`, so databank reaches this count through the injected op — never a direct table import. */
+export interface CountDocumentChunksParams {
+  readonly documentIds: readonly DocumentId[];
+  readonly model: string;
+}
 
 /** `embedCorpus` / `embedAssets` input — the resumable, `content_hash`-gated bulk sweep. `force` re-embeds
  *  matched rows; `signal` is the cooperative abort, checked between items. */
@@ -122,8 +171,8 @@ export interface HubScoreUpdate {
   readonly hubScore: number;
 }
 
-/** `writeHubScores` input — the only non-`store` write surface, and the only path that touches
- *  `hub_score`. `discovery` computes, this stores. */
+/** `writeHubScores` input — the only non-`store` UPDATE surface (the chunk-reclaim DELETEs are the
+ *  other non-`store` writes), and the only path that touches `hub_score`. `discovery` computes, this stores. */
 export interface WriteHubScoresParams {
   readonly table: VectorTable;
   readonly updates: readonly HubScoreUpdate[];

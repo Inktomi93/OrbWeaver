@@ -5,21 +5,25 @@
 // `stream` is the observer's per-user live reaction feed (PD-45): the SSE half of the buddy bus (quip /
 // moodChanged / evolved). The observer (an out-of-band supervisor started at `entry/`) PRODUCES onto the bus;
 // this subscription is the pure CONSUMER — it attaches the live tail, ramps from the short replay ring, then
-// yields. There is no durable resume (the bus is the ephemeral live bubble; the hover-history is a separate
-// `buddy_quips` read), so events yield plain (no `tracked` cursor). `withSubscriptionErrors` converts a thrown
+// yields. There is no durable resume (the bus is the ephemeral live bubble; the durable backfill is the
+// `listQuips` query over `buddy_quips`), so events yield plain (no `tracked` cursor). `withSubscriptionErrors` converts a thrown
 // frame into a typed error (a subscription bypasses the domain-error middleware — Esoteric #5).
 
+import type { BuddyBusEvent } from "@orb/contracts/buddy";
 import type { UserId } from "@orb/kit/ids";
 import type { TrackedEnvelope } from "@trpc/server";
 import { tracked } from "@trpc/server";
 import { z } from "zod";
-import type { BuddyBusEvent } from "#domain/buddy";
 import { snapshotBuddy, subscribeBuddy } from "../buddy-bus";
 import { withSubscriptionErrors } from "../subscriptions";
 import { authedProcedure, t } from "../trpc";
 
 export const buddyRouter = t.router({
   get: authedProcedure.query(({ ctx }) => ctx.services.buddy.get({ principal: ctx.auth })),
+
+  // The feed's durable backfill — the caller's newest reaction quips (buddy_quips, swept ~20/user). The
+  // live tail is `stream` (the ephemeral SSE ring); this read makes the feed non-empty on load.
+  listQuips: authedProcedure.query(({ ctx }) => ctx.services.buddy.listQuips({ principal: ctx.auth })),
 
   hatch: authedProcedure.mutation(({ ctx }) => ctx.services.buddy.hatch({ principal: ctx.auth })),
 
@@ -56,8 +60,8 @@ export const buddyRouter = t.router({
     .mutation(({ ctx, input }) => ctx.services.buddy.setAgency({ principal: ctx.auth, enabled: input.enabled })),
 
   // The observer's per-user live reaction feed (PD-45) — the SSE half of the buddy bus. Attaches the live
-  // tail, ramps from the retained replay ring, then yields. No durable resume (the hover-history is the
-  // separate `buddy_quips` read), so events yield plain.
+  // tail, ramps from the retained replay ring, then yields. No durable resume (the durable backfill is the
+  // separate `listQuips` query over `buddy_quips`), so events yield plain.
   stream: authedProcedure.subscription(({ ctx, signal }) => {
     const sig = signal ?? new AbortController().signal;
     return withSubscriptionErrors(buddyStream(ctx.auth.userId, sig));
@@ -67,8 +71,8 @@ export const buddyRouter = t.router({
 async function* buddyStream(userId: UserId, signal: AbortSignal): AsyncGenerator<TrackedEnvelope<BuddyBusEvent>> {
   // Attach the live listener FIRST (`on()` buffers from this point) so the snapshot→live gap loses nothing;
   // the overlap (an event in both the ring and the buffered live) is the consumer's dedup (by `quipId`/`at`).
-  // The tracked id is a per-stream ordinal — the bus has NO durable resume (the hover-history is the separate
-  // `buddy_quips` read), so a reconnect never resumes "from" it; it only satisfies the uniform-tracked rule.
+  // The tracked id is a per-stream ordinal — the bus has NO durable resume (the durable backfill is the separate
+  // `listQuips` query over `buddy_quips`), so a reconnect never resumes "from" it; it only satisfies the uniform-tracked rule.
   const live = subscribeBuddy(userId, signal);
   let seq = 0;
   for (const event of snapshotBuddy(userId)) {

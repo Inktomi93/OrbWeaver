@@ -51,7 +51,7 @@ function normalizePlaceholders(text: string, charName: string, userName: string)
 /** Field ORDER is load-bearing: last-token pooling weights later text less, so identity fields lead. */
 export function buildCardEmbedText(card: CardEmbedFields, userName = "User"): string {
   const name = card.name;
-  const first = card.greetings[0] ?? null;
+  const first = card.greetings[0]?.text ?? null;
   const alternates = card.greetings.slice(1);
 
   const field = (label: string, value: string | null): string | null => {
@@ -72,7 +72,7 @@ export function buildCardEmbedText(card: CardEmbedFields, userName = "User"): st
 
   if (alternates.length > 0) {
     const joined = alternates
-      .map((g) => cleanText(normalizePlaceholders(g, name, userName)))
+      .map((g) => cleanText(normalizePlaceholders(g.text, name, userName)))
       .filter((g) => g.length > 0)
       .join("\n---\n");
     if (joined.length > 0) {

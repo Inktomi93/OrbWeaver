@@ -4,13 +4,9 @@
 // KV pair; they're admin-gated at the router, not the verb.
 
 import type { Principal } from "@orb/contracts/identity";
-import type { AppSettings, UserSettings, UserSettingsSection } from "@orb/contracts/settings";
+import type { AppSettings, UserSettingsSection } from "@orb/contracts/settings";
 import type { CreateThemeInput, UpdateThemeInput } from "@orb/contracts/theme";
 import type { ThemeId } from "@orb/kit/ids";
-
-export interface UpdateUserSettingsInput {
-  readonly config: UserSettings;
-}
 
 /** patch is a deep-partial of the named namespace, deep-merged into the stored section (arrays/primitives
  *  replace), then the whole config re-validates through the lenient parseUserSettings. */
@@ -25,12 +21,15 @@ interface UserSettingsActorParams {
 
 export interface GetUserSettingsParams extends UserSettingsActorParams {}
 
-export interface UpdateUserSettingsParams extends UserSettingsActorParams {
-  readonly input: UpdateUserSettingsInput;
-}
-
 export interface UpdateUserSettingsSectionParams extends UserSettingsActorParams {
   readonly input: UpdateUserSettingsSectionInput;
+}
+
+/** `addExternalBackground` (side-eye F-P0-2) — materialize a user-pasted external image URL into an owned CAS
+ *  asset and return a ready `BackgroundLibraryEntry`. A DISCRETE action (never the keystroke autosave path):
+ *  the URL is fetched+magic-verified+stored server-side, so it can never persist a paintable external URL. */
+export interface AddExternalBackgroundParams extends UserSettingsActorParams {
+  readonly url: string;
 }
 
 interface AppSettingsActorParams {

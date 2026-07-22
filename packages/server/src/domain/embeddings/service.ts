@@ -9,8 +9,11 @@ import type { EmbeddingsContext } from "./context";
 import type { EmbeddingsService } from "./contract/service";
 import { generateAvatarCaption } from "./indexer/caption";
 import { createClearTable } from "./verbs/clear-table";
+import { createCountDocumentChunks } from "./verbs/count-document-chunks";
 import { createEmbedAssets } from "./verbs/embed-assets";
 import { createEmbedCorpus } from "./verbs/embed-corpus";
+import { createPruneDocumentChunks } from "./verbs/prune-document-chunks";
+import { createPurgeDocumentVectors } from "./verbs/purge-document-vectors";
 import { createPurgeMemoryVectors } from "./verbs/purge-memory-vectors";
 import { createStore } from "./verbs/store";
 import { createWriteHubScores } from "./verbs/write-hub-scores";
@@ -27,5 +30,8 @@ export function createEmbeddingsService(ctx: EmbeddingsContext): EmbeddingsServi
       caption: (bytes): Promise<string> => generateAvatarCaption(ctx.roleClients, bytes),
     }),
     purgeMemoryVectors: createPurgeMemoryVectors(ctx),
+    pruneDocumentChunks: createPruneDocumentChunks(ctx),
+    purgeDocumentVectors: createPurgeDocumentVectors(ctx),
+    countDocumentChunks: createCountDocumentChunks(ctx),
   };
 }

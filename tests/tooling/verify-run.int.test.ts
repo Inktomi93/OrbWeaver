@@ -4,13 +4,15 @@
 // supersedes that orchestrator's exit-code pins). A signal-kill (null) is ALWAYS a tool error (2), never a verdict; a
 // foreign tool's digit is never trusted to mean the scheme's 2/3.
 import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { Project } from "ts-morph";
 import type { Finding } from "../../scripts/check/contract.ts";
 import { gate as verifyRegistryParityGate } from "../../scripts/check/gates/verify-registry-parity.ts";
 import { canonicalSort, runPass } from "../../scripts/check/pass.ts";
 import type { StageDef } from "../../scripts/verify/registry.ts";
 import { asViolations, eslintScheme, ownScheme, REGISTRY, stagesForTier } from "../../scripts/verify/registry.ts";
-import { aggregateExit, parse } from "../../scripts/verify/run.ts";
+import type { StageResult } from "../../scripts/verify/run.ts";
+import { aggregateExit, failReason, parse } from "../../scripts/verify/run.ts";
 import { resolveSelection } from "../../scripts/verify/selection.ts";
 import { expect, test } from "../support/fixtures.ts";
 import { withTree } from "./_support.ts";
@@ -44,6 +46,39 @@ test("eslintScheme: its 2 IS a tool error (opposite of tsc's 2), 1 is lint probl
   expect(eslintScheme(1)).toBe(1);
   expect(eslintScheme(2)).toBe(2); // eslint's 2 = config/internal error = the checker broke
   expect(eslintScheme(null)).toBe(2);
+});
+
+// ── the failure-block presentation (§3.3): a tool-error (exit 2 — a BROKEN checker) is never dressed as a
+// violation. eslint's exit 2 (e.g. "No files matching the pattern" on a deleted path) classifies to 2; the
+// tail failure line must carry the tool-error glyph + TOOL-ERROR label, not the violations glyph. ──
+
+function failedStage(name: string, exitCode: number): StageResult {
+  return {
+    name,
+    group: "lint",
+    mode: "scoped",
+    ok: false,
+    exitCode,
+    durationMs: 1,
+    logFile: `reports/verify/${name.replace(/:/gu, "-")}.log`,
+    failureExcerpt: null,
+    runsAt: null,
+  };
+}
+
+test("failReason: an eslint exit-2 TOOL error renders as a tool-error (‼ · TOOL-ERROR), never a violation", () => {
+  const line = failReason(failedStage("lint:eslint", eslintScheme(2)));
+  expect(line).toContain("TOOL-ERROR");
+  expect(line).toContain("‼");
+  expect(line).not.toContain("violations");
+  expect(line).not.toContain("✗"); // the violations glyph must NOT appear on a tool-error line
+});
+
+test("failReason: a genuine violation (exit 1) still renders as ✗ · violations", () => {
+  const line = failReason(failedStage("lint:biome", 1));
+  expect(line).toContain("violations");
+  expect(line).toContain("✗");
+  expect(line).not.toContain("‼");
 });
 
 test("ownScheme: our scheme-speaking scripts pass 0/1/2/3 through; an unexpected code is a tool error", () => {
@@ -111,18 +146,42 @@ test("static ⊂ push ⊂ full (the whole-tree ladder); changed ⊆ push (the sc
   // `changed` is the SCOPED inner loop and is deliberately NOT ⊆ static: it carries related-tests
   // (tests:node, run over vitest's changed-file graph) that static omits by doctrine — static is the
   // born-compliant TEST-FREE commit gate (the `bots run check and miss` line below). But everything the
-  // inner loop runs, the push tier also runs whole-tree, so the honest containment is changed ⊆ push.
+  // inner loop runs, the push tier also runs whole-tree, so the honest containment is changed ⊆ push —
+  // with ONE named exception: `browser:ct`. Its scoped mirror-mapping runs at `changed`; at push its
+  // coverage rides `tests:node` (the WHOLE CT suite) under a DIFFERENT stage name, not a same-named push
+  // row (a push browser:ct row would double-run it). So the behavioral containment holds (CT runs at push),
+  // the stage-NAME containment carves out browser:ct.
   for (const n of changed) {
+    if (n === "browser:ct") {
+      continue;
+    }
     expect(push.has(n)).toBe(true);
   }
+  // The carve-out's behavioral half: CT's push coverage rides tests:node (the whole suite), not a push
+  // browser:ct row — so `changed`'s CT inner loop IS covered whole-tree at push.
+  expect(changed.has("browser:ct")).toBe(true);
+  expect(push.has("browser:ct")).toBe(false);
+  expect(push.has("tests:node")).toBe(true);
 });
 
 test("the push tier carries the behavioral suites the static tier omits (the `bots run check and miss` fix)", () => {
   const push = new Set(stagesForTier("push").map((s) => s.name));
   expect(push.has("tests:node")).toBe(true);
-  expect(push.has("browser:ct")).toBe(true);
   expect(push.has("browser:e2e-smoke")).toBe(true);
-  // …and the static tier does NOT (the core hole §2.1).
+  // CT rides INSIDE tests:node since 2026-07-17 (`pnpm test` composes `pnpm test:ct --retries=2` — the
+  // split existed only for the retired single-thread constraint), so a push/full browser:ct row would
+  // run the suite TWICE; the stage survives at `manual` (CT-only whole-suite iteration) AND `changed` (the
+  // scoped mirror-mapping inner loop, LANDED 2026-07-17). It is deliberately NOT at push/full: the WHOLE
+  // suite runs at push INSIDE tests:node, so a push browser:ct row would double-run it.
+  expect(push.has("browser:ct")).toBe(false);
+  expect(stage("browser:ct").tiers).toEqual(["changed", "manual"]);
+  // The composition is the load-bearing half — if `test` stops composing test:ct, CT silently leaves
+  // EVERY tier. Pin the script itself, not just the tier layout.
+  const rootPkg = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8")) as {
+    readonly scripts: Record<string, string>;
+  };
+  expect(rootPkg.scripts["test"]).toContain("pnpm test:ct --retries=2");
+  // …and the static tier does NOT run behavioral suites (the core hole §2.1).
   const staticT = new Set(stagesForTier("static").map((s) => s.name));
   expect(staticT.has("tests:node")).toBe(false);
 });
@@ -142,6 +201,26 @@ test("resolveSelection --file: derives the per-tool views (eslint surface, tsc o
   expect(sel.docsPaths).toContain("docs/architecture/core/AGENTS.md");
   // A docs file is NOT in the eslint/tsc/depcruise surfaces.
   expect(sel.eslintPaths).not.toContain("docs/architecture/core/AGENTS.md");
+});
+
+test("resolveSelection: a DELETED path lints clean — dropped from the tool file-lists, KEPT in paths + its tsconfig", () => {
+  // The D79 same-commit-deletion doctrine: a git-changed set carries deleted paths (git diff --name-only
+  // HEAD keeps them). eslint/depcruise/docs take CONCRETE file args and hard-error on a path that's gone
+  // ("No files matching the pattern" ⇒ the whole stage aborts) — so those views must DROP the deletion,
+  // while `paths` (the structure walk) + `tsconfigs` (the deleted file's owning per-package typecheck) KEEP
+  // it. A co-changed EXISTING server file must survive in every view.
+  const deleted = "packages/server/src/domain/discovery/substrate/json-extract.ts"; // a real T6 deletion
+  const survivor = "packages/server/src/index.ts"; // exists on disk
+  const sel = resolveSelection({ kind: "changed", paths: [deleted, survivor] });
+  // eslint/depcruise drop the deletion but keep the survivor.
+  expect(sel.eslintPaths).not.toContain(deleted);
+  expect(sel.eslintPaths).toContain(survivor);
+  expect(sel.depcruisePaths).not.toContain(deleted);
+  expect(sel.depcruisePaths).toContain(survivor);
+  // NOT a blanket drop: the deletion stays in `paths` (mirror/structure walk) and still drives the owning
+  // per-package tsc (deleting a file can break its consumers — that package MUST re-typecheck).
+  expect(sel.paths).toContain(deleted);
+  expect(sel.tsconfigs).toContain("packages/server/tsconfig.json");
 });
 
 test("resolveSelection: a tests/ file flags the graph-only trees (types:graph runs at changed scope)", () => {
@@ -196,14 +275,15 @@ test("types:graph per --package: a NODE package RUNS it (in the graph), a BROWSE
   }
 });
 
-test("types:testd + types:tests-* + browser:* + tests:parity are whole-only (no scopedArgv) — deferred at a scoped tier", () => {
+test("types:testd + types:tests-* + browser:e2e* + tests:parity are whole-only (no scopedArgv) — deferred at a scoped tier", () => {
   for (const name of [
     "types:testd",
     // The type-membership floor stages: tests-dom is one tiny program, tests-membership is a whole-tree
     // reconciliation — both are whole-tree invariants with no honest scoped form (§3.4).
     "types:tests-dom",
     "types:tests-membership",
-    "browser:ct",
+    // browser:ct is NOT here since 2026-07-17 — it gained a scopedArgv (the CT view mirror-mapping). The
+    // e2e suites stay whole-only (cross-cutting by nature).
     "browser:e2e-smoke",
     "browser:e2e",
     "tests:parity",
@@ -220,6 +300,64 @@ test("lint:eslint scopedArgv: skip-empty when no file is in the eslint surface",
 test("structure:full scopedArgv: routes to scoped.ts with the selection's flag (walk-scoped gates)", () => {
   const sel = resolveSelection({ kind: "package", name: "ui" });
   expect(stage("structure:full").scopedArgv?.(sel)).toEqual(["tsx", "scripts/check/scoped.ts", "--package", "ui"]);
+});
+
+// ── the CT changed-scope view (§3.4, the ONE deliberately-open edge, LANDED 2026-07-17) — mirror + the
+// declared blast-radius sweeps. Scoped CT UNDER-selects on purpose; the push bar is the coverage verdict. ──
+
+test("ct view: a ui primitive source selects EXACTLY its test-layout mirror .ct.tsx", () => {
+  // badge.tsx mirrors to tests/ui/primitives/badge/badge.ct.tsx (exists on disk) — mode "files", that one.
+  const sel = resolveSelection({ kind: "changed", paths: ["packages/ui/src/primitives/badge/badge.tsx"] });
+  expect(sel.ct).toEqual({ mode: "files", targets: ["tests/ui/primitives/badge/badge.ct.tsx"] });
+});
+
+test("ct view: a source with NO mirror on disk contributes nothing (no mirror, no CT)", () => {
+  // index.ts barrels have no `.ct.tsx` mirror — the existsSync guard drops them (no contribution → skip).
+  const sel = resolveSelection({ kind: "changed", paths: ["packages/ui/src/primitives/badge/index.ts"] });
+  expect(sel.ct).toEqual({ mode: "skip", targets: [] });
+});
+
+test("ct view: a tokens file SWEEPS both trees (the light-dark()/computed-style incident class)", () => {
+  const sel = resolveSelection({ kind: "changed", paths: ["packages/ui/src/tokens/semantic.ts"] });
+  expect(sel.ct.mode).toBe("sweep");
+  expect([...sel.ct.targets].sort()).toEqual(["tests/client", "tests/ui"]);
+});
+
+test("ct view: a client state/ file SWEEPS tests/client only (the section-registry incident class)", () => {
+  const sel = resolveSelection({ kind: "changed", paths: ["packages/client/src/state/active-chat-store.ts"] });
+  expect(sel.ct).toEqual({ mode: "sweep", targets: ["tests/client"] });
+});
+
+test("ct view: a server-only change → skip (no CT surface)", () => {
+  const sel = resolveSelection({ kind: "changed", paths: ["packages/server/src/index.ts"] });
+  expect(sel.ct).toEqual({ mode: "skip", targets: [] });
+});
+
+test("ct view: a changed .ct.tsx selects ITSELF", () => {
+  const ct = "tests/ui/primitives/badge/badge.ct.tsx";
+  const sel = resolveSelection({ kind: "changed", paths: [ct] });
+  expect(sel.ct).toEqual({ mode: "files", targets: [ct] });
+});
+
+test("ct view: a .suite.ct.tsx is NEVER mirror-selected (it mirrors no single module — rides sweeps only)", () => {
+  // The touch-target-floor cross-cutting suite: changed alone, it selects nothing (it is not a module mirror).
+  const sel = resolveSelection({ kind: "changed", paths: ["tests/ui/touch-target-floor.suite.ct.tsx"] });
+  expect(sel.ct).toEqual({ mode: "skip", targets: [] });
+});
+
+test("ct view: a shared GROUP CORE sweeps its group dir; a chart source's mirror stays file-scoped", () => {
+  // charts/chart/** is consumed by every chart primitive → sweep the whole charts group mirror.
+  const core = resolveSelection({ kind: "changed", paths: ["packages/ui/src/charts/chart/chart.tsx"] });
+  expect(core.ct).toEqual({ mode: "sweep", targets: ["tests/ui/charts"] });
+});
+
+test("browser:ct scopedArgv: skip-empty on no CT surface; a DIRECT playwright run over the CT view otherwise", () => {
+  const skip = resolveSelection({ kind: "changed", paths: ["packages/server/src/index.ts"] });
+  expect(stage("browser:ct").scopedArgv?.(skip)).toBe("skip-empty");
+  // A mirror hit → a direct `playwright test -c playwright-ct.config.ts <mirror>` — NOT `pnpm test:ct` (no
+  // cache nuke, no retries flag): the two deliberate inner-loop divergences (§3.7).
+  const hit = resolveSelection({ kind: "changed", paths: ["packages/ui/src/primitives/badge/badge.tsx"] });
+  expect(stage("browser:ct").scopedArgv?.(hit)).toEqual(["playwright", "test", "-c", "playwright-ct.config.ts", "tests/ui/primitives/badge/badge.ct.tsx"]);
 });
 
 // ── argv parsing (parseArgs, strict schema §3.4) — the misuse (exit 3) matrix + good invocations ──

@@ -50,5 +50,28 @@ export async function fetchOrCatalog(client: OrCatalogClient): Promise<ModelCata
     inputModalities: model.architecture.inputModalities.map(String),
     outputModalities: model.architecture.outputModalities.map(String),
     supportedParameters: model.supportedParameters.map(String),
+    // The top provider's real output cap (null when OR doesn't advertise it — the resolver then estimates).
+    maxCompletionTokens: model.topProvider.maxCompletionTokens ?? null,
+    // Whether the top provider moderates content (R2) — surfaces as ModelCapability.moderated.
+    isModerated: model.topProvider.isModerated,
+    // OR's advertised per-model reasoning metadata (R0) — null for non-reasoning models (⇒ family fallback).
+    reasoning: toReasoning(model.reasoning),
   }));
+}
+
+/** Normalize the SDK's `ModelReasoning` → the cross-boundary snapshot shape. `supportedEfforts` drops the
+ *  wire's stray nulls (a `null` allowlist stays null = "no allowlist, all efforts accepted"). Returns null
+ *  when OR omits reasoning (a non-reasoning or dynamic-router model). */
+function toReasoning(reasoning: ModelsListResponse["data"][number]["reasoning"]): ModelCatalogEntry["reasoning"] {
+  if (reasoning === undefined) {
+    return null;
+  }
+  const efforts = reasoning.supportedEfforts;
+  return {
+    mandatory: reasoning.mandatory,
+    ...(reasoning.defaultEnabled !== undefined ? { defaultEnabled: reasoning.defaultEnabled } : {}),
+    supportedEfforts: efforts === null || efforts === undefined ? null : efforts.filter((effort) => effort !== null).map(String),
+    ...(reasoning.defaultEffort !== undefined && reasoning.defaultEffort !== null ? { defaultEffort: String(reasoning.defaultEffort) } : {}),
+    ...(reasoning.supportsMaxTokens !== undefined ? { supportsMaxTokens: reasoning.supportsMaxTokens } : {}),
+  };
 }

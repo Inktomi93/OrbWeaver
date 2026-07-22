@@ -13,10 +13,9 @@ export const tagRouter = t.router({
     .input(z.object({ input: createTagSchema }))
     .mutation(({ ctx, input }) => ctx.services.tag.createTag({ principal: ctx.auth, input: input.input })),
 
-  getTag: authedProcedure
-    .input(z.object({ tagId: brandedId<TagId>() }))
-    .query(({ ctx, input }) => ctx.services.tag.getTag({ principal: ctx.auth, tagId: input.tagId })),
-
+  // @test-fixture: the CT typed-read template verb — the client-data CTs (create-entity-mutation.ct.tsx,
+  // _ct-stories.tsx) pair createTag + listTags as the optimistic-cache fixture; production reads run through
+  // listTagsWithUsage. Ships as the always-available CT surface, no other client consumer.
   listTags: authedProcedure.query(({ ctx }) => ctx.services.tag.listTags({ principal: ctx.auth })),
 
   updateTag: authedProcedure

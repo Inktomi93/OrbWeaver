@@ -12,6 +12,13 @@ export interface CharacterRef {
   readonly characterId: CharacterId;
 }
 
+/** One `findByImportedFrom` match — the owner's character carrying a queried `importedFrom` value. The hub
+ *  search verb builds a `importedFrom → characterId` map from the batch to stamp its page markers. */
+export interface ImportedFromMatch {
+  readonly importedFrom: string;
+  readonly characterId: CharacterId;
+}
+
 /** Returned by `snapshot`. */
 export interface SnapshotRef {
   readonly id: CharacterSnapshotId;

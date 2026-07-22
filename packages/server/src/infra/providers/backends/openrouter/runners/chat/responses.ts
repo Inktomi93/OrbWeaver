@@ -46,6 +46,7 @@ import {
   isMandatoryReasoningRejection,
   joinSystemPrompt,
   mergeCustomParameters,
+  resolveFallbackModels,
   resolveProviderPreferences,
   warningEvents,
 } from "./shared";
@@ -155,17 +156,31 @@ function promptCacheKey(model: string, instructions: string): string {
   return createHash("sha1").update(`${model} ${instructions}`).digest("hex").slice(0, PROMPT_CACHE_KEY_LEN);
 }
 
+// The tool-calling wire fields — SEMANTICALLY IDENTICAL to the chat-completions runner: `tools` and
+// `toolChoice` are each emitted INDEPENDENTLY when set; `parallelToolCalls` rides only alongside a tools[]
+// request (a bare flag is ignored/rejected upstream).
+function responsesToolFields(req: OpenRouterChatRequest): Partial<ResponsesRequest> {
+  const parallel = req.params.advanced?.parallelToolCalls;
+  return {
+    ...(req.tools !== undefined ? { tools: buildResponsesTools(req.tools) } : {}),
+    ...(req.toolChoice !== undefined ? { toolChoice: buildResponsesToolChoice(req.toolChoice) } : {}),
+    ...(req.tools !== undefined && parallel !== undefined ? { parallelToolCalls: parallel } : {}),
+  };
+}
+
 // `includeReasoning` is false on the mandatory-reasoning replay.
 function buildResponsesBody(req: OpenRouterChatRequest, resolved: ResolvedChatKnobs, includeReasoning: boolean): ResponsesRequest {
   const isAnthropic = isAnthropicModel(req.model);
   const instructions = joinSystemPrompt(req.systemPrompt);
   const provider = resolveProviderPreferences(req.model, req.providerRouting);
+  const fallbackModels = resolveFallbackModels(req.providerRouting);
   const reasoningBlock = effortToResponsesReasoning(buildReasoningRequest(resolved.reasoning));
   const text = buildResponsesText(req.responseFormat, resolved.verbosity);
   const owned: ResponsesRequest = {
     model: req.model,
     input: buildResponsesInput(req.history),
     stream: true,
+    ...(fallbackModels !== undefined ? { models: fallbackModels } : {}),
     ...(instructions.length > 0 ? { instructions } : {}),
     // Anthropic cacheControl is a measured no-op here (stripped by the Responses→Messages wrap); kept for
     // forward-compat. Non-Anthropic routes get the sticky promptCacheKey instead.
@@ -177,8 +192,7 @@ function buildResponsesBody(req: OpenRouterChatRequest, resolved: ResolvedChatKn
     ...(resolved.maxOutputTokens !== undefined ? { maxOutputTokens: resolved.maxOutputTokens } : {}),
     ...(includeReasoning ? { reasoning: { ...reasoningBlock, summary: REASONING_SUMMARY } } : {}),
     ...(provider !== undefined ? { provider } : {}),
-    ...(req.tools !== undefined ? { tools: buildResponsesTools(req.tools) } : {}),
-    ...(req.toolChoice !== undefined ? { toolChoice: buildResponsesToolChoice(req.toolChoice) } : {}),
+    ...responsesToolFields(req),
     ...(text !== undefined ? { text } : {}),
     plugins: withContextCompressionPlugin(req.params),
   };

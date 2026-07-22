@@ -2,7 +2,8 @@
 // ConnectionService (selection, not execution). Every cross-feature/infra dep arrives as an injected op,
 // wired at the composition root; connection sideways-imports no sibling runtime.
 
-import type { AgentSdkModel, CredentialSource, ModelCapability, ModelCatalogEntry, ResolvedConnection } from "@orb/contracts/connection";
+import type { ComfyuiWorkflowCapability } from "@orb/contracts/comfyui-workflow";
+import type { AgentSdkModel, ComfyuiProbeResult, CredentialSource, ModelCapability, ModelCatalogEntry, ResolvedConnection } from "@orb/contracts/connection";
 import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { Principal } from "@orb/contracts/identity";
 import type { AccountCredits, GenerationCost, VerifyAuthResult } from "@orb/contracts/providers";
@@ -15,7 +16,9 @@ import type {
   GetModelCapabilityParams,
   GetModelsForSourceParams,
   GetOrCreditsParams,
+  ProbeComfyuiParams,
   RefreshCatalogParams,
+  ResolveChatCapabilityParams,
   ResolveChatParams,
   ResolveRoleParams,
   TestClaudeAuthParams,
@@ -33,6 +36,17 @@ type FetchAgentSdkModelsOp = (req: { readonly signal?: AbortSignal | undefined }
 
 /** settings.loadUserSettings — the parsed per-user UserSettings; connection is a consumer, not an owner. */
 type LoadUserSettingsOp = (userId: UserId) => Promise<UserSettings>;
+
+/** comfyui-workflow.fetchByoWorkflowCapability — the owner-scoped per-user BYO-workflow capability read (N1 —
+ *  comfyui-control §4.11.2c). Resolves the CALLER's `byo:<name>` workflow and returns the capability DERIVED
+ *  from its stored placeholder set, or `null` when the caller has no such workflow. A plugin/rule can't resolve
+ *  another user's workflow — the ownerId is the acting principal's, threaded by `resolveRole`. */
+type ResolveByoWorkflowCapabilityOp = (ownerId: UserId, name: string) => Promise<ComfyuiWorkflowCapability | null>;
+
+/** infra/providers.probeComfyuiObjectInfo — the live `GET /object_info` reachability probe of the owner-
+ *  configured ComfyUI endpoint (MA-8/D96), collapsed to the tri-state (never throws — an unreachable engine
+ *  is `engine-off`). Keyless (no credential); the endpoint URL is env-threaded at the composition root. */
+type ProbeComfyuiOp = () => Promise<ComfyuiProbeResult>;
 
 /** infra/providers.verifyAuth — the host-Claude auth-verify diagnostic (which credential the spawned
  *  runtime used). The credential is the owner-gated `max-pro-sub` mint this domain resolves first. */
@@ -53,9 +67,11 @@ export interface ConnectionContext {
   readonly db: Db;
   readonly now: () => number;
   readonly resolveCredential: ResolveCredentialOp;
+  readonly resolveByoWorkflowCapability: ResolveByoWorkflowCapabilityOp;
   readonly fetchOrCatalog: FetchOrCatalogOp;
   readonly fetchAgentSdkModels: FetchAgentSdkModelsOp;
   readonly loadUserSettings: LoadUserSettingsOp;
+  readonly probeComfyui: ProbeComfyuiOp;
   readonly verifyClaudeAuth: VerifyClaudeAuthOp;
   readonly accountCredits: AccountCreditsOp;
   readonly generationCost: GenerationCostOp;
@@ -80,12 +96,20 @@ export type ConnectionServiceDeps = ConnectionContext;
 export interface ConnectionService {
   readonly resolveRole: (params: ResolveRoleParams) => Promise<ResolvedConnection>;
   readonly resolveChat: (params: ResolveChatParams) => Promise<ResolvedConnection>;
+  /** The caller's OWN chat-role `ModelCapability`, resolved END-TO-END in one hop (selection → descriptor) —
+   *  the client params-panel + rpg lite gate read this directly (a vLLM-default chat resolves the same as the
+   *  engine). Collapses the former selection→getModelCapability round-trip. */
+  readonly resolveChatCapability: (params: ResolveChatCapabilityParams) => Promise<ModelCapability>;
   readonly getModelCapability: (params: GetModelCapabilityParams) => Promise<ModelCapability>;
   /** Derive the mode-2 (OR-Anthropic skin) tier→OpenRouter-slug map from the two live catalogs this domain
    *  holds. Never throws — a cold catalog degrades to the curated shortlist. */
   readonly getOrSkinTierModels: () => Promise<OrSkinTierModels>;
   /** The read-only Connections role-slot picker facade — zero outbound fetch, safe as a query. */
   readonly getModelsForSource: (params: GetModelsForSourceParams) => Promise<SourceModelsResult>;
+  /** The ComfyUI live reachability + catalog probe (MA-8/D96) — one `GET /object_info` against the owner-
+   *  configured endpoint, collapsed to the client-discriminated tri-state. SSRF-surfaced (a `.mutation` at the
+   *  transport to keep the CSRF gate), never throws (an unreachable engine is `engine-off`). */
+  readonly probeComfyui: (params: ProbeComfyuiParams) => Promise<ComfyuiProbeResult>;
   readonly getCatalog: (params: GetCatalogParams) => Promise<CatalogSnapshot>;
   readonly refreshCatalog: (params: RefreshCatalogParams) => Promise<CatalogSnapshot>;
   /** The agent-sdk daemon's family→version catalog, separate from the OR catalog verbs above. */

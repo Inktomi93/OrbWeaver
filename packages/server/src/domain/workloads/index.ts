@@ -12,13 +12,20 @@ export type {
 export type { Runner } from "./contract/runner";
 
 export type {
+  CrewAgentRequest,
+  CrewAgentResult,
+  CrewAgentTurnOp,
   WorkloadAssetsEnv,
   WorkloadCharacterEnv,
+  WorkloadChatCrewEnv,
   WorkloadConnectionEnv,
+  WorkloadDatabankEnv,
   WorkloadDiscoveryEnv,
   WorkloadEmbeddingsEnv,
+  WorkloadExpressionsEnv,
   WorkloadImportEnv,
   WorkloadMemoryEnv,
+  WorkloadRpgEnv,
   WorkloadRunnerEnv,
   WorkloadStatsEnv,
 } from "./contract/runner-env";
@@ -42,7 +49,7 @@ export type { WorkloadError } from "./contract/workload-error";
 export type { WorkloadEvent } from "./contract/workload-events";
 export type { ParamsByKind, StartWorkloadInput } from "./contract/workload-params";
 export { startWorkloadInput } from "./contract/workload-params";
-export type { ResultByKind } from "./contract/workload-result";
+export type { ResultByKind, SpriteSheetJobResult } from "./contract/workload-result";
 export type { WorkloadRowAnyKind } from "./contract/workload-row";
 export type { WorkloadProgress } from "./contract/workload-state";
 export {

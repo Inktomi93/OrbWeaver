@@ -43,6 +43,8 @@ export function makeMessage(overrides: Partial<MessageRow> = {}): MessageRow {
     personaId: null,
     selectedVariantId: null,
     excludedFromPrompt: false,
+    initiator: "human",
+    automationDepth: 0,
     createdAt: FROZEN_AT_MS,
     editedAt: null,
     ...overrides,

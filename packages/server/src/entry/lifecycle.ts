@@ -16,11 +16,13 @@ import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Configuration } from "openid-client";
 import { discovery } from "openid-client";
+import { startAutomationWatcher } from "#domain/automation";
 import { startBuddyObserver } from "#domain/buddy";
+import { startCrewScheduler } from "#domain/crew";
 import { createOidcStore, createSessionsService, ownerHandles } from "#domain/sessions";
 import { loadWorkload, nextRunnableWorkload, reapOrphanedWorkloads, runWorkload, subscribeWorkloadWake } from "#domain/workloads";
 import { env } from "#foundation/env";
-import { getLog } from "#foundation/observability";
+import { getLog, initTracing, wrapLibSqlClient } from "#foundation/observability";
 import { createForwardJwtVerifier, createPasswordHasher } from "#infra/auth";
 import { credentialsKeyFromEnv } from "#infra/crypto";
 import { installEgressFirewall } from "#infra/network";
@@ -30,6 +32,7 @@ import { startCatalogRefreshScheduler } from "../transport/jobs/catalog-refresh-
 import { startOidcGcScheduler } from "../transport/jobs/oidc-gc-scheduler";
 import { startWorkloadScheduleScheduler } from "../transport/jobs/workload-schedule-scheduler";
 import { startWorkloadsWorker } from "../transport/jobs/workloads-worker";
+import { setChatOpenTap } from "../transport/trpc";
 import { createApp } from "./app";
 import { createAuthSeam } from "./auth";
 import {
@@ -43,9 +46,12 @@ import {
   seedThemes,
 } from "./boot";
 import { createServices } from "./compose";
+import { createAutomationWatcherEnv } from "./compose/automation-watcher";
 import { createBuddyObserverEnv } from "./compose/buddy-observer";
+import { createCrewSchedulerEnv } from "./compose/crew-scheduler";
+import { buildHubAvatarFetcher } from "./compose/hubs";
 import type { LocalAuthenticator, OidcRoutesDeps } from "./http";
-import { createRateLimitGate } from "./rate-limit-gate";
+import { createHubAvatarLimiter, createRateLimitGate } from "./rate-limit-gate";
 
 const MS_PER_HOUR = 3_600_000;
 const CATALOG_CHECK_INTERVAL_MS = MS_PER_HOUR;
@@ -70,6 +76,8 @@ export function createLifecycle(): Lifecycle {
   let stopOidcGc: (() => void) | null = null;
   let stopWorker: AbortController | null = null;
   let stopBuddyObserver: (() => void) | null = null;
+  let stopCrewScheduler: (() => void) | null = null;
+  let stopAutomationWatcher: (() => void) | null = null;
   let drainVllm: (() => void) | null = null;
   let booted = false;
 
@@ -80,11 +88,17 @@ export function createLifecycle(): Lifecycle {
     }
     booted = true;
 
+    // Boot the OTel SDK BEFORE any span opens (the db wrap below opens the first spans). Idempotent — the
+    // composition-root call; without it the first query would lazy-boot tracing implicitly.
+    initTracing();
+
     // Swap undici's global dispatcher for the private-IP-rejecting DNS lookup so every outbound fetch
     // below is address-gated before it can fire. No-op when EGRESS_FIREWALL=false.
     installEgressFirewall();
 
-    db = await createDb(env.DATABASE_URL);
+    // Inject the OTel libSQL wrap so every db.execute/batch/transaction opens a child span under the active
+    // request-root (the composition-root injection the tracing.ts + createDb headers document).
+    db = await createDb(env.DATABASE_URL, wrapLibSqlClient);
 
     const secretBoxKey = credentialsKeyFromEnv();
 
@@ -245,6 +259,18 @@ export function createLifecycle(): Lifecycle {
       }),
     ).stop;
 
+    // The chat-crew cadence engine (chat-crew-design/04 §3) — reacts to completed assistant turns, enqueues
+    // due members (CW2: the keeper). Fire-and-forget; SIGTERM unsubscribes.
+    stopCrewScheduler = startCrewScheduler(createCrewSchedulerEnv({ crew: built.services.crew })).stop;
+
+    // The automation watcher (A5, D46) — evaluates enabled rules against the chat firehose + the domain-event
+    // bus. The per-viewer `chatOpened` trigger rides the transport-attach synthesis (D81), not the bus, so it
+    // is tapped separately into the same `handleEvent`. Fire-and-forget; SIGTERM stops both.
+    stopAutomationWatcher = startAutomationWatcher(createAutomationWatcherEnv({ automation: built.automation, eventBus: built.eventBus })).stop;
+    setChatOpenTap((chatId) => {
+      void built.automation.handleEvent({ type: "chatOpened", chatId });
+    });
+
     let authenticate: LocalAuthenticator | undefined;
     if (env.AUTH_MODE === "local") {
       authenticate = (handle: string, password: string): Promise<UserId | null> => built.sessions.authenticate(handle, password);
@@ -304,12 +330,15 @@ export function createLifecycle(): Lifecycle {
       services: built.services,
       rateLimit: createRateLimitGate({ db, now }),
       presence: built.presence,
+      rpgTrace: built.rpgTrace,
       assets: built.assets,
       cas: createCas(env.ASSETS_DIR),
       character: built.services.character,
       exportService: built.exportService,
       portability: built.portability,
       importWorldInfo: built.importWorldInfo,
+      hubAvatarFetch: buildHubAvatarFetcher(),
+      hubAvatarConsumeRate: createHubAvatarLimiter({ db, now }).consume,
       sessions: built.sessions,
       isShuttingDown: () => isShuttingDown,
       credentialsKeyOk: () => credentialsKeyOk,
@@ -374,6 +403,15 @@ export function createLifecycle(): Lifecycle {
       stopBuddyObserver();
       stopBuddyObserver = null;
     }
+    if (stopCrewScheduler !== null) {
+      stopCrewScheduler();
+      stopCrewScheduler = null;
+    }
+    if (stopAutomationWatcher !== null) {
+      stopAutomationWatcher();
+      stopAutomationWatcher = null;
+    }
+    setChatOpenTap(null);
     if (drainVllm !== null) {
       drainVllm();
       drainVllm = null;

@@ -15,6 +15,10 @@ export const PROVIDER_ERROR_KINDS = [
   "rate_limit",
   "auth_failed",
   "billing",
+  // The provider's CONTENT-moderation layer blocked the prompt (OpenRouter returns 403 +
+  // `error.metadata.reasons`) — distinct from `auth_failed` (a bad key) and `forbidden` (OUR firewall).
+  // Non-retryable; the UI can say "this content was moderated", never "authentication failed".
+  "moderation",
   // The credential firewall denied this (source/role/consent policy) — fail-closed, not retryable.
   "forbidden",
   // A structurally-invalid request: a wrong source for a role, an unwired backend, an unsupported

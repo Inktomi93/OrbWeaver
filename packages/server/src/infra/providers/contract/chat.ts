@@ -6,8 +6,13 @@ import type { ChatContentPart } from "@orb/contracts/chat";
 import type { ModelCapability, OpenRouterProviderRouting } from "@orb/contracts/connection";
 import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { CustomParameters, UserIntent } from "@orb/contracts/preset";
+import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type { ModelId } from "@orb/kit/ids";
 import type { ChatDeltaEvent, ChatEvent, RateLimitSnapshot } from "./events";
+
+// The structured-output request vocabulary lives at its cross-boundary home (D79); re-exported here so the
+// infra wire arms + the `#providers` barrel keep importing it from the chat-role contract they already read.
+export type { ResponseFormat } from "@orb/contracts/role-clients";
 
 // Deliberately not kit MESSAGE_ROLES: `tool` exists only between the engine request seam and a translator
 // (never a persisted slot role); `system` rides `systemPrompt`, not history.
@@ -41,17 +46,6 @@ export interface ToolCallInput {
   readonly toolCallId: string;
   readonly name: string;
   readonly arguments: string;
-}
-
-/** The structured-output request (never rides `toolChoice`). */
-export interface ResponseFormat {
-  /** Schema name (OpenAI `json_schema.name`; Anthropic tool name). */
-  readonly name: string;
-  /** JSON Schema — projected by the same rule as tools (`additionalProperties:false`). */
-  readonly schema: Record<string, unknown>;
-  /** Default true. */
-  readonly strict?: boolean | undefined;
-  readonly description?: string | undefined;
 }
 
 /** One rendered transcript turn the agent-sdk backend seeds its session from. Role + final text only — no session vocab. */

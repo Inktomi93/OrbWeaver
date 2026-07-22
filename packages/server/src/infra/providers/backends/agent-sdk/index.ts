@@ -22,6 +22,7 @@ import type {
   VerifyAuthRequest,
 } from "../../contract";
 import { ProviderError } from "../../contract";
+import { passthroughImageNormalizer } from "../kit";
 import { runAgentTurn } from "./agent-runner";
 import { fetchAgentSdkModels } from "./catalog";
 import { ensureFreshHostSubToken } from "./host-token";
@@ -33,6 +34,7 @@ import { verifyAuth } from "./verify-auth";
 
 export { fetchAgentSdkModels } from "./catalog";
 export {
+  buildClaudeAnthEnv,
   buildClaudeOpenRouterEnv,
   buildClaudeSdkEnv,
   buildClaudeVllmEnv,
@@ -60,6 +62,7 @@ export {
   type ProviderTurnLog,
   type ProviderTurnUsage,
 } from "./log";
+export { sanitizeAnthropicOutputSchema } from "./output-schema";
 export { consumeTurnStream } from "./runner";
 export { disciplineOptions, dynamicContextOptions, firewallBase } from "./translate";
 export { assertInitFrameShape, classifyTerminalReason } from "./verify";
@@ -70,6 +73,8 @@ export interface AgentSdkBackendDeps {
   readonly now: () => number;
   readonly query?: AgentSdkDeps["query"];
   readonly sessionStore?: AgentSdkDeps["sessionStore"];
+  /** The shared outbound-image normalize seam (MA-10 summarize vision); absent ⇒ the label-only passthrough. */
+  readonly normalizeImageBytes?: AgentSdkDeps["normalizeImageBytes"];
   /** Tests inject a hermetic no-op so discovery/turn tests never hit the live OAuth endpoint. */
   readonly refreshHostSubToken?: AgentSdkDeps["refreshHostSubToken"];
 }
@@ -80,6 +85,7 @@ export function createAgentSdkBackend(deps: AgentSdkBackendDeps): ProviderBacken
     now: deps.now,
     query: deps.query ?? query,
     sessionStore: sessions.store,
+    normalizeImageBytes: deps.normalizeImageBytes ?? passthroughImageNormalizer,
     refreshHostSubToken: deps.refreshHostSubToken ?? ((): Promise<boolean> => ensureFreshHostSubToken({ now: deps.now })),
   };
   return {

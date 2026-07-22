@@ -1,9 +1,11 @@
 // Mint a loginable local human. Authority is role-dependent: minting a regular `user` is admin-gated;
 // minting an `admin` is owner-only — the same gate `setRole` uses, closing the create/set-role privilege
-// asymmetry. Mints humans only. Guards: invalid_handle, cannot_grant_owner (never minted here), weak_password,
-// user_exists (both the pre-SELECT and the TOCTOU insert-conflict race translate to the same code).
+// asymmetry. Mints humans only. Guards: invalid_handle (empty OR the reserved `__agent__` namespace —
+// the fourth namespace-belt arm, D60 doc 06 §1/§8 inv 3), cannot_grant_owner (never minted here),
+// weak_password, user_exists (both the pre-SELECT and the TOCTOU insert-conflict race translate to the same code).
 
 import type { Principal, UserRole } from "@orb/contracts/identity";
+import { isReservedAgentHandle } from "@orb/contracts/identity";
 import { isConstraintViolation, users } from "@orb/db";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { Handle } from "@orb/kit/ids";
@@ -39,6 +41,12 @@ function validateCreate(params: CreateUserParams, role: UserRole): string {
   const handle = params.handle.trim();
   if (handle.length === 0) {
     throw new DomainOperationError(ADMIN_OP_CODES.invalidHandle, "handle must not be empty");
+  }
+  // The `__agent__` namespace belongs to agent principals (minted only via provisionAgentPrincipal). Refuse
+  // it here so an admin can't squat a deterministic buddy handle — the fourth arm of the namespace belt
+  // (ensureUser/provisionIdentity/targeted-invite already refuse it; D60 doc 06 §1/§8 inv 3).
+  if (isReservedAgentHandle(handle)) {
+    throw new DomainOperationError(ADMIN_OP_CODES.invalidHandle, "the __agent__ handle namespace is reserved for agent principals");
   }
   // The owner is the immutable bootstrap row — never minted through admin. Refuses even the owner caller,
   // so a second owner can never be minted.

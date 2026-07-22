@@ -3,6 +3,7 @@
 // character_embeddings.sourceText, which would couple distill to the embed indexer's text builder).
 // Synthetic (per-room group) characters are excluded — they have no real card text.
 
+import type { Greeting } from "@orb/contracts/character";
 import type { Db } from "@orb/db";
 import { characters } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
@@ -51,7 +52,7 @@ function composeCardText(card: {
   readonly description: string | null;
   readonly personality: string | null;
   readonly scenario: string | null;
-  readonly greetings: readonly string[];
+  readonly greetings: readonly Greeting[];
   readonly exampleMessages: string | null;
 }): string {
   const parts: string[] = [`Name: ${card.name}`];
@@ -64,7 +65,7 @@ function composeCardText(card: {
   add("Description", card.description);
   add("Personality", card.personality);
   add("Scenario", card.scenario);
-  add("Greeting", card.greetings[0] ?? null);
+  add("Greeting", card.greetings[0]?.text ?? null);
   add("Example dialogue", card.exampleMessages);
   return parts.join("\n\n");
 }

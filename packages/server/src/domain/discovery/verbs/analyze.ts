@@ -6,13 +6,16 @@
 // Both owner-belt via `characters.ownerId` (a foreign/undistilled character short-circuits to null before any
 // summarize call). Analytics ≠ retrieval — this file calls no search verb.
 
+import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type { CharacterId, UserId } from "@orb/kit/ids";
+import { projectJsonSchema } from "@orb/kit/json-schema";
+import { runStructuredTurn, StructuredOutputError } from "@orb/server/kit/structured-turn";
+import { z } from "zod";
 import type { DiscoveryContext } from "../context";
 import type { AskCardAnswer, CharacterComparison, CharacterComparisonDeep, ComparisonNarrative } from "../contract/results";
 import type { AnalyzeDeps, DiscoveryService } from "../contract/service";
 import { readCharacterMessageSamples } from "../persistence/message-reads";
 import { readOwnedCardFacet } from "../persistence/summary-reads";
-import { sliceJsonObject } from "../substrate/json-extract";
 
 // The recent-scene grounding window for askCard — enough context to answer without dragging a whole history.
 const ASK_SAMPLE_LIMIT = 12;
@@ -39,15 +42,10 @@ Respond with ONLY a JSON object of this exact shape (no prose, no markdown, no <
 - overlap: what they genuinely share (from the shared genre/tone/tags).
 - distinction: what sets them apart (from the distinct tags + differing genre/tone).`;
 
-const NARRATIVE_SCHEMA = {
-  type: "object",
-  properties: {
-    summary: { type: "string" },
-    overlap: { type: "string" },
-    distinction: { type: "string" },
-  },
-  required: ["summary", "overlap", "distinction"],
-} as const;
+// The structured-output payload (D79) — the zod schema is BOTH the wire constraint (via the one projection
+// rule) and the runtime validator inside runStructuredTurn.
+const NARRATIVE_PAYLOAD = z.object({ summary: z.string(), overlap: z.string(), distinction: z.string() });
+const NARRATIVE_RESPONSE_FORMAT: ResponseFormat = { name: "comparison_narrative", schema: projectJsonSchema(NARRATIVE_PAYLOAD) };
 
 /** null when the ids are equal or either card isn't owned/distilled (delegates the belt + diff to
  *  {@link compareCharacters}). Otherwise decorates the diff with a grounded LLM narrative. */
@@ -60,12 +58,26 @@ async function compareCharactersDeep(
   if (base === null) {
     return null;
   }
-  const result = await ctx.summarize([{ systemPrompt: COMPARE_SYSTEM, userPrompt: buildComparePrompt(base) }], {
-    jsonSchema: NARRATIVE_SCHEMA,
-    maxTokens: NARRATIVE_MAX_TOKENS,
-    temperature: ANALYZE_TEMPERATURE,
-  });
-  return { ...base, narrative: parseNarrative(result.items[0]?.text) };
+  const prompt = buildComparePrompt(base);
+  const run = async (correction?: string): Promise<string> => {
+    const result = await ctx.summarize([{ systemPrompt: COMPARE_SYSTEM, userPrompt: correction === undefined ? prompt : `${prompt}\n\n${correction}` }], {
+      responseFormat: NARRATIVE_RESPONSE_FORMAT,
+      maxTokens: NARRATIVE_MAX_TOKENS,
+      temperature: ANALYZE_TEMPERATURE,
+    });
+    return result.items[0]?.text ?? "";
+  };
+  let narrative: ComparisonNarrative;
+  try {
+    const p = await runStructuredTurn({ payloadSchema: NARRATIVE_PAYLOAD, run });
+    narrative = { summary: p.summary.trim(), overlap: p.overlap.trim(), distinction: p.distinction.trim() };
+  } catch (err) {
+    if (!(err instanceof StructuredOutputError)) {
+      throw err; // an engine/infra error propagates; only a validation failure degrades (the diff is truth)
+    }
+    narrative = { summary: err.raw.trim(), overlap: "", distinction: "" };
+  }
+  return { ...base, narrative };
 }
 
 function buildComparePrompt(cmp: CharacterComparison): string {
@@ -81,21 +93,6 @@ function buildComparePrompt(cmp: CharacterComparison): string {
   ].join("\n");
 }
 
-/** Tolerant parse of the narrative reply — a non-JSON reply falls back to the raw text as `summary` (never a
- *  throw; the diff is still the source of truth). */
-function parseNarrative(raw: string | undefined): ComparisonNarrative {
-  const str = (v: unknown): string => (typeof v === "string" ? v.trim() : "");
-  const obj = raw === undefined ? null : sliceJsonObject(raw);
-  if (obj === null) {
-    return { summary: str(raw), overlap: "", distinction: "" };
-  }
-  return {
-    summary: str(obj["summary"]),
-    overlap: str(obj["overlap"]),
-    distinction: str(obj["distinction"]),
-  };
-}
-
 const ASK_SYSTEM = `You answer a user's question about ONE of their roleplay characters, using ONLY the recent scenes provided. Do not invent facts not present in the scenes.
 
 Respond with ONLY a JSON object of this exact shape (no prose, no markdown, no <think>):
@@ -104,11 +101,8 @@ Respond with ONLY a JSON object of this exact shape (no prose, no markdown, no <
 - answer: a direct answer to the question, drawn from the scenes.
 - grounded: true if the scenes actually support the answer; false if they don't and you had to guess or the scenes were empty.`;
 
-const ANSWER_SCHEMA = {
-  type: "object",
-  properties: { answer: { type: "string" }, grounded: { type: "boolean" } },
-  required: ["answer", "grounded"],
-} as const;
+const ANSWER_PAYLOAD = z.object({ answer: z.string(), grounded: z.boolean() });
+const ANSWER_RESPONSE_FORMAT: ResponseFormat = { name: "card_answer", schema: projectJsonSchema(ANSWER_PAYLOAD) };
 
 /** null when the character isn't owned/distilled. Otherwise answers from the recent PLAYED scenes. */
 async function askCard(ctx: DiscoveryContext, userId: UserId, characterId: CharacterId, question: string): Promise<AskCardAnswer | null> {
@@ -117,34 +111,32 @@ async function askCard(ctx: DiscoveryContext, userId: UserId, characterId: Chara
     return null;
   }
   const samples = await readCharacterMessageSamples(ctx.db, userId, characterId, ASK_SAMPLE_LIMIT);
-  const result = await ctx.summarize([{ systemPrompt: ASK_SYSTEM, userPrompt: buildAskPrompt(card.name, question, samples) }], {
-    jsonSchema: ANSWER_SCHEMA,
-    maxTokens: ANSWER_MAX_TOKENS,
-    temperature: ANALYZE_TEMPERATURE,
-  });
-  const parsed = parseAnswer(result.items[0]?.text);
-  return {
-    characterId,
-    question,
-    answer: parsed.answer,
-    grounded: parsed.grounded,
-    sampledMessages: samples.length,
+  const prompt = buildAskPrompt(card.name, question, samples);
+  const run = async (correction?: string): Promise<string> => {
+    const result = await ctx.summarize([{ systemPrompt: ASK_SYSTEM, userPrompt: correction === undefined ? prompt : `${prompt}\n\n${correction}` }], {
+      responseFormat: ANSWER_RESPONSE_FORMAT,
+      maxTokens: ANSWER_MAX_TOKENS,
+      temperature: ANALYZE_TEMPERATURE,
+    });
+    return result.items[0]?.text ?? "";
   };
+  let answer: string;
+  let grounded: boolean;
+  try {
+    const p = await runStructuredTurn({ payloadSchema: ANSWER_PAYLOAD, run });
+    answer = p.answer.trim();
+    grounded = p.grounded;
+  } catch (err) {
+    if (!(err instanceof StructuredOutputError)) {
+      throw err; // an engine/infra error propagates; a validation failure degrades to ungrounded raw text
+    }
+    answer = err.raw.trim();
+    grounded = false;
+  }
+  return { characterId, question, answer, grounded, sampledMessages: samples.length };
 }
 
 function buildAskPrompt(name: string, question: string, samples: readonly { content: string }[]): string {
   const scenes = samples.length === 0 ? "(no played scenes)" : samples.map((s, i) => `Scene ${i + 1}:\n${s.content.slice(0, SCENE_MAX_CHARS)}`).join("\n\n");
   return `Character: ${name}\n\nQuestion: ${question}\n\nRecent scenes:\n${scenes}`;
-}
-
-/** Tolerant parse — a non-JSON reply falls back to raw text as `answer`, `grounded=false`. */
-function parseAnswer(raw: string | undefined): { answer: string; grounded: boolean } {
-  const obj = raw === undefined ? null : sliceJsonObject(raw);
-  if (obj === null) {
-    return { answer: typeof raw === "string" ? raw.trim() : "", grounded: false };
-  }
-  return {
-    answer: typeof obj["answer"] === "string" ? (obj["answer"] as string).trim() : "",
-    grounded: obj["grounded"] === true,
-  };
 }

@@ -21,9 +21,11 @@
 // both derived from the request principal, NEVER from client input. A caller can only ever read/receive its
 // OWN identity/channel; there is no input to widen either.
 
+import { agentSourceKindSchema } from "@orb/contracts/identity";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { UserId } from "@orb/kit/ids";
-import type { ViewerView } from "#domain/sessions";
+import { z } from "zod";
+import type { OwnedAgentView, ViewerView } from "#domain/sessions";
 import { authedProcedure, t } from "../trpc";
 import { subscribeUserEvents } from "../user-events-bus";
 
@@ -43,6 +45,18 @@ export const sessionsRouter = t.router({
   // domain (nothing throws a `DomainError` mid-stream), and no `tracked()` — live-only, resume is
   // deliberately unsupported (the client blanket-invalidates on reconnect).
   streamUserEvents: authedProcedure.subscription(({ ctx, signal }) => streamUserEventsFor(ctx.auth.userId, signal ?? new AbortController().signal)),
+
+  // The caller's OWN agent principals (the connections pane's per-agent connection table, D67 amendment).
+  // Scope: `ownerUserId` is `ctx.auth.userId` — NEVER client input, so it returns only the caller's agents
+  // (self-scoped, no foreign id; EXEMPT in the cross-tenant sweep).
+  listMyAgents: authedProcedure.query(({ ctx }): Promise<OwnedAgentView[]> => ctx.services.sessions.listMyAgents(ctx.auth.userId)),
+
+  // Mint (or idempotently adopt) the caller's OWN agent principal for a `sourceKind` (the "Add agent"
+  // affordance — v1: buddy only). `ownerUserId` is `ctx.auth.userId` (self-scoped, no foreign id); the verb
+  // gates the owner (human + enabled) and is idempotent (`created:false` on re-call). Sweep: EXEMPT.
+  provisionAgent: authedProcedure
+    .input(z.object({ sourceKind: agentSourceKindSchema }))
+    .mutation(({ ctx, input }) => ctx.services.sessions.provisionAgentPrincipal({ ownerUserId: ctx.auth.userId, sourceKind: input.sourceKind })),
 });
 
 async function* streamUserEventsFor(userId: UserId, signal: AbortSignal): AsyncGenerator<UserBusEvent> {

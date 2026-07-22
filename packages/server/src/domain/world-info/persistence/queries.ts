@@ -3,10 +3,12 @@
 // entry is owned iff its worldBookId is one of the caller's books (never a bare eq(id) — cross-tenant hole).
 // toEntryView parses the stored metadata blob at the read seam; a corrupt row degrades to null.
 
+import type { LoreConstantCanonRow } from "@orb/contracts/world-info";
 import { entryMetadataSchema } from "@orb/contracts/world-info";
 import type { Db } from "@orb/db";
 import { characterBooks, chatBooks, globalBooks, personaBooks, worldBooks, worldEntries } from "@orb/db";
 import type { CharacterId, ChatId, PersonaId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
+import { resolveEntryScope } from "@orb/kit/world-info";
 import { and, desc, eq } from "drizzle-orm";
 import type { BookAttachmentView, BookView, EntryView, WorldBookRole } from "../contract/views";
 
@@ -102,6 +104,29 @@ export async function listChatBooks(db: Db, chatId: ChatId): Promise<BookAttachm
     .where(eq(chatBooks.chatId, chatId))
     .orderBy(desc(worldBooks.createdAt));
   return rows.map((r) => toAttachmentView(r.book, null));
+}
+
+/** A chat's CONSTANT ("always"-scope) lorebook canon — the entries a pre-play producer treats as world truth
+ *  (rpg-design/06 §4). Joins the chat's attached books → their enabled entries, resolves each entry's scope
+ *  (explicit `metadata.scopeMode`, else the keys-presence heuristic), and keeps the always-on ones. Not
+ *  owner-filtered — a chat's attached books are room-public prompt content (membership is the caller gate,
+ *  mirroring listChatBooks). */
+export async function listChatConstantCanon(db: Db, chatId: ChatId): Promise<LoreConstantCanonRow[]> {
+  const rows = await db
+    .select({
+      title: worldEntries.title,
+      content: worldEntries.content,
+      keys: worldEntries.keys,
+      metadata: worldEntries.metadata,
+      enabled: worldEntries.enabled,
+    })
+    .from(chatBooks)
+    .innerJoin(worldEntries, eq(worldEntries.worldBookId, chatBooks.worldBookId))
+    .where(eq(chatBooks.chatId, chatId))
+    .orderBy(desc(worldEntries.priority));
+  return rows
+    .filter((r) => r.enabled && resolveEntryScope(r.metadata, (r.keys ?? []).length > 0) === "always")
+    .map((r) => ({ title: r.title, content: r.content }));
 }
 
 /** Reverse of listChatBooks. A book attached to zero chats returns []. */

@@ -9,7 +9,9 @@ import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import { getLog } from "#foundation/observability";
 import { SYSTEM_DEFAULT_PRESET_ID, SYSTEM_DEFAULT_PRESET_KIND, SYSTEM_DEFAULT_PRESET_NAME } from "./constants";
-import { insertPreset, reseedSystemDefault, selectSystemDefault } from "./persistence/queries";
+import type { PackagedPreset } from "./contract/packaged";
+import { PACKAGED_PRESETS } from "./contract/packaged";
+import { insertPreset, reseedPackagedPreset, reseedSystemDefault, selectPackagedPreset, selectSystemDefault } from "./persistence/queries";
 
 export async function ensureSystemDefaultPreset(db: Db, now: () => number): Promise<void> {
   const existing = await selectSystemDefault(db);
@@ -40,5 +42,46 @@ export async function ensureSystemDefaultPreset(db: Db, now: () => number): Prom
       },
       "preset: reseeded system default (schemaVersion bump)",
     );
+  }
+}
+
+/** Ensure every shipped PACKAGED template preset (ownerless, well-known id) exists. Mirrors the system-default
+ *  seeder: first boot inserts each row; a stored `schemaVersion` below the registry config's version forces a
+ *  reseed (re-stamping name/kind/config). Idempotent across boots — a version bump is the ONLY reseed trigger.
+ *  These rows are clone sources (`clonePackaged`), deliberately kept OUT of the readable list. */
+export async function ensurePackagedPresets(db: Db, now: () => number): Promise<void> {
+  // Each key is an independent well-known-id row (distinct ids, no ordering) — seed in parallel.
+  await Promise.all(Object.entries(PACKAGED_PRESETS).map(([key, template]) => ensureOnePackagedPreset(db, key, template, now)));
+}
+
+async function ensureOnePackagedPreset(db: Db, key: string, template: PackagedPreset, now: () => number): Promise<void> {
+  const existing = await selectPackagedPreset(db, template.id);
+  const version = template.config.schemaVersion;
+
+  if (existing === undefined) {
+    const at = now();
+    await insertPreset(db, {
+      id: template.id,
+      ownerId: null,
+      name: template.name,
+      kind: template.kind,
+      config: template.config,
+      schemaVersion: version,
+      createdAt: at,
+      updatedAt: at,
+    });
+    getLog().info({ presetId: template.id, packagedKey: key }, "preset: seeded packaged");
+    return;
+  }
+
+  if (existing.schemaVersion < version) {
+    await reseedPackagedPreset(db, template.id, {
+      name: template.name,
+      kind: template.kind,
+      config: template.config,
+      schemaVersion: version,
+      updatedAt: now(),
+    });
+    getLog().info({ presetId: template.id, packagedKey: key, from: existing.schemaVersion, to: version }, "preset: reseeded packaged (schemaVersion bump)");
   }
 }

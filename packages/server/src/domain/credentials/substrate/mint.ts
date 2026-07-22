@@ -9,11 +9,14 @@
 // hatch, kept narrow and single-sited.
 
 import type {
+  AnthropicCredential,
+  ComfyuiCredential,
   CustomOpenAiCredential,
   CustomOpenAiResponseMap,
   LocalLightCredential,
   MaxProSubCredential,
   OpenRouterCredential,
+  VeniceCredential,
   VllmCredential,
 } from "@orb/contracts/credentials";
 import type { Principal } from "@orb/contracts/identity";
@@ -33,6 +36,20 @@ export function mintOpenRouter(apiKey: string, credentialId: UserCredentialId | 
   return { source: "openrouter", apiKey, credentialId } as OpenRouterCredential;
 }
 
+/** Mint a first-party Anthropic credential (W11) — a paid `x-api-key` sent to `api.anthropic.com`.
+ *  `credentialId` is the row id (always a row for this source); `apiKey` is the decrypted key. Any
+ *  authenticated user. NEVER the free Max sub (that stays the owner-only agent-sdk `max-pro-sub` arm). */
+export function mintAnthropic(apiKey: string, credentialId: UserCredentialId): AnthropicCredential {
+  return { source: "anthropic", apiKey, credentialId } as AnthropicCredential;
+}
+
+/** Mint a hosted Venice image-generation credential (MA-1) — a paid Venice API key sent as
+ *  `Authorization: Bearer` to `api.venice.ai`. `credentialId` is the row id (always a row for this source);
+ *  `apiKey` is the decrypted key. Any authenticated user; serves the `generateImage` role only. */
+export function mintVenice(apiKey: string, credentialId: UserCredentialId): VeniceCredential {
+  return { source: "venice", apiKey, credentialId } as VeniceCredential;
+}
+
 /** Mint the supervised loopback vLLM marker — the owner's-box GPU engine. No key, no row. */
 export function mintVllm(): VllmCredential {
   return { source: "vllm", credentialId: null } as VllmCredential;
@@ -41,6 +58,12 @@ export function mintVllm(): VllmCredential {
 /** Mint the in-process transformers.js/ONNX marker — the owner's-box keyless local-light tier. */
 export function mintLocalLight(): LocalLightCredential {
   return { source: "local-light", credentialId: null } as LocalLightCredential;
+}
+
+/** Mint the local ComfyUI marker (MA-8) — an owner-configured image-generation endpoint. Keyless: no
+ *  key, no row (the endpoint URL comes from env, threaded to the backend). Serves generateImage only. */
+export function mintComfyui(): ComfyuiCredential {
+  return { source: "comfyui", credentialId: null } as ComfyuiCredential;
 }
 
 /** Mint a user-defined OpenAI-compatible endpoint credential. `apiKey` is `null` for no-auth local

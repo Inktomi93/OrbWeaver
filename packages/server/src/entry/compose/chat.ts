@@ -5,16 +5,18 @@
 // offline, so no request Principal exists). Two bridges: role-irrelevant ops use the cheap synthetic
 // `hostPrincipal`; role-sensitive ops (owner-gates) use the injected `resolveHostPrincipal`.
 
-import type { AgentSpeakerIdentity, ChatBusEvent } from "@orb/contracts/chat";
+import type { AgentCardView, AgentSpeakerIdentity, ChatBusEvent } from "@orb/contracts/chat";
 import type { ResolvedConnection, RouteChatAssignment } from "@orb/contracts/connection";
 import type { AgentSourceKind, Can, CanAgent, Principal } from "@orb/contracts/identity";
 import type { ChoiceBlockSpec, PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { RoleClients } from "@orb/contracts/role-clients";
+import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { BatchStmt, Db } from "@orb/db";
-import { characterPersonas, chatParticipants, chats, personas, users } from "@orb/db";
+import { agentPrincipals, characterPersonas, chatParticipants, chats, personas, users } from "@orb/db";
 import type { AssetId, ChatId, Handle, PersonaId, PresetId, TypeIdOf, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import type { VarOp } from "@orb/kit/macro";
 import type { PersonaDescriptionPlacement } from "@orb/kit/persona";
 import { resolvePersonaDescriptionPlacement } from "@orb/kit/persona";
 import { and, eq, isNull } from "drizzle-orm";
@@ -26,17 +28,27 @@ import type {
   ChatServiceDeps,
   ChatToolOps,
   ChatToolSet,
+  GetMembership,
+  GetPendingUserText,
   MemoryConfig,
+  PostNarratorMessage,
   PresenceReadOp,
+  PromptTransformRegistry,
+  RequestTurnOp,
   TurnMessage,
   TurnRequest,
   TurnStreamChunk,
 } from "#domain/chat";
 import {
+  applyStandaloneVariableOps,
   backfillGroupCharacters,
   backfillMemory,
   createActiveTurns,
   createChatService,
+  createGetMembership,
+  createGetPendingUserText,
+  createPostNarratorMessage,
+  createPromptTransformRegistry,
   getGroupConfig,
   getRoomOverrides,
   parseChatMetadata,
@@ -61,6 +73,7 @@ import { AGENT_PROMPT_TAIL_JOINER } from "#infra/providers";
 import { createRegexApplyReplace } from "#kit/regex";
 import { createMemberBudget } from "../../transport/rate-limit";
 import { publishNotification } from "../../transport/trpc";
+import { createAgentConnectionResolver } from "./agent-connection";
 import { createChatChangedEmitter } from "./emit-chat-changed";
 import { resolveImageRefToUrl } from "./resolve-image-ref";
 
@@ -162,15 +175,32 @@ export interface ChatComposeInput {
   }) => Promise<{ readonly agentUserId: UserId; readonly created: boolean }>;
   /** The compose-root speaker-source dispatch (agent → owner+sourceKind → the registered soul resolver). */
   readonly resolveAgentSpeaker: (agentUserId: UserId) => Promise<AgentSpeakerIdentity | null>;
+  /** The compose-root D22 agent-card projection (roster chip; doc 06 §5) — display name + sourceKind + owner handle. */
+  readonly resolveAgentCardView: (agentUserId: UserId) => Promise<AgentCardView | null>;
   /** The ONE agent capability gate (`domain/admin/guard.ts`) — injected so chat's engine never imports admin. */
   readonly canAgent: CanAgent;
   readonly search: SearchService;
   readonly embeddings: EmbeddingsService;
+  /** The databank `{{databank}}`-slot GATHER op (DB6) — OPTIONAL; absent wires `ChatContext.gatherDatabank`
+   *  to undefined (byte-identical no-op). Bridged from `databank.gatherRetrieval` at the composition root. */
+  readonly gatherDatabank?: ChatContext["gatherDatabank"];
   readonly runChatTurn: (req: ChatRequest) => Promise<ChatResult>;
   readonly assets: AssetsService;
+  /** Materialize a user-pasted external carried-background URL into an owned CAS asset (side-eye F-P0-2) — the
+   *  shared compose-built op the `setChatBackground` verb runs for a `kind:"external"` source. */
+  readonly materializeBackground: MaterializeBackgroundOp;
   readonly readPresence: PresenceReadOp;
   /** imagery's orchestrator → chat's `generatePicture` op (mapped to the chat-local structural result below). */
   readonly generatePicture: ImageryService["generatePicture"];
+  /** The expressions post-turn classify hook (E3 — expressions-design/02 §0) — OPTIONAL; absent wires
+   *  `ChatContext.expressions` to null (byte-identical no-op). Bridged from `expressions.onTurnCompleted`. */
+  readonly expressions?: ChatContext["expressions"];
+  /** The injected rpg turn ops (rpg-design/05 §0) — OPTIONAL; absent wires `ChatContext.rpg` to null
+   *  (byte-identical no-op). Built at the composition root over the rpg service + its standalone gather op. */
+  readonly rpg?: ChatContext["rpg"] | undefined;
+  /** The injected chat-crew director GATHER op (chat-crew-design/04 §1) — OPTIONAL; absent wires
+   *  `ChatContext.crew` to null (byte-identical no-op). A forward-ref delegate over the crew service. */
+  readonly crew?: ChatContext["crew"] | undefined;
 }
 
 /** The chat compose product: the service + the bus's durable-first emit, surfaced for other producers that
@@ -178,6 +208,26 @@ export interface ChatComposeInput {
 export interface ChatComposeResult {
   readonly service: ChatService;
   readonly emitBusEvent: (event: ChatBusEvent) => Promise<void>;
+  /** The generic, principal-free chat ops domain/rpg receives by injection (02 §1.1) — built over chat's own
+   *  ctx here (chat never learns rpg). Wired onto `RpgContext.chat` at the rpg compose block. */
+  readonly rpgChatOps: {
+    readonly getMembership: GetMembership;
+    readonly postNarratorMessage: PostNarratorMessage;
+    readonly getPendingUserText: GetPendingUserText;
+  };
+  /** The D50 PromptTransform registrar (automation-design/04 §6) — surfaced so automation's rule lifecycle
+   *  (A7) + the plugin host `register`/`unregister` their `transform_draft` transforms onto the same list the
+   *  turn pipeline applies. Zero registrants today (byte-identical no-op). */
+  readonly promptTransforms: PromptTransformRegistry;
+  /** The standalone (out-of-turn) runtime-variable write (automation-design/03 §1.1), bound over chat's own
+   *  ctx — automation's `set_variable` chat-scope arm injects this at the composition root (chat learns
+   *  nothing automation-shaped; principal-free — the author's authority was gated upstream). */
+  readonly applyVariableOps: (chatId: ChatId, ops: readonly VarOp[]) => Promise<void>;
+  /** The NON-HUMAN turn seam (automation-design/03 §4 / 05 §AC-B) — automation's `trigger_turn` arm + the
+   *  Tier-2 plugin membrane's `turn.trigger` inject this at the composition root. Principal-free: the funding
+   *  host is resolved from the room, and the four walls (depth/authority/budget/consent) enforce inside the verb
+   *  + the engine belts. See {@link RequestTurnOp}. */
+  readonly requestTurn: RequestTurnOp;
   /** Chat's corpus sweeps, bound over the chat ctx. */
   readonly backfill: {
     readonly memory: (args: { signal: AbortSignal; ownerId?: UserId | null }) => ReturnType<typeof backfillMemory>;
@@ -203,6 +253,7 @@ function buildChatToolOps(toolUse: ToolUseService, resolveHostPrincipal: (userId
         triggeredBy: frame.triggeredBy,
         chatId: frame.chatId,
         roster: frame.roster,
+        turnId: frame.turnId,
         ...(frame.signal !== undefined ? { signal: frame.signal } : {}),
       }),
   };
@@ -248,6 +299,24 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     }
   };
 
+  // The GM-voice preset REDIRECT (rpg-design/02 §1.1 #1): a present override that resolves owned/system under
+  // the host wins; a stale/unowned override (or absent) degrades to the host's normal default — the lenient-id
+  // rule (never a broken turn). One home with `resolvePromptConfigFor` so the fallback can't drift.
+  const resolvePromptConfigWithOverride = async (
+    runAsUserId: UserId,
+    presetOverride: PresetId | undefined,
+    defaultPresetId: string | null,
+  ): Promise<PromptConfig> => {
+    if (presetOverride !== undefined) {
+      try {
+        return (await input.preset.get({ userId: runAsUserId, id: presetOverride })).config;
+      } catch {
+        // A bad/unowned override falls through to the host's normal default (the lenient-id rule).
+      }
+    }
+    return resolvePromptConfigFor(runAsUserId, defaultPresetId);
+  };
+
   // The chat's PRESENT host (role='host', leftSeq NULL) — the room authority whose settings/library the
   // room draws from (D19; every roster character is host-owned per PD-21). `null` ⇒ a hostless/stale room.
   const resolveChatHostUserId = async (chatId: ChatId): Promise<UserId | null> => {
@@ -282,6 +351,11 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     return withMemoryOptOut(us.memory.enabled === false, defaults);
   };
 
+  // The D50 PromptTransform registrar (automation-design/04 §6) — one per deploy. Zero registrants today
+  // (automation A7 + the plugin host register onto it later); its `apply` is the `ChatContext.promptTransforms`
+  // op, so a chat with no transforms assembles + streams byte-identically.
+  const promptTransformRegistry = createPromptTransformRegistry(emitChatEvent);
+
   const chatCtx: ChatContext = {
     db,
     now,
@@ -296,6 +370,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     newStreamEventId: minter(ID_PREFIX.chatStreamEvent),
     newInviteId: minter(ID_PREFIX.chatInvite),
     newPendingTurnId: minter(ID_PREFIX.pendingTurn),
+    newChatTurnId: minter(ID_PREFIX.chatTurn),
     hashToken: createTokenHasher(input.sessionSecret),
     audit: input.audit,
     // Fans chatsChanged to every present human member's channel; the engine passes a bare chatId
@@ -356,6 +431,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
               ...(req.customParameters !== undefined ? { customParameters: req.customParameters } : {}),
               ...(req.tools !== undefined ? { tools: req.tools } : {}),
               ...(req.toolChoice !== undefined ? { toolChoice: req.toolChoice } : {}),
+              ...(req.responseFormat !== undefined ? { responseFormat: req.responseFormat } : {}),
               onDelta,
               signal: req.signal,
             };
@@ -420,6 +496,14 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       }
     },
     resolveChat: (params) => resolveChatVia(params.runAsUserId, params.routable),
+    // A seated agent's OWN brain (D60; agent-principal-design/04 §5): resolveRole('agent') under the host's
+    // REAL principal — funding follows the host (D19), the credential resolves inside connection against the
+    // host exactly as resolveChat does. A ConnectionRoutingError (no coherent host-funded agent connection)
+    // yields null → the engine falls back to the round chat connection.
+    resolveAgentConnection: createAgentConnectionResolver(
+      (principal, agentPrincipalId) => input.connection.resolveRole({ role: "agent", principal, agentPrincipalId }),
+      realHostPrincipal,
+    ),
     resolveCredential: async ({ runAsUserId, source }) => input.credentials.resolve({ principal: await realHostPrincipal(runAsUserId), source }),
     maybeRevokeOnAuthFailed: async ({ runAsUserId, source, status }) => {
       try {
@@ -441,40 +525,29 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       }
     },
     getCard: ({ ownerId, characterId }) => input.character.getCard({ principal: hostPrincipal(ownerId), characterId }),
-    // Layers the character's tri-state overrides over the deployment floor; a human seat or an
-    // unreadable card resolves to the global floor alone (fail-closed, never a throw into roster assembly).
-    resolveRenderPolicy: async ({ ownerId, characterId }) => {
+    // ONE character read → the whole per-seat decoration (render policy layered over the deployment floor,
+    // the raw theme + background override columns, and the card name/avatar). A human/agent seat, no host,
+    // or an unreadable card resolves to the bare global floor + a null card (fail-closed, never a throw into
+    // roster assembly). Collapses what were four separate reads of the same `characters` row per participant.
+    resolveSeatDeco: async ({ ownerId, characterId }) => {
       const cfg = input.settings.getEffectiveConfig();
-      const global = { trustHtml: cfg.trustHtml, forbidExternalMedia: cfg.forbidExternalMedia };
+      const floor = { trustHtml: cfg.trustHtml, forbidExternalMedia: cfg.forbidExternalMedia };
       if (characterId === null || ownerId === null) {
-        return global;
+        return { renderPolicy: floor, themeOverride: null, backgroundOverride: null, card: null };
       }
       try {
-        const detail = await input.character.get({
-          principal: hostPrincipal(ownerId),
-          characterId,
-        });
+        const detail = await input.character.get({ principal: hostPrincipal(ownerId), characterId });
         return {
-          trustHtml: detail.trustHtml ?? global.trustHtml,
-          forbidExternalMedia: detail.forbidExternalMedia ?? global.forbidExternalMedia,
+          renderPolicy: {
+            trustHtml: detail.trustHtml ?? floor.trustHtml,
+            forbidExternalMedia: detail.forbidExternalMedia ?? floor.forbidExternalMedia,
+          },
+          themeOverride: detail.themeOverride,
+          backgroundOverride: detail.backgroundOverride,
+          card: { name: detail.name, avatarAssetId: detail.avatarAssetId },
         };
       } catch {
-        return global;
-      }
-    },
-    // The character's raw theme column, unmerged (client-side ThemeScope nesting decides the merge).
-    resolveThemeOverride: async ({ ownerId, characterId }) => {
-      if (characterId === null || ownerId === null) {
-        return null;
-      }
-      try {
-        const detail = await input.character.get({
-          principal: hostPrincipal(ownerId),
-          characterId,
-        });
-        return detail.themeOverride;
-      } catch {
-        return null;
+        return { renderPolicy: floor, themeOverride: null, backgroundOverride: null, card: null };
       }
     },
     mintSyntheticGroupCharacter: (params) => input.character.mintSyntheticGroupCharacter(params),
@@ -543,6 +616,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     },
     // Owner-scoped: a foreign/gone id is simply absent from the result.
     filterOwnedAssetIds: async (userId, assetIds) => (await input.assets.resolveOwnedAssetRefs(userId, assetIds)).map((r) => r.assetId),
+    materializeBackground: input.materializeBackground,
     // The chat op type erases the batch to `unknown`; this wrapper restores the concrete type.
     applyStatsDelta: (batch, opDb, delta) => {
       applyStatsDelta(batch as BatchStmt[], opDb, delta);
@@ -569,6 +643,14 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       return { kind: "agent", userId: agentUserId, ownerUserId: row.ownerUserId, enabled: row.enabled };
     },
     resolveAgentSpeaker: (agentUserId) => input.resolveAgentSpeaker(agentUserId),
+    resolveAgentCardView: (agentUserId) => input.resolveAgentCardView(agentUserId),
+    // The roster projection's fallback-label source: the seat's `agent_principals.sourceKind` (a single-row
+    // satellite read, so it resolves for an unhatched buddy too — the row never falls through to the ULID).
+    // Entry may read the satellite directly (the `no-direct-users-read` chokepoint scopes only `domain/`).
+    resolveAgentSourceKind: async (agentUserId) => {
+      const rows = await db.select({ sourceKind: agentPrincipals.sourceKind }).from(agentPrincipals).where(eq(agentPrincipals.userId, agentUserId)).limit(1);
+      return rows[0]?.sourceKind ?? null;
+    },
     canAgent: input.canAgent,
     // A solo-character founding with exactly ONE character_personas connection auto-anchors that persona;
     // 0 or 2+ connections (ambiguity) or a group founding falls through to the default seed.
@@ -641,6 +723,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
         mode: p.mode,
         ...(p.prompt !== undefined ? { prompt: p.prompt } : {}),
         ...(p.n !== undefined ? { n: p.n } : {}),
+        ...(p.params !== undefined ? { params: p.params } : {}),
       });
       return {
         images: picture.images.map((img) => ({ assetId: img.assetId })),
@@ -680,6 +763,8 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
         dim: env.VLLM_EMBED_DIM,
       });
     },
+    // DB6: absent ⇒ the field stays unset ⇒ GATHER skips the databank branch (byte-identical no-op).
+    ...(input.gatherDatabank !== undefined ? { gatherDatabank: input.gatherDatabank } : {}),
     searchDigests: (query) => input.search.digests(query).then((hits) => hits.map((h) => h.blockKey)),
     // The owner-wide corpus lens. MemoryQueryOptions deliberately carries no owner, so the owner is
     // resolved FROM CONTEXT here: the chat's present host (D19 — the room authority; every roster character
@@ -703,6 +788,17 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     getGroupConfig: (rawMetadata) => getGroupConfig(rawMetadata),
     getRoomOverrides: (rawMetadata) => getRoomOverrides(rawMetadata),
     resolvePromptVariables,
+    // Null ⇒ expressions not wired (byte-identical no-op — the `tools` precedent). The E3 classify hook fires
+    // fire-and-forget after a variant commits (expressions-design/02 §0).
+    expressions: input.expressions ?? null,
+    // Null ⇒ rpg not wired (byte-identical no-op — the `expressions`/`tools` precedent). The 5 injected rpg
+    // turn ops (rpg-design/05 §0) fire at GATHER / preset-resolve / send-commit / turn-end.
+    rpg: input.rpg ?? null,
+    // Null ⇒ the crew's director isn't wired (byte-identical no-op). The GATHER op adds the director's guidance
+    // injection per turn (chat-crew-design/04 §1); a forward-ref delegate over the crew service (built after chat).
+    crew: input.crew ?? null,
+    // The D50 PromptTransform apply op (04 §6) — the registry's `apply`. Zero registrants ⇒ byte-identical.
+    promptTransforms: promptTransformRegistry.apply,
   };
 
   const memberBudget = createMemberBudget(db, { windowMs: MEMBER_BUDGET_WINDOW_MS, now });
@@ -721,11 +817,14 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       const routable: RouteChatAssignment = meta.providerRouting !== undefined ? { providerRouting: meta.providerRouting } : {};
       return resolveChatVia(runAsUserId, routable);
     },
-    resolveForeignInputs: async ({ runAsUserId, anchorPersonaId, personaIds, triggerPersonaId }) => {
+    resolveForeignInputs: async ({ runAsUserId, anchorPersonaId, personaIds, triggerPersonaId, presetOverride }) => {
       const us = await input.settings.loadUserSettings(runAsUserId);
       const principal = hostPrincipal(runAsUserId);
 
-      const promptConfig = await resolvePromptConfigFor(runAsUserId, us.seeds.defaultPresetId);
+      // A feature-supplied GM-voice preset REDIRECT (rpg-design/02 §1.1 #1) wins over the host's default when it
+      // resolves owned-or-system under the host; a stale/unowned override degrades to the host's normal default
+      // (the lenient-id rule — never a broken turn). Absent ⇒ the host default (byte-identical to today).
+      const promptConfig = await resolvePromptConfigWithOverride(runAsUserId, presetOverride, us.seeds.defaultPresetId);
 
       // anchor = the chat-open {{user}}; active = the speaking participant's persona (first present).
       const loadPersona = async (
@@ -785,9 +884,18 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     lockTtlMs: CHAT_LOCK_TTL_MS,
   };
 
+  const chatBundle = createChatService(chatCtx, chatDeps);
   return {
-    service: createChatService(chatCtx, chatDeps),
+    service: chatBundle.service,
     emitBusEvent: emitChatEvent,
+    rpgChatOps: {
+      getMembership: createGetMembership(chatCtx),
+      postNarratorMessage: createPostNarratorMessage(chatCtx, { emit: emitChatEvent }),
+      getPendingUserText: createGetPendingUserText(chatCtx),
+    },
+    promptTransforms: promptTransformRegistry,
+    applyVariableOps: (chatId, ops) => applyStandaloneVariableOps(chatCtx, chatId, ops),
+    requestTurn: chatBundle.requestTurn,
     backfill: {
       memory: (args) => backfillMemory(chatCtx, args, resolveMemoryConfig),
       groupCharacters: (args) => backfillGroupCharacters(chatCtx, args),

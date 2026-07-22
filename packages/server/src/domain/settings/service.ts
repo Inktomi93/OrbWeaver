@@ -5,6 +5,7 @@
 
 import { createSettingsContext } from "./context";
 import type { SettingsService, SettingsServiceDeps } from "./contract/service";
+import { createAddExternalBackground } from "./verbs/add-external-background";
 import { createAppSettings } from "./verbs/app-settings";
 import { createCreateTheme } from "./verbs/create-theme";
 import { createDuplicateTheme } from "./verbs/duplicate-theme";
@@ -15,7 +16,6 @@ import { createListThemes } from "./verbs/list-themes";
 import { createLoadUserSettings } from "./verbs/load-user-settings";
 import { createRemoveTheme } from "./verbs/remove-theme";
 import { createUpdateTheme } from "./verbs/update-theme";
-import { createUpdateUserSettings } from "./verbs/update-user-settings";
 import { createUpdateUserSettingsSection } from "./verbs/update-user-settings-section";
 
 export function createSettingsService(deps: SettingsServiceDeps): SettingsService {
@@ -24,8 +24,8 @@ export function createSettingsService(deps: SettingsServiceDeps): SettingsServic
   const appSettings = createAppSettings(ctx);
   return {
     getUserSettings: createGetUserSettings(ctx),
-    updateUserSettings: createUpdateUserSettings(ctx),
     updateUserSettingsSection: createUpdateUserSettingsSection(ctx),
+    addExternalBackground: createAddExternalBackground(ctx),
     loadUserSettings: createLoadUserSettings(ctx),
     getGlobalSetting: globalSettings.getGlobalSetting,
     setGlobalSetting: globalSettings.setGlobalSetting,

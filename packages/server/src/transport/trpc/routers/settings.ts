@@ -4,7 +4,7 @@
 // validate → `ctx.services.settings.<verb>` → map errors. Schemas derive from `@orb/contracts/settings` +
 // `@orb/kit/json`.
 
-import { appSettingsSchema, USER_SETTINGS_SECTIONS, userSettingsSchema } from "@orb/contracts/settings";
+import { appSettingsSchema, USER_SETTINGS_SECTIONS } from "@orb/contracts/settings";
 import { createThemeInputSchema, updateThemeInputSchema } from "@orb/contracts/theme";
 import type { ThemeId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
@@ -12,15 +12,11 @@ import { jsonValueSchema } from "@orb/kit/json";
 import { z } from "zod";
 import { adminProcedure, authedProcedure, t } from "../trpc";
 
+/** Upper bound on a pasted background URL (well past any real image URL; bounds the wire before safeFetch). */
+const MAX_BACKGROUND_URL_LENGTH = 2048;
+
 export const settingsRouter = t.router({
   getUserSettings: authedProcedure.query(({ ctx }) => ctx.services.settings.getUserSettings({ principal: ctx.auth })),
-
-  updateUserSettings: authedProcedure.input(z.object({ config: userSettingsSchema })).mutation(({ ctx, input }) =>
-    ctx.services.settings.updateUserSettings({
-      principal: ctx.auth,
-      input: { config: input.config },
-    }),
-  ),
 
   updateUserSettingsSection: authedProcedure
     .input(
@@ -36,6 +32,13 @@ export const settingsRouter = t.router({
       }),
     ),
 
+  // F-P0-2: materialize a user-pasted external image URL into an owned CAS asset, returning a ready
+  // BackgroundLibraryEntry the client appends to appearance.backgroundLibrary via the autosave form. Owner-
+  // scoped (`principal.userId`) — the asset is stored under the caller. A pasted URL never persists paintable.
+  addExternalBackground: authedProcedure
+    .input(z.object({ url: z.string().trim().min(1).max(MAX_BACKGROUND_URL_LENGTH) }))
+    .mutation(({ ctx, input }) => ctx.services.settings.addExternalBackground({ principal: ctx.auth, url: input.url })),
+
   // AppSettings (admin-runtime) — admin-gated at the router; the verb re-checks via the injected guard.
   getAppSettings: adminProcedure.query(({ ctx }) => ctx.services.settings.getAppSettings({ principal: ctx.auth })),
 
@@ -44,8 +47,10 @@ export const settingsRouter = t.router({
     .mutation(({ ctx, input }) => ctx.services.settings.updateAppSettings({ principal: ctx.auth, partial: input.partial })),
 
   // Raw global-KV — admin-gated at the router (the verbs take the bare key/value, no principal).
+  // @server-only: break-glass admin KV — no client panel exists by design; ops-only escape hatch.
   getGlobalSetting: adminProcedure.input(z.object({ key: z.string().min(1) })).query(({ ctx, input }) => ctx.services.settings.getGlobalSetting(input.key)),
 
+  // @server-only: break-glass admin KV — no client panel exists by design; ops-only escape hatch.
   setGlobalSetting: adminProcedure
     .input(z.object({ key: z.string().min(1), value: jsonValueSchema }))
     .mutation(({ ctx, input }) => ctx.services.settings.setGlobalSetting(input.key, input.value)),

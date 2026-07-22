@@ -8,7 +8,12 @@
 // the transport seam.
 
 export {
+  __pinnedAgentForTest,
+  __setEgressResolverForTest,
+  ANY_HOST,
+  EgressBlockedError,
   fetchImageBytes,
+  fetchWebDocument,
   installEgressFirewall,
   privateEgressRanges,
   type SafeFetchOptions,
@@ -19,12 +24,12 @@ export {
 export {
   fetchTenorGifImage,
   GIF_IMPORT_MAX_BYTES,
-  isTenorMediaHost,
   type SearchTenorGifsArgs,
   searchTenorGifs,
   TENOR_API_HOST,
   TENOR_MEDIA_HOST_SUFFIX,
 } from "./gif-search";
+export { buildHubIo, HUB_ADAPTERS, type HubAdapter, type HubIo, type SafeFetchOp } from "./hubs";
 export { type ImageGuardCaps, ImageRejectedError, isAllowedImageBuffer } from "./image-guard";
 export {
   clientIp,

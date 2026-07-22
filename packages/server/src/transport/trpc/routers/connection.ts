@@ -23,6 +23,12 @@ export const connectionRouter = t.router({
     }),
   ),
 
+  // The caller's OWN chat-role ModelCapability, resolved END-TO-END in one hop (selection → descriptor) — the
+  // params-panel + rpg lite gate read it directly, so a vLLM-default chat (no explicit roleDefaults.chat)
+  // resolves the same in the UI as at turn time. Reads the acting principal's settings ONLY (no input) —
+  // cross-tenant-safe by construction; the internal `resolveRole`/`resolveChat` verbs stay unexposed.
+  resolveChatCapability: authedProcedure.query(({ ctx }) => ctx.services.connection.resolveChatCapability({ principal: ctx.auth })),
+
   getModelCapability: authedProcedure
     .input(z.object({ model: z.string().min(1), source: credentialSourceSchema, api: chatApiSchema }))
     .query(({ ctx, input }) =>
@@ -32,6 +38,12 @@ export const connectionRouter = t.router({
         api: input.api,
       }),
     ),
+
+  // The local ComfyUI reachability + catalog probe (MA-8/D96) — one `GET /object_info` against the owner-
+  // configured endpoint, returning the client-discriminated tri-state. A MUTATION despite being read-shaped:
+  // it makes a live outbound fetch, so it keeps tRPC's CSRF gate (the credentials-router SSRF-read posture,
+  // Esoteric #9). Authed; the endpoint is deployment-global (owner-configured), no owned id.
+  probeComfyui: authedProcedure.mutation(({ ctx }) => ctx.services.connection.probeComfyui({ principal: ctx.auth })),
 
   refreshCatalog: adminProcedure.mutation(({ ctx, signal }) => ctx.services.connection.refreshCatalog({ signal })),
 

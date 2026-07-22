@@ -5,7 +5,7 @@
 import type { NotificationEvent } from "@orb/contracts/notifications";
 import type { Db } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
-import type { DismissParams, ListInboxParams, MarkAllReadParams, MarkReadParams, RecordParams } from "./params";
+import type { DismissParams, ListInboxParams, MarkAllReadParams, RecordParams } from "./params";
 import type { ListInboxResult, MarkAllReadResult } from "./results";
 import type { InboxView } from "./views";
 
@@ -24,15 +24,12 @@ export interface NotificationsContext {
  *  this domain's `record` + transport's bus. */
 export type EmitNotification = (event: NotificationEvent) => Promise<void>;
 
-/** The 4 verbs. `record` is the producer write; markRead/dismiss/list are caller-scoped to
+/** The verbs. `record` is the producer write; markAllRead/dismiss/list are caller-scoped to
  *  `principal.userId` — a user touches only their own inbox. */
 export interface NotificationsService {
   /** Durable-first write: INSERT one closed event for its recipient with a db-driven monotonic `seq`,
    *  parsed through the union schema. Returns the stored `InboxView`. */
   record: (params: RecordParams) => Promise<InboxView>;
-  /** Mark one of the caller's notifications read (idempotent). Throws `DomainNotFoundError` if not in the
-   *  caller's inbox. */
-  markRead: (params: MarkReadParams) => Promise<InboxView>;
   /** Mark every one of the caller's currently-unread notifications read, in one db UPDATE. Returns the
    *  count of rows actually flipped. */
   markAllRead: (params: MarkAllReadParams) => Promise<MarkAllReadResult>;

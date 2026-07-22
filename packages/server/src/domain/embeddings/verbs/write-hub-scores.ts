@@ -1,4 +1,5 @@
-// verb: writeHubScores — the `discovery` → embeddings hub-score write seam (the ONLY non-`store` write, and
+// verb: writeHubScores — the `discovery` → embeddings hub-score write seam (the ONLY non-`store` UPDATE —
+// the document_chunks reclaim DELETEs prune/purge are the other non-`store` writes — and
 // the ONLY path that touches `hub_score`; §invariant 3). It takes the PRE-COMPUTED scores as data and does a
 // batch UPDATE keyed `(id, model)` — NO CSLS math here (discovery computes, embeddings stores, search reads).
 // Handles a batch of ANY size (a bulk UPDATE, not a matrix op — the dense-vs-streaming threshold is entirely

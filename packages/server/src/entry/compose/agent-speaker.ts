@@ -9,7 +9,7 @@
 // exhaustive-dispatch discipline (a new source kind fails tsc until it registers a resolver) stays at the
 // call site. Extracted here so the read + dispatch has a tested home (services.ts is un-unit-tested wiring).
 
-import type { AgentSpeakerIdentity } from "@orb/contracts/chat";
+import type { AgentCardView, AgentSpeakerIdentity } from "@orb/contracts/chat";
 import type { AgentSourceKind } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { agentPrincipals, users } from "@orb/db";
@@ -41,5 +41,41 @@ export function createAgentSpeakerResolver(
       .limit(1);
     const row = rows[0];
     return row === undefined || row.ownerUserId === null ? null : sources[row.sourceKind](row.ownerUserId);
+  };
+}
+
+/**
+ * Build the source-blind `resolveAgentCardView(agentUserId)` op chat injects for the D22 "who is this
+ * agent?" roster-chip read (D60; agent-principal-design/06 §5). Same FK walk as {@link createAgentSpeakerResolver}
+ * ((sourceKind, ownerUserId) via `agent_principals ⋈ users`, owner WALKED not re-stamped) → the soul display
+ * name from the SAME speaker-source registry + the owner's public handle. NEVER the soul prompt/avatar (the
+ * fixed minimal projection — a low agent visibility by construction). Fail-closed null: a non-agent /
+ * unhatched / owner-less / handle-less id yields null, and the verb refuses leak-free.
+ */
+export function createAgentCardViewResolver(
+  db: Db,
+  sources: Record<AgentSourceKind, AgentSpeakerSourceResolver>,
+): (agentUserId: UserId) => Promise<AgentCardView | null> {
+  return async (agentUserId: UserId): Promise<AgentCardView | null> => {
+    const rows = await db
+      .select({ sourceKind: agentPrincipals.sourceKind, ownerUserId: users.ownerUserId })
+      .from(agentPrincipals)
+      .innerJoin(users, eq(users.id, agentPrincipals.userId))
+      .where(eq(agentPrincipals.userId, agentUserId))
+      .limit(1);
+    const row = rows[0];
+    if (row === undefined || row.ownerUserId === null) {
+      return null;
+    }
+    const identity = await sources[row.sourceKind](row.ownerUserId);
+    if (identity === null) {
+      return null;
+    }
+    const ownerRows = await db.select({ handle: users.handle }).from(users).where(eq(users.id, row.ownerUserId)).limit(1);
+    const ownerHandle = ownerRows[0]?.handle;
+    if (ownerHandle === undefined) {
+      return null;
+    }
+    return { displayName: identity.displayName, sourceKind: row.sourceKind, ownerHandle };
   };
 }

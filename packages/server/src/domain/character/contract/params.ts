@@ -3,8 +3,9 @@
 // ops (Mint/Find/FindByImportHash/FindByHandle) are internal and act on an already-resolved ownerId.
 
 import type { CharacterListCursor, CharacterListSort, CreateCharacterInput, UpdateCharacterInput } from "@orb/contracts/character";
+import type { CardEvolutionChange, CrewSpan } from "@orb/contracts/crew";
 import type { Principal } from "@orb/contracts/identity";
-import type { CharacterId, CharacterSnapshotId, ChatId, UserId } from "@orb/kit/ids";
+import type { CardEvolutionProposalId, CharacterId, CharacterSnapshotId, ChatId, UserId } from "@orb/kit/ids";
 
 export type { CharacterListCursor, CharacterListSort } from "@orb/contracts/character";
 
@@ -106,4 +107,37 @@ export interface FindByImportHashParams {
 export interface FindByHandleParams {
   readonly ownerId: UserId;
   readonly handle: string;
+}
+
+/** Batched provenance lookup (hub-injected, internal): the owner's characters carrying any of `values` in
+ *  `importedFrom` (an indexed `IN` read). Backs the hub search page's already-imported markers (doc 03 §2.1). */
+export interface FindByImportedFromParams {
+  readonly ownerId: UserId;
+  readonly values: readonly string[];
+}
+
+// ── card-evolution proposals (chat-crew-design/02 §5, 03 §2) ────────────────────────────────────────────
+
+/** File a card-drift proposal. ENV-ONLY (no principal): a trusted producer op (the crew card-evolution
+ *  runner, or any import/human filer). `chatId` is provenance (null for a non-crew filing); `sourceSpan` is
+ *  the audited transcript window (null when the filer has no transcript). */
+export interface ProposeCardEvolutionParams {
+  readonly characterId: CharacterId;
+  readonly chatId: ChatId | null;
+  readonly changes: readonly CardEvolutionChange[];
+  readonly sourceSpan: CrewSpan | null;
+}
+
+export interface ListCardEvolutionProposalsParams extends CharacterActorParams {
+  readonly characterId: CharacterId;
+}
+
+export interface AcceptCardEvolutionParams extends CharacterActorParams {
+  readonly proposalId: CardEvolutionProposalId;
+  /** The change indices to apply (per-change accept); omit to accept every change in the proposal. */
+  readonly pickedChangeIndices?: readonly number[];
+}
+
+export interface DismissCardEvolutionParams extends CharacterActorParams {
+  readonly proposalId: CardEvolutionProposalId;
 }

@@ -2,10 +2,13 @@ import { z } from "zod";
 import { getLog } from "#foundation/observability";
 import { safeFetch } from "./egress";
 
-// `/models` probe against a USER-supplied OpenAI-compatible endpoint. Best-effort: any failure returns []
-// (never throws, never surfaces endpoint/key in a throw). SSRF: `baseUrl` is user-supplied, so this MUST
-// route through `safeFetch` (global egress firewall address-gates the connect + response-side belts) —
-// defense-in-depth, not dispatcher-only.
+// `/models` probe against a USER-CONFIGURED OpenAI-compatible endpoint (configured-endpoint consumer
+// class, D61 §2). The owner's own `baseUrl` IS the declared intent — legitimately LAN/private and often
+// plain http (BYO vLLM etc.), so this rides `safeFetch` with `ownerConfiguredEndpoint: true`: the fetch
+// is host-PINNED to the configured host (a redirect off that host is refused) yet defers address gating
+// to the global egress firewall + operator EGRESS_ALLOWLIST (preserving today's LAN posture) rather than
+// safeFetch's own private-range denial. Best-effort: any failure returns [] (never throws, never surfaces
+// endpoint/key in a throw).
 
 const modelsResponseSchema = z.object({
   data: z.array(z.object({ id: z.string() }).loose()).optional(),
@@ -30,7 +33,11 @@ export interface FetchOpenAiModelsArgs {
 /** GET `{baseUrl}/models` on an OpenAI-compatible endpoint → the model id list. Best-effort; never throws. */
 export async function fetchOpenAiModels(args: FetchOpenAiModelsArgs): Promise<string[]> {
   try {
-    const res = await safeFetch(`${args.baseUrl.replace(TRAILING_SLASH_RE, "")}/models`, {
+    const base = args.baseUrl.replace(TRAILING_SLASH_RE, "");
+    const res = await safeFetch(`${base}/models`, {
+      // Pinned to the owner's configured host; ownerConfiguredEndpoint defers SSRF to the global firewall.
+      allowedHosts: [new URL(base).hostname],
+      ownerConfiguredEndpoint: true,
       maxBytes: MODELS_MAX_BYTES,
       headers: {
         ...(args.apiKey !== null && args.apiKey !== "" ? { authorization: `Bearer ${args.apiKey}` } : {}),
@@ -38,6 +45,7 @@ export async function fetchOpenAiModels(args: FetchOpenAiModelsArgs): Promise<st
       },
     });
     if (res.status < OK_STATUS_MIN || res.status >= OK_STATUS_MAX) {
+      res.dispose?.(); // drop the non-2xx body + close any pinned Agent before returning (F9)
       return [];
     }
     const text = new TextDecoder().decode(await res.bytes());

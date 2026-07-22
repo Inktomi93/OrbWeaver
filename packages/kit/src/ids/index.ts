@@ -40,6 +40,10 @@ export const ID_PREFIX = {
   chatParticipant: "chat_participant",
   chatInvite: "chat_invite",
   pendingTurn: "pending_turn",
+  // EPHEMERAL — the per-turn identity minted once at `executeTurn` (never persisted, no table). Threads the
+  // tool-exec frame ↔ the turn-end hooks so a turn-scoped consumer (rpg's staging accumulator) correlates
+  // mid-turn tool writes to its commit/abort flush under lock-free concurrency (rpg-design/05 §2).
+  chatTurn: "chat_turn",
   characterEmbedding: "character_embedding",
   chatDigest: "chat_digest",
   chatSegment: "chat_segment",
@@ -63,6 +67,9 @@ export const ID_PREFIX = {
   notification: "notification",
   imageryGeneration: "imagery_generation",
   galleryItem: "gallery_item",
+  // The BYO curated-pose registry row (comfyui-control §4.12.2, C6c). NO `ownerId` on the row — ownership
+  // derives via `assetId → assets.ownerId` (the imagery_generations D20 precedent).
+  poseLibrary: "pose_library",
   // Minted at the rpg config reference; the future style-profile row (imagery-owned) adopts it.
   styleProfile: "style_profile",
   crewEditProposal: "crewprop",
@@ -72,6 +79,10 @@ export const ID_PREFIX = {
   automationFire: "automation_fire",
   // `roster_preset_members` has NO TypeID — its identity is the composite PK (presetId, characterId).
   rosterPreset: "roster_preset",
+  // The BYO ComfyUI custom-workflow row (comfyui-control §4.11.2, C7). Owner-scoped library artifact —
+  // STAMPS `ownerId` (the roster_preset TRUE-PRODUCER precedent); the stored API-format graph JSON stays
+  // opaque to domain code (D96 seal — the sealed comfyui arm parses/substitutes it).
+  comfyuiWorkflow: "comfyui_workflow",
   document: "document",
   documentChunk: "document_chunk",
   // ID_PREFIX value is the prefix WITHOUT the trailing underscore typeid appends, e.g. `rpggame_…`.
@@ -89,6 +100,9 @@ export const ID_PREFIX = {
   rpgPendingCheck: "rpgpend",
   rpgEncounter: "rpgenc",
   rpgScene: "rpgscene",
+  // The installed-plugin registry row (D46). `plugin_kv` has NO TypeID — its identity is the composite
+  // PK (pluginId, key).
+  plugin: "plugin",
 } as const;
 
 // --- Identity / auth ---------------------------------------------------------
@@ -121,6 +135,7 @@ export type TagId = TypeIdOf<"tag">;
 export type AssetId = TypeIdOf<"asset">;
 export type ImageryGenerationId = TypeIdOf<"imagery_generation">;
 export type GalleryItemId = TypeIdOf<"gallery_item">;
+export type PoseLibraryId = TypeIdOf<"pose_library">;
 export type StyleProfileId = TypeIdOf<"style_profile">;
 
 // --- Chat / conversation -----------------------------------------------------
@@ -136,6 +151,10 @@ export type ChatInjectionId = TypeIdOf<"chat_injection">;
 export type ChatParticipantId = TypeIdOf<"chat_participant">;
 export type ChatInviteId = TypeIdOf<"chat_invite">;
 export type PendingTurnId = TypeIdOf<"pending_turn">;
+/** The ephemeral per-turn identity (never persisted) — minted once at `executeTurn`, carried on the
+ *  `ChatToolExecFrame` and handed to the turn-end hooks so a turn-scoped consumer correlates a turn's tool
+ *  writes to its commit/abort flush. Distinct from the provider-layer per-generation turnId. */
+export type ChatTurnId = TypeIdOf<"chat_turn">;
 
 // --- Corpus / vectors --------------------------------------------------------
 export type CharacterEmbeddingId = TypeIdOf<"character_embedding">;
@@ -170,6 +189,9 @@ export type AutomationFireId = TypeIdOf<"automation_fire">;
 // --- Roster presets (named party presets) ------------------------------
 export type RosterPresetId = TypeIdOf<"roster_preset">;
 
+// --- ComfyUI BYO custom workflows (comfyui-control §4.11, C7) -----------
+export type ComfyuiWorkflowId = TypeIdOf<"comfyui_workflow">;
+
 // --- Databank (source documents + vector chunks) --------------------
 export type DocumentId = TypeIdOf<"document">;
 export type DocumentChunkId = TypeIdOf<"document_chunk">;
@@ -189,6 +211,9 @@ export type RpgCheckpointId = TypeIdOf<"rpgcheck">;
 export type RpgPendingCheckId = TypeIdOf<"rpgpend">;
 export type RpgEncounterId = TypeIdOf<"rpgenc">;
 export type RpgSceneId = TypeIdOf<"rpgscene">;
+
+// --- Plugins (D46 code sandbox) ----------------------------------------------
+export type PluginId = TypeIdOf<"plugin">;
 
 // --- Workloads (in-server bulk-work lifecycle) -------------------------------
 export type WorkloadId = TypeIdOf<"workload">;

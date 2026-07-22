@@ -7,7 +7,7 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
-import type { WiBusEvent } from "@orb/contracts/world-info";
+import type { LoreConstantCanonRow, LoreEntryIndexRow, UpsertEntriesResult, WiBusEvent } from "@orb/contracts/world-info";
 import type { Db } from "@orb/db";
 import type { ChatId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import type { AuditEntry } from "#foundation/observability";
@@ -28,7 +28,9 @@ import type {
   GetBookParams,
   GetEntryParams,
   ListBooksParams,
+  ListConstantCanonParams,
   ListEntriesParams,
+  ListEntryIndexParams,
   ListForCharacterParams,
   ListForChatParams,
   ListForPersonaParams,
@@ -37,6 +39,7 @@ import type {
   RemoveEntryParams,
   UpdateBookParams,
   UpdateEntryParams,
+  UpsertEntriesParams,
 } from "./params";
 import type { BackfillResult, DetachResult, RemoveResult, ReorderResult } from "./results";
 import type { BookAttachmentView, BookView, EntryView } from "./views";
@@ -95,4 +98,15 @@ export interface WorldInfoService {
   readonly detachFromChat: (params: DetachFromChatParams) => Promise<DetachResult>;
   /** Room-public, not owner-filtered — the room's pool is what every member's turns assemble against. */
   readonly listForChat: (params: ListForChatParams) => Promise<BookAttachmentView[]>;
+
+  /** The SHARED machine-writer bulk upsert (chat-crew-design/02 §7; CC-D). Upserts entries by (bookId,
+   *  title), owner-gated on the book; NEVER overwrites a human-curated entry (the stored
+   *  `metadata.crew.contentHash` guard). Injected into the chat/rpg crew + D46 automation — the ONE
+   *  hand-edit-safe home. */
+  readonly upsertEntries: (params: UpsertEntriesParams) => Promise<UpsertEntriesResult>;
+  /** The lean per-book entry index a machine writer reads to build its merge prompt + count against a cap. */
+  readonly listEntryIndex: (params: ListEntryIndexParams) => Promise<readonly LoreEntryIndexRow[]>;
+  /** A chat's CONSTANT ("always"-scope) lorebook canon (rpg-design/06 §4) — the pre-play world truth a
+   *  producer reads. Principal-less: room-public prompt content (the caller gated membership upstream). */
+  readonly listConstantCanon: (params: ListConstantCanonParams) => Promise<readonly LoreConstantCanonRow[]>;
 }

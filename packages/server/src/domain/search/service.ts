@@ -9,6 +9,7 @@ import type { SearchService } from "./contract/service";
 import { createCorpus } from "./verbs/corpus";
 import { createDigests } from "./verbs/digests";
 import { createDiscover } from "./verbs/discover";
+import { createDocuments } from "./verbs/documents";
 import { createFields, createSuggest } from "./verbs/fields";
 import { createFindCharacters } from "./verbs/find-characters";
 import { createImages } from "./verbs/images";
@@ -26,6 +27,7 @@ export function createSearchService(ctx: SearchContext): SearchService {
   const corpus = createCorpus(ctx);
   const images = createImages(ctx);
   const discover = createDiscover(ctx);
+  const documents = createDocuments(ctx);
   return {
     knn,
     findCharacters,
@@ -36,10 +38,11 @@ export function createSearchService(ctx: SearchContext): SearchService {
     fields: createFields(ctx),
     suggest: createSuggest(ctx),
     discover,
+    documents,
     similarCharacters: createSimilarCharacters(ctx),
     similarArt: createSimilarArt(ctx),
-    // The unified dispatch closes over the owner-wide card/corpus/image verbs + segments (digests route
-    // through the dispatch's own owner-belted scan, not the un-belted memory `digests` verb).
-    search: createSearch(ctx, { knn, findCharacters, discover, corpus, images, segments }),
+    // The unified dispatch closes over the owner-wide card/corpus/image verbs + segments + documents (digests
+    // route through the dispatch's own owner-belted scan, not the un-belted memory `digests` verb).
+    search: createSearch(ctx, { knn, findCharacters, discover, corpus, images, segments, documents }),
   };
 }

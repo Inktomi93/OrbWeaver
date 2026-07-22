@@ -12,9 +12,14 @@ import { initTRPC, TRPCError } from "@trpc/server";
 import { requireAdmin } from "#domain/admin";
 import { securityEvent, setSpanAttrs, span } from "#foundation/observability";
 import type { Context } from "./context";
-import { classifyDomainError } from "./error-mapping";
+import { classifyDomainError, domainReason } from "./error-mapping";
 
-export const t = initTRPC.context<Context>().create();
+// The error formatter rides the honest domain reason code on `data.reason` (only a DomainOperationError
+// carries one — see domainReason). Additive: `data.reason` is typed `string | undefined` end-to-end, so
+// the inferred client error shape gains the optional field; a codeless error serialises without the key.
+export const t = initTRPC.context<Context>().create({
+  errorFormatter: ({ shape, error }) => ({ ...shape, data: { ...shape.data, reason: domainReason(error) } }),
+});
 
 // One span per procedure. A typed domain error resolves the span to OK (the error is data, badged as an
 // attribute); only an uncaught mid-handler throw marks the span error.

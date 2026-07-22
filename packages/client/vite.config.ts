@@ -5,6 +5,17 @@ import react, { reactCompilerPreset } from "@vitejs/plugin-react";
 import { defineConfig, searchForWorkspaceRoot } from "vite";
 import checker from "vite-plugin-checker";
 
+// Dev-server port + API-proxy target are env-overridable so `snap --isolated` can boot a SECOND, fully
+// isolated dev stack at a frozen HEAD worktree on OFFSET ports (scripts/probes/_kit/snap-stage.ts) without
+// fighting the primary dev stack's HMR/crash-loops. Unset = the canonical dev origin, byte-for-byte
+// unchanged; the stage exports VITE_PORT + VITE_API_TARGET pointed at ITS own backend. The presence of the
+// `VITE_API_TARGET` env read below is ALSO the snap-stage version tripwire — a stage ref that predates this
+// line is rejected up front (a silent proxy-to-the-dev-server would defeat isolation), so keep the literal.
+// biome-ignore lint/style/noProcessEnv: VITE_PORT is a dev-harness knob (the snap-stage isolated serving mode) — ambient tooling env, not app runtime config (foundation/env owns that).
+const DEV_SERVER_PORT = Number(process.env["VITE_PORT"]) || 5173;
+// biome-ignore lint/style/noProcessEnv: VITE_API_TARGET is the same snap-stage harness knob — the isolated stage points vite's /api + /join proxy at ITS backend, never the dev server's :8788.
+const API_PROXY_TARGET = process.env["VITE_API_TARGET"] ?? "http://127.0.0.1:8788";
+
 // @orb/client build — fully es2025, React-Compiler full-compile from day one (D54). Entry is
 // index.html + src/main.tsx with a hand-written code-based route tree (src/routes/ — no file-based
 // codegen, UI-Arch §6.1). Every non-default option below is annotated with its why; the full
@@ -105,21 +116,22 @@ export default defineConfig({
     emptyOutDir: true,
   },
   server: {
-    port: 5173,
-    // Fail loudly if 5173 is taken rather than silently hopping to a random port (stable dev origin
-    // for the proxy + CSP + auth-redirect assumptions).
+    port: DEV_SERVER_PORT,
+    // Fail loudly if the port is taken rather than silently hopping to a random port (stable dev origin
+    // for the proxy + CSP + auth-redirect assumptions). The snap-stage picks a free offset port, so
+    // strictPort stays on for it too.
     strictPort: true,
     proxy: {
       // Vite is the dev front door; the Hono server owns the API and serves the built bundle in prod
       // (entry/http/spa.ts — hashed-asset cache + index.html history fallback).
       "/api": {
-        target: "http://127.0.0.1:8788",
+        target: API_PROXY_TARGET,
         changeOrigin: true,
       },
       // The /join/:token invite landing (entry/http/join.ts) — a server 302 into `/?join=<token>`, so a
       // dev-minted invite link opened against the vite origin still lands in the SPA.
       "/join": {
-        target: "http://127.0.0.1:8788",
+        target: API_PROXY_TARGET,
         changeOrigin: true,
       },
     },
@@ -141,7 +153,8 @@ export default defineConfig({
       //     `*.{…,key,…}` glob — that matches a `.key` EXTENSION; this filename ends in `-key`.
       //     Leaking it decrypts every stored provider API key, so it is the single highest-value target.
       //   • `*.db` (+ `-wal`/`-shm`) / `*.sqlite*` — the SQLite database (all user data AND the encrypted
-      //     credential blobs). `DATABASE_URL` defaults to `file:./orbweaver.db` at the workspace root.
+      //     credential blobs). `DATABASE_URL` defaults to `file:./data/orbweaver.db` (under the gitignored
+      //     `data/` dir at the workspace root, beside the CAS blob store).
       //   • `data/assets/**` — the CAS blob store (user-uploaded images). Served in-app ONLY via the
       //     owner-gated `/api/blob` route; raw `/@fs/` access would bypass that ownership check.
       deny: [
@@ -188,6 +201,8 @@ export default defineConfig({
       "Content-Security-Policy": [
         "default-src 'self'",
         "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+        // blob: workers/SharedWorkers fall back to script-src without an explicit worker-src (which lacks blob:).
+        "worker-src 'self' blob:",
         "style-src 'self' 'unsafe-inline'",
         "img-src 'self' blob: data: https://*.tenor.com",
         "media-src 'self' blob:",

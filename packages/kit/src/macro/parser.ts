@@ -1,12 +1,29 @@
-import type { MacroAST, MacroBlockNode, MacroNode } from "./types";
+import type { MacroAST, MacroBlockNode, MacroNode, MacroSpan } from "./types";
 
 interface FlatBlockOpen {
   type: "blockOpen";
   name: string;
   args: string[];
   raw?: string;
+  span?: MacroSpan;
 }
 type FlatNode = MacroNode | FlatBlockOpen | { type: "blockClose"; name: string };
+
+// The 1-based line/col of `offset` in `text`, paired with the tag's byte length — the diagnostic span
+// (02 §5). Linear in `offset`; a prompt template is tiny so this per-tag scan never matters.
+function spanAt(text: string, offset: number, length: number): MacroSpan {
+  let line = 1;
+  let col = 1;
+  for (let i = 0; i < offset; i += 1) {
+    if (text.startsWith("\n", i)) {
+      line += 1;
+      col = 1;
+    } else {
+      col += 1;
+    }
+  }
+  return { offset, line, col, length };
+}
 
 interface StackFrame {
   node: MacroNode | null;
@@ -94,14 +111,15 @@ function scanMacroBody(text: string, from: number): MacroBody {
   return { argStr, endMacroPos: NOT_FOUND };
 }
 
-function makeFlatNode(kind: TagKind, name: string, args: string[], raw: string): FlatNode {
+function makeFlatNode(kind: TagKind, name: string, tag: { args: string[]; raw: string; span: MacroSpan }): FlatNode {
   if (kind === "blockClose") {
     return { type: "blockClose", name };
   }
+  const { args, raw, span } = tag;
   if (kind === "blockOpen") {
-    return { type: "blockOpen", name, args, raw };
+    return { type: "blockOpen", name, args, raw, span };
   }
-  return { type: "macro", name, args, raw };
+  return { type: "macro", name, args, raw, span };
 }
 
 interface TagResult {
@@ -158,7 +176,8 @@ function readTag(text: string, tagStart: number, bodyPos: number): TagResult {
   // Original source span of this tag (`{{name:one,two}}` exactly as typed) — carried on the node so
   // unrecognized macros re-emit byte-identical text.
   const raw = text.slice(tagStart, endMacroPos + BRACE_LEN);
-  return { nodes: [makeFlatNode(kind, name, args, raw)], pos, stop: false };
+  const span = spanAt(text, tagStart, raw.length);
+  return { nodes: [makeFlatNode(kind, name, { args, raw, span })], pos, stop: false };
 }
 
 export function parseMacros(text: string): MacroAST {
@@ -266,6 +285,7 @@ function openBlock(stack: StackFrame[], node: FlatBlockOpen): void {
     args: node.args,
     children: [],
     ...(node.raw !== undefined ? { raw: node.raw } : {}),
+    ...(node.span !== undefined ? { span: node.span } : {}),
   };
   stack.at(-1)?.children.push(blockNode);
   stack.push({ node: blockNode, children: blockNode.children });

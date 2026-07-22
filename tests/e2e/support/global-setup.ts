@@ -29,7 +29,7 @@ const ANCHOR = {
   name: "E2E Anchor",
   description: "Deterministic e2e anchor character (globalSetup seed).",
   // A greeting so `chat.startChat` seeds a durable assistant row — the persistence spec asserts ≥1 row.
-  greetings: ["Hello from the e2e anchor."],
+  greetings: [{ text: "Hello from the e2e anchor." }],
 };
 
 const encodeInput = (value: unknown): string => encodeURIComponent(JSON.stringify({ 0: value }));

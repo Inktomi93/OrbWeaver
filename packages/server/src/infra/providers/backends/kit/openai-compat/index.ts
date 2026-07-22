@@ -14,6 +14,8 @@ export {
   rawToolChoice,
   rawWireTools,
   redactHeaders,
+  redactSecretsFromText,
+  secretHeaderValues,
 } from "./body";
 export type { MapTurnContext, StreamDelta, StreamReduceOptions } from "./stream";
 export {

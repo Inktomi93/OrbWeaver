@@ -2,17 +2,17 @@
 // optional per-agent override, validates `(api, source)` coherence, heals the model id, and returns
 // `{api, model, credential, capability}`. No per-role hard-pin — any role may resolve to any source it supports.
 
-import type { ChatApi, CredentialSource, ResolvedConnection } from "@orb/contracts/connection";
+import type { ChatApi, CredentialSource, ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
 import type { UserSettings } from "@orb/contracts/settings";
 import type { ModelId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { env } from "#foundation/env";
+import { env, vllmAgentModelAlias } from "#foundation/env";
 import type { ConnectionContext } from "../context";
-import { ConnectionRoutingError } from "../contract/errors";
-import type { AgentOverride, ResolveRoleParams } from "../contract/params";
+import { AgentModelHealError, ConnectionRoutingError } from "../contract/errors";
+import type { AgentOverride, ResolveChatCapabilityParams, ResolveRoleParams } from "../contract/params";
 import type { ConnectionService } from "../contract/service";
 import { getCachedAgentSdkModels } from "../substrate/agent-sdk-model-cache";
-import { resolveCapability } from "../substrate/capability";
+import { resolveByoCapability, resolveCapability } from "../substrate/capability";
 import { healToChatDefault } from "../substrate/heal-model";
 import { getCachedOrModels } from "../substrate/or-model-cache";
 import { pickOrModel } from "../substrate/pick-or-model";
@@ -46,12 +46,24 @@ const ROLE_SELECTORS: {
     model: ov?.model ?? rd.chat?.model ?? null,
     chatModel: true,
   }),
-  agent: (rd, ov) => ({
-    api: "agent-sdk",
-    source: ov?.source ?? rd.chat?.source ?? DEFAULT_AGENT_SOURCE,
-    model: ov?.model ?? rd.chat?.model ?? null,
-    chatModel: true,
-  }),
+  // The agent role DEFAULTS TO THE USER'S CHAT CONNECTION (owner ruling 2026-07-21) — resolution order:
+  // (1) the per-agent override `ov` (agentOverride ?? roleDefaults.agentConnections[agentId]) — "that agent
+  // mapped to something specific in connections per agent"; (2) a general `roleDefaults.agent` partial (kept as
+  // an intermediate layer for back-compat — option (a): a user who set one still gets it); (3) THE RESOLVED
+  // CHAT CONNECTION — NOT a hardcoded agent-sdk/DEFAULT_AGENT_SOURCE. Room agent turns ride the CHAT engine
+  // (backend-generic — chat-completions/responses/anthropic-messages → runChatTurn, agent-sdk → runAgentTurn),
+  // so a chat-completions+vllm user's agent role now runs runChatTurn on vLLM instead of crashing Claude Code
+  // against the loopback. Solo buddy still validates api:"agent-sdk" at its own entry (an honest refusal, not a
+  // silent fail) when the resolved agent connection isn't agent-sdk.
+  agent: (rd, ov, isOwner) => {
+    const chat = ROLE_SELECTORS.chat(rd, undefined, isOwner);
+    return {
+      api: ov?.api ?? rd.agent?.api ?? chat.api,
+      source: ov?.source ?? rd.agent?.source ?? chat.source,
+      model: ov?.model ?? rd.agent?.model ?? chat.model,
+      chatModel: true,
+    };
+  },
   embed: (rd, ov) => ({
     api: DEFAULT_CHAT_API,
     source: ov?.source ?? rd.embed?.source ?? DEFAULT_LOCAL_SOURCE,
@@ -105,14 +117,19 @@ function applyVllmFallback(role: ResolveRoleParams["role"], selection: RouteSele
 /** Reject an incoherent `(api, source)` selection — the only thrown-error path. */
 function assertCoherent(api: ChatApi, source: CredentialSource): void {
   if (api === "agent-sdk") {
-    if (source !== "max-pro-sub" && source !== "openrouter") {
+    // The sub + the OR skin + the first-party anthropic key (W11 owner ruling: agents may run on a user's
+    // own Anthropic key) all drive the agent-sdk backend, and vllm joins them via the local loopback agent
+    // path (buildClaudeVllmEnv → 127.0.0.1:VLLM_GEN_PORT /v1/messages — deriveRunner + firewall already
+    // route/allow it for the agent role); every other source is incoherent on this api.
+    if (source !== "max-pro-sub" && source !== "openrouter" && source !== "anthropic" && source !== "vllm") {
       throw new ConnectionRoutingError(api, source);
     }
     return;
   }
   if (api === "anthropic-messages") {
-    // v1 rides the existing openrouter credential only; the sub can never reach the direct paid endpoint.
-    if (source !== "openrouter") {
+    // Two paid-key sources reach anth-direct: the openrouter skin and the first-party anthropic key (W11).
+    // The free Max sub can never reach the direct paid endpoint (the sub-exclusion).
+    if (source !== "openrouter" && source !== "anthropic") {
       throw new ConnectionRoutingError(api, source);
     }
     return;
@@ -122,11 +139,34 @@ function assertCoherent(api: ChatApi, source: CredentialSource): void {
   }
 }
 
+/** Resolve the model id for an `agent-sdk` chat selection — EXPLICIT + EXHAUSTIVE + FAIL-LOUD (owner ruling).
+ *  The prior source-blind `return healToChatDefault(model)` silently healed EVERY agent-sdk source to a Claude
+ *  default (opus); for `vllm` that 404'd the loopback and crashed Claude Code two layers down — the exact
+ *  silent-failure antipattern that masked the bug. Only the four sources `assertCoherent` admits on this api
+ *  can reach here; a new/unexpected one THROWS at resolution instead of becoming opus. */
+function healAgentSdkModel(source: CredentialSource, model: string | null): ModelId {
+  switch (source) {
+    // Sub / first-party Anthropic key / OR skin legitimately run Claude models → the curated Claude heal.
+    case "max-pro-sub":
+    case "anthropic":
+    case "openrouter":
+      return healToChatDefault(model);
+    // U0 local loopback agent path: Claude Code runs against the LOCAL vLLM engine, which serves ONLY the
+    // slash-free alias (buildClaudeVllmEnv's ANTHROPIC_DEFAULT_*_MODEL). A Claude default id would 404 it.
+    case "vllm":
+      return castId<ModelId>(vllmAgentModelAlias());
+    // Any other source is incoherent on agent-sdk (assertCoherent rejects it upstream); reaching here means a
+    // new coherent source was added WITHOUT its heal arm — fail LOUD, never silently emit opus.
+    default:
+      throw new AgentModelHealError(source);
+  }
+}
+
 /** Heal the selection's model id to a branded `ModelId`; non-chat roles carry their concrete string through. */
 function healModel(selection: RouteSelection, now: number): ModelId {
   if (selection.chatModel) {
     if (selection.api === "agent-sdk") {
-      return healToChatDefault(selection.model);
+      return healAgentSdkModel(selection.source, selection.model);
     }
     if (selection.source === "openrouter") {
       return pickOrModel(selection.model, getCachedOrModels(now));
@@ -135,25 +175,67 @@ function healModel(selection: RouteSelection, now: number): ModelId {
   return castId<ModelId>(selection.model ?? env.VLLM_GEN_MODEL);
 }
 
+/** Run the selector cascade (roleDefaults → per-agent override → owner default), the vLLM-fallback, the
+ *  coherence assert, and the model heal — the shared SELECTION half both `resolveRole` and
+ *  `resolveChatCapability` use. Reads the acting principal's OWN settings (no caller-supplied user id). */
+async function resolveRoleSelection(ctx: ConnectionContext, params: ResolveRoleParams): Promise<{ selection: RouteSelection; model: ModelId }> {
+  const settings = await ctx.loadUserSettings(params.principal.userId);
+  // The per-agent connection override (D67 amendment): a seated agent whose id is configured in
+  // `routing.agentConnections` runs on THAT connection, beating `roleDefaults.agent`. An explicit
+  // `agentOverride` (a per-turn participant override) still wins over the stored per-agent connection.
+  // Only consulted for the agent role (`agentPrincipalId` is set only on that resolve path).
+  const perAgentOverride = params.agentPrincipalId === undefined ? undefined : settings.routing.agentConnections[params.agentPrincipalId];
+  // A `null` stored entry is the CLEARED-override marker (the Agents-table Remove writes null) — coalesce
+  // it to `undefined` so the selector cascades to `roleDefaults.agent`, identical to an absent id.
+  const effectiveOverride = params.agentOverride ?? perAgentOverride ?? undefined;
+  const selection = applyVllmFallback(
+    params.role,
+    ROLE_SELECTORS[params.role](settings.routing.roleDefaults, effectiveOverride, ctx.isOwner(params.principal)),
+    ctx.vllmAvailable,
+  );
+  assertCoherent(selection.api, selection.source);
+  return { selection, model: healModel(selection, ctx.now()) };
+}
+
+/** Resolve the caller's OWN chat-role capability descriptor END-TO-END (selection → ModelCapability) in ONE
+ *  server hop — the client params-panel + the rpg lite gate consume ONLY the capability, so this collapses
+ *  the former selection→getModelCapability round-trip. Reuses the SAME selector as `resolveRole` (a vLLM
+ *  default resolves identically to the engine) + the SAME `resolveCapability` mediator as `getModelCapability`
+ *  (no duplication). Credential-free: the chat role never touches comfyui/BYO, so the static descriptor is
+ *  authoritative (matching `getModelCapability`). */
+export function createResolveChatCapability(ctx: ConnectionContext): ConnectionService["resolveChatCapability"] {
+  return async (params: ResolveChatCapabilityParams): Promise<ModelCapability> => {
+    // Role is FIXED to "chat" here and the principal is the ONLY input — there is no caller-supplied user id
+    // or role, so this can never resolve another tenant's connection (Injected-op caller gate).
+    const { selection, model } = await resolveRoleSelection(ctx, { role: "chat", principal: params.principal });
+    return resolveCapability(model, selection.source, selection.api, {
+      cached: getCachedOrModels(ctx.now()),
+      agentSdkModels: getCachedAgentSdkModels(ctx.now()),
+    });
+  };
+}
+
 export function createResolveRole(ctx: ConnectionContext): ConnectionService["resolveRole"] {
   return async (params: ResolveRoleParams): Promise<ResolvedConnection> => {
-    const settings = await ctx.loadUserSettings(params.principal.userId);
-    const selection = applyVllmFallback(
-      params.role,
-      ROLE_SELECTORS[params.role](settings.routing.roleDefaults, params.agentOverride, ctx.isOwner(params.principal)),
-      ctx.vllmAvailable,
-    );
-    assertCoherent(selection.api, selection.source);
-
-    const model = healModel(selection, ctx.now());
+    const { selection, model } = await resolveRoleSelection(ctx, params);
     const credential = await ctx.resolveCredential({
       principal: params.principal,
       source: selection.source,
     });
-    const capability = resolveCapability(model, selection.source, selection.api, {
+    const baseCapability = resolveCapability(model, selection.source, selection.api, {
       cached: getCachedOrModels(ctx.now()),
       agentSdkModels: getCachedAgentSdkModels(ctx.now()),
       customContextWindow: credential.source === "custom_openai" ? credential.contextWindow : undefined,
+    });
+    // N1 (comfyui-control §4.11.2c): a `byo:<name>` comfyui selection folds its per-workflow edit/knob
+    // capability (derived from the caller's saved workflow's placeholder scan) onto the static base — so a BYO
+    // edit workflow resolves edit-capable end-to-end. Owner-scoped: the acting principal's own workflow only.
+    const capability = await resolveByoCapability({
+      base: baseCapability,
+      model,
+      source: selection.source,
+      ownerId: params.principal.userId,
+      resolveByoWorkflowCapability: ctx.resolveByoWorkflowCapability,
     });
     return {
       api: selection.api,

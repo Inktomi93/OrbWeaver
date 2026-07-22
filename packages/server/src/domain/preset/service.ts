@@ -5,6 +5,7 @@
 
 import type { PresetContext } from "./context";
 import type { PresetService } from "./contract/service";
+import { createClonePackaged } from "./verbs/clone-packaged";
 import { createCreate } from "./verbs/create";
 import { createGet } from "./verbs/get";
 import { createList } from "./verbs/list";
@@ -20,5 +21,6 @@ export function createPresetService(ctx: PresetContext): PresetService {
     ...createUpdate(ctx),
     ...createRemove(ctx),
     ...createResetToDefault(ctx),
+    ...createClonePackaged(ctx),
   };
 }

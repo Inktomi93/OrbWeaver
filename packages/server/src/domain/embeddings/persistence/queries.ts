@@ -5,10 +5,20 @@
 
 import type { ImageLens } from "@orb/contracts/embeddings";
 import type { Db } from "@orb/db";
-import { batchMany, batchStmt, characterEmbeddings, chatDigestSpeakers, chatDigests, chatSegments, imageEmbeddings } from "@orb/db";
-import type { AssetId, CharacterEmbeddingId, CharacterId, ChatDigestId, ChatId, ChatSegmentId, ImageEmbeddingId } from "@orb/kit/ids";
+import { batchMany, batchStmt, characterEmbeddings, chatDigestSpeakers, chatDigests, chatSegments, documentChunks, imageEmbeddings } from "@orb/db";
+import type {
+  AssetId,
+  CharacterEmbeddingId,
+  CharacterId,
+  ChatDigestId,
+  ChatId,
+  ChatSegmentId,
+  DocumentChunkId,
+  DocumentId,
+  ImageEmbeddingId,
+} from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import type { HubScoreUpdate, VectorTable } from "../contract/params";
 
 const LIMIT_ONE = 1;
@@ -273,6 +283,81 @@ export async function replaceDigestSpeakers(db: Db, digestId: ChatDigestId, char
     .onConflictDoNothing();
 }
 
+/** The stored `content_hash` for a document chunk `(documentId, chunkIdx, model)`, or `undefined` when no row
+ *  exists in that space. `model` scopes the read to the active `(model, dim)` space (PD-104 uniformity — the
+ *  staleness short-circuit never compares against a different model's row). */
+export async function existingChunkHash(db: Db, documentId: DocumentId, chunkIdx: number, model: string): Promise<string | undefined> {
+  const rows = await db
+    .select({ hash: documentChunks.contentHash })
+    .from(documentChunks)
+    .where(and(eq(documentChunks.documentId, documentId), eq(documentChunks.chunkIdx, chunkIdx), eq(documentChunks.model, model)))
+    .limit(LIMIT_ONE);
+  return rows[0]?.hash;
+}
+
+/** Live chunk count per document for the active embed `model` (a GROUP BY over `document_chunks`). Returns
+ *  the grouped rows (documents with zero chunks are simply absent); the caller builds its own lookup. The
+ *  databank domain consumes this through the injected `countDocumentChunks` op — it never imports the vector
+ *  table itself (the vector-scope-derived import chokepoint; databank is not in the sanctioned set). */
+export async function countDocumentChunks(db: Db, documentIds: readonly DocumentId[], model: string): Promise<{ documentId: DocumentId; count: number }[]> {
+  if (documentIds.length === 0) {
+    return [];
+  }
+  const rows = await db
+    .select({ documentId: documentChunks.documentId, count: sql<number>`count(*)` })
+    .from(documentChunks)
+    .where(and(inArray(documentChunks.documentId, [...documentIds]), eq(documentChunks.model, model)))
+    .groupBy(documentChunks.documentId);
+  return rows;
+}
+
+/** The persistence-internal arg bundle for {@link upsertDocumentChunk} (file-local). */
+interface UpsertDocumentChunkInput {
+  readonly id: DocumentChunkId;
+  readonly documentId: DocumentId;
+  readonly chunkIdx: number;
+  readonly content: string;
+  readonly charStart: number;
+  readonly charEnd: number;
+  readonly embedding: Float32Array;
+  readonly contentHash: string;
+  readonly model: string;
+  readonly dim: number;
+  readonly now: number;
+}
+
+/** Upsert a document chunk by `(documentId, chunkIdx, model)`. On conflict updates the vector + content +
+ *  span + hash + dim only — `hub_score`, the key columns, and `created_at` are left as-is (§invariant 2).
+ *  `model` is in the conflict key (PD-104): a new space inserts additively rather than overwriting the old. */
+export async function upsertDocumentChunk(db: Db, input: UpsertDocumentChunkInput): Promise<void> {
+  await db
+    .insert(documentChunks)
+    .values({
+      id: input.id,
+      documentId: input.documentId,
+      chunkIdx: input.chunkIdx,
+      content: input.content,
+      charStart: input.charStart,
+      charEnd: input.charEnd,
+      embedding: input.embedding,
+      contentHash: input.contentHash,
+      model: input.model,
+      dim: input.dim,
+      createdAt: input.now,
+    })
+    .onConflictDoUpdate({
+      target: [documentChunks.documentId, documentChunks.chunkIdx, documentChunks.model],
+      set: {
+        content: input.content,
+        charStart: input.charStart,
+        charEnd: input.charEnd,
+        embedding: input.embedding,
+        contentHash: input.contentHash,
+        dim: input.dim,
+      },
+    });
+}
+
 function assertNever(value: never): never {
   throw new Error(`writeHubScoreRows: unhandled vector table ${String(value)}`);
 }
@@ -332,6 +417,21 @@ export async function writeHubScoreRows(db: Db, table: VectorTable, updates: rea
             .set({ hubScore: u.hubScore })
             .where(and(eq(chatSegments.id, castId<ChatSegmentId>(u.id)), eq(chatSegments.model, u.model)))
             .returning({ id: chatSegments.id }),
+        ),
+      );
+      const results = await db.batch(batchMany(stmts));
+      return results.reduce((sum, r) => sum + r.length, 0);
+    }
+    case "document_chunks": {
+      // v1: discovery has no document-hubness pass, so this arm is unexercised today — it exists so the
+      // VectorTable dispatch stays exhaustive (a future discovery document pass writes hub_score the same way).
+      const stmts = updates.map((u) =>
+        batchStmt(
+          db
+            .update(documentChunks)
+            .set({ hubScore: u.hubScore })
+            .where(and(eq(documentChunks.id, castId<DocumentChunkId>(u.id)), eq(documentChunks.model, u.model)))
+            .returning({ id: documentChunks.id }),
         ),
       );
       const results = await db.batch(batchMany(stmts));

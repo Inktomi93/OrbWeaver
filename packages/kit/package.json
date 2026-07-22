@@ -11,8 +11,8 @@
     "#*": "./src/*/index.ts"
   },
   "dependencies": {
+    "@marcbachmann/cel-js": "catalog:",
     "luxon": "catalog:",
-    "remend": "catalog:",
     "typeid-js": "catalog:",
     "zod": "catalog:"
   },

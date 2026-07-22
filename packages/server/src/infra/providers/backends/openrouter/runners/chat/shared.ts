@@ -167,6 +167,7 @@ export function chatSamplingFields(sampling: ResolvedSampling, maxOutputTokens: 
     ...(sampling.presencePenalty !== undefined ? { presencePenalty: sampling.presencePenalty } : {}),
     ...(sampling.repetitionPenalty !== undefined ? { repetitionPenalty: sampling.repetitionPenalty } : {}),
     ...(sampling.minP !== undefined ? { minP: sampling.minP } : {}),
+    ...(sampling.topA !== undefined ? { topA: sampling.topA } : {}),
     ...(sampling.seed !== undefined ? { seed: sampling.seed } : {}),
     ...(sampling.logitBias !== undefined ? { logitBias: sampling.logitBias } : {}),
     ...(sampling.stop !== undefined ? { stop: [...sampling.stop] } : {}),
@@ -194,6 +195,7 @@ const SAMPLING_KNOBS = [
   "presencePenalty",
   "repetitionPenalty",
   "minP",
+  "topA",
   "seed",
   "logitBias",
   "stop",
@@ -248,6 +250,33 @@ export function withVerbosityDrop(resolved: ResolvedChatKnobs): readonly Resolve
   return [...resolved.warnings, { code: "verbosity_dropped", message: CHAT_VERBOSITY_DROPPED }];
 }
 
+// The five USD price ceilings OpenRouter's `max_price` accepts (per-million prompt/completion tokens,
+// per-image, per-audio-unit, per-request). The contract stores `max_price` as a loose record (OR owns the
+// shape); we pick the known numeric ceilings so a user's price cap actually reaches the wire.
+const MAX_PRICE_KEYS = ["prompt", "completion", "image", "audio", "request"] as const;
+
+function toMaxPrice(raw: Record<string, unknown>): ProviderPreferences["maxPrice"] {
+  const out: Record<string, string> = {};
+  for (const key of MAX_PRICE_KEYS) {
+    const value = raw[key];
+    if (typeof value === "number") {
+      out[key] = String(value);
+    } else if (typeof value === "string") {
+      out[key] = value;
+    }
+  }
+  return out;
+}
+
+// The quantization levels OpenRouter actually filters on. The contract stores `quantizations` as loose
+// strings; keep only the wire-valid levels (an unknown level would fail routing anyway), which also
+// bridges the SDK's branded `Quantization` enum without a cast.
+const OR_QUANTIZATIONS = new Set(["int4", "int8", "fp4", "fp6", "fp8", "fp16", "bf16", "fp32", "unknown"]);
+
+function toQuantizations(values: readonly string[]): ProviderPreferences["quantizations"] {
+  return values.filter((value): value is NonNullable<ProviderPreferences["quantizations"]>[number] => OR_QUANTIZATIONS.has(value));
+}
+
 function toProviderPreferences(routing: OpenRouterProviderRouting): ProviderPreferences {
   return {
     ...(routing.order !== undefined ? { order: routing.order } : {}),
@@ -257,12 +286,24 @@ function toProviderPreferences(routing: OpenRouterProviderRouting): ProviderPref
     ...(routing.data_collection !== undefined ? { dataCollection: routing.data_collection } : {}),
     ...(routing.require_parameters !== undefined ? { requireParameters: routing.require_parameters } : {}),
     ...(routing.sort !== undefined ? { sort: routing.sort } : {}),
+    // Both were modelled on the contract (persisted routing) but silently dropped before the wire: a
+    // user's quantization filter + price ceiling never reached OpenRouter. `quantizations` values are the
+    // OR wire strings (int4/fp8/…); the SDK's branded enum accepts them via the loose provider block.
+    ...(routing.quantizations !== undefined ? { quantizations: toQuantizations(routing.quantizations) } : {}),
+    ...(routing.max_price !== undefined ? { maxPrice: toMaxPrice(routing.max_price) } : {}),
   };
 }
 
 export function resolveProviderPreferences(model: string, userRouting: OpenRouterProviderRouting | undefined): ProviderPreferences | undefined {
   const effective = effectiveProviderRouting(model, userRouting);
   return effective === undefined ? undefined : toProviderPreferences(effective);
+}
+
+// The MODEL-level fallback chain → the wire's top-level `models[]`. Undefined (never an empty array) when
+// the user set none, so a plain turn's body stays byte-identical to pre-fallback.
+export function resolveFallbackModels(userRouting: OpenRouterProviderRouting | undefined): string[] | undefined {
+  const models = userRouting?.models;
+  return models !== undefined && models.length > 0 ? [...models] : undefined;
 }
 
 // Deep merge (owned wins at every leaf, incl. nested objects like a custom reasoning block); a shallow

@@ -28,10 +28,13 @@ import {
   createBackfillTitles,
   createCreateEntry,
   createGetEntry,
+  createListConstantCanon,
   createListEntries,
+  createListEntryIndex,
   createRemoveEntry,
   createReorder,
   createUpdateEntry,
+  createUpsertEntries,
 } from "./verbs/entries";
 
 export function createWorldInfoService(ctx: WorldInfoContext): WorldInfoService {
@@ -61,5 +64,8 @@ export function createWorldInfoService(ctx: WorldInfoContext): WorldInfoService 
     attachToChat: createAttachToChat(ctx),
     detachFromChat: createDetachFromChat(ctx),
     listForChat: createListForChat(ctx),
+    upsertEntries: createUpsertEntries(ctx),
+    listEntryIndex: createListEntryIndex(ctx),
+    listConstantCanon: createListConstantCanon(ctx),
   };
 }

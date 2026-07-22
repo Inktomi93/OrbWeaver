@@ -38,12 +38,6 @@ export function isoToMs(value: string): number | null {
   return dt.isValid ? dt.toMillis() : null;
 }
 
-/** Parse a string with an explicit Luxon format token, interpreting it as UTC → epoch ms. */
-export function utcFormatToMs(value: string, format: string): number | null {
-  const dt = DateTime.fromFormat(value, format, { zone: "utc" });
-  return dt.isValid ? dt.toMillis() : null;
-}
-
 // ─── The DISPLAY half (the client edge) ────────────────────────────────────────────────────────────
 // Localization happens exactly ONCE, at the display edge, through this factory (UI-Gates §11.5 —
 // the timezone pipeline): the wire stays epoch-ms UTC; the viewer's locale/timezone applies here and
@@ -68,6 +62,9 @@ export interface TimeLib {
   readonly formatDateTime: (epochMs: number) => string;
   /** `3m ago` / `in 2h`; past ~7 days falls back to `formatDate` (relative loses meaning). */
   readonly formatRelative: (epochMs: number) => string;
+  /** Current epoch-ms from the SAME injected clock the formatters use — the sanctioned "now" read (a
+   *  feature computing an elapsed-since a stored timestamp reads it here, never ambient `Date.now()`). */
+  readonly now: () => number;
 }
 
 const MS_PER_MINUTE = 60 * MS_PER_SECOND;
@@ -103,6 +100,7 @@ export function createTimeLib(config: TimeLibConfig = {}): TimeLib {
   const formatDate = (epochMs: number): string => date.format(epochMs);
 
   return {
+    now,
     formatTime: (epochMs): string => time.format(epochMs),
     formatDate,
     formatDateTime: (epochMs): string => dateTime.format(epochMs),

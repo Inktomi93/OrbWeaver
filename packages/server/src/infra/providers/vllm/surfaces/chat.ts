@@ -3,6 +3,7 @@
 // one provider, no routing/cache_control choreography, no reasoning strip-and-replay.
 
 import type { ChatContentPart } from "@orb/contracts/chat";
+import { DEFAULT_MAX_OUTPUT_TOKENS } from "@orb/contracts/preset";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ChatCompletionStreamChunk, MapTurnContext, StreamDelta } from "../../backends/kit";
@@ -25,7 +26,6 @@ import type { VllmEngineClient } from "../engine";
 
 // Qwen3-VL-8B-Instruct card defaults applied when the preset is silent (not in generation_config.json).
 const CARD_DEFAULT_PRESENCE_PENALTY = 1.5;
-const CARD_DEFAULT_MAX_TOKENS = 16_384;
 
 const CHAT_PATH = "/v1/chat/completions";
 
@@ -109,10 +109,14 @@ function buildBody(req: VllmChatTurn): Record<string, unknown> {
     presencePenalty: p.presencePenalty ?? CARD_DEFAULT_PRESENCE_PENALTY,
     repetitionPenalty: p.repetitionPenalty,
     minP: p.minP,
+    topA: p.topA,
     seed: p.seed,
     logitBias: p.logitBias,
     stop: p.stop,
-    maxTokens: p.maxOutputTokens ?? CARD_DEFAULT_MAX_TOKENS,
+    // The effective output length is materialized upstream (chat engine pipeline) so this equals the
+    // budget's `reserveOutputTokens`; the `?? DEFAULT` is the fail-safe for any non-chat caller (never the
+    // window, which would let generation overflow the reserved history and 400 vLLM).
+    maxTokens: p.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
   });
   return {
     model: req.model,

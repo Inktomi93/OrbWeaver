@@ -67,44 +67,6 @@ const chatCompletionResultSchema = z
   })
   .loose();
 
-const responsesResultSchema = z
-  .object({
-    output: z
-      .array(
-        z
-          .object({
-            type: z.string(),
-            content: z.array(z.object({ type: z.string(), text: z.string().optional() }).loose()).optional(),
-          })
-          .loose(),
-      )
-      .optional(),
-    outputText: z.string().optional(),
-    status: z.string().optional(),
-    incompleteDetails: z.object({ reason: z.string().optional() }).loose().nullable().optional(),
-    usage: z
-      .object({
-        inputTokens: z.number().optional(),
-        outputTokens: z.number().optional(),
-        cost: z.number().nullable().optional(),
-        costDetails: z
-          .object({
-            upstreamInferenceCost: z.number().optional(),
-            upstreamInferenceInputCost: z.number().optional(),
-            upstreamInferenceOutputCost: z.number().optional(),
-          })
-          .loose()
-          .nullable()
-          .optional(),
-        inputTokensDetails: z.object({ cachedTokens: z.number().optional() }).loose().optional(),
-        outputTokensDetails: z.object({ reasoningTokens: z.number().optional() }).loose().optional(),
-        isByok: z.boolean().optional(),
-      })
-      .loose()
-      .optional(),
-  })
-  .loose();
-
 export interface ChatReasoningDetail {
   readonly type?: string | undefined;
   readonly text?: string | null | undefined;
@@ -158,36 +120,6 @@ export interface ChatCompletionResult {
   readonly usage?: ChatCompletionUsage | undefined;
 }
 
-export interface ResponsesCostDetails {
-  readonly upstreamInferenceCost?: number | undefined;
-  readonly upstreamInferenceInputCost?: number | undefined;
-  readonly upstreamInferenceOutputCost?: number | undefined;
-}
-export interface ResponsesUsage {
-  readonly inputTokens?: number | undefined;
-  readonly outputTokens?: number | undefined;
-  readonly cost?: number | null | undefined;
-  readonly costDetails?: ResponsesCostDetails | null | undefined;
-  readonly inputTokensDetails?: { readonly cachedTokens?: number | undefined } | undefined;
-  readonly outputTokensDetails?: { readonly reasoningTokens?: number | undefined } | undefined;
-  readonly isByok?: boolean | undefined;
-}
-export interface ResponsesOutputContent {
-  readonly type: string;
-  readonly text?: string | undefined;
-}
-export interface ResponsesOutputItem {
-  readonly type: string;
-  readonly content?: readonly ResponsesOutputContent[] | undefined;
-}
-export interface ResponsesResult {
-  readonly output?: readonly ResponsesOutputItem[] | undefined;
-  readonly outputText?: string | undefined;
-  readonly status?: string | undefined;
-  readonly incompleteDetails?: { readonly reason?: string | undefined } | null | undefined;
-  readonly usage?: ResponsesUsage | undefined;
-}
-
 // `arguments` arrive sliced mid-token across fragments keyed by `index`; the reducer latches `id`/`name`
 // on first sight and string-concatenates `arguments` — never an incremental JSON parse.
 export interface ChatToolCallDelta {
@@ -215,27 +147,8 @@ export interface ChatCompletionStreamChunk {
   readonly usage?: ChatCompletionUsage | undefined;
 }
 
-export interface ResponsesStreamEvent {
-  readonly type: string;
-  readonly delta?: string | undefined;
-  readonly response?:
-    | {
-        readonly status?: string | undefined;
-        readonly incompleteDetails?: { readonly reason?: string | undefined } | null | undefined;
-        readonly usage?: ResponsesUsage | undefined;
-        readonly error?: { readonly code: number | string | null; readonly message: string } | null | undefined;
-      }
-    | undefined;
-  readonly code?: string | null | undefined;
-  readonly message?: string | undefined;
-}
-
 export function parseChatCompletionResult(raw: unknown): ChatCompletionResult {
   return chatCompletionResultSchema.parse(raw);
-}
-
-export function parseResponsesResult(raw: unknown): ResponsesResult {
-  return responsesResultSchema.parse(raw);
 }
 
 export function extractChatReply(view: ChatCompletionResult): string {

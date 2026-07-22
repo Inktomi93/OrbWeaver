@@ -3,14 +3,24 @@
 // handle is an identity column, not card content — a rename refuses the reserved __group__* namespace.
 // The audit lists only fields that actually changed. An empty edit re-reads without writing.
 
+import type { Principal } from "@orb/contracts/identity";
+import { backgroundMaterializeMessage } from "@orb/contracts/theme";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { cardContentHash } from "#kit/serde/card";
 import type { CharacterContext } from "../context";
-import { CHARACTER_HANDLE_RESERVED, CharacterNotFoundError, CharacterOperationError } from "../contract/errors";
+import { CHARACTER_BACKGROUND_UNAVAILABLE, CHARACTER_HANDLE_RESERVED, CharacterNotFoundError, CharacterOperationError } from "../contract/errors";
 import type { UpdateCharacterParams } from "../contract/params";
 import type { CharacterService } from "../contract/service";
 import { writeCardInPlace } from "../persistence/card";
-import { canonicalTagsOf, cardOf, detailOf, ensureAssetOwned, loadOwnedCharacterRow, loadOwnedCharacterWithAvatar } from "../persistence/queries";
+import {
+  canonicalTagsOf,
+  cardOf,
+  detailOf,
+  ensureAssetOwned,
+  ensureBackgroundOverrideOwned,
+  loadOwnedCharacterRow,
+  loadOwnedCharacterWithAvatar,
+} from "../persistence/queries";
 import { changedCardFields, flagEdits, mergeCard } from "../substrate/card-merge";
 import { cardTokenSize } from "../substrate/card-tokens";
 import { isReservedGroupHandle } from "../substrate/group-character";
@@ -74,9 +84,47 @@ async function applyEdit(
   ctx.emitUserEvent(ownerId, { type: "charactersChanged", characterId });
 }
 
+/** Resolve a `kind:"external"` carried background on the incoming edit into an owned `kind:"asset"` source
+ *  (BG-C invariant, F-P0-2): fetch → magic-belt → CAS-store, keeping the URL as `provenanceUrl`. A blank URL
+ *  clears to `kind:"none"`; any non-external (or absent) override passes through untouched. A refusal throws a
+ *  leak-free coded error. Returns the (possibly rewritten) input the rest of the verb persists. */
+async function resolveBackgroundOverride(
+  ctx: CharacterContext,
+  principal: Principal,
+  input: UpdateCharacterParams["input"],
+): Promise<UpdateCharacterParams["input"]> {
+  const bg = input.backgroundOverride;
+  if (bg === null || bg === undefined || bg.kind !== "external") {
+    return input;
+  }
+  const url = bg.externalUrl.trim();
+  if (url.length === 0) {
+    return { ...input, backgroundOverride: { ...bg, kind: "none" } };
+  }
+  const result = await ctx.materializeBackground(principal, url);
+  if (!result.ok) {
+    throw new CharacterOperationError(CHARACTER_BACKGROUND_UNAVAILABLE, backgroundMaterializeMessage(result.reason));
+  }
+  return {
+    ...input,
+    backgroundOverride: {
+      kind: "asset",
+      seededId: "",
+      externalUrl: "",
+      provenanceUrl: url,
+      assetId: result.asset.assetId,
+      assetHash: result.asset.assetHash,
+      mime: result.asset.mime,
+    },
+  };
+}
+
 export function createUpdate(ctx: CharacterContext): CharacterService["update"] {
-  return async ({ principal, characterId, input }: UpdateCharacterParams) => {
+  return async ({ principal, characterId, input: rawInput }: UpdateCharacterParams) => {
     const ownerId = principal.userId;
+    // Materialize an external carried-background BEFORE ownership checks / persist (the resolved source is
+    // `kind:"asset"` referencing a freshly-stored OWN asset, so `ensureBackgroundOverrideOwned` passes).
+    const input = await resolveBackgroundOverride(ctx, principal, rawInput);
     guardHandle(input);
     const current = await loadOwnedCharacterRow(ctx.db, ownerId, characterId);
     if (current === undefined) {
@@ -85,6 +133,9 @@ export function createUpdate(ctx: CharacterContext): CharacterService["update"] 
     if (input.avatarAssetId !== null && input.avatarAssetId !== undefined) {
       await ensureAssetOwned(ctx.db, ownerId, input.avatarAssetId);
     }
+    // BG-C: a `kind:"asset"` carried background must reference the caller's OWN asset (the avatar-FK belt's
+    // twin for the JSON `background_override` column); the persisted value is canonicalized in `flagEdits`.
+    await ensureBackgroundOverrideOwned(ctx.db, ownerId, input.backgroundOverride);
 
     if (Object.keys(input).length > 0) {
       await applyEdit(ctx, { ownerId, characterId, current, input });

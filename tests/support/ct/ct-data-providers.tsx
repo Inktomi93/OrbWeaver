@@ -18,20 +18,26 @@
 import { createTrpcClient, TRPCProvider } from "@orb/client/data";
 import { contextToggleChrome, fullscreenChrome, youModal } from "@orb/client/features/app-shell";
 import { accountModal } from "@orb/client/features/auth";
+import { automationPane } from "@orb/client/features/automation";
+import { buddyChatModal } from "@orb/client/features/buddy";
 import { makeCharactersSection } from "@orb/client/features/character";
-import { commandModal, makeChatsSection, newChatModal } from "@orb/client/features/chat";
+import { commandModal, makeChatsSection, makePartiesSection, newChatModal } from "@orb/client/features/chat";
 import { connectionsPane } from "@orb/client/features/credentials";
+import { databankSection } from "@orb/client/features/databank";
 import { corpusSection } from "@orb/client/features/discovery";
+import { hubBrowseSection } from "@orb/client/features/hub";
+import { imageStudioModal } from "@orb/client/features/imagery";
 import { notificationsChrome } from "@orb/client/features/notifications";
 import { personaChrome, personasPane } from "@orb/client/features/persona";
+import { pluginsPane } from "@orb/client/features/plugin";
 import { presetsSection } from "@orb/client/features/preset";
 import { refinerySection } from "@orb/client/features/refinery";
-import { appearancePane, automationPane, chatBehaviorPane, regexPane, settingsModal, systemPane, tagsPane, themeModal } from "@orb/client/features/settings";
+import { appearancePane, chatBehaviorPane, regexPane, settingsModal, systemPane, tagsPane, themeModal, tokenCounterPane } from "@orb/client/features/settings";
 import { analyticsSection } from "@orb/client/features/stats";
 import { adminPane } from "@orb/client/features/user-admin";
 import { backupPane, workloadsPane } from "@orb/client/features/workloads";
 import { worldInfoSection } from "@orb/client/features/world-info";
-import type { CharacterDetailContribution, ChatContextState, ChatSurfaceContribution, ContextTabDef, ContributorRegistry } from "@orb/client/lib";
+import type { CharacterDetailContribution, ChatContextState, ChatSurfaceContribution, ContextTabDef, ContributorRegistry, ToolRenderer } from "@orb/client/lib";
 import { createContributorRegistry, createRegistry } from "@orb/client/lib";
 import type {
   ChromeEntry,
@@ -85,13 +91,17 @@ export function CtDataProviders({ children }: { readonly children: ReactNode }):
 const chatContextContributors = createContributorRegistry<ContextTabDef<ChatContextState>>("chat-context", []);
 const chatSurfaceContributors = createContributorRegistry<ChatSurfaceContribution>("chat-surface", []);
 const characterDetailContributors = createContributorRegistry<CharacterDetailContribution>("character-detail", []);
+const toolRenderers = createContributorRegistry<ToolRenderer>("tool-renderers", []);
 
 const REAL: Record<SectionId, SectionDefinition> = {
-  chats: makeChatsSection(chatContextContributors, chatSurfaceContributors),
+  chats: makeChatsSection(chatContextContributors, chatSurfaceContributors, toolRenderers),
   characters: makeCharactersSection(characterDetailContributors),
+  parties: makePartiesSection(),
   corpus: corpusSection,
   worldInfo: worldInfoSection,
   presets: presetsSection,
+  databank: databankSection,
+  hubs: hubBrowseSection,
   refinery: refinerySection,
   analytics: analyticsSection,
 };
@@ -109,6 +119,8 @@ const REAL_MODALS: Record<ModalSlotId, ModalDefinition> = {
   command: commandModal,
   newChat: newChatModal,
   you: youModal,
+  imageStudio: imageStudioModal,
+  buddyChat: buddyChatModal,
 };
 
 const realModalRegistry: ModalRegistry = createRegistry<ModalSlotId, ModalDefinition>("modals", MODAL_SLOT_IDS, REAL_MODALS);
@@ -124,8 +136,10 @@ const REAL_SETTINGS_PANES: Record<SettingsCategoryId, SettingsPaneDefinition> = 
   backup: backupPane,
   "chat-behavior": chatBehaviorPane,
   regex: regexPane,
+  "token-counter": tokenCounterPane,
   connections: connectionsPane,
   automation: automationPane,
+  plugins: pluginsPane,
   system: systemPane,
   admin: adminPane,
 };
@@ -176,7 +190,7 @@ export function CtStandInChromeRegistry({ children }: { readonly children: React
   return <ChromeRegistryProvider value={standInChromeRegistry}>{children}</ChromeRegistryProvider>;
 }
 
-/** The real 7-section + 6-modal + 12-settings-pane + 3-chrome registries — for CTs that drive real
+/** The real 10-section + 7-modal + 12-settings-pane + 3-chrome registries — for CTs that drive real
  *  content (the route CT). */
 export function CtRealSectionRegistry({ children }: { readonly children: ReactNode }): ReactElement {
   return (
@@ -205,7 +219,7 @@ export function CtChatContributorSectionRegistry({
 }): ReactElement {
   const registry = createRegistry<SectionId, SectionDefinition>("sections", SECTION_IDS, {
     ...REAL,
-    chats: makeChatsSection(contextContributors ?? chatContextContributors, surfaceContributors ?? chatSurfaceContributors),
+    chats: makeChatsSection(contextContributors ?? chatContextContributors, surfaceContributors ?? chatSurfaceContributors, toolRenderers),
   });
   return (
     <SectionRegistryProvider value={registry}>

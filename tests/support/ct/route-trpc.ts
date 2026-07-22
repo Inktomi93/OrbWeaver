@@ -79,17 +79,22 @@ interface TrpcErrorMarker {
   readonly [ERROR_MARK]: true;
   readonly code: TrpcErrorCode;
   readonly message: string;
+  /** The honest domain reason code the real error formatter rides on `data.reason` (a DomainOperationError's
+   *  `.code`) — modelled here so a CT can drive a client mapper that keys on it (e.g. `duplicate_name`). */
+  readonly reason?: string;
 }
 
 /**
  * Scripted failure sentinel — a responder that returns this gets an ERROR envelope. Fail-then-
- * succeed scripts close over a counter: `echo: () => (n++ === 0 ? trpcError() : data)`.
+ * succeed scripts close over a counter: `echo: () => (n++ === 0 ? trpcError() : data)`. Pass `reason` to
+ * model a DomainOperationError's `data.reason` code (the wire field a client inline-error mapper reads).
  */
-export function trpcError(opts: { readonly code?: TrpcErrorCode; readonly message?: string } = {}): TrpcErrorMarker {
+export function trpcError(opts: { readonly code?: TrpcErrorCode; readonly message?: string; readonly reason?: string } = {}): TrpcErrorMarker {
   return {
     [ERROR_MARK]: true,
     code: opts.code ?? "INTERNAL_SERVER_ERROR",
     message: opts.message ?? "scripted CT failure",
+    ...(opts.reason === undefined ? {} : { reason: opts.reason }),
   };
 }
 
@@ -156,9 +161,8 @@ export async function routeTrpc(page: Page, routes: TrpcRoutes): Promise<TrpcRec
       const responder = routes[proc];
       const data = typeof responder === "function" ? (responder as (x: unknown) => unknown)(input) : responder;
       if (isTrpcError(data)) {
-        return {
-          error: { code: errorNumber(data.code), message: data.message, data: { code: data.code } },
-        };
+        const errorData = data.reason === undefined ? { code: data.code } : { code: data.code, reason: data.reason };
+        return { error: { code: errorNumber(data.code), message: data.message, data: errorData } };
       }
       // `data ?? null`: JSON can't carry undefined; unlisted procedures land here → {data:null}.
       return { result: { data: data ?? null } };

@@ -109,10 +109,51 @@ function readStatusCode(error: unknown): number | undefined {
   return typeof status === "number" ? status : undefined;
 }
 
-// File-local: the full HTTP-runner classification path — status table → transport-name fallback →
-// `unknown` floor. Returns the status so the caller can attach it as `apiErrorStatus`.
+// OpenRouter content-moderation blocks arrive as `403 { error: { metadata: { reasons: [...] } } }` — the
+// non-empty `reasons` array is the definitive signal (a plain 403 is a key/permission failure). The SDK
+// attaches `body` as a raw JSON STRING today, but may hand back an already-PARSED object after a version
+// change — accept both shapes (belt) and the discriminator is identical either way.
+function moderationReasons(body: unknown): unknown {
+  const parsed = parseBody(body);
+  if (!isRecord(parsed)) {
+    return;
+  }
+  const inner = parsed["error"];
+  const metadata = isRecord(inner) ? inner["metadata"] : undefined;
+  return isRecord(metadata) ? metadata["reasons"] : undefined;
+}
+
+// A string body is JSON-parsed (a non-JSON string isn't a moderation block); an object body passes through.
+function parseBody(body: unknown): unknown {
+  if (isRecord(body)) {
+    return body;
+  }
+  return typeof body === "string" && body.includes("reasons") ? safeJsonParse(body) : undefined;
+}
+
+function safeJsonParse(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
+
+function isModerationBlock(error: unknown): boolean {
+  if (!isRecord(error)) {
+    return false;
+  }
+  const reasons = moderationReasons(error["body"]);
+  return Array.isArray(reasons) && reasons.length > 0;
+}
+
+// File-local: the full HTTP-runner classification path — moderation block → status table → transport-name
+// fallback → `unknown` floor. Returns the status so the caller can attach it as `apiErrorStatus`.
 function classifyHttpError(error: unknown): ErrorClassification & { status: number | undefined } {
   const status = readStatusCode(error);
+  if (isModerationBlock(error)) {
+    return { kind: "moderation", retryable: false, status };
+  }
   if (status !== undefined) {
     return { ...classifyHttpStatus(status), status };
   }

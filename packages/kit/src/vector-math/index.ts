@@ -1,13 +1,13 @@
 // Vector math substrate — the ONE home for cosine / centroid / pairwise primitives that the
-// corpus / chat-memory features each used to hand-roll (kmeans's cosineDistance, memory/utils'
-// cosineSim, and the duplicate-pair substrate's all-pairs cosine all collapse to these). Pure JS
-// over Float32Array (V8 JITs these loops to SIMD-adjacent code); at corpus scale (≤ a few thousand
-// 1024-dim vectors per pass) the JS loops are fast enough and dependency-free. Zero I/O — testable
-// in isolation; domains import this freely (it's the leaf below them in the layer cake).
+// corpus / chat-memory features each used to hand-roll (memory/utils' cosineSim and the
+// duplicate-pair substrate's all-pairs cosine collapse to these). Pure JS over Float32Array (V8
+// JITs these loops to SIMD-adjacent code); at corpus scale (≤ a few thousand 1024-dim vectors per
+// pass) the JS loops are fast enough and dependency-free. Zero I/O — testable in isolation; domains
+// import this freely (it's the leaf below them in the layer cake).
 //
 // Two tiers:
-//   • Pure JS helpers (cosineSim, cosineDistance, l2Normalize, mean) — single-pair / single-vector
-//     work; the hot per-query rerank paths.
+//   • Pure JS helpers (cosineSim, l2Normalize, mean) — single-pair / single-vector work; the hot
+//     per-query rerank paths.
 //   • Flat-buffer JS batch ops (pairwiseCosine, cosineToMany) — N² or N×K work, normalized once into
 //     a contiguous Float32Array buffer for better V8 JIT locality (avoids per-call renormalization).
 
@@ -18,11 +18,11 @@ const ZERO_NORM_GUARD = 1;
 // ── Pure JS (single-pair / single-vector) ───────────────────────────────────
 
 /**
- * Cosine similarity of two L2-normalized vectors (the embedder normalizes; for non-normalized
- * inputs use `cosineDistance` which renormalizes inline). Throws on dim mismatch — pre-fix the
- * old chat/memory `cosineSim` silently took `Math.min(a, b)` and computed a half-vector dot
- * product, exactly what a mid-corpus embedder swap looks like as a loud-but-unobvious accuracy
- * drop. A loud error trips during dev/CI; a silent half-dot just degrades recall in production.
+ * Cosine similarity of two L2-normalized vectors (the embedder normalizes). Throws on dim
+ * mismatch — pre-fix the old chat/memory `cosineSim` silently took `Math.min(a, b)` and computed
+ * a half-vector dot product, exactly what a mid-corpus embedder swap looks like as a
+ * loud-but-unobvious accuracy drop. A loud error trips during dev/CI; a silent half-dot just
+ * degrades recall in production.
  */
 export function cosineSim(a: Float32Array, b: Float32Array): number {
   if (a.length !== b.length) {
@@ -33,27 +33,6 @@ export function cosineSim(a: Float32Array, b: Float32Array): number {
     s += (a[i] ?? 0) * (b[i] ?? 0);
   }
   return s;
-}
-
-/**
- * Cosine DISTANCE (1 − cos) for two vectors, renormalizing internally so callers don't have to.
- * Single-pair use case (e.g. k-means assignment provenance, theme-centroid distance reporting);
- * for batched N×K assignment use cosineToMany.
- */
-export function cosineDistance(a: Float32Array, b: Float32Array): number {
-  const dim = a.length;
-  let dot = 0;
-  let na = 0;
-  let nb = 0;
-  for (let d = 0; d < dim; d += 1) {
-    const x = a[d] ?? 0;
-    const y = b[d] ?? 0;
-    dot += x * y;
-    na += x * x;
-    nb += y * y;
-  }
-  const denom = Math.sqrt(na) * Math.sqrt(nb) || ZERO_NORM_GUARD;
-  return 1 - dot / denom;
 }
 
 /** Return a new L2-normalized copy of `v`. Zero-norm vectors return unchanged (the guard). */

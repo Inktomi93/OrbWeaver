@@ -14,24 +14,29 @@
 import type { ResolvedCredential } from "@orb/contracts/credentials";
 import { ProviderError } from "../../contract";
 
-/** The v1 credential source anth-direct serves — a wire literal, named so a call site states intent. The
- *  optional first-party `anthropic` source (W11) lands as a second arm here + `client.ts`. */
-const OPENROUTER_SOURCE = "openrouter";
+/** The paid-key credential converted for a wire: the source picks the client dialect (OR Bearer skin vs
+ *  first-party `x-api-key`), the key is the Bearer/`x-api-key` value. Never the whole credential (the runner
+ *  only ever needs the source + the bare key). The `source` union is the ONE home for anth-direct's served
+ *  sources — `client.ts`/`index.ts` derive it via `AnthDirectCredential["source"]` (no re-spelled alias). */
+export interface AnthDirectCredential {
+  readonly source: "openrouter" | "anthropic";
+  readonly key: string;
+}
 
 /**
- * Extract the OpenRouter API key from a resolved credential, or fail-closed. A non-`openrouter` source
- * reaching the anth-direct runner is an operator wiring error (the dispatcher guarantees the pairing, and the
- * sub-exclusion makes `max-pro-sub` unconstructable into this arm), so it throws `kind:"invalid"`
- * (non-retryable). The message names the SOURCE vocab only — never the key (the `ProviderError` core stays
- * secret-free).
+ * Extract the (source, key) an anth-direct client needs, or fail-closed. anth-direct serves exactly two paid
+ * sources: `openrouter` (Bearer skin) and the first-party `anthropic` key (W11, `x-api-key`). Any other source
+ * reaching the runner is an operator wiring error (the dispatcher guarantees the pairing, and the sub-exclusion
+ * makes `max-pro-sub` unconstructable into these arms), so it throws `kind:"invalid"` (non-retryable). The
+ * message names the SOURCE vocab only — never the key (the `ProviderError` core stays secret-free).
  */
-export function requireAnthDirectKey(credential: ResolvedCredential): string {
-  if (credential.source !== OPENROUTER_SOURCE) {
-    throw new ProviderError({
-      kind: "invalid",
-      retryable: false,
-      message: `anth-direct requires a "${OPENROUTER_SOURCE}" credential, got "${credential.source}"`,
-    });
+export function requireAnthDirectCredential(credential: ResolvedCredential): AnthDirectCredential {
+  if (credential.source === "openrouter" || credential.source === "anthropic") {
+    return { source: credential.source, key: credential.apiKey };
   }
-  return credential.apiKey;
+  throw new ProviderError({
+    kind: "invalid",
+    retryable: false,
+    message: `anth-direct requires an "openrouter" or "anthropic" credential, got "${credential.source}"`,
+  });
 }
