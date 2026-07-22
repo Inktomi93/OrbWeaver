@@ -110,15 +110,11 @@ export interface AppDeps {
 
   /** The single assets handle serves the blob owner-gate + the upload `store` + the import avatar-store + the
    *  BYO pose byte-ingest. */
-  readonly assets: BlobAssetsPort & UploadAssetsPort & ImportAssetPort & ImportPosesPort;
+  readonly assets: BlobAssetsPort & UploadAssetsPort & ImportAssetPort;
   readonly cas: BlobCasPort;
   readonly character: ImportCharacterPort;
   readonly portability: PortabilityRegistry;
   readonly importWorldInfo: ImportWorldInfoPort;
-  /** H5 hub avatar proxy: each adapter's `fetchAvatar` pre-bound with its host-pinned `HubIo` (compose). */
-  readonly hubAvatarFetch: HubAvatarDeps["fetchAvatar"];
-  /** The avatar proxy's per-user 120/min bucket consume (doc 03 §4; `createHubAvatarLimiter`). */
-  readonly hubAvatarConsumeRate: HubAvatarDeps["consumeAvatarRate"];
   readonly exportService: ExportService;
   readonly sessions: AuthSessionsPort;
   readonly isShuttingDown: () => boolean;
