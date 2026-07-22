@@ -11,7 +11,7 @@
 // No `loadCanonHistory`-style read here: a fresh insert's `MessageView` is fully known from the stamped
 // inputs, so {@link buildCommittedMessageView} reconstructs it instead of a round-trip.
 
-import type { AssembledPrompt, MessageView, ToolCallRecord } from "@orb/contracts/chat";
+import type { AssembledPrompt, MessageView, ToolCallRecord, TurnInitiator } from "@orb/contracts/chat";
 import type { UserIntent } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import { messageAssets, messages, messageVariants } from "@orb/db";
@@ -77,6 +77,11 @@ interface InsertCanonMessageParams extends CanonSlotAttribution {
   readonly seq: number;
   readonly role: MessageRole;
   readonly excludedFromPrompt?: boolean | undefined;
+  /** The turn's origin (automation-design/03 §4) — stamped on the reply SLOT. Absent ⇒ the DB defaults
+   *  (`'human'`/0), so every human/character writer stays byte-identical; only an automation-initiated
+   *  new-slot turn passes these through. */
+  readonly initiator?: TurnInitiator | undefined;
+  readonly automationDepth?: number | undefined;
   readonly now: number;
   readonly variant: CanonVariantInput;
 }
@@ -174,6 +179,10 @@ export function insertCanonMessageStatements(db: Db, params: InsertCanonMessageP
         personaId: params.personaId ?? null,
         selectedVariantId: null,
         excludedFromPrompt: params.excludedFromPrompt ?? false,
+        // Origin (03 §4) — omitted stays the DB default ('human'/0), so a human/character commit is
+        // byte-identical; an automation new-slot turn threads its initiator + cascade depth.
+        ...(params.initiator !== undefined ? { initiator: params.initiator } : {}),
+        ...(params.automationDepth !== undefined ? { automationDepth: params.automationDepth } : {}),
         createdAt: params.now,
       }),
     ),
@@ -426,5 +435,8 @@ export function buildCommittedMessageView(params: InsertCanonMessageParams): Mes
     selectedVariantIdx: 0,
     variantCount: 1,
     ...variantEconomics(params.variant),
+    // The freshly-committed view's tool exchanges — the read seam's `[]`-default (never null) for the
+    // client's tool read surface; a non-tool turn commits an empty array (tool-use-design/03 §3).
+    toolCalls: params.variant.toolCalls ?? [],
   };
 }

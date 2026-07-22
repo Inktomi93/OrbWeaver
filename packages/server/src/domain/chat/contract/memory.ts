@@ -76,6 +76,23 @@ export interface MsgRow {
   readonly content: string;
 }
 
+/** The ROUND-LEVEL recall inputs the engine re-runs `recallMemory` with PER SCOPED SPEAKER (the per-speaker
+ *  witnessed recall). Gathered ONCE at round assemble (the recent window + cast name map + the shared
+ *  group-as-character bucket are all speaker-invariant); the engine varies only `scopedCharacterId` + the
+ *  speaker's join/leave `witnessing` horizons, so a scoped speaker recalls its OWN egocentric, horizon-filtered
+ *  memory while merged/narrator/solo rounds keep the round-level shared recall byte-identically. `null` when
+ *  there is no character to key on (memory off / empty cast) — the engine then leaves `memory` untouched. */
+export interface MemoryRecallInputs {
+  /** The shared (group-as-character) bucket — the round-level merged recall keyed on it. */
+  readonly groupCharacterId: CharacterId;
+  /** The recent window (oldest→newest) the mixB/mixC egocentric query is built from. */
+  readonly recent: readonly MsgRow[];
+  /** The cast name map the egocentric query prefixes speakers with. */
+  readonly names: ReadonlyMap<CharacterId, string>;
+  /** The resolved memory config the round-level recall used (so the per-speaker re-run matches its tuning). */
+  readonly config: MemoryConfig | null;
+}
+
 /** A complete, aged-out block of canon (the `blockSize`-message digest/segment unit). `blockIdx` is the
  *  fixed-width index within the chat; the rows are the block's messages oldest→newest. */
 export interface BlockSpan {
@@ -109,7 +126,7 @@ export interface MemoryPassCounts {
   readonly skipped: number;
 }
 
-/** One presence interval of a character in a chat (the join/leave WITNESSING horizon — knowledge-cluster §4 /
+/** One presence interval of a character in a chat (the join/leave WITNESSING horizon — core/Knowledge-Cluster.md §4 /
  *  inv 12). `joinSeq` = the `messages.seq` at which the character became present; `leftSeq` = the seq at which
  *  it left (exclusive — present for `seq ∈ [joinSeq, leftSeq)`), or `null` when still present. A kick→re-add
  *  yields MULTIPLE intervals (the kicked span stays invisible). Sourced from `chat_participants` by the engine
@@ -119,7 +136,7 @@ export interface WitnessInterval {
   readonly leftSeq: number | null;
 }
 
-/** The per-call recall observability fragment (knowledge-cluster §3a `memoryTrace.recall`). `queryEmbedded`
+/** The per-call recall observability fragment (core/Knowledge-Cluster.md §3a `memoryTrace.recall`). `queryEmbedded`
  *  is whether the per-turn query embed fired (false for off / empty-pool / non-embedding modes — inv 10). */
 export interface MemoryRecallTrace {
   readonly mode: MemoryRetrievalMode;
@@ -129,7 +146,7 @@ export interface MemoryRecallTrace {
   readonly ms: number;
 }
 
-/** The per-call build observability fragment (knowledge-cluster §3a `memoryTrace.build`). Folded into
+/** The per-call build observability fragment (core/Knowledge-Cluster.md §3a `memoryTrace.build`). Folded into
  *  {@link MemoryLogEntry}'s `memory.build` arm — not consumed as a standalone type, so not exported. */
 interface MemoryBuildTrace {
   readonly blocksBuilt: number;
@@ -146,7 +163,7 @@ interface MemoryBuildTrace {
   readonly ms: number;
 }
 
-/** A structured memory observability event (knowledge-cluster §3a — "did memory work this turn, and why" is a
+/** A structured memory observability event (core/Knowledge-Cluster.md §3a — "did memory work this turn, and why" is a
  *  first-class, greppable fact). Discriminated on `event`; `note` carries the zero-work / degrade reason
  *  ("no digests" / "no aged-out block" / "summarizer context below floor"). */
 export type MemoryLogEntry =
@@ -188,10 +205,14 @@ export interface BackfillPassCounts {
 }
 
 /** The memory-backfill sweep result: the segment pass (scanned = chats) + the digest pass (scanned =
- *  scope buckets). */
+ *  scope buckets). `failed` = chats whose build threw an UNEXPECTED error and were isolated-and-skipped
+ *  (the sweep survives one bad chat, but the failure is NOT silent — it is logged at `error` level AND
+ *  counted here so the workload result surfaces it; #41). A healthy sweep is `failed: 0`; any non-zero
+ *  value is a signal to investigate, never a chat silently losing its memory without a trace. */
 export interface MemoryBackfillCounts {
   readonly segments: BackfillPassCounts;
   readonly digests: BackfillPassCounts;
+  readonly failed: number;
 }
 
 /** Resolve a host's effective memory tuning for the PD-41 corpus sweep — the SAME merge the live turn path

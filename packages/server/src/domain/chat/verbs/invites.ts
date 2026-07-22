@@ -11,8 +11,8 @@
 // refusal, never silently degraded to a share-link.
 
 import { randomBytes } from "node:crypto";
-import type { ChatBusEvent, ChatMacroNameProducer, GroupConfig, InvitePreview, InviteView, ParticipantView, PersonaAvatarEntry } from "@orb/contracts/chat";
-import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
+import type { ChatBusEvent, GroupConfig, InvitePreview, InviteView, ParticipantView } from "@orb/contracts/chat";
+import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import { isReservedAgentHandle } from "@orb/contracts/identity";
 import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import type { ChatId, Handle, UserId } from "@orb/kit/ids";
@@ -29,7 +29,6 @@ import type {
   RevokeInviteParams,
 } from "../contract/params";
 import type { ChatService } from "../contract/service";
-import type { ChatDetail } from "../contract/views";
 import { requireHost } from "../guard";
 import {
   acceptInviteByIdAtomic,
@@ -45,6 +44,7 @@ import {
 import { loadChatMacroNameProducer } from "../persistence/macro-names";
 import { loadChatRow, loadMemberChat } from "../persistence/queries";
 import { loadPersonaAvatarProducer } from "../persistence/roster-avatars";
+import { toChatDetail } from "../substrate/chat-detail";
 
 /** The collaborators the invite verbs close over (see the file header). */
 interface InviteDeps {
@@ -68,51 +68,12 @@ export function createInvites(ctx: ChatContext, deps: InviteDeps): InviteVerbs {
   };
 }
 
-type LoadedChatRow = NonNullable<Awaited<ReturnType<typeof loadChatRow>>>;
-
 /** A 256-bit CSPRNG invite token, base64url for a URL-safe `/join/:token`. */
 const TOKEN_BYTES = 32;
 
 /** A human-readable room-mode label for the invite preview (output × policy) — never the raw config. */
 function modeLabel(group: GroupConfig): string {
   return `${group.output} · ${group.policy}`;
-}
-
-/** Map a loaded chat row + its resolved roster + macro name producer → the `ChatDetail` read-model. The
- *  same projection `read.ts`/`fork.ts`/`start-chat.ts` use. */
-interface ToChatDetailInput {
-  readonly chat: LoadedChatRow;
-  readonly participants: readonly ParticipantView[];
-  readonly macroNames: ChatMacroNameProducer;
-  readonly personaAvatars: readonly PersonaAvatarEntry[];
-  readonly viewerUserId: UserId;
-}
-
-function toChatDetail({ chat, participants, macroNames, personaAvatars, viewerUserId }: ToChatDetailInput): ChatDetail {
-  const viewer = participants.find((p) => p.userId === viewerUserId);
-  return {
-    id: chat.id,
-    title: chat.title,
-    star: chat.star,
-    archived: chat.archived,
-    parentChatId: chat.parentChatId,
-    forkedAt: chat.forkedAt,
-    anchorPersonaId: chat.anchorPersonaId,
-    participants,
-    viewerActivePersonaId: viewer?.activePersonaId ?? null,
-    viewerIsHost: viewer?.role === "host",
-    viewerUserId,
-    pendingHostUserId: chat.pendingHostUserId,
-    group: chat.metadata.group ?? DEFAULT_GROUP_CONFIG,
-    roomOverrides: chat.metadata.roomOverrides ?? DEFAULT_ROOM_OVERRIDES,
-    opening: chat.metadata.opening ?? null,
-    compactSummary: chat.compactSummary,
-    compactedAtSeq: chat.compactedAtSeq,
-    createdAt: chat.createdAt,
-    updatedAt: chat.updatedAt,
-    macroNames,
-    personaAvatars,
-  };
 }
 
 /** `createInvite` — host-only. Mint a CSPRNG token, store its peppered hash, return the raw token once for

@@ -3,8 +3,8 @@
 // logic, no cross-feature calls, no I/O beyond `db`. `chats.metadata` is read only through
 // `parseChatMetadata`. `users` is never joined here — roster name/handle resolution is a verb concern.
 
-import type { ChatBusEvent, MessageView } from "@orb/contracts/chat";
-import { variableDeltaSchema } from "@orb/contracts/chat";
+import type { ChatBusEvent, MessageView, StandaloneVariableDelta, ToolCallRecord, TurnOrigin } from "@orb/contracts/chat";
+import { standaloneVariableDeltasSchema, toolCallRecordSchema, variableDeltaSchema } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { chatEvents, chatInjections, chatParticipants, chatStreamEvents, chats, messages, messageVariants } from "@orb/db";
@@ -96,7 +96,20 @@ const messageViewSelection = {
   genStartedAt: messageVariants.genStartedAt,
   genFinishedAt: messageVariants.genFinishedAt,
   generationId: messageVariants.generationId,
+  // Raw JSON blob — parsed at the read seam by `toMessageView` (never the drizzle `$type` cast).
+  toolCalls: messageVariants.toolCalls,
 } as const;
+
+const toolCallsSchema = toolCallRecordSchema.array();
+
+// The `messageViewSelection` row → `MessageView`: every scalar column mirrors the view 1:1; the sole
+// re-map is the `toolCalls` JSON blob, safeParsed with `toolCallRecordSchema` (the `variableDelta` read
+// seam pattern — a malformed/absent blob degrades to `[]`, never throws, never a cast). The client's ONLY
+// tool read surface (tool-use-design/03 §3–4).
+function toMessageView(row: Omit<MessageView, "toolCalls"> & { toolCalls: readonly ToolCallRecord[] | null }): MessageView {
+  const parsed = toolCallsSchema.safeParse(row.toolCalls);
+  return { ...row, toolCalls: parsed.success ? parsed.data : [] };
+}
 
 function toChatRow(r: { readonly metadata: ChatMetadata | null } & Omit<ChatRow, "metadata">): ChatRow {
   return { ...r, metadata: parseChatMetadata(r.metadata) };
@@ -250,19 +263,85 @@ export async function loadMaxMessageSeq(db: Db, chatId: ChatId): Promise<number>
   return rows.at(0)?.maxSeq ?? 0;
 }
 
+/** The text of the latest user-role message's selected variant, or `null` (no user line yet). The rpg
+ *  `skill_check` re-reads this server-side to feed the player's queued d20 (rpg-design/05 §6) — the pending
+ *  user text the AI GM turn is responding to. `role='user'` scopes it to human sends (never a narrator/assistant
+ *  line); newest by `seq`. */
+export async function loadPendingUserText(db: Db, chatId: ChatId): Promise<string | null> {
+  const rows = await db
+    .select({ text: messageVariants.content })
+    .from(messages)
+    .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
+    .where(and(eq(messages.chatId, chatId), eq(messages.role, "user")))
+    .orderBy(desc(messages.seq))
+    .limit(LIMIT_ONE);
+  return rows.at(0)?.text ?? null;
+}
+
+/** Slot-adjacency for the rpg dice feed-forward (rpg-design/05 §6): does the `targetMessageId` slot DIRECTLY
+ *  respond to the latest user message — i.e. is it the FIRST message after the latest user-role message (nothing
+ *  committed between them)? True for a swipe/regen of the die-response; false for a swipe of an older slot or when
+ *  a later assistant turn already sits after the die. `false` when the chat has no user message or no such slot. */
+export async function loadIsReplyToLatestUserMessage(db: Db, chatId: ChatId, targetMessageId: MessageId): Promise<boolean> {
+  const userRows = await db
+    .select({ seq: max(messages.seq) })
+    .from(messages)
+    .where(and(eq(messages.chatId, chatId), eq(messages.role, "user")));
+  const latestUserSeq = userRows.at(0)?.seq ?? null;
+  if (latestUserSeq === null) {
+    return false;
+  }
+  const firstAfterRows = await db
+    .select({ seq: min(messages.seq) })
+    .from(messages)
+    .where(and(eq(messages.chatId, chatId), gt(messages.seq, latestUserSeq)));
+  const firstAfterSeq = firstAfterRows.at(0)?.seq ?? null;
+  if (firstAfterSeq === null) {
+    return false;
+  }
+  const targetRows = await db
+    .select({ seq: messages.seq })
+    .from(messages)
+    .where(and(eq(messages.chatId, chatId), eq(messages.id, targetMessageId)))
+    .limit(LIMIT_ONE);
+  return targetRows.at(0)?.seq === firstAfterSeq;
+}
+
 /** The full canon history for a chat (assembly's substrate), oldest→newest, each slot joined to its
  *  selected variant. Includes excluded/hidden slots (`excludedFromPrompt` rides each row; assembly filters). */
 export async function loadCanonHistory(db: Db, chatId: ChatId): Promise<MessageView[]> {
-  return await db
+  const rows = await db
     .select(messageViewSelection)
     .from(messages)
     .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
     .where(eq(messages.chatId, chatId))
     .orderBy(asc(messages.seq));
+  return rows.map(toMessageView);
 }
 
 /** One slot ⋈ its selected variant. The engine re-reads this after an append-variant/continue commit;
  *  undo/revert re-read it for the returned view. `undefined` ⇒ no such committed slot. */
+/** The expressions post-turn read (expressions-design/02 §3.1) — ONE committed variant's speaker + POST-regex
+ *  visible prose, scoped by `(chatId, messageId, variantId)`. The variant's `content` is ALREADY the
+ *  receive-tier-regex'd canon (the pipeline applies AI_OUTPUT scripts before persisting — this exposes the
+ *  stored projection, never re-runs regex). `speakerCharacterId` is the SLOT's `characterId` (D26 — null for a
+ *  user/persona/narrator/agent turn, i.e. no sprite target). `null` ⇒ the variant vanished (deleted
+ *  mid-flight) or the ids don't belong together. */
+export async function loadTurnForClassify(
+  db: Db,
+  chatId: ChatId,
+  messageId: MessageId,
+  variantId: MessageVariantId,
+): Promise<{ speakerCharacterId: CharacterId | null; text: string } | null> {
+  const rows = await db
+    .select({ speakerCharacterId: messages.characterId, text: messageVariants.content })
+    .from(messageVariants)
+    .innerJoin(messages, eq(messages.id, messageVariants.messageId))
+    .where(and(eq(messageVariants.id, variantId), eq(messageVariants.messageId, messageId), eq(messages.chatId, chatId)))
+    .limit(LIMIT_ONE);
+  return rows.at(0) ?? null;
+}
+
 export async function loadMessageView(db: Db, messageId: MessageId): Promise<MessageView | undefined> {
   const rows = await db
     .select(messageViewSelection)
@@ -270,7 +349,8 @@ export async function loadMessageView(db: Db, messageId: MessageId): Promise<Mes
     .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
     .where(eq(messages.id, messageId))
     .limit(LIMIT_ONE);
-  return rows.at(0);
+  const r = rows.at(0);
+  return r === undefined ? undefined : toMessageView(r);
 }
 
 // ── Stats-delta canon reads (the delete-messages arm). Full rows so the signed deltas mirror the
@@ -445,13 +525,14 @@ export async function loadContinueSnapshot(db: Db, chatId: ChatId, messageId: Me
  *  the tail), newest-first, capped at `limit`. The verb reverses for chronological display. */
 export async function loadMessagesPage(db: Db, chatId: ChatId, beforeSeq?: number, limit: number = DEFAULT_PAGE_LIMIT): Promise<MessageView[]> {
   const where = beforeSeq === undefined ? eq(messages.chatId, chatId) : and(eq(messages.chatId, chatId), lt(messages.seq, beforeSeq));
-  return await db
+  const rows = await db
     .select(messageViewSelection)
     .from(messages)
     .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
     .where(where)
     .orderBy(desc(messages.seq))
     .limit(limit);
+  return rows.map(toMessageView);
 }
 
 // ── stream-log / bus-log replay + cursor reads ─────────────────────────────────
@@ -527,38 +608,68 @@ export async function loadMessageSeqs(db: Db, chatId: ChatId): Promise<{ id: Mes
 
 /** The canon history strictly after `afterSeq` (the compaction window). Slot ⋈ selected-variant, oldest-first. */
 export async function loadCanonHistoryAfter(db: Db, chatId: ChatId, afterSeq: number): Promise<MessageView[]> {
-  return await db
+  const rows = await db
     .select(messageViewSelection)
     .from(messages)
     .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
     .where(and(eq(messages.chatId, chatId), gt(messages.seq, afterSeq)))
     .orderBy(asc(messages.seq));
+  return rows.map(toMessageView);
 }
 
-/** One entry in the runtime-variable fold source: a message's `seq` + the selected variant's parsed delta. */
+/** One entry in the runtime-variable fold source: a `seq` + the parsed delta. `messageId` is the slot for a
+ *  per-variant message delta, or `null` for a STANDALONE (out-of-turn) delta batch — which carries no slot,
+ *  so the fold mutators' by-`messageId` override/filter/remap pass it through untouched (03 §1.1). */
 interface VariableDeltaRow {
   readonly seq: number;
-  readonly messageId: MessageId;
+  readonly messageId: MessageId | null;
   readonly delta: readonly VarOp[];
 }
 
-/** The per-variant variable deltas along the selected-variant chain, seq-ordered. Each `variable_delta` is
- *  parsed at the read seam; a malformed blob degrades to `[]`, never throws. */
+/** The chat's standalone (out-of-turn) runtime-variable delta batches (`chats.standalone_variable_deltas`,
+ *  03 §1.1), seq-ordered as stored. Parsed at the read seam; a malformed blob degrades to `[]`, never throws. */
+export async function loadStandaloneVariableDeltas(db: Db, chatId: ChatId): Promise<StandaloneVariableDelta[]> {
+  const rows = await db.select({ standaloneVariableDeltas: chats.standaloneVariableDeltas }).from(chats).where(eq(chats.id, chatId)).limit(LIMIT_ONE);
+  const parsed = standaloneVariableDeltasSchema.safeParse(rows.at(0)?.standaloneVariableDeltas);
+  return parsed.success ? parsed.data : [];
+}
+
+/** The runtime-cache fold SOURCE, seq-ordered: the per-variant message deltas along the selected-variant
+ *  chain UNIONED with the chat's standalone (out-of-turn) delta batches (03 §1.1). Each blob is parsed at the
+ *  read seam; a malformed blob degrades to `[]`, never throws. `foldChain` re-sorts by `seq`, so the two
+ *  sources interleave in real-apply order (a standalone stamped at maxSeq folds after that message, before
+ *  the next turn's). */
 export async function loadVariableDeltas(db: Db, chatId: ChatId): Promise<VariableDeltaRow[]> {
-  const rows = await db
-    .select({
-      seq: messages.seq,
-      messageId: messages.id,
-      variableDelta: messageVariants.variableDelta,
-    })
-    .from(messages)
-    .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
-    .where(eq(messages.chatId, chatId))
-    .orderBy(asc(messages.seq));
-  return rows.map((r) => {
+  const [rows, standalone] = await Promise.all([
+    db
+      .select({
+        seq: messages.seq,
+        messageId: messages.id,
+        variableDelta: messageVariants.variableDelta,
+      })
+      .from(messages)
+      .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
+      .where(eq(messages.chatId, chatId))
+      .orderBy(asc(messages.seq)),
+    loadStandaloneVariableDeltas(db, chatId),
+  ]);
+  const messageEntries: VariableDeltaRow[] = rows.map((r) => {
     const parsed = variableDeltaSchema.safeParse(r.variableDelta);
     return { seq: r.seq, messageId: r.messageId, delta: parsed.success ? parsed.data : [] };
   });
+  return [...messageEntries, ...standalone.map((s): VariableDeltaRow => ({ seq: s.seq, messageId: null, delta: s.delta }))];
+}
+
+/** The turn origin stamped on a reply SLOT (03 §4) — the `getTurnOrigin` read backing the automation cascade
+ *  guard's depth counter. Chat-scoped: a `messageId` from another chat matches nothing (`null`). */
+export async function loadTurnOrigin(db: Db, chatId: ChatId, messageId: MessageId): Promise<TurnOrigin | null> {
+  const rows = await db
+    .select({ initiator: messages.initiator, automationDepth: messages.automationDepth })
+    .from(messages)
+    .where(and(eq(messages.chatId, chatId), eq(messages.id, messageId)))
+    .limit(LIMIT_ONE);
+  const row = rows.at(0);
+  return row === undefined ? null : { initiator: row.initiator, automationDepth: row.automationDepth };
 }
 
 /** One variant's parsed `variable_delta` (the `selectVariant` re-fold). A malformed/absent blob degrades

@@ -5,18 +5,7 @@
 
 import type { ChatApi, CredentialSource, RouteChatAssignment, RoutingRoleKey } from "@orb/contracts/connection";
 import type { Principal } from "@orb/contracts/identity";
-import type { ModelId, UserId } from "@orb/kit/ids";
-
-/**
- * The per-agent connection override (core/Spine-Identity-and-Auth.md §4 — agents first-class): a character/buddy participant can
- * run on its OWN backend/model, beating the role default. All fields optional — an unset field falls
- * through to the role default. `resolveRole` applies it over `routing.roleDefaults.<role>`.
- */
-export interface AgentOverride {
-  readonly api?: ChatApi | undefined;
-  readonly source?: CredentialSource | undefined;
-  readonly model?: string | null | undefined;
-}
+import type { ModelId } from "@orb/kit/ids";
 
 /** `resolveRole(params)` — the one resolver for all 7 roles. Reads `routing.roleDefaults.<role>` for the
  *  principal, applies the optional per-agent override, returns the resolved
@@ -24,12 +13,6 @@ export interface AgentOverride {
 export interface ResolveRoleParams {
   readonly role: RoutingRoleKey;
   readonly principal: Principal;
-  readonly agentOverride?: AgentOverride | undefined;
-  /** The SPEAKING agent's principal id (D67 amendment): when set on an `agent`-role resolve, its stored
-   *  per-agent connection (`routing.agentConnections[id]`) beats `roleDefaults.agent`. Absent ⇒ the default
-   *  agent connection (solo buddy, crew, and any agent with no override). Looked up against `principal`'s
-   *  settings (funding follows the acting principal, D19). */
-  readonly agentPrincipalId?: UserId | undefined;
 }
 
 /** `resolveChat(params)` — the chat-specific overlay. The chat row's routing fields (`routableChat`) BEAT
@@ -87,12 +70,6 @@ export interface TestClaudeAuthParams {
 export interface GetOrCreditsParams {
   readonly principal: Principal;
   readonly signal?: AbortSignal | undefined;
-}
-
-/** `probeComfyui` input (MA-8/D96) — the acting principal (authed browse of the owner-configured ComfyUI
- *  endpoint; no owned id). The probe hits the deployment-global endpoint, not a per-user resource. */
-export interface ProbeComfyuiParams {
-  readonly principal: Principal;
 }
 
 /** `getGenerationCost` input — the principal + the upstream generation id to settle. */

@@ -27,12 +27,10 @@ import type { BulkImportPersonas } from "#domain/persona";
 import { reconcileStats } from "#domain/stats";
 import type {
   WorkloadCharacterEnv,
-
   WorkloadConnectionEnv,
   WorkloadDiscoveryEnv,
   WorkloadEmbeddingsEnv,
   WorkloadMemoryEnv,
-
   WorkloadRunnerEnv,
   WorkloadStatsEnv,
 } from "#domain/workloads";

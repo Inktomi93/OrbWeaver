@@ -8,10 +8,7 @@
 // receives the injected `EmitDomainEvent` op (wired at the composition root) and the indexer's handlers are
 // typed against `DomainEvent`. CLOSED union: credentials/secrets are type-level unrepresentable here (a
 // payload is only a branded id — the subscriber re-reads canon by id, never trusting event-carried data).
-import type {
-  AssetId,
-  CharacterId,
-} from "@orb/kit/ids";
+import type { AssetId, CharacterId } from "@orb/kit/ids";
 
 // The discriminant axis (§7.5 one-union; a new event = a member here + a handler, nowhere else). The four
 // `crew.*` members are the chat-crew domain-event MIRROR (chat-crew-design/04 §4): a curated, id-only subset
@@ -22,10 +19,7 @@ import type {
 // members are the rpg domain-event MIRROR (rpg-design/05 §5 / 09b — R5): the curated `RpgBusEvent` subset the
 // rpg verbs mirror here so automation triggers on game activity (`rpg.encounterEnded` is a PENDING EMITTER
 // until R8; the other four emit at their landed producer verbs — R5 also lands the indexer's no-op arms).
-export const DOMAIN_EVENT_TYPES = [
-  "character.updated",
-  "asset.created",
-] as const;
+export const DOMAIN_EVENT_TYPES = ["character.updated", "asset.created"] as const;
 export type DomainEventType = (typeof DOMAIN_EVENT_TYPES)[number];
 
 /** A character card was created/edited — the indexer re-embeds the card (`store(kind='card', lens='card-text')`).
@@ -47,9 +41,7 @@ export interface AssetCreatedEvent {
   readonly assetId: AssetId;
 }
 
-export type DomainEvent =
-  | CharacterUpdatedEvent
-  | AssetCreatedEvent
+export type DomainEvent = CharacterUpdatedEvent | AssetCreatedEvent;
 
 /** The injected op an emitting domain calls; the composition root binds it to the bus. */
 export type EmitDomainEvent = (event: DomainEvent) => void;

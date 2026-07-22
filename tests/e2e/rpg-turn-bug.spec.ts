@@ -16,18 +16,18 @@ test("rpg turn completes without dropping subscription and locking composer", {
   // 2. Convert to an RPG game via the Setup Wizard
   await openChatOptions(page);
   await page.getByTestId("rpgStartCampaign").click();
-  
+
   // Submit the form (Wizard has 4 steps, just click Next/Start)
   const nextBtn = page.getByRole("button", { name: "Next" });
   await expect(nextBtn.first()).toBeVisible({ timeout: 15_000 });
-  
+
   await nextBtn.click(); // Genres
   await nextBtn.click(); // Setting
   await nextBtn.click(); // Rules
-  
+
   const startBtn = page.getByRole("button", { name: "Start Campaign" });
   await startBtn.click(); // Start
-  
+
   // Wait for dialog to close
   await expect(startBtn).not.toBeVisible({ timeout: 15_000 });
 
@@ -35,7 +35,7 @@ test("rpg turn completes without dropping subscription and locking composer", {
   const composer = page.getByRole("textbox", { name: "Message" });
   await expect(composer).toBeVisible();
   await composer.fill("Hello, GM. Let's start the game.");
-  
+
   // The Send button
   const sendBtn = page.getByRole("button", { name: "Send message" });
   await sendBtn.click();
@@ -58,18 +58,21 @@ test("rpg turn completes without dropping subscription and locking composer", {
   } catch (err) {
     console.error("[DEBUG] Composer is still locked! Bug reproduced.");
   }
-  
+
   // 7. Observability check: Dump the __orb bus devlog
   const busEvents = await page.evaluate(() => window.__orb?.bus().events ?? []);
   console.log("[DEBUG] Bus Events length:", busEvents.length);
   const busTypes = busEvents.map((e: any) => e.type);
-  console.log("[DEBUG] Bus Event Types:", busTypes.filter((t: string) => ["turnCompleted", "messageCommitted", "chatsChanged"].includes(t)));
+  console.log(
+    "[DEBUG] Bus Event Types:",
+    busTypes.filter((t: string) => ["turnCompleted", "messageCommitted", "chatsChanged"].includes(t)),
+  );
 
   // 8. DB verification: Check the temp DB to verify the contents of the multi-turn RPG and what all took place!
   const url = page.url();
   const chatId = url.split("/chat/")[1];
   console.log("[DEBUG] Chat ID:", chatId);
-  
+
   // We can just evaluate a call to the TRPC client to get the messages if DB is tricky to import!
   // Or we can use window.__orb.queries() to see the query cache!
   const queries = await page.evaluate(() => window.__orb?.queries() ?? []);
@@ -79,5 +82,5 @@ test("rpg turn completes without dropping subscription and locking composer", {
   // We can fetch the DOM content to see what rendered
   const assistantMessages = await page.locator('[data-slot="message-row"][data-role="assistant"]').allTextContents();
   console.log("[DEBUG] Rendered Assistant Messages:");
-  assistantMessages.forEach((msg, i) => console.log(`  [${i}] ${msg.slice(0, 100).replace(/\n/g, ' ')}...`));
+  assistantMessages.forEach((msg, i) => console.log(`  [${i}] ${msg.slice(0, 100).replace(/\n/g, " ")}...`));
 });

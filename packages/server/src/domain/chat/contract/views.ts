@@ -22,7 +22,9 @@ import type {
   PersonaAvatarEntry,
   RoomOverrides,
 } from "@orb/contracts/chat";
-import type { CharacterId, ChatId, ChatInjectionId, MessageVariantId, UserId } from "@orb/kit/ids";
+import type { ParticipantRole } from "@orb/contracts/identity";
+import type { ThemeBackground } from "@orb/contracts/theme";
+import type { CharacterId, ChatId, ChatInjectionId, MessageVariantId, RpgGameId, UserId } from "@orb/kit/ids";
 
 export type {
   AssembledPrompt,
@@ -31,6 +33,9 @@ export type {
   MessageView,
   ParticipantView,
   SectionPreview,
+  // The content-free SHAPE trace (getShapeTrace) — the cross-boundary wire node (`@orb/contracts/chat`),
+  // re-exported type-only so the service signature + front door reference the ONE name (derive-don't-respell).
+  ShapeTrace,
 } from "@orb/contracts/chat";
 
 /** The library-list row (listChats) — light, membership-scoped (D18: a chat I host OR am a member of; there
@@ -56,6 +61,11 @@ export interface ChatSummary {
    *  which also counts past seats). Character seats only (`kind='character'`) — human/agent/observer excluded;
    *  deduped. Populated via ONE junction bulk read per page (no N+1 — the `canonicalTagsFor` precedent). */
   readonly participantCharacterIds: readonly CharacterId[];
+  /** The CALLER's own role in this chat (D18 membership), derived per-caller from the `chat_participants`
+   *  FK truth in the listing projection — never stamped. Drives the Automation pane's chat picker (which
+   *  offers only HOSTED chats, since v1 rule authoring IS room-host authority) and any future
+   *  host-vs-member list affordance. Present on every listing row (listChats/listForks/getChatLineage). */
+  readonly viewerRole: ParticipantRole;
   readonly createdAt: number;
   readonly updatedAt: number;
 }
@@ -92,6 +102,13 @@ export interface ChatDetail {
   /** The effective room behavior (parsed from `metadata`; defaults applied — never raw). */
   readonly group: GroupConfig;
   readonly roomOverrides: RoomOverrides;
+  /** BG-C — the host-set per-chat carried BACKGROUND source (parsed `metadata.background`), or `null` when
+   *  unset. Applied at the app-root background layer in a TRUE-SOLO room, above the card-carried twin; INERT
+   *  for every viewer in any other composition (client-resolved). */
+  readonly background: ThemeBackground | null;
+  /** GAP #4 — the chat's rpg game id (parsed `metadata.rpg.gameId`), or `null` when this chat is not a game.
+   *  The client's SYNC `hasRpgGame` signal (`rpgGameId !== null`) — game-ness without a per-chat rpg query. */
+  readonly rpgGameId: RpgGameId | null;
   readonly opening: OpeningPolicy | null;
   /** The portable compaction checkpoint (D25) — the summary text + the seq it covers through. */
   readonly compactSummary: string | null;

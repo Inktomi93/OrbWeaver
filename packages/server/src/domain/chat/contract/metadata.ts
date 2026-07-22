@@ -5,23 +5,16 @@
 // roomOverrides / opening / providerRouting) is lazy-parsed independently, so a malformed one falls back to
 // its default without nuking its siblings.
 
-import type { GroupConfig, OpeningPolicy, RoomOverrides } from "@orb/contracts/chat";
+import type { ChatMetadata, GroupConfig, RoomOverrides } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES, groupConfigSchema, openingPolicySchema, roomOverridesSchema } from "@orb/contracts/chat";
-import type { OpenRouterProviderRouting } from "@orb/contracts/connection";
 import { openRouterProviderRoutingSchema } from "@orb/contracts/connection";
+import { chatDocumentVisibilitySchema } from "@orb/contracts/databank";
+import { chatRpgPointerSchema } from "@orb/contracts/rpg";
+import { themeBackgroundSchema } from "@orb/contracts/theme";
 import { stripUndefined } from "@orb/kit/objects";
 import { z } from "zod";
 
-/** The parsed `chats.metadata` blob. Every sub-blob is optional — absent ⇒ the consumer applies its
- *  canonical default (the off-path is byte-identical). */
-export interface ChatMetadata {
-  group?: GroupConfig;
-  roomOverrides?: RoomOverrides;
-  opening?: OpeningPolicy;
-  providerRouting?: OpenRouterProviderRouting;
-  /** A chat-level knob (in a multi-human room the loop spends the host's money, so the funder tunes it). */
-  toolRecurseLimit?: number;
-}
+export type { ChatMetadata } from "@orb/contracts/chat";
 
 export const TOOL_RECURSE_LIMIT_DEFAULT = 5;
 const TOOL_RECURSE_LIMIT_MAX = 20;
@@ -38,6 +31,9 @@ const chatMetadataSchema = z
     opening: openingPolicySchema.optional().catch(undefined),
     providerRouting: openRouterProviderRoutingSchema.optional().catch(undefined),
     toolRecurseLimit: toolRecurseLimitSchema.optional().catch(undefined),
+    databankVisibility: chatDocumentVisibilitySchema.optional().catch(undefined),
+    background: themeBackgroundSchema.optional().catch(undefined),
+    rpg: chatRpgPointerSchema.optional().catch(undefined),
   })
   .loose();
 

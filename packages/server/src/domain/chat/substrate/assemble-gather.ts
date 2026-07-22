@@ -21,7 +21,7 @@ import { buildAssembleContext } from "../assembly/context";
 import type { ChatContext } from "../context";
 import type { AgentCastMember } from "../contract/context";
 import type { ForeignInputs } from "../contract/foreign";
-import type { MsgRow } from "../contract/memory";
+import type { MemoryRecallInputs, MsgRow } from "../contract/memory";
 import type { GuidedSteer } from "../contract/params";
 import { recallMemory } from "../memory/recall/recall";
 import { loadCanonHistory, loadChatInjections, loadChatRow, loadStoredVariables, loadVariableDeltas } from "../persistence/queries";
@@ -33,6 +33,46 @@ import { resolveChoiceVariables } from "./variables";
  *  here so the verb persists that. Threaded straight through to the pure core. */
 interface SendRegexSink {
   sendUserText?: string;
+  /** The round-level recall inputs for the engine's per-speaker witnessed re-run (D6) — written by
+   *  `gatherMemory` (NOT the pure core, which never touches it). `null` ⇒ no character to key on. */
+  memoryRecall?: MemoryRecallInputs | null;
+}
+
+// ── the {{databank}} slot GATHER (DB6, databank-design/07 §4/§6) ──────────────────────────────────────────
+/** The retrieval query = pending + the last N committed turns (databank-design/07 §4). LEAN: code constants
+ *  until retrieval complaints trace to query construction. */
+const DATABANK_QUERY_RECENT_TURNS = 2;
+const DATABANK_QUERY_MAX_CHARS = 1000;
+/** The `{{databank}}` slot's share of the turn budget (databank-design/07 §6). v1 LEAN: a chat-side constant
+ *  sized to seat the default retrieval (k=5 × 2500-char chunks ≈ 3.1k tokens) while capping a pathological
+ *  huge-chunk config — the preset-section-derived budget supersedes it once that apportionment infra lands. */
+const DATABANK_SLOT_TOKEN_BUDGET = 4096;
+
+/** Build the retrieval query: the pending user text + the last 2 committed turns, most-recent-first, capped.
+ *  The pending message is the strongest signal; the recent turns restore the context a bare "tell me more
+ *  about that" loses; the whole window would dilute the embedding toward the conversation average (§4). */
+function buildDatabankQuery(pendingUserText: string | undefined, eligibleContent: readonly string[]): string {
+  const lastTurns = eligibleContent.slice(-DATABANK_QUERY_RECENT_TURNS).reverse();
+  const parts = [pendingUserText, ...lastTurns].filter((t): t is string => t !== undefined && t.trim().length > 0);
+  return parts.join("\n").slice(0, DATABANK_QUERY_MAX_CHARS);
+}
+
+/** Resolve the `{{databank}}` slot string for the round. `undefined` when the op is absent OR returns null
+ *  (bankless scope / no hits / budget too small) — the `setIf`-skipped byte-identity pin: an absent op and a
+ *  null result produce the SAME empty slot resolution. */
+async function gatherDatabank(
+  ctx: ChatContext,
+  args: { readonly chatId: ChatId; readonly pendingUserText: string | undefined; readonly eligibleContent: readonly string[] },
+): Promise<string | undefined> {
+  if (ctx.gatherDatabank === undefined) {
+    return;
+  }
+  const queryText = buildDatabankQuery(args.pendingUserText, args.eligibleContent);
+  if (queryText.length === 0) {
+    return;
+  }
+  const result = await ctx.gatherDatabank({ chatId: args.chatId, queryText, tokenBudget: DATABANK_SLOT_TOKEN_BUDGET });
+  return result === null ? undefined : result.text;
 }
 
 /** A committed canon row, prompt-eligible (the slim shape the gather projects from `MessageView`). */
@@ -82,7 +122,8 @@ function toChatInjection(row: Awaited<ReturnType<typeof loadChatInjections>>[num
 
 /** Resolve the `{{memory}}` string for the round. Round-level recall uses the shared/merged bucket (the
  *  synthetic group-as-character, or the primary cast char when none is minted). Returns "" when there is
- *  no character to key on. */
+ *  no character to key on. When `out` is supplied, stages the round-level recall inputs for the engine's
+ *  per-speaker witnessed re-run (D6). */
 async function gatherMemory(
   ctx: ChatContext,
   args: {
@@ -93,6 +134,7 @@ async function gatherMemory(
     readonly recent: readonly MsgRow[];
     readonly names: ReadonlyMap<CharacterId, string>;
   },
+  out?: SendRegexSink,
 ): Promise<string> {
   const group = await ctx.findSyntheticGroupCharacter({
     ownerId: args.runAsUserId,
@@ -100,7 +142,14 @@ async function gatherMemory(
   });
   const sharedCharId = group?.characterId ?? args.castCharacterIds[0] ?? null;
   if (sharedCharId === null) {
+    if (out !== undefined) {
+      out.memoryRecall = null;
+    }
     return "";
+  }
+  const config = args.foreign.memoryConfig ?? null;
+  if (out !== undefined) {
+    out.memoryRecall = { groupCharacterId: sharedCharId, recent: args.recent, names: args.names, config };
   }
   return await recallMemory(ctx, {
     scope: {
@@ -111,7 +160,7 @@ async function gatherMemory(
     groupCharacterId: sharedCharId,
     // FLAG[recall-livewindow-cutoff]: the exact per-speaker liveWindowCutoffSeq comes from the engine's
     // post-assemble history-budget fit — unavailable here. Left undefined (no live-window trim this round).
-    ...(args.foreign.memoryConfig !== undefined && args.foreign.memoryConfig !== null ? { config: args.foreign.memoryConfig } : {}),
+    ...(config !== null ? { config } : {}),
     recent: args.recent,
     names: args.names,
   });
@@ -131,6 +180,8 @@ export async function gatherAssembleContext(
     readonly castCharacterIds: readonly CharacterId[];
     /** Present seated agents (D60), soul-resolved by `loadRoom`; threaded straight to the pure build core. */
     readonly agentCast?: readonly AgentCastMember[] | undefined;
+    /** The muted-seat `speakerKey`s from `loadRoom` (character + agent) — the `castNotMuted` producer. */
+    readonly mutedSpeakerKeys?: ReadonlySet<string> | undefined;
     readonly personaIds: readonly PersonaId[];
     readonly pendingUserText?: string | undefined;
     /** The one-turn typed steer — threaded to the BUILD, which resolves the action template once and
@@ -142,6 +193,15 @@ export async function gatherAssembleContext(
     /** The `injection_trigger` gate — maps the driving `TurnKind` → `GenerationType` at the verb so
      *  trigger-gated preset sections fire on the right turn kind. Absent ⇒ "normal". */
     readonly generationType?: GenerationType | undefined;
+    /** A game turn's GATHER macros (rpg-design/06 §1), keyed by the RpgGatherMacros field names — fed to the
+     *  pure build as `rpgMacros`; absent ⇒ every rpg macro resolves empty (byte-identical non-game turn). */
+    readonly rpgMacros?: Readonly<Record<string, string>> | undefined;
+    /** A game turn's depth-0 format-reminder injection(s) (rpg-design/05 §1) — merged into the chat injection
+     *  list (recency-biased, nearest generation via their `depth:0`). Absent ⇒ no rpg injection. */
+    readonly rpgInjections?: readonly ChatInjection[] | undefined;
+    /** The chat-crew director's guidance injection(s) (chat-crew-design/04 §1) — merged into the chat injection
+     *  list at the author's-note depth. Absent ⇒ director off / no pass ⇒ byte-identical non-crew turn. */
+    readonly crewInjections?: readonly ChatInjection[] | undefined;
   },
   foreign: ForeignInputs,
   out?: SendRegexSink,
@@ -183,14 +243,21 @@ export async function gatherAssembleContext(
   const lastUserMessage = eligible.findLast((m) => m.role === "user")?.content;
   const lastCharMessage = eligible.findLast((m) => m.role === "assistant")?.content;
 
-  const memory = await gatherMemory(ctx, {
-    chatId,
-    runAsUserId,
-    castCharacterIds,
-    foreign,
-    recent: recentRows,
-    names: cast.names,
-  });
+  const [memory, databank] = await Promise.all([
+    gatherMemory(
+      ctx,
+      {
+        chatId,
+        runAsUserId,
+        castCharacterIds,
+        foreign,
+        recent: recentRows,
+        names: cast.names,
+      },
+      out,
+    ),
+    gatherDatabank(ctx, { chatId, pendingUserText: args.pendingUserText, eligibleContent: eligible.map((m) => m.content) }),
+  ]);
 
   // The host-tier regex union (host-global ∪ chat-preset ∪ present cast), deterministically ordered/deduped.
   const hostTierRegexScripts = resolveHostTierRegexScripts({
@@ -210,12 +277,19 @@ export async function gatherAssembleContext(
       ownerId: runAsUserId,
       castCharacterIds,
       agentCast: args.agentCast,
+      mutedSpeakerKeys: args.mutedSpeakerKeys,
       personaIds,
       promptConfig: foreign.promptConfig,
       personas: foreign.personas,
       recentMessages,
-      userInjections: injectionRows.map(toChatInjection),
+      // The user/WI injections + a game turn's depth-0 reminder injection(s) (05 §1) + the crew director's
+      // guidance injection (chat-crew-design/04 §1); absent rpg/crew ⇒ unchanged.
+      userInjections: [...injectionRows.map(toChatInjection), ...(args.rpgInjections ?? []), ...(args.crewInjections ?? [])],
       memory,
+      // Absent (op unwired / null result) ⇒ omitted ⇒ byte-identical to a non-databank turn (DB6 null-op pin).
+      ...(databank !== undefined ? { databank } : {}),
+      // Absent (no game / gather null) ⇒ omitted ⇒ every rpg macro resolves empty (byte-identical non-game).
+      ...(args.rpgMacros !== undefined ? { rpgMacros: args.rpgMacros } : {}),
       compactSummary: chatRow?.compactSummary ?? null,
       variableValues: mergedVariables,
       injectionTokenBudget: foreign.injectionTokenBudget,

@@ -13,13 +13,11 @@ import { connectionRouter } from "./routers/connection";
 import { credentialsRouter } from "./routers/credentials";
 import { databankRouter } from "./routers/databank";
 import { discoveryRouter } from "./routers/discovery";
-import { expressionsRouter } from "./routers/expressions";
 import { imageryRouter } from "./routers/imagery";
 import { invitesRouter } from "./routers/invites";
 import { notificationsRouter } from "./routers/notifications";
 import { personaRouter } from "./routers/persona";
 import { pluginRouter } from "./routers/plugin";
-import { posesRouter } from "./routers/poses";
 import { presetRouter } from "./routers/preset";
 import { rosterPresetRouter } from "./routers/roster-preset";
 import { searchRouter } from "./routers/search";
@@ -72,13 +70,11 @@ export const appRouter = t.router({
   credentials: credentialsRouter,
   databank: databankRouter,
   discovery: discoveryRouter,
-  expressions: expressionsRouter,
   imagery: imageryRouter,
   invites: invitesRouter,
   notifications: notificationsRouter,
   persona: personaRouter,
   plugin: pluginRouter,
-  poses: posesRouter,
   preset: presetRouter,
   rosterPreset: rosterPresetRouter,
   search: searchRouter,

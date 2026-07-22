@@ -9,7 +9,7 @@
 // verb threads the active-turns abort signal into the engine and its `guided` steer into GATHER→BUILD.
 
 import type { AssembleContext, ChatBusEvent, GroupConfig, MessageView, ParticipantKind, SpeakerRef } from "@orb/contracts/chat";
-import { DEFAULT_GROUP_CONFIG, isAiDriven, speakerKey } from "@orb/contracts/chat";
+import { AUTOMATION_DEPTH_HARD_CAP, DEFAULT_GROUP_CONFIG, isAiDriven, speakerKey } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
 import type { GenerationType } from "@orb/contracts/preset";
 import { batchMany, isConstraintViolation } from "@orb/db/kit";
@@ -22,7 +22,7 @@ import type { AgentCastMember } from "../contract/context";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors";
 import type { ChatBehaviorInputs, ResolveForeignInputsOp } from "../contract/foreign";
 import { DEFAULT_CHAT_BEHAVIOR } from "../contract/foreign";
-import type { MemoryConfig } from "../contract/memory";
+import type { MemoryConfig, MemoryRecallInputs } from "../contract/memory";
 import type {
   AbortParams,
   ContinueTurnParams,
@@ -30,12 +30,13 @@ import type {
   GenerateParams,
   GuidedSteer,
   ImpersonateParams,
+  RequestTurnParams,
   RevertContinueParams,
   SendParams,
   SwipeParams,
   UndoContinueParams,
 } from "../contract/params";
-import type { DrainDeferredTurnsScope, DrainReport, TurnEngine, TurnKind, TurnOutcome, TurnPrep } from "../contract/results";
+import type { DrainDeferredTurnsScope, DrainReport, RequestTurnOp, TurnEngine, TurnKind, TurnOutcome, TurnPrep } from "../contract/results";
 import type { ChatService } from "../contract/service";
 import { requireHost, requireParticipant } from "../guard";
 import {
@@ -47,17 +48,27 @@ import {
 } from "../persistence/canon-write";
 import { claimPendingTurn, insertPendingTurn, loadPendingTurnsForHost, loadPendingTurnsForReclaim } from "../persistence/invites";
 import { isBackingUserEnabled } from "../persistence/participant";
-import { loadCanonHistory, loadChatRow, loadContinueSnapshot, loadMaxMessageSeq, loadMessageView, loadSlotTarget } from "../persistence/queries";
-import { loadRoster } from "../persistence/roster";
+import {
+  loadCanonHistory,
+  loadChatRow,
+  loadContinueSnapshot,
+  loadIsReplyToLatestUserMessage,
+  loadMaxMessageSeq,
+  loadMessageView,
+  loadSlotTarget,
+} from "../persistence/queries";
+import { loadPresentRole, loadRoster } from "../persistence/roster";
 import { gatherAssembleContext } from "../substrate/assemble-gather";
 import { freezeVolatileMacros } from "../substrate/assembly-access";
 import { userMessageDelta } from "../substrate/stats-delta";
 import { driveRoundVia, resolveMentionsVia, resolveTurnIdentityVia, runAutoModeVia, selectSpeakersVia, smartArbitrateVia } from "../substrate/turn-access";
 
 /** SEND USER_INPUT regex out-param sink: `buildAssembleContext` writes the post-regex user text here so the
- *  verb persists that (the haystack and the stored row never diverge). */
+ *  verb persists that (the haystack and the stored row never diverge). Also receives the round-level recall
+ *  inputs (`memoryRecall`) `gatherMemory` stages for the engine's per-speaker witnessed re-run (D6). */
 interface SendRegexSink {
   sendUserText?: string;
+  memoryRecall?: MemoryRecallInputs | null;
 }
 
 /** The shared per-round identity + ctx the driver reuses by reference. */
@@ -112,6 +123,9 @@ interface Room {
   readonly castNames: readonly CastName[];
   readonly castCharacterIds: readonly CharacterId[];
   readonly agentCast: readonly AgentCastMember[];
+  /** The `speakerKey`s of the present MUTED seats (character + agent) — the `castNotMuted` producer, keyed on
+   *  the same seat `disabled` axis arbitration reads. Empty ⇒ nothing muted. */
+  readonly mutedSpeakerKeys: ReadonlySet<string>;
   readonly personaIds: readonly PersonaId[];
 }
 
@@ -192,13 +206,17 @@ async function loadRoom(ctx: ChatContext, chatId: ChatId): Promise<Room> {
   }));
   const charCastNames: CastName[] = charRows.map((r, i) => ({ ref: { kind: "character", characterId: r.characterId }, name: cards[i]?.name ?? "" }));
   const agentCastNames: CastName[] = agents.map((a) => ({ ref: { kind: "agent", userId: a.userId }, name: a.identity.displayName }));
+  const candidates: ArbiterCandidate[] = [...charCandidates, ...agentCandidates];
   return {
     hostUserId,
-    candidates: [...charCandidates, ...agentCandidates],
+    candidates,
     castNames: [...charCastNames, ...agentCastNames],
     // Character-only — the WI pool + memory bucket key on characterId; an agent has neither.
     castCharacterIds: charRows.map((r) => r.characterId),
     agentCast: agents.map((a) => ({ userId: a.userId, identity: a.identity })),
+    // A muted seat (character OR agent) stays cast (lore/soul contribute) but drops from `{{groupNotMuted}}`.
+    // One set over both arms — `disabled` is the same axis `isArbiterEligible` filters selection on.
+    mutedSpeakerKeys: new Set(candidates.filter((c) => c.disabled).map((c) => speakerKey(c.ref))),
     personaIds,
   };
 }
@@ -247,9 +265,19 @@ function lastSpeakerRef(row: { readonly characterId: CharacterId | null; readonl
 interface BuiltTurnContext {
   readonly assembleContext: AssembleContext;
   readonly memoryConfig: MemoryConfig | null | undefined;
+  /** The round-level recall inputs staged for the engine's per-speaker witnessed re-run (D6); `null` when
+   *  there is no character to key on (memory off / empty cast) ⇒ the engine keeps round-level `memory`. */
+  readonly memoryRecall: MemoryRecallInputs | null;
   /** The host's resolved turn-behavior arm (PD-146) — the custom stops the prep threads onto the request
    *  + the auto-continue/auto-swipe knobs the send post-round hook gates on. Defaulted to all-off. */
   readonly chatBehavior: ChatBehaviorInputs;
+  /** The tool names a game turn's GATHER contributed (rpg-design/05 §1) — threaded onto the round base →
+   *  `TurnPrep.attachedToolNames` (the pipeline resolves them against the tool-use registry). Empty for a
+   *  non-game turn (byte-identical); empty until the rpg tool registry lands (R4 #2/#3) even for a game. */
+  readonly attachedToolNames: readonly string[];
+  /** rpg-design/05 §6 slot-adjacency (threaded onto `TurnPrep` → the engine marks the turn dice-eligible after
+   *  minting `turnId`). False for a non-game / ineligible turn (byte-identical). */
+  readonly respondsToLatestUserTurn: boolean;
 }
 
 /** The turn's driving {@link TurnKind} → the `injection_trigger` {@link GenerationType} gate. Exhaustive
@@ -280,17 +308,27 @@ async function buildTurnContext(
     /** The soul-resolved seated agents (D60) — appended to the assemble cast so an agent speaker rides the
      *  one turn path. Empty ⇒ byte-identical to a character-only room. */
     readonly agentCast: readonly AgentCastMember[];
+    /** The muted-seat `speakerKey`s (character + agent) — threaded to `castNotMuted` for `{{groupNotMuted}}`. */
+    readonly mutedSpeakerKeys: ReadonlySet<string>;
     readonly personaIds: readonly PersonaId[];
     readonly anchorPersonaId: PersonaId | null;
     /** The triggering human's active persona — binds prompt-config `{{user}}` to the speaker, not
      *  `personaIds[0]` (the presence-order-arbitrary first human). */
     readonly triggerPersonaId?: PersonaId | null | undefined;
     readonly pendingUserText?: string | undefined;
+    /** rpg-design/05 §6 slot-adjacency: is this turn (re)generating the assistant slot that DIRECTLY responds
+     *  to the latest user message (send / deferred-drain / swipe-of-that-slot)? Drives the rpg dice feed-forward
+     *  flag + eligibility so a later GM/auto round never re-feeds a stale die. Absent ⇒ false (ineligible). */
+    readonly respondsToLatestUserTurn?: boolean | undefined;
     readonly guided?: GuidedSteer | undefined;
   },
   /** SEND sink — when present and host-tier scripts resolve, writes the post-regex user text for the verb to persist. */
   out?: SendRegexSink,
 ): Promise<BuiltTurnContext> {
+  // The GM-voice preset REDIRECT early hop (rpg-design/02 §1.1 #1) — resolved BEFORE the foreign preset read so
+  // a game turn assembles the game's gmPresetId instead of the host default. Null op / non-game ⇒ null ⇒ absent
+  // ⇒ the host default (byte-identical). It rides the FOREIGN-inputs args (the established turn-knob seam).
+  const presetOverride = ctx.rpg !== null ? await ctx.rpg.resolvePresetOverride(args.chatId) : null;
   const foreign = await deps.resolveForeignInputs({
     chatId: args.chatId,
     runAsUserId: args.runAsUserId,
@@ -298,7 +336,17 @@ async function buildTurnContext(
     anchorPersonaId: args.anchorPersonaId,
     personaIds: args.personaIds,
     triggerPersonaId: args.triggerPersonaId,
+    ...(presetOverride !== null ? { presetOverride } : {}),
   });
+  // A game turn's GATHER (rpg-design/05 §1): the 8 rpg macros + the depth-0 reminder injection + the tool
+  // names to attach. Null op / non-game ⇒ null ⇒ a byte-identical non-game turn (no macros, no injection, no tools).
+  const rpg = ctx.rpg !== null ? await ctx.rpg.gatherTurnContext(args.chatId, args.pendingUserText, args.respondsToLatestUserTurn ?? false) : null;
+  // The chat-crew director's GATHER (chat-crew-design/04 §1): the current guidance as ONE injection. Null op /
+  // director off / no pass ⇒ null ⇒ a byte-identical non-crew turn (the byte-identity contract test pins it).
+  const crew = ctx.crew !== null ? await ctx.crew.gatherTurnContext(args.chatId) : null;
+  // The gather sink: the caller's SEND sink when present (so `sendUserText` still surfaces), else a private
+  // one — either way `gatherMemory` stages `memoryRecall` here for the engine's per-speaker witnessed re-run.
+  const sink: SendRegexSink = out ?? {};
   const assembleContext = await gatherAssembleContext(
     ctx,
     {
@@ -307,16 +355,26 @@ async function buildTurnContext(
       model: args.model,
       castCharacterIds: args.castCharacterIds,
       agentCast: args.agentCast,
+      mutedSpeakerKeys: args.mutedSpeakerKeys,
       personaIds: args.personaIds,
       generationType: GENERATION_TYPE_FOR_KIND[args.kind],
       prng: deps.prng,
       ...(args.pendingUserText !== undefined ? { pendingUserText: args.pendingUserText } : {}),
       ...(args.guided !== undefined ? { guided: args.guided } : {}),
+      ...(rpg !== null ? { rpgMacros: rpg.macros, rpgInjections: rpg.injections } : {}),
+      ...(crew !== null ? { crewInjections: crew.injections } : {}),
     },
     foreign,
-    out,
+    sink,
   );
-  return { assembleContext, memoryConfig: foreign.memoryConfig, chatBehavior: foreign.chatBehavior ?? DEFAULT_CHAT_BEHAVIOR };
+  return {
+    assembleContext,
+    memoryConfig: foreign.memoryConfig,
+    memoryRecall: sink.memoryRecall ?? null,
+    chatBehavior: foreign.chatBehavior ?? DEFAULT_CHAT_BEHAVIOR,
+    attachedToolNames: rpg?.tools ?? [],
+    respondsToLatestUserTurn: args.respondsToLatestUserTurn ?? false,
+  };
 }
 
 /** Persists a user message (a fresh slot + its one variant) and emits `messageCommitted`. Persists exactly
@@ -491,8 +549,11 @@ async function runChain(
 
 /** The shared AI-response body of a human `send` AND a drained deferred turn: arbitrate the responder(s) off
  *  the committed canon, mint the narrator group-character when needed, drive the round, then (if autoMode)
- *  chain AI→AI. Returns the committed assistant rows. Both callers owe the same "who speaks next" response —
- *  the only difference is the caller persists a user line first (send) or not (drain). */
+ *  chain AI→AI. Returns the round OUTCOME — the committed rows PLUS whether it aborted mid-round (so `send`
+ *  propagates the truth instead of hardcoding `aborted:false`). A mid-round abort STOPS before the auto-mode
+ *  chain: the caller cancelled, so we do not start an AI→AI chain on top of the cancelled round. Both callers
+ *  owe the same "who speaks next" response — the only difference is the caller persists a user line first
+ *  (send) or not (drain). */
 async function runAiRound(
   ctx: ChatContext,
   deps: TurnDeps,
@@ -504,8 +565,12 @@ async function runAiRound(
     /** Human `@mention` hard-override (send only). A drained turn re-arbitrates naturally — the pending row
      *  carries no message text to parse. */
     readonly forcedIds?: readonly CharacterId[] | undefined;
+    /** Whether to run the auto-mode AI→AI chain after the human-triggered round. Absent/true for a human send
+     *  or drain (the host's autoMode setting governs). A non-human `requestTurn` passes `false` — an autonomous
+     *  trigger is ONE injected beat, never a chain (bounded spend; the room's autoMode is a human affordance). */
+    readonly chain?: boolean | undefined;
   },
-): Promise<MessageView[]> {
+): Promise<TurnOutcome> {
   const facts = await canonFacts(ctx, args.base.chatId);
   const speakers = await arbitrate(ctx, deps, {
     group: args.group,
@@ -534,7 +599,10 @@ async function runAiRound(
     castName,
   });
   const committed: MessageView[] = [...round.messages];
-  if (args.group.autoMode) {
+  if (round.aborted && round.abortReason !== undefined) {
+    return { messages: committed, aborted: true, abortReason: round.abortReason };
+  }
+  if (args.group.autoMode && (args.chain ?? true)) {
     const auto = await runChain(ctx, deps, {
       base: args.base,
       group: args.group,
@@ -546,7 +614,7 @@ async function runAiRound(
     });
     committed.push(...auto.messages);
   }
-  return committed;
+  return { messages: committed, aborted: false, abortReason: undefined };
 }
 
 /** Host-offline defer decision (Part III §5): a NON-host member's send while the funding host is dark queues
@@ -736,6 +804,51 @@ async function runAutoBehaviors(
   return [];
 }
 
+/** Joins the AI round's outcome to the just-committed user row into the send's `TurnOutcome`. A round that
+ *  aborted mid-flight (caller cancel / lock-stale) returns the aborted truth with the rows that landed before
+ *  it — NO PD-146 follow-up on a cancelled round (`runAutoBehaviors` short-circuits on the aborted signal
+ *  anyway; this makes the intent explicit and carries the abort reason). Otherwise runs the host's post-round
+ *  auto-behaviors and joins their rows. */
+async function assembleSendResult(
+  auto: AutoBehaviorDeps,
+  args: {
+    readonly principal: SendParams["principal"];
+    readonly chatId: ChatId;
+    readonly userView: MessageView;
+    readonly round: TurnOutcome;
+    readonly behavior: ChatBehaviorInputs;
+    readonly signal: AbortSignal;
+  },
+): Promise<TurnOutcome> {
+  if (args.round.aborted) {
+    return {
+      messages: [args.userView, ...args.round.messages],
+      aborted: true,
+      ...(args.round.abortReason !== undefined ? { abortReason: args.round.abortReason } : {}),
+    };
+  }
+  // PD-146 post-round auto-behaviors: auto-swipe (too-short/blacklisted reply) takes precedence over
+  // auto-continue (length-capped reply) — a reply can't be both. Gated on the host's settings (all-off ⇒ no
+  // follow-up, byte-identical), bounded, abort-aware; every follow-up row joins the send's result.
+  const followUps = await runAutoBehaviors(auto, {
+    principal: args.principal,
+    chatId: args.chatId,
+    committed: args.round.messages,
+    behavior: args.behavior,
+    signal: args.signal,
+  });
+  return { messages: [args.userView, ...args.round.messages, ...followUps], aborted: false };
+}
+
+/** Fire-and-forget the rpg SEND-path COMMIT (rpg-design/05 §0): after the user row lands, lock in the prior
+ *  assistant turn's snapshot the user was replying to (+ consume queued dice). Null op = non-rpg chat
+ *  (byte-identical no-op); fire-and-forget so a background snapshot-commit never blocks or fails the send. */
+function fireRpgUserCommit(ctx: ChatContext, chatId: ChatId, messageId: MessageId): void {
+  if (ctx.rpg !== null) {
+    void ctx.rpg.onUserCommit(chatId, messageId).catch(() => undefined);
+  }
+}
+
 /** `send` — persist the user message, build the one immutable assemble ctx, arbitrate the responders, drive
  *  the round, then (if autoMode) chain AI→AI, then (PD-146) run the host's post-round auto-behaviors.
  *  Member-gated; AI turns run as the host. */
@@ -758,7 +871,7 @@ function createSend(ctx: ChatContext, deps: TurnDeps, auto: AutoBehaviorDeps): C
     // Built with the pending user text in the WI haystack before the user row commits; the engine reloads
     // canon (including the committed row) for the wire history.
     const sendOut: SendRegexSink = {};
-    const { assembleContext, memoryConfig, chatBehavior } = await buildTurnContext(
+    const { assembleContext, memoryConfig, memoryRecall, chatBehavior, attachedToolNames, respondsToLatestUserTurn } = await buildTurnContext(
       ctx,
       deps,
       {
@@ -768,11 +881,15 @@ function createSend(ctx: ChatContext, deps: TurnDeps, auto: AutoBehaviorDeps): C
         kind: "send",
         castCharacterIds: room.castCharacterIds,
         agentCast: room.agentCast,
+        mutedSpeakerKeys: room.mutedSpeakerKeys,
         personaIds: room.personaIds,
         anchorPersonaId: membership.chat.anchorPersonaId,
         // biome-ignore lint/nursery/useNullishCoalescing: `??` would coalesce an EXPLICIT null into the active persona — only an omitted (undefined) param falls back (mirrors the row-stamp expression below).
         triggerPersonaId: personaId !== undefined ? personaId : membership.activePersonaId,
         pendingUserText: content,
+        // A send's AI response directly responds to the just-committed user message (rpg-design/05 §6): the
+        // player's queued d20 feeds its first skill check. Always true for a send.
+        respondsToLatestUserTurn: true,
         guided,
       },
       sendOut,
@@ -797,6 +914,8 @@ function createSend(ctx: ChatContext, deps: TurnDeps, auto: AutoBehaviorDeps): C
     if (isFirstUserTurn) {
       await freezeGreetingVolatiles(ctx, deps, assembleContext, priorCanon);
     }
+
+    fireRpgUserCommit(ctx, chatId, userView.id);
 
     // Host-offline → DEFER the AI response (Part III §5): the member's message is durable canon, but the owed
     // AI turn cannot run on the host's dark box, so it queues instead of running. The user row stands alone.
@@ -823,28 +942,21 @@ function createSend(ctx: ChatContext, deps: TurnDeps, auto: AutoBehaviorDeps): C
       intent: intent ?? {},
       extraStopSequences: chatBehavior.customStoppingStrings,
       memoryConfig,
+      ...(memoryRecall !== null ? { memoryRecall } : {}),
+      attachedToolNames,
+      respondsToLatestUserTurn,
       signal: handle.signal,
     };
 
     try {
-      const committed = await runAiRound(ctx, deps, {
+      const round = await runAiRound(ctx, deps, {
         base,
         group,
         room,
         signal: handle.signal,
         forcedIds: resolveMentionsVia(content, room.castNames),
       });
-      // PD-146 post-round auto-behaviors: auto-swipe (too-short/blacklisted reply) takes precedence over
-      // auto-continue (length-capped reply) — a reply can't be both. Gated on the host's settings (all-off ⇒
-      // no follow-up, byte-identical), bounded, abort-aware; every follow-up row joins the send's result.
-      const followUps = await runAutoBehaviors(auto, {
-        principal,
-        chatId,
-        committed,
-        behavior: chatBehavior,
-        signal: handle.signal,
-      });
-      return { messages: [userView, ...committed, ...followUps], aborted: false };
+      return await assembleSendResult(auto, { principal, chatId, userView, round, behavior: chatBehavior, signal: handle.signal });
     } finally {
       handle.release();
     }
@@ -871,13 +983,14 @@ function createForceCharacterTurn(ctx: ChatContext, deps: TurnDeps): ChatService
     }
     const connection = await deps.resolveConnection({ runAsUserId: identity.runAsUserId, chatId });
     const group = asPerSpeaker(membership.chat.metadata.group ?? DEFAULT_GROUP_CONFIG);
-    const { assembleContext, memoryConfig, chatBehavior } = await buildTurnContext(ctx, deps, {
+    const { assembleContext, memoryConfig, memoryRecall, chatBehavior, attachedToolNames } = await buildTurnContext(ctx, deps, {
       chatId,
       runAsUserId: identity.runAsUserId,
       model: connection.model,
       kind: "force",
       castCharacterIds: room.castCharacterIds,
       agentCast: room.agentCast,
+      mutedSpeakerKeys: room.mutedSpeakerKeys,
       personaIds: room.personaIds,
       anchorPersonaId: membership.chat.anchorPersonaId,
       triggerPersonaId: membership.activePersonaId,
@@ -894,6 +1007,8 @@ function createForceCharacterTurn(ctx: ChatContext, deps: TurnDeps): ChatService
       intent: intent ?? {},
       extraStopSequences: chatBehavior.customStoppingStrings,
       memoryConfig,
+      ...(memoryRecall !== null ? { memoryRecall } : {}),
+      attachedToolNames,
       signal: handle.signal,
     };
     try {
@@ -938,9 +1053,18 @@ interface TurnBase {
   readonly connection: ResolvedConnection;
   readonly assembleContext: AssembleContext;
   readonly memoryConfig: MemoryConfig | null | undefined;
+  /** The round-level recall inputs for the engine's per-speaker witnessed re-run (D6); threaded onto each
+   *  auxiliary prep. `null` ⇒ no per-speaker recall (round-level `memory` stands). */
+  readonly memoryRecall: MemoryRecallInputs | null;
   /** The host's resolved turn-behavior arm (PD-146) — the custom stops each auxiliary prep threads onto
    *  the request. Defaulted to all-off. */
   readonly chatBehavior: ChatBehaviorInputs;
+  /** A game turn's gather-contributed tool names (rpg-design/05 §1) — threaded onto each auxiliary prep's
+   *  `attachedToolNames`. Empty for a non-game turn / until the rpg registry lands (byte-identical). */
+  readonly attachedToolNames: readonly string[];
+  /** rpg-design/05 §6 slot-adjacency: does this auxiliary turn's slot directly respond to the latest user
+   *  message (only `swipe` of the die-response can — the rest are false)? Threaded onto the prep. */
+  readonly respondsToLatestUserTurn: boolean;
 }
 
 /** Resolves the {@link TurnBase} for an auxiliary turn. The AI runs as the host. These turns add no new user
@@ -956,6 +1080,8 @@ async function resolveTurnBase(
     /** The triggering human's active persona — binds prompt-config `{{user}}` to the speaker, not
      *  `personaIds[0]`. */
     readonly triggerPersonaId?: PersonaId | null | undefined;
+    /** rpg-design/05 §6 slot-adjacency verdict (only `swipe` of the die-response passes true). Default false. */
+    readonly respondsToLatestUserTurn?: boolean | undefined;
     readonly guided?: GuidedSteer | undefined;
   },
 ): Promise<TurnBase> {
@@ -966,19 +1092,21 @@ async function resolveTurnBase(
     hostUserId: room.hostUserId,
   });
   const connection = await deps.resolveConnection({ runAsUserId: identity.runAsUserId, chatId });
-  const { assembleContext, memoryConfig, chatBehavior } = await buildTurnContext(ctx, deps, {
+  const { assembleContext, memoryConfig, memoryRecall, chatBehavior, attachedToolNames, respondsToLatestUserTurn } = await buildTurnContext(ctx, deps, {
     chatId,
     runAsUserId: identity.runAsUserId,
     model: connection.model,
     kind: args.kind,
     castCharacterIds: room.castCharacterIds,
     agentCast: room.agentCast,
+    mutedSpeakerKeys: room.mutedSpeakerKeys,
     personaIds: room.personaIds,
     anchorPersonaId: args.anchorPersonaId,
     triggerPersonaId: args.triggerPersonaId,
+    ...(args.respondsToLatestUserTurn !== undefined ? { respondsToLatestUserTurn: args.respondsToLatestUserTurn } : {}),
     guided: args.guided,
   });
-  return { room, identity, connection, assembleContext, memoryConfig, chatBehavior };
+  return { room, identity, connection, assembleContext, memoryConfig, memoryRecall, chatBehavior, attachedToolNames, respondsToLatestUserTurn };
 }
 
 /** Runs one engine turn under an active-turns registration, threading the abort signal into the engine and
@@ -1022,12 +1150,17 @@ function createSwipe(ctx: ChatContext, deps: TurnDeps): ChatService["swipe"] {
     if (target === undefined || target.role !== "assistant") {
       throw new ChatNotFoundError(chatId);
     }
-    const { room, identity, connection, assembleContext, memoryConfig, chatBehavior } = await resolveTurnBase(ctx, deps, {
+    // rpg-design/05 §6: a swipe re-feeds the SAME queued d20 ONLY when it regenerates the slot that directly
+    // responds to the die-bearing latest user message (no swipe-fishing for a better roll; a swipe of an older
+    // slot, or after a later reply landed, is ineligible).
+    const respondsToLatestUserTurn = await loadIsReplyToLatestUserMessage(ctx.db, chatId, messageId);
+    const { room, identity, connection, assembleContext, memoryConfig, memoryRecall, chatBehavior, attachedToolNames } = await resolveTurnBase(ctx, deps, {
       principal,
       chatId,
       kind: "swipe",
       anchorPersonaId: membership.chat.anchorPersonaId,
       triggerPersonaId: membership.activePersonaId,
+      respondsToLatestUserTurn,
       guided,
     });
     const shape = speakerShapeFor(room, target.characterId);
@@ -1041,6 +1174,9 @@ function createSwipe(ctx: ChatContext, deps: TurnDeps): ChatService["swipe"] {
       intent: intent ?? {},
       extraStopSequences: chatBehavior.customStoppingStrings,
       memoryConfig,
+      ...(memoryRecall !== null ? { memoryRecall } : {}),
+      attachedToolNames,
+      respondsToLatestUserTurn,
       speakerCharacterId: target.characterId,
       persist: { mode: "append-variant", targetMessageId: messageId },
       ...(shape !== undefined ? { shape } : {}),
@@ -1060,7 +1196,7 @@ function createContinueTurn(ctx: ChatContext, deps: TurnDeps): ChatService["cont
     if (target === undefined || target.role !== "assistant") {
       throw new ChatNotFoundError(chatId);
     }
-    const { room, identity, connection, assembleContext, memoryConfig, chatBehavior } = await resolveTurnBase(ctx, deps, {
+    const { room, identity, connection, assembleContext, memoryConfig, memoryRecall, chatBehavior, attachedToolNames } = await resolveTurnBase(ctx, deps, {
       principal,
       chatId,
       kind: "continue",
@@ -1079,6 +1215,8 @@ function createContinueTurn(ctx: ChatContext, deps: TurnDeps): ChatService["cont
       intent: intent ?? {},
       extraStopSequences: chatBehavior.customStoppingStrings,
       memoryConfig,
+      ...(memoryRecall !== null ? { memoryRecall } : {}),
+      attachedToolNames,
       speakerCharacterId: target.characterId,
       appendUserTurn: CONTINUE_NUDGE,
       persist: { mode: "continue", targetMessageId: messageId },
@@ -1092,7 +1230,7 @@ function createContinueTurn(ctx: ChatContext, deps: TurnDeps): ChatService["cont
 function createImpersonate(ctx: ChatContext, deps: TurnDeps): ChatService["impersonate"] {
   return async ({ principal, chatId, personaId, intent, guided }: ImpersonateParams): Promise<TurnOutcome> => {
     const membership = await requireParticipant(ctx, principal, chatId);
-    const { identity, connection, assembleContext, memoryConfig, chatBehavior } = await resolveTurnBase(ctx, deps, {
+    const { identity, connection, assembleContext, memoryConfig, memoryRecall, chatBehavior, attachedToolNames } = await resolveTurnBase(ctx, deps, {
       principal,
       chatId,
       kind: "impersonate",
@@ -1111,6 +1249,8 @@ function createImpersonate(ctx: ChatContext, deps: TurnDeps): ChatService["imper
       intent: intent ?? {},
       extraStopSequences: chatBehavior.customStoppingStrings,
       memoryConfig,
+      ...(memoryRecall !== null ? { memoryRecall } : {}),
+      attachedToolNames,
       speakerCharacterId: null,
       appendUserTurn: IMPERSONATE_NUDGE,
       persist: {
@@ -1129,7 +1269,7 @@ function createImpersonate(ctx: ChatContext, deps: TurnDeps): ChatService["imper
 function createGenerate(ctx: ChatContext, deps: TurnDeps): ChatService["generate"] {
   return async ({ principal, chatId, speakerCharacterId, intent, guided }: GenerateParams): Promise<TurnOutcome> => {
     const membership = await requireParticipant(ctx, principal, chatId);
-    const { room, identity, connection, assembleContext, memoryConfig, chatBehavior } = await resolveTurnBase(ctx, deps, {
+    const { room, identity, connection, assembleContext, memoryConfig, memoryRecall, chatBehavior, attachedToolNames } = await resolveTurnBase(ctx, deps, {
       principal,
       chatId,
       kind: "generate",
@@ -1149,6 +1289,8 @@ function createGenerate(ctx: ChatContext, deps: TurnDeps): ChatService["generate
       intent: intent ?? {},
       extraStopSequences: chatBehavior.customStoppingStrings,
       memoryConfig,
+      ...(memoryRecall !== null ? { memoryRecall } : {}),
+      attachedToolNames,
       speakerCharacterId: speaker,
       lockFree: true,
       ...(shape !== undefined ? { shape } : {}),
@@ -1233,17 +1375,21 @@ async function runDeferredRound(
     chatId: row.chatId,
   });
   const group = chat.metadata.group ?? DEFAULT_GROUP_CONFIG;
-  const { assembleContext, memoryConfig, chatBehavior } = await buildTurnContext(ctx, deps, {
+  const { assembleContext, memoryConfig, memoryRecall, chatBehavior, attachedToolNames, respondsToLatestUserTurn } = await buildTurnContext(ctx, deps, {
     chatId: row.chatId,
     runAsUserId: row.runAsUserId,
     model: connection.model,
     kind: "send",
     castCharacterIds: room.castCharacterIds,
     agentCast: room.agentCast,
+    mutedSpeakerKeys: room.mutedSpeakerKeys,
     personaIds: room.personaIds,
     anchorPersonaId: chat.anchorPersonaId,
     // No live triggering human at drain — {{user}} binds to the chat anchor, not a presence-order human.
     triggerPersonaId: null,
+    // A deferred drain is the FIRST AI response to the offline-host's committed user send (rpg-design/05 §6) —
+    // it directly responds to that user message, so its queued d20 still feeds (the die wasn't lost to the defer).
+    respondsToLatestUserTurn: true,
   });
   const handle = deps.activeTurns.register(row.chatId, row.triggeredBy);
   const base: RoundBase = {
@@ -1256,6 +1402,9 @@ async function runDeferredRound(
     intent: {},
     extraStopSequences: chatBehavior.customStoppingStrings,
     memoryConfig,
+    ...(memoryRecall !== null ? { memoryRecall } : {}),
+    attachedToolNames,
+    respondsToLatestUserTurn,
     signal: handle.signal,
   };
   try {
@@ -1344,6 +1493,122 @@ function createDrainDeferredTurns(ctx: ChatContext, deps: TurnDeps): ChatService
       }
     }
     return { ran, dropped };
+  };
+}
+
+// ── requestTurn — the NON-HUMAN turn seam (automation-design/03 §4 / 05 §AC-B) ──
+
+/**
+ * `requestTurn` — run an autonomous chat turn on behalf of a NON-HUMAN initiator (an automation rule / a
+ * plugin). The FOUR WALLS, none optional:
+ *   1. DEPTH (loop-prevention) — refuse a stamp DEEPER than {@link AUTOMATION_DEPTH_HARD_CAP} (the write-side
+ *      belt for a non-dispatch caller; automation's dispatch already bounds its own path), and thread
+ *      `initiator`/`automationDepth` onto the reply slot so the reply's events resolve their cascade depth.
+ *   2. AUTHORITY (cross-tenant) — the funder must be a PRESENT participant of the chat, else a leak-free
+ *      NOT_FOUND (a user with no membership cannot fund a turn on it). The funding host is resolved from the
+ *      ROOM, never a caller-supplied id.
+ *   3. BUDGET — the engine's per-member `debitTurnBudget(triggeredBy)` runs unchanged inside the round (no free
+ *      turn); automation's own §3 spend gate runs in the arm ABOVE this.
+ *   4. CONSENT (D17) — the engine's `assertMaxProSubConsent` belt refuses a by-proxy hosted (`max-pro-sub`) turn
+ *      without explicit owner consent (fail-closed). requestTurn re-implements NEITHER belt — it routes the
+ *      triple (`triggeredBy` = funder, `runAsUserId` = host) through the engine so both fire.
+ * Drives ONE round (no auto-mode AI→AI chain — an autonomous trigger is a single injected beat), forcing the
+ * named speaker (coerced per-speaker) or arbitrating. A coded refusal (consent/budget/lock/depth) propagates to
+ * the caller; the automation arm maps it to a typed refusal.
+ */
+/** The resolved substrate a `requestTurn` round runs on — produced only after WALLS 1+2 pass. */
+interface RequestTurnResolved {
+  readonly chat: NonNullable<Awaited<ReturnType<typeof loadChatRow>>>;
+  readonly room: Room;
+  readonly connection: ResolvedConnection;
+  readonly identity: { readonly triggeredBy: UserId; readonly runAsUserId: UserId };
+}
+
+/** requestTurn WALLS 1+2 + room/host/connection resolution. Throws the coded refusal on any wall breach; else
+ *  returns the resolved substrate. Split out so the round-driver closure stays under the complexity bar. */
+async function resolveRequestTurn(ctx: ChatContext, deps: TurnDeps, params: RequestTurnParams): Promise<RequestTurnResolved> {
+  const { chatId, initiator, funderUserId, automationDepth } = params;
+  // WALL 1 (write side). `"human"` is never a requestTurn origin (it would forge a human turn); refuse it.
+  if (initiator === "human") {
+    throw new ChatOperationError(CHAT_OP_CODES.forbiddenOverride, `chat ${chatId}: requestTurn cannot stamp a 'human' initiator`);
+  }
+  if (automationDepth > AUTOMATION_DEPTH_HARD_CAP) {
+    throw new ChatOperationError(
+      CHAT_OP_CODES.cascadeDepthExceeded,
+      `chat ${chatId}: turn depth ${automationDepth} exceeds the cascade cap ${AUTOMATION_DEPTH_HARD_CAP}`,
+    );
+  }
+  const chat = await loadChatRow(ctx.db, chatId);
+  if (chat === undefined) {
+    throw new ChatNotFoundError(chatId);
+  }
+  // Resolves the FUNDING host from canon (never a caller-supplied id); hostless is unusable (leak-free).
+  const room = await loadRoom(ctx, chatId);
+  // WALL 2 — the funder must be a PRESENT participant (leak-free NOT_FOUND). The upstream callers additionally
+  // require HOST (automation's holdsAuthority; the membrane's canWrite); this is the defense-in-depth backstop.
+  if ((await loadPresentRole(ctx.db, chatId, funderUserId)) === null) {
+    throw new ChatNotFoundError(chatId);
+  }
+  // The identity triple: runAsUserId = the host box (funds), triggeredBy = the funder (attribution/abort/the
+  // D17 by-proxy subject). WALL 3 (budget) + WALL 4 (consent) enforce on this triple inside `engine.runTurn`.
+  const identity = { triggeredBy: funderUserId, runAsUserId: room.hostUserId };
+  const connection = await deps.resolveConnection({ runAsUserId: identity.runAsUserId, chatId });
+  return { chat, room, connection, identity };
+}
+
+export function createRequestTurn(ctx: ChatContext, deps: TurnDeps): RequestTurnOp {
+  return async (params: RequestTurnParams): Promise<TurnOutcome> => {
+    const { chatId, initiator, automationDepth, speakerCharacterId, guided } = params;
+    const { chat, room, connection, identity } = await resolveRequestTurn(ctx, deps, params);
+    // A forced speaker coerces the round to per-speaker so a narrator room still voices the named character.
+    const baseGroup = chat.metadata.group ?? DEFAULT_GROUP_CONFIG;
+    const group = speakerCharacterId !== undefined ? asPerSpeaker(baseGroup) : baseGroup;
+    const { assembleContext, memoryConfig, memoryRecall, chatBehavior, attachedToolNames, respondsToLatestUserTurn } = await buildTurnContext(ctx, deps, {
+      chatId,
+      runAsUserId: identity.runAsUserId,
+      model: connection.model,
+      kind: "auto",
+      castCharacterIds: room.castCharacterIds,
+      agentCast: room.agentCast,
+      mutedSpeakerKeys: room.mutedSpeakerKeys,
+      personaIds: room.personaIds,
+      anchorPersonaId: chat.anchorPersonaId,
+      // No live triggering human — {{user}} binds to the chat anchor, not a presence-order human.
+      triggerPersonaId: null,
+      ...(guided !== undefined ? { guided } : {}),
+    });
+    const handle = deps.activeTurns.register(chatId, identity.triggeredBy);
+    const base: RoundBase = {
+      chatId,
+      assembleContext,
+      connection,
+      triggeredBy: identity.triggeredBy,
+      runAsUserId: identity.runAsUserId,
+      kind: "auto",
+      // The turn origin (03 §4) — the engine stamps both onto the new-slot reply; `getTurnOrigin` reads them
+      // back for the cascade guard. NEVER a bus-event field (the D19/D50 allowlist).
+      initiator,
+      automationDepth,
+      intent: {},
+      extraStopSequences: chatBehavior.customStoppingStrings,
+      memoryConfig,
+      ...(memoryRecall !== null ? { memoryRecall } : {}),
+      attachedToolNames,
+      respondsToLatestUserTurn,
+      signal: handle.signal,
+    };
+    try {
+      return await runAiRound(ctx, deps, {
+        base,
+        group,
+        room,
+        signal: handle.signal,
+        chain: false,
+        ...(speakerCharacterId !== undefined ? { forcedIds: [speakerCharacterId] } : {}),
+      });
+    } finally {
+      handle.release();
+    }
   };
 }
 

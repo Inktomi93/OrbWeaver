@@ -37,8 +37,6 @@ const NOTIFICATION_TYPES = [
   "handoff-nominated",
   "handoff-accepted",
   "deferred-turn-dropped",
-  "agent-seat-requested",
-  "crew-proposal",
   "automation-notice",
   "plugin-disabled",
 ] as const satisfies readonly NotificationType[];

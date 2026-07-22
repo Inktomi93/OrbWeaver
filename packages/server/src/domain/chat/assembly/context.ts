@@ -15,7 +15,7 @@ import type {
   RoomOverrides,
   SpeakerRef,
 } from "@orb/contracts/chat";
-import { AUTHORS_NOTE_DEFAULT_DEPTH, AUTHORS_NOTE_DEFAULT_ROLE } from "@orb/contracts/chat";
+import { AUTHORS_NOTE_DEFAULT_DEPTH, AUTHORS_NOTE_DEFAULT_ROLE, speakerKey } from "@orb/contracts/chat";
 import type { GenerationType, PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_FORMAT_STRINGS, DEFAULT_GUIDED_ACTIONS } from "@orb/contracts/preset";
 import type { RegexScript } from "@orb/contracts/regex";
@@ -283,6 +283,9 @@ interface BuildAssembleContextInput {
    *  an agent's soul as its own card. Empty (the overwhelming case) ⇒ byte-identical to a character-only room.
    *  NOT folded into `castCharacterIds` — agents have no character id / world-info / memory bucket. */
   readonly agentCast?: readonly AgentCastMember[] | undefined;
+  /** The `speakerKey`s of the present MUTED seats (character + agent), from `loadRoom`'s candidate `disabled`
+   *  axis — the producer of `castNotMuted`. Absent ⇒ nothing muted (or a hand-built ctx) ⇒ full cast. */
+  readonly mutedSpeakerKeys?: ReadonlySet<string> | undefined;
   readonly personaIds: readonly PersonaId[];
   readonly promptConfig: PromptConfig;
   readonly personas: ResolvedPersonas;
@@ -296,6 +299,12 @@ interface BuildAssembleContextInput {
   readonly currentInput?: string | undefined;
   readonly userInjections: readonly ChatInjection[];
   readonly memory?: string | null | undefined;
+  /** The `{{databank}}` slot value (DB6) — reading-order-restored, budget-fitted document chunks. Absent ⇒
+   *  the slot resolves empty (byte-identical to a non-databank turn). */
+  readonly databank?: string | null | undefined;
+  /** The 8 rpg* data-fed macro values (rpg-design/06 §1), keyed by the RpgGatherMacros field names — a game
+   *  turn's GATHER stages this. Absent ⇒ every rpg macro resolves empty (byte-identical non-game turn). */
+  readonly rpgMacros?: Readonly<Record<string, string>> | undefined;
   readonly compactSummary?: string | null | undefined;
   readonly guidedInstruction?: string | null | undefined;
   /** The one-turn typed steer, resolved once in BUILD; never persisted or re-routed at splice time. */
@@ -357,6 +366,14 @@ function buildBaseContext(
     // carry no characterId → null). A character-only room is byte-identical to `[...input.castCharacterIds]`.
     castCharacterIds: castMembers.map((m) => (m.kind === "character" ? m.characterId : null)),
     castMembers,
+    // The non-muted CHARACTER subset — the `{{groupNotMuted}}` feed (owner ruling: the group macros are
+    // character-only; an agent voices via the assemble cast but never appears in a name list). Filtered by the
+    // muted-seat keys `loadRoom` derives from the SAME `disabled` axis arbitration reads. A muted character
+    // stays in `cast` (its card + lore still contribute) but drops here.
+    castNotMuted: cast.filter((_, i) => {
+      const ref = castMembers[i];
+      return ref !== undefined && ref.kind === "character" && input.mutedSpeakerKeys?.has(speakerKey(ref)) !== true;
+    }),
     // Null-anchor fallback: an unset/dead anchor resolves to the active persona so card-derived macros
     // never collapse to the literal "User"; a SET anchor never follows a mid-chat swap.
     pinnedPersona: input.personas.anchor ?? input.personas.active,
@@ -378,6 +395,10 @@ function buildBaseContext(
   setIf(base, "timezone", input.timezone);
   setIf(base, "nowMs", input.nowMs);
   setIf(base, "memory", input.memory);
+  // Absent (undefined) ⇒ skipped ⇒ byte-identical to a non-databank build (the null-op pin, DB6).
+  setIf(base, "databank", input.databank);
+  // Absent (no game / gather null) ⇒ skipped ⇒ every rpg macro resolves empty (byte-identical non-game turn).
+  setIf(base, "rpgMacros", input.rpgMacros);
   setIf(base, "compactSummary", input.compactSummary);
   setIf(base, "guidedInstruction", input.guidedInstruction);
   // The {{persona}} marker emits only when the active persona's placement is in_prompt (default/absent);
@@ -641,6 +662,12 @@ export async function buildAssembleContext(ctx: ChatContext, input: BuildAssembl
   let pendingText = input.pendingUserText;
   if (input.pendingUserText !== undefined) {
     let frozen = freezeVolatileMacros(input.pendingUserText, base, { random: input.prng });
+    // The D50 `user_input` PromptTransform point (automation-design/04 §1.2 / §6): AFTER the macro pass,
+    // BEFORE the USER_INPUT regex. Rewrites the draft the WI haystack + the persisted row both see (author-
+    // side transform order — D51). Null op / zero registrants ⇒ byte-identical.
+    if (ctx.promptTransforms !== null) {
+      frozen = await ctx.promptTransforms("user_input", input.chatId, frozen, base.variableValues ?? {});
+    }
     if (hostScripts.length > 0) {
       const sendMacroCtx = buildTurnMacroContext({
         assembleCtx: base,

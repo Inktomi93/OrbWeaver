@@ -9,6 +9,7 @@ export type {
   MemoryConfig,
   MemoryLogEntry,
   MemoryPassCounts,
+  MemoryRecallInputs,
   MemoryRecallTrace,
   MemoryScope,
   MsgRow,

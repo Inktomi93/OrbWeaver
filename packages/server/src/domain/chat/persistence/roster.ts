@@ -4,6 +4,7 @@
 // the verb writes them via `participant.insertParticipants`). Name/handle/avatar resolution is the VERB's (no
 // `users` join here — the `no-direct-users-read` chokepoint); this returns the raw rows.
 
+import type { ParticipantRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { chatParticipants } from "@orb/db";
 import type { CharacterId, ChatId, ChatParticipantId, PersonaId, UserId } from "@orb/kit/ids";
@@ -12,6 +13,18 @@ import { assertForcedCharacterMember } from "./participant";
 
 /** How many rows an existence probe needs. */
 const LIMIT_ONE = 1;
+
+/** The caller's PRESENT participant role in a chat (`leftSeq IS NULL`), or `null` — not a present member OR
+ *  no such chat, collapsed into one leak-free answer. The narrow membership read behind the injected
+ *  `getMembership` op (rpg's `can()` feed, rpg-design/02 §1.1 #3); rpg never reads `chat_participants` itself. */
+export async function loadPresentRole(db: Db, chatId: ChatId, userId: UserId): Promise<ParticipantRole | null> {
+  const rows = await db
+    .select({ role: chatParticipants.role })
+    .from(chatParticipants)
+    .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.userId, userId), isNull(chatParticipants.leftSeq)))
+    .limit(LIMIT_ONE);
+  return rows.at(0)?.role ?? null;
+}
 
 type ParticipantInsertRow = typeof chatParticipants.$inferInsert;
 

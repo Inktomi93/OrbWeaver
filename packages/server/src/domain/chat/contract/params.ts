@@ -11,11 +11,27 @@ import type {
   PreviewInviteInput,
   RedeemInviteInput,
   RoomOverrides,
+  SeatKnobs,
+  TurnInitiator,
 } from "@orb/contracts/chat";
+import type { ChatDocumentVisibility } from "@orb/contracts/databank";
 import type { AgentSourceKind, Principal } from "@orb/contracts/identity";
-import type { PromptTemplateMode } from "@orb/contracts/imagery";
+import type { ImageDiffusionParams, PoseSelection, PromptTemplateMode, SizePresetName } from "@orb/contracts/imagery";
 import type { GuidedActionKind, GuidedImpersonatePerson, UserIntent } from "@orb/contracts/preset";
-import type { AssetId, CharacterId, ChatId, ChatInjectionId, ChatInviteId, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
+import type { ThemeBackground } from "@orb/contracts/theme";
+import type {
+  AssetId,
+  CharacterId,
+  ChatId,
+  ChatInjectionId,
+  ChatInviteId,
+  ChatParticipantId,
+  MessageId,
+  MessageVariantId,
+  PersonaId,
+  RpgGameId,
+  UserId,
+} from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 
 /** Common to every chat verb: the acting principal. */
@@ -99,6 +115,12 @@ export interface PeekPromptParams extends ChatScopedParams {
   readonly speakerCharacterId?: CharacterId | null | undefined;
 }
 
+/** `getShapeTrace` — the content-free SHAPE trace for the next-turn shaping of the current canon (host/admin
+ *  inspector; PD-132). `speakerCharacterId` picks the primary speaker the peek shapes for (as `peekPrompt`). */
+export interface GetShapeTraceParams extends ChatScopedParams {
+  readonly speakerCharacterId?: CharacterId | null | undefined;
+}
+
 /** `listMessages` — paged canon read. */
 export interface ListMessagesParams extends ChatScopedParams {
   readonly beforeSeq?: number | undefined;
@@ -175,6 +197,35 @@ export interface ForceCharacterTurnParams extends ChatScopedParams {
   readonly guided?: GuidedSteer | undefined;
 }
 
+/**
+ * `requestTurn` — the NON-HUMAN turn seam (automation-design/03 §4 / 05 §AC-B). PRINCIPAL-FREE by design: it
+ * is NOT on `ChatService` and never routed — it is an injected op the composition root hands automation's
+ * `trigger_turn` arm and the Tier-2 plugin membrane's `turn.trigger` host-fn. The verb resolves the funding
+ * host from the room itself (never a caller-supplied id), gates the funder's membership, threads the origin
+ * onto the reply slot, and runs the turn through the SAME engine belts a human send clears — consent
+ * (`assertMaxProSubConsent`) + per-member budget (`debitTurnBudget`) enforce here unchanged. No free turn.
+ */
+export interface RequestTurnParams {
+  readonly chatId: ChatId;
+  /** The non-human origin stamped on the reply slot (`"automation"` | `"plugin"`) — the cascade guard's label
+   *  (depth is the lever, not the label). A caller may not pass `"human"` here (see the verb's guard). */
+  readonly initiator: TurnInitiator;
+  /** The responsible human (D19): the rule AUTHOR / plugin INSTALLER. Becomes `triggeredBy` — spend
+   *  attribution, abort rights, and the D17 by-proxy consent subject. Must be a PRESENT participant of the chat
+   *  (else a leak-free NOT_FOUND — a user with no membership cannot fund a turn on it). NOT the funding box:
+   *  the box is the resolved host (`runAsUserId`). */
+  readonly funderUserId: UserId;
+  /** The parent depth + 1 (automation-design/03 §4). Stamped on the reply slot so the reply's events resolve
+   *  their cascade depth; the verb REFUSES a value past `AUTOMATION_DEPTH_HARD_CAP` (the plugin-path belt —
+   *  automation's dispatch gate already bounds its own path). */
+  readonly automationDepth: number;
+  /** Force the speaker; absent ⇒ normal arbitration. */
+  readonly speakerCharacterId?: CharacterId | undefined;
+  /** A one-turn guided steer (the rendered `guidedTemplate`) placed via GATHER→BUILD, exactly like a human
+   *  send's `guided`. */
+  readonly guided?: GuidedSteer | undefined;
+}
+
 /** `compact` — the manual compaction lever; produces the portable checkpoint. */
 export interface CompactParams extends ChatScopedParams {
   readonly instructions?: string | undefined;
@@ -188,6 +239,15 @@ export interface GenerateImageParams extends ChatScopedParams {
   readonly mode: PromptTemplateMode;
   readonly prompt?: string | undefined;
   readonly n?: number | undefined;
+  /** The semantic size preset (imagery-design/02 §6) — forwarded to `imagery.generatePicture`; when absent
+   *  the leaf uses `defaultSizeFor(mode)`. The I5 mode picker surfaces it. */
+  readonly size?: SizePresetName | undefined;
+  /** The diffusion knobs (MA-8/D96) — forwarded to `imagery.generatePicture`; honored only by a local engine
+   *  (ComfyUI), ignored-with-honesty by hosted sources. */
+  readonly params?: ImageDiffusionParams | undefined;
+  /** The advanced-knob ControlNet pose pick (comfyui-control §4.12, C6d) — forwarded to
+   *  `imagery.generatePicture`, which resolves it to `edit.poseControl`. Local ComfyUI curated-role only. */
+  readonly pose?: PoseSelection | undefined;
 }
 
 /** `selectVariant` — flips messages.selectedVariantId to a sibling swipe (pointer move, zero copy). */
@@ -306,6 +366,13 @@ export interface AddCharacterToChatParams extends ChatScopedParams {
   readonly characterId: CharacterId;
 }
 
+/** `removeCharacterFromChat` — leftSeq-stamps a character seat out of the roster (host-only). The symmetric
+ *  drop for {@link AddCharacterToChatParams}; the only server consumer today is rpg's scene-cast prune
+ *  (rpg-design/07 §2.2, injected). */
+export interface RemoveCharacterFromChatParams extends ChatScopedParams {
+  readonly characterId: CharacterId;
+}
+
 /** `seatAgent` — seats an agent principal in the roster (host-gated). The owner (whose agent this is)
  *  must be a present member. The principal is lazily minted via provisionAgentPrincipal. */
 export interface SeatAgentParams extends ChatScopedParams {
@@ -313,25 +380,68 @@ export interface SeatAgentParams extends ChatScopedParams {
   readonly sourceKind: AgentSourceKind;
 }
 
+/** `unseatAgent` — removes a seated agent from the roster (host-gated; the symmetric counterpart to
+ *  `seatAgent`). Agent-target-only: `agentUserId` must resolve to a PRESENT `kind:'agent'` seat of this
+ *  chat (a human userId matches no row → `participant_not_found`). Stamps `leftSeq`; re-seating is the
+ *  normal `seatAgent` re-join upsert. */
+export interface UnseatAgentParams extends ChatScopedParams {
+  readonly agentUserId: UserId;
+}
+
+/** `requestAgentSeat` — the owner≠host consent flow (D60, doc 04 §3). A present member (the buddy's OWNER)
+ *  asks the HOST to seat their agent; delivers a durable `agent-seat-requested` notification to the host.
+ *  ADVISORY: the caller must be a member AND own the requested agent (`ownerUserId === principal.userId`);
+ *  `seatAgent` itself re-verifies everything (there is no server-side consent state). */
+export interface RequestAgentSeatParams extends ChatScopedParams {
+  readonly ownerUserId: UserId;
+  readonly sourceKind: AgentSourceKind;
+}
+
+/** `getAgentCardView` — member read of a SEATED agent's fixed D22 "who is this?" projection (D60, doc 06
+ *  §5). Member-gated; the target must be a present `kind:'agent'` seat of THIS chat. */
+export interface GetAgentCardViewParams extends ChatScopedParams {
+  readonly agentUserId: UserId;
+}
+
 /** `setRoomOverrides` — host-only write of the four-field chatMetadata.roomOverrides allowlist. */
 export interface SetRoomOverridesParams extends ChatScopedParams {
   readonly overrides: RoomOverrides;
+}
+
+/** `setChatDocumentVisibility` — host-only write of the per-document databank retrieval-visibility override
+ *  (D85). `visibility.hidden` REPLACES the whole excluded-document set (set-semantics, not a merge patch) —
+ *  the host sends the full list of documents to exclude from this chat's retrieval union. */
+export interface SetChatDocumentVisibilityParams extends ChatScopedParams {
+  readonly visibility: ChatDocumentVisibility;
+}
+
+/** `setChatBackground` — host-only write of the per-chat carried BACKGROUND source (BG-C, the
+ *  `chatMetadata.background` sub-blob). Replaces the whole blob; `kind:"none"` clears it (⇒ the card-carried
+ *  twin, then the viewer's own appearance, wins). Applied client-side at the app-root background layer in a
+ *  true-solo room. */
+export interface SetChatBackgroundParams extends ChatScopedParams {
+  readonly background: ThemeBackground;
+}
+
+/** `setRpgGamePointer` (GAP #4) — host-only write of the opaque `chats.metadata.rpg` pointer (`{gameId}`), the
+ *  SYNC `hasRpgGame` signal. Set ONLY by rpg's `createGame` through the injected chat op; chat holds it
+ *  opaquely. NOT routed (no user-facing verb) — an internal cross-domain bookkeeping write. */
+export interface SetRpgGamePointerParams extends ChatScopedParams {
+  readonly gameId: RpgGameId;
 }
 
 export interface GetGroupConfigForChatParams extends ChatScopedParams {}
 
 export interface GetRoomOverridesForChatParams extends ChatScopedParams {}
 
-/** `setParticipantDisabled` — mutes/unmutes a roster participant (host-only). */
-export interface SetParticipantDisabledParams extends ChatScopedParams {
-  readonly characterId: CharacterId;
-  readonly disabled: boolean;
-}
-
-/** `setParticipantTalkativeness` — sets a participant's 0-1 arbitration sampling weight (host-only). */
-export interface SetParticipantTalkativenessParams extends ChatScopedParams {
-  readonly characterId: CharacterId;
-  readonly talkativeness: number;
+/** `setSeatKnobs` — the ONE participantId-keyed AI-seat knob write (host-only; D80). Replaces the retired
+ *  per-kind forking (`setParticipantDisabled`/`setParticipantTalkativeness`/`setAgentSeatDisabled` — the
+ *  pattern that guaranteed skipped arms, e.g. agent talkativeness was unsettable). Targets a PRESENT
+ *  AI-driven seat (character|agent) by its `participantId`; `patch` carries only the knobs to change (both
+ *  optional — an empty patch is a no-op that still returns the current view). */
+export interface SetSeatKnobsParams extends ChatScopedParams {
+  readonly participantId: ChatParticipantId;
+  readonly patch: SeatKnobs;
 }
 
 /** `createInvite` — host-only. Mints a share-link or targeted-by-handle invite. The token is CSPRNG-minted

@@ -9,6 +9,14 @@
 //     lacks one. Idempotent: `findSyntheticGroupCharacter` short-circuits an existing mint.
 //
 // Cooperative abort: the signal is checked between chats/buckets — a partial sweep is safe.
+//
+// The shared group-bucket FK is structurally satisfied, not caught (#41): `scopesFor` resolves the shared
+// bucket's `scopedCharacterId` through `resolveGroupBucketCharacterId`, which is find-OR-MINT — it persists
+// the synthetic group `characters` row (via `ctx.mintSyntheticGroupCharacter`) BEFORE any digest write, so
+// the `chat_digests.scopedCharacterId` FK can never dangle here. The row's existence is a precondition the
+// sweep MINTS, not an assumption it hopes for; `backfillGroupCharacters` is a separate warm-up, not the
+// guarantee. And because that precondition is minted inline, the per-chat isolation catch below is NOT a
+// silent-skip engine: an isolated chat is COUNTED (`failed`) and logged at `error` level — see there.
 
 import { buildCharacterNameMap, buildPersonaNameMap } from "@orb/contracts/chat";
 import { chatParticipants, chats } from "@orb/db";
@@ -17,9 +25,10 @@ import type { RowMacroNameContext } from "@orb/kit/macro";
 import { and, eq, isNull } from "drizzle-orm";
 import { getLog } from "#foundation/observability";
 import type { ChatContext } from "../context";
-import type { BackfillPassCounts, MemoryBackfillCounts, MemoryScope, ResolveBackfillMemoryConfig } from "../contract/memory";
+import type { BackfillPassCounts, MemoryBackfillCounts, MemoryConfig, MemoryScope, ResolveBackfillMemoryConfig } from "../contract/memory";
 import { generateDigests } from "../memory/build/digests";
 import { generateSegments } from "../memory/build/segments";
+import { loadWitnessHorizons } from "../memory/persistence/queries";
 import { loadChatMacroNameProducer } from "../persistence/macro-names";
 import { loadRoster } from "../persistence/roster";
 import { resolveGroupBucketCharacterId } from "./group-bucket";
@@ -86,6 +95,43 @@ async function scopesFor(ctx: ChatContext, chatId: ChatId, cast: readonly Charac
   return scopes;
 }
 
+/** Build every digest scope bucket for ONE chat, folding the written counts. A cast character's SCOPED bucket
+ *  is horizon-gated (it digests only the blocks it witnessed — correct across kick→re-add); the shared group
+ *  bucket (its `scopedCharacterId` is the synthetic group char, NOT in the cast) stays horizon-free (the merged
+ *  build; digests.ts §22-23). Mirrors the engine's post-turn enumeration exactly. Cooperative abort between
+ *  buckets. */
+async function buildChatDigests(
+  ctx: ChatContext,
+  args: {
+    readonly chatId: ChatId;
+    readonly cast: readonly CharacterId[];
+    readonly config: MemoryConfig | null;
+    readonly macroNames: RowMacroNameContext;
+    readonly scopes: readonly MemoryScope[];
+    readonly signal: AbortSignal;
+  },
+): Promise<BackfillPassCounts> {
+  const counts = { scanned: 0, changed: 0 };
+  const castSet = new Set<CharacterId>(args.cast);
+  for (const scope of args.scopes) {
+    if (args.signal.aborted) {
+      break;
+    }
+    // biome-ignore lint/performance/noAwaitInLoops: sequential by design (parallel buckets would race the summarizer + db).
+    const witnessing = castSet.has(scope.scopedCharacterId) ? await loadWitnessHorizons(ctx.db, args.chatId, scope.scopedCharacterId) : undefined;
+    const d = await generateDigests(ctx, {
+      scope,
+      config: args.config,
+      macroNames: args.macroNames,
+      signal: args.signal,
+      ...(witnessing !== undefined ? { witnessing } : {}),
+    });
+    counts.scanned += 1;
+    counts.changed += d.written;
+  }
+  return counts;
+}
+
 /**
  * The corpus-wide memory backfill: segments then digests-per-scope for every chat, folding the written
  * counts. Each per-chat build is the same idempotent/self-healing front door the engine's post-turn
@@ -98,6 +144,7 @@ export async function backfillMemory(
 ): Promise<MemoryBackfillCounts> {
   const segments = { scanned: 0, changed: 0 };
   const digests = { scanned: 0, changed: 0 };
+  let failed = 0;
   for (const chatId of await loadAllChatIds(ctx, args.ownerId)) {
     if (args.signal.aborted) {
       break; // cooperative abort between chats — every completed unit is durable + idempotent
@@ -105,7 +152,7 @@ export async function backfillMemory(
     try {
       // biome-ignore lint/performance/noAwaitInLoops: the sweep is sequential by design — parallel chats would race the summarizer + db.
       const { cast, hostUserId, macroNames } = await loadCastAndHost(ctx, chatId);
-      // Resolved inside the per-chat try so a settings-read failure warns + continues.
+      // Resolved inside the per-chat try so a settings-read failure is counted + continues.
       const config = hostUserId === null ? null : await resolveMemoryConfig(hostUserId);
       if (config?.mode === "off") {
         continue; // the host disabled memory — skip enumerate/mint/build entirely.
@@ -114,23 +161,21 @@ export async function backfillMemory(
       segments.scanned += 1;
       segments.changed += seg.written;
       const scopes = await scopesFor(ctx, chatId, cast, hostUserId);
-      for (const scope of scopes) {
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- signal.aborted can flip between the outer check and here (multiple awaits in between); tsc's narrowing doesn't see that.
-        if (args.signal.aborted) {
-          break;
-        }
-        // biome-ignore lint/performance/noAwaitInLoops: sequential by design (see the segment pass above).
-        const d = await generateDigests(ctx, { scope, config, macroNames, signal: args.signal });
-        digests.scanned += 1;
-        digests.changed += d.written;
-      }
+      const chatDigests = await buildChatDigests(ctx, { chatId, cast, config, macroNames, scopes, signal: args.signal });
+      digests.scanned += chatDigests.scanned;
+      digests.changed += chatDigests.changed;
     } catch (err) {
-      // One bad chat must not kill the corpus-wide sweep — every unit is idempotent, so the poisoned
-      // chat self-heals on a later run.
-      getLog().warn({ err, chatId }, "memory backfill: chat skipped after error");
+      // One bad chat must not kill the corpus-wide sweep — every unit is idempotent, so the poisoned chat
+      // self-heals on a later run. But an isolated skip is NOT a silent skip (#41): every reachable
+      // "expected" branch above (`mode:"off"` → continue, hostless shared bucket → handled in `scopesFor`,
+      // abort → break) resolves WITHOUT throwing, so anything landing here is an UNEXPECTED failure. Surface
+      // it LOUDLY (`error` level) AND count it into the returned `failed` — so a future unknown fault can't
+      // vanish a chat's memory without a trace in the log or the workload result.
+      failed += 1;
+      getLog().error({ err, chatId }, "memory backfill: chat FAILED and was skipped (unexpected error)");
     }
   }
-  return { segments, digests };
+  return { segments, digests, failed };
 }
 
 /**

@@ -6,7 +6,6 @@ import type { AssetId, UserId } from "@orb/kit/ids";
 
 export type { StoredAsset } from "@orb/contracts/assets";
 
-
 /** An asset's owner + CAS hash + mime resolved by row id alone; undefined when no such row. */
 export interface AssetCasRef {
   readonly ownerId: UserId;

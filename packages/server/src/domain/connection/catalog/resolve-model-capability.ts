@@ -4,7 +4,6 @@
 // gapped axes — `tools` / `output.structured` / `input.vision` / `input.imageEdit` — synthesize in ONE pass
 // here (tool-use-design 05 §U0 + imagery-design 05 §IC-A). `infra/providers` never imports this.
 
-
 import type { AgentSdkModel, ChatApi, CredentialSource, EffortLevel, ModelCapability, Range } from "@orb/contracts/connection";
 import { EFFORT_LEVELS } from "@orb/contracts/connection";
 import type { ModelId } from "@orb/kit/ids";
@@ -55,7 +54,6 @@ const MIN_OUTPUT = 1;
 const OUTPUT_CAP = 32_768;
 const OR_DEFAULT_WINDOW = 200_000; // when the catalog entry omits contextLength (cold cache)
 const VLLM_GEN_CONTEXT_WINDOW = 32_768;
-
 
 const CUSTOM_OPENAI_DEFAULT_WINDOW = 128_000;
 const LOCAL_LIGHT_WINDOW = 8192; // in-process embed/rerank tier — chat capability is moot here
@@ -282,8 +280,6 @@ function withCuratedTurns(curated: { readonly capability: ModelCapability }, id:
     turns: refineCuratedTurns(id, wireShape),
   };
 }
-
-
 
 /** Resolve the ONE capability descriptor for a `(model, source)` on the `api`-implied wire-shape; the
  *  curated lookup runs first, otherwise dispatch is exhaustive on `source`. */

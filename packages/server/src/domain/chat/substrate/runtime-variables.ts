@@ -5,6 +5,7 @@
 // rewinds by re-folding (avoids the ST swipe-clobber issue #3263). This file owns the fold-composition + the cache UPDATE
 // statement so the four mutators share ONE home (never diverge).
 
+import type { StandaloneVariableDelta } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { chats } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
@@ -34,4 +35,11 @@ export function foldChain(entries: readonly DeltaEntry[]): Record<string, string
 export function runtimeVariablesUpdateStatement(db: Db, chatId: ChatId, cache: Record<string, string>): BatchStmt {
   const value = Object.keys(cache).length > 0 ? cache : null;
   return batchStmt(db.update(chats).set({ runtimeVariables: value }).where(eq(chats.id, chatId)));
+}
+
+/** Build the `chats.standalone_variable_deltas` UPDATE (03 §1.1) — the durable log an out-of-turn
+ *  `applyVariableOps` appends to. An empty list writes `null` (mirrors the runtime-cache null contract). */
+export function standaloneVariableDeltasUpdateStatement(db: Db, chatId: ChatId, deltas: readonly StandaloneVariableDelta[]): BatchStmt {
+  const value = deltas.length > 0 ? deltas : null;
+  return batchStmt(db.update(chats).set({ standaloneVariableDeltas: value }).where(eq(chats.id, chatId)));
 }

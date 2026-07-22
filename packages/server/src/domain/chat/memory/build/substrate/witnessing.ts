@@ -1,4 +1,4 @@
-// domain/chat/memory/build/substrate/witnessing — the present-at-seq WITNESSING predicate (knowledge-cluster
+// domain/chat/memory/build/substrate/witnessing — the present-at-seq WITNESSING predicate (core/Knowledge-Cluster.md
 // §4 / inv 12). PURE: given a block's `messages.seq` span and a character's join/leave horizons, decide whether
 // the character was present for that span. The horizons are DATA (passed in by the engine / `loadWitnessHorizons`)
 // — this layer reaches into no db (determinism). A character genuinely cannot recall a scene it wasn't in,

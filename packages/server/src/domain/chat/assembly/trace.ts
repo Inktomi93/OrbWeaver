@@ -6,38 +6,22 @@
 // and the differential oracle (byte-diff). THIS is the content-FREE projection safe to log / show in the
 // inspector — counts, roles, the squash-merge count, and the breakpoint decision + abort reason.
 //
-// FLAG[PD-132]: built, unwired — no consumer until the admin/devtools assembly-inspector panel lands.
+// CONSUMER (PD-132): the host/admin assembly inspector reads this on demand — `chat.getShapeTrace` re-runs
+// SHAPE against the current canon (`verbs/read.ts::createGetShapeTrace`, requireHost) and returns this shape,
+// rendered by the client `assembly-preview-panel`. The cross-boundary `ShapeTrace` lives in
+// `@orb/contracts/chat` (the wire home); THIS builder maps the internal SHAPE stages onto it.
+
+import type { ShapeBreakpointDecision, ShapeTrace } from "@orb/contracts/chat";
 
 /** The content-free SHAPE stage shape `buildShapeTrace` reads (structurally compatible with shape()'s
- *  `stages`). File-local: the cross-boundary trace shape, if ever wired to a client view, lands in
- *  `@orb/contracts/chat` (AssembleTrace) — this is the internal builder input. */
+ *  `stages`). File-local: the internal builder input (the wire projection is `@orb/contracts/chat`'s
+ *  `ShapeTrace`). */
 interface ShapeStages {
   multiCharacter: boolean;
   withTail: readonly { role: "user" | "assistant" }[];
   injected: readonly { role: "user" | "assistant" }[];
   squashed: readonly { role: "user" | "assistant" }[];
   named: readonly { role: "user" | "assistant" }[];
-}
-
-/** Why SHAPE did / didn't place the §8 cache breakpoint — the abort taxonomy, content-free. The axis is
- *  declared once as a tuple and DERIVED (no inline-union re-spell; §7.5). */
-const BREAKPOINT_DECISIONS = ["placed", "no-stable-prefix", "in-prefix-injection-or-squash", "second-volatile-tail"] as const;
-type BreakpointDecision = (typeof BREAKPOINT_DECISIONS)[number];
-
-interface ShapeTrace {
-  multiCharacter: boolean;
-  /** Row counts per stage (no content). `injected − squashed` = how many adjacent same-role merges fired. */
-  stageCounts: {
-    withTail: number;
-    injected: number;
-    squashed: number;
-    named: number;
-  };
-  /** Adjacent same-role merges the squash performed (a non-zero count flags a boundary the breakpoint
-   *  math must be conservative around). */
-  squashMerges: number;
-  cacheBreakpointFromEnd: number | undefined;
-  breakpointDecision: BreakpointDecision;
 }
 
 /**
@@ -52,7 +36,7 @@ interface ShapeTrace {
 export function buildShapeTrace(stages: ShapeStages, cacheBreakpointFromEnd: number | undefined): ShapeTrace {
   const squashMerges = stages.injected.length - stages.squashed.length;
   const stableCount = stages.withTail.length - 1;
-  let breakpointDecision: BreakpointDecision;
+  let breakpointDecision: ShapeBreakpointDecision;
   if (cacheBreakpointFromEnd !== undefined) {
     breakpointDecision = "placed";
   } else if (stableCount < 1) {
@@ -73,7 +57,8 @@ export function buildShapeTrace(stages: ShapeStages, cacheBreakpointFromEnd: num
       named: stages.named.length,
     },
     squashMerges,
-    cacheBreakpointFromEnd,
+    // Omit the field entirely when no breakpoint was placed (exactOptional — absent, never undefined-valued).
+    ...(cacheBreakpointFromEnd !== undefined ? { cacheBreakpointFromEnd } : {}),
     breakpointDecision,
   };
 }

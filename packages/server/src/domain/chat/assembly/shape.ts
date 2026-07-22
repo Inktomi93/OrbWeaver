@@ -3,11 +3,13 @@
 // Order: scope-to-speaker → splice in_chat by depth → name-stamp → squash same-role → continuation nudge.
 // Name-stamp runs before the final squash so adjacent distinct-character rows keep every speaker's label.
 
-import type { ChatInjection, GroupConfig } from "@orb/contracts/chat";
+import type { AssembleContext, ChatInjection, GroupConfig, MessageView } from "@orb/contracts/chat";
 import type { RoleHandling } from "@orb/contracts/connection";
 import type { NamesBehavior } from "@orb/contracts/preset";
-import type { CharacterId, MessageId } from "@orb/kit/ids";
+import type { CharacterId, MessageId, PersonaId } from "@orb/kit/ids";
+import type { HistoryMacroNames } from "../contract/results";
 import { spliceInChatInjections } from "./injections";
+import { renderHistoryMacros } from "./macros";
 import { applyNamesBehavior } from "./names";
 import { clampRoleHandling, squashSameRole } from "./role-squash";
 import { hasMultipleCharacters } from "./speaker-stamp";
@@ -59,6 +61,9 @@ interface ShapeInput {
   roleHandling?: RoleHandling | undefined;
   /** The model/wire adjacent-same-role floor. Unset ⇒ `strict`. SHAPE runs the stricter of floor + knob. */
   roleHandlingFloor?: RoleHandling | undefined;
+  /** The user `squashSystemMessages` knob (from preset `params.advanced.squashSystemMessages`): `true` ⇒
+   *  merge consecutive system-note runs before they convert to user rows. Orthogonal to `roleHandling`. */
+  squashSystemMessages?: boolean | undefined;
 }
 
 interface ShapeOutput {
@@ -184,6 +189,7 @@ export function shape(input: ShapeInput): ShapeOutput {
   const injected = spliceInChatInjections(withTail, input.injections, resolveContent, {
     allowAssistantPrefill: input.assistantPrefill === true,
     prefixBoundaryLen,
+    squashSystemMessages: input.squashSystemMessages === true,
   });
   const squashed = runSquash(injected);
   const named = runSquash(applyNamesBehavior(injected, input.namesBehavior, input.speakers, multiCharacter));
@@ -212,4 +218,57 @@ export function shape(input: ShapeInput): ShapeOutput {
     cacheBreakpointFromEnd,
     stages: { multiCharacter, withTail, injected, squashed, named },
   };
+}
+
+/** The wire authorName for a user/narrator row: the row's OWN stamped personaId resolved through the
+ *  per-chat producer, not the current active persona. A null stamp or unresolvable id yields null, so
+ *  `applyNamesBehavior` falls back to the active persona. */
+function userRowAuthorName(personaId: PersonaId | null, macroNames: HistoryMacroNames): string | null {
+  return personaId !== null ? (macroNames.personaNamesById.get(personaId)?.name ?? null) : null;
+}
+
+/** Maps the loaded canon (`MessageView[]`) → SHAPE wire input rows: drops hidden + system rows and resolves
+ *  each row's macros against its own stamps + the per-chat `macroNames` producer (matching client display
+ *  resolution). The ONE mapping shared by the engine turn pipeline and the host/admin shape-trace preview
+ *  (`verbs/read.ts`) — both reach it via the `substrate/assembly-access` seam (no drift, no duplicate). */
+export function toShapeCanon(canon: readonly MessageView[], ctx: AssembleContext, macroNames: HistoryMacroNames): CanonRow[] {
+  const nameById = new Map<CharacterId, string>();
+  const cast = ctx.cast ?? [];
+  const ids = ctx.castCharacterIds ?? [];
+  ids.forEach((id, i) => {
+    const name = cast[i]?.name;
+    if (id !== null && name !== undefined) {
+      nameById.set(id, name);
+    }
+  });
+  const rows: CanonRow[] = [];
+  for (const m of canon) {
+    if (m.excludedFromPrompt || m.role === "system") {
+      continue;
+    }
+    const stamps = { characterId: m.characterId, personaId: m.personaId };
+    if (m.role === "assistant") {
+      const authorName = m.characterId !== null ? (nameById.get(m.characterId) ?? null) : null;
+      rows.push({
+        role: "assistant",
+        content: renderHistoryMacros(m.content, stamps, ctx, {
+          producer: macroNames,
+          speakerCharName: authorName ?? undefined,
+        }),
+        characterId: m.characterId,
+        authorName,
+        messageId: m.id,
+      });
+    } else {
+      // User/narrator rows: {{user}}/{{persona}} resolve to this row's own stamped personaId, falling back
+      // to the active persona only when the stamp is null.
+      rows.push({
+        role: "user",
+        content: renderHistoryMacros(m.content, stamps, ctx, { producer: macroNames }),
+        authorName: userRowAuthorName(m.personaId, macroNames),
+        messageId: m.id,
+      });
+    }
+  }
+  return rows;
 }

@@ -120,7 +120,7 @@ export async function loadDigestSpeakers(db: Db, digestIds: readonly ChatDigestI
   return out;
 }
 
-/** The join/leave WITNESSING horizons for one character in a chat (knowledge-cluster §4 / inv 12) — every
+/** The join/leave WITNESSING horizons for one character in a chat (core/Knowledge-Cluster.md §4 / inv 12) — every
  *  `chat_participants` presence episode for `(chatId, characterId)`, joinSeq-ascending. A kick→re-add is two
  *  rows ⇒ two intervals (the kicked span is genuinely absent). The build/recall LOGIC takes these as data —
  *  this read is the engine's source (it never reaches into the LOGIC; determinism stays in the pure layer). */

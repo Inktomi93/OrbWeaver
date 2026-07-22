@@ -10,6 +10,7 @@
 // the host) → ChatOperationError("not_host") — the existence is already known to a member, so this is an
 // authority refusal, not a leak. (Authoritative auth surface: core/Spine-Identity-and-Auth.md.)
 
+import { SEAT_REFUSAL_REASONS, TURN_ABORTED_OP_CODE } from "@orb/contracts/chat";
 import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import type { ChatId } from "@orb/kit/ids";
 
@@ -52,30 +53,59 @@ export const CHAT_OP_CODES = {
   /** `undoContinue`/`revertContinue` on a variant that was never continued (the `preContinue*`/
    *  `lastContinuation*` snapshot columns are empty — D26; nothing to restore). */
   noContinuation: "no_continuation",
-  /** A turn aborted (user-cancelled / stale / error) — the lifecycle refusal surfaced to the caller. */
-  aborted: "aborted",
+  /** A turn aborted (user-cancelled / stale / error) — the lifecycle refusal surfaced to the caller. Derived
+   *  from the contract wire home so the client can key on the same literal (`data.reason`) without a re-spell. */
+  aborted: TURN_ABORTED_OP_CODE,
   /** A room-override write targeted a field outside the four-field host allowlist, or a `forbidRoomOverride`
    *  field — default-deny. */
   forbiddenOverride: "forbidden_override",
+  /** `setChatBackground` was given a `kind:"external"` URL that could not be materialized into an owned image
+   *  asset (unreachable / not an image / too large — side-eye F-P0-2). A validation refusal (BAD_REQUEST); the
+   *  message carries the honest reason (`backgroundMaterializeMessage`), never the URL or any internal detail. */
+  backgroundUnavailable: "background_unavailable",
   /** A non-owner-triggered `max-pro-sub` turn without explicit owner consent (by-proxy refused, fail-closed,
    *  default OFF). */
   consentRequired: "consent_required",
   /** The per-member turn/request COUNT budget is exhausted (debited in-lock). */
   budgetExceeded: "budget_exceeded",
+  /** `requestTurn` was asked to stamp a reply DEEPER than `AUTOMATION_DEPTH_HARD_CAP` (automation-design/03 §4).
+   *  The WRITE-side belt for the runaway-cascade guard: automation's dispatch gate already refuses an event at
+   *  depth ≥ cap, so this bites only a mis-behaving non-dispatch caller (the plugin membrane) — fail-closed. */
+  cascadeDepthExceeded: "cascade_depth_exceeded",
   /** A multi-human / membership surface was reached while the deployment is in `single-user` AUTH_MODE
    *  (the capability gate). The DOMAIN-side (LAYER-2) discriminator — transport's LAYER-1 belt
    *  (`multiHumanProcedure`, PD-106) refuses the documented procedures as a leak-free NOT_FOUND. */
   singleUserMode: "single_user_mode",
   /** `seatAgent` targeted an owner who is not a PRESENT human member of the room (D60, doc 04 §3 — an agent
-   *  may only be seated by/for a present member; host-only surface, so a coded refusal leaks nothing). */
-  ownerNotPresent: "owner_not_present",
+   *  may only be seated by/for a present member; host-only surface, so a coded refusal leaks nothing).
+   *  Wire-vocabulary: derived from `@orb/contracts/chat` (the client's copy mapper discriminates on it). */
+  ownerNotPresent: SEAT_REFUSAL_REASONS.ownerNotPresent,
   /** `seatAgent` targeted a DISABLED agent principal (`users.enabled = false`) — the containment kill switch
-   *  refuses the seat (D60, doc 03 §5). */
-  agentDisabled: "agent_disabled",
+   *  refuses the seat (D60, doc 03 §5). Wire-vocabulary: derived from `@orb/contracts/chat`. */
+  agentDisabled: SEAT_REFUSAL_REASONS.agentDisabled,
+  /** `requestAgentSeat` — a present member asked to seat an agent whose OWNER is not the caller (the
+   *  owner-consent arm of the two-party model, D60 doc 04 §3: a member may only request THEIR OWN buddy be
+   *  seated). Coded, leak-free — the caller cleared `requireParticipant`, so its membership is known. */
+  notAgentOwner: "not_agent_owner",
+  /** `nominateHostHandoff` targeted a SEATED AGENT (D60, doc 06 §4). An agent holds no `Principal`, so it can
+   *  never accept the handoff — the host-side kind pre-check makes the refusal HONEST at the verb (the
+   *  notifications belt would fail-close it as `agent_recipient` downstream, which leaks a notifications-
+   *  internal concept). Coded, leak-free: the caller is the host and already sees the agent seat in the roster.
+   *  A purpose-minted agent-refusal code (the `owner_not_present`/`agent_disabled`/`not_agent_owner` sibling
+   *  pattern), NOT a NOT_FOUND collapse — the agent IS present, so `participant_not_found`/NOT_FOUND would lie. */
+  cannotNominateAgent: "cannot_nominate_agent",
   /** #67 — `send` was given an `attachmentAssetIds` id the actor does not OWN (a foreign / gone asset). The
    *  caller IS a present member (the send gate passed), so this is a coded validation refusal, not a
    *  NOT_FOUND collapse — and it leaks nothing about another owner's asset (per-user D21 scope). */
   attachmentNotOwned: "attachment_not_owned",
+  /** `setGroupConfig` tried to flip a GAME chat OFF narrator+merged (to `per-speaker`) while an AGENT holds the
+   *  GM seat (D60 AP4a, agent-principal-design/05 §2 — the F5 SEAL). narrator+merged keeps the GM tool loop on
+   *  the narrator turn; `per-speaker` would let a player-CHARACTER turn carry GM-authority tools at an agent-GM
+   *  table (the config-coupled invariant made STRUCTURAL). The honest path is unseat-then-flip (assign the GM
+   *  seat back to the AI narrator first). Host-only surface (the caller already sees the seat), so a coded
+   *  refusal leaks nothing. The seat KIND is read via the injected `ctx.rpg.resolveGmSeatHolderKind` op — chat
+   *  never reads rpg tables. Domain-private (no client surface renders it yet). */
+  agentGmSeatConfigLocked: "agent_gm_seat_config_locked",
 } as const;
 
 /** The reason-code union (derived from the one tuple of values — never re-spelled). */

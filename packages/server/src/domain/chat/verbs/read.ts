@@ -5,26 +5,31 @@
 //
 // The dry-run previews (`previewAssembly`/`peekPrompt`/`previewSection`/`getActivePresetConfig`) build the
 // assemble ctx + render through the `substrate/assembly-access` seam and return the BUILD product for
-// inspection — no turn runs, nothing persists.
+// inspection — no turn runs, nothing persists. The two FULL-PROMPT previews (`previewAssembly`/`peekPrompt`)
+// gate at `requireHost` (matrix `host`): the assembled prompt merges every member's card at FULL, so a plain
+// member reading it would bypass the D22 `memberCardVisibility` clamp — `previewSection`/`getActivePresetConfig`
+// stay `member` (a single rendered section / the bare `PromptConfig` — no merged-card leak).
 //
 // Deps not on `ChatContext`: `loadParticipantViews` resolves the roster read-model; `resolveConnection`
 // resolves the model the previews need; `resolveForeignInputs` is the foreign half of the assemble ctx.
 
-import type { ChatMacroNameProducer, ParticipantView, PersonaAvatarEntry } from "@orb/contracts/chat";
-import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
-import type { ResolvedConnection } from "@orb/contracts/connection";
+import type { AgentCardView, ChatInjection, ChatMacroNameProducer, ParticipantView } from "@orb/contracts/chat";
+import { buildCharacterNameMap, buildPersonaNameMap } from "@orb/contracts/chat";
+import type { ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
 import type { PromptConfig } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { ChatContext } from "../context";
-import { ChatNotFoundError } from "../contract/errors";
+import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors";
 import type { ForeignInputs, ResolveForeignInputsOp } from "../contract/foreign";
 import type {
   ChatEventBoundsParams,
   GetActivePresetConfigParams,
+  GetAgentCardViewParams,
   GetChatLineageParams,
   GetChatParams,
+  GetShapeTraceParams,
   GuidedSteer,
   ListChatsParams,
   ListForksParams,
@@ -38,6 +43,7 @@ import type {
   ReplayStreamEventsParams,
   StreamEventBoundsParams,
 } from "../contract/params";
+import type { HistoryMacroNames } from "../contract/results";
 import type { ChatService } from "../contract/service";
 import type {
   AssembledPrompt,
@@ -49,13 +55,15 @@ import type {
   MessagesPage,
   MessageVariantSummary,
   SectionPreview,
+  ShapeTrace,
   StreamEventBounds,
 } from "../contract/views";
-import { gateLineagePerAncestor, requireParticipant } from "../guard";
+import { gateLineagePerAncestor, requireHost, requireParticipant } from "../guard";
 import { loadChatMacroNameProducer } from "../persistence/macro-names";
 import {
   listMemberChats,
   loadAncestorChain,
+  loadCanonHistory,
   loadChatEventBounds,
   loadChatEventReplay,
   loadChatMessageStats,
@@ -69,7 +77,10 @@ import {
 import { loadRoster } from "../persistence/roster";
 import { loadPersonaAvatarProducer } from "../persistence/roster-avatars";
 import { gatherAssembleContext } from "../substrate/assemble-gather";
-import { buildPrompt, previewSection } from "../substrate/assembly-access";
+import { buildPrompt, buildShapeTrace, previewSection, shapeTurn, toShapeCanon } from "../substrate/assembly-access";
+import { permitsHost } from "../substrate/auth";
+import { toChatDetail } from "../substrate/chat-detail";
+import { redactHostInjections } from "../substrate/redact-injections";
 
 /** The collaborators not on `ChatContext` (see the file header). */
 interface ReadDeps {
@@ -91,9 +102,11 @@ type ReadVerbs = Pick<
   | "getActivePresetConfig"
   | "previewSection"
   | "peekPrompt"
+  | "getShapeTrace"
   | "listMessages"
   | "listMessageVariants"
   | "listParticipants"
+  | "getAgentCardView"
   | "replayStreamEvents"
   | "replayChatEvents"
   | "chatEventBounds"
@@ -107,56 +120,25 @@ type ChatRowView = Awaited<ReturnType<typeof listMemberChats>>[number];
 interface PreviewInputs {
   readonly hostUserId: UserId;
   readonly model: string;
+  /** The resolved model capability — the SHAPE-trace peek reads its `turns` cell (roleHandlingFloor /
+   *  assistantPrefill) to shape faithfully. Undefined when the connection resolver omits it (a test double). */
+  readonly capability: ModelCapability | undefined;
   readonly castCharacterIds: readonly CharacterId[];
   readonly personaIds: readonly PersonaId[];
   readonly foreign: ForeignInputs;
 }
 
-/** Map a loaded chat row + its resolved roster + macro name producer → `ChatDetail`. The same projection
- *  `fork.ts`/`invites.ts`/`start-chat.ts` use — one shape, no drift. */
-interface ToChatDetailInput {
-  readonly chat: ChatRowView;
+/** Map a loaded chat row + its canon stats + present roster + character-seat ids → the light `ChatSummary`
+ *  list row. `participantNames` are display names only — the heavy roster is `getChat`. */
+interface ChatSummaryInputs {
+  readonly row: ChatRowView;
+  readonly stat: { messageCount: number; lastMessageAt: number | null };
   readonly participants: readonly ParticipantView[];
-  readonly macroNames: ChatMacroNameProducer;
-  readonly personaAvatars: readonly PersonaAvatarEntry[];
+  readonly participantCharacterIds: readonly CharacterId[];
   readonly viewerUserId: UserId;
 }
 
-function toChatDetail({ chat, participants, macroNames, personaAvatars, viewerUserId }: ToChatDetailInput): ChatDetail {
-  const viewer = participants.find((p) => p.userId === viewerUserId);
-  return {
-    id: chat.id,
-    title: chat.title,
-    star: chat.star,
-    archived: chat.archived,
-    parentChatId: chat.parentChatId,
-    forkedAt: chat.forkedAt,
-    anchorPersonaId: chat.anchorPersonaId,
-    participants,
-    viewerActivePersonaId: viewer?.activePersonaId ?? null,
-    viewerIsHost: viewer?.role === "host",
-    viewerUserId,
-    pendingHostUserId: chat.pendingHostUserId,
-    group: chat.metadata.group ?? DEFAULT_GROUP_CONFIG,
-    roomOverrides: chat.metadata.roomOverrides ?? DEFAULT_ROOM_OVERRIDES,
-    opening: chat.metadata.opening ?? null,
-    compactSummary: chat.compactSummary,
-    compactedAtSeq: chat.compactedAtSeq,
-    createdAt: chat.createdAt,
-    updatedAt: chat.updatedAt,
-    macroNames,
-    personaAvatars,
-  };
-}
-
-/** Map a loaded chat row + its canon stats + present roster + character-seat ids → the light `ChatSummary`
- *  list row. `participantNames` are display names only — the heavy roster is `getChat`. */
-function toChatSummary(
-  row: ChatRowView,
-  stat: { messageCount: number; lastMessageAt: number | null },
-  participants: readonly ParticipantView[],
-  participantCharacterIds: readonly CharacterId[],
-): ChatSummary {
+function toChatSummary({ row, stat, participants, participantCharacterIds, viewerUserId }: ChatSummaryInputs): ChatSummary {
   return {
     id: row.id,
     title: row.title,
@@ -167,6 +149,10 @@ function toChatSummary(
     messageCount: stat.messageCount,
     participantNames: participants.map((p) => p.displayName),
     participantCharacterIds,
+    // Derive the caller's role from the present roster already loaded for this row — no extra read. The
+    // caller is a present member on every listing path (membership-gated), so the `find` resolves; fail to
+    // the least-privileged `member` on the impossible miss (never grant host by default).
+    viewerRole: participants.find((p) => p.userId === viewerUserId)?.role ?? "member",
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -177,7 +163,7 @@ const EMPTY_STATS = { messageCount: 0, lastMessageAt: null } as const;
 
 /** Resolve a set of chat rows → `ChatSummary[]` (the canon stats batched in one read; the names per chat).
  *  Shared by listChats / listForks / getChatLineage. */
-async function buildSummaries(db: Db, deps: ReadDeps, rows: readonly ChatRowView[]): Promise<ChatSummary[]> {
+async function buildSummaries(db: Db, deps: ReadDeps, rows: readonly ChatRowView[], viewerUserId: UserId): Promise<ChatSummary[]> {
   if (rows.length === 0) {
     return [];
   }
@@ -185,7 +171,15 @@ async function buildSummaries(db: Db, deps: ReadDeps, rows: readonly ChatRowView
   const stats = await loadChatMessageStats(db, chatIds);
   const characterIdsByChat = await loadChatParticipantCharacterIds(db, chatIds);
   const enriched = await Promise.all(rows.map(async (row) => ({ row, names: await deps.loadParticipantViews(row.id) })));
-  return enriched.map(({ row, names }) => toChatSummary(row, stats.get(row.id) ?? EMPTY_STATS, names, characterIdsByChat.get(row.id) ?? []));
+  return enriched.map(({ row, names }) =>
+    toChatSummary({
+      row,
+      stat: stats.get(row.id) ?? EMPTY_STATS,
+      participants: names,
+      participantCharacterIds: characterIdsByChat.get(row.id) ?? [],
+      viewerUserId,
+    }),
+  );
 }
 
 /** Resolve the {@link PreviewInputs} for a chat: the present roster → host + cast + personas, then the
@@ -220,7 +214,7 @@ async function resolvePreviewInputs(
     anchorPersonaId,
     personaIds,
   });
-  return { hostUserId, model: connection.model, castCharacterIds, personaIds, foreign };
+  return { hostUserId, model: connection.model, capability: connection.capability, castCharacterIds, personaIds, foreign };
 }
 
 /** Build the assemble ctx for a preview from the resolved {@link PreviewInputs}. No persist, no turn. An
@@ -244,7 +238,7 @@ async function buildPreviewContext(ctx: ChatContext, inputs: PreviewInputs, chat
 function createListChats(ctx: ChatContext, deps: ReadDeps): ChatService["listChats"] {
   return async ({ principal, includeArchived }: ListChatsParams): Promise<ChatSummary[]> => {
     const rows = await listMemberChats(ctx.db, principal.userId, includeArchived ?? false);
-    return await buildSummaries(ctx.db, deps, rows);
+    return await buildSummaries(ctx.db, deps, rows, principal.userId);
   };
 }
 
@@ -265,6 +259,7 @@ function createListForks(ctx: ChatContext, deps: ReadDeps): ChatService["listFor
       ctx.db,
       deps,
       children.filter((c) => visible.has(c.id)),
+      principal.userId,
     );
   };
 }
@@ -286,6 +281,7 @@ function createGetChatLineage(ctx: ChatContext, deps: ReadDeps): ChatService["ge
       ctx.db,
       deps,
       chain.filter((r) => visible.has(r.id)),
+      principal.userId,
     );
     // `buildSummaries` preserves the self→root input order; the view is oldest-root first.
     return { chain: summaries.reverse() };
@@ -351,31 +347,91 @@ function createListParticipants(ctx: ChatContext, deps: ReadDeps): ChatService["
   };
 }
 
-/** `previewAssembly` — the BUILD product + the debug trace for a hypothetical turn (host/admin debug
- *  surface). A `guided` steer is routed through the same gather→build a real turn uses. */
+/** `previewAssembly` — the BUILD product + the debug trace for a hypothetical turn. HOST/ADMIN
+ *  (`requireHost`, matrix `previewAssembly: "host"`): the assembled prompt merges every roster member's
+ *  card at FULL fidelity — exposing it to a plain member would bypass the D22 `memberCardVisibility` clamp
+ *  (a member reading another member's private card fields). A `guided` steer is routed through the same
+ *  gather→build a real turn uses. */
 function createPreviewAssembly(ctx: ChatContext, deps: ReadDeps): ChatService["previewAssembly"] {
   return async ({ principal, chatId, speakerCharacterId, guided }: PreviewAssemblyParams): Promise<AssemblyPreview> => {
-    const membership = await requireParticipant(ctx, principal, chatId);
+    const membership = await requireHost(ctx, principal, chatId);
     const inputs = await resolvePreviewInputs(ctx, deps, chatId, {
       anchorPersonaId: membership.chat.anchorPersonaId,
       speakerCharacterId,
     });
     const assembleContext = await buildPreviewContext(ctx, inputs, chatId, guided);
     const prompt = buildPrompt(inputs.foreign.promptConfig, assembleContext);
-    return { prompt, trace: prompt.trace };
+    // Route through the host-audience redaction seam (chat-crew-design/04 §2, CREW-6). The verdict is DERIVED
+    // from the membership `requireHost` already loaded (no second read) — provably `true` today, but if this
+    // gate is ever relaxed to `requireParticipant` the elision inherits automatically (the structural belt: a
+    // host-ring `audience:"host"` injection can never leak through a snapshot-serving projection).
+    const redacted = redactHostInjections(prompt, permitsHost(ctx.can, principal, membership.role));
+    return { prompt: redacted, trace: redacted.trace };
   };
 }
 
-/** `peekPrompt` — the assembled prompt for the NEXT real turn (no generation). The BUILD product only. */
+/** `peekPrompt` — the assembled prompt for the NEXT real turn (no generation). The BUILD product only.
+ *  HOST/ADMIN (`requireHost`, matrix `peekPrompt: "host"`): the full next-turn prompt reveals merged member
+ *  cards at FULL — host/admin only, same D22 rationale as `previewAssembly`. */
 function createPeekPrompt(ctx: ChatContext, deps: ReadDeps): ChatService["peekPrompt"] {
   return async ({ principal, chatId, speakerCharacterId }: PeekPromptParams): Promise<AssembledPrompt> => {
-    const membership = await requireParticipant(ctx, principal, chatId);
+    const membership = await requireHost(ctx, principal, chatId);
     const inputs = await resolvePreviewInputs(ctx, deps, chatId, {
       anchorPersonaId: membership.chat.anchorPersonaId,
       speakerCharacterId,
     });
     const assembleContext = await buildPreviewContext(ctx, inputs, chatId);
-    return buildPrompt(inputs.foreign.promptConfig, assembleContext);
+    // Route peekPrompt through the ONE host-audience helper (chat-crew-design/04 §2, CREW-6) with the verdict
+    // DERIVED from the loaded membership (no second read; provably host today, leak-free if the gate relaxes).
+    return redactHostInjections(buildPrompt(inputs.foreign.promptConfig, assembleContext), permitsHost(ctx.can, principal, membership.role));
+  };
+}
+
+/** `getShapeTrace` — the content-free SHAPE trace for the next-turn shaping of the current canon (PD-132).
+ *  HOST/ADMIN (`requireHost`): the SHAPE-phase debug surface, gate-classified `host` in the auth matrix.
+ *  Re-runs SHAPE on demand (the same `buildPrompt` → `toShapeCanon` → `shapeTurn` a real turn's peek uses),
+ *  then projects the stage snapshots + the resolved breakpoint offset onto the content-free `ShapeTrace` —
+ *  no content bytes by construction, nothing persists (mirrors `peekPrompt`'s dry-run frame). */
+function createGetShapeTrace(ctx: ChatContext, deps: ReadDeps): ChatService["getShapeTrace"] {
+  return async ({ principal, chatId, speakerCharacterId }: GetShapeTraceParams): Promise<ShapeTrace> => {
+    const membership = await requireHost(ctx, principal, chatId);
+    const inputs = await resolvePreviewInputs(ctx, deps, chatId, {
+      anchorPersonaId: membership.chat.anchorPersonaId,
+      speakerCharacterId,
+    });
+    const assembleContext = await buildPreviewContext(ctx, inputs, chatId);
+    const assembled = buildPrompt(inputs.foreign.promptConfig, assembleContext);
+
+    // The per-chat macro name producer over the full canon — resolves each history row's own macro stamps
+    // (client-display parity), exactly as the engine builds it for a real turn.
+    const canon = await loadCanonHistory(ctx.db, chatId);
+    const macroProducer = await loadChatMacroNameProducer(ctx.db, { messages: canon });
+    const historyMacroNames: HistoryMacroNames = {
+      characterNamesById: buildCharacterNameMap(macroProducer.characterNames),
+      personaNamesById: buildPersonaNameMap(macroProducer.personaNames),
+    };
+
+    // SHAPE the next-turn peek (no user input, no group nudge, primary speaker / merged): the same wire
+    // history the pipeline would build, minus the per-speaker round machinery — the trace describes how the
+    // CURRENT canon shapes for the next turn.
+    const inChatInjections: ChatInjection[] = [...(assembleContext.chatInjections ?? []).filter((i) => i.position === "in_chat"), ...assembled.afterHistory];
+    const turns = inputs.capability?.turns;
+    const shaped = shapeTurn({
+      canon: assembled.sendHistory ? toShapeCanon(canon, assembleContext, historyMacroNames) : [],
+      appendUserTurn: null,
+      injections: inChatInjections,
+      output: "per-speaker",
+      cardScope: "merged",
+      scopedTargetId: null,
+      namesBehavior: assembleContext.promptConfig.namesBehavior ?? "default",
+      speakers: { user: assembleContext.activePersona?.name ?? "User", assistant: assembleContext.character.name },
+      groupNudge: null,
+      assistantPrefill: turns?.assistantPrefill === true,
+      roleHandling: assembleContext.promptConfig.params.advanced?.roleHandling,
+      roleHandlingFloor: turns?.roleHandlingFloor,
+      squashSystemMessages: assembleContext.promptConfig.params.advanced?.squashSystemMessages,
+    });
+    return buildShapeTrace(shaped.stages, shaped.cacheBreakpointFromEnd);
   };
 }
 
@@ -447,6 +503,26 @@ function createChatEventBounds(ctx: ChatContext): ChatService["chatEventBounds"]
 
 /** The read-surface verb bundle. Pure reads (membership-gated; no mutation, no bus emit). `deps` carries
  *  the roster resolver + the connection/assemble resolvers the dry-run previews need. */
+/** `getAgentCardView` — the D22 "who is this agent?" member read (D60, doc 06 §5). Member-gated, then the
+ *  target MUST be a present `kind:'agent'` seat of THIS chat (a coded `participant_not_found` for any other
+ *  id — the caller already sees the roster, so a leak-free coded refusal, never a foreign-agent oracle). The
+ *  fixed projection (soul name + `sourceKind` + owner handle) comes from the source-blind injected op; an
+ *  unresolvable seat (unhatched / owner-less) is the same coded refusal. Never the soul prompt/avatar. */
+function createGetAgentCardView(ctx: ChatContext): ChatService["getAgentCardView"] {
+  return async ({ principal, chatId, agentUserId }: GetAgentCardViewParams): Promise<AgentCardView> => {
+    await requireParticipant(ctx, principal, chatId);
+    const seated = (await loadRoster(ctx.db, chatId)).some((p) => p.kind === "agent" && p.userId === agentUserId && p.leftSeq === null);
+    if (!seated) {
+      throw new ChatOperationError(CHAT_OP_CODES.participantNotFound, `chat ${chatId}: ${agentUserId} is not a present agent seat`);
+    }
+    const view = await ctx.resolveAgentCardView(agentUserId);
+    if (view === null) {
+      throw new ChatOperationError(CHAT_OP_CODES.participantNotFound, `chat ${chatId}: agent ${agentUserId} has no resolvable identity`);
+    }
+    return view;
+  };
+}
+
 export function createRead(ctx: ChatContext, deps: ReadDeps): ReadVerbs {
   return {
     listChats: createListChats(ctx, deps),
@@ -457,9 +533,11 @@ export function createRead(ctx: ChatContext, deps: ReadDeps): ReadVerbs {
     getActivePresetConfig: createGetActivePresetConfig(ctx, deps),
     previewSection: createPreviewSection(ctx, deps),
     peekPrompt: createPeekPrompt(ctx, deps),
+    getShapeTrace: createGetShapeTrace(ctx, deps),
     listMessages: createListMessages(ctx, deps),
     listMessageVariants: createListMessageVariants(ctx),
     listParticipants: createListParticipants(ctx, deps),
+    getAgentCardView: createGetAgentCardView(ctx),
     replayStreamEvents: createReplayStreamEvents(ctx),
     streamEventBounds: createStreamEventBounds(ctx),
     replayChatEvents: createReplayChatEvents(ctx),

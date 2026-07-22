@@ -22,16 +22,8 @@
 // `chatEventStream`, PD-134): a local per-viewer yield, never published on the bus, never logged to
 // `chat_events`. This verb deliberately stays silent on it (the marker guarding against a stray emit here).
 
-import type {
-  ChatBusEvent,
-  ChatMacroNameProducer,
-  GroupConfigInput,
-  OpeningPolicy,
-  ParticipantView,
-  PersonaAvatarEntry,
-  RoomOverrides,
-} from "@orb/contracts/chat";
-import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES, groupConfigSchema, roomOverridesSchema } from "@orb/contracts/chat";
+import type { ChatBusEvent, GroupConfigInput, OpeningPolicy, ParticipantView, RoomOverrides } from "@orb/contracts/chat";
+import { groupConfigSchema, roomOverridesSchema } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
 import { chatInjections, chatParticipants, chats } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
@@ -44,7 +36,6 @@ import type { ResolveForeignInputsOp } from "../contract/foreign";
 import type { GuidedSteer, StartChatParams } from "../contract/params";
 import type { StartChatResult, TurnEngine, TurnOutcome } from "../contract/results";
 import type { ChatService } from "../contract/service";
-import type { ChatDetail } from "../contract/views";
 import { buildCommittedMessageView, insertCanonMessageStatements } from "../persistence/canon-write";
 import { loadChatMacroNameProducer } from "../persistence/macro-names";
 import { loadChatRow } from "../persistence/queries";
@@ -52,6 +43,7 @@ import { buildInitialRosterRows, characterSeatedInAnotherChat } from "../persist
 import { loadPersonaAvatarProducer } from "../persistence/roster-avatars";
 import { gatherAssembleContext } from "../substrate/assemble-gather";
 import { resolveGuidedActionText } from "../substrate/assembly-access";
+import { toChatDetail } from "../substrate/chat-detail";
 import { canonMessageDelta, chatCreatedDelta, newCharacterDelta } from "../substrate/stats-delta";
 
 /** The collaborators not on `ChatContext`. `emit` is the chat bus; `loadParticipantViews` resolves the
@@ -69,45 +61,6 @@ type StartChatVerbs = Pick<ChatService, "startChat">;
 
 /** The committed `MessageView` for a seeded greeting. */
 type MessageViewSeed = ReturnType<typeof buildCommittedMessageView>;
-
-type LoadedChatRow = NonNullable<Awaited<ReturnType<typeof loadChatRow>>>;
-
-/** Map a loaded chat row + its resolved roster + macro name producer → `ChatDetail`. The same projection
- *  `fork.ts`/`invites.ts`/`read.ts` use (one shape, no drift). */
-interface ToChatDetailInput {
-  readonly chat: LoadedChatRow;
-  readonly participants: readonly ParticipantView[];
-  readonly macroNames: ChatMacroNameProducer;
-  readonly personaAvatars: readonly PersonaAvatarEntry[];
-  readonly viewerUserId: UserId;
-}
-
-function toChatDetail({ chat, participants, macroNames, personaAvatars, viewerUserId }: ToChatDetailInput): ChatDetail {
-  const viewer = participants.find((p) => p.userId === viewerUserId);
-  return {
-    id: chat.id,
-    title: chat.title,
-    star: chat.star,
-    archived: chat.archived,
-    parentChatId: chat.parentChatId,
-    forkedAt: chat.forkedAt,
-    anchorPersonaId: chat.anchorPersonaId,
-    participants,
-    viewerActivePersonaId: viewer?.activePersonaId ?? null,
-    viewerIsHost: viewer?.role === "host",
-    viewerUserId,
-    pendingHostUserId: chat.pendingHostUserId,
-    group: chat.metadata.group ?? DEFAULT_GROUP_CONFIG,
-    roomOverrides: chat.metadata.roomOverrides ?? DEFAULT_ROOM_OVERRIDES,
-    opening: chat.metadata.opening ?? null,
-    compactSummary: chat.compactSummary,
-    compactedAtSeq: chat.compactedAtSeq,
-    createdAt: chat.createdAt,
-    updatedAt: chat.updatedAt,
-    macroNames,
-    personaAvatars,
-  };
-}
 
 /** Resolve the effective opening policy: the explicit param, else by roster size. */
 function resolveOpeningPolicy(opening: OpeningPolicy | undefined, charCount: number): OpeningPolicy {
@@ -177,7 +130,7 @@ async function loadGreetings(
   return characterIds.map((characterId, i) => ({
     characterId,
     // The draft's swiped/edited opening wins; else the card's primary greeting.
-    text: seedGreetings?.[characterId] ?? cards[i]?.greetings[0] ?? "",
+    text: seedGreetings?.[characterId] ?? cards[i]?.greetings[0]?.text ?? "",
   }));
 }
 

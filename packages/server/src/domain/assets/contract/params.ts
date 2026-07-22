@@ -36,7 +36,6 @@ export interface RemoveFromGalleryParams extends AssetsActorParams {
   readonly galleryItemId: GalleryItemId;
 }
 
-
 export interface StoreParams extends AssetsActorParams {
   /** The raw bytes to content-address. The CAS hashes them; the `hash`/`size` are derived, not supplied. */
   readonly bytes: Uint8Array;

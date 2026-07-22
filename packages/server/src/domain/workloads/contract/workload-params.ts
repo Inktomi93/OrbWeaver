@@ -33,8 +33,6 @@ const stagedHandleSchema = z
 
 const computeThemesParams = z.object({ k: z.number().int().positive().optional() });
 
-
-
 /** databank-ingest: chunk+embed+prune ONE document (the post-upload path). `documentId` is required; the row
  *  owner (`ctx.ownerId`) scopes the run. */
 const databankIngestParams = z.object({ documentId: documentIdSchema });
@@ -65,8 +63,6 @@ const importBundleParams = z.object({
   token: stagedHandleSchema,
   source: z.enum(["zip", "dir"]).optional(),
 });
-
-
 
 /** satisfies \{ [K in WorkloadKind]: ZodType \} forces an entry for every kind — a missing one is a tsc error. */
 export const PARAMS_SCHEMAS = {

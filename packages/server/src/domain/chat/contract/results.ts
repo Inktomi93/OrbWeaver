@@ -12,15 +12,18 @@ import type {
   ParticipantView,
   SpeakerRef,
   TurnAbortReason,
+  TurnInitiator,
 } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
 import type { ChatRoster } from "@orb/contracts/identity";
 import type { CustomParameters, UserIntent } from "@orb/contracts/preset";
+import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type { CharacterId, ChatId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { HistoryRole, ToolCallInput, ToolChoice, WireTool } from "#infra/providers";
-import type { MemoryConfig } from "./memory";
+import type { MemoryConfig, MemoryRecallInputs } from "./memory";
+import type { RequestTurnParams } from "./params";
 import type { ChatDetail, ChatVariables } from "./views";
 
 export type { TurnIntent } from "@orb/contracts/chat";
@@ -111,6 +114,9 @@ export interface TurnRequest {
   /** Absent (never []) on a tool-less turn, so the request stays byte-identical to pre-tools. */
   readonly tools?: readonly WireTool[] | undefined;
   readonly toolChoice?: ToolChoice | undefined;
+  /** The structured-output request for this turn (D79) — set by the request-builder gate only when the model
+   *  supports it; the runChatTurn translator maps it onto the wire arm's `responseFormat`. */
+  readonly responseFormat?: ResponseFormat | undefined;
   readonly signal?: AbortSignal | undefined;
 }
 
@@ -169,6 +175,13 @@ export interface TurnPrep {
    *  caller (Principal.userId) never reaches this path. */
   readonly triggeredBy: UserId;
   readonly runAsUserId: UserId;
+  /** The turn's origin (automation-design/03 §4 — the cascade guard's non-human-initiator seam). Absent ⇒
+   *  a human turn (`'human'`/depth 0 — the DB column defaults), so every human/character/agent verb stays
+   *  byte-identical. An automation `requestTurn` (A6) threads `'automation'` + `parentDepth + 1`; the engine
+   *  stamps both onto the reply slot (new-slot only — a swipe/continue re-voices nothing), and `getTurnOrigin`
+   *  reads them back. NOT a bus-event field (the D19/D50 allowlist). */
+  readonly initiator?: TurnInitiator | undefined;
+  readonly automationDepth?: number | undefined;
   readonly kind: TurnKind;
   readonly intent: UserIntent;
   /** The host's `UserSettings.chat.customStoppingStrings` (PD-146), merged into the generation request's
@@ -179,6 +192,11 @@ export interface TurnPrep {
    *  memory doesn't pay the summarizer/embed every turn. Absent falls back to the build's baked defaults;
    *  mode:"off" skips the whole build. */
   readonly memoryConfig?: MemoryConfig | null | undefined;
+  /** The ROUND-LEVEL recall inputs (gathered once) the engine re-runs `recallMemory` with PER SCOPED SPEAKER —
+   *  each real speaker's OWN bucket + its join/leave `witnessing` horizons (D6). Absent / null ⇒ no per-speaker
+   *  recall (merged/narrator/solo, memory off, or empty cast) ⇒ the round-level `assembleContext.memory` stands
+   *  byte-identically. Shared across the round's speakers (the recent-window + name-map are speaker-invariant). */
+  readonly memoryRecall?: MemoryRecallInputs | null | undefined;
   /** The roster character this single turn voices; null for a non-character turn. */
   readonly speakerCharacterId: CharacterId | null;
   /** A synthetic trailing user turn (regen prompt/continue nudge); null for a plain send. */
@@ -188,6 +206,11 @@ export interface TurnPrep {
   /** The union of gather-contributed tool names. Absent/empty means no tools ride, and the loop degenerates
    *  to one runChatTurn call. */
   readonly attachedToolNames?: readonly string[] | undefined;
+  /** rpg-design/05 §6 slot-adjacency verdict: is this turn (re)generating the assistant slot that DIRECTLY
+   *  responds to the latest user message? The engine marks the turn dice-eligible (`ctx.rpg.markDicePreRollEligible`)
+   *  after minting `turnId` when true, so the player's queued d20 feeds the FIRST skill check of a send /
+   *  deferred-drain / swipe-of-that-slot but never a later GM/auto/director round. Absent ⇒ false (ineligible). */
+  readonly respondsToLatestUserTurn?: boolean | undefined;
   /** The caller's loaded membership for chat-scoped tool ceilings; absent until a chat-scoped registrant exists. */
   readonly toolRoster?: ChatRoster | undefined;
   /** The chat-level recurse cap; absent means the engine applies the seed default. */
@@ -212,6 +235,12 @@ export interface TurnPrep {
 export interface TurnEngine {
   readonly runTurn: (prep: TurnPrep) => Promise<TurnOutcome>;
 }
+
+/** The PRINCIPAL-FREE non-human turn op (automation-design/03 §4 / 05 §AC-B). Built once at the chat
+ *  composition root over the same turn deps the human verbs use, then handed to automation's `trigger_turn`
+ *  arm + the plugin membrane's `turn.trigger`. Homed here (not on the verb file) per `no-inline-types` — the
+ *  op shape is contract surface. See {@link RequestTurnParams} for the four walls it enforces. */
+export type RequestTurnOp = (params: RequestTurnParams) => Promise<TurnOutcome>;
 
 /** The verb-level result of a completed (or aborted) turn — the committed message(s) joined to their
  *  selected variant. A per-speaker group round commits several rows. */

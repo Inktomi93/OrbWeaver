@@ -2,15 +2,7 @@
 // Two floor origins: env-mirrored fields read foundation/env, born-in-DB fields read a code floor only an
 // admin override moves. Pure (no I/O, no cache) — cache + reload live in cache.ts.
 
-
-import type {
-  AppSettings,
-  EffectiveAppConfig,
-  RateLimits,
-  ResolvedRateLimits,
-  ResolvedVllmConcurrency,
-  VllmConcurrency,
-} from "@orb/contracts/settings";
+import type { AppSettings, EffectiveAppConfig, RateLimits, ResolvedRateLimits, ResolvedVllmConcurrency, VllmConcurrency } from "@orb/contracts/settings";
 import {
   DEFAULT_ALLOW_NON_OWNER_LOCAL_COMPUTE,
   DEFAULT_ALLOW_NON_OWNER_MAX_PRO_SUB,
@@ -51,8 +43,6 @@ function resolveVllmConcurrency(o: VllmConcurrency | null | undefined): Resolved
   };
 }
 
-
-
 /**
  * Resolve the stored override blob against the floor → the fully-present `EffectiveAppConfig`. Each field
  * is `override ?? floor`: `undefined` (absent) AND a stored `null` (the CLEAR sentinel) both fall through
@@ -75,6 +65,5 @@ export function layer(overrides: AppSettings): EffectiveAppConfig {
     maxImageBytes: overrides.maxImageBytes ?? DEFAULT_MAX_IMAGE_BYTES,
     localMultiUser: overrides.localMultiUser ?? DEFAULT_LOCAL_MULTI_USER,
     discreetLogin: overrides.discreetLogin ?? DEFAULT_DISCREET_LOGIN,
-
   };
 }
