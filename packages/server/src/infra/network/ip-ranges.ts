@@ -182,11 +182,15 @@ export const DEFAULT_TRUSTED_RANGES: readonly string[] = [
   "192.168.0.0/16", // RFC1918
   "100.64.0.0/10", // CGNAT — Tailscale
   "169.254.0.0/16", // IPv4 link-local
+  "198.18.0.0/15", // RFC2544 benchmarking — routable-looking but never a legit egress target
+  "224.0.0.0/4", // IPv4 multicast (incl. SSDP 239.255.255.250) — never a unicast egress target
   // IPv6 unspecified/IPv4-compatible block — `::` routes to ::1 on Linux; never legit egress.
   "::/96",
   "::1/128", // IPv6 loopback
   "fc00::/7", // IPv6 unique-local (ULA)
   "fe80::/10", // IPv6 link-local
+  "2002::/16", // 6to4 — embeds an arbitrary IPv4 (incl. a private one); block the whole block
+  "2001::/32", // Teredo — IPv6-over-UDP tunnel that can reach an internal v4; block the whole block
 ];
 
 /** True if `ip` is loopback / private / Tailscale / link-local per DEFAULT_TRUSTED_RANGES. */

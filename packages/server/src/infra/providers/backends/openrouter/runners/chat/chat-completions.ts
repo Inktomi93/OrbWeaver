@@ -37,6 +37,7 @@ import {
   isMandatoryReasoningRejection,
   mergeCustomParameters,
   reshapeChatStreamChunk,
+  resolveFallbackModels,
   resolveProviderPreferences,
   warningEvents,
   withVerbosityDrop,
@@ -141,6 +142,7 @@ function buildChatBody(req: OpenRouterChatRequest, resolved: ResolvedChatKnobs, 
       : buildHistoryMessages(req.history);
   const messages: ChatMessages[] = systemMessage !== null ? [systemMessage, ...history] : history;
   const provider = resolveProviderPreferences(req.model, req.providerRouting);
+  const fallbackModels = resolveFallbackModels(req.providerRouting);
   const owned: ChatRequest = {
     model: req.model,
     messages,
@@ -148,8 +150,11 @@ function buildChatBody(req: OpenRouterChatRequest, resolved: ResolvedChatKnobs, 
     ...chatSamplingFields(resolved.sampling, resolved.maxOutputTokens),
     ...(includeReasoning ? { reasoning: effortToOpenAIReasoning(buildReasoningRequest(resolved.reasoning)) } : {}),
     ...(provider !== undefined ? { provider } : {}),
+    ...(fallbackModels !== undefined ? { models: fallbackModels } : {}),
     ...(req.tools !== undefined ? { tools: buildWireTools(req.tools) } : {}),
     ...(req.toolChoice !== undefined ? { toolChoice: buildToolChoice(req.toolChoice) } : {}),
+    // Only meaningful alongside a tools[] request (a bare parallel flag is ignored/rejected upstream).
+    ...(req.tools !== undefined && req.params.advanced?.parallelToolCalls !== undefined ? { parallelToolCalls: req.params.advanced.parallelToolCalls } : {}),
     ...(req.responseFormat !== undefined ? { responseFormat: buildChatResponseFormat(req.responseFormat) } : {}),
     plugins: withContextCompressionPlugin(req.params),
   };

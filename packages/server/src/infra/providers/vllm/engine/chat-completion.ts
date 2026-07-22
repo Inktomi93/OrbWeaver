@@ -2,7 +2,7 @@
 // gen-engine consumers (summarize, etc.) shape requests onto. Lives at engine-level since a surface may
 // not import a sibling surface. Vision messages carry `images` as `image_url` data-URI content parts.
 
-import type { ImageInput, RepetitionDetection } from "@orb/contracts/role-clients";
+import type { ImageInput, RepetitionDetection, ResponseFormat } from "@orb/contracts/role-clients";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { VllmEngineClient } from "./client";
 import { toDataUri } from "./image";
@@ -20,8 +20,9 @@ export interface VllmChatCompletionRequest {
   readonly temperature?: number | undefined;
   /** Min-p nucleus floor — trims the low-probability tail. */
   readonly minP?: number | undefined;
-  /** JSON Schema for constrained output (vLLM enforces via guided decoding). */
-  readonly jsonSchema?: object | undefined;
+  /** Structured output (D79) — vLLM enforces via guided decoding; `cleanJsonSchema` strips the annotations a
+   *  strict endpoint chokes on (the vLLM-internal quirk, never a second projection rule). */
+  readonly responseFormat?: ResponseFormat | undefined;
   /** N-gram repetition guard — stops a degenerate loop before `maxTokens`. */
   readonly repetitionDetection?: RepetitionDetection | undefined;
   readonly signal?: AbortSignal | undefined;
@@ -107,11 +108,11 @@ function buildBody(req: VllmChatCompletionRequest, messages: unknown): Record<st
     ...(req.temperature !== undefined ? { temperature: req.temperature } : {}),
     ...(req.minP !== undefined ? { min_p: req.minP } : {}),
     ...(req.repetitionDetection !== undefined ? { repetition_detection: repetitionBlock(req.repetitionDetection) } : {}),
-    ...(req.jsonSchema !== undefined
+    ...(req.responseFormat !== undefined
       ? {
           response_format: {
             type: "json_schema",
-            json_schema: { name: "result", schema: cleanJsonSchema(req.jsonSchema) },
+            json_schema: { name: req.responseFormat.name, schema: cleanJsonSchema(req.responseFormat.schema) },
           },
         }
       : {}),

@@ -35,6 +35,8 @@ export function createSettingsContext(deps: SettingsServiceDeps): SettingsContex
     newThemeId: deps.newThemeId,
     emitUserEvent: deps.emitUserEvent,
     onEmbedModelChanged: deps.onEmbedModelChanged,
+    materializeBackground: deps.materializeBackground,
+    newBackgroundEntryId: deps.newBackgroundEntryId,
     getEffectiveConfig,
     reloadEffectiveConfig: () => reloadEffectiveConfig(deps.db),
   };

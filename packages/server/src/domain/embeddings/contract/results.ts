@@ -20,3 +20,14 @@ export interface PurgeMemoryVectorsResult {
   readonly segments: number;
   readonly digests: number;
 }
+
+/** databank-design/05 §2.4 — rows deleted by the reindex-shrink prune (shrunk tail + retired-space rows). */
+export interface PruneDocumentChunksResult {
+  readonly rowsDeleted: number;
+}
+
+/** PD-139(c): rows reclaimed from the OLD embed space by the document-chunk purge — the databank arm of the
+ *  PD-104 model-change reclaim, mirroring {@link PurgeMemoryVectorsResult}. */
+export interface PurgeDocumentVectorsResult {
+  readonly chunks: number;
+}

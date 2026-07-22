@@ -3,12 +3,15 @@
 // regexScripts are always-a-list (corrupt ⇒ []); depthPrompt/extensions/refinery are nullable (corrupt ⇒ null).
 
 import type { CharacterCard, CharacterListCursor, CharacterListSort } from "@orb/contracts/character";
-import { cardDepthPromptSchema, refinerySignalsSchema } from "@orb/contracts/character";
+import { cardDepthPromptSchema, greetingsColumnSchema, refinerySignalsSchema } from "@orb/contracts/character";
 import { regexScriptSchema } from "@orb/contracts/regex";
 import type { TagView } from "@orb/contracts/tag";
+import type { ThemeBackground } from "@orb/contracts/theme";
+import { canonicalBackgroundSource } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
-import { assets, characterSnapshots, characterStats, characterSummaries, characters, characterTags, parseStringArray, tags } from "@orb/db";
+import { assets, characterSnapshots, characterStats, characterSummaries, characters, characterTags, parseStringArrayColumn, tags } from "@orb/db";
 import type { AssetId, CharacterId, CharacterSnapshotId, UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import { and, asc, desc, eq, gt, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -37,6 +40,21 @@ export async function ensureAssetOwned(db: Db, ownerId: UserId, assetId: AssetId
   const rows = await db.select({ ownerId: assets.ownerId }).from(assets).where(eq(assets.id, assetId)).limit(LIMIT_ONE);
   if (rows[0]?.ownerId !== ownerId) {
     throw new AssetNotFoundError(assetId);
+  }
+}
+
+/** BG-C ownership belt for a card's carried background (`characters.background_override`): a surviving asset ref
+ *  (⇒ `kind:"asset"`) must be the caller's OWN asset — a foreign `assetId` would GC-root someone else's blob
+ *  through the JSON live-source (`background_override` is not an FK column, so nothing else gates it). Canonicalizes
+ *  first, so a non-asset kind carrying a stray/smuggled `assetId` is a no-op (the ref is emptied on persist). The
+ *  `ensureAssetOwned` twin for the carried-background source (the avatar-FK precedent). */
+export async function ensureBackgroundOverrideOwned(db: Db, ownerId: UserId, backgroundOverride: ThemeBackground | null | undefined): Promise<void> {
+  if (backgroundOverride === null || backgroundOverride === undefined) {
+    return;
+  }
+  const source = canonicalBackgroundSource(backgroundOverride);
+  if (source.assetId.length > 0) {
+    await ensureAssetOwned(db, ownerId, castId<AssetId>(source.assetId));
   }
 }
 
@@ -255,6 +273,30 @@ export async function findByOwnerImportHash(db: Db, ownerId: UserId, importHash:
   return rows[0]?.id;
 }
 
+/** Batched provenance oracle: the owner's characters whose `importedFrom` is any of `values` (one indexed
+ *  `IN` read). Empty `values` short-circuits to no rows (never a bare `IN ()`). Owner-scoped in the WHERE, so
+ *  a different owner's same-provenance card is never returned. */
+export async function findByOwnerImportedFrom(
+  db: Db,
+  ownerId: UserId,
+  values: readonly string[],
+): Promise<{ importedFrom: string; characterId: CharacterId }[]> {
+  if (values.length === 0) {
+    return [];
+  }
+  const rows = await db
+    .select({ importedFrom: characters.importedFrom, id: characters.id })
+    .from(characters)
+    .where(and(eq(characters.ownerId, ownerId), inArray(characters.importedFrom, [...values])));
+  const out: { importedFrom: string; characterId: CharacterId }[] = [];
+  for (const row of rows) {
+    if (row.importedFrom !== null) {
+      out.push({ importedFrom: row.importedFrom, characterId: row.id });
+    }
+  }
+  return out;
+}
+
 /** Every handle the owner already uses — the duplicate verb derives a free `<handle>-copy[-n]` from this. */
 export async function listOwnerHandles(db: Db, ownerId: UserId): Promise<string[]> {
   const rows = await db.select({ handle: characters.handle }).from(characters).where(eq(characters.ownerId, ownerId));
@@ -293,7 +335,7 @@ export function cardOf(src: CharacterCard): CharacterCard {
     description: src.description,
     personality: src.personality,
     scenario: src.scenario,
-    greetings: parseStringArray(src.greetings),
+    greetings: greetingsColumnSchema.parse(src.greetings),
     exampleMessages: src.exampleMessages,
     systemPrompt: src.systemPrompt,
     postHistoryInstructions: src.postHistoryInstructions,
@@ -301,6 +343,10 @@ export function cardOf(src: CharacterCard): CharacterCard {
     creatorNotes: src.creatorNotes,
     creator: src.creator,
     cardVersion: src.cardVersion,
+    nickname: src.nickname,
+    source: parseStringArrayColumn(src.source),
+    creationDate: src.creationDate,
+    modificationDate: src.modificationDate,
     regexScripts: regexScriptsParser.parse(src.regexScripts),
     extensions: extensionsParser.parse(src.extensions),
     residualData: residualDataParser.parse(src.residualData),
@@ -360,6 +406,7 @@ export function detailOf({ character: row, avatar }: CharacterWithAvatar, canoni
     forbidExternalMedia: row.forbidExternalMedia,
     trustHtml: row.trustHtml,
     themeOverride: row.themeOverride,
+    backgroundOverride: row.backgroundOverride,
     importedFrom: row.importedFrom,
     importHash: row.importHash,
     contentHash: row.contentHash,
@@ -380,6 +427,7 @@ export function summaryOf({ character: row, avatar, elevatorPitch, lastChattedAt
     forbidExternalMedia: row.forbidExternalMedia,
     trustHtml: row.trustHtml,
     themeOverride: row.themeOverride,
+    backgroundOverride: row.backgroundOverride,
     avatarAssetId: row.avatarAssetId,
     avatarHash: avatar?.hash ?? null,
     contentHash: row.contentHash,

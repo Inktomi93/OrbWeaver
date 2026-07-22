@@ -46,7 +46,7 @@ export function createVllmSummarize(deps: VllmSummarizeDeps): (req: SummarizeReq
           maxTokens: req.maxTokens,
           temperature: req.temperature,
           minP: req.minP,
-          jsonSchema: req.jsonSchema,
+          responseFormat: req.responseFormat,
           repetitionDetection: req.repetitionDetection,
           signal: req.signal,
         });

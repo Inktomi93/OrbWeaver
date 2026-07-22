@@ -8,6 +8,9 @@ export {
   processMacros,
 } from "./engine";
 export { evaluateMacros } from "./evaluator";
+// The macro-DX layer (02 §5): arg validation + the autocomplete query. Types + MACRO_CATEGORIES home in
+// ./types (below) so the registry references them cycle-free.
+export { queryMacros, validateMacroArgs } from "./metadata";
 export { parseMacros } from "./parser";
 export { createDefaultRegistry, createVolatileOnlyRegistry, SimpleMacroRegistry } from "./registry";
 export type {
@@ -20,18 +23,26 @@ export type {
 // DISPLAY both call so they cannot diverge. Composes `processMacros` (`./engine`).
 export { resolveRowMacros } from "./row-macros";
 export type {
+  GlobalVarWrite,
+  MacroArgDef,
   MacroAST,
   MacroBlockNode,
   MacroBudget,
   MacroCallNode,
+  MacroCategory,
   MacroContext,
+  MacroDiagnostic,
   MacroEnv,
   MacroHandler,
+  MacroMetadata,
+  MacroMetadataInput,
   MacroNode,
   MacroRegisterOptions,
   MacroRegistry,
+  MacroSpan,
   TextNode,
   VarOp,
 } from "./types";
+export { MACRO_CATEGORIES } from "./types";
 // D46 runtime variable delta model: the ordered op the mutation handlers record + the shared apply/fold.
 export { applyVarOp, foldVarOps } from "./variables";

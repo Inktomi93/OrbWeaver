@@ -44,4 +44,8 @@ export const SCOPE_INSTRUCTIONS = {
     query: "Retrieve the character art that best matches the described appearance.",
     rerank: "Given a description, retrieve the character portrait image that best matches it.",
   },
+  documents: {
+    query: "Retrieve the source-document passage that best answers the request.",
+    rerank: "Given a query, retrieve the reference-document passage most relevant to it.",
+  },
 } as const satisfies Record<SearchTarget, ScopeInstructions>;

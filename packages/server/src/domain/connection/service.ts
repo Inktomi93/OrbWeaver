@@ -12,10 +12,11 @@ import { createGetModelCapability } from "./verbs/get-model-capability";
 import { createGetModelsForSource } from "./verbs/get-models-for-source";
 import { createGetOrCredits } from "./verbs/get-or-credits";
 import { createGetOrSkinTierModels } from "./verbs/get-or-skin-tier-models";
+import { createProbeComfyui } from "./verbs/probe-comfyui";
 import { createRefreshAgentSdkCatalog } from "./verbs/refresh-agent-sdk-catalog";
 import { createRefreshCatalog } from "./verbs/refresh-catalog";
 import { createResolveChat } from "./verbs/resolve-chat";
-import { createResolveRole } from "./verbs/resolve-role";
+import { createResolveChatCapability, createResolveRole } from "./verbs/resolve-role";
 import { createTestClaudeAuth } from "./verbs/test-claude-auth";
 
 export function createConnectionService(ctx: ConnectionContext): ConnectionService {
@@ -23,8 +24,10 @@ export function createConnectionService(ctx: ConnectionContext): ConnectionServi
   return {
     resolveRole,
     resolveChat: createResolveChat(resolveRole),
+    resolveChatCapability: createResolveChatCapability(ctx),
     getModelCapability: createGetModelCapability(ctx),
     getModelsForSource: createGetModelsForSource(ctx),
+    probeComfyui: createProbeComfyui(ctx),
     getOrSkinTierModels: createGetOrSkinTierModels(ctx),
     getCatalog: createGetCatalog(ctx),
     refreshCatalog: createRefreshCatalog(ctx),

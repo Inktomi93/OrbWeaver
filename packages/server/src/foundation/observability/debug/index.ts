@@ -15,6 +15,7 @@ export {
   type DebugAuthOptions,
   type DebugRoutesOptions,
   debugAuthMiddleware,
+  type RpgTraceInspector,
   registerDebugRoutes,
   tokenMatches,
 } from "./routes";

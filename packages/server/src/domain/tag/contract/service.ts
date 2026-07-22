@@ -15,7 +15,6 @@ import type {
   CreateTagParams,
   DetachCardTagByNameParams,
   DetachTagParams,
-  GetTagParams,
   ListPendingSuggestionsParams,
   ListTagsParams,
   ListTagsWithUsageParams,
@@ -46,7 +45,6 @@ export interface TagContext {
  *  additionally gates the target (target-derived ownership, or injected membership for chat). */
 export interface TagService {
   readonly createTag: (params: CreateTagParams) => Promise<TagView>;
-  readonly getTag: (params: GetTagParams) => Promise<TagView>;
   readonly listTags: (params: ListTagsParams) => Promise<TagView[]>;
   readonly updateTag: (params: UpdateTagParams) => Promise<TagView>;
   readonly removeTag: (params: RemoveTagParams) => Promise<void>;

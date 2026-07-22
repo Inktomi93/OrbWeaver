@@ -12,6 +12,7 @@
 
 export type { ConnectionContext } from "./context";
 export {
+  AgentModelHealError,
   AgentSdkCatalogUnavailableError,
   CatalogUnavailableError,
   ConnectionRoutingError,

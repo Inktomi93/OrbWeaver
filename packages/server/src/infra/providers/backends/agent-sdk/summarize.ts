@@ -3,10 +3,14 @@
 // independent spawn, reduced by a linear init→assistant→result read. Mode-1 only; a non-sub credential
 // fails closed toward the hosted (OpenRouter) summarize path.
 
-import type { Options, SDKMessage } from "@anthropic-ai/claude-agent-sdk";
+import type { Options, SDKMessage, SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
+import type { ContentBlockParam } from "@anthropic-ai/sdk/resources/messages";
 import type { SummarizeRequest, SummarizeRequestItem, SummarizeResult, SummarizeResultItem } from "../../contract";
 import { ProviderError } from "../../contract";
+import type { NormalizeImageBytes } from "../kit";
+import { toAnthImageBlock } from "../kit";
 import { logProviderSummarize } from "./log";
+import { sanitizeAnthropicOutputSchema } from "./output-schema";
 import { disciplineOptions, observabilityOptions } from "./translate";
 import type { AgentSdkDeps } from "./types";
 import { assertInitFrameShape } from "./verify";
@@ -14,6 +18,27 @@ import { assertInitFrameShape } from "./verify";
 const SDK_TITLE_SUMMARIZE = "orbweaver-summarize";
 const SUMMARIZE_ITEM_TIMEOUT_MS = 120_000;
 const SUMMARIZE_CONCURRENCY = 4;
+const TEXT_TYPE = "text";
+const USER_ROLE = "user";
+
+// MA-10: an image-bearing summarize item rides the SDK STREAMING-INPUT prompt (an `AsyncIterable<SDKUserMessage>`
+// whose `message` is a full Anthropic `MessageParam`) so the model receives real image content blocks — the
+// mode-1 Max sub is a Claude model, so it reads them. A text-only item stays a plain-string prompt (byte-stable
+// with the pre-MA-10 turn). Built async because the byte-image normalize is I/O-bound (GIF → first-frame PNG).
+async function buildSummarizePrompt(item: SummarizeRequestItem, normalize: NormalizeImageBytes): Promise<string | AsyncIterable<SDKUserMessage>> {
+  if (item.images === undefined || item.images.length === 0) {
+    return item.userPrompt;
+  }
+  const imageBlocks = await Promise.all(item.images.map((image) => toAnthImageBlock(image, normalize)));
+  const content: ContentBlockParam[] = [{ type: TEXT_TYPE, text: item.userPrompt }, ...imageBlocks];
+  const message: SDKUserMessage = { type: USER_ROLE, message: { role: USER_ROLE, content }, parent_tool_use_id: null };
+  return (async function* single(): AsyncIterable<SDKUserMessage> {
+    // A one-shot input stream: yield the single image-bearing user message, then close so the SDK runs one
+    // turn. The `await` satisfies useAwait and matches the family's streaming-input convention.
+    await Promise.resolve();
+    yield message;
+  })();
+}
 
 interface SummarizeTurnResult {
   readonly reply: string;
@@ -123,9 +148,15 @@ async function runSummarizeItem(req: SummarizeRequest, item: SummarizeRequestIte
     timer.unref();
   });
   const outputFormat: Pick<Options, "outputFormat"> =
-    req.jsonSchema !== undefined ? { outputFormat: { type: "json_schema", schema: req.jsonSchema as Record<string, unknown> } } : {};
+    req.responseFormat !== undefined
+      ? { outputFormat: { type: "json_schema", schema: sanitizeAnthropicOutputSchema(req.responseFormat.schema, req.model) } }
+      : {};
+  // MA-10: images ride the streaming-input prompt as Anthropic content blocks (the pin at doc 05 §IC-B is
+  // LIFTED — the SDK prompt IS `string | AsyncIterable<SDKUserMessage>`, and `SDKUserMessage.message` is a full
+  // `MessageParam` that carries image blocks). Text-only items keep the byte-identical plain-string prompt.
+  const prompt = await buildSummarizePrompt(item, deps.normalizeImageBytes);
   const stream = deps.query({
-    prompt: item.userPrompt,
+    prompt,
     options: {
       ...disciplineOptions(req.credential, undefined, {
         ...(req.maxTokens !== undefined ? { maxOutputTokens: req.maxTokens } : {}),
@@ -136,7 +167,6 @@ async function runSummarizeItem(req: SummarizeRequest, item: SummarizeRequestIte
       maxTurns: 2,
       systemPrompt: item.systemPrompt,
       title: SDK_TITLE_SUMMARIZE,
-      // item.images is dropped — the agent-sdk utility prompt has no clean image-attach seam here.
       ...outputFormat,
       abortController,
     },
@@ -174,7 +204,7 @@ export async function summarize(req: SummarizeRequest, deps: AgentSdkDeps): Prom
   await deps.refreshHostSubToken();
 
   const startedAt = deps.now();
-  const hadSchema = req.jsonSchema !== undefined;
+  const hadSchema = req.responseFormat !== undefined;
   const items: (SummarizeResultItem | undefined)[] = new Array(req.inputs.length).fill(undefined);
   let ok = 0;
   let fail = 0;

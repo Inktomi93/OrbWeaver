@@ -21,7 +21,13 @@ export function sniffMime(bytes: Uint8Array): string {
   return detected === OCTET_STREAM ? DEFAULT_MIME : detected;
 }
 
-/** {@link ImageInput} (bytes or a filesystem path) → a base64 data URI the engine consumes directly. */
+/** {@link ImageInput} (bytes or a filesystem path) → a base64 data URI the engine consumes directly.
+ *  ASYMMETRY vs the OpenRouter path (MA-6, deliberate): this labels the sniffed mime HONESTLY (a GIF rides
+ *  as `image/gif`) but does NOT first-frame-decode a GIF to PNG. The OR fix existed to correct a MISLABEL
+ *  (gif bytes wearing `image/png`); here the label is already truthful, so a local VL model that can't eat a
+ *  GIF fails VISIBLY rather than silently — the honest-arms posture, not a gap. This is a local loopback
+ *  engine (bytes never leave the box, so the metadata-strip privacy win is moot); a gif→first-frame decode
+ *  is a future injection here only if a local VL model proves gif-blind. */
 export async function toDataUri(input: ImageInput): Promise<string> {
   const bytes: Uint8Array = typeof input === "string" ? new Uint8Array(await readFile(input)) : new Uint8Array(input);
   const mime = sniffMime(bytes);

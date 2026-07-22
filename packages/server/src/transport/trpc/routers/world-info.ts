@@ -1,10 +1,11 @@
 // transport/trpc/routers/world-info — the books/entries + scope-junction surface (core/Tier-4-Transport.md).
 // authed; owner-scoped. Thin: validate → `ctx.services.worldInfo.<verb>` → map errors. Input shapes + the
-// `role` axis derive from `@orb/contracts/world-info`. The chat-attachment scope is DEFERRED (chats are
-// membership-scoped — needs the `can({kind:'chat'})` resource arm, P5).
+// `role` axis derive from `@orb/contracts/world-info`. The chat-attachment scope is MEMBERSHIP-scoped (D18):
+// the verb's own injected chat guard rules — attach/detach are host-gated (room-wide prompt content), list is
+// member-readable (the room's shared pool).
 
 import { createBookSchema, createEntrySchema, updateBookSchema, updateEntrySchema, worldBookRoleSchema } from "@orb/contracts/world-info";
-import type { CharacterId, PersonaId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, PersonaId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
 import { authedProcedure, t } from "../trpc";
@@ -144,4 +145,24 @@ export const worldInfoRouter = t.router({
   listForPersona: authedProcedure
     .input(z.object({ personaId: brandedId<PersonaId>() }))
     .query(({ ctx, input }) => ctx.services.worldInfo.listForPersona({ principal: ctx.auth, personaId: input.personaId })),
+
+  attachToChat: authedProcedure.input(z.object({ chatId: brandedId<ChatId>(), bookId: brandedId<WorldBookId>() })).mutation(({ ctx, input }) =>
+    ctx.services.worldInfo.attachToChat({
+      principal: ctx.auth,
+      chatId: input.chatId,
+      bookId: input.bookId,
+    }),
+  ),
+
+  detachFromChat: authedProcedure.input(z.object({ chatId: brandedId<ChatId>(), bookId: brandedId<WorldBookId>() })).mutation(({ ctx, input }) =>
+    ctx.services.worldInfo.detachFromChat({
+      principal: ctx.auth,
+      chatId: input.chatId,
+      bookId: input.bookId,
+    }),
+  ),
+
+  listForChat: authedProcedure
+    .input(z.object({ chatId: brandedId<ChatId>() }))
+    .query(({ ctx, input }) => ctx.services.worldInfo.listForChat({ principal: ctx.auth, chatId: input.chatId })),
 });

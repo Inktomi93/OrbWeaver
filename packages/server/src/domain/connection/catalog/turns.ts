@@ -24,7 +24,12 @@ const OPUS_48_RE = /opus-4[-.]8/i;
 const OPUS_47_RE = /opus-4[-.]7/i;
 const OPUS_46_RE = /opus-4[-.]6/i;
 const OPUS_45_RE = /opus-4[-.]5/i;
+const OPUS_41_RE = /opus-4[-.]1/i;
 const HAIKU_45_RE = /haiku-4[-.]5/i;
+// Pre-cutoff Sonnet ids ONLY — deliberately EXCLUDES sonnet-5 (post-cutoff, fail-closed). SONNET_MODERN_RE
+// (which DOES match sonnet-5) is the cache-min lens and must never seed the sampling table.
+const SONNET_45_RE = /sonnet-4[-.]5/i;
+const SONNET_46_RE = /sonnet-4[-.]6/i;
 const SONNET_MODERN_RE = /sonnet-(?:5|4[-.]6|4[-.]5)/i;
 const FABLE_5_RE = /fable-5/i;
 const MYTHOS_5_RE = /mythos-5/i;
@@ -113,10 +118,26 @@ export const ANTH_DIRECT_PRE_CUTOFF_SAMPLING: Sampling = {
   stop: true,
 };
 
-/** Per-(anthropic model version) direct-transport sampling seed. Empty today (fail-closed) until a probe
- *  verifies the live matrix and opens an entry: push a `[versionRegExp, sampling]` tuple, most-specific first. */
+/** Per-(anthropic model version) direct-transport sampling seed. An entry opens ONLY after the hand-run
+ *  first-party probe (`pnpm sdk:anth-direct-cache-probe --arm anth-first-party`) confirms a clean 200-trio
+ *  for that model on the REAL `api.anthropic.com` wire; most-specific pattern first. Everything else stays
+ *  fail-closed `{}` (post-cutoff models 400 on temperature/top_p/top_k).
+ *
+ *  PROBED (first-party wire, raw api.anthropic.com) — the cutoff is EXACTLY Opus 4.6:
+ *    2026-07-17: Haiku 4.5 (`claude-haiku-4-5-…`) → all 200 → OPEN. Opus 4.8 + Sonnet 5 → 400
+ *      ("`<knob>` is deprecated for this model") → fail-closed.
+ *    2026-07-18: Opus 4.1 / 4.5 / 4.6 and Sonnet 4.5 / 4.6 → all 200 (temperature/top_p/top_k) → OPEN;
+ *      Opus 4.7 + Fable 5 → 400 → fail-closed. So every id at/below Opus 4.6 honors sampling; every id
+ *      released after Opus 4.6 (opus-4.7/4.8, sonnet-5, fable-5) refuses it — matching the SDK deprecation.
+ *  NOTE: the OR-skin (`--arm anth-direct`) is NOT a valid seeder — it validates temperature against the
+ *  OpenAI 0–2 range, so its 200s do not reflect raw Anthropic honor. */
 const ANTH_DIRECT_SAMPLING: readonly (readonly [RegExp, Sampling])[] = [
-  // e.g. [OPUS_45_RE, ANTH_DIRECT_PRE_CUTOFF_SAMPLING] — opened only after a probe verifies the entry.
+  [OPUS_41_RE, ANTH_DIRECT_PRE_CUTOFF_SAMPLING],
+  [OPUS_45_RE, ANTH_DIRECT_PRE_CUTOFF_SAMPLING],
+  [OPUS_46_RE, ANTH_DIRECT_PRE_CUTOFF_SAMPLING],
+  [SONNET_45_RE, ANTH_DIRECT_PRE_CUTOFF_SAMPLING],
+  [SONNET_46_RE, ANTH_DIRECT_PRE_CUTOFF_SAMPLING],
+  [HAIKU_45_RE, ANTH_DIRECT_PRE_CUTOFF_SAMPLING],
 ];
 
 /** The direct-transport sampling capability for a Claude id. Only `anthropic-direct` reaches a non-`{}`

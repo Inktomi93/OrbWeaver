@@ -27,16 +27,20 @@
 
 import { ASSET_LIST_LIMIT_MAX, assetIdSchema } from "@orb/contracts/assets";
 import type { ChatBusEvent } from "@orb/contracts/chat";
-import { chatInjectionInputSchema, groupConfigSchema, roomOverridesSchema } from "@orb/contracts/chat";
+import { chatInjectionInputSchema, groupConfigSchema, roomOverridesSchema, seatKnobsSchema } from "@orb/contracts/chat";
+import { chatDocumentVisibilitySchema } from "@orb/contracts/databank";
 import type { Principal } from "@orb/contracts/identity";
+import { agentSourceKindSchema } from "@orb/contracts/identity";
 import { generatePictureRequestSchema } from "@orb/contracts/imagery";
+import { themeBackgroundSchema } from "@orb/contracts/theme";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { CharacterId, ChatId, ChatInjectionId, MessageId, MessageVariantId, PersonaId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, ChatInjectionId, ChatParticipantId, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import type { TrackedEnvelope } from "@trpc/server";
 import { tracked } from "@trpc/server";
 import { z } from "zod";
 import type { ChatService } from "#domain/chat";
+import { notifyChatOpened } from "../automation-chat-open-tap";
 import { subscribeChatEvents } from "../chat-events-bus";
 import { withSubscriptionErrors } from "../subscriptions";
 import { authedProcedure, t } from "../trpc";
@@ -209,6 +213,22 @@ const setRoomOverridesSchema = z.object({
   overrides: roomOverridesSchema,
 });
 
+// `setChatDocumentVisibility` (D85) — the host's per-document databank retrieval-visibility override. The wire
+// schema DERIVES from `@orb/contracts/databank` (documentId-typed hidden set); authz (`requireHost`) lives
+// INSIDE the verb, so a stranger's chatId collapses to a leak-free NOT_FOUND (the setRoomOverrides shape).
+const setChatDocumentVisibilitySchema = z.object({
+  chatId: brandedId<ChatId>(),
+  visibility: chatDocumentVisibilitySchema,
+});
+
+// `setChatBackground` (BG-C) — the host's per-chat carried background source. The wire schema DERIVES from
+// `@orb/contracts/theme` (`themeBackgroundSchema`); authz (`requireHost`) + the asset-ownership gate live
+// INSIDE the verb, so a stranger's chatId collapses to a leak-free NOT_FOUND (the setRoomOverrides shape).
+const setChatBackgroundSchema = z.object({
+  chatId: brandedId<ChatId>(),
+  background: themeBackgroundSchema,
+});
+
 // speakerCharacterId/guided mirror `PreviewAssemblyParams` (a hypothetical per-speaker turn); `guided`
 // has no dedicated wire schema yet (the domain type is the validated shape — same `z.any()` shape as
 // `send`/`generate` above).
@@ -216,6 +236,14 @@ const previewAssemblySchema = z.object({
   chatId: brandedId<ChatId>(),
   speakerCharacterId: brandedId<CharacterId>().nullish(),
   guided: z.any().optional(),
+});
+
+// `getShapeTrace` (PD-132) — the content-free SHAPE trace for the next-turn shaping of the current canon.
+// `speakerCharacterId` picks the primary speaker the peek shapes for (mirrors `peekPrompt`); host-gated
+// (`requireHost`) INSIDE the verb (matrix `getShapeTrace: "host"`).
+const getShapeTraceSchema = z.object({
+  chatId: brandedId<ChatId>(),
+  speakerCharacterId: brandedId<CharacterId>().nullish(),
 });
 
 // `setChatInjection` upserts (id present ⇒ update, absent ⇒ create); the contracts schema owns the
@@ -289,18 +317,48 @@ const addCharacterToChatSchema = z.object({
   characterId: brandedId<CharacterId>(),
 });
 
-const setParticipantDisabledSchema = z.object({
+// `seatAgent` (D60, agent-principal-design/04 §3 — the P6 wiring of the AP3-1 verb): the host seats an
+// agent principal whose OWNER is a present member (owner==host is the v1 collapse — the host seating its
+// OWN buddy). Host-gated INSIDE the verb (`requireHost`) + owner-present + enabled-verified; unseating is
+// the symmetric `chat.unseatAgent` verb below (or `invites.kick` for the multi-human members-list path).
+// This stays on the UNGATED chat surface (NOT `invites`, the
+// multi-human belt) — an owner seating its own buddy works in every auth mode (invites.ts §9 ruling 3). The
+// wire enum is the ONE-HOME `agentSourceKindSchema` (`@orb/contracts/identity` — no re-spell); `ownerUserId`
+// is the buddy's owner.
+const seatAgentSchema = z.object({
   chatId: brandedId<ChatId>(),
-  characterId: brandedId<CharacterId>(),
-  disabled: z.boolean(),
+  ownerUserId: brandedId<UserId>(),
+  sourceKind: agentSourceKindSchema,
 });
 
-const setParticipantTalkativenessSchema = z.object({
+// `unseatAgent` (D60; the solo-operator seat-lifecycle fix, 2026-07-17) — the symmetric counterpart to
+// `seatAgent`: the host removes a seated agent. Host-gated INSIDE the verb (`requireHost`) + `kind='agent'`-
+// scoped (a human userId matches no row → participant_not_found). Stays on the UNGATED chat surface (NOT
+// `invites`) exactly like `seatAgent` — unseating your OWN seated buddy must work in every auth mode; that a
+// solo host could seat but not unseat was the bug this closes. `invites.kick` keeps its agent branch for the
+// multi-human members-list path; both share ONE leftSeq stamp (`stampAgentUnseat`).
+const unseatAgentSchema = z.object({
   chatId: brandedId<ChatId>(),
-  characterId: brandedId<CharacterId>(),
-  // The 0–1 arbitration sampling weight (contracts `talkativenessSchema`); the strict range is the verb's
-  // (the domain owns the clamp) — the wire only pins the shape (a number, the target).
-  talkativeness: z.number(),
+  agentUserId: brandedId<UserId>(),
+});
+
+// `setSeatKnobs` (D80) — the ONE participantId-keyed AI-seat knob write, the replacement for the retired
+// per-kind forking (`setParticipantDisabled`/`setParticipantTalkativeness`/`setAgentSeatDisabled` — the
+// pattern that guaranteed skipped arms, e.g. agent talkativeness was unsettable). Host-gated INSIDE the verb
+// (`requireHost`) + present-AI-seat-scoped (a human/observer seat → participant_not_found). The wire `patch`
+// is the ONE-HOME `seatKnobsSchema` (`@orb/contracts/chat`): both knobs optional, talkativeness RANGE-clamped.
+const setSeatKnobsSchema = z.object({
+  chatId: brandedId<ChatId>(),
+  participantId: brandedId<ChatParticipantId>(),
+  patch: seatKnobsSchema,
+});
+
+// `getAgentCardView` (D60, agent-principal-design/06 §5) — the roster-chip "who is this agent?" popover.
+// Member-gated INSIDE the verb (`requireParticipant` + the present-agent-seat state check); the fixed D22
+// projection (soul name + sourceKind + owner handle) is server-produced, never the soul prompt/avatar.
+const getAgentCardViewSchema = z.object({
+  chatId: brandedId<ChatId>(),
+  agentUserId: brandedId<UserId>(),
 });
 
 // Group config (verbs/roster.ts `setGroupConfig`/`getGroupConfigForChat`) — the same domain-ahead-of-
@@ -358,7 +416,16 @@ export const chatRouter = t.router({
   setRoomOverrides: authedProcedure
     .input(setRoomOverridesSchema)
     .mutation(({ ctx, input }) => ctx.services.chat.setRoomOverrides({ principal: ctx.auth, ...input })),
+  setChatDocumentVisibility: authedProcedure
+    .input(setChatDocumentVisibilitySchema)
+    .mutation(({ ctx, input }) => ctx.services.chat.setChatDocumentVisibility({ principal: ctx.auth, ...input })),
+  // BG-C — the host's per-chat carried background (host-gated + asset-ownership-gated INSIDE the verb).
+  setChatBackground: authedProcedure
+    .input(setChatBackgroundSchema)
+    .mutation(({ ctx, input }) => ctx.services.chat.setChatBackground({ principal: ctx.auth, ...input })),
   previewAssembly: authedProcedure.input(previewAssemblySchema).query(({ ctx, input }) => ctx.services.chat.previewAssembly({ principal: ctx.auth, ...input })),
+  // The content-free SHAPE trace (PD-132) — a host/admin inspector read (`requireHost` INSIDE the verb).
+  getShapeTrace: authedProcedure.input(getShapeTraceSchema).query(({ ctx, input }) => ctx.services.chat.getShapeTrace({ principal: ctx.auth, ...input })),
   setChatInjection: authedProcedure
     .input(setChatInjectionSchema)
     .mutation(({ ctx, input }) => ctx.services.chat.setChatInjection({ principal: ctx.auth, ...input })),
@@ -372,12 +439,16 @@ export const chatRouter = t.router({
   addCharacterToChat: authedProcedure
     .input(addCharacterToChatSchema)
     .mutation(({ ctx, input }) => ctx.services.chat.addCharacterToChat({ principal: ctx.auth, ...input })),
-  setParticipantDisabled: authedProcedure
-    .input(setParticipantDisabledSchema)
-    .mutation(({ ctx, input }) => ctx.services.chat.setParticipantDisabled({ principal: ctx.auth, ...input })),
-  setParticipantTalkativeness: authedProcedure
-    .input(setParticipantTalkativenessSchema)
-    .mutation(({ ctx, input }) => ctx.services.chat.setParticipantTalkativeness({ principal: ctx.auth, ...input })),
+  // Agent seating (see the schema header) — host-gated INSIDE the verb; the ungated chat surface.
+  seatAgent: authedProcedure.input(seatAgentSchema).mutation(({ ctx, input }) => ctx.services.chat.seatAgent({ principal: ctx.auth, ...input })),
+  // Agent UN-seating (see the schema header) — host-gated INSIDE the verb; the ungated chat surface, the seatAgent twin.
+  unseatAgent: authedProcedure.input(unseatAgentSchema).mutation(({ ctx, input }) => ctx.services.chat.unseatAgent({ principal: ctx.auth, ...input })),
+  // The ONE AI-seat knob write (D80 — replaces the retired per-kind forking). Host-gated INSIDE the verb.
+  setSeatKnobs: authedProcedure.input(setSeatKnobsSchema).mutation(({ ctx, input }) => ctx.services.chat.setSeatKnobs({ principal: ctx.auth, ...input })),
+  // The roster-chip AgentCardView read (see the schema header) — member-gated INSIDE the verb.
+  getAgentCardView: authedProcedure
+    .input(getAgentCardViewSchema)
+    .query(({ ctx, input }) => ctx.services.chat.getAgentCardView({ principal: ctx.auth, ...input })),
   forceCharacterTurn: authedProcedure
     .input(forceCharacterTurnSchema)
     .mutation(({ ctx, input }) => ctx.services.chat.forceCharacterTurn({ principal: ctx.auth, ...input })),
@@ -393,8 +464,8 @@ export const chatRouter = t.router({
     .input(setChatAnchorPersonaSchema)
     .mutation(({ ctx, input }) => ctx.services.chat.setChatAnchorPersona({ principal: ctx.auth, ...input })),
   delete: authedProcedure.input(deleteChatSchema).mutation(({ ctx, input }) => ctx.services.chat.delete({ principal: ctx.auth, ...input })),
-  // Generate image(s) in a chat (P5: mode "free" + a required prompt). The wire `size` is Phase-7 (not
-  // forwarded); mode/prompt/n map onto `chat.generateImage`.
+  // Generate image(s) in a chat (the I5 mode picker + /imagine surface). mode/prompt/n/size map onto
+  // `chat.generateImage` → `imagery.generatePicture` (an absent `size` falls to the leaf's `defaultSizeFor`).
   generateImage: authedProcedure.input(generatePictureRequestSchema.extend({ chatId: brandedId<ChatId>() })).mutation(({ ctx, input }) =>
     ctx.services.chat.generateImage({
       principal: ctx.auth,
@@ -402,6 +473,9 @@ export const chatRouter = t.router({
       mode: input.mode,
       prompt: input.prompt,
       n: input.n,
+      size: input.size,
+      params: input.params,
+      pose: input.pose,
     }),
   ),
 
@@ -473,8 +547,10 @@ async function* attachSynthesesAndReplay(args: {
 }): AsyncGenerator<TrackedEnvelope<ChatBusEvent>> {
   const { service, principal, chatId, resumeSeq, bounds } = args;
   const cursorId = String(resumeSeq ?? 0);
-  // `chatOpened` (PD-134) — the per-subscription attach synthesis (the client reducer invalidates).
+  // `chatOpened` (PD-134) — the per-subscription attach synthesis (the client reducer invalidates). The
+  // per-viewer automation tap (D81) fires off the SAME synthesis — it never rides the durable bus.
   yield tracked(cursorId, { type: "chatOpened", chatId });
+  notifyChatOpened(chatId, principal.userId);
 
   // A fresh subscribe (resumeSeq null) drains live only — no replay, no truncation check.
   if (resumeSeq === null) {

@@ -5,7 +5,7 @@
 
 import process from "node:process";
 import type { DataType, DeviceType } from "@huggingface/transformers";
-import { AutoModel, AutoModelForSequenceClassification, AutoProcessor, AutoTokenizer, env, RawImage, Tensor } from "@huggingface/transformers";
+import { AutoModel, AutoModelForSequenceClassification, AutoProcessor, AutoTokenizer, env, pipeline, RawImage, Tensor } from "@huggingface/transformers";
 import type { ImageInput } from "@orb/contracts/role-clients";
 import { l2Normalize } from "@orb/kit/vector-math";
 import { getLog } from "#foundation/observability";
@@ -25,6 +25,11 @@ export interface LocalLightModelCache {
   readonly scorePairs: (modelId: string, query: string, documents: readonly string[]) => Promise<number[]>;
   readonly embedImages: (modelId: string, images: readonly ImageInput[]) => Promise<Float32Array[]>;
   readonly embedClipTexts: (modelId: string, texts: readonly string[]) => Promise<Float32Array[]>;
+  /** Alpha-matte an image via a `background-removal` segmentation model (RMBG-1.4 default; expressions-design/
+   *  03 §4.1). Returns PNG bytes with the background driven to alpha-0. The whole transformers.js coupling
+   *  (pipeline load + `putAlpha` composite + PNG encode) stays HERE — the role file (`matte.ts`) is a thin
+   *  model-id/abort wrapper, mirroring the rerank/embed split. */
+  readonly removeBackground: (modelId: string, image: ImageInput) => Promise<Uint8Array>;
 }
 
 export interface ModelCacheConfig {
@@ -219,6 +224,14 @@ export function createModelCache(config: ModelCacheConfig = {}): LocalLightModel
     (id) => AutoProcessor.from_pretrained(id),
     () => undefined,
   );
+  // The background-removal segmentation pipeline (RMBG-1.4 by default) — a SEPARATE lazy model from the
+  // embed/rerank sessions, loaded through the same device/dtype/CPU-fallback mechanics + LRU cap.
+  const bgRemover = createMemo(
+    (id) => loadWithCpuFallback(device, (dev) => pipeline("background-removal", id, { device: dev, dtype })),
+    (p) => {
+      void p.dispose();
+    },
+  );
 
   const embedJinaTexts = async (modelId: string, texts: readonly string[]): Promise<Float32Array[]> => {
     const [proc, model] = await Promise.all([processor(modelId), jinaEmbedder(modelId)]);
@@ -257,6 +270,15 @@ export function createModelCache(config: ModelCacheConfig = {}): LocalLightModel
 
     embedClipTexts(modelId, texts): Promise<Float32Array[]> {
       return texts.length === 0 ? Promise.resolve([]) : embedJinaTexts(modelId, texts);
+    },
+
+    async removeBackground(modelId, image): Promise<Uint8Array> {
+      // Single ImageInput → a single alpha-matted RawImage (the pipeline clones the input and applies the
+      // segmentation mask as alpha). `toSharp()` gives us the PNG encoder without leaking a RawImage upward.
+      const segmenter = await bgRemover(modelId);
+      const matted = await segmenter(toImageSource(image));
+      const buf = await matted.toSharp().png().toBuffer();
+      return new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
     },
   };
 }

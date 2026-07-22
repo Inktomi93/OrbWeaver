@@ -1,5 +1,8 @@
 import { DateTime } from "luxon";
-import type { MacroAST, MacroContext, MacroHandler, MacroRegisterOptions, MacroRegistry, VarOp } from "./types";
+import type { CelValue } from "#cel";
+import { evalCel, isCelParseError, parseCel } from "#cel";
+import { BUILTIN_MACRO_METADATA } from "./builtin-metadata";
+import type { MacroAST, MacroContext, MacroHandler, MacroMetadata, MacroMetadataInput, MacroRegisterOptions, MacroRegistry, VarOp } from "./types";
 import { applyVarOp } from "./variables";
 
 const DECIMAL_RADIX = 10;
@@ -31,13 +34,45 @@ function nowInZone(ctx: MacroContext): DateTime {
 export class SimpleMacroRegistry implements MacroRegistry {
   private handlers = new Map<string, MacroHandler>();
   private options = new Map<string, MacroRegisterOptions>();
+  // The AUTHORED DX metadata (no `volatile` — composed on read from the `volatile` option, D51). Fed by
+  // register()'s `options.metadata` (extensions) and setMetadata() (the builtin backfill).
+  private metadata = new Map<string, MacroMetadataInput>();
 
   register(name: string, handler: MacroHandler, options?: MacroRegisterOptions): void {
     const key = name.toLowerCase();
     this.handlers.set(key, handler);
     if (options) {
       this.options.set(key, options);
+      if (options.metadata) {
+        this.metadata.set(key, options.metadata);
+      }
     }
+  }
+
+  /** Attach authored DX metadata out-of-band — the builtin backfill path (createDefaultRegistry loops
+   *  BUILTIN_MACRO_METADATA through here, keeping the 55 register() calls churn-free). */
+  setMetadata(name: string, input: MacroMetadataInput): void {
+    this.metadata.set(name.toLowerCase(), input);
+  }
+
+  getMetadata(name: string): MacroMetadata | undefined {
+    const input = this.metadata.get(name.toLowerCase());
+    if (input === undefined) {
+      return;
+    }
+    // Compose `volatile` from the ONE volatile home (the registration's option) — never a second list.
+    return { ...input, volatile: this.getOptions(name)?.volatile === true };
+  }
+
+  allMetadata(): readonly MacroMetadata[] {
+    const out: MacroMetadata[] = [];
+    for (const key of this.metadata.keys()) {
+      const composed = this.getMetadata(key);
+      if (composed !== undefined) {
+        out.push(composed);
+      }
+    }
+    return out;
   }
 
   get(name: string): MacroHandler | undefined {
@@ -56,6 +91,10 @@ export class SimpleMacroRegistry implements MacroRegistry {
       }
     }
     return out;
+  }
+
+  names(): string[] {
+    return [...this.handlers.keys()];
   }
 
   requirementsOf(name: string): "chat" | "char" | undefined {
@@ -239,6 +278,51 @@ const pickHandler: MacroHandler = (args, ctx) => {
   return args[index] ?? "";
 };
 
+// {{expr::<cel>}} result coercion (02 §3): string ← string; number/bool → their text; null → "";
+// list/map → JSON (so a structured result round-trips into {{setvar}}).
+function coerceExprResult(value: CelValue): string {
+  if (typeof value === "string") {
+    return value;
+  }
+  if (typeof value === "boolean") {
+    return value ? "true" : "false";
+  }
+  if (value === null) {
+    return "";
+  }
+  // number → its text ("5"); list/map → JSON. JSON.stringify handles both (5 → "5", [1,2] → "[1,2]")
+  // and sidesteps a raw String()/template on the union member with a default [object Object] toString.
+  return JSON.stringify(value);
+}
+
+// Push an expr-error diagnostic at the {{expr}} call's span (set by the evaluator on ctx.__currentSpan).
+// Sink-only — no span or no sink ⇒ nothing recorded (the render still degrades to "").
+function pushExprError(ctx: MacroContext, message: string): void {
+  if (ctx.diagnostics !== undefined && ctx.__currentSpan !== undefined) {
+    ctx.diagnostics.push({ severity: "error", code: "expr-error", message, span: ctx.__currentSpan });
+  }
+}
+
+// {{expr::<cel-source>}} — evaluate raw CEL over ctx.celBindings (the §1 env minus `event`, 02 §3). The
+// arg splitter breaks the body on `::`, so rejoin (CEL bodies rarely contain `::`, but a defensive
+// rejoin is byte-safe). A parse or eval error renders "" + a diagnostic — macros never throw into
+// assembly (the render-once pipeline can't take a per-macro abort). Volatile: the result depends on the
+// runtime env (vars/now), so a static-half occurrence must bust the cached prefix.
+const exprHandler: MacroHandler = (args, ctx) => {
+  const source = args.join("::");
+  const parsed = parseCel(source);
+  if (isCelParseError(parsed)) {
+    pushExprError(ctx, parsed.message);
+    return "";
+  }
+  try {
+    return coerceExprResult(evalCel(parsed, ctx.celBindings ?? {}));
+  } catch (err) {
+    pushExprError(ctx, err instanceof Error ? err.message : String(err));
+    return "";
+  }
+};
+
 // {{datetimeformat::FORMAT}} — Luxon format string (e.g. "yyyy-MM-dd HH:mm"). Empty arg → ISO.
 const dateTimeFormat: MacroHandler = (args, ctx) => {
   const fmt = args[0]?.trim();
@@ -328,6 +412,32 @@ const deleteVar: MacroHandler = (args, ctx) => {
   return "";
 };
 
+// {{getglobalvar::key}} — read from the author's staged per-user global plane (02 §4). Missing key → "".
+// SEPARATE from ctx.env: globals are cross-chat single-owned state, never variant-scoped.
+const getGlobalVar: MacroHandler = (args, ctx) => {
+  const key = args[0]?.trim();
+  if (key === undefined || key === "") {
+    return "";
+  }
+  return ctx.globalVars?.[key] ?? "";
+};
+
+// {{setglobalvar::key::value}} — collect a write onto ctx.globalVarWrites (drained + upserted at turn
+// commit, last-write-wins) and reflect it into the read cache so a later same-render {{getglobalvar}}
+// sees it. Renders "". A swipe never rewinds a global (D46 — NOT variant-scoped).
+const setGlobalVar: MacroHandler = (args, ctx) => {
+  const key = args[0]?.trim();
+  if (key === undefined || key === "") {
+    return "";
+  }
+  const value = args[1] ?? "";
+  ctx.globalVarWrites?.push({ key, value });
+  if (ctx.globalVars !== undefined) {
+    ctx.globalVars[key] = value;
+  }
+  return "";
+};
+
 // Absent cast ⇒ the cast-of-one [char], so {{group}} == {{char}} for solo.
 function castOf(ctx: MacroContext): readonly string[] {
   return ctx.cast && ctx.cast.length > 0 ? ctx.cast : [ctx.char];
@@ -368,6 +478,20 @@ function registerVolatileMacros(registry: SimpleMacroRegistry): void {
   registry.register("datetimeformat", dateTimeFormat, vol);
   registry.register("roll", rollHandler, vol);
 }
+
+/** The 8 rpg* data-fed macros (rpg-design/06 §1): `[registered lowercase name, RpgGatherMacros value key]`.
+ *  The value key is the camelCase field the game turn's GATHER stages on `ctx.rpgMacros`; the registry looks up
+ *  the lowercased name. Kept here (kit) as the registration list — rpg (above kit) supplies the values. */
+const RPG_DATA_MACROS: readonly (readonly [name: string, key: string])[] = [
+  ["rpgworld", "rpgWorld"],
+  ["rpgsecrets", "rpgSecrets"],
+  ["rpgcontinuity", "rpgContinuity"],
+  ["rpgcast", "rpgCast"],
+  ["rpgscenestate", "rpgSceneState"],
+  ["rpgmap", "rpgMap"],
+  ["rpgperception", "rpgPerception"],
+  ["rpgmorale", "rpgMorale"],
+];
 
 export function createDefaultRegistry(): MacroRegistry {
   const registry = new SimpleMacroRegistry();
@@ -492,6 +616,17 @@ export function createDefaultRegistry(): MacroRegistry {
     },
   );
 
+  // The 8 rpg* data-fed macros (rpg-design/06 §1) — a game turn's GATHER stages `ctx.rpgMacros`; each reads its
+  // value or "". Registered here (the databank/memory precedent) so a preset referencing `{{rpgSceneState}}` in
+  // a NON-game chat resolves empty, never an unknown-macro error.
+  for (const [name, key] of RPG_DATA_MACROS) {
+    registry.register(
+      name,
+      charField((ctx) => ctx.rpgMacros?.[key]),
+      { requires: "chat" },
+    );
+  }
+
   registry.register("getvar", readVar);
   registry.register("get", readVar); // back-compat alias for in-tree prompts written before the rename
   registry.register("setvar", setVar, vol);
@@ -500,6 +635,10 @@ export function createDefaultRegistry(): MacroRegistry {
   registry.register("decvar", decVar, vol);
   registry.register("hasvar", hasVar);
   registry.register("deletevar", deleteVar);
+  // The per-user global plane (02 §4) — read from staged globals; setglobalvar collects a commit-time
+  // write (volatile: a mutation, like setvar).
+  registry.register("getglobalvar", getGlobalVar);
+  registry.register("setglobalvar", setGlobalVar, vol);
 
   // Registered via the shared helper so `createVolatileOnlyRegistry` resolves the exact same names.
   registerVolatileMacros(registry);
@@ -508,6 +647,10 @@ export function createDefaultRegistry(): MacroRegistry {
   // sub-macro-resolved value like `{{hasvar::flag}} → "true"`.
   registry.register("if", ifHandler, { delayArgResolution: true });
   registry.register("else", () => ""); // structural marker; standalone use is a no-op
+
+  // {{expr::<cel>}} — CEL surfaced inside templates (02 §3). Volatile: its value depends on the runtime
+  // CEL env (vars/now), so a static-half occurrence must bust the cached prefix.
+  registry.register("expr", exprHandler, vol);
 
   registry.register("newline", () => "\n");
   registry.register("space", () => " ");
@@ -526,6 +669,12 @@ export function createDefaultRegistry(): MacroRegistry {
   registry.register("lastMessage", (_args, ctx) => ctx.lastMessage ?? "", volChat);
   registry.register("lastUserMessage", (_args, ctx) => ctx.lastUserMessage ?? "", volChat);
   registry.register("lastCharMessage", (_args, ctx) => ctx.lastCharMessage ?? "", volChat);
+
+  // Backfill DX metadata (02 §5) for every builtin above — one loop, off the register() calls so they
+  // stay churn-free. A completeness test asserts every registered name is covered here.
+  for (const [name, input] of Object.entries(BUILTIN_MACRO_METADATA)) {
+    registry.setMetadata(name, input);
+  }
 
   return registry;
 }

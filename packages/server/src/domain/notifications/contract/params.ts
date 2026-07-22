@@ -1,6 +1,6 @@
 // domain/notifications/contract/params — every verb's *Params, declared once. `record` is a producer op
 // carrying the closed NotificationEvent (recipient comes from event.recipientUserId, not a Principal);
-// markRead/dismiss/list are caller-scoped off the resolved Principal — a user only ever touches its own inbox.
+// markAllRead/dismiss/list are caller-scoped off the resolved Principal — a user only ever touches its own inbox.
 
 import type { Principal } from "@orb/contracts/identity";
 import type { NotificationEvent } from "@orb/contracts/notifications";
@@ -15,10 +15,6 @@ interface NotificationActorParams {
 export interface RecordParams {
   readonly event: NotificationEvent;
   readonly coStatements?: readonly unknown[] | undefined;
-}
-
-export interface MarkReadParams extends NotificationActorParams {
-  readonly notificationId: NotificationId;
 }
 
 export type MarkAllReadParams = NotificationActorParams;

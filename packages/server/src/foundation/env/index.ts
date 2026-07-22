@@ -50,11 +50,19 @@ const envSchema = z
     // Gates /api/_debug/*. Unset = off (404). Set (any value) to enable; a request must present it via
     // x-debug-token.
     DEBUG_TOKEN: z.string().min(1).optional(),
+    // Opt-in for the rpg flight recorder (R-OBS). Default off ⇒ `RpgContext.trace` is unwired ⇒ zero-cost +
+    // byte-identical turns. `on` wires the per-process ring recorder read host-only at /api/_debug/rpg/traces
+    // (the drive kit forces it on via the `rpgTrace` compose dep, bypassing this env knob).
+    RPG_TRACE: z.enum(["on", "off"]).default("off"),
 
-    DATABASE_URL: z.string().min(1).default("file:./orbweaver.db"),
+    DATABASE_URL: z.string().min(1).default("file:./data/orbweaver.db"),
     // The built client bundle (`vite build` output) the SPA registrar serves in prod. cwd-relative like
     // ASSETS_DIR (`pnpm start` runs at the repo root). Missing bundle: prod boot-fatal, dev skipped.
     CLIENT_DIST_DIR: z.string().min(1).default("./packages/client/dist"),
+    // Escape-hatch override for the shipped curated pose-library root (comfyui-control §4.12, C6d). Unset ⇒
+    // DERIVED from the served static root (CLIENT_DIST_DIR/poses/library in prod, packages/client/public in
+    // dev) — `resolvePoseLibraryRoot`. Set to point the ComfyUI arm's pose-byte reader elsewhere.
+    POSE_LIBRARY_DIR: z.string().min(1).optional(),
     // Content-addressed asset blob root (card PNGs, avatars); the DB holds metadata, bytes live here.
     ASSETS_DIR: z.string().min(1).default("./data/assets"),
     // The controlled root the bundle-import extractor stages its per-upload dir under (a portability zip
@@ -81,6 +89,12 @@ const envSchema = z
       .default("false")
       .transform((v) => v === "true"),
 
+    // The owner-configured LOCAL ComfyUI image-generation endpoint (MA-8/D96). The H1 "their URL, their
+    // onus" posture: reached over safeFetch's owner-configured-endpoint egress class (host-pinned, defers
+    // SSRF to the global firewall). Default = the docker-compose loopback. Unconfigured/unreachable ⇒ an
+    // honest capability absence, never a hang.
+    COMFYUI_BASE_URL: z.string().min(1).default("http://localhost:8188"),
+
     // Cross-chat corpus auto-indexing: embed completed raw-message blocks into the search corpus in the
     // background, post-turn. "false" pauses it to offload the GPU.
     CORPUS_AUTOINDEX: z
@@ -100,8 +114,6 @@ const envSchema = z
     // Extra hostnames treated as a trusted local origin for the owner fallback in SSO modes. The public
     // FQDN must never be listed.
     TRUSTED_LOCAL_HOSTS: z.string().optional(),
-    // Dev/test only: a credit-free scripted runTurn so an e2e drives a real turn without calling a model.
-    RUNNER_OVERRIDE: z.string().optional(),
     // Extra CIDR ranges added to the built-in private set for the local-origin owner-fallback gate AND the
     // trusted-proxy gate.
     TRUSTED_PRIVATE_RANGES: z.string().optional(),
@@ -226,4 +238,13 @@ export const env: Readonly<z.infer<typeof envSchema>> = Object.freeze(envSchema.
 /** The raw `process.env` snapshot — the baseline the agent-sdk child env builders spread. */
 export function processEnvSnapshot(): Record<string, string | undefined> {
   return { ...process.env };
+}
+
+/** The slash-free vLLM gen-model alias the local gen engine serves via `--served-model-name`. Claude Code
+ *  can't resolve a model id containing "/", so an `agent-sdk × vllm` turn (mode-3) must name this leaf, NOT a
+ *  Claude default. ONE home for the derivation: BOTH the agent-sdk env firewall (buildClaudeVllmEnv's
+ *  ANTHROPIC_DEFAULT_*_MODEL) and the connection model-heal (healModel's agent-sdk+vllm arm) read it here, so
+ *  the runner env and the resolved requestedModel can't drift on the alias. */
+export function vllmAgentModelAlias(): string {
+  return env.VLLM_GEN_MODEL.split("/").pop() ?? env.VLLM_GEN_MODEL;
 }

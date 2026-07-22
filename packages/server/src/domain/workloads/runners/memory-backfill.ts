@@ -17,7 +17,7 @@ export const memoryBackfillRunner: Runner<"memory-backfill"> = async (ctx, _para
   report({ message: "memory backfill: sweeping chats (segments + digests per scope)" });
   const counts = await ctx.env.memory.backfill({ ownerId: ctx.ownerId, signal });
   report({
-    message: `memory backfill: ${counts.segments.scanned} chats (${counts.segments.changed} segments), ${counts.digests.scanned} scope buckets (${counts.digests.changed} digests)`,
+    message: `memory backfill: ${counts.segments.scanned} chats (${counts.segments.changed} segments), ${counts.digests.scanned} scope buckets (${counts.digests.changed} digests)${counts.failed > 0 ? `, ${counts.failed} chats FAILED (skipped — see error log)` : ""}`,
   });
   if (ctx.ownerId === null && !signal.aborted) {
     await ctx.env.embeddings.purgeMemoryVectors();

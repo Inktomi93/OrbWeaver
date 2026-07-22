@@ -2,6 +2,24 @@
 // re-exports of the wrapped verb's return (the runner translates the wrapped op's stats into these shapes,
 // so the contract stays stable as wrapped verbs evolve). ResultByKind is the exhaustive map — a kind
 // without a result entry fails tsc at Runner<K>'s return.
+//
+// `IngestRunResult` (databank-ingest/reindex) is the one exception: it is a cross-boundary shape owned by
+// `@orb/contracts/databank` (the workload row carries it as its result JSON the client reads), so the two
+// databank kinds reference it directly rather than re-spelling a workload-local twin (one home, D34).
+
+import type { CardEvolutionRunSummary, DirectorRunSummary, KeeperRunSummary, ProseAuditRunSummary } from "@orb/contracts/crew";
+import type { IngestRunResult } from "@orb/contracts/databank";
+import type {
+  RpgDirectorRunSummary,
+  RpgLorebookUpkeepRunSummary,
+  RpgRecapRunSummary,
+  RpgRecruitCardRunSummary,
+  RpgSceneDistillRunSummary,
+  RpgScenePlanRunSummary,
+  RpgSessionDistillRunSummary,
+  RpgWorldGenRunSummary,
+} from "@orb/contracts/rpg";
+import type { AssetId, MessageId } from "@orb/kit/ids";
 
 export interface EmbedPassResult {
   readonly embedded: number;
@@ -56,6 +74,50 @@ export interface BackfillPassResult {
 export interface MemoryBackfillResult {
   readonly segments: BackfillPassResult;
   readonly digests: BackfillPassResult;
+  /** Chats whose per-chat build threw an UNEXPECTED error and were isolated-and-skipped (structural twin of
+   *  chat's `MemoryBackfillCounts.failed`, #41). A non-silent skip: the sweep survives one bad chat, but the
+   *  failure lands in the durable result JSON (and an `error`-level log), never vanishing without a trace. */
+  readonly failed: number;
+}
+
+/** The `expressions-sprite-sheet` job result (expressions-design/03 §2) — the workload-owned projection the
+ *  row carries as its result JSON. `written` == labels.length on success; `sheetAssetId` is the KEPT un-sliced
+ *  sheet (§6, the review/re-slice artifact); `model`/`costUsd` are the imagery provenance. The expressions
+ *  pass produces a structural twin; the runner-env member returns it under this contract type. */
+export interface SpriteSheetJobResult {
+  readonly written: number;
+  readonly labels: readonly string[];
+  readonly sheetAssetId: AssetId;
+  readonly model: string;
+  readonly costUsd: number | null;
+}
+
+/** The compiled prompt a `dryRun` image workload returns for host review before spending (rpg-design/08 §2
+ *  preview-before-spend); `null` on a real (non-dryRun) run. */
+interface ImagePreview {
+  readonly prompt: string;
+  readonly negative: string;
+}
+
+/** `rpg-npc-portrait` result (rpg-design/10 §R9): the stored/reused portrait asset (null on a dryRun / a no-op /
+ *  an honest capability refusal), whether the reuse gate short-circuited, whether the run refused for lack of an
+ *  image-capable model (the story is never blocked — 08 §4), and the dryRun preview. */
+export interface RpgNpcPortraitJobResult {
+  readonly assetId: AssetId | null;
+  readonly reused: boolean;
+  readonly refusedNoCapability: boolean;
+  readonly preview: ImagePreview | null;
+}
+
+/** `rpg-illustration` result (rpg-design/10 §R9): the narrator message the art landed in (null on a
+ *  dryRun / a cadence skip / a refusal), whether it posted, whether the cadence gate skipped it (08 §3),
+ *  whether it refused for lack of capability (08 §4), and the dryRun preview. Illustrations are never reused. */
+export interface RpgIllustrationJobResult {
+  readonly messageId: MessageId | null;
+  readonly posted: boolean;
+  readonly skippedCadence: boolean;
+  readonly refusedNoCapability: boolean;
+  readonly preview: ImagePreview | null;
 }
 
 export interface ResultByKind {
@@ -75,21 +137,21 @@ export interface ResultByKind {
   "reconcile-stats": ReconcileStatsWorkloadResult;
   "refresh-model-catalog": CatalogRefreshResult;
   "reconcile-world-state": DeferredResult;
-  "crew-lorebook-keeper": DeferredResult;
-  "crew-card-evolution": DeferredResult;
-  "crew-director": DeferredResult;
-  "crew-prose-audit": DeferredResult;
-  "expressions-sprite-sheet": DeferredResult;
-  "databank-ingest": DeferredResult;
-  "databank-reindex": DeferredResult;
-  "rpg-world-gen": DeferredResult;
-  "rpg-recap": DeferredResult;
-  "rpg-session-distill": DeferredResult;
-  "rpg-director": DeferredResult;
-  "rpg-lorebook-upkeep": DeferredResult;
-  "rpg-illustration": DeferredResult;
-  "rpg-npc-portrait": DeferredResult;
-  "rpg-scene-plan": DeferredResult;
-  "rpg-scene-distill": DeferredResult;
-  "rpg-recruit-card": DeferredResult;
+  "crew-lorebook-keeper": KeeperRunSummary;
+  "crew-card-evolution": CardEvolutionRunSummary;
+  "crew-director": DirectorRunSummary;
+  "crew-prose-audit": ProseAuditRunSummary;
+  "expressions-sprite-sheet": SpriteSheetJobResult;
+  "databank-ingest": IngestRunResult;
+  "databank-reindex": IngestRunResult;
+  "rpg-world-gen": RpgWorldGenRunSummary;
+  "rpg-recap": RpgRecapRunSummary;
+  "rpg-session-distill": RpgSessionDistillRunSummary;
+  "rpg-director": RpgDirectorRunSummary;
+  "rpg-lorebook-upkeep": RpgLorebookUpkeepRunSummary;
+  "rpg-illustration": RpgIllustrationJobResult;
+  "rpg-npc-portrait": RpgNpcPortraitJobResult;
+  "rpg-scene-plan": RpgScenePlanRunSummary;
+  "rpg-scene-distill": RpgSceneDistillRunSummary;
+  "rpg-recruit-card": RpgRecruitCardRunSummary;
 }

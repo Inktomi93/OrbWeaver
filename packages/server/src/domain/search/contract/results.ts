@@ -4,7 +4,7 @@
 
 import type { ImageLens } from "@orb/contracts/embeddings";
 import type { BlockKey } from "@orb/contracts/search";
-import type { AssetId, CharacterId, ChatId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, DocumentChunkId, DocumentId } from "@orb/kit/ids";
 
 export interface SearchHit {
   readonly characterId: CharacterId;
@@ -83,6 +83,19 @@ export interface SimilarArtHit {
   readonly lens: ImageLens;
 }
 
+/** One databank chunk hit (DB5, databank-design/05 §3.1). `score` is the CSLS-adjusted retrieval score
+ *  (LOWER = closer), preserved even when rerank reordered the list. `documentName` is joined from
+ *  `documents` for the `# {name}` provenance header the slot renders; `contentHash` is the collapse key. */
+export interface DocumentChunkHit {
+  readonly documentId: DocumentId;
+  readonly documentName: string;
+  readonly chunkId: DocumentChunkId;
+  readonly chunkIdx: number;
+  readonly content: string;
+  readonly score: number;
+  readonly contentHash: string;
+}
+
 /** score is the raw cosine distance, not CSLS-adjusted — hub_score inverts a cross-modal ranking so the
  *  verb deliberately omits it. */
 export interface ImageSearchHit {
@@ -102,4 +115,5 @@ export type UnifiedSearchResult =
   | { readonly over: "segments"; readonly hits: readonly SegmentSearchHit[] }
   | { readonly over: "digests"; readonly hits: readonly DigestSearchHit[] }
   | { readonly over: "corpus"; readonly hits: readonly CorpusHit[] }
-  | { readonly over: "images"; readonly hits: readonly ImageSearchHit[] };
+  | { readonly over: "images"; readonly hits: readonly ImageSearchHit[] }
+  | { readonly over: "documents"; readonly hits: readonly DocumentChunkHit[] };

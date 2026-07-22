@@ -34,7 +34,7 @@ export interface SpeakerSpan {
  *  `{speaker: null}` span whose `text` is byte-identical to `content` — the caller uses that single-span
  *  shape as the signal to render through the untouched pre-#21 path.
  *
- *  Torn/mid-stream tags are already held back UPSTREAM by the streaming lane's `repairStreamingTail`
+ *  Torn/mid-stream tags are already held back UPSTREAM by the streaming lane's `holdTornSpeaker`
  *  (`#fix-markdown`, the streaming-ghost path only) before content ever settles into canon — so by the
  *  time a body reaches this parser it is assumed well-formed; a stray unterminated tag (one that never
  *  got a matching close) is simply left as plain, un-matched text (no crash, no data loss). */

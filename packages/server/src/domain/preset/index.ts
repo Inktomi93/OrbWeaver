@@ -5,6 +5,7 @@ export { SYSTEM_DEFAULT_PRESET_ID } from "./constants";
 export type { PresetContext } from "./context";
 export type { PresetOpCode } from "./contract/errors";
 export { PRESET_OP_CODES, PresetNotFoundError, PresetOperationError } from "./contract/errors";
+export type { PackagedPresetKey } from "./contract/packaged";
 export type {
   CreatePresetParams,
   GetPresetParams,
@@ -21,7 +22,7 @@ export type {
 } from "./contract/portability";
 export type { PresetService } from "./contract/service";
 export type { PresetDetail, PresetSummary } from "./contract/views";
-export { ensureSystemDefaultPreset } from "./seed";
+export { ensurePackagedPresets, ensureSystemDefaultPreset } from "./seed";
 export { createPresetService } from "./service";
 export { createExport as createExportPresets } from "./verbs/export";
 export { createImport as createImportPresets } from "./verbs/import";

@@ -4,10 +4,22 @@
 // logger, no fs — it maps an already-JSON-parsed card object into/out of the canonical contracts/character
 // shape and hashes a canonical card's semantic fields. `cardContentHash` is the single home of the hash;
 // the IN/OUT halves hash-mirror so a re-import of an app-emitted card hashes identically to the original.
+//
+// Character-Card V2 AND V3 are read first-class into the ONE canonical model: V3 is a strict SUPERSET of V2,
+// so the shared `data.*` reads cover both, and cardFromJson captures the source `spec` so buildCardV3
+// round-trips it (V2→V2, V3→V3). V3-native content is now DECOMPOSED into typed columns: `nickname`/`source`/
+// `creation_date`/`modification_date` are first-class card fields (read here, emitted by buildCardV3);
+// `creator_notes_multilingual` folds into `creator_notes` (the default-language note is the one home — the
+// map is NOT separately stored). `assets` remains on the `residualData` passthrough (preserved verbatim,
+// non-lossy) pending its own lane; `group_only_greetings` folds into the `greetings` array (`groupOnly:true`
+// entries — V3 promotion Phase B), re-split on export. V3 `data.assets[]` is PARSED + PRESERVED only:
+// resolving an asset URI (charx ZIP embed, `http(s)`, `ccdefault:`) → expression sprites / the gallery is a
+// SEPARATE later chunk that MUST ride the H1 egress firewall (a card is untrusted — an asset fetch is an
+// SSRF surface). This reader stays pure parse-and-validate, zero I/O.
 
 import { createHash } from "node:crypto";
-import type { AttachedBookRef, CardDepthPrompt, CharacterCard, CharacterCardV3 } from "@orb/contracts/character";
-import { ATTACHED_BOOKS_WIRE_KEY, CHARA_CARD_V3_SPEC, characterCardV3Schema } from "@orb/contracts/character";
+import type { AttachedBookRef, CardDepthPrompt, CardSpec, CharacterCard, CharacterCardV3, Greeting } from "@orb/contracts/character";
+import { ATTACHED_BOOKS_WIRE_KEY, CHARA_CARD_V2_SPEC, CHARA_CARD_V3_SPEC, characterCardV3Schema } from "@orb/contracts/character";
 import type { RegexScript } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
 import { isPlainObject } from "@orb/kit/guards";
@@ -50,7 +62,13 @@ interface RawCard {
   creator_notes?: unknown;
   creatorcomment?: unknown;
   alternate_greetings?: unknown;
+  group_only_greetings?: unknown;
   character_version?: unknown;
+  // V3-additive `data.*` promotions read into typed columns.
+  nickname?: unknown;
+  source?: unknown;
+  creation_date?: unknown;
+  modification_date?: unknown;
   // Pygmalion Gradio variant.
   char_name?: unknown;
   char_persona?: unknown;
@@ -180,6 +198,17 @@ const PROMOTED_DATA_KEYS = new Set([
   "creator_notes",
   "character_version",
   "alternate_greetings",
+  // Folded into the `greetings` array (`groupOnly:true` entries) by cardFromJson — kept out of `residualData`
+  // so it doesn't double-ride the residual passthrough AND re-emit on export (V3 promotion Phase B).
+  "group_only_greetings",
+  // V3-additive `data.*` fields with a typed column now (were residual until the card-import expansion). Kept
+  // out of `residualData` so they don't double-emit on a round-trip. `creator_notes_multilingual` is here too
+  // (folded into `creator_notes` — the map is intentionally not stored, so it drops from residual).
+  "nickname",
+  "source",
+  "creation_date",
+  "modification_date",
+  "creator_notes_multilingual",
   "extensions",
   "regex_scripts",
   "tags",
@@ -190,9 +219,10 @@ const PROMOTED_DATA_KEYS = new Set([
 ]);
 
 /** TOP-LEVEL `data.*` keys MINUS the ones with a typed column (PD-127 — the top-level sibling of
- *  {@link residualExtensions}, which only covers `data.extensions.*`). ST-V3 puts real fields here
- *  (`source`, `creation_date`, `creator_notes_multilingual`, `nickname`, `group_only_greetings`) that have
- *  no typed home yet; this stops import→export from silently eating them. Null when nothing is left. */
+ *  {@link residualExtensions}, which only covers `data.extensions.*`). The known ST-V3 `data.*` fields
+ *  (`nickname`/`source`/`creation_date`/`modification_date`/`creator_notes_multilingual`) are promoted OUT
+ *  via {@link PROMOTED_DATA_KEYS}; what remains here is genuinely-unknown vendor residue (`assets` pending its
+ *  lane; `group_only_greetings` folds into the `greetings` array). Null when nothing is left. */
 function residualData(data: RawCard): Record<string, unknown> | null {
   const rest: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(data as Record<string, unknown>)) {
@@ -206,6 +236,15 @@ function residualData(data: RawCard): Record<string, unknown> | null {
 // ST stamps this placeholder in `creator_notes`; strip it so it doesn't ride into the canonical card.
 const ST_CREATOR_NOTES_PLACEHOLDER = "Creator's notes go here.";
 
+/** The wire spec a card was READ from — keyed on the top-level `spec` marker (ST's discriminator). V2/V3 are
+ *  preserved so export round-trips them; V1 / Pygmalion / app-authored cards (no `spec`) return `undefined`
+ *  and export defaults to V3. Unknown spec strings are treated as `undefined` (tolerant IN — the reader never
+ *  throws; a malformed card is caught upstream at the import parser's typed error path). */
+function detectSpec(raw: RawCard): CardSpec | null {
+  const spec = str(raw.spec);
+  return spec === CHARA_CARD_V3_SPEC || spec === CHARA_CARD_V2_SPEC ? spec : null;
+}
+
 /**
  * Normalize an already-JSON-parsed card object (any spec: V1/Pygmalion/V2/V3) into the canonical
  * `CharacterCard`. The tolerant in half of the serde — `parseCardPng`/`parseCardJson` wrap it with
@@ -213,14 +252,23 @@ const ST_CREATOR_NOTES_PLACEHOLDER = "Creator's notes go here.";
  * the embedded lorebook are external junctions and are not carried here.
  */
 export function cardFromJson(raw: unknown, fallbackName: string): CharacterCard {
-  const cardJson = normalizeCardJson((raw ?? {}) as RawCard);
+  const rawCard = (raw ?? {}) as RawCard;
+  const spec = detectSpec(rawCard);
+  const cardJson = normalizeCardJson(rawCard);
   const data: RawCard = typeof cardJson.data === "object" && cardJson.data !== null ? (cardJson.data as RawCard) : cardJson;
 
   const first = str(data.first_mes);
   const alternates = strArray(data.alternate_greetings);
-  // greetings[0] is THE first message; the rest are alternates. Keep the [0] slot whenever there is any
-  // greeting content (even an empty first_mes alongside real alternates), else an empty list.
-  const greetings = first.trim().length > 0 || alternates.length > 0 ? [first, ...alternates] : [];
+  const groupOnly = strArray(data.group_only_greetings);
+  // greetings[0] is THE first message; the rest are alternates (`groupOnly` absent), then the group-only
+  // greetings (`groupOnly:true`, the folded ST `group_only_greetings` — V3 promotion Phase B). Keep the [0]
+  // slot whenever there is any greeting content (even an empty first_mes alongside real alternates/group-only
+  // greetings), else an empty list.
+  const hasGreetingContent = first.trim().length > 0 || alternates.length > 0 || groupOnly.length > 0;
+  const greetings: CharacterCard["greetings"] = hasGreetingContent ? [{ text: first }, ...alternates.map((text) => ({ text }))] : [];
+  for (const text of groupOnly) {
+    greetings.push({ text, groupOnly: true });
+  }
 
   return {
     name: firstNonEmpty(str(data.name), str(cardJson.name)) ?? fallbackName,
@@ -235,11 +283,20 @@ export function cardFromJson(raw: unknown, fallbackName: string): CharacterCard 
     creatorNotes: nullIfEmpty(str(data.creator_notes).replace(ST_CREATOR_NOTES_PLACEHOLDER, "").trim()),
     creator: nullIfEmpty(str(data.creator)),
     cardVersion: nullIfEmpty(str(data.character_version)),
+    nickname: nullIfEmpty(str(data.nickname)),
+    // `source` is a NULLABLE list (absent ⇒ null, distinct from `[]`) — an absent/non-array value collapses to
+    // null, so a V2 card omits it cleanly on re-export.
+    source: Array.isArray(data.source) ? strArray(data.source) : null,
+    creationDate: typeof data.creation_date === "number" && Number.isFinite(data.creation_date) ? data.creation_date : null,
+    modificationDate: typeof data.modification_date === "number" && Number.isFinite(data.modification_date) ? data.modification_date : null,
     regexScripts: parseRegexScripts(data),
     extensions: residualExtensions(data),
     residualData: residualData(data),
     avatarAssetId: null,
     refinery: null,
+    // V2/V3 preserved so export round-trips the source spec; omitted (not `undefined`) for a specless card so
+    // it satisfies `exactOptionalPropertyTypes` and export defaults to V3.
+    ...(spec !== null ? { spec } : {}),
   };
 }
 
@@ -296,7 +353,8 @@ export function cardContentHash(card: CharacterCard): string {
 // The OUT half — buildCardV3 + exportBookEntry.
 
 /** The live-card columns the card emitter projects to the V3 wire (the OUT-emitter input). `greetings[0]`
- *  is the first message; the rest are alternate greetings. `tags` are the ACCEPTED `character_tags` names
+ *  is the first message; the rest are alternate greetings, and `groupOnly` entries re-split to
+ *  `data.group_only_greetings` on export. `tags` are the ACCEPTED `character_tags` names
  *  (pending tags are NOT serialized). The typed promotions (`creator` / `cardVersion` /
  *  `regexScripts` / `extensions` / `depthPrompt`) are read straight off the flat row — no `raw` blob.
  *  `residualData` (PD-127) is the preserved top-level `data.*` blob — re-emitted at the `data` root. There
@@ -307,13 +365,19 @@ export interface ExportCardFields {
   readonly description: string | null;
   readonly personality: string | null;
   readonly scenario: string | null;
-  readonly greetings: string[];
+  readonly greetings: Greeting[];
   readonly exampleMessages: string | null;
   readonly systemPrompt: string | null;
   readonly postHistoryInstructions: string | null;
   readonly creatorNotes: string | null;
   readonly creator: string | null;
   readonly cardVersion: string | null;
+  /** V3 content promotions — emitted to `data.*` only when non-null (a V2 / app-authored card omits them
+   *  cleanly, the round-trip property). */
+  readonly nickname: string | null;
+  readonly source: string[] | null;
+  readonly creationDate: number | null;
+  readonly modificationDate: number | null;
   readonly tags: string[];
   readonly extensions: Record<string, unknown> | null;
   readonly residualData?: Record<string, unknown> | null;
@@ -322,6 +386,9 @@ export interface ExportCardFields {
   /** PD-144: attached world-info book REFERENCES — the OUT-emitter rides them under
    *  `data.orbweaver_attached_books`. Optional/absent-empty: a card with no attached books emits no key. */
   readonly attachedBooks?: readonly AttachedBookRef[];
+  /** The wire spec to EMIT (`chara_card_v2`/`chara_card_v3`). Omitted ⇒ V3 (the canonical default). Set from
+   *  the imported card's `CharacterCard.spec` to round-trip V2→V2 / V3→V3. */
+  readonly spec?: CardSpec;
 }
 
 /** One attached lore entry projected for the OUT mapper. Carries the full round-trip payload — typed
@@ -341,7 +408,8 @@ export interface ExportWorldEntry {
 // world-info-at-depth encoding). 4 is ST's WORLD_INFO_POSITION.atDepth.
 const ST_POSITION_AT_DEPTH = 4;
 
-const SPEC_VERSION = "3.0";
+// The `spec_version` emitted per spec marker. V3 is "3.0"; a V2-sourced card round-trips as "2.0".
+const SPEC_VERSION_BY_SPEC = { [CHARA_CARD_V2_SPEC]: "2.0", [CHARA_CARD_V3_SPEC]: "3.0" } as const;
 
 /**
  * Map one live world-info entry → an ST V3 `character_book` entry (the OUT half). Preserves the entry's
@@ -494,6 +562,34 @@ function attachedBooksWire(refs: readonly AttachedBookRef[] | undefined): Record
   return refs !== undefined && refs.length > 0 ? { [ATTACHED_BOOKS_WIRE_KEY]: refs } : {};
 }
 
+// The V3 content promotions (`nickname`/`source`/`creation_date`/`modification_date`) emitted to `data.*`
+// only when non-null — a V2 / app-authored card omits the key entirely (the clean-omit round-trip property).
+// Extracted so `buildCardV3` stays under the cognitive-complexity gate. Keys are set via bracket-assignment
+// (not object-literal declarations) so the snake_case wire names need no `useNamingConvention` suppression.
+function v3Promotions(fields: ExportCardFields): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  if (fields.nickname !== null) {
+    out["nickname"] = fields.nickname;
+  }
+  if (fields.source !== null) {
+    out["source"] = fields.source;
+  }
+  if (fields.creationDate !== null) {
+    out["creation_date"] = fields.creationDate;
+  }
+  if (fields.modificationDate !== null) {
+    out["modification_date"] = fields.modificationDate;
+  }
+  // The group-only greetings re-split from the folded array (V3 promotion Phase B) — emitted only when
+  // present so a card with none omits the key (the clean V2/no-group-only round-trip). Bracket-assigned so
+  // the snake_case wire name needs no `useNamingConvention` suppression.
+  const groupOnlyGreetings = fields.greetings.filter((g) => g.groupOnly === true).map((g) => g.text);
+  if (groupOnlyGreetings.length > 0) {
+    out["group_only_greetings"] = groupOnlyGreetings;
+  }
+  return out;
+}
+
 export function buildCardV3(fields: ExportCardFields, entries: ExportWorldEntry[]): CharacterCardV3 {
   // biome-ignore-start lint/style/useNamingConvention: ST Character-Card-V3 wire field names (snake_case)
   const { depth_prompt: _staleDepthPrompt, regex_scripts: _staleRegexScripts, ...baseExtensions } = fields.extensions ?? {};
@@ -509,22 +605,28 @@ export function buildCardV3(fields: ExportCardFields, entries: ExportWorldEntry[
     description: fields.description ?? "",
     personality: fields.personality ?? "",
     scenario: fields.scenario ?? "",
-    first_mes: fields.greetings[0] ?? "",
+    first_mes: fields.greetings[0]?.text ?? "",
     mes_example: fields.exampleMessages ?? "",
     system_prompt: fields.systemPrompt ?? "",
     post_history_instructions: fields.postHistoryInstructions ?? "",
     creator: fields.creator ?? "",
     creator_notes: fields.creatorNotes ?? "",
     character_version: fields.cardVersion ?? "",
-    alternate_greetings: fields.greetings.slice(1),
+    // V3 promotions (nickname/source/creation_date/modification_date) — emitted only when non-null.
+    ...v3Promotions(fields),
+    alternate_greetings: fields.greetings
+      .slice(1)
+      .filter((g) => g.groupOnly !== true)
+      .map((g) => g.text),
     tags: fields.tags,
     extensions,
     ...(entries.length > 0 ? { character_book: { entries: entries.map(exportBookEntry) } } : {}),
     ...attachedBooksWire(fields.attachedBooks),
   };
+  const spec = fields.spec ?? CHARA_CARD_V3_SPEC;
   return characterCardV3Schema.parse({
-    spec: CHARA_CARD_V3_SPEC,
-    spec_version: SPEC_VERSION,
+    spec,
+    spec_version: SPEC_VERSION_BY_SPEC[spec],
     data,
   });
   // biome-ignore-end lint/style/useNamingConvention: ST Character-Card-V3 wire field names (snake_case)

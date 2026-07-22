@@ -15,6 +15,7 @@
 //     boundary's claimed-mime-vs-signature check is a SEPARATE pure guard in `domain/assets` `sniffMime`.)
 //   • The default sharp `limitInputPixels` (~268 MP) guards against decompression-bomb inputs.
 
+import { floodMatte } from "@orb/server/kit/image-matte";
 import sharp from "sharp";
 
 /** The output container formats this adapter can normalize to. `webp` is the only one the client ever
@@ -59,6 +60,12 @@ export interface ImageInfo {
   height: number;
 }
 
+/** A row-major cell grid over a sprite sheet — `cols × rows` equal cells (expressions-design/03 §3.1). */
+export interface SpriteGridOptions {
+  readonly cols: number;
+  readonly rows: number;
+}
+
 /** The sharp image adapter. `entry/` constructs it once and injects `transform` into
  *  `domain/assets`. Stateless (sharp holds no per-instance state) — the factory exists only to keep the
  *  injection seam uniform with the other infra handles. */
@@ -68,10 +75,27 @@ export interface ImageAdapter {
   /** Decode just the header to report format + dimensions. Rejects (throws) on non-image bytes — the
    *  validation seam for an upload that must be a real raster image. */
   probe: (bytes: Uint8Array) => Promise<ImageInfo>;
+  /** Slice a grid sprite sheet into row-major PNG cells (expressions-design/03 §3.1). Each cell is
+   *  `floor(w/cols) × floor(h/rows)`, extracted left-to-right then top-to-bottom (cell `i` binds to
+   *  `labels[i]`). Returns exactly `cols*rows` cells; the sheet's right/bottom remainder (from the floor) is
+   *  dropped. Rejects non-images. */
+  sliceGrid: (bytes: Uint8Array, opts: SpriteGridOptions) => Promise<readonly Uint8Array[]>;
+  /** Corner-sampled flood-fill matte → transparent PNG (expressions-design/03 §4.2). Deterministic, no ML —
+   *  the zero-setup matte fallback. Decodes to raw RGBA, floods the background to alpha-0
+   *  (`@orb/server/kit/image-matte`), re-encodes PNG. Rejects non-images. */
+  matteFlood: (bytes: Uint8Array, opts: { tolerance: number }) => Promise<Uint8Array>;
 }
 
 const DEFAULT_FORMAT: ImageFormat = "webp";
 const DEFAULT_QUALITY = 80;
+
+/** RGBA byte stride — the channel count sharp emits after `.ensureAlpha()`. */
+const RGBA_CHANNELS = 4;
+
+/** Re-view a node Buffer as a Uint8Array over the exact same bytes (no copy). */
+function asBytes(buf: Buffer): Uint8Array {
+  return new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
+}
 
 function encode(pipeline: sharp.Sharp, format: ImageFormat, quality: number): sharp.Sharp {
   switch (format) {
@@ -117,6 +141,38 @@ export function createImageAdapter(): ImageAdapter {
       // it successfully decoded (it throws otherwise), so these are always populated at this point.
       const meta = await sharp(bytes).metadata();
       return { format: meta.format, width: meta.width, height: meta.height };
+    },
+
+    async sliceGrid(bytes, { cols, rows }): Promise<readonly Uint8Array[]> {
+      const meta = await sharp(bytes).metadata();
+      const cellW = Math.floor(meta.width / cols);
+      const cellH = Math.floor(meta.height / rows);
+      // Row-major (reading order): top-to-bottom, left-to-right — cell i binds to labels[i] (§3.1). Build the
+      // region list first, then extract in parallel (a fresh sharp per cell — pipelines are single-use);
+      // `Promise.all` preserves the row-major order.
+      const regions: { readonly left: number; readonly top: number }[] = [];
+      for (let row = 0; row < rows; row += 1) {
+        for (let col = 0; col < cols; col += 1) {
+          regions.push({ left: col * cellW, top: row * cellH });
+        }
+      }
+      return await Promise.all(
+        regions.map(async ({ left, top }) => {
+          const cell = await sharp(bytes).extract({ left, top, width: cellW, height: cellH }).png().toBuffer();
+          return asBytes(cell);
+        }),
+      );
+    },
+
+    async matteFlood(bytes, { tolerance }): Promise<Uint8Array> {
+      // Decode to raw RGBA (alpha forced on) → pure corner-flood → re-encode PNG. `.rotate()` bakes EXIF
+      // orientation first (a generated sheet has none, but the normalizer stays consistent with transform()).
+      const { data, info } = await sharp(bytes).rotate().ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+      const matted = floodMatte(asBytes(data), { width: info.width, height: info.height, tolerance });
+      const out = await sharp(matted, { raw: { width: info.width, height: info.height, channels: RGBA_CHANNELS } })
+        .png()
+        .toBuffer();
+      return asBytes(out);
     },
   };
 }

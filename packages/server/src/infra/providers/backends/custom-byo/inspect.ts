@@ -1,14 +1,20 @@
 // infra/providers/backends/custom-byo/inspect — the "Test endpoint" inspector behind the Connections
 // surface. The user wires the endpoint themselves, so this sends the ACTUAL shaped request (the same body +
 // headers a real turn would send, with the user's transforms applied) and returns a REDACTED request + the
-// raw response — so the user verifies the real wire (the §1a inspector that "stays"). Never throws; the key
-// never leaves the server (kit `redactHeaders` runs before the result is built).
+// raw response — so the user verifies the real wire (the §1a inspector that "stays"). Never throws.
+//
+// SECURITY INVARIANT: the key DOES leave the server — it must, to test the real endpoint — but it must
+// never be DISPLAY-eligible on the way back. Two seams enforce that: the request headers are masked with
+// kit `redactHeaders`, and the raw response body is scrubbed of the known secret literals (the apiKey + any
+// secret-valued custom header) via `redactSecretsFromText` BEFORE it becomes `response.bodyPreview` — an
+// echoing endpoint (httpbin / a debug proxy / a misconfigured BYO server) otherwise reflects the plaintext
+// `Authorization: Bearer <key>` straight into the rendered dialog.
 //
 // Egress is the GLOBAL undici dispatcher (the firewall applies to this fetch too); we just fetch.
 
 import type { EndpointInspection } from "@orb/contracts/providers";
 import { errorMessage } from "@orb/kit/error-message";
-import { applyIncludeExclude, redactHeaders } from "../kit";
+import { applyIncludeExclude, redactHeaders, redactSecretsFromText, secretHeaderValues } from "../kit";
 
 const PING_CONTENT = "ping";
 const PING_MAX_TOKENS = 1;
@@ -63,13 +69,17 @@ export async function inspectCustomByoEndpoint(args: {
       ...(args.signal !== undefined ? { signal: args.signal } : {}),
     });
     const text = await res.text().catch((): string => "");
+    // Scrub secrets BEFORE display-eligibility: an echoing endpoint reflects the plaintext key back in the
+    // body. The known literals we hold (the apiKey + any secret-valued custom header) are the primary belt.
+    const secrets = [...(args.apiKey !== null ? [args.apiKey] : []), ...secretHeaderValues(args.headers)];
+    const bodyPreview = redactSecretsFromText(text, secrets).slice(0, BODY_PREVIEW_LIMIT);
     return {
       ok: res.ok,
       request,
       response: {
         status: res.status,
         statusText: res.statusText,
-        bodyPreview: text.slice(0, BODY_PREVIEW_LIMIT),
+        bodyPreview,
       },
     };
   } catch (err) {

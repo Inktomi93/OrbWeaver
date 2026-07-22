@@ -11,14 +11,14 @@
 // data-URL (the common hosted shape); a Uint8Array is encoded as a `data:image/png;base64,…` URL (the mime
 // is assumed png — OR sniffs the actual bytes). A bare filesystem path is NOT read here.
 
-import type { ChatMessages, ChatRequest, ChatStreamChunk, ChatResult as SdkChatResult } from "@openrouter/sdk/models";
+import type { ChatContentItems, ChatMessages, ChatRequest, ChatStreamChunk, ChatUserMessageContent, ChatResult as SdkChatResult } from "@openrouter/sdk/models";
 import type { ContentImageURL, CreateEmbeddingsRequestBody, CreateEmbeddingsResponse, Input } from "@openrouter/sdk/models/operations";
-import type { GeneratedImage, ImageEmbedRequest, ImageEmbedResult, ImageGenerateRequest, ImageGenerateResult } from "../../../../contract";
+import type { GeneratedImage, ImageEmbedRequest, ImageEmbedResult, ImageGenerateRequest, ImageGenerateResult, ResolvedWarning } from "../../../../contract";
 import { ProviderError } from "../../../../contract";
+import type { NormalizeImageBytes } from "../../../kit";
 import { providerErrorFromHttp } from "../../../kit";
 
 const BASE64 = "base64";
-const PNG_DATA_URL_PREFIX = "data:image/png;base64,";
 const DATA_URL_PREFIX = "data:";
 const DEFAULT_IMAGE_MEDIA_TYPE = "image/png";
 const IMAGE_TEXT_MODALITIES = ["text", "image"] as const;
@@ -26,6 +26,13 @@ const SYSTEM_ROLE = "system";
 const USER_ROLE = "user";
 const IMAGE_URL_TYPE = "image_url";
 const TEXT_TYPE = "text";
+// The consumer cap on identity-reference images (rpg-design/08 §2's committed cap; more is provider-error
+// territory — imagery-design/03 §2.3).
+const MAX_REFERENCE_IMAGES = 4;
+// No mainstream hosted image wire has a native negative field → fold it as a trailing instruction line
+// (imagery-design/03 §2.3; a universal, testable golden).
+const NEGATIVE_LINE_PREFIX = "\nDo not include: ";
+const IMAGE_EDIT_DROPPED = "image_edit_dropped";
 
 // The structural slices this runner needs off the client port.
 interface OrImageEmbedClient {
@@ -45,35 +52,39 @@ interface OrImageGenClient {
   };
 }
 
-// One image input → a URL OpenRouter accepts: a string passes through (URL / data-URL); raw bytes become a
-// base64 data URL (png assumed — see the header FLAG).
-function toImageUrl(image: Uint8Array | string): string {
+// One image input → a URL OpenRouter accepts: a string passes through (URL / data-URL); raw bytes are
+// wire-normalized (GIF → first-frame PNG, else passthrough — MA-6) then base64 data-URL-encoded with the
+// normalized mime. The `normalize` op is injected so `infra/image` never leaks into this sealed backend.
+export async function toImageUrl(image: Uint8Array | string, normalize: NormalizeImageBytes): Promise<string> {
   if (typeof image === "string") {
     return image;
   }
-  return `${PNG_DATA_URL_PREFIX}${Buffer.from(image).toString(BASE64)}`;
+  const { bytes, mediaType } = await normalize(image);
+  return `${DATA_URL_PREFIX}${mediaType};base64,${Buffer.from(bytes).toString(BASE64)}`;
 }
 
-function imageContent(image: Uint8Array | string): ContentImageURL {
-  return { type: IMAGE_URL_TYPE, imageUrl: { url: toImageUrl(image) } };
+async function imageContent(image: Uint8Array | string, normalize: NormalizeImageBytes): Promise<ContentImageURL> {
+  return { type: IMAGE_URL_TYPE, imageUrl: { url: await toImageUrl(image, normalize) } };
 }
 
 // Map the discriminated `ImageEmbedInput` → the embeddings `input` (a plain string/array for text; an array
-// of multimodal `content` items for image / image+text).
-function buildEmbedInput(req: ImageEmbedRequest): CreateEmbeddingsRequestBody["input"] {
+// of multimodal `content` items for image / image+text). Async: each image byte-input is wire-normalized.
+async function buildEmbedInput(req: ImageEmbedRequest, normalize: NormalizeImageBytes): Promise<CreateEmbeddingsRequestBody["input"]> {
   const { input } = req;
   if (input.kind === "text") {
     return typeof input.input === "string" ? input.input : [...input.input];
   }
   if (input.kind === "image") {
     const images = Array.isArray(input.input) ? input.input : [input.input];
-    return images.map((image): Input => ({ content: [imageContent(image)] }));
+    return await Promise.all(images.map(async (image): Promise<Input> => ({ content: [await imageContent(image, normalize)] })));
   }
   const pairs = Array.isArray(input.input) ? input.input : [input.input];
-  return pairs.map(
-    (pair): Input => ({
-      content: [imageContent(pair.image), { type: TEXT_TYPE, text: pair.text }],
-    }),
+  return await Promise.all(
+    pairs.map(
+      async (pair): Promise<Input> => ({
+        content: [await imageContent(pair.image, normalize), { type: TEXT_TYPE, text: pair.text }],
+      }),
+    ),
   );
 }
 
@@ -85,10 +96,10 @@ function embedErrorPrefix(model: string): string {
  * Run a joint image/text embedding via the multimodal embeddings input. Fail-closes (typed `server`) on a
  * non-JSON body or an empty vector set; carries `model` back as the shared-space provenance.
  */
-export async function runImageEmbed(client: OrImageEmbedClient, req: ImageEmbedRequest): Promise<ImageEmbedResult> {
+export async function runImageEmbed(client: OrImageEmbedClient, req: ImageEmbedRequest, normalize: NormalizeImageBytes): Promise<ImageEmbedResult> {
   const requestBody: CreateEmbeddingsRequestBody = {
     model: req.model,
-    input: buildEmbedInput(req),
+    input: await buildEmbedInput(req, normalize),
   };
   let response: CreateEmbeddingsResponse;
   try {
@@ -137,25 +148,70 @@ function genErrorPrefix(model: string): string {
   return `openrouter generateImage (${model})`;
 }
 
-function buildGenMessages(req: ImageGenerateRequest): ChatMessages[] {
+async function imageChatPart(image: Uint8Array | string, normalize: NormalizeImageBytes): Promise<ChatContentItems> {
+  return { type: IMAGE_URL_TYPE, imageUrl: { url: await toImageUrl(image, normalize) } };
+}
+
+// Fold the negative prompt into the text (no hosted wire has a native negative field, §2.3).
+function foldNegative(prompt: string, negativePrompt: string | undefined): string {
+  return negativePrompt !== undefined && negativePrompt.length > 0 ? `${prompt}${NEGATIVE_LINE_PREFIX}${negativePrompt}` : prompt;
+}
+
+// The user-message content + any edit-belt warnings (mutated in place). No `edit` ⇒ a plain-string content,
+// byte-identical to the pre-widening text→image turn (the additive guarantee). With `edit`: the init image +
+// its references (clamped) become `image_url` parts BEFORE the text (§2.3); a mask has no channel on this
+// chat-completions image wire, so it is dropped-with-warning. The BELT (§1): an `edit` payload whose resolved
+// model lacks `input.imageEdit` is stripped whole + warned + falls back to text→image (never a throw).
+async function buildUserContent(req: ImageGenerateRequest, warnings: ResolvedWarning[], normalize: NormalizeImageBytes): Promise<ChatUserMessageContent> {
+  const text = foldNegative(req.prompt, req.negativePrompt);
+  const edit = req.edit;
+  if (edit === undefined) {
+    return text;
+  }
+  if (req.capability?.input?.imageEdit !== true) {
+    warnings.push({ code: IMAGE_EDIT_DROPPED, message: `${req.model} lacks image-edit capability; generated text→image without the edit/reference input` });
+    return text;
+  }
+  if (edit.mask !== undefined) {
+    warnings.push({ code: IMAGE_EDIT_DROPPED, message: `${req.model}: the chat-completions image wire has no inpaint-mask channel; the mask was dropped` });
+  }
+  const references = edit.references ?? [];
+  // The init image is OPTIONAL now (C6d — a pose-only ControlNet edit carries no init). This hosted wire has no
+  // ControlNet channel, so an edit with no usable image (only a poseControl a curated ComfyUI role would honor)
+  // falls back to text→image with a warning — never a silent no-op, never an undefined image part.
+  const sources = [...(edit.image !== undefined ? [edit.image] : []), ...references.slice(0, MAX_REFERENCE_IMAGES)];
+  if (sources.length === 0) {
+    warnings.push({ code: IMAGE_EDIT_DROPPED, message: `${req.model}: the edit carried no image this wire can use; generated text→image` });
+    return text;
+  }
+  const imageParts = await Promise.all(sources.map((image) => imageChatPart(image, normalize)));
+  return [...imageParts, { type: TEXT_TYPE, text }];
+}
+
+async function buildGenMessages(req: ImageGenerateRequest, warnings: ResolvedWarning[], normalize: NormalizeImageBytes): Promise<ChatMessages[]> {
   const messages: ChatMessages[] = [];
   if (req.systemPrompt !== undefined && req.systemPrompt.length > 0) {
     messages.push({ role: SYSTEM_ROLE, content: req.systemPrompt });
   }
-  messages.push({ role: USER_ROLE, content: req.prompt });
+  messages.push({ role: USER_ROLE, content: await buildUserContent(req, warnings, normalize) });
   return messages;
 }
 
 /**
- * Run a text→image generation as a chat turn with image modality. Reads the generated images off the
- * assistant message; fail-closes (typed `server`) when none are returned or the call unexpectedly streamed.
+ * Run a text→image generation as a chat turn with image modality. Honors the widened request (edit/reference
+ * image parts, negative fold, size hint) with the edit-strip belt (imagery-design/03 §2). Reads the generated
+ * images off the assistant message; fail-closes (typed `server`) when none are returned or the call streamed.
  */
-export async function runGenerateImage(client: OrImageGenClient, req: ImageGenerateRequest): Promise<ImageGenerateResult> {
+export async function runGenerateImage(client: OrImageGenClient, req: ImageGenerateRequest, normalize: NormalizeImageBytes): Promise<ImageGenerateResult> {
+  const warnings: ResolvedWarning[] = [];
   const chatRequest: ChatRequest = {
     model: req.model,
-    messages: buildGenMessages(req),
+    messages: await buildGenMessages(req, warnings, normalize),
     modalities: [...IMAGE_TEXT_MODALITIES],
     ...(req.n !== undefined ? { n: req.n } : {}),
+    // `size` is a HINT (§2.3, same posture as `n`): passed through the SDK's freeform image-config map where a
+    // model honors it, ignored otherwise — never a hard constraint, never a warning.
+    ...(req.size !== undefined ? { imageConfig: { width: req.size.width, height: req.size.height } } : {}),
   };
   let result: SdkChatResult | AsyncIterable<ChatStreamChunk>;
   try {
@@ -178,5 +234,5 @@ export async function runGenerateImage(client: OrImageGenClient, req: ImageGener
       message: `${genErrorPrefix(req.model)}: image generation returned no images`,
     });
   }
-  return { images, model: result.model, usage: { costUsd: result.usage?.cost ?? null } };
+  return { images, model: result.model, usage: { costUsd: result.usage?.cost ?? null }, warnings };
 }

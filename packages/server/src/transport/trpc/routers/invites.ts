@@ -6,9 +6,11 @@
 // nominee self-check) lives INSIDE each verb (the sibling chat-router shape).
 //
 // EVERY procedure rides `multiHumanProcedure` (the B4 capability belt): while the deployment cannot seat
-// a second human the whole router answers NOT_FOUND, leak-free. This router carries ONLY human-seat
-// verbs — character seating (`chat.addCharacterToChat`) and agent seating (`chat.seatAgent` when wired)
-// stay on the ungated chat surface (§9 ruling 3: multi-CHARACTER rooms work in every mode).
+// a second human the whole router answers NOT_FOUND, leak-free. This router carries the human-membership
+// verbs + the owner≠host agent-seat REQUEST (a multi-human consent flow, the nominateHostHandoff shape).
+// Actual seating is NOT here — character seating (`chat.addCharacterToChat`) and agent seating
+// (`chat.seatAgent`, wired at P6) stay on the ungated chat surface (§9 ruling 3: multi-CHARACTER rooms +
+// an owner seating its OWN buddy work in every mode).
 //
 // TOKEN-CARRYING procedures (`previewInvite`/`redeemInvite`) are `.mutation()` even though preview is
 // semantically a read: tRPC queries ride GET with the input in the URL, which would put the RAW invite
@@ -17,6 +19,7 @@
 // token HASH; these bodies + the `/join/:token` redirect are the token's only transit points.
 
 import { acceptInviteSchema, createInviteSchema, previewInviteSchema, redeemInviteSchema } from "@orb/contracts/chat";
+import { agentSourceKindSchema } from "@orb/contracts/identity";
 import type { ChatId, ChatInviteId, UserId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
@@ -44,6 +47,19 @@ const chatScopedSchema = z.object({ chatId: brandedId<ChatId>() });
 const nominateSchema = z.object({
   chatId: brandedId<ChatId>(),
   userId: brandedId<UserId>(),
+});
+
+// `requestAgentSeat` (D60, agent-principal-design/04 §3) — the owner≠host consent request. A present member
+// (the buddy's OWNER) asks the HOST to seat their agent; delivers a durable `agent-seat-requested`
+// notification. It lives HERE (not the ungated chat surface where `chat.seatAgent` sits) because it is a
+// MULTI-HUMAN flow — a second human (the host) receiving another human's request — exactly the
+// nominateHostHandoff shape; in a single-human deployment there is no owner≠host case (the owner==host
+// collapse seats directly via `chat.seatAgent`), so the B4 belt refusing it is correct. Member + owner-of-
+// the-agent gated INSIDE the verb; advisory (no state written).
+const requestAgentSeatSchema = z.object({
+  chatId: brandedId<ChatId>(),
+  ownerUserId: brandedId<UserId>(),
+  sourceKind: agentSourceKindSchema,
 });
 
 export const invitesRouter = t.router({
@@ -85,6 +101,11 @@ export const invitesRouter = t.router({
   nominateHostHandoff: multiHumanProcedure
     .input(nominateSchema)
     .mutation(({ ctx, input }) => ctx.services.chat.nominateHostHandoff({ principal: ctx.auth, ...input })),
+
+  // The owner≠host agent-seat request (see the schema header) — member + owner-of-the-agent gated INSIDE.
+  requestAgentSeat: multiHumanProcedure
+    .input(requestAgentSeatSchema)
+    .mutation(({ ctx, input }) => ctx.services.chat.requestAgentSeat({ principal: ctx.auth, ...input })),
 
   acceptHostHandoff: multiHumanProcedure
     .input(chatScopedSchema)

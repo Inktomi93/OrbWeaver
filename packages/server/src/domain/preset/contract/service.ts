@@ -5,7 +5,15 @@ import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { PresetId } from "@orb/kit/ids";
 import type { AuditEntry } from "#foundation/observability";
-import type { CreatePresetParams, GetPresetParams, ListPresetsParams, RemovePresetParams, ResetToDefaultParams, UpdatePresetParams } from "./params";
+import type {
+  ClonePackagedParams,
+  CreatePresetParams,
+  GetPresetParams,
+  ListPresetsParams,
+  RemovePresetParams,
+  ResetToDefaultParams,
+  UpdatePresetParams,
+} from "./params";
 import type { PresetDetail, PresetSummary } from "./views";
 
 /** The DI bundle the preset verbs close over, wired at the composition root. */
@@ -37,4 +45,8 @@ export interface PresetService {
   /** Replace an owned preset's config with `DEFAULT_PROMPT_CONFIG` (audits `preset.resetToDefault`); a
    *  no-op returning the row when targeting the system default (it IS the default). */
   readonly resetToDefault: (params: ResetToDefaultParams) => Promise<PresetDetail>;
+  /** Clone a shipped PACKAGED template preset (`key`) into the caller's library as a NEW owned row (audits
+   *  `preset.clonePackaged`); returns the fork's detail. Throws `PresetNotFoundError` when the packaged
+   *  template row is absent (unseeded). The cross-feature clone-source op (rpg `createGame` → `gmPresetId`). */
+  readonly clonePackaged: (params: ClonePackagedParams) => Promise<PresetDetail>;
 }

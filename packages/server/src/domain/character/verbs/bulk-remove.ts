@@ -18,18 +18,22 @@ export function createBulkRemove(ctx: CharacterContext): CharacterService["bulkR
     const ownerId = principal.userId;
     const at = ctx.now();
 
-    const deletedRows = (
+    const deleted = (
       await Promise.all(
         characterIds.map(async (characterId) => {
           const row = await loadOwnedCharacterRow(ctx.db, ownerId, characterId);
           if (row === undefined) {
             return null;
           }
+          // Free the sprite bindings BEFORE the row delete (the FK cascade doesn't surface the freed ids —
+          // expressions-design/01 §8). Optional op: absent falls back to the cascade + a later GC sweep.
+          const spriteAssetIds = ctx.reapCharacterSprites !== undefined ? await ctx.reapCharacterSprites(characterId) : [];
           const ok = await deleteOwnedCharacter(ctx.db, characterId, ownerId);
-          return ok ? row : null;
+          return ok ? { row, spriteAssetIds } : null;
         }),
       )
-    ).filter((row) => row !== null);
+    ).filter((d) => d !== null);
+    const deletedRows = deleted.map((d) => d.row);
 
     if (deletedRows.length === 0) {
       return;
@@ -51,12 +55,15 @@ export function createBulkRemove(ctx: CharacterContext): CharacterService["bulkR
       ),
     );
 
-    const reap: AssetId[] = deletedRows.map((row) => row.avatarAssetId).filter((id): id is AssetId => id !== null);
+    const reap: AssetId[] = [
+      ...deletedRows.map((row) => row.avatarAssetId).filter((id): id is AssetId => id !== null),
+      ...deleted.flatMap((d) => d.spriteAssetIds),
+    ];
     if (reap.length > 0) {
       try {
         await ctx.reapAssets(reap);
       } catch (err) {
-        getLog().warn({ err, count: reap.length }, "character: bulk avatar reap failed");
+        getLog().warn({ err, count: reap.length }, "character: bulk avatar/sprite reap failed");
       }
     }
   };

@@ -35,6 +35,30 @@ export function resolveSpaDistDir(opts: { readonly distDir: string; readonly pro
   return null;
 }
 
+// The curated pose skeletons ship UNDER the same served client-static tree (`<root>/poses/library/…`) — the
+// C6b theme-pipeline posture (shipped static + generated index, NOT per-user CAS). The ComfyUI arm reads their
+// BYTES server-side, so the reader's root MUST derive from the SAME static root the SPA serves (never a
+// parallel guess that can drift to nothing).
+const DEV_STATIC_ROOT = "packages/client/public";
+const POSE_LIBRARY_SUBPATH = ["poses", "library"] as const;
+
+/** Resolve the SHIPPED curated pose-library root (`.../poses/library`, comfyui-control §4.12, C6d) — the same
+ *  static tree the SPA serves. Prefers an explicit `override` (env escape hatch), then the built client dist
+ *  (`distDir` — the prod serve root), then the repo dev source (`packages/client/public`). THROWS when NONE
+ *  exists: a shipped-static asset dir resolving to nothing is a boot lie, never a silent per-pose degrade. */
+export function resolvePoseLibraryRoot(opts: { readonly distDir: string; readonly override?: string | undefined }): string {
+  const candidates = [
+    ...(opts.override !== undefined ? [opts.override] : []),
+    join(opts.distDir, ...POSE_LIBRARY_SUBPATH),
+    join(DEV_STATIC_ROOT, ...POSE_LIBRARY_SUBPATH),
+  ];
+  const found = candidates.find((dir) => existsSync(dir));
+  if (found === undefined) {
+    throw new Error(`pose-library: no curated skeleton set found (checked ${candidates.join(", ")}) — run \`vite build\` or set POSE_LIBRARY_DIR`);
+  }
+  return found;
+}
+
 /** Register the bundle file-serve + the history fallback on `app` (GET/HEAD only; call LAST). */
 export function registerSpa(app: Hono, deps: SpaDeps): void {
   const isApi = (path: string): boolean => path === "/api" || path.startsWith(API_PREFIX);

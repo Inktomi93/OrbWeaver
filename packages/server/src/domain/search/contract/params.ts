@@ -33,6 +33,18 @@ export interface CorpusParams {
   readonly minScore: number;
 }
 
+/** The databank RAG lens (DB5, databank-design/05 §3). `scope` is the injected-resolver argument shape: a
+ *  chat turn resolves host-global ∪ chat-attached documents (host-only v1); an ad-hoc personal search is
+ *  over the owner's whole bank. `k`/`minScore`/`rerank` default to ST's shipped values when the caller
+ *  omits them (the verb stays total; the real caller — chat's gather, the panel — passes settings values). */
+export interface DocumentSearchParams {
+  readonly scope: { readonly chatId: ChatId } | { readonly ownerId: UserId };
+  readonly queryText: string;
+  readonly k?: number | undefined;
+  readonly minScore?: number | undefined;
+  readonly rerank?: boolean | undefined;
+}
+
 /** Ranking is raw cosine distance — hub_score is deliberately not CSLS-applied on this cross-modal path. */
 export interface ImagesParams {
   readonly ownerId: UserId;
@@ -94,7 +106,7 @@ export type SearchScope =
 /** The retrieval-surface axis the unified `search()` dispatches over — one member per underlying verb.
  *  A new member fails `tsc` at the `UnifiedSearchResult` union + the exhaustive dispatch (no inline
  *  re-declaration; `SEARCH_TARGETS` is the one home). */
-export const SEARCH_TARGETS = ["entities", "characters", "discover", "segments", "digests", "corpus", "images"] as const;
+export const SEARCH_TARGETS = ["entities", "characters", "discover", "segments", "digests", "corpus", "images", "documents"] as const;
 export type SearchTarget = (typeof SEARCH_TARGETS)[number];
 
 /** The omnibox call: one query text, one target surface, one scope. `lens` is required only when

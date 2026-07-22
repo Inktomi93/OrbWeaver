@@ -9,7 +9,6 @@ export type {
   ListThemesParams,
   RemoveThemeParams,
   UpdateThemeParams,
-  UpdateUserSettingsInput,
   UpdateUserSettingsSectionInput,
 } from "./contract/params";
 export type { SettingsImportOutcome, SettingsPortableFile } from "./contract/portability";

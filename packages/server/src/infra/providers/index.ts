@@ -10,10 +10,16 @@ import type { AgentSdkBackendDeps } from "./backends/agent-sdk";
 import { createAgentSdkBackend } from "./backends/agent-sdk";
 import type { AnthDirectBackendDeps } from "./backends/anth-direct";
 import { createAnthDirectBackend } from "./backends/anth-direct";
+import type { ComfyuiBackendDeps } from "./backends/comfyui";
+import { createComfyuiBackend } from "./backends/comfyui";
 import { createCustomByoBackend } from "./backends/custom-byo";
-import { createLocalLightBackend } from "./backends/local-light";
+import type { ImageToPng } from "./backends/kit";
+import { createImageNormalizer } from "./backends/kit";
+import { createLocalLightBackend, createLocalLightMatte, createModelCache } from "./backends/local-light";
 import type { OpenRouterBackendDeps } from "./backends/openrouter";
 import { createOpenRouterBackend } from "./backends/openrouter";
+import type { VeniceBackendDeps } from "./backends/venice";
+import { createVeniceBackend } from "./backends/venice";
 import type { BackendRegistry, ProviderBackend, ProviderDeps, ProviderExecutor } from "./contract";
 import { createAgentRole } from "./roles/agent";
 import { createChatRole } from "./roles/chat";
@@ -47,7 +53,21 @@ export interface BackendRegistryDeps {
   readonly repoRoot?: VllmBackendDeps["repoRoot"];
   readonly random?: OpenRouterBackendDeps["random"];
   readonly getClient?: OpenRouterBackendDeps["getClient"];
+  /** Raw sharp PNG transform (MA-6). Wrapped into the OpenRouter GIF→first-frame-PNG wire-normalize op
+   *  here so `infra/image` never leaks into the sealed backend; absent ⇒ the label-only passthrough. */
+  readonly imageToPng?: ImageToPng;
   readonly getAnthClient?: AnthDirectBackendDeps["getClient"];
+  readonly veniceFetch?: VeniceBackendDeps["fetchImpl"];
+  /** The owner-configured ComfyUI endpoint (MA-8) threaded from `COMFYUI_BASE_URL`; the runner reads its URL
+   *  from here (never a hardcoded constant). */
+  readonly comfyuiBaseUrl?: ComfyuiBackendDeps["baseUrl"];
+  /** The ComfyUI fetch seam — absent ⇒ the sealed backend builds its own `safeFetch` wrapper from
+   *  `comfyuiBaseUrl`; tests inject a fake. */
+  readonly comfyuiFetch?: ComfyuiBackendDeps["fetchImpl"];
+  /** The owner-scoped BYO-workflow reader (C7 — comfyui-control §4.11): compose wires it to the
+   *  comfyui-workflow domain's `fetchByoWorkflowForDrive`; the sealed runner loads a `byo:<name>` selection
+   *  through it (the ownerId rides `req.owner`). Absent ⇒ a `byo:` selection typed-refuses. */
+  readonly comfyuiLoadByoWorkflow?: ComfyuiBackendDeps["loadByoWorkflow"];
   readonly query?: AgentSdkBackendDeps["query"];
   readonly sessionStore?: AgentSdkBackendDeps["sessionStore"];
   readonly vllmClient?: VllmBackendDeps["client"];
@@ -59,6 +79,10 @@ export interface BackendRegistryDeps {
 export interface BackendRegistryResult {
   readonly backends: BackendRegistry;
   readonly vllmEngine: VllmEngineHandle | null;
+  /** The local-light background-removal (alpha-matte) op, bound over the SAME shared model cache the
+   *  local-light backend uses (expressions-design/03 §4.1). Always present (local-light is unconditionally
+   *  registered); compose threads it into expressions' sprite-sheet matte arm. NOT a provider role. */
+  readonly matteModel: ReturnType<typeof createLocalLightMatte>;
 }
 
 function openRouterDeps(deps: BackendRegistryDeps): OpenRouterBackendDeps {
@@ -66,12 +90,14 @@ function openRouterDeps(deps: BackendRegistryDeps): OpenRouterBackendDeps {
     now: deps.now,
     ...(deps.random !== undefined ? { random: deps.random } : {}),
     ...(deps.getClient !== undefined ? { getClient: deps.getClient } : {}),
+    ...(deps.imageToPng !== undefined ? { normalizeImageBytes: createImageNormalizer(deps.imageToPng) } : {}),
   };
 }
 function anthDirectDeps(deps: BackendRegistryDeps): AnthDirectBackendDeps {
   return {
     now: deps.now,
     ...(deps.getAnthClient !== undefined ? { getClient: deps.getAnthClient } : {}),
+    ...(deps.imageToPng !== undefined ? { normalizeImageBytes: createImageNormalizer(deps.imageToPng) } : {}),
   };
 }
 function agentSdkDeps(deps: BackendRegistryDeps): AgentSdkBackendDeps {
@@ -79,6 +105,7 @@ function agentSdkDeps(deps: BackendRegistryDeps): AgentSdkBackendDeps {
     now: deps.now,
     ...(deps.query !== undefined ? { query: deps.query } : {}),
     ...(deps.sessionStore !== undefined ? { sessionStore: deps.sessionStore } : {}),
+    ...(deps.imageToPng !== undefined ? { normalizeImageBytes: createImageNormalizer(deps.imageToPng) } : {}),
   };
 }
 function vllmDeps(deps: BackendRegistryDeps): VllmBackendDeps {
@@ -95,6 +122,9 @@ function vllmDeps(deps: BackendRegistryDeps): VllmBackendDeps {
 // vLLM is constructed only when not disabled; when disabled it is absent from the map and a role that
 // resolves to it fail-closes.
 export function createBackendRegistry(deps: BackendRegistryDeps): BackendRegistryResult {
+  // One shared local-light model cache — the embed/rerank/imageEmbed backend AND the sprite-sheet matte op
+  // load through it (one process-wide model LRU + device/CPU-fallback mechanics; §4.1).
+  const localLightCache = createModelCache();
   const backends: ProviderBackend[] = [
     createOpenRouterBackend(openRouterDeps(deps)),
     createAgentSdkBackend(agentSdkDeps(deps)),
@@ -103,7 +133,13 @@ export function createBackendRegistry(deps: BackendRegistryDeps): BackendRegistr
       now: deps.now,
       ...(deps.random !== undefined ? { random: deps.random } : {}),
     }),
-    createLocalLightBackend(),
+    createVeniceBackend(deps.veniceFetch !== undefined ? { fetchImpl: deps.veniceFetch } : {}),
+    createComfyuiBackend({
+      ...(deps.comfyuiBaseUrl !== undefined ? { baseUrl: deps.comfyuiBaseUrl } : {}),
+      ...(deps.comfyuiFetch !== undefined ? { fetchImpl: deps.comfyuiFetch } : {}),
+      ...(deps.comfyuiLoadByoWorkflow !== undefined ? { loadByoWorkflow: deps.comfyuiLoadByoWorkflow } : {}),
+    }),
+    createLocalLightBackend({ cache: localLightCache }),
   ];
 
   let vllmEngine: VllmEngineHandle | null = null;
@@ -114,11 +150,15 @@ export function createBackendRegistry(deps: BackendRegistryDeps): BackendRegistr
   }
 
   const registry: BackendRegistry = new Map(backends.map((b): readonly [ProviderBackend["key"], ProviderBackend] => [b.key, b]));
-  return { backends: registry, vllmEngine };
+  return { backends: registry, vllmEngine, matteModel: createLocalLightMatte(localLightCache) };
 }
 
 export type { AgentToolResult, AgentToolSpec } from "./backends/agent-sdk";
 export { createAgentToolServer, fetchAgentSdkModels } from "./backends/agent-sdk";
+// C7 (comfyui-control §4.11): the BYO workflow save-validation gate — compose wires it as the comfyui-workflow
+// domain's injected `validateGraph` (`parseByoGraph(json) !== null`), keeping the sealed `isComfyuiGraph`
+// node-format check off domain code (D96).
+export { listSeedWorkflows, parseByoGraph, probeComfyuiObjectInfo } from "./backends/comfyui";
 export {
   DEFAULT_EMBED_MODEL,
   DEFAULT_IMAGE_EMBED_MODEL,
@@ -136,6 +176,5 @@ export { createGenerateImageRole } from "./roles/generate-image";
 export { createImageEmbedRole } from "./roles/image-embed";
 export { createRerankRole } from "./roles/rerank";
 export { createSummarizeRole } from "./roles/summarize";
-export { buildScriptedOverrideRunner } from "./scripted-override";
 export type { VllmEngineHandle } from "./vllm";
 export { detectGpu } from "./vllm";

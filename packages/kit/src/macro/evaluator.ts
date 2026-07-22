@@ -1,3 +1,4 @@
+import { validateMacroArgs } from "./metadata";
 import type { MacroAST, MacroBlockNode, MacroCallNode, MacroContext, MacroEnv, MacroRegistry } from "./types";
 
 /** Resolve an env entry by name, exact-case first then case-insensitively (registry parity).
@@ -30,10 +31,33 @@ function reconstruct(name: string, args: string[], raw: string | undefined, open
   return raw ?? `${openMarker}${name}${argSuffix}}}`;
 }
 
+// Arg validation (02 §5): check the RESOLVED args against the macro's DX metadata, push diagnostics to
+// the optional sink, and — under strictArgs — signal "render empty" when there's an error. Returns true
+// when strict mode wants the call suppressed to "". No-op when the macro has no metadata or no span.
+function checkArgs(node: MacroCallNode, registry: MacroRegistry, ctx: MacroContext, resolvedArgs: string[]): boolean {
+  const meta = registry.getMetadata(node.name);
+  if (meta === undefined || node.span === undefined) {
+    return false;
+  }
+  const strict = ctx.strictArgs === true;
+  const diags = validateMacroArgs(meta, resolvedArgs, node.span, strict);
+  if (diags.length > 0 && ctx.diagnostics !== undefined) {
+    ctx.diagnostics.push(...diags);
+  }
+  return strict && diags.some((d) => d.severity === "error");
+}
+
 function evalMacroNode(node: MacroCallNode, registry: MacroRegistry, ctx: MacroContext): string {
   const handler = registry.get(node.name);
   if (handler) {
     const resolvedArgs = node.args.map((arg) => resolveArg(arg, ctx));
+    // Strict-mode arg violation → render "" (the editors hold new authorship to the bar); lenient →
+    // diagnostics recorded, best-effort render proceeds.
+    if (checkArgs(node, registry, ctx, resolvedArgs)) {
+      return "";
+    }
+    // Locate the handler at its call span so a diagnostic-emitting handler ({{expr::…}}) can attach it.
+    ctx.__currentSpan = node.span;
     try {
       const val = handler(resolvedArgs, ctx);
       return ctx.postProcess ? ctx.postProcess(val) : val;
@@ -53,6 +77,16 @@ function evalMacroNode(node: MacroCallNode, registry: MacroRegistry, ctx: MacroC
   const envVal = lookupEnvCI(ctx.env, node.name);
   if (node.args.length === 0 && envVal !== undefined) {
     return ctx.postProcess ? ctx.postProcess(envVal) : envVal;
+  }
+  // Genuinely unknown macro — record a diagnostic (sink-only; the byte-identical passthrough render is
+  // unchanged, so stored-history re-emit + editor squiggles coexist). No span ⇒ hand-built node, skip.
+  if (ctx.diagnostics !== undefined && node.span !== undefined) {
+    ctx.diagnostics.push({
+      severity: ctx.strictArgs === true ? "error" : "warning",
+      code: "unknown-macro",
+      message: `unknown macro {{${node.name}}}`,
+      span: node.span,
+    });
   }
   return reconstruct(node.name, node.args, node.raw, "{{");
 }

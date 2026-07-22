@@ -7,6 +7,8 @@
 // the OpenAI SSE reducer/mapper, the cache_control constants + placement primitive, the reasoning XOR
 // builders, the lenient wire parses, the HTTP error table, pre-commit retry, idle-abort, error sanitize.
 
+// ── Outbound image → Anthropic Messages content block (MA-10; anth-direct + agent-sdk summarize) ────────
+export { toAnthImageBlock } from "./anth-image-block";
 // ── Anthropic cache_control: constants, the model anchor, the routing pin, the placement primitive ──
 export type { CacheControlTextBlock } from "./cache-control";
 export {
@@ -29,6 +31,9 @@ export { assertMappedHistoryRole, chatHistoryText } from "./history";
 // ── Idle-abort wrapper for streaming HTTP runners ──────────────────────────────────────────────────
 export type { IdleAbort } from "./idle-timeout";
 export { IDLE_TIMEOUT_MS, turnAbortSignal } from "./idle-timeout";
+// ── Outbound image-input wire-normalize (MA-6: GIF → first-frame PNG, metadata-stripped, injected sharp) ─
+export type { ImageToPng, NormalizedImageBytes, NormalizeImageBytes } from "./image-normalize";
+export { createImageNormalizer, passthroughImageNormalizer } from "./image-normalize";
 // ── The shared OpenAI-compatible request/stream seam ───────────────────────────────────────────────
 export * from "./openai-compat";
 // ── The shared `provider.*` structured-log sink (hoisted from agent-sdk; per-call `backend` tag) ─────
@@ -78,16 +83,5 @@ export type {
   ChatPromptTokensDetails,
   ChatReasoningDetail,
   ChatToolCallDelta,
-  ResponsesCostDetails,
-  ResponsesOutputContent,
-  ResponsesOutputItem,
-  ResponsesResult,
-  ResponsesStreamEvent,
-  ResponsesUsage,
 } from "./wire-schemas";
-export {
-  extractChatReasoning,
-  extractChatReply,
-  parseChatCompletionResult,
-  parseResponsesResult,
-} from "./wire-schemas";
+export { extractChatReasoning, extractChatReply, parseChatCompletionResult } from "./wire-schemas";

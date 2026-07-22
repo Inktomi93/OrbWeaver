@@ -1,122 +1,30 @@
-// The generatePicture orchestrator (free-mode subset): assert prompt present → resolve the generateImage
-// role → one `generateImage(req)` call with `n` (the provider fans out, never a per-image loop) →
-// materialize per image (base64 decode or SSRF-safe URL download) → store-then-provenance per image → build
-// one media block per image → record economics. Zero decodable images throws `GenerationFailedError`.
+// The generatePicture orchestrator (doc 02 §1): step 2 B2 reuse gate (short-circuit before any provider
+// call) → step 3 resolve the prompt (user | captioned | extracted) → step 4 prefix belt → step 5 negative +
+// size → step 6 resolve role + capability → step 7 B3 avatar-reference gate (drop-with-warning when the model
+// can't edit — doc 03 §3) → steps 8-12 the shared generation tail (`runGeneration`). The store-then-provenance
+// GC ordering + materialization live in `generate-core` (one home, shared with `editImage`).
 
-import type { MessageContentBlock } from "@orb/contracts/chat";
-import type { Principal } from "@orb/contracts/identity";
-import type { PromptTemplateMode } from "@orb/contracts/imagery";
-import type { StatsDelta } from "@orb/contracts/stats";
-import type { AssetId, ChatId } from "@orb/kit/ids";
-import { sniffMime } from "@orb/kit/image-sniff";
-import { modelKey, utcDay } from "@orb/kit/stats-tally";
-import { GenerationFailedError, ImageryNotConfiguredError } from "../contract/errors";
+import type { ModelCapability } from "@orb/contracts/connection";
+import type { CharacterId } from "@orb/kit/ids";
+import { ImageryNotConfiguredError } from "../contract/errors";
 import type { GeneratePictureParams } from "../contract/params";
-import type { GeneratedPicture, GeneratedPictureImage } from "../contract/results";
-import type { GeneratedImage, ImageryContext, ImageryService } from "../contract/service";
-import { insertGeneration } from "../persistence/queries";
+import type { GeneratedPicture, ImageryWarning, ReuseRow } from "../contract/results";
+import type { ImageGenerateRequest, ImageryContext, ImageryService, ResolvedGenerateImage, ResolvePrompt } from "../contract/service";
+import { findReusableGeneration } from "../persistence/queries";
+import { buildBlock, runGeneration, sumCost } from "../substrate/generate-core";
+import { identityHashFor } from "../substrate/identity-hash";
+import { isMultimodalMode, isPortraitMode } from "../substrate/mode";
+import { defaultSizeFor, SIZE_PRESETS } from "../substrate/size";
+import { composeNegative, ensurePrefix } from "../substrate/templates";
 
 /** Default fan-out when the caller omits `n` (the wire clamps to 1..4). */
 const DEFAULT_IMAGE_COUNT = 1;
-/** The media block's `alt` is the prompt, truncated (a full 2k-char prompt is not alt text). */
-const ALT_MAX_CHARS = 300;
-/** The fallback mime when neither the bytes nor the provider name an image type. */
-const DEFAULT_IMAGE_MIME = "image/png";
-/** `@orb/kit/image-sniff`'s "unrecognized signature" sentinel — the SAME table assets' `enforceMagic` uses. */
-const OCTET_STREAM = "application/octet-stream";
 
-/** The materialized bytes of one returned image + the provider's claimed media type (a sniff fallback). */
-interface DecodedImage {
-  readonly bytes: Uint8Array;
-  readonly mediaType: string | undefined;
-}
-
-/** Decode one returned image to bytes: inline base64 → decode; provider URL → download via the injected
- *  SSRF-safe `fetchImage` port (the URL is provider-response-controlled, never fetched raw). `null` when
- *  the image carries neither shape or the download fails. */
-async function materialize(ctx: ImageryContext, img: GeneratedImage): Promise<DecodedImage | null> {
-  if (img.base64 !== undefined && img.base64.length > 0) {
-    return { bytes: new Uint8Array(Buffer.from(img.base64, "base64")), mediaType: img.mediaType };
-  }
-  if (img.url !== undefined && img.url.length > 0) {
-    const bytes = await ctx.fetchImage(img.url);
-    return bytes === null ? null : { bytes, mediaType: img.mediaType };
-  }
-  return null;
-}
-
-/** The media block for one stored image. */
-function buildBlock(assetId: AssetId, prompt: string): MessageContentBlock {
-  return {
-    kind: "media",
-    media: "image",
-    src: { kind: "asset", assetId },
-    alt: prompt.slice(0, ALT_MAX_CHARS),
-  };
-}
-
-/** The per-image store-then-provenance args (an interface — not 5 positional params). */
-interface PersistArgs {
-  readonly caller: Principal;
-  readonly chatId: ChatId | null;
-  readonly mode: PromptTemplateMode;
-  readonly prompt: string;
-  readonly model: string;
-  readonly costUsd: number | null;
-  readonly img: DecodedImage;
-}
-
-/** Store the bytes (kind `"generated"`) then write the provenance row (order matters) and return the
- *  render-ready image. */
-async function persistImage(ctx: ImageryContext, args: PersistArgs): Promise<GeneratedPictureImage> {
-  // Derive the claimed mime from the bytes via the shared `@orb/kit/image-sniff` table — the same one
-  // assets' `enforceMagic` re-checks against. On the unrecognized sentinel, fall back to the provider
-  // mediaType then PNG.
-  const sniffed = sniffMime(args.img.bytes);
-  const mime = sniffed === OCTET_STREAM ? (args.img.mediaType ?? DEFAULT_IMAGE_MIME) : sniffed;
-  const stored = await ctx.storeAsset(args.caller, args.img.bytes, "generated", mime);
-  const generationId = ctx.newGenerationId();
-  await insertGeneration(ctx.db, {
-    id: generationId,
-    assetId: stored.assetId,
-    chatId: args.chatId,
-    mode: args.mode,
-    prompt: args.prompt,
-    model: args.model,
-    costUsd: args.costUsd,
-    edited: false,
-    createdAt: ctx.now(),
-  });
-  return { assetId: stored.assetId, generationId, block: buildBlock(stored.assetId, args.prompt) };
-}
-
-/** The generation's economics delta — attributed to `caller` as owner, one model bucket, `count`
- *  generations. */
-function buildDelta(args: {
-  readonly caller: Principal;
-  readonly model: string;
-  readonly costUsd: number | null;
-  readonly count: number;
-  readonly now: number;
-}): StatsDelta {
-  const { model, provider } = modelKey(args.model, null);
-  return {
-    ownerId: args.caller.userId,
-    characterId: null,
-    day: utcDay(args.now),
-    model,
-    provider,
-    modelGenerations: args.count,
-    modelGenSamples: args.count,
-    now: args.now,
-    ...(args.costUsd !== null ? { costUsd: args.costUsd, modelCostUsd: args.costUsd } : {}),
-  };
-}
-
-async function resolveConnection(ctx: ImageryContext, caller: Principal): Promise<Awaited<ReturnType<ImageryContext["resolveGenerateImage"]>>["connection"]> {
+/** Resolve the generateImage role + the capability of the SAME model the request will hit (one resolution so
+ *  the B3 gate and the request build read the same model). A resolve failure wraps into `ImageryNotConfiguredError`. */
+async function resolveGenerateImageOrThrow(ctx: ImageryContext, caller: GeneratePictureParams["caller"]): Promise<ResolvedGenerateImage> {
   try {
-    const resolved = await ctx.resolveGenerateImage(caller);
-    return resolved.connection;
+    return await ctx.resolveGenerateImage(caller);
   } catch (err) {
     const error = new ImageryNotConfiguredError("imagery: no generateImage role is configured for this caller");
     error.cause = err;
@@ -124,56 +32,221 @@ async function resolveConnection(ctx: ImageryContext, caller: Principal): Promis
   }
 }
 
-export function createGeneratePicture(ctx: ImageryContext): ImageryService["generatePicture"] {
+/** The B3 gate's resolved reference: the avatar bytes routed onto the IDENTITY channel (`references[]`) when the
+ *  model advertises an identity lock, else the plain img2img INIT channel (`image`) — the comfyui-control §4.6
+ *  distinction (IPAdapter-FaceID / PuLID condition on the FACE; a non-identity arm denoises the whole avatar). */
+interface AvatarReference {
+  readonly references?: readonly Uint8Array[];
+  readonly image?: Uint8Array;
+}
+
+/** Step 7 — B3 avatar-reference gate (doc 03 §3 · comfyui-control §4.6/C6): condition a portrait generation on
+ *  the subject's avatar for identity consistency. Applies only to a subject (portrait) mode carrying
+ *  `useAvatarReference`; absent avatar ⇒ skip silently; a model without `input.imageEdit` ⇒ drop-with-warning
+ *  (the asymmetric posture — never throws, unlike `editImage`). When the model advertises `input.imageIdentity`
+ *  (a curated ComfyUI role — IPAdapter-FaceID / PuLID), the avatar rides the IDENTITY channel (`references[]`)
+ *  so the arm locks on the FACE; otherwise it rides the plain img2img INIT channel (`image`) — the honest
+ *  fallback for arms with edit but no identity lock. The runner makes the final per-family IPAdapter-vs-img2img
+ *  routing (it owns the arch knowledge); the domain only picks the channel the capability advertises. */
+async function avatarReferenceGate(
+  ctx: ImageryContext,
+  p: GeneratePictureParams,
+  resolution: { readonly model: string; readonly capability: ModelCapability },
+  subjectCharacterId: CharacterId | null,
+): Promise<{ readonly edit: AvatarReference | undefined; readonly warnings: readonly ImageryWarning[] }> {
+  if (p.useAvatarReference !== true || subjectCharacterId === null) {
+    return { edit: undefined, warnings: [] };
+  }
+  const card = await ctx.getCard(p.caller, subjectCharacterId);
+  if (card.avatarAssetId === null) {
+    return { edit: undefined, warnings: [] };
+  }
+  if (resolution.capability.input?.imageEdit !== true) {
+    return {
+      edit: undefined,
+      warnings: [{ code: "image_edit_dropped", detail: `${resolution.model} lacks image-edit; generated without the avatar reference` }],
+    };
+  }
+  const { bytes } = await ctx.readAsset(p.caller, card.avatarAssetId);
+  // Identity-capable arm → the FACE reference channel (IPAdapter/PuLID); else the img2img init fallback. (`input`
+  // is non-null here — the `imageEdit !== true` guard above already returned when it was absent.)
+  const edit: AvatarReference = resolution.capability.input.imageIdentity === true ? { references: [bytes] } : { image: bytes };
+  return { edit, warnings: [] };
+}
+
+/** Step 7b — resolve the optional ControlNet pose pick (comfyui-control §4.12, C6d) to skeleton bytes: a
+ *  curated `poseRef` reads the shipped static skeleton via `readCuratedPose` (`null` ⇒ an unknown/removed ref,
+ *  dropped silently — the honest degrade for stale content); a BYO `poseAssetId` reads the caller's OWN pose
+ *  asset (owner-gated by `readAsset`). The bytes ride the executor's `edit.poseControl`; the ComfyUI arm
+ *  attaches ControlNet only when the curated role's family advertises the `pose` lever, else drops-with-warning
+ *  (the picker's presence is already capability-gated on that same signal — a pick never reaches a no-pose arm). */
+async function resolvePoseControl(ctx: ImageryContext, p: GeneratePictureParams): Promise<Uint8Array | undefined> {
+  const pose = p.pose;
+  if (pose === undefined) {
+    return;
+  }
+  if (pose.kind === "curated") {
+    return (await ctx.readCuratedPose(pose.poseRef)) ?? undefined;
+  }
+  return (await ctx.readAsset(p.caller, pose.poseAssetId)).bytes;
+}
+
+/** Compose the runner `edit` payload from the B3 avatar reference (identity `references[]` OR img2img `image`,
+ *  per the capability — comfyui-control §4.6) + the resolved pose control map (C6d). Absent both ⇒ `undefined`
+ *  (a plain txt2img). A pose-only pick yields `{ poseControl }` with NO init image — the ComfyUI arm falls back
+ *  to an empty latent (txt2img + ControlNet). */
+function composeEdit(reference: AvatarReference | undefined, poseControl: Uint8Array | undefined): ImageGenerateRequest["edit"] {
+  if (reference === undefined && poseControl === undefined) {
+    return;
+  }
+  return {
+    ...(reference?.image !== undefined ? { image: reference.image } : {}),
+    ...(reference?.references !== undefined ? { references: reference.references } : {}),
+    ...(poseControl !== undefined ? { poseControl } : {}),
+  };
+}
+
+/** The step-3 resolution the ORCHESTRATOR runs: a `prompt` override or `mode:"free"` is the user's literal
+ *  words (source "user", zero side-LLM spend); otherwise the extraction/caption lanes run (chatId required —
+ *  the shaper's history scope). */
+async function orchestratorPrompt(
+  resolvePrompt: ResolvePrompt,
+  p: GeneratePictureParams,
+): Promise<{ readonly prompt: string; readonly source: "user" | "extracted" | "captioned"; readonly costUsd: number | null }> {
+  const userPrompt = p.prompt?.trim() ?? "";
+  if (p.mode === "free") {
+    if (userPrompt.length === 0) {
+      throw new ImageryNotConfiguredError('imagery: "free" mode requires a prompt');
+    }
+    return { prompt: userPrompt, source: "user", costUsd: 0 };
+  }
+  if (userPrompt.length > 0) {
+    // A prompt override on a template mode — specific intent, used verbatim (no extraction, doc 02 §1 step 3).
+    return { prompt: userPrompt, source: "user", costUsd: 0 };
+  }
+  const chatId = p.chatId;
+  if (chatId === undefined) {
+    throw new ImageryNotConfiguredError(`imagery: mode "${p.mode}" requires a chatId for prompt extraction`);
+  }
+  return await resolvePrompt({ caller: p.caller, chatId, mode: p.mode, subjectCharacterId: p.subjectCharacterId });
+}
+
+/** The B2 hit path (doc 03 §4.4): rebuild the picture from a prior generation's stored rows — zero provider
+ *  calls, `costUsd: null`, `reused: true`. `promptSource` derives from the mode (the gate only fires with no
+ *  prompt override, so a portrait generation was captioned (multimodal) or extracted). */
+function reusedResult(mode: GeneratePictureParams["mode"], hits: readonly ReuseRow[], first: ReuseRow): GeneratedPicture {
+  const images = hits.map((h) => ({ assetId: h.assetId, generationId: h.generationId, block: buildBlock(h.assetId, h.prompt) }));
+  return {
+    images,
+    prompt: first.prompt,
+    promptSource: isMultimodalMode(mode) ? "captioned" : "extracted",
+    mode,
+    model: first.model,
+    costUsd: null,
+    reused: true,
+    warnings: [],
+  };
+}
+
+/** Step 2 (doc 03 §4.4): the B2 reuse gate + the identity hash the miss path stores. Runs only for a portrait
+ *  mode with a subject and no prompt override. Returns the hit picture (short-circuit) or null, plus the
+ *  `identityHash` the new rows store so the NEXT prefer-call hits. */
+async function reuseGate(
+  ctx: ImageryContext,
+  p: GeneratePictureParams,
+  subjectCharacterId: CharacterId | null,
+): Promise<{ readonly identityHash: string | null; readonly hit: GeneratedPicture | null }> {
+  const hasPromptOverride = (p.prompt?.trim() ?? "").length > 0;
+  if (subjectCharacterId === null || hasPromptOverride) {
+    return { identityHash: null, hit: null };
+  }
+  const card = await ctx.getCard(p.caller, subjectCharacterId);
+  const identityHash = identityHashFor(p.mode, subjectCharacterId, card.contentHash);
+  if ((p.reuse ?? "prefer") === "never") {
+    return { identityHash, hit: null };
+  }
+  const hits = await findReusableGeneration(ctx.db, { ownerId: p.caller.userId, subjectCharacterId, mode: p.mode, identityHash });
+  const first = hits[0];
+  return { identityHash, hit: first !== undefined ? reusedResult(p.mode, hits, first) : null };
+}
+
+/** The hash written to the generation's provenance: the internal subject-character gate's hash wins (portrait
+ *  modes own reuse); else, in `free` mode ONLY, an external consumer's precomputed hash (rpg-design/08 §2 — the
+ *  additive passthrough letting a non-character consumer's OWN reuse gate short-circuit via `readProvenance`);
+ *  null everywhere else (the additive-only guarantee — free/scenario/edit without a hash stay byte-identical). */
+function provenanceHash(gateHash: string | null, p: GeneratePictureParams): string | null {
+  return gateHash ?? (p.mode === "free" ? (p.identityHash ?? null) : null);
+}
+
+export function createGeneratePicture(ctx: ImageryContext, deps: { readonly resolvePrompt: ResolvePrompt }): ImageryService["generatePicture"] {
   return async (p: GeneratePictureParams): Promise<GeneratedPicture> => {
-    const prompt = p.prompt?.trim() ?? "";
-    if (prompt.length === 0) {
-      throw new ImageryNotConfiguredError(`imagery: mode "${p.mode}" requires a prompt in this phase (prompt extraction is not yet available)`);
+    // The subject the reuse gate + the provenance columns key on — only for a portrait mode carrying a subject.
+    const subjectCharacterId = isPortraitMode(p.mode) && p.subjectCharacterId !== undefined ? p.subjectCharacterId : null;
+    // Step 2: B2 reuse gate — a hit short-circuits before any provider call.
+    const gate = await reuseGate(ctx, p, subjectCharacterId);
+    if (gate.hit !== null) {
+      return gate.hit;
     }
-    const connection = await resolveConnection(ctx, p.caller);
-    const result = await ctx.generateImage({
-      credential: connection.credential,
-      model: connection.model,
-      prompt,
-      n: p.n ?? DEFAULT_IMAGE_COUNT,
-    });
-    const decoded = (await Promise.all(result.images.map((img) => materialize(ctx, img)))).filter((d): d is DecodedImage => d !== null);
-    if (decoded.length === 0) {
-      throw new GenerationFailedError("imagery: the image provider returned zero decodable images");
-    }
-    const images: GeneratedPictureImage[] = [];
-    for (const img of decoded) {
-      images.push(
-        // biome-ignore lint/performance/noAwaitInLoops: intentionally sequential — store-then-provenance ordering (step 10 above).
-        await persistImage(ctx, {
-          caller: p.caller,
-          chatId: p.chatId ?? null,
-          mode: p.mode,
-          prompt,
-          model: result.model,
-          costUsd: result.usage.costUsd,
-          img,
-        }),
-      );
-    }
-    await ctx.recordStats(
-      buildDelta({
+    const identityHash = provenanceHash(gate.identityHash, p);
+
+    // Step 3: resolve the prompt (user | captioned | extracted).
+    const resolved = await orchestratorPrompt(deps.resolvePrompt, p);
+    // Step 4: prefix belt — re-assert the mode's required opening on an extracted/captioned prompt; a user's
+    // literal words are used verbatim.
+    const prompt = resolved.source === "user" ? resolved.prompt : ensurePrefix(resolved.prompt, p.mode);
+    // Step 5: compose negative (DEFAULT_NEGATIVE + user's, appended) + size (preset or the mode default).
+    const negativePrompt = composeNegative(p.negative);
+    const size = SIZE_PRESETS[p.size ?? defaultSizeFor(p.mode)];
+
+    // Step 6: resolve role + capability (one resolution — the B3 gate + the request build read the same model).
+    const resolution = await resolveGenerateImageOrThrow(ctx, p.caller);
+    // Step 7: B3 avatar-reference gate — an init image (or a drop-with-warning when the model can't edit).
+    const reference = await avatarReferenceGate(ctx, p, { model: resolution.connection.model, capability: resolution.capability }, subjectCharacterId);
+    // Step 7b: resolve the optional ControlNet pose pick to bytes (C6d). Composed with the B3 init image into
+    // ONE edit payload — a pose-only pick carries just `poseControl` (no init ⇒ the arm drives txt2img+controlnet).
+    const edit = composeEdit(reference.edit, await resolvePoseControl(ctx, p));
+
+    // Steps 8-12: the shared generation tail (generate → materialize → store+provenance → stats).
+    const outcome = await runGeneration(
+      ctx,
+      {
+        credential: resolution.connection.credential,
+        model: resolution.connection.model,
+        owner: p.caller.userId,
+        prompt,
+        n: p.n ?? DEFAULT_IMAGE_COUNT,
+        negativePrompt,
+        size,
+        ...(edit !== undefined ? { edit } : {}),
+        // MA-8: the diffusion knobs ride to the runner; a source lacking `capability.imageGen` ignores them.
+        ...(p.params !== undefined ? { imageParams: p.params } : {}),
+        // Forward the resolved capability the B3 gate read so the runner's belt sees the SAME model and conditions
+        // on the avatar reference (rather than stripping it + falsely warning on an edit-capable model).
+        capability: resolution.capability,
+      },
+      {
         caller: p.caller,
-        model: result.model,
-        costUsd: result.usage.costUsd,
-        count: images.length,
-        now: ctx.now(),
-      }),
+        chatId: p.chatId ?? null,
+        mode: p.mode,
+        subjectCharacterId,
+        identityHash,
+        prompt,
+        negativePrompt,
+        edited: reference.edit !== undefined,
+      },
     );
     return {
-      images,
+      images: outcome.images,
       prompt,
-      promptSource: "user",
+      promptSource: resolved.source,
       mode: p.mode,
-      model: result.model,
-      costUsd: result.usage.costUsd,
+      model: outcome.model,
+      // The returned total sums the extraction/caption spend (metered by chat's shaper, a different model
+      // bucket) with the generation spend (recorded in stats by runGeneration).
+      costUsd: sumCost(resolved.costUsd, outcome.costUsd),
       reused: false,
-      warnings: [],
+      // B3's drop warning + any runner edit-strip belt warning that flowed up (doc 03 §2).
+      warnings: [...reference.warnings, ...outcome.warnings],
     };
   };
 }

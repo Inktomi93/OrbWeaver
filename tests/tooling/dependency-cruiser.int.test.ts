@@ -32,8 +32,7 @@ const CONFIG = ((await import("../../.dependency-cruiser.cjs")) as { default: Dc
 // The rules to test = EVERY active rule in the config (derived, NOT hardcoded). Deriving from the config
 // is the anti-drift guard: add a rule to .dependency-cruiser.cjs without a fixture below and its case
 // here fires with nothing → FAILS. (recommended-strict's inherited rules aren't in our `forbidden`
-// literal, so they're out of scope — dep-cruiser ships them tested.) `no-orphans` is severity "ignore"
-// (disabled until code lands) so it's excluded.
+// literal, so they're out of scope — dep-cruiser ships them tested.)
 const ACTIVE_RULES = [...(CONFIG.forbidden ?? []), ...(CONFIG.required ?? [])].filter((r) => r.severity !== "ignore").map((r) => r.name);
 
 const ROOT = join(import.meta.dirname, "..", "..");
@@ -61,6 +60,10 @@ let fixtureFiles = new Set<string>();
 
 function writeAllFixtures(): void {
   const S = "packages/server/src";
+  // no-orphans: a module nothing imports and that imports nothing — the rule's own fixture. Without it the
+  // case only passed when the REAL tree happened to carry an orphan (for months: leaked `__g_*` gate-test
+  // fixtures); a genuinely clean tree made it flake red (2026-07-17).
+  fx(`${S}/__dc_orphan.ts`, VAL);
   // shared targets (value exports the violating imports point at)
   fx(`${S}/foundation/__dc/target.ts`, VAL);
   fx("packages/db/src/__dc/target.ts", VAL);
@@ -74,6 +77,13 @@ function writeAllFixtures(): void {
   fx("packages/kit/src/__dc/up.ts", `import "../../../server/src/foundation/__dc/target.ts";\n`);
   fx("packages/kit/src/__dc/node.ts", `import "node:fs";\n`);
   fx("packages/contracts/src/__dc/up.ts", `import "../../../db/src/__dc/target.ts";\n`);
+  // bus-contract-no-credentials (D16): a bus-event contract module reaching into the secret-bearing
+  // credentials module — the type-import path a producer would use to smuggle apiKey/ResolvedCredential
+  // onto the wire. `../credentials/index.ts` is the real module (always present).
+  fx(
+    "packages/contracts/src/chat/__dc_buscred.ts",
+    `import type { ResolvedCredential } from "../credentials/index.ts";\nexport type X = ResolvedCredential;\n`,
+  );
   fx("packages/db/src/__dc/up.ts", `import "../../../server/src/foundation/__dc/target.ts";\n`);
   fx(`${S}/foundation/__dc/toclient.ts`, `import "../../../../client/src/__dc/target.ts";\n`);
   fx("packages/client/src/__dc/value.ts", `import { t } from "../../../server/src/foundation/__dc/target.ts";\nexport const u = t;\n`);

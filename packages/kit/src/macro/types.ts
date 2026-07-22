@@ -1,3 +1,5 @@
+import type { CelBindings } from "#cel";
+
 export type MacroAST = MacroNode[];
 
 export type MacroNode = TextNode | MacroCallNode | MacroBlockNode;
@@ -7,6 +9,75 @@ export interface TextNode {
   value: string;
 }
 
+/** The source position of a macro call (`{{…}}` as typed). `offset`/`length` are byte-exact against the
+ *  render input; `line`/`col` are 1-based, computed from `offset` at parse. Powers `MacroDiagnostic`
+ *  (metadata.ts) — the editor renders the squiggle here, assembly threads it into `AssembleTrace`. */
+export interface MacroSpan {
+  readonly offset: number;
+  readonly line: number;
+  readonly col: number;
+  readonly length: number;
+}
+
+/** A single macro-DX diagnostic — an arg-validation / parse / expr failure carrying the source span of
+ *  the offending macro call so editors render it inline and assembly threads it into `AssembleTrace`
+ *  (02 §5). Lives here (not metadata.ts) because MacroContext's diagnostics sink references it and only
+ *  needs MacroSpan — keeping the metadata.ts → types.ts import one-directional. */
+export interface MacroDiagnostic {
+  readonly severity: "error" | "warning";
+  readonly code: "unknown-macro" | "bad-arity" | "bad-arg-type" | "unclosed-block" | "budget-exceeded" | "expr-error";
+  readonly message: string;
+  readonly span: MacroSpan;
+}
+
+// ── macro-DX vocabulary (02 §5) ──────────────────────────────────────────────────────────────────
+// The metadata type surface + the category union home here (with the other macro types) so both the
+// registry (types.ts's MacroRegisterOptions/MacroRegistry) and the DX functions (metadata.ts:
+// validateMacroArgs/queryMacros) reference them without an import cycle — metadata.ts imports DOWN
+// from here only.
+
+export const MACRO_CATEGORIES = [
+  "identity", // char/user/group…
+  "card", // description/personality/…
+  "conversation", // input/lastMessage/…
+  "variables", // getvar/setvar/getglobalvar/…
+  "time", // date/time/isodate/…
+  "random", // roll/random/pick…
+  "expression", // expr
+  "system", // memory/compact_summary/guided_instruction/original/structural…
+] as const;
+export type MacroCategory = (typeof MACRO_CATEGORIES)[number];
+
+/** One positional argument of a macro. `optional` + `default` drive the arity check and the browser copy. */
+export interface MacroArgDef {
+  readonly name: string;
+  readonly type: "string" | "number" | "boolean";
+  readonly optional: boolean;
+  readonly default?: string;
+  readonly description?: string;
+}
+
+/** The FULL browser/autocomplete record for a macro. `volatile` is composed by the registry from the
+ *  `registerVolatileMacros` set (never hand-authored — see 02 §5 reconciliation note + registry.ts). */
+export interface MacroMetadata {
+  readonly name: string;
+  readonly description: string; // one sentence; the autocomplete/browser copy
+  readonly category: MacroCategory;
+  readonly args: readonly MacroArgDef[];
+  readonly returnType: "string"; // macros always render string; field exists for browser display of intent
+  readonly aliases: readonly string[]; // alternate registered spellings of the same macro
+  /** Accepts an unbounded tail of args (`{{random::a::b::c}}`, `{{pick}}`) — suppresses the too-many
+   *  arity diagnostic and validates the tail against the last arg def. */
+  readonly variadic: boolean;
+  /** Renders a different value across calls/turns (time/random/conversation/var-mutation) — the assembly
+   *  cache-buster trace reads this. DERIVED from the volatile registration path, never authored here. */
+  readonly volatile: boolean;
+}
+
+/** The AUTHORED metadata shape — everything except `volatile`, which the registry composes from the
+ *  `registerVolatileMacros` membership so a second volatile list can never drift (D51). */
+export type MacroMetadataInput = Omit<MacroMetadata, "volatile">;
+
 export interface MacroCallNode {
   type: "macro";
   name: string;
@@ -15,6 +86,9 @@ export interface MacroCallNode {
    *  for unrecognized macros, since parsed args normalize colon/whitespace forms. Absent →
    *  reconstructed `{{name::args}}` fallback. */
   raw?: string;
+  /** Positional span of this call — offset/line/col/length (02 §5 diagnostics). Set by the parser;
+   *  absent on hand-built AST nodes (tests/callers that construct nodes directly). */
+  span?: MacroSpan;
 }
 
 export interface MacroBlockNode {
@@ -25,6 +99,8 @@ export interface MacroBlockNode {
   /** Original source span of the OPEN tag (`{{#name args}}` as typed) — same re-emission
    *  rationale as MacroCallNode.raw. */
   raw?: string;
+  /** Positional span of the OPEN tag — same rationale as MacroCallNode.span. */
+  span?: MacroSpan;
 }
 
 /** A macro's runtime variable bag (the `{{get}}`/`{{if}}` key→value store). Values are `unknown`:
@@ -41,6 +117,14 @@ export type VarOp =
   | { readonly op: "inc"; readonly key: string }
   | { readonly op: "dec"; readonly key: string }
   | { readonly op: "delete"; readonly key: string };
+
+/** One `{{setglobalvar}}` write collected during a render (D46, 02 §4). UNLIKE {@link VarOp}, globals are
+ *  NOT variant-scoped — these are drained + upserted into the per-user `global_variables` plane at TURN
+ *  COMMIT, last-write-wins; a swipe never rewinds a global. */
+export interface GlobalVarWrite {
+  readonly key: string;
+  readonly value: string;
+}
 
 export interface MacroContext {
   char: string;
@@ -80,6 +164,11 @@ export interface MacroContext {
   // The {{databank}} slot — undefined ⇒ nothing retrieved ⇒ the marker renders empty
   // (byte-identical non-databank turn).
   databank?: string | undefined;
+  // The 8 rpg* data-fed macros (rpg-design/06 §1) — a game turn's GATHER stages this map, keyed by the
+  // RpgGatherMacros field names ({{rpgWorld}}/{{rpgSceneState}}/…). Each rpg macro reads its value or "".
+  // ONE map (not 8 fields) so the channel is a single seam; a non-game chat / unstaged turn ⇒ every rpg
+  // macro renders empty (byte-identical non-game turn).
+  rpgMacros?: Readonly<Record<string, string>> | undefined;
   // Run-environment shortcuts (legacy card-format compat). Threaded by the chat send/assembly path.
   model?: string | undefined; // → {{model}}
   chatId?: string | undefined; // → {{chatId}}
@@ -107,6 +196,28 @@ export interface MacroContext {
   // decvar/deletevar handlers push each op here in addition to applying it to `env`; absent ⇒
   // no recording (assembly-only re-renders, config-plane previews, tests).
   opLog?: VarOp[];
+  // Global-variable plane (D46, 02 §4) — a SEPARATE store from `env` (runtime vars): cross-chat,
+  // single-owned, NOT variant-scoped. `globalVars` is the author's staged globals (a read cache the
+  // domain fetches before render); `{{getglobalvar}}` reads it. `{{setglobalvar}}` collects writes onto
+  // `globalVarWrites` AND reflects them into `globalVars` (so a later same-render `{{getglobalvar}}` sees
+  // them) — the domain drains + upserts the writes at TURN COMMIT (last-write-wins; a swipe never rewinds).
+  globalVars?: Record<string, string>;
+  globalVarWrites?: GlobalVarWrite[];
+  // The CEL activation the `{{expr::…}}` macro evaluates against (02 §3) — the §1 env minus `event`
+  // (vars/choice/global/chat/now), staged by the assembler/dispatcher. Absent ⇒ `{{expr}}` evaluates
+  // against an empty binding (any field reference then errors → "" + an expr-error diagnostic).
+  celBindings?: CelBindings;
+  // The span of the macro call CURRENTLY being handled — set by the evaluator right before invoking a
+  // handler so a handler that emits diagnostics ({{expr::…}}) can locate itself. @internal.
+  __currentSpan?: MacroSpan | undefined;
+  // Arg-validation mode (02 §5). `true` → a bad-arity/bad-arg-type call renders "" + an `error`
+  // diagnostic (the rule/template EDITORS hold new authorship to the bar); `false`/undefined
+  // (default) → best-effort render + a `warning` diagnostic (imported ST content is sloppy).
+  strictArgs?: boolean;
+  // Optional diagnostics sink — mirrors `opLog`. When present, the evaluator pushes each
+  // MacroDiagnostic (unknown-macro under strict, arg-validation, {{expr}} errors) here; absent ⇒
+  // no collection (the vast majority of render callers). Editors/assembly pass an array and read it.
+  diagnostics?: MacroDiagnostic[];
   // Defense-in-depth budget — capped recursion depth + total output size so a malicious card
   // (`{{setvar::a::{{a}}}}` and friends) can't DoS the renderer. Initialized in createMacroContext;
   // exposed here so the evaluator + handler wrappers share one bucket.
@@ -141,6 +252,12 @@ export type MacroHandler = (args: string[], ctx: MacroContext, children?: MacroA
 export interface MacroRegisterOptions {
   delayArgResolution?: boolean;
   volatile?: boolean;
+  /** The macro-DX browser/validation record (02 §5) — REQUIRED for new (extension) registrations; the
+   *  builtin set is backfilled in registry.ts so no metadata-less macro survives (a completeness test
+   *  is the enforcer). AUTHORED shape (no `volatile`): the registry composes `volatile` from this
+   *  macro's `volatile` option so the two can't drift. Optional here only because the restricted freeze
+   *  registries (names-only / volatile-only) re-register the same names without DX metadata. */
+  metadata?: MacroMetadataInput;
   /** What runtime context this macro needs to resolve to a REAL value (as opposed to falling
    *  back to an empty string or a placeholder name):
    *    "char" — needs character context (name, description, personality, scenario, persona, …)
@@ -160,7 +277,17 @@ export interface MacroRegistry {
    *  variable mutations, conversation-context lookups). prompt-assemble uses this to detect
    *  cache-busters in static-half templates without a parallel hand-maintained list. */
   volatileNames: () => string[];
+  /** Every registered macro name (lowercase lookup keys). The metadata-completeness gate cross-checks
+   *  this against `getMetadata` so no registered macro ships without DX metadata (02 §5). */
+  names: () => string[];
   /** Returns the registered `requires` flag for a macro, or undefined if context-free. Preview
    *  uses this to mark "this macro was substituted with a placeholder, not real data". */
   requirementsOf: (name: string) => "chat" | "char" | undefined;
+  /** The composed DX metadata for a macro (02 §5) — the authored record plus `volatile` DERIVED from
+   *  the registration's `volatile` option (one volatile home, D51). Undefined for names registered
+   *  without metadata (the restricted freeze registries). */
+  getMetadata: (name: string) => MacroMetadata | undefined;
+  /** Every macro's composed metadata (for `queryMacros` / the browser). Order-unspecified; the query
+   *  sorts by name. */
+  allMetadata: () => readonly MacroMetadata[];
 }

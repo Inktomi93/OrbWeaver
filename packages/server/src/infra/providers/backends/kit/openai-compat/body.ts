@@ -21,6 +21,7 @@ export interface OpenAiSamplingInput {
   readonly presencePenalty?: number | undefined;
   readonly repetitionPenalty?: number | undefined;
   readonly minP?: number | undefined;
+  readonly topA?: number | undefined;
   readonly seed?: number | undefined;
   readonly logitBias?: Readonly<Record<string, number>> | undefined;
   readonly stop?: readonly string[] | undefined;
@@ -30,6 +31,25 @@ export interface OpenAiSamplingInput {
 // Header-name patterns that mark a secret (hoisted per useTopLevelRegex — runs per redaction).
 const SECRET_HEADER_RE = /authorization|api[-_]?key|token|secret/i;
 const REDACTED = "«redacted»";
+
+// Shape-based fallbacks for the inspector body-preview scrub (hoisted; run per inspection). These are
+// DEFENSE-IN-DEPTH only — the primary guarantee is scrubbing the KNOWN secret literals by value. They
+// catch the case where an echoing endpoint re-encodes/reshapes the token around a recognizable frame we
+// still hold no exact literal for. The token class is CREDENTIAL chars only (`\w.\-+/=`) — it deliberately
+// STOPS at a quote / JSON delimiter / whitespace so a reflected token inside a JSON body doesn't swallow
+// the surrounding structure (and won't re-consume the `«redacted»` sentinel a prior literal-scrub left).
+// Single bounded class, no nesting → ReDoS-safe.
+const BEARER_TOKEN_RE = /Bearer\s+[\w.\-+/=]+/gi;
+const SK_KEY_RE = /sk-[A-Za-z0-9_-]{16,}/g;
+// A secret literal shorter than this is too collision-prone to blind-replace across arbitrary text (it
+// would redact legitimate content). Real provider keys are far longer; a 1–7 char "key" isn't one.
+const MIN_SCRUBBABLE_SECRET_LEN = 8;
+
+// Escape a literal for use inside a RegExp (the secrets are user-supplied endpoint credentials).
+const REGEXP_META_RE = /[.*+?^${}()|[\]\\]/g;
+function escapeRegExp(literal: string): string {
+  return literal.replace(REGEXP_META_RE, "\\$&");
+}
 
 /**
  * Build the OpenAI sampler slice in WIRE (snake_case) form. Each field is emitted ONLY when set on the
@@ -46,6 +66,7 @@ export function buildOpenAiSamplingFields(input: OpenAiSamplingInput): Record<st
     ...(input.presencePenalty !== undefined ? { presence_penalty: input.presencePenalty } : {}),
     ...(input.repetitionPenalty !== undefined ? { repetition_penalty: input.repetitionPenalty } : {}),
     ...(input.minP !== undefined ? { min_p: input.minP } : {}),
+    ...(input.topA !== undefined ? { top_a: input.topA } : {}),
     ...(input.seed !== undefined ? { seed: input.seed } : {}),
     ...(input.logitBias !== undefined ? { logit_bias: input.logitBias } : {}),
     ...(input.stop !== undefined ? { stop: input.stop } : {}),
@@ -143,6 +164,46 @@ export function redactHeaders(headers: Readonly<Record<string, string>>): Record
     out[key] = SECRET_HEADER_RE.test(key) ? REDACTED : value;
   }
   return out;
+}
+
+/** The secret-valued entries of a header map: the VALUE of every header whose NAME hints at a key/token/
+ *  secret (the same signal {@link redactHeaders} masks by). These are the exact literals a raw-body scrub
+ *  must strip if an endpoint echoes them back. */
+export function secretHeaderValues(headers: Readonly<Record<string, string>> | null): string[] {
+  if (headers === null) {
+    return [];
+  }
+  const out: string[] = [];
+  for (const [key, value] of Object.entries(headers)) {
+    if (SECRET_HEADER_RE.test(key) && value.length > 0) {
+      out.push(value);
+    }
+  }
+  return out;
+}
+
+/**
+ * Scrub secret material out of an UNTRUSTED response body before it becomes display-eligible (the BYO
+ * "Test endpoint" inspector's `bodyPreview`). An endpoint that echoes the request — httpbin, a debug proxy,
+ * a misconfigured BYO server — reflects the plaintext `Authorization: Bearer <apiKey>` (and any custom auth
+ * header value) straight back into the body, so the raw body is a secret sink.
+ *
+ * PRIMARY guarantee: every known secret LITERAL in `secrets` is replaced by value — an endpoint cannot leak
+ * a secret we scrubbed by its exact value, regardless of surrounding framing. DEFENSE-IN-DEPTH: `Bearer …`
+ * and `sk-…`-shaped substrings are also masked in case the token is re-encoded/reshaped on the way back.
+ * Literals shorter than {@link MIN_SCRUBBABLE_SECRET_LEN} are skipped (too collision-prone to blind-replace
+ * — they'd redact legitimate content, and a string that short is not a real credential).
+ */
+export function redactSecretsFromText(text: string, secrets: readonly string[]): string {
+  let scrubbed = text;
+  // Longest-first so a secret that is a substring of another is handled by the longer replacement first.
+  const literals = [...new Set(secrets)].filter((s) => s.length >= MIN_SCRUBBABLE_SECRET_LEN).sort((a, b) => b.length - a.length);
+  for (const secret of literals) {
+    scrubbed = scrubbed.replace(new RegExp(escapeRegExp(secret), "g"), REDACTED);
+  }
+  scrubbed = scrubbed.replace(BEARER_TOKEN_RE, `Bearer ${REDACTED}`);
+  scrubbed = scrubbed.replace(SK_KEY_RE, REDACTED);
+  return scrubbed;
 }
 
 /**

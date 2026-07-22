@@ -41,6 +41,17 @@ async function guardAvatarOwned(
   }
 }
 
+/** The V3 content promotions defaulted from the wire input — extracted so `cardFromInput` stays under the
+ *  cognitive-complexity gate. */
+function promotionsFromInput(input: CreateCharacterParams["input"]): Pick<CharacterCard, "nickname" | "source" | "creationDate" | "modificationDate"> {
+  return {
+    nickname: input.nickname ?? null,
+    source: input.source ?? null,
+    creationDate: input.creationDate ?? null,
+    modificationDate: input.modificationDate ?? null,
+  };
+}
+
 /** Apply the wire input's defaults → the full `CharacterCard` to flatten + insert. Extracted (like
  *  `provenanceColumns`/`guardAvatarOwned`) to keep the verb closure under the cognitive-complexity gate. */
 function cardFromInput(input: CreateCharacterParams["input"]): CharacterCard {
@@ -57,6 +68,7 @@ function cardFromInput(input: CreateCharacterParams["input"]): CharacterCard {
     creatorNotes: input.creatorNotes ?? null,
     creator: input.creator ?? null,
     cardVersion: input.cardVersion ?? null,
+    ...promotionsFromInput(input),
     regexScripts: input.regexScripts ?? [],
     extensions: input.extensions ?? null,
     residualData: input.residualData ?? null,

@@ -4,8 +4,9 @@
 
 import { randomUUID } from "node:crypto";
 import { performance } from "node:perf_hooks";
+import type { Principal } from "@orb/contracts/identity";
 import type { ErrorHandler, MiddlewareHandler } from "hono";
-import { getLog, getRequestUserId, recordRequest, runInRequest } from "./logger";
+import { bindRequestUser, getLog, getRequestUserId, recordRequest, runInRequest } from "./logger";
 import { recordThrownRequest, withRequestSpan } from "./tracing";
 
 const DEBUG_PREFIX = "/api/_debug";
@@ -46,6 +47,17 @@ export const observability: MiddlewareHandler = (c, next) => {
       return;
     }
     const path = redactSensitivePath(rawPath);
+
+    // Bind the already-resolved caller onto the request-scoped logger so every line emitted during this
+    // request (and the request-ring record below) carries userId/handle. The auth middleware runs BEFORE
+    // this one (app.ts middleware order) and set the Principal on the Hono context; the logger scope only
+    // opens here (runInRequest above), so the bind must happen inside it, not at auth-resolution time. The
+    // context accessor is untyped at this tier (foundation can't import the app's Hono Env) — read it via a
+    // narrow structural cast. Anonymous requests leave the Principal null → no bind (userId stays absent).
+    const principal = (c as { get: (key: "principal") => Principal | null | undefined }).get("principal");
+    if (principal !== null && principal !== undefined) {
+      bindRequestUser(principal.userId, principal.handle);
+    }
 
     await withRequestSpan(requestId, `http ${method} ${path}`, { "http.method": method, "http.path": path }, async () => {
       await next();

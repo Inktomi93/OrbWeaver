@@ -17,7 +17,7 @@
 import { on } from "node:events";
 import type { Principal } from "@orb/contracts/identity";
 import { scheduleCadenceSchema, workloadKindSchema, workloadModeSchema, workloadStatusSchema } from "@orb/contracts/workloads";
-import type { UserId, WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
+import type { ChatId, UserId, WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import type { TrackedEnvelope } from "@trpc/server";
 import { tracked } from "@trpc/server";
@@ -69,6 +69,8 @@ export const workloadsRouter = t.router({
     .input(z.object({ id: brandedId<WorkloadId>() }))
     .mutation(({ ctx, input }) => ctx.services.workloads.retry({ id: input.id, caller: ctx.auth })),
 
+  // @test-fixture: the cross-tenant sweep's IDOR probe target — no client panel reads a single workload by
+  // id (the client drives off `list`); the sweep needs this id-taking read to prove owner-scoping.
   get: authedProcedure
     .input(z.object({ id: brandedId<WorkloadId>() }))
     .query(({ ctx, input }) => ctx.services.workloads.get({ id: input.id, caller: ctx.auth })),
@@ -79,6 +81,7 @@ export const workloadsRouter = t.router({
         .object({
           kind: workloadKindSchema.optional(),
           status: workloadStatusSchema.optional(),
+          chatId: brandedId<ChatId>().optional(),
           since: z.number().optional(),
           limit: z.number().optional(),
         })
@@ -89,6 +92,7 @@ export const workloadsRouter = t.router({
         caller: ctx.auth,
         ...(input?.kind !== undefined ? { kind: input.kind } : {}),
         ...(input?.status !== undefined ? { status: input.status } : {}),
+        ...(input?.chatId !== undefined ? { chatId: input.chatId } : {}),
         ...(input?.since !== undefined ? { since: input.since } : {}),
         ...(input?.limit !== undefined ? { limit: input.limit } : {}),
       }),

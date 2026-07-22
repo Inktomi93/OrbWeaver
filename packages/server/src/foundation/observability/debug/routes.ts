@@ -121,6 +121,13 @@ export interface AdminAuthChecker {
   isAdmin: (headers: Headers) => Promise<boolean>;
 }
 
+/** The rpg flight-recorder read port (R-OBS) — structural-injection so foundation accepts `domain/rpg`'s ring
+ *  recorder without importing it (the `AssetInspector` precedent). Returns `object[]` so no rpg type crosses the
+ *  boundary; the records serialize straight to JSON. Host-only via the debug gate; read-only (D75). */
+export interface RpgTraceInspector {
+  recent: (filter: { chatId?: string; turnId?: string; limit?: number }) => readonly object[];
+}
+
 /** Gate config. Tests construct the middleware directly; production wires it via `registerDebugRoutes`. */
 export interface DebugAuthOptions {
   expectedToken: string | undefined;
@@ -133,6 +140,8 @@ export interface DebugAuthOptions {
 export interface DebugRoutesOptions {
   db?: Db;
   assets?: AssetInspector;
+  /** The rpg flight-recorder read port (R-OBS). Absent ⇒ the /rpg/traces route is not registered (tracing off). */
+  rpgTrace?: RpgTraceInspector;
   auth?: DebugAuthOptions | string;
 }
 
@@ -165,7 +174,7 @@ export const debugAuthMiddleware: MiddlewareHandler = createDebugAuthMiddleware(
 
 /** Register the /api/_debug/* introspection routes on `app` behind the auth gate. */
 export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = {}): void {
-  const { db, assets, auth = env.DEBUG_TOKEN } = options;
+  const { db, assets, rpgTrace, auth = env.DEBUG_TOKEN } = options;
   app.use("/api/_debug/*", createDebugAuthMiddleware(auth));
 
   app.get("/api/_debug/info", (c) =>
@@ -228,5 +237,19 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = {})
   }
   if (assets !== undefined) {
     app.get("/api/_debug/db/assets", async (c) => c.json(await assets.fsck()));
+  }
+  if (rpgTrace !== undefined) {
+    // The rpg flight recorder (R-OBS): the per-turn trace stream, filterable by `chatId` (a chat's events) or
+    // `turnId` (one turn's tool + staging events). Host-only introspection, no table (D75).
+    app.get("/api/_debug/rpg/traces", (c) => {
+      const chatId = c.req.query("chatId");
+      const turnId = c.req.query("turnId");
+      const events = rpgTrace.recent({
+        ...(chatId !== undefined ? { chatId } : {}),
+        ...(turnId !== undefined ? { turnId } : {}),
+        limit: toLimit(c.req.query("limit"), DEFAULT_LIST_LIMIT),
+      });
+      return c.json({ count: events.length, events });
+    });
   }
 }

@@ -209,6 +209,43 @@ function localLightArm(ctx: ConnectionContext, params: GetModelsForSourceParams)
   };
 }
 
+/** First-party Anthropic (W11) — no server-side catalog (there is no anthropic model snapshot); the user
+ *  enters a dated Anthropic id as free text (the resolver's 3-stage prefix match handles both spellings).
+ *  Key-presence only, never a fetch: keyed → ok, else needs-key. Chat-only (the client only offers it there). */
+async function anthropicArm(ctx: ConnectionContext, params: GetModelsForSourceParams): Promise<SourceModelsResult> {
+  const keyed = await hasCredential(ctx, params);
+  return {
+    state: keyed ? "ok" : "needs-key",
+    models: [],
+    fetchedAt: null,
+    defaultModelId: null,
+    allowsFreeText: true,
+  };
+}
+
+/** Hosted Venice image generation (MA-1) — no zero-fetch server catalog (a live Venice `/models?type=image`
+ *  call would need its own probe verb, out of scope). The user enters a Venice model id as free text
+ *  (`gpt-image-2`, `qwen-image-2`, …). Key-presence only, never a fetch: keyed → ok, else needs-key.
+ *  generateImage-only (the client only offers it there). */
+async function veniceArm(ctx: ConnectionContext, params: GetModelsForSourceParams): Promise<SourceModelsResult> {
+  const keyed = await hasCredential(ctx, params);
+  return {
+    state: keyed ? "ok" : "needs-key",
+    models: [],
+    fetchedAt: null,
+    defaultModelId: null,
+    allowsFreeText: true,
+  };
+}
+
+/** Local ComfyUI image generation (MA-8/D96) — KEYLESS; the endpoint is owner-configured (env), so there is no
+ *  key to check here. The checkpoint list is LIVE (the separate `probeComfyui` verb hits `/object_info`), never
+ *  a zero-fetch catalog — so this arm returns `needs-probe` (the client probes on picker open) with NO free
+ *  text (a checkpoint must be a real installed name). generateImage-only (the client only offers it there). */
+function comfyuiArm(): SourceModelsResult {
+  return { state: "needs-probe", models: [], fetchedAt: null, defaultModelId: null, allowsFreeText: false };
+}
+
 export function createGetModelsForSource(ctx: ConnectionContext): ConnectionService["getModelsForSource"] {
   return (params: GetModelsForSourceParams): Promise<SourceModelsResult> => {
     switch (params.source) {
@@ -216,6 +253,12 @@ export function createGetModelsForSource(ctx: ConnectionContext): ConnectionServ
         return openrouterArm(ctx, params);
       case "max-pro-sub":
         return maxProSubArm(ctx, params);
+      case "anthropic":
+        return anthropicArm(ctx, params);
+      case "venice":
+        return veniceArm(ctx, params);
+      case "comfyui":
+        return Promise.resolve(comfyuiArm());
       case "custom_openai":
         return customOpenAiArm(ctx, params);
       case "vllm":

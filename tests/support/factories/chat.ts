@@ -50,6 +50,7 @@ export function makeChat(overrides: Partial<ChatRow> = {}): ChatRow {
     metadata: null,
     variableValues: null,
     runtimeVariables: null,
+    standaloneVariableDeltas: null,
     importedFrom: null,
     importHash: null,
     createdAt: FROZEN_AT_MS,

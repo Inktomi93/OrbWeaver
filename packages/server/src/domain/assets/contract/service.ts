@@ -3,21 +3,24 @@
 // `principal.userId`; maintenance verbs are un-principal (CLI/workload/DR callers only).
 
 import type { EmitDomainEvent } from "@orb/contracts/events";
+import type { Principal } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
-import type { AssetId, CharacterId, ChatId, GalleryItemId, UserId } from "@orb/kit/ids";
-import type { ImageTransformOptions } from "#infra/image";
+import type { AssetId, CharacterId, ChatId, GalleryItemId, PoseLibraryId, UserId } from "@orb/kit/ids";
+import type { ImageInfo, ImageTransformOptions } from "#infra/image";
 import type { Cas, VariantCache } from "#infra/storage";
 import type { BackfillParams, BackfillResult, FsckOptions, FsckResult, GcOptions, GcResult, ReapResult, RebuildOptions, RebuildResult } from "./maintenance";
 import type {
   GalleryAddParams,
   GalleryListParams,
   GetMetadataParams,
+  ImportPosesParams,
   ListOwnedParams,
+  ListOwnedPosesParams,
   RemoveFromGalleryParams,
   ResolveVariantParams,
   StoreParams,
 } from "./params";
-import type { AssetCasRef, AssetMetadata, StoredAsset } from "./results";
+import type { AssetCasRef, AssetMetadata, ImportPosesResult, OwnedAssetBytes, OwnedPose, StoredAsset } from "./results";
 import type { AssetBlobRef, AssetListItem, GalleryItemView } from "./views";
 
 /** The DI bundle every assets verb closes over (wired at `service.ts`); explicit interface, not `ReturnType<>`. */
@@ -30,6 +33,10 @@ export interface AssetsContext {
   readonly now: () => number;
   readonly newAssetId: () => AssetId;
   readonly newGalleryItemId: () => GalleryItemId;
+  readonly newPoseLibraryId: () => PoseLibraryId;
+  /** Decode an image to its dims/format (the sealed sharp adapter's `probe`) — the BYO pose import computes a
+   *  skeleton's orientation from its dimensions (C6c). Rejects non-image bytes (sharp throws). */
+  readonly imageProbe: (bytes: Uint8Array) => Promise<ImageInfo>;
   /** Roster-avatar reference-check (NOT a hash→any-owner oracle): returns the asset's owner only if the
    *  hash is an avatar/attachment the caller may render in a shared chat; `undefined` otherwise. Optional. */
   readonly loadCoParticipantOwner?: (callerId: UserId, hash: string) => Promise<UserId | undefined>;
@@ -54,6 +61,10 @@ export interface AssetsService {
   readonly resolveVariant: (params: ResolveVariantParams) => Promise<Uint8Array | undefined>;
   /** The image-embed canon re-reader: CAS bytes of an asset by id alone, no owner gate (system re-reader). */
   readonly loadAssetBytes: (assetId: AssetId) => Promise<Uint8Array | null>;
+  /** Owner-gated byte read (EC-B): the CALLER'S OWN asset bytes + mime by id — imagery caption/edit source,
+   *  expressions sheet re-read, rpg, databank. Throws AssetNotFoundError when missing OR not the caller's
+   *  (collapsed, leak-free). NOT `loadAssetBytes` — that is the un-principal indexer read (D20). */
+  readonly readOwnedAssetBytes: (caller: Principal, assetId: AssetId) => Promise<OwnedAssetBytes>;
   /** Resolve an asset's `(ownerId, hash, mime)` from its row id alone — un-principal, pure row lookup. */
   readonly assetCasRefById: (assetId: AssetId) => Promise<AssetCasRef | undefined>;
   /** Every image asset id; `ownerId` scopes to one owner, omitted/null = all owners. Un-principal sweep. */
@@ -69,6 +80,11 @@ export interface AssetsService {
   readonly listGallery: (params: GalleryListParams) => Promise<GalleryItemView[]>;
   /** Resolve `(assetId, hash)` pairs the owner owns among `assetIds` — inline-image render + attach boundary. */
   readonly resolveOwnedAssetRefs: (ownerId: UserId, assetIds: readonly AssetId[]) => Promise<readonly AssetBlobRef[]>;
+  /** BYO pose import (C6c): store each skeleton as a `kind:"pose"` asset + a `pose_library` entry. Single and
+   *  batch share one verb; honest-partial (a bad image drops with a reason, the rest land). */
+  readonly importPoses: (params: ImportPosesParams) => Promise<ImportPosesResult>;
+  /** The caller's own BYO pose-library entries (the picker's BYO half), owner-scoped via the assets join. */
+  readonly listOwnedPoses: (params: ListOwnedPosesParams) => Promise<readonly OwnedPose[]>;
   /** Chat-scoped sibling of {@link resolveOwnedAssetRefs}: pairs a caller may render in `chatId`, gated via
    *  {@link AssetsContext.loadChatAssetRefs}. */
   readonly resolveChatAssetRefs: (callerId: UserId, chatId: ChatId, assetIds: readonly AssetId[]) => Promise<readonly AssetBlobRef[]>;

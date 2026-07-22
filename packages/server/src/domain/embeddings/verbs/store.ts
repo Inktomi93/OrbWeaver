@@ -12,6 +12,7 @@ import { EmbedFailedError, SpaceMismatchError } from "../contract/errors";
 import type {
   CardTextStoreParams,
   DigestStoreParams,
+  DocumentChunkStoreParams,
   ImageCaptionedStoreParams,
   ImageRawStoreParams,
   SegmentStoreParams,
@@ -21,6 +22,7 @@ import type { StoreResult } from "../contract/results";
 import type { EmbeddingsService } from "../contract/service";
 import {
   existingCharacterHash,
+  existingChunkHash,
   existingDigestHash,
   existingImageHash,
   existingSegmentHash,
@@ -28,6 +30,7 @@ import {
   upsertCharacterEmbedding,
   upsertChatDigest,
   upsertChatSegment,
+  upsertDocumentChunk,
   upsertImageEmbedding,
 } from "../persistence/queries";
 import { contentHash } from "../substrate/hash";
@@ -171,6 +174,32 @@ async function storeDigest(ctx: EmbeddingsContext, p: DigestStoreParams): Promis
   return { outcome: "written", contentHash: hash };
 }
 
+/** chunk → `document_chunks` (the databank RAG lens). Hash-gated on `(documentId, chunkIdx, model)`; `content`
+ *  (the kit/chunk slice, incl. any overlap prefix) is the embed input. No `hub_score` write (D20/discovery-
+ *  only); the FK to `documents` is the only ownership link. */
+async function storeChunk(ctx: EmbeddingsContext, p: DocumentChunkStoreParams): Promise<StoreResult> {
+  const hash = contentHash(p.content);
+  if ((await existingChunkHash(ctx.db, p.fkRefs.documentId, p.fkRefs.chunkIdx, p.model)) === hash) {
+    return { outcome: "noop", contentHash: hash };
+  }
+  const vector = firstVector((await ctx.roleClients.embed(p.content)).vectors, p.lens, p.model);
+  assertSpace(p.model, p.dim, vector);
+  await upsertDocumentChunk(ctx.db, {
+    id: ctx.newDocumentChunkId(),
+    documentId: p.fkRefs.documentId,
+    chunkIdx: p.fkRefs.chunkIdx,
+    content: p.content,
+    charStart: p.fkRefs.charStart,
+    charEnd: p.fkRefs.charEnd,
+    embedding: vector,
+    contentHash: hash,
+    model: p.model,
+    dim: p.dim,
+    now: ctx.now(),
+  });
+  return { outcome: "written", contentHash: hash };
+}
+
 export function createStore(ctx: EmbeddingsContext): EmbeddingsService["store"] {
   return (params: StoreParams): Promise<StoreResult> => {
     switch (params.lens) {
@@ -183,6 +212,8 @@ export function createStore(ctx: EmbeddingsContext): EmbeddingsService["store"] 
         return storeSegment(ctx, params);
       case "digest":
         return storeDigest(ctx, params);
+      case "chunk":
+        return storeChunk(ctx, params);
       default:
         return assertNever(params);
     }

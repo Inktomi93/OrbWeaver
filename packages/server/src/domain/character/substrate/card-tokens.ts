@@ -27,7 +27,7 @@ export function cardTokenSize(card: CardTextFields): number {
     card.exampleMessages,
     card.systemPrompt,
     card.postHistoryInstructions,
-    ...card.greetings,
+    ...card.greetings.map((g) => g.text),
   ]
     .filter((s): s is string => typeof s === "string" && s.length > 0)
     .join("\n");

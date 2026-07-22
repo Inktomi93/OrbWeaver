@@ -1,4 +1,4 @@
-// domain/notifications — COMPOSITION ROOT: wires the 4 verbs (record/markRead/dismiss/list) over one
+// domain/notifications — COMPOSITION ROOT: wires the verbs (record/markAllRead/dismiss/list) over one
 // shared `NotificationsContext` (zero logic of its own — see contract/service.ts for the domain's D16
 // durable-inbox contract, the `emit` composition, and the one-directional edge from chat).
 

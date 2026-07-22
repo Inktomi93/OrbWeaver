@@ -18,6 +18,7 @@ import type {
   SendChatCompletionRequestRequest,
   SendChatCompletionRequestResponse,
 } from "@openrouter/sdk/models/operations";
+import { APP_NAME, APP_URL } from "#foundation/config";
 
 /** Max distinct API-key clients kept warm; the least-recently-used is evicted past this. */
 const OR_CLIENT_CACHE_MAX = 64;
@@ -50,9 +51,11 @@ export interface OrClient {
   };
 }
 
-/** SDK constructor takes ONLY `{ apiKey }` — no baseURL/referer headers (production default). */
+// App attribution (OpenRouter's `HTTP-Referer` / `X-Title`) rides EVERY OR operation — it appears on
+// OpenRouter's leaderboard and lets OR attribute/scope our traffic. The SDK forwards `httpReferer`/
+// `appTitle` as those headers on all supported operations. Identity is a static build constant (foundation).
 export function createOpenRouterClient(apiKey: string): OrClient {
-  return new OpenRouter({ apiKey });
+  return new OpenRouter({ apiKey, httpReferer: APP_URL, appTitle: APP_NAME });
 }
 
 /** Per-API-key LRU `getClient` resolver; closure state owned by the one backend instance the

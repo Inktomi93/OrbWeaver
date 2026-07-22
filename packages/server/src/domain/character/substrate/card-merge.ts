@@ -3,7 +3,8 @@
 // load-bearing: null means "clear it", distinct from "not provided". List columns treat null as "clear to []".
 
 import type { CharacterCard, UpdateCharacterInput } from "@orb/contracts/character";
-import type { ThemeOverride } from "@orb/contracts/theme";
+import type { ThemeBackground, ThemeOverride } from "@orb/contracts/theme";
+import { canonicalBackgroundSource } from "@orb/contracts/theme";
 
 function keep<T>(edit: T | undefined, current: T): T {
   // biome-ignore lint/nursery/useNullishCoalescing: null means "clear the field" (distinct from undefined "keep") — ?? would swallow an explicit clear.
@@ -31,6 +32,12 @@ export function mergeCard(base: CharacterCard, input: UpdateCharacterInput): Cha
     creatorNotes: keep(input.creatorNotes, base.creatorNotes),
     creator: keep(input.creator, base.creator),
     cardVersion: keep(input.cardVersion, base.cardVersion),
+    // `source` is a NULLABLE field (null = clear-to-null, distinct from `[]`) so it merges via `keep`, NOT
+    // `keepList` (which collapses a clear to `[]`) — mirrors extensions/residualData.
+    nickname: keep(input.nickname, base.nickname),
+    source: keep(input.source, base.source),
+    creationDate: keep(input.creationDate, base.creationDate),
+    modificationDate: keep(input.modificationDate, base.modificationDate),
     regexScripts: keepList(input.regexScripts, base.regexScripts),
     extensions: keep(input.extensions, base.extensions),
     residualData: keep(input.residualData, base.residualData ?? null),
@@ -53,6 +60,10 @@ const CARD_CONTENT_FIELDS = [
   "creatorNotes",
   "creator",
   "cardVersion",
+  "nickname",
+  "source",
+  "creationDate",
+  "modificationDate",
   "regexScripts",
   "extensions",
   "residualData",
@@ -74,6 +85,7 @@ export function flagEdits(input: UpdateCharacterInput): {
   forbidExternalMedia?: boolean | null;
   trustHtml?: boolean | null;
   themeOverride?: ThemeOverride | null;
+  backgroundOverride?: ThemeBackground | null;
 } {
   return {
     ...(input.starred === undefined ? {} : { starred: input.starred }),
@@ -81,5 +93,10 @@ export function flagEdits(input: UpdateCharacterInput): {
     ...(input.forbidExternalMedia === undefined ? {} : { forbidExternalMedia: input.forbidExternalMedia }),
     ...(input.trustHtml === undefined ? {} : { trustHtml: input.trustHtml }),
     ...(input.themeOverride === undefined ? {} : { themeOverride: input.themeOverride }),
+    // Canonicalize on persist (BG-C): a non-asset kind carries no asset ref, so a `kind:"none"` payload with a
+    // populated `assetId` is emptied here and can never GC-root through the `background_override` JSON live-source.
+    ...(input.backgroundOverride === undefined
+      ? {}
+      : { backgroundOverride: input.backgroundOverride === null ? null : canonicalBackgroundSource(input.backgroundOverride) }),
   };
 }

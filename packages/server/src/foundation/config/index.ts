@@ -13,3 +13,9 @@ const manifest = JSON.parse(readFileSync(new URL("../../../package.json", import
 
 /** The `@orb/server` package version. */
 export const APP_VERSION: string = manifest.version;
+
+/** App identity for outbound provider attribution (OpenRouter's `HTTP-Referer` / `X-Title` — the app's
+ *  name + URL that appear on OpenRouter's leaderboard and let it attribute/scope our traffic). Not a
+ *  setting: a static build-time identity. Edit if the canonical site/name changes. */
+export const APP_NAME = "Orbweaver";
+export const APP_URL = "https://github.com/Inktomi93/orbweaver";

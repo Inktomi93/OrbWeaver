@@ -15,7 +15,9 @@ import { createLocalLightRerank } from "./rerank";
 
 export { DEFAULT_EMBED_MODEL } from "./embed";
 export { DEFAULT_IMAGE_EMBED_MODEL } from "./image-embed";
+export { createLocalLightMatte, DEFAULT_MATTE_MODEL } from "./matte";
 export type { LocalLightModelCache, ModelCacheConfig } from "./model-cache";
+export { createModelCache } from "./model-cache";
 export { DEFAULT_RERANK_MODEL } from "./rerank";
 
 /** Deps for the local-light backend. Extends the model-cache runtime knobs (device/dtype/cacheDir/

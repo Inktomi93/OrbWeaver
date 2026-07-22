@@ -12,6 +12,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { UserId } from "@orb/kit/ids";
 import type { Hono } from "hono";
 import type { AssetMetadata } from "#domain/assets";
+import { getLog } from "#foundation/observability";
 
 const NOT_FOUND = 404;
 const UNAUTHORIZED = 401;
@@ -58,27 +59,33 @@ export function registerBlob(app: Hono<PrincipalEnv>, deps: BlobDeps): void {
 
     const widthRaw = c.req.query("w");
     if (widthRaw !== undefined) {
-      return serveVariant(deps, principal, {
+      return await serveVariant(deps, principal, {
         hash,
         widthRaw,
         kindRaw: c.req.query("v"),
       });
     }
 
-    const meta = await deps.assets.getMetadata({ principal, hash });
-    if (meta === undefined) {
-      return c.body(null, NOT_FOUND);
-    }
-    // meta.ownerId is set when the asset belongs to a co-participant (roster-avatar exception); on the
-    // normal path it is absent and the caller IS the owner.
-    const casOwnerId = (meta.ownerId as UserId | undefined) ?? principal.userId;
-    try {
-      const bytes = await deps.cas.read(casOwnerId, hash);
-      return serveBytes(bytes, meta.mime);
-    } catch {
-      return c.body(null, NOT_FOUND);
-    }
+    return await serveOriginal(deps, principal, hash);
   });
+}
+
+/** Serve the full-size original: `getMetadata` is the ownership gate, then a direct CAS read. Missing
+ *  metadata or a torn CAS entry both 404 — a foreign/missing blob is indistinguishable from a corrupt one. */
+async function serveOriginal(deps: BlobDeps, principal: Principal, hash: string): Promise<Response> {
+  const meta = await deps.assets.getMetadata({ principal, hash });
+  if (meta === undefined) {
+    return new Response(null, { status: NOT_FOUND });
+  }
+  // meta.ownerId is set when the asset belongs to a co-participant (roster-avatar exception); on the
+  // normal path it is absent and the caller IS the owner.
+  const casOwnerId = (meta.ownerId as UserId | undefined) ?? principal.userId;
+  try {
+    const bytes = await deps.cas.read(casOwnerId, hash);
+    return serveBytes(bytes, meta.mime);
+  } catch {
+    return new Response(null, { status: NOT_FOUND });
+  }
 }
 
 /** Parse the `?v=` variant-kind query value. Omitted ⇒ the `icon` floor; present-but-invalid ⇒
@@ -92,7 +99,10 @@ function parseVariantKind(raw: string | undefined): VariantKind | undefined {
 }
 
 /** Serve a resized-webp variant. An off-ladder width, malformed `?v=`, non-hash, or unowned blob all
- *  resolve to `undefined` → 404. */
+ *  resolve to `undefined` → 404. A CAS-valid-but-undecodable original (belt-passed magic bytes, corrupt
+ *  body — sharp/libvips throws) degrades to the unresized original instead of a raw 500: the bytes ARE
+ *  servable, just not resizable, matching the "serve what we can" spirit of the torn-blob 404 below rather
+ *  than surfacing an internal decode fault to the caller. */
 async function serveVariant(
   deps: BlobDeps,
   principal: Principal,
@@ -104,7 +114,13 @@ async function serveVariant(
   if (!Number.isInteger(width) || width <= 0 || kind === undefined) {
     return new Response(null, { status: NOT_FOUND });
   }
-  const variant = await deps.assets.resolveVariant({ principal, hash, width, kind });
+  let variant: Uint8Array | undefined;
+  try {
+    variant = await deps.assets.resolveVariant({ principal, hash, width, kind });
+  } catch (err) {
+    getLog().warn({ err, hash }, "blob: variant decode failed, serving original unresized");
+    return serveOriginal(deps, principal, hash);
+  }
   if (variant === undefined) {
     return new Response(null, { status: NOT_FOUND });
   }

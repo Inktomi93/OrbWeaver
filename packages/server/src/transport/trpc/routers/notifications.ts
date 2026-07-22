@@ -42,13 +42,6 @@ export const notificationsRouter = t.router({
     }),
   ),
 
-  markRead: multiHumanProcedure.input(z.object({ notificationId: brandedId<NotificationId>() })).mutation(({ ctx, input }) =>
-    ctx.services.notifications.markRead({
-      principal: ctx.auth,
-      notificationId: input.notificationId,
-    }),
-  ),
-
   markAllRead: multiHumanProcedure.mutation(({ ctx }) => ctx.services.notifications.markAllRead({ principal: ctx.auth })),
 
   dismiss: multiHumanProcedure.input(z.object({ notificationId: brandedId<NotificationId>() })).mutation(({ ctx, input }) =>

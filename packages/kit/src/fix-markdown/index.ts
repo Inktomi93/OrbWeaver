@@ -11,8 +11,6 @@
 //
 // Called AFTER macro substitution + DISPLAY regex, BEFORE react-markdown.
 
-import remend from "remend";
-
 // Paired `*…*` / `**…**` / `_…_` / `__…__` markers (lazy inner, multiline). Hoisted to module scope —
 // `useTopLevelRegex` forbids in-function literals; `matchAll` clones the regex so its `lastIndex` is
 // never shared across calls.
@@ -81,25 +79,14 @@ function closeUnpairedMarkers(line: string): string {
   return patched;
 }
 
-// Stream-only: {@link fixMarkdown} can't close partial constructs — it runs on settled messages too,
-// where rewriting a partial would permanently alter the output. This applies only on the streaming
-// ghost path (MessageBody, streaming=true).
-//
-// Delegates to `remend` (an isomorphic, side-effect-free repair engine). One sentinel: an incomplete
-// link becomes `[text](streamdown:incomplete-link)` — the unknown protocol is stripped by
-// rehype-sanitize downstream, rendering the text link-styled but inert until the real URL finishes.
-
-export function repairStreamingTail(text: string): string {
-  return holdTornSpeaker(remend(text));
-}
+// Stream-only: Streamdown owns parse/repair/incremental render for the streaming ghost path (§6.3.1
+// D43) — neo's hand-rolled `repairStreamingTail` was deliberately NOT ported. The one genuinely unique
+// piece Streamdown doesn't do is holding back a torn custom `<speaker>` tag, so that hold-back alone
+// survives below as `holdTornSpeaker`, called directly by the streaming markdown seal.
 
 /** Strip a trailing `<speaker…>` open tag that has no `</speaker>` close after it (a torn narrator
  *  span mid-stream). A complete `<speaker>…</speaker>` is left intact. Cheap fast-path: no
- *  `<speaker` present → return as-is.
- *
- *  Exported separately because the streaming markdown seal calls this DIRECTLY rather than the full
- *  {@link repairStreamingTail} — Streamdown's own repair does NOT balance/hold a fully-open custom
- *  `<speaker>` tag awaiting its close, so this hold-back is the genuinely-unique piece it needs. */
+ *  `<speaker` present → return as-is. */
 export function holdTornSpeaker(text: string): string {
   SPEAKER_OPEN_TAG.lastIndex = 0;
   let lastOpenIndex = NOT_FOUND;

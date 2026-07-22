@@ -7,12 +7,12 @@ import type { AssetBlobRef, AssetKind, AssetListItem, GalleryItemView, StoredAss
 import type { Db } from "@orb/db";
 import { assets, galleryItems } from "@orb/db";
 import type { AssetId, CharacterId, GalleryItemId, UserId } from "@orb/kit/ids";
-import { isAnimated, sniffMime } from "@orb/kit/image-sniff";
+import { isAnimated } from "@orb/kit/image-sniff";
 import { and, asc, desc, eq, inArray, isNull, like, lt, or } from "drizzle-orm";
 import type { Cas } from "#infra/storage";
+import { assertMagicMatches } from "../substrate/mime";
 
 const LIMIT_ONE = 1;
-const OCTET_STREAM = "application/octet-stream";
 
 interface StoreBlobInput {
   readonly ownerId: UserId;
@@ -38,6 +38,18 @@ interface AssetCasRef {
 /** An asset's `(ownerId, hash, mime)` by id alone — no owner scope, un-principal. Not a user-facing surface. */
 export async function loadAssetCasRefById(db: Db, assetId: AssetId): Promise<AssetCasRef | undefined> {
   const rows = await db.select({ ownerId: assets.ownerId, hash: assets.hash, mime: assets.mime }).from(assets).where(eq(assets.id, assetId)).limit(LIMIT_ONE);
+  return rows[0];
+}
+
+/** An owned asset's `(hash, mime)` by id, owner-scoped in the WHERE — undefined when the id is missing OR
+ *  not this owner's (the two collapse, no foreign-existence leak). The owner-gated byte-read's row resolver
+ *  (EC-B), distinct from `loadAssetCasRefById` (the un-principal, by-id-alone indexer resolver). */
+export async function ownedAssetCasRef(db: Db, ownerId: UserId, assetId: AssetId): Promise<OwnedAssetRow | undefined> {
+  const rows = await db
+    .select({ hash: assets.hash, mime: assets.mime })
+    .from(assets)
+    .where(and(eq(assets.id, assetId), eq(assets.ownerId, ownerId)))
+    .limit(LIMIT_ONE);
   return rows[0];
 }
 
@@ -96,13 +108,9 @@ export async function metadataForOwnerAndHash(db: Db, ownerId: UserId, hash: str
  *  the byte signature; a dedup conflict falls through to `assetIdForHash`. */
 export async function storeBlob(db: Db, cas: Cas, input: StoreBlobInput): Promise<StoredAsset> {
   if (input.enforceMagic) {
-    const sniffed = sniffMime(input.bytes);
-    if (sniffed === OCTET_STREAM) {
-      throw new Error(`assets.store: unrecognized magic bytes — claimed ${input.mime}, no known image signature`);
-    }
-    if (sniffed !== input.mime) {
-      throw new Error(`assets.store: magic-byte mismatch — claimed ${input.mime}, sniffed ${sniffed}`);
-    }
+    // The byte-signature belt now covers documents (pdf/zip/text) alongside images — dispatch on the claimed
+    // mime family (databank-design/02 §6). Throws on any mismatch before the CAS write.
+    assertMagicMatches(input.bytes, input.mime);
   }
 
   const put = await cas.putBytes(input.ownerId, input.bytes, input.now);

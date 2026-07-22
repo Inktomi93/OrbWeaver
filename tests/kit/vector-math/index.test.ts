@@ -1,4 +1,4 @@
-import { cosineDistance, cosineSim, cosineToMany, l2Normalize, mean, pairwiseCosine } from "@orb/kit/vector-math";
+import { cosineSim, cosineToMany, l2Normalize, mean, pairwiseCosine } from "@orb/kit/vector-math";
 import { expect, test } from "../../support/fixtures";
 
 const v = (...xs: number[]): Float32Array => Float32Array.from(xs);
@@ -14,16 +14,6 @@ test("cosineSim is the raw dot product (assumes normalized inputs)", () => {
 
 test("cosineSim throws on a dimension mismatch (loud, not a silent half-dot)", () => {
   expect(() => cosineSim(v(1, 0), v(1, 0, 0))).toThrow("dim mismatch");
-});
-
-test("cosineDistance renormalizes internally (1 − cos)", () => {
-  expect(cosineDistance(v(3, 0), v(7, 0))).toBeCloseTo(0); // same direction, any scale
-  expect(cosineDistance(v(3, 0), v(0, 5))).toBeCloseTo(1); // orthogonal
-  expect(cosineDistance(v(1, 0), v(-1, 0))).toBeCloseTo(2); // opposite
-});
-
-test("cosineDistance guards a zero-norm vector (no NaN)", () => {
-  expect(cosineDistance(v(0, 0), v(1, 0))).toBeCloseTo(1);
 });
 
 test("l2Normalize returns a unit-length copy; zero vector unchanged", () => {

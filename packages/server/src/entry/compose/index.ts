@@ -8,6 +8,8 @@ export { createCharacterUpdatedChatFan } from "./emit-character-updated";
 export { createChatChangedEmitter } from "./emit-chat-changed";
 export type { DomainEventBus } from "./event-bus";
 export { createDomainEventBus } from "./event-bus";
+export type { MaterializeBackgroundDeps } from "./materialize-background";
+export { createMaterializeBackground } from "./materialize-background";
 export type { ImageRefAssets } from "./resolve-image-ref";
 export { resolveImageRefToUrl } from "./resolve-image-ref";
 export type { RoleClientsBinderDeps } from "./role-clients";

@@ -5,15 +5,37 @@
 import type { AssetCreatedEvent, CharacterUpdatedEvent } from "@orb/contracts/events";
 import type { RoleClients } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
-import type { AssetId, CharacterEmbeddingId, CharacterId, ChatDigestId, ChatSegmentId, ImageEmbeddingId, UserId } from "@orb/kit/ids";
-import type { ClearTableParams, EmbedPassParams, StoreParams, WriteHubScoresParams } from "./params";
-import type { BulkEmbedResult, PurgeMemoryVectorsResult, StoreResult, WriteHubScoresResult } from "./results";
+import type {
+  AssetId,
+  CharacterEmbeddingId,
+  CharacterId,
+  ChatDigestId,
+  ChatSegmentId,
+  DocumentChunkId,
+  DocumentId,
+  ImageEmbeddingId,
+  UserId,
+} from "@orb/kit/ids";
+import type { ClearTableParams, CountDocumentChunksParams, EmbedPassParams, PruneDocumentChunksParams, StoreParams, WriteHubScoresParams } from "./params";
+import type {
+  BulkEmbedResult,
+  PruneDocumentChunksResult,
+  PurgeDocumentVectorsResult,
+  PurgeMemoryVectorsResult,
+  StoreResult,
+  WriteHubScoresResult,
+} from "./results";
 
 /** Re-read a character card's embeddable text by id. `undefined` when deleted between emit and handler. */
 export type LoadCardText = (characterId: CharacterId) => Promise<string | undefined>;
 
 /** Re-read an avatar asset's (resized) bytes by id. `undefined` when deleted between emit and handler. */
 export type LoadAssetBytes = (assetId: AssetId) => Promise<Uint8Array | undefined>;
+
+/** Re-read an asset's STORED mime by id (the magic-verified upload mime). `null` when the row is gone.
+ *  The `onAssetCreated` embeddability gate reads this FIRST — a non-image asset (a `video/*` background,
+ *  a document) never reaches the image-embed path and never loads its bytes (see the handler). */
+type LoadAssetMime = (assetId: AssetId) => Promise<string | null>;
 
 /** Enumerate non-synthetic character ids; `ownerId` scopes to one owner, omitted/null = all owners. */
 export type ListCharacterIds = (ownerId?: UserId | null) => Promise<readonly CharacterId[]>;
@@ -30,6 +52,7 @@ export interface EmbeddingsContext {
   readonly newImageEmbeddingId: () => ImageEmbeddingId;
   readonly newChatDigestId: () => ChatDigestId;
   readonly newChatSegmentId: () => ChatSegmentId;
+  readonly newDocumentChunkId: () => DocumentChunkId;
   readonly listCharacterIds: ListCharacterIds;
   readonly loadCardText: LoadCardText;
   readonly listImageAssetIds: ListImageAssetIds;
@@ -58,12 +81,24 @@ export interface EmbeddingsService {
    *  `model` differs from the active `roleClients.embedModel`. BULK-ONLY + skip-on-abort is the caller's
    *  guard (the memory-backfill runner), mirroring the embedCorpus/embedAssets purge. */
   readonly purgeMemoryVectors: () => Promise<PurgeMemoryVectorsResult>;
+  /** databank-design/05 §2.4 — the reindex-shrink seam. After the ingest upserts a document's current chunks,
+   *  this deletes the strays (shrunk tail `chunkIdx >= keepCount` + retired-space `model != model`), scoped to
+   *  the one document. databank never touches `document_chunks` directly (single-write-path invariant). */
+  readonly pruneDocumentChunks: (params: PruneDocumentChunksParams) => Promise<PruneDocumentChunksResult>;
+  /** The DocumentView chunk-count read (per document, active model) — embeddings owns `document_chunks`, so
+   *  databank derives its counts through this injected op rather than importing the vector table. */
+  readonly countDocumentChunks: (params: CountDocumentChunksParams) => Promise<ReadonlyMap<DocumentId, number>>;
+  /** PD-139(c): reclaim the OLD document embed space — deletes `document_chunks` rows whose `model` differs
+   *  from the active `roleClients.embedModel`. BULK-ONLY + skip-on-abort is the caller's guard (the
+   *  databank-reindex runner), mirroring `purgeMemoryVectors`. */
+  readonly purgeDocumentVectors: () => Promise<PurgeDocumentVectorsResult>;
 }
 
 /** The DI bundle the indexer handlers close over (assembled at `entry/`). */
 export interface EmbeddingsIndexerContext {
   readonly store: EmbeddingsService["store"];
   readonly loadCardText: LoadCardText;
+  readonly loadAssetMime: LoadAssetMime;
   readonly loadAssetBytes: LoadAssetBytes;
   readonly roleClients: RoleClients;
   readonly embedDim: number;

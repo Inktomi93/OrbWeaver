@@ -72,7 +72,7 @@ export async function bindRoleClientsForUser(deps: RoleClientsBinderDeps, ownerI
         ...(opts?.maxTokens !== undefined ? { maxTokens: opts.maxTokens } : {}),
         ...(opts?.temperature !== undefined ? { temperature: opts.temperature } : {}),
         ...(opts?.minP !== undefined ? { minP: opts.minP } : {}),
-        ...(opts?.jsonSchema !== undefined ? { jsonSchema: opts.jsonSchema } : {}),
+        ...(opts?.responseFormat !== undefined ? { responseFormat: opts.responseFormat } : {}),
         ...(opts?.repetitionDetection !== undefined ? { repetitionDetection: opts.repetitionDetection } : {}),
       }),
     embedModel: embedConn.model,

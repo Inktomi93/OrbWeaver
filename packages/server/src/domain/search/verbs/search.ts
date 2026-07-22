@@ -29,7 +29,7 @@ import { applyRerank } from "../substrate/rerank";
 /** The sibling verbs the dispatch delegates to for the owner-wide card/corpus/image surfaces + the
  *  (owner-gated) within-chat verbatim `segments`. Digests are NOT delegated — every digest scope routes
  *  through the owner-belted `crossChatDigests` here. */
-type DelegateVerbs = Pick<SearchService, "knn" | "findCharacters" | "discover" | "corpus" | "images" | "segments">;
+type DelegateVerbs = Pick<SearchService, "knn" | "findCharacters" | "discover" | "corpus" | "images" | "segments" | "documents">;
 
 function assertNever(value: never): never {
   throw new SearchError(SEARCH_SCOPE_UNSUPPORTED, `unhandled search dispatch: ${String(value)}`);
@@ -196,6 +196,17 @@ export function createSearch(ctx: SearchContext, verbs: DelegateVerbs): SearchSe
           hits: await verbs.images({ ownerId, query, topN, lens: params.lens, rerank }),
         };
       }
+      case "documents":
+        // Owner-only on the WIRE: the omnibox is self-scoped (ownerId = principal.userId), so a databank
+        // documents search over `{ownerId}` can never reach another tenant's bank. The chat/character
+        // scopes exist on the `documents` VERB but are reached ONLY through the compose-injected op (chat's
+        // GATHER, already membership-authorized) — never the un-authorized omnibox, which would let a
+        // stranger pass a foreign chatId and pull the host's chunks. requireOwnerScope refuses them here.
+        requireOwnerScope(scope, over);
+        return {
+          over,
+          hits: await verbs.documents({ scope: { ownerId }, queryText: query, k: topN, minScore: 0, rerank }),
+        };
       case "segments":
         return { over, hits: await dispatchSegments(ctx, verbs, params) };
       case "digests":

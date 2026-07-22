@@ -10,6 +10,7 @@ export {
   type CorpusParams,
   type DigestsParams,
   type DiscoverParams,
+  type DocumentSearchParams,
   type FieldSearchParams,
   type FindCharactersParams,
   type ImagesParams,
@@ -29,6 +30,7 @@ export type {
   DigestSearchHit,
   DiscoverCharacter,
   DiscoverSegment,
+  DocumentChunkHit,
   FieldSearchHit,
   ImageSearchHit,
   SearchHit,
@@ -37,6 +39,6 @@ export type {
   SimilarArtHit,
   UnifiedSearchResult,
 } from "./contract/results";
-export type { SearchService, SearchServiceDeps } from "./contract/service";
+export type { ResolveActiveDocumentIdsOp, SearchService, SearchServiceDeps } from "./contract/service";
 
 export { createSearchService } from "./service";

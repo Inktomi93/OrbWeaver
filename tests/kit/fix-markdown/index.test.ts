@@ -1,4 +1,4 @@
-import { fixMarkdown, repairStreamingTail } from "@orb/kit/fix-markdown";
+import { fixMarkdown } from "@orb/kit/fix-markdown";
 import { expect, test } from "../../support/fixtures";
 
 test("strips whitespace adjacent to paired emphasis markers", () => {
@@ -44,32 +44,4 @@ test("a snake_case identifier's single underscores are not treated as whitespace
   // whitespace between its underscores round-trips unchanged even though it's technically a
   // matched `_..._` pair (the false-italic risk lives in the renderer, not here).
   expect(fixMarkdown("my_variable_name is set", false)).toBe("my_variable_name is set");
-});
-
-test("repairStreamingTail holds a torn <speaker> open tag with no close yet", () => {
-  expect(repairStreamingTail("Hello <speaker>Bob")).toBe("Hello ");
-});
-
-test("repairStreamingTail leaves a complete <speaker>…</speaker> intact", () => {
-  expect(repairStreamingTail("<speaker>Bob</speaker> hi")).toBe("<speaker>Bob</speaker> hi");
-});
-
-test("repairStreamingTail holds only from the LAST unclosed open tag", () => {
-  expect(repairStreamingTail("<speaker>A</speaker> said <speaker>B")).toBe("<speaker>A</speaker> said ");
-});
-
-test("repairStreamingTail matches the open tag case-insensitively", () => {
-  expect(repairStreamingTail("x <SPEAKER>")).toBe("x ");
-});
-
-test("repairStreamingTail is a no-op when no <speaker> is present", () => {
-  expect(repairStreamingTail("plain text")).toBe("plain text");
-});
-
-test("repairStreamingTail is deterministic across calls (no leaked regex lastIndex)", () => {
-  const input = "a <speaker>B";
-  const first = repairStreamingTail(input);
-  const second = repairStreamingTail(input);
-  expect(first).toBe(second);
-  expect(first).toBe("a ");
 });

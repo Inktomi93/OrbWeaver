@@ -8,7 +8,6 @@ import { createAttach } from "./verbs/attach";
 import { createAttachCardTagByName } from "./verbs/attach-card-tag-by-name";
 import { createCreate } from "./verbs/create";
 import { createDetachCardTagByName } from "./verbs/detach-card-tag-by-name";
-import { createGet } from "./verbs/get";
 import { createList } from "./verbs/list";
 import { createListPendingSuggestions } from "./verbs/list-pending-suggestions";
 import { createListWithUsage } from "./verbs/list-with-usage";
@@ -22,7 +21,6 @@ export function createTagService(ctx: TagContext): TagService {
   const attach = createAttach(ctx);
   return {
     createTag: createCreate(ctx),
-    getTag: createGet(ctx),
     listTags: createList(ctx),
     updateTag: createUpdate(ctx),
     removeTag: createRemove(ctx),

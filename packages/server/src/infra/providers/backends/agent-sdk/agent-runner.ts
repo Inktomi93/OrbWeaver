@@ -18,6 +18,7 @@ import type { AgentMcpServerHealth, AgentMcpServerSpec, AgentTurnRequest, ChatRe
 import { ProviderError } from "../../contract";
 import { refreshHostSubTokenIfMode1 } from "./host-token";
 import { logProviderDialog, logProviderMcp } from "./log";
+import { sanitizeAnthropicOutputSchema } from "./output-schema";
 import { consumeTurnStream } from "./runner";
 import { disciplineOptions, observabilityOptions } from "./translate";
 import type { AgentSdkDeps } from "./types";
@@ -77,8 +78,9 @@ function toSdkExternalServers(specs: Readonly<Record<string, AgentMcpServerSpec>
 }
 
 // Only schema crosses — name/strict/description are the caller's own OpenAI-path validator metadata (no SDK slot).
-function toSdkOutputFormat(rf: ResponseFormat): OutputFormat {
-  return { type: "json_schema", schema: rf.schema };
+// The schema is bound-stripped for the Anthropic wire (D93); the bounds still ride the caller's post-parse belt.
+function toSdkOutputFormat(rf: ResponseFormat, model: string): OutputFormat {
+  return { type: "json_schema", schema: sanitizeAnthropicOutputSchema(rf.schema, model) };
 }
 
 function toServerHealth(status: McpServerStatus): AgentMcpServerHealth {
@@ -147,7 +149,8 @@ export async function runAgentTurn(req: AgentTurnRequest, deps: AgentSdkDeps): P
     ...toSdkExternalServers(req.externalMcpServers),
   };
   const taskBudget: Pick<Options, "taskBudget"> = req.taskBudget !== undefined ? { taskBudget: { total: req.taskBudget } } : {};
-  const outputFormat: Pick<Options, "outputFormat"> = req.responseFormat !== undefined ? { outputFormat: toSdkOutputFormat(req.responseFormat) } : {};
+  const outputFormat: Pick<Options, "outputFormat"> =
+    req.responseFormat !== undefined ? { outputFormat: toSdkOutputFormat(req.responseFormat, req.model) } : {};
   const stream = deps.query({
     prompt: req.prompt,
     options: {

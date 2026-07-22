@@ -3,7 +3,7 @@
 // un-mutable by construction. Timestamps arrive as params.
 
 import type { Db } from "@orb/db";
-import { fetchOwned, isConstraintViolation, themes } from "@orb/db";
+import { isConstraintViolation, themes } from "@orb/db";
 import type { ThemeId, UserId } from "@orb/kit/ids";
 import { and, asc, eq, isNull, or } from "drizzle-orm";
 
@@ -50,11 +50,6 @@ export async function readableTheme(db: Db, ownerId: UserId, id: ThemeId): Promi
  *  this — seeds are code-authored and never travel. */
 export async function listOwnedThemes(db: Db, ownerId: UserId): Promise<ThemeRow[]> {
   return await db.select().from(themes).where(eq(themes.ownerId, ownerId)).orderBy(asc(themes.createdAt));
-}
-
-/** Load an owned theme row (never a seed). */
-export function loadOwnedTheme(db: Db, id: ThemeId, ownerId: UserId): Promise<ThemeRow | undefined> {
-  return fetchOwned(db, themes, id, ownerId);
 }
 
 /** The caller's own theme NAMES (for the duplicate-verb's free-name-suffix computation). */

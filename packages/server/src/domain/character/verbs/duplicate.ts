@@ -57,6 +57,7 @@ export function createDuplicate(ctx: CharacterContext): CharacterService["duplic
       forbidExternalMedia: source.forbidExternalMedia,
       trustHtml: source.trustHtml,
       themeOverride: source.themeOverride,
+      backgroundOverride: source.backgroundOverride,
       createdAt: at,
       ...card,
     });

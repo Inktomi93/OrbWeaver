@@ -10,13 +10,17 @@ import { ProviderError } from "../contract";
 
 // Exhaustive over ProviderRole (a new role without an entry is a tsc error). A source not listed is denied.
 const ROLE_SOURCE_POLICY: Record<ProviderRole, readonly CredentialSource[]> = {
-  chat: ["max-pro-sub", "openrouter", "vllm", "custom_openai"],
-  agent: ["max-pro-sub", "openrouter", "vllm"],
+  // `anthropic` (W11): the first-party Anthropic key serves BOTH chat (anth-direct, tool-less) and agent
+  // (the agent-sdk native x-api-key path — W11 owner ruling: users may run their agents on their own key).
+  chat: ["max-pro-sub", "openrouter", "anthropic", "vllm", "custom_openai"],
+  agent: ["max-pro-sub", "openrouter", "anthropic", "vllm"],
   embed: ["openrouter", "vllm", "local-light"],
   rerank: ["openrouter", "vllm", "local-light"],
   imageEmbed: ["openrouter", "vllm", "local-light"],
-  summarize: ["openrouter", "vllm"],
-  generateImage: ["openrouter"],
+  // `anthropic` (MA-10): the first-party Anthropic key summarizes over the direct wire (anth-direct,
+  // vision-capable). `backendForSource` forks it to anth-direct; the OR-skin summarize stays on openrouter.
+  summarize: ["openrouter", "vllm", "anthropic"],
+  generateImage: ["openrouter", "venice", "comfyui"],
 };
 
 function deny(req: FirewallRequest, reason: string): never {

@@ -3,16 +3,19 @@
 // `source:'auto', status:'pending'` tag suggestions (the Accept/Reject review queue). Idempotent: upsert
 // by `characterId`; tag staging never downgrades an already-accepted tag back to pending.
 
+import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
 import { characterSummaries } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
+import { projectJsonSchema } from "@orb/kit/json-schema";
+import { runStructuredTurn } from "@orb/server/kit/structured-turn";
 import type { BatchItem } from "drizzle-orm/batch";
+import { z } from "zod";
 import type { DiscoveryContext } from "../context";
 import type { DistillCharactersOptions } from "../contract/params";
 import type { CharacterDistillation, DistillStats } from "../contract/results";
 import type { DiscoveryService, DistillCharactersDeps } from "../contract/service";
 import { readCardDistillTargets } from "../persistence/card-reads";
-import { sliceJsonObject } from "../substrate/json-extract";
 
 /** Bind the distill pass over the DI bundle (the verb-naming factory the service composes). Projects the
  *  context's sub-deps onto the standalone {@link distillCharacters} — the workload runner reaches the same
@@ -51,20 +54,22 @@ const GENRES = [
 /** @internal — the tone grammar enum (barrel re-export is internal to discovery/). */
 const TONES = ["dark", "lighthearted", "romantic", "comedic", "gritty", "wholesome", "melancholic", "tense", "whimsical", "sensual"] as const;
 
-/** @internal — JSON-schema grammar driver for the distill pass. */
-const CHARACTER_DISTILL_SCHEMA = {
-  type: "object",
-  properties: {
-    genre: { enum: [...GENRES] },
-    subGenres: { type: "array", items: { type: "string" }, minItems: 0, maxItems: 3 },
-    tone: { enum: [...TONES] },
-    setting: { type: "string" },
-    tags: { type: "array", items: { type: "string" }, minItems: 3, maxItems: 8 },
-    elevatorPitch: { type: "string" },
-    overview: { type: "string" },
-  },
-  required: ["genre", "subGenres", "tone", "setting", "tags", "elevatorPitch", "overview"],
-} as const;
+/** @internal — the distill-pass structured-output payload (D79). The zod schema is BOTH the wire grammar (via
+ *  the one projection rule) and the runtime validator inside runStructuredTurn — the genre/tone enums and the
+ *  tag-count bounds the guided-decode grammar used to carry, now enforced once. */
+const MAX_SUBGENRES = 3;
+const MIN_TAGS = 3;
+const MAX_TAGS = 8;
+const DISTILL_PAYLOAD = z.object({
+  genre: z.enum(GENRES),
+  subGenres: z.array(z.string()).max(MAX_SUBGENRES),
+  tone: z.enum(TONES),
+  setting: z.string(),
+  tags: z.array(z.string()).min(MIN_TAGS).max(MAX_TAGS),
+  elevatorPitch: z.string(),
+  overview: z.string(),
+});
+const DISTILL_RESPONSE_FORMAT: ResponseFormat = { name: "character_distillation", schema: projectJsonSchema(DISTILL_PAYLOAD) };
 
 const DISTILL_SYSTEM = `You distill a roleplay character card into a compact, FILTERABLE summary so a large library can be browsed at a glance.
 
@@ -84,6 +89,12 @@ const DISTILL_MAX_TOKENS = 512;
 const DISTILL_TEMPERATURE = 0.2;
 // Stays under the libSQL bound-variable cap (each upsert binds ~2x the column count).
 const DISTILL_BATCH_CHUNK = 500;
+// Caps the per-card RETRY fan-out. Validation failure is CORRELATED, not independent: a hosted summarize
+// model that ignores the json_schema constraint fails EVERY card in the batch identically, so a naive
+// `Promise.all` over the whole (500+) library would fire N parallel retry calls at once — the exact per-key
+// 429 storm the OpenRouter backend serializes to avoid. Parsing in bounded waves holds concurrent retries to
+// this many. The happy path pays nothing: a card whose batch reply parses first-try makes no extra call.
+const DISTILL_RETRY_CONCURRENCY = 8;
 
 /** One distilled label queued for staging — the row's own owner (D23) + the character it tags. */
 interface StagedLabel {
@@ -118,13 +129,14 @@ async function distillCharacters(db: Db, deps: DistillCharactersDeps, opts: Dist
       userPrompt: t.text.slice(0, MAX_CARD_CHARS),
     })),
     {
-      jsonSchema: CHARACTER_DISTILL_SCHEMA,
+      responseFormat: DISTILL_RESPONSE_FORMAT,
       maxTokens: DISTILL_MAX_TOKENS,
       temperature: DISTILL_TEMPERATURE,
     },
   );
 
-  const writes = buildDistillWrites(db, ready, result.items, {
+  const writes = await buildDistillWrites(deps, ready, result.items, {
+    db,
     model: deps.summarizerModel,
     now: deps.now(),
   });
@@ -141,45 +153,77 @@ async function distillCharacters(db: Db, deps: DistillCharactersDeps, opts: Dist
   };
 }
 
+/** One distill target (a card ready to distill). */
+interface DistillTarget {
+  readonly characterId: CharacterId;
+  readonly ownerId: UserId;
+  readonly text: string;
+}
+
 /** Parse every reply, pairing `ready[i]`↔`items[i]`, into upsert statements + the flattened staged-label queue;
- *  a non-parsing reply counts `failed`. Split out to keep {@link distillCharacters} under the complexity cap. */
-function buildDistillWrites(
-  db: Db,
-  ready: readonly {
-    readonly characterId: CharacterId;
-    readonly ownerId: UserId;
-    readonly text: string;
-  }[],
+ *  a card that fails twice (or whose retry hits an infra error) counts `failed`. Each item runs through the ONE
+ *  structured-turn helper (D79): the batch reply is the first attempt, a per-item retry re-summarizes with the
+ *  issues. Split out to keep {@link distillCharacters} under the complexity cap. */
+async function buildDistillWrites(
+  deps: DistillCharactersDeps,
+  ready: readonly DistillTarget[],
   items: readonly { readonly text: string }[],
-  meta: { readonly model: string; readonly now: number },
-): { stmts: BatchItem<"sqlite">[]; stagedLabels: StagedLabel[]; failed: number } {
+  meta: { readonly db: Db; readonly model: string; readonly now: number },
+): Promise<{ stmts: BatchItem<"sqlite">[]; stagedLabels: StagedLabel[]; failed: number }> {
+  // Parse in bounded waves — the first attempt reuses the already-fetched batch text (free), but a correlated
+  // schema failure sends every card to a retry summarize call at once; the wave size is that fan-out's bound.
+  const parsed: (CharacterDistillation | null)[] = [];
+  for (let i = 0; i < ready.length; i += DISTILL_RETRY_CONCURRENCY) {
+    const wave = ready.slice(i, i + DISTILL_RETRY_CONCURRENCY);
+    // biome-ignore lint/performance/noAwaitInLoops: bounded-concurrency waves — each wave's per-card retries run in parallel, then the loop advances; that IS the concurrency bound.
+    const waveParsed = await Promise.all(wave.map((target, j) => parseOneDistill(deps, target, items[i + j]?.text ?? "")));
+    parsed.push(...waveParsed);
+  }
   const stmts: BatchItem<"sqlite">[] = [];
   const stagedLabels: StagedLabel[] = [];
   let failed = 0;
   for (let i = 0; i < ready.length; i += 1) {
     const target = ready[i];
-    const item = items[i];
-    if (target === undefined || item === undefined) {
+    const distillation = parsed[i];
+    if (target === undefined) {
       continue;
     }
-    const parsed = parseDistill(item.text);
-    if (parsed === null) {
+    if (distillation === null || distillation === undefined) {
       failed += 1;
       continue;
     }
-    stmts.push(
-      upsertSummary(db, {
-        characterId: target.characterId,
-        parsed,
-        model: meta.model,
-        now: meta.now,
-      }),
-    );
-    for (const tag of parsed.tags) {
+    stmts.push(upsertSummary(meta.db, { characterId: target.characterId, parsed: distillation, model: meta.model, now: meta.now }));
+    for (const tag of distillation.tags) {
       stagedLabels.push({ ownerId: target.ownerId, characterId: target.characterId, tag });
     }
   }
   return { stmts, stagedLabels, failed };
+}
+
+/** Parse ONE card's distillation through the structured-turn helper (D79): the batch reply is the first
+ *  attempt (already fetched — it cannot throw); a per-item retry re-summarizes that one card with the
+ *  validation issues appended. Returns the facets, or `null` when the card FAILED. `null` covers BOTH a double
+ *  validation failure ({@link StructuredOutputError}) AND a retry infra error (a provider 429/timeout thrown by
+ *  the retry summarize call): containing it here counts just this card `failed` and lets the pass complete and
+ *  commit every valid card — one bad card can never abort the whole batch (HEAD's post-summarize resilience). */
+async function parseOneDistill(deps: DistillCharactersDeps, target: DistillTarget, batchText: string): Promise<CharacterDistillation | null> {
+  const run = (correction?: string): Promise<string> => (correction === undefined ? Promise.resolve(batchText) : retryDistillOne(deps, target, correction));
+  try {
+    const p = await runStructuredTurn({ payloadSchema: DISTILL_PAYLOAD, run });
+    return { genre: p.genre, tone: p.tone, setting: p.setting, subGenres: p.subGenres, tags: p.tags, elevatorPitch: p.elevatorPitch, overview: p.overview };
+  } catch {
+    return null;
+  }
+}
+
+/** Re-summarize ONE card with the zod issues appended — the structured-turn helper's bounded retry. */
+async function retryDistillOne(deps: DistillCharactersDeps, target: DistillTarget, correction: string): Promise<string> {
+  const res = await deps.summarize([{ systemPrompt: DISTILL_SYSTEM, userPrompt: `${target.text.slice(0, MAX_CARD_CHARS)}\n\n${correction}` }], {
+    responseFormat: DISTILL_RESPONSE_FORMAT,
+    maxTokens: DISTILL_MAX_TOKENS,
+    temperature: DISTILL_TEMPERATURE,
+  });
+  return res.items[0]?.text ?? "";
 }
 
 /** Commit the summary upserts in bounded (chunked) `db.batch`es — N parses, one round-trip per chunk. */
@@ -236,25 +280,4 @@ function upsertSummary(db: Db, args: { characterId: CharacterId; parsed: Charact
     .insert(characterSummaries)
     .values({ characterId, ...set })
     .onConflictDoUpdate({ target: characterSummaries.characterId, set });
-}
-
-/** @internal — parse ONE distillation reply into facets (tolerant JSON slice), or `null` (a null result =
- *  the pass counts the character `failed`). Consumed by {@link distillCharacters} + the co-located test. */
-function parseDistill(raw: string): CharacterDistillation | null {
-  const obj = sliceJsonObject(raw);
-  if (obj === null) {
-    return null;
-  }
-  const str = (v: unknown): string | null => (typeof v === "string" && v.trim() ? v.trim() : null);
-  const arr = (v: unknown): string[] =>
-    Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && x.trim().length > 0).map((x) => x.trim()) : [];
-  return {
-    genre: str(obj["genre"]),
-    tone: str(obj["tone"]),
-    setting: str(obj["setting"]),
-    subGenres: arr(obj["subGenres"]),
-    tags: arr(obj["tags"]),
-    elevatorPitch: str(obj["elevatorPitch"]),
-    overview: str(obj["overview"]),
-  };
 }

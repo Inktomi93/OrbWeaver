@@ -39,6 +39,19 @@ export async function onCharacterUpdated(ctx: EmbeddingsIndexerContext, event: C
 /** `asset.created` → embed both avatar lenses: `image-raw` then `image-captioned`. Both share the bytes'
  *  content_hash, so a re-index dedups. Idempotent — a duplicate delivery is a cheap noop. */
 export async function onAssetCreated(ctx: EmbeddingsIndexerContext, event: AssetCreatedEvent): Promise<void> {
+  // EMBEDDABILITY GATE (keyed on the stored MIME, never on AssetKind): `asset.created` fires for EVERY
+  // content-addressed asset, but the `imageEmbed` role only speaks images. A non-image asset — a `video/*`
+  // background (BG-V), a document — must never reach the image-embed path; before this gate its bytes were
+  // fed to the model and failed, logged-and-swallowed by the bus's error isolation (wasted decode + spend).
+  // The MIME is the magic-verified upload mime, so it is authoritative; reading it FIRST also means a large
+  // video blob is never loaded just to be skipped. This mirrors the bulk sweep's `mime LIKE 'image/%'`
+  // filter (`assets/verbs/list-image-asset-ids`) — the axis is embeddability, and background-KIND *images*
+  // keep embedding exactly as before.
+  const mime = await ctx.loadAssetMime(event.assetId);
+  if (mime === null || !mime.startsWith("image/")) {
+    getLog().debug({ assetId: event.assetId, mime }, "embeddings indexer: non-image asset — not image-embeddable, skipped");
+    return;
+  }
   const bytes = await ctx.loadAssetBytes(event.assetId);
   if (bytes === undefined) {
     return;

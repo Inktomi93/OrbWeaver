@@ -71,7 +71,7 @@ export async function waitForStreamOpen(page: Page): Promise<void> {
 
 /** Drive the real library→draft→send flow to CREATE one committed chat (one real turn). Returns once the
  *  user's row has committed durably (the chat row exists in the DB from that point). */
-async function createChatViaSend(page: Page): Promise<void> {
+export async function createChatViaSend(page: Page): Promise<void> {
   const charactersNav = page.getByRole("button", { name: "Characters", exact: true });
   await expect(charactersNav).toBeVisible({ timeout: 30_000 });
   await charactersNav.click();

@@ -8,6 +8,7 @@
 import { readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve, sep } from "node:path";
+import type { IngestRunResult } from "@orb/contracts/databank";
 import type { Principal } from "@orb/contracts/identity";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
 import type { Db } from "@orb/db";
@@ -18,16 +19,20 @@ import { and, eq, isNotNull, isNull } from "drizzle-orm";
 import type { AssetsService } from "#domain/assets";
 import type { BulkImportChats } from "#domain/chat";
 import type { ConnectionService } from "#domain/connection";
+import type { DatabankIngest } from "#domain/databank";
 import type { DiscoveryService } from "#domain/discovery";
 import type { EmbeddingsService } from "#domain/embeddings";
+import type { ExpressionsService } from "#domain/expressions";
 import type { BulkImportPersonas } from "#domain/persona";
 import { reconcileStats } from "#domain/stats";
 import type {
   WorkloadCharacterEnv,
+  WorkloadChatCrewEnv,
   WorkloadConnectionEnv,
   WorkloadDiscoveryEnv,
   WorkloadEmbeddingsEnv,
   WorkloadMemoryEnv,
+  WorkloadRpgEnv,
   WorkloadRunnerEnv,
   WorkloadStatsEnv,
 } from "#domain/workloads";
@@ -55,12 +60,24 @@ export interface RunnerEnvDeps {
   readonly db: Db;
   readonly now: () => number;
   readonly cas: Cas;
+  /** The chat-crew member runners' seam (chat-crew-design/02 §7) — the crew's env-only reader/applier + the
+   *  sealed agent turn, assembled at the root (crew imports no provider) and threaded straight through. */
+  readonly chatCrew: WorkloadChatCrewEnv;
+  /** The rpg crew runners' seam (rpg-design/06 §3 / 10 §R6) — the env-only reader/applier pairs + the sealed
+   *  agent turn (crewAgentTurn, reused). A forward-ref delegate: the rpg service builds AFTER this env, so the
+   *  compose root fills the backing object once it exists (turns/workloads run after compose). */
+  readonly rpg: WorkloadRpgEnv;
+  /** The expressions sprite-sheet pass (expressions-design/03) — the runner delegates the whole bulk pass to
+   *  it; the implementation lives in `domain/expressions` (bulk-pass implementations live in their feature). */
+  readonly expressions: Pick<ExpressionsService, "runSpriteSheetJob">;
   readonly discovery: Pick<
     DiscoveryService,
     "computeThemes" | "computeDuplicatePairs" | "computeChatDuplicatePairs" | "computeCharacterHubScores" | "distillCharacters" | "computeCooccurrence"
   >;
   readonly connection: Pick<ConnectionService, "refreshCatalog" | "refreshAgentSdkCatalog">;
-  readonly embeddings: Pick<EmbeddingsService, "embedCorpus" | "embedAssets" | "purgeMemoryVectors">;
+  readonly embeddings: Pick<EmbeddingsService, "embedCorpus" | "embedAssets" | "purgeMemoryVectors" | "purgeDocumentVectors">;
+  /** The databank ingest subsystem (chunk→embed→prune) — the databank-ingest/reindex runners' backing ops. */
+  readonly databankIngest: DatabankIngest;
   readonly assets: Pick<AssetsService, "backfillAvatars" | "collectGarbage" | "fsck">;
   /** Chat's corpus sweeps, bound over the chat ctx at the root (built after chat). */
   readonly memoryBackfill: WorkloadMemoryEnv["backfill"];
@@ -256,6 +273,15 @@ export function buildWorkloadRunnerEnv(deps: RunnerEnvDeps): WorkloadRunnerEnv {
       purgeMemoryVectors: async (): Promise<void> => {
         await deps.embeddings.purgeMemoryVectors();
       },
+      // PD-139(c): the document old-space reclaim; the databank-reindex runner gates it to the bulk,
+      // non-aborted pass (same guard as purgeMemoryVectors). Counts discarded.
+      purgeDocumentVectors: async (): Promise<void> => {
+        await deps.embeddings.purgeDocumentVectors();
+      },
+    },
+    databank: {
+      ingest: (args): Promise<IngestRunResult> => deps.databankIngest.ingestDocument(args),
+      reindex: (args): Promise<IngestRunResult> => deps.databankIngest.reindex(args),
     },
     discovery: {
       computeThemes: async ({ ownerId, k }): Promise<DiscoveryOut> => {
@@ -334,6 +360,11 @@ export function buildWorkloadRunnerEnv(deps: RunnerEnvDeps): WorkloadRunnerEnv {
     },
     memory: { backfill: deps.memoryBackfill },
     character: { backfillGroupCharacters: deps.groupCharacterBackfill },
+    chatCrew: deps.chatCrew,
+    rpg: deps.rpg,
+    expressions: {
+      runSpriteSheetJob: (params, report, signal) => deps.expressions.runSpriteSheetJob(params, report, signal),
+    },
     cas: deps.cas,
   };
 }
