@@ -22,17 +22,17 @@ import type { ConnectionService } from "#domain/connection";
 import type { DatabankIngest } from "#domain/databank";
 import type { DiscoveryService } from "#domain/discovery";
 import type { EmbeddingsService } from "#domain/embeddings";
-import type { ExpressionsService } from "#domain/expressions";
+
 import type { BulkImportPersonas } from "#domain/persona";
 import { reconcileStats } from "#domain/stats";
 import type {
   WorkloadCharacterEnv,
-  WorkloadChatCrewEnv,
+
   WorkloadConnectionEnv,
   WorkloadDiscoveryEnv,
   WorkloadEmbeddingsEnv,
   WorkloadMemoryEnv,
-  WorkloadRpgEnv,
+
   WorkloadRunnerEnv,
   WorkloadStatsEnv,
 } from "#domain/workloads";
@@ -60,16 +60,7 @@ export interface RunnerEnvDeps {
   readonly db: Db;
   readonly now: () => number;
   readonly cas: Cas;
-  /** The chat-crew member runners' seam (chat-crew-design/02 §7) — the crew's env-only reader/applier + the
-   *  sealed agent turn, assembled at the root (crew imports no provider) and threaded straight through. */
-  readonly chatCrew: WorkloadChatCrewEnv;
-  /** The rpg crew runners' seam (rpg-design/06 §3 / 10 §R6) — the env-only reader/applier pairs + the sealed
-   *  agent turn (crewAgentTurn, reused). A forward-ref delegate: the rpg service builds AFTER this env, so the
-   *  compose root fills the backing object once it exists (turns/workloads run after compose). */
-  readonly rpg: WorkloadRpgEnv;
-  /** The expressions sprite-sheet pass (expressions-design/03) — the runner delegates the whole bulk pass to
-   *  it; the implementation lives in `domain/expressions` (bulk-pass implementations live in their feature). */
-  readonly expressions: Pick<ExpressionsService, "runSpriteSheetJob">;
+
   readonly discovery: Pick<
     DiscoveryService,
     "computeThemes" | "computeDuplicatePairs" | "computeChatDuplicatePairs" | "computeCharacterHubScores" | "distillCharacters" | "computeCooccurrence"
@@ -360,11 +351,7 @@ export function buildWorkloadRunnerEnv(deps: RunnerEnvDeps): WorkloadRunnerEnv {
     },
     memory: { backfill: deps.memoryBackfill },
     character: { backfillGroupCharacters: deps.groupCharacterBackfill },
-    chatCrew: deps.chatCrew,
-    rpg: deps.rpg,
-    expressions: {
-      runSpriteSheetJob: (params, report, signal) => deps.expressions.runSpriteSheetJob(params, report, signal),
-    },
+
     cas: deps.cas,
   };
 }

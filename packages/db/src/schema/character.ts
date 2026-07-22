@@ -18,9 +18,9 @@
 // `characters` back — the `noImportCycles` gate forbids the cycle, so the table homes in a
 // character-named leaf both can't cycle through. Ownership is unchanged (producer: domain/character).
 
-import type { CardDepthPrompt, CharacterCard, RefinerySignals } from "@orb/contracts/character";
+import type { CardDepthPrompt, CharacterCard, Greeting, RefinerySignals } from "@orb/contracts/character";
 import type { RegexScript } from "@orb/contracts/regex";
-import type { ThemeOverride } from "@orb/contracts/theme";
+import type { ThemeBackground, ThemeOverride } from "@orb/contracts/theme";
 import type { AssetId, CharacterId, CharacterSnapshotId, PersonaId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import {
@@ -67,6 +67,10 @@ export const characters = sqliteTable(
     // carries only the RAW override; chat assembly threads it through unmerged (themes-design.md §1: zero
     // cross-feature `themes`-table read from chat).
     themeOverride: text("theme_override", { mode: "json" }).$type<ThemeOverride>(),
+    // BG-C §12.1 twin of `theme_override` — the per-character carried BACKGROUND source (nullable JSON blob:
+    // null = no card background). A true-solo room paints it at the app-root background layer, below the
+    // chat-set override; GC-rooted by the `asset-refs` JSON live-source (`asset` kind only). Client-resolved.
+    backgroundOverride: text("background_override", { mode: "json" }).$type<ThemeBackground>(),
     importedFrom: text("imported_from"),
     // sha-256 of the whole imported file (re-import dedup) — DISTINCT from `contentHash`. Null when authored.
     importHash: text("import_hash"),
@@ -83,8 +87,9 @@ export const characters = sqliteTable(
     description: text("description"),
     personality: text("personality"),
     scenario: text("scenario"),
-    // ALWAYS a list (greetings[0] = first message, rest = alternates); default `[]`, never null.
-    greetings: text("greetings", { mode: "json" }).$type<string[]>().notNull().default(sql`'[]'`),
+    // ALWAYS a list (greetings[0] = first message, rest = alternates; `groupOnly` marks a group-chat-only
+    // greeting — the folded ST `group_only_greetings`); default `[]`, never null.
+    greetings: text("greetings", { mode: "json" }).$type<Greeting[]>().notNull().default(sql`'[]'`),
     exampleMessages: text("example_messages"),
     systemPrompt: text("system_prompt"),
     postHistoryInstructions: text("post_history_instructions"),
@@ -94,13 +99,27 @@ export const characters = sqliteTable(
     creator: text("creator"),
     // Card author's freeform version STRING (e.g. "1.2") — NEVER an int counter (D28).
     cardVersion: text("card_version"),
+    // ── V3 content promotions: the four `data.*` fields formerly carried in `residual_data`, now first-class
+    //    typed columns (residual is for genuinely-UNKNOWN vendor keys only). Nullable: absent on a V2 /
+    //    app-authored card. ──
+    // Prompt-facing display name overriding `{{char}}` (ST V3 `data.nickname`).
+    nickname: text("nickname"),
+    // Provenance URLs / ids the card was sourced from (ST V3 `data.source`) — a NULLABLE list (absent ⇒ null,
+    // distinct from an empty `[]`), so it uses `parseStringArrayColumn`, not the always-a-list `greetings` seam.
+    source: text("source", { mode: "json" }).$type<string[]>(),
+    // Unix-seconds authorship timestamps (ST V3 `data.creation_date` / `data.modification_date`).
+    creationDate: integer("creation_date"),
+    modificationDate: integer("modification_date"),
     // Typed promotion (D28): the card's regex scripts. ALWAYS a list; default `[]`, never null.
     regexScripts: text("regex_scripts", { mode: "json" }).$type<RegexScript[]>().notNull().default(sql`'[]'`),
     // Residual `data.extensions` MINUS the promoted-to-column fields — genuinely-unknown vendor extras only.
     extensions: text("extensions", { mode: "json" }).$type<Record<string, unknown>>(),
     // Residual TOP-LEVEL `data.*` keys MINUS the promoted-to-column fields (PD-127) — the sibling of
-    // `extensions` above, scoped to `data.*` instead of `data.extensions.*` (e.g. ST-V3 `source` /
-    // `creation_date` / `creator_notes_multilingual` / `nickname` / `group_only_greetings`).
+    // `extensions` above, scoped to `data.*` instead of `data.extensions.*`. Genuinely-UNKNOWN vendor keys
+    // only: the known ST-V3 fields (`nickname`/`source`/`creation_date`/`modification_date`) are now typed
+    // columns above, and `creator_notes_multilingual` folds into `creator_notes` (the default-language note is
+    // the one home; the map is not separately stored). `group_only_greetings` folds into the `greetings`
+    // array as `groupOnly:true` entries (V3 promotion Phase B), so it no longer rides here either.
     residualData: text("residual_data", { mode: "json" }).$type<Record<string, unknown>>(),
     // Nullable avatar pointer. An asset delete nulls the pointer (SET NULL) — must NOT delete the character.
     avatarAssetId: text("avatar_asset_id")

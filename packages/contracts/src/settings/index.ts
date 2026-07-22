@@ -1,13 +1,19 @@
 // `@orb/contracts/settings` — the two DB-backed config tiers: per-user `UserSettings` and admin-runtime
 // `AppSettings`, both built on `defineVersionedConfig`. The domain owns the verbs/resolver/serializers.
 
+import { isPlainObject } from "@orb/kit/guards";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { DEFAULT_GROUP_CONFIG, groupConfigSchema } from "#chat";
 import { chatApiSchema, openRouterProviderRoutingSchema } from "#connection";
 import { credentialSourceSchema } from "#credentials";
+import type { HubKey } from "#hub";
+import { HUB_KEYS, HUB_NSFW_MODES } from "#hub";
 import { regexScriptSchema } from "#regex";
 import { MEMORY_RETRIEVAL_MODES } from "#search";
-import { THEME_CHAT_STYLES, THEME_DENSITIES } from "#theme";
+// BG-C: the background source-kind vocabulary (`BACKGROUND_IMAGE_KINDS` / `BackgroundImageKind`) is homed in
+// `#theme` (shared with the carried `ThemeBackground` twin); consumers import it from `@orb/contracts/theme`.
+import { BACKGROUND_IMAGE_KINDS, THEME_CHAT_STYLES, THEME_DENSITIES } from "#theme";
 import { defineVersionedConfig } from "#versioned-config";
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -81,6 +87,18 @@ const MAX_IMAGE_BYTES_FLOOR = 100_000;
 const MAX_IMAGE_BYTES_CEIL = 100_000_000;
 export const DEFAULT_MAX_IMAGE_BYTES = 5_000_000;
 
+// The card-hub operator kill switch (hub-browse doc 03 §4 / HB-B). `enabled` is the master (default ON);
+// `enabledHubs` is the per-hub allowlist (default: every v1 hub). An operator who wants zero third-party
+// hub egress flips `enabled` off and every hub verb + the avatar route return `hub-disabled`. The keys
+// land in the SAME unit as their first reader (`isHubEnabled`, resolved off the effective config) — a
+// config axis with no reader is the populate-never rot the sibling sets gate against.
+export const DEFAULT_HUB_ENABLED = true;
+export const hubSettingsSchema = z.object({
+  enabled: z.boolean().optional(),
+  enabledHubs: z.array(z.enum(HUB_KEYS)).optional(),
+});
+export type HubSettings = z.infer<typeof hubSettingsSchema>;
+
 // Every field `.nullable()` AS WELL AS `.optional().catch(undefined)`: null is the CLEAR sentinel.
 export const appSettingsSchema = z.object({
   corpusAutoindex: z.boolean().nullable().optional().catch(undefined),
@@ -98,6 +116,7 @@ export const appSettingsSchema = z.object({
   allowNonOwnerMaxProSub: z.boolean().nullable().optional().catch(undefined),
   localMultiUser: z.boolean().nullable().optional().catch(undefined),
   discreetLogin: z.boolean().nullable().optional().catch(undefined),
+  hub: hubSettingsSchema.nullable().optional().catch(undefined),
 });
 
 export type AppSettings = z.infer<typeof appSettingsSchema>;
@@ -133,6 +152,9 @@ export function parseAppSettings(raw: unknown): AppSettings {
 // (contracts can't import server-side policy). Per-field `.catch(undefined)` self-heals a stale source.
 export const INFERENCE_SOURCES = ["openrouter", "vllm", "local-light"] as const;
 export const SUMMARIZE_SOURCES = ["openrouter", "vllm", "max-pro-sub"] as const;
+// The generateImage role's permitted sources — mirrors ROLE_SOURCE_POLICY.generateImage (the hosted
+// `openrouter` image models + the hosted `venice` image source, MA-1). `comfyui` (MA-8) joins here.
+export const GENERATE_IMAGE_SOURCES = ["openrouter", "venice", "comfyui"] as const;
 
 const inferenceRoleSourceSchema = z.enum(INFERENCE_SOURCES);
 const inferenceRoleConfigSchema = z.object({
@@ -143,8 +165,8 @@ const summarizeRoleConfigSchema = z.object({
   source: z.enum(SUMMARIZE_SOURCES).optional().catch(undefined),
   model: z.string().min(1).optional().catch(undefined),
 });
-const openrouterOnlyRoleConfigSchema = z.object({
-  source: z.literal("openrouter").optional().catch(undefined),
+const generateImageRoleConfigSchema = z.object({
+  source: z.enum(GENERATE_IMAGE_SOURCES).optional().catch(undefined),
   model: z.string().min(1).optional().catch(undefined),
 });
 const chatRoleConfigSchema = z.object({
@@ -157,15 +179,18 @@ const chatRoleConfigSchema = z.object({
 const roleDefaultsSchema = z
   .object({
     chat: chatRoleConfigSchema.optional(),
+    // The agent role is a per-user connection choice (api + source + model), same shape as chat (D67
+    // api-unpin) — the agent's api is NOT server-pinned. Solo buddy validates the resolved api at its entry.
+    agent: chatRoleConfigSchema.optional(),
     embed: inferenceRoleConfigSchema.optional(),
     rerank: inferenceRoleConfigSchema.optional(),
     imageEmbed: inferenceRoleConfigSchema.optional(),
     summarize: summarizeRoleConfigSchema.optional(),
-    generateImage: openrouterOnlyRoleConfigSchema.optional(),
+    generateImage: generateImageRoleConfigSchema.optional(),
   })
   .prefault({});
 
-export const USER_SETTINGS_SCHEMA_VERSION = 3;
+export const USER_SETTINGS_SCHEMA_VERSION = 4;
 
 const SCAN_DEPTH_MIN = 1;
 const SCAN_DEPTH_MAX = 200;
@@ -183,7 +208,16 @@ const DUP_THRESHOLD_FLOOR = 0;
 const DUP_THRESHOLD_CEIL = 1;
 const COMPUTE_THEMES_K_MAX = 100;
 
-const routingSchema = z.object({ roleDefaults: roleDefaultsSchema }).prefault({});
+// Per-agent connection overrides (D67 amendment): a map keyed by the AGENT principal's user id → the
+// connection that agent runs on (same api+source+model shape as roleDefaults.agent). `roleDefaults.agent`
+// is the DEFAULT/fallback beneath these; a seated agent whose id has an entry here beats the default. A
+// stale/deleted agent id degrades to the default at resolution, so the key stays a plain string.
+// The value is NULLABLE: the Agents-table "Remove override" writes `null` to CLEAR an entry — `deepMergePlain`
+// replaces a leaf with a non-plain-object value, so `null` is the one merge-expressible clear (a `{}` patch
+// deep-merges into a no-op and the stale override survives). The resolver reads a null entry as no-override.
+const agentConnectionsSchema = z.record(z.string(), chatRoleConfigSchema.nullable()).prefault({});
+
+const routingSchema = z.object({ roleDefaults: roleDefaultsSchema, agentConnections: agentConnectionsSchema }).prefault({});
 
 const themeSettingsSchema = z
   .object({
@@ -218,6 +252,13 @@ const memorySchema = z
   })
   .prefault({});
 
+// Stream-display scroll behavior (PD-147, client-honored — the `@orb/ui/message-list` `scrollMode` prop).
+// `follow` = the sealed sticky-tail behavior. `pin-prompt` = ChatGPT-style: on send, pin the just-sent
+// message to the viewport top and hold it while the reply streams below. Default `follow` (byte-identical
+// for untouched users). The `@orb/ui` prop union pairs with this tuple at the consumer (compile-time).
+export const STREAM_SCROLL_MODES = ["follow", "pin-prompt"] as const;
+export type StreamScrollMode = (typeof STREAM_SCROLL_MODES)[number];
+
 const chatSchema = z
   .object({
     // Client-honored (composer keydown): Enter sends by default; off → Enter is a newline and ⌘/Ctrl+Enter sends.
@@ -235,6 +276,8 @@ const chatSchema = z
     // Client-honored (the streaming ghost's `useSmoothText` pacer). Default OFF: raw chunk cadence.
     smoothStream: z.boolean().catch(false).default(false),
     smoothStreamCps: z.number().int().min(SMOOTH_STREAM_CPS_MIN).max(SMOOTH_STREAM_CPS_MAX).catch(SMOOTH_STREAM_CPS_DEFAULT).default(SMOOTH_STREAM_CPS_DEFAULT),
+    // Client-honored (the MessageList `scrollMode`). Default `follow`: today's sealed sticky-tail behavior.
+    streamScrollMode: z.enum(STREAM_SCROLL_MODES).catch("follow").default("follow"),
   })
   .prefault({});
 
@@ -243,6 +286,17 @@ export type ChatSettings = z.infer<typeof chatSchema>;
 const personaSchema = z
   .object({
     showNotifications: z.boolean().catch(true).default(true),
+  })
+  .prefault({});
+
+// Expressions (expressions-design/02 §5, D49 #4) — the per-turn sprite-classify opt-in. Default OFF:
+// every classified turn is a real side-LLM spend on the owner's summarizer credential. The no-sprites
+// early-out doubles as the per-character toggle (giving a character sprites IS opting them in), so this is
+// the ONE global gate. Additive namespace with a prefaulted default → an old blob reads `false` with no
+// version bump (the persona/appearance precedent).
+const expressionsSchema = z
+  .object({
+    autoClassify: z.boolean().catch(false).default(false),
   })
   .prefault({});
 
@@ -292,14 +346,45 @@ export const DEFAULT_BLUR_SURFACES: readonly BlurSurface[] = ["panels", "compose
 // `asset` = an own-upload background (PD-131): the picked file is stored as a `background` AssetKind and
 // pinned here by `backgroundAssetId` (GC-rooted via the settings live-source scan) + `backgroundAssetHash`
 // (the immutable content hash the SYNC `resolveBackgroundUrl` builds `blobUrl(hash)` from — id↔hash is
-// fixed for a content-addressed asset, so storing both is denormalized-but-never-stale).
-export const BACKGROUND_IMAGE_KINDS = ["none", "seeded", "external", "asset"] as const;
-export type BackgroundImageKind = (typeof BACKGROUND_IMAGE_KINDS)[number];
+// fixed for a content-addressed asset, so storing both is denormalized-but-never-stale). The source-kind
+// vocabulary (`BACKGROUND_IMAGE_KINDS` / `BackgroundImageKind`) is homed in `#theme` (shared with the
+// carried `ThemeBackground` twin — BG-C) and re-exported from the top import block, so the flat `appearance`
+// fields + every settings consumer keep the one name.
 
 export const SURFACE_TEXTURES = ["none", "grain"] as const;
 export type SurfaceTexture = (typeof SURFACE_TEXTURES)[number];
-export const APPEARANCE_BACKGROUND_FITS = ["cover", "contain"] as const;
+export const APPEARANCE_BACKGROUND_FITS = ["cover", "contain", "stretch", "center"] as const;
 export type AppearanceBackgroundFit = (typeof APPEARANCE_BACKGROUND_FITS)[number];
+
+// A saved background-library entry (BG-D) — the per-user list of uploaded backgrounds the picker chooses
+// from. Lives in settings (the backgrounds concept's ONE home, D63), NOT a relational table: a flat
+// per-user list of dozens with names and zero relational joins. Every entry's `assetId` is GC-rooted by
+// the settings live-source scan (`domain/assets/persistence/asset-refs.ts`) so an unpicked upload is never
+// reaped. `mime` lets a picked VIDEO entry select the `<video>` background layer (BG-V) over the image one;
+// `assetHash` builds `blobUrl(hash)` for the grid thumbnail without an async id→hash round-trip.
+export const backgroundLibraryEntrySchema = z.object({
+  // @orb-gate-ignore no-raw-id not an entity FK — a blob-internal per-ROW ui identity, the SAME shape as the sibling client-minted blob-row ids (`regex.scripts[].id`, preset `sections[].id` — plain `crypto.randomUUID()`), and the sibling lenient UserSettings-tier `*Id` exemptions in this file. A branded kit/ids TypeID does NOT fit: the row is minted CLIENT-side (no client TypeID minter) and the v3→v4 backfill is DETERMINISTIC (`${assetId}:${index}`, so it's stable across the reads that re-run the lift before the first v4 write) — neither is a mintable `prefix_…` TypeID.
+  // Stable per-ROW id, the key/select/delete/rename target (F-P2): a content-addressed `assetId` is SHARED by
+  // byte-identical uploads, so keying rows on it collided (dup React keys + deleting one wiped both). `assetId`
+  // stays the content pointer; `entryId` identifies the row.
+  entryId: z.string(),
+  assetId: typeIdSchema(ID_PREFIX.asset),
+  assetHash: z.string(),
+  mime: z.string(),
+  name: z.string(),
+  // Provenance for a materialized external-URL background (BG-C invariant / F-P0-2): the original URL the
+  // asset was fetched-and-stored from. Optional (own-uploads have none); metadata only, never re-fetched.
+  provenanceUrl: z.string().optional(),
+});
+export type BackgroundLibraryEntry = z.infer<typeof backgroundLibraryEntrySchema>;
+
+// Chat LAYOUT mode (VN-1, the ST waifuMode parity) — ORTHOGONAL to `chatStyle` (a message-row skin):
+// `classic` is the standard thread; `vn` is the visual-novel stage — the landed E5 expression sprite
+// (composed READ-ONLY through the chat-surface `thread-flank` contributor) over the app background layer,
+// with the message thread compressed to a bottom panel. With no sprites the `vn` stage is just the
+// background behind a compact thread. An extensible axis: a future cinematic mode is one more tuple entry.
+export const CHAT_LAYOUTS = ["classic", "vn"] as const;
+export type ChatLayout = (typeof CHAT_LAYOUTS)[number];
 
 const READING_LINE_HEIGHT_MIN = 1.2;
 const READING_LINE_HEIGHT_MAX = 2.2;
@@ -331,6 +416,7 @@ const appearanceSchema = z
     density: z.enum(THEME_DENSITIES).catch("comfortable").default("comfortable"),
     elevation: z.enum(["flat", "ramp", "glow"]).catch("flat").default("flat"),
     chatStyle: z.enum(THEME_CHAT_STYLES).catch("bubble").default("bubble"),
+    chatLayout: z.enum(CHAT_LAYOUTS).catch("classic").default("classic"),
     showTimestamps: z.boolean().catch(true).default(true),
     showGenerationTimer: z.boolean().catch(false).default(false),
     // PD-137 — reveal a quiet per-message settled-cost affordance (a paid upstream OpenRouter call, fired
@@ -353,11 +439,11 @@ const appearanceSchema = z
       .regex(/^[a-z0-9-]*$/u)
       .catch("")
       .default(""),
-    backgroundExternalUrl: z
-      .string()
-      .refine((s) => s === "" || z.url().safeParse(s).success)
-      .catch("")
-      .default(""),
+    // NOTE: there is no flat `backgroundExternalUrl` — an external URL can never paint (CSP `img-src`
+    // self/data/blob only, by design), so the global appearance surface materializes a pasted URL server-side
+    // (`settings.addExternalBackground`) into a `backgroundLibrary` ASSET entry rather than persisting a
+    // paintable external field (the BG-C invariant, side-eye F-P0-2). The kind enum keeps `external` only as a
+    // transient INPUT mode (the picker's URL-entry branch), never a persisted paintable state.
     // @orb-gate-ignore no-raw-id lenient UserSettings tier — the own-upload background asset id (kind `asset`). A stale/deleted value degrades to "no image" at resolution (the `profile.avatarAssetId` precedent); the LIVE value is GC-rooted by the settings live-source scan (`domain/assets/persistence/asset-refs.ts`), not an FK boundary.
     backgroundAssetId: z
       .string()
@@ -367,6 +453,12 @@ const appearanceSchema = z
     // The immutable content hash for the `asset` kind — the SYNC `resolveBackgroundUrl` builds
     // `blobUrl(hash)` from it (no async id→hash round-trip). A blank/garbage value degrades to a 404 blob.
     backgroundAssetHash: z.string().catch("").default(""),
+    // BG-V: the mime of the picked `asset` background. App-shell branches the `<video>` background layer
+    // over the image layer when this is `video/*`; blank (image assets / non-asset kinds) → the image layer.
+    backgroundAssetMime: z.string().catch("").default(""),
+    // BG-D: the saved background library the picker chooses from. Additive + prefaulted (an old blob reads
+    // `[]` with no version bump — the persona/appearance precedent). Every entry's asset is GC-rooted.
+    backgroundLibrary: z.array(backgroundLibraryEntrySchema).catch([]).default([]),
     backgroundFit: z.enum(APPEARANCE_BACKGROUND_FITS).catch("cover").default("cover"),
     backgroundDim: z.number().min(BACKGROUND_DIM_MIN).max(BACKGROUND_DIM_MAX).catch(BACKGROUND_DIM_DEFAULT).default(BACKGROUND_DIM_DEFAULT),
     backgroundBlur: z.number().min(BACKGROUND_BLUR_MIN).max(BACKGROUND_BLUR_MAX).catch(BACKGROUND_BLUR_DEFAULT).default(BACKGROUND_BLUR_DEFAULT),
@@ -410,6 +502,18 @@ const regexSettingsSchema = z
 
 export type RegexSettings = z.infer<typeof regexSettingsSchema>;
 
+// The per-user CARD-HUB BROWSE prefs (hub-browse doc 03 §6; H6). Distinct tier from the operator
+// `hubSettingsSchema` kill switch above (AppSettings). `nsfw` is the browse-default tri-state persisted
+// per-user so the toggle survives a mount + a tab switch (the as-built control is the `nsfw` tri-state, not
+// the doc's original `includeNsfw` boolean — doc 03 §1 wire-drift). Additive + defaulted (the `appearance`
+// precedent — no schema-version bump; an old blob without it reads the SFW-first default).
+const hubBrowseSettingsSchema = z
+  .object({
+    nsfw: z.enum(HUB_NSFW_MODES).catch("exclude").default("exclude"),
+  })
+  .prefault({});
+export type HubBrowseSettings = z.infer<typeof hubBrowseSettingsSchema>;
+
 export const userSettingsSchema = z.object({
   // The DB also pins a `user_settings.schemaVersion` COLUMN (`storedVersion`), which BEATS this in-blob
   // value so a client can't spoof past a lift.
@@ -420,6 +524,7 @@ export const userSettingsSchema = z.object({
   memory: memorySchema,
   chat: chatSchema,
   persona: personaSchema,
+  expressions: expressionsSchema,
   groupDefaults: groupConfigSchema.catch(DEFAULT_GROUP_CONFIG).default(DEFAULT_GROUP_CONFIG),
   onboarding: onboardingSchema,
   regex: regexSettingsSchema,
@@ -427,6 +532,7 @@ export const userSettingsSchema = z.object({
   profile: profileSchema,
   appearance: appearanceSchema,
   theme: themeSettingsSchema,
+  hub: hubBrowseSettingsSchema,
 });
 
 export type UserSettings = z.infer<typeof userSettingsSchema>;
@@ -439,6 +545,7 @@ export const USER_SETTINGS_SECTIONS = [
   "memory",
   "chat",
   "persona",
+  "expressions",
   "groupDefaults",
   "onboarding",
   "regex",
@@ -446,6 +553,7 @@ export const USER_SETTINGS_SECTIONS = [
   "profile",
   "appearance",
   "theme",
+  "hub",
 ] as const;
 export type UserSettingsSection = (typeof USER_SETTINGS_SECTIONS)[number];
 
@@ -494,6 +602,33 @@ const USER_SETTINGS_LIFTS: Record<number, (config: Record<string, unknown>) => R
     const { regexScripts, ...rest } = c;
     return { ...rest, regex: { scripts: Array.isArray(regexScripts) ? regexScripts : [] } };
   },
+  // v3→v4: mint a stable per-ROW `entryId` on every `appearance.backgroundLibrary` entry (F-P2 — a
+  // content-addressed `assetId` is shared by byte-identical uploads, so keying rows on it collided). The
+  // backfill is DETERMINISTIC (`${assetId}:${index}`, not a random uuid) so it is stable across the repeated
+  // reads that re-run this lift until the first v4 write stamps the storedVersion column — a random mint would
+  // hand a different key out on every read. Idempotent: an entry already carrying an `entryId` keeps it.
+  3: (c) => {
+    const appearance = c["appearance"];
+    if (!isPlainObject(appearance)) {
+      return c;
+    }
+    const library = appearance["backgroundLibrary"];
+    if (!Array.isArray(library)) {
+      return c;
+    }
+    const backgroundLibrary = library.map((entry: unknown, index: number) => {
+      if (!isPlainObject(entry)) {
+        return entry;
+      }
+      const existing = entry["entryId"];
+      if (typeof existing === "string" && existing.length > 0) {
+        return entry;
+      }
+      const assetId = typeof entry["assetId"] === "string" ? entry["assetId"] : "bg";
+      return { ...entry, entryId: `${assetId}:${index}` };
+    });
+    return { ...c, appearance: { ...appearance, backgroundLibrary } };
+  },
 };
 
 export const userSettingsConfig = defineVersionedConfig<UserSettings>({
@@ -525,6 +660,13 @@ export interface ResolvedVllmConcurrency {
   summarize: number;
 }
 
+/** The resolved card-hub kill switch — `isHubEnabled(key)` = `enabled && enabledHubs.includes(key)`. The
+ *  floor is master-ON with every v1 hub allowed (doc 03 §4). */
+export interface ResolvedHubSettings {
+  enabled: boolean;
+  enabledHubs: HubKey[];
+}
+
 export interface EffectiveAppConfig {
   corpusAutoindex: boolean;
   importSkipCharacters: string[];
@@ -541,4 +683,5 @@ export interface EffectiveAppConfig {
   localMultiUser: boolean;
   discreetLogin: boolean;
   maxImageBytes: number;
+  hub: ResolvedHubSettings;
 }

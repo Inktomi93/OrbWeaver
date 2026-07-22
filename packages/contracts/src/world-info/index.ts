@@ -40,12 +40,26 @@ export const updateBookSchema = z.object({
 });
 export type UpdateBookInput = z.infer<typeof updateBookSchema>;
 
-// Loose: unknown keys (e.g. preserved ST entry fields) ride through untouched; the three load-bearing
-// fields are typed.
+/** Machine-writer provenance an automated upserter (the chat/rpg crew keeper, the D46 automation writer)
+ *  stamps onto an entry it owns. `contentHash` is the sha256-hex of the content AS THE WRITER LEFT IT — the
+ *  hand-edit-safe belt: a `upsertEntries` re-run that finds the CURRENT content no longer hashing to this
+ *  value knows a human curated the entry and SKIPS it (the host's hand always wins). `span` is the transcript
+ *  window that produced the entry (display + re-run idempotency). Generic on purpose — the three-way shared
+ *  `upsertEntries` mint owns this shape so every machine consumer inherits the same guarantee (chat-crew-design
+ *  /02 §7, /03 §1; CC-D). */
+export const loreEntryCrewProvenanceSchema = z.object({
+  contentHash: z.string(),
+  span: z.object({ fromSeq: z.number().int().nonnegative(), toSeq: z.number().int().nonnegative() }).optional(),
+});
+export type LoreEntryCrewProvenance = z.infer<typeof loreEntryCrewProvenanceSchema>;
+
+// Loose: unknown keys (e.g. preserved ST entry fields) ride through untouched; the load-bearing fields are
+// typed. `crew` is the machine-writer provenance (above) — present only on entries an upserter owns.
 export const entryMetadataSchema = z.looseObject({
   scopeMode: z.enum(ENTRY_SCOPE_MODES).optional(),
   inject: injectionDirectiveSchema.optional(),
   position: z.enum(ENTRY_POSITIONS).optional(),
+  crew: loreEntryCrewProvenanceSchema.optional(),
 });
 export type EntryMetadata = z.infer<typeof entryMetadataSchema>;
 
@@ -149,6 +163,49 @@ export interface BulkImportLorebookResult {
   readonly worldBookId: WorldBookId;
   readonly entryCount: number;
   readonly replaced: boolean;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+// upsertEntries — the SHARED machine-writer bulk op (D58 satellite; chat-crew-design/02 §7, /03 §1). The ONE
+// home for hand-edit-safe lore upkeep: three consumers (the chat crew keeper, the rpg lorebook upkeep, the
+// D46 automation writer) inject it and never fork a fence-strip/compare copy. The op upserts by (bookId,
+// title) — a re-run REPLACES its own prior entry for the same title — and NEVER overwrites a human-curated
+// entry (the stored `metadata.crew.contentHash` vs the current content is the guard). Caller policy (caps,
+// merge-mode, span-stamped names, mark advance) stays with the caller; the SKIP semantics live here so every
+// consumer inherits them (CC-D).
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+/** One entry a machine writer upserts. `title` is the upsert key within the book; `keys` drive the keyword
+ *  match (a keeper entry is keyed, not constant — chat-crew-design/03 §1). `span` is stamped into the entry's
+ *  `metadata.crew.span` provenance. */
+export interface UpsertLoreEntryInput {
+  readonly title: string;
+  readonly keys: readonly string[];
+  readonly content: string;
+  readonly span?: { readonly fromSeq: number; readonly toSeq: number } | undefined;
+}
+
+/** The counts one `upsertEntries` run returns. `skippedHandEdited` = entries a human had curated since the
+ *  writer last wrote them (the hand-edit guard fired) — surfaced so the caller can report/log them. */
+export interface UpsertEntriesResult {
+  readonly inserted: number;
+  readonly updated: number;
+  readonly skippedHandEdited: number;
+}
+
+/** One row of a book's entry index — the lean shape a machine writer reads to build its merge/dedup prompt
+ *  and count against a per-book cap (never the full `EntryView`). */
+export interface LoreEntryIndexRow {
+  readonly title: string;
+  readonly keys: readonly string[];
+}
+
+/** One CONSTANT ("always"-scope) lorebook entry attached to a chat — the lean title+content a producer reads
+ *  as pre-play canon (rpg-design/06 §4: "only constant entries exist pre-play"). Room-public prompt content
+ *  (membership is the caller's gate, mirroring `listChatBooks`), so no owner/economics fields. */
+export interface LoreConstantCanonRow {
+  readonly title: string;
+  readonly content: string;
 }
 
 export type WiBusEvent =

@@ -6,7 +6,7 @@ import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { injectionDirectiveSchema } from "@orb/kit/injection";
 import { z } from "zod";
 import { regexScriptSchema } from "#regex";
-import { themeOverrideSchema } from "#theme";
+import { themeBackgroundSchema, themeOverrideSchema } from "#theme";
 import { worldBookRoleSchema } from "#world-info";
 
 const HANDLE_MIN = 1;
@@ -16,8 +16,39 @@ const NAME_MAX = 200;
 const TEXT_MAX = 100_000;
 const CREATOR_MAX = 200;
 const CARD_VERSION_MAX = 200;
+const NICKNAME_MAX = 200;
+const SOURCE_MAX = 100;
 const GREETINGS_MAX = 100;
 const REGEX_SCRIPTS_MAX = 500;
+
+// ── Card spec markers (Character-Card V2 / V3) ──────────────────────────────────────────────────────────
+// The wire `spec` values this serde reads AND emits. V1 + Pygmalion-Gradio cards normalize to the V2 field
+// set (they predate V2 but share its `{ data }` shape). V3 is a strict SUPERSET of V2 — every V2 field plus
+// the additive ones (`assets`/`nickname`/`source`/`group_only_greetings`/`creator_notes_multilingual`/
+// `creation_date`/`modification_date`, lorebook `use_regex`), so a V2 card IS a V3 card with the extras
+// absent. The canonical card carries the spec it was READ from so export round-trips it (V2→V2, V3→V3).
+export const CHARA_CARD_V2_SPEC = "chara_card_v2";
+export const CHARA_CARD_V3_SPEC = "chara_card_v3";
+export const CARD_SPECS = [CHARA_CARD_V2_SPEC, CHARA_CARD_V3_SPEC] as const;
+export const cardSpecSchema = z.enum(CARD_SPECS);
+export type CardSpec = (typeof CARD_SPECS)[number];
+
+// V3 `data.assets[]` — the media manifest; each entry is `{type,uri,name,ext}` (the RisuAI/charx shape,
+// e.g. `{type:"icon",uri:"ccdefault:",name:"main",ext:"png"}` or an `embeded://…` charx-ZIP path). PARSED +
+// PRESERVED only. Resolving an asset URI — charx ZIP extraction, an `http(s)` fetch, `ccdefault:` — and
+// consuming it (expression sprites → the expressions domain, the gallery) is a SEPARATE later chunk that
+// MUST ride the H1 egress firewall: a card is untrusted, so a URI fetch is an SSRF surface. The serde stays
+// pure parse-and-validate (kit is isomorphic, zero I/O). `.loose()` keeps unknown asset keys; the fields are
+// lenient (a real-world asset with a missing `type`/`name` never throws — ST defaults them to `""`).
+export const cardAssetSchema = z
+  .object({
+    type: z.string().catch(""),
+    uri: z.string().catch(""),
+    name: z.string().catch(""),
+    ext: z.string().catch(""),
+  })
+  .loose();
+export type CardAsset = z.infer<typeof cardAssetSchema>;
 
 // Character's Note @ Depth: reuses the shared `@orb/kit/injection` `{depth, role?}` directive.
 export const cardDepthPromptSchema = injectionDirectiveSchema.extend({
@@ -47,14 +78,33 @@ export type AttachedBookRef = z.infer<typeof attachedBookRefSchema>;
 // field). The ONE literal home — the serde OUT-emitter + the import extractor read it from here.
 export const ATTACHED_BOOKS_WIRE_KEY = "orbweaver_attached_books";
 
+// ── Greeting (V3 promotion Phase B) ─────────────────────────────────────────────────────────────────────
+// ONE greetings array folds the former three ST wire fields: `first_mes` (greetings[0].text), the
+// `alternate_greetings` (the rest, `groupOnly` absent/false), and `group_only_greetings` (`groupOnly: true`) —
+// offered only in group chats. The serde re-splits them on export (`buildCardV3`) so the round-trip is lossless.
+// The owner-decided lock-the-extensible-shape call (the parallel-column alternative was rejected).
+export const greetingSchema = z.object({
+  /** The greeting text — macro-aware (`{{char}}`/`{{user}}`/…), resolved at read. */
+  text: z.string().max(TEXT_MAX),
+  /** True ⇒ offered ONLY in group chats (ST `data.group_only_greetings`). Absent ⇒ a normal greeting. Never
+   *  set on greetings[0] (the first message is always solo-eligible). */
+  groupOnly: z.boolean().optional(),
+});
+export type Greeting = z.infer<typeof greetingSchema>;
+
+/** The always-a-list DB read-seam coercion for the `characters.greetings` JSON column (+ snapshot blobs): a
+ *  corrupt/non-array value collapses to `[]`. The ONE home the row→view readers share (queries `cardOf`). */
+export const greetingsColumnSchema = z.array(greetingSchema).catch([]);
+
 // Identity-free (no id/handle/ownerId — those are row identity columns, not card content).
 export const characterCardSchema = z.object({
   name: z.string().min(NAME_MIN).max(NAME_MAX),
   description: z.string().max(TEXT_MAX).nullable(),
   personality: z.string().max(TEXT_MAX).nullable(),
   scenario: z.string().max(TEXT_MAX).nullable(),
-  /** Ordered greetings — `[0]` is the first message, the rest are alternates. */
-  greetings: z.array(z.string().max(TEXT_MAX)).max(GREETINGS_MAX),
+  /** Ordered greetings — `[0]` is the first message, the rest are alternates; `groupOnly` marks a
+   *  group-chat-only greeting (the folded ST `group_only_greetings`). */
+  greetings: z.array(greetingSchema).max(GREETINGS_MAX),
   exampleMessages: z.string().max(TEXT_MAX).nullable(),
   systemPrompt: z.string().max(TEXT_MAX).nullable(),
   postHistoryInstructions: z.string().max(TEXT_MAX).nullable(),
@@ -66,6 +116,16 @@ export const characterCardSchema = z.object({
   creator: z.string().max(CREATOR_MAX).nullable(),
   /** Card author's freeform version STRING (ST `data.character_version`, e.g. "1.2") — NEVER an int counter. */
   cardVersion: z.string().max(CARD_VERSION_MAX).nullable(),
+  // ── V3 content promotions: the four `data.*` fields that had a residual home, now first-class columns.
+  //    Absent on a V2 / app-authored card ⇒ null (the V2-omits-them-cleanly property export relies on). ──
+  /** Prompt-facing display name overriding `{{char}}` (ST V3 `data.nickname`). */
+  nickname: z.string().max(NICKNAME_MAX).nullable(),
+  /** Provenance URLs / ids the card was sourced from (ST V3 `data.source`). */
+  source: z.array(z.string().max(TEXT_MAX)).max(SOURCE_MAX).nullable(),
+  /** Unix-seconds authorship timestamp (ST V3 `data.creation_date`). */
+  creationDate: z.number().int().nullable(),
+  /** Unix-seconds last-modification timestamp (ST V3 `data.modification_date`). */
+  modificationDate: z.number().int().nullable(),
   regexScripts: z.array(regexScriptSchema).max(REGEX_SCRIPTS_MAX),
   /** Residual `data.extensions` MINUS the promoted-to-column fields — genuinely-unknown vendor extras only. */
   extensions: z.record(z.string(), z.unknown()).nullable(),
@@ -74,6 +134,11 @@ export const characterCardSchema = z.object({
   avatarAssetId: typeIdSchema(ID_PREFIX.asset).nullable(),
   /** CardRefinery pipeline signals (derived, not authored). */
   refinery: refinerySignalsSchema.nullable(),
+  /** The wire spec this card was READ from (`chara_card_v2`/`chara_card_v3`) so export round-trips it (V2→V2,
+   *  V3→V3). Absent for app-authored / V1 / Pygmalion cards — export then defaults to V3. Serde-boundary only
+   *  today (no backing `characters` column yet — the residual-first pattern), so a DB round-trip normalizes
+   *  to V3; V3-native content (`assets`/`nickname`/…) still survives the DB via the `residualData` column. */
+  spec: cardSpecSchema.optional(),
 });
 export type CharacterCard = z.infer<typeof characterCardSchema>;
 
@@ -85,13 +150,17 @@ export const createCharacterSchema = z.object({
   description: z.string().max(TEXT_MAX),
   personality: z.string().max(TEXT_MAX).nullable().optional(),
   scenario: z.string().max(TEXT_MAX).nullable().optional(),
-  greetings: z.array(z.string().max(TEXT_MAX)).max(GREETINGS_MAX).nullable().optional(),
+  greetings: z.array(greetingSchema).max(GREETINGS_MAX).nullable().optional(),
   exampleMessages: z.string().max(TEXT_MAX).nullable().optional(),
   systemPrompt: z.string().max(TEXT_MAX).nullable().optional(),
   postHistoryInstructions: z.string().max(TEXT_MAX).nullable().optional(),
   creatorNotes: z.string().max(TEXT_MAX).nullable().optional(),
   creator: z.string().max(CREATOR_MAX).nullable().optional(),
   cardVersion: z.string().max(CARD_VERSION_MAX).nullable().optional(),
+  nickname: z.string().max(NICKNAME_MAX).nullable().optional(),
+  source: z.array(z.string().max(TEXT_MAX)).max(SOURCE_MAX).nullable().optional(),
+  creationDate: z.number().int().nullable().optional(),
+  modificationDate: z.number().int().nullable().optional(),
   regexScripts: z.array(regexScriptSchema).max(REGEX_SCRIPTS_MAX).nullable().optional(),
   extensions: z.record(z.string(), z.unknown()).nullable().optional(),
   residualData: z.record(z.string(), z.unknown()).nullable().optional(),
@@ -109,6 +178,10 @@ export const updateCharacterSchema = createCharacterSchema.partial().extend({
   trustHtml: z.boolean().nullable().optional(),
   /** `undefined` = leave unchanged; `null` = clear (inherit global theme); a value = set it. */
   themeOverride: themeOverrideSchema.nullable().optional(),
+  /** BG-C — the carried card BACKGROUND source (the `themeOverride` twin). `undefined` = leave unchanged;
+   *  `null` = clear (no card background); a value = set it. Applies only in a true-solo room, below the
+   *  chat-set override (resolution is client-side in the app-shell background resolver). */
+  backgroundOverride: themeBackgroundSchema.nullable().optional(),
 });
 export type UpdateCharacterInput = z.infer<typeof updateCharacterSchema>;
 
@@ -174,9 +247,8 @@ export const characterListCursorSchema = z.discriminatedUnion("sort", [
 ]);
 export type CharacterListCursor = z.infer<typeof characterListCursorSchema>;
 
-// The strict ST `chara_card_v3` wire object; `.loose()` keeps unknown vendor keys riding through.
-export const CHARA_CARD_V3_SPEC = "chara_card_v3";
-
+// The ST card wire object — a V2/V3 SUPERSET (`spec` accepts either; V3-additive fields are optional so a
+// V2 card validates as "V3 with the extras absent"). `.loose()` keeps unknown vendor keys riding through.
 // biome-ignore-start lint/style/useNamingConvention: ST Character-Card-V3 wire field names (snake_case)
 const characterBookEntrySchema = z
   .object({
@@ -187,6 +259,10 @@ const characterBookEntrySchema = z
     comment: z.string().optional(),
     constant: z.boolean().optional(),
     extensions: z.record(z.string(), z.unknown()).optional(),
+    // V3-additive lorebook fields. `use_regex` marks the entry's keys as regex (ST keys are always regex).
+    // Decorators are NOT a wire field — V3 embeds them as `@@`-prefixed lines INSIDE `content`, so they ride
+    // through verbatim with the content (no separate column). `.catch` keeps a malformed value non-throwing.
+    use_regex: z.boolean().optional().catch(undefined),
   })
   .loose();
 
@@ -209,6 +285,23 @@ const characterCardV3DataSchema = z
     tags: z.array(z.string()),
     extensions: z.record(z.string(), z.unknown()),
     character_book: characterBookSchema.optional(),
+    // ── V3-additive `data.*` fields (a V2 card omits them ⇒ all optional). Each carries `.catch` so a
+    // malformed real-world value is dropped rather than throwing the strict OUT `.parse` (these ride in via
+    // the `residualData` passthrough, which is untrusted). A well-formed value round-trips unchanged. ──
+    /** Media manifest — PARSED + PRESERVED only (round-trips on `residualData`); no consumer materializes
+     *  its URIs into local storage yet — there is no card-media fetch/download path built anywhere. */
+    assets: z.array(cardAssetSchema).optional().catch(undefined),
+    /** Prompt-facing display name overriding `{{char}}`. */
+    nickname: z.string().optional().catch(undefined),
+    /** Per-language creator notes, keyed by language code. */
+    creator_notes_multilingual: z.record(z.string(), z.string()).optional().catch(undefined),
+    /** Provenance URLs / ids the card was sourced from. */
+    source: z.array(z.string()).optional().catch(undefined),
+    /** Greetings offered ONLY in group chats. */
+    group_only_greetings: z.array(z.string()).optional().catch(undefined),
+    /** Unix-seconds authorship timestamps. */
+    creation_date: z.number().optional().catch(undefined),
+    modification_date: z.number().optional().catch(undefined),
     // PD-144: orbweaver-namespaced attached-book REFERENCES (never the book content). Optional so every
     // existing/foreign card stays valid; validated on the OUT boundary so a malformed ref fails loud.
     orbweaver_attached_books: z.array(attachedBookRefSchema).optional(),
@@ -217,7 +310,8 @@ const characterCardV3DataSchema = z
 
 export const characterCardV3Schema = z
   .object({
-    spec: z.literal(CHARA_CARD_V3_SPEC),
+    // A V2/V3 superset: accept either spec marker (`spec_version` stays a free string — ST V3 allows 3.x).
+    spec: cardSpecSchema,
     spec_version: z.string(),
     data: characterCardV3DataSchema,
   })

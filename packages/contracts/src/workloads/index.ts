@@ -106,28 +106,39 @@ export const WORKLOAD_KIND_MODES = {
   "refresh-model-catalog": { singular: false, bulk: true, bulkRequiresTarget: false, stub: false },
   "compute-cooccurrence": { singular: false, bulk: true, bulkRequiresTarget: false, stub: false },
   "reconcile-world-state": { singular: false, bulk: true, bulkRequiresTarget: false, stub: true },
-  "crew-lorebook-keeper": { singular: false, bulk: true, bulkRequiresTarget: false, stub: true },
-  "crew-card-evolution": { singular: false, bulk: true, bulkRequiresTarget: false, stub: true },
-  "crew-director": { singular: false, bulk: true, bulkRequiresTarget: false, stub: true },
-  "crew-prose-audit": { singular: false, bulk: true, bulkRequiresTarget: false, stub: true },
-  "expressions-sprite-sheet": {
-    singular: false,
-    bulk: true,
-    bulkRequiresTarget: false,
-    stub: true,
-  },
-  "databank-ingest": { singular: false, bulk: true, bulkRequiresTarget: false, stub: true },
-  "databank-reindex": { singular: false, bulk: true, bulkRequiresTarget: false, stub: true },
-  "rpg-world-gen": { singular: false, bulk: true, bulkRequiresTarget: false, stub: true },
-  "rpg-recap": { singular: false, bulk: true, bulkRequiresTarget: false, stub: true },
-  "rpg-session-distill": { singular: false, bulk: true, bulkRequiresTarget: false, stub: true },
-  "rpg-director": { singular: false, bulk: true, bulkRequiresTarget: false, stub: true },
-  "rpg-lorebook-upkeep": { singular: false, bulk: true, bulkRequiresTarget: false, stub: true },
-  "rpg-illustration": { singular: false, bulk: true, bulkRequiresTarget: false, stub: true },
-  "rpg-npc-portrait": { singular: false, bulk: true, bulkRequiresTarget: false, stub: true },
-  "rpg-scene-plan": { singular: false, bulk: true, bulkRequiresTarget: false, stub: true },
-  "rpg-scene-distill": { singular: false, bulk: true, bulkRequiresTarget: false, stub: true },
-  "rpg-recruit-card": { singular: false, bulk: true, bulkRequiresTarget: false, stub: true },
+  // CW2 flipped: the real keeper runner enqueues singular per (kind, ownerId, source) — per-HOST across ALL
+  // their chats, NOT per-chat (the landed `workloads_mode_active_singular` index; 03 §0 / 08 CC-C).
+  "crew-lorebook-keeper": { singular: true, bulk: false, bulkRequiresTarget: false, stub: false },
+  // CW3 flipped: the real card-evolution runner enqueues singular per (kind, ownerId, source) — per-HOST across
+  // all their chats (03 §0 / 08 CC-C).
+  "crew-card-evolution": { singular: true, bulk: false, bulkRequiresTarget: false, stub: false },
+  // CW4 flipped: the real director runner enqueues singular per (kind, ownerId, source) — per-HOST across all
+  // their chats (03 §0 / 08 CC-C).
+  "crew-director": { singular: true, bulk: false, bulkRequiresTarget: false, stub: false },
+  // CW5 flipped: the real prose-audit runner enqueues singular per (kind, ownerId, source) — per-HOST across all
+  // their chats (03 §0 / 08 CC-C).
+  "crew-prose-audit": { singular: true, bulk: false, bulkRequiresTarget: false, stub: false },
+  // E4: a per-character sprite-sheet generation an OWNER triggers for their OWN character — singular BY
+  // DOCTRINE (one authed user's own data; the crew/databank per-owner rows are the precedent). NOT bulk: a
+  // bulk+null-owner enqueue mis-attributes the row (owner=null on a user-triggered job — wrong for stats/GC
+  // scoping) AND globally single-actives ALL users' sprite jobs into one slot (multi-user starvation). The
+  // real runner IS registered (dispatch.ts) → not a stub.
+  "expressions-sprite-sheet": { singular: true, bulk: false, bulkRequiresTarget: false, stub: false },
+  "databank-ingest": { singular: true, bulk: true, bulkRequiresTarget: false, stub: false },
+  "databank-reindex": { singular: true, bulk: true, bulkRequiresTarget: false, stub: false },
+  // R6 (crew wave 1): the real runners enqueue singular-per-game on the host (rpg-design/06 §3/§4).
+  "rpg-world-gen": { singular: true, bulk: false, bulkRequiresTarget: false, stub: false },
+  "rpg-recap": { singular: true, bulk: false, bulkRequiresTarget: false, stub: false },
+  "rpg-session-distill": { singular: true, bulk: false, bulkRequiresTarget: false, stub: false },
+  "rpg-director": { singular: true, bulk: false, bulkRequiresTarget: false, stub: false },
+  "rpg-lorebook-upkeep": { singular: true, bulk: false, bulkRequiresTarget: false, stub: false },
+  // R9 (rpg-design/10 §R9): the real image runners land — singular-per-game on the host (the crew precedent).
+  "rpg-illustration": { singular: true, bulk: false, bulkRequiresTarget: false, stub: false },
+  "rpg-npc-portrait": { singular: true, bulk: false, bulkRequiresTarget: false, stub: false },
+  // R10 (rpg-design/10 §R10): the real crew runners land — singular-per-game/-scene/-npc on the host.
+  "rpg-scene-plan": { singular: true, bulk: false, bulkRequiresTarget: false, stub: false },
+  "rpg-scene-distill": { singular: true, bulk: false, bulkRequiresTarget: false, stub: false },
+  "rpg-recruit-card": { singular: true, bulk: false, bulkRequiresTarget: false, stub: false },
 } as const satisfies Record<WorkloadKind, WorkloadModePolicy>;
 
 /** How often a `workload_schedule` auto-enqueues its workload — a NAMED interval preset (no cron string)
