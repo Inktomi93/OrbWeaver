@@ -18,9 +18,7 @@ import { eq } from "drizzle-orm";
 
 /** A source-specific soul resolver — OWNER-keyed (the built `buddy.resolveSpeakerIdentity` takes the owner,
  *  since the `buddies` PK IS the owner userId). null ⇒ nothing to voice for that owner (e.g. unhatched buddy). */
-export interface AgentSpeakerSourceResolver {
-  (ownerUserId: UserId): Promise<AgentSpeakerIdentity | null>;
-}
+export type AgentSpeakerSourceResolver = (ownerUserId: UserId) => Promise<AgentSpeakerIdentity | null>;
 
 /**
  * Build the source-blind `resolveAgentSpeaker(agentUserId)` op chat injects. The agent's owner-scoping flows

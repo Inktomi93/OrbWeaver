@@ -73,14 +73,14 @@ function checkChromeEntry(def: ChromeDef, out: Violation[], seenIds: Map<string,
   // The mobile-curation axis is RAIL-ONLY: a rail.* widget must declare its mobile-tab-vs-You-sheet fate
   // (`mobile: "tab"|"sheet"`), a topbar.* widget must NOT (there is no mobile bar for it). §D.
   const hasMobile = def.init.getProperty("mobile") !== undefined;
-  if (zone !== undefined && zone.startsWith("rail.") && !hasMobile) {
+  if (zone?.startsWith("rail.") && !hasMobile) {
     out.push({
       file: rel(def.path),
       line: def.line,
       message: `ChromeEntry "${def.name}" is a rail widget (zone "${zone}") but declares no \`mobile\` — a rail.* widget's tab-vs-You-sheet fate is EXPLICIT (mobile: "tab"|"sheet") — shell-chrome-unification.md §D.`,
     });
   }
-  if (zone !== undefined && zone.startsWith("topbar.") && hasMobile) {
+  if (zone?.startsWith("topbar.") && hasMobile) {
     out.push({
       file: rel(def.path),
       line: def.line,

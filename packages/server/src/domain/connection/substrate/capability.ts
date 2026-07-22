@@ -5,7 +5,7 @@
 // passed in (the verb read it with `ctx.now()`), so this is deterministic + unit-testable.
 
 import type { AgentSdkModel, ChatApi, CredentialSource, ModelCapability, ModelCatalogEntry } from "@orb/contracts/connection";
-import type { ModelId, UserId } from "@orb/kit/ids";
+import type { ModelId } from "@orb/kit/ids";
 import { resolveModelCapability } from "../catalog/resolve-model-capability";
 
 /** Resolve the ONE `ModelCapability` for a `(model, source, api)`, threading the matching OR catalog entry
