@@ -8,7 +8,7 @@ import type { WorkloadKind, WorkloadMode, WorkloadSource, WorkloadStatus } from 
 import { WORKLOAD_KINDS } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import { workloads } from "@orb/db";
-import type { ChatId, UserId, WorkloadId } from "@orb/kit/ids";
+import type { UserId, WorkloadId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import { and, asc, desc, eq, gte, inArray, isNull, lt, sql } from "drizzle-orm";
 import { getLog } from "#foundation/observability";
@@ -77,10 +77,7 @@ interface WorkloadListFilter {
   readonly kind?: WorkloadKind;
   readonly status?: WorkloadStatus;
   readonly ownerId?: UserId | null;
-  /** Narrow to the workloads of ONE chat — matches `params.chatId` (every chat-scoped kind: the crew members,
-   *  the rpg passes). A JSON-field filter (params is the `ParamsByKind` blob); non-chat kinds never match. Drives
-   *  the crew status chip's durable per-member last-run re-hydrate (chat-crew-design/07 §2, §7). */
-  readonly chatId?: ChatId;
+
   readonly since?: number;
   readonly limit?: number;
 }
@@ -239,10 +236,7 @@ export async function listWorkloads(db: Db, params: WorkloadListFilter): Promise
   } else if (params.ownerId !== undefined) {
     filters.push(eq(workloads.ownerId, params.ownerId));
   }
-  if (params.chatId !== undefined) {
-    // params is the JSON `ParamsByKind` blob; every chat-scoped kind carries `{chatId}` (SQLite json_extract).
-    filters.push(sql`json_extract(${workloads.params}, '$.chatId') = ${params.chatId}`);
-  }
+
   if (params.since !== undefined) {
     filters.push(gte(workloads.createdAt, params.since));
   }

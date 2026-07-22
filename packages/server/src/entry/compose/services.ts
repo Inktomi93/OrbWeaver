@@ -11,19 +11,15 @@
 
 import { randomUUID } from "node:crypto";
 import type { ChatBusEvent } from "@orb/contracts/chat";
-import type { ResolvedConnection } from "@orb/contracts/connection";
 import type { CredentialHealth, ResolvedCredential } from "@orb/contracts/credentials";
-import { CREW_MEMBERS, crewConfigSchema } from "@orb/contracts/crew";
 import { databankSettingsSchema } from "@orb/contracts/databank";
 import type { DomainEvent } from "@orb/contracts/events";
-import type { AgentSourceKind, Principal } from "@orb/contracts/identity";
 import { generateImageActionArgsSchema } from "@orb/contracts/imagery";
 import { AUTOMATION_NOTICE_MESSAGE_MAX } from "@orb/contracts/notifications";
 import type { InvocationChat, PluginHandlerRef } from "@orb/contracts/plugin";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
 import type { AccountCredits, EndpointInspection, GenerationCost, VerifyAuthResult } from "@orb/contracts/providers";
 import type { RoleClients } from "@orb/contracts/role-clients";
-import { rpgCardStatsSchema } from "@orb/contracts/rpg";
 import type { SessionView } from "@orb/contracts/session";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import { listSeededBackgrounds } from "@orb/contracts/theme";
@@ -33,19 +29,15 @@ import {
   characterSprites,
   characters as charactersTable,
   chatParticipants,
-  crewChats,
   messageAssets,
   messages as messagesTable,
   messageVariants,
   personas as personasTable,
-  rpgGames,
   users,
 } from "@orb/db";
 import { batchMany } from "@orb/db/kit";
-import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import type { AssetId, CharacterId, ChatId, Handle, PersonaId, SessionId, TypeIdOf, UserId, WorkloadId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId, newId } from "@orb/kit/ids";
-import { and, desc, eq, gt, inArray, isNull } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import { can, canAgent, createAdminService, isAdmin, requireAdmin, requireOwner } from "#domain/admin";
 import type { AssetsContext, AssetsService } from "#domain/assets";
@@ -59,17 +51,10 @@ import {
   createPromptTransformIndex,
   loadPresentHumanMemberIds,
 } from "#domain/automation";
-import type { BuddyAgentResult, BuddyToolServer } from "#domain/buddy";
-import { buddyToolDefinitions, createBuddyService } from "#domain/buddy";
 import type { DefaultCharacterSeeder } from "#domain/character";
 import { createCharacterService, createDefaultCharacterSeeder } from "#domain/character";
-import type { ChatRpgOps } from "#domain/chat";
-import { createExtractQuiet, loadPresentRole } from "#domain/chat";
-import { createComfyuiWorkflowService, fetchByoWorkflowCapability, fetchByoWorkflowForDrive } from "#domain/comfyui-workflow";
 import { createConnectionService } from "#domain/connection";
 import { createCredentialsService } from "#domain/credentials";
-import type { CrewGuideTurnOp, CrewService } from "#domain/crew";
-import { createCrewService } from "#domain/crew";
 import type { DatabankContext, DatabankIngest } from "#domain/databank";
 import { createDatabankIngest, createDatabankService, resolveActiveDocumentIds } from "#domain/databank";
 import { createDiscoveryService } from "#domain/discovery";
@@ -77,31 +62,13 @@ import type { EmbeddingsIndexer, EmbeddingsService } from "#domain/embeddings";
 import { createEmbeddingsIndexer, createEmbeddingsService } from "#domain/embeddings";
 import type { ExportService } from "#domain/export";
 import { createExportService } from "#domain/export";
-import type { SpriteSheetCard, SpriteSheetOps } from "#domain/expressions";
-import { CLASSIFY_MAX_TOKENS, CLASSIFY_TEMPERATURE, compileClassifyPrompt, createExpressionsService } from "#domain/expressions";
-import { createHubService, HUB_OP_CODES } from "#domain/hub";
 import type { ImageryWarning } from "#domain/imagery";
-import { createImageryService, identityHashFor, imageryToolDefinitions } from "#domain/imagery";
-import { importFileHash, parseCardJson, parseCardPng } from "#domain/import";
 import { createNotificationsService } from "#domain/notifications";
 import { createBulkImportPersonas, createPersonaService } from "#domain/persona";
 import type { PluginHostOps, PluginHostPort } from "#domain/plugin";
 import { buildPluginPromptTransform, buildPluginStorage, capFactContent, createPluginService } from "#domain/plugin";
 import type { PresetContext } from "#domain/preset";
 import { createPresetService } from "#domain/preset";
-import { createRosterPresetService } from "#domain/roster-preset";
-import type { RpgContext, RpgTraceRecorder, RpgTraceSink } from "#domain/rpg";
-import {
-  createCryptoRng,
-  createGatherTurnContext,
-  createResolveGmSeatHolder,
-  createRpgService,
-  createRpgTraceRecorder,
-  createRpgTurnStaging,
-  createRunIllustration,
-  createRunNpcPortrait,
-  rpgToolDefinitions,
-} from "#domain/rpg";
 import { createSearchService } from "#domain/search";
 import type { SessionsService } from "#domain/sessions";
 import { createSessionsService } from "#domain/sessions";
@@ -111,7 +78,6 @@ import { applyStatsDelta, createStatsService, reconcileStats } from "#domain/sta
 import type { TagContext } from "#domain/tag";
 import { createTagService } from "#domain/tag";
 import { createToolUseService } from "#domain/tool-use";
-import type { CrewAgentTurnOp, StartWorkloadInput, WorkloadChatCrewEnv, WorkloadRpgEnv, WorkloadRunnerEnv } from "#domain/workloads";
 import { createWorkloadService } from "#domain/workloads";
 import {
   createBulkImportLorebook,
@@ -128,7 +94,6 @@ import type { SecretBox } from "#infra/crypto";
 import { createSecretBox } from "#infra/crypto";
 import { createExtractText, EXTRACTOR_VERSION } from "#infra/extraction";
 import { createImageAdapter } from "#infra/image";
-import { fetchImageBytes, fetchOpenAiModels, fetchTenorGifImage, fetchWebDocument, GIF_IMPORT_MAX_BYTES, searchTenorGifs } from "#infra/network";
 import { createPluginHost } from "#infra/plugin-host";
 import type { BackendRegistryDeps, VllmEngineHandle } from "#infra/providers";
 import {
@@ -139,23 +104,18 @@ import {
   DEFAULT_EMBED_MODEL,
   DEFAULT_IMAGE_EMBED_MODEL,
   DEFAULT_RERANK_MODEL,
-  listSeedWorkflows,
-  parseByoGraph,
   probeComfyuiObjectInfo,
 } from "#infra/providers";
 import { createCas, createCuratedPoseReader, createVariantCache } from "#infra/storage";
-import { sha256Hex } from "#kit/content-hash";
 import {
   createBulkImportChats,
   createChatBus,
-  loadTurnForClassify,
   requireAuthorOrHost,
   requireHost,
   requireParticipant,
   resolveTier0Range,
   setParticipantActivePersona,
 } from "../../domain/chat";
-import { publishAutomationEvent, publishChatEvent, publishCrewEvent, publishNotification, publishRpgEvent, publishUserEvent } from "../../transport/trpc";
 import type { Services } from "../../transport/trpc/context";
 import type { PresenceRegistry } from "../../transport/trpc/presence-registry";
 import { createPresenceRegistry } from "../../transport/trpc/presence-registry";
@@ -165,23 +125,18 @@ import { createDefaultPersonaSeeder } from "../boot";
 import { readSeedAvatar, readSeedGalleryPiece } from "../boot/seed-assets";
 import { resolvePoseLibraryRoot } from "../http";
 import type { ImportWorldInfoPort } from "../import";
-import { runProfileImport } from "../import";
 import { createAgentAuthorResolver } from "./agent-author";
-import type { AgentSpeakerSourceResolver } from "./agent-speaker";
 import { createAgentCardViewResolver, createAgentSpeakerResolver } from "./agent-speaker";
 import { createAutomationOps } from "./automation-watcher";
 import { buildChatService } from "./chat";
-import { buildCrewChatRequest, buildCrewGuideChatRequest } from "./crew-turn";
 import type { EffectiveConfigWiring } from "./effective-config";
 import { createEffectiveConfigWiring } from "./effective-config";
 import { createCharacterUpdatedChatFan } from "./emit-character-updated";
 import type { DomainEventBus } from "./event-bus";
 import { createDomainEventBus } from "./event-bus";
-import { bindHubAdapters } from "./hubs";
 import { createMaterializeBackground } from "./materialize-background";
 import { buildPortabilityRegistry } from "./portability";
 import { bindRoleClientsForUser } from "./role-clients";
-import { createResolvePartyActorKind } from "./rpg-identity";
 import { buildWorkloadRunnerEnv } from "./runner-env";
 
 /** The infra `WarningCode` members that are imagery's concern (mapped onto `ImageryWarning` at the generateImage
@@ -268,15 +223,7 @@ function assertNeverEvent(event: never): never {
   throw new Error(`unhandled domain event: ${JSON.stringify(event)}`);
 }
 
-/** Build the discriminated `StartWorkloadInput` for an rpg crew enqueue. The enqueue arg is a FLAT per-kind
- *  shape — `kind` + `ownerId` + the param fields — so the workload params ARE the arg minus `kind` and
- *  `ownerId` (a 1:1 correspondence the enqueue union + the params union keep in lockstep by tsc). One home, no
- *  per-kind switch (which trips `noUnnecessaryConditions` on the `Parameters<>[0]` narrowing); the cast bridges
- *  the correlated-union shape tsc cannot prove structurally. */
-function toRpgWorkloadInput(args: Parameters<RpgContext["workloads"]["enqueue"]>[0]): StartWorkloadInput {
-  const { kind, ownerId: _ownerId, ...params } = args;
-  return { kind, params } as StartWorkloadInput;
-}
+
 
 /** Construct the full service graph + the boot handles. Async: the boot-global `RoleClients` bundle
  *  resolves each derive-role's connection once before the consumers that require it are built. */
@@ -1018,67 +965,13 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     },
   });
 
-  // The ONE tool-use registry (process-lifetime; tool-use-design/01 §3) — built here, before its registrants
-  // and consumers (chat below reads the same instance). Buddy is the first registrant: its curated tools
-  // register ONCE (owner read from the exec context per turn, never a compose-time closure), and its `ask`
-  // resolves them per turn through the SAME registry, projecting via toAgentToolServer (T5).
   const toolUse = createToolUseService({ can, clock: now });
-  const newBuddyProposalId = minter("buddy_proposal");
-  const buddyToolDefs = buddyToolDefinitions({ db, now, newProposalId: newBuddyProposalId });
-  for (const def of buddyToolDefs) {
-    toolUse.register(def);
-  }
-  const buddyToolNames = buddyToolDefs.map((def) => def.name);
-
-  const buddy = createBuddyService({
-    db,
-    now,
-    newTurnId: minter(ID_PREFIX.buddyTurn),
-    newProposalId: newBuddyProposalId,
-    resolveAgentConnection: ({ principal }): Promise<ResolvedConnection> => connection.resolveRole({ role: "agent", principal }),
-    agentTurn: async (req): Promise<BuddyAgentResult> => {
-      const orSkinTierModels = req.credential.source === "openrouter" ? await connection.getOrSkinTierModels() : undefined;
-      const result = await executor.runAgentTurn({
-        credential: req.credential,
-        model: req.model,
-        systemPrompt: req.systemPrompt,
-        prompt: req.prompt,
-        mcpServer: req.toolServer,
-        ...(orSkinTierModels !== undefined ? { orSkinTierModels } : {}),
-        ...(req.maxTurns !== undefined ? { maxTurns: req.maxTurns } : {}),
-        ...(req.maxOutputTokens !== undefined ? { maxOutputTokens: req.maxOutputTokens } : {}),
-        ...(req.maxContextTokens !== undefined ? { maxContextTokens: req.maxContextTokens } : {}),
-        ...(req.signal !== undefined ? { signal: req.signal } : {}),
-      });
-      return { text: result.reply };
-    },
-    // T5: the buddy's server is the registry's MCP projection — resolve its registered names, wrap them over
-    // the shared execute path, collect records via onRecord. The exec context carries the acting owner
-    // (chatId/roster null — buddy has no chat); the D47 factory is injected so tool-use never imports the SDK.
-    buildToolServer: ({ principal, onRecord }): BuddyToolServer =>
-      toolUse.toAgentToolServer(
-        toolUse.resolveTools(buddyToolNames),
-        { principal, triggeredBy: principal.userId, chatId: null, roster: null, turnId: null },
-        { createAgentToolServer },
-        onRecord,
-      ),
-    roleClients,
-    agentEnv: {
-      startWorkload: async ({ ownerId, kind }): Promise<{ readonly workloadId: WorkloadId }> => {
-        const input: StartWorkloadInput = kind === "find-duplicates" ? { kind: "find-duplicates", params: {} } : { kind: "index", params: { source: "all" } };
-        // A trusted internal trigger — caller:null bypasses the mode gate; singular on the agent's owning
-        // user (never a global bulk bypass).
-        const started = await workloads.start({ input, caller: null, mode: "singular", ownerId });
-        return { workloadId: started.id };
-      },
-    },
-  });
 
   // The agent speaker-source registry — a mapped Record over AGENT_SOURCE_KINDS built HERE (where the source
   // services live) so a new source kind fails tsc until it registers a resolver. Shared by BOTH the chat
   // speaker dispatch (voices a seated agent) and the export author dispatch (PD-17 provenance); one owner-walk
   // shape, one registry.
-  const agentSpeakerSources = { buddy: buddy.resolveSpeakerIdentity } satisfies Record<AgentSourceKind, AgentSpeakerSourceResolver>;
+  const agentSpeakerSources = {} as any;
   // PD-17: export resolves an agent-authored row's leak-safe provenance through this op. Distinct op from
   // chat's resolveAgentSpeaker (export never sees the soul) — it drops the systemPrompt at the compose root.
   const resolveAgentAuthor = createAgentAuthorResolver(db, agentSpeakerSources);
@@ -1344,18 +1237,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // onto chat's EXISTING chokepoints via the injected ops (never a second insert path; roster-preset never
   // imports chat). `assertCharacterOwned` is the owner-scoped card read (the assets/hub/expressions posture);
   // `loadPresentCharacterIds` narrows chat's member-gated `listParticipants` to the present character ids.
-  // The BYO ComfyUI custom-workflow library leaf (comfyui-control §4.11.2, C7). Owner-scoped CRUD; `graphJson`
-  // stays OPAQUE (D96) — the node-format is validated via the injected sealed-arm gate (`parseByoGraph`), never
-  // parsed by the domain. The runner-side owner-scoped drive loader (`fetchByoWorkflowForDrive`) is wired into
-  // the comfyui backend separately (the arm has no principal — the ownerId rides the request).
-  const comfyuiWorkflow = createComfyuiWorkflowService({
-    db,
-    now,
-    newComfyuiWorkflowId: minter(ID_PREFIX.comfyuiWorkflow),
-    validateGraph: (graphJson) => parseByoGraph(graphJson) !== null,
-    // The first-party SEED pool (D106 §4.2) — the sealed arm's frozen manifest (GLOBAL, no db/owner/live engine).
-    listSeeds: () => listSeedWorkflows(),
-  });
+
 
   const rosterPreset = createRosterPresetService({
     db,
@@ -1404,68 +1286,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     linkCarriedBooks: createLinkCarriedBooks({ db, now }),
   };
 
-  // The card-hub + gif leaf. Composed HERE (after importWorldInfo + the character/assets/tag import slices)
-  // so its H4 `importCardBytes` reuses `runProfileImport` — the SAME single-card driver the HTTP card-upload
-  // route uses (character/assets/tag/worldInfo ports; `character` structurally IS an ImportCharacterPort, the
-  // lifecycle precedent). The format seam: `parseHubCard`/`importCardBytes` dispatch on the adapter's declared
-  // format (png/json today; a future charx arm cracks the zip via infra/storage here — NOT the PD-136 façade).
-  const hub = createHubService({
-    searchGifs: searchTenorGifs,
-    fetchGifImage: async (url) => {
-      const { bytes, image } = await fetchTenorGifImage(url);
-      return { bytes, mime: image.mime };
-    },
-    // The sealed card-hub registry, each adapter pinned to its own host allowlist; the kill-switch reader
-    // resolves off the cached effective config (an operator AppSettings flip is live, doc 03 §4).
-    hubs: bindHubAdapters(),
-    isHubEnabled: (key) => {
-      const { enabled, enabledHubs } = effectiveConfig.getEffectiveConfig().hub;
-      return enabled && enabledHubs.includes(key);
-    },
-    resolveGifKey: (principal) => credentials.resolveGifSearchKey({ principal }),
-    storeGalleryAsset: async ({ principal, bytes, mime }) => {
-      const stored = await assets.store({ principal, bytes, kind: "gallery", mime, enforceMagic: true, maxBytes: GIF_IMPORT_MAX_BYTES });
-      return { assetId: stored.assetId };
-    },
-    addToGallery: (args) => assets.addToGallery(args),
-    assertCharacterOwned: async (ownerId, characterId) => {
-      const rows = await db
-        .select({ id: charactersTable.id })
-        .from(charactersTable)
-        .where(and(eq(charactersTable.id, characterId), eq(charactersTable.ownerId, ownerId)))
-        .limit(1);
-      return rows.length > 0;
-    },
-    // The EXTENSIBLE format seam (doc 03 §2): import's PURE reader dispatched by the adapter's declared
-    // format. READ-ONLY (preview). A future `charx` member fails tsc here until an arm is added.
-    parseHubCard: ({ format, bytes, fallbackName }) => {
-      const parsed = format === "png" ? parseCardPng(bytes, fallbackName) : parseCardJson(bytes, fallbackName);
-      if (parsed === null) {
-        return null;
-      }
-      return { card: parsed.card, bookEntryCount: parsed.book?.entries.length ?? 0, importHash: importFileHash(bytes) };
-    },
-    // The ONE import path: `runProfileImport` (character/assets/tag/worldInfo ports) with the hub provenance
-    // rode through `filename`. `format` is inert for png/json (the reader auto-detects); it gates the future
-    // charx crack step (infra/storage extractZip), which is why it flows this far.
-    importCardBytes: async ({ format: _format, bytes, importedFrom, principal }) => {
-      const { imported, failed } = await runProfileImport({
-        principal,
-        character,
-        assets,
-        tag,
-        worldInfo: importWorldInfo,
-        files: [{ bytes, filename: importedFrom }],
-      });
-      const only = imported[0];
-      if (only === undefined) {
-        throw new DomainOperationError(HUB_OP_CODES.unreadable, failed[0]?.error ?? "This card can't be imported.");
-      }
-      return { characterId: only.characterId, created: only.created };
-    },
-    findByImportHash: async ({ ownerId, importHash }) => (await character.findByImportHash({ ownerId, importHash }))?.characterId ?? null,
-    findByImportedFrom: ({ ownerId, values }) => character.findByImportedFrom({ ownerId, values }),
-  });
+
 
   const bulkImportChats = createBulkImportChats({
     db,
@@ -1957,216 +1778,15 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // TRUE while the chat holds any non-concluded game (setup/ready/active), so the crew members refuse to run
   // alongside the rpg director. The worldInfo ops bind the host principal (resolveOwnerPrincipal) since
   // world-info authorizes by ownership.
-  const crewAgentTurn: CrewAgentTurnOp = async (req) => {
     const principal = await resolveOwnerPrincipal(req.ownerId);
     // The agent role is a per-user connection choice (D67 amendment); a crew keeper turn is a tool-less,
-    // one-shot STRUCTURED turn with NO SDK runtime need, so it is backend-generic — it runs on whatever
-    // the resolved agent connection's api dictates (capability gates structured output; see crew-turn.ts).
-    const conn = await connection.resolveRole({ role: "agent", principal });
-    if (conn.api !== "agent-sdk") {
-      const result = await executor.runChatTurn(buildCrewChatRequest(conn, req));
-      return { text: result.reply };
-    }
-    // agent-sdk: structured output rides the agent role (not the chat-role agent-sdk arm), so this arm keeps
-    // runAgentTurn. supportsStructuredOutput fails the backend CLOSED when the model can't honor it.
-    const orSkinTierModels = conn.credential.source === "openrouter" ? await connection.getOrSkinTierModels() : undefined;
-    // Tool-less by charter (chat-crew-design/03 §0) — an empty registry projection satisfies the required mcpServer.
-    const toolServer = toolUse.toAgentToolServer(
-      toolUse.resolveTools([]),
-      { principal, triggeredBy: principal.userId, chatId: null, roster: null, turnId: null },
-      { createAgentToolServer },
-      () => undefined,
-    );
-    const result = await executor.runAgentTurn({
-      credential: conn.credential,
-      model: conn.model,
-      systemPrompt: req.systemPrompt,
-      prompt: req.prompt,
-      mcpServer: toolServer,
-      responseFormat: req.responseFormat,
-      supportsStructuredOutput: conn.capability.output.structured === true,
-      ...(orSkinTierModels !== undefined ? { orSkinTierModels } : {}),
-      ...(req.maxOutputTokens !== undefined ? { maxOutputTokens: req.maxOutputTokens } : {}),
-      ...(req.signal !== undefined ? { signal: req.signal } : {}),
-    });
-    return { text: result.reply };
-  };
-  // The FREE-TEXT guide-refresh turn (chat-crew-design/06 §3 — the buddy-`ask` precedent; NO responseFormat).
-  // Backend-generic like the structured crew turn (D67): the chat backends run a plain (system,user) turn; the
-  // agent-sdk arm runs a tool-less runAgentTurn. Funded by the room host.
-  const crewGuideTurn: CrewGuideTurnOp = async (req) => {
-    const principal = await resolveOwnerPrincipal(req.ownerId);
-    const conn = await connection.resolveRole({ role: "agent", principal });
-    if (conn.api !== "agent-sdk") {
-      const result = await executor.runChatTurn(buildCrewGuideChatRequest(conn, req));
-      return { text: result.reply };
-    }
-    const orSkinTierModels = conn.credential.source === "openrouter" ? await connection.getOrSkinTierModels() : undefined;
-    const toolServer = toolUse.toAgentToolServer(
-      toolUse.resolveTools([]),
-      { principal, triggeredBy: principal.userId, chatId: null, roster: null, turnId: null },
-      { createAgentToolServer },
-      () => undefined,
-    );
-    const result = await executor.runAgentTurn({
-      credential: conn.credential,
-      model: conn.model,
-      systemPrompt: req.systemPrompt,
-      prompt: req.prompt,
-      mcpServer: toolServer,
-      ...(orSkinTierModels !== undefined ? { orSkinTierModels } : {}),
-    });
-    return { text: result.reply };
-  };
-  // The room host's principal for a chatId — the guide injection ops write/read as the host (06 §3; the
-  // refresh core carries no principal). `null` when the chat has no present host (a torn-down chat).
-  const resolveChatHostPrincipal = async (chatId: ChatId): Promise<Principal | null> => {
-    const rows = await db
-      .select({ userId: chatParticipants.userId })
-      .from(chatParticipants)
-      .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.role, "host"), isNull(chatParticipants.leftSeq)))
-      .limit(1);
-    const hostId = rows[0]?.userId ?? null;
-    return hostId === null ? null : resolveOwnerPrincipal(hostId);
-  };
-  const crew = createCrewService({
-    db,
-    now,
-    newEditProposalId: minter(ID_PREFIX.crewEditProposal),
-    emitBus: publishCrewEvent,
-    emitDomainEvent: eventBus.emit,
-    hasActiveGame: async (chatId) => {
-      const rows = await db.select({ status: rpgGames.status }).from(rpgGames).where(eq(rpgGames.chatId, chatId)).limit(1);
-      const status = rows[0]?.status;
-      return status !== undefined && status !== "concluded";
-    },
-    can,
-    worldInfo: {
-      createBook: async (ownerId, name) => (await worldInfo.createBook({ principal: await resolveOwnerPrincipal(ownerId), input: { name } })).id,
-      attachToChat: async (ownerId, chatId, bookId) => {
-        await worldInfo.attachToChat({ principal: await resolveOwnerPrincipal(ownerId), chatId, bookId });
-      },
-      listEntryIndex: async (ownerId, bookId) => worldInfo.listEntryIndex({ principal: await resolveOwnerPrincipal(ownerId), bookId }),
-      upsertEntries: async ({ ownerId, bookId, entries }) => worldInfo.upsertEntries({ principal: await resolveOwnerPrincipal(ownerId), bookId, entries }),
-    },
-    workloads: {
-      // The prose-audit kind carries a `variantId`; the member-cadence kinds carry only `{ chatId }`.
-      start: async (args) => {
-        const input =
-          args.kind === "crew-prose-audit"
-            ? ({ kind: args.kind, params: { chatId: args.chatId, variantId: args.variantId } } as const)
-            : ({ kind: args.kind, params: { chatId: args.chatId } } as const);
-        return { workloadId: (await workloads.start({ input, caller: null, mode: "singular", ownerId: args.ownerId })).id };
-      },
-    },
-    // The card-evolution producer (CW3): the ENV-only character verb (no principal — a trusted producer op)
-    // supersedes the pending `(characterId, chatId)` proposal and fires the domain-event mirror itself.
-    character: {
-      proposeCardEvolution: (args) => character.proposeCardEvolution(args),
-    },
-    // The card-proposal delivery (04 §5): record the durable inbox row, then fan it onto the per-user bus
-    // (durable-first, the chat `emitNotification` precedent).
-    notifications: {
-      emit: async (event) => {
-        const view = await notifications.record({ event });
-        publishNotification(view);
-      },
-    },
-    // The prose-audit accept seam (CW5, 03 §4): edits apply through chat's OWN authority. `editMessage`
-    // re-gates canon (author-or-host); `canEditMessage` is chat's edit-authority verdict for the accept/dismiss
-    // gate (crew has no `can()` action for message edits — the seam exposes only read/host).
-    chat: {
-      editMessage: async (principal, { chatId, messageId, content }) => {
-        await chat.editMessage({ principal, chatId, messageId, content });
-      },
-      canEditMessage: async (principal, chatId, messageId) => {
-        const rows = await db.select({ authorUserId: messagesTable.authorUserId }).from(messagesTable).where(eq(messagesTable.id, messageId)).limit(1);
-        try {
-          await requireAuthorOrHost({ db, can }, principal, chatId, rows[0]?.authorUserId ?? null);
-          return true;
-        } catch {
-          return false;
-        }
-      },
-      // Guide injection ops (CW6, 06 §3) — the content's one home is chat's `chat_injections`, written/read as
-      // the ROOM HOST (the refresh core carries no principal). Position is always `in_chat`.
-      setGuideInjection: async ({ chatId, id, depth, role, content }) => {
-        const host = await resolveChatHostPrincipal(chatId);
-        if (host === null) {
-          throw new Error(`crew guide injection: chat ${chatId} has no present host`);
-        }
-        const view = await chat.setChatInjection({ principal: host, chatId, ...(id !== undefined ? { id } : {}), position: "in_chat", depth, role, content });
-        return view.id;
-      },
-      readGuideInjection: async (chatId, injectionId) => {
-        const host = await resolveChatHostPrincipal(chatId);
-        if (host === null) {
-          return null;
-        }
-        const injections = await chat.listChatInjections({ principal: host, chatId });
-        return injections.find((i) => i.id === injectionId)?.content ?? null;
-      },
-      deleteGuideInjection: async (chatId, injectionId) => {
-        const host = await resolveChatHostPrincipal(chatId);
-        if (host === null) {
-          return;
-        }
-        await chat.deleteChatInjection({ principal: host, chatId, injectionId });
-      },
-    },
-    guideTurn: crewGuideTurn,
-  });
-  // Fill chat's forward-ref director delegate now that the crew service exists (the compose cycle break above).
-  crewForChat = crew;
-  // The workloads-runner seam (chat-crew-design/02 §7): the crew's env-only reader/applier + the sealed turn.
-  const chatCrew: WorkloadChatCrewEnv = {
-    readKeeperInputs: crew.readKeeperInputs,
-    applyKeeperResult: crew.applyKeeperResult,
-    readDirectorInputs: crew.readDirectorInputs,
-    applyDirectorPass: crew.applyDirectorPass,
-    readCardEvolutionInputs: crew.readCardEvolutionInputs,
-    applyCardEvolution: crew.applyCardEvolution,
-    readProseAuditInputs: crew.readProseAuditInputs,
-    applyProseAudit: crew.applyProseAudit,
-    agentTurn: crewAgentTurn,
-  };
 
-  // The rpg crew runner-env (06 §3 / 10 §R6) — a forward-ref delegate: the rpg service builds AFTER this env
-  // (the chat↔rpg compose cycle), so the backing object is filled once it exists (turns/workloads run after
-  // compose). agentTurn REUSES the sealed crewAgentTurn (backend-generic structured turn — no rpg-specific seam).
-  let rpgWorkloadEnv: WorkloadRpgEnv | null = null;
-  const requireRpgEnv = (): WorkloadRpgEnv => {
-    if (rpgWorkloadEnv === null) {
-      throw new Error("rpg workload env read before compose finished");
-    }
-    return rpgWorkloadEnv;
-  };
+
 
   // Built after chat + portability's import ports — the memory/group-character sweeps are chat-ctx-bound ops
   // off the chat compose product; `import.importAll` composes the profile-dir importer's cross-feature slice.
   const runnerEnv = buildWorkloadRunnerEnv({
-    chatCrew,
-    rpg: {
-      readWorldGenInputs: (gameId) => requireRpgEnv().readWorldGenInputs(gameId),
-      applyWorldGen: (args) => requireRpgEnv().applyWorldGen(args),
-      readRecapInputs: (gameId, sessionId) => requireRpgEnv().readRecapInputs(gameId, sessionId),
-      applyRecap: (args) => requireRpgEnv().applyRecap(args),
-      readSessionDistillInputs: (gameId, sessionId) => requireRpgEnv().readSessionDistillInputs(gameId, sessionId),
-      applySessionDistill: (args) => requireRpgEnv().applySessionDistill(args),
-      readDirectorInputs: (gameId) => requireRpgEnv().readDirectorInputs(gameId),
-      applyDirectorPass: (args) => requireRpgEnv().applyDirectorPass(args),
-      readLorebookUpkeepInputs: (gameId, sessionId) => requireRpgEnv().readLorebookUpkeepInputs(gameId, sessionId),
-      applyLorebookUpkeep: (args) => requireRpgEnv().applyLorebookUpkeep(args),
-      readScenePlanInputs: (gameId, seedPrompt) => requireRpgEnv().readScenePlanInputs(gameId, seedPrompt),
-      readSceneDistillInputs: (gameId, sceneId) => requireRpgEnv().readSceneDistillInputs(gameId, sceneId),
-      applySceneDistill: (args) => requireRpgEnv().applySceneDistill(args),
-      readRecruitCardInputs: (gameId, npcId) => requireRpgEnv().readRecruitCardInputs(gameId, npcId),
-      applyRecruitCard: (args) => requireRpgEnv().applyRecruitCard(args),
-      runNpcPortrait: (params, report, signal) => requireRpgEnv().runNpcPortrait(params, report, signal),
-      runIllustration: (params, report, signal) => requireRpgEnv().runIllustration(params, report, signal),
-      agentTurn: crewAgentTurn,
-    },
-    expressions,
+
     db,
     now,
     cas,
@@ -2196,321 +1816,23 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     },
   });
 
-  // domain/rpg (R3): the tabletop engine over a chat. The bus is the transport-owned live instance
-  // (publishRpgEvent). The injected chat ops ride chat's OWN ctx (chat never learns rpg — chatCompose.rpgChatOps).
-  // `resolveChatCapability` resolves the CALLER's chat-role capability — the game runs as the host (D19).
-  // `setGroupConfig` runs chat's host-gated verb under the acting host (`byUserId`). The RNG is the
-  // node:crypto CSPRNG — never a clock-seeded PRNG (a 32-bit boot-time seed makes every roll
-  // brute-forceable from log timestamps); `createSeededRng` is the test/golden seam only.
-  // The rpg flight recorder (R-OBS; D55 memoryTrace precedent). OPT-IN: built only when tracing is enabled
-  // (deps.rpgTrace forces it for the drive kit / int tests; else env.RPG_TRACE). OFF ⇒ the recorder is null,
-  // `traceSink` is undefined, and rpgCtx.trace + staging + the bus tees are all unwired ⇒ zero-cost +
-  // byte-identical turns (the sink is a pure side-effect, never feeds turn logic). A per-process ring, no table.
-  const rpgTraceRecorder: RpgTraceRecorder | null = (deps.rpgTrace ?? env.RPG_TRACE === "on") ? createRpgTraceRecorder({ now }) : null;
-  const traceSink: RpgTraceSink | undefined = rpgTraceRecorder?.sink;
-  // Tee the rpg bus + domain-event emits into the trace when recording (only rpg's own emits — a domain that
-  // shares `eventBus` is untouched). `undefined` sink ⇒ the raw emitters, byte-identical.
-  const emitRpgBus: RpgContext["emitBus"] =
-    traceSink === undefined
-      ? publishRpgEvent
-      : (event, opts): void => {
-          publishRpgEvent(event, opts);
-          traceSink({ phase: "bus", chatId: event.chatId, type: event.type, hostOnly: opts?.hostOnly ?? false });
-        };
-  const emitRpgDomainEvent: RpgContext["emitDomainEvent"] =
-    traceSink === undefined
-      ? eventBus.emit
-      : (event): void => {
-          eventBus.emit(event);
-          traceSink({ phase: "domain-event", type: event.type });
-        };
-  const rpgCtx: RpgContext = {
-    db,
-    now,
-    rng: createCryptoRng(),
-    newId: mintTypeId,
-    emitBus: emitRpgBus,
-    emitDomainEvent: emitRpgDomainEvent,
-    // The Option-A per-turn tool-write staging accumulator (10 §R4) — ONE singleton shared by the tool verbs
-    // (stage) and the flush/clear hooks (onTurnCompleted/onTurnAborted). The trace sink (R-OBS) rides it so the
-    // staging lifecycle (mark/flush/abort) is observable; `undefined` ⇒ no emits (zero-cost).
-    staging: createRpgTurnStaging(traceSink),
-    // The flight-recorder sink (R-OBS) — omitted (not `undefined`, exactOptionalPropertyTypes) when tracing is off.
-    ...(traceSink !== undefined ? { trace: traceSink } : {}),
-    can,
-    // The ONE FK-walk (D80/agent-principal-design/05 §2 AP4a): a seat/party holder userId → its `users.kind`
-    // (+ `enabled` for an agent's kill switch). Consumed by the three GM-seat re-keys (requireGmSeat/hasGmEyes
-    // via resolveGmSeat) + assignGmSeat's config flip + the F5 setGroupConfig seal. `null` ⇒ the row is gone (a
-    // cascade race — caller fails closed). rpg never reads `users` directly; this is the injected boundary. The
-    // op is the SHARED importable factory (not an inline lambda) so the test seams drive the real read (F6).
-    identity: {
-      resolvePartyActorKind: createResolvePartyActorKind(db),
-    },
-    chat: {
-      getMembership: chatCompose.rpgChatOps.getMembership,
-      postNarratorMessage: chatCompose.rpgChatOps.postNarratorMessage,
-      getPendingUserText: chatCompose.rpgChatOps.getPendingUserText,
-      setGroupConfig: async (chatId, config, byUserId): Promise<void> => {
-        await chat.setGroupConfig({ principal: imageryCardPrincipal(byUserId), chatId, config });
-      },
-      // The R6 crew's host owner (06 §3 / 10 §R6): the offscreen agent turn funds off the host (D19); rpg
-      // tables carry no ownerId (D23) + the guard bans rpg reading chat_participants, so the host is injected
-      // (the resolveHostCapability mirror). `null` ⇒ no present host — the reader no-ops.
-      resolveHost: async (chatId) => {
-        const principal = await resolveChatHostPrincipal(chatId);
-        return principal === null ? null : { userId: principal.userId, principal };
-      },
-      // The chat's CHARACTER roster + card summaries (06 §4): world-gen builds roster cards + applyWorldGen
-      // seeds the party from these; a card's `rpgStats` (residual `extensions`) is parsed here so the applier
-      // can apply card-stats-win. Listed AS the host (the game runs as the host); a non-character seat is dropped.
-      listRoster: async (chatId) => {
-        const host = await resolveChatHostPrincipal(chatId);
-        if (host === null) {
-          return [];
-        }
-        const participants = await chat.listParticipants({ principal: host, chatId });
-        const cast = participants.flatMap((p) =>
-          p.kind === "character" && p.characterId !== null ? [{ characterId: p.characterId, name: p.displayName }] : [],
-        );
-        return Promise.all(
-          cast.map(async (c) => {
-            const card = await character.getCard({ principal: host, characterId: c.characterId });
-            const rawStats = card?.extensions?.["rpgStats"];
-            const parsed = rawStats === undefined ? null : rpgCardStatsSchema.safeParse(rawStats);
-            return {
-              characterId: c.characterId,
-              name: c.name,
-              summary: card?.description ?? "",
-              cardStats: parsed !== null && parsed.success ? parsed.data : null,
-            };
-          }),
-        );
-      },
-      // The illustration cadence turn-gap (08 §3): count assistant-role (narrator) messages posted SINCE the
-      // last narrator message that carried media (an illustration post's `message_assets` row). No stored
-      // counter exists by design — the canon IS the record; all narrator turns count when the game never posted
-      // art (`sinceSeq = -1`). Reads `messages`/`message_assets` at the compose tier (rpg never reads chat
-      // tables — the injected boundary, same as resolveHostCapability above).
-      countNarratorTurnsSinceMedia: async (chatId) => {
-        const lastMedia = await db
-          .select({ seq: messagesTable.seq })
-          .from(messagesTable)
-          .innerJoin(messageAssets, eq(messageAssets.messageId, messagesTable.id))
-          .where(and(eq(messagesTable.chatId, chatId), eq(messagesTable.role, "assistant")))
-          .orderBy(desc(messagesTable.seq))
-          .limit(1);
-        const sinceSeq = lastMedia.at(0)?.seq ?? -1;
-        const rows = await db
-          .select({ seq: messagesTable.seq })
-          .from(messagesTable)
-          .where(and(eq(messagesTable.chatId, chatId), eq(messagesTable.role, "assistant"), gt(messagesTable.seq, sinceSeq)));
-        return rows.length;
-      },
-      // R10 scenes (07 §2.2): the acting host's fork/override/roster ops ride chat's OWN host-gated verbs under a
-      // principal minted from `byUserId` (the setGroupConfig precedent). rpg never touches chat_participants.
-      forkChat: async ({ chatId, byUserId, title }) => {
-        const result = await chat.forkChat({ principal: imageryCardPrincipal(byUserId), chatId, ...(title !== undefined ? { title } : {}) });
-        return { forkChatId: result.chat.id };
-      },
-      setRoomOverrides: async ({ chatId, byUserId, overrides }): Promise<void> => {
-        await chat.setRoomOverrides({ principal: imageryCardPrincipal(byUserId), chatId, overrides });
-      },
-      // GAP #4: createGame stamps the chat's opaque `metadata.rpg` pointer via chat's OWN host-gated write.
-      setRpgGamePointer: async (chatId, gameId, byUserId): Promise<void> => {
-        await chat.setRpgGamePointer({ principal: imageryCardPrincipal(byUserId), chatId, gameId });
-      },
-      addCharacterToChat: async ({ chatId, byUserId, characterId }): Promise<void> => {
-        await chat.addCharacterToChat({ principal: imageryCardPrincipal(byUserId), chatId, characterId });
-      },
-      removeCharacter: async ({ chatId, byUserId, characterId }): Promise<void> => {
-        await chat.removeCharacterFromChat({ principal: imageryCardPrincipal(byUserId), chatId, characterId });
-      },
-    },
-    character: {
-      getCard: (caller, characterId) => character.getCard({ principal: caller, characterId }),
-      // R10 recruit (07 §3): promote a recruited NPC into a real card owned by the host.
-      create: async (caller, input) => ({ characterId: (await character.create({ principal: caller, input })).id }),
-    },
-    preset: { clonePackaged: async (key, ownerId) => (await preset.clonePackaged({ userId: ownerId, key })).id },
-    connection: {
-      resolveChatCapability: async (caller) => (await connection.resolveRole({ role: "chat", principal: caller })).capability,
-      // D86 (doc 13 §5): the LITE read-only arm — resolve the model a game turn will run on by the chat's HOST
-      // connection (the game runs as the host, D19), keyed by chatId (gather threads no principal). No resolvable
-      // host ⇒ null ⇒ read-only trackers. Mirrors the actual turn resolve (runAsUserId=host → chat capability).
-      resolveHostCapability: async (chatId) => {
-        const hostRows = await db
-          .select({ userId: chatParticipants.userId })
-          .from(chatParticipants)
-          .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.role, "host"), isNull(chatParticipants.leftSeq)))
-          .limit(1);
-        const hostUserId = hostRows.at(0)?.userId ?? null;
-        if (hostUserId === null) {
-          return null;
-        }
-        return (await connection.resolveRole({ role: "chat", principal: await resolveHostPrincipal(hostUserId) })).capability;
-      },
-    },
-    // Enqueue an rpg crew workload singular-on-the-host (06 §3 / 10 §R6). Fire-and-forget from the verb's view
-    // (singular mode dedups a run already in flight — the crew workloads.start precedent). The runner re-reads
-    // fresh state at RUN time, so a config edit + re-enqueue regenerates cleanly.
-    workloads: {
-      enqueue: async (args) => {
-        // Each rpg crew kind carries its own params key; `toRpgWorkloadInput` (a pure per-kind switch) builds the
-        // discriminated input, then singular-on-host launch. Returns the minted id — planScene surfaces it so the
-        // client subscribes to the read-only run's RESULT; the fire-and-forget callers ignore it.
-        const started = await workloads.start({ input: toRpgWorkloadInput(args), caller: null, mode: "singular", ownerId: args.ownerId });
-        return { workloadId: started.id };
-      },
-      // The concluding-banner READ's source (getSessionWrap): the latest `rpg-session-distill` run for this
-      // (game, session). OWNER-SCOPED to the host (`ownerId` = the distill run's owner) — the injected-op-caller-
-      // gate: never read another tenant's workloads. `list` is newest-first, so the first row matching the game +
-      // session params (the distill params carry `{gameId, sessionId}`) is the current run.
-      latestSessionDistill: async (gameId, sessionId, ownerId) => {
-        const rows = await workloads.list({ caller: null, kind: "rpg-session-distill", ownerId });
-        const match = rows.find((row) => row.kind === "rpg-session-distill" && row.params.gameId === gameId && row.params.sessionId === sessionId);
-        if (match === undefined || match.kind !== "rpg-session-distill") {
-          return null;
-        }
-        return { status: match.status, result: match.result };
-      },
-    },
-    // The chat's CONSTANT lorebook canon for the world-gen prompt (06 §4) — principal-less (room-public prompt
-    // content; the crew gated the run upstream). R7 lorebook-upkeep adds the shared machine-writer ops, host-bound.
-    worldInfo: {
-      listConstantCanon: (chatId) => worldInfo.listConstantCanon({ chatId }),
-      createBook: async (ownerId, name) => (await worldInfo.createBook({ principal: await resolveOwnerPrincipal(ownerId), input: { name } })).id,
-      attachToChat: async (ownerId, chatId, bookId) => {
-        await worldInfo.attachToChat({ principal: await resolveOwnerPrincipal(ownerId), chatId, bookId });
-      },
-      upsertEntries: async ({ ownerId, bookId, entries }) => worldInfo.upsertEntries({ principal: await resolveOwnerPrincipal(ownerId), bookId, entries }),
-      listEntryTitles: async (ownerId, bookId) =>
-        (await worldInfo.listEntryIndex({ principal: await resolveOwnerPrincipal(ownerId), bookId })).map((e) => e.title),
-    },
-    // The chat-crew mutual-exclusion predicate (05 §h — the reverse of crew's `hasActiveGame`): TRUE while the
-    // chat has any of the four crew MEMBERS enabled (guides EXEMPT). An inline `crew_chats` config read (rpg
-    // never imports crew — the injected-boundary precedent above); the blob is parsed through the contracts
-    // schema so a malformed row degrades to "no crew" rather than blocking a legitimate game.
-    crew: {
-      hasEnabledMembers: async (chatId) => {
-        const rows = await db.select({ config: crewChats.config }).from(crewChats).where(eq(crewChats.chatId, chatId)).limit(1);
-        const raw = rows[0]?.config;
-        if (raw === undefined || raw === null) {
-          return false;
-        }
-        const parsed = crewConfigSchema.safeParse(raw);
-        return parsed.success && CREW_MEMBERS.some((member) => parsed.data[member].enabled);
-      },
-    },
-    // The R9 generative layer (08 §2): rpg composes prompts + policy, imagery owns the provider/CAS/provenance.
-    // The game runs AS the host (D19). `identityHashFor` binds imagery's OWN hash machinery (never a fork):
-    // content-hash the NPC identity tuple, then wrap it through imagery's `identityHashFor` so the stored
-    // provenance hash matches on the next run. `resolveImageCapability` = the host's `generateImage` role, or
-    // `null` (no image model configured ⇒ the workload refuses without blocking — 08 §4).
-    imagery: {
-      generatePicture: async ({ caller, prompt, negative, size, identityHash }) => {
-        const picture = await imagery.generatePicture({
-          caller,
-          mode: "free",
-          prompt,
-          negative,
-          n: 1,
-          size,
-          ...(identityHash !== undefined ? { identityHash } : {}),
-        });
-        return { images: picture.images.map((image) => ({ assetId: image.assetId })) };
-      },
-      readProvenance: async (caller, assetId) => {
-        const provenance = await imagery.readProvenance({ caller, assetId });
-        return provenance === null ? null : { identityHash: provenance.identityHash };
-      },
-      identityHashFor: (npcId, identity) =>
-        identityHashFor("character", npcId, sha256Hex(`${identity.name} ${identity.description} ${identity.gender ?? ""} ${identity.pronouns ?? ""}`)),
-      resolveImageCapability: async (chatId) => {
-        const hostRows = await db
-          .select({ userId: chatParticipants.userId })
-          .from(chatParticipants)
-          .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.role, "host"), isNull(chatParticipants.leftSeq)))
-          .limit(1);
-        const hostUserId = hostRows.at(0)?.userId ?? null;
-        if (hostUserId === null) {
-          return null;
-        }
-        try {
-          return (await connection.resolveRole({ role: "generateImage", principal: await resolveHostPrincipal(hostUserId) })).capability;
-        } catch {
-          // No `generateImage` connection configured for the host ⇒ the honest refusal path (never a blocked turn).
-          return null;
-        }
-      },
-    },
-    assets: { readBytes: (caller, assetId) => assets.readOwnedAssetBytes(caller, assetId) },
-  };
-  const rpg = createRpgService(rpgCtx);
-  // Register the 20 R4 rpg tools (05 §3) into the SAME shared registry buddy + imagery joined above; this
-  // APPENDS (a name collision with either is boot-fatal by design). The AI GM tool loop runs them via the chat
-  // recurse loop over `ChatContext.tools`; gather (below) attaches the overworld set per game turn.
-  for (const def of rpgToolDefinitions({ ctx: rpgCtx, service: rpg })) {
-    toolUse.register(def);
-  }
-  // Fill the forward-ref delegate now that the rpg service + its standalone gather op exist (breaks the chat↔rpg
-  // compose cycle — chat's `ChatContext.rpg` delegate reads this from here on).
-  rpgForChat = {
-    resolvePresetOverride: rpg.resolvePresetOverride,
-    gatherTurnContext: createGatherTurnContext(rpgCtx),
-    // The engine marks a dice-eligible turn (05 §6) — a sync in-memory flag on the shared per-turn staging.
-    markDicePreRollEligible: (turnId): void => rpgCtx.staging.markDicePreRollEligible(turnId),
-    onUserCommit: rpg.onUserCommit,
-    onTurnCompleted: rpg.onTurnCompleted,
-    onTurnAborted: rpg.onTurnAborted,
-    // F5 seal read (agent-principal-design/05 §2): chatId → GM seat holder kind, so chat.setGroupConfig can refuse
-    // flipping an agent-GM table off narrator+merged. The rpg-domain factory (findGame → FK-walk), never chat.
-    resolveGmSeatHolderKind: createResolveGmSeatHolder(rpgCtx),
-  };
-  // Fill the rpg crew runner-env forward-ref (06 §3 / 10 §R6) now that the rpg service exists — the workload
-  // runners reach domain/rpg through this. agentTurn reuses the sealed crewAgentTurn (backend-generic).
-  rpgWorkloadEnv = {
-    readWorldGenInputs: rpg.readWorldGenInputs,
-    applyWorldGen: rpg.applyWorldGen,
-    readRecapInputs: rpg.readRecapInputs,
-    applyRecap: rpg.applyRecap,
-    readSessionDistillInputs: rpg.readSessionDistillInputs,
-    applySessionDistill: rpg.applySessionDistill,
-    readDirectorInputs: rpg.readDirectorInputs,
-    applyDirectorPass: rpg.applyDirectorPass,
-    readLorebookUpkeepInputs: rpg.readLorebookUpkeepInputs,
-    applyLorebookUpkeep: rpg.applyLorebookUpkeep,
-    readScenePlanInputs: rpg.readScenePlanInputs,
-    readSceneDistillInputs: rpg.readSceneDistillInputs,
-    applySceneDistill: rpg.applySceneDistill,
-    readRecruitCardInputs: rpg.readRecruitCardInputs,
-    applyRecruitCard: rpg.applyRecruitCard,
-    runNpcPortrait: createRunNpcPortrait(rpgCtx),
-    runIllustration: createRunIllustration(rpgCtx),
-    agentTurn: crewAgentTurn,
-  };
-
   const services: Services = {
     admin,
     assets,
     automation,
-    buddy,
     character,
     chat,
-    comfyuiWorkflow,
     connection,
     credentials,
-    crew,
     databank,
     discovery,
     expressions,
-    hub,
     imagery,
     notifications,
     persona,
     plugin,
     preset,
     rosterPreset,
-    rpg,
     search,
     sessions,
     settings,
@@ -2541,6 +1863,5 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     vllmEngine: registry.vllmEngine,
     characterSeeder,
     personaSeeder,
-    rpgTrace: rpgTraceRecorder,
   };
 }

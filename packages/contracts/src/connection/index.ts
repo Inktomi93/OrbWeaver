@@ -38,21 +38,15 @@ export const openRouterProviderRoutingSchema = z
     quantizations: z.array(z.string()),
     sort: z.enum(["price", "throughput", "latency"]),
     max_price: z.record(z.string(), z.unknown()),
+    /** MODEL-level fallback chain (distinct from provider `allow_fallbacks`, which is same-model): when the
+     *  primary model is unavailable/errors, OpenRouter tries these in order. Maps to the wire's top-level
+     *  `models[]`. Homed here (the one routing-prefs shape), NOT a sibling field. */
+    models: z.array(z.string()),
   })
   .partial()
   .loose();
 
 export type OpenRouterProviderRouting = z.infer<typeof openRouterProviderRoutingSchema>;
-
-/** Parse an unknown value into provider-routing prefs, leniently; `undefined` heals to "default routing"
- *  rather than throwing on the hot send path. */
-export function parseProviderRouting(value: unknown): OpenRouterProviderRouting | undefined {
-  if (value === null || typeof value !== "object") {
-    return;
-  }
-  const result = openRouterProviderRoutingSchema.safeParse(value);
-  return result.success ? result.data : undefined;
-}
 
 // Reasoning/sampling/verbosity/output/context are SEPARATE axes; produced once per `(model, backend)`
 // by `resolveModelCapability`, consumed by both the infra translator and the client panel.
@@ -103,6 +97,18 @@ export const modelCapabilitySchema = z.object({
     budgetRange: rangeSchema.optional(),
     /** Anthropic-only display knob. */
     displayModes: z.array(reasoningDisplayModeSchema).optional(),
+    /** OpenRouter-advertised (R0): reasoning cannot be disabled — an `effort:'none'` intent is CLAMPED to
+     *  the lowest supported effort at the funnel (never a silent 400). */
+    mandatory: z.boolean().optional(),
+    /** OpenRouter-advertised (R0): reasoning is ON by default when the client sets nothing (folded into
+     *  `enabled`; carried as truth). */
+    defaultEnabled: z.boolean().optional(),
+    /** OpenRouter-advertised (R0): the model's OWN default effort — the funnel uses it beneath the
+     *  quality-derived default (precedence: explicit user, then quality, then model defaultEffort, then house). */
+    defaultEffort: effortLevelSchema.optional(),
+    /** OpenRouter-advertised (R0): the model accepts `reasoning.max_tokens` (Anthropic-style budget) in
+     *  addition to / instead of effort. Captured truth. */
+    supportsMaxTokens: z.boolean().optional(),
   }),
   sampling: z.object({
     temperature: rangeSchema.optional(),
@@ -112,20 +118,61 @@ export const modelCapabilitySchema = z.object({
     presencePenalty: rangeSchema.optional(),
     repetitionPenalty: rangeSchema.optional(),
     minP: rangeSchema.optional(),
+    topA: rangeSchema.optional(),
     seed: z.boolean().optional(),
     logitBias: z.boolean().optional(),
     stop: z.boolean().optional(),
   }),
   verbosity: z.array(verbositySchema).optional(),
   /** `vision` = accepts image content-parts (gates the multimodal send). `imageEdit` = accepts an
-   *  init/reference image on the image-GENERATION call — distinct from `vision` (chat-input images). */
-  input: z.object({ vision: z.boolean(), imageEdit: z.boolean().optional() }).optional(),
+   *  init/reference image on the image-GENERATION call — distinct from `vision` (chat-input images).
+   *  `imageIdentity` = the model honors an identity/FACE reference (`edit.references[]`) as a dedicated
+   *  identity-lock channel (IPAdapter-FaceID / PuLID — comfyui-control §4.6/C6), distinct from a plain
+   *  img2img init: the B3 avatar-reference gate routes the avatar into `references[]` (not `image`) when this
+   *  is advertised, so the local arm conditions on the FACE rather than denoising the whole avatar. Absent ⇒
+   *  the arm has no identity lock (a curated Anima role, a hosted arm) — the reference falls back to img2img.
+   *  `file`/`audio`/`video` = the model accepts that input modality (OpenRouter advertises them; capability
+   *  TRUTH now — absent ⇒ false, no consumer sends these parts yet). */
+  input: z
+    .object({
+      vision: z.boolean(),
+      imageEdit: z.boolean().optional(),
+      imageIdentity: z.boolean().optional(),
+      file: z.boolean().optional(),
+      audio: z.boolean().optional(),
+      video: z.boolean().optional(),
+    })
+    .optional(),
   /** Present ⇒ accepts a `tools[]` request; `parallel` = may request several tool calls in one turn.
    *  Absent ⇒ no tool-calling (tool-call parts drop with a `tools_unsupported` warning). */
   tools: z.object({ parallel: z.boolean() }).optional(),
+  /** Image-generation diffusion knobs the source's runner honors (MA-8/D96 — capture-and-use per D95). A
+   *  knob ABSENT ⇒ the runner ignores it with honesty (the capability says it's unsupported, so a request
+   *  carrying it is never silently dropped — the panel simply doesn't offer it). Only the `comfyui` source
+   *  advertises these today (hosted Venice/OpenRouter image models expose no diffusion knobs). `sampler`/
+   *  `scheduler`/`checkpoint` are booleans (the knob EXISTS); the live enum VALUES come from the separate
+   *  `probeImageEngine` verb (`/object_info`), never from this static descriptor. */
+  imageGen: z
+    .object({
+      steps: rangeSchema.optional(),
+      cfg: rangeSchema.optional(),
+      sampler: z.boolean().optional(),
+      scheduler: z.boolean().optional(),
+      seed: z.boolean().optional(),
+      checkpoint: z.boolean().optional(),
+      /** The curated-role QUALITY TIER lever (comfyui-control §C8): present ⇒ this role's family has a
+       *  max-quality `advanced` bundle the `quality:'high'` knob unlocks (detailers/hires/ultimate-upscale);
+       *  absent ⇒ no advanced tier (the panel offers no quality toggle). Boolean presence, like `sampler`. */
+      quality: z.boolean().optional(),
+    })
+    .optional(),
   /** `structured` = accepts `response_format`/JSON-schema constrained output — separate from `tools`. */
   output: z.object({ maxTokens: rangeSchema, structured: z.boolean().optional() }),
   context: z.object({ window: z.number(), supports1M: z.boolean().optional() }),
+  /** The model's top provider applies content moderation (OpenRouter `top_provider.is_moderated`) — a
+   *  prompt may be blocked (surfaces as the `moderation` provider error). Truth only; absent ⇒ not
+   *  moderated / unknown (R2). */
+  moderated: z.boolean().optional(),
   /** Turn/message-array capabilities, keyed on (wire-shape × model). Absent ⇒ `TURNS_FLOOR`. */
   turns: z
     .object({
@@ -179,6 +226,31 @@ export const modelCatalogEntrySchema = z.object({
   outputModalities: z.array(z.string()).optional(),
   /** Generation params the model/provider accepts (e.g. "tools", "reasoning", "temperature"). */
   supportedParameters: z.array(z.string()),
+  /** The top provider's advertised max completion tokens — the REAL per-model output cap (OpenRouter
+   *  `top_provider.max_completion_tokens`). Null/absent when OR doesn't advertise it (older snapshots +
+   *  models without the field), in which case the resolver degrades to the window-derived estimate. */
+  maxCompletionTokens: z.number().nullable().optional(),
+  /** The top provider applies content moderation (OpenRouter `top_provider.is_moderated`) — the resolver
+   *  surfaces it as `ModelCapability.moderated` (R2). Absent on older snapshots. */
+  isModerated: z.boolean().optional(),
+  /** OpenRouter's advertised per-model reasoning metadata (its top-level `reasoning` object) — the
+   *  per-model SOURCE OF TRUTH the resolver prefers over the hardcoded family table (R0). `supportedEfforts`
+   *  is the model's real effort allowlist (null ⇒ no allowlist, all gateway efforts accepted); `mandatory`
+   *  ⇒ reasoning can't be disabled; `defaultEnabled` ⇒ on when the client sets nothing. Null/absent when OR
+   *  advertises no reasoning (⇒ family fallback; a no-reasoning family stays reasoning:none — never guessed). */
+  reasoning: z
+    .object({
+      mandatory: z.boolean(),
+      defaultEnabled: z.boolean().optional(),
+      supportedEfforts: z.array(z.string()).nullable().optional(),
+      /** The model's own default effort (OR's raw string; the resolver keeps it only when it maps to an
+       *  `EffortLevel`). */
+      defaultEffort: z.string().nullable().optional(),
+      /** The model accepts `reasoning.max_tokens` (Anthropic-style). */
+      supportsMaxTokens: z.boolean().optional(),
+    })
+    .nullable()
+    .optional(),
 });
 export type ModelCatalogEntry = z.infer<typeof modelCatalogEntrySchema>;
 
@@ -241,3 +313,109 @@ export const DEFAULT_CHAT_MODEL_ID: ChatModelId = castId<ChatModelId>("claude-op
 /** The OpenRouter default chat model — OpenRouter's auto-router; `pickOrModel` heals a null/rejected
  *  OR model id to this. */
 export const DEFAULT_OR_CHAT_MODEL_ID: ModelId = castId<ModelId>("openrouter/auto");
+
+// ── The ComfyUI live-probe tri-state (MA-8/D96) ──────────────────────────────────────────────────────
+// The client DISCRIMINATES on `state` (D83 — named contract vocabulary, never message-text matching): a
+// reachable engine WITH checkpoints (`ok-with-models`), a reachable engine with ZERO checkpoints installed
+// (`ok-but-empty` — a REAL first-class product state, not an error), or an unreachable/unconfigured engine
+// (`engine-off`). The `probeImageEngine` verb does one `GET {baseUrl}/object_info` and maps the node-catalog
+// shape onto this union; the enum VALUES (samplers/schedulers/checkpoints/vaes) come from the live catalog,
+// never a static table. `checkpoints` is the union of `CheckpointLoaderSimple.ckpt_name` + `UNETLoader.unet_name`.
+
+/** The named tri-state a ComfyUI reachability probe resolves to. */
+export const COMFYUI_PROBE_STATES = ["ok-with-models", "ok-but-empty", "engine-off"] as const;
+export type ComfyuiProbeState = (typeof COMFYUI_PROBE_STATES)[number];
+
+/** The live node-catalog a reachable ComfyUI advertises via `/object_info`: the display-clean sampler,
+ *  scheduler, checkpoint, and VAE names the model-picker offers. */
+export const comfyuiCatalogSchema = z.object({
+  samplers: z.array(z.string()),
+  schedulers: z.array(z.string()),
+  checkpoints: z.array(z.string()),
+  vaes: z.array(z.string()),
+});
+export type ComfyuiCatalog = z.infer<typeof comfyuiCatalogSchema>;
+
+/** One catalogued LoRA a curated role can attach, as the picker surfaces it (comfyui-control §C8 / §4.5) — the
+ *  STATIC reference slice (name/filename/trigger words/recommended weight). Populated by the arm from the ported
+ *  `lora_catalog` (the runtime Civitai auto-download does NOT port — a missing LoRA is an honest refusal). */
+export const comfyuiRoleLoraSchema = z.object({
+  slug: z.string(),
+  name: z.string(),
+  filename: z.string(),
+  category: z.string(),
+  triggerWords: z.array(z.string()),
+  recommendedWeight: z.number(),
+});
+export type ComfyuiRoleLora = z.infer<typeof comfyuiRoleLoraSchema>;
+
+/** A curated role's PROMPT GUIDE (comfyui-control §4.5, the 'UI money-shot') — the model's prompt-style hint +
+ *  scaffolds + the sampling hints, ported from the kit's sourced `prompt_guide`. Populated by the arm's
+ *  `guideFor`; a reference surface the picker shows, never a lock (the guide-exact knobs live in the family). */
+export const comfyuiRoleGuideSchema = z.object({
+  displayName: z.string(),
+  promptStyle: z.string(),
+  qualityPrefix: z.string(),
+  positiveScaffold: z.string(),
+  negativeScaffold: z.string(),
+  cfgHint: z.string(),
+  stepsHint: z.string(),
+  promptingNotes: z.string(),
+  examplePrompt: z.string(),
+});
+export type ComfyuiRoleGuide = z.infer<typeof comfyuiRoleGuideSchema>;
+
+/** One curated `orbgen:<role>` mode as the ComfyUI picker surfaces it (comfyui-control spec §4.2/§4.4/§4.5, C5).
+ *  `id` is the `model`-slot value (`orbgen:<role>`) the connection persists; `role`/`label`/`arch` are display.
+ *  `available` is GROUNDED against the live catalog + registered node classes (never a static assumption — the
+ *  `plan-for-small-hardware` honest-degrade posture); when false, `missing` NAMES the absent pieces (the required
+ *  checkpoint/UNET filename and/or the missing node classes) so the refusal is honest and the picker can render
+ *  the disabled option with its reason, never a silent substitute. `imageGen` is the role family's honored
+ *  diffusion-knob surface (the panel offers only advertised knobs — the capability-truth contract). `nsfw` badges
+ *  the explicit roles for the D61 consent gate (surfaced default-off, never laundered, never silently dropped). */
+export const comfyuiRoleAvailabilitySchema = z.object({
+  id: z.string(),
+  role: z.string(),
+  label: z.string(),
+  arch: z.string(),
+  nsfw: z.boolean(),
+  available: z.boolean(),
+  missing: z.array(z.string()),
+  imageGen: modelCapabilitySchema.shape.imageGen,
+  /** Whether this role's family accepts an init/reference image (`edit.image`/`references`) — true for every
+   *  curated role whose base is available (they all do img2img), the §4.6 honest-refusal contract (a raw
+   *  checkpoint / hosted arm advertises no edit). Convenience OR of the granular {@link levers}. */
+  imageEdit: z.boolean(),
+  /** Per-OPTIONAL-lever availability, GROUNDED against the live node classes (comfyui-control spec §4.4/§4.6/
+   *  §4.12.4, C6): a lever is `true` only when its family honors that method AND every node class the lever's
+   *  build emits is registered (flux inpaint additionally needs the Fill UNET in the catalog). A `false` lever
+   *  is the honest per-lever refusal the picker renders — the runner would build the graph, but the missing
+   *  node makes it a typed refusal, never a silent no-op. `img2img` needs only core nodes, so it tracks base
+   *  availability; `identity` is sdxl/flux only (Anima has no identity lock). */
+  levers: z.object({
+    img2img: z.boolean(),
+    inpaint: z.boolean(),
+    identity: z.boolean(),
+    pose: z.boolean(),
+  }),
+  /** The role's sourced PROMPT GUIDE (comfyui-control §4.5) — the prompt-style hint + scaffolds the picker shows
+   *  so the user knows HOW to prompt this mode (danbooru tags vs prose). `null` when the role's family has no
+   *  ported guide entry (never a fabricated one). */
+  guide: comfyuiRoleGuideSchema.nullable(),
+  /** The STATIC LoRA reference catalog for this role (comfyui-control §C8 / §4.5) — the LoRAs its family base
+   *  offers, sorted by downloads (the picker shows the attachable set + trigger words). Empty for a family with
+   *  no LoRA base (anima_edit). A browse surface only — no runtime download (owner-ruled, §8 Q7). */
+  loras: z.array(comfyuiRoleLoraSchema),
+});
+export type ComfyuiRoleAvailability = z.infer<typeof comfyuiRoleAvailabilitySchema>;
+
+/** The `probeImageEngine` result — a discriminated tri-state (D83). `ok-with-models`/`ok-but-empty` carry
+ *  the live catalog (the built-in sampler/scheduler/vae lists are present even with zero checkpoints) PLUS the
+ *  curated-role availability list (C5 — raw checkpoints ride the catalog, curated `orbgen:<role>` modes ride
+ *  `roles`, each with its live availability); `engine-off` carries only the state (unreachable or unconfigured). */
+export const comfyuiProbeResultSchema = z.discriminatedUnion("state", [
+  comfyuiCatalogSchema.extend({ state: z.literal("ok-with-models"), roles: z.array(comfyuiRoleAvailabilitySchema) }),
+  comfyuiCatalogSchema.extend({ state: z.literal("ok-but-empty"), roles: z.array(comfyuiRoleAvailabilitySchema) }),
+  z.object({ state: z.literal("engine-off") }),
+]);
+export type ComfyuiProbeResult = z.infer<typeof comfyuiProbeResultSchema>;

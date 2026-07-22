@@ -10,6 +10,15 @@
 import { z } from "zod";
 import { themeOverrideSchema } from "./override";
 
+export type { BackgroundImageKind, ThemeBackground } from "./background";
+export { BACKGROUND_IMAGE_KINDS, canonicalBackgroundSource, themeBackgroundSchema } from "./background";
+export type {
+  BackgroundMaterializeFailure,
+  MaterializeBackgroundOp,
+  MaterializeBackgroundResult,
+  MaterializedBackgroundAsset,
+} from "./materialize";
+export { BACKGROUND_MATERIALIZE_FAILURES, backgroundMaterializeMessage } from "./materialize";
 export type {
   ThemeChatStyle,
   ThemeDensity,
@@ -24,6 +33,8 @@ export {
   THEME_RADII,
   themeOverrideSchema,
 } from "./override";
+export type { SeededBackground } from "./seeded-backgrounds";
+export { listSeededBackgrounds, resolveSeededBackgroundUrl } from "./seeded-backgrounds";
 
 /** Name/CSS length caps (themes-design §3.2 — named constants, shared with the future db CHECKs). */
 export const THEME_NAME_MAX = 80;
