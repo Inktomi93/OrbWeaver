@@ -22,23 +22,23 @@ allowBuilds:
 catalog:
   # --- toolchain ---
   typescript: ^6.0.3
-  "@biomejs/biome": ^2.5.1
-  lefthook: ^2.1.9
-  dependency-cruiser: ^18.0.0
+  "@biomejs/biome": ^2.5.5
+  lefthook: ^2.1.10
+  dependency-cruiser: ^18.1.0
   ts-morph: ^28.0.0
-  tsx: ^4.22.4
-  # @types/node tracks the RUNTIME (Node 24), not its own latest (26) — types must not lead the runtime.
-  "@types/node": ^24
+  tsx: ^4.23.1
+  # @types/node tracks the RUNTIME (Node 26).
+  "@types/node": ^26.1.1
   # --- test ---
-  vitest: ^4.1.9
-  "@vitest/coverage-v8": ^4.1.9
+  vitest: ^4.1.10
+  "@vitest/coverage-v8": ^4.1.10
   "@playwright/test": ^1.61.1
   "@playwright/experimental-ct-react": ^1.61.1
   # --- quality / mutation tooling ---
   # ts-reset: ambient type hardening (filter(Boolean), JSON.parse→unknown) — wired via root reset.d.ts.
   "@total-typescript/ts-reset": ^0.6.1
   # jscpd: copy-paste detection (CI gate, threshold 5%) — config jscpd.json.
-  jscpd: ^5.0.11
+  jscpd: ^5.0.12
   # stryker: mutation testing (run via `pnpm test:mutation` / `pnpm test:mutation:gate` = a plain
   # `stryker run <config>` from the repo root — no wrapper, no --inPlace: Stryker copies into .stryker-tmp/,
   # the working tree is never touched, reports land in reports/ natively). PINNED EXACT to 9.6.1 (no caret) —
@@ -65,7 +65,7 @@ catalog:
   drizzle-kit: ^0.31.10
   "@libsql/client": ^0.17.4
   # --- server ---
-  hono: ^4.12.27
+  hono: ^4.12.31
   "@hono/node-server": ^2.0.6
   openid-client: ^6.8.4
   # jose: the JWKS/JWT VERIFY side of forward-header auth (infra/auth/jwks — createLocalJWKSet/
@@ -76,7 +76,7 @@ catalog:
   "@trpc/server": ^11.18.0
   # undici: the global-dispatcher seam for the SSRF egress firewall (infra/network/egress —
   # setGlobalDispatcher + Agent({connect.lookup})). Node's fetch is undici under the hood, but the
-  # dispatcher swap requires the package; tracks Node 24's bundled undici major (7.x).
+  # dispatcher swap requires the package; tracks Node 26's bundled undici major.
   undici: ^7.16.0
   # foundation/env — the sole process.env reader loads a local .env (override:true) before parsing.
   dotenv: ^16.4.7
@@ -95,12 +95,12 @@ catalog:
   "@opentelemetry/semantic-conventions": ^1.41.1
   # infra/image (Phase 4b — tiers/infra.md D6): the sharp adapter (decode/resize/format-normalize/
   # strip-metadata) behind the injected `imageTransform` op. Native libvips binding — pnpm builds it.
-  sharp: ^0.34.4
+  sharp: ^0.34.5
   # --- infra/providers backends (Phase 4b-ii-b — tiers/providers.md) ---
   # @anthropic-ai/claude-agent-sdk: the agent-sdk backend (the Max sub + the OR-Anthropic skin + agent
   # mode). Its env firewall is the load-bearing credential seam (providers.md Esoteric §1).
   # `^0.3.206` floor — owner-approved force past the age gate 2026-07-10 (see minimumReleaseAgeExclude).
-  "@anthropic-ai/claude-agent-sdk": ^0.3.206
+  "@anthropic-ai/claude-agent-sdk": ^0.3.216
   # @anthropic-ai/sdk: the anth-direct backend (D67) — the direct Anthropic-Messages wire over the
   # egress-firewalled global fetch. ALREADY in the tree as a transitive dep of the agent-sdk; promoted
   # to a direct dep to name the existing surface (installs nothing new).
@@ -185,8 +185,8 @@ catalog:
   # DTCG token codegen (docs said v4; current major is 5 — ESM/async, DTCG first-class).
   style-dictionary: ^5.5.0
   # Tailwind v4 + the vite plugin (the @theme consumer; used by the CT harness + Phase-6 client).
-  tailwindcss: ^4.3.2
-  "@tailwindcss/vite": ^4.3.2
+  tailwindcss: ^4.3.3
+  "@tailwindcss/vite": ^4.3.3
   # CT harness (playwright-ct bundles components via vite+react). Also the client build's react plugin.
   "@vitejs/plugin-react": ^6.0.3
 
@@ -196,17 +196,17 @@ catalog:
   # rules biome can't do — react-hooks + React-Compiler diagnostics, TanStack Query/Router discipline,
   # tailwind compiled-class validation. Config: eslint.config.js (explicit-rules-only, no `recommended`).
   # Every plugin below peer-supports eslint ^10 (verified) and TS 6.0.3 (typescript-eslint peer <6.1.0).
-  eslint: ^10.6.0
+  eslint: ^10.7.0
   # typescript-eslint: latest major-8 (there is NO v9); peer `typescript >=4.8.4 <6.1.0` → our 6.0.3 in range.
   # Used as PARSER only (+ the type-aware no-deprecated gate); its recommended RULE set stays OFF (biome+tsc own that).
-  typescript-eslint: ^8.62.1
+  typescript-eslint: ^8.65.0
   # react-hooks v7 ships the React Compiler diagnostics (the rules-of-react correctness set) alongside rules-of-hooks.
   eslint-plugin-react-hooks: ^7.1.1
-  "@tanstack/eslint-plugin-query": ^5.101.2
+  "@tanstack/eslint-plugin-query": ^5.101.4
   "@tanstack/eslint-plugin-router": ^1.162.0
   # better-tailwindcss: validates class strings against the classes the v4 engine ACTUALLY registers
   # for our @theme (entryPoint = @orb/ui globals.css). Correctness rules only (biome owns class style/order).
-  eslint-plugin-better-tailwindcss: ^4.6.0
+  eslint-plugin-better-tailwindcss: ^4.7.0
   # tsdoc/syntax — validates TSDoc comment syntax (the Documentation-Law doc-comment gate). No eslint peer dep.
   eslint-plugin-tsdoc: ^0.5.2
   # vite: not 8.1.3 (published <24h ago, minimumReleaseAge-blocked); ^8.1.2 is the latest mature — the
@@ -219,9 +219,9 @@ catalog:
   "@rolldown/plugin-babel": ^0.2.3
   # --- client data/forms/state (the Phase-6 client-foundation wave — UI-Primitives-and-Reuse.md §13.1
   #     primitives; versions per the UI-Lib-* mines' verified baselines, caret-adopted) ---
-  "@tanstack/react-query": ^5.101.2
+  "@tanstack/react-query": ^5.101.4
   "@tanstack/react-query-devtools": ^5.101.2
-  "@tanstack/react-form": ^1.33.0
+  "@tanstack/react-form": ^1.33.2
   zustand: ^5.0.14
   # @trpc/client + the tanstack-react-query bridge track @trpc/server's major (^11.18.0) — the
   # options-proxy (`trpc.x.y.queryOptions()`) IS the queryKey factory (gate no-array-literal-querykey).

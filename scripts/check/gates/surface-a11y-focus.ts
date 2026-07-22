@@ -26,7 +26,7 @@ function surfaceFiles(dir: string): string[] {
 }
 
 const A11Y_MESSAGE =
-  "surface is missing A11y focus restoration. Drill-down/SPA surfaces must manage focus on mount (e.g. `ref.current?.focus()`) unless wrapped in a focus-trapping primitive (Popover, Dialog, etc.) (AGENT-NAVIGABILITY.md).";
+  "surface is missing A11y focus restoration. Drill-down/SPA surfaces must manage focus on mount (e.g. `ref.current?.focus()`) unless wrapped in a focus-trapping primitive (Popover, Dialog, etc.) (UI-Gates-and-Lessons.md §8).";
 
 /** The fs scan shared by the legacy Check and the single-pass `run` descriptor. */
 function scanSurfaceA11yFocus(root: string): Violation[] {
@@ -61,7 +61,7 @@ function scanSurfaceA11yFocus(root: string): Violation[] {
 
 export const gate: GateDescriptor = {
   name: "surface-a11y-focus",
-  docRow: "AGENT-NAVIGABILITY.md",
+  docRow: "UI-Gates-and-Lessons.md §8",
   status: "active",
   scopeSafety: "whole-project",
   fsBacked: true,

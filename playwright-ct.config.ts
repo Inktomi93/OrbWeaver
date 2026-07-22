@@ -4,7 +4,9 @@ import tailwindcss from "@tailwindcss/vite";
 
 // Component tests — `.ct.tsx` at the tests/{ui,client} mirrors, in a real chromium via Playwright CT
 // (the vitest browser project was never adopted — it hangs cold-cache; core/Spine-Testing.md §7).
-// Client/ui pure-logic stays node `.test.ts`. Separate runner, NOT in `pnpm check` (`pnpm test:ct`).
+// Client/ui pure-logic stays node `.test.ts`. Separate RUNNER, but the same lane: `pnpm test` composes
+// `pnpm test:ct --retries=2` after the vitest projects (merged 2026-07-17 — the split existed only for the
+// old single-thread constraint). Still NOT in `pnpm check` (browser suites never gate the static tier).
 //
 // The harness page (playwright/index.{html,tsx}) imports @orb/ui/styles/globals.css — tailwind v4 +
 // the GENERATED @theme — so token utilities resolve in-browser exactly as in the client build.
@@ -19,12 +21,22 @@ export default defineConfig({
   outputDir: "reports/ct-results",
   fullyParallel: true,
   forbidOnly: process.env.CI !== undefined,
-  // `CT_GATE=1` (set by the lefthook pre-push CT step) enables retries so parallelism flakes — the
-  // drawer/chart/lightbox focus/ResizeObserver timing artifacts that only surface after 500+ tests in
-  // one page context — don't block the gate. Ad-hoc `pnpm test:ct` keeps retries:0 so a real flake stays
-  // visible while debugging; `trace: on-first-retry` (below) then captures the failing gate run.
-  retries: process.env.CT_GATE !== undefined ? 2 : 0,
-  reporter: [["html", { outputFolder: "reports/ct-report", open: "never" }]],
+  // retries:0 is the DEFAULT (ad-hoc `pnpm test:ct` / scoped verify runs show a real flake raw while
+  // debugging). The GATE lane retries instead of blocking — the drawer/chart/lightbox focus/ResizeObserver
+  // parallelism artifacts that only surface after 500+ tests in one page context — but the gate context is
+  // a VISIBLE CLI flag in the `pnpm test` composition (`pnpm test:ct --retries=2`), not an env var this
+  // config decodes (the CT_GATE env retired 2026-07-17 with the lefthook-step era that needed it).
+  // `trace: on-first-retry` (below) still captures a failing retried run.
+  retries: 0,
+  // The flake announcer (scripts/verify/ct-flaky-reporter.ts): the gate runs with `--retries=2`, so a
+  // failed-then-passed test scores green and hides. This reporter surfaces every retry-masked pass — a loud
+  // end-of-run block + reports/ct-flaky.json. DEFAULT = WARN (suite stays green on transient infra);
+  // `CT_NO_FLAKES=1` (this config owns env-decode) flips it STRICT → nonzero exit on any retried test, for
+  // the orchestrator's flake-hunt passes.
+  reporter: [
+    ["html", { outputFolder: "reports/ct-report", open: "never" }],
+    ["./scripts/verify/ct-flaky-reporter.ts", { strict: process.env.CT_NO_FLAKES === "1" }],
+  ],
   use: {
     trace: "on-first-retry",
     // Parameterized so parallel CI port-shards don't collide on the CT dev server.
@@ -33,6 +45,31 @@ export default defineConfig({
       // CT applies its OWN @vitejs/plugin-react internally — adding a second one double-transforms.
       plugins: [tailwindcss()],
       resolve: { dedupe: ["react", "react-dom"] },
+      build: {
+        rollupOptions: {
+          // Silence the advisory floods that drown the CT build output (~dozens of lines each): react-query's
+          // "use client" module-level directives (meaningless in a CT bundle), the playwright/index.tsx
+          // dynamic-vs-static chunk advisories (the harness dynamically imports what fixtures statically
+          // import — inherent to CT), and prebuilt-dep sourcemap-trace failures (see the SOURCEMAP_ERROR arm).
+          onwarn(warning, defaultHandler): void {
+            if (warning.code === "MODULE_LEVEL_DIRECTIVE") {
+              return;
+            }
+            if (warning.message.includes("dynamic import will not move module into another chunk")) {
+              return;
+            }
+            // Prebuilt deps (@base-ui/react, @tanstack/*) ship .mjs whose bundled sourcemaps rollup can't
+            // trace back to source when it wants to REPORT another advisory — SOURCEMAP_ERROR "Can't resolve
+            // original location of error" (~dozens/build, 2026-07-20). Benign (their code, their maps, not a
+            // real defect) and it once buried the real cause of a transient CT exit-1. Scoped to node_modules
+            // ids ONLY — our own SOURCEMAP_ERROR (a genuinely broken map we authored) still surfaces.
+            if (warning.code === "SOURCEMAP_ERROR" && warning.id?.includes("/node_modules/") === true) {
+              return;
+            }
+            defaultHandler(warning);
+          },
+        },
+      },
     },
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],

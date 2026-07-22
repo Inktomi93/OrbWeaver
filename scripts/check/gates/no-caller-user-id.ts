@@ -1,4 +1,4 @@
-// Gate: no-caller-user-id (D19 turn-identity / chat.md §12 #2). The caller is `Principal.userId`; a turn's
+// Gate: no-caller-user-id (Core-Path-Registry.md D19 turn-identity). The caller is `Principal.userId`; a turn's
 // RESPONSIBLE human is `triggeredBy` and the FUNDED identity is `runAsUserId`. The term `callerUserId`
 // conflates caller with turn-identity (the neo bug class: the caller's id reaching `resolveCredential`/
 // `loadUserSettings`). tsc cannot catch a NEWLY-INTRODUCED forbidden name, so this gate does — before the
@@ -12,7 +12,7 @@ const MESSAGE =
   "`callerUserId` is forbidden (D19): the caller is `Principal.userId`; use `triggeredBy` (the responsible human) / `runAsUserId` (the funded identity). Never route the caller's id into credential/settings resolution. See Spine-Identity-and-Auth.md (turn-identity: triggeredBy vs runAsUserId; D19).";
 export const gate: GateDescriptor = {
   name: "no-caller-user-id",
-  docRow: "D19 turn-identity / chat.md §12 #2",
+  docRow: "Core-Path-Registry.md D19 (turn-identity)",
   status: "active",
   scopeSafety: "incremental-safe",
   message: MESSAGE,

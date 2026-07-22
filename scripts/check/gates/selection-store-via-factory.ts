@@ -27,7 +27,7 @@ function isFactoryDoorCall(call: CallExpression): boolean {
 
 export const gate: GateDescriptor = {
   name: "selection-store-via-factory",
-  docRow: "proposed/derive-modernization-audit.md §W3 (G27)",
+  docRow: "history/derive-modernization-audit.md §W3 (G27)",
   status: "active",
   scopeSafety: "incremental-safe",
   message: MESSAGE,

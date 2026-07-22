@@ -30,6 +30,18 @@ export const gate: GateDescriptor = {
       return;
     }
 
+    // ALLOWLIST — `triggerFactSchema` (contracts/automation). Its ids (chatId, message.authorUserId /
+    // characterId, turn.speakerCharacterId, top-level characterId, assetId) are UNBRANDED z.string() BY DESIGN:
+    // this schema IS the guest-marshalling contract for the QuickJS plugin realm — a read-only predicate
+    // value-bag structure-cloned into an untrusted guest, NOT an FK surface. A branded id would survive the
+    // structured-clone as a bare string but LIE about its type across the realm boundary (the
+    // tool-schema-no-branded-transform lesson applies to guest-marshalled shapes), and branding a field whose
+    // whole point is to cross the membrane as a plain scalar breaks the boundary. Keyed on the enclosing
+    // declaration name so the gate stays LIVE for every other id field in the same file.
+    if (node.getFirstAncestorByKind(SyntaxKind.VariableDeclaration)?.getName() === "triggerFactSchema") {
+      return;
+    }
+
     const valText = valueNode.getText();
     const isRawString = valText.includes("z.string()");
     const brands = ["brandedId", "typeIdSchema", "castId"];
@@ -67,6 +79,16 @@ export const gate: GateDescriptor = {
         import { z } from "zod";
         const schema = z.object({
           username: z.string()
+        });
+      `,
+    },
+    {
+      why: "triggerFactSchema guest-marshalled ids are unbranded by design (allowlisted)",
+      files: `
+        import { z } from "zod";
+        export const triggerFactSchema = z.object({
+          chatId: z.string().nullable(),
+          assetId: z.string().optional()
         });
       `,
     },

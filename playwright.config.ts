@@ -62,5 +62,10 @@ export default defineConfig({
     // Cold boot = tsx compile + healthz gate (≤60s in-script) + vite; generous so CI never flakes here.
     timeout: 180_000,
     env: stackEnv,
+    // Pipe the boot output into playwright's own stdout/stderr — without this a webServer boot FAILURE
+    // logs only "was not able to start. Exit code: 1" and the actual boot error is swallowed
+    // (undiagnosable from the verify stage log, 2026-07-17).
+    stdout: "pipe",
+    stderr: "pipe",
   },
 });

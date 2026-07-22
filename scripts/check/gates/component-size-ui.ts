@@ -1,7 +1,7 @@
-// Gate: component-size-ui — DORMANT (the @orb/ui twin of component-size, which caps @orb/client only).
+// Gate: component-size-ui — the @orb/ui twin of component-size (which caps @orb/client only).
 // A hard LOC ceiling on packages/ui/src sources (UI-Primitives-and-Reuse.md §13.7 — a primitive is one
-// sealed component). Dormant because it finds real debt on the current tree (table.tsx over cap);
-// activate once that's split, by flipping `status` to "active" and adding the Active-Gates.md row.
+// sealed component). ACTIVE since 2026-07-17: the founding debt was cleared (W1-1 split table.tsx to
+// 376 < 450) and the owner flipped the switch.
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import type { GateDescriptor } from "../contract.ts";
@@ -64,7 +64,7 @@ function scanComponentSizeUi(root: string): Violation[] {
 export const gate: GateDescriptor = {
   name: "component-size-ui",
   docRow: "UI-Primitives-and-Reuse.md §13.7",
-  status: "dormant",
+  status: "active",
   scopeSafety: "whole-project",
   fsBacked: true,
   message:

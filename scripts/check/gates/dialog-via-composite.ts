@@ -26,8 +26,16 @@ const ALLOWLIST: Record<string, string> = {
   "packages/client/src/features/chat/anchors/join-invite-dialog.tsx":
     "the /join preview→confirm landing (loading/invalid/ready states) — a multi-state flow, not a form; chat lane.",
   "packages/client/src/features/chat/anchors/character-gallery-dialog.tsx": "a character-gallery picker surface (owns its Dialog root); chat lane.",
+  "packages/client/src/features/chat/components/add-party-dialog.tsx":
+    "a saved-party PICKER surface (cmdk RosterPresetPicker owns search/keyboard-nav) — a picker species like character-gallery-dialog, not a form (RP2, saved-rosters §6).",
+  "packages/client/src/features/chat/components/save-as-party-dialog.tsx":
+    "a name PROMPT with a live RP-D1 drop-surfacing readout over the room snapshot — a §13.4 single-control prompt species (the rename-chat-dialog precedent), not a bound-field form; chat lane (RP2).",
   "packages/client/src/features/preset/components/variable-editor-dialog.tsx":
     "a bound-field form with a PINNED title above an internally-scrolled body (7 fields + a dynamic option list); FormDialog's single-Stack shell can't preserve the pinned-title scroll — divergent, kept raw with this citation.",
+  "packages/client/src/features/rpg/components/journal/readable-overlay.tsx":
+    "a read-only READING viewer (the C11 §12.2 parchment overlay for a journal item/note) — a content-display species like character-gallery-dialog, not a form/prompt; owns its Dialog root, no bound fields, a single Close.",
+  "packages/client/src/features/imagery/components/pose-control.tsx":
+    "the pose-picker BROWSING modal (comfyui-control §4.12.3, C6d) — a virtualized MediaGrid of curated+BYO skeletons with search/category/source BROWSE filters; a pick sets a chip and closes. A picker species like character-gallery-dialog / add-party-dialog, not a form/prompt (the filter controls are browse state, nothing is submitted).",
 };
 
 function rel(path: string): string {

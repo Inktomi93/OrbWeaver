@@ -24,8 +24,9 @@ export type StageDef = {
   readonly tiers: readonly Tier[];
   /** The whole-scope invocation (the `pnpm <script>` form, spawned shell:false). */
   readonly argv: readonly [string, ...string[]];
-  /** Extra env for the child (merged over the inherited env + the run's NO_COLOR). The CT gate needs
-   *  CT_GATE=1 (retries flakes instead of blocking) — the pre-push lefthook set this before. */
+  /** Extra env for the child (merged over the inherited env + the run's NO_COLOR). No current stage
+   *  needs one (the former CT_GATE consumer retired 2026-07-17 — gate retries are a visible CLI flag in
+   *  the `pnpm test` composition now); the seam stays for the next genuinely env-shaped stage knob. */
   readonly env?: Readonly<Record<string, string>>;
   /** How to run this stage over a Selection (§3.4). ABSENT ⇒ whole-only (deferred at a scoped tier). */
   readonly scopedArgv?: (sel: Selection) => ScopedArgv;
@@ -73,9 +74,15 @@ export const ownScheme = (s: number | null): 0 | 1 | 2 | 3 => {
 };
 
 // ── the registry ──────────────────────────────────────────────────────────────────────────────────────
-// V1 wires the argv (whole-scope) + tiers + classify for every stage. The `scopedArgv` propagation lands
-// in V2; stages ship whole-only (deferred at scoped tiers) until then. The static tier is EXACTLY run.ts's
-// 8 stages, in order, so `pnpm check` (= `verify --static`) stays byte-compatible.
+// Build history (all LANDED): V1 wired argv (whole-scope) + tiers + classify; V2 landed the `scopedArgv`
+// propagation (the scopable stages below carry it; genuinely whole-tree stages stay whole-only BY NATURE,
+// not as debt); V3 repointed the lefthook hooks onto the tiers (2026-07-12) and merged CT into the
+// `pnpm test` lane (2026-07-17). The one deliberately-open edge — CT changed-scope mirror-mapping — LANDED
+// 2026-07-17: browser:ct now runs at the `changed` tier over the selection's CT view (its test-layout
+// mirrors + a small table of DECLARED blast-radius sweeps). It UNDER-selects on purpose (scoped CT = mirror
+// + declared sweeps, never the whole suite) — honest ONLY because a scoped green is never the coverage
+// verdict; the push bar (`tests:node` running the WHOLE CT suite) remains that verdict. The static tier is
+// EXACTLY run.ts's stages, in order, so `pnpm check` (= `verify --static`) stays byte-compatible.
 
 const STATIC: readonly Tier[] = ["static", "push", "full"];
 
@@ -209,6 +216,20 @@ export const REGISTRY: readonly StageDef[] = [
     // partial-file invocation makes sense, so it's whole-only, deferred at a scoped tier.
     classify: asViolations,
   },
+  {
+    name: "deps:knip-prod",
+    group: "deps",
+    // The production-strict view (`--production --strict`): its DELTA over deps:knip is the
+    // kept-alive-only-by-tests rot lens (knip.ts header). FULL tier during the buildout, not static/push:
+    // leaf-first build order legitimately lands a contract type one commit before its consumer, so a
+    // commit-bar row would red on normal wave state; post-buildout it can promote (the api-surface
+    // "surface freeze" trigger class). Wired 2026-07-17 — it had NEVER run anywhere despite the registry
+    // doc claiming it live; the parity gate's shape list gained `knip*` the same day so a knip script can
+    // never dangle again.
+    tiers: ["full"],
+    argv: ["pnpm", "knip:prod"],
+    classify: asViolations,
+  },
 
   // ── docs stage-group ──
   {
@@ -225,23 +246,40 @@ export const REGISTRY: readonly StageDef[] = [
     name: "tests:node",
     group: "tests",
     tiers: ["changed", "push", "full"],
+    // `pnpm test` = the vitest projects && `pnpm test:ct --retries=2` (merged 2026-07-17 — the CT split
+    // existed only for the old single-thread constraint): ONE behavioral lane, so the green-to-commit
+    // ritual (`pnpm check` + `pnpm test`) exercises the CT suite too. The retries flag rides the compound
+    // VISIBLY (gate runs retry parallelism flakes; ad-hoc `pnpm test:ct` keeps the retries:0 config
+    // default for debugging — the CT_GATE env this used to ride was retired 2026-07-17).
     argv: ["pnpm", "test"],
     classify: asViolations,
     // At changed scope: vitest's own related-test graph over the unit+integration lanes (serial + contract
-    // are whole-tree-shaped, deferred to push). Whole-only otherwise.
+    // are whole-tree-shaped, deferred to push). CT does NOT ride this lane at changed scope — its scoped
+    // mirror-mapping is the separate `browser:ct` changed-tier stage (LANDED 2026-07-17); the WHOLE CT suite
+    // rides this lane's whole-scope argv at push (via `pnpm test`). Whole-only otherwise.
     scopedArgv: (sel) => ["vitest", "run", "--project", "unit", "--project", "integration", "--changed", ...(sel.gitRef === undefined ? [] : [sel.gitRef])],
   },
   {
     name: "browser:ct",
     group: "browser",
-    tiers: ["push", "full"],
+    // The gate run rides tests:node (`pnpm test` composes `pnpm test:ct --retries=2` — merged 2026-07-17);
+    // a push/full tier row here would run the suite TWICE. It stays at `manual` (the CT-only whole-suite
+    // iteration lane) AND gains `changed` — the scoped inner loop runs only the changed set's CT view
+    // (mirrors + declared sweeps), never the whole suite (LANDED 2026-07-17). This row also keeps the
+    // CT-ONLY lane a named stage (verify-registry-parity arm 1) surfaced in `verify --list`.
+    tiers: ["changed", "manual"],
     argv: ["pnpm", "test:ct"],
-    // CT_GATE=1: parallelism flakes RETRY (retries:2) instead of blocking — the exact env the pre-push
-    // lefthook set on this command before the repoint (lefthook.yml history).
-    env: { CT_GATE: "1" },
     classify: asViolations,
-    // CT mirror-mapping (changed src → mirror .ct.tsx) is a V3 concern, behind a flag until proven; the
-    // whole CT suite stays at push. Whole-only at scoped tiers for now.
+    // The scoped CT invocation — a DIRECT playwright run over the selection's CT view, NOT `pnpm test:ct`.
+    // TWO deliberate divergences from the `pnpm test:ct` script, each honest for the inner loop:
+    //   1. NO `rm -rf playwright/.cache` — the gate lanes keep that nuke for stale-bundle correctness; the
+    //      scoped run skips it for inner-loop SPEED. The residual stale-cache risk is acceptable because a
+    //      scoped green is NEVER the verdict (§3.4) — the push bar re-runs the whole suite with the nuke.
+    //   2. NO retries flag — retries stays 0 (the playwright-ct.config.ts default). Small scoped runs
+    //      don't hit the 500-test-parallelism flakes the gate retries around; the inner loop wants RAW signal, not a
+    //      retry-masked green. skip ⇒ no CT-relevant change this run (a no-op, not a failure).
+    scopedArgv: (sel) => (sel.ct.mode === "skip" ? "skip-empty" : ["playwright", "test", "-c", "playwright-ct.config.ts", ...sel.ct.targets]),
+    manualReason: "runs inside tests:node (`pnpm test` composes it with --retries=2); direct lane kept for CT-only iteration at retries:0",
   },
   {
     name: "browser:e2e-smoke",

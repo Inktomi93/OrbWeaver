@@ -46,6 +46,10 @@ const SERIAL_INT = [
   "tests/support/fixtures.int.test.ts",
   "tests/server/transport/cross-tenant-sweep.suite.int.test.ts",
   "tests/server/entry/compose/chat.int.test.ts",
+  // The P6 agent-seat wire round-trips (D60): full-`createServices` app-fixture files — cold import of the
+  // whole server graph on the first test flakes a parallel 5s timeout.
+  "tests/server/transport/trpc/routers/chat.int.test.ts",
+  "tests/server/transport/trpc/routers/invites.int.test.ts",
 ];
 
 export default defineConfig({
@@ -158,7 +162,7 @@ export default defineConfig({
             tsconfig: "tsconfig.json",
             // TS7 native checker (byte-identical diagnostics to tsc6, ~5x faster) — the CLI type lanes moved
             // off tsc6. ts-morph/typescript-eslint keep the TS6 API; this lane is CLI-only, so it's safe.
-            checker: "tsgo",
+            checker: "node_modules/ts7/bin/tsc",
           },
         },
       },

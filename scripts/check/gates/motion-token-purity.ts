@@ -18,7 +18,7 @@ const ALLOWLIST: Record<string, string> = {
 };
 
 const MESSAGE =
-  "raw motion value in CSS (BASEUI-MOTION-AUDIT.md §5 Layer 3) — a bare duration or easing keyword/" +
+  "raw motion value in CSS (motion-and-animation-guide.md §2 — the taxonomy→token map) — a bare duration or easing keyword/" +
   "cubic-bezier bypasses the motion tokens and can drift a coordinated animation out of sync: use " +
   "var(--motion-*) for duration and var(--ease-*) (or a co-motion --*-ease var, or `linear`) for easing.";
 
@@ -111,7 +111,7 @@ function scanCss(root: string, allowlist: Record<string, string>): { violations:
 // run every allowlisted .css exists, so the ratchet is preserved. Byte-identical to the legacy Check.
 export const gate: GateDescriptor = {
   name: "motion-token-purity",
-  docRow: "BASEUI-MOTION-AUDIT.md §5 (Layer 3)",
+  docRow: "motion-and-animation-guide.md §2",
   status: "active",
   scopeSafety: "whole-project",
   fsBacked: true,

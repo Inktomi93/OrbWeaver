@@ -90,6 +90,14 @@ module.exports = {
       to: { path: [DB, "^packages/server/", CLIENT] },
     },
     {
+      name: "bus-contract-no-credentials",
+      comment:
+        "D16 bus-payload firewall: a bus-event contract module (chat/user-bus/notifications/events — the room-public / per-user / durable-inbox streams) must NEVER import @orb/contracts/credentials, the ONLY home of the secret-bearing shapes (ResolvedCredential, apiKey, baseUrl, headers). This is the resolve-time (tier-1) arm of the allowlist — even a TYPE import of a credential shape into a bus module is forbidden, so a producer can't structurally place a secret onto the wire. The SAFE `CredentialSource` enum reaches chat via #connection's verbatim re-export (routing's source axis), which is NOT this module — that path stays legal. Paired with the `bus-payload-allowlist` ts-morph gate (field-name arm). (Core-Laws-and-Precedents.md D16; client-architecture-lockdown.md §13.)",
+      severity: "error",
+      from: { path: `${CONTRACTS}(chat|user-bus|notifications|events)/` },
+      to: { path: `${CONTRACTS}credentials/` },
+    },
+    {
       name: "db-cake",
       comment:
         "@orb/db (drizzle schema + libSQL) deps only kit + contracts. A db→server or db→client import is impossible by the cake; the OTel wrapper is INJECTED into createDb, never imported. (tiers/db.md.)",

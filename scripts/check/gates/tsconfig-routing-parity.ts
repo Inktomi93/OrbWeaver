@@ -1,4 +1,4 @@
-// Gate: tsconfig-routing-parity (TSC-INCREMENTAL-PERFILE.md §2.2) — keeps the file→tsconfig routing
+// Gate: tsconfig-routing-parity (UNIFIED-VERIFICATION-DESIGN.md §2.2) — keeps the file→tsconfig routing
 // algebra (scripts/verify/selection.ts `staticPrograms`) honest against the compilers' ground truth, so
 // `verify --file/--changed` never type-checks a file against the wrong program (or skips it). For every
 // root file R of program P we assert `staticPrograms(R)` contains P (forward) and its mirror.
@@ -132,12 +132,12 @@ function reconcile(m: RootSets): readonly Divergence[] {
 
 export const gate: GateDescriptor = {
   name: "tsconfig-routing-parity",
-  docRow: "TSC-INCREMENTAL-PERFILE.md §2.2 (parity gate)",
+  docRow: "UNIFIED-VERIFICATION-DESIGN.md §2.2 (parity gate)",
   status: "active",
   scopeSafety: "whole-project",
   fsBacked: true,
   message:
-    "the file→tsconfig routing algebra (scripts/verify/selection.ts `staticPrograms`) disagrees with a program's REAL root membership (tsgo --showConfig). A wrong route type-checks a file against the wrong program (or skips it) at `verify --file/--changed` → a FALSE GREEN. TSC-INCREMENTAL-PERFILE.md §2.2.",
+    "the file→tsconfig routing algebra (scripts/verify/selection.ts `staticPrograms`) disagrees with a program's REAL root membership (tsgo --showConfig). A wrong route type-checks a file against the wrong program (or skips it) at `verify --file/--changed` → a FALSE GREEN. UNIFIED-VERIFICATION-DESIGN.md §2.2.",
   fix: "correct `staticPrograms` in scripts/verify/selection.ts so its predicted program set matches the config's resolved include/files (mirror packages/*/tsconfig.json and tsconfig.json).",
   run: (ctx) => {
     const m = measure(ctx.root);

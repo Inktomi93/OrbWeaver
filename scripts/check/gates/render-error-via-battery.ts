@@ -70,7 +70,7 @@ function isBatteryRooted(expr: Node): boolean {
 
 export const gate: GateDescriptor = {
   name: "render-error-via-battery",
-  docRow: "proposed/derive-modernization-audit.md §W4 (G29)",
+  docRow: "history/derive-modernization-audit.md §W4 (G29)",
   status: "active",
   scopeSafety: "incremental-safe",
   message: MESSAGE,

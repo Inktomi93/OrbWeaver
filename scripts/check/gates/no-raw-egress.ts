@@ -1,7 +1,12 @@
-// Gate: no-raw-egress — a bare `fetch(` in packages/server/src must go through `safeFetch` (the
-// self-enforcing resolve→validate→pin SSRF guard, infra/network). Raw fetch is sanctioned ONLY in
-// infra/network/** and infra/providers/** (configured-endpoint/loopback provider egress); untrusted
-// content egress elsewhere is RED. PLUS a literal ban on `corsproxy.io` anywhere in server source.
+// Gate: no-raw-egress — a bare `fetch(` anywhere in packages/server/src must go through `safeFetch`, the
+// SELF-ENFORCING SSRF guard (infra/network, H1/D61 landed): per-request+per-hop scheme pin (https-only,
+// unless the owner-configured-endpoint policy permits the operator's own backend), a REQUIRED host
+// allowlist (or the explicit ANY_HOST escape for the provider-URL/scrapeWeb classes), resolve→validate→pin
+// against the private-range set, a default deadline, and a typed EgressBlockedError — all independent of
+// the global EGRESS_FIREWALL toggle. Raw `fetch(` is sanctioned ONLY in infra/network/** (the guard's own
+// home) and infra/providers/** (credentialed/loopback provider egress); a bare fetch anywhere else in
+// server source is RED. PLUS a literal ban on `corsproxy.io` anywhere in server source (the D61-rejected
+// third-party CORS proxy, made unspellable).
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
@@ -15,8 +20,9 @@ const FETCH_SANCTIONED: readonly RegExp[] = [/\/packages\/server\/src\/infra\/ne
 
 const FETCH_MESSAGE =
   "bare `fetch(` outside the sanctioned provider-egress zones — route untrusted/user-influenced egress " +
-  "through `safeFetch` (the self-enforcing SSRF guard, infra/network). Sanctioned raw-fetch: infra/network " +
-  "· infra/providers (vLLM/custom-BYO). See Core-Path-Registry.md D61 (B5a).";
+  "through `safeFetch` (the self-enforcing SSRF guard: REQUIRED allowedHosts + scheme pin + " +
+  "resolve→validate→pin + deadline + typed EgressBlockedError, infra/network). Sanctioned raw-fetch: " +
+  "infra/network · infra/providers (vLLM/custom-BYO). See Core-Path-Registry.md D61 (B5a).";
 const CORSPROXY_MESSAGE =
   "`corsproxy.io` is the NAMED-REJECTED third-party CORS proxy (D61 B5a) — never route egress through it. See Core-Path-Registry.md D61.";
 

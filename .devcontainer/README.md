@@ -59,7 +59,7 @@ Or attach to a running container directly: `docker exec -it <id> zsh`
 | File | Purpose |
 |------|---------|
 | `devcontainer.json` | Container definition: image build, mounts, run args, lifecycle commands, container-only VS Code settings. |
-| `Dockerfile` | The sandbox image: `node:24` + Claude Code + ast-grep + pnpm (corepack) + git/gh/delta/zsh/iptables + the baked Playwright Chromium. |
+| `Dockerfile` | The sandbox image: `node:26` + Claude Code + ast-grep + pnpm (corepack) + git/gh/delta/zsh/iptables + the baked Playwright Chromium. |
 | `init-firewall.sh` | Default-deny egress firewall. Runs on every start (`postStartCommand`). Allowlists only what dev needs (npm, GitHub, Anthropic, VS Code); self-tests at the end. |
 
 ---

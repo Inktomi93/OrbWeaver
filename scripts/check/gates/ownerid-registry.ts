@@ -27,10 +27,15 @@ export const OWNERID_ALLOWLIST: Readonly<Record<string, string>> = {
   workload_schedules: "D23 true producer (a user-authored recurring-run config; no owned anchor to derive from — the TIME dimension over the workloads queue)",
   documents: "D49 databank producer / D23 top-level owned canon",
   roster_presets: "D61 true producer",
+  comfyui_workflows:
+    "C7 true producer (comfyui-control §4.11.2 / §8-Q8; a named BYO workflow is the user's authored artifact with no owned anchor — the roster_presets precedent)",
   themes: "D23 generalized producer list (themes) / D44/D63",
   assets: "D21 single-owned (per-user, fetchOwned)",
   automation_rules: "D46 host-authored rule (runs as its author)",
   global_variables: "D46 per-user cross-chat KV (fetchOwned)",
+  plugins: "D46 true producer (the installing principal's per-user plugin registry; a plugin runs as its owner)",
+  plugin_kv:
+    "D46 denormalized guard on the plugin_id partition — the belt WHERE (plugin_id, owner_id) makes a cross-owner KV read structurally impossible even if a plugin_id were reused (plugin-design/02 §3); owner also drives the user-hard-delete cascade",
   // PARENTLESS PER-USER AGGREGATES (D23 KEEP)
   owner_stats: "D23 parentless per-user aggregate",
   daily_stats: "D23 parentless per-user aggregate (×day)",
