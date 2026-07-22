@@ -1,4 +1,4 @@
-// AI-native seam reservations — the v2 "synthesize, don't just retrieve" apex (domains/memory.md §9,
+// AI-native seam reservations — the v2 "synthesize, don't just retrieve" apex (core/Knowledge-Cluster.md §9,
 // core/Planning-and-Checklists.md, DECISIONS-LEDGER §5). Typed NOW with ZERO behavior so trackers / clips /
 // world-state stay ADDITIVE when built (v2) — never a schema fight. The full Clip shape + persistence
 // land with the feature; these are the union axes that must exist up front. Self-registering `as const`
@@ -14,7 +14,7 @@ export const CLIP_KINDS = ["fact", "trait", "relationship", "world-state", "plot
 export type ClipKind = (typeof CLIP_KINDS)[number];
 export const clipKindSchema = z.enum(CLIP_KINDS);
 
-/** Provenance of a clip. A `'user'` clip is NEVER auto-deleted (knowledge-cluster §9). */
+/** Provenance of a clip. A `'user'` clip is NEVER auto-deleted (core/Knowledge-Cluster.md §9). */
 export const CLIP_SOURCE_KINDS = ["user", "synthesized", "promoted"] as const;
 export type ClipSourceKind = (typeof CLIP_SOURCE_KINDS)[number];
 export const clipSourceKindSchema = z.enum(CLIP_SOURCE_KINDS);

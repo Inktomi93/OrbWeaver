@@ -38,12 +38,11 @@ import type {
   ChatBusEvent,
   ChatDeltaEvent,
   ChatInjection as ChatInjectionWire,
-  GroupConfig,
-  OpeningPolicy,
-  RoomOverrides,
+  ChatMetadata,
+  StandaloneVariableDelta,
   ToolCallRecord,
 } from "@orb/contracts/chat";
-import { CHAT_BUS_EVENT_TYPES, INVITE_STATUSES, JOIN_HISTORY_VISIBILITIES, PARTICIPANT_KINDS } from "@orb/contracts/chat";
+import { CHAT_BUS_EVENT_TYPES, INVITE_STATUSES, JOIN_HISTORY_VISIBILITIES, PARTICIPANT_KINDS, TURN_INITIATORS } from "@orb/contracts/chat";
 // PARTICIPANT_ROLES is one-homed in @orb/contracts/identity (the can() resource-role axis; PD-59).
 import { PARTICIPANT_ROLES } from "@orb/contracts/identity";
 import type { UserIntent } from "@orb/contracts/preset";
@@ -85,17 +84,15 @@ function checkList(values: readonly string[]): string {
 // host-handoff nominee (Part III §2), and the lazy-parsed room-behavior `metadata` blob.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
-// The chat-room behavior blob. No single contract type spans all three sub-blobs, so the column composes
-// them; the domain's `parseChatMetadata` fault-isolates each (a malformed sub-blob falls back to its
-// default without nuking siblings).
-interface ChatMetadata {
-  group?: GroupConfig;
-  roomOverrides?: RoomOverrides;
-  opening?: OpeningPolicy;
-}
+// The chat-room behavior blob (`ChatMetadata`) is one-homed in `@orb/contracts/chat` — the `$type` below
+// and the domain's `parseChatMetadata` (the runtime fault-isolating parser) share that ONE shape.
 
 // Natural-arbitration sampling weight (0–1); the born default for a new participant.
 const DEFAULT_TALKATIVENESS = 0.5;
+
+// The standalone (out-of-turn) runtime-variable delta batch shape (`StandaloneVariableDelta`,
+// automation-design/03 §1.1) is one-homed in `@orb/contracts/chat` — the `$type` below imports it; typed
+// JSON, parsed at the `@orb/db/kit` read seam (`standaloneVariableDeltaSchema`), never cast.
 
 export const chats = sqliteTable(
   "chats",
@@ -143,6 +140,10 @@ export const chats = sqliteTable(
     // select / delete / fork); NOT authored directly. Distinct from `variableValues` (the config-plane store) —
     // the assembly env seed overlays THIS over the resolved config picks. Typed JSON; nullable (nothing folded yet).
     runtimeVariables: text("runtime_variables", { mode: "json" }).$type<Record<string, string>>(),
+    // The standalone (out-of-turn) runtime-variable delta log (automation-design/03 §1.1) — an
+    // `applyVariableOps` call with no turn in flight appends a seq-stamped batch here; every runtime-cache
+    // fold reads it alongside the per-variant message deltas. Nullable JSON (no standalone delta yet).
+    standaloneVariableDeltas: text("standalone_variable_deltas", { mode: "json" }).$type<readonly StandaloneVariableDelta[]>(),
     // Import provenance: the source `.jsonl` filename a chat was imported from (null for a born-here chat).
     importedFrom: text("imported_from"),
     // SHA-256 of the import bytes — the idempotent re-import key (a re-import of identical bytes is a
@@ -161,6 +162,34 @@ export const chats = sqliteTable(
 // messages — the PURE SLOT (D26). Identity + attribution + selection ONLY; NO content, NO economics. A
 // swipe APPENDs a `message_variants` row and `selectVariant` flips `selectedVariantId` (pointer move, never
 // a copy). Attribution is slot-level. NO `parentId` (D27). `characterId` keys on `characters.id` (D28).
+//
+// THE ATTRIBUTION INVARIANT (owner-ordered schema-hardening, 2026-07-17; D82 delete/recreate sanction).
+// Derived exhaustively from EVERY `messages` writer — the engine persist (engine.ts `buildCommitPlan`), the
+// user-send (turn.ts `persistUserMessage`), impersonate (turn.ts `persist.role='user'`), the greeting seed
+// (start-chat.ts), the image message (generate-image.ts `role='user'`), the fork deep-copy (fork.ts, a
+// verbatim `...slot` copy), the edit-dup (edit.ts, a verbatim attribution copy), and the ST bulk-import
+// (import-write.ts). The born per-role shape:
+//   • role='user'      — authorUserId SET (the sender/importer), characterId NULL, personaId OPTIONAL.
+//   • role='assistant' — characterId SET (character voice) XOR authorUserId SET (agent voice — an agent is
+//                        a userId-backed principal, D60; round.ts stamps `persist.authorUserId`), never both;
+//                        personaId NULL. A character round leaves `characterId` = the speaker; an agent round
+//                        leaves `characterId` NULL + `authorUserId` = the agent's user id.
+//   • role='system'    — NO current writer mints a system SLOT (the narrator/`postNarratorMessage` op is
+//                        unbuilt; `role='system'` today lives only in prompt-assembly injections, never a
+//                        canon row). Attribution therefore unconstrained-by-writer here.
+// STRUCTURAL arms of this shape are BORN-WHOLE as `messages_attribution_shape` (the `chat_participants`
+// kind-shape CHECK is the idiom precedent): characterId ⇒ assistant · personaId ⇒ user · never
+// characterId AND authorUserId together. These hold across every writer AND survive the SET-NULL
+// degradation below (all-NULL is always legal).
+// DELIBERATELY NOT CHECK-ENFORCED — the "attribution NOT NULL keyed to role" arm (user ⇒ authorUserId NOT
+// NULL; assistant ⇒ exactly one of characterId/authorUserId). REASON: all three attribution FKs are
+// `onDelete: 'set null'` — an identity hard-delete DEGRADES a born-whole row's attribution to NULL to
+// preserve the authored line for other members (D18/D26/D28). SQLite evaluates CHECKs during an FK
+// SET-NULL cascade, so a NOT-NULL-by-role CHECK would ABORT a legitimate user/character/persona delete;
+// fork.ts also copies an already-degraded row forward verbatim. The born (pre-degradation) NOT-NULL shape
+// is a test-tier belt over the writers, NOT a DB CHECK. (This is the stickler's flagged looseness, now
+// figured out: not "import degradation" — import maps every human to the importer's own id — but the
+// SET-NULL history-preservation cascade.)
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
 export const messages = sqliteTable(
@@ -201,6 +230,15 @@ export const messages = sqliteTable(
       .references((): AnySQLiteColumn => messageVariants.id, { onDelete: "set null" }),
     // When true, the slot is held out of the assembled prompt (a hidden message).
     excludedFromPrompt: integer("excluded_from_prompt", { mode: "boolean" }).notNull().default(false),
+    // ── Turn origin (automation-design/03 §4) — the automation cascade guard's depth source. TURN-PATH state
+    // stamped on the reply SLOT the turn produced, NEVER a bus-event field (the D19/D50 allowlist forbids
+    // attribution on the frozen public bus). A human turn is born `'human'`/0 (these defaults — every existing
+    // writer: user-send, engine assistant commit, impersonate, greeting seed, fork/edit copy, ST import); an
+    // automation `trigger_turn` stamps `'automation'` + parentDepth+1 (hard cap 3). `getTurnOrigin` reads it
+    // back when a `messageCommitted`/`turnCompleted` fact resolves depth. Slot-level (D26 — a swipe re-voices
+    // nothing, so origin is the slot's, not the variant's). `initiator` derives TURN_INITIATORS (no re-spell).
+    initiator: text("initiator", { enum: TURN_INITIATORS }).notNull().default("human"),
+    automationDepth: integer("automation_depth").notNull().default(0),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
     editedAt: integer("edited_at"),
   },
@@ -208,6 +246,16 @@ export const messages = sqliteTable(
     // The canon order + the lifecycle-horizon lookup; seq is unique within a chat.
     uniqueIndex("messages_chat_seq_unique").on(t.chatId, t.seq),
     check("messages_role_check", sql.raw(`role in (${checkList(MESSAGE_ROLES)})`)),
+    check("messages_initiator_check", sql.raw(`initiator in (${checkList(TURN_INITIATORS)})`)),
+    // The STRUCTURAL attribution shape (see the table header) — born-whole, the `chat_participants`
+    // kind-shape CHECK idiom. characterId only voices an assistant; personaId only authors a user line; a
+    // slot is never both a character voice AND an agent-user voice. All-NULL is always legal (the SET-NULL
+    // identity-delete degradation), so this never aborts an FK cascade — the NOT-NULL-by-role arm is a
+    // test belt, not a CHECK (header). Static raw fragment (a CHECK carries no bound parameters).
+    check(
+      "messages_attribution_shape",
+      sql.raw("(character_id IS NULL OR role = 'assistant') AND (persona_id IS NULL OR role = 'user') AND (character_id IS NULL OR author_user_id IS NULL)"),
+    ),
   ],
 );
 

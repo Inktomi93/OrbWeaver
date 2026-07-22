@@ -15,16 +15,24 @@ const MIN_NON_EMPTY = 1;
 
 // Dispatch axis: every member needs a resolver arm + an infra/providers runner (tsc's assertNever
 // red-flags a gap). `@orb/contracts/connection` re-exports this verbatim (under its own name).
-export const CRED_SOURCES = ["max-pro-sub", "openrouter", "vllm", "local-light", "custom_openai"] as const;
+export const CRED_SOURCES = ["max-pro-sub", "openrouter", "anthropic", "vllm", "local-light", "custom_openai"] as const;
 export type CredentialSource = (typeof CRED_SOURCES)[number];
 export const credentialSourceSchema = z.enum(CRED_SOURCES);
 
-// Storage axis (the `user_credentials.provider` enum derives from this tuple). `anthropic`/`openai`/
-// `google_vertex` are storable with no resolver arm yet — a provider's union member, resolver arm, and
-// runner must land TOGETHER (never a stranded partial).
+// Storage axis (the `user_credentials.provider` enum derives from this tuple). `openai`/`google_vertex`
+// are storable with no resolver arm yet — a provider's union member, resolver arm, and runner must land
+// TOGETHER (never a stranded partial). `anthropic` was promoted to the dispatch axis (W11): it serves the
+// direct Anthropic-Messages chat wire (anth-direct, first-party `x-api-key` path) with a resolver arm.
 // `gif-search` is a non-LLM storage-only slot (never dispatched, no runner) resolved by its own verb
 // (`resolveGifSearchKey`) so it stays outside the LLM credential lifecycle / turn-time `assertNever`.
-export const CRED_PROVIDERS = ["openrouter", "anthropic", "openai", "google_vertex", "custom_openai", "gif-search"] as const;
+// `venice` (MA-1/D95) is the hosted image-generation source — a paid Venice `Authorization: Bearer` key
+// sent to `api.venice.ai`; a dispatch-axis member (a `generateImage`-only resolver+runner arm) that also
+// persists a key row, so it appears on BOTH axes (like `anthropic`).
+// `comfyui` (MA-8/D96) is the LOCAL image-generation source — an owner-configured ComfyUI endpoint (H1
+// "their URL, their onus"). KEYLESS (a pure routing marker like `vllm`/`local-light`), so it is a
+// dispatch-axis member (a `generateImage`-only resolver+runner arm) but NOT on the storage axis (no key
+// row, no `CRED_PROVIDERS` entry, no decrypt).
+export const CRED_PROVIDERS = ["openrouter", "anthropic", "openai", "custom_openai", "gif-search"] as const;
 export type CredentialProvider = (typeof CRED_PROVIDERS)[number];
 export const credentialProviderSchema = z.enum(CRED_PROVIDERS);
 
@@ -115,6 +123,15 @@ export type OpenRouterCredential = CredentialBrand & {
   readonly credentialId: UserCredentialId | null;
 };
 
+/** First-party Anthropic (W11) — a paid Anthropic `x-api-key`, sent to `api.anthropic.com` via the
+ *  anth-direct backend. NEVER reachable by the free Max sub (the sub-exclusion). Any authenticated user;
+ *  `credentialId` is the row id (always a row — no env seed for this source). */
+export type AnthropicCredential = CredentialBrand & {
+  readonly source: "anthropic";
+  readonly apiKey: string;
+  readonly credentialId: UserCredentialId;
+};
+
 /** Supervised loopback vLLM engine — a pure routing marker; ports come from env, no key, no row. */
 export type VllmCredential = CredentialBrand & {
   readonly source: "vllm";
@@ -149,4 +166,10 @@ export type CustomOpenAiCredential = CredentialBrand & {
 
 /** The decrypted-credential shape every provider runner consumes. Constructed ONLY through the
  *  `domain/credentials/substrate/mint` factories. */
-export type ResolvedCredential = MaxProSubCredential | OpenRouterCredential | VllmCredential | LocalLightCredential | CustomOpenAiCredential;
+export type ResolvedCredential =
+  | MaxProSubCredential
+  | OpenRouterCredential
+  | AnthropicCredential
+  | VllmCredential
+  | LocalLightCredential
+  | CustomOpenAiCredential;

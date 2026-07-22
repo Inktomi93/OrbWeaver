@@ -13,7 +13,7 @@
 //   • `connection` is DEFERRED, not omitted: it has no per-user entity CRUD today (the model catalog is
 //     global/admin — `refreshCatalog`; a user's provider/role routing lives in USER SETTINGS →
 //     `settingsChanged`), so `connectionsChanged` is DECLARED but not yet emitted (the gate's DEFERRED
-//     allowlist carries the citation; when a per-user connection store lands, wire the emit + delete the
+//     allowlist carries the citation; when the per-user connection store (FLAG[PD-149], owner-deferred) lands, wire the emit + delete the
 //     DEFERRED entry). Kept in the union so the client map + the coverage ratchet track it explicitly.
 //   • `themes` ride their own member though they live inside the `settings` domain (a distinct client read
 //     surface — the theme list — with its own emit sites in `settings/verbs/*-theme.ts`).

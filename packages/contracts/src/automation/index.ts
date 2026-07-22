@@ -9,7 +9,6 @@ import type { AutomationRuleId, ChatId, PluginId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import { z } from "zod";
-
 import { generateImageActionArgsSchema, imageDiffusionParamsSchema } from "#imagery";
 
 /** `ChatBusEvent` discriminators automation may trigger on — a subset of the frozen chat-bus union.
@@ -26,7 +25,6 @@ export const CHAT_TRIGGER_TYPES = [
   "worldInfoActivated",
   "personaSwitched",
   "chatCreated",
-  // reserved (typed, not wired v1)
   "messageHidden",
   "messagesDeleted",
   "chatUpdated",
@@ -41,7 +39,6 @@ export const DOMAIN_TRIGGER_TYPES = [
   // v1 (wired)
   "character.updated",
   "asset.created",
-
 ] as const;
 export type DomainTriggerType = (typeof DOMAIN_TRIGGER_TYPES)[number];
 
@@ -146,7 +143,6 @@ export const LIVE_TRIGGERS = {
   // domain bus — v1 wired
   "character.updated": true,
   "asset.created": true,
-
 } as const satisfies Record<ChatTriggerType | DomainTriggerType, boolean>;
 
 // ── the action union (03) ───────────────────────────────────────────────────────────────────────
@@ -166,7 +162,6 @@ export const AUTOMATION_ACTION_TYPES = [
   "trigger_turn",
   "generate_image",
   "set_chat_background",
-  "force_activate_entries",
 ] as const;
 export type AutomationActionType = (typeof AUTOMATION_ACTION_TYPES)[number];
 
@@ -246,20 +241,11 @@ export const automationActionSchema = z.discriminatedUnion("type", [
     type: z.literal("set_chat_background"),
     instruction: z.string().max(AUTOBG_INSTRUCTION_MAX).optional(),
   }),
-
-  z.object({ type: z.literal("force_activate_entries"), entryIds: z.array(z.string()) }),
 ]);
 export type AutomationAction = z.infer<typeof automationActionSchema>;
 
 /** The stored ordered action list (1..8 arms) — the `automation_rules.actions` json column (04 §1). */
 export const automationActionsSchema = z.array(automationActionSchema).min(AUTOMATION_ACTION_ARMS_MIN).max(AUTOMATION_ACTION_ARMS_MAX);
-
-/** The action-arm types RESERVED in v1 — typed in the union but refused by `createRule`/`updateRule`
- *  (`RuleValidationError`) until their domains land (03 §5). The v1-LIVE compile-pin over ALL arms is
- *  the domain engine's `ARM_EXECUTORS` mapped-type (A6, exhaustive-dispatch); this tuple is the write-edge
- *  refusal list A4 needs now. Membership is a `satisfies`-checked subset of the action types. */
-export const RESERVED_ACTION_TYPES = ["force_activate_entries"] as const satisfies readonly AutomationActionType[];
-export type ReservedActionType = (typeof RESERVED_ACTION_TYPES)[number];
 
 // ── TriggerFact + the CEL activation (01 §2 / 02 §1) ──────────────────────────────────────────────
 /** The per-event fact CEL binds as `event` AND the fact a plugin `events.on` handler receives across the

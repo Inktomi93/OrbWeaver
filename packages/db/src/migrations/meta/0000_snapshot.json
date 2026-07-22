@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "deac7482-3da2-4e1c-b3a4-132a4694c84e",
+  "id": "32f2d697-2378-4318-b533-1350f86a7eea",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "agent_principals": {
@@ -136,7 +136,7 @@
       "checkConstraints": {
         "assets_kind_check": {
           "name": "assets_kind_check",
-          "value": "kind in ('card', 'avatar', 'export', 'generated', 'gallery', 'attachment', 'document', 'sprite', 'background')"
+          "value": "kind in ('card', 'avatar', 'export', 'generated', 'gallery', 'attachment', 'document', 'sprite', 'background', 'plugin', 'pose')"
         }
       }
     },
@@ -925,6 +925,13 @@
           "notNull": true,
           "autoincrement": false
         },
+        "tool_calls": {
+          "name": "tool_calls",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "integer",
@@ -1154,6 +1161,13 @@
           "notNull": false,
           "autoincrement": false
         },
+        "background_override": {
+          "name": "background_override",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "imported_from": {
           "name": "imported_from",
           "type": "text",
@@ -1264,6 +1278,34 @@
         "card_version": {
           "name": "card_version",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "nickname": {
+          "name": "nickname",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "creation_date": {
+          "name": "creation_date",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "modification_date": {
+          "name": "modification_date",
+          "type": "integer",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
@@ -2143,6 +2185,13 @@
           "notNull": false,
           "autoincrement": false
         },
+        "standalone_variable_deltas": {
+          "name": "standalone_variable_deltas",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "imported_from": {
           "name": "imported_from",
           "type": "text",
@@ -2633,6 +2682,22 @@
           "autoincrement": false,
           "default": false
         },
+        "initiator": {
+          "name": "initiator",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'human'"
+        },
+        "automation_depth": {
+          "name": "automation_depth",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
         "created_at": {
           "name": "created_at",
           "type": "integer",
@@ -2709,6 +2774,14 @@
         "messages_role_check": {
           "name": "messages_role_check",
           "value": "role in ('system', 'user', 'assistant')"
+        },
+        "messages_initiator_check": {
+          "name": "messages_initiator_check",
+          "value": "initiator in ('human', 'automation', 'plugin')"
+        },
+        "messages_attribution_shape": {
+          "name": "messages_attribution_shape",
+          "value": "(character_id IS NULL OR role = 'assistant') AND (persona_id IS NULL OR role = 'user') AND (character_id IS NULL OR author_user_id IS NULL)"
         }
       }
     },
@@ -2783,6 +2856,106 @@
           "tableFrom": "pending_turns",
           "tableTo": "users",
           "columnsFrom": ["run_as_user_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "comfyui_workflows": {
+      "name": "comfyui_workflows",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "owner_id": {
+          "name": "owner_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'user'"
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "''"
+        },
+        "graph_json": {
+          "name": "graph_json",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "placeholders": {
+          "name": "placeholders",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "custom_bindings": {
+          "name": "custom_bindings",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch() * 1000)"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch() * 1000)"
+        }
+      },
+      "indexes": {
+        "comfyui_workflows_owner_name_unique": {
+          "name": "comfyui_workflows_owner_name_unique",
+          "columns": ["owner_id", "name"],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "comfyui_workflows_owner_id_users_id_fk": {
+          "name": "comfyui_workflows_owner_id_users_id_fk",
+          "tableFrom": "comfyui_workflows",
+          "tableTo": "users",
+          "columnsFrom": ["owner_id"],
           "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
@@ -2912,7 +3085,7 @@
       "checkConstraints": {
         "user_credentials_provider_check": {
           "name": "user_credentials_provider_check",
-          "value": "provider in ('openrouter', 'anthropic', 'openai', 'google_vertex', 'custom_openai', 'gif-search')"
+          "value": "provider in ('openrouter', 'anthropic', 'openai', 'google_vertex', 'custom_openai', 'gif-search', 'venice')"
         }
       }
     },
@@ -5212,7 +5385,7 @@
       "checkConstraints": {
         "notifications_type_check": {
           "name": "notifications_type_check",
-          "value": "type in ('invite', 'kicked', 'handoff-nominated', 'handoff-accepted', 'deferred-turn-dropped')"
+          "value": "type in ('invite', 'kicked', 'handoff-nominated', 'handoff-accepted', 'deferred-turn-dropped', 'agent-seat-requested', 'crew-proposal', 'automation-notice', 'plugin-disabled')"
         }
       }
     },
@@ -5323,6 +5496,401 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
+    },
+    "plugin_budgets": {
+      "name": "plugin_budgets",
+      "columns": {
+        "plugin_id": {
+          "name": "plugin_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "max_actions_per_day": {
+          "name": "max_actions_per_day",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": 50
+        },
+        "max_usd_per_day": {
+          "name": "max_usd_per_day",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": 1
+        },
+        "actions_spent_today": {
+          "name": "actions_spent_today",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "usd_spent_today": {
+          "name": "usd_spent_today",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "spend_day": {
+          "name": "spend_day",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "''"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch() * 1000)"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "plugin_budgets_plugin_id_plugins_id_fk": {
+          "name": "plugin_budgets_plugin_id_plugins_id_fk",
+          "tableFrom": "plugin_budgets",
+          "tableTo": "plugins",
+          "columnsFrom": ["plugin_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "plugin_kv": {
+      "name": "plugin_kv",
+      "columns": {
+        "plugin_id": {
+          "name": "plugin_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "owner_id": {
+          "name": "owner_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "key": {
+          "name": "key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "value": {
+          "name": "value",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "plugin_kv_plugin_id_plugins_id_fk": {
+          "name": "plugin_kv_plugin_id_plugins_id_fk",
+          "tableFrom": "plugin_kv",
+          "tableTo": "plugins",
+          "columnsFrom": ["plugin_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "plugin_kv_owner_id_users_id_fk": {
+          "name": "plugin_kv_owner_id_users_id_fk",
+          "tableFrom": "plugin_kv",
+          "tableTo": "users",
+          "columnsFrom": ["owner_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "plugin_kv_plugin_id_key_pk": {
+          "columns": ["plugin_id", "key"],
+          "name": "plugin_kv_plugin_id_key_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "plugin_kv_key_check": {
+          "name": "plugin_kv_key_check",
+          "value": "length(key) <= 128"
+        },
+        "plugin_kv_value_check": {
+          "name": "plugin_kv_value_check",
+          "value": "length(value) <= 65536"
+        }
+      }
+    },
+    "plugins": {
+      "name": "plugins",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "owner_id": {
+          "name": "owner_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "slug": {
+          "name": "slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "version": {
+          "name": "version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "manifest": {
+          "name": "manifest",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "bundle_asset_id": {
+          "name": "bundle_asset_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "granted_capabilities": {
+          "name": "granted_capabilities",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "origin": {
+          "name": "origin",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "consecutive_crashes": {
+          "name": "consecutive_crashes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "last_error": {
+          "name": "last_error",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "installed_at": {
+          "name": "installed_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "plugins_owner_slug_unique": {
+          "name": "plugins_owner_slug_unique",
+          "columns": ["owner_id", "slug"],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "plugins_owner_id_users_id_fk": {
+          "name": "plugins_owner_id_users_id_fk",
+          "tableFrom": "plugins",
+          "tableTo": "users",
+          "columnsFrom": ["owner_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "plugins_bundle_asset_id_assets_id_fk": {
+          "name": "plugins_bundle_asset_id_assets_id_fk",
+          "tableFrom": "plugins",
+          "tableTo": "assets",
+          "columnsFrom": ["bundle_asset_id"],
+          "columnsTo": ["id"],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "plugins_status_check": {
+          "name": "plugins_status_check",
+          "value": "status in ('disabled', 'enabled', 'errored')"
+        },
+        "plugins_origin_check": {
+          "name": "plugins_origin_check",
+          "value": "origin in ('upload')"
+        }
+      }
+    },
+    "pose_library": {
+      "name": "pose_library",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "asset_id": {
+          "name": "asset_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "category": {
+          "name": "category",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "tags": {
+          "name": "tags",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'[]'"
+        },
+        "orientation": {
+          "name": "orientation",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'byo'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch() * 1000)"
+        }
+      },
+      "indexes": {
+        "pose_library_asset_idx": {
+          "name": "pose_library_asset_idx",
+          "columns": ["asset_id"],
+          "isUnique": false
+        },
+        "pose_library_category_idx": {
+          "name": "pose_library_category_idx",
+          "columns": ["category"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "pose_library_asset_id_assets_id_fk": {
+          "name": "pose_library_asset_id_assets_id_fk",
+          "tableFrom": "pose_library",
+          "tableTo": "assets",
+          "columnsFrom": ["asset_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "pose_library_orientation_check": {
+          "name": "pose_library_orientation_check",
+          "value": "orientation in ('portrait', 'landscape', 'square')"
+        },
+        "pose_library_source_check": {
+          "name": "pose_library_source_check",
+          "value": "source in ('byo')"
+        }
+      }
     },
     "presets": {
       "name": "presets",
@@ -5936,6 +6504,14 @@
           "notNull": true,
           "autoincrement": false
         },
+        "mode": {
+          "name": "mode",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'full'"
+        },
         "status": {
           "name": "status",
           "type": "text",
@@ -6114,6 +6690,10 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {
+        "rpg_games_mode_check": {
+          "name": "rpg_games_mode_check",
+          "value": "mode in ('lite', 'full')"
+        },
         "rpg_games_status_check": {
           "name": "rpg_games_status_check",
           "value": "status in ('setup', 'ready', 'active', 'concluded')"
@@ -7051,6 +7631,13 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
+        },
+        "outcome_applied_at": {
+          "name": "outcome_applied_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
         }
       },
       "indexes": {
@@ -7156,8 +7743,8 @@
           "autoincrement": false,
           "default": "'[]'"
         },
-        "party_state": {
-          "name": "party_state",
+        "actor_state": {
+          "name": "actor_state",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
@@ -7618,7 +8205,7 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": 3
+          "default": 4
         },
         "config": {
           "name": "config",

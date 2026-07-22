@@ -17,8 +17,6 @@ import { castId } from "@orb/kit/ids";
 import type { Configuration } from "openid-client";
 import { discovery } from "openid-client";
 import { startAutomationWatcher } from "#domain/automation";
-import { startBuddyObserver } from "#domain/buddy";
-import { startCrewScheduler } from "#domain/crew";
 import { createOidcStore, createSessionsService, ownerHandles } from "#domain/sessions";
 import { loadWorkload, nextRunnableWorkload, reapOrphanedWorkloads, runWorkload, subscribeWorkloadWake } from "#domain/workloads";
 import { env } from "#foundation/env";
@@ -47,11 +45,7 @@ import {
 } from "./boot";
 import { createServices } from "./compose";
 import { createAutomationWatcherEnv } from "./compose/automation-watcher";
-import { createBuddyObserverEnv } from "./compose/buddy-observer";
-import { createCrewSchedulerEnv } from "./compose/crew-scheduler";
-import { buildHubAvatarFetcher } from "./compose/hubs";
 import type { LocalAuthenticator, OidcRoutesDeps } from "./http";
-import { createHubAvatarLimiter, createRateLimitGate } from "./rate-limit-gate";
 
 const MS_PER_HOUR = 3_600_000;
 const CATALOG_CHECK_INTERVAL_MS = MS_PER_HOUR;
@@ -249,20 +243,6 @@ export function createLifecycle(): Lifecycle {
       log.error({ err: err instanceof Error ? err.message : String(err) }, "workloads worker loop exited");
     });
 
-    stopBuddyObserver = startBuddyObserver(
-      createBuddyObserverEnv({
-        db,
-        now,
-        ownerUserId: ownerId,
-        summarize: built.roleClients.summarize,
-        scheduleInterval: scheduleTimer,
-      }),
-    ).stop;
-
-    // The chat-crew cadence engine (chat-crew-design/04 §3) — reacts to completed assistant turns, enqueues
-    // due members (CW2: the keeper). Fire-and-forget; SIGTERM unsubscribes.
-    stopCrewScheduler = startCrewScheduler(createCrewSchedulerEnv({ crew: built.services.crew })).stop;
-
     // The automation watcher (A5, D46) — evaluates enabled rules against the chat firehose + the domain-event
     // bus. The per-viewer `chatOpened` trigger rides the transport-attach synthesis (D81), not the bus, so it
     // is tapped separately into the same `handleEvent`. Fire-and-forget; SIGTERM stops both.
@@ -330,15 +310,12 @@ export function createLifecycle(): Lifecycle {
       services: built.services,
       rateLimit: createRateLimitGate({ db, now }),
       presence: built.presence,
-      rpgTrace: built.rpgTrace,
       assets: built.assets,
       cas: createCas(env.ASSETS_DIR),
       character: built.services.character,
       exportService: built.exportService,
       portability: built.portability,
       importWorldInfo: built.importWorldInfo,
-      hubAvatarFetch: buildHubAvatarFetcher(),
-      hubAvatarConsumeRate: createHubAvatarLimiter({ db, now }).consume,
       sessions: built.sessions,
       isShuttingDown: () => isShuttingDown,
       credentialsKeyOk: () => credentialsKeyOk,

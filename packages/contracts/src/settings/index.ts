@@ -7,7 +7,6 @@ import { z } from "zod";
 import { DEFAULT_GROUP_CONFIG, groupConfigSchema } from "#chat";
 import { chatApiSchema, openRouterProviderRoutingSchema } from "#connection";
 import { credentialSourceSchema } from "#credentials";
-
 import { regexScriptSchema } from "#regex";
 import { MEMORY_RETRIEVAL_MODES } from "#search";
 // BG-C: the background source-kind vocabulary (`BACKGROUND_IMAGE_KINDS` / `BackgroundImageKind`) is homed in
@@ -86,8 +85,6 @@ const MAX_IMAGE_BYTES_FLOOR = 100_000;
 const MAX_IMAGE_BYTES_CEIL = 100_000_000;
 export const DEFAULT_MAX_IMAGE_BYTES = 5_000_000;
 
-
-
 // Every field `.nullable()` AS WELL AS `.optional().catch(undefined)`: null is the CLEAR sentinel.
 export const appSettingsSchema = z.object({
   corpusAutoindex: z.boolean().nullable().optional().catch(undefined),
@@ -105,7 +102,6 @@ export const appSettingsSchema = z.object({
   allowNonOwnerMaxProSub: z.boolean().nullable().optional().catch(undefined),
   localMultiUser: z.boolean().nullable().optional().catch(undefined),
   discreetLogin: z.boolean().nullable().optional().catch(undefined),
-
 });
 
 export type AppSettings = z.infer<typeof appSettingsSchema>;
@@ -141,9 +137,8 @@ export function parseAppSettings(raw: unknown): AppSettings {
 // (contracts can't import server-side policy). Per-field `.catch(undefined)` self-heals a stale source.
 export const INFERENCE_SOURCES = ["openrouter", "vllm", "local-light"] as const;
 export const SUMMARIZE_SOURCES = ["openrouter", "vllm", "max-pro-sub"] as const;
-// The generateImage role's permitted sources — mirrors ROLE_SOURCE_POLICY.generateImage (the hosted
-// `openrouter` image models + the hosted `venice` image source, MA-1). `comfyui` (MA-8) joins here.
-export const GENERATE_IMAGE_SOURCES = ["openrouter", "venice", "comfyui"] as const;
+// The generateImage role's permitted sources — mirrors ROLE_SOURCE_POLICY.generateImage
+export const GENERATE_IMAGE_SOURCES = ["openrouter"] as const;
 
 const inferenceRoleSourceSchema = z.enum(INFERENCE_SOURCES);
 const inferenceRoleConfigSchema = z.object({
@@ -197,16 +192,7 @@ const DUP_THRESHOLD_FLOOR = 0;
 const DUP_THRESHOLD_CEIL = 1;
 const COMPUTE_THEMES_K_MAX = 100;
 
-// Per-agent connection overrides (D67 amendment): a map keyed by the AGENT principal's user id → the
-// connection that agent runs on (same api+source+model shape as roleDefaults.agent). `roleDefaults.agent`
-// is the DEFAULT/fallback beneath these; a seated agent whose id has an entry here beats the default. A
-// stale/deleted agent id degrades to the default at resolution, so the key stays a plain string.
-// The value is NULLABLE: the Agents-table "Remove override" writes `null` to CLEAR an entry — `deepMergePlain`
-// replaces a leaf with a non-plain-object value, so `null` is the one merge-expressible clear (a `{}` patch
-// deep-merges into a no-op and the stale override survives). The resolver reads a null entry as no-override.
-const agentConnectionsSchema = z.record(z.string(), chatRoleConfigSchema.nullable()).prefault({});
-
-const routingSchema = z.object({ roleDefaults: roleDefaultsSchema, agentConnections: agentConnectionsSchema }).prefault({});
+const routingSchema = z.object({ roleDefaults: roleDefaultsSchema }).prefault({});
 
 const themeSettingsSchema = z
   .object({
@@ -275,17 +261,6 @@ export type ChatSettings = z.infer<typeof chatSchema>;
 const personaSchema = z
   .object({
     showNotifications: z.boolean().catch(true).default(true),
-  })
-  .prefault({});
-
-// Expressions (expressions-design/02 §5, D49 #4) — the per-turn sprite-classify opt-in. Default OFF:
-// every classified turn is a real side-LLM spend on the owner's summarizer credential. The no-sprites
-// early-out doubles as the per-character toggle (giving a character sprites IS opting them in), so this is
-// the ONE global gate. Additive namespace with a prefaulted default → an old blob reads `false` with no
-// version bump (the persona/appearance precedent).
-const expressionsSchema = z
-  .object({
-    autoClassify: z.boolean().catch(false).default(false),
   })
   .prefault({});
 
@@ -367,12 +342,7 @@ export const backgroundLibraryEntrySchema = z.object({
 });
 export type BackgroundLibraryEntry = z.infer<typeof backgroundLibraryEntrySchema>;
 
-// Chat LAYOUT mode (VN-1, the ST waifuMode parity) — ORTHOGONAL to `chatStyle` (a message-row skin):
-// `classic` is the standard thread; `vn` is the visual-novel stage — the landed E5 expression sprite
-// (composed READ-ONLY through the chat-surface `thread-flank` contributor) over the app background layer,
-// with the message thread compressed to a bottom panel. With no sprites the `vn` stage is just the
-// background behind a compact thread. An extensible axis: a future cinematic mode is one more tuple entry.
-export const CHAT_LAYOUTS = ["classic", "vn"] as const;
+export const CHAT_LAYOUTS = ["classic"] as const;
 export type ChatLayout = (typeof CHAT_LAYOUTS)[number];
 
 const READING_LINE_HEIGHT_MIN = 1.2;
@@ -491,8 +461,6 @@ const regexSettingsSchema = z
 
 export type RegexSettings = z.infer<typeof regexSettingsSchema>;
 
-
-
 export const userSettingsSchema = z.object({
   // The DB also pins a `user_settings.schemaVersion` COLUMN (`storedVersion`), which BEATS this in-blob
   // value so a client can't spoof past a lift.
@@ -503,7 +471,6 @@ export const userSettingsSchema = z.object({
   memory: memorySchema,
   chat: chatSchema,
   persona: personaSchema,
-  expressions: expressionsSchema,
   groupDefaults: groupConfigSchema.catch(DEFAULT_GROUP_CONFIG).default(DEFAULT_GROUP_CONFIG),
   onboarding: onboardingSchema,
   regex: regexSettingsSchema,
@@ -511,7 +478,6 @@ export const userSettingsSchema = z.object({
   profile: profileSchema,
   appearance: appearanceSchema,
   theme: themeSettingsSchema,
-
 });
 
 export type UserSettings = z.infer<typeof userSettingsSchema>;
@@ -532,7 +498,6 @@ export const USER_SETTINGS_SECTIONS = [
   "profile",
   "appearance",
   "theme",
-
 ] as const;
 export type UserSettingsSection = (typeof USER_SETTINGS_SECTIONS)[number];
 
@@ -639,8 +604,6 @@ export interface ResolvedVllmConcurrency {
   summarize: number;
 }
 
-
-
 export interface EffectiveAppConfig {
   corpusAutoindex: boolean;
   importSkipCharacters: string[];
@@ -657,5 +620,4 @@ export interface EffectiveAppConfig {
   localMultiUser: boolean;
   discreetLogin: boolean;
   maxImageBytes: number;
-
 }

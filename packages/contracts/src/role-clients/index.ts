@@ -2,13 +2,32 @@
 // inference role functions the composition root mints ONCE at boot and threads through every
 // consumer's deps. Downstream code never sees a credential literal or picks a model — it calls
 // `clients.embed(text)` and gets a result.
-// Type-only: a bundle of functions isn't wire-serializable, so no zod schemas here. Call-argument
-// shapes (`RerankQuery`/`ImageEmbedInput`/`SummarizeInput`) live here rather than `contracts/providers`
-// because that node holds only result shapes; the infra request shapes stay infra-internal.
+// Mostly type-only: a bundle of functions isn't wire-serializable. The ONE exception is
+// `responseFormatSchema`/`ResponseFormat` (D79) — the structured-output request vocabulary, minted
+// zod-first HERE (not infra) because the summarize role's domain-facing options carry it and `contracts`
+// cannot import infra (the package cake); the infra wire arms + `AgentTurnRequest` + `SummarizeOptions`
+// import it DOWN. Call-argument shapes (`RerankQuery`/`ImageEmbedInput`/`SummarizeInput`) live here rather
+// than `contracts/providers` because that node holds only result shapes; the infra request shapes stay
+// infra-internal.
 // FLAG: only the four DERIVE roles below are buildable — chat/agent/generateImage join when their
 // result contracts land (confirm with lead before wiring a chat member here).
 
+import { z } from "zod";
 import type { EmbedResult, ImageEmbedResult, RerankResult, SummarizeResult } from "#providers";
+
+/** The structured-output request (D79) — one projection rule (`@orb/kit/json-schema`) fills `schema`, the
+ *  same shape every backend's wire arm maps. Never rides `toolChoice` (the two axes are separate). Minted
+ *  zod-first as the cross-boundary vocabulary; the caller's zod payload schema stays its runtime validator. */
+export const responseFormatSchema = z.object({
+  /** Schema name (OpenAI `json_schema.name`; Anthropic tool name). */
+  name: z.string(),
+  /** JSON Schema — projected by `projectJsonSchema` (`additionalProperties:false` pinned). */
+  schema: z.record(z.string(), z.unknown()),
+  /** Default true. */
+  strict: z.boolean().optional(),
+  description: z.string().optional(),
+});
+export type ResponseFormat = z.infer<typeof responseFormatSchema>;
 
 /** Image bytes or a filesystem path. Lib-clean: `Uint8Array | string` (a node `Buffer` IS a
  *  `Uint8Array`, so it still satisfies this; `string` = a path the image family reads). */
@@ -71,8 +90,9 @@ export interface SummarizeOptions {
   temperature?: number | undefined;
   /** Min-p nucleus floor (vLLM family). */
   minP?: number | undefined;
-  /** JSON Schema for constrained output (vLLM family enforces via guided decoding). */
-  jsonSchema?: object | undefined;
+  /** Structured-output constraint (D79) — vLLM enforces via guided decoding, the agent-sdk via its native
+   *  output format; a family that can't honor it drops it (no-op knob doctrine). */
+  responseFormat?: ResponseFormat | undefined;
   repetitionDetection?: RepetitionDetection | undefined;
 }
 

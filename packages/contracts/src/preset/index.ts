@@ -44,6 +44,18 @@ export const QUALITY_EFFORT: Record<Quality, ModelEffortLevel> = {
   deep: "high",
 };
 
+// The `quality → sampling` defaults: the ergonomic dial's SAMPLING half (the effort half is above). The
+// funnel feeds each field as the DEFAULT for that knob (an explicit user knob wins) THEN capability-gates
+// + clamps it against the model's real sampling range — a model whose descriptor omits the knob never
+// receives it (D68). Conservative "creativity slider" numbers (fast=focused → deep=expansive); OWNER-TUNED
+// by taste. Only `temperature` is dialed today (the one knob with a universal meaning across every wire);
+// add `topP`/`topK` here to extend the preset — the funnel picks up any field present.
+export const QUALITY_SAMPLING: Record<Quality, { readonly temperature?: number }> = {
+  fast: { temperature: 0.5 },
+  balanced: { temperature: 0.7 },
+  deep: { temperature: 1 },
+};
+
 // The user-INTENT effort vocabulary (adds `none` = thinking-disabled) — derived from connection's
 // `EffortLevel` set (never redeclared) so the two can't diverge.
 export const EFFORT_LEVELS = ["none", ...MODEL_EFFORT_LEVELS] as const;
@@ -62,12 +74,22 @@ const TOP_P_MIN = 0;
 const TOP_P_MAX = 1;
 const MIN_P_MIN = 0;
 const MIN_P_MAX = 1;
+const TOP_A_MIN = 0;
+const TOP_A_MAX = 1;
 const PENALTY_MIN = -2;
 const PENALTY_MAX = 2;
 const REPETITION_PENALTY_MIN = 0;
 const REPETITION_PENALTY_MAX = 2;
 const COMPACTION_THRESHOLD_MIN = 0.5;
 const COMPACTION_THRESHOLD_MAX = 0.99;
+
+// The RESPONSE-LENGTH default (ST `openai_max_tokens`), reserved for the completion when a preset/turn
+// sets no explicit `maxOutputTokens`. Deliberately a small response length — NOT the model's output-cap
+// ceiling (`capability.output.maxTokens.max`, which on a self-hosted vLLM equals the whole window). This is
+// the ONE fallback both the budget reserve (fitBudget) and every runner's wire `max_tokens` read, so the
+// two can never diverge: a reserve larger than the runner's real `max_tokens` starves history (amnesia);
+// smaller overflows the model (vLLM 400s). Users tune it per preset; the exact number isn't load-bearing.
+export const DEFAULT_MAX_OUTPUT_TOKENS = 2048;
 
 // ONE place per numeric bound — no split source between server/client (client accepts → server rejects).
 export const generationKnobSchemas = {
@@ -79,6 +101,7 @@ export const generationKnobSchemas = {
   topP: z.number().min(TOP_P_MIN).max(TOP_P_MAX).optional(),
   topK: z.number().int().nonnegative().optional(),
   minP: z.number().min(MIN_P_MIN).max(MIN_P_MAX).optional(),
+  topA: z.number().min(TOP_A_MIN).max(TOP_A_MAX).optional(),
   frequencyPenalty: z.number().min(PENALTY_MIN).max(PENALTY_MAX).optional(),
   presencePenalty: z.number().min(PENALTY_MIN).max(PENALTY_MAX).optional(),
   repetitionPenalty: z.number().min(REPETITION_PENALTY_MIN).max(REPETITION_PENALTY_MAX).optional(),
@@ -107,6 +130,7 @@ export const userIntentSchema = z
     topP: generationKnobSchemas.topP,
     topK: generationKnobSchemas.topK,
     minP: generationKnobSchemas.minP,
+    topA: generationKnobSchemas.topA,
     frequencyPenalty: generationKnobSchemas.frequencyPenalty,
     presencePenalty: generationKnobSchemas.presencePenalty,
     repetitionPenalty: generationKnobSchemas.repetitionPenalty,
@@ -138,6 +162,10 @@ export const userIntentSchema = z
         // Adjacent-same-role (user|assistant) merge strategy — user-authoring intent, clamped against the
         // model's `capability.turns.roleHandlingFloor` at the SHAPE splice (user may go stricter, never looser).
         roleHandling: roleHandlingSchema.optional(),
+        // Whether the model may emit SEVERAL tool calls in one turn (OpenRouter `parallel_tool_calls`).
+        // Rides the wire only when the request carries tools + the model is tool-capable. Absent ⇒ the
+        // provider default (parallel allowed).
+        parallelToolCalls: z.boolean().optional(),
       })
       .optional(),
   })
