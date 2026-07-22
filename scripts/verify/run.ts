@@ -13,7 +13,8 @@
 //   pnpm verify --strict-scope  → a whole-only stage at a scoped tier REFUSES (exit 3) instead of deferring
 //   pnpm verify --verbose    → stream each stage's full output live (default: COMPACT — a per-stage ✓/✗
 //                              line only; full output goes to the logs + json, so the console survives any
-//                              head/tail truncation; a TTY auto-enables verbose for humans)
+//                              head/tail truncation. Verbose is EXPLICIT-only: TTY auto-detection is gone —
+//                              a git hook's stdout is a TTY too, and auto-verbose blasted every push)
 //
 // ARGV is parsed by node:util `parseArgs` under a strict schema: an unknown flag, a value option with no
 // value, >1 scope selector, or >1 tier are all misuse (exit 3), never a silent-ignore.
@@ -66,7 +67,7 @@ export function aggregateExit(codes: readonly number[]): number {
 
 type StageMode = "full" | "scoped" | "deferred" | "skipped";
 
-type StageResult = {
+export type StageResult = {
   readonly name: string;
   readonly group: string;
   readonly mode: StageMode;
@@ -287,9 +288,11 @@ export function parse(argv: readonly string[]): Parsed | { readonly error: strin
   const strictScope = values["strict-scope"] === true;
   const list = values.list === true;
   const json = values.json === true;
-  // Compact console is the DEFAULT (truncation-robust: the whole console fits, no live stage stream to
-  // scroll the verdict away). A human on a TTY, or an explicit --verbose, gets the live stream.
-  const verbose = values.verbose === true || process.stdout.isTTY === true;
+  // Compact console is the DEFAULT everywhere (truncation-robust: the whole console fits, no live stage
+  // stream to scroll the verdict away). Verbose is EXPLICIT-ONLY — the old `isTTY` auto-enable blasted
+  // every `git push` (a hook's stdout IS a TTY), streaming ~full vitest/playwright/vite output through
+  // lefthook (2026-07-17). A human who wants the live stream passes --verbose.
+  const verbose = values.verbose === true;
   if ("none" in req) {
     return { tier, selection: undefined, strictScope, list, json, verbose };
   }
@@ -397,8 +400,10 @@ function runOneStage(root: string, stage: StageDef, selection: Selection | undef
 
   const start = Date.now();
   const [cmd, ...args] = argv;
+  // NO_COLOR only — setting FORCE_COLOR alongside it (even "0") makes node WARN per child process that
+  // NO_COLOR is ignored (13 warnings per push run, 2026-07-17); every gate tool honors NO_COLOR alone.
   // biome-ignore lint/style/noProcessEnv: NO_COLOR passthrough to children — greppable plain output, not config.
-  const env = { ...process.env, NO_COLOR: "1", FORCE_COLOR: "0", ...stage.env };
+  const env = { ...process.env, NO_COLOR: "1", ...stage.env };
   const result = spawnSync(resolveBin(root, cmd), args, {
     cwd: root,
     shell: false,
@@ -481,11 +486,14 @@ const FAIL_KIND: Readonly<Record<number, string>> = {
   [EXIT_VIOLATIONS]: "violations",
 };
 
-/** A one-line failure reason for a stage — the classifier verdict + its log path, for the tail block. */
-function failReason(r: StageResult): string {
+/** A one-line failure reason for a stage — the classifier verdict + its log path, for the tail block. The
+ *  glyph is `stageMark` (‼ for a tool-error, ✗ for a violation) so a tool-error (exit 2 — a BROKEN checker,
+ *  never a verdict per the §3.3 exit contract) is never presented with the violations glyph. Exported for
+ *  the presentation unit test. */
+export function failReason(r: StageResult): string {
   const kind = FAIL_KIND[r.exitCode] ?? "violations";
   const where = r.logFile ?? "(no log — did not run)";
-  return `  ✗ ${r.name} — ${kind} · ${where}`;
+  return `  ${stageMark(r)} ${r.name} — ${kind} · ${where}`;
 }
 
 /** The TAIL block — the load-bearing truncation-robust output. A reader who sees ONLY the last ~15 lines

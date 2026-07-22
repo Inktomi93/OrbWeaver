@@ -93,7 +93,7 @@ function reconcilePdCitations(root: string, project: Project): Violation[] {
 
 export const gate: GateDescriptor = {
   name: "pd-citation-integrity",
-  docRow: "core/Audits-and-Debt.md",
+  docRow: "core/Core-Audits-and-Debt.md",
   status: "active",
   scopeSafety: "whole-project",
   fsBacked: true,

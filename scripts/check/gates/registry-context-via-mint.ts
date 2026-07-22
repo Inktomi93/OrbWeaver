@@ -29,7 +29,7 @@ function isCreateContextCall(call: CallExpression): boolean {
 
 export const gate: GateDescriptor = {
   name: "registry-context-via-mint",
-  docRow: "proposed/derive-modernization-audit.md §W3 (G26)",
+  docRow: "history/derive-modernization-audit.md §W3 (G26)",
   status: "active",
   scopeSafety: "incremental-safe",
   message: MESSAGE,

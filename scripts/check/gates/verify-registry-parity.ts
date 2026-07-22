@@ -11,7 +11,10 @@ import type { Violation } from "../harness.ts";
 
 const PKG_REL = "package.json";
 // The verification-shaped script-name prefixes (§3.6). A script whose name matches must be in the registry.
-const VERIFY_SHAPE_RE = /^(?:check|test|lint|typecheck|depcruise|e2e|cpd|format)/u;
+// `knip` joined 2026-07-17: `knip:prod` (the production-strict view) dangled UNWIRED for four days while
+// the registry doc claimed it live — precisely the forgotten-script class this gate exists to kill; the
+// prefix gap made the gate blind to it.
+const VERIFY_SHAPE_RE = /^(?:check|test|lint|typecheck|depcruise|e2e|cpd|format|knip)/u;
 
 // Scripts that match the shape but are NOT verification STAGES — they need no registry row:
 //   • the verify entry + its check alias (the registry's HOST, not a stage);

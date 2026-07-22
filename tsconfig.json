@@ -57,6 +57,10 @@
     // Same DOM-barrel hazard: value-imports `mirrorDraft`/`readDraftSeed` from `@orb/client/forms`, whose
     // barrel re-exports `use-app-form` and thus every DOM bound-field → phantom lib.dom errors here. The
     // entity-form-base SOURCE stays dom-typechecked by packages/client/tsconfig.
-    "tests/client/forms/entity-form-base.test.ts"
+    "tests/client/forms/entity-form-base.test.ts",
+    // Same class, RAF flavor: the subject hook (`use-message-items`, PD-147) calls bare
+    // `requestAnimationFrame`/`cancelAnimationFrame` (lib.dom globals) → phantom lib.dom errors in this
+    // DOM-less node program. The hook SOURCE stays dom-typechecked by packages/client/tsconfig.
+    "tests/client/features/chat/hooks/use-message-items.test.ts"
   ]
 }

@@ -1,8 +1,11 @@
-// Gate: monotonic-tests — DORMANT (see Core-Enforcement-Deferred-Dropped.md; activates on a real
-// test suite + baseline file). Guards against "wrong-but-green": every other gate verifies the code,
-// this one verifies the SUITE — a deleted assertion or disabled test leaves no diff-visible trace
-// anywhere else, so a green `pnpm check` must never be reachable by quietly skipping/deleting tests.
-// Two teeth: forbidden-skip (a new unconditional it.skip/test.only/.todo/.fixme) and deleted-test-file.
+// Gate: monotonic-tests — ACTIVATED 2026-07-17 (docs/test-baseline/manifest.json committed; see
+// Core-Enforcement-Deferred-Dropped.md for the activation record). Guards against "wrong-but-green":
+// every other gate verifies the code, this one verifies the SUITE — a deleted assertion or disabled
+// test leaves no diff-visible trace anywhere else, so a green `pnpm check` must never be reachable by
+// quietly skipping/deleting tests. Two teeth: forbidden-skip (a new unconditional
+// it.skip/test.only/.todo/.fixme) and deleted-test-file (a docs/test-baseline/manifest.json entry that
+// no longer exists on disk). Regenerate the manifest ONLY on a sanctioned bulk rename/delete wave:
+// `pnpm tsx scripts/check/gen-test-baseline-manifest.ts`.
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { CallExpression, SourceFile, Node as TsMorphNode } from "ts-morph";
@@ -139,12 +142,11 @@ export const monotonicTests: Check = {
 };
 
 // Scans every tests/** file for a new unconditional skip/only/todo/fixme modifier (tooth 1) and
-// reconciles a committed baseline manifest against disk (tooth 2 — a no-op until a manifest exists).
-// status:"dormant" — the loader loads it, the runner skips it, but conformance runs it as-active.
+// reconciles the committed baseline manifest against disk (tooth 2).
 export const gate: GateDescriptor = {
   name: "monotonic-tests",
   docRow: "Core-Enforcement-Deferred-Dropped.md (monotonic-tests) / Spine-Testing.md §5",
-  status: "dormant",
+  status: "active",
   scopeSafety: "whole-project",
   message:
     "a test is disabled unconditionally (`it.skip`/`test.only`/`.todo`/`.fixme` modifier) or a baseline-manifest test file was deleted — the suite must not go green by skipping or deleting tests (Spine-Testing.md §5).",

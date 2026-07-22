@@ -153,6 +153,33 @@
  *   transitions/carets harness-side.
  *   ffmpeg: NOT in the dev container until a Dockerfile rebuild — --diff then prints a
  *   skipped-with-reason line and stays green (skip ≠ fail). FFMPEG_BIN env overrides.
+ *
+ *   ISOLATED STAGE — serve snaps from a FROZEN HEAD worktree, never the live dev stack. The one-flag
+ *   recovery for the crash-loop story: a visual pass against the dev stack fights concurrent lanes' HMR
+ *   (tsx-watch/vite crash-looping under a reviewer mid-edit). --isolated boots a SECOND, fully isolated
+ *   dev stack from a detached git worktree at local HEAD on OFFSET ports (server :8888 / vite :5273) with
+ *   its OWN db/data — zero collision with the dev stack, both run at once, and it keeps window.__orb (a
+ *   prod build would strip it). Nothing edits the worktree, so its watchers never fire. `--dirty` stages
+ *   the WORKING TREE (uncommitted changes) instead — see the flag doc below. Full lifecycle + the
+ *   port/db layout live in scripts/probes/_kit/snap-stage.ts.
+ *   pnpm snap / --isolated                 # boot-or-reuse the stage at HEAD, snap the route against it
+ *   pnpm snap / --isolated --ref <sha>     # stage a specific commit instead of HEAD (implies --isolated)
+ *   pnpm snap / --isolated --fresh         # force-rebuild the stage even if a warm one exists
+ *   pnpm snap / --dirty                    # stage the WORKING TREE (uncommitted changes) instead of a
+ *                                          # commit — implies --isolated, ignores --ref. rsyncs your
+ *                                          # tracked+modified+untracked source (.gitignore-filtered) into
+ *                                          # a fixed .cache/snap-stage/dirty/ dir and boots the same
+ *                                          # stack.sh stack. REFRESHABLE: re-run `--dirty` after editing
+ *                                          # and it re-syncs the diff into the warm stage (no full
+ *                                          # re-stage) — the stage's own tsx watch restarts on it, since
+ *                                          # only YOUR rsync ever touches those files (never a concurrent
+ *                                          # lane's live edits — the crash-loop immunity is preserved).
+ *                                          # `--dirty --fresh` forces a full rebuild of the dirty stage.
+ *   pnpm snap --stage-down                 # stop the stage stack + remove the worktree/dir (ignores route)
+ *   First-boot cost: one `git worktree add` (or, for --dirty, an rsync) + `pnpm install` (shared store →
+ *   cheap) + a stack boot; the stage then stays WARM across snap calls. A new HEAD sha auto-rebuilds the
+ *   commit-pinned stage (the stale one is torn down); --dirty always re-syncs instead. A ref/tree predating
+ *   the vite.config VITE_API_TARGET hook is REJECTED (it would proxy /api to the dev stack).
  */
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -170,6 +197,7 @@ import type { Viewport } from "./_kit/flags.ts";
 import { parseViewport, splitFirstEq, splitLastEq } from "./_kit/flags.ts";
 import type { ResultPair } from "./_kit/result.ts";
 import { print, printResult } from "./_kit/result.ts";
+import { ensureStage, teardownStage } from "./_kit/snap-stage.ts";
 import type { Rgb } from "./design-audit-checks.ts";
 import { contrastRatio, isLargeText, LARGE_MIN_RATIO, NORMAL_MIN_RATIO } from "./design-audit-checks.ts";
 
@@ -321,6 +349,20 @@ type Args = {
   map: boolean;
   /** Subtree to map (default "body"); scope it (e.g. a just-revealed dialog) to shrink output. */
   mapSelector: string;
+  // ── ISOLATED STAGE (serve from a frozen HEAD worktree, not the live dev stack) ─────────────
+  /** Serve snaps from an ISOLATED snap-stage (detached HEAD worktree, offset ports + own db/data) — never
+   *  the live dev stack. Immune to the dev stack's HMR/crash-loops. See scripts/probes/_kit/snap-stage.ts. */
+  isolated: boolean;
+  /** Stage git ref override (default HEAD). Implies --isolated. */
+  ref: string | null;
+  /** Force-rebuild the stage even when a warm one at this sha exists. Implies --isolated. */
+  fresh: boolean;
+  /** Stage the WORKING TREE (uncommitted changes), not a commit — rsyncs tracked+modified+untracked
+   *  source (gitignore-filtered) into a fixed stage dir and re-syncs on every call (refreshable, no
+   *  full re-stage when warm). Implies --isolated; takes priority over --ref. */
+  dirty: boolean;
+  /** Tear down the active stage (stop its stack + remove the worktree) and exit — ignores the route. */
+  stageDown: boolean;
 };
 
 // ── Flag dispatch ───────────────────────────────────────────────────────────
@@ -499,6 +541,24 @@ const FLAG_HANDLERS: Record<string, FlagHandler> = {
   "--map": (a, rest) => {
     mapFlag(a, rest);
   },
+  "--isolated": (a) => {
+    a.isolated = true;
+  },
+  "--ref": (a, rest) => {
+    a.ref = rest.shift() ?? null;
+    a.isolated = true;
+  },
+  "--fresh": (a) => {
+    a.fresh = true;
+    a.isolated = true;
+  },
+  "--dirty": (a) => {
+    a.dirty = true;
+    a.isolated = true;
+  },
+  "--stage-down": (a) => {
+    a.stageDown = true;
+  },
 };
 
 function parseArgs(argv: string[]): Args {
@@ -534,6 +594,11 @@ function parseArgs(argv: string[]): Args {
     contrastPixel: false,
     map: false,
     mapSelector: "body",
+    isolated: false,
+    ref: null,
+    fresh: false,
+    dirty: false,
+    stageDown: false,
   };
   const rest = [...argv];
   while (rest.length > 0) {
@@ -1629,5 +1694,26 @@ async function snap(opts: Args): Promise<number> {
   return red ? 1 : 0;
 }
 
+// Isolated-stage gate: --stage-down tears down and exits; --isolated boots-or-reuses the stage and repoints
+// the base URL at it BEFORE the normal snap runs. Everything else (flags, capture, report) is unchanged.
+async function main(opts: Args): Promise<number> {
+  if (opts.stageDown) {
+    print(`[snap-stage] ${teardownStage()}`);
+    return 0;
+  }
+  if (opts.isolated) {
+    try {
+      const stage = opts.dirty
+        ? ensureStage({ fresh: opts.fresh, dirty: true })
+        : ensureStage(opts.ref === null ? { fresh: opts.fresh } : { ref: opts.ref, fresh: opts.fresh });
+      opts.base = stage.baseUrl;
+    } catch (e) {
+      print(`STAGE ERROR: ${errorMessage(e)}`);
+      return 1;
+    }
+  }
+  return await snap(opts);
+}
+
 const cliArgs = parseArgs(process.argv.slice(2));
-void snap(cliArgs).then((code) => process.exit(code));
+void main(cliArgs).then((code) => process.exit(code));

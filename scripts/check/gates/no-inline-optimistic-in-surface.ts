@@ -9,7 +9,7 @@ export const gate: GateDescriptor = {
   status: "active",
   scopeSafety: "incremental-safe",
   message:
-    "Optimistic-mutation plumbing (`cancelQueries` / `setQueryData`) belongs in `features/<x>/hooks/`, not a surface. Surfaces compose JSX; data plumbing drifts when it lives at the call site. Use `optimisticOptions({queryClient, queryKey, merge, invalidateOnSettled})` from `features/_shared` (see docs/architecture/core/UI-Lib-TanStack-Query.md), OR extract a hook that wraps the inline pattern (the wide-TInput tRPC exception — see `use-star-toggle.ts`).",
+    "Optimistic-mutation plumbing (`cancelQueries` / `setQueryData`) belongs in `features/<x>/hooks/`, not a surface. Surfaces compose JSX; data plumbing drifts when it lives at the call site. Use `optimisticOptions({queryClient, queryKey, merge, invalidateOnSettled})` from `features/_shared` (see docs/architecture/history/UI-Lib-TanStack-Query.md), OR extract a hook that wraps the inline pattern (the wide-TInput tRPC exception — see `use-star-toggle.ts`).",
   scanRoot: (p) => SURFACES_DIR_RE.test(p),
   kinds: [SyntaxKind.CallExpression],
   visit(node, _sf, ctx): void {

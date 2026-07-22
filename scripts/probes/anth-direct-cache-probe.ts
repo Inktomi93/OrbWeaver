@@ -47,8 +47,18 @@ import process from "node:process";
 import type { MessageParam, TextBlockParam } from "@anthropic-ai/sdk/resources/messages";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createOpenRouterAnthClient, reduceAnthStream } from "@orb/server/infra/providers/backends/anth-direct";
+import type { AnthClient } from "@orb/server/infra/providers/backends/anth-direct";
+import { createFirstPartyAnthClient, createOpenRouterAnthClient, reduceAnthStream } from "@orb/server/infra/providers/backends/anth-direct";
 import { createOpenRouterClient } from "@orb/server/infra/providers/backends/openrouter";
+
+// Durability: pick up the *_PROBE_KEY vars from the repo-root `.env` (gitignored) so a re-run is one command
+// with no manual export. Node's built-in loader (no dotenv dep); absent `.env` is fine — the keys can also
+// come straight from the shell env, so a missing file is not an error.
+try {
+  process.loadEnvFile();
+} catch {
+  // No `.env` at cwd — fall back to whatever the shell already exported.
+}
 
 // ── CLI ────────────────────────────────────────────────────────────────────────────────────────────────
 const args = process.argv.slice(2);
@@ -57,7 +67,19 @@ function argValue(flag: string): string | undefined {
   return i >= 0 ? args[i + 1] : undefined;
 }
 const VERBOSE = args.includes("--verbose");
-/** Which arms to run (default: both). `anth-direct` = the Messages wire; `or-chat` = the OpenAI-compat wire. */
+/** Which scenarios to run (default: all). Lets a per-model SAMPLING sweep skip the expensive lookback proof
+ *  (`--scenario sampling`) — the lookback physics is model-agnostic, so one validation run suffices. */
+const SCENARIOS = new Set(
+  (
+    argValue("--scenario")
+      ?.split(",")
+      .map((s) => s.trim()) ?? ["lookback", "prefill", "mid-conv-system", "sampling"]
+  ).filter((s) => s.length > 0),
+);
+/** Which arms to run. `anth-direct` = the OR-skin Messages wire; `or-chat` = the OpenAI-compat wire;
+ *  `anth-first-party` = the DIRECT `api.anthropic.com` wire (W11) — the ONLY arm that reflects raw Anthropic
+ *  per-model sampling validation (the OR skin transforms params: it validates temperature against the OpenAI
+ *  0–2 range, so its 200s do NOT prove Anthropic honor — proven 2026-07-17). Default: the two OR arms. */
 const ARMS = new Set(
   (
     argValue("--arm")
@@ -65,10 +87,16 @@ const ARMS = new Set(
       .map((a) => a.trim()) ?? ["anth-direct", "or-chat"]
   ).filter((a) => a.length > 0),
 );
-// biome-ignore lint/style/noProcessEnv: OPENROUTER_PROBE_KEY is probe-run plumbing (scoped test key), not app config — probes run outside the foundation/env perimeter.
+// biome-ignore lint/style/noProcessEnv: the *_PROBE_KEY vars are probe-run plumbing (scoped test keys), not app config — probes run outside the foundation/env perimeter.
 const OR_PROBE_KEY = process.env["OPENROUTER_PROBE_KEY"] ?? "";
-if (OR_PROBE_KEY.length === 0) {
-  throw new Error("anth-direct-cache-probe requires OPENROUTER_PROBE_KEY in the environment");
+// biome-ignore lint/style/noProcessEnv: see above — the first-party arm's Anthropic `sk-ant-…` key.
+const ANTHROPIC_PROBE_KEY = process.env["ANTHROPIC_PROBE_KEY"] ?? "";
+const NEEDS_OR_KEY = ARMS.has("anth-direct") || ARMS.has("or-chat");
+if (NEEDS_OR_KEY && OR_PROBE_KEY.length === 0) {
+  throw new Error("the anth-direct / or-chat arms require OPENROUTER_PROBE_KEY in the environment");
+}
+if (ARMS.has("anth-first-party") && ANTHROPIC_PROBE_KEY.length === 0) {
+  throw new Error("the anth-first-party arm requires ANTHROPIC_PROBE_KEY (an Anthropic sk-ant-… key) in the environment");
 }
 
 /** The default cache-arm model — Haiku (cheap; ~4096-tok min cacheable floor, so the lore clears it). A real
@@ -223,13 +251,16 @@ interface AnthTurnSpec {
   readonly midConvSystem?: string;
   /** Sampling knobs to send (the honor-matrix probe — a 400 means the model rejects the non-default value). */
   readonly sampling?: { temperature?: number; top_p?: number; top_k?: number };
+  /** The belted SDK client to run through — defaults to the OR-skin client; the first-party arm passes the
+   *  `api.anthropic.com` client (W11) so the honor matrix reflects RAW Anthropic validation, not OR's. */
+  readonly client?: AnthClient;
 }
 
 /** Run ONE anth-direct turn through the real belted client + the real `reduceAnthStream` reducer, so the
  *  cache numbers are the exact ones a production `provider.cache` event carries. Returns a normalized readout
  *  (or the error status/message when the wire rejects the turn — the prefill/sampling honor signal). */
 async function anthTurn(spec: AnthTurnSpec): Promise<CacheReadout> {
-  const client = createOpenRouterAnthClient(OR_PROBE_KEY);
+  const client = spec.client ?? createOpenRouterAnthClient(OR_PROBE_KEY);
   const messages = spec.history.map(toAnthParam);
   placeAnthBreakpoints(messages, spec.breakpoints);
   if (spec.midConvSystem !== undefined) {
@@ -456,7 +487,7 @@ async function midConvHonor(model: string): Promise<void> {
 /** The SAMPLING honor matrix (part 03 §3) — the fact that OPENS a model's `ANTH_DIRECT_SAMPLING` entry.
  *  Sends a non-default temperature (Anthropic 0–1), top_p, top_k; a 400 means the model rejects it
  *  (post-Opus-4.6 deprecation), a 200 means the knob is honorable. Seeded fail-closed `{}` until this passes. */
-async function samplingHonor(model: string): Promise<void> {
+async function samplingHonor(model: string, client?: AnthClient): Promise<void> {
   const history = [...longHistory().slice(0, SAMPLING_PREFIX_ROWS), { role: "user" as const, content: "In one short sentence, describe the singing dunes." }];
   const knobs: readonly { readonly label: string; readonly sampling: AnthTurnSpec["sampling"] }[] = [
     { label: "temperature=0.5", sampling: { temperature: 0.5 } },
@@ -472,6 +503,7 @@ async function samplingHonor(model: string): Promise<void> {
       history,
       breakpoints: [],
       ...(knob.sampling ? { sampling: knob.sampling } : {}),
+      ...(client !== undefined ? { client } : {}),
     });
     const ok = r.errorStatus === undefined;
     result({
@@ -496,17 +528,34 @@ async function main(): Promise<void> {
   console.log(`anth-direct-cache-probe — model=${DEFAULT_MODEL} arms=[${[...ARMS].join(", ")}] (spends real OR credits)\n`);
 
   if (ARMS.has("anth-direct")) {
-    console.log("── anth-direct: 20-block lookback proof (single vs the R1 PAIR) ──");
-    await lookbackProof("anth-direct", (spec) => anthTurn({ model: DEFAULT_MODEL, history: spec.history, breakpoints: spec.breakpoints }));
+    if (SCENARIOS.has("lookback")) {
+      console.log("── anth-direct: 20-block lookback proof (single vs the R1 PAIR) ──");
+      await lookbackProof("anth-direct", (spec) => anthTurn({ model: DEFAULT_MODEL, history: spec.history, breakpoints: spec.breakpoints }));
+    }
     console.log("── anth-direct: prefill / mid-conv-system / sampling honor matrix ──");
-    await prefillHonor(DEFAULT_MODEL);
-    await midConvHonor(DEFAULT_MODEL);
-    await samplingHonor(DEFAULT_MODEL);
+    if (SCENARIOS.has("prefill")) {
+      await prefillHonor(DEFAULT_MODEL);
+    }
+    if (SCENARIOS.has("mid-conv-system")) {
+      await midConvHonor(DEFAULT_MODEL);
+    }
+    if (SCENARIOS.has("sampling")) {
+      await samplingHonor(DEFAULT_MODEL);
+    }
   }
 
-  if (ARMS.has("or-chat")) {
+  if (ARMS.has("or-chat") && SCENARIOS.has("lookback")) {
     console.log("── or-chat: 20-block lookback proof (single vs the R1 PAIR) ──");
     await lookbackProof("or-chat", (spec) => orChatTurn({ model: DEFAULT_MODEL, history: spec.history, breakpoints: spec.breakpoints }));
+  }
+
+  if (ARMS.has("anth-first-party")) {
+    // THE REAL ANTH_DIRECT_SAMPLING seeder (W11): the first-party `api.anthropic.com` wire honors/rejects
+    // sampling per Anthropic's raw validation — unlike the OR skin (which validates temperature 0–2 and passes
+    // top_k through, so its 200s are NOT proof of honor). `--model` here must be a DATED Anthropic id
+    // (e.g. `claude-opus-4-5-20250805`), NOT an OR slug. Only the sampling scenario runs on this arm.
+    console.log("── anth-first-party: RAW Anthropic per-model sampling honor matrix (the ANTH_DIRECT_SAMPLING seeder) ──");
+    await samplingHonor(DEFAULT_MODEL, createFirstPartyAnthClient(ANTHROPIC_PROBE_KEY));
   }
 
   console.log("\n=== usage table ===");

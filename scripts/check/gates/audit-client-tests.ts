@@ -1,7 +1,10 @@
-// Gate: audit-client-tests — DORMANT (activates when client tests exist). AST audit of every
-// tests/**/*.test.ts(x) for structural anti-patterns grep can't see: an assertion-less test callback
-// (directly or via a resolved assertion helper), a missing-await async test, a bare `expect(x);`, an
-// empty describe() with no nested test, an empty lifecycle hook. Excludes `*.ct.tsx` (own CT lane).
+// Gate: audit-client-tests — AST audit of every tests/**/*.test.ts(x) for structural anti-patterns
+// grep can't see: an assertion-less test callback (directly or via a resolved assertion helper), a
+// missing-await async test, a bare `expect(x);`, an empty describe() with no nested test, an empty
+// lifecycle hook. Excludes `*.ct.tsx` (own CT lane). Despite the name, the scan is the WHOLE central
+// mirror (server/contracts/kit/client/tooling) — "client" is the born-compliant-era trigger it waited
+// on. ACTIVE since 2026-07-17: the trigger ("client tests exist") was long met and the flip dry-ran
+// clean (0 violations tree-wide).
 import type { ArrowFunction, FunctionExpression, Node as TsMorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
@@ -286,8 +289,8 @@ function scanAuditClientTests({ root, project }: CheckContext): Violation[] {
 
 export const gate: GateDescriptor = {
   name: "audit-client-tests",
-  docRow: "Core-Enforcement-Deferred-Dropped.md (audit-client-tests) / Spine-Testing.md §5",
-  status: "dormant",
+  docRow: "Spine-Testing.md §5",
+  status: "active",
   scopeSafety: "whole-project",
   message:
     "a test file carries a structural anti-pattern — a test callback with no `expect(...).<matcher>()`, an async test with no await, a bare `expect(x);`, an empty describe() with no nested test, or an empty lifecycle hook (Spine-Testing.md §5).",

@@ -9,7 +9,7 @@ export const gate: GateDescriptor = {
   status: "active",
   scopeSafety: "incremental-safe",
   message:
-    "Use `useAppForm` (and `withForm` / `withFieldGroup`) from `#forms` instead of TanStack Form's `useForm` / `createFormHook` / `createFormHookContexts` directly. The shared instance pre-binds the @orb/ui Field components; calling these directly bypasses the bound fields and drifts every editor surface apart. See docs/architecture/core/UI-Lib-TanStack-Form.md.",
+    "Use `useAppForm` (and `withForm` / `withFieldGroup`) from `#forms` instead of TanStack Form's `useForm` / `createFormHook` / `createFormHookContexts` directly. The shared instance pre-binds the @orb/ui Field components; calling these directly bypasses the bound fields and drifts every editor surface apart. See docs/architecture/history/UI-Lib-TanStack-Form.md.",
   scanRoot: (p) => !p.includes("packages/client/src/forms/"),
   kinds: [SyntaxKind.CallExpression],
   visit(node, _sf, ctx): void {

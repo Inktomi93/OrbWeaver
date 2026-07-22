@@ -34,6 +34,7 @@
   // it appears. Keep in sync with tsconfig.json's matching `exclude` entry (the graph must NOT also own it).
   "include": [
     "reset.d.ts",
+    "tests/client/features/chat/hooks/use-message-items.test.ts",
     "tests/client/features/preset/lib/preset-editor-bridge.int.test.ts",
     "tests/client/forms/create-form-handle-bridge.test.ts",
     "tests/client/forms/entity-form-base.test.ts"

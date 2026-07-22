@@ -42,7 +42,7 @@ const MESSAGE =
 
 export const gate: GateDescriptor = {
   name: "ui-skin-fragment-purity",
-  docRow: "proposed/derive-modernization-audit.md §W2",
+  docRow: "history/derive-modernization-audit.md §W2",
   status: "active",
   scopeSafety: "incremental-safe",
   message: MESSAGE,

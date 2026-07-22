@@ -26,11 +26,14 @@
 #           limit). The rerank runner truncates query+doc to fit, so a long doc
 #           can never exceed it (was 4096 + no truncation → HTTP 400 on long docs).
 #   gen   : TP=2 on 2-GPU boxes (NVLink, measured ~1.8×), 4.2M px cap.
-# GPU budget on 2-card boxes: GPU0 = embed 0.22 + gen-half 0.35 (≈0.57); GPU1 = gen-half 0.35 +
-# rerank 0.40 (≈0.75). Rerank rides GPU1 so it never contends with embed on GPU0 — a search embeds
-# the query then reranks back-to-back, and co-locating them serialized the two on one card — and it
-# gets a roomier KV (0.40 vs the old shared 0.22) so it can rerank full-length docs. Single-GPU:
-# everything on GPU0 (embed 0.22 + rerank 0.22 + gen TP=1 0.50).
+# GPU budget on 2-card boxes: GPU0 = embed 0.14 + gen-half 0.28 (≈0.42); GPU1 = gen-half 0.28 +
+# rerank 0.16 (≈0.44). This leaves ~27GB FREE on each card for the ComfyUI image-gen process to
+# co-tenant into (SDXL ~7GB / FLUX-dev fp8 ~15GB) — the engines deliberately claim only what they
+# need. embed/rerank are POOLING runners (single forward pass, no autoregressive KV growth), so they
+# need barely more than weights (~4.5GB for a 2B) plus the 8192-token activation peak; the old 0.22/
+# 0.40 were 2–3× overkill. Rerank still rides GPU1 so it never contends with embed on GPU0 — a search
+# embeds the query then reranks back-to-back, and co-locating them serialized the two on one card.
+# Single-GPU: everything on GPU0 (embed 0.14 + rerank 0.22 + gen TP=1 0.50 ≈ 0.86, ~7GB left).
 
 set -euo pipefail
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -67,7 +70,7 @@ case "$ENGINE" in
       --chat-template "$REPO/scripts/dev/qwen3_vl_embedding_serve.jinja" \
       --mm-processor-kwargs '{"max_pixels": 1843200}' \
       --host 127.0.0.1 --port "$VLLM_EMBED_PORT" \
-      --gpu-memory-utilization 0.22 --max-model-len 8192 --trust-remote-code
+      --gpu-memory-utilization 0.14 --max-model-len 8192 --trust-remote-code
     ;;
   rerank)
     # Resolve via the huggingface_hub Python API — the `hf` CLI's stdout format
@@ -77,11 +80,12 @@ case "$ENGINE" in
     RERANK_PATH="$("$PY" -c "from huggingface_hub import snapshot_download; print(snapshot_download('$VLLM_RERANK_MODEL'))" 2>/dev/null | tail -1)"
     [ -n "$RERANK_PATH" ] || { echo "vllm-engine: could not resolve rerank model path for '$VLLM_RERANK_MODEL'" >&2; exit 1; }
     # GPU1 on multi-GPU boxes — keeps rerank OFF GPU0 (embed + gen-half live there), so a search that
-    # embeds-then-reranks doesn't serialize on one card, and rerank claims a roomier KV (0.40 vs the
-    # old shared 0.22) so it can rerank full-length docs. Single-GPU falls back to GPU0 at 0.22.
+    # embeds-then-reranks doesn't serialize on one card. 0.16 (~7.6GB) covers the 2B weights (~4.5GB)
+    # plus the 8192-token pooling-forward activation peak; rerank truncates query+doc to fit 8192, so
+    # there is no KV to grow. Single-GPU falls back to GPU0 at 0.22.
     if [ "$GPU_COUNT" -ge 2 ]; then
       export CUDA_VISIBLE_DEVICES=1
-      RERANK_UTIL=0.40
+      RERANK_UTIL=0.16
     else
       export CUDA_VISIBLE_DEVICES=0
       RERANK_UTIL=0.22
@@ -95,10 +99,18 @@ case "$ENGINE" in
     ;;
   gen)
     GEN_TP=1; GEN_UTIL=0.50
-    if [ "$GPU_COUNT" -ge 2 ]; then GEN_TP=2; GEN_UTIL=0.35; fi
+    if [ "$GPU_COUNT" -ge 2 ]; then GEN_TP=2; GEN_UTIL=0.28; fi
+    # Deployment override: when ComfyUI shares a card with the gen engine (the
+    # container's COMFYUI_CUDA_DEVICE default is GPU1, where gen-half also lives
+    # at TP=2), VLLM_GEN_UTIL trims the gen engine's per-card fraction so the two
+    # fit. Unset ⇒ the measured bare-metal defaults above.
+    GEN_UTIL="${VLLM_GEN_UTIL:-$GEN_UTIL}"
     # 32k context: the model card recommends UP TO 16k output (VL) / 32k (text) per
     # request, which a 16k total context could never honor. Native window is 256K;
-    # 32k fits the measured KV pool (93k tokens at TP=2 → ~2.9 full-length seqs).
+    # at 0.28 util the KV pool holds ~55k tokens at TP=2 (~1.7 full 32k seqs) — trimmed
+    # from the old 0.35 (~93k) to free ~27GB/card for the co-tenant ComfyUI image-gen
+    # process. Bump VLLM_GEN_UTIL back toward 0.35 if you need more gen concurrency and
+    # aren't running image gen at the same time.
     # --enable-auto-tool-choice + --tool-call-parser: turn on tool/function calling so the buddy
     # agent (non-owner path) can run its in-process MCP tool loop against the engine's Anthropic
     # /v1/messages endpoint. `hermes` is vLLM's parser for Qwen3 instruct tool-call output. Without

@@ -5,7 +5,7 @@
   "vcs": {
     "enabled": true,
     "clientKind": "git",
-    "useIgnoreFile": true,
+    "useIgnoreFile": false,
     "defaultBranch": "main"
   },
   "files": {
@@ -18,7 +18,16 @@
       "!packages/ui/src/tokens/index.ts",
       "!packages/ui/src/styles/theme.css",
       "!**/__g_*",
-      "!**/__g_*"
+      "!**/__g_*",
+      "!**/node_modules/**",
+      "!**/.git/**",
+      "!**/dist/**",
+      "!**/build/**",
+      "!**/out/**",
+      "!**/.stryker-tmp/**",
+      "!**/reports/**",
+      "!**/coverage/**",
+      "!playwright/.cache/**"
     ]
   },
   "formatter": {

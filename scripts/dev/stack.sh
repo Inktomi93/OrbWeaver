@@ -11,6 +11,11 @@
 #   bash scripts/dev/stack.sh status         ports, pids, healthz, env pins, DB
 #   bash scripts/dev/stack.sh logs [server|client] [n]
 #
+# DEMO DATA: `pnpm seed:demo --fresh` wipes + re-migrates the data/ db and seeds
+# a verifiable demo (two humans, a solo + group chat with transcripts, a world
+# book, an ingested databank doc, a preset, tags) through the REAL domain verbs —
+# run it before booting the stack to always land on a populated app.
+#
 # WHY setsid + pidfile (ported from neo-tavern scripts/dev/stack.sh): `pkill -f`
 # matches the INVOKING shell when the pattern appears in its own command line
 # (agent harnesses wrap commands in bash -c) — the chain kills itself with exit
@@ -43,7 +48,13 @@ LOG="$RUN_DIR/stack.log"
 SERVER_LOG="$RUN_DIR/server.log"
 CLIENT_LOG="$RUN_DIR/client.log"
 BACKEND_PORT="${PORT:-8788}"
-VITE_PORT=5173
+# VITE_PORT + VITE_API_TARGET are env-overridable (defaults = the canonical dev origin) so the
+# `snap --isolated` stage can boot a SECOND isolated dev stack on offset ports (scripts/probes/_kit/
+# snap-stage.ts). Exported below so the vite child (which reads them in packages/client/vite.config.ts)
+# actually sees them. Unset ⇒ 5173 + this stack's own backend — byte-for-byte the old behavior.
+VITE_PORT="${VITE_PORT:-5173}"
+: "${VITE_API_TARGET:=http://127.0.0.1:$BACKEND_PORT}"
+export VITE_PORT VITE_API_TARGET
 HEALTHZ="http://127.0.0.1:$BACKEND_PORT/healthz"
 mkdir -p "$RUN_DIR"
 

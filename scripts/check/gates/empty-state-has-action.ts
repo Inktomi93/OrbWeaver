@@ -30,6 +30,43 @@ const ALLOWLIST: Record<string, string> = {
     'the "Open a field to inspect it" prompt shown when no card-content facet is drilled — the next step ' +
     "(pick a facet) lives in the sibling CONTENT facet list, not in this CONTEXT detail pane, so this state " +
     "legitimately has no action of its own; the character-editor twin of preset-section-inspector.tsx.",
+  // ── rpg game panel (rpg-design/11 §6) — the game surfaces are model/director-authored (pillar P1: the client
+  // creates NOTHING), sibling-carried (a visible create form beside the list), or a DESIRED empty state. Each row
+  // names its class so the next auditor can re-derive it. (C11 polish pass; allowlist WITH reasoning, not a bolted-on
+  // decorative button — the confidence-theater ban.)
+  "packages/client/src/features/rpg/components/cast/cast-tab.tsx":
+    "read-only-by-pillar: the NPC roster is model-authored via `upsert_npc` (P1 — the client derives/creates nothing); " +
+    "the cast fills as the story introduces characters, so there is no client action to offer.",
+  "packages/client/src/features/rpg/components/quests/quests-tab.tsx":
+    "read-only-by-pillar: quests are model-authored via `upsert_quest` (P1); the log fills as the story reveals them, " +
+    "so there is no client action to offer.",
+  "packages/client/src/features/rpg/components/gm/gm-eyes-tab.tsx":
+    "read-only-by-pillar: the twist bank is director-authored (06 §3); the GM-eyes panel is a WINDOW into it, not an " +
+    "editor, so the empty twist bank has no action of its own.",
+  "packages/client/src/features/rpg/components/party/party-tab.tsx":
+    "sibling-carries-CTA / read-only: this state renders ONLY for a non-host (the host branch carries the AddParty CTA); " +
+    "a member's party fills as characters join the game, so the member has no create action here.",
+  "packages/client/src/features/rpg/components/journal/journal-tab.tsx":
+    "sibling-carries-CTA: the JournalNoteComposer sits directly above this empty state (the copy points at it — 'jot the " +
+    "first note in the box above'), so the next step lives in the sibling composer, not a redundant button here.",
+  "packages/client/src/features/rpg/components/gm/checkpoints-section.tsx":
+    "sibling-carries-CTA: the Save-a-bookmark input + button is an always-visible sibling directly above this empty list.",
+  "packages/client/src/features/rpg/components/gm/clocks-section.tsx":
+    "sibling-carries-CTA: the clock create form is an always-visible sibling directly above this empty list.",
+  "packages/client/src/features/rpg/components/gm/widgets-section.tsx":
+    "sibling-carries-CTA: the widget create form is an always-visible sibling directly above this empty list.",
+  "packages/client/src/features/rpg/components/gm/session-section.tsx":
+    "sibling-carries-CTA: this is the CONCLUDED-session recap list (past sessions, informational); the host's 'Start " +
+    "session' control is an always-visible sibling above it — starting a session is a distinct act from the recap history.",
+  "packages/client/src/features/rpg/components/gm/death-section.tsx":
+    'desired-empty: "Everyone\'s standing" — no party member is down. An empty Fallen list is the WANTED state; an action ' +
+    "prompting the host to kill someone would be absurd.",
+  "packages/client/src/features/rpg/components/scene/scene-view-tab.tsx":
+    "read-only-by-pillar: scene art is model-generated via `request_illustration` (P1 — the client creates nothing); the " +
+    "C11 scene-view tab is a WINDOW into the latest illustration, so the 'no art yet' state has no client action to offer.",
+  "packages/client/src/features/rpg/components/lite/pool-defs-editor.tsx":
+    "elsewhere-carried: meters attach to party MEMBERS, and a member is seated from the Party tab (its own add-to-party CTA), " +
+    "not this L2 settings pane; the 'no party yet' state's next step lives in that sibling tab, so it has no action of its own.",
 };
 
 const MESSAGE =

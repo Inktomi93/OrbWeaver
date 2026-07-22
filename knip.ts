@@ -57,9 +57,7 @@ const config: KnipConfig = {
       // Entry auto-detected from package.json exports (`./*` → src/*/index.ts, covers src/entry/index.ts).
       project: ["src/**/*.ts!"],
       ignore: [
-        // PD-132: dormant SHAPE-phase debug trace — the content-free assembly projection for the
-        // host/admin inspector, built alongside shape.ts's wired `stages`; wire to the inspector view
-        // pending.
+        // PD-132: dormant SHAPE-phase debug trace
         "src/domain/chat/assembly/trace.ts",
       ],
       // nvidia-smi/ps/ss are system binaries the vllm engine shells.

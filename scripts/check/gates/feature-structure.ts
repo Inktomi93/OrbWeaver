@@ -31,11 +31,34 @@ const ALWAYS_ALLOWED_ROOT_FILES = ["guard.ts"] as const;
  *    (boot-time `ensureSeedThemes` — the preset `seed.ts` precedent, named `-themes` since the domain
  *    root's `seed.ts` slot may host a different concern later).
  *  - buddy: `bus.ts` (the observer's per-user reaction feed emitter + replay ring — the chat/bus.ts
- *    precedent; a feature-root collaborator the observer emits onto, PD-45). */
+ *    precedent; a feature-root collaborator the observer emits onto, PD-45).
+ *  - crew: `bus.ts` (the crew's per-CHAT event feed emitter + replay ring — the buddy/bus.ts precedent;
+ *    a feature-root collaborator the verbs/appliers emit onto, chat-crew-design/04 §4).
+ *  - rpg: `bus.ts` (the rpg's per-CHAT SSE event bus emitter + replay ring with the host/member hidden-clock
+ *    split — the crew/bus.ts precedent; a feature-root collaborator the verbs emit onto, rpg-design/05 §5),
+ *    `staging.ts` (the Option-A per-turn tool-write staging accumulator singleton — an in-memory Map the tool
+ *    verbs stage into + the commit/abort hooks flush/clear, the chat/active-turns.ts precedent; rpg-design/10 §R4),
+ *    `turn-staging.ts` (the verb-facing I/O ops over that accumulator — resolve the turn's base snapshot, read/
+ *    write the overlay, resolve name refs to party rows; the guard.ts I/O-wrapping-root precedent, shared by the
+ *    tool-path verbs so `staging.ts` stays the pure in-memory accumulator; rpg-design/10 §R4 / 05 §3),
+ *    `seat.ts` (the ONE FK-walk resolving a game's `gmUserId` into the `RpgGmSeat` the pure deciders
+ *    substrate/auth read — it AWAITS the injected `identity.resolvePartyActorKind` op, so it can't live in
+ *    zero-I/O `substrate/`; the `turn-staging.ts` I/O-wrapping-root precedent, called at the three GM-seat
+ *    re-key dispatch points; D60 AP4a / agent-principal-design/05 §2),
+ *    `trace.ts` (the compose-created RPG flight-recorder singleton — a bounded in-memory ring of the per-turn
+ *    trace-event stream + its injected sink, the `bus.ts`/`staging.ts` in-memory-singleton precedent; wired
+ *    opt-in as `RpgContext.trace`, read host-only by `/api/_debug`; R-OBS, D55 memoryTrace precedent),
+ *    `encounter-commit.ts` (the ONE durable "commit a resolved encounter round" path — the encounter row
+ *    read/write + terminal side-effect writes — shared by the post-turn FLUSH and the human-GM CONSOLE arms so
+ *    a tool-path and console-path terminal round produce byte-equivalent durable state; the `turn-staging.ts`
+ *    I/O-wrapping-root precedent, RPG-CONSOLE-COMMIT). */
 const DOMAIN_SPECIFIC_ROOT_FILES: Readonly<Record<string, readonly string[]>> = {
   buddy: ["bus.ts"],
   chat: ["bus.ts", "active-turns.ts"],
+  crew: ["bus.ts"],
+  rpg: ["bus.ts", "staging.ts", "turn-staging.ts", "seat.ts", "trace.ts", "encounter-commit.ts"],
   preset: ["constants.ts", "seed.ts"],
+  "roster-preset": ["constants.ts"], // MIN/MAX member sizing rail (domain-internal, saved-rosters §3)
   settings: ["constants.ts", "seed-themes.ts"],
 };
 

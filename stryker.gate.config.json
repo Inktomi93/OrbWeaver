@@ -15,8 +15,14 @@
   "reporters": ["html", "clear-text"],
   "htmlReporter": { "fileName": "reports/mutation/gate.html" },
 
-  "_mutate_comment": "EXACTLY the highest-stakes files — no globs. Keep tight: break is calibrated to this set's measured score. (PD-114 dropped the phantom domain/chat/routing.ts — prompt assembly is assembly/assemble.ts.)",
-  "mutate": ["packages/server/src/domain/chat/assembly/assemble.ts", "packages/server/src/domain/credentials/verbs/resolve.ts", "!packages/**/*.d.ts"],
+  "_mutate_comment": "EXACTLY the highest-stakes files — no globs. Keep tight: break is calibrated to this set's measured score. (PD-114 dropped the phantom domain/chat/routing.ts — prompt assembly is assembly/assemble.ts.) The AP-C2 rider (D60, agent-principal-design/07 §4) adds the AGENT CEILING (domain/admin/guard.ts — canAgent, the closed allow-union kill switch) + the SPEAKER→ATTRIBUTION map (domain/chat/engine/round.ts — buildSpeakerPrep, the agent self-attribution arm authorUserId=speaker.ref.userId): a surviving mutant there means the containment/attribution tests assert presence-of-behavior without asserting correctness. Covered by tests/server/domain/admin/guard.test.ts (unit) + tests/server/domain/chat/engine/round.int.test.ts (integration).",
+  "mutate": [
+    "packages/server/src/domain/chat/assembly/assemble.ts",
+    "packages/server/src/domain/credentials/verbs/resolve.ts",
+    "packages/server/src/domain/admin/guard.ts",
+    "packages/server/src/domain/chat/engine/round.ts",
+    "!packages/**/*.d.ts"
+  ],
 
   "_ignore_comment": "Prune the sandbox copy — same shape as the base config. .cache/** (8.8G vLLM venv; its lib64 symlink crashes copyfile EISDIR) and .models/** (25G HF weights) MUST be excluded or the sandbox copy explodes. data/** + *.db* (the dev database) are pruned too — ignorePatterns is ACTIVE now that the sandbox patch makes a NORMAL sandbox work (it was a no-op under the old --inPlace).",
   "ignorePatterns": [

@@ -23,7 +23,7 @@ function isUseFieldContext(spec: ImportSpecifier): boolean {
 
 export const gate: GateDescriptor = {
   name: "bound-field-via-hook",
-  docRow: "proposed/derive-modernization-audit.md §W3 (G28)",
+  docRow: "history/derive-modernization-audit.md §W3 (G28)",
   status: "active",
   scopeSafety: "incremental-safe",
   message: MESSAGE,

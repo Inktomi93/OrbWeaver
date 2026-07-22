@@ -23,6 +23,7 @@ const NON_DOMAIN_PRODUCERS: Readonly<Record<string, string>> = {
   "sdk-session": "packages/server/src/infra/providers/backends/agent-sdk/session",
   "agent-principals": "packages/server/src/domain/sessions",
   gallery: "packages/server/src/domain/assets",
+  poses: "packages/server/src/domain/assets",
   "character-proposals": "packages/server/src/domain/character",
 };
 
@@ -30,12 +31,14 @@ const NON_DOMAIN_PRODUCERS: Readonly<Record<string, string>> = {
 // lands later (DDL rides the squash, code follows). Each entry names its future producer; the moment
 // that dir exists the entry is stale and this gate flags it.
 const BASELINE_RIDER_PRODUCERS: Readonly<Record<string, string>> = {
-  crew: "packages/server/src/domain/crew",
-  automation: "packages/server/src/domain/automation",
-  "roster-preset": "packages/server/src/domain/roster-preset",
-  expressions: "packages/server/src/domain/expressions",
-  databank: "packages/server/src/domain/databank",
-  rpg: "packages/server/src/domain/rpg",
+  // crew removed 2026-07-17 — the producer domain now EXISTS (CW1-remainder), so the normal producer-mirror
+  // applies (Tier-1-DB.md producer-names-the-schema).
+  // automation removed 2026-07-17 — the producer domain now EXISTS (A3 global-variable slice), so the
+  // normal producer-mirror applies (Tier-1-DB.md producer-names-the-schema).
+  // rpg removed 2026-07-17 — the producer domain now EXISTS (R1 substrate + front door), so the normal
+  // producer-mirror applies (Tier-1-DB.md producer-names-the-schema).
+  // roster-preset removed 2026-07-17 — the producer domain now EXISTS (RP1 leaf + verbs), so the normal
+  // producer-mirror applies (Tier-1-DB.md producer-names-the-schema).
 };
 
 function findBarrel(ctx: CheckContext): SourceFile | undefined {
