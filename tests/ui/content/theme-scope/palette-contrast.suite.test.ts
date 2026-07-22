@@ -183,26 +183,25 @@ test("static PRIMARY solid surface clears the 3:1 UI/large-text floor", () => {
   expect(ratio, "primary-foreground on primary").toBeGreaterThanOrEqual(LARGE_MIN_RATIO);
 });
 
-test.each(PALETTES.map((p) => [p.name, p] as const))(
-  "intent tokens clear WCAG AA-NORMAL 4.5:1 (correct light-dark arm) on the %s palette — text on bg/card/popover + pill",
-  (_name, palette) => {
-    // role 1 — `text-*` (validation label / status text) on every chrome surface the intent can sit on
-    // (background/card/popover). highlight is excluded — it is a text-mark BACKGROUND, never text.
-    for (const intent of INTENT_TEXT_TOKENS) {
-      const fg = resolveTokenRgb(intent, palette);
-      for (const surface of INTENT_TEXT_SURFACES) {
-        const ratio = contrastRatio(fg, resolveTokenRgb(surface, palette));
-        expect(ratio, `${intent} as text on ${surface} @ ${palette.name}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
-      }
+test.each(
+  PALETTES.map((p) => [p.name, p] as const),
+)("intent tokens clear WCAG AA-NORMAL 4.5:1 (correct light-dark arm) on the %s palette — text on bg/card/popover + pill", (_name, palette) => {
+  // role 1 — `text-*` (validation label / status text) on every chrome surface the intent can sit on
+  // (background/card/popover). highlight is excluded — it is a text-mark BACKGROUND, never text.
+  for (const intent of INTENT_TEXT_TOKENS) {
+    const fg = resolveTokenRgb(intent, palette);
+    for (const surface of INTENT_TEXT_SURFACES) {
+      const ratio = contrastRatio(fg, resolveTokenRgb(surface, palette));
+      expect(ratio, `${intent} as text on ${surface} @ ${palette.name}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
     }
-    // role 2 — the solid `bg-*` + `text-*-foreground` pill (destructive/success/warning/info/highlight).
-    // Subsumes the former Hearth-only destructive special-case across ALL palettes.
-    for (const [bg, foreground] of INTENT_PILL_PAIRS) {
-      const ratio = contrastRatio(resolveTokenRgb(foreground, palette), resolveTokenRgb(bg, palette));
-      expect(ratio, `${foreground} on ${bg} (pill) @ ${palette.name}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
-    }
-  },
-);
+  }
+  // role 2 — the solid `bg-*` + `text-*-foreground` pill (destructive/success/warning/info/highlight).
+  // Subsumes the former Hearth-only destructive special-case across ALL palettes.
+  for (const [bg, foreground] of INTENT_PILL_PAIRS) {
+    const ratio = contrastRatio(resolveTokenRgb(foreground, palette), resolveTokenRgb(bg, palette));
+    expect(ratio, `${foreground} on ${bg} (pill) @ ${palette.name}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
+  }
+});
 
 test("clamp DERIVED neutral chrome clears AA on every realistic light + dark base", () => {
   for (const baseStr of REALISTIC_BASES) {

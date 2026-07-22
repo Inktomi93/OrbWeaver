@@ -10,7 +10,7 @@ import type { Db } from "@orb/db";
 import { workloads } from "@orb/db";
 import type { UserId, WorkloadId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
-import { and, asc, desc, eq, gte, inArray, isNull, lt, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNull, lt } from "drizzle-orm";
 import { getLog } from "#foundation/observability";
 import type { CancelWorkloadResult } from "../contract/params";
 import type { WorkloadError } from "../contract/workload-error";

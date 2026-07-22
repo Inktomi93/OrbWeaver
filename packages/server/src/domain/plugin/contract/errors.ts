@@ -44,11 +44,7 @@ export class PluginDowngradeRefusedError extends DomainOperationError {
 }
 
 /** The instance auto-disabled after the crash threshold (03 §4). Maps to SERVICE_UNAVAILABLE. */
-export class PluginCrashedError extends DomainUnavailableError {
-  constructor(message: string) {
-    super(message);
-  }
-}
+export class PluginCrashedError extends DomainUnavailableError {}
 
 /** An owned-plugin verb (upgrade/setEnabled/uninstall/getLog) was handed a pluginId that is missing OR not the
  *  caller's — collapsed leak-free (no foreign-existence oracle; the owner-scoped read returns undefined either

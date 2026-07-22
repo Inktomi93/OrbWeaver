@@ -2,7 +2,7 @@
 // @orb/contracts/assets, re-exported here); AssetMetadata is server-only. Ownership denial surfaces as
 // undefined (→ 404) from getMetadata, not a typed error.
 
-import type { AssetId, UserId } from "@orb/kit/ids";
+import type { UserId } from "@orb/kit/ids";
 
 export type { StoredAsset } from "@orb/contracts/assets";
 

@@ -7,7 +7,6 @@ import type { IngestRunResult, ReindexMode, ReindexScope } from "@orb/contracts/
 
 import type { DocumentId, UserId } from "@orb/kit/ids";
 import type { Cas } from "#infra/storage";
-import type { ParamsByKind } from "./workload-params";
 import type {
   AnalyticsResult,
   BackfillPassResult,
@@ -18,7 +17,6 @@ import type {
   MemoryBackfillResult,
   ReconcileStatsWorkloadResult,
 } from "./workload-result";
-import type { ReportProgress } from "./workload-state";
 
 /** Counts a maintenance/backfill op returns BEFORE the runner adds the `dryRun` echo (→ MaintenanceResult). */
 interface MaintenancePassCounts {

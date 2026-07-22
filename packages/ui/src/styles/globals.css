@@ -10,9 +10,9 @@
   *::after {
     /* biome-ignore lint/complexity/noImportantStyles: reduced-motion override MUST beat inline styles and high-specificity rules — removing !important silently ignores the user's a11y preference */
     animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
+    animation-iteration-count: 1;
+    transition-duration: 0.01ms;
+    scroll-behavior: auto;
   }
 }
 
@@ -23,9 +23,9 @@
 [data-reduced-motion="true"] *::after {
   /* biome-ignore lint/complexity/noImportantStyles: same as the @media block above — must override inline styles */
   animation-duration: 0.01ms !important;
-  animation-iteration-count: 1 !important;
-  transition-duration: 0.01ms !important;
-  scroll-behavior: auto !important;
+  animation-iteration-count: 1;
+  transition-duration: 0.01ms;
+  scroll-behavior: auto;
 }
 
 /* Client writes --font-scale onto root from the synced pref; rescales every rem-derived size

@@ -11,7 +11,6 @@
 
 import { randomUUID } from "node:crypto";
 import type { ChatBusEvent } from "@orb/contracts/chat";
-import type { ResolvedConnection } from "@orb/contracts/connection";
 import type { CredentialHealth, ResolvedCredential } from "@orb/contracts/credentials";
 import { databankSettingsSchema } from "@orb/contracts/databank";
 import type { DomainEvent } from "@orb/contracts/events";
@@ -34,15 +33,14 @@ import {
   messages as messagesTable,
   messageVariants,
   personas as personasTable,
-  users,
 } from "@orb/db";
 import { batchMany } from "@orb/db/kit";
-import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
-import type { AssetId, CharacterId, ChatId, Handle, PersonaId, SessionId, TypeIdOf, UserId, WorkloadId } from "@orb/kit/ids";
+import { DomainNotFoundError } from "@orb/kit/errors";
+import type { AssetId, CharacterId, ChatId, Handle, PersonaId, SessionId, TypeIdOf, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId, newId } from "@orb/kit/ids";
-import { and, desc, eq, gt, inArray, isNull } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
-import { can, canAgent, createAdminService, isAdmin, requireAdmin, requireOwner } from "#domain/admin";
+import { can, createAdminService, isAdmin, requireAdmin, requireOwner } from "#domain/admin";
 import type { AssetsContext, AssetsService } from "#domain/assets";
 import { createAssetsService } from "#domain/assets";
 import type { AutomationService } from "#domain/automation";
@@ -67,8 +65,7 @@ import { createEmbeddingsIndexer, createEmbeddingsService } from "#domain/embedd
 import type { ExportService } from "#domain/export";
 import { createExportService } from "#domain/export";
 import type { ImageryWarning } from "#domain/imagery";
-import { createImageryService, identityHashFor, imageryToolDefinitions } from "#domain/imagery";
-import { importFileHash, parseCardJson, parseCardPng } from "#domain/import";
+import { createImageryService, imageryToolDefinitions } from "#domain/imagery";
 import { createNotificationsService } from "#domain/notifications";
 import { createBulkImportPersonas, createPersonaService } from "#domain/persona";
 import type { PluginHostOps, PluginHostPort } from "#domain/plugin";
@@ -100,25 +97,21 @@ import type { SecretBox } from "#infra/crypto";
 import { createSecretBox } from "#infra/crypto";
 import { createExtractText, EXTRACTOR_VERSION } from "#infra/extraction";
 import { createImageAdapter } from "#infra/image";
-import { fetchImageBytes, fetchOpenAiModels, fetchWebDocument, GIF_IMPORT_MAX_BYTES, searchTenorGifs } from "#infra/network";
+import { fetchImageBytes, fetchOpenAiModels, fetchWebDocument } from "#infra/network";
 import { createPluginHost } from "#infra/plugin-host";
 import type { BackendRegistryDeps, VllmEngineHandle } from "#infra/providers";
 import {
-  createAgentToolServer,
   createBackendRegistry,
   createProviderDiagnostics,
   createProviderExecutor,
   DEFAULT_EMBED_MODEL,
   DEFAULT_IMAGE_EMBED_MODEL,
   DEFAULT_RERANK_MODEL,
-  listSeedWorkflows,
 } from "#infra/providers";
 import { createCas, createCuratedPoseReader, createVariantCache } from "#infra/storage";
-import { sha256Hex } from "#kit/content-hash";
 import {
   createBulkImportChats,
   createChatBus,
-  loadTurnForClassify,
   requireAuthorOrHost,
   requireHost,
   requireParticipant,
@@ -135,10 +128,6 @@ import { createDefaultPersonaSeeder } from "../boot";
 import { readSeedAvatar, readSeedGalleryPiece } from "../boot/seed-assets";
 import { resolvePoseLibraryRoot } from "../http";
 import type { ImportWorldInfoPort } from "../import";
-import { runProfileImport } from "../import";
-import { createAgentAuthorResolver } from "./agent-author";
-import type { AgentSpeakerSourceResolver } from "./agent-speaker";
-import { createAgentCardViewResolver, createAgentSpeakerResolver } from "./agent-speaker";
 import { createAutomationOps } from "./automation-watcher";
 import { buildChatService } from "./chat";
 import type { EffectiveConfigWiring } from "./effective-config";
@@ -1519,7 +1508,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
 
   // The room host's principal for a chatId — the guide injection ops write/read as the host (06 §3; the
   // refresh core carries no principal). `null` when the chat has no present host (a torn-down chat).
-  const resolveChatHostPrincipal = async (chatId: ChatId): Promise<Principal | null> => {
+  const _resolveChatHostPrincipal = async (chatId: ChatId): Promise<Principal | null> => {
     const rows = await db
       .select({ userId: chatParticipants.userId })
       .from(chatParticipants)

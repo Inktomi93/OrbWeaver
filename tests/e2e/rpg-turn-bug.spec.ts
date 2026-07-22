@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { openChatOptions, busEventTypes, createChatViaSend, waitForAppReady } from "./support/chat-room";
+import { createChatViaSend, openChatOptions, waitForAppReady } from "./support/chat-room";
 
 const NON_WHITESPACE = /\S/u;
 
@@ -55,7 +55,7 @@ test("rpg turn completes without dropping subscription and locking composer", {
   try {
     await expect(composer).toBeEnabled({ timeout: 15_000 });
     console.log("[DEBUG] Composer unlocked successfully!");
-  } catch (err) {
+  } catch {
     console.error("[DEBUG] Composer is still locked! Bug reproduced.");
   }
 
@@ -76,7 +76,7 @@ test("rpg turn completes without dropping subscription and locking composer", {
   // We can just evaluate a call to the TRPC client to get the messages if DB is tricky to import!
   // Or we can use window.__orb.queries() to see the query cache!
   const queries = await page.evaluate(() => window.__orb?.queries() ?? []);
-  const chatMessagesQuery = queries.find((q: any) => q.key && q.key.includes("chat.listMessages") && q.key.includes(chatId));
+  const chatMessagesQuery = queries.find((q: any) => q.key?.includes("chat.listMessages") && q.key.includes(chatId));
   console.log("[DEBUG] chat.listMessages query state:", chatMessagesQuery);
 
   // We can fetch the DOM content to see what rendered

@@ -22,7 +22,7 @@ allowBuilds:
 catalog:
   # --- toolchain ---
   typescript: ^6.0.3
-  "@biomejs/biome": ^2.5.5
+  "@biomejs/biome": 2.5.1
   lefthook: ^2.1.10
   dependency-cruiser: ^18.1.0
   ts-morph: ^28.0.0
