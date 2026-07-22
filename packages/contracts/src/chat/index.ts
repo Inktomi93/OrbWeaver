@@ -33,17 +33,20 @@ import type { MessageRole } from "@orb/kit/message-role";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import type { PersonaDescriptionPlacement } from "@orb/kit/persona";
 import { z } from "zod";
-import type { ChatApi, CredentialSource } from "#connection";
+import type { ChatApi, CredentialSource, OpenRouterProviderRouting } from "#connection";
+import type { ChatDocumentVisibility } from "#databank";
 import type { AgentSourceKind, ParticipantRole } from "#identity";
-import { PARTICIPANT_ROLES } from "#identity";
+import { agentSourceKindSchema, PARTICIPANT_ROLES } from "#identity";
 import type { GenerationType, PromptConfig, UserIntent } from "#preset";
 import type { RegexScript } from "#regex";
-import type { ThemeOverride } from "#theme";
+import type { ChatRpgPointer } from "#rpg";
+import type { ThemeBackground, ThemeOverride } from "#theme";
 import type { WiBusEvent, WorldInfoScope } from "#world-info";
 
 // `human`/`character` are the v1 kinds. `agent` is a first-class userId-backed AND AI-driven principal
 // (D60). `observer` is the reserved seam (Narrative Director — watches + proposes, never acts, unseatable).
-// FLAG[PD-17]: a seat is UN-fillable until `chat.seatAgent` (AP3).
+// PD-17: the `agent` seat is FILLED by `chat.seatAgent` (host-gated; AP3-1 verb, wired to the tRPC chat
+// router at P6) + requested owner≠host via `invites.requestAgentSeat`. `observer` stays reserved (unfillable).
 export const PARTICIPANT_KINDS = ["human", "character", "agent", "observer"] as const;
 export type ParticipantKind = (typeof PARTICIPANT_KINDS)[number];
 export const participantKindSchema = z.enum(PARTICIPANT_KINDS);
@@ -149,6 +152,12 @@ export interface ChatInjection {
   content: string;
   /** Priority WITHIN a depth (ST `injection_order`); co-located `in_chat` injections splice DESC. */
   order?: number;
+  /** WHO among HUMANS may see this injection in a prompt-inspection projection (chat-crew-design/04 §2). The
+   *  MODEL always sees every injection — this gates the redaction of chat's snapshot-serving projections
+   *  (`previewAssembly`/`peekPrompt`/the variant `promptSnapshot` read path), which elide `"host"` content for a
+   *  non-host caller. Absent ⇒ `"all"` (the default; no redaction). Generic on purpose — the director's
+   *  host-ring `guidance` is the first user, but rpg's reminder or any future feature can gate the same way. */
+  audience?: "all" | "host";
 }
 
 /** The four injection positions as a tuple — the ONE runtime home for the `ChatInjection["position"]`
@@ -194,6 +203,34 @@ export interface AssembleTrace {
   };
 }
 
+/** Why SHAPE did/didn't place the §8 cache breakpoint — the abort taxonomy, content-free. Declared ONCE as
+ *  a tuple and DERIVED (no inline-union re-spell; §5.5). The server builder (`chat/assembly/trace.ts`) labels
+ *  the outcome; the host inspector renders it. */
+export const SHAPE_BREAKPOINT_DECISIONS = ["placed", "no-stable-prefix", "in-prefix-injection-or-squash", "second-volatile-tail"] as const;
+export type ShapeBreakpointDecision = (typeof SHAPE_BREAKPOINT_DECISIONS)[number];
+
+/** The content-free SHAPE-stage trace (`buildShapeTrace`) — the debug projection of how a turn's canon was
+ *  shaped into the wire history, safe to show in the host/admin inspector: per-stage ROW COUNTS (never any
+ *  content), the squash-merge count, and the cache-breakpoint decision. The SHAPE-phase companion to
+ *  {@link AssembleTrace} (BUILD phase); like it, it answers "why did this happen?" without dumping RP text. */
+export interface ShapeTrace {
+  multiCharacter: boolean;
+  /** Row counts per SHAPE stage (no content). `injected − squashed` = how many adjacent same-role merges fired. */
+  stageCounts: {
+    withTail: number;
+    injected: number;
+    squashed: number;
+    named: number;
+  };
+  /** Adjacent same-role merges the squash performed (a non-zero count flags a boundary the breakpoint math
+   *  must be conservative around). */
+  squashMerges: number;
+  /** Offset-from-end of the pinned cache breakpoint; ABSENT when none was placed (the `placed` decision
+   *  carries it, every other decision omits it). */
+  cacheBreakpointFromEnd?: number;
+  breakpointDecision: ShapeBreakpointDecision;
+}
+
 /** The product of the BUILD stage. `static` is the cache-stable prefix; `dynamic` the per-turn suffix;
  *  `afterHistory` the sections that splice into history as `in_chat` injections. Consumed by a
  *  `message_variants.promptSnapshot` (D26). */
@@ -217,14 +254,17 @@ export interface AssembleContext {
   promptConfig: PromptConfig;
   /** All character members (primary first). A roster-of-one solo chat is exactly `[character]`. */
   cast?: AssembleCharacter[];
-  /** Per-cast-member identity, index-aligned with `cast`. Null for an un-backfilled legacy member. */
+  /** Per-cast-member character id, index-aligned with `cast`. Null for a non-character slot — an AGENT seat
+   *  (D60; its cast card is its resolved soul, it has no characterId) or a hand-built/legacy member. */
   castCharacterIds?: (CharacterId | null)[];
   /** Per-cast-member SPEAKER identity, index-aligned with `cast` (D60) — a `character` or an `agent` (whose
    *  card is its resolved soul). The per-speaker card selection (`shape(ctx, speaker)`) keys on THIS to pick
    *  the active member + the co-speakers; a character-only room's refs are all `{kind:'character'}`. Absent ⇒
    *  a hand-built/legacy ctx (the per-speaker shape falls back to the primary — byte-identical). */
   castMembers?: SpeakerRef[];
-  /** The non-muted subset of `cast` — drives `{{groupNotMuted}}`. Absent ⇒ falls back to the full cast. */
+  /** The non-muted CHARACTER subset of `cast` — drives `{{groupNotMuted}}`. Character-only by owner ruling:
+   *  the `{{group}}`-family macros never list agent seats (an agent voices via the cast, but is not a name in
+   *  these lists). Absent ⇒ falls back to the full CHARACTER cast (the macro layer re-derives it). */
   castNotMuted?: AssembleCharacter[];
   /** Who is generating: `single` (per-speaker, `{{char}}` = that character) vs `cast` (narrator, `{{char}}`
    *  = the whole cast). Solo is always `single`. */
@@ -259,6 +299,14 @@ export interface AssembleContext {
   compactSummary?: string | null;
   /** Retrieved chat-history memory (the `{{memory}}` marker), pre-formatted by the memory subsystem. */
   memory?: string | null;
+  /** Retrieved databank document context (the `{{databank}}` marker), pre-formatted + budget-fitted by the
+   *  databank GATHER op (DB6). ABSENT (never `""`) ⇒ the slot resolves empty, byte-identical to a
+   *  non-databank turn. */
+  databank?: string | null;
+  /** The 8 rpg* data-fed macros (the `{{rpgWorld}}`/`{{rpgSceneState}}`/… markers), keyed by the
+   *  RpgGatherMacros field names — a game turn's GATHER stages this map. ABSENT ⇒ every rpg macro resolves
+   *  empty, byte-identical to a non-game turn (rpg-design/06 §1). */
+  rpgMacros?: Readonly<Record<string, string>> | undefined;
   /** Per-chat ChoiceBlock variable values (the `getvar` map) — threaded BY REFERENCE so a within-turn
    *  `setvar` mutates it in place. */
   variableValues?: Record<string, string> | undefined;
@@ -391,6 +439,13 @@ export const varOpSchema = z.discriminatedUnion("op", [
  *  selected-variant chain (`foldVarOps`) into `chats.runtime_variables` (D46 runtime plane). */
 export const variableDeltaSchema = z.array(varOpSchema);
 
+/** One standalone (out-of-turn) delta batch (`chats.standalone_variable_deltas`, automation-design/03 §1.1) —
+ *  a seq-stamped `applyVariableOps` write made with no turn in flight. Parsed at the read seam; folded into
+ *  `chats.runtime_variables` interleaved with the message-variant deltas by `seq`. */
+export const standaloneVariableDeltaSchema = z.object({ seq: z.number(), delta: variableDeltaSchema });
+export const standaloneVariableDeltasSchema = z.array(standaloneVariableDeltaSchema);
+export type StandaloneVariableDelta = z.infer<typeof standaloneVariableDeltaSchema>;
+
 export const toolCallRecordSchema = z.object({
   // @orb-gate-ignore no-raw-id PROVIDER-emitted opaque tool-call handle (OpenAI `call_…`/Anthropic id) — never an orbweaver-minted brand; provenance-faithful, joins a tool-call to its result on the wire (tool-use-design/03 §3 types it `string`).
   toolCallId: z.string(),
@@ -452,6 +507,11 @@ export interface MessageView {
    *  per-message cost readout settles with via `connection.orGenerationCost` (PD-137). Null on a non-OR
    *  turn (agent-sdk / user/system row). */
   generationId: string | null;
+  /** The selected variant's persisted tool exchanges (D48; tool-use-design/03 §3–4), in emission/execution
+   *  order — the client's ONLY tool read surface (chips render from this; NEVER body-parse). Empty on every
+   *  non-tool turn. Parsed with `toolCallRecordSchema` at the DB read seam (never cast); the wire shape is a
+   *  plain array (`[]` = no calls), so a client maps it unconditionally through the `TOOL_RENDERERS` seam. */
+  toolCalls: readonly ToolCallRecord[];
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -563,8 +623,45 @@ export const CHAT_WARNING_CODES = [
   // (a summarizer outage, a store failure, a mint failure). Emitted from the engine's memory-trigger catch so
   // the silent-failure black hole (stickler F1/F1d) is observable; the turn's reply is unaffected.
   "memory_build_failed",
+  // A structured-output `responseFormat` was requested but `capability.output.structured` isn't true → dropped;
+  // the turn proceeds free-text (D79 interactive-axis degrade, 04 §7; the emit site is the engine's structured
+  // request-builder gate, mirror of tools_unsupported).
+  "structured_output_unsupported",
+  // A registered `PromptTransform` (automation `transform_draft` / a plugin) threw or blew its 250 ms deadline
+  // → the draft passed through UNCHANGED (automation-design/04 §6; D53 — a broken transform never eats a turn).
+  // Emitted from the registry's apply pass so a host sees a misbehaving rule/plugin without losing the reply.
+  "prompt_transform_skipped",
+  // An image generation dropped its edit/avatar-reference input because the resolved image model lacks
+  // `input.imageEdit` (imagery-design/03 §2 — the domain B3 gate drops-with-warning, or the runner belt strips
+  // a stale-capability edit). Emitted from `chat.generateImage`, mapping `GeneratedPicture.warnings` onto the
+  // one chat `warning` surface so the user sees "generated without the avatar reference (model can't edit)".
+  "image_edit_dropped",
+  // The GRANULAR ComfyUI lever drops (comfyui-control §4.6/§4.12, C6) — one curated role's family couldn't honor
+  // ONE provided edit lever, so that lever was ignored and the rest of the image still generated (a per-lever
+  // visible degrade, distinct from the wholesale `image_edit_dropped`). Each rides its OWN chat `warning` event
+  // (never collapsed) so a user who picked a pose learns THE POSE dropped, specifically — the mask on a
+  // no-inpaint family, the reference image on a no-identity arch, the pose control map on a no-ControlNet family.
+  // Emitted from `chat.generateImage`, same imagery→chat mapping as `image_edit_dropped`.
+  "image_inpaint_dropped",
+  "image_identity_dropped",
+  "image_pose_dropped",
 ] as const;
 export type ChatWarningCode = (typeof CHAT_WARNING_CODES)[number];
+
+/** The `seatAgent` refusal reason codes a client discriminates on (the copy mapper keys on these; D60, doc
+ *  04 §3). ONE home for this wire vocabulary — the codes clients branch on are contract vocabulary, same as
+ *  the `CHAT_WARNING_CODES` bus codes. The server's `CHAT_OP_CODES` derives these two literals from here (the
+ *  domain codes that ride the wire ARE the contract's — no re-spell), and the client imports the same names.
+ *  A NAMED object (not a bare tuple like the warning codes) because BOTH sides discriminate by NAME —
+ *  `CHAT_OP_CODES.ownerNotPresent` server-side, the copy mapper's `case` client-side. Sibling refusals no
+ *  client renders (`cannot_nominate_agent`, `not_agent_owner`) stay domain-private until a surface shows them. */
+export const SEAT_REFUSAL_REASONS = {
+  /** The agent's owner is not a present human member of the room — an agent may only be seated for a present member. */
+  ownerNotPresent: "owner_not_present",
+  /** The target agent principal is disabled (`users.enabled = false`) — the containment kill switch. */
+  agentDisabled: "agent_disabled",
+} as const;
+export type SeatRefusalReason = (typeof SEAT_REFUSAL_REASONS)[keyof typeof SEAT_REFUSAL_REASONS];
 
 /** The turn kinds a lifecycle bus event reports. One home (no inline re-spell across the three members). */
 export const TURN_INTENTS = ["send", "swipe", "continue", "generate", "impersonate"] as const;
@@ -573,6 +670,81 @@ export type TurnIntent = (typeof TURN_INTENTS)[number];
 /** Why a turn aborted. */
 export const TURN_ABORT_REASONS = ["user", "error", "stale"] as const;
 export type TurnAbortReason = (typeof TURN_ABORT_REASONS)[number];
+
+/** The `DomainOperationError.code` a lock-loss / cancel / fault turn abort surfaces to an AWAITING caller —
+ *  the wire-vocabulary home the client keys on off a tRPC error's `data.reason` (the seat-refusal precedent:
+ *  reason codes live ONCE in contracts, and the server's `CHAT_OP_CODES` derives this literal). A turn that
+ *  dies to a stale lock rejects the awaited verb with this code; the client suppresses its generic
+ *  "couldn't send" toast for it so the honest bus notice (`turnAbortNotice`) is the single stale surface. */
+export const TURN_ABORTED_OP_CODE = "aborted" as const;
+export type TurnAbortedOpCode = typeof TURN_ABORTED_OP_CODE;
+
+// ── Turn origin — who/what started a turn + its cascade depth (automation-design/03 §4) ──
+// TURN-PATH STATE, never a bus-event field: the D19/D50 allowlist forbids attribution on the public bus, so
+// this rides the committed reply SLOT (`messages.initiator`/`.automationDepth`) and is read back by the ONE
+// narrow `getTurnOrigin` op — the automation cascade guard's depth source. Human turns are born
+// `"human"`/depth 0 (the column defaults); a NON-HUMAN `requestTurn` (AC-B) stamps its initiator + the parent
+// depth + 1. `"automation"` = an automation rule's `trigger_turn` arm; `"plugin"` = a Tier-2 plugin membrane
+// host-fn's turn.trigger (both funded by + consent-gated on the responsible human, depth-capped). The cascade
+// guard treats every non-`"human"` initiator identically (depth is the lever, not the label). A new initiator
+// fails `tsc` at the `messages.initiator` CHECK derive until the enum learns it.
+export const TURN_INITIATORS = ["human", "automation", "plugin"] as const;
+export type TurnInitiator = (typeof TURN_INITIATORS)[number];
+
+/** The hard cascade-depth cap (automation-design/03 §4) — nothing fires at `automationDepth >= cap`, opt-in or
+ *  not, and a `requestTurn` may not stamp a reply DEEPER than it. ONE home for the magic bound: the automation
+ *  dispatch gate reads it (the READ side) and chat's `requestTurn` self-refuses `> cap` (the WRITE-side belt for
+ *  the plugin path, which has no dispatch gate above it). Homed in `contracts/chat` beside `TurnOrigin` because
+ *  it is turn-origin-depth vocabulary shared by two domains that cannot import each other (chat ↮ automation). */
+export const AUTOMATION_DEPTH_HARD_CAP = 3;
+
+/** A turn's origin classification — the metadata automation rules gate on (the cascade guard's depth counter
+ *  + the initiator). Read back through `getTurnOrigin`; stamped on the reply slot at commit. */
+export interface TurnOrigin {
+  readonly initiator: TurnInitiator;
+  /** 0 for a human turn; parentDepth + 1 for an automation-triggered turn (hard cap 3 — 03 §4). */
+  readonly automationDepth: number;
+}
+
+/** How `getTurnOrigin` addresses a turn — by the committed reply SLOT it produced (a `messageCommitted`/
+ *  `turnCompleted` fact resolves depth through this). An object (not a bare id) so a future turn-id ref is
+ *  additive. */
+export interface TurnRef {
+  readonly messageId: MessageId;
+}
+
+// ── The D50 PromptTransform seam (automation-design/04 §6) ──
+// The ONE synchronous hook onto the turn pipeline: an ordered, bounded transform over a turn's draft text,
+// applied at exactly TWO fixed points (never anywhere else). Automation's `transform_draft` arm and the
+// plugin host are its only two REGISTRARS; chat owns the pipeline points + the deadline/skip discipline.
+// D50's ruling: ST's mutable-prompt interceptor cluster is NEVER a bus effect — by the time a bus subscriber
+// runs, the prompt has shipped; a synchronous transform is this ordered step instead.
+export const PROMPT_TRANSFORM_POINTS = [
+  // SEND, after the macro pass, before USER_INPUT regex (the author-side transform order — D51).
+  "user_input",
+  // End of BUILD, over the DYNAMIC half only — the static (cache-stable) half is untransformable (03 §1.2's
+  // per-turn-cache-bill argument); a rule wanting static content uses `insert_world_info_entry` instead.
+  "assembled_dynamic",
+] as const;
+export type PromptTransformPoint = (typeof PROMPT_TRANSFORM_POINTS)[number];
+
+/** The read-only env a transform sees. `vars` is a snapshot of the chat's runtime fold cache — mutation goes
+ *  through actions (`set_variable`), NEVER a transform (a transform only rewrites the draft it's handed). */
+export interface PromptTransformEnv {
+  readonly chatId: ChatId;
+  readonly vars: Record<string, string>;
+}
+
+/** An ordered, bounded, synchronous-per-call transform over a turn's draft text. Registered at
+ *  `entry/compose` into the pipeline's transform list; applied in ascending `order` (automation registers
+ *  0–999, plugins 1000+ — host policy wraps guest). Each `apply` is deadline-bounded by the CALLER (250 ms);
+ *  a timeout or throw SKIPS it (draft unchanged) + emits a `prompt_transform_skipped` warning (D53). */
+export interface PromptTransform {
+  readonly id: string;
+  readonly point: PromptTransformPoint;
+  readonly order: number;
+  readonly apply: (draft: string, env: PromptTransformEnv) => Promise<string>;
+}
 
 /** The chat bus union — the room-public event stream (`streamMessages` fans these out; the durable log
  *  replays them). It EMBEDS `WiBusEvent` (`#world-info`) so the WI domain emits without importing chat.
@@ -612,7 +784,13 @@ export type ChatBusEvent =
       targetMessageId: MessageId | null;
     }
   | { type: "turnCompleted"; chatId: ChatId; intent: TurnIntent; messageId: MessageId | null }
-  | { type: "turnAborted"; chatId: ChatId; intent: TurnIntent; reason: TurnAbortReason }
+  // An aborted turn commits NO reply slot, so its cascade depth (automation-design/03 §4) cannot be read back
+  // through `getTurnOrigin` (there is no message to read). It therefore rides HERE as a plain scalar so the
+  // automation fact-resolver can gate the cascade: an aborted automation turn (depth ≥ 1) must NOT re-trigger
+  // non-opted `turnAborted` rules — a "retry on failure" rule at depth 0 self-loops otherwise. This is turn-
+  // path DEPTH, not attribution: no caller id, no secret (the allowlist bans those, not a counter). 0 = a
+  // human-plane turn (the `TurnPrep.automationDepth` default).
+  | { type: "turnAborted"; chatId: ChatId; intent: TurnIntent; reason: TurnAbortReason; automationDepth: number }
   // ── Turn warning (domain-originated; e.g. image parts dropped for a non-vision model, D45) ──
   | { type: "warning"; chatId: ChatId; code: ChatWarningCode }
   // ── World-info ACTIVATION (which entries FIRED during this turn's assembly — distinct from the
@@ -633,8 +811,8 @@ export type ChatBusEvent =
   //    logged to chat_events (the chatOpened precedent, D50): there is deliberately NO canon row holding
   //    the classify result, so `label` rides as payload (a justified deviation from id-only re-read).
   //    messageId/variantId are the swipe-correctness key — the client drops an event whose variantId
-  //    mismatches the displayed variant. DECLARED here (union↔CHECK mirror) but NOT YET EMITTED — the
-  //    emit site lands with expressions E3 (bus-coverage DEFERRED entry, the chatOpened precedent). ──
+  //    mismatches the displayed variant. Emitted by expressions E3's classify-on-turn-completed verb
+  //    (`domain/expressions/verbs/on-turn-completed.ts`); the `bus-coverage` DEFERRED map is empty. ──
   | {
       type: "expression";
       chatId: ChatId;
@@ -849,6 +1027,35 @@ export const DEFAULT_GROUP_CONFIG: GroupConfig = {
 export const openingPolicySchema = z.enum(["greet-all", "generate", "none", "first-message"]);
 export type OpeningPolicy = z.infer<typeof openingPolicySchema>;
 
+/** The parsed `chats.metadata` room-behavior blob (D16). No single schema spans it — the column composes
+ *  independently fault-isolated sub-blobs, each optional (absent ⇒ the consumer applies its canonical
+ *  default; the off-path is byte-identical). ONE HOME here in `contracts` so the `db` `$type` and the
+ *  server parser (`domain/chat/contract/metadata.ts` — the runtime lenient-parse machinery) share the shape
+ *  instead of re-spelling it. */
+export interface ChatMetadata {
+  group?: GroupConfig;
+  roomOverrides?: RoomOverrides;
+  opening?: OpeningPolicy;
+  providerRouting?: OpenRouterProviderRouting;
+  /** A chat-level knob (in a multi-human room the loop spends the host's money, so the funder tunes it). */
+  toolRecurseLimit?: number;
+  /** The host's per-document databank retrieval-visibility override (D85 — the membership-widened chat scope's
+   *  governance knob). Absent ⇒ nothing hidden. Written by the host-gated `chat.setChatDocumentVisibility`
+   *  verb; READ by `databank/persistence/scope.ts` (the union filter). Schema is databank's (documentId vocab)
+   *  — the providerRouting precedent. */
+  databankVisibility?: ChatDocumentVisibility;
+  /** BG-C — the host-set per-chat carried BACKGROUND source. Absent ⇒ no chat background (the card-carried
+   *  twin, then the viewer's own appearance, wins). Written ONLY by the host-gated `chat.setChatBackground`
+   *  verb; READ client-side (getChat carries it), applied at the app-root background layer in a TRUE-SOLO room.
+   *  Schema is theme's (`ThemeBackground`) — the providerRouting/databankVisibility precedent. */
+  background?: ThemeBackground;
+  /** GAP #4 — the opaque pointer to this chat's rpg game (`{gameId}`), the SYNC `hasRpgGame` signal the chat
+   *  client reads off {@link ChatDetail}. Written ONLY by rpg's `createGame` through an injected chat op; chat
+   *  holds it opaquely (never dereferences it). Schema is rpg's ({@link ChatRpgPointer}) — the databankVisibility
+   *  / background foreign-schema precedent. Absent ⇒ not a game. */
+  rpg?: ChatRpgPointer;
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 // THE UNIFIED-ROSTER WIRE (D16) — the participant roster, the membership-gated member card (D22), invites,
 // and the group-macro context. The LIFECYCLE logic is `domain/chat`; these are just the wire shapes.
@@ -871,6 +1078,58 @@ export const TALKATIVENESS_DEFAULT = 0.5;
 /** The 0–1 talkativeness weight schema (default {@link TALKATIVENESS_DEFAULT}). */
 export const talkativenessSchema = z.number().min(TALKATIVENESS_MIN).max(TALKATIVENESS_MAX).catch(TALKATIVENESS_DEFAULT).default(TALKATIVENESS_DEFAULT);
 
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+// THE ONE ROSTER-MEMBER VOCABULARY (D80 — the participant five-plane model). Homed HERE (chat owns the
+// runtime seats + already exports PARTICIPANT_KINDS / SpeakerRef / GroupConfig; roster-preset imports from
+// chat, identity stays the DAG root). Defined below talkativenessSchema so the value reference resolves.
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+/** The knobs every AI seat carries — ONE home (D80). Presets, founding casts, and the participantId-keyed
+ *  `setSeatKnobs` verb project this shape; the per-kind knob-verb forking is retired (it guaranteed skipped
+ *  arms — the mute + talkativeness gaps proved the class). `talkativeness` absent = inherit the chat default
+ *  ({@link TALKATIVENESS_DEFAULT}); the RANGE clamp is the raw `talkativenessSchema` (0–1). */
+export const seatKnobsSchema = z.object({
+  talkativeness: z.number().min(TALKATIVENESS_MIN).max(TALKATIVENESS_MAX).optional(),
+  disabled: z.boolean().optional(),
+});
+export type SeatKnobs = z.infer<typeof seatKnobsSchema>;
+
+/** The `character` arm of {@link rosterMemberSpecSchema} — extracted so a surface that persists characters
+ *  ONLY (roster presets v1, RP-D1) narrows to it without re-spelling the shape (derive, one home). A card
+ *  seat: a `characterId` + `position` + the AI-seat knobs. */
+export const characterMemberSpecSchema = z.object({
+  kind: z.literal("character"),
+  characterId: typeIdSchema(ID_PREFIX.character),
+  position: z.number().int().nonnegative(),
+  ...seatKnobsSchema.shape,
+});
+export type CharacterMemberSpec = z.infer<typeof characterMemberSpecSchema>;
+
+/** The `agent` arm of {@link rosterMemberSpecSchema} — a MINT KEY (`ownerUserId × sourceKind`, NEVER a
+ *  userId: a template must be able to name a not-yet-provisioned buddy — the principal may not exist yet),
+ *  never a resolved principal id. No consumer PERSISTS it yet (roster presets are characters-only in v1,
+ *  RP-D1), but the vocabulary carries it FROM BIRTH so every widening (RP-D1-wide preset persistence, AP-C1's
+ *  seat flow) is a projection of the one home, never a re-mint. Agents carry no talkativeness at seat time
+ *  (the seat's default applies; the host tunes via `setSeatKnobs` post-seat) — only the `disabled` knob. */
+export const agentMemberSpecSchema = z.object({
+  kind: z.literal("agent"),
+  ownerUserId: brandedId<UserId>(),
+  sourceKind: agentSourceKindSchema,
+  position: z.number().int().nonnegative(),
+  disabled: z.boolean().optional(),
+});
+export type AgentMemberSpec = z.infer<typeof agentMemberSpecSchema>;
+
+/** A seat the caller WANTS to exist — the ONE template/creation-time member vocabulary (D16/D61/D60; D80).
+ *  Every membership-template lifetime (roster presets, founding casts, saved-rosters v2) PROJECTS through
+ *  this shape; nothing mints a flat characterId array beside it. Kind-discriminated like {@link SpeakerRef}.
+ *  `human` is UNREPRESENTABLE by design (invites are the only human join path — a template cannot carry an
+ *  invite's runtime preconditions; D80); `observer` is reserved/un-seatable. The `character` and `agent`
+ *  arms are both live from birth — a surface that only persists one arm NARROWS the vocabulary (RP-D1),
+ *  never a private re-spell. */
+export const rosterMemberSpecSchema = z.discriminatedUnion("kind", [characterMemberSpecSchema, agentMemberSpecSchema]);
+export type RosterMemberSpec = z.infer<typeof rosterMemberSpecSchema>;
+
 /** The RESOLVED per-participant content-render policy (D44 §12.0/§12.3) — `override ?? global`. The chat
  *  domain resolves each character's tri-state overrides against the deployment effective config at
  *  roster-build time (the ONE resolution home — never re-resolved client-side); the client READS these to
@@ -885,9 +1144,11 @@ export interface RenderPolicy {
   readonly forbidExternalMedia: boolean;
 }
 
-/** The roster read-model (one `chat_participants` row, resolved for display). `kind` is the XOR
- *  discriminator (`userId` set for `human`, `characterId` for `character`); `talkativeness`/`disabled` feed
- *  arbitration + `{{groupNotMuted}}`; `leftSeq` null = present (the "present-and-contributing" predicate). */
+/** The roster read-model (one `chat_participants` row, resolved for display). `kind` (∈ PARTICIPANT_KINDS)
+ *  drives the identity + column shape per the 4-way `chat_participants_kind_shape` CHECK: `human`/`agent` carry
+ *  `userId`, `character` carries `characterId`, `observer` neither (the old 2-way XOR was replaced at AP0).
+ *  `talkativeness`/`disabled` feed arbitration; `disabled` also drops a CHARACTER from `{{groupNotMuted}}`
+ *  (agents are never in the group macros); `leftSeq` null = present (the "present-and-contributing" predicate). */
 export interface ParticipantView {
   id: ChatParticipantId;
   chatId: ChatId;
@@ -902,9 +1163,11 @@ export interface ParticipantView {
   joinSeq: number;
   leftSeq: number | null;
   joinHistoryVisibility: JoinHistoryVisibility;
-  /** Resolved display name (persona/handle for a human, character name for an agent). */
+  /** Resolved display name — one rule, no raw id ever (R10): a human's publics displayName (else handle, else
+   *  a removed-member label); a character's card name (else a removed-character label); an agent's resolved soul
+   *  name (else its `sourceKind` label for an unhatched buddy). */
   displayName: string;
-  /** A human's public handle (null for an agent). */
+  /** A human's public handle (null for an agent/character). */
   handle: Handle | null;
   /** The avatar asset (the floor — always member-visible via the D21 blob route's roster exception). */
   avatarAssetId: AssetId | null;
@@ -924,6 +1187,39 @@ export interface ParticipantView {
    *  scope — `clampThemeTokens` only emits present fields, so the CSS custom-property cascade does the
    *  merge for free); the client nests a per-speaker ThemeScope inside the root scope. */
   themeOverride?: ThemeOverride | null;
+  /** BG-C — the RAW per-character carried BACKGROUND source (`character.backgroundOverride`, the
+   *  `themeOverride` twin), threaded unmerged. `null` = no card background for a character seat, always
+   *  `null` for a human/agent seat. In a TRUE-SOLO room (see {@link soleTrueSoloCharacter}) the sole
+   *  character's carried background takes over the app-root background layer, BELOW the chat-set override;
+   *  any other composition leaves it INERT (the viewer's own appearance wins). Resolution lives client-side
+   *  in the app-shell background resolver. */
+  backgroundOverride?: ThemeBackground | null;
+}
+
+/** BG-C true-solo composition — the ONE derivation of "exactly one human and exactly one character, no
+ *  other seat", count-derived (never an `isGroup` branch). Returns the sole character's {@link ParticipantView}
+ *  when the room is true-solo, else `undefined`. The shared home so the per-speaker THEME takeover
+ *  (`resolveRoomTheme`, client attribution) and the per-chat BACKGROUND takeover (the app-shell background
+ *  resolver) can never drift to two spellings of the same rule. */
+const SOLO_COUNT = 1;
+const TRUE_SOLO_SEATS = 2;
+export function soleTrueSoloCharacter(participants: readonly ParticipantView[] | undefined): ParticipantView | undefined {
+  if (participants === undefined) {
+    return;
+  }
+  let humanCount = 0;
+  let characterCount = 0;
+  let soleCharacter: ParticipantView | undefined;
+  for (const participant of participants) {
+    if (participant.kind === "human") {
+      humanCount += 1;
+    } else if (participant.kind === "character") {
+      characterCount += 1;
+      soleCharacter = participant;
+    }
+  }
+  const trueSolo = humanCount === SOLO_COUNT && characterCount === SOLO_COUNT && participants.length === TRUE_SOLO_SEATS;
+  return trueSolo ? soleCharacter : undefined;
 }
 
 /** The membership-gated, level-clamped PUBLIC card projection (D22 — Part III §11). Fields above the
@@ -1040,24 +1336,6 @@ export interface InviteView {
   /** The targeted user when created by handle; null for an open share-link. */
   invitedUserId: UserId | null;
   createdAt: number;
-}
-
-// ── Group macros context (Part III §8 — data-fed, volatile) ──
-/** The resolved roster + presence fed to the `{{group}}` family of macros (volatile — they must NOT sit in
- *  the cached static half). `castName` is the narrator turn-level `{{char}}` = the joined PRESENT cast,
- *  collapsing to the single name when the cast is 1 (so narrator-of-one == solo). `humans` backs the
- *  separate `{{party}}`/`{{humans}}` surface — humans are NOT in `{{group}}`/`{{notChar}}`. */
-export interface GroupMacroContext {
-  /** `{{group}}` — the FULL cast (a muted member still contributes; it just isn't a named active speaker). */
-  group: string[];
-  /** `{{groupNotMuted}}` — the present + active cast (drives arbitration the same way). */
-  groupNotMuted: string[];
-  /** `{{party}}`/`{{humans}}` — the present human cast. */
-  humans: string[];
-  /** The current speaker's name, to derive `{{notChar}}` (cast minus current speaker). Null off-turn. */
-  currentSpeaker: string | null;
-  /** `{{char}}`-as-cast — the comma-joined present cast (collapses to the single name when cast = 1). */
-  castName: string;
 }
 
 // ── Message content blocks (D44 §12.4) ────────────────────────────────────────────────────────────
