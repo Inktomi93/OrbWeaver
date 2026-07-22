@@ -1,7 +1,7 @@
 // schema/stats — the four per-owner usage-economics rollups (producer: domain/stats). ECONOMICS ONLY
 // (turn counts · words · tokens · cost · cache · timing) — ZERO vector columns (the
 // `stats-no-vector-tables` dep-cruiser rule; the type-enforced economics↔semantics line,
-// knowledge-cluster §7 invariant #7: discovery is semantics, stats is economics, they share no tables).
+// core/Knowledge-Cluster.md §7 invariant #7: discovery is semantics, stats is economics, they share no tables).
 //
 // OWNERSHIP STAMP (ledger D23 — the one-FK-to-an-owned-parent test):
 //   • owner_stats / daily_stats / model_stats KEEP `ownerId` — they are PARENTLESS per-user aggregates

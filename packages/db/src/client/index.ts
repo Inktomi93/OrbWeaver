@@ -6,8 +6,8 @@
 // sanctioned here for the NON-OPTIONAL pre-migration backup (Tier-1-DB.md "backupBeforeMigrate").
 
 import { createHash } from "node:crypto";
-import { copyFileSync, existsSync, readFileSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, statSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Client } from "@libsql/client";
 import { createClient } from "@libsql/client";
@@ -65,16 +65,24 @@ function clientOf(db: Db): Client {
   return (db as unknown as WithClient).$client;
 }
 
-// The on-disk path for a `file:` URL (for the backup), or undefined for `:memory:` / non-file URLs.
-function localPath(url: string): string | undefined {
+// The on-disk path for a `file:` URL (for the backup + the boot-time parent-dir auto-create), or
+// undefined for `:memory:` / non-file URLs. Exported: this is the ONE `file:`-URL→path parser — any
+// other site resolving a DATABASE_URL to a filesystem path (e.g. dev tooling's `--fresh` wipe) must
+// call THIS, never re-derive it (the `fileURLToPath`-on-a-relative-URL mistake this fixed, 2026-07-17).
+export function localPath(url: string): string | undefined {
   if (!url.startsWith(FILE_SCHEME)) {
     return;
   }
-  try {
-    return fileURLToPath(url); // file:// and file:/abs
-  } catch {
-    return url.slice(FILE_SCHEME.length); // file:relative.db
+  // fileURLToPath ONLY for the authority form (`file://…`). The bare forms libSQL accepts must be
+  // scheme-stripped instead: for `file:./data/x.db` fileURLToPath does NOT throw — URL normalization
+  // resolves the dot-segment against ROOT and silently absolutizes to `/data/x.db`, so the parent-dir
+  // auto-create ran `mkdir /data` → EACCES on every fresh full boot with the default url, and the
+  // backup path pointed at a file that doesn't exist (2026-07-17; the old try/catch fallback never
+  // fired for `./`-prefixed urls). `file:/abs.db` scheme-strips to the same path fileURLToPath gives.
+  if (!url.startsWith(`${FILE_SCHEME}//`)) {
+    return url.slice(FILE_SCHEME.length); // file:relative.db · file:./relative.db · file:/abs.db
   }
+  return fileURLToPath(url); // file://host-form
 }
 
 /**
@@ -87,6 +95,13 @@ function localPath(url: string): string | undefined {
  * client (OTel) before drizzle binds it.
  */
 export async function createDb(url: string, wrap?: LibSqlWrap): Promise<Db> {
+  // Auto-create the parent dir for a `file:` db (the default lives under `data/`, beside ASSETS_DIR).
+  // libSQL creates the db file lazily but NOT its parent directory, so a first boot on a fresh checkout
+  // would otherwise fail to open `file:./data/orbweaver.db`. No-op for `:memory:` / non-file URLs.
+  const path = localPath(url);
+  if (path !== undefined) {
+    mkdirSync(dirname(path), { recursive: true });
+  }
   const base = createClient({ url });
   const client = wrap === undefined ? base : wrap(base);
   await client.execute("PRAGMA foreign_keys = ON");

@@ -14,24 +14,10 @@ export const userRoleSchema = z.enum(USER_ROLES);
 
 // Principal-KIND axis — `human | agent`, orthogonal to `role` (an agent is always `role='user'`, a DDL
 // CHECK). A tuple, never an `isAgent` boolean, so it can grow a third flavor without `if`-branching.
-// FLAG[PD-17]: AP1 landed (mint + `canAgent`/`AGENT_ACTIONS`/`AgentActor`); AP2/AP3 deferred.
-export const USER_KINDS = ["human", "agent"] as const;
+// FLAG[PD-17]: AP0-AP4a all landed (D99) — the seat wave is CLOSED.
+export const USER_KINDS = ["human"] as const;
 export type UserKind = (typeof USER_KINDS)[number];
 export const userKindSchema = z.enum(USER_KINDS);
-
-// The `agent_principals.sourceKind` dispatch axis. `buddy` only in v1; a future standalone-agent flavor
-// is a tuple member + a speaker-registry arm. FLAG[PD-17]: the speaker-source registry is AP3.
-export const AGENT_SOURCE_KINDS = ["buddy"] as const;
-export type AgentSourceKind = (typeof AGENT_SOURCE_KINDS)[number];
-export const agentSourceKindSchema = z.enum(AGENT_SOURCE_KINDS);
-
-/** The reserved handle namespace for agent principals: `__agent__${sourceKind}__${ownerUserId}` — a
- *  forward-header identity in this namespace must never JIT-create or match an agent row. */
-export const RESERVED_AGENT_HANDLE_PREFIX = "__agent__";
-/** True when a handle falls in the reserved agent namespace — the auth belts refuse these loudly. */
-export function isReservedAgentHandle(handle: string): boolean {
-  return handle.startsWith(RESERVED_AGENT_HANDLE_PREFIX);
-}
 
 /** The custom CSRF request header. Cross-boundary wire fact: the client sends it every request and the
  *  server gate keys on it. `SameSite=Lax` + this header is the whole CSRF story. */
@@ -104,26 +90,3 @@ export interface Can {
   (principal: Principal, action: GlobalAction, resource: GlobalResource): void;
   (principal: Principal, action: ChatAction, resource: ChatResource): void;
 }
-
-// The agent-principal ceiling: an agent is NEVER a `Principal` (no request path yields one). The ONE
-// runtime gate is `canAgent` over the closed `AGENT_ACTIONS` union — an unlisted action is unspellable.
-
-/** The closed allow-union that IS the agent capability ceiling. `speak` = may author a turn it is seated
- *  in; `tool-propose` = may stash a proposal (never execute). */
-export const AGENT_ACTIONS = ["speak", "tool-propose"] as const;
-export type AgentAction = (typeof AGENT_ACTIONS)[number];
-
-/** The actor type for the ONE agent runtime gate (`canAgent`) — not a `Principal`, nothing interconverts
- *  them. `enabled` is the kill switch: a disabled agent fails every `canAgent`. */
-export interface AgentActor {
-  readonly kind: "agent";
-  readonly userId: UserId;
-  readonly ownerUserId: UserId;
-  readonly enabled: boolean;
-}
-
-/** The `canAgent` seam type — the ONE agent capability gate (`domain/admin/guard.ts`), injected into chat's
- *  engine the way {@link Can} is (chat never imports admin). Throws `DomainForbiddenError` on deny (the kill
- *  switch or an out-of-ceiling action), void on allow. The `room` is the seat the roster load established
- *  (present-membership is upstream); the closed {@link AgentAction} union IS the ceiling. */
-export type CanAgent = (actor: AgentActor, action: AgentAction, room: ChatRoster) => void;

@@ -35,11 +35,10 @@ import type { PersonaDescriptionPlacement } from "@orb/kit/persona";
 import { z } from "zod";
 import type { ChatApi, CredentialSource, OpenRouterProviderRouting } from "#connection";
 import type { ChatDocumentVisibility } from "#databank";
-import type { AgentSourceKind, ParticipantRole } from "#identity";
-import { agentSourceKindSchema, PARTICIPANT_ROLES } from "#identity";
+import type { ParticipantRole } from "#identity";
+import { PARTICIPANT_ROLES } from "#identity";
 import type { GenerationType, PromptConfig, UserIntent } from "#preset";
 import type { RegexScript } from "#regex";
-import type { ChatRpgPointer } from "#rpg";
 import type { ThemeBackground, ThemeOverride } from "#theme";
 import type { WiBusEvent, WorldInfoScope } from "#world-info";
 
@@ -47,35 +46,27 @@ import type { WiBusEvent, WorldInfoScope } from "#world-info";
 // (D60). `observer` is the reserved seam (Narrative Director — watches + proposes, never acts, unseatable).
 // PD-17: the `agent` seat is FILLED by `chat.seatAgent` (host-gated; AP3-1 verb, wired to the tRPC chat
 // router at P6) + requested owner≠host via `invites.requestAgentSeat`. `observer` stays reserved (unfillable).
-export const PARTICIPANT_KINDS = ["human", "character", "agent", "observer"] as const;
+export const PARTICIPANT_KINDS = ["human", "character"] as const;
 export type ParticipantKind = (typeof PARTICIPANT_KINDS)[number];
 export const participantKindSchema = z.enum(PARTICIPANT_KINDS);
 
 // `kind` carries TWO facts: the identity table (userId vs characterId) AND who DRIVES the seat.
 // `AI_DRIVEN_KINDS` splits out the DRIVE axis (the seats arbitration schedules/voices) — an agent is
 // AI-driven AND userId-backed. `USER_BACKED_KINDS` is the human/agent shared column shape (both FK `users`).
-export const AI_DRIVEN_KINDS = ["character", "agent"] as const satisfies readonly ParticipantKind[];
-export const USER_BACKED_KINDS = ["human", "agent"] as const satisfies readonly ParticipantKind[];
+export const AI_DRIVEN_KINDS = ["character"] as const satisfies readonly ParticipantKind[];
+export const USER_BACKED_KINDS = ["human"] as const satisfies readonly ParticipantKind[];
 export const isAiDriven = (k: ParticipantKind): boolean => (AI_DRIVEN_KINDS as readonly ParticipantKind[]).includes(k);
 export const isUserBacked = (k: ParticipantKind): boolean => (USER_BACKED_KINDS as readonly ParticipantKind[]).includes(k);
 
-/** The identity of ONE AI-driven speaker (D60). A `character` FKs `characters.id`; an `agent` FKs its
- *  `users` row (self-attributed). NOT a Set/Map key directly — use {@link speakerKey}. */
-export type SpeakerRef = { readonly kind: "character"; readonly characterId: CharacterId } | { readonly kind: "agent"; readonly userId: UserId };
-
-/** The stable string key for a {@link SpeakerRef}. Kind-prefixed so a characterId and a userId can't collide. */
-export function speakerKey(ref: SpeakerRef): string {
-  return ref.kind === "character" ? `c:${ref.characterId}` : `a:${ref.userId}`;
+/** The identity of ONE AI-driven speaker (D60). A `character` FKs `characters.id` */
+export interface SpeakerRef {
+  readonly kind: "character";
+  readonly characterId: CharacterId;
 }
 
-/** The RESOLVE-phase product for an AGENT speaker (D60) — "the card-shape minus the card." Chat voices an
- *  agent by mapping this onto an `AssembleCharacter` at RESOLVE, so the agent rides the one turn path. */
-export interface AgentSpeakerIdentity {
-  readonly displayName: string;
-  /** `buildBuddySystemPrompt` output — replaces the character-card system section. */
-  readonly systemPrompt: string;
-  /** v1: null (sprites are client-side). */
-  readonly avatarAssetId: AssetId | null;
+/** The stable string key for a {@link SpeakerRef}. */
+export function speakerKey(ref: SpeakerRef): string {
+  return `c:${ref.characterId}`;
 }
 
 // The tuple is `@orb/kit/message-role`; the WIRE schema lives HERE (§5 tuple-in-kit rule). Every role
@@ -152,12 +143,6 @@ export interface ChatInjection {
   content: string;
   /** Priority WITHIN a depth (ST `injection_order`); co-located `in_chat` injections splice DESC. */
   order?: number;
-  /** WHO among HUMANS may see this injection in a prompt-inspection projection (chat-crew-design/04 §2). The
-   *  MODEL always sees every injection — this gates the redaction of chat's snapshot-serving projections
-   *  (`previewAssembly`/`peekPrompt`/the variant `promptSnapshot` read path), which elide `"host"` content for a
-   *  non-host caller. Absent ⇒ `"all"` (the default; no redaction). Generic on purpose — the director's
-   *  host-ring `guidance` is the first user, but rpg's reminder or any future feature can gate the same way. */
-  audience?: "all" | "host";
 }
 
 /** The four injection positions as a tuple — the ONE runtime home for the `ChatInjection["position"]`
@@ -303,10 +288,6 @@ export interface AssembleContext {
    *  databank GATHER op (DB6). ABSENT (never `""`) ⇒ the slot resolves empty, byte-identical to a
    *  non-databank turn. */
   databank?: string | null;
-  /** The 8 rpg* data-fed macros (the `{{rpgWorld}}`/`{{rpgSceneState}}`/… markers), keyed by the
-   *  RpgGatherMacros field names — a game turn's GATHER stages this map. ABSENT ⇒ every rpg macro resolves
-   *  empty, byte-identical to a non-game turn (rpg-design/06 §1). */
-  rpgMacros?: Readonly<Record<string, string>> | undefined;
   /** Per-chat ChoiceBlock variable values (the `getvar` map) — threaded BY REFERENCE so a within-turn
    *  `setvar` mutates it in place. */
   variableValues?: Record<string, string> | undefined;
@@ -647,21 +628,6 @@ export const CHAT_WARNING_CODES = [
   "image_pose_dropped",
 ] as const;
 export type ChatWarningCode = (typeof CHAT_WARNING_CODES)[number];
-
-/** The `seatAgent` refusal reason codes a client discriminates on (the copy mapper keys on these; D60, doc
- *  04 §3). ONE home for this wire vocabulary — the codes clients branch on are contract vocabulary, same as
- *  the `CHAT_WARNING_CODES` bus codes. The server's `CHAT_OP_CODES` derives these two literals from here (the
- *  domain codes that ride the wire ARE the contract's — no re-spell), and the client imports the same names.
- *  A NAMED object (not a bare tuple like the warning codes) because BOTH sides discriminate by NAME —
- *  `CHAT_OP_CODES.ownerNotPresent` server-side, the copy mapper's `case` client-side. Sibling refusals no
- *  client renders (`cannot_nominate_agent`, `not_agent_owner`) stay domain-private until a surface shows them. */
-export const SEAT_REFUSAL_REASONS = {
-  /** The agent's owner is not a present human member of the room — an agent may only be seated for a present member. */
-  ownerNotPresent: "owner_not_present",
-  /** The target agent principal is disabled (`users.enabled = false`) — the containment kill switch. */
-  agentDisabled: "agent_disabled",
-} as const;
-export type SeatRefusalReason = (typeof SEAT_REFUSAL_REASONS)[keyof typeof SEAT_REFUSAL_REASONS];
 
 /** The turn kinds a lifecycle bus event reports. One home (no inline re-spell across the three members). */
 export const TURN_INTENTS = ["send", "swipe", "continue", "generate", "impersonate"] as const;
@@ -1049,11 +1015,6 @@ export interface ChatMetadata {
    *  verb; READ client-side (getChat carries it), applied at the app-root background layer in a TRUE-SOLO room.
    *  Schema is theme's (`ThemeBackground`) — the providerRouting/databankVisibility precedent. */
   background?: ThemeBackground;
-  /** GAP #4 — the opaque pointer to this chat's rpg game (`{gameId}`), the SYNC `hasRpgGame` signal the chat
-   *  client reads off {@link ChatDetail}. Written ONLY by rpg's `createGame` through an injected chat op; chat
-   *  holds it opaquely (never dereferences it). Schema is rpg's ({@link ChatRpgPointer}) — the databankVisibility
-   *  / background foreign-schema precedent. Absent ⇒ not a game. */
-  rpg?: ChatRpgPointer;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -1105,21 +1066,6 @@ export const characterMemberSpecSchema = z.object({
 });
 export type CharacterMemberSpec = z.infer<typeof characterMemberSpecSchema>;
 
-/** The `agent` arm of {@link rosterMemberSpecSchema} — a MINT KEY (`ownerUserId × sourceKind`, NEVER a
- *  userId: a template must be able to name a not-yet-provisioned buddy — the principal may not exist yet),
- *  never a resolved principal id. No consumer PERSISTS it yet (roster presets are characters-only in v1,
- *  RP-D1), but the vocabulary carries it FROM BIRTH so every widening (RP-D1-wide preset persistence, AP-C1's
- *  seat flow) is a projection of the one home, never a re-mint. Agents carry no talkativeness at seat time
- *  (the seat's default applies; the host tunes via `setSeatKnobs` post-seat) — only the `disabled` knob. */
-export const agentMemberSpecSchema = z.object({
-  kind: z.literal("agent"),
-  ownerUserId: brandedId<UserId>(),
-  sourceKind: agentSourceKindSchema,
-  position: z.number().int().nonnegative(),
-  disabled: z.boolean().optional(),
-});
-export type AgentMemberSpec = z.infer<typeof agentMemberSpecSchema>;
-
 /** A seat the caller WANTS to exist — the ONE template/creation-time member vocabulary (D16/D61/D60; D80).
  *  Every membership-template lifetime (roster presets, founding casts, saved-rosters v2) PROJECTS through
  *  this shape; nothing mints a flat characterId array beside it. Kind-discriminated like {@link SpeakerRef}.
@@ -1127,7 +1073,7 @@ export type AgentMemberSpec = z.infer<typeof agentMemberSpecSchema>;
  *  invite's runtime preconditions; D80); `observer` is reserved/un-seatable. The `character` and `agent`
  *  arms are both live from birth — a surface that only persists one arm NARROWS the vocabulary (RP-D1),
  *  never a private re-spell. */
-export const rosterMemberSpecSchema = z.discriminatedUnion("kind", [characterMemberSpecSchema, agentMemberSpecSchema]);
+export const rosterMemberSpecSchema = z.discriminatedUnion("kind", [characterMemberSpecSchema]);
 export type RosterMemberSpec = z.infer<typeof rosterMemberSpecSchema>;
 
 /** The RESOLVED per-participant content-render policy (D44 §12.0/§12.3) — `override ?? global`. The chat
@@ -1253,20 +1199,6 @@ export interface MemberCardView {
   systemPrompt: string | null;
   postHistoryInstructions: string | null;
   authorsNoteDepth: number | null;
-}
-
-/** The D22 "who is this?" projection for an AGENT seat (D60; agent-principal-design/06 §5). An agent has no
- *  `characters` card to clamp — its steering internals ARE its soul (owner-private by the same logic that
- *  keeps a low-level card's internals private), so this is a FIXED minimal projection, NOT the level-clamped
- *  {@link MemberCardView} ladder: the room-shareable floor only. `displayName` comes from the doc-04 speaker
- *  source; `sourceKind`/`ownerHandle` from the `agent_principals` satellite + the owner link. Server-produced
- *  read model (the roster chip's popover, D44 client wave); no soul prompt, no avatar (v1 — sprites are
- *  client-local). */
-export interface AgentCardView {
-  readonly displayName: string;
-  readonly sourceKind: AgentSourceKind;
-  /** The owning human's public handle (`users.ownerUserId → users.handle`). */
-  readonly ownerHandle: Handle;
 }
 
 // ── Invites & the membership chokepoint (Part III §2; D16) ──

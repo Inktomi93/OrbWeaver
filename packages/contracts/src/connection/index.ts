@@ -290,7 +290,7 @@ export interface ResolvedConnection {
 
 /** The inference roles `connection.resolveRole` resolves a connection for. `resolveRole`'s dispatch is
  *  a mapped Record so a new role missing its resolver is a tsc error. */
-export const ROUTING_ROLE_KEYS = ["chat", "agent", "embed", "rerank", "imageEmbed", "summarize", "generateImage"] as const;
+export const ROUTING_ROLE_KEYS = ["chat", "embed", "rerank", "imageEmbed", "summarize", "generateImage"] as const;
 export type RoutingRoleKey = (typeof ROUTING_ROLE_KEYS)[number];
 export const routingRoleKeySchema = z.enum(ROUTING_ROLE_KEYS);
 
@@ -313,109 +313,3 @@ export const DEFAULT_CHAT_MODEL_ID: ChatModelId = castId<ChatModelId>("claude-op
 /** The OpenRouter default chat model — OpenRouter's auto-router; `pickOrModel` heals a null/rejected
  *  OR model id to this. */
 export const DEFAULT_OR_CHAT_MODEL_ID: ModelId = castId<ModelId>("openrouter/auto");
-
-// ── The ComfyUI live-probe tri-state (MA-8/D96) ──────────────────────────────────────────────────────
-// The client DISCRIMINATES on `state` (D83 — named contract vocabulary, never message-text matching): a
-// reachable engine WITH checkpoints (`ok-with-models`), a reachable engine with ZERO checkpoints installed
-// (`ok-but-empty` — a REAL first-class product state, not an error), or an unreachable/unconfigured engine
-// (`engine-off`). The `probeImageEngine` verb does one `GET {baseUrl}/object_info` and maps the node-catalog
-// shape onto this union; the enum VALUES (samplers/schedulers/checkpoints/vaes) come from the live catalog,
-// never a static table. `checkpoints` is the union of `CheckpointLoaderSimple.ckpt_name` + `UNETLoader.unet_name`.
-
-/** The named tri-state a ComfyUI reachability probe resolves to. */
-export const COMFYUI_PROBE_STATES = ["ok-with-models", "ok-but-empty", "engine-off"] as const;
-export type ComfyuiProbeState = (typeof COMFYUI_PROBE_STATES)[number];
-
-/** The live node-catalog a reachable ComfyUI advertises via `/object_info`: the display-clean sampler,
- *  scheduler, checkpoint, and VAE names the model-picker offers. */
-export const comfyuiCatalogSchema = z.object({
-  samplers: z.array(z.string()),
-  schedulers: z.array(z.string()),
-  checkpoints: z.array(z.string()),
-  vaes: z.array(z.string()),
-});
-export type ComfyuiCatalog = z.infer<typeof comfyuiCatalogSchema>;
-
-/** One catalogued LoRA a curated role can attach, as the picker surfaces it (comfyui-control §C8 / §4.5) — the
- *  STATIC reference slice (name/filename/trigger words/recommended weight). Populated by the arm from the ported
- *  `lora_catalog` (the runtime Civitai auto-download does NOT port — a missing LoRA is an honest refusal). */
-export const comfyuiRoleLoraSchema = z.object({
-  slug: z.string(),
-  name: z.string(),
-  filename: z.string(),
-  category: z.string(),
-  triggerWords: z.array(z.string()),
-  recommendedWeight: z.number(),
-});
-export type ComfyuiRoleLora = z.infer<typeof comfyuiRoleLoraSchema>;
-
-/** A curated role's PROMPT GUIDE (comfyui-control §4.5, the 'UI money-shot') — the model's prompt-style hint +
- *  scaffolds + the sampling hints, ported from the kit's sourced `prompt_guide`. Populated by the arm's
- *  `guideFor`; a reference surface the picker shows, never a lock (the guide-exact knobs live in the family). */
-export const comfyuiRoleGuideSchema = z.object({
-  displayName: z.string(),
-  promptStyle: z.string(),
-  qualityPrefix: z.string(),
-  positiveScaffold: z.string(),
-  negativeScaffold: z.string(),
-  cfgHint: z.string(),
-  stepsHint: z.string(),
-  promptingNotes: z.string(),
-  examplePrompt: z.string(),
-});
-export type ComfyuiRoleGuide = z.infer<typeof comfyuiRoleGuideSchema>;
-
-/** One curated `orbgen:<role>` mode as the ComfyUI picker surfaces it (comfyui-control spec §4.2/§4.4/§4.5, C5).
- *  `id` is the `model`-slot value (`orbgen:<role>`) the connection persists; `role`/`label`/`arch` are display.
- *  `available` is GROUNDED against the live catalog + registered node classes (never a static assumption — the
- *  `plan-for-small-hardware` honest-degrade posture); when false, `missing` NAMES the absent pieces (the required
- *  checkpoint/UNET filename and/or the missing node classes) so the refusal is honest and the picker can render
- *  the disabled option with its reason, never a silent substitute. `imageGen` is the role family's honored
- *  diffusion-knob surface (the panel offers only advertised knobs — the capability-truth contract). `nsfw` badges
- *  the explicit roles for the D61 consent gate (surfaced default-off, never laundered, never silently dropped). */
-export const comfyuiRoleAvailabilitySchema = z.object({
-  id: z.string(),
-  role: z.string(),
-  label: z.string(),
-  arch: z.string(),
-  nsfw: z.boolean(),
-  available: z.boolean(),
-  missing: z.array(z.string()),
-  imageGen: modelCapabilitySchema.shape.imageGen,
-  /** Whether this role's family accepts an init/reference image (`edit.image`/`references`) — true for every
-   *  curated role whose base is available (they all do img2img), the §4.6 honest-refusal contract (a raw
-   *  checkpoint / hosted arm advertises no edit). Convenience OR of the granular {@link levers}. */
-  imageEdit: z.boolean(),
-  /** Per-OPTIONAL-lever availability, GROUNDED against the live node classes (comfyui-control spec §4.4/§4.6/
-   *  §4.12.4, C6): a lever is `true` only when its family honors that method AND every node class the lever's
-   *  build emits is registered (flux inpaint additionally needs the Fill UNET in the catalog). A `false` lever
-   *  is the honest per-lever refusal the picker renders — the runner would build the graph, but the missing
-   *  node makes it a typed refusal, never a silent no-op. `img2img` needs only core nodes, so it tracks base
-   *  availability; `identity` is sdxl/flux only (Anima has no identity lock). */
-  levers: z.object({
-    img2img: z.boolean(),
-    inpaint: z.boolean(),
-    identity: z.boolean(),
-    pose: z.boolean(),
-  }),
-  /** The role's sourced PROMPT GUIDE (comfyui-control §4.5) — the prompt-style hint + scaffolds the picker shows
-   *  so the user knows HOW to prompt this mode (danbooru tags vs prose). `null` when the role's family has no
-   *  ported guide entry (never a fabricated one). */
-  guide: comfyuiRoleGuideSchema.nullable(),
-  /** The STATIC LoRA reference catalog for this role (comfyui-control §C8 / §4.5) — the LoRAs its family base
-   *  offers, sorted by downloads (the picker shows the attachable set + trigger words). Empty for a family with
-   *  no LoRA base (anima_edit). A browse surface only — no runtime download (owner-ruled, §8 Q7). */
-  loras: z.array(comfyuiRoleLoraSchema),
-});
-export type ComfyuiRoleAvailability = z.infer<typeof comfyuiRoleAvailabilitySchema>;
-
-/** The `probeImageEngine` result — a discriminated tri-state (D83). `ok-with-models`/`ok-but-empty` carry
- *  the live catalog (the built-in sampler/scheduler/vae lists are present even with zero checkpoints) PLUS the
- *  curated-role availability list (C5 — raw checkpoints ride the catalog, curated `orbgen:<role>` modes ride
- *  `roles`, each with its live availability); `engine-off` carries only the state (unreachable or unconfigured). */
-export const comfyuiProbeResultSchema = z.discriminatedUnion("state", [
-  comfyuiCatalogSchema.extend({ state: z.literal("ok-with-models"), roles: z.array(comfyuiRoleAvailabilitySchema) }),
-  comfyuiCatalogSchema.extend({ state: z.literal("ok-but-empty"), roles: z.array(comfyuiRoleAvailabilitySchema) }),
-  z.object({ state: z.literal("engine-off") }),
-]);
-export type ComfyuiProbeResult = z.infer<typeof comfyuiProbeResultSchema>;

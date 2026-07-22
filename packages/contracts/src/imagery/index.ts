@@ -9,7 +9,6 @@
 
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
-import type { ComfyuiRoleAvailability } from "../connection";
 
 /** The committed prompt-template modes. `free` = the user's prompt verbatim — the
  *  only mode the Phase-5 chat caller drives; the rest are the Phase-7 extraction/caption modes. A new mode
@@ -66,46 +65,6 @@ export const imageDiffusionParamsSchema = z.object({
 });
 export type ImageDiffusionParams = z.infer<typeof imageDiffusionParamsSchema>;
 
-// The curated-pose id cap (named — `noMagicNumbers`). A `<category>/<name>` selector from the frozen
-// generated index; the domain rejects any unknown/escaping id (`resolveCuratedPose` → path confinement).
-const MAX_POSE_ID_CHARS = 200;
-
-/** An OPTIONAL ControlNet pose selection (comfyui-control §4.12, C6d) — the advanced-knob pose lever the
- *  picker sets. Either a CURATED skeleton (`poseRef` — a `<category>/<name>` selector into the shipped library,
- *  NOT a branded entity id; the domain resolves it to the static skeleton's BYTES) or a BYO pose asset
- *  (`poseAssetId` — the caller's own `pose`-kind CAS asset, byte
- *  read by owner-gated `readAsset`). Resolved server-side into the runner's `edit.poseControl` control-map
- *  channel; honored ONLY by a local ComfyUI curated role whose family advertises the `pose` lever (§4.12.4) —
- *  every hosted/raw-checkpoint arm has no ControlNet and drops it with an honest `image_pose_dropped` warning
- *  (never a silent no-op). The picker's PRESENCE is capability-gated on the same `levers.pose` signal. */
-export const poseSelectionSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("curated"), poseRef: z.string().min(1).max(MAX_POSE_ID_CHARS) }),
-  z.object({ kind: z.literal("byo"), poseAssetId: typeIdSchema(ID_PREFIX.asset) }),
-]);
-export type PoseSelection = z.infer<typeof poseSelectionSchema>;
-
-/** The pose picker's capability gate (comfyui-control §4.12.4, C6d) — the client derives this from the
- *  configured generateImage slot + the live ComfyUI probe (the derivation + its user-facing refusal COPY live
- *  client-side; only the SHAPE is homed here, beside `PoseSelection`). Pose attaches ONLY for a local ComfyUI
- *  CURATED role whose family+nodes advertise the `pose` lever: `loading` while the probe is in flight,
- *  `unavailable` carries the honest refusal REASON (never a dead affordance), `available` carries the grounded
- *  role. A discriminated union (§5.5) — the status arms never collapse into optional fields. */
-export type PoseCapability =
-  | { readonly status: "loading" }
-  | { readonly status: "available"; readonly role: ComfyuiRoleAvailability }
-  | { readonly status: "unavailable"; readonly reason: string };
-
-/** The quality-tier toggle's capability gate (comfyui-control §C8 / §8-ruling-4) — the client derives this from
- *  the configured generateImage slot + the live probe (derivation client-side; only the SHAPE homes here, beside
- *  {@link PoseCapability}). Quality attaches ONLY for a local ComfyUI CURATED role whose family advertises a
- *  max-quality `advanced` bundle (`imageGen.quality`): `loading` while probing, `available` carries the role
- *  label for the hint, `unavailable` renders nothing (a family without an advanced bundle offers no toggle — no
- *  refusal COPY, unlike pose). A discriminated union (§5.5) — the status arms never collapse into optional fields. */
-export type QualityCapability =
-  | { readonly status: "loading" }
-  | { readonly status: "available"; readonly roleLabel: string }
-  | { readonly status: "unavailable" };
-
 /** The chat-client wire for `chat.generateImage` → `imagery.generatePicture`.
  *  Phase-5 drives `mode:"free"` with a required `prompt` (the caller refines it); the Phase-7 fields
  *  (`negative`/`subjectCharacterId`/`useAvatarReference`/`reuse`) are additive optionals. The diffusion
@@ -116,9 +75,6 @@ export const generatePictureRequestSchema = z.object({
   n: z.number().int().min(MIN_IMAGE_COUNT).max(MAX_IMAGE_COUNT).optional(),
   size: sizePresetSchema.optional(),
   params: imageDiffusionParamsSchema.optional(),
-  /** The advanced-knob ControlNet pose pick (§4.12, C6d) — resolved server-side to `edit.poseControl`.
-   *  Local ComfyUI curated-role only; hosted/raw arms drop it with an honest warning (capability truth). */
-  pose: poseSelectionSchema.optional(),
 });
 export type GeneratePictureRequest = z.infer<typeof generatePictureRequestSchema>;
 

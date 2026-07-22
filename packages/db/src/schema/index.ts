@@ -8,20 +8,15 @@
 // and MUST stay complete — every schema file + relations. Reserved cross-cutting: users, audit,
 // relations. Wave-1 producers: everything else (currently stubs).
 
-export * from "./agent-principals";
 export * from "./assets";
 export * from "./audit";
 export * from "./automation";
-
 export * from "./character";
-export * from "./character-proposals";
 export * from "./chat";
 export * from "./credentials";
-
 export * from "./databank";
 export * from "./discovery";
 export * from "./embeddings";
-
 export * from "./gallery";
 export * from "./imagery";
 export * from "./notifications";
@@ -30,8 +25,6 @@ export * from "./plugin";
 export * from "./preset";
 export * from "./rate-limit";
 export * from "./relations";
-export * from "./roster-preset";
-
 export * from "./sdk-session";
 export * from "./sessions";
 export * from "./settings";

@@ -23,7 +23,15 @@
 // static DDL built from the tuples — never re-spelled (users.ts pattern).
 
 import type { ChatTriggerType, DomainTriggerType } from "@orb/contracts/automation";
-import { AUTOMATION_FIRE_OUTCOMES, AUTOMATION_TRIGGER_BUSES, CHAT_TRIGGER_TYPES, DOMAIN_TRIGGER_TYPES } from "@orb/contracts/automation";
+import {
+  AUTOMATION_CHAT_BUDGET_DEFAULTS,
+  AUTOMATION_FIRE_OUTCOMES,
+  AUTOMATION_TRIGGER_BUSES,
+  CHAT_TRIGGER_TYPES,
+  DOMAIN_TRIGGER_TYPES,
+  GLOBAL_VARIABLE_KEY_MAX_CHARS,
+  GLOBAL_VARIABLE_VALUE_MAX_BYTES,
+} from "@orb/contracts/automation";
 import type { AutomationFireId, AutomationRuleId, ChatId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import {
@@ -47,12 +55,10 @@ function checkList(values: readonly string[]): string {
 // Named numeric bounds/defaults (`noMagicNumbers`) — automation-design/04 §1 + 02 §4 values.
 const RULE_NAME_MAX_CHARS = 120;
 const RULE_MAX_FIRES_PER_HOUR_DEFAULT = 30;
-const CHAT_MAX_FIRES_PER_HOUR_DEFAULT = 120;
-const CHAT_MAX_SPEND_ACTIONS_PER_DAY_DEFAULT = 10;
-const CHAT_MAX_USD_PER_DAY_DEFAULT = 1.0;
-const GLOBAL_VAR_KEY_MAX_CHARS = 128;
-// 64 KiB. SQLite `length()` on TEXT counts CHARACTERS — the BLOB cast makes the cap byte-accurate.
-const GLOBAL_VAR_VALUE_MAX_BYTES = 65_536;
+// The chat budget + global-variable caps derive from @orb/contracts/automation (the ONE home — the
+// app-validation verb and this CHECK-DDL/column-default share the same bound, so they can't drift).
+// SQLite `length()` on TEXT counts CHARACTERS — the BLOB cast in the value CHECK below makes the
+// 64 KiB cap byte-accurate.
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 // automation_rules — one row per host-authored rule: trigger + CEL predicate + ordered action arms.
@@ -132,10 +138,10 @@ export const automationBudgets = sqliteTable("automation_budgets", {
     .$type<ChatId>()
     .primaryKey()
     .references(() => chats.id, { onDelete: "cascade" }),
-  maxFiresPerHour: integer("max_fires_per_hour").notNull().default(CHAT_MAX_FIRES_PER_HOUR_DEFAULT),
-  maxSpendActionsPerDay: integer("max_spend_actions_per_day").notNull().default(CHAT_MAX_SPEND_ACTIONS_PER_DAY_DEFAULT),
+  maxFiresPerHour: integer("max_fires_per_hour").notNull().default(AUTOMATION_CHAT_BUDGET_DEFAULTS.maxFiresPerHour),
+  maxSpendActionsPerDay: integer("max_spend_actions_per_day").notNull().default(AUTOMATION_CHAT_BUDGET_DEFAULTS.maxSpendActionsPerDay),
   // NULL = no dollar ceiling (local-only setups).
-  maxUsdPerDay: real("max_usd_per_day").default(CHAT_MAX_USD_PER_DAY_DEFAULT),
+  maxUsdPerDay: real("max_usd_per_day").default(AUTOMATION_CHAT_BUDGET_DEFAULTS.maxUsdPerDay),
   usdSpentToday: real("usd_spent_today").notNull().default(0),
   // UTC yyyy-mm-dd from the injected clock; reset-on-rollover. '' = never spent.
   spendDay: text("spend_day").notNull().default(""),
@@ -198,8 +204,8 @@ export const globalVariables = sqliteTable(
   (t) => [
     // The natural key IS the identity — no TypeID, no surrogate (02 §4).
     primaryKey({ columns: [t.ownerId, t.key] }),
-    check("global_variables_key_check", sql.raw(`length(key) <= ${GLOBAL_VAR_KEY_MAX_CHARS}`)),
+    check("global_variables_key_check", sql.raw(`length(key) <= ${GLOBAL_VARIABLE_KEY_MAX_CHARS}`)),
     // ≤ 64 KiB of BYTES — length() on TEXT counts characters, so cast to BLOB for the byte cap.
-    check("global_variables_value_check", sql.raw(`length(cast(value as blob)) <= ${GLOBAL_VAR_VALUE_MAX_BYTES}`)),
+    check("global_variables_value_check", sql.raw(`length(cast(value as blob)) <= ${GLOBAL_VARIABLE_VALUE_MAX_BYTES}`)),
   ],
 );

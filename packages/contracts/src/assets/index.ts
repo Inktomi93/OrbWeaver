@@ -13,8 +13,10 @@ import { z } from "zod";
  *  chat image; `document` = a databank source document's original bytes; `sprite` = a per-character
  *  expression sprite; `background` = a user-uploaded decorative app background (PD-131 — pinned by the
  *  `appearance.backgroundAssetId` JSON field, GC-rooted via the settings live-source scan, NOT an FK
- *  column). The db `assets.kind` enum derives from this tuple. */
-export const ASSET_KINDS = ["card", "avatar", "export", "generated", "gallery", "attachment", "document", "sprite", "background"] as const;
+ *  column); `pose` = a BYO-imported OpenPose skeleton control map, pinned by the `pose_library` registry
+ *  row's `assetId` FK (comfyui-control §4.12.2 — the curated pose set is global-shipped-static, NOT a CAS
+ *  kind). The db `assets.kind` enum derives from this tuple. */
+export const ASSET_KINDS = ["card", "avatar", "export", "generated", "gallery", "attachment", "document", "background", "plugin", "pose"] as const;
 
 export const assetKindSchema = z.enum(ASSET_KINDS);
 

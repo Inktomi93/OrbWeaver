@@ -91,8 +91,6 @@ export const WORKLOAD_KIND_MODES = {
   "refresh-model-catalog": { singular: false, bulk: true, bulkRequiresTarget: false, stub: false },
   "compute-cooccurrence": { singular: false, bulk: true, bulkRequiresTarget: false, stub: false },
   "reconcile-world-state": { singular: false, bulk: true, bulkRequiresTarget: false, stub: true },
-  // CW2 flipped: the real keeper runner enqueues singular per (kind, ownerId, source) — per-HOST across ALL
-  // their chats, NOT per-chat (the landed `workloads_mode_active_singular` index; 03 §0 / 08 CC-C).
   "databank-ingest": { singular: true, bulk: true, bulkRequiresTarget: false, stub: false },
   "databank-reindex": { singular: true, bulk: true, bulkRequiresTarget: false, stub: false },
 } as const satisfies Record<WorkloadKind, WorkloadModePolicy>;
