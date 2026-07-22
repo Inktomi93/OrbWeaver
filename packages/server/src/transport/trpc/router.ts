@@ -7,7 +7,6 @@ import { recordClientError } from "#foundation/observability";
 import { adminRouter } from "./routers/admin";
 import { assetsRouter } from "./routers/assets";
 import { automationRouter } from "./routers/automation";
-import { buddyRouter } from "./routers/buddy";
 import { characterRouter } from "./routers/character";
 import { chatRouter } from "./routers/chat";
 import { connectionRouter } from "./routers/connection";
@@ -67,7 +66,6 @@ export const appRouter = t.router({
   admin: adminRouter,
   assets: assetsRouter,
   automation: automationRouter,
-  buddy: buddyRouter,
   character: characterRouter,
   chat: chatRouter,
   connection: connectionRouter,

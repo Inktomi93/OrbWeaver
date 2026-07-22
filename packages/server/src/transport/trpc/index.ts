@@ -3,7 +3,6 @@
 
 export { publishAutomationEvent, subscribeAutomation } from "./automation-bus";
 export { notifyChatOpened, setChatOpenTap } from "./automation-chat-open-tap";
-export { publishBuddyEvent, snapshotBuddy, subscribeBuddy } from "./buddy-bus";
 export type { ChatLiveEvent } from "./chat-events-bus";
 export { publishChatEvent, subscribeAllChatEvents, subscribeChatEvents } from "./chat-events-bus";
 export type { Context, RateLimitDecision, RateLimitGate, Services } from "./context";

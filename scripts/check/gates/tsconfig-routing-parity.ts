@@ -13,8 +13,8 @@ import type { GateDescriptor } from "../contract.ts";
 // runs). A conformance temp-dir `root` has no node_modules, so resolve the bin from cwd but keep cwd on
 // `root` so the resolved `files` paths are rooted THERE. Fall back to PATH `tsgo` if cwd has no copy.
 function tsgoBin(): string {
-  const fromCwd = join(process.cwd(), "node_modules", ".bin", "tsgo");
-  return existsSync(fromCwd) ? fromCwd : "tsgo";
+  // Use our local TS 7 proxy script since we run Project Corsa via ts7
+  return join(process.cwd(), "scripts", "ts7.cjs");
 }
 
 const GRAPH = "tsconfig.json";
