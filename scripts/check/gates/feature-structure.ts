@@ -30,7 +30,6 @@ const ALWAYS_ALLOWED_ROOT_FILES = ["guard.ts"] as const;
  *  - settings: `constants.ts` (the theme seed sentinel TypeIDs, domain-internal), `seed-themes.ts`
  *    (boot-time `ensureSeedThemes` — the preset `seed.ts` precedent, named `-themes` since the domain
  *    root's `seed.ts` slot may host a different concern later).
- *  - buddy: `bus.ts` (the observer's per-user reaction feed emitter + replay ring — the chat/bus.ts
  *    precedent; a feature-root collaborator the observer emits onto, PD-45).
  *  - crew: `bus.ts` (the crew's per-CHAT event feed emitter + replay ring — the buddy/bus.ts precedent;
  *    a feature-root collaborator the verbs/appliers emit onto, chat-crew-design/04 §4).
@@ -53,7 +52,6 @@ const ALWAYS_ALLOWED_ROOT_FILES = ["guard.ts"] as const;
  *    a tool-path and console-path terminal round produce byte-equivalent durable state; the `turn-staging.ts`
  *    I/O-wrapping-root precedent, RPG-CONSOLE-COMMIT). */
 const DOMAIN_SPECIFIC_ROOT_FILES: Readonly<Record<string, readonly string[]>> = {
-  buddy: ["bus.ts"],
   chat: ["bus.ts", "active-turns.ts"],
   crew: ["bus.ts"],
   rpg: ["bus.ts", "staging.ts", "turn-staging.ts", "seat.ts", "trace.ts", "encounter-commit.ts"],

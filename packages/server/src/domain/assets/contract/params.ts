@@ -36,28 +36,6 @@ export interface RemoveFromGalleryParams extends AssetsActorParams {
   readonly galleryItemId: GalleryItemId;
 }
 
-/** One BYO skeleton in an import (comfyui-control §4.12.2, C6c). `bytes`/`mime` are magic-verified at store;
- *  `name`/`category`/`tags` are user text, normalized (trim → NFKC → lowercase) by the verb; orientation is
- *  COMPUTED from the decoded dims (never user-supplied). */
-export interface ImportPoseItem {
-  readonly bytes: Uint8Array;
-  readonly mime: string;
-  readonly name: string;
-  readonly category: string;
-  readonly tags?: readonly string[] | undefined;
-}
-
-/** Import one or many BYO skeletons in ONE owner-scoped verb (single = a one-item batch). Honest-partial: a
- *  per-item magic-sniff / decode refusal drops THAT item with a reason, never the whole batch. */
-export interface ImportPosesParams extends AssetsActorParams {
-  readonly items: readonly ImportPoseItem[];
-}
-
-/** List the caller's own BYO pose-library entries (the picker's BYO half). Owner-scoped off `principal.userId`
- *  through the `asset_id → assets.ownerId` join (D20 — the row carries no ownerId). */
-export interface ListOwnedPosesParams extends AssetsActorParams {
-  readonly category?: string | undefined;
-}
 
 export interface StoreParams extends AssetsActorParams {
   /** The raw bytes to content-address. The CAS hashes them; the `hash`/`size` are derived, not supplied. */
