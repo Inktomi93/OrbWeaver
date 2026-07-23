@@ -21,6 +21,7 @@ import type {
   ChatInviteId,
   ChatParticipantId,
   ChatStreamEventId,
+  ChatTurnId,
   Handle,
   MessageAssetId,
   MessageId,
@@ -326,6 +327,7 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     newStreamEventId: mint<ChatStreamEventId>("stream_event"),
     newInviteId: mint<ChatInviteId>("chat_invite"),
     newPendingTurnId: mint<PendingTurnId>("pending_turn"),
+    newChatTurnId: mint<ChatTurnId>("chat_turn"),
     hashToken: (token) => `h:${token}`,
     audit: () => Promise.resolve(),
     // PD user-bus lane: no-op default (the terminal path + LIST-level ops fan `chatsChanged` to members; a
@@ -337,13 +339,17 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     applyRegexReplace: (text, regex, replacer) => text.replace(regex, replacer),
     runChatTurn: notStubbed,
     resolveChat: notStubbed,
+    // Default = null ⇒ "no agent-role connection resolved" so the engine falls back to the round connection
+    // (byte-identical to the AP3-2 interim posture); an AP3-3 test that asserts the agent's own brain
+    // overrides this with a resolver returning a distinct connection.
+    resolveAgentConnection: () => Promise.resolve(null),
     resolveCredential: notStubbed,
     maybeRevokeOnAuthFailed: notStubbed,
     getCard: () => Promise.resolve(null),
-    // D44 §12.0 — default to the safe floor (untrusted; external media gated). Overridable per test.
-    resolveRenderPolicy: () => Promise.resolve({ trustHtml: false, forbidExternalMedia: true }),
-    // D44 §12.1/§12.5 — default to no override. Overridable per test.
-    resolveThemeOverride: () => Promise.resolve(null),
+    // D44 §12.0/§12.1/§12.5 + BG-C — ONE seat-decoration read: default to the safe floor (untrusted; external
+    // media gated), no theme/background override, no card. Overridable per test.
+    resolveSeatDeco: () =>
+      Promise.resolve({ renderPolicy: { trustHtml: false, forbidExternalMedia: true }, themeOverride: null, backgroundOverride: null, card: null }),
     resolveImageUrl: notStubbed,
     // Called UNCONDITIONALLY by `loadParticipantViews` on every roster-view build (never opt-in like
     // `resolveImageUrl`) — defaults to "nothing resolves" (mirrors `resolveThemeOverride`'s safe-floor
@@ -353,6 +359,9 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     // #67 send-attach trust boundary — default "owns nothing" (safe floor); a test that attaches overrides
     // this with a fake returning the ids it seeded as owned.
     filterOwnedAssetIds: () => Promise.resolve([]),
+    // F-P0-2: only `setChatBackground` with a `kind:"external"` source reaches this — throws loudly otherwise;
+    // the external-materialize test overrides it with a stub returning a stored asset (or a typed refusal).
+    materializeBackground: notStubbed,
     resolveUserPublics: notStubbed,
     mintSyntheticGroupCharacter: notStubbed,
     // The assemble gather calls this every round (round-level recall over the shared bucket); default to
@@ -377,12 +386,27 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     readPresence: (userId) => Promise.resolve({ userId, online: true, lastSeenAt: null }),
     // The imagery op (chat.generateImage) — a throwing stub; the generate-image verb test overrides it.
     generatePicture: notStubbed,
+    // Default = null ⇒ expressions not wired (byte-identical no-op — the `tools` precedent). A classify-hook
+    // test overrides with a recorder to assert the fire-and-forget after commit.
+    expressions: null,
+    rpg: null,
+    // Default = null ⇒ the chat-crew director isn't wired (byte-identical no-op — chat-crew-design/04 §1). A
+    // director test overrides with a stub returning the guidance injection.
+    crew: null,
+    // Default = null ⇒ no PromptTransform registrar wired (byte-identical no-op — automation-design/04 §6). A
+    // transform test overrides with a `createPromptTransformRegistry(...).apply`.
+    promptTransforms: null,
     resolveHandle: notStubbed,
     provisionAgentPrincipal: notStubbed,
     // Agent-identity reads default to a loud stub (a test that seats an agent overrides them); the pure
     // capability gate defaults to the REAL `canAgent` so an agent-speaker test gates for free.
     resolveAgentActor: notStubbed,
     resolveAgentSpeaker: notStubbed,
+    // The D22 roster-chip projection (doc 06 §5) — loud stub; a getAgentCardView test overrides it.
+    resolveAgentCardView: notStubbed,
+    // The roster fallback-label source (agent seats only) — loud stub; a seated-agent projection test overrides
+    // it. Never reached by a room without an agent seat (the projection resolves it only for `kind:'agent'` rows).
+    resolveAgentSourceKind: notStubbed,
     canAgent,
     // The startChat anchor default-seed: default "no user-level active persona" — an explicit
     // anchorPersonaId in a test flows unchanged; a seeding test overrides with a resolver fake.

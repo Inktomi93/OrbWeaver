@@ -66,7 +66,7 @@ describe("updateTag", () => {
     const err = await svc.updateTag({ principal: principal(owner), tagId, patch: { name: "   " } }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(DomainOperationError);
     expect((err as DomainOperationError).code).toBe("tag_name_empty");
-    expect((await svc.getTag({ principal: principal(owner), tagId })).name).toBe("neo noir");
+    expect((await svc.listTags({ principal: principal(owner) })).find((t) => t.id === tagId)?.name).toBe("neo noir");
   });
 
   test("updating a missing tag is not-found", async () => {

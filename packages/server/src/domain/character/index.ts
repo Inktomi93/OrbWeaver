@@ -4,12 +4,10 @@
 export type { CharacterContext } from "./context";
 export {
   AssetNotFoundError,
-  CardEvolutionProposalNotFoundError,
   CharacterNotFoundError,
   CharacterOperationError,
 } from "./contract/errors";
 export type {
-  AcceptCardEvolutionParams,
   BulkAddCardTagParams,
   BulkArchiveParams,
   BulkRemoveCardTagParams,
@@ -17,18 +15,15 @@ export type {
   CharacterImportProvenance,
   CharacterListCursor,
   CreateCharacterParams,
-  DismissCardEvolutionParams,
   DuplicateCharacterParams,
   FindByHandleParams,
   FindByImportHashParams,
   FindGroupCharParams,
   GetCardParams,
   GetCharacterParams,
-  ListCardEvolutionProposalsParams,
   ListCharactersParams,
   ListSnapshotsParams,
   MintGroupCharParams,
-  ProposeCardEvolutionParams,
   RemoveCharacterParams,
   RestoreParams,
   SnapshotParams,
@@ -46,7 +41,7 @@ export type {
   DetachCardTagOp,
   ReapAssetsOp,
 } from "./contract/service";
-export type { CardEvolutionProposalView, CharacterDetail, CharacterSummary } from "./contract/views";
+export type { CharacterDetail, CharacterSummary } from "./contract/views";
 export type { DefaultCharacterSeeder, DefaultCharacterSeederDeps } from "./seeder";
 export {
   createDefaultCharacterSeeder,

@@ -22,6 +22,8 @@ import type { ChatContext } from "../../../../../packages/server/src/domain/chat
 import { ChatNotFoundError } from "../../../../../packages/server/src/domain/chat/contract/errors";
 import type { TurnStreamChunk } from "../../../../../packages/server/src/domain/chat/contract/results";
 import { createTurnEngine } from "../../../../../packages/server/src/domain/chat/engine/engine";
+import { loadWitnessHorizons } from "../../../../../packages/server/src/domain/chat/memory/persistence/queries";
+import { recallMemory } from "../../../../../packages/server/src/domain/chat/memory/recall/recall";
 import { loadCanonHistory } from "../../../../../packages/server/src/domain/chat/persistence/queries";
 import { createTurn } from "../../../../../packages/server/src/domain/chat/verbs/turn";
 import { freshDb } from "../../../../support/db";
@@ -114,6 +116,8 @@ function harness(database: Db, names: Readonly<Record<string, string>>): Harness
     lockTtlMs: 60_000,
     generateSegments: async () => ({ written: 0, skipped: 0 }),
     generateDigests: async () => ({ written: 0, skipped: 0 }),
+    loadWitnessHorizons,
+    recallMemory,
   });
   const turn = createTurn(ctx, {
     engine,

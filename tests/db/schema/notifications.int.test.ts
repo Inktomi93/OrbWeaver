@@ -55,7 +55,17 @@ test("test-mirror: the `type` column accepts EXACTLY the contract union members"
   const unionTypes = notificationEventSchema.options
     .map((member) => (member as unknown as { shape: { type: { value: NotificationType } } }).shape.type.value)
     .sort();
-  expect(unionTypes).toEqual(["deferred-turn-dropped", "handoff-accepted", "handoff-nominated", "invite", "kicked"]);
+  expect(unionTypes).toEqual([
+    "agent-seat-requested",
+    "automation-notice",
+    "crew-proposal",
+    "deferred-turn-dropped",
+    "handoff-accepted",
+    "handoff-nominated",
+    "invite",
+    "kicked",
+    "plugin-disabled",
+  ]);
 
   // Every union member inserts cleanly (the column enum + CHECK derive the same set). Batched (one
   // insert) to avoid await-in-loop.

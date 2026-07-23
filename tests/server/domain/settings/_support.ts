@@ -5,6 +5,7 @@
 // root" doctrine). The frozen clock is the determinism seam (no ambient wall-clock reads).
 
 import type { Principal, UserRole } from "@orb/contracts/identity";
+import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
 import { users } from "@orb/db";
 import type { Handle, ThemeId, UserId } from "@orb/kit/ids";
@@ -63,11 +64,12 @@ export function principal(userId: UserId, role: UserRole, handle: string = userI
   return makePrincipal(userId, { role, handle: castId<Handle>(handle) });
 }
 
-export function makeHarness(db: Db): SettingsHarness {
+export function makeHarness(db: Db, overrides: { readonly materializeBackground?: MaterializeBackgroundOp } = {}): SettingsHarness {
   const clock = createFrozenClock(FROZEN_AT);
   const audits: AuditCall[] = [];
   const onEmbedModelChanged: Mock<() => void> = vi.fn<() => void>();
   let themeCounter = 0;
+  let entryCounter = 0;
   const deps: SettingsServiceDeps = {
     db,
     now: (): number => clock.now(),
@@ -84,6 +86,13 @@ export function makeHarness(db: Db): SettingsHarness {
     // PD user-bus lane: no-op recorder (this harness's tests don't assert the emit; persona's do).
     emitUserEvent: (): void => undefined,
     onEmbedModelChanged,
+    // F-P0-2: default refuses (never hit by non-background tests); addExternalBackground tests inject a stub.
+    materializeBackground:
+      overrides.materializeBackground ?? ((): ReturnType<MaterializeBackgroundOp> => Promise.resolve({ ok: false, reason: "unreachable" })),
+    newBackgroundEntryId: (): string => {
+      entryCounter += 1;
+      return `bg_entry_${entryCounter}`;
+    },
   };
   return { svc: createSettingsService(deps), deps, audits, clock, onEmbedModelChanged };
 }

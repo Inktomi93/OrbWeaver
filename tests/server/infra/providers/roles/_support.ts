@@ -20,7 +20,13 @@ import { CRED_SOURCES } from "@orb/contracts/credentials";
 import type { BackendKey, ProviderBackend, ResolvedCredential } from "@orb/server/infra/providers";
 import { backendForSource, ProviderError } from "@orb/server/infra/providers";
 import { describe } from "vitest";
-import { makeCustomOpenAiCredential, makeOpenRouterCredential, makeResolvedCredential } from "../../../../support/factories/resolved-connection";
+import {
+  makeAnthropicCredential,
+  makeCustomOpenAiCredential,
+  makeOpenRouterCredential,
+  makeResolvedCredential,
+  makeVeniceCredential,
+} from "../../../../support/factories/resolved-connection";
 import { expect, test } from "../../../../support/fixtures";
 
 /** The five roles this runner covers; the method name is BOTH the ProviderBackend impl key and the spy
@@ -44,11 +50,16 @@ function credFor(source: CredentialSource): ResolvedCredential {
   switch (source) {
     case "openrouter":
       return makeOpenRouterCredential();
+    case "anthropic":
+      return makeAnthropicCredential();
     case "custom_openai":
       return makeCustomOpenAiCredential();
+    case "venice":
+      return makeVeniceCredential();
     case "vllm":
     case "local-light":
     case "max-pro-sub":
+    case "comfyui":
       return makeResolvedCredential(source);
     default: {
       const never: never = source;
@@ -76,6 +87,8 @@ function allBackends(method: EmbedShapedMethod, calls: string[]): Map<BackendKey
     ["local-light", impl("local-light")],
     ["agent-sdk", impl("agent-sdk")],
     ["custom-openai", impl("custom-openai")],
+    ["venice", impl("venice")],
+    ["comfyui", impl("comfyui")],
   ]);
 }
 

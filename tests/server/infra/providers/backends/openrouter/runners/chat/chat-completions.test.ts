@@ -171,6 +171,18 @@ describe("runChatCompletionTurn — wire shaping", () => {
     expect(captured.chatRequest?.["minP"]).toBe(0.05);
   });
 
+  test("parallelToolCalls rides the wire ONLY alongside a tools[] request", async () => {
+    const tools = [{ name: "get_weather", description: "weather", parameters: { type: "object" } }];
+    const { client: withTools, captured: capA } = streamingClient(OK_STREAM);
+    await runChatCompletionTurn(withTools, makeRequest({ tools, params: { effort: "high", advanced: { parallelToolCalls: false } } }), DEPS);
+    expect(capA.chatRequest?.["parallelToolCalls"]).toBe(false);
+
+    // No tools[] → the flag is meaningless and omitted (byte-identical to a plain turn).
+    const { client: noTools, captured: capB } = streamingClient(OK_STREAM);
+    await runChatCompletionTurn(noTools, makeRequest({ params: { effort: "high", advanced: { parallelToolCalls: false } } }), DEPS);
+    expect(capB.chatRequest?.["parallelToolCalls"]).toBeUndefined();
+  });
+
   test("verbosity: the chat-completions wire has NO field — a resolved verbosity drops LOUDLY (D68-B)", async () => {
     const onEvent = vi.fn();
     const { client, captured } = streamingClient(OK_STREAM);

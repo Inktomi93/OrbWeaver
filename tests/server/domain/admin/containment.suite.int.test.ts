@@ -8,8 +8,9 @@
 // EXERCISED HERE (runnable — every unseated arm 07 §4 names):
 //   §4.1 Auth (wall one) — sessions can never hand back an agent Principal: `create` refuses to mint;
 //                          `validate` returns null the instant a live session's user becomes an agent.
-//   §4.2 Namespace       — the reserved `__agent__` handle is refused at every JIT-create site
-//                          (`ensureUser`, `provisionIdentity`) — no row written.
+//   §4.2 Namespace       — the reserved `__agent__` handle is refused at every handle-accepting mint site
+//                          (`ensureUser`, `provisionIdentity`, admin `createUser`) — no row written.
+//                          (The fourth arm, targeted-invite, lives in `chat/verbs/invites.int`.)
 //   §4.3 Turns           — `canAgent('speak'/'tool-propose')` gates on the agent's REAL `users.enabled`.
 //   §4.6 Verbs           — `setRole`/`resetPassword` REFUSE an agent (`cannot_modify_agent`); `setEnabled`
 //                          ACCEPTS it (the containment verb); `notifications.record` REFUSES an agent recipient.
@@ -20,9 +21,16 @@
 //
 // COVERED IN ITS OWN HARNESS (needs the full ChatContext — reconstructing ~40 injected ops here would be
 // fragile duplication, not rigor): §4.6 `seatAgent` refuses a disabled agent → `chat/verbs/roster.int`.
-// DEFERRED to the seat wave's re-run (a live seated topology, unbuildable pre-AP3/AP4a — 07 §4):
-//   §4.4 Casts (arbitration/`{{group}}` drop after the flip) · §4.5 Tools (a proposal can't be confirmed) ·
-//   §4.7 Seats (`requireGmSeat` denies the disabled holder). The seated re-run EXTENDS this module.
+// THE SEATED RE-RUN (AP4a, doc 07 §4 — a live seated topology, unbuildable pre-AP3/AP4a): the second describe
+// block below EXTENDS this module with §4.7 Seats — `requireGmSeat` denies a DISABLED agent GM holder over
+// REAL persisted state (`resolveGmSeat` FK-walks `users.enabled`), while the host RETAINS GM-eyes (a stuck
+// campaign stays inspectable, doc 12 §6 re-key), and re-enabling restores authority (§4.8). The party-seat
+// "zero schema change" proof + the party ⊆ roster verb-guard live in `rpg/verbs/join-party.int` (the agent
+// rides `rpg_party.userId`). §4.4 Casts (arbitration/`{{group}}` drop after the flip) + §4.5 Tools (a proposal
+// can't be confirmed) stay covered by `chat/agent-speaker.suite.int` — the AP3-2 voicing refusals. NOT
+// buildable here: the agent-targeted pending-check AUTO-RESOLVE (doc 05 §1) — its `resolvePendingCheck` member
+// verb was never built (only `requestCheck` exists); the delta rides that verb's future chunk (annotated in
+// doc 05 §1 as DEFERRED-ON-DEPENDENCY).
 
 import type { AgentActor, ResolvedIdentity } from "@orb/contracts/identity";
 import type { NotificationEvent } from "@orb/contracts/notifications";
@@ -33,12 +41,14 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { canAgent, createAdminService } from "@orb/server/domain/admin";
 import type { NotificationsService } from "@orb/server/domain/notifications";
 import { createNotificationsService } from "@orb/server/domain/notifications";
+import { hasGmEyes, requireGmSeat, resolveGmSeat } from "@orb/server/domain/rpg";
 import { createSessionsService } from "@orb/server/domain/sessions";
 import { eq, sql } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { createFrozenClock } from "../../../support/clock.ts";
 import { freshDb } from "../../../support/db.ts";
 import { expect, test } from "../../../support/fixtures";
+import { rpgRealIdentity } from "../../../support/rpg-context.ts";
 import { makeHarness, principal, seedAgent, seedUser } from "./_support.ts";
 
 type FreshDb = Awaited<ReturnType<typeof freshDb>>;
@@ -117,8 +127,10 @@ describe("agent-principal containment (AP1, unseated) — a disabled agent can d
     expect(await sess.validate(token)).toBeNull();
   });
 
-  test("§4.2 namespace: the __agent__ handle is refused at every JIT-create site — no row", async () => {
+  test("§4.2 namespace: the __agent__ handle is refused at every handle-accepting mint site — no row", async () => {
     const sess = createSessionsService({ db, now: clock.now, sessionSecret: PEPPER });
+    const adminSvc = createAdminService(makeHarness(db).ctx);
+    const admin = await seedUser(db, { id: "user_adm", role: "admin", handle: "adm" });
     const before = (await db.select().from(users)).length;
 
     await expect(sess.ensureUser("__agent__buddy__deadbeef")).rejects.toThrow();
@@ -130,7 +142,13 @@ describe("agent-principal containment (AP1, unseated) — a disabled agent can d
     };
     await expect(sess.provisionIdentity(identity)).rejects.toThrow();
 
-    expect((await db.select().from(users)).length).toBe(before); // no JIT-created rows
+    // The fourth belt arm: an admin cannot squat a deterministic buddy handle (doc 06 §1/§8 inv 3). Refused
+    // with the same `invalid_handle` reason the empty-handle floor throws — the honest handle-validity code.
+    await expect(
+      adminSvc.createUser({ principal: principal(admin, "admin"), handle: "__agent__buddy__user_owner", password: "correct-horse" }),
+    ).rejects.toMatchObject({ code: "invalid_handle" });
+
+    expect((await db.select().from(users)).length).toBe(before); // no rows minted at any site
   });
 
   test("§4.3/§4.8 kill switch + reversibility: canAgent gates on the REAL principal state", async () => {
@@ -222,5 +240,50 @@ describe("agent-principal containment (AP1, unseated) — a disabled agent can d
     // And NOTHING dangles — the referential web is whole.
     const orphans = await db.all(sql`PRAGMA foreign_key_check`);
     expect(orphans).toHaveLength(0);
+  });
+});
+
+// The REAL FK-walk the seat re-keys use — the SHARED compose factory (via `rpgRealIdentity`), not a hand-copied
+// mirror (audit F6): `resolveGmSeat` consumes it, reading the holder's ACTUAL persisted `users.kind`/`enabled` so
+// the ceiling is proven against real state through the exact production op.
+function gmSeatIdentity(): ReturnType<typeof rpgRealIdentity> {
+  return rpgRealIdentity(db);
+}
+
+describe("agent-principal containment (AP4a, SEATED) — the GM seat holds the ceiling (07 §4.7)", () => {
+  test("§4.7/§4.8 GM seat: an ENABLED agent GM has AI tool authority; DISABLING revokes it (host keeps eyes); re-enable restores", async () => {
+    const svc = createAdminService(makeHarness(db).ctx);
+    const admin = await seedUser(db, { id: "user_adm", role: "admin", handle: "adm" });
+    const p = principal(admin, "admin");
+    const identity = gmSeatIdentity();
+
+    // The agent HOLDS the GM seat (rpg_games.gmUserId = the agent's userId). Enabled ⇒ the AI tool path fires
+    // (the agent GM narrates + fires rpg tools under requireGmSeat — the wave-close demo).
+    const enabledSeat = await resolveGmSeat(identity, agent);
+    expect(enabledSeat).toEqual({ kind: "agent", userId: agent, enabled: true });
+    expect(() => requireGmSeat(enabledSeat, { kind: "gm-model" })).not.toThrow();
+
+    // Disable the principal (the ONE-flip containment verb) ⇒ requireGmSeat DENIES the tool path: a disabled
+    // agent GM writes NO game state. But the human host RETAINS GM-eyes — a stuck (disabled-GM) campaign must
+    // stay inspectable/reassignable (doc 12 §6 re-key #3, extended to the agent seat).
+    await svc.setEnabled({ principal: p, userId: agent, enabled: false });
+    const disabledSeat = await resolveGmSeat(identity, agent);
+    expect(disabledSeat).toEqual({ kind: "agent", userId: agent, enabled: false });
+    expect(() => requireGmSeat(disabledSeat, { kind: "gm-model" })).toThrow(DomainForbiddenError);
+    expect(hasGmEyes(disabledSeat, { kind: "user", userId: owner }, "host")).toBe(true);
+
+    // Re-enable ⇒ authority restored EXACTLY (§4.8 — containment is a flip, not a teardown).
+    await svc.setEnabled({ principal: p, userId: agent, enabled: true });
+    const restoredSeat = await resolveGmSeat(identity, agent);
+    expect(() => requireGmSeat(restoredSeat, { kind: "gm-model" })).not.toThrow();
+  });
+
+  test("§4.7 GM seat: a HUMAN GM holder denies the AI tool path (the seat is not AI-held — a human writes narration)", async () => {
+    const human = await seedUser(db, { id: "user_humangm", role: "user", handle: "humangm" });
+    const seat = await resolveGmSeat(gmSeatIdentity(), human);
+    expect(seat).toEqual({ kind: "human", userId: human });
+    expect(() => requireGmSeat(seat, { kind: "gm-model" })).toThrow(DomainForbiddenError);
+    // And a human holder means the host is (usually) a PLAYER — no ambient GM-eyes (the spoiler-free host).
+    expect(hasGmEyes(seat, { kind: "user", userId: owner }, "host")).toBe(false);
   });
 });

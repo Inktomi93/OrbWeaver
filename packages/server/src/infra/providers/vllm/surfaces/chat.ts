@@ -175,7 +175,7 @@ async function* toChunks(raw: AsyncIterable<unknown>): AsyncGenerator<ChatComple
 
 export function createVllmChat(deps: VllmChatDeps): (req: ChatRequest) => Promise<ChatResult> {
   return async (req) => {
-    if (req.api === "agent-sdk" || req.api === "anthropic-messages") {
+    if (req.api === "agent-sdk") {
       throw new ProviderError({
         kind: "invalid",
         retryable: false,

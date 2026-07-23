@@ -14,7 +14,7 @@ import type { CredentialSource, ResolvedCredential } from "#credentials";
 
 // The chat-completion machinery a turn is addressed by — distinct from `CredentialSource` (one source can
 // serve several apis). Every dispatch switch over `api` uses `assertNever` for exhaustiveness.
-export const CHAT_APIS = ["agent-sdk", "chat-completions", "responses", "anthropic-messages"] as const;
+export const CHAT_APIS = ["agent-sdk", "chat-completions", "responses"] as const;
 export type ChatApi = (typeof CHAT_APIS)[number];
 export const chatApiSchema = z.enum(CHAT_APIS);
 

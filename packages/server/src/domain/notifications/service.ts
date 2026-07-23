@@ -3,7 +3,6 @@
 // durable-inbox contract, the `emit` composition, and the one-directional edge from chat).
 
 import type { Db } from "@orb/db";
-import type { UserId } from "@orb/kit/ids";
 import { createNotificationsContext } from "./context";
 import type { NotificationsService } from "./contract/service";
 import { createList } from "./verbs/list";
@@ -15,11 +14,10 @@ import { createRecord } from "./verbs/record";
 interface NotificationsServiceDeps {
   db: Db;
   now: () => number;
-  isAgentRecipient: (userId: UserId) => Promise<boolean>;
 }
 
 export function createNotificationsService(deps: NotificationsServiceDeps): NotificationsService {
-  const ctx = createNotificationsContext(deps.db, deps.now, deps.isAgentRecipient);
+  const ctx = createNotificationsContext(deps.db, deps.now);
   return {
     ...createRecord(ctx),
     ...createRead(ctx),

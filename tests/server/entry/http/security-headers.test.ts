@@ -26,6 +26,7 @@ describe("securityHeaders", () => {
     expect(csp).toContain("https://*.tenor.com"); // D61: gif-search previews (Tenor CDN)
     expect(csp).not.toContain("img-src 'self' data:"); // D44: no data-URI images
     expect(csp).toContain("media-src 'self' blob:");
+    expect(csp).toContain("worker-src 'self' blob:"); // blob-URL workers/SharedWorkers (dev AND prod)
     expect(csp).toContain("connect-src 'self'");
     expect(csp).not.toContain("ws:");
     expect(csp).toContain("object-src 'none'");

@@ -46,6 +46,7 @@ import {
 import { createServices } from "./compose";
 import { createAutomationWatcherEnv } from "./compose/automation-watcher";
 import type { LocalAuthenticator, OidcRoutesDeps } from "./http";
+import { createRateLimitGate } from "./rate-limit-gate";
 
 const MS_PER_HOUR = 3_600_000;
 const CATALOG_CHECK_INTERVAL_MS = MS_PER_HOUR;

@@ -85,7 +85,7 @@ function RunWorkloadFormBody({
   const invalidation = useInvalidation();
   const start = useStartWorkload({ trpc, invalidation });
 
-  const targetItems = users.filter((user) => user.kind === "human" && user.enabled).map((user) => ({ value: user.id as string, label: user.handle as string }));
+  const targetItems = users.filter((user) => user.enabled).map((user) => ({ value: user.id as string, label: user.handle as string }));
 
   const dependencyItems: readonly SelectOption<string>[] = dependencyCandidates.map((candidate) => ({
     value: candidate.id,

@@ -1,7 +1,7 @@
 // backends/kit/wire-schemas — lenient parses keep unknown fields, throw on a broken shape; the extractors
 // share ONE extraction (string vs content-parts; the reasoningDetails-over-reasoning channel preference).
 
-import { extractChatReasoning, extractChatReply, parseChatCompletionResult, parseResponsesResult } from "@orb/server/infra/providers/backends/kit";
+import { extractChatReasoning, extractChatReply, parseChatCompletionResult } from "@orb/server/infra/providers/backends/kit";
 import { describe } from "vitest";
 import { expect, test } from "../../../../../support/fixtures";
 
@@ -78,19 +78,5 @@ describe("extractChatReasoning — channel preference", () => {
 
   test("empty when neither channel is present", () => {
     expect(extractChatReasoning({ choices: [{ message: { content: "x" } }] })).toBe("");
-  });
-});
-
-describe("parseResponsesResult — lenient wire parse", () => {
-  test("parses a responses body with output + usage", () => {
-    const parsed = parseResponsesResult({
-      output: [{ type: "message", content: [{ type: "output_text", text: "hi" }] }],
-      outputText: "hi",
-      status: "completed",
-      usage: { inputTokens: 7, outputTokens: 3 },
-    });
-    expect(parsed.status).toBe("completed");
-    expect(parsed.outputText).toBe("hi");
-    expect(parsed.usage?.inputTokens).toBe(7);
   });
 });

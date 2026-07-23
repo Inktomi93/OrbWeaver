@@ -95,4 +95,25 @@ describe("providerErrorFromHttp", () => {
     expect(pe.kind).toBe("unknown");
     expect(pe.apiErrorStatus).toBeUndefined();
   });
+
+  test("a 403 content-moderation block classifies as `moderation`, NOT auth_failed", () => {
+    // OpenRouter's real prompt-moderation shape: 403 + error.metadata.reasons[].
+    const body = JSON.stringify({ error: { code: 403, message: "flagged", metadata: { reasons: ["harassment"] } } });
+    const err = Object.assign(new Error("moderated"), { statusCode: 403, body });
+    const pe = providerErrorFromHttp(err, "openrouter.chat");
+    expect(pe.kind).toBe("moderation");
+    expect(pe.retryable).toBe(false);
+    expect(pe.apiErrorStatus).toBe(403);
+  });
+
+  test("moderation is detected when the SDK hands back an ALREADY-PARSED object body (belt)", () => {
+    const err = Object.assign(new Error("moderated"), { statusCode: 403, body: { error: { code: 403, metadata: { reasons: ["violence"] } } } });
+    expect(providerErrorFromHttp(err, "openrouter.chat").kind).toBe("moderation");
+  });
+
+  test("a plain 403 (bad key permissions, no reasons) stays auth_failed", () => {
+    const err = Object.assign(new Error("forbidden"), { statusCode: 403, body: JSON.stringify({ error: { code: 403, message: "no access" } }) });
+    const pe = providerErrorFromHttp(err, "openrouter.chat");
+    expect(pe.kind).toBe("auth_failed");
+  });
 });

@@ -97,4 +97,20 @@ async function ensureChat(characterId: string): Promise<void> {
 export default async function globalSetup(): Promise<void> {
   const characterId = await ensureCharacter();
   await ensureChat(characterId);
+
+  // Guarantee the tests run on vLLM using the agent-sdk backend, preventing unpredictable E2E fallbacks
+  await trpcMutation("settings.updateUserSettingsSection", {
+    section: "routing",
+    patch: {
+      roleDefaults: {
+        chat: { api: "agent-sdk", source: "vllm" },
+        agent: { api: "agent-sdk", source: "vllm" },
+        summarize: { api: "agent-sdk", source: "vllm" },
+        embed: { source: "vllm" },
+        rerank: { source: "vllm" },
+        imageEmbed: { source: "vllm" },
+        generateImage: { source: "comfyui" },
+      },
+    },
+  });
 }

@@ -7,12 +7,19 @@ import type { ChatApi, CredentialSource, RouteChatAssignment, RoutingRoleKey } f
 import type { Principal } from "@orb/contracts/identity";
 import type { ModelId } from "@orb/kit/ids";
 
+export interface RouteOverride {
+  readonly api?: ChatApi | undefined;
+  readonly source?: CredentialSource | undefined;
+  readonly model?: ModelId | string | null | undefined;
+}
+
 /** `resolveRole(params)` — the one resolver for all 7 roles. Reads `routing.roleDefaults.<role>` for the
- *  principal, applies the optional per-agent override, returns the resolved
+ *  principal, applies the optional per-role override, returns the resolved
  *  `{api, model, credential, capability}`. */
 export interface ResolveRoleParams {
   readonly role: RoutingRoleKey;
   readonly principal: Principal;
+  readonly routeOverride?: RouteOverride;
 }
 
 /** `resolveChat(params)` — the chat-specific overlay. The chat row's routing fields (`routableChat`) BEAT

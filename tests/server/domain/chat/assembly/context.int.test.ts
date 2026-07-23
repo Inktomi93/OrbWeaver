@@ -5,6 +5,7 @@
 import type { CharacterCard } from "@orb/contracts/character";
 import { cardDepthPromptSchema } from "@orb/contracts/character";
 import type { ChatInjection, RoomOverrides } from "@orb/contracts/chat";
+import { speakerKey } from "@orb/contracts/chat";
 import { DEFAULT_GUIDED_ACTIONS, DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { RegexScript } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
@@ -17,7 +18,9 @@ import { beforeEach, describe } from "vitest";
 import { assemblePrompt } from "../../../../../packages/server/src/domain/chat/assembly/assemble";
 import { buildAssembleContext } from "../../../../../packages/server/src/domain/chat/assembly/context";
 import { spliceInChatInjections } from "../../../../../packages/server/src/domain/chat/assembly/injections";
+import { renderMacros } from "../../../../../packages/server/src/domain/chat/assembly/macros";
 import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context";
+import type { AgentCastMember } from "../../../../../packages/server/src/domain/chat/contract/context";
 import { freshDb } from "../../../../support/db";
 import { expect, test } from "../../../../support/fixtures";
 import { FROZEN_AT, makeChatContext, seedCharacter, seedChat, seedUser } from "../_support";
@@ -41,6 +44,10 @@ function cardOf(name: string): CharacterCard {
     creatorNotes: null,
     creator: null,
     cardVersion: null,
+    nickname: null,
+    source: null,
+    creationDate: null,
+    modificationDate: null,
     regexScripts: [],
     extensions: null,
     residualData: null,
@@ -86,6 +93,8 @@ interface InputOver {
   injectionTokenBudget?: number;
   hostTierRegexScripts?: RegexScript[];
   roomOverrides?: RoomOverrides;
+  agentCast?: AgentCastMember[];
+  mutedSpeakerKeys?: ReadonlySet<string>;
 }
 function inputOf(chatId: string, ownerId: UserId, castIds: CharacterId[], over: InputOver = {}): Parameters<typeof buildAssembleContext>[1] {
   return {
@@ -103,6 +112,8 @@ function inputOf(chatId: string, ownerId: UserId, castIds: CharacterId[], over: 
     ...(over.pendingUserText !== undefined ? { pendingUserText: over.pendingUserText } : {}),
     ...(over.hostTierRegexScripts !== undefined ? { hostTierRegexScripts: over.hostTierRegexScripts } : {}),
     ...(over.roomOverrides !== undefined ? { roomOverrides: over.roomOverrides } : {}),
+    ...(over.agentCast !== undefined ? { agentCast: over.agentCast } : {}),
+    ...(over.mutedSpeakerKeys !== undefined ? { mutedSpeakerKeys: over.mutedSpeakerKeys } : {}),
   };
 }
 
@@ -139,6 +150,22 @@ describe("buildAssembleContext — GATHER keyword match (the two-phase lag-kill)
     const quiet = await buildAssembleContext(ctx, inputOf(chatId, host, [charId]));
     expect(quiet.chatInjections?.map((i) => i.content)).not.toContain("DRAGON LORE");
     expect(quiet.wiTrace?.entryIds).toEqual([]);
+  });
+});
+
+describe("buildAssembleContext — the D50 user_input PromptTransform point (automation-design/04 §1.2/§6)", () => {
+  test("a user_input transform runs AFTER the macro pass, BEFORE the USER_INPUT regex (the SEND sink proves order)", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "u");
+    const charId = await seedCharacter(db, host, "aria");
+    // The transform INSERTS "SECRET"; only fires at the user_input point.
+    const apply = (point: string, _chatId: unknown, draft: string): Promise<string> => Promise.resolve(point === "user_input" ? `${draft} SECRET` : draft);
+    const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardOf("Aria")), promptTransforms: apply as ChatContext["promptTransforms"] });
+    const out: { sendUserText?: string } = {};
+    // A USER_INPUT regex that redacts SECRET — it can only bite if the transform (which inserts SECRET) ran first.
+    const redact = regexScript("redact", "SECRET", "[redacted]", "USER_INPUT");
+    await buildAssembleContext(ctx, inputOf(chatId, host, [charId], { pendingUserText: "hello", hostTierRegexScripts: [redact] }), out);
+    expect(out.sendUserText).toBe("hello [redacted]");
   });
 });
 
@@ -427,6 +454,58 @@ describe("buildAssembleContext — character depthPrompt (Character's Note @ Dep
     // (the only assistant placement both runners express) unless the model's `assistantPrefill` is honored.
     expect(cardDepthPromptSchema.safeParse({ prompt: "x", depth: 0, role: "assistant" }).success).toBe(true);
     expect(cardDepthPromptSchema.safeParse({ prompt: "x", depth: 1, role: "assistant" }).success).toBe(true);
+  });
+});
+
+// ── the muted-cast subset (`castNotMuted` → `{{groupNotMuted}}`, R1/F1): a muted seat (character OR agent)
+//    stays in `cast` for its lore/soul but drops from the non-muted subset, keyed on the same seat `disabled`
+//    axis `loadRoom` derives `mutedSpeakerKeys` from. `{{group}}` renders all; `{{groupNotMuted}}` the survivors.
+describe("buildAssembleContext — castNotMuted / {{groupNotMuted}} (R1/F1)", () => {
+  test("a muted character drops from castNotMuted / {{groupNotMuted}} but stays in cast / {{group}}", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    const ariaId = await seedCharacter(db, host, "aria");
+    const branId = await seedCharacter(db, host, "bran");
+    const ctx = ctxWithCards({ [ariaId]: cardOf("Aria"), [branId]: cardOf("Bran") });
+    const out = await buildAssembleContext(
+      ctx,
+      inputOf(chatId, host, [ariaId, branId], { mutedSpeakerKeys: new Set([speakerKey({ kind: "character", characterId: branId })]) }),
+    );
+
+    expect((out.cast ?? []).map((c) => c.name)).toEqual(["Aria", "Bran"]);
+    expect((out.castNotMuted ?? []).map((c) => c.name)).toEqual(["Aria"]);
+    expect(renderMacros("{{group}}", out, null)).toBe("Aria, Bran");
+    expect(renderMacros("{{groupNotMuted}}", out, null)).toBe("Aria");
+  });
+
+  test("a seated agent voices via the assemble cast but is ABSENT from {{group}} AND {{groupNotMuted}} (owner ruling)", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    const ariaId = await seedCharacter(db, host, "aria");
+    const ctx = ctxWithCards({ [ariaId]: cardOf("Aria") });
+    const agentUserId = castId<UserId>("agent_pip");
+    const agentCast: AgentCastMember[] = [{ userId: agentUserId, identity: { displayName: "Pip", systemPrompt: "", avatarAssetId: null } }];
+    const out = await buildAssembleContext(ctx, inputOf(chatId, host, [ariaId], { agentCast }));
+
+    // Voice plane: the agent's soul still assembles as a cast card (index-aligned after the characters).
+    expect((out.cast ?? []).map((c) => c.name)).toEqual(["Aria", "Pip"]);
+    expect((out.castMembers ?? []).map((m) => m.kind)).toEqual(["character", "agent"]);
+    // Macro feed: character-only — Pip appears in NEITHER group macro.
+    expect((out.castNotMuted ?? []).map((c) => c.name)).toEqual(["Aria"]);
+    expect(renderMacros("{{group}}", out, null)).toBe("Aria");
+    expect(renderMacros("{{groupNotMuted}}", out, null)).toBe("Aria");
+  });
+
+  test("no muted seats ⇒ castNotMuted equals the full cast (byte-identical fallback)", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    const ariaId = await seedCharacter(db, host, "aria");
+    const branId = await seedCharacter(db, host, "bran");
+    const ctx = ctxWithCards({ [ariaId]: cardOf("Aria"), [branId]: cardOf("Bran") });
+    const out = await buildAssembleContext(ctx, inputOf(chatId, host, [ariaId, branId]));
+
+    expect((out.castNotMuted ?? []).map((c) => c.name)).toEqual(["Aria", "Bran"]);
+    expect(renderMacros("{{groupNotMuted}}", out, null)).toBe(renderMacros("{{group}}", out, null));
   });
 });
 

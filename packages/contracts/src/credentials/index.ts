@@ -15,7 +15,7 @@ const MIN_NON_EMPTY = 1;
 
 // Dispatch axis: every member needs a resolver arm + an infra/providers runner (tsc's assertNever
 // red-flags a gap). `@orb/contracts/connection` re-exports this verbatim (under its own name).
-export const CRED_SOURCES = ["max-pro-sub", "openrouter", "anthropic", "vllm", "local-light", "custom_openai"] as const;
+export const CRED_SOURCES = ["max-pro-sub", "openrouter", "vllm", "local-light", "custom_openai"] as const;
 export type CredentialSource = (typeof CRED_SOURCES)[number];
 export const credentialSourceSchema = z.enum(CRED_SOURCES);
 
@@ -123,15 +123,6 @@ export type OpenRouterCredential = CredentialBrand & {
   readonly credentialId: UserCredentialId | null;
 };
 
-/** First-party Anthropic (W11) — a paid Anthropic `x-api-key`, sent to `api.anthropic.com` via the
- *  anth-direct backend. NEVER reachable by the free Max sub (the sub-exclusion). Any authenticated user;
- *  `credentialId` is the row id (always a row — no env seed for this source). */
-export type AnthropicCredential = CredentialBrand & {
-  readonly source: "anthropic";
-  readonly apiKey: string;
-  readonly credentialId: UserCredentialId;
-};
-
 /** Supervised loopback vLLM engine — a pure routing marker; ports come from env, no key, no row. */
 export type VllmCredential = CredentialBrand & {
   readonly source: "vllm";
@@ -166,10 +157,4 @@ export type CustomOpenAiCredential = CredentialBrand & {
 
 /** The decrypted-credential shape every provider runner consumes. Constructed ONLY through the
  *  `domain/credentials/substrate/mint` factories. */
-export type ResolvedCredential =
-  | MaxProSubCredential
-  | OpenRouterCredential
-  | AnthropicCredential
-  | VllmCredential
-  | LocalLightCredential
-  | CustomOpenAiCredential;
+export type ResolvedCredential = MaxProSubCredential | OpenRouterCredential | VllmCredential | LocalLightCredential | CustomOpenAiCredential;

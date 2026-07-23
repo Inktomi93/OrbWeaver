@@ -19,7 +19,19 @@ import type { DomainEvent } from "@orb/contracts/events";
 import type { ParticipantRole, Principal, UserRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { assets, characters, chatParticipants, chats, messageAssets, messages, personas } from "@orb/db";
-import type { AssetId, CharacterId, ChatId, ChatParticipantId, GalleryItemId, Handle, MessageAssetId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
+import type {
+  AssetId,
+  CharacterId,
+  ChatId,
+  ChatParticipantId,
+  GalleryItemId,
+  Handle,
+  MessageAssetId,
+  MessageId,
+  PersonaId,
+  PoseLibraryId,
+  UserId,
+} from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createCas, createVariantCache } from "@orb/server/infra/storage";
 import { and, eq, inArray, isNull } from "drizzle-orm";
@@ -48,6 +60,9 @@ export interface AssetsHarness {
   readonly emitted: DomainEvent[];
   /** The injected sharp fake — assert call count + args (e.g. the snapped width). */
   readonly imageTransform: Mock<AssetsContext["imageTransform"]>;
+  /** The injected sharp `probe` fake — override per test (e.g. mockResolvedValueOnce a landscape dim) to
+   *  exercise the pose orientation computation without real decode. Defaults to a 1024×1024 png. */
+  readonly imageProbe: Mock<AssetsContext["imageProbe"]>;
   /** rm the temp CAS + variant trees. Register via `onTestFinished`. */
   readonly cleanup: () => Promise<void>;
   /** Advance the injected frozen clock (ms). */
@@ -64,11 +79,14 @@ export async function makeHarness(db: Db): Promise<AssetsHarness> {
   const variants = createVariantCache(variantDir);
   const emitted: DomainEvent[] = [];
   const imageTransform: Mock<AssetsContext["imageTransform"]> = vi.fn<AssetsContext["imageTransform"]>(() => Promise.resolve(FAKE_WEBP));
+  const imageProbe: Mock<AssetsContext["imageProbe"]> = vi.fn<AssetsContext["imageProbe"]>(() => Promise.resolve({ format: "png", width: 1024, height: 1024 }));
   const ctx: AssetsContext = {
     db,
     cas,
     variants,
     imageTransform,
+    imageProbe,
+    newPoseLibraryId: (): PoseLibraryId => castId<PoseLibraryId>(ids.next("pose_library")),
     emit: (event: DomainEvent): void => {
       emitted.push(event);
     },
@@ -164,6 +182,7 @@ export async function makeHarness(db: Db): Promise<AssetsHarness> {
     ctx,
     emitted,
     imageTransform,
+    imageProbe,
     advance: (ms: number): void => clock.advance(ms),
     cleanup: async (): Promise<void> => {
       await rm(casDir, { recursive: true, force: true });

@@ -3,11 +3,12 @@ import type { Db } from "@orb/db";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
+import { loadWitnessHorizons } from "../../../../../../packages/server/src/domain/chat/memory/persistence/queries";
 import { recallMemory } from "../../../../../../packages/server/src/domain/chat/memory/recall/recall";
 import type { MemoryLogEntry } from "../../../../../../packages/server/src/domain/chat/memory/types";
 import { freshDb } from "../../../../../support/db";
 import { expect, test } from "../../../../../support/fixtures";
-import { makeChatContext, seedCharacter, seedChat, seedUser } from "../../_support";
+import { makeChatContext, seedCharacter, seedChat, seedParticipant, seedUser } from "../../_support";
 import { fakeSearchDigests, GROUP_CHAR, seedDigest, seedSegment, sharedScope } from "../_support";
 
 const aria = castId<CharacterId>("character_aria");
@@ -256,6 +257,36 @@ describe("memory/recall — the 5 modes + the mode-switch union + witnessing", (
     expect(out).toContain("[b0]");
     expect(out).not.toContain("[b1]"); // the kicked interval (seq 9-16) is invisible
     expect(out).toContain("[b2]");
+  });
+
+  test("END-TO-END (D6): horizons SOURCED from chat_participants → a since-open speaker recalls a block a late joiner cannot", async () => {
+    const chatId = await seedChat(db, "e2e");
+    // Three shared-bucket blocks + their spans (block b covers seq [8b+1, 8b+8]).
+    for (let b = 0; b < 3; b += 1) {
+      // biome-ignore lint/performance/noAwaitInLoops: ordered seed.
+      await seedDigest(db, { chatId, scopedCharacterId: GROUP_CHAR, tier: 0, blockIdx: b, topicAnchor: `[b${b}]`, keywords: [] });
+      await seedSegment(db, { chatId, blockIdx: b, seqStart: 8 * b + 1, seqEnd: 8 * b + 8 });
+    }
+    // aria present since the chat opened (seq 1); bram joined at seq 17 (the start of block 2).
+    await seedParticipant(db, { chatId, key: "aria", characterId: aria, joinSeq: 1, leftSeq: null });
+    await seedParticipant(db, { chatId, key: "bram", characterId: bram, joinSeq: 17, leftSeq: null });
+    const ctx = makeChatContext(db);
+
+    // Horizons SOURCED live (not hand-passed) — exactly what the engine's per-speaker recall feeds.
+    const ariaHorizons = await loadWitnessHorizons(db, chatId, aria);
+    const bramHorizons = await loadWitnessHorizons(db, chatId, bram);
+
+    const recall = async (scopedCharacterId: typeof aria, witnessing: Awaited<ReturnType<typeof loadWitnessHorizons>>): Promise<string> =>
+      recallMemory(ctx, { scope: { chatId, scopedCharacterId, isGroup: true }, groupCharacterId: GROUP_CHAR, witnessing, config: { mode: "mixA" } });
+
+    const ariaOut = await recall(aria, ariaHorizons);
+    const bramOut = await recall(bram, bramHorizons);
+
+    // aria (since open) recalls the early scene; bram (joined at block 2) does NOT — DIFFERENT recall per presence.
+    expect(ariaOut).toContain("[b0]");
+    expect(bramOut).not.toContain("[b0]");
+    expect(bramOut).not.toContain("[b1]");
+    expect(bramOut).toContain("[b2]"); // bram witnessed block 2 onward
   });
 
   test("an empty pool → empty string + a logged `memory.recall` skip (no embed — inv 10)", async () => {

@@ -11,9 +11,38 @@ import type { ImageLens } from "@orb/contracts/embeddings";
 import type { EmbedResult, ImageEmbedResult, RerankResult, SummarizeResult } from "@orb/contracts/providers";
 import type { ImageEmbedInput, RerankDocument, RerankQuery, RoleClients, SummarizeInput } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
-import { assets, characterEmbeddings, characterSummaries, characters, chatDigestSpeakers, chatDigests, chatSegments, chats, imageEmbeddings } from "@orb/db";
-import type { AssetId, CharacterEmbeddingId, CharacterId, ChatDigestId, ChatId, ChatSegmentId, Handle, ImageEmbeddingId, UserId } from "@orb/kit/ids";
+import {
+  assets,
+  characterEmbeddings,
+  characterSummaries,
+  characters,
+  chatDigestSpeakers,
+  chatDigests,
+  chatDocuments,
+  chatParticipants,
+  chatSegments,
+  chats,
+  documentChunks,
+  documents as documentsTable,
+  globalDocuments,
+  imageEmbeddings,
+} from "@orb/db";
+import type {
+  AssetId,
+  CharacterEmbeddingId,
+  CharacterId,
+  ChatDigestId,
+  ChatId,
+  ChatParticipantId,
+  ChatSegmentId,
+  DocumentChunkId,
+  DocumentId,
+  Handle,
+  ImageEmbeddingId,
+  UserId,
+} from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { resolveActiveDocumentIds } from "../../../../packages/server/src/domain/databank/persistence/scope.ts";
 import type { SearchContext, SearchService } from "../../../../packages/server/src/domain/search/index.ts";
 import { createSearchService } from "../../../../packages/server/src/domain/search/index.ts";
 import { FROZEN_AT_MS } from "../../../support/clock.ts";
@@ -98,8 +127,88 @@ function makeFakeRoleClients(controls: FakeRoleClientControls = {}): RoleClients
 /** Build the search service over a real db + a scripted role-clients bundle + the frozen clock. `now` is
  *  overridable so the lexical-index TTL-freshness path can be exercised deterministically. */
 export function makeSearch(db: Db, controls?: FakeRoleClientControls, now: () => number = (): number => FROZEN_AT_MS): SearchService {
-  const ctx: SearchContext = { db, roleClients: makeFakeRoleClients(controls), now };
+  // The REAL databank scope resolver, bound to the db — the honest wiring the compose root uses, so the
+  // `documents` lens's scope gating (the gate-8 leak test) is exercised end-to-end over real junctions.
+  const ctx: SearchContext = { db, roleClients: makeFakeRoleClients(controls), now, resolveActiveDocumentIds: (scope) => resolveActiveDocumentIds(db, scope) };
   return createSearchService(ctx);
+}
+
+interface SeedDocumentOverrides {
+  readonly id?: string;
+  readonly ownerId: UserId;
+  readonly name?: string;
+}
+
+/** Insert a `documents` row (the databank canon producer + the `document_chunks` FK parent). */
+export async function seedDocument(db: Db, o: SeedDocumentOverrides): Promise<DocumentId> {
+  const id = castId<DocumentId>(o.id ?? `document_${o.ownerId}`);
+  await db.insert(documentsTable).values({
+    id,
+    ownerId: o.ownerId,
+    name: o.name ?? "Doc",
+    origin: "text",
+    mime: "text/markdown",
+    extractedText: "",
+    byteSize: 0,
+    importHash: `import_${id}`,
+    extractorVersion: "test-1",
+    createdAt: FROZEN_AT,
+    updatedAt: FROZEN_AT,
+  });
+  return id;
+}
+
+interface SeedDocumentChunkOverrides {
+  readonly id?: string;
+  readonly documentId: DocumentId;
+  readonly chunkIdx: number;
+  readonly content?: string;
+  readonly embedding: Float32Array;
+  readonly contentHash?: string;
+  readonly hubScore?: number | null;
+  readonly model?: string;
+}
+
+/** Insert a `document_chunks` row (the databank RAG lens the `documents` verb scans). */
+export async function seedDocumentChunk(db: Db, o: SeedDocumentChunkOverrides): Promise<DocumentChunkId> {
+  const id = castId<DocumentChunkId>(o.id ?? `document_chunk_${o.documentId}_${o.chunkIdx}`);
+  await db.insert(documentChunks).values({
+    id,
+    documentId: o.documentId,
+    chunkIdx: o.chunkIdx,
+    content: o.content ?? `chunk ${o.chunkIdx}`,
+    charStart: o.chunkIdx * 100,
+    charEnd: o.chunkIdx * 100 + 99,
+    embedding: o.embedding,
+    contentHash: o.contentHash ?? `chunk_hash_${o.documentId}_${o.chunkIdx}`,
+    hubScore: o.hubScore ?? null,
+    model: o.model ?? EMBED_MODEL,
+    dim: VECTOR_DIM,
+    createdAt: FROZEN_AT,
+  });
+  return id;
+}
+
+/** Attach a document to the owner's GLOBAL bank (feeds any chat this owner hosts). */
+export async function seedGlobalDocument(db: Db, ownerId: UserId, documentId: DocumentId): Promise<void> {
+  await db.insert(globalDocuments).values({ ownerId, documentId });
+}
+
+/** Attach a document directly to one chat (feeds only that chat's prompts). */
+export async function seedChatDocument(db: Db, chatId: ChatId, documentId: DocumentId): Promise<void> {
+  await db.insert(chatDocuments).values({ chatId, documentId });
+}
+
+/** Seat a user in a chat with a role (the `{chatId}` scope resolver reads role='host', leftSeq NULL). */
+export async function seedChatParticipant(db: Db, chatId: ChatId, userId: UserId, role: "host" | "member" = "host"): Promise<void> {
+  await db.insert(chatParticipants).values({
+    id: castId<ChatParticipantId>(`chatpart_${chatId}_${userId}`),
+    chatId,
+    kind: "human",
+    userId,
+    role,
+    joinSeq: 0,
+  });
 }
 
 interface SeedUserOverrides {

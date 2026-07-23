@@ -20,9 +20,11 @@ import type {
 } from "@orb/contracts/chat";
 import {
   acceptInviteSchema,
+  agentMemberSpecSchema,
   buildCharacterNameMap,
   buildPersonaNameMap,
   CHAT_BUS_EVENT_TYPES,
+  characterMemberSpecSchema,
   contentSpansToBlocks,
   createInviteSchema,
   DEFAULT_GROUP_CONFIG,
@@ -38,6 +40,8 @@ import {
   previewInviteSchema,
   redeemInviteSchema,
   roomOverridesSchema,
+  rosterMemberSpecSchema,
+  seatKnobsSchema,
   toolCallRecordSchema,
 } from "@orb/contracts/chat";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
@@ -173,6 +177,7 @@ test("MessageView is the slot joined with its selected variant (content + econom
     genFinishedAt: 4400,
     generationId: null,
     contextBoundaryMessageId: null,
+    toolCalls: [],
   };
   expect(view.content).toBe("hello there");
   expect(view.selectedVariantId).toBe(SAMPLE_VARIANT_ID);
@@ -665,4 +670,36 @@ test("§6 parity keystone: server-build and client-build of the SAME producer ar
   );
   expect(nullStampServer).toBe("Nyx waves");
   expect(nullStampClient).toBe("Nyx waves");
+});
+
+// ═══ D80 — the ONE roster-member vocabulary (seatKnobsSchema + rosterMemberSpecSchema) ════
+
+test("seatKnobsSchema accepts a bare {} (both knobs optional — absent talkativeness = inherit)", () => {
+  expect(seatKnobsSchema.parse({})).toEqual({});
+  expect(seatKnobsSchema.parse({ talkativeness: 0.7, disabled: true })).toEqual({ talkativeness: 0.7, disabled: true });
+});
+
+test("seatKnobsSchema clamps the talkativeness RANGE (0–1) — an out-of-range weight is rejected", () => {
+  expect(seatKnobsSchema.safeParse({ talkativeness: 1.5 }).success).toBe(false);
+  expect(seatKnobsSchema.safeParse({ talkativeness: -0.1 }).success).toBe(false);
+});
+
+test("rosterMemberSpecSchema round-trips the character arm (characterId + position + seat knobs)", () => {
+  const spec = { kind: "character" as const, characterId: SAMPLE_CHARACTER_ID, position: 0, talkativeness: 0.5, disabled: false };
+  expect(rosterMemberSpecSchema.parse(spec)).toEqual(spec);
+  // characterMemberSpecSchema is the EXTRACTED arm (one home — the roster-preset narrow), not a re-spell.
+  expect(characterMemberSpecSchema.parse(spec)).toEqual(spec);
+});
+
+test("rosterMemberSpecSchema carries the agent arm FROM BIRTH — a MINT KEY (ownerUserId × sourceKind), never a userId", () => {
+  const spec = { kind: "agent" as const, ownerUserId: SAMPLE_USER_ID, sourceKind: "buddy" as const, position: 1, disabled: false };
+  expect(rosterMemberSpecSchema.parse(spec)).toEqual(spec);
+  // The agent arm has NO characterId (it is a template mint key, not a card seat).
+  expect(agentMemberSpecSchema.safeParse({ ...spec, characterId: SAMPLE_CHARACTER_ID }).success).toBe(true); // extra keys stripped, not rejected
+  expect(agentMemberSpecSchema.parse({ ...spec, characterId: SAMPLE_CHARACTER_ID })).toEqual(spec);
+});
+
+test("rosterMemberSpecSchema rejects `human` and `observer` — humans join via invite only, observer is unseatable (D80)", () => {
+  expect(rosterMemberSpecSchema.safeParse({ kind: "human", userId: SAMPLE_USER_ID, position: 0 }).success).toBe(false);
+  expect(rosterMemberSpecSchema.safeParse({ kind: "observer", position: 0 }).success).toBe(false);
 });

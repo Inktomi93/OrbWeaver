@@ -1,0 +1,84 @@
+tests/server/domain/admin/_support.ts(68,26): error TS2769: No overload matches this call.
+tests/server/domain/admin/containment.suite.int.test.ts(35,15): error TS2305: Module '"@orb/contracts/identity"' has no exported member 'AgentActor'.
+tests/server/domain/admin/containment.suite.int.test.ts(37,10): error TS2305: Module '"@orb/db"' has no exported member 'agentPrincipals'.
+tests/server/domain/admin/containment.suite.int.test.ts(41,10): error TS2305: Module '"@orb/server/domain/admin"' has no exported member 'canAgent'.
+tests/server/domain/admin/containment.suite.int.test.ts(44,57): error TS2307: Cannot find module '@orb/server/domain/rpg' or its corresponding type declarations.
+tests/server/domain/admin/containment.suite.int.test.ts(51,33): error TS2307: Cannot find module '../../../support/rpg-context.ts' or its corresponding type declarations.
+tests/server/domain/admin/containment.suite.int.test.ts(87,5): error TS2353: Object literal may only specify known properties, and 'isAgentRecipient' does not exist in type 'NotificationsServiceDeps'.
+tests/server/domain/admin/containment.suite.int.test.ts(87,30): error TS7006: Parameter 'userId' implicitly has an 'any' type.
+tests/server/domain/admin/containment.suite.int.test.ts(89,14): error TS2367: This comparison appears to be unintentional because the types '"human" | undefined' and '"agent"' have no overlap.
+tests/server/domain/admin/containment.suite.int.test.ts(120,9): error TS2322: Type '"agent"' is not assignable to type '"human" | SQL<unknown> | SQLiteColumn<ColumnBaseConfig<ColumnDataType, string>, {}, {}> | undefined'.
+tests/server/domain/admin/containment.suite.int.test.ts(215,39): error TS2769: No overload matches this call.
+tests/server/domain/admin/guard.test.ts(6,15): error TS2305: Module '"@orb/contracts/identity"' has no exported member 'AgentActor'.
+tests/server/domain/admin/guard.test.ts(10,15): error TS2305: Module '"@orb/server/domain/admin"' has no exported member 'canAgent'.
+tests/server/domain/admin/verbs/list-users.int.test.ts(42,80): error TS2322: Type '"agent"' is not assignable to type '"human"'.
+tests/server/domain/assets/_support.ts(89,5): error TS2353: Object literal may only specify known properties, and 'newPoseLibraryId' does not exist in type 'AssetsContext'.
+tests/server/domain/assets/persistence/poses.int.test.ts(8,18): error TS2305: Module '"@orb/db"' has no exported member 'poseLibrary'.
+tests/server/domain/assets/persistence/poses.int.test.ts(12,56): error TS2307: Cannot find module '../../../../../packages/server/src/domain/assets/persistence/poses.ts' or its corresponding type declarations.
+tests/server/domain/assets/persistence/poses.int.test.ts(73,49): error TS7006: Parameter 'p' implicitly has an 'any' type.
+tests/server/domain/assets/persistence/poses.int.test.ts(74,49): error TS7006: Parameter 'p' implicitly has an 'any' type.
+tests/server/domain/assets/persistence/poses.int.test.ts(85,53): error TS7006: Parameter 'p' implicitly has an 'any' type.
+tests/server/domain/assets/persistence/poses.int.test.ts(87,65): error TS7006: Parameter 'p' implicitly has an 'any' type.
+tests/server/domain/assets/verbs/import-poses.int.test.ts(7,18): error TS2305: Module '"@orb/db"' has no exported member 'poseLibrary'.
+tests/server/domain/assets/verbs/import-poses.int.test.ts(28,30): error TS2339: Property 'importPoses' does not exist on type 'AssetsService'.
+tests/server/domain/assets/verbs/import-poses.int.test.ts(50,28): error TS2339: Property 'listOwnedPoses' does not exist on type 'AssetsService'.
+tests/server/domain/assets/verbs/import-poses.int.test.ts(51,22): error TS7006: Parameter 'p' implicitly has an 'any' type.
+tests/server/domain/assets/verbs/import-poses.int.test.ts(61,30): error TS2339: Property 'importPoses' does not exist on type 'AssetsService'.
+tests/server/domain/assets/verbs/import-poses.int.test.ts(70,33): error TS7006: Parameter 'p' implicitly has an 'any' type.
+tests/server/domain/assets/verbs/import-poses.int.test.ts(71,33): error TS7006: Parameter 'f' implicitly has an 'any' type.
+tests/server/domain/assets/verbs/import-poses.int.test.ts(74,22): error TS2339: Property 'listOwnedPoses' does not exist on type 'AssetsService'.
+tests/server/domain/assets/verbs/import-poses.int.test.ts(85,15): error TS2339: Property 'importPoses' does not exist on type 'AssetsService'.
+tests/server/domain/assets/verbs/import-poses.int.test.ts(87,22): error TS2339: Property 'listOwnedPoses' does not exist on type 'AssetsService'.
+tests/server/domain/assets/verbs/import-poses.int.test.ts(88,23): error TS2339: Property 'listOwnedPoses' does not exist on type 'AssetsService'.
+tests/server/domain/assets/verbs/import-poses.int.test.ts(88,73): error TS7006: Parameter 'p' implicitly has an 'any' type.
+tests/server/domain/assets/verbs/import-poses.int.test.ts(98,15): error TS2339: Property 'importPoses' does not exist on type 'AssetsService'.
+tests/server/domain/assets/verbs/import-poses.int.test.ts(106,23): error TS2339: Property 'listOwnedPoses' does not exist on type 'AssetsService'.
+tests/server/domain/assets/verbs/import-poses.int.test.ts(106,99): error TS7006: Parameter 'p' implicitly has an 'any' type.
+tests/server/domain/assets/verbs/import-poses.int.test.ts(116,30): error TS2339: Property 'importPoses' does not exist on type 'AssetsService'.
+tests/server/domain/assets/verbs/list-owned-poses.int.test.ts(12,38): error TS2307: Cannot find module '../../../../../packages/server/src/domain/assets/persistence/poses.ts' or its corresponding type declarations.
+tests/server/domain/assets/verbs/list-owned-poses.int.test.ts(13,38): error TS2307: Cannot find module '../../../../../packages/server/src/domain/assets/verbs/list-owned-poses.ts' or its corresponding type declarations.
+tests/server/domain/assets/verbs/list-owned-poses.int.test.ts(47,69): error TS7006: Parameter 'p' implicitly has an 'any' type.
+tests/server/domain/assets/verbs/list-owned-poses.int.test.ts(48,91): error TS7006: Parameter 'p' implicitly has an 'any' type.
+tests/server/domain/assets/verbs/list-owned-poses.int.test.ts(49,69): error TS7006: Parameter 'p' implicitly has an 'any' type.
+tests/server/domain/character/_support.ts(81,5): error TS2353: Object literal may only specify known properties, and 'newProposalId' does not exist in type 'CharacterContext'.
+tests/server/domain/character/persistence/card-evolution-proposals.int.test.ts(6,42): error TS2307: Cannot find module '@orb/contracts/crew' or its corresponding type declarations.
+tests/server/domain/character/persistence/card-evolution-proposals.int.test.ts(17,8): error TS2307: Cannot find module '../../../../../packages/server/src/domain/character/persistence/card-evolution-proposals.ts' or its corresponding type declarations.
+tests/server/domain/character/persistence/card-evolution-proposals.int.test.ts(57,30): error TS7006: Parameter 'p' implicitly has an 'any' type.
+tests/server/domain/character/verbs/accept-card-evolution.int.test.ts(6,42): error TS2307: Cannot find module '@orb/contracts/crew' or its corresponding type declarations.
+tests/server/domain/character/verbs/accept-card-evolution.int.test.ts(11,10): error TS2305: Module '"@orb/server/domain/character"' has no exported member 'CardEvolutionProposalNotFoundError'.
+tests/server/domain/character/verbs/accept-card-evolution.int.test.ts(40,34): error TS2339: Property 'proposeCardEvolution' does not exist on type 'CharacterService'.
+tests/server/domain/character/verbs/accept-card-evolution.int.test.ts(44,15): error TS2339: Property 'acceptCardEvolution' does not exist on type 'CharacterService'.
+tests/server/domain/character/verbs/accept-card-evolution.int.test.ts(59,22): error TS2339: Property 'listCardEvolutionProposals' does not exist on type 'CharacterService'.
+tests/server/domain/character/verbs/accept-card-evolution.int.test.ts(70,34): error TS2339: Property 'proposeCardEvolution' does not exist on type 'CharacterService'.
+tests/server/domain/character/verbs/accept-card-evolution.int.test.ts(71,15): error TS2339: Property 'acceptCardEvolution' does not exist on type 'CharacterService'.
+tests/server/domain/character/verbs/accept-card-evolution.int.test.ts(73,22): error TS2339: Property 'acceptCardEvolution' does not exist on type 'CharacterService'.
+tests/server/domain/character/verbs/accept-card-evolution.int.test.ts(83,34): error TS2339: Property 'proposeCardEvolution' does not exist on type 'CharacterService'.
+tests/server/domain/character/verbs/accept-card-evolution.int.test.ts(85,22): error TS2339: Property 'acceptCardEvolution' does not exist on type 'CharacterService'.
+tests/server/domain/character/verbs/accept-card-evolution.int.test.ts(88,11): error TS2339: Property 'acceptCardEvolution' does not exist on type 'CharacterService'.
+tests/server/domain/character/verbs/dismiss-card-evolution.int.test.ts(5,42): error TS2307: Cannot find module '@orb/contracts/crew' or its corresponding type declarations.
+tests/server/domain/character/verbs/dismiss-card-evolution.int.test.ts(6,10): error TS2305: Module '"@orb/server/domain/character"' has no exported member 'CardEvolutionProposalNotFoundError'.
+tests/server/domain/character/verbs/dismiss-card-evolution.int.test.ts(21,34): error TS2339: Property 'proposeCardEvolution' does not exist on type 'CharacterService'.
+tests/server/domain/character/verbs/dismiss-card-evolution.int.test.ts(24,15): error TS2339: Property 'dismissCardEvolution' does not exist on type 'CharacterService'.
+tests/server/domain/character/verbs/dismiss-card-evolution.int.test.ts(26,22): error TS2339: Property 'listCardEvolutionProposals' does not exist on type 'CharacterService'.
+tests/server/domain/character/verbs/dismiss-card-evolution.int.test.ts(39,34): error TS2339: Property 'proposeCardEvolution' does not exist on type 'CharacterService'.
+tests/server/domain/character/verbs/dismiss-card-evolution.int.test.ts(41,22): error TS2339: Property 'dismissCardEvolution' does not exist on type 'CharacterService'.
+tests/server/domain/character/verbs/list-card-evolution-proposals.int.test.ts(5,42): error TS2307: Cannot find module '@orb/contracts/crew' or its corresponding type declarations.
+tests/server/domain/character/verbs/list-card-evolution-proposals.int.test.ts(22,26): error TS2339: Property 'proposeCardEvolution' does not exist on type 'CharacterService'.
+tests/server/domain/character/verbs/list-card-evolution-proposals.int.test.ts(23,15): error TS2339: Property 'dismissCardEvolution' does not exist on type 'CharacterService'.
+tests/server/domain/character/verbs/list-card-evolution-proposals.int.test.ts(25,26): error TS2339: Property 'proposeCardEvolution' does not exist on type 'CharacterService'.
+tests/server/domain/character/verbs/list-card-evolution-proposals.int.test.ts(27,31): error TS2339: Property 'listCardEvolutionProposals' does not exist on type 'CharacterService'.
+tests/server/domain/character/verbs/list-card-evolution-proposals.int.test.ts(28,25): error TS7006: Parameter 'p' implicitly has an 'any' type.
+tests/server/domain/character/verbs/list-card-evolution-proposals.int.test.ts(38,15): error TS2339: Property 'proposeCardEvolution' does not exist on type 'CharacterService'.
+tests/server/domain/character/verbs/list-card-evolution-proposals.int.test.ts(40,22): error TS2339: Property 'listCardEvolutionProposals' does not exist on type 'CharacterService'.
+tests/server/domain/character/verbs/propose-card-evolution.int.test.ts(6,42): error TS2307: Cannot find module '@orb/contracts/crew' or its corresponding type declarations.
+tests/server/domain/character/verbs/propose-card-evolution.int.test.ts(26,34): error TS2339: Property 'proposeCardEvolution' does not exist on type 'CharacterService'.
+tests/server/domain/character/verbs/propose-card-evolution.int.test.ts(28,31): error TS2339: Property 'listCardEvolutionProposals' does not exist on type 'CharacterService'.
+tests/server/domain/character/verbs/propose-card-evolution.int.test.ts(29,25): error TS7006: Parameter 'p' implicitly has an 'any' type.
+tests/server/domain/character/verbs/propose-card-evolution.int.test.ts(42,34): error TS2339: Property 'proposeCardEvolution' does not exist on type 'CharacterService'.
+tests/server/domain/character/verbs/propose-card-evolution.int.test.ts(44,31): error TS2339: Property 'listCardEvolutionProposals' does not exist on type 'CharacterService'.
+tests/server/domain/character/verbs/propose-card-evolution.int.test.ts(45,25): error TS7006: Parameter 'p' implicitly has an 'any' type.
+tests/server/domain/character/verbs/propose-card-evolution.int.test.ts(57,29): error TS2339: Property 'proposeCardEvolution' does not exist on type 'CharacterService'.
+tests/server/domain/character/verbs/propose-card-evolution.int.test.ts(58,30): error TS2339: Property 'proposeCardEvolution' does not exist on type 'CharacterService'.
+tests/server/domain/character/verbs/propose-card-evolution.int.test.ts(60,31): error TS2339: Property 'listCardEvolutionProposals' does not exist on type 'CharacterService'.
+tests/server/domain/character/verbs/propose-card-evolution.int.test.ts(62,25): error TS7006: Parameter 'p' implicitly has an 'any' type.
+tests/server/domain/character/verbs/propose-card-evolution.int.test.ts(63,25): error TS7006: Parameter 'p' implicitly has an 'any' type.

@@ -139,6 +139,111 @@ describe("update", () => {
     expect(h.events).toHaveLength(0);
   });
 
+  test("a FOREIGN backgroundOverride asset throws AssetNotFoundError (BG-C ownership belt — nothing written)", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const svc = createCharacterService(h.ctx);
+    const owner = await seedUser(db, { handle: "owner" });
+    const other = await seedUser(db, { handle: "other" });
+    const foreign = await seedAsset(db, { id: "asset_foreignbg", ownerId: other });
+    const created = await svc.create({ principal: principal(owner), input: { handle: "nyx", name: "Nyx", description: "d" } });
+    h.events.length = 0;
+
+    await expect(
+      svc.update({
+        principal: principal(owner),
+        characterId: created.id,
+        input: { backgroundOverride: { kind: "asset", seededId: "", externalUrl: "", assetId: foreign, assetHash: "h", mime: "image/png", provenanceUrl: "" } },
+      }),
+    ).rejects.toBeInstanceOf(AssetNotFoundError);
+
+    const reread = await svc.get({ principal: principal(owner), characterId: created.id });
+    expect(reread.backgroundOverride).toBeNull();
+    expect(h.events).toHaveLength(0);
+  });
+
+  test("a backgroundOverride with a non-asset kind carrying an assetId persists CLEAN — asset fields emptied (no GC-root smuggle)", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const svc = createCharacterService(h.ctx);
+    const owner = await seedUser(db, { handle: "owner" });
+    const other = await seedUser(db, { handle: "other" });
+    // A foreign id smuggled under kind:"none" — canonicalization empties it BEFORE the ownership belt, so the
+    // write SUCCEEDS with a clean shape (assetId "") and never GC-roots the foreign id via background_override.
+    const foreign = await seedAsset(db, { id: "asset_foreignsmuggle", ownerId: other });
+    const created = await svc.create({ principal: principal(owner), input: { handle: "nyx", name: "Nyx", description: "d" } });
+
+    const updated = await svc.update({
+      principal: principal(owner),
+      characterId: created.id,
+      input: { backgroundOverride: { kind: "none", seededId: "", externalUrl: "", assetId: foreign, assetHash: "h", mime: "image/png", provenanceUrl: "" } },
+    });
+
+    expect(updated.backgroundOverride).toEqual({ kind: "none", seededId: "", externalUrl: "", assetId: "", assetHash: "", mime: "", provenanceUrl: "" });
+    const reread = await svc.get({ principal: principal(owner), characterId: created.id });
+    expect(reread.backgroundOverride?.assetId).toBe("");
+  });
+
+  test("an EXTERNAL backgroundOverride is MATERIALIZED into an owned asset (F-P0-2): persists kind:asset + provenanceUrl", async () => {
+    const db = await freshDb();
+    const owner0 = await seedUser(db, { handle: "owner" });
+    // The materialize op (compose) fetches → magic-belts → stores under the caller; the freshly-stored asset is
+    // the owner's OWN, so `ensureBackgroundOverrideOwned` passes. The stub returns a pre-seeded owned asset.
+    const storedAssetId = await seedAsset(db, { id: "asset_cardbgmaterialized1", ownerId: owner0 });
+    const h = makeHarness(db, {
+      materializeBackground: () => Promise.resolve({ ok: true, asset: { assetId: storedAssetId, assetHash: "hash_cardbg", mime: "image/png" } }),
+    });
+    const svc = createCharacterService(h.ctx);
+    const created = await svc.create({ principal: principal(owner0), input: { handle: "nyx", name: "Nyx", description: "d" } });
+
+    const url = "https://cdn.example/card-bg.jpg";
+    const updated = await svc.update({
+      principal: principal(owner0),
+      characterId: created.id,
+      input: { backgroundOverride: { kind: "external", seededId: "", externalUrl: url, assetId: "", assetHash: "", mime: "", provenanceUrl: "" } },
+    });
+
+    expect(updated.backgroundOverride).toEqual({
+      kind: "asset",
+      seededId: "",
+      externalUrl: "",
+      assetId: storedAssetId,
+      assetHash: "hash_cardbg",
+      mime: "image/png",
+      provenanceUrl: url,
+    });
+  });
+
+  test("an EXTERNAL backgroundOverride the op refuses throws background_unavailable — no write", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db, { materializeBackground: () => Promise.resolve({ ok: false, reason: "unreachable" }) });
+    const svc = createCharacterService(h.ctx);
+    const owner = await seedUser(db, { handle: "owner" });
+    const created = await svc.create({ principal: principal(owner), input: { handle: "nyx", name: "Nyx", description: "d" } });
+    h.events.length = 0;
+
+    const err = await svc
+      .update({
+        principal: principal(owner),
+        characterId: created.id,
+        input: {
+          backgroundOverride: {
+            kind: "external",
+            seededId: "",
+            externalUrl: "https://cdn.example/gone.jpg",
+            assetId: "",
+            assetHash: "",
+            mime: "",
+            provenanceUrl: "",
+          },
+        },
+      })
+      .catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(CharacterOperationError);
+    expect((err as CharacterOperationError).code).toBe("background_unavailable");
+    expect(h.events).toHaveLength(0);
+  });
+
   test("applies a handle rename (FINAL-Character §2 identity column) and audits only `handle`", async () => {
     const db = await freshDb();
     const h = makeHarness(db);

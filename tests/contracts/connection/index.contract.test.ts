@@ -8,7 +8,6 @@ import {
   modelCapabilitySchema,
   modelCatalogEntrySchema,
   openRouterProviderRoutingSchema,
-  parseProviderRouting,
   REASONING_MODES,
   ROLE_HANDLING,
   reasoningModeSchema,
@@ -56,14 +55,6 @@ test("openRouterProviderRoutingSchema round-trips a known-knob blob", () => {
     sort: "throughput" as const,
   };
   expect(openRouterProviderRoutingSchema.parse(prefs)).toEqual(prefs);
-});
-
-test("parseProviderRouting keeps unknown fields and heals non-objects to undefined", () => {
-  // `.loose()` preserves a not-yet-modelled field rather than dropping it.
-  const withExtra = { order: ["Anthropic"], some_new_or_knob: true };
-  expect(parseProviderRouting(withExtra)).toEqual(withExtra);
-  expect(parseProviderRouting(null)).toBeUndefined();
-  expect(parseProviderRouting("not an object")).toBeUndefined();
 });
 
 // --- ModelCapability — distinct axes; EffortLevel excludes 'none' -------------

@@ -81,6 +81,43 @@ describe("resolveChat — effort clamped to the model's effortLevels", () => {
   });
 });
 
+describe("resolveChat — R0 reasoning: mandatory clamp + defaultEffort precedence", () => {
+  const mandatory = withReasoning({ mode: "effort", enabled: true, effortLevels: ["high", "medium", "low"], mandatory: true });
+
+  test("(c) effort:'none' on a mandatory model CLAMPS up to the lowest supported effort + visible warning", () => {
+    const out = resolveChat({ effort: "none" }, mandatory);
+    expect(out.reasoning.enabled).toBe(true); // clamped on, never a silent 400
+    expect(out.reasoning.effort).toBe("low"); // lowest by canonical order (not array position)
+    expect(out.warnings).toContainEqual({
+      code: "reasoning_mandatory_clamp",
+      message: 'reasoning is mandatory on this model: clamped effort "none" up to the lowest supported "low"',
+    });
+  });
+
+  test("(c) NO effort on a mandatory model also clamps to the lowest", () => {
+    expect(resolveChat({}, mandatory).reasoning.effort).toBe("low");
+  });
+
+  test("(c) a real effort on a mandatory model is untouched (no clamp, no warning)", () => {
+    const out = resolveChat({ effort: "high" }, mandatory);
+    expect(out.reasoning.effort).toBe("high");
+    expect(out.warnings).toEqual([]);
+  });
+
+  test("(d) precedence: model defaultEffort fills the gap when the user picks neither effort nor quality", () => {
+    const cap = withReasoning({ mode: "effort", enabled: true, effortLevels: ["low", "medium", "high"], defaultEffort: "low" });
+    expect(resolveChat({}, cap).reasoning.effort).toBe("low"); // model default fills the gap
+    expect(resolveChat({ effort: "high" }, cap).reasoning.effort).toBe("high"); // explicit user wins
+    expect(resolveChat({ quality: "balanced" }, cap).reasoning.effort).toBe("medium"); // quality wins over model default
+  });
+
+  test("(d) defaultEnabled:false suppresses the defaultEffort fill (off until the user asks)", () => {
+    const cap = withReasoning({ mode: "effort", enabled: true, effortLevels: ["low", "medium", "high"], defaultEffort: "medium", defaultEnabled: false });
+    expect(resolveChat({}, cap).reasoning.enabled).toBe(false); // off-by-default honored
+    expect(resolveChat({ effort: "high" }, cap).reasoning.effort).toBe("high"); // but an explicit ask still reasons
+  });
+});
+
 describe("resolveChat — the quality dial → reasoning effort (Proposal 2)", () => {
   // A model that lists every quality-mapped level so the mapping rides through un-clamped here.
   const wide = withReasoning({
@@ -163,6 +200,37 @@ describe("resolveChat — budget mode (clamp + default)", () => {
   });
 });
 
+describe("resolveChat — MA-5: budget clamped under maxOutputTokens (visible-output headroom)", () => {
+  // A budget-mode model whose default budget (budgetRange.max) exceeds a tight user output cap — the
+  // Anthropic/OR-responses reasoning-vs-output-cap starvation the funnel must guard.
+  const cap = withReasoning({ mode: "budget", enabled: true, budgetRange: { min: 1024, max: 8192 } });
+
+  test("the DEFAULT budget (range.max) is clamped to leave 512 tokens below the output cap + warns", () => {
+    const out = resolveChat({ effort: "high", maxOutputTokens: 2000 }, cap);
+    // default budget 8192 > (2000 - 512) → clamped to 1488, preserving the visible/structured payload.
+    expect(out.reasoning.budgetTokens).toBe(1488);
+    expect(out.warnings.some((w) => w.code === "reasoning_budget_clamped")).toBe(true);
+  });
+
+  test("an EXPLICIT over-cap budget is clamped down too (the explicit output cap wins)", () => {
+    const out = resolveChat({ effort: "high", maxOutputTokens: 3000, thinkingBudgetTokens: 8000 }, cap);
+    expect(out.reasoning.budgetTokens).toBe(3000 - 512);
+    expect(out.warnings.some((w) => w.code === "reasoning_budget_clamped")).toBe(true);
+  });
+
+  test("no clamp (and no warning) when the cap leaves ample headroom above the budget", () => {
+    const out = resolveChat({ effort: "high", maxOutputTokens: 4096, thinkingBudgetTokens: 1024 }, cap);
+    expect(out.reasoning.budgetTokens).toBe(1024);
+    expect(out.warnings.some((w) => w.code === "reasoning_budget_clamped")).toBe(false);
+  });
+
+  test("no clamp when maxOutputTokens is unset — the budget defaults to range.max", () => {
+    const out = resolveChat({ effort: "high" }, cap);
+    expect(out.reasoning.budgetTokens).toBe(8192);
+    expect(out.warnings.some((w) => w.code === "reasoning_budget_clamped")).toBe(false);
+  });
+});
+
 describe("resolveChat — the Anthropic display gate", () => {
   test("a listed display mode is kept", () => {
     const cap = withReasoning({ mode: "effort", enabled: true, displayModes: ["summarized"] });
@@ -203,6 +271,21 @@ describe("resolveChat — sampling capability-gating", () => {
     });
   });
 
+  test("topA is capability-gated + clamped like the other numeric knobs", () => {
+    const cap = withSampling({ topA: { min: 0, max: 1 } });
+    const out = resolveChat({ topA: 1.5 }, cap);
+    expect(out.sampling.topA).toBe(1); // clamped to the range max
+  });
+
+  test("topA the model omits is DROPPED + warned (no silent no-op)", () => {
+    const out = resolveChat({ topA: 0.3 }, withSampling({}));
+    expect(out.sampling.topA).toBeUndefined();
+    expect(out.warnings).toContainEqual({
+      code: "sampling_knob_dropped",
+      message: "topA ignored: model does not expose a topA range",
+    });
+  });
+
   test("boolean-gated knobs (seed/logitBias/stop) survive when the flag is set", () => {
     const out = resolveChat({ seed: 7, logitBias: { "1": 2 }, stop: ["END"] }, FULL);
     expect(out.sampling.seed).toBe(7);
@@ -224,6 +307,38 @@ describe("resolveChat — sampling capability-gating", () => {
     const out = resolveChat({}, FULL);
     expect(out.sampling).toEqual({});
     expect(out.warnings).toEqual([]);
+  });
+});
+
+describe("resolveChat — the quality dial → sampling (Proposal 2, sampling half)", () => {
+  test("quality fills temperature per the QUALITY_SAMPLING table (fast/balanced/deep)", () => {
+    expect(resolveChat({ quality: "fast" }, FULL).sampling.temperature).toBe(0.5);
+    expect(resolveChat({ quality: "balanced" }, FULL).sampling.temperature).toBe(0.7);
+    expect(resolveChat({ quality: "deep" }, FULL).sampling.temperature).toBe(1);
+  });
+
+  test("an EXPLICIT temperature knob wins over the quality-mapped default (quality only fills gaps)", () => {
+    // quality:'deep' would map to 1.0; the explicit 0.3 wins the precedence.
+    expect(resolveChat({ quality: "deep", temperature: 0.3 }, FULL).sampling.temperature).toBe(0.3);
+  });
+
+  test("the quality-derived temperature is capability-CLAMPED to the model's range", () => {
+    const cap = withSampling({ temperature: { min: 0, max: 0.8 } });
+    // quality:'deep' → 1.0, clamped down to the model's 0.8 ceiling.
+    expect(resolveChat({ quality: "deep" }, cap).sampling.temperature).toBe(0.8);
+  });
+
+  test("quality contributes NO temperature to a model whose descriptor omits the range (D68) + warns", () => {
+    const out = resolveChat({ quality: "deep" }, withSampling({}));
+    expect(out.sampling.temperature).toBeUndefined();
+    expect(out.warnings).toContainEqual({
+      code: "sampling_knob_dropped",
+      message: "temperature ignored: model does not expose a temperature range",
+    });
+  });
+
+  test("no quality + no explicit temperature ⇒ temperature stays unset (no phantom default)", () => {
+    expect(resolveChat({ topP: 0.5 }, FULL).sampling.temperature).toBeUndefined();
   });
 });
 

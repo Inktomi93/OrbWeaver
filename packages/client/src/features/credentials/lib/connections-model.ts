@@ -11,7 +11,7 @@ const PROVIDER_LABEL_PAIRS: readonly (readonly [CredentialProvider, string])[] =
   ["openrouter", "OpenRouter"],
   ["anthropic", "Anthropic"],
   ["openai", "OpenAI"],
-  ["google_vertex", "Google Vertex"],
+
   ["custom_openai", "Custom OpenAI-compatible"],
   ["gif-search", "GIF search"],
 ] as const;
@@ -63,16 +63,7 @@ export const ROLE_SLOTS: Record<RoutingRoleKey, RoleSlot> = {
     modelPlaceholder: "e.g. anthropic/claude-opus-4-8",
     readOnly: false,
   },
-  agent: {
-    role: "agent",
-    label: "Agent",
-    description: "Tool-using companion turns (the buddy). Uses the Chat model until per-agent overrides ship.",
-    sources: SOURCE_ORDER,
-    optional: false,
-    carriesChatKnobs: false,
-    modelPlaceholder: "",
-    readOnly: true,
-  },
+
   embed: {
     role: "embed",
     label: "Text embedding",
@@ -251,7 +242,7 @@ export function toRoutingSection(form: RoutingForm): { roleDefaults: Record<stri
   if (chat !== undefined) {
     roleDefaults["chat"] = chat;
   }
-  const nonChat: readonly [Exclude<RoutingRoleKey, "chat" | "agent">, RoleSlotForm][] = [
+  const nonChat: readonly [Exclude<RoutingRoleKey, "chat">, RoleSlotForm][] = [
     ["embed", form.embed],
     ["rerank", form.rerank],
     ["imageEmbed", form.imageEmbed],
@@ -271,7 +262,7 @@ const CHAT_API_LABEL_PAIRS: readonly (readonly [ChatApi, string])[] = [
   ["agent-sdk", "Agent SDK (Claude subscription)"],
   ["chat-completions", "Chat Completions"],
   ["responses", "Responses"],
-  ["anthropic-messages", "Anthropic Messages (direct)"],
+
 ] as const;
 
 /** The api-picker labels for the chat slot (the protocol axis). */
@@ -283,7 +274,7 @@ const CHAT_APIS_ORDERED: readonly ChatApi[] = CHAT_API_LABEL_PAIRS.map(([api]) =
 // Mirrors the server resolver's assertCoherent(api, source) matrix — kept in lockstep with resolve-role.ts.
 const CHAT_APIS_BY_SOURCE_PAIRS: readonly (readonly [CredentialSource, readonly ChatApi[]])[] = [
   ["max-pro-sub", ["agent-sdk"]],
-  ["openrouter", ["agent-sdk", "chat-completions", "responses", "anthropic-messages"]],
+  ["openrouter", ["agent-sdk", "chat-completions", "responses"]],
   ["vllm", ["chat-completions", "responses"]],
   ["local-light", ["chat-completions", "responses"]],
   ["custom_openai", ["chat-completions", "responses"]],

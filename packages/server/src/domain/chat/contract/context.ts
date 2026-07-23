@@ -4,8 +4,6 @@
 
 import type { CharacterCard } from "@orb/contracts/character";
 import type {
-  AgentCardView,
-  AgentSpeakerIdentity,
   ChatBusEvent,
   ChatInjection,
   GroupConfig,
@@ -19,7 +17,7 @@ import type {
 } from "@orb/contracts/chat";
 import type { CredentialSource, ResolvedConnection, RouteChatAssignment } from "@orb/contracts/connection";
 import type { ResolvedCredential } from "@orb/contracts/credentials";
-import type { AgentActor, AgentSourceKind, Can, CanAgent, ChatRoster, ParticipantRole, Principal } from "@orb/contracts/identity";
+import type { Can, ChatRoster, ParticipantRole, Principal } from "@orb/contracts/identity";
 import type { ImageDiffusionParams, PromptTemplateMode } from "@orb/contracts/imagery";
 import type { NotificationEvent, PresenceView } from "@orb/contracts/notifications";
 import type { ChoiceBlockSpec } from "@orb/contracts/preset";
@@ -106,14 +104,6 @@ type ResolveChatConnectionOp = (params: {
   readonly routable: RouteChatAssignment;
   readonly signal?: AbortSignal | undefined;
 }) => Promise<ResolvedConnection>;
-
-/** Resolve a SEATED agent's OWN generation connection — `resolveRole('agent')`, host-funded under the frozen
- *  `runAsUserId` (D60; agent-principal-design/04 §5 + 02 §3). Funding follows the HOST (D19), never the caller
- *  or the agent's owner: the same id + host principal every AI turn already credentials through. `null` ⇒ the
- *  host has no coherent agent-role connection (e.g. the agent-sdk-only role on a vllm-only host); the engine
- *  falls back to the round chat connection (itself host-funded). Credential/authorization failures are NOT
- *  null here — they throw (the turn refuses), never a silent re-credential onto a different source. */
-type ResolveAgentConnectionOp = (runAsUserId: UserId, agentUserId: UserId) => Promise<ResolvedConnection | null>;
 
 /** The brand-protected credential for a `{runAsUserId, source}` (the side-LLM/summarizer path). */
 type ResolveCredentialOp = (params: { readonly runAsUserId: UserId; readonly source: CredentialSource }) => Promise<ResolvedCredential>;
@@ -259,44 +249,6 @@ type NotificationsEmitOp = (event: NotificationEvent, coStatements?: readonly un
  *  reads `users` itself. */
 type ResolveHandleOp = (handle: Handle) => Promise<UserId | null>;
 
-/** Lazily finds-or-mints the owner's agent principal. Chat never touches `users` directly. */
-type ProvisionAgentPrincipalOp = (params: {
-  readonly ownerUserId: UserId;
-  readonly sourceKind: AgentSourceKind;
-}) => Promise<{ readonly agentUserId: UserId; readonly created: boolean }>;
-
-/** Resolve the agent principal → its {@link AgentActor} (kind/owner/`enabled`), or `null` if the id is not a
- *  live `kind:'agent'` row (fail-closed — a missing/human/gone id yields null, refusing a seat and every gate).
- *  The ONE agent kill-switch/identity read chat takes; `seatAgent` refuses on `null`/disabled, the engine
- *  builds the actor for the `canAgent('speak')` gate. Chat never reads `users` directly. */
-type ResolveAgentActorOp = (agentUserId: UserId) => Promise<AgentActor | null>;
-
-/** Voice a SEATED agent (D60; agent-principal-design/04 §5): resolve the agent's principal → its source's soul
- *  identity (display name + system prompt), or `null` for an unhatched/unresolvable source. Chat stays
- *  source-blind — the compose root dispatches on `agent_principals.sourceKind` through the
- *  `AGENT_SPEAKER_SOURCES` registry; the resolved soul fills the same card-shaped slot a character card does. */
-type ResolveAgentSpeakerOp = (agentUserId: UserId) => Promise<AgentSpeakerIdentity | null>;
-
-/** The D22 "who is this agent?" projection for a seated agent (D60; agent-principal-design/06 §5): the soul
- *  display name + the satellite `sourceKind` + the owner's public handle — a FIXED minimal view, never the
- *  soul prompt/avatar. `null` for a non-agent / unhatched / owner-less id (fail-closed). Source-blind for
- *  chat: the compose root walks `agent_principals ⋈ users` + the same speaker-source registry. */
-type ResolveAgentCardViewOp = (agentUserId: UserId) => Promise<AgentCardView | null>;
-
-/** The seated agent's `agent_principals.sourceKind` — the dispatch axis the roster projection turns into the
- *  row's fallback display label (`AGENT_SOURCE_LABELS`) when the seat carries no owner-set name. A single-row
- *  satellite read, so it resolves for an UNHATCHED buddy too (unlike `resolveAgentCardView`, which needs the
- *  soul) — the roster label must never fall through to the raw ULID. `null` for a non-agent / satellite-less id. */
-type ResolveAgentSourceKindOp = (agentUserId: UserId) => Promise<AgentSourceKind | null>;
-
-/** One resolved AGENT cast member for a round (loadRoom → gather → build): the agent's principal id + its soul
- *  identity. Its soul maps to a card-shaped `AssembleCharacter` in `cast`/`castMembers` so the per-speaker
- *  SHAPE renders the agent's OWN card, riding the one turn path (agent-principal-design/04 §5). */
-export interface AgentCastMember {
-  readonly userId: UserId;
-  readonly identity: AgentSpeakerIdentity;
-}
-
 /** Server-derived SSE liveness for a userId (never client-asserted — a spoofable presence is a
  *  prompt-composition attack). Read once per round for cast-gating. */
 export type PresenceReadOp = (userId: UserId) => Promise<PresenceView>;
@@ -328,7 +280,7 @@ export interface PromptTransformRegistry {
  *  when expressions isn't wired — a byte-identical no-op (the `tools: … | null` precedent). Fire-and-forget
  *  after a variant commits; the op swallows its own errors and NEVER blocks or fails the turn. Chat stays
  *  expressions-blind — it hands ids only (D38), the op re-reads canon. */
-export interface ChatExpressionsOps {
+interface ChatExpressionsOps {
   readonly onTurnCompleted: (chatId: ChatId, messageId: MessageId, variantId: MessageVariantId) => Promise<void>;
 }
 
@@ -521,9 +473,6 @@ export interface ChatContext {
   /** Null means tool-use isn't wired — byte-identical no-op. */
   readonly tools: ChatToolOps | null;
   readonly resolveChat: ResolveChatConnectionOp;
-  /** A seated agent's OWN generation connection (host-funded `resolveRole('agent')`); `null` ⇒ fall back to
-   *  the round chat connection. The engine swaps it in for agent speakers only — characters stay byte-identical. */
-  readonly resolveAgentConnection: ResolveAgentConnectionOp;
   readonly resolveCredential: ResolveCredentialOp;
   readonly maybeRevokeOnAuthFailed: MaybeRevokeOnAuthFailedOp;
   readonly getCard: GetCardOp;
@@ -545,17 +494,7 @@ export interface ChatContext {
   readonly summarizerContextTokens: number;
   readonly emitNotification: NotificationsEmitOp;
   readonly resolveHandle: ResolveHandleOp;
-  readonly provisionAgentPrincipal: ProvisionAgentPrincipalOp;
-  readonly resolveAgentActor: ResolveAgentActorOp;
-  /** Voice a seated agent's soul (the compose-root `AGENT_SPEAKER_SOURCES` dispatch); null = unhatched. */
-  readonly resolveAgentSpeaker: ResolveAgentSpeakerOp;
-  /** The D22 "who is this agent?" projection for a seated agent (doc 06 §5); null = non-agent/unhatched. */
-  readonly resolveAgentCardView: ResolveAgentCardViewOp;
-  /** The seated agent's `sourceKind` — the roster projection's fallback-label source (resolves even when the
-   *  soul is unhatched, so the row never renders the raw ULID); null = non-agent/satellite-less. */
-  readonly resolveAgentSourceKind: ResolveAgentSourceKindOp;
-  /** The ONE agent capability gate (injected from `domain/admin/guard.ts` — chat never imports admin). */
-  readonly canAgent: CanAgent;
+
   readonly readPresence: PresenceReadOp;
   readonly generatePicture: GeneratePictureOp;
   /** Null means expressions isn't wired — byte-identical no-op (the `tools: … | null` precedent). */

@@ -1,17 +1,26 @@
 // infra/network/gif-search — the Tenor adapter. Pins the SECURITY-load-bearing behavior:
-//   • isTenorMediaHost — the SSRF host allowlist: real Tenor hosts pass, lookalikes/IP-literals/subdomain-
-//     suffix-spoofs are rejected.
 //   • searchTenorGifs — the response mapping golden (+ cursor passthrough), malformed rows skipped, non-2xx
 //     throws. The key rides a query param — never surfaced.
-//   • fetchTenorGifImage — FAIL-CLOSED: a non-Tenor / non-https host is rejected BEFORE any fetch; a
+//   • fetchTenorGifImage — FAIL-CLOSED via safeFetch's `.tenor.com` allowlist: a non-Tenor / non-https /
+//     lookalike / IP-literal host is rejected BEFORE any fetch (safeFetch validates before dialing); a
 //     200-status HTML page served as image/gif is rejected by the magic-byte guard (never trusting the
-//     Content-Type); a real gif passes and returns the sniffed mime.
+//     Content-Type); a real gif on a Tenor host passes and returns the sniffed mime.
+// safeFetch resolves the host before dialing, so a valid-host test injects a fixed PUBLIC resolver (no
+// live DNS); host-REJECTION cases block before resolve/fetch (asserted via the untouched fetch spy).
 
-import { fetchTenorGifImage, isTenorMediaHost, searchTenorGifs } from "@orb/server/infra/network";
-import { describe, vi } from "vitest";
+import { __setEgressResolverForTest, fetchTenorGifImage, searchTenorGifs } from "@orb/server/infra/network";
+import { afterEach, beforeEach, describe, vi } from "vitest";
 import { expect, test } from "../../../support/fixtures";
 
 const BYTE = 256;
+const PUBLIC_ADDR = "93.184.216.34";
+
+beforeEach(() => {
+  __setEgressResolverForTest(() => Promise.resolve([PUBLIC_ADDR]));
+});
+afterEach(() => {
+  __setEgressResolverForTest(null);
+});
 
 /** A minimal valid GIF89a: signature + logical-screen-descriptor dims (bytes 6..9, little-endian). Dims are
  *  kept < 256 so the high byte is 0 (no bitwise ops — noBitwiseOperators). */
@@ -43,23 +52,25 @@ function jsonResponse(body: unknown): Response {
   });
 }
 
-describe("isTenorMediaHost (the SSRF host allowlist)", () => {
-  test("accepts real Tenor media hosts + the apex", () => {
-    expect(isTenorMediaHost("media.tenor.com")).toBe(true);
-    expect(isTenorMediaHost("c.tenor.com")).toBe(true);
-    expect(isTenorMediaHost("media1.tenor.com")).toBe(true);
-    expect(isTenorMediaHost("MEDIA.TENOR.COM")).toBe(true); // case-insensitive
-    expect(isTenorMediaHost("tenor.com")).toBe(true);
-  });
+// The `.tenor.com` allowlist is now safeFetch data (HB-A) — exercised THROUGH fetchTenorGifImage, which
+// rejects a bad host before any socket (the fetch spy stays untouched). Real Tenor media subdomains pass.
+describe("fetchTenorGifImage host allowlist (the SSRF barrier, now safeFetch's `.tenor.com` data)", () => {
+  for (const host of ["media.tenor.com", "c.tenor.com", "media1.tenor.com", "MEDIA.TENOR.COM"]) {
+    test(`accepts a real Tenor media host (${host})`, async () => {
+      vi.stubGlobal("fetch", () => new Response(gifBytes(10, 10), { status: 200, headers: { "content-type": "image/gif" } }));
+      const out = await fetchTenorGifImage(`https://${host}/x.gif`);
+      expect(out.image.mime).toBe("image/gif");
+    });
+  }
 
-  test("rejects lookalikes, suffix-spoofs, and IP literals", () => {
-    expect(isTenorMediaHost("eviltenor.com")).toBe(false);
-    expect(isTenorMediaHost("tenor.com.evil.net")).toBe(false);
-    expect(isTenorMediaHost("media.tenor.com.evil.net")).toBe(false);
-    expect(isTenorMediaHost("nottenor.com")).toBe(false);
-    expect(isTenorMediaHost("169.254.169.254")).toBe(false);
-    expect(isTenorMediaHost("127.0.0.1")).toBe(false);
-  });
+  for (const host of ["eviltenor.com", "tenor.com.evil.net", "media.tenor.com.evil.net", "nottenor.com", "tenor.com", "127.0.0.1", "[::1]"]) {
+    test(`rejects a lookalike / suffix-spoof / apex / IP-literal (${host}) BEFORE any fetch`, async () => {
+      const fetchSpy = vi.fn(() => new Response(gifBytes(10, 10), { status: 200 }));
+      vi.stubGlobal("fetch", fetchSpy);
+      await expect(fetchTenorGifImage(`https://${host}/x.gif`)).rejects.toMatchObject({ name: "EgressBlockedError" });
+      expect(fetchSpy).not.toHaveBeenCalled();
+    });
+  }
 });
 
 describe("searchTenorGifs", () => {

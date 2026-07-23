@@ -146,7 +146,7 @@ interface SeedCharacterOverrides {
   readonly description?: string | null;
   readonly personality?: string | null;
   readonly scenario?: string | null;
-  readonly greetings?: string[];
+  readonly greetings?: { readonly text: string; readonly groupOnly?: boolean }[];
   readonly exampleMessages?: string | null;
   readonly systemPrompt?: string | null;
   readonly postHistoryInstructions?: string | null;

@@ -34,6 +34,7 @@ function fakeCache(record: { texts?: readonly string[] }): LocalLightModelCache 
     scorePairs: (): Promise<number[]> => Promise.resolve([]),
     embedImages: (): Promise<Float32Array[]> => Promise.resolve([]),
     embedClipTexts: (): Promise<Float32Array[]> => Promise.resolve([]),
+    removeBackground: (): Promise<Uint8Array> => Promise.resolve(new Uint8Array()),
   };
 }
 
@@ -78,6 +79,7 @@ describe("createLocalLightEmbed", () => {
       scorePairs: (): Promise<number[]> => Promise.resolve([]),
       embedImages: (): Promise<Float32Array[]> => Promise.resolve([]),
       embedClipTexts: (): Promise<Float32Array[]> => Promise.resolve([]),
+      removeBackground: (): Promise<Uint8Array> => Promise.resolve(new Uint8Array()),
     };
     const res = await embedOf(cache)({
       credential: CRED,
@@ -166,6 +168,7 @@ describe("createLocalLightEmbed", () => {
       scorePairs: (): Promise<number[]> => Promise.resolve([]),
       embedImages: (): Promise<Float32Array[]> => Promise.resolve([]),
       embedClipTexts: (): Promise<Float32Array[]> => Promise.resolve([]),
+      removeBackground: (): Promise<Uint8Array> => Promise.resolve(new Uint8Array()),
     };
     const res = await embedOf(cache)({ credential: CRED, model: MODEL, input: ["", " "] });
 

@@ -13,7 +13,7 @@
 // Deps not on `ChatContext`: `loadParticipantViews` resolves the roster read-model; `resolveConnection`
 // resolves the model the previews need; `resolveForeignInputs` is the foreign half of the assemble ctx.
 
-import type { AgentCardView, ChatInjection, ChatMacroNameProducer, ParticipantView } from "@orb/contracts/chat";
+import type { ChatInjection, ChatMacroNameProducer, ParticipantView } from "@orb/contracts/chat";
 import { buildCharacterNameMap, buildPersonaNameMap } from "@orb/contracts/chat";
 import type { ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
 import type { PromptConfig } from "@orb/contracts/preset";
@@ -21,12 +21,11 @@ import type { Db } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { ChatContext } from "../context";
-import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors";
+import { ChatNotFoundError } from "../contract/errors";
 import type { ForeignInputs, ResolveForeignInputsOp } from "../contract/foreign";
 import type {
   ChatEventBoundsParams,
   GetActivePresetConfigParams,
-  GetAgentCardViewParams,
   GetChatLineageParams,
   GetChatParams,
   GetShapeTraceParams,
@@ -78,9 +77,8 @@ import { loadRoster } from "../persistence/roster";
 import { loadPersonaAvatarProducer } from "../persistence/roster-avatars";
 import { gatherAssembleContext } from "../substrate/assemble-gather";
 import { buildPrompt, buildShapeTrace, previewSection, shapeTurn, toShapeCanon } from "../substrate/assembly-access";
-import { permitsHost } from "../substrate/auth";
+
 import { toChatDetail } from "../substrate/chat-detail";
-import { redactHostInjections } from "../substrate/redact-injections";
 
 /** The collaborators not on `ChatContext` (see the file header). */
 interface ReadDeps {
@@ -106,7 +104,6 @@ type ReadVerbs = Pick<
   | "listMessages"
   | "listMessageVariants"
   | "listParticipants"
-  | "getAgentCardView"
   | "replayStreamEvents"
   | "replayChatEvents"
   | "chatEventBounds"
@@ -365,8 +362,7 @@ function createPreviewAssembly(ctx: ChatContext, deps: ReadDeps): ChatService["p
     // from the membership `requireHost` already loaded (no second read) — provably `true` today, but if this
     // gate is ever relaxed to `requireParticipant` the elision inherits automatically (the structural belt: a
     // host-ring `audience:"host"` injection can never leak through a snapshot-serving projection).
-    const redacted = redactHostInjections(prompt, permitsHost(ctx.can, principal, membership.role));
-    return { prompt: redacted, trace: redacted.trace };
+    return { prompt, trace: prompt.trace };
   };
 }
 
@@ -383,7 +379,7 @@ function createPeekPrompt(ctx: ChatContext, deps: ReadDeps): ChatService["peekPr
     const assembleContext = await buildPreviewContext(ctx, inputs, chatId);
     // Route peekPrompt through the ONE host-audience helper (chat-crew-design/04 §2, CREW-6) with the verdict
     // DERIVED from the loaded membership (no second read; provably host today, leak-free if the gate relaxes).
-    return redactHostInjections(buildPrompt(inputs.foreign.promptConfig, assembleContext), permitsHost(ctx.can, principal, membership.role));
+    return buildPrompt(inputs.foreign.promptConfig, assembleContext);
   };
 }
 
@@ -503,25 +499,6 @@ function createChatEventBounds(ctx: ChatContext): ChatService["chatEventBounds"]
 
 /** The read-surface verb bundle. Pure reads (membership-gated; no mutation, no bus emit). `deps` carries
  *  the roster resolver + the connection/assemble resolvers the dry-run previews need. */
-/** `getAgentCardView` — the D22 "who is this agent?" member read (D60, doc 06 §5). Member-gated, then the
- *  target MUST be a present `kind:'agent'` seat of THIS chat (a coded `participant_not_found` for any other
- *  id — the caller already sees the roster, so a leak-free coded refusal, never a foreign-agent oracle). The
- *  fixed projection (soul name + `sourceKind` + owner handle) comes from the source-blind injected op; an
- *  unresolvable seat (unhatched / owner-less) is the same coded refusal. Never the soul prompt/avatar. */
-function createGetAgentCardView(ctx: ChatContext): ChatService["getAgentCardView"] {
-  return async ({ principal, chatId, agentUserId }: GetAgentCardViewParams): Promise<AgentCardView> => {
-    await requireParticipant(ctx, principal, chatId);
-    const seated = (await loadRoster(ctx.db, chatId)).some((p) => p.kind === "agent" && p.userId === agentUserId && p.leftSeq === null);
-    if (!seated) {
-      throw new ChatOperationError(CHAT_OP_CODES.participantNotFound, `chat ${chatId}: ${agentUserId} is not a present agent seat`);
-    }
-    const view = await ctx.resolveAgentCardView(agentUserId);
-    if (view === null) {
-      throw new ChatOperationError(CHAT_OP_CODES.participantNotFound, `chat ${chatId}: agent ${agentUserId} has no resolvable identity`);
-    }
-    return view;
-  };
-}
 
 export function createRead(ctx: ChatContext, deps: ReadDeps): ReadVerbs {
   return {
@@ -537,7 +514,7 @@ export function createRead(ctx: ChatContext, deps: ReadDeps): ReadVerbs {
     listMessages: createListMessages(ctx, deps),
     listMessageVariants: createListMessageVariants(ctx),
     listParticipants: createListParticipants(ctx, deps),
-    getAgentCardView: createGetAgentCardView(ctx),
+
     replayStreamEvents: createReplayStreamEvents(ctx),
     streamEventBounds: createStreamEventBounds(ctx),
     replayChatEvents: createReplayChatEvents(ctx),

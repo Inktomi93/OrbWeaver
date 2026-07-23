@@ -152,6 +152,72 @@ describe("banner crop (width + height + fit:'cover')", () => {
   });
 });
 
+// §3.1 sliceGrid + §4.2 matteFlood — the sprite-sheet byte ops against REAL sharp (expressions-design/03).
+// A 4×2 marker sheet (each 100×100 cell a distinct red value = its row-major index) proves cell count,
+// exact floor dims, AND reading order; a #DDDDDD-surround cell proves the flood mattes corners to alpha-0.
+const CELL = 100;
+const GRID_COLS = 4;
+const GRID_ROWS = 2;
+const BG_GRAY = 221; // #DDDDDD
+
+/** Read the RGBA of a cell's center pixel (real sharp decode). */
+async function centerRgba(cell: Uint8Array): Promise<{ r: number; a: number }> {
+  const { data, info } = await sharp(cell).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+  const mid = (Math.floor(info.height / 2) * info.width + Math.floor(info.width / 2)) * 4;
+  return { r: data[mid] ?? -1, a: data[mid + 3] ?? -1 };
+}
+
+describe("sliceGrid", () => {
+  test("cuts a 4×2 marker sheet into 8 row-major cells of exact floor dims", async () => {
+    // Composite 8 solid tiles, cell i painted red=i*10 — row-major (top-to-bottom, left-to-right).
+    const tiles = await Promise.all(
+      Array.from({ length: GRID_COLS * GRID_ROWS }, async (_v, i) => ({
+        input: await sharp({ create: { width: CELL, height: CELL, channels: 3, background: { r: i * 10, g: 0, b: 0 } } })
+          .png()
+          .toBuffer(),
+        left: (i % GRID_COLS) * CELL,
+        top: Math.floor(i / GRID_COLS) * CELL,
+      })),
+    );
+    const sheet = await sharp({ create: { width: GRID_COLS * CELL, height: GRID_ROWS * CELL, channels: 3, background: { r: 0, g: 0, b: 0 } } })
+      .composite(tiles)
+      .png()
+      .toBuffer();
+
+    const cells = await adapter.sliceGrid(new Uint8Array(sheet), { cols: GRID_COLS, rows: GRID_ROWS });
+    expect(cells).toHaveLength(GRID_COLS * GRID_ROWS);
+    const dims = await Promise.all(cells.map((c) => adapter.probe(c)));
+    for (const d of dims) {
+      expect(d.width).toBe(CELL);
+      expect(d.height).toBe(CELL);
+    }
+    // Row-major order: cell i's center red channel is its index marker (i*10).
+    const reds = await Promise.all(cells.map(async (c) => (await centerRgba(c)).r));
+    expect(reds).toEqual([0, 10, 20, 30, 40, 50, 60, 70]);
+  });
+});
+
+describe("matteFlood", () => {
+  test("mattes a #DDDDDD surround to alpha-0 while the subject stays opaque, output is valid PNG", async () => {
+    // A 40×40 #DDDDDD cell with a 10×10 red subject centered.
+    const subject = await sharp({ create: { width: 10, height: 10, channels: 3, background: { r: 200, g: 0, b: 0 } } })
+      .png()
+      .toBuffer();
+    const cell = await sharp({ create: { width: 40, height: 40, channels: 3, background: { r: BG_GRAY, g: BG_GRAY, b: BG_GRAY } } })
+      .composite([{ input: subject, left: 15, top: 15 }])
+      .png()
+      .toBuffer();
+
+    const out = await adapter.matteFlood(new Uint8Array(cell), { tolerance: 24 });
+    const { data, info } = await sharp(out).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+    expect(info.channels).toBe(4);
+    expect(data[3]).toBe(0); // top-left corner → transparent
+    const center = await centerRgba(out);
+    expect(center.a).toBe(255); // subject → opaque
+    expect(center.r).toBeGreaterThan(150); // red subject preserved
+  });
+});
+
 describe("rejects non-images", () => {
   const garbage = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]);
 

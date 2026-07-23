@@ -33,6 +33,7 @@ const DRAFT_CHAT_ID = castId<ChatId>("draft");
 export function synthGreetingRow(characterId: CharacterId, content: string, seq: number): MessageView {
   return {
     id: castId<MessageId>(`draft-greeting_${characterId}`),
+    toolCalls: [],
     chatId: DRAFT_CHAT_ID,
     seq,
     role: "assistant",

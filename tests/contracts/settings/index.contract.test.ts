@@ -10,6 +10,7 @@ import {
   LOG_LEVELS,
   parseAppSettings,
   parseUserSettings,
+  STREAM_SCROLL_MODES,
   USER_SETTINGS_SCHEMA_VERSION,
   USER_SETTINGS_SECTIONS,
   userSettingsSchema,
@@ -19,6 +20,7 @@ import { expect, test } from "../../support/fixtures";
 const SCHEMA_VERSION_V1 = 1;
 const SCHEMA_VERSION_V2 = 2;
 const SCHEMA_VERSION_V3 = 3;
+const SCHEMA_VERSION_V4 = 4;
 const LOCAL_COMPUTE_BUDGET = 50;
 const SAMPLE_SCAN_DEPTH = 12;
 
@@ -27,6 +29,18 @@ const SAMPLE_SCAN_DEPTH = 12;
 test("D17 toggles exist on AppSettings with the right floor defaults (local ON, max-pro-sub OFF)", () => {
   expect(DEFAULT_ALLOW_NON_OWNER_LOCAL_COMPUTE).toBe(true);
   expect(DEFAULT_ALLOW_NON_OWNER_MAX_PRO_SUB).toBe(false);
+});
+
+test("card-hub kill switch parses on AppSettings (master + per-hub allowlist); a stale hub key self-heals", () => {
+  const parsed = parseAppSettings({ hub: { enabled: false, enabledHubs: ["chub"] } });
+  expect(parsed.hub?.enabled).toBe(false);
+  expect(parsed.hub?.enabledHubs).toEqual(["chub"]);
+  // Every AppSettings field is `.catch(undefined)` (null=CLEAR self-heal): a stale/unknown hub key in the
+  // allowlist clears the whole `hub` override to undefined → the resolver reads the floor (master-ON, all
+  // hubs). The parse SUCCEEDS (never a hard reject that would brick the admin blob).
+  const healed = appSettingsSchema.safeParse({ hub: { enabledHubs: ["nope"] } });
+  expect(healed.success).toBe(true);
+  expect(healed.success && healed.data.hub).toBeUndefined();
 });
 
 test("D17 toggle fields parse (incl. the per-member local-compute COUNT budget)", () => {
@@ -198,6 +212,16 @@ test("UserSettings.chat.smoothStreamCps self-heals an out-of-bounds value to the
   expect(parseUserSettings({ schemaVersion: USER_SETTINGS_SCHEMA_VERSION, chat: { smoothStreamCps: 150 } }).chat.smoothStreamCps).toBe(150);
 });
 
+test("UserSettings.chat.streamScrollMode defaults to follow (byte-identical) and accepts pin-prompt (PD-147)", () => {
+  expect(parseUserSettings({}).chat.streamScrollMode).toBe("follow");
+  expect(DEFAULT_USER_SETTINGS.chat.streamScrollMode).toBe("follow");
+  expect(STREAM_SCROLL_MODES).toEqual(["follow", "pin-prompt"]);
+  // Stamp the current version so the v1 lift (which rebuilds the chat namespace) doesn't run.
+  expect(parseUserSettings({ schemaVersion: USER_SETTINGS_SCHEMA_VERSION, chat: { streamScrollMode: "pin-prompt" } }).chat.streamScrollMode).toBe("pin-prompt");
+  // A garbage mode self-heals to follow (.catch).
+  expect(parseUserSettings({ schemaVersion: USER_SETTINGS_SCHEMA_VERSION, chat: { streamScrollMode: "warp-speed" } }).chat.streamScrollMode).toBe("follow");
+});
+
 // ── appearance (D44 §12.1) — the additive display-only namespace ──
 
 test("UserSettings.appearance reads the §12.1 defaults from an empty blob (no version bump)", () => {
@@ -211,6 +235,7 @@ test("UserSettings.appearance reads the §12.1 defaults from an empty blob (no v
   expect(parsed.appearance.avatarRing).toBe("none");
   expect(parsed.appearance.density).toBe("comfortable");
   expect(parsed.appearance.chatStyle).toBe("bubble"); // the ST-parity default
+  expect(parsed.appearance.chatLayout).toBe("classic"); // VN-1 — the standard thread until opted into VN
   // Metadata visibility (timestamps + in-chat avatars ON; the rest OFF)
   expect(parsed.appearance.showTimestamps).toBe(true);
   expect(parsed.appearance.showInChatAvatars).toBe(true);
@@ -220,8 +245,8 @@ test("UserSettings.appearance reads the §12.1 defaults from an empty blob (no v
   expect(parsed.appearance.blurSurfaces).toEqual([]);
   expect(parsed.appearance.shadowEffects).toBe(false);
   expect(parsed.appearance.reducedMotion).toBe(false);
-  // An empty blob parses as the pinned current version (v3 — the regex-section move).
-  expect(parsed.schemaVersion).toBe(SCHEMA_VERSION_V3);
+  // An empty blob parses as the pinned CURRENT version (the point here is "current", not the literal).
+  expect(parsed.schemaVersion).toBe(USER_SETTINGS_SCHEMA_VERSION);
 });
 
 test("UserSettings.appearance self-heals per-field: a garbage knob degrades to its default (.catch)", () => {
@@ -232,6 +257,7 @@ test("UserSettings.appearance self-heals per-field: a garbage knob degrades to i
     {
       appearance: {
         chatStyle: "hologram", // not a THEME_CHAT_STYLES member → catch → "bubble"
+        chatLayout: "hologram", // not a CHAT_LAYOUTS member → catch → "classic"
         avatarSize: "enormous", // not sm/md/lg → catch → "md"
         avatarAspect: "landscape", // not square/portrait → catch → "square"
         chatWidthPct: 5000, // over the max → catch → 60
@@ -243,6 +269,7 @@ test("UserSettings.appearance self-heals per-field: a garbage knob degrades to i
     USER_SETTINGS_SCHEMA_VERSION,
   );
   expect(parsed.appearance.chatStyle).toBe("bubble");
+  expect(parsed.appearance.chatLayout).toBe("classic");
   expect(parsed.appearance.avatarSize).toBe("md");
   expect(parsed.appearance.avatarAspect).toBe("square");
   expect(parsed.appearance.chatWidthPct).toBe(60);
@@ -267,6 +294,47 @@ test("UserSettings.appearance accepts the new avatarShape=rounded + avatarAspect
 
 test("USER_SETTINGS_SECTIONS includes appearance (section-patchable via updateUserSettingsSection)", () => {
   expect(USER_SETTINGS_SECTIONS).toContain("appearance");
+});
+
+// ── hub (hub-browse doc 03 §6, H6) — the additive per-user card-hub browse-prefs namespace ──
+
+test("UserSettings.hub.nsfw defaults to exclude (SFW-first) from an empty blob (additive, defaulted section)", () => {
+  const parsed = parseUserSettings({});
+  expect(parsed.hub.nsfw).toBe("exclude");
+  expect(DEFAULT_USER_SETTINGS.hub.nsfw).toBe("exclude");
+  // The `hub` section is additive + `.prefault({})` (the appearance precedent): it defaults in regardless of
+  // the pinned schema version, so assert the CURRENT version constant (version-agnostic — no bump of its own).
+  expect(parsed.schemaVersion).toBe(USER_SETTINGS_SCHEMA_VERSION);
+});
+
+test("UserSettings.hub.nsfw persists a chosen tri-state and self-heals garbage to exclude (.catch)", () => {
+  expect(parseUserSettings({ schemaVersion: USER_SETTINGS_SCHEMA_VERSION, hub: { nsfw: "include" } }).hub.nsfw).toBe("include");
+  expect(parseUserSettings({ schemaVersion: USER_SETTINGS_SCHEMA_VERSION, hub: { nsfw: "only" } }).hub.nsfw).toBe("only");
+  expect(parseUserSettings({ schemaVersion: USER_SETTINGS_SCHEMA_VERSION, hub: { nsfw: "everything" } }).hub.nsfw).toBe("exclude");
+});
+
+test("USER_SETTINGS_SECTIONS includes hub (section-patchable via updateUserSettingsSection)", () => {
+  expect(USER_SETTINGS_SECTIONS).toContain("hub");
+});
+
+// ── expressions (expressions-design/02 §5, D49 #4) — the additive classify opt-in namespace ──
+
+test("UserSettings.expressions.autoClassify defaults false from an empty blob (no version bump)", () => {
+  const parsed = parseUserSettings({});
+  expect(parsed.expressions.autoClassify).toBe(false);
+  expect(DEFAULT_USER_SETTINGS.expressions.autoClassify).toBe(false);
+  // An empty blob still parses as the pinned current version — the namespace is additive, no lift/bump.
+  expect(parsed.schemaVersion).toBe(USER_SETTINGS_SCHEMA_VERSION);
+});
+
+test("UserSettings.expressions.autoClassify accepts an opt-in override and self-heals garbage (.catch)", () => {
+  expect(parseUserSettings({ schemaVersion: USER_SETTINGS_SCHEMA_VERSION, expressions: { autoClassify: true } }).expressions.autoClassify).toBe(true);
+  // A non-boolean self-heals to the default false (never throws) — the client can't corrupt the gate.
+  expect(parseUserSettings({ schemaVersion: USER_SETTINGS_SCHEMA_VERSION, expressions: { autoClassify: "yes" } }).expressions.autoClassify).toBe(false);
+});
+
+test("USER_SETTINGS_SECTIONS includes expressions (section-patchable via updateUserSettingsSection)", () => {
+  expect(USER_SETTINGS_SECTIONS).toContain("expressions");
 });
 
 // ── LogLevel is the ONE tuple (foundation/env mirrors it) + section unions ──
@@ -313,7 +381,30 @@ test("UserSettings v2→v3 lift moves the top-level regexScripts array into the 
   expect(parsed).not.toHaveProperty("regexScripts");
 });
 
-test("the pinned schema versions: AppSettings v2, UserSettings v3 (the regex-section move)", () => {
+test("v3→v4 lift backfills a DETERMINISTIC entryId on each backgroundLibrary entry (F-P2) — unique even for byte-identical dupes, idempotent", () => {
+  const dupAsset = "asset_01h455vb4pex5vsknk084sn02q"; // TWO entries share it (byte-identical uploads → same CAS assetId)
+  const withEntryId = "asset_01j0000000000000000000000j";
+  const storedV3 = {
+    appearance: {
+      backgroundLibrary: [
+        { assetId: dupAsset, assetHash: "hash_x", mime: "image/png", name: "one" },
+        { assetId: dupAsset, assetHash: "hash_x", mime: "image/png", name: "two" },
+        { entryId: "kept_uuid", assetId: withEntryId, assetHash: "hash_y", mime: "image/png", name: "three" },
+      ],
+    },
+  };
+  const lib = parseUserSettings(storedV3, SCHEMA_VERSION_V3).appearance.backgroundLibrary;
+  expect(lib).toHaveLength(3);
+  // Deterministic `${assetId}:${index}` — unique across the byte-identical pair (the collision the row-id fixes),
+  // and STABLE across reads (a random uuid would differ every parse before the first v4 write).
+  expect(lib[0]?.entryId).toBe(`${dupAsset}:0`);
+  expect(lib[1]?.entryId).toBe(`${dupAsset}:1`);
+  expect(lib[0]?.entryId).not.toBe(lib[1]?.entryId);
+  // An entry already carrying an entryId keeps it (idempotent — the lift never re-mints).
+  expect(lib[2]?.entryId).toBe("kept_uuid");
+});
+
+test("the pinned schema versions: AppSettings v2, UserSettings v4 (the background-library entryId row-id)", () => {
   expect(APP_SETTINGS_SCHEMA_VERSION).toBe(SCHEMA_VERSION_V2);
-  expect(USER_SETTINGS_SCHEMA_VERSION).toBe(SCHEMA_VERSION_V3);
+  expect(USER_SETTINGS_SCHEMA_VERSION).toBe(SCHEMA_VERSION_V4);
 });

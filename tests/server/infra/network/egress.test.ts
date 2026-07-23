@@ -1,10 +1,30 @@
-import { DEFAULT_TRUSTED_RANGES, fetchImageBytes, privateEgressRanges, safeFetch, shouldBlockEgress } from "@orb/server/infra/network";
-import { describe, vi } from "vitest";
+import {
+  __setEgressResolverForTest,
+  ANY_HOST,
+  DEFAULT_TRUSTED_RANGES,
+  EgressBlockedError,
+  fetchImageBytes,
+  privateEgressRanges,
+  safeFetch,
+  shouldBlockEgress,
+} from "@orb/server/infra/network";
+import { afterEach, beforeEach, describe, vi } from "vitest";
 import { expect, test } from "../../../support/fixtures";
 
 const ranges = DEFAULT_TRUSTED_RANGES;
 const allow = (...hosts: string[]): ReadonlySet<string> => new Set(hosts);
 const ABORT_RE = /abort/i;
+const PUBLIC_ADDR = "93.184.216.34";
+
+// safeFetch now resolves→validates the host BEFORE fetch (self-enforcing, H1). These belt tests stub the
+// transport; inject a resolver so the host resolves to a fixed PUBLIC address (no live DNS) and the belt
+// logic runs against the stubbed response.
+beforeEach(() => {
+  __setEgressResolverForTest(() => Promise.resolve([PUBLIC_ADDR]));
+});
+afterEach(() => {
+  __setEgressResolverForTest(null);
+});
 
 describe("shouldBlockEgress", () => {
   test("blocks a private resolved address for a non-allowlisted host", () => {
@@ -74,7 +94,7 @@ describe("safeFetch readCapped — multi-chunk cap boundary", () => {
   test("a body EXACTLY at maxBytes across several chunks passes (at-cap is not a crossing)", async () => {
     const chunks = [new Uint8Array(40), new Uint8Array(40), new Uint8Array(20)]; // 100 total
     vi.stubGlobal("fetch", () => new Response(streamOf(chunks), { status: 200, headers: { "content-type": "text/plain" } }));
-    const res = await safeFetch("https://example.com", { maxBytes: 100 });
+    const res = await safeFetch("https://example.com", { allowedHosts: ANY_HOST, maxBytes: 100 });
     expect((await res.bytes()).byteLength).toBe(100);
     vi.unstubAllGlobals();
   });
@@ -82,7 +102,7 @@ describe("safeFetch readCapped — multi-chunk cap boundary", () => {
   test("the chunk that tips the total past maxBytes rejects (each chunk fits; the accumulation does not)", async () => {
     const chunks = [new Uint8Array(40), new Uint8Array(40), new Uint8Array(40)]; // 120 > cap on chunk 3
     vi.stubGlobal("fetch", () => new Response(streamOf(chunks), { status: 200, headers: { "content-type": "text/plain" } }));
-    const res = await safeFetch("https://example.com", { maxBytes: 100 });
+    const res = await safeFetch("https://example.com", { allowedHosts: ANY_HOST, maxBytes: 100 });
     await expect(res.bytes()).rejects.toThrow("maxBytes");
     vi.unstubAllGlobals();
   });
@@ -106,34 +126,61 @@ describe("safeFetch — abort propagation mid-redirect-chain", () => {
       }
       return Promise.resolve(new Response("{}", { status: 200 }));
     });
-    await expect(safeFetch("https://benign.test/start", { signal: ctrl.signal, maxRedirects: 2 })).rejects.toThrow(ABORT_RE);
+    await expect(safeFetch("https://benign.test/start", { allowedHosts: ANY_HOST, signal: ctrl.signal, maxRedirects: 2 })).rejects.toThrow(ABORT_RE);
     vi.unstubAllGlobals();
   });
 });
 
 describe("safeFetch (staged response-side controls)", () => {
-  test("rejects a disallowed content-type", async () => {
+  test("rejects a disallowed content-type with a typed EgressBlockedError(content-type)", async () => {
     vi.stubGlobal("fetch", () => new Response("hi", { status: 200, headers: { "content-type": "text/html" } }));
-    await expect(safeFetch("https://example.com", { allowedContentTypes: ["image/png"] })).rejects.toThrow("content-type");
+    const err = await safeFetch("https://example.com", { allowedHosts: ANY_HOST, allowedContentTypes: ["image/png"] }).catch((e) => e);
+    expect(err).toBeInstanceOf(EgressBlockedError);
+    expect((err as EgressBlockedError).reason).toBe("content-type");
   });
 
-  test("enforces the maxBytes cap when reading the body", async () => {
+  test("enforces the maxBytes cap with a typed EgressBlockedError(too-large)", async () => {
     const big = "x".repeat(1000);
     vi.stubGlobal("fetch", () => new Response(big, { status: 200, headers: { "content-type": "text/plain" } }));
-    const res = await safeFetch("https://example.com", { maxBytes: 100 });
-    await expect(res.bytes()).rejects.toThrow("maxBytes");
+    const res = await safeFetch("https://example.com", { allowedHosts: ANY_HOST, maxBytes: 100 });
+    const err = await res.bytes().catch((e) => e);
+    expect(err).toBeInstanceOf(EgressBlockedError);
+    expect((err as EgressBlockedError).reason).toBe("too-large");
+  });
+
+  test("the single-use reader: a second bytes() throws EgressBlockedError(consumed)", async () => {
+    vi.stubGlobal("fetch", () => new Response("hello", { status: 200, headers: { "content-type": "text/plain" } }));
+    const res = await safeFetch("https://example.com", { allowedHosts: ANY_HOST });
+    await res.bytes();
+    const err = await res.bytes().catch((e) => e);
+    expect(err).toBeInstanceOf(EgressBlockedError);
+    expect((err as EgressBlockedError).reason).toBe("consumed");
+    vi.unstubAllGlobals();
+  });
+
+  test("dispose() releases an unread response and is idempotent; a later bytes() is the consumed error (F9)", async () => {
+    const cancelled = vi.fn();
+    // A body whose cancel() is observable — dispose must cancel it (socket back to the pool) without reading.
+    const body = new ReadableStream<Uint8Array>({ cancel: cancelled, pull: () => undefined });
+    vi.stubGlobal("fetch", () => new Response(body, { status: 503, headers: { "content-type": "text/plain" } }));
+    const res = await safeFetch("https://example.com", { allowedHosts: ANY_HOST });
+    res.dispose?.();
+    res.dispose?.(); // idempotent — no throw, no double-cancel path
+    expect(cancelled).toHaveBeenCalledTimes(1);
+    await expect(res.bytes()).rejects.toBeInstanceOf(EgressBlockedError);
+    vi.unstubAllGlobals();
   });
 
   test("returns the body bytes when under the cap", async () => {
     vi.stubGlobal("fetch", () => new Response("hello", { status: 200, headers: { "content-type": "text/plain" } }));
-    const res = await safeFetch("https://example.com");
+    const res = await safeFetch("https://example.com", { allowedHosts: ANY_HOST });
     expect(new TextDecoder().decode(await res.bytes())).toBe("hello");
   });
 
-  test("caps the redirect chain and returns the terminal 3xx for inspection", async () => {
+  test("exceeding the redirect budget is an error (H1: hop > maxRedirects throws, no terminal 3xx returned)", async () => {
+    // Every hop 302s same-origin; with maxRedirects:1 the SECOND redirect exceeds the budget → throw.
     vi.stubGlobal("fetch", () => Response.redirect("https://example.com/next", 302));
-    const res = await safeFetch("https://example.com", { maxRedirects: 1 });
-    expect(res.status).toBe(302);
+    await expect(safeFetch("https://example.com", { allowedHosts: ANY_HOST, maxRedirects: 1 })).rejects.toMatchObject({ reason: "too-many-redirects" });
   });
 });
 

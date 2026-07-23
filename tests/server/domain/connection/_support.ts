@@ -7,8 +7,11 @@
 //   • fetchOrCatalog    — returns the configured OR catalog (the live fetch is faked).
 //   • loadUserSettings  — returns DEFAULT_USER_SETTINGS with a configurable `routing.roleDefaults`.
 
-import type { AgentSdkModel, CredentialSource, ModelCatalogEntry } from "../../../../packages/contracts/src/connection/index.ts";
+import type { ComfyuiWorkflowCapability } from "../../../../packages/contracts/src/comfyui-workflow/index.ts";
+import type { AgentSdkModel, ComfyuiProbeResult, CredentialSource, ModelCatalogEntry } from "../../../../packages/contracts/src/connection/index.ts";
 import type {
+  AnthropicCredential,
+  ComfyuiCredential,
   CustomOpenAiCredential,
   LocalLightCredential,
   MaxProSubCredential,
@@ -29,6 +32,7 @@ import { createFrozenClock } from "../../../support/clock.ts";
 import { principal as makePrincipal } from "../../../support/factories/principal.ts";
 
 type RoleDefaults = UserSettings["routing"]["roleDefaults"];
+type AgentConnections = UserSettings["routing"]["agentConnections"];
 
 /** A brand-protected credential for a source (the edge fake — see file header). The brand symbol is
  *  unconstructable outside contracts, so the double-cast is the sanctioned test-only bridge. */
@@ -46,6 +50,14 @@ function fakeCredential(source: CredentialSource): ResolvedCredential {
       } as unknown as OpenRouterCredential;
     case "max-pro-sub":
       return { source: "max-pro-sub", credentialId: null } as unknown as MaxProSubCredential;
+    case "anthropic":
+      // First-party Anthropic key (W11) — a coherent agent-sdk source (assertCoherent admits it). Always a
+      // row-backed key. FABRICATION-OK: the credential brand symbol is unconstructable outside contracts.
+      return { source: "anthropic", apiKey: "sk-ant-test", credentialId: castId<UserCredentialId>("user_credential_anth") } as unknown as AnthropicCredential;
+    case "comfyui":
+      // A pure routing marker (no key, no row) — the generateImage-only local ComfyUI source (N1 byo fold).
+      // FABRICATION-OK: the credential brand symbol is unconstructable outside contracts — the sanctioned edge fake (file header).
+      return { source: "comfyui", credentialId: null } as unknown as ComfyuiCredential;
     case "custom_openai":
       return {
         source: "custom_openai",
@@ -65,6 +77,8 @@ export interface ConnHarness {
   readonly clock: Clock;
   /** Set the `routing.roleDefaults` the faked `loadUserSettings` returns. */
   readonly setRoleDefaults: (roleDefaults: RoleDefaults) => void;
+  /** Set the `routing.agentConnections` (per-agent connection overrides) the faked `loadUserSettings` returns. */
+  readonly setAgentConnections: (agentConnections: AgentConnections) => void;
   /** Mark a source so the faked `resolveCredential` rejects with `DomainNoCredentialError` (the keyless /
    *  missing-key path — e.g. openrouter browse-without-key, or an unconfigured custom_openai). */
   readonly setNoCredentialSource: (source: CredentialSource) => void;
@@ -75,6 +89,10 @@ export interface ConnHarness {
   /** Toggle the boot vLLM-availability fact the resolver reads (default `true`). `false` drives the
    *  no-GPU derive fallback (embed/rerank/imageEmbed vllm → local-light). */
   readonly setVllmAvailable: (available: boolean) => void;
+  /** Set the tri-state the faked `probeComfyui` op returns (MA-8). */
+  readonly setComfyuiProbe: (result: ComfyuiProbeResult) => void;
+  /** Register a `byo:<name>` workflow's derived capability the faked owner-scoped read returns (N1). */
+  readonly setByoWorkflowCapability: (name: string, capability: ComfyuiWorkflowCapability) => void;
   /** Every `source` the resolver asked `resolveCredential` for — proves the selection routed to it. */
   readonly credentialCalls: CredentialSource[];
   /** Every request `testClaudeAuth` handed the faked `verifyClaudeAuth` diagnostic. */
@@ -85,12 +103,15 @@ export interface ConnHarness {
 export function makeConnHarness(db: Db): ConnHarness {
   const clock = createFrozenClock();
   let roleDefaults: RoleDefaults = DEFAULT_USER_SETTINGS.routing.roleDefaults;
+  let agentConnections: AgentConnections = DEFAULT_USER_SETTINGS.routing.agentConnections;
   let orCatalog: ModelCatalogEntry[] = [];
   let agentSdkCatalog: AgentSdkModel[] = [];
   let vllmAvailable = true;
   const noCredentialSources = new Set<CredentialSource>();
   const credentialCalls: CredentialSource[] = [];
   const verifyCalls: { readonly source: CredentialSource; readonly model: string }[] = [];
+  let comfyuiProbe: ComfyuiProbeResult = { state: "engine-off" };
+  const byoWorkflowCaps = new Map<string, ComfyuiWorkflowCapability>();
 
   const ctx: ConnectionContext = {
     db,
@@ -102,9 +123,13 @@ export function makeConnHarness(db: Db): ConnHarness {
       }
       return Promise.resolve(fakeCredential(source));
     },
+    // N1: the faked owner-scoped BYO-workflow capability read — a name registered via `setByoWorkflowCapability`
+    // resolves to its derived capability; an unknown name is `null` (the caller has no such workflow).
+    resolveByoWorkflowCapability: (_ownerId, name) => Promise.resolve(byoWorkflowCaps.get(name) ?? null),
     fetchOrCatalog: () => Promise.resolve([...orCatalog]),
     fetchAgentSdkModels: () => Promise.resolve([...agentSdkCatalog]),
-    loadUserSettings: () => Promise.resolve({ ...DEFAULT_USER_SETTINGS, routing: { roleDefaults } }),
+    probeComfyui: () => Promise.resolve(comfyuiProbe),
+    loadUserSettings: () => Promise.resolve({ ...DEFAULT_USER_SETTINGS, routing: { roleDefaults, agentConnections } }),
     // apiKeySource: "none" signals host login active (contract/service.ts).
     verifyClaudeAuth: ({ credential, model }) => {
       verifyCalls.push({ source: credential.source, model });
@@ -146,6 +171,9 @@ export function makeConnHarness(db: Db): ConnHarness {
     setRoleDefaults: (rd: RoleDefaults): void => {
       roleDefaults = rd;
     },
+    setAgentConnections: (ac: AgentConnections): void => {
+      agentConnections = ac;
+    },
     setNoCredentialSource: (source: CredentialSource): void => {
       noCredentialSources.add(source);
     },
@@ -157,6 +185,12 @@ export function makeConnHarness(db: Db): ConnHarness {
     },
     setVllmAvailable: (available: boolean): void => {
       vllmAvailable = available;
+    },
+    setComfyuiProbe: (result: ComfyuiProbeResult): void => {
+      comfyuiProbe = result;
+    },
+    setByoWorkflowCapability: (name: string, capability: ComfyuiWorkflowCapability): void => {
+      byoWorkflowCaps.set(name, capability);
     },
     credentialCalls,
     verifyCalls,

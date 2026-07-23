@@ -50,6 +50,7 @@ export function execOf(over: Partial<ToolExecutionContext> = {}): ToolExecutionC
     triggeredBy: castId("user_trigger"),
     chatId: null,
     roster: null,
+    turnId: null,
     ...over,
   };
 }

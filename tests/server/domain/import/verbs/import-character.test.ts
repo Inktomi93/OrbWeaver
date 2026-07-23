@@ -60,7 +60,7 @@ describe("importCharacter", () => {
     expect(call.ownerId).toBe(h.ownerId);
     expect(call.input.name).toBe("Aria");
     expect(call.input.handle).toBe("aria");
-    expect(call.input.greetings).toEqual(["Hello there!", "Well met."]);
+    expect(call.input.greetings).toEqual([{ text: "Hello there!" }, { text: "Well met." }]);
     expect(call.input.avatarAssetId).toBe(h.storedAssetId);
     expect(call.importedFrom).toBe("Aria.png");
     expect(call.importHash).toBe(result.importHash);
@@ -350,7 +350,7 @@ describe("importCharacter", () => {
     expect(update.ownerId).toBe(h.ownerId);
     expect(update.characterId).toBe(existingId);
     expect(update.input.description).toBe("A wandering bard, now retired.");
-    expect(update.input.greetings).toEqual(["Welcome back."]);
+    expect(update.input.greetings).toEqual([{ text: "Welcome back." }]);
   });
 
   test("a second same-name card resolves via the (ownerId, handle) match — no unique-constraint failure", async () => {

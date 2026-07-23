@@ -66,7 +66,7 @@ const REQUIRED_PREFIXES: Record<Exclude<PromptTemplateMode, "free">, string> = {
 /** One shared default (marinara's verified negative lists, deduped to the generic core — rpg-design/08 §2
  *  carries the game-tuned variants verbatim; cite, don't fork). User `negative` APPENDS to this (doc 02 §6),
  *  never replaces. Consumed by the request build once I2 widens the domain mirror (doc 05 FORK 2). */
-export const DEFAULT_NEGATIVE =
+const DEFAULT_NEGATIVE =
   "text, letters, captions, subtitles, UI, watermark, logo, signature, speech bubble, " +
   "split screen, panel, collage, grid, duplicated face, extra head, extra person, " +
   "bad anatomy, low quality";

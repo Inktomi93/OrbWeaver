@@ -21,7 +21,10 @@ import type { ChatContext } from "../../../../packages/server/src/domain/chat/co
 import { ChatOperationError } from "../../../../packages/server/src/domain/chat/contract/errors";
 import type { TurnPrep, TurnStreamChunk } from "../../../../packages/server/src/domain/chat/contract/results";
 import { createTurnEngine } from "../../../../packages/server/src/domain/chat/engine/engine";
+import { loadWitnessHorizons } from "../../../../packages/server/src/domain/chat/memory/persistence/queries";
+import { recallMemory } from "../../../../packages/server/src/domain/chat/memory/recall/recall";
 import { loadCanonHistory } from "../../../../packages/server/src/domain/chat/persistence/queries";
+import { createRoster } from "../../../../packages/server/src/domain/chat/verbs/roster";
 import { createTurn } from "../../../../packages/server/src/domain/chat/verbs/turn";
 import { freshDb } from "../../../support/db";
 import { principal as makePrincipal } from "../../../support/factories/principal.ts";
@@ -126,6 +129,8 @@ function sendHarness({ enabled = true, soul = SOUL as AgentSpeakerIdentity | nul
     lockTtlMs: 60_000,
     generateSegments: async () => ({ written: 0, skipped: 0 }),
     generateDigests: async () => ({ written: 0, skipped: 0 }),
+    loadWitnessHorizons,
+    recallMemory,
   });
   const turn = createTurn(ctx, {
     engine,
@@ -187,6 +192,34 @@ describe("send — a seated agent speaks with its soul, self-attributed", () => 
 
     expect(outcome.messages.filter((m) => m.role === "assistant")).toHaveLength(0);
   });
+
+  // Per-room MUTE (D60, doc 03 §5 rung 1; D80): `setSeatKnobs({disabled})` flips the seat's `disabled` bit —
+  // the SAME bit `isArbiterEligible` filters on. This proves the participantId-keyed knob VERB reaches the turn
+  // consumer (verbs/turn.ts loadRoom → agentCandidates.disabled → arbitration), exactly like a muted character.
+  test("a muted agent seat is skipped by arbitration — the mute verb reaches the turn consumer (no turn)", async () => {
+    const chatId = await seedAgentRoom();
+    const h = sendHarness();
+
+    // Control: an enabled, unmuted agent is arbiter-selected and speaks.
+    const spoke = await h.turn.send({ principal: principal(HOST), chatId, content: "hello" });
+    expect(spoke.messages.filter((m) => m.role === "assistant")).toHaveLength(1);
+
+    // Mute the seated agent through the real host verb (the ONE participantId-keyed AI-seat knob write, D80).
+    // The verb return resolves the agent's display name (R10); unhatched here → the sourceKind label.
+    const roster = createRoster(
+      makeChatContext(db, { resolveAgentCardView: () => Promise.resolve(null), resolveAgentSourceKind: () => Promise.resolve("buddy") }),
+      { emit: () => Promise.resolve() },
+    );
+    // The agent seat rides the deterministic id `seedAgentRoom` stamps (chat_participant_agent_<userId>).
+    const agentSeatId = castId<ChatParticipantId>(`chat_participant_agent_${AGENT}`);
+    const view = await roster.setSeatKnobs({ principal: principal(HOST), chatId, participantId: agentSeatId, patch: { disabled: true } });
+    expect(view.disabled).toBe(true);
+
+    // Now the muted agent is the only AI candidate but is filtered from selection — the round voices no one.
+    const silent = await h.turn.send({ principal: principal(HOST), chatId, content: "again" });
+    expect(silent.messages.filter((m) => m.role === "assistant")).toHaveLength(0);
+    expect(silent.messages.map((m) => m.role)).toEqual(["user"]);
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -205,6 +238,8 @@ function engineWith(resolveAgentActor: ChatContext["resolveAgentActor"]): Return
     lockTtlMs: 60_000,
     generateSegments: async () => ({ written: 0, skipped: 0 }),
     generateDigests: async () => ({ written: 0, skipped: 0 }),
+    loadWitnessHorizons,
+    recallMemory,
   });
 }
 

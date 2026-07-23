@@ -38,10 +38,13 @@ export const CHAT_ID = castId<ChatId>("chat_ct_keystone");
 export const COMPOSER_CHAT_ID = castId<ChatId>("chat_ct_composer");
 const FROZEN_AT = 1_750_000_000_000;
 
+
+
 /** A fully-valid `MessageView` literal (the client read model — slot ⋈ selected variant). */
 export function makeMessageView(overrides: Partial<MessageView> = {}): MessageView {
   return {
     id: castId<MessageId>("msg_ct_1"),
+    toolCalls: [],
     chatId: CHAT_ID,
     seq: 1,
     role: "assistant",

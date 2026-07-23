@@ -41,5 +41,6 @@
   "typescript.preferences.importModuleSpecifier": "non-relative",
   "biome.lsp.bin": "node_modules/.bin/biome",
   "biome.lsp.watcher.kind": "recommended",
-  "biome.lsp.watcher.pollingInterval": 10
+  "biome.lsp.watcher.pollingInterval": 10,
+  "js/ts.tsdk.path": "node_modules/typescript/lib"
 }

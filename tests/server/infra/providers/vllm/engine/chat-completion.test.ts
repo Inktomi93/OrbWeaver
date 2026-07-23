@@ -93,12 +93,15 @@ describe("runVllmChatCompletion", () => {
     await runVllmChatCompletion(client, {
       model: "gen-model",
       messages: [{ role: "user", text: "x" }],
-      jsonSchema: { type: "object", title: "Out", properties: { n: { type: "number" } } },
+      // A DISTINCT schema name (not the old hardcoded "result") — the mapping must carry it through, so a
+      // regression back to a constant name fails here.
+      responseFormat: { name: "character_distillation", schema: { type: "object", title: "Out", properties: { n: { type: "number" } } } },
     });
 
     const rf = need(bodies[0])["response_format"] as Record<string, unknown>;
     expect(rf["type"]).toBe("json_schema");
-    const js = rf["json_schema"] as { schema: Record<string, unknown> };
+    const js = rf["json_schema"] as { name: string; schema: Record<string, unknown> };
+    expect(js.name).toBe("character_distillation"); // the caller's name rides through, not a hardcoded constant
     expect(js.schema["title"]).toBeUndefined(); // annotation stripped
     expect(js.schema["additionalProperties"]).toBe(false); // pinned
   });

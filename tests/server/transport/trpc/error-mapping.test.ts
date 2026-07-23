@@ -11,7 +11,7 @@ import {
   DomainRateLimitError,
   DomainUnavailableError,
 } from "@orb/kit/errors";
-import { classifyDomainError } from "@orb/server/transport/trpc";
+import { classifyDomainError, domainReason } from "@orb/server/transport/trpc";
 import { describe } from "vitest";
 import { expect, test } from "../../../support/fixtures";
 
@@ -64,5 +64,22 @@ describe("classifyDomainError — non-domain + cause walk", () => {
   test("preserves the typed cause for the client banner", () => {
     const mapped = classifyDomainError(new DomainNoCredentialError("anthropic"));
     expect(mapped?.cause).toBeInstanceOf(DomainNoCredentialError);
+  });
+});
+
+describe("domainReason — the honest reason code rides only a DomainOperationError", () => {
+  test("a mapped DomainOperationError carries its .code as the reason", () => {
+    const mapped = classifyDomainError(new DomainOperationError("owner_not_present", "the agent's owner is not a present member"));
+    expect(domainReason(mapped ?? {})).toBe("owner_not_present");
+  });
+
+  test("a NOT_FOUND collapse carries no reason (leak-free — codeless)", () => {
+    const mapped = classifyDomainError(new DomainNotFoundError("Chat", "chat_1"));
+    expect(domainReason(mapped ?? {})).toBeUndefined();
+  });
+
+  test("an error with no domain cause has no reason field", () => {
+    expect(domainReason({ cause: new Error("boom") })).toBeUndefined();
+    expect(domainReason({})).toBeUndefined();
   });
 });

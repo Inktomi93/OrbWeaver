@@ -46,6 +46,7 @@ export const gate: GateDescriptor = {
   status: "active",
   scopeSafety: "incremental-safe",
   message: MESSAGE,
+  // biome-ignore lint/suspicious/noTemplateCurlyInString: gate message
   fix: "replace the hand-spelled classes with `${CONSTANT}` from packages/ui/src/lib/ (import from #lib or the fragment's module) — never re-spell a homed fragment.",
   scanRoot: (p) => p.startsWith("packages/ui/src/") && !p.startsWith(LIB_HOME),
   // String literals + every static carrier of a template literal (a tv()/cn() class string may be a
@@ -86,6 +87,7 @@ export const gate: GateDescriptor = {
       why: "the toast PARTIAL hand focus-ring — `focus-visible:ring-` must compose FOCUS_RING (the white-halo paint defect, caught forever)",
     },
     {
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: test syntax
       files: "declare const z: string;\nexport const scrim = `fixed inset-0 bg-scrim ${z}`;\n",
       at: "packages/ui/src/primitives/backdrop/variants.ts",
       expect: { count: 1 },
@@ -95,8 +97,10 @@ export const gate: GateDescriptor = {
   mustPass: [
     {
       files:
+        // biome-ignore lint/suspicious/noTemplateCurlyInString: test syntax
         "declare const FOCUS_RING: string;\ndeclare const DISABLED_STATE: string;\nexport const control = `relative border border-border bg-input ${FOCUS_RING} ${DISABLED_STATE}`;\n",
       at: "packages/ui/src/primitives/checkbox/variants.ts",
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: test reason
       why: "composing the lib constants via `${…}` — the static template parts carry no banned signature, so a composer is clean",
     },
     {

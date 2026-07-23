@@ -15,6 +15,8 @@ import {
   seedChatDigest,
   seedChatDigestSpeaker,
   seedChatSegment,
+  seedDocument,
+  seedDocumentChunk,
   seedUser,
   vec,
 } from "../_support.ts";
@@ -249,5 +251,30 @@ describe("search (unified dispatch)", () => {
       scope: { kind: "chat", chatId: theirChat, scopedCharacterId: alice },
     });
     expect(foreign.hits).toHaveLength(0);
+  });
+
+  test("documents · owner scope reaches the caller's OWN bank only; chat scope is refused on the wire (DBK-C)", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, { handle: "owner" });
+    const stranger = await seedUser(db, { handle: "stranger" });
+    const mine = await seedDocument(db, { id: "document_mine", ownerId: owner, name: "Mine" });
+    const theirs = await seedDocument(db, { id: "document_theirs", ownerId: stranger, name: "Theirs" });
+    await seedDocumentChunk(db, { documentId: mine, chunkIdx: 0, content: "my canon", embedding: vec(1) });
+    await seedDocumentChunk(db, { documentId: theirs, chunkIdx: 0, content: "their canon", embedding: vec(1) });
+
+    const svc = makeSearch(db, { embedVector: () => vec(1) });
+    const result = await svc.search({ ownerId: owner, query: "canon", topN: 5, over: "documents", scope: { kind: "owner" } });
+    if (result.over !== "documents") {
+      throw new Error(`expected documents branch, got ${result.over}`);
+    }
+    // The omnibox is self-scoped: the caller's bank only — a stranger's equally-near chunk never surfaces.
+    expect(result.hits.map((h) => h.documentId)).toEqual([mine]);
+
+    // The chat/character scopes are compose-injection-only (chat's GATHER authorizes membership); the
+    // un-authorized omnibox refuses them — a stranger can't pass a foreign chatId to pull a host's chunks.
+    const chatId = await seedChat(db, "chat_scoped");
+    await expect(svc.search({ ownerId: owner, query: "canon", topN: 5, over: "documents", scope: { kind: "chat", chatId } })).rejects.toMatchObject({
+      code: "scope_unsupported",
+    });
   });
 });

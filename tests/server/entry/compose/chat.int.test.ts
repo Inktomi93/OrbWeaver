@@ -80,12 +80,11 @@ describe("D53 ReDoS watchdog — composed at the editMessage seam (real createSe
     const host = await seedUser(db, "host");
     const principal = hostPrincipal(host);
 
-    // The heavyweight, faithful seed: write the regex scripts through the settings front door (a whole-blob
-    // replace over the current defaults) so the REAL resolveForeignInputs reads them at edit time.
-    const current = await services.settings.getUserSettings({ principal });
-    await services.settings.updateUserSettings({
+    // The heavyweight, faithful seed: write the regex scripts through the settings front door (a section
+    // patch merged into the current defaults) so the REAL resolveForeignInputs reads them at edit time.
+    await services.settings.updateUserSettingsSection({
       principal,
-      input: { config: { ...current.config, regex: { scripts: [...scripts] } } },
+      input: { section: "regex", patch: { scripts: [...scripts] } },
     });
 
     const chatId = await seedChat(db, "redos");

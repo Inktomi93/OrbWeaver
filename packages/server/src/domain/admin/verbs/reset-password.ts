@@ -26,10 +26,6 @@ export function createResetPassword(ctx: AdminContext): AdminService["resetPassw
     if (target === undefined) {
       throw new DomainNotFoundError("user", userId);
     }
-    // An agent principal is loginless — there is no password to reset.
-    if (target.kind === "agent") {
-      throw new DomainOperationError(ADMIN_OP_CODES.cannotModifyAgent, "an agent principal is loginless — it has no password to reset");
-    }
 
     const passwordHash = await ctx.hashPassword(password);
     const at = ctx.now();

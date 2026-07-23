@@ -34,9 +34,7 @@ export function applyChatBusEvent(event: ChatBusEvent, deps: ChatBusDeps): void 
       return;
     case "reasoningStreamDone":
       return; // display affordance only; the slot keeps buffering until terminal
-    case "expression":
-      // Ephemeral sprite-swap presentation state, not a cache invalidation — no query to refetch.
-      return;
+
     case "warning":
       deps.onWarning?.(event.code, event.chatId);
       return;

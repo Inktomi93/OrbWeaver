@@ -22,6 +22,8 @@ import { describe } from "vitest";
 import type { TurnEngine, TurnRequest } from "../../../../packages/server/src/domain/chat/contract/results";
 import { createTurnEngine } from "../../../../packages/server/src/domain/chat/engine/engine";
 import { driveRound } from "../../../../packages/server/src/domain/chat/engine/round";
+import { loadWitnessHorizons } from "../../../../packages/server/src/domain/chat/memory/persistence/queries";
+import { recallMemory } from "../../../../packages/server/src/domain/chat/memory/recall/recall";
 import { loadCanonHistory } from "../../../../packages/server/src/domain/chat/persistence/queries";
 import { freshDb } from "../../../support/db";
 import { expect, test } from "../../../support/fixtures";
@@ -58,6 +60,8 @@ function realEngine(database: Db, requests: TurnRequest[]): TurnEngine {
     lockTtlMs: 1000,
     generateSegments: async () => ({ written: 0, skipped: 0 }),
     generateDigests: async () => ({ written: 0, skipped: 0 }),
+    loadWitnessHorizons,
+    recallMemory,
   });
 }
 

@@ -16,6 +16,7 @@ import {
   isMandatoryReasoningRejection,
   mergeCustomParameters,
   reshapeChatStreamChunk,
+  resolveFallbackModels,
   resolveProviderPreferences,
 } from "@orb/server/infra/providers/backends/openrouter";
 import { describe } from "vitest";
@@ -134,6 +135,10 @@ describe("chatSamplingFields — projects the RESOLVED sampling (gating already 
     expect(chatSamplingFields({}, undefined)).toEqual({});
   });
 
+  test("emits the first-class SDK `topA` + `minP` fields", () => {
+    expect(chatSamplingFields({ topA: 0.1, minP: 0.05 }, undefined)).toEqual({ topA: 0.1, minP: 0.05 });
+  });
+
   test("copies the stop array (no shared reference back into the resolved knobs)", () => {
     const stop = ["END"];
     const out = chatSamplingFields({ stop }, undefined);
@@ -178,6 +183,36 @@ describe("resolveProviderPreferences", () => {
       order: ["Together"],
       allowFallbacks: false,
     });
+  });
+
+  test("quantization filter + price ceiling reach the wire (previously dropped)", () => {
+    expect(
+      resolveProviderPreferences("openai/gpt-5", {
+        quantizations: ["fp8", "bf16"],
+        max_price: { prompt: 3, completion: "9" },
+      }),
+    ).toEqual({
+      quantizations: ["fp8", "bf16"],
+      maxPrice: { prompt: "3", completion: "9" },
+    });
+  });
+
+  test("an unknown quantization level is filtered out (OR would reject it)", () => {
+    expect(resolveProviderPreferences("openai/gpt-5", { quantizations: ["fp8", "int3"] })).toEqual({
+      quantizations: ["fp8"],
+    });
+  });
+});
+
+describe("resolveFallbackModels", () => {
+  test("maps the model-level fallback chain to the wire array", () => {
+    expect(resolveFallbackModels({ models: ["openai/gpt-5", "anthropic/claude-opus-4-5"] })).toEqual(["openai/gpt-5", "anthropic/claude-opus-4-5"]);
+  });
+
+  test("undefined (never an empty array) when unset — the body stays byte-identical", () => {
+    expect(resolveFallbackModels(undefined)).toBeUndefined();
+    expect(resolveFallbackModels({ order: ["Anthropic"] })).toBeUndefined();
+    expect(resolveFallbackModels({ models: [] })).toBeUndefined();
   });
 });
 

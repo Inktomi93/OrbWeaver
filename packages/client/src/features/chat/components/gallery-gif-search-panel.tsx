@@ -88,6 +88,8 @@ export function GalleryGifSearchPanel({ characterId }: GalleryGifSearchPanelProp
   let body: ReactElement;
   if (query.trim().length === 0) {
     body = <GifHint icon={<Icon icon={Search} size="lg" />} title="Search for a gif" detail="Type a search above, then pick a gif to add it to the gallery." />;
+  } else if (results.isFetching) {
+    body = <GifHint icon={<Icon icon={Search} size="lg" />} title="Searching…" detail="Finding gifs — one moment." />;
   } else if (results.isError) {
     body = (
       <GifHint
@@ -96,8 +98,6 @@ export function GalleryGifSearchPanel({ characterId }: GalleryGifSearchPanelProp
         detail="Gif search isn't set up, or the provider is unavailable right now."
       />
     );
-  } else if (results.isPending) {
-    body = <GifHint icon={<Icon icon={Search} size="lg" />} title="Searching…" detail="Finding gifs — one moment." />;
   } else if (hits.length === 0) {
     body = <GifHint icon={<Icon icon={Search} size="lg" />} title="No gifs found" detail="Nothing matched that search — try different words." />;
   } else {

@@ -1,21 +1,22 @@
 // engine/pipeline — the per-turn execution pipeline: assemble→shape→fit→request→reduce. Pins the stream
 // reduce (deltas → final text + economics), the shaped request, the §8 fit, and ctx immutability.
 
-import type { AssembleContext, ChatDeltaEvent, MessageView, ToolCallRecord } from "@orb/contracts/chat";
+import type { AssembleContext, ChatDeltaEvent, ChatInjection, MessageView, ToolCallRecord } from "@orb/contracts/chat";
 import type { ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
 import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { PromptConfig, UserIntent } from "@orb/contracts/preset";
-import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+import { DEFAULT_MAX_OUTPUT_TOKENS, DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { RegexScript } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
-import type { CharacterId, ChatId, ModelId, PersonaId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, ChatTurnId, ModelId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { getLog } from "@orb/server/foundation/observability";
 import { describe, vi } from "vitest";
 import type { ChatToolOps, RunChatTurnOp } from "../../../../../packages/server/src/domain/chat/contract/context";
 import type { HistoryMacroNames, TurnRequest, TurnStreamChunk } from "../../../../../packages/server/src/domain/chat/contract/results";
 import { runTurnPipeline } from "../../../../../packages/server/src/domain/chat/engine/pipeline";
-import { makeModelCapability } from "../../../../support/factories";
+import { resolveModelCapability } from "../../../../../packages/server/src/domain/connection/catalog/resolve-model-capability";
+import { makeModelCapability } from "../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../support/fixtures";
 
 const CAPABILITY = {
@@ -104,6 +105,7 @@ function baseArgs(over: Partial<PipelineArgs> = {}): {
       triggeredBy: castId("user_host"),
       chatId: castId<ChatId>("chat_a"),
       roster: null,
+      turnId: castId<ChatTurnId>("chat_turn_a"),
     },
     ...over,
   };
@@ -145,6 +147,40 @@ describe("runTurnPipeline — reduce", () => {
   });
 });
 
+describe("runTurnPipeline — the D50 assembled_dynamic PromptTransform point (automation-design/04 §6)", () => {
+  test("transforms the DYNAMIC half only; the static (cache-stable) half stays byte-identical", async () => {
+    // Baseline: no transform → the built halves.
+    const baseline = await runTurnPipeline(baseArgs().args);
+    const staticBefore = baseline.request.prompt.static;
+    const dynamicBefore = baseline.request.prompt.dynamic;
+
+    let seenPoint: string | undefined;
+    let seenDraft: string | undefined;
+    const { args } = baseArgs({
+      applyPromptTransforms: (point, _chatId, draft) => {
+        seenPoint = point;
+        seenDraft = draft;
+        return Promise.resolve(`${draft}[DYN]`);
+      },
+    });
+    const result = await runTurnPipeline(args);
+
+    // The op fires at exactly the assembled_dynamic point, over exactly the built dynamic half.
+    expect(seenPoint).toBe("assembled_dynamic");
+    expect(seenDraft).toBe(dynamicBefore);
+    expect(result.request.prompt.dynamic).toBe(`${dynamicBefore}[DYN]`);
+    // The static half is untransformable (03 §1.2's per-turn-cache-bill argument) — byte-identical.
+    expect(result.request.prompt.static).toBe(staticBefore);
+  });
+
+  test("an absent op leaves the assembled prompt byte-identical (the null-op no-op)", async () => {
+    const withOp = await runTurnPipeline(baseArgs({ applyPromptTransforms: (_p, _c, draft) => Promise.resolve(draft) }).args);
+    const without = await runTurnPipeline(baseArgs().args);
+    expect(withOp.request.prompt.dynamic).toBe(without.request.prompt.dynamic);
+    expect(withOp.request.prompt.static).toBe(without.request.prompt.static);
+  });
+});
+
 describe("runTurnPipeline — request shaping + fit", () => {
   test("builds a TurnRequest: connection, role+content history, the §8 breakpoint offset", async () => {
     const { args } = baseArgs();
@@ -168,13 +204,15 @@ describe("runTurnPipeline — request shaping + fit", () => {
     expect(result.request.intent.stop).toEqual(["<END>", "\nUser:"]);
   });
 
-  test("PD-146: no custom stops leaves the request intent untouched (byte-identical to today)", async () => {
+  test("PD-146: no custom stops leaves the request intent untouched but for the materialized maxOutputTokens", async () => {
     const intent: UserIntent = { stop: ["<END>"] };
     const withEmpty = await runTurnPipeline(baseArgs({ intent, extraStopSequences: [] }).args);
     const withNone = await runTurnPipeline(baseArgs({ intent }).args);
-    // Empty/absent extras return the intent by reference — the request stop is exactly the caller's.
-    expect(withEmpty.request.intent).toBe(intent);
-    expect(withNone.request.intent).toBe(intent);
+    // Empty/absent extras leave the caller's fields verbatim; the ONLY addition is the single-source
+    // maxOutputTokens materialization (the reserve == runner max_tokens coupling).
+    const expected = { stop: ["<END>"], maxOutputTokens: DEFAULT_MAX_OUTPUT_TOKENS };
+    expect(withEmpty.request.intent).toEqual(expected);
+    expect(withNone.request.intent).toEqual(expected);
   });
 
   test("the `completion` names-behavior threads the author into the wire `name` field", async () => {
@@ -258,6 +296,81 @@ describe("runTurnPipeline — request shaping + fit", () => {
     });
     const result = await runTurnPipeline(args);
     expect(result.droppedCount).toBeGreaterThan(0);
+  });
+});
+
+// ── The token-budget reserve: one source of truth for the effective output length ───────────────────
+// The amnesia regression: when a model's `output.maxTokens.max ≈ context.window` (a self-hosted vLLM
+// caps output at the whole window), the OLD reserve `intent.maxOutputTokens ?? capability.output.maxTokens.max`
+// reserved the ENTIRE window → promptBudget went negative → the fit dropped ALL prior history every turn.
+// The fix materializes `effectiveIntent.maxOutputTokens` ONCE, so the fit's reserve and the runner's wire
+// `max_tokens` (both read `request.intent.maxOutputTokens`) are the SAME value and default to a sane
+// response length, NOT the window.
+describe("runTurnPipeline — token-budget reserve (single source of truth)", () => {
+  // A vLLM-shaped descriptor: the output cap equals the window (the exact condition that caused amnesia).
+  const vllmShape = makeModelCapability({ output: { maxTokens: { min: 1, max: 32_768 } }, context: { window: 32_768 } });
+  const vllmConnection: ResolvedConnection = { ...CONNECTION, capability: vllmShape };
+
+  // A handful of short alternating turns — comfortably inside the window once the reserve is a response
+  // length rather than the whole window.
+  const shortChat = Array.from({ length: 6 }, (_, i) => rowOf(i % 2 === 0 ? "user" : "assistant", `short turn ${i}`));
+
+  test("unset maxOutputTokens ⇒ the request intent carries the shared DEFAULT (the value the runner sends as max_tokens)", async () => {
+    // `request.intent` is exactly what compose forwards to the runner as `ChatRequest.params`, so asserting
+    // it pins the runner's wire `max_tokens` == the budget's reserve (both read this one field).
+    const { args } = baseArgs({ intent: {} satisfies UserIntent, connection: vllmConnection });
+    const result = await runTurnPipeline(args);
+    expect(result.request.intent.maxOutputTokens).toBe(DEFAULT_MAX_OUTPUT_TOKENS);
+  });
+
+  test("amnesia killed: a vLLM chat (output.max == window) keeps ALL short history — no context_boundary", async () => {
+    const { args } = baseArgs({ intent: {} satisfies UserIntent, connection: vllmConnection, canon: shortChat });
+    const result = await runTurnPipeline(args);
+    expect(result.droppedCount).toBe(0);
+    expect(result.contextBoundaryMessageId).toBeNull();
+  });
+
+  test("an explicit maxOutputTokens passes through to the request intent (not overwritten by the default)", async () => {
+    const { args } = baseArgs({ intent: { maxOutputTokens: 500 } satisfies UserIntent, connection: vllmConnection });
+    const result = await runTurnPipeline(args);
+    expect(result.request.intent.maxOutputTokens).toBe(500);
+  });
+
+  test("a preset's maxOutputTokens (no per-turn override) is the effective reserve — reaches the request intent", async () => {
+    const { args } = baseArgs({
+      intent: {} satisfies UserIntent,
+      connection: vllmConnection,
+      assembleContext: ctxOf({ promptConfig: { ...DEFAULT_PROMPT_CONFIG, params: { maxOutputTokens: 700 } } }),
+    });
+    const result = await runTurnPipeline(args);
+    expect(result.request.intent.maxOutputTokens).toBe(700);
+  });
+
+  test("a large maxOutputTokens reserve DOES trim history (the reserve genuinely drives the fit)", async () => {
+    // Same chat + window; the ONLY difference is the reserve. A tiny reserve fits everything, a
+    // near-window reserve leaves no prompt budget → the fit drops oldest turns. Proves the intent's
+    // maxOutputTokens is the LIVE reserve (not an inert field) AND that it's the amnesia lever.
+    const chat = Array.from({ length: 10 }, (_, i) => rowOf(i % 2 === 0 ? "user" : "assistant", `turn ${i} carrying several words to burn a few tokens here`));
+    const small = await runTurnPipeline(baseArgs({ intent: { maxOutputTokens: 256 } satisfies UserIntent, connection: vllmConnection, canon: chat }).args);
+    const large = await runTurnPipeline(baseArgs({ intent: { maxOutputTokens: 32_700 } satisfies UserIntent, connection: vllmConnection, canon: chat }).args);
+    expect(small.droppedCount).toBe(0);
+    expect(large.droppedCount).toBeGreaterThan(0);
+  });
+
+  test("maxContextTokens lowers the fit ceiling below the window (the soft cap is settable)", async () => {
+    // A wide window but a small user context cap → the fit trims to the cap. Uses a real chat with enough
+    // rows that a ~200-token ceiling can't hold them all.
+    const wideConnection: ResolvedConnection = {
+      ...CONNECTION,
+      capability: makeModelCapability({ output: { maxTokens: { min: 1, max: 8192 } }, context: { window: 1_000_000 } }),
+    };
+    const chat = Array.from({ length: 12 }, (_, i) => rowOf(i % 2 === 0 ? "user" : "assistant", `turn ${i} carrying several words to burn some tokens`));
+    const uncapped = await runTurnPipeline(baseArgs({ intent: { maxOutputTokens: 100 } satisfies UserIntent, connection: wideConnection, canon: chat }).args);
+    const capped = await runTurnPipeline(
+      baseArgs({ intent: { maxOutputTokens: 100, maxContextTokens: 200 } satisfies UserIntent, connection: wideConnection, canon: chat }).args,
+    );
+    expect(uncapped.droppedCount).toBe(0);
+    expect(capped.droppedCount).toBeGreaterThan(0);
   });
 });
 
@@ -439,6 +552,42 @@ describe("runTurnPipeline — roleHandling is the PRESET knob, clamped at SHAPE"
   });
 });
 
+// BUILD-QUEUE #3: the `squashSystemMessages` PROMPT knob (`params.advanced`, ST-imported from
+// `squash_system_messages`) is now a live SHAPE reader — consecutive system-note runs merge into ONE
+// `[Note from system: …]` bracket BEFORE the system→user framing, orthogonal to `roleHandling`. Two
+// adjacent depth-0 system injections are the observable: ON ⇒ ONE bracket (merge-before-convert), OFF ⇒
+// TWO brackets even though the strict floor still row-merges them (the distinction proves the KNOB, not
+// the role-squash, drove the fold). A broken re-thread would read a now-absent field → default OFF →
+// fail the ON case.
+describe("runTurnPipeline — squashSystemMessages is the PRESET knob, folded at SHAPE", () => {
+  const systemNotes: ChatInjection[] = [
+    { position: "in_chat", depth: 0, role: "system", content: "sys-alpha" },
+    { position: "in_chat", depth: 0, role: "system", content: "sys-beta" },
+  ];
+  const presetSquash = (squashSystemMessages: boolean): PromptConfig => ({
+    ...DEFAULT_PROMPT_CONFIG,
+    params: { ...DEFAULT_PROMPT_CONFIG.params, advanced: { squashSystemMessages } },
+  });
+  const systemBrackets = (req: TurnRequest): number => (historyText(req).match(/\[Note from system:/g) ?? []).length;
+
+  test("preset squashSystemMessages:true ⇒ the two system notes fold into ONE bracket (preset value reached SHAPE)", async () => {
+    const { args } = baseArgs({
+      assembleContext: ctxOf({ promptConfig: presetSquash(true), chatInjections: systemNotes }),
+    });
+    const result = await runTurnPipeline(args);
+    expect(systemBrackets(result.request)).toBe(1);
+    expect(historyText(result.request)).toContain("[Note from system: sys-alpha\n\nsys-beta]");
+  });
+
+  test("preset squashSystemMessages absent ⇒ the notes stay as TWO separate brackets (byte-identical to today)", async () => {
+    const { args } = baseArgs({
+      assembleContext: ctxOf({ promptConfig: DEFAULT_PROMPT_CONFIG, chatInjections: systemNotes }),
+    });
+    const result = await runTurnPipeline(args);
+    expect(systemBrackets(result.request)).toBe(2);
+  });
+});
+
 describe("runTurnPipeline — PD-148: the preset params + customParameters fold into the wire request", () => {
   const presetParams = (params: UserIntent): PromptConfig => ({ ...DEFAULT_PROMPT_CONFIG, params });
 
@@ -493,12 +642,13 @@ describe("runTurnPipeline — PD-148: the preset params + customParameters fold 
     expect(result.request.customParameters).toEqual(customParameters);
   });
 
-  test("a DEFAULT preset with an untouched `params` leaves the request byte-identical (intent by reference, no customParameters)", async () => {
+  test("a DEFAULT preset with an untouched `params` folds only the materialized maxOutputTokens (no customParameters)", async () => {
     const intent: UserIntent = { temperature: 0.8 };
     const result = await runTurnPipeline(baseArgs({ intent }).args);
-    // DEFAULT_PROMPT_CONFIG.params is `{}` and carries no customParameters ⇒ the per-turn intent passes through
-    // by reference and the request carries no customParameters field.
-    expect(result.request.intent).toBe(intent);
+    // DEFAULT_PROMPT_CONFIG.params is `{}` and carries no customParameters ⇒ the fold is a no-op EXCEPT the
+    // single-source maxOutputTokens materialization (the caller's fields survive verbatim), and the request
+    // carries no customParameters field.
+    expect(result.request.intent).toEqual({ temperature: 0.8, maxOutputTokens: DEFAULT_MAX_OUTPUT_TOKENS });
     expect(result.request.customParameters).toBeUndefined();
   });
 });
@@ -789,7 +939,12 @@ describe("runTurnPipeline — RECEIVE <think> demux (D47 #3)", () => {
 });
 
 // ── The D48 recurse loop (tool-use-design/03 §2 — the 05 §T4 goldens) ────────────────────────────
-const TOOL_CAPABILITY: ModelCapability = makeModelCapability({ tools: { parallel: false } });
+// A REAL resolved descriptor for a tool-capable OpenRouter model (§U0 checkpoint: the loop's capability
+// gate keys on the real synthesis output, not a synthetic literal). The OR arm sets `tools.parallel:true`;
+// the loop gate reads only the PRESENCE of `capability.tools`, so the parallel flag is inert here.
+const TOOL_CAPABILITY: ModelCapability = resolveModelCapability("openai/gpt-5", "openrouter", "chat-completions", {
+  orEntry: { contextLength: 200_000, supportedParameters: ["tools"], inputModalities: ["text"] },
+});
 
 const TOOL_CONNECTION: ResolvedConnection = { ...CONNECTION, capability: TOOL_CAPABILITY };
 
@@ -955,5 +1110,48 @@ describe("runTurnPipeline — the D48 recurse loop", () => {
     expect(executed).toHaveLength(0);
     expect(result.toolsUnsupported).toBe(true);
     expect(result.toolRecords).toEqual([]);
+  });
+});
+
+// A structured-output payload the request-builder gate either keeps (when supported) or drops (when not).
+const RESPONSE_FORMAT = { name: "narrative", schema: { type: "object", properties: {}, additionalProperties: false } } as const;
+const STRUCTURED_CONNECTION: ResolvedConnection = {
+  ...CONNECTION,
+  capability: { ...CAPABILITY, output: { ...CAPABILITY.output, structured: true } } as unknown as ModelCapability,
+};
+
+describe("runTurnPipeline — the D79 structured-output gate (04 §7)", () => {
+  test("responseFormat requested but capability.output.structured absent → dropped + flagged; free-text proceeds", async () => {
+    const requests: TurnRequest[] = [];
+    const { args } = baseArgs({
+      responseFormat: RESPONSE_FORMAT,
+      runChatTurn: scriptedDepths([[doneFinal("plain reply")]], requests),
+    });
+    const result = await runTurnPipeline(args);
+    expect(requests).toHaveLength(1);
+    expect(requests[0]).not.toHaveProperty("responseFormat");
+    expect(result.structuredOutputUnsupported).toBe(true);
+    // The turn still produced its free-text reply (interactive-axis degrade, not a dead turn).
+    expect(result.content).toBe("plain reply");
+  });
+
+  test("responseFormat requested + capability.output.structured true → rides the request, not flagged", async () => {
+    const requests: TurnRequest[] = [];
+    const { args } = baseArgs({
+      connection: STRUCTURED_CONNECTION,
+      responseFormat: RESPONSE_FORMAT,
+      runChatTurn: scriptedDepths([[doneFinal("ok")]], requests),
+    });
+    const result = await runTurnPipeline(args);
+    expect(requests[0]?.responseFormat).toEqual(RESPONSE_FORMAT);
+    expect(result.structuredOutputUnsupported).toBe(false);
+  });
+
+  test("no responseFormat requested → byte-identical no-op (no field, not flagged)", async () => {
+    const requests: TurnRequest[] = [];
+    const { args } = baseArgs({ runChatTurn: scriptedDepths([[doneFinal("hi")]], requests) });
+    const result = await runTurnPipeline(args);
+    expect(requests[0]).not.toHaveProperty("responseFormat");
+    expect(result.structuredOutputUnsupported).toBe(false);
   });
 });

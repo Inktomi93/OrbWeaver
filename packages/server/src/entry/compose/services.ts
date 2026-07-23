@@ -81,6 +81,7 @@ import { applyStatsDelta, createStatsService, reconcileStats } from "#domain/sta
 import type { TagContext } from "#domain/tag";
 import { createTagService } from "#domain/tag";
 import { createToolUseService } from "#domain/tool-use";
+import type { WorkloadRunnerEnv } from "#domain/workloads";
 import { createWorkloadService } from "#domain/workloads";
 import {
   createBulkImportLorebook,
@@ -108,7 +109,7 @@ import {
   DEFAULT_IMAGE_EMBED_MODEL,
   DEFAULT_RERANK_MODEL,
 } from "#infra/providers";
-import { createCas, createCuratedPoseReader, createVariantCache } from "#infra/storage";
+import { createCas, createVariantCache } from "#infra/storage";
 import {
   createBulkImportChats,
   createChatBus,
@@ -126,7 +127,7 @@ import { createHostPrincipalResolver } from "../auth";
 import type { DefaultPersonaSeeder } from "../boot";
 import { createDefaultPersonaSeeder } from "../boot";
 import { readSeedAvatar, readSeedGalleryPiece } from "../boot/seed-assets";
-import { resolvePoseLibraryRoot } from "../http";
+
 import type { ImportWorldInfoPort } from "../import";
 import { createAutomationOps } from "./automation-watcher";
 import { buildChatService } from "./chat";
@@ -195,6 +196,7 @@ export interface ServicesResult {
   readonly portability: PortabilityRegistry;
   readonly importWorldInfo: ImportWorldInfoPort;
   readonly eventBus: DomainEventBus;
+  readonly runnerEnv: WorkloadRunnerEnv;
   readonly roleClients: RoleClients;
   /** The per-owner `RoleClients` binder, pre-bound to the connection service + the executor. The workloads
    *  worker's `bindRoleClients` is wired from this; entry never touches the raw executor. */
@@ -461,7 +463,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     now,
     newCharacterId: minter(ID_PREFIX.character),
     newSnapshotId: minter(ID_PREFIX.characterSnapshot),
-    newProposalId: minter(ID_PREFIX.cardEvolutionProposal),
+
     audit,
     emit: eventBus.emit,
     emitUserEvent: publishUserEvent,
@@ -835,15 +837,11 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // resolves them per turn through the SAME registry, projecting via toAgentToolServer (T5).
   const toolUse = createToolUseService({ can, clock: now });
 
-  const exportService = createExportService({ db, cas, imageTransform: imageAdapter.transform, resolveAgentAuthor });
+  const exportService = createExportService({ db, cas, imageTransform: imageAdapter.transform });
 
   // The synthetic host principal for the extraction shaper's card reads (the chat.ts hostPrincipal precedent —
   // role-irrelevant getCard reads under the room host's ownership).
   const imageryCardPrincipal = (userId: UserId): Principal => ({ userId, role: "user", handle: castId<Handle>(userId), externalId: null, via: "fallback" });
-
-  // C6d: the curated-pose byte reader (the ComfyUI arm's ControlNet control map). Root DERIVES from the served
-  // client-static root (never a parallel guess) — boot-fatal if the shipped set resolves to nothing.
-  const readCuratedPose = createCuratedPoseReader(resolvePoseLibraryRoot({ distDir: env.CLIENT_DIST_DIR, override: env.POSE_LIBRARY_DIR }));
 
   const imagery = createImageryService({
     db,
@@ -900,9 +898,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     },
     // EC-B owner-gated byte read (the caller owns the asset it references).
     readAsset: (caller, assetId) => assets.readOwnedAssetBytes(caller, assetId),
-    // C6d: read a CURATED pose skeleton's bytes off the shipped static set (path-confined; GLOBAL content, not
-    // CAS — the C6b ruling) for the ComfyUI arm's ControlNet. Root DERIVES from the served client-static root.
-    readCuratedPose,
+
     // character.get under the CALLER's ownership (imagery passes a real Principal) — the full CharacterDetail
     // (avatarAssetId for B3/caption + the row's contentHash for the I3 identity hash). Throws
     // CharacterNotFoundError on missing/foreign; imagery does not re-gate.
@@ -1506,18 +1502,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     resolveOwnerPrincipal,
   });
 
-  // The room host's principal for a chatId — the guide injection ops write/read as the host (06 §3; the
-  // refresh core carries no principal). `null` when the chat has no present host (a torn-down chat).
-  const _resolveChatHostPrincipal = async (chatId: ChatId): Promise<Principal | null> => {
-    const rows = await db
-      .select({ userId: chatParticipants.userId })
-      .from(chatParticipants)
-      .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.role, "host"), isNull(chatParticipants.leftSeq)))
-      .limit(1);
-    const hostId = rows[0]?.userId ?? null;
-    return hostId === null ? null : resolveOwnerPrincipal(hostId);
-  };
-
   // Built after chat + portability's import ports — the memory/group-character sweeps are chat-ctx-bound ops
   // off the chat compose product; `import.importAll` composes the profile-dir importer's cross-feature slice.
   const runnerEnv = buildWorkloadRunnerEnv({
@@ -1587,6 +1571,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     importWorldInfo,
     eventBus,
     runnerEnv,
+
     roleClients,
     bindRoleClients,
     audit,

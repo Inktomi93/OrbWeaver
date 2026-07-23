@@ -490,7 +490,7 @@ export const USER_SETTINGS_SECTIONS = [
   "memory",
   "chat",
   "persona",
-  "expressions",
+
   "groupDefaults",
   "onboarding",
   "regex",

@@ -4,7 +4,6 @@
 
 import type { NotificationEvent } from "@orb/contracts/notifications";
 import type { Db } from "@orb/db";
-import type { UserId } from "@orb/kit/ids";
 import type { DismissParams, ListInboxParams, MarkAllReadParams, RecordParams } from "./params";
 import type { ListInboxResult, MarkAllReadResult } from "./results";
 import type { InboxView } from "./views";
@@ -13,9 +12,6 @@ import type { InboxView } from "./views";
 export interface NotificationsContext {
   db: Db;
   now: () => number;
-  /** Is `userId` an agent principal? An agent is structurally sessionless — nothing reads its inbox — so
-   *  `record` refuses an agent recipient. A missing row ⇒ `false`. */
-  isAgentRecipient: (userId: UserId) => Promise<boolean>;
 }
 
 /** The producer-facing op a producer injects to deliver a notification — the one cross-feature edge. `emit`

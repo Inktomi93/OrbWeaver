@@ -1,6 +1,4 @@
 import type { ResolvedIdentity, UserRole } from "@orb/contracts/identity";
-import { isReservedAgentHandle } from "@orb/contracts/identity";
-import { DomainForbiddenError } from "@orb/kit/errors";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { newId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
@@ -115,11 +113,6 @@ function reconcileOwnerSingleton(derivedRole: UserRole, ownerId: UserId | undefi
 
 export function createProvisionIdentity(ctx: SessionsContext): Pick<SessionsService, "provisionIdentity"> {
   async function provisionIdentity(identity: ResolvedIdentity): Promise<ProvisionResult> {
-    // FLAG[PD-17]: refuse the reserved `__agent__` namespace — no agent row is ever matched, updated, or
-    // shadow-created via the SSO seam.
-    if (isReservedAgentHandle(identity.handle)) {
-      throw new DomainForbiddenError("the __agent__ handle namespace is reserved for agent principals");
-    }
     const existing = await findExisting(ctx, identity);
     const ownerId = await selectOwnerUserId(ctx.db);
     // Owner exemption: the immutable bootstrap owner is matched by the existing owner row's id, never by a

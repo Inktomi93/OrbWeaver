@@ -38,8 +38,7 @@ export function AdminUserRow(props: AdminUserRowProps): ReactElement {
   const [confirmDisable, setConfirmDisable] = useState(false);
 
   const isOwnerRow = user.role === "owner";
-  const isAgent = user.kind === "agent";
-  const subtitle = isAgent && user.ownerHandle !== null ? `Agent — owned by ${user.ownerHandle}` : `Created ${timeLib.formatRelative(user.createdAt)}`;
+  const subtitle = `Created ${timeLib.formatRelative(user.createdAt)}`;
 
   return (
     <>
@@ -49,9 +48,8 @@ export function AdminUserRow(props: AdminUserRowProps): ReactElement {
         actions={
           <Row align="center" gap="row">
             {isOwnerRow ? <Badge intent={ROLE_BADGE_INTENT[user.role]}>{ROLE_LABELS[user.role]}</Badge> : null}
-            {isAgent ? <Badge intent="warning">Agent</Badge> : null}
             {user.enabled ? null : <Badge intent="danger">Disabled</Badge>}
-            {isOwnerRow || isAgent ? null : (
+            {isOwnerRow ? null : (
               <Select
                 aria-label={`Role — ${user.handle}`}
                 disabled={!props.viewerIsOwner}

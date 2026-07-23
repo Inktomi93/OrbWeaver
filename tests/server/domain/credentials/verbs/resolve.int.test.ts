@@ -54,6 +54,37 @@ describe("resolve", () => {
     expect(resolved).toMatchObject({ source: "openrouter", apiKey: "sk-or-secret" });
   });
 
+  test("anthropic (W11) round-trips: add seals the first-party key, resolve decrypts the SAME plaintext", async () => {
+    const db = await freshDb();
+    const svc = createCredentialsService(makeHarness(db).ctx);
+    const owner = await seedUser(db, { id: "user_o", role: "user" });
+    await svc.add({ principal: principal(owner), provider: "anthropic", key: "sk-ant-secret" });
+
+    const resolved = await svc.resolve({ principal: principal(owner), source: "anthropic" });
+    expect(resolved).toMatchObject({ source: "anthropic", apiKey: "sk-ant-secret" });
+  });
+
+  test("anthropic and openrouter are DISTINCT AAD slots for one user — neither key resolves the other's source", async () => {
+    const db = await freshDb();
+    const svc = createCredentialsService(makeHarness(db).ctx);
+    const owner = await seedUser(db, { id: "user_o", role: "user" });
+    await svc.add({ principal: principal(owner), provider: "anthropic", key: "sk-ant-first-party" });
+    await svc.add({ principal: principal(owner), provider: "openrouter", key: "sk-or-aggregator" });
+
+    // Each source resolves ONLY its own ciphertext (AAD `${userId}|anthropic` vs `${userId}|openrouter`).
+    expect(await svc.resolve({ principal: principal(owner), source: "anthropic" })).toMatchObject({ source: "anthropic", apiKey: "sk-ant-first-party" });
+    expect(await svc.resolve({ principal: principal(owner), source: "openrouter" })).toMatchObject({ source: "openrouter", apiKey: "sk-or-aggregator" });
+  });
+
+  test("a missing anthropic credential is the typed no-credential floor (no fallback to the openrouter key)", async () => {
+    const db = await freshDb();
+    const svc = createCredentialsService(makeHarness(db).ctx);
+    const owner = await seedUser(db, { id: "user_o", role: "user" });
+    await svc.add({ principal: principal(owner), provider: "openrouter", key: "sk-or-only" });
+    // An openrouter key is NOT an anthropic key — the first-party source fail-closes, never borrows.
+    await expect(svc.resolve({ principal: principal(owner), source: "anthropic" })).rejects.toThrow(DomainNoCredentialError);
+  });
+
   test("AAD binding: a row LIFTED to another owner fails to decrypt → no credential (GCM tag mismatch)", async () => {
     const db = await freshDb();
     const svc = createCredentialsService(makeHarness(db).ctx);

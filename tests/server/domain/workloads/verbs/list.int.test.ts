@@ -1,5 +1,6 @@
 // Verb test: list — newest-first, filterable by kind/status/owner; owner-scoping is by the owner_id column.
 
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
@@ -20,6 +21,41 @@ describe("workloads.list", () => {
     expect((await s.list({ caller: null })).map((r) => r.id)).toEqual(["b", "a"]);
     expect((await s.list({ caller: null, kind: "compute-themes" })).map((r) => r.id)).toEqual(["b"]);
     expect((await s.list({ caller: null, ownerId: owner })).map((r) => r.id)).toEqual(["b"]);
+  });
+
+  test("filters by chatId (params.chatId) — the crew status chip's durable per-member last-run read (07 §2)", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, "user_a");
+    // Real chat TypeIDs — `crew-*` params parse against `crewChatScopedParams` (`typeIdSchema(chat)`), so a
+    // malformed id would drop the row at `toView`. Two crew runs in chat X (keeper + director), one in chat Y,
+    // and a non-chat-scoped row. Seeded `succeeded` (terminal) so same-kind rows coexist past the
+    // single-active-per-(kind,owner,source) index.
+    const chatX = mintTypeId(ID_PREFIX.chat);
+    const chatY = mintTypeId(ID_PREFIX.chat);
+    await seedWorkloadRow(db, {
+      id: "x_keeper",
+      kind: "crew-lorebook-keeper",
+      status: "succeeded",
+      ownerId: owner,
+      params: { chatId: chatX },
+      createdAt: T0 + 1,
+    });
+    await seedWorkloadRow(db, { id: "x_director", kind: "crew-director", status: "succeeded", ownerId: owner, params: { chatId: chatX }, createdAt: T0 + 2 });
+    await seedWorkloadRow(db, {
+      id: "y_keeper",
+      kind: "crew-lorebook-keeper",
+      status: "succeeded",
+      ownerId: owner,
+      params: { chatId: chatY },
+      createdAt: T0 + 3,
+    });
+    await seedWorkloadRow(db, { id: "no_chat", kind: "reconcile-stats", status: "succeeded", ownerId: owner, createdAt: T0 + 4 });
+    const s = makeService(db);
+
+    // Only chat X's runs, newest-first — the non-chat row + chat Y are excluded.
+    expect((await s.list({ caller: principal("user_a"), chatId: chatX })).map((r) => r.id)).toEqual(["x_director", "x_keeper"]);
+    // Combined with a kind filter → the one director run in chat X.
+    expect((await s.list({ caller: principal("user_a"), chatId: chatX, kind: "crew-director" })).map((r) => r.id)).toEqual(["x_director"]);
   });
 
   // ── F3 authz ──

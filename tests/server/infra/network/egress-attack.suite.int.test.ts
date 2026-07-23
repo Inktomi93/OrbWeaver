@@ -6,7 +6,7 @@
 //   - followRedirects strips Authorization/Cookie the moment a redirect crosses origin (Bearer-key exfil).
 // Offline + deterministic: a private literal resolves to itself and is rejected before any socket dial.
 
-import { installEgressFirewall, safeFetch, shouldBlockEgress } from "@orb/server/infra/network";
+import { __setEgressResolverForTest, ANY_HOST, installEgressFirewall, safeFetch, shouldBlockEgress } from "@orb/server/infra/network";
 import { afterAll, beforeAll, describe, vi } from "vitest";
 import { expect, test } from "../../../support/fixtures";
 
@@ -42,8 +42,12 @@ async function probe(url: string): Promise<string> {
   }
 }
 
+// Every private/loopback/link-local/encoded target on a NON-configured port (port 80 here) STILL blocks.
+// The internal-backend allowlist is host:PORT-scoped (least-privilege): the 127.0.0.1 encodings below hit
+// the loopback HOST but NOT a configured backend PORT, so they remain SSRF-blocked — the encoded-127
+// bypass classes gain nothing. (The exact configured backend host:ports are proved allowed separately.)
 const PRIVATE_TARGETS: readonly string[] = [
-  "http://127.0.0.1/x",
+  "http://127.0.0.1/x", // loopback host, port 80 — NOT a configured backend port
   "http://169.254.169.254/latest/meta-data/",
   "http://10.0.0.1/x",
   "http://192.168.1.1/x",
@@ -63,7 +67,19 @@ const PRIVATE_TARGETS: readonly string[] = [
   "http://[::]/x", // unspecified → loopback on Linux
   "http://[::ffff:0.0.0.0]/x",
   "http://[::127.0.0.1]/x", // deprecated IPv4-compatible
-  "http://localhost/x", // hostname → DNS-rebind lookup gate
+  "http://localhost/x", // hostname → DNS-rebind lookup gate, port 80 not a configured backend
+];
+
+// The box's OWN configured backends, host:PORT-scoped: the vLLM engines (127.0.0.1:8701/8702/8703) and
+// ComfyUI (COMFYUI_BASE_URL default localhost:8188) are allowed at EXACTLY those host:ports (declared
+// internal intent). An allowed target with nothing listening yields a plain connect failure
+// (ECONNREFUSED/timeout), NOT our SSRF_BLOCKED signal. This does NOT weaken the safeFetch path — its
+// unconditional private-range denial never consults this allowlist.
+const AUTO_ALLOWED_BACKENDS: readonly string[] = [
+  "http://127.0.0.1:8701/x", // vLLM embed engine
+  "http://127.0.0.1:8702/x", // vLLM rerank engine
+  "http://127.0.0.1:8703/x", // vLLM gen engine
+  "http://localhost:8188/x", // ComfyUI (COMFYUI_BASE_URL default host:port)
 ];
 
 describe("egress firewall — adversarial SSRF bypass matrix (task #55)", () => {
@@ -75,29 +91,41 @@ describe("egress firewall — adversarial SSRF bypass matrix (task #55)", () => 
     globalSlots[UNDICI_GLOBAL_DISPATCHER] = original;
   });
 
-  test("every private/loopback/link-local/encoded target is BLOCKED", async () => {
+  test("every private/loopback/link-local/encoded target on a non-configured port is BLOCKED", async () => {
     const results = await Promise.all(PRIVATE_TARGETS.map(async (url) => [url, await probe(url)] as const));
     const holes = results.filter(([, r]) => r !== "BLOCKED");
     expect(holes).toEqual([]);
   });
 
-  test("redirect to a private literal is blocked at the re-dispatched hop (per-hop re-validation)", async () => {
+  test("the exact configured backend host:ports (vLLM 8701/8702/8703 + ComfyUI localhost:8188) are ALLOWED, not SSRF-blocked", async () => {
+    // Each connect is ATTEMPTED (probe returns "PASSED:..." on any non-SSRF outcome incl. ECONNREFUSED) —
+    // proving the firewall let the declared internal backend through rather than rejecting it. Least-privilege:
+    // the SAME loopback host on port 80 (in PRIVATE_TARGETS above) is still BLOCKED — only these ports pass.
+    const results = await Promise.all(AUTO_ALLOWED_BACKENDS.map(async (url) => [url, await probe(url)] as const));
+    const wrongly = results.filter(([, r]) => r === "BLOCKED");
+    expect(wrongly).toEqual([]);
+  });
+
+  test("redirect to a private-RESOLVING host is blocked at the re-dispatched hop (H1 per-hop re-validation)", async () => {
+    // hop0 resolves public; the redirect target resolves loopback — safeFetch's OWN resolve→validate on the
+    // new hop rejects it (independent of the global firewall). The private hop is never dialed.
+    __setEgressResolverForTest((host) => Promise.resolve(host === "internal.test" ? ["127.0.0.1"] : ["93.184.216.34"]));
     const calls: string[] = [];
     vi.stubGlobal("fetch", (u: URL | string) => {
       const url = String(u);
       calls.push(url);
-      if (url === "http://public.test/models") {
-        return Promise.resolve(Response.redirect("http://127.0.0.1/x", 302));
-      }
-      // hop1 reaches the connector — the matrix above proves the real dispatcher rejects 127.0.0.1.
-      return Promise.reject(new Error("SSRF_BLOCKED: 127.0.0.1 → 127.0.0.1"));
+      return url.startsWith("https://public.test")
+        ? Promise.resolve(Response.redirect("https://internal.test/x", 302))
+        : Promise.resolve(new Response("{}", { status: 200 }));
     });
-    await expect(safeFetch("http://public.test/models")).rejects.toThrow("SSRF_BLOCKED");
-    expect(calls).toEqual(["http://public.test/models", "http://127.0.0.1/x"]);
+    await expect(safeFetch("https://public.test/models", { allowedHosts: ANY_HOST })).rejects.toMatchObject({ reason: "private-address" });
+    expect(calls).toEqual(["https://public.test/models"]); // hop1 refused before dial
+    __setEgressResolverForTest(null);
     vi.unstubAllGlobals();
   });
 
   test("credential headers are STRIPPED on a cross-origin redirect (Bearer-key exfil defense)", async () => {
+    __setEgressResolverForTest(() => Promise.resolve(["93.184.216.34"]));
     const sent: Record<string, string>[] = [];
     vi.stubGlobal("fetch", (u: URL | string, init?: RequestInit) => {
       sent.push({ ...(init?.headers as Record<string, string>) });
@@ -106,8 +134,10 @@ describe("egress firewall — adversarial SSRF bypass matrix (task #55)", () => 
         : Promise.resolve(new Response("{}", { status: 200 }));
     });
     await safeFetch("https://benign.test/models", {
+      allowedHosts: ANY_HOST,
       headers: { authorization: "Bearer sk-secret", "x-custom": "keep" },
     });
+    __setEgressResolverForTest(null);
     vi.unstubAllGlobals();
     expect(sent[0]?.["authorization"]).toBe("Bearer sk-secret"); // hop0: user's own configured origin
     expect(sent[1]?.["authorization"]).toBeUndefined(); // hop1: attacker origin → stripped

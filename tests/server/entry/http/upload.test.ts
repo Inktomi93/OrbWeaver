@@ -11,10 +11,10 @@ import type { Principal } from "@orb/contracts/identity";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { AssetId, CharacterId, Handle, UserId, WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { UploadAssetsPort, UploadDeps } from "@orb/server/entry/http";
+import type { ImportPosesPort, UploadAssetsPort, UploadDeps } from "@orb/server/entry/http";
 import { registerUpload } from "@orb/server/entry/http";
 import type { ImportCharacterPort, ImportTagPort, ImportWorldInfoPort } from "@orb/server/entry/import";
-import { describe } from "vitest";
+import { describe, vi } from "vitest";
 import { expect, test } from "../../../support/fixtures";
 
 const OWNER: Principal = {
@@ -26,6 +26,7 @@ const OWNER: Principal = {
 };
 const ASSET_ROUTE = "POST /api/assets/upload";
 const IMPORT_ROUTE = "POST /api/import";
+const POSE_ROUTE = "POST /api/poses/import";
 const CARD_JSON = '{"spec":"chara_card_v2","spec_version":"2.0","data":{"name":"Tester","description":"A test character."}}';
 
 interface MockCtx {
@@ -117,7 +118,10 @@ const STORED: StoredAsset = {
   size: 3,
   created: true,
 };
-const okAssets: UploadAssetsPort = { store: (): Promise<StoredAsset> => Promise.resolve(STORED) };
+const okAssets: UploadAssetsPort & ImportPosesPort = {
+  store: (): Promise<StoredAsset> => Promise.resolve(STORED),
+  importPoses: () => Promise.resolve({ imported: [], failures: [] }),
+};
 
 // A character port that always creates a fresh row (the import-route happy path). PD-108's handle-match
 // edit-in-place is pinned in the run-profile-import + domain import-character suites; `update`/`findByHandle`
@@ -137,11 +141,16 @@ const noopWorldInfo: ImportWorldInfoPort = {
   importLorebook: () => Promise.resolve({ worldBookId: castId<WorldBookId>("wbk_0"), entryCount: 0, replaced: false }),
   linkCarriedBooks: () => Promise.resolve({ linked: 0, skipped: 0 }),
 };
+// The databank doc-ingest route is exercised in the databank domain suite; this suite only needs the port to
+// satisfy UploadDeps (its handlers are the asset + import routes).
+const noopDatabank: UploadDeps["databank"] = { upload: () => Promise.reject(new Error("databank upload not exercised in this suite")) };
+
 const okDeps: UploadDeps = {
   assets: okAssets,
   character: creatingCharacter,
   tag: noopTag,
   worldInfo: noopWorldInfo,
+  databank: noopDatabank,
 };
 
 describe("registerUpload — asset upload", () => {
@@ -183,10 +192,12 @@ describe("registerUpload — asset upload", () => {
           });
           return Promise.resolve(STORED);
         },
+        importPoses: () => Promise.resolve({ imported: [], failures: [] }),
       },
       character: creatingCharacter,
       tag: noopTag,
       worldInfo: noopWorldInfo,
+      databank: noopDatabank,
     };
     const form = new FormData();
     form.append("file", new File([new Uint8Array([1, 2, 3])], "a.png", { type: "image/png" }));
@@ -227,14 +238,63 @@ describe("registerUpload — import delegate", () => {
   });
 });
 
+describe("registerUpload — pose import", () => {
+  // A deps whose assets port records the importPoses call + returns an honest-partial result. `importPoses` is
+  // an injected boundary op (fake-at-edges); the batch mapping (filename→name, category + comma-split tags) the
+  // route builds is what's under test. Reusing the typed okDeps/okAssets base (no fabrication cast).
+  function poseDeps(importPoses: ImportPosesPort["importPoses"]): UploadDeps {
+    return { ...okDeps, assets: { ...okAssets, importPoses } };
+  }
+
+  test("anonymous → 401, no verb call", async () => {
+    const importPoses = vi.fn();
+    const res = await handlerFor(poseDeps(importPoses), POSE_ROUTE)(makeCtx(null, new FormData()));
+    expect(res.status).toBe(401);
+    expect(importPoses).not.toHaveBeenCalled();
+  });
+
+  test("no file field → 400, no verb call", async () => {
+    const importPoses = vi.fn();
+    const res = await handlerFor(poseDeps(importPoses), POSE_ROUTE)(makeCtx(OWNER, new FormData()));
+    expect(res.status).toBe(400);
+    expect(importPoses).not.toHaveBeenCalled();
+  });
+
+  test("valid batch maps each File → an item (filename name, batch category + tags) and returns the result", async () => {
+    const result = { imported: [{ id: "poselib_1" }], failures: [{ name: "bad", reason: "not an image" }] };
+    const importPoses = vi.fn().mockResolvedValue(result);
+    const form = new FormData();
+    form.append("file", new File([new Uint8Array([1, 2, 3])], "warrior_stance.png", { type: "image/png" }));
+    form.append("file", new File([new Uint8Array([4, 5, 6])], "kneel.png", { type: "image/png" }));
+    form.set("category", "combat");
+    form.set("tags", "melee, ready , ");
+
+    const res = await handlerFor(poseDeps(importPoses), POSE_ROUTE)(makeCtx(OWNER, form));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual(result);
+
+    expect(importPoses).toHaveBeenCalledTimes(1);
+    const call = importPoses.mock.calls[0]?.[0] as {
+      principal: Principal;
+      items: readonly { name: string; mime: string; category: string; tags?: readonly string[]; bytes: Uint8Array }[];
+    };
+    expect(call.principal).toBe(OWNER);
+    expect(call.items.map((item) => item.name)).toEqual(["warrior_stance", "kneel"]);
+    expect(call.items.every((item) => item.category === "combat" && item.mime === "image/png")).toBe(true);
+    // The comma-list tags are split, trimmed, and blanks dropped — applied to every item in the batch.
+    expect(call.items[0]?.tags).toEqual(["melee", "ready"]);
+    expect(Array.from(call.items[0]?.bytes ?? [])).toEqual([1, 2, 3]);
+  });
+});
+
 describe("registerUpload — auth+CSRF guard (belt order, before the body is read)", () => {
   test("both routes mount [authCsrfGuard, bodyCap, handler] — auth runs BEFORE the body cap", () => {
-    for (const key of [ASSET_ROUTE, IMPORT_ROUTE]) {
+    for (const key of [ASSET_ROUTE, IMPORT_ROUTE, POSE_ROUTE]) {
       expect(chainFor(okDeps, key)).toHaveLength(3);
     }
   });
 
-  for (const key of [ASSET_ROUTE, IMPORT_ROUTE]) {
+  for (const key of [ASSET_ROUTE, IMPORT_ROUTE, POSE_ROUTE]) {
     test(`${key}: anonymous → 401, never reaches next (no body buffered)`, async () => {
       const { status, nexted } = await runGuard(okDeps, key, guardCtx(null));
       expect(status).toBe(401);

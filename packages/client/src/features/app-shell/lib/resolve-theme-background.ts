@@ -20,7 +20,7 @@ export function resolveBackgroundUrl(
     return resolveSeededBackgroundUrl(a.backgroundSeededId) ?? null;
   }
   if (a.backgroundImageKind === "external") {
-    return a.backgroundExternalUrl || null;
+    return a.backgroundExternalUrl ?? null;
   }
   if (a.backgroundImageKind === "asset") {
     return a.backgroundAssetHash ? blobUrl(a.backgroundAssetHash) : null;

@@ -42,7 +42,7 @@ describe("resolveLiteChat — the AP3-2 actingUserId feed", () => {
   });
 
   test("a turn-aborted / first-message beat carries no messageId → actingUserId null", async () => {
-    const aborted = await resolveLiteChat(db, { type: "turnAborted", chatId, intent: "send", reason: "user" }, AT);
+    const aborted = await resolveLiteChat(db, { type: "turnAborted", chatId, intent: "send", reason: "user", automationDepth: 0 }, AT);
     expect(aborted?.kind).toBe("turn-aborted");
     expect(aborted?.actingUserId).toBeNull();
   });

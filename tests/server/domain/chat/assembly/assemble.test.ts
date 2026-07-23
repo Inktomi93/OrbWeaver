@@ -212,6 +212,32 @@ describe("assemblePrompt — merged co-speaker scenario (F6: single emission)", 
   });
 });
 
+// The ASSEMBLE post-process arm (`applyAssemblePostProcess`, keyed to the preset's `postProcess` block):
+// the UI-exposed `collapseNewlines` knob must actually bite on the assembled halves — collapse runs of 3+
+// newlines WITHIN a rendered section down to a single blank line. Knob-off is the regression belt: a preset
+// with no (or a default-off) postProcess block returns byte-identical joins.
+describe("assemblePrompt — ASSEMBLE post-process (collapseNewlines)", () => {
+  const gappy = "A\n\n\n\nB"; // 3+ interior newlines survive the per-section trim + \n\n join
+  const postProcess = (collapseNewlines: boolean): NonNullable<PromptConfig["postProcess"]> => ({
+    collapseNewlines,
+    trimTrailingWhitespace: false,
+    dropIncompleteSentence: false,
+    singleLine: false,
+  });
+
+  test("collapseNewlines: on ⇒ runs of 3+ newlines in a section collapse to one blank line", () => {
+    const config: PromptConfig = { ...configOf([literal(gappy)]), postProcess: postProcess(true) };
+    expect(assemblePrompt(config, ctxOf()).static).toBe("A\n\nB");
+  });
+
+  test("collapseNewlines: off ⇒ output is byte-identical to no postProcess block (regression belt)", () => {
+    const base = assemblePrompt(configOf([literal(gappy)]), ctxOf()).static;
+    const offConfig: PromptConfig = { ...configOf([literal(gappy)]), postProcess: postProcess(false) };
+    expect(base).toBe("A\n\n\n\nB");
+    expect(assemblePrompt(offConfig, ctxOf()).static).toBe(base);
+  });
+});
+
 describe("assemblePrompt — PD-140/D25: implicit compact_summary prepend", () => {
   test("a preset with no compact_summary section still delivers ctx.compactSummary (stateless-runner safety net)", () => {
     const config = configOf([marker({ marker: "main_prompt", template: "sys" }), marker({ marker: "chat_history" })]);

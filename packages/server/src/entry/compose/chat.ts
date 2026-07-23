@@ -5,15 +5,15 @@
 // offline, so no request Principal exists). Two bridges: role-irrelevant ops use the cheap synthetic
 // `hostPrincipal`; role-sensitive ops (owner-gates) use the injected `resolveHostPrincipal`.
 
-import type { AgentCardView, AgentSpeakerIdentity, ChatBusEvent } from "@orb/contracts/chat";
+import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { ResolvedConnection, RouteChatAssignment } from "@orb/contracts/connection";
-import type { AgentSourceKind, Can, CanAgent, Principal } from "@orb/contracts/identity";
+import type { Can, Principal } from "@orb/contracts/identity";
 import type { ChoiceBlockSpec, PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { RoleClients } from "@orb/contracts/role-clients";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { BatchStmt, Db } from "@orb/db";
-import { agentPrincipals, characterPersonas, chatParticipants, chats, personas, users } from "@orb/db";
+import { characterPersonas, chatParticipants, chats, personas, users } from "@orb/db";
 import type { AssetId, ChatId, Handle, PersonaId, PresetId, TypeIdOf, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
@@ -73,7 +73,6 @@ import { AGENT_PROMPT_TAIL_JOINER } from "#infra/providers";
 import { createRegexApplyReplace } from "#kit/regex";
 import { createMemberBudget } from "../../transport/rate-limit";
 import { publishNotification } from "../../transport/trpc";
-import { createAgentConnectionResolver } from "./agent-connection";
 import { createChatChangedEmitter } from "./emit-chat-changed";
 import { resolveImageRefToUrl } from "./resolve-image-ref";
 
@@ -169,16 +168,7 @@ export interface ChatComposeInput {
   readonly settings: SettingsService;
   readonly notifications: NotificationsService;
   readonly resolveHandle: (handle: Handle) => Promise<UserId | null>;
-  readonly provisionAgentPrincipal: (params: {
-    readonly ownerUserId: UserId;
-    readonly sourceKind: AgentSourceKind;
-  }) => Promise<{ readonly agentUserId: UserId; readonly created: boolean }>;
-  /** The compose-root speaker-source dispatch (agent → owner+sourceKind → the registered soul resolver). */
-  readonly resolveAgentSpeaker: (agentUserId: UserId) => Promise<AgentSpeakerIdentity | null>;
-  /** The compose-root D22 agent-card projection (roster chip; doc 06 §5) — display name + sourceKind + owner handle. */
-  readonly resolveAgentCardView: (agentUserId: UserId) => Promise<AgentCardView | null>;
-  /** The ONE agent capability gate (`domain/admin/guard.ts`) — injected so chat's engine never imports admin. */
-  readonly canAgent: CanAgent;
+
   readonly search: SearchService;
   readonly embeddings: EmbeddingsService;
   /** The databank `{{databank}}`-slot GATHER op (DB6) — OPTIONAL; absent wires `ChatContext.gatherDatabank`
@@ -496,14 +486,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       }
     },
     resolveChat: (params) => resolveChatVia(params.runAsUserId, params.routable),
-    // A seated agent's OWN brain (D60; agent-principal-design/04 §5): resolveRole('agent') under the host's
-    // REAL principal — funding follows the host (D19), the credential resolves inside connection against the
-    // host exactly as resolveChat does. A ConnectionRoutingError (no coherent host-funded agent connection)
-    // yields null → the engine falls back to the round chat connection.
-    resolveAgentConnection: createAgentConnectionResolver(
-      (principal, agentPrincipalId) => input.connection.resolveRole({ role: "agent", principal, agentPrincipalId }),
-      realHostPrincipal,
-    ),
+
     resolveCredential: async ({ runAsUserId, source }) => input.credentials.resolve({ principal: await realHostPrincipal(runAsUserId), source }),
     maybeRevokeOnAuthFailed: async ({ runAsUserId, source, status }) => {
       try {
@@ -626,32 +609,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // record INSERTs the row (assigning seq) THEN the persisted view is published onto the live bus —
     // a dead bus path never loses an event (subscriptions replay from the table by seq).
     resolveHandle: (handle) => input.resolveHandle(handle),
-    provisionAgentPrincipal: (params) => input.provisionAgentPrincipal(params),
-    // The ONE agent kill-switch/identity read chat takes — resolve the principal to its AgentActor. Fail-closed:
-    // a missing/human/owner-less id yields null (refuses a seat, refuses every `canAgent` gate). Entry may read
-    // `users` directly (the `no-direct-users-read` chokepoint scopes only `domain/`).
-    resolveAgentActor: async (agentUserId) => {
-      const rows = await db
-        .select({ kind: users.kind, ownerUserId: users.ownerUserId, enabled: users.enabled })
-        .from(users)
-        .where(eq(users.id, agentUserId))
-        .limit(1);
-      const row = rows[0];
-      if (row === undefined || row.kind !== "agent" || row.ownerUserId === null) {
-        return null;
-      }
-      return { kind: "agent", userId: agentUserId, ownerUserId: row.ownerUserId, enabled: row.enabled };
-    },
-    resolveAgentSpeaker: (agentUserId) => input.resolveAgentSpeaker(agentUserId),
-    resolveAgentCardView: (agentUserId) => input.resolveAgentCardView(agentUserId),
-    // The roster projection's fallback-label source: the seat's `agent_principals.sourceKind` (a single-row
-    // satellite read, so it resolves for an unhatched buddy too — the row never falls through to the ULID).
-    // Entry may read the satellite directly (the `no-direct-users-read` chokepoint scopes only `domain/`).
-    resolveAgentSourceKind: async (agentUserId) => {
-      const rows = await db.select({ sourceKind: agentPrincipals.sourceKind }).from(agentPrincipals).where(eq(agentPrincipals.userId, agentUserId)).limit(1);
-      return rows[0]?.sourceKind ?? null;
-    },
-    canAgent: input.canAgent,
+
     // A solo-character founding with exactly ONE character_personas connection auto-anchors that persona;
     // 0 or 2+ connections (ambiguity) or a group founding falls through to the default seed.
     resolveConnectedPersona: async (userId, characterIds) => {

@@ -13,7 +13,7 @@ import { assetKindSchema } from "@orb/contracts/assets";
 import type { Principal } from "@orb/contracts/identity";
 import type { Hono, MiddlewareHandler } from "hono";
 import { bodyLimit } from "hono/body-limit";
-import type { AssetsService } from "#domain/assets";
+
 import type { DatabankService } from "#domain/databank";
 import { hasCsrfHeader } from "#infra/auth";
 import type { ImportAssetPort, ImportCharacterPort, ImportFile, ImportTagPort, ImportWorldInfoPort, ProfileImportResult } from "../import";
@@ -25,17 +25,11 @@ const BAD_REQUEST = 400;
 const PAYLOAD_TOO_LARGE = 413;
 const FALLBACK_MIME = "application/octet-stream";
 const ASSET_UPLOAD_ROUTE = "/api/assets/upload";
-const POSE_IMPORT_ROUTE = "/api/poses/import";
 const IMPORT_ROUTE = "/api/import";
 const DATABANK_UPLOAD_ROUTE = "/api/databank/upload";
 const UPLOAD_FIELD = "file";
 const KIND_FIELD = "kind";
 const NAME_FIELD = "name";
-const CATEGORY_FIELD = "category";
-const TAGS_FIELD = "tags";
-// The `.png` (etc.) extension stripped from the uploaded filename → the pose's default name (the verb
-// re-normalizes + falls back to "untitled" on a blank).
-const FILENAME_EXT_RE = /\.[^./\\]+$/;
 
 const BYTES_PER_KIB = 1024;
 const BYTES_PER_MIB = BYTES_PER_KIB * BYTES_PER_KIB;
@@ -49,10 +43,6 @@ const IMPORT_MAX_BYTES = IMPORT_MAX_MIB * BYTES_PER_MIB;
 // 20 MB); also the store's maxBytes belt on the CAS write.
 const DATABANK_UPLOAD_MAX_MIB = 20;
 const DATABANK_UPLOAD_MAX_BYTES = DATABANK_UPLOAD_MAX_MIB * BYTES_PER_MIB;
-// A BYO pose BATCH — N skeleton PNGs (each runs tens–hundreds of KB; the verb caps each item at 16 MiB). The
-// body cap is the whole-batch belt; a per-item over-cap is refused inside importPoses (honest-partial).
-const POSE_IMPORT_MAX_MIB = 128;
-const POSE_IMPORT_MAX_BYTES = POSE_IMPORT_MAX_MIB * BYTES_PER_MIB;
 
 /** The `assets` front-door slice the asset-upload route consumes (the full {@link StoredAsset} result —
  *  a superset of {@link ImportAssetPort}'s `{assetId}`, so one handle serves both routes). */
@@ -67,15 +57,9 @@ export interface UploadAssetsPort {
   }) => Promise<StoredAsset>;
 }
 
-/** The pose-import verb slice the `/api/poses/import` route consumes — the full {@link AssetsService} is
- *  passed at compose, narrowed here to just the byte-ingest verb (bytes ride a multipart route, not tRPC). */
-export interface ImportPosesPort {
-  readonly importPoses: AssetsService["importPoses"];
-}
-
 export interface UploadDeps {
   /** Serves the asset-upload `store`, the import avatar-store (`ImportAssetPort`), and the BYO pose byte-ingest. */
-  readonly assets: UploadAssetsPort & ImportAssetPort & ImportPosesPort;
+  readonly assets: UploadAssetsPort & ImportAssetPort;
   readonly character: ImportCharacterPort;
   readonly tag: ImportTagPort;
   /** So an imported card's `character_book` actually lands (without it embedded books are dropped). */
@@ -167,37 +151,6 @@ export function registerUpload(app: Hono<PrincipalEnv>, deps: UploadDeps): void 
   // Same belts as the asset route (auth → CSRF → body cap). Per-file name defaults to the uploaded filename
   // (ext stripped); one `category` + `tags` (comma-list) apply to the whole batch. Magic-sniff + the 16-MiB
   // per-item cap run inside the verb, which is honest-partial (a bad skeleton drops with a reason, never the batch).
-  app.post(POSE_IMPORT_ROUTE, authCsrfGuard, bodyCap(POSE_IMPORT_MAX_BYTES), async (c) => {
-    const principal = c.get("principal");
-    if (principal === null) {
-      return c.body(null, UNAUTHORIZED);
-    }
-    const form = await c.req.formData();
-    const files = form.getAll(UPLOAD_FIELD).filter((entry): entry is File => entry instanceof File);
-    if (files.length === 0) {
-      return c.json({ error: `no "${UPLOAD_FIELD}" pose uploads` }, BAD_REQUEST);
-    }
-    const categoryField = form.get(CATEGORY_FIELD);
-    const category = typeof categoryField === "string" ? categoryField : "";
-    const tagsField = form.get(TAGS_FIELD);
-    const tags =
-      typeof tagsField === "string"
-        ? tagsField
-            .split(",")
-            .map((tag) => tag.trim())
-            .filter((tag) => tag.length > 0)
-        : [];
-    const items = await Promise.all(
-      files.map(async (file) => ({
-        bytes: await fileBytes(file),
-        mime: file.type.length > 0 ? file.type : FALLBACK_MIME,
-        name: file.name.replace(FILENAME_EXT_RE, ""),
-        category,
-        ...(tags.length > 0 ? { tags } : {}),
-      })),
-    );
-    return c.json(await deps.assets.importPoses({ principal, items }));
-  });
 
   app.post(IMPORT_ROUTE, authCsrfGuard, bodyCap(IMPORT_MAX_BYTES), async (c) => {
     const principal = c.get("principal");

@@ -36,16 +36,12 @@ import type {
   KickParticipantParams,
   NominateHostHandoffParams,
   RemoveCharacterFromChatParams,
-  RequestAgentSeatParams,
-  SeatAgentParams,
   SelfLeaveParams,
   SetChatBackgroundParams,
   SetChatDocumentVisibilityParams,
   SetGroupConfigParams,
   SetRoomOverridesParams,
-  SetRpgGamePointerParams,
   SetSeatKnobsParams,
-  UnseatAgentParams,
 } from "../contract/params";
 import type { ChatService } from "../contract/service";
 import { requireHost, requireParticipant } from "../guard";
@@ -57,11 +53,10 @@ import {
   markUserLeft,
   markUserLeftStatement,
   setPendingHostStatement,
-  upsertAgentSeat,
 } from "../persistence/participant";
 import { loadMaxMessageSeq, loadPendingHostUserId } from "../persistence/queries";
 import { loadRoster } from "../persistence/roster";
-import { REMOVED_CHARACTER_LABEL, REMOVED_MEMBER_LABEL, resolveAgentSeatName } from "../substrate/participant-name";
+import { REMOVED_CHARACTER_LABEL } from "../substrate/participant-name";
 
 /** The emit op the mutating roster verbs close over. */
 type EmitChatEvent = (event: ChatBusEvent) => Promise<void>;
@@ -76,15 +71,11 @@ type RosterVerbs = Pick<
   ChatService,
   | "addCharacterToChat"
   | "removeCharacterFromChat"
-  | "seatAgent"
-  | "unseatAgent"
-  | "requestAgentSeat"
   | "setSeatKnobs"
   | "setGroupConfig"
   | "setRoomOverrides"
   | "setChatDocumentVisibility"
   | "setChatBackground"
-  | "setRpgGamePointer"
   | "getGroupConfigForChat"
   | "getRoomOverridesForChat"
   | "kick"
@@ -101,14 +92,10 @@ export function createRoster(ctx: ChatContext, deps: RosterDeps): RosterVerbs {
     setRoomOverrides: createSetRoomOverrides(ctx, emit),
     setChatDocumentVisibility: createSetChatDocumentVisibility(ctx, emit),
     setChatBackground: createSetChatBackground(ctx, emit),
-    setRpgGamePointer: createSetRpgGamePointer(ctx, emit),
     getGroupConfigForChat: createGetGroupConfigForChat(ctx),
     getRoomOverridesForChat: createGetRoomOverridesForChat(ctx),
     addCharacterToChat: createAddCharacterToChat(ctx, emit),
     removeCharacterFromChat: createRemoveCharacterFromChat(ctx, emit),
-    seatAgent: createSeatAgent(ctx, emit),
-    unseatAgent: createUnseatAgent(ctx, emit),
-    requestAgentSeat: createRequestAgentSeat(ctx),
     setSeatKnobs: createSetSeatKnobs(ctx, emit),
     kick: createKick(ctx, emit),
     selfLeave: createSelfLeave(ctx, emit),
@@ -217,22 +204,6 @@ function createSetRoomOverrides(ctx: ChatContext, emit: EmitChatEvent): ChatServ
       ctx.now(),
     );
     return parsed.data;
-  };
-}
-
-/** `setRpgGamePointer` (GAP #4) — host-only write of the opaque `chatMetadata.rpg` game pointer. Called ONLY by
- *  rpg's `createGame` through the injected chat op (NOT routed). MERGES into the sibling sub-blobs (`...chat.metadata`)
- *  so it never nukes group/roomOverrides; emits `chatUpdated` so the chat client re-reads its ChatDetail and the
- *  SYNC `hasRpgGame` flips true. Chat stays rpg-blind — it stores `{gameId}` opaquely, never dereferencing it. */
-function createSetRpgGamePointer(ctx: ChatContext, emit: EmitChatEvent): ChatService["setRpgGamePointer"] {
-  return async ({ principal, chatId, gameId }: SetRpgGamePointerParams): Promise<void> => {
-    const { chat } = await requireHost(ctx, principal, chatId);
-    await ctx.db
-      .update(chats)
-      .set({ metadata: { ...chat.metadata, rpg: { gameId } }, updatedAt: ctx.now() })
-      .where(eq(chats.id, chatId));
-    await emit({ type: "chatUpdated", chatId });
-    await ctx.audit({ actorUserId: principal.userId, action: "chat.setRpgGamePointer", entityType: "chat", entityId: chatId, metadata: { gameId } }, ctx.now());
   };
 }
 
@@ -440,166 +411,6 @@ function createRemoveCharacterFromChat(ctx: ChatContext, emit: EmitChatEvent): C
   };
 }
 
-/** Maps a resolved agent chat_participants row to ParticipantView. An agent seat FKs users, carries no
- *  character; `displayName` resolves the AgentCardView soul name (sourceKind label for an unhatched buddy) via
- *  {@link resolveAgentSeatName} — the SAME rule the roster READ uses (R10), so the mutation-return view never
- *  disagrees with the list view it patches into the cache, and never emits "" or the raw id. The soul avatar
- *  stays a detail-read concern (v1: client-side sprites), so `avatarAssetId` is null here. */
-async function agentParticipantView(ctx: ChatContext, row: typeof chatParticipants.$inferSelect): Promise<ParticipantView> {
-  // An agent seat always FKs `users` (the kind-shape CHECK), so the null arm is structurally unreachable — it
-  // exists only to keep the raw-id off the row per the ruling if the invariant were ever violated.
-  const displayName = row.userId !== null ? await resolveAgentSeatName(ctx, row.userId) : REMOVED_MEMBER_LABEL;
-  return {
-    id: row.id,
-    chatId: row.chatId,
-    kind: row.kind,
-    userId: row.userId,
-    characterId: row.characterId,
-    role: row.role,
-    activePersonaId: row.activePersonaId,
-    talkativeness: row.talkativeness,
-    disabled: row.disabled,
-    joinedAt: row.joinedAt,
-    joinSeq: row.joinSeq,
-    leftSeq: row.leftSeq,
-    joinHistoryVisibility: row.joinHistoryVisibility,
-    displayName,
-    handle: null,
-    avatarAssetId: null,
-    avatarHash: null,
-  };
-}
-
-/** `seatAgent` — host-gated; the agent-seat insert path. The host consents to the seat; the owner (whose
- *  agent) must be a present human member. The principal is lazily minted, refused if disabled, then seated
- *  via the re-join upsert. Emits chatUpdated. Unseating is the symmetric `unseatAgent` verb (or `kick`). */
-function createSeatAgent(ctx: ChatContext, emit: EmitChatEvent): ChatService["seatAgent"] {
-  return async ({ principal, chatId, ownerUserId, sourceKind }: SeatAgentParams) => {
-    await requireHost(ctx, principal, chatId);
-    const roster = await loadRoster(ctx.db, chatId);
-    const ownerPresent = roster.some((p) => p.kind === "human" && p.userId === ownerUserId);
-    if (!ownerPresent) {
-      throw new ChatOperationError(CHAT_OP_CODES.ownerNotPresent, `chat ${chatId}: the agent's owner is not a present member`);
-    }
-    const { agentUserId } = await ctx.provisionAgentPrincipal({ ownerUserId, sourceKind });
-    // Fail-closed: a null actor (not a live agent row) OR a disabled principal refuses the seat.
-    const actor = await ctx.resolveAgentActor(agentUserId);
-    if (actor === null || !actor.enabled) {
-      throw new ChatOperationError(CHAT_OP_CODES.agentDisabled, `chat ${chatId}: agent principal ${agentUserId} is disabled`);
-    }
-    const at = ctx.now();
-    const joinSeq = await loadMaxMessageSeq(ctx.db, chatId);
-    const row = await upsertAgentSeat(ctx.db, {
-      participantId: ctx.newParticipantId(),
-      chatId,
-      agentUserId,
-      joinSeq,
-      now: at,
-    });
-    await emit({ type: "chatUpdated", chatId });
-    // An undefined upsert means the agent was already present; a miss in the roster loaded above is a real
-    // inconsistency (fail loud, not a phantom branch).
-    const seated = row ?? roster.find((p) => p.kind === "agent" && p.userId === agentUserId);
-    if (seated === undefined) {
-      throw new ChatNotFoundError(chatId);
-    }
-    return agentParticipantView(ctx, seated);
-  };
-}
-
-/** The ONE agent-unseat mechanic — stamps `leftSeq` on a PRESENT `kind:'agent'` seat, shared by
- *  `unseatAgent` and `kick`'s agent branch (one home, no duplicated stamp). The `kind='agent'` WHERE scope
- *  is the structural teeth: a human userId matches no `kind:'agent'` row and returns `undefined` (a mis-kinded
- *  target is a safe no-op, never a wrong-row write). An agent principal is sessionless with no inbox (D60,
- *  doc 06 §3/§4), so the write commits
- *  DIRECTLY — never coupled to a `kicked` notification (which `notifications.record` fail-closes on an
- *  agent recipient, aborting the whole unseat). Returns the row left this call, or `undefined` if no
- *  present agent seat matched. */
-async function stampAgentUnseat(ctx: ChatContext, chatId: ChatId, agentUserId: UserId): Promise<typeof chatParticipants.$inferSelect | undefined> {
-  const leftSeq = await loadMaxMessageSeq(ctx.db, chatId);
-  const rows = await ctx.db
-    .update(chatParticipants)
-    .set({ leftSeq })
-    .where(
-      and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.userId, agentUserId), eq(chatParticipants.kind, "agent"), isNull(chatParticipants.leftSeq)),
-    )
-    .returning();
-  return rows.at(0);
-}
-
-/** `unseatAgent` — host-gated; the symmetric counterpart to `seatAgent`. Removes a seated agent by stamping
- *  `leftSeq` on its present `kind:'agent'` row via the shared {@link stampAgentUnseat}. Agent-target-only:
- *  a human userId matches no `kind='agent'` row → `participant_not_found` (a host cannot unseat a human here;
- *  humans leave via kick/selfLeave). Stays on the UNGATED chat surface exactly like `seatAgent` — the owner
- *  managing its OWN buddy's seat works in EVERY auth mode (no multi-human capability required; the whole
- *  point of the solo-operator fix). No notification (agents have no inbox). Emits `chatUpdated`. */
-function createUnseatAgent(ctx: ChatContext, emit: EmitChatEvent): ChatService["unseatAgent"] {
-  return async ({ principal, chatId, agentUserId }: UnseatAgentParams): Promise<void> => {
-    await requireHost(ctx, principal, chatId);
-    const row = await stampAgentUnseat(ctx, chatId, agentUserId);
-    if (row === undefined) {
-      throw new ChatOperationError(CHAT_OP_CODES.participantNotFound, `chat ${chatId}: agent ${agentUserId} is not a present participant`);
-    }
-    await emit({ type: "chatUpdated", chatId });
-    // The unseated agent's row is already leftSeq-stamped; mirror the kick fan-out so member reads refresh.
-    await ctx.emitChatChanged(chatId, { detail: true, extraUserIds: [agentUserId] });
-    await ctx.audit(
-      {
-        actorUserId: principal.userId,
-        action: "chat.unseatAgent",
-        entityType: "chat",
-        entityId: chatId,
-        metadata: { agentUserId },
-      },
-      ctx.now(),
-    );
-  };
-}
-
-/** `requestAgentSeat` — the owner≠host consent flow (D60, doc 04 §3). A present member (the buddy's OWNER)
- *  asks the HOST to seat their agent. Member-gated (`requireParticipant`) + the OWNER-CONSENT arm: the
- *  caller may only request THEIR OWN agent (`ownerUserId === principal.userId`), else `not_agent_owner`.
- *  Delivers a durable `agent-seat-requested` notification to the room host (a human — the agent-recipient
- *  refusal never fires). ADVISORY: no state is written; the host then calls `seatAgent`, which re-verifies
- *  host + owner-present + enabled. When owner==host the client seats directly (this path is the owner≠host
- *  case; a host requesting their own agent would notify themselves — harmless, never a seat). */
-function createRequestAgentSeat(ctx: ChatContext): ChatService["requestAgentSeat"] {
-  return async ({ principal, chatId, ownerUserId, sourceKind }: RequestAgentSeatParams): Promise<void> => {
-    await requireParticipant(ctx, principal, chatId);
-    // The owner-authority arm of the two-party model: a member requests only their OWN agent (in v1 the
-    // buddy is 1:1 with its owner). Requesting someone else's buddy is refused — the consent is the owner's.
-    if (ownerUserId !== principal.userId) {
-      throw new ChatOperationError(CHAT_OP_CODES.notAgentOwner, `chat ${chatId}: a member may only request their own agent be seated`);
-    }
-    const roster = await loadRoster(ctx.db, chatId);
-    const host = roster.find((p) => p.role === "host" && p.kind === "human" && p.userId !== null);
-    // A room always has a present human host (host self-leave archives, doc 04); a missing one is a real
-    // inconsistency surfaced leak-free, never a silent no-op.
-    if (host?.userId === undefined || host.userId === null) {
-      throw new ChatNotFoundError(chatId);
-    }
-    // Durable-first delivery to the host's inbox (no coStatements — the request writes no membership state).
-    await ctx.emitNotification({
-      type: "agent-seat-requested",
-      recipientUserId: host.userId,
-      chatId,
-      ownerUserId,
-      sourceKind,
-      requestedByHandle: principal.handle,
-    });
-    await ctx.audit(
-      {
-        actorUserId: principal.userId,
-        action: "chat.requestAgentSeat",
-        entityType: "chat",
-        entityId: chatId,
-        metadata: { ownerUserId, sourceKind },
-      },
-      ctx.now(),
-    );
-  };
-}
-
 /** Flips a human participant's active persona for this room. Not a ChatService verb: persona owns the
  *  principal-facing surface and already cleared its own gate before calling this — the chat-domain write +
  *  emit chokepoint. Takes a minimal db + injected emit since persona composes before chat at the entry root.
@@ -636,9 +447,6 @@ export async function setParticipantActivePersona(
 /** Resolve a mutated seat row to its ParticipantView by kind — an agent seat via its soul name, a character
  *  seat via its live card (under the host's ownership; a null card degrades to the removed-character label). */
 async function seatViewFor(ctx: ChatContext, ownerId: UserId, row: typeof chatParticipants.$inferSelect): Promise<ParticipantView> {
-  if (row.kind === "agent") {
-    return agentParticipantView(ctx, row);
-  }
   const card = row.characterId !== null ? await ctx.getCard({ ownerId, characterId: row.characterId }) : null;
   return characterParticipantView(row, card, ctx.resolveAssetHash);
 }
@@ -693,15 +501,9 @@ function createKick(ctx: ChatContext, emit: EmitChatEvent): ChatService["kick"] 
     if (target === undefined) {
       return;
     }
-    if (target.kind === "agent") {
-      // The agent path shares the ONE unseat stamp with `unseatAgent` (no inbox → direct write; the
-      // `kind='agent'` scope matches this already-confirmed agent seat, so parity is byte-identical).
-      await stampAgentUnseat(ctx, chatId, userId);
-    } else {
-      const leftSeq = await loadMaxMessageSeq(ctx.db, chatId);
-      const leaveStatement = markUserLeftStatement(ctx.db, chatId, userId, leftSeq);
-      await ctx.emitNotification({ type: "kicked", recipientUserId: userId, chatId }, [leaveStatement]);
-    }
+    const leftSeq = await loadMaxMessageSeq(ctx.db, chatId);
+    const leaveStatement = markUserLeftStatement(ctx.db, chatId, userId, leftSeq);
+    await ctx.emitNotification({ type: "kicked", recipientUserId: userId, chatId }, [leaveStatement]);
     await emit({ type: "chatUpdated", chatId });
     // The kicked user's row is already leftSeq-stamped (no longer enumerated), so they ride extraUserIds.
     await ctx.emitChatChanged(chatId, { detail: true, extraUserIds: [userId] });
@@ -735,7 +537,7 @@ function createSelfLeave(ctx: ChatContext, emit: EmitChatEvent): ChatService["se
 
 /** The character seats a new room owner does not own — the seats a transfer must drop, since cards are
  *  single-owned and a character seat whose card resolves null under the new owner would collapse to a
- *  blank name. Rather than refuse the transfer, drops those seats. Human + agent seats are never dropped.
+ *  blank name. Rather than refuse the transfer, drops those seats. Human seats are never dropped.
  *  Returns the present character participant ids to leftSeq-stamp. */
 async function resolveDroppedCharacterSeatIds(
   ctx: ChatContext,
@@ -759,12 +561,6 @@ function createNominateHostHandoff(ctx: ChatContext, emit: EmitChatEvent): ChatS
     const nominee = roster.find((p) => p.userId === userId);
     if (nominee === undefined || nominee.role === "host") {
       throw new ChatNotFoundError(chatId);
-    }
-    // Honest chat-side refusal (D60, doc 06 §4): an agent seat holds no Principal and can never accept the
-    // handoff. Refuse HERE with a coded reason (the host already sees the seat — leak-free) rather than letting
-    // the notifications belt fail-close it downstream as the opaque `agent_recipient`. No pending write, no notify.
-    if (nominee.kind === "agent") {
-      throw new ChatOperationError(CHAT_OP_CODES.cannotNominateAgent, `chat ${chatId}: an agent seat cannot be nominated as host`);
     }
     await ctx.emitNotification({ type: "handoff-nominated", recipientUserId: userId, chatId }, [setPendingHostStatement(ctx.db, chatId, userId, ctx.now())]);
     await emit({ type: "chatUpdated", chatId });

@@ -86,16 +86,17 @@ export const BLUR_SURFACE_ITEMS: readonly SelectOption<string>[] = BLUR_SURFACES
 const BACKGROUND_KIND_LABELS: Record<AppearanceSettings["backgroundImageKind"], string> = {
   none: "None",
   seeded: "Seeded",
-  external: "URL",
   asset: "Upload",
 };
-export const BACKGROUND_KIND_ITEMS: SelectItems<string> = BACKGROUND_IMAGE_KINDS.map((value) => ({
+export const BACKGROUND_KIND_ITEMS: SelectItems<string> = BACKGROUND_IMAGE_KINDS.filter(k => k !== "external").map((value) => ({
   value,
   label: BACKGROUND_KIND_LABELS[value],
 }));
 const BACKGROUND_FIT_LABELS: Record<AppearanceSettings["backgroundFit"], string> = {
   cover: "Cover (fill, crop edges)",
   contain: "Contain (fit, may letterbox)",
+  center: "Center (actual size)",
+  stretch: "Stretch (distort to fill)",
 };
 export const BACKGROUND_FIT_ITEMS: SelectItems<string> = APPEARANCE_BACKGROUND_FITS.map((value) => ({
   value,

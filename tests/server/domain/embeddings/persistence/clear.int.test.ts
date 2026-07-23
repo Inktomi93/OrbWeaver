@@ -5,8 +5,8 @@
 // (chat_segments/chat_digests, which now key on model too), a new `(model, dim)` space is written
 // ADDITIVELY beside the old one, and the purge reclaims the old space leaving zero stale-space rows.
 
-import { characterEmbeddings, chatDigests, chatSegments, imageEmbeddings } from "@orb/db";
-import type { CharacterEmbeddingId, ChatDigestId, ChatSegmentId, ImageEmbeddingId } from "@orb/kit/ids";
+import { characterEmbeddings, chatDigests, chatSegments, documentChunks, imageEmbeddings } from "@orb/db";
+import type { CharacterEmbeddingId, ChatDigestId, ChatSegmentId, DocumentChunkId, ImageEmbeddingId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { clearVectorTable, purgeStaleVectors } from "../../../../../packages/server/src/domain/embeddings/persistence/clear.ts";
@@ -14,11 +14,12 @@ import {
   upsertCharacterEmbedding,
   upsertChatDigest,
   upsertChatSegment,
+  upsertDocumentChunk,
   upsertImageEmbedding,
 } from "../../../../../packages/server/src/domain/embeddings/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
-import { EMBED_DIM, EMBED_MODEL, fakeVector, IMAGE_EMBED_MODEL, seedAsset, seedCharacter, seedChat, seedUser } from "../_support.ts";
+import { EMBED_DIM, EMBED_MODEL, fakeVector, IMAGE_EMBED_MODEL, seedAsset, seedCharacter, seedChat, seedDocument, seedUser } from "../_support.ts";
 
 const NOW = 1_750_000_000_000;
 const OLD_MODEL = "old-embed-model-v1";
@@ -122,12 +123,13 @@ describe("purgeStaleVectors (PD-104 model-change purge+reindex)", () => {
     expect(rows.map((r) => r.model)).toEqual([EMBED_MODEL]); // old space reclaimed, no strand
   });
 
-  test("UNIFORMITY INVARIANT: all four live vector tables purge the old space identically — zero stale-space rows remain anywhere", async () => {
+  test("UNIFORMITY INVARIANT: all five live vector tables purge the old space identically — zero stale-space rows remain anywhere", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, { handle: "owner" });
     const characterId = await seedCharacter(db, owner);
     const assetId = await seedAsset(db, owner);
     const chatId = await seedChat(db);
+    const documentId = await seedDocument(db, owner);
 
     // Seed one OLD-space + one NEW-space row in every table (image on its own model axis).
     await upsertCharacterEmbedding(db, {
@@ -230,12 +232,40 @@ describe("purgeStaleVectors (PD-104 model-change purge+reindex)", () => {
       dim: EMBED_DIM,
       now: NOW,
     });
+    // document_chunks — the 5th producer (PD-139(c)): the same (documentId, chunkIdx) in two model spaces.
+    await upsertDocumentChunk(db, {
+      id: castId<DocumentChunkId>("document_chunk_old"),
+      documentId,
+      chunkIdx: 0,
+      content: "chunk",
+      charStart: 0,
+      charEnd: 5,
+      embedding: fakeVector(EMBED_DIM, 1),
+      contentHash: "h1",
+      model: OLD_MODEL,
+      dim: EMBED_DIM,
+      now: NOW,
+    });
+    await upsertDocumentChunk(db, {
+      id: castId<DocumentChunkId>("document_chunk_new"),
+      documentId,
+      chunkIdx: 0,
+      content: "chunk",
+      charStart: 0,
+      charEnd: 5,
+      embedding: fakeVector(EMBED_DIM, 2),
+      contentHash: "h2",
+      model: EMBED_MODEL,
+      dim: EMBED_DIM,
+      now: NOW,
+    });
 
     // Purge each table's old space against its active model.
     expect(await purgeStaleVectors(db, "character_embeddings", EMBED_MODEL)).toBe(1);
     expect(await purgeStaleVectors(db, "image_embeddings", IMAGE_EMBED_MODEL)).toBe(1);
     expect(await purgeStaleVectors(db, "chat_segments", EMBED_MODEL)).toBe(1);
     expect(await purgeStaleVectors(db, "chat_digests", EMBED_MODEL)).toBe(1);
+    expect(await purgeStaleVectors(db, "document_chunks", EMBED_MODEL)).toBe(1);
 
     // The invariant: every table retains EXACTLY its active-space row and nothing outside it.
     const stale = [
@@ -243,11 +273,13 @@ describe("purgeStaleVectors (PD-104 model-change purge+reindex)", () => {
       ...(await db.select().from(imageEmbeddings)).filter((r) => r.model !== IMAGE_EMBED_MODEL),
       ...(await db.select().from(chatSegments)).filter((r) => r.model !== EMBED_MODEL),
       ...(await db.select().from(chatDigests)).filter((r) => r.model !== EMBED_MODEL),
+      ...(await db.select().from(documentChunks)).filter((r) => r.model !== EMBED_MODEL),
     ];
     expect(stale).toHaveLength(0);
     expect(await db.select().from(characterEmbeddings)).toHaveLength(1);
     expect(await db.select().from(imageEmbeddings)).toHaveLength(1);
     expect(await db.select().from(chatSegments)).toHaveLength(1);
     expect(await db.select().from(chatDigests)).toHaveLength(1);
+    expect(await db.select().from(documentChunks)).toHaveLength(1);
   });
 });

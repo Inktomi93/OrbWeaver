@@ -5,7 +5,7 @@
 // CHECKs + the `actions` zod are the ultimate guards; this gives a clean, user-visible refusal first.
 
 import type { AutomationAction, AutomationTrigger } from "@orb/contracts/automation";
-import { automationActionsSchema, LIVE_TRIGGERS, RESERVED_ACTION_TYPES } from "@orb/contracts/automation";
+import { automationActionsSchema, LIVE_TRIGGERS } from "@orb/contracts/automation";
 import type { Db } from "@orb/db";
 import { isCelParseError, parseCel } from "@orb/kit/cel";
 import type { ChatId } from "@orb/kit/ids";
@@ -18,10 +18,6 @@ const POST_NOTIFICATION_COOLDOWN_FLOOR = 60;
 /** The per-rule fires/hour ceiling (03 §3 — default 30, cap 240). */
 const RULE_MAX_FIRES_CAP = 240;
 export const RULE_MAX_FIRES_DEFAULT = 30;
-
-// The reserved arm types as a plain readonly string[] for `.includes` (a module-level `new Set()` trips the
-// single-replica-state gate; this tuple is tiny — a linear scan is free).
-const RESERVED_ARMS: readonly string[] = RESERVED_ACTION_TYPES;
 
 interface ValidatedRule {
   readonly actions: readonly AutomationAction[];
@@ -42,10 +38,7 @@ function validateActions(input: ValidateInput): readonly AutomationAction[] {
     throw new RuleValidationError("bad_action", `action list invalid: ${parsed.error.issues[0]?.message ?? "unknown"}`);
   }
   const actions = parsed.data;
-  const reserved = actions.find((a) => RESERVED_ARMS.includes(a.type));
-  if (reserved !== undefined) {
-    throw new RuleValidationError("reserved_arm", `action '${reserved.type}' is reserved (its domain is not wired v1)`);
-  }
+
   if (actions.some((a) => a.type === "post_notification") && input.cooldownSeconds < POST_NOTIFICATION_COOLDOWN_FLOOR) {
     throw new RuleValidationError("cooldown_floor", `a post_notification rule requires cooldownSeconds ≥ ${POST_NOTIFICATION_COOLDOWN_FLOOR}`);
   }

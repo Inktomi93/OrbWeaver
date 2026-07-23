@@ -8,10 +8,11 @@
 
 import type { DomainEvent } from "@orb/contracts/events";
 import type { Principal, UserRole } from "@orb/contracts/identity";
+import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import { assets, characterStats, characterSummaries, characters } from "@orb/db";
-import type { AssetId, CharacterId, CharacterSnapshotId, CharacterStatId, Handle, UserId } from "@orb/kit/ids";
+import type { AssetId, CardEvolutionProposalId, CharacterId, CharacterSnapshotId, CharacterStatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { CharacterContext } from "../../../../packages/server/src/domain/character/context.ts";
 import type { AttachCardTagOp, DetachCardTagOp } from "../../../../packages/server/src/domain/character/contract/service.ts";
@@ -41,6 +42,10 @@ export interface CharacterHarness {
   readonly audits: AuditCall[];
   readonly events: DomainEvent[];
   readonly reaps: AssetId[][];
+  /** The recorded `reapCharacterSprites` calls (assert the injected sprite-reap fires before the delete). */
+  readonly spriteReaps: CharacterId[];
+  /** Override the sprite-reap result — the freed sprite assetIds remove folds into the `reapAssets` set. */
+  setSpriteReapResult: (ids: readonly AssetId[]) => void;
   readonly tagAttaches: TagAttachArgs[];
   readonly tagDetaches: TagDetachArgs[];
   /** The recorded `emitUserEvent` calls (assert `charactersChanged` fires after a durable write). */
@@ -54,23 +59,26 @@ export interface CharacterHarness {
 }
 
 /** Build the CharacterContext over a real db with deterministic + recording fakes. */
-export function makeHarness(db: Db): CharacterHarness {
+export function makeHarness(db: Db, overrides: { readonly materializeBackground?: MaterializeBackgroundOp } = {}): CharacterHarness {
   const clock = createFrozenClock(FROZEN_AT);
   const ids = createSeededIds();
   const audits: AuditCall[] = [];
   const events: DomainEvent[] = [];
   const reaps: AssetId[][] = [];
+  const spriteReaps: CharacterId[] = [];
   const tagAttaches: TagAttachArgs[] = [];
   const tagDetaches: TagDetachArgs[] = [];
   const userEvents: UserEventCall[] = [];
   let tagAttachResult = true;
   let tagDetachResult = true;
+  let spriteReapResult: readonly AssetId[] = [];
 
   const ctx: CharacterContext = {
     db,
     now: (): number => clock.now(),
     newCharacterId: (): CharacterId => castId<CharacterId>(ids.next("character")),
     newSnapshotId: (): CharacterSnapshotId => castId<CharacterSnapshotId>(ids.next("character_snapshot")),
+    newProposalId: (): CardEvolutionProposalId => castId<CardEvolutionProposalId>(ids.next("card_evolution_proposal")),
     audit: (entry: AuditCall["entry"], at: number): Promise<void> => {
       audits.push({ entry, at });
       return Promise.resolve();
@@ -81,6 +89,10 @@ export function makeHarness(db: Db): CharacterHarness {
     reapAssets: (assetIds: readonly AssetId[]): Promise<void> => {
       reaps.push([...assetIds]);
       return Promise.resolve();
+    },
+    reapCharacterSprites: (characterId: CharacterId): Promise<readonly AssetId[]> => {
+      spriteReaps.push(characterId);
+      return Promise.resolve(spriteReapResult);
     },
     attachCardTag: (args: TagAttachArgs): Promise<boolean> => {
       tagAttaches.push(args);
@@ -97,6 +109,9 @@ export function makeHarness(db: Db): CharacterHarness {
     emitUserEvent: (userId: UserId, event: UserBusEvent): void => {
       userEvents.push({ userId, event });
     },
+    // F-P0-2: default refuses (never hit by non-external tests); the external-materialize test injects a stub.
+    materializeBackground:
+      overrides.materializeBackground ?? ((): ReturnType<MaterializeBackgroundOp> => Promise.resolve({ ok: false, reason: "unreachable" })),
   };
 
   return {
@@ -104,10 +119,14 @@ export function makeHarness(db: Db): CharacterHarness {
     audits,
     events,
     reaps,
+    spriteReaps,
     tagAttaches,
     tagDetaches,
     userEvents,
     advance: (ms: number): void => clock.advance(ms),
+    setSpriteReapResult: (assetIds: readonly AssetId[]): void => {
+      spriteReapResult = assetIds;
+    },
     setTagAttachResult: (result: boolean): void => {
       tagAttachResult = result;
     },

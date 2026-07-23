@@ -10,10 +10,11 @@ import type { EmbeddingsStoreOp, StoreDigestParams } from "../../../../../../pac
 import { generateDigests } from "../../../../../../packages/server/src/domain/chat/memory/build/digests";
 import { CONSOLIDATION_SYSTEM_PROMPT } from "../../../../../../packages/server/src/domain/chat/memory/build/substrate/prompts";
 import { blockHash } from "../../../../../../packages/server/src/domain/chat/memory/build/substrate/transcript";
+import { loadWitnessHorizons } from "../../../../../../packages/server/src/domain/chat/memory/persistence/queries";
 import type { MemoryLogEntry, MsgRow } from "../../../../../../packages/server/src/domain/chat/memory/types";
 import { freshDb } from "../../../../../support/db";
 import { expect, test } from "../../../../../support/fixtures";
-import { makeChatContext, seedCharacter, seedChat, seedMessage, seedPersona, seedUser } from "../../_support";
+import { makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedPersona, seedUser } from "../../_support";
 import { fakeEmbeddingsStore, fakeSummarize, GROUP_CHAR, MODEL, seedDigest, seedTurns, sharedScope } from "../_support";
 
 /** A summarizer that returns only whitespace — the empty-output degrade the F7 skip-and-flag guards against. */
@@ -165,6 +166,53 @@ describe("memory/build/digests", () => {
       config: { blockSize: 2, verbatimWindow: 0, fanOut: 4, maxTier: 1 },
     });
     expect(store.digests.filter((d) => d.key.tier === 0).map((d) => d.key.blockIdx)).toEqual([1, 2]);
+  });
+
+  test("WIRING (D6): a kicked-then-rejoined character digests neither pre-join NOR kicked history — horizons SOURCED from chat_participants", async () => {
+    const chatId = await seedChat(db, "kickrejoin");
+    await seedTurns(db, chatId, aria, 8); // blockSize 2 → blocks 0(1-2) 1(3-4) 2(5-6) 3(7-8)
+    const sum = fakeSummarize();
+    const store = fakeEmbeddingsStore(db);
+    const ctx = makeChatContext(db, { summarize: sum.fn, embeddingsStore: store.store });
+
+    // aria: present seq 1-4 (blocks 0,1), KICKED at seq 5 (leftSeq exclusive), RE-ADDED at seq 7 (block 3).
+    // Two participant rows = two witnessing intervals; block 2 (seq 5-6) is the kicked gap → NOT witnessed.
+    await seedParticipant(db, { chatId, key: "aria_ep1", characterId: aria, joinSeq: 1, leftSeq: 5 });
+    await seedParticipant(db, { chatId, key: "aria_ep2", characterId: aria, joinSeq: 7, leftSeq: null });
+
+    // The FIX: the wiring sources horizons from the participant rows (the pre-fix state passed `undefined` here
+    // → the character wrongly digested the whole 8-turn history including the scene it was kicked out of).
+    const witnessing = await loadWitnessHorizons(db, chatId, aria);
+    expect(witnessing).toEqual([
+      { joinSeq: 1, leftSeq: 5 },
+      { joinSeq: 7, leftSeq: null },
+    ]);
+
+    await generateDigests(ctx, {
+      scope: { chatId, scopedCharacterId: aria, isGroup: true },
+      witnessing,
+      config: { blockSize: 2, verbatimWindow: 0, fanOut: 4, maxTier: 1 },
+    });
+    // Blocks 0,1 (present) + 3 (rejoined) are digested; block 2 (the kicked scene) is EXCLUDED.
+    expect(store.digests.filter((d) => d.key.tier === 0).map((d) => d.key.blockIdx)).toEqual([0, 1, 3]);
+  });
+
+  test("SHARED bucket byte-identity: witnessing ABSENT ⇒ the full-history merged build (unfiltered)", async () => {
+    const chatId = await seedChat(db, "sharedmerged");
+    await seedTurns(db, chatId, aria, 8);
+    // Even with the SAME kick/rejoin horizons present in chat_participants, the shared bucket omits witnessing
+    // (the synthetic group char has no seat) → the merged build digests EVERY aged-out block, block 2 included.
+    await seedParticipant(db, { chatId, key: "aria_ep1", characterId: aria, joinSeq: 1, leftSeq: 5 });
+    await seedParticipant(db, { chatId, key: "aria_ep2", characterId: aria, joinSeq: 7, leftSeq: null });
+    const sum = fakeSummarize();
+    const store = fakeEmbeddingsStore(db);
+    const ctx = makeChatContext(db, { summarize: sum.fn, embeddingsStore: store.store });
+
+    await generateDigests(ctx, {
+      scope: sharedScope(chatId), // GROUP_CHAR bucket, witnessing omitted
+      config: { blockSize: 2, verbatimWindow: 0, fanOut: 4, maxTier: 1 },
+    });
+    expect(store.digests.filter((d) => d.key.tier === 0).map((d) => d.key.blockIdx)).toEqual([0, 1, 2, 3]);
   });
 
   test("token-guard: a block that cannot fit even one message is skipped-and-flagged (no silent truncation)", async () => {

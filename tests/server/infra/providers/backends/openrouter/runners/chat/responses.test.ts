@@ -148,6 +148,36 @@ describe("runResponsesTurn — wire shaping", () => {
     expect(captured.body?.["text"]).toBeUndefined();
   });
 
+  test("parallelToolCalls + fallback models[] ride the responses wire (mirrors chat-completions)", async () => {
+    const tools = [{ name: "get_weather", description: "weather", parameters: { type: "object" } }];
+    const { client, captured } = streamingClient(OK_EVENTS);
+    await runResponsesTurn(
+      client,
+      makeRequest({
+        tools,
+        providerRouting: { models: ["openai/gpt-5", "anthropic/claude-opus-4-5"] },
+        params: { effort: "high", advanced: { parallelToolCalls: false } },
+      }),
+      DEPS,
+    );
+    expect(captured.body?.["parallelToolCalls"]).toBe(false);
+    expect(captured.body?.["models"]).toEqual(["openai/gpt-5", "anthropic/claude-opus-4-5"]);
+    expect(captured.body?.["tools"]).toBeDefined();
+  });
+
+  test("parallelToolCalls is omitted without a tools[] request (byte-identical to a plain turn)", async () => {
+    const { client, captured } = streamingClient(OK_EVENTS);
+    await runResponsesTurn(client, makeRequest({ params: { effort: "high", advanced: { parallelToolCalls: false } } }), DEPS);
+    expect(captured.body?.["parallelToolCalls"]).toBeUndefined();
+  });
+
+  test("toolChoice is emitted INDEPENDENTLY of tools (semantic parity with chat-completions)", async () => {
+    const { client, captured } = streamingClient(OK_EVENTS);
+    await runResponsesTurn(client, makeRequest({ toolChoice: { mode: "auto" } }), DEPS);
+    expect(captured.body?.["toolChoice"]).toBe("auto"); // present even with no tools[]
+    expect(captured.body?.["tools"]).toBeUndefined();
+  });
+
   test("maps the already-resolved topK rider onto the responses body (D68 §1)", async () => {
     const { client, captured } = streamingClient(OK_EVENTS);
     await runResponsesTurn(

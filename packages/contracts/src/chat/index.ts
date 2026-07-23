@@ -1144,7 +1144,7 @@ export function soleTrueSoloCharacter(participants: readonly ParticipantView[] |
   for (const participant of participants) {
     if (participant.kind === "human") {
       humanCount += 1;
-    } else if (participant.kind === "character") {
+    } else {
       characterCount += 1;
       soleCharacter = participant;
     }

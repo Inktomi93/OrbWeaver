@@ -19,7 +19,7 @@ import { notificationsRouter } from "./routers/notifications";
 import { personaRouter } from "./routers/persona";
 import { pluginRouter } from "./routers/plugin";
 import { presetRouter } from "./routers/preset";
-import { rosterPresetRouter } from "./routers/roster-preset";
+
 import { searchRouter } from "./routers/search";
 import { sessionsRouter } from "./routers/sessions";
 import { settingsRouter } from "./routers/settings";
@@ -76,7 +76,7 @@ export const appRouter = t.router({
   persona: personaRouter,
   plugin: pluginRouter,
   preset: presetRouter,
-  rosterPreset: rosterPresetRouter,
+
   search: searchRouter,
   sessions: sessionsRouter,
   settings: settingsRouter,

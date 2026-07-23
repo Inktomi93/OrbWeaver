@@ -6,7 +6,7 @@
 
 export type { Cas, PutResult } from "./cas";
 export { createCas } from "./cas";
-export { confinePosePath, createCuratedPoseReader } from "./curated-pose-reader";
+
 export { stageDirectory } from "./stage-dir";
 export type { VariantCache } from "./variant-cache";
 export { createVariantCache } from "./variant-cache";

@@ -39,12 +39,6 @@ export const connectionRouter = t.router({
       }),
     ),
 
-  // The local ComfyUI reachability + catalog probe (MA-8/D96) — one `GET /object_info` against the owner-
-  // configured endpoint, returning the client-discriminated tri-state. A MUTATION despite being read-shaped:
-  // it makes a live outbound fetch, so it keeps tRPC's CSRF gate (the credentials-router SSRF-read posture,
-  // Esoteric #9). Authed; the endpoint is deployment-global (owner-configured), no owned id.
-  probeComfyui: authedProcedure.mutation(({ ctx }) => ctx.services.connection.probeComfyui({ principal: ctx.auth })),
-
   refreshCatalog: adminProcedure.mutation(({ ctx, signal }) => ctx.services.connection.refreshCatalog({ signal })),
 
   // The agent-sdk daemon model catalog (`supportedModels()`) — the family→version map. Browse is authed;

@@ -23,8 +23,7 @@ export type { ExportDeps } from "./export";
 export { registerExport } from "./export";
 export type { HealthzDeps } from "./healthz";
 export { registerHealthz } from "./healthz";
-export type { HubAvatarDeps, PrincipalEnv } from "./hub-avatar";
-export { AvatarLru, registerHubAvatar } from "./hub-avatar";
+
 export type { ImportBundleDeps } from "./import";
 export { registerImportBundle } from "./import";
 export type { ImportTreeDeps } from "./import-tree";
@@ -33,6 +32,6 @@ export type { JoinDeps } from "./join";
 export { registerJoin } from "./join";
 export { securityHeaders } from "./security-headers";
 export type { SpaDeps } from "./spa";
-export { registerSpa, resolvePoseLibraryRoot, resolveSpaDistDir } from "./spa";
-export type { ImportPosesPort, UploadAssetsPort, UploadDeps } from "./upload";
+export { registerSpa, resolveSpaDistDir } from "./spa";
+export type { UploadAssetsPort, UploadDeps } from "./upload";
 export { registerUpload } from "./upload";

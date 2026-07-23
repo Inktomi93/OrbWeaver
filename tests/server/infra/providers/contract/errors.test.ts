@@ -139,6 +139,7 @@ describe("PROVIDER_ERROR_KINDS", () => {
       "rate_limit",
       "auth_failed",
       "billing",
+      "moderation",
       "forbidden",
       "invalid",
       "model_unavailable",

@@ -80,16 +80,6 @@ async function avatarReferenceGate(
  *  asset (owner-gated by `readAsset`). The bytes ride the executor's `edit.poseControl`; the ComfyUI arm
  *  attaches ControlNet only when the curated role's family advertises the `pose` lever, else drops-with-warning
  *  (the picker's presence is already capability-gated on that same signal — a pick never reaches a no-pose arm). */
-async function resolvePoseControl(ctx: ImageryContext, p: GeneratePictureParams): Promise<Uint8Array | undefined> {
-  const pose = p.pose;
-  if (pose === undefined) {
-    return;
-  }
-  if (pose.kind === "curated") {
-    return (await ctx.readCuratedPose(pose.poseRef)) ?? undefined;
-  }
-  return (await ctx.readAsset(p.caller, pose.poseAssetId)).bytes;
-}
 
 /** Compose the runner `edit` payload from the B3 avatar reference (identity `references[]` OR img2img `image`,
  *  per the capability — comfyui-control §4.6) + the resolved pose control map (C6d). Absent both ⇒ `undefined`
@@ -204,7 +194,7 @@ export function createGeneratePicture(ctx: ImageryContext, deps: { readonly reso
     const reference = await avatarReferenceGate(ctx, p, { model: resolution.connection.model, capability: resolution.capability }, subjectCharacterId);
     // Step 7b: resolve the optional ControlNet pose pick to bytes (C6d). Composed with the B3 init image into
     // ONE edit payload — a pose-only pick carries just `poseControl` (no init ⇒ the arm drives txt2img+controlnet).
-    const edit = composeEdit(reference.edit, await resolvePoseControl(ctx, p));
+    const edit = composeEdit(reference.edit, undefined);
 
     // Steps 8-12: the shared generation tail (generate → materialize → store+provenance → stats).
     const outcome = await runGeneration(

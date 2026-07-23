@@ -178,18 +178,6 @@ const beltSurfaces: readonly BeltSurface[] = [
     drive: (ctx) => caller(ctx).notifications.list(),
   },
   {
-    path: "notifications.markRead",
-    make: () => {
-      const markRead = vi.fn<NotificationsService["markRead"]>();
-      return {
-        services: { notifications: { markRead } },
-        presence: inertPresence,
-        probe: markRead,
-      };
-    },
-    drive: (ctx) => caller(ctx).notifications.markRead({ notificationId }),
-  },
-  {
     path: "notifications.dismiss",
     make: () => {
       const dismiss = vi.fn<NotificationsService["dismiss"]>();

@@ -19,7 +19,7 @@ import type { GenerationType } from "@orb/contracts/preset";
 import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import { buildAssembleContext } from "../assembly/context";
 import type { ChatContext } from "../context";
-import type { AgentCastMember } from "../contract/context";
+
 import type { ForeignInputs } from "../contract/foreign";
 import type { MemoryRecallInputs, MsgRow } from "../contract/memory";
 import type { GuidedSteer } from "../contract/params";
@@ -179,7 +179,7 @@ export async function gatherAssembleContext(
     readonly model: string;
     readonly castCharacterIds: readonly CharacterId[];
     /** Present seated agents (D60), soul-resolved by `loadRoom`; threaded straight to the pure build core. */
-    readonly agentCast?: readonly AgentCastMember[] | undefined;
+
     /** The muted-seat `speakerKey`s from `loadRoom` (character + agent) — the `castNotMuted` producer. */
     readonly mutedSpeakerKeys?: ReadonlySet<string> | undefined;
     readonly personaIds: readonly PersonaId[];
@@ -276,7 +276,7 @@ export async function gatherAssembleContext(
       chatId,
       ownerId: runAsUserId,
       castCharacterIds,
-      agentCast: args.agentCast,
+
       mutedSpeakerKeys: args.mutedSpeakerKeys,
       personaIds,
       promptConfig: foreign.promptConfig,

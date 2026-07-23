@@ -5,10 +5,8 @@
 // indirection); jpg/webp→png transcode is the injected `infra/image` op, so export never imports `sharp`.
 
 import type { Db } from "@orb/db";
-import type { UserId } from "@orb/kit/ids";
 import type { ImageTransformOptions } from "#infra/image";
 import type { Cas } from "#infra/storage";
-import type { ParsedAgentAuthor } from "#kit/serde/chat";
 import type { ExportCharacterParams, ExportChatParams } from "./params";
 import type { ExportedCard, ExportedText } from "./results";
 
@@ -17,12 +15,6 @@ export interface ExportContext {
   readonly db: Db;
   readonly cas: Cas;
   readonly imageTransform: (bytes: Uint8Array, opts?: ImageTransformOptions) => Promise<Uint8Array>;
-  /** Resolve an agent-authored assistant row's provenance (PD-17). Export may NOT read `users`/
-   *  `agent_principals` directly (no-direct-users-read) nor consume chat's `resolveAgentSpeaker`; the compose
-   *  root walks the FK chain (agent → owner → source resolver) and returns the leak-safe `{name, sourceKind}`
-   *  — the soul prompt is dropped there, never reaching export. `null` ⇒ not an agent / nothing to voice
-   *  (the row degrades to the character-name fallback, the pre-PD-17 behaviour). */
-  readonly resolveAgentAuthor: (agentUserId: UserId) => Promise<ParsedAgentAuthor | null>;
 }
 
 // The chat transcript format union's declaration home is params.ts (keeps contract/ acyclic); the

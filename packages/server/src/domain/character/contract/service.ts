@@ -6,16 +6,14 @@ import type { DomainEvent } from "@orb/contracts/events";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
-import type { AssetId, CardEvolutionProposalId, CharacterId, CharacterSnapshotId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, CharacterSnapshotId, UserId } from "@orb/kit/ids";
 import type { AuditEntry } from "#foundation/observability";
 import type {
-  AcceptCardEvolutionParams,
   BulkAddCardTagParams,
   BulkArchiveParams,
   BulkRemoveCardTagParams,
   BulkRemoveParams,
   CreateCharacterParams,
-  DismissCardEvolutionParams,
   DuplicateCharacterParams,
   FindByHandleParams,
   FindByImportedFromParams,
@@ -23,18 +21,16 @@ import type {
   FindGroupCharParams,
   GetCardParams,
   GetCharacterParams,
-  ListCardEvolutionProposalsParams,
   ListCharactersParams,
   ListSnapshotsParams,
   MintGroupCharParams,
-  ProposeCardEvolutionParams,
   RemoveCharacterParams,
   RestoreParams,
   SnapshotParams,
   UpdateCharacterParams,
 } from "./params";
 import type { CharacterRef, ImportedFromMatch, ListCharactersResult, SnapshotRef, SnapshotSummary } from "./results";
-import type { CardEvolutionProposalView, CharacterDetail } from "./views";
+import type { CharacterDetail } from "./views";
 
 /** Best-effort reap of avatar assets a deleted character may have orphaned (FK is onDelete: set null). */
 export type ReapAssetsOp = (assetIds: readonly AssetId[]) => Promise<void>;
@@ -62,7 +58,6 @@ export interface CharacterContext {
   readonly now: () => number;
   readonly newCharacterId: () => CharacterId;
   readonly newSnapshotId: () => CharacterSnapshotId;
-  readonly newProposalId: () => CardEvolutionProposalId;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   readonly emit: (event: DomainEvent) => void;
   readonly reapAssets: ReapAssetsOp;
@@ -117,14 +112,4 @@ export interface CharacterService {
 
   readonly mintSyntheticGroupCharacter: (params: MintGroupCharParams) => Promise<CharacterRef>;
   readonly findSyntheticGroupCharacter: (params: FindGroupCharParams) => Promise<CharacterRef | null>;
-
-  // ── card-evolution proposals (chat-crew-design/02 §5) — propose-don't-dispose ──
-  /** ENV-ONLY (no principal): file/supersede a card-drift proposal for the character. Returns the new id. */
-  readonly proposeCardEvolution: (params: ProposeCardEvolutionParams) => Promise<CardEvolutionProposalId>;
-  /** The owner's PENDING proposals for one of their characters (the character-page review surface). */
-  readonly listCardEvolutionProposals: (params: ListCardEvolutionProposalsParams) => Promise<CardEvolutionProposalView[]>;
-  /** Owner-only; snapshots `pre-evolution` FIRST, folds the picked changes onto the card, flips → accepted. */
-  readonly acceptCardEvolution: (params: AcceptCardEvolutionParams) => Promise<void>;
-  /** Owner-only; a status flip to `dismissed` (never a delete — the audit trail survives). */
-  readonly dismissCardEvolution: (params: DismissCardEvolutionParams) => Promise<void>;
 }

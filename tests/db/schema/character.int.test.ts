@@ -14,7 +14,7 @@ import type { RegexScript } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
 import type { Db } from "@orb/db";
 import { assets, cardEvolutionProposals, characterPersonas, characterSnapshots, characters, chats, isConstraintViolation, personas } from "@orb/db";
-import { parseRecord, parseStringArray } from "@orb/db/kit";
+import { parseRecord, parseStringArray, parseStringArrayColumn } from "@orb/db/kit";
 import type { AssetId, CardEvolutionProposalId, CharacterId, CharacterSnapshotId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
@@ -59,6 +59,11 @@ test("characters insert→select round-trips (branded id + always-a-list default
   expect(rows[0]?.regexScripts).toEqual([]);
 });
 
+// A genuinely-unknown / deferred residual key (ST wire snake_case) — `assets` still rides residual pending
+// its own lane (`group_only_greetings` no longer does — it folds into the greetings array, V3 promotion B).
+
+const DEFERRED_RESIDUAL = { assets: [{ type: "icon", uri: "ccdefault:", name: "main", ext: "png" }] };
+
 test("card-content JSON columns round-trip (greetings, extensions, residualData, depthPrompt, refinery, regexScripts)", async () => {
   const db = await freshDb();
   const ownerId = await seedUser(db, { id: "user_char_b", handle: "char-owner-b" });
@@ -85,18 +90,28 @@ test("card-content JSON columns round-trip (greetings, extensions, residualData,
     ownerId,
     contentHash: "hash-b",
     name: "Greeter",
-    greetings: ["Hello there", "Hi again"],
+    greetings: [{ text: "Hello there" }, { text: "Hi again" }],
     extensions: { vendorKey: 42 },
-    residualData: { source: ["https://example.com/card"], nickname: "Ari" },
+    // The promoted V3 fields are now typed COLUMNS; residual carries only genuinely-unknown vendor residue.
+    nickname: "Ari",
+    source: ["https://example.com/card"],
+    creationDate: 1_700_000_000,
+    modificationDate: 1_700_100_000,
+    residualData: DEFERRED_RESIDUAL,
     depthPrompt,
     refinery,
     regexScripts: [regexScript],
   });
 
   const rows = await db.select().from(characters).where(eq(characters.id, id));
-  expect(parseStringArray(rows[0]?.greetings)).toEqual(["Hello there", "Hi again"]);
+  expect(rows[0]?.greetings).toEqual([{ text: "Hello there" }, { text: "Hi again" }]);
   expect(rows[0]?.extensions).toEqual({ vendorKey: 42 });
-  expect(rows[0]?.residualData).toEqual({ source: ["https://example.com/card"], nickname: "Ari" });
+  // The V3 content promotions persist as their own typed columns (source is the nullable-list column).
+  expect(rows[0]?.nickname).toBe("Ari");
+  expect(parseStringArrayColumn(rows[0]?.source)).toEqual(["https://example.com/card"]);
+  expect(rows[0]?.creationDate).toBe(1_700_000_000);
+  expect(rows[0]?.modificationDate).toBe(1_700_100_000);
+  expect(rows[0]?.residualData).toEqual(DEFERRED_RESIDUAL);
   // depthPrompt + refinery are nullable JSON blobs — round-trip through the @orb/db/kit read-seam parser.
   expect(parseRecord(rows[0]?.depthPrompt)).toEqual(depthPrompt);
   expect(parseRecord(rows[0]?.refinery)).toEqual(refinery);
@@ -113,7 +128,7 @@ test("character_snapshots stores ONE opaque card blob and round-trips", async ()
     description: "calm",
     personality: null,
     scenario: null,
-    greetings: ["hi"],
+    greetings: [{ text: "hi" }],
     exampleMessages: null,
     systemPrompt: null,
     postHistoryInstructions: null,
@@ -121,6 +136,10 @@ test("character_snapshots stores ONE opaque card blob and round-trips", async ()
     creatorNotes: null,
     creator: null,
     cardVersion: null,
+    nickname: null,
+    source: null,
+    creationDate: null,
+    modificationDate: null,
     regexScripts: [],
     extensions: null,
     residualData: null,

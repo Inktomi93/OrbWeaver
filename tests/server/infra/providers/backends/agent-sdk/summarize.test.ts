@@ -140,7 +140,7 @@ describe("agent-sdk summarize", () => {
     const fakeQuery = vi.fn((_req: { prompt: string; options: Record<string, unknown> }) => streamOf(structuredTurn(structured)));
     const summarize = backendOf(fakeQuery);
 
-    const result = await summarize(reqOf({ jsonSchema: schema }));
+    const result = await summarize(reqOf({ responseFormat: { name: "result", schema } }));
 
     // The item text is the COMPACT JSON serialization — exactly what a vLLM guided-decoding completion
     // string would carry (JSON.stringify, no indent), so a consumer can't tell the backends apart.
@@ -170,7 +170,7 @@ describe("agent-sdk summarize", () => {
     );
     const summarize = backendOf(fakeQuery);
 
-    await expect(summarize(reqOf({ jsonSchema: { type: "object" } }))).rejects.toMatchObject({
+    await expect(summarize(reqOf({ responseFormat: { name: "result", schema: { type: "object" } } }))).rejects.toMatchObject({
       kind: "invalid",
     });
   });
@@ -186,6 +186,44 @@ describe("agent-sdk summarize", () => {
     });
     // Fail-closed BEFORE any spawn.
     expect(fakeQuery).not.toHaveBeenCalled();
+  });
+
+  test("a text-only item keeps the byte-identical plain-string prompt (no images ⇒ no streaming-input)", async () => {
+    const fakeQuery = vi.fn((_req: { prompt: unknown; options: Record<string, unknown> }) => streamOf(textTurn("ok")));
+    const summarize = backendOf(fakeQuery);
+
+    await summarize(reqOf({ inputs: [{ systemPrompt: "s", userPrompt: "describe" }] }));
+
+    expect(fakeQuery.mock.calls[0]?.[0]?.prompt).toBe("describe");
+  });
+
+  test("MA-10: an image-bearing item rides the SDK streaming-input prompt as Anthropic content blocks (pin at doc 05 §IC-B LIFTED)", async () => {
+    const fakeQuery = vi.fn((_req: { prompt: unknown; options: Record<string, unknown> }) => streamOf(textTurn("ok")));
+    const summarize = backendOf(fakeQuery);
+
+    await summarize(reqOf({ inputs: [{ systemPrompt: "s", userPrompt: "describe", images: [Uint8Array.from([1, 2, 3]), "https://cdn.example/a.jpg"] }] }));
+
+    // The prompt is now an AsyncIterable<SDKUserMessage> — drain it and assert the single user message carries
+    // the text block first, then a base64 (bytes) + url (string) image block in order (the default passthrough
+    // normalizer labels bytes png → base64 "AQID").
+    const prompt = fakeQuery.mock.calls[0]?.[0]?.prompt as AsyncIterable<{ type: string; message: { role: string; content: unknown } }>;
+    expect(typeof prompt).toBe("object");
+    const messages: { type: string; message: { role: string; content: unknown } }[] = [];
+    for await (const m of prompt) {
+      messages.push(m);
+    }
+    expect(messages).toHaveLength(1);
+    expect(messages[0]?.type).toBe("user");
+    expect(messages[0]?.message).toEqual({
+      role: "user",
+      content: [
+        { type: "text", text: "describe" },
+        { type: "image", source: { type: "base64", media_type: "image/png", data: "AQID" } },
+        { type: "image", source: { type: "url", url: "https://cdn.example/a.jpg" } },
+      ],
+    });
+    // The system prompt still rides the option, not the streamed message.
+    expect(fakeQuery.mock.calls[0]?.[0]?.options?.["systemPrompt"]).toBe("s");
   });
 
   test("maxTokens rides the output-cap env override; sampling knobs are DROPPED", async () => {

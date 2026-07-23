@@ -158,7 +158,7 @@ export function createOpenRouterBackend(deps: OpenRouterBackendDeps): ProviderBa
   return {
     key: "openrouter",
     runChatTurn: async (req: ChatRequest): Promise<ChatResult> => {
-      if (req.api === "agent-sdk" || req.api === "anthropic-messages") {
+      if (req.api === "agent-sdk") {
         throw new ProviderError({
           kind: "invalid",
           retryable: false,

@@ -54,7 +54,7 @@ describe("exportCharacter", () => {
       ownerId: owner,
       name: "Aria",
       description: "A brave knight",
-      greetings: ["Hello there", "Hi again"],
+      greetings: [{ text: "Hello there" }, { text: "Hi again" }],
       creator: "nate",
       cardVersion: "1.2",
     });
@@ -74,7 +74,7 @@ describe("exportCharacter", () => {
     const back = cardFromJson(card, "fallback");
     expect(back.name).toBe("Aria");
     expect(back.description).toBe("A brave knight");
-    expect(back.greetings).toEqual(["Hello there", "Hi again"]);
+    expect(back.greetings).toEqual([{ text: "Hello there" }, { text: "Hi again" }]);
     expect(back.creator).toBe("nate");
     expect(back.cardVersion).toBe("1.2");
   });

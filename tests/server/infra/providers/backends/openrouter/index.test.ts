@@ -141,7 +141,7 @@ describe("createOpenRouterBackend — summarize shaper", () => {
       credential: CRED,
       model: castId<ModelId>("anthropic/claude-haiku-4-5"),
       inputs: [{ systemPrompt: "sys", userPrompt: "one" }],
-      jsonSchema: schema,
+      responseFormat: { name: "result", schema },
     });
     // The shaper mapped `jsonSchema` onto the chat request's `responseFormat` in the SAME json_schema dialect
     // the chat runners + the vLLM engine emit (schema name "result") — so the swappable summarize role enforces
@@ -162,5 +162,43 @@ describe("createOpenRouterBackend — summarize shaper", () => {
     });
     const sent = tracker.sentRequests[0] as { chatRequest?: { responseFormat?: unknown } };
     expect(sent.chatRequest?.responseFormat).toBeUndefined();
+  });
+
+  test("a text-only item keeps a plain-string user content (byte-unchanged from the text-only turn)", async () => {
+    const { backend, tracker } = backendWith((n) => summarizeReply(`S${n}`));
+    await callSummarize(backend, {
+      credential: CRED,
+      model: castId<ModelId>("anthropic/claude-haiku-4-5"),
+      inputs: [{ systemPrompt: "sys", userPrompt: "one" }],
+    });
+    // No images ⇒ the user message content is the raw string, NOT a single-element content-part array —
+    // the hosted request wire is identical to before the multimodal arm landed.
+    const sent = tracker.sentRequests[0] as { chatRequest: { messages: { role: string; content: unknown }[] } };
+    expect(sent.chatRequest.messages).toEqual([
+      { role: "system", content: "sys" },
+      { role: "user", content: "one" },
+    ]);
+  });
+
+  test("an item with images → a multimodal user content: the instruction text first, then image_url parts in order", async () => {
+    const { backend, tracker } = backendWith((n) => summarizeReply(`S${n}`));
+    // A raw-bytes image (→ png data URL) and a string image (→ URL passthrough), in this order.
+    const bytes = Uint8Array.from([1, 2, 3]);
+    await callSummarize(backend, {
+      credential: CRED,
+      model: castId<ModelId>("anthropic/claude-haiku-4-5"),
+      inputs: [{ systemPrompt: "sys", userPrompt: "describe", images: [bytes, "https://cdn.example/a.jpg"] }],
+    });
+    const sent = tracker.sentRequests[0] as { chatRequest: { messages: { role: string; content: unknown }[] } };
+    // The system message is untouched (plain string); only the user turn goes multimodal.
+    expect(sent.chatRequest.messages[0]).toEqual({ role: "system", content: "sys" });
+    expect(sent.chatRequest.messages[1]).toEqual({
+      role: "user",
+      content: [
+        { type: "text", text: "describe" },
+        { type: "image_url", imageUrl: { url: "data:image/png;base64,AQID" } },
+        { type: "image_url", imageUrl: { url: "https://cdn.example/a.jpg" } },
+      ],
+    });
   });
 });

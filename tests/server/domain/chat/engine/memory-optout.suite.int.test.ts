@@ -21,6 +21,8 @@ import type { TurnPrep, TurnStreamChunk } from "../../../../../packages/server/s
 import { createTurnEngine } from "../../../../../packages/server/src/domain/chat/engine/engine";
 import { generateDigests } from "../../../../../packages/server/src/domain/chat/memory/build/digests";
 import { generateSegments } from "../../../../../packages/server/src/domain/chat/memory/build/segments";
+import { loadWitnessHorizons } from "../../../../../packages/server/src/domain/chat/memory/persistence/queries";
+import { recallMemory } from "../../../../../packages/server/src/domain/chat/memory/recall/recall";
 import { freshDb } from "../../../../support/db";
 import { expect, test } from "../../../../support/fixtures";
 import { makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser, testConnection } from "../_support";
@@ -113,6 +115,8 @@ async function groupHarness(): Promise<{
     // `prep.memoryConfig` into these; the config is what decides whether they do any work).
     generateSegments,
     generateDigests,
+    loadWitnessHorizons,
+    recallMemory,
   });
   return { chatId, synthetic, summarize, engine };
 }

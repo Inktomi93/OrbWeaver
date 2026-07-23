@@ -3,6 +3,7 @@
 // unsupported mode / a missing bulk-create target / a bad target are typed errors.
 
 import { DomainConflictError, DomainForbiddenError, DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
@@ -171,6 +172,89 @@ describe("workloads.start — bulk CREATE-kind target (import-st)", () => {
         ownerId: null,
       }),
     ).rejects.toBeInstanceOf(DomainNotFoundError);
+  });
+});
+
+// DBK-B(a): the databank kinds were `singular:false, stub:true` at HEAD, so `start()`'s mode gate REJECTED
+// every databank enqueue (compose enqueues `databank-ingest`/`databank-reindex` in mode:"singular" off the
+// upload/reindex verbs). The int suites faked the enqueue op, so the rejection was invisible. This drives the
+// REAL `start()` mode gate — a green queued row proves the policy flip landed.
+describe("workloads.start — databank singular enqueue (DBK-B(a))", () => {
+  test("a singular databank-ingest enqueue is ACCEPTED and lands a queued row", async () => {
+    const db = await freshDb();
+    const alice = await seedUser(db, "user_alice");
+    const s = makeService(db);
+    const { id } = await s.start({
+      input: { kind: "databank-ingest", params: { documentId: mintTypeId(ID_PREFIX.document) } },
+      caller: principal("user_alice"),
+      mode: "singular",
+      ownerId: alice,
+    });
+    const row = await s.get({ id, caller: principal("user_alice") });
+    expect(row.status).toBe("queued");
+    expect(row.kind).toBe("databank-ingest");
+    expect(row.mode).toBe("singular");
+    expect(row.ownerId).toBe(alice);
+  });
+
+  test("a singular databank-reindex enqueue is ACCEPTED and lands a queued row", async () => {
+    const db = await freshDb();
+    const alice = await seedUser(db, "user_alice");
+    const s = makeService(db);
+    const { id } = await s.start({
+      input: { kind: "databank-reindex", params: { scope: { kind: "owner" } } },
+      caller: principal("user_alice"),
+      mode: "singular",
+      ownerId: alice,
+    });
+    const row = await s.get({ id, caller: principal("user_alice") });
+    expect(row.status).toBe("queued");
+    expect(row.kind).toBe("databank-reindex");
+    expect(row.mode).toBe("singular");
+  });
+});
+
+// E4: expressions-sprite-sheet was `singular:false, bulk:true, stub:true` at HEAD — a per-character owner-
+// triggered job mislabelled as a box-wide bulk sweep. The compose enqueue now uses mode:"singular" (owner-
+// scoped); the generate-sprite-sheet.int suite FAKED the enqueue op, so the real mode gate was never driven.
+// This drives it BOTH directions: singular is now ACCEPTED (owner-scoped row), and the OLD bulk shape is now
+// REFUSED (unsupported_mode) — the mode-gate bite proof (DBK-B precedent).
+describe("workloads.start — expressions-sprite-sheet singular enqueue (E4)", () => {
+  test("a singular sprite-sheet enqueue is ACCEPTED and lands a queued row owned by the caller", async () => {
+    const db = await freshDb();
+    const alice = await seedUser(db, "user_alice");
+    const s = makeService(db);
+    const { id } = await s.start({
+      input: {
+        kind: "expressions-sprite-sheet",
+        params: { characterId: mintTypeId(ID_PREFIX.character), labels: ["happy"], matte: "flood", ownerId: alice },
+      },
+      caller: null,
+      mode: "singular",
+      ownerId: alice,
+    });
+    const row = await s.get({ id, caller: null });
+    expect(row.status).toBe("queued");
+    expect(row.kind).toBe("expressions-sprite-sheet");
+    expect(row.mode).toBe("singular");
+    expect(row.ownerId).toBe(alice);
+  });
+
+  test("the OLD bulk shape is now REFUSED (unsupported_mode) — the mislabel can't recur", async () => {
+    const db = await freshDb();
+    const alice = await seedUser(db, "user_alice");
+    const s = makeService(db);
+    await expect(
+      s.start({
+        input: {
+          kind: "expressions-sprite-sheet",
+          params: { characterId: mintTypeId(ID_PREFIX.character), labels: ["happy"], matte: "flood", ownerId: alice },
+        },
+        caller: null,
+        mode: "bulk",
+        ownerId: null,
+      }),
+    ).rejects.toBeInstanceOf(DomainOperationError);
   });
 });
 

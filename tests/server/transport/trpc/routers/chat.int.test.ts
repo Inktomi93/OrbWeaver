@@ -14,14 +14,17 @@
 
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
-import type { ChatId } from "@orb/kit/ids";
+import { chatParticipants, users } from "@orb/db";
+import type { ChatId, Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { publishChatEvent } from "@orb/server/transport/trpc";
+import { and, eq, isNull } from "drizzle-orm";
 import { beforeEach, describe, vi } from "vitest";
 import { createChatBus } from "../../../../../packages/server/src/domain/chat/bus";
 import { createRead } from "../../../../../packages/server/src/domain/chat/verbs/read";
 import { freshDb } from "../../../../support/db";
-import { expect, test } from "../../../../support/fixtures";
-import { makeChatContext, seedChat, seedParticipant, seedUser } from "../../../domain/chat/_support";
+import { expect, OTHER_USER_ID, OWNER_USER_ID, test } from "../../../../support/fixtures";
+import { makeChatContext, seedAgent, seedChat, seedParticipant, seedUser } from "../../../domain/chat/_support";
 import { caller, principal as callerPrincipal, makeContext } from "../_support";
 
 let db: Db;
@@ -162,5 +165,118 @@ describe("chat.streamMessages — durable delta replay over a real reads-slice (
     expect(dataOf(first.value).type).toBe("delta");
     // The durable head was NEVER replayed — a cursor-less open only tails live.
     expect(replaySpy).not.toHaveBeenCalled();
+  });
+});
+
+// chat.seatAgent — the P6 wire (D60, agent-principal-design/04 §3). Drives the REAL composition root (the
+// `app` fixture) end-to-end: the host caller (OWNER_USER_ID) seats a present member's (OTHER_USER_ID) buddy
+// through the tRPC chat router → the real `provisionAgentPrincipal` (lazy mint) → `resolveAgentActor` → the
+// roster upsert. The two refusal codes the client renders (`owner_not_present`, `agent_disabled`) must
+// surface as BAD_REQUEST on the wire (a coded operational refusal), never a 500.
+describe("chat.seatAgent — the P6 route round-trip over the real graph", () => {
+  test("the host seats a present member's buddy → an agent participant lands (mint + seat rides the wire)", async ({ db: appDb, ownerCaller, otherCaller }) => {
+    void otherCaller; // seeds OTHER_USER_ID's users row (the buddy owner) so provisionAgentPrincipal can mint
+    const chatId = await seedChat(appDb, "seat");
+    await seedParticipant(appDb, { chatId, key: "seat_h", userId: OWNER_USER_ID, role: "host" });
+    await seedParticipant(appDb, { chatId, key: "seat_o", userId: OTHER_USER_ID, role: "member" });
+
+    const view = await ownerCaller.chat.seatAgent({ chatId, ownerUserId: OTHER_USER_ID, sourceKind: "buddy" });
+
+    expect(view.kind).toBe("agent");
+    expect(view.characterId).toBeNull();
+    expect(view.role).toBe("member");
+    const rows = await appDb
+      .select()
+      .from(chatParticipants)
+      .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.kind, "agent")));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.leftSeq).toBeNull();
+  });
+
+  test("an owner who is not a present member → owner_not_present surfaces as BAD_REQUEST on the wire", async ({ db: appDb, ownerCaller, otherCaller }) => {
+    void otherCaller; // OTHER exists as a user but is NOT seated in this room
+    const chatId = await seedChat(appDb, "seat_absent");
+    await seedParticipant(appDb, { chatId, key: "sa_h", userId: OWNER_USER_ID, role: "host" });
+
+    await expect(ownerCaller.chat.seatAgent({ chatId, ownerUserId: OTHER_USER_ID, sourceKind: "buddy" })).toThrowTRPCError("BAD_REQUEST");
+    const rows = await appDb.select().from(chatParticipants).where(eq(chatParticipants.kind, "agent"));
+    expect(rows).toHaveLength(0);
+  });
+
+  test("a DISABLED agent principal → agent_disabled surfaces as BAD_REQUEST (the containment kill switch on the wire)", async ({
+    db: appDb,
+    ownerCaller,
+    otherCaller,
+  }) => {
+    void otherCaller;
+    // Pre-mint the deterministic-handle agent principal for OTHER, then DISABLE it — provisionAgentPrincipal
+    // adopts it by handle (created:false), and resolveAgentActor's `enabled:false` refuses the seat.
+    const agentHandle = castId<Handle>(`__agent__buddy__${OTHER_USER_ID}`);
+    await seedAgent(appDb, OTHER_USER_ID, agentHandle);
+    await appDb.update(users).set({ enabled: false }).where(eq(users.handle, agentHandle));
+    const chatId = await seedChat(appDb, "seat_disabled");
+    await seedParticipant(appDb, { chatId, key: "sd_h", userId: OWNER_USER_ID, role: "host" });
+    await seedParticipant(appDb, { chatId, key: "sd_o", userId: OTHER_USER_ID, role: "member" });
+
+    await expect(ownerCaller.chat.seatAgent({ chatId, ownerUserId: OTHER_USER_ID, sourceKind: "buddy" })).toThrowTRPCError("BAD_REQUEST");
+    const rows = await appDb
+      .select()
+      .from(chatParticipants)
+      .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.kind, "agent")));
+    expect(rows).toHaveLength(0);
+  });
+});
+
+// chat.unseatAgent — the symmetric agent-unseat route (the solo-operator seat-lifecycle fix, 2026-07-17).
+// The seatAgent twin on the UNGATED chat surface (`authedProcedure`, NOT the multi-human belt): a solo host
+// must be able to REMOVE its own seated buddy in every auth mode — that a solo host could seat but not
+// unseat was the whole bug. Drives the REAL composition root end-to-end.
+describe("chat.unseatAgent — the P6 route round-trip over the real graph", () => {
+  test("the host seats then unseats a buddy → the agent seat clears (leftSeq stamped)", async ({ db: appDb, ownerCaller, otherCaller }) => {
+    void otherCaller; // seeds OTHER_USER_ID (the buddy owner) so the seat can mint
+    const chatId = await seedChat(appDb, "unseat_rt");
+    await seedParticipant(appDb, { chatId, key: "urt_h", userId: OWNER_USER_ID, role: "host" });
+    await seedParticipant(appDb, { chatId, key: "urt_o", userId: OTHER_USER_ID, role: "member" });
+    const seat = await ownerCaller.chat.seatAgent({ chatId, ownerUserId: OTHER_USER_ID, sourceKind: "buddy" });
+    const agentUserId = seat.userId ?? OTHER_USER_ID;
+
+    await ownerCaller.chat.unseatAgent({ chatId, agentUserId });
+
+    const present = await appDb
+      .select()
+      .from(chatParticipants)
+      .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.kind, "agent"), isNull(chatParticipants.leftSeq)));
+    expect(present).toHaveLength(0);
+  });
+
+  test("single-human mode: chat.unseatAgent works even when the multi-human belt is CLOSED — the kick path is NOT_FOUND, unseatAgent succeeds", async ({
+    db: appDb,
+    app,
+    ownerCaller,
+    otherCaller,
+  }) => {
+    void otherCaller; // seeds OTHER_USER_ID (the buddy owner)
+    const chatId = await seedChat(appDb, "solo_unseat");
+    await seedParticipant(appDb, { chatId, key: "su_h", userId: OWNER_USER_ID, role: "host" });
+    await seedParticipant(appDb, { chatId, key: "su_o", userId: OTHER_USER_ID, role: "member" });
+    const seat = await ownerCaller.chat.seatAgent({ chatId, ownerUserId: OTHER_USER_ID, sourceKind: "buddy" });
+    const agentUserId = seat.userId ?? OTHER_USER_ID;
+
+    // A SINGLE-USER-mode caller: multiHumanCapable=false ⇒ the multiHumanProcedure belt answers NOT_FOUND for
+    // `invites.*`. Drives the REAL chat service so the mutation actually lands.
+    const solo = caller(
+      makeContext({ auth: callerPrincipal("owner", { userId: OWNER_USER_ID }), services: { chat: app.services.chat }, multiHumanCapable: false }),
+    );
+
+    // The belt is genuinely CLOSED for this caller — the old kick-based unseat is refused as nonexistent.
+    await expect(solo.invites.kick({ chatId, userId: agentUserId })).toThrowTRPCError("NOT_FOUND");
+    // …but the dedicated ungated verb works: the seat clears. This is the fix.
+    await solo.chat.unseatAgent({ chatId, agentUserId });
+
+    const present = await appDb
+      .select()
+      .from(chatParticipants)
+      .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.kind, "agent"), isNull(chatParticipants.leftSeq)));
+    expect(present).toHaveLength(0);
   });
 });

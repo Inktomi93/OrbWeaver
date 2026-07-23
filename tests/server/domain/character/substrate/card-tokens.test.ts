@@ -17,7 +17,7 @@ describe("cardTokenSize", () => {
   });
 
   test("content (name + description + greetings) yields a positive estimate", () => {
-    const size = cardTokenSize(card({ name: "Nyx", description: "a long-ish description here", greetings: ["hello there"] }));
+    const size = cardTokenSize(card({ name: "Nyx", description: "a long-ish description here", greetings: [{ text: "hello there" }] }));
     expect(size).toBeGreaterThan(0);
   });
 });

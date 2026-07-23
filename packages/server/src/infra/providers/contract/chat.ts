@@ -118,13 +118,6 @@ export type ChatRequest = ChatRequestCommon &
         readonly toolChoice?: ToolChoice | undefined;
         readonly responseFormat?: ResponseFormat | undefined;
       }
-    | {
-        // Tool-less by charter: no tools/toolChoice/responseFormat, no providerRouting/customParameters
-        // (the body is 100% runner-owned — a preset cannot inject wire fields).
-        readonly api: "anthropic-messages";
-        readonly history: readonly ChatHistoryMessage[];
-        readonly historyCacheBreakpointFromEnd?: number | undefined;
-      }
   );
 // The agent-sdk arm carries no tools/toolChoice/responseFormat: tools ride mcpServers via project-mcp
 // (the SDK owns its own loop), and no committed agent-sdk consumer requests structured output.
@@ -134,7 +127,6 @@ export type AgentSdkChatRequest = ChatRequest & { readonly api: "agent-sdk" };
 export type OpenRouterChatRequest = ChatRequest & {
   readonly api: "chat-completions" | "responses";
 };
-export type AnthropicMessagesChatRequest = ChatRequest & { readonly api: "anthropic-messages" };
 
 /** Normalized cross-backend "why did generation stop?" vocab. Raw value rides on `ChatResult.stopReason` as provenance. */
 export const NORMALIZED_FINISH_REASONS = ["stop", "length", "filter", "tool", "other"] as const;

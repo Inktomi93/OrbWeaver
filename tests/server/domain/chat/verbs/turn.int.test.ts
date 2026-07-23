@@ -6,6 +6,7 @@
 
 import type { CharacterCard } from "@orb/contracts/character";
 import type { AssemblePersona, ChatBusEvent } from "@orb/contracts/chat";
+import { AUTOMATION_DEPTH_HARD_CAP } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { NotificationEvent } from "@orb/contracts/notifications";
 import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
@@ -27,10 +28,12 @@ import { ChatNotFoundError } from "../../../../../packages/server/src/domain/cha
 import type { ChatBehaviorInputs } from "../../../../../packages/server/src/domain/chat/contract/foreign";
 import type { TurnStreamChunk } from "../../../../../packages/server/src/domain/chat/contract/results";
 import { createTurnEngine } from "../../../../../packages/server/src/domain/chat/engine/engine";
+import { loadWitnessHorizons } from "../../../../../packages/server/src/domain/chat/memory/persistence/queries";
+import { recallMemory } from "../../../../../packages/server/src/domain/chat/memory/recall/recall";
 import { loadPendingTurns, loadPendingTurnsForReclaim } from "../../../../../packages/server/src/domain/chat/persistence/invites";
 import { tryAcquireLock } from "../../../../../packages/server/src/domain/chat/persistence/lock";
-import { loadCanonHistory, loadMaxMessageSeq, loadMessageView } from "../../../../../packages/server/src/domain/chat/persistence/queries";
-import { createTurn } from "../../../../../packages/server/src/domain/chat/verbs/turn";
+import { loadCanonHistory, loadMaxMessageSeq, loadMessageView, loadTurnOrigin } from "../../../../../packages/server/src/domain/chat/persistence/queries";
+import { createRequestTurn, createTurn } from "../../../../../packages/server/src/domain/chat/verbs/turn";
 import { freshDb } from "../../../../support/db";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../support/fixtures";
@@ -87,6 +90,7 @@ interface Harness {
   deltas: StatsDelta[];
   notifications: NotificationEvent[];
   turn: ReturnType<typeof createTurn>;
+  requestTurn: ReturnType<typeof createRequestTurn>;
   activeTurns: ReturnType<typeof createActiveTurns>;
 }
 
@@ -116,6 +120,8 @@ function harness(
     replyTape?: readonly ScriptedReply[];
     /** The host's PD-146 turn-behavior arm (custom stops + auto-continue/auto-swipe). Default all-off. */
     chatBehavior?: ChatBehaviorInputs;
+    /** Replace the provider stream entirely (the return-based-abort pin injects one that honors the signal). */
+    runChatTurn?: ChatContext["runChatTurn"];
   } = {},
 ): Harness {
   const events: ChatBusEvent[] = [];
@@ -125,6 +131,9 @@ function harness(
   const ctx = makeChatContext(database, {
     runChatTurn: (request) => {
       over.onChatRequest?.(request);
+      if (over.runChatTurn !== undefined) {
+        return over.runChatTurn(request);
+      }
       if (over.replyTape !== undefined && over.replyTape.length > 0) {
         const reply = over.replyTape[Math.min(replyIdx, over.replyTape.length - 1)];
         replyIdx += 1;
@@ -160,9 +169,11 @@ function harness(
     lockTtlMs: 60_000,
     generateSegments: async () => ({ written: 0, skipped: 0 }),
     generateDigests: async () => ({ written: 0, skipped: 0 }),
+    loadWitnessHorizons,
+    recallMemory,
   });
   const activeTurns = createActiveTurns();
-  const turn = createTurn(ctx, {
+  const turnDeps: Parameters<typeof createTurn>[1] = {
     engine,
     activeTurns,
     emit,
@@ -180,8 +191,10 @@ function harness(
         ...(over.chatBehavior !== undefined ? { chatBehavior: over.chatBehavior } : {}),
       });
     },
-  });
-  return { ctx, events, deltas, notifications, turn, activeTurns };
+  };
+  const turn = createTurn(ctx, turnDeps);
+  const requestTurn = createRequestTurn(ctx, turnDeps);
+  return { ctx, events, deltas, notifications, turn, requestTurn, activeTurns };
 }
 
 let db: Db;
@@ -256,6 +269,33 @@ describe("send — the solo path (roster-of-1)", () => {
     expect(types).toContain("messageCommitted");
     expect(types).toContain("turnStarted");
     expect(types).toContain("turnCompleted");
+  });
+});
+
+describe("send — a caller-cancelled turn RETURNS aborted (the return-based abort reaches the verb)", () => {
+  test("aborted:true + reason reach the send return; the user row still committed, no assistant row", async () => {
+    const { host, chatId, names } = await seedRoom("natural", ["aria"]);
+    // The provider honors a cancel: it throws a name-based AbortError instead of yielding a reply.
+    const aborting: ChatContext["runChatTurn"] = () =>
+      (async function* (): AsyncGenerator<TurnStreamChunk> {
+        await Promise.reject(Object.assign(new Error("request aborted"), { name: "AbortError" }));
+        yield { kind: "text", text: "unreachable" };
+      })();
+    const h = harness(db, names, { runChatTurn: aborting });
+
+    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "hello" });
+
+    // The previously-dead turn.ts abort branch now carries real values.
+    expect(outcome.aborted).toBe(true);
+    expect(outcome.abortReason).toBe("user");
+    // The user row committed before the AI turn; the aborted assistant turn added no row.
+    expect(outcome.messages).toHaveLength(1);
+    expect(outcome.messages[0]?.role).toBe("user");
+    const canon = await loadCanonHistory(db, chatId);
+    expect(canon.map((m) => m.role)).toEqual(["user"]);
+    // The turnAborted bus event still fired (the UI's learn-of-abort path).
+    expect(h.events.map((e) => e.type)).toContain("turnAborted");
+    expect(h.events.map((e) => e.type)).not.toContain("turnCompleted");
   });
 });
 
@@ -1568,5 +1608,89 @@ describe("storage stays RAW (D51) — macros in message content are never resolv
     // row was never mutated at write: the stored content is the SAME literal macro text.
     const canon = await loadCanonHistory(db, chatId);
     expect(canon.map((m) => m.content)).toEqual(["{{user}} waves at {{char}}.", "{{char}} nods at {{user}}."]);
+  });
+});
+
+// The non-human turn seam (automation-design/03 §4 / 05 §AC-B) — the four walls, none optional. requestTurn is
+// principal-free: the funding host is resolved from the room, the funder is the responsible human, and the turn
+// routes through the SAME engine belts a human send clears (consent + per-member budget). No free turn, no
+// consent bypass, no infinite cascade, no cross-tenant funding.
+describe("requestTurn — the non-human turn seam (four walls: depth · authority · budget · consent)", () => {
+  test("FIRES + SPENDS the funder's budget + STAMPS initiator/depth on the reply (the getTurnOrigin round-trip)", async () => {
+    const { host, chatId, names } = await seedRoom("natural", ["aria"]);
+    const debits: { triggeredBy: UserId; budget: number | null }[] = [];
+    const h = harness(db, names, {
+      debitBudget: (triggeredBy, budget) => {
+        debits.push({ triggeredBy, budget });
+        return Promise.resolve();
+      },
+    });
+
+    const outcome = await h.requestTurn({ chatId, initiator: "automation", funderUserId: host, automationDepth: 2 });
+
+    // FIRES — one assistant reply committed; a non-human turn adds NO user line.
+    expect(outcome.aborted).toBe(false);
+    expect(outcome.messages).toHaveLength(1);
+    expect(outcome.messages[0]?.role).toBe("assistant");
+    // SPENDS — the engine debited the funder's (triggeredBy) per-member budget; a non-human turn is never free.
+    expect(debits).toEqual([{ triggeredBy: host, budget: null }]);
+    // ORIGIN — the reply slot carries the non-human origin the cascade guard reads back through getTurnOrigin.
+    const replyId = outcome.messages[0]?.id;
+    expect(replyId).toBeDefined();
+    expect(replyId !== undefined ? await loadTurnOrigin(db, chatId, replyId) : null).toEqual({ initiator: "automation", automationDepth: 2 });
+    // A human turn in the same room stays byte-identical: its reply is born human/depth-0 (the column defaults).
+    const send = await h.turn.send({ principal: principal(host), chatId, content: "hi" });
+    const humanReplyId = send.messages[1]?.id;
+    expect(humanReplyId !== undefined ? await loadTurnOrigin(db, chatId, humanReplyId) : null).toEqual({ initiator: "human", automationDepth: 0 });
+  });
+
+  test("WALL 1 (depth): a turn stamped PAST the hard cap is refused (cascade_depth_exceeded); nothing commits", async () => {
+    const { host, chatId, names } = await seedRoom("natural", ["aria"]);
+    const h = harness(db, names);
+
+    await expect(h.requestTurn({ chatId, initiator: "automation", funderUserId: host, automationDepth: AUTOMATION_DEPTH_HARD_CAP + 1 })).rejects.toMatchObject({
+      code: "cascade_depth_exceeded",
+    });
+    expect(await loadCanonHistory(db, chatId)).toHaveLength(0);
+  });
+
+  test("WALL 2 (cross-tenant): a funder with NO membership cannot fund a turn — leak-free NOT_FOUND, nothing commits", async () => {
+    const { chatId, names } = await seedRoom("natural", ["aria"]);
+    const stranger = await seedUser(db, "stranger"); // a real user, but NOT a participant of this chat
+    const h = harness(db, names);
+
+    await expect(h.requestTurn({ chatId, initiator: "automation", funderUserId: stranger, automationDepth: 1 })).rejects.toMatchObject({
+      name: "ChatNotFoundError",
+    });
+    expect(await loadCanonHistory(db, chatId)).toHaveLength(0);
+  });
+
+  test("WALL 4 (consent, D17): a by-proxy hosted (max-pro-sub) turn without owner consent is refused fail-closed", async () => {
+    const { chatId, names } = await seedRoom("natural", ["aria"]);
+    // A present MEMBER funds the turn (funder ≠ host ⇒ by-proxy); the host box is a hosted credential + consent OFF
+    // (the harness default policy). The engine's assertMaxProSubConsent belt refuses it — requestTurn re-routes it,
+    // never bypasses it.
+    const member = await seedUser(db, "member");
+    await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
+    const h = harness(db, names, { connectionSource: "max-pro-sub" });
+
+    await expect(h.requestTurn({ chatId, initiator: "automation", funderUserId: member, automationDepth: 1 })).rejects.toMatchObject({
+      code: "consent_required",
+    });
+    expect(await loadCanonHistory(db, chatId)).toHaveLength(0);
+  });
+
+  test("a 'plugin' initiator is accepted + stamped (the membrane seam); a 'human' initiator is refused (no forged human turn)", async () => {
+    const { host, chatId, names } = await seedRoom("natural", ["aria"]);
+    const h = harness(db, names);
+
+    // The plugin membrane calls this exact shape (installer as funder, cascade depth from the invocation).
+    const outcome = await h.requestTurn({ chatId, initiator: "plugin", funderUserId: host, automationDepth: 1 });
+    const replyId = outcome.messages[0]?.id;
+    expect(replyId !== undefined ? await loadTurnOrigin(db, chatId, replyId) : null).toEqual({ initiator: "plugin", automationDepth: 1 });
+
+    await expect(h.requestTurn({ chatId, initiator: "human", funderUserId: host, automationDepth: 0 })).rejects.toMatchObject({
+      code: "forbidden_override",
+    });
   });
 });
