@@ -22,6 +22,7 @@ export interface ChatBehaviorForm {
   readonly customStoppingStrings: string;
   readonly smoothStream: boolean;
   readonly smoothStreamCps: number;
+  readonly streamScrollMode: ChatSettings["streamScrollMode"];
 }
 
 /** One phrase per line — split, trim, drop blanks (the stored list never carries empty entries). */
@@ -43,6 +44,7 @@ export function projectChatForm(chat: ChatSettings): ChatBehaviorForm {
     customStoppingStrings: chat.customStoppingStrings.join("\n"),
     smoothStream: chat.smoothStream,
     smoothStreamCps: chat.smoothStreamCps,
+    streamScrollMode: chat.streamScrollMode,
   };
 }
 
@@ -60,5 +62,6 @@ export function toChatSectionPatch(form: ChatBehaviorForm): ChatSettings {
     customStoppingStrings: linesToList(form.customStoppingStrings),
     smoothStream: form.smoothStream,
     smoothStreamCps: form.smoothStreamCps,
+    streamScrollMode: form.streamScrollMode,
   };
 }

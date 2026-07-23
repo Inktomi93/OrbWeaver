@@ -81,6 +81,58 @@ describe("generateImage", () => {
     expect(emitted[0]).toMatchObject({ type: "messageCommitted", chatId, messageId: view.id });
   });
 
+  test("maps each imagery warning onto a chat `warning` bus event (doc 03 §2.1)", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "host", userId: host, role: "host" });
+
+    const ctx = makeChatContext(db, {
+      generatePicture: () =>
+        Promise.resolve({
+          images: [{ assetId: castId<AssetId>("asset_one") }],
+          warnings: [{ code: "image_edit_dropped", detail: "img-model lacks image-edit; generated without the avatar reference" }],
+        }),
+    });
+    const { generateImage } = createGenerateImage(ctx, { emit });
+
+    await generateImage({ principal: principal(host), chatId, mode: "free", prompt: "a dragon" });
+
+    // The message still committed; the warning rides the one chat `warning` surface after it.
+    const warnings = emitted.filter((e) => e.type === "warning");
+    expect(warnings).toEqual([{ type: "warning", chatId, code: "image_edit_dropped" }]);
+  });
+
+  test("carries the GRANULAR ComfyUI lever drops to the chat `warning` surface, one per lever (C6/C6d)", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "host", userId: host, role: "host" });
+
+    // A curated ComfyUI role whose family can't honor the picked pose (+ inpaint/identity) — each lever drops
+    // with its OWN granular code, never collapsed to one message (a user who picked a pose learns THE POSE dropped).
+    const ctx = makeChatContext(db, {
+      generatePicture: () =>
+        Promise.resolve({
+          images: [{ assetId: castId<AssetId>("asset_one") }],
+          warnings: [
+            { code: "image_pose_dropped", detail: "orbgen:x: this curated role's family has no ControlNet; the pose control image was ignored" },
+            { code: "image_inpaint_dropped", detail: "orbgen:x: this curated role's family has no inpaint method; the mask input was ignored" },
+            { code: "image_identity_dropped", detail: "orbgen:x: this curated role's arch has no identity lock; the reference image was ignored" },
+          ],
+        }),
+    });
+    const { generateImage } = createGenerateImage(ctx, { emit });
+
+    await generateImage({ principal: principal(host), chatId, mode: "free", prompt: "a dragon" });
+
+    // Each granular lever rides its own chat `warning` event (order preserved) — none swallowed.
+    const warnings = emitted.filter((e) => e.type === "warning");
+    expect(warnings).toEqual([
+      { type: "warning", chatId, code: "image_pose_dropped" },
+      { type: "warning", chatId, code: "image_inpaint_dropped" },
+      { type: "warning", chatId, code: "image_identity_dropped" },
+    ]);
+  });
+
   test("a non-participant is refused (leak-free NOT_FOUND) and never calls the op", async () => {
     const host = await seedUser(db, "host");
     const outsider = await seedUser(db, "outsider");

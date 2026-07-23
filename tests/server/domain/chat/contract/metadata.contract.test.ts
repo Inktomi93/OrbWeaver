@@ -7,6 +7,7 @@
 
 import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
 import type { ChatId, MessageId, UserId } from "@orb/kit/ids";
+import { ID_PREFIX } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { getGroupConfig, getRoomOverrides, parseChatMetadata } from "../../../../../packages/server/src/domain/chat/contract/metadata.ts";
 import type { CreateInviteParams, RedeemInviteParams, SendParams } from "../../../../../packages/server/src/domain/chat/contract/params.ts";
@@ -82,6 +83,48 @@ describe("parseChatMetadata", () => {
     expect(parseChatMetadata({ providerRouting: "nope" }).providerRouting).toBeUndefined();
     expect(parseChatMetadata({ providerRouting: 42 }).providerRouting).toBeUndefined();
   });
+
+  test("BG-C: the background sub-blob round-trips (source-only) and fills field defaults", () => {
+    const parsed = parseChatMetadata({ background: { kind: "external", externalUrl: "https://cdn.example/bg.jpg" } });
+    expect(parsed.background).toEqual({
+      kind: "external",
+      seededId: "",
+      externalUrl: "https://cdn.example/bg.jpg",
+      assetId: "",
+      assetHash: "",
+      mime: "",
+      provenanceUrl: "",
+    });
+  });
+
+  test("GAP #4: the rpg game-pointer sub-blob round-trips (strict write, opaque {gameId})", () => {
+    const gameId = `${ID_PREFIX.rpgGame}_${"0".repeat(26)}`;
+    expect(parseChatMetadata({ rpg: { gameId } }).rpg).toEqual({ gameId });
+  });
+
+  test("GAP #4: a corrupt rpg pointer heals to absent WITHOUT nuking its siblings (tolerant read)", () => {
+    // A non-branded / malformed gameId → the sub-blob heals to absent; a bad blob shape too.
+    expect(parseChatMetadata({ rpg: { gameId: "not-a-typeid" }, roomOverrides: { scenario: "survives" } }).rpg).toBeUndefined();
+    expect(parseChatMetadata({ rpg: 42 }).rpg).toBeUndefined();
+    expect(parseChatMetadata({ rpg: { gameId: "not-a-typeid" }, roomOverrides: { scenario: "survives" } }).roomOverrides).toEqual({ scenario: "survives" });
+  });
+
+  test("BG-C: a corrupt background sub-blob heals to absent WITHOUT nuking its siblings (fault isolation)", () => {
+    const parsed = parseChatMetadata({ background: 42, roomOverrides: { scenario: "survives" } });
+    expect(parsed.background).toBeUndefined();
+    expect(parsed.roomOverrides).toEqual({ scenario: "survives" });
+    // A per-field failure inside the blob degrades that field, never the whole sub-blob (the themeBackground
+    // lenient posture) — a bad kind heals to "none", the rest still parse.
+    expect(parseChatMetadata({ background: { kind: "bogus", externalUrl: "https://cdn.example/x.jpg" } }).background).toEqual({
+      kind: "none",
+      seededId: "",
+      externalUrl: "https://cdn.example/x.jpg",
+      assetId: "",
+      assetHash: "",
+      mime: "",
+      provenanceUrl: "",
+    });
+  });
 });
 
 describe("getGroupConfig / getRoomOverrides", () => {
@@ -133,6 +176,7 @@ describe("representative contract shapes", () => {
       messageCount: 0,
       participantNames: [],
       participantCharacterIds: [],
+      viewerRole: "host",
       createdAt: 0,
       updatedAt: 0,
     } satisfies ChatSummary;

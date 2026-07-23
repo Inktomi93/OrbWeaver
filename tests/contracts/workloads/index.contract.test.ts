@@ -226,23 +226,34 @@ test("WORKLOAD_KIND_MODES classifies every kind to its expected mode policy", ()
     "reconcile-stats": sweepBoth,
     "refresh-model-catalog": bulkOnlyBuilt,
     "reconcile-world-state": bulkOnlyStub,
-    "crew-lorebook-keeper": bulkOnlyStub,
-    "crew-card-evolution": bulkOnlyStub,
-    "crew-director": bulkOnlyStub,
-    "crew-prose-audit": bulkOnlyStub,
-    "expressions-sprite-sheet": bulkOnlyStub,
-    "databank-ingest": bulkOnlyStub,
-    "databank-reindex": bulkOnlyStub,
-    "rpg-world-gen": bulkOnlyStub,
-    "rpg-recap": bulkOnlyStub,
-    "rpg-session-distill": bulkOnlyStub,
-    "rpg-director": bulkOnlyStub,
-    "rpg-lorebook-upkeep": bulkOnlyStub,
-    "rpg-illustration": bulkOnlyStub,
-    "rpg-npc-portrait": bulkOnlyStub,
-    "rpg-scene-plan": bulkOnlyStub,
-    "rpg-scene-distill": bulkOnlyStub,
-    "rpg-recruit-card": bulkOnlyStub,
+    // CW2/CW3/CW4/CW5: the real keeper/card-evolution/director/prose-audit runners — singular-per-chat on the
+    // host, no bulk sweep (chat-crew-design/08 CC-C). All four flipped from their CW1 stubs.
+    "crew-lorebook-keeper": singularOnlyBuilt,
+    "crew-card-evolution": singularOnlyBuilt,
+    "crew-director": singularOnlyBuilt,
+    "crew-prose-audit": singularOnlyBuilt,
+    // E4: the real sprite-sheet runner — a per-character generation an OWNER triggers for their own character,
+    // enqueued singular (compose `mode:"singular"`), no bulk sweep. Flipped from its `bulk+stub` mislabel.
+    "expressions-sprite-sheet": singularOnlyBuilt,
+    // DBK-B(a): flipped to singular+bulk BUILT — compose enqueues `databank-ingest`/`databank-reindex` in
+    // mode:"singular" off upload/reindex, and the embed-model change enqueues a bulk `databank-reindex` sweep.
+    "databank-ingest": sweepBoth,
+    "databank-reindex": sweepBoth,
+    // R6: the real world-gen/recap/session-distill runners — singular-per-game on the host, no bulk sweep
+    // (rpg-design/10 R6). Flipped from their stubs.
+    "rpg-world-gen": singularOnlyBuilt,
+    "rpg-recap": singularOnlyBuilt,
+    "rpg-session-distill": singularOnlyBuilt,
+    // R7: the real director + lorebook-upkeep runners — singular-per-game on the host (rpg-design/10 R7).
+    "rpg-director": singularOnlyBuilt,
+    "rpg-lorebook-upkeep": singularOnlyBuilt,
+    // R9/R10: the real image + scene/recruit runners — singular-per-game/owner on the host, no bulk sweep
+    // (rpg-design/10 §R9/§R10). Flipped from their stubs once the runner bodies + tests landed.
+    "rpg-illustration": singularOnlyBuilt,
+    "rpg-npc-portrait": singularOnlyBuilt,
+    "rpg-scene-plan": singularOnlyBuilt,
+    "rpg-scene-distill": singularOnlyBuilt,
+    "rpg-recruit-card": singularOnlyBuilt,
   };
   expect(WORKLOAD_KIND_MODES).toEqual(expected);
 });

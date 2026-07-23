@@ -10,6 +10,7 @@ import type { Principal } from "@orb/contracts/identity";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
+import { chatParticipants } from "@orb/db";
 import type { CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
@@ -21,7 +22,7 @@ import { createChatService } from "../../../../packages/server/src/domain/chat/s
 import { freshDb } from "../../../support/db";
 import { principal as makePrincipal } from "../../../support/factories/principal.ts";
 import { expect, test } from "../../../support/fixtures";
-import { makeChatContext, seedCharacter, seedChat, seedParticipant, seedUser, testConnection } from "./_support";
+import { FROZEN_AT, makeChatContext, seedAgent, seedCharacter, seedChat, seedParticipant, seedUser, testConnection } from "./_support";
 
 let db: Db;
 
@@ -57,8 +58,12 @@ function seededPrng(seed = 1): () => number {
   };
 }
 
-/** Build the full service over a real db + the same fakes the verb int-tests use. `events` captures the bus. */
-function makeService(names: Readonly<Record<string, string>>): {
+/** Build the full service over a real db + the same fakes the verb int-tests use. `events` captures the bus.
+ *  `ctxOverrides` layers on top (the agent-label test injects `resolveAgentSourceKind`/`resolveUserPublics`). */
+function makeService(
+  names: Readonly<Record<string, string>>,
+  ctxOverrides: Partial<ChatContext> = {},
+): {
   service: ChatService;
   events: ChatBusEvent[];
 } {
@@ -69,13 +74,22 @@ function makeService(names: Readonly<Record<string, string>>): {
     getCard: ({ characterId }) => Promise.resolve(card(names[characterId] ?? "Unknown")),
     mintSyntheticGroupCharacter: () => Promise.resolve({ characterId: castId<CharacterId>("character_group") }),
     resolveUserPublics: () => Promise.resolve(null),
-    // D44 §12.0 — a CHARACTER seat opted into trusted HTML; humans resolve to the untrusted floor. Proves
-    // the resolved policy is threaded onto ParticipantView (the client's render-trust data source).
-    resolveRenderPolicy: ({ characterId }) =>
-      Promise.resolve(characterId === null ? { trustHtml: false, forbidExternalMedia: true } : { trustHtml: true, forbidExternalMedia: false }),
-    // D44 §12.1/§12.5 — a CHARACTER seat carries a raw theme override; a human seat resolves to null.
-    // Proves the RAW (unmerged) value is threaded onto ParticipantView, not re-resolved against a global.
-    resolveThemeOverride: ({ characterId }) => Promise.resolve(characterId === null ? null : { accent: "oklch(0.7 0.14 250)" }),
+    // ONE seat-decoration read (D44 §12.0/§12.1/§12.5 + the card name loadParticipantViews reads): a CHARACTER
+    // seat opts into trusted HTML + carries a raw theme override + resolves its card name; a human/agent seat
+    // (characterId null) resolves to the untrusted floor + no override + a null card. Proves the resolved
+    // policy + RAW (unmerged) theme are threaded onto ParticipantView (the client reads them, never re-resolves).
+    resolveSeatDeco: ({ characterId }) =>
+      Promise.resolve(
+        characterId === null
+          ? { renderPolicy: { trustHtml: false, forbidExternalMedia: true }, themeOverride: null, backgroundOverride: null, card: null }
+          : {
+              renderPolicy: { trustHtml: true, forbidExternalMedia: false },
+              themeOverride: { accent: "oklch(0.7 0.14 250)" },
+              backgroundOverride: null,
+              card: { name: names[characterId] ?? "Unknown", avatarAssetId: null },
+            },
+      ),
+    ...ctxOverrides,
   });
   const deps: ChatServiceDeps = {
     emit: (event) => {
@@ -99,7 +113,7 @@ function makeService(names: Readonly<Record<string, string>>): {
     holder: "replica-test",
     lockTtlMs: 60_000,
   };
-  return { service: createChatService(ctx, deps), events };
+  return { service: createChatService(ctx, deps).service, events };
 }
 
 /** Seed a solo room (host + one character) with `per-speaker`/`natural` group config. */
@@ -162,7 +176,7 @@ describe("createChatService — assembly", () => {
     expect(events.some((e) => e.type === "turnCompleted")).toBe(true);
   });
 
-  test("loadParticipantViews resolves the host + the getCard-backed character name", async () => {
+  test("loadParticipantViews resolves the host + the resolveSeatDeco-backed character name", async () => {
     const { host, chatId, names } = await seedRoom();
     const { service } = makeService(names);
 
@@ -171,7 +185,7 @@ describe("createChatService — assembly", () => {
     const hostRow = roster.find((p) => p.userId === host);
     const charRow = roster.find((p) => p.characterId !== null);
     expect(hostRow?.role).toBe("host");
-    expect(charRow?.displayName).toBe("aria"); // resolved via ctx.getCard
+    expect(charRow?.displayName).toBe("aria"); // resolved via ctx.resolveSeatDeco
     // D44 §12.0 — the RESOLVED render policy is threaded onto each ParticipantView (the client reads it,
     // never re-resolves): the opted-in character carries trusted; the human seat the untrusted floor.
     expect(charRow?.renderPolicy).toEqual({ trustHtml: true, forbidExternalMedia: false });
@@ -180,5 +194,47 @@ describe("createChatService — assembly", () => {
     // client, not chat assembly, resolves `character > global > default` via `<ThemeScope>` nesting).
     expect(charRow?.themeOverride).toEqual({ accent: "oklch(0.7 0.14 250)" });
     expect(hostRow?.themeOverride).toBeNull();
+  });
+
+
+
+  test("a deleted CHARACTER card mid-read degrades to the removed-character label, never the raw id (ruling 2)", async () => {
+    const { host, chatId } = await seedRoom();
+    // resolveSeatDeco resolves a null card (deleted between the roster read and this resolution) → the
+    // seat degrades to the removed-character label.
+    const { service } = makeService(
+      {},
+      {
+        resolveSeatDeco: () =>
+          Promise.resolve({ renderPolicy: { trustHtml: false, forbidExternalMedia: true }, themeOverride: null, backgroundOverride: null, card: null }),
+      },
+    );
+    const roster = await service.listParticipants({ principal: principal(host), chatId });
+
+    const charRow = roster.find((p) => p.characterId !== null);
+    expect(charRow?.displayName).toBe("(removed character)");
+    expect(charRow?.displayName).not.toBe(charRow?.characterId);
+  });
+
+  test("a HUMAN seat with no resolvable publics degrades to the removed-member label, never the raw id (ruling 2)", async () => {
+    const { host, chatId } = await seedRoom();
+    // publics resolves null for the host (deleted user row mid-read) — no displayName, no handle.
+    const { service } = makeService({}, { resolveUserPublics: () => Promise.resolve(null) });
+    const roster = await service.listParticipants({ principal: principal(host), chatId });
+
+    const hostRow = roster.find((p) => p.userId === host);
+    expect(hostRow?.displayName).toBe("(removed member)");
+    expect(hostRow?.displayName).not.toBe(host);
+  });
+
+  test("a HUMAN seat with a handle but no displayName falls to the handle before the removed label (ruling 2)", async () => {
+    const { host, chatId } = await seedRoom();
+    const { service } = makeService(
+      {},
+      { resolveUserPublics: () => Promise.resolve({ displayName: null, handle: castId<Handle>("alex"), avatarAssetId: null }) },
+    );
+    const roster = await service.listParticipants({ principal: principal(host), chatId });
+
+    expect(roster.find((p) => p.userId === host)?.displayName).toBe("alex");
   });
 });

@@ -1,6 +1,8 @@
 // resolveModelCapability — the ONE descriptor factory, per arm. Asserts:
 // curated wins first (incl. a Claude-via-OR id), OR synthesis reads supportedParameters + family, vLLM /
 // custom / local-light static arms, and the distinct-axes shape (reasoning.mode ≠ on/off; no `none` level).
+// The four gapped axes (§U0 + IC-A) — `tools` / `output.structured` / `input.vision` / `input.imageEdit` —
+// are pinned per arm, present AND absent.
 
 import type { ModelCapability } from "@orb/contracts/connection";
 import { describe } from "vitest";
@@ -38,6 +40,17 @@ describe("resolveModelCapability — openrouter synthesis arm", () => {
     expect(cap.context.window).toBe(256_000);
   });
 
+  test("synthesizes the topA range when the model advertises top_a", () => {
+    const cap = resolveModelCapability("some/model", "openrouter", "chat-completions", {
+      orEntry: { contextLength: 128_000, supportedParameters: ["temperature", "top_a"] },
+    });
+    expect(cap.sampling.topA).toEqual({ min: 0, max: 1 });
+    const noTopA = resolveModelCapability("some/other", "openrouter", "chat-completions", {
+      orEntry: { contextLength: 128_000, supportedParameters: ["temperature"] },
+    });
+    expect(noTopA.sampling.topA).toBeUndefined();
+  });
+
   test("a cold/missing catalog entry yields the permissive sampling baseline", () => {
     const cap = resolveModelCapability("meta-llama/llama-4", "openrouter", "chat-completions");
     expect(cap.sampling.temperature).toEqual({ min: 0, max: 2 });
@@ -45,29 +58,180 @@ describe("resolveModelCapability — openrouter synthesis arm", () => {
     expect(cap.reasoning.mode).toBe("none"); // meta is a no-reasoning family
     expect(cap.context.window).toBe(200_000); // OR default window
   });
+
+  test("R0: OR's advertised reasoning object OVERRIDES the family none + captures ALL five fields", () => {
+    // x-ai family is `none` in the family table; OR advertises reasoning → effort mode with its allowlist.
+    const cap = resolveModelCapability("x-ai/grok-4.5", "openrouter", "chat-completions", {
+      orEntry: {
+        contextLength: 256_000,
+        supportedParameters: ["temperature", "reasoning", "reasoning_effort"],
+        reasoning: { mandatory: true, defaultEnabled: true, supportedEfforts: ["high", "medium", "low"], defaultEffort: "medium", supportsMaxTokens: true },
+      },
+    });
+    expect(cap.reasoning.mode).toBe("effort");
+    expect(cap.reasoning.enabled).toBe(true); // = OR defaultEnabled
+    expect(cap.reasoning.effortLevels).toEqual(["high", "medium", "low"]); // OR's real allowlist, order preserved
+    expect(cap.reasoning.mandatory).toBe(true);
+    expect(cap.reasoning.defaultEnabled).toBe(true);
+    expect(cap.reasoning.defaultEffort).toBe("medium");
+    expect(cap.reasoning.supportsMaxTokens).toBe(true);
+  });
+
+  test("R0: enabled stays CAN-REASON (true) even off-by-default; unmapped defaultEffort ('none') dropped", () => {
+    const cap = resolveModelCapability("some/reasoner", "openrouter", "chat-completions", {
+      orEntry: { contextLength: 128_000, supportedParameters: ["reasoning"], reasoning: { mandatory: false, defaultEnabled: false, defaultEffort: "none" } },
+    });
+    expect(cap.reasoning.enabled).toBe(true); // CAN reason (a user's explicit effort must still work)
+    expect(cap.reasoning.defaultEnabled).toBe(false); // carried as truth (gates the DEFAULT-on behavior)
+    expect(cap.reasoning.defaultEffort).toBeUndefined(); // "none" is not an EffortLevel → dropped
+    expect(cap.reasoning.mandatory).toBeUndefined(); // absent ⇒ false, never emitted
+    expect(cap.reasoning.supportsMaxTokens).toBeUndefined();
+  });
+
+  test("R0: a null effort allowlist (no restriction) yields the full effort set", () => {
+    const cap = resolveModelCapability("deepseek/deepseek-r2", "openrouter", "chat-completions", {
+      orEntry: { contextLength: 128_000, supportedParameters: ["reasoning"], reasoning: { mandatory: true, supportedEfforts: null } },
+    });
+    expect(cap.reasoning.mode).toBe("effort");
+    expect(cap.reasoning.effortLevels).toEqual(["minimal", "low", "medium", "high", "xhigh", "max"]);
+  });
+
+  test("R0: NO OR reasoning object ⇒ family fallback (a no-reasoning family stays none, never guessed)", () => {
+    const cap = resolveModelCapability("qwen/qwen-plain", "openrouter", "chat-completions", {
+      orEntry: { contextLength: 32_768, supportedParameters: ["temperature"], reasoning: null },
+    });
+    expect(cap.reasoning.mode).toBe("none");
+    expect(cap.reasoning.enabled).toBe(false);
+  });
+
+  test("output cap uses OR's advertised max_completion_tokens over the window estimate", () => {
+    // A 200k-window model whose real completion cap is 64k — the advertised cap wins (was clamped to 32768).
+    const cap = resolveModelCapability("openai/gpt-5", "openrouter", "chat-completions", {
+      orEntry: { contextLength: 200_000, supportedParameters: ["temperature"], maxCompletionTokens: 64_000 },
+    });
+    expect(cap.output.maxTokens.max).toBe(64_000);
+  });
+
+  test("output cap degrades to min(window, 32768) when OR advertises no completion cap", () => {
+    const capBig = resolveModelCapability("openai/gpt-5", "openrouter", "chat-completions", {
+      orEntry: { contextLength: 200_000, supportedParameters: ["temperature"], maxCompletionTokens: null },
+    });
+    expect(capBig.output.maxTokens.max).toBe(32_768); // window > cap → the estimate ceiling
+    const capSmall = resolveModelCapability("openai/gpt-5", "openrouter", "chat-completions", {
+      orEntry: { contextLength: 8000, supportedParameters: ["temperature"] },
+    });
+    expect(capSmall.output.maxTokens.max).toBe(8000); // window < ceiling → the window
+  });
 });
 
-describe("resolveModelCapability — anth-direct sampling seed (D68-C, fail-closed per shape)", () => {
-  const direct = (model: string): ModelCapability["sampling"] => resolveModelCapability(model, "openrouter", "anthropic-messages").sampling;
-
-  test("every curated Claude resolves empty sampling on the anthropic-direct shape (unverified ⇒ {})", () => {
-    // Until the W9 probe opens an entry, a curated Claude on the direct wire honors NO sampling knob — the
-    // funnel then drops every user value, so the runner can never send a knob the Messages wire would 400.
-    expect(direct("claude-opus-4-8")).toEqual({});
-    expect(direct("claude-sonnet-5")).toEqual({});
-    expect(direct("claude-haiku-4-5")).toEqual({});
+describe("resolveModelCapability — the four gapped axes (§U0 + IC-A synthesis)", () => {
+  test("openrouter: a tools+structured+vision model synthesizes all three; imageEdit stays absent", () => {
+    const cap = resolveModelCapability("openai/gpt-5", "openrouter", "chat-completions", {
+      orEntry: {
+        contextLength: 256_000,
+        supportedParameters: ["tools", "structured_outputs", "temperature"],
+        inputModalities: ["text", "image"],
+      },
+    });
+    expect(cap.tools).toEqual({ parallel: true });
+    expect(cap.output.structured).toBe(true);
+    expect(cap.input).toEqual({ vision: true });
+    expect(cap.input?.imageEdit).toBeUndefined();
   });
 
-  test("a synthesized (non-curated) anthropic id on the direct wire is also fail-closed {}", () => {
-    expect(direct("anthropic/claude-opus-4-5")).toEqual({});
-    expect(direct("anthropic/claude-opus-4-8")).toEqual({});
+  test("openrouter: a text-only, no-tools model leaves all four axes absent (the negatives)", () => {
+    const cap = resolveModelCapability("meta-llama/llama-4", "openrouter", "chat-completions", {
+      orEntry: { contextLength: 128_000, supportedParameters: ["temperature", "top_p"], inputModalities: ["text"] },
+    });
+    expect(cap.tools).toBeUndefined();
+    expect(cap.output.structured).toBeUndefined();
+    expect(cap.input).toBeUndefined();
   });
 
-  test("the direct seed NEVER leaks to the cli/openai shapes (curated Claude keeps {} there too)", () => {
-    expect(resolveModelCapability("claude-opus-4-8", "max-pro-sub", "agent-sdk").sampling).toEqual({});
-    expect(resolveModelCapability("claude-haiku-4-5", "openrouter", "chat-completions").sampling).toEqual({});
+  test("R2: a moderated top provider surfaces ModelCapability.moderated (absent ⇒ unset)", () => {
+    const mod = resolveModelCapability("openai/gpt-5", "openrouter", "chat-completions", {
+      orEntry: { contextLength: 256_000, supportedParameters: ["temperature"], isModerated: true },
+    });
+    expect(mod.moderated).toBe(true);
+    const open = resolveModelCapability("meta-llama/llama-4", "openrouter", "chat-completions", {
+      orEntry: { contextLength: 128_000, supportedParameters: ["temperature"], isModerated: false },
+    });
+    expect(open.moderated).toBeUndefined();
+  });
+
+  test("openrouter: file/audio/video input modalities synthesize as capability truth (absent ⇒ false)", () => {
+    const cap = resolveModelCapability("google/gemini-x", "openrouter", "chat-completions", {
+      orEntry: { contextLength: 1_000_000, supportedParameters: ["temperature"], inputModalities: ["text", "file", "audio", "video"] },
+    });
+    expect(cap.input).toEqual({ vision: false, file: true, audio: true, video: true });
+  });
+
+  test("R1: input.imageEdit derives from image IN ∩ image OUT (not a model-id regex)", () => {
+    const cap = resolveModelCapability("openai/gpt-image-1", "openrouter", "chat-completions", {
+      orEntry: { contextLength: 32_768, supportedParameters: [], inputModalities: ["text", "image"], outputModalities: ["image"] },
+    });
+    expect(cap.input).toEqual({ vision: true, imageEdit: true });
+  });
+
+  test("R1: a model the OLD regex allow-list MISSED now resolves imageEdit via modalities", () => {
+    // `openai/gpt-5-image-mini` is one of the 11 live image-edit models the `gpt-image-1|*flash-image`
+    // regex never matched — modality derivation catches it.
+    const cap = resolveModelCapability("openai/gpt-5-image-mini", "openrouter", "chat-completions", {
+      orEntry: { contextLength: 400_000, supportedParameters: [], inputModalities: ["text", "image"], outputModalities: ["text", "image"] },
+    });
+    expect(cap.input?.imageEdit).toBe(true);
+  });
+
+  test("R1: image IN but NO image OUT ⇒ vision only, imageEdit absent", () => {
+    const cap = resolveModelCapability("google/gemini-2.5-flash-image", "openrouter", "chat-completions", {
+      orEntry: { contextLength: 1_000_000, supportedParameters: [], inputModalities: ["text", "image"], outputModalities: ["text"] },
+    });
+    expect(cap.input).toEqual({ vision: true });
+    expect(cap.input?.imageEdit).toBeUndefined();
+  });
+
+  test("openrouter: a plain vision chat model is NOT an image-edit model (imageEdit stays absent)", () => {
+    const cap = resolveModelCapability("google/gemini-2.5-pro", "openrouter", "chat-completions", {
+      orEntry: { contextLength: 1_000_000, supportedParameters: [], inputModalities: ["text", "image"] },
+    });
+    expect(cap.input).toEqual({ vision: true });
+    expect(cap.input?.imageEdit).toBeUndefined();
+  });
+
+  test("curated Claude cells are pinned: tools + structured + vision, imageEdit absent", () => {
+    for (const id of ["claude-opus-4-8", "claude-sonnet-5", "claude-haiku-4-5"]) {
+      const cap = resolveModelCapability(id, "openrouter", "chat-completions");
+      expect(cap.tools).toEqual({ parallel: true });
+      expect(cap.output.structured).toBe(true);
+      expect(cap.input).toEqual({ vision: true });
+      expect(cap.input?.imageEdit).toBeUndefined();
+    }
+  });
+
+  test("vLLM: structured output is native (guided decoding); tools advertise parallel calls (U0, hermes parser)", () => {
+    const cap = resolveModelCapability("Qwen/Qwen3-8B", "vllm", "chat-completions");
+    expect(cap.output.structured).toBe(true);
+    expect(cap.tools).toEqual({ parallel: true });
+    expect(cap.input).toBeUndefined();
+  });
+
+  test("vLLM: tools axis holds on the agent-sdk protocol too (local loopback agent path, U0)", () => {
+    const cap = resolveModelCapability("Qwen/Qwen3-8B", "vllm", "agent-sdk");
+    expect(cap.tools).toEqual({ parallel: true });
+    expect(cap.output.structured).toBe(true);
+  });
+
+  test("custom_openai + local-light: all four axes absent (undeclared / chat-less)", () => {
+    const custom = resolveModelCapability("my-model", "custom_openai", "chat-completions");
+    expect(custom.tools).toBeUndefined();
+    expect(custom.output.structured).toBeUndefined();
+    expect(custom.input).toBeUndefined();
+    const light = resolveModelCapability("bge-small", "local-light", "chat-completions");
+    expect(light.output.structured).toBeUndefined();
+    expect(light.tools).toBeUndefined();
   });
 });
+
 
 describe("resolveModelCapability — static arms", () => {
   test("vLLM: no reasoning, full sampling, engine window", () => {
@@ -96,4 +260,5 @@ describe("resolveModelCapability — static arms", () => {
     });
     expect(cap.context.window).toBe(8192);
   });
+
 });

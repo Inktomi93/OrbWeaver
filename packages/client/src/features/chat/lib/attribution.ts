@@ -143,7 +143,7 @@ export function resolveRoomTheme(participants: readonly ParticipantView[] | unde
   for (const participant of participants) {
     if (participant.kind === "human") {
       humanCount += 1;
-    } else if (participant.kind === "character") {
+    } else {
       characterCount += 1;
       soleCharacterOverride = participant.themeOverride ?? undefined;
     }

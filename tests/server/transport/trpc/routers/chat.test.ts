@@ -246,6 +246,7 @@ const MESSAGE: MessageView = {
   genFinishedAt: null,
   generationId: null,
   contextBoundaryMessageId: null,
+  toolCalls: [],
 };
 
 // The empty producer fixture (Chat-Macro-Resolution.md §1) — this router test only proves the wire-through,
@@ -604,10 +605,12 @@ describe("chat.forkChat — the deep-copy-into-a-new-chat verb (chat-surface lan
       participants: [],
       viewerActivePersonaId: null,
       viewerIsHost: true,
+      rpgGameId: null,
       viewerUserId: MEMBER,
       pendingHostUserId: null,
       group: DEFAULT_GROUP_CONFIG,
       roomOverrides: DEFAULT_ROOM_OVERRIDES,
+      background: null,
       opening: null,
       compactSummary: null,
       compactedAtSeq: null,
@@ -774,6 +777,44 @@ describe("chat.previewAssembly — the assembled-prompt preview + trace (task #2
   });
 });
 
+describe("chat.getShapeTrace — the content-free SHAPE trace (PD-132, host-only)", () => {
+  const Trace: Awaited<ReturnType<ChatService["getShapeTrace"]>> = {
+    multiCharacter: false,
+    stageCounts: { withTail: 2, injected: 2, squashed: 2, named: 2 },
+    squashMerges: 0,
+    cacheBreakpointFromEnd: 1,
+    breakpointDecision: "placed",
+  };
+
+  test("a thin pass-through: chatId + speakerCharacterId reach the verb with the resolved Principal", async () => {
+    const getShapeTrace = vi.fn<ChatService["getShapeTrace"]>(async () => Trace);
+    const ctx = makeContext({
+      auth: principal("user", { userId: MEMBER }),
+      services: { chat: { getShapeTrace } },
+    });
+
+    const result = await caller(ctx).chat.getShapeTrace({ chatId: CHAT });
+
+    expect(getShapeTrace).toHaveBeenCalledWith({
+      principal: expect.objectContaining({ userId: MEMBER }),
+      chatId: CHAT,
+    });
+    expect(result).toEqual(Trace);
+  });
+
+  test("a non-host gets the verb's refusal (the host-only inspector gate)", async () => {
+    const getShapeTrace = vi.fn<ChatService["getShapeTrace"]>().mockRejectedValue(new ChatNotFoundError(CHAT));
+    const ctx = makeContext({
+      auth: principal("user", { userId: NON_MEMBER }),
+      services: { chat: { getShapeTrace } },
+    });
+
+    await expect(caller(ctx).chat.getShapeTrace({ chatId: CHAT })).rejects.toMatchObject({
+      code: "NOT_FOUND",
+    });
+  });
+});
+
 describe("chat.setChatInjection / listChatInjections / deleteChatInjection — the manual-injections CRUD (task #28 wire-through)", () => {
   const InjectionId = castId<ChatInjectionId>("chat_injection_1");
   const InjectionView: Awaited<ReturnType<ChatService["listChatInjections"]>>[number] = {
@@ -903,9 +944,9 @@ describe("chat.setChatInjection / listChatInjections / deleteChatInjection — t
 
 const CHARACTER = castId<CharacterId>("character_aria");
 
-// A minimal ParticipantView the two setters return — only the mutated field is asserted; the rest is
+// A minimal ParticipantView the knob setter returns — only the mutated field is asserted; the rest is
 // the shape's filler (the same posture the MESSAGE/ForkResult fixtures take).
-const PARTICIPANT: Awaited<ReturnType<ChatService["setParticipantDisabled"]>> = {
+const PARTICIPANT: Awaited<ReturnType<ChatService["setSeatKnobs"]>> = {
   id: castId<ChatParticipantId>("chat_participant_1"),
   chatId: CHAT,
   kind: "character",
@@ -925,88 +966,71 @@ const PARTICIPANT: Awaited<ReturnType<ChatService["setParticipantDisabled"]>> = 
   avatarHash: null,
 };
 
-describe("chat.setParticipantDisabled — the per-member mute/unmute setter (task #29 wire-through, host-only)", () => {
-  test("a thin pass-through: chatId/characterId/disabled reach the verb with the resolved Principal", async () => {
-    const setParticipantDisabled = vi.fn<ChatService["setParticipantDisabled"]>(async () => ({
-      ...PARTICIPANT,
-      disabled: true,
-    }));
+const PARTICIPANT_ID = castId<ChatParticipantId>("chat_participant_1");
+
+describe("chat.setSeatKnobs — the ONE participantId-keyed AI-seat knob setter (D80 wire-through, host-only)", () => {
+  test("a thin pass-through: chatId/participantId/patch reach the verb with the resolved Principal", async () => {
+    const setSeatKnobs = vi.fn<ChatService["setSeatKnobs"]>(async () => ({ ...PARTICIPANT, disabled: true, talkativeness: 0.8 }));
     const ctx = makeContext({
       auth: principal("user", { userId: MEMBER }),
-      services: { chat: { setParticipantDisabled } },
+      services: { chat: { setSeatKnobs } },
     });
 
-    const result = await caller(ctx).chat.setParticipantDisabled({
+    const result = await caller(ctx).chat.setSeatKnobs({
       chatId: CHAT,
-      characterId: CHARACTER,
-      disabled: true,
+      participantId: PARTICIPANT_ID,
+      patch: { disabled: true, talkativeness: 0.8 },
     });
 
-    expect(setParticipantDisabled).toHaveBeenCalledWith({
+    expect(setSeatKnobs).toHaveBeenCalledWith({
       principal: expect.objectContaining({ userId: MEMBER }),
       chatId: CHAT,
-      characterId: CHARACTER,
-      disabled: true,
+      participantId: PARTICIPANT_ID,
+      patch: { disabled: true, talkativeness: 0.8 },
     });
     expect(result.disabled).toBe(true);
-  });
-
-  test("a non-host gets the verb's leak-free NOT_FOUND (requireHost gate)", async () => {
-    const setParticipantDisabled = vi.fn<ChatService["setParticipantDisabled"]>().mockRejectedValue(new ChatNotFoundError(CHAT));
-    const ctx = makeContext({
-      auth: principal("user", { userId: NON_MEMBER }),
-      services: { chat: { setParticipantDisabled } },
-    });
-
-    await expect(
-      caller(ctx).chat.setParticipantDisabled({
-        chatId: CHAT,
-        characterId: CHARACTER,
-        disabled: true,
-      }),
-    ).rejects.toMatchObject({ code: "NOT_FOUND" });
-  });
-});
-
-describe("chat.setParticipantTalkativeness — the per-member weight setter (task #29 wire-through, host-only)", () => {
-  test("a thin pass-through: chatId/characterId/talkativeness reach the verb with the resolved Principal", async () => {
-    const setParticipantTalkativeness = vi.fn<ChatService["setParticipantTalkativeness"]>(async () => ({ ...PARTICIPANT, talkativeness: 0.8 }));
-    const ctx = makeContext({
-      auth: principal("user", { userId: MEMBER }),
-      services: { chat: { setParticipantTalkativeness } },
-    });
-
-    const result = await caller(ctx).chat.setParticipantTalkativeness({
-      chatId: CHAT,
-      characterId: CHARACTER,
-      talkativeness: 0.8,
-    });
-
-    expect(setParticipantTalkativeness).toHaveBeenCalledWith({
-      principal: expect.objectContaining({ userId: MEMBER }),
-      chatId: CHAT,
-      characterId: CHARACTER,
-      talkativeness: 0.8,
-    });
     expect(result.talkativeness).toBe(0.8);
   });
 
-  test("a non-numeric talkativeness is rejected at the wire before the verb", async () => {
-    const setParticipantTalkativeness = vi.fn<ChatService["setParticipantTalkativeness"]>(async () => PARTICIPANT);
+  test("an empty patch is legal at the wire (both knobs optional)", async () => {
+    const setSeatKnobs = vi.fn<ChatService["setSeatKnobs"]>(async () => PARTICIPANT);
     const ctx = makeContext({
       auth: principal("user", { userId: MEMBER }),
-      services: { chat: { setParticipantTalkativeness } },
+      services: { chat: { setSeatKnobs } },
     });
 
-    await expect(
-      caller(ctx).chat.setParticipantTalkativeness({
-        chatId: CHAT,
-        characterId: CHARACTER,
-        // biome-ignore lint/suspicious/noExplicitAny: deliberately off-schema to prove the wire rejects it.
-        talkativeness: "loud" as any,
-      }),
-    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
-    expect(setParticipantTalkativeness).not.toHaveBeenCalled();
+    await caller(ctx).chat.setSeatKnobs({ chatId: CHAT, participantId: PARTICIPANT_ID, patch: {} });
+    expect(setSeatKnobs).toHaveBeenCalledWith({
+      principal: expect.objectContaining({ userId: MEMBER }),
+      chatId: CHAT,
+      participantId: PARTICIPANT_ID,
+      patch: {},
+    });
+  });
+
+  test("a non-host gets the verb's leak-free NOT_FOUND (requireHost gate)", async () => {
+    const setSeatKnobs = vi.fn<ChatService["setSeatKnobs"]>().mockRejectedValue(new ChatNotFoundError(CHAT));
+    const ctx = makeContext({
+      auth: principal("user", { userId: NON_MEMBER }),
+      services: { chat: { setSeatKnobs } },
+    });
+
+    await expect(caller(ctx).chat.setSeatKnobs({ chatId: CHAT, participantId: PARTICIPANT_ID, patch: { disabled: true } })).rejects.toMatchObject({
+      code: "NOT_FOUND",
+    });
+  });
+
+  test("an out-of-range talkativeness is rejected at the wire before the verb (seatKnobsSchema clamp)", async () => {
+    const setSeatKnobs = vi.fn<ChatService["setSeatKnobs"]>(async () => PARTICIPANT);
+    const ctx = makeContext({
+      auth: principal("user", { userId: MEMBER }),
+      services: { chat: { setSeatKnobs } },
+    });
+
+    await expect(caller(ctx).chat.setSeatKnobs({ chatId: CHAT, participantId: PARTICIPANT_ID, patch: { talkativeness: 1.5 } })).rejects.toMatchObject({
+      code: "BAD_REQUEST",
+    });
+    expect(setSeatKnobs).not.toHaveBeenCalled();
   });
 });
 

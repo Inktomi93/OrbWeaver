@@ -66,7 +66,7 @@ export async function loadPdf(bytes: Uint8Array): Promise<RawExtraction> {
     for (let n = 1; n <= pageCount; n += 1) {
       // biome-ignore lint/performance/noAwaitInLoops: pages extract sequentially — pdfjs serializes access to the one document, and page order IS the reading order the assembly depends on.
       const page = await doc.getPage(n);
-      // biome-ignore lint/performance/noAwaitInLoops: same — page N's text content is needed before page N+1 is appended.
+
       const content = await page.getTextContent();
       pages.push(assemblePage(content.items));
       page.cleanup();

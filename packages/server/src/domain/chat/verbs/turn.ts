@@ -8,7 +8,7 @@
 // the auxiliary single-speaker turns swipe/continueTurn(+undo/revert)/impersonate/generate. Every generating
 // verb threads the active-turns abort signal into the engine and its `guided` steer into GATHER→BUILD.
 
-import type { AssembleContext, ChatBusEvent, GroupConfig, MessageView, ParticipantKind, SpeakerRef } from "@orb/contracts/chat";
+import type { AssembleContext, ChatBusEvent, GroupConfig, MessageView, SpeakerRef } from "@orb/contracts/chat";
 import { AUTOMATION_DEPTH_HARD_CAP, DEFAULT_GROUP_CONFIG, isAiDriven, speakerKey } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
 import type { GenerationType } from "@orb/contracts/preset";
@@ -18,7 +18,7 @@ import { getLog } from "#foundation/observability";
 import type { ChatContext } from "../context";
 import type { ActiveTurns } from "../contract/active-turns";
 import type { ArbiterCandidate, AutoModeResult, CastName } from "../contract/arbitration";
-import type { AgentCastMember } from "../contract/context";
+
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors";
 import type { ChatBehaviorInputs, ResolveForeignInputsOp } from "../contract/foreign";
 import { DEFAULT_CHAT_BEHAVIOR } from "../contract/foreign";
@@ -47,7 +47,7 @@ import {
   setVariantContentStatement,
 } from "../persistence/canon-write";
 import { claimPendingTurn, insertPendingTurn, loadPendingTurnsForHost, loadPendingTurnsForReclaim } from "../persistence/invites";
-import { isBackingUserEnabled } from "../persistence/participant";
+
 import {
   loadCanonHistory,
   loadChatRow,
@@ -115,56 +115,16 @@ const CONTINUE_NUDGE = "[Continue the previous message from exactly where it lef
 const IMPERSONATE_NUDGE = "[Write the next message as the user, in the user's own voice.]";
 
 /** The roster-derived turn substrate: the host, the AI-driven candidates (character + agent — arbitration),
- *  their display names, the character cast ids (WI/memory), the soul-resolved agent cast, and the present
- *  personas. */
+ *  their display names, the character cast ids (WI/memory), and the present personas. */
 interface Room {
   readonly hostUserId: UserId;
   readonly candidates: readonly ArbiterCandidate[];
   readonly castNames: readonly CastName[];
   readonly castCharacterIds: readonly CharacterId[];
-  readonly agentCast: readonly AgentCastMember[];
   /** The `speakerKey`s of the present MUTED seats (character + agent) — the `castNotMuted` producer, keyed on
    *  the same seat `disabled` axis arbitration reads. Empty ⇒ nothing muted. */
   readonly mutedSpeakerKeys: ReadonlySet<string>;
   readonly personaIds: readonly PersonaId[];
-}
-
-/** The roster fields an agent seat contributes — a structural slice of a present `chat_participants` agent
- *  row (avoids a `chatParticipants` table import in a verb). */
-interface AgentSeatRow {
-  readonly userId: UserId;
-  readonly kind: ParticipantKind;
-  readonly talkativeness: number;
-  readonly disabled: boolean;
-  readonly leftSeq: number | null;
-}
-
-/** One present, principal-enabled, soul-resolved agent seat — the loadRoom intermediate. */
-interface ResolvedAgentSeat {
-  readonly userId: UserId;
-  readonly talkativeness: number;
-  readonly disabled: boolean;
-  readonly leftSeq: number | null;
-  readonly identity: AgentCastMember["identity"];
-}
-
-/** Resolve the present seated agents (D60) to their cast identity. The present-predicate ENABLED arm
- *  (`isBackingUserEnabled`, read fresh via `resolveAgentActor`) drops a principal-disabled agent from EVERY
- *  cast + arbitration pool the round after the flip (doc 03 §4 containment); an unhatched/unresolvable soul
- *  (`resolveAgentSpeaker` → null) is likewise skipped. A MUTED agent (`participant.disabled`) survives here —
- *  it stays in the cast and is filtered from arbitration by `isArbiterEligible`, exactly like a muted character. */
-async function resolveAgentSeats(ctx: ChatContext, agentRows: readonly AgentSeatRow[]): Promise<ResolvedAgentSeat[]> {
-  const resolved = await Promise.all(
-    agentRows.map(async (r): Promise<ResolvedAgentSeat | null> => {
-      const actor = await ctx.resolveAgentActor(r.userId);
-      if (actor === null || !isBackingUserEnabled(r.kind, actor.enabled)) {
-        return null;
-      }
-      const identity = await ctx.resolveAgentSpeaker(r.userId);
-      return identity === null ? null : { userId: r.userId, talkativeness: r.talkativeness, disabled: r.disabled, leftSeq: r.leftSeq, identity };
-    }),
-  );
-  return resolved.flatMap((a) => (a !== null ? [a] : []));
 }
 
 /** Loads the present roster → the {@link Room}. Hostless is unusable (leak-free NOT_FOUND). Cards read under
@@ -177,11 +137,8 @@ async function loadRoom(ctx: ChatContext, chatId: ChatId): Promise<Room> {
   }
   const aiRows = roster.filter((r) => isAiDriven(r.kind));
   const charRows = aiRows.flatMap((r) => (r.kind === "character" && r.characterId !== null ? [{ ...r, characterId: r.characterId }] : []));
-  const agentRows = aiRows.flatMap((r) => (r.kind === "agent" && r.userId !== null ? [{ ...r, userId: r.userId }] : []));
-  const [cards, agents] = await Promise.all([
-    Promise.all(charRows.map((r) => ctx.getCard({ ownerId: hostUserId, characterId: r.characterId }))),
-    resolveAgentSeats(ctx, agentRows),
-  ]);
+  const cards = await Promise.all(charRows.map((r) => ctx.getCard({ ownerId: hostUserId, characterId: r.characterId })));
+
   // An offline human's persona drops from the present-cast set for this round, since presence gates
   // which persona-book world-info joins the pool (a server-derived signal, never client-asserted).
   const humanPersonas = roster.flatMap((r) =>
@@ -190,32 +147,20 @@ async function loadRoom(ctx: ChatContext, chatId: ChatId): Promise<Room> {
   const online = await Promise.all(humanPersonas.map((h) => ctx.readPresence(h.userId).then((p) => p.online)));
   const personaIds = humanPersonas.filter((_h, i) => online[i] === true).map((h) => h.personaId);
 
-  // AI-driven candidates: characters + agents share one arbitration pool (D60 — `isAiDriven`); an agent's
-  // talkativeness/disabled/leftSeq drive selection exactly like a character's.
   const charCandidates: ArbiterCandidate[] = charRows.map((r) => ({
     ref: { kind: "character", characterId: r.characterId },
     talkativeness: r.talkativeness,
     disabled: r.disabled,
     leftSeq: r.leftSeq,
   }));
-  const agentCandidates: ArbiterCandidate[] = agents.map((a) => ({
-    ref: { kind: "agent", userId: a.userId },
-    talkativeness: a.talkativeness,
-    disabled: a.disabled,
-    leftSeq: a.leftSeq,
-  }));
+
   const charCastNames: CastName[] = charRows.map((r, i) => ({ ref: { kind: "character", characterId: r.characterId }, name: cards[i]?.name ?? "" }));
-  const agentCastNames: CastName[] = agents.map((a) => ({ ref: { kind: "agent", userId: a.userId }, name: a.identity.displayName }));
-  const candidates: ArbiterCandidate[] = [...charCandidates, ...agentCandidates];
+  const candidates: ArbiterCandidate[] = [...charCandidates];
   return {
     hostUserId,
     candidates,
-    castNames: [...charCastNames, ...agentCastNames],
-    // Character-only — the WI pool + memory bucket key on characterId; an agent has neither.
+    castNames: [...charCastNames],
     castCharacterIds: charRows.map((r) => r.characterId),
-    agentCast: agents.map((a) => ({ userId: a.userId, identity: a.identity })),
-    // A muted seat (character OR agent) stays cast (lore/soul contribute) but drops from `{{groupNotMuted}}`.
-    // One set over both arms — `disabled` is the same axis `isArbiterEligible` filters selection on.
     mutedSpeakerKeys: new Set(candidates.filter((c) => c.disabled).map((c) => speakerKey(c.ref))),
     personaIds,
   };
@@ -225,7 +170,7 @@ async function loadRoom(ctx: ChatContext, chatId: ChatId): Promise<Room> {
  *  empty cast. */
 function primaryCharacterId(room: Room): CharacterId | null {
   const first = room.castNames[0]?.ref;
-  return first !== undefined && first.kind === "character" ? first.characterId : null;
+  return first !== undefined ? first.characterId : null;
 }
 
 /** The joined present-cast name (narrator `{{char}}`-as-cast); collapses to the single name at cast=1. */
@@ -257,7 +202,7 @@ function lastSpeakerRef(row: { readonly characterId: CharacterId | null; readonl
   if (row.characterId !== null) {
     return { kind: "character", characterId: row.characterId };
   }
-  return row.authorUserId !== null ? { kind: "agent", userId: row.authorUserId } : null;
+  return null;
 }
 
 /** The built turn context + the resolved host memory config threaded onto every `TurnPrep` — one source of
@@ -307,7 +252,7 @@ async function buildTurnContext(
     readonly castCharacterIds: readonly CharacterId[];
     /** The soul-resolved seated agents (D60) — appended to the assemble cast so an agent speaker rides the
      *  one turn path. Empty ⇒ byte-identical to a character-only room. */
-    readonly agentCast: readonly AgentCastMember[];
+
     /** The muted-seat `speakerKey`s (character + agent) — threaded to `castNotMuted` for `{{groupNotMuted}}`. */
     readonly mutedSpeakerKeys: ReadonlySet<string>;
     readonly personaIds: readonly PersonaId[];
@@ -354,7 +299,7 @@ async function buildTurnContext(
       runAsUserId: args.runAsUserId,
       model: args.model,
       castCharacterIds: args.castCharacterIds,
-      agentCast: args.agentCast,
+
       mutedSpeakerKeys: args.mutedSpeakerKeys,
       personaIds: args.personaIds,
       generationType: GENERATION_TYPE_FOR_KIND[args.kind],
@@ -880,7 +825,7 @@ function createSend(ctx: ChatContext, deps: TurnDeps, auto: AutoBehaviorDeps): C
         model: connection.model,
         kind: "send",
         castCharacterIds: room.castCharacterIds,
-        agentCast: room.agentCast,
+
         mutedSpeakerKeys: room.mutedSpeakerKeys,
         personaIds: room.personaIds,
         anchorPersonaId: membership.chat.anchorPersonaId,
@@ -975,9 +920,9 @@ function createForceCharacterTurn(ctx: ChatContext, deps: TurnDeps): ChatService
       principalUserId: principal.userId,
       hostUserId: room.hostUserId,
     });
-    const target = room.castNames.find((c) => c.ref.kind === "character" && c.ref.characterId === characterId);
+    const target = room.castNames.find((c) => c.ref.characterId === characterId);
     // Presence-only (leftSeq === null), not the stricter isArbiterEligible: a host can force-turn a muted member.
-    const present = room.candidates.some((c) => c.ref.kind === "character" && c.ref.characterId === characterId && c.leftSeq === null);
+    const present = room.candidates.some((c) => c.ref.characterId === characterId && c.leftSeq === null);
     if (target === undefined || !present) {
       throw new ChatNotFoundError(chatId);
     }
@@ -989,7 +934,7 @@ function createForceCharacterTurn(ctx: ChatContext, deps: TurnDeps): ChatService
       model: connection.model,
       kind: "force",
       castCharacterIds: room.castCharacterIds,
-      agentCast: room.agentCast,
+
       mutedSpeakerKeys: room.mutedSpeakerKeys,
       personaIds: room.personaIds,
       anchorPersonaId: membership.chat.anchorPersonaId,
@@ -1098,7 +1043,7 @@ async function resolveTurnBase(
     model: connection.model,
     kind: args.kind,
     castCharacterIds: room.castCharacterIds,
-    agentCast: room.agentCast,
+
     mutedSpeakerKeys: room.mutedSpeakerKeys,
     personaIds: room.personaIds,
     anchorPersonaId: args.anchorPersonaId,
@@ -1126,7 +1071,7 @@ function speakerShapeFor(room: Room, characterId: CharacterId | null): TurnPrep[
   if (characterId === null) {
     return; // a non-character slot has no per-speaker character shape.
   }
-  const name = room.castNames.find((c) => c.ref.kind === "character" && c.ref.characterId === characterId)?.name;
+  const name = room.castNames.find((c) => c.ref.characterId === characterId)?.name;
   if (name === undefined || name.length === 0) {
     return;
   }
@@ -1381,7 +1326,7 @@ async function runDeferredRound(
     model: connection.model,
     kind: "send",
     castCharacterIds: room.castCharacterIds,
-    agentCast: room.agentCast,
+
     mutedSpeakerKeys: room.mutedSpeakerKeys,
     personaIds: room.personaIds,
     anchorPersonaId: chat.anchorPersonaId,
@@ -1569,7 +1514,7 @@ export function createRequestTurn(ctx: ChatContext, deps: TurnDeps): RequestTurn
       model: connection.model,
       kind: "auto",
       castCharacterIds: room.castCharacterIds,
-      agentCast: room.agentCast,
+
       mutedSpeakerKeys: room.mutedSpeakerKeys,
       personaIds: room.personaIds,
       anchorPersonaId: chat.anchorPersonaId,

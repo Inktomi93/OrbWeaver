@@ -40,10 +40,3 @@ export interface UserPrincipalFields {
   handle: Handle;
   externalId: ExternalId | null;
 }
-
-/** `provisionAgentPrincipal` output: the agent's `users` id + whether this call minted it (`false` = the
- *  idempotent re-call, or the race loser, found the existing row). */
-export interface ProvisionAgentResult {
-  agentUserId: UserId;
-  created: boolean;
-}

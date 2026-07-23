@@ -3,7 +3,7 @@ import { DEFAULTS, resolveCfg } from "../../../../../packages/server/src/domain/
 import { expect, test } from "../../../../support/fixtures";
 
 describe("memory/constants — DEFAULTS + resolveCfg", () => {
-  test("DEFAULTS are the grounded knowledge-cluster §5 numbers (blockSize 8 · verbatimWindow 8 · fanOut 4 · maxTier 3)", () => {
+  test("DEFAULTS are the grounded core/Knowledge-Cluster.md §5 numbers (blockSize 8 · verbatimWindow 8 · fanOut 4 · maxTier 3)", () => {
     expect(DEFAULTS.blockSize).toBe(8);
     expect(DEFAULTS.verbatimWindow).toBe(8);
     expect(DEFAULTS.fanOut).toBe(4);

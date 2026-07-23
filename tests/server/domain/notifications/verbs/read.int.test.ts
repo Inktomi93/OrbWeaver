@@ -1,9 +1,6 @@
-// verbs: markRead · markAllRead · dismiss — recipient-scoping (a user can't touch another's inbox) +
-// idempotence.
+// verbs: markAllRead · dismiss — recipient-scoping (a user can't touch another's inbox) + idempotence.
 
 import type { Db } from "@orb/db";
-import type { NotificationId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
 import type { NotificationsService } from "@orb/server/domain/notifications";
 import { beforeEach, describe } from "vitest";
 import { createFrozenClock } from "../../../../support/clock";
@@ -22,31 +19,6 @@ beforeEach(async () => {
   await seedUser(db, ALICE, "alice");
   await seedUser(db, BOB, "bob");
   svc = makeNotificationsService(db, clock.now);
-});
-
-describe("markRead — recipient-scope + idempotence", () => {
-  test("marks the caller's own notification read", async () => {
-    const view = await svc.record({ event: inviteEvent(ALICE) });
-    const read = await svc.markRead({ principal: principal(ALICE), notificationId: view.id });
-    expect(read.readAt).toBe(clock.frozenAt);
-  });
-
-  test("a re-mark keeps the original instant (idempotent)", async () => {
-    const view = await svc.record({ event: inviteEvent(ALICE) });
-    await svc.markRead({ principal: principal(ALICE), notificationId: view.id });
-    clock.advance(5000);
-    const again = await svc.markRead({ principal: principal(ALICE), notificationId: view.id });
-    expect(again.readAt).toBe(clock.frozenAt);
-  });
-
-  test("another user cannot mark it read — throws not-found (no cross-user inbox)", async () => {
-    const view = await svc.record({ event: inviteEvent(ALICE) });
-    await expect(svc.markRead({ principal: principal(BOB), notificationId: view.id })).rejects.toThrow();
-  });
-
-  test("a missing id throws not-found", async () => {
-    await expect(svc.markRead({ principal: principal(ALICE), notificationId: castId<NotificationId>("nope") })).rejects.toThrow();
-  });
 });
 
 describe("markAllRead — bulk recipient-scope + idempotence", () => {
@@ -77,12 +49,13 @@ describe("markAllRead — bulk recipient-scope + idempotence", () => {
   });
 
   test("an already-read row keeps its original readAt instant (COALESCE idempotence)", async () => {
-    const view = await svc.record({ event: inviteEvent(ALICE) });
-    const firstRead = await svc.markRead({ principal: principal(ALICE), notificationId: view.id });
+    await svc.record({ event: inviteEvent(ALICE) });
+    await svc.markAllRead({ principal: principal(ALICE) });
+    const firstReadAt = (await svc.list({ principal: principal(ALICE) })).items[0]?.readAt;
     clock.advance(5000);
     await svc.markAllRead({ principal: principal(ALICE) });
     const page = await svc.list({ principal: principal(ALICE) });
-    expect(page.items[0]?.readAt).toBe(firstRead.readAt);
+    expect(page.items[0]?.readAt).toBe(firstReadAt);
   });
 
   test("an empty inbox marks zero rows", async () => {

@@ -24,8 +24,10 @@ import { expect, test } from "../../../support/fixtures";
 import { makeHarness as makeCharacterHarness, seedUser } from "../../domain/character/_support.ts";
 import { makeHarness as makeExportHarness } from "../../domain/export/_support.ts";
 
-// A bare V3 JSON card carrying unknown top-level `data.*` keys ST-V3 puts there (PD-127's exact gap):
-// `source` (provenance URL array), `nickname`, `group_only_greetings`. No PNG, so no avatar store fires.
+// A bare V3 JSON card carrying: a GENUINELY-unknown `data.*` key (`custom_x` — the PD-127 residual survival
+// gap), the now-TYPED-column fields (`source`/`nickname` — promoted out of residual, V3 promotion Phase A),
+// and `group_only_greetings` (folded into the greetings array as a `groupOnly:true` entry — V3 promotion
+// Phase B, re-split on export). No PNG, so no avatar store fires.
 const CARD_WITH_RESIDUALS = JSON.stringify({
   spec: "chara_card_v3",
   spec_version: "3.0",
@@ -36,6 +38,7 @@ const CARD_WITH_RESIDUALS = JSON.stringify({
     source: ["https://example.com/aria.png"],
     nickname: "Ari",
     group_only_greetings: ["*waves to the group*"],
+    custom_x: { note: "keep me" },
   },
 });
 
@@ -75,13 +78,13 @@ describe("residualData survives the DB-mediated import→export round-trip (PD-1
     expect(result.imported).toHaveLength(1);
     const characterId = result.imported[0]?.characterId as CharacterId;
 
-    // The residual keys landed on the flat row (not dropped, not silently eaten).
+    // Only the GENUINELY-unknown key lands in residualData — `source`/`nickname` are typed columns now
+    // (Phase A) and `group_only_greetings` folds into the greetings array (Phase B), so neither double-rides.
     const detail = await characterSvc.get({ principal, characterId });
-    expect(detail.residualData).toEqual({
-      source: ["https://example.com/aria.png"],
-      nickname: "Ari",
-      group_only_greetings: ["*waves to the group*"],
-    });
+    expect(detail.residualData).toEqual({ custom_x: { note: "keep me" } });
+    // The group-only greeting folded into the greetings array, flagged; first_mes stays at [0].
+    expect(detail.greetings[0]).toEqual({ text: "Hello there!" });
+    expect(detail.greetings).toContainEqual({ text: "*waves to the group*", groupOnly: true });
 
     // Export reads the SAME row through the real export verb and re-emits the residuals at the data root.
     const exportSvc = createExportService(makeExportHarness(db).ctx);
@@ -95,10 +98,12 @@ describe("residualData survives the DB-mediated import→export round-trip (PD-1
     }
     const card = characterCardV3Schema.parse(JSON.parse(chunk));
 
+    // The genuinely-unknown residual survives the DB round-trip, re-emitted at the data root.
+    expect(card.data["custom_x"]).toEqual({ note: "keep me" });
+    // The typed columns (Phase A) + the re-split group-only greeting (Phase B) ride the wire alongside it.
     expect(card.data["source"]).toEqual(["https://example.com/aria.png"]);
     expect(card.data["nickname"]).toBe("Ari");
     expect(card.data["group_only_greetings"]).toEqual(["*waves to the group*"]);
-    // The typed fields still round-trip correctly alongside the residuals.
     expect(card.data.name).toBe("Aria");
     expect(card.data.first_mes).toBe("Hello there!");
   });

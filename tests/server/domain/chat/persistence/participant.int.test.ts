@@ -38,17 +38,9 @@ describe("parseParticipant — the kind shape", () => {
     });
   });
 
-  test("discriminates an agent (userId, no characterId — the human column shape; D60)", () => {
-    const userId = castId<UserId>("user_agent");
-    expect(parseParticipant({ kind: "agent", userId, characterId: null })).toStrictEqual({
-      kind: "agent",
-      userId,
-    });
-  });
 
-  test("rejects the reserved observer kind (un-seatable — carries neither column)", () => {
-    expect(() => parseParticipant({ kind: "observer", userId: null, characterId: null })).toThrow("observer");
-  });
+
+
 
   test("rejects a corrupt row that breaks the human/character shape", () => {
     const userId = castId<UserId>("user_a");
@@ -57,12 +49,7 @@ describe("parseParticipant — the kind shape", () => {
     expect(() => parseParticipant({ kind: "human", userId: null, characterId: null })).toThrow();
   });
 
-  test("rejects a corrupt agent row (agent must carry userId, no characterId)", () => {
-    const userId = castId<UserId>("user_agent");
-    const characterId = castId<CharacterId>("character_a");
-    expect(() => parseParticipant({ kind: "agent", userId, characterId })).toThrow();
-    expect(() => parseParticipant({ kind: "agent", userId: null, characterId: null })).toThrow();
-  });
+
 });
 
 describe("present-and-contributing predicates", () => {
@@ -80,9 +67,7 @@ describe("present-and-contributing predicates", () => {
   // The principal kill-switch arm (D60; doc 03 §4): a user-backed seat contributes only while its backing
   // user is enabled; a character seat (no backing user) is never gated by `enabled`.
   test("isBackingUserEnabled gates only USER_BACKED kinds on the principal enabled flag", () => {
-    // agent: follows its principal's enabled flag (the containment one-row flip).
-    expect(isBackingUserEnabled("agent", true)).toBe(true);
-    expect(isBackingUserEnabled("agent", false)).toBe(false);
+
     // human: also user-backed (a disabled human contributes nothing — moot in a live round, but the axis is coherent).
     expect(isBackingUserEnabled("human", true)).toBe(true);
     expect(isBackingUserEnabled("human", false)).toBe(false);

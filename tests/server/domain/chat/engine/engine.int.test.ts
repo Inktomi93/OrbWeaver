@@ -1,14 +1,16 @@
 // engine/engine — the turn LIFECYCLE shell (.int: real libSQL for the lock + the D26 canon persist). Pins
-// the happy path (belts → turnStarted → generate → persist → committed/completed → lock released), the
-// turnAborted-then-rethrow error path, and the pre-start belt refusals (budget / consent / locked).
+// the happy path (belts → turnStarted → generate → persist → committed/completed → lock released), the abort
+// CLASSIFICATION (a FAULT emits turnAborted(error) then rethrows; a caller cancel emits turnAborted(user) then
+// RETURNS the aborted outcome — an abort is an outcome, not an exception), and the pre-start belt refusals
+// (budget / consent / locked).
 
 import type { AssembleContext, ChatBusEvent } from "@orb/contracts/chat";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { BatchStmt, Db } from "@orb/db";
-import { characterStats, chats, dailyStats, messageVariants, ownerStats } from "@orb/db";
+import { characterStats, chatLocks, chats, dailyStats, messageVariants, ownerStats } from "@orb/db";
 import { DomainRateLimitError } from "@orb/kit/errors";
-import type { ChatId, UserId, WorldEntryId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, UserId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
 import { applyStatsDelta } from "@orb/server/domain/stats";
@@ -17,9 +19,12 @@ import { beforeEach, describe, vi } from "vitest";
 import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context";
 import { ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors";
 import type { TurnPrep, TurnRequest, TurnStreamChunk } from "../../../../../packages/server/src/domain/chat/contract/results";
-import { createTurnEngine } from "../../../../../packages/server/src/domain/chat/engine/engine";
+import { createTurnEngine, emitCapabilityDropWarnings } from "../../../../../packages/server/src/domain/chat/engine/engine";
+import { loadWitnessHorizons } from "../../../../../packages/server/src/domain/chat/memory/persistence/queries";
+import { recallMemory } from "../../../../../packages/server/src/domain/chat/memory/recall/recall";
+import type { MemoryRecallInputs, WitnessInterval } from "../../../../../packages/server/src/domain/chat/memory/types";
 import { tryAcquireLock } from "../../../../../packages/server/src/domain/chat/persistence/lock";
-import { loadCanonHistory, loadMaxMessageSeq } from "../../../../../packages/server/src/domain/chat/persistence/queries";
+import { loadCanonHistory, loadMaxMessageSeq, loadTurnOrigin } from "../../../../../packages/server/src/domain/chat/persistence/queries";
 import { freshDb } from "../../../../support/db";
 import { expect, test } from "../../../../support/fixtures";
 import { FROZEN_AT, makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser, testConnection } from "../_support";
@@ -85,6 +90,10 @@ function harness(
     debit?: () => Promise<void>;
     generateSegments?: Parameters<typeof createTurnEngine>[1]["generateSegments"];
     generateDigests?: Parameters<typeof createTurnEngine>[1]["generateDigests"];
+    loadWitnessHorizons?: Parameters<typeof createTurnEngine>[1]["loadWitnessHorizons"];
+    recallMemory?: Parameters<typeof createTurnEngine>[1]["recallMemory"];
+    lockTtlMs?: number;
+    now?: () => number;
   } = {},
 ): Harness {
   const events: ChatBusEvent[] = [];
@@ -92,6 +101,7 @@ function harness(
   const chatChangedFans: { chatId: string; options: unknown }[] = [];
   const ctx = makeChatContext(database, {
     runChatTurn: over.runChatTurn ?? OK_TURN,
+    ...(over.now !== undefined ? { now: over.now } : {}),
     applyStatsDelta: (_batch: unknown, _db: Db, delta: StatsDelta): void => {
       deltas.push(delta);
     },
@@ -113,9 +123,11 @@ function harness(
         allowNonOwnerMaxProSub: over.allowNonOwnerMaxProSub ?? false,
       }),
     holder: "replica-1",
-    lockTtlMs: 60_000,
+    lockTtlMs: over.lockTtlMs ?? 60_000,
     generateSegments: over.generateSegments ?? (async () => ({ written: 0, skipped: 0 })),
     generateDigests: over.generateDigests ?? (async () => ({ written: 0, skipped: 0 })),
+    loadWitnessHorizons: over.loadWitnessHorizons ?? loadWitnessHorizons,
+    recallMemory: over.recallMemory ?? recallMemory,
   });
   return { ctx, events, deltas, chatChangedFans, debitBudget, engine };
 }
@@ -126,6 +138,26 @@ beforeEach(async () => {
 });
 
 const types = (events: readonly ChatBusEvent[]): string[] => events.map((e) => e.type);
+
+describe("createTurnEngine — turn origin stamping (automation-design/03 §4; §AC-B)", () => {
+  test("a default turn stamps the reply slot 'human'/depth 0 — getTurnOrigin reads it back", async () => {
+    const chatId = await seedChat(db, "origin-default");
+    const h = harness(db);
+    const outcome = await h.engine.runTurn(prepOf(chatId));
+    const messageId = outcome.messages[0]?.id;
+    expect(messageId).toBeDefined();
+    expect(messageId === undefined ? null : await loadTurnOrigin(db, chatId, messageId)).toEqual({ initiator: "human", automationDepth: 0 });
+  });
+
+  test("a programmatic turn carrying initiator:'automation' + depth stamps + round-trips through getTurnOrigin", async () => {
+    const chatId = await seedChat(db, "origin-auto");
+    const h = harness(db);
+    const outcome = await h.engine.runTurn(prepOf(chatId, { initiator: "automation", automationDepth: 2 }));
+    const messageId = outcome.messages[0]?.id;
+    expect(messageId).toBeDefined();
+    expect(messageId === undefined ? null : await loadTurnOrigin(db, chatId, messageId)).toEqual({ initiator: "automation", automationDepth: 2 });
+  });
+});
 
 describe("createTurnEngine — happy path", () => {
   test("commits the assistant turn + emits the lifecycle in order", async () => {
@@ -310,6 +342,8 @@ describe("createTurnEngine — R3 stats real-wire (the REAL applyStatsDelta land
       lockTtlMs: 60_000,
       generateSegments: async () => ({ written: 0, skipped: 0 }),
       generateDigests: async () => ({ written: 0, skipped: 0 }),
+      loadWitnessHorizons,
+      recallMemory,
     });
 
     // A character-voiced assistant turn (speakerCharacterId set) so ALL FOUR grains touch — most notably
@@ -419,6 +453,8 @@ describe("createTurnEngine — post-turn memory build (fire-and-forget, §3a)", 
       generateDigests: () => {
         throw new Error("digest build exploded");
       },
+      loadWitnessHorizons,
+      recallMemory,
     });
 
     const outcome = await engine.runTurn(prepOf(chatId));
@@ -469,6 +505,91 @@ describe("createTurnEngine — post-turn memory build (fire-and-forget, §3a)", 
     // summarizer transcript labels "aria: …" + resolves the BODY, NOT the raw `character_aria` typeid fallback.
     expect(segNames[0]?.characterNamesById.get(char)?.name).toBe("aria");
     expect(digNames.every((m) => m?.characterNamesById.get(char)?.name === "aria")).toBe(true);
+  });
+
+  test("F3b: threads each cast character's WITNESSING horizons into its SCOPED digest build (D6)", async () => {
+    const chatId = await seedChat(db, "memwitness");
+    await seedUser(db, "host");
+    const char = await seedCharacter(db, HOST, "aria");
+    // aria joined at seq 5 (not seq 0) — a real, non-trivial horizon the engine must source + thread.
+    await seedParticipant(db, { chatId, key: "aria", characterId: char, joinSeq: 5 });
+    await seedMessage(db, chatId, 1, { role: "assistant", characterId: char, content: "prior line" });
+
+    const digWitness: (readonly WitnessInterval[] | undefined)[] = [];
+    const h = harness(db, {
+      generateDigests: (_ctx, args) => {
+        digWitness.push(args.witnessing);
+        return Promise.resolve({ written: 0, skipped: 0 });
+      },
+    });
+
+    await h.engine.runTurn(prepOf(chatId));
+    await vi.waitFor(() => {
+      expect(digWitness.length).toBeGreaterThan(0);
+    });
+    // The scoped build for aria received aria's real join horizon — sourced live via loadWitnessHorizons, NOT
+    // left undefined (the pre-fix full-history state). Solo chat ⇒ one scoped bucket, no group bucket.
+    expect(digWitness).toEqual([[{ joinSeq: 5, leftSeq: null }]]);
+  });
+
+  test("F3c: SCOPED per-speaker recall — each speaker recalls its OWN bucket, horizon-filtered by ITS presence (D6)", async () => {
+    const chatId = await seedChat(db, "perspeaker");
+    await seedUser(db, "host");
+    const aria = await seedCharacter(db, HOST, "aria"); // present since the chat opened
+    const bram = await seedCharacter(db, HOST, "bram"); // a late joiner
+    await seedParticipant(db, { chatId, key: "aria", characterId: aria, joinSeq: 1, leftSeq: null });
+    await seedParticipant(db, { chatId, key: "bram", characterId: bram, joinSeq: 20, leftSeq: null });
+
+    // Record every per-speaker recall dispatch (bucket + horizons) the engine issues.
+    const calls: { scoped: string; group: string; witnessing: readonly WitnessInterval[] | undefined }[] = [];
+    const recordRecall: Parameters<typeof createTurnEngine>[1]["recallMemory"] = (_ctx, args) => {
+      calls.push({ scoped: args.scope.scopedCharacterId, group: args.groupCharacterId, witnessing: args.witnessing });
+      return Promise.resolve(`memory-for-${args.scope.scopedCharacterId}`);
+    };
+    const h = harness(db, { recallMemory: recordRecall });
+
+    const memoryRecall: MemoryRecallInputs = { groupCharacterId: aria, recent: [], names: new Map<CharacterId, string>(), config: { mode: "mixA" } };
+    const scopedShape = (charId: typeof aria, name: string): TurnPrep["shape"] => ({
+      output: "per-speaker",
+      cardScope: "scoped",
+      scopedTargetId: charId,
+      speakerName: name,
+      speakerRef: { kind: "character", characterId: charId },
+    });
+
+    await h.engine.runTurn(prepOf(chatId, { speakerCharacterId: aria, shape: scopedShape(aria, "aria"), memoryRecall }));
+    await h.engine.runTurn(prepOf(chatId, { speakerCharacterId: bram, shape: scopedShape(bram, "bram"), memoryRecall }));
+
+    // Each speaker recalled ITS OWN bucket, filtered by ITS join horizon — sourced live from chat_participants.
+    expect(calls).toEqual([
+      { scoped: aria, group: aria, witnessing: [{ joinSeq: 1, leftSeq: null }] },
+      { scoped: bram, group: aria, witnessing: [{ joinSeq: 20, leftSeq: null }] },
+    ]);
+  });
+
+  test("F3d: MERGED / narrator round keeps round-level recall — NO per-speaker recall (byte-identical)", async () => {
+    const chatId = await seedChat(db, "mergedbyteid");
+    await seedUser(db, "host");
+    const aria = await seedCharacter(db, HOST, "aria");
+    await seedParticipant(db, { chatId, key: "aria", characterId: aria, joinSeq: 5, leftSeq: null });
+
+    let recallCalls = 0;
+    const recordRecall: Parameters<typeof createTurnEngine>[1]["recallMemory"] = (_ctx, _args) => {
+      recallCalls += 1;
+      return Promise.resolve("scoped");
+    };
+    const h = harness(db, { recallMemory: recordRecall });
+    const memoryRecall: MemoryRecallInputs = { groupCharacterId: aria, recent: [], names: new Map<CharacterId, string>(), config: { mode: "mixA" } };
+
+    // A per-speaker MERGED turn (cardScope !== "scoped") must NOT re-run recall — the round-level memory stands.
+    await h.engine.runTurn(
+      prepOf(chatId, {
+        speakerCharacterId: aria,
+        shape: { output: "per-speaker", cardScope: "merged", scopedTargetId: null, speakerName: "aria", speakerRef: { kind: "character", characterId: aria } },
+        memoryRecall,
+      }),
+    );
+    expect(recallCalls).toBe(0);
   });
 
   test("the memory build succeeding never emits warning(memory_build_failed)", async () => {
@@ -780,28 +901,185 @@ describe("createTurnEngine — F4: continuePostfix delimiter on a continue turn"
 });
 
 describe("createTurnEngine — abort signal (FLAG[abort-into-engine] resolved)", () => {
-  test("an aborted signal interrupts the turn → turnAborted(user) then rethrow", async () => {
+  // The runner honors the threaded signal: an aborted request throws a name-based AbortError mid-generation.
+  const honorsAbort: ChatContext["runChatTurn"] = (req) =>
+    (async function* (): AsyncGenerator<TurnStreamChunk> {
+      await Promise.resolve();
+      if (req.signal?.aborted === true) {
+        const err = new Error("request aborted");
+        err.name = "AbortError";
+        throw err;
+      }
+      yield { kind: "text", text: "should not reach" };
+    })();
+
+  test("a caller-cancelled turn RETURNS an aborted outcome (aborted:true, reason:user) — no throw, no canon", async () => {
     const chatId = await seedChat(db, "a");
-    // The runner honors the threaded signal: an aborted request throws AbortError mid-generation.
-    const honorsAbort: ChatContext["runChatTurn"] = (req) =>
-      (async function* (): AsyncGenerator<TurnStreamChunk> {
-        await Promise.resolve();
-        if (req.signal?.aborted === true) {
-          const err = new Error("request aborted");
-          err.name = "AbortError";
-          throw err;
-        }
-        yield { kind: "text", text: "should not reach" };
-      })();
     const h = harness(db, { runChatTurn: honorsAbort });
     const controller = new AbortController();
     controller.abort();
 
-    await expect(h.engine.runTurn(prepOf(chatId, { signal: controller.signal }))).rejects.toThrow();
+    // A caller cancel is a lifecycle OUTCOME, not an exception — the verb sees `aborted:true`, never a throw.
+    const outcome = await h.engine.runTurn(prepOf(chatId, { signal: controller.signal }));
+    expect(outcome.aborted).toBe(true);
+    expect(outcome.abortReason).toBe("user");
+    expect(outcome.messages).toHaveLength(0);
 
+    // The turnAborted bus emission STAYS on the abort path (it is how the UI learns).
     const aborted = h.events.find((e) => e.type === "turnAborted");
     expect(aborted?.type === "turnAborted" && aborted.reason).toBe("user");
     expect(types(h.events)).not.toContain("turnCompleted");
     expect(await loadCanonHistory(db, chatId)).toHaveLength(0);
+    // Lock released on the return path.
+    expect(await lockExpiry(db, chatId)).toBeNull();
+  });
+});
+
+// The capability-drop warning emitter (D79). image_dropped rides an end-to-end turn above; tools + structured
+// output have no engine INPUT path yet (no chat consumer sets `responseFormat`/tools on a TurnPrep), so their
+// emit branches are pinned here directly — each flag emits its `warning` code, and a cleared flag emits nothing.
+describe("emitCapabilityDropWarnings — the D79 structured-output warning branch", () => {
+  const chat = castId<ChatId>("chat_warn");
+  function recorder(): { emit: (e: ChatBusEvent) => Promise<void>; codes: () => string[] } {
+    const events: ChatBusEvent[] = [];
+    return {
+      emit: (e: ChatBusEvent): Promise<void> => {
+        events.push(e);
+        return Promise.resolve();
+      },
+      codes: () => events.filter((e) => e.type === "warning").map((e) => (e.type === "warning" ? e.code : "")),
+    };
+  }
+
+  test("structuredOutputUnsupported set → emits warning(structured_output_unsupported)", async () => {
+    const rec = recorder();
+    await emitCapabilityDropWarnings(rec.emit, chat, { imageDropped: false, toolsUnsupported: false, structuredOutputUnsupported: true });
+    expect(rec.codes()).toEqual(["structured_output_unsupported"]);
+  });
+
+  test("no drops → emits nothing (the gate-absent case)", async () => {
+    const rec = recorder();
+    await emitCapabilityDropWarnings(rec.emit, chat, { imageDropped: false, toolsUnsupported: false, structuredOutputUnsupported: false });
+    expect(rec.codes()).toEqual([]);
+  });
+
+  test("all three drops → emits each code once, in image→tools→structured order", async () => {
+    const rec = recorder();
+    await emitCapabilityDropWarnings(rec.emit, chat, { imageDropped: true, toolsUnsupported: true, structuredOutputUnsupported: true });
+    expect(rec.codes()).toEqual(["image_dropped", "tools_unsupported", "structured_output_unsupported"]);
+  });
+});
+
+// The turn-lock heartbeat: `runTurn` refreshes its own lock on a TTL/3 cadence so a turn that outruns the TTL
+// stays un-stealable, aborts fail-closed on a lost lock, and never leaks the timer past any exit path. TTL is
+// deliberately short here so the real `setInterval` fires within the test; the provider blocks on a gate so a
+// heartbeat lands mid-turn.
+const HEARTBEAT_TTL = 90;
+
+/** A provider whose stream blocks at `final` until `release()` is called — holds the turn open so a heartbeat
+ *  (and a concurrent lock steal) can land mid-generation. */
+function gatedProvider(): { runChatTurn: ChatContext["runChatTurn"]; started: Promise<void>; release: () => void } {
+  let markStarted!: () => void;
+  const started = new Promise<void>((r) => {
+    markStarted = r;
+  });
+  let unblock!: () => void;
+  const gate = new Promise<void>((r) => {
+    unblock = r;
+  });
+  const runChatTurn: ChatContext["runChatTurn"] = () =>
+    (async function* (): AsyncGenerator<TurnStreamChunk> {
+      markStarted();
+      await gate;
+      yield { kind: "final", economics: { content: "late reply", tokensIn: 4, tokensOut: 2, model: "test-model" } };
+    })();
+  return { runChatTurn, started, release: unblock };
+}
+
+/** The current lock row's `expiresAt` for a chat (null when released/absent). */
+async function lockExpiry(database: Db, chatId: ChatId): Promise<number | null> {
+  const rows = await database.select({ expiresAt: chatLocks.expiresAt }).from(chatLocks).where(eq(chatLocks.chatId, chatId));
+  return rows[0]?.expiresAt ?? null;
+}
+
+describe("createTurnEngine — turn-lock heartbeat", () => {
+  test("refreshes its own lock mid-turn so a long turn stays un-stealable", async () => {
+    const chatId = await seedChat(db, "hb");
+    const provider = gatedProvider();
+    // Advancing clock: each `now()` read is later, so a refresh writes a strictly larger `expiresAt`.
+    let clock = FROZEN_AT;
+    const now = (): number => {
+      clock += 1000;
+      return clock;
+    };
+    const h = harness(db, { runChatTurn: provider.runChatTurn, lockTtlMs: HEARTBEAT_TTL, now });
+
+    const run = h.engine.runTurn(prepOf(chatId));
+    await provider.started;
+    const initial = await lockExpiry(db, chatId);
+    expect(initial).not.toBeNull();
+
+    // Wait for at least one heartbeat (TTL/3 = 30ms) to land while the turn is blocked.
+    await vi.waitFor(async () => expect(await lockExpiry(db, chatId)).toBeGreaterThan(initial ?? 0), { timeout: 1000, interval: 10 });
+
+    provider.release();
+    const outcome = await run;
+    expect(outcome.messages[0]?.content).toBe("late reply");
+    // Lock released on success — the heartbeat left nothing behind.
+    expect(await lockExpiry(db, chatId)).toBeNull();
+  });
+
+  test("a lock STOLEN mid-turn aborts the turn (aborted) and writes NO canon", async () => {
+    const chatId = await seedChat(db, "steal");
+    const provider = gatedProvider();
+    const h = harness(db, { runChatTurn: provider.runChatTurn, lockTtlMs: HEARTBEAT_TTL });
+
+    const run = h.engine.runTurn(prepOf(chatId));
+    await provider.started;
+    // A second replica steals the stale lock out from under the in-flight turn (the exact race the lock guards).
+    // `now` is past the initial `expiresAt`, so the stale-steal in `tryAcquireLock` succeeds.
+    const stolen = await tryAcquireLock(db, {
+      chatId,
+      holder: "replica-2",
+      now: FROZEN_AT + HEARTBEAT_TTL + 10,
+      expiresAt: FROZEN_AT + HEARTBEAT_TTL + 10 + HEARTBEAT_TTL,
+    });
+    expect(stolen).toBe(true);
+
+    // The next heartbeat's refresh returns false (holder no longer owns it) → abort → reject with `aborted`.
+    await expect(run).rejects.toMatchObject({ code: "aborted" });
+    provider.release();
+
+    // The dead turn committed no assistant row — the thief is the sole canon writer.
+    expect(await loadCanonHistory(db, chatId)).toHaveLength(0);
+    // The holder-scoped release is a no-op after the steal: replica-2's lock survives untouched.
+    expect(await tryAcquireLock(db, { chatId, holder: "replica-3", now: FROZEN_AT, expiresAt: FROZEN_AT + HEARTBEAT_TTL })).toBe(false);
+  });
+
+  test("stops the heartbeat on every exit path — no timer leaks past success OR throw", async () => {
+    const clearSpy = vi.spyOn(globalThis, "clearInterval");
+    try {
+      // Success path.
+      const okChat = await seedChat(db, "stop-ok");
+      const okBefore = clearSpy.mock.calls.length;
+      await harness(db, { lockTtlMs: HEARTBEAT_TTL }).engine.runTurn(prepOf(okChat));
+      expect(clearSpy.mock.calls.length).toBeGreaterThan(okBefore);
+
+      // Throw path: the provider errors mid-stream; the heartbeat's interval is still cleared.
+      const errChat = await seedChat(db, "stop-err");
+      const errProvider: ChatContext["runChatTurn"] = () =>
+        (async function* (): AsyncGenerator<TurnStreamChunk> {
+          await Promise.reject(new Error("provider exploded"));
+          yield { kind: "final", economics: { content: "", tokensIn: 0, tokensOut: 0, model: "test-model" } };
+        })();
+      const errBefore = clearSpy.mock.calls.length;
+      await expect(harness(db, { runChatTurn: errProvider, lockTtlMs: HEARTBEAT_TTL }).engine.runTurn(prepOf(errChat))).rejects.toThrow("provider exploded");
+      expect(clearSpy.mock.calls.length).toBeGreaterThan(errBefore);
+      // Both turns released their lock — nothing left holding it.
+      expect(await lockExpiry(db, okChat)).toBeNull();
+      expect(await lockExpiry(db, errChat)).toBeNull();
+    } finally {
+      clearSpy.mockRestore();
+    }
   });
 });

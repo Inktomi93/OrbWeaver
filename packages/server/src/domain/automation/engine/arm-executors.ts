@@ -325,9 +325,6 @@ async function runSetChatBackground(
 }
 
 const TRANSFORM_DRAFT_REFUSAL = "transform_draft applies via the prompt-transform pipeline (A7), not the dispatch engine";
-function reservedRefusal(type: string): string {
-  return `arm '${type}' is reserved — its domain has not landed`;
-}
 
 /** The arm dispatcher (04 §4). Switches on the CLEAN `AutomationActionType` string union (via the local `type`
  *  binding) — NOT `action.type`: biome's `noUnnecessaryConditions` cannot narrow a `z.infer` zod discriminated
@@ -359,10 +356,7 @@ function runArm(deps: ArmExecutorDeps, action: AutomationAction, frame: Dispatch
     // v1-unwired (typed refusal, NOT a stub — the honest not-yet-wired state):
     case "transform_draft":
       return Promise.resolve(armError(TRANSFORM_DRAFT_REFUSAL));
-    // reserved arms (createRule refuses them; here for the exhaustiveness pin):
 
-    case "force_activate_entries":
-      return Promise.resolve(armError(reservedRefusal(type)));
     default: {
       const exhaustive: never = type;
       throw new Error(`unhandled automation arm: ${JSON.stringify(exhaustive)}`);

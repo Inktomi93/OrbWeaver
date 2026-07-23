@@ -10,13 +10,13 @@
 
 import type { CharacterContext } from "./context";
 import type { CharacterService } from "./contract/service";
-import { createAcceptCardEvolution } from "./verbs/accept-card-evolution";
+
 import { createBulkAddCardTag } from "./verbs/bulk-add-card-tag";
 import { createBulkArchive } from "./verbs/bulk-archive";
 import { createBulkRemove } from "./verbs/bulk-remove";
 import { createBulkRemoveCardTag } from "./verbs/bulk-remove-card-tag";
 import { createCreate } from "./verbs/create";
-import { createDismissCardEvolution } from "./verbs/dismiss-card-evolution";
+
 import { createDuplicate } from "./verbs/duplicate";
 import { createFindByHandle } from "./verbs/find-by-handle";
 import { createFindByImportHash } from "./verbs/find-by-import-hash";
@@ -25,12 +25,12 @@ import { createFindSyntheticGroupCharacter } from "./verbs/find-synthetic-group-
 import { createGet } from "./verbs/get";
 import { createGetCard } from "./verbs/get-card";
 import { createList } from "./verbs/list";
-import { createListCardEvolutionProposals } from "./verbs/list-card-evolution-proposals";
+
 import { createListEmbeddableCharacterIds } from "./verbs/list-embeddable-character-ids";
 import { createListSnapshots } from "./verbs/list-snapshots";
 import { createLoadCardText } from "./verbs/load-card-text";
 import { createMintSyntheticGroupCharacter } from "./verbs/mint-synthetic-group-character";
-import { createProposeCardEvolution } from "./verbs/propose-card-evolution";
+
 import { createRemove } from "./verbs/remove";
 import { createRestore } from "./verbs/restore";
 import { createSnapshot } from "./verbs/snapshot";
@@ -59,9 +59,5 @@ export function createCharacterService(ctx: CharacterContext): CharacterService 
     findByImportedFrom: createFindByImportedFrom(ctx),
     mintSyntheticGroupCharacter: createMintSyntheticGroupCharacter(ctx),
     findSyntheticGroupCharacter: createFindSyntheticGroupCharacter(ctx),
-    proposeCardEvolution: createProposeCardEvolution(ctx),
-    listCardEvolutionProposals: createListCardEvolutionProposals(ctx),
-    acceptCardEvolution: createAcceptCardEvolution(ctx),
-    dismissCardEvolution: createDismissCardEvolution(ctx),
   };
 }

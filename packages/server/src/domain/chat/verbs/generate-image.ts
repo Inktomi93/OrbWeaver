@@ -38,7 +38,7 @@ interface GenerateImageDeps {
 
 export function createGenerateImage(ctx: ChatContext, deps: GenerateImageDeps): Pick<ChatService, "generateImage"> {
   return {
-    generateImage: async ({ principal, chatId, mode, prompt, n, size, params: imageParams, pose }: GenerateImageParams): Promise<MessageView> => {
+    generateImage: async ({ principal, chatId, mode, prompt, n, size, params: imageParams }: GenerateImageParams): Promise<MessageView> => {
       await requireParticipant(ctx, principal, chatId);
       const picture = await ctx.generatePicture({
         caller: principal,
@@ -48,7 +48,6 @@ export function createGenerateImage(ctx: ChatContext, deps: GenerateImageDeps): 
         ...(n !== undefined ? { n } : {}),
         ...(size !== undefined ? { size } : {}),
         ...(imageParams !== undefined ? { params: imageParams } : {}),
-        ...(pose !== undefined ? { pose } : {}),
       });
 
       // ONE message body STRING: the prompt (if any) + one markdown image ref per generated asset (D51).

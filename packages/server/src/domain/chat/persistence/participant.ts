@@ -46,15 +46,6 @@ export function parseParticipant(row: {
       }
       return { kind: "character", characterId: row.characterId };
     }
-    case "agent": {
-      if (row.userId === null || row.characterId !== null) {
-        throw new Error("corrupt participant: kind 'agent' must carry userId XOR characterId");
-      }
-      return { kind: "agent", userId: row.userId };
-    }
-    case "observer": {
-      throw new Error("participant kind 'observer' is reserved and un-seatable (no kind-shape arm)");
-    }
     default: {
       const _exhaustive: never = row.kind;
       throw new Error(`unknown participant kind: ${String(_exhaustive)}`);
@@ -119,38 +110,6 @@ export async function upsertMemberOnJoin(
       userId: params.userId,
       role: "member",
       activePersonaId: params.activePersonaId ?? null,
-      joinedAt: params.now,
-      joinSeq: params.joinSeq,
-    })
-    .onConflictDoUpdate({
-      target: [chatParticipants.chatId, chatParticipants.userId],
-      set: { joinSeq: params.joinSeq, leftSeq: null, role: "member" },
-      setWhere: isNotNull(chatParticipants.leftSeq),
-    })
-    .returning();
-  return rows.at(0);
-}
-
-/** The atomic agent (re)seat — the only agent-membership write. Same re-join physics as
- *  {@link upsertMemberOnJoin}; `role` is server-forced `member` (an agent is never a host). */
-export async function upsertAgentSeat(
-  db: Db,
-  params: {
-    readonly participantId: ChatParticipantId;
-    readonly chatId: ChatId;
-    readonly agentUserId: UserId;
-    readonly joinSeq: number;
-    readonly now: number;
-  },
-): Promise<typeof chatParticipants.$inferSelect | undefined> {
-  const rows = await db
-    .insert(chatParticipants)
-    .values({
-      id: params.participantId,
-      chatId: params.chatId,
-      kind: "agent",
-      userId: params.agentUserId,
-      role: "member",
       joinedAt: params.now,
       joinSeq: params.joinSeq,
     })

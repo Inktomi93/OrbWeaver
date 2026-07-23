@@ -3,7 +3,8 @@
 // tier); only a truly unrecognized id or `null` falls to the system default.
 
 import { DEFAULT_CHAT_MODEL_ID } from "@orb/contracts/connection";
-import { describe } from "vitest";
+import { getLog } from "@orb/server/foundation/observability";
+import { describe, vi } from "vitest";
 import { healToChatDefault } from "../../../../../packages/server/src/domain/connection/substrate/heal-model.ts";
 import { expect, test } from "../../../../support/fixtures";
 
@@ -44,5 +45,34 @@ describe("healToChatDefault", () => {
 
   test("a Claude-fork id does NOT false-match a tier (anchor discipline) and heals to default", () => {
     expect(healToChatDefault("some-org/claude-fork-sonnet")).toBe(DEFAULT_CHAT_MODEL_ID);
+  });
+
+  // Owner ruling 2026-07-21 (no SILENT failure): a genuinely-unrecognized model id (a typo'd/pasted
+  // roleDefaults.chat.model) must WARN before defaulting — an operator sees it instead of a mysteriously-opus
+  // turn — but must NOT throw (a data typo can't hard-fail the chat) and must NOT warn on recoverable/valid
+  // cases (no log noise).
+  test("an unrecognized model id WARNS before defaulting (ends the silence — never a throw)", () => {
+    const warnSpy = vi.spyOn(getLog(), "warn").mockImplementation(() => undefined);
+    try {
+      expect(healToChatDefault("gpt-4o")).toBe(DEFAULT_CHAT_MODEL_ID);
+      expect(warnSpy).toHaveBeenCalledTimes(1);
+      const [payload] = warnSpy.mock.calls[0] ?? [];
+      expect(payload).toMatchObject({ requestedModel: "gpt-4o", fallback: DEFAULT_CHAT_MODEL_ID });
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  test("a recoverable/valid/null heal does NOT warn (the warning is precise, not noisy)", () => {
+    const warnSpy = vi.spyOn(getLog(), "warn").mockImplementation(() => undefined);
+    try {
+      healToChatDefault(null); // deliberately unset — defaults quietly
+      healToChatDefault("claude-sonnet-5"); // valid id
+      healToChatDefault("claude-sonnet-4-6"); // stale-but-tier-detectable → heals within tier
+      healToChatDefault("sonnet"); // bare family alias → tier heal
+      expect(warnSpy).not.toHaveBeenCalled();
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 });

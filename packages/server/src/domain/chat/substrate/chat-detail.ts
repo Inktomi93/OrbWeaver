@@ -54,7 +54,6 @@ export function toChatDetail({ chat, participants, macroNames, personaAvatars, v
     group: chat.metadata.group ?? DEFAULT_GROUP_CONFIG,
     roomOverrides: chat.metadata.roomOverrides ?? DEFAULT_ROOM_OVERRIDES,
     background: chat.metadata.background ?? null,
-    rpgGameId: chat.metadata.rpg?.gameId ?? null,
     opening: chat.metadata.opening ?? null,
     compactSummary: chat.compactSummary,
     compactedAtSeq: chat.compactedAtSeq,

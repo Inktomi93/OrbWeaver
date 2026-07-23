@@ -81,6 +81,48 @@ describe("spliceInChatInjections", () => {
     expect(out.at(-1)).toEqual({ role: "user", content: "[Note from user: raw]" });
   });
 
+  test("squashSystemMessages: consecutive same-depth system notes merge into ONE framed row (blank-line join)", () => {
+    const out = spliceInChatInjections(
+      HIST,
+      [inj({ depth: 0, role: "system", content: "sys-a" }), inj({ depth: 0, role: "system", content: "sys-b" })],
+      (c) => c,
+      { squashSystemMessages: true },
+    );
+    // Merge-BEFORE-convert: one `[Note from system: …]` bracket carrying both notes, not two.
+    expect(out.at(-1)).toEqual({ role: "user", content: "[Note from system: sys-a\n\nsys-b]" });
+    expect(out.filter((m) => m.content.includes("[Note from system:"))).toHaveLength(1);
+  });
+
+  test("squashSystemMessages OFF (default): system notes stay SEPARATE (each its own bracket)", () => {
+    const out = spliceInChatInjections(HIST, [inj({ depth: 0, role: "system", content: "sys-a" }), inj({ depth: 0, role: "system", content: "sys-b" })]);
+    expect(out.filter((m) => m.content.includes("[Note from system:"))).toHaveLength(2);
+  });
+
+  test("squashSystemMessages: a non-system note between two system notes BREAKS the run (order-adjacency)", () => {
+    // order asc within a depth: sys(10), user(20), sys(30) → the user note sits between → two system brackets.
+    const out = spliceInChatInjections(
+      HIST,
+      [
+        inj({ depth: 0, order: 10, role: "system", content: "sa" }),
+        inj({ depth: 0, order: 20, role: "user", content: "mid" }),
+        inj({ depth: 0, order: 30, role: "system", content: "sb" }),
+      ],
+      (c) => c,
+      { squashSystemMessages: true },
+    );
+    expect(out.filter((m) => m.content.includes("[Note from system:"))).toHaveLength(2);
+  });
+
+  test("squashSystemMessages: DIFFERENT depths never merge (non-adjacent in the delivered array)", () => {
+    const out = spliceInChatInjections(
+      HIST,
+      [inj({ depth: 0, role: "system", content: "tail-sys" }), inj({ depth: 1, role: "system", content: "mid-sys" })],
+      (c) => c,
+      { squashSystemMessages: true },
+    );
+    expect(out.filter((m) => m.content.includes("[Note from system:"))).toHaveLength(2);
+  });
+
   test("generic: canon rows keep their extra fields through the splice (name-stamp depends on it)", () => {
     const canon = [
       { role: "assistant" as const, content: "a", authorName: "Aria", characterId: "char_aria" },

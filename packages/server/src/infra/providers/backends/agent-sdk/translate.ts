@@ -14,7 +14,7 @@ import type { OrSkinTierModels, ResolvedChatKnobs, ResolvedReasoning, ResolvedWa
 import { ProviderError } from "../../contract";
 import { resolveChat } from "../../resolve-chat";
 import type { ClaudeRuntimeOverrides } from "./env";
-import { buildClaudeAnthEnv, buildClaudeOpenRouterEnv, buildClaudeSdkEnv, buildClaudeVllmEnv } from "./env";
+import { buildClaudeOpenRouterEnv, buildClaudeSdkEnv, buildClaudeVllmEnv } from "./env";
 import type { DisciplineOptions } from "./types";
 
 // tools:[] alone does NOT remove the cowork bundle (leaks in regardless of env/settingSources); disallowedTools does.
@@ -56,17 +56,10 @@ export function disciplineOptions(
       };
     case "vllm":
       return { ...base, env: buildClaudeVllmEnv(overrides) };
-    case "anthropic":
-      // First-party Anthropic (W11 owner ruling): a user may run their AGENTS on their own paid key. The
-      // native x-api-key path (mode-4) — distinct from the tool-less anth-direct chat backend. The firewall
-      // `agent` row + resolveRole permit `anthropic` on the agent-sdk api; anth-direct stays tool-less.
-      return { ...base, env: buildClaudeAnthEnv(credential.apiKey, overrides) };
+
     case "local-light":
     case "custom_openai":
-    case "venice":
-    case "comfyui":
-      // Never a Claude-runtime source — refuse like every other non-agent-sdk source. `venice` + `comfyui`
-      // are generateImage-only sources (the firewall + chat `deriveRunner` already fail-close them upstream).
+      // Never a Claude-runtime source — refuse like every other non-agent-sdk source.
       throw new ProviderError({
         kind: "invalid",
         retryable: false,

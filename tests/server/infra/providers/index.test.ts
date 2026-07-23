@@ -181,12 +181,13 @@ describe("createProviderExecutor — routing through the firewall + sealed dispa
 });
 
 describe("createBackendRegistry — the boot-binder factory behind the sealed door", () => {
-  // The five always-on backends are keyed off each backend's OWN `.key` (the BackendKey axis is sealed —
-  // entry can't enumerate it). vLLM is the engine-bearing sixth, gated by the §D3 escape hatch. anth-direct
-  // (W9) is the sealed PAID-ONLY direct Anthropic-Messages backend — always constructed like its siblings.
-  const nonVllmKeys = ["openrouter", "agent-sdk", "anth-direct", "custom-openai", "local-light"] as const;
+  // The seven always-on backends are keyed off each backend's OWN `.key` (the BackendKey axis is sealed —
+  // entry can't enumerate it). vLLM is the engine-bearing eighth, gated by the §D3 escape hatch. anth-direct
+  // (W9) is the sealed PAID-ONLY direct Anthropic-Messages backend; venice (MA-1) is the hosted image source
+  // and comfyui (MA-8) the local image source — all always constructed like their siblings.
+  const nonVllmKeys = ["openrouter", "agent-sdk", "anth-direct", "custom-openai", "venice", "comfyui", "local-light"] as const;
 
-  test("vllmDisabled:false wires all six backends + a live engine handle, each under its own key", () => {
+  test("vllmDisabled:false wires all eight backends + a live engine handle, each under its own key", () => {
     const clock = createFrozenClock();
     const { backends, vllmEngine } = createBackendRegistry({
       now: clock.now,
@@ -198,7 +199,7 @@ describe("createBackendRegistry — the boot-binder factory behind the sealed do
       expect(backends.get(key)?.key).toBe(key);
     }
     expect(backends.get("vllm")?.key).toBe("vllm");
-    expect(backends.size).toBe(6);
+    expect(backends.size).toBe(8);
 
     // the engine lifecycle handle is returned so entry/lifecycle can start/stop the supervisor
     expect(vllmEngine).not.toBeNull();
@@ -216,7 +217,7 @@ describe("createBackendRegistry — the boot-binder factory behind the sealed do
       expect(backends.get(key)?.key).toBe(key);
     }
     expect(backends.has("vllm")).toBe(false);
-    expect(backends.size).toBe(5);
+    expect(backends.size).toBe(7);
     // no engine to supervise — a role resolving to vllm then fail-closes on the unwired key (correct).
     expect(vllmEngine).toBeNull();
   });

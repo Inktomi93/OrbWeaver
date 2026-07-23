@@ -116,6 +116,45 @@ describe("updateUserSettingsSection", () => {
     expect(view.config.theme.selectedThemeId).toBe("theme_00000000000000000000000002");
   });
 
+  test("agentConnections: a NULL patch CLEARS a populated per-agent override (the Agents-table Remove path)", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const p = principal(await seedUser(db, { id: "user_agentconn_null" }), "user");
+    // Populate an override, then Remove it. Remove writes `null` — the ONE merge-expressible clear: the
+    // resolver reads a null entry as no-override, and deepMergePlain replaces a leaf with a non-object.
+    await h.svc.updateUserSettingsSection({
+      principal: p,
+      input: { section: "routing", patch: { agentConnections: { agentX: { api: "chat-completions", source: "vllm", model: "local" } } } },
+    });
+    expect((await h.svc.getUserSettings({ principal: p })).config.routing.agentConnections["agentX"]).toEqual({
+      api: "chat-completions",
+      source: "vllm",
+      model: "local",
+    });
+    await h.svc.updateUserSettingsSection({
+      principal: p,
+      input: { section: "routing", patch: { agentConnections: { agentX: null } } },
+    });
+    expect((await h.svc.getUserSettings({ principal: p })).config.routing.agentConnections["agentX"]).toBeNull();
+  });
+
+  test("agentConnections: a `{}` patch does NOT clear a populated override (why Remove writes null, not {})", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const p = principal(await seedUser(db, { id: "user_agentconn_noop" }), "user");
+    await h.svc.updateUserSettingsSection({
+      principal: p,
+      input: { section: "routing", patch: { agentConnections: { agentX: { source: "vllm" } } } },
+    });
+    // deepMergePlain recurses into the existing entry; `{}` merges nothing → the override SURVIVES. This
+    // is the exact deep-merge no-op the null sentinel exists to avoid.
+    await h.svc.updateUserSettingsSection({
+      principal: p,
+      input: { section: "routing", patch: { agentConnections: { agentX: {} } } },
+    });
+    expect((await h.svc.getUserSettings({ principal: p })).config.routing.agentConnections["agentX"]).toEqual({ source: "vllm" });
+  });
+
   test("the regex section patches its scripts array (REPLACE, not merge — the autosave contract)", async () => {
     const db = await freshDb();
     const h = makeHarness(db);

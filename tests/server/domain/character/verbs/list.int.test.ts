@@ -283,7 +283,7 @@ describe("list — sort (recent / alpha) + stale-cursor rejection", () => {
       name: "Hefty",
       description: "A verbose character with a long, detailed backstory spanning many sentences.",
       personality: "curious, meticulous, verbose",
-      greetings: ["Greetings, traveller — welcome to my exceedingly wordy realm."],
+      greetings: [{ text: "Greetings, traveller — welcome to my exceedingly wordy realm." }],
     };
     const made = await svc.create({ principal: principal(owner), input });
 

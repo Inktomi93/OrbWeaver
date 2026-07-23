@@ -43,8 +43,8 @@ function charForSpeaker(ctx: AssembleContext): string {
  *  ruling): an agent seat voices through the assemble cast but NEVER appears in these macro name lists.
  *  `castMembers` is index-aligned with `cast`; a hand-built ctx with no `castMembers` treats every slot as
  *  a character (solo/legacy degenerate). Muting is orthogonal — the caller passes `cast` or `castNotMuted`. */
-function characterCastNames(ctx: AssembleContext, members: readonly AssembleCharacter[]): string[] {
-  return members.filter((_, i) => (ctx.castMembers?.[i]?.kind ?? "character") === "character").map((m) => m.name);
+function characterCastNames(_ctx: AssembleContext, members: readonly AssembleCharacter[]): string[] {
+  return members.map((m) => m.name);
 }
 
 /** Per-render extras layered onto the shared option base. All optional. */
@@ -90,7 +90,6 @@ function macroOptionsFor(ctx: AssembleContext, persona: AssemblePersona | null |
     compactSummary: u(ctx.compactSummary),
     memory: u(ctx.memory),
     databank: u(ctx.databank),
-    rpgMacros: ctx.rpgMacros,
     guidedInstruction: u(ctx.guidedInstruction),
     timezone: ctx.timezone,
     nowMs: ctx.nowMs,

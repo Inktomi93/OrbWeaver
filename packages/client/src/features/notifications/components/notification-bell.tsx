@@ -42,6 +42,8 @@ const ROW_COPY: {
   "handoff-accepted": (p) => `${p.newHostHandle} is now hosting your chat`,
   "deferred-turn-dropped": (p) =>
     p.reason === "consent" ? "An AI reply couldn't run — the host hasn't allowed it" : "An AI reply couldn't run — that chat is no longer available",
+  "automation-notice": (p) => `Automation notice: ${p.message}`,
+  "plugin-disabled": () => "A plugin was disabled",
 };
 
 function rowCopy(payload: NotificationEvent): string {

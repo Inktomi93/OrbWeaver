@@ -158,11 +158,7 @@ export interface ImageryContext {
   /** Owner-gated byte read of the caller's OWN asset (B3 avatar reference + editImage source) — assets'
    *  `readOwnedAssetBytes` (EC-B). Throws assets' not-found on non-owned; imagery does not re-gate. */
   readonly readAsset: (caller: Principal, assetId: AssetId) => Promise<{ readonly bytes: Uint8Array; readonly mime: string }>;
-  /** Read one CURATED pose skeleton's BYTES by its library id (comfyui-control §4.12, C6d). Curated poses are
-   *  GLOBAL shipped-static content (NOT per-user CAS — the C6b ruling), so this reads the shipped skeleton file
-   *  under the client-static pose-library root (path-confined at the adapter; `null` for an unknown/escaping id).
-   *  The generatePicture verb threads the bytes into the executor's `edit.poseControl`. BYO poses use `readAsset`. */
-  readonly readCuratedPose: (poseRef: string) => Promise<Uint8Array | null>;
+
   /** `character.get` — the card (avatar lookup, B3) PLUS the row's `contentHash` the identity hash reads
    *  (I3, imagery-design/03 §4.3). `CharacterDetail` satisfies this at compose; imagery never imports the
    *  character DOMAIN view (`CharacterCard` carries no `contentHash` — it lives on the flat row). */

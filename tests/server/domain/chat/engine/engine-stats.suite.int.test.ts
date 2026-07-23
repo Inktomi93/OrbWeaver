@@ -23,6 +23,8 @@ import { beforeEach, describe } from "vitest";
 import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context";
 import type { TurnPrep, TurnStreamChunk } from "../../../../../packages/server/src/domain/chat/contract/results";
 import { createTurnEngine } from "../../../../../packages/server/src/domain/chat/engine/engine";
+import { loadWitnessHorizons } from "../../../../../packages/server/src/domain/chat/memory/persistence/queries";
+import { recallMemory } from "../../../../../packages/server/src/domain/chat/memory/recall/recall";
 import { chatCreatedDelta } from "../../../../../packages/server/src/domain/chat/substrate/stats-delta";
 import { applyStatsDelta } from "../../../../../packages/server/src/domain/stats/write/apply-delta";
 import { reconcileStats } from "../../../../../packages/server/src/domain/stats/write/rebuild-from-canon";
@@ -165,6 +167,8 @@ function engineFor(database: Db, deltas: StatsDelta[], queue: readonly RunChatTu
     lockTtlMs: 60_000,
     generateSegments: async () => ({ written: 0, skipped: 0 }),
     generateDigests: async () => ({ written: 0, skipped: 0 }),
+    loadWitnessHorizons,
+    recallMemory,
   });
 }
 
@@ -391,6 +395,8 @@ describe("engine stats — gen-time is populated on the live path (F2)", () => {
       lockTtlMs: 60_000,
       generateSegments: async () => ({ written: 0, skipped: 0 }),
       generateDigests: async () => ({ written: 0, skipped: 0 }),
+      loadWitnessHorizons,
+      recallMemory,
     });
 
     await engine.runTurn(prepOf(chatId, { kind: "send", speakerCharacterId: charId }));

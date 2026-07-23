@@ -41,6 +41,10 @@ function cardOf(name: string, regexScripts: RegexScript[] = []): CharacterCard {
     creatorNotes: null,
     creator: null,
     cardVersion: null,
+    nickname: null,
+    source: null,
+    creationDate: null,
+    modificationDate: null,
     regexScripts,
     extensions: null,
     residualData: null,
@@ -235,6 +239,66 @@ describe("gatherAssembleContext — memory recall (the shared/merged bucket)", (
 
     expect(out.memory).toBe("");
     expect(search.calls).toHaveLength(0);
+  });
+});
+
+describe("gatherAssembleContext — the {{databank}} slot GATHER (DB6)", () => {
+  test("op absent ⇒ databank unset (byte-identical no-op)", async () => {
+    const { host, chatId, aria } = await seedRoom("db_absent");
+    await seedMessage(db, chatId, 1, { role: "user", authorUserId: host, content: "dragons" });
+    const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardOf("Aria")) });
+
+    const out = await gatherAssembleContext(
+      ctx,
+      { chatId: castId(chatId), runAsUserId: host, model: "m", castCharacterIds: [aria], personaIds: [], pendingUserText: "tell me more" },
+      foreignOf(),
+    );
+
+    expect(out.databank).toBeUndefined();
+  });
+
+  test("op returns null ⇒ databank unset (same empty resolution as absent)", async () => {
+    const { host, chatId, aria } = await seedRoom("db_null");
+    await seedMessage(db, chatId, 1, { role: "user", authorUserId: host, content: "dragons" });
+    const ctx = makeChatContext(db, {
+      getCard: () => Promise.resolve(cardOf("Aria")),
+      gatherDatabank: () => Promise.resolve(null),
+    });
+
+    const out = await gatherAssembleContext(
+      ctx,
+      { chatId: castId(chatId), runAsUserId: host, model: "m", castCharacterIds: [aria], personaIds: [], pendingUserText: "tell me more" },
+      foreignOf(),
+    );
+
+    expect(out.databank).toBeUndefined();
+  });
+
+  test("op returns text ⇒ slot set; query = pending + last committed turns", async () => {
+    const { host, chatId, aria } = await seedRoom("db_hit");
+    await seedMessage(db, chatId, 1, { role: "user", authorUserId: host, content: "first turn" });
+    await seedMessage(db, chatId, 2, { role: "assistant", characterId: aria, content: "second turn" });
+    const calls: { chatId: string; queryText: string; tokenBudget: number }[] = [];
+    const ctx = makeChatContext(db, {
+      getCard: () => Promise.resolve(cardOf("Aria")),
+      gatherDatabank: (args) => {
+        calls.push(args);
+        return Promise.resolve({ text: "# Doc\nretrieved passage" });
+      },
+    });
+
+    const out = await gatherAssembleContext(
+      ctx,
+      { chatId: castId(chatId), runAsUserId: host, model: "m", castCharacterIds: [aria], personaIds: [], pendingUserText: "tell me more about that" },
+      foreignOf(),
+    );
+
+    expect(out.databank).toBe("# Doc\nretrieved passage");
+    expect(calls).toHaveLength(1);
+    // Most-recent-first: the pending message, then the last 2 committed turns.
+    expect(calls[0]?.queryText).toBe("tell me more about that\nsecond turn\nfirst turn");
+    expect(calls[0]?.chatId).toBe(chatId);
+    expect(calls[0]?.tokenBudget).toBeGreaterThan(0);
   });
 });
 

@@ -320,7 +320,6 @@ interface SeedDemoDeps {
   readonly log: (msg: string) => void;
 }
 
-// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: a throwaway dev seeder is a flat sequence of "create the demo entity" steps — splitting it would scatter the demo's shape across helpers for no reuse.
 async function seedDemoContent(deps: SeedDemoDeps): Promise<void> {
   const { services, built, owner, ownerId, log } = deps;
 

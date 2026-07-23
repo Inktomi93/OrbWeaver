@@ -12,6 +12,8 @@ import {
   rawToolChoice,
   rawWireTools,
   redactHeaders,
+  redactSecretsFromText,
+  secretHeaderValues,
 } from "@orb/server/infra/providers/backends/kit/openai-compat";
 import { describe } from "vitest";
 import { expect, test } from "../../../../../../support/fixtures";
@@ -74,6 +76,59 @@ describe("redactHeaders", () => {
       "content-type": "application/json",
       "x-title": "orbweaver",
     });
+  });
+});
+
+describe("secretHeaderValues", () => {
+  test("returns the VALUES of secret-named headers only (the redactHeaders name signal)", () => {
+    expect(
+      secretHeaderValues({
+        Authorization: "Bearer sk-secret",
+        "x-api-key": "key-123",
+        "x-session-token": "tok",
+        "content-type": "application/json",
+        "x-title": "orbweaver",
+      }),
+    ).toEqual(["Bearer sk-secret", "key-123", "tok"]);
+  });
+
+  test("null map → no secrets; empty-valued secret headers are skipped", () => {
+    expect(secretHeaderValues(null)).toEqual([]);
+    expect(secretHeaderValues({ authorization: "" })).toEqual([]);
+  });
+});
+
+describe("redactSecretsFromText", () => {
+  test("replaces every occurrence of a known secret literal by VALUE", () => {
+    const key = "sk-test-abc123DEFsecretvalue";
+    const body = `{"echoed":{"Authorization":"Bearer ${key}"},"seen":"${key}"}`;
+    const out = redactSecretsFromText(body, [key]);
+    expect(out).not.toContain(key);
+    // The bearer frame around it is masked too (defense-in-depth), and the bare literal echo is gone.
+    expect(out).toContain("«redacted»");
+  });
+
+  test("masks a Bearer token and an sk- key even when no exact literal is supplied (defense-in-depth)", () => {
+    const out = redactSecretsFromText('{"h":"Bearer some-reshaped-token","k":"sk-abcdefghijklmnop01"}', []);
+    expect(out).not.toContain("some-reshaped-token");
+    expect(out).not.toContain("sk-abcdefghijklmnop01");
+    expect(out).toContain("Bearer «redacted»");
+  });
+
+  test("does NOT over-redact legitimate content (no secrets present)", () => {
+    const clean = '{"choices":[{"message":{"content":"ping ok — model responded"}}],"id":"chatcmpl-42"}';
+    expect(redactSecretsFromText(clean, [])).toBe(clean);
+  });
+
+  test("skips too-short literals (collision-prone) rather than shredding legitimate text", () => {
+    // A 3-char "secret" must not blast every "abc" out of an unrelated body.
+    const body = '{"content":"the alphabet abc appears here"}';
+    expect(redactSecretsFromText(body, ["abc"])).toBe(body);
+  });
+
+  test("regex-meta in a secret literal is escaped (matched literally, not as a pattern)", () => {
+    const key = "sk-a.b*c(secret)+lit";
+    expect(redactSecretsFromText(`echo=${key}`, [key])).not.toContain(key);
   });
 });
 

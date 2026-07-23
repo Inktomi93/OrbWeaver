@@ -11,9 +11,9 @@ import checker from "vite-plugin-checker";
 // unchanged; the stage exports VITE_PORT + VITE_API_TARGET pointed at ITS own backend. The presence of the
 // `VITE_API_TARGET` env read below is ALSO the snap-stage version tripwire — a stage ref that predates this
 // line is rejected up front (a silent proxy-to-the-dev-server would defeat isolation), so keep the literal.
-// biome-ignore lint/style/noProcessEnv: VITE_PORT is a dev-harness knob (the snap-stage isolated serving mode) — ambient tooling env, not app runtime config (foundation/env owns that).
+
 const DEV_SERVER_PORT = Number(process.env["VITE_PORT"]) || 5173;
-// biome-ignore lint/style/noProcessEnv: VITE_API_TARGET is the same snap-stage harness knob — the isolated stage points vite's /api + /join proxy at ITS backend, never the dev server's :8788.
+
 const API_PROXY_TARGET = process.env["VITE_API_TARGET"] ?? "http://127.0.0.1:8788";
 
 // @orb/client build — fully es2025, React-Compiler full-compile from day one (D54). Entry is

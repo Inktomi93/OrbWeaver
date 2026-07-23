@@ -24,7 +24,7 @@ import type {
 } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { ThemeBackground } from "@orb/contracts/theme";
-import type { CharacterId, ChatId, ChatInjectionId, MessageVariantId, RpgGameId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, ChatInjectionId, MessageVariantId, UserId } from "@orb/kit/ids";
 
 export type {
   AssembledPrompt,
@@ -106,9 +106,7 @@ export interface ChatDetail {
    *  unset. Applied at the app-root background layer in a TRUE-SOLO room, above the card-carried twin; INERT
    *  for every viewer in any other composition (client-resolved). */
   readonly background: ThemeBackground | null;
-  /** GAP #4 — the chat's rpg game id (parsed `metadata.rpg.gameId`), or `null` when this chat is not a game.
-   *  The client's SYNC `hasRpgGame` signal (`rpgGameId !== null`) — game-ness without a per-chat rpg query. */
-  readonly rpgGameId: RpgGameId | null;
+
   readonly opening: OpeningPolicy | null;
   /** The portable compaction checkpoint (D25) — the summary text + the seq it covers through. */
   readonly compactSummary: string | null;

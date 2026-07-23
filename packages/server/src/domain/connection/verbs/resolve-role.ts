@@ -9,7 +9,7 @@ import { castId } from "@orb/kit/ids";
 import { env, vllmAgentModelAlias } from "#foundation/env";
 import type { ConnectionContext } from "../context";
 import { AgentModelHealError, ConnectionRoutingError } from "../contract/errors";
-import type { AgentOverride, ResolveChatCapabilityParams, ResolveRoleParams } from "../contract/params";
+import type { ResolveChatCapabilityParams, ResolveRoleParams, RouteOverride } from "../contract/params";
 import type { ConnectionService } from "../contract/service";
 import { getCachedAgentSdkModels } from "../substrate/agent-sdk-model-cache";
 import { resolveCapability } from "../substrate/capability";
@@ -36,7 +36,7 @@ const DEFAULT_IMAGE_SOURCE: CredentialSource = "openrouter";
 
 /** Exhaustive over `RoutingRoleKey`; `agentOverride` fields beat the role default. */
 const ROLE_SELECTORS: {
-  readonly [K in ResolveRoleParams["role"]]: (roleDefaults: RoleDefaults, override: AgentOverride | undefined, isOwner: boolean) => RouteSelection;
+  readonly [K in ResolveRoleParams["role"]]: (roleDefaults: RoleDefaults, override: RouteOverride | undefined, isOwner: boolean) => RouteSelection;
 } = {
   // The unconfigured chat default is owner-conditional: owner falls back to max-pro-sub (agent-sdk),
   // everyone else to local vllm (max-pro-sub is owner-only and would throw for a non-owner).
@@ -46,24 +46,7 @@ const ROLE_SELECTORS: {
     model: ov?.model ?? rd.chat?.model ?? null,
     chatModel: true,
   }),
-  // The agent role DEFAULTS TO THE USER'S CHAT CONNECTION (owner ruling 2026-07-21) — resolution order:
-  // (1) the per-agent override `ov` (agentOverride ?? roleDefaults.agentConnections[agentId]) — "that agent
-  // mapped to something specific in connections per agent"; (2) a general `roleDefaults.agent` partial (kept as
-  // an intermediate layer for back-compat — option (a): a user who set one still gets it); (3) THE RESOLVED
-  // CHAT CONNECTION — NOT a hardcoded agent-sdk/DEFAULT_AGENT_SOURCE. Room agent turns ride the CHAT engine
-  // (backend-generic — chat-completions/responses/anthropic-messages → runChatTurn, agent-sdk → runAgentTurn),
-  // so a chat-completions+vllm user's agent role now runs runChatTurn on vLLM instead of crashing Claude Code
-  // against the loopback. Solo buddy still validates api:"agent-sdk" at its own entry (an honest refusal, not a
-  // silent fail) when the resolved agent connection isn't agent-sdk.
-  agent: (rd, ov, isOwner) => {
-    const chat = ROLE_SELECTORS.chat(rd, undefined, isOwner);
-    return {
-      api: ov?.api ?? rd.agent?.api ?? chat.api,
-      source: ov?.source ?? rd.agent?.source ?? chat.source,
-      model: ov?.model ?? rd.agent?.model ?? chat.model,
-      chatModel: true,
-    };
-  },
+
   embed: (rd, ov) => ({
     api: DEFAULT_CHAT_API,
     source: ov?.source ?? rd.embed?.source ?? DEFAULT_LOCAL_SOURCE,
@@ -126,14 +109,7 @@ function assertCoherent(api: ChatApi, source: CredentialSource): void {
     }
     return;
   }
-  if (api === "anthropic-messages") {
-    // Two paid-key sources reach anth-direct: the openrouter skin and the first-party anthropic key (W11).
-    // The free Max sub can never reach the direct paid endpoint (the sub-exclusion).
-    if (source !== "openrouter") {
-      throw new ConnectionRoutingError(api, source);
-    }
-    return;
-  }
+
   if (source === "max-pro-sub") {
     throw new ConnectionRoutingError(api, source);
   }
@@ -178,17 +154,9 @@ function healModel(selection: RouteSelection, now: number): ModelId {
  *  `resolveChatCapability` use. Reads the acting principal's OWN settings (no caller-supplied user id). */
 async function resolveRoleSelection(ctx: ConnectionContext, params: ResolveRoleParams): Promise<{ selection: RouteSelection; model: ModelId }> {
   const settings = await ctx.loadUserSettings(params.principal.userId);
-  // The per-agent connection override (D67 amendment): a seated agent whose id is configured in
-  // `routing.agentConnections` runs on THAT connection, beating `roleDefaults.agent`. An explicit
-  // `agentOverride` (a per-turn participant override) still wins over the stored per-agent connection.
-  // Only consulted for the agent role (`agentPrincipalId` is set only on that resolve path).
-  const perAgentOverride = params.agentPrincipalId === undefined ? undefined : settings.routing.agentConnections[params.agentPrincipalId];
-  // A `null` stored entry is the CLEARED-override marker (the Agents-table Remove writes null) — coalesce
-  // it to `undefined` so the selector cascades to `roleDefaults.agent`, identical to an absent id.
-  const effectiveOverride = params.agentOverride ?? perAgentOverride ?? undefined;
   const selection = applyVllmFallback(
     params.role,
-    ROLE_SELECTORS[params.role](settings.routing.roleDefaults, effectiveOverride, ctx.isOwner(params.principal)),
+    ROLE_SELECTORS[params.role](settings.routing.roleDefaults, undefined, ctx.isOwner(params.principal)),
     ctx.vllmAvailable,
   );
   assertCoherent(selection.api, selection.source);

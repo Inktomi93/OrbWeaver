@@ -5,8 +5,8 @@ import type { ResolvedIdentity } from "@orb/contracts/identity";
 import type { SessionView } from "@orb/contracts/session";
 import type { Db } from "@orb/db";
 import type { Handle, SessionId, UserId } from "@orb/kit/ids";
-import type { CreateSessionParams, ProvisionAgentParams } from "./params";
-import type { CreateSessionResult, ProvisionAgentResult, ProvisionResult, UserPrincipalFields, ValidatedSession } from "./results";
+import type { CreateSessionParams } from "./params";
+import type { CreateSessionResult, ProvisionResult, UserPrincipalFields, ValidatedSession } from "./results";
 
 /** The DI bundle every verb closes over, wired at the composition root. */
 export interface SessionsContext {
@@ -52,8 +52,4 @@ export interface SessionsService {
    *  unknown/SSO-only/wrong-password/disabled — all collapse into one leak-free null with the same KDF
    *  time burned (no user-enumeration timing oracle). @internal */
   authenticate: (handle: string, password: string) => Promise<UserId | null>;
-  /** Mint (or idempotently adopt) an agent principal for `(ownerUserId, sourceKind)`. Gates the owner,
-   *  inserts the agent `users` row + satellite atomically, audits `AGENT_PRINCIPAL_MINTED`.
-   *  `created:false` = idempotent re-call or race loser. FLAG[PD-17]: no production caller until AP3. */
-  provisionAgentPrincipal: (params: ProvisionAgentParams) => Promise<ProvisionAgentResult>;
 }

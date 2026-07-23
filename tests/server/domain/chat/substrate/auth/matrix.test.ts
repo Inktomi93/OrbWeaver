@@ -14,11 +14,17 @@ describe("CHAT_VERB_AUTHORITY — the per-verb matrix", () => {
     expect(CHAT_VERB_AUTHORITY.setGroupConfig).toBe("host");
     expect(CHAT_VERB_AUTHORITY.setRoomOverrides).toBe("host");
     expect(CHAT_VERB_AUTHORITY.addCharacterToChat).toBe("host");
+    expect(CHAT_VERB_AUTHORITY.removeCharacterFromChat).toBe("host");
     expect(CHAT_VERB_AUTHORITY.kick).toBe("host");
     expect(CHAT_VERB_AUTHORITY.createInvite).toBe("host");
     expect(CHAT_VERB_AUTHORITY.nominateHostHandoff).toBe("host");
     expect(CHAT_VERB_AUTHORITY.forceCharacterTurn).toBe("host");
     expect(CHAT_VERB_AUTHORITY.reattributeMessages).toBe("host");
+    // The full-prompt previews are host/admin: the assembled prompt merges every member's card at FULL, so a
+    // plain member reading it bypasses the D22 memberCardVisibility clamp (the verbs gate `requireHost`).
+    expect(CHAT_VERB_AUTHORITY.previewAssembly).toBe("host");
+    expect(CHAT_VERB_AUTHORITY.peekPrompt).toBe("host");
+    expect(CHAT_VERB_AUTHORITY.getShapeTrace).toBe("host"); // the content-free SHAPE inspector (PD-132)
     // reattributePersona is author-or-host (NOT host-only like the character axis) — a member re-stamps their
     // OWN user lines; the host any (the per-row gate + role/ownership belts live in the verb). Task #60 / §5.
     expect(CHAT_VERB_AUTHORITY.reattributePersona).toBe("author-or-host");

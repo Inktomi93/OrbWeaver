@@ -31,7 +31,7 @@ import type { PluginHostOps, PluginSpendGate } from "../contract/ops";
 /** A budget-exhausted plugin's spendy op is refused with THIS typed error — the membrane's host-fn reject arm
  *  contains it as guest errors-as-data (a caught `ok:false` to the guest, never a host crash). `detail` is the
  *  breached ceiling (`actions_daily` / `usd_daily`). */
-export class PluginBudgetExhaustedError extends Error {
+class PluginBudgetExhaustedError extends Error {
   constructor(detail: string) {
     super(`plugin budget exhausted: ${detail}`);
     this.name = "PluginBudgetExhaustedError";

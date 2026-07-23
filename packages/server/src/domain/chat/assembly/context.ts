@@ -5,7 +5,6 @@
 
 import type { CharacterCard } from "@orb/contracts/character";
 import type {
-  AgentSpeakerIdentity,
   AssembleCharacter,
   AssembleContext,
   AssemblePersona,
@@ -28,7 +27,7 @@ import { estimateTokens } from "@orb/kit/tokens";
 import { buildKeywordHaystack, matchEntryKeys } from "@orb/kit/world-info";
 import { getLog } from "#foundation/observability";
 import type { ChatContext } from "../context";
-import type { AgentCastMember, ApplyRegexReplaceOp } from "../contract/context";
+import type { ApplyRegexReplaceOp } from "../contract/context";
 import type { ResolvedPersonas } from "../contract/foreign";
 import type { GuidedSteer } from "../contract/params";
 import { renderInjection } from "./injections";
@@ -253,24 +252,6 @@ function toAssembleCharacter(card: CharacterCard): AssembleCharacter {
   };
 }
 
-/** An agent speaker's resolved SOUL → the same card-shaped `AssembleCharacter` slot a character card fills
- *  (D60; agent-principal-design/04 §5 — "the card-shape minus the card"). The soul `systemPrompt` rides the
- *  `AssembleCharacter.systemPrompt` override so it REPLACES the preset's main-prompt/system section for the
- *  agent's own turn (the per-speaker SHAPE picks this slot). No card body (`description: ""`), no world-info,
- *  no depth note — an agent has none; the soul carries NO tools (a room turn is a plain roleplay turn). */
-function soulToAssembleCharacter(identity: AgentSpeakerIdentity): AssembleCharacter {
-  return {
-    name: identity.displayName,
-    description: "",
-    personality: null,
-    scenario: null,
-    exampleMessages: null,
-    systemPrompt: identity.systemPrompt,
-    postHistoryInstructions: null,
-    depthPrompt: null,
-  };
-}
-
 /** Everything the engine/verb resolves at the composition seam + the chat-owned data this producer reads.
  *  File-local — the engine passes a structurally-matching literal (promptConfig/personas/memory are
  *  resolved by other domains, not fetched here). */
@@ -282,7 +263,7 @@ interface BuildAssembleContextInput {
    *  Appended to `cast`/`castMembers` AFTER the characters (index-aligned) so the per-speaker SHAPE renders
    *  an agent's soul as its own card. Empty (the overwhelming case) ⇒ byte-identical to a character-only room.
    *  NOT folded into `castCharacterIds` — agents have no character id / world-info / memory bucket. */
-  readonly agentCast?: readonly AgentCastMember[] | undefined;
+
   /** The `speakerKey`s of the present MUTED seats (character + agent), from `loadRoom`'s candidate `disabled`
    *  axis — the producer of `castNotMuted`. Absent ⇒ nothing muted (or a hand-built ctx) ⇒ full cast. */
   readonly mutedSpeakerKeys?: ReadonlySet<string> | undefined;
@@ -364,7 +345,7 @@ function buildBaseContext(
     cast,
     // Derived from castMembers so it stays index-aligned with `cast` even once agents append (agent seats
     // carry no characterId → null). A character-only room is byte-identical to `[...input.castCharacterIds]`.
-    castCharacterIds: castMembers.map((m) => (m.kind === "character" ? m.characterId : null)),
+    castCharacterIds: castMembers.map((m) => m.characterId),
     castMembers,
     // The non-muted CHARACTER subset — the `{{groupNotMuted}}` feed (owner ruling: the group macros are
     // character-only; an agent voices via the assemble cast but never appears in a name list). Filtered by the
@@ -372,7 +353,7 @@ function buildBaseContext(
     // stays in `cast` (its card + lore still contribute) but drops here.
     castNotMuted: cast.filter((_, i) => {
       const ref = castMembers[i];
-      return ref !== undefined && ref.kind === "character" && input.mutedSpeakerKeys?.has(speakerKey(ref)) !== true;
+      return ref !== undefined && input.mutedSpeakerKeys?.has(speakerKey(ref)) !== true;
     }),
     // Null-anchor fallback: an unset/dead anchor resolves to the active persona so card-derived macros
     // never collapse to the literal "User"; a SET anchor never follows a mid-chat swap.
@@ -397,8 +378,6 @@ function buildBaseContext(
   setIf(base, "memory", input.memory);
   // Absent (undefined) ⇒ skipped ⇒ byte-identical to a non-databank build (the null-op pin, DB6).
   setIf(base, "databank", input.databank);
-  // Absent (no game / gather null) ⇒ skipped ⇒ every rpg macro resolves empty (byte-identical non-game turn).
-  setIf(base, "rpgMacros", input.rpgMacros);
   setIf(base, "compactSummary", input.compactSummary);
   setIf(base, "guidedInstruction", input.guidedInstruction);
   // The {{persona}} marker emits only when the active persona's placement is in_prompt (default/absent);
@@ -630,20 +609,13 @@ function authorsNoteCandidates(ctx: AssembleContext): {
 
 /** Produces the immutable per-turn AssembleContext SHAPE consumes per speaker; never mutated after return. */
 export async function buildAssembleContext(ctx: ChatContext, input: BuildAssembleContextInput, out?: SendRegexResult): Promise<AssembleContext> {
-  // RESOLVE — live cast cards; castMembers stays index-aligned with the filtered cast (a gone/null card
-  // drops from both). Seated agents (D60) append AFTER the characters as soul-cards on the SAME cast axis —
-  // one turn path, no if(isAgent) branch; an empty agentCast is byte-identical to a character-only room.
   const cards = await Promise.all(input.castCharacterIds.map((characterId) => ctx.getCard({ ownerId: input.ownerId, characterId })));
   const present = input.castCharacterIds.flatMap((characterId, i) => {
     const card = cards[i];
     return card ? [{ characterId, card }] : [];
   });
-  const agentCast = input.agentCast ?? [];
-  const cast = [...present.map((p) => toAssembleCharacter(p.card)), ...agentCast.map((a) => soulToAssembleCharacter(a.identity))];
-  const castMembers: SpeakerRef[] = [
-    ...present.map((p): SpeakerRef => ({ kind: "character", characterId: p.characterId })),
-    ...agentCast.map((a): SpeakerRef => ({ kind: "agent", userId: a.userId })),
-  ];
+  const cast = present.map((p) => toAssembleCharacter(p.card));
+  const castMembers: SpeakerRef[] = present.map((p): SpeakerRef => ({ kind: "character", characterId: p.characterId }));
   const character: AssembleCharacter = cast[0] ?? { name: "Assistant", description: "" };
 
   // ── GATHER — the 4-scope WI pool (memory/recall/vars are engine-supplied inputs). ──

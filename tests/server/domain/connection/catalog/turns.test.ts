@@ -25,10 +25,6 @@ type Sampling = ModelCapability["sampling"];
 //   openai-compat (Claude-via-OR chat-completions) and anthropic-cli (agent-sdk / max-pro-sub).
 const compat = (model: string): Turns => resolveModelCapability(model, "openrouter", "chat-completions").turns;
 const cli = (model: string): Turns => resolveModelCapability(model, "max-pro-sub", "agent-sdk").turns;
-// anthropic-direct = the OR-key `/v1/messages` skin. It DOES cache (probe-confirmed 2026-07-10: 13001 read
-// once the reducer read usage from `message_delta`, where OR delivers it — not `message_start`). So its cell
-// is explicitPromptCache:true like every other cache-bearing Anthropic wire.
-const direct = (model: string): Turns => resolveModelCapability(model, "openrouter", "anthropic-messages").turns;
 
 describe("cache gate — explicitPromptCache is an ANTHROPIC-FAMILY fact (ruling 3)", () => {
   test("anthropic Claude ⇒ true on BOTH cache-bearing shapes", () => {
@@ -43,12 +39,6 @@ describe("cache gate — explicitPromptCache is an ANTHROPIC-FAMILY fact (ruling
     expect(compat("google/gemini-2.5-pro")?.explicitPromptCache).toBe(false);
   });
 
-  test("anthropic-direct (OR /v1/messages) ⇒ TRUE — OR caches it (13001 read, probe-confirmed)", () => {
-    // OR's /v1/messages passthrough caches like chat-completions; the earlier 0/0 was a reducer reading usage
-    // from message_start (OR sends it in message_delta), now fixed. So anth-direct is a real caching wire.
-    expect(direct("claude-opus-4-8")?.explicitPromptCache).toBe(true);
-    expect(direct("claude-haiku-4-5")?.explicitPromptCache).toBe(true);
-  });
 });
 
 describe("cache gate — cacheMinTokens per-model floor (part 02 §5d table)", () => {
@@ -145,6 +135,34 @@ describe("refineAnthDirectSampling — the direct-transport seam is WIRED (not a
     const base: Sampling = { temperature: { min: 0, max: 2 } };
     expect(refineAnthDirectSampling("claude-opus-4-8", "anthropic-cli", base)).toBe(base);
     expect(refineAnthDirectSampling("claude-haiku-4-5", "openai-compat", base)).toBe(base);
+  });
+
+  test("PROBED-OPEN (first-party wire): every id at/below Opus 4.6 resolves the full pre-cutoff set on the direct shape", () => {
+    // The hand-run first-party probe (raw api.anthropic.com) confirmed each of these honors
+    // temperature/top_p/top_k (all 200), so its entry is OPEN. The base is discarded for the seed.
+    //   2026-07-17: Haiku 4.5.  2026-07-18: Opus 4.1 / 4.5 / 4.6, Sonnet 4.5 / 4.6.
+    const base: Sampling = { temperature: { min: 0, max: 2 } };
+    for (const id of [
+      "claude-haiku-4-5",
+      "claude-haiku-4-5-20251001",
+      "claude-opus-4-1-20250805",
+      "claude-opus-4-5-20251101",
+      "claude-opus-4-6",
+      "claude-sonnet-4-5-20250929",
+      "claude-sonnet-4-6",
+    ]) {
+      expect(refineAnthDirectSampling(id, "anthropic-direct", base)).toEqual(ANTH_DIRECT_PRE_CUTOFF_SAMPLING);
+    }
+  });
+
+  test("post-cutoff models STAY fail-closed on the direct shape (released after Opus 4.6 → a 400 for sampling)", () => {
+    // The probe returned a 400 ("deprecated for this model") for every id released after Opus 4.6.
+    // Sonnet 5 is the load-bearing negative: SONNET_MODERN_RE matches it for cache-min, but the sampling
+    // table's pre-cutoff-only SONNET_4x regexes must NOT — a false-open here would 400 every live turn.
+    const base: Sampling = { temperature: { min: 0, max: 2 } };
+    for (const id of ["claude-opus-4-7", "claude-opus-4-8", "claude-sonnet-5", "claude-fable-5"]) {
+      expect(refineAnthDirectSampling(id, "anthropic-direct", base)).toEqual({});
+    }
   });
 
   test("the opened-entry sampling set uses Anthropic's 0–1 temp range (NOT the OpenAI 0–2)", () => {

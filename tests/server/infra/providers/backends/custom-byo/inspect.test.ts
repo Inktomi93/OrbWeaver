@@ -43,6 +43,53 @@ describe("inspectCustomByoEndpoint", () => {
     expect(result.response?.bodyPreview).toBe('{"ok":true}');
   });
 
+  test("SCRUBS an echoed key out of bodyPreview — an httpbin-style endpoint reflecting the request (P0 repro)", async () => {
+    const echoKey = "sk-test-abc123DEFsecretvalue";
+    const customToken = "team-alpha-secret-token-xyz";
+    // httpbin.org/anything reflects the request headers verbatim in its JSON body.
+    vi.stubGlobal("fetch", (_url: string | URL, init?: RequestInit): Response => {
+      const echoed = Object.fromEntries(new Headers(init?.headers).entries());
+      return new Response(JSON.stringify({ headers: echoed, note: "your request, reflected" }), {
+        status: 200,
+        statusText: "OK",
+      });
+    });
+
+    const result = await inspectCustomByoEndpoint({
+      baseUrl: BASE_URL,
+      apiKey: echoKey,
+      headers: { "x-api-key": customToken, "x-team": "alpha" },
+      model: "local-model",
+      includeBody: null,
+      excludeBody: null,
+    });
+
+    const preview = result.response?.bodyPreview ?? "";
+    // The plaintext key (and the bearer frame around it) NEVER appears in the display-eligible body…
+    expect(preview).not.toContain(echoKey);
+    expect(preview).not.toContain(`Bearer ${echoKey}`);
+    // …nor does the secret-valued custom auth header the endpoint echoed back.
+    expect(preview).not.toContain(customToken);
+    // The sentinel is present (proving we scrubbed, not just failed to echo), and non-secret content survives.
+    expect(preview).toContain("«redacted»");
+    expect(preview).toContain("your request, reflected");
+  });
+
+  test("does NOT over-redact a normal (non-echoing) response", async () => {
+    const clean = '{"choices":[{"message":{"content":"ping ok"}}],"id":"chatcmpl-7"}';
+    vi.stubGlobal("fetch", (): Response => new Response(clean, { status: 200, statusText: "OK" }));
+    const result = await inspectCustomByoEndpoint({
+      baseUrl: BASE_URL,
+      apiKey: SECRET_KEY,
+      headers: null,
+      model: "m",
+      includeBody: null,
+      excludeBody: null,
+    });
+    // A legitimate completion body is untouched — no secret material to strip.
+    expect(result.response?.bodyPreview).toBe(clean);
+  });
+
   test("never throws on an unreachable endpoint — returns ok:false + the transport error", async () => {
     vi.stubGlobal("fetch", (): never => {
       throw new Error("ECONNREFUSED");

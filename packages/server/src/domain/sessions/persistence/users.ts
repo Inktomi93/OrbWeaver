@@ -1,7 +1,6 @@
-import type { AgentSourceKind, UserKind, UserRole } from "@orb/contracts/identity";
+import type { UserRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
-import { agentPrincipals, users } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
+import { users } from "@orb/db";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 
@@ -67,53 +66,6 @@ export async function selectForProvisionById(db: Db, id: UserId): Promise<Provis
 export async function selectIdByHandle(db: Db, handle: Handle): Promise<UserId | undefined> {
   const rows = await db.select({ id: users.id }).from(users).where(eq(users.handle, handle)).limit(1);
   return rows.at(0)?.id;
-}
-
-/** The `kind` of a user row — the `sessions.create` agent-refusal belt: an agent principal is structurally
- *  sessionless, so a session must never be minted for one. FLAG[PD-17]. */
-export async function selectKindById(db: Db, id: UserId): Promise<UserKind | undefined> {
-  const rows = await db.select({ kind: users.kind }).from(users).where(eq(users.id, id)).limit(1);
-  return rows.at(0)?.kind;
-}
-
-/** The `provisionAgentPrincipal` owner-gate read: the prospective owner's kind + enabled state. A human may
- *  own agents; a non-human or disabled owner is refused. */
-export async function selectMintOwner(db: Db, id: UserId): Promise<{ kind: UserKind; enabled: boolean } | undefined> {
-  const rows = await db.select({ kind: users.kind, enabled: users.enabled }).from(users).where(eq(users.id, id)).limit(1);
-  return rows.at(0);
-}
-
-/** The `provisionAgentPrincipal` mint, as two unexecuted statements for one `db.batch`. Atomic: a crash
- *  never leaves an agent `users` row without its satellite. No `onConflictDoNothing` on the users insert:
- *  the unique violation is the race arbiter — it throws, aborting the batch, and the verb re-reads the
- *  winner. */
-export function agentMintStatements(
-  db: Db,
-  row: {
-    agentUserId: UserId;
-    handle: Handle;
-    ownerUserId: UserId;
-    sourceKind: AgentSourceKind;
-    now: number;
-  },
-): BatchStmt[] {
-  return [
-    db.insert(users).values({
-      id: row.agentUserId,
-      handle: row.handle,
-      role: "user",
-      kind: "agent",
-      ownerUserId: row.ownerUserId,
-      enabled: true,
-      createdAt: row.now,
-      updatedAt: row.now,
-    }),
-    db.insert(agentPrincipals).values({
-      userId: row.agentUserId,
-      sourceKind: row.sourceKind,
-      createdAt: row.now,
-    }),
-  ];
 }
 
 /** The current owner's id, or `undefined` if none exists yet. `provisionIdentity` reads this to enforce the

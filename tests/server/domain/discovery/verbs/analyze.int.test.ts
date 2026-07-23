@@ -93,6 +93,26 @@ describe("compareCharactersDeep", () => {
     expect(summarize.calls[0]).toHaveLength(1);
   });
 
+  test("a double validation failure degrades to raw narrative — the diff still returns (D79)", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, "user_a");
+    const a = await seedCard(db, { id: "a", ownerId: owner, name: "Aria", genre: "fantasy", tone: "dark", tags: ["dragons", "curse"] });
+    const b = await seedCard(db, { id: "b", ownerId: owner, name: "Bryn", genre: "fantasy", tone: "tense", tags: ["dragons", "heist"] });
+    // The model ignores the json_schema on BOTH the first turn and the retry — no JSON object to extract, so
+    // runStructuredTurn throws StructuredOutputError and the verb degrades (the diff is the truth, not the prose).
+    const summarize = makeSummarizeRecorder(["totally free-text, no json here"]);
+
+    const deep = await svcFor(db, summarize).compareCharactersDeep(owner, a, b);
+    expect(deep).not.toBeNull();
+    // The base diff is intact — the degrade never discards it.
+    expect(deep?.sameGenre).toBe(true);
+    expect(deep?.sharedTags).toEqual(["dragons"]);
+    // The narrative degraded to the raw reply (ungrounded), overlap/distinction blanked.
+    expect(deep?.narrative).toEqual({ summary: "totally free-text, no json here", overlap: "", distinction: "" });
+    // The bounded retry actually fired (first turn + one retry) before the degrade.
+    expect(summarize.calls).toHaveLength(2);
+  });
+
   test("null on self/foreign — and never calls summarize", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, "user_a");
@@ -151,6 +171,25 @@ describe("askCard", () => {
     const prompt = summarize.calls[0]?.[0]?.userPrompt ?? "";
     expect(prompt).toContain("moonblade");
     expect(prompt).toContain("oath to the queen");
+  });
+
+  test("a double validation failure degrades to ungrounded raw text — the answer still returns (D79)", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, "user_a");
+    const hero = await seedCard(db, { id: "character_hero", ownerId: owner, name: "Hero", genre: "fantasy" });
+    const chat = await seedHostedChat(db, "chat_1", owner);
+    await seedMessage(db, { id: "m1", chatId: chat, seq: 1, createdAt: FROZEN_AT, characterId: hero, variant: { content: "Hero drew the moonblade." } });
+    // The model never returns the json_schema shape (first turn + retry) — the verb degrades to raw + ungrounded.
+    const summarize = makeSummarizeRecorder(["I think they use a sword, probably."]);
+
+    const ans = await svcFor(db, summarize).askCard(owner, hero, "What weapon?");
+    expect(ans).not.toBeNull();
+    expect(ans?.answer).toBe("I think they use a sword, probably.");
+    // The degrade marks it ungrounded — the caller can flag it as unsupported prose.
+    expect(ans?.grounded).toBe(false);
+    expect(ans?.sampledMessages).toBe(1);
+    // The bounded retry fired before the degrade.
+    expect(summarize.calls).toHaveLength(2);
   });
 
   test("null on a foreign/undistilled character — and never calls summarize", async () => {

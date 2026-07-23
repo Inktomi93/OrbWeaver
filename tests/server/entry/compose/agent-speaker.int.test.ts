@@ -9,7 +9,7 @@ import { agentPrincipals, users } from "@orb/db";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
-import { createAgentSpeakerResolver } from "../../../../packages/server/src/entry/compose/agent-speaker.ts";
+import { createAgentCardViewResolver, createAgentSpeakerResolver } from "../../../../packages/server/src/entry/compose/agent-speaker.ts";
 import { freshDb } from "../../../support/db";
 import { expect, test } from "../../../support/fixtures";
 
@@ -55,6 +55,35 @@ describe("createAgentSpeakerResolver — the compose-root speaker dispatch", () 
   test("fail-closed: an id with no agent_principals row never reaches a resolver", async () => {
     let called = false;
     const resolve = createAgentSpeakerResolver(db, {
+      buddy: () => {
+        called = true;
+        return Promise.resolve(SOUL);
+      },
+    });
+    expect(await resolve(AGENT)).toBeNull();
+    expect(called).toBe(false);
+  });
+});
+
+describe("createAgentCardViewResolver — the compose-root D22 roster-chip projection (doc 06 §5)", () => {
+  test("resolves the FIXED view: soul display name + sourceKind + owner handle (never the soul prompt)", async () => {
+    await seedAgentPrincipal();
+    const resolve = createAgentCardViewResolver(db, { buddy: () => Promise.resolve(SOUL) });
+
+    const view = await resolve(AGENT);
+    // Only the three allowlisted fields — no systemPrompt, no avatar. Owner handle walked via the FK chain.
+    expect(view).toEqual({ displayName: SOUL.displayName, sourceKind: "buddy", ownerHandle: castId<Handle>("owner") });
+  });
+
+  test("an unhatched source (soul resolver → null) yields null", async () => {
+    await seedAgentPrincipal();
+    const resolve = createAgentCardViewResolver(db, { buddy: () => Promise.resolve(null) });
+    expect(await resolve(AGENT)).toBeNull();
+  });
+
+  test("fail-closed: an id with no agent_principals row never reaches a resolver", async () => {
+    let called = false;
+    const resolve = createAgentCardViewResolver(db, {
       buddy: () => {
         called = true;
         return Promise.resolve(SOUL);

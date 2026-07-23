@@ -15,8 +15,8 @@ import type {
   TurnInitiator,
 } from "@orb/contracts/chat";
 import type { ChatDocumentVisibility } from "@orb/contracts/databank";
-import type { AgentSourceKind, Principal } from "@orb/contracts/identity";
-import type { ImageDiffusionParams, PoseSelection, PromptTemplateMode, SizePresetName } from "@orb/contracts/imagery";
+import type { Principal } from "@orb/contracts/identity";
+import type { ImageDiffusionParams, PromptTemplateMode, SizePresetName } from "@orb/contracts/imagery";
 import type { GuidedActionKind, GuidedImpersonatePerson, UserIntent } from "@orb/contracts/preset";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type {
@@ -29,7 +29,6 @@ import type {
   MessageId,
   MessageVariantId,
   PersonaId,
-  RpgGameId,
   UserId,
 } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
@@ -247,7 +246,6 @@ export interface GenerateImageParams extends ChatScopedParams {
   readonly params?: ImageDiffusionParams | undefined;
   /** The advanced-knob ControlNet pose pick (comfyui-control §4.12, C6d) — forwarded to
    *  `imagery.generatePicture`, which resolves it to `edit.poseControl`. Local ComfyUI curated-role only. */
-  readonly pose?: PoseSelection | undefined;
 }
 
 /** `selectVariant` — flips messages.selectedVariantId to a sibling swipe (pointer move, zero copy). */
@@ -373,36 +371,6 @@ export interface RemoveCharacterFromChatParams extends ChatScopedParams {
   readonly characterId: CharacterId;
 }
 
-/** `seatAgent` — seats an agent principal in the roster (host-gated). The owner (whose agent this is)
- *  must be a present member. The principal is lazily minted via provisionAgentPrincipal. */
-export interface SeatAgentParams extends ChatScopedParams {
-  readonly ownerUserId: UserId;
-  readonly sourceKind: AgentSourceKind;
-}
-
-/** `unseatAgent` — removes a seated agent from the roster (host-gated; the symmetric counterpart to
- *  `seatAgent`). Agent-target-only: `agentUserId` must resolve to a PRESENT `kind:'agent'` seat of this
- *  chat (a human userId matches no row → `participant_not_found`). Stamps `leftSeq`; re-seating is the
- *  normal `seatAgent` re-join upsert. */
-export interface UnseatAgentParams extends ChatScopedParams {
-  readonly agentUserId: UserId;
-}
-
-/** `requestAgentSeat` — the owner≠host consent flow (D60, doc 04 §3). A present member (the buddy's OWNER)
- *  asks the HOST to seat their agent; delivers a durable `agent-seat-requested` notification to the host.
- *  ADVISORY: the caller must be a member AND own the requested agent (`ownerUserId === principal.userId`);
- *  `seatAgent` itself re-verifies everything (there is no server-side consent state). */
-export interface RequestAgentSeatParams extends ChatScopedParams {
-  readonly ownerUserId: UserId;
-  readonly sourceKind: AgentSourceKind;
-}
-
-/** `getAgentCardView` — member read of a SEATED agent's fixed D22 "who is this?" projection (D60, doc 06
- *  §5). Member-gated; the target must be a present `kind:'agent'` seat of THIS chat. */
-export interface GetAgentCardViewParams extends ChatScopedParams {
-  readonly agentUserId: UserId;
-}
-
 /** `setRoomOverrides` — host-only write of the four-field chatMetadata.roomOverrides allowlist. */
 export interface SetRoomOverridesParams extends ChatScopedParams {
   readonly overrides: RoomOverrides;
@@ -421,13 +389,6 @@ export interface SetChatDocumentVisibilityParams extends ChatScopedParams {
  *  true-solo room. */
 export interface SetChatBackgroundParams extends ChatScopedParams {
   readonly background: ThemeBackground;
-}
-
-/** `setRpgGamePointer` (GAP #4) — host-only write of the opaque `chats.metadata.rpg` pointer (`{gameId}`), the
- *  SYNC `hasRpgGame` signal. Set ONLY by rpg's `createGame` through the injected chat op; chat holds it
- *  opaquely. NOT routed (no user-facing verb) — an internal cross-domain bookkeeping write. */
-export interface SetRpgGamePointerParams extends ChatScopedParams {
-  readonly gameId: RpgGameId;
 }
 
 export interface GetGroupConfigForChatParams extends ChatScopedParams {}

@@ -33,7 +33,7 @@ function baseCard(overrides: Partial<CharacterCard> = {}): CharacterCard {
     description: "A wandering bard.",
     personality: "curious",
     scenario: "a tavern",
-    greetings: ["Hello there!", "Well met."],
+    greetings: [{ text: "Hello there!" }, { text: "Well met." }],
     exampleMessages: null,
     systemPrompt: null,
     postHistoryInstructions: null,
@@ -41,6 +41,10 @@ function baseCard(overrides: Partial<CharacterCard> = {}): CharacterCard {
     creatorNotes: null,
     creator: null,
     cardVersion: null,
+    nickname: null,
+    source: null,
+    creationDate: null,
+    modificationDate: null,
     regexScripts: [],
     extensions: null,
     residualData: null,
@@ -79,8 +83,8 @@ describe("cardFromJson", () => {
 
     expect(card.name).toBe("Aria");
     expect(card.description).toBe("A wandering bard.");
-    // greetings[0] is first_mes; the rest are alternate_greetings (order preserved).
-    expect(card.greetings).toEqual(["Hello there!", "Well met.", "Oh, hi."]);
+    // greetings[0] is first_mes; the rest are alternate_greetings (order preserved), each a `{ text }` object.
+    expect(card.greetings).toEqual([{ text: "Hello there!" }, { text: "Well met." }, { text: "Oh, hi." }]);
     expect(card.systemPrompt).toBe("You are Aria.");
     expect(card.postHistoryInstructions).toBe("Stay in character.");
     expect(card.creator).toBe("alex");
@@ -104,7 +108,7 @@ describe("cardFromJson", () => {
     const card = cardFromJson(v1, "fallback");
     expect(card.name).toBe("Bram");
     expect(card.description).toBe("A gruff smith.");
-    expect(card.greetings).toEqual(["What do you want?"]);
+    expect(card.greetings).toEqual([{ text: "What do you want?" }]);
   });
 
   test("normalizes a Pygmalion-Gradio (char_name) card", () => {
@@ -119,7 +123,7 @@ describe("cardFromJson", () => {
     expect(card.name).toBe("Cleo");
     expect(card.description).toBe("A clever fox.");
     expect(card.scenario).toBe("a meadow");
-    expect(card.greetings).toEqual(["*grins*"]);
+    expect(card.greetings).toEqual([{ text: "*grins*" }]);
   });
 
   test("uses the fallback name when the card carries none", () => {
@@ -132,8 +136,8 @@ describe("cardFromJson", () => {
   });
 });
 
-describe("residualData (PD-127 — unknown top-level data.* keys)", () => {
-  test("cardFromJson captures unknown top-level data.* keys ST-V3 puts there", () => {
+describe("V3 content promotions + residualData (card-import expansion / PD-127)", () => {
+  test("cardFromJson promotes nickname/source/creation_date/modification_date to typed columns", () => {
     const v3 = {
       spec: "chara_card_v3",
       spec_version: "3.0",
@@ -141,19 +145,27 @@ describe("residualData (PD-127 — unknown top-level data.* keys)", () => {
         name: "Aria",
         source: ["https://example.com/aria.png"],
         creation_date: 1_700_000_000,
-        creator_notes_multilingual: { en: "hi", fr: "salut" },
+        modification_date: 1_700_100_000,
         nickname: "Ari",
+        creator_notes: "the default-language note",
+        creator_notes_multilingual: { en: "hi", fr: "salut" },
         group_only_greetings: ["*waves to the group*"],
+        vendor_unknown: { foo: 1 },
       },
     };
     const card = cardFromJson(v3, "fallback");
-    expect(card.residualData).toEqual({
-      source: ["https://example.com/aria.png"],
-      creation_date: 1_700_000_000,
-      creator_notes_multilingual: { en: "hi", fr: "salut" },
-      nickname: "Ari",
-      group_only_greetings: ["*waves to the group*"],
-    });
+    // The four promotions land on their typed columns …
+    expect(card.nickname).toBe("Ari");
+    expect(card.source).toEqual(["https://example.com/aria.png"]);
+    expect(card.creationDate).toBe(1_700_000_000);
+    expect(card.modificationDate).toBe(1_700_100_000);
+    // … creator_notes_multilingual FOLDS into creator_notes (default-language note is the one home; the map
+    // is intentionally not stored) …
+    expect(card.creatorNotes).toBe("the default-language note");
+    // … group_only_greetings FOLDS into the greetings array as a `groupOnly:true` entry (V3 promotion Phase B) …
+    expect(card.greetings).toContainEqual({ text: "*waves to the group*", groupOnly: true });
+    // … and residualData holds ONLY genuinely-unknown / deferred keys — never a promoted or folded field.
+    expect(card.residualData).toEqual({ vendor_unknown: { foo: 1 } });
   });
 
   test("no residual data.* keys → null (not an empty object)", () => {
@@ -161,7 +173,7 @@ describe("residualData (PD-127 — unknown top-level data.* keys)", () => {
     expect(card.residualData).toBeNull();
   });
 
-  test("round-trip: import → export preserves unknown top-level data.* keys byte-for-byte", () => {
+  test("round-trip: import → export re-emits the promotions at data.* + preserves residual", () => {
     const imported = cardFromJson(
       {
         spec: "chara_card_v3",
@@ -170,6 +182,7 @@ describe("residualData (PD-127 — unknown top-level data.* keys)", () => {
           name: "Aria",
           source: ["https://example.com/aria.png"],
           nickname: "Ari",
+          creation_date: 1_700_000_000,
           group_only_greetings: ["*waves to the group*"],
         },
       },
@@ -180,6 +193,13 @@ describe("residualData (PD-127 — unknown top-level data.* keys)", () => {
       {
         ...fullFields(),
         name: imported.name,
+        // greetings carry the folded group-only entry (V3 promotion Phase B) — buildCardV3 re-splits it back
+        // to `data.group_only_greetings` on the wire.
+        greetings: imported.greetings,
+        nickname: imported.nickname,
+        source: imported.source,
+        creationDate: imported.creationDate,
+        modificationDate: imported.modificationDate,
         extensions: imported.extensions,
         residualData: imported.residualData ?? null,
       },
@@ -188,17 +208,108 @@ describe("residualData (PD-127 — unknown top-level data.* keys)", () => {
 
     expect(exported.data["source"]).toEqual(["https://example.com/aria.png"]);
     expect(exported.data["nickname"]).toBe("Ari");
+    expect(exported.data["creation_date"]).toBe(1_700_000_000);
+    // The group-only greeting survives import → export, re-split from the folded array + still flagged.
     expect(exported.data["group_only_greetings"]).toEqual(["*waves to the group*"]);
 
-    // re-import the exported card — the residual survives a second round-trip untouched.
+    // re-import — the promotions + the residual both survive a second round-trip untouched.
     const reimported = cardFromJson(exported, "fallback");
+    expect(reimported.nickname).toBe("Ari");
+    expect(reimported.source).toEqual(["https://example.com/aria.png"]);
+    expect(reimported.creationDate).toBe(1_700_000_000);
+    // the folded group-only greeting survives the second round-trip, still flagged (not swept into residual).
+    expect(reimported.greetings).toContainEqual({ text: "*waves to the group*", groupOnly: true });
     expect(reimported.residualData).toEqual(imported.residualData);
+  });
+
+  test("a V2 / app-authored card (no group-only greetings) omits group_only_greetings cleanly on export", () => {
+    const card = buildCardV3({ ...fullFields(), nickname: null, source: null, creationDate: null, modificationDate: null }, []);
+    expect("nickname" in card.data).toBe(false);
+    expect("source" in card.data).toBe(false);
+    expect("group_only_greetings" in card.data).toBe(false);
+    expect("creation_date" in card.data).toBe(false);
+    expect("modification_date" in card.data).toBe(false);
   });
 
   test("typed columns win on key collision (a stale residual can't shadow a real field)", () => {
     const card = buildCardV3({ ...fullFields(), residualData: { name: "Stale Name", description: "Stale desc" } }, []);
     expect(card.data.name).toBe(fullFields().name);
     expect(card.data.description).toBe(fullFields().description);
+  });
+});
+
+describe("spec dispatch + round-trip (Character-Card V2 / V3)", () => {
+  const v2Data = {
+    name: "Aria",
+    description: "A wandering bard.",
+    personality: "curious",
+    scenario: "a tavern",
+    first_mes: "Hello there!",
+    mes_example: "",
+    alternate_greetings: ["Well met."],
+    creator: "alex",
+    creator_notes: "",
+    character_version: "1.0",
+    tags: ["bard"],
+    extensions: {},
+  };
+
+  test("a V2 card parses into the canonical model and captures spec=chara_card_v2", () => {
+    const card = cardFromJson({ spec: "chara_card_v2", spec_version: "2.0", data: v2Data }, "fallback");
+    expect(card.spec).toBe("chara_card_v2");
+    expect(card.name).toBe("Aria");
+    expect(card.greetings).toEqual([{ text: "Hello there!" }, { text: "Well met." }]);
+    expect(card.creator).toBe("alex");
+  });
+
+  test("a V3 card captures spec=chara_card_v3", () => {
+    const card = cardFromJson({ spec: "chara_card_v3", spec_version: "3.0", data: { ...v2Data } }, "fallback");
+    expect(card.spec).toBe("chara_card_v3");
+  });
+
+  test("a specless card (V1 / Pygmalion / app-authored) leaves spec undefined", () => {
+    expect(cardFromJson({ name: "Bram", description: "d", personality: "", scenario: "", first_mes: "hi", mes_example: "" }, "fallback").spec).toBeUndefined();
+    expect(cardFromJson({ char_name: "Pyg", char_greeting: "hi" }, "fallback").spec).toBeUndefined();
+  });
+
+  test("an unknown spec string is tolerated (spec undefined, content still parses)", () => {
+    const card = cardFromJson({ spec: "chara_card_v9", spec_version: "9.0", data: v2Data }, "fallback");
+    expect(card.spec).toBeUndefined();
+    expect(card.name).toBe("Aria");
+  });
+
+  test("round-trip preserves the source spec — a V2 card exports as V2, a V3 as V3", () => {
+    const v2 = cardFromJson({ spec: "chara_card_v2", spec_version: "2.0", data: v2Data }, "fallback");
+    const v3 = cardFromJson({ spec: "chara_card_v3", spec_version: "3.0", data: { ...v2Data } }, "fallback");
+
+    const emitV2 = buildCardV3({ ...fullFields(), ...(v2.spec ? { spec: v2.spec } : {}) }, []);
+    const emitV3 = buildCardV3({ ...fullFields(), ...(v3.spec ? { spec: v3.spec } : {}) }, []);
+
+    expect(emitV2.spec).toBe("chara_card_v2");
+    expect(emitV2.spec_version).toBe("2.0");
+    expect(emitV3.spec).toBe("chara_card_v3");
+    expect(emitV3.spec_version).toBe("3.0");
+  });
+
+  test("no spec on ExportCardFields ⇒ export defaults to V3", () => {
+    const card = buildCardV3(fullFields(), []);
+    expect(card.spec).toBe("chara_card_v3");
+    expect(card.spec_version).toBe("3.0");
+  });
+
+  test("the V3 assets[] manifest is PARSED + PRESERVED through import → export (not fetched)", () => {
+    const assets = [
+      { type: "icon", uri: "ccdefault:", name: "main", ext: "png" },
+      { type: "emotion", uri: "embeded://assets/happy.png", name: "happy", ext: "png" },
+    ];
+    const imported = cardFromJson({ spec: "chara_card_v3", spec_version: "3.0", data: { ...v2Data, assets } }, "fallback");
+    // assets ride the residualData passthrough (no typed column yet) — preserved verbatim, no URI resolved.
+    expect(imported.residualData?.["assets"]).toEqual(assets);
+
+    const exported = buildCardV3({ ...fullFields(), ...(imported.spec ? { spec: imported.spec } : {}), residualData: imported.residualData ?? null }, []);
+    expect(exported.data["assets"]).toEqual(assets);
+    // a second round-trip is idempotent — assets survive untouched.
+    expect(cardFromJson(exported, "fallback").residualData?.["assets"]).toEqual(assets);
   });
 });
 
@@ -223,7 +334,7 @@ describe("cardContentHash", () => {
   test("CHANGES when a semantic field changes", () => {
     const hash = cardContentHash(baseCard());
     expect(cardContentHash(baseCard({ name: "Different" }))).not.toBe(hash);
-    expect(cardContentHash(baseCard({ greetings: ["new"] }))).not.toBe(hash);
+    expect(cardContentHash(baseCard({ greetings: [{ text: "new" }] }))).not.toBe(hash);
   });
 });
 
@@ -244,13 +355,17 @@ function fullFields(): ExportCardFields {
     description: "A brave knight",
     personality: "bold",
     scenario: "a castle",
-    greetings: ["Hello there", "Hi again"],
+    greetings: [{ text: "Hello there" }, { text: "Hi again" }],
     exampleMessages: "<START>example",
     systemPrompt: "be brave",
     postHistoryInstructions: "stay in character",
     creatorNotes: "made with love",
     creator: "alex",
     cardVersion: "1.2",
+    nickname: "Ari",
+    source: ["https://example.test/aria", "chub:aria"],
+    creationDate: 1_700_000_000,
+    modificationDate: 1_700_100_000,
     tags: ["fantasy", "knight"],
     extensions: { vendorExtra: "kept" },
     regexScripts: [REGEX_SCRIPT],
@@ -268,7 +383,7 @@ describe("buildCardV3 → cardFromJson round-trip", () => {
     expect(back.description).toBe("A brave knight");
     expect(back.personality).toBe("bold");
     expect(back.scenario).toBe("a castle");
-    expect(back.greetings).toEqual(["Hello there", "Hi again"]);
+    expect(back.greetings).toEqual([{ text: "Hello there" }, { text: "Hi again" }]);
     expect(back.exampleMessages).toBe("<START>example");
     expect(back.systemPrompt).toBe("be brave");
     expect(back.postHistoryInstructions).toBe("stay in character");
@@ -279,6 +394,13 @@ describe("buildCardV3 → cardFromJson round-trip", () => {
     expect(back.regexScripts).toEqual([REGEX_SCRIPT]);
     // residual vendor extras survive; the promoted keys are NOT left behind in `extensions`.
     expect(back.extensions).toEqual({ vendorExtra: "kept" });
+    // The V3 content promotions round-trip through their typed columns (not the residual blob).
+    expect(back.nickname).toBe("Ari");
+    expect(back.source).toEqual(["https://example.test/aria", "chub:aria"]);
+    expect(back.creationDate).toBe(1_700_000_000);
+    expect(back.modificationDate).toBe(1_700_100_000);
+    // The promoted keys are emitted at the `data.*` root (not swept into residualData).
+    expect(back.residualData).toBeNull();
   });
 
   test('null/empty card fields round-trip to null (emit `""` → re-parse null)', () => {

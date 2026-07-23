@@ -12,8 +12,20 @@
 
 import type { ImageEmbedInput, RoleClients } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
-import { assets, characters, chats } from "@orb/db";
-import type { AssetId, CharacterEmbeddingId, CharacterId, ChatDigestId, ChatId, ChatSegmentId, Handle, ImageEmbeddingId, UserId } from "@orb/kit/ids";
+import { assets, characters, chats, documents } from "@orb/db";
+import type {
+  AssetId,
+  CharacterEmbeddingId,
+  CharacterId,
+  ChatDigestId,
+  ChatId,
+  ChatSegmentId,
+  DocumentChunkId,
+  DocumentId,
+  Handle,
+  ImageEmbeddingId,
+  UserId,
+} from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Mock } from "vitest";
 import { vi } from "vitest";
@@ -129,6 +141,7 @@ export function makeStoreHarness(db: Db, sources: StoreHarnessSources = {}): Sto
     newImageEmbeddingId: (): ImageEmbeddingId => castId<ImageEmbeddingId>(ids.next("image_embedding")),
     newChatDigestId: (): ChatDigestId => castId<ChatDigestId>(ids.next("chat_digest")),
     newChatSegmentId: (): ChatSegmentId => castId<ChatSegmentId>(ids.next("chat_segment")),
+    newDocumentChunkId: (): DocumentChunkId => castId<DocumentChunkId>(ids.next("document_chunk")),
     listCharacterIds,
     loadCardText,
     listImageAssetIds,
@@ -151,29 +164,37 @@ export interface IndexerHarness {
   readonly ctx: EmbeddingsIndexerContext;
   readonly roleClients: FakeRoleClients;
   readonly loadCardText: Mock<EmbeddingsIndexerContext["loadCardText"]>;
+  readonly loadAssetMime: Mock<EmbeddingsIndexerContext["loadAssetMime"]>;
   readonly loadAssetBytes: Mock<EmbeddingsIndexerContext["loadAssetBytes"]>;
   readonly store: EmbeddingsService["store"];
 }
 
-/** Build an `EmbeddingsIndexerContext` over a real store verb + recording canon-reader fakes. */
+/** Build an `EmbeddingsIndexerContext` over a real store verb + recording canon-reader fakes. `assetMime`
+ *  defaults to an image mime so an asset event embeds unless a test overrides it (the embeddability gate). */
 export function makeIndexerHarness(
   store: EmbeddingsService["store"],
   roleClients: FakeRoleClients,
-  sources: { readonly cardText?: string | undefined; readonly assetBytes?: Uint8Array | undefined },
+  sources: { readonly cardText?: string | undefined; readonly assetBytes?: Uint8Array | undefined; readonly assetMime?: string },
 ): IndexerHarness {
   const loadCardText: Mock<EmbeddingsIndexerContext["loadCardText"]> = vi.fn<EmbeddingsIndexerContext["loadCardText"]>(() => Promise.resolve(sources.cardText));
+  // Default to an image mime so a bare asset event embeds; a test overrides (e.g. `video/mp4`) or uses
+  // `loadAssetMime.mockResolvedValueOnce(null)` for the row-gone case (the established override pattern).
+  const loadAssetMime: Mock<EmbeddingsIndexerContext["loadAssetMime"]> = vi.fn<EmbeddingsIndexerContext["loadAssetMime"]>(() =>
+    Promise.resolve(sources.assetMime ?? "image/png"),
+  );
   const loadAssetBytes: Mock<EmbeddingsIndexerContext["loadAssetBytes"]> = vi.fn<EmbeddingsIndexerContext["loadAssetBytes"]>(() =>
     Promise.resolve(sources.assetBytes),
   );
   const ctx: EmbeddingsIndexerContext = {
     store,
     loadCardText,
+    loadAssetMime,
     loadAssetBytes,
     roleClients,
     embedDim: EMBED_DIM,
     imageEmbedDim: EMBED_DIM,
   };
-  return { ctx, roleClients, loadCardText, loadAssetBytes, store };
+  return { ctx, roleClients, loadCardText, loadAssetMime, loadAssetBytes, store };
 }
 
 interface SeedUserOverrides {
@@ -207,6 +228,27 @@ export async function seedChat(db: Db, id = "chat_test"): Promise<ChatId> {
   const chatId = castId<ChatId>(id);
   await db.insert(chats).values({ id: chatId, createdAt: FROZEN_AT, updatedAt: FROZEN_AT });
   return chatId;
+}
+
+/** Insert a `documents` row (the producer FK for document_chunks). Returns its branded id. The chunk-store
+ *  arm keys off (documentId, chunkIdx, model) — the FK parent must exist first. */
+export async function seedDocument(db: Db, ownerId: UserId, overrides: { readonly id?: string; readonly text?: string } = {}): Promise<DocumentId> {
+  const id = castId<DocumentId>(overrides.id ?? "document_test");
+  const extractedText = overrides.text ?? "seed document canon";
+  await db.insert(documents).values({
+    id,
+    ownerId,
+    name: "test.md",
+    mime: "text/markdown",
+    origin: "text",
+    extractedText,
+    importHash: `seed-import-${id}`,
+    byteSize: extractedText.length,
+    extractorVersion: "none",
+    createdAt: FROZEN_AT,
+    updatedAt: FROZEN_AT,
+  });
+  return id;
 }
 
 /** Insert an `assets` row (the producer FK for image_embeddings). Returns its branded id. */

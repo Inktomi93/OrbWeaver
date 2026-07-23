@@ -21,8 +21,7 @@ export function deriveWireShape(api: ChatApi, _source: CredentialSource): WireSh
       return "openai-responses";
     case "agent-sdk":
       return "anthropic-cli";
-    case "anthropic-messages":
-      return "anthropic-direct";
+
     default:
       return assertNever(api);
   }

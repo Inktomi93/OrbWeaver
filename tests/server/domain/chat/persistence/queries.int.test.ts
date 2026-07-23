@@ -1,6 +1,8 @@
 import type { Db } from "@orb/db";
+import { messages } from "@orb/db";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import {
   listMemberChats,
@@ -10,12 +12,15 @@ import {
   loadChatParticipantCharacterIds,
   loadChatRow,
   loadForkChildren,
+  loadIsReplyToLatestUserMessage,
   loadMaxMessageSeq,
   loadMemberChat,
   loadMessagesPage,
   loadMessageVariantSummaries,
   loadStreamBounds,
   loadStreamReplay,
+  loadTurnForClassify,
+  loadTurnOrigin,
 } from "../../../../../packages/server/src/domain/chat/persistence/queries";
 import { freshDb } from "../../../../support/db";
 import { expect, test } from "../../../../support/fixtures";
@@ -25,6 +30,50 @@ let db: Db;
 
 beforeEach(async () => {
   db = await freshDb();
+});
+
+describe("loadIsReplyToLatestUserMessage — the rpg dice feed-forward slot-adjacency (05 §6)", () => {
+  test("true when the target slot DIRECTLY follows the latest user message (the die-response); false for an older reply", async () => {
+    const chatId = await seedChat(db, "a");
+    await seedMessage(db, chatId, 1, { role: "user", content: "u1" });
+    const reply1 = await seedMessage(db, chatId, 2, { role: "assistant", content: "a1" });
+    await seedMessage(db, chatId, 3, { role: "user", content: "u2 [dice: d20 = 4 (4)]" });
+    const reply2 = await seedMessage(db, chatId, 4, { role: "assistant", content: "a2" });
+
+    // reply2 is the reply to the LATEST user message (u2) — swipe of it re-feeds; reply1 is an older reply.
+    expect(await loadIsReplyToLatestUserMessage(db, chatId, reply2.messageId)).toBe(true);
+    expect(await loadIsReplyToLatestUserMessage(db, chatId, reply1.messageId)).toBe(false);
+  });
+
+  test("false when a later assistant turn already sits after the die (an auto-continue slot is not the direct reply)", async () => {
+    const chatId = await seedChat(db, "a");
+    await seedMessage(db, chatId, 1, { role: "user", content: "u1 [dice: d20 = 4 (4)]" });
+    const direct = await seedMessage(db, chatId, 2, { role: "assistant", content: "a1" });
+    const continued = await seedMessage(db, chatId, 3, { role: "assistant", content: "a2 (auto-continue)" });
+
+    expect(await loadIsReplyToLatestUserMessage(db, chatId, direct.messageId)).toBe(true);
+    expect(await loadIsReplyToLatestUserMessage(db, chatId, continued.messageId)).toBe(false);
+  });
+
+  test("false when the chat has no user message", async () => {
+    const chatId = await seedChat(db, "a");
+    const only = await seedMessage(db, chatId, 1, { role: "assistant", content: "greeting" });
+    expect(await loadIsReplyToLatestUserMessage(db, chatId, only.messageId)).toBe(false);
+  });
+
+  // A narrator/system row slipping between the die-bearing user message and the GM response (an automation
+  // notice, an event-mirror line) steals "first slot after" — the response fails adjacency and a swipe of it
+  // will NOT re-feed. Deliberately pinned: the fail direction is UNDER-feed (a normal roll), never a stale
+  // re-feed, and the alternative (skipping non-assistant rows) would let a forged-adjacent slot over-feed.
+  test("false for the die-response when a narrator row sits between it and the user message (under-feeds, fail-safe)", async () => {
+    const chatId = await seedChat(db, "a");
+    await seedMessage(db, chatId, 1, { role: "user", content: "u1 [dice: d20 = 20 (20)]" });
+    const narrator = await seedMessage(db, chatId, 2, { role: "system", content: "[a quest clock advances]" });
+    const response = await seedMessage(db, chatId, 3, { role: "assistant", content: "the GM response" });
+
+    expect(await loadIsReplyToLatestUserMessage(db, chatId, response.messageId)).toBe(false);
+    expect(await loadIsReplyToLatestUserMessage(db, chatId, narrator.messageId)).toBe(true);
+  });
 });
 
 describe("persistence/queries — chat-row reads (D18 membership scope)", () => {
@@ -234,5 +283,88 @@ describe("persistence/queries — stream-log / bus-log replay + cursors", () => 
     expect(tail.map((e) => e.seq)).toStrictEqual([2]);
     expect(tail[0]?.payload.type).toBe("delta");
     expect((await loadChatEventBounds(db, chatId)).maxSeq).toBe(2);
+  });
+});
+
+// The expressions post-turn read (expressions-design/02 §3.1): the injected `readTurn` op surfaces the
+// variant's STORED content — which the pipeline already receive-tier-regex'd before persisting — never the raw
+// model text, and never a re-applied regex. These pin that projection + the id-scoping (swipe-safe, leak-free).
+describe("persistence/queries — loadTurnForClassify (the classify prose read)", () => {
+  test("returns the speaker + the POST-regex prose the classifier sees (the stored, rewritten content)", async () => {
+    // A host regex script that strips a *…* action stage-direction from the AI output (the pipeline runs this
+    // AI_OUTPUT-placement transform BEFORE persisting — `applyRegexReplace` is `text.replace`). The classifier
+    // must see the REWRITTEN prose, not the raw model reply.
+    const raw = "*She grins wide.* I'm absolutely thrilled!";
+    const rewritten = raw.replace(/\*[^*]*\*\s*/gu, ""); // → "I'm absolutely thrilled!"
+    expect(rewritten).not.toBe(raw); // the script actually rewrote something
+
+    const owner = await seedUser(db, "host");
+    const character = await seedCharacter(db, owner, "aria");
+    const chatId = await seedChat(db, "c");
+    // The committed assistant slot stores the POST-regex canon (what the pipeline persisted).
+    const { messageId, variantId } = await seedMessage(db, chatId, 1, { characterId: character, content: rewritten });
+
+    const result = await loadTurnForClassify(db, chatId, messageId, variantId);
+    expect(result).toEqual({ speakerCharacterId: character, text: rewritten });
+    expect(result?.text).not.toContain("She grins"); // the raw action never reaches the classifier
+  });
+
+  test("speakerCharacterId is null for a user turn (no sprite target)", async () => {
+    const owner = await seedUser(db, "host");
+    const chatId = await seedChat(db, "c");
+    const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "user", authorUserId: owner, content: "hello" });
+
+    expect(await loadTurnForClassify(db, chatId, messageId, variantId)).toEqual({ speakerCharacterId: null, text: "hello" });
+  });
+
+  test("null when the variant vanished / the ids don't belong together (leak-free, swipe-safe)", async () => {
+    const owner = await seedUser(db, "host");
+    const character = await seedCharacter(db, owner, "aria");
+    const chatId = await seedChat(db, "c");
+    const otherChat = await seedChat(db, "other");
+    const { messageId, variantId } = await seedMessage(db, chatId, 1, { characterId: character, content: "hi" });
+    const wrongVariant = await addVariant(db, messageId, 1, "swipe");
+
+    // wrong chat scoping → null (a foreign chatId can't read the variant).
+    expect(await loadTurnForClassify(db, otherChat, messageId, variantId)).toBeNull();
+    // gone variant id → null.
+    expect(await loadTurnForClassify(db, chatId, messageId, castId("variant_gone"))).toBeNull();
+    // a variant that belongs to a DIFFERENT slot than the messageId passed → null (the pair must agree).
+    expect(await loadTurnForClassify(db, chatId, castId("message_other"), wrongVariant)).toBeNull();
+  });
+
+  test("reads the EXACT variant requested, not the slot's selected pointer (swipe correctness)", async () => {
+    const owner = await seedUser(db, "host");
+    const character = await seedCharacter(db, owner, "aria");
+    const chatId = await seedChat(db, "c");
+    // seq-1 slot's first variant is the SELECTED one ("first"); append a second, non-selected variant.
+    const { messageId, variantId } = await seedMessage(db, chatId, 1, { characterId: character, content: "first" });
+    const secondVariant = await addVariant(db, messageId, 1, "second");
+
+    // The classify hook passes the committed variant id — the read honors it, not the selected pointer.
+    expect((await loadTurnForClassify(db, chatId, messageId, variantId))?.text).toBe("first");
+    expect((await loadTurnForClassify(db, chatId, messageId, secondVariant))?.text).toBe("second");
+  });
+});
+
+describe("loadTurnOrigin — the turn origin stamped on a reply slot (automation-design/03 §4)", () => {
+  test("a default (human) slot reads back initiator 'human' / depth 0", async () => {
+    const chatId = await seedChat(db, "origin-human");
+    const { messageId } = await seedMessage(db, chatId, 1, { content: "hi" });
+    expect(await loadTurnOrigin(db, chatId, messageId)).toEqual({ initiator: "human", automationDepth: 0 });
+  });
+
+  test("an automation-stamped slot round-trips its initiator + cascade depth", async () => {
+    const chatId = await seedChat(db, "origin-auto");
+    const { messageId } = await seedMessage(db, chatId, 1, { content: "auto" });
+    await db.update(messages).set({ initiator: "automation", automationDepth: 3 }).where(eq(messages.id, messageId));
+    expect(await loadTurnOrigin(db, chatId, messageId)).toEqual({ initiator: "automation", automationDepth: 3 });
+  });
+
+  test("a messageId from another chat resolves null (chat-scoped, leak-free)", async () => {
+    const chatId = await seedChat(db, "origin-a");
+    const other = await seedChat(db, "origin-b");
+    const { messageId } = await seedMessage(db, other, 1, { content: "x" });
+    expect(await loadTurnOrigin(db, chatId, messageId)).toBeNull();
   });
 });

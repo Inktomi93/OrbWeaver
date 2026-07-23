@@ -93,12 +93,15 @@ function deps(overrides: Partial<AppDeps>): AppDeps {
       },
       read: (userId) => ({ userId, online: true, lastSeenAt: null }),
     },
+    rpgTrace: null,
     assets: stub,
     cas: stub,
     character: stub,
     exportService: stub,
     portability: [],
     importWorldInfo: stub,
+    hubAvatarFetch: stub,
+    hubAvatarConsumeRate: (): Promise<void> => Promise.resolve(),
     sessions: stub,
     isShuttingDown: (): boolean => false,
     credentialsKeyOk: (): boolean => true,
@@ -215,6 +218,26 @@ describe("createApp", () => {
     expect(record?.method).toBe("GET");
     expect(record?.path).toBe("/healthz");
     expect(record?.status).toBe(OK);
+  });
+
+  // The request-user binding through the REAL middleware order: the auth middleware resolves the Principal
+  // onto the Hono context, then `observability` (mounted after it) reads that principal and calls
+  // `bindRequestUser` inside the request scope. Proves the caller's userId reaches the request-ring record
+  // end-to-end (not just in the middleware's isolated mock) — the "documented-as-wired" claim made true.
+  test("an authenticated request stamps the resolved userId on the request-ring record", async () => {
+    const requestId = "app-bound-user-req-1";
+    const app = createApp(deps({ seam: fakeSeam(OWNER) }));
+    await hit(app, new Request("http://localhost/healthz", { headers: { "X-Request-Id": requestId } }));
+    const record = recentRequests(500).find((r) => r.id === requestId);
+    expect(record?.userId).toBe(OWNER.userId);
+  });
+
+  test("an anonymous request records no userId on the request-ring record", async () => {
+    const requestId = "app-anon-user-req-1";
+    const app = createApp(deps({ seam: fakeSeam(null) }));
+    await hit(app, new Request("http://localhost/healthz", { headers: { "X-Request-Id": requestId } }));
+    const record = recentRequests(500).find((r) => r.id === requestId);
+    expect(record?.userId).toBeUndefined();
   });
 
   // PD-118 (thrown-request gap): a non-tRPC route that THROWS (returns no Response) is caught by Hono's

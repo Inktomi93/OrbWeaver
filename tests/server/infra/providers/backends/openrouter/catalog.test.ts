@@ -21,6 +21,14 @@ describe("fetchOrCatalog", () => {
                 pricing: { prompt: "0.000015", completion: "0.000075", inputCacheRead: "" },
                 architecture: { inputModalities: ["text", "image"], outputModalities: ["text"] },
                 supportedParameters: ["reasoning", "temperature"],
+                topProvider: { maxCompletionTokens: 64_000, isModerated: true },
+                reasoning: {
+                  mandatory: false,
+                  defaultEnabled: true,
+                  supportedEfforts: ["high", "medium", "low", null],
+                  defaultEffort: "high",
+                  supportsMaxTokens: true,
+                },
               },
             ],
           }),
@@ -36,6 +44,15 @@ describe("fetchOrCatalog", () => {
     expect(entry?.inputModalities).toEqual(["text", "image"]);
     expect(entry?.outputModalities).toEqual(["text"]); // GAP-3: outputModalities carried through
     expect(entry?.supportedParameters).toEqual(["reasoning", "temperature"]);
+    expect(entry?.maxCompletionTokens).toBe(64_000); // the top provider's REAL output cap
+    expect(entry?.reasoning).toEqual({
+      mandatory: false,
+      defaultEnabled: true,
+      supportedEfforts: ["high", "medium", "low"], // R0: stray nulls dropped
+      defaultEffort: "high",
+      supportsMaxTokens: true,
+    });
+    expect(entry?.isModerated).toBe(true); // R2: the top provider's moderation flag
   });
 
   test("falls back to the id when name is empty", async () => {
@@ -51,6 +68,7 @@ describe("fetchOrCatalog", () => {
                 pricing: { prompt: "1", completion: "2" },
                 architecture: { inputModalities: [], outputModalities: [] },
                 supportedParameters: [],
+                topProvider: {},
               },
             ],
           }),
@@ -59,6 +77,8 @@ describe("fetchOrCatalog", () => {
     const [entry] = await fetchOrCatalog(client);
     expect(entry?.name).toBe("x/y");
     expect(entry?.contextLength).toBeNull();
+    expect(entry?.maxCompletionTokens).toBeNull(); // absent top_provider.max_completion_tokens → null (resolver then estimates)
+    expect(entry?.reasoning).toBeNull(); // R0: omitted reasoning → null (family fallback)
   });
 
   test("a transport failure becomes a typed ProviderError", async () => {

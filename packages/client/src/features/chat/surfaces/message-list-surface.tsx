@@ -235,7 +235,8 @@ function DraftGreetingThread({ draftKey, characterIds, chatStyle }: DraftGreetin
   const rows = characters.flatMap((c, i) => {
     const character = c.data;
     const shown = draftConfig.greetings?.[character.id] ?? character.greetings[0] ?? "";
-    return shown.length === 0 ? [] : [{ character, row: synthGreetingRow(character.id, shown, i) }];
+    const text = typeof shown === "string" ? shown : shown.text;
+    return text.length === 0 ? [] : [{ character, row: synthGreetingRow(character.id, text, i) }];
   });
 
   if (rows.length === 0) {
@@ -257,7 +258,7 @@ function DraftGreetingThread({ draftKey, characterIds, chatStyle }: DraftGreetin
           messageActions={messageAppearance.messageActions}
           characterNamesById={characterNamesById}
           personaNamesById={personaNamesById}
-          greeting={{ draftKey, characterId: character.id, variants: character.greetings }}
+          greeting={{ draftKey, characterId: character.id, variants: character.greetings.map(g => typeof g === "string" ? g : g.text) }}
         />
       ))}
     </Stack>

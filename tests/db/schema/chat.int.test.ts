@@ -38,6 +38,7 @@ import type {
   MessageId,
   MessageVariantId,
   PendingTurnId,
+  PersonaId,
   UserId,
 } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -45,6 +46,7 @@ import type { VarOp } from "@orb/kit/macro";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../support/db";
+import { seedPersona } from "../../support/factories/persona";
 import { expect, test } from "../../support/fixtures";
 import { seedChat, seedUser } from "./_support.ts";
 
@@ -135,6 +137,28 @@ test("chats variableValues (read-seam map) + import provenance round-trip", asyn
   expect(parseRecord(row?.runtimeVariables)).toEqual(runtimeVariables);
   expect(row?.importedFrom).toBe("session-2026.jsonl");
   expect(row?.importHash).toBe("sha256-of-import-bytes");
+});
+
+test("the standalone (out-of-turn) variable delta log round-trips (automation-design/03 §1.1)", async () => {
+  const db = await freshDb();
+  const chatId = castId<ChatId>("chat_standalone_deltas");
+  const standaloneVariableDeltas = [{ seq: 2, delta: [{ op: "set" as const, key: "mood", value: "calm" }] }];
+  await db.insert(chats).values({ id: chatId, standaloneVariableDeltas });
+  const row = (await db.select().from(chats).where(eq(chats.id, chatId)))[0];
+  expect(row?.standaloneVariableDeltas).toEqual(standaloneVariableDeltas);
+});
+
+test("the initiator CHECK rejects an out-of-tuple value (messages_initiator_check; automation-design/03 §4)", async () => {
+  const db = await freshDb();
+  const chatId = await seedChat(db, { id: "chat_initiator_check" });
+  let caught: unknown;
+  try {
+    // Cast past the TS enum to prove the DB-level CHECK (not the type) bites.
+    await db.insert(messages).values({ id: castId<MessageId>("message_bad_initiator"), chatId, seq: 1, role: "assistant", initiator: "bogus" as "human" });
+  } catch (err) {
+    caught = err;
+  }
+  expect(caught).toBeDefined();
 });
 
 // ── messages ↔ message_variants (D26) ────────────────────────────────────────
@@ -273,6 +297,86 @@ test("deleting a message CASCADEs its variants (D26)", async () => {
   });
   await db.delete(messages).where(eq(messages.id, messageId));
   expect(await db.select().from(messageVariants).where(eq(messageVariants.messageId, messageId))).toHaveLength(0);
+});
+
+// ── messages: the born-whole attribution-shape CHECK (`messages_attribution_shape`; owner-ordered 2026-07-17) ──
+// STRUCTURAL arms only: characterId ⇒ assistant · personaId ⇒ user · never characterId AND authorUserId
+// together. The NOT-NULL-by-role arm is DELIBERATELY not here (the SET-NULL identity-delete degradation —
+// schema header): all-NULL is legal, so the CHECK never aborts an FK cascade. NB: these go green only once
+// the CHECK is emitted into `0000_baseline.sql` — the regen rides the demo-seed lane's pending regen.
+
+test("the attribution CHECK accepts a character-voiced assistant slot (characterId, no author)", async () => {
+  const db = await freshDb();
+  const ownerId = await seedUser(db, { id: "user_attr_asst" });
+  const chatId = await seedChat(db, { id: "chat_attr_asst" });
+  const characterId = await seedCharacter(db, ownerId, "character_attr_asst");
+  await db.insert(messages).values({ id: castId<MessageId>("message_attr_asst"), chatId, seq: 1, role: "assistant", characterId });
+  expect(await db.select().from(messages).where(eq(messages.chatId, chatId))).toHaveLength(1);
+});
+
+test("the attribution CHECK accepts an agent-voiced assistant slot (authorUserId, no characterId)", async () => {
+  const db = await freshDb();
+  const ownerId = await seedUser(db, { id: "user_attr_agent" });
+  const chatId = await seedChat(db, { id: "chat_attr_agent" });
+  await db.insert(messages).values({ id: castId<MessageId>("message_attr_agent"), chatId, seq: 1, role: "assistant", authorUserId: ownerId });
+  expect(await db.select().from(messages).where(eq(messages.chatId, chatId))).toHaveLength(1);
+});
+
+test("the attribution CHECK accepts a persona-authored user slot (authorUserId + personaId)", async () => {
+  const db = await freshDb();
+  const ownerId = await seedUser(db, { id: "user_attr_user" });
+  const chatId = await seedChat(db, { id: "chat_attr_user" });
+  await db.insert(messages).values({ id: castId<MessageId>("message_attr_user"), chatId, seq: 1, role: "user", authorUserId: ownerId });
+  expect(await db.select().from(messages).where(eq(messages.chatId, chatId))).toHaveLength(1);
+});
+
+test("the attribution CHECK accepts a fully-degraded slot (all attribution NULL — the SET-NULL cascade end-state)", async () => {
+  const db = await freshDb();
+  const chatId = await seedChat(db, { id: "chat_attr_degraded" });
+  await db.insert(messages).values({ id: castId<MessageId>("message_attr_degraded"), chatId, seq: 1, role: "user" });
+  expect(await db.select().from(messages).where(eq(messages.chatId, chatId))).toHaveLength(1);
+});
+
+test("the attribution CHECK rejects a user slot carrying a characterId (a character never voices a user line)", async () => {
+  const db = await freshDb();
+  const ownerId = await seedUser(db, { id: "user_attr_bad_char" });
+  const chatId = await seedChat(db, { id: "chat_attr_bad_char" });
+  const characterId = await seedCharacter(db, ownerId, "character_attr_bad_char");
+  let caught: unknown;
+  try {
+    await db.insert(messages).values({ id: castId<MessageId>("message_attr_bad_char"), chatId, seq: 1, role: "user", characterId });
+  } catch (err) {
+    caught = err;
+  }
+  expect(caught).toBeDefined();
+});
+
+test("the attribution CHECK rejects an assistant slot carrying a personaId (persona authors only a user line)", async () => {
+  const db = await freshDb();
+  const chatId = await seedChat(db, { id: "chat_attr_bad_persona" });
+  // A REAL persona row so the CHECK (not the personaId FK) is what bites.
+  const persona = await seedPersona(db, { id: castId<PersonaId>("persona_attr_bad") });
+  let caught: unknown;
+  try {
+    await db.insert(messages).values({ id: castId<MessageId>("message_attr_bad_persona"), chatId, seq: 1, role: "assistant", personaId: persona.id });
+  } catch (err) {
+    caught = err;
+  }
+  expect(caught).toBeDefined();
+});
+
+test("the attribution CHECK rejects a slot carrying BOTH characterId and authorUserId (character XOR agent voice)", async () => {
+  const db = await freshDb();
+  const ownerId = await seedUser(db, { id: "user_attr_both" });
+  const chatId = await seedChat(db, { id: "chat_attr_both" });
+  const characterId = await seedCharacter(db, ownerId, "character_attr_both");
+  let caught: unknown;
+  try {
+    await db.insert(messages).values({ id: castId<MessageId>("message_attr_both"), chatId, seq: 1, role: "assistant", characterId, authorUserId: ownerId });
+  } catch (err) {
+    caught = err;
+  }
+  expect(caught).toBeDefined();
 });
 
 // ── chat_participants: the kind-shape CHECK + the (chatId,userId) UNIQUE ─────────────

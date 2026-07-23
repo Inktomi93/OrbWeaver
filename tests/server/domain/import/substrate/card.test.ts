@@ -54,7 +54,7 @@ describe("parseCardJson", () => {
   test("parses a bare V3 JSON card (bytes) → canonical card", () => {
     const parsed = expectParsed(parseCardJson(encoder.encode(V3_JSON), "fallback"));
     expect(parsed.card.name).toBe("Aria");
-    expect(parsed.card.greetings).toEqual(["Hello there!", "Well met."]);
+    expect(parsed.card.greetings).toEqual([{ text: "Hello there!" }, { text: "Well met." }]);
     expect(parsed.card.creator).toBe("alex");
   });
 
@@ -90,7 +90,7 @@ describe("parseCardPng", () => {
     const png = writeCardChunk(MINIMAL_PNG, V3_JSON);
     const parsed = expectParsed(parseCardPng(png, "fallback"));
     expect(parsed.card.name).toBe("Aria");
-    expect(parsed.card.greetings).toEqual(["Hello there!", "Well met."]);
+    expect(parsed.card.greetings).toEqual([{ text: "Hello there!" }, { text: "Well met." }]);
     expect(parsed.tags).toEqual(["bard", "fantasy", "  Bard ", "", "music"]);
   });
 
@@ -116,13 +116,29 @@ describe("cardToCreateInput", () => {
     expect(input.handle).toBe("aria");
     expect(input.name).toBe("Aria");
     expect(input.description).toBe("A wandering bard.");
-    expect(input.greetings).toEqual(["Hello there!", "Well met."]);
+    expect(input.greetings).toEqual([{ text: "Hello there!" }, { text: "Well met." }]);
     expect(input.avatarAssetId).toBeNull();
   });
 
   test("null description normalizes to the empty string (the one required create field)", () => {
     const card = cardFromJson({ data: { name: "NoDesc" } }, "fallback");
     expect(cardToCreateInput(card, null).description).toBe("");
+  });
+
+  test("carries the V3 content promotions (nickname/source/creation_date/modification_date) into the create input", () => {
+    const card = cardFromJson(
+      {
+        spec: "chara_card_v3",
+        spec_version: "3.0",
+        data: { name: "Aria", nickname: "Ari", source: ["https://example.test/aria"], creation_date: 1_700_000_000, modification_date: 1_700_100_000 },
+      },
+      "fallback",
+    );
+    const input = cardToCreateInput(card, null);
+    expect(input.nickname).toBe("Ari");
+    expect(input.source).toEqual(["https://example.test/aria"]);
+    expect(input.creationDate).toBe(1_700_000_000);
+    expect(input.modificationDate).toBe(1_700_100_000);
   });
 
   test("throws ImportCardError(card_invalid) when the normalized card fails the canonical schema", () => {

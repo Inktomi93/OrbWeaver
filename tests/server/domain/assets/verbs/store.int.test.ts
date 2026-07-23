@@ -197,3 +197,93 @@ describe("store", () => {
     expect(stored.hash).toBe(expected);
   });
 });
+
+// DBK-A: the `enforceMagic` belt was image-only, so every REAL document upload (the databank producer's
+// `assets.store(..., { enforceMagic: true })`) threw at the CAS. The belt now dispatches on the claimed mime
+// family (databank-design/02 §6): pdf/zip by signature, text-family by strict-UTF-8 validity. These drive the
+// REAL sniff belt (no faked store) — a valid doc lands, a mislabeled binary still throws.
+describe("store — enforceMagic over document mimes (DBK-A)", () => {
+  const markdownBytes = new TextEncoder().encode("# Notes\n\nThe keeper mends the vellum each dawn.\n");
+  const pdfBytes = new TextEncoder().encode("%PDF-1.7\n1 0 obj\n<< /Type /Catalog >>\nendobj\n");
+  // Invalid UTF-8: a lone 0xFF/0x80 continuation with no lead byte — a strict decode rejects it.
+  const binaryBytes = new Uint8Array([0xff, 0xfe, 0x00, 0x80, 0xc0]);
+
+  test("a real text/markdown document with enforceMagic passes the UTF-8 belt and stores", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    onTestFinished(h.cleanup);
+    const svc = createAssetsService(h.ctx);
+    const owner = await seedUser(db, { handle: "owner" });
+
+    const stored = await svc.store({ principal: principal(owner), bytes: markdownBytes, kind: "document", mime: "text/markdown", enforceMagic: true });
+    expect(stored.created).toBe(true);
+    const rows = await db.select().from(assets).where(eq(assets.ownerId, owner));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.kind).toBe("document");
+  });
+
+  test("a real application/pdf document passes the %PDF signature belt and stores", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    onTestFinished(h.cleanup);
+    const svc = createAssetsService(h.ctx);
+    const owner = await seedUser(db, { handle: "owner" });
+
+    const stored = await svc.store({ principal: principal(owner), bytes: pdfBytes, kind: "document", mime: "application/pdf", enforceMagic: true });
+    expect(stored.created).toBe(true);
+  });
+
+  test("a mislabeled binary claimed as text/markdown still throws (fails the UTF-8 belt, stores nothing)", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    onTestFinished(h.cleanup);
+    const svc = createAssetsService(h.ctx);
+    const owner = await seedUser(db, { handle: "owner" });
+
+    await expect(svc.store({ principal: principal(owner), bytes: binaryBytes, kind: "document", mime: "text/markdown", enforceMagic: true })).rejects.toThrow(
+      MISMATCH_RE,
+    );
+    expect(await db.select().from(assets)).toHaveLength(0);
+  });
+
+  test("text bytes claimed as application/pdf throw (missing the %PDF signature)", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    onTestFinished(h.cleanup);
+    const svc = createAssetsService(h.ctx);
+    const owner = await seedUser(db, { handle: "owner" });
+
+    await expect(
+      svc.store({ principal: principal(owner), bytes: markdownBytes, kind: "document", mime: "application/pdf", enforceMagic: true }),
+    ).rejects.toThrow(MISMATCH_RE);
+  });
+
+  // The zip arm checks the FULL 4-byte local-file header (02 §6) — "PK" + wrong bytes must NOT pass.
+  const docxMime = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+  const zipHeaderBytes = new TextEncoder().encode("PK\x03\x04rest-of-container");
+  const pkTextBytes = new TextEncoder().encode("PKWARE license text, not a zip container");
+
+  test("a real zip-container header claimed as docx passes the belt and stores", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    onTestFinished(h.cleanup);
+    const svc = createAssetsService(h.ctx);
+    const owner = await seedUser(db, { handle: "owner" });
+
+    const stored = await svc.store({ principal: principal(owner), bytes: zipHeaderBytes, kind: "document", mime: docxMime, enforceMagic: true });
+    expect(stored.created).toBe(true);
+  });
+
+  test("'PK'-prefixed non-zip bytes claimed as docx throw (the 4-byte header is required, not just 'PK')", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    onTestFinished(h.cleanup);
+    const svc = createAssetsService(h.ctx);
+    const owner = await seedUser(db, { handle: "owner" });
+
+    await expect(svc.store({ principal: principal(owner), bytes: pkTextBytes, kind: "document", mime: docxMime, enforceMagic: true })).rejects.toThrow(
+      MISMATCH_RE,
+    );
+    expect(await db.select().from(assets)).toHaveLength(0);
+  });
+});

@@ -19,6 +19,7 @@ describe("memory-backfill runner", () => {
     expect(result).toEqual({
       segments: { scanned: 4, changed: 2 },
       digests: { scanned: 6, changed: 3 },
+      failed: 0,
     });
   });
 

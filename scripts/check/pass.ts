@@ -95,10 +95,12 @@ function isNode(v: Node | Finding): v is Node {
  *  above an unrelated sibling doesn't leak a suppression onto this node. */
 function hasGateIgnore(node: Node, gateName: string): boolean {
   const ignoreRe = new RegExp(`//\\s*@orb-gate-ignore\\s+${gateName}\\b`);
+  // biome-ignore lint/suspicious/noExplicitAny: AST traversal
   let scanNode: any = node;
   while (scanNode) {
     if (typeof scanNode.getLeadingCommentRanges === "function") {
       const comments = scanNode.getLeadingCommentRanges();
+      // biome-ignore lint/suspicious/noExplicitAny: AST traversal
       if (comments.some((c: any) => ignoreRe.test(c.getText()))) {
         return true;
       }

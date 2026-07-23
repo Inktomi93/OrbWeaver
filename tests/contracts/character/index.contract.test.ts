@@ -41,7 +41,7 @@ const APP_CARD: CharacterCard = {
   description: "A meticulous keeper of records.",
   personality: "precise, dry-humoured, loyal",
   scenario: "The dusty stacks of a forgotten library.",
-  greetings: ["Welcome to the archive.", "Back again? The stacks missed you."],
+  greetings: [{ text: "Welcome to the archive." }, { text: "Back again? The stacks missed you." }],
   exampleMessages: "{{user}}: hello\n{{char}}: Records indicate we have not met.",
   systemPrompt: "Stay in character as a librarian.",
   postHistoryInstructions: "Never break character.",
@@ -49,6 +49,10 @@ const APP_CARD: CharacterCard = {
   creatorNotes: "Built for the archive demo.",
   creator: "studio",
   cardVersion: "1.2",
+  nickname: "Aria",
+  source: ["https://example.test/aria"],
+  creationDate: 1_700_000_000,
+  modificationDate: 1_700_100_000,
   regexScripts: [FULL_SCRIPT],
   extensions: { favColor: "ink-black" },
   residualData: null,
@@ -86,7 +90,7 @@ test("createCharacterSchema validates an app-authored CRUD payload", () => {
     handle: "aria-archivist",
     name: "Aria the Archivist",
     description: "A meticulous keeper of records.",
-    greetings: ["Welcome to the archive."],
+    greetings: [{ text: "Welcome to the archive." }],
     depthPrompt: { prompt: "Aria adjusts her spectacles.", depth: 4, role: "system" },
     creator: "studio",
     cardVersion: "1.2",
@@ -104,7 +108,7 @@ test("the SAME createCharacterSchema validates an import-normalized payload (no 
     name: "Imported Card",
     description: "",
     personality: null,
-    greetings: ["hi"],
+    greetings: [{ text: "hi" }],
     creator: "someone-else",
     cardVersion: "0.9",
     regexScripts: [],
@@ -186,10 +190,65 @@ test("characterCardV3Schema parses a valid V3 card with an embedded character_bo
   // biome-ignore-end lint/style/useNamingConvention: ST Character-Card-V3 wire field names (snake_case)
 });
 
-test("characterCardV3Schema rejects a wrong spec literal", () => {
-  // biome-ignore lint/style/useNamingConvention: ST V3 wire field name (snake_case)
-  const bad = { spec: "chara_card_v2", spec_version: "2.0", data: {} };
-  expect(characterCardV3Schema.safeParse(bad).success).toBe(false);
+test("characterCardV3Schema is a V2/V3 superset — accepts BOTH spec markers, rejects an unknown one", () => {
+  // biome-ignore-start lint/style/useNamingConvention: ST Character-Card wire field names (snake_case)
+  const data = {
+    name: "Aria",
+    description: "",
+    personality: "",
+    scenario: "",
+    first_mes: "",
+    mes_example: "",
+    system_prompt: "",
+    post_history_instructions: "",
+    creator: "",
+    creator_notes: "",
+    character_version: "",
+    alternate_greetings: [],
+    tags: [],
+    extensions: {},
+  };
+  // A V2-spec card validates against the (superset) wire schema — V2 IS V3 with the extras absent.
+  expect(characterCardV3Schema.safeParse({ spec: "chara_card_v2", spec_version: "2.0", data }).success).toBe(true);
+  expect(characterCardV3Schema.safeParse({ spec: "chara_card_v3", spec_version: "3.0", data }).success).toBe(true);
+  // A genuinely-unknown spec marker is still rejected at the boundary.
+  expect(characterCardV3Schema.safeParse({ spec: "chara_card_v9", spec_version: "9.0", data }).success).toBe(false);
+  // biome-ignore-end lint/style/useNamingConvention: ST Character-Card wire field names (snake_case)
+});
+
+test("characterCardV3DataSchema carries the V3-additive fields (a V2 card omits them cleanly)", () => {
+  // biome-ignore-start lint/style/useNamingConvention: ST Character-Card-V3 wire field names (snake_case)
+  const parsed = characterCardV3Schema.parse({
+    spec: CHARA_CARD_V3_SPEC,
+    spec_version: "3.0",
+    data: {
+      name: "Aria",
+      description: "",
+      personality: "",
+      scenario: "",
+      first_mes: "",
+      mes_example: "",
+      system_prompt: "",
+      post_history_instructions: "",
+      creator: "",
+      creator_notes: "",
+      character_version: "",
+      alternate_greetings: [],
+      tags: [],
+      extensions: {},
+      nickname: "Ari",
+      source: ["https://example.com/aria"],
+      group_only_greetings: ["*waves to the group*"],
+      creator_notes_multilingual: { en: "hi", fr: "salut" },
+      creation_date: 1_700_000_000,
+      modification_date: 1_700_000_100,
+      assets: [{ type: "icon", uri: "ccdefault:", name: "main", ext: "png" }],
+    },
+  });
+  expect(parsed.data.nickname).toBe("Ari");
+  expect(parsed.data.assets).toEqual([{ type: "icon", uri: "ccdefault:", name: "main", ext: "png" }]);
+  expect(parsed.data.group_only_greetings).toEqual(["*waves to the group*"]);
+  // biome-ignore-end lint/style/useNamingConvention: ST Character-Card-V3 wire field names (snake_case)
 });
 
 // ── the library-list sort axis + its sort-discriminated keyset cursor (FIX #2 / §4.5) ──

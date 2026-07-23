@@ -8,7 +8,7 @@
 //   • both image lenses (`image-raw` pure-visual + `image-captioned` joint-VL) coexist per asset, caption
 //     persisted only on the captioned lens.
 
-import { characterEmbeddings, chatDigestSpeakers, chatDigests, chatSegments, imageEmbeddings } from "@orb/db";
+import { characterEmbeddings, chatDigestSpeakers, chatDigests, chatSegments, documentChunks, imageEmbeddings } from "@orb/db";
 import type { ChatDigestId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createEmbeddingsService, EmbedFailedError, SpaceMismatchError } from "@orb/server/domain/embeddings";
@@ -25,6 +25,7 @@ import {
   seedAsset,
   seedCharacter,
   seedChat,
+  seedDocument,
   seedUser,
   TEST_CAPTION,
 } from "../_support.ts";
@@ -495,5 +496,95 @@ describe("store — chat-block lenses (segment / digest)", () => {
     // distinct scopedCharacterId ⇒ no collision under the (chat, scope, tier, block) UNIQUE.
     const rows = await db.select().from(chatDigests).where(eq(chatDigests.chatId, chatId));
     expect(rows).toHaveLength(2);
+  });
+});
+
+describe("store — chunk (document_chunks, the 5th arm — databank-design/05 §2)", () => {
+  test("writes a row with the FK/idx/span/hash/(model,dim) tag; re-store same content ⇒ noop, no re-embed", async () => {
+    const db = await freshDb();
+    const h = makeStoreHarness(db);
+    const svc = createEmbeddingsService(h.ctx);
+    const owner = await seedUser(db, { handle: "owner" });
+    const documentId = await seedDocument(db, owner);
+
+    const params = {
+      kind: "document",
+      lens: "chunk",
+      content: "the first chunk slice of the document canon",
+      model: EMBED_MODEL,
+      dim: EMBED_DIM,
+      fkRefs: { documentId, chunkIdx: 0, charStart: 0, charEnd: 43 },
+    } as const;
+
+    const first = await svc.store(params);
+    expect(first.outcome).toBe("written");
+    expect(h.roleClients.embed).toHaveBeenCalledTimes(1);
+
+    const rows = await db.select().from(documentChunks).where(eq(documentChunks.documentId, documentId));
+    expect(rows).toHaveLength(1);
+    const row = rows[0];
+    expect(row?.chunkIdx).toBe(0);
+    expect(row?.content).toBe(params.content);
+    expect(row?.charStart).toBe(0);
+    expect(row?.charEnd).toBe(43);
+    expect(row?.model).toBe(EMBED_MODEL);
+    expect(row?.dim).toBe(EMBED_DIM);
+    expect(row?.embedding).toHaveLength(EMBED_DIM);
+    expect(row?.contentHash).toBe(first.contentHash);
+    expect(row?.hubScore).toBeNull(); // never touched by a store (D20/discovery-only)
+
+    // Idempotent re-run: identical content short-circuits BEFORE the embed (the no-op economy).
+    const again = await svc.store(params);
+    expect(again.outcome).toBe("noop");
+    expect(h.roleClients.embed).toHaveBeenCalledTimes(1); // no second embed call
+    expect(await db.select().from(documentChunks)).toHaveLength(1);
+  });
+
+  test("a changed slice at the same (documentId, chunkIdx, model) re-embeds and updates in place", async () => {
+    const db = await freshDb();
+    const h = makeStoreHarness(db);
+    const svc = createEmbeddingsService(h.ctx);
+    const owner = await seedUser(db, { handle: "owner" });
+    const documentId = await seedDocument(db, owner);
+    const base = {
+      kind: "document",
+      lens: "chunk",
+      model: EMBED_MODEL,
+      dim: EMBED_DIM,
+      fkRefs: { documentId, chunkIdx: 0, charStart: 0, charEnd: 5 },
+    } as const;
+
+    await svc.store({ ...base, content: "alpha" });
+    const changed = await svc.store({ ...base, content: "bravo" });
+    expect(changed.outcome).toBe("written");
+
+    const rows = await db.select().from(documentChunks).where(eq(documentChunks.documentId, documentId));
+    expect(rows).toHaveLength(1); // in-place update, not a second row
+    expect(rows[0]?.content).toBe("bravo");
+  });
+
+  test("a wrong-dim embed vector throws SpaceMismatchError and lands no row", async () => {
+    const db = await freshDb();
+    const h = makeStoreHarness(db);
+    const svc = createEmbeddingsService(h.ctx);
+    const owner = await seedUser(db, { handle: "owner" });
+    const documentId = await seedDocument(db, owner);
+    h.roleClients.embed.mockResolvedValueOnce({
+      vectors: [fakeVector(EMBED_DIM + 1, 1)],
+      model: EMBED_MODEL,
+      usage: { promptTokens: null, totalTokens: null },
+    });
+
+    await expect(
+      svc.store({
+        kind: "document",
+        lens: "chunk",
+        content: "x",
+        model: EMBED_MODEL,
+        dim: EMBED_DIM,
+        fkRefs: { documentId, chunkIdx: 0, charStart: 0, charEnd: 1 },
+      }),
+    ).rejects.toBeInstanceOf(SpaceMismatchError);
+    expect(await db.select().from(documentChunks)).toHaveLength(0);
   });
 });

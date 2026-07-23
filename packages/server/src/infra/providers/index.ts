@@ -8,8 +8,7 @@
 
 import type { AgentSdkBackendDeps } from "./backends/agent-sdk";
 import { createAgentSdkBackend } from "./backends/agent-sdk";
-import type { AnthDirectBackendDeps } from "./backends/anth-direct";
-import { createAnthDirectBackend } from "./backends/anth-direct";
+
 import { createCustomByoBackend } from "./backends/custom-byo";
 import type { ImageToPng } from "./backends/kit";
 import { createImageNormalizer } from "./backends/kit";
@@ -52,7 +51,7 @@ export interface BackendRegistryDeps {
   /** Raw sharp PNG transform (MA-6). Wrapped into the OpenRouter GIF→first-frame-PNG wire-normalize op
    *  here so `infra/image` never leaks into the sealed backend; absent ⇒ the label-only passthrough. */
   readonly imageToPng?: ImageToPng;
-  readonly getAnthClient?: AnthDirectBackendDeps["getClient"];
+
   readonly query?: AgentSdkBackendDeps["query"];
   readonly sessionStore?: AgentSdkBackendDeps["sessionStore"];
   readonly vllmClient?: VllmBackendDeps["client"];
@@ -78,13 +77,7 @@ function openRouterDeps(deps: BackendRegistryDeps): OpenRouterBackendDeps {
     ...(deps.imageToPng !== undefined ? { normalizeImageBytes: createImageNormalizer(deps.imageToPng) } : {}),
   };
 }
-function anthDirectDeps(deps: BackendRegistryDeps): AnthDirectBackendDeps {
-  return {
-    now: deps.now,
-    ...(deps.getAnthClient !== undefined ? { getClient: deps.getAnthClient } : {}),
-    ...(deps.imageToPng !== undefined ? { normalizeImageBytes: createImageNormalizer(deps.imageToPng) } : {}),
-  };
-}
+
 function agentSdkDeps(deps: BackendRegistryDeps): AgentSdkBackendDeps {
   return {
     now: deps.now,
@@ -113,7 +106,6 @@ export function createBackendRegistry(deps: BackendRegistryDeps): BackendRegistr
   const backends: ProviderBackend[] = [
     createOpenRouterBackend(openRouterDeps(deps)),
     createAgentSdkBackend(agentSdkDeps(deps)),
-    createAnthDirectBackend(anthDirectDeps(deps)),
     createCustomByoBackend({
       now: deps.now,
       ...(deps.random !== undefined ? { random: deps.random } : {}),

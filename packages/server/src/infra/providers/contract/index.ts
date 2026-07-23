@@ -56,7 +56,6 @@ export type {
   AgentMcpServerHealth,
   AgentSdkChatRequest,
   AgentSeedTurn,
-  AnthropicMessagesChatRequest,
   ChatHistoryMessage,
   ChatRequest,
   ChatResult,

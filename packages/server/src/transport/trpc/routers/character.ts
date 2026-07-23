@@ -4,7 +4,7 @@
 // resolved room `ownerId`, not a request principal) — NOT exposed here.
 
 import { characterListCursorSchema, characterListSortSchema, createCharacterSchema, updateCharacterSchema } from "@orb/contracts/character";
-import type { CardEvolutionProposalId, CharacterId, CharacterSnapshotId } from "@orb/kit/ids";
+import type { CharacterId, CharacterSnapshotId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
 import { authedProcedure, t } from "../trpc";
@@ -126,25 +126,4 @@ export const characterRouter = t.router({
         snapshotId: input.snapshotId,
       }),
     ),
-
-  // ── card-evolution proposals (chat-crew-design/02 §5, 04 §8) ──
-  // `proposeCardEvolution` is ENV-ONLY (the crew runner / import filer inject it) — deliberately NOT on the
-  // wire. Review is owner-gated inside the verbs (the `characters.ownerId` join is the authority seam).
-  listCardEvolutionProposals: authedProcedure
-    .input(z.object({ characterId: brandedId<CharacterId>() }))
-    .query(({ ctx, input }) => ctx.services.character.listCardEvolutionProposals({ principal: ctx.auth, characterId: input.characterId })),
-
-  acceptCardEvolution: authedProcedure
-    .input(z.object({ proposalId: brandedId<CardEvolutionProposalId>(), pickedChangeIndices: z.array(z.number().int().nonnegative()).optional() }))
-    .mutation(({ ctx, input }) =>
-      ctx.services.character.acceptCardEvolution({
-        principal: ctx.auth,
-        proposalId: input.proposalId,
-        ...(input.pickedChangeIndices !== undefined ? { pickedChangeIndices: input.pickedChangeIndices } : {}),
-      }),
-    ),
-
-  dismissCardEvolution: authedProcedure
-    .input(z.object({ proposalId: brandedId<CardEvolutionProposalId>() }))
-    .mutation(({ ctx, input }) => ctx.services.character.dismissCardEvolution({ principal: ctx.auth, proposalId: input.proposalId })),
 });

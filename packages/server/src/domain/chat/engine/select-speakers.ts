@@ -143,7 +143,7 @@ export function resolveMentions(triggerText: string, cast: readonly CastName[]):
     return [];
   }
   // @mention is character-only: only character seats resolve to a forced characterId.
-  const characters = cast.flatMap((c) => (c.ref.kind === "character" ? [{ characterId: c.ref.characterId, name: c.name }] : []));
+  const characters = cast.map((c) => ({ characterId: c.ref.characterId, name: c.name }));
   const byLongest = [...characters].sort((a, b) => b.name.length - a.name.length);
   // Longest-first with overlap masking: a longer name that matched first CONSUMES its span, so a shorter
   // name nested inside it (`@Aria` within `@Aria Stormborn`) cannot also fire.

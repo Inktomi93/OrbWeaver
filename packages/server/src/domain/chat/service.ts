@@ -13,7 +13,7 @@ import { generateSegments } from "./memory/build/segments";
 import { loadWitnessHorizons } from "./memory/persistence/queries";
 import { recallMemory } from "./memory/recall/recall";
 import { loadRoster } from "./persistence/roster";
-import { REMOVED_CHARACTER_LABEL, REMOVED_MEMBER_LABEL, resolveAgentSeatName } from "./substrate/participant-name";
+import { REMOVED_CHARACTER_LABEL, REMOVED_MEMBER_LABEL } from "./substrate/participant-name";
 import { createChatLifecycle } from "./verbs/chat-lifecycle";
 import { createCompaction } from "./verbs/compaction";
 import { createEdit } from "./verbs/edit";
@@ -29,17 +29,13 @@ import { createRequestTurn, createTurn } from "./verbs/turn";
  *  with the seat-verb returns via {@link resolveAgentSeatName}. Character → the live card name, else the
  *  removed-character label; human → publics displayName, else its handle, else the removed-member label; agent
  *  → the AgentCardView soul name (sourceKind label for an unhatched buddy). `observer` is unseatable (never read). */
-async function resolveSeatDisplayName(
-  ctx: ChatContext,
+function resolveSeatDisplayName(
   r: Awaited<ReturnType<typeof loadRoster>>[number],
   resolved: {
     readonly publics: { displayName: string | null; handle: string | null } | null;
     readonly card: { name: string } | null;
   },
-): Promise<string> {
-  if (r.kind === "agent" && r.userId !== null) {
-    return await resolveAgentSeatName(ctx, r.userId);
-  }
+): string {
   if (r.kind === "human") {
     return resolved.publics?.displayName ?? resolved.publics?.handle ?? REMOVED_MEMBER_LABEL;
   }
@@ -75,7 +71,7 @@ export function createChatService(ctx: ChatContext, deps: ChatServiceDeps): { re
         // ONE character read per seat: the card name/avatar + render policy + theme/background overrides.
         const deco = await ctx.resolveSeatDeco({ ownerId: hostUserId, characterId: r.characterId });
         const publics = r.kind === "human" && r.userId !== null ? await ctx.resolveUserPublics(r.userId, r.activePersonaId) : null;
-        const displayName = await resolveSeatDisplayName(ctx, r, { publics, card: deco.card });
+        const displayName = resolveSeatDisplayName(r, { publics, card: deco.card });
 
         const avatarAssetId: AssetId | null = publics?.avatarAssetId ?? deco.card?.avatarAssetId ?? null;
         const avatarHash = await ctx.resolveAssetHash(avatarAssetId);

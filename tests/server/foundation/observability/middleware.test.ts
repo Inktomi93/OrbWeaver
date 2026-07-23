@@ -14,6 +14,12 @@ import { expect, test } from "../../../support/fixtures";
 const SAFE_CHARSET = /^[A-Za-z0-9_.\-:]{1,128}$/u;
 const OK_STATUS = 200;
 
+// The middleware reads the auth-resolved caller off the Hono context (`c.get("principal")`) to bind the
+// request logger; the mock supplies `get` returning an optional injected principal (null = anonymous).
+interface MockPrincipal {
+  readonly userId: string;
+  readonly handle: string;
+}
 interface MockCtx {
   readonly req: {
     readonly path: string;
@@ -22,6 +28,7 @@ interface MockCtx {
   };
   readonly res: { readonly status: number };
   header: (name: string, value: string) => void;
+  get: (key: "principal") => MockPrincipal | null;
 }
 type MiddlewareFn = (c: MockCtx, next: () => Promise<void>) => Promise<void>;
 
@@ -32,7 +39,7 @@ interface RunResult {
 
 // Drive the middleware once: build a mock Context (capturing the echoed X-Request-Id and whether next ran),
 // invoke it, and report what came back out.
-async function run(opts: { path: string; method?: string; incomingId?: string }): Promise<RunResult> {
+async function run(opts: { path: string; method?: string; incomingId?: string; principal?: MockPrincipal }): Promise<RunResult> {
   const incoming = opts.incomingId;
   let echoedId: string | undefined;
   let nextCalled = false;
@@ -48,6 +55,7 @@ async function run(opts: { path: string; method?: string; incomingId?: string })
         echoedId = value;
       }
     },
+    get: (_key: "principal"): MockPrincipal | null => opts.principal ?? null,
   };
   const next = (): Promise<void> => {
     nextCalled = true;
@@ -117,6 +125,24 @@ describe("the /api/_debug trace-skip (introspection doesn't evict real traces)",
     expect(record?.method).toBe("POST");
     expect(record?.path).toBe("/api/chats");
     expect(record?.status).toBe(OK_STATUS);
+  });
+});
+
+describe("request-user binding (the auth-resolved caller is stamped on the request ring)", () => {
+  test("an authenticated request records the resolved userId on the request-ring record", async () => {
+    initTracing();
+    const incomingId = "bound-user-req";
+    await run({ path: "/api/chats", incomingId, principal: { userId: "user-42", handle: "alex" } });
+    const record = recentRequests(200).find((r) => r.id === incomingId);
+    expect(record?.userId).toBe("user-42");
+  });
+
+  test("an anonymous request (null principal) leaves userId absent", async () => {
+    initTracing();
+    const incomingId = "anon-user-req";
+    await run({ path: "/api/chats", incomingId });
+    const record = recentRequests(200).find((r) => r.id === incomingId);
+    expect(record?.userId).toBeUndefined();
   });
 });
 

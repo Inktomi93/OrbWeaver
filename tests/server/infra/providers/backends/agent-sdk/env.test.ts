@@ -5,7 +5,14 @@
 
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { buildClaudeOpenRouterEnv, buildClaudeSdkEnv, buildClaudeVllmEnv, RESERVED_CLAUDE_ENV_KEYS } from "@orb/server/infra/providers/backends/agent-sdk";
+import { vllmAgentModelAlias } from "@orb/server/foundation/env";
+import {
+  buildClaudeAnthEnv,
+  buildClaudeOpenRouterEnv,
+  buildClaudeSdkEnv,
+  buildClaudeVllmEnv,
+  RESERVED_CLAUDE_ENV_KEYS,
+} from "@orb/server/infra/providers/backends/agent-sdk";
 import { afterEach, describe, vi } from "vitest";
 import { expect, test } from "../../../../../support/fixtures";
 
@@ -13,6 +20,7 @@ const OR_KEY = "sk-or-test-key";
 const FAKE_SUB_TOKEN = "oauth-sub-token-SECRET";
 const OPENROUTER_BASE = "https://openrouter.ai/api";
 const KEY_REQUIRED_RE = /OpenRouter API key is required/u;
+const ANTH_KEY_REQUIRED_RE = /Anthropic API key is required/u;
 const LOOPBACK_BASE_RE = /^http:\/\/127\.0\.0\.1:/u;
 // The derived tier→slug map the caller (connection) now supplies — the firewall carries NO hardcoded map.
 const TIER_MODELS = {
@@ -162,6 +170,72 @@ describe("mode-3 (local vLLM) firewall", () => {
     expect(env["CLAUDE_CODE_OAUTH_TOKEN"]).toBeUndefined();
     expect(Object.values(env)).not.toContain(FAKE_SUB_TOKEN);
   });
+
+  test("the default model env is the SHARED slash-free alias (the same helper healModel resolves)", () => {
+    // The alias env the loopback engine serves must equal `vllmAgentModelAlias()` — the ONE derivation the
+    // connection heal ALSO reads, so the runner env and the resolved requestedModel can't drift (the
+    // RPG-on-vLLM 404 crash was exactly this divergence).
+    const env = buildClaudeVllmEnv();
+    const alias = vllmAgentModelAlias();
+    expect(alias).not.toContain("/"); // Claude Code can't resolve a slash-containing id
+    expect(env["ANTHROPIC_DEFAULT_OPUS_MODEL"]).toBe(alias);
+    expect(env["ANTHROPIC_DEFAULT_SONNET_MODEL"]).toBe(alias);
+    expect(env["ANTHROPIC_DEFAULT_HAIKU_MODEL"]).toBe(alias);
+  });
+});
+
+const ANTH_KEY = "sk-ant-first-party-SECRET";
+
+describe("mode-4 (first-party Anthropic direct) firewall — the native x-api-key agent path (W11)", () => {
+  test("the real key rides ANTHROPIC_API_KEY; base URL is UNSET (native api.anthropic.com); no OAuth/ambient resolution", () => {
+    // Poison the ambient env the owner's box may carry — a stale sub OAuth + an ambient base URL.
+    vi.stubEnv("CLAUDE_CODE_OAUTH_TOKEN", FAKE_SUB_TOKEN);
+    vi.stubEnv("ANTHROPIC_IDENTITY_TOKEN", FAKE_SUB_TOKEN);
+    vi.stubEnv("ANTHROPIC_BASE_URL", "https://stale-ambient.example");
+
+    const env = buildClaudeAnthEnv(ANTH_KEY);
+
+    // The real first-party key is the ONLY auth; it rides the native x-api-key var.
+    expect(env["ANTHROPIC_API_KEY"]).toBe(ANTH_KEY);
+    // Base URL is UNSET — the runtime uses its native api.anthropic.com default, NOT the poisoned ambient one.
+    expect(env["ANTHROPIC_BASE_URL"]).toBeUndefined();
+    // No Bearer/OAuth path — every ambient credential source is nulled so no config/OAuth minting can fire.
+    expect(env["ANTHROPIC_AUTH_TOKEN"]).toBeUndefined();
+    expect(env["CLAUDE_CODE_OAUTH_TOKEN"]).toBeUndefined();
+    expect(env["ANTHROPIC_IDENTITY_TOKEN"]).toBeUndefined();
+    expect(env["ANTHROPIC_IDENTITY_TOKEN_FILE"]).toBeUndefined();
+    expect(env["ANTHROPIC_SERVICE_ACCOUNT_ID"]).toBeUndefined();
+    // The poisoned sub token appears NOWHERE in the spawn env.
+    expect(Object.values(env)).not.toContain(FAKE_SUB_TOKEN);
+  });
+
+  test("the ephemeral config dir is EMPTY — the host ~/.claude sub credentials are unreachable", () => {
+    const env = buildClaudeAnthEnv(ANTH_KEY);
+    expect(env["CLAUDE_CONFIG_DIR"]).toBeDefined();
+    expect(env["ANTHROPIC_CONFIG_DIR"]).toBe(env["CLAUDE_CONFIG_DIR"]);
+    const dir = env["CLAUDE_CONFIG_DIR"] as string;
+    expect(existsSync(join(dir, ".credentials.json"))).toBe(false);
+  });
+
+  test("a preset escape hatch can neither repoint the base nor re-add an OAuth token", () => {
+    const hatch: Record<string, string | null> = Object.fromEntries([
+      ["ANTHROPIC_BASE_URL", "https://evil.example"],
+      ["ANTHROPIC_API_KEY", "attacker-key"],
+      ["CLAUDE_CODE_OAUTH_TOKEN", FAKE_SUB_TOKEN],
+      ["MY_CUSTOM_FLAG", "ok"],
+    ]);
+    const env = buildClaudeAnthEnv(ANTH_KEY, { userEnv: hatch });
+    // Reserved keys are stripped BEFORE the overlay — the runner-owned key + unset base stand.
+    expect(env["ANTHROPIC_API_KEY"]).toBe(ANTH_KEY);
+    expect(env["ANTHROPIC_BASE_URL"]).toBeUndefined();
+    expect(env["CLAUDE_CODE_OAUTH_TOKEN"]).toBeUndefined();
+    expect(Object.values(env)).not.toContain(FAKE_SUB_TOKEN);
+    expect(env["MY_CUSTOM_FLAG"]).toBe("ok");
+  });
+
+  test("a missing Anthropic key fails loudly (the key-required invariant)", () => {
+    expect(() => buildClaudeAnthEnv("")).toThrow(ANTH_KEY_REQUIRED_RE);
+  });
 });
 
 describe("byte-stability — cache-buster tripwires (a nondeterministic env busts the prompt cache)", () => {
@@ -178,5 +252,9 @@ describe("byte-stability — cache-buster tripwires (a nondeterministic env bust
 
   test("mode-3 env is deep-equal across calls", () => {
     expect(buildClaudeVllmEnv()).toStrictEqual(buildClaudeVllmEnv());
+  });
+
+  test("mode-4 env is deep-equal across calls with the same key + overrides", () => {
+    expect(buildClaudeAnthEnv("sk-ant-x", { maxContextTokens: 100_000 })).toStrictEqual(buildClaudeAnthEnv("sk-ant-x", { maxContextTokens: 100_000 }));
   });
 });

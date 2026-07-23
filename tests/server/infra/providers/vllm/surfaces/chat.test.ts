@@ -3,6 +3,7 @@
 // finish-reason + usage mapping, deterministic turn timing (injected `now`), and that a prompt-only
 // (agent-sdk) request is fail-closed. Independent — it only calls `client.engineStream`.
 
+import { DEFAULT_MAX_OUTPUT_TOKENS } from "@orb/contracts/preset";
 import type { ChatId, ModelId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ChatRequest } from "@orb/server/infra/providers";
@@ -113,6 +114,39 @@ describe("createVllmChat", () => {
     const chat = createVllmChat({ client, now: clock() });
     await chat(chatReq({ params: {} }));
     expect(sentBody).not.toHaveProperty("min_p");
+  });
+
+  test("wires max_tokens = DEFAULT_MAX_OUTPUT_TOKENS when unset (the response-length default, NOT the window)", async () => {
+    // The amnesia coupling: the runner's fallback must be a sane response length, never the window — and it
+    // must equal the budget's reserve fallback (both `DEFAULT_MAX_OUTPUT_TOKENS`). A concrete-materialized
+    // intent (the chat path) sets it explicitly; this pins the non-chat fallback.
+    let sentBody: Record<string, unknown> | undefined;
+    const client: VllmEngineClient = {
+      enginePost: () => Promise.reject(new Error("chat must stream")),
+      engineStream: (_lane, _path, body) => {
+        sentBody = body as Record<string, unknown>;
+        return Promise.resolve(sseStream(['{"choices":[{"finish_reason":"stop"}]}']));
+      },
+      baseUrl: () => "http://127.0.0.1:0",
+    };
+    const chat = createVllmChat({ client, now: clock() });
+    await chat(chatReq({ params: {} }));
+    expect(sentBody?.["max_tokens"]).toBe(DEFAULT_MAX_OUTPUT_TOKENS);
+  });
+
+  test("wires the explicit maxOutputTokens as max_tokens (the reserve == runner max_tokens coupling)", async () => {
+    let sentBody: Record<string, unknown> | undefined;
+    const client: VllmEngineClient = {
+      enginePost: () => Promise.reject(new Error("chat must stream")),
+      engineStream: (_lane, _path, body) => {
+        sentBody = body as Record<string, unknown>;
+        return Promise.resolve(sseStream(['{"choices":[{"finish_reason":"stop"}]}']));
+      },
+      baseUrl: () => "http://127.0.0.1:0",
+    };
+    const chat = createVllmChat({ client, now: clock() });
+    await chat(chatReq({ params: { maxOutputTokens: 512 } }));
+    expect(sentBody?.["max_tokens"]).toBe(512);
   });
 
   test("forwards the chatId on each delta", async () => {

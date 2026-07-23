@@ -156,4 +156,26 @@ describe("registerBlob", () => {
     const res = await blobHandler({ assets, cas })(makeCtx(OWNER, { params: { hash: HASH } }));
     expect(res.status).toBe(404);
   });
+
+  test("?w= decode failure (valid magic bytes, corrupt body) → falls back to the unresized original, never a 500", async () => {
+    const assets: BlobAssetsPort = {
+      getMetadata: (): Promise<{ mime: string; size: number }> => Promise.resolve(PNG_META),
+      resolveVariant: (): Promise<Uint8Array> => Promise.reject(new Error("pngload_buffer: libspng read error")),
+    };
+    const cas: BlobCasPort = { read: (): Promise<Uint8Array> => Promise.resolve(ORIGINAL) };
+    const res = await blobHandler({ assets, cas })(makeCtx(OWNER, { params: { hash: HASH }, query: { w: "96" } }));
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("image/png");
+    expect(new Uint8Array(await res.arrayBuffer())).toEqual(ORIGINAL);
+  });
+
+  test("?w= decode failure with no fallback original available (metadata missing) → 404, never a 500", async () => {
+    const assets: BlobAssetsPort = {
+      getMetadata: (): Promise<undefined> => Promise.resolve(undefined),
+      resolveVariant: (): Promise<Uint8Array> => Promise.reject(new Error("pngload_buffer: libspng read error")),
+    };
+    const cas: BlobCasPort = { read: (): Promise<Uint8Array> => Promise.resolve(ORIGINAL) };
+    const res = await blobHandler({ assets, cas })(makeCtx(OWNER, { params: { hash: HASH }, query: { w: "96" } }));
+    expect(res.status).toBe(404);
+  });
 });

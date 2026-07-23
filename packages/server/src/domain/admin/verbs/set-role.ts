@@ -13,7 +13,6 @@ import { requireOwner } from "../guard";
 import { loadUser, userCols } from "../persistence/queries";
 
 const OWNER_ROLE = "owner";
-const AGENT_KIND = "agent";
 
 export function createSetRole(ctx: AdminContext): AdminService["setRole"] {
   return async (params: SetRoleParams) => {
@@ -30,9 +29,7 @@ export function createSetRole(ctx: AdminContext): AdminService["setRole"] {
       }
       throw new DomainOperationError(ADMIN_OP_CODES.cannotModifyOwner, "the owner cannot be demoted");
     }
-    if (target.kind === AGENT_KIND) {
-      throw new DomainOperationError(ADMIN_OP_CODES.cannotModifyAgent, "an agent principal's role cannot be changed — its authority is the capability ceiling");
-    }
+
     if (role === OWNER_ROLE) {
       throw new DomainConflictError("an owner already exists; ownership transfer is not supported");
     }
@@ -42,7 +39,7 @@ export function createSetRole(ctx: AdminContext): AdminService["setRole"] {
     const updated = await ctx.db
       .update(users)
       .set({ role, updatedAt: at })
-      .where(and(eq(users.id, userId), ne(users.role, OWNER_ROLE), ne(users.kind, AGENT_KIND)))
+      .where(and(eq(users.id, userId), ne(users.role, OWNER_ROLE)))
       .returning(userCols);
     const row = updated[0];
     if (row === undefined) {

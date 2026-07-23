@@ -228,7 +228,7 @@ describe(`pipeline-breakpoint parity: orbweaver SHAPE vs neo — ${UNSKIP_WHEN}`
 //   turn 1 → usage.cacheWriteTokens > 0  &&  usage.cacheReadTokens === 0   (writes the prefix)
 //   turn 2 → usage.cacheReadTokens   > 0                                    (~5300 tokens read back)
 // Unskip + tag `live` when assembly + a real backend exist; assert against two consecutive real turns.
-// biome-ignore lint/suspicious/noSkippedTests: intentional — needs a real backend + RUN_LIVE=1.
+// biome-ignore lint/suspicious/noSkippedTests: allow-skip — LIVE-only spec, needs a real backend + RUN_LIVE=1 (costs a model call); unskip per UNSKIP_WHEN above.
 describe.skip(`LIVE cache-token deltas vs real Anthropic — ${UNSKIP_WHEN} (tag: live, RUN_LIVE=1)`, () => {
   test("turn 1 writes the prefix; turn 2 reads it back (~5300 tokens)", () => {
     const _shapes: ShapeCase[] = fixture.rollingPair.turns; // the two consecutive turns to run live

@@ -15,14 +15,14 @@ test("credentialSourceSchema round-trips every dispatch source", () => {
   for (const source of CRED_SOURCES) {
     expect(credentialSourceSchema.parse(source)).toBe(source);
   }
-  expect(CRED_SOURCES).toEqual(["max-pro-sub", "openrouter", "vllm", "local-light", "custom_openai"]);
+  expect(CRED_SOURCES).toEqual(["max-pro-sub", "openrouter", "anthropic", "vllm", "local-light", "custom_openai", "venice", "comfyui"]);
 });
 
 test("credentialProviderSchema round-trips every storable provider", () => {
   for (const provider of CRED_PROVIDERS) {
     expect(credentialProviderSchema.parse(provider)).toBe(provider);
   }
-  expect(CRED_PROVIDERS).toEqual(["openrouter", "anthropic", "openai", "google_vertex", "custom_openai", "gif-search"]);
+  expect(CRED_PROVIDERS).toEqual(["openrouter", "anthropic", "openai", "google_vertex", "custom_openai", "gif-search", "venice"]);
 });
 
 test("the source axis and the storage axis are NOT conflated", () => {
@@ -30,14 +30,16 @@ test("the source axis and the storage axis are NOT conflated", () => {
   expect(credentialProviderSchema.safeParse("max-pro-sub").success).toBe(false);
   expect(credentialProviderSchema.safeParse("vllm").success).toBe(false);
   expect(credentialProviderSchema.safeParse("local-light").success).toBe(false);
+  expect(credentialProviderSchema.safeParse("comfyui").success).toBe(false);
   // Storable providers with no resolver arm: storage-only (gif-search is the non-LLM external-key slot,
-  // resolved by its own dedicated verb, never dispatched at turn time).
-  for (const storageOnly of ["anthropic", "openai", "google_vertex", "gif-search"]) {
+  // resolved by its own dedicated verb, never dispatched at turn time). `anthropic` was PROMOTED to the
+  // dispatch axis (W11) — it now round-trips as a source, so it is no longer in this storage-only set.
+  for (const storageOnly of ["openai", "google_vertex", "gif-search"]) {
     expect(credentialSourceSchema.safeParse(storageOnly).success).toBe(false);
   }
-  // The overlap is exactly { openrouter, custom_openai }.
+  // The overlap (a key stored AND dispatched) is exactly { openrouter, anthropic, custom_openai, venice }.
   const overlap = CRED_SOURCES.filter((s) => (CRED_PROVIDERS as readonly string[]).includes(s));
-  expect([...overlap].sort()).toEqual(["custom_openai", "openrouter"]);
+  expect([...overlap].sort()).toEqual(["anthropic", "custom_openai", "openrouter", "venice"]);
 });
 
 // --- Provider metadata schema (the `metadata` JSON gate) ----------------------

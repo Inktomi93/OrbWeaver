@@ -250,16 +250,7 @@ function AppearanceFormBody({ session }: { readonly session: AutosaveSession<App
                       {(field): ReactElement => <field.SelectField label="Seeded image" placeholder="Choose a background" items={SEEDED_BACKGROUND_ITEMS} />}
                     </form.AppField>
                   )}
-                  {kind === "external" && (
-                    <form.AppField name="backgroundExternalUrl">
-                      {(field): ReactElement => (
-                        <field.TextField
-                          label="Image URL"
-                          description="Loaded directly from the given host — your own client only (never shared to other viewers)."
-                        />
-                      )}
-                    </form.AppField>
-                  )}
+
                   {kind === "asset" && (
                     <form.Subscribe selector={(state): string => state.values.backgroundAssetHash}>
                       {(hash): ReactElement => (

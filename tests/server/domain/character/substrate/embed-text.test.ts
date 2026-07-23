@@ -20,7 +20,7 @@ describe("buildCardEmbedText", () => {
         description: "a lighthouse keeper",
         personality: "stoic, kind",
         scenario: "a storm-lashed coast",
-        greetings: ["Hello, traveler.", "Well met."],
+        greetings: [{ text: "Hello, traveler." }, { text: "Well met." }],
       }),
     );
     expect(text).toBe(
@@ -40,7 +40,7 @@ describe("buildCardEmbedText", () => {
   });
 
   test("greetings[0] is the first message; the rest are alternates", () => {
-    const text = buildCardEmbedText(card({ name: "X", greetings: ["one", "two", "three"] }));
+    const text = buildCardEmbedText(card({ name: "X", greetings: [{ text: "one" }, { text: "two" }, { text: "three" }] }));
     expect(text).toContain("First Message: one");
     expect(text).toContain("Alternate Greetings:\ntwo\n---\nthree");
   });

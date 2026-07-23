@@ -14,6 +14,7 @@ import {
   listReadable,
   readablePreset,
   reseedSystemDefault,
+  selectPackagedPreset,
   selectSystemDefault,
   updatePresetRow,
 } from "../../../../../packages/server/src/domain/preset/persistence/queries.ts";
@@ -58,6 +59,21 @@ describe("listReadable", () => {
 
     const names = (await listReadable(db, a)).map((r) => r.name).sort();
     expect(names).toEqual(["A1", "Default"]);
+  });
+
+  test("the shared arm keys on the sentinel — an ownerless PACKAGED template row never leaks in", async () => {
+    const db = await freshDb();
+    const a = await seedUser(db, "a");
+    await seedPreset(db, { id: SYSTEM_DEFAULT_PRESET_ID, ownerId: null, name: "Default" });
+    // a second ownerless row (a packaged template) — NOT the sentinel.
+    const packagedId = castId<PresetId>("preset_000000000000000000000rpggm");
+    await seedPreset(db, { id: packagedId, ownerId: null, name: "RPG Game Master" });
+
+    const names = (await listReadable(db, a)).map((r) => r.name);
+    expect(names).toEqual(["Default"]);
+    // …and it is not individually readable via the two-armed read, but IS readable as a packaged template.
+    expect(await readablePreset(db, a, packagedId)).toBeUndefined();
+    expect((await selectPackagedPreset(db, packagedId))?.name).toBe("RPG Game Master");
   });
 });
 

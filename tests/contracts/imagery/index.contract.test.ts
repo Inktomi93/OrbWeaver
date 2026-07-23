@@ -3,7 +3,15 @@
 // tuple, the size presets, and the `generatePicture` request (its `n`/`prompt` bounds are the fan-out cap
 // and the prompt-length clamp — boundary-tested here since the wire is the trust edge).
 
-import { generatePictureRequestSchema, PROMPT_TEMPLATE_MODES, promptTemplateModeSchema, SIZE_PRESET_NAMES, sizePresetSchema } from "@orb/contracts/imagery";
+import {
+  generateImageActionArgsSchema,
+  generatePictureRequestSchema,
+  MODE_TRIGGERS,
+  PROMPT_TEMPLATE_MODES,
+  promptTemplateModeSchema,
+  SIZE_PRESET_NAMES,
+  sizePresetSchema,
+} from "@orb/contracts/imagery";
 import { expect, test } from "../../support/fixtures";
 
 test("PROMPT_TEMPLATE_MODES is the committed template axis and the schema derives from it", () => {
@@ -44,4 +52,32 @@ test("generatePictureRequestSchema enforces the n fan-out cap (1..4) and the pro
   // The 2000-char prompt ceiling — at cap parses, one over is rejected.
   expect(generatePictureRequestSchema.safeParse({ mode: "free", prompt: "a".repeat(2000) }).success).toBe(true);
   expect(generatePictureRequestSchema.safeParse({ mode: "free", prompt: "a".repeat(2001) }).success).toBe(false);
+});
+
+// ── IC-C mints (imagery-design/05 §IC-C) — the /imagine trigger map + the automation action-arm args ──
+
+test("MODE_TRIGGERS maps every trigger word onto a real prompt-template mode", () => {
+  expect(MODE_TRIGGERS).toEqual({ you: "character", face: "face", scene: "scenario", background: "background" });
+  // Every value is a member of the committed mode tuple (the `satisfies` is compile-pinned; assert at runtime too).
+  for (const mode of Object.values(MODE_TRIGGERS)) {
+    expect(PROMPT_TEMPLATE_MODES).toContain(mode);
+  }
+});
+
+test("generateImageActionArgsSchema applies the arm defaults (mode/n/reuse/useAvatarReference/quiet)", () => {
+  const parsed = generateImageActionArgsSchema.parse({});
+  expect(parsed.mode).toBe("scenario");
+  expect(parsed.n).toBe(1);
+  expect(parsed.reuse).toBe("prefer");
+  expect(parsed.useAvatarReference).toBe(false);
+  expect(parsed.quiet).toBe(false);
+});
+
+test("generateImageActionArgsSchema clamps n (1..4), the prompt/negative caps, and validates the subject id", () => {
+  expect(generateImageActionArgsSchema.safeParse({ n: 0 }).success).toBe(false);
+  expect(generateImageActionArgsSchema.safeParse({ n: 5 }).success).toBe(false);
+  expect(generateImageActionArgsSchema.safeParse({ prompt: "a".repeat(2001) }).success).toBe(false);
+  expect(generateImageActionArgsSchema.safeParse({ negative: "n".repeat(1001) }).success).toBe(false);
+  // subjectCharacterId is a strict character TypeID (a chat id is rejected).
+  expect(generateImageActionArgsSchema.safeParse({ subjectCharacterId: "chat_abc" }).success).toBe(false);
 });

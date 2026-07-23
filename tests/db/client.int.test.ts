@@ -3,11 +3,11 @@
 // no FK-bearing tables (users/audit have none), so the constraint test exercises a UNIQUE violation;
 // the foreign-key arm of isConstraintViolation is exercised by the Wave-1 slices that land real FKs.
 
-import { mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pid } from "node:process";
-import { assertReferentialIntegrity, createDb, isConstraintViolation, runMigrations, users } from "@orb/db";
+import { assertReferentialIntegrity, createDb, isConstraintViolation, localPath, runMigrations, users } from "@orb/db";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq, sql } from "drizzle-orm";
@@ -46,6 +46,21 @@ test("createDb applies the tuning PRAGMAs on a file db (WAL + busy_timeout stick
       rmSync(`${path}${suffix}`, { force: true });
     }
   }
+});
+
+test("localPath: a relative `file:./x` url scheme-strips (never fileURLToPath, which absolutizes the dot-segment against ROOT)", () => {
+  expect(localPath("file:./data/orbweaver.db")).toBe("./data/orbweaver.db");
+  expect(localPath("file:relative.db")).toBe("relative.db");
+  expect(localPath("file:/abs.db")).toBe("/abs.db");
+});
+
+test("localPath: the file:// authority form still resolves through fileURLToPath", () => {
+  expect(localPath("file:///abs/path.db")).toBe("/abs/path.db");
+});
+
+test("localPath: undefined for :memory: and non-file urls", () => {
+  expect(localPath(":memory:")).toBeUndefined();
+  expect(localPath("libsql://example.turso.io")).toBeUndefined();
 });
 
 test("createDb still boots a :memory: db (the WAL readback assert is file-only)", async () => {
@@ -125,4 +140,19 @@ test("assertReferentialIntegrity THROWS on an orphan FK row (the foreign_key_che
   await db.run(sql`PRAGMA foreign_keys = OFF`);
   await db.run(sql.raw("insert into sessions (id, user_id, token_hash, expires_at) values ('session_orphan', 'user_ghost', 'h', 1)"));
   await expect(assertReferentialIntegrity(db)).rejects.toThrow(ORPHAN_RE);
+});
+
+test("createDb auto-creates the parent dir RELATIVE to cwd for a bare file:./ url (never absolutized)", async () => {
+  // Regression (2026-07-17): fileURLToPath("file:./data/x.db") does NOT throw — URL normalization resolves
+  // the dot-segment against ROOT and absolutized the default url's parent to `/data`, so every fresh full
+  // boot died on `mkdir /data` (EACCES) and the e2e-smoke webServer could not start. The bare relative
+  // form must scheme-strip and create its parent UNDER the cwd. pid keeps parallel workers apart
+  // (mkdtemp can't help here — the point is a cwd-RELATIVE path).
+  const scratch = `.orb-reldb-${pid}`;
+  try {
+    await createDb(`file:./${scratch}/t.db`);
+    expect(existsSync(scratch)).toBe(true); // created here, relative — not at the filesystem root
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
 });

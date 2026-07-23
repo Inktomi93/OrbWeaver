@@ -25,9 +25,7 @@ export function deriveRunner(api: ChatApi, source: CredentialSource): BackendKey
         case "max-pro-sub":
         case "openrouter":
         case "vllm":
-        case "anthropic":
-          // Sub, OR Anthropic skin, local loopback, and the first-party Anthropic key (W11 owner ruling —
-          // agents may run on a user's own paid key) all run through the one stateful agent-sdk backend.
+          // Sub, OR skin, local loopback all run through the one stateful agent-sdk backend.
           return "agent-sdk";
         case "local-light":
           throw new ProviderError({
@@ -35,18 +33,7 @@ export function deriveRunner(api: ChatApi, source: CredentialSource): BackendKey
             retryable: false,
             message: 'the "local-light" tier serves only embed/rerank/imageEmbed, never a chat turn',
           });
-        case "venice":
-          throw new ProviderError({
-            kind: "invalid",
-            retryable: false,
-            message: 'the "venice" source serves only generateImage, never a chat turn',
-          });
-        case "comfyui":
-          throw new ProviderError({
-            kind: "invalid",
-            retryable: false,
-            message: 'the "comfyui" source serves only generateImage, never a chat turn',
-          });
+
         case "custom_openai":
           throw new ProviderError({
             kind: "invalid",
@@ -64,19 +51,7 @@ export function deriveRunner(api: ChatApi, source: CredentialSource): BackendKey
           return "vllm";
         case "custom_openai":
           return "custom-openai";
-        case "venice":
-        case "comfyui":
-          throw new ProviderError({
-            kind: "invalid",
-            retryable: false,
-            message: `the "${source}" source serves only generateImage, never a chat turn`,
-          });
-        case "anthropic":
-          throw new ProviderError({
-            kind: "invalid",
-            retryable: false,
-            message: 'the first-party "anthropic" credential speaks the Anthropic-Messages wire, not chat-completions',
-          });
+
         case "local-light":
           throw new ProviderError({
             kind: "invalid",
@@ -96,44 +71,14 @@ export function deriveRunner(api: ChatApi, source: CredentialSource): BackendKey
       switch (source) {
         case "openrouter":
           return "openrouter";
-        case "anthropic":
         case "max-pro-sub":
         case "vllm":
         case "local-light":
-        case "venice":
-        case "comfyui":
         case "custom_openai":
           throw new ProviderError({
             kind: "invalid",
             retryable: false,
             message: 'the "responses" api is OpenRouter-only',
-          });
-        default:
-          return assertNever(source);
-      }
-    case "anthropic-messages":
-      // anth-direct backend (D67). Two paid-key sources: the `openrouter` skin (Bearer) and the first-party
-      // `anthropic` key (W11, `x-api-key`). Both route to anth-direct; the client-per-source split is inside it.
-      switch (source) {
-        case "openrouter":
-        case "anthropic":
-          return "anth-direct";
-        case "max-pro-sub":
-          // Sub-exclusion (§3d, non-negotiable): the free Max sub can never drive a paid HTTP endpoint.
-          throw new ProviderError({
-            kind: "invalid",
-            retryable: false,
-            message: 'the "max-pro-sub" credential can never drive the direct Anthropic-Messages api (the sub stays on the agent-sdk CLI)',
-          });
-        case "vllm":
-        case "local-light":
-        case "venice":
-        case "comfyui":
-        case "custom_openai":
-          throw new ProviderError({
-            kind: "invalid",
-            retryable: false,
-            message: 'the "anthropic-messages" api is served only by the OpenRouter skin and the first-party anthropic key',
           });
         default:
           return assertNever(source);
@@ -155,16 +100,8 @@ export function backendForSource(source: CredentialSource): BackendKey {
       return "local-light";
     case "custom_openai":
       return "custom-openai";
-    case "venice":
-      return "venice";
-    case "comfyui":
-      return "comfyui";
     case "max-pro-sub":
       return "agent-sdk";
-    case "anthropic":
-      // Chat-only (anth-direct). Maps here for exhaustiveness only; the firewall rejects `anthropic` for
-      // every non-chat role before this is reached.
-      return "anth-direct";
     default:
       return assertNever(source);
   }

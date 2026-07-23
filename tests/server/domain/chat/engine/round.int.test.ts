@@ -17,6 +17,8 @@ import { CHAT_OP_CODES, ChatOperationError } from "../../../../../packages/serve
 import type { TurnEngine, TurnOutcome, TurnPrep, TurnRequest } from "../../../../../packages/server/src/domain/chat/contract/results";
 import { createTurnEngine } from "../../../../../packages/server/src/domain/chat/engine/engine";
 import { driveRound } from "../../../../../packages/server/src/domain/chat/engine/round";
+import { loadWitnessHorizons } from "../../../../../packages/server/src/domain/chat/memory/persistence/queries";
+import { recallMemory } from "../../../../../packages/server/src/domain/chat/memory/recall/recall";
 import { loadCanonHistory } from "../../../../../packages/server/src/domain/chat/persistence/queries";
 import { freshDb } from "../../../../support/db";
 import { expect, test } from "../../../../support/fixtures";
@@ -76,6 +78,8 @@ function realEngine(database: Db, requests: TurnRequest[]): TurnEngine {
     lockTtlMs: 1000,
     generateSegments: async () => ({ written: 0, skipped: 0 }),
     generateDigests: async () => ({ written: 0, skipped: 0 }),
+    loadWitnessHorizons,
+    recallMemory,
   });
 }
 
@@ -320,5 +324,77 @@ describe("driveRound — locked yields the round (a human send interleaved — �
     expect(outcome.messages).toHaveLength(1);
     expect(outcome.aborted).toBe(false);
     expect(calls).toBe(2);
+  });
+});
+
+describe("driveRound — an engine turn that RETURNS aborted stops the round + propagates the whole truth", () => {
+  const abortedView = { id: castId<MessageId>("message_ab") } as unknown as MessageView;
+
+  test("single-speaker: an aborted engine outcome propagates aborted:true + reason", async () => {
+    const fakeEngine: TurnEngine = {
+      runTurn: (): Promise<TurnOutcome> => Promise.resolve({ messages: [], aborted: true, abortReason: "user" }),
+    };
+    const outcome = await driveRound({
+      engine: fakeEngine,
+      base: base(castId<ChatId>("chat_ab1")),
+      group: PER_SPEAKER,
+      speakers: [{ ref: charRef("a"), name: "Aria" }],
+      groupCharacterId: null,
+      castName: "Aria",
+    });
+    expect(outcome.aborted).toBe(true);
+    expect(outcome.abortReason).toBe("user");
+    expect(outcome.messages).toHaveLength(0);
+  });
+
+  test("mid-round multi-speaker: speaker 1 commits, speaker 2 aborts → round carries BOTH the committed row AND aborted:true", async () => {
+    let calls = 0;
+    const committedView = { id: castId<MessageId>("message_1") } as unknown as MessageView;
+    const fakeEngine: TurnEngine = {
+      runTurn: (): Promise<TurnOutcome> => {
+        calls += 1;
+        // Speaker 1 commits normally; speaker 2 is cancelled mid-round (a caller abort landed between speakers).
+        return calls === 1
+          ? Promise.resolve({ messages: [committedView], aborted: false, abortReason: undefined })
+          : Promise.resolve({ messages: [], aborted: true, abortReason: "user" });
+      },
+    };
+    const outcome = await driveRound({
+      engine: fakeEngine,
+      base: base(castId<ChatId>("chat_ab2")),
+      group: PER_SPEAKER,
+      speakers: [
+        { ref: charRef("a"), name: "Aria" },
+        { ref: charRef("b"), name: "Bran" },
+      ],
+      groupCharacterId: null,
+      castName: "Aria, Bran",
+    });
+    // The whole truth: the row that landed before the abort rides along, AND the round reports aborted.
+    expect(outcome.messages).toEqual([committedView]);
+    expect(outcome.aborted).toBe(true);
+    expect(outcome.abortReason).toBe("user");
+    // The loop STOPPED at speaker 2 — speaker 3 (had there been one) never runs; here calls stop at 2.
+    expect(calls).toBe(2);
+  });
+
+  test("the stale (lock-loss) reason propagates through the round just as `user` does", async () => {
+    const fakeEngine: TurnEngine = {
+      runTurn: (): Promise<TurnOutcome> => Promise.resolve({ messages: [abortedView], aborted: true, abortReason: "stale" }),
+    };
+    const outcome = await driveRound({
+      engine: fakeEngine,
+      base: base(castId<ChatId>("chat_ab3")),
+      group: PER_SPEAKER,
+      speakers: [
+        { ref: charRef("a"), name: "Aria" },
+        { ref: charRef("b"), name: "Bran" },
+      ],
+      groupCharacterId: null,
+      castName: "Aria, Bran",
+    });
+    expect(outcome.aborted).toBe(true);
+    expect(outcome.abortReason).toBe("stale");
+    expect(outcome.messages).toEqual([abortedView]);
   });
 });

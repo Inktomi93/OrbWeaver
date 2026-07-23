@@ -186,4 +186,44 @@ describe("onAssetCreated", () => {
     expect(storeH.roleClients.imageEmbed).not.toHaveBeenCalled();
     expect(await db.select().from(imageEmbeddings)).toHaveLength(0);
   });
+
+  // The embeddability gate (BG-V): a `video/*` background emits `asset.created` like any asset, but the
+  // imageEmbed role only speaks images. The gate keys on the STORED MIME (not AssetKind) — a video is
+  // skipped BEFORE its bytes are ever loaded (no wasted decode, no failing model call). Asserted at the
+  // enqueue seam: zero imageEmbed calls, zero summarize (caption), zero vector rows, and NO byte load.
+  test("a video asset (video/mp4) is NOT image-embedded — skipped before loading bytes", async () => {
+    const db = await freshDb();
+    const storeH = makeStoreHarness(db);
+    const svc = createEmbeddingsService(storeH.ctx);
+    const owner = await seedUser(db, { handle: "owner" });
+    const assetId = await seedAsset(db, owner);
+    const ih = makeIndexerHarness(svc.store, storeH.roleClients, { assetMime: "video/mp4", assetBytes: IMG });
+    const indexer = createEmbeddingsIndexer(ih.ctx);
+
+    await indexer.onAssetCreated({ type: "asset.created", assetId });
+
+    expect(ih.loadAssetMime).toHaveBeenCalledWith(assetId);
+    expect(ih.loadAssetBytes).not.toHaveBeenCalled();
+    expect(storeH.roleClients.imageEmbed).not.toHaveBeenCalled();
+    expect(storeH.roleClients.summarize).not.toHaveBeenCalled();
+    expect(await db.select().from(imageEmbeddings)).toHaveLength(0);
+  });
+
+  // Regression pin: a background-KIND asset that IS an image (image/png) keeps embedding exactly as before —
+  // the gate's axis is embeddability (mime), never AssetKind.
+  test("an image asset (image/png) still embeds both lenses — the gate is mime, not kind", async () => {
+    const db = await freshDb();
+    const storeH = makeStoreHarness(db);
+    const svc = createEmbeddingsService(storeH.ctx);
+    const owner = await seedUser(db, { handle: "owner" });
+    const assetId = await seedAsset(db, owner);
+    const ih = makeIndexerHarness(svc.store, storeH.roleClients, { assetMime: "image/png", assetBytes: IMG });
+    const indexer = createEmbeddingsIndexer(ih.ctx);
+
+    await indexer.onAssetCreated({ type: "asset.created", assetId });
+
+    expect(ih.loadAssetBytes).toHaveBeenCalledWith(assetId);
+    expect(storeH.roleClients.imageEmbed).toHaveBeenCalledTimes(2);
+    expect(await db.select().from(imageEmbeddings).where(eq(imageEmbeddings.assetId, assetId))).toHaveLength(2);
+  });
 });

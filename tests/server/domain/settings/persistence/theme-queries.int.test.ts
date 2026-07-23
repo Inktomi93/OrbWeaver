@@ -14,7 +14,6 @@ import {
   isThemeNameConflict,
   listOwnedThemeNames,
   listReadableThemes,
-  loadOwnedTheme,
   readableTheme,
   updateOwnedTheme,
   upsertSeedTheme,
@@ -80,14 +79,7 @@ describe("listReadableThemes / readableTheme", () => {
   });
 });
 
-describe("loadOwnedTheme / updateOwnedTheme / deleteOwnedTheme — seeds are un-mutable BY CONSTRUCTION", () => {
-  test("loadOwnedTheme never resolves a seed (NULL owner can't match a caller's id)", async () => {
-    const db = await freshDb();
-    const a = await seedUser(db, { id: "user_a" });
-    await insertSeed(db, themeId(1), "Hearth");
-    expect(await loadOwnedTheme(db, themeId(1), a)).toBeUndefined();
-  });
-
+describe("updateOwnedTheme / deleteOwnedTheme — seeds are un-mutable BY CONSTRUCTION", () => {
   test("updateOwnedTheme on a seed id matches nothing", async () => {
     const db = await freshDb();
     const a = await seedUser(db, { id: "user_a" });

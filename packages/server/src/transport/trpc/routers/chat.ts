@@ -30,11 +30,11 @@ import type { ChatBusEvent } from "@orb/contracts/chat";
 import { chatInjectionInputSchema, groupConfigSchema, roomOverridesSchema, seatKnobsSchema } from "@orb/contracts/chat";
 import { chatDocumentVisibilitySchema } from "@orb/contracts/databank";
 import type { Principal } from "@orb/contracts/identity";
-import { agentSourceKindSchema } from "@orb/contracts/identity";
+
 import { generatePictureRequestSchema } from "@orb/contracts/imagery";
 import { themeBackgroundSchema } from "@orb/contracts/theme";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { CharacterId, ChatId, ChatInjectionId, ChatParticipantId, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, ChatInjectionId, ChatParticipantId, MessageId, MessageVariantId, PersonaId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import type { TrackedEnvelope } from "@trpc/server";
 import { tracked } from "@trpc/server";
@@ -317,31 +317,6 @@ const addCharacterToChatSchema = z.object({
   characterId: brandedId<CharacterId>(),
 });
 
-// `seatAgent` (D60, agent-principal-design/04 §3 — the P6 wiring of the AP3-1 verb): the host seats an
-// agent principal whose OWNER is a present member (owner==host is the v1 collapse — the host seating its
-// OWN buddy). Host-gated INSIDE the verb (`requireHost`) + owner-present + enabled-verified; unseating is
-// the symmetric `chat.unseatAgent` verb below (or `invites.kick` for the multi-human members-list path).
-// This stays on the UNGATED chat surface (NOT `invites`, the
-// multi-human belt) — an owner seating its own buddy works in every auth mode (invites.ts §9 ruling 3). The
-// wire enum is the ONE-HOME `agentSourceKindSchema` (`@orb/contracts/identity` — no re-spell); `ownerUserId`
-// is the buddy's owner.
-const seatAgentSchema = z.object({
-  chatId: brandedId<ChatId>(),
-  ownerUserId: brandedId<UserId>(),
-  sourceKind: agentSourceKindSchema,
-});
-
-// `unseatAgent` (D60; the solo-operator seat-lifecycle fix, 2026-07-17) — the symmetric counterpart to
-// `seatAgent`: the host removes a seated agent. Host-gated INSIDE the verb (`requireHost`) + `kind='agent'`-
-// scoped (a human userId matches no row → participant_not_found). Stays on the UNGATED chat surface (NOT
-// `invites`) exactly like `seatAgent` — unseating your OWN seated buddy must work in every auth mode; that a
-// solo host could seat but not unseat was the bug this closes. `invites.kick` keeps its agent branch for the
-// multi-human members-list path; both share ONE leftSeq stamp (`stampAgentUnseat`).
-const unseatAgentSchema = z.object({
-  chatId: brandedId<ChatId>(),
-  agentUserId: brandedId<UserId>(),
-});
-
 // `setSeatKnobs` (D80) — the ONE participantId-keyed AI-seat knob write, the replacement for the retired
 // per-kind forking (`setParticipantDisabled`/`setParticipantTalkativeness`/`setAgentSeatDisabled` — the
 // pattern that guaranteed skipped arms, e.g. agent talkativeness was unsettable). Host-gated INSIDE the verb
@@ -351,14 +326,6 @@ const setSeatKnobsSchema = z.object({
   chatId: brandedId<ChatId>(),
   participantId: brandedId<ChatParticipantId>(),
   patch: seatKnobsSchema,
-});
-
-// `getAgentCardView` (D60, agent-principal-design/06 §5) — the roster-chip "who is this agent?" popover.
-// Member-gated INSIDE the verb (`requireParticipant` + the present-agent-seat state check); the fixed D22
-// projection (soul name + sourceKind + owner handle) is server-produced, never the soul prompt/avatar.
-const getAgentCardViewSchema = z.object({
-  chatId: brandedId<ChatId>(),
-  agentUserId: brandedId<UserId>(),
 });
 
 // Group config (verbs/roster.ts `setGroupConfig`/`getGroupConfigForChat`) — the same domain-ahead-of-
@@ -439,16 +406,8 @@ export const chatRouter = t.router({
   addCharacterToChat: authedProcedure
     .input(addCharacterToChatSchema)
     .mutation(({ ctx, input }) => ctx.services.chat.addCharacterToChat({ principal: ctx.auth, ...input })),
-  // Agent seating (see the schema header) — host-gated INSIDE the verb; the ungated chat surface.
-  seatAgent: authedProcedure.input(seatAgentSchema).mutation(({ ctx, input }) => ctx.services.chat.seatAgent({ principal: ctx.auth, ...input })),
-  // Agent UN-seating (see the schema header) — host-gated INSIDE the verb; the ungated chat surface, the seatAgent twin.
-  unseatAgent: authedProcedure.input(unseatAgentSchema).mutation(({ ctx, input }) => ctx.services.chat.unseatAgent({ principal: ctx.auth, ...input })),
   // The ONE AI-seat knob write (D80 — replaces the retired per-kind forking). Host-gated INSIDE the verb.
   setSeatKnobs: authedProcedure.input(setSeatKnobsSchema).mutation(({ ctx, input }) => ctx.services.chat.setSeatKnobs({ principal: ctx.auth, ...input })),
-  // The roster-chip AgentCardView read (see the schema header) — member-gated INSIDE the verb.
-  getAgentCardView: authedProcedure
-    .input(getAgentCardViewSchema)
-    .query(({ ctx, input }) => ctx.services.chat.getAgentCardView({ principal: ctx.auth, ...input })),
   forceCharacterTurn: authedProcedure
     .input(forceCharacterTurnSchema)
     .mutation(({ ctx, input }) => ctx.services.chat.forceCharacterTurn({ principal: ctx.auth, ...input })),
@@ -475,7 +434,6 @@ export const chatRouter = t.router({
       n: input.n,
       size: input.size,
       params: input.params,
-      pose: input.pose,
     }),
   ),
 

@@ -13,7 +13,7 @@
 import { randomBytes } from "node:crypto";
 import type { ChatBusEvent, GroupConfig, InvitePreview, InviteView, ParticipantView } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
-import { isReservedAgentHandle } from "@orb/contracts/identity";
+
 import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import type { ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -90,10 +90,7 @@ function createCreateInvite(ctx: ChatContext): ChatService["createInvite"] {
     let invitedUserId: UserId | null = null;
     if (input.invitedHandle !== null && input.invitedHandle !== undefined) {
       // Invites are the human membership chokepoint — an agent enters a room only via `seatAgent`, never
-      // an invite. Refuse the reserved `__agent__` namespace, leak-free as "no invitable user".
-      if (isReservedAgentHandle(input.invitedHandle)) {
-        throw new DomainOperationError("invite_target_unknown", "no invitable user with that exact handle");
-      }
+      // an invite.
       invitedUserId = await ctx.resolveHandle(input.invitedHandle);
       if (invitedUserId === null) {
         throw new DomainOperationError("invite_target_unknown", "no invitable user with that exact handle");

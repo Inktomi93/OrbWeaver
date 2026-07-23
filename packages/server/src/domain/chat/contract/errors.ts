@@ -10,7 +10,7 @@
 // the host) → ChatOperationError("not_host") — the existence is already known to a member, so this is an
 // authority refusal, not a leak. (Authoritative auth surface: core/Spine-Identity-and-Auth.md.)
 
-import { SEAT_REFUSAL_REASONS, TURN_ABORTED_OP_CODE } from "@orb/contracts/chat";
+import { TURN_ABORTED_OP_CODE } from "@orb/contracts/chat";
 import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import type { ChatId } from "@orb/kit/ids";
 
@@ -76,24 +76,7 @@ export const CHAT_OP_CODES = {
    *  (the capability gate). The DOMAIN-side (LAYER-2) discriminator — transport's LAYER-1 belt
    *  (`multiHumanProcedure`, PD-106) refuses the documented procedures as a leak-free NOT_FOUND. */
   singleUserMode: "single_user_mode",
-  /** `seatAgent` targeted an owner who is not a PRESENT human member of the room (D60, doc 04 §3 — an agent
-   *  may only be seated by/for a present member; host-only surface, so a coded refusal leaks nothing).
-   *  Wire-vocabulary: derived from `@orb/contracts/chat` (the client's copy mapper discriminates on it). */
-  ownerNotPresent: SEAT_REFUSAL_REASONS.ownerNotPresent,
-  /** `seatAgent` targeted a DISABLED agent principal (`users.enabled = false`) — the containment kill switch
-   *  refuses the seat (D60, doc 03 §5). Wire-vocabulary: derived from `@orb/contracts/chat`. */
-  agentDisabled: SEAT_REFUSAL_REASONS.agentDisabled,
-  /** `requestAgentSeat` — a present member asked to seat an agent whose OWNER is not the caller (the
-   *  owner-consent arm of the two-party model, D60 doc 04 §3: a member may only request THEIR OWN buddy be
-   *  seated). Coded, leak-free — the caller cleared `requireParticipant`, so its membership is known. */
-  notAgentOwner: "not_agent_owner",
-  /** `nominateHostHandoff` targeted a SEATED AGENT (D60, doc 06 §4). An agent holds no `Principal`, so it can
-   *  never accept the handoff — the host-side kind pre-check makes the refusal HONEST at the verb (the
-   *  notifications belt would fail-close it as `agent_recipient` downstream, which leaks a notifications-
-   *  internal concept). Coded, leak-free: the caller is the host and already sees the agent seat in the roster.
-   *  A purpose-minted agent-refusal code (the `owner_not_present`/`agent_disabled`/`not_agent_owner` sibling
-   *  pattern), NOT a NOT_FOUND collapse — the agent IS present, so `participant_not_found`/NOT_FOUND would lie. */
-  cannotNominateAgent: "cannot_nominate_agent",
+
   /** #67 — `send` was given an `attachmentAssetIds` id the actor does not OWN (a foreign / gone asset). The
    *  caller IS a present member (the send gate passed), so this is a coded validation refusal, not a
    *  NOT_FOUND collapse — and it leaks nothing about another owner's asset (per-user D21 scope). */

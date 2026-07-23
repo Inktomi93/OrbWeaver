@@ -67,4 +67,29 @@ describe("isPrivateOrLoopback / isInRanges", () => {
     expect(isInRanges("203.0.113.5", ["203.0.113.0/24"])).toBe(true);
     expect(isInRanges("203.0.113.5", DEFAULT_TRUSTED_RANGES)).toBe(false);
   });
+
+  test("IPv4 multicast (224.0.0.0/4, incl. SSDP) is denied; 240.x class-E outside /4 is not", () => {
+    expect(isPrivateOrLoopback("224.0.0.1")).toBe(true);
+    expect(isPrivateOrLoopback("239.255.255.250")).toBe(true); // SSDP
+    expect(isPrivateOrLoopback("240.0.0.1")).toBe(false); // outside 224.0.0.0/4
+  });
+
+  test("RFC2544 benchmarking (198.18.0.0/15) is denied; the adjacent 198.20.x is not", () => {
+    expect(isPrivateOrLoopback("198.18.0.1")).toBe(true);
+    expect(isPrivateOrLoopback("198.19.255.254")).toBe(true);
+    expect(isPrivateOrLoopback("198.20.0.1")).toBe(false); // outside the /15
+  });
+
+  test("6to4 (2002::/16) embedding a private IPv4 is denied", () => {
+    // 2002:0a00:0001::/48 embeds 10.0.0.1 in the 6to4 v4 field — the whole 2002::/16 block is denied.
+    expect(isPrivateOrLoopback("2002:a00:1::1")).toBe(true);
+    // 6to4 wrapping the cloud-metadata address (169.254.169.254 → a9fe:a9fe).
+    expect(isPrivateOrLoopback("2002:a9fe:a9fe::1")).toBe(true);
+  });
+
+  test("Teredo (2001::/32) that can tunnel to an internal v4 is denied", () => {
+    // A Teredo address carries a server + obfuscated client v4; the whole 2001::/32 tunnel block is denied.
+    expect(isPrivateOrLoopback("2001:0:0:0:0:0:a00:1")).toBe(true);
+    expect(isPrivateOrLoopback("2001:0:53aa:64c:8:c0a8:1:1")).toBe(true); // embeds 192.168.x in the client field
+  });
 });

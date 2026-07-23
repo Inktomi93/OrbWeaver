@@ -4,7 +4,7 @@
 // the branded chat id. P5 drives `mode:"free"` with a required `prompt`; the extraction modes are Phase 7.
 
 import type { Principal } from "@orb/contracts/identity";
-import type { ImageDiffusionParams, PoseSelection, PromptTemplateMode, SizePresetName } from "@orb/contracts/imagery";
+import type { ImageDiffusionParams, PromptTemplateMode, SizePresetName } from "@orb/contracts/imagery";
 import type { AssetId, CharacterId, ChatId } from "@orb/kit/ids";
 
 // The mode SUBSETS (derived via Extract/Exclude — never re-spelled) home here so the substrate guards +
@@ -47,11 +47,7 @@ export interface GeneratePictureParams {
    *  provider runner; honored only by a LOCAL engine (ComfyUI) whose `capability.imageGen` advertises them,
    *  ignored-with-honesty by hosted sources. */
   readonly params?: ImageDiffusionParams | undefined;
-  /** The advanced-knob ControlNet pose pick (comfyui-control §4.12, C6d). The verb resolves it to bytes —
-   *  a curated `poseRef` via `readCuratedPose` (the shipped skeleton) or a BYO `poseAssetId` via owner-gated
-   *  `readAsset` — and threads them into the executor's `edit.poseControl`. Honored only by a local ComfyUI
-   *  curated role whose family advertises the `pose` lever; hosted/raw arms drop it with an honest warning. */
-  readonly pose?: PoseSelection | undefined;
+
   /** An EXTERNALLY-computed reuse hash a non-character consumer stores on this generation's provenance so its
    *  OWN reuse gate can short-circuit later (rpg-design/08 §2 — NPC portraits are content-addressed by the
    *  npc identity tuple; rpg computes it via imagery's `identityHashFor`, never a second hash derivation).

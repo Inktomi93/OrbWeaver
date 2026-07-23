@@ -14,7 +14,7 @@ function base(): CharacterCard {
     name: "Base",
     description: "before",
     personality: "stoic",
-    greetings: ["hello"],
+    greetings: [{ text: "hello" }],
   };
 }
 

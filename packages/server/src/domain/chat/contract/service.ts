@@ -10,7 +10,7 @@
 // one participant-insert chokepoint AND the only public human-join path — there is no standalone `join`
 // verb. The two-party host handoff is modelled as two verbs (nominate + accept).
 
-import type { AgentCardView, GroupConfig, RoomOverrides } from "@orb/contracts/chat";
+import type { GroupConfig, RoomOverrides } from "@orb/contracts/chat";
 import type { ChatDocumentVisibility } from "@orb/contracts/databank";
 import type { PromptConfig } from "@orb/contracts/preset";
 import type { ThemeBackground } from "@orb/contracts/theme";
@@ -38,7 +38,6 @@ import type {
   GenerateImageParams,
   GenerateParams,
   GetActivePresetConfigParams,
-  GetAgentCardViewParams,
   GetChatLineageParams,
   GetChatParams,
   GetGroupConfigForChatParams,
@@ -68,10 +67,8 @@ import type {
   RemoveCharacterFromChatParams,
   ReplayChatEventsParams,
   ReplayStreamEventsParams,
-  RequestAgentSeatParams,
   RevertContinueParams,
   RevokeInviteParams,
-  SeatAgentParams,
   SelectVariantParams,
   SelfLeaveParams,
   SendParams,
@@ -82,7 +79,6 @@ import type {
   SetGroupConfigParams,
   SetMessageHiddenParams,
   SetRoomOverridesParams,
-  SetRpgGamePointerParams,
   SetSeatKnobsParams,
   SetVariablesParams,
   StarChatParams,
@@ -90,7 +86,6 @@ import type {
   StreamEventBoundsParams,
   SwipeParams,
   UndoContinueParams,
-  UnseatAgentParams,
   UpdateTitleParams,
 } from "./params";
 import type {
@@ -254,17 +249,7 @@ export interface ChatService {
    *  leftSeq-stamps the present character seat; an absent/already-left character is an idempotent no-op. The
    *  only consumer is rpg's scene-cast prune (injected; no client caller — no tRPC row). */
   readonly removeCharacterFromChat: (params: RemoveCharacterFromChatParams) => Promise<void>;
-  /** Seat an agent principal in the roster (host-gated). The owner (whose agent) must be a present
-   *  member; the principal is lazily minted. Idempotent re-seat. */
-  readonly seatAgent: (params: SeatAgentParams) => Promise<ParticipantView>;
-  /** Unseat a seated agent from the roster (host-gated; the symmetric counterpart to `seatAgent`).
-   *  Agent-target-only (`kind='agent'`-scoped) — stamps `leftSeq`; a human userId matches no row. No
-   *  notification (agents hold no inbox). Re-seating is the normal `seatAgent` re-join upsert. */
-  readonly unseatAgent: (params: UnseatAgentParams) => Promise<void>;
-  /** The owner≠host seat-request (advisory): a present member asks the host to seat THEIR agent, via a
-   *  durable `agent-seat-requested` notification. Member-gated + owner-of-the-agent-gated; no state written
-   *  (the host then calls `seatAgent`, which re-verifies everything). */
-  readonly requestAgentSeat: (params: RequestAgentSeatParams) => Promise<void>;
+
   /** Host-only write of the four-field `chatMetadata.roomOverrides` allowlist. */
   readonly setRoomOverrides: (params: SetRoomOverridesParams) => Promise<RoomOverrides>;
   /** Host-only write of the per-document databank retrieval-visibility override (D85 — the membership-widened
@@ -275,15 +260,10 @@ export interface ChatService {
    *  the whole blob (`kind:"none"` clears it). Returns the stored value. Applied client-side at the app-root
    *  background layer in a true-solo room; INERT for every viewer in any other composition. */
   readonly setChatBackground: (params: SetChatBackgroundParams) => Promise<ThemeBackground>;
-  /** GAP #4 — host-only write of the opaque `chatMetadata.rpg` game pointer (`{gameId}`), the SYNC `hasRpgGame`
-   *  signal. Called ONLY by rpg's `createGame` through the injected chat op; NOT routed. Merges into the sibling
-   *  sub-blobs (never nukes group/roomOverrides), emits `chatUpdated` so the chat client re-reads its ChatDetail. */
-  readonly setRpgGamePointer: (params: SetRpgGamePointerParams) => Promise<void>;
+
   readonly getGroupConfigForChat: (params: GetGroupConfigForChatParams) => Promise<GroupConfig>;
   readonly getRoomOverridesForChat: (params: GetRoomOverridesForChatParams) => Promise<RoomOverrides>;
-  /** The D22 "who is this agent?" projection for a present agent seat (member read; doc 06 §5). A fixed
-   *  minimal view — soul display name + `sourceKind` + owner handle; never the soul prompt/avatar. */
-  readonly getAgentCardView: (params: GetAgentCardViewParams) => Promise<AgentCardView>;
+
   /** The ONE AI-seat knob write (host-only; D80) — participantId-keyed, kind-blind. Patches a PRESENT
    *  character|agent seat's `talkativeness`/`disabled` (both optional; empty patch = no-op returning the
    *  current view). Replaces the retired per-kind forking (`setParticipantDisabled`/

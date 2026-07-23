@@ -18,7 +18,6 @@ export {
   ConnectionRoutingError,
 } from "./contract/errors";
 export type {
-  AgentOverride,
   GetCatalogParams,
   GetGenerationCostParams,
   GetModelCapabilityParams,
@@ -26,6 +25,7 @@ export type {
   RefreshCatalogParams,
   ResolveChatParams,
   ResolveRoleParams,
+  RouteOverride,
   TestClaudeAuthParams,
 } from "./contract/params";
 export type { AgentSdkCatalogSnapshot, CatalogSnapshot } from "./contract/results";

@@ -15,8 +15,9 @@
 
 import { utimes } from "node:fs/promises";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
-import { assets, userSettings } from "@orb/db";
-import type { UserId } from "@orb/kit/ids";
+import { assets, characters, chats, userSettings } from "@orb/db";
+import type { AssetId, ChatId, UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createAssetsService } from "@orb/server/domain/assets";
 import { eq } from "drizzle-orm";
 import { describe, onTestFinished } from "vitest";
@@ -47,6 +48,21 @@ async function seedBackgroundPin(db: Awaited<ReturnType<typeof freshDb>>, owner:
     userId: owner,
     config: { ...DEFAULT_USER_SETTINGS, appearance },
   });
+}
+
+/** Insert this owner's `user_settings` with a `backgroundLibrary` holding one entry for `assetId` — the
+ *  BG-D library live-source. The current pick stays `none` so the ONLY liveness signal is the library entry
+ *  (proving an UNPICKED upload is still rooted). An empty `entries` models a removed-from-library asset. */
+async function seedBackgroundLibrary(
+  db: Awaited<ReturnType<typeof freshDb>>,
+  owner: UserId,
+  entries: readonly { assetId: AssetId; assetHash: string }[],
+): Promise<void> {
+  const appearance = {
+    ...DEFAULT_USER_SETTINGS.appearance,
+    backgroundLibrary: entries.map((e) => ({ entryId: `entry_${e.assetId}`, assetId: e.assetId, assetHash: e.assetHash, mime: PNG, name: "bg" })),
+  };
+  await db.insert(userSettings).values({ userId: owner, config: { ...DEFAULT_USER_SETTINGS, appearance } });
 }
 
 /** Force a blob's mtime to a fixed epoch-ms (the grace check reads `cas.mtimeMs`). */
@@ -181,6 +197,99 @@ describe("collectGarbage", () => {
     expect(await h.ctx.cas.exists(owner, stored.hash)).toBe(true);
   });
 
+  test("keeps a card-carried background asset pinned only by characters.background_override, even when old (BG-C anti-reap)", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    onTestFinished(h.cleanup);
+    const svc = createAssetsService(h.ctx);
+    const owner = await seedUser(db, { handle: "owner" });
+    const stored = await svc.store({ principal: principal(owner), bytes: pngBytes(11), kind: "background", mime: PNG });
+    // The ONLY liveness signal is the JSON background_override column on the character card.
+    const characterId = await seedCharacter(db, owner);
+    await db
+      .update(characters)
+      .set({
+        backgroundOverride: { kind: "asset", seededId: "", externalUrl: "", assetId: stored.assetId, assetHash: stored.hash, mime: PNG, provenanceUrl: "" },
+      })
+      .where(eq(characters.id, characterId));
+    await setBlobMtime(h, owner, stored.hash, FROZEN_AT_MS - TWO_HOURS_MS);
+
+    const result = await svc.collectGarbage({});
+
+    expect(result.reclaimed).toBe(0);
+    expect(await db.select().from(assets).where(eq(assets.id, stored.assetId))).toHaveLength(1);
+    expect(await h.ctx.cas.exists(owner, stored.hash)).toBe(true);
+  });
+
+  test("keeps a host-set chat background asset pinned only by chats.metadata.background, even when old (BG-C anti-reap)", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    onTestFinished(h.cleanup);
+    const svc = createAssetsService(h.ctx);
+    const owner = await seedUser(db, { handle: "owner" });
+    const stored = await svc.store({ principal: principal(owner), bytes: pngBytes(12), kind: "background", mime: PNG });
+    // The ONLY liveness signal is the JSON metadata.background sub-blob on the chat row.
+    await db.insert(chats).values({
+      id: castId<ChatId>("chat_bgc"),
+      metadata: { background: { kind: "asset", seededId: "", externalUrl: "", assetId: stored.assetId, assetHash: stored.hash, mime: PNG, provenanceUrl: "" } },
+      createdAt: FROZEN_AT_MS,
+      updatedAt: FROZEN_AT_MS,
+    });
+    await setBlobMtime(h, owner, stored.hash, FROZEN_AT_MS - TWO_HOURS_MS);
+
+    const result = await svc.collectGarbage({});
+
+    expect(result.reclaimed).toBe(0);
+    expect(await db.select().from(assets).where(eq(assets.id, stored.assetId))).toHaveLength(1);
+    expect(await h.ctx.cas.exists(owner, stored.hash)).toBe(true);
+  });
+
+  test("keeps a background-library asset that is NOT the current pick, even when old (BG-D anti-reap)", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    onTestFinished(h.cleanup);
+    const svc = createAssetsService(h.ctx);
+    const owner = await seedUser(db, { handle: "owner" });
+    const stored = await svc.store({
+      principal: principal(owner),
+      bytes: pngBytes(8),
+      kind: "background",
+      mime: PNG,
+    });
+    // Current pick is `none`; the ONLY liveness signal is the library entry — an unpicked upload must survive.
+    await seedBackgroundLibrary(db, owner, [{ assetId: stored.assetId, assetHash: stored.hash }]);
+    await setBlobMtime(h, owner, stored.hash, FROZEN_AT_MS - TWO_HOURS_MS);
+
+    const result = await svc.collectGarbage({});
+
+    expect(result.reclaimed).toBe(0);
+    expect(await db.select().from(assets).where(eq(assets.id, stored.assetId))).toHaveLength(1);
+    expect(await h.ctx.cas.exists(owner, stored.hash)).toBe(true);
+  });
+
+  test("reaps a background asset once removed from the library, past grace (no over-retention)", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    onTestFinished(h.cleanup);
+    const svc = createAssetsService(h.ctx);
+    const owner = await seedUser(db, { handle: "owner" });
+    const stored = await svc.store({
+      principal: principal(owner),
+      bytes: pngBytes(9),
+      kind: "background",
+      mime: PNG,
+    });
+    // Removed from the library (empty array) and never the current pick — nothing references the blob now.
+    await seedBackgroundLibrary(db, owner, []);
+    await setBlobMtime(h, owner, stored.hash, FROZEN_AT_MS - TWO_HOURS_MS);
+
+    const result = await svc.collectGarbage({});
+
+    expect(result.reclaimed).toBe(1);
+    expect(await db.select().from(assets).where(eq(assets.id, stored.assetId))).toHaveLength(0);
+    expect(await h.ctx.cas.exists(owner, stored.hash)).toBe(false);
+  });
+
   test("reaps a background asset once its appearance pin is cleared, past grace (no over-retention)", async () => {
     const db = await freshDb();
     const h = await makeHarness(db);
@@ -195,6 +304,53 @@ describe("collectGarbage", () => {
     });
     // The user cleared their background (kind back to `none`, no assetId) — nothing references the blob now.
     await seedBackgroundPin(db, owner);
+    await setBlobMtime(h, owner, stored.hash, FROZEN_AT_MS - TWO_HOURS_MS);
+
+    const result = await svc.collectGarbage({});
+
+    expect(result.reclaimed).toBe(1);
+    expect(await db.select().from(assets).where(eq(assets.id, stored.assetId))).toHaveLength(0);
+    expect(await h.ctx.cas.exists(owner, stored.hash)).toBe(false);
+  });
+
+  test("does NOT root a smuggled chat background — kind:none carrying an assetId is reaped past grace (F2b kind guard)", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    onTestFinished(h.cleanup);
+    const svc = createAssetsService(h.ctx);
+    const owner = await seedUser(db, { handle: "owner" });
+    const stored = await svc.store({ principal: principal(owner), bytes: pngBytes(13), kind: "background", mime: PNG });
+    // A hand-crafted / pre-canonicalization row: `kind:"none"` but carrying a populated `assetId`. The GC scan's
+    // kind guard must NOT root it — nothing legitimately references the blob, so it is reaped past grace.
+    await db.insert(chats).values({
+      id: castId<ChatId>("chat_smuggle"),
+      metadata: { background: { kind: "none", seededId: "", externalUrl: "", assetId: stored.assetId, assetHash: stored.hash, mime: PNG, provenanceUrl: "" } },
+      createdAt: FROZEN_AT_MS,
+      updatedAt: FROZEN_AT_MS,
+    });
+    await setBlobMtime(h, owner, stored.hash, FROZEN_AT_MS - TWO_HOURS_MS);
+
+    const result = await svc.collectGarbage({});
+
+    expect(result.reclaimed).toBe(1);
+    expect(await db.select().from(assets).where(eq(assets.id, stored.assetId))).toHaveLength(0);
+    expect(await h.ctx.cas.exists(owner, stored.hash)).toBe(false);
+  });
+
+  test("does NOT root a smuggled card background_override — kind:none carrying an assetId is reaped past grace (F2b kind guard)", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    onTestFinished(h.cleanup);
+    const svc = createAssetsService(h.ctx);
+    const owner = await seedUser(db, { handle: "owner" });
+    const stored = await svc.store({ principal: principal(owner), bytes: pngBytes(14), kind: "background", mime: PNG });
+    const characterId = await seedCharacter(db, owner);
+    await db
+      .update(characters)
+      .set({
+        backgroundOverride: { kind: "none", seededId: "", externalUrl: "", assetId: stored.assetId, assetHash: stored.hash, mime: PNG, provenanceUrl: "" },
+      })
+      .where(eq(characters.id, characterId));
     await setBlobMtime(h, owner, stored.hash, FROZEN_AT_MS - TWO_HOURS_MS);
 
     const result = await svc.collectGarbage({});
