@@ -10,9 +10,9 @@
   *::after {
     /* biome-ignore lint/complexity/noImportantStyles: reduced-motion override MUST beat inline styles and high-specificity rules — removing !important silently ignores the user's a11y preference */
     animation-duration: 0.01ms !important;
-    animation-iteration-count: 1;
-    transition-duration: 0.01ms;
-    scroll-behavior: auto;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 
@@ -23,9 +23,9 @@
 [data-reduced-motion="true"] *::after {
   /* biome-ignore lint/complexity/noImportantStyles: same as the @media block above — must override inline styles */
   animation-duration: 0.01ms !important;
-  animation-iteration-count: 1;
-  transition-duration: 0.01ms;
-  scroll-behavior: auto;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
 }
 
 /* Client writes --font-scale onto root from the synced pref; rescales every rem-derived size
@@ -105,12 +105,22 @@
 }
 
 /* Horizontal-overflow cue: a scrollable strip (e.g. a many-tab tablist too wide for a narrow panel)
- * dissolves its TRAILING edge so the clipped items read as "more — scroll" instead of a hard cut.
- * Trailing-only: a leading fade would dim the always-visible first item. When the content fits (no
- * overflow), the fade sits over the strip's trailing empty space and is invisible. */
+ * dissolves whichever edge has clipped content behind it, so the hidden items read as "more — scroll"
+ * instead of a hard cut. Scroll-aware and both-edge — the same mechanism as the vertical
+ * `message-list-scroll` fade: each edge fades ONLY while content is actually scrolled past it (the
+ * consumer toggles data-fade-start/-end on scroll/resize), so an unscrolled or fitting strip renders
+ * both its edges fully opaque instead of dimming a flush item against nothing. */
 .scroll-fade-x {
-  -webkit-mask-image: linear-gradient(to right, black calc(100% - var(--fade-edge-stop)), transparent);
-  mask-image: linear-gradient(to right, black calc(100% - var(--fade-edge-stop)), transparent);
+  --fade-start-stop: 0%;
+  --fade-end-stop: 0%;
+  -webkit-mask-image: linear-gradient(to right, transparent, black var(--fade-start-stop), black calc(100% - var(--fade-end-stop)), transparent);
+  mask-image: linear-gradient(to right, transparent, black var(--fade-start-stop), black calc(100% - var(--fade-end-stop)), transparent);
+}
+.scroll-fade-x[data-fade-start] {
+  --fade-start-stop: var(--fade-edge-stop);
+}
+.scroll-fade-x[data-fade-end] {
+  --fade-end-stop: var(--fade-edge-stop);
 }
 
 /* Spotlight hover-follow: media-grid.tsx writes pointer position into --x/--y on the hovered cell;

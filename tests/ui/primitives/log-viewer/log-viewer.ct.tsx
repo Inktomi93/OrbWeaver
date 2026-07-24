@@ -80,8 +80,12 @@ test("a reader scrolled up is not yanked back to the bottom by an append (pin, n
   const log = component.getByRole("log");
   await expect(log.getByText("line 19", { exact: true })).toBeInViewport();
 
+  // Dispatch the scroll event synchronously with the scrollTop change: the pin state is tracked from the
+  // browser's async scroll event, which a same-tick content update could beat (a real user's scroll always
+  // settles before the next prop change — this reproduces that ordering deterministically).
   await log.evaluate((el) => {
     el.scrollTop = 0;
+    el.dispatchEvent(new Event("scroll"));
   });
   await expect.poll(() => log.evaluate((el) => el.scrollTop), { intervals: [20, 50, 100] }).toBe(0);
 
@@ -218,8 +222,13 @@ test("a reader scrolled up in a virtualized log is NOT yanked to the bottom by a
     </div>,
   );
   const log = component.getByRole("log");
+  // Dispatch the scroll event synchronously with the scrollTop change (see the sibling ring-buffer test
+  // below for the full rationale): the component tracks "scrolled up" from the browser's async scroll
+  // event, which a same-tick content update could otherwise beat — a real user's scroll always settles
+  // before the next prop change, and this reproduces that ordering deterministically.
   await log.evaluate((el) => {
     el.scrollTop = 0;
+    el.dispatchEvent(new Event("scroll"));
   });
   await expect.poll(() => log.evaluate((el) => el.scrollTop), { intervals: [20, 50, 100] }).toBe(0);
 
@@ -264,8 +273,15 @@ test("a maxLines-capped virtualized log does NOT yank a reader who scrolled up",
     </div>,
   );
   const log = component.getByRole("log");
+  // Set scrollTop AND synchronously dispatch the scroll event in the same evaluate: assigning scrollTop
+  // fires the browser's own scroll event only on a LATER task, and the component tracks "reader scrolled
+  // up" from that event. If the next content update commits before that async event runs, the component
+  // still thinks the reader is pinned and yanks them (the flake). A real user's scroll always emits a
+  // settled event before the next network-driven prop change; dispatching it here reproduces that
+  // ordering deterministically instead of racing the async scroll event.
   await log.evaluate((el) => {
     el.scrollTop = 0;
+    el.dispatchEvent(new Event("scroll"));
   });
   await expect.poll(() => log.evaluate((el) => el.scrollTop), { intervals: [20, 50, 100] }).toBe(0);
 

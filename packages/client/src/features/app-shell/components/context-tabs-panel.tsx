@@ -17,6 +17,10 @@ import { setContextTab, useContextTab } from "#state";
  *  `overflowing` state below, since fit depends on live panel width, not tab count alone. */
 const MAX_STRETCH_TABS = 4;
 
+/** An edge fades / the strip counts as overflowing only past this many px — sub-pixel rounding must
+ *  not flicker the fade on a strip that actually fits. */
+const EDGE_FADE_EPSILON_PX = 1;
+
 export interface ContextTabsPanelProps {
   readonly tabs: readonly ResolvedContextTab[];
   /** The persistent options menu rendered above the tab strip. */
@@ -28,8 +32,10 @@ export function ContextTabsPanel({ tabs: entries, actions }: ContextTabsPanelPro
   // A few tabs stretch to fill the strip; a crowded strip (5+ in this narrow panel) can't fit at
   // every panel width, so it packs tabs at their natural width, tightens their padding, and scrolls.
   const stretch = entries.length <= MAX_STRETCH_TABS;
-  // The trailing-edge fade cue rides only ACTUAL horizontal overflow (measured), so a strip that fits
-  // never dims its last tab; it re-measures on panel resize + tab-set change.
+  // Overflow drives the stretch/scroll switch; the edge fades ride the live SCROLL POSITION (not just
+  // "overflows somewhere") so whichever edge has clipped content behind it dissolves — the same
+  // scroll-aware, both-edge mechanism as the vertical `message-list-scroll` fade. Re-measures on panel
+  // resize, tab-set change, and every scroll.
   const listRef = useRef<HTMLDivElement | null>(null);
   const [overflowing, setOverflowing] = useState(false);
   const tabKey = entries.map((entry) => entry.id).join(",");
@@ -39,12 +45,30 @@ export function ContextTabsPanel({ tabs: entries, actions }: ContextTabsPanelPro
     if (el === null) {
       return;
     }
-    const measure = (): void => setOverflowing(el.scrollWidth > el.clientWidth + 1);
+    const measure = (): void => {
+      setOverflowing(el.scrollWidth > el.clientWidth + EDGE_FADE_EPSILON_PX);
+      el.toggleAttribute("data-fade-start", el.scrollLeft > EDGE_FADE_EPSILON_PX);
+      el.toggleAttribute("data-fade-end", el.scrollWidth - el.scrollLeft - el.clientWidth > EDGE_FADE_EPSILON_PX);
+    };
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(el);
-    return (): void => observer.disconnect();
+    el.addEventListener("scroll", measure, { passive: true });
+    return (): void => {
+      observer.disconnect();
+      el.removeEventListener("scroll", measure);
+    };
   }, [tabKey]);
+
+  // Keep the active tab fully in view on BOTH activation paths. Roving focus (arrow keys) native-scrolls
+  // the focused tab; a click does not — so without this, click- and keyboard-activation leave DIFFERENT
+  // neighbors clipped. Runs after Base UI has moved `data-active` onto the selected tab; `nearest` scrolls
+  // the minimum (a no-op when the tab is already fully visible) and never nudges the block axis.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: contextTab + tabKey are the intentional re-run triggers (selection change / tab-set change); the body reads the resolved active tab from the DOM, so neither appears in it.
+  useEffect(() => {
+    const activeEl = listRef.current?.querySelector<HTMLElement>('[data-slot="tabs-tab"][data-active]');
+    activeEl?.scrollIntoView({ inline: "nearest", block: "nearest" });
+  }, [contextTab, tabKey]);
 
   if (entries.length === 0) {
     return null;
@@ -55,7 +79,7 @@ export function ContextTabsPanel({ tabs: entries, actions }: ContextTabsPanelPro
   // Fit is the MEASURED state, not the static tab count: a strip that actually overflows must scroll
   // (with the fade cue) and its tabs must NOT be flex-1-forced, regardless of how few tabs it holds.
   const fits = stretch && !overflowing;
-  const listClassName = fits ? "min-w-0 w-full overflow-x-auto" : `min-w-0 w-full overflow-x-auto gap-field${overflowing ? " scroll-fade-x" : ""}`;
+  const listClassName = fits ? "min-w-0 w-full overflow-x-auto" : "min-w-0 w-full overflow-x-auto gap-field scroll-fade-x";
 
   return (
     <Tabs
