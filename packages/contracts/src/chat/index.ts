@@ -229,6 +229,12 @@ export interface ContextFitPreview {
   ceilingTokens: number;
   reserveOutputTokens: number;
   droppedCount: number;
+  /** The chat's LINEAR-tier compaction summary (`chats.compactSummary`) when it covers the span ABOVE the fit
+   *  boundary — the divider then reports that older messages are compacted into memory + offers a peek at this
+   *  text. `null` when no summary exists OR its checkpoint hasn't reached the boundary (nothing above the
+   *  divider is compacted yet). Member-safe: the summary is built from prompt-eligible rows only (hidden rows
+   *  are excluded at compaction), so peeking it never leaks another member's hidden content. */
+  compactSummary: string | null;
 }
 
 /** The product of the BUILD stage. `static` is the cache-stable prefix; `dynamic` the per-turn suffix;
@@ -297,6 +303,11 @@ export interface AssembleContext {
   nowMs?: number | undefined;
   /** The chat's compaction summary (the `{{compact_summary}}` marker). Null/absent ⇒ nothing rendered. */
   compactSummary?: string | null;
+  /** The seq the compaction marker covers THROUGH (`chats.compactedAtSeq`). When a `compactSummary` is present,
+   *  canon rows with `seq <= compactedThroughSeq` are EXCLUDED from the shaped prompt history — the marker stands
+   *  in for them (full-reset semantics). Api-agnostic: covered turns never re-enter the prompt on ANY source, so
+   *  a stateless chat carrying a swapped-in marker also never re-sends summarized turns. Null/absent/0 ⇒ no exclusion. */
+  compactedThroughSeq?: number | null | undefined;
   /** Retrieved chat-history memory (the `{{memory}}` marker), pre-formatted by the memory subsystem. */
   memory?: string | null;
   /** Retrieved databank document context (the `{{databank}}` marker), pre-formatted + budget-fitted by the
@@ -632,6 +643,17 @@ export const CHAT_WARNING_CODES = [
   // a stale-capability edit). Emitted from `chat.generateImage`, mapping `GeneratedPicture.warnings` onto the
   // one chat `warning` surface so the user sees "generated without the avatar reference (model can't edit)".
   "image_edit_dropped",
+  // Managed compaction (the post-turn LINEAR-marker refresh) FAILED — the quiet marker generation threw or
+  // returned empty, so the EXISTING marker is untouched (never a half-written marker). Emitted from the engine's
+  // compaction-trigger catch (the mirror of memory_build_failed) so the silent-failure black hole is observable;
+  // the turn's reply is unaffected.
+  "compaction_failed",
+  // THE NO-WALL BELT (#9 owner ruling — compaction is a safety property): the pre-turn arm found the context
+  // at/over the effective window AND no usable marker materialized (compaction kept failing/empty), so the turn
+  // was DEGRADED — the session was force-reseeded (drop-oldest fit-trim, the turn survives) WITHOUT a summary.
+  // Degraded-and-loud, never error-and-dead. The client warning-notice mapper is a rotation-4 restoration; the
+  // server emits this now so the pickup lands later.
+  "context_trimmed_no_summary",
 ] as const;
 export type ChatWarningCode = (typeof CHAT_WARNING_CODES)[number];
 

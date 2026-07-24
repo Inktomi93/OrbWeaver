@@ -115,6 +115,13 @@ interface TurnPipelineResult {
   readonly worldInfoEntryIds: readonly WorldEntryId[];
   /** The id of the earliest message actually included in the assembled history this turn, or null. */
   readonly contextBoundaryMessageId: MessageId | null;
+  /** The turn's TOTAL estimated context consumption (kept history + system prompt + reserved output) — the
+   *  managed-compaction trigger reads this against `fitCeilingTokens` to decide whether usage crossed the
+   *  threshold (mirrors what the fit reserved, so "85% used" means the same thing to both). */
+  readonly fitUsedTokens: number;
+  /** The effective context ceiling the fit resolved against (`min(window, maxContextTokens)`), or null when
+   *  neither is finite (no trustworthy ceiling ⇒ managed compaction can't threshold ⇒ fit-drop only). */
+  readonly fitCeilingTokens: number | null;
 }
 
 /** The history-budget reserve: the model window (soft-capped by the user's `maxContextTokens`), reserving
@@ -348,7 +355,10 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
 
   // FIT — the history-budget tail.
   const systemTokens = estimateTokens([assembled.static, assembled.dynamic].join("\n\n"));
-  const fitted = fitHistory(shaped.history, fitBudget(args, effectiveIntent, systemTokens));
+  const budget = fitBudget(args, effectiveIntent, systemTokens);
+  const fitted = fitHistory(shaped.history, budget);
+  // Total context consumption for the managed-compaction trigger: kept history + system + reserved output.
+  const fitUsedTokens = fitted.usedTokens + systemTokens + budget.reserveOutputTokens;
 
   // REQUEST — the one seam where the shaped string body becomes content-parts: tokenize embedded image
   // refs, resolve to URLs, gated by input.vision (a non-vision model drops them + we flag the turn).
@@ -393,6 +403,8 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
     cacheBreakpointFromEnd: structured.request.cacheBreakpointFromEnd,
     droppedCount: fitted.droppedCount,
     contextBoundaryMessageId: fitted.earliestKeptMessageId,
+    fitUsedTokens,
+    fitCeilingTokens: fitted.ceilingTokens,
     imageDropped,
     toolRecords: loop.records,
     toolsUnsupported: attach.unsupported,

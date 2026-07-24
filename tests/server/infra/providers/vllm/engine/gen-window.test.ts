@@ -6,7 +6,7 @@
 // biome-ignore-all lint/style/useNamingConvention: `max_model_len` is vLLM's real /v1/models field name — the
 // fixtures mirror the wire shape verbatim, so the snake_case key is required, not a style choice.
 
-import { fetchGenMaxModelLen } from "@orb/server/infra/providers/vllm/engine";
+import { fetchEngineMaxModelLen, fetchGenMaxModelLen } from "@orb/server/infra/providers/vllm/engine";
 import { afterEach, describe, vi } from "vitest";
 import { expect, test } from "../../../../../support/fixtures";
 
@@ -45,5 +45,27 @@ describe("fetchGenMaxModelLen", () => {
   test("an empty data array degrades to null", async () => {
     vi.stubGlobal("fetch", modelsResponse({ data: [] }));
     await expect(fetchGenMaxModelLen()).resolves.toBeNull();
+  });
+});
+
+describe("fetchEngineMaxModelLen (embed + rerank self-report, extends the gen seam)", () => {
+  test("embed engine reports its pooling window", async () => {
+    vi.stubGlobal("fetch", modelsResponse({ data: [{ id: "Qwen/Qwen3-VL-Embedding-2B", max_model_len: 8192 }] }));
+    await expect(fetchEngineMaxModelLen("embed")).resolves.toBe(8192);
+  });
+
+  test("rerank engine reports its pooling window", async () => {
+    vi.stubGlobal("fetch", modelsResponse({ data: [{ id: "Qwen/Qwen3-VL-Reranker-2B", max_model_len: 16_384 }] }));
+    await expect(fetchEngineMaxModelLen("rerank")).resolves.toBe(16_384);
+  });
+
+  test("an unreachable embed engine degrades to null (caller uses the env floor)", async () => {
+    vi.stubGlobal("fetch", () => Promise.reject(new TypeError("fetch failed")));
+    await expect(fetchEngineMaxModelLen("embed")).resolves.toBeNull();
+  });
+
+  test("fetchGenMaxModelLen is the gen-engine alias of fetchEngineMaxModelLen", async () => {
+    vi.stubGlobal("fetch", modelsResponse({ data: [{ id: "x", max_model_len: 32_768 }] }));
+    await expect(fetchEngineMaxModelLen("gen")).resolves.toBe(32_768);
   });
 });

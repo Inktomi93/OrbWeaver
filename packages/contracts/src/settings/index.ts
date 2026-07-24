@@ -26,7 +26,7 @@ export const logLevelSchema = z.enum(LOG_LEVELS);
 // AppSettings — the admin-runtime override tier. Every field nullable+optional (null=CLEAR).
 // ════════════════════════════════════════════════════════════════════════════════════════════════════
 
-export const APP_SETTINGS_SCHEMA_VERSION = 2;
+export const APP_SETTINGS_SCHEMA_VERSION = 3;
 
 const SCORE_FLOOR = 0;
 const SCORE_CEIL = 1;
@@ -72,6 +72,31 @@ export const vllmConcurrencySchema = z.object({
 });
 export type VllmConcurrency = z.infer<typeof vllmConcurrencySchema>;
 
+// The vLLM engine LAUNCH-config override tier (#14): the per-engine serve flags an admin can retune on
+// another box (models / context windows / gpu-util fractions / vision max_pixels) and apply via the admin
+// Engines section's "restart to apply" affordance. Every field optional — unset falls to the env floor
+// (foundation/env) resolved by resolveEngineLaunchConfig. This is a LAUNCH tier (applies on engine restart),
+// distinct from vllmConcurrency (a HOT policy, applies on next use). GPU-util fractions are 0<u≤1.
+const GPU_UTIL_FLOOR = 0;
+const GPU_UTIL_CEIL = 1;
+const gpuUtil = (): z.ZodOptional<z.ZodNumber> => z.number().gt(GPU_UTIL_FLOOR).max(GPU_UTIL_CEIL).optional();
+export const engineLaunchSchema = z.object({
+  embedModel: z.string().min(1).optional(),
+  rerankModel: z.string().min(1).optional(),
+  genModel: z.string().min(1).optional(),
+  embedMaxModelLen: z.number().int().positive().optional(),
+  rerankMaxModelLen: z.number().int().positive().optional(),
+  genMaxModelLen: z.number().int().positive().optional(),
+  embedGpuUtil: gpuUtil(),
+  rerankGpuUtilMulti: gpuUtil(),
+  rerankGpuUtilSingle: gpuUtil(),
+  genGpuUtilMulti: gpuUtil(),
+  genGpuUtilSingle: gpuUtil(),
+  poolingMaxPixels: z.number().int().positive().optional(),
+  genMaxPixels: z.number().int().positive().optional(),
+});
+export type EngineLaunch = z.infer<typeof engineLaunchSchema>;
+
 // D17 — asymmetric default: shared LOCAL compute is opt-out (ON), hosted `max-pro-sub` is opt-in (OFF,
 // ban-prone + real money).
 export const DEFAULT_ALLOW_NON_OWNER_LOCAL_COMPUTE = true;
@@ -96,6 +121,7 @@ export const appSettingsSchema = z.object({
   memorySummarizer: memorySummarizerSchema.nullable().optional().catch(undefined),
   rateLimits: rateLimitsSchema.nullable().optional().catch(undefined),
   vllmConcurrency: vllmConcurrencySchema.nullable().optional().catch(undefined),
+  engineLaunch: engineLaunchSchema.nullable().optional().catch(undefined),
   allowNonOwnerLocalCompute: z.boolean().nullable().optional().catch(undefined),
   nonOwnerLocalComputeBudget: z.number().int().positive().nullable().optional().catch(undefined),
   maxImageBytes: z.number().int().min(MAX_IMAGE_BYTES_FLOOR).max(MAX_IMAGE_BYTES_CEIL).nullable().optional().catch(undefined),
@@ -111,10 +137,14 @@ const APP_SETTINGS_LIFTS: Record<number, (config: Record<string, unknown>) => Re
     const summarizer = config["memorySummarizer"] as { source?: unknown } | undefined;
     if (summarizer && "source" in summarizer) {
       const { source: _drop, ...rest } = summarizer;
-      return { ...config, memorySummarizer: rest, schemaVersion: APP_SETTINGS_SCHEMA_VERSION };
+      return { ...config, memorySummarizer: rest, schemaVersion: 2 };
     }
-    return { ...config, schemaVersion: APP_SETTINGS_SCHEMA_VERSION };
+    return { ...config, schemaVersion: 2 };
   },
+  // v2→v3: the `engineLaunch` LAUNCH-config section (#14) is purely additive/optional — no field moved or
+  // renamed. Stamp the version so a v2 row stops re-running the lift chain; the absent section reads back
+  // as the env floor.
+  2: (config) => ({ ...config, schemaVersion: 3 }),
 };
 
 export const appSettingsConfig = defineVersionedConfig<AppSettings>({
@@ -603,6 +633,25 @@ export interface ResolvedVllmConcurrency {
   summarize: number;
 }
 
+/** The RESOLVED vLLM engine launch config (env floor ⊕ admin override), every field present. The server's
+ *  engine spawner consumes this to build the serve argv (structurally the infra `EngineLaunchConfig`, minus
+ *  the env-only ports the spawner reads directly). Applied on engine RESTART, not next-use. */
+export interface ResolvedEngineLaunch {
+  embedModel: string;
+  rerankModel: string;
+  genModel: string;
+  embedMaxModelLen: number;
+  rerankMaxModelLen: number;
+  genMaxModelLen: number;
+  embedGpuUtil: number;
+  rerankGpuUtilMulti: number;
+  rerankGpuUtilSingle: number;
+  genGpuUtilMulti: number;
+  genGpuUtilSingle: number;
+  poolingMaxPixels: number;
+  genMaxPixels: number;
+}
+
 export interface EffectiveAppConfig {
   corpusAutoindex: boolean;
   importSkipCharacters: string[];
@@ -613,6 +662,7 @@ export interface EffectiveAppConfig {
   memorySummarizer: MemorySummarizerConfig;
   rateLimits: ResolvedRateLimits;
   vllmConcurrency: ResolvedVllmConcurrency;
+  engineLaunch: ResolvedEngineLaunch;
   allowNonOwnerLocalCompute: boolean;
   nonOwnerLocalComputeBudget: number | null;
   allowNonOwnerMaxProSub: boolean;

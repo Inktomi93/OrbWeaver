@@ -71,6 +71,10 @@ export interface MessageRowProps {
   /** The present-tense fit budget label ("N of M used · R reserved") shown on the boundary divider when the
    *  previewFit query has resolved; absent ⇒ the bare "In context from here" line (PD-#7). */
   readonly contextBoundaryLabel?: string | undefined;
+  /** The LINEAR-tier compaction summary covering the span ABOVE the boundary (previewFit `compactSummary`),
+   *  or null. Non-null ⇒ the divider reports older messages are compacted into memory + offers a peek at this
+   *  text; null ⇒ the plain cutoff line. */
+  readonly contextBoundaryCompactSummary?: string | null | undefined;
   /** True only when this mount is a genuinely-new arrival, never "the row mounted" (a windowed row
    *  remounts on scrollback). Latched at mount by `useEnterMotion`. */
   readonly enterMotion?: boolean;
@@ -123,6 +127,7 @@ export function MessageRow({
   messageActions,
   contextBoundary = false,
   contextBoundaryLabel,
+  contextBoundaryCompactSummary,
   enterMotion = false,
   surfaceContributors,
 }: MessageRowProps): ReactElement {
@@ -198,7 +203,7 @@ export function MessageRow({
   return (
     // The boundary divider is a sibling before the article, never nested inside role="article".
     <AttachmentUrlProvider chatId={message.chatId} content={message.content}>
-      {renderContextBoundaryDivider(contextBoundary, contextBoundaryLabel)}
+      {renderContextBoundaryDivider(contextBoundary, contextBoundaryLabel, contextBoundaryCompactSummary)}
       <Stack
         role="article"
         aria-label={attribution.name ?? undefined}

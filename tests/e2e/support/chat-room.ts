@@ -43,6 +43,21 @@ interface OrbBusHandle {
   };
 }
 
+/** Identity-scoped locator for ONE message row, keyed on `data-message-id` (message-row.tsx). The
+ *  deliberate alternative to a positional `.first()/.last()` pick when the target row's id is known
+ *  (from canon or a prior mutation's return value) — strict-mode-safe by construction (exactly one
+ *  element can carry a given id). */
+export function messageRow(page: Page, messageId: string): ReturnType<Page["locator"]> {
+  return page.locator(`[data-message-id="${messageId}"]`);
+}
+
+/** All currently-mounted assistant rows (`[data-slot="message-row"][data-role="assistant"]`). Still
+ *  positional by nature (no id filter) — callers doing `.first()/.last()` on this locator are making a
+ *  DELIBERATE "newest/oldest assistant row" choice, not falling back to strict-mode escape-hatch. */
+export function assistantRows(page: Page): ReturnType<Page["locator"]> {
+  return page.locator('[data-slot="message-row"][data-role="assistant"]');
+}
+
 /** The live SSE-subscription count off the dev handle (0 if the handle isn't installed yet). */
 export function busLive(page: Page): Promise<number> {
   return page.evaluate(() => (globalThis as OrbBusHandle).__orb?.bus().live ?? 0);

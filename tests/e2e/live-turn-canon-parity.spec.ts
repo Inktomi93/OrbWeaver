@@ -28,7 +28,7 @@ import path from "node:path";
 import process from "node:process";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
-import { busEventTypes, openNewestChat, typeAndSend, waitForStreamOpen } from "./support/chat-room";
+import { assistantRows, busEventTypes, openNewestChat, typeAndSend, waitForStreamOpen } from "./support/chat-room";
 import { listCanon, listCharacters, startChat } from "./support/trpc";
 
 const GEN_LOG = path.join(process.cwd(), ".cache/stack/vllm-gen.log");
@@ -80,7 +80,8 @@ test("a real turn: ghost resolves, DOM == DB in order, bus order holds, local en
   // is the deterministic streaming-lifecycle proof, not the transient attribute.
   const ghost = page.locator('[data-slot="ghost-message-row"]');
   await expect(ghost).toBeVisible({ timeout: 30_000 });
-  const assistantRows = page.locator('[data-slot="message-row"][data-role="assistant"]');
+  // The identity-family locator helper (#10) — `.last()` here is a DELIBERATE "newest assistant row" choice.
+  const rows = assistantRows(page);
 
   // Streamed content rendered INTO the ghost body: `ghost-stream-body` mounts only once tokens arrive
   // (ghost-message-row.tsx renders TypingDots until held.length>0, then the body) — its appearance is the
@@ -97,11 +98,11 @@ test("a real turn: ghost resolves, DOM == DB in order, bus order holds, local en
       .catch(() => {
         /* ghost resolved before its body frame was observable — the durable resolve below is the guarantee */
       }),
-    assistantRows.last().waitFor({ state: "visible", timeout: 120_000 }),
+    rows.last().waitFor({ state: "visible", timeout: 120_000 }),
   ]);
 
   // The ghost RESOLVES: a durable assistant row lands with non-empty content, and the ghost is gone.
-  await expect(assistantRows.last()).toContainText(NON_WS, { timeout: 120_000 });
+  await expect(rows.last()).toContainText(NON_WS, { timeout: 120_000 });
   await expect(ghost).toHaveCount(0, { timeout: 30_000 });
   // Legibility: surface whether the ghost's streaming body was observable this run (not asserted — see above).
   test.info().annotations.push({ type: "ghost-stream-body-observed", description: String(sawGhostBody) });

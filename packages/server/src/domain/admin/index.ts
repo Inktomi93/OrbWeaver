@@ -5,6 +5,6 @@
 export type { Can, GlobalAction, ResourceRef, UserRole } from "@orb/contracts/identity";
 export type { IsAdmin, RequireAdmin, RequireOwner } from "./contract/guard";
 export type { AdminService } from "./contract/service";
-export type { AdminUserView } from "./contract/views";
+export type { AdminEngineStatus, AdminUserView } from "./contract/views";
 export { can, isAdmin, requireAdmin, requireOwner } from "./guard";
 export { createAdminService } from "./service";

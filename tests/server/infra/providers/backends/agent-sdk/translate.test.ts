@@ -189,6 +189,50 @@ describe("toSdkGeneration — maps the resolved decision into SDK Options", () =
     expect(toSdkGeneration({ maxOutputTokens: 999_999 }, EFFORT_CAP).envOverrides.maxOutputTokens).toBe(4096);
   });
 
+  // COMPACTION MODE → SDK env (#9). The mode maps to the SDK's auto-compact controls; the load-bearing interaction:
+  // maxContextTokens is dropped from the SDK env when auto-compact is disabled (managed/off) — the SDK can only
+  // honor a context cap VIA auto-compaction, so sending both fails the turn (verified live). Domain fit-pass keeps
+  // reading the preset cap for the stateless path; this drop is SDK-only.
+  test("auto mode → auto-compact stays LIVE (not disabled) and the pct override rides", () => {
+    const gen = toSdkGeneration({ compaction: { mode: "auto", thresholdPct: 0.9 } }, EFFORT_CAP);
+    expect(gen.envOverrides.disableAutoCompact).toBeUndefined();
+    expect(gen.envOverrides.autoCompactPct).toBe(90);
+  });
+
+  test("managed mode → auto-compact DISABLED (we own the marker) and NO pct override", () => {
+    const gen = toSdkGeneration({ compaction: { mode: "managed", thresholdPct: 0.6 } }, EFFORT_CAP);
+    expect(gen.envOverrides.disableAutoCompact).toBe(true);
+    expect(gen.envOverrides.autoCompactPct).toBeUndefined();
+  });
+
+  test("ABSENT compaction mode → auto-compact DISABLED (falls through to the resolved managed default), no pct override", () => {
+    // Owner ruling: there is no "off"; an absent mode resolves to managed, so its SDK env matches managed.
+    const gen = toSdkGeneration({ compaction: {} }, EFFORT_CAP);
+    expect(gen.envOverrides.disableAutoCompact).toBe(true);
+    expect(gen.envOverrides.autoCompactPct).toBeUndefined();
+  });
+
+  test("auto mode + maxContextTokens → the cap RIDES the SDK env (auto-compact can honor it)", () => {
+    const gen = toSdkGeneration({ compaction: { mode: "auto" }, maxContextTokens: 4000 }, EFFORT_CAP);
+    expect(gen.envOverrides.maxContextTokens).toBe(4000);
+  });
+
+  test("managed mode + maxContextTokens → the cap is DROPPED from the SDK env (no auto-compact to honor it)", () => {
+    // Live-verified: managed + maxContextTokens on vLLM = `is_error` turn failure. Dropping the SDK cap fixes it;
+    // managed's post-turn marker is the trim, and the domain fit-pass still reads the preset cap for stateless.
+    const gen = toSdkGeneration({ compaction: { mode: "managed", thresholdPct: 0.6 }, maxContextTokens: 4000 }, EFFORT_CAP);
+    expect(gen.envOverrides.maxContextTokens).toBeUndefined();
+    expect(gen.envOverrides.disableAutoCompact).toBe(true);
+  });
+
+  test("no compaction knob + maxContextTokens → DISABLED (managed default) ⇒ the cap is DROPPED from the SDK env", () => {
+    // Owner ruling: an absent compaction knob resolves to managed, so auto-compact is disabled and (like explicit
+    // managed) the SDK cap is dropped — the domain fit-pass carries the trim.
+    const gen = toSdkGeneration({ maxContextTokens: 4000 }, EFFORT_CAP);
+    expect(gen.envOverrides.maxContextTokens).toBeUndefined();
+    expect(gen.envOverrides.disableAutoCompact).toBe(true);
+  });
+
   test("forwards resolve-chat's warnings (the runner emits them as `warning` events)", () => {
     // EFFORT_CAP exposes no temperature range → resolve-chat drops it + warns.
     const gen = toSdkGeneration({ effort: "high", temperature: 0.7 }, EFFORT_CAP);

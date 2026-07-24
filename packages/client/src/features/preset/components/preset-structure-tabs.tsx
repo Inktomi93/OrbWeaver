@@ -4,6 +4,7 @@
 
 import type { ModelCapability } from "@orb/contracts/connection";
 import type { MarkerType, PromptConfig, PromptSection } from "@orb/contracts/preset";
+import { DEFAULT_COMPACTION_MODE, MANAGED_COMPACT_DEFAULT_PCT } from "@orb/contracts/preset";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
@@ -12,7 +13,7 @@ import { useState } from "react";
 import type { AppFormInstance } from "#forms";
 import { clearPresetSection, selectPresetSection, useSelectedPresetSectionId } from "#state";
 import { makeSection } from "../lib/assembly-model";
-import { COMPACTION_MODE_ITEMS, CONTINUE_POSTFIX_ITEMS, NAMES_BEHAVIOR_ITEMS, THINKING_DISPLAY_ITEMS } from "../lib/preset-nav";
+import { COMPACTION_MODE_ITEMS, CONTINUE_POSTFIX_ITEMS, compactionModeLabel, NAMES_BEHAVIOR_ITEMS, THINKING_DISPLAY_ITEMS } from "../lib/preset-nav";
 import { AssemblyToolbar } from "./assembly-toolbar";
 import { GuidedActionsSection } from "./guided-actions-section";
 import { MessageHandlingSection } from "./message-handling-section";
@@ -212,14 +213,44 @@ function CompactionTab({ form }: { readonly form: AppForm }): ReactElement {
   return (
     <Section heading="Compaction">
       <Text size="micro" tone="muted">
-        How long context is condensed as a conversation grows.
+        How long context is condensed as a conversation grows. Applies to agent-sdk chats — stateless models trim oldest turns instead.
       </Text>
       <form.AppField name="params.compaction.mode">
         {(field): ReactElement => (
           <field.SelectField
             label="Compaction mode"
-            description="Auto lets the runner decide; managed summarizes at a threshold; off never compacts."
+            // Both modes ARE compaction (a chat never errors from context growth) — the choice is which engine:
+            // managed = OURS (a durable memory marker at a threshold); auto = the runner's own session compaction.
+            description="Managed summarizes into a durable memory marker at a threshold; auto lets the runner compact its own session. Context is always kept in bounds — this only picks how."
             items={COMPACTION_MODE_ITEMS}
+            // Unset ⇒ the resolved default the engine uses (single-homed via DEFAULT_COMPACTION_MODE), shown so a
+            // fresh preset communicates the in-effect behavior instead of a blank trigger.
+            placeholder={`Default — ${compactionModeLabel(DEFAULT_COMPACTION_MODE)}`}
+          />
+        )}
+      </form.AppField>
+      {/* HONEST-DEGRADE (plan-for-small-hardware): the runner's own auto-compaction never exposes its summary, so
+          `auto` stores no marker — no carry-forward on a model swap and no transcript memory-fact. Shown plainly,
+          never a silent capability difference. */}
+      <form.Subscribe selector={(state): string | undefined => state.values.params.compaction?.mode}>
+        {(mode): ReactElement | null =>
+          mode === "auto" ? (
+            <Text size="micro" tone="muted">
+              Auto uses the runner's own compaction. It won't produce a readable memory summary, so there's no memory marker in the transcript and nothing
+              carries forward if you switch this chat to another model. Choose managed to keep a durable, portable memory.
+            </Text>
+          ) : null
+        }
+      </form.Subscribe>
+      <form.AppField name="params.compaction.thresholdPct">
+        {(field): ReactElement => (
+          <field.NumberField
+            label="Managed threshold (fraction of the window)"
+            // The default is derived from the single-homed constant, never a re-spelled literal.
+            description={`Managed mode summarizes once the context fills past this fraction (0.5–0.99; leave blank for the ${MANAGED_COMPACT_DEFAULT_PCT} default).`}
+            min={0.5}
+            max={0.99}
+            step={0.01}
           />
         )}
       </form.AppField>

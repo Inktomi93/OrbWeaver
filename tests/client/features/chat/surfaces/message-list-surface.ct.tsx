@@ -31,12 +31,20 @@ import { CHAT_ID, makeMacroNameProducer, makeMessagesPage, makeMessageView } fro
 // harness's unlisted-proc default (`data: null`) is out-of-contract for this query and crashes the
 // surface (integration find, 2026-07-24). boundaryMessageId null = "everything fits" (no divider).
 const PREVIEW_FIT_STUB = {
-  "chat.previewContextFit": (): { boundaryMessageId: null; usedTokens: number; ceilingTokens: number; reserveOutputTokens: number; droppedCount: number } => ({
+  "chat.previewContextFit": (): {
+    boundaryMessageId: null;
+    usedTokens: number;
+    ceilingTokens: number;
+    reserveOutputTokens: number;
+    droppedCount: number;
+    compactSummary: null;
+  } => ({
     boundaryMessageId: null,
     usedTokens: 120,
     ceilingTokens: 32_768,
     reserveOutputTokens: 2048,
     droppedCount: 0,
+    compactSummary: null,
   }),
 };
 
@@ -314,4 +322,77 @@ test("a chatOpened at a non-advancing cursor id STILL invalidates on reopen (the
   // A regression that ran the synthetic through the mark would drop it (its id ≤ the mark) and this stays 1.
   // Generous timeout: under full-suite parallel CPU contention the invalidate→refetch round-trip can lag.
   await expect.poll(() => trpc.count("chat.getChat"), { intervals: [50, 100, 200], timeout: 15_000 }).toBeGreaterThanOrEqual(2);
+});
+
+// #9 (B): the ONE present-tense divider carries the MEMORY FACT when previewContextFit reports a compactSummary
+// covering the span above the boundary — "older messages compacted into memory" + a PEEK popover revealing the
+// summary text. The boundary row is AI_VIEW (its id === boundaryMessageId), so the divider renders above it.
+const COMPACTED_INTO_MEMORY = /compacted into memory/i;
+const IN_CONTEXT_FROM_HERE = /in context from here/i;
+
+const COMPACTED_PREVIEW_FIT = {
+  "chat.previewContextFit": (): {
+    boundaryMessageId: MessageId;
+    usedTokens: number;
+    ceilingTokens: number;
+    reserveOutputTokens: number;
+    droppedCount: number;
+    compactSummary: string;
+  } => ({
+    boundaryMessageId: AI_VIEW.id,
+    usedTokens: 900,
+    ceilingTokens: 1000,
+    reserveOutputTokens: 128,
+    droppedCount: 3,
+    compactSummary: "Long ago the heroes met and swore an oath by the river.",
+  }),
+};
+
+test("the divider carries the memory fact + a peek that reveals the compaction summary", async ({ mount, page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await routeTrpc(page, {
+    ...ROSTER_STUB,
+    ...COMPACTED_PREVIEW_FIT,
+    "chat.listMessages": () => makeMessagesPage([USER_VIEW, AI_VIEW]),
+  });
+  await routeChatStream(page, { events: [] });
+
+  const component = await mount(<MessageListSurfaceStory />); // committed=true
+
+  // The boundary divider announces the memory fact (not the plain "in context from here" line).
+  const divider = component.locator('[data-slot="context-boundary-divider"]');
+  await expect(divider).toContainText(COMPACTED_INTO_MEMORY);
+
+  // The peek is closed by default — the summary text is not in the DOM until opened. (The popover PORTALS to
+  // the themed portal root outside #root, so the popup is asserted on `page`, not the mounted `component`.)
+  await expect(page.locator('[data-slot="compact-summary-text"]')).toHaveCount(0);
+
+  // Open the peek → the summary text becomes visible (the popover popup mounts on trigger).
+  await component.locator('[data-slot="compact-summary-peek"]').click();
+  await expect(page.locator('[data-slot="compact-summary-text"]')).toContainText("swore an oath by the river");
+});
+
+test("no memory fact when previewContextFit reports no covering summary (plain cutoff line)", async ({ mount, page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await routeTrpc(page, {
+    ...ROSTER_STUB,
+    "chat.previewContextFit": (): {
+      boundaryMessageId: MessageId;
+      usedTokens: number;
+      ceilingTokens: number;
+      reserveOutputTokens: number;
+      droppedCount: number;
+      compactSummary: null;
+    } => ({ boundaryMessageId: AI_VIEW.id, usedTokens: 900, ceilingTokens: 1000, reserveOutputTokens: 128, droppedCount: 3, compactSummary: null }),
+    "chat.listMessages": () => makeMessagesPage([USER_VIEW, AI_VIEW]),
+  });
+  await routeChatStream(page, { events: [] });
+
+  const component = await mount(<MessageListSurfaceStory />);
+
+  const divider = component.locator('[data-slot="context-boundary-divider"]');
+  await expect(divider).toContainText(IN_CONTEXT_FROM_HERE);
+  await expect(divider).not.toContainText(COMPACTED_INTO_MEMORY);
+  // No peek affordance when there's no summary.
+  await expect(component.locator('[data-slot="compact-summary-peek"]')).toHaveCount(0);
 });

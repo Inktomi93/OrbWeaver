@@ -32,10 +32,17 @@ type FetchOrCatalogOp = (req: { readonly signal?: AbortSignal | undefined }) => 
 /** infra/providers.fetchAgentSdkModels — the live agent-sdk `supportedModels()` discovery. */
 type FetchAgentSdkModelsOp = (req: { readonly signal?: AbortSignal | undefined }) => Promise<AgentSdkModel[]>;
 
+/** The vLLM engine axis as the CONNECTION domain consumes it (window self-report keying). Homed here —
+ *  the substrate cache + resolve-role derive from this tuple; infra's launch-side VLLM_ENGINES is the
+ *  spawn axis (same members, different layer — the domain never imports infra for a type). */
+const VLLM_WINDOW_ENGINES = ["embed", "rerank", "gen"] as const;
+export type VllmWindowEngine = (typeof VLLM_WINDOW_ENGINES)[number];
+
 /** infra/providers.fetchVllmGenWindow — the gen engine's self-reported context window (loopback
  *  `/v1/models` → `max_model_len`). `null` when the engine is unreachable/warming — the resolver then
- *  falls back to the env-owned window. */
-type FetchVllmGenWindowOp = (req: { readonly signal?: AbortSignal | undefined }) => Promise<number | null>;
+ *  falls back to the env-owned window. Takes the engine (gen for the fit ceiling; embed/rerank for the
+ *  pooling window the local-light capability + parity consume). */
+type FetchVllmGenWindowOp = (req: { readonly engine: VllmWindowEngine; readonly signal?: AbortSignal | undefined }) => Promise<number | null>;
 
 /** settings.loadUserSettings — the parsed per-user UserSettings; connection is a consumer, not an owner. */
 type LoadUserSettingsOp = (userId: UserId) => Promise<UserSettings>;

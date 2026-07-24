@@ -78,4 +78,26 @@ describe("layer (floor-merge)", () => {
     expect(layer({ maxImageBytes: null }).maxImageBytes).toBe(DEFAULT_MAX_IMAGE_BYTES); // clear → floor
     expect(layer({ maxImageBytes: 20_000_000 }).maxImageBytes).toBe(20_000_000);
   });
+
+  describe("engineLaunch (#14 LAUNCH tier)", () => {
+    test("no override → the env floor per field", () => {
+      const el = layer({}).engineLaunch;
+      expect(el.genModel).toBe(env.VLLM_GEN_MODEL);
+      expect(el.genMaxModelLen).toBe(env.VLLM_GEN_MAX_MODEL_LEN);
+      expect(el.embedMaxModelLen).toBe(env.VLLM_EMBED_MAX_MODEL_LEN);
+      expect(el.embedGpuUtil).toBe(env.VLLM_EMBED_GPU_UTIL);
+      expect(el.genMaxPixels).toBe(env.VLLM_GEN_MAX_PIXELS);
+    });
+
+    test("an admin override wins per field; unset fields stay on the floor", () => {
+      const el = layer({ engineLaunch: { genMaxModelLen: 65_536, genGpuUtilMulti: 0.35 } }).engineLaunch;
+      expect(el.genMaxModelLen).toBe(65_536);
+      expect(el.genGpuUtilMulti).toBe(0.35);
+      expect(el.embedMaxModelLen).toBe(env.VLLM_EMBED_MAX_MODEL_LEN); // floor
+    });
+
+    test("a null (CLEAR) engineLaunch section falls entirely to the env floor", () => {
+      expect(layer({ engineLaunch: null }).engineLaunch.genModel).toBe(env.VLLM_GEN_MODEL);
+    });
+  });
 });

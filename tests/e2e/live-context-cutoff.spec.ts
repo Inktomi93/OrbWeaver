@@ -19,7 +19,7 @@
 // @live: seeds via three real API turns (~10-18s warm). Skipped unless E2E_LIVE=1. Fully self-seeding.
 
 import { expect, test } from "@playwright/test";
-import { waitForAppReady } from "./support/chat-room";
+import { messageRow, waitForAppReady } from "./support/chat-room";
 import { getUserSettings, listCanon, listCharacters, sendTurn, startChat, trpcMutation, trpcQuery } from "./support/trpc";
 
 interface ContextFitPreview {
@@ -31,6 +31,12 @@ interface ContextFitPreview {
 }
 
 const TINY_CEILING = 200; // maxContextTokens small enough that only the newest turn survives the fit
+// This spec exercises the FIT divider (a stale canon stamp must not resurrect it). Under the #9 owner ruling the
+// RESOLVED default compaction mode is "managed", which would compact a tiny-ceiling turn into a MEMORY marker and
+// change the divider's meaning — so these turns pin `mode:"auto"` (the SDK's own compaction: no stored marker, no
+// memory-fact), isolating the fit-divider behavior this spec is about. (The managed-marker divider is #9's own
+// live-managed-compaction spec.)
+const AUTO = { mode: "auto" as const };
 
 const previewFit = (chatId: string): Promise<ContextFitPreview> => trpcQuery<ContextFitPreview>("chat.previewContextFit", { chatId });
 
@@ -43,9 +49,10 @@ test("the context-boundary divider is present-tense: preview-driven, knob-respon
   const characterId = (await listCharacters())[0]?.id ?? "";
   expect(characterId).not.toBe("");
   const chatId = await startChat([characterId]);
-  await sendTurn(chatId, "Count to three.");
-  await sendTurn(chatId, "Name a color.");
-  await sendTurn(chatId, "Say ok.", TINY_CEILING);
+  // `mode:"auto"` on every turn ⇒ no managed marker ⇒ the divider is purely fit-driven (this spec's subject).
+  await sendTurn(chatId, "Count to three.", undefined, AUTO);
+  await sendTurn(chatId, "Name a color.", undefined, AUTO);
+  await sendTurn(chatId, "Say ok.", TINY_CEILING, AUTO);
 
   // The canon PROVENANCE recorded the tiny-ceiling cut (a real mid-transcript boundary)…
   const canon = await listCanon(chatId);
@@ -91,13 +98,16 @@ test("the context-boundary divider is present-tense: preview-driven, knob-respon
     expect(canon.findIndex((c) => c.id === apiBoundary)).toBeGreaterThan(0);
     expect(knobbed.ceilingTokens).toBe(TINY_CEILING);
 
-    // …and the DOM divider appears on exactly that row (settingsChanged invalidation refetches the
-    // preview — no reload, no turn). The divider is the immediately-preceding sibling of its row.
+    // …and the DOM divider appears on exactly that row (settingsChanged invalidation refetches the preview —
+    // no reload, no turn). The boundary row is addressed by its KNOWN id via the identity-scoped `messageRow()`
+    // locator (#10 — the intended debut over the prior manual `data-message-id` read); the divider is its
+    // immediately-preceding sibling.
     await expect(page.locator('[data-slot="context-boundary-divider"]')).toHaveCount(1, { timeout: 15_000 });
-    const dividerRowId = await page
-      .locator('[data-slot="context-boundary-divider"]')
-      .evaluate((el) => el.nextElementSibling?.getAttribute("data-message-id") ?? null);
-    expect(dividerRowId).toBe(apiBoundary);
+    expect(apiBoundary).not.toBeNull();
+    const boundaryRow = messageRow(page, apiBoundary ?? "");
+    await expect(boundaryRow).toHaveCount(1);
+    const dividerIsPrecedingSibling = await boundaryRow.evaluate((row) => row.previousElementSibling?.getAttribute("data-slot") === "context-boundary-divider");
+    expect(dividerIsPrecedingSibling).toBe(true);
   } finally {
     // Restore the prior default preset (null = clear back to the system default) + remove the throwaway.
     await trpcMutation("settings.updateUserSettingsSection", {

@@ -1,31 +1,53 @@
 // domain/chat/verbs/compaction — the manual `compact` lever + the lock-free `runCompaction` core. The
-// portable compaction checkpoint is chats.compactSummary + chats.compactedAtSeq (chat canon, not agent-sdk
-// session state — so the stateless OpenRouter runner uses it too).
+// portable compaction marker is chats.compactSummary + chats.compactedAtSeq (chat canon, not backend session
+// state — so a source swap carries it forward; the stateless read side splices it into the top history slot).
+//
+// FULL-RESET CHAINED MARKER (#9): each pass rebuilds ONE marker covering the whole in-context conversation —
+// the prior marker PLUS every prompt-eligible turn since it, summarized to a fresh marker stamped at the new
+// `coveragePoint`. Markers CHAIN ("it's a new conversation"): the new marker SUPERSEDES the prior, never a
+// growing prefix. Generation rides the chat's OWN model via the injected `quietGenerate` (a non-canon quiet
+// generation through the resolved connection) — NOT the summarizer rail.
 //
 // TWO ENTRY POINTS, ONE CORE: `runCompaction` is the lock-free core the composition root injects into the
 // engine; the manual `compact` verb is the public host-only lever (gates + emits over the same core). The
 // engine never imports the verb.
 //
+// FAILURE HONESTY: a marker generation that throws propagates (the caller surfaces it); an EMPTY generation
+// leaves the EXISTING marker untouched and returns `updated:false` so the caller warns — NEVER a half-written
+// or blank marker.
+//
 // FLAG[compaction-transcript]: the summarized transcript labels each turn by its role (user/assistant/system),
 // not the resolved speaker name — richer per-speaker labeling is a later refinement.
 
 import type { ChatBusEvent } from "@orb/contracts/chat";
+import type { ResolvedConnection } from "@orb/contracts/connection";
+import type { UserIntent } from "@orb/contracts/preset";
 import { chats } from "@orb/db";
-import type { ChatId } from "@orb/kit/ids";
+import type { BatchStmt } from "@orb/db/kit";
+import { batchMany } from "@orb/db/kit";
+import type { ChatId, UserId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import type { ChatContext } from "../context";
-import { ChatNotFoundError } from "../contract/errors";
+import type { QuietGenerate } from "../contract/context";
+import { ChatNotFoundError, ChatOperationError } from "../contract/errors";
 import type { CompactParams } from "../contract/params";
 import type { CompactResult } from "../contract/results";
 import type { ChatService } from "../contract/service";
 import { requireHost } from "../guard";
 import { loadCanonHistoryAfter, loadChatRow } from "../persistence/queries";
+import { compactionCostDelta } from "../substrate/stats-delta";
 
-/** `throughSeq` caps the window at a breakpoint (absent ⇒ compact every new turn). */
+/** `coveragePoint` = the seq through which the new marker covers (the fit/marker boundary the caller resolved).
+ *  Absent ⇒ cover every committed turn. `connection` is the chat's resolved connection the quiet generation
+ *  rides. */
 interface RunCompactionArgs {
   readonly chatId: ChatId;
-  readonly throughSeq?: number | undefined;
+  readonly connection: ResolvedConnection;
+  /** The host whose box funds the marker generation — the quiet-op cost lands on THIS owner's stats. */
+  readonly ownerId: UserId;
+  readonly coveragePoint?: number | undefined;
   readonly instructions?: string | undefined;
+  readonly signal?: AbortSignal | undefined;
 }
 
 interface CompactionBundle extends Pick<ChatService, "compact"> {
@@ -34,6 +56,10 @@ interface CompactionBundle extends Pick<ChatService, "compact"> {
 
 interface CompactionDeps {
   readonly emit: (event: ChatBusEvent) => Promise<void>;
+  /** The quiet-generation seam — a non-canon generation through the chat's own model (wired at compose). */
+  readonly quietGenerate: QuietGenerate;
+  /** Resolve the chat's connection for the MANUAL lever (the engine hook passes its own `prep.connection`). */
+  readonly resolveConnection: (args: { readonly runAsUserId: UserId; readonly chatId: ChatId }) => Promise<ResolvedConnection>;
 }
 
 const COMPACTION_SYSTEM_PROMPT =
@@ -41,8 +67,8 @@ const COMPACTION_SYSTEM_PROMPT =
   "that preserves the key facts, character states, decisions, locations, and unresolved threads. Do not " +
   "invent details and do not add commentary — output only the summary.";
 
-/** Build the summarizer's user prompt from the prior checkpoint summary (folded in so the new summary
- *  supersedes it), the new transcript, and any caller guidance. */
+/** Build the marker generation's user prompt from the prior marker (folded in so the new marker supersedes it),
+ *  the new transcript span, and any caller guidance. */
 function buildCompactionPrompt(args: { readonly priorSummary: string | null; readonly transcript: string; readonly instructions: string | undefined }): string {
   const parts: string[] = [];
   if (args.priorSummary !== null && args.priorSummary.length > 0) {
@@ -55,57 +81,116 @@ function buildCompactionPrompt(args: { readonly priorSummary: string | null; rea
   return parts.join("\n\n");
 }
 
-/** The lock-free compaction core. Loads the current checkpoint, summarizes the history after it (capped at
- *  `throughSeq`), writes the advanced checkpoint. A window with no new turns is an idempotent no-op. No gate
- *  / no bus emit — that's the verb's / engine's job. */
-function makeRunCompaction(ctx: ChatContext): (args: RunCompactionArgs) => Promise<CompactResult> {
-  return async ({ chatId, throughSeq, instructions }: RunCompactionArgs): Promise<CompactResult> => {
+/** The low-temp, bounded intent the marker generation runs at (a summary is not creative writing). */
+const COMPACTION_INTENT: UserIntent = { temperature: 0.3 };
+
+/** Generate the fresh marker for a NON-empty prompt-eligible span + write it. Split out to keep the core under
+ *  the complexity cap. A THROW propagates (failure honesty); an EMPTY generation leaves the prior marker intact. */
+async function buildMarker(
+  ctx: ChatContext,
+  quietGenerate: QuietGenerate,
+  env: {
+    readonly chatId: ChatId;
+    readonly connection: ResolvedConnection;
+    readonly ownerId: UserId;
+    readonly priorSummary: string | null;
+    readonly transcript: string;
+    readonly instructions: string | undefined;
+    readonly coveredThroughSeq: number;
+    readonly fromSeq: number;
+    readonly signal: AbortSignal | undefined;
+  },
+): Promise<CompactResult> {
+  const userText = buildCompactionPrompt({ priorSummary: env.priorSummary, transcript: env.transcript, instructions: env.instructions });
+  const result = await quietGenerate({
+    chatId: env.chatId,
+    connection: env.connection,
+    systemPrompt: COMPACTION_SYSTEM_PROMPT,
+    userText,
+    intent: COMPACTION_INTENT,
+    ...(env.signal !== undefined ? { signal: env.signal } : {}),
+  });
+  const summary = result.text.trim();
+  if (summary.length === 0) {
+    // Empty generation over a NON-empty span → a real failure. THROW so the caller surfaces it (the hook warns
+    // `compaction_failed`, the manual verb propagates); the EXISTING marker + coverage stamp are left untouched
+    // (never a blank marker), so a retry next turn is honest.
+    throw new ChatOperationError("compaction_empty", `compaction produced an empty marker for chat ${env.chatId}`);
+  }
+  await ctx.db.update(chats).set({ compactSummary: summary, compactedAtSeq: env.coveredThroughSeq, updatedAt: ctx.now() }).where(eq(chats.id, env.chatId));
+  // COST VISIBILITY: the quiet marker generation's spend lands on the owner's + daily stats (the cost-visibility
+  // rule). A null/0 cost (a local vLLM turn, or a backend that reports none) is a benign no-op delta.
+  if (result.costUsd !== null && result.costUsd > 0) {
+    const stmts: BatchStmt[] = [];
+    ctx.applyStatsDelta(stmts, ctx.db, compactionCostDelta({ ownerId: env.ownerId, costUsd: result.costUsd, now: ctx.now() }));
+    if (stmts.length > 0) {
+      await ctx.db.batch(batchMany(stmts));
+    }
+  }
+  return { summary, compactedAtSeq: env.coveredThroughSeq, updated: true };
+}
+
+/** The lock-free compaction core. Rebuilds ONE marker over [prior marker + prompt-eligible turns since it,
+ *  through `coveragePoint`] via the chat's own model, writes the advanced marker + coverage stamp. A span with
+ *  no new turns is an idempotent no-op. No gate / no bus emit — that's the verb's / engine's job. */
+function makeRunCompaction(ctx: ChatContext, quietGenerate: QuietGenerate): (args: RunCompactionArgs) => Promise<CompactResult> {
+  return async ({ chatId, connection, ownerId, coveragePoint, instructions, signal }: RunCompactionArgs): Promise<CompactResult> => {
     const chat = await loadChatRow(ctx.db, chatId);
     if (chat === undefined) {
       throw new ChatNotFoundError(chatId);
     }
     const fromSeq = chat.compactedAtSeq ?? 0;
     const afterCheckpoint = await loadCanonHistoryAfter(ctx.db, chatId, fromSeq);
-    const window = throughSeq === undefined ? afterCheckpoint : afterCheckpoint.filter((m) => m.seq <= throughSeq);
-    const coveredThroughSeq = window.at(-1)?.seq;
+    const capped = coveragePoint === undefined ? afterCheckpoint : afterCheckpoint.filter((m) => m.seq <= coveragePoint);
+    // The coverage stamp advances over the whole capped span (hidden rows included — the marker must still cover
+    // the seq range so it can't be recompacted), but the SUMMARIZED transcript excludes prompt-hidden rows
+    // (`excludedFromPrompt`): the marker stands in for prompt-eligible history and is member-peekable, so it must
+    // never fold a hidden row's content into itself (a cross-member leak sink). Identical on the full-span read.
+    const coveredThroughSeq = capped.at(-1)?.seq;
+    const window = capped.filter((m) => !m.excludedFromPrompt);
     if (coveredThroughSeq === undefined) {
-      // Nothing new to compact — the checkpoint is already current (idempotent no-op).
-      return { summary: chat.compactSummary ?? "", compactedAtSeq: fromSeq };
+      // Nothing new to compact — the marker is already current (idempotent no-op; the coverage point unchanged).
+      return { summary: chat.compactSummary ?? "", compactedAtSeq: fromSeq, updated: false };
     }
-
+    if (window.length === 0) {
+      // The whole new span is prompt-hidden — nothing summarizable, but the coverage stamp still advances so the
+      // hidden span isn't reconsidered forever (no generation spend on an empty transcript).
+      await ctx.db.update(chats).set({ compactedAtSeq: coveredThroughSeq, updatedAt: ctx.now() }).where(eq(chats.id, chatId));
+      return { summary: chat.compactSummary ?? "", compactedAtSeq: coveredThroughSeq, updated: false };
+    }
     const transcript = window.map((m) => `${m.role}: ${m.content}`).join("\n");
-    const userPrompt = buildCompactionPrompt({
+    return await buildMarker(ctx, quietGenerate, {
+      chatId,
+      connection,
+      ownerId,
       priorSummary: chat.compactSummary,
       transcript,
       instructions,
+      coveredThroughSeq,
+      fromSeq,
+      signal,
     });
-    const result = await ctx.summarize([{ systemPrompt: COMPACTION_SYSTEM_PROMPT, userPrompt }]);
-    const summary = result.items.at(0)?.text ?? chat.compactSummary ?? "";
-
-    await ctx.db.update(chats).set({ compactSummary: summary, compactedAtSeq: coveredThroughSeq, updatedAt: ctx.now() }).where(eq(chats.id, chatId));
-    return { summary, compactedAtSeq: coveredThroughSeq };
   };
 }
 
-/** `compact` — host-only. The manual lever over the lock-free core: gate, run the core, emit `chatUpdated`. */
-function createCompact(
-  ctx: ChatContext,
-  emit: CompactionDeps["emit"],
-  runCompaction: (args: RunCompactionArgs) => Promise<CompactResult>,
-): ChatService["compact"] {
+/** `compact` — host-only. The manual lever over the lock-free core: gate, resolve the chat's connection, run the
+ *  core, emit `chatUpdated`. */
+function createCompact(ctx: ChatContext, deps: CompactionDeps, runCompaction: (args: RunCompactionArgs) => Promise<CompactResult>): ChatService["compact"] {
   return async ({ principal, chatId, instructions }: CompactParams): Promise<CompactResult> => {
+    // The caller IS the host (requireHost passed) → the host funds the marker generation on the chat's connection.
     await requireHost(ctx, principal, chatId);
-    const result = await runCompaction({ chatId, instructions });
-    await emit({ type: "chatUpdated", chatId });
+    const connection = await deps.resolveConnection({ runAsUserId: principal.userId, chatId });
+    const result = await runCompaction({ chatId, connection, ownerId: principal.userId, ...(instructions !== undefined ? { instructions } : {}) });
+    await deps.emit({ type: "chatUpdated", chatId });
     return result;
   };
 }
 
 /** The root spreads `compact` into the full service AND injects `runCompaction` into the engine. */
 export function createCompaction(ctx: ChatContext, deps: CompactionDeps): CompactionBundle {
-  const runCompaction = makeRunCompaction(ctx);
+  const runCompaction = makeRunCompaction(ctx, deps.quietGenerate);
   return {
-    compact: createCompact(ctx, deps.emit, runCompaction),
+    compact: createCompact(ctx, deps, runCompaction),
     runCompaction,
   };
 }

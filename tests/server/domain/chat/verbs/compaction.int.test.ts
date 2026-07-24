@@ -1,33 +1,34 @@
-// The manual `compact` lever + the lock-free `runCompaction` core (chat.md §Decisions; D25). Proves against a
-// real libSQL db: compaction summarizes the history AFTER the current checkpoint via the injected `summarize`
-// role, writes the PORTABLE checkpoint (`chats.compactSummary` + `compactedAtSeq`), and resume reads
-// `seq > compactedAtSeq`. The summarizer is a deterministic stub. Reached through `createCompaction(ctx, {emit})`.
+// The manual `compact` lever + the lock-free `runCompaction` core (#9 full-reset chained marker). Proves against
+// a real libSQL db: compaction rebuilds ONE marker over [prior marker + prompt-eligible turns since it, through
+// the coverage point] via the injected `quietGenerate` (a non-canon generation through the chat's OWN model — NOT
+// the summarizer rail), writes the PORTABLE marker (`chats.compactSummary` + `compactedAtSeq`). The quiet
+// generation is a deterministic stub. Reached through `createCompaction(ctx, { emit, quietGenerate, resolveConnection })`.
 
 import type { ChatBusEvent } from "@orb/contracts/chat";
+import type { ResolvedConnection } from "@orb/contracts/connection";
 import type { Principal } from "@orb/contracts/identity";
-import type { SummarizeInput, SummarizeOptions } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
 import { chats } from "@orb/db";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context";
+import type { QuietGenerate, QuietGenerateParams } from "../../../../../packages/server/src/domain/chat/contract/context";
 import { ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors";
 import { createCompaction } from "../../../../../packages/server/src/domain/chat/verbs/compaction";
 import { freshDb } from "../../../../support/db";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../support/fixtures";
-import { makeChatContext, seedChat, seedMessage, seedParticipant, seedUser } from "../_support";
+import { makeChatContext, seedChat, seedMessage, seedParticipant, seedUser, testConnection } from "../_support";
 
 let db: Db;
 let emitted: ChatBusEvent[];
-let summarizeCalls: SummarizeInput[][];
+let quietCalls: QuietGenerateParams[];
 
 beforeEach(async () => {
   db = await freshDb();
   emitted = [];
-  summarizeCalls = [];
+  quietCalls = [];
 });
 
 const emit = (event: ChatBusEvent): Promise<void> => {
@@ -39,23 +40,24 @@ function principal(userId: UserId): Principal {
   return makePrincipal(userId, { handle: castId<Handle>("h") });
 }
 
-/** A deterministic summarizer stub that records its inputs + returns a fixed summary text. */
-function ctxWithSummarizer(text: string): ChatContext {
-  const summarize: ChatContext["summarize"] = (inputs: SummarizeInput[], _opts?: SummarizeOptions) => {
-    summarizeCalls.push(inputs);
-    return Promise.resolve({
-      items: [{ text, usage: { tokensIn: 1, tokensOut: 1, costUsd: null } }],
-      model: "stub",
-    });
+const CONNECTION = testConnection("vllm", "agent-sdk");
+const OWNER = castId<UserId>("user_host");
+const resolveConnection = (): Promise<ResolvedConnection> => Promise.resolve(CONNECTION);
+
+/** A deterministic quiet-generation stub that records its params + returns a fixed marker text (or empty). */
+function quietStub(text: string): QuietGenerate {
+  return (params: QuietGenerateParams) => {
+    quietCalls.push(params);
+    return Promise.resolve({ text, costUsd: null });
   };
-  return makeChatContext(db, { summarize });
 }
 
-async function seedRoom(): Promise<{
-  host: UserId;
-  member: UserId;
-  chatId: Awaited<ReturnType<typeof seedChat>>;
-}> {
+/** Build `createCompaction` deps over a fresh ctx with the given quiet-generation output. */
+function compactionWith(text: string): ReturnType<typeof createCompaction> {
+  return createCompaction(makeChatContext(db), { emit, quietGenerate: quietStub(text), resolveConnection });
+}
+
+async function seedRoom(): Promise<{ host: UserId; member: UserId; chatId: Awaited<ReturnType<typeof seedChat>> }> {
   const host = await seedUser(db, "host");
   const member = await seedUser(db, "member");
   const chatId = await seedChat(db, "a");
@@ -65,62 +67,172 @@ async function seedRoom(): Promise<{
 }
 
 describe("compact — the manual lever (host)", () => {
-  test("summarizes the canon, writes the D25 checkpoint, emits chatUpdated", async () => {
+  test("builds the marker via the chat's model, writes the checkpoint, emits chatUpdated", async () => {
     const { host, chatId } = await seedRoom();
     await seedMessage(db, chatId, 1, { role: "user", authorUserId: host, content: "hello" });
     await seedMessage(db, chatId, 2, { role: "assistant", content: "hi there" });
-    const compaction = createCompaction(ctxWithSummarizer("THE SUMMARY"), { emit });
+    const compaction = compactionWith("THE MARKER");
 
     const result = await compaction.compact({ principal: principal(host), chatId });
 
-    expect(result).toEqual({ summary: "THE SUMMARY", compactedAtSeq: 2 });
+    expect(result).toEqual({ summary: "THE MARKER", compactedAtSeq: 2, updated: true });
     const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
-    expect(row?.compactSummary).toBe("THE SUMMARY");
+    expect(row?.compactSummary).toBe("THE MARKER");
     expect(row?.compactedAtSeq).toBe(2);
     expect(emitted).toEqual([{ type: "chatUpdated", chatId }]);
-    const userPrompt = summarizeCalls.at(0)?.at(0)?.userPrompt ?? "";
-    expect(userPrompt).toContain("hello");
-    expect(userPrompt).toContain("hi there");
+    // The quiet generation rode the chat's resolved connection (agent-sdk), NOT a summarizer rail.
+    expect(quietCalls.at(0)?.connection).toBe(CONNECTION);
+    const userText = quietCalls.at(0)?.userText ?? "";
+    expect(userText).toContain("hello");
+    expect(userText).toContain("hi there");
   });
 
   test("a member is refused (not_host)", async () => {
     const { member, chatId } = await seedRoom();
-    const compaction = createCompaction(ctxWithSummarizer("x"), { emit });
+    const compaction = compactionWith("x");
     const err = await compaction.compact({ principal: principal(member), chatId }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
     expect((err as ChatOperationError).code).toBe("not_host");
-    expect(summarizeCalls).toHaveLength(0);
+    expect(quietCalls).toHaveLength(0);
   });
 });
 
-describe("runCompaction — the injected core (resume math)", () => {
-  test("the second pass only summarizes seq > compactedAtSeq, folding in the prior summary", async () => {
+describe("runCompaction — the injected core (chained-marker math)", () => {
+  test("the second pass folds the prior marker + only the turns since the coverage point", async () => {
     const { host, chatId } = await seedRoom();
     await seedMessage(db, chatId, 1, { role: "user", authorUserId: host, content: "first" });
-    const compaction = createCompaction(ctxWithSummarizer("SUMMARY-A"), { emit });
-    const first = await compaction.runCompaction({ chatId });
-    expect(first.compactedAtSeq).toBe(1);
+    const first = await compactionWith("MARKER-A").runCompaction({ chatId, connection: CONNECTION, ownerId: OWNER });
+    expect(first).toEqual({ summary: "MARKER-A", compactedAtSeq: 1, updated: true });
 
     await seedMessage(db, chatId, 2, { role: "assistant", content: "second" });
-    const compaction2 = createCompaction(ctxWithSummarizer("SUMMARY-B"), { emit });
-    const second = await compaction2.runCompaction({ chatId });
+    const second = await compactionWith("MARKER-B").runCompaction({ chatId, connection: CONNECTION, ownerId: OWNER });
 
-    expect(second).toEqual({ summary: "SUMMARY-B", compactedAtSeq: 2 });
-    const prompt = summarizeCalls.at(-1)?.at(0)?.userPrompt ?? "";
-    expect(prompt).toContain("second"); // the new turn
-    expect(prompt).not.toContain("first"); // the already-compacted turn is NOT re-summarized
-    expect(prompt).toContain("SUMMARY-A"); // the prior checkpoint folds in
+    expect(second).toEqual({ summary: "MARKER-B", compactedAtSeq: 2, updated: true });
+    const text = quietCalls.at(-1)?.userText ?? "";
+    expect(text).toContain("second"); // the new turn
+    expect(text).not.toContain("first"); // the already-compacted turn is not re-read
+    expect(text).toContain("MARKER-A"); // the prior marker folds in (chained)
   });
 
-  test("no new turns after the checkpoint is an idempotent no-op (the summarizer is not called)", async () => {
+  test("no new turns after the coverage point is an idempotent no-op (updated:false, no generation)", async () => {
     const { host, chatId } = await seedRoom();
     await seedMessage(db, chatId, 1, { role: "user", authorUserId: host, content: "only" });
-    const compaction = createCompaction(ctxWithSummarizer("ONCE"), { emit });
-    await compaction.runCompaction({ chatId });
-    summarizeCalls = [];
+    const compaction = compactionWith("ONCE");
+    await compaction.runCompaction({ chatId, connection: CONNECTION, ownerId: OWNER });
+    quietCalls = [];
 
-    const again = await compaction.runCompaction({ chatId });
-    expect(again).toEqual({ summary: "ONCE", compactedAtSeq: 1 });
-    expect(summarizeCalls).toHaveLength(0); // nothing new to summarize
+    const again = await compaction.runCompaction({ chatId, connection: CONNECTION, ownerId: OWNER });
+    expect(again).toEqual({ summary: "ONCE", compactedAtSeq: 1, updated: false });
+    expect(quietCalls).toHaveLength(0); // nothing new to summarize
+  });
+
+  test("coveragePoint caps the compacted span (rows above the coverage point only)", async () => {
+    const { host, chatId } = await seedRoom();
+    await seedMessage(db, chatId, 1, { role: "user", authorUserId: host, content: "aged-out-one" });
+    await seedMessage(db, chatId, 2, { role: "assistant", content: "aged-out-two" });
+    await seedMessage(db, chatId, 3, { role: "user", authorUserId: host, content: "still-in-window" });
+    const compaction = compactionWith("SPAN");
+
+    // The fit boundary kept seq 3 → the span above is seqs 1-2; compact through the coverage point 2.
+    const result = await compaction.runCompaction({ chatId, connection: CONNECTION, ownerId: OWNER, coveragePoint: 2 });
+
+    expect(result).toEqual({ summary: "SPAN", compactedAtSeq: 2, updated: true });
+    const text = quietCalls.at(-1)?.userText ?? "";
+    expect(text).toContain("aged-out-one");
+    expect(text).toContain("aged-out-two");
+    expect(text).not.toContain("still-in-window"); // seq 3 is above the coverage point
+  });
+
+  test("prompt-hidden rows are EXCLUDED from the marker but still advance the checkpoint (no peek leak)", async () => {
+    const { host, chatId } = await seedRoom();
+    await seedMessage(db, chatId, 1, { role: "user", authorUserId: host, content: "visible-canon" });
+    await seedMessage(db, chatId, 2, { role: "assistant", content: "SECRET-HIDDEN-LINE", excludedFromPrompt: true });
+    const compaction = compactionWith("MARKER");
+
+    const result = await compaction.runCompaction({ chatId, connection: CONNECTION, ownerId: OWNER });
+
+    expect(result.compactedAtSeq).toBe(2); // the checkpoint advances over the whole span
+    const text = quietCalls.at(-1)?.userText ?? "";
+    expect(text).toContain("visible-canon");
+    expect(text).not.toContain("SECRET-HIDDEN-LINE");
+  });
+
+  test("a span of ONLY hidden rows advances the checkpoint without a generation (updated:false)", async () => {
+    const { host, chatId } = await seedRoom();
+    await seedMessage(db, chatId, 1, { role: "user", authorUserId: host, content: "seed" });
+    await compactionWith("SEED-MARKER").runCompaction({ chatId, connection: CONNECTION, ownerId: OWNER });
+    quietCalls = [];
+    await seedMessage(db, chatId, 2, { role: "assistant", content: "hidden-only", excludedFromPrompt: true });
+    const compaction = compactionWith("SHOULD-NOT-FIRE");
+
+    const result = await compaction.runCompaction({ chatId, connection: CONNECTION, ownerId: OWNER });
+
+    expect(quietCalls).toHaveLength(0); // no spend on an empty transcript
+    expect(result).toEqual({ summary: "SEED-MARKER", compactedAtSeq: 2, updated: false }); // checkpoint advances, marker preserved
+    const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
+    expect(row?.compactedAtSeq).toBe(2);
+  });
+
+  test("FAILURE HONESTY: an EMPTY generation over a real span THROWS compaction_empty, marker untouched", async () => {
+    const { host, chatId } = await seedRoom();
+    await seedMessage(db, chatId, 1, { role: "user", authorUserId: host, content: "one" });
+    await compactionWith("GOOD-MARKER").runCompaction({ chatId, connection: CONNECTION, ownerId: OWNER });
+    await seedMessage(db, chatId, 2, { role: "assistant", content: "two" });
+
+    // The model returns empty over a NON-empty span — a real failure. The marker must NOT be blanked/advanced.
+    const err = await compactionWith("")
+      .runCompaction({ chatId, connection: CONNECTION, ownerId: OWNER })
+      .catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ChatOperationError);
+    expect((err as ChatOperationError).code).toBe("compaction_empty");
+    const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
+    expect(row?.compactSummary).toBe("GOOD-MARKER"); // untouched
+    expect(row?.compactedAtSeq).toBe(1); // NOT advanced — an honest retry next turn
+  });
+
+  test("FAILURE HONESTY: a THROWING generation propagates (never a half-written marker)", async () => {
+    const { host, chatId } = await seedRoom();
+    await seedMessage(db, chatId, 1, { role: "user", authorUserId: host, content: "one" });
+    const throwing: QuietGenerate = () => Promise.reject(new Error("provider down"));
+    const compaction = createCompaction(makeChatContext(db), { emit, quietGenerate: throwing, resolveConnection });
+
+    const err = await compaction.runCompaction({ chatId, connection: CONNECTION, ownerId: OWNER }).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(Error);
+    const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
+    expect(row?.compactSummary).toBeNull(); // nothing written
+  });
+
+  test("COST VISIBILITY: a non-null generation cost stamps a cost-only stats delta on the owner", async () => {
+    const { host, chatId } = await seedRoom();
+    await seedMessage(db, chatId, 1, { role: "user", authorUserId: host, content: "one" });
+    // Record every applyStatsDelta the core fires (the spy the injected-op seam allows).
+    const deltas: { ownerId: string; costUsd: number | undefined; characterId: string | null; model: string | null }[] = [];
+    const ctx = makeChatContext(db, {
+      applyStatsDelta: (_batch, _db, delta) => {
+        deltas.push({ ownerId: delta.ownerId, costUsd: delta.costUsd, characterId: delta.characterId, model: delta.model });
+      },
+    });
+    const costing: QuietGenerate = () => Promise.resolve({ text: "MARKER", costUsd: 0.042 });
+    const compaction = createCompaction(ctx, { emit, quietGenerate: costing, resolveConnection });
+
+    await compaction.runCompaction({ chatId, connection: CONNECTION, ownerId: OWNER });
+
+    // The compaction spend landed as a cost-only, character/model-less owner delta.
+    const costDelta = deltas.find((d) => d.costUsd === 0.042);
+    expect(costDelta).toBeDefined();
+    expect(costDelta?.ownerId).toBe(OWNER);
+    expect(costDelta?.characterId).toBeNull();
+    expect(costDelta?.model).toBeNull();
+  });
+
+  test("a NULL generation cost stamps NO cost delta (a local vLLM turn reports none)", async () => {
+    const { host, chatId } = await seedRoom();
+    await seedMessage(db, chatId, 1, { role: "user", authorUserId: host, content: "one" });
+    const deltas: unknown[] = [];
+    const ctx = makeChatContext(db, { applyStatsDelta: (_b, _d, delta) => void deltas.push(delta) });
+    const compaction = createCompaction(ctx, { emit, quietGenerate: quietStub("MARKER"), resolveConnection }); // quietStub → costUsd:null
+
+    await compaction.runCompaction({ chatId, connection: CONNECTION, ownerId: OWNER });
+    expect(deltas).toHaveLength(0);
   });
 });

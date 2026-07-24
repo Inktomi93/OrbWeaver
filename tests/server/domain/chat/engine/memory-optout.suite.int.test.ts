@@ -25,7 +25,7 @@ import { loadWitnessHorizons } from "../../../../../packages/server/src/domain/c
 import { recallMemory } from "../../../../../packages/server/src/domain/chat/memory/recall/recall";
 import { freshDb } from "../../../../support/db";
 import { expect, test } from "../../../../support/fixtures";
-import { makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser, testConnection } from "../_support";
+import { makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser, stubRunCompaction, testConnection } from "../_support";
 import { fakeEmbeddingsStore, fakeSummarize } from "../memory/_support";
 
 const HOST = castId<UserId>("user_host");
@@ -117,6 +117,7 @@ async function groupHarness(): Promise<{
     generateDigests,
     loadWitnessHorizons,
     recallMemory,
+    runCompaction: stubRunCompaction,
   });
   return { chatId, synthetic, summarize, engine };
 }

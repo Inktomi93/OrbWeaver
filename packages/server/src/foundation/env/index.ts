@@ -19,9 +19,29 @@ const VLLM_GEN_PORT_DEFAULT = 8703;
 // The unified text+image embedding space's output dimension (matches every F32_BLOB(1024) vector column).
 const VLLM_EMBED_DIM_DEFAULT = 1024;
 const VLLM_EMBED_CHUNK_DEFAULT = 128;
-// The gen engine's --max-model-len (scripts/dev/vllm-engine.sh `gen` arm). ONE home for the window so the
-// launcher's serve flag and the resolved ModelCapability.context.window can't drift (parity-tested).
+// The gen engine's --max-model-len (buildEngineArgv `gen` arm). ONE home for the window so the launcher's
+// serve flag and the resolved ModelCapability.context.window can't drift (parity-tested + engine-self-report
+// outranks it for capability truth). The engine's OWN /v1/models max_model_len wins at runtime.
 const VLLM_GEN_MAX_MODEL_LEN_DEFAULT = 32_768;
+// The embed + rerank pooling engines' --max-model-len. ONE home for the 8192 that was hand-copied into the
+// shell script's embed/rerank arms AND the character embed-text char budget AND the local-light capability
+// window. The engines self-report these too (extend-of the gen-window seam); the env is the launch flag +
+// the absence-degrade floor when the engine is warming/disabled.
+const VLLM_EMBED_MAX_MODEL_LEN_DEFAULT = 8192;
+const VLLM_RERANK_MAX_MODEL_LEN_DEFAULT = 8192;
+// Per-engine --gpu-memory-utilization floors (measured bare-metal — see buildEngineArgv's header). Multi-GPU
+// gen uses the split default; single-GPU packing is derived in the builder from these + the GPU count.
+const VLLM_EMBED_GPU_UTIL_DEFAULT = 0.14;
+const VLLM_RERANK_GPU_UTIL_MULTI_DEFAULT = 0.16;
+const VLLM_RERANK_GPU_UTIL_SINGLE_DEFAULT = 0.22;
+const VLLM_GEN_GPU_UTIL_MULTI_DEFAULT = 0.28;
+const VLLM_GEN_GPU_UTIL_SINGLE_DEFAULT = 0.5;
+// --mm-processor-kwargs max_pixels caps: pooling engines (embed/rerank) at the reference 1.84M-px vision
+// regime; the gen VL engine at its 4.2M-px cap. ONE home for the two literals the shell hand-carried.
+const VLLM_POOLING_MAX_PIXELS_DEFAULT = 1_843_200;
+const VLLM_GEN_MAX_PIXELS_DEFAULT = 4_194_304;
+// Whole-request embed timeout (ms): a warming/wedged engine can't hang boot-time embedding forever.
+const VLLM_EMBED_REQUEST_TIMEOUT_MS_DEFAULT = 120_000;
 const MIN_SESSION_SECRET_CHARS = 32;
 const MIN_PASSWORD_LENGTH = 8;
 const RATE_LIMIT_WINDOW_MS_DEFAULT = 60_000;
@@ -79,8 +99,37 @@ const envSchema = z
     // The gen engine's context window (--max-model-len). The resolved vllm ModelCapability.context.window
     // reads this so the launcher flag and the fit ceiling share ONE home (text-parity tested vs the script).
     VLLM_GEN_MAX_MODEL_LEN: z.coerce.number().int().positive().default(VLLM_GEN_MAX_MODEL_LEN_DEFAULT),
+    // The embed/rerank pooling windows (--max-model-len). ONE home for the 8192 that was hand-copied into
+    // the shell + the character embed-text budget + the local-light capability window; the engines
+    // self-report these too and the self-report WINS for capability truth (D68 absence-degrades to here).
+    VLLM_EMBED_MAX_MODEL_LEN: z.coerce.number().int().positive().default(VLLM_EMBED_MAX_MODEL_LEN_DEFAULT),
+    VLLM_RERANK_MAX_MODEL_LEN: z.coerce.number().int().positive().default(VLLM_RERANK_MAX_MODEL_LEN_DEFAULT),
+    // Per-engine --gpu-memory-utilization floors + the two max_pixels caps + the embed request timeout —
+    // the LAUNCH-config env floors an admin AppSettings override can move (layer.ts). Formerly bare literals
+    // in scripts/dev/vllm-engine.sh; now single-homed here so the builder + the launcher share one truth.
+    // RENAME NOTE (2026-07-24 #14): the old shell's `VLLM_GEN_UTIL` co-tenancy knob (one value overriding
+    // the gen util in both GPU modes) is RETIRED — its function split into VLLM_GEN_GPU_UTIL_MULTI/_SINGLE
+    // below (env-default argv is byte-identical to the old shell; a deployment that exported VLLM_GEN_UTIL
+    // must move to the split vars or the admin override).
+    VLLM_EMBED_GPU_UTIL: z.coerce.number().positive().default(VLLM_EMBED_GPU_UTIL_DEFAULT),
+    VLLM_RERANK_GPU_UTIL_MULTI: z.coerce.number().positive().default(VLLM_RERANK_GPU_UTIL_MULTI_DEFAULT),
+    VLLM_RERANK_GPU_UTIL_SINGLE: z.coerce.number().positive().default(VLLM_RERANK_GPU_UTIL_SINGLE_DEFAULT),
+    VLLM_GEN_GPU_UTIL_MULTI: z.coerce.number().positive().default(VLLM_GEN_GPU_UTIL_MULTI_DEFAULT),
+    VLLM_GEN_GPU_UTIL_SINGLE: z.coerce.number().positive().default(VLLM_GEN_GPU_UTIL_SINGLE_DEFAULT),
+    VLLM_POOLING_MAX_PIXELS: z.coerce.number().int().positive().default(VLLM_POOLING_MAX_PIXELS_DEFAULT),
+    VLLM_GEN_MAX_PIXELS: z.coerce.number().int().positive().default(VLLM_GEN_MAX_PIXELS_DEFAULT),
+    VLLM_EMBED_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(VLLM_EMBED_REQUEST_TIMEOUT_MS_DEFAULT),
     VLLM_EMBED_DIM: z.coerce.number().int().positive().default(VLLM_EMBED_DIM_DEFAULT),
     VLLM_EMBED_CHUNK_SIZE: z.coerce.number().int().positive().default(VLLM_EMBED_CHUNK_DEFAULT),
+    // DEPLOYMENT facts (binary + cache stores) the engine SPAWNER resolves — all optional, unset ⇒ the
+    // in-repo/venv defaults derived from the shared store root (buildEngineSpawnSpec). VLLM_BIN/VLLM_PY: the
+    // Docker image pins system paths; VLLM_STORE_ROOT overrides the git-common-dir worktree derivation;
+    // HF_HOME/VLLM_CACHE_ROOT relocate the multi-GB caches.
+    VLLM_BIN: z.string().min(1).optional(),
+    VLLM_PY: z.string().min(1).optional(),
+    VLLM_STORE_ROOT: z.string().min(1).optional(),
+    HF_HOME: z.string().min(1).optional(),
+    VLLM_CACHE_ROOT: z.string().min(1).optional(),
     // "true" disables the local engine entirely (a GPU-less/cloud-only box runs without the supervisor).
     VLLM_DISABLED: z
       .enum(["true", "false"])
@@ -230,6 +279,66 @@ export const env: Readonly<z.infer<typeof envSchema>> = Object.freeze(envSchema.
 /** The raw `process.env` snapshot — the baseline the agent-sdk child env builders spread. */
 export function processEnvSnapshot(): Record<string, string | undefined> {
   return { ...process.env };
+}
+
+/** The engine LAUNCH-config env floor — the structural slice `resolveEngineLaunchConfig` layers an admin
+ *  AppSettings override on top of. ONE place the launch env vars project into the builder's floor shape, so
+ *  the supervisor + the standalone dev launcher read the SAME floor. */
+export function engineLaunchEnvFloor(): {
+  readonly VLLM_EMBED_MODEL: string;
+  readonly VLLM_RERANK_MODEL: string;
+  readonly VLLM_GEN_MODEL: string;
+  readonly VLLM_EMBED_MAX_MODEL_LEN: number;
+  readonly VLLM_RERANK_MAX_MODEL_LEN: number;
+  readonly VLLM_GEN_MAX_MODEL_LEN: number;
+  readonly VLLM_EMBED_GPU_UTIL: number;
+  readonly VLLM_RERANK_GPU_UTIL_MULTI: number;
+  readonly VLLM_RERANK_GPU_UTIL_SINGLE: number;
+  readonly VLLM_GEN_GPU_UTIL_MULTI: number;
+  readonly VLLM_GEN_GPU_UTIL_SINGLE: number;
+  readonly VLLM_POOLING_MAX_PIXELS: number;
+  readonly VLLM_GEN_MAX_PIXELS: number;
+  readonly VLLM_EMBED_PORT: number;
+  readonly VLLM_RERANK_PORT: number;
+  readonly VLLM_GEN_PORT: number;
+} {
+  return {
+    VLLM_EMBED_MODEL: env.VLLM_EMBED_MODEL,
+    VLLM_RERANK_MODEL: env.VLLM_RERANK_MODEL,
+    VLLM_GEN_MODEL: env.VLLM_GEN_MODEL,
+    VLLM_EMBED_MAX_MODEL_LEN: env.VLLM_EMBED_MAX_MODEL_LEN,
+    VLLM_RERANK_MAX_MODEL_LEN: env.VLLM_RERANK_MAX_MODEL_LEN,
+    VLLM_GEN_MAX_MODEL_LEN: env.VLLM_GEN_MAX_MODEL_LEN,
+    VLLM_EMBED_GPU_UTIL: env.VLLM_EMBED_GPU_UTIL,
+    VLLM_RERANK_GPU_UTIL_MULTI: env.VLLM_RERANK_GPU_UTIL_MULTI,
+    VLLM_RERANK_GPU_UTIL_SINGLE: env.VLLM_RERANK_GPU_UTIL_SINGLE,
+    VLLM_GEN_GPU_UTIL_MULTI: env.VLLM_GEN_GPU_UTIL_MULTI,
+    VLLM_GEN_GPU_UTIL_SINGLE: env.VLLM_GEN_GPU_UTIL_SINGLE,
+    VLLM_POOLING_MAX_PIXELS: env.VLLM_POOLING_MAX_PIXELS,
+    VLLM_GEN_MAX_PIXELS: env.VLLM_GEN_MAX_PIXELS,
+    VLLM_EMBED_PORT: env.VLLM_EMBED_PORT,
+    VLLM_RERANK_PORT: env.VLLM_RERANK_PORT,
+    VLLM_GEN_PORT: env.VLLM_GEN_PORT,
+  };
+}
+
+/** The DEPLOYMENT-fact env slice the engine spawner reads (binary + cache stores). All optional — unset ⇒
+ *  the in-repo/venv defaults the spawner derives. Kept beside engineLaunchEnvFloor so the launch (flags) and
+ *  deployment (paths) tiers each have ONE projection out of `env`. */
+export function engineDeploymentEnv(): {
+  readonly vllmBin?: string | undefined;
+  readonly vllmPy?: string | undefined;
+  readonly storeRoot?: string | undefined;
+  readonly hfHome?: string | undefined;
+  readonly vllmCacheRoot?: string | undefined;
+} {
+  return {
+    vllmBin: env.VLLM_BIN,
+    vllmPy: env.VLLM_PY,
+    storeRoot: env.VLLM_STORE_ROOT,
+    hfHome: env.HF_HOME,
+    vllmCacheRoot: env.VLLM_CACHE_ROOT,
+  };
 }
 
 /** The slash-free vLLM gen-model alias the local gen engine serves via `--served-model-name`. Claude Code

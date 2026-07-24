@@ -20,6 +20,7 @@ import { createEdit } from "./verbs/edit";
 import { createFork } from "./verbs/fork";
 import { createGenerateImage } from "./verbs/generate-image";
 import { createInvites } from "./verbs/invites";
+import { createQuietGenerate } from "./verbs/quiet-generate";
 import { createRead } from "./verbs/read";
 import { createRoster } from "./verbs/roster";
 import { createStartChat } from "./verbs/start-chat";
@@ -48,6 +49,13 @@ function resolveSeatDisplayName(
  *  never a routed verb (no principal; the turn triple is resolved internally, not passed). The return shape is
  *  inline (not a named export) per `no-inline-types` — its one consumer destructures `{ service, requestTurn }`. */
 export function createChatService(ctx: ChatContext, deps: ChatServiceDeps): { readonly service: ChatService; readonly requestTurn: RequestTurnOp } {
+  // The quiet-generation seam: a non-canon generation through the chat's OWN resolved connection (the marker
+  // build's model access — never the summarizer rail). Standalone factory, the ExtractQuiet precedent.
+  const quietGenerate = createQuietGenerate({ runChatTurn: ctx.runChatTurn });
+  // Built BEFORE the engine so the managed-compaction post-turn hook rides the SAME lock-free core the manual
+  // `compact` verb exposes (one core, two entry points — the engine never imports the verb).
+  const { compact, runCompaction } = createCompaction(ctx, { emit: deps.emit, quietGenerate, resolveConnection: deps.resolveConnection });
+
   const engine = createTurnEngine(ctx, {
     emit: deps.emit,
     debitBudget: deps.debitBudget,
@@ -58,6 +66,7 @@ export function createChatService(ctx: ChatContext, deps: ChatServiceDeps): { re
     generateDigests,
     loadWitnessHorizons,
     recallMemory,
+    runCompaction,
   });
 
   // Reads the present roster and resolves each seat's CHARACTER decoration (name/avatar + render policy +
@@ -137,7 +146,6 @@ export function createChatService(ctx: ChatContext, deps: ChatServiceDeps): { re
   });
   const chatLifecycle = createChatLifecycle(ctx, { emit: deps.emit });
   const roster = createRoster(ctx, { emit: deps.emit });
-  const { compact } = createCompaction(ctx, { emit: deps.emit });
 
   return {
     service: {

@@ -149,6 +149,9 @@ function ChatThread({ chatId, chatStyle, onChatForked, surfaceContributors }: Ch
     previewFit.data !== undefined
       ? `${previewFit.data.usedTokens} of ${previewFit.data.ceilingTokens} used · ${previewFit.data.reserveOutputTokens} reserved`
       : undefined;
+  // The memory fact: when a compactSummary covers the span above the boundary, the divider says the older
+  // messages are compacted into memory + offers a peek at the summary text. Null ⇒ nothing above is compacted.
+  const contextBoundaryCompactSummary = previewFit.data?.compactSummary ?? null;
 
   const renderItem = (item: (typeof items)[number]): ReactNode =>
     item.kind === "ghost" ? (
@@ -183,6 +186,7 @@ function ChatThread({ chatId, chatStyle, onChatForked, surfaceContributors }: Ch
         showSwipes={item.view.id === lastAssistantId}
         contextBoundary={item.view.id === contextBoundaryMessageId}
         contextBoundaryLabel={contextBoundaryLabel}
+        contextBoundaryCompactSummary={contextBoundaryCompactSummary}
         participants={participants}
         characterNamesById={characterNamesById}
         personaNamesById={personaNamesById}

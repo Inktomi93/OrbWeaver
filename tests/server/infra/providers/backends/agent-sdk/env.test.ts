@@ -3,8 +3,9 @@
 // escape hatch can NEVER set/strip a reserved (auth/routing/isolation) key. If any of these flip, the sub
 // token can leak to a paid endpoint — a ban-risk hole.
 
-import { existsSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { dirname, join } from "node:path";
 import { vllmAgentModelAlias } from "@orb/server/foundation/env";
 import {
   buildClaudeAnthEnv,
@@ -256,5 +257,52 @@ describe("byte-stability — cache-buster tripwires (a nondeterministic env bust
 
   test("mode-4 env is deep-equal across calls with the same key + overrides", () => {
     expect(buildClaudeAnthEnv("sk-ant-x", { maxContextTokens: 100_000 })).toStrictEqual(buildClaudeAnthEnv("sk-ant-x", { maxContextTokens: 100_000 }));
+  });
+});
+
+// SDK-UPGRADE TRIPWIRE (#9 VERIFY): the env var NAMES the builder emits are read by the BUNDLED claude runtime the
+// SDK spawns — a JS-wrapper type never validates them, and a silent rename on an SDK bump would make the knob a
+// no-op (e.g. `DISABLE_AUTO_COMPACT` no longer disabling auto-compact, so SDK-native compaction fires UNDERNEATH
+// our managed layer). This pins each emitted name against the bundled runtime source (`bridge.mjs` — the
+// extract-from-bunfs bridge the SDK loads); a bump that renames one fails HERE, loudly. EVIDENCE (2026-07-24,
+// bundle 2.1.216): all five are PRESENT — neo's `DISABLE_AUTO_COMPACT` + `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` (which
+// break the CLAUDE_CODE_* prefix its siblings use) are REAL runtime keys, not silent no-ops.
+
+// The bundled runtime source the SDK spawns. `bridge.mjs` is not an exports subpath, so resolve the package's MAIN
+// entry (a package export) and take its sibling bundle file — never a hand-typed node_modules path.
+const bridgeSource = readFileSync(join(dirname(createRequire(import.meta.url).resolve("@anthropic-ai/claude-agent-sdk")), "bridge.mjs"), "utf8");
+
+// The compaction/context/output knob names the builder can emit — the SET this guards. `CLAUDE_EFFORT` is emitted
+// as `undefined` (a clear, never a set) so it isn't a runtime-read key we depend on.
+const GUARDED_ENV_NAMES = [
+  "DISABLE_AUTO_COMPACT",
+  "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE",
+  "CLAUDE_CODE_MAX_CONTEXT_TOKENS",
+  "CLAUDE_CODE_MAX_OUTPUT_TOKENS",
+  "CLAUDE_CODE_DISABLE_THINKING",
+] as const;
+
+describe("agent-sdk env — bundled-runtime name parity (SDK-upgrade tripwire)", () => {
+  test("every guarded env name is a real key in the bundled claude runtime", () => {
+    for (const name of GUARDED_ENV_NAMES) {
+      // A whole-word match — the name must appear as a literal token in the runtime bundle, not a substring.
+      expect(bridgeSource, `env name ${name} vanished from the bundled runtime — an SDK bump renamed it (this knob is now a no-op)`).toMatch(
+        new RegExp(`\\b${name}\\b`),
+      );
+    }
+  });
+
+  test("the builder actually emits the compaction-disable + pct-override keys when asked", () => {
+    // Managed/off mode disables auto-compact; auto mode sets the pct override — the two names the compaction path
+    // depends on. This asserts our builder emits them (the parity test above asserts the runtime reads them).
+    const disabled = buildClaudeSdkEnv({ disableAutoCompact: true, autoCompactPct: 90 });
+    expect(disabled["DISABLE_AUTO_COMPACT"]).toBe("1");
+    expect(disabled["CLAUDE_AUTOCOMPACT_PCT_OVERRIDE"]).toBe("90");
+    // Every guarded name the builder emits must be in the guarded set (so a NEW emitted name can't silently escape
+    // the parity pin) — the builder's compaction/context keys are a subset of GUARDED_ENV_NAMES.
+    const emitted = new Set(Object.keys(buildClaudeSdkEnv({ disableAutoCompact: true, autoCompactPct: 90, maxContextTokens: 1000, maxOutputTokens: 500 })));
+    for (const name of ["DISABLE_AUTO_COMPACT", "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE", "CLAUDE_CODE_MAX_CONTEXT_TOKENS", "CLAUDE_CODE_MAX_OUTPUT_TOKENS"]) {
+      expect(emitted.has(name)).toBe(true);
+    }
   });
 });

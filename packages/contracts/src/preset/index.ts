@@ -65,7 +65,10 @@ export const effortLevelSchema = z.enum(EFFORT_LEVELS);
 export const THINKING_DISPLAYS = ["summarized", "omitted"] as const;
 export type ThinkingDisplay = (typeof THINKING_DISPLAYS)[number];
 
-export const COMPACTION_MODES = ["auto", "managed", "off"] as const;
+// Compaction is a SAFETY property (owner ruling): a chat may never error from context growth, so turning
+// compaction OFF is not an option — you control WHICH ENGINE compacts (auto = the SDK's native compaction;
+// managed = OURS, a durable portable LINEAR marker via the chat's own model), never whether it happens.
+export const COMPACTION_MODES = ["auto", "managed"] as const;
 export type CompactionMode = (typeof COMPACTION_MODES)[number];
 
 const TEMPERATURE_MIN = 0;
@@ -368,6 +371,13 @@ export const DEFAULT_COMPACT_INSTRUCTIONS =
 /** Managed-compaction trigger threshold (fraction of `contextWindow`). Overridable per preset. */
 export const MANAGED_COMPACT_DEFAULT_PCT = 0.85;
 
+/** The RESOLVED default compaction mode — the ONE home BOTH consumers read: the engine's
+ *  `resolveEffectiveCompaction` (unset ⇒ this) AND the preset UI's unset placeholder. `"managed"` per the owner
+ *  ruling: compaction is a SAFETY property (no chat may error from context growth), and `auto` (the SDK's native
+ *  compaction) cannot be the safe floor while its functioning on non-Anthropic backends is UNVERIFIED (the probe-1
+ *  gap) — so an unconfigured chat gets OUR durable managed marker, never nothing. */
+export const DEFAULT_COMPACTION_MODE = "managed" as const satisfies CompactionMode;
+
 /** The default inline-reasoning tag pair (`reasoningParse`) — the `<think>` convention. ONE pair, no registry;
  *  shared by the schema defaults + the form mapper so they can't drift. */
 export const THINK_PREFIX_DEFAULT = "<think>";
@@ -406,10 +416,11 @@ export const choiceBlockSchema = z.object({
 export type ChoiceBlockSpec = z.infer<typeof choiceBlockSchema>;
 
 /** Current blob shape. Bump + add a lift below when the shape changes (NO DB migration needed). */
-export const PROMPT_CONFIG_SCHEMA_VERSION = 3;
+export const PROMPT_CONFIG_SCHEMA_VERSION = 4;
 const SCHEMA_VERSION_V1 = 1; // walk floor — a versionless/garbage blob probes as v1
 const SCHEMA_VERSION_V2 = 2;
 const SCHEMA_VERSION_V3 = 3;
+const SCHEMA_VERSION_V4 = 4;
 
 export const promptConfigSchema = z.object({
   schemaVersion: z.number().int().positive().default(PROMPT_CONFIG_SCHEMA_VERSION),
@@ -517,7 +528,24 @@ export const CONFIG_LIFTS: Record<number, (config: Record<string, unknown>) => R
   },
   // v2 → v3: purely additive (trigger, inject.order optional/defaulted). Stamp the version only.
   2: (c): Record<string, unknown> => ({ ...c, schemaVersion: SCHEMA_VERSION_V3 }),
+  // v3 → v4: `compaction.mode:"off"` is retired (compaction is a SAFETY property — a chat may never error from
+  // context growth). A stored "off" lifts to "managed" (our durable marker); all other fields untouched.
+  3: (c): Record<string, unknown> => ({ ...c, schemaVersion: SCHEMA_VERSION_V4, params: liftCompactionOff(c["params"]) }),
 };
+
+/** v3→v4: map a stored `params.compaction.mode:"off"` → `"managed"`. Non-object params / absent compaction / a
+ *  non-"off" mode pass through untouched (return by reference where nothing changes). */
+function liftCompactionOff(params: unknown): unknown {
+  if (params === null || typeof params !== "object") {
+    return params;
+  }
+  const p = params as Record<string, unknown>;
+  const compaction = p["compaction"];
+  if (compaction === null || typeof compaction !== "object" || (compaction as Record<string, unknown>)["mode"] !== "off") {
+    return params;
+  }
+  return { ...p, compaction: { ...(compaction as Record<string, unknown>), mode: "managed" } };
+}
 
 /** Walk a raw config blob forward through {@link CONFIG_LIFTS} — mirrors `defineVersionedConfig`'s
  *  internal lift loop for the STRICT file path (validates and REJECTS after lifting, no degrade). */

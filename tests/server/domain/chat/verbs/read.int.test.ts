@@ -8,7 +8,7 @@ import type { ModelCapability, ResolvedConnection } from "@orb/contracts/connect
 import type { Principal } from "@orb/contracts/identity";
 import { DEFAULT_MAX_OUTPUT_TOKENS, DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
-import { chatParticipants, messages } from "@orb/db";
+import { chatParticipants, chats as chatsTable, messages } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -580,5 +580,69 @@ describe("previewContextFit — present-tense fit budget (engine-stamp parity)",
     expect(fit.droppedCount).toBe(0);
     expect(fit.boundaryMessageId).toBeNull();
     expect(fit.ceilingTokens).toBe(1_000_000);
+  });
+
+  // COMPACTION-COVERED shrinkage (#9 verifier fix): a chat with a marker covering through seq N excludes seq
+  // ≤ N from the shaped history, so previewFit's boundary is TRUE (> N) on BOTH the wide-window (no fit trim)
+  // and the tiny-window (fit trims further) paths, and the memory fact is exposed.
+  const stampMarker = (chatId: Awaited<ReturnType<typeof seedRoom>>, coveredThroughSeq: number): Promise<unknown> =>
+    db.update(chatsTable).set({ compactSummary: "the story so far", compactedAtSeq: coveredThroughSeq }).where(eq(chatsTable.id, chatId));
+
+  test("a marker covering seq 2 ⇒ wide window keeps NOTHING dropped but the boundary is the first row above coverage (seq 3) + summary exposed", async () => {
+    const host = await seedUser(db, "fit_cov");
+    const chatId = await seedRoom("fitcov", host);
+    await Promise.all(
+      Array.from({ length: 4 }, (_, i) => seedMessage(db, chatId, i + 1, { role: (i + 1) % 2 === 1 ? "user" : "assistant", content: `short turn ${i + 1}` })),
+    );
+    await stampMarker(chatId, 2);
+    const wide = makeModelCapability({ output: { maxTokens: { min: 1, max: 8192 } }, context: { window: 1_000_000 } });
+
+    const { previewContextFit } = createRead(makeChatContext(db), makeFitDeps(wide));
+    const fit = await previewContextFit({ principal: principal(host), chatId });
+
+    // Covered rows (seq 1-2) fell out of the shaped history, so the fit dropped nothing MORE; the boundary is
+    // the first row STILL in the prompt above the coverage point (seq 3), and the marker is exposed.
+    expect(fit.droppedCount).toBe(0);
+    expect(fit.boundaryMessageId).toBe(castId(`message_${chatId}_3`));
+    expect(fit.compactSummary).toBe("the story so far");
+  });
+
+  test("a marker covering seq 2 + a tiny window ⇒ the fit trims the post-marker window FURTHER; boundary > coverage, summary still exposed", async () => {
+    const host = await seedUser(db, "fit_cov2");
+    const chatId = await seedRoom("fitcov2", host);
+    await Promise.all(
+      Array.from({ length: 8 }, (_, i) =>
+        seedMessage(db, chatId, i + 1, { role: (i + 1) % 2 === 1 ? "user" : "assistant", content: `turn ${i + 1} with several words to spend a few tokens` }),
+      ),
+    );
+    await stampMarker(chatId, 2);
+    const tiny = makeModelCapability({ output: { maxTokens: { min: 1, max: 8192 } }, context: { window: 260 } });
+
+    const { previewContextFit } = createRead(makeChatContext(db), makeFitDeps(tiny));
+    const fit = await previewContextFit({ principal: principal(host), chatId });
+
+    // The shaped input already excludes seq 1-2; the tiny window then trims some of the post-marker rows. The
+    // boundary NAMES a survivor with seq > 2 (never a covered row), and the marker covers everything above it.
+    expect(fit.boundaryMessageId).not.toBeNull();
+    const boundarySeq = Number((fit.boundaryMessageId ?? "").toString().split("_").at(-1));
+    expect(boundarySeq).toBeGreaterThan(2);
+    expect(fit.compactSummary).toBe("the story so far");
+  });
+
+  test("no marker ⇒ compactSummary is null even with dropped rows (a plain fit boundary, no memory fact)", async () => {
+    const host = await seedUser(db, "fit_nocov");
+    const chatId = await seedRoom("fitnocov", host);
+    await Promise.all(
+      Array.from({ length: 8 }, (_, i) =>
+        seedMessage(db, chatId, i + 1, { role: (i + 1) % 2 === 1 ? "user" : "assistant", content: `turn ${i + 1} with several words to spend a few tokens` }),
+      ),
+    );
+    const tiny = makeModelCapability({ output: { maxTokens: { min: 1, max: 8192 } }, context: { window: 260 } });
+
+    const { previewContextFit } = createRead(makeChatContext(db), makeFitDeps(tiny));
+    const fit = await previewContextFit({ principal: principal(host), chatId });
+
+    expect(fit.droppedCount).toBeGreaterThan(0);
+    expect(fit.compactSummary).toBeNull();
   });
 });

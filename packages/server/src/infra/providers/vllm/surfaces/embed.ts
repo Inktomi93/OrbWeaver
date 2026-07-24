@@ -13,8 +13,9 @@ const DIMENSIONS_REJECTED_RE = /dimensions/i;
 
 // Whole-request cap so a warming/wedged engine can't hang boot-time embedding forever; a trip maps to a
 // retryable ProviderError so the catch-up sweep re-embeds once the engine is up. Correct only because
-// embed is non-streaming (chat generation uses a rolling idle guard instead).
-const EMBED_REQUEST_TIMEOUT_MS = 120_000;
+// embed is non-streaming (chat generation uses a rolling idle guard instead). The value is INJECTED
+// (deps.requestTimeoutMs, single-homed at env.VLLM_EMBED_REQUEST_TIMEOUT_MS in createVllmBackend) — no bare
+// literal here.
 
 function embedRequestSignal(external: AbortSignal | undefined, timeoutMs: number): AbortSignal {
   const timeout = AbortSignal.timeout(timeoutMs);
@@ -26,7 +27,7 @@ export interface VllmEmbedDeps {
   readonly embedDim: number;
   readonly chunkSize: number;
   readonly concurrency: number;
-  readonly requestTimeoutMs?: number;
+  readonly requestTimeoutMs: number;
 }
 
 interface OpenAiEmbeddingsResponse {
@@ -93,7 +94,7 @@ export function createVllmEmbed(deps: VllmEmbedDeps): (req: EmbedRequest) => Pro
   return async (req) => {
     const inputs: readonly string[] = typeof req.input === "string" ? [req.input] : req.input;
     const dim = req.dimensions ?? deps.embedDim;
-    const signal = embedRequestSignal(req.signal, deps.requestTimeoutMs ?? EMBED_REQUEST_TIMEOUT_MS);
+    const signal = embedRequestSignal(req.signal, deps.requestTimeoutMs);
     const instruction = req.instruction ?? (req.inputType === "query" ? QUERY_INSTRUCTION : DOC_INSTRUCTION);
 
     const kept = selectInputs(inputs, instruction);

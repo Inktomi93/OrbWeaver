@@ -317,6 +317,50 @@ describe("runTurnPipeline — request shaping + fit", () => {
   });
 });
 
+// SHRINKAGE — the full-reset compaction exclusion (#9 verifier fix): covered turns (seq <= compactedThroughSeq)
+// FALL OUT of the shaped prompt history when a marker is present. Api-agnostic (the exclusion is at the domain
+// assembly seam, so it holds on EVERY source — the pipeline path here proves the shared home). The marker itself
+// rides the system prompt (a separate section), so the history genuinely SHRINKS.
+describe("runTurnPipeline — compaction shrinkage (covered turns fall out of history)", () => {
+  // A slim MessageView double for the shrinkage-exclusion pin — only role/content/seq/excluded/id are read by
+  // toShapeCanon; a full factory would carry irrelevant canon fields.
+  const seqRow = (seq: number, role: "user" | "assistant", content: string): MessageView =>
+    // FABRICATION-OK: slim MessageView double — toShapeCanon reads only role/content/seq/excludedFromPrompt/id.
+    ({ role, content, seq, excludedFromPrompt: false, characterId: null, personaId: null, id: castId<MessageId>(`m${seq}`) }) as unknown as MessageView;
+  const canonRows = [
+    seqRow(1, "user", "COVERED-USER-ONE"),
+    seqRow(2, "assistant", "COVERED-ASSISTANT-TWO"),
+    seqRow(3, "user", "LIVE-USER-THREE"),
+    seqRow(4, "assistant", "LIVE-ASSISTANT-FOUR"),
+  ];
+
+  test("a marker covering through seq 2 drops seq 1-2 from the shaped history, keeps 3-4", async () => {
+    const ctx = ctxOf({ compactSummary: "the story so far", compactedThroughSeq: 2 });
+    const { args } = baseArgs({ assembleContext: ctx, canon: canonRows });
+    const result = await runTurnPipeline(args);
+    const text = historyText(result.request);
+    expect(text).not.toContain("COVERED-USER-ONE"); // seq 1 ≤ coverage → excluded
+    expect(text).not.toContain("COVERED-ASSISTANT-TWO"); // seq 2 ≤ coverage → excluded
+    expect(text).toContain("LIVE-USER-THREE"); // seq 3 > coverage → kept
+    expect(text).toContain("LIVE-ASSISTANT-FOUR"); // seq 4 > coverage → kept
+  });
+
+  test("NO exclusion when there is no summary (a stale coverage seq alone never trims)", async () => {
+    const ctx = ctxOf({ compactSummary: null, compactedThroughSeq: 2 });
+    const { args } = baseArgs({ assembleContext: ctx, canon: canonRows });
+    const text = historyText((await runTurnPipeline(args)).request);
+    expect(text).toContain("COVERED-USER-ONE"); // no marker ⇒ full history
+    expect(text).toContain("LIVE-ASSISTANT-FOUR");
+  });
+
+  test("coverage 0 (no compaction) keeps the whole history even with a summary present", async () => {
+    const ctx = ctxOf({ compactSummary: "irrelevant", compactedThroughSeq: 0 });
+    const { args } = baseArgs({ assembleContext: ctx, canon: canonRows });
+    const text = historyText((await runTurnPipeline(args)).request);
+    expect(text).toContain("COVERED-USER-ONE");
+  });
+});
+
 // ── The token-budget reserve: one source of truth for the effective output length ───────────────────
 // The amnesia regression: when a model's `output.maxTokens.max ≈ context.window` (a self-hosted vLLM
 // caps output at the whole window), the OLD reserve `intent.maxOutputTokens ?? capability.output.maxTokens.max`

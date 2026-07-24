@@ -231,6 +231,17 @@ function userRowAuthorName(personaId: PersonaId | null, macroNames: HistoryMacro
  *  each row's macros against its own stamps + the per-chat `macroNames` producer (matching client display
  *  resolution). The ONE mapping shared by the engine turn pipeline and the host/admin shape-trace preview
  *  (`verbs/read.ts`) — both reach it via the `substrate/assembly-access` seam (no drift, no duplicate). */
+/** The seq the compaction marker covers THROUGH — covered rows fall out of the shaped prompt history (full-reset:
+ *  the marker stands in for them). Api-agnostic (covered turns never re-enter on any source). Returns 0 (no
+ *  exclusion) unless a NON-empty `compactSummary` is present, so a stale `compactedThroughSeq` alone never trims. */
+function compactionCoveredThroughSeq(ctx: AssembleContext): number {
+  const summary = ctx.compactSummary;
+  if (summary === null || summary === undefined || summary.trim().length === 0) {
+    return 0;
+  }
+  return ctx.compactedThroughSeq ?? 0; // null/undefined ⇒ 0 (no exclusion)
+}
+
 export function toShapeCanon(canon: readonly MessageView[], ctx: AssembleContext, macroNames: HistoryMacroNames): CanonRow[] {
   const nameById = new Map<CharacterId, string>();
   const cast = ctx.cast ?? [];
@@ -241,9 +252,10 @@ export function toShapeCanon(canon: readonly MessageView[], ctx: AssembleContext
       nameById.set(id, name);
     }
   });
+  const coveredThroughSeq = compactionCoveredThroughSeq(ctx);
   const rows: CanonRow[] = [];
   for (const m of canon) {
-    if (m.excludedFromPrompt || m.role === "system") {
+    if (m.excludedFromPrompt || m.role === "system" || m.seq <= coveredThroughSeq) {
       continue;
     }
     const stamps = { characterId: m.characterId, personaId: m.personaId };

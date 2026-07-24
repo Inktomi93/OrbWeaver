@@ -13,7 +13,7 @@
 // Deps not on `ChatContext`: `loadParticipantViews` resolves the roster read-model; `resolveConnection`
 // resolves the model the previews need; `resolveForeignInputs` is the foreign half of the assemble ctx.
 
-import type { ChatInjection, ChatMacroNameProducer, ContextFitPreview, ParticipantView } from "@orb/contracts/chat";
+import type { ChatInjection, ChatMacroNameProducer, ContextFitPreview, MessageView, ParticipantView } from "@orb/contracts/chat";
 import { buildCharacterNameMap, buildPersonaNameMap } from "@orb/contracts/chat";
 import type { ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
 import type { PromptConfig } from "@orb/contracts/preset";
@@ -69,6 +69,7 @@ import {
   loadChatEventReplay,
   loadChatMessageStats,
   loadChatParticipantCharacterIds,
+  loadChatRow,
   loadForkChildren,
   loadMessagesPage,
   loadMessageVariantSummaries,
@@ -123,6 +124,9 @@ interface PreviewInputs {
   /** The resolved model capability — the SHAPE-trace peek reads its `turns` cell (roleHandlingFloor /
    *  assistantPrefill) to shape faithfully. Undefined when the connection resolver omits it (a test double). */
   readonly capability: ModelCapability | undefined;
+  /** The resolved protocol axis — previewContextFit source-modes the divider boundary on it (agent-sdk → the
+   *  marker coverage point; stateless → the fit boundary). */
+  readonly api: ResolvedConnection["api"];
   readonly castCharacterIds: readonly CharacterId[];
   readonly personaIds: readonly PersonaId[];
   readonly foreign: ForeignInputs;
@@ -214,7 +218,7 @@ async function resolvePreviewInputs(
     anchorPersonaId,
     personaIds,
   });
-  return { hostUserId, model: connection.model, capability: connection.capability, castCharacterIds, personaIds, foreign };
+  return { hostUserId, model: connection.model, capability: connection.capability, api: connection.api, castCharacterIds, personaIds, foreign };
 }
 
 /** Build the assemble ctx for a preview from the resolved {@link PreviewInputs}. No persist, no turn. An
@@ -442,6 +446,40 @@ function createGetShapeTrace(ctx: ChatContext, deps: ReadDeps): ChatService["get
  *  (`buildHistoryBudget` off `promptConfig.params`, `systemTokens` = the same estimator sum the engine
  *  pipeline computes) — so `boundaryMessageId` equals the `contextBoundaryMessageId` the next real turn
  *  stamps on canon. Nothing persists. */
+/** Resolve the `ContextFitPreview` — now UNIFORM across the API axis, because covered turns are EXCLUDED from the
+ *  shaped history at the domain assembly seam (toShapeCanon), so the fit runs over the POST-MARKER window on every
+ *  source. The divider's edge is TRUE to the wire on both paths:
+ *   • a summary covers the span → the boundary is the earliest row still in the prompt above the coverage point:
+ *     the deeper of (the first row past coveragePoint) and (the fit boundary, when a tiny window trims further).
+ *     The marker stands in for everything at/below it, so the memory fact shows.
+ *   • no summary → the plain fit boundary (byte-identical to the `contextBoundaryMessageId` the next turn stamps).
+ *  The summary is member-safe (built from prompt-eligible rows only), so `requireParticipant` is the correct gate. */
+function resolveContextFitPreview(env: {
+  readonly fitted: ReturnType<typeof fitHistory>;
+  readonly budget: ReturnType<typeof buildHistoryBudget>;
+  readonly canon: readonly MessageView[];
+  readonly compactSummary: string | null;
+  readonly coveragePoint: number;
+}): ContextFitPreview {
+  const { fitted, canon, compactSummary, coveragePoint } = env;
+  const hasSummary = compactSummary !== null && compactSummary.length > 0;
+  const common = {
+    usedTokens: fitted.usedTokens,
+    ceilingTokens: fitted.ceilingTokens ?? 0,
+    reserveOutputTokens: env.budget.reserveOutputTokens,
+    droppedCount: fitted.droppedCount,
+  };
+  if (!hasSummary) {
+    return { ...common, boundaryMessageId: fitted.earliestKeptMessageId, compactSummary: null };
+  }
+  // A covering marker exists: the boundary is the earliest row STILL in the prompt above the coverage point.
+  // The fit boundary (when a small window trimmed post-marker rows) is deeper and wins; otherwise the first row
+  // just above the coverage point (the agent-sdk / full-window norm, where the fit dropped nothing).
+  const firstAboveCoverage = canon.find((m) => m.seq > coveragePoint)?.id ?? null;
+  const boundaryMessageId = fitted.earliestKeptMessageId ?? firstAboveCoverage;
+  return { ...common, boundaryMessageId, compactSummary: boundaryMessageId !== null ? compactSummary : null };
+}
+
 function createPreviewContextFit(ctx: ChatContext, deps: ReadDeps): ChatService["previewContextFit"] {
   return async ({ principal, chatId, speakerCharacterId }: PreviewContextFitParams): Promise<ContextFitPreview> => {
     const membership = await requireParticipant(ctx, principal, chatId);
@@ -488,13 +526,14 @@ function createPreviewContextFit(ctx: ChatContext, deps: ReadDeps): ChatService[
       systemTokens,
     });
     const fitted = fitHistory(shaped.history, budget);
-    return {
-      boundaryMessageId: fitted.earliestKeptMessageId,
-      usedTokens: fitted.usedTokens,
-      ceilingTokens: fitted.ceilingTokens ?? 0,
-      reserveOutputTokens: budget.reserveOutputTokens,
-      droppedCount: fitted.droppedCount,
-    };
+    const chatRow = await loadChatRow(ctx.db, chatId);
+    return resolveContextFitPreview({
+      fitted,
+      budget,
+      canon,
+      compactSummary: chatRow?.compactSummary ?? null,
+      coveragePoint: chatRow?.compactedAtSeq ?? 0,
+    });
   };
 }
 

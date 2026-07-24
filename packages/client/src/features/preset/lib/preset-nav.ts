@@ -110,11 +110,12 @@ export const CONTINUE_POSTFIX_ITEMS: SelectItems<string> = CONTINUE_POSTFIX_TYPE
 }));
 
 const COMPACTION_MODE_LABELS: Record<CompactionMode, string> = {
-  auto: "Auto — the SDK decides",
-  managed: "Managed — summarize at a threshold",
-  off: "Off — never compact",
+  auto: "Auto — the SDK's own compaction",
+  managed: "Managed — summarize into a memory marker at a threshold",
 };
 export const COMPACTION_MODE_ITEMS: SelectItems<string> = COMPACTION_MODES.map((value) => ({
   value,
   label: COMPACTION_MODE_LABELS[value],
 }));
+/** The label for a compaction mode (the preset UI derives its unset-placeholder from `DEFAULT_COMPACTION_MODE`). */
+export const compactionModeLabel = (mode: CompactionMode): string => COMPACTION_MODE_LABELS[mode];

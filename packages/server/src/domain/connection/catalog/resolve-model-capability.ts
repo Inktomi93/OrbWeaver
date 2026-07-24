@@ -56,7 +56,9 @@ const OUTPUT_CAP = 32_768;
 const OR_DEFAULT_WINDOW = 200_000; // when the catalog entry omits contextLength (cold cache)
 
 const CUSTOM_OPENAI_DEFAULT_WINDOW = 128_000;
-const LOCAL_LIGHT_WINDOW = 8192; // in-process embed/rerank tier — chat capability is moot here
+// In-process embed/rerank tier — chat capability is moot here. Sized off the embed pooling window's
+// single-home env floor (VLLM_EMBED_MAX_MODEL_LEN), not a bare literal, so the 8192 lives in exactly one place.
+const LOCAL_LIGHT_WINDOW = env.VLLM_EMBED_MAX_MODEL_LEN;
 
 /** Keyed by `MODEL_FAMILIES` so a new family is a `tsc` error here. */
 type Family = (typeof MODEL_FAMILIES)[number];

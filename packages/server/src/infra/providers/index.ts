@@ -45,6 +45,9 @@ export interface BackendRegistryDeps {
   readonly now: () => number;
   readonly vllmDisabled: boolean;
   readonly vllmConcurrency?: VllmBackendDeps["concurrency"];
+  /** Live getter for the resolved engine LAUNCH config (admin ⊕ env floor) — read per spawn so a
+   *  restart-to-apply picks up an admin retune. Absent ⇒ the supervisor uses the pure env floor. */
+  readonly engineLaunch?: VllmBackendDeps["engineLaunch"];
   readonly repoRoot?: VllmBackendDeps["repoRoot"];
   readonly random?: OpenRouterBackendDeps["random"];
   readonly getClient?: OpenRouterBackendDeps["getClient"];
@@ -90,6 +93,7 @@ function vllmDeps(deps: BackendRegistryDeps): VllmBackendDeps {
   return {
     now: deps.now,
     ...(deps.vllmConcurrency !== undefined ? { concurrency: deps.vllmConcurrency } : {}),
+    ...(deps.engineLaunch !== undefined ? { engineLaunch: deps.engineLaunch } : {}),
     ...(deps.repoRoot !== undefined ? { repoRoot: deps.repoRoot } : {}),
     ...(deps.vllmClient !== undefined ? { client: deps.vllmClient } : {}),
     ...(deps.vllmEmbedDim !== undefined ? { embedDim: deps.vllmEmbedDim } : {}),
@@ -143,5 +147,5 @@ export { createGenerateImageRole } from "./roles/generate-image";
 export { createImageEmbedRole } from "./roles/image-embed";
 export { createRerankRole } from "./roles/rerank";
 export { createSummarizeRole } from "./roles/summarize";
-export type { VllmEngineHandle } from "./vllm";
-export { detectGpu, fetchGenMaxModelLen } from "./vllm";
+export type { EngineDeploymentFacts, VllmEngineHandle } from "./vllm";
+export { detectGpu, fetchEngineMaxModelLen, fetchGenMaxModelLen, resolveEngineDeploymentFacts } from "./vllm";

@@ -16,6 +16,7 @@ import { QueryInlineStates, useInvalidation, useTRPC } from "#data";
 import { testId, timeLib } from "#lib";
 import { useRestartEngine } from "../hooks/use-admin-mutations";
 import { engineBadgeIntent } from "../lib/admin-model";
+import { EngineLaunchConfig } from "./engine-launch-config";
 
 const POLL_ACTIVE_MS = 5000;
 const POLL_STEADY_MS = 30_000;
@@ -55,7 +56,10 @@ export function AdminEnginesSection(): ReactElement {
           <ListRow
             key={engine}
             title={engine}
-            subtitle={`${record.detail === "" ? record.status : record.detail} · updated ${timeLib.formatRelative(record.updatedAt)}`}
+            // The lifecycle line plus the env-only DEPLOYMENT facts (port + store path), read-only — the
+            // #14 ruling: these are displayed, never edited. The subtitle truncates within its column and
+            // its native title= surfaces the full (often long) store path on hover.
+            subtitle={`${record.detail === "" ? record.status : record.detail} · updated ${timeLib.formatRelative(record.updatedAt)} · port ${record.port} · ${record.storePath}`}
             actions={
               <Row align="center" gap="row">
                 <Badge intent={engineBadgeIntent(record.status)}>{record.status}</Badge>
@@ -79,6 +83,8 @@ export function AdminEnginesSection(): ReactElement {
           Couldn't restart the engine — check the server logs.
         </Text>
       )}
+
+      <EngineLaunchConfig />
     </Stack>
   );
 }

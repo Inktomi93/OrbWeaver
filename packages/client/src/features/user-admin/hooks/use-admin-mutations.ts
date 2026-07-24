@@ -2,6 +2,7 @@
 // on other users' rows so the actor's own bus never carries them, so each self-invalidates its read on
 // settle.
 
+import type { AppSettings, EffectiveAppConfig } from "@orb/contracts/settings";
 import type { inferInput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
@@ -53,6 +54,15 @@ export const useRestartEngine = createEntityMutation<inferInput<Trpc["admin"]["r
   options: (trpc) => trpc.admin.restartVllmEngine.mutationOptions(),
   invalidates: (trpc) => [trpc.admin.vllmEngines.queryFilter()],
   errorToast: "Couldn't restart the engine.",
+});
+
+/** Save the vLLM engine LAUNCH config (a partial AppSettings.engineLaunch patch, #14). Rides the SAME
+ *  admin-gated settings.updateAppSettings path (which stamps the schema version) — no new subsystem. The
+ *  new flags apply only on the NEXT engine restart, so the surface shows a "restart to apply" affordance. */
+export const useUpdateAppSettings = createEntityMutation<{ readonly partial: AppSettings }, EffectiveAppConfig>({
+  options: (trpc) => trpc.settings.updateAppSettings.mutationOptions(),
+  invalidates: (trpc) => [trpc.settings.getAppSettings.queryFilter()],
+  errorToast: "Couldn't save the engine launch config.",
 });
 
 /** Refresh the OpenRouter model catalog (fetch `/models` → write the KV snapshot, warm the cache).

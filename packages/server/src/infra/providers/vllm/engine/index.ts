@@ -1,6 +1,8 @@
 // biome-ignore-all lint/performance/noBarrelFile: the engine sub-barrel — the ONE seam surfaces register
 // against; surfaces import engine pieces through here, never each other (`vllm-surface-isolation`).
 
+export type { EngineArgvContext, EngineLaunchConfig, EngineLaunchEnvFloor, EngineLaunchOverride } from "./build-argv";
+export { buildEngineArgv, engineCudaVisibleDevices, resolveEngineLaunchConfig } from "./build-argv";
 export type {
   VllmChatCompletionRequest,
   VllmChatCompletionResult,
@@ -26,9 +28,11 @@ export {
   setEngineStatus,
 } from "./engine-status";
 export { VLLM_ENGINES } from "./engines";
-export { fetchGenMaxModelLen } from "./gen-window";
-export { detectGpu } from "./gpu";
+export { fetchEngineMaxModelLen, fetchGenMaxModelLen } from "./gen-window";
+export { countGpus, detectGpu } from "./gpu";
 export { sniffMime, toDataUri } from "./image";
+export type { EngineDeploymentEnv, EngineDeploymentFacts, EngineSpawnSpec } from "./spawn-engine";
+export { buildEngineSpawnSpec, resolveEngineDeploymentFacts, resolveStoreRoot } from "./spawn-engine";
 export {
   breakerAllows,
   decideTick,

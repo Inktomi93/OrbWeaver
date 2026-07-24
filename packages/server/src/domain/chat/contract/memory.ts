@@ -91,6 +91,10 @@ export interface MemoryRecallInputs {
   readonly names: ReadonlyMap<CharacterId, string>;
   /** The resolved memory config the round-level recall used (so the per-speaker re-run matches its tuning). */
   readonly config: MemoryConfig | null;
+  /** The live-window cutoff seq (the PREVIOUS turn's canon fit boundary) — the per-speaker re-run applies the
+   *  SAME live-window trim the round-level recall did, so a scoped speaker never re-injects a still-verbatim
+   *  scene either. Absent ⇒ no prior boundary stamp ⇒ no trim. */
+  readonly liveWindowCutoffSeq?: number | undefined;
 }
 
 /** A complete, aged-out block of canon (the `blockSize`-message digest/segment unit). `blockIdx` is the

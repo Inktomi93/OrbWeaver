@@ -1,11 +1,15 @@
-// The gen engine's self-reported context window. vLLM's OpenAI server exposes `GET /v1/models`, and each
-// `data[]` entry carries `max_model_len` — the ACTUAL window the engine launched with (both the full HF id
-// AND the slash-free alias entry report it). This is the TRUTH source the resolved vllm ModelCapability
-// prefers over the env floor: a `--max-model-len` bump takes effect the moment the engine restarts, no
-// redeploy of the app's env needed. Loopback-only, no credential. Returns null on any failure (engine
-// warming / disabled / unexpected shape) so the caller degrades to the env default — never a guessed cap.
+// Each engine's self-reported context window. vLLM's OpenAI server exposes `GET /v1/models`, and each
+// `data[]` entry carries `max_model_len` — the ACTUAL window the engine launched with (the full HF id AND
+// the slash-free alias entry report it). This is the TRUTH source the resolved vllm capability math prefers
+// over the env floor: a `--max-model-len` bump takes effect the moment the engine restarts, no redeploy of
+// the app's env needed. Loopback-only, no credential. Returns null on any failure (engine warming / disabled
+// / unexpected shape) so the caller degrades to the env default — never a guessed cap. Applies to all three
+// engines (gen for the fit ceiling; embed + rerank for the 8192-consumers' pooling window).
 
 import { engineBaseUrl } from "./client";
+import type { VLLM_ENGINES } from "./engines";
+
+type VllmEngine = (typeof VLLM_ENGINES)[number];
 
 interface ModelsListEntry {
   readonly id?: unknown;
@@ -15,11 +19,11 @@ interface ModelsListResponse {
   readonly data?: readonly ModelsListEntry[];
 }
 
-/** GET the gen engine's `/v1/models` and return the first positive `max_model_len` across its entries
- *  (the full-id and alias rows report the same value). null on unreachable/malformed — the caller falls
- *  back to the env-owned window. */
-export async function fetchGenMaxModelLen(signal?: AbortSignal): Promise<number | null> {
-  const url = `${engineBaseUrl("gen")}/v1/models`;
+/** GET an engine's `/v1/models` and return the first positive `max_model_len` across its entries (the
+ *  full-id and alias rows report the same value). null on unreachable/malformed — the caller falls back to
+ *  the env-owned window for that engine. */
+export async function fetchEngineMaxModelLen(engine: VllmEngine, signal?: AbortSignal): Promise<number | null> {
+  const url = `${engineBaseUrl(engine)}/v1/models`;
   let res: Response;
   try {
     res = await fetch(url, { method: "GET", ...(signal !== undefined ? { signal } : {}) });
@@ -37,4 +41,9 @@ export async function fetchGenMaxModelLen(signal?: AbortSignal): Promise<number 
     }
   }
   return null;
+}
+
+/** Back-compat alias — the gen engine's window (the fit-ceiling consumer). Prefer `fetchEngineMaxModelLen`. */
+export function fetchGenMaxModelLen(signal?: AbortSignal): Promise<number | null> {
+  return fetchEngineMaxModelLen("gen", signal);
 }

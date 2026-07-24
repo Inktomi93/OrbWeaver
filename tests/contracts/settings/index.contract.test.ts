@@ -351,7 +351,17 @@ test("v3→v4 lift backfills a DETERMINISTIC entryId on each backgroundLibrary e
   expect(lib[2]?.entryId).toBe("kept_uuid");
 });
 
-test("the pinned schema versions: AppSettings v2, UserSettings v4 (the background-library entryId row-id)", () => {
-  expect(APP_SETTINGS_SCHEMA_VERSION).toBe(SCHEMA_VERSION_V2);
+test("the pinned schema versions: AppSettings v3 (the engineLaunch section), UserSettings v4 (background-library entryId row-id)", () => {
+  expect(APP_SETTINGS_SCHEMA_VERSION).toBe(SCHEMA_VERSION_V3);
   expect(USER_SETTINGS_SCHEMA_VERSION).toBe(SCHEMA_VERSION_V4);
+});
+
+test("AppSettings v2→v3 lift is a no-op passthrough that stamps the version (engineLaunch is additive)", () => {
+  // A v2 row with an existing override (vllmConcurrency) lifts to v3 untouched — the new engineLaunch
+  // section is purely additive, so nothing moves; the version stamp stops the lift chain re-running.
+  const storedV2 = { vllmConcurrency: { embed: 8 } };
+  const lifted = parseAppSettings({ ...storedV2, schemaVersion: SCHEMA_VERSION_V2 });
+  expect(lifted.vllmConcurrency).toEqual({ embed: 8 });
+  // An absent engineLaunch reads back undefined (the layer resolves it to the env floor downstream).
+  expect(lifted.engineLaunch).toBeUndefined();
 });

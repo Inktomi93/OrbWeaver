@@ -51,11 +51,34 @@ const USERS = [
 ];
 
 const ENGINES = {
-  embed: { status: "owned", detail: "port 8101", updatedAt: 1_700_000_000_000 },
-  rerank: { status: "failed", detail: "exited 137", updatedAt: 1_700_000_000_000 },
+  embed: { status: "owned", detail: "ok", updatedAt: 1_700_000_000_000, port: 8701, storePath: "/srv/orb/store/models" },
+  rerank: { status: "failed", detail: "exited 137", updatedAt: 1_700_000_000_000, port: 8702, storePath: "/srv/orb/store/models" },
 };
 
 const ENGINE_DETAIL_RE = /exited 137/u;
+// The read-only DEPLOYMENT facts folded into each engine's status subtitle (#14: displayed, never edited).
+const ENGINE_PORT_RE = /port 8702/u;
+const ENGINE_STORE_PATH_RE = /\/srv\/orb\/store\/models/u;
+
+// The resolved EffectiveAppConfig the engine-launch config editor reads (settings.getAppSettings). Only the
+// engineLaunch slice is asserted here; the rest satisfies the shape the surface consumes.
+const APP_SETTINGS = {
+  engineLaunch: {
+    embedModel: "Qwen/Qwen3-VL-Embedding-2B",
+    rerankModel: "Qwen/Qwen3-VL-Reranker-2B",
+    genModel: "Qwen/Qwen3-VL-8B-Instruct",
+    embedMaxModelLen: 8192,
+    rerankMaxModelLen: 8192,
+    genMaxModelLen: 32_768,
+    embedGpuUtil: 0.14,
+    rerankGpuUtilMulti: 0.16,
+    rerankGpuUtilSingle: 0.22,
+    genGpuUtilMulti: 0.28,
+    genGpuUtilSingle: 0.5,
+    poolingMaxPixels: 1_843_200,
+    genMaxPixels: 4_194_304,
+  },
+};
 
 const SESSIONS = [
   {
@@ -83,6 +106,9 @@ function stub(page: Page, viewer: typeof OWNER_VIEWER, extra: TrpcRoutes = {}): 
     "admin.listUsers": () => USERS,
     "sessions.me": () => viewer,
     "admin.vllmEngines": () => ENGINES,
+    // The engine-launch config editor (rendered inside the Engines section) always fires getAppSettings —
+    // it needs a valid stub in the shared bundle or the unlisted-proc default crashes the whole pane.
+    "settings.getAppSettings": () => APP_SETTINGS,
     ...extra,
   });
 }
@@ -98,6 +124,10 @@ test("renders the user table + the engines list", async ({ mount, page }) => {
   await expect(component.getByText("embed", { exact: true })).toBeVisible();
   await expect(component.getByText("failed", { exact: true })).toBeVisible();
   await expect(component.getByText(ENGINE_DETAIL_RE)).toBeVisible();
+  // The read-only DEPLOYMENT facts (port + store path) render in the status subtitle (#14: displayed, not
+  // edited). Assert the actual stubbed values, not mere presence.
+  await expect(component.getByText(ENGINE_PORT_RE)).toBeVisible();
+  await expect(component.getByText(ENGINE_STORE_PATH_RE).first()).toBeVisible();
 });
 
 test("as the owner, changing a member's role fires setRole", async ({ mount, page }) => {
@@ -296,4 +326,52 @@ test("engines: restart fires restartVllmEngine for THAT engine", async ({ mount,
 
   await component.getByRole("button", { name: "Restart engine — rerank" }).click();
   await expect.poll(() => trpc.lastInput("admin.restartVllmEngine"), { intervals: [20, 50, 100] }).toEqual({ engine: "rerank" });
+});
+
+test("launch config: renders the resolved per-engine flags off getAppSettings", async ({ mount, page }) => {
+  await stub(page, ADMIN_VIEWER);
+  const component = await mount(<AdminSettingsStory />);
+
+  const config = component.getByTestId("engine-launch-config");
+  await expect(config).toBeVisible();
+  // The gen window + a gpu-util fraction render as the current values (not a bare literal — the resolved config).
+  await expect(config.getByTestId("engine-launch-genMaxModelLen")).toHaveValue("32768");
+  await expect(config.getByTestId("engine-launch-genGpuUtilMulti")).toHaveValue("0.28");
+  await expect(config.getByTestId("engine-launch-genModel")).toHaveValue("Qwen/Qwen3-VL-8B-Instruct");
+});
+
+test("launch config: Save fires updateAppSettings with ONLY the moved field, then arms restart-to-apply", async ({ mount, page }) => {
+  const trpc = await stub(page, ADMIN_VIEWER, {
+    "settings.updateAppSettings": () => APP_SETTINGS,
+  });
+  const component = await mount(<AdminSettingsStory />);
+
+  const config = component.getByTestId("engine-launch-config");
+  const save = config.getByTestId("engine-launch-save");
+  // Save is disabled until a field actually moves (no accidental empty override).
+  await expect(save).toBeDisabled();
+
+  await config.getByTestId("engine-launch-genMaxModelLen").fill("65536");
+  await expect(save).toBeEnabled();
+  await save.click();
+
+  // Only the diffed field becomes an override — the untouched fields never leak into the patch.
+  await expect
+    .poll(() => trpc.lastInput("settings.updateAppSettings"), { intervals: [20, 50, 100] })
+    .toEqual({ partial: { engineLaunch: { genMaxModelLen: 65_536 } } });
+
+  // A successful save arms the "restart to apply" banner (the running engines still serve the old flags).
+  await expect(config.getByTestId("engine-launch-pending-restart")).toBeVisible();
+});
+
+test("launch config: a delegated admin can view + save (admin-gated, not owner-gated)", async ({ mount, page }) => {
+  const trpc = await stub(page, ADMIN_VIEWER, { "settings.updateAppSettings": () => APP_SETTINGS });
+  const component = await mount(<AdminSettingsStory />);
+
+  const config = component.getByTestId("engine-launch-config");
+  await config.getByTestId("engine-launch-embedGpuUtil").fill("0.2");
+  await config.getByTestId("engine-launch-save").click();
+  await expect
+    .poll(() => trpc.lastInput("settings.updateAppSettings"), { intervals: [20, 50, 100] })
+    .toEqual({ partial: { engineLaunch: { embedGpuUtil: 0.2 } } });
 });

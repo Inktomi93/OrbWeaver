@@ -8,12 +8,25 @@
 
 ## Standing rules minted this program (also in agent memory)
 
+- **THE RIGHT WAY, ONCE (owner, 2026-07-24 — relay into every dispatch)**: "we do things the right way
+  once even if it means more work. If there isn't something, then we build it (on the orchestrator's
+  approval). No shortcuts or cop-outs. E2E testing is how we know our app works the way it is supposed
+  to work." A missing seam/affordance/test-hook = a reported gap with a proposed shape, built on
+  approval — never a workaround. E2E legs proving the real user journey are expected deliverables;
+  a deliberately-deferred proof is named as an explicit known-gap, never silent.
+
 - **Exhaustive, not minimal**: test coverage and handling are exhaustive by owner ruling — build shared
   kits over per-spec dodges; the global quality-over-quantity test preference is overridden here.
 - **No separate reduced modes**: a not-yet-ready state (draft/empty/unprovisioned) renders the ONE real
   surface with inapplicable affordances DISABLED — never a sibling reduced component.
 - **Hardcoded values and per-provider specials are the enemy** — generalize; single-home every constant
-  (env-own it when two homes must agree, with a parity test).
+  (env-own it when two homes must agree, with a parity test). REFINED (owner, 2026-07-24): provider
+  keying is legitimate SOMETIMES — when the mechanism is provider-NATIVE (no general form exists to
+  write; compaction's sdk machinery — CLAUDE_CODE_* knobs, session-frame formats — is the type
+  specimen). The discipline: provider-native code lives INSIDE that provider's backend module behind
+  the general seam; the disease is provider special-cases in shared/domain code where a capability
+  axis should carry the difference. New candidate exceptions = case-by-case, owner call — lanes stop
+  and ask, never improvise one.
 - **E2E spends nothing**: `tests/e2e/support/global-setup.ts` pins routing.roleDefaults to vLLM/agent-sdk
   before every run; the routing-honesty spec is the regression guard that the pin is HONORED (settings →
   resolved connection → engine-log traffic → canon `model` on the row). Caveat: the seed writes the real
@@ -27,6 +40,61 @@
   Applied to both playwright configs 2026-07-24.
 - **One token-estimator home**: `@orb/kit/tokens` `estimateTokens` — server fit, previewFit, compaction
   all ride it; the client NEVER estimates (it asks the server).
+
+## ★ ROTATION 3 — LIVE STATUS (2026-07-24, the compaction-surviving truth; supersedes scattered notes)
+
+**Overall program: ~90% of the original 13 items once rotation 3 commits** (8 committed via rotations
+1-2; #9/#10/#14 land in rotation 3; #12 audit complete with rotation 4 specced; #18 seeded).
+
+**LANDED + VERIFIED, riding the rotation-3 commit (uncommitted tree)**:
+- **#14 DONE** (verifier: argv byte-parity vs the dead shell, lift, topology invariant, single-homing;
+  one env rename documented VLLM_GEN_UTIL→_MULTI/_SINGLE; known-gap: restart-to-apply live drive is
+  human-supervised). **#10 DONE** (virtualizer kit + spec GREEN live 13.8s; identity locators; doctrine
+  README; flake ledger settled — fuzzy-search product-fixed at source, preset-inspector cured by the
+  sortable port). **Macro parity DONE** (166 pins incl. 5 owner-ratified divergences; capability map;
+  gap ledger parked). **Mining campaign DONE** (42-scenario shortlist; hidden-test sweep; #21/#22
+  evidence). **#12 audit COMPLETE** (17/17 ui files; credentials re-verified; rotation-4 = 18 items +
+  held trio; devtools hideUntilHover grabbed immediately). **Seq-guard + exemption, rAF batching,
+  scrollToAnchor fix, favicon, e2e→tests-dom, baseline regen** — all verified.
+- **#9 COMPACTION — built, twice-refuted, twice-fixed, currently REOPENED (4 items, one lane)**:
+  the saga: (1) verifier refuted phantom shrinkage → fixed via toShapeCanon coverage exclusion,
+  re-verified CONFIRMED with DB-level proof (311→278 tokensIn); (2) the owner's hosted 90% spike found
+  provider tokensIn = PER-TURN DELTA on resuming sessions (neo shipped this bug) → trigger reworked to
+  fit-estimate-authoritative, re-verified; (3) side-eye's live misadventure found: GAP-1 post-success-
+  only trigger = WEDGE (a failing-model chat can never compact; 41K sent to the 32K window), GAP-2
+  RESUMED sessions are compaction-blind (marker truncates the SEED only; the live shrinkage proof was
+  MASKED by per-send-cap session forks), P1 pct-arm didn't fire at 56.9%/0.5-threshold (hypotheses:
+  arm break vs the reviewer's threshold landing on an inactive preset), P2 preset fields blank on
+  first paint. THE REOPENED LANE'S PLATE: pre-turn trigger arm + session-stale-on-compaction + pct
+  root-cause (chat ids in the #12-audit section receipts) + preset defaults. Commit HOLDS for it.
+- **Side-eye verdict on the three new surfaces: 34/40 ship-with-fixes** — render side exemplary
+  (peek focus management, honest-degrade copy 8.45:1, admin flow); all four findings fixed-in-full
+  per owner: P1+preset-P2 = reopened #9 lane; deployment-facts P2 = LANDED (infra-owned facts from
+  the spawn-env single-home → AdminEngineStatus gains port/storePath, no new proc, 16/16 CTs, the
+  comment now true); junk presets deleted via API.
+
+**PROMOTION PREP DONE**: the docs corpus carry is green (12 truly-missing files handled: 8 verbatim
+incl. rpg 13-lite-mode + the pain-points audit now finally in git; BUILD-QUEUE bannered; UVD
+annotated tsgo→ts7; main's test-baseline manifest correctly REFUSED — it would poison the monotonic
+gate). KEY INSIGHT for any future promotion diff: the burn-down RELOCATED history/→proposed/ — always
+normalize that axis before reading a path-diff as a loss inventory (~100 apparent losses were 12).
+Commit order at close: rotation-3 (code + workboard) → docs-carry (the 11 files) → promotion ceremony
+(legacy-main bookmark → main -f to this HEAD → worktree switch → push legacy + force-with-lease main,
+owner-triggered).
+
+**CLOSING SEQUENCE**: #9 lane lands (deployment-facts DONE) → final re-verify over #9's combined
+diff → full gate (check + battery + complete live sweep) → ROTATION-3 COMMIT → docs-carry commit →
+owner's engines-free ping (GPUs wanted) → promotion on owner's go. The vLLM engines stay up until then (live legs need gen; hosted turns need embed
+for recall).
+
+**REMAINING AFTER ROTATION 3 (= rotation 4+)**: the #12-completion lane (items 1-17 at exact file
+scope + held trio PD-147×8/BG×16/hint×2 + scroll-spy polish — see the #12 AUDIT RESULTS section);
+**#18** CT expansion (seeded: 42 scenarios + macro-parity stock + variant-freeze pin candidate);
+**#21** SSRF/credential security review (scope tripled: proxy + card-delimiter injection + privilege
+precedence); **#22** execution-membership gate (both directions, triple-evidenced); **#23** gen-engine
+sampling-override launch knob (the repetition-loop fix — Anthropic wire carries no penalty fields;
+rides #14's engineLaunch infra). Parked-for-rebuild ledgers: FUTURE-RELEVANT items (#12 audit),
+macro gap ledger, neo anti-swipe-fishing, hosted auto-compact characterization (probe 1 unsettled).
 
 ## The work list (task numbers = the session task board)
 
@@ -80,6 +148,51 @@
   the same cutoff. (B) NO second marker: the one divider (present-tense via previewFit) carries the
   memory fact ("older messages compacted into memory" + peek affordance). (C) recall's live-window cutoff
   = the PREVIOUS turn's canon boundary stamp (stored provenance). After #7.
+- **AMENDED (owner, 2026-07-24, mid-rotation-3 — overrides (A)'s source-agnostic reading)**: compaction
+  GENERATION is AGENT-SDK-SOURCE-ONLY (the stateful layer; history-budget.ts's "NOT compaction — the
+  graceful agent-sdk-only layer above this" is load-bearing doctrine). PLACEMENT: an existing
+  compactSummary occupies the slot at the TOP of assembled history — above all retained turns — for
+  EVERY source. CARRY-FORWARD: the summary is durable chat state; a mid-chat swap to a stateless source
+  carries the LAST summary in the top slot (never regenerated, never dropped; its staleness relative to
+  post-swap turns is accepted by design). No summary ⇒ the slot is empty. The managed knobs
+  (MANAGED_COMPACT_DEFAULT_PCT / DEFAULT_COMPACT_INSTRUCTIONS) are agent-sdk-path knobs. The heart-spec:
+  agent-sdk chat compacts → swap source → summary still rides the top slot (live-provable at zero spend —
+  the local stack serves agent-sdk via vLLM /v1/messages).
+- **RESOLVED (owner, same day) — managed means OURS, via the CHAT'S OWN MODEL**: the SDK's native
+  compaction event (kind: "compaction") carries token counts but NOT the summary text (the SDK
+  compacts internally, never exposing the summary) — capture-from-SDK is impossible. Managed mode:
+  WE fire a QUIET NON-CANON GENERATION through the chat's resolved connection (the same model the
+  user chats with — NOT the local-light summarizer rail, owner-vetoed for this) carrying the compact
+  instructions over the span, and write chat.compactSummary. Agent-sdk-source-gated; SDK auto-compact
+  DISABLED (disableAutoCompact) — our managed summary IS that chat's compaction layer. Mechanism
+  precedent: the Principal-less quiet-op factory shape (ExtractQuiet). Free on local vLLM; a normal
+  visible-cost generation on hosted (cost stays in the chat's stats, never hidden).
+- **SEMANTICS SEALED (owner, same day) — FULL-RESET MARKER, chained**: compaction summarizes the
+  ENTIRE in-context conversation (previous marker + all turns since) into ONE new marker — "your new
+  starting point, like a new conversation; all previous messages fall out into history." NOT a
+  rolling keep-recent-verbatim prefix-summary. Post-compaction prompt = system → marker → turns
+  accumulated since; the marker stores its coverage point (the span stamp). Nothing deleted — canon
+  + scrollback stay complete. THE BOUNDARY IS SOURCE-MODED, ONE CONCEPT ("above this line isn't in
+  the prompt"): agent-sdk chat → the marker's coverage point (the stateless fit pass does not manage
+  the sdk window); stateless chat → the fit boundary (carried marker above it). previewFit reflects
+  the mode per source. Recall's live-window cutoff on sdk chats = the marker's coverage point.
+  **AXIS PRECISION (owner)**: every compaction branch keys on the API/RUNNER axis
+  (`api === "agent-sdk"` vs the stateless wires) — NEVER the source/backend axis
+  (vllm/openrouter/max-pro-sub/custom). Agent-sdk runs against multiple backends; one solution for
+  the axis, zero backend-name conditionals in the compaction path (the lane's report must include the
+  proving grep). vLLM in probe/e2e = the free local INSTANCE of the general path, never a special case.
+- **RULING (owner, 2026-07-24) — COMPACTION CANNOT BE TURNED OFF**: "erroring out is bad UI — you can
+  control WHEN it compacts but not compaction itself." Existence is a SAFETY PROPERTY (no chat may
+  ever error from context growth). Consequences: the mode enum is auto|managed ("off" killed; stored
+  "off" lifts to managed); UNSET resolves to MANAGED (auto can't be the safe floor while its
+  non-Anthropic-backend behavior is unverified); the wall gets a terminal belt — pre-turn arm at/over
+  window with no usable marker ⇒ forced reseed (fit-trims) + a VISIBLE warning, degraded-and-loud
+  never error-and-dead; live-context-cutoff & kin rework to the compaction-by-default reality.
+  CAVEAT under verification: SDK-native compact may be Claude-API-exclusive (likely no-ops/breaks on
+  the local vLLM backend) — the lane verifies empirically and documents at the disableAutoCompact
+  site (plan-for-small-hardware: no silent hosted/local asymmetry). Prior art: neo-tavern
+  (~/inktomi-stack/development/neo-tavern) had working compaction — lane mines it read-only
+  (reference, not law).
 
 ### #10 — Test-infra kit: virtualizer + strict-mode + no-hand-rolled machinery
 - **Causes**: (a) the VIRTUALIZER breaks DOM-truth tests constantly (windowed DOM ≠ full canon; the live
@@ -178,6 +291,146 @@
   death-coupling wraps OWNED spawns only. The old constant-engine-restart hell came from ownership
   inside the watched process — the refactor changes where flags come from, never the process topology.
   Pin with a supervisor test: a healthy port is adopted, never respawned.
+
+### #18 addendum — launched-suite coverage mining (owner-directed, 2026-07-24)
+- **Input**: two scout inventories of LAUNCHED products' e2e/smoke suites — marinara-engine
+  (~/inktomi-stack/development/marinara-engine) and SillyTavern
+  (~/inktomi-stack/development/neo-tavern/references/sillytavern). Launched suites encode production
+  regression history ("they've launched and they might be thorough").
+- **Rule**: adapt SCENARIOS (journey + the assertion that matters), never port test code — rebuilt on
+  our kit (identity locators, virtualizer sweep, self-seeding mintFreshCharacter, the doctrine README).
+  Skip scenarios for features orbweaver deliberately excludes (D47's out-by-design list).
+- **Flow**: scout inventories → cross against the current e2e suite + feature map → transfer shortlist
+  becomes #18's seed backlog alongside the CT expansion.
+- **INVENTORIES LANDED (2026-07-24), the synthesis**:
+  - **ST verdict**: effectively ZERO enforced UI-journey coverage (one 12-line title test; the
+    7,300-line macro suite isn't in CI). Orbweaver's 21 live specs already exceed the incumbent's
+    entire enforced browser coverage. Chat-flow scenarios must be ORIGINATED, not inherited.
+  - **SEED BACKLOG — journeys (from marinara)**: edit-during-stream row-dedupe; historical
+    peekPrompt returns THAT turn's prompt not latest; swipe-toggle flip-flop never sticks;
+    group membership notices never backfill pre-start; autoscroll follows stream + settles;
+    editor save-vs-refetch list flicker; error toasts assert EXACT copy + fallback names the
+    replacement; deep-nested modal reachability; expanded-editor edit retention; capability-gated
+    UI appears only with its dependency.
+  - **SEED BACKLOG — logic (from ST)**: the card-import validator suite (V1/V2/V3 discrimination,
+    dual-shape tiebreak, PER-FIELD error naming, character_book malformed shapes, V3 version RANGE,
+    validator state reset); path-traversal rejection for zip/png card import; same-role merge +
+    name-prefix no-double-prefix + cache-depth-skips-prefill (cross-check ours — much already
+    covered by role-squash/names/breakpoint tests, close gaps only); thinking-budget tier clamps
+    (when reasoning lands).
+  - **TECHNIQUES adopted into the kit doctrine**: deterministic SSE fake with a typed event
+    vocabulary; collectUnexpectedErrors console collector as broad smoke; REST-seed + addInitScript
+    for not-under-test state; per-field validator error assertions. ANTI-patterns recorded:
+    per-test viewport skips (parametrize instead); suites named e2e that CI never runs.
+  - **CHIPS**: (1) SECURITY — ST's SSRF/DNS-rebinding filter is a real scar class and orbweaver DOES
+    proxy user-supplied endpoints (custom-openai) + fetches remote images: route a security-executor
+    review of the endpoint-proxy path (resolved-IP pinning, private-range blocking). (2) INFRA —
+    "every test file is executed by SOME runner" membership check (the ST CI lesson; we check TYPE
+    membership, not EXECUTION membership — a spec can fall between vitest/playwright globs silently).
+  - **SHORTLIST AMENDED to 25** (hidden regression layer mined): +fallback-never-double-answers,
+    +user-abort-never-triggers-fallback, +typewriter-reveal-survives-normalization,
+    +revision-keyed-not-content-keyed replay gating, +import timestamp monotonicity (tie → +1ms),
+    +persona free-text wrap-shape, +worldinfo key dedupe/trim, +lenient-JSON params boundary,
+    +jsonish-extraction-from-prose (D48-relevant), +error-message extraction both-shapes. Style
+    verdict: their pure-fn-assert vs e2e split is legitimate and orbweaver already has it (vitest
+    unit layer) — ENFORCED, unlike theirs.
+  - **FINAL: SHORTLIST = 42** (prompt.regression.ts mined: 96 named cases / 4,120 lines — 41% of the
+    hidden layer; 17 new transferable incl. the compaction-adjacent gold fed to #9 live: marker-
+    present/absent placement two-case, cadence-counts-real-user-turns, duplicate-injection guard,
+    macro-resolved-before-scan ordering; per-message-SEEDED random determinism (their swipe-stable
+    rolls — compare to our freeze-at-commit volatile registry model); recursion caps; ReDoS gate for
+    user regex scripts; items 37/38 routed to #21 security scope). Mining verdict: marinara = strong
+    source badly hidden (the hidden unit layer out-yielded the visible e2e suite 17:15 on domain-
+    matched scenarios); caveat — none of it is CI-enforced, so scars prove bugs were HIT once, not
+    continuously guarded.
+  - **ROLL REPLAYABILITY RESOLVED (owner question, main-worktree scouted 2026-07-24)**: main's rpg
+    rolls replay via BAKE-ONCE STORAGE (live CSPRNG once inside tool execution → result stamped into
+    stored message text + ToolCallRecord; re-render = pure text decoration, never re-executes) — the
+    SAME discipline retro's freeze-at-commit volatile registry already generalizes for
+    {{roll}}/{{random}}/{{pick}}. NOTHING TO PORT. **THE ROOT INVARIANT (owner): canon bytes are
+    immutable EVIDENCE — the design exists to protect the PROMPT CACHE (stored history = the stable
+    prefix; per-read re-resolution would churn bytes and invalidate the provider cache every send)
+    and DB PROVENANCE (the row records what the model saw, it is not a template), and to keep macros
+    from firing hot on every read. Replay is the corollary, not the goal. Same invariant behind: the
+    D2 unknown-span ratification, compact-summary slot-0 cache-anchor placement, and the
+    shape-breakpoint abort-on-prefix-mutation rule.** Seed-based replay (marinara's per-message-seeded
+    model) was explicitly REJECTED in main as a security bug (clock-seeded PRNG brute-forceable from
+    log timestamps, fixed → CSPRNG) — storage beats seeding. PARKED for the rpg REBUILD: the
+    anti-swipe-fishing guard (player's declared pre-roll = turn-scoped, consume-once, re-feeds the
+    SAME face on swipe). Candidate #18 pin: each VARIANT freezes its volatile macros independently
+    (swipe = fresh roll; swipe-back = the original's stored value).
+  - **MACRO PARITY LANDED**: tests/kit/macro/{st-parity,st-rejected,dos-bounds}.test.ts — 36 parity
+    pins + 16 rejection pins + DoS pins; 4 divergences owner-RATIFIED-OURS 2026-07-24 (triple-brace
+    left-greedy; unknown-span byte-stability R1 wins; whitespace = multi-arg; addvar renders "") —
+    pins flipped to assert ratified semantics. Capability-parity map: ST flags→automation triggers,
+    $-sigils→explicit var macros, pipes→block transforms; MISSING ledger: indexed-array var reads,
+    named macro args, position-seeded pick, per-render dynamic registration, alias primitive — all
+    owner feature decisions, parked.
+  - **HIDDEN-TEST SWEEP (owner-tipped, ast-grep structural, 2026-07-24)**: marinara hides 23 files /
+    ~10k lines of hand-rolled node:assert regression scripts (scripts/regressions/ — frameworkless,
+    invisible to describe/it sweeps; provider-compat + roleplay-streaming ARE the per-source coverage
+    the first inventory called absent — shortlist amendment in flight) AND its server pnpm test globs
+    match ZERO files (silent no-op). Neo hides tools/st-extract/test (14 vitest files, workspace-only
+    invocation, no CI) — st-extract parity oracles are extraction-tooling-specific, LOW transfer for
+    orbweaver. ST re-swept: clean negative, prior inventory complete. META: enforcement-vs-existence
+    disease confirmed in ALL THREE launched/reference repos → #22 upgraded to check both directions
+    (file-in-no-runner AND glob-matching-no-files).
+
+### #12 AUDIT RESULTS (Opus own-eyes delta review vs main, 2026-07-24) — ledger INCOMPLETE, corrected
+- **11 MISSED items** (all diff-direction-locked by direct reads). P1 data-loss/silent-failure:
+  (1) image-gen fire-and-forget destroys the typed prompt on failure (use-generate-image.ts +
+  composer.tsx — main: mutateAsync + clear-on-success only); (2) character-card-form-model.ts:158
+  silently strips greeting `groupOnly` on any edit (server contract + serde still support it; main
+  had the per-greeting "group chats only" toggle); (3) warning-notice.ts deleted → the bus onWarning
+  arm is unwired, ALL capability-degrade warnings swallowed. P2: (4) autosave-status.tsx lost
+  role=alert/status — save state silent to SRs; (5) composer bg-input/60 translucency regression
+  (main bg-card, dated side-eye fix); (6) turn-abort-notice.ts deleted — stale-lock takeover has no
+  honest toast; (7) markdown.tsx lost break-words (long token drags a horizontal scrollbar);
+  (8) world-info entry reorder UI + useApplyEntryOrder dropped (server verb LIVE). P3: (9) select
+  value slot min-w-0 truncate; (10) members-panel ScrollArea contentClassName; (11) sortable
+  handleLabel a11y prop (grab with #8's world-info reorder — its live consumer).
+- **HELD scopes CORRECTED**: PD-147 = 8 files (incl. pin-spacer.ts wholesale, use-message-items /
+  use-jump-to-latest / use-chat-behavior-prefs hooks, chat-behavior-model.ts + its settings surface —
+  the lying streamScrollMode knob's full seam); BG-C/BG-V = 15 files (retro HAS the still-image half:
+  theme-background-layer + room-overrides-tab need diffs only; the video primitive + use-chat-background
+  + background-source-field + registry-contracts background field are absent-wholesale).
+- **FUTURE-RELEVANT (ledger-for-rebuild)**: world-book attach/detach-to-chat hooks (server live;
+  returns with the chat context-tab seam); accept-all tag suggestions (tag.bulkAttachTag live); the
+  message-tools-renderer/text-decorator/slash-command registry-seam pattern (returns with rpg).
+- **OWNER RULED (2026-07-24) — both RESTORE**: (12) composer-draft-store persistence returns (keyed
+  store + draft→commit migration; losing typed text on navigation is the image-gen-prompt data-loss
+  family, unrelated to the reduced-modes trap); (13) ShapeTraceSummary host-only assembly-trace panel
+  returns (wires the live-but-unwired chat.getShapeTrace — the observability surface for the exact
+  assembly/fit/compaction machinery this program keeps debugging blind).
+- **RE-VERIFICATION of the scout-swept sections (2026-07-24, tool-restricted verifier)**: settings +
+  chat verdicts CONFIRMED; **credentials skip OVERTURNED** — 3 more dead-doors onto LIVE server
+  capability: (14) endpoint-inspector-dialog + useInspectEndpoint deleted while the full server stack
+  incl. the response-echo secret-scrub is intact (custom-byo/inspect.ts:72-75; credentials.ts:93) —
+  MEDIUM, re-wire; (15) markRevokedByUser button (verb+tRPC live, credentials.ts:60) — grab;
+  (16) clearRevoked button (credentials.ts:70) — grab. Plus a LOW polish note: settings scroll-spy's
+  initial-compute still runs the 20-frame rAF poll anti-pattern the sibling scrollToAnchor fix
+  root-caused (~line 181) — convert to observer+wall-clock when convenient.
+- **(17) TanStack devtools trigger config — GRABBED IMMEDIATELY (owner-recalled, orchestrator-applied
+  2026-07-24)**: main's dev-tools.tsx carried `config={{ hideUntilHover: true, position:
+  "bottom-left" }}` (trigger invisible until corner-hover, docked away from the composer, position
+  persisted); retro lacked it — the dev trigger camped over the UI. 4 dev-only lines, tsc-verified.
+  (Neither the audit nor the re-verify named dev-tools.tsx — owner memory beat both.)
+- **(18) Admin engines pane: deployment facts not rendered (side-eye P2) — OWNER-ESCALATED TO NOW,
+  lane dispatched 2026-07-24** (deferral overridden: "every single one of these need fixed in full"):
+  render ports/store-paths read-only in the status rows from the engineDeploymentEnv single-home,
+  making engine-launch-config.tsx:6's promise true. All four side-eye findings in-flight-or-done:
+  P1 pct-arm + preset-defaults P2 = the reopened #9 lane; deployment-facts P2 = this lane; P3 junk
+  presets = deleted via API (verified 0 remaining).
+- **ROTATION-4 LANE SPEC = items 1-16 above** (11 audit + 2 owner restorations + 3 credential
+  dead-doors) **+ the held trio at corrected scope** (PD-147 ×8 files, BG-C/BG-V ×16 — the audit's 15 + the
+  `./background-video` subpath export in packages/ui/package.json, without which the primitive is
+  unimportable; section hint ×2) **+ the scroll-spy polish**. UI-diff universe fully closed: 17/17
+  files adjudicated (audit 15 own-eyes + orchestrator 2: the export line above; icons/index.ts's 8
+  removed exports = the ledger's dead-domain-icon skip, confirmed, trivially re-added per rebuild). Waits for rotation-3 commit (chat-zone overlap with #9's files).
+  With this re-verification the #12 delta review is COMPLETE — every section either own-eyes
+  adjudicated or independently re-verified.
+- **Verified TRUE**: DTCG byte-identical; MenuGroup consumer-free both trees; globals.css skip-set
+  exactly the 6 rpg blocks; all named grabs landed; #7/#11/#19/#20 retro-AHEAD confirmed.
 
 ### #16 — Settings echo-stability + render-truth (the real oscillation path)
 - **Cause (owner repro, pre-revert)**: the oscillation lived in SETTINGS (background, theme) and required
@@ -298,6 +551,18 @@ ONESHOT-OK marker). No gate needed — the house idiom (consequence testids + tr
   on one malformed entry (entries are server-minted, latent); plugin storage.set 256-key cap has a
   documented race-tolerant TOCTOU (pre-existing, accepted by its own comment).
 - **D46 ledger annotated** (spend half retired, rate half + visibility stay) — Core-Path-Registry.md.
+
+## Rotation 3 chips (minted by lanes, pending routing)
+
+- **macro-before-scan (pre-existing, #9-flagged)**: recall's `recent` text feed may reach the
+  keyword/semantic scanner with UNRESOLVED `{{...}}` macros (marinara's `:1200` scar class). Predates
+  the compaction work — audit what assemble-gather feeds recallMemory and pin resolved-before-scan.
+- **auto-mode native-compact characterization (known-gap, documented at the translate site)**: auto
+  turns SUCCEED on vLLM but whether SDK-native compaction actually FIRES there was not positively
+  confirmed (needs compact_boundary log capture) — revisit when a longer-window probe is cheap.
+- **SDK cap-interaction lesson (→ memory after verification)**: maxContextTokens env + disabled
+  auto-compact = hard SDK is_error — the domain fit-cap and the SDK env-cap are DIFFERENT mechanisms,
+  never force both; managed/off modes drop the context env (translate.ts, 7 tests).
 
 ## Open decisions (owner)
 
