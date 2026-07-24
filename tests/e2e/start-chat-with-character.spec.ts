@@ -16,6 +16,7 @@
 // a real speaker in the room) streams a reply back.
 
 import { expect, test } from "@playwright/test";
+import { typeAndSend } from "./support/chat-room";
 
 const CHARACTER_ROW_CHAT_CTA = /^Chat with /u;
 const NON_WHITESPACE = /\S/u;
@@ -50,13 +51,15 @@ test("pick a character, send a message, and the assistant streams a reply", {
   const composer = page.getByRole("textbox", { name: "Message" });
   await expect(composer).toBeVisible();
 
-  // Type via pressSequentially (drives React's onChange — `fill` does NOT here) then send with Enter.
-  await composer.pressSequentially("Hello there! Please introduce yourself briefly.");
-  await expect(composer).toHaveValue("Hello there! Please introduce yourself briefly.");
-  await composer.press("Enter");
+  // Type + send via the shared helper (it drives React's onChange — `fill` does not — and RETRIES past the
+  // composer re-mount that otherwise drops all but the first keystroke; see support/chat-room.ts typeAndSend).
+  await typeAndSend(composer, "Hello there! Please introduce yourself briefly.");
 
-  // The user's message committed as the new chat's first turn.
-  const userRow = page.locator('[data-slot="message-row"][data-role="user"]');
+  // The user's message committed. The "Chat with X" CTA is resume-or-new: if a committed chat already exists
+  // for this character (e.g. other @live specs seeded one), it RESUMES into a populated room, so there can be
+  // MORE THAN ONE user row — assert on the LAST (the message we just sent), not the strict-mode-violating
+  // multi-match locator.
+  const userRow = page.locator('[data-slot="message-row"][data-role="user"]').last();
   await expect(userRow).toContainText("Hello there!", { timeout: 30_000 });
 
   // The money shot: with a character in the room there IS a speaker, so the assistant generates and its

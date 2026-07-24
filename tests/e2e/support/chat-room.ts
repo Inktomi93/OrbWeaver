@@ -21,11 +21,12 @@ import type { Page } from "@playwright/test";
 import { expect } from "@playwright/test";
 
 // The character row's chat affordance (character-card.tsx `NormalRowActions`): the dual-purpose resume-or-new
-// Chat CTA. In the docked library width the e2e viewport lands on (the list is <320px — the
-// `ACTIONS_COLLAPSE_BELOW_PX` fold), Star + Chat COLLAPSE INTO the per-row kebab as menu items, so the inline
-// `aria-label="Chat with <name>"` button is never rendered. The deterministic path at every width is
-// therefore the kebab: open the row's "Actions for <name>" menu, then click its "Chat" item.
-const CHARACTER_ROW_KEBAB = /^Actions for /u;
+// Chat CTA. Each row exposes a `aria-label="Chat with <name>"` button — visually hover-revealed on fine
+// pointers, but ALWAYS present in the accessibility tree (verified via `pnpm snap --aria` on the live client
+// 2026-07-24), so a role/name locator hits it at every width. This is the exemplar path
+// (start-chat-with-character.spec.ts, commit 34d1829a). The stale kebab→"Chat" menuitem flow is dead — this
+// client's row kebab ("Actions for <name>") carries only Archive/Duplicate/Delete, NO "Chat" item.
+const CHARACTER_ROW_CHAT_CTA = /^Chat with /u;
 const APP_READY = "html[data-app-ready]";
 const BOOTSTRAP_MESSAGE = "Hi";
 
@@ -76,14 +77,13 @@ async function createChatViaSend(page: Page): Promise<void> {
   await expect(charactersNav).toBeVisible({ timeout: 30_000 });
   await charactersNav.click();
 
-  // Open the first character row's kebab and start a chat from it. Keyboard activation (focus + Enter) —
-  // the row-body <button> overlaps the kebab in stacking and intercepts pointer clicks (same posture as the
-  // chat-list row kebabs). The "Chat" item is the resume-or-new affordance folded into the collapsed row.
-  const kebab = page.getByRole("button", { name: CHARACTER_ROW_KEBAB }).first();
-  await expect(kebab).toBeVisible({ timeout: 30_000 });
-  await kebab.focus();
-  await kebab.press("Enter");
-  await page.getByRole("menuitem", { name: "Chat", exact: true }).click();
+  // The first row's "Chat with <name>" CTA — the resume-or-new library→chat seam (the exemplar path). It's
+  // hover-revealed visually but always in the a11y tree, so a role/name click lands it (Playwright hovers
+  // before clicking, which also fires the visual reveal). `toBeAttached` (not `toBeVisible`) mirrors the
+  // exemplar: the button is in the tree before its hover-driven paint settles.
+  const chatCta = page.getByRole("button", { name: CHARACTER_ROW_CHAT_CTA }).first();
+  await expect(chatCta).toBeAttached({ timeout: 30_000 });
+  await chatCta.click();
 
   const composer = page.getByRole("textbox", { name: "Message" });
   await expect(composer).toBeVisible();
@@ -116,6 +116,40 @@ export async function openOrCreateChat(page: Page): Promise<void> {
     await createChatViaSend(page);
     return;
   }
+  await rows.first().click();
+  await expect(page.getByRole("textbox", { name: "Message" })).toBeVisible({ timeout: 15_000 });
+}
+
+/** Type a message into the OPEN room's composer and send it (Enter). `fill` is unusable (it bypasses React's
+ *  onChange so the controlled value never updates), and a raw pressSequentially FLAKES: the composer re-mounts
+ *  when the room's initial reads / an SSE event settle mid-type, dropping focus + every keystroke after the
+ *  first (verified live: "Reply…" left the textarea at just "R"). So RETRY: focus → clear → type → verify the
+ *  controlled value STUCK; if a re-mount ate it, the composer is now settled and the retry lands cleanly. */
+export async function typeAndSend(composer: ReturnType<Page["getByRole"]>, message: string): Promise<void> {
+  await expect
+    .poll(
+      async (): Promise<string> => {
+        await composer.click();
+        await composer.press("ControlOrMeta+A");
+        await composer.press("Delete");
+        await composer.pressSequentially(message, { delay: 15 });
+        return composer.inputValue();
+      },
+      { timeout: 30_000, intervals: [250] },
+    )
+    .toBe(message);
+  await composer.press("Enter");
+}
+
+/** Navigate to `/` and open the NEWEST chat (the first Chats-list row — the list is desc(updatedAt), and a
+ *  just-created chat is newest). The room's composer is live on return. Used by specs that SELF-SEED a fresh
+ *  chat via the API (startChat) and then need to drive it in the UI — a fresh, short-transcript chat renders
+ *  ALL its rows (no virtualization), so DOM↔canon full-length parity is deterministic. */
+export async function openNewestChat(page: Page): Promise<void> {
+  await page.goto("/");
+  await waitForAppReady(page);
+  const rows = page.getByRole("list", { name: "Chats" }).getByRole("button");
+  await expect(rows.first()).toBeVisible({ timeout: 15_000 });
   await rows.first().click();
   await expect(page.getByRole("textbox", { name: "Message" })).toBeVisible({ timeout: 15_000 });
 }
