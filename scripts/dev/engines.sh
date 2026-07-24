@@ -30,8 +30,12 @@
 
 set -u
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
+# Model/venv stores are SHARED across git worktrees: root them at the MAIN checkout (the git common
+# dir's parent) so a linked worktree reuses the multi-GB caches instead of re-downloading. Falls back
+# to this checkout outside a linked worktree; an explicit env override still wins.
+STORE_ROOT="$(dirname "$(git -C "$REPO" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || echo "$REPO/.git")")"
 RUN_DIR="$REPO/.cache/stack"
-VLLM_VENV="$REPO/.cache/vllm/venv"
+VLLM_VENV="$STORE_ROOT/.cache/vllm/venv"
 mkdir -p "$RUN_DIR"
 
 # Mirror foundation/env defaults (env vars override both — one .env line moves the script + the server).

@@ -37,11 +37,15 @@
 
 set -euo pipefail
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
+# Model/venv stores are SHARED across git worktrees: root them at the MAIN checkout (the git common
+# dir's parent) so a linked worktree reuses the multi-GB caches instead of re-downloading. Falls back
+# to this checkout outside a linked worktree; an explicit env override still wins.
+STORE_ROOT="$(dirname "$(git -C "$REPO" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || echo "$REPO/.git")")"
 ENGINE="${1:?usage: vllm-engine.sh <embed|rerank|gen>}"
 # Binary seam: bare-metal dev uses the repo venv (scripts/dev/vllm-setup.sh);
 # the Docker image sets VLLM_BIN=/usr/local/bin/vllm (preinstalled in the
 # official vllm/vllm-openai base). The python interpreter rides next to it.
-VLLM="${VLLM_BIN:-$REPO/.cache/vllm/venv/bin/vllm}"
+VLLM="${VLLM_BIN:-$STORE_ROOT/.cache/vllm/venv/bin/vllm}"
 # Interpreter for huggingface_hub calls: explicit VLLM_PY wins (the Docker image
 # pins /usr/bin/python3 — vllm's shebang target); else the venv python next to
 # the binary; else whatever python3 is on PATH.
@@ -56,8 +60,8 @@ VLLM_RERANK_MODEL="${VLLM_RERANK_MODEL:-Qwen/Qwen3-VL-Reranker-2B}"
 VLLM_GEN_MODEL="${VLLM_GEN_MODEL:-Qwen/Qwen3-VL-8B-Instruct}"
 
 # Caches pinned in-repo — the self-containment doctrine.
-export HF_HOME="$REPO/.models/hf"
-export VLLM_CACHE_ROOT="$REPO/.cache/vllm"
+export HF_HOME="${HF_HOME:-$STORE_ROOT/.models/hf}"
+export VLLM_CACHE_ROOT="${VLLM_CACHE_ROOT:-$STORE_ROOT/.cache/vllm}"
 export XDG_CACHE_HOME="$REPO/.cache/xdg"
 
 GPU_COUNT="$(nvidia-smi -L 2>/dev/null | wc -l)"

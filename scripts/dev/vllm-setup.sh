@@ -26,7 +26,11 @@
 
 set -euo pipefail
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
-VENV="$REPO/.cache/vllm/venv"
+# Model/venv stores are SHARED across git worktrees: root them at the MAIN checkout (the git common
+# dir's parent) so a linked worktree reuses the multi-GB caches instead of re-downloading. Falls back
+# to this checkout outside a linked worktree; an explicit env override still wins.
+STORE_ROOT="$(dirname "$(git -C "$REPO" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || echo "$REPO/.git")")"
+VENV="$STORE_ROOT/.cache/vllm/venv"
 
 # Pinned vLLM line. Bump deliberately; the venv rebuilds when the marker
 # below doesn't match.
@@ -34,7 +38,7 @@ VLLM_PIN="vllm>=0.22,<0.23"
 TORCH_BACKEND="auto"
 PIN_MARKER="$VENV/.orb-pin"
 
-export UV_CACHE_DIR="$REPO/.cache/uv"
+export UV_CACHE_DIR="$STORE_ROOT/.cache/uv"
 
 if ! command -v uv >/dev/null 2>&1; then
   echo "vllm-setup: uv not found. Install it (single static binary):"
