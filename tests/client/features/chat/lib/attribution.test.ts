@@ -282,9 +282,6 @@ test("Layer 2: resolveRoomTheme applies the sole character's override only in a 
   // A second human → no takeover (each human keeps their own theme).
   const human2 = makeParticipant({ kind: "human", characterId: null, displayName: "Sam" });
   expect(resolveRoomTheme([human, human2, alice])).toBeUndefined();
-  // An observer (another human viewer) → no takeover.
-  const observer = makeParticipant({ kind: "observer", characterId: null, displayName: "Watcher" });
-  expect(resolveRoomTheme([human, alice, observer])).toBeUndefined();
   expect(resolveRoomTheme(undefined)).toBeUndefined();
 });
 

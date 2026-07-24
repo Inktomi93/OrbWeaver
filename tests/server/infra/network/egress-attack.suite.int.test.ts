@@ -70,16 +70,14 @@ const PRIVATE_TARGETS: readonly string[] = [
   "http://localhost/x", // hostname → DNS-rebind lookup gate, port 80 not a configured backend
 ];
 
-// The box's OWN configured backends, host:PORT-scoped: the vLLM engines (127.0.0.1:8701/8702/8703) and
-// ComfyUI (COMFYUI_BASE_URL default localhost:8188) are allowed at EXACTLY those host:ports (declared
-// internal intent). An allowed target with nothing listening yields a plain connect failure
-// (ECONNREFUSED/timeout), NOT our SSRF_BLOCKED signal. This does NOT weaken the safeFetch path — its
-// unconditional private-range denial never consults this allowlist.
+// The box's OWN configured backends, host:PORT-scoped: the vLLM engines (127.0.0.1:8701/8702/8703) are
+// allowed at EXACTLY those host:ports (declared internal intent). An allowed target with nothing listening
+// yields a plain connect failure (ECONNREFUSED/timeout), NOT our SSRF_BLOCKED signal. This does NOT weaken
+// the safeFetch path — its unconditional private-range denial never consults this allowlist.
 const AUTO_ALLOWED_BACKENDS: readonly string[] = [
   "http://127.0.0.1:8701/x", // vLLM embed engine
   "http://127.0.0.1:8702/x", // vLLM rerank engine
   "http://127.0.0.1:8703/x", // vLLM gen engine
-  "http://localhost:8188/x", // ComfyUI (COMFYUI_BASE_URL default host:port)
 ];
 
 describe("egress firewall — adversarial SSRF bypass matrix (task #55)", () => {
@@ -97,7 +95,7 @@ describe("egress firewall — adversarial SSRF bypass matrix (task #55)", () => 
     expect(holes).toEqual([]);
   });
 
-  test("the exact configured backend host:ports (vLLM 8701/8702/8703 + ComfyUI localhost:8188) are ALLOWED, not SSRF-blocked", async () => {
+  test("the exact configured backend host:ports (vLLM 8701/8702/8703) are ALLOWED, not SSRF-blocked", async () => {
     // Each connect is ATTEMPTED (probe returns "PASSED:..." on any non-SSRF outcome incl. ECONNREFUSED) —
     // proving the firewall let the declared internal backend through rather than rejecting it. Least-privilege:
     // the SAME loopback host on port 80 (in PRIVATE_TARGETS above) is still BLOCKED — only these ports pass.

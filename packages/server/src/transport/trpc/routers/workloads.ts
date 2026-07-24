@@ -17,7 +17,7 @@
 import { on } from "node:events";
 import type { Principal } from "@orb/contracts/identity";
 import { scheduleCadenceSchema, workloadKindSchema, workloadModeSchema, workloadStatusSchema } from "@orb/contracts/workloads";
-import type { ChatId, UserId, WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
+import type { UserId, WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import type { TrackedEnvelope } from "@trpc/server";
 import { tracked } from "@trpc/server";
@@ -81,7 +81,6 @@ export const workloadsRouter = t.router({
         .object({
           kind: workloadKindSchema.optional(),
           status: workloadStatusSchema.optional(),
-          chatId: brandedId<ChatId>().optional(),
           since: z.number().optional(),
           limit: z.number().optional(),
         })
@@ -92,7 +91,6 @@ export const workloadsRouter = t.router({
         caller: ctx.auth,
         ...(input?.kind !== undefined ? { kind: input.kind } : {}),
         ...(input?.status !== undefined ? { status: input.status } : {}),
-        ...(input?.chatId !== undefined ? { chatId: input.chatId } : {}),
         ...(input?.since !== undefined ? { since: input.since } : {}),
         ...(input?.limit !== undefined ? { limit: input.limit } : {}),
       }),

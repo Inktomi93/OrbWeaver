@@ -23,12 +23,16 @@ export interface NormalizedImageBytes {
 /** Normalize one outbound image-input buffer for a hosted wire (async: a GIF decode is I/O-bound). A
  *  call-signature interface (not a `type` alias): exported function shapes ride an interface in this
  *  infra-pure tier — the `no-inline-types` gate reserves exported `type` aliases for type-home dirs. */
-export type NormalizeImageBytes = (bytes: Uint8Array) => Promise<NormalizedImageBytes>;
+export interface NormalizeImageBytes {
+  (bytes: Uint8Array): Promise<NormalizedImageBytes>;
+}
 
 /** The sharp seam this normalizer needs: decode → re-encode PNG (metadata stripped). Injected as a bare
  *  function so `backends/kit` never imports `infra/image` (a sibling infra module) — the strategy-isolation
  *  seam. Compose binds `imageAdapter.transform(bytes, { format: 'png' })`. */
-export type ImageToPng = (bytes: Uint8Array) => Promise<Uint8Array>;
+export interface ImageToPng {
+  (bytes: Uint8Array): Promise<Uint8Array>;
+}
 
 /** Build the gif-normalizing wire op. A GIF is decoded to a first-frame PNG (metadata stripped) via the
  *  injected `toPng`; every other format passes through with the `image/png` label the hosted image wires

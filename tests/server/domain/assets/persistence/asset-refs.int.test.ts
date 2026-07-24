@@ -77,15 +77,13 @@ test("image_embeddings.asset_id stays DERIVED (the load-bearing exclusion)", () 
   expect(retaining.has("image_embeddings.asset_id")).toBe(false);
 });
 
-test("the known live references are RETAINING (avatar, gallery, sprite, doc source, npc, imagery)", () => {
+test("the known live references are RETAINING (avatar, gallery, doc source, imagery, plugin bundle)", () => {
   const retaining = registryKeys(ASSET_REFS);
   for (const key of [
     "characters.avatar_asset_id",
     "personas.avatar_asset_id",
     "gallery_items.asset_id",
-    "character_sprites.asset_id",
     "documents.source_asset_id",
-    "rpg_npcs.avatar_asset_id",
     "imagery_generations.asset_id",
     "plugins.bundle_asset_id",
   ]) {

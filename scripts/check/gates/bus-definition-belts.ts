@@ -21,7 +21,7 @@ const CLIENT_SRC = /\/packages\/client\/src\//u;
 const EVENT_TYPES_SUFFIX = "_EVENT_TYPES";
 
 const NO_COVERAGE_GATE_PREFIX =
-  "*_EVENT_TYPES const has NO matching coverage-gate file — a new bus's producer-coverage belt (client-architecture-lockdown.md §13 law 4, the bus-coverage/user-bus-coverage/rpg-bus-coverage precedent) was never built. Add a scripts/check/gates/<bus>-coverage.ts ratchet naming this const: ";
+  "*_EVENT_TYPES const has NO matching coverage-gate file — a new bus's producer-coverage belt (client-architecture-lockdown.md §13 law 4, the bus-coverage/user-bus-coverage precedent) was never built. Add a scripts/check/gates/<bus>-coverage.ts ratchet naming this const: ";
 const NO_CLIENT_MAP_PREFIX =
   "*_EVENT_TYPES const has NO client-side total map in packages/client/src — a new bus's consumer-exhaustiveness belt (client-architecture-lockdown.md §13 law 3/5) is unwired; add a mapped-type total map over the event union (the ONE invalidation seam data/invalidation.ts for global buses, or the bus's own stream hook): ";
 

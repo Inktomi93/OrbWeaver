@@ -22,6 +22,7 @@ function makeSummary(overrides: Partial<SummaryItem>): SummaryItem {
     messageCount: 0,
     participantNames: [],
     participantCharacterIds: [],
+    viewerRole: "host",
     createdAt: 1,
     updatedAt: 2,
     ...overrides,

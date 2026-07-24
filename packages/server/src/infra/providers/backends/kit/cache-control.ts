@@ -2,8 +2,8 @@
 // primitive, shared by every HTTP runner talking to an Anthropic-backed endpoint. OpenRouter's
 // `cache_control` is Anthropic-only, so we emit it iff the routed model is Anthropic, and pin the
 // Anthropic provider (order-only) so an unpinned model can't silently land on a non-caching endpoint.
-// `computeCacheBreakpointOffsets` is the pure positional core both the openrouter and anth-direct runners
-// reuse (backends never import each other); each maps the returned offsets to its own wire dialect.
+// `computeCacheBreakpointOffsets` is the pure positional core the openrouter runner maps onto its own
+// wire dialect.
 
 import type { OpenRouterProviderRouting } from "@orb/contracts/connection";
 

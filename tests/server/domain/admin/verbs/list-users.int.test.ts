@@ -5,7 +5,7 @@ import { createAdminService } from "@orb/server/domain/admin";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
-import { makeHarness, principal, seedAgent, seedUser } from "../_support.ts";
+import { makeHarness, principal, seedUser } from "../_support.ts";
 
 describe("listUsers", () => {
   test("owner and admin can list; the view omits passwordHash", async () => {
@@ -32,17 +32,10 @@ describe("listUsers", () => {
     await expect(svc.listUsers({ principal: principal(u, "user") })).rejects.toThrow(DomainForbiddenError);
   });
 
-  test("shows agents by default; the kind axis filters + ownerHandle names the owner (D60)", async () => {
+  test("the kind:human filter returns humans with a null ownerHandle", async () => {
     const db = await freshDb();
     const svc = createAdminService(makeHarness(db).ctx);
     const owner = await seedUser(db, { id: "user_owner", role: "owner", handle: "owner" });
-    const agentId = await seedAgent(db, owner);
-    const all = await svc.listUsers({ principal: principal(owner, "owner") });
-    expect(all).toHaveLength(2);
-    const agents = await svc.listUsers({ principal: principal(owner, "owner"), kind: "agent" });
-    expect(agents).toHaveLength(1);
-    expect(agents[0]?.id).toBe(agentId);
-    expect(agents[0]?.ownerHandle).toBe("owner");
     const humans = await svc.listUsers({ principal: principal(owner, "owner"), kind: "human" });
     expect(humans.map((u) => u.id)).toEqual([owner]);
     expect(humans[0]?.ownerHandle).toBeNull();

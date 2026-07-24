@@ -10,12 +10,12 @@ test("open renders the media through MessageMedia; the external gate still compo
   await mount(<Lightbox open={true} onOpenChange={noop} src={{ kind: "external", url: EXTERNAL }} media="image" alt="z" />);
   // Dialog portals to the body — the gated placeholder (not a live external img) is what shows.
   await expect(page.locator('[data-slot="message-media-placeholder"]')).toBeVisible();
-  expect(await page.locator(`img[src*="cdn.example"]`).count()).toBe(0);
+  await expect(page.locator(`img[src*="cdn.example"]`)).toHaveCount(0);
 });
 
 test("closed renders nothing", async ({ mount, page }) => {
   await mount(<Lightbox open={false} onOpenChange={noop} src={{ kind: "asset", url: "/blob/a.png" }} media="image" alt="a" />);
-  expect(await page.locator('[data-slot="message-media"]').count()).toBe(0);
+  await expect(page.locator('[data-slot="message-media"]')).toHaveCount(0);
 });
 
 test("focus trap + Escape + focus-return-to-trigger (inherited from Dialog)", async ({ mount, page }) => {
@@ -29,8 +29,7 @@ test("focus trap + Escape + focus-return-to-trigger (inherited from Dialog)", as
   // Focus trap: Tab from inside the popup never escapes back to the trigger sitting behind it.
   await page.keyboard.press("Tab");
   await page.keyboard.press("Tab");
-  const focusInsideDialog = await dialog.evaluate((node) => node.contains(document.activeElement));
-  expect(focusInsideDialog).toBe(true);
+  await expect.poll(() => dialog.evaluate((node) => node.contains(document.activeElement))).toBe(true);
 
   await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();

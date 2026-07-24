@@ -1,8 +1,9 @@
-// The type-membership reconciliation stage (UNIFIED-VERIFICATION-DESIGN.md §3): every type-relevant
-// SOURCE file under tests/** + playwright/** must appear in ≥1 type program's import closure — else it is
-// checked by NOTHING. Runs `tsgo --listFilesOnly` (module resolution only, no typecheck) for each program,
-// unions the closures, and asserts the enumerated test files are a subset. Speaks the repo's own 0/1/2/3
-// exit scheme: 0 clean · 1 violations (escapees) · 2 tool error (a tsgo listing broke).
+// The type-membership reconciliation stage: every type-relevant SOURCE file under tests/** +
+// playwright/** must appear in ≥1 type program's import closure — else it is checked by NOTHING. Runs
+// `ts7 --listFilesOnly` (module resolution only, no typecheck — via scripts/ts7.cjs, the same wrapper
+// the typecheck scripts use) for each program, unions the closures, and asserts the enumerated test
+// files are a subset. Speaks the repo's own 0/1/2/3 exit scheme: 0 clean · 1 violations (escapees) ·
+// 2 tool error (a listing broke).
 import { spawnSync } from "node:child_process";
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
@@ -38,14 +39,14 @@ const LIST_FILES_MAX_BUFFER = 67_108_864;
 /** The absolute-path import closure of one tsgo program (module resolution only — no typecheck). Returns
  *  undefined on any failure (the caller maps that to a TOOL ERROR — a broken listing is not a verdict). */
 function programClosure(root: string, config: string): readonly string[] | undefined {
-  const tsgo = join(root, "node_modules", ".bin", "tsgo");
-  const res = spawnSync(tsgo, ["--noEmit", "--listFilesOnly", "-p", config], {
+  const ts7 = join(root, "scripts", "ts7.cjs");
+  const res = spawnSync(process.execPath, [ts7, "--noEmit", "--listFilesOnly", "-p", config], {
     cwd: root,
     encoding: "utf8",
     maxBuffer: LIST_FILES_MAX_BUFFER,
   });
   if (res.status !== 0 || typeof res.stdout !== "string") {
-    process.stderr.write(`tests-type-membership: \`tsgo --listFilesOnly -p ${config}\` failed (status ${String(res.status)})\n${res.stderr ?? ""}`);
+    process.stderr.write(`tests-type-membership: \`ts7 --listFilesOnly -p ${config}\` failed (status ${String(res.status)})\n${res.stderr ?? ""}`);
     return;
   }
   return res.stdout.split("\n").map((l) => l.trim());

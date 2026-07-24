@@ -12,7 +12,7 @@ import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import { assets, characterStats, characterSummaries, characters } from "@orb/db";
-import type { AssetId, CardEvolutionProposalId, CharacterId, CharacterSnapshotId, CharacterStatId, Handle, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, CharacterSnapshotId, CharacterStatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { CharacterContext } from "../../../../packages/server/src/domain/character/context.ts";
 import type { AttachCardTagOp, DetachCardTagOp } from "../../../../packages/server/src/domain/character/contract/service.ts";
@@ -78,7 +78,6 @@ export function makeHarness(db: Db, overrides: { readonly materializeBackground?
     now: (): number => clock.now(),
     newCharacterId: (): CharacterId => castId<CharacterId>(ids.next("character")),
     newSnapshotId: (): CharacterSnapshotId => castId<CharacterSnapshotId>(ids.next("character_snapshot")),
-    newProposalId: (): CardEvolutionProposalId => castId<CardEvolutionProposalId>(ids.next("card_evolution_proposal")),
     audit: (entry: AuditCall["entry"], at: number): Promise<void> => {
       audits.push({ entry, at });
       return Promise.resolve();

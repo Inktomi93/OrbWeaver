@@ -55,9 +55,10 @@ test("characterUpdateFromForm sends description as-is (non-nullable — never nu
 });
 
 test("characterUpdateFromForm keeps greeting[0] but drops trailing empty alternates", () => {
-  expect(characterUpdateFromForm(form({ greetings: ["hi", "", "  "] })).greetings).toEqual(["hi"]);
+  // The text-only editor lifts each greeting into the wire `Greeting` shape (`{ text }`, no `groupOnly`).
+  expect(characterUpdateFromForm(form({ greetings: ["hi", "", "  "] })).greetings).toEqual([{ text: "hi" }]);
   // An empty FIRST message is still a real slot.
-  expect(characterUpdateFromForm(form({ greetings: [""] })).greetings).toEqual([""]);
+  expect(characterUpdateFromForm(form({ greetings: [""] })).greetings).toEqual([{ text: "" }]);
 });
 
 test("characterUpdateFromForm re-nests depthPrompt, or null when the note text is empty", () => {

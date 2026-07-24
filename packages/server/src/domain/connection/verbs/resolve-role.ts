@@ -100,10 +100,9 @@ function applyVllmFallback(role: ResolveRoleParams["role"], selection: RouteSele
 /** Reject an incoherent `(api, source)` selection — the only thrown-error path. */
 function assertCoherent(api: ChatApi, source: CredentialSource): void {
   if (api === "agent-sdk") {
-    // The sub + the OR skin + the first-party anthropic key (W11 owner ruling: agents may run on a user's
-    // own Anthropic key) all drive the agent-sdk backend, and vllm joins them via the local loopback agent
-    // path (buildClaudeVllmEnv → 127.0.0.1:VLLM_GEN_PORT /v1/messages — deriveRunner + firewall already
-    // route/allow it for the agent role); every other source is incoherent on this api.
+    // The sub + the OR skin both drive the agent-sdk backend, and vllm joins them via the local loopback
+    // agent path (buildClaudeVllmEnv → 127.0.0.1:VLLM_GEN_PORT /v1/messages — deriveRunner + firewall
+    // already route/allow it for the agent role); every other source is incoherent on this api.
     if (source !== "max-pro-sub" && source !== "openrouter" && source !== "vllm") {
       throw new ConnectionRoutingError(api, source);
     }
@@ -118,20 +117,23 @@ function assertCoherent(api: ChatApi, source: CredentialSource): void {
 /** Resolve the model id for an `agent-sdk` chat selection — EXPLICIT + EXHAUSTIVE + FAIL-LOUD (owner ruling).
  *  The prior source-blind `return healToChatDefault(model)` silently healed EVERY agent-sdk source to a Claude
  *  default (opus); for `vllm` that 404'd the loopback and crashed Claude Code two layers down — the exact
- *  silent-failure antipattern that masked the bug. Only the four sources `assertCoherent` admits on this api
+ *  silent-failure antipattern that masked the bug. Only the three sources `assertCoherent` admits on this api
  *  can reach here; a new/unexpected one THROWS at resolution instead of becoming opus. */
 function healAgentSdkModel(source: CredentialSource, model: string | null): ModelId {
   switch (source) {
-    // Sub / first-party Anthropic key / OR skin legitimately run Claude models → the curated Claude heal.
+    // Sub / OR skin legitimately run Claude models → the curated Claude heal.
     case "max-pro-sub":
+    case "openrouter":
       return healToChatDefault(model);
     // U0 local loopback agent path: Claude Code runs against the LOCAL vLLM engine, which serves ONLY the
     // slash-free alias (buildClaudeVllmEnv's ANTHROPIC_DEFAULT_*_MODEL). A Claude default id would 404 it.
     case "vllm":
       return castId<ModelId>(vllmAgentModelAlias());
-    // Any other source is incoherent on agent-sdk (assertCoherent rejects it upstream); reaching here means a
-    // new coherent source was added WITHOUT its heal arm — fail LOUD, never silently emit opus.
-    default:
+    // Incoherent on agent-sdk (assertCoherent rejects them upstream); reaching here is a routing bug —
+    // fail LOUD, never silently emit opus. Exhaustive: a NEW CredentialSource member is a lint error
+    // here until its heal arm is decided.
+    case "local-light":
+    case "custom_openai":
       throw new AgentModelHealError(source);
   }
 }
@@ -156,7 +158,7 @@ async function resolveRoleSelection(ctx: ConnectionContext, params: ResolveRoleP
   const settings = await ctx.loadUserSettings(params.principal.userId);
   const selection = applyVllmFallback(
     params.role,
-    ROLE_SELECTORS[params.role](settings.routing.roleDefaults, undefined, ctx.isOwner(params.principal)),
+    ROLE_SELECTORS[params.role](settings.routing.roleDefaults, params.routeOverride, ctx.isOwner(params.principal)),
     ctx.vllmAvailable,
   );
   assertCoherent(selection.api, selection.source);
@@ -167,8 +169,8 @@ async function resolveRoleSelection(ctx: ConnectionContext, params: ResolveRoleP
  *  server hop — the client params-panel + the rpg lite gate consume ONLY the capability, so this collapses
  *  the former selection→getModelCapability round-trip. Reuses the SAME selector as `resolveRole` (a vLLM
  *  default resolves identically to the engine) + the SAME `resolveCapability` mediator as `getModelCapability`
- *  (no duplication). Credential-free: the chat role never touches comfyui/BYO, so the static descriptor is
- *  authoritative (matching `getModelCapability`). */
+ *  (no duplication). Credential-free: the chat role reads the static descriptor as authoritative
+ *  (matching `getModelCapability`). */
 export function createResolveChatCapability(ctx: ConnectionContext): ConnectionService["resolveChatCapability"] {
   return async (params: ResolveChatCapabilityParams): Promise<ModelCapability> => {
     // Role is FIXED to "chat" here and the principal is the ONLY input — there is no caller-supplied user id

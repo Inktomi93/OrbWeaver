@@ -8,7 +8,7 @@ import type { CharacterCard } from "@orb/contracts/character";
 import type { ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
 import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { Principal } from "@orb/contracts/identity";
-import type { ImageDiffusionParams, PromptTemplateMode } from "@orb/contracts/imagery";
+import type { PromptTemplateMode } from "@orb/contracts/imagery";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import type { AssetId, CharacterId, ChatId, ImageryGenerationId, ModelId, UserId } from "@orb/kit/ids";
@@ -62,15 +62,10 @@ export interface GeneratedImage {
 /** The edit/img2img payload on the request's `edit` field. Structural twin of the infra `ImageEditInput`
  *  (the domain never imports `#infra/*`) — present ⇒ img2img/edit, absent ⇒ text→image. */
 interface ImageEditInput {
-  /** OPTIONAL init/img2img source — a pose-only ControlNet drive (comfyui-control §4.12, C6d) carries just
-   *  `poseControl` and no init (the ComfyUI arch builders fall back to an empty latent). */
+  /** OPTIONAL init/img2img source. */
   readonly image?: Uint8Array | string | undefined;
   readonly mask?: Uint8Array | string | undefined;
   readonly references?: readonly (Uint8Array | string)[] | undefined;
-  /** An OpenPose SKELETON control map the ComfyUI curated arm feeds into the family's ControlNet (§4.12, C6d).
-   *  The widened twin of the infra `ImageEditInput.poseControl`; the generatePicture verb resolves a pose
-   *  selection (curated id / BYO assetId) to these bytes. Runners without controlnet drop it with a warning. */
-  readonly poseControl?: Uint8Array | string | undefined;
 }
 
 /** The text→image request the domain hands the sealed executor. Free mode fills the credential/model/prompt/
@@ -81,9 +76,7 @@ export interface ImageGenerateRequest {
   readonly credential: ResolvedCredential;
   readonly model: ModelId;
   readonly prompt: string;
-  /** The generation owner (the caller's user id) — the widened twin of the infra `ImageGenerateRequest.owner`.
-   *  Threaded so the sealed ComfyUI BYO arm can owner-scope a `byo:<name>` workflow load (comfyui-control §4.11);
-   *  every other runner ignores it. */
+  /** The generation owner (the caller's user id) — the widened twin of the infra `ImageGenerateRequest.owner`. */
   readonly owner?: UserId | undefined;
   readonly n?: number | undefined;
   readonly systemPrompt?: string | undefined;
@@ -92,9 +85,6 @@ export interface ImageGenerateRequest {
   /** A hint (same posture as `n`) — passed where the wire supports it. */
   readonly size?: { readonly width: number; readonly height: number } | undefined;
   readonly edit?: ImageEditInput | undefined;
-  /** The optional diffusion knobs (MA-8/D96) — honored by a local engine (ComfyUI), ignored-with-honesty by
-   *  hosted sources. The widened twin of the infra `ImageGenerateRequest.imageParams`. */
-  readonly imageParams?: ImageDiffusionParams | undefined;
   /** The resolved model capability the runner's edit-strip belt reads (imagery-design/03 §1): an `edit` payload
    *  whose model lacks `input.imageEdit` is stripped + warned, never sent. The domain resolves this at every
    *  verb (the same model the edit gate reads), so it is REQUIRED here — a request build that omits it fails

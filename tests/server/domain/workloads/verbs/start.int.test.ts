@@ -214,50 +214,6 @@ describe("workloads.start — databank singular enqueue (DBK-B(a))", () => {
   });
 });
 
-// E4: expressions-sprite-sheet was `singular:false, bulk:true, stub:true` at HEAD — a per-character owner-
-// triggered job mislabelled as a box-wide bulk sweep. The compose enqueue now uses mode:"singular" (owner-
-// scoped); the generate-sprite-sheet.int suite FAKED the enqueue op, so the real mode gate was never driven.
-// This drives it BOTH directions: singular is now ACCEPTED (owner-scoped row), and the OLD bulk shape is now
-// REFUSED (unsupported_mode) — the mode-gate bite proof (DBK-B precedent).
-describe("workloads.start — expressions-sprite-sheet singular enqueue (E4)", () => {
-  test("a singular sprite-sheet enqueue is ACCEPTED and lands a queued row owned by the caller", async () => {
-    const db = await freshDb();
-    const alice = await seedUser(db, "user_alice");
-    const s = makeService(db);
-    const { id } = await s.start({
-      input: {
-        kind: "expressions-sprite-sheet",
-        params: { characterId: mintTypeId(ID_PREFIX.character), labels: ["happy"], matte: "flood", ownerId: alice },
-      },
-      caller: null,
-      mode: "singular",
-      ownerId: alice,
-    });
-    const row = await s.get({ id, caller: null });
-    expect(row.status).toBe("queued");
-    expect(row.kind).toBe("expressions-sprite-sheet");
-    expect(row.mode).toBe("singular");
-    expect(row.ownerId).toBe(alice);
-  });
-
-  test("the OLD bulk shape is now REFUSED (unsupported_mode) — the mislabel can't recur", async () => {
-    const db = await freshDb();
-    const alice = await seedUser(db, "user_alice");
-    const s = makeService(db);
-    await expect(
-      s.start({
-        input: {
-          kind: "expressions-sprite-sheet",
-          params: { characterId: mintTypeId(ID_PREFIX.character), labels: ["happy"], matte: "flood", ownerId: alice },
-        },
-        caller: null,
-        mode: "bulk",
-        ownerId: null,
-      }),
-    ).rejects.toBeInstanceOf(DomainOperationError);
-  });
-});
-
 describe("workloads.start — the per-(kind, owner, source) singular lock", () => {
   test("the same user can't start a 2nd of one SINGULAR (kind, source), but two users each can", async () => {
     const db = await freshDb();

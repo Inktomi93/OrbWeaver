@@ -80,8 +80,6 @@ const BUS_FILTERS: BusFilterMap = {
   chatDeleted: (e, trpc) => chatReads(trpc, e.chatId),
   chatOpened: (e, trpc) => [trpc.chat.getChat.queryFilter({ chatId: e.chatId })],
   historyTruncated: (e, trpc) => [trpc.chat.getChat.queryFilter({ chatId: e.chatId })],
-  // Ephemeral sprite-swap presentation state — no query reads it; explicit [], never omitted.
-  expression: () => [],
   chatUpdated: (e, trpc) => chatReads(trpc, e.chatId),
 };
 

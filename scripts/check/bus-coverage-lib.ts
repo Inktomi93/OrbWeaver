@@ -1,12 +1,12 @@
 // Shared producer-coverage reconcile for the per-bus emit-coverage ratchets (ledger D50 + its twins).
 // A bus's event union is compile-exhaustive on the CONSUMER side (the client's total map), but nothing
 // machine-checks the PRODUCER side — a member can be declared, replay-guarded/reduced, and never emitted
-// (silently dead wire). Each bus's thin gate (scripts/check/gates/{bus-coverage,user-bus-coverage,
-// rpg-bus-coverage}.ts) supplies a `BusCoverageSpec`; THIS module owns the ONE reconcile so a new bus is a
-// spec, not a third copy of the belt logic (derive, not re-declare — docs/architecture/core/AGENTS.md
-// §0.1.2 / lock-the-extensible-shape). Two shapes of `*_EVENT_TYPES` belt are supported: an object literal
+// (silently dead wire). Each bus's thin gate (scripts/check/gates/{bus-coverage,user-bus-coverage}.ts)
+// supplies a `BusCoverageSpec`; THIS module owns the ONE reconcile so a new bus is a spec, not a third
+// copy of the belt logic (derive, not re-declare — docs/architecture/core/AGENTS.md §0.1.2 /
+// lock-the-extensible-shape). Two shapes of `*_EVENT_TYPES` belt are supported: an object literal
 // (`{ delta: true, … } satisfies Record<X["type"], true>` — chat/user) and an array literal
-// (`["snapshotPatched", …] as const satisfies readonly X["type"][]` — rpg).
+// (`[…] as const satisfies readonly X["type"][]` — the array-shape twin, currently unused).
 import type { Project, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { Violation } from "./harness.ts";

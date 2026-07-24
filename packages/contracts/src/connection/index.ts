@@ -126,18 +126,12 @@ export const modelCapabilitySchema = z.object({
   verbosity: z.array(verbositySchema).optional(),
   /** `vision` = accepts image content-parts (gates the multimodal send). `imageEdit` = accepts an
    *  init/reference image on the image-GENERATION call — distinct from `vision` (chat-input images).
-   *  `imageIdentity` = the model honors an identity/FACE reference (`edit.references[]`) as a dedicated
-   *  identity-lock channel (IPAdapter-FaceID / PuLID — comfyui-control §4.6/C6), distinct from a plain
-   *  img2img init: the B3 avatar-reference gate routes the avatar into `references[]` (not `image`) when this
-   *  is advertised, so the local arm conditions on the FACE rather than denoising the whole avatar. Absent ⇒
-   *  the arm has no identity lock (a curated Anima role, a hosted arm) — the reference falls back to img2img.
    *  `file`/`audio`/`video` = the model accepts that input modality (OpenRouter advertises them; capability
    *  TRUTH now — absent ⇒ false, no consumer sends these parts yet). */
   input: z
     .object({
       vision: z.boolean(),
       imageEdit: z.boolean().optional(),
-      imageIdentity: z.boolean().optional(),
       file: z.boolean().optional(),
       audio: z.boolean().optional(),
       video: z.boolean().optional(),
@@ -146,26 +140,6 @@ export const modelCapabilitySchema = z.object({
   /** Present ⇒ accepts a `tools[]` request; `parallel` = may request several tool calls in one turn.
    *  Absent ⇒ no tool-calling (tool-call parts drop with a `tools_unsupported` warning). */
   tools: z.object({ parallel: z.boolean() }).optional(),
-  /** Image-generation diffusion knobs the source's runner honors (MA-8/D96 — capture-and-use per D95). A
-   *  knob ABSENT ⇒ the runner ignores it with honesty (the capability says it's unsupported, so a request
-   *  carrying it is never silently dropped — the panel simply doesn't offer it). Only the `comfyui` source
-   *  advertises these today (hosted Venice/OpenRouter image models expose no diffusion knobs). `sampler`/
-   *  `scheduler`/`checkpoint` are booleans (the knob EXISTS); the live enum VALUES come from the separate
-   *  `probeImageEngine` verb (`/object_info`), never from this static descriptor. */
-  imageGen: z
-    .object({
-      steps: rangeSchema.optional(),
-      cfg: rangeSchema.optional(),
-      sampler: z.boolean().optional(),
-      scheduler: z.boolean().optional(),
-      seed: z.boolean().optional(),
-      checkpoint: z.boolean().optional(),
-      /** The curated-role QUALITY TIER lever (comfyui-control §C8): present ⇒ this role's family has a
-       *  max-quality `advanced` bundle the `quality:'high'` knob unlocks (detailers/hires/ultimate-upscale);
-       *  absent ⇒ no advanced tier (the panel offers no quality toggle). Boolean presence, like `sampler`. */
-      quality: z.boolean().optional(),
-    })
-    .optional(),
   /** `structured` = accepts `response_format`/JSON-schema constrained output — separate from `tools`. */
   output: z.object({ maxTokens: rangeSchema, structured: z.boolean().optional() }),
   context: z.object({ window: z.number(), supports1M: z.boolean().optional() }),
@@ -177,7 +151,7 @@ export const modelCapabilitySchema = z.object({
   turns: z
     .object({
       /** The wire accepts a DELIVERED trailing-assistant message as prefill; false ⇒ SHAPE normalizes at
-       *  delivery (a false-model receiving one hard-400s). Per-model, per-transport on anthropic-messages. */
+       *  delivery (a false-model receiving one hard-400s). Per-model, per-transport. */
       assistantPrefill: z.boolean(),
       /** A mid-conversation system-authority channel exists and this model honors it, placement-correct. */
       midConversationSystem: z.boolean(),

@@ -605,7 +605,6 @@ describe("chat.forkChat — the deep-copy-into-a-new-chat verb (chat-surface lan
       participants: [],
       viewerActivePersonaId: null,
       viewerIsHost: true,
-      rpgGameId: null,
       viewerUserId: MEMBER,
       pendingHostUserId: null,
       group: DEFAULT_GROUP_CONFIG,

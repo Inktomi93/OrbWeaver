@@ -17,7 +17,6 @@ import { assets, characterBooks, characters, characterTags, tags, worldBooks, wo
 import type { AssetId, CharacterId, Handle, TagId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ExportContext } from "../../../../packages/server/src/domain/export/context.ts";
-import type { ParsedAgentAuthor } from "../../../../packages/server/src/kit/serde/chat/index.ts";
 import { FROZEN_AT_MS } from "../../../support/clock.ts";
 import { principal as makePrincipal } from "../../../support/factories/principal.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
@@ -50,14 +49,7 @@ const unused = (): never => {
   throw new Error("export tests do not exercise this CAS method");
 };
 
-/** Optional injected seams. `agentAuthors` seeds the PD-17 `resolveAgentAuthor` op: a userId → provenance
- *  map (a fake standing in for the compose-root FK-walk + soul-drop). Absent ⇒ the op always resolves null
- *  (no agent-authored rows), so every character/persona test exercises the pre-PD-17 fallback unchanged. */
-interface HarnessSeams {
-  readonly agentAuthors?: ReadonlyMap<UserId, ParsedAgentAuthor>;
-}
-
-export function makeHarness(db: Db, seams: HarnessSeams = {}): ExportHarness {
+export function makeHarness(db: Db): ExportHarness {
   const blobs = new Map<string, Uint8Array>();
   const reads: string[] = [];
   const transforms: TransformCall[] = [];
@@ -85,10 +77,8 @@ export function makeHarness(db: Db, seams: HarnessSeams = {}): ExportHarness {
     return Promise.resolve(AVATAR_PNG);
   };
 
-  const resolveAgentAuthor: ExportContext["resolveAgentAuthor"] = (agentUserId) => Promise.resolve(seams.agentAuthors?.get(agentUserId) ?? null);
-
   return {
-    ctx: { db, cas, imageTransform, resolveAgentAuthor },
+    ctx: { db, cas, imageTransform },
     putBlob: (ownerId, hash, bytes): void => {
       blobs.set(key(ownerId, hash), bytes);
     },

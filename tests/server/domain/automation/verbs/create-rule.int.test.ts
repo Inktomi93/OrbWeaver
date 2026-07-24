@@ -48,14 +48,6 @@ describe("createRule — validation refusals", () => {
     );
   });
 
-  test("refuses a reserved action arm", async () => {
-    const { host, chatId, svc } = await ruleFixture();
-    const arm: AutomationAction = { type: "rpg_verb", verb: "checkpoint", args: {} };
-    await expect(svc.createRule({ principal: principal(host), chatId, name: "x", trigger: MSG_COMMITTED, actions: [arm] })).rejects.toThrow(
-      RuleValidationError,
-    );
-  });
-
   test("refuses an unparseable CEL predicate", async () => {
     const { host, chatId, svc } = await ruleFixture();
     await expect(

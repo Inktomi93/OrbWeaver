@@ -31,18 +31,6 @@ test("D17 toggles exist on AppSettings with the right floor defaults (local ON, 
   expect(DEFAULT_ALLOW_NON_OWNER_MAX_PRO_SUB).toBe(false);
 });
 
-test("card-hub kill switch parses on AppSettings (master + per-hub allowlist); a stale hub key self-heals", () => {
-  const parsed = parseAppSettings({ hub: { enabled: false, enabledHubs: ["chub"] } });
-  expect(parsed.hub?.enabled).toBe(false);
-  expect(parsed.hub?.enabledHubs).toEqual(["chub"]);
-  // Every AppSettings field is `.catch(undefined)` (null=CLEAR self-heal): a stale/unknown hub key in the
-  // allowlist clears the whole `hub` override to undefined → the resolver reads the floor (master-ON, all
-  // hubs). The parse SUCCEEDS (never a hard reject that would brick the admin blob).
-  const healed = appSettingsSchema.safeParse({ hub: { enabledHubs: ["nope"] } });
-  expect(healed.success).toBe(true);
-  expect(healed.success && healed.data.hub).toBeUndefined();
-});
-
 test("D17 toggle fields parse (incl. the per-member local-compute COUNT budget)", () => {
   const override: AppSettings = {
     allowNonOwnerLocalCompute: false,
@@ -294,47 +282,6 @@ test("UserSettings.appearance accepts the new avatarShape=rounded + avatarAspect
 
 test("USER_SETTINGS_SECTIONS includes appearance (section-patchable via updateUserSettingsSection)", () => {
   expect(USER_SETTINGS_SECTIONS).toContain("appearance");
-});
-
-// ── hub (hub-browse doc 03 §6, H6) — the additive per-user card-hub browse-prefs namespace ──
-
-test("UserSettings.hub.nsfw defaults to exclude (SFW-first) from an empty blob (additive, defaulted section)", () => {
-  const parsed = parseUserSettings({});
-  expect(parsed.hub.nsfw).toBe("exclude");
-  expect(DEFAULT_USER_SETTINGS.hub.nsfw).toBe("exclude");
-  // The `hub` section is additive + `.prefault({})` (the appearance precedent): it defaults in regardless of
-  // the pinned schema version, so assert the CURRENT version constant (version-agnostic — no bump of its own).
-  expect(parsed.schemaVersion).toBe(USER_SETTINGS_SCHEMA_VERSION);
-});
-
-test("UserSettings.hub.nsfw persists a chosen tri-state and self-heals garbage to exclude (.catch)", () => {
-  expect(parseUserSettings({ schemaVersion: USER_SETTINGS_SCHEMA_VERSION, hub: { nsfw: "include" } }).hub.nsfw).toBe("include");
-  expect(parseUserSettings({ schemaVersion: USER_SETTINGS_SCHEMA_VERSION, hub: { nsfw: "only" } }).hub.nsfw).toBe("only");
-  expect(parseUserSettings({ schemaVersion: USER_SETTINGS_SCHEMA_VERSION, hub: { nsfw: "everything" } }).hub.nsfw).toBe("exclude");
-});
-
-test("USER_SETTINGS_SECTIONS includes hub (section-patchable via updateUserSettingsSection)", () => {
-  expect(USER_SETTINGS_SECTIONS).toContain("hub");
-});
-
-// ── expressions (expressions-design/02 §5, D49 #4) — the additive classify opt-in namespace ──
-
-test("UserSettings.expressions.autoClassify defaults false from an empty blob (no version bump)", () => {
-  const parsed = parseUserSettings({});
-  expect(parsed.expressions.autoClassify).toBe(false);
-  expect(DEFAULT_USER_SETTINGS.expressions.autoClassify).toBe(false);
-  // An empty blob still parses as the pinned current version — the namespace is additive, no lift/bump.
-  expect(parsed.schemaVersion).toBe(USER_SETTINGS_SCHEMA_VERSION);
-});
-
-test("UserSettings.expressions.autoClassify accepts an opt-in override and self-heals garbage (.catch)", () => {
-  expect(parseUserSettings({ schemaVersion: USER_SETTINGS_SCHEMA_VERSION, expressions: { autoClassify: true } }).expressions.autoClassify).toBe(true);
-  // A non-boolean self-heals to the default false (never throws) — the client can't corrupt the gate.
-  expect(parseUserSettings({ schemaVersion: USER_SETTINGS_SCHEMA_VERSION, expressions: { autoClassify: "yes" } }).expressions.autoClassify).toBe(false);
-});
-
-test("USER_SETTINGS_SECTIONS includes expressions (section-patchable via updateUserSettingsSection)", () => {
-  expect(USER_SETTINGS_SECTIONS).toContain("expressions");
 });
 
 // ── LogLevel is the ONE tuple (foundation/env mirrors it) + section unions ──

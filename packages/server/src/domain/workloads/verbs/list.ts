@@ -18,7 +18,6 @@ export function createList(ctx: WorkloadServiceContext): Pick<WorkloadService, "
       ...(params.kind !== undefined ? { kind: params.kind } : {}),
       ...(params.status !== undefined ? { status: params.status } : {}),
       ...(ownerId !== undefined ? { ownerId } : {}),
-      ...(params.chatId !== undefined ? { chatId: params.chatId } : {}),
       ...(params.since !== undefined ? { since: params.since } : {}),
       ...(params.limit !== undefined ? { limit: params.limit } : {}),
     });

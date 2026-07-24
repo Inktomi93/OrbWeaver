@@ -29,17 +29,15 @@ export function principal(userId: UserId): Principal {
   return { userId, role: "user", handle: castId<Handle>("h"), externalId: null, via: "cookie" };
 }
 
-/** A `resolveGenerateImage` override whose resolved model advertises a concrete `input.imageEdit` (and optionally
- *  `input.imageIdentity`) capability (the harness default is opaque `{}`) — drives the B3 avatar-reference gate +
- *  the editImage capability gate. `imageIdentity` routes the avatar onto the identity channel (`references[]`,
- *  IPAdapter/PuLID — comfyui-control §4.6) rather than the plain img2img init. */
-export function resolutionWith(imageEdit: boolean, imageIdentity = false): ImageryContext["resolveGenerateImage"] {
+/** A `resolveGenerateImage` override whose resolved model advertises a concrete `input.imageEdit` capability
+ *  (the harness default is opaque `{}`) — drives the B3 avatar-reference gate + the editImage capability gate. */
+export function resolutionWith(imageEdit: boolean): ImageryContext["resolveGenerateImage"] {
   return () =>
     Promise.resolve({
       // FABRICATION-OK: minimal connection double — credential/model are forwarded to the executor, never read by the fakes.
       connection: { api: "chat-completions", model: castId<ModelId>("img-model"), credential: {}, capability: {} } as unknown as ResolvedConnection,
-      // FABRICATION-OK: only input.imageEdit + input.imageIdentity are read by the gate.
-      capability: { input: { vision: false, imageEdit, imageIdentity } } as ModelCapability,
+      // FABRICATION-OK: only input.imageEdit is read by the gate.
+      capability: { input: { vision: false, imageEdit } } as ModelCapability,
     });
 }
 
@@ -56,14 +54,12 @@ export interface ImageryHarness {
   readonly ctx: ImageryContext;
   readonly recordedStats: StatsDelta[];
   readonly generateCalls: number[];
-  /** The full requests handed to the executor — used to assert the resolved `edit` payload (poseControl, C6d). */
+  /** The full requests handed to the executor — used to assert the resolved `edit` payload. */
   readonly generateRequests: ImageGenerateRequest[];
   readonly fetchImageCalls: string[];
   readonly extractInstructions: string[];
   readonly captionInstructions: string[];
   readonly readAssetCalls: AssetId[];
-  /** The curated pose ids `readCuratedPose` was asked to resolve (C6d). */
-  readonly curatedPoseCalls: string[];
 }
 
 export function makeHarness(db: Db, overrides: Partial<ImageryContext> = {}): ImageryHarness {
@@ -75,7 +71,6 @@ export function makeHarness(db: Db, overrides: Partial<ImageryContext> = {}): Im
   const extractInstructions: string[] = [];
   const captionInstructions: string[] = [];
   const readAssetCalls: AssetId[] = [];
-  const curatedPoseCalls: string[] = [];
   // FABRICATION-OK: minimal ResolvedConnection double — the free-mode orchestrator forwards credential/capability opaquely; the fakes never read them.
   const connection = {
     api: "chat-completions",
@@ -121,12 +116,6 @@ export function makeHarness(db: Db, overrides: Partial<ImageryContext> = {}): Im
       readAssetCalls.push(assetId);
       return Promise.resolve({ bytes: PNG_BYTES, mime: "image/png" });
     },
-    // A curated pose resolves to bytes (any ref the frozen index would carry); a ref starting `missing/` models a
-    // since-removed skeleton (null → the verb drops the pose honestly). Tests override for specific behaviour.
-    readCuratedPose: (poseRef) => {
-      curatedPoseCalls.push(poseRef);
-      return Promise.resolve(poseRef.startsWith("missing/") ? null : PNG_BYTES);
-    },
     getCard: () => Promise.resolve(fakeCard(castId<AssetId>("asset_avatar"))),
     recordStats: (delta) => {
       recordedStats.push(delta);
@@ -134,5 +123,5 @@ export function makeHarness(db: Db, overrides: Partial<ImageryContext> = {}): Im
     },
     ...overrides,
   };
-  return { ctx, recordedStats, generateCalls, generateRequests, fetchImageCalls, extractInstructions, captionInstructions, readAssetCalls, curatedPoseCalls };
+  return { ctx, recordedStats, generateCalls, generateRequests, fetchImageCalls, extractInstructions, captionInstructions, readAssetCalls };
 }

@@ -38,18 +38,12 @@ describe("parseParticipant — the kind shape", () => {
     });
   });
 
-
-
-
-
   test("rejects a corrupt row that breaks the human/character shape", () => {
     const userId = castId<UserId>("user_a");
     const characterId = castId<CharacterId>("character_a");
     expect(() => parseParticipant({ kind: "human", userId, characterId })).toThrow();
     expect(() => parseParticipant({ kind: "human", userId: null, characterId: null })).toThrow();
   });
-
-
 });
 
 describe("present-and-contributing predicates", () => {
@@ -67,7 +61,6 @@ describe("present-and-contributing predicates", () => {
   // The principal kill-switch arm (D60; doc 03 §4): a user-backed seat contributes only while its backing
   // user is enabled; a character seat (no backing user) is never gated by `enabled`.
   test("isBackingUserEnabled gates only USER_BACKED kinds on the principal enabled flag", () => {
-
     // human: also user-backed (a disabled human contributes nothing — moot in a live round, but the axis is coherent).
     expect(isBackingUserEnabled("human", true)).toBe(true);
     expect(isBackingUserEnabled("human", false)).toBe(false);

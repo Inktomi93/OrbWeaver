@@ -36,7 +36,7 @@ const CARD = makeCharacterDetail({
   name: "Aria Nightshade",
   handle: "aria",
   description: "A wandering cartographer with a sharp tongue.",
-  greetings: [GREETING_0],
+  greetings: [{ text: GREETING_0 }],
   systemPrompt: "You are Aria.",
   exampleMessages: EXAMPLE_MESSAGES,
 });
@@ -45,12 +45,12 @@ const CARD = makeCharacterDetail({
 const GREETINGS_CARD = makeCharacterDetail({
   name: "Aria Nightshade",
   handle: "aria",
-  greetings: ["First hello.", "Second hello."],
+  greetings: [{ text: "First hello." }, { text: "Second hello." }],
 });
 
 /** The shape the editor sends to `character.update`: the changed-keys diff under `input`. */
 interface UpdateCall {
-  readonly input?: { readonly name?: string; readonly greetings?: readonly string[] };
+  readonly input?: { readonly name?: string; readonly greetings?: readonly { readonly text: string; readonly groupOnly?: boolean }[] };
 }
 
 async function routeEditor(page: Page): Promise<void> {
@@ -113,7 +113,7 @@ test("§7/D78 — adding an opening persists the structural push via the store d
   await component.getByLabel("Opening 2").fill("A second greeting.");
 
   // The 2nd greeting reaches the server (proving the add path persists, not silently dropped).
-  await expect.poll(() => updateInput?.input?.greetings, { intervals: [100, 200, 300, 500] }).toEqual([GREETING_0, "A second greeting."]);
+  await expect.poll(() => updateInput?.input?.greetings, { intervals: [100, 200, 300, 500] }).toEqual([{ text: GREETING_0 }, { text: "A second greeting." }]);
 });
 
 test("§7/D78 — removing an alternate persists the structural removal to the server via the store driver", async ({ mount, page }) => {
@@ -134,7 +134,7 @@ test("§7/D78 — removing an alternate persists the structural removal to the s
   await component.getByRole("button", { name: "Remove opening" }).click();
 
   // removeFieldValue routes through setFieldValue → the store driver debounce-persists the shrunk array.
-  await expect.poll(() => updateInput?.input?.greetings, { intervals: [50, 100, 200, 300] }).toEqual(["First hello."]);
+  await expect.poll(() => updateInput?.input?.greetings, { intervals: [50, 100, 200, 300] }).toEqual([{ text: "First hello." }]);
 });
 
 test("§6.4 a facet row drills CONTENT into that field's body editor (a drill-in, not a modal)", async ({ mount, page }) => {

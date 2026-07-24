@@ -37,9 +37,7 @@ test("chatApiSchema round-trips every protocol member", () => {
   for (const api of CHAT_APIS) {
     expect(chatApiSchema.parse(api)).toBe(api);
   }
-  // `anthropic-messages` (D67, W7) — the anth-direct DIRECT-transport protocol, distinct from agent-sdk's
-  // CLI transport over the same wire.
-  expect(CHAT_APIS).toEqual(["agent-sdk", "chat-completions", "responses", "anthropic-messages"]);
+  expect(CHAT_APIS).toEqual(["agent-sdk", "chat-completions", "responses"]);
 });
 
 test("chatApiSchema rejects a non-member", () => {

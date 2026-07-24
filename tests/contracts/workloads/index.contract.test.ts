@@ -18,7 +18,7 @@ import { expect, test } from "../../support/fixtures";
 // ── The `WorkloadKind` axis (D34 — promoted to contracts so the db column derives it) ─────────────────
 // The ONE home for the union (§7.5). This literal list is the pinned canonical membership; a drift here
 // would mean the db enum / RUNNERS Record / tRPC wire have re-spelled it.
-test("WORKLOAD_KINDS is exactly the pinned 33-member kind axis (the parameterized `index` reindex, the assets GC/fsck maintenance kinds, the workload-backed import-bundle, the reserved/crew/expressions/databank stubs + the 10 rpg-* stubs)", () => {
+test("WORKLOAD_KINDS is exactly the pinned 18-member kind axis (the parameterized `index` reindex, the assets GC/fsck maintenance kinds, the workload-backed import-bundle, the databank kinds + the reconcile-world-state stub)", () => {
   expect(WORKLOAD_KINDS).toEqual([
     "index",
     "distill-characters",
@@ -36,23 +36,8 @@ test("WORKLOAD_KINDS is exactly the pinned 33-member kind axis (the parameterize
     "reconcile-stats",
     "refresh-model-catalog",
     "reconcile-world-state",
-    "crew-lorebook-keeper",
-    "crew-card-evolution",
-    "crew-director",
-    "crew-prose-audit",
-    "expressions-sprite-sheet",
     "databank-ingest",
     "databank-reindex",
-    "rpg-world-gen",
-    "rpg-recap",
-    "rpg-session-distill",
-    "rpg-director",
-    "rpg-lorebook-upkeep",
-    "rpg-illustration",
-    "rpg-npc-portrait",
-    "rpg-scene-plan",
-    "rpg-scene-distill",
-    "rpg-recruit-card",
   ]);
   expect(workloadKindSchema.options).toEqual(WORKLOAD_KINDS);
   // The two former embed kinds are GONE — collapsed into the parameterized `index` kind.
@@ -130,23 +115,8 @@ const KIND_SEEN: Record<WorkloadKind, true> = {
   "reconcile-stats": true,
   "refresh-model-catalog": true,
   "reconcile-world-state": true,
-  "crew-lorebook-keeper": true,
-  "crew-card-evolution": true,
-  "crew-director": true,
-  "crew-prose-audit": true,
-  "expressions-sprite-sheet": true,
   "databank-ingest": true,
   "databank-reindex": true,
-  "rpg-world-gen": true,
-  "rpg-recap": true,
-  "rpg-session-distill": true,
-  "rpg-director": true,
-  "rpg-lorebook-upkeep": true,
-  "rpg-illustration": true,
-  "rpg-npc-portrait": true,
-  "rpg-scene-plan": true,
-  "rpg-scene-distill": true,
-  "rpg-recruit-card": true,
 };
 test("WorkloadKind has no member beyond the tuple", () => {
   expect(Object.keys(KIND_SEEN).sort()).toEqual([...WORKLOAD_KINDS].sort());
@@ -226,34 +196,10 @@ test("WORKLOAD_KIND_MODES classifies every kind to its expected mode policy", ()
     "reconcile-stats": sweepBoth,
     "refresh-model-catalog": bulkOnlyBuilt,
     "reconcile-world-state": bulkOnlyStub,
-    // CW2/CW3/CW4/CW5: the real keeper/card-evolution/director/prose-audit runners — singular-per-chat on the
-    // host, no bulk sweep (chat-crew-design/08 CC-C). All four flipped from their CW1 stubs.
-    "crew-lorebook-keeper": singularOnlyBuilt,
-    "crew-card-evolution": singularOnlyBuilt,
-    "crew-director": singularOnlyBuilt,
-    "crew-prose-audit": singularOnlyBuilt,
-    // E4: the real sprite-sheet runner — a per-character generation an OWNER triggers for their own character,
-    // enqueued singular (compose `mode:"singular"`), no bulk sweep. Flipped from its `bulk+stub` mislabel.
-    "expressions-sprite-sheet": singularOnlyBuilt,
-    // DBK-B(a): flipped to singular+bulk BUILT — compose enqueues `databank-ingest`/`databank-reindex` in
+    // DBK-B(a): singular+bulk BUILT — compose enqueues `databank-ingest`/`databank-reindex` in
     // mode:"singular" off upload/reindex, and the embed-model change enqueues a bulk `databank-reindex` sweep.
     "databank-ingest": sweepBoth,
     "databank-reindex": sweepBoth,
-    // R6: the real world-gen/recap/session-distill runners — singular-per-game on the host, no bulk sweep
-    // (rpg-design/10 R6). Flipped from their stubs.
-    "rpg-world-gen": singularOnlyBuilt,
-    "rpg-recap": singularOnlyBuilt,
-    "rpg-session-distill": singularOnlyBuilt,
-    // R7: the real director + lorebook-upkeep runners — singular-per-game on the host (rpg-design/10 R7).
-    "rpg-director": singularOnlyBuilt,
-    "rpg-lorebook-upkeep": singularOnlyBuilt,
-    // R9/R10: the real image + scene/recruit runners — singular-per-game/owner on the host, no bulk sweep
-    // (rpg-design/10 §R9/§R10). Flipped from their stubs once the runner bodies + tests landed.
-    "rpg-illustration": singularOnlyBuilt,
-    "rpg-npc-portrait": singularOnlyBuilt,
-    "rpg-scene-plan": singularOnlyBuilt,
-    "rpg-scene-distill": singularOnlyBuilt,
-    "rpg-recruit-card": singularOnlyBuilt,
   };
   expect(WORKLOAD_KIND_MODES).toEqual(expected);
 });

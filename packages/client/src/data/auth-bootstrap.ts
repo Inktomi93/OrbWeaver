@@ -1,8 +1,7 @@
 // The auth bootstrap seam — the client's only pre-tRPC session read (sessions.me is an authed procedure
-// that 401s logged-out, so the client can't discover auth state through tRPC). The CONFIG half of this
-// seam (`AuthConfig`/`fetchAuthConfig`) moved to `#data/auth-config` — a chat context tab needs
-// `multiHumanCapable` without a cross-feature reach into auth; import it from `#data` directly. `AuthMe`
-// stays here: session-specific, no consumer outside auth. Response shape is a structural mirror of
+// that 401s logged-out, so the client can't discover auth state through tRPC). Lives in data/ beside
+// `auth-config.ts`: HTTP-route egress gets ONE data/ fetch fn each (fetch-fn-in-features gate) — features
+// import the fns, never hand-write `fetch`. Response shape is a structural mirror of
 // entry/http/auth-meta.ts (no proxy type to derive from, since the endpoint lives outside AppRouter).
 
 import type { UserRole } from "@orb/contracts/identity";

@@ -208,7 +208,7 @@ test("an OPEN select popup resolves the ThemeScope override", async ({ mount, pa
   await page.getByRole("combobox", { name: "pick" }).click();
   const popup = page.locator('[data-slot="select-popup"]');
   await expect(popup).toBeVisible();
-  expect(await popup.evaluate(readPrimary)).toBe(FLOAT_ACCENT);
+  await expect.poll(() => popup.evaluate(readPrimary)).toBe(FLOAT_ACCENT);
 });
 
 test("an OPEN menu popup resolves the ThemeScope override", async ({ mount, page }) => {
@@ -225,7 +225,7 @@ test("an OPEN menu popup resolves the ThemeScope override", async ({ mount, page
   await page.getByRole("button", { name: "actions" }).click();
   const popup = page.locator('[data-slot="menu-popup"]');
   await expect(popup).toBeVisible();
-  expect(await popup.evaluate(readPrimary)).toBe(FLOAT_ACCENT);
+  await expect.poll(() => popup.evaluate(readPrimary)).toBe(FLOAT_ACCENT);
 });
 
 // The MODAL family (Dialog/AlertDialog/Drawer) reads the same context default as the six floats — a
@@ -247,5 +247,5 @@ test("an OPEN dialog popup (no explicit container) resolves the ThemeScope overr
   await page.getByRole("button", { name: "open dialog" }).click();
   const popup = page.locator('[data-slot="dialog-popup"]');
   await expect(popup).toBeVisible();
-  expect(await popup.evaluate(readPrimary)).toBe(FLOAT_ACCENT); // Hearth would be oklch(0.72 0.175 52)
+  await expect.poll(() => popup.evaluate(readPrimary)).toBe(FLOAT_ACCENT); // Hearth would be oklch(0.72 0.175 52)
 });

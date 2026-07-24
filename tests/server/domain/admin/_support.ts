@@ -61,22 +61,6 @@ export async function seedUser(db: Db, overrides: SeedUserOverrides = {}): Promi
   return id;
 }
 
-/** Seed an agent-principal `users` row (D60) — the refusal-matrix target. `ownerId` must be a seeded human
- *  (the `ownerUserId` FK + the `users_agent_shape` CHECK: `role='user'`, no password/externalId, owned). */
-export async function seedAgent(db: Db, ownerId: UserId, id = "user_agent"): Promise<UserId> {
-  const agentId = castId<UserId>(id);
-  await db.insert(users).values({
-    id: agentId,
-    handle: castId<Handle>(`__agent__buddy__${ownerId}`),
-    role: "user",
-    kind: "agent",
-    ownerUserId: ownerId,
-    createdAt: FROZEN_AT,
-    updatedAt: FROZEN_AT,
-  });
-  return agentId;
-}
-
 /** Build a Principal for a given user id + role (cookie-resolved by default). Delegates to the shared
  *  `support/factories/principal` — admin keeps the positional `(id, role, handle?)` convention its ~40
  *  call sites use; the shared home owns the literal (role/handle over the `overrides` axis). */

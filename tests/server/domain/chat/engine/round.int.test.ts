@@ -22,7 +22,7 @@ import { recallMemory } from "../../../../../packages/server/src/domain/chat/mem
 import { loadCanonHistory } from "../../../../../packages/server/src/domain/chat/persistence/queries";
 import { freshDb } from "../../../../support/db";
 import { expect, test } from "../../../../support/fixtures";
-import { makeChatContext, scriptedRoleTurn, seedAgent, seedCharacter, seedChat, seedUser, testConnection } from "../_support";
+import { makeChatContext, scriptedRoleTurn, seedCharacter, seedChat, seedUser, testConnection } from "../_support";
 
 const HOST = castId<UserId>("user_host");
 const cid = (k: string): CharacterId => castId<CharacterId>(`character_${k}`);
@@ -66,9 +66,6 @@ function realEngine(database: Db, requests: TurnRequest[]): TurnEngine {
   const ctx = makeChatContext(database, {
     runChatTurn: scriptedRoleTurn(requests),
     applyStatsDelta: (): void => undefined,
-    // The engine's canAgent('speak') gate reads the actor for an agent-authored turn (D60); an enabled
-    // actor lets the self-attribution turn through. A character turn never reaches this (the gate short-circuits).
-    resolveAgentActor: (id) => Promise.resolve({ kind: "agent", userId: id, ownerUserId: HOST, enabled: true }),
   });
   return createTurnEngine(ctx, {
     emit: (_e: ChatBusEvent): Promise<void> => Promise.resolve(),
@@ -138,30 +135,6 @@ describe("driveRound — per-speaker round (ONE ctx, N speakers, per-speaker loc
     expect(history.map((m) => m.seq)).toEqual([1, 2, 3]);
     expect(history.map((m) => m.characterId)).toEqual([cid("a"), cid("b"), cid("c")]);
     expect(history.every((m) => m.role === "assistant")).toBe(true);
-  });
-
-  test("an AGENT speaker self-attributes: characterId NULL, authorUserId = the agent (D60, doc 02 §2)", async () => {
-    // The AP2 headline (doc 07 §2 checkpoint): a hand-seated agent's turn persists self-attributed —
-    // host-funded (runAsUserId = HOST, unchanged) but AUTHORED by the agent. No character card, no
-    // `speakerCharacterId`. Proves `buildSpeakerPrep`'s agent arm end-to-end through the real engine.
-    const agentId = await seedAgent(db, HOST, "buddy");
-    const chatId = await seedChat(db, "agent");
-    const requests: TurnRequest[] = [];
-    const outcome = await driveRound({
-      engine: realEngine(db, requests),
-      base: base(chatId),
-      group: PER_SPEAKER,
-      speakers: [{ ref: { kind: "agent", userId: agentId }, name: "Buddy" }],
-      groupCharacterId: null,
-      castName: "Buddy",
-    });
-
-    expect(outcome.messages).toHaveLength(1);
-    const history = await loadCanonHistory(db, chatId);
-    expect(history).toHaveLength(1);
-    expect(history[0]?.role).toBe("assistant");
-    expect(history[0]?.characterId).toBeNull();
-    expect(history[0]?.authorUserId).toBe(agentId);
   });
 
   test("per-speaker card section: each speaker renders THEIR OWN card as primary + the other as co-speaker (§7)", async () => {

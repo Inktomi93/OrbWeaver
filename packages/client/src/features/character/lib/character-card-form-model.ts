@@ -9,7 +9,7 @@
 // server row and emits only keys that actually changed, so a save can't silently revert a concurrent
 // edit to an untouched field. Omitted = unchanged; a present `null` = clear.
 
-import type { UpdateCharacterInput } from "@orb/contracts/character";
+import type { Greeting, UpdateCharacterInput } from "@orb/contracts/character";
 import type { RegexScript } from "@orb/contracts/regex";
 import { isAssistantPrefill } from "@orb/kit/injection";
 import type { MessageRole } from "@orb/kit/message-role";
@@ -82,7 +82,7 @@ function orNull(value: string): string | null {
 export function characterCardFormFromDetail(card: CharacterDetail): CharacterCardFormValues {
   return {
     name: card.name,
-    greetings: card.greetings.length > 0 ? [...card.greetings] : [""],
+    greetings: card.greetings.length > 0 ? card.greetings.map((g) => g.text) : [""],
     description: orEmpty(card.description),
     personality: orEmpty(card.personality),
     scenario: orEmpty(card.scenario),
@@ -153,10 +153,13 @@ function deepEqual(a: unknown, b: unknown): boolean {
   return aKeys.length === bKeys.length && aKeys.every((key) => deepEqual((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key]));
 }
 
-/** Keep `[0]` always (the first message, even when empty), drop only trailing empty ALTERNATES. */
-function normalizeGreetings(greetings: readonly string[]): string[] {
+/** Keep `[0]` always (the first message, even when empty), drop only trailing empty ALTERNATES, and lift
+ *  each text into the wire {@link Greeting} shape. This snapshot editor is text-only: it has no
+ *  `groupOnly` affordance, so it never emits (nor preserves) that flag — a card's group-only greetings
+ *  round-trip as normal greetings if the greetings array is edited here. */
+function normalizeGreetings(greetings: readonly string[]): Greeting[] {
   const [first = "", ...rest] = greetings;
-  return [first, ...rest.filter((g) => g.trim() !== "")];
+  return [first, ...rest.filter((g) => g.trim() !== "")].map((text) => ({ text }));
 }
 
 /** Re-nest the flat depthPrompt siblings, or `null` when the note text is empty (no note). */

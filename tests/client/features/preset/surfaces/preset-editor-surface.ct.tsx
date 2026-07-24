@@ -159,5 +159,7 @@ test("RESET pin — reset-to-starter shows the starter config and never writes t
   // dirty pre-reset form. With the old frozen-seed bug (or a non-discard teardown) that flush writes the
   // pre-reset "balanced" back over the starter — a NEW `preset.update` past the snapshot. Wait it out; none.
   await page.evaluate(() => new Promise<void>((resolve) => setTimeout(resolve, 700)));
+  // ONESHOT-OK: settled — the preceding 700ms real-timer wait is the negative-assertion window itself
+  // (proving NO late `preset.update` fires); there is no later state to race against.
   expect(trpc.count("preset.update")).toBe(updatesBeforeReset);
 });

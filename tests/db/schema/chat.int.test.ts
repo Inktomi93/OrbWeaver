@@ -459,51 +459,6 @@ test("the kind-shape CHECK rejects a human with NEITHER userId nor characterId s
   expect(caught).toBeDefined();
 });
 
-// ── the D60 kind-shape CHECK swap (agent-principal-design/02 §1): `agent` shares the `human` column shape ──
-// (userId, no characterId); cross-shape rows are rejected. At AP0 there is NO agent-USERS row (the mint is
-// AP1) and no seatAgent path — these pin the ROSTER shape CHECK in isolation.
-
-test("the kind-shape CHECK accepts an `agent` seat carrying userId (no characterId)", async () => {
-  const db = await freshDb();
-  const ownerId = await seedUser(db, { id: "user_agent_ok" });
-  const chatId = await seedChat(db, { id: "chat_agent_ok" });
-  await db.insert(chatParticipants).values({
-    id: castId<ChatParticipantId>("chat_participant_agent"),
-    chatId,
-    kind: "agent",
-    userId: ownerId,
-    role: "member",
-    joinSeq: 0,
-  });
-  const rows = await db.select().from(chatParticipants).where(eq(chatParticipants.chatId, chatId));
-  expect(rows).toHaveLength(1);
-  expect(rows[0]?.kind).toBe("agent");
-  expect(rows[0]?.userId).toBe(ownerId);
-  expect(rows[0]?.characterId).toBeNull();
-});
-
-test("the kind-shape CHECK rejects an `agent` seat carrying a characterId (cross-shape)", async () => {
-  const db = await freshDb();
-  const ownerId = await seedUser(db, { id: "user_agent_bad" });
-  const chatId = await seedChat(db, { id: "chat_agent_bad" });
-  const characterId = await seedCharacter(db, ownerId, "character_agent_bad");
-
-  let caught: unknown;
-  try {
-    await db.insert(chatParticipants).values({
-      id: castId<ChatParticipantId>("chat_participant_agent_bad"),
-      chatId,
-      kind: "agent",
-      characterId,
-      role: "member",
-      joinSeq: 0,
-    });
-  } catch (err) {
-    caught = err;
-  }
-  expect(caught).toBeDefined();
-});
-
 test("the kind-shape CHECK rejects a `character` seat carrying a userId (cross-shape)", async () => {
   const db = await freshDb();
   const ownerId = await seedUser(db, { id: "user_char_cross" });
@@ -655,13 +610,9 @@ test("test-mirror: every chat enum column derives its canonical tuple", () => {
   expect([...chatStreamEvents.kind.enumValues]).toEqual(["text", "reasoning"]);
 });
 
-test("PARTICIPANT_KINDS is the 4-member tuple; `observer` stays reserved + un-seatable (no shape arm inserts it)", () => {
-  // human/character/agent each have a kind-shape arm (insertable); `observer` carries neither column and has
-  // no INSERT path (D60 kept it reserved — the un-seatable seam). `agent` is born at AP0 (schema), un-seatable
-  // until seatAgent (AP3, FLAG[PD-17]).
-  expect([...chatParticipants.kind.enumValues]).toContain("observer");
-  expect([...chatParticipants.kind.enumValues]).toContain("agent");
-  expect(PARTICIPANT_KINDS).toEqual(["human", "character", "agent", "observer"]);
+test("PARTICIPANT_KINDS is the pinned 2-member tuple (human/character)", () => {
+  expect([...chatParticipants.kind.enumValues]).toEqual(["human", "character"]);
+  expect(PARTICIPANT_KINDS).toEqual(["human", "character"]);
 });
 
 // ── chat_events (the ChatBusEvent discriminant CHECK) ────────────────────────

@@ -20,7 +20,6 @@ import type {
 } from "@orb/contracts/chat";
 import {
   acceptInviteSchema,
-  agentMemberSpecSchema,
   buildCharacterNameMap,
   buildPersonaNameMap,
   CHAT_BUS_EVENT_TYPES,
@@ -391,10 +390,8 @@ test("CHAT_BUS_EVENT_TYPES is the exhaustive discriminator set incl. the embedde
   expect(isChatBusEventType("chatOpened")).toBe(true);
   expect(isChatBusEventType("warning")).toBe(true);
   expect(isChatBusEventType("messageHidden")).toBe(true);
-  expect(isChatBusEventType("expression")).toBe(true);
-  // 22 chat-owned (incl. the D45 `warning`, the PD-86 `messageHidden`, the D49 #4 `expression`) + 5 WI
-  // variants.
-  expect(Object.keys(CHAT_BUS_EVENT_TYPES)).toHaveLength(27);
+  // 20 chat-owned (incl. the D45 `warning`, the PD-86 `messageHidden`) + 6 WI variants.
+  expect(Object.keys(CHAT_BUS_EVENT_TYPES)).toHaveLength(26);
 });
 
 test("a representative ChatBusEvent round-trips its public, secret-free shape", () => {
@@ -691,15 +688,8 @@ test("rosterMemberSpecSchema round-trips the character arm (characterId + positi
   expect(characterMemberSpecSchema.parse(spec)).toEqual(spec);
 });
 
-test("rosterMemberSpecSchema carries the agent arm FROM BIRTH — a MINT KEY (ownerUserId × sourceKind), never a userId", () => {
-  const spec = { kind: "agent" as const, ownerUserId: SAMPLE_USER_ID, sourceKind: "buddy" as const, position: 1, disabled: false };
-  expect(rosterMemberSpecSchema.parse(spec)).toEqual(spec);
-  // The agent arm has NO characterId (it is a template mint key, not a card seat).
-  expect(agentMemberSpecSchema.safeParse({ ...spec, characterId: SAMPLE_CHARACTER_ID }).success).toBe(true); // extra keys stripped, not rejected
-  expect(agentMemberSpecSchema.parse({ ...spec, characterId: SAMPLE_CHARACTER_ID })).toEqual(spec);
-});
-
-test("rosterMemberSpecSchema rejects `human` and `observer` — humans join via invite only, observer is unseatable (D80)", () => {
+test("rosterMemberSpecSchema rejects `human`, `observer`, and `agent` — humans join via invite only, observer is unseatable, no agent arm (D80)", () => {
   expect(rosterMemberSpecSchema.safeParse({ kind: "human", userId: SAMPLE_USER_ID, position: 0 }).success).toBe(false);
   expect(rosterMemberSpecSchema.safeParse({ kind: "observer", position: 0 }).success).toBe(false);
+  expect(rosterMemberSpecSchema.safeParse({ kind: "agent", ownerUserId: SAMPLE_USER_ID, sourceKind: "buddy", position: 1 }).success).toBe(false);
 });

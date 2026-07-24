@@ -20,7 +20,6 @@ import { buildAssembleContext } from "../../../../../packages/server/src/domain/
 import { spliceInChatInjections } from "../../../../../packages/server/src/domain/chat/assembly/injections";
 import { renderMacros } from "../../../../../packages/server/src/domain/chat/assembly/macros";
 import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context";
-import type { AgentCastMember } from "../../../../../packages/server/src/domain/chat/contract/context";
 import { freshDb } from "../../../../support/db";
 import { expect, test } from "../../../../support/fixtures";
 import { FROZEN_AT, makeChatContext, seedCharacter, seedChat, seedUser } from "../_support";
@@ -93,7 +92,6 @@ interface InputOver {
   injectionTokenBudget?: number;
   hostTierRegexScripts?: RegexScript[];
   roomOverrides?: RoomOverrides;
-  agentCast?: AgentCastMember[];
   mutedSpeakerKeys?: ReadonlySet<string>;
 }
 function inputOf(chatId: string, ownerId: UserId, castIds: CharacterId[], over: InputOver = {}): Parameters<typeof buildAssembleContext>[1] {
@@ -112,7 +110,6 @@ function inputOf(chatId: string, ownerId: UserId, castIds: CharacterId[], over: 
     ...(over.pendingUserText !== undefined ? { pendingUserText: over.pendingUserText } : {}),
     ...(over.hostTierRegexScripts !== undefined ? { hostTierRegexScripts: over.hostTierRegexScripts } : {}),
     ...(over.roomOverrides !== undefined ? { roomOverrides: over.roomOverrides } : {}),
-    ...(over.agentCast !== undefined ? { agentCast: over.agentCast } : {}),
     ...(over.mutedSpeakerKeys !== undefined ? { mutedSpeakerKeys: over.mutedSpeakerKeys } : {}),
   };
 }
@@ -475,24 +472,6 @@ describe("buildAssembleContext — castNotMuted / {{groupNotMuted}} (R1/F1)", ()
     expect((out.cast ?? []).map((c) => c.name)).toEqual(["Aria", "Bran"]);
     expect((out.castNotMuted ?? []).map((c) => c.name)).toEqual(["Aria"]);
     expect(renderMacros("{{group}}", out, null)).toBe("Aria, Bran");
-    expect(renderMacros("{{groupNotMuted}}", out, null)).toBe("Aria");
-  });
-
-  test("a seated agent voices via the assemble cast but is ABSENT from {{group}} AND {{groupNotMuted}} (owner ruling)", async () => {
-    const host = await seedUser(db, "host");
-    const chatId = await seedChat(db, "a");
-    const ariaId = await seedCharacter(db, host, "aria");
-    const ctx = ctxWithCards({ [ariaId]: cardOf("Aria") });
-    const agentUserId = castId<UserId>("agent_pip");
-    const agentCast: AgentCastMember[] = [{ userId: agentUserId, identity: { displayName: "Pip", systemPrompt: "", avatarAssetId: null } }];
-    const out = await buildAssembleContext(ctx, inputOf(chatId, host, [ariaId], { agentCast }));
-
-    // Voice plane: the agent's soul still assembles as a cast card (index-aligned after the characters).
-    expect((out.cast ?? []).map((c) => c.name)).toEqual(["Aria", "Pip"]);
-    expect((out.castMembers ?? []).map((m) => m.kind)).toEqual(["character", "agent"]);
-    // Macro feed: character-only — Pip appears in NEITHER group macro.
-    expect((out.castNotMuted ?? []).map((c) => c.name)).toEqual(["Aria"]);
-    expect(renderMacros("{{group}}", out, null)).toBe("Aria");
     expect(renderMacros("{{groupNotMuted}}", out, null)).toBe("Aria");
   });
 

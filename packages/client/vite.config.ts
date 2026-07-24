@@ -191,8 +191,6 @@ export default defineConfig({
     //       assetsInlineLimit:0 + the no-external-media grit gate), so this relaxes no real guard — it just
     //       stops the dev devtools icon from CSP-erroring on every page load. Matches security-headers.ts's
     //       `opts.dev` imgSrc branch (keep the two in lockstep).
-    //   img-src ALSO carries `https://*.tenor.com` (mirrors prod — the D61 gif-search picker previews load
-    //   from the Tenor CDN); without it, dev gif previews CSP-fail while prod works.
     //   Held tight (same as prod) ON PURPOSE: object-src/frame-ancestors 'none'; base-uri/form-action
     //   'self'. style-src keeps 'unsafe-inline' (Tailwind + Base UI + the owner-theme <style> injector
     //   `custom-theme-style.tsx` all emit first-party inline styles; §7.5's reasoned choice — do NOT nonce
@@ -204,7 +202,7 @@ export default defineConfig({
         // blob: workers/SharedWorkers fall back to script-src without an explicit worker-src (which lacks blob:).
         "worker-src 'self' blob:",
         "style-src 'self' 'unsafe-inline'",
-        "img-src 'self' blob: data: https://*.tenor.com",
+        "img-src 'self' blob: data:",
         "media-src 'self' blob:",
         "connect-src 'self' ws: wss:",
         "font-src 'self'",

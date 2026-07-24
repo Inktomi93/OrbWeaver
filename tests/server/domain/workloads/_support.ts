@@ -5,28 +5,18 @@
 // test drives a real claimed row through `runWorkload` over a real `:memory:` db. Determinism: a fixed T0
 // (no ambient clock) + `castId` ids (no unseeded mint).
 
-import type { CardEvolutionApplyArgs, DirectorApplyArgs, KeeperApplyArgs, ProseAuditApplyArgs } from "@orb/contracts/crew";
 import type { ReindexMode, ReindexScope } from "@orb/contracts/databank";
 import type { Principal, UserRole } from "@orb/contracts/identity";
 import type { RoleClients } from "@orb/contracts/role-clients";
-import type {
-  RpgDirectorApplyArgs,
-  RpgLorebookUpkeepApplyArgs,
-  RpgRecapApplyArgs,
-  RpgRecruitCardApplyArgs,
-  RpgSceneDistillApplyArgs,
-  RpgSessionDistillApplyArgs,
-  RpgWorldGenApplyArgs,
-} from "@orb/contracts/rpg";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { WorkloadKind, WorkloadMode, WorkloadSource, WorkloadStatus } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import { workloads } from "@orb/db";
-import type { AssetId, ChatId, DocumentId, Handle, MessageVariantId, UserId, WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
+import type { DocumentId, Handle, UserId, WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { vi } from "vitest";
 import { isAdmin, requireOwner } from "../../../../packages/server/src/domain/admin/guard.ts";
-import type { CrewAgentRequest, WorkloadRunnerEnv } from "../../../../packages/server/src/domain/workloads/contract/runner-env.ts";
+import type { WorkloadRunnerEnv } from "../../../../packages/server/src/domain/workloads/contract/runner-env.ts";
 import type { WorkloadRunnerContext, WorkloadRunnerDeps, WorkloadService } from "../../../../packages/server/src/domain/workloads/contract/service.ts";
 import { createWorkloadService } from "../../../../packages/server/src/domain/workloads/service.ts";
 import type { Cas } from "../../../../packages/server/src/infra/storage/index.ts";
@@ -193,61 +183,6 @@ export function fakeEnv(overrides: { [K in keyof WorkloadRunnerEnv]?: Partial<Wo
         changed: 1,
       })),
       ...overrides.character,
-    },
-    chatCrew: {
-      readKeeperInputs: vi.fn(async (_chatId: ChatId) => null),
-      applyKeeperResult: vi.fn(async (_args: KeeperApplyArgs) => ({ entriesAdded: 0, entriesReplaced: 0, skippedHandEdited: 0, spanTo: 0 })),
-      readDirectorInputs: vi.fn(async (_chatId: ChatId) => null),
-      applyDirectorPass: vi.fn(async (_args: DirectorApplyArgs) => ({ arcStatus: "active" as const, twistsAdded: 0, twistsRetired: 0, guidanceChars: 0 })),
-      readCardEvolutionInputs: vi.fn(async (_chatId: ChatId) => null),
-      applyCardEvolution: vi.fn(async (_args: CardEvolutionApplyArgs) => ({ proposalsFiled: 0, charactersAudited: 0, spanTo: 0 })),
-      readProseAuditInputs: vi.fn(async (_chatId: ChatId, _variantId: MessageVariantId) => null),
-      applyProseAudit: vi.fn(async (_args: ProseAuditApplyArgs) => ({ verdict: "clean" as const, proposalId: null })),
-      agentTurn: vi.fn(async (_req: CrewAgentRequest) => ({ text: "{}" })),
-      ...overrides.chatCrew,
-    },
-    // The R6 rpg crew seam (06 §3) — readers null (no-op) + appliers zero-effect by default; a runner test
-    // overrides to assert the reader→agentTurn→applier flow. agentTurn shares the crew's `{}` default.
-    rpg: {
-      readWorldGenInputs: vi.fn(async () => null),
-      applyWorldGen: vi.fn(async (_args: RpgWorldGenApplyArgs) => ({ regions: 0, npcs: 0, clocks: 0, widgets: 0, sheets: 0 })),
-      readRecapInputs: vi.fn(async () => null),
-      applyRecap: vi.fn(async (_args: RpgRecapApplyArgs) => ({ posted: false })),
-      readSessionDistillInputs: vi.fn(async () => null),
-      applySessionDistill: vi.fn(async (_args: RpgSessionDistillApplyArgs) => ({
-        summaryWritten: false,
-        progressionApplied: false,
-        sheetProposals: [],
-        moraleAdjust: null,
-      })),
-      readDirectorInputs: vi.fn(async () => null),
-      applyDirectorPass: vi.fn(async (_args: RpgDirectorApplyArgs) => ({
-        arcStatus: "active" as const,
-        twistsAdded: 0,
-        twistsRetired: 0,
-        clocksTicked: 0,
-        hiddenClockAdded: false,
-      })),
-      readLorebookUpkeepInputs: vi.fn(async () => null),
-      applyLorebookUpkeep: vi.fn(async (_args: RpgLorebookUpkeepApplyArgs) => ({ entriesAdded: 0, entriesReplaced: 0, skippedHandEdited: 0 })),
-      // The R10 scene/recruit crew seam (07 §2–§3) — readers null (no-op) + appliers zero-effect by default; a
-      // runner test overrides to assert the reader→agentTurn→applier flow. Scene-plan is read-only (no applier).
-      readScenePlanInputs: vi.fn(async () => null),
-      readSceneDistillInputs: vi.fn(async () => null),
-      applySceneDistill: vi.fn(async (_args: RpgSceneDistillApplyArgs) => ({ concluded: false })),
-      readRecruitCardInputs: vi.fn(async () => null),
-      applyRecruitCard: vi.fn(async (_args: RpgRecruitCardApplyArgs) => ({ recruited: false, characterId: null, partyMemberId: null })),
-      agentTurn: vi.fn(async (_req: CrewAgentRequest) => ({ text: "{}" })),
-      // The R9 image-workload passes — benign no-generate defaults; a runner test overrides to assert delegation.
-      runNpcPortrait: vi.fn(async () => ({ assetId: null, reused: false, refusedNoCapability: true, preview: null })),
-      runIllustration: vi.fn(async () => ({ messageId: null, posted: false, skippedCadence: false, refusedNoCapability: true, preview: null })),
-      ...overrides.rpg,
-    },
-    // The E4 expressions-sprite-sheet pass seam — a working default (zero-written result) every runner test
-    // shares; the runner test overrides it to assert delegation (expressions-design/03 §3.3).
-    expressions: {
-      runSpriteSheetJob: vi.fn(async () => ({ written: 0, labels: [], sheetAssetId: castId<AssetId>("asset_sheet"), model: "test-model", costUsd: null })),
-      ...overrides.expressions,
     },
     cas: {} as Cas,
   };

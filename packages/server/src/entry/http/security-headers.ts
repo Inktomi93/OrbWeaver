@@ -16,10 +16,6 @@ import { secureHeaders } from "hono/secure-headers";
 
 const SELF = "'self'";
 const NONE = "'none'";
-// Tenor gif-search previews: the picker renders Tenor CDN previews inline. Scoped to *.tenor.com
-// (subdomains only) — a reputable CDN, no attacker-controlled host. The import fetch is separately
-// host-gated server-side; this only permits the client-side preview <img> load.
-const TENOR_MEDIA = "https://*.tenor.com";
 
 export function securityHeaders(opts: { readonly dev: boolean }): MiddlewareHandler {
   return secureHeaders({
@@ -30,7 +26,7 @@ export function securityHeaders(opts: { readonly dev: boolean }): MiddlewareHand
       // Dev AND prod — the worker-backed feature runs in both.
       workerSrc: [SELF, "blob:"],
       styleSrc: [SELF, "'unsafe-inline'"], // deliberate — see the header
-      imgSrc: opts.dev ? [SELF, "blob:", "data:", TENOR_MEDIA] : [SELF, "blob:", TENOR_MEDIA],
+      imgSrc: opts.dev ? [SELF, "blob:", "data:"] : [SELF, "blob:"],
       mediaSrc: [SELF, "blob:"],
       connectSrc: opts.dev ? [SELF, "ws:", "wss:"] : [SELF], // ws is HMR-only
       fontSrc: [SELF],

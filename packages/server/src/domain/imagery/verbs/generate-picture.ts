@@ -32,22 +32,16 @@ async function resolveGenerateImageOrThrow(ctx: ImageryContext, caller: Generate
   }
 }
 
-/** The B3 gate's resolved reference: the avatar bytes routed onto the IDENTITY channel (`references[]`) when the
- *  model advertises an identity lock, else the plain img2img INIT channel (`image`) — the comfyui-control §4.6
- *  distinction (IPAdapter-FaceID / PuLID condition on the FACE; a non-identity arm denoises the whole avatar). */
+/** The B3 gate's resolved reference: the avatar bytes routed onto the plain img2img INIT channel (`image`). */
 interface AvatarReference {
   readonly references?: readonly Uint8Array[];
   readonly image?: Uint8Array;
 }
 
-/** Step 7 — B3 avatar-reference gate (doc 03 §3 · comfyui-control §4.6/C6): condition a portrait generation on
- *  the subject's avatar for identity consistency. Applies only to a subject (portrait) mode carrying
- *  `useAvatarReference`; absent avatar ⇒ skip silently; a model without `input.imageEdit` ⇒ drop-with-warning
- *  (the asymmetric posture — never throws, unlike `editImage`). When the model advertises `input.imageIdentity`
- *  (a curated ComfyUI role — IPAdapter-FaceID / PuLID), the avatar rides the IDENTITY channel (`references[]`)
- *  so the arm locks on the FACE; otherwise it rides the plain img2img INIT channel (`image`) — the honest
- *  fallback for arms with edit but no identity lock. The runner makes the final per-family IPAdapter-vs-img2img
- *  routing (it owns the arch knowledge); the domain only picks the channel the capability advertises. */
+/** Step 7 — B3 avatar-reference gate (doc 03 §3): condition a portrait generation on the subject's avatar for
+ *  identity consistency. Applies only to a subject (portrait) mode carrying `useAvatarReference`; absent avatar
+ *  ⇒ skip silently; a model without `input.imageEdit` ⇒ drop-with-warning (the asymmetric posture — never
+ *  throws, unlike `editImage`). The avatar rides the img2img INIT channel (`image`). */
 async function avatarReferenceGate(
   ctx: ImageryContext,
   p: GeneratePictureParams,
@@ -68,31 +62,20 @@ async function avatarReferenceGate(
     };
   }
   const { bytes } = await ctx.readAsset(p.caller, card.avatarAssetId);
-  // Identity-capable arm → the FACE reference channel (IPAdapter/PuLID); else the img2img init fallback. (`input`
-  // is non-null here — the `imageEdit !== true` guard above already returned when it was absent.)
-  const edit: AvatarReference = resolution.capability.input.imageIdentity === true ? { references: [bytes] } : { image: bytes };
+  // The avatar rides the img2img init channel.
+  const edit: AvatarReference = { image: bytes };
   return { edit, warnings: [] };
 }
 
-/** Step 7b — resolve the optional ControlNet pose pick (comfyui-control §4.12, C6d) to skeleton bytes: a
- *  curated `poseRef` reads the shipped static skeleton via `readCuratedPose` (`null` ⇒ an unknown/removed ref,
- *  dropped silently — the honest degrade for stale content); a BYO `poseAssetId` reads the caller's OWN pose
- *  asset (owner-gated by `readAsset`). The bytes ride the executor's `edit.poseControl`; the ComfyUI arm
- *  attaches ControlNet only when the curated role's family advertises the `pose` lever, else drops-with-warning
- *  (the picker's presence is already capability-gated on that same signal — a pick never reaches a no-pose arm). */
-
-/** Compose the runner `edit` payload from the B3 avatar reference (identity `references[]` OR img2img `image`,
- *  per the capability — comfyui-control §4.6) + the resolved pose control map (C6d). Absent both ⇒ `undefined`
- *  (a plain txt2img). A pose-only pick yields `{ poseControl }` with NO init image — the ComfyUI arm falls back
- *  to an empty latent (txt2img + ControlNet). */
-function composeEdit(reference: AvatarReference | undefined, poseControl: Uint8Array | undefined): ImageGenerateRequest["edit"] {
-  if (reference === undefined && poseControl === undefined) {
+/** Compose the runner `edit` payload from the B3 avatar reference (img2img `image`). Absent ⇒ `undefined`
+ *  (a plain txt2img). */
+function composeEdit(reference: AvatarReference | undefined): ImageGenerateRequest["edit"] {
+  if (reference === undefined) {
     return;
   }
   return {
-    ...(reference?.image !== undefined ? { image: reference.image } : {}),
-    ...(reference?.references !== undefined ? { references: reference.references } : {}),
-    ...(poseControl !== undefined ? { poseControl } : {}),
+    ...(reference.image !== undefined ? { image: reference.image } : {}),
+    ...(reference.references !== undefined ? { references: reference.references } : {}),
   };
 }
 
@@ -192,9 +175,7 @@ export function createGeneratePicture(ctx: ImageryContext, deps: { readonly reso
     const resolution = await resolveGenerateImageOrThrow(ctx, p.caller);
     // Step 7: B3 avatar-reference gate — an init image (or a drop-with-warning when the model can't edit).
     const reference = await avatarReferenceGate(ctx, p, { model: resolution.connection.model, capability: resolution.capability }, subjectCharacterId);
-    // Step 7b: resolve the optional ControlNet pose pick to bytes (C6d). Composed with the B3 init image into
-    // ONE edit payload — a pose-only pick carries just `poseControl` (no init ⇒ the arm drives txt2img+controlnet).
-    const edit = composeEdit(reference.edit, undefined);
+    const edit = composeEdit(reference.edit);
 
     // Steps 8-12: the shared generation tail (generate → materialize → store+provenance → stats).
     const outcome = await runGeneration(
@@ -208,8 +189,6 @@ export function createGeneratePicture(ctx: ImageryContext, deps: { readonly reso
         negativePrompt,
         size,
         ...(edit !== undefined ? { edit } : {}),
-        // MA-8: the diffusion knobs ride to the runner; a source lacking `capability.imageGen` ignores them.
-        ...(p.params !== undefined ? { imageParams: p.params } : {}),
         // Forward the resolved capability the B3 gate read so the runner's belt sees the SAME model and conditions
         // on the avatar reference (rather than stripping it + falsely warning on an edit-capable model).
         capability: resolution.capability,

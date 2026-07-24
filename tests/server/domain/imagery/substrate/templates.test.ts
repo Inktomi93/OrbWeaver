@@ -5,7 +5,7 @@
 import { describe } from "vitest";
 import {
   CAPTION_INSTRUCTIONS,
-  DEFAULT_NEGATIVE,
+  composeNegative,
   ensurePrefix,
   PROMPT_TEMPLATES,
 } from "../../../../../packages/server/src/domain/imagery/substrate/templates.ts";
@@ -28,9 +28,10 @@ describe("PROMPT_TEMPLATES / CAPTION_INSTRUCTIONS", () => {
     expect(CAPTION_INSTRUCTIONS.face_multimodal).toContain("close up facial portrait,");
   });
 
-  test("DEFAULT_NEGATIVE suppresses the generic defects (text, watermark, bad anatomy)", () => {
-    expect(DEFAULT_NEGATIVE).toContain("watermark");
-    expect(DEFAULT_NEGATIVE).toContain("bad anatomy");
+  test("the default negative (via composeNegative, no user extra) suppresses the generic defects (text, watermark, bad anatomy)", () => {
+    const negative = composeNegative(undefined);
+    expect(negative).toContain("watermark");
+    expect(negative).toContain("bad anatomy");
   });
 });
 

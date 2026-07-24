@@ -50,6 +50,13 @@ function cleanFixtures(): void {
   execFileSync("find", ["packages", "tests", "scripts", "-name", "__g_*", "-prune", "-exec", "rm", "-rf", "{}", "+"], {
     cwd: ROOT,
   });
+  // A fixture written into a real-named dir that doesn't exist (e.g. `${D}/hub/__g_asw1.ts` after the hub
+  // domain was purged) leaves the dir behind EMPTY once its `__g_` files are reaped — and an empty domain
+  // dir trips feature-structure on the NEXT clean run. Intentional empties carry a .gitkeep (non-empty),
+  // so reaping genuinely-empty dirs here is safe.
+  execFileSync("find", ["packages", "tests", "scripts", "-type", "d", "-empty", "-delete"], {
+    cwd: ROOT,
+  });
 }
 
 function runStructure(): string {
@@ -595,18 +602,12 @@ function writeFixtures(): void {
 // bus-payload-allowlist: scopes to 5 EXACT bus-contract file paths (BUS_FILES) — a __g_ sentinel path
 // can't match. Bite proven by gate-conformance's mustFlag + the D16 real-file backup-pattern proof
 // (apiKey planted on user-bus settingsChanged → RED → restored).
-// rpg-bus-coverage: same shape as bus-coverage (the shared reconcile, scripts/check/bus-coverage-lib.ts) — its
-// DEFERRED map is EMPTY (every RpgBusEvent member emits via a verb's ctx.emitBus) and MISSING needs an
-// un-emitted REAL member a `__g_` file can't add to the single-home `RPG_BUS_EVENT_TYPES` array. Bite proven by
-// its conformance mustFlag (a synthetic array member with no emit) + the shared STALE mechanism the
-// user-bus-coverage twin live-fires.
 const UNFIXTURABLE_GATES = new Set([
   "warning-code-coverage",
   "verify-registry-parity",
   "enforcement-registry-parity",
   "tsconfig-routing-parity",
   "bus-coverage",
-  "rpg-bus-coverage",
   "bus-payload-allowlist",
 ]);
 

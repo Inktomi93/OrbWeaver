@@ -15,7 +15,7 @@ test("determinate progress reflects its value", async ({ mount, page }) => {
 test("indeterminate progress has no value", async ({ mount, page }) => {
   await mount(<Progress aria-label="Working" value={null} />);
   const bar = page.getByRole("progressbar");
-  expect(await bar.getAttribute("aria-valuenow")).toBeNull();
+  await expect(bar).not.toHaveAttribute("aria-valuenow");
   await expect(bar).toHaveAttribute("data-indeterminate", "");
 });
 

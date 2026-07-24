@@ -4,7 +4,6 @@
 // The four gapped axes (§U0 + IC-A) — `tools` / `output.structured` / `input.vision` / `input.imageEdit` —
 // are pinned per arm, present AND absent.
 
-import type { ModelCapability } from "@orb/contracts/connection";
 import { describe } from "vitest";
 import { resolveModelCapability } from "../../../../../packages/server/src/domain/connection/catalog/resolve-model-capability.ts";
 import { expect, test } from "../../../../support/fixtures";
@@ -232,7 +231,6 @@ describe("resolveModelCapability — the four gapped axes (§U0 + IC-A synthesis
   });
 });
 
-
 describe("resolveModelCapability — static arms", () => {
   test("vLLM: no reasoning, full sampling, engine window", () => {
     const cap = resolveModelCapability("Qwen/Qwen3-VL-8B-Instruct", "vllm", "chat-completions");
@@ -260,5 +258,4 @@ describe("resolveModelCapability — static arms", () => {
     });
     expect(cap.context.window).toBe(8192);
   });
-
 });

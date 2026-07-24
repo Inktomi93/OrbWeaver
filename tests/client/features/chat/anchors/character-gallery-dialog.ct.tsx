@@ -43,8 +43,8 @@ test("P0: the lightbox action buttons stay on-screen at 1280×800", async ({ mou
   await mount(<CharacterGalleryDialogStory />);
   await openLightbox(page);
 
-  expect(await buttonBottom(page, "Remove from gallery")).toBeLessThan(800);
-  expect(await buttonBottom(page, "Close")).toBeLessThan(800);
+  await expect.poll(() => buttonBottom(page, "Remove from gallery")).toBeLessThan(800);
+  await expect.poll(() => buttonBottom(page, "Close")).toBeLessThan(800);
 });
 
 test("P0: the lightbox action buttons stay on-screen at the tighter 1366×768", async ({ mount, page }) => {
@@ -54,8 +54,8 @@ test("P0: the lightbox action buttons stay on-screen at the tighter 1366×768", 
   await mount(<CharacterGalleryDialogStory />);
   await openLightbox(page);
 
-  expect(await buttonBottom(page, "Remove from gallery")).toBeLessThan(768);
-  expect(await buttonBottom(page, "Close")).toBeLessThan(768);
+  await expect.poll(() => buttonBottom(page, "Remove from gallery")).toBeLessThan(768);
+  await expect.poll(() => buttonBottom(page, "Close")).toBeLessThan(768);
 });
 
 test("P2: removal goes through a confirm — the mutation fires only AFTER confirming", async ({ mount, page }) => {
@@ -71,12 +71,12 @@ test("P2: removal goes through a confirm — the mutation fires only AFTER confi
   // First click opens the AlertDialog confirm — it does NOT remove anything yet.
   await page.getByRole("button", { name: "Remove from gallery" }).click();
   await expect(page.getByText("Remove this image?")).toBeVisible();
-  expect(trpc.count("assets.removeFromGallery")).toBe(0);
+  await expect.poll(() => trpc.count("assets.removeFromGallery")).toBe(0);
 
   // Confirming fires the removal with the item's id.
   await page.getByRole("button", { name: "Remove", exact: true }).click();
   await expect.poll(() => trpc.count("assets.removeFromGallery"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
-  expect(trpc.lastInput("assets.removeFromGallery")).toEqual({ galleryItemId: "galleryitem_ct_1" });
+  await expect.poll(() => trpc.lastInput("assets.removeFromGallery")).toEqual({ galleryItemId: "galleryitem_ct_1" });
 });
 
 test("P2: cancelling the confirm removes nothing", async ({ mount, page }) => {
@@ -93,7 +93,7 @@ test("P2: cancelling the confirm removes nothing", async ({ mount, page }) => {
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
 
   await expect(page.getByText("Remove this image?")).toHaveCount(0);
-  expect(trpc.count("assets.removeFromGallery")).toBe(0);
+  await expect.poll(() => trpc.count("assets.removeFromGallery")).toBe(0);
   // The lightbox is still open — cancel is a no-op on the image itself.
   await expect(page.getByRole("button", { name: "Remove from gallery" })).toBeVisible();
 });

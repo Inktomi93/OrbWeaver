@@ -46,8 +46,6 @@ function stubSessions(overrides: Partial<SessionsService>): SessionsService {
     loadUserById: unused("loadUserById") as SessionsService["loadUserById"],
     resolveHandle: unused("resolveHandle") as SessionsService["resolveHandle"],
     authenticate: unused("authenticate") as SessionsService["authenticate"],
-    provisionAgentPrincipal: unused("provisionAgentPrincipal") as SessionsService["provisionAgentPrincipal"],
-    listMyAgents: unused("listMyAgents") as SessionsService["listMyAgents"],
     ...overrides,
   };
 }

@@ -14,9 +14,9 @@ test("renders suspended data through the boundary and records the decoded input"
   await mount(<EchoBoundaryStory />);
 
   await expect(page.getByText("pong:ping")).toBeVisible();
-  expect(trpc.count("echo")).toBe(1);
+  await expect.poll(() => trpc.count("echo")).toBe(1);
   // Deep-equal on the DECODED input pins the batched-GET wire decode end-to-end.
-  expect(trpc.lastInput("echo")).toEqual({ message: "ping" });
+  await expect.poll(() => trpc.lastInput("echo")).toEqual({ message: "ping" });
 });
 
 // networkMode:"online" (query-client.ts LAW) PAUSES queries offline — they never reject, so without
@@ -61,5 +61,5 @@ test("error surface → retry refetches (the reset handshake, not a re-render)",
 
   await expect(page.getByText("recovered")).toBeVisible();
   // 2 calls = the retry REFETCHED (a reset-less boundary re-throws the cached error at 1).
-  expect(trpc.count("echo")).toBe(2);
+  await expect.poll(() => trpc.count("echo")).toBe(2);
 });

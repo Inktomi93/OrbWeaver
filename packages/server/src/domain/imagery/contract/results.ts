@@ -16,11 +16,10 @@ export interface GeneratedPictureImage {
 }
 
 /** The imagery drop codes surfaced to a caller (imagery-design/03 §2): `image_edit_dropped` = the whole edit/
- *  avatar reference dropped for a non-edit model; the granular codes = ONE curated ComfyUI lever the role's
- *  family couldn't honor (comfyui-control §4.6/§4.12, C6 — the mask/reference/pose ignored, the rest generated).
+ *  avatar reference dropped for a non-edit model.
  *  Structural subset of the infra `WARNING_CODES` image members (imagery never imports `#infra`; mapped at compose). */
 export interface ImageryWarning {
-  readonly code: "image_edit_dropped" | "image_inpaint_dropped" | "image_identity_dropped" | "image_pose_dropped";
+  readonly code: "image_edit_dropped";
   readonly detail: string;
 }
 

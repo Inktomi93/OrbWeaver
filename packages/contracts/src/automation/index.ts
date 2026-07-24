@@ -9,7 +9,7 @@ import type { AutomationRuleId, ChatId, PluginId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import { z } from "zod";
-import { generateImageActionArgsSchema, imageDiffusionParamsSchema } from "#imagery";
+import { generateImageActionArgsSchema } from "#imagery";
 
 /** `ChatBusEvent` discriminators automation may trigger on — a subset of the frozen chat-bus union.
  *  The tail after `chatCreated` is reserved (criterion: first real rule request). */
@@ -228,11 +228,7 @@ export const automationActionSchema = z.discriminatedUnion("type", [
     guidedTemplate: z.string().max(GUIDED_TEMPLATE_MAX).optional(),
   }),
   // 1.7 generate an image (SPEND-classed). Args home in @orb/contracts/imagery (`no-inline-union-redecl`).
-  // The MA-8/D96 diffusion knobs (steps/cfg/sampler/scheduler/seed) ride the ARM here — imported DOWN from
-  // imagery, never re-spelled — NOT the base `generateImageActionArgsSchema` the model-facing D48 tool shares:
-  // diffusion is config/human-authored (like `subjectCharacterId`/`useAvatarReference` the tool already omits),
-  // not a chat-model surface, so it attaches to the automation consumer, not the shared arg vocabulary.
-  generateImageActionArgsSchema.extend({ type: z.literal("generate_image"), params: imageDiffusionParamsSchema.optional() }),
+  generateImageActionArgsSchema.extend({ type: z.literal("generate_image") }),
   // 1.8 auto-background (BG-F — ST `/autobg`): an LLM QUIET-pick over the author's owned background library,
   // writing the CHAT background (host-scoped; scope-safe precisely because BG-C's composition rule makes a
   // chat background INERT for every viewer outside a true-solo room). `instruction` optionally biases the

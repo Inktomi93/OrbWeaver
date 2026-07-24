@@ -9,8 +9,8 @@
 // a literal resolves to itself, so nothing is ever dialed.
 //
 // INTERNAL-BACKEND AUTO-ALLOW (PORT-SCOPED): the box's own backends are auto-allowlisted by
-// installEgressFirewall at their EXACT host:port — vLLM engines 127.0.0.1:8701/8702/8703 and ComfyUI at
-// COMFYUI_BASE_URL (default localhost:8188), declared internal intent like the OIDC issuer. Those are proved
+// installEgressFirewall at their EXACT host:port — vLLM engines 127.0.0.1:8701/8702/8703, declared internal
+// intent like the OIDC issuer. Those are proved
 // NOT-SSRF-blocked below: an allowed loopback target with nothing listening yields a plain connection error
 // (ECONNREFUSED), NOT our SSRF_BLOCKED signal. Least-privilege: a NON-configured loopback port (e.g.
 // 127.0.0.1:22) stays BLOCKED. This does not touch the safeFetch path, whose unconditional private-range
@@ -81,19 +81,6 @@ describe("installEgressFirewall — boot-installed global SSRF dispatcher (s7 HI
   // normal high port — NOT one of Node/undici's "bad port" set, which fetch rejects before the connector.)
   test("still blocks a NON-configured loopback port (127.0.0.1:9998) — least-privilege, host alone is not enough", async () => {
     const err = await fetch("http://127.0.0.1:9998/x").catch((e: unknown) => e);
-    expect(err).toBeInstanceOf(Error);
-    expect(errorChainText(err)).toContain("SSRF_BLOCKED");
-  });
-
-  // COMFYUI_BASE_URL defaults to http://localhost:8188 (env floor) → host:port localhost:8188 is allowed.
-  test("auto-allows the COMFYUI_BASE_URL host:port (default localhost:8188) — not SSRF-blocked", async () => {
-    const err = await fetch("http://localhost:8188/object_info").catch((e: unknown) => e);
-    expect(errorChainText(err)).not.toContain("SSRF_BLOCKED");
-  });
-
-  // The ComfyUI host on a DIFFERENT port is not the configured backend → resolves loopback → blocked.
-  test("still blocks the ComfyUI host on a different port (localhost:9999) — port-scoped, not host-scoped", async () => {
-    const err = await fetch("http://localhost:9999/x").catch((e: unknown) => e);
     expect(err).toBeInstanceOf(Error);
     expect(errorChainText(err)).toContain("SSRF_BLOCKED");
   });

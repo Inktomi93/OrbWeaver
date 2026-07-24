@@ -505,33 +505,10 @@ describe("generatePicture — B3 avatar-reference gate (doc 03 §3)", () => {
     expect(rows[0]?.edited).toBe(true);
   });
 
-  test("an IDENTITY-capable model routes the avatar to the identity channel (references[], IPAdapter/PuLID — F1 §4.6)", async () => {
+  test("an edit-capable model routes the avatar to the img2img init (references absent)", async () => {
     const owner = await seedOwner(db, "owner");
     await seedPortraitFixtures(owner);
-    // imageEdit + imageIdentity — a curated ComfyUI role advertises both (resolve-model-capability's comfyui arm).
-    const { ctx, readAssetCalls, generateRequests } = makeHarness(db, { resolveGenerateImage: resolutionWith(true, true) });
-
-    const result = await createImageryService(ctx).generatePicture({
-      caller: principal(owner),
-      chatId: CHAT,
-      mode: "character",
-      subjectCharacterId: ARIA,
-      useAvatarReference: true,
-    });
-
-    expect(readAssetCalls).toContain(castId<AssetId>("asset_avatar"));
-    expect(result.warnings).toEqual([]);
-    // The avatar rode `edit.references[]` (the identity/FACE channel), NOT `edit.image` (the plain img2img init) —
-    // this is what makes IPAdapter-FaceID / PuLID (B3) reachable from a production caller, not a fixture.
-    const req = generateRequests[0];
-    expect(req?.edit?.references).toHaveLength(1);
-    expect(req?.edit?.image).toBeUndefined();
-  });
-
-  test("an edit-capable but NON-identity model routes the avatar to the img2img init (references absent — the honest fallback)", async () => {
-    const owner = await seedOwner(db, "owner");
-    await seedPortraitFixtures(owner);
-    const { ctx, generateRequests } = makeHarness(db, { resolveGenerateImage: resolutionWith(true, false) });
+    const { ctx, generateRequests } = makeHarness(db, { resolveGenerateImage: resolutionWith(true) });
 
     await createImageryService(ctx).generatePicture({
       caller: principal(owner),
@@ -602,67 +579,5 @@ describe("generatePicture — runner warnings surface onto the result (doc 03 §
     const result = await createImageryService(ctx).generatePicture({ caller: principal(owner), mode: "free", prompt: "an edit" });
 
     expect(result.warnings).toEqual([{ code: "image_edit_dropped", detail: "img-model: the mask was dropped" }]);
-  });
-});
-
-describe("generatePicture — the ControlNet pose pick (C6d)", () => {
-  test("a CURATED pose resolves via readCuratedPose → the executor's edit.poseControl bytes", async () => {
-    const owner = await seedOwner(db, "owner");
-    const harness = makeHarness(db);
-
-    await createImageryService(harness.ctx).generatePicture({
-      caller: principal(owner),
-      mode: "free",
-      prompt: "a knight",
-      pose: { kind: "curated", poseRef: "action/action_10" },
-    });
-
-    expect(harness.curatedPoseCalls).toEqual(["action/action_10"]);
-    const req = harness.generateRequests[0];
-    expect(req?.edit?.poseControl).toEqual(PNG_BYTES);
-    // Pose-only: no init image (the arm drives txt2img+controlnet).
-    expect(req?.edit?.image).toBeUndefined();
-  });
-
-  test("a BYO pose resolves via the owner-gated readAsset → edit.poseControl bytes", async () => {
-    const owner = await seedOwner(db, "owner");
-    const harness = makeHarness(db);
-    const poseAssetId = castId<AssetId>("asset_byo_pose");
-
-    await createImageryService(harness.ctx).generatePicture({
-      caller: principal(owner),
-      mode: "free",
-      prompt: "a knight",
-      pose: { kind: "byo", poseAssetId },
-    });
-
-    expect(harness.readAssetCalls).toContain(poseAssetId);
-    expect(harness.curatedPoseCalls).toEqual([]);
-    expect(harness.generateRequests[0]?.edit?.poseControl).toEqual(PNG_BYTES);
-  });
-
-  test("a stale curated id (readCuratedPose → null) drops the pose honestly — no edit payload", async () => {
-    const owner = await seedOwner(db, "owner");
-    const harness = makeHarness(db);
-
-    await createImageryService(harness.ctx).generatePicture({
-      caller: principal(owner),
-      mode: "free",
-      prompt: "a knight",
-      pose: { kind: "curated", poseRef: "missing/gone" },
-    });
-
-    expect(harness.curatedPoseCalls).toEqual(["missing/gone"]);
-    expect(harness.generateRequests[0]?.edit).toBeUndefined();
-  });
-
-  test("no pose pick ⇒ no edit payload (byte-identical to the plain free-mode path)", async () => {
-    const owner = await seedOwner(db, "owner");
-    const harness = makeHarness(db);
-
-    await createImageryService(harness.ctx).generatePicture({ caller: principal(owner), mode: "free", prompt: "a knight" });
-
-    expect(harness.curatedPoseCalls).toEqual([]);
-    expect(harness.generateRequests[0]?.edit).toBeUndefined();
   });
 });

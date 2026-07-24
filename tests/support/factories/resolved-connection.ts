@@ -14,14 +14,14 @@
 
 import type { ChatApi, ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
 import { modelCapabilitySchema } from "@orb/contracts/connection";
-import type { AnthropicCredential, CustomOpenAiCredential, OpenRouterCredential, ResolvedCredential, VeniceCredential } from "@orb/contracts/credentials";
+import type { CustomOpenAiCredential, OpenRouterCredential, ResolvedCredential } from "@orb/contracts/credentials";
 import type { ModelId, UserCredentialId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 
 /** The keyless routing-marker sources — the credential arms carrying no secret, so a blanket default is
  *  safe (vllm/local-light/max-pro-sub all reduce to `{ source, credentialId: null }`). Tuple-declared (not
  *  an inline union) per §7.5 no-inline-union-redecl. */
-const KEYLESS_SOURCES = ["vllm", "local-light", "max-pro-sub", "comfyui"] as const;
+const KEYLESS_SOURCES = ["vllm", "local-light", "max-pro-sub"] as const;
 type KeylessSource = (typeof KEYLESS_SOURCES)[number];
 
 /** FABRICATION-OK brand cast — the ONE sanctioned place outside the domain mint (contracts/credentials
@@ -54,16 +54,6 @@ export function makeOpenRouterCredential(overrides: Partial<Omit<OpenRouterCrede
   });
 }
 
-/** A brand-protected KEYED first-party `anthropic` credential (W11). Carries a real `apiKey` (an Anthropic
- *  `x-api-key`); `credentialId` is always a stored row (no env seed for this source), defaulting to a test id. */
-export function makeAnthropicCredential(overrides: Partial<Omit<AnthropicCredential, "source" | keyof CredentialBrandMarker>> = {}): AnthropicCredential {
-  return brand<AnthropicCredential>({
-    source: "anthropic",
-    apiKey: overrides.apiKey ?? "sk-ant-test",
-    credentialId: overrides.credentialId ?? castId<UserCredentialId>("ucred_anthropic_test"),
-  });
-}
-
 /** A brand-protected KEYED `custom_openai` (BYO OpenAI-compatible endpoint) credential (W1h). The active
  *  row IS the endpoint, so `credentialId` is non-null; `baseUrl` is required. `apiKey`/`headers` are null
  *  for a no-auth local server; `contextWindow` is the user-declared BYO ceiling (undefined until set). */
@@ -81,16 +71,6 @@ export function makeCustomOpenAiCredential(
     includeBody: overrides.includeBody ?? null,
     excludeBody: overrides.excludeBody ?? null,
     responseMap: overrides.responseMap ?? null,
-  });
-}
-
-/** A brand-protected KEYED hosted `venice` image-generation credential (MA-1). Carries a real `apiKey`;
- *  `credentialId` is always a stored row (no env seed for this source), defaulting to a test id. */
-export function makeVeniceCredential(overrides: Partial<Omit<VeniceCredential, "source" | keyof CredentialBrandMarker>> = {}): VeniceCredential {
-  return brand<VeniceCredential>({
-    source: "venice",
-    apiKey: overrides.apiKey ?? "venice-test-key",
-    credentialId: overrides.credentialId ?? castId<UserCredentialId>("ucred_venice_test"),
   });
 }
 

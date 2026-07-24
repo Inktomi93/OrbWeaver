@@ -34,8 +34,6 @@ const ALLOWLIST: Record<string, string> = {
     "a bound-field form with a PINNED title above an internally-scrolled body (7 fields + a dynamic option list); FormDialog's single-Stack shell can't preserve the pinned-title scroll — divergent, kept raw with this citation.",
   "packages/client/src/features/rpg/components/journal/readable-overlay.tsx":
     "a read-only READING viewer (the C11 §12.2 parchment overlay for a journal item/note) — a content-display species like character-gallery-dialog, not a form/prompt; owns its Dialog root, no bound fields, a single Close.",
-  "packages/client/src/features/imagery/components/pose-control.tsx":
-    "the pose-picker BROWSING modal (comfyui-control §4.12.3, C6d) — a virtualized MediaGrid of curated+BYO skeletons with search/category/source BROWSE filters; a pick sets a chip and closes. A picker species like character-gallery-dialog / add-party-dialog, not a form/prompt (the filter controls are browse state, nothing is submitted).",
 };
 
 function rel(path: string): string {

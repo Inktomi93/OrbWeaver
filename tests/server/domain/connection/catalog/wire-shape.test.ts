@@ -1,6 +1,6 @@
 // deriveWireShape (D66, Finding-1 fix, part 01 §3) — the DOMAIN-side (api, source) → wire-shape key. The
-// per-(api, source) → shape matrix + the anthropic-messages transport split (cli vs direct). This is the
-// carriage that makes the per-shape `turns` cells producible (they were invisible without it).
+// per-(api, source) → shape matrix. This is the carriage that makes the per-shape `turns` cells
+// producible (they were invisible without it).
 
 import type { CredentialSource } from "@orb/contracts/connection";
 import { describe } from "vitest";
@@ -25,13 +25,8 @@ describe("deriveWireShape — the (api, source) → wire-shape key", () => {
     expect(deriveWireShape("agent-sdk", "openrouter")).toBe("anthropic-cli");
   });
 
-  test("anthropic-messages → anthropic-direct (the anth-direct DIRECT transport, W7)", () => {
-    // Same anthropic-messages WIRE as agent-sdk, but WE own the body — the `direct` transport cell.
-    expect(deriveWireShape("anthropic-messages", "openrouter")).toBe("anthropic-direct");
-  });
-
   test("every produced shape is a member of the WIRE_SHAPES union (no orphan string)", () => {
-    for (const api of ["chat-completions", "responses", "agent-sdk", "anthropic-messages"] as const) {
+    for (const api of ["chat-completions", "responses", "agent-sdk"] as const) {
       expect(WIRE_SHAPES).toContain(deriveWireShape(api, "openrouter"));
     }
   });

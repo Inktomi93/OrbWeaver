@@ -14,13 +14,6 @@ export const WARNING_CODES = [
   "verbosity_dropped",
   "dynamic_context_demoted",
   "image_edit_dropped",
-  // C6 (comfyui-control §4.6/§4.12): per-lever edit drops when a curated ComfyUI role's family can't honor a
-  // provided edit input — the mask on a no-inpaint family, the reference on a no-identity arch, or the pose
-  // control map on a no-ControlNet family. The rest of the image still generates (a granular visible degrade,
-  // never a silent build), unlike the wholesale `image_edit_dropped` on a raw-checkpoint txt2img template.
-  "image_inpaint_dropped",
-  "image_identity_dropped",
-  "image_pose_dropped",
   // R0: an effort-`none`/absent intent on a MANDATORY-reasoning model was clamped UP to the lowest
   // supported effort (the model rejects `effort:'none'` — an honest visible degrade, never a silent 400).
   "reasoning_mandatory_clamp",

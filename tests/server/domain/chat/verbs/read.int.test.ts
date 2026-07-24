@@ -8,10 +8,10 @@ import type { ResolvedConnection } from "@orb/contracts/connection";
 import type { Principal } from "@orb/contracts/identity";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
-import { chatParticipants, chats as chatsTable, messages } from "@orb/db";
+import { chatParticipants, messages } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { ChatId, ChatParticipantId, Handle, RpgGameId, UserId } from "@orb/kit/ids";
-import { castId, ID_PREFIX } from "@orb/kit/ids";
+import type { ChatId, Handle, UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { createChatBus } from "../../../../../packages/server/src/domain/chat/bus";
@@ -22,10 +22,8 @@ import { principal as makePrincipal } from "../../../../support/factories/princi
 import { expect, test } from "../../../../support/fixtures";
 import {
   addVariant,
-  FROZEN_AT,
   makeChatContext,
   makeLoadParticipantViews,
-  seedAgent,
   seedCharacter,
   seedChat,
   seedMessage,
@@ -180,22 +178,6 @@ describe("read — single reads", () => {
     expect(detail.viewerUserId).toBe(me);
     expect(detail.viewerIsHost).toBe(true);
     expect(detail.viewerActivePersonaId).toBeNull();
-    expect(detail.rpgGameId).toBeNull(); // GAP #4 — not a game
-  });
-
-  test("getChat carries the rpg game pointer on the wire (GAP #4 — the SYNC hasRpgGame signal)", async () => {
-    const me = await seedUser(db, "me");
-    const chatId = await seedRoom("game-room", me);
-    const gameId = castId<RpgGameId>(`${ID_PREFIX.rpgGame}_${"0".repeat(26)}`);
-    // Stamp the opaque pointer (the write path the rpg createGame drives through chat.setRpgGamePointer).
-    await db
-      .update(chatsTable)
-      .set({ metadata: { rpg: { gameId } } })
-      .where(eq(chatsTable.id, chatId));
-
-    const { getChat } = createRead(makeChatContext(db), makeDeps());
-    const detail = await getChat({ principal: principal(me), chatId });
-    expect(detail.rpgGameId).toBe(gameId);
   });
 
   test("getChat's viewerActivePersonaId reflects a setActivePersona write (chat_participants.activePersonaId)", async () => {
@@ -503,60 +485,5 @@ describe("read — durable chat-bus log (the streamMessages SSE resume)", () => 
       { chatId, kind: "text", text: "Hello " },
       { chatId, kind: "text", text: "world" },
     ]);
-  });
-});
-
-describe("getAgentCardView — the D22 roster-chip projection (D60, doc 06 §5)", () => {
-  /** Seat an agent principal directly as a present participant (seedParticipant maps userId→human). */
-  async function seatAgentRow(chatId: ChatId, agentUserId: UserId): Promise<void> {
-    await db.insert(chatParticipants).values({
-      id: castId<ChatParticipantId>(`chat_participant_agent_${agentUserId}`),
-      chatId,
-      kind: "agent",
-      userId: agentUserId,
-      characterId: null,
-      role: "member",
-      joinedAt: FROZEN_AT,
-      joinSeq: 0,
-    });
-  }
-
-  test("a present member reads a seated agent's fixed projection (never the soul prompt/avatar)", async () => {
-    const host = await seedUser(db, "host");
-    const owner = await seedUser(db, "owner");
-    const agent = await seedAgent(db, owner, "buddy");
-    const chatId = await seedChat(db, "acv");
-    await seedParticipant(db, { chatId, key: "acv_h", userId: host, role: "host" });
-    await seatAgentRow(chatId, agent);
-    const cardView = { displayName: "Sunny", sourceKind: "buddy" as const, ownerHandle: castId<Handle>("owner") };
-    const read = createRead(makeChatContext(db, { resolveAgentCardView: () => Promise.resolve(cardView) }), makeDeps());
-
-    const view = await read.getAgentCardView({ principal: principal(host), chatId, agentUserId: agent });
-
-    expect(view).toEqual(cardView);
-  });
-
-  test("an id that is not a present agent seat is refused participant_not_found (leak-free coded)", async () => {
-    const host = await seedUser(db, "host");
-    const stranger = await seedUser(db, "stranger_agent");
-    const chatId = await seedChat(db, "acv2");
-    await seedParticipant(db, { chatId, key: "acv2_h", userId: host, role: "host" });
-    const read = createRead(makeChatContext(db, { resolveAgentCardView: () => Promise.resolve(null) }), makeDeps());
-
-    const err = await read.getAgentCardView({ principal: principal(host), chatId, agentUserId: stranger }).catch((e: unknown) => e);
-    expect(err).toBeInstanceOf(ChatOperationError);
-    expect((err as ChatOperationError).code).toBe("participant_not_found");
-  });
-
-  test("a non-member is refused leak-free (NOT_FOUND) before any agent lookup", async () => {
-    const host = await seedUser(db, "host");
-    const outsider = await seedUser(db, "outsider");
-    const agent = await seedAgent(db, host, "buddy");
-    const chatId = await seedChat(db, "acv3");
-    await seedParticipant(db, { chatId, key: "acv3_h", userId: host, role: "host" });
-    await seatAgentRow(chatId, agent);
-    const read = createRead(makeChatContext(db), makeDeps());
-
-    await expect(read.getAgentCardView({ principal: principal(outsider), chatId, agentUserId: agent })).rejects.toBeInstanceOf(ChatNotFoundError);
   });
 });

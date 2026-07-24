@@ -5,12 +5,7 @@
 //   • every bound keyword is stripped, on a CLONE (the same ResponseFormat.schema also feeds the vLLM wire).
 //   • `oneOf` (a z.discriminatedUnion projection) THROWS a typed `invalid` error at the request boundary —
 //     the D93 "flatten the union" guard fires BEFORE the live provider call, not as a cryptic 400.
-//   • the four LIVE crew payload schemas (keeper/cardEvolution/director/proseAudit) project DIRTY (they carry
-//     bounds) and come out anthropic-clean — proving the strip is load-bearing, not a no-op. The DIRECTOR is
-//     the D93 canary: its twistOps was a `z.discriminatedUnion` (→ `oneOf`, which THROWS here) and was
-//     flattened to an enum-tagged object — if it ever regresses, this loop THROWS instead of stripping.
 
-import { crewCardEvolutionPayloadSchema, crewDirectorPayloadSchema, crewKeeperPayloadSchema, crewProseAuditPayloadSchema } from "@orb/contracts/crew";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import { ProviderError } from "@orb/server/infra/providers";
 import { sanitizeAnthropicOutputSchema } from "@orb/server/infra/providers/backends/agent-sdk";
@@ -127,20 +122,4 @@ test("passes allOf through (z.intersection — live-probed ACCEPTED by the sonne
   const keys = collectKeys(clean);
   expect(keys.has("maxLength")).toBe(false);
   expect(keys.has("allOf")).toBe(true);
-});
-
-test("the four live crew payload schemas project DIRTY and sanitize anthropic-clean (the strip is load-bearing)", () => {
-  for (const schema of [crewKeeperPayloadSchema, crewCardEvolutionPayloadSchema, crewDirectorPayloadSchema, crewProseAuditPayloadSchema]) {
-    const projected = projectJsonSchema(schema);
-    const projectedKeys = collectKeys(projected);
-    // Prove the wire schema WOULD carry a rejected bound today (else this test is guarding nothing).
-    expect(BOUND_KEYWORDS.some((k) => projectedKeys.has(k))).toBe(true);
-    // For the director this ALSO proves the twistOps flatten held — a `z.discriminatedUnion` would project to
-    // `oneOf` and `sanitizeAnthropicOutputSchema` would THROW here instead of returning a clean tree (D93).
-    const clean = collectKeys(sanitizeAnthropicOutputSchema(projected, MODEL));
-    for (const bound of BOUND_KEYWORDS) {
-      expect(clean.has(bound)).toBe(false);
-    }
-    expect(clean.has("oneOf")).toBe(false);
-  }
 });

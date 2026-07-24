@@ -159,7 +159,7 @@ test("lists the caller's own jobs with status badges; a plain user never fires a
   await expect(failedPanel.getByText("Index (embeddings)")).toHaveCount(0);
 
   // The adminProcedure read is skipToken-gated for a plain user — it must never have fired.
-  expect(trpc.count("admin.listUsers")).toBe(0);
+  await expect.poll(() => trpc.count("admin.listUsers")).toBe(0);
 });
 
 test("run dialog: singular by default, params ride the kind, and a non-owner sees NO bulk affordances", async ({ mount, page }) => {
@@ -225,7 +225,7 @@ test("owner bulk create-kind: the Bulk switch + required target picker wire targ
   // A bulk CREATE-kind requires the mint target — submit is validation-blocked until one is picked.
   await page.getByTestId("run-workload-submit").click();
   await expect(page.getByText("Pick the user to import into.")).toBeVisible();
-  expect(trpc.count("workloads.start")).toBe(0);
+  await expect.poll(() => trpc.count("workloads.start")).toBe(0);
   await page.getByRole("combobox", { name: "Import into" }).click();
   await page.getByRole("option", { name: "mira" }).click();
 

@@ -21,7 +21,6 @@ import type {
   MaybeRevokeParams,
   RemoveCredentialParams,
   ResolveCredentialParams,
-  ResolveGifSearchKeyParams,
   SetActiveParams,
   TestHealthParams,
 } from "./params";
@@ -75,9 +74,6 @@ export interface CredentialsService {
   // Turn-time
   readonly resolve: (params: ResolveCredentialParams) => Promise<ResolvedCredential>;
   readonly maybeRevokeOnAuthFailed: (params: MaybeRevokeParams) => Promise<void>;
-  /** Resolve the acting principal's gif-search (Tenor) API key. Owner-scoped; the decrypted plaintext, or
-   *  `null` when the user has no live gif-search credential. Never logs the key. */
-  readonly resolveGifSearchKey: (params: ResolveGifSearchKeyParams) => Promise<string | null>;
 
   // CRUD
   readonly add: (params: AddCredentialParams) => Promise<CredentialView>;

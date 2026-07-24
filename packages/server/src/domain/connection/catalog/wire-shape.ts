@@ -5,7 +5,7 @@
 
 import type { ChatApi, CredentialSource } from "@orb/contracts/connection";
 
-export const WIRE_SHAPES = ["openai-compat", "openai-responses", "anthropic-cli", "anthropic-direct"] as const;
+export const WIRE_SHAPES = ["openai-compat", "openai-responses", "anthropic-cli"] as const;
 type WireShape = (typeof WIRE_SHAPES)[number];
 
 function assertNever(value: never): never {

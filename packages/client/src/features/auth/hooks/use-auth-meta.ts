@@ -1,4 +1,4 @@
-// React-query wrap over the session fetcher (`lib/auth-bootstrap.ts`) — how COMPONENTS read the auth
+// React-query wrap over the session fetcher (`#data/auth-bootstrap`) — how COMPONENTS read the auth
 // state (the login dispatcher, the account surface). The route guards call the fetcher directly; this
 // hook exists so N mounted readers share one cache entry. Non-tRPC read, so the key is the module const
 // (the sanctioned identifier mint — `no-array-literal-querykey`'s documented seam). `useAuthConfig` moved
@@ -7,8 +7,8 @@
 
 import type { UseQueryResult } from "@tanstack/react-query";
 import { queryOptions, useQuery } from "@tanstack/react-query";
-import type { AuthMe } from "../lib/auth-bootstrap";
-import { AUTH_ME_KEY, fetchAuthMe } from "../lib/auth-bootstrap";
+import type { AuthMe } from "#data";
+import { AUTH_ME_KEY, fetchAuthMe } from "#data";
 
 const authMeOptions = queryOptions({ queryKey: AUTH_ME_KEY, queryFn: fetchAuthMe });
 

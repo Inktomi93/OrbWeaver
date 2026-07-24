@@ -1,4 +1,4 @@
-// Gate: verify-registry-parity (UNIFIED-VERIFICATION-DESIGN.md §3.6) — every package.json script
+// Gate: verify-registry-parity (Core-Enforcement-Active-Gates.md) — every package.json script
 // matching the verification shape (check*|test*|lint*|typecheck*|depcruise*|e2e*|cpd*|format*) must be
 // reachable from the `pnpm verify` stage registry (scripts/verify/registry.ts) — either it IS a registry
 // stage's `pnpm <script>` argv, or it's on the small alias/writer allowlist. The mirror arm: every
@@ -98,12 +98,12 @@ function reconcile(root: string): Violation[] {
 
 export const gate: GateDescriptor = {
   name: "verify-registry-parity",
-  docRow: "UNIFIED-VERIFICATION-DESIGN.md §3.6",
+  docRow: "Core-Enforcement-Active-Gates.md",
   status: "active",
   scopeSafety: "whole-project",
   fsBacked: true,
   message:
-    "a package.json verification-shaped script (check*/test*/lint*/typecheck*/depcruise*/e2e*/cpd*/format*) has no `pnpm verify` tier — or a registry stage points at a deleted script. Every verification surface must be reachable from scripts/verify/registry.ts (the ledger that makes a forgotten script structurally impossible). UNIFIED-VERIFICATION-DESIGN.md §3.6.",
+    "a package.json verification-shaped script (check*/test*/lint*/typecheck*/depcruise*/e2e*/cpd*/format*) has no `pnpm verify` tier — or a registry stage points at a deleted script. Every verification surface must be reachable from scripts/verify/registry.ts (the ledger that makes a forgotten script structurally impossible). Core-Enforcement-Active-Gates.md.",
   fix: "place the script in a tier in scripts/verify/registry.ts (even `manual` + a reason), or add it to the gate's NON_STAGE_ALLOWLIST if it is a writer/artifact-generator; for a dead row, remove it or restore the script.",
   run: (ctx) => {
     for (const v of reconcile(ctx.root)) {

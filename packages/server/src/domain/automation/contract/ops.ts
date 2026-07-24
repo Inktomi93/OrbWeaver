@@ -9,7 +9,7 @@
 import type { AutomationAction, AutomationBusEvent, AutomationCelEnv, AutomationOrigin, TriggerFact } from "@orb/contracts/automation";
 import type { PromptTransform, TurnInitiator } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
-import type { ImageDiffusionParams, PromptTemplateMode, SizePresetName } from "@orb/contracts/imagery";
+import type { PromptTemplateMode, SizePresetName } from "@orb/contracts/imagery";
 import type { NotificationEvent } from "@orb/contracts/notifications";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type { UpsertEntriesResult, UpsertLoreEntryInput } from "@orb/contracts/world-info";
@@ -60,9 +60,6 @@ export interface AutomationImageRequest {
   readonly subjectCharacterId?: CharacterId | undefined;
   readonly useAvatarReference?: boolean | undefined;
   readonly reuse?: "prefer" | "never" | undefined;
-  /** The MA-8/D96 diffusion knobs (steps/cfg/sampler/scheduler/seed) — imported down from imagery, honoured
-   *  only by a local engine (ComfyUI); compose maps this onto `GeneratePictureParams.params`. */
-  readonly params?: ImageDiffusionParams | undefined;
   /** 03 §1.7's "one `/imagine` path": `quiet` ⇒ generate SILENTLY (store-only; reachable via the gallery);
    *  the default (`false`) POSTS the generated image into the chat as a message. The arm consumes `quiet`
    *  itself (imagery has no posting concept) — compose routes the non-quiet path through chat's existing

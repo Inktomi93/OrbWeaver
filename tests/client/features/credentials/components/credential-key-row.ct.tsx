@@ -19,10 +19,10 @@ test("remove is confirm-gated: cancel fires nothing, confirm fires credentials.r
 
   await dialog.getByRole("button", { name: "Cancel" }).click();
   await expect(dialog).toBeHidden();
-  expect(trpc.count("credentials.remove")).toBe(0);
+  await expect.poll(() => trpc.count("credentials.remove")).toBe(0);
 
   await page.getByRole("button", { name: "Remove the prod key key" }).click();
   await page.getByRole("alertdialog").getByRole("button", { name: "Remove" }).click();
   await expect.poll(() => trpc.count("credentials.remove"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
-  expect((trpc.lastInput("credentials.remove") as { credentialId: string }).credentialId).toBe("user_credential_ctstory0001");
+  await expect.poll(() => (trpc.lastInput("credentials.remove") as { credentialId: string }).credentialId).toBe("user_credential_ctstory0001");
 });

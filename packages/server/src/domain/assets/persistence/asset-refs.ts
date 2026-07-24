@@ -13,7 +13,7 @@
 // `chats.metadata.background` (host-set per-chat), so a cross-user carried background asset is never reaped.
 
 import type { Db } from "@orb/db";
-import { characters, chats, galleryItems, imageryGenerations, messageAssets, personas, userSettings } from "@orb/db";
+import { characters, chats, documents, galleryItems, imageryGenerations, messageAssets, personas, plugins, userSettings } from "@orb/db";
 import type { AssetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { isNotNull, sql } from "drizzle-orm";
@@ -28,6 +28,11 @@ export const ASSET_REFS: readonly AssetRef[] = [
 
   { table: imageryGenerations, column: imageryGenerations.assetId },
   { table: messageAssets, column: messageAssets.assetId },
+
+  // A document's original uploaded bytes (SET NULL on purge — retaining while the row points at it).
+  { table: documents, column: documents.sourceAssetId },
+  // An installed plugin's bundle bytes (RESTRICT — must never be reaped under the install).
+  { table: plugins, column: plugins.bundleAssetId },
 ];
 
 /** DERIVED asset-FK columns — regenerable rows that do NOT pin the blob. Held as `<table>.<column>`

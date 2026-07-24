@@ -3,19 +3,16 @@
 // the card-content JSON round-trips through the @orb/db/kit read-seam (greetings, extensions, residualData,
 // depthPrompt, refinery, a non-empty regexScripts), the snapshot opaque-blob round-trip, the CASCADE on character delete
 // (snapshots + character_personas junction both vanish), the per-owner unique(ownerId, handle) namespace
-// (same-owner dup collides → kind "unique"; a different owner with the same handle coexists), the
-// avatar SET NULL on asset delete (the character survives), and card_evolution_proposals (D59 rider) —
-// pending default + changes round-trip, the one-pending-per-(characterId,chatId) partial unique, and
-// chatId SET NULL on chat delete (the proposal survives as history).
+// (same-owner dup collides → kind "unique"; a different owner with the same handle coexists), and the
+// avatar SET NULL on asset delete (the character survives).
 
 import type { CardDepthPrompt, CharacterCard, RefinerySignals } from "@orb/contracts/character";
-import type { CardEvolutionChange } from "@orb/contracts/crew";
 import type { RegexScript } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
 import type { Db } from "@orb/db";
-import { assets, cardEvolutionProposals, characterPersonas, characterSnapshots, characters, chats, isConstraintViolation, personas } from "@orb/db";
+import { assets, characterPersonas, characterSnapshots, characters, isConstraintViolation, personas } from "@orb/db";
 import { parseRecord, parseStringArray, parseStringArrayColumn } from "@orb/db/kit";
-import type { AssetId, CardEvolutionProposalId, CharacterId, CharacterSnapshotId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, CharacterSnapshotId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../support/db";
@@ -270,89 +267,4 @@ test("avatar_asset_id is SET NULL when its asset is deleted (character survives)
   const rows = await db.select().from(characters).where(eq(characters.id, id));
   expect(rows).toHaveLength(1);
   expect(rows[0]?.avatarAssetId).toBeNull();
-});
-
-// ── card_evolution_proposals (D59 — propose-don't-dispose; character-owned, crew-filed) ────────────────
-
-const EVOLUTION_CHANGES: readonly CardEvolutionChange[] = [
-  {
-    field: "personality",
-    op: "append",
-    text: "Now wary of open water.",
-    rationale: "Repeatedly shown after the shipwreck arc.",
-  },
-];
-
-async function seedProposalHome(db: Db, tag: string): Promise<{ characterId: CharacterId; chatId: ChatId }> {
-  const ownerId = await seedUser(db, { id: `user_${tag}`, handle: `owner-${tag}` });
-  const characterId = await seedCharacter(db, ownerId, `character_${tag}`);
-  const chatId = castId<ChatId>(`chat_${tag}`);
-  await db.insert(chats).values({ id: chatId });
-  return { characterId, chatId };
-}
-
-test("card_evolution_proposals borns pending and round-trips the typed change list", async () => {
-  const db = await freshDb();
-  const { characterId, chatId } = await seedProposalHome(db, "cardprop_rt");
-  const id = castId<CardEvolutionProposalId>("cardprop_roundtrip");
-  await db.insert(cardEvolutionProposals).values({
-    id,
-    characterId,
-    chatId,
-    changes: EVOLUTION_CHANGES,
-    sourceSpan: { fromSeq: 12, toSeq: 140 },
-  });
-
-  const rows = await db.select().from(cardEvolutionProposals).where(eq(cardEvolutionProposals.id, id));
-  expect(rows[0]?.status).toBe("pending"); // the column default
-  expect(rows[0]?.changes).toEqual(EVOLUTION_CHANGES);
-  expect(rows[0]?.sourceSpan).toEqual({ fromSeq: 12, toSeq: 140 });
-  expect(rows[0]?.resolvedAt).toBeNull();
-});
-
-test("ONE pending per (characterId, chatId): a second pending collides; a superseded one coexists", async () => {
-  const db = await freshDb();
-  const { characterId, chatId } = await seedProposalHome(db, "cardprop_dup");
-  await db.insert(cardEvolutionProposals).values({
-    id: castId<CardEvolutionProposalId>("cardprop_old"),
-    characterId,
-    chatId,
-    changes: EVOLUTION_CHANGES,
-    status: "superseded", // the audit trail survives a supersede (status flip, not delete)
-  });
-  await db.insert(cardEvolutionProposals).values({
-    id: castId<CardEvolutionProposalId>("cardprop_open"),
-    characterId,
-    chatId,
-    changes: EVOLUTION_CHANGES,
-  });
-
-  let caught: unknown;
-  try {
-    await db.insert(cardEvolutionProposals).values({
-      id: castId<CardEvolutionProposalId>("cardprop_second_pending"),
-      characterId,
-      chatId,
-      changes: EVOLUTION_CHANGES,
-    });
-  } catch (err) {
-    caught = err;
-  }
-  expect(isConstraintViolation(caught)?.kind).toBe("unique");
-  expect(await db.select().from(cardEvolutionProposals)).toHaveLength(2);
-});
-
-test("chatId is SET NULL on chat delete (provenance survives as history); character delete CASCADEs", async () => {
-  const db = await freshDb();
-  const { characterId, chatId } = await seedProposalHome(db, "cardprop_prov");
-  const id = castId<CardEvolutionProposalId>("cardprop_provenance");
-  await db.insert(cardEvolutionProposals).values({ id, characterId, chatId, changes: EVOLUTION_CHANGES });
-
-  await db.delete(chats).where(eq(chats.id, chatId));
-  const survived = await db.select().from(cardEvolutionProposals).where(eq(cardEvolutionProposals.id, id));
-  expect(survived).toHaveLength(1);
-  expect(survived[0]?.chatId).toBeNull();
-
-  await db.delete(characters).where(eq(characters.id, characterId));
-  expect(await db.select().from(cardEvolutionProposals)).toHaveLength(0);
 });

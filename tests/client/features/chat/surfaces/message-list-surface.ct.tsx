@@ -172,7 +172,7 @@ test("a draft handle shows the empty state and never reads the server", async ({
 
   await expect(component.getByText("No messages yet.")).toBeVisible();
   // skipToken: a draft never builds the key, so the server is never hit.
-  expect(trpc.count("chat.listMessages")).toBe(0);
+  await expect.poll(() => trpc.count("chat.listMessages")).toBe(0);
 });
 
 // The head of a turn (start + two deltas, NO completion) — the ghost holds its streamed text; shared by

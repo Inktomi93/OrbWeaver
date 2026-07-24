@@ -1,39 +1,32 @@
 // entry/compose/services — the composition-root keystone. Integration-lite: build the whole graph over a
 // fresh in-memory db + a frozen clock + a vLLM-disabled provider registry, and assert it constructs without
 // throwing and yields every transport `Services` key plus the boot handles. This proves the injection graph
-// wires (the 19 services + the boot-global RoleClients bundle resolve offline against the vLLM floor).
+// wires (the 21 services + the boot-global RoleClients bundle resolve offline against the vLLM floor).
 
 import { tmpdir } from "node:os";
 import { automationActionSchema } from "@orb/contracts/automation";
-import type { GroupConfigInput } from "@orb/contracts/chat";
-import { groupConfigSchema } from "@orb/contracts/chat";
-import { crewConfigSchema } from "@orb/contracts/crew";
 import type { DomainEvent } from "@orb/contracts/events";
 import type { Db } from "@orb/db";
-import { characterEmbeddings, characterTags, chatParticipants, chats, rpgNpcs, rpgScenes, tags, workloads } from "@orb/db";
-import type { ChatId, ChatParticipantId, RpgGameId, RpgNpcId, UserId } from "@orb/kit/ids";
+import { characterEmbeddings, characterTags, chatParticipants, chats, tags, workloads } from "@orb/db";
+import type { ChatParticipantId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { AssetsService } from "@orb/server/domain/assets";
 import { createAssetsService } from "@orb/server/domain/assets";
 import type { CharacterService } from "@orb/server/domain/character";
 import { createCharacterService, WELCOME_ASSISTANT_HANDLE } from "@orb/server/domain/character";
-import { CrewConflictError } from "@orb/server/domain/crew";
 import type { EmbeddingsService } from "@orb/server/domain/embeddings";
 import { createEmbeddingsIndexer } from "@orb/server/domain/embeddings";
-import { RpgCrewEnabledError } from "@orb/server/domain/rpg";
 import { createDomainEventBus, createServices } from "@orb/server/entry/compose";
 import { env } from "@orb/server/foundation/env";
 import type { VllmEngineClient } from "@orb/server/infra/providers/vllm/engine";
-import { and, eq, isNull } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import type { Mock } from "vitest";
 import { describe, onTestFinished, vi } from "vitest";
-import { ChatOperationError } from "../../../../packages/server/src/domain/chat/contract/errors.ts";
 import { writeAppOverride } from "../../../../packages/server/src/domain/settings/persistence/queries.ts";
 import { subscribeChatEvents } from "../../../../packages/server/src/transport/trpc/chat-events-bus.ts";
 import { subscribeNotifications } from "../../../../packages/server/src/transport/trpc/notifications-bus.ts";
 import { createFrozenClock } from "../../../support/clock";
 import { freshDb } from "../../../support/db";
-import { DEFAULT_GAME_CONFIG, seedGame } from "../../../support/factories/rpg.ts";
 import { expect, test } from "../../../support/fixtures";
 import { makeHarness as makeAssetsHarness, pngBytes, principal, seedUser } from "../../domain/assets/_support.ts";
 import { makeHarness as makeCharHarness } from "../../domain/character/_support.ts";
@@ -43,24 +36,17 @@ const SERVICE_KEYS = [
   "admin",
   "assets",
   "automation",
-  "buddy",
   "character",
   "chat",
-  "comfyuiWorkflow",
   "connection",
   "credentials",
-  "crew",
   "databank",
   "discovery",
-  "expressions",
-  "hub",
   "imagery",
   "notifications",
   "persona",
   "plugin",
   "preset",
-  "rosterPreset",
-  "rpg",
   "search",
   "sessions",
   "settings",
@@ -741,89 +727,6 @@ describe("embed-model change reindex trigger (DBK-B(b))", () => {
   });
 });
 
-// ── rosterPreset.applyToChat compose glue (saved-rosters §7 / stickler F3) ───────────────────────────────
-// The seam the recording-stub verb test can't reach: applyToChat driving the REAL wired chat ops — the
-// `loadPresentCharacterIds` narrowing lambda + chat's own setGroupConfig — end to end through the composition
-// root. Proves the added/already-present partition off the live roster and that the stored group config is
-// chat's fully-defaulted parse (not the sparse input), plus that a non-host's apply dies at chat's own gate.
-describe("rosterPreset.applyToChat compose glue (F3)", () => {
-  const narratorConfig: GroupConfigInput = { output: "narrator", policy: "list" };
-
-  async function seedHostedChat(db: Db, host: UserId): Promise<ChatId> {
-    const chatId = mintTypeId(ID_PREFIX.chat);
-    await db.insert(chats).values({ id: chatId, createdAt: 1000, updatedAt: 1000 });
-    await db.insert(chatParticipants).values({
-      id: castId<ChatParticipantId>("chat_participant_host"),
-      chatId,
-      kind: "human",
-      userId: host,
-      role: "host",
-      joinSeq: 0,
-      joinedAt: 1000,
-    });
-    return chatId;
-  }
-
-  test("a config-bearing preset applies through the wired ops: partition correct + the stored group is fully-defaulted", async () => {
-    const db = await freshDb();
-    const result = await buildGraph(db);
-    const owner = await seedUser(db, { handle: "owner" });
-    const actor = principal(owner);
-    const present = await result.services.character.create({ principal: actor, input: { handle: "aria", name: "Aria", description: "seated" } });
-    const fresh = await result.services.character.create({ principal: actor, input: { handle: "rin", name: "Rin", description: "new" } });
-    const chatId = await seedHostedChat(db, owner);
-    // Pre-seat ONE member through the real chokepoint so apply must partition it as already-present — this is
-    // the row the `loadPresentCharacterIds` narrowing lambda has to see and narrow to its characterId.
-    await result.services.chat.addCharacterToChat({ principal: actor, chatId, characterId: present.id });
-
-    const preset = await result.services.rosterPreset.create({
-      principal: actor,
-      name: "Party",
-      groupConfig: narratorConfig,
-      members: [
-        { kind: "character", characterId: present.id },
-        { kind: "character", characterId: fresh.id, talkativeness: 0.9 },
-      ],
-    });
-
-    const applied = await result.services.rosterPreset.applyToChat({ principal: actor, presetId: preset.id, chatId });
-    expect(applied.added).toEqual([fresh.id]); // the narrowing lambda saw `present` already seated
-    expect(applied.alreadyPresent).toEqual([present.id]);
-    expect(applied.configApplied).toBe(true);
-
-    // Chat's real setGroupConfig re-parsed the lenient blob → the stored group is the FULLY-DEFAULTED parse.
-    const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
-    expect(row?.metadata?.group).toEqual(groupConfigSchema.parse(narratorConfig));
-    expect(row?.metadata?.group?.output).toBe("narrator");
-  });
-
-  test("a non-host member's apply surfaces chat's real not_host THROUGH the injected op (no second authority path)", async () => {
-    const db = await freshDb();
-    const result = await buildGraph(db);
-    const owner = await seedUser(db, { handle: "owner" });
-    const member = await seedUser(db, { handle: "member" });
-    const chatId = await seedHostedChat(db, owner);
-    await db.insert(chatParticipants).values({
-      id: castId<ChatParticipantId>("chat_participant_member"),
-      chatId,
-      kind: "human",
-      userId: member,
-      role: "member",
-      joinSeq: 0,
-      joinedAt: 1000,
-    });
-    // The member owns their OWN preset (a card they own) — the member-gated read passes, but apply must still
-    // die at chat's host gate inside addCharacterToChat, never a re-implemented authority path here.
-    const memberActor = principal(member);
-    const card = await result.services.character.create({ principal: memberActor, input: { handle: "mine", name: "Mine", description: "member-owned" } });
-    const preset = await result.services.rosterPreset.create({ principal: memberActor, name: "Mine", members: [{ kind: "character", characterId: card.id }] });
-
-    const err = await result.services.rosterPreset.applyToChat({ principal: memberActor, presetId: preset.id, chatId }).catch((e: unknown) => e);
-    expect(err).toBeInstanceOf(ChatOperationError);
-    expect((err as ChatOperationError).code).toBe("not_host");
-  });
-});
-
 describe("corpusAutoindex indexer gate (Piece D)", () => {
   test("corpusAutoindex ON → indexer subscribed; a character write embeds (row persisted)", async () => {
     const db = await freshDb();
@@ -859,114 +762,6 @@ describe("corpusAutoindex indexer gate (Piece D)", () => {
   });
 });
 
-// ── The crew ↔ rpg mutual exclusion (chat-crew-design/05 §h — F1) ─────────────────────────────────────────
-// The compose wiring the domain fake-predicate tests cannot reach: crew's `hasActiveGame` reads REAL
-// `rpg_games`, and rpg's `createGame` reads REAL `crew_chats` — the two directors / two keepers can never
-// coexist on one chat. Both directions, driven through the fully-wired services graph over real opposing state.
-describe("crew ↔ rpg mutual exclusion (F1)", () => {
-  async function seedHostedChat(db: Db, host: UserId): Promise<ChatId> {
-    const chatId = mintTypeId(ID_PREFIX.chat);
-    await db.insert(chats).values({ id: chatId, createdAt: 1000, updatedAt: 1000 });
-    await db.insert(chatParticipants).values({
-      id: castId<ChatParticipantId>("chat_participant_host"),
-      chatId,
-      kind: "human",
-      userId: host,
-      role: "host",
-      joinSeq: 0,
-      joinedAt: 1000,
-    });
-    return chatId;
-  }
-
-  test("crew.setConfig refuses on a chat that already holds an rpg game (real rpg_games read)", async () => {
-    const db = await freshDb();
-    const result = await buildGraph(db);
-    const owner = await seedUser(db, { handle: "owner" });
-    const chatId = await seedHostedChat(db, owner);
-    await seedGame(db, { chatId, status: "active" });
-
-    const config = crewConfigSchema.parse({ version: 1, director: { enabled: true } });
-    await expect(result.services.crew.setConfig({ principal: principal(owner), chatId, config })).rejects.toBeInstanceOf(CrewConflictError);
-  });
-
-  test("rpg.createGame refuses on a chat already running the crew (real crew_chats read)", async () => {
-    const db = await freshDb();
-    const result = await buildGraph(db);
-    const owner = await seedUser(db, { handle: "owner" });
-    const chatId = await seedHostedChat(db, owner);
-
-    // Enable a crew member through the REAL service (writes crew_chats), then the game refuses on the read.
-    const config = crewConfigSchema.parse({ version: 1, director: { enabled: true } });
-    await result.services.crew.setConfig({ principal: principal(owner), chatId, config });
-
-    await expect(result.services.rpg.createGame({ caller: principal(owner), chatId, config: DEFAULT_GAME_CONFIG, mode: "lite" })).rejects.toBeInstanceOf(
-      RpgCrewEnabledError,
-    );
-  });
-});
-
-// ── R9 image workloads through the REAL graph (composed-real, D100) ───────────────────────────────────────
-// The prior R9 proof (imagery/run-*.int.test.ts) was TWO-LAYER: a fake `RpgContext.imagery`/`chat` bundle. This
-// is the ONE end-to-end witness that `runnerEnv.rpg.run{Illustration,NpcPortrait}` runs the REAL `rpgCtx` the
-// composition root assembled — `chat.resolveHost` reads real `chat_participants`, `imagery.resolveImageCapability`
-// invokes the real `connection.resolveRole('generateImage')`. With NO image connection configured, both refuse
-// HONESTLY (08 §4 — never a throw, never a blocked turn); `refusedNoCapability=true` (vs the no-host NOOP) proves
-// resolveHost actually FOUND the host through the wired inline query. (The generate→CAS→post SUCCESS arm needs a
-// seeded generateImage connection + a fake image backend — covered by the two-layer run-* tests + imagery's own
-// generate-picture composed test; out of scope for this wiring witness.)
-describe("R9 image workloads run through the real rpgCtx (composed-real)", () => {
-  const noop = (): void => undefined;
-  const imageryOn = { ...DEFAULT_GAME_CONFIG, imagery: { ...DEFAULT_GAME_CONFIG.imagery, enabled: true } };
-
-  async function seedHostedGame(db: Db, host: UserId): Promise<{ chatId: ChatId; gameId: RpgGameId }> {
-    const chatId = mintTypeId(ID_PREFIX.chat);
-    await db.insert(chats).values({ id: chatId, createdAt: 1000, updatedAt: 1000 });
-    await db.insert(chatParticipants).values({
-      id: castId<ChatParticipantId>("chat_participant_host"),
-      chatId,
-      kind: "human",
-      userId: host,
-      role: "host",
-      joinSeq: 0,
-      joinedAt: 1000,
-    });
-    const game = await seedGame(db, { chatId, status: "active", config: imageryOn });
-    return { chatId, gameId: game.id };
-  }
-
-  test("runIllustration: host resolves through real chat tables, refuses honestly with no image connection", async () => {
-    const db = await freshDb();
-    const result = await buildGraph(db);
-    const owner = await seedUser(db, { handle: "owner" });
-    const { gameId } = await seedHostedGame(db, owner);
-
-    const outcome = await result.runnerEnv.rpg.runIllustration(
-      { gameId, sceneMoment: "the bridge collapses over the chasm" },
-      noop,
-      new AbortController().signal,
-    );
-
-    // refusedNoCapability (not the no-host NOOP) ⇒ resolveHost found the host + resolveImageCapability really ran.
-    expect(outcome.refusedNoCapability).toBe(true);
-    expect(outcome.posted).toBe(false);
-  });
-
-  test("runNpcPortrait: same real wiring, honest refusal with no image connection", async () => {
-    const db = await freshDb();
-    const result = await buildGraph(db);
-    const owner = await seedUser(db, { handle: "owner" });
-    const { gameId } = await seedHostedGame(db, owner);
-    const npcId = castId<RpgNpcId>("rpgnpc_witness");
-    await db.insert(rpgNpcs).values({ id: npcId, gameId, name: "Mira the Cartographer", description: "a weathered mapmaker" });
-
-    const outcome = await result.runnerEnv.rpg.runNpcPortrait({ gameId, npcId }, noop, new AbortController().signal);
-
-    expect(outcome.refusedNoCapability).toBe(true);
-    expect(outcome.assetId).toBeNull();
-  });
-});
-
 // ── Automation generate_image threads the MA-8/D96 diffusion knobs through the REAL compose graph ──────────
 // The ONE composed-real witness that a rule-fired `generate_image` carrying diffusion params reaches
 // `imagery.generatePicture` WITH them: the arm executor forwards `action.params` onto `AutomationImageRequest`,
@@ -993,14 +788,13 @@ describe("automation generate_image forwards diffusion params through the compos
       joinedAt: 1000,
     });
 
-    const diffusion = { steps: 24, cfg: 7, sampler: "dpmpp_2m", scheduler: "karras", seed: 123 };
     const rule = await result.services.automation.createRule({
       principal: actor,
       chatId,
       name: "draw on open",
       trigger: { bus: "chat", type: "chatOpened" },
       predicateCel: null,
-      actions: [automationActionSchema.parse({ type: "generate_image", mode: "free", prompt: "a lighthouse", params: diffusion })],
+      actions: [automationActionSchema.parse({ type: "generate_image", mode: "free", prompt: "a lighthouse" })],
     });
     await result.services.automation.setRuleEnabled({ principal: actor, ruleId: rule.id, enabled: true });
 
@@ -1023,74 +817,5 @@ describe("automation generate_image forwards diffusion params through the compos
     const reqParams = spy.mock.calls[0]?.[0];
     expect(reqParams?.mode).toBe("free");
     expect(reqParams?.prompt).toBe("a lighthouse");
-    expect(reqParams?.params).toEqual(diffusion);
-  });
-});
-
-// ── rpg.createScene runs the REAL fork→prune→override→row chain through the compose graph (07 §2.2) ─────────
-// The scene int test (create-scene.int.test.ts) STUBS the injected chat ops (forkChat/removeCharacter/
-// setRoomOverrides) — nothing there proves the compose WIRING. This is the ONE witness that createScene drives
-// the REAL `chat.forkChat` + `chat.removeCharacterFromChat` + `chat.setRoomOverrides`: the fork copies the owner
-// cast (D64), the non-participant is pruned OUT of the FORK (leftSeq-stamped), the `rpg_scenes` row lands on the
-// fork, and the ORIGIN chat's roster is untouched. Closes the compose-stub-lie gap (the class bit twice this week).
-describe("rpg.createScene wires the real fork/prune/override ops (composed-real)", () => {
-  test("forks the owner cast, prunes the non-participant from the FORK, writes the row, leaves the origin intact", async () => {
-    const db = await freshDb();
-    const result = await buildGraph(db);
-    const owner = await seedUser(db, { handle: "owner" });
-    const chatId = mintTypeId(ID_PREFIX.chat);
-    await db.insert(chats).values({ id: chatId, createdAt: 1000, updatedAt: 1000 });
-    await db.insert(chatParticipants).values({
-      id: castId<ChatParticipantId>("chat_participant_host"),
-      chatId,
-      kind: "human",
-      userId: owner,
-      role: "host",
-      joinSeq: 0,
-      joinedAt: 1000,
-    });
-    // Two owner-owned characters seated in the origin chat; only `keep` is a scene participant.
-    const keep = await result.services.character.create({
-      principal: principal(owner),
-      input: { handle: "keep-card", name: "Sera", description: "a scout" },
-    });
-    const drop = await result.services.character.create({
-      principal: principal(owner),
-      input: { handle: "drop-card", name: "Brannock", description: "a smith" },
-    });
-    await result.services.chat.addCharacterToChat({ principal: principal(owner), chatId, characterId: keep.id });
-    await result.services.chat.addCharacterToChat({ principal: principal(owner), chatId, characterId: drop.id });
-    await seedGame(db, { chatId, status: "active", mode: "full" });
-
-    const plan = {
-      name: "A quiet word",
-      description: "aside",
-      scenario: "SECRET: the contact is a double agent.",
-      firstMessage: "The back room is dim.",
-      participationGuide: "Speak freely.",
-      suggestedParticipants: ["Sera"],
-      rating: "sfw" as const,
-    };
-    const scene = await result.services.rpg.createScene({ caller: principal(owner), chatId, plan, participantCharacterIds: [keep.id] });
-
-    // The row landed on a REAL fork chat (a distinct chats row), bookmarked active with only the participant.
-    expect(scene.status).toBe("active");
-    expect(scene.forkChatId).not.toBe(chatId);
-    const [forkChatRow] = await db.select().from(chats).where(eq(chats.id, scene.forkChatId));
-    expect(forkChatRow).not.toBeUndefined();
-    const [sceneRow] = await db.select().from(rpgScenes).where(eq(rpgScenes.id, scene.id));
-    expect(sceneRow?.forkChatId).toBe(scene.forkChatId);
-
-    // The FORK's present cast is pruned to the participant; the ORIGIN keeps both (untouched).
-    const forkCast = await db
-      .select({ characterId: chatParticipants.characterId })
-      .from(chatParticipants)
-      .where(and(eq(chatParticipants.chatId, scene.forkChatId), eq(chatParticipants.kind, "character"), isNull(chatParticipants.leftSeq)));
-    expect(forkCast.map((p) => p.characterId)).toEqual([keep.id]);
-    const originCast = await db
-      .select({ characterId: chatParticipants.characterId })
-      .from(chatParticipants)
-      .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.kind, "character"), isNull(chatParticipants.leftSeq)));
-    expect(originCast.map((p) => p.characterId).sort()).toEqual([keep.id, drop.id].sort());
   });
 });

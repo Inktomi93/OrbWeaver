@@ -142,10 +142,10 @@ import { bindRoleClientsForUser } from "./role-clients";
 import { buildWorkloadRunnerEnv } from "./runner-env";
 
 /** The infra `WarningCode` members that are imagery's concern (mapped onto `ImageryWarning` at the generateImage
- *  op): the whole edit strip + the granular ComfyUI lever drops (comfyui-control §4.6/§4.12, C6). The resolve-chat
- *  knob codes (sampling/effort/etc.) are not imagery's and drop. A guard (not a bare `Set.has`) so `w.code`
- *  narrows to `ImageryWarning["code"]` — the mapped result then satisfies the domain result type. */
-const IMAGERY_WARNING_CODES = new Set<string>(["image_edit_dropped", "image_inpaint_dropped", "image_identity_dropped", "image_pose_dropped"]);
+ *  op): the whole edit strip (`image_edit_dropped`). The resolve-chat knob codes (sampling/effort/etc.) are not
+ *  imagery's and drop. A guard (not a bare `Set.has`) so `w.code` narrows to `ImageryWarning["code"]` — the
+ *  mapped result then satisfies the domain result type. */
+const IMAGERY_WARNING_CODES = new Set<string>(["image_edit_dropped"]);
 function isImageryWarningCode(code: string): code is ImageryWarning["code"] {
   return IMAGERY_WARNING_CODES.has(code);
 }
@@ -854,9 +854,9 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     generateImage: async (req) => {
       const result = await executor.generateImage(req);
       // Map the infra runner's edit-strip belt warnings (`ResolvedWarning{code,message}`) onto the domain's
-      // `ImageryWarning{code,detail}` — imagery never imports `#infra` types. The image concerns are the whole
-      // edit strip (`image_edit_dropped`) + the GRANULAR ComfyUI lever drops (comfyui-control §4.6/§4.12, C6 —
-      // inpaint/identity/pose); the resolve-chat knob codes (sampling/effort/etc.) are not imagery's and drop.
+      // `ImageryWarning{code,detail}` — imagery never imports `#infra` types. The image concern is the whole
+      // edit strip (`image_edit_dropped`); the resolve-chat knob codes (sampling/effort/etc.) are not imagery's
+      // and drop.
       return {
         images: result.images,
         model: result.model,
@@ -1091,7 +1091,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
         ...(req.negative !== undefined ? { negative: req.negative } : {}),
         ...(req.size !== undefined ? { size: req.size } : {}),
         ...(req.subjectCharacterId !== undefined ? { subjectCharacterId: req.subjectCharacterId } : {}),
-        ...(req.params !== undefined ? { params: req.params } : {}),
       });
       // 03 §1.7 "one /imagine path": the DEFAULT (`quiet:false`) surfaces the image IN-CHAT — otherwise a
       // `generate_image` rule's output is only ever reachable via the gallery. Post through chat's EXISTING

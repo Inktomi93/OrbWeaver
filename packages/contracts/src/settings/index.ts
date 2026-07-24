@@ -312,8 +312,7 @@ export const DEFAULT_BLUR_SURFACES: readonly BlurSurface[] = ["panels", "compose
 // (the immutable content hash the SYNC `resolveBackgroundUrl` builds `blobUrl(hash)` from — id↔hash is
 // fixed for a content-addressed asset, so storing both is denormalized-but-never-stale). The source-kind
 // vocabulary (`BACKGROUND_IMAGE_KINDS` / `BackgroundImageKind`) is homed in `#theme` (shared with the
-// carried `ThemeBackground` twin — BG-C) and re-exported from the top import block, so the flat `appearance`
-// fields + every settings consumer keep the one name.
+// carried `ThemeBackground` twin — BG-C); consumers import it from `@orb/contracts/theme` directly.
 
 export const SURFACE_TEXTURES = ["none", "grain"] as const;
 export type SurfaceTexture = (typeof SURFACE_TEXTURES)[number];

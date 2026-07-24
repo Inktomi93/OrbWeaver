@@ -176,9 +176,8 @@ async function buildUserContent(req: ImageGenerateRequest, warnings: ResolvedWar
     warnings.push({ code: IMAGE_EDIT_DROPPED, message: `${req.model}: the chat-completions image wire has no inpaint-mask channel; the mask was dropped` });
   }
   const references = edit.references ?? [];
-  // The init image is OPTIONAL now (C6d — a pose-only ControlNet edit carries no init). This hosted wire has no
-  // ControlNet channel, so an edit with no usable image (only a poseControl a curated ComfyUI role would honor)
-  // falls back to text→image with a warning — never a silent no-op, never an undefined image part.
+  // The init image is OPTIONAL. An edit with no usable image falls back to text→image with a warning —
+  // never a silent no-op, never an undefined image part.
   const sources = [...(edit.image !== undefined ? [edit.image] : []), ...references.slice(0, MAX_REFERENCE_IMAGES)];
   if (sources.length === 0) {
     warnings.push({ code: IMAGE_EDIT_DROPPED, message: `${req.model}: the edit carried no image this wire can use; generated text→image` });

@@ -258,7 +258,7 @@ function DraftGreetingThread({ draftKey, characterIds, chatStyle }: DraftGreetin
           messageActions={messageAppearance.messageActions}
           characterNamesById={characterNamesById}
           personaNamesById={personaNamesById}
-          greeting={{ draftKey, characterId: character.id, variants: character.greetings.map(g => typeof g === "string" ? g : g.text) }}
+          greeting={{ draftKey, characterId: character.id, variants: character.greetings.map((g) => (typeof g === "string" ? g : g.text)) }}
         />
       ))}
     </Stack>

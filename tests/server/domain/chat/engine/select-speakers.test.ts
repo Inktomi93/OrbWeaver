@@ -1,11 +1,10 @@
 // engine/select-speakers — the 7a DETERMINISTIC arbitration (chat.md Part III §6). Pure unit tests: same
 // inputs + same injected PRNG → same order; ban-last-speaker (soft yield); talkativeness weighting; the
-// forced/@mention hard override; solo = roster-of-1; the eligible-set predicates (muted/left excluded). D60:
-// the speaker identity is a ref ({character}|{agent}) — an agent candidate is selectable (agent-principal/02).
+// forced/@mention hard override; solo = roster-of-1; the eligible-set predicates (muted/left excluded).
 
 import type { GroupConfig, SpeakerRef } from "@orb/contracts/chat";
 import { speakerKey } from "@orb/contracts/chat";
-import type { CharacterId, UserId } from "@orb/kit/ids";
+import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import type { ArbiterCandidate } from "../../../../../packages/server/src/domain/chat/contract/arbitration";
@@ -25,9 +24,7 @@ function seededRng(seed: number): () => number {
 }
 
 const cid = (k: string): CharacterId => castId<CharacterId>(`character_${k}`);
-const uid = (k: string): UserId => castId<UserId>(`user_${k}`);
 const charRef = (k: string): SpeakerRef => ({ kind: "character", characterId: cid(k) });
-const agentRef = (k: string): SpeakerRef => ({ kind: "agent", userId: uid(k) });
 /** Extract the stable keys of a ref list (order-preserving) — the assertion surface for a mixed result. */
 const keys = (refs: readonly SpeakerRef[]): string[] => refs.map(speakerKey);
 
@@ -110,17 +107,6 @@ describe("selectSpeakers — ban-last-speaker (soft)", () => {
     });
     expect(keys(out)).toEqual(keys([charRef("solo")]));
   });
-
-  test("ban-last works across kinds: an agent last-speaker is excluded when a character remains", () => {
-    const candidates = [candidate(agentRef("buddy")), cc("a")];
-    const out = selectSpeakers({
-      candidates,
-      policy: "list",
-      lastSpeaker: agentRef("buddy"),
-      rng: seededRng(1),
-    });
-    expect(keys(out)).toEqual(keys([charRef("a")]));
-  });
 });
 
 describe("selectSpeakers — solo = roster-of-1 (no if(isGroup))", () => {
@@ -133,32 +119,6 @@ describe("selectSpeakers — solo = roster-of-1 (no if(isGroup))", () => {
       const expected = policy === "manual" ? [] : keys([charRef("only")]);
       expect(keys(out)).toEqual(expected);
     }
-  });
-});
-
-describe("selectSpeakers — AI-driven kinds: an agent is arbiter-selectable (D60)", () => {
-  test("an agent candidate is selected exactly like a character (mixed roster, list order)", () => {
-    const candidates = [cc("a"), candidate(agentRef("buddy")), cc("c")];
-    const out = selectSpeakers({
-      candidates,
-      policy: "list",
-      lastSpeaker: null,
-      rng: seededRng(1),
-    });
-    expect(keys(out)).toEqual(keys([charRef("a"), agentRef("buddy"), charRef("c")]));
-    // The agent ref round-trips intact (userId preserved, no characterId).
-    expect(out[1]).toEqual({ kind: "agent", userId: uid("buddy") });
-  });
-
-  test("a muted/left agent is never selected (the eligibility predicate is kind-blind)", () => {
-    const candidates = [candidate(agentRef("muted"), { disabled: true }), candidate(agentRef("left"), { leftSeq: 5 }), cc("present")];
-    const out = selectSpeakers({
-      candidates,
-      policy: "list",
-      lastSpeaker: null,
-      rng: seededRng(1),
-    });
-    expect(keys(out)).toEqual(keys([charRef("present")]));
   });
 });
 
@@ -247,10 +207,5 @@ describe("resolveMentions — @mention extraction (human-authored text only)", (
   test("empty text / empty cast → no mentions", () => {
     expect(resolveMentions("", cast)).toEqual([]);
     expect(resolveMentions("@Aria", [])).toEqual([]);
-  });
-
-  test("an agent seat in the cast is never @mention-forceable (character-only, v1)", () => {
-    const mixed = [...cast, { ref: agentRef("buddy"), name: "Buddy" }];
-    expect(resolveMentions("hey @Buddy", mixed)).toEqual([]);
   });
 });

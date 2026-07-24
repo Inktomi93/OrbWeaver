@@ -1,4 +1,4 @@
-// The sealed-backend contract: every backend (openrouter/agent-sdk/anth-direct/local-light/vllm/
+// The sealed-backend contract: every backend (openrouter/agent-sdk/local-light/vllm/
 // custom-byo) implements this. BackendKey + ProviderRole are infra-SEALED axes — a domain never names
 // them; `credential.source` is `CredentialSource` from @orb/contracts/credentials, never redeclared.
 
@@ -30,13 +30,8 @@ import type { EmbedRequest, ImageEmbedRequest, ImageGenerateRequest, ImageGenera
 // --- The sealed backend-key axis (the `runner`) ------------------------------
 /** The sealed backend keys a role dispatches to. `custom-openai` (hyphen) is the runner key; the
  *  credential source is `custom_openai` (underscore) — they are deliberately distinct spellings.
- *  `local-light` is the in-process transformers.js/ONNX backend (D39 — embed/rerank/imageEmbed only).
- *  `anth-direct` (D67) is the direct Anthropic-Messages chat backend — the `anthropic-messages` api over
- *  the DIRECT transport (we own the body), reached ONLY through the `openrouter` source in v1.
- *  `venice` (MA-1) is the hosted Venice image-generation backend — `generateImage` role ONLY.
- *  `comfyui` (MA-8/D96) is the LOCAL image-generation backend — an owner-configured ComfyUI endpoint,
- *  `generateImage` role ONLY (keyless; reached over the H1 owner-configured-endpoint egress posture). */
-export const BACKEND_KEYS = ["agent-sdk", "anth-direct", "openrouter", "vllm", "local-light", "custom-openai", "venice", "comfyui"] as const;
+ *  `local-light` is the in-process transformers.js/ONNX backend (D39 — embed/rerank/imageEmbed only). */
+export const BACKEND_KEYS = ["agent-sdk", "openrouter", "vllm", "local-light", "custom-openai"] as const;
 export type BackendKey = (typeof BACKEND_KEYS)[number];
 
 // --- The inference-role axis -------------------------------------------------

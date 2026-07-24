@@ -119,10 +119,12 @@ test("draft handle: Send lazily starts the chat, then commits the typed text as 
 
   await expect.poll(() => trpc.count("chat.startChat"), { intervals: [20, 50, 100] }).toBe(1);
   await expect.poll(() => trpc.count("chat.send"), { intervals: [20, 50, 100] }).toBe(1);
-  expect(trpc.lastInput("chat.send")).toMatchObject({
-    chatId: COMPOSER_CHAT_ID,
-    content: "First message",
-  });
+  await expect
+    .poll(() => trpc.lastInput("chat.send"))
+    .toMatchObject({
+      chatId: COMPOSER_CHAT_ID,
+      content: "First message",
+    });
 });
 
 test("Stop shows 'stopping' immediately on click and fires chat.abort; the button stays in the Stop family (never reverts to Send) until turnAborted lands", async ({
@@ -141,7 +143,7 @@ test("Stop shows 'stopping' immediately on click and fires chat.abort; the butto
   // Immediate feedback — no network wait needed for the label to flip (markStopping is client-only).
   await expect(component.getByRole("button", { name: "Stopping…" })).toBeVisible();
   await expect.poll(() => trpc.count("chat.abort"), { intervals: [20, 50, 100] }).toBe(1);
-  expect(trpc.lastInput("chat.abort")).toMatchObject({ chatId: COMPOSER_CHAT_ID });
+  await expect.poll(() => trpc.lastInput("chat.abort")).toMatchObject({ chatId: COMPOSER_CHAT_ID });
 
   // The slot has NOT closed optimistically — Send never reappears on its own.
   await expect(component.getByRole("button", { name: "Send message" })).toHaveCount(0);
@@ -347,5 +349,5 @@ test("continueOnSend: an empty Send on an assistant tail fires chat.continueTurn
   await send.click();
 
   await expect.poll(() => trpc.count("chat.continueTurn"), { intervals: [20, 50, 100] }).toBe(1);
-  expect(trpc.lastInput("chat.continueTurn")).toMatchObject({ chatId: COMPOSER_CHAT_ID, messageId: TAIL_ASSISTANT_ID });
+  await expect.poll(() => trpc.lastInput("chat.continueTurn")).toMatchObject({ chatId: COMPOSER_CHAT_ID, messageId: TAIL_ASSISTANT_ID });
 });

@@ -86,9 +86,9 @@ export const ownScheme = (s: number | null): 0 | 1 | 2 | 3 => {
 
 const STATIC: readonly Tier[] = ["static", "push", "full"];
 
-/** tsc scoped invocation: sole owner → `tsgo -p <config>`; none → skip; multiple owners → the whole
- *  per-package lane (the honest floor, one child not N). Uses tsgo (TS7 native) — the CLI type lanes moved
- *  off tsc6 (byte-identical diagnostics validated; ts-morph/typescript-eslint keep the TS6 API). */
+/** tsc scoped invocation: sole owner → `ts7 -p <config>`; none → skip; multiple owners → the whole
+ *  per-package lane (the honest floor, one child not N). Uses ts7 (the scripts/ts7.cjs wrapper, TS7
+ *  native) — the CLI type lanes moved off tsc6 (ts-morph/typescript-eslint keep the TS6 API). */
 function tscScopedArgv(tsconfigs: readonly string[]): ScopedArgv {
   const sole = tsconfigs[0];
   if (sole === undefined) {
@@ -97,7 +97,7 @@ function tscScopedArgv(tsconfigs: readonly string[]): ScopedArgv {
   if (tsconfigs.length > 1) {
     return ["pnpm", "typecheck"];
   }
-  return ["tsgo", "--noEmit", "--pretty", "false", "-p", sole];
+  return ["node", "scripts/ts7.cjs", "--noEmit", "--pretty", "false", "-p", sole];
 }
 
 export const REGISTRY: readonly StageDef[] = [

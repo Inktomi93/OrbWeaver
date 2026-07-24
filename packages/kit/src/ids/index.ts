@@ -62,44 +62,14 @@ export const ID_PREFIX = {
   ownerStat: "owner_stat",
   dailyStat: "daily_stat",
   modelStat: "model_stat",
-  buddyTurn: "buddy_turn",
-  buddyQuip: "buddy_quip",
   notification: "notification",
   imageryGeneration: "imagery_generation",
   galleryItem: "gallery_item",
-  // The BYO curated-pose registry row (comfyui-control §4.12.2, C6c). NO `ownerId` on the row — ownership
-  // derives via `assetId → assets.ownerId` (the imagery_generations D20 precedent).
-  poseLibrary: "pose_library",
-  // Minted at the rpg config reference; the future style-profile row (imagery-owned) adopts it.
-  styleProfile: "style_profile",
-  crewEditProposal: "crewprop",
-  cardEvolutionProposal: "cardprop",
   // `global_variables` deliberately has NO TypeID — the natural key (ownerId, key) IS the identity.
   automationRule: "automation_rule",
   automationFire: "automation_fire",
-  // `roster_preset_members` has NO TypeID — its identity is the composite PK (presetId, characterId).
-  rosterPreset: "roster_preset",
-  // The BYO ComfyUI custom-workflow row (comfyui-control §4.11.2, C7). Owner-scoped library artifact —
-  // STAMPS `ownerId` (the roster_preset TRUE-PRODUCER precedent); the stored API-format graph JSON stays
-  // opaque to domain code (D96 seal — the sealed comfyui arm parses/substitutes it).
-  comfyuiWorkflow: "comfyui_workflow",
   document: "document",
   documentChunk: "document_chunk",
-  // ID_PREFIX value is the prefix WITHOUT the trailing underscore typeid appends, e.g. `rpggame_…`.
-  rpgGame: "rpggame",
-  rpgSnapshot: "rpgsnap",
-  rpgNpc: "rpgnpc",
-  rpgPartyMember: "rpgparty",
-  rpgClock: "rpgclock",
-  rpgJournal: "rpgjournal",
-  rpgQuest: "rpgquest",
-  rpgMap: "rpgmap",
-  rpgWidget: "rpgwidget",
-  rpgSession: "rpgsession",
-  rpgCheckpoint: "rpgcheck",
-  rpgPendingCheck: "rpgpend",
-  rpgEncounter: "rpgenc",
-  rpgScene: "rpgscene",
   // The installed-plugin registry row (D46). `plugin_kv` has NO TypeID — its identity is the composite
   // PK (pluginId, key).
   plugin: "plugin",
@@ -135,8 +105,6 @@ export type TagId = TypeIdOf<"tag">;
 export type AssetId = TypeIdOf<"asset">;
 export type ImageryGenerationId = TypeIdOf<"imagery_generation">;
 export type GalleryItemId = TypeIdOf<"gallery_item">;
-export type PoseLibraryId = TypeIdOf<"pose_library">;
-export type StyleProfileId = TypeIdOf<"style_profile">;
 
 // --- Chat / conversation -----------------------------------------------------
 export type ChatId = TypeIdOf<"chat">;
@@ -174,43 +142,13 @@ export type OwnerStatId = TypeIdOf<"owner_stat">;
 export type DailyStatId = TypeIdOf<"daily_stat">;
 export type ModelStatId = TypeIdOf<"model_stat">;
 
-// --- Buddy (proactive companion turns + quips) -------------------------------
-export type BuddyTurnId = TypeIdOf<"buddy_turn">;
-export type BuddyQuipId = TypeIdOf<"buddy_quip">;
-
-// --- Chat crew (review artifacts) ---------------------------------------
-export type CrewEditProposalId = TypeIdOf<"crewprop">;
-export type CardEvolutionProposalId = TypeIdOf<"cardprop">;
-
 // --- Automation (rules + the fire log) ----------------------------------
 export type AutomationRuleId = TypeIdOf<"automation_rule">;
 export type AutomationFireId = TypeIdOf<"automation_fire">;
 
-// --- Roster presets (named party presets) ------------------------------
-export type RosterPresetId = TypeIdOf<"roster_preset">;
-
-// --- ComfyUI BYO custom workflows (comfyui-control §4.11, C7) -----------
-export type ComfyuiWorkflowId = TypeIdOf<"comfyui_workflow">;
-
 // --- Databank (source documents + vector chunks) --------------------
 export type DocumentId = TypeIdOf<"document">;
 export type DocumentChunkId = TypeIdOf<"document_chunk">;
-
-// --- RPG (the 14 campaign tables) ------------------------
-export type RpgGameId = TypeIdOf<"rpggame">;
-export type RpgSnapshotId = TypeIdOf<"rpgsnap">;
-export type RpgNpcId = TypeIdOf<"rpgnpc">;
-export type RpgPartyMemberId = TypeIdOf<"rpgparty">;
-export type RpgClockId = TypeIdOf<"rpgclock">;
-export type RpgJournalId = TypeIdOf<"rpgjournal">;
-export type RpgQuestId = TypeIdOf<"rpgquest">;
-export type RpgMapId = TypeIdOf<"rpgmap">;
-export type RpgWidgetId = TypeIdOf<"rpgwidget">;
-export type RpgSessionId = TypeIdOf<"rpgsession">;
-export type RpgCheckpointId = TypeIdOf<"rpgcheck">;
-export type RpgPendingCheckId = TypeIdOf<"rpgpend">;
-export type RpgEncounterId = TypeIdOf<"rpgenc">;
-export type RpgSceneId = TypeIdOf<"rpgscene">;
 
 // --- Plugins (D46 code sandbox) ----------------------------------------------
 export type PluginId = TypeIdOf<"plugin">;

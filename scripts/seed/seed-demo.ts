@@ -30,7 +30,6 @@ import { dirname, isAbsolute, join, resolve } from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
 import type { Principal } from "@orb/contracts/identity";
-import { rpgGameConfigSchema, rpgSheetSchema } from "@orb/contracts/rpg";
 import {
   chatBooks,
   chatParticipants,
@@ -67,7 +66,6 @@ const WORLD_BOOK_NAME = "Demo World — The Loom";
 const DEMO_DOCUMENT_NAME = "Loom lore (databank demo)";
 const DEMO_PRESET_NAME = "Demo balanced preset";
 const DEMO_TAG_NAME = "demo";
-const LITE_RPG_CHAT_TITLE = "Tidewrack — a lite campaign";
 
 // The pasted databank document — long enough to chunk into several pieces so `document_chunks` > 1.
 const DEMO_DOCUMENT_TEXT = [
@@ -413,54 +411,6 @@ async function seedDemoContent(deps: SeedDemoDeps): Promise<void> {
     await services.tag.attachTag({ principal: owner, tagId: tag.id, targetType: "character", targetId: assistantId });
   }
   log(`tag created + attached: ${DEMO_TAG_NAME}`);
-
-  // A LITE-mode rpg game (D82 living-table for agent playtests + side-eye drives, D86 doc 13): a normal chat
-  // with a narrator character, turned into a stats-steered table through the REAL verbs — createGame(mode:lite)
-  // then joinParty seating the owner with a flexible sheet (d20 attributes + two pool meters). No world-gen, no
-  // GM preset, no session loop (all full-mode machinery) — just the steered sheet the tracker panel renders.
-  if (assistantId !== undefined) {
-    await seedLiteRpgGame({ services, owner, ownerId, log }, assistantId);
-  }
-}
-
-/** Stand up one lite rpg game through the real rpg verbs (D82 standing-infrastructure; doc 13). Beyond the
- *  strict L3 letter but owner-spirit — agents and side-eye need a living lite table to drive. */
-async function seedLiteRpgGame(deps: Pick<SeedDemoDeps, "services" | "owner" | "ownerId" | "log">, narratorId: CharacterId): Promise<void> {
-  const { services, owner, ownerId, log } = deps;
-  const chat = await services.chat.startChat({ principal: owner, characterIds: [narratorId], opening: "first-message", title: LITE_RPG_CHAT_TITLE });
-
-  await services.rpg.createGame({
-    caller: owner,
-    chatId: chat.chat.id,
-    mode: "lite",
-    config: rpgGameConfigSchema.parse({
-      genres: ["Cosmic Horror"],
-      tones: ["Tense", "Mysterious"],
-      difficulty: "normal",
-      rating: "sfw",
-      setting: "A fog-drowned harbor town where the tide brings up things that should have stayed sunk.",
-      playerGoals: "Uncover what the Weavers buried beneath the wharf — and survive knowing it.",
-      gm: { kind: "standalone" },
-      lite: { steeringNote: "Lean into dread; let Sanity color every perception and Corruption twist every choice." },
-    }),
-  });
-
-  await services.rpg.joinParty({
-    caller: owner,
-    chatId: chat.chat.id,
-    userId: ownerId,
-    provenance: "setup",
-    sheet: rpgSheetSchema.parse({
-      className: "Harbor Investigator",
-      shortDescription: "A dockside archivist who reads too much and sleeps too little.",
-      attributes: { str: 8, dex: 12, con: 10, int: 15, wis: 13, cha: 11 },
-      poolDefs: [
-        { name: "Sanity", max: 100, hint: "How frayed your mind is — low Sanity makes perception unreliable and dialogue frantic." },
-        { name: "Corruption", max: 10, hint: "The tide's mark on you — rises when you touch what you shouldn't." },
-      ],
-    }),
-  });
-  log(`lite rpg game created: ${LITE_RPG_CHAT_TITLE} (mode=lite, owner seated, 2 pool meters)`);
 }
 
 /** Run a best-effort seeded chat turn: on offline-model failure, log the honest limitation and continue —

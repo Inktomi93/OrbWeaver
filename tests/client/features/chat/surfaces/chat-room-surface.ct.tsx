@@ -136,8 +136,8 @@ test("a committed send adds NO invalidation of its own — the list refetch is b
   await expect(sendButton).toBeEnabled();
 
   // THE PIN: the send fired for real, and it refetched the list ZERO extra times. Bus-only freshness.
-  expect(trpc.count("chat.send")).toBe(1);
-  expect(trpc.count("chat.listMessages")).toBe(1);
+  await expect.poll(() => trpc.count("chat.send")).toBe(1);
+  await expect.poll(() => trpc.count("chat.listMessages")).toBe(1);
 });
 
 // ── The chat-surface-anchor CONTRIBUTOR seam (client-architecture-lockdown.md §6c/M8 — new) ────────

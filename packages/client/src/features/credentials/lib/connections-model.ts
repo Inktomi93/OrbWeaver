@@ -11,19 +11,17 @@ const PROVIDER_LABEL_PAIRS: readonly (readonly [CredentialProvider, string])[] =
   ["openrouter", "OpenRouter"],
   ["anthropic", "Anthropic"],
   ["openai", "OpenAI"],
-
   ["custom_openai", "Custom OpenAI-compatible"],
-  ["gif-search", "GIF search"],
 ] as const;
 
 /** The human label for each storable provider (the add-dialog picker). */
 export const PROVIDER_LABELS: Record<CredentialProvider, string> = Object.fromEntries(PROVIDER_LABEL_PAIRS) as Record<CredentialProvider, string>;
 
-/** The full storable-provider order (includes `gif-search`, a storage-only member). */
+/** The full storable-provider order. */
 const PROVIDERS_ORDERED: readonly CredentialProvider[] = PROVIDER_LABEL_PAIRS.map(([provider]) => provider);
 
-/** The add-key dialog's provider options (excludes `gif-search`, minted elsewhere). */
-export const ADD_KEY_PROVIDERS_ORDERED: readonly CredentialProvider[] = PROVIDERS_ORDERED.filter((provider) => provider !== "gif-search");
+/** The add-key dialog's provider options — every storable provider is user-addable. */
+export const ADD_KEY_PROVIDERS_ORDERED: readonly CredentialProvider[] = PROVIDERS_ORDERED;
 
 const SOURCE_LABEL_PAIRS: readonly (readonly [CredentialSource, string])[] = [
   ["openrouter", "OpenRouter"],
@@ -262,7 +260,6 @@ const CHAT_API_LABEL_PAIRS: readonly (readonly [ChatApi, string])[] = [
   ["agent-sdk", "Agent SDK (Claude subscription)"],
   ["chat-completions", "Chat Completions"],
   ["responses", "Responses"],
-
 ] as const;
 
 /** The api-picker labels for the chat slot (the protocol axis). */

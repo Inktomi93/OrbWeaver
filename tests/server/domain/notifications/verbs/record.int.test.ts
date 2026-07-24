@@ -11,33 +11,17 @@ import { beforeEach, describe } from "vitest";
 import { createFrozenClock } from "../../../../support/clock";
 import { freshDb } from "../../../../support/db";
 import { expect, test } from "../../../../support/fixtures";
-import { AGENT, ALICE, BOB, inviteEvent, makeNotificationsService, principal, seedAgent, seedUser } from "../_support";
+import { ALICE, BOB, inviteEvent, makeNotificationsService, principal, seedUser } from "../_support";
 
 let db: Db;
 let svc: NotificationsService;
 const clock = createFrozenClock();
-const AGENT_REFUSAL = /agent principal/iu;
 
 beforeEach(async () => {
   db = await freshDb();
   await seedUser(db, ALICE, "alice");
   await seedUser(db, BOB, "bob");
   svc = makeNotificationsService(db, clock.now);
-});
-
-describe("record — the D60 recipient belt (agent-principal-design/06 §3 + inv 2)", () => {
-  test("refuses an agent-principal recipient — no row is written (a durable row would only rot)", async () => {
-    await seedAgent(db, AGENT, ALICE);
-    await expect(svc.record({ event: inviteEvent(AGENT) })).rejects.toThrow(AGENT_REFUSAL);
-    // The refusal runs BEFORE the write — nothing landed in the agent's (non-)inbox.
-    const page = await svc.list({ principal: principal(AGENT) });
-    expect(page.items).toHaveLength(0);
-  });
-
-  test("a human recipient is unaffected — the belt only fires on kind='agent'", async () => {
-    const view = await svc.record({ event: inviteEvent(ALICE) });
-    expect(view.type).toBe("invite");
-  });
 });
 
 describe("record — durable-first", () => {

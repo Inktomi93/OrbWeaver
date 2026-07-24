@@ -82,7 +82,7 @@ test("unread invites badge the bell; opening lists the invite and marks it read"
   await expect(page.getByText("alex invited you to a chat")).toBeVisible();
   // Opening = seen: ONE bulk markAllRead call, not a per-row markRead loop.
   await expect.poll(() => trpc.count("notifications.markAllRead"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
-  expect(trpc.count("notifications.markAllRead")).toBe(1);
+  await expect.poll(() => trpc.count("notifications.markAllRead")).toBe(1);
 });
 
 test("no unread → plain label, empty inbox copy", async ({ mount, page }) => {
@@ -148,7 +148,7 @@ test("Decline fires declineInvite + dismisses; the row leaves the inbox on refet
   await expect(page.getByText("alex invited you to a chat")).toHaveCount(0);
   const declined = trpc.lastInput("invites.declineInvite") as { inviteId?: unknown };
   expect(declined.inviteId).toBe("chatinvite_ct_1");
-  expect(trpc.count("notifications.dismiss")).toBeGreaterThanOrEqual(1);
+  await expect.poll(() => trpc.count("notifications.dismiss")).toBeGreaterThanOrEqual(1);
 });
 
 test("a LIVE invite arrival re-renders the badge without a refresh (the SSE-driven invalidate)", async ({ mount, page }) => {

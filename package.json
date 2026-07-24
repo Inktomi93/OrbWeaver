@@ -25,7 +25,6 @@
     "sdk:cache-probe": "tsx scripts/probes/sdk-cache-probe.ts",
     "sdk:dynamic-probe": "tsx scripts/probes/sdk-dynamic-content-probe.ts",
     "sdk:injection-cache-probe": "tsx scripts/probes/sdk-injection-cache-probe.ts",
-    "sdk:anth-direct-cache-probe": "tsx scripts/probes/anth-direct-cache-probe.ts",
     "sdk:session-probe": "tsx scripts/probes/sdk-session-probe.ts",
     "sse-tap": "tsx scripts/probes/sse-tap.ts",
     "trace:render": "tsx scripts/probes/trace-render.ts",
