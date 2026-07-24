@@ -19,6 +19,10 @@ export interface DevToolsProps {
 export function DevTools({ queryClient, router }: DevToolsProps): ReactElement {
   return (
     <TanStackDevtools
+      // Stay out of the way: the trigger is invisible until you hover its corner (no camping over the
+      // composer/rail), docked bottom-left away from the send button. Persisted in localStorage after
+      // first mount, so the settings panel can still move it. (Snap/probe mode never mounts this — main.tsx.)
+      config={{ hideUntilHover: true, position: "bottom-left" }}
       plugins={[
         {
           id: "tanstack-query",

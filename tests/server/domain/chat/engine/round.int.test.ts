@@ -22,7 +22,7 @@ import { recallMemory } from "../../../../../packages/server/src/domain/chat/mem
 import { loadCanonHistory } from "../../../../../packages/server/src/domain/chat/persistence/queries";
 import { freshDb } from "../../../../support/db";
 import { expect, test } from "../../../../support/fixtures";
-import { makeChatContext, scriptedRoleTurn, seedCharacter, seedChat, seedUser, testConnection } from "../_support";
+import { makeChatContext, scriptedRoleTurn, seedCharacter, seedChat, seedUser, stubRunCompaction, testConnection } from "../_support";
 
 const HOST = castId<UserId>("user_host");
 const cid = (k: string): CharacterId => castId<CharacterId>(`character_${k}`);
@@ -77,6 +77,7 @@ function realEngine(database: Db, requests: TurnRequest[]): TurnEngine {
     generateDigests: async () => ({ written: 0, skipped: 0 }),
     loadWitnessHorizons,
     recallMemory,
+    runCompaction: stubRunCompaction,
   });
 }
 

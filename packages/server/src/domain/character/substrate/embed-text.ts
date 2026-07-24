@@ -4,14 +4,16 @@
 // fields are deliberately excluded — they dilute identity signal and hurt card-similarity retrieval.
 
 import type { CharacterCard } from "@orb/contracts/character";
+import { env } from "#foundation/env";
 
 type CardEmbedFields = Pick<CharacterCard, "name" | "description" | "personality" | "scenario" | "greetings">;
 
-// Char budget mirrors the embed model's window (8192 tokens, 3.67 chars/token measured). Capping here keeps
-// content_hash consistent with the bytes that actually reach the vector, avoiding spurious re-embeds.
+// Char budget mirrors the embed model's window (3.67 chars/token measured). Capping here keeps content_hash
+// consistent with the bytes that actually reach the vector, avoiding spurious re-embeds. The window is NO
+// LONGER a bare 8192 literal — it is the embed engine's effective window: the caller passes the
+// self-reported value when available, else this falls to the single-home env floor
+// (VLLM_EMBED_MAX_MODEL_LEN), which is also the engine's launch flag. One home, engine-self-report wins.
 const APPROX_CHARS_PER_TOKEN = 3.67;
-const EMBED_MAX_TOKENS = 8192;
-const MAX_EMBED_CHARS = Math.floor(EMBED_MAX_TOKENS * APPROX_CHARS_PER_TOKEN);
 
 // UTF-16 high-surrogate range — the leading half of an astral-codepoint pair.
 const HIGH_SURROGATE_MIN = 0xd8_00;
@@ -48,8 +50,11 @@ function normalizePlaceholders(text: string, charName: string, userName: string)
   return text.replace(/\{\{char\}\}/gi, () => charName).replace(/\{\{user\}\}/gi, () => userName);
 }
 
-/** Field ORDER is load-bearing: last-token pooling weights later text less, so identity fields lead. */
-export function buildCardEmbedText(card: CardEmbedFields, userName = "User"): string {
+/** Field ORDER is load-bearing: last-token pooling weights later text less, so identity fields lead.
+ *  `maxTokens` is the embed engine's effective window (self-report ⊕ env floor); defaulted to the env floor
+ *  so a bare unit call (and every existing pure test) sizes off the single-home window, never a literal. */
+export function buildCardEmbedText(card: CardEmbedFields, userName = "User", maxTokens: number = env.VLLM_EMBED_MAX_MODEL_LEN): string {
+  const maxEmbedChars = Math.floor(maxTokens * APPROX_CHARS_PER_TOKEN);
   const name = card.name;
   const first = card.greetings[0]?.text ?? null;
   const alternates = card.greetings.slice(1);
@@ -80,5 +85,5 @@ export function buildCardEmbedText(card: CardEmbedFields, userName = "User"): st
     }
   }
 
-  return truncateAtCodepoint(parts.filter((p): p is string => p !== null).join("\n"), MAX_EMBED_CHARS);
+  return truncateAtCodepoint(parts.filter((p): p is string => p !== null).join("\n"), maxEmbedChars);
 }

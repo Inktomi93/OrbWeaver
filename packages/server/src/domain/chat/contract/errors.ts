@@ -89,6 +89,11 @@ export const CHAT_OP_CODES = {
    *  refusal leaks nothing. The seat KIND is read via the injected `ctx.rpg.resolveGmSeatHolderKind` op — chat
    *  never reads rpg tables. Domain-private (no client surface renders it yet). */
   agentGmSeatConfigLocked: "agent_gm_seat_config_locked",
+  /** Managed / manual compaction ran the marker generation over a NON-empty span but the model returned EMPTY
+   *  text — a real failure, not a benign no-op. The existing marker + coverage stamp are left untouched (never a
+   *  blank marker). The engine hook maps this to a `compaction_failed` warning; the manual `compact` verb
+   *  propagates it. Host/internal surface only (no membership leak — a chat the caller can compact). */
+  compactionEmpty: "compaction_empty",
 } as const;
 
 /** The reason-code union (derived from the one tuple of values — never re-spelled). */

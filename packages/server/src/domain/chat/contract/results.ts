@@ -276,10 +276,13 @@ export interface ForkResult {
   readonly chat: ChatDetail;
 }
 
-/** `compact` — the portable compaction checkpoint produced: the summary text + the seq it covers through. */
+/** `compact` — the portable compaction marker produced: the summary text + the seq it covers through, and
+ *  whether this call actually rewrote the marker (`false` for an idempotent no-op / an all-hidden span / an
+ *  empty generation the caller must surface). */
 export interface CompactResult {
   readonly summary: string;
   readonly compactedAtSeq: number;
+  readonly updated: boolean;
 }
 
 /** `reapTemporaryChats` — how many temporary chats were reaped. */

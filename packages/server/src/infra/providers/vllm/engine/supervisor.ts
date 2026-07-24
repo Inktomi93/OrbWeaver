@@ -15,6 +15,7 @@ import type { ENGINE_LIFECYCLE_STATUSES } from "./engine-status";
 import { setEngineStatus } from "./engine-status";
 import { VLLM_ENGINES } from "./engines";
 import { detectGpu } from "./gpu";
+import type { EngineSpawnSpec } from "./spawn-engine";
 
 const SS_PID_RE = /pid=(\d+)/;
 
@@ -228,9 +229,25 @@ async function probeEngine(engine: VllmEngine): Promise<Probe> {
 
 const realSleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
-/** Start the supervisor; returns a graceful-drain closer. `now`/`sleep` are injected for determinism (tests drive backoff without wall-clock waits). */
-export function startVllmEngines(opts: { repoRoot: string; now: () => number; sleep?: (ms: number) => Promise<void> }): () => void {
-  const { repoRoot, now } = opts;
+/** POSIX single-quote a shell word — wrap in '…', escaping embedded quotes as '\''. The engine argv/env
+ *  values (model ids, JSON hf_overrides, paths) go through this before entering the `bash -c` wrapper so
+ *  spaces / braces / quotes can never break out of their word. */
+function shQuote(word: string): string {
+  return `'${word.replaceAll("'", "'\\''")}'`;
+}
+
+/** Start the supervisor; returns a graceful-drain closer. `now`/`sleep` are injected for determinism (tests
+ *  drive backoff without wall-clock waits). `spawnSpec` resolves the per-engine command+args+env — the ONLY
+ *  place launch flags enter the supervisor (from buildEngineSpawnSpec at compose); it is re-invoked per spawn
+ *  so a restart picks up the current admin launch config. The process TOPOLOGY here (setsid group, pipe
+ *  watchdog, kill grace) is invariant — only where flags come from changed. */
+export function startVllmEngines(opts: {
+  repoRoot: string;
+  now: () => number;
+  sleep?: (ms: number) => Promise<void>;
+  spawnSpec: (engine: VllmEngine) => EngineSpawnSpec;
+}): () => void {
+  const { repoRoot, now, spawnSpec } = opts;
   const sleep = opts.sleep ?? realSleep;
   const log = getLog().child({ component: "vllm-engines" });
 
@@ -277,10 +294,28 @@ export function startVllmEngines(opts: { repoRoot: string; now: () => number; sl
     mkdirSync(runDir, { recursive: true });
     const logPath = path.join(runDir, `vllm-${s.engine}.log`);
 
-    // setsid makes the engine its own process-group leader, so the group-kill below takes the APIServer
-    // and its EngineCore children in one signal. cat blocks on our stdin pipe; when this process dies the pipe closes and the group gets TERM then KILL.
+    // Resolve the launch spec (command + args + caches/CUDA env) from the injected builder — the flag half,
+    // topology-invariant. buildEngineSpawnSpec may make a huggingface_hub call (rerank snapshot); a throw
+    // here means the engine is unlaunchable, so mark it down and let the breaker apply on the next tick.
+    let spec: EngineSpawnSpec;
+    try {
+      spec = spawnSpec(s.engine);
+    } catch (err) {
+      log.error({ engine: s.engine, err }, "vllm-engines: could not build spawn spec — engine unlaunchable");
+      mark(s, "down", "spawn-spec build failed");
+      return;
+    }
+
+    // setsid makes the engine its own process-group leader, so the group-kill below takes the APIServer and
+    // its EngineCore children in one signal. cat blocks on our stdin pipe; when this process dies the pipe
+    // closes and the group gets TERM then KILL. The engine binary + args are shell-quoted; the per-engine
+    // cache/CUDA env is exported inline before the exec so the child inherits it (same as the old .sh export).
+    const envExports = Object.entries(spec.env)
+      .map(([k, v]) => `export ${k}=${shQuote(v)}; `)
+      .join("");
+    const argv = [spec.command, ...spec.args].map(shQuote).join(" ");
     const wrapper =
-      `setsid bash "${repoRoot}/scripts/dev/vllm-engine.sh" ${s.engine} >>"${logPath}" 2>&1 & P=$!; ` +
+      `${envExports}setsid ${argv} >>"${logPath}" 2>&1 & P=$!; ` +
       `cat >/dev/null; kill -TERM -- "-$P" 2>/dev/null; ` +
       `for _ in $(seq 1 ${KILL_GRACE_TICKS}); do kill -0 "$P" 2>/dev/null || exit 0; sleep 0.5; done; ` +
       `kill -KILL -- "-$P" 2>/dev/null`;

@@ -15,12 +15,14 @@ import type { AssembleContext, ChatBusEvent, MessageView, TurnAbortReason } from
 import { buildCharacterNameMap, buildPersonaNameMap } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
 
-import type { ContinuePostfix } from "@orb/contracts/preset";
+import type { ContinuePostfix, UserIntent } from "@orb/contracts/preset";
+import { DEFAULT_COMPACT_INSTRUCTIONS, DEFAULT_COMPACTION_MODE, MANAGED_COMPACT_DEFAULT_PCT } from "@orb/contracts/preset";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany, isConstraintViolation } from "@orb/db/kit";
-import type { CharacterId, ChatId, ChatTurnId, MessageId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, ChatTurnId, MessageId, UserId } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
+import { estimateTokens } from "@orb/kit/tokens";
 import { getLog } from "#foundation/observability";
 import type { ChatContext } from "../context";
 import type { DebitBudgetOp, ResolveTurnPolicyOp } from "../contract/context";
@@ -37,7 +39,15 @@ import {
 } from "../persistence/canon-write";
 import { refreshLock, releaseLock, tryAcquireLock } from "../persistence/lock";
 import { loadChatMacroNameProducer } from "../persistence/macro-names";
-import { loadCanonHistory, loadCanonStatRows, loadMaxMessageSeq, loadMessageView, loadSlotTarget, loadVariableDeltas } from "../persistence/queries";
+import {
+  loadCanonHistory,
+  loadCanonStatRows,
+  loadChatRow,
+  loadMaxMessageSeq,
+  loadMessageView,
+  loadSlotTarget,
+  loadVariableDeltas,
+} from "../persistence/queries";
 import { loadRoster } from "../persistence/roster";
 import { resolveGroupBucketCharacterId } from "../substrate/group-bucket";
 import { foldChain, runtimeVariablesUpdateStatement } from "../substrate/runtime-variables";
@@ -88,11 +98,26 @@ interface EngineDeps {
       readonly scope: MemoryScope;
       readonly groupCharacterId: CharacterId;
       readonly witnessing?: readonly WitnessInterval[] | undefined;
+      readonly liveWindowCutoffSeq?: number | undefined;
       readonly config?: MemoryConfig | null | undefined;
       readonly recent?: readonly MsgRow[] | undefined;
       readonly names?: ReadonlyMap<CharacterId, string> | undefined;
     },
   ) => Promise<string>;
+  /** Injected lock-free compaction core (`makeRunCompaction`) — the managed-compaction post-turn hook rebuilds
+   *  the LINEAR-tier `compactSummary` marker over the span above the fit boundary via the chat's OWN model.
+   *  Injected (not imported from the verb) so the engine never reaches into a verb; the domain root wires the same
+   *  core the manual `compact` verb uses. Idempotent via `chats.compactedAtSeq` — an unchanged coverage point
+   *  rewrites nothing (`updated:false`). Takes the chat's resolved `connection` (the marker rides the chat's model,
+   *  source-agnostic). */
+  readonly runCompaction: (args: {
+    readonly chatId: ChatId;
+    readonly connection: ResolvedConnection;
+    readonly ownerId: UserId;
+    readonly coveragePoint?: number | undefined;
+    readonly instructions?: string | undefined;
+    readonly signal?: AbortSignal | undefined;
+  }) => Promise<{ readonly summary: string; readonly compactedAtSeq: number; readonly updated: boolean }>;
 }
 
 /** Maps the engine's turn-kind axis to the public bus `TurnIntent`. `opening`/`auto`/`force` surface as
@@ -558,6 +583,285 @@ function fireRpgTurnAborted(ctx: ChatContext, chatId: ChatId, turnId: ChatTurnId
   }
 }
 
+/** SINGLE-FLIGHT set for managed compaction, keyed by chatId — at most one in-flight marker build per chat (a
+ *  trip while one is running is a no-op). The UNCHANGED-coverage-point skip is NOT tracked here (that would leak
+ *  a per-chat entry forever): it is enforced DURABLY by the core's `chats.compactedAtSeq` idempotence — a re-fire
+ *  on an already-covered point loads an empty window and rewrites nothing (`updated:false`, no generation). The
+ *  marker generation is NOT a chat turn — un-trippable: it contributes nothing to the pct usage accounting and
+ *  cannot recursively re-arm this hook. The set holds only IN-FLIGHT chats, so it self-empties (delete on finally).
+ *
+ *  ASSUMES(single-replica): this is per-process de-dup only — a best-effort spend/concurrency guard, NOT a
+ *  correctness boundary. The DB-backed replacement seam is `chats.compactedAtSeq` (the durable idempotence that
+ *  ALREADY makes a cross-replica double-fire a harmless no-op: the second replica loads an empty window and writes
+ *  nothing). Under multi-replica the worst case is a redundant summarizer call, never a corrupt/racing marker —
+ *  so a shared cache is not required for correctness. */
+const compactionInFlight = new Set<ChatId>();
+
+/** Fire-and-forget the MANAGED-COMPACTION post-turn refresh — the LINEAR memory tier (a running `compactSummary`
+ *  marker that stands in for compacted-away history), the sibling of the retrieval-tier digest build and keyed
+ *  off the SAME fit boundary.
+ *
+ *  API-AXIS GATED (owner ruling): compaction GENERATION fires for any `connection.api === "agent-sdk"` chat —
+ *  the runner axis, NOT a backend/source name (zero backend-name branches). It rebuilds the marker via the chat's
+ *  OWN model through the injected `runCompaction` → `quietGenerate`. Stateless apis (chat-completions/responses)
+ *  NEVER generate a marker — the history-budget fit hard-cap is their only trim. The STORED marker is durable chat
+ *  state that CARRIES FORWARD on an api swap (the read side is api-moded but source-agnostic; only WRITE is gated).
+ *
+ *  TRIGGER (either): (1) total context usage ≥ the managed pct of the effective ceiling (PROVIDER-truth usage
+ *  preferred, fit estimate fallback) — PROACTIVE; or (2) this turn's fit dropped rows — REACTIVE. The COVERAGE
+ *  POINT is the seq just before the earliest-KEPT message (everything above the boundary). A null boundary leaves
+ *  no coverage point → no compaction.
+ *
+ *  SINGLE-FLIGHT + IDEMPOTENT: at most one in-flight compaction per chat; an unchanged coverage point never
+ *  re-fires (map guard + the core's `compactedAtSeq` no-op). FAILURE-HONEST: an empty/thrown marker generation
+ *  leaves the EXISTING marker untouched and emits a `compaction_failed` warning (never a half-written marker).
+ *  Instructions are preset-overridable (`compaction.instructions`), falling back to `DEFAULT_COMPACT_INSTRUCTIONS`.
+ *  Fire-and-forget — a background marker build must NEVER fault the committed reply. */
+/** The EFFECTIVE compaction config + context cap this turn runs under — the PRESET params (`promptConfig.params`)
+ *  folded with the per-send `intent` (per-send wins, mirroring `foldGenerationParams`). CRITICAL: the trigger must
+ *  read THIS, not `prep.intent` alone — a preset that sets `compaction.mode:"managed"` + `maxContextTokens` (the
+ *  normal UX path) carries them on `promptConfig.params`, never on the per-send intent. Reading `prep.intent`
+ *  alone silently never fired the pct arm on a preset-configured chat (the reviewer's 56.9%-no-fire receipt). */
+function resolveEffectiveCompaction(prep: TurnPrep): {
+  readonly compaction: NonNullable<UserIntent["compaction"]>;
+  readonly maxContextTokens: number | undefined;
+} {
+  const presetParams = prep.assembleContext.promptConfig.params;
+  // The whole `compaction` object folds atomically (per-send replaces preset when present), matching the
+  // `...base, ...override` spread `foldGenerationParams` applies. This is the item-3 fix — the trigger reads the
+  // EFFECTIVE (preset ⊕ intent) config, not `prep.intent` alone, so a preset-configured managed mode + cap fires.
+  // OWNER RULING: compaction is a SAFETY property (no chat may error from context growth) — turning it OFF is not
+  // an option. Absent on BOTH ⇒ the RESOLVED default `DEFAULT_COMPACTION_MODE` (managed) + the default pct, so an
+  // unconfigured agent-sdk chat gets OUR durable marker, never nothing. `auto` can't be the safe floor while its
+  // functioning on non-Anthropic backends is unverified (probe-1 gap). ONE home for the default; the UI reads it too.
+  const configured = prep.intent.compaction ?? presetParams.compaction;
+  return {
+    compaction: configured ?? { mode: DEFAULT_COMPACTION_MODE, thresholdPct: MANAGED_COMPACT_DEFAULT_PCT },
+    maxContextTokens: prep.intent.maxContextTokens ?? presetParams.maxContextTokens,
+  };
+}
+
+/** The managed-compaction trigger decision: `true` when this turn's CUMULATIVE context usage crossed the managed
+ *  pct OR the fit dropped rows (the reactive arm).
+ *
+ *  PROACTIVE (pct) SIGNAL — the FIT ESTIMATE is authoritative (`fitUsedTokens`/`fitCeilingTokens`), because it is
+ *  cumulative over the FULL canon on EVERY api. Provider `tokensIn` is NOT a reliable cumulative signal on the
+ *  agent-sdk stateful path: a RESUMING SDK session reports only the per-turn DELTA (hosted-verified: tokensIn
+ *  ≈ 2 after the first turn), so `tokensIn/window` never crosses the pct there. Provider usage is used ONLY as a
+ *  corroborating BUMP — if the backend reports a bigger cumulative usage than we estimated (a full-prompt stateless
+ *  send), that wins. So the pct arm bites correctly on both paths; the reactive fit-drop arm is the backstop the
+ *  hosted stateful path relies on (its fit ceiling = min(window, maxContextTokens) still trims the full canon). */
+function compactionTriggered(compaction: NonNullable<UserIntent["compaction"]>, result: Awaited<ReturnType<typeof runTurnPipeline>>): boolean {
+  const pct = compaction.thresholdPct ?? MANAGED_COMPACT_DEFAULT_PCT;
+  const ceiling = result.fitCeilingTokens;
+  const e = result.economics;
+  const providerUsed = (e?.tokensIn ?? 0) + (e?.tokensOut ?? 0);
+  // The cumulative usage = the greater of our fit estimate and the provider's report (the provider only wins on a
+  // stateless full-prompt send; on a resuming SDK session its delta is smaller and the fit estimate governs).
+  const cumulativeUsed = Math.max(result.fitUsedTokens, providerUsed);
+  const overThreshold = ceiling !== null && ceiling > 0 && cumulativeUsed >= pct * ceiling;
+  return overThreshold || result.droppedCount > 0;
+}
+
+/** How many newest canon rows managed compaction keeps VERBATIM (never folded into the marker) on the agent-sdk
+ *  path — the SDK owns its working set, so our fit-pass never trims (no `contextBoundaryMessageId`); the coverage
+ *  point is instead "everything older than the recent tail". Sized to keep the live scene intact while summarizing
+ *  the aged-out bulk (mirrors the memory build's `verbatimWindow` intent — the recent scene stays literal). */
+const MANAGED_VERBATIM_TAIL = 8;
+
+/** The managed-compaction coverage point (the seq through which the new marker covers). TWO derivations:
+ *   • a real FIT boundary exists (the stateless-style trim path, or a future agent-sdk that surfaces one) → the
+ *     seq just before the earliest-KEPT row (everything above the boundary);
+ *   • no fit boundary (the agent-sdk norm — the SDK owns context, nothing trims) → keep the newest
+ *     `MANAGED_VERBATIM_TAIL` rows verbatim and cover everything older (`maxSeq - tail`).
+ *  `undefined` when there is nothing old enough to compact (a short chat under the tail) — no coverage this turn. */
+function resolveCoveragePoint(result: Awaited<ReturnType<typeof runTurnPipeline>>, canonAll: readonly MessageView[]): number | undefined {
+  if (result.contextBoundaryMessageId !== null) {
+    const boundarySeq = canonAll.find((m) => m.id === result.contextBoundaryMessageId)?.seq;
+    return boundarySeq === undefined ? undefined : boundarySeq - 1;
+  }
+  const maxSeq = canonAll.at(-1)?.seq ?? 0;
+  const coverage = maxSeq - MANAGED_VERBATIM_TAIL;
+  return coverage > 0 ? coverage : undefined;
+}
+
+/** The PRE-TURN managed-compaction decision (the wedge-state fix): estimate the CUMULATIVE prompt-eligible token
+ *  cost the NEXT dispatch would carry (above the current coverage point), and if it is already ≥ the managed pct
+ *  of the effective ceiling, return the coverage point to compact THROUGH before dispatch. This closes the
+ *  wedge where a chat's context already makes the model FAIL (a resumed session overflowing the window): the
+ *  post-turn arm never runs on a failing turn, so without this a doomed chat can never compact its way out.
+ *  `undefined` ⇒ under threshold / nothing old enough → no pre-turn compaction. */
+function preTurnCoveragePoint(args: {
+  readonly compaction: NonNullable<UserIntent["compaction"]>;
+  readonly connection: ResolvedConnection;
+  readonly maxContextTokens: number | undefined;
+  readonly canonAll: readonly MessageView[];
+  readonly currentCoverage: number;
+}): number | undefined {
+  const pct = args.compaction.thresholdPct ?? MANAGED_COMPACT_DEFAULT_PCT;
+  const window = args.connection.capability.context.window;
+  const ceiling = Math.min(window, args.maxContextTokens ?? Number.POSITIVE_INFINITY);
+  if (!Number.isFinite(ceiling) || ceiling <= 0) {
+    return; // no trustworthy ceiling → the pre-check can't threshold (the reactive arm still fires).
+  }
+  // Cumulative estimate = the prompt-eligible rows ABOVE the current coverage (what the next seed/prompt carries).
+  const eligible = args.canonAll.filter((m) => !m.excludedFromPrompt && m.role !== "system" && m.seq > args.currentCoverage);
+  const cumulative = eligible.reduce((sum, m) => sum + estimateTokens(m.content), 0);
+  if (cumulative < pct * ceiling) {
+    return;
+  }
+  // Over threshold → compact through everything older than the recent verbatim tail (same rule as the post-turn
+  // no-fit-boundary path). Undefined when there is nothing old enough to compact yet.
+  const maxSeq = args.canonAll.at(-1)?.seq ?? 0;
+  const coverage = maxSeq - MANAGED_VERBATIM_TAIL;
+  return coverage > args.currentCoverage && coverage > 0 ? coverage : undefined;
+}
+
+/** Emit a bus event, swallowing any failure — a background warning/update must never re-throw out of the
+ *  fire-and-forget compaction body (and a nested `.catch` trips noNestedPromises). */
+async function emitQuiet(deps: EngineDeps, event: ChatBusEvent): Promise<void> {
+  try {
+    await deps.emit(event);
+  } catch {
+    // A failed emit must never surface from the background hook.
+  }
+}
+
+/** The fresh marker + coverage stamp a pre-turn compaction produced, overlaid onto THIS turn's assemble ctx so
+ *  its assembly already excludes the covered rows. `null` ⇒ no pre-turn compaction ran (ctx unchanged). */
+interface CompactionOverlay {
+  readonly compactSummary: string;
+  readonly compactedThroughSeq: number;
+}
+
+/** Overlay a pre-turn compaction's fresh marker/coverage onto the assemble ctx (a fresh shape, never a mutation —
+ *  the speaker-card precedent). Null overlay ⇒ the ctx is returned unchanged (byte-identical no-compaction turn). */
+function applyCompactionOverlay(ctx: AssembleContext, overlay: CompactionOverlay | null): AssembleContext {
+  if (overlay === null) {
+    return ctx;
+  }
+  return { ...ctx, compactSummary: overlay.compactSummary, compactedThroughSeq: overlay.compactedThroughSeq };
+}
+
+/** The PRE-TURN managed-compaction orchestration (the wedge-state fix): load canon, and when the cumulative
+ *  estimate already crosses the managed pct, compact BEFORE dispatch so a chat whose context already overflows
+ *  the window can escape (the post-turn arm never runs on a failing turn). Awaited, single-flight, failure-honest
+ *  (a failed pre-turn compaction logs + proceeds with the pre-compaction canon — never blocks the turn). Returns
+ *  the (possibly reloaded) canon + maxSeq + a marker overlay (null when nothing compacted). */
+async function runPreTurnCompaction(
+  ctx: ChatContext,
+  deps: EngineDeps,
+  prep: TurnPrep,
+): Promise<{ readonly canonAll: readonly MessageView[]; readonly maxSeq: number; readonly compactionOverlay: CompactionOverlay | null }> {
+  const canonAll = await loadCanonHistory(ctx.db, prep.chatId);
+  // The EFFECTIVE compaction config = preset params folded with the per-send intent (per-send wins). Reading
+  // `prep.intent` alone missed a preset-configured managed mode + cap (the reviewer's no-fire receipt).
+  const { compaction, maxContextTokens } = resolveEffectiveCompaction(prep);
+  const chat = await loadChatRow(ctx.db, prep.chatId);
+  const currentCoverage = chat?.compactedAtSeq ?? 0;
+  const coveragePoint =
+    compaction.mode === "managed" && prep.connection.api === "agent-sdk"
+      ? preTurnCoveragePoint({ compaction, connection: prep.connection, maxContextTokens, canonAll, currentCoverage })
+      : undefined;
+  // No pre-turn compaction: return the loaded canon untouched (still avoids a second DB read for maxSeq).
+  if (coveragePoint === undefined || compactionInFlight.has(prep.chatId)) {
+    return { canonAll, maxSeq: canonAll.at(-1)?.seq ?? 0, compactionOverlay: null };
+  }
+  const { chatId } = prep;
+  const instructions = compaction.instructions ?? DEFAULT_COMPACT_INSTRUCTIONS;
+  compactionInFlight.add(chatId);
+  let overlay: CompactionOverlay | null = null;
+  try {
+    const res = await deps.runCompaction({
+      chatId,
+      connection: prep.connection,
+      ownerId: prep.runAsUserId,
+      coveragePoint,
+      instructions,
+    });
+    if (res.updated) {
+      overlay = { compactSummary: res.summary, compactedThroughSeq: res.compactedAtSeq };
+    }
+  } catch (compactErr) {
+    // FAILURE-HONEST: a failed pre-turn compaction NEVER blocks the turn — log + proceed with the current canon.
+    getLog().warn({ err: compactErr, chatId }, "chat: pre-turn managed compaction failed (proceeding)");
+  } finally {
+    compactionInFlight.delete(chatId);
+  }
+  if (overlay !== null) {
+    const reloaded = await loadCanonHistory(ctx.db, chatId);
+    await emitQuiet(deps, { type: "chatUpdated", chatId });
+    return { canonAll: reloaded, maxSeq: reloaded.at(-1)?.seq ?? 0, compactionOverlay: overlay };
+  }
+  // THE NO-WALL BELT (owner ruling — compaction is a safety property): the pre-turn arm wanted to compact but NO
+  // usable marker materialized (the generation kept failing/empty). If the context is already AT/OVER the effective
+  // WINDOW, the turn would march into the wall — so we DEGRADE loudly: the DOMAIN fit-pass drop-oldest trims the
+  // shaped history at the window (→ a shorter agent-sdk seed → a reseed; the turn SURVIVES, no summary), and we
+  // emit a VISIBLE warning. Degraded-and-loud, never error-and-dead.
+  if (contextAtOrOverWindow(prep.connection, canonAll, currentCoverage)) {
+    await emitQuiet(deps, { type: "warning", chatId, code: "context_trimmed_no_summary" });
+  }
+  return { canonAll, maxSeq: canonAll.at(-1)?.seq ?? 0, compactionOverlay: null };
+}
+
+/** Whether the prompt-eligible context above the current coverage is AT/OVER the model's effective context WINDOW
+ *  — the no-wall belt's trip condition (a turn dispatched now would overflow). Estimator-based (the same
+ *  `estimateTokens` the fit uses); the fit-pass then does the actual drop-oldest trim at the window. */
+function contextAtOrOverWindow(connection: ResolvedConnection, canonAll: readonly MessageView[], currentCoverage: number): boolean {
+  const window = connection.capability.context.window;
+  if (!Number.isFinite(window) || window <= 0) {
+    return false;
+  }
+  const eligible = canonAll.filter((m) => !m.excludedFromPrompt && m.role !== "system" && m.seq > currentCoverage);
+  const cumulative = eligible.reduce((sum, m) => sum + estimateTokens(m.content), 0);
+  return cumulative >= window;
+}
+
+function fireManagedCompaction(
+  deps: EngineDeps,
+  prep: TurnPrep,
+  turn: { readonly result: Awaited<ReturnType<typeof runTurnPipeline>>; readonly canonAll: readonly MessageView[] },
+): void {
+  // The EFFECTIVE compaction config (preset params folded with the per-send intent) — NOT `prep.intent` alone.
+  const { compaction } = resolveEffectiveCompaction(prep);
+  // WRITE is agent-sdk-API-only (the runner axis) — a stateless api never generates a marker.
+  if (compaction.mode !== "managed" || prep.connection.api !== "agent-sdk" || !compactionTriggered(compaction, turn.result)) {
+    return;
+  }
+  const coveragePoint = resolveCoveragePoint(turn.result, turn.canonAll);
+  if (coveragePoint === undefined) {
+    return;
+  }
+  const { chatId } = prep;
+  // SINGLE-FLIGHT: one marker build per chat at a time. The unchanged-coverage-point skip is DURABLE (the core's
+  // `compactedAtSeq` no-ops an already-covered point → `updated:false`, no generation), so no per-chat map leaks.
+  if (compactionInFlight.has(chatId)) {
+    return;
+  }
+  compactionInFlight.add(chatId);
+  const instructions = compaction.instructions ?? DEFAULT_COMPACT_INSTRUCTIONS;
+  const connection = prep.connection;
+  const ownerId = prep.runAsUserId;
+  void (async (): Promise<void> => {
+    try {
+      const res = await deps.runCompaction({ chatId, connection, ownerId, coveragePoint, instructions });
+      // `updated:false` is a benign no-op (already covered / all-hidden span) — nothing changed, nothing to
+      // surface. An EMPTY generation over a real span THROWS (handled below), never a silent `updated:false`.
+      if (res.updated) {
+        // The divider re-reads previewContextFit and picks up the memory fact.
+        await emitQuiet(deps, { type: "chatUpdated", chatId });
+      }
+    } catch (compactErr) {
+      // FAILURE-HONEST: a thrown marker build (provider error OR empty generation) leaves the existing marker
+      // untouched and surfaces the `compaction_failed` warning (the memory_build_failed mirror).
+      getLog().warn({ err: compactErr, chatId }, "chat: managed compaction failed");
+      await emitQuiet(deps, { type: "warning", chatId, code: "compaction_failed" });
+    } finally {
+      compactionInFlight.delete(chatId);
+    }
+  })();
+}
+
 /** Mark the turn eligible to feed the player's queued d20 into its first skill check (rpg-design/05 §6) — only
  *  when its reply directly responds to the die-bearing latest user message (chat's slot-adjacency verdict). Sync
  *  in-memory flag keyed by `turnId`; null op / non-game ⇒ no-op. A later GM/auto round is never marked, so a
@@ -635,6 +939,7 @@ async function resolveSpeakerMemory(ctx: ChatContext, deps: EngineDeps, prep: Tu
     config: recall.config,
     recent: recall.recent,
     names: recall.names,
+    ...(recall.liveWindowCutoffSeq !== undefined ? { liveWindowCutoffSeq: recall.liveWindowCutoffSeq } : {}),
   });
   return { ...prep.assembleContext, memory };
 }
@@ -696,7 +1001,13 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
   });
 
   try {
-    const [canonAll, maxSeq] = await Promise.all([loadCanonHistory(ctx.db, prep.chatId), loadMaxMessageSeq(ctx.db, prep.chatId)]);
+    // PRE-TURN managed-compaction arm (the wedge-state fix): a chat whose context ALREADY overflows the window
+    // makes the model fail, and the post-turn arm never runs on a failed turn — so compact BEFORE dispatch when
+    // the cumulative estimate already crossed the threshold. Awaited + failure-honest (a failed pre-turn
+    // compaction logs and proceeds, never blocks the turn). Returns the reloaded canon + a marker overlay (null
+    // when no pre-turn compaction ran) so this turn's assembly already reflects the advanced coverage.
+    const pre = await runPreTurnCompaction(ctx, deps, prep);
+    const { canonAll, maxSeq, compactionOverlay } = pre;
     // Builds the per-chat macro name producer from the full loaded canon's distinct characterId/personaId
     // stamps, engine-side (the ids aren't knowable in turn prep).
     const macroProducer = await loadChatMacroNameProducer(ctx.db, { messages: canonAll });
@@ -707,8 +1018,9 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
     // Per-speaker witnessed recall (D6): a scoped round's each speaker recalls its OWN egocentric memory,
     // horizon-filtered by ITS join/leave presence — so a late joiner never recalls scenes before it arrived.
     // Merged/narrator/solo/agent turns keep the round-level `memory` (byte-identical). A fresh shape, never a
-    // mutation of the immutable ctx (§5, the speaker-card precedent).
-    const speakerAssembleContext = await resolveSpeakerMemory(ctx, deps, prep);
+    // mutation of the immutable ctx (§5, the speaker-card precedent). A pre-turn compaction overlays its fresh
+    // marker + coverage stamp onto the ctx so THIS turn's assembly already excludes the covered rows.
+    const speakerAssembleContext = applyCompactionOverlay(await resolveSpeakerMemory(ctx, deps, prep), compactionOverlay);
     // The engine measures the wall-clock window around the role call and stamps it on the variant.
     const genStartedAt = ctx.now();
     const result = await runTurnPipeline({
@@ -836,6 +1148,11 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
         }
       });
     }
+
+    // Fire-and-forget MANAGED-COMPACTION trigger (the LINEAR memory tier), a sibling of the digest build above
+    // and keyed off the SAME fit boundary. Runs only in `compaction.mode:"managed"`, off the hot path, and
+    // never blocks/faults the reply.
+    fireManagedCompaction(deps, prep, { result, canonAll });
 
     fireExpressionClassify(ctx, view);
     fireRpgTurnCompleted(ctx, view, turnId);

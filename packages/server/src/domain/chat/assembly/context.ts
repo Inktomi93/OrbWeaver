@@ -287,6 +287,9 @@ interface BuildAssembleContextInput {
    *  turn's GATHER stages this. Absent ⇒ every rpg macro resolves empty (byte-identical non-game turn). */
   readonly rpgMacros?: Readonly<Record<string, string>> | undefined;
   readonly compactSummary?: string | null | undefined;
+  /** The compaction coverage stamp — covered canon rows (`seq <= compactedThroughSeq`) fall out of the shaped
+   *  prompt history when a summary is present (full-reset). Null/absent ⇒ no exclusion. */
+  readonly compactedThroughSeq?: number | null | undefined;
   readonly guidedInstruction?: string | null | undefined;
   /** The one-turn typed steer, resolved once in BUILD; never persisted or re-routed at splice time. */
   readonly guided?: GuidedSteer | undefined;
@@ -379,6 +382,7 @@ function buildBaseContext(
   // Absent (undefined) ⇒ skipped ⇒ byte-identical to a non-databank build (the null-op pin, DB6).
   setIf(base, "databank", input.databank);
   setIf(base, "compactSummary", input.compactSummary);
+  setIf(base, "compactedThroughSeq", input.compactedThroughSeq);
   setIf(base, "guidedInstruction", input.guidedInstruction);
   // The {{persona}} marker emits only when the active persona's placement is in_prompt (default/absent);
   // at_depth/none route elsewhere, so the description is never double-injected.

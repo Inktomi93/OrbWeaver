@@ -93,23 +93,43 @@ export function SettingsShell(): ReactElement {
     globalThis.setTimeout(rearm, SPY_REARM_FALLBACK_MS);
   };
 
-  // rAF-polls because switching category remounts the pane, which may suspend on its settings read.
+  // Switching category remounts the pane, which may SUSPEND on its settings read — under CPU
+  // contention the resolve can outlast any frame budget, and the old 20-frame rAF poll silently gave
+  // up without ever scrolling (the fuzzy-search jump flake, root-caused 2026-07-24). Observe the
+  // pane's DOM until the anchor exists (wall-clock-bounded) instead of guessing frames.
   const scrollToAnchor = (categoryId: SettingsCategoryId, subId: string): void => {
     beginProgrammaticScroll();
     const anchorId = settingsAnchorId(categoryId, subId);
-    let attempts = 0;
-    const tick = (): void => {
-      const target = contentRef.current?.querySelector<HTMLElement>(`#${CSS.escape(anchorId)}`);
-      if (target !== null && target !== undefined) {
-        flashAnchor(target);
+    const container = contentRef.current;
+    if (container === null) {
+      return;
+    }
+    const find = (): HTMLElement | null => container.querySelector<HTMLElement>(`#${CSS.escape(anchorId)}`);
+    const existing = find();
+    if (existing !== null) {
+      flashAnchor(existing);
+      return;
+    }
+    let done = false;
+    const finish = (target: HTMLElement | null): void => {
+      if (done) {
         return;
       }
-      attempts += 1;
-      if (attempts < MAX_ANCHOR_POLL_FRAMES) {
-        requestAnimationFrame(tick);
+      done = true;
+      observer.disconnect();
+      globalThis.clearTimeout(timer);
+      if (target !== null) {
+        flashAnchor(target);
       }
     };
-    requestAnimationFrame(tick);
+    const observer = new MutationObserver((): void => {
+      const target = find();
+      if (target !== null) {
+        finish(target);
+      }
+    });
+    const timer = globalThis.setTimeout((): void => finish(null), ANCHOR_WAIT_MS);
+    observer.observe(container, { childList: true, subtree: true });
   };
 
   const selectCategory = (id: SettingsCategoryId): void => {
@@ -267,6 +287,10 @@ const FLASH_MS = 1200;
 const FLASH_BASE_CLASS = "settings-flash-anchor";
 const FLASH_LIT_CLASS = "settings-flash-anchor--lit";
 const MAX_ANCHOR_POLL_FRAMES = 20;
+// Wall-clock bound for the anchor-appearance observer (a suspending pane can outlast any frame count
+// under contention; frames are not time). Generous — the observer fires the instant the anchor mounts,
+// so the bound only matters when the pane never resolves at all.
+const ANCHOR_WAIT_MS = 5000;
 const SPY_LINE_RATIO = 0.3;
 const SPY_REARM_FALLBACK_MS = 700;
 const SPY_BOTTOM_EPS = 2;

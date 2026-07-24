@@ -24,12 +24,20 @@ import { makeMacroNameProducer, makeMessagesPage, makeMessageView } from "../fix
 // harness's unlisted-proc default (`data: null`) is out-of-contract for this query and crashes the
 // surface (integration find, 2026-07-24). boundaryMessageId null = "everything fits" (no divider).
 const PREVIEW_FIT_STUB = {
-  "chat.previewContextFit": (): { boundaryMessageId: null; usedTokens: number; ceilingTokens: number; reserveOutputTokens: number; droppedCount: number } => ({
+  "chat.previewContextFit": (): {
+    boundaryMessageId: null;
+    usedTokens: number;
+    ceilingTokens: number;
+    reserveOutputTokens: number;
+    droppedCount: number;
+    compactSummary: null;
+  } => ({
     boundaryMessageId: null,
     usedTokens: 120,
     ceilingTokens: 32_768,
     reserveOutputTokens: 2048,
     droppedCount: 0,
+    compactSummary: null,
   }),
 };
 

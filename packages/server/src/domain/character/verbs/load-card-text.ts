@@ -14,6 +14,9 @@ export function createLoadCardText(ctx: CharacterContext): CharacterService["loa
     if (row === undefined || row.synthetic) {
       return null;
     }
+    // Char budget sizes off buildCardEmbedText's single-home env-floor window (VLLM_EMBED_MAX_MODEL_LEN);
+    // the embed engine's runtime self-report is NOT threaded to this content-hash cap (a window change
+    // re-embeds, which is acceptable + rare) — see #14 report's deferred list.
     return buildCardEmbedText(cardOf(row));
   };
 }

@@ -28,7 +28,7 @@ import { tryAcquireLock } from "../../../../../packages/server/src/domain/chat/p
 import { loadCanonHistory, loadMaxMessageSeq, loadTurnOrigin } from "../../../../../packages/server/src/domain/chat/persistence/queries";
 import { freshDb } from "../../../../support/db";
 import { expect, test } from "../../../../support/fixtures";
-import { FROZEN_AT, makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser, testConnection } from "../_support";
+import { FROZEN_AT, makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser, stubRunCompaction, testConnection } from "../_support";
 
 const HOST = castId<UserId>("user_host");
 const MEMBER = castId<UserId>("user_member");
@@ -93,6 +93,7 @@ function harness(
     generateDigests?: Parameters<typeof createTurnEngine>[1]["generateDigests"];
     loadWitnessHorizons?: Parameters<typeof createTurnEngine>[1]["loadWitnessHorizons"];
     recallMemory?: Parameters<typeof createTurnEngine>[1]["recallMemory"];
+    runCompaction?: Parameters<typeof createTurnEngine>[1]["runCompaction"];
     lockTtlMs?: number;
     now?: () => number;
   } = {},
@@ -129,6 +130,7 @@ function harness(
     generateDigests: over.generateDigests ?? (async () => ({ written: 0, skipped: 0 })),
     loadWitnessHorizons: over.loadWitnessHorizons ?? loadWitnessHorizons,
     recallMemory: over.recallMemory ?? recallMemory,
+    runCompaction: over.runCompaction ?? stubRunCompaction,
   });
   return { ctx, events, deltas, chatChangedFans, debitBudget, engine };
 }
@@ -345,6 +347,7 @@ describe("createTurnEngine — R3 stats real-wire (the REAL applyStatsDelta land
       generateDigests: async () => ({ written: 0, skipped: 0 }),
       loadWitnessHorizons,
       recallMemory,
+      runCompaction: stubRunCompaction,
     });
 
     // A character-voiced assistant turn (speakerCharacterId set) so ALL FOUR grains touch — most notably
@@ -456,6 +459,7 @@ describe("createTurnEngine — post-turn memory build (fire-and-forget, §3a)", 
       },
       loadWitnessHorizons,
       recallMemory,
+      runCompaction: stubRunCompaction,
     });
 
     const outcome = await engine.runTurn(prepOf(chatId));

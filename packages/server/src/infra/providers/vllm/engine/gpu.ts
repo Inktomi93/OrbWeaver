@@ -16,3 +16,18 @@ export function detectGpu(exec: () => void = probeNvidiaSmi): boolean {
     return false;
   }
 }
+
+// `nvidia-smi -L` lists one line per GPU; the count is the line count (the shell's `nvidia-smi -L | wc -l`).
+const listNvidiaSmi = (): string => execFileSync("nvidia-smi", ["-L"], { encoding: "utf8" });
+
+/** Count usable NVIDIA GPUs — drives TP + the gpu-util split (2-card ⇒ TP=2, rerank on GPU1). 0 on any
+ *  failure (no GPU / no driver). `exec` defaults to the real `nvidia-smi -L`. */
+export function countGpus(exec: () => string = listNvidiaSmi): number {
+  try {
+    return exec()
+      .split("\n")
+      .filter((line) => line.trim().length > 0).length;
+  } catch {
+    return 0;
+  }
+}

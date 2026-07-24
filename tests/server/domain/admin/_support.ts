@@ -88,7 +88,7 @@ export function makeHarness(db: Db): AdminHarness {
   let embedOwned = true;
   const sessionList: SessionAdminView[] = [];
   const engineStatuses: Record<string, AdminEngineStatus> = {
-    chat: { status: "owned", detail: "ok", updatedAt: FROZEN_AT },
+    chat: { status: "owned", detail: "ok", updatedAt: FROZEN_AT, port: 8701, storePath: "/srv/orb/store" },
   };
 
   const ctx: AdminContext = {

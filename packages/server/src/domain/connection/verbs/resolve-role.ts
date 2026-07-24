@@ -10,13 +10,13 @@ import { env, vllmAgentModelAlias } from "#foundation/env";
 import type { ConnectionContext } from "../context";
 import { AgentModelHealError, ConnectionRoutingError } from "../contract/errors";
 import type { ResolveChatCapabilityParams, ResolveRoleParams, RouteOverride } from "../contract/params";
-import type { ConnectionService } from "../contract/service";
+import type { ConnectionService, VllmWindowEngine } from "../contract/service";
 import { getCachedAgentSdkModels } from "../substrate/agent-sdk-model-cache";
 import { resolveCapability } from "../substrate/capability";
 import { healToChatDefault } from "../substrate/heal-model";
 import { getCachedOrModels } from "../substrate/or-model-cache";
 import { pickOrModel } from "../substrate/pick-or-model";
-import { getCachedVllmGenWindow, seedVllmGenWindow } from "../substrate/vllm-gen-window-cache";
+import { getCachedVllmGenWindow, getCachedVllmWindow, seedVllmWindow } from "../substrate/vllm-gen-window-cache";
 
 type RoleDefaults = UserSettings["routing"]["roleDefaults"];
 
@@ -152,16 +152,29 @@ function healModel(selection: RouteSelection, now: number): ModelId {
   return castId<ModelId>(selection.model ?? env.VLLM_GEN_MODEL);
 }
 
-/** Warm the gen-window cache from the engine's self-reported `/v1/models` when the selection lands on vllm
- *  and the cache is cold/stale. Best-effort: a null (engine warming/disabled) leaves the cache empty and the
- *  resolver falls back to the env window. Only fires for the vllm source so a non-vllm turn pays nothing. */
-async function warmVllmGenWindow(ctx: ConnectionContext, source: CredentialSource): Promise<void> {
-  if (source !== "vllm" || getCachedVllmGenWindow(ctx.now()) !== null) {
+/** The vLLM engine that backs each role's self-reported window: embed/imageEmbed → the embed engine;
+ *  rerank → the rerank engine; every generation role → the gen engine (chat/summarize run on it). */
+const ROLE_ENGINE: Record<ResolveRoleParams["role"], VllmWindowEngine> = {
+  chat: "gen",
+  embed: "embed",
+  rerank: "rerank",
+  imageEmbed: "embed",
+  summarize: "gen",
+  generateImage: "gen",
+};
+
+/** Warm the role's engine-window cache from the engine's self-reported `/v1/models` when the selection lands
+ *  on vllm and the cache is cold/stale. Best-effort: a null (engine warming/disabled) leaves the cache empty
+ *  and consumers fall back to the env window. Only fires for the vllm source so a non-vllm turn pays nothing.
+ *  The self-report WINS over env for capability truth — a misconfigured setting can never lie to the math. */
+async function warmVllmGenWindow(ctx: ConnectionContext, role: ResolveRoleParams["role"], source: CredentialSource): Promise<void> {
+  const engine = ROLE_ENGINE[role];
+  if (source !== "vllm" || getCachedVllmWindow(engine, ctx.now()) !== null) {
     return;
   }
-  const window = await ctx.fetchVllmGenWindow({});
+  const window = await ctx.fetchVllmGenWindow({ engine });
   if (window !== null) {
-    seedVllmGenWindow(window, ctx.now());
+    seedVllmWindow(engine, window, ctx.now());
   }
 }
 
@@ -190,7 +203,7 @@ async function resolveRoleSelection(ctx: ConnectionContext, params: ResolveRoleP
     ctx.vllmAvailable,
   );
   assertCoherent(selection.api, selection.source);
-  await warmVllmGenWindow(ctx, selection.source);
+  await warmVllmGenWindow(ctx, params.role, selection.source);
   return { selection, model: healModel(selection, ctx.now()) };
 }
 

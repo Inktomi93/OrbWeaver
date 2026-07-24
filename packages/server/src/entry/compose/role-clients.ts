@@ -9,10 +9,13 @@ import type { ImageEmbedInput, RerankDocument, RerankQuery, RoleClients, Summari
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ConnectionService } from "#domain/connection";
+import { env } from "#foundation/env";
 import type { ProviderExecutor } from "#infra/providers";
 
-/** Conservative summarizer context fallback (tokens) when the model catalog reports no contextLength. */
-const SUMMARIZER_CONTEXT_FALLBACK = 8192;
+// Summarizer context fallback (tokens) for when a resolved connection reports window 0 (no contextLength).
+// The default summarizer runs on the vLLM GEN engine, so its floor DERIVES from the gen window's single home
+// (VLLM_GEN_MAX_MODEL_LEN) — killing the old coincidental bare `8192` that collided with the embed window.
+const SUMMARIZER_CONTEXT_FALLBACK = env.VLLM_GEN_MAX_MODEL_LEN;
 
 export interface RoleClientsBinderDeps {
   readonly connection: Pick<ConnectionService, "resolveRole">;

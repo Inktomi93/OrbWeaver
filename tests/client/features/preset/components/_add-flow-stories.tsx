@@ -10,6 +10,7 @@ import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
+import { PresetStructureTabs } from "../../../../../packages/client/src/features/preset/components/preset-structure-tabs";
 import { RegexTab } from "../../../../../packages/client/src/features/preset/components/regex-tab";
 import { VariablesTab } from "../../../../../packages/client/src/features/preset/components/variables-tab";
 
@@ -47,6 +48,31 @@ export function VariablesTabStory(): ReactElement {
           <VariablesTab form={session.form as AppFormInstance<PromptConfig>} />
         </>
       )}
+    </StoryForm>
+  );
+}
+
+/** The Compaction tab with UNSET compaction config — proves the resolved defaults render (the mode Select shows
+ *  the DEFAULT_COMPACTION_MODE placeholder, not a blank trigger; the threshold description carries the derived
+ *  default). Item-4 first-paint clarity. */
+export function CompactionTabDefaultsStory(): ReactElement {
+  const serverValues: PromptConfig = { ...DEFAULT_PROMPT_CONFIG, params: { ...DEFAULT_PROMPT_CONFIG.params, compaction: undefined } };
+  return (
+    <StoryForm entityId={STORY_PRESET} serverValues={serverValues} save={(): Promise<void> => Promise.resolve()}>
+      {(session): ReactElement => <PresetStructureTabs form={session.form as AppFormInstance<PromptConfig>} tab="compaction" />}
+    </StoryForm>
+  );
+}
+
+/** The Compaction tab with an explicit non-default mode SET — proves the selected value renders (not the placeholder). */
+export function CompactionTabSetStory(): ReactElement {
+  const serverValues: PromptConfig = {
+    ...DEFAULT_PROMPT_CONFIG,
+    params: { ...DEFAULT_PROMPT_CONFIG.params, compaction: { mode: "auto", thresholdPct: 0.72 } },
+  };
+  return (
+    <StoryForm entityId={STORY_PRESET} serverValues={serverValues} save={(): Promise<void> => Promise.resolve()}>
+      {(session): ReactElement => <PresetStructureTabs form={session.form as AppFormInstance<PromptConfig>} tab="compaction" />}
     </StoryForm>
   );
 }

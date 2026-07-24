@@ -27,6 +27,8 @@ const OUT_OF_RANGE_TEMPERATURE = 3; // userIntentSchema caps temperature at 2
 const GUIDED_ACTION_COUNT = 6;
 const SCHEMA_VERSION_V1 = 1;
 const SCHEMA_VERSION_V2 = 2;
+const SCHEMA_VERSION_V3 = 3;
+const SCHEMA_VERSION_V4 = 4;
 
 test("promptConfigSchema accepts DEFAULT_PROMPT_CONFIG and parsePromptConfig round-trips it", () => {
   expect(promptConfigSchema.parse(DEFAULT_PROMPT_CONFIG)).toEqual(DEFAULT_PROMPT_CONFIG);
@@ -114,6 +116,30 @@ test("a full v1 blob parsed through parsePromptConfig is lifted to the current v
   const markers = parsed.sections.map((s): unknown => (s.type === "marker" ? s.marker : null));
   expect(markers).toContain("main_prompt");
   expect(markers).toContain("chat_history");
+});
+
+// v3→v4: `compaction.mode:"off"` is retired (owner ruling — compaction is a safety property). A stored "off"
+// lifts to "managed" so an existing preset never validation-fails on the removed member.
+test("CONFIG_LIFTS v3→v4 maps a stored compaction.mode:'off' to 'managed'", () => {
+  const liftV3 = CONFIG_LIFTS[SCHEMA_VERSION_V3];
+  if (liftV3 === undefined) {
+    throw new Error("CONFIG_LIFTS[3] is missing");
+  }
+  const lifted = liftV3({ schemaVersion: SCHEMA_VERSION_V3, params: { compaction: { mode: "off", thresholdPct: 0.7 } } });
+  expect(lifted["schemaVersion"]).toBe(SCHEMA_VERSION_V4);
+  const params = lifted["params"] as { compaction: { mode: string; thresholdPct: number } };
+  expect(params.compaction.mode).toBe("managed"); // "off" retired → managed
+  expect(params.compaction.thresholdPct).toBe(0.7); // the rest is untouched
+});
+
+test("a stored preset with compaction.mode:'off' parses (lifted to managed) rather than rejecting", () => {
+  const parsed = parsePromptConfig({
+    ...DEFAULT_PROMPT_CONFIG,
+    schemaVersion: SCHEMA_VERSION_V3,
+    params: { ...DEFAULT_PROMPT_CONFIG.params, compaction: { mode: "off" } },
+  });
+  expect(parsed.schemaVersion).toBe(PROMPT_CONFIG_SCHEMA_VERSION);
+  expect(parsed.params.compaction?.mode).toBe("managed");
 });
 
 // ── `params: userIntentSchema.catch({})` damage-bounding ────────────────────────────────────────────

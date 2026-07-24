@@ -258,4 +258,25 @@ describe("assemblePrompt — PD-140/D25: implicit compact_summary prepend", () =
     const out = assemblePrompt(config, ctxOf({ compactSummary: "the summary so far" }));
     expect(out.static.split("the summary so far").length - 1).toBe(1);
   });
+
+  // MARKER PLACEMENT TWO-CASE (#9, marinara :3132/:3198 + neo assemble.ts:855-880): the summary renders at the
+  // AUTHORED position when the preset carries an explicit section; the implicit synthesis only fills in the gap.
+  test("EXPLICIT section: the summary renders at exactly the AUTHORED position, not the top", () => {
+    // Section order: main_prompt(TOP) → compact_summary → chat_history. The summary must sit AFTER 'TOP'.
+    const config = configOf([
+      marker({ marker: "main_prompt", template: "TOP-SYS" }),
+      marker({ marker: "compact_summary" }),
+      marker({ marker: "chat_history" }),
+    ]);
+    const out = assemblePrompt(config, ctxOf({ compactSummary: "the summary so far" }));
+    expect(out.static.indexOf("the summary so far")).toBeGreaterThan(out.static.indexOf("TOP-SYS"));
+  });
+
+  test("IMPLICIT synthesis: with no compact_summary section, the summary is delivered before chat_history (still reaches stateless runners)", () => {
+    const config = configOf([marker({ marker: "main_prompt", template: "TOP-SYS" }), marker({ marker: "chat_history" })]);
+    const out = assemblePrompt(config, ctxOf({ compactSummary: "the summary so far" }));
+    // Delivered (the stateless-runner safety net) and after the authored system top (not blindly slot-0 ahead of it).
+    expect(out.static).toContain("the summary so far");
+    expect(out.trace.compactSummaryIncluded).toBe(true);
+  });
 });

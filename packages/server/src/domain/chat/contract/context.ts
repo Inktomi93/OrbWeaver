@@ -20,7 +20,7 @@ import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { Can, ChatRoster, ParticipantRole, Principal } from "@orb/contracts/identity";
 import type { PromptTemplateMode } from "@orb/contracts/imagery";
 import type { NotificationEvent, PresenceView } from "@orb/contracts/notifications";
-import type { ChoiceBlockSpec } from "@orb/contracts/preset";
+import type { ChoiceBlockSpec, UserIntent } from "@orb/contracts/preset";
 import type { RoleClients } from "@orb/contracts/role-clients";
 import type { BlockKey, MemoryQueryOptions } from "@orb/contracts/search";
 import type { ApplyStatsDelta } from "@orb/contracts/stats";
@@ -198,6 +198,36 @@ export interface ExtractQuietDeps {
   readonly db: Db;
   readonly summarize: SummarizeOp;
   readonly getCard: GetCardOp;
+}
+
+/** A QUIET, non-canon generation through the chat's OWN resolved connection/model — NOT the summarizer rail
+ *  (`ExtractQuiet`/`summarize`), NOT a chat turn. The one seam managed compaction uses to build its marker
+ *  through the same model the chat talks to. Commits NO canon, emits NO bus turn events, spawns NO ghost row;
+ *  it streams `runChatTurn` and reduces to `{text, costUsd}`. The caller passes the chat's RESOLVED connection
+ *  (source-agnostic — whatever the API/runner axis resolves to); a backend that can't serve it surfaces as the
+ *  normal resolved-connection/provider failure, never a branch. `systemPrompt` is the static instruction; the
+ *  span text rides as one user message; `intent` tunes temp/output length (a low-temp, bounded generation).
+ *  The Principal-less standalone-factory precedent (`ExtractQuiet`) — never a `ChatService` verb, never tRPC. */
+export interface QuietGenerateParams {
+  readonly chatId: ChatId;
+  readonly connection: ResolvedConnection;
+  readonly systemPrompt: string;
+  readonly userText: string;
+  /** Optional generation tuning (temperature / maxOutputTokens); absent ⇒ the op's bounded defaults. */
+  readonly intent?: UserIntent | undefined;
+  readonly signal?: AbortSignal | undefined;
+}
+/** The reduced result — not exported (nothing imports it directly; `QuietGenerate` is its only consumer). */
+interface QuietGenerateResult {
+  readonly text: string;
+  readonly costUsd: number | null;
+}
+export type QuietGenerate = (p: QuietGenerateParams) => Promise<QuietGenerateResult>;
+
+/** The deps `createQuietGenerate` closes over, assembled at the composition root — the chat role only (no
+ *  routing/credential resolution: the caller supplies the already-resolved connection). */
+export interface QuietGenerateDeps {
+  readonly runChatTurn: RunChatTurnOp;
 }
 
 /** The rpg-facing narrator-post op (rpg-design/02 §1.1 #2): persist ONE assistant-role narrator message

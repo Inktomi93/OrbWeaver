@@ -77,6 +77,22 @@ describe("createVllmBackend", () => {
     expect(backend.engine.status()).toBeTypeOf("object");
   });
 
+  test("the handle exposes env-only DEPLOYMENT facts (port + store path) per engine, supervisor-independent", () => {
+    const { client } = fakeClient();
+    const backend = createVllmBackend({ client, now });
+
+    // deployment() reads env projections, not the registry — the facts are present before any spawn.
+    const facts = backend.engine.deployment();
+    for (const engine of ["embed", "rerank", "gen"] as const) {
+      expect(typeof facts[engine].port).toBe("number");
+      expect(facts[engine].port).toBeGreaterThan(0);
+      expect(typeof facts[engine].storePath).toBe("string");
+    }
+    // The three engines serve distinct ports; the store root is shared.
+    expect(new Set([facts.embed.port, facts.rerank.port, facts.gen.port]).size).toBe(3);
+    expect(facts.embed.storePath).toBe(facts.gen.storePath);
+  });
+
   test("each role routes to its OWN engine (embed→embed, rerank→rerank, summarize→gen) — independent", async () => {
     const { client, hits } = fakeClient();
     const backend = createVllmBackend({ client, now });

@@ -46,11 +46,11 @@ vi.mock("node:child_process", async (importOriginal) => {
   const actual = await importOriginal<typeof import("node:child_process")>();
   return {
     ...actual,
-    // spawnOwned: parse the engine from the death-couple wrapper (`… vllm-engine.sh <engine> >>…`), record
-    // the spawn, and mark the engine healthy so its next /health probe resolves owned.
+    // spawnOwned: parse the engine from the death-couple wrapper. The injected spawnSpec (below) stamps a
+    // `#engine:<name>#` marker into the argv so the mock can identify the engine without the old .sh path.
     spawn: (_cmd: string, args: readonly string[]): FakeChild => {
       const wrapper = args[1] ?? "";
-      const engine = ["embed", "rerank", "gen"].find((e) => wrapper.includes(`vllm-engine.sh" ${e} `)) ?? "?";
+      const engine = ["embed", "rerank", "gen"].find((e) => wrapper.includes(`#engine:${e}#`)) ?? "?";
       const child = io.makeChild(engine);
       io.children.push(child);
       io.spawns.push(engine);
@@ -324,7 +324,14 @@ describe("startVllmEngines — the queued-spawn flag holds across the backoff wi
     const parked: Array<() => void> = [];
     const sleep = (ms: number): Promise<void> => (parkBackoffs && ms >= 5000 ? new Promise<void>((resolve) => parked.push(resolve)) : Promise.resolve());
 
-    const stop = startVllmEngines({ repoRoot: "/repo", now: (): number => fixedNow, sleep });
+    // Inject a fake spawn spec — the supervisor is topology-only; the marker lets the mock spawn identify
+    // the engine. No real launch flags / DEPLOYMENT resolution runs in the unit test.
+    const spawnSpec = (engine: (typeof engines)[number]): { command: string; args: string[]; env: Record<string, string> } => ({
+      command: "/fake/vllm",
+      args: ["serve", `#engine:${engine}#`],
+      env: {},
+    });
+    const stop = startVllmEngines({ repoRoot: "/repo", now: (): number => fixedNow, sleep, spawnSpec });
     try {
       // Boot: all three ports free → each engine spawns and (the spawn marks it healthy) boots owned.
       await settle();
@@ -355,6 +362,32 @@ describe("startVllmEngines — the queued-spawn flag holds across the backoff wi
       await settle();
       expect(io.spawns).toEqual(["embed", "rerank", "gen", "embed"]);
       expect(getEngineStatus("embed")?.status).toBe("owned");
+    } finally {
+      stop();
+    }
+  });
+
+  // THE HMR-TOPOLOGY INVARIANT PIN (#14): a healthy responding port at boot is ADOPTED, never respawned —
+  // the watched server must never re-own an engine the standalone launcher already brought up (the old
+  // constant-restart hell). The refactor changed WHERE flags come from, never this topology.
+  test("a healthy responding port is ADOPTED at boot, never respawned", async () => {
+    // All three ports already healthy BEFORE the supervisor starts (the dev launcher owns them).
+    io.healthy.add("embed");
+    io.healthy.add("rerank");
+    io.healthy.add("gen");
+    const spawnSpec = (engine: (typeof engines)[number]): { command: string; args: string[]; env: Record<string, string> } => ({
+      command: "/fake/vllm",
+      args: ["serve", `#engine:${engine}#`],
+      env: {},
+    });
+    const stop = startVllmEngines({ repoRoot: "/repo", now: (): number => fixedNow, sleep: () => Promise.resolve(), spawnSpec });
+    try {
+      await settle();
+      // ZERO spawns — every engine was adopted, none re-owned.
+      expect(io.spawns).toEqual([]);
+      expect(getEngineStatus("embed")?.status).toBe("adopted");
+      expect(getEngineStatus("rerank")?.status).toBe("adopted");
+      expect(getEngineStatus("gen")?.status).toBe("adopted");
     } finally {
       stop();
     }

@@ -14,7 +14,7 @@
 // memoryConfig (settings/preset/persona reads chat must not perform).
 
 import type { CharacterCard } from "@orb/contracts/character";
-import type { AssembleContext, ChatInjection } from "@orb/contracts/chat";
+import type { AssembleContext, ChatInjection, MessageView } from "@orb/contracts/chat";
 import type { GenerationType } from "@orb/contracts/preset";
 import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import { buildAssembleContext } from "../assembly/context";
@@ -133,6 +133,9 @@ async function gatherMemory(
     readonly foreign: ForeignInputs;
     readonly recent: readonly MsgRow[];
     readonly names: ReadonlyMap<CharacterId, string>;
+    /** The live-window cutoff seq (the seq below which messages aren't in the prompt) — the PREVIOUS turn's
+     *  canon fit boundary. `undefined` ⇒ no prior boundary stamp ⇒ no live-window trim this round. */
+    readonly liveWindowCutoffSeq: number | undefined;
   },
   out?: SendRegexSink,
 ): Promise<string> {
@@ -149,7 +152,13 @@ async function gatherMemory(
   }
   const config = args.foreign.memoryConfig ?? null;
   if (out !== undefined) {
-    out.memoryRecall = { groupCharacterId: sharedCharId, recent: args.recent, names: args.names, config };
+    out.memoryRecall = {
+      groupCharacterId: sharedCharId,
+      recent: args.recent,
+      names: args.names,
+      config,
+      ...(args.liveWindowCutoffSeq !== undefined ? { liveWindowCutoffSeq: args.liveWindowCutoffSeq } : {}),
+    };
   }
   return await recallMemory(ctx, {
     scope: {
@@ -158,12 +167,28 @@ async function gatherMemory(
       isGroup: args.castCharacterIds.length > 1,
     },
     groupCharacterId: sharedCharId,
-    // FLAG[recall-livewindow-cutoff]: the exact per-speaker liveWindowCutoffSeq comes from the engine's
-    // post-assemble history-budget fit — unavailable here. Left undefined (no live-window trim this round).
+    // The recall live-window cutoff = the PREVIOUS turn's canon fit boundary (the newest assistant row's
+    // stored `contextBoundaryMessageId` → its seq). Recall can't see THIS turn's fit (it runs pre-fit), so
+    // the last turn's authoritative boundary is the honest live-window edge — digests whose scene is still
+    // verbatim in the window aren't re-injected. Absent (no prior boundary stamp) ⇒ no trim (byte-identical).
+    ...(args.liveWindowCutoffSeq !== undefined ? { liveWindowCutoffSeq: args.liveWindowCutoffSeq } : {}),
     ...(config !== null ? { config } : {}),
     recent: args.recent,
     names: args.names,
   });
+}
+
+/** The recall live-window cutoff seq = the PREVIOUS turn's canon fit boundary: the newest ASSISTANT row's
+ *  stored `contextBoundaryMessageId` resolved to its seq. `undefined` when no assistant row carries a boundary
+ *  stamp (a fresh chat, or the last turn dropped nothing → null stamp) — then recall applies no live-window
+ *  trim. A stamped boundary id whose target isn't in canon (edited/deleted since) also yields `undefined`. */
+function resolveLiveWindowCutoffSeq(canon: readonly MessageView[]): number | undefined {
+  const lastAssistant = canon.findLast((m) => m.role === "assistant");
+  const boundaryId = lastAssistant?.contextBoundaryMessageId ?? null;
+  if (boundaryId === null) {
+    return;
+  }
+  return canon.find((m) => m.id === boundaryId)?.seq;
 }
 
 /**
@@ -253,6 +278,7 @@ export async function gatherAssembleContext(
         foreign,
         recent: recentRows,
         names: cast.names,
+        liveWindowCutoffSeq: resolveLiveWindowCutoffSeq(canon),
       },
       out,
     ),
@@ -291,6 +317,9 @@ export async function gatherAssembleContext(
       // Absent (no game / gather null) ⇒ omitted ⇒ every rpg macro resolves empty (byte-identical non-game).
       ...(args.rpgMacros !== undefined ? { rpgMacros: args.rpgMacros } : {}),
       compactSummary: chatRow?.compactSummary ?? null,
+      // The coverage stamp so covered turns fall out of the shaped prompt history (full-reset). toShapeCanon gates
+      // on a present summary (a stale seq never trims); null/absent ⇒ no exclusion.
+      compactedThroughSeq: chatRow?.compactedAtSeq,
       variableValues: mergedVariables,
       injectionTokenBudget: foreign.injectionTokenBudget,
       hostTierRegexScripts,

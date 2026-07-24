@@ -69,7 +69,7 @@ function need<T>(value: T | undefined): T {
 describe("createVllmEmbed", () => {
   test("filters empty/whitespace to null, preserves order, carries the request model", async () => {
     const { client } = fakeClient();
-    const embed = createVllmEmbed({ client, embedDim: 4, chunkSize: 128, concurrency: 4 });
+    const embed = createVllmEmbed({ client, embedDim: 4, chunkSize: 128, concurrency: 4, requestTimeoutMs: 120_000 });
     const res = await embed({ credential: CRED, model: MODEL, input: ["hi", "", "  ", "yo"] });
 
     expect(res.vectors).toHaveLength(4);
@@ -82,7 +82,7 @@ describe("createVllmEmbed", () => {
 
   test("L2-normalizes each vector (cosine with itself ≈ 1)", async () => {
     const { client } = fakeClient();
-    const embed = createVllmEmbed({ client, embedDim: 4, chunkSize: 128, concurrency: 4 });
+    const embed = createVllmEmbed({ client, embedDim: 4, chunkSize: 128, concurrency: 4, requestTimeoutMs: 120_000 });
     const res = await embed({ credential: CRED, model: MODEL, input: "solo" });
 
     const vec = nonNull(res.vectors[0] ?? null);
@@ -92,7 +92,7 @@ describe("createVllmEmbed", () => {
 
   test("honors MRL `dimensions`: truncates to the leading coords + re-normalizes, and sends the dim", async () => {
     const { client, calls } = fakeClient();
-    const embed = createVllmEmbed({ client, embedDim: 4, chunkSize: 128, concurrency: 4 });
+    const embed = createVllmEmbed({ client, embedDim: 4, chunkSize: 128, concurrency: 4, requestTimeoutMs: 120_000 });
     const res = await embed({ credential: CRED, model: MODEL, input: "x", dimensions: 2 });
 
     const vec = nonNull(res.vectors[0] ?? null);
@@ -103,7 +103,7 @@ describe("createVllmEmbed", () => {
 
   test("falls back to a full-dim request (then client-side truncation) when the engine rejects `dimensions`", async () => {
     const { client, calls } = fakeClient({ failDimOnce: true });
-    const embed = createVllmEmbed({ client, embedDim: 4, chunkSize: 128, concurrency: 4 });
+    const embed = createVllmEmbed({ client, embedDim: 4, chunkSize: 128, concurrency: 4, requestTimeoutMs: 120_000 });
     const res = await embed({ credential: CRED, model: MODEL, input: "x", dimensions: 2 });
 
     // First call carried `dimensions` (rejected); the retry dropped it; result still produced.
@@ -115,7 +115,7 @@ describe("createVllmEmbed", () => {
 
   test("chunks the batch and aggregates usage across chunks", async () => {
     const { client, calls } = fakeClient();
-    const embed = createVllmEmbed({ client, embedDim: 4, chunkSize: 2, concurrency: 4 });
+    const embed = createVllmEmbed({ client, embedDim: 4, chunkSize: 2, concurrency: 4, requestTimeoutMs: 120_000 });
     const res = await embed({
       credential: CRED,
       model: MODEL,
@@ -132,7 +132,7 @@ describe("createVllmEmbed", () => {
 
   test("wraps each input in the cookbook ChatML prompt before sending", async () => {
     const { client, calls } = fakeClient();
-    const embed = createVllmEmbed({ client, embedDim: 4, chunkSize: 128, concurrency: 4 });
+    const embed = createVllmEmbed({ client, embedDim: 4, chunkSize: 128, concurrency: 4, requestTimeoutMs: 120_000 });
     await embed({ credential: CRED, model: MODEL, input: "hello", inputType: "query" });
 
     const sent = need(need(calls[0]).body.input[0]);
@@ -144,7 +144,7 @@ describe("createVllmEmbed", () => {
 
   test("an all-empty batch returns all-null vectors without calling the engine", async () => {
     const { client, calls } = fakeClient();
-    const embed = createVllmEmbed({ client, embedDim: 4, chunkSize: 128, concurrency: 4 });
+    const embed = createVllmEmbed({ client, embedDim: 4, chunkSize: 128, concurrency: 4, requestTimeoutMs: 120_000 });
     const res = await embed({ credential: CRED, model: MODEL, input: ["", "  "] });
 
     expect(calls).toHaveLength(0);

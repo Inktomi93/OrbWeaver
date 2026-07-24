@@ -246,6 +246,9 @@ async function buildChatScenario(script: Tape, options: ChatScenarioOptions): Pr
     generateDigests: () => Promise.resolve({ written: 0, skipped: 0 }),
     loadWitnessHorizons,
     recallMemory,
+    // Managed compaction is agent-sdk + over-threshold only; a scenario turn never invokes it, but the engine
+    // now REQUIRES the dep — a no-op stub.
+    runCompaction: () => Promise.resolve({ summary: "", compactedAtSeq: 0, updated: false }),
   });
 
   const defaultForeign: ResolveForeignInputsOp = (): ReturnType<ResolveForeignInputsOp> =>

@@ -149,9 +149,11 @@ test("an admin viewer sees the Admin category and it mounts the REAL pane", asyn
   const component = await mount(<SettingsShellStory />);
 
   await component.getByRole("button", { name: "Admin" }).click();
-  // The real pane's registry-anchored section headings — not the old teaching placeholder.
-  await expect(component.getByRole("heading", { name: "Users" })).toBeVisible();
-  await expect(component.getByRole("heading", { name: "Engines" })).toBeVisible();
+  // The real pane's registry-anchored sub-nav (Users + Engines sections) — not the old teaching
+  // placeholder. The admin pane renders its sections as sub-navigation buttons (like every category
+  // with subcategories), so the REAL-pane proof is the presence of those section entries.
+  await expect(component.getByRole("button", { name: "Users" })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Engines" })).toBeVisible();
 });
 
 // Task #37 — the System knobs are fuzzy-searchable like everything else; a hit jumps to its pane + anchor.

@@ -127,6 +127,23 @@ export function userMessageDelta(params: {
   };
 }
 
+/** A cost-only rollup delta for a MANAGED-COMPACTION marker generation (a quiet, non-canon side-LLM call — no
+ *  character, no model rollup, no turn counters). Rides the owner + daily cost totals so the compaction spend is
+ *  VISIBLE on the stats surface (the quiet-op cost-visibility rule; the ExtractQuiet precedent returns cost, here
+ *  the chat-owned generation lands it directly). `costUsd` absent/0 ⇒ a benign no-op delta. */
+export function compactionCostDelta(params: { readonly ownerId: UserId; readonly costUsd: number; readonly now: number }): StatsDelta {
+  return {
+    ownerId: params.ownerId,
+    characterId: null,
+    day: utcDay(params.now),
+    model: null,
+    provider: null,
+    costUsd: params.costUsd,
+    lastAt: params.now,
+    now: params.now,
+  };
+}
+
 // Canon-mutator builders: start-chat/edit/delete/fork push their rollup delta into the same canon batch.
 // Each mirrors the rebuild's folds with a SIGN so a delete emits the exact negative of the rebuild's
 // contribution.

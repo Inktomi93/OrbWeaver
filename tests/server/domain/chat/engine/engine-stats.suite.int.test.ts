@@ -31,7 +31,7 @@ import { reconcileStats } from "../../../../../packages/server/src/domain/stats/
 import { createFrozenClock } from "../../../../support/clock";
 import { freshDb } from "../../../../support/db";
 import { expect, test } from "../../../../support/fixtures";
-import { FROZEN_AT, makeChatContext, seedCharacter, seedChat, seedParticipant, seedPersona, seedUser, TEST_CAPABILITY } from "../_support";
+import { FROZEN_AT, makeChatContext, seedCharacter, seedChat, seedParticipant, seedPersona, seedUser, stubRunCompaction, TEST_CAPABILITY } from "../_support";
 
 const HOST = castId<UserId>("user_host");
 
@@ -169,6 +169,7 @@ function engineFor(database: Db, deltas: StatsDelta[], queue: readonly RunChatTu
     generateDigests: async () => ({ written: 0, skipped: 0 }),
     loadWitnessHorizons,
     recallMemory,
+    runCompaction: stubRunCompaction,
   });
 }
 
@@ -397,6 +398,7 @@ describe("engine stats — gen-time is populated on the live path (F2)", () => {
       generateDigests: async () => ({ written: 0, skipped: 0 }),
       loadWitnessHorizons,
       recallMemory,
+      runCompaction: stubRunCompaction,
     });
 
     await engine.runTurn(prepOf(chatId, { kind: "send", speakerCharacterId: charId }));

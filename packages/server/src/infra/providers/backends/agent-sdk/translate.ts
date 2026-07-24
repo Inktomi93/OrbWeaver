@@ -200,13 +200,48 @@ function buildGenerationOptions(params: UserIntent, resolved: ResolvedChatKnobs)
 }
 
 function buildEnvOverrides(params: UserIntent, resolved: ResolvedChatKnobs): ClaudeRuntimeOverrides {
+  // COMPACTION MODE → SDK env (the agent-sdk RUNNER axis, uniform across ALL backends this runner serves —
+  // local vLLM / OpenRouter skin / max-pro-sub; NEVER a per-backend branch):
+  //   • managed / off → DISABLE_AUTO_COMPACT: WE own compaction (managed) or nobody does (off). Our managed
+  //     LINEAR marker (domain/chat/verbs/compaction) is the compaction layer; SDK-native must not fire under it.
+  //   • auto → SDK-NATIVE compaction at CLAUDE_AUTOCOMPACT_PCT_OVERRIDE. HONEST-DEGRADE: SDK-native compaction
+  //     never exposes its summary to us, so `auto` yields NO stored marker → no carry-forward on an api swap and no
+  //     divider memory-fact (the preset UI says this plainly on the `auto` option — plan-for-small-hardware).
+  //     KNOWN GAP (probes 2026-07-24, bounded — local vLLM + hosted max-pro-sub): auto-mode turns SUCCEED on both
+  //     backends, but whether SDK-native compaction actually FIRES (vs. no-ops) was NOT positively confirmed within
+  //     bounded effort — the `compact_boundary` event needs server-log/session-frame capture, and the hosted Opus
+  //     turns were too slow to iterate a frame-capture harness cheaply. Best-effort session-frame extraction of the
+  //     SDK's own summary (to lift the degrade) stays SANCTIONED but EVIDENCE-GATED — NOT built, since firing is
+  //     unconfirmed and speculative extraction was ruled out. If a future probe confirms firing + characterizes the
+  //     frame format, extraction lands HERE (this backend module), behind a real captured-session fixture test,
+  //     falling back to this degrade on a scan miss.
+  // POLICY IS UNIFORM PER-BACKEND; only the SDK-native compaction BEHAVIOR may differ per backend. The env NAMES
+  // are pinned against the bundled runtime by
+  // tests/server/infra/providers/backends/agent-sdk/env-runtime-parity.test.ts (verified present, bundle 2.1.216
+  // — neo's non-CLAUDE_CODE_-prefixed names are REAL runtime keys, not silent no-ops).
+  //
+  // HOSTED TRIGGER FINDING (probe 2026-07-24, max-pro-sub): on the agent-sdk STATEFUL path the SDK RESUMES its
+  // session, so provider `tokensIn` reports the per-turn DELTA (~2 tokens), NOT cumulative context. The managed
+  // pct trigger therefore reads the DOMAIN FIT ESTIMATE (cumulative over full canon) as authoritative, not provider
+  // usage (engine.ts `compactionTriggered`) — managed compaction fires on hosted via the fit ceiling, not a
+  // provider-usage crossing that never comes on a resuming session.
   const compMode = params.compaction?.mode;
-  const disableAutoCompact = compMode === "off" || compMode === "managed";
+  // MANAGED disables the SDK's native auto-compact (WE own compaction via the LINEAR marker). `auto` leaves it
+  // LIVE. There is no "off" (owner ruling: compaction is a safety property — a chat may never error from context
+  // growth). An ABSENT mode falls through to the resolved managed default, so its SDK env matches managed.
+  const disableAutoCompact = compMode === "managed" || compMode === undefined;
   const thresholdPct = params.compaction?.thresholdPct;
   const autoCompactPct = compMode === "auto" && thresholdPct !== undefined ? Math.round(thresholdPct * PCT_SCALE) : undefined;
+  // maxContextTokens ONLY when auto-compact is LIVE. CLAUDE_CODE_MAX_CONTEXT_TOKENS tells the SDK to keep its
+  // working set UNDER that cap — but the SDK's ONLY mechanism to honor it is auto-compaction. With auto-compact
+  // DISABLED (managed), an over-cap prompt has no way to fit and the SDK fails the turn (`is_error` — verified
+  // live on vLLM: managed + maxContextTokens = hard turn error; either alone succeeds). So under managed we DROP
+  // the cap from the SDK env: managed's post-turn LINEAR marker (domain/chat/verbs/compaction) is the trim, not a
+  // hard SDK cap. The DOMAIN fit-pass still reads the preset cap for the stateless path — this drop is SDK-only.
+  const sdkMaxContextTokens = disableAutoCompact ? undefined : params.maxContextTokens;
   return {
     maxOutputTokens: resolved.maxOutputTokens,
-    maxContextTokens: params.maxContextTokens,
+    ...(sdkMaxContextTokens !== undefined ? { maxContextTokens: sdkMaxContextTokens } : {}),
     disableThinking: resolved.reasoning.enabled ? false : undefined,
     disableAutoCompact: disableAutoCompact ? true : undefined,
     autoCompactPct,

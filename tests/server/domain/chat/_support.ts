@@ -174,6 +174,9 @@ export async function seedMessage(
     readonly personaId?: PersonaId | null;
     readonly excludedFromPrompt?: boolean;
     readonly content?: string;
+    /** Stamp the selected variant's fit-boundary provenance (the earliest-KEPT message id the turn that
+     *  produced this row committed) — the recall live-window cutoff reads the newest assistant row's stamp. */
+    readonly contextBoundaryMessageId?: MessageId | null;
   } = {},
 ): Promise<{ messageId: MessageId; variantId: MessageVariantId }> {
   const messageId = castId<MessageId>(`message_${chatId}_${seq}`);
@@ -194,6 +197,7 @@ export async function seedMessage(
     messageId,
     idx: 0,
     content: overrides.content ?? `body-${seq}`,
+    ...(overrides.contextBoundaryMessageId !== undefined ? { contextBoundaryMessageId: overrides.contextBoundaryMessageId } : {}),
     createdAt: FROZEN_AT,
   });
   await db.update(messages).set({ selectedVariantId: variantId }).where(eq(messages.id, messageId));
@@ -416,9 +420,9 @@ export const TEST_CAPABILITY = {
 
 /** A `ResolvedConnection` over `TEST_CAPABILITY` (`source` defaults to `"vllm"`). Byte-identical `connectionOf`
  *  in service/turn/engine.int (W1d hoist). */
-export function testConnection(source = "vllm"): ResolvedConnection {
+export function testConnection(source = "vllm", api: ResolvedConnection["api"] = "chat-completions"): ResolvedConnection {
   return {
-    api: "chat-completions",
+    api,
     model: castId<ModelId>("test-model"),
     // FABRICATION-OK: minimal ResolvedCredential double — only `.source` is read (§9 consent belt).
     credential: { source, credentialId: null } as unknown as ResolvedCredential,
@@ -438,3 +442,16 @@ export function scriptedRoleTurn(sink: TurnRequest[]): ChatContext["runChatTurn"
     })();
   };
 }
+
+/** The no-op `runCompaction` engine dep the non-compaction turn harnesses inject — managed compaction is
+ *  agent-sdk + over-threshold only, so a plain turn never invokes it, but `createTurnEngine` now REQUIRES the dep.
+ *  ONE home for the stub (the managed-compaction suite wires the REAL core). Returns an idempotent no-op result. */
+export const stubRunCompaction = (_args: {
+  readonly chatId: ChatId;
+  readonly connection: ResolvedConnection;
+  readonly ownerId: UserId;
+  readonly coveragePoint?: number | undefined;
+  readonly instructions?: string | undefined;
+  readonly signal?: AbortSignal | undefined;
+}): Promise<{ readonly summary: string; readonly compactedAtSeq: number; readonly updated: boolean }> =>
+  Promise.resolve({ summary: "", compactedAtSeq: 0, updated: false });

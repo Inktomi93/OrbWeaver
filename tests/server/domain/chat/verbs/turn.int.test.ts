@@ -37,7 +37,18 @@ import { createRequestTurn, createTurn } from "../../../../../packages/server/sr
 import { freshDb } from "../../../../support/db";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../support/fixtures";
-import { FROZEN_AT, makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedPendingTurn, seedUser, testConnection } from "../_support";
+import {
+  FROZEN_AT,
+  makeChatContext,
+  seedCharacter,
+  seedChat,
+  seedMessage,
+  seedParticipant,
+  seedPendingTurn,
+  seedUser,
+  stubRunCompaction,
+  testConnection,
+} from "../_support";
 
 const card = (name: string): CharacterCard => ({ name, description: "", avatarAssetId: null, regexScripts: [] }) as unknown as CharacterCard;
 
@@ -171,6 +182,7 @@ function harness(
     generateDigests: async () => ({ written: 0, skipped: 0 }),
     loadWitnessHorizons,
     recallMemory,
+    runCompaction: stubRunCompaction,
   });
   const activeTurns = createActiveTurns();
   const turnDeps: Parameters<typeof createTurn>[1] = {

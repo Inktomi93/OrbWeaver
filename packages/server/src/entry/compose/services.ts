@@ -40,6 +40,7 @@ import type { AssetId, CharacterId, ChatId, Handle, PersonaId, SessionId, TypeId
 import { castId, ID_PREFIX, mintTypeId, newId } from "@orb/kit/ids";
 import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
+import type { AdminEngineStatus } from "#domain/admin";
 import { can, createAdminService, isAdmin, requireAdmin, requireOwner } from "#domain/admin";
 import type { AssetsContext, AssetsService } from "#domain/assets";
 import { createAssetsService } from "#domain/assets";
@@ -100,7 +101,7 @@ import { createExtractText, EXTRACTOR_VERSION } from "#infra/extraction";
 import { createImageAdapter } from "#infra/image";
 import { fetchImageBytes, fetchOpenAiModels, fetchWebDocument } from "#infra/network";
 import { createPluginHost } from "#infra/plugin-host";
-import type { BackendRegistryDeps, VllmEngineHandle } from "#infra/providers";
+import type { BackendRegistryDeps, EngineDeploymentFacts, VllmEngineHandle } from "#infra/providers";
 import {
   createBackendRegistry,
   createProviderDiagnostics,
@@ -108,7 +109,7 @@ import {
   DEFAULT_EMBED_MODEL,
   DEFAULT_IMAGE_EMBED_MODEL,
   DEFAULT_RERANK_MODEL,
-  fetchGenMaxModelLen,
+  fetchEngineMaxModelLen,
 } from "#infra/providers";
 import { createCas, createVariantCache } from "#infra/storage";
 import {
@@ -277,6 +278,8 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       embed: resolved.vllmConcurrency.embed,
       summarize: resolved.vllmConcurrency.summarize,
     },
+    // LIVE getter (not the boot snapshot) so an admin retune + engine restart applies the new launch flags.
+    engineLaunch: () => effectiveConfig.getEffectiveConfig().engineLaunch,
     imageToPng: (bytes) => imageAdapter.transform(bytes, { format: "png" }),
     ...(deps.repoRoot !== undefined ? { repoRoot: deps.repoRoot } : {}),
   });
@@ -309,7 +312,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     fetchAgentSdkModels: diagnostics.fetchAgentSdkModels,
     // The gen engine self-reports its launched window at /v1/models; when vLLM is disabled there is no
     // engine to ask, so short-circuit to null and let the resolver use the env-owned window.
-    fetchVllmGenWindow: (req): Promise<number | null> => (vllmAvailable ? fetchGenMaxModelLen(req.signal) : Promise.resolve(null)),
+    fetchVllmGenWindow: (req): Promise<number | null> => (vllmAvailable ? fetchEngineMaxModelLen(req.engine, req.signal) : Promise.resolve(null)),
     loadUserSettings: settings.loadUserSettings,
     verifyClaudeAuth: (req): Promise<VerifyAuthResult> => diagnostics.verifyAuth(req),
     accountCredits: (req): Promise<AccountCredits> => diagnostics.accountCredits(req),
@@ -806,7 +809,23 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       revokeAllForUser: (userId: UserId): Promise<number> => sessions.revokeAllForUser(userId),
     },
     vllm: {
-      allEngineStatuses: (): ReturnType<VllmEngineHandle["status"]> => (registry.vllmEngine === null ? {} : registry.vllmEngine.status()),
+      // Merge the live lifecycle record with each engine's env-only DEPLOYMENT facts (port + store path)
+      // into the AdminEngineStatus read-model the panel renders read-only. Both maps are keyed by engine.
+      allEngineStatuses: (): Record<string, AdminEngineStatus> => {
+        if (registry.vllmEngine === null) {
+          return {};
+        }
+        const statuses = registry.vllmEngine.status();
+        // Widen to a string index so a status key with no matching deployment fact resolves to `undefined`
+        // (honest guard) rather than being asserted present by the branded engine key.
+        const facts: Record<string, EngineDeploymentFacts | undefined> = registry.vllmEngine.deployment();
+        return Object.fromEntries(
+          Object.entries(statuses).map(([engine, record]) => {
+            const deployment = facts[engine];
+            return [engine, { ...record, port: deployment?.port ?? 0, storePath: deployment?.storePath ?? "" }];
+          }),
+        );
+      },
       restartEngine: (name: string): Promise<string> =>
         registry.vllmEngine === null
           ? Promise.resolve("vllm supervisor not running")

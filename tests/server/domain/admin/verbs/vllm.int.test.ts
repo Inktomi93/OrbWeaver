@@ -17,6 +17,9 @@ describe("admin vllm verbs", () => {
     const admin = await seedUser(db, { id: "user_adm", role: "admin", handle: "adm" });
     const statuses = await svc.vllmEngines({ principal: principal(admin, "admin") });
     expect(statuses["chat"]?.status).toBe("owned");
+    // The read-only DEPLOYMENT facts (port + store path) ride the same snapshot the panel renders.
+    expect(statuses["chat"]?.port).toBe(8701);
+    expect(statuses["chat"]?.storePath).toBe("/srv/orb/store");
     expect(h.audits).toHaveLength(0);
   });
 

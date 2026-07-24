@@ -461,4 +461,39 @@ describe("SessionCache.ensureSeededSession — the PD-7 resume gate", () => {
     expect(decision.sessionId).toBeNull();
     expect(decision.disposition).toBe("fresh");
   });
+
+  // GAP 2 (#9 compaction): a successful compaction shrinks the model-visible transcript (covered turns fall out
+  // of the shaped history, the marker rides the system prompt). The NEXT turn's seed is the marker-excluded TAIL
+  // — a WINDOW-SLIDE with NO shared leading prefix vs the recorded full-accumulated session → RESEED in place, so
+  // the resumed session STOPS re-sending the compacted-away transcript (the 41K-past-window regression). No new
+  // invalidation seam: the existing reseed machinery fires the moment the seed shrinks.
+  test("a compaction-shrunk seed (marker-excluded tail) RESEEDS the recorded session (window-slide, not resume)", async () => {
+    const cache = new SessionCache();
+    // A long accumulated transcript the session grew to (what a resumed session keeps re-sending).
+    const fullTranscript = [
+      { role: "user" as const, content: "turn 1 opening the saga" },
+      { role: "assistant" as const, content: "reply 1 a long detailed scene" },
+      { role: "user" as const, content: "turn 2 continuing" },
+      { role: "assistant" as const, content: "reply 2 more detail" },
+      { role: "user" as const, content: "turn 3 the discovery" },
+      { role: "assistant" as const, content: "reply 3 the twist" },
+    ];
+    const first = await cache.ensureSeededSession(CHAT_ID, fullTranscript);
+    expect(first.disposition).toBe("seeded");
+
+    // After compaction covers through turn 2: the shaped history excludes seq ≤ that point, so the NEXT seed is
+    // only the recent TAIL (turn 3) — no shared leading prefix with the recorded full transcript.
+    const shrunkTail = [
+      { role: "user" as const, content: "turn 3 the discovery" },
+      { role: "assistant" as const, content: "reply 3 the twist" },
+    ];
+    const next = await cache.ensureSeededSession(CHAT_ID, shrunkTail);
+
+    // The recorded lineage is REBUILT to the shrunk tail (same id, changed frames) — a window-slide reseed, NOT a
+    // resume of the full transcript. The stored frames now hold only the tail (the prompt SHRANK).
+    expect(next.sessionId).toBe(first.sessionId);
+    expect(next.disposition).toBe("reseeded");
+    const rows = await cache.store.load({ projectKey: "any", sessionId: next.sessionId ?? "" });
+    expect(rows).toHaveLength(shrunkTail.length);
+  });
 });

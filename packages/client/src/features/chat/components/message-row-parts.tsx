@@ -20,6 +20,7 @@ import type { RowAttribution } from "../lib/attribution";
 import type { BubbleDecoration, RowSkin } from "../lib/message-row-variants";
 import type { RowRenderPolicy } from "../lib/render-trust";
 import type { GreetingBinding } from "../lib/synth-greeting-row";
+import { CompactSummaryPeek } from "./compact-summary-peek";
 import { GreetingActionsRow } from "./greeting-actions-row";
 import { GreetingSwipeStrip } from "./greeting-swipe-strip";
 import { MessageActionsRow } from "./message-actions-row";
@@ -260,16 +261,19 @@ export function renderRowSwipe(args: {
   return args.showSwipes && args.role === "assistant" ? <SwipeStrip message={args.message} /> : null;
 }
 
-export function renderContextBoundaryDivider(show: boolean, budgetLabel?: string | undefined): ReactNode {
+export function renderContextBoundaryDivider(show: boolean, budgetLabel?: string | undefined, compactSummary?: string | null | undefined): ReactNode {
   if (!show) {
     return null;
   }
+  const compacted = compactSummary !== null && compactSummary !== undefined && compactSummary.length > 0;
   return (
     <Row gap="field" align="center" data-slot="context-boundary-divider" className="w-full">
       <Separator className="flex-1 bg-(--color-primary)/35" />
       <Text size="micro" tone="muted" transform="caps">
-        In context from here{budgetLabel !== undefined ? ` · ${budgetLabel}` : ""}
+        {compacted ? "Older messages compacted into memory" : "In context from here"}
+        {budgetLabel !== undefined ? ` · ${budgetLabel}` : ""}
       </Text>
+      {compacted ? <CompactSummaryPeek summary={compactSummary} /> : null}
       <Separator className="flex-1 bg-(--color-primary)/35" />
     </Row>
   );

@@ -63,11 +63,30 @@ export interface CanonMessage {
   readonly characterId: string | null;
   readonly personaId: string | null;
   readonly contextBoundaryMessageId: string | null;
+  /** The selected variant's prompt token count — the SHRINKAGE instrument (a post-compaction turn's tokensIn
+   *  drops below the pre-compaction peak because covered turns fall out of the prompt). Null on a user row. */
+  readonly tokensIn: number | null;
 }
 
 /** The `chat.listMessages` page (subset) — chronological canon (`messages` ordered by seq ascending). */
 interface MessagesPage {
   readonly messages: readonly CanonMessage[];
+}
+
+/** The present-tense context-fit preview (subset) — the source of the transcript divider. `compactSummary` is
+ *  the LINEAR-tier managed-compaction marker when it covers the span above the boundary, else null (#9). */
+export interface ContextFitPreview {
+  readonly boundaryMessageId: string | null;
+  readonly usedTokens: number;
+  readonly ceilingTokens: number;
+  readonly reserveOutputTokens: number;
+  readonly droppedCount: number;
+  readonly compactSummary: string | null;
+}
+
+/** Read the chat's present-tense fit preview (the divider's server source). */
+export function previewContextFit(chatId: string): Promise<ContextFitPreview> {
+  return trpcQuery<ContextFitPreview>("chat.previewContextFit", { chatId });
 }
 
 /** Read a chat's canon rows, chronological (seq ascending) — the DB ground truth the specs assert against. */
@@ -136,13 +155,30 @@ export async function startChat(characterIds: readonly string[]): Promise<string
   return started.chat.id;
 }
 
+/** The managed-compaction per-send intent knob (a subset of `UserIntent.compaction` the specs drive). `mode` stays
+ *  `string` (not the homed `CompactionMode` union): this package-import-free e2e support module mirrors the wire
+ *  subset locally like `CanonMessage.role` — the no-inline-union-redecl gate bans re-spelling the homed
+ *  COMPACTION_MODES members here, and specs pass literals, so `string` suffices. */
+export interface CompactionIntent {
+  readonly mode: string;
+  readonly thresholdPct?: number;
+  readonly instructions?: string;
+}
+
 /** Drive one real turn on a chat via the API. `maxContextTokens` (optional) rides the per-send `intent`,
  *  which OVERRIDES the preset's params in the fold (chat/engine/pipeline.ts foldGenerationParams) — so a
  *  small ceiling forces the history-budget fit-pass to drop older turns WITHOUT mutating any shared preset
- *  (nothing to restore). Resolves after the turn commits (the mutation awaits the generated reply). */
-export async function sendTurn(chatId: string, content: string, maxContextTokens?: number): Promise<void> {
-  const intent = maxContextTokens === undefined ? undefined : { maxContextTokens };
-  await trpcMutation("chat.send", { chatId, content, ...(intent === undefined ? {} : { intent }) });
+ *  (nothing to restore). `compaction` (optional) rides the same per-send intent (the managed-compaction spec's
+ *  `mode:"managed"` + a low threshold). Resolves after the turn commits (the mutation awaits the generated reply). */
+export async function sendTurn(chatId: string, content: string, maxContextTokens?: number, compaction?: CompactionIntent): Promise<void> {
+  const intent: Record<string, unknown> = {};
+  if (maxContextTokens !== undefined) {
+    intent["maxContextTokens"] = maxContextTokens;
+  }
+  if (compaction !== undefined) {
+    intent["compaction"] = compaction;
+  }
+  await trpcMutation("chat.send", { chatId, content, ...(Object.keys(intent).length === 0 ? {} : { intent }) });
 }
 
 interface CharacterListPage {
