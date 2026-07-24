@@ -34,6 +34,16 @@ test("the chevron fires onToggleExpand only — a disjoint sibling, never 'set c
 test("the expanded editor's Delete opens the confirm; confirming fires onDelete", async ({ mount, page }) => {
   const component = await mount(<PersonaPanelRowStory />);
   await component.getByRole("button", { name: "Show details" }).click();
+
+  // The editor mounts inside a Collapsible that reveals with a HEIGHT animation under `overflow-hidden`
+  // (variants.ts: h-0 → h-(--collapsible-panel-height)). Until that animation settles, the editor's
+  // Delete button — near the panel's bottom — is CLIPPED, so a click aimed at it lands in the hidden
+  // overflow and is absorbed (setDeleteOpen never fires; the flake). Wait for the panel to reach its
+  // fully-expanded height (clientHeight === scrollHeight ⇒ nothing clipped) before clicking Delete.
+  const panel = component.locator('[data-slot="collapsible-panel"]');
+  await expect(panel).toHaveAttribute("data-open", "");
+  await expect.poll(() => panel.evaluate((el) => el.clientHeight === el.scrollHeight && el.clientHeight > 0)).toBe(true);
+
   await component.getByRole("button", { name: "Delete", exact: true }).click();
   // ConfirmDialog portals to the body — page-scoped locators.
   const confirm = page.getByRole("alertdialog", { name: "Delete this persona?" });

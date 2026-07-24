@@ -300,6 +300,12 @@
 .shell-panel-body {
   flex: 1 1 auto;
   min-height: 0;
+  /* MUST be a flex column: the region wrapper inside (`.shell-region-fill`) carries `flex: 1 1 auto`, which
+   * is INERT unless this parent is a flex container — without it the region grows to content height and a
+   * section's VirtualList measures full content (over-3×-viewport → the seal throws). Block layout here only
+   * survived because most sections' content stayed small; a large LIST page (e.g. 48 hub cards) exposed it. */
+  display: flex;
+  flex-direction: column;
   overflow-y: auto;
   overscroll-behavior: contain;
   padding-inline: var(--spacing-row);

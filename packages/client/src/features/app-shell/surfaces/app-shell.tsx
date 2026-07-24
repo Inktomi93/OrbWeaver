@@ -205,7 +205,9 @@ export function AppShell(): ReactElement {
                 listMode={layout.listMode}
                 onToggleList={(): void => layout.togglePanel("list")}
               />
-              <main className="shell-content" ref={mainRef} tabIndex={-1}>
+              {/* A11y (side-eye R3): the scroll container is tabbable, so name it from the active section's
+                  visible label — the `main` landmark otherwise announces as an unnamed region. */}
+              <main className="shell-content" ref={mainRef} tabIndex={-1} aria-label={`${layout.activeSectionLabel} content`}>
                 <SectionContent activeSection={layout.activeSection} contentBySection={contentBySection} fallback={contentFallback} focusAnchorRef={mainRef} />
               </main>
             </div>
