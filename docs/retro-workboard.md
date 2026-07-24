@@ -229,9 +229,10 @@ the turn they follow); no-id histories keep the old newest-row behavior. Why the
 it: its comment DOCUMENTED the degenerate null as intended and dodged it (odd turn count → no nudge; mid
 window) — the per-spec-dodge pattern. Now pinned three ways: unit (blown budget keeps id-turn+nudge,
 names boundary), int (even-count transcript + 200-window → boundary = newest row, droppedCount 5), and
-live P2. Battery after fix: chat domain 995 PASS · **full e2e 18/18 including live** — first fully-green
-live suite. REMAINING: verifier over the wave diff → COMMIT (wave + playwright configs + audit fixes +
-message-content route-intercept + workboard).
+live P2. Verifier CONFIRMED (both new tests proven red-on-old-code; engine normal-case unaffected; all
+fitHistory callers swept). **WAVE COMMITTED `2ef07b8f`** (68 files) after the full gate: check PASS ·
+pnpm test PASS (vitest + 1211 CT; 5 retry-flakes in the known parallelism class → #10's flake-hunt
+list) · **full e2e 18/18 including live** — the first fully-green live suite.
 
 **Assertion-quality audit (#17, DONE)**: 205 files / all tests read by 4 sonnet readers — ZERO sick, 2
 MIXED-WEAK both fixed (character-library bulk-tag payload pin; theme-picker delete zero-call pin with
