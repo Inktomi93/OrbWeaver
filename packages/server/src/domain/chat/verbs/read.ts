@@ -13,13 +13,14 @@
 // Deps not on `ChatContext`: `loadParticipantViews` resolves the roster read-model; `resolveConnection`
 // resolves the model the previews need; `resolveForeignInputs` is the foreign half of the assemble ctx.
 
-import type { ChatInjection, ChatMacroNameProducer, ParticipantView } from "@orb/contracts/chat";
+import type { ChatInjection, ChatMacroNameProducer, ContextFitPreview, ParticipantView } from "@orb/contracts/chat";
 import { buildCharacterNameMap, buildPersonaNameMap } from "@orb/contracts/chat";
 import type { ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
 import type { PromptConfig } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
+import { estimateTokens } from "@orb/kit/tokens";
 import type { ChatContext } from "../context";
 import { ChatNotFoundError } from "../contract/errors";
 import type { ForeignInputs, ResolveForeignInputsOp } from "../contract/foreign";
@@ -37,6 +38,7 @@ import type {
   ListParticipantsParams,
   PeekPromptParams,
   PreviewAssemblyParams,
+  PreviewContextFitParams,
   PreviewSectionParams,
   ReplayChatEventsParams,
   ReplayStreamEventsParams,
@@ -76,7 +78,7 @@ import {
 import { loadRoster } from "../persistence/roster";
 import { loadPersonaAvatarProducer } from "../persistence/roster-avatars";
 import { gatherAssembleContext } from "../substrate/assemble-gather";
-import { buildPrompt, buildShapeTrace, previewSection, shapeTurn, toShapeCanon } from "../substrate/assembly-access";
+import { buildHistoryBudget, buildPrompt, buildShapeTrace, fitHistory, previewSection, shapeTurn, toShapeCanon } from "../substrate/assembly-access";
 
 import { toChatDetail } from "../substrate/chat-detail";
 
@@ -101,6 +103,7 @@ type ReadVerbs = Pick<
   | "previewSection"
   | "peekPrompt"
   | "getShapeTrace"
+  | "previewContextFit"
   | "listMessages"
   | "listMessageVariants"
   | "listParticipants"
@@ -431,6 +434,70 @@ function createGetShapeTrace(ctx: ChatContext, deps: ReadDeps): ChatService["get
   };
 }
 
+/** `previewContextFit` — the PRESENT-TENSE fit budget for the current canon against the host's effective
+ *  preset + resolved capability (PD-#7). MEMBER-gated (`requireParticipant`): unlike `getShapeTrace` it
+ *  returns no per-stage row counts (no merged-card leak) — only the boundary id + budget numbers the
+ *  transcript divider renders. Reuses the SAME `resolvePreviewInputs` → `buildPrompt` → `toShapeCanon` →
+ *  `shapeTurn` preamble the SHAPE trace uses, then runs the SAME `fitHistory` over the SAME budget
+ *  (`buildHistoryBudget` off `promptConfig.params`, `systemTokens` = the same estimator sum the engine
+ *  pipeline computes) — so `boundaryMessageId` equals the `contextBoundaryMessageId` the next real turn
+ *  stamps on canon. Nothing persists. */
+function createPreviewContextFit(ctx: ChatContext, deps: ReadDeps): ChatService["previewContextFit"] {
+  return async ({ principal, chatId, speakerCharacterId }: PreviewContextFitParams): Promise<ContextFitPreview> => {
+    const membership = await requireParticipant(ctx, principal, chatId);
+    const inputs = await resolvePreviewInputs(ctx, deps, chatId, {
+      anchorPersonaId: membership.chat.anchorPersonaId,
+      speakerCharacterId,
+    });
+    const assembleContext = await buildPreviewContext(ctx, inputs, chatId);
+    const assembled = buildPrompt(inputs.foreign.promptConfig, assembleContext);
+
+    const canon = await loadCanonHistory(ctx.db, chatId);
+    const macroProducer = await loadChatMacroNameProducer(ctx.db, { messages: canon });
+    const historyMacroNames: HistoryMacroNames = {
+      characterNamesById: buildCharacterNameMap(macroProducer.characterNames),
+      personaNamesById: buildPersonaNameMap(macroProducer.personaNames),
+    };
+
+    const inChatInjections: ChatInjection[] = [...(assembleContext.chatInjections ?? []).filter((i) => i.position === "in_chat"), ...assembled.afterHistory];
+    const turns = inputs.capability?.turns;
+    const shaped = shapeTurn({
+      canon: assembled.sendHistory ? toShapeCanon(canon, assembleContext, historyMacroNames) : [],
+      appendUserTurn: null,
+      injections: inChatInjections,
+      output: "per-speaker",
+      cardScope: "merged",
+      scopedTargetId: null,
+      namesBehavior: assembleContext.promptConfig.namesBehavior ?? "default",
+      speakers: { user: assembleContext.activePersona?.name ?? "User", assistant: assembleContext.character.name },
+      groupNudge: null,
+      assistantPrefill: turns?.assistantPrefill === true,
+      roleHandling: assembleContext.promptConfig.params.advanced?.roleHandling,
+      roleHandlingFloor: turns?.roleHandlingFloor,
+      squashSystemMessages: assembleContext.promptConfig.params.advanced?.squashSystemMessages,
+    });
+
+    // FIT — the same budget the engine's turn pipeline builds: window (capability) soft-capped by the
+    // preset's `maxContextTokens`, reserving the materialized output budget + the assembled system tokens.
+    const params = assembleContext.promptConfig.params;
+    const systemTokens = estimateTokens([assembled.static, assembled.dynamic].join("\n\n"));
+    const budget = buildHistoryBudget({
+      windowTokens: inputs.capability?.context.window ?? Number.POSITIVE_INFINITY,
+      maxContextTokens: params.maxContextTokens,
+      maxOutputTokens: params.maxOutputTokens,
+      systemTokens,
+    });
+    const fitted = fitHistory(shaped.history, budget);
+    return {
+      boundaryMessageId: fitted.earliestKeptMessageId,
+      usedTokens: fitted.usedTokens,
+      ceilingTokens: fitted.ceilingTokens ?? 0,
+      reserveOutputTokens: budget.reserveOutputTokens,
+      droppedCount: fitted.droppedCount,
+    };
+  };
+}
+
 /** `getActivePresetConfig` — the resolved `PromptConfig` the chat assembles against. No assemble ctx is
  *  built (only the config is needed). */
 function createGetActivePresetConfig(ctx: ChatContext, deps: ReadDeps): ChatService["getActivePresetConfig"] {
@@ -511,6 +578,7 @@ export function createRead(ctx: ChatContext, deps: ReadDeps): ReadVerbs {
     previewSection: createPreviewSection(ctx, deps),
     peekPrompt: createPeekPrompt(ctx, deps),
     getShapeTrace: createGetShapeTrace(ctx, deps),
+    previewContextFit: createPreviewContextFit(ctx, deps),
     listMessages: createListMessages(ctx, deps),
     listMessageVariants: createListMessageVariants(ctx),
     listParticipants: createListParticipants(ctx, deps),

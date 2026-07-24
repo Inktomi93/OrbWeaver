@@ -499,6 +499,7 @@ const PROBES: readonly Probe[] = [
   },
   { path: "chat.previewAssembly", call: (c, i) => c.chat.previewAssembly({ chatId: i.chatId }) },
   { path: "chat.getShapeTrace", call: (c, i) => c.chat.getShapeTrace({ chatId: i.chatId }) },
+  { path: "chat.previewContextFit", call: (c, i) => c.chat.previewContextFit({ chatId: i.chatId }) },
   {
     path: "chat.setChatInjection",
     call: (c, i) =>

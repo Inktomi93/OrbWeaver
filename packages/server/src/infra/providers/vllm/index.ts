@@ -18,7 +18,7 @@ import { createVllmSummarize } from "./surfaces/summarize";
 
 // Boot GPU-presence probe — re-exported for entry; the supervisor reads the same home (one `nvidia-smi`
 // probe in the codebase).
-export { detectGpu } from "./engine";
+export { detectGpu, fetchGenMaxModelLen } from "./engine";
 export { createVllmChat } from "./surfaces/chat";
 export { createVllmEmbed } from "./surfaces/embed";
 export { createVllmImageEmbed } from "./surfaces/image-embed";

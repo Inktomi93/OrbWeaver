@@ -16,14 +16,60 @@ export function focusFirstInvalidField(): void {
   document.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
 }
 
-/** The draft-seed read: the surviving crash draft for `entityId` (undefined when no store / no draft). */
-export function readDraftSeed<TValues extends object>(draft: EntityDraftStore<TValues> | undefined, entityId: string): Readonly<Partial<TValues>> | undefined {
-  return draft?.readDraft(entityId);
+// The draft baseline hash (retro-workboard #11): a persisted draft outranks the server ONLY when it was
+// begun on the SAME server snapshot the form now mounts over. A stale draft (server changed since the edit
+// began, or an unverifiable pre-envelope draft) is DISCARDED — server outranks. This hash is the identity
+// of the server snapshot an edit began on; the store compares the stamped hash against the live one on read.
+// A stable-key JSON serialization is a complete identity for form values (JSON-shaped by construction — the
+// `formValuesEqual` header proves the shape: strings/numbers/booleans/arrays/nested objects, no Dates/Maps).
+
+/** A stable-key structural hash of a server snapshot — the identity a draft's baseline is matched against. */
+export function hashServerBaseline(serverValues: unknown): string {
+  return stableStringify(serverValues);
 }
 
-/** The draft-mirror write: persist the live form values into the crash-survival slot for `entityId`. */
-export function mirrorDraft<TValues extends object>(draft: EntityDraftStore<TValues> | undefined, entityId: string, values: TValues): void {
-  draft?.setDraft(entityId, values);
+/** Deterministic JSON with object keys sorted at every depth (plain-JSON stringify is key-order-sensitive). */
+function stableStringify(value: unknown): string {
+  if (value === null || typeof value !== "object") {
+    // TS's lib types JSON.stringify as always-string, but `undefined` (which reaches this branch —
+    // typeof undefined !== "object") REALLY returns undefined at runtime (repro: JSON.stringify(undefined)
+    // === undefined), so the fallback is load-bearing; the typed lint narrows through any annotation.
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- TS lib lie: stringify(undefined) is undefined
+    return JSON.stringify(value) ?? "null";
+  }
+  if (Array.isArray(value)) {
+    return `[${value.map(stableStringify).join(",")}]`;
+  }
+  const obj = value as Record<string, unknown>;
+  const entries = Object.keys(obj)
+    .sort()
+    .map((key) => `${JSON.stringify(key)}:${stableStringify(obj[key])}`);
+  return `{${entries.join(",")}}`;
+}
+
+/**
+ * The draft-seed read (baseline-gated): the surviving crash draft for `entityId`, but ONLY when it both
+ * validates against the form model AND was begun on the CURRENT server snapshot (`baselineHash`). A stale
+ * or unverifiable draft is discarded by the store — server outranks (undefined here). `undefined`
+ * `baselineHash` (no server row yet — a create) reads the draft on validity alone.
+ */
+export function readDraftSeed<TValues extends object>(
+  draft: EntityDraftStore<TValues> | undefined,
+  entityId: string,
+  baselineHash?: string,
+): Readonly<Partial<TValues>> | undefined {
+  return draft?.readDraft(entityId, baselineHash);
+}
+
+/** The draft-mirror write: persist the live form values into the crash-survival slot, stamping the server
+ *  snapshot (`baselineHash`) this edit is being made against so a later mount can verify freshness. */
+export function mirrorDraft<TValues extends object>(
+  draft: EntityDraftStore<TValues> | undefined,
+  entityId: string,
+  values: TValues,
+  baselineHash?: string,
+): void {
+  draft?.setDraft(entityId, values, baselineHash);
 }
 
 // The ONE structural-equal home for the forms layer (D54 note: `es-toolkit`'s isEqual is the adopt-when

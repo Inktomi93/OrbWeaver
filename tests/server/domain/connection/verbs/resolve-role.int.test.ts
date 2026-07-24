@@ -3,7 +3,7 @@
 // throws ConnectionRoutingError on an incoherent (api, source) selection.
 
 import { ConnectionRoutingError, createConnectionService } from "@orb/server/domain/connection";
-import { vllmAgentModelAlias } from "@orb/server/foundation/env";
+import { env, vllmAgentModelAlias } from "@orb/server/foundation/env";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
@@ -248,5 +248,31 @@ describe("resolveRole — derive-role local-light fallback when vLLM is unavaila
     const conn = await svc.resolveRole({ role: "embed", principal: principal("user_1") });
 
     expect(conn.credential.source).toBe("openrouter");
+  });
+});
+
+describe("resolveRole — vllm gen window truth order (engine self-report WINS over env)", () => {
+  test("the engine's self-reported max_model_len is the capability window (beats the env default)", async () => {
+    const h = makeConnHarness(await freshDb());
+    // A window DIFFERENT from the env default proves the engine's answer — not the env floor — is used.
+    const engineWindow = env.VLLM_GEN_MAX_MODEL_LEN + 100_000;
+    h.setVllmGenWindow(engineWindow);
+    const svc = createConnectionService(h.ctx);
+
+    const conn = await svc.resolveRole({ role: "chat", principal: principal("user_1") });
+
+    expect(conn.credential.source).toBe("vllm");
+    expect(conn.capability.context.window).toBe(engineWindow);
+  });
+
+  test("with no engine reachable (null), the capability window falls back to the env-owned default", async () => {
+    const h = makeConnHarness(await freshDb());
+    h.setVllmGenWindow(null); // engine warming/disabled — nothing to seed the cache
+    const svc = createConnectionService(h.ctx);
+
+    const conn = await svc.resolveRole({ role: "chat", principal: principal("user_1") });
+
+    expect(conn.credential.source).toBe("vllm");
+    expect(conn.capability.context.window).toBe(env.VLLM_GEN_MAX_MODEL_LEN);
   });
 });

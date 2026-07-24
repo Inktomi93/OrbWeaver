@@ -108,6 +108,7 @@ import {
   DEFAULT_EMBED_MODEL,
   DEFAULT_IMAGE_EMBED_MODEL,
   DEFAULT_RERANK_MODEL,
+  fetchGenMaxModelLen,
 } from "#infra/providers";
 import { createCas, createVariantCache } from "#infra/storage";
 import {
@@ -306,6 +307,9 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     resolveCredential: (params): Promise<ResolvedCredential> => credentials.resolve(params),
     fetchOrCatalog: diagnostics.fetchOrCatalog,
     fetchAgentSdkModels: diagnostics.fetchAgentSdkModels,
+    // The gen engine self-reports its launched window at /v1/models; when vLLM is disabled there is no
+    // engine to ask, so short-circuit to null and let the resolver use the env-owned window.
+    fetchVllmGenWindow: (req): Promise<number | null> => (vllmAvailable ? fetchGenMaxModelLen(req.signal) : Promise.resolve(null)),
     loadUserSettings: settings.loadUserSettings,
     verifyClaudeAuth: (req): Promise<VerifyAuthResult> => diagnostics.verifyAuth(req),
     accountCredits: (req): Promise<AccountCredits> => diagnostics.accountCredits(req),

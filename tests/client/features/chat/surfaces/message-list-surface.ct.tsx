@@ -26,6 +26,19 @@ import { routeChatStream } from "../../../../support/ct/route-trpc-subscription"
 import { MessageListReplaySeedStory, MessageListStoppingStory, MessageListSurfaceStory } from "../_ct-stories";
 import { CHAT_ID, makeMacroNameProducer, makeMessagesPage, makeMessageView } from "../fixtures";
 
+// The divider's present-tense preview (PD-#7). Every map stubs it with a VALID resolved shape — the
+// harness's unlisted-proc default (`data: null`) is out-of-contract for this query and crashes the
+// surface (integration find, 2026-07-24). boundaryMessageId null = "everything fits" (no divider).
+const PREVIEW_FIT_STUB = {
+  "chat.previewContextFit": (): { boundaryMessageId: null; usedTokens: number; ceilingTokens: number; reserveOutputTokens: number; droppedCount: number } => ({
+    boundaryMessageId: null,
+    usedTokens: 120,
+    ceilingTokens: 32_768,
+    reserveOutputTokens: 2048,
+    droppedCount: 0,
+  }),
+};
+
 const USER_VIEW = makeMessageView({
   id: castId<MessageId>("msg_user"),
   role: "user",
@@ -43,6 +56,7 @@ const AI_VIEW = makeMessageView({
 // + empty producer, just enough for `ChatThread`'s `chat.getChat` suspense read to resolve to a real
 // (if empty) shape rather than routeTrpc's generic `null` unlisted-procedure default.
 const ROSTER_STUB = {
+  ...PREVIEW_FIT_STUB,
   "chat.getChat": (): {
     participants: never[];
     anchorPersonaId: null;
@@ -76,6 +90,7 @@ const TURN: ChatBusEvent[] = [
 test("renders canon, then streams a turn and swaps the ghost for the canonical row", async ({ mount, page }) => {
   let listCall = 0;
   const trpc = await routeTrpc(page, {
+    ...PREVIEW_FIT_STUB,
     // First read = just the user turn; the post-turnCompleted refetch adds the assistant reply.
     "chat.listMessages": () => makeMessagesPage(listCall++ === 0 ? [USER_VIEW] : [USER_VIEW, AI_VIEW]),
     ...ROSTER_STUB,
@@ -146,6 +161,7 @@ const TURN_START_ONLY: ChatBusEvent[] = [
 
 test("pending phase (turnStarted, no deltas yet): the typing dots render with REAL rendered width, not collapsed", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...PREVIEW_FIT_STUB,
     "chat.listMessages": () => makeMessagesPage([USER_VIEW]),
     ...ROSTER_STUB,
   });
@@ -165,6 +181,7 @@ test("pending phase (turnStarted, no deltas yet): the typing dots render with RE
 
 test("a draft handle shows the empty state and never reads the server", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
+    ...PREVIEW_FIT_STUB,
     "chat.listMessages": () => makeMessagesPage([USER_VIEW]),
   });
 
@@ -200,6 +217,7 @@ const HEAD_DELTAS: ChatBusEvent[] = [
 test("the ghost row stays mounted with its streamed text after Stop (stopping phase)", async ({ mount, page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await routeTrpc(page, {
+    ...PREVIEW_FIT_STUB,
     "chat.listMessages": () => makeMessagesPage([USER_VIEW]),
     ...ROSTER_STUB,
   });
@@ -223,7 +241,7 @@ test("the ghost row stays mounted with its streamed text after Stop (stopping ph
 // this chat's durable head deltas that raced past the fresh attach.
 test("a just-created chat (draft→committed) seeds lastEventId '0' and streams the head deltas", async ({ mount, page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await routeTrpc(page, { "chat.listMessages": () => makeMessagesPage([]), ...ROSTER_STUB });
+  await routeTrpc(page, { ...PREVIEW_FIT_STUB, "chat.listMessages": () => makeMessagesPage([]), ...ROSTER_STUB });
   const stream = await routeChatStream(page, { events: HEAD_DELTAS });
 
   const component = await mount(<MessageListReplaySeedStory />);
@@ -244,6 +262,7 @@ test("a just-created chat (draft→committed) seeds lastEventId '0' and streams 
 // turn as a ghost — the re-animate glitch the capture-once transition-detection guard closes).
 test("an existing committed chat subscribes with NO replay cursor (never re-replays prior turns)", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...PREVIEW_FIT_STUB,
     "chat.listMessages": () => makeMessagesPage([USER_VIEW]),
     ...ROSTER_STUB,
   });

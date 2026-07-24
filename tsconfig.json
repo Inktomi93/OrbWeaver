@@ -58,6 +58,9 @@
     // barrel re-exports `use-app-form` and thus every DOM bound-field → phantom lib.dom errors here. The
     // entity-form-base SOURCE stays dom-typechecked by packages/client/tsconfig.
     "tests/client/forms/entity-form-base.test.ts",
+    // The draft-store test's subject defaults to window.localStorage (the crash-mirror home) — DOM-coupled
+    // `.ts`, so it lives in tsconfig.tests-dom.json (the same routing as its forms siblings above).
+    "tests/client/state/create-entity-draft-store.test.ts",
     // Same class, RAF flavor: the subject hook (`use-message-items`, PD-147) calls bare
     // `requestAnimationFrame`/`cancelAnimationFrame` (lib.dom globals) → phantom lib.dom errors in this
     // DOM-less node program. The hook SOURCE stays dom-typechecked by packages/client/tsconfig.

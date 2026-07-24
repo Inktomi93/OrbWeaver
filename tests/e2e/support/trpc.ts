@@ -83,6 +83,7 @@ export interface UserSettings {
         readonly chat?: { readonly api?: string; readonly source?: string };
       };
     };
+    readonly seeds: { readonly defaultPresetId?: string | null };
   };
 }
 

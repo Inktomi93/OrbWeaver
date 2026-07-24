@@ -51,6 +51,7 @@ export const CHAT_VERB_AUTHORITY = {
   previewSection: "member",
   peekPrompt: "host", // the full next-turn prompt reveals merged member cards at FULL — host/admin only
   getShapeTrace: "host", // the SHAPE-phase debug trace (content-free counts) is a host/admin inspector surface (PD-132)
+  previewContextFit: "member", // the transcript divider's present-tense fit budget — a member read (no merged-card leak, only the boundary id + budget numbers)
   listMessages: "member",
   listMessageVariants: "member", // the full sibling-variant set for one slot — a present member may read it
   listParticipants: "member",

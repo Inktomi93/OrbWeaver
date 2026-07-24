@@ -127,7 +127,7 @@ case "$ENGINE" in
       --served-model-name "$VLLM_GEN_MODEL" "${VLLM_GEN_MODEL##*/}" \
       --tensor-parallel-size "$GEN_TP" \
       --host 127.0.0.1 --port "$VLLM_GEN_PORT" \
-      --gpu-memory-utilization "$GEN_UTIL" --max-model-len 32768 \
+      --gpu-memory-utilization "$GEN_UTIL" --max-model-len "${VLLM_GEN_MAX_MODEL_LEN:-32768}" \
       --enable-auto-tool-choice --tool-call-parser hermes \
       --mm-processor-kwargs '{"max_pixels": 4194304}'
     ;;

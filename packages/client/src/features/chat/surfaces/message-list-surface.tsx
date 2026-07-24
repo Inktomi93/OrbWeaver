@@ -12,7 +12,7 @@ import { Stack } from "@orb/ui/layout";
 import type { MessageListHandle } from "@orb/ui/message-list";
 import { MessageList } from "@orb/ui/message-list";
 import { Text } from "@orb/ui/text";
-import { useSuspenseQueries } from "@tanstack/react-query";
+import { useQuery, useSuspenseQueries } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { useRef } from "react";
 import type { ChatBusDeps } from "#data";
@@ -135,7 +135,20 @@ function ChatThread({ chatId, chatStyle, onChatForked, surfaceContributors }: Ch
   const listHandleRef = useRef<MessageListHandle>(null);
   const jump = useJumpToLatest({ messagesCount: messages.length, live, listHandleRef });
   const lastAssistantId = live ? null : findLastAssistantId(messages);
-  const contextBoundaryMessageId = resolveContextBoundaryMessageId(messages);
+  // The transcript divider's PRESENT-TENSE source (PD-#7): previewContextFit runs the same fit the next real
+  // turn would, so the line tracks preset/settings knob changes live (it's invalidated on canon-terminal bus
+  // events + settings/preset changes via the central seam). Non-suspense so it never blocks the transcript;
+  // until it resolves (or if it errors) the canon-stamp resolver — the per-generation provenance — is the
+  // fallback. Paused during a live turn (the canon isn't settled; the ghost row carries no boundary).
+  const previewFit = useQuery({ ...trpc.chat.previewContextFit.queryOptions({ chatId }), enabled: !live });
+  // A RESOLVED preview is authoritative — a `null` boundary means "everything fits" (suppress the divider),
+  // NOT "fall back". Only an unresolved/errored preview defers to the canon-stamp resolver.
+  const contextBoundaryMessageId = previewFit.data !== undefined ? previewFit.data.boundaryMessageId : resolveContextBoundaryMessageId(messages);
+  // The budget line the boundary divider carries once the preview resolves: "N of M used · R reserved".
+  const contextBoundaryLabel =
+    previewFit.data !== undefined
+      ? `${previewFit.data.usedTokens} of ${previewFit.data.ceilingTokens} used · ${previewFit.data.reserveOutputTokens} reserved`
+      : undefined;
 
   const renderItem = (item: (typeof items)[number]): ReactNode =>
     item.kind === "ghost" ? (
@@ -169,6 +182,7 @@ function ChatThread({ chatId, chatStyle, onChatForked, surfaceContributors }: Ch
         messageActions={messageAppearance.messageActions}
         showSwipes={item.view.id === lastAssistantId}
         contextBoundary={item.view.id === contextBoundaryMessageId}
+        contextBoundaryLabel={contextBoundaryLabel}
         participants={participants}
         characterNamesById={characterNamesById}
         personaNamesById={personaNamesById}

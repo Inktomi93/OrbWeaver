@@ -120,6 +120,13 @@ export interface GetShapeTraceParams extends ChatScopedParams {
   readonly speakerCharacterId?: CharacterId | null | undefined;
 }
 
+/** `previewContextFit` — the present-tense fit budget for the current canon + the host's effective preset/
+ *  capability (the transcript divider's live source; PD-#7). `speakerCharacterId` picks the primary speaker
+ *  the fit shapes for (as `getShapeTrace`), so the preview matches the boundary the next real turn stamps. */
+export interface PreviewContextFitParams extends ChatScopedParams {
+  readonly speakerCharacterId?: CharacterId | null | undefined;
+}
+
 /** `listMessages` — paged canon read. */
 export interface ListMessagesParams extends ChatScopedParams {
   readonly beforeSeq?: number | undefined;

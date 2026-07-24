@@ -28,6 +28,9 @@ import type { CharacterId, ChatId, ChatInjectionId, MessageVariantId, UserId } f
 
 export type {
   AssembledPrompt,
+  // The present-tense context-fit budget (previewContextFit) — the cross-boundary wire node
+  // (`@orb/contracts/chat`), re-exported type-only so the service + front door share the ONE name.
+  ContextFitPreview,
   InvitePreview,
   InviteView,
   MessageView,

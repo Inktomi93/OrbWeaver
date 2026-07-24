@@ -1,4 +1,6 @@
 // SHAPE shaper: fitHistoryToWindow (chat.md Part II §2 SHAPE fit-pass — the stateless-runner hard cap).
+import type { MessageId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { fitHistoryToWindow } from "../../../../../packages/server/src/domain/chat/assembly/history-budget";
 import { expect, test } from "../../../../support/fixtures";
@@ -36,6 +38,29 @@ describe("fitHistoryToWindow", () => {
     });
     expect(out.history).toEqual([turn(huge)]);
     expect(out.droppedCount).toBe(1);
+  });
+
+  // The live-context-cutoff catch (2026-07-24): the preview's shaped history ends on the ID-LESS
+  // continuation nudge; anchoring the irreducible keep on the newest ROW kept only the nudge under a
+  // blown budget — dropping the user's real newest message AND leaving the boundary unnameable
+  // (boundaryMessageId null while droppedCount > 0). The irreducible tail is the newest id-bearing
+  // turn plus its trailing synthetics.
+  test("a blown budget keeps the newest ID-BEARING turn + trailing synthetics, and names it as the boundary", () => {
+    const id = (n: number): { role: "user"; content: string; messageId: MessageId } => ({
+      role: "user",
+      content: `real message ${n} with words`,
+      messageId: castId<MessageId>(`message_test_${n}`),
+    });
+    const nudge = { role: "user" as const, content: "[Continue the conversation.]" };
+    const out = fitHistoryToWindow([id(1), id(2), id(3), nudge], {
+      windowTokens: 20, // budget deeply negative after reserve+system+margin — nothing "fits"
+      reserveOutputTokens: 100,
+      systemTokens: 100,
+    });
+    // The newest real turn survives WITH its trailing nudge; only genuinely older turns drop.
+    expect(out.history).toEqual([id(3), nudge]);
+    expect(out.droppedCount).toBe(2);
+    expect(out.earliestKeptMessageId).toBe(castId<MessageId>("message_test_3"));
   });
 
   test("the soft cap lowers the ceiling below the window", () => {

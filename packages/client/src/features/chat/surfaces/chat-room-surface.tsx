@@ -8,11 +8,10 @@ import type { ChatId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import { Container, Row, Stack } from "@orb/ui/layout";
 import { ThemeScope } from "@orb/ui/theme-scope";
-import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { Fragment, useRef, useState } from "react";
 import type { ChatBusDeps } from "#data";
-import { QueryBoundary, useGatedQuery, useTRPC } from "#data";
+import { useGatedQuery, useTRPC } from "#data";
 import type { ChatRoomSurfaceState, ChatSurfaceContribution, ContributorRegistry } from "#lib";
 import { useFocusOnMount } from "#lib";
 import type { ActiveChatHandle, ChatHandle } from "#state";
@@ -127,22 +126,21 @@ interface ComposerSlotProps {
   readonly onCommitted: (chatId: ChatId) => void;
 }
 
+// ONE stable <Composer> element across every room-lifecycle transition (draft→committed promotion,
+// listMessages settling, an SSE event landing). The tail is read via a NON-suspending gated query, not
+// a <Suspense> child + fallback pair: a Suspense boundary here would swap the fallback <Composer> for the
+// resolved-child <Composer> at settle — two different tree positions → React remounts the <textarea>,
+// dropping focus and every keystroke typed before the query resolved (the #13 "eats keystrokes on fast
+// room entry" bug). MessageListSurface already suspends on this exact listMessages key, so this read hits
+// the same warm cache entry (no second round-trip); it reports `undefined` until warm, mapping to
+// tailRole=null — identical to the old fallback state, but WITHOUT a remount when it fills in. A DIFFERENT
+// chat still fully resets the composer: chat-content.tsx keys ChatRoomSurface by sessionKey, so an entity
+// switch remounts this whole subtree deliberately.
 function ComposerSlot(props: ComposerSlotProps): ReactElement {
   const chatId = isCommitted(props.handle) ? props.handle.id : null;
-  if (chatId === null) {
-    return <Composer {...props} tailRole={null} />;
-  }
-  return (
-    <QueryBoundary fallback={<Composer {...props} tailRole={null} />} renderError={(): ReactElement => <Composer {...props} tailRole={null} />}>
-      <ComposerTailGate {...props} chatId={chatId} />
-    </QueryBoundary>
-  );
-}
-
-function ComposerTailGate(props: ComposerSlotProps & { readonly chatId: ChatId }): ReactElement {
   const trpc = useTRPC();
-  const { data: messagesPage } = useSuspenseQuery(trpc.chat.listMessages.queryOptions({ chatId: props.chatId }));
-  const tail = messagesPage.messages.at(-1);
+  const { data: messagesPage } = useGatedQuery(chatId, (id) => trpc.chat.listMessages.queryOptions({ chatId: id }));
+  const tail = messagesPage?.messages.at(-1);
   const tailRole: MessageRole | null = tail?.role ?? null;
   // continue-on-empty's target: only meaningful when the tail is an assistant turn.
   const tailAssistantMessageId = tail !== undefined && tail.role === "assistant" ? tail.id : null;

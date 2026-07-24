@@ -197,7 +197,7 @@ test("D1 a favorites-chip empty over the loaded window offers Load more, reachin
 });
 
 test("D2 the bulk Tag action opens a picker and applies a tag to the selection", async ({ mount, page }) => {
-  await routeTrpc(page, {
+  const trpc = await routeTrpc(page, {
     "character.list": () => ({ items: [STARLA, BOLT2, TAGGED], nextCursor: null }),
     "chat.listChats": () => [],
     "character.bulkAddCardTag": () => ({ tagged: 1 }),
@@ -210,6 +210,11 @@ test("D2 the bulk Tag action opens a picker and applies a tag to the selection",
   // The picker Dialog is portaled outside the mount root — query it via `page`.
   await page.getByRole("textbox", { name: "Tag name" }).fill("adventure");
   await page.getByRole("button", { name: "Apply" }).click();
+  // The mutation carries the typed tag + exactly the selected id (assertion-quality audit 2026-07-24:
+  // the selection-cleared check alone left the wire payload unpinned).
+  await expect
+    .poll(() => trpc.lastInput("character.bulkAddCardTag"), { intervals: [20, 50, 100] })
+    .toMatchObject({ tagName: "adventure", characterIds: ["char_bolt2"] });
   // Applying clears the selection → the bulk bar (its Tag action) is gone.
   await expect(component.getByRole("button", { name: "Tag", exact: true })).toHaveCount(0);
 });

@@ -10,7 +10,11 @@
 // substrate bridge is the legal form of the same coupling.)
 
 import { assemblePrompt, previewSection as previewSectionImpl } from "../assembly/assemble";
-import { fitHistoryToWindow } from "../assembly/history-budget";
+import {
+  buildHistoryBudget as buildHistoryBudgetImpl,
+  fitHistoryToWindow,
+  materializeOutputReserve as materializeOutputReserveImpl,
+} from "../assembly/history-budget";
 import {
   buildTurnMacroContext as buildTurnMacroContextImpl,
   freezeVolatileMacros as freezeVolatileMacrosImpl,
@@ -80,4 +84,16 @@ export function previewSection(...args: Parameters<typeof previewSectionImpl>): 
 /** FIT: the §8 history-budget tail (drop oldest turns to fit the window; offset-from-end survives). */
 export function fitHistory(...args: Parameters<typeof fitHistoryToWindow>): ReturnType<typeof fitHistoryToWindow> {
   return fitHistoryToWindow(...args);
+}
+
+/** FIT (budget): the ONE `HistoryBudget` derivation (window/soft-cap/output-reserve/system) both the engine
+ *  turn and previewFit read, so their fit boundaries can't drift. The legal `engine|verbs → assembly` bridge. */
+export function buildHistoryBudget(...args: Parameters<typeof buildHistoryBudgetImpl>): ReturnType<typeof buildHistoryBudgetImpl> {
+  return buildHistoryBudgetImpl(...args);
+}
+
+/** FIT (reserve): the materialized output reserve = the runner's effective `max_tokens` = the fit's
+ *  reserved output. The legal `engine|verbs → assembly` bridge for the ONE materialize home. */
+export function materializeOutputReserve(...args: Parameters<typeof materializeOutputReserveImpl>): ReturnType<typeof materializeOutputReserveImpl> {
+  return materializeOutputReserveImpl(...args);
 }

@@ -8,10 +8,11 @@
 // edit re-renders the observed DOM, sibling so a buggy self-re-render loop can't spin.
 
 import type { AutosaveSaveState, AutosaveSession } from "@orb/client/forms";
-import { AutosaveStatus, createAutosaveEntityForm, createSavedEntityForm } from "@orb/client/forms";
+import { AutosaveStatus, createAutosaveEntityForm, createSavedEntityForm, hashServerBaseline } from "@orb/client/forms";
 import { createEntityDraftStore } from "@orb/client/state";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
+import { z } from "zod";
 
 // ---------------------------------------------------------------------------------------------
 // AutosaveStatusStory — drives the shared AutosaveStatus affordance (north-star §7 / D66 A4) through
@@ -333,6 +334,55 @@ export function BoundaryReseedStory(): ReactElement {
       <button type="button" onClick={(): void => sessionRef.current?.reseed({ text: "starter value" })}>
         reseed to starter
       </button>
+    </div>
+  );
+}
+
+// ---- CT-7 / CT-8: the localStorage-brick fix (retro-workboard #11) --------------------------------
+// A draft store PRE-SEEDED with a POISONED draft: values that mismatch the server AND a baseline hash
+// that does NOT match the current server snapshot (it was begun on a different, now-stale server truth).
+// The fix must DISCARD it on mount — the field heals to SERVER truth, and ZERO saves fire without any
+// user input. Old behavior (draft-over-server, no gate): the field showed the stale draft as "saved".
+const brickSchema = z.object({ text: z.string() });
+const BRICK_ENTITY_ID = "brick-entity";
+const BRICK_SERVER: BoundaryValues = { text: "server truth" };
+const BRICK_POISON: BoundaryValues = { text: "STALE DRAFT (should never show)" };
+
+// The store the boundary reads its draft from — validate + schemaVersion wired (the real consumer shape).
+const brickDraftStore = createEntityDraftStore<BoundaryValues>({
+  name: "boundary-ct-brick",
+  schemaVersion: 1,
+  validate: (v): BoundaryValues | undefined => {
+    const r = brickSchema.safeParse(v);
+    return r.success ? r.data : undefined;
+  },
+});
+// Pre-seed the poison with a baseline hash for a DIFFERENT server snapshot — stale by construction.
+brickDraftStore.setDraft(BRICK_ENTITY_ID, BRICK_POISON, hashServerBaseline({ text: "a totally different old server value" }));
+
+const brickSaveSpy = createSaveSpy("boundary-ct-brick-spy");
+const useBrickBoundary = createAutosaveEntityForm<BoundaryValues>({
+  defaultValues: { text: "" },
+  draft: brickDraftStore,
+  debounceMs: 50,
+});
+
+/** CT-7/CT-8: a poisoned-draft mount heals to server truth and fires zero saves without user input. */
+export function BoundaryBrickHealStory(): ReactElement {
+  return (
+    <div>
+      {useBrickBoundary({
+        entityId: BRICK_ENTITY_ID,
+        serverValues: BRICK_SERVER,
+        save: (values): Promise<void> => {
+          brickSaveSpy.record(BRICK_ENTITY_ID, values.text);
+          return Promise.resolve();
+        },
+        children: (session): ReactElement => (
+          <session.form.AppField name="text">{(field): ReactElement => <field.TextField label="Brick text" />}</session.form.AppField>
+        ),
+      })}
+      <SwitchSpyObserverFor spy={brickSaveSpy} prefix="brick" />
     </div>
   );
 }

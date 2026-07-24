@@ -36,10 +36,16 @@ type BusFilterMap = {
 
 const nothing = (): readonly InvalidateFilter[] => [];
 
-// The open chat's detail reads (no chat list) — the room read, message list, and the swipe strip's
-// step-target resolver.
+// The open chat's detail reads (no chat list) — the room read, message list, the swipe strip's
+// step-target resolver, and the transcript divider's present-tense fit budget (previewContextFit — the
+// boundary moves when canon commits/trims, so it refetches on every canon-terminal alongside the list).
 function chatDetailReads(trpc: Trpc, chatId: ChatBusEvent["chatId"]): readonly InvalidateFilter[] {
-  return [trpc.chat.getChat.queryFilter({ chatId }), trpc.chat.listMessages.pathFilter(), trpc.chat.listMessageVariants.pathFilter()];
+  return [
+    trpc.chat.getChat.queryFilter({ chatId }),
+    trpc.chat.listMessages.pathFilter(),
+    trpc.chat.listMessageVariants.pathFilter(),
+    trpc.chat.previewContextFit.pathFilter(),
+  ];
 }
 
 // Detail reads plus the chat list, for non-terminal canon events the server fires no chatsChanged for.
@@ -93,13 +99,16 @@ type UserBusFilterMap = {
 const USER_BUS_FILTERS: UserBusFilterMap = {
   charactersChanged: (_e, trpc) => [trpc.character.pathFilter()],
   personasChanged: (_e, trpc) => [trpc.persona.pathFilter()],
-  presetsChanged: (_e, trpc) => [trpc.preset.pathFilter()],
+  // A preset edit changes the effective params (maxOutput/maxContext) the fit reserves against, so the
+  // transcript divider's budget must refetch too (the boundary tracks knob changes live, PD-#7).
+  presetsChanged: (_e, trpc) => [trpc.preset.pathFilter(), trpc.chat.previewContextFit.pathFilter()],
   worldInfoChanged: (_e, trpc) => [trpc.worldInfo.pathFilter()],
   tagsChanged: (_e, trpc) => [trpc.tag.pathFilter()],
   // Themes live under the settings router but are a distinct read surface.
   themesChanged: (_e, trpc) => [trpc.settings.listThemes.pathFilter(), trpc.settings.getTheme.pathFilter()],
-  // User settings only — not the app/global settings.
-  settingsChanged: (_e, trpc) => [trpc.settings.getUserSettings.pathFilter()],
+  // User settings only — not the app/global settings. Routing/roleDefaults changes re-resolve the chat
+  // capability (the fit window), so the divider's budget refetches with the settings read.
+  settingsChanged: (_e, trpc) => [trpc.settings.getUserSettings.pathFilter(), trpc.chat.previewContextFit.pathFilter()],
   credentialsChanged: (_e, trpc) => [trpc.credentials.pathFilter()],
   // The chat-list + character-library recency driver, and the sole driver on the message-commit
   // terminal path (the server fans this to every present member on both canon-commit terminals and

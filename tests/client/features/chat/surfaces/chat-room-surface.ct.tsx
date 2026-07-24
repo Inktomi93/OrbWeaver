@@ -20,6 +20,19 @@ import { routeChatStream } from "../../../../support/ct/route-trpc-subscription"
 import { ChatRoomSurfaceStory, ChatSurfaceContributorStory } from "../_ct-stories";
 import { makeMacroNameProducer, makeMessagesPage, makeMessageView } from "../fixtures";
 
+// The divider's present-tense preview (PD-#7). Every map stubs it with a VALID resolved shape — the
+// harness's unlisted-proc default (`data: null`) is out-of-contract for this query and crashes the
+// surface (integration find, 2026-07-24). boundaryMessageId null = "everything fits" (no divider).
+const PREVIEW_FIT_STUB = {
+  "chat.previewContextFit": (): { boundaryMessageId: null; usedTokens: number; ceilingTokens: number; reserveOutputTokens: number; droppedCount: number } => ({
+    boundaryMessageId: null,
+    usedTokens: 120,
+    ceilingTokens: 32_768,
+    reserveOutputTokens: 2048,
+    droppedCount: 0,
+  }),
+};
+
 const CANON = [
   makeMessageView({
     id: castId<MessageId>("msg_room_user"),
@@ -36,6 +49,7 @@ const CANON = [
 ];
 
 const ROSTER_STUB = {
+  ...PREVIEW_FIT_STUB,
   "chat.getChat": (): {
     participants: never[];
     anchorPersonaId: null;
@@ -52,6 +66,7 @@ const ROSTER_STUB = {
 test("a seeded draft renders the founding greeting as an editable row + the live composer, no CANON read", async ({ mount, page }) => {
   let listMessagesCalls = 0;
   await routeTrpc(page, {
+    ...PREVIEW_FIT_STUB,
     "chat.listMessages": () => {
       listMessagesCalls += 1;
       return makeMessagesPage([]);
@@ -76,6 +91,7 @@ test("a seeded draft renders the founding greeting as an editable row + the live
 
 test("a committed chat reads canon and renders the rows beside the composer", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...PREVIEW_FIT_STUB,
     "chat.listMessages": () => makeMessagesPage(CANON),
     ...ROSTER_STUB,
   });
@@ -97,6 +113,7 @@ test("a committed chat reads canon and renders the rows beside the composer", as
 // `busDriven`) makes this count 2 and the test goes red — the "one send fired the list 4-5×" storm.
 test("a committed send adds NO invalidation of its own — the list refetch is bus-only (busDriven)", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
+    ...PREVIEW_FIT_STUB,
     // The committed room reads its transcript ONCE (the list + the composer's tail-gate share the key).
     "chat.listMessages": () => makeMessagesPage([makeMessageView({ id: castId<MessageId>("msg_room_user"), role: "user", content: "Ping?" })]),
     // `send` resolves immediately (the turn's effect is bus-driven; the value is never read back).
@@ -138,6 +155,51 @@ test("a committed send adds NO invalidation of its own — the list refetch is b
   // THE PIN: the send fired for real, and it refetched the list ZERO extra times. Bus-only freshness.
   await expect.poll(() => trpc.count("chat.send")).toBe(1);
   await expect.poll(() => trpc.count("chat.listMessages")).toBe(1);
+});
+
+// ── #13: the composer survives room-settle (no remount eats keystrokes) ───────────────────────────
+// The bug: ComposerSlot rendered the composer inside a <Suspense> boundary whose fallback was a SECOND
+// <Composer>; when listMessages settled the fallback swapped for the resolved child, remounting the
+// <textarea> and dropping focus + every keystroke typed before the query resolved (the e2e lane's
+// "typing right after room open registers only the FIRST character"). The fix reads the tail via a
+// NON-suspending gated query so there is ONE stable <Composer> across the in-flight→settled transition.
+// This pins it: listMessages is HELD, the user types the FULL message while it is in flight, THEN it
+// settles — the typed value must be intact (a remount would have lost all but nothing, since the old
+// suspended composer never mounted until settle; either way a regression drops the text).
+test("#13: typing while listMessages is in flight survives the room settle — no composer remount eats keystrokes", async ({ mount, page }) => {
+  let releaseList: (() => void) | undefined;
+  const listHeld = new Promise<void>((resolve) => {
+    releaseList = resolve;
+  });
+  // Hold listMessages via a route that BLOCKS on the release gate before falling through to routeTrpc
+  // (registered AFTER routeTrpc ⇒ runs FIRST, LIFO; delegates the actual envelope + batch framing to
+  // routeTrpc's fallback so the wire shape stays correct) — the room settle is under test control.
+  await routeTrpc(page, { ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage(CANON) });
+  await page.route("**/api/trpc/**", async (route) => {
+    if (route.request().url().includes("chat.listMessages")) {
+      await listHeld;
+    }
+    await route.fallback();
+  });
+
+  const component = await mount(<ChatRoomSurfaceStory committed={true} />);
+
+  // The composer is live IMMEDIATELY (single stable element, tailRole=null until the read warms) — the
+  // old suspended composer would not exist yet (the boundary shows its fallback composer, a different
+  // element). Type the FULL message with the transcript still in flight.
+  const textarea = component.getByRole("textbox", { name: "Message" });
+  await expect(textarea).toBeVisible();
+  await textarea.click();
+  await textarea.pressSequentially("Reply immediately", { delay: 10 });
+  await expect(textarea).toHaveValue("Reply immediately");
+
+  // Now the room settles — the transcript resolves and renders. A remount here (the regressed shape)
+  // would blow away the typed value; the stable element keeps it.
+  releaseList?.();
+  await expect(component.getByText("Well met, traveller.")).toBeVisible();
+  await expect(textarea).toHaveValue("Reply immediately");
+  // Focus survived too (the same element was never torn down).
+  await expect(textarea).toBeFocused();
 });
 
 // ── The chat-surface-anchor CONTRIBUTOR seam (client-architecture-lockdown.md §6c/M8 — new) ────────

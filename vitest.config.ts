@@ -159,6 +159,10 @@ export default defineConfig({
             only: true,
             include: ["tests/**/*.test-d.ts"],
             tsconfig: "tsconfig.json",
+            // Source-file errors here are wrong-lib double-reports (a DOM-touching import checked under
+            // the DOM-less root program — the authoritative per-package/graph stages check the same files
+            // under the CORRECT libs). Test-file type errors still fail the lane.
+            ignoreSourceErrors: true,
             // TS7 native checker (byte-identical diagnostics to tsc6, ~5x faster) — the CLI type lanes moved
             // off tsc6. ts-morph/typescript-eslint keep the TS6 API; this lane is CLI-only, so it's safe.
             checker: "node_modules/ts7/bin/tsc",

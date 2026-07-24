@@ -4,9 +4,9 @@
 // prompt WITHOUT persisting or running a turn, the stream-ring reads return the resumable slice, and a
 // non-participant is default-denied (leak-free NOT_FOUND). Reached through the BUNDLE `createRead(ctx, deps)`.
 
-import type { ResolvedConnection } from "@orb/contracts/connection";
+import type { ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
 import type { Principal } from "@orb/contracts/identity";
-import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+import { DEFAULT_MAX_OUTPUT_TOKENS, DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import { chatParticipants, messages } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
@@ -19,6 +19,7 @@ import { ChatNotFoundError, ChatOperationError } from "../../../../../packages/s
 import { createRead } from "../../../../../packages/server/src/domain/chat/verbs/read";
 import { freshDb } from "../../../../support/db";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
+import { makeModelCapability, makeResolvedConnection } from "../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../support/fixtures";
 import {
   addVariant,
@@ -485,5 +486,99 @@ describe("read — durable chat-bus log (the streamMessages SSE resume)", () => 
       { chatId, kind: "text", text: "Hello " },
       { chatId, kind: "text", text: "world" },
     ]);
+  });
+});
+
+describe("previewContextFit — present-tense fit budget (engine-stamp parity)", () => {
+  // A real capability with a MID window so the fit trims SOME rows but keeps id-bearing ones (mirrors the
+  // pipeline test's boundary anchor). previewFit must reproduce the SAME boundary the engine stamps: the
+  // earliest-KEPT id-bearing row. The blown-budget shape (real transcript ending on assistant → id-less
+  // continuation nudge appended, window smaller than reserve+system) gets its own test below — the fit's
+  // irreducible tail anchors on the newest ID-BEARING turn, so the boundary is nameable even there (the
+  // original null-boundary "dodge" here was the bug the live cutoff spec caught, 2026-07-24).
+  const midCapability = makeModelCapability({ output: { maxTokens: { min: 1, max: 8192 } }, context: { window: 400 } });
+
+  function makeFitDeps(capability: ModelCapability): Parameters<typeof createRead>[1] {
+    return {
+      loadParticipantViews,
+      resolveConnection: () => Promise.resolve(makeResolvedConnection({ capability })),
+      resolveForeignInputs: () =>
+        Promise.resolve({
+          promptConfig: DEFAULT_PROMPT_CONFIG,
+          personas: { anchor: null, active: null },
+          globalRegexScripts: [],
+          scanDepth: 6,
+          injectionTokenBudget: 0,
+        }),
+    };
+  }
+
+  test("reproduces the engine's stamped boundary (earliest kept id) + honest budget numbers", async () => {
+    const host = await seedUser(db, "fit_host");
+    const chatId = await seedRoom("fit", host);
+    // 11 alternating id-bearing turns ending on a USER row (odd count) so no continuation nudge is appended.
+    // The seq is explicit per row, so insertion order is irrelevant (Promise.all avoids the await-in-loop gate).
+    await Promise.all(
+      Array.from({ length: 11 }, (_, i) =>
+        seedMessage(db, chatId, i + 1, {
+          role: (i + 1) % 2 === 1 ? "user" : "assistant",
+          content: `turn ${i + 1} with several words to spend a few tokens`,
+        }),
+      ),
+    );
+
+    const { previewContextFit } = createRead(makeChatContext(db), makeFitDeps(midCapability));
+    const fit = await previewContextFit({ principal: principal(host), chatId });
+
+    // The fit trimmed SOME rows (0 < droppedCount < 11 → real rows survive), the boundary is the earliest
+    // KEPT message id (message_<chatId>_<seq> for seq = droppedCount + 1 — the seeded 1-indexed scheme), and
+    // the budget numbers are honest (not stubbed zeros).
+    expect(fit.droppedCount).toBeGreaterThan(0);
+    expect(fit.droppedCount).toBeLessThan(11);
+    expect(fit.boundaryMessageId).toBe(castId(`message_${chatId}_${fit.droppedCount + 1}`));
+    expect(fit.ceilingTokens).toBe(400); // min(window, ∞) — no soft cap set
+    expect(fit.reserveOutputTokens).toBe(DEFAULT_MAX_OUTPUT_TOKENS); // no preset maxOutputTokens ⇒ the default reserve
+    expect(fit.usedTokens).toBeGreaterThan(0);
+  });
+
+  // The live-context-cutoff catch (2026-07-24): an EVEN turn count ends the transcript on assistant, so
+  // SHAPE appends the id-less continuation nudge as the newest row; a window smaller than reserve+system
+  // makes the prompt budget negative. The old newest-ROW irreducible keep retained only the nudge —
+  // droppedCount > 0 with boundaryMessageId null, an unrenderable divider. The irreducible TAIL (newest
+  // id-bearing turn + trailing synthetics) keeps the newest real row and names it.
+  test("a blown budget (tiny window, nudge tail) still names the newest real row as the boundary", async () => {
+    const host = await seedUser(db, "fit_host3");
+    const chatId = await seedRoom("fit3", host);
+    await Promise.all(
+      Array.from({ length: 6 }, (_, i) =>
+        seedMessage(db, chatId, i + 1, { role: (i + 1) % 2 === 1 ? "user" : "assistant", content: `turn ${i + 1} with several words to spend a few tokens` }),
+      ),
+    );
+    const tiny = makeModelCapability({ output: { maxTokens: { min: 1, max: 8192 } }, context: { window: 200 } });
+
+    const { previewContextFit } = createRead(makeChatContext(db), makeFitDeps(tiny));
+    const fit = await previewContextFit({ principal: principal(host), chatId });
+
+    // Everything older than the newest real row drops (5 canon rows; the nudge rides irreducibly and is
+    // uncounted as a drop), and the boundary NAMES the survivor — the newest seeded row.
+    expect(fit.droppedCount).toBe(5);
+    expect(fit.boundaryMessageId).toBe(castId(`message_${chatId}_6`));
+    expect(fit.ceilingTokens).toBe(200);
+  });
+
+  test("everything fits under a wide window ⇒ null boundary, zero dropped", async () => {
+    const host = await seedUser(db, "fit_host2");
+    const chatId = await seedRoom("fit2", host);
+    await Promise.all(
+      Array.from({ length: 4 }, (_, i) => seedMessage(db, chatId, i + 1, { role: (i + 1) % 2 === 1 ? "user" : "assistant", content: `short turn ${i + 1}` })),
+    );
+    const wide = makeModelCapability({ output: { maxTokens: { min: 1, max: 8192 } }, context: { window: 1_000_000 } });
+
+    const { previewContextFit } = createRead(makeChatContext(db), makeFitDeps(wide));
+    const fit = await previewContextFit({ principal: principal(host), chatId });
+
+    expect(fit.droppedCount).toBe(0);
+    expect(fit.boundaryMessageId).toBeNull();
+    expect(fit.ceilingTokens).toBe(1_000_000);
   });
 });

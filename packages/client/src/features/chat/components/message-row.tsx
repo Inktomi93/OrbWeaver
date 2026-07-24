@@ -68,6 +68,9 @@ export interface MessageRowProps {
   readonly messageActions?: "expanded" | "hover" | undefined;
   /** True for the one row that is the "last-in-context" boundary; renders a quiet divider above it. */
   readonly contextBoundary?: boolean;
+  /** The present-tense fit budget label ("N of M used · R reserved") shown on the boundary divider when the
+   *  previewFit query has resolved; absent ⇒ the bare "In context from here" line (PD-#7). */
+  readonly contextBoundaryLabel?: string | undefined;
   /** True only when this mount is a genuinely-new arrival, never "the row mounted" (a windowed row
    *  remounts on scrollback). Latched at mount by `useEnterMotion`. */
   readonly enterMotion?: boolean;
@@ -119,6 +122,7 @@ export function MessageRow({
   metadataVisibility = NO_METADATA_VISIBLE,
   messageActions,
   contextBoundary = false,
+  contextBoundaryLabel,
   enterMotion = false,
   surfaceContributors,
 }: MessageRowProps): ReactElement {
@@ -194,7 +198,7 @@ export function MessageRow({
   return (
     // The boundary divider is a sibling before the article, never nested inside role="article".
     <AttachmentUrlProvider chatId={message.chatId} content={message.content}>
-      {renderContextBoundaryDivider(contextBoundary)}
+      {renderContextBoundaryDivider(contextBoundary, contextBoundaryLabel)}
       <Stack
         role="article"
         aria-label={attribution.name ?? undefined}

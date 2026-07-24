@@ -216,6 +216,21 @@ export interface ShapeTrace {
   breakpointDecision: ShapeBreakpointDecision;
 }
 
+/** The present-tense context-fit budget for a chat's CURRENT canon against the host's effective preset +
+ *  resolved capability — the source the transcript's context-boundary divider reads so the line tracks knob
+ *  changes live (PD-#7). Computed by the SAME `fitHistoryToWindow` + kit estimator the engine's turn pipeline
+ *  runs, so `boundaryMessageId` equals the `contextBoundaryMessageId` the next real turn would stamp on canon.
+ *  `boundaryMessageId` is the earliest KEPT message id (null = everything fits / no id-bearing kept row).
+ *  `usedTokens` = the kept history's estimated cost; `ceilingTokens` = min(window, maxContextTokens);
+ *  `reserveOutputTokens` = the materialized output reserve; `droppedCount` = oldest turns trimmed. */
+export interface ContextFitPreview {
+  boundaryMessageId: MessageId | null;
+  usedTokens: number;
+  ceilingTokens: number;
+  reserveOutputTokens: number;
+  droppedCount: number;
+}
+
 /** The product of the BUILD stage. `static` is the cache-stable prefix; `dynamic` the per-turn suffix;
  *  `afterHistory` the sections that splice into history as `in_chat` injections. Consumed by a
  *  `message_variants.promptSnapshot` (D26). */

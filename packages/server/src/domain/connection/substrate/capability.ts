@@ -23,6 +23,9 @@ export function resolveCapability(
     /** The custom_openai credential's user-declared context window, threaded from `resolveRole` (the real
      *  turn path holds the resolved credential); undefined on the credential-free panel-preview path. */
     readonly customContextWindow?: number | undefined;
+    /** The gen engine's self-reported window (cached `/v1/models` max_model_len), threaded from the
+     *  resolve-role warm; undefined when the engine hasn't been probed — the vllm arm falls back to env. */
+    readonly vllmGenWindow?: number | undefined;
   },
 ): ModelCapability {
   const entry = caches.cached?.find((m) => m.id === model);
@@ -30,5 +33,6 @@ export function resolveCapability(
     orEntry: entry,
     agentSdkModels: caches.agentSdkModels,
     customContextWindow: caches.customContextWindow,
+    vllmGenWindow: caches.vllmGenWindow,
   });
 }

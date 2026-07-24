@@ -26,7 +26,8 @@ import { revalidateLogic } from "@tanstack/react-form";
 import type { ReactElement, ReactNode } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { EntityDraftStore } from "#state";
-import { DEFAULT_DEBOUNCE_MS, focusFirstInvalidField, formValuesEqual, mirrorDraft, readDraftSeed } from "./entity-form-base";
+import { DEFAULT_DEBOUNCE_MS, focusFirstInvalidField, formValuesEqual, hashServerBaseline, mirrorDraft, readDraftSeed } from "./entity-form-base";
+import { createSaveCircuitBreaker, DEFAULT_SAVE_BREAKER } from "./save-circuit-breaker";
 import type { AppFormInstance, AppFormOptions } from "./use-app-form";
 import { useAppForm } from "./use-app-form";
 
@@ -112,15 +113,24 @@ export function createAutosaveEntityForm<TValues extends object>(
    * stale-`error` bleed of the old hook-resident state is gone — §4).
    */
   function Session({ entityId, serverValues, save, pendingSeed, takeDiscard, reseed, children }: SessionProps): ReactElement {
+    // The identity of the server snapshot this epoch mounts over — the baseline a surviving draft must
+    // have been begun on to still outrank it (retro-workboard #11). Computed at mount and held stable for
+    // the epoch (a structural change to `serverValues` remounts via the boundary key or re-baselines the
+    // clean echo below; either path recomputes). `undefined` server (a create/loading) → an ungated read.
+    const baselineHash = serverValues === undefined ? undefined : hashServerBaseline(serverValues);
+
     // Seed order (computed ONCE, this component only exists for one epoch): a pending reseed payload wins
-    // outright; else defaults ⊕ serverValues ⊕ surviving draft (the draft is the newest unsaved intent).
+    // outright; else defaults ⊕ serverValues ⊕ surviving draft — but the draft survives ONLY when it
+    // validates against the model AND was begun on THIS server snapshot (the baseline gate). A stale or
+    // unverifiable draft is discarded by `readDraftSeed`, so a poisoned mirror can no longer outrank the
+    // server: the seed heals to server truth instead of displaying the dead draft as "saved" (the brick).
     const [seed] = useState<TValues>(
       () =>
         pendingSeed ??
         ({
           ...config.defaultValues,
           ...serverValues,
-          ...readDraftSeed(config.draft, entityId),
+          ...readDraftSeed(config.draft, entityId, baselineHash),
         } as TValues),
     );
 
@@ -135,6 +145,11 @@ export function createAutosaveEntityForm<TValues extends object>(
     // The last server snapshot we baselined to — the clean-echo reseed (§5) compares the incoming
     // `serverValues` against THIS structurally (identity compare is the mapper-fresh-object trap).
     const lastServerRef = useRef<TValues | undefined>(serverValues);
+    // True while the clean-echo effect is pushing server values into the form (a PROGRAMMATIC write, not a
+    // user edit). The save-driver's breaker (§11) must NOT count a programmatic store change as a real
+    // edit — otherwise an echo→re-submit oscillation clears its own edit-free run every loop and never
+    // trips. A ref (read/written only in effect/subscription callbacks, never at render).
+    const programmaticWriteRef = useRef(false);
 
     const form = useAppForm({
       validationLogic: revalidateLogic(),
@@ -170,25 +185,54 @@ export function createAutosaveEntityForm<TValues extends object>(
     // onFieldUnmount is gone: its job (don't lose a pending edit on field unmount) was always covered by
     // the form-level debounce — the FormApi + its timer outlive any field — and its real effect was F2.
     useEffect(() => {
+      // The oscillation backstop (§11 / retro-workboard #11): a store-values change that came from a
+      // REAL field edit clears the breaker's edit-free run; a submit that fires with no intervening edit
+      // (a save→echo→re-submit loop) counts toward the trip. `values !== prevValues` is exactly "a values
+      // change happened"; a values change the driver itself did NOT cause (the debounce fired, save
+      // echoed, the store moved) still arrives here, but every arrival is preceded by a user edit in the
+      // healthy case — an oscillation is the case where submits recur with the count never cleared.
+      const breaker = createSaveCircuitBreaker({ ...DEFAULT_SAVE_BREAKER, now: () => performance.timeOrigin + performance.now() });
+      let stopped = false;
       let prevValues = form.store.state.values;
       let timer: ReturnType<typeof setTimeout> | undefined;
+      const attemptSave = (): void => {
+        if (!(form.state.isValid && hasUnsavedEdits())) {
+          return;
+        }
+        if (breaker.shouldTrip()) {
+          // Edit-free submits are looping — stop the driver and surface `error` (retry lights). This turns
+          // a would-be infinite write loop (the localStorage-brick symptom) into a visible, user-
+          // recoverable state instead of silently hammering the server.
+          stopped = true;
+          setSaveState("error");
+          return;
+        }
+        // handleSubmit re-throws an onSubmit rejection; swallow it here — the injected save's own
+        // errorToast surfaces the failure and the draft mirror holds the edit for retry.
+        form.handleSubmit().catch(() => undefined);
+      };
+      const onValuesChange = (values: TValues): void => {
+        // A programmatic write (the clean-echo effect pushing server truth) is NOT a user edit — it must
+        // not clear the breaker's run, or an echo→re-submit loop resets its own counter every iteration.
+        if (!programmaticWriteRef.current) {
+          breaker.onEdit();
+        }
+        mirrorDraft(config.draft, entityId, values, baselineHash);
+        if (stopped) {
+          return; // the breaker tripped this session — no further autosaves until reseed/remount
+        }
+        if (timer !== undefined) {
+          clearTimeout(timer);
+        }
+        timer = setTimeout(attemptSave, debounceMs);
+      };
       const subscription = form.store.subscribe(() => {
         const values = form.store.state.values;
         if (values === prevValues) {
           return; // a non-values state change (meta/validation) — not our trigger
         }
         prevValues = values;
-        mirrorDraft(config.draft, entityId, values);
-        if (timer !== undefined) {
-          clearTimeout(timer);
-        }
-        timer = setTimeout(() => {
-          if (form.state.isValid && hasUnsavedEdits()) {
-            // handleSubmit re-throws an onSubmit rejection; swallow it here — the injected save's own
-            // errorToast surfaces the failure and the draft mirror holds the edit for retry.
-            form.handleSubmit().catch(() => undefined);
-          }
-        }, debounceMs);
+        onValuesChange(values);
       });
       return (): void => {
         if (timer !== undefined) {
@@ -196,7 +240,7 @@ export function createAutosaveEntityForm<TValues extends object>(
         }
         subscription.unsubscribe();
       };
-    }, [form, entityId, hasUnsavedEdits]);
+    }, [form, entityId, hasUnsavedEdits, baselineHash]);
 
     // Clean server-echo reseed (§5, two-device freshness): when `serverValues` changes STRUCTURALLY
     // (deep-compare vs the last-seen snapshot — identity is the mapper-fresh-object trap) and the form is
@@ -211,13 +255,22 @@ export function createAutosaveEntityForm<TValues extends object>(
         // A clean re-baseline: adopt the server values as the new saved truth AND push them into the live
         // form (via each field, so the controlled inputs follow — never `form.reset`, the banned path).
         lastSavedRef.current = serverValues;
-        mirrorDraft(config.draft, entityId, serverValues);
-        for (const [name, value] of Object.entries(serverValues)) {
-          // @orb-gate-ignore no-loose-id-cast not a branded-id cast — `name`/`value` are a server-row field key + its value erased to `never` at setFieldValue's loose generic boundary (the same idiom as create-saved-entity-form's promote()).
-          form.setFieldValue(name as never, value as never);
+        // Stamp the mirror with the NEW server baseline (`baselineHash` already reflects this render's
+        // `serverValues`), so a crash-restored draft is verified against the truth the form now shows.
+        mirrorDraft(config.draft, entityId, serverValues, baselineHash);
+        // These are PROGRAMMATIC writes (server truth, not user edits) — flag them so the save-driver's
+        // breaker doesn't count them as edits that clear its oscillation run.
+        programmaticWriteRef.current = true;
+        try {
+          for (const [name, value] of Object.entries(serverValues)) {
+            // @orb-gate-ignore no-loose-id-cast not a branded-id cast — `name`/`value` are a server-row field key + its value erased to `never` at setFieldValue's loose generic boundary (the same idiom as create-saved-entity-form's promote()).
+            form.setFieldValue(name as never, value as never);
+          }
+        } finally {
+          programmaticWriteRef.current = false;
         }
       }
-    }, [serverValues, saveState, hasUnsavedEdits, form, entityId]);
+    }, [serverValues, saveState, hasUnsavedEdits, form, entityId, baselineHash]);
 
     // The ONE teardown flush (§4), discard-aware: this cleanup fires exactly on entity switch, reseed(),
     // and boundary unmount (all remount/unmount this component). Flush the unsaved edit to THIS session's

@@ -120,15 +120,39 @@ export async function openOrCreateChat(page: Page): Promise<void> {
   await expect(page.getByRole("textbox", { name: "Message" })).toBeVisible({ timeout: 15_000 });
 }
 
+// The typeAndSend retry ledger — a module counter incremented once per EXTRA typing attempt (0 = the text
+// landed on the first pass, the healthy case now that #13 is fixed at source). It exists so an
+// anti-regression spec can pin zero-retry instant typing WITHOUT changing typeAndSend's behavior: the
+// helper still retries (belt, for any residual settle jitter), but a resurfaced remount would push this
+// above zero. Read it via `takeTypeAndSendRetries()` (reads + resets), so each assertion scopes to its own
+// call.
+let typeAndSendRetries = 0;
+
+/** Read-and-reset the retry counter accumulated by `typeAndSend` since the last read. */
+export function takeTypeAndSendRetries(): number {
+  const n = typeAndSendRetries;
+  typeAndSendRetries = 0;
+  return n;
+}
+
 /** Type a message into the OPEN room's composer and send it (Enter). `fill` is unusable (it bypasses React's
  *  onChange so the controlled value never updates), and a raw pressSequentially FLAKES: the composer re-mounts
  *  when the room's initial reads / an SSE event settle mid-type, dropping focus + every keystroke after the
  *  first (verified live: "Reply…" left the textarea at just "R"). So RETRY: focus → clear → type → verify the
- *  controlled value STUCK; if a re-mount ate it, the composer is now settled and the retry lands cleanly. */
+ *  controlled value STUCK; if a re-mount ate it, the composer is now settled and the retry lands cleanly. The
+ *  retry LEDGER (`takeTypeAndSendRetries`) exposes whether a retry was actually needed — #13's fix should
+ *  keep it at zero (instant typing survives room settle). Behavior is unchanged: the poll still retries. */
 export async function typeAndSend(composer: ReturnType<Page["getByRole"]>, message: string): Promise<void> {
+  let attempt = 0;
   await expect
     .poll(
       async (): Promise<string> => {
+        // Every pass after the first is a retry — count it BEFORE the attempt so a mid-type remount that
+        // never lets the value stick still registers as a retry (the poll re-enters).
+        if (attempt > 0) {
+          typeAndSendRetries += 1;
+        }
+        attempt += 1;
         await composer.click();
         await composer.press("ControlOrMeta+A");
         await composer.press("Delete");

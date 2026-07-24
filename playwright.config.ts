@@ -46,11 +46,24 @@ export default defineConfig({
   ...(e2eLive ? {} : { grepInvert: /@live/u }),
   forbidOnly: inCI,
   retries: inCI ? 2 : 0,
-  reporter: [["html", { outputFolder: "reports/e2e-report", open: "never" }]],
+  // list = live CLI visibility (stops every ad-hoc run needing --reporter=line); json = machine-readable
+  // results (extracting a failing test's NAME from html/summary output cost real re-runs, 2026-07-24).
+  reporter: [["list"], ["json", { outputFile: "reports/e2e-report.json" }], ["html", { outputFolder: "reports/e2e-report", open: "never" }]],
+  // Assertion default stays 5s except where a spec overrides; a hung ACTION fails at 15s with a precise
+  // "action timeout" instead of burning the whole test timeout into a vaguer expect failure.
   use: {
     baseURL: "http://localhost:5173",
-    trace: "on-first-retry",
-    video: "on-first-retry",
+    // retain-on-failure, NOT on-first-retry: local retries=0, so first-retry artifacts NEVER exist for a
+    // plain local failure — the exact runs that need diagnosing (2026-07-24 audit). Video stays OFF
+    // (owner ruling): trace snapshots + the failure screenshot cover diagnosis, and `pnpm record`
+    // (scripts/probes/record.ts) exists for the rare deliberate recording — no per-run encode cost for
+    // artifacts nobody opens.
+    trace: "retain-on-failure",
+    screenshot: "only-on-failure",
+    actionTimeout: 15_000,
+    // Determinism: date/locale-rendering assertions must not depend on the host machine's settings.
+    timezoneId: "UTC",
+    locale: "en-US",
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: {

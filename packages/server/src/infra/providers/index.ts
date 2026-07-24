@@ -144,4 +144,4 @@ export { createImageEmbedRole } from "./roles/image-embed";
 export { createRerankRole } from "./roles/rerank";
 export { createSummarizeRole } from "./roles/summarize";
 export type { VllmEngineHandle } from "./vllm";
-export { detectGpu } from "./vllm";
+export { detectGpu, fetchGenMaxModelLen } from "./vllm";
