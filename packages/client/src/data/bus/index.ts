@@ -4,6 +4,8 @@
 export type { ChatBusDeps } from "./apply-chat-bus-event";
 export { applyChatBusEvent } from "./apply-chat-bus-event";
 export { markTurnStopping, useChatBusDeps } from "./chat-bus-writes";
+export type { ChatEventSeqGuard } from "./chat-event-seq-guard";
+export { createChatEventSeqGuard } from "./chat-event-seq-guard";
 export { useChatBus } from "./use-chat-bus";
 export type { UserBusDeps } from "./use-user-bus";
 export { useUserBus } from "./use-user-bus";

@@ -12,7 +12,6 @@
 import { ManifestInvalidError, PluginDowngradeRefusedError, PluginNotFoundError } from "../contract/errors";
 import type { UpgradePluginParams } from "../contract/params";
 import type { ActivationDeps, PluginContext, PluginService } from "../contract/service";
-import { selectBudgetView } from "../persistence/budgets";
 import { applyUpgrade, getById, toPluginView } from "../persistence/plugins";
 import { newlyDeclaredCapabilities, normalizeGrant } from "../substrate/grants";
 import { isVersionDowngrade, PLUGIN_BUNDLE_MIME, parseBundle } from "../substrate/manifest";
@@ -64,6 +63,6 @@ export function createUpgrade(ctx: PluginContext, deps: ActivationDeps): PluginS
     if (row === undefined) {
       throw new PluginNotFoundError(pluginId);
     }
-    return toPluginView(row, await selectBudgetView(ctx.db, pluginId));
+    return toPluginView(row);
   };
 }

@@ -110,15 +110,12 @@ export const automationRouter = t.router({
     }),
   ),
 
-  // The per-chat budget panel (host-only). Absent fields keep the current value; `maxUsdPerDay: null` clears
-  // the dollar ceiling (local-only setups).
+  // The per-chat fire-rate cap (host-only; the loop-safety belt). An absent field keeps the current value.
   setBudgets: authedProcedure
     .input(
       z.object({
         chatId: brandedId<ChatId>(),
         maxFiresPerHour: z.number().int().min(0).optional(),
-        maxSpendActionsPerDay: z.number().int().min(0).optional(),
-        maxUsdPerDay: z.number().min(0).nullable().optional(),
       }),
     )
     .mutation(({ ctx, input }) =>
@@ -126,12 +123,10 @@ export const automationRouter = t.router({
         principal: ctx.auth,
         chatId: input.chatId,
         ...(input.maxFiresPerHour === undefined ? {} : { maxFiresPerHour: input.maxFiresPerHour }),
-        ...(input.maxSpendActionsPerDay === undefined ? {} : { maxSpendActionsPerDay: input.maxSpendActionsPerDay }),
-        ...(input.maxUsdPerDay === undefined ? {} : { maxUsdPerDay: input.maxUsdPerDay }),
       }),
     ),
 
-  // The budget-panel READ (host-only) — the ceilings + the day spend accumulator the panel renders. Same
+  // The rate-cap panel READ (host-only) — the per-chat fire-rate ceiling the panel renders. Same
   // requireChatHost chokepoint as listRules; an absent budget row projects to the defaulted view.
   getBudgets: authedProcedure
     .input(z.object({ chatId: brandedId<ChatId>() }))

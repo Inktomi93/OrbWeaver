@@ -31,14 +31,6 @@ import { expect, test } from "@playwright/test";
 import { busEventTypes, openNewestChat, typeAndSend, waitForStreamOpen } from "./support/chat-room";
 import { listCanon, listCharacters, startChat } from "./support/trpc";
 
-// The e2e tsconfig is the DOM-less node aggregator (no lib.dom), so an `evaluateAll` callback's element
-// param has no typed DOM members. Declare the minimal element shape we read (same local-type bridge posture
-// as chat-room.ts's OrbBusHandle) — the runtime value IS a real DOM element in the browser context.
-interface DomRow {
-  readonly getAttribute: (name: string) => string | null;
-  readonly textContent: string | null;
-}
-
 const GEN_LOG = path.join(process.cwd(), ".cache/stack/vllm-gen.log");
 const GEN_POST_MARKER = "POST /v1/messages";
 const LOCAL_MODEL_LEAF = "Qwen3-VL-8B-Instruct";
@@ -54,8 +46,7 @@ async function genPostCount(): Promise<number> {
 /** The DOM transcript, top-to-bottom: each durable message-row's role + trimmed text. */
 function domTranscript(page: Page): Promise<readonly { role: string; text: string }[]> {
   return page.locator('[data-slot="message-row"]').evaluateAll((els) =>
-    // FABRICATION-OK: bridge the real DOM elements to a local shape — the DOM-less e2e tsconfig can't type an evaluateAll element param.
-    (els as unknown as readonly DomRow[]).map((el) => ({
+    els.map((el) => ({
       role: el.getAttribute("data-role") ?? "",
       text: (el.textContent ?? "").replace(/\s+/gu, " ").trim(),
     })),

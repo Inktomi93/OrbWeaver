@@ -18,7 +18,5 @@ export const menuVariants = tv({
     arrow: OVERLAY_ARROW,
     backdrop: SCRIM("popover"),
     separator: "my-field border-t border-border",
-    group: "",
-    groupLabel: "px-row py-field text-label leading-label text-muted-foreground",
   },
 });

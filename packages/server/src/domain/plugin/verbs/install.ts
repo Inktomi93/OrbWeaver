@@ -8,7 +8,6 @@
 import { CapabilityNotGrantedError, PluginAlreadyInstalledError } from "../contract/errors";
 import type { InstallPluginParams } from "../contract/params";
 import type { PluginContext, PluginService } from "../contract/service";
-import { selectBudgetView } from "../persistence/budgets";
 import { getByOwnerSlug, insertPlugin } from "../persistence/plugins";
 import { normalizeGrant, ungrantableCapabilities } from "../substrate/grants";
 import { PLUGIN_BUNDLE_MIME, parseBundle } from "../substrate/manifest";
@@ -61,8 +60,6 @@ export function createInstall(ctx: PluginContext): PluginService["install"] {
       lastError: null,
       installedAt: now,
       updatedAt: now,
-      // A freshly installed plugin has no `plugin_budgets` row — the defaulted envelope over a zero accumulator.
-      budget: await selectBudgetView(ctx.db, id),
     };
   };
 }

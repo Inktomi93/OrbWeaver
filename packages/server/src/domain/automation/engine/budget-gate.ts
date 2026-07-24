@@ -1,11 +1,11 @@
-// domain/automation/engine/budget-gate — the pre-op budget gates (03 §3), debited BEFORE any arm runs. Three
-// layers, all sourced from automation's OWN tables (04 §1: the fire log IS the per-hour count source, on the
-// `(rule_id, fired_at)` index — not the rate_limit_buckets primitive, which can't express the per-rule dynamic
-// caps and would split the source of truth from the fire log the host debugs against): the per-rule cooldown
-// (off `last_fired_at`), the per-rule/hour ceiling, and the per-chat/hour ceiling (the host-editable
-// `automation_budgets` row, default 120). A refusal is NOT an error — the dispatch records `budget_refused`
-// and the rule stays healthy. The SPEND gates ($/day + spend-action count) are the arm's (A6) — they need the
-// op's returned cost.
+// domain/automation/engine/budget-gate — the pre-op fire-RATE gates (loop safety), checked BEFORE any arm runs.
+// Three layers, all sourced from automation's OWN tables (04 §1: the fire log IS the per-hour count source, on
+// the `(rule_id, fired_at)` index — not the rate_limit_buckets primitive, which can't express the per-rule
+// dynamic caps and would split the source of truth from the fire log the host debugs against): the per-rule
+// cooldown (off `last_fired_at`), the per-rule/hour ceiling, and the per-chat/hour ceiling (the host-editable
+// `automation_budgets` row, default 120). This is the belt that bounds a runaway rule from hammering a paid
+// API. A refusal is NOT an error — the dispatch records `budget_refused` and the rule stays healthy. (The
+// per-day $/spend-action ceilings were stripped 2026-07-24 — enterprise spend enforcement.)
 
 import { AUTOMATION_CHAT_BUDGET_DEFAULTS } from "@orb/contracts/automation";
 import type { Db } from "@orb/db";

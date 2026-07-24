@@ -1,14 +1,16 @@
 // .int tests for the A6 arm executors (automation-design/03; 05 §A6). Each LIVE arm renders its templates
 // then dispatches through the injected `AutomationOps` (captured here) — we assert the op call + args, the
-// spend accounting, the world-info attachment/cap guards, and the typed refusals for the v1-unwired +
-// reserved arms. Real libSQL for the arms that read canon (global vars, book attachment, present members).
+// world-info attachment/cap guards, and the typed refusals for the v1-unwired + reserved arms. Real libSQL for
+// the arms that read canon (global vars, book attachment, present members). (The per-day spend ceilings were
+// stripped 2026-07-24 — enterprise spend enforcement; loop safety rides the per-chat fire-rate cap + the chat
+// member turn budget + the cascade guard.)
 
 import type { AutomationAction, AutomationBusEvent, AutomationCelEnv, TriggerFact } from "@orb/contracts/automation";
 import { automationActionSchema } from "@orb/contracts/automation";
 import type { NotificationEvent } from "@orb/contracts/notifications";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
-import { automationRules, chatBooks, worldBooks, worldEntries } from "@orb/db";
+import { chatBooks, worldBooks, worldEntries } from "@orb/db";
 import type { AutomationRuleId, ChatId, UserId, WorldBookId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
@@ -23,9 +25,6 @@ import type {
   DispatchFrame,
 } from "../../../../../packages/server/src/domain/automation/contract/ops.ts";
 import { createArmExecutors } from "../../../../../packages/server/src/domain/automation/engine/arm-executors.ts";
-import { createSpendAccumulator } from "../../../../../packages/server/src/domain/automation/engine/spend-gate.ts";
-import { upsertBudget } from "../../../../../packages/server/src/domain/automation/persistence/budgets.ts";
-import { insertFire } from "../../../../../packages/server/src/domain/automation/persistence/fires.ts";
 import { selectGlobalVariable } from "../../../../../packages/server/src/domain/automation/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -40,7 +39,7 @@ function byId(a: string, b: string): number {
   return a < b ? -1 : 1;
 }
 
-const FIXED_NOW_MS = 1_700_000_000_000; // 2023-11-14T22:13:20Z (a fixed UTC day for the spend rollover).
+const FIXED_NOW_MS = 1_700_000_000_000; // 2023-11-14T22:13:20Z (a fixed UTC day).
 const FIXED_PRNG = (): number => 0.42;
 
 /** Everything the captured `AutomationOps` + notify sink recorded. */
@@ -66,14 +65,13 @@ interface Captured {
 interface BgOverrides {
   readonly choices?: readonly { name: string; background: ThemeBackground }[];
   readonly quietReply?: string;
-  readonly quietCostUsd?: number;
   /** BG-F — force the chat-background write to REJECT (models the verb's host-authority refusal on a lost-
    *  authority race), so the arm's typed-`arm_error` mapping is exercised. */
   readonly setChatBackgroundThrows?: Error;
 }
 
-/** 1.6 — trigger_turn harness overrides: the canned `requestTurn` result (the summed cost + reply count), or a
- *  forced REJECT (models the engine's consent/budget/authority refusal → the arm's typed `arm_error` map). */
+/** 1.6 — trigger_turn harness overrides: the canned `requestTurn` result (reply count), or a forced REJECT
+ *  (models the engine's consent/authority refusal → the arm's typed `arm_error` map). */
 interface TurnOverrides {
   readonly result?: AutomationTurnResult;
   readonly throws?: Error;
@@ -81,7 +79,7 @@ interface TurnOverrides {
 
 function makeHarness(
   db: Db,
-  imageResult: AutomationImageResult = { costUsd: 0.02, imageCount: 1 },
+  imageResult: AutomationImageResult = { imageCount: 1 },
   bg: BgOverrides = {},
   turn: TurnOverrides = {},
 ): { dispatch: ArmDispatch; captured: Captured } {
@@ -109,7 +107,7 @@ function makeHarness(
           return Promise.reject(turn.throws);
         }
         captured.turns.push(req);
-        return Promise.resolve(turn.result ?? { costUsd: 0.03, messageCount: 1 });
+        return Promise.resolve(turn.result ?? { messageCount: 1 });
       },
     },
     worldInfo: {
@@ -132,14 +130,14 @@ function makeHarness(
     },
     summarizeQuiet: ({ prompt }) => {
       captured.quietPrompts.push(prompt);
-      return Promise.resolve({ text: bg.quietReply ?? "", costUsd: bg.quietCostUsd ?? 0 });
+      return Promise.resolve({ text: bg.quietReply ?? "" });
     },
   };
   const deps: ArmExecutorDeps = { db, ops, prng: FIXED_PRNG, notify: (event) => captured.bus.push(event) };
   return { dispatch: createArmExecutors(deps), captured };
 }
 
-/** Build a dispatch frame for an arm — a fresh spend accumulator, an empty CEL env unless overridden. */
+/** Build a dispatch frame for an arm — an empty CEL env unless overridden. */
 function makeFrame(args: { chatId: ChatId; authorUserId: UserId; ruleId?: AutomationRuleId; vars?: Record<string, string> }): DispatchFrame {
   const env: AutomationCelEnv = {
     vars: args.vars ?? {},
@@ -156,7 +154,6 @@ function makeFrame(args: { chatId: ChatId; authorUserId: UserId; ruleId?: Automa
     env,
     origin: { ruleId: args.ruleId ?? mintTypeId(ID_PREFIX.automationRule), automationDepth: 1 },
     now: FIXED_NOW_MS,
-    spend: createSpendAccumulator(),
   };
 }
 
@@ -336,10 +333,10 @@ test("post_notification all_members → one automation-notice per present human 
   expect(captured.notifications.map((n) => n.recipientUserId).sort(byId)).toEqual([host, guest].sort(byId));
 });
 
-// ── 1.7 generate_image (the /imagine engine — SPEND) ──────────────────────────────────────────────────
+// ── 1.7 generate_image (the /imagine engine) ──────────────────────────────────────────────────────────
 test("generate_image renders the prompt + maps the FULL IC-C args onto imagery.generatePicture", async () => {
   const { db, host, chatId } = await setup();
-  const { dispatch, captured } = makeHarness(db, { costUsd: 0.03, imageCount: 2 });
+  const { dispatch, captured } = makeHarness(db, { imageCount: 2 });
   const subjectCharacterId = mintTypeId(ID_PREFIX.character);
   const action = automationActionSchema.parse({
     type: "generate_image",
@@ -372,9 +369,6 @@ test("generate_image renders the prompt + maps the FULL IC-C args onto imagery.g
     reuse: "never",
     quiet: false, // the default — the arm threads `quiet` so compose can post the image in-chat (F1, 03 §1.7)
   });
-  // The returned cost is reserved on the spend accumulator (the day $ ceiling reads it).
-  expect(frame.spend.actions()).toBe(1);
-  expect(frame.spend.usd()).toBeCloseTo(0.03);
 });
 
 test("generate_image threads quiet through to the op (F1 — quiet:true generates silently, default posts in-chat)", async () => {
@@ -395,64 +389,8 @@ test("generate_image threads quiet through to the op (F1 — quiet:true generate
   expect(captured.images[1]?.quiet).toBe(false);
 });
 
-/** Insert a minimal enabled rule row (the `automation_fires.rule_id` FK target). */
-async function seedRule(db: Db, host: UserId, chatId: ChatId): Promise<AutomationRuleId> {
-  const ruleId = mintTypeId(ID_PREFIX.automationRule);
-  await db.insert(automationRules).values({
-    id: ruleId,
-    ownerId: host,
-    chatId,
-    name: "spender",
-    position: 0,
-    triggerBus: "chat",
-    triggerType: "chatOpened",
-    actions: [],
-    createdAt: FIXED_NOW_MS,
-    updatedAt: FIXED_NOW_MS,
-  });
-  return ruleId;
-}
-
-test("generate_image refuses (budget_refused) when the per-chat spend-action ceiling is already met", async () => {
-  const { db, host, chatId } = await setup();
-  await upsertBudget(db, chatId, { maxSpendActionsPerDay: 1 }, FIXED_NOW_MS);
-  // A prior spend fire TODAY (the fire log is the count source).
-  await insertFire(db, {
-    id: mintTypeId(ID_PREFIX.automationFire),
-    ruleId: await seedRule(db, host, chatId),
-    chatId,
-    triggerType: "chatOpened",
-    outcome: "fired",
-    detail: { spendActions: 1, spendUsd: 0.01 },
-    automationDepth: 0,
-    firedAt: FIXED_NOW_MS,
-  });
-  const { dispatch, captured } = makeHarness(db);
-  const action = automationActionSchema.parse({ type: "generate_image", mode: "free", prompt: "x" }) as Extract<AutomationAction, { type: "generate_image" }>;
-  const outcome = await dispatch(action, makeFrame({ chatId, authorUserId: host }));
-
-  expect(outcome).toEqual({ ok: false, kind: "budget_refused", detail: "spend_actions_daily" });
-  expect(captured.images).toHaveLength(0); // refused BEFORE the op.
-});
-
-test("generate_image refuses the SECOND spend arm in one rule once the in-flight $ ceiling is hit", async () => {
-  const { db, host, chatId } = await setup();
-  await upsertBudget(db, chatId, { maxUsdPerDay: 0.05, maxSpendActionsPerDay: 10 }, FIXED_NOW_MS);
-  const { dispatch, captured } = makeHarness(db, { costUsd: 0.05, imageCount: 1 });
-  const action = automationActionSchema.parse({ type: "generate_image", mode: "free", prompt: "x" }) as Extract<AutomationAction, { type: "generate_image" }>;
-  const frame = makeFrame({ chatId, authorUserId: host });
-
-  expect(await dispatch(action, frame)).toEqual({ ok: true }); // reserves 0.05
-  const second = await dispatch(action, frame);
-  expect(second).toEqual({ ok: false, kind: "budget_refused", detail: "usd_daily" });
-  expect(captured.images).toHaveLength(1); // only the first op ran.
-  // The first arm's spend IS tracked on the frame (dispatch persists it on the abort terminal — no leak).
-  expect(frame.spend.actions()).toBe(1);
-  expect(frame.spend.usd()).toBeCloseTo(0.05);
-});
-
-// ── 1.6 trigger_turn (the autonomous chat turn — SPEND-classed; now WIRED to requestTurn) ──────────────
-test("trigger_turn dispatches requestTurn with the author/chat/depth + rendered guided steer, and counts the spend", async () => {
+// ── 1.6 trigger_turn (the autonomous chat turn — WIRED to requestTurn) ─────────────────────────────────
+test("trigger_turn dispatches requestTurn with the author/chat/depth + rendered guided steer", async () => {
   const { db, host, chatId } = await setup();
   const { dispatch, captured } = makeHarness(db);
   const frame = makeFrame({ chatId, authorUserId: host }); // origin.automationDepth = 1
@@ -466,9 +404,6 @@ test("trigger_turn dispatches requestTurn with the author/chat/depth + rendered 
   // The funder = the rule AUTHOR (→ triggeredBy); the cascade depth is the origin CHILD-depth; the steer is
   // macro-rendered (the arm renders `guidedTemplate` before the op). initiator is fixed at compose (not here).
   expect(captured.turns[0]).toEqual({ authorUserId: host, chatId, automationDepth: 1, speakerCharacterId: speaker, guided: "steer-1" });
-  // SPEND: one action + the summed reply cost (03 §3) — feeds the per-day count + $ ceilings.
-  expect(frame.spend.actions()).toBe(1);
-  expect(frame.spend.usd()).toBeCloseTo(0.03);
 });
 
 test("trigger_turn with no steer / no forced speaker omits both fields (normal arbitration)", async () => {
@@ -495,8 +430,6 @@ test("trigger_turn maps a requestTurn refusal (consent/authority/depth throw) to
   const outcome = await dispatch({ type: "trigger_turn" }, frame);
 
   expect(outcome).toMatchObject({ ok: false, kind: "arm_error" });
-  // The engine refused BEFORE any generation — no spend is recorded (the arm never reached `spend.add`).
-  expect(frame.spend.actions()).toBe(0);
   expect(captured.turns).toHaveLength(0);
 });
 
@@ -591,38 +524,6 @@ test("set_chat_background: an off-list / empty quiet reply is a soft no-op — n
   expect(outcome).toEqual({ ok: true });
   expect(captured.quietPrompts).toHaveLength(1);
   expect(captured.setBackgrounds).toEqual([]);
-});
-
-test("set_chat_background: the quiet LLM pick IS spend — refused (budget_refused) when the day ceiling is met, no model call", async () => {
-  const { db, host, chatId } = await setup();
-  await upsertBudget(db, chatId, { maxSpendActionsPerDay: 1 }, FIXED_NOW_MS);
-  // A prior spend fire TODAY consumes the single-action ceiling (the fire log is the count source).
-  await insertFire(db, {
-    id: mintTypeId(ID_PREFIX.automationFire),
-    ruleId: await seedRule(db, host, chatId),
-    chatId,
-    triggerType: "chatOpened",
-    outcome: "fired",
-    detail: { spendActions: 1, spendUsd: 0.01 },
-    automationDepth: 0,
-    firedAt: FIXED_NOW_MS,
-  });
-  const { dispatch, captured } = makeHarness(db, undefined, { choices: AUTOBG_CHOICES, quietReply: "Dusk Harbor" });
-
-  const outcome = await dispatch({ type: "set_chat_background" }, makeFrame({ chatId, authorUserId: host }));
-
-  expect(outcome).toEqual({ ok: false, kind: "budget_refused", detail: "spend_actions_daily" });
-  expect(captured.quietPrompts).toEqual([]); // refused BEFORE the model call
-  expect(captured.setBackgrounds).toEqual([]);
-});
-
-test("set_chat_background: the quiet call's cost is accumulated on the frame spend (the day $ ceiling reads it)", async () => {
-  const { db, host, chatId } = await setup();
-  const { dispatch } = makeHarness(db, undefined, { choices: AUTOBG_CHOICES, quietReply: "Dawn Meadow", quietCostUsd: 0.004 });
-  const frame = makeFrame({ chatId, authorUserId: host });
-  await dispatch({ type: "set_chat_background" }, frame);
-  expect(frame.spend.actions()).toBe(1);
-  expect(frame.spend.usd()).toBeCloseTo(0.004);
 });
 
 test("the dispatcher handles EVERY action type (no unhandled-arm throw — the switch is exhaustive)", async () => {

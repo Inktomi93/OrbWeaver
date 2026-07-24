@@ -71,6 +71,114 @@ function setSlot(chatId: ChatId, next: TurnSlot, action: string): void {
   useChatStreamStore.setState({ turns }, true, action);
 }
 
+// ── rAF-batched token accumulation (task #20) ──────────────────────────────────────────────────────
+// A streaming turn emits many small `delta` chunks; committing each one straight to the store re-rendered
+// the ghost row per chunk (side-eye: 181 commits / ~50 "nested-update" warnings for ONE short turn). Fix:
+// buffer the chunks per chat and flush the ACCUMULATED text to the store once per animation frame, so the
+// ghost commits at frame cadence, not per token. The buffer is append-in-arrival-order, so the flushed
+// text is byte-identical to the per-chunk path — only the commit CADENCE changes, never the bytes/order.
+//
+// Terminals (complete/abort) and `markStopping` flush the pending buffer for that chat SYNCHRONOUSLY first
+// (so no trailing token is dropped and the phase transition lands AFTER the text it followed). In a
+// non-browser env (vitest/node — no `requestAnimationFrame`) the scheduler runs the flush SYNCHRONOUSLY,
+// preserving the store's existing synchronous per-delta contract the unit/CT suites assert against.
+
+interface PendingTokens {
+  text: string;
+  reasoning: string;
+}
+
+const pendingTokensByChat = new Map<ChatId, PendingTokens>();
+const scheduledChats = new Set<ChatId>();
+let flushScheduled = false;
+
+/** Schedule the next batch flush. Defaults to one `requestAnimationFrame` in the browser (frame-cadence
+ *  commits) and to a SYNCHRONOUS run off-browser (vitest/node — no rAF), which preserves the store's
+ *  synchronous per-delta contract the unit/CT suites assert. `setFrameScheduler` swaps it for a manual
+ *  driver in a test so batch coalescing (N deltas → 1 commit) is deterministically assertable. */
+type FrameScheduler = (flush: () => void) => void;
+// Read rAF off globalThis via a local all-optional shape (the OrbBusHandle posture): this file rides in
+// DOM-less programs too (the node test graph imports it), where a bare `requestAnimationFrame` reference
+// does not compile. The runtime value is the real browser rAF when present, undefined under vitest/node.
+const maybeRaf = (globalThis as { requestAnimationFrame?: (cb: () => void) => number }).requestAnimationFrame;
+const defaultScheduler: FrameScheduler =
+  maybeRaf !== undefined
+    ? (flush): void => {
+        maybeRaf(flush);
+      }
+    : (flush): void => flush();
+let frameScheduler: FrameScheduler = defaultScheduler;
+
+/** Test seam: install a manual frame scheduler (returns a restore fn). Buffered deltas then flush only when
+ *  the captured callback is invoked, so a test can deliver a burst and assert it coalesced to one commit. */
+export function setFrameScheduler(scheduler: FrameScheduler): () => void {
+  const previous = frameScheduler;
+  frameScheduler = scheduler;
+  return (): void => {
+    frameScheduler = previous;
+  };
+}
+
+/** Flush one chat's buffered tokens into its slot (pending→streaming or streaming/stopping append). No-op
+ *  if nothing is buffered or the slot is no longer live (a terminal raced in). */
+function flushChat(chatId: ChatId): void {
+  const pending = pendingTokensByChat.get(chatId);
+  if (pending === undefined) {
+    return;
+  }
+  pendingTokensByChat.delete(chatId);
+  scheduledChats.delete(chatId);
+  const slot = slotOf(chatId);
+  if (slot.phase === "pending") {
+    setSlot(
+      chatId,
+      {
+        phase: "streaming",
+        intent: slot.intent,
+        speakerCharacterId: slot.speakerCharacterId,
+        targetMessageId: slot.targetMessageId,
+        text: pending.text,
+        reasoning: pending.reasoning,
+      },
+      "turn/delta",
+    );
+    return;
+  }
+  if (slot.phase === "streaming" || slot.phase === "stopping") {
+    setSlot(chatId, { ...slot, text: slot.text + pending.text, reasoning: slot.reasoning + pending.reasoning }, "turn/delta");
+  }
+  // idle/completed/aborted: a terminal raced past — drop the buffered tail (the durable canon stands).
+}
+
+function flushAll(): void {
+  flushScheduled = false;
+  for (const chatId of [...scheduledChats]) {
+    flushChat(chatId);
+  }
+}
+
+/** Buffer a chunk and ensure a flush is scheduled (ONE frame for all chats coalesces a token burst; the
+ *  default off-browser scheduler runs it synchronously, preserving the per-delta contract). */
+function scheduleDelta(chatId: ChatId, textPart: string, reasoningPart: string): void {
+  const pending = pendingTokensByChat.get(chatId) ?? { text: "", reasoning: "" };
+  pending.text += textPart;
+  pending.reasoning += reasoningPart;
+  pendingTokensByChat.set(chatId, pending);
+  scheduledChats.add(chatId);
+  if (!flushScheduled) {
+    flushScheduled = true;
+    frameScheduler(flushAll);
+  }
+}
+
+/** Drain any buffered tokens for `chatId` NOW — called before a terminal/stopping transition so the last
+ *  streamed tokens land before the phase change (never dropped, never reordered after the terminal). */
+function flushPending(chatId: ChatId): void {
+  if (scheduledChats.has(chatId)) {
+    flushChat(chatId);
+  }
+}
+
 /** The write API — every action but `markStopping` is consumed only by `applyChatBusEvent`. */
 export interface ChatStreamApi {
   readonly beginTurn: (
@@ -116,42 +224,27 @@ export function subscribeUserMessageCommitted(chatId: ChatId, listener: () => vo
 
 export const chatStream: ChatStreamApi = {
   beginTurn: (chatId, turn) => {
+    // Discard any un-flushed buffer from a prior turn on this chat so a rapid begin never inherits stale
+    // tokens (a terminal normally drains it first; this closes the begin-races-an-unflushed-frame edge).
+    pendingTokensByChat.delete(chatId);
+    scheduledChats.delete(chatId);
     perfMark(turnStartMark(chatId));
     setSlot(chatId, { phase: "pending", ...turn }, "turn/begin");
   },
   appendDelta: (delta) => {
     const slot = slotOf(delta.chatId);
     // A delta with no live turn (raced past a terminal event) is dropped — invalidation already
-    // refetched the durable canon.
-    if (slot.phase === "pending") {
+    // refetched the durable canon. TTFT is measured at the FIRST token's ARRIVAL (not the batched flush)
+    // so the metric stays honest; the token itself rides the rAF-batched buffer (scheduleDelta).
+    if (slot.phase === "pending" && !scheduledChats.has(delta.chatId)) {
       perfMeasure(ttftMeasure(delta.chatId), turnStartMark(delta.chatId));
-      setSlot(
-        delta.chatId,
-        {
-          phase: "streaming",
-          intent: slot.intent,
-          speakerCharacterId: slot.speakerCharacterId,
-          targetMessageId: slot.targetMessageId,
-          text: delta.kind === "text" ? delta.text : "",
-          reasoning: delta.kind === "reasoning" ? delta.text : "",
-        },
-        "turn/delta",
-      );
-      return;
     }
-    if (slot.phase === "streaming" || slot.phase === "stopping") {
-      setSlot(
-        delta.chatId,
-        {
-          ...slot,
-          text: delta.kind === "text" ? slot.text + delta.text : slot.text,
-          reasoning: delta.kind === "reasoning" ? slot.reasoning + delta.text : slot.reasoning,
-        },
-        "turn/delta",
-      );
+    if (slot.phase === "pending" || slot.phase === "streaming" || slot.phase === "stopping") {
+      scheduleDelta(delta.chatId, delta.kind === "text" ? delta.text : "", delta.kind === "reasoning" ? delta.text : "");
     }
   },
   completeTurn: (chatId, messageId) => {
+    flushPending(chatId); // land any buffered tail tokens BEFORE the terminal so none are dropped.
     const slot = slotOf(chatId);
     if (slot.phase === "pending" || slot.phase === "streaming" || slot.phase === "stopping") {
       perfMeasure(turnLatencyMeasure(chatId), turnStartMark(chatId));
@@ -159,6 +252,7 @@ export const chatStream: ChatStreamApi = {
     }
   },
   abortTurn: (chatId, reason) => {
+    flushPending(chatId); // land any buffered tail tokens BEFORE the terminal.
     const slot = slotOf(chatId);
     if (slot.phase === "pending" || slot.phase === "streaming" || slot.phase === "stopping") {
       perfMeasure(turnLatencyMeasure(chatId), turnStartMark(chatId));
@@ -176,6 +270,7 @@ export const chatStream: ChatStreamApi = {
     }
   },
   markStopping: (chatId) => {
+    flushPending(chatId); // land buffered tokens first so a stop never blanks accumulated text.
     const slot = slotOf(chatId);
     if (slot.phase === "pending") {
       setSlot(

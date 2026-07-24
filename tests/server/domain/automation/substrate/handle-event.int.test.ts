@@ -17,8 +17,7 @@ import type { ArmDispatch, AutomationOps } from "../../../../../packages/server/
 import type { AutomationService } from "../../../../../packages/server/src/domain/automation/contract/service.ts";
 import { createArmExecutors } from "../../../../../packages/server/src/domain/automation/engine/arm-executors.ts";
 import { createAutomationService } from "../../../../../packages/server/src/domain/automation/index.ts";
-import { selectBudget } from "../../../../../packages/server/src/domain/automation/persistence/budgets.ts";
-import { countSpendActionsSince, listFiresForRule } from "../../../../../packages/server/src/domain/automation/persistence/fires.ts";
+import { listFiresForRule } from "../../../../../packages/server/src/domain/automation/persistence/fires.ts";
 import { createPostNarratorMessage } from "../../../../../packages/server/src/domain/chat/verbs/post-narrator-message.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
@@ -289,64 +288,6 @@ describe("automation handleEvent — the A5 dispatch engine", () => {
     const fires = await listFiresForRule(f.db, ruleId);
     expect(fires[0]?.outcome).toBe("authority_refused");
     expect(f.events).toContainEqual({ type: "ruleErrored", chatId: f.chatId, ruleId });
-  });
-});
-
-// A6 — the dispatch's spend-accounting + budget_refused terminal (03 §3). The arm executors are A6; here we
-// inject a test executor that reserves spend / refuses on budget, and assert the ENGINE's terminals.
-describe("A6 spend accounting + budget_refused terminal", () => {
-  test("a spend arm's reserved cost lands on the fired-row detail (the per-day count source)", async () => {
-    const spendDispatch: ArmDispatch = (_action, frame): Promise<{ ok: true }> => {
-      frame.spend.add(0.25);
-      return Promise.resolve({ ok: true as const });
-    };
-    const f = await setup({ runArm: spendDispatch });
-    const ruleId = await armRule(f, { name: "spender" });
-
-    await f.svc.handleEvent(chatOpened(f.chatId));
-
-    const fires = await f.svc.listFires({ principal: principal(f.host), ruleId });
-    expect(fires.find((x) => x.outcome === "fired")?.detail).toEqual({ spendActions: 1, spendUsd: 0.25 });
-  });
-
-  test("a budget_refused arm records budget_refused + leaves the rule HEALTHY (no error increment)", async () => {
-    const refuseDispatch: ArmDispatch = () => Promise.resolve({ ok: false as const, kind: "budget_refused" as const, detail: "usd_daily" });
-    const f = await setup({ runArm: refuseDispatch });
-    const ruleId = await armRule(f, { name: "capped" });
-
-    await f.svc.handleEvent(chatOpened(f.chatId));
-
-    const fires = await f.svc.listFires({ principal: principal(f.host), ruleId });
-    expect(fires.some((x) => x.outcome === "budget_refused")).toBe(true);
-    expect(fires.some((x) => x.outcome === "action_error")).toBe(false);
-    expect(f.events.some((e) => e.type === "ruleErrored")).toBe(false);
-    const rules = await f.svc.listRules({ principal: principal(f.host), chatId: f.chatId });
-    expect(rules.find((r) => r.id === ruleId)?.enabled).toBe(true);
-  });
-
-  test("incurred spend from an EARLIER arm persists when a LATER arm is budget_refused (no money leak)", async () => {
-    // Arm 0 really bills 0.05 (the provider was called); arm 1 hits a ceiling → the rule aborts budget_refused.
-    // The already-incurred 0.05 MUST be recorded, or the next dispatch re-breaches the day ceiling.
-    let call = 0;
-    const partialSpend: ArmDispatch = (_action, frame) => {
-      call += 1;
-      if (call === 1) {
-        frame.spend.add(0.05);
-        return Promise.resolve({ ok: true as const });
-      }
-      return Promise.resolve({ ok: false as const, kind: "budget_refused" as const, detail: "usd_daily" });
-    };
-    const f = await setup({ runArm: partialSpend });
-    const ruleId = await armRule(f, { name: "double-spend", actions: [SET_VAR, SET_VAR] });
-
-    await f.svc.handleEvent(chatOpened(f.chatId));
-
-    // The terminal is budget_refused, but the aborted fire STILL carries the incurred spend.
-    const fires = await f.svc.listFires({ principal: principal(f.host), ruleId });
-    expect(fires.find((x) => x.outcome === "budget_refused")?.detail).toMatchObject({ spendActions: 1, spendUsd: 0.05 });
-    // The $ accumulator + the day count reflect the real spend, so a SUBSEQUENT dispatch sees the running total.
-    expect((await selectBudget(f.db, f.chatId))?.usdSpentToday).toBeCloseTo(0.05);
-    expect(await countSpendActionsSince(f.db, f.chatId, 0)).toBe(1);
   });
 });
 

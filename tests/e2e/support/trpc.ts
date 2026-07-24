@@ -1,9 +1,9 @@
 // Shared e2e tRPC fetch helpers — the ONE way both globalSetup (support/global-setup.ts) and the specs
 // talk to the app's API directly, without a browser. Hand-rolls the tRPC batch wire shape (the same
 // contract the client's httpBatchLink speaks) against the SAME running stack the specs hit (the vite
-// front door proxies `/api` to Hono; single-user AUTH_MODE → no login). Compiled by the DOM-less node
-// aggregator (tsconfig.json): node's global `fetch` (typed by @types/node), imports nothing from the
-// browser client trees.
+// front door proxies `/api` to Hono; single-user AUTH_MODE → no login). Typechecked by the tests-dom
+// program (tsconfig.tests-dom.json — dom + node since the 2026-07-24 e2e-tree routing): node's global
+// `fetch`, and imports nothing from the browser client trees (deliberate — see below).
 //
 // WHY specs need this (not just globalSetup): the honesty specs assert DOM-vs-DB PARITY and
 // settings-are-what's-used — they must read canon (chat.listMessages) and settings (getUserSettings)
@@ -45,13 +45,14 @@ export async function trpcMutation<T>(procedure: string, input: unknown): Promis
 }
 
 // ── The canon/settings shapes the specs read (the fields they assert on — NOT the full contract). These
-// mirror @orb/contracts but are declared locally: the e2e tsconfig is the DOM-less node aggregator and
-// these helpers stay import-free of the package trees (same posture as chat-room.ts's OrbBusHandle). ──
+// mirror @orb/contracts but are declared locally: the e2e support tree stays import-free of the package
+// trees on purpose (specs assert against the WIRE, not against the source's own types — an honest
+// ground-truth read; same posture as chat-room.ts's OrbBusHandle). ──
 
 /** One canon message row (a subset of contracts/chat `MessageView` — the fields the honesty specs read).
- *  `role` stays `string` (not a re-spelled `"user"|"assistant"` union): this DOM-less node support module
- *  mirrors the wire subset locally like chat-room.ts's OrbBusHandle, and the no-inline-union-redecl gate
- *  bans re-spelling the homed MESSAGE_ROLES members here — specs compare it to literals, `string` suffices. */
+ *  `role` stays `string` (not a re-spelled `"user"|"assistant"` union): this package-import-free support
+ *  module mirrors the wire subset locally like chat-room.ts's OrbBusHandle, and the no-inline-union-redecl
+ *  gate bans re-spelling the homed MESSAGE_ROLES members here — specs compare it to literals, `string` suffices. */
 export interface CanonMessage {
   readonly id: string;
   readonly seq: number;
@@ -92,6 +93,39 @@ export function getUserSettings(): Promise<UserSettings> {
   return trpcQuery<UserSettings>("settings.getUserSettings", {});
 }
 
+/** The appearance/theme slice of the settings blob the #16 render-truth spec reads as ground truth
+ *  (the fields it drives + asserts — NOT the full contract). Additive to `UserSettings` above via a
+ *  dedicated reader so the existing `getUserSettings` shape stays untouched (add-only support rule). */
+export interface AppearanceThemeSettings {
+  readonly config: {
+    readonly appearance: { readonly elevation: string; readonly backgroundImageKind: string; readonly backgroundSeededId: string };
+    readonly theme: { readonly selectedThemeId: string | null };
+  };
+}
+
+/** Read the appearance + theme slice — the DB ground truth the render-truth spec pins visibility against. */
+export function getAppearanceTheme(): Promise<AppearanceThemeSettings> {
+  return trpcQuery<AppearanceThemeSettings>("settings.getUserSettings", {});
+}
+
+/** Patch one settings section over the API (the #16 spec's finally-restore path — reset appearance/theme
+ *  to known-safe values without touching browser storage). Mirrors updateUserSettingsSection's input. */
+export function updateSettingsSection(section: string, patch: Record<string, unknown>): Promise<unknown> {
+  return trpcMutation("settings.updateUserSettingsSection", { section, patch });
+}
+
+/** One theme row (subset) — the #16 spec resolves a seed theme id by name to select it via the API restore. */
+interface ThemeRow {
+  readonly id: string;
+  readonly name: string;
+  readonly isSeed: boolean;
+}
+
+/** List owned ∪ seed themes — the spec finds a seed theme (e.g. "Mocha") to select. */
+export function listThemes(): Promise<readonly ThemeRow[]> {
+  return trpcQuery<readonly ThemeRow[]>("settings.listThemes", {});
+}
+
 interface StartedChat {
   readonly chat: { readonly id: string };
 }
@@ -119,4 +153,26 @@ interface CharacterListPage {
 export async function listCharacters(): Promise<CharacterListPage["items"]> {
   const page = await trpcQuery<CharacterListPage>("character.list", {});
   return page.items;
+}
+
+/** Mint (or re-mint) a spec-owned character with a KNOWN handle, guaranteed CHATLESS by construction —
+ *  the self-seeding cure for specs that assumed a seeded character stays virgin (the shared dev DB
+ *  accumulates committed chats from earlier specs in a sweep, and a character WITH chats resumes its
+ *  latest room instead of opening a fresh draft). Idempotent across crashed runs: an existing character
+ *  with the handle is removed first (its chats go with it), then a fresh one is created. Callers remove
+ *  it in a finally via `removeCharacter`. */
+export async function mintFreshCharacter(handle: string, name: string, greeting: string): Promise<string> {
+  const existing = (await listCharacters()).find((c) => c.handle === handle);
+  if (existing !== undefined) {
+    await trpcMutation("character.remove", { characterId: existing.id });
+  }
+  const created = await trpcMutation<{ readonly id: string }>("character.create", {
+    input: { handle, name, description: "e2e spec-owned probe character", greetings: [{ text: greeting }] },
+  });
+  return created.id;
+}
+
+/** Remove a spec-owned character (see `mintFreshCharacter`). */
+export function removeCharacter(characterId: string): Promise<unknown> {
+  return trpcMutation("character.remove", { characterId });
 }

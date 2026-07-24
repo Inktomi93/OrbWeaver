@@ -27,7 +27,6 @@ export type {
   PromptTransformIndex,
   PromptTransformIndexDeps,
   ResolveAuthorPrincipal,
-  SpendAccumulator,
   TurnOriginRead,
 } from "./contract/ops";
 export type {

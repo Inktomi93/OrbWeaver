@@ -7,7 +7,7 @@ import type { AutomationFireOutcome } from "@orb/contracts/automation";
 import type { Db } from "@orb/db";
 import { automationFires } from "@orb/db";
 import type { AutomationFireId, AutomationRuleId, ChatId } from "@orb/kit/ids";
-import { and, desc, eq, gt, gte, sql } from "drizzle-orm";
+import { and, desc, eq, gt, sql } from "drizzle-orm";
 import type { FireView } from "../contract/results";
 
 const DEFAULT_FIRE_LIMIT = 50;
@@ -61,26 +61,12 @@ export async function countRuleFiresSince(db: Db, ruleId: AutomationRuleId, sinc
   return rows[0]?.count ?? 0;
 }
 
-/** Count the actual FIRES for a chat since `sinceMs` — the per-chat/hour budget source (03 §3; the
- *  `automation_budgets.max_fires_per_hour` ceiling). */
+/** Count the actual FIRES for a chat since `sinceMs` — the per-chat/hour fire-RATE cap source (the
+ *  `automation_budgets.max_fires_per_hour` ceiling; the loop-safety belt). */
 export async function countChatFiresSince(db: Db, chatId: ChatId, sinceMs: number): Promise<number> {
   const rows = await db
     .select({ count: sql<number>`count(*)` })
     .from(automationFires)
     .where(and(eq(automationFires.chatId, chatId), eq(automationFires.outcome, "fired"), gt(automationFires.firedAt, sinceMs)));
   return rows[0]?.count ?? 0;
-}
-
-/** Sum the SPEND ACTIONS a chat has performed since `sinceMs` (UTC day-start) — the per-day
- *  `max_spend_actions_per_day` count source (03 §3). ANY fire row whose rule INCURRED spend stamps a
- *  `detail.spendActions` count — on a `fired` row OR a partial-breach terminal (`budget_refused`/
- *  `action_error`) where an earlier arm already billed (the provider was billed regardless of a later arm's
- *  refusal — the dispatch's finally-persist). So this sums across ALL outcomes, not just `fired`; rows without
- *  the field contribute null → ignored. The fire log is the ONE count home (no separate counter column). */
-export async function countSpendActionsSince(db: Db, chatId: ChatId, sinceMs: number): Promise<number> {
-  const rows = await db
-    .select({ n: sql<number>`coalesce(sum(json_extract(${automationFires.detail}, '$.spendActions')), 0)` })
-    .from(automationFires)
-    .where(and(eq(automationFires.chatId, chatId), gte(automationFires.firedAt, sinceMs)));
-  return rows[0]?.n ?? 0;
 }

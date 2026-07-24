@@ -12,7 +12,14 @@ export { IS_DEV } from "./dev-flag";
 export { downloadJson, downloadUrl, slugifyFilename } from "./download-json";
 export type { AppErrorBoundaryProps } from "./error-boundary";
 export { AppErrorBoundary } from "./error-boundary";
-export { ASSISTANT_PREFILL_WARNING } from "./injection-copy";
+export {
+  ASSISTANT_PREFILL_WARNING,
+  DRAFT_UNLOCK_AFTER_SEND,
+  IMAGE_GEN_NEEDS_CHAT,
+  IMAGE_GEN_NEEDS_TEXT,
+  NEEDS_ASSISTANT_REPLY,
+  WAND_NEEDS_TEXT,
+} from "./injection-copy";
 export type { SeededBackground } from "./list-seeded-backgrounds";
 export { listSeededBackgrounds, resolveSeededBackgroundUrl } from "./list-seeded-backgrounds";
 export { logClock } from "./log-clock";

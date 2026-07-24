@@ -156,3 +156,34 @@ test("opens imperatively via a handle and routes the payload to content", async 
   await expect(dialog).toBeVisible();
   await expect(dialog).toContainText("Reached content");
 });
+
+// Popup content taller than the viewport (a FormDialog with many fields) must SCROLL, not clip off
+// screen — the popup owns both layout and scroll (overflow-y-auto), never the backdrop/viewport.
+test("popup content taller than the viewport scrolls instead of clipping", async ({ mount, page }) => {
+  await mount(
+    <Dialog defaultOpen={true}>
+      <DialogPopup size="sm">
+        <DialogTitle>Tall form</DialogTitle>
+        {/* flex-shrink: 0 — a plain height on a flex child inside the popup's flex column would
+            otherwise be compressed by flexbox's default min-content shrink, masking the overflow
+            this test exists to prove. */}
+        <div style={{ height: "3000px", flexShrink: 0 }}>Tall content</div>
+        <DialogClose>Submit</DialogClose>
+      </DialogPopup>
+    </Dialog>,
+  );
+
+  const popup = page.locator('[data-slot="dialog-popup"]');
+  await expect(popup).toHaveCSS("overflow-y", "auto");
+
+  // The popup's own scrollHeight exceeds its clientHeight (content genuinely overflows the clamped
+  // popup, not just the page) — and scrolling the popup element itself reaches the submit button
+  // pinned below the tall content, proving the overflow is functional, not just declared.
+  const overflowing = await popup.evaluate((el) => el.scrollHeight > el.clientHeight);
+  expect(overflowing).toBe(true);
+
+  const submit = page.getByRole("button", { name: "Submit" });
+  await submit.scrollIntoViewIfNeeded();
+  const scrollTop = await popup.evaluate((el) => el.scrollTop);
+  expect(scrollTop).toBeGreaterThan(0);
+});

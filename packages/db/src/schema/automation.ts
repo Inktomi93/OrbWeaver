@@ -40,7 +40,6 @@ import {
   integer,
   // biome-ignore lint/suspicious/noDeprecatedImports: drizzle @deprecates the positional primaryKey(col) overload; we use the supported primaryKey({ columns }) object form below.
   primaryKey,
-  real,
   sqliteTable,
   text,
 } from "drizzle-orm/sqlite-core";
@@ -127,9 +126,10 @@ export const automationRules = sqliteTable(
 );
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-// automation_budgets — ONE row per chat with automation (host-editable — 03 §3). The per-chat spend
-// ceilings; `usd_spent_today`/`spend_day` is the reset-on-rollover day accumulator (UTC yyyy-mm-dd from
-// the injected clock).
+// automation_budgets — ONE row per chat with automation (host-editable). The per-chat FIRE-RATE ceiling —
+// the loop-safety belt that bounds a runaway rule from hammering a paid API. (The per-day $/spend-action
+// ceilings + day accumulator were stripped 2026-07-24 — enterprise spend enforcement; cost visibility +
+// rate caps stay.)
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
 export const automationBudgets = sqliteTable("automation_budgets", {
@@ -139,12 +139,6 @@ export const automationBudgets = sqliteTable("automation_budgets", {
     .primaryKey()
     .references(() => chats.id, { onDelete: "cascade" }),
   maxFiresPerHour: integer("max_fires_per_hour").notNull().default(AUTOMATION_CHAT_BUDGET_DEFAULTS.maxFiresPerHour),
-  maxSpendActionsPerDay: integer("max_spend_actions_per_day").notNull().default(AUTOMATION_CHAT_BUDGET_DEFAULTS.maxSpendActionsPerDay),
-  // NULL = no dollar ceiling (local-only setups).
-  maxUsdPerDay: real("max_usd_per_day").default(AUTOMATION_CHAT_BUDGET_DEFAULTS.maxUsdPerDay),
-  usdSpentToday: real("usd_spent_today").notNull().default(0),
-  // UTC yyyy-mm-dd from the injected clock; reset-on-rollover. '' = never spent.
-  spendDay: text("spend_day").notNull().default(""),
   updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
 });
 

@@ -29,10 +29,6 @@ CREATE INDEX `audit_logs_entity_idx` ON `audit_logs` (`entity_type`,`entity_id`)
 CREATE TABLE `automation_budgets` (
 	`chat_id` text PRIMARY KEY NOT NULL,
 	`max_fires_per_hour` integer DEFAULT 120 NOT NULL,
-	`max_spend_actions_per_day` integer DEFAULT 10 NOT NULL,
-	`max_usd_per_day` real DEFAULT 1,
-	`usd_spent_today` real DEFAULT 0 NOT NULL,
-	`spend_day` text DEFAULT '' NOT NULL,
 	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	FOREIGN KEY (`chat_id`) REFERENCES `chats`(`id`) ON UPDATE no action ON DELETE cascade
 );
@@ -683,17 +679,6 @@ CREATE TABLE `personas` (
 );
 --> statement-breakpoint
 CREATE INDEX `personas_owner_idx` ON `personas` (`owner_id`);--> statement-breakpoint
-CREATE TABLE `plugin_budgets` (
-	`plugin_id` text PRIMARY KEY NOT NULL,
-	`max_actions_per_day` integer DEFAULT 50,
-	`max_usd_per_day` real DEFAULT 1,
-	`actions_spent_today` integer DEFAULT 0 NOT NULL,
-	`usd_spent_today` real DEFAULT 0 NOT NULL,
-	`spend_day` text DEFAULT '' NOT NULL,
-	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
-	FOREIGN KEY (`plugin_id`) REFERENCES `plugins`(`id`) ON UPDATE no action ON DELETE cascade
-);
---> statement-breakpoint
 CREATE TABLE `plugin_kv` (
 	`plugin_id` text NOT NULL,
 	`owner_id` text NOT NULL,

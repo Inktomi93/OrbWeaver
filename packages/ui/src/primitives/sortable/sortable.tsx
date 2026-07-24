@@ -7,6 +7,7 @@ import type { DragEndEvent } from "@dnd-kit/react";
 import { DragDropProvider } from "@dnd-kit/react";
 import { useSortable } from "@dnd-kit/react/sortable";
 import type { ReactElement, ReactNode } from "react";
+import { useEffect, useRef } from "react";
 import { cn, usePrefersReducedMotion } from "#lib";
 import { GripVertical, Icon } from "#primitives/icons";
 import { sortableVariants } from "./variants";
@@ -37,7 +38,7 @@ interface SortableItemProps {
 
 function SortableItem({ id, index, handle, disabled, children }: SortableItemProps): ReactElement {
   const reducedMotion = usePrefersReducedMotion();
-  const { ref, handleRef, isDragging } = useSortable({
+  const { ref, handleRef, isDragging, isDragSource } = useSortable({
     id,
     index,
     disabled,
@@ -50,10 +51,32 @@ function SortableItem({ id, index, handle, disabled, children }: SortableItemPro
       : {}),
   });
   const slots = sortableVariants();
+  // @dnd-kit's KeyboardSensor moves the drag by re-ordering the list, which re-renders these rows;
+  // the browser drops DOM focus off the handle button in that reflow, landing it on <body>. A
+  // keyboard-only user then can't continue a multi-step reorder (further arrows never reach the
+  // sensor). While THIS row is the active drag source, restore focus to its handle after each such
+  // re-render — but only if focus actually escaped, so we never yank focus mid-interaction otherwise.
+  const handleButtonRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!isDragSource) {
+      return;
+    }
+    const button = handleButtonRef.current;
+    if (button && document.activeElement !== button) {
+      button.focus();
+    }
+  });
+  const setHandleRef = (element: HTMLButtonElement | null): void => {
+    handleButtonRef.current = element;
+    handleRef(element);
+  };
+  // Arm the pickup affordance the instant the item becomes the drag source (Space/Enter), not just
+  // once a move flips status to "dragging" (isDragging) — so the visual state matches the
+  // "Picked up" live-region announcement for a sighted keyboard user.
   return (
-    <div className={slots.item()} data-dragging={isDragging ? "" : undefined} data-slot="sortable-item" ref={ref}>
+    <div className={slots.item()} data-dragging={isDragging || isDragSource ? "" : undefined} data-slot="sortable-item" ref={ref}>
       {handle ? (
-        <button aria-label="Reorder item" className={slots.handle()} data-slot="sortable-handle" disabled={disabled} ref={handleRef} type="button">
+        <button aria-label="Reorder item" className={slots.handle()} data-slot="sortable-handle" disabled={disabled} ref={setHandleRef} type="button">
           <Icon icon={GripVertical} size="sm" />
         </button>
       ) : null}

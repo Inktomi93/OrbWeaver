@@ -31,10 +31,9 @@ const APP_READY = "html[data-app-ready]";
 const BOOTSTRAP_MESSAGE = "Hi";
 
 // The dev introspection handle's shape, as read from inside a browser-context `page.evaluate`. Declared
-// locally (not imported from the client's ambient `declare global`) because the e2e tsconfig is a DOM-less
-// NODE program (tsconfig.json — it excludes the browser `.tsx` trees + carries no lib.dom), so neither the
-// client's `globalThis.__orb` augmentation nor `window`/`document` are in scope here. This plain object
-// type needs no DOM lib, so it typechecks; the cast is the sanctioned bridge across that boundary.
+// locally (not imported from the client's ambient `declare global`) — the e2e support tree stays
+// import-free of the package trees on purpose. `__orb` is a dev-only global no lib declares, so the
+// direct cast (all-optional target — always assignable) is the one sanctioned bridge to it.
 interface OrbBusHandle {
   readonly __orb?: {
     readonly bus: () => {
@@ -46,16 +45,12 @@ interface OrbBusHandle {
 
 /** The live SSE-subscription count off the dev handle (0 if the handle isn't installed yet). */
 export function busLive(page: Page): Promise<number> {
-  // FABRICATION-OK: bridge to the real dev `__orb` global; the e2e tsconfig is DOM-less so the type isn't visible.
-  return page.evaluate(() => (globalThis as unknown as OrbBusHandle).__orb?.bus().live ?? 0);
+  return page.evaluate(() => (globalThis as OrbBusHandle).__orb?.bus().live ?? 0);
 }
 
 /** The recent bus-event types the client has reduced (dev introspection ring; empty if not installed). */
 export function busEventTypes(page: Page): Promise<readonly string[]> {
-  return page.evaluate(
-    // FABRICATION-OK: bridge to the real dev `__orb` global (DOM-less e2e tsconfig).
-    () => (globalThis as unknown as OrbBusHandle).__orb?.bus().events.map((e) => e.type) ?? [],
-  );
+  return page.evaluate(() => (globalThis as OrbBusHandle).__orb?.bus().events.map((e) => e.type) ?? []);
 }
 
 /** Wait for the app shell + its initial reads to settle (the agent-bridge idle signal). */

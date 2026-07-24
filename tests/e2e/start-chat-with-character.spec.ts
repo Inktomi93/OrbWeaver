@@ -71,3 +71,52 @@ test("pick a character, send a message, and the assistant streams a reply", {
   await expect(assistantRow.first()).toBeVisible({ timeout: 120_000 });
   await expect(assistantRow.first()).toContainText(NON_WHITESPACE, { timeout: 120_000 });
 });
+
+// The draft-promotion P1 (found by a live UX review): on a NEW-CHAT DRAFT, the first send promotes the
+// draft to a committed chat MID-FLOW (fireOpening → chat.startChat mints the real chatId, then chat.send
+// runs the turn). The reply streamed + rendered FULLY, but the composer STUCK on "Stop generating" forever
+// — a re-attach of the seeded (`lastEventId:"0"`) SSE subscription re-REPLAYED the durable log from zero,
+// and the re-replayed `turnStarted` re-OPENED the already-completed turn slot with no matching terminal
+// re-arriving, stranding the slot live (composer Stop is driven purely by the slot phase). Fixed by the
+// monotonic per-chat seq guard in the bus adapter (chat-event-seq-guard.ts). This pins the EXACT broken
+// journey: after the first draft send completes, the composer RETURNS TO SEND, the input RE-ENABLES, and a
+// SECOND message sends successfully — the recovery the reload-only bug denied.
+test("draft promotion: after the first send completes, the composer returns to Send and a second message sends", {
+  tag: "@live",
+}, async ({ page }) => {
+  test.setTimeout(240_000);
+
+  await page.goto("/");
+  const charactersNav = page.getByRole("button", { name: "Characters", exact: true });
+  await expect(charactersNav).toBeVisible({ timeout: 30_000 });
+  await charactersNav.click();
+
+  const chatCta = page.getByRole("button", { name: CHARACTER_ROW_CHAT_CTA }).first();
+  await expect(chatCta).toBeAttached({ timeout: 30_000 });
+  await chatCta.click();
+
+  const composer = page.getByRole("textbox", { name: "Message" });
+  await expect(composer).toBeVisible();
+
+  // First send — the draft→committed promotion + a real streamed turn.
+  await typeAndSend(composer, "Hello there! Please introduce yourself in one short sentence.");
+
+  const assistantRow = page.locator('[data-slot="message-row"][data-role="assistant"]');
+  await expect(assistantRow.first()).toBeVisible({ timeout: 120_000 });
+  await expect(assistantRow.first()).toContainText(NON_WHITESPACE, { timeout: 120_000 });
+
+  // THE RECOVERY (the bug): the turn is done, so the composer MUST return to Send — the Stop button gone,
+  // the primary Send present, and the input re-enabled. Before the fix this stuck on "Stop generating"
+  // indefinitely (input + Send disabled), recoverable only by a page reload.
+  const sendButton = page.locator('[data-testid="composer-send"]');
+  await expect(sendButton).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("button", { name: "Stop generating" })).toHaveCount(0);
+  await expect(composer).toBeEnabled();
+
+  // The proof the room is genuinely usable again (not just visually recovered): a SECOND message types and
+  // sends, committing its own durable user row — the journey the reviewer could not complete without a reload.
+  const userRowsBefore = await page.locator('[data-slot="message-row"][data-role="user"]').count();
+  await typeAndSend(composer, "Great — now name one hobby you enjoy.");
+  await expect.poll(async () => page.locator('[data-slot="message-row"][data-role="user"]').count(), { timeout: 30_000 }).toBeGreaterThan(userRowsBefore);
+  await expect(page.locator('[data-slot="message-row"][data-role="user"]').last()).toContainText("one hobby", { timeout: 30_000 });
+});

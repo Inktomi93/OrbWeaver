@@ -72,6 +72,25 @@ test("keyboard reorder: focus, Space to pick up, ArrowDown to move, Space to dro
   await expect(page.getByTestId("last-order")).toHaveText("item-1,item-0,item-2");
 });
 
+// @dnd-kit's KeyboardSensor moves the drag by re-ordering the list, which re-renders the rows and
+// drops DOM focus off the handle button onto <body> — a keyboard-only user then can't continue a
+// multi-step reorder. This is the handle-mode variant, since the ArrowDown move re-renders the
+// handle button (not the whole-row activator asserted above).
+test("keyboard reorder in handle mode: focus survives the ArrowDown re-render on the active handle", async ({ mount, page }) => {
+  await mount(<ReorderableList handle={true} itemCount={3} />);
+  const handles = page.locator('[data-slot="sortable-handle"]');
+  await handles.nth(0).focus();
+  await page.keyboard.press("Space");
+  await page.keyboard.press("ArrowDown");
+  // Focus must still be on a handle button (not fallen back to <body>) so a further ArrowDown/Space
+  // keeps operating the same multi-step reorder. Poll: the re-render + focus-restoration effect
+  // settle a tick after the keypress.
+  await expect.poll(() => page.evaluate(() => document.activeElement?.getAttribute("data-slot"))).toBe("sortable-handle");
+  await page.keyboard.press("Space");
+
+  await expect(page.getByTestId("reorder-count")).toHaveText("1");
+});
+
 test("keyboard drag start/drop announce through the aria-live region", async ({ mount, page }) => {
   await mount(<ReorderableList itemCount={3} />);
   const rows = page.locator('[data-slot="sortable-item"]');

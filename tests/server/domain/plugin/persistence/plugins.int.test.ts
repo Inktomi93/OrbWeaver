@@ -9,7 +9,6 @@ import type { Db } from "@orb/db";
 import { assets } from "@orb/db";
 import type { AssetId, PluginId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { selectBudgetView } from "../../../../../packages/server/src/domain/plugin/persistence/budgets.ts";
 import {
   applyUpgrade,
   deletePlugin,
@@ -190,7 +189,7 @@ test("deletePlugin removes the row; toPluginView lifts builtAgainst from the man
   if (row === undefined) {
     throw new Error("seeded plugin row missing");
   }
-  expect(toPluginView(row, await selectBudgetView(db, pluginId)).builtAgainst).toEqual({ engineVersion: "0.32.0" });
+  expect(toPluginView(row).builtAgainst).toEqual({ engineVersion: "0.32.0" });
 
   await deletePlugin(db, pluginId);
   expect(await getById(db, owner, pluginId)).toBeUndefined();

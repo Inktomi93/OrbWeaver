@@ -167,17 +167,13 @@ test("automation_fires round-trips and CASCADEs off its rule", async () => {
   expect(await db.select().from(automationFires)).toHaveLength(0);
 });
 
-test("automation_budgets borns the 03 §3 ceilings (one row per chat)", async () => {
+test("automation_budgets borns the fire-rate cap (one row per chat)", async () => {
   const db = await freshDb();
   const { chatId } = await seedOwnerAndChat(db, "budget_rt");
   await db.insert(automationBudgets).values({ chatId });
 
   const rows = await db.select().from(automationBudgets);
   expect(rows[0]?.maxFiresPerHour).toBe(120);
-  expect(rows[0]?.maxSpendActionsPerDay).toBe(10);
-  expect(rows[0]?.maxUsdPerDay).toBe(1.0);
-  expect(rows[0]?.usdSpentToday).toBe(0);
-  expect(rows[0]?.spendDay).toBe(""); // never spent
 });
 
 // ── global_variables: the natural-key KV plane ─────────────────────────────────────────────────────────

@@ -25,14 +25,11 @@ export function createRunSnippet(ctx: PluginContext): (params: RunSnippetParams)
       throw new DomainNotFoundError("chat", chatId);
     }
     const grants: PluginCapability[] = ["chat.read", "global_vars", ...(authority.canWrite ? (["chat.variables.write"] as const) : [])];
-    // The bridge is built per-caller (the snippet runs as its author; global-vars closes over the caller). NO
-    // spend gate (PLUGIN-SPEND): a transient snippet has no persistent plugin row to key AND its fixed grant
-    // profile omits turn.trigger + imagery.generate, so the spendy closures are unreachable here — the gate would
-    // be inert. `null` = ungated (correct: the membrane never grants a snippet the spendy caps).
+    // The bridge is built per-caller (the snippet runs as its author; global-vars closes over the caller).
     // `pluginId: null` — a transient snippet has no persistent plugin row; its fixed grant profile omits
     // storage.kv / notify / chat.quick_reply, so the bridge's plugin-scoped closures are unreachable (the
     // membrane's capability gate refuses them first).
-    const bridge = buildPluginBridge(ctx.ops, caller.userId, null, null);
+    const bridge = buildPluginBridge(ctx.ops, caller.userId, null);
     // A snippet is a human-initiated one-shot — the cascade ROOT (automationDepth 0); a turn it triggers stamps 1.
     return await ctx.host.runSnippet({ code, grants, bridge, chat: { chatId, canWrite: authority.canWrite, automationDepth: 0 } });
   };

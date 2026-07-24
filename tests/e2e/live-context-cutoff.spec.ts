@@ -22,13 +22,6 @@ import { expect, test } from "@playwright/test";
 import { waitForAppReady } from "./support/chat-room";
 import { getUserSettings, listCanon, listCharacters, sendTurn, startChat, trpcMutation, trpcQuery } from "./support/trpc";
 
-// The e2e tsconfig is the DOM-less node aggregator (no lib.dom); type the evaluate callback element members
-// we read locally (same bridge posture as chat-room.ts's OrbBusHandle). The runtime value is a real element.
-interface DomEl {
-  readonly getAttribute: (name: string) => string | null;
-  readonly nextElementSibling: DomEl | null;
-}
-
 interface ContextFitPreview {
   readonly boundaryMessageId: string | null;
   readonly usedTokens: number;
@@ -103,8 +96,7 @@ test("the context-boundary divider is present-tense: preview-driven, knob-respon
     await expect(page.locator('[data-slot="context-boundary-divider"]')).toHaveCount(1, { timeout: 15_000 });
     const dividerRowId = await page
       .locator('[data-slot="context-boundary-divider"]')
-      // FABRICATION-OK: bridge the real DOM element to a local shape — the DOM-less e2e tsconfig can't type an evaluate element param.
-      .evaluate((el) => (el as unknown as DomEl).nextElementSibling?.getAttribute("data-message-id") ?? null);
+      .evaluate((el) => el.nextElementSibling?.getAttribute("data-message-id") ?? null);
     expect(dividerRowId).toBe(apiBoundary);
   } finally {
     // Restore the prior default preset (null = clear back to the system default) + remove the throwaway.

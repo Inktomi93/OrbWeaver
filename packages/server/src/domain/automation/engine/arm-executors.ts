@@ -12,9 +12,8 @@
 // entry/compose — one-directional flow). `trigger_turn` is WIRED (its chat `requestTurn` seam landed — §AC-B) and
 // dispatches a real autonomous turn; the sole v1-unwired arm is `transform_draft` (it registers into the prompt
 // PIPELINE (A7), it never dispatches here) and the three reserved arms — both return a TYPED REFUSAL, never a
-// fabricated success. A refusal is an `arm_error`; a
-// SPEND ceiling (03 §3) is a `budget_refused` (the rule stays healthy). The first non-ok outcome aborts the
-// rule's remaining arms (04 §3 step 5).
+// fabricated success. A refusal is an `arm_error`. The first non-ok outcome aborts the rule's remaining arms
+// (04 §3 step 5).
 
 import type { AutomationAction } from "@orb/contracts/automation";
 import { AUTOMATION_NOTICE_MESSAGE_MAX } from "@orb/contracts/notifications";
@@ -23,7 +22,6 @@ import type { ArmDispatch, ArmExecutorDeps, ArmOutcome, DispatchFrame } from "..
 import { isBookAttachedToChat, listRuleEntryTitles, loadPresentHumanMemberIds } from "../persistence/canon-reads";
 import { deleteGlobalVariable, selectGlobalVariable, upsertGlobalVariable } from "../persistence/queries";
 import { renderArmTemplate } from "../substrate/macro-render";
-import { checkSpend } from "./spend-gate";
 
 const DECIMAL_RADIX = 10;
 const DEFAULT_INC_DEC_OPERAND = 1;
@@ -36,9 +34,6 @@ const RULE_MAX_ENTRIES_PER_BOOK = 64;
 const OK: ArmOutcome = { ok: true };
 function armError(detail: string): ArmOutcome {
   return { ok: false, kind: "arm_error", detail };
-}
-function budgetRefused(detail: string): ArmOutcome {
-  return { ok: false, kind: "budget_refused", detail };
 }
 
 /** The title a rule's `insert_world_info_entry` arm writes under (ruleId-namespaced idempotency handle). */
@@ -168,7 +163,7 @@ async function runPostNotification(
   return OK;
 }
 
-// ── 1.7 generate_image (the /imagine engine — SPEND-classed) ──────────────────────────────────────────
+// ── 1.7 generate_image (the /imagine engine) ───────────────────────────────────────────────────────────
 async function runGenerateImage(
   deps: ArmExecutorDeps,
   action: Extract<AutomationAction, { type: "generate_image" }>,
@@ -183,12 +178,7 @@ async function runGenerateImage(
     }
     prompt = rendered.text.length > 0 ? rendered.text : undefined;
   }
-  // SPEND gate — debited BEFORE the op (03 §3), against the day ceilings + this rule's in-flight reservations.
-  const verdict = await checkSpend(deps.db, { chatId: frame.chatId, nowMs: frame.now, reservedActions: frame.spend.actions(), reservedUsd: frame.spend.usd() });
-  if (!verdict.ok) {
-    return budgetRefused(verdict.detail);
-  }
-  const result = await deps.ops.imagery.generatePicture({
+  await deps.ops.imagery.generatePicture({
     authorUserId: frame.authorUserId,
     chatId: frame.chatId,
     // The firing rule's child depth — compose stamps it onto the non-quiet posted image so the resulting
@@ -207,11 +197,10 @@ async function runGenerateImage(
     // the single posting seam (imagery has no posting concept).
     quiet: action.quiet,
   });
-  frame.spend.add(result.costUsd ?? 0);
   return OK;
 }
 
-// ── 1.6 trigger_turn (the gated one — an autonomous chat turn; SPEND-classed) ──────────────────────────
+// ── 1.6 trigger_turn (an autonomous chat turn) ─────────────────────────────────────────────────────────
 async function runTriggerTurn(deps: ArmExecutorDeps, action: Extract<AutomationAction, { type: "trigger_turn" }>, frame: DispatchFrame): Promise<ArmOutcome> {
   // The guided steer is a template like every arm field (§0); absent ⇒ no steer.
   let guided: string | undefined;
@@ -222,28 +211,20 @@ async function runTriggerTurn(deps: ArmExecutorDeps, action: Extract<AutomationA
     }
     guided = rendered.text.length > 0 ? rendered.text : undefined;
   }
-  // SPEND gate — debited BEFORE the op (03 §3), against the day ceilings + this rule's in-flight reservations.
-  const verdict = await checkSpend(deps.db, { chatId: frame.chatId, nowMs: frame.now, reservedActions: frame.spend.actions(), reservedUsd: frame.spend.usd() });
-  if (!verdict.ok) {
-    return budgetRefused(verdict.detail);
-  }
   // The chat non-human turn seam: `initiator:"automation"` is hardcoded at compose (automation cannot forge a
   // different origin), the funder = the rule author, the funding host is resolved from the ROOM, and the depth =
   // this dispatch's child-depth (`origin.automationDepth`) — stamped on the reply slot so the cascade guard
-  // bounds the chain. The engine's D17 consent belt + per-member budget belt enforce INSIDE requestTurn; a
-  // by-proxy hosted turn without owner consent (or a lost-authority / depth-cap / gone-chat) THROWS, mapped to a
-  // typed `arm_error` here (never a fabricated success — the set_chat_background precedent).
+  // bounds the chain. LOOP SAFETY rides INSIDE requestTurn: the engine's D17 consent belt + the per-member turn
+  // RATE budget + the cascade-depth guard. A by-proxy hosted turn without owner consent (or a lost-authority /
+  // depth-cap / gone-chat) THROWS, mapped to a typed `arm_error` here (never a fabricated success).
   try {
-    const result = await deps.ops.chat.requestTurn({
+    await deps.ops.chat.requestTurn({
       authorUserId: frame.authorUserId,
       chatId: frame.chatId,
       automationDepth: frame.origin.automationDepth,
       ...(action.speakerCharacterId !== undefined ? { speakerCharacterId: action.speakerCharacterId } : {}),
       ...(guided !== undefined ? { guided } : {}),
     });
-    // A completed turn IS a spend action (counts against `max_spend_actions_per_day` regardless of $) + its
-    // metered cost feeds the per-day $ ceiling. `add` bumps the action count even at costUsd 0 (a local turn).
-    frame.spend.add(result.costUsd ?? 0);
     return OK;
   } catch (err) {
     return armError(`trigger_turn refused: ${err instanceof Error ? err.message : String(err)}`);
@@ -292,15 +273,7 @@ async function runSetChatBackground(
     choices.map((c) => c.name),
     instruction,
   );
-  // SPEND gate — the quiet pick is an LLM call (03 §3): debit BEFORE the op against the day ceilings + this
-  // rule's in-flight reservations, exactly like `generate_image`. A ceiling breach is a `budget_refused` (the
-  // rule stays HEALTHY, no error increment) and no model call fires.
-  const verdict = await checkSpend(deps.db, { chatId: frame.chatId, nowMs: frame.now, reservedActions: frame.spend.actions(), reservedUsd: frame.spend.usd() });
-  if (!verdict.ok) {
-    return budgetRefused(verdict.detail);
-  }
   const quiet = await deps.ops.summarizeQuiet({ authorUserId: frame.authorUserId, chatId: frame.chatId, prompt });
-  frame.spend.add(quiet.costUsd ?? 0);
   const picked = quiet.text.trim().toLowerCase();
   // Match the model's free-text pick back to a real choice (case/space-insensitive). A miss (an off-list or
   // empty generation) is a SOFT no-op — the model declining to pick a valid name must not error the rule.

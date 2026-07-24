@@ -24,14 +24,12 @@ export {
   PluginDowngradeRefusedError,
   PluginNotFoundError,
 } from "./contract/errors";
-export type { PluginActivationScope, PluginHostOps, PluginInvokeHandler, PluginRegistrationHandle, PluginSpendGate } from "./contract/ops";
+export type { PluginActivationScope, PluginHostOps, PluginInvokeHandler, PluginRegistrationHandle } from "./contract/ops";
 export type {
-  GetPluginBudgetParams,
   GetPluginLogParams,
   InstallPluginParams,
   ListPluginsParams,
   RunSnippetParams,
-  SetPluginBudgetParams,
   SetPluginEnabledParams,
   UninstallPluginParams,
   UpgradePluginParams,

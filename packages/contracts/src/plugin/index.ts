@@ -6,8 +6,6 @@
 // contracts (the package cake) and is the ONE home for these shapes — P3/P4 derive, never re-spell.
 
 export type { InvocationChat, PluginBridge } from "./bridge";
-export type { PluginBudgetView } from "./budget";
-export { PLUGIN_BUDGET_DEFAULTS } from "./budget";
 export { HostVersionError, PluginCapabilityError } from "./errors";
 export type {
   ChatHandle,

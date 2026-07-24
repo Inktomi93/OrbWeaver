@@ -126,3 +126,15 @@ test("inside a <Field>, the slider associates and aria-describedby wires the des
   await expect(thumb).toHaveAttribute("aria-describedby", NON_EMPTY);
   await expect(thumb).toHaveAccessibleName("Volume");
 });
+
+// WCAG 2.4.7: a bare slider (no Field.Root wrapper) must still show a visible focus ring on
+// keyboard focus. Base UI's `data-focused` on the Thumb is a no-op outside Field.Root, so the ring
+// is keyed off the nested native input's own `:focus-visible` via FOCUS_RING_HAS (`:has()`).
+test("a bare slider (no Field wrapper) shows a visible ring on keyboard focus", async ({ mount, page }) => {
+  await mount(<Slider defaultValue={50} label="Volume" />);
+  const thumbEl = page.locator('[data-slot="slider-thumb"]');
+  await expect(thumbEl).toHaveCSS("box-shadow", "none");
+
+  await page.getByRole("slider").focus();
+  await expect(thumbEl).not.toHaveCSS("box-shadow", "none");
+});

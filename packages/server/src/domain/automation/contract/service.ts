@@ -91,10 +91,10 @@ export interface AutomationService {
   readonly listRules: (params: ListRulesParams) => Promise<RuleView[]>;
   /** The debug surface: a rule's recent fire log (host-only), newest first. */
   readonly listFires: (params: ListFiresParams) => Promise<FireView[]>;
-  /** Upsert the per-chat budget row (host-only). */
+  /** Upsert the per-chat fire-rate cap (host-only; the loop-safety belt). */
   readonly setBudgets: (params: SetBudgetsParams) => Promise<void>;
-  /** Read the per-chat budget panel (host-only): the host-editable ceilings + the day spend accumulator. An
-   *  absent budget row projects to the defaulted view (what the write path stamps on insert). */
+  /** Read the per-chat fire-rate cap (host-only): the host-editable fire-rate ceiling. An absent budget row
+   *  projects to the defaulted view (what the write path stamps on insert). */
   readonly getBudgets: (params: GetBudgetsParams) => Promise<BudgetView>;
   /** Dry-run a rule (host-only): evaluate the predicate + render every arm's templates, executing NOTHING
    *  (no op, no budget debit); logs an `outcome:"test_run"` fire row (04 §2). */

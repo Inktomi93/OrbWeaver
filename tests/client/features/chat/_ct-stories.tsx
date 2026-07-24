@@ -1201,16 +1201,36 @@ export function InviteDialogStory(): ReactElement {
   );
 }
 
+export interface ChatOptionsMenuStoryProps {
+  /** @defaultValue true — a committed chat (`CHAT_ID`); `false` mounts the DRAFT arm (no chatId, the #8
+   *  grey-out: the SAME menu with the canon-requiring actions disabled). */
+  readonly committed?: boolean;
+  /** @defaultValue false — the multi-human membership rows (invite/hand-off/leave) render only when true. */
+  readonly multiHumanCapable?: boolean;
+  /** @defaultValue false — seed one cast member (enables "New chat with same cast" + the solo gallery), so
+   *  the draft/committed FULL-item-set parity CT can assert the character-gated rows too. */
+  readonly withCast?: boolean;
+}
+
+const CT_OPTIONS_CAST = [{ characterId: castId<CharacterId>("char_ct_options"), name: "Aria" }];
+
 /** The ⋯ chat-options menu (chat-options-menu.tsx). Its turn actions (Continue/Regenerate/Impersonate)
  *  reuse `useGuidedActions` with an EMPTY steer — the `.ct.tsx` stubs `chat.listMessages` (a tail assistant
- *  enables Continue/Regenerate) and asserts each verb fires with NO `guided` object (the F2 plain-turn fix). */
-export function ChatOptionsMenuStory(): ReactElement {
+ *  enables Continue/Regenerate) and asserts each verb fires with NO `guided` object (the F2 plain-turn fix).
+ *  `committed=false` mounts the DRAFT arm (no `chatId`) — the SAME menu, canon-requiring items disabled (#8). */
+export function ChatOptionsMenuStory({ committed = true, multiHumanCapable = false, withCast = false }: ChatOptionsMenuStoryProps = {}): ReactElement {
   return (
     <CtDataProviders>
       {/* A wrapping div so `component` is the WRAPPER (the popup renders through a Portal — item
           assertions use the PAGE locator, the composer-wand precedent). */}
       <div>
-        <ChatOptionsMenu chatId={CHAT_ID} title="Test chat" characters={[]} isHost={true} />
+        <ChatOptionsMenu
+          {...(committed ? { chatId: CHAT_ID } : { committed: false })}
+          title="Test chat"
+          characters={withCast ? CT_OPTIONS_CAST : []}
+          isHost={true}
+          multiHumanCapable={multiHumanCapable}
+        />
       </div>
     </CtDataProviders>
   );

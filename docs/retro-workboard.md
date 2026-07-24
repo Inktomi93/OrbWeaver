@@ -95,6 +95,14 @@
   rolling; (4) CT-side equivalents; (5) a short doctrine note in tests/e2e/support (when `.first()` is
   legitimate; helpers-not-hand-rolls). Exception stays: CONTRACT tests deliberately re-spell literals
   (the test-mirror pattern) — the rule is about MACHINERY, not assertion literals.
+- **Kit items minted by rotation 2 (fold into the doctrine note + helpers)**: (a) Base UI select in live
+  drives = trigger-click → `expect(listbox).toBeVisible()` → `getByRole("option",{name})` (identity,
+  never positional `.first()`) → listbox hidden — clicking through the open animation gives the
+  "not stable→not visible" flake; (b) DOM attributes driven by a debounced autosave lag the UI action by
+  debounce+save+bus-refetch — gate the DOM assertion on a SERVER-state poll (doubles as the stronger
+  render-truth proof); (c) e2e tree now rides the tests-dom program (real DOM types in evaluate
+  callbacks — no more DomEl bridges/casts); (d) disabled-affordance CTs assert aria-disabled + title
+  (unlock condition) + activation-prevention, per the #8 idiom.
 
 ### #11 — Autosave draft/server truth inversion (the localStorage brick)
 - **Cause (traced)**: `create-autosave-entity-form.tsx:117` seeds `defaults ⊕ serverValues ⊕ draft` —
@@ -238,6 +246,58 @@ list) · **full e2e 18/18 including live** — the first fully-green live suite.
 MIXED-WEAK both fixed (character-library bulk-tag payload pin; theme-picker delete zero-call pin with
 ONESHOT-OK marker). No gate needed — the house idiom (consequence testids + trpc.lastInput payload polling
 + the state-store <output> funnel) structurally prevents the disease. #18 grows coverage from healthy stock.
+
+## Rotation 2 — CLOSED (2026-07-24, committed after this edit)
+
+**Landed + verified (every lane got a fresh-context verifier; #8 also side-eyed live):**
+- **#8 DONE**: one-surface draft redesign (wand + ⋯ menu were the two real reduced-mode violations; room
+  surface/context tabs were already unified). Owner 1:1 ruling landed: NOTHING hides — Delete/Download
+  render disabled on a draft; EVERY disabled affordance (menu items AND the wand/image-gen buttons)
+  carries a hover reason naming the UNLOCK condition. Mechanism: Base UI disabled MenuItems are
+  aria-disabled divs (title surfaces); buttons use `focusableWhenDisabled` (same effect). Copy
+  single-homed in lib/injection-copy.ts. Side-eye: 33/40 Nielsen, menus called a model implementation.
+- **#15 DONE**: spend/budget enforcement stripped (automation $ ceilings, whole plugin spend tier incl.
+  the runExclusive serializer — verifier proved it protected ONLY the spend gate); rate caps + cost
+  visibility + DoS caps kept; `budget_refused` = rate-cap terminal; D46 annotated; baseline regenerated.
+- **#16 DONE**: echo-stability suite (server exonerated — fuel was #11's client seed, already fixed);
+  persisted-store audit clean; gate blind spot proven; live no-clear-needed pin green ×3.
+- **#12 ui tranche DONE**: dialog overflow, slider FOCUS_RING_HAS, textarea rows-floor, MenuGroup
+  deleted, sortable keyboard-focus restoration (flake root-fix). PD-147 + BG-C/V + section hint HELD.
+- **#19 DONE (side-eye P1)**: stuck-composer root cause = `lastEventId:"0"` seed re-replays the durable
+  log from zero on subscription churn → re-replayed turnStarted re-opens the terminal turn slot. Fix =
+  monotonic per-chat seq guard at the bus adapter with attach-SYNTHESIZED events (chatOpened/
+  historyTruncated) exempted BY TYPE (the verifier REFUTED v1 — the guard was swallowing the sole
+  reopen catch-up invalidate; the exemption CT is proven-to-bite). LRU-capped mark map.
+- **#20 DONE**: rAF-batched token commits (burst of 5 deltas → ONE store commit, deterministically
+  pinned; honest finding: a slow local model masks the win — tokens arrive under frame rate).
+- **Infra**: e2e tree → tests-dom program (DomEl/FABRICATION casts dead); favicon (the first-load 404
+  was the implicit /favicon.ico probe; no icon ever existed); draft spec now MINTS its own character
+  (`mintFreshCharacter` support helper) — the rotating-sweep-failure class (seeded characters accumulate
+  chats across a sweep; a character with chats resumes instead of drafting) is dead.
+- **Battery at close**: check PASS · full battery PASS (1224 CT / 1 retry-flake) · **e2e 21/21 live**.
+- **Lesson (artifact discipline)**: a sweep failure's retain-on-failure artifacts live in
+  reports/e2e-results/ and are WIPED by the next run — read them BEFORE any re-run (one repro was lost
+  to an instant re-run this rotation).
+
+## Rotation 2 integration notes (2026-07-24)
+
+- **DB baseline regenerated** (drizzle-kit generate --name baseline, migrations dir emptied first):
+  reconciles #15's drops (plugin_budgets table + automation_budgets spend columns + narrowed CHECKs).
+  Verified: schema-baseline-parity.int green (bidirectional set-equal), client.int migration-apply green,
+  diff vs HEAD = exactly the intended drops. NOTE the pre-launch convention: a regenerated baseline
+  AUTO-RESETS the dev db at next boot (data loss by design; boot re-seeds default characters + persona,
+  e2e global-setup self-seeds — nothing breaks, but local dev chats are gone).
+- **ANOMALY (unattributed, corrected)**: sometime during the rotation-2 lane window the WORKING-TREE
+  0000_baseline.sql was reverted to commit `f4049019`'s pre-burn-down blob (1566 lines, buddies/sprites/
+  crew tables) — git-proven byte-identical. All lanes were git-banned; cause unknown. The regen replaced
+  it; backup preserved in the session scratchpad. If a working-tree file ever looks main-era again,
+  hash-match it against history FIRST (git hash-object + rev-parse walk) before assuming schema drift.
+- **Standing latents flagged by verifiers (no action this rotation)**: persistence-boundary gate checks
+  store NAMES only, not fields (a registered store could shadow a server-owned field — field-level check
+  is a real enforcement design decision); appearance.backgroundLibrary `.catch([])` drops the whole array
+  on one malformed entry (entries are server-minted, latent); plugin storage.set 256-key cap has a
+  documented race-tolerant TOCTOU (pre-existing, accepted by its own comment).
+- **D46 ledger annotated** (spend half retired, rate half + visibility stay) — Core-Path-Registry.md.
 
 ## Open decisions (owner)
 

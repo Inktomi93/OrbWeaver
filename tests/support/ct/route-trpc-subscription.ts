@@ -31,11 +31,22 @@ function sseFrame(fields: { event?: string; data: string; id?: string }): string
   return `${frame}\n`;
 }
 
-/** Build the full stream body: connected → each event (seq from 1) → return (clean close). */
-function streamBody(events: readonly ChatBusEvent[], includeReturn: boolean): string {
+/** One scripted stream entry: a bare `ChatBusEvent` (id auto-assigned `String(i+1)`), or an event paired
+ *  with an EXPLICIT tracked `id` — needed to reproduce the transport's attach synthetics
+ *  (`chatOpened`/`historyTruncated`), which carry the NON-advancing resume cursor as their id
+ *  (`String(resumeSeq ?? 0)`, routers/chat.ts), not a fresh durable seq. */
+export type ScriptedStreamEntry = ChatBusEvent | { readonly event: ChatBusEvent; readonly id: string };
+
+function entryOf(entry: ScriptedStreamEntry, i: number): { event: ChatBusEvent; id: string } {
+  return "event" in entry ? { event: entry.event, id: entry.id } : { event: entry, id: String(i + 1) };
+}
+
+/** Build the full stream body: connected → each event (explicit or auto seq) → return (clean close). */
+function streamBody(events: readonly ScriptedStreamEntry[], includeReturn: boolean): string {
   const frames: string[] = [sseFrame({ event: "connected", data: JSON.stringify({}) })];
-  for (const [i, event] of events.entries()) {
-    frames.push(sseFrame({ data: JSON.stringify(event), id: String(i + 1) }));
+  for (const [i, entry] of events.entries()) {
+    const { event, id } = entryOf(entry, i);
+    frames.push(sseFrame({ data: JSON.stringify(event), id }));
   }
   if (includeReturn) {
     frames.push(sseFrame({ event: "return", data: "" }));
@@ -51,8 +62,9 @@ export interface ChatStreamRecorder {
 }
 
 export interface RouteChatStreamOptions {
-  /** The ordered `ChatBusEvent`s to emit after `connected` (seq assigned 1…N). */
-  readonly events: readonly ChatBusEvent[];
+  /** The ordered entries to emit after `connected` — a bare `ChatBusEvent` (seq auto-assigned 1…N) or an
+   *  `{ event, id }` pair to stamp an explicit tracked id (the attach-synthetic non-advancing cursor). */
+  readonly events: readonly ScriptedStreamEntry[];
   /** Emit the terminal `return` frame so the EventSource closes cleanly. @defaultValue true */
   readonly closeStream?: boolean;
 }

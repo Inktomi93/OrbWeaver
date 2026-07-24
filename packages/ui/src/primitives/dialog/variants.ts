@@ -1,9 +1,11 @@
 import { MODAL_SURFACE, OVERLAY_MOTION, SCRIM, tv } from "#lib";
 
 // Backdrop is the theme-aware `--scrim` token (never `bg-black/50`); the stack sits at `--z-modal`.
-// Scroll ownership: the POPUP owns layout, never the backdrop/viewport — the viewport is a plain flex
-// centering container (not a scroll container), and flex (not grid) centering has a definite height so
-// `max-h-full`/`h-full` clamp correctly on the popup.
+// Scroll ownership: the POPUP owns layout AND scroll, never the backdrop/viewport — the viewport is a
+// plain flex centering container (not a scroll container), and flex (not grid) centering has a definite
+// height so `max-h-full`/`h-full` clamp correctly on the popup. The popup pairs that clamp with
+// `overflow-y-auto overscroll-contain` (matching drawer-content) so tall content — a FormDialog whose
+// body outgrows the viewport — actually scrolls to its submit button instead of overflowing off-screen.
 export const dialogVariants = tv({
   slots: {
     // The modal scrim + the dialog-only `backdrop-blur-sm` on top (alert-dialog shares the scrim, not the blur).
@@ -11,7 +13,7 @@ export const dialogVariants = tv({
     // Viewport gutter is set per-size (below), never in the base — else `full`'s `p-0` and a base `p-gutter`
     // are two padding classes tailwind-merge can't dedupe.
     viewport: "fixed inset-0 z-(--z-modal) flex items-center justify-center",
-    popup: `flex max-h-full flex-col ${MODAL_SURFACE} ${OVERLAY_MOTION.modalPopup}`,
+    popup: `flex max-h-full flex-col overflow-y-auto overscroll-contain ${MODAL_SURFACE} ${OVERLAY_MOTION.modalPopup}`,
     title: "text-title leading-title font-semibold",
     description: "mt-field text-body leading-body text-muted-foreground",
   },

@@ -8,12 +8,11 @@
 
 import type { PluginInstance } from "@orb/contracts/plugin";
 import { errorMessage } from "@orb/kit/error-message";
-import type { PluginActivationScope, PluginInvokeHandler, PluginRegistrationHandle, PluginSpendGate } from "../contract/ops";
+import type { PluginActivationScope, PluginInvokeHandler, PluginRegistrationHandle } from "../contract/ops";
 import type { ActivateInput, ActivateOutcome, CrashPolicy, PluginContext, PluginRegistry } from "../contract/service";
 import { setStatus } from "../persistence/plugins";
 import { buildPluginBridge } from "../substrate/bridge";
 import { parseBundle } from "../substrate/manifest";
-import { accumulateSpend, checkSpend } from "../substrate/spend-gate";
 
 /** Hand every collected registration to its registrar op, collecting the deregistration handles. Each carries
  *  the per-activation {@link PluginActivationScope} (the manifest slug for namespacing + the installer for the
@@ -68,30 +67,11 @@ export function createActivate(ctx: PluginContext, registry: PluginRegistry, cra
     }
 
     // The membrane bridge is built PER INSTALLER (global-vars closes over the installer); an installed plugin's
-    // `main.js` runs registration-only, so no chat is admitted for the activation run (chat: null). The SPEND
-    // gate (PLUGIN-SPEND) is pre-bound to THIS plugin's id + db + clock here (where the pluginId is in scope),
-    // so `bridge.ts` stays pure of db/pluginId. `runExclusive` is a PER-INSTANCE tail-promise (the `port.invoke`
-    // FIFO precedent) that serializes the whole check→op→accumulate section: a single guest handler can fire up
-    // to HOST_CALLS_IN_FLIGHT_MAX (32) CONCURRENT host-fn calls, so without this the checks would all read the
-    // same row before any accumulate persisted and the action ceiling would overshoot. The queue is naturally
-    // bounded by that 32-in-flight cap (no spendy section can be pending beyond it), so no extra bound is needed.
-    // The activation run itself registers only (no spendy op fires until a resident handler runs later).
-    let spendTail: Promise<unknown> = Promise.resolve();
-    const spend: PluginSpendGate = {
-      check: () => checkSpend(ctx.db, { pluginId: input.pluginId, nowMs: ctx.now() }),
-      accumulate: (costUsd) => accumulateSpend(ctx.db, input.pluginId, ctx.now(), costUsd),
-      runExclusive: <T>(fn: () => Promise<T>): Promise<T> => {
-        // Chain after the previous spendy section settles (fulfil OR reject — the `.then(x,x)` barrier below never
-        // rejects, so a refused/failed section never wedges the chain). The caller gets its OWN run's settle.
-        const run = spendTail.then(fn);
-        spendTail = run.then(
-          () => undefined,
-          () => undefined,
-        );
-        return run;
-      },
-    };
-    const bridge = buildPluginBridge(ctx.ops, input.caller.userId, spend, input.pluginId);
+    // `main.js` runs registration-only, so no chat is admitted for the activation run (chat: null). (The
+    // per-plugin spend gate was stripped 2026-07-24 — enterprise spend enforcement; a runaway plugin's turns are
+    // bounded by the engine's per-member turn RATE budget + the cascade-depth guard, and cost VISIBILITY rides
+    // the stats domain.)
+    const bridge = buildPluginBridge(ctx.ops, input.caller.userId, input.pluginId);
     const outcome = await ctx.host.createInstance({ mainJs, grants: input.grants, bridge, chat: null, ...(netHosts !== undefined ? { netHosts } : {}) });
     if (!outcome.ok) {
       await setStatus(ctx.db, input.pluginId, { status: "errored", lastError: outcome.error, updatedAt: ctx.now() });

@@ -4,7 +4,7 @@
 // (no denormalized column — 02 §3). Queries only: authority (`can`), grant math, and CAS ordering live in the
 // verbs.
 
-import type { PluginBudgetView, PluginCapability, PluginManifest, PluginOrigin, PluginStatus } from "@orb/contracts/plugin";
+import type { PluginCapability, PluginManifest, PluginOrigin, PluginStatus } from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";
 import { plugins } from "@orb/db";
 import type { AssetId, PluginId, UserId } from "@orb/kit/ids";
@@ -14,11 +14,9 @@ import type { PluginView } from "../contract/results";
 /** The stored `plugins` row. Homed as the db `$inferSelect` (the RuleRow precedent) — persistence's unit. */
 type PluginRow = typeof plugins.$inferSelect;
 
-/** Project a row + its budget view to the owner-facing `PluginView` (02 §4). `builtAgainst` is lifted from the
- *  persisted manifest json (provenance rides INSIDE the manifest — no column, 02 §3); `null` when the manifest
- *  declared none. `budget` is resolved by the caller (`selectBudgetView` — the defaults for an absent row), kept
- *  a param so this stays a pure projection (no db access here — persistence/budgets owns the budget read). */
-export function toPluginView(row: PluginRow, budget: PluginBudgetView): PluginView {
+/** Project a row to the owner-facing `PluginView` (02 §4). `builtAgainst` is lifted from the persisted manifest
+ *  json (provenance rides INSIDE the manifest — no column, 02 §3); `null` when the manifest declared none. */
+export function toPluginView(row: PluginRow): PluginView {
   return {
     id: row.id,
     slug: row.slug,
@@ -32,7 +30,6 @@ export function toPluginView(row: PluginRow, budget: PluginBudgetView): PluginVi
     lastError: row.lastError,
     installedAt: row.installedAt,
     updatedAt: row.updatedAt,
-    budget,
   };
 }
 
