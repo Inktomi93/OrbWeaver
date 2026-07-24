@@ -33,5 +33,5 @@ test("QueryBoundary defaults renderError to QueryErrorState when omitted", async
   await page.getByRole("button", { name: "Retry" }).click();
 
   await expect(page.getByText("recovered")).toBeVisible();
-  expect(trpc.count("echo")).toBe(2);
+  await expect.poll(() => trpc.count("echo")).toBe(2);
 });

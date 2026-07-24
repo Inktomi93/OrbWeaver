@@ -171,7 +171,6 @@ export function createLifecycle(): Lifecycle {
       credentials: built.services.credentials,
       owner,
       openrouterApiKey: env.OPENROUTER_API_KEY,
-      tenorApiKey: env.TENOR_API_KEY,
     });
 
     await seedDefaultPreset({ db, now });

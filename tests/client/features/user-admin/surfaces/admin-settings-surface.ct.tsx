@@ -2,7 +2,7 @@
 // admin verbs). Drives the PRODUCTION path: `admin.listUsers` + `sessions.me` seed the pane
 // (QueryBoundary + suspense); the row controls fire the real mutations (recorded via routeTrpc); the
 // owner-only role gate (`setRole` is `requireOwner`) renders DISABLED for a delegated admin; the
-// self/owner/agent affordances mirror the server guards; the create / reset-password / sessions
+// self/owner affordances mirror the server guards; the create / reset-password / sessions
 // dialogs submit the real wire inputs.
 
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -45,17 +45,6 @@ const USERS = [
     enabled: true,
     kind: "human",
     ownerHandle: null,
-    createdAt: 1_700_000_000_000,
-    updatedAt: 1_700_000_000_000,
-  },
-  {
-    id: "user_agent",
-    handle: "buddy-agent",
-    externalId: null,
-    role: "user",
-    enabled: true,
-    kind: "agent",
-    ownerHandle: "root",
     createdAt: 1_700_000_000_000,
     updatedAt: 1_700_000_000_000,
   },
@@ -102,11 +91,9 @@ test("renders the user table + the engines list", async ({ mount, page }) => {
   await stub(page, OWNER_VIEWER);
   const component = await mount(<AdminSettingsStory />);
 
-  await expect(component.getByText("4 accounts")).toBeVisible();
+  await expect(component.getByText("3 accounts")).toBeVisible();
   await expect(component.getByText("root", { exact: true })).toBeVisible();
   await expect(component.getByText("kes", { exact: true })).toBeVisible();
-  // The agent row names its owner (the D60 containment surface never hides agents).
-  await expect(component.getByText("Agent — owned by root")).toBeVisible();
   // Engines: name + status badge + detail line.
   await expect(component.getByText("embed", { exact: true })).toBeVisible();
   await expect(component.getByText("failed", { exact: true })).toBeVisible();
@@ -130,9 +117,8 @@ test("as a delegated admin, the role controls are DISABLED (requireOwner honesty
   const component = await mount(<AdminSettingsStory />);
 
   await expect(component.getByRole("combobox", { name: "Role — kes" })).toBeDisabled();
-  // The owner row exposes NO role control at all (owner-immutability), nor does the agent row (D60).
+  // The owner row exposes NO role control at all (owner-immutability).
   await expect(component.getByRole("combobox", { name: "Role — root" })).toHaveCount(0);
-  await expect(component.getByRole("combobox", { name: "Role — buddy-agent" })).toHaveCount(0);
   // Non-role controls stay live for the delegated admin.
   await expect(component.getByRole("switch", { name: "Enabled — kes" })).toBeEnabled();
 });
@@ -143,7 +129,7 @@ test("disabling an account is confirm-gated and fires setEnabled(false)", async 
 
   await component.getByRole("switch", { name: "Enabled — kes" }).click();
   // Nothing fires until the destructive confirm.
-  expect(trpc.count("admin.setEnabled")).toBe(0);
+  await expect.poll(() => trpc.count("admin.setEnabled")).toBe(0);
   await page.getByRole("button", { name: "Disable", exact: true }).click();
 
   await expect.poll(() => trpc.lastInput("admin.setEnabled"), { intervals: [20, 50, 100] }).toEqual({ userId: "user_kes", enabled: false });
@@ -225,7 +211,7 @@ test("the create-user dialog teaches the password floor instead of submitting", 
   // `exact` — the password field's DESCRIPTION also starts with this copy; the exact match is the
   // field-error slot the failed validator populated.
   await expect(dialog.getByText("At least 8 characters.", { exact: true })).toBeVisible();
-  expect(trpc.count("admin.createUser")).toBe(0);
+  await expect.poll(() => trpc.count("admin.createUser")).toBe(0);
 });
 
 test("reset password: the row menu opens the dialog and submits the new password", async ({ mount, page }) => {
@@ -258,7 +244,7 @@ test("reset password: submit is clickable, and a too-short password shows an inl
   await submit.click();
 
   await expect(dialog.getByText("Password must be at least 8 characters.")).toBeVisible();
-  expect(trpc.count("admin.resetPassword")).toBe(0);
+  await expect.poll(() => trpc.count("admin.resetPassword")).toBe(0);
 });
 
 test("sessions: the dialog lists sessions and revokes one / all", async ({ mount, page }) => {
@@ -285,7 +271,7 @@ test("sessions: the dialog lists sessions and revokes one / all", async ({ mount
   // already-open sessions Dialog) renders OVER the parent — both the parent `dialog` and the nested
   // `alertdialog` are visible at once.
   await dialog.getByRole("button", { name: "Revoke all" }).click();
-  expect(trpc.count("admin.revokeUserSessions")).toBe(0);
+  await expect.poll(() => trpc.count("admin.revokeUserSessions")).toBe(0);
   const confirm = page.getByRole("alertdialog");
   await expect(confirm.getByText("Revoke all sessions?")).toBeVisible();
   await expect(dialog).toBeVisible();
@@ -293,7 +279,7 @@ test("sessions: the dialog lists sessions and revokes one / all", async ({ mount
   // Cancel is a no-op — the mutation never fires and the parent dialog is unaffected.
   await confirm.getByRole("button", { name: "Cancel" }).click();
   await expect(confirm).toHaveCount(0);
-  expect(trpc.count("admin.revokeUserSessions")).toBe(0);
+  await expect.poll(() => trpc.count("admin.revokeUserSessions")).toBe(0);
   await expect(dialog).toBeVisible();
 
   // Confirming fires the real revoke-all mutation for this user.

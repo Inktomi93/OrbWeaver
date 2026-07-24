@@ -177,20 +177,20 @@ function packageDir(name: string): string {
 }
 
 // ── the import-pull overlay cache (rule 5) — the graph program's package-src membership (§2.2) ──────────
-// `tsgo -p tsconfig.json --listFilesOnly` (0.46s) lists the graph's TRUE membership; we keep only the
+// `ts7 -p tsconfig.json --listFilesOnly` lists the graph's TRUE membership; we keep only the
 // repo-relative packages/*/src files (the overlay set — everything else is a graph ROOT or node_modules).
 // Cached under node_modules/.cache (gitignored, per-worktree — the tsbuildinfo convention), keyed on the
 // git HEAD + a hash of the dirty working set: a src edit changes the dirty key, a commit changes HEAD, so
-// the cache refreshes exactly when the import graph could have moved. Cache MISS or a tsgo failure ⇒
+// the cache refreshes exactly when the import graph could have moved. Cache MISS or a ts7 failure ⇒
 // undefined ⇒ programsFor falls back to the conservative "any package-src runs the graph" rule (never
-// under-runs the overlay). The heavy tsgo spawn happens ONCE per key, not per file.
+// under-runs the overlay). The heavy ts7 spawn happens ONCE per key, not per file.
 const GRAPH_MEMBERSHIP_CACHE = "node_modules/.cache/graph-membership.json";
 const PKG_SRC_ABS_RE = /\/(packages\/[^/]+\/src\/.*\.(?:ts|tsx|mts|cts))$/u;
 
 type MembershipCache = { readonly key: string; readonly members: readonly string[] };
 
 /** A stable key for the graph's import closure: HEAD commit + a digest of `git status --porcelain` (the
- *  dirty working set). Cheap; recomputed each run, but the tsgo spawn only fires on a key change. */
+ *  dirty working set). Cheap; recomputed each run, but the ts7 spawn only fires on a key change. */
 function graphMembershipKey(): string {
   const head = spawnSync("git", ["rev-parse", "HEAD"], { cwd: ROOT, encoding: "utf8" });
   const dirty = spawnSync("git", ["status", "--porcelain"], { cwd: ROOT, encoding: "utf8" });
@@ -215,13 +215,14 @@ function readMembershipCache(key: string): ReadonlySet<string> | undefined {
   return cache !== undefined && cache.key === key ? new Set(cache.members) : undefined;
 }
 
-// tsgo's --listFilesOnly on the whole graph is ~5,400 absolute paths (~0.5MB); 64MiB is generous headroom.
+// ts7's --listFilesOnly on the whole graph is ~5,400 absolute paths (~0.5MB); 64MiB is generous headroom.
 const LIST_FILES_MAX_BUFFER = 67_108_864;
 
-/** Compute the graph's package-src membership via tsgo `--listFilesOnly`, or undefined on any failure. */
+/** Compute the graph's package-src membership via ts7 `--listFilesOnly` (the same scripts/ts7.cjs wrapper
+ *  the typecheck scripts use), or undefined on any failure. */
 function computeMembership(): readonly string[] | undefined {
-  const tsgo = join(ROOT, "node_modules", ".bin", "tsgo");
-  const res = spawnSync(tsgo, ["--noEmit", "--listFilesOnly", "-p", "tsconfig.json"], {
+  const ts7 = join(ROOT, "scripts", "ts7.cjs");
+  const res = spawnSync(process.execPath, [ts7, "--noEmit", "--listFilesOnly", "-p", "tsconfig.json"], {
     cwd: ROOT,
     encoding: "utf8",
     maxBuffer: LIST_FILES_MAX_BUFFER,

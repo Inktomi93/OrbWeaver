@@ -3,7 +3,6 @@
 // `null`/absent override falls through to the floor (the null=CLEAR sentinel). Plus the D17 governance
 // floors (born-in-DB: local-compute ON, max-pro-sub OFF, budget null).
 
-import { HUB_KEYS } from "@orb/contracts/hub";
 import { DEFAULT_MAX_IMAGE_BYTES } from "@orb/contracts/settings";
 import { env } from "@orb/server/foundation/env";
 import { describe } from "vitest";
@@ -78,16 +77,5 @@ describe("layer (floor-merge)", () => {
     expect(layer({}).maxImageBytes).toBe(DEFAULT_MAX_IMAGE_BYTES);
     expect(layer({ maxImageBytes: null }).maxImageBytes).toBe(DEFAULT_MAX_IMAGE_BYTES); // clear → floor
     expect(layer({ maxImageBytes: 20_000_000 }).maxImageBytes).toBe(20_000_000);
-  });
-
-  test("card-hub kill switch (doc 03 §4): floor is master-ON with every v1 hub allowed; overrides win", () => {
-    const floor = layer({}).hub;
-    expect(floor.enabled).toBe(true);
-    expect(floor.enabledHubs).toEqual([...HUB_KEYS]); // every built hub allowed by default
-    // The operator master flip disables every hub verb.
-    expect(layer({ hub: { enabled: false } }).hub.enabled).toBe(false);
-    // A narrowed allowlist wins; a null (CLEAR) override falls through to the full floor.
-    expect(layer({ hub: { enabledHubs: [] } }).hub.enabledHubs).toEqual([]);
-    expect(layer({ hub: null }).hub.enabledHubs).toEqual([...HUB_KEYS]);
   });
 });

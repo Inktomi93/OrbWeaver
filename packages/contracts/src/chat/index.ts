@@ -617,15 +617,6 @@ export const CHAT_WARNING_CODES = [
   // a stale-capability edit). Emitted from `chat.generateImage`, mapping `GeneratedPicture.warnings` onto the
   // one chat `warning` surface so the user sees "generated without the avatar reference (model can't edit)".
   "image_edit_dropped",
-  // The GRANULAR ComfyUI lever drops (comfyui-control §4.6/§4.12, C6) — one curated role's family couldn't honor
-  // ONE provided edit lever, so that lever was ignored and the rest of the image still generated (a per-lever
-  // visible degrade, distinct from the wholesale `image_edit_dropped`). Each rides its OWN chat `warning` event
-  // (never collapsed) so a user who picked a pose learns THE POSE dropped, specifically — the mask on a
-  // no-inpaint family, the reference image on a no-identity arch, the pose control map on a no-ControlNet family.
-  // Emitted from `chat.generateImage`, same imagery→chat mapping as `image_edit_dropped`.
-  "image_inpaint_dropped",
-  "image_identity_dropped",
-  "image_pose_dropped",
 ] as const;
 export type ChatWarningCode = (typeof CHAT_WARNING_CODES)[number];
 

@@ -16,13 +16,10 @@ export type { PersonaRow } from "./persona.ts";
 export { makePersona, seedPersona } from "./persona.ts";
 export { principal } from "./principal.ts";
 export {
-  makeAnthropicCredential,
   makeModelCapability,
   makeOpenRouterCredential,
   makeResolvedConnection,
   makeResolvedCredential,
 } from "./resolved-connection.ts";
-export type { SeedGameOptions, SnapshotFks } from "./rpg.ts";
-export { DEFAULT_GAME_CONFIG, makeSnapshotValues, seedGame } from "./rpg.ts";
 export type { UserRow } from "./user.ts";
 export { makeUser, seedUser } from "./user.ts";

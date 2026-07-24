@@ -11,15 +11,9 @@ import type { ModelCapability } from "@orb/contracts/connection";
 import { CACHE_MIN_FLOOR } from "@orb/contracts/connection";
 import { describe } from "vitest";
 import { resolveModelCapability } from "../../../../../packages/server/src/domain/connection/catalog/resolve-model-capability.ts";
-import {
-  ANTH_DIRECT_PRE_CUTOFF_SAMPLING,
-  ANTHROPIC_TEMP_RANGE,
-  refineAnthDirectSampling,
-} from "../../../../../packages/server/src/domain/connection/catalog/turns.ts";
 import { expect, test } from "../../../../support/fixtures";
 
 type Turns = ModelCapability["turns"];
-type Sampling = ModelCapability["sampling"];
 
 // (model, source, api) tuples for the two cache-bearing shapes each Claude reaches:
 //   openai-compat (Claude-via-OR chat-completions) and anthropic-cli (agent-sdk / max-pro-sub).
@@ -38,7 +32,6 @@ describe("cache gate — explicitPromptCache is an ANTHROPIC-FAMILY fact (ruling
     expect(compat("meta-llama/llama-4")?.explicitPromptCache).toBe(false);
     expect(compat("google/gemini-2.5-pro")?.explicitPromptCache).toBe(false);
   });
-
 });
 
 describe("cache gate — cacheMinTokens per-model floor (part 02 §5d table)", () => {
@@ -115,61 +108,5 @@ describe("behavior-neutrality — non-anthropic + static arms resolve to the non
   test("the vLLM static arm is non-caching", () => {
     const t = resolveModelCapability("Qwen/Qwen3-8B", "vllm", "chat-completions").turns;
     expect(t?.explicitPromptCache).toBe(false);
-  });
-});
-
-// W9 (D68-C) — the direct-transport Claude SAMPLING seam. The raw Messages wire carries
-// temperature/top_p/top_k/stop_sequences, but the SDK documents post-Opus-4.6 models as REJECTING non-default
-// values (part 03 §3 — a live 400). So `refineAnthDirectSampling` is a PER-MODEL fact, SEEDED `{}` on every
-// entry until the W9 hand-run probe verifies it — a blanket unlock is a 400 factory. Only the anthropic-direct
-// wire-shape ever gets a non-`{}` seed; every other shape passes the base sampling through unchanged.
-describe("refineAnthDirectSampling — the direct-transport seam is WIRED (not an accidental {})", () => {
-  test("on the anthropic-direct shape, an UNSEEDED id ⇒ {} (fail-closed), never the base", () => {
-    // The base sampling is DISCARDED on the direct shape when the id is unseeded — proving the refinement
-    // runs (a tautology-{} would leak the base's temperature through).
-    const base: Sampling = { temperature: { min: 0, max: 2 }, topP: { min: 0, max: 1 } };
-    expect(refineAnthDirectSampling("claude-opus-4-8", "anthropic-direct", base)).toEqual({});
-  });
-
-  test("on a NON-direct shape, the base sampling passes through UNCHANGED (same reference)", () => {
-    const base: Sampling = { temperature: { min: 0, max: 2 } };
-    expect(refineAnthDirectSampling("claude-opus-4-8", "anthropic-cli", base)).toBe(base);
-    expect(refineAnthDirectSampling("claude-haiku-4-5", "openai-compat", base)).toBe(base);
-  });
-
-  test("PROBED-OPEN (first-party wire): every id at/below Opus 4.6 resolves the full pre-cutoff set on the direct shape", () => {
-    // The hand-run first-party probe (raw api.anthropic.com) confirmed each of these honors
-    // temperature/top_p/top_k (all 200), so its entry is OPEN. The base is discarded for the seed.
-    //   2026-07-17: Haiku 4.5.  2026-07-18: Opus 4.1 / 4.5 / 4.6, Sonnet 4.5 / 4.6.
-    const base: Sampling = { temperature: { min: 0, max: 2 } };
-    for (const id of [
-      "claude-haiku-4-5",
-      "claude-haiku-4-5-20251001",
-      "claude-opus-4-1-20250805",
-      "claude-opus-4-5-20251101",
-      "claude-opus-4-6",
-      "claude-sonnet-4-5-20250929",
-      "claude-sonnet-4-6",
-    ]) {
-      expect(refineAnthDirectSampling(id, "anthropic-direct", base)).toEqual(ANTH_DIRECT_PRE_CUTOFF_SAMPLING);
-    }
-  });
-
-  test("post-cutoff models STAY fail-closed on the direct shape (released after Opus 4.6 → a 400 for sampling)", () => {
-    // The probe returned a 400 ("deprecated for this model") for every id released after Opus 4.6.
-    // Sonnet 5 is the load-bearing negative: SONNET_MODERN_RE matches it for cache-min, but the sampling
-    // table's pre-cutoff-only SONNET_4x regexes must NOT — a false-open here would 400 every live turn.
-    const base: Sampling = { temperature: { min: 0, max: 2 } };
-    for (const id of ["claude-opus-4-7", "claude-opus-4-8", "claude-sonnet-5", "claude-fable-5"]) {
-      expect(refineAnthDirectSampling(id, "anthropic-direct", base)).toEqual({});
-    }
-  });
-
-  test("the opened-entry sampling set uses Anthropic's 0–1 temp range (NOT the OpenAI 0–2)", () => {
-    // The capability an opened entry resolves to — asserts the range is the distinct Anthropic bound (part
-    // 03 §3), so opening an entry can never accidentally re-use the OpenAI 0–2 ceiling.
-    expect(ANTH_DIRECT_PRE_CUTOFF_SAMPLING.temperature).toBe(ANTHROPIC_TEMP_RANGE);
-    expect(ANTHROPIC_TEMP_RANGE).toEqual({ min: 0, max: 1 });
-    expect(ANTH_DIRECT_PRE_CUTOFF_SAMPLING.stop).toBe(true);
   });
 });

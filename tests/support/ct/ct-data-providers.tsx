@@ -26,7 +26,7 @@ import { notificationsChrome } from "@orb/client/features/notifications";
 import { personaChrome, personasPane } from "@orb/client/features/persona";
 import { presetsSection } from "@orb/client/features/preset";
 import { refinerySection } from "@orb/client/features/refinery";
-import { appearancePane, chatBehaviorPane, regexPane, settingsModal, systemPane, tagsPane, themeModal } from "@orb/client/features/settings";
+import { appearancePane, automationPane, chatBehaviorPane, regexPane, settingsModal, systemPane, tagsPane, themeModal } from "@orb/client/features/settings";
 import { analyticsSection } from "@orb/client/features/stats";
 import { adminPane } from "@orb/client/features/user-admin";
 import { backupPane, workloadsPane } from "@orb/client/features/workloads";
@@ -119,6 +119,7 @@ const realModalRegistry: ModalRegistry = createRegistry<ModalSlotId, ModalDefini
 const REAL_SETTINGS_PANES: Record<SettingsCategoryId, SettingsPaneDefinition> = {
   personas: personasPane,
   appearance: appearancePane,
+  automation: automationPane,
   tags: tagsPane,
   workloads: workloadsPane,
   backup: backupPane,

@@ -89,7 +89,7 @@ test("delete: the icon trigger opens an uncontrolled confirm with no description
 
   await dialog.getByRole("button", { name: "Delete" }).click();
   await expect.poll(() => trpc.count("worldInfo.removeEntry"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
-  expect((trpc.lastInput("worldInfo.removeEntry") as { entryId: string }).entryId).toBe("world_entry_ctstory0001");
+  await expect.poll(() => (trpc.lastInput("worldInfo.removeEntry") as { entryId: string }).entryId).toBe("world_entry_ctstory0001");
 });
 
 // F1 SWITCH pin (autosave-form-doctrine.md §8/§10) — the book surface swaps the `entry` prop on ONE mounted

@@ -14,8 +14,6 @@ import { Row, Stack } from "@orb/ui/layout";
 import type { MediaGridItem, MediaGridKey } from "@orb/ui/media-grid";
 import { MediaGrid } from "@orb/ui/media-grid";
 import { Text } from "@orb/ui/text";
-import { Toggle } from "@orb/ui/toggle";
-import { ToggleGroup } from "@orb/ui/toggle-group";
 import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
@@ -23,10 +21,7 @@ import { useState } from "react";
 import { ConfirmDialog } from "#components";
 import type { Trpc } from "#data";
 import { SkeletonRows, useInvalidation, useTRPC } from "#data";
-import { GalleryGifSearchPanel } from "../components/gallery-gif-search-panel";
 import { GALLERY_PAGE_LIMIT, useAddToGallery, useRemoveFromGallery } from "../hooks/use-character-gallery";
-
-type AddPickerMode = "owned" | "gifs";
 
 const GALLERY_THUMB_WIDTH = 240;
 
@@ -202,39 +197,12 @@ interface GalleryAddPickerProps {
 }
 
 function GalleryAddPicker({ open, onOpenChange, characterId, existingAssetIds }: GalleryAddPickerProps): ReactElement {
-  const [mode, setMode] = useState<AddPickerMode>("owned");
-
-  const close = (next: boolean): void => {
-    if (!next) {
-      setMode("owned");
-    }
-    onOpenChange(next);
-  };
-
   return (
-    <Dialog open={open} onOpenChange={close}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogPopup size="lg">
         <Stack gap="block">
           <DialogTitle>Add images to the gallery</DialogTitle>
-          <ToggleGroup
-            value={[mode]}
-            onValueChange={(value): void => {
-              const next = value[0];
-              if (next !== undefined) {
-                setMode(next as AddPickerMode);
-              }
-            }}
-            aria-label="Image source"
-          >
-            <Toggle value="owned">Your uploads</Toggle>
-            <Toggle value="gifs">Search GIFs</Toggle>
-          </ToggleGroup>
-
-          {mode === "owned" ? (
-            <OwnedAssetPicker characterId={characterId} existingAssetIds={existingAssetIds} onDone={(): void => close(false)} />
-          ) : (
-            <GalleryGifSearchPanel characterId={characterId} />
-          )}
+          <OwnedAssetPicker characterId={characterId} existingAssetIds={existingAssetIds} onDone={(): void => onOpenChange(false)} />
         </Stack>
       </DialogPopup>
     </Dialog>

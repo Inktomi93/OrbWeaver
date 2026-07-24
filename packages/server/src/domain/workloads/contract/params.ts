@@ -5,7 +5,7 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { WorkloadKind, WorkloadMode, WorkloadStatus } from "@orb/contracts/workloads";
-import type { ChatId, UserId, WorkloadId } from "@orb/kit/ids";
+import type { UserId, WorkloadId } from "@orb/kit/ids";
 import type { StartWorkloadInput } from "./workload-params";
 
 /** mode: "bulk" requires the box owner and either sweeps all owners or mints into targetOwnerId; caller:
@@ -45,9 +45,6 @@ export interface ListWorkloadsParams {
   readonly kind?: WorkloadKind;
   readonly status?: WorkloadStatus;
   readonly ownerId?: UserId | null;
-  /** Narrow to ONE chat's workloads (matches `params.chatId`) — the crew status chip's durable per-member
-   *  last-run re-hydrate (chat-crew-design/07 §2, §7); any chat-scoped kind (crew/rpg) benefits. */
-  readonly chatId?: ChatId;
   readonly since?: number;
   readonly limit?: number;
 }

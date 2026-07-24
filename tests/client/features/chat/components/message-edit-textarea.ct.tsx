@@ -27,11 +27,13 @@ test("Enter (no Shift) saves via chat.editMessage with the edited content", asyn
   await textarea.press("Enter");
 
   await expect.poll(() => trpc.count("chat.editMessage"), { intervals: [20, 50, 100] }).toBe(1);
-  expect(trpc.lastInput("chat.editMessage")).toMatchObject({
-    chatId: message.chatId,
-    messageId: message.id,
-    content: "edited text",
-  });
+  await expect
+    .poll(() => trpc.lastInput("chat.editMessage"))
+    .toMatchObject({
+      chatId: message.chatId,
+      messageId: message.id,
+      content: "edited text",
+    });
 });
 
 test("Shift+Enter inserts a newline instead of saving", async ({ mount, page }) => {
@@ -45,7 +47,7 @@ test("Shift+Enter inserts a newline instead of saving", async ({ mount, page }) 
   await textarea.pressSequentially("line two");
 
   await expect(textarea).toHaveValue("line one\nline two");
-  expect(trpc.count("chat.editMessage")).toBe(0);
+  await expect.poll(() => trpc.count("chat.editMessage")).toBe(0);
 });
 
 test("Esc cancels — discards the draft (store clears → the textarea reads empty), never saves", async ({ mount, page }) => {
@@ -57,7 +59,7 @@ test("Esc cancels — discards the draft (store clears → the textarea reads em
   await textarea.fill("a change I want to discard");
   await textarea.press("Escape");
 
-  expect(trpc.count("chat.editMessage")).toBe(0);
+  await expect.poll(() => trpc.count("chat.editMessage")).toBe(0);
   // The store's `cancelEditingMessage` deletes the draft entry; the SAME reactive textarea (the
   // story keeps it mounted regardless of edit-mode, see _ct-stories.tsx) re-renders reading the
   // hook's not-editing fallback ("") — the observable proof the draft was cleared, from the
@@ -75,7 +77,7 @@ test("the Cancel button also discards the draft without saving", async ({ mount,
   await textarea.fill("discard me");
   await component.getByRole("button", { name: "Cancel edit" }).click();
 
-  expect(trpc.count("chat.editMessage")).toBe(0);
+  await expect.poll(() => trpc.count("chat.editMessage")).toBe(0);
   await expect(textarea).toHaveValue("");
 });
 
@@ -88,7 +90,7 @@ test("the Save button fires the same save path as Enter", async ({ mount, page }
   await component.getByRole("button", { name: "Save edit" }).click();
 
   await expect.poll(() => trpc.count("chat.editMessage"), { intervals: [20, 50, 100] }).toBe(1);
-  expect(trpc.lastInput("chat.editMessage")).toMatchObject({ content: "saved via button" });
+  await expect.poll(() => trpc.lastInput("chat.editMessage")).toMatchObject({ content: "saved via button" });
 });
 
 test("an unchanged save (identical text) exits WITHOUT calling chat.editMessage", async ({ mount, page }) => {
@@ -99,6 +101,6 @@ test("an unchanged save (identical text) exits WITHOUT calling chat.editMessage"
   const textarea = component.getByRole("textbox", { name: "Edit message" });
   await textarea.press("Enter");
 
-  expect(trpc.count("chat.editMessage")).toBe(0);
+  await expect.poll(() => trpc.count("chat.editMessage")).toBe(0);
   await expect(textarea).toHaveValue(""); // still exits edit mode (draft cleared, no save fired)
 });

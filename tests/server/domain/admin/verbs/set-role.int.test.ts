@@ -4,7 +4,7 @@
 // admin succeeds (no last-admin guard — the owner is always admin-capable). Every success audits.
 
 import { users } from "@orb/db";
-import { DomainConflictError, DomainForbiddenError, DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
+import { DomainConflictError, DomainForbiddenError, DomainNotFoundError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createAdminService } from "@orb/server/domain/admin";
@@ -12,7 +12,7 @@ import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
-import { makeHarness, principal, seedAdminCaller, seedAgent, seedUser } from "../_support.ts";
+import { makeHarness, principal, seedAdminCaller, seedUser } from "../_support.ts";
 
 describe("setRole", () => {
   test("the owner promotes a user to admin (audited)", async () => {
@@ -101,17 +101,5 @@ describe("setRole", () => {
         role: "admin",
       }),
     ).rejects.toThrow(DomainNotFoundError);
-  });
-
-  test("REFUSES an agent target — cannot_modify_agent, no write, no audit (D60)", async () => {
-    const db = await freshDb();
-    const h = makeHarness(db);
-    const svc = createAdminService(h.ctx);
-    const owner = await seedUser(db, { id: "user_owner", role: "owner", handle: "owner" });
-    const agentId = await seedAgent(db, owner);
-    await expect(svc.setRole({ principal: principal(owner, "owner"), userId: agentId, role: "admin" })).rejects.toThrow(DomainOperationError);
-    const row = (await db.select().from(users).where(eq(users.id, agentId)))[0];
-    expect(row?.role).toBe("user");
-    expect(h.audits).toHaveLength(0);
   });
 });

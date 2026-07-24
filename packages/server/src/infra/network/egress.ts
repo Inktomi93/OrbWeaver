@@ -16,8 +16,7 @@ import { DEFAULT_TRUSTED_RANGES, isInRanges } from "./ip-ranges";
 // non-safeFetch egress (provider calls, OIDC).
 //
 // INTERNAL-BACKEND AUTO-ALLOW (installEgressFirewall), PORT-SCOPED least-privilege: the box's OWN inference
-// backends live on loopback (vLLM engines at http://127.0.0.1:<VLLM_*_PORT>) or an operator-declared
-// endpoint (ComfyUI, COMFYUI_BASE_URL, default http://localhost:8188). Their server-initiated calls are
+// backends live on loopback (vLLM engines at http://127.0.0.1:<VLLM_*_PORT>). Their server-initiated calls are
 // plain fetch()/ownerConfiguredEndpoint safeFetch → the global dispatcher, so a bare allowlist SSRF-blocks
 // the server's own inference and the vLLM supervisor never leaves stack-pending. A connect to a
 // private-range address is ALLOWED iff its ORIGINAL destination host:port is one of these exact configured
@@ -77,17 +76,10 @@ function hostPortKey(hostname: string, port: string, protocol: string): string {
 }
 
 /** The box's OWN configured inference backends, host:PORT-scoped (least-privilege). vLLM engines are
- *  structurally loopback (engineBaseUrl hardcodes 127.0.0.1); ComfyUI's host:port is derived from
- *  COMFYUI_BASE_URL. Membership here bypasses the private-range block for that EXACT host:port only. */
+ *  structurally loopback (engineBaseUrl hardcodes 127.0.0.1). Membership here bypasses the private-range
+ *  block for that EXACT host:port only. */
 function internalBackendHostPorts(): ReadonlySet<string> {
-  const set = new Set<string>([`127.0.0.1:${env.VLLM_EMBED_PORT}`, `127.0.0.1:${env.VLLM_RERANK_PORT}`, `127.0.0.1:${env.VLLM_GEN_PORT}`]);
-  try {
-    const u = new URL(env.COMFYUI_BASE_URL);
-    set.add(hostPortKey(u.hostname, u.port, u.protocol));
-  } catch {
-    // malformed COMFYUI_BASE_URL — env schema defaults it, so this only trips on an operator override typo
-  }
-  return set;
+  return new Set<string>([`127.0.0.1:${env.VLLM_EMBED_PORT}`, `127.0.0.1:${env.VLLM_RERANK_PORT}`, `127.0.0.1:${env.VLLM_GEN_PORT}`]);
 }
 
 export function installEgressFirewall(): void {
@@ -204,7 +196,7 @@ export class EgressBlockedError extends Error {
 }
 
 export interface SafeFetchOptions {
-  /** REQUIRED. A host allowlist (exact "api.chub.ai" or a leading-dot suffix ".tenor.com" that matches
+  /** REQUIRED. A host allowlist (exact "api.chub.ai" or a leading-dot suffix ".chub.ai" that matches
    *  any subdomain but NEVER the bare apex), checked case-insensitively at the start URL and on EVERY
    *  redirect hop; OR the {@link ANY_HOST} sentinel (the named no-allowlist escape for the
    *  provider-returned-URL / arbitrary-URL classes — IP denial still runs). */

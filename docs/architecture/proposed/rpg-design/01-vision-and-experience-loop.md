@@ -10,7 +10,7 @@ updated: 2026-07-03
 > `domain/rpg` build must deliver — before any code shape. Every mechanic in the rest of the doc set
 > traces back to a loop stage here; a mechanic that serves no loop stage does not get built.
 > Marinara facts appear only as one-line rationale citations (the research corpus — archived to git
-> history, tombstone at [`../rpg/`](../rpg/README.md) — is the evidence base; you never need to read
+> history, tombstone at `../rpg/` — is the evidence base; you never need to read
 > marinara source).
 
 ---

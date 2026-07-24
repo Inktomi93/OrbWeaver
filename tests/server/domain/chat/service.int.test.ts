@@ -10,7 +10,6 @@ import type { Principal } from "@orb/contracts/identity";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
-import { chatParticipants } from "@orb/db";
 import type { CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
@@ -22,7 +21,7 @@ import { createChatService } from "../../../../packages/server/src/domain/chat/s
 import { freshDb } from "../../../support/db";
 import { principal as makePrincipal } from "../../../support/factories/principal.ts";
 import { expect, test } from "../../../support/fixtures";
-import { FROZEN_AT, makeChatContext, seedAgent, seedCharacter, seedChat, seedParticipant, seedUser, testConnection } from "./_support";
+import { makeChatContext, seedCharacter, seedChat, seedParticipant, seedUser, testConnection } from "./_support";
 
 let db: Db;
 
@@ -195,8 +194,6 @@ describe("createChatService — assembly", () => {
     expect(charRow?.themeOverride).toEqual({ accent: "oklch(0.7 0.14 250)" });
     expect(hostRow?.themeOverride).toBeNull();
   });
-
-
 
   test("a deleted CHARACTER card mid-read degrades to the removed-character label, never the raw id (ruling 2)", async () => {
     const { host, chatId } = await seedRoom();

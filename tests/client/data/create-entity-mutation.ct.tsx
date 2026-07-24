@@ -87,7 +87,7 @@ test("rollback: a failed mutation reverts the optimistic row, surfacing the stic
   // The rollback: the optimistic row is gone, reverted to the pre-mutate (empty) snapshot — and it
   // STAYS gone after the settle-triggered refetch too (the fixture never gained a row on failure).
   await expect(page.getByTestId("tag-list")).not.toContainText("new-tag");
-  expect(trpc.count("tag.createTag")).toBe(1);
+  await expect.poll(() => trpc.count("tag.createTag")).toBe(1);
 });
 
 test("cold-cache rollback: a failed mutation against a never-fetched query REMOVES the phantom row", async ({ mount, page }) => {
@@ -107,8 +107,8 @@ test("cold-cache rollback: a failed mutation against a never-fetched query REMOV
   // Fixed: the poisoned entry is gone → `absent`. Old bug: the phantom optimistic row persists.
   await page.getByRole("button", { name: "read-cache" }).click();
   await expect(page.getByTestId("cache-state")).toHaveText("absent");
-  expect(trpc.count("tag.createTag")).toBe(1);
-  expect(trpc.count("tag.listTags")).toBe(0);
+  await expect.poll(() => trpc.count("tag.createTag")).toBe(1);
+  await expect.poll(() => trpc.count("tag.listTags")).toBe(0);
 });
 
 test("sticky error clears on the NEXT mutate — a retried success removes the banner", async ({ mount, page }) => {
@@ -161,6 +161,6 @@ test("variables-mode: a failed create surfaces error + retry; retry re-fires the
   await expect(page.getByRole("alert")).toHaveCount(0);
 
   // Both attempts carried the identical variables — retry() re-fires `mutation.variables` verbatim.
-  expect(trpc.count("tag.createTag")).toBe(2);
-  expect(trpc.inputs("tag.createTag")).toEqual([{ input: { name: "variables-tag" } }, { input: { name: "variables-tag" } }]);
+  await expect.poll(() => trpc.count("tag.createTag")).toBe(2);
+  await expect.poll(() => trpc.inputs("tag.createTag")).toEqual([{ input: { name: "variables-tag" } }, { input: { name: "variables-tag" } }]);
 });

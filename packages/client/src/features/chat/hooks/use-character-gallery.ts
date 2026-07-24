@@ -27,11 +27,3 @@ export const useRemoveFromGallery = createEntityMutation<inferInput<Trpc["assets
   invalidates: (trpc) => [trpc.assets.listGallery.pathFilter()],
   errorToast: "Couldn't remove that image from the gallery.",
 });
-
-/** Import a searched gif (Tenor) into a character's gallery (D61). The server re-validates the URL host +
- *  the bytes; on success a new `gallery_items` row appears, so this refetches the gallery. */
-export const useImportGif = createEntityMutation<inferInput<Trpc["hub"]["importGif"]>, inferOutput<Trpc["hub"]["importGif"]>>({
-  options: (trpc) => trpc.hub.importGif.mutationOptions(),
-  invalidates: (trpc) => [trpc.assets.listGallery.pathFilter()],
-  errorToast: "Couldn't import that gif.",
-});

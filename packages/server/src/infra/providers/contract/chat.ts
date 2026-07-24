@@ -85,7 +85,6 @@ interface ChatRequestCommon {
  * The discriminated input every sealed chat backend consumes. Discriminator: `api`.
  *   - `agent-sdk` — a single prompt string (history is implicit in the backend's resumed session).
  *   - `chat-completions` / `responses` — an assembled `history` array (OpenAI-spec).
- *   - `anthropic-messages` — an assembled `history` array for the anth-direct backend; tool-less + runner-owned body.
  */
 export type ChatRequest = ChatRequestCommon &
   (

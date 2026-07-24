@@ -154,7 +154,7 @@ test("showTimestamps: the timestamp is micro-mono text INSIDE the name row, not 
   await expect(ts).toHaveCount(1);
   await expect(ts).toHaveClass(FONT_MONO);
   // A quiet <span> Text (P5 voice), never a @orb/ui Badge — the slot is preserved (rule 0.7).
-  expect(await ts.evaluate((el) => el.tagName.toLowerCase())).toBe("span");
+  await expect.poll(() => ts.evaluate((el) => el.tagName.toLowerCase())).toBe("span");
 });
 
 test("showTimestamps off: no timestamp element (respecting the toggle)", async ({ mount }) => {

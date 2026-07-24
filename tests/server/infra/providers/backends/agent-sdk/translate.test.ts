@@ -37,9 +37,7 @@ const COWORK_DENYLIST = ["DesignSync", "Monitor", "PushNotification", "RemoteTri
 
 const cred = (value: Record<string, unknown>): ResolvedCredential => value as unknown as ResolvedCredential;
 
-const ANTH_KEY = "sk-ant-translate-test";
 const OR_CRED = cred({ source: "openrouter", apiKey: OR_KEY, credentialId: null });
-const ANTH_CRED = cred({ source: "anthropic", apiKey: ANTH_KEY, credentialId: "anth-1" });
 const VLLM_CRED = cred({ source: "vllm", credentialId: null });
 const SUB_CRED = cred({ source: "max-pro-sub", credentialId: null });
 const LOCAL_LIGHT_CRED = cred({ source: "local-light", credentialId: null });
@@ -101,15 +99,6 @@ describe("disciplineOptions — credential.source DISPATCHES the env builder (th
     expect(opts.env["ANTHROPIC_AUTH_TOKEN"]).toBeUndefined();
     expect(opts.env["ANTHROPIC_BASE_URL"]).toBeUndefined();
     expect(opts.env["CLAUDE_CODE_DISABLE_CLAUDE_MDS"]).toBe("true");
-  });
-
-  test("anthropic → the first-party native builder (W11): the real key rides ANTHROPIC_API_KEY, base URL unset", () => {
-    const opts = disciplineOptions(ANTH_CRED, undefined);
-    // The native x-api-key path — the REAL key on ANTHROPIC_API_KEY (not the OR builder's empty-string).
-    expect(opts.env["ANTHROPIC_API_KEY"]).toBe(ANTH_KEY);
-    // Base URL UNSET → the native api.anthropic.com default; no Bearer/OAuth token (distinguishes it from OR/vLLM).
-    expect(opts.env["ANTHROPIC_BASE_URL"]).toBeUndefined();
-    expect(opts.env["ANTHROPIC_AUTH_TOKEN"]).toBeUndefined();
   });
 
   test("an ineligible source FAILS CLOSED with a typed, non-retryable invalid ProviderError", () => {

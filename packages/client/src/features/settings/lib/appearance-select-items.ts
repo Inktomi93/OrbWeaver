@@ -3,8 +3,8 @@
 // error, not a silently-unselectable option.
 
 import type { AppearanceSettings } from "@orb/contracts/settings";
-import { APPEARANCE_BACKGROUND_FITS, BACKGROUND_IMAGE_KINDS, BLUR_SURFACES } from "@orb/contracts/settings";
-import { THEME_CHAT_STYLES, THEME_DENSITIES } from "@orb/contracts/theme";
+import { APPEARANCE_BACKGROUND_FITS, BLUR_SURFACES } from "@orb/contracts/settings";
+import { BACKGROUND_IMAGE_KINDS, THEME_CHAT_STYLES, THEME_DENSITIES } from "@orb/contracts/theme";
 import type { SelectItems, SelectOption } from "@orb/ui/select";
 import { listSeededBackgrounds } from "#lib";
 
@@ -83,15 +83,21 @@ export const BLUR_SURFACE_ITEMS: readonly SelectOption<string>[] = BLUR_SURFACES
   label: BLUR_SURFACE_LABELS[value],
 }));
 
-const BACKGROUND_KIND_LABELS: Record<AppearanceSettings["backgroundImageKind"], string> = {
+// `external` is a transient INPUT-only kind (the picker's URL-entry branch), never a persisted paintable
+// state (BG-C invariant, contracts/settings) — so it is excluded from the selectable background-kind
+// options and its label table.
+type SelectableBackgroundKind = Exclude<AppearanceSettings["backgroundImageKind"], "external">;
+const BACKGROUND_KIND_LABELS: Record<SelectableBackgroundKind, string> = {
   none: "None",
   seeded: "Seeded",
   asset: "Upload",
 };
-export const BACKGROUND_KIND_ITEMS: SelectItems<string> = BACKGROUND_IMAGE_KINDS.filter(k => k !== "external").map((value) => ({
-  value,
-  label: BACKGROUND_KIND_LABELS[value],
-}));
+export const BACKGROUND_KIND_ITEMS: SelectItems<string> = BACKGROUND_IMAGE_KINDS.filter((value): value is SelectableBackgroundKind => value !== "external").map(
+  (value) => ({
+    value,
+    label: BACKGROUND_KIND_LABELS[value],
+  }),
+);
 const BACKGROUND_FIT_LABELS: Record<AppearanceSettings["backgroundFit"], string> = {
   cover: "Cover (fill, crop edges)",
   contain: "Contain (fit, may letterbox)",

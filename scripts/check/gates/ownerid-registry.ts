@@ -26,9 +26,6 @@ export const OWNERID_ALLOWLIST: Readonly<Record<string, string>> = {
   workloads: "D23 true producer",
   workload_schedules: "D23 true producer (a user-authored recurring-run config; no owned anchor to derive from — the TIME dimension over the workloads queue)",
   documents: "D49 databank producer / D23 top-level owned canon",
-  roster_presets: "D61 true producer",
-  comfyui_workflows:
-    "C7 true producer (comfyui-control §4.11.2 / §8-Q8; a named BYO workflow is the user's authored artifact with no owned anchor — the roster_presets precedent)",
   themes: "D23 generalized producer list (themes) / D44/D63",
   assets: "D21 single-owned (per-user, fetchOwned)",
   automation_rules: "D46 host-authored rule (runs as its author)",

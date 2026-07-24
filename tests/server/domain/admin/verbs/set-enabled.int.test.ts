@@ -11,7 +11,7 @@ import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
-import { makeHarness, principal, seedAdminCaller, seedAgent, seedUser } from "../_support.ts";
+import { makeHarness, principal, seedAdminCaller, seedUser } from "../_support.ts";
 
 describe("setEnabled", () => {
   test("an admin disables a user and the kick-tail revokes their sessions (audited)", async () => {
@@ -74,22 +74,5 @@ describe("setEnabled", () => {
     const u = await seedUser(db, { id: "user_u", role: "user", handle: "u" });
     const t = await seedUser(db, { id: "user_t", role: "user", handle: "t" });
     await expect(svc.setEnabled({ principal: principal(u, "user"), userId: t, enabled: false })).rejects.toThrow(DomainForbiddenError);
-  });
-
-  test("ACCEPTS an agent — it IS the containment verb; view carries kind/ownerHandle (D60)", async () => {
-    const db = await freshDb();
-    const h = makeHarness(db);
-    const svc = createAdminService(h.ctx);
-    const owner = await seedUser(db, { id: "user_owner", role: "owner", handle: "owner" });
-    const agentId = await seedAgent(db, owner);
-    const view = await svc.setEnabled({
-      principal: principal(owner, "owner"),
-      userId: agentId,
-      enabled: false,
-    });
-    expect(view.kind).toBe("agent");
-    expect(view.ownerHandle).toBe("owner");
-    expect(view.enabled).toBe(false);
-    expect(h.audits.map((a) => a.entry.action)).toContain("admin.setEnabled");
   });
 });

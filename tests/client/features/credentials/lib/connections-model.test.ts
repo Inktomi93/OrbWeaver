@@ -154,16 +154,15 @@ test("PROVIDER_LABELS is total over the storable providers", () => {
 
 test("CHAT_API_LABELS is total over the protocol axis", () => {
   expect(CHAT_API_LABELS["agent-sdk"]).toBeTruthy();
-  expect(CHAT_API_LABELS["anthropic-messages"]).toBeTruthy();
   expect(CHAT_API_LABELS["chat-completions"]).toBeTruthy();
   expect(CHAT_API_LABELS.responses).toBeTruthy();
 });
 
 // --- chatApisForSource — the assertCoherent mirror (resolve-role.ts §148-166) ---
 
-test("chatApisForSource: max-pro-sub → agent-sdk only; openrouter → all four", () => {
+test("chatApisForSource: max-pro-sub → agent-sdk only; openrouter → all three", () => {
   expect(chatApisForSource("max-pro-sub")).toEqual(["agent-sdk"]);
-  expect(chatApisForSource("openrouter")).toEqual(["agent-sdk", "chat-completions", "responses", "anthropic-messages"]);
+  expect(chatApisForSource("openrouter")).toEqual(["agent-sdk", "chat-completions", "responses"]);
 });
 
 test("chatApisForSource: vllm / local-light / custom → chat-completions + responses", () => {
@@ -178,11 +177,7 @@ test("chatApisForSource: every offered pair is legal under the resolver matrix",
   for (const source of ["max-pro-sub", "openrouter", "vllm", "local-light", "custom_openai"]) {
     for (const api of chatApisForSource(source)) {
       const agentSdkOk = source === "max-pro-sub" || source === "openrouter";
-      const directOk = source === "openrouter";
       if (api === "agent-sdk" && !agentSdkOk) {
-        illegal.push(`${api}/${source}`);
-      }
-      if (api === "anthropic-messages" && !directOk) {
         illegal.push(`${api}/${source}`);
       }
     }

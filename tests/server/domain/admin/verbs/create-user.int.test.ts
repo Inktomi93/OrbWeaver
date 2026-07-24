@@ -48,27 +48,6 @@ describe("createUser", () => {
     ).rejects.toMatchObject({ code: "invalid_handle" });
   });
 
-  test("a reserved __agent__ handle is rejected (invalid_handle) — the namespace belt; nothing written", async () => {
-    const db = await freshDb();
-    const { svc, admin } = await seedAdminCaller(db);
-    // Gate-present: a deterministic buddy handle is refused with the exact code (a normal handle still
-    // creates — the positive above). Without the belt this INSERTs a human squatting the buddy namespace,
-    // DoS-ing that owner's future mint (doc 06 §1).
-    const reserved = "__agent__buddy__user_owner";
-    await expect(
-      svc.createUser({
-        principal: principal(admin, "admin"),
-        handle: reserved,
-        password: GOOD_PASSWORD,
-      }),
-    ).rejects.toMatchObject({ code: "invalid_handle" });
-    const rows = await db
-      .select()
-      .from(users)
-      .where(eq(users.handle, castId<Handle>(reserved)));
-    expect(rows).toHaveLength(0);
-  });
-
   test("a short password is rejected (weak_password)", async () => {
     const db = await freshDb();
     const { svc, admin } = await seedAdminCaller(db);

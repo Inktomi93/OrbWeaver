@@ -10,17 +10,17 @@ test("external image is gated: a placeholder renders and no external <img> loads
   await page.route(EXTERNAL, () => undefined);
   const cmp = await mount(<MessageMedia src={{ kind: "external", url: EXTERNAL }} media="image" alt="pic" />);
   await expect(cmp).toHaveAttribute("data-slot", "message-media-placeholder");
-  expect(await cmp.locator("img").count()).toBe(0);
+  await expect(cmp.locator("img")).toHaveCount(0);
   await cmp.click();
   // after opt-in the placeholder button is REPLACED by the img (it becomes the component root).
-  expect(await cmp.getAttribute("src")).toBe(EXTERNAL);
+  await expect(cmp).toHaveAttribute("src", EXTERNAL);
 });
 
 test("asset image renders directly (own origin, no gate)", async ({ mount, page }) => {
   // Same rationale: keep the asset request pending so onError can't swap in the broken fallback.
   await page.route("**/blob/abc.png", () => undefined);
   const cmp = await mount(<MessageMedia src={{ kind: "asset", url: "/blob/abc.png" }} media="image" alt="a" />);
-  expect(await cmp.getAttribute("src")).toBe("/blob/abc.png");
+  await expect(cmp).toHaveAttribute("src", "/blob/abc.png");
 });
 
 test("external video has controls and NEVER autoplay (non-overridable)", async ({ mount, page }) => {
@@ -29,8 +29,8 @@ test("external video has controls and NEVER autoplay (non-overridable)", async (
   // (which only care what the element was created with, not whether the source ever loads).
   await page.route(EXTERNAL, () => undefined);
   const cmp = await mount(<MessageMedia src={{ kind: "external", url: EXTERNAL }} media="video" alt="v" allowExternal={true} />);
-  expect(await cmp.evaluate((el) => (el as HTMLVideoElement).controls)).toBe(true);
-  expect(await cmp.evaluate((el) => (el as HTMLVideoElement).autoplay)).toBe(false);
+  await expect.poll(() => cmp.evaluate((el) => (el as HTMLVideoElement).controls)).toBe(true);
+  await expect.poll(() => cmp.evaluate((el) => (el as HTMLVideoElement).autoplay)).toBe(false);
 });
 
 test("aspect box is reserved before load (no layout shift)", async ({ mount }) => {
@@ -43,7 +43,7 @@ test("a data: URI is blocked for an external source (no click-to-load, no <img>)
   const dataUri = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwC";
   const cmp = await mount(<MessageMedia src={{ kind: "external", url: dataUri }} media="image" alt="pic" />);
   await expect(cmp).toHaveAttribute("data-slot", "message-media-blocked");
-  expect(await cmp.locator("img").count()).toBe(0);
+  await expect(cmp.locator("img")).toHaveCount(0);
 });
 
 test("a dead image shows the graceful fallback, not the native broken glyph", async ({ mount }) => {

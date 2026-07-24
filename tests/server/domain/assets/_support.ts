@@ -19,19 +19,7 @@ import type { DomainEvent } from "@orb/contracts/events";
 import type { ParticipantRole, Principal, UserRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { assets, characters, chatParticipants, chats, messageAssets, messages, personas } from "@orb/db";
-import type {
-  AssetId,
-  CharacterId,
-  ChatId,
-  ChatParticipantId,
-  GalleryItemId,
-  Handle,
-  MessageAssetId,
-  MessageId,
-  PersonaId,
-  PoseLibraryId,
-  UserId,
-} from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, ChatParticipantId, GalleryItemId, Handle, MessageAssetId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createCas, createVariantCache } from "@orb/server/infra/storage";
 import { and, eq, inArray, isNull } from "drizzle-orm";
@@ -86,7 +74,6 @@ export async function makeHarness(db: Db): Promise<AssetsHarness> {
     variants,
     imageTransform,
     imageProbe,
-    newPoseLibraryId: (): PoseLibraryId => castId<PoseLibraryId>(ids.next("pose_library")),
     emit: (event: DomainEvent): void => {
       emitted.push(event);
     },

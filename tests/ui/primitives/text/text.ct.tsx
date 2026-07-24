@@ -33,10 +33,10 @@ test("Text size=label tone=muted rides the label + muted-foreground tokens (the 
 
 test("Text as=span/div renders the requested intrinsic (polymorphic body element)", async ({ mount }) => {
   const span = await mount(<Text as="span">inline</Text>);
-  expect(await span.evaluate((el) => el.tagName.toLowerCase())).toBe("span");
+  await expect.poll(() => span.evaluate((el) => el.tagName.toLowerCase())).toBe("span");
   await span.unmount();
   const div = await mount(<Text as="div">block</Text>);
-  expect(await div.evaluate((el) => el.tagName.toLowerCase())).toBe("div");
+  await expect.poll(() => div.evaluate((el) => el.tagName.toLowerCase())).toBe("div");
 });
 
 test("Heading level renders the matching REAL h1-h6 tag", async ({ mount, page }) => {

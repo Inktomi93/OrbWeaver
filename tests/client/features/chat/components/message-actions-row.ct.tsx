@@ -98,10 +98,12 @@ test("hide-from-AI fires setMessageHidden with the flipped flag", async ({ mount
   await menuItem(page, "Hide from AI").click();
 
   await expect.poll(() => trpc.count("chat.setMessageHidden"), { intervals: [20, 50, 100] }).toBe(1);
-  expect(trpc.lastInput("chat.setMessageHidden")).toMatchObject({
-    messageId: message.id,
-    hidden: true,
-  });
+  await expect
+    .poll(() => trpc.lastInput("chat.setMessageHidden"))
+    .toMatchObject({
+      messageId: message.id,
+      hidden: true,
+    });
 });
 
 test("an already-hidden row shows Unhide and toggles the flag back", async ({ mount, page }) => {
@@ -113,10 +115,12 @@ test("an already-hidden row shows Unhide and toggles the flag back", async ({ mo
   await menuItem(page, "Unhide from AI").click();
 
   await expect.poll(() => trpc.count("chat.setMessageHidden"), { intervals: [20, 50, 100] }).toBe(1);
-  expect(trpc.lastInput("chat.setMessageHidden")).toMatchObject({
-    messageId: message.id,
-    hidden: false,
-  });
+  await expect
+    .poll(() => trpc.lastInput("chat.setMessageHidden"))
+    .toMatchObject({
+      messageId: message.id,
+      hidden: false,
+    });
 });
 
 test("delete opens a confirm dialog; confirming fires deleteMessages with this ONE messageId", async ({ mount, page }) => {
@@ -131,7 +135,7 @@ test("delete opens a confirm dialog; confirming fires deleteMessages with this O
   await page.getByRole("button", { name: "Delete", exact: true }).click();
 
   await expect.poll(() => trpc.count("chat.deleteMessages"), { intervals: [20, 50, 100] }).toBe(1);
-  expect(trpc.lastInput("chat.deleteMessages")).toMatchObject({ messageIds: [message.id] });
+  await expect.poll(() => trpc.lastInput("chat.deleteMessages")).toMatchObject({ messageIds: [message.id] });
 });
 
 test("delete's Cancel closes the dialog without firing the mutation", async ({ mount, page }) => {
@@ -143,7 +147,7 @@ test("delete's Cancel closes the dialog without firing the mutation", async ({ m
   await page.getByRole("button", { name: "Cancel" }).click();
 
   await expect(page.getByText("Delete this message?")).toHaveCount(0);
-  expect(trpc.count("chat.deleteMessages")).toBe(0);
+  await expect.poll(() => trpc.count("chat.deleteMessages")).toBe(0);
 });
 
 test("fork fires forkChat with this message's seq as throughSeq", async ({ mount, page }) => {
@@ -157,7 +161,7 @@ test("fork fires forkChat with this message's seq as throughSeq", async ({ mount
   await component.getByRole("button", { name: "Fork chat here" }).click();
 
   await expect.poll(() => trpc.count("chat.forkChat"), { intervals: [20, 50, 100] }).toBe(1);
-  expect(trpc.lastInput("chat.forkChat")).toMatchObject({ chatId: message.chatId, throughSeq: 7 });
+  await expect.poll(() => trpc.lastInput("chat.forkChat")).toMatchObject({ chatId: message.chatId, throughSeq: 7 });
 });
 
 test("copy writes the message content to the clipboard (no network call)", async ({ mount, page, context }) => {

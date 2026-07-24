@@ -377,21 +377,6 @@ test("generate_image renders the prompt + maps the FULL IC-C args onto imagery.g
   expect(frame.spend.usd()).toBeCloseTo(0.03);
 });
 
-test("generate_image forwards the MA-8 diffusion knobs verbatim onto imagery.generatePicture", async () => {
-  const { db, host, chatId } = await setup();
-  const { dispatch, captured } = makeHarness(db, { costUsd: 0.03, imageCount: 1 });
-  const action = automationActionSchema.parse({
-    type: "generate_image",
-    mode: "free",
-    prompt: "a lighthouse",
-    params: { steps: 28, cfg: 6.5, sampler: "euler", scheduler: "karras", seed: 42 },
-  }) as Extract<AutomationAction, { type: "generate_image" }>;
-  await dispatch(action, makeFrame({ chatId, authorUserId: host }));
-
-  expect(captured.images).toHaveLength(1);
-  expect(captured.images[0]?.params).toEqual({ steps: 28, cfg: 6.5, sampler: "euler", scheduler: "karras", seed: 42 });
-});
-
 test("generate_image threads quiet through to the op (F1 — quiet:true generates silently, default posts in-chat)", async () => {
   const { db, host, chatId } = await setup();
   const { dispatch, captured } = makeHarness(db);
@@ -515,8 +500,8 @@ test("trigger_turn maps a requestTurn refusal (consent/authority/depth throw) to
   expect(captured.turns).toHaveLength(0);
 });
 
-// ── the v1-unwired + reserved arms are TYPED REFUSALS, and the dispatcher is exhaustive ───────────────
-test("transform_draft + the reserved arms are typed arm_error refusals (no op)", async () => {
+// ── the v1-unwired transform_draft arm is a TYPED REFUSAL at the dispatch engine ───────────────
+test("transform_draft is a typed arm_error refusal (no op)", async () => {
   const { db, host, chatId } = await setup();
   const { dispatch, captured } = makeHarness(db);
   const frame = makeFrame({ chatId, authorUserId: host });
@@ -524,10 +509,7 @@ test("transform_draft + the reserved arms are typed arm_error refusals (no op)",
   const transform = await dispatch({ type: "transform_draft", target: "user_input", template: "x" }, frame);
   expect(transform).toMatchObject({ ok: false, kind: "arm_error" });
 
-  const reserved = await dispatch({ type: "force_activate_entries", entryIds: [] }, frame);
-  expect(reserved).toMatchObject({ ok: false, kind: "arm_error" });
-
-  // No live effect from any refusal.
+  // No live effect from the refusal.
   expect(captured).toEqual({ varOps: [], upserts: [], notifications: [], images: [], bus: [], setBackgrounds: [], quietPrompts: [], turns: [] });
 });
 

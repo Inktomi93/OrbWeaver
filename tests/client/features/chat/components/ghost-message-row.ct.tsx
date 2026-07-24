@@ -65,7 +65,7 @@ test("§6.4 phase affordances: dots pending-only, caret streaming-only, neither 
   await component.getByTestId("token").click();
   await expect(dots).toHaveCount(0);
   await expect(component.getByText("Hi")).toBeVisible();
-  expect(await caretBorder()).toBe("2px");
+  await expect.poll(caretBorder).toBe("2px");
 
   // Settled (completeTurn → the slot leaves the live phases): the ghost row unmounts, no caret.
   await component.getByTestId("complete").click();
@@ -83,14 +83,14 @@ test("reduced motion: dots render static and the caret renders steady (no blink)
   const dots = component.locator(".orb-typing-dot").first();
   await expect(dots).toBeVisible();
   // The floor freezes the pulse: animation-duration collapses to the 0.01ms !important floor.
-  expect(await dots.evaluate((el) => getComputedStyle(el).animationDuration)).toBe("1e-05s");
+  await expect.poll(() => dots.evaluate((el) => getComputedStyle(el).animationDuration)).toBe("1e-05s");
 
   await component.getByTestId("token").click();
   await expect(component.getByText("Hi")).toBeVisible();
   const caret = component.locator('[data-slot="ghost-stream-body"] > * > *:last-child > *:last-child');
   // The caret bar still paints (2px primary), but its blink is frozen by the same floor.
-  expect(await caret.evaluate((el) => getComputedStyle(el, "::after").borderLeftWidth)).toBe("2px");
-  expect(await caret.evaluate((el) => getComputedStyle(el, "::after").animationDuration)).toBe("1e-05s");
+  await expect.poll(() => caret.evaluate((el) => getComputedStyle(el, "::after").borderLeftWidth)).toBe("2px");
+  await expect.poll(() => caret.evaluate((el) => getComputedStyle(el, "::after").animationDuration)).toBe("1e-05s");
 });
 
 test("more tokens grow only the ghost; the lifecycle phase read stays stable", async ({ mount }) => {

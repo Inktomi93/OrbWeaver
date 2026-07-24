@@ -10,8 +10,8 @@ import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, SyntheticEvent } from "react";
 import { useState } from "react";
+import { login } from "#data";
 import { testId } from "#lib";
-import { login } from "../lib/auth-bootstrap";
 
 export interface LoginLocalFormProps {
   /** The seed-handle pre-fill (`/api/auth/config`); null under discreet login → start blank. */

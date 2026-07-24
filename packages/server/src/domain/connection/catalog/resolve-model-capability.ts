@@ -11,7 +11,7 @@ import { getChatModel } from "./chat-models";
 import type { MODEL_FAMILIES } from "./model-family";
 import { detectModelFamily } from "./model-family";
 import { resolveAgentSdkAlias } from "./resolve-agent-sdk-alias";
-import { NON_CACHING_TURNS, refineAnthDirectSampling, refineCuratedTurns, synthesizeAnthropicTurns } from "./turns";
+import { NON_CACHING_TURNS, refineCuratedTurns, synthesizeAnthropicTurns } from "./turns";
 import type { WIRE_SHAPES } from "./wire-shape";
 import { deriveWireShape } from "./wire-shape";
 
@@ -221,8 +221,7 @@ function synthesizeOpenRouter(model: string, wireShape: WireShape, entry: OrEntr
   // absence-degrades, never a guessed cap). Floored at MIN_OUTPUT so a bogus 0 can't zero the range.
   const advertisedMax = entry?.maxCompletionTokens;
   const outputMax = advertisedMax !== undefined && advertisedMax !== null ? Math.max(MIN_OUTPUT, advertisedMax) : Math.min(window, OUTPUT_CAP);
-  // On the anthropic-direct shape, sampling refines to fail-closed {} until the probe opens the model's entry.
-  const sampling = refineAnthDirectSampling(model, wireShape, synthesizeSampling(supported));
+  const sampling = synthesizeSampling(supported);
   const verbosity = family === "openai" && supported.has("verbosity") ? (["low", "medium", "high"] as const) : undefined;
   const input = synthesizeInput(entry?.inputModalities, entry?.outputModalities);
   return {
@@ -272,11 +271,10 @@ function staticProfile(window: number, fullSampling: boolean, structuredOutput =
   };
 }
 
-/** `sampling` refines only on the `anthropic-direct` shape; reasoning/output/context stay shape-invariant. */
+/** Only `turns` varies by wire-shape; sampling/reasoning/output/context stay shape-invariant. */
 function withCuratedTurns(curated: { readonly capability: ModelCapability }, id: ModelId | string, wireShape: WireShape): ModelCapability {
   return {
     ...curated.capability,
-    sampling: refineAnthDirectSampling(id, wireShape, curated.capability.sampling),
     turns: refineCuratedTurns(id, wireShape),
   };
 }

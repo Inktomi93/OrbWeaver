@@ -11,10 +11,6 @@ const SAMPLE_CHAT_ID = mintTypeId(ID_PREFIX.chat);
 const SAMPLE_INVITE_ID = mintTypeId(ID_PREFIX.chatInvite);
 const SAMPLE_HOST_HANDLE = castId<Handle>("alice");
 const SAMPLE_NOMINEE_HANDLE = castId<Handle>("carol");
-const SAMPLE_OWNER_ID = castId<UserId>("user-dave");
-const SAMPLE_REQUESTER_HANDLE = castId<Handle>("dave");
-const SAMPLE_CHARACTER_ID = mintTypeId(ID_PREFIX.character);
-const SAMPLE_CARD_PROPOSAL_ID = mintTypeId(ID_PREFIX.cardEvolutionProposal);
 const SAMPLE_AUTOMATION_RULE_ID = mintTypeId(ID_PREFIX.automationRule);
 const SAMPLE_PLUGIN_ID = mintTypeId(ID_PREFIX.plugin);
 
@@ -50,22 +46,6 @@ const FIXTURES: Record<NotificationType, NotificationEvent> = {
     chatId: SAMPLE_CHAT_ID,
     reason: "consent",
   },
-  "agent-seat-requested": {
-    type: "agent-seat-requested",
-    recipientUserId: SAMPLE_RECIPIENT,
-    chatId: SAMPLE_CHAT_ID,
-    ownerUserId: SAMPLE_OWNER_ID,
-    sourceKind: "buddy",
-    requestedByHandle: SAMPLE_REQUESTER_HANDLE,
-  },
-  // The chat-crew card-evolution proposal (chat-crew-design/04 §5) — ids only, deep-links the character page.
-  "crew-proposal": {
-    type: "crew-proposal",
-    recipientUserId: SAMPLE_RECIPIENT,
-    chatId: SAMPLE_CHAT_ID,
-    characterId: SAMPLE_CHARACTER_ID,
-    proposalId: SAMPLE_CARD_PROPOSAL_ID,
-  },
   // The automation `post_notification` arm (automation-design/03 §1.5) — the ONE member carrying a rendered
   // (capped) `message` string; still secret-unrepresentable (a capped string, not a handle).
   "automation-notice": {
@@ -83,24 +63,14 @@ const FIXTURES: Record<NotificationType, NotificationEvent> = {
   },
 };
 
-const EXPECTED_VARIANT_COUNT = 9;
+const EXPECTED_VARIANT_COUNT = 7;
 
-// CLOSED PIN: the union has EXACTLY the nine delivery reasons and no more. `.options.length` catches a
+// CLOSED PIN: the union has EXACTLY the seven delivery reasons and no more. `.options.length` catches a
 // stray added member; the FIXTURES Record key set is the type-checked mirror.
-test("NotificationEvent is the closed 9-member delivery union", () => {
+test("NotificationEvent is the closed 7-member delivery union", () => {
   expect(notificationEventSchema.options).toHaveLength(EXPECTED_VARIANT_COUNT);
   expect(Object.keys(FIXTURES).sort()).toEqual(
-    [
-      "agent-seat-requested",
-      "automation-notice",
-      "crew-proposal",
-      "deferred-turn-dropped",
-      "handoff-accepted",
-      "handoff-nominated",
-      "invite",
-      "kicked",
-      "plugin-disabled",
-    ].sort(),
+    ["automation-notice", "deferred-turn-dropped", "handoff-accepted", "handoff-nominated", "invite", "kicked", "plugin-disabled"].sort(),
   );
 });
 
@@ -159,13 +129,6 @@ test("NotificationEvent variants expose only the allowlisted fields", () => {
   expect(inviteKeys).toEqual(["chatId", "inviteId", "invitedByHandle", "recipientUserId", "type"].sort());
   const kickedKeys = Object.keys(FIXTURES.kicked).sort();
   expect(kickedKeys).toEqual(["chatId", "recipientUserId", "type"].sort());
-  // The seat-request carries only the ids the host needs to act (ownerUserId/sourceKind) + a display
-  // handle — never a soul prompt / agent internals (doc 06 §3: notified to the human host).
-  const seatRequestKeys = Object.keys(FIXTURES["agent-seat-requested"]).sort();
-  expect(seatRequestKeys).toEqual(["chatId", "ownerUserId", "recipientUserId", "requestedByHandle", "sourceKind", "type"].sort());
-  // The crew card-proposal carries ONLY ids (secret-free by construction, chat-crew-design/04 §5).
-  const crewProposalKeys = Object.keys(FIXTURES["crew-proposal"]).sort();
-  expect(crewProposalKeys).toEqual(["chatId", "characterId", "proposalId", "recipientUserId", "type"].sort());
   // The automation-notice carries ids + the ONE rendered `message` (the argued capped-string exception,
   // automation-design/03 §1.5) — never a credential/handle.
   const automationNoticeKeys = Object.keys(FIXTURES["automation-notice"]).sort();

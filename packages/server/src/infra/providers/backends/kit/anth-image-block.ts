@@ -1,7 +1,6 @@
-// backends/kit/anth-image-block — the outbound-image → Anthropic Messages content-block seam (MA-10). The
-// two Anthropic-wire backends (anth-direct summarize, agent-sdk summarize) build the SAME image block, so it
-// lives here in the shared strategy-isolation seam (`backends/kit/`, the one dep-cruiser-exempt shared home)
-// rather than duplicated per sealed backend. Bytes ride the shared `NormalizeImageBytes` seam (GIF →
+// backends/kit/anth-image-block — the outbound-image → Anthropic Messages content-block seam (MA-10),
+// built for the agent-sdk summarize path. Lives in the shared strategy-isolation seam (`backends/kit/`,
+// the one dep-cruiser-exempt shared home) rather than inside the sealed backend. Bytes ride the shared `NormalizeImageBytes` seam (GIF →
 // first-frame PNG, else PNG-labeled) BEFORE base64-encoding — identical to the OpenRouter `toImageUrl` path,
 // only projected onto the Anthropic block shape instead of a `data:` URL.
 

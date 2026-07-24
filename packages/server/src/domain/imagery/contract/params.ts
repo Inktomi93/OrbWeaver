@@ -4,7 +4,7 @@
 // the branded chat id. P5 drives `mode:"free"` with a required `prompt`; the extraction modes are Phase 7.
 
 import type { Principal } from "@orb/contracts/identity";
-import type { ImageDiffusionParams, PromptTemplateMode, SizePresetName } from "@orb/contracts/imagery";
+import type { PromptTemplateMode, SizePresetName } from "@orb/contracts/imagery";
 import type { AssetId, CharacterId, ChatId } from "@orb/kit/ids";
 
 // The mode SUBSETS (derived via Extract/Exclude — never re-spelled) home here so the substrate guards +
@@ -43,10 +43,6 @@ export interface GeneratePictureParams {
    *  generation on the subject's avatar for identity consistency. Drops-with-warning (never throws) when the
    *  resolved model lacks `input.imageEdit` — the asymmetric posture vs `editImage` (doc 01 §3.4). */
   readonly useAvatarReference?: boolean | undefined;
-  /** The optional diffusion knobs (MA-8/D96) — steps/cfg/sampler/scheduler/seed. Threaded verbatim to the
-   *  provider runner; honored only by a LOCAL engine (ComfyUI) whose `capability.imageGen` advertises them,
-   *  ignored-with-honesty by hosted sources. */
-  readonly params?: ImageDiffusionParams | undefined;
 
   /** An EXTERNALLY-computed reuse hash a non-character consumer stores on this generation's provenance so its
    *  OWN reuse gate can short-circuit later (rpg-design/08 §2 — NPC portraits are content-addressed by the

@@ -24,8 +24,8 @@ test("a real id flows the query end-to-end (queryOptions fires, resolves, render
   await mount(<GatedQueryStory chatId={CHAT_ID as never} />);
 
   await expect(page.getByTestId("gated-state")).toHaveText(`room for ${CHAT_ID}`);
-  expect(trpc.count("chat.getChat")).toBe(1);
-  expect(trpc.lastInput("chat.getChat")).toEqual({ chatId: CHAT_ID });
+  await expect.poll(() => trpc.count("chat.getChat")).toBe(1);
+  await expect.poll(() => trpc.lastInput("chat.getChat")).toEqual({ chatId: CHAT_ID });
 });
 
 test("a null id never builds the real key — skipToken keeps the procedure UNCALLED", async ({ mount, page }) => {
@@ -39,5 +39,5 @@ test("a null id never builds the real key — skipToken keeps the procedure UNCA
 
   await expect(page.getByTestId("gated-state")).toHaveText("disabled");
   // The load-bearing assertion: skipToken means no request was ever issued for this procedure.
-  expect(trpc.count("chat.getChat")).toBe(0);
+  await expect.poll(() => trpc.count("chat.getChat")).toBe(0);
 });

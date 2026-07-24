@@ -1,7 +1,6 @@
 // Mint a loginable local human. Authority is role-dependent: minting a regular `user` is admin-gated;
 // minting an `admin` is owner-only — the same gate `setRole` uses, closing the create/set-role privilege
-// asymmetry. Mints humans only. Guards: invalid_handle (empty OR the reserved `__agent__` namespace —
-// the fourth namespace-belt arm, D60 doc 06 §1/§8 inv 3), cannot_grant_owner (never minted here),
+// asymmetry. Mints humans only. Guards: invalid_handle (empty), cannot_grant_owner (never minted here),
 // weak_password, user_exists (both the pre-SELECT and the TOCTOU insert-conflict race translate to the same code).
 
 import type { Principal, UserRole } from "@orb/contracts/identity";

@@ -18,11 +18,12 @@ import { eq } from "drizzle-orm";
 import { beforeEach, describe, vi } from "vitest";
 import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context";
 import { ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors";
+import type { MemoryRecallInputs } from "../../../../../packages/server/src/domain/chat/contract/memory";
 import type { TurnPrep, TurnRequest, TurnStreamChunk } from "../../../../../packages/server/src/domain/chat/contract/results";
-import { createTurnEngine, emitCapabilityDropWarnings } from "../../../../../packages/server/src/domain/chat/engine/engine";
+import { createTurnEngine } from "../../../../../packages/server/src/domain/chat/engine/engine";
 import { loadWitnessHorizons } from "../../../../../packages/server/src/domain/chat/memory/persistence/queries";
 import { recallMemory } from "../../../../../packages/server/src/domain/chat/memory/recall/recall";
-import type { MemoryRecallInputs, WitnessInterval } from "../../../../../packages/server/src/domain/chat/memory/types";
+import type { WitnessInterval } from "../../../../../packages/server/src/domain/chat/memory/types";
 import { tryAcquireLock } from "../../../../../packages/server/src/domain/chat/persistence/lock";
 import { loadCanonHistory, loadMaxMessageSeq, loadTurnOrigin } from "../../../../../packages/server/src/domain/chat/persistence/queries";
 import { freshDb } from "../../../../support/db";
@@ -937,39 +938,6 @@ describe("createTurnEngine — abort signal (FLAG[abort-into-engine] resolved)",
 
 // The capability-drop warning emitter (D79). image_dropped rides an end-to-end turn above; tools + structured
 // output have no engine INPUT path yet (no chat consumer sets `responseFormat`/tools on a TurnPrep), so their
-// emit branches are pinned here directly — each flag emits its `warning` code, and a cleared flag emits nothing.
-describe("emitCapabilityDropWarnings — the D79 structured-output warning branch", () => {
-  const chat = castId<ChatId>("chat_warn");
-  function recorder(): { emit: (e: ChatBusEvent) => Promise<void>; codes: () => string[] } {
-    const events: ChatBusEvent[] = [];
-    return {
-      emit: (e: ChatBusEvent): Promise<void> => {
-        events.push(e);
-        return Promise.resolve();
-      },
-      codes: () => events.filter((e) => e.type === "warning").map((e) => (e.type === "warning" ? e.code : "")),
-    };
-  }
-
-  test("structuredOutputUnsupported set → emits warning(structured_output_unsupported)", async () => {
-    const rec = recorder();
-    await emitCapabilityDropWarnings(rec.emit, chat, { imageDropped: false, toolsUnsupported: false, structuredOutputUnsupported: true });
-    expect(rec.codes()).toEqual(["structured_output_unsupported"]);
-  });
-
-  test("no drops → emits nothing (the gate-absent case)", async () => {
-    const rec = recorder();
-    await emitCapabilityDropWarnings(rec.emit, chat, { imageDropped: false, toolsUnsupported: false, structuredOutputUnsupported: false });
-    expect(rec.codes()).toEqual([]);
-  });
-
-  test("all three drops → emits each code once, in image→tools→structured order", async () => {
-    const rec = recorder();
-    await emitCapabilityDropWarnings(rec.emit, chat, { imageDropped: true, toolsUnsupported: true, structuredOutputUnsupported: true });
-    expect(rec.codes()).toEqual(["image_dropped", "tools_unsupported", "structured_output_unsupported"]);
-  });
-});
-
 // The turn-lock heartbeat: `runTurn` refreshes its own lock on a TTL/3 cadence so a turn that outruns the TTL
 // stays un-stealable, aborts fail-closed on a lost lock, and never leaks the timer past any exit path. TTL is
 // deliberately short here so the real `setInterval` fires within the test; the provider blocks on a gate so a

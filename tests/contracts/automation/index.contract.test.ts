@@ -17,7 +17,6 @@ import {
   GLOBAL_VARIABLE_KEY_MAX_CHARS,
   globalVariableKeySchema,
   LIVE_TRIGGERS,
-  RESERVED_ACTION_TYPES,
   triggerFactSchema,
 } from "@orb/contracts/automation";
 import { expect, test } from "../../support/fixtures";
@@ -46,20 +45,8 @@ test("CHAT_TRIGGER_TYPES is the pinned 15-member chat-bus subset (v1 + reserved,
   expect(CHAT_TRIGGER_TYPES).not.toContain("chatDeleted");
 });
 
-test("DOMAIN_TRIGGER_TYPES is the pinned 11-member domain-bus subset (v1 + crew/rpg reserved)", () => {
-  expect(DOMAIN_TRIGGER_TYPES).toEqual([
-    "character.updated",
-    "asset.created",
-    "crew.keeperRan",
-    "crew.editProposalCreated",
-    "crew.cardProposalCreated",
-    "crew.directorPassCompleted",
-    "rpg.clockCompleted",
-    "rpg.sessionConcluded",
-    "rpg.encounterEnded",
-    "rpg.reputationMilestone",
-    "rpg.checkResolved",
-  ]);
+test("DOMAIN_TRIGGER_TYPES is the pinned 2-member domain-bus subset (v1)", () => {
+  expect(DOMAIN_TRIGGER_TYPES).toEqual(["character.updated", "asset.created"]);
 });
 
 test("automationTriggerSchema discriminates on bus and refuses a cross-bus trigger name", () => {
@@ -67,9 +54,9 @@ test("automationTriggerSchema discriminates on bus and refuses a cross-bus trigg
     bus: "chat",
     type: "chatOpened",
   });
-  expect(automationTriggerSchema.parse({ bus: "domain", type: "crew.keeperRan" })).toEqual({
+  expect(automationTriggerSchema.parse({ bus: "domain", type: "asset.created" })).toEqual({
     bus: "domain",
-    type: "crew.keeperRan",
+    type: "asset.created",
   });
   // The chat bus does not admit domain trigger names (and vice versa) — the db CHECK mirrors this.
   expect(automationTriggerSchema.safeParse({ bus: "chat", type: "character.updated" }).success).toBe(false);
@@ -125,15 +112,6 @@ const CHAT_SEEN: Record<ChatTriggerType, true> = {
 const DOMAIN_SEEN: Record<DomainTriggerType, true> = {
   "character.updated": true,
   "asset.created": true,
-  "crew.keeperRan": true,
-  "crew.editProposalCreated": true,
-  "crew.cardProposalCreated": true,
-  "crew.directorPassCompleted": true,
-  "rpg.clockCompleted": true,
-  "rpg.sessionConcluded": true,
-  "rpg.encounterEnded": true,
-  "rpg.reputationMilestone": true,
-  "rpg.checkResolved": true,
 };
 
 test("the trigger unions have no member beyond their tuples", () => {
@@ -143,7 +121,7 @@ test("the trigger unions have no member beyond their tuples", () => {
 
 // ── the action union + liveness (A4 — 03 / 01 §1) ────────────────────────────────────────────────
 
-test("AUTOMATION_ACTION_TYPES is the pinned 11-member arm set (8 live + 3 reserved)", () => {
+test("AUTOMATION_ACTION_TYPES is the pinned 8-member live arm set", () => {
   expect(AUTOMATION_ACTION_TYPES).toEqual([
     "set_variable",
     "transform_draft",
@@ -153,11 +131,7 @@ test("AUTOMATION_ACTION_TYPES is the pinned 11-member arm set (8 live + 3 reserv
     "trigger_turn",
     "generate_image",
     "set_chat_background",
-    "enqueue_crew_workload",
-    "rpg_verb",
-    "force_activate_entries",
   ]);
-  expect(RESERVED_ACTION_TYPES).toEqual(["enqueue_crew_workload", "rpg_verb", "force_activate_entries"]);
 });
 
 test("LIVE_TRIGGERS marks the v1 tuple members live and every reserved member not-live (exhaustive)", () => {
@@ -167,8 +141,6 @@ test("LIVE_TRIGGERS marks the v1 tuple members live and every reserved member no
   expect(LIVE_TRIGGERS["asset.created"]).toBe(true);
   // Reserved members are typed-but-not-wired.
   expect(LIVE_TRIGGERS.messageHidden).toBe(false);
-  expect(LIVE_TRIGGERS["crew.keeperRan"]).toBe(false);
-  expect(LIVE_TRIGGERS["rpg.clockCompleted"]).toBe(false);
 });
 
 test("automationActionSchema parses each live arm; the generate_image arm imports the imagery args (mode default)", () => {
@@ -178,20 +150,6 @@ test("automationActionSchema parses each live arm; the generate_image arm import
   // imagery `mode` default of "scenario".
   const img = automationActionSchema.parse({ type: "generate_image" });
   expect(img).toMatchObject({ type: "generate_image", mode: "scenario", n: 1, reuse: "prefer" });
-});
-
-test("the generate_image arm accepts the MA-8 diffusion knobs (imported down) and stays optional", () => {
-  // The knobs ride the ARM (not the base args the model-facing tool shares); imported down from imagery.
-  const withParams = automationActionSchema.parse({
-    type: "generate_image",
-    prompt: "a storm",
-    params: { steps: 28, cfg: 6.5, sampler: "euler", scheduler: "karras", seed: 42 },
-  });
-  expect(withParams).toMatchObject({ type: "generate_image", params: { steps: 28, cfg: 6.5, sampler: "euler", scheduler: "karras", seed: 42 } });
-  // Absent params is the byte-identical existing path — the field never materializes.
-  expect(automationActionSchema.parse({ type: "generate_image" })).not.toHaveProperty("params");
-  // The wire bounds bite (steps 1..150) — the knob is validated at the trust edge like every arm field.
-  expect(automationActionSchema.safeParse({ type: "generate_image", params: { steps: 999 } }).success).toBe(false);
 });
 
 test("automationActionsSchema enforces the 1..8 arm cap", () => {

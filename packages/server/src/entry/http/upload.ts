@@ -3,7 +3,6 @@
 // (401 before the body is read) → CSRF (403 on a cookie mutation missing the custom header) → a
 // hono/body-limit stream cap (413 over-size, rejected before the whole body is buffered).
 //   • POST /api/assets/upload — a single asset file → assets.store({ enforceMagic:true, maxBytes }).
-//   • POST /api/poses/import — one OR many BYO OpenPose skeletons → assets.importPoses (honest-partial batch).
 //   • POST /api/import — character-card file(s) → delegates to entry/import/run-profile-import.
 //
 // The import route accepts already-extracted card files; a profile ZIP / dir collection is a later wave.
@@ -58,7 +57,7 @@ export interface UploadAssetsPort {
 }
 
 export interface UploadDeps {
-  /** Serves the asset-upload `store`, the import avatar-store (`ImportAssetPort`), and the BYO pose byte-ingest. */
+  /** Serves the asset-upload `store` and the import avatar-store (`ImportAssetPort`). */
   readonly assets: UploadAssetsPort & ImportAssetPort;
   readonly character: ImportCharacterPort;
   readonly tag: ImportTagPort;
@@ -146,11 +145,6 @@ export function registerUpload(app: Hono<PrincipalEnv>, deps: UploadDeps): void 
     });
     return c.json(result);
   });
-
-  // BYO pose import (comfyui-control §4.12.2): N skeleton PNGs (single = a one-item batch) → assets.importPoses.
-  // Same belts as the asset route (auth → CSRF → body cap). Per-file name defaults to the uploaded filename
-  // (ext stripped); one `category` + `tags` (comma-list) apply to the whole batch. Magic-sniff + the 16-MiB
-  // per-item cap run inside the verb, which is honest-partial (a bad skeleton drops with a reason, never the batch).
 
   app.post(IMPORT_ROUTE, authCsrfGuard, bodyCap(IMPORT_MAX_BYTES), async (c) => {
     const principal = c.get("principal");

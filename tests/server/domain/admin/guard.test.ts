@@ -3,11 +3,11 @@
 // deny throws DomainForbiddenError; the wrappers return the gated userId (chainable). This is the contract
 // the W1 leaf domains inject — if this matrix is wrong, every gated surface is wrong.
 
-import type { AgentActor, UserRole } from "@orb/contracts/identity";
+import type { UserRole } from "@orb/contracts/identity";
 import { DomainForbiddenError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { can, canAgent, isAdmin, requireAdmin, requireOwner } from "@orb/server/domain/admin";
+import { can, isAdmin, requireAdmin, requireOwner } from "@orb/server/domain/admin";
 import { describe } from "vitest";
 import { expect, test } from "../../../support/fixtures";
 import { principal } from "./_support.ts";
@@ -83,29 +83,5 @@ describe("can({kind:'chat', roster}) — the resource-role arm", () => {
   test("the global role does NOT grant chat-host authority (resource axis is orthogonal)", () => {
     // An owner who is only a plain MEMBER of the room is not the host — owner⊇admin is the GLOBAL axis only.
     expect(() => can(pr("owner"), "host", { kind: "chat", roster: { role: "member" } })).toThrow(DomainForbiddenError);
-  });
-});
-
-// The D60 agent ceiling (wall two). canAgent is the ONE agent runtime gate — the kill switch (`enabled`) +
-// the closed AGENT_ACTIONS allow-union. Pure (no db), the same seam as can().
-const ROOM = { role: "member" } as const;
-function agentActor(enabled: boolean): AgentActor {
-  return {
-    kind: "agent",
-    userId: castId<UserId>("user_agent"),
-    ownerUserId: castId<UserId>("user_owner"),
-    enabled,
-  };
-}
-
-describe("canAgent (the agent capability ceiling)", () => {
-  test("an ENABLED agent may 'speak' and 'tool-propose'", () => {
-    expect(() => canAgent(agentActor(true), "speak", ROOM)).not.toThrow();
-    expect(() => canAgent(agentActor(true), "tool-propose", ROOM)).not.toThrow();
-  });
-
-  test("a DISABLED agent is refused every action — the kill switch (one-flip containment)", () => {
-    expect(() => canAgent(agentActor(false), "speak", ROOM)).toThrow(DomainForbiddenError);
-    expect(() => canAgent(agentActor(false), "tool-propose", ROOM)).toThrow(DomainForbiddenError);
   });
 });

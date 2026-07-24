@@ -42,10 +42,6 @@ const envSchema = z
     // on agent-sdk/max-pro-sub only.
     OPENROUTER_API_KEY: z.string().min(1).optional(),
 
-    // Tenor gif-search API key. Optional — omit to disable gif search. First-boot-only: seeds the owner's
-    // gif-search credential once; the key is resolved from the row at runtime, never re-read from env.
-    TENOR_API_KEY: z.string().min(1).optional(),
-
     LOG_LEVEL: z.enum(LOG_LEVELS).default("info"),
     // Gates /api/_debug/*. Unset = off (404). Set (any value) to enable; a request must present it via
     // x-debug-token.
@@ -59,10 +55,6 @@ const envSchema = z
     // The built client bundle (`vite build` output) the SPA registrar serves in prod. cwd-relative like
     // ASSETS_DIR (`pnpm start` runs at the repo root). Missing bundle: prod boot-fatal, dev skipped.
     CLIENT_DIST_DIR: z.string().min(1).default("./packages/client/dist"),
-    // Escape-hatch override for the shipped curated pose-library root (comfyui-control §4.12, C6d). Unset ⇒
-    // DERIVED from the served static root (CLIENT_DIST_DIR/poses/library in prod, packages/client/public in
-    // dev) — `resolvePoseLibraryRoot`. Set to point the ComfyUI arm's pose-byte reader elsewhere.
-    POSE_LIBRARY_DIR: z.string().min(1).optional(),
     // Content-addressed asset blob root (card PNGs, avatars); the DB holds metadata, bytes live here.
     ASSETS_DIR: z.string().min(1).default("./data/assets"),
     // The controlled root the bundle-import extractor stages its per-upload dir under (a portability zip
@@ -88,12 +80,6 @@ const envSchema = z
       .enum(["true", "false"])
       .default("false")
       .transform((v) => v === "true"),
-
-    // The owner-configured LOCAL ComfyUI image-generation endpoint (MA-8/D96). The H1 "their URL, their
-    // onus" posture: reached over safeFetch's owner-configured-endpoint egress class (host-pinned, defers
-    // SSRF to the global firewall). Default = the docker-compose loopback. Unconfigured/unreachable ⇒ an
-    // honest capability absence, never a hang.
-    COMFYUI_BASE_URL: z.string().min(1).default("http://localhost:8188"),
 
     // Cross-chat corpus auto-indexing: embed completed raw-message blocks into the search corpus in the
     // background, post-turn. "false" pauses it to offload the GPU.

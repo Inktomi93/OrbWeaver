@@ -36,15 +36,15 @@ test("mount previews the token; confirm redeems and closes into the chat", async
   await expect(page.getByText("Members: 3")).toBeVisible();
   await expect(page.getByText("Mode: Group · natural")).toBeVisible();
   // The preview-then-confirm read fired with the RAW token in the POST body.
-  expect(trpc.count("invites.previewInvite")).toBeGreaterThanOrEqual(1);
-  expect(trpc.lastInput("invites.previewInvite")).toEqual({ token: "tok_ct_secret" });
+  await expect.poll(() => trpc.count("invites.previewInvite")).toBeGreaterThanOrEqual(1);
+  await expect.poll(() => trpc.lastInput("invites.previewInvite")).toEqual({ token: "tok_ct_secret" });
 
   await page.getByTestId("join-invite-confirm").click();
   // Redeem success tears the dialog down (the story renders the done marker) — the DOM
   // consequence of the redeem call landing.
   await expect(page.getByTestId("ct-join-done")).toBeVisible();
-  expect(trpc.count("invites.redeemInvite")).toBeGreaterThanOrEqual(1);
-  expect(trpc.lastInput("invites.redeemInvite")).toEqual({ token: "tok_ct_secret" });
+  await expect.poll(() => trpc.count("invites.redeemInvite")).toBeGreaterThanOrEqual(1);
+  await expect.poll(() => trpc.lastInput("invites.redeemInvite")).toEqual({ token: "tok_ct_secret" });
 });
 
 test("a bad token renders the flat 'invalid or expired' state (leak-free NOT_FOUND)", async ({ mount, page }) => {
@@ -72,5 +72,5 @@ test("'Not now' dismisses without redeeming (the link stays usable)", async ({ m
 
   await page.getByRole("button", { name: "Not now" }).click();
   await expect(page.getByTestId("ct-join-done")).toBeVisible();
-  expect(trpc.count("invites.redeemInvite")).toBe(0);
+  await expect.poll(() => trpc.count("invites.redeemInvite")).toBe(0);
 });

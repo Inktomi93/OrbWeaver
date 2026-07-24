@@ -417,7 +417,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
               history: req.history as any,
               historyCacheBreakpointFromEnd: req.cacheBreakpointFromEnd ?? undefined,
               // The preset's provider-passthrough blob (PD-148) rides the chat-completions/responses arm; the
-              // agent-sdk/anthropic-messages arms carry no wire customParameters by charter.
+              // agent-sdk arm carries no wire customParameters by charter.
               ...(req.customParameters !== undefined ? { customParameters: req.customParameters } : {}),
               ...(req.tools !== undefined ? { tools: req.tools } : {}),
               ...(req.toolChoice !== undefined ? { toolChoice: req.toolChoice } : {}),
@@ -681,7 +681,6 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
         mode: p.mode,
         ...(p.prompt !== undefined ? { prompt: p.prompt } : {}),
         ...(p.n !== undefined ? { n: p.n } : {}),
-        ...(p.params !== undefined ? { params: p.params } : {}),
       });
       return {
         images: picture.images.map((img) => ({ assetId: img.assetId })),

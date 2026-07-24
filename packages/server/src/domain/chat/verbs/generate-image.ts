@@ -20,12 +20,10 @@ const GENERATED_IMAGE_ALT = "generated image";
 
 /** Chat OWNS its bus warning vocabulary: it maps imagery's native warning codes onto its own `ChatWarningCode`
  *  (the turnAbortNotice precedent — a foreign domain never dictates chat's bus codes). An unmapped imagery code
- *  is dropped rather than emitted as an unknown code. The imagery drop codes (imagery-design/03 §2 + the granular
- *  ComfyUI lever drops, comfyui-control §4.6/§4.12): `image_edit_dropped` = the whole edit strip; the granular
- *  trio = ONE curated lever the role's family couldn't honor. Each stays SEPARATE (never collapsed) so a user who
- *  picked a pose learns THE POSE dropped, specifically. The codes are spelled identically across the two
- *  vocabularies — a match against this compile-checked `ChatWarningCode` subset yields the chat code (no re-spell). */
-const IMAGERY_WARNING_CODES: readonly ChatWarningCode[] = ["image_edit_dropped", "image_inpaint_dropped", "image_identity_dropped", "image_pose_dropped"];
+ *  is dropped rather than emitted as an unknown code. The imagery drop code (imagery-design/03 §2):
+ *  `image_edit_dropped` = the whole edit strip. The code is spelled identically across the two vocabularies —
+ *  a match against this compile-checked `ChatWarningCode` subset yields the chat code (no re-spell). */
+const IMAGERY_WARNING_CODES: readonly ChatWarningCode[] = ["image_edit_dropped"];
 
 function toChatWarningCode(imageryCode: string): ChatWarningCode | null {
   return IMAGERY_WARNING_CODES.find((code) => code === imageryCode) ?? null;
@@ -38,7 +36,7 @@ interface GenerateImageDeps {
 
 export function createGenerateImage(ctx: ChatContext, deps: GenerateImageDeps): Pick<ChatService, "generateImage"> {
   return {
-    generateImage: async ({ principal, chatId, mode, prompt, n, size, params: imageParams }: GenerateImageParams): Promise<MessageView> => {
+    generateImage: async ({ principal, chatId, mode, prompt, n, size }: GenerateImageParams): Promise<MessageView> => {
       await requireParticipant(ctx, principal, chatId);
       const picture = await ctx.generatePicture({
         caller: principal,
@@ -47,7 +45,6 @@ export function createGenerateImage(ctx: ChatContext, deps: GenerateImageDeps): 
         ...(prompt !== undefined ? { prompt } : {}),
         ...(n !== undefined ? { n } : {}),
         ...(size !== undefined ? { size } : {}),
-        ...(imageParams !== undefined ? { params: imageParams } : {}),
       });
 
       // ONE message body STRING: the prompt (if any) + one markdown image ref per generated asset (D51).

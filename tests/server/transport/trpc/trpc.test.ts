@@ -9,9 +9,10 @@ import { DomainRateLimitError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, ChatInviteId, NotificationId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { AdminService } from "@orb/server/domain/admin";
-import type { BuddyService } from "@orb/server/domain/buddy";
 import type { ChatService } from "@orb/server/domain/chat";
 import type { NotificationsService } from "@orb/server/domain/notifications";
+import type { PersonaService } from "@orb/server/domain/persona";
+import type { SettingsService } from "@orb/server/domain/settings";
 import type { Context, PresenceRegistry, Services } from "@orb/server/transport/trpc";
 import type { Mock } from "vitest";
 import { describe, vi } from "vitest";
@@ -21,14 +22,14 @@ import { caller, denyRateLimit, inertPresence, makeContext, principal } from "./
 describe("authedProcedure", () => {
   test("rejects an anonymous caller with UNAUTHORIZED", async () => {
     const ctx = makeContext({ auth: null });
-    await expect(caller(ctx).buddy.get()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    await expect(caller(ctx).persona.list()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
   });
 
   test("admits an authenticated caller (the gate passes through to the verb)", async () => {
-    const get = vi.fn<BuddyService["get"]>();
-    const ctx = makeContext({ auth: principal("user"), services: { buddy: { get } } });
-    await caller(ctx).buddy.get();
-    expect(get).toHaveBeenCalledWith({ principal: ctx.auth });
+    const list = vi.fn<PersonaService["list"]>();
+    const ctx = makeContext({ auth: principal("user"), services: { persona: { list } } });
+    await caller(ctx).persona.list();
+    expect(list).toHaveBeenCalledWith({ principal: ctx.auth });
   });
 });
 
@@ -68,50 +69,51 @@ describe("a representative router delegates to the injected service verb", () =>
 });
 
 describe("CSRF gate (cookie-authed mutations only)", () => {
+  const patch = { displayName: "x" };
   test("a cookie mutation WITHOUT the custom header → FORBIDDEN", async () => {
-    const setAgency = vi.fn<BuddyService["setAgency"]>();
+    const updateUserSettingsSection = vi.fn<SettingsService["updateUserSettingsSection"]>();
     const ctx = makeContext({
       auth: principal("user", { via: "cookie" }),
       csrfHeaderPresent: false,
-      services: { buddy: { setAgency } },
+      services: { settings: { updateUserSettingsSection } },
     });
-    await expect(caller(ctx).buddy.setAgency({ enabled: true })).rejects.toMatchObject({
+    await expect(caller(ctx).settings.updateUserSettingsSection({ section: "profile", patch })).rejects.toMatchObject({
       code: "FORBIDDEN",
     });
-    expect(setAgency).not.toHaveBeenCalled();
+    expect(updateUserSettingsSection).not.toHaveBeenCalled();
   });
 
   test("a cookie mutation WITH the custom header passes", async () => {
-    const setAgency = vi.fn<BuddyService["setAgency"]>();
+    const updateUserSettingsSection = vi.fn<SettingsService["updateUserSettingsSection"]>();
     const ctx = makeContext({
       auth: principal("user", { via: "cookie" }),
       csrfHeaderPresent: true,
-      services: { buddy: { setAgency } },
+      services: { settings: { updateUserSettingsSection } },
     });
-    await caller(ctx).buddy.setAgency({ enabled: true });
-    expect(setAgency).toHaveBeenCalledWith({ principal: ctx.auth, enabled: true });
+    await caller(ctx).settings.updateUserSettingsSection({ section: "profile", patch });
+    expect(updateUserSettingsSection).toHaveBeenCalledWith({ principal: ctx.auth, input: { section: "profile", patch } });
   });
 
   test("a header-authed mutation is exempt (no cross-site surface)", async () => {
-    const setAgency = vi.fn<BuddyService["setAgency"]>();
+    const updateUserSettingsSection = vi.fn<SettingsService["updateUserSettingsSection"]>();
     const ctx = makeContext({
       auth: principal("user", { via: "header" }),
       csrfHeaderPresent: false,
-      services: { buddy: { setAgency } },
+      services: { settings: { updateUserSettingsSection } },
     });
-    await caller(ctx).buddy.setAgency({ enabled: true });
-    expect(setAgency).toHaveBeenCalledTimes(1);
+    await caller(ctx).settings.updateUserSettingsSection({ section: "profile", patch });
+    expect(updateUserSettingsSection).toHaveBeenCalledTimes(1);
   });
 
   test("a query is never CSRF-gated (even cookie-authed without the header)", async () => {
-    const get = vi.fn<BuddyService["get"]>();
+    const list = vi.fn<PersonaService["list"]>();
     const ctx = makeContext({
       auth: principal("user", { via: "cookie" }),
       csrfHeaderPresent: false,
-      services: { buddy: { get } },
+      services: { persona: { list } },
     });
-    await caller(ctx).buddy.get();
-    expect(get).toHaveBeenCalledTimes(1);
+    await caller(ctx).persona.list();
+    expect(list).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -121,7 +123,7 @@ describe("the injected rate-limit gate", () => {
       auth: principal("user"),
       rateLimit: denyRateLimit(new DomainRateLimitError("slow down")),
     });
-    await expect(caller(ctx).buddy.get()).rejects.toMatchObject({ code: "TOO_MANY_REQUESTS" });
+    await expect(caller(ctx).persona.list()).rejects.toMatchObject({ code: "TOO_MANY_REQUESTS" });
   });
 });
 

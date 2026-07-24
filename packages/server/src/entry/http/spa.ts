@@ -36,9 +36,8 @@ export function resolveSpaDistDir(opts: { readonly distDir: string; readonly pro
 }
 
 // The curated pose skeletons ship UNDER the same served client-static tree (`<root>/poses/library/…`) — the
-// C6b theme-pipeline posture (shipped static + generated index, NOT per-user CAS). The ComfyUI arm reads their
-// BYTES server-side, so the reader's root MUST derive from the SAME static root the SPA serves (never a
-// parallel guess that can drift to nothing).
+// shipped-static + generated-index posture (NOT per-user CAS). A server-side pose-byte reader's root MUST
+// derive from the SAME static root the SPA serves (never a parallel guess that can drift to nothing).
 
 /** Register the bundle file-serve + the history fallback on `app` (GET/HEAD only; call LAST). */
 export function registerSpa(app: Hono, deps: SpaDeps): void {

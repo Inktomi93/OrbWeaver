@@ -10,7 +10,6 @@ import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../support/db";
 import { expect, test } from "../../support/fixtures";
-import { seedUser } from "./_support.ts";
 
 // The default global role a freshly-provisioned user lands on (owner/admin are granted explicitly — D17).
 const DEFAULT_ROLE = "user";
@@ -148,9 +147,8 @@ test("the single-owner index leaves non-owner roles unconstrained (many admins +
   expect(rows).toHaveLength(5);
 });
 
-// ── D60 agent principals (agent-principal-design/01 §1): kind + ownerUserId + the three shape CHECKs ──
-// The DDL is the FIRST wall of the structural no-login guarantee — an agent is loginless / unprivileged /
-// owned as PHYSICS, not prose. These pin every arm (the sessions belts back the same guarantees at the app tier).
+// ── the kind axis (agent-principal support removed from @orb/contracts/identity; USER_KINDS is now the
+// single-member `["human"]` tuple — see the "source drift" note in this file's task report) ──
 
 test("test-mirror: the users.kind column derives the canonical USER_KINDS tuple", () => {
   expect([...users.kind.enumValues]).toEqual([...USER_KINDS]);
@@ -163,128 +161,4 @@ test("kind defaults to 'human' and a human carries no owner link", async () => {
   const row = (await db.select().from(users).where(eq(users.id, id)))[0];
   expect(row?.kind).toBe("human");
   expect(row?.ownerUserId).toBeNull();
-});
-
-test("a valid agent principal inserts: role='user', no password, no externalId, owned", async () => {
-  const db = await freshDb();
-  const ownerId = await seedUser(db, { id: "user_agent_owner", handle: "agent_owner" });
-  const agentId = castId<UserId>("user_agent_ok");
-  await db.insert(users).values({
-    id: agentId,
-    handle: castId<Handle>("__agent__buddy__user_agent_owner"),
-    role: "user",
-    kind: "agent",
-    ownerUserId: ownerId,
-  });
-  const row = (await db.select().from(users).where(eq(users.id, agentId)))[0];
-  expect(row?.kind).toBe("agent");
-  expect(row?.ownerUserId).toBe(ownerId);
-  expect(row?.passwordHash).toBeNull();
-  expect(row?.externalId).toBeNull();
-});
-
-test("users_agent_shape rejects an agent with a privileged role", async () => {
-  const db = await freshDb();
-  const ownerId = await seedUser(db, { id: "user_agent_owner", handle: "agent_owner" });
-  let caught: unknown;
-  try {
-    await db.insert(users).values({
-      id: castId<UserId>("user_agent_role"),
-      handle: castId<Handle>("agent_role"),
-      role: "admin",
-      kind: "agent",
-      ownerUserId: ownerId,
-    });
-  } catch (err) {
-    caught = err;
-  }
-  expect(isConstraintViolation(caught)?.kind).toBe("check");
-});
-
-test("users_agent_shape rejects an agent carrying a passwordHash (loginless)", async () => {
-  const db = await freshDb();
-  const ownerId = await seedUser(db, { id: "user_agent_owner", handle: "agent_owner" });
-  let caught: unknown;
-  try {
-    await db.insert(users).values({
-      id: castId<UserId>("user_agent_pw"),
-      handle: castId<Handle>("agent_pw"),
-      role: "user",
-      kind: "agent",
-      ownerUserId: ownerId,
-      passwordHash: "scrypt$deadbeef",
-    });
-  } catch (err) {
-    caught = err;
-  }
-  expect(isConstraintViolation(caught)?.kind).toBe("check");
-});
-
-test("users_agent_shape rejects an agent carrying an externalId (no SSO subject)", async () => {
-  const db = await freshDb();
-  const ownerId = await seedUser(db, { id: "user_agent_owner", handle: "agent_owner" });
-  let caught: unknown;
-  try {
-    await db.insert(users).values({
-      id: castId<UserId>("user_agent_ext"),
-      handle: castId<Handle>("agent_ext"),
-      role: "user",
-      kind: "agent",
-      ownerUserId: ownerId,
-      externalId: castId<ExternalId>("sso_agent"),
-    });
-  } catch (err) {
-    caught = err;
-  }
-  expect(isConstraintViolation(caught)?.kind).toBe("check");
-});
-
-test("users_agent_shape rejects an agent with a null owner (agents are always owned)", async () => {
-  const db = await freshDb();
-  let caught: unknown;
-  try {
-    await db.insert(users).values({
-      id: castId<UserId>("user_agent_noowner"),
-      handle: castId<Handle>("agent_noowner"),
-      role: "user",
-      kind: "agent",
-      ownerUserId: null,
-    });
-  } catch (err) {
-    caught = err;
-  }
-  expect(isConstraintViolation(caught)?.kind).toBe("check");
-});
-
-test("users_human_shape rejects a human carrying an owner link", async () => {
-  const db = await freshDb();
-  const ownerId = await seedUser(db, { id: "user_agent_owner", handle: "agent_owner" });
-  let caught: unknown;
-  try {
-    await db.insert(users).values({
-      id: castId<UserId>("user_human_owned"),
-      handle: castId<Handle>("human_owned"),
-      kind: "human",
-      ownerUserId: ownerId,
-    });
-  } catch (err) {
-    caught = err;
-  }
-  expect(isConstraintViolation(caught)?.kind).toBe("check");
-});
-
-test("owner hard-delete CASCADEs the agent users row (referential physics, no orphan)", async () => {
-  const db = await freshDb();
-  const ownerId = await seedUser(db, { id: "user_agent_owner", handle: "agent_owner" });
-  const agentId = castId<UserId>("user_agent_cascade");
-  await db.insert(users).values({
-    id: agentId,
-    handle: castId<Handle>("__agent__buddy__cascade"),
-    role: "user",
-    kind: "agent",
-    ownerUserId: ownerId,
-  });
-  await db.delete(users).where(eq(users.id, ownerId));
-  const remaining = await db.select().from(users).where(eq(users.id, agentId));
-  expect(remaining).toHaveLength(0);
 });

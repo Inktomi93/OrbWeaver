@@ -18,7 +18,7 @@ import type {
 import type { CredentialSource, ResolvedConnection, RouteChatAssignment } from "@orb/contracts/connection";
 import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { Can, ChatRoster, ParticipantRole, Principal } from "@orb/contracts/identity";
-import type { ImageDiffusionParams, PromptTemplateMode } from "@orb/contracts/imagery";
+import type { PromptTemplateMode } from "@orb/contracts/imagery";
 import type { NotificationEvent, PresenceView } from "@orb/contracts/notifications";
 import type { ChoiceBlockSpec } from "@orb/contracts/preset";
 import type { RoleClients } from "@orb/contracts/role-clients";
@@ -361,8 +361,6 @@ export type GeneratePictureOp = (p: {
   readonly mode: PromptTemplateMode;
   readonly prompt?: string | undefined;
   readonly n?: number | undefined;
-  /** The diffusion knobs (MA-8/D96) — forwarded to imagery; honored only by a local engine (ComfyUI). */
-  readonly params?: ImageDiffusionParams | undefined;
 }) => Promise<{
   readonly images: readonly { readonly assetId: AssetId }[];
   // Imagery's native warning vocabulary (e.g. `image_edit_dropped` — an edit/avatar-reference input dropped for

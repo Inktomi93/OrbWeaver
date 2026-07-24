@@ -9,7 +9,7 @@ import { useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
 import { goToLanding, selectCharacter, setActiveSection, useTurnSpeakerCharacterId } from "#state";
 import { useKickMember, useNominateHostHandoff, useSelfLeave } from "../hooks/use-membership-mutations";
-import { useForceCharacterTurn, useSetParticipantDisabled, useSetParticipantTalkativeness } from "../hooks/use-roster-mutations";
+import { useForceCharacterTurn, useSetSeatKnobs } from "../hooks/use-roster-mutations";
 import type { MemberCastRow, MemberPersonRow } from "../lib/member-rows";
 import { filterCharacters, resolveHumanParticipants } from "../lib/roster";
 import { InviteDialog } from "./invite-dialog";
@@ -66,8 +66,7 @@ export interface CommittedMembersTabProps {
 export function CommittedMembersTab({ chatId, chat, isHost, multiHumanCapable, castVisible }: CommittedMembersTabProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const setDisabled = useSetParticipantDisabled({ trpc, invalidation });
-  const setTalkativeness = useSetParticipantTalkativeness({ trpc, invalidation });
+  const setSeatKnobs = useSetSeatKnobs({ trpc, invalidation });
   const forceTurn = useForceCharacterTurn({ trpc, invalidation });
   const kick = useKickMember({ trpc, invalidation });
   const selfLeave = useSelfLeave({ trpc, invalidation });
@@ -78,6 +77,10 @@ export function CommittedMembersTab({ chatId, chat, isHost, multiHumanCapable, c
   const people = multiHumanCapable ? toPersonRows(chat.participants, chat.viewerUserId, chat.pendingHostUserId) : [];
   const cast = castVisible ? toCastRows(chat.participants, respondingCharacterId) : [];
   const hostMembership = isHost && multiHumanCapable;
+
+  // `setSeatKnobs` keys by the participant row id (D80); the cast-row callbacks surface `characterId`, so
+  // resolve the seat here from the same roster the rows were projected from.
+  const participantIdByCharacter = new Map(filterCharacters(chat.participants).map((p) => [p.characterId, p.id]));
 
   const onLeave = (): void =>
     void selfLeave
@@ -95,8 +98,26 @@ export function CommittedMembersTab({ chatId, chat, isHost, multiHumanCapable, c
         onNominateHost={hostMembership ? (userId): void => nominateHost.mutate({ chatId, userId }) : undefined}
         onLeave={multiHumanCapable ? onLeave : undefined}
         leaveArchivesRoom={isHost}
-        onSetDisabled={isHost ? (characterId, disabled): void => setDisabled.mutate({ chatId, characterId, disabled }) : undefined}
-        onSetTalkativeness={isHost ? (characterId, talkativeness): void => setTalkativeness.mutate({ chatId, characterId, talkativeness }) : undefined}
+        onSetDisabled={
+          isHost
+            ? (characterId, disabled): void => {
+                const participantId = participantIdByCharacter.get(characterId);
+                if (participantId !== undefined) {
+                  setSeatKnobs.mutate({ chatId, participantId, patch: { disabled } });
+                }
+              }
+            : undefined
+        }
+        onSetTalkativeness={
+          isHost
+            ? (characterId, talkativeness): void => {
+                const participantId = participantIdByCharacter.get(characterId);
+                if (participantId !== undefined) {
+                  setSeatKnobs.mutate({ chatId, participantId, patch: { talkativeness } });
+                }
+              }
+            : undefined
+        }
         onForceTurn={isHost ? (characterId): void => forceTurn.mutate({ chatId, characterId }) : undefined}
         onViewCharacter={(characterId): void => {
           selectCharacter(characterId);

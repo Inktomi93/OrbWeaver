@@ -60,7 +60,7 @@ export interface CharacterDetailFixture {
   readonly description: string | null;
   readonly personality: string | null;
   readonly scenario: string | null;
-  readonly greetings: readonly string[];
+  readonly greetings: readonly { readonly text: string; readonly groupOnly?: boolean }[];
   readonly exampleMessages: string | null;
   readonly systemPrompt: string | null;
   readonly postHistoryInstructions: string | null;
@@ -103,7 +103,7 @@ export function makeCharacterDetail(overrides: Partial<CharacterDetailFixture> =
     description: "A wandering cartographer.",
     personality: null,
     scenario: null,
-    greetings: ["Hello, traveler."],
+    greetings: [{ text: "Hello, traveler." }],
     exampleMessages: null,
     systemPrompt: null,
     postHistoryInstructions: null,

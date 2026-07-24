@@ -24,7 +24,7 @@ test("invalidate() (via the hook's live context) refetches the mounted getChat q
   await mount(<InvalidationStory chatId={CHAT_ID} />);
 
   await expect(page.getByTestId("invalidation-state")).toContainText(`room for ${CHAT_ID}`);
-  expect(trpc.count("chat.getChat")).toBe(1);
+  await expect.poll(() => trpc.count("chat.getChat")).toBe(1);
 
   await page.getByRole("button", { name: "invalidate" }).click();
 

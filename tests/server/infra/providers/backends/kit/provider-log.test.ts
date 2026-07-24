@@ -1,5 +1,5 @@
 // backends/kit/provider-log — THE shared `provider.*` sink hoisted from agent-sdk (part 05 §2). `backend`
-// is now a per-CALL arg so the openrouter + anth-direct backends emit the same taxonomy with their own tag.
+// is now a per-CALL arg so every backend emits the same taxonomy with its own tag.
 // We spy the base `logger` method directly (the memory-log.test.ts pattern — `getLog()` returns the base
 // logger outside a request scope). `logProviderCache` is the W3 cache-rot receipt.
 
@@ -29,8 +29,8 @@ describe("providerLog — the shared sink tags the per-call backend", () => {
 
   test("a different backend tag rides the same taxonomy", () => {
     const spy = vi.spyOn(logger, "debug");
-    providerLog("anth-direct", "debug", "provider.channel", {});
-    expect(callOf(spy)[0]["backend"]).toBe("anth-direct");
+    providerLog("vllm", "debug", "provider.channel", {});
+    expect(callOf(spy)[0]["backend"]).toBe("vllm");
   });
 });
 
@@ -69,10 +69,10 @@ describe("logProviderCache — the cache-rot receipt (part 05 §3a)", () => {
 describe("logProviderCapability — the resolution line (part 05 §3c)", () => {
   test("debug line carrying api/credentialSource/requestedModel/turns/droppedWarnings + the turnId", () => {
     const spy = vi.spyOn(logger, "debug");
-    logProviderCapability("anth-direct", {
+    logProviderCapability("agent-sdk", {
       turnId: "turn_7",
-      api: "anthropic-messages",
-      credentialSource: "openrouter",
+      api: "agent-sdk",
+      credentialSource: "max-pro-sub",
       requestedModel: "claude-opus-4-6",
       turns: { midConversationSystem: true, explicitPromptCache: true },
       droppedWarnings: [{ code: "verbosity_dropped", message: "verbosity ignored: no vocab" }],
@@ -81,11 +81,11 @@ describe("logProviderCapability — the resolution line (part 05 §3c)", () => {
     expect(msg).toBe("provider.capability");
     expect(fields).toMatchObject({
       provider: true,
-      backend: "anth-direct",
+      backend: "agent-sdk",
       event: "provider.capability",
       turnId: "turn_7",
-      api: "anthropic-messages",
-      credentialSource: "openrouter",
+      api: "agent-sdk",
+      credentialSource: "max-pro-sub",
       requestedModel: "claude-opus-4-6",
       turns: { midConversationSystem: true, explicitPromptCache: true },
       droppedWarnings: [{ code: "verbosity_dropped", message: "verbosity ignored: no vocab" }],
@@ -135,7 +135,7 @@ describe("logProviderSampling — which knobs survived (part 05 §3d)", () => {
 
   test("rides the debug level (opt-in), not info", () => {
     const infoSpy = vi.spyOn(logger, "info");
-    logProviderSampling("anth-direct", {
+    logProviderSampling("vllm", {
       turnId: "turn_3",
       requested: {},
       applied: {},

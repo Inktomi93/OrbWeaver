@@ -14,6 +14,7 @@ const populated: ChatSettings = {
   customStoppingStrings: ["###", "END"],
   smoothStream: true,
   smoothStreamCps: 150,
+  streamScrollMode: "pin-prompt",
 };
 
 test("projectChatForm flattens the nest and newline-joins the two list fields", () => {
@@ -27,6 +28,7 @@ test("projectChatForm flattens the nest and newline-joins the two list fields", 
     customStoppingStrings: "###\nEND",
     smoothStream: true,
     smoothStreamCps: 150,
+    streamScrollMode: "pin-prompt",
   });
 });
 

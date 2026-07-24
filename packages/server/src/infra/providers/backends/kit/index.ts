@@ -7,7 +7,7 @@
 // the OpenAI SSE reducer/mapper, the cache_control constants + placement primitive, the reasoning XOR
 // builders, the lenient wire parses, the HTTP error table, pre-commit retry, idle-abort, error sanitize.
 
-// ── Outbound image → Anthropic Messages content block (MA-10; anth-direct + agent-sdk summarize) ────────
+// ── Outbound image → Anthropic Messages content block (MA-10; agent-sdk summarize) ────────
 export { toAnthImageBlock } from "./anth-image-block";
 // ── Anthropic cache_control: constants, the model anchor, the routing pin, the placement primitive ──
 export type { CacheControlTextBlock } from "./cache-control";

@@ -1,13 +1,5 @@
 import type { AuthMode, Principal, ResolvedIdentity, UserRole } from "@orb/contracts/identity";
-import {
-  AGENT_SOURCE_KINDS,
-  AGENT_SOURCE_LABELS,
-  AUTH_MODES,
-  agentSourceKindFromHandle,
-  authModeSchema,
-  USER_ROLES,
-  userRoleSchema,
-} from "@orb/contracts/identity";
+import { AUTH_MODES, authModeSchema, USER_ROLES, userRoleSchema } from "@orb/contracts/identity";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "../../support/fixtures";
@@ -61,22 +53,6 @@ test("authModeSchema round-trips every mode and rejects non-members", () => {
   }
   expect(authModeSchema.safeParse("saml").success).toBe(false);
   expect(authModeSchema.safeParse("").success).toBe(false);
-});
-
-// D60 agent-label derivation: `AGENT_SOURCE_LABELS` is the ONE `sourceKind → human label` home (a full
-// Record over the tuple), and `agentSourceKindFromHandle` recovers the kind from a reserved handle so the
-// client's admin list can label an agent row without an `agent_principals` read.
-test("AGENT_SOURCE_LABELS covers every source kind and maps buddy → Buddy", () => {
-  expect(Object.keys(AGENT_SOURCE_LABELS).sort()).toEqual([...AGENT_SOURCE_KINDS].sort());
-  expect(AGENT_SOURCE_LABELS.buddy).toBe("Buddy");
-});
-
-test("agentSourceKindFromHandle recovers the kind from a reserved handle, else null", () => {
-  expect(agentSourceKindFromHandle("__agent__buddy__user_01hZZ")).toBe("buddy");
-  // A human handle, an unknown kind, and the empty string are all null (never a false agent match).
-  expect(agentSourceKindFromHandle("alice")).toBeNull();
-  expect(agentSourceKindFromHandle("__agent__gremlin__user_01hZZ")).toBeNull();
-  expect(agentSourceKindFromHandle("")).toBeNull();
 });
 
 // Sample branded values built at the untyped seam (castId is the sanctioned cast) — no pasted secrets.

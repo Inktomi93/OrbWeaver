@@ -15,8 +15,7 @@ export function groupHandle(chatId: string): string {
 }
 
 /** True when a handle falls in the reserved synthetic group namespace — `character.create`/`update` REFUSE
- *  these (a user card may never squat the `__group__${chatId}` bucket the mint owns), the mirror of the
- *  `__agent__` refusal at identity surfaces (`@orb/contracts/identity` `isReservedAgentHandle`). */
+ *  these (a user card may never squat the `__group__${chatId}` bucket the mint owns). */
 export function isReservedGroupHandle(handle: string): boolean {
   return handle.startsWith(GROUP_HANDLE_PREFIX);
 }

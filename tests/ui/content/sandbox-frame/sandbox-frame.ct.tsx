@@ -28,7 +28,7 @@ test("a <script> inside the untrusted html does not reach the parent (sandboxed,
 test("render-on-complete: incomplete shows a skeleton, not the frame", async ({ mount }) => {
   const cmp = await mount(<SandboxFrame html="<p>x</p>" title="x" complete={false} />);
   await expect(cmp).toHaveAttribute("data-slot", "sandbox-frame-skeleton");
-  expect(await cmp.evaluate((el) => el.tagName.toLowerCase())).not.toBe("iframe");
+  await expect.poll(() => cmp.evaluate((el) => el.tagName.toLowerCase())).not.toBe("iframe");
 });
 
 test("hostile themeTokens are dropped at the boundary, not smuggled into the srcdoc", async ({ mount }) => {

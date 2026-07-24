@@ -33,13 +33,13 @@ test("onEndApproach fetches the next page and appends its rows (the guarded tail
 
   await expect(page.locator("li")).toHaveCount(2);
   await expect(page.getByTestId("surface-state")).toContainText("hasNext=true");
-  expect(trpc.count("notifications.list")).toBe(1);
+  await expect.poll(() => trpc.count("notifications.list")).toBe(1);
 
   await page.getByRole("button", { name: "approach-end" }).click();
 
   await expect(page.locator("li")).toHaveCount(3);
   await expect(page.getByTestId("surface-state")).toContainText("hasNext=false");
-  expect(trpc.count("notifications.list")).toBe(2);
+  await expect.poll(() => trpc.count("notifications.list")).toBe(2);
 });
 
 test("once exhausted (hasNextPage:false), repeated onEndApproach calls stay a no-op", async ({ mount, page }) => {
@@ -57,5 +57,5 @@ test("once exhausted (hasNextPage:false), repeated onEndApproach calls stay a no
   await button.click();
 
   // The guard (`hasNextPage && !isFetching`) never fires past the end — one initial call only.
-  expect(trpc.count("notifications.list")).toBe(1);
+  await expect.poll(() => trpc.count("notifications.list")).toBe(1);
 });

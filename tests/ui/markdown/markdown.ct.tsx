@@ -24,7 +24,7 @@ test("untrusted: a <script> tag is stripped and never executes", async ({ mount,
   const payload = `<${tag}>alert(1)</${tag}>`;
   const cmp = await mount(<Markdown trust="untrusted" mode="static">{`hello ${payload} world`}</Markdown>);
   await expect(cmp).toContainText("hello");
-  expect(await cmp.locator("script").count()).toBe(0);
+  await expect(cmp.locator("script")).toHaveCount(0);
   expect(alerted).toBe(false);
 });
 
@@ -34,14 +34,14 @@ test("untrusted: an external image neither renders NOR prefetches (no img, no pr
   await expect(cmp).toContainText("text");
   // img is dropped from the untrusted allowlist (D44 §12.3) — no <img> AND, critically, no
   // <link rel=preload as=image> exfil (Streamdown emits that for markdown images; verified).
-  expect(await cmp.locator(`img[src*="evil.test"]`).count()).toBe(0);
-  expect(await page.locator(`link[href*="evil.test"]`).count()).toBe(0);
+  await expect(cmp.locator(`img[src*="evil.test"]`)).toHaveCount(0);
+  await expect(page.locator(`link[href*="evil.test"]`)).toHaveCount(0);
 });
 
 test("untrusted: a javascript: link href is neutralized", async ({ mount }) => {
   const js = ["java", "script:alert(1)"].join("");
   const cmp = await mount(<Markdown trust="untrusted" mode="static">{`[click](${js})`}</Markdown>);
-  expect(await cmp.locator(`a[href^="java"]`).count()).toBe(0);
+  await expect(cmp.locator(`a[href^="java"]`)).toHaveCount(0);
 });
 
 test("trusted: a GFM table renders", async ({ mount }) => {
@@ -64,8 +64,8 @@ test("gfm singleTilde:false — prose like 10~20°C is NOT struck through", asyn
   );
   await expect(cmp).toContainText("10~20°C");
   // No strikethrough element swallowed the range (a single ~ must stay literal).
-  expect(await cmp.locator("del").count()).toBe(0);
-  expect(await cmp.locator("s").count()).toBe(0);
+  await expect(cmp.locator("del")).toHaveCount(0);
+  await expect(cmp.locator("s")).toHaveCount(0);
 });
 
 test("trusted: ~~real strikethrough~~ (double tilde) still works", async ({ mount }) => {
@@ -76,7 +76,7 @@ test("trusted: ~~real strikethrough~~ (double tilde) still works", async ({ moun
     </Markdown>,
   );
   await expect(cmp.getByText("struck")).toBeVisible();
-  expect(await cmp.locator('del, s, [data-streamdown="del"]').count()).toBeGreaterThan(0);
+  await expect.poll(() => cmp.locator('del, s, [data-streamdown="del"]').count()).toBeGreaterThan(0);
 });
 
 test("trusted: a fenced code block renders with the language header + copy/download controls", async ({ mount }) => {
@@ -188,7 +188,7 @@ test("trusted: a complete <speaker> tag renders its NAME as literal text (allowe
   await expect(cmp).toContainText("Alice");
   await expect(cmp).toContainText("waves");
   // The tag passed through as a real element (proving allowedTags, not just sanitize unwrapping).
-  expect(await cmp.locator("speaker").count()).toBeGreaterThan(0);
+  await expect.poll(() => cmp.locator("speaker").count()).toBeGreaterThan(0);
 });
 
 test("untrusted: a <speaker> tag is NOT granted element passthrough (no <speaker> element)", async ({ mount }) => {
@@ -199,7 +199,7 @@ test("untrusted: a <speaker> tag is NOT granted element passthrough (no <speaker
       {"<speaker>Mallory</speaker> lurks."}
     </Markdown>,
   );
-  expect(await cmp.locator("speaker").count()).toBe(0);
+  await expect(cmp.locator("speaker")).toHaveCount(0);
 });
 
 test("large-block guard (issue 195): a pathologically large block skips Streamdown for a plain fallback", async ({ mount }) => {
@@ -210,7 +210,7 @@ test("large-block guard (issue 195): a pathologically large block skips Streamdo
     </Markdown>,
   );
   await expect(cmp).toHaveAttribute("data-slot", "markdown-oversized");
-  expect(await cmp.evaluate((el) => el.tagName.toLowerCase())).toBe("pre");
+  await expect.poll(() => cmp.evaluate((el) => el.tagName.toLowerCase())).toBe("pre");
   await expect(cmp).toContainText("aaaa");
 });
 

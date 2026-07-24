@@ -1,17 +1,19 @@
 // The group-roster-controls write verbs (task #29 — the cast bar + the CONTEXT-panel Roster tab), each a
 // module-scope `createEntityMutation` (§13.1 — the ONE mutation home; a call site never hand-rolls
-// `useMutation` + cache surgery). All three are host-only server-side (substrate/auth/matrix.ts); the
-// client host-gates the SURFACE (the Roster tab is host-only, like Preview), so these never fire for a
-// member. Settle-invalidation routes through the central seam:
-//   • setParticipantDisabled / setParticipantTalkativeness → refetch `getChat` (the roster read the cast
-//     bar + the Roster tab + the message-list attribution all share — one query, no extra fetch).
+// `useMutation` + cache surgery). All are host-only server-side (substrate/auth/matrix.ts); the client
+// host-gates the SURFACE (the Roster tab is host-only, like Preview), so these never fire for a member.
+// Settle-invalidation routes through the central seam:
+//   • setSeatKnobs → refetch `getChat` (the roster read the cast bar + the Roster tab + the message-list
+//     attribution all share — one query, no extra fetch). The per-kind mute/talkativeness verbs are RETIRED
+//     (D80): one participantId-keyed `setSeatKnobs` projecting `SeatKnobs` (a `patch` of disabled/talkativeness).
 //   • forceCharacterTurn → a TURN trigger (like `generate`): the turn's own lifecycle is bus-driven
 //     (`turnStarted`/`messageCommitted`/…), so it refetches `getChat` + `listMessages` (the transcript).
-// TData is `unknown` on all three (the context-panel-mutations precedent): the return value is never read
-// — invalidation + the bus drive the refetch. TVars reuse the CONTRACT param shapes (`characterId` etc.)
-// so a params reshape breaks here at compile time, never a re-spelled union at the call site (§5.5).
+// TData is `unknown` on both (the context-panel-mutations precedent): the return value is never read —
+// invalidation + the bus drive the refetch. TVars reuse the CONTRACT param shapes (`participantId`/`patch`
+// etc.) so a params reshape breaks here at compile time, never a re-spelled union at the call site (§5.5).
 
-import type { CharacterId, ChatId } from "@orb/kit/ids";
+import type { SeatKnobs } from "@orb/contracts/chat";
+import type { CharacterId, ChatId, ChatParticipantId } from "@orb/kit/ids";
 import { createEntityMutation } from "#data";
 
 /** `chat.addCharacterToChat` vars — add one host-owned character to the roster (J7 add-member, host-only). */
@@ -31,30 +33,19 @@ export const useAddCharacterToChat = createEntityMutation<AddCharacterToChatVars
   errorToast: "Couldn't add that character to the chat.",
 });
 
-/** `chat.setParticipantDisabled` vars — mute/unmute one roster character (host-only). */
-interface SetParticipantDisabledVars {
+/** `chat.setSeatKnobs` vars — patch one participant's AI-seat knobs (mute + talkativeness) in one verb
+ *  (D80 — the per-kind knob-verb forking is retired). Keyed by `participantId` (the `ParticipantView.id`),
+ *  host-only. */
+interface SetSeatKnobsVars {
   readonly chatId: ChatId;
-  readonly characterId: CharacterId;
-  readonly disabled: boolean;
+  readonly participantId: ChatParticipantId;
+  readonly patch: SeatKnobs;
 }
 
-export const useSetParticipantDisabled = createEntityMutation<SetParticipantDisabledVars, unknown>({
-  options: (trpc) => trpc.chat.setParticipantDisabled.mutationOptions(),
+export const useSetSeatKnobs = createEntityMutation<SetSeatKnobsVars, unknown>({
+  options: (trpc) => trpc.chat.setSeatKnobs.mutationOptions(),
   busDriven: true,
-  errorToast: "Couldn't update the member's mute state.",
-});
-
-/** `chat.setParticipantTalkativeness` vars — set the 0–1 `natural`-policy sampling weight (host-only). */
-interface SetParticipantTalkativenessVars {
-  readonly chatId: ChatId;
-  readonly characterId: CharacterId;
-  readonly talkativeness: number;
-}
-
-export const useSetParticipantTalkativeness = createEntityMutation<SetParticipantTalkativenessVars, unknown>({
-  options: (trpc) => trpc.chat.setParticipantTalkativeness.mutationOptions(),
-  busDriven: true,
-  errorToast: "Couldn't update the member's talkativeness.",
+  errorToast: "Couldn't update the member's seat.",
 });
 
 /** `chat.forceCharacterTurn` vars — the host summons one member to speak next (a lock-holding round).

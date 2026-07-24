@@ -116,7 +116,7 @@ test("an empty handle is a field validation error (no wire call)", async ({ moun
   await dialog.getByRole("button", { name: "Send invite" }).click();
 
   await expect(dialog.getByText("Enter their exact handle.")).toBeVisible();
-  expect(trpc.count("invites.createInvite")).toBe(0);
+  await expect.poll(() => trpc.count("invites.createInvite")).toBe(0);
 });
 
 test("the outstanding list renders per-invite status/uses and revokes a pending invite", async ({ mount, page }) => {

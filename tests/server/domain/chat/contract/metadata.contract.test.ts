@@ -7,7 +7,6 @@
 
 import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
 import type { ChatId, MessageId, UserId } from "@orb/kit/ids";
-import { ID_PREFIX } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { getGroupConfig, getRoomOverrides, parseChatMetadata } from "../../../../../packages/server/src/domain/chat/contract/metadata.ts";
 import type { CreateInviteParams, RedeemInviteParams, SendParams } from "../../../../../packages/server/src/domain/chat/contract/params.ts";
@@ -95,18 +94,6 @@ describe("parseChatMetadata", () => {
       mime: "",
       provenanceUrl: "",
     });
-  });
-
-  test("GAP #4: the rpg game-pointer sub-blob round-trips (strict write, opaque {gameId})", () => {
-    const gameId = `${ID_PREFIX.rpgGame}_${"0".repeat(26)}`;
-    expect(parseChatMetadata({ rpg: { gameId } }).rpg).toEqual({ gameId });
-  });
-
-  test("GAP #4: a corrupt rpg pointer heals to absent WITHOUT nuking its siblings (tolerant read)", () => {
-    // A non-branded / malformed gameId → the sub-blob heals to absent; a bad blob shape too.
-    expect(parseChatMetadata({ rpg: { gameId: "not-a-typeid" }, roomOverrides: { scenario: "survives" } }).rpg).toBeUndefined();
-    expect(parseChatMetadata({ rpg: 42 }).rpg).toBeUndefined();
-    expect(parseChatMetadata({ rpg: { gameId: "not-a-typeid" }, roomOverrides: { scenario: "survives" } }).roomOverrides).toEqual({ scenario: "survives" });
   });
 
   test("BG-C: a corrupt background sub-blob heals to absent WITHOUT nuking its siblings (fault isolation)", () => {

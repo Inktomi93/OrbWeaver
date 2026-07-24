@@ -11,7 +11,7 @@ updated: 2026-07-03
 > legality, seeded RNG, snapshot-anchored rewind, tool-call moves with deterministic fallback) —
 > applied to combat; its two badly-engineered ones (the no-authority LLM combat sidecar; the
 > metadata-blob scene machine) are replaced. Marinara evidence: the archived research corpus (git history; tombstone at
-> [`../rpg/`](../rpg/README.md)) + the verified deep-dive (cited `(marinara: …)`).
+> `../rpg/`) + the verified deep-dive (cited `(marinara: …)`).
 
 ---
 

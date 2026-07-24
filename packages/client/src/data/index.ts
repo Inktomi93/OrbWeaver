@@ -2,6 +2,8 @@
 // pinned QueryClient, the central invalidation seam, the bus reducer + adapter, and the three
 // factories every surface builds on (§13.2: a surface not using its primitive is the review flag).
 
+export type { AuthMe } from "./auth-bootstrap";
+export { AUTH_ME_KEY, fetchAuthMe, login, logout } from "./auth-bootstrap";
 export type { AuthConfig } from "./auth-config";
 export { AUTH_CONFIG_KEY, fetchAuthConfig, useAuthConfig } from "./auth-config";
 export type { ChatBusDeps, UserBusDeps } from "./bus/index";

@@ -6,8 +6,8 @@
 // server stays authoritative: every tRPC procedure re-gates; these exist so the UI lands on the right surface.
 
 import { redirect } from "@tanstack/react-router";
-import type { AuthMe } from "./auth-bootstrap";
-import { fetchAuthMe } from "./auth-bootstrap";
+import type { AuthMe } from "#data";
+import { fetchAuthMe } from "#data";
 
 /** This request's auth state, or null when the server is unreachable. */
 async function meOrNull(): Promise<AuthMe | null> {

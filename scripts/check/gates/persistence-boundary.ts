@@ -37,19 +37,6 @@ const DEVICE_LOCAL_REGISTRY: Record<string, string> = {
     "the per-source Recent-models MRU in the connections model picker — 'what I recently picked on THIS " +
     "machine' is a convenience affordance, never synced routing truth (the actual selection persists " +
     "server-side via the routing autosave form; CONNECTIONS-BUILD-SPEC §3 / §12.1)",
-  "rpg-panel":
-    "the rpg game-panel UI chrome — HUD-rail collapse (hud_left/hud_right) + the encounter-takeover opt-out " +
-    "(rpg-design/11 §9) — per-device layout chrome, not synced canon (a returning player on another device " +
-    "does not expect their collapsed HUD rail OR their combat-focus preference to follow; §12.1 carve-out)",
-  "rpg-wizard":
-    "the campaign setup-wizard's in-progress DRAFT (the createSavedEntityForm draft mirror — rpg-design/11 " +
-    "§9/§10) — crash/reload survival for a half-filled session-zero, keyed per chat; device-local by nature " +
-    "(an abandoned draft is not canon and must not follow the user across devices; §12.1 carve-out)",
-  "rpg-lite-setup":
-    "the lite 'Add stats & trackers…' create dialog's in-progress DRAFT (the createSavedEntityForm draft " +
-    "mirror — rpg-design/13 §7, 11 §14 L2) — crash/reload survival for a half-authored stat profile + " +
-    "steering note, keyed per chat; device-local by nature (an abandoned pre-create draft is not canon and " +
-    "must not follow the user across devices; §12.1 carve-out)",
 };
 
 const RAW_STORAGE_MESSAGE =

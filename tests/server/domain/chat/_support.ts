@@ -9,7 +9,7 @@ import type { ModelCapability, ResolvedConnection } from "@orb/contracts/connect
 import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
-import { assets, characters, chatEvents, chatParticipants, chatStreamEvents, chats, messages, messageVariants, pendingTurns, personas, users } from "@orb/db";
+import { assets, characters, chatEvents, chatParticipants, chatStreamEvents, chats, messages, messageVariants, pendingTurns, personas } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
 import type {
@@ -33,7 +33,7 @@ import type {
 } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
-import { can, canAgent } from "@orb/server/domain/admin";
+import { can } from "@orb/server/domain/admin";
 import { and, eq, isNull } from "drizzle-orm";
 import type { ChatContext } from "../../../../packages/server/src/domain/chat/context";
 import type { TurnRequest, TurnStreamChunk } from "../../../../packages/server/src/domain/chat/contract/results";
@@ -49,24 +49,6 @@ export async function seedUser(db: Db, handle: string): Promise<UserId> {
   const id = castId<UserId>(`user_${handle}`);
   const row = await seedUserRow(db, { id, handle: castId<Handle>(handle) });
   return row.id;
-}
-
-/** Insert an AGENT-principal `users` row (D60 — `kind:'agent'`, owned, loginless). Satisfies the
- *  `users_agent_shape` CHECK (role='user', no password/externalId, owner set). Normally minted by
- *  `sessions.provisionAgentPrincipal` (AP1); here a direct seed for the roster/attribution tests (AP2). */
-export async function seedAgent(db: Db, ownerId: UserId, handle: string): Promise<UserId> {
-  const id = castId<UserId>(`user_${handle}`);
-  await db.insert(users).values({
-    id,
-    handle: castId<Handle>(handle),
-    role: "user",
-    kind: "agent",
-    ownerUserId: ownerId,
-    enabled: true,
-    createdAt: FROZEN_AT,
-    updatedAt: FROZEN_AT,
-  });
-  return id;
 }
 
 /** Insert a flat `characters` row (D28 — no version table); returns its branded id. */
@@ -339,10 +321,6 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     applyRegexReplace: (text, regex, replacer) => text.replace(regex, replacer),
     runChatTurn: notStubbed,
     resolveChat: notStubbed,
-    // Default = null ⇒ "no agent-role connection resolved" so the engine falls back to the round connection
-    // (byte-identical to the AP3-2 interim posture); an AP3-3 test that asserts the agent's own brain
-    // overrides this with a resolver returning a distinct connection.
-    resolveAgentConnection: () => Promise.resolve(null),
     resolveCredential: notStubbed,
     maybeRevokeOnAuthFailed: notStubbed,
     getCard: () => Promise.resolve(null),
@@ -397,17 +375,6 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     // transform test overrides with a `createPromptTransformRegistry(...).apply`.
     promptTransforms: null,
     resolveHandle: notStubbed,
-    provisionAgentPrincipal: notStubbed,
-    // Agent-identity reads default to a loud stub (a test that seats an agent overrides them); the pure
-    // capability gate defaults to the REAL `canAgent` so an agent-speaker test gates for free.
-    resolveAgentActor: notStubbed,
-    resolveAgentSpeaker: notStubbed,
-    // The D22 roster-chip projection (doc 06 §5) — loud stub; a getAgentCardView test overrides it.
-    resolveAgentCardView: notStubbed,
-    // The roster fallback-label source (agent seats only) — loud stub; a seated-agent projection test overrides
-    // it. Never reached by a room without an agent seat (the projection resolves it only for `kind:'agent'` rows).
-    resolveAgentSourceKind: notStubbed,
-    canAgent,
     // The startChat anchor default-seed: default "no user-level active persona" — an explicit
     // anchorPersonaId in a test flows unchanged; a seeding test overrides with a resolver fake.
     resolveDefaultPersona: () => Promise.resolve(null),

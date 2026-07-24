@@ -10,7 +10,7 @@ updated: 2026-07-03
 > Everything here is buildable from this doc alone: full DDL intent per table (columns/FKs/CHECKs),
 > the zod contract schema for every JSON column, and the behavioral semantics (swipe keying, commit,
 > locks, clone-forward) with their rationale. Marinara evidence: the archived research corpus (git history; tombstone at
-> [`../rpg/`](../rpg/README.md)) + the deep-dive findings cited inline as `(marinara: …)` one-liners.
+> `../rpg/`) + the deep-dive findings cited inline as `(marinara: …)` one-liners.
 
 **The governing split (kept from marinara, typed in orbweaver):**
 

@@ -56,14 +56,4 @@ describe("sessions.ensureUser", () => {
     expect(owner?.role).toBe("owner");
     expect(normal?.role).toBe("user");
   });
-
-  test("REFUSES the reserved __agent__ handle namespace — no JIT-create (FLAG[PD-17])", async () => {
-    const handle = "__agent__buddy__deadbeef";
-    await expect(svc.ensureUser(handle)).rejects.toThrow();
-    const rows = await db
-      .select()
-      .from(users)
-      .where(eq(users.handle, castId<Handle>(handle)));
-    expect(rows).toHaveLength(0);
-  });
 });

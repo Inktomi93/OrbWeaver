@@ -72,7 +72,7 @@ function isInvalidJsonObject(text: string): boolean {
   return text.trim() !== "" && parseJsonObject(text) === null;
 }
 
-/** The provider picker options — model-source providers only (`gif-search` is minted elsewhere). */
+/** The provider picker options — every storable provider is user-addable. */
 export const PROVIDER_ITEMS: SelectItems<string> = ADD_KEY_PROVIDERS_ORDERED.map((provider) => ({
   label: PROVIDER_LABELS[provider],
   value: provider,

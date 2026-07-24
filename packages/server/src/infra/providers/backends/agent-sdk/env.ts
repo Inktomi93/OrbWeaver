@@ -219,7 +219,7 @@ export function buildClaudeOpenRouterEnv(
 // mode-4: first-party Anthropic direct — the bundled runtime's NATIVE `x-api-key` path (W11 owner ruling:
 // a user may run their AGENTS on their own paid Anthropic key). ANTHROPIC_API_KEY carries the real key;
 // ANTHROPIC_BASE_URL is deliberately NOT set, so the runtime talks to api.anthropic.com directly (its
-// default). Same ambient-credential discipline as the anth-direct first-party client: every OAuth/identity/
+// default). Ambient-credential discipline: every OAuth/identity/
 // service-account knob is pinned to `undefined` so no config-file/profile/OAuth resolution can fire, and the
 // EMPTY isolated config dir (the mode-2/3 asymmetry) keeps the host `~/.claude` sub out of the spawn.
 export function buildClaudeAnthEnv(anthropicApiKey: string, overrides: ClaudeRuntimeOverrides = {}): Record<string, string | undefined> {

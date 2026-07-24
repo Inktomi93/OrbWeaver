@@ -202,9 +202,6 @@ async function runGenerateImage(
     ...(action.subjectCharacterId !== undefined ? { subjectCharacterId: action.subjectCharacterId } : {}),
     useAvatarReference: action.useAvatarReference,
     reuse: action.reuse,
-    // The MA-8/D96 diffusion knobs ride through verbatim; the imagery runner honours them only on a local
-    // engine (ComfyUI) whose capability advertises them and ignores-with-honesty otherwise (no new warning site).
-    ...(action.params !== undefined ? { params: action.params } : {}),
     // 03 §1.7 "one /imagine path": honour `quiet`. `false` (the default) ⇒ the op POSTS the generated image into
     // the chat as a message; `true` ⇒ generate silently (gallery-only). The arm passes the flag; compose owns
     // the single posting seam (imagery has no posting concept).

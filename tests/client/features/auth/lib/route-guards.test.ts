@@ -10,7 +10,7 @@
 // barrels (node lane — a feature barrel drags browser TSX into the dom-less program).
 
 import { afterEach, vi } from "vitest";
-import type { AuthMe } from "../../../../../packages/client/src/features/auth/lib/auth-bootstrap";
+import type { AuthMe } from "../../../../../packages/client/src/data/auth-bootstrap";
 import { redirectIfAuthed, requireAuthed } from "../../../../../packages/client/src/features/auth/lib/route-guards";
 import { expect, test } from "../../../../support/fixtures";
 

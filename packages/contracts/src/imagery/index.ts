@@ -30,51 +30,14 @@ const MAX_PROMPT_CHARS = 2000;
 const MIN_IMAGE_COUNT = 1;
 const MAX_IMAGE_COUNT = 4;
 
-// Diffusion-knob bounds (MA-8/D96). These ride the wire as OPTIONALS and thread through to the provider
-// runner; a source whose `ModelCapability.imageGen` lacks the knob ignores it with honesty (never a silent
-// drop — the panel only offers a knob the capability advertises). Only the local ComfyUI source honors them.
-const MIN_STEPS = 1;
-const MAX_STEPS = 150;
-const MIN_CFG = 0;
-const MAX_CFG = 30;
-const MAX_SAMPLER_CHARS = 64;
-const MIN_SEED = 0;
-const MAX_SEED = 4_294_967_295;
-
-/** The curated-role QUALITY TIER (comfyui-control §C8 / §4.3): the per-call knob that unlocks the family's
- *  max-quality `advanced` bundle (face/eyes detailers, hires, ultimate-upscale, detail-daemon). `standard` is
- *  the guide-exact default surface; `high` merges the advanced bundle (precedence: per-call, advanced, role, family).
- *  Honored ONLY by a curated ComfyUI role whose `imageGen.quality` capability advertises it — hosted/raw arms
- *  ignore it (capability truth). A wire enum so a new tier fails `tsc` at every consumer. */
-export const IMAGE_QUALITY_TIERS = ["standard", "high"] as const;
-export const imageQualityTierSchema = z.enum(IMAGE_QUALITY_TIERS);
-export type ImageQualityTier = z.infer<typeof imageQualityTierSchema>;
-
-/** The optional diffusion knobs a local image engine (ComfyUI) honors — steps/cfg/sampler/scheduler/seed +
- *  the curated `quality` tier (MA-8/D96 · comfyui-control §C8). Threaded from the wire through
- *  `GeneratePictureParams` to the provider runner; the runner fills its own defaults for any absent knob.
- *  Hosted image sources ignore them (capability truth). */
-export const imageDiffusionParamsSchema = z.object({
-  steps: z.number().int().min(MIN_STEPS).max(MAX_STEPS).optional(),
-  cfg: z.number().min(MIN_CFG).max(MAX_CFG).optional(),
-  sampler: z.string().min(1).max(MAX_SAMPLER_CHARS).optional(),
-  scheduler: z.string().min(1).max(MAX_SAMPLER_CHARS).optional(),
-  seed: z.number().int().min(MIN_SEED).max(MAX_SEED).optional(),
-  /** The curated-role quality tier (§C8) — `high` unlocks the family advanced bundle; absent ⇒ `standard`. */
-  quality: imageQualityTierSchema.optional(),
-});
-export type ImageDiffusionParams = z.infer<typeof imageDiffusionParamsSchema>;
-
 /** The chat-client wire for `chat.generateImage` → `imagery.generatePicture`.
  *  Phase-5 drives `mode:"free"` with a required `prompt` (the caller refines it); the Phase-7 fields
- *  (`negative`/`subjectCharacterId`/`useAvatarReference`/`reuse`) are additive optionals. The diffusion
- *  knobs (MA-8) ride under `params`, honored only by a local engine (ComfyUI). */
+ *  (`negative`/`subjectCharacterId`/`useAvatarReference`/`reuse`) are additive optionals. */
 export const generatePictureRequestSchema = z.object({
   mode: promptTemplateModeSchema,
   prompt: z.string().max(MAX_PROMPT_CHARS).optional(),
   n: z.number().int().min(MIN_IMAGE_COUNT).max(MAX_IMAGE_COUNT).optional(),
   size: sizePresetSchema.optional(),
-  params: imageDiffusionParamsSchema.optional(),
 });
 export type GeneratePictureRequest = z.infer<typeof generatePictureRequestSchema>;
 

@@ -17,8 +17,8 @@ import { expect, test } from "../../support/fixtures";
 // ── The upload `kind` axis ───────────────────────────────────────────────────
 // The ONE home for the union (§7.5). A drift here would mean the db enum / upload route / client have
 // re-spelled it — the whole point of this node.
-test("ASSET_KINDS is exactly the upload-wire axis [card, avatar, export, generated, gallery, attachment, document, sprite, background, plugin, pose]", () => {
-  expect(ASSET_KINDS).toEqual(["card", "avatar", "export", "generated", "gallery", "attachment", "document", "sprite", "background", "plugin", "pose"]);
+test("ASSET_KINDS is exactly the upload-wire axis [card, avatar, export, generated, gallery, attachment, document, background, plugin]", () => {
+  expect(ASSET_KINDS).toEqual(["card", "avatar", "export", "generated", "gallery", "attachment", "document", "background", "plugin"]);
   expect(assetKindSchema.options).toEqual(ASSET_KINDS);
 });
 
@@ -41,10 +41,8 @@ const KIND_SEEN: Record<AssetKind, true> = {
   gallery: true,
   attachment: true,
   document: true,
-  sprite: true,
   background: true,
   plugin: true,
-  pose: true,
 };
 test("AssetKind has no member beyond the tuple (exhaustive over the ASSET_KINDS roster)", () => {
   expect(Object.keys(KIND_SEEN).sort()).toEqual([...ASSET_KINDS].sort());

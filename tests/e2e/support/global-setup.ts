@@ -109,7 +109,7 @@ export default async function globalSetup(): Promise<void> {
         embed: { source: "vllm" },
         rerank: { source: "vllm" },
         imageEmbed: { source: "vllm" },
-        generateImage: { source: "comfyui" },
+        generateImage: { source: "openrouter" },
       },
     },
   });

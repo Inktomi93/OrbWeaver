@@ -10,13 +10,11 @@ import { z } from "zod";
 /** The kinds of binary we content-address. `card` = a character-card PNG (also the avatar); `avatar` =
  *  a persona avatar; `export` = a future generated export (unwired in v1); `generated` = a model-generated
  *  image from a chat turn; `gallery` = a curated gallery image; `attachment` = a user-attached inline
- *  chat image; `document` = a databank source document's original bytes; `sprite` = a per-character
- *  expression sprite; `background` = a user-uploaded decorative app background (PD-131 — pinned by the
- *  `appearance.backgroundAssetId` JSON field, GC-rooted via the settings live-source scan, NOT an FK
- *  column); `pose` = a BYO-imported OpenPose skeleton control map, pinned by the `pose_library` registry
- *  row's `assetId` FK (comfyui-control §4.12.2 — the curated pose set is global-shipped-static, NOT a CAS
- *  kind). The db `assets.kind` enum derives from this tuple. */
-export const ASSET_KINDS = ["card", "avatar", "export", "generated", "gallery", "attachment", "document", "background", "plugin", "pose"] as const;
+ *  chat image; `document` = a databank source document's original bytes; `background` = a user-uploaded
+ *  decorative app background (PD-131 — pinned by the `appearance.backgroundAssetId` JSON field, GC-rooted
+ *  via the settings live-source scan, NOT an FK column); `plugin` = an installed plugin's bundle bytes.
+ *  The db `assets.kind` enum derives from this tuple. */
+export const ASSET_KINDS = ["card", "avatar", "export", "generated", "gallery", "attachment", "document", "background", "plugin"] as const;
 
 export const assetKindSchema = z.enum(ASSET_KINDS);
 

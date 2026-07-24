@@ -58,7 +58,7 @@ test("renders the n/m counter and fires swipe (generate) on the next chevron at 
 
   await component.getByRole("button", { name: "Next variant" }).click();
   await expect.poll(() => trpc.count("chat.swipe"), { intervals: [20, 50, 100] }).toBe(1);
-  expect(trpc.count("chat.selectVariant")).toBe(0);
+  await expect.poll(() => trpc.count("chat.selectVariant")).toBe(0);
 });
 
 test("the left chevron is disabled when idx 0 has no earlier sibling (gate stays off, variantCount === 1)", async ({ mount }) => {
@@ -86,11 +86,13 @@ test("COLD LOAD step-BACK: the left chevron reaches an earlier variant this moun
   await prev.click();
 
   await expect.poll(() => trpc.count("chat.selectVariant"), { intervals: [20, 50, 100] }).toBe(1);
-  expect(trpc.lastInput("chat.selectVariant")).toMatchObject({
-    messageId: MESSAGE_ID,
-    variantId: VARIANT_0,
-  });
-  expect(trpc.count("chat.swipe")).toBe(0);
+  await expect
+    .poll(() => trpc.lastInput("chat.selectVariant"))
+    .toMatchObject({
+      messageId: MESSAGE_ID,
+      variantId: VARIANT_0,
+    });
+  await expect.poll(() => trpc.count("chat.swipe")).toBe(0);
 });
 
 test("COLD LOAD step-FORWARD: the right chevron selects an already-generated sibling this mount has never rendered", async ({ mount, page }) => {
@@ -108,11 +110,13 @@ test("COLD LOAD step-FORWARD: the right chevron selects an already-generated sib
   await component.getByRole("button", { name: "Next variant" }).click();
 
   await expect.poll(() => trpc.count("chat.selectVariant"), { intervals: [20, 50, 100] }).toBe(1);
-  expect(trpc.lastInput("chat.selectVariant")).toMatchObject({
-    messageId: MESSAGE_ID,
-    variantId: VARIANT_1,
-  });
-  expect(trpc.count("chat.swipe")).toBe(0);
+  await expect
+    .poll(() => trpc.lastInput("chat.selectVariant"))
+    .toMatchObject({
+      messageId: MESSAGE_ID,
+      variantId: VARIANT_1,
+    });
+  await expect.poll(() => trpc.count("chat.swipe")).toBe(0);
 });
 
 test("ArrowRight/ArrowLeft drive the same navigation as the chevrons", async ({ mount, page }) => {

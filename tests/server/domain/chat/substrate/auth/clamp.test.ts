@@ -1,7 +1,7 @@
 // The D22 member-card visibility clamp (chat.md Part III §7/§11).
 import type { CharacterCard } from "@orb/contracts/character";
 import type { MemberCardView, MemberCardVisibility } from "@orb/contracts/chat";
-import type { AssetId, CharacterId, Handle } from "@orb/kit/ids";
+import type { AssetId, CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { clampMemberCard, resolveCardVisibility } from "../../../../../../packages/server/src/domain/chat/substrate/auth";
@@ -111,4 +111,3 @@ describe("resolveCardVisibility — the host always sees full", () => {
     expect(resolveCardVisibility("member", "name-avatar")).toBe("name-avatar");
   });
 });
-

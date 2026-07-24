@@ -309,42 +309,8 @@ describe("exportChat — the D26/D28 assembly", () => {
 });
 
 describe("exportChat — PD-17 agent-author provenance", () => {
-  test("an agent-authored row exports under agent_author (jsonl + txt label); the agent id/soul never leak", async () => {
-    const host = await seedUser(db, { handle: "host" });
-    // The agent principal's users row (FK target for messages.author_user_id). The export verb reads its
-    // provenance through the injected op, NOT the users row — so a plain seeded row is enough here.
-    const agentId = await seedUser(db, { handle: "agent" });
-    // The compose FK-walk + soul-drop is faked here as a userId → leak-safe provenance map.
-    const agentAuthors = new Map([[agentId, { name: "Sparkles", sourceKind: "buddy" }]]);
-    const { ctx } = makeHarness(db, { agentAuthors });
-    const aria = await seedCharacter(db, { ownerId: host, name: "Aria", handle: "aria" });
-    const chatId = await seedChatRow("ap", { title: "Room" });
-    await seedMember(chatId, "h", { userId: host, role: "host" });
-    await seedMember(chatId, "c", { characterId: aria });
-    await seedSlot({ chatId, key: "u1", seq: 1, role: "user", variantContents: ["hi"] });
-    // Agent-authored assistant row: authorUserId set, characterId NULL (the AP2 self-attribution shape).
-    await seedSlot({ chatId, key: "ag", seq: 2, role: "assistant", variantContents: ["I am the agent"], authorUserId: agentId });
-
-    const out = await createExportChat(ctx)({ principal: principal(host), chatId });
-    const lines = (out?.text ?? "").trim().split("\n");
-    const agentLine = JSON.parse(lines[2] ?? "") as Record<string, unknown>;
-    // The per-line speaker is the AGENT's own display name, not the header primary character (Aria).
-    expect(agentLine["name"]).toBe("Sparkles");
-    // biome-ignore lint/style/useNamingConvention: the ST/orb wire keys are snake_case by format.
-    expect(agentLine["agent_author"]).toEqual({ name: "Sparkles", source_kind: "buddy" });
-
-    const txt = await createExportChat(ctx)({ principal: principal(host), chatId, format: "txt" });
-    expect(txt?.text).toBe("User: hi\n\nSparkles: I am the agent\n");
-
-    // Leak pin: the sidecar carries ONLY name + source_kind, and NO principal id (agent's own or the owner)
-    // appears anywhere in the export bytes — provenance travels as a display label, never a joinable id.
-    expect(Object.keys(agentLine["agent_author"] as object)).toEqual(["name", "source_kind"]);
-    expect(out?.text ?? "").not.toContain(agentId);
-    expect(out?.text ?? "").not.toContain(host);
-  });
-
   test("regression: a character-voiced row carries NO agent_author key (byte-identical to pre-PD-17)", async () => {
-    const { ctx } = makeHarness(db); // no agentAuthors seam → resolveAgentAuthor always null
+    const { ctx } = makeHarness(db);
     const host = await seedUser(db, { handle: "host" });
     const aria = await seedCharacter(db, { ownerId: host, name: "Aria", handle: "aria" });
     const chatId = await seedChatRow("reg");

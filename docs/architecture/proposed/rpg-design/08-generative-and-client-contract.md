@@ -10,7 +10,7 @@ updated: 2026-07-03
 > orchestration — a thin policy layer over the committed `domain/imagery` (D49) — and (§5–7) the
 > exact server contract the game client consumes (views, streams, verbs). The client's own design
 > (surfaces, primitives, slices) is doc 11. Marinara evidence: the archived research corpus (git history; tombstone at
-> [`../rpg/`](../rpg/README.md)) + the verified generative + client deep-dives.
+> `../rpg/`) + the verified generative + client deep-dives.
 
 **The governing deletion:** marinara's client parsed a 20+-tag grammar out of narration THREE times
 (client display, client behavior, server prompt-rebuild — verified, with drift: two crit

@@ -44,27 +44,6 @@ describe("sessions.validate — Route A (returns userId + the principal-fields)"
     expect((await svc.validate(token))?.role).toBe("admin");
   });
 
-  test("stops resolving once a user's kind flips to 'agent' — the kind='human' JOIN belt (FLAG[PD-17])", async () => {
-    // An agent principal is structurally sessionless (agent-principal-design/01 §3.2). Prove the JOIN belt
-    // directly: mint a session for the (human) owner, then flip the row to a valid agent shape — validate must
-    // now refuse the previously-live session (wall two, behind create's mint-refusal).
-    const { token } = await svc.create({ userId: USER_ID });
-    expect(await svc.validate(token)).not.toBeNull();
-    const ownerId = castId<UserId>("user_owner_v");
-    await db.insert(users).values({ id: ownerId, handle: castId<Handle>("owner_v") });
-    await db
-      .update(users)
-      .set({
-        kind: "agent",
-        role: "user",
-        passwordHash: null,
-        externalId: null,
-        ownerUserId: ownerId,
-      })
-      .where(eq(users.id, USER_ID));
-    expect(await svc.validate(token)).toBeNull();
-  });
-
   test("a missing / unknown token → null", async () => {
     expect(await svc.validate("not-a-real-token")).toBeNull();
   });

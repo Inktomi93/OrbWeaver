@@ -70,7 +70,6 @@ const EXPECTED: Record<ChatBusEvent["type"], readonly TrackedKey[]> = {
   turnStarted: [],
   warning: [],
   worldInfoActivated: [], // per-turn trace; no query reads it
-  expression: [], // ephemeral sprite-swap presentation state; no query reads it (expressions-design/02 §4)
   // The canon-TERMINAL commits (messageCommitted/turnCompleted) refetch the OPEN chat's DETAIL only — the chat
   // LIST (`listChats`) + character library (`characterList`) recency rides the server's `chatsChanged`
   // member-fan on the same moment (one driver per surface, no triple-invalidate). Non-terminal canon mutations

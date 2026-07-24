@@ -15,28 +15,8 @@
 // security finding — this suite goes RED and the failure is a STOP-and-report item (route to
 // security-executor), NOT something the docs/test lane fixes.
 
-import {
-  assets,
-  cardEvolutionProposals,
-  characterDocuments,
-  characterSprites,
-  documents,
-  themes,
-  userCredentials,
-  workloadSchedules,
-  workloads,
-} from "@orb/db";
-import type {
-  AssetId,
-  CardEvolutionProposalId,
-  CrewEditProposalId,
-  DocumentId,
-  MessageVariantId,
-  ThemeId,
-  UserCredentialId,
-  WorkloadId,
-  WorkloadScheduleId,
-} from "@orb/kit/ids";
+import { characterDocuments, documents, themes, userCredentials, workloadSchedules, workloads } from "@orb/db";
+import type { DocumentId, ThemeId, UserCredentialId, WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { appRouter } from "@orb/server/transport/trpc";
 import { describe } from "vitest";
@@ -51,10 +31,6 @@ const MARK = {
   character: "AlphaSecretHero",
   persona: "AlphaSecretPersona",
   preset: "AlphaSecretPreset",
-  rosterPreset: "AlphaSecretParty",
-  // A saved BYO ComfyUI workflow's NAME bound to A — leaks via a broken comfyuiWorkflow.get/list owner gate
-  // (the view carries `name` verbatim). C7 (comfyui-control §4.11).
-  comfyuiWorkflow: "AlphaSecretWorkflow",
   book: "AlphaSecretBook",
   entry: "AlphaSecretEntry",
   tag: "alphasecrettag",
@@ -64,12 +40,6 @@ const MARK = {
   workload: "AlphaSecretWorkload",
   schedule: "AlphaSecretSchedule",
   databankDoc: "AlphaSecretDoc",
-  // A card-evolution proposal's change text, bound to A's character — leaks via a broken
-  // `listCardEvolutionProposals` owner gate (the view carries `changes[].text` verbatim).
-  proposal: "AlphaSecretDrift",
-  // A normalized expression-sprite label (a-z0-9_- only) bound to A's character — leaks via a broken
-  // `listSprites` visibility gate (the CharacterSpriteView carries the label verbatim).
-  sprite: "alphasecretsprite",
   // A host-authored automation rule's NAME bound to A's chat — leaks via a broken `automation.listRules`
   // host gate (the RuleView carries `name` verbatim).
   automationRule: "AlphaSecretRule",
@@ -81,8 +51,6 @@ interface OwnerIds {
   characterId: string;
   personaId: string;
   presetId: string;
-  rosterPresetId: string;
-  comfyuiWorkflowId: string;
   bookId: string;
   entryId: string;
   tagId: string;
@@ -94,7 +62,6 @@ interface OwnerIds {
   chatId: string;
   messageId: string;
   documentId: DocumentId;
-  proposalId: string;
   automationRuleId: string;
 }
 
@@ -184,71 +151,6 @@ const PROBES: readonly Probe[] = [
     path: "character.bulkRemoveCardTag",
     call: (c, i) => c.character.bulkRemoveCardTag({ tagName: "x", characterIds: [i.characterId] }),
   },
-  {
-    path: "character.listCardEvolutionProposals",
-    call: (c, i) => c.character.listCardEvolutionProposals({ characterId: i.characterId }),
-  },
-  {
-    path: "character.acceptCardEvolution",
-    call: (c, i) => c.character.acceptCardEvolution({ proposalId: castId<CardEvolutionProposalId>(i.proposalId) }),
-  },
-  {
-    path: "character.dismissCardEvolution",
-    call: (c, i) => c.character.dismissCardEvolution({ proposalId: castId<CardEvolutionProposalId>(i.proposalId) }),
-  },
-  // crew config is membership-scoped (getConfig/setConfig gate via the chat's membership + `can()`); a
-  // stranger gets a leak-free NOT_FOUND. setConfig is host-only AND write — the post-sweep integrity re-read
-  // proves the stranger's probe never created/mutated A's crew_chats row.
-  { path: "crew.getConfig", call: (c, i) => c.crew.getConfig({ chatId: i.chatId }) },
-  { path: "crew.setConfig", call: (c, i) => c.crew.setConfig({ chatId: i.chatId, config: { version: 1 } }) },
-  // runNow is host-only AND write (enqueues a workload) — a stranger hits `requireHost` (→ a leak-free
-  // NOT_FOUND before any dispatch). The `keeper` member is a landed runner; the post-sweep integrity re-read
-  // proves the stranger's probe enqueued nothing against A.
-  { path: "crew.runNow", call: (c, i) => c.crew.runNow({ chatId: i.chatId, member: "keeper" }) },
-  // The director host-ring surface (CW4) — both host-only (`requireHost` → leak-free NOT_FOUND for a stranger
-  // before any plot read). getPlotState is a read; resetPlot is a write (deletes the plot + zeroes the counter),
-  // so the post-sweep integrity re-read proves the stranger's probe mutated nothing on A.
-  { path: "crew.getPlotState", call: (c, i) => c.crew.getPlotState({ chatId: i.chatId }) },
-  { path: "crew.resetPlot", call: (c, i) => c.crew.resetPlot({ chatId: i.chatId }) },
-  // The prose-audit review surface (CW5) — all four gate on `requireParticipant(chatId)` FIRST (a stranger
-  // gets a leak-free NOT_FOUND before any proposal/variant is loaded); accept/dismiss additionally require the
-  // proposal's `chatId` to match. The `proposalId`/`variantId` are unreachable fakes — the membership gate
-  // fires before they're touched.
-  { path: "crew.listEditProposals", call: (c, i) => c.crew.listEditProposals({ chatId: i.chatId }) },
-  {
-    path: "crew.acceptEditProposal",
-    call: (c, i) => c.crew.acceptEditProposal({ chatId: i.chatId, proposalId: castId<CrewEditProposalId>(i.proposalId) }),
-  },
-  {
-    path: "crew.dismissEditProposal",
-    call: (c, i) => c.crew.dismissEditProposal({ chatId: i.chatId, proposalId: castId<CrewEditProposalId>(i.proposalId) }),
-  },
-  // The restore-original surface (CW4 tail) — both gate on `requireParticipant(chatId)` FIRST (a stranger gets
-  // a leak-free NOT_FOUND before any proposal loads); revert additionally requires the proposal's `chatId` to
-  // match + edit authority. The `proposalId` is an unreachable fake — the membership gate fires before it.
-  { path: "crew.listRestorableEdits", call: (c, i) => c.crew.listRestorableEdits({ chatId: i.chatId }) },
-  {
-    path: "crew.revertEditProposal",
-    call: (c, i) => c.crew.revertEditProposal({ chatId: i.chatId, proposalId: castId<CrewEditProposalId>(i.proposalId) }),
-  },
-  {
-    path: "crew.requestProseAudit",
-    call: (c, i) => c.crew.requestProseAudit({ chatId: i.chatId, variantId: castId<MessageVariantId>("variant_fake") }),
-  },
-  // Persistent guides (CW6) — listGuides gates on requireParticipant, every mutation on requireHost; a
-  // stranger gets a leak-free NOT_FOUND before any guide row / injection / turn is touched.
-  { path: "crew.listGuides", call: (c, i) => c.crew.listGuides({ chatId: i.chatId }) },
-  {
-    path: "crew.upsertGuide",
-    call: (c, i) =>
-      c.crew.upsertGuide({ chatId: i.chatId, guideKey: "probe", name: "n", template: "t", depth: 0, role: "system", labeled: true, autoRefresh: false }),
-  },
-  { path: "crew.addPackagedGuide", call: (c, i) => c.crew.addPackagedGuide({ chatId: i.chatId, template: "thinking" }) },
-  { path: "crew.setGuideEnabled", call: (c, i) => c.crew.setGuideEnabled({ chatId: i.chatId, guideKey: "probe", enabled: false }) },
-  { path: "crew.refreshGuide", call: (c, i) => c.crew.refreshGuide({ chatId: i.chatId, guideKey: "probe" }) },
-  { path: "crew.editGuideContent", call: (c, i) => c.crew.editGuideContent({ chatId: i.chatId, guideKey: "probe", content: "x" }) },
-  { path: "crew.flushGuide", call: (c, i) => c.crew.flushGuide({ chatId: i.chatId, guideKey: "probe" }) },
-  { path: "crew.flushAllGuides", call: (c, i) => c.crew.flushAllGuides({ chatId: i.chatId }) },
   // ── persona (owner-scoped) ──
   { path: "persona.get", call: (c, i) => c.persona.get({ personaId: i.personaId }) },
   {
@@ -283,27 +185,6 @@ const PROBES: readonly Probe[] = [
   { path: "preset.update", call: (c, i) => c.preset.update({ id: i.presetId, name: "hacked" }) },
   { path: "preset.remove", call: (c, i) => c.preset.remove({ id: i.presetId }) },
   { path: "preset.resetToDefault", call: (c, i) => c.preset.resetToDefault({ id: i.presetId }) },
-  // ── roster-preset (owner-scoped library; D61) — get/update/remove/applyToChat take a presetId gated by
-  //    fetchOwned (a stranger's presetId reads absent → RosterPresetNotFoundError → leak-free NOT_FOUND). The
-  //    preset's `name` (MARK.rosterPreset) leaks via a broken get; the write-IDOR is caught by the post-sweep
-  //    integrity re-read. `applyToChat` is owner-gated on the presetId BEFORE any chat write. ──
-  { path: "rosterPreset.get", call: (c, i) => c.rosterPreset.get({ presetId: i.rosterPresetId }) },
-  {
-    path: "rosterPreset.update",
-    call: (c, i) => c.rosterPreset.update({ presetId: i.rosterPresetId, name: "hacked", members: [{ kind: "character", characterId: i.characterId }] }),
-  },
-  { path: "rosterPreset.remove", call: (c, i) => c.rosterPreset.remove({ presetId: i.rosterPresetId }) },
-  { path: "rosterPreset.applyToChat", call: (c, i) => c.rosterPreset.applyToChat({ presetId: i.rosterPresetId, chatId: i.chatId }) },
-  // ── comfyui-workflow (owner-scoped BYO library; C7) — get/update/remove take a workflowId gated by fetchOwned
-  //    (a stranger's workflowId reads absent → ComfyuiWorkflowNotFoundError → leak-free NOT_FOUND). The
-  //    workflow's `name` (MARK.comfyuiWorkflow) leaks via a broken get; the write-IDOR is caught by the
-  //    post-sweep integrity re-read. ──
-  { path: "comfyuiWorkflow.get", call: (c, i) => c.comfyuiWorkflow.get({ workflowId: i.comfyuiWorkflowId }) },
-  {
-    path: "comfyuiWorkflow.update",
-    call: (c, i) => c.comfyuiWorkflow.update({ workflowId: i.comfyuiWorkflowId, name: "hacked", graphJson: '{"1":{"class_type":"KSampler","inputs":{}}}' }),
-  },
-  { path: "comfyuiWorkflow.remove", call: (c, i) => c.comfyuiWorkflow.remove({ workflowId: i.comfyuiWorkflowId }) },
   // ── world-info (owner-scoped) ──
   { path: "worldInfo.getBook", call: (c, i) => c.worldInfo.getBook({ bookId: i.bookId }) },
   {
@@ -417,17 +298,6 @@ const PROBES: readonly Probe[] = [
     path: "tag.listPendingSuggestions",
     call: (c, i) => c.tag.listPendingSuggestions({ characterId: i.characterId }),
   },
-  // ── expressions (character-sprite CRUD) — set/remove are owner-only on the characterId (a stranger's
-  //    probe collapses to NOT_FOUND before the assetId/label is used, the leak-free character-ownership gate).
-  //    `list` is owner-OR-member-visible (assertCharacterVisible), so a non-member stranger passing A's
-  //    characterId gets an EMPTY list (never A's seeded `alphasecretsprite` binding) — a leak-free no-answer.
-  //    A wire-valid but nonexistent assetId keeps `set` past input validation to the ownership chokepoint. ──
-  { path: "expressions.set", call: (c, i) => c.expressions.set({ characterId: i.characterId, label: "hacked", assetId: mintTypeId(ID_PREFIX.asset) }) },
-  { path: "expressions.list", call: (c, i) => c.expressions.list({ characterId: i.characterId }) },
-  { path: "expressions.remove", call: (c, i) => c.expressions.remove({ characterId: i.characterId, label: MARK.sprite }) },
-  // generateSheet (E4) enqueues an owner-gated sprite-sheet job — the ownership check (assertCharacterOwned)
-  // runs BEFORE any enqueue, so a stranger passing A's characterId collapses to NOT_FOUND and mints no workload.
-  { path: "expressions.generateSheet", call: (c, i) => c.expressions.generateSheet({ characterId: i.characterId, labels: ["joy"] }) },
   // ── discovery (owner-scoped write on a caller-supplied characterId) ──
   // The on-demand "Suggest tags" distill: `ownerId` = the resolved principal, so a stranger's probe with A's
   // characterId reads zero targets and short-circuits to an empty stats object BEFORE any summarize call —
@@ -494,19 +364,6 @@ const PROBES: readonly Probe[] = [
   {
     path: "credentials.fetchModels",
     call: (c, i) => c.credentials.fetchModels({ credentialId: i.credentialId }),
-  },
-  // ── hub.importGif (D61 gif slice) — takes a cross-tenant `subjectCharacterId`. `importGif` gates the
-  //    subject character on the caller's ownership FIRST, before any network fetch, so a stranger passing A's
-  //    real characterId gets a leak-free NOT_FOUND (and no egress happens). The `url` is never reached (the
-  //    ownership gate throws first) — a fake Tenor-media URL keeps the probe self-contained. `searchGifs` is
-  //    EXEMPT (self-scoped: the caller's OWN gif-search key + query text, no foreign id). ──
-  {
-    path: "hub.importGif",
-    call: (c, i) =>
-      c.hub.importGif({
-        url: "https://media.tenor.com/probe-never-fetched.gif",
-        subjectCharacterId: i.characterId,
-      }),
   },
   // ── workloads (F3 per-user owner-scoped; get/cancel/retry take a workloadId) — a non-admin stranger must
   //    see a leak-free NOT_FOUND on a foreign workload (its `error` carries A's marker, so a broken gate that
@@ -665,20 +522,6 @@ const PROBES: readonly Probe[] = [
     path: "chat.addCharacterToChat",
     call: (c, i) => c.chat.addCharacterToChat({ chatId: i.chatId, characterId: i.characterId }),
   },
-  // seatAgent is host-gated (`requireHost` → `requireParticipant` miss = leak-free NOT_FOUND) BEFORE the
-  // ownerUserId/agent lookup ever runs, so a stranger seating into A's chat collapses to NOT_FOUND and
-  // never mints/seats (D60, doc 04 §3). `ownerUserId` is any id — the chatId gate is the chokepoint.
-  {
-    path: "chat.seatAgent",
-    call: (c, i) => c.chat.seatAgent({ chatId: i.chatId, ownerUserId: OWNER_USER_ID, sourceKind: "buddy" }),
-  },
-  // unseatAgent is host-gated (`requireHost` → `requireParticipant` miss = leak-free NOT_FOUND) on the chatId
-  // BEFORE the agent-seat stamp, so a stranger unseating an agent in A's chat collapses to NOT_FOUND and
-  // never touches a row (the seatAgent twin; the solo-operator fix, 2026-07-17). `agentUserId` is any id.
-  {
-    path: "chat.unseatAgent",
-    call: (c, i) => c.chat.unseatAgent({ chatId: i.chatId, agentUserId: OWNER_USER_ID }),
-  },
   // setSeatKnobs (D80 — the ONE participantId-keyed AI-seat knob write, replacing the retired per-kind
   // forking) is host-gated (`requireHost` → `requireParticipant` miss = leak-free NOT_FOUND) on the chatId
   // BEFORE the seat lookup, so a stranger tuning a seat in A's chat collapses to NOT_FOUND and never touches a
@@ -692,12 +535,6 @@ const PROBES: readonly Probe[] = [
     call: (c, i) => c.chat.forceCharacterTurn({ chatId: i.chatId, characterId: i.characterId }),
   },
   { path: "chat.getGroupConfig", call: (c, i) => c.chat.getGroupConfig({ chatId: i.chatId }) },
-  // getAgentCardView is member-gated (`requireParticipant` miss = leak-free NOT_FOUND) BEFORE the
-  // agent-seat lookup, so a stranger reading into A's chat collapses to NOT_FOUND. `agentUserId` is any id.
-  {
-    path: "chat.getAgentCardView",
-    call: (c, i) => c.chat.getAgentCardView({ chatId: i.chatId, agentUserId: OWNER_USER_ID }),
-  },
   {
     path: "chat.setChatAnchorPersona",
     call: (c, i) => c.chat.setChatAnchorPersona({ chatId: i.chatId, personaId: null }),
@@ -749,13 +586,6 @@ const PROBES: readonly Probe[] = [
   {
     path: "invites.nominateHostHandoff",
     call: (c, i) => c.invites.nominateHostHandoff({ chatId: i.chatId, userId: OWNER_USER_ID }),
-  },
-  // requestAgentSeat is member-gated (`requireParticipant` miss = leak-free NOT_FOUND) BEFORE the
-  // owner-of-the-agent check, so a stranger requesting a seat in A's chat collapses to NOT_FOUND and
-  // delivers no notification (D60, doc 04 §3). `ownerUserId` is any id — the chatId gate is the chokepoint.
-  {
-    path: "invites.requestAgentSeat",
-    call: (c, i) => c.invites.requestAgentSeat({ chatId: i.chatId, ownerUserId: OWNER_USER_ID, sourceKind: "buddy" }),
   },
   {
     path: "invites.acceptHostHandoff",
@@ -828,140 +658,6 @@ const PROBES: readonly Probe[] = [
   { path: "automation.setBudgets", call: (c, i) => c.automation.setBudgets({ chatId: i.chatId, maxFiresPerHour: 5 }) },
   { path: "automation.getBudgets", call: (c, i) => c.automation.getBudgets({ chatId: i.chatId }) },
 
-  // ── rpg (R3): every verb is chat-gated (requireParticipant reads / requireHost writes) → a stranger with
-  //    A's game chat gets a leak-free NOT_FOUND. Fake rpg-entity ids are REAL TypeIDs (brandedId validates the
-  //    wire) + minimal-but-valid bodies, so the probe reaches the AUTH gate, not a 400. `rpg.stream` is a
-  //    subscription (EXEMPT). ──
-  { path: "rpg.getGame", call: (c, i) => c.rpg.getGame({ chatId: i.chatId }) },
-  { path: "rpg.getHud", call: (c, i) => c.rpg.getHud({ chatId: i.chatId }) },
-  { path: "rpg.getTracker", call: (c, i) => c.rpg.getTracker({ chatId: i.chatId }) },
-  { path: "rpg.getEncounter", call: (c, i) => c.rpg.getEncounter({ chatId: i.chatId }) },
-  { path: "rpg.getMap", call: (c, i) => c.rpg.getMap({ chatId: i.chatId }) },
-  { path: "rpg.getParty", call: (c, i) => c.rpg.getParty({ chatId: i.chatId }) },
-  // The lite Stats & Trackers editor's host config read (13 §7) — HOST-gated (requireHost → requireParticipant
-  // miss = leak-free NOT_FOUND for a stranger) BEFORE any config read, so the private config never reaches a non-host.
-  { path: "rpg.getConfig", call: (c, i) => c.rpg.getConfig({ chatId: i.chatId }) },
-  // The full-mode edit-settings form's host config read (13 §7) — HOST-gated (requireHost → requireParticipant
-  // miss = leak-free NOT_FOUND for a stranger) BEFORE any config read, so the full editable config never reaches a non-host.
-  { path: "rpg.getGameConfig", call: (c, i) => c.rpg.getGameConfig({ chatId: i.chatId }) },
-  { path: "rpg.previewSheetSeed", call: (c, i) => c.rpg.previewSheetSeed({ chatId: i.chatId, characterId: i.characterId }) },
-  { path: "rpg.listNpcs", call: (c, i) => c.rpg.listNpcs({ chatId: i.chatId }) },
-  { path: "rpg.listJournal", call: (c, i) => c.rpg.listJournal({ chatId: i.chatId }) },
-  { path: "rpg.listQuests", call: (c, i) => c.rpg.listQuests({ chatId: i.chatId }) },
-  { path: "rpg.listSessions", call: (c, i) => c.rpg.listSessions({ chatId: i.chatId }) },
-  { path: "rpg.listClocks", call: (c, i) => c.rpg.listClocks({ chatId: i.chatId }) },
-  { path: "rpg.listWidgets", call: (c, i) => c.rpg.listWidgets({ chatId: i.chatId }) },
-  { path: "rpg.checkpointList", call: (c, i) => c.rpg.checkpointList({ chatId: i.chatId }) },
-  {
-    path: "rpg.createGame",
-    call: (c, i) =>
-      c.rpg.createGame({
-        chatId: i.chatId,
-        config: { genres: ["Fantasy"], tones: ["Heroic"], difficulty: "normal", rating: "sfw", gm: { kind: "standalone" } },
-      }),
-  },
-  {
-    path: "rpg.updateConfig",
-    call: (c, i) =>
-      c.rpg.updateConfig({
-        chatId: i.chatId,
-        config: { genres: ["Fantasy"], tones: ["Heroic"], difficulty: "normal", rating: "sfw", gm: { kind: "standalone" } },
-      }),
-  },
-  { path: "rpg.assignGmSeat", call: (c, i) => c.rpg.assignGmSeat({ chatId: i.chatId, userId: null }) },
-  { path: "rpg.setMode", call: (c, i) => c.rpg.setMode({ chatId: i.chatId, mode: "lite" }) },
-  // The lite Stats & Trackers editor's config/sheet patches (13 §7) — patchConfig is HOST-gated, patchSheet is
-  // MEMBER-gated at the floor (requireHost/requireParticipant → leak-free NOT_FOUND for a stranger) BEFORE any
-  // write; the post-sweep integrity re-read proves the stranger mutated nothing on A. `steeringNote` is a
-  // marker-free scalar; the partyMemberId is a real-but-absent TypeID (the auth gate fires before it is used).
-  { path: "rpg.patchConfig", call: (c, i) => c.rpg.patchConfig({ chatId: i.chatId, steeringNote: "hacked" }) },
-  { path: "rpg.patchSheet", call: (c, i) => c.rpg.patchSheet({ chatId: i.chatId, partyMemberId: mintTypeId(ID_PREFIX.rpgPartyMember) }) },
-  { path: "rpg.editSnapshot", call: (c, i) => c.rpg.editSnapshot({ chatId: i.chatId }) },
-  { path: "rpg.checkpointSave", call: (c, i) => c.rpg.checkpointSave({ chatId: i.chatId, label: "x" }) },
-  { path: "rpg.checkpointRemove", call: (c, i) => c.rpg.checkpointRemove({ chatId: i.chatId, checkpointId: mintTypeId(ID_PREFIX.rpgCheckpoint) }) },
-  { path: "rpg.checkpointRestore", call: (c, i) => c.rpg.checkpointRestore({ chatId: i.chatId, checkpointId: mintTypeId(ID_PREFIX.rpgCheckpoint) }) },
-  { path: "rpg.upsertNpc", call: (c, i) => c.rpg.upsertNpc({ chatId: i.chatId, name: "x" }) },
-  { path: "rpg.applyReputation", call: (c, i) => c.rpg.applyReputation({ chatId: i.chatId, npcId: mintTypeId(ID_PREFIX.rpgNpc), action: "met" }) },
-  { path: "rpg.createClock", call: (c, i) => c.rpg.createClock({ chatId: i.chatId, name: "x", segments: 4, kind: "front" }) },
-  { path: "rpg.tickClock", call: (c, i) => c.rpg.tickClock({ chatId: i.chatId, clockId: mintTypeId(ID_PREFIX.rpgClock), ticks: 1 }) },
-  { path: "rpg.addJournalEntry", call: (c, i) => c.rpg.addJournalEntry({ chatId: i.chatId, type: "note", title: "x", content: "x" }) },
-  { path: "rpg.upsertQuest", call: (c, i) => c.rpg.upsertQuest({ chatId: i.chatId, name: "x" }) },
-  {
-    path: "rpg.createMap",
-    call: (c, i) =>
-      c.rpg.createMap({
-        chatId: i.chatId,
-        name: "x",
-        kind: "grid",
-        data: { kind: "grid", width: 2, height: 2, cells: [], partyPosition: { x: 0, y: 0 } },
-      }),
-  },
-  {
-    path: "rpg.createWidget",
-    call: (c, i) => c.rpg.createWidget({ chatId: i.chatId, type: "counter", label: "x", position: "hud_left", binding: { source: "morale" } }),
-  },
-  { path: "rpg.deleteWidget", call: (c, i) => c.rpg.deleteWidget({ chatId: i.chatId, widgetId: mintTypeId(ID_PREFIX.rpgWidget) }) },
-  {
-    path: "rpg.joinParty",
-    call: (c, i) =>
-      c.rpg.joinParty({ chatId: i.chatId, sheet: { attributes: { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 }, maxHp: 10 }, provenance: "joined" }),
-  },
-  { path: "rpg.startGame", call: (c, i) => c.rpg.startGame({ chatId: i.chatId }) },
-  { path: "rpg.startSession", call: (c, i) => c.rpg.startSession({ chatId: i.chatId }) },
-  {
-    path: "rpg.concludeSession",
-    call: (c, i) => c.rpg.concludeSession({ chatId: i.chatId, sessionId: mintTypeId(ID_PREFIX.rpgSession), summary: { summary: "x", resumePoint: "x" } }),
-  },
-  {
-    path: "rpg.applySessionOutcome",
-    call: (c, i) => c.rpg.applySessionOutcome({ chatId: i.chatId, sessionId: mintTypeId(ID_PREFIX.rpgSession), sheetProposals: [] }),
-  },
-  { path: "rpg.resumeSession", call: (c, i) => c.rpg.resumeSession({ chatId: i.chatId, sessionId: mintTypeId(ID_PREFIX.rpgSession) }) },
-  { path: "rpg.getSessionWrap", call: (c, i) => c.rpg.getSessionWrap({ chatId: i.chatId }) },
-  { path: "rpg.rollDice", call: (c, i) => c.rpg.rollDice({ chatId: i.chatId, notation: "1d6" }) },
-  { path: "rpg.retractRound", call: (c, i) => c.rpg.retractRound({ chatId: i.chatId }) },
-  {
-    path: "rpg.resolvePendingCheck",
-    call: (c, i) => c.rpg.resolvePendingCheck({ chatId: i.chatId, pendingCheckId: mintTypeId(ID_PREFIX.rpgPendingCheck) }),
-  },
-  { path: "rpg.confirmCharacterDeath", call: (c, i) => c.rpg.confirmCharacterDeath({ chatId: i.chatId, partyMemberId: mintTypeId(ID_PREFIX.rpgPartyMember) }) },
-  // GM seat console (doc 12 §15) — host-gated seat verbs + the seat-shaped requestCheck + the member-scoped
-  // pending-check read; a stranger with A's game chat gets a leak-free NOT_FOUND (requireHost / requireParticipant).
-  { path: "rpg.moveParty", call: (c, i) => c.rpg.moveParty({ chatId: i.chatId, destination: "x" }) },
-  { path: "rpg.offerChoices", call: (c, i) => c.rpg.offerChoices({ chatId: i.chatId, choices: ["a", "b"] }) },
-  { path: "rpg.concludeEncounter", call: (c, i) => c.rpg.concludeEncounter({ chatId: i.chatId }) },
-  {
-    path: "rpg.requestCheck",
-    call: (c, i) => c.rpg.requestCheck({ chatId: i.chatId, targetPartyMemberId: mintTypeId(ID_PREFIX.rpgPartyMember), skill: "stealth", dc: 12 }),
-  },
-  { path: "rpg.listPendingChecks", call: (c, i) => c.rpg.listPendingChecks({ chatId: i.chatId }) },
-  // R10 scenes + recruit — chat-gated (host writes / member read) → a stranger with A's game chat gets NOT_FOUND.
-  { path: "rpg.listScenes", call: (c, i) => c.rpg.listScenes({ chatId: i.chatId }) },
-  { path: "rpg.planScene", call: (c, i) => c.rpg.planScene({ chatId: i.chatId }) },
-  {
-    path: "rpg.createScene",
-    call: (c, i) =>
-      c.rpg.createScene({
-        chatId: i.chatId,
-        plan: { name: "x", description: "x", scenario: "x", firstMessage: "x", participationGuide: "x", rating: "sfw" },
-        participantCharacterIds: [],
-      }),
-  },
-  { path: "rpg.concludeScene", call: (c, i) => c.rpg.concludeScene({ chatId: i.chatId, sceneId: mintTypeId(ID_PREFIX.rpgScene) }) },
-  { path: "rpg.abandonScene", call: (c, i) => c.rpg.abandonScene({ chatId: i.chatId, sceneId: mintTypeId(ID_PREFIX.rpgScene) }) },
-  { path: "rpg.recruitNpc", call: (c, i) => c.rpg.recruitNpc({ chatId: i.chatId, npcId: mintTypeId(ID_PREFIX.rpgNpc) }) },
-  // ── RPG-CONSOLE-COMMIT (doc 12 §15) — the human-GM out-of-turn direct-commit arms + the promoted illustration
-  //    verb. Every one is host-gated (`requireHost` → a stranger with A's game chat gets a leak-free NOT_FOUND
-  //    BEFORE any snapshot/encounter write); the post-sweep integrity re-read proves nothing was mutated. Minimal
-  //    valid bodies (the enemy blueprint carries a name+maxHp) so the probe reaches the AUTH gate, not a 400. ──
-  { path: "rpg.advanceTimeConsole", call: (c, i) => c.rpg.advanceTimeConsole({ chatId: i.chatId, action: "explore" }) },
-  { path: "rpg.setWidgetValueConsole", call: (c, i) => c.rpg.setWidgetValueConsole({ chatId: i.chatId, widgetRef: "morale" }) },
-  { path: "rpg.grantLootConsole", call: (c, i) => c.rpg.grantLootConsole({ chatId: i.chatId, source: "chest" }) },
-  { path: "rpg.startEncounterConsole", call: (c, i) => c.rpg.startEncounterConsole({ chatId: i.chatId, enemies: [{ name: "Goblin", maxHp: 8 }] }) },
-  { path: "rpg.encounterRoundConsole", call: (c, i) => c.rpg.encounterRoundConsole({ chatId: i.chatId, actions: [] }) },
-  { path: "rpg.attemptFleeConsole", call: (c, i) => c.rpg.attemptFleeConsole({ chatId: i.chatId, distraction: false }) },
-  { path: "rpg.requestIllustration", call: (c, i) => c.rpg.requestIllustration({ chatId: i.chatId, sceneMoment: "a quiet dawn" }) },
-
   // ── plugin (D46) — getLog is owner-scoped (getById filters ownerId=caller, NOT admin-gated), so a stranger
   //    passing any pluginId reads absent → leak-free NOT_FOUND (the log ring lives on the caller's OWN resident
   //    instance). Fabricated id (the established mintTypeId probe shape); the seeded-row teeth are in
@@ -994,11 +690,6 @@ const EXEMPT: Readonly<Record<string, string>> = {
   "persona.import": "self-scoped: imports into the caller's own namespace",
   "preset.create": "self-scoped",
   "preset.list": "self-scoped",
-  "rosterPreset.create": "self-scoped: creates the caller's own preset (members validated owner-owned inside)",
-  "rosterPreset.list": "self-scoped: lists the caller's own presets",
-  "comfyuiWorkflow.create": "self-scoped: creates the caller's own BYO workflow",
-  "comfyuiWorkflow.list": "self-scoped: lists the caller's own BYO workflows",
-  "comfyuiWorkflow.listSeeds": "global read-only: lists the first-party shipped-static seed pool (no owner scope, caller-invariant)",
   "worldInfo.createBook": "self-scoped",
   "worldInfo.listBooks": "self-scoped",
   "worldInfo.listGlobal": "self-scoped: the caller's globally-attached books",
@@ -1020,11 +711,6 @@ const EXEMPT: Readonly<Record<string, string>> = {
   "credentials.inspectEndpoint": "keyless-fixture: storage-disabled guard precedes the ownership check",
   "assets.listOwned": "self-scoped",
   "assets.listGallery": "self-scoped",
-  // BYO pose library (C6c) — the caller's own skeletons, owner-scoped in the query WHERE through the
-  // `asset_id → assets.ownerId` join (the row has no ownerId; a foreign asset's pose is simply absent, never a
-  // foreign owner). Teeth in `import-poses.int.test.ts` (B never sees A's poses). Import (byte ingest) is a
-  // multipart entry/http route, not a tRPC procedure — outside this tRPC sweep.
-  "poses.listOwned": "self-scoped: owner-scoped via the assets join; see import-poses.int.test.ts",
   // #67 render resolvers — both return `{assetId, hash}` pairs (asset HASHES, never a marker NAME), so the
   // marker-based leak detector is TOOTHLESS here; the cross-tenant/structural teeth live in the assets domain
   // tests. `resolveBlobRefs` is owner-scoped (ownerId = principal.userId; a foreign asset id is simply absent
@@ -1035,20 +721,6 @@ const EXEMPT: Readonly<Record<string, string>> = {
   "assets.resolveBlobRefs": "self-scoped (ownerId = principal); see resolve-owned-asset-refs.int.test.ts",
   "assets.resolveChatBlobRefs":
     "membership + structural-reference scoped; asset hashes are not marker NAMES (sweep toothless) — see resolve-chat-asset-refs.int.test.ts + get-metadata attachment arm",
-  "hub.searchGifs":
-    "self-scoped: resolves the caller's OWN gif-search credential (owner-scoped, no host fallback); query text + opaque cursor, no foreign id (hub.importGif IS probed)",
-  // Card-hub browse (H2/H4) — no owned/foreign id. `search` takes a hub key + query text + the caller's own
-  // filters; `getCard`/`previewCard`/`importCard` take an OPAQUE hub-card ref (a remote-catalog string, never
-  // a TypeID/owned entity); `listHubs` takes no input. The remote catalog belongs to nobody — there is no
-  // cross-tenant row to leak (a foreign ref returns that public card or a leak-free NOT_FOUND). `previewCard`
-  // writes nothing; `importCard` creates rows owned by the ACTOR (off `ctx.auth`, no foreign id) and is
-  // idempotent by importHash — the already-imported marker is owner-scoped (`findByImportedFrom`, owner in the
-  // WHERE). Kill-switch + capability gating are covered by the hub domain verb tests.
-  "hub.listHubs": "not-owned: the deployment's hub roster + capabilities; no id input",
-  "hub.search": "self-scoped: a hub key + query text + the caller's own filters; the already-imported marker is owner-scoped, no foreign id",
-  "hub.getCard": "not-owned: an OPAQUE remote-catalog card ref (never a TypeID/owned entity id); a foreign ref is that public card or a leak-free NOT_FOUND",
-  "hub.previewCard": "not-owned: an OPAQUE remote-catalog card ref; ZERO writes, the already-imported marker is owner-scoped off ctx.auth",
-  "hub.importCard": "self-scoped: an OPAQUE remote-catalog card ref; creates rows owned by the ACTOR (off ctx.auth), idempotent by owner-scoped importHash",
   // Gallery ids are strict `typeIdSchema` — a synthesized id fails WIRE validation (BAD_REQUEST) before the
   // ownership gate, and seeding a real gallery item needs CAS bytes. Asset-ownership IDOR (the shared-avatar
   // reference check) is covered by the assets domain's `loadCoParticipantOwner` tests.
@@ -1066,18 +738,6 @@ const EXEMPT: Readonly<Record<string, string>> = {
   "settings.createTheme": "self-scoped",
   "sessions.me": "self-scoped: projects the caller's own Principal",
   "sessions.streamUserEvents": "self-scoped: channel key is the caller's own userId",
-  "sessions.listMyAgents": "self-scoped: ownerUserId is the caller's own userId, no foreign id",
-  "sessions.provisionAgent": "self-scoped: mints the caller's OWN agent (ownerUserId = caller); input is only a sourceKind enum, no foreign id",
-  "buddy.get": "self-scoped: one buddy per caller",
-  "buddy.listQuips": "self-scoped: the caller's own reaction quips, keyed to principal.userId (no id input)",
-  "buddy.hatch": "self-scoped",
-  "buddy.ask": "self-scoped",
-  "buddy.confirm": "not-a-cross-tenant-id: ephemeral in-memory proposal handle (per-user, 5-min TTL)",
-  "buddy.history": "self-scoped",
-  "buddy.clearChat": "self-scoped",
-  "buddy.setReactions": "self-scoped",
-  "buddy.setAgency": "self-scoped",
-  "buddy.stream": "self-scoped: SSE reaction feed keyed to the caller's own userId (no id input)",
   "search.fields": "self-scoped: ownerId = principal.userId (index corpus = owner's cards; query text, no id)",
   "search.suggest": "self-scoped: ownerId = principal.userId (index corpus = owner's cards; query text, no id)",
   // Takes ids inside `scope`, but EVERY scope is owner-belted in the dispatch (digest scans carry the
@@ -1121,15 +781,11 @@ const EXEMPT: Readonly<Record<string, string>> = {
   "connection.orCredits": "self-scoped: reads the caller's OWN provider key",
   "connection.orGenerationCost": "not-owned: an upstream OpenRouter generation handle",
   "connection.testClaudeAuth": "self-scoped: the caller's own max-pro-sub health check",
-  "connection.probeComfyui": "not-owned: probes the deployment-global owner-configured ComfyUI endpoint (no id input, no per-user resource)",
   "notifications.list": "self-scoped by principal.userId (multi-human belt)",
   "notifications.markAllRead": "self-scoped by principal.userId (recipient-scoped inside the verb, no foreign id)",
   "notifications.dismiss": "self-scoped by principal.userId (inbox scoped inside the verb)",
   "notifications.notifications": "subscription: self-scoped per-user channel",
   "chat.streamMessages": "subscription: non-member WITHHOLDS (yields nothing), not a NOT_FOUND throw — covered by chat.int durable-replay",
-  "crew.stream":
-    "subscription: the authority gate is the membership-scoped getConfig (throws NOT_FOUND on first pull for a non-member) — probed via crew.getConfig above",
-  "rpg.stream": "subscription: the GM-eyes gate is getGame (throws NOT_FOUND on first pull for a non-member) — probed via rpg.getGame above",
   "automation.stream":
     "subscription: the visibility gate is resolveStreamAuthority (throws AutomationChatNotFound → NOT_FOUND on first pull for a non-present member, before any bus tail) AND narrows a non-host member to the room-visible quickReplySurfaced only — the membership gate is the loadCallerRole present-member read, covered by the automation.stream visibility unit test",
   // Stats — every verb scopes on ctx.auth.userId (single-owner); no cross-tenant id but `character` (probed).
@@ -1220,16 +876,6 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
       input: { name: MARK.persona, description: "owned by A" },
     });
     const preset = await owner.preset.create({ name: MARK.preset, kind: "chat" });
-    // A saved roster preset owned by A — its `name` (MARK.rosterPreset) is the leak marker (a leaked get/list
-    // or a leaked applyToChat error would surface it). Its cast is A's own character (the fetchOwned posture).
-    const rosterPreset = await owner.rosterPreset.create({ name: MARK.rosterPreset, members: [{ kind: "character", characterId: character.id }] });
-    // A saved BYO ComfyUI workflow owned by A — its `name` (MARK.comfyuiWorkflow) is the leak marker (a leaked
-    // get/list would surface it). `graphJson` is a minimal valid API-format node graph (passes the arm's
-    // isComfyuiGraph gate at create).
-    const comfyuiWorkflow = await owner.comfyuiWorkflow.create({
-      name: MARK.comfyuiWorkflow,
-      graphJson: '{"1":{"class_type":"CLIPTextEncode","inputs":{"text":"%prompt%"}}}',
-    });
     const book = await owner.worldInfo.createBook({ input: { name: MARK.book } });
     const entry = await owner.worldInfo.createEntry({
       bookId: book.id,
@@ -1237,20 +883,6 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
     });
     const tag = await owner.tag.createTag({ input: { name: MARK.tag } });
     const snapshot = await owner.character.snapshot({ characterId: character.id });
-
-    // An expression-sprite bound to A's character — seeded directly (an asset row + the character_sprites
-    // binding, no CAS bytes needed). The binding's `label` (MARK.sprite) is A's marker, so a broken
-    // `expressions.list` visibility gate that resolved A's character for a stranger would leak it here.
-    const spriteAssetId = castId<AssetId>("asset_alphasprite");
-    await db.insert(assets).values({
-      id: spriteAssetId,
-      ownerId: OWNER_USER_ID,
-      kind: "sprite",
-      mime: "image/png",
-      size: 1,
-      hash: "alpha-sprite-hash",
-    });
-    await db.insert(characterSprites).values({ characterId: character.id, label: MARK.sprite, assetId: spriteAssetId, createdAt: 1 });
 
     // The credential is seeded DIRECTLY — the `app` fixture's SecretBox is keyless (CREDENTIALS_KEY unset),
     // so the front-door `credentials.add` is disabled. The ownership probes never decrypt; they gate on the
@@ -1346,21 +978,6 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
     // would delete THIS row; the post-sweep integrity re-read asserts it survived the stranger's probe.
     await db.insert(characterDocuments).values({ characterId: character.id, documentId });
 
-    // A pending card-evolution proposal on A's character — its authority DERIVES via characterId →
-    // characters.ownerId (chat-crew-design/02 §5). The change `text` carries A's marker, so a broken owner
-    // join on list/accept/dismiss would leak it (list) or mutate A's world (accept/dismiss — the post-sweep
-    // integrity re-read proves it survived).
-    const proposalId = castId<CardEvolutionProposalId>("cardprop_alpha");
-    await db.insert(cardEvolutionProposals).values({
-      id: proposalId,
-      characterId: character.id,
-      chatId: null,
-      changes: [{ field: "description", op: "append", text: MARK.proposal, rationale: "seeded" }],
-      sourceSpan: null,
-      status: "pending",
-      createdAt: 1,
-    });
-
     // A theme row seeded directly (the front-door createTheme needs a full color-token override — the
     // lenient read seam accepts a partial blob, so this is representative for the ownership probe).
     const themeId = castId<ThemeId>("theme_alpha");
@@ -1380,8 +997,6 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
       characterId: character.id,
       personaId: persona.id,
       presetId: preset.id,
-      rosterPresetId: rosterPreset.id,
-      comfyuiWorkflowId: comfyuiWorkflow.workflowId,
       bookId: book.id,
       entryId: entry.id,
       tagId: tag.id,
@@ -1393,7 +1008,6 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
       chatId,
       messageId,
       documentId,
-      proposalId,
       automationRuleId: automationRule.id,
     };
   }

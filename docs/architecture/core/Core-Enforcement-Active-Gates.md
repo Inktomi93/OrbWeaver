@@ -128,6 +128,7 @@ lands) and **pinned by `tests/tooling/check-gates.int.test.ts`** — it derives 
 | `registry-assembly-at-door-only` | client-architecture-lockdown.md §16 G8 — `createRegistry`/`createContributorRegistry` may be CALLED only in `main.tsx` or a `compose/` module; a mutating `register(`-named function/method is banned outright wherever declared (§5 rule 1) |
 | `list-row-adoption` | client-architecture-lockdown.md §14/§16 G6 — a LIST-region surface file (one importing `LibrarySurfaceShell`/`LibraryListLayout`/`createCollectionSurface`) whose `.map()` callback OR `renderItem`/`renderRow` prop returns interactive JSX (onClick/role/href) must root that JSX in `ListRow`/`LibraryRow`/an allowlisted composite. Both-ways ALLOWLIST ratchet (currently empty — every current LIST-surface row already roots in `LibraryRow`) |
 | `enforcement-registry-parity` | this doc's declared registered-gate COUNT + Layer-3 ACTIVE/DORMANT tables must agree with the DISCOVERED gate descriptors' `status` fields (both directions) — reconciles the doc against `loadGates()`'s discovered set, not an `ALL_CHECKS` array — the meta-gate that promotes `check-gates.int.test.ts`'s anti-drift assertion to every `pnpm check` |
+| `dangling-refs` | a doc-path pointer leads nowhere — every gate descriptor's `docRow`/`message`/`fix` naming a `*.md` must resolve to a real file, and every markdown LINK in `docs/architecture/{core,proposed}/**/*.md` must resolve; a ghost cite is drift the reader can't distinguish from a real home |
 | `no-array-literal-querykey` | a `queryKey:` property whose value is an inline array literal anywhere in `packages/client/src` is RED — client query keys are 100% tRPC-proxy-derived (`.queryKey()`/`.queryFilter()`/`.pathFilter()`), §11.1; the data/ factory passthroughs are identifiers, never literals, so they pass |
 | `no-inline-invalidate-outside-seam` | `.invalidateQueries(` may be called ONLY in `data/invalidation.ts` (the central seam); everything else routes `invalidate(event)`/`invalidateFilters`. Tighter than `client-cache-surgery-only-in-data` (which allows all of `data/`) — §11.3 |
 | `bus-onData-no-store-write` | a raw `.setState(` inside a `data/bus/*` subscription `onData`/`onConnectionStateChange` body is RED — the seam buffers through the chatStream api + routes to the invalidation seam, never a second store (§11.1); the reducer-body twin of the import-side gate `chat-stream-writes-in-bus-only` |
@@ -202,8 +203,18 @@ lands) and **pinned by `tests/tooling/check-gates.int.test.ts`** — it derives 
 | `no-forward-ref` | React 19 deprecates `forwardRef` — pass `ref` as a normal prop instead (Spine-TypeScript-and-Patterns.md §1) |
 | `gate-ignore-inventory` | every `// @orb-gate-ignore <name>` suppression under `packages/**` must name a REAL registered gate — stale suppression rot RED |
 | `no-manual-autosave-flush` | a single `features/**` function body calling BOTH a structural array op (push/remove/insert/moveFieldValues) AND `handleSubmit` — the retired §7-trap call-site flush; the D78 session-boundary factory's store driver autosaves structural array ops (autosave-form-doctrine.md §7 G-A; armed at the SEAL 2026-07-16) |
+| `assets-single-writer` | only `domain/assets` writes the `assets` table + calls `storeBlob` — the one CAS+row coherence site (D21 context); an importer of `storeBlob` or a raw `.insert/.update/.delete(assets)` outside the sanctioned home is RED |
+| `audit-client-tests` | AST audit of every `tests/**/*.test.ts(x)` for anti-patterns grep can't see: an assertion-less test, a missing `await` on an async test, an empty `describe()`/hook body (Spine-Testing.md §5) |
+| `bus-payload-allowlist` | the FIELD-NAME arm of the bus-payload firewall (D16) — a bus-event payload field name that smells like a credential/secret is RED; credentials/secrets are TYPE-LEVEL UNREPRESENTABLE on the wire, carry a branded id instead and have the subscriber re-read canon |
+| `component-size-ui` | the `@orb/ui` twin of `component-size` — a hard LOC ceiling (450) on `packages/ui/src` sources (UI-Primitives-and-Reuse.md §13.7); a god-primitive splits into sub-files/parts or extracts pure logic to a lib |
+| `ct-no-oneshot-live-read-assert` | a HARD invariant (Spine-Testing.md §7, the DEF-14 flake class) — a component test (`*.ct.tsx`) never reads mutable async state with a non-retrying `expect()` (a live-DOM read, `page.evaluate`, a tRPC recorder read); a single synchronous read samples mid-transition |
+| `fetch-fn-in-features` | a client feature must NEVER hand-write a global `fetch(` — HTTP-route egress gets ONE `data/` fetch fn each (the `upload-asset.ts`/`auth-session.ts` precedent), imported via `#data`; everything else is tRPC (client-architecture-lockdown.md §16 R5) |
+| `monotonic-tests` | guards against "wrong-but-green" — a committed baseline manifest (`docs/test-baseline/manifest.json`) makes deleting/disabling a test to reach green structurally RED; `.skip`/`.todo` needs `.skipIf(cond)` or a cited `// allow-skip:` reason (Spine-Testing.md §5) |
+| `no-handwritten-wire-json-schema` | after the D79 structured-output unification wave there is exactly ONE way to fill a wire `schema` field — project a zod schema through `@orb/kit/json-schema` `projectJsonSchema`; a hand-authored JSON-Schema literal is RED (Core-Path-Registry.md D79) |
+| `serde-core-seal` | the PNG card-chunk engine (`@orb/kit/png-card-chunk`) is shared byte surgery for `domain/import` (read) and `domain/export` (write) ONLY — an import outside those sanctioned serde homes is RED (Spine-Config-and-Serialization.md §"Serialization / serde core") |
+| `suppressions` | counts down the four suppression-marker shapes under `packages/*/src` (`biome-ignore`(-all), every `eslint-disable` variant, the two `@orb-gate-ignore`/ts-expect-error escapes) against a committed both-ways baseline ratchet (Spine-Testing.md §5 house-suppression discipline) |
 
-The table mirrors `report.ts`'s `loadGates()`-discovered `status:"active"` set (134 registered gates);
+The table mirrors `report.ts`'s `loadGates()`-discovered `status:"active"` set (145 registered gates);
 the discovered descriptor set is the runtime truth.
 
 The 7th fired-trigger gate (PD-116), `solo-byte-identical`, is NOT a static gate — it is the
@@ -224,9 +235,9 @@ the descriptor's `status` field is ground truth.
 
 | Gate | Enforces | Activation trigger |
 | - | - | - |
-| `component-size-ui` | `packages/ui/src` LOC ceiling (450) — the ui twin of `component-size` | trigger MET (W1-1 done: `table.tsx` is 376 lines at `primitives/table/`; ui max file 376 < 450) — the flip to `active` is an owner decision, still dormant |
-| `monotonic-tests` | a green `check` can't be reached by deleting/disabling tests (a committed baseline manifest) | first real client test suite + committed baseline |
-| `audit-client-tests` | AST anti-patterns in `*.test.ts` (empty describe/hook, no-assertion, missing `await`) | client tests exist |
+
+None currently — `component-size-ui`, `monotonic-tests`, and `audit-client-tests` (formerly listed here)
+are all `status:"active"` now (see the Layer-3 ACTIVE table above).
 
 ## Layer 4 — dependency-cruiser (`.dependency-cruiser.cjs`) — **ACTIVE**
 

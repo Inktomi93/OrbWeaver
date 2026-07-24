@@ -16,7 +16,7 @@ import type {
 } from "@orb/contracts/chat";
 import type { ChatDocumentVisibility } from "@orb/contracts/databank";
 import type { Principal } from "@orb/contracts/identity";
-import type { ImageDiffusionParams, PromptTemplateMode, SizePresetName } from "@orb/contracts/imagery";
+import type { PromptTemplateMode, SizePresetName } from "@orb/contracts/imagery";
 import type { GuidedActionKind, GuidedImpersonatePerson, UserIntent } from "@orb/contracts/preset";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type {
@@ -241,11 +241,6 @@ export interface GenerateImageParams extends ChatScopedParams {
   /** The semantic size preset (imagery-design/02 §6) — forwarded to `imagery.generatePicture`; when absent
    *  the leaf uses `defaultSizeFor(mode)`. The I5 mode picker surfaces it. */
   readonly size?: SizePresetName | undefined;
-  /** The diffusion knobs (MA-8/D96) — forwarded to `imagery.generatePicture`; honored only by a local engine
-   *  (ComfyUI), ignored-with-honesty by hosted sources. */
-  readonly params?: ImageDiffusionParams | undefined;
-  /** The advanced-knob ControlNet pose pick (comfyui-control §4.12, C6d) — forwarded to
-   *  `imagery.generatePicture`, which resolves it to `edit.poseControl`. Local ComfyUI curated-role only. */
 }
 
 /** `selectVariant` — flips messages.selectedVariantId to a sibling swipe (pointer move, zero copy). */

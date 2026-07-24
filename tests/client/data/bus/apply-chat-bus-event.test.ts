@@ -16,7 +16,7 @@ import type { TurnSlot } from "@orb/client/state";
 import { chatStream, subscribeTurnSlot } from "@orb/client/state";
 import type { ChatBusEvent, ChatDeltaEvent, ChatWarningCode, TurnIntent } from "@orb/contracts/chat";
 import { CHAT_BUS_EVENT_TYPES } from "@orb/contracts/chat";
-import type { CharacterId, ChatId, MessageId, MessageVariantId, PersonaId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, MessageId, PersonaId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe, vi } from "vitest";
 import { expect, test } from "../../../support/fixtures";
@@ -94,7 +94,6 @@ function freshChatId(): ChatId {
 const MESSAGE_ID = castId<MessageId>("message_test_bus_0001");
 const CHARACTER_ID = castId<CharacterId>("character_test_bus_01");
 const PERSONA_ID = castId<PersonaId>("persona_test_bus_0001");
-const VARIANT_ID = castId<MessageVariantId>("message_variant_test_bus1");
 const WORLD_BOOK_ID = castId<WorldBookId>("world_book_test_bus01");
 const WORLD_ENTRY_ID = castId<WorldEntryId>("world_entry_test_bus1");
 
@@ -186,29 +185,6 @@ describe("applyChatBusEvent — stream-transient events", () => {
     h.unsub();
   });
 
-  test("expression → no-op: no store mutation, no invalidate (ephemeral presentation state)", () => {
-    const chatId = freshChatId();
-    const h = harness([chatId]);
-
-    applyChatBusEvent(
-      {
-        type: "expression",
-        chatId,
-        characterId: CHARACTER_ID,
-        messageId: MESSAGE_ID,
-        variantId: VARIANT_ID,
-        label: "joy",
-      },
-      h.deps,
-    );
-
-    expect(h.appendDelta).not.toHaveBeenCalled();
-    expect(h.completeTurn).not.toHaveBeenCalled();
-    expect(h.abortTurn).not.toHaveBeenCalled();
-    expect(h.invalidate).not.toHaveBeenCalled();
-    h.unsub();
-  });
-
   test("warning → onWarning(code, chatId); no invalidate", () => {
     const chatId = freshChatId();
     const h = harness([chatId]);
@@ -245,7 +221,7 @@ describe("applyChatBusEvent — turn terminals", () => {
     const chatId = freshChatId();
     const h = harness([chatId]);
     applyChatBusEvent(turnStartedEvent({ chatId, intent: "send", speakerCharacterId: null, targetMessageId: null }), h.deps);
-    const event: ChatBusEvent = { type: "turnAborted", chatId, intent: "send", reason: "stale" };
+    const event: ChatBusEvent = { type: "turnAborted", chatId, intent: "send", reason: "stale", automationDepth: 0 };
 
     applyChatBusEvent(event, h.deps);
 
@@ -315,22 +291,9 @@ describe("applyChatBusEvent — messageCommitted clear-on-commit signal", () => 
 // "canon" by construction, so a newly-added `ChatBusEvent` member automatically gets a generated test
 // here (and fails `buildCanonEvent`'s exhaustive switch below at compile time until taught its shape).
 
-const STREAM_TRANSIENT = new Set([
-  "delta",
-  "turnStarted",
-  "reasoningStreamDone",
-  "warning",
-  "turnCompleted",
-  "turnAborted",
-  // Ephemeral sprite-swap presentation state — a pure no-op in the reducer (not a canon invalidate);
-  // classified here beside reasoningStreamDone (expressions-design/02 §4).
-  "expression",
-]);
+const STREAM_TRANSIENT = new Set(["delta", "turnStarted", "reasoningStreamDone", "warning", "turnCompleted", "turnAborted"]);
 
-type CanonEventType = Exclude<
-  ChatBusEvent["type"],
-  "delta" | "turnStarted" | "reasoningStreamDone" | "warning" | "turnCompleted" | "turnAborted" | "expression"
->;
+type CanonEventType = Exclude<ChatBusEvent["type"], "delta" | "turnStarted" | "reasoningStreamDone" | "warning" | "turnCompleted" | "turnAborted">;
 
 function assertNeverCanon(value: never): never {
   throw new Error(`buildCanonEvent: unhandled canon event type ${JSON.stringify(value)}`);

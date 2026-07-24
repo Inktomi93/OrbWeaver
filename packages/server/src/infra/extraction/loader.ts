@@ -15,4 +15,6 @@ export interface RawExtraction {
 /** A per-format loader: raw bytes → raw extraction. Throws on a genuinely unreadable file — the dispatch wraps
  *  that as `ExtractionFailedError`. (A call-signature interface, not a `type` alias — `no-inline-types`
  *  reserves exported aliases for contract homes; infra names its shapes with `interface`.) */
-export type Loader = (bytes: Uint8Array) => Promise<RawExtraction>;
+export interface Loader {
+  (bytes: Uint8Array): Promise<RawExtraction>;
+}
