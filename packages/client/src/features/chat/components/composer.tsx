@@ -15,7 +15,7 @@ import { Spinner } from "@orb/ui/spinner";
 import { Textarea } from "@orb/ui/textarea";
 import type { KeyboardEvent, ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
-import { testId } from "#lib";
+import { IMAGE_GEN_NEEDS_CHAT, IMAGE_GEN_NEEDS_TEXT, testId } from "#lib";
 import type { ChatHandle } from "#state";
 import { isCommitted } from "#state";
 import { useChatBehaviorPrefs } from "../hooks/use-chat-behavior-prefs";
@@ -34,6 +34,16 @@ function resolvePlaceholder(committed: boolean, canContinue: boolean): string {
     return "Write the scene, or type a message…";
   }
   return canContinue ? "Continue, or type a message…" : "Type a message…";
+}
+
+// The disabled generate-image button's hover reason (undefined when it's actionable, or when disabled only
+// transiently mid-send/mid-generate). A DRAFT (no committed chat) needs the first send; a committed-but-empty
+// composer needs prompt text. Ordered so the draft's "send first" wins over "type first" for a fresh draft.
+function resolveImageGenReason(hasChat: boolean, hasText: boolean): string | undefined {
+  if (!hasChat) {
+    return IMAGE_GEN_NEEDS_CHAT;
+  }
+  return hasText ? undefined : IMAGE_GEN_NEEDS_TEXT;
 }
 
 // Client-side pre-check ceiling; the server re-caps at 64 MiB + magic-byte checks regardless.
@@ -127,6 +137,10 @@ export function Composer({ handle, value, onChange, draftSeed, onCommitted, tail
   const canSubmit = canSubmitText || hasAttachments;
   // Needs a committed chat to post into + prompt text; one action at a time (never mid-send/mid-generate).
   const canGenerateImage = chatId !== null && canSubmitText && !sendMessage.isPending && !generateImage.isPending;
+  // The disabled image button explains itself on hover (owner: "when it's disabled on hover tell why").
+  // A DRAFT needs a committed chat to post into (send first); a committed-but-empty composer needs text
+  // (the typed text IS the prompt). A mid-send/mid-generate disablement is transient — no reason then.
+  const imageGenReason = resolveImageGenReason(chatId !== null, canSubmitText);
 
   const generateFromText = (): void => {
     if (!canGenerateImage) {
@@ -228,6 +242,11 @@ export function Composer({ handle, value, onChange, draftSeed, onCommitted, tail
             size="icon"
             data-testid={testId("composerGenerateImage")}
             disabled={!canGenerateImage}
+            // focusableWhenDisabled ⇒ aria-disabled (not native `disabled`), so the button stays hoverable
+            // and the reason `title` surfaces on hover; the click stays a guarded no-op (generateFromText
+            // already early-returns when !canGenerateImage).
+            focusableWhenDisabled={true}
+            title={imageGenReason}
             loading={generateImage.isPending}
             aria-label={generateImage.isPending ? "Generating image…" : "Generate image from text"}
             onClick={generateFromText}

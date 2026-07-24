@@ -200,7 +200,7 @@ export function makeInertOps(): PluginHostOps {
       listMessages: () => Promise.resolve([]),
       getVariables: () => Promise.resolve({}),
       applyVariableOps: () => Promise.resolve(),
-      requestTurn: () => Promise.resolve({ costUsd: null }),
+      requestTurn: () => Promise.resolve(),
     },
     worldInfo: { upsertEntries: () => Promise.resolve({ inserted: 0, updated: 0, skippedHandEdited: 0 }) },
     storage: {
@@ -211,7 +211,7 @@ export function makeInertOps(): PluginHostOps {
     },
     notifications: { emit: () => Promise.resolve(), post: () => Promise.resolve() },
     quickReply: { surface: () => Promise.resolve() },
-    imagery: { generatePicture: () => Promise.resolve({ assetId: "asset_inert00000000000000000", costUsd: null }) },
+    imagery: { generatePicture: () => Promise.resolve({ assetId: "asset_inert00000000000000000" }) },
     variables: { get: () => Promise.resolve(null), set: () => Promise.resolve(), delete: () => Promise.resolve() },
     registrar: {
       registerTool: () => registrationHandle,

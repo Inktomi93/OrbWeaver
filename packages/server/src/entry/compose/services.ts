@@ -1060,9 +1060,9 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     applyVariableOps: chatCompose.applyVariableOps,
     // The `trigger_turn` arm's autonomous turn (03 §1.6 / §4) → chat's `requestTurn`. `initiator:"automation"`
     // is HARDCODED here (automation cannot forge a different origin); the funder = the rule author (chat resolves
-    // the funding host from the room + runs the engine's consent + budget belts). The guided steer rides as a
-    // "response"-action GuidedSteer (the arm already macro-rendered it). Returns the narrow spend/count summary:
-    // the $ ceiling reads the summed committed-reply `costUsd` (null when no reply metered a cost).
+    // the funding host from the room + runs the engine's consent + per-member turn RATE belt — the loop-safety
+    // guard). The guided steer rides as a "response"-action GuidedSteer (the arm already macro-rendered it).
+    // Returns the narrow count summary (cost VISIBILITY rides the stats domain off the committed replies).
     requestTurn: async (req) => {
       const outcome = await chatCompose.requestTurn({
         chatId: req.chatId,
@@ -1072,9 +1072,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
         ...(req.speakerCharacterId !== undefined ? { speakerCharacterId: req.speakerCharacterId } : {}),
         ...(req.guided !== undefined ? { guided: { action: "response", input: req.guided } } : {}),
       });
-      const metered = outcome.messages.filter((m) => m.costUsd !== null);
-      const costUsd = metered.length > 0 ? metered.reduce((sum, m) => sum + (m.costUsd ?? 0), 0) : null;
-      return { costUsd, messageCount: outcome.messages.length };
+      return { messageCount: outcome.messages.length };
     },
     upsertEntries: async ({ authorUserId, bookId, entries }) =>
       worldInfo.upsertEntries({ principal: await resolveOwnerPrincipal(authorUserId), bookId, entries }),
@@ -1113,7 +1111,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
           { initiator: "automation", automationDepth: req.automationDepth },
         );
       }
-      return { costUsd: picture.costUsd, imageCount: picture.images.length };
+      return { imageCount: picture.images.length };
     },
     // BG-F — the /autobg candidate set: the SEEDED catalog (the shared `@orb/contracts/theme` home — same
     // catalog the client picker reads, one home) PLUS the author's OWNED library uploads. The model picks by
@@ -1154,7 +1152,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       const rc = await bindRoleClients(authorUserId);
       const res = await rc.summarize([{ systemPrompt: autobgSystem, userPrompt: prompt }], { temperature: autobgTemperature, maxTokens: autobgMaxTokens });
       const item = res.items[0];
-      return { text: (item?.text ?? "").trim(), costUsd: item?.usage.costUsd ?? null };
+      return { text: (item?.text ?? "").trim() };
     },
   });
   const automationEnabled = createEnabledRuleIndex(db);
@@ -1255,13 +1253,10 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       // turn.trigger (01 §2) → chat's principal-free `requestTurn`. `initiator:"plugin"` is HARDCODED (a plugin
       // cannot forge a different origin); the funder is the INSTALLER (the bridge closed it over the installer —
       // never guest/infra-supplied). chat resolves the funding host from the room + gates the funder's membership
-      // (leak-free NOT_FOUND) + runs the D17 by-proxy consent + per-member budget belts. PLUGIN-SPEND: the turn's
-      // metered `costUsd` is projected as the SUM of the committed replies' per-message cost (the automation
-      // requestTurn op precedent, :1505-1506) and returned to the bridge, which debits the plugin's per-day USD
-      // budget (`plugin_budgets`) + bumps its action count — on TOP of the installer's own connection funding, the
-      // engine's per-member turn budget, and the admin-only install gate. The cost never crosses to the guest.
+      // (leak-free NOT_FOUND) + runs the D17 by-proxy consent + the per-member turn RATE budget + the cascade-depth
+      // guard (loop safety). Returns void; cost VISIBILITY rides the stats domain off the committed replies.
       requestTurn: async ({ funderUserId, chatId, automationDepth, speakerCharacterId, guided }) => {
-        const outcome = await chatCompose.requestTurn({
+        await chatCompose.requestTurn({
           chatId,
           initiator: "plugin",
           funderUserId,
@@ -1269,9 +1264,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
           ...(speakerCharacterId !== undefined ? { speakerCharacterId: castId<CharacterId>(speakerCharacterId) } : {}),
           ...(guided !== undefined ? { guided: { action: "response", input: guided } } : {}),
         });
-        const metered = outcome.messages.filter((m) => m.costUsd !== null);
-        const costUsd = metered.length > 0 ? metered.reduce((sum, m) => sum + (m.costUsd ?? 0), 0) : null;
-        return { costUsd };
       },
     },
     worldInfo: automationOps.worldInfo,
@@ -1316,11 +1308,9 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     // The membrane's imagery returns the primary image's `{assetId}` (01 §2) — NOT automation's cost-summary
     // op. Bound to the same `{assetId}`-bearing front door rpg/expressions consume; the guest action args are
     // re-validated through `generateImageActionArgsSchema` (defaults applied, garbage refused, fan-out clamped
-    // n≤4), and the installer's Principal is resolved for connection + spend ATTRIBUTION. PLUGIN-SPEND: the
-    // front door's metered `costUsd` is returned to the bridge, which debits the plugin's per-day USD budget
-    // (`plugin_budgets`) + bumps its action count — on TOP of the installer's own credential funding, the n≤4
-    // clamp, the membrane's ≤32 concurrent-host-call cap, and the admin-only install gate. The guest sees ONLY
-    // the `{assetId}` (the bridge strips the cost before it crosses the realm boundary).
+    // n≤4), and the installer's Principal is resolved for connection ATTRIBUTION. Loop safety: the n≤4 clamp +
+    // the membrane's ≤32 concurrent-host-call cap + the admin-only install gate. The guest sees ONLY the
+    // `{assetId}`; cost VISIBILITY rides the stats domain off the imagery write itself.
     imagery: {
       generatePicture: async ({ authorUserId, chatId, args }) => {
         const p = generateImageActionArgsSchema.parse(args);
@@ -1341,7 +1331,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
         if (first === undefined) {
           throw new Error("plugin imagery: generation produced no image");
         }
-        return { assetId: first.assetId, costUsd: picture.costUsd };
+        return { assetId: first.assetId };
       },
     },
     // The installing user's global KV — `fetchOwned` under the installer (automation's own owner-scoped verbs,

@@ -56,3 +56,16 @@ test("disabled blocks input and drops the interactive skin", async ({ mount, pag
   await expect(control).toBeDisabled();
   await expect(control).toHaveCSS("opacity", "0.5");
 });
+
+// field-sizing: content makes the browser ignore `rows` for sizing — an empty rows={3} field would
+// collapse to a single line without the rows-floor min-height re-establishing "at least 3 lines".
+test("rows sets a min-height floor under field-sizing: content", async ({ mount, page }) => {
+  await mount(<Textarea aria-label="Scene" rows={3} />);
+  const control = page.getByRole("textbox");
+  const singleLineHeight = await control.evaluate((el) => Number.parseFloat(getComputedStyle(el).lineHeight));
+  const minHeight = await control.evaluate((el) => Number.parseFloat(getComputedStyle(el).minHeight));
+  // Empty content collapses under field-sizing: content, so the rendered height IS the floor.
+  const box = await control.boundingBox();
+  expect(minHeight).toBeGreaterThanOrEqual(singleLineHeight * 3);
+  expect(box?.height).toBeGreaterThanOrEqual(minHeight - 1);
+});

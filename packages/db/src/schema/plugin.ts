@@ -9,11 +9,11 @@
 // 128-char key / 64 KiB value caps as tuple-shared CHECK-DDL.
 
 import type { PluginCapability, PluginManifest } from "@orb/contracts/plugin";
-import { PLUGIN_BUDGET_DEFAULTS, PLUGIN_ORIGINS, PLUGIN_STATUSES } from "@orb/contracts/plugin";
+import { PLUGIN_ORIGINS, PLUGIN_STATUSES } from "@orb/contracts/plugin";
 import type { AssetId, PluginId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 // biome-ignore lint/suspicious/noDeprecatedImports: drizzle @deprecates the positional primaryKey(col) overload; we use the supported primaryKey({ columns }) object form below.
-import { check, integer, primaryKey, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { check, integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { assets } from "./assets";
 import { users } from "./users";
 
@@ -64,37 +64,9 @@ export const plugins = sqliteTable(
   ],
 );
 
-// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-// plugin_budgets — the PER-PLUGIN spend envelope (PLUGIN-SPEND; the automation_budgets pattern re-keyed
-// rule→plugin). ONE row per plugin, keyed `plugin_id` (natural PK + CASCADE FK — the automation_budgets /
-// chat_locks pattern). Owner-scoped TRANSITIVELY through `plugins.owner_id` (no denormalized owner column):
-// a plugin hard-delete cascades its budget row. The host edits the ceilings; the spend gate writes the
-// accumulator (`actions_spent_today`/`usd_spent_today`/`spend_day`) — kept split (persistence/budgets.ts).
-//
-// TWO CEILINGS — both nullable, both load-bearing (see @orb/contracts/plugin/budget for the rationale):
-//   • `max_usd_per_day` — the HOSTED belt (NULL = no dollar ceiling, local-only setups).
-//   • `max_actions_per_day` — the LOCAL-HARDWARE belt (NULL = no cap, but the default is NON-NULL): a plugin
-//     firing FREE local turns pays $0, so the USD ceiling can never bound it — the action COUNT is the only
-//     belt for the $0-turn case. Plugins have NO fire log, so the count lives HERE on the row (bumped by the
-//     spend accumulator, reset on the UTC-day rollover), unlike automation which counts off the fire log.
-// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-
-export const pluginBudgets = sqliteTable("plugin_budgets", {
-  // NATURAL PK: the plugin's own id + CASCADE FK (the automation_budgets pattern).
-  pluginId: text("plugin_id")
-    .$type<PluginId>()
-    .primaryKey()
-    .references(() => plugins.id, { onDelete: "cascade" }),
-  // NULL = no action ceiling; the default is NON-NULL (the local-hardware belt — bounds a $0-turn plugin).
-  maxActionsPerDay: integer("max_actions_per_day").default(PLUGIN_BUDGET_DEFAULTS.maxActionsPerDay),
-  // NULL = no dollar ceiling (local-only setups).
-  maxUsdPerDay: real("max_usd_per_day").default(PLUGIN_BUDGET_DEFAULTS.maxUsdPerDay),
-  actionsSpentToday: integer("actions_spent_today").notNull().default(0),
-  usdSpentToday: real("usd_spent_today").notNull().default(0),
-  // UTC yyyy-mm-dd from the injected clock; reset-on-rollover. '' = never spent.
-  spendDay: text("spend_day").notNull().default(""),
-  updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
-});
+// The PER-PLUGIN spend envelope (`plugin_budgets`) was stripped 2026-07-24 — enterprise spend enforcement.
+// A runaway plugin's autonomous turns/images stay bounded by the per-member turn RATE cap + the cascade-depth
+// guard (shared with automation); cost VISIBILITY rides the stats domain. No per-plugin $/action ceiling.
 
 export const pluginKv = sqliteTable(
   "plugin_kv",

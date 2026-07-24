@@ -22,6 +22,7 @@ import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc } from "../../../../support/ct/route-trpc";
+import type { ScriptedStreamEntry } from "../../../../support/ct/route-trpc-subscription";
 import { routeChatStream } from "../../../../support/ct/route-trpc-subscription";
 import { MessageListReplaySeedStory, MessageListStoppingStory, MessageListSurfaceStory } from "../_ct-stories";
 import { CHAT_ID, makeMacroNameProducer, makeMessagesPage, makeMessageView } from "../fixtures";
@@ -276,4 +277,41 @@ test("an existing committed chat subscribes with NO replay cursor (never re-repl
   const input = stream.lastInput() as { chatId: string; lastEventId?: unknown };
   expect(input.chatId).toBe(CHAT_ID);
   expect(input.lastEventId).toBeUndefined();
+});
+
+// REOPEN-CATCH-UP regression (the seq-guard blast-radius fix). `chatOpened`/`historyTruncated` are
+// attach-SYNTHESIZED signals stamped with the NON-advancing resume cursor as their tracked id (a numeric
+// `String(resumeSeq ?? 0)`), and their per-attach re-fire is the SOLE reopen invalidate (staleTime is
+// Infinity — the SSE bus is the only freshness path). The monotonic seq guard must NOT run them through the
+// high-water mark: a naive guard would drop `chatOpened("0")` once the chat's durable mark had climbed in an
+// earlier session, swallowing the reopen `chat.getChat` refetch → a stale surface until some new live event.
+// This drives the real path (SSE → useChatBus → seq guard → applyChatBusEvent → invalidate): non-invalidating
+// durable events (turnStarted + deltas, ids 1..3) climb the mark, then a trailing `chatOpened` stamped id "0"
+// — the SOLE getChat invalidator here — must STILL fetch `chat.getChat` a second time (it is exempt by TYPE).
+const MARK_THEN_REOPEN: ScriptedStreamEntry[] = [
+  ...HEAD_DELTAS, // turnStarted + two deltas (ids 1..3) — climb the mark, invalidate nothing.
+  // The reopen re-fire: a synthesized attach signal at the NON-advancing cursor id "0" (mark is now 3).
+  { event: { type: "chatOpened", chatId: CHAT_ID }, id: "0" },
+];
+
+test("a chatOpened at a non-advancing cursor id STILL invalidates on reopen (the seq guard exempts synthetics by type)", async ({ mount, page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  const trpc = await routeTrpc(page, {
+    ...PREVIEW_FIT_STUB,
+    "chat.listMessages": () => makeMessagesPage([USER_VIEW]),
+    ...ROSTER_STUB,
+  });
+  await routeChatStream(page, { events: MARK_THEN_REOPEN });
+
+  const component = await mount(<MessageListSurfaceStory />); // committed=true
+
+  // The surface reads its roster once at mount (getChat #1). The streamed turn advances the seq mark but
+  // fires NO getChat invalidate (turnStarted/delta invalidate nothing).
+  await expect(component.getByText("Ping?")).toBeVisible();
+  await expect(component.getByText("Hello world")).toBeVisible();
+
+  // The trailing chatOpened("0") is the ONLY getChat invalidator. Admitted-by-type ⇒ a SECOND getChat fetch.
+  // A regression that ran the synthetic through the mark would drop it (its id ≤ the mark) and this stays 1.
+  // Generous timeout: under full-suite parallel CPU contention the invalidate→refetch round-trip can lag.
+  await expect.poll(() => trpc.count("chat.getChat"), { intervals: [50, 100, 200], timeout: 15_000 }).toBeGreaterThanOrEqual(2);
 });

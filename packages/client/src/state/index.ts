@@ -63,6 +63,7 @@ export type { ChatStreamApi, TurnSlot } from "./chat-stream";
 export {
   chatStream,
   isLiveTurnPhase,
+  setFrameScheduler,
   subscribeTurnSlot,
   subscribeUserMessageCommitted,
   useTurnPhase,

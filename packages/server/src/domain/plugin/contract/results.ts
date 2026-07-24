@@ -4,15 +4,14 @@
 // host.log ring (03 §3). `SnippetResult` is the inline-mode return (03 §1) — TYPE HOME ONLY here; the
 // `runSnippet` verb that produces it is P5.
 
-import type { PluginBudgetView, PluginBuiltAgainst, PluginCapability, PluginLogLevel, PluginOrigin, PluginStatus } from "@orb/contracts/plugin";
+import type { PluginBuiltAgainst, PluginCapability, PluginLogLevel, PluginOrigin, PluginStatus } from "@orb/contracts/plugin";
 import type { PluginId } from "@orb/kit/ids";
 
 /** One installed plugin as its owner sees it — the `plugins` row projected (02 §3), minus the bundle bytes
  *  and the full manifest json. `builtAgainst` is lifted from the persisted manifest (display/warn provenance
  *  — 02 §3 rider); `null` when the manifest declared none. `grantedCapabilities` is the confirmed subset the
- *  guest feature-detects via `host.grants`. `budget` is the per-day spend envelope (PLUGIN-SPEND) — the panel
- *  renders limit + spent-today for BOTH ceilings; an absent `plugin_budgets` row projects to the defaults over
- *  a zero accumulator. */
+ *  guest feature-detects via `host.grants`. (The per-plugin spend envelope was stripped 2026-07-24 —
+ *  enterprise spend enforcement.) */
 export interface PluginView {
   readonly id: PluginId;
   readonly slug: string;
@@ -26,7 +25,6 @@ export interface PluginView {
   readonly lastError: string | null;
   readonly installedAt: number;
   readonly updatedAt: number;
-  readonly budget: PluginBudgetView;
 }
 
 /** One line of a plugin's host.log ring (03 §3) — the rate-limited, ring-buffered log surface the owner reads

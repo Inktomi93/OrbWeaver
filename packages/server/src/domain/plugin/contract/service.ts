@@ -7,17 +7,15 @@
 
 import type { StoredAsset } from "@orb/contracts/assets";
 import type { Can, Principal } from "@orb/contracts/identity";
-import type { InvocationChat, PluginBridge, PluginBudgetView, PluginCapability, PluginHandlerRef, PluginInstance } from "@orb/contracts/plugin";
+import type { InvocationChat, PluginBridge, PluginCapability, PluginHandlerRef, PluginInstance } from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";
 import type { AssetId, ChatId, PluginId, UserId } from "@orb/kit/ids";
 import type { PluginHostOps, PluginRegistrationHandle } from "./ops";
 import type {
-  GetPluginBudgetParams,
   GetPluginLogParams,
   InstallPluginParams,
   ListPluginsParams,
   RunSnippetParams,
-  SetPluginBudgetParams,
   SetPluginEnabledParams,
   UninstallPluginParams,
   UpgradePluginParams,
@@ -182,10 +180,4 @@ export interface PluginService {
    *  the caller's chat authority (read admits, host unlocks writes), disposed after. Refuses NOT_FOUND when the
    *  caller cannot read the chat (leak-free). */
   readonly runSnippet: (params: RunSnippetParams) => Promise<SnippetResult>;
-  /** Read an OWNED plugin's per-day spend envelope (PLUGIN-SPEND) — the panel's ceilings + spent-today
-   *  accumulator. Owner-scoped (a foreign/missing id ⇒ leak-free NOT_FOUND). */
-  readonly getBudget: (params: GetPluginBudgetParams) => Promise<PluginBudgetView>;
-  /** Upsert an OWNED plugin's per-day spend ceilings (PLUGIN-SPEND). Owner-scoped (a foreign/missing id ⇒
-   *  leak-free NOT_FOUND); the accumulator columns are the gate's (untouched). */
-  readonly setBudget: (params: SetPluginBudgetParams) => Promise<void>;
 }

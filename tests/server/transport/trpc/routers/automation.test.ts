@@ -96,11 +96,11 @@ describe("automation.createRule — editable-field wire-through", () => {
   });
 });
 
-describe("automation.setBudgets — nullable clear wire-through", () => {
-  test("threads maxUsdPerDay: null (the dollar-ceiling clear) through to the verb", async () => {
+describe("automation.setBudgets — fire-rate cap wire-through", () => {
+  test("threads maxFiresPerHour through to the verb", async () => {
     const setBudgets = vi.fn<AutomationService["setBudgets"]>(async () => undefined);
-    await caller(ctxWith({ setBudgets })).automation.setBudgets({ chatId: CHAT, maxUsdPerDay: null });
-    expect(setBudgets).toHaveBeenCalledWith({ principal: expect.objectContaining({ userId: OWNER }), chatId: CHAT, maxUsdPerDay: null });
+    await caller(ctxWith({ setBudgets })).automation.setBudgets({ chatId: CHAT, maxFiresPerHour: 30 });
+    expect(setBudgets).toHaveBeenCalledWith({ principal: expect.objectContaining({ userId: OWNER }), chatId: CHAT, maxFiresPerHour: 30 });
   });
 });
 
@@ -108,10 +108,6 @@ describe("automation.getBudgets — chat wire-through", () => {
   test("passes the validated chatId + the caller's principal to the verb", async () => {
     const getBudgets = vi.fn<AutomationService["getBudgets"]>(async () => ({
       maxFiresPerHour: 120,
-      maxSpendActionsPerDay: 10,
-      maxUsdPerDay: 1,
-      usdSpentToday: 0,
-      spendDay: "",
     }));
     await caller(ctxWith({ getBudgets })).automation.getBudgets({ chatId: CHAT });
     expect(getBudgets).toHaveBeenCalledWith({ principal: expect.objectContaining({ userId: OWNER }), chatId: CHAT });

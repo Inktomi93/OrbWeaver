@@ -9,13 +9,11 @@ import { createActivate } from "./activation/activate";
 import { createCrashPolicy } from "./activation/crash-policy";
 import { createDeactivate } from "./activation/deactivate";
 import type { PluginContext, PluginRegistry, PluginService } from "./contract/service";
-import { createGetPluginBudget } from "./verbs/get-plugin-budget";
 import { createGetPluginLog } from "./verbs/get-plugin-log";
 import { createInstall } from "./verbs/install";
 import { createListPlugins } from "./verbs/list-plugins";
 import { createRunSnippet } from "./verbs/run-snippet";
 import { createSetEnabled } from "./verbs/set-enabled";
-import { createSetPluginBudget } from "./verbs/set-plugin-budget";
 import { createUninstall } from "./verbs/uninstall";
 import { createUpgrade } from "./verbs/upgrade";
 
@@ -36,7 +34,5 @@ export function createPluginService(ctx: PluginContext): PluginService {
     list: createListPlugins(ctx),
     getLog: createGetPluginLog(ctx, registry),
     runSnippet: createRunSnippet(ctx),
-    getBudget: createGetPluginBudget(ctx),
-    setBudget: createSetPluginBudget(ctx),
   };
 }

@@ -60,21 +60,3 @@ export interface RunSnippetParams {
   readonly chatId: ChatId;
   readonly code: string;
 }
-
-/** `getPluginBudget` — read an OWNED plugin's per-day spend envelope (PLUGIN-SPEND). Owner-scoped: the verb's
- *  `getById(ownerId, pluginId)` gate refuses a foreign/missing id leak-free (NOT_FOUND), so a caller only ever
- *  reads THEIR OWN plugin's budget. */
-export interface GetPluginBudgetParams {
-  readonly caller: Principal;
-  readonly pluginId: PluginId;
-}
-
-/** `setPluginBudget` — upsert an OWNED plugin's ceiling columns (PLUGIN-SPEND). Owner-scoped (the same
- *  `getById` gate). The row is born on first set; an absent field keeps the current value / DB default, and a
- *  `null` clears that ceiling (no cap). The spend accumulator columns are the gate's — never touched here. */
-export interface SetPluginBudgetParams {
-  readonly caller: Principal;
-  readonly pluginId: PluginId;
-  readonly maxActionsPerDay?: number | null;
-  readonly maxUsdPerDay?: number | null;
-}

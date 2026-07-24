@@ -78,12 +78,8 @@ export interface AutomationActionOpsDeps {
   readonly listBackgroundChoices: (authorUserId: UserId) => Promise<readonly BackgroundChoice[]>;
   /** BG-F — chat's host-gated `setChatBackground` bound under the author's resolved Principal. */
   readonly setChatBackground: (args: { readonly authorUserId: UserId; readonly chatId: ChatId; readonly background: ThemeBackground }) => Promise<void>;
-  /** BG-F — the quiet summarize-role LLM pick (the `set_chat_background` arm's model call) + its metered cost. */
-  readonly summarizeQuiet: (args: {
-    readonly authorUserId: UserId;
-    readonly chatId: ChatId;
-    readonly prompt: string;
-  }) => Promise<{ readonly text: string; readonly costUsd: number | null }>;
+  /** BG-F — the quiet summarize-role LLM pick (the `set_chat_background` arm's model call). */
+  readonly summarizeQuiet: (args: { readonly authorUserId: UserId; readonly chatId: ChatId; readonly prompt: string }) => Promise<{ readonly text: string }>;
 }
 
 /** Assemble the FULL `AutomationOps` (04 §4): the A5 chat READ projections (turn origin via chat's own

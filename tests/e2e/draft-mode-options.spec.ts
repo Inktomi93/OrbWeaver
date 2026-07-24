@@ -1,79 +1,111 @@
-// E2E (model-free): DOCUMENTS THE DRAFT-MODE TRAP as-built. The owner flagged that the app "fell into the
-// separate-draft-mode-options-instead-of-greying-out trap": a fresh chat DRAFT renders a DIVERGENT, REDUCED
-// room surface instead of the committed room's surface with the not-yet-available affordances disabled
-// (greyed out). This spec PINS that divergence precisely so the eventual greyed-out redesign flips this pin
-// DELIBERATELY. It does NOT assert the trap is good — it asserts what currently IS, for regression legibility.
+// E2E (model-free for the draft leg): the #8 GREY-OUT REDESIGN. The owner "really truly hates" the
+// separate-draft-mode-options trap where a fresh chat DRAFT rendered a DIVERGENT, REDUCED room surface
+// instead of the committed room's surface with the not-yet-available affordances DISABLED (greyed out).
+// This spec PINS the redesigned behavior: the draft renders the ONE room surface — the same ⋯ "Chat
+// options" menu is PRESENT (not vanished) with its canon-requiring actions DISABLED, the founding greeting
+// renders as a durable message-row (character-first, never a reduced void), and the composer is the same
+// stable element. (This flips the pre-redesign "the ⋯ menu is ABSENT / no rows render" pins on purpose.)
 //
-// THE TRAP, as verified live (pnpm snap --aria + a probe drive, 2026-07-24):
-//   • COMMITTED room (status "Loaded chat."): the topbar ⋯ "Chat options" menu is PRESENT (13 items:
-//     Continue, Regenerate, Impersonate, Rename, Chat overrides…, Injections…, Download transcript, …), and
-//     the transcript renders durable `[data-slot="message-row"]`s.
-//   • FRESH draft   (status "New chat draft."): the ⋯ "Chat options" menu is ABSENT ENTIRELY (not disabled),
-//     and NO `[data-slot="message-row"]` renders (the greeting is not shown as a durable row). The composer
-//     (Message textbox, Send, Guided generations, Generate image) is present in BOTH.
-// The divergence = a whole affordance (Chat options) VANISHES in the draft rather than greying out. That is
-// the trap. When the redesign lands (draft shows the full room chrome with unavailable actions disabled),
-// the two `expect(...).toBe(0)` lines below become wrong ON PURPOSE — update them then.
+// THE REDESIGN, as pinned here (owner ruling 2026-07-24: "i fucking hate things hiding and when it's
+// disabled on hover tell why" — nothing HIDES; every disabled item explains its unlock on hover):
+//   • COMMITTED room: the ⋯ "Chat options" menu is PRESENT with Rename/Regenerate/Delete chat ENABLED;
+//     durable `[data-slot="message-row"]`s render.
+//   • FRESH draft:    the SAME ⋯ menu renders the IDENTICAL item set — the canon-requiring actions
+//     (Continue / Regenerate / Rename / Select messages… / Delete chat / Download transcript) are all
+//     DISABLED (nothing removed), each with a hover `title` NAMING the unlock ("…after you send the first
+//     message"). The canon-less config actions (Chat overrides… / Injections…) stay ENABLED. The founding
+//     greeting renders as a durable row. The composer (Message textbox, Send) is present in BOTH — one
+//     surface, disabled affordances.
 //
-// MODEL-FREE: no turn. Runs under routine `pnpm e2e`. Self-seeding: globalSetup guarantees ≥1 committed chat
-// + ≥1 character (Mara is a seeded default with no committed chat of its own → its "Chat with Mara" CTA
-// opens a genuinely FRESH draft, not a resume).
+// MODEL-FREE: the draft leg drives no turn (the ⋯ menu + greeting render pre-send). Runs under routine
+// `pnpm e2e`. FULLY self-seeding: the draft leg mints its OWN spec-owned character (chatless by
+// construction) instead of assuming a seeded card stays virgin — earlier sweep specs commit chats onto
+// the seeded characters, and a character WITH chats resumes its latest room instead of opening a draft
+// (the rotating-sweep-failure class, 2026-07-24).
 
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
-import { openOrCreateChat, waitForAppReady } from "./support/chat-room";
+import { openChatOptions, openOrCreateChat, waitForAppReady } from "./support/chat-room";
+import { mintFreshCharacter, removeCharacter } from "./support/trpc";
 
-const DRAFT_CHARACTER = "Mara"; // a seeded default card with no committed chat → its CTA opens a fresh draft
+// The spec-owned draft character — minted per-test via the API, removed in a finally. Its Chat CTA opens
+// a genuinely FRESH draft; the "New chat draft" status band disambiguates draft from a resumed room.
+const DRAFT_HANDLE = "e2e-draft-probe";
+const DRAFT_CHARACTER = "Draft Probe";
+const DRAFT_GREETING = "A fresh page, waiting for the first word.";
 
-/** Presence (0/1) of each pinned room affordance on the CURRENT surface. */
-async function affordances(page: Page): Promise<{
-  readonly chatOptions: number;
-  readonly composer: number;
-  readonly send: number;
-  readonly messageRows: number;
-}> {
-  return {
-    chatOptions: await page.getByRole("button", { name: "Chat options", exact: true }).count(),
-    composer: await page.locator('[aria-label="Message"]').count(),
-    send: await page.locator('[data-testid="composer-send"]').count(),
-    messageRows: await page.locator('[data-slot="message-row"]').count(),
-  };
-}
+// The draft disabled-item hover reason names the unlock condition (owner ruling: not just "unavailable").
+const FIRST_SEND_UNLOCK = /send the first message/u;
 
-test("draft mode renders a DIVERGENT reduced surface (the trap), not the committed room greyed out", async ({ page }) => {
-  // ── COMMITTED room: the full-chrome baseline. ──
-  await openOrCreateChat(page);
-  await expect(page.locator('[data-slot="message-row"]').first()).toBeVisible({ timeout: 15_000 });
-  const committed = await affordances(page);
-
-  // Committed has the ⋯ options menu, the composer, and durable rows.
-  expect(committed.chatOptions).toBe(1);
-  expect(committed.composer).toBe(1);
-  expect(committed.send).toBe(1);
-  expect(committed.messageRows).toBeGreaterThan(0);
-
-  // The ⋯ menu's item inventory (opened via keyboard — the topbar ⋯ can be pointer-intercepted). Pinned so
-  // the redesign can compare the draft's (currently zero) menu against this exact committed inventory.
-  await page.getByRole("button", { name: "Chat options", exact: true }).focus();
-  await page.getByRole("button", { name: "Chat options", exact: true }).press("Enter");
-  const committedMenuItems = await page.getByRole("menuitem").allInnerTexts();
-  expect(committedMenuItems).toContain("Rename");
-  expect(committedMenuItems).toContain("Regenerate");
-  expect(committedMenuItems).toContain("Delete chat");
-  await page.keyboard.press("Escape");
-
-  // ── FRESH draft: open via the character CTA (resume-or-new; Mara has no committed chat → new). ──
+/** Open a FRESH draft on the spec-owned character: load the app, navigate to the character library, and
+ *  click its resume-or-new Chat CTA. Gates on the draft status band so a resumed committed room can't
+ *  pass as a draft. Caller has already minted the character (chatless ⇒ the CTA is always a draft). */
+async function openFreshDraft(page: Page): Promise<void> {
+  await page.goto("/");
+  await waitForAppReady(page);
   await page.getByRole("button", { name: "Characters", exact: true }).click();
   await page.getByRole("button", { name: `Chat with ${DRAFT_CHARACTER}` }).click();
   await expect(page.locator('[role="status"]', { hasText: "New chat draft" })).toBeVisible({ timeout: 15_000 });
-  await waitForAppReady(page);
-  const draft = await affordances(page);
+  await expect(page.getByRole("textbox", { name: "Message" })).toBeVisible({ timeout: 15_000 });
+}
 
-  // THE TRAP (pinned as-built): the ⋯ "Chat options" menu is ABSENT, and NO durable message-rows render —
-  // a divergent reduced surface. The composer IS present (shared). Flip the two zeros when the greyed-out
-  // redesign lands (draft should then carry Chat options — disabled — and the committed chrome).
-  expect(draft.chatOptions).toBe(0); // TRAP: vanishes instead of greying out — flip to 1 (disabled) on redesign
-  expect(draft.messageRows).toBe(0); // TRAP: greeting not shown as a durable row in the draft
-  expect(draft.composer).toBe(1);
-  expect(draft.send).toBe(1);
+test("committed room: the ⋯ options menu is present with its actions enabled", async ({ page }) => {
+  await openOrCreateChat(page);
+  await expect(page.locator('[data-slot="message-row"]').first()).toBeVisible({ timeout: 15_000 });
+
+  // The ⋯ menu is present; its canon actions are enabled on a committed chat.
+  await openChatOptions(page);
+  await expect(page.getByRole("menuitem", { name: "Rename" })).toBeEnabled();
+  await expect(page.getByRole("menuitem", { name: "Delete chat" })).toBeVisible();
+  // Regenerate needs a tail assistant row (the bootstrap turn produces one).
+  await expect(page.getByRole("menuitem", { name: "Regenerate" })).toBeVisible();
+  await page.keyboard.press("Escape");
+});
+
+test("draft: the SAME ⋯ menu renders with canon-requiring actions DISABLED (nothing hidden) + hover reasons", async ({ page }) => {
+  // Spec-owned character, chatless by construction (see header) — removed in the finally even on failure.
+  const characterId = await mintFreshCharacter(DRAFT_HANDLE, DRAFT_CHARACTER, DRAFT_GREETING);
+  try {
+    await openFreshDraft(page);
+
+    // The ⋯ "Chat options" menu is PRESENT on the draft (the redesign — it no longer vanishes).
+    const options = page.getByRole("button", { name: "Chat options", exact: true });
+    await expect(options).toBeVisible({ timeout: 15_000 });
+    await openChatOptions(page);
+
+    // Canon-requiring actions render but are DISABLED (no committed turn / no server row yet), each carrying
+    // a hover reason naming the unlock (owner ruling: "when it's disabled on hover tell why").
+    const continueItem = page.getByRole("menuitem", { name: "Continue" });
+    await expect(continueItem).toBeDisabled();
+    await expect(continueItem).toHaveAttribute("title", FIRST_SEND_UNLOCK);
+    await expect(page.getByRole("menuitem", { name: "Regenerate" })).toBeDisabled();
+    const renameItem = page.getByRole("menuitem", { name: "Rename" });
+    await expect(renameItem).toBeDisabled();
+    await expect(renameItem).toHaveAttribute("title", FIRST_SEND_UNLOCK);
+    await expect(page.getByRole("menuitem", { name: "Select messages…" })).toBeDisabled();
+
+    // Canon-less draft-config actions stay ENABLED (the context tabs are the unified draft twin).
+    await expect(page.getByRole("menuitem", { name: "Chat overrides…" })).toBeEnabled();
+    await expect(page.getByRole("menuitem", { name: "Injections…" })).toBeEnabled();
+
+    // Owner ruling: nothing HIDES — Delete/Download now RENDER on a draft, DISABLED with a reason (they were
+    // omitted before this ruling; that pin is flipped ON PURPOSE).
+    const deleteItem = page.getByRole("menuitem", { name: "Delete chat" });
+    await expect(deleteItem).toBeVisible();
+    await expect(deleteItem).toBeDisabled();
+    await expect(deleteItem).toHaveAttribute("title", FIRST_SEND_UNLOCK);
+    const downloadItem = page.getByRole("menuitem", { name: "Download transcript" });
+    await expect(downloadItem).toBeVisible();
+    await expect(downloadItem).toBeDisabled();
+    await page.keyboard.press("Escape");
+
+    // The founding greeting renders as a durable message-row (character-first, never a reduced void), and
+    // the composer is the same stable element — one surface, greyed affordances.
+    await expect(page.locator('[data-slot="message-row"]').first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("textbox", { name: "Message" })).toBeVisible();
+    await expect(page.locator('[data-testid="composer-send"]')).toBeVisible();
+    await waitForAppReady(page);
+  } finally {
+    await removeCharacter(characterId);
+  }
 });

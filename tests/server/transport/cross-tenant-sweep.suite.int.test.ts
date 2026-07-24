@@ -669,11 +669,6 @@ const PROBES: readonly Probe[] = [
   //    snippet ever runs (no read, no write, no execution against A's chat). Leak-free by the loadPresentRole
   //    compose-gate semantics. ──
   { path: "plugin.runSnippet", call: (c, i) => c.plugin.runSnippet({ chatId: i.chatId, code: "orb.host(1).log.info('probe');" }) },
-  // ── plugin.setBudget (PLUGIN-SPEND) — owner-scoped exactly like getLog: the service gates
-  //    `getById(ownerId=caller, pluginId)` BEFORE any budget write, so a stranger passing any pluginId hits
-  //    a leak-free NOT_FOUND (never a foreign plugin's budget row). Fabricated id (the mintTypeId probe shape);
-  //    the seeded-row owner teeth are in the verb int tests. ──
-  { path: "plugin.setBudget", call: (c) => c.plugin.setBudget({ pluginId: mintTypeId(ID_PREFIX.plugin), maxActionsPerDay: 5 }) },
 ];
 
 // Every remaining procedure, with WHY it is not a cross-tenant IDOR probe. A new procedure that lands in

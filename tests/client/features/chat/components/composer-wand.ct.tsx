@@ -2,8 +2,9 @@
 // `<Composer>` (the `ComposerStory` precedent, composer.ct.tsx) — routeTrpc stubs the network, the wand
 // fires the real `useGuidedActions`-backed mutations. Proves: the trigger's gated states (empty draft /
 // mid-flight), each item dispatches its OWN verb with the draft text as guidance (then clears the
-// draft), swipe/continue's tail-assistant gate, the impersonate person picker, and the draft handle's
-// degenerate "Guide the opening".
+// draft), swipe/continue's tail-assistant gate, the impersonate person picker, and — the #8 grey-out
+// redesign — that a DRAFT renders the SAME four items with swipe/continue/impersonate DISABLED (never a
+// swapped "Guide the opening" sibling), where "Guided response" routes to chat.startChat pre-commit.
 //
 // The trigger button is inline (component-scoped); the dropdown POPUP renders through a Base UI
 // Portal, so every menu-item assertion uses the PAGE locator (`page.getByRole`), never `component` —
@@ -13,6 +14,11 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc } from "../../../../support/ct/route-trpc";
 import { ComposerStory } from "../_ct-stories";
 import { COMPOSER_CHAT_ID, makeMessagesPage, makeMessageView } from "../fixtures";
+
+// The disabled-item unlock reasons (owner ruling: name the unlock, not just "unavailable"). A DRAFT unlocks
+// on the first send; a COMMITTED chat with no assistant tail needs an assistant reply to target.
+const FIRST_SEND_UNLOCK = /send the first message/u;
+const ASSISTANT_REPLY_UNLOCK = /assistant reply/u;
 
 test("the wand trigger is disabled on an empty draft", async ({ mount }) => {
   const component = await mount(<ComposerStory />);
@@ -51,7 +57,7 @@ test("Guided response fires chat.generate with the draft as guidance, then clear
   await expect(component.getByLabel("Message", { exact: true })).toHaveValue("");
 });
 
-test("Guided swipe/continue are disabled with no tail assistant message to target", async ({ mount, page }) => {
+test("Guided swipe/continue are disabled with no tail assistant message to target — reason names the unlock", async ({ mount, page }) => {
   // The default unstubbed `chat.listMessages` resolves `null` (routeTrpc header contract) — no tail.
   const component = await mount(<ComposerStory />);
   await component.getByLabel("Message", { exact: true }).fill("steer it darker");
@@ -59,6 +65,9 @@ test("Guided swipe/continue are disabled with no tail assistant message to targe
 
   await expect(page.getByRole("menuitem", { name: "Guided swipe" })).toBeDisabled();
   await expect(page.getByRole("menuitem", { name: "Guided continue" })).toBeDisabled();
+  // On a COMMITTED chat with no assistant tail the reason names the assistant-reply unlock (not first-send).
+  await expect(page.getByRole("menuitem", { name: "Guided swipe" })).toHaveAttribute("title", ASSISTANT_REPLY_UNLOCK);
+  await expect(page.getByRole("menuitem", { name: "Guided continue" })).toHaveAttribute("title", ASSISTANT_REPLY_UNLOCK);
 });
 
 test("Guided swipe fires chat.swipe with the tail assistant messageId + guidance", async ({ mount, page }) => {
@@ -128,7 +137,31 @@ test("Impersonate's person submenu fires chat.impersonate with the picked person
     });
 });
 
-test("draft handle: shows only 'Guide the opening', which fires chat.startChat with a forced generate + the steer", async ({ mount, page }) => {
+// #8 grey-out: a DRAFT is the SAME menu as committed — four items, with swipe/continue/impersonate DISABLED
+// (no canon tail / no committed turn), never a swapped "Guide the opening" sibling. The one live item,
+// "Guided response", routes to chat.startChat (opening:"generate") pre-commit — same label + intent as the
+// committed chat.generate, the promotion just picks the verb.
+test("draft handle: SAME four items, swipe/continue/impersonate disabled — no swapped sibling menu", async ({ mount, page }) => {
+  const component = await mount(<ComposerStory committed={false} />);
+
+  await component.getByLabel("Message", { exact: true }).fill("start mid-chase");
+  await component.getByRole("button", { name: "Guided generations" }).click();
+
+  // The old swapped sibling label is gone — the committed inventory renders on a draft too.
+  await expect(page.getByRole("menuitem", { name: "Guide the opening" })).toHaveCount(0);
+  await expect(page.getByRole("menuitem", { name: "Guided response" })).toBeEnabled();
+  await expect(page.getByRole("menuitem", { name: "Guided swipe" })).toBeDisabled();
+  await expect(page.getByRole("menuitem", { name: "Guided continue" })).toBeDisabled();
+  await expect(page.getByRole("menuitem", { name: "Impersonate" })).toBeDisabled();
+
+  // Owner ruling: every disabled item explains itself on hover naming the unlock. On a draft that's the
+  // first-send unlock (Base UI renders the item aria-disabled, so `title` surfaces on hover).
+  await expect(page.getByRole("menuitem", { name: "Guided swipe" })).toHaveAttribute("title", FIRST_SEND_UNLOCK);
+  await expect(page.getByRole("menuitem", { name: "Guided continue" })).toHaveAttribute("title", FIRST_SEND_UNLOCK);
+  await expect(page.getByRole("menuitem", { name: "Impersonate" })).toHaveAttribute("title", FIRST_SEND_UNLOCK);
+});
+
+test("draft handle: 'Guided response' fires chat.startChat with a forced generate + the steer, then clears", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "chat.startChat": () => ({ chat: { id: COMPOSER_CHAT_ID } }),
   });
@@ -136,10 +169,7 @@ test("draft handle: shows only 'Guide the opening', which fires chat.startChat w
 
   await component.getByLabel("Message", { exact: true }).fill("start mid-chase");
   await component.getByRole("button", { name: "Guided generations" }).click();
-
-  await expect(page.getByRole("menuitem", { name: "Guide the opening" })).toBeVisible();
-  await expect(page.getByRole("menuitem", { name: "Guided response" })).toHaveCount(0);
-  await page.getByRole("menuitem", { name: "Guide the opening" }).click();
+  await page.getByRole("menuitem", { name: "Guided response" }).click();
 
   await expect.poll(() => trpc.count("chat.startChat"), { intervals: [20, 50, 100] }).toBe(1);
   await expect

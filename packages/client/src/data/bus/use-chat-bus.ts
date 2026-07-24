@@ -3,6 +3,15 @@
 // branching beyond the envelope unwrap. A server-side domain error arrives as a typed terminal frame
 // (`{ __subscriptionError: true, code, message }`) instead of a spurious 500; the adapter routes that
 // frame to the notify seam, never into the reducer.
+//
+// MONOTONIC-SEQ GUARD (the stuck-"Stop generating" P1): every durable-log yield is a tracked envelope
+// carrying the durable per-chat `seq` as `envelope.id`. On the draft→committed promotion path the
+// subscription attaches with the `lastEventId:"0"` seed (see below), so ANY subscription churn re-REPLAYS
+// the whole durable log FROM ZERO, and a re-replayed `turnStarted` re-opens an already-terminal slot →
+// stuck Stop. The one process `seqGuard` drops every durable-log event that does not advance its chat's
+// high-water mark, making delivery exactly-once (full rationale + the chatOpened/historyTruncated
+// EXEMPTION-BY-TYPE in `chat-event-seq-guard.ts`). tRPC's own reconnect resumes from its last tracked id,
+// so a real gap-fill (seq beyond the mark) is unaffected.
 
 import type { ChatId } from "@orb/kit/ids";
 import { skipToken } from "@tanstack/react-query";
@@ -12,6 +21,11 @@ import { busSubscribe, busUnsubscribe, notify } from "#lib";
 import { useTRPC } from "../trpc";
 import type { ChatBusDeps } from "./apply-chat-bus-event";
 import { applyChatBusEvent } from "./apply-chat-bus-event";
+import { createChatEventSeqGuard } from "./chat-event-seq-guard";
+
+// ONE process guard shared across every (possibly concurrent) chat subscription — a monotonic cursor, not
+// slot state, so it lives here and not in the store.
+const seqGuard = createChatEventSeqGuard();
 
 // The first-turn race fix: a brand-new draft mounts this hook with chatId === null (no subscription).
 // Its first send lazily creates the chat, so chatId flips null→committed within this same mount. A
@@ -53,6 +67,12 @@ export function useChatBus(chatId: ChatId | null, deps: ChatBusDeps): void {
           // The typed terminal frame — a domain error ended the stream; refetch-on-reconnect
           // (query-client.ts) catches the gap when the client re-subscribes.
           notify.error(event.message);
+          return;
+        }
+        // Drop a stale re-delivery (a from-zero replay on re-attach) before it reaches the reducer — a
+        // re-replayed terminal/turnStarted would otherwise re-open a completed slot (see the header note).
+        // Attach-synthesized signals (chatOpened/historyTruncated) are exempt BY TYPE inside the guard.
+        if (!seqGuard.admit(event, envelope.id)) {
           return;
         }
         applyChatBusEvent(event, deps);

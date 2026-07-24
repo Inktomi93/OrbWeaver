@@ -27,7 +27,8 @@ export interface ResolvedTrigger {
   readonly automationDepth: number;
 }
 
-/** The budget gate's verdict — `ok` to proceed, else the `detail` the `budget_refused` fire row carries. */
+/** The rate-cap gate's verdict — `ok` to proceed, else the `detail` the fire row carries (the cooldown /
+ *  per-rule-hour / per-chat-hour loop-safety belt). */
 export type BudgetVerdict = { readonly ok: true } | { readonly ok: false; readonly detail: string };
 
 /** A turn's origin as the cascade guard reads it (chat's `getTurnOrigin`, 03 §4) — the initiator + the depth
@@ -67,10 +68,10 @@ export interface AutomationImageRequest {
   readonly quiet: boolean;
 }
 
-/** The NARROW generation result automation reads — the spend (for the $/day ceiling) + the image count.
- *  Never imagery's blocks/provenance: automation dispatches the generation, it does not post it. */
+/** The NARROW generation result automation reads — the image count. Never imagery's blocks/provenance:
+ *  automation dispatches the generation, it does not post it. (Cost VISIBILITY rides the stats domain off the
+ *  imagery write itself; automation no longer accumulates spend — the $/day ceiling was stripped.) */
 export interface AutomationImageResult {
-  readonly costUsd: number | null;
   readonly imageCount: number;
 }
 
@@ -89,12 +90,10 @@ export interface AutomationTurnRequest {
   readonly guided?: string | undefined;
 }
 
-/** The NARROW turn result automation reads — the spend (for the $/day ceiling) + how many replies committed.
- *  Never chat's message views: automation triggers the turn, it does not render it. */
+/** The NARROW turn result automation reads — how many replies committed. Never chat's message views:
+ *  automation triggers the turn, it does not render it. (Cost VISIBILITY rides the stats domain off the
+ *  turn's own metering; automation no longer accumulates spend — the $/day ceiling was stripped.) */
 export interface AutomationTurnResult {
-  /** The summed `costUsd` across the committed replies (the per-day $ ceiling source — 03 §3); `null` when no
-   *  reply reported a metered cost (a local/unmetered turn). */
-  readonly costUsd: number | null;
   /** How many reply slots committed (0 = the turn produced nothing — e.g. a stale forced speaker / lock yield). */
   readonly messageCount: number;
 }
@@ -137,10 +136,9 @@ export interface AutomationOps {
     readonly setChatBackground: (args: { readonly authorUserId: UserId; readonly chatId: ChatId; readonly background: ThemeBackground }) => Promise<void>;
     /** A6 — the `trigger_turn` arm's autonomous chat turn (03 §1.6 / §4), wired to chat's `requestTurn` at
      *  compose (`initiator:"automation"`, the funder = the rule author, the funding host resolved from the
-     *  room). SPEND-classed: gated by the arm's `checkSpend` BEFORE this call + the engine's per-member budget
-     *  belt INSIDE it; consent-gated by the engine's `assertMaxProSubConsent` (a by-proxy hosted turn without
-     *  owner consent is refused — the refusal surfaces as an `arm_error`). Depth-capped by chat's write-side
-     *  guard + the dispatch gate above. */
+     *  room). Loop-safety belts: the engine's per-member turn RATE budget INSIDE `requestTurn` + the cascade-depth
+     *  guard + the dispatch rate gate above. Consent-gated by the engine's `assertMaxProSubConsent` (a by-proxy
+     *  hosted turn without owner consent is refused — the refusal surfaces as an `arm_error`). */
     readonly requestTurn: (req: AutomationTurnRequest) => Promise<AutomationTurnResult>;
   };
   /** A6 — the SHARED, hand-edit-safe world-info writer (CC-D; the ONE write path — consumed, never forked —
@@ -162,17 +160,12 @@ export interface AutomationOps {
     readonly generatePicture: (req: AutomationImageRequest) => Promise<AutomationImageResult>;
   };
   /** BG-F — the FIRST quiet LLM op in `AutomationOps`: a one-shot summarize-role generation that returns raw
-   *  text (+ its metered `costUsd`) and posts NOTHING to the chat (the `set_chat_background` arm's model pick).
-   *  Wired at compose to the author's resolved `summarize`-role connection (the D79 quiet-turn seam),
-   *  author-scoped for connection + spend attribution. Generic by design (the extensible shape) — future
-   *  quiet-LLM arms reuse it. `text` is `""` on an empty/failed generation (the caller treats "" as "no pick");
-   *  `costUsd` is `null` for an unmetered (local) family — an LLM call IS spend, so the arm gates it under the
-   *  same per-chat ceiling as the `generate_image` arm (03 §3) and accumulates this cost. */
-  readonly summarizeQuiet: (args: {
-    readonly authorUserId: UserId;
-    readonly chatId: ChatId;
-    readonly prompt: string;
-  }) => Promise<{ readonly text: string; readonly costUsd: number | null }>;
+   *  text and posts NOTHING to the chat (the `set_chat_background` arm's model pick). Wired at compose to the
+   *  author's resolved `summarize`-role connection (the D79 quiet-turn seam), author-scoped for the
+   *  connection. Generic by design (the extensible shape) — future quiet-LLM arms reuse it. `text` is `""` on
+   *  an empty/failed generation (the caller treats "" as "no pick"). (Cost VISIBILITY rides the stats domain
+   *  off the generation itself; automation no longer gates spend.) */
+  readonly summarizeQuiet: (args: { readonly authorUserId: UserId; readonly chatId: ChatId; readonly prompt: string }) => Promise<{ readonly text: string }>;
 }
 
 /** Resolve a rule AUTHOR's `Principal` for the dispatch-time authority re-check (03 §2). Minted at the entry
@@ -233,22 +226,8 @@ export interface PromptTransformIndex {
 }
 
 // ── the dispatch seam A6 plugs into ───────────────────────────────────────────────────────────────
-/** The per-rule SPEND accumulator (03 §3) — the spend-classed arms (`generate_image`; `trigger_turn` once
- *  the §AC-B seam lands) reserve a slot + the returned `costUsd` here BEFORE their op, so a second spend arm
- *  in the same rule gates against the first. The dispatch reads it after the arms to persist the day's spend
- *  onto `automation_budgets` + stamp the fired-row detail (the per-day count source). */
-export interface SpendAccumulator {
-  /** Spend ACTIONS reserved so far this rule dispatch (the per-day count-ceiling in-flight component). */
-  readonly actions: () => number;
-  /** USD reserved so far this rule dispatch (the per-day $-ceiling in-flight component). */
-  readonly usd: () => number;
-  /** Record a successful spend op: bump the action count + accumulate its `costUsd` (0 when unmetered). */
-  readonly add: (costUsd: number) => void;
-}
-
 /** The per-rule dispatch frame handed to an arm executor: the resolved fact + the built CEL env (for
- *  `{{expr::…}}` + template render) + the write origin (`{ ruleId, childDepth }`) + the injected clock stamp
- *  + the per-rule spend accumulator (03 §3). */
+ *  `{{expr::…}}` + template render) + the write origin (`{ ruleId, childDepth }`) + the injected clock stamp. */
 export interface DispatchFrame {
   readonly chatId: ChatId;
   readonly authorUserId: UserId;
@@ -256,14 +235,12 @@ export interface DispatchFrame {
   readonly env: AutomationCelEnv;
   readonly origin: AutomationOrigin;
   readonly now: number;
-  readonly spend: SpendAccumulator;
 }
 
-/** One arm's execution outcome. `ok` on success; else a typed refusal the dispatch classifies:
- *  `arm_error` → the `action_error` fire terminal (increments `consecutive_errors`, aborts the rule's
- *  remaining arms); `budget_refused` → the `budget_refused` terminal (the SPEND gate — 03 §3 — the rule
- *  stays HEALTHY, no error increment). The first non-`ok` outcome aborts the rule's remaining arms (04 §3). */
-export type ArmOutcome = { readonly ok: true } | { readonly ok: false; readonly kind: "arm_error" | "budget_refused"; readonly detail: string };
+/** One arm's execution outcome. `ok` on success; else a typed `arm_error` refusal → the `action_error` fire
+ *  terminal (increments `consecutive_errors`, aborts the rule's remaining arms). The first non-`ok` outcome
+ *  aborts the rule's remaining arms (04 §3). */
+export type ArmOutcome = { readonly ok: true } | { readonly ok: false; readonly kind: "arm_error"; readonly detail: string };
 
 /** The arm dispatcher (04 §4). ONE function that runs any arm — dispatch is a `switch(action.type)` (the
  *  RUNNERS discipline realized as a switch, NOT an object map: no snake_case property keys, a `default: never`

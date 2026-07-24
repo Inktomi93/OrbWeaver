@@ -69,6 +69,56 @@ test("generate-image is gated on typed text, then fires chat.generateImage (mode
   expect(genBody).toContain(COMPOSER_CHAT_ID);
 });
 
+// ── #8 grey-out (side-eye P2): the composer's two secondary disabled buttons explain themselves on hover ──
+// The empty composer is the FIRST thing a user sees on a fresh draft. The wand trigger + the generate-image
+// button were native-disabled (title:null) — zero hover feedback. They now render `focusableWhenDisabled`
+// (Base UI ⇒ aria-disabled, NOT native `disabled`), so the button stays HOVERABLE and its `title` reason
+// surfaces, while the click stays a guarded no-op. These pin BOTH the mechanism (aria-disabled + a title
+// that names the unlock) AND hoverability + activation-prevention — the same bar as the chat-options menu CT.
+const TYPE_TO_UNLOCK = /type a message/iu;
+const SEND_TO_UNLOCK = /send the first message/iu;
+// Matches any attribute value — used to assert the NATIVE `disabled` attribute is ABSENT (the button is
+// aria-disabled instead, so it stays hoverable and its `title` reason surfaces).
+const ANY_VALUE = /.*/u;
+
+test("#8: the generate-image button (committed, empty) is aria-disabled (hoverable) with a 'type a message' reason", async ({ mount }) => {
+  const component = await mount(<ComposerStory />); // committed by default, empty composer
+  const generate = component.getByRole("button", { name: "Generate image from text" });
+
+  // The mechanism (verified from the live DOM): the button is aria-disabled="true", NOT native
+  // `disabled` — so it is NOT pointer-events:none and its `title` reason surfaces on hover (a native
+  // disabled button would swallow the hover). Playwright treats aria-disabled as "disabled" for
+  // toBeDisabled() (activation is prevented), while the missing native attr keeps it hoverable.
+  await expect(generate).toBeDisabled();
+  await expect(generate).toHaveAttribute("aria-disabled", "true");
+  await expect(generate).not.toHaveAttribute("disabled", ANY_VALUE);
+  await expect(generate).toHaveAttribute("title", TYPE_TO_UNLOCK);
+});
+
+test("#8: the generate-image button (DRAFT) names the send-first unlock (image gen needs a committed chat)", async ({ mount }) => {
+  const component = await mount(<ComposerStory committed={false} />);
+  const textarea = component.getByLabel("Message", { exact: true });
+  // Even WITH text, a draft can't generate — it has no chat to post into. The reason names that unlock.
+  await textarea.fill("a neon city at dusk");
+  const generate = component.getByRole("button", { name: "Generate image from text" });
+  await expect(generate).toBeDisabled();
+  await expect(generate).toHaveAttribute("aria-disabled", "true");
+  await expect(generate).toHaveAttribute("title", SEND_TO_UNLOCK);
+});
+
+test("#8: the guided-generations wand trigger (empty composer) is aria-disabled (hoverable) with a 'type a message' reason", async ({ mount, page }) => {
+  const component = await mount(<ComposerStory />); // empty composer
+  const wand = component.getByRole("button", { name: "Guided generations" });
+
+  // Same mechanism as the image button: aria-disabled (hoverable, `title` surfaces) not native-disabled.
+  await expect(wand).toBeDisabled();
+  await expect(wand).toHaveAttribute("aria-disabled", "true");
+  await expect(wand).not.toHaveAttribute("disabled", ANY_VALUE);
+  await expect(wand).toHaveAttribute("title", TYPE_TO_UNLOCK);
+  // The disabled trigger cannot open the menu — no menu items appear (activation prevented).
+  await expect(page.getByRole("menuitem", { name: "Guided response" })).toHaveCount(0);
+});
+
 test("committed handle: Send fires chat.send; the draft is NOT cleared until the commit signal, then clears", async ({ mount, page }) => {
   // Hold chat.send so its clear-on-commit listener stays alive (the send promise stays open for the
   // whole turn in production; the commit signal arrives MID-flight). Registered BEFORE routeTrpc so it

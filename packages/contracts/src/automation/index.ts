@@ -54,8 +54,9 @@ export type AutomationTrigger = z.infer<typeof automationTriggerSchema>;
 export const AUTOMATION_TRIGGER_BUSES = ["chat", "domain"] as const satisfies readonly AutomationTrigger["bus"][];
 export type AutomationTriggerBus = (typeof AUTOMATION_TRIGGER_BUSES)[number];
 
-/** Every terminal a dispatch can record for a rule×event: the fire log is the per-hour budget source
- *  + the host's "why didn't my rule fire" answer + testRun provenance. */
+/** Every terminal a dispatch can record for a rule×event: the fire log is the per-hour RATE-cap source
+ *  + the host's "why didn't my rule fire" answer + testRun provenance. `budget_refused` = the fire-rate
+ *  cap (cooldown / per-rule-hour / per-chat-hour) turned the rule away this event — the rule stays healthy. */
 export const AUTOMATION_FIRE_OUTCOMES = [
   "fired",
   "predicate_false",
@@ -88,33 +89,25 @@ export interface GlobalVariableView {
   readonly updatedAt: number;
 }
 
-// ── the per-chat budget plane (03 §3) ─────────────────────────────────────────────────────────────
-// The host-editable per-chat ceilings + the day spend accumulator. The `automation_budgets` row is born on
-// the first `setBudgets` (or the first spend) with these defaults over the DDL; an ABSENT row is dispatched
-// AS this defaulted budget (budget-gate/spend-gate read the DB defaults for a missing row), so `getBudgets`
-// projecting an absent row to these values is the HONEST view — exactly what the write path produces on
-// insert. The ONE app-side home for the defaults: the db DDL mirrors the SAME values (the GLOBAL_VARIABLE cap
-// precedent above), the dispatch gates import THIS const.
+// ── the per-chat rate-cap plane (loop safety) ─────────────────────────────────────────────────────
+// The host-editable per-chat FIRE-RATE ceiling — the loop-safety belt that bounds a runaway automation
+// (a rule that keeps re-firing) from hammering a paid API. The `automation_budgets` row is born on the
+// first `setBudgets` with this default over the DDL; an ABSENT row is dispatched AS this defaulted cap
+// (budget-gate reads the DB default for a missing row), so `getBudgets` projecting an absent row to this
+// value is the HONEST view. The ONE app-side home for the default: the db DDL mirrors the SAME value (the
+// GLOBAL_VARIABLE cap precedent above), the dispatch rate gate imports THIS const. (The per-day $/spend-action
+// ceilings were stripped 2026-07-24 — enterprise spend enforcement; cost visibility + rate caps stay.)
 
-/** The per-chat budget ceilings' defaults — the values the write path stamps on a fresh `automation_budgets`
- *  row (mirrored by the `automation_budgets` DDL column defaults). `maxUsdPerDay` is the born value; a host
- *  may later clear it to `null` (no dollar ceiling — local-only setups). */
+/** The per-chat fire-rate ceiling default — the value the write path stamps on a fresh `automation_budgets`
+ *  row (mirrored by the `automation_budgets` DDL column default). */
 export const AUTOMATION_CHAT_BUDGET_DEFAULTS = {
   maxFiresPerHour: 120,
-  maxSpendActionsPerDay: 10,
-  maxUsdPerDay: 1,
 } as const;
 
-/** The budget-panel read model (`getBudgets`) — the host-editable ceilings + the day spend accumulator. An
- *  absent row projects to `AUTOMATION_CHAT_BUDGET_DEFAULTS` (caps) + a zero/empty accumulator. `maxUsdPerDay`
- *  is `null` when the host cleared the dollar ceiling; `spendDay` is the accumulator's UTC `yyyy-mm-dd`
- *  (`""` = never spent, so `usdSpentToday` is stale unless `spendDay` is today). */
+/** The rate-cap panel read model (`getBudgets`) — the host-editable per-chat fire-rate ceiling. An absent
+ *  row projects to `AUTOMATION_CHAT_BUDGET_DEFAULTS`. */
 export interface BudgetView {
   readonly maxFiresPerHour: number;
-  readonly maxSpendActionsPerDay: number;
-  readonly maxUsdPerDay: number | null;
-  readonly usdSpentToday: number;
-  readonly spendDay: string;
 }
 
 // ── trigger liveness (01 §1) ────────────────────────────────────────────────────────────────────

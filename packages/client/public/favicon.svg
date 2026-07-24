@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <title>orbweaver</title>
+  <!-- The orbweaver mark: a spider's orb web — radial spokes + spiral rings — in the Hearth ember
+       accent (oklch(0.72 0.175 52) ≈ #ec9145). Stroke-only on transparent so it reads on light AND
+       dark tab bars; widths chosen to stay crisp at 16px. -->
+  <g fill="none" stroke="#ec9145" stroke-linecap="round">
+    <g stroke-width="1.4">
+      <path d="M16 2v28M2 16h28M6.1 6.1l19.8 19.8M25.9 6.1L6.1 25.9"/>
+    </g>
+    <g stroke-width="1.6">
+      <path d="M16 6.5 22.7 9.3 25.5 16 22.7 22.7 16 25.5 9.3 22.7 6.5 16 9.3 9.3Z"/>
+      <path d="M16 11 19.5 12.5 21 16 19.5 19.5 16 21 12.5 19.5 11 16 12.5 12.5Z"/>
+    </g>
+    <circle cx="16" cy="16" r="2.2" fill="#ec9145" stroke="none"/>
+  </g>
+</svg>

@@ -13,10 +13,24 @@ const PERSON_LABEL: Record<GuidedImpersonatePerson, string> = {
   third: "3rd person",
 };
 
-export function ImpersonateSubmenu({ onPick }: { readonly onPick: (person: GuidedImpersonatePerson) => void }): ReactElement {
+export function ImpersonateSubmenu({
+  onPick,
+  disabled = false,
+  reason,
+}: {
+  readonly onPick: (person: GuidedImpersonatePerson) => void;
+  /** Disables the whole submenu when there's no committed turn to impersonate into (a draft). */
+  readonly disabled?: boolean;
+  /** The hover reason shown on the disabled trigger (the unlock condition) — the submenu trigger is a
+   *  div[role=menuitem] rendered aria-disabled (not native-disabled), so it still receives hover and the
+   *  `title` surfaces. */
+  readonly reason?: string | undefined;
+}): ReactElement {
   return (
     <MenuSubmenuRoot>
-      <MenuSubmenuTrigger>Impersonate</MenuSubmenuTrigger>
+      <MenuSubmenuTrigger disabled={disabled} title={disabled ? reason : undefined}>
+        Impersonate
+      </MenuSubmenuTrigger>
       <MenuPopup>
         {GUIDED_IMPERSONATE_PERSONS.map((person) => (
           <MenuItem key={person} onClick={(): void => onPick(person)}>

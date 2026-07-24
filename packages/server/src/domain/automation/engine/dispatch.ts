@@ -1,8 +1,8 @@
 // domain/automation/engine/dispatch — the per-event dispatch sequence (04 §3). For each matched enabled rule,
 // SEQUENTIALLY (arms mutate the shared variable env — order IS semantics): parse the actions (corrupt blob →
-// disable that ONE rule), gate cascade depth → author authority → budgets → the CEL predicate, then run the
-// arms through the injected `runArm` dispatcher seam (A6 fills it; a refused arm records `action_error` or,
-// for a SPEND ceiling, `budget_refused`). Every rule body is independent — a throw/failure never touches
+// disable that ONE rule), gate cascade depth → author authority → the fire-rate cap → the CEL predicate, then
+// run the arms through the injected `runArm` dispatcher seam (A6 fills it; a refused arm records `action_error`).
+// Every rule body is independent — a throw/failure never touches
 // sibling rules, the watcher loop, or the turn (the handler is fire-and-forget off the bus).
 // `consecutive_errors` increments on predicate/action/authority errors, resets on a clean fire, and
 // auto-disables the rule at 20 (02 §1) with a DURABLE `automation-notice` to the author (so a rotting rule is
@@ -18,7 +18,7 @@ import { AUTOMATION_DEPTH_HARD_CAP } from "@orb/contracts/chat";
 import { AUTOMATION_NOTICE_MESSAGE_MAX } from "@orb/contracts/notifications";
 import type { ChatId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
-import type { ArmOutcome, DispatchFrame, ResolvedTrigger, RuleRow, SpendAccumulator } from "../contract/ops";
+import type { ArmOutcome, DispatchFrame, ResolvedTrigger, RuleRow } from "../contract/ops";
 import type { AutomationContext } from "../contract/service";
 import { loadCallerRole } from "../persistence/canon-reads";
 import { insertFire } from "../persistence/fires";
@@ -26,7 +26,6 @@ import { disableRule, recordRuleError, stampRuleFired } from "../persistence/rul
 import { buildCelEnv } from "../substrate/cel-env";
 import { evaluatePredicate } from "../substrate/dry-run";
 import { checkBudget } from "./budget-gate";
-import { accumulateSpend, createSpendAccumulator } from "./spend-gate";
 
 // The hard cascade-depth cap is homed ONCE in `@orb/contracts/chat` (turn-origin depth vocabulary, below both
 // chat + automation — chat's `requestTurn` write-side belt cannot import automation, so the shared home must
@@ -128,10 +127,8 @@ async function holdsAuthority(rc: RuleCtx): Promise<boolean> {
   }
 }
 
-/** A rule's arm run terminal: `null` = every arm succeeded; else the aborting arm's kind (`arm_error` →
- *  action_error; `budget_refused` → the healthy spend-ceiling terminal — 03 §3) + its fire detail. */
+/** A rule's arm run terminal: `null` = every arm succeeded; else the aborting arm's `arm_error` detail. */
 interface ArmsResult {
-  readonly kind: "arm_error" | "budget_refused";
   readonly detail: Record<string, unknown>;
 }
 
@@ -145,7 +142,7 @@ async function runArms(ctx: AutomationContext, actions: readonly AutomationActio
   }
   const outcome: ArmOutcome = await ctx.runArm(arm, frame);
   if (!outcome.ok) {
-    return { kind: outcome.kind, detail: { armIndex: i, armType: arm.type, [outcome.kind === "budget_refused" ? "limit" : "error"]: outcome.detail } };
+    return { detail: { armIndex: i, armType: arm.type, error: outcome.detail } };
   }
   return runArms(ctx, actions, frame, i + 1);
 }
@@ -207,7 +204,6 @@ async function dispatchRule(rc: RuleCtx, actions: readonly AutomationAction[]): 
     return NOT_DISABLED;
   }
   const eventDepth = rc.deps.resolved.automationDepth;
-  const spend = createSpendAccumulator();
   const frame: DispatchFrame = {
     chatId: rc.chatId,
     authorUserId: rc.rule.ownerId,
@@ -215,44 +211,26 @@ async function dispatchRule(rc: RuleCtx, actions: readonly AutomationAction[]): 
     env,
     origin: { ruleId: rc.rule.id, automationDepth: eventDepth + 1 },
     now: rc.deps.nowMs,
-    spend,
   };
   let armsResult: ArmsResult | null;
   try {
     armsResult = await runArms(rc.ctx, actions, frame);
   } catch (err) {
-    // A throwing arm (a bad op / db fault mid-rule) — treat as `action_error`, but STILL persist (in
-    // `finalizeRule`) any spend an EARLIER arm already incurred: error isolation must never lose the accounting.
+    // A throwing arm (a bad op / db fault mid-rule) — treat as `action_error`.
     getLog().warn({ err: err instanceof Error ? err.message : String(err), ruleId: rc.rule.id }, "automation dispatch: arm threw (isolated)");
-    armsResult = { kind: "arm_error", detail: { error: err instanceof Error ? err.message : String(err) } };
+    armsResult = { detail: { error: err instanceof Error ? err.message : String(err) } };
   }
-  return finalizeRule(rc, spend, armsResult);
+  return finalizeRule(rc, armsResult);
 }
 
-/** Persist the spend the arms INCURRED then record the rule's terminal fire (04 §3 step 6). `armsResult` null
- *  ⇒ every arm ok (fired); else the aborting arm's classified outcome. */
-async function finalizeRule(rc: RuleCtx, spend: SpendAccumulator, armsResult: ArmsResult | null): Promise<RuleResult> {
-  // FINALLY-PERSIST the incurred spend on EVERY terminal (fired / budget_refused / action_error) — the
-  // provider was BILLED whether or not a LATER arm refused or threw; money spent is money recorded, there is
-  // nothing to roll back (03 §3). Under-recording on a partial breach would let the NEXT dispatch re-breach the
-  // per-day $ + action ceilings by the amount already spent. The count source (`countSpendActionsSince`) sums
-  // `detail.spendActions` across ALL outcomes, so an aborted row's spend still counts.
-  const spendActions = spend.actions();
-  const spendFields = spendActions > 0 ? { spendActions, spendUsd: spend.usd() } : null;
-  if (spendActions > 0) {
-    await accumulateSpend(rc.ctx.db, rc.chatId, rc.deps.nowMs, spend.usd());
-  }
+/** Record the rule's terminal fire (04 §3 step 6). `armsResult` null ⇒ every arm ok (fired); else the
+ *  aborting arm's `action_error` detail. */
+async function finalizeRule(rc: RuleCtx, armsResult: ArmsResult | null): Promise<RuleResult> {
   if (armsResult !== null) {
-    const detail = spendFields === null ? armsResult.detail : { ...armsResult.detail, ...spendFields };
-    if (armsResult.kind === "budget_refused") {
-      // A SPEND ceiling (03 §3) — the fire is `budget_refused`, the rule stays HEALTHY (no error increment).
-      await record(rc, "budget_refused", detail);
-      return NOT_DISABLED;
-    }
-    return onRuleError(rc, "action_error", detail);
+    return onRuleError(rc, "action_error", armsResult.detail);
   }
   await stampRuleFired(rc.ctx.db, rc.rule.id, rc.deps.nowMs);
-  await record(rc, "fired", spendFields);
+  await record(rc, "fired", null);
   rc.ctx.notify({ type: "ruleFired", chatId: rc.chatId, ruleId: rc.rule.id });
   return NOT_DISABLED;
 }

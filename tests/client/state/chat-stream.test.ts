@@ -7,7 +7,7 @@
 // `beginTurn`, and a fresh id never collides with a prior test's lingering slot).
 
 import type { TurnSlot } from "@orb/client/state";
-import { chatStream, subscribeTurnSlot, subscribeUserMessageCommitted } from "@orb/client/state";
+import { chatStream, setFrameScheduler, subscribeTurnSlot, subscribeUserMessageCommitted } from "@orb/client/state";
 import type { ChatDeltaEvent, TurnIntent } from "@orb/contracts/chat";
 import type { ChatId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -206,5 +206,68 @@ describe("chatStream user-message-committed signal (the composer's clear-on-comm
     expect(calls).toEqual(["self", "other"]);
 
     unsubOther();
+  });
+});
+
+describe("chatStream rAF-batched token accumulation (task #20 — frame-cadence commits)", () => {
+  test("a burst of deltas COALESCES to ONE store commit at the frame flush, byte-identical + in order", () => {
+    // A manual scheduler: capture the flush callback instead of running it, so a whole burst only buffers
+    // until we fire the "frame" — the exact browser rAF behavior, made deterministic. Holder-object shape:
+    // a closure-mutated `let` stays flow-narrowed to its initializer at later reads (the known TS
+    // limitation), which the graph program reports as never-callable; property narrowing resets on calls.
+    const frame: { fn: (() => void) | null } = { fn: null };
+    const restore = setFrameScheduler((flush) => {
+      frame.fn = flush;
+    });
+    try {
+      const chatId = freshChatId();
+      const commits: TurnSlot[] = [];
+      const unsub = subscribeTurnSlot(chatId, (slot) => commits.push(slot));
+
+      begin(chatId); // pending — one commit
+      const beginCommits = commits.length;
+
+      // A burst of 5 chunks arrives within one frame — they BUFFER, no store commit yet.
+      for (const part of ["Hel", "lo ", "wor", "ld", "!"]) {
+        chatStream.appendDelta(textDelta(chatId, part));
+      }
+      expect(commits.length).toBe(beginCommits); // still no delta commit — all buffered
+
+      // The frame fires → exactly ONE commit carrying the full accumulated text, in order.
+      expect(frame.fn).not.toBeNull();
+      frame.fn?.();
+      expect(commits.length).toBe(beginCommits + 1);
+      expect(commits.at(-1)).toMatchObject({ phase: "streaming", text: "Hello world!" });
+
+      unsub();
+    } finally {
+      restore();
+    }
+  });
+
+  test("completeTurn flushes buffered tail tokens BEFORE the terminal (no dropped/reordered text)", () => {
+    // Scheduler that never auto-fires — proves the terminal itself drains the buffer.
+    const restore = setFrameScheduler(() => undefined);
+    try {
+      const chatId = freshChatId();
+      const seen: TurnSlot[] = [];
+      const unsub = subscribeTurnSlot(chatId, (slot) => seen.push(slot));
+
+      begin(chatId);
+      chatStream.appendDelta(textDelta(chatId, "Hello "));
+      chatStream.appendDelta(textDelta(chatId, "world"));
+      // The frame never fired, so the tokens are still buffered — the slot is a token-less `pending`.
+      expect(seen.at(-1)?.phase).toBe("pending");
+
+      chatStream.completeTurn(chatId, MSG);
+      // The terminal flushed the buffer first: a streaming commit with the full text lands, THEN completed.
+      const streamingCommit = seen.find((s) => s.phase === "streaming");
+      expect(streamingCommit).toMatchObject({ text: "Hello world" });
+      expect(seen.at(-1)).toMatchObject({ phase: "completed", messageId: MSG });
+
+      unsub();
+    } finally {
+      restore();
+    }
   });
 });

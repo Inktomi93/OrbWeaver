@@ -29,15 +29,20 @@
     // + the `#imports` map); permit that to typecheck them (safe under the base's `noEmit`).
     "allowImportingTsExtensions": true
   },
-  // The DOM-coupled `.ts` tests the root graph EXCLUDES and no `*.tsx` reach-back claims. Enumerated
-  // EXPLICITLY (not a glob) so a new escapee is a deliberate add — the membership stage names each one as
-  // it appears. Keep in sync with tsconfig.json's matching `exclude` entry (the graph must NOT also own it).
+  // The DOM-coupled `.ts` tests the root graph EXCLUDES and no `*.tsx` reach-back claims. Per-file
+  // escapees are enumerated EXPLICITLY (not a glob) so each is a deliberate add — the membership stage
+  // names each one as it appears. Keep in sync with tsconfig.json's matching `exclude` entries (the
+  // graph must NOT also own them). EXCEPTION — `tests/e2e/**` rides as a DIRECTORY glob (owner ruling,
+  // 2026-07-24): the whole playwright e2e tree is DOM-context by nature (`page.evaluate` callbacks read
+  // browser state), not a per-file escapee; DOM-less typing forced hand-rolled element bridges +
+  // `as unknown as` casts in every spec.
   "include": [
     "reset.d.ts",
     "tests/client/features/chat/hooks/use-message-items.test.ts",
     "tests/client/features/preset/lib/preset-editor-bridge.int.test.ts",
     "tests/client/forms/create-form-handle-bridge.test.ts",
     "tests/client/forms/entity-form-base.test.ts",
-    "tests/client/state/create-entity-draft-store.test.ts"
+    "tests/client/state/create-entity-draft-store.test.ts",
+    "tests/e2e/**/*.ts"
   ]
 }

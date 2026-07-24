@@ -56,23 +56,4 @@ export const pluginRouter = t.router({
   runSnippet: authedProcedure
     .input(z.object({ chatId: chatIdSchema, code: z.string().max(SNIPPET_CODE_MAX) }))
     .mutation(({ ctx, input }) => ctx.services.plugin.runSnippet({ caller: ctx.auth, chatId: input.chatId, code: input.code })),
-
-  // Upsert the ceilings (host-editable, owner-scoped). Absent fields keep the current value; `null` clears that
-  // ceiling (no cap — the maxUsdPerDay=null local-only posture / an uncapped action count).
-  setBudget: authedProcedure
-    .input(
-      z.object({
-        pluginId: pluginIdSchema,
-        maxActionsPerDay: z.number().int().min(0).nullable().optional(),
-        maxUsdPerDay: z.number().min(0).nullable().optional(),
-      }),
-    )
-    .mutation(({ ctx, input }) =>
-      ctx.services.plugin.setBudget({
-        caller: ctx.auth,
-        pluginId: input.pluginId,
-        ...(input.maxActionsPerDay === undefined ? {} : { maxActionsPerDay: input.maxActionsPerDay }),
-        ...(input.maxUsdPerDay === undefined ? {} : { maxUsdPerDay: input.maxUsdPerDay }),
-      }),
-    ),
 });

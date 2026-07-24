@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "1d38c0d3-a7ba-435c-b655-1f3d4b2321ad",
+  "id": "e3744502-ecf4-481c-be27-5d11a445066c",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "assets": {
@@ -195,38 +195,6 @@
           "notNull": true,
           "autoincrement": false,
           "default": 120
-        },
-        "max_spend_actions_per_day": {
-          "name": "max_spend_actions_per_day",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": 10
-        },
-        "max_usd_per_day": {
-          "name": "max_usd_per_day",
-          "type": "real",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false,
-          "default": 1
-        },
-        "usd_spent_today": {
-          "name": "usd_spent_today",
-          "type": "real",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": 0
-        },
-        "spend_day": {
-          "name": "spend_day",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "''"
         },
         "updated_at": {
           "name": "updated_at",
@@ -4447,81 +4415,6 @@
           "columnsFrom": ["avatar_asset_id"],
           "columnsTo": ["id"],
           "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "plugin_budgets": {
-      "name": "plugin_budgets",
-      "columns": {
-        "plugin_id": {
-          "name": "plugin_id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "max_actions_per_day": {
-          "name": "max_actions_per_day",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false,
-          "default": 50
-        },
-        "max_usd_per_day": {
-          "name": "max_usd_per_day",
-          "type": "real",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false,
-          "default": 1
-        },
-        "actions_spent_today": {
-          "name": "actions_spent_today",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": 0
-        },
-        "usd_spent_today": {
-          "name": "usd_spent_today",
-          "type": "real",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": 0
-        },
-        "spend_day": {
-          "name": "spend_day",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "''"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "(unixepoch() * 1000)"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "plugin_budgets_plugin_id_plugins_id_fk": {
-          "name": "plugin_budgets_plugin_id_plugins_id_fk",
-          "tableFrom": "plugin_budgets",
-          "tableTo": "plugins",
-          "columnsFrom": ["plugin_id"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },

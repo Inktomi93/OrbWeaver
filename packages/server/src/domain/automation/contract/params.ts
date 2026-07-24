@@ -85,13 +85,11 @@ export interface ListFiresParams extends AutomationActorParams {
   readonly limit?: number;
 }
 
-/** Upsert the per-chat budget row (host-editable — 03 §3). Absent fields keep the DB default / current
- *  value; `maxUsdPerDay: null` clears the dollar ceiling (local-only setups). */
+/** Upsert the per-chat fire-rate cap (host-editable — the loop-safety belt). An absent field keeps the DB
+ *  default / current value. */
 export interface SetBudgetsParams extends AutomationActorParams {
   readonly chatId: ChatId;
   readonly maxFiresPerHour?: number;
-  readonly maxSpendActionsPerDay?: number;
-  readonly maxUsdPerDay?: number | null;
 }
 
 /** The dry-run: a host-supplied `sampleEvent` (or a synthesized minimal fact from the rule's trigger) is

@@ -23,30 +23,6 @@ import type {
 import type { ChatId, PluginId, UserId } from "@orb/kit/ids";
 import type { AutomationOps } from "#domain/automation";
 
-/** The per-plugin spend gate the BRIDGE wraps its two spendy closures with (PLUGIN-SPEND). Pre-bound to a
- *  concrete `pluginId` + `db` + clock at the `buildPluginBridge` call site (activation — where the pluginId is
- *  in scope), so the bridge stays pure (no db, no pluginId) and one-home testable (inject a fake gate). `check`
- *  runs BEFORE a spendy op; on `{ok:false}` the bridge throws a typed refusal (the membrane contains it as guest
- *  errors-as-data). `accumulate` runs AFTER a successful op with the metered `costUsd` (+1 action, always).
- *
- *  `runExclusive` SERIALIZES the whole `check → op → accumulate` critical section PER INSTANCE (the intra-
- *  invocation TOCTOU belt): a single guest handler can fire up to `HOST_CALLS_IN_FLIGHT_MAX` (32) CONCURRENT
- *  host-fn calls, so without this all 32 `check`s read the same `actionsBase` before any `accumulate` persists →
- *  the action ceiling overshoots by up to 31 (defeating the $0-local-turn belt). The port FIFO does NOT cover
- *  this — it serializes distinct `invoke()`s (cross-invocation), not concurrent host-fn calls WITHIN one handler.
- *  The gate carries a per-instance tail-promise (the `port.invoke` FIFO precedent); the two spendy bridge closures
- *  run their critical section under it, so op #2's `check` reads the row AFTER op #1's `accumulate` persisted.
- *  `null` where the plugin can never spend (the transient snippet: its fixed grant profile omits turn.trigger +
- *  imagery, and it has no persistent plugin row to key). */
-export interface PluginSpendGate {
-  readonly check: () => Promise<{ readonly ok: true } | { readonly ok: false; readonly detail: string }>;
-  readonly accumulate: (costUsd: number) => Promise<void>;
-  /** Run `fn` under the per-instance spend serializer (the tail-promise chain — the intra-invocation TOCTOU
-   *  belt). Concurrent spendy host calls from ONE handler queue and run one-at-a-time; non-spendy ops stay
-   *  concurrent (only the two spendy closures pass through here). */
-  readonly runExclusive: <T>(fn: () => Promise<T>) => Promise<T>;
-}
-
 /** The per-handler invoker activation closes over: run the guest callback `handler` with JSON-encoded args
  *  under the §3 invocation budget (the port's `invoke`, curried over the resident instance). `chat` sets the
  *  handler's invocation-chat scope — a resident tool runs in the chat it was called from, with the caller's
@@ -86,22 +62,20 @@ export interface PluginHostOps {
     /** The standalone runtime-variable write — the SAME delta seam automation's `set_variable` arm rides (03
      *  §1.1). `capability: chat.variables.write`. */
     readonly applyVariableOps: AutomationOps["chat"]["applyVariableOps"];
-    /** The autonomous turn seam (01 §2 `chat.requestTurn`, turn.trigger — SPEND). Maps onto chat's principal-free
+    /** The autonomous turn seam (01 §2 `chat.requestTurn`, turn.trigger). Maps onto chat's principal-free
      *  `requestTurn` at compose with `initiator:"plugin"` HARDCODED (a plugin cannot forge a different origin) +
-     *  `funderUserId` = the INSTALLER (spend attribution / D17 by-proxy subject — the bridge closes it over the
+     *  `funderUserId` = the INSTALLER (funding attribution / D17 by-proxy subject — the bridge closes it over the
      *  installer, never guest-supplied). The funding box is resolved from the room host and the funder's
-     *  membership is gated inside `requestTurn` (leak-free NOT_FOUND), so an installer can never fund a foreign
-     *  budget. `automationDepth` is the child depth to stamp (refused past the hard cap). Returns the turn's
-     *  metered `costUsd` (PLUGIN-SPEND — compose projects it as the SUM of the committed messages' per-message
-     *  cost, the automation requestTurn precedent) so the bridge can debit the plugin's USD budget; the guest
-     *  never sees it (the membrane's `requestTurn` returns void to the realm). */
+     *  membership is gated inside `requestTurn` (leak-free NOT_FOUND). LOOP SAFETY: the engine's per-member turn
+     *  RATE budget + the cascade-depth guard bound a runaway plugin (`automationDepth` is the child depth to stamp,
+     *  refused past the hard cap). Returns void to the realm; cost VISIBILITY rides the stats domain. */
     readonly requestTurn: (req: {
       readonly funderUserId: UserId;
       readonly chatId: ChatId;
       readonly automationDepth: number;
       readonly speakerCharacterId?: string;
       readonly guided?: string;
-    }) => Promise<{ readonly costUsd: number | null }>;
+    }) => Promise<void>;
   };
   /** The SHARED, hand-edit-safe world-info writer (the ONE write path — 03 §1.3). `capability: worldinfo.write`. */
   readonly worldInfo: AutomationOps["worldInfo"];
@@ -149,19 +123,16 @@ export interface PluginHostOps {
       readonly choices: readonly { readonly label: string; readonly sendText: string }[];
     }) => Promise<void>;
   };
-  /** The `/imagine` engine (03 §1.7). SPEND-classed. `capability: imagery.generate`. Distinct from automation's
-   *  cost-summary op (`{costUsd,imageCount}`): the membrane's `generatePicture` returns the primary image's
-   *  `assetId` (01 §2) — the guest never sees the cost. The seam ALSO returns the metered `costUsd` (PLUGIN-SPEND):
-   *  the bridge reads it host-side to debit the plugin's USD budget (`accumulate`), then hands ONLY `{assetId}`
-   *  to the membrane — cost never crosses the realm boundary. Compose binds this to the `{assetId}`-bearing
-   *  imagery front door (which reports `costUsd`); `authorUserId` resolves to the installer's Principal at
-   *  compose (connection + spend). */
+  /** The `/imagine` engine (03 §1.7). `capability: imagery.generate`. The membrane's `generatePicture` returns
+   *  the primary image's `assetId` (01 §2) — the guest never sees the cost. Compose binds this to the
+   *  `{assetId}`-bearing imagery front door; `authorUserId` resolves to the installer's Principal at compose
+   *  (connection). Cost VISIBILITY rides the stats domain off the imagery write itself. */
   readonly imagery: {
     readonly generatePicture: (req: {
       readonly authorUserId: UserId;
       readonly chatId: ChatId;
       readonly args: GenerateImageActionArgs;
-    }) => Promise<{ readonly assetId: string; readonly costUsd: number | null }>;
+    }) => Promise<{ readonly assetId: string }>;
   };
   /** The installing user's per-user global KV (02 §4) — fetchOwned under the installer, so cross-user reads are
    *  structurally impossible. `capability: global_vars`. */
