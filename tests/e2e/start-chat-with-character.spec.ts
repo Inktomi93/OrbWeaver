@@ -17,7 +17,7 @@
 
 import { expect, test } from "@playwright/test";
 
-const CHARACTER_ROW_KEBAB = /^Actions for /u;
+const CHARACTER_ROW_CHAT_CTA = /^Chat with /u;
 const NON_WHITESPACE = /\S/u;
 
 // The `@live` tag is the opt-in gate: playwright.config.ts sets `grepInvert: /@live/` UNLESS `E2E_LIVE=1`,
@@ -38,13 +38,12 @@ test("pick a character, send a message, and the assistant streams a reply", {
   await expect(charactersNav).toBeVisible({ timeout: 30_000 });
   await charactersNav.click();
 
-  // The first character row's kebab → "Chat" (resume-or-new). Keyboard activation bypasses the row-body
-  // <button> that overlaps + intercepts pointer clicks on the kebab.
-  const kebab = page.getByRole("button", { name: CHARACTER_ROW_KEBAB }).first();
-  await expect(kebab).toBeVisible({ timeout: 30_000 });
-  await kebab.focus();
-  await kebab.press("Enter");
-  await page.getByRole("menuitem", { name: "Chat", exact: true }).click();
+  // The first character row's "Chat with <name>" CTA (§4.4 — the 1-click core loop; hover-revealed on
+  // fine pointers, and Playwright's click hovers first, so the reveal fires). The row kebab carries only
+  // Archive/Duplicate/Delete in this client — chat is the dedicated CTA, not a menu item.
+  const chatCta = page.getByRole("button", { name: CHARACTER_ROW_CHAT_CTA }).first();
+  await expect(chatCta).toBeAttached({ timeout: 30_000 });
+  await chatCta.click();
 
   // The store seam flipped CONTENT back to the Chats section with a fresh, character-seeded draft: the
   // composer is live.
