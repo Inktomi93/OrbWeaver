@@ -11,15 +11,10 @@
 //      first durable assistant row — no `send`, no generation).
 //
 // Seed via API, not UI — faster + more reliable, and it runs against the SAME running stack the specs hit
-// (playwright.config.ts webServer, single-user AUTH_MODE → no login). This file is compiled by the DOM-less
-// node aggregator (tsconfig.json), so it uses node's global `fetch` (typed by @types/node) and hand-rolls
-// the tRPC batch wire shape — it imports nothing from the browser client trees.
+// (playwright.config.ts webServer, single-user AUTH_MODE → no login). The tRPC batch fetch helpers live in
+// support/trpc.ts (extracted so specs query the API directly too); this file only owns the seed policy.
 
-import process from "node:process";
-
-// The vite front door (the specs' baseURL) proxies `/api` to the Hono server. Overridable for a non-default
-// host, but the config pins localhost:5173 (vite v8 binds [::1] only — see playwright.config.ts header).
-const BASE_URL = process.env["E2E_BASE_URL"] ?? "http://localhost:5173";
+import { trpcMutation, trpcQuery } from "./trpc";
 
 // A deterministic anchor card authored only when the library is empty (a wiped-and-latched DB). The seeded
 // default pack is preferred when present; this is the reset-safe floor.
@@ -31,34 +26,6 @@ const ANCHOR = {
   // A greeting so `chat.startChat` seeds a durable assistant row — the persistence spec asserts ≥1 row.
   greetings: [{ text: "Hello from the e2e anchor." }],
 };
-
-const encodeInput = (value: unknown): string => encodeURIComponent(JSON.stringify({ 0: value }));
-
-/** A tRPC batch GET query — returns the single procedure's `result.data`. Throws on a non-2xx or error env. */
-async function trpcQuery<T>(procedure: string, input: unknown): Promise<T> {
-  const res = await fetch(`${BASE_URL}/api/trpc/${procedure}?batch=1&input=${encodeInput(input)}`);
-  const body = (await res.json()) as readonly { result?: { data?: T }; error?: unknown }[];
-  const entry = body[0];
-  if (!res.ok || entry?.error !== undefined || entry?.result === undefined) {
-    throw new Error(`e2e seed: ${procedure} query failed (${res.status}): ${JSON.stringify(body)}`);
-  }
-  return entry.result.data as T;
-}
-
-/** A tRPC batch mutation — returns the single procedure's `result.data`. Throws on a non-2xx or error env. */
-async function trpcMutation<T>(procedure: string, input: unknown): Promise<T> {
-  const res = await fetch(`${BASE_URL}/api/trpc/${procedure}?batch=1`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ 0: input }),
-  });
-  const body = (await res.json()) as readonly { result?: { data?: T }; error?: unknown }[];
-  const entry = body[0];
-  if (!res.ok || entry?.error !== undefined || entry?.result === undefined) {
-    throw new Error(`e2e seed: ${procedure} mutation failed (${res.status}): ${JSON.stringify(body)}`);
-  }
-  return entry.result.data as T;
-}
 
 interface CharacterListPage {
   readonly items: readonly { readonly id: string; readonly handle: string }[];
