@@ -43,6 +43,9 @@ const TRACKED_KEYS = [
   "getChat",
   "listMessages",
   "listMessageVariants",
+  // The transcript divider's present-tense fit budget (previewContextFit) — refetched on every canon terminal
+  // (the boundary moves when canon commits/trims) alongside the message list.
+  "previewContextFit",
   "listChats",
   "worldInfo",
   // The character library `character.list` — driven ONLY by the user-bus `chatsChanged` fan now (the sole
@@ -54,7 +57,7 @@ type TrackedKey = (typeof TRACKED_KEYS)[number];
 // The OPEN chat's DETAIL reads (`chatDetailReads` in invalidation.ts) — NO chat list. The canon-TERMINAL events
 // (messageCommitted/turnCompleted) use this: the chat LIST + character library recency rides the server's
 // `chatsChanged` member-fan on the same moment (one driver per surface, no triple-invalidate).
-const CHAT_DETAIL_READS: readonly TrackedKey[] = ["getChat", "listMessages", "listMessageVariants"];
+const CHAT_DETAIL_READS: readonly TrackedKey[] = ["getChat", "listMessages", "listMessageVariants", "previewContextFit"];
 
 // The full room+list refetch (`chatReads` = detail + `listChats`) — the NON-terminal canon events that fire no
 // server `chatsChanged` (edit/hide/reorder/delete/select/abort) keep `listChats` as their same-device driver.
@@ -123,6 +126,7 @@ describe("invalidation — the bus half (invalidate)", () => {
           chatId: CHAT_ID,
           messageId: MESSAGE_ID,
         }),
+        previewContextFit: trpc.chat.previewContextFit.queryKey({ chatId: CHAT_ID }),
         listChats: trpc.chat.listChats.queryKey(),
         worldInfo: trpc.worldInfo.listBooks.queryKey(),
         characterList: trpc.character.list.queryKey(),
@@ -159,6 +163,9 @@ const USER_TRACKED_KEYS = [
   "chatList",
   "chatGet",
   "connection",
+  // The transcript divider's fit budget also refetches on a settings/preset change (the resolved capability +
+  // effective params drive the fit) — PD-#7.
+  "previewContextFit",
 ] as const;
 type UserTrackedKey = (typeof USER_TRACKED_KEYS)[number];
 
@@ -167,11 +174,11 @@ type UserTrackedKey = (typeof USER_TRACKED_KEYS)[number];
 const USER_EXPECTED: Record<UserBusEvent["type"], readonly UserTrackedKey[]> = {
   charactersChanged: ["character"],
   personasChanged: ["persona"],
-  presetsChanged: ["preset"],
+  presetsChanged: ["preset", "previewContextFit"],
   worldInfoChanged: ["worldInfo"],
   tagsChanged: ["tag"],
   themesChanged: ["themes"], // NOT userSettings (that's its own member) — the boundary this test pins.
-  settingsChanged: ["userSettings"], // NOT themes.
+  settingsChanged: ["userSettings", "previewContextFit"], // NOT themes.
   credentialsChanged: ["credentials"],
   // With a chatId present, both the list AND the changed chat's detail (the busDriven chat-row coverage), PLUS
   // `character.list` — the CROSS-DEVICE half of the FIX #2 denorm freshness (device B's only chat-derived
@@ -204,6 +211,7 @@ describe("invalidation — the USER-bus half (invalidateUser)", () => {
         chatList: trpc.chat.listChats.queryKey(),
         chatGet: trpc.chat.getChat.queryKey({ chatId: CHAT_ID }),
         connection: trpc.connection.getCatalog.queryKey(),
+        previewContextFit: trpc.chat.previewContextFit.queryKey({ chatId: CHAT_ID }),
       };
       for (const key of Object.values(keys)) {
         queryClient.setQueryData([...key], [] as never);

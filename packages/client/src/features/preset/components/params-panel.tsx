@@ -262,11 +262,35 @@ function BudgetSlider({ form, range }: { readonly form: AppForm; readonly range:
 
 function OutputSection({ form, capability }: { readonly form: AppForm; readonly capability: ModelCapability }): ReactElement {
   const verbosityLevels = verbosityLevelsFor(capability);
+  const outputMax = capability.output.maxTokens.max;
+  const window = capability.context.window;
   return (
     <Section heading="Output">
+      {/* The live resolved caps for this model — what the two fields clamp against (item #7 de-hardcode: the
+          vLLM window is the engine's self-reported max_model_len, not a copied constant). */}
+      <Text size="micro" tone="muted">
+        Model context window: {window} tokens · max output: {outputMax} tokens.
+      </Text>
       <form.AppField name="params.maxOutputTokens">
         {(field): ReactElement => (
-          <field.NumberField label="Max output tokens" description="Cap the length of the reply (leave blank for the model default)." />
+          <field.NumberField
+            label="Max output tokens"
+            description="Cap the length of the reply (leave blank for the model default)."
+            hint={`This model accepts up to ${outputMax} output tokens.`}
+            min={1}
+            max={outputMax}
+          />
+        )}
+      </form.AppField>
+      <form.AppField name="params.maxContextTokens">
+        {(field): ReactElement => (
+          <field.NumberField
+            label="Max context tokens"
+            description="Soft-cap the working set below the model window — older turns beyond this are trimmed (leave blank to use the full window)."
+            hint={`This model's context window is ${window} tokens.`}
+            min={1}
+            max={window}
+          />
         )}
       </form.AppField>
       {verbosityLevels !== undefined ? (

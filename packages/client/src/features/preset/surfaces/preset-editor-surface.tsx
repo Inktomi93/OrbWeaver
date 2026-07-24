@@ -14,8 +14,7 @@
 // Transforms), each group's leaves shown as sub-navigation — leaf CONTENT is unchanged (a regroup). The
 // outer `Tabs` is the group strip; each group panel nests its own `Tabs` over its leaves.
 
-import type { ChatApi, ModelCapability } from "@orb/contracts/connection";
-import type { CredentialSource } from "@orb/contracts/credentials";
+import type { ModelCapability } from "@orb/contracts/connection";
 import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { PresetId } from "@orb/kit/ids";
@@ -25,11 +24,11 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@orb/ui/menu";
 import { Tabs, TabsIndicator, TabsList, TabsPanel, TabsTab } from "@orb/ui/tabs";
 import { Text } from "@orb/ui/text";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
 import { ConfirmDialog } from "#components";
-import { QueryBoundary, QueryErrorState, useGatedQuery, useInvalidation, useTRPC } from "#data";
+import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import type { AppFormInstance, AutosaveSession } from "#forms";
 import { AutosaveStatus, createAutosaveEntityForm } from "#forms";
 import { useFocusOnMount } from "#lib";
@@ -109,17 +108,14 @@ function PresetEditor({ presetId, onRevealSection, onDismissSection }: PresetEdi
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const { data: preset } = useSuspenseQuery(trpc.preset.get.queryOptions({ id: presetId }));
-  const { data: settings } = useSuspenseQuery(trpc.settings.getUserSettings.queryOptions());
   const update = useUpdatePreset({ trpc, invalidation });
   const reset = useResetPreset({ trpc, invalidation });
 
-  const chat = settings.config.routing.roleDefaults.chat;
-  const chatModel = chat?.model ?? undefined;
-  const capabilityKey =
-    chatModel !== undefined && chatModel !== "" && chat?.source !== undefined && chat.api !== undefined
-      ? { model: chatModel, source: chat.source as CredentialSource, api: chat.api as ChatApi }
-      : null;
-  const capabilityQuery = useGatedQuery(capabilityKey, (key) => trpc.connection.getModelCapability.queryOptions(key));
+  // The LIVE resolved chat capability — the SAME `(model, source, api)` a real turn resolves (incl. the
+  // vLLM engine's self-reported window), not a hand-built key off `roleDefaults.chat` (often unset on the
+  // vLLM default). Refetches on a settings change (the routing knobs feed the resolution). A resolve failure
+  // (no chat connection configured) leaves `capability` undefined ⇒ the panel shows its connect-a-model note.
+  const capabilityQuery = useQuery(trpc.connection.resolveChatCapability.queryOptions());
   const capability = capabilityQuery.data;
 
   const server = preset.config;

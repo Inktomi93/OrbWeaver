@@ -2,7 +2,7 @@
 // optional per-agent override, validates `(api, source)` coherence, heals the model id, and returns
 // `{api, model, credential, capability}`. No per-role hard-pin — any role may resolve to any source it supports.
 
-import type { ChatApi, CredentialSource, ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
+import type { AgentSdkModel, ChatApi, CredentialSource, ModelCapability, ModelCatalogEntry, ResolvedConnection } from "@orb/contracts/connection";
 import type { UserSettings } from "@orb/contracts/settings";
 import type { ModelId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -16,6 +16,7 @@ import { resolveCapability } from "../substrate/capability";
 import { healToChatDefault } from "../substrate/heal-model";
 import { getCachedOrModels } from "../substrate/or-model-cache";
 import { pickOrModel } from "../substrate/pick-or-model";
+import { getCachedVllmGenWindow, seedVllmGenWindow } from "../substrate/vllm-gen-window-cache";
 
 type RoleDefaults = UserSettings["routing"]["roleDefaults"];
 
@@ -151,6 +152,33 @@ function healModel(selection: RouteSelection, now: number): ModelId {
   return castId<ModelId>(selection.model ?? env.VLLM_GEN_MODEL);
 }
 
+/** Warm the gen-window cache from the engine's self-reported `/v1/models` when the selection lands on vllm
+ *  and the cache is cold/stale. Best-effort: a null (engine warming/disabled) leaves the cache empty and the
+ *  resolver falls back to the env window. Only fires for the vllm source so a non-vllm turn pays nothing. */
+async function warmVllmGenWindow(ctx: ConnectionContext, source: CredentialSource): Promise<void> {
+  if (source !== "vllm" || getCachedVllmGenWindow(ctx.now()) !== null) {
+    return;
+  }
+  const window = await ctx.fetchVllmGenWindow({});
+  if (window !== null) {
+    seedVllmGenWindow(window, ctx.now());
+  }
+}
+
+/** The cache snapshots the capability synthesis reads — the OR catalog, the agent-sdk daemon rows, and the
+ *  gen engine's self-reported window (all read with `ctx.now()`). */
+function capabilityCaches(ctx: ConnectionContext): {
+  cached: readonly ModelCatalogEntry[] | null;
+  agentSdkModels: readonly AgentSdkModel[] | null;
+  vllmGenWindow: number | undefined;
+} {
+  return {
+    cached: getCachedOrModels(ctx.now()),
+    agentSdkModels: getCachedAgentSdkModels(ctx.now()),
+    vllmGenWindow: getCachedVllmGenWindow(ctx.now()) ?? undefined,
+  };
+}
+
 /** Run the selector cascade (roleDefaults → per-agent override → owner default), the vLLM-fallback, the
  *  coherence assert, and the model heal — the shared SELECTION half both `resolveRole` and
  *  `resolveChatCapability` use. Reads the acting principal's OWN settings (no caller-supplied user id). */
@@ -162,6 +190,7 @@ async function resolveRoleSelection(ctx: ConnectionContext, params: ResolveRoleP
     ctx.vllmAvailable,
   );
   assertCoherent(selection.api, selection.source);
+  await warmVllmGenWindow(ctx, selection.source);
   return { selection, model: healModel(selection, ctx.now()) };
 }
 
@@ -176,10 +205,7 @@ export function createResolveChatCapability(ctx: ConnectionContext): ConnectionS
     // Role is FIXED to "chat" here and the principal is the ONLY input — there is no caller-supplied user id
     // or role, so this can never resolve another tenant's connection (Injected-op caller gate).
     const { selection, model } = await resolveRoleSelection(ctx, { role: "chat", principal: params.principal });
-    return resolveCapability(model, selection.source, selection.api, {
-      cached: getCachedOrModels(ctx.now()),
-      agentSdkModels: getCachedAgentSdkModels(ctx.now()),
-    });
+    return resolveCapability(model, selection.source, selection.api, capabilityCaches(ctx));
   };
 }
 
@@ -191,8 +217,7 @@ export function createResolveRole(ctx: ConnectionContext): ConnectionService["re
       source: selection.source,
     });
     const baseCapability = resolveCapability(model, selection.source, selection.api, {
-      cached: getCachedOrModels(ctx.now()),
-      agentSdkModels: getCachedAgentSdkModels(ctx.now()),
+      ...capabilityCaches(ctx),
       customContextWindow: credential.source === "custom_openai" ? credential.contextWindow : undefined,
     });
     return {

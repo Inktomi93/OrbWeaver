@@ -7,6 +7,7 @@
 import type { AgentSdkModel, ChatApi, CredentialSource, EffortLevel, ModelCapability, Range } from "@orb/contracts/connection";
 import { EFFORT_LEVELS } from "@orb/contracts/connection";
 import type { ModelId } from "@orb/kit/ids";
+import { env } from "#foundation/env";
 import { getChatModel } from "./chat-models";
 import type { MODEL_FAMILIES } from "./model-family";
 import { detectModelFamily } from "./model-family";
@@ -53,7 +54,6 @@ const ANTHROPIC_BUDGET_RANGE: Range = { min: 1024, max: 32_000 };
 const MIN_OUTPUT = 1;
 const OUTPUT_CAP = 32_768;
 const OR_DEFAULT_WINDOW = 200_000; // when the catalog entry omits contextLength (cold cache)
-const VLLM_GEN_CONTEXT_WINDOW = 32_768;
 
 const CUSTOM_OPENAI_DEFAULT_WINDOW = 128_000;
 const LOCAL_LIGHT_WINDOW = 8192; // in-process embed/rerank tier — chat capability is moot here
@@ -291,6 +291,9 @@ export function resolveModelCapability(
     /** The custom_openai credential's user-declared context window (`metadata.contextWindow`); falls back
      *  to the conservative default when unset. Only the custom_openai arm reads it. */
     readonly customContextWindow?: number | undefined;
+    /** The gen engine's self-reported `max_model_len` (cached `/v1/models` truth), when available. The vllm
+     *  arm PREFERS this over the env floor so a `--max-model-len` change takes effect on engine restart. */
+    readonly vllmGenWindow?: number | undefined;
   },
 ): ModelCapability {
   const wireShape = deriveWireShape(api, source);
@@ -317,7 +320,10 @@ export function resolveModelCapability(
       // --enable-auto-tool-choice --tool-call-parser hermes (scripts/dev/vllm-engine.sh) and emits
       // parallel tool calls, so advertise the tools axis (completes U0) — the generic runRecurseLoop
       // then drives RPG/crew/buddy tool turns over the chat-completions surface.
-      return { ...staticProfile(VLLM_GEN_CONTEXT_WINDOW, true, true), tools: { parallel: true } };
+      // TRUTH ORDER (D68 absence-degrades): the engine's self-reported window (cached `/v1/models`
+      // max_model_len) WINS; else the env-owned window (which also drives the launch flag); the env schema
+      // default is the last resort. No hand-copied literal here — the engine or its env launch flag owns it.
+      return { ...staticProfile(caches?.vllmGenWindow ?? env.VLLM_GEN_MAX_MODEL_LEN, true, true), tools: { parallel: true } };
     case "local-light":
       return staticProfile(LOCAL_LIGHT_WINDOW, false);
     case "custom_openai":

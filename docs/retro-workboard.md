@@ -18,6 +18,13 @@
   before every run; the routing-honesty spec is the regression guard that the pin is HONORED (settings →
   resolved connection → engine-log traffic → canon `model` on the row). Caveat: the seed writes the real
   single-user settings row — running e2e leaves routing pinned to vllm (restore-after is an open decision).
+- **The e2e suite is a BASELINE, not scripture**: it is days old and has already needed three of its
+  own specs corrected. Lanes cite it as current evidence and improve it freely — never contort new work
+  to match an existing spec's shape, and never call any spec "golden"/"the exemplar" in a brief.
+- **Failure artifacts + machine-readable results are mandatory runner config**: trace/screenshot
+  retain-on-failure (local retries=0 means on-first-retry artifacts never exist for the runs that need
+  diagnosing) + a json reporter (extracting failing test names from html output cost real re-runs).
+  Applied to both playwright configs 2026-07-24.
 - **One token-estimator home**: `@orb/kit/tokens` `estimateTokens` — server fit, previewFit, compaction
   all ride it; the client NEVER estimates (it asks the server).
 
@@ -40,8 +47,12 @@
   in scope; (c) `maxContextTokens` has NO UI field at all; (d) the resolved model window/output caps are
   shown nowhere; (e) `connection.resolveChatCapability` + `chat.getShapeTrace` are server-built,
   client-unwired.
-- **Ruling**: `VLLM_GEN_MAX_MODEL_LEN` env owns the window (foundation/env default + script `:-` fallback
-  + a text-parity test pinning the two defaults equal). Params-panel: clamp maxOutputTokens, add
+- **Ruling** (upgraded 2026-07-24, owner-driven): the vllm window's TRUTH ORDER is (1) the ENGINE's
+  self-reported `max_model_len` from loopback `/v1/models` (verified live: present on both id + alias
+  entries), cached via the house model-cache pattern; (2) the `VLLM_GEN_MAX_MODEL_LEN` env fallback,
+  which also drives the launch flag (script `:-` fallback + a text-parity test pinning script↔env
+  defaults equal); (3) the static default, loudly absence-degraded. A test pins that the engine's
+  answer WINS over env when available. Params-panel: clamp maxOutputTokens, add
   maxContextTokens, render the resolved caps ("N of window used · M reserved"). Wire
   `resolveChatCapability` where the panel needs live caps. **previewFit** (owner-sanctioned, beats ST):
   a model-free chat procedure running the SAME `fitHistoryToWindow` + kit estimator against current
@@ -133,16 +144,99 @@
   agree). **Backlog note**: token-counter + plugins context tabs are keeper-domain ideas, rebuild-era
   decisions.
 
-## In flight
+### #14 — De-hardcode vLLM: TS engine-launch builder + engine-facts derived + policy single-homed
+- **Causes (scout-inventoried)**: the 8192 triple-hardcode (engine script embed/rerank flags +
+  LOCAL_LIGHT_WINDOW + character embed-text EMBED_MAX_TOKENS); the gen 32768 script literal not reading
+  its env var; concurrency dead-path defaults drifting from the settings floor (4 vs 32); bare GPU-util
+  fractions + two different max_pixels; SUMMARIZER_CONTEXT_FALLBACK's coincidental 8192 collision;
+  EMBED_REQUEST_TIMEOUT literal. Root disease: the engine LAUNCH SPEC lives in bash
+  (vllm-engine.sh) while the supervisor + capability layers are TS reading foundation/env.
+- **Ruling (owner-driven)**: move the launch spec to TS — `buildEngineArgv(engine, gpu)` in
+  infra/providers/vllm/engine/, reading EFFECTIVE CONFIG (the AppSettings→layer.ts admin-override ??
+  env floor ?? code default pattern — the vllmConcurrency precedent), unit-tested. Config tiers by
+  apply-time: HOT policy (concurrency/batch/timeouts) = plain AppSettings, applies on next use;
+  LAUNCH config (models/max-model-len/utils/max_pixels/TP) = AppSettings-layered too, applied via the
+  existing admin Engines section + engine-control RESTART ("restart to apply" affordance — no new
+  subsystem); DEPLOYMENT facts (ports/store paths) stay env-only, displayed not edited. The engine
+  self-report seam still outranks all config for capability truth, so a misconfigured setting can
+  never lie to the fit math. "Good on our machine" dies: another box tunes utils/window in the admin
+  UI and restarts engines from the same UI; the supervisor spawns argv directly;
+  `engines.sh` → `tsx scripts/dev/engines.ts` using the SAME builder; vllm-engine.sh dies;
+  vllm-setup.sh + stack.sh stay shell. Engine-facts derive from the self-report seam (gen-window
+  pattern extended to embed/rerank; embed DIM stays env-pinned as a SCHEMA fact + startup probe assert).
+  Policy values (utils, max_pixels, timeouts, concurrency) single-home in env/settings.
+- **INVARIANT (HMR protection — must not regress)**: in dev, engines are spawned ONLY by the standalone
+  entry OUTSIDE the tsx-watch loop; the watched server only ever ADOPTS (probe-first). The pipe-watchdog
+  death-coupling wraps OWNED spawns only. The old constant-engine-restart hell came from ownership
+  inside the watched process — the refactor changes where flags come from, never the process topology.
+  Pin with a supervisor test: a healthy port is adopted, never respawned.
 
-- **Live e2e suite** (executor, running): live-turn-canon-parity (ghost lifecycle + DOM↔DB order parity +
-  bus-event order + engine honesty), live-routing-honesty (the spend guard), live-names,
-  draft-mode-options pin (model-free), live-context-cutoff (divider == canon boundary), chat-room
-  createChatViaSend kebab→CTA fix. Its findings so far: virtualization breaks full-length DOM parity
-  (specs self-seed short chats); a pre-existing event-sequence race (unguaranteed request-order pin —
-  fixed to order-independent); resume-or-new multi-row strictness (assert `.last()`).
-- **Sequencing**: everything client/ui-touching holds until the e2e lane lands (vite HMR corrupts its
-  stability measurements). Then #6 + #7 + #11 (parallel, path-disjoint) → #12 + #10 → #8 → #9.
+### #16 — Settings echo-stability + render-truth (the real oscillation path)
+- **Cause (owner repro, pre-revert)**: the oscillation lived in SETTINGS (background, theme) and required
+  clearing localStorage AND cache to SEE saved changes — two coupled defects: (a) a save→rewrite→re-save
+  loop on the server round-trip (suspect fuel: the versioned-config lift re-running on unstamped rows —
+  the "always stamp USER_SETTINGS_SCHEMA_VERSION" gotcha; BG-C background materialization + theme
+  .catch(null) are echo≠save BY DESIGN and must be handled as one-rewrite fixed points); (b) a
+  DISPLAY-side shadow: some client-persisted layer rendered instead of server truth, so successful saves
+  stayed invisible until a manual clear — the persistence-boundary law (device-local ONLY in persisted
+  stores) punched through.
+- **Ruling**: (1) int tests on the REAL updateUserSettingsSection path (appearance incl. materializing
+  background, theme incl. stale id): fixed point in ≤1 legitimate rewrite, repeated parses byte-stable;
+  verify every WRITE path stamps the schema version and a lifted row stabilizes. (2) AUDIT current
+  persisted stores against server-owned state (the DEVICE_LOCAL_REGISTRY is the checklist; verify the
+  gate's semantics actually catch a server-owned field, not just registry membership — probe it). (3)
+  live e2e: change background + theme in the UI → visible IMMEDIATELY and after a PLAIN reload with
+  storage fully intact (the no-clear-needed pin), exact user-initiated save-request count (zero
+  self-triggered tail), breaker never trips. #11's breaker contains any residual loop; this kills the
+  fuel and the shadow.
+
+## In flight — INTEGRATION of the #6/#7/#11/#13 wave (2026-07-24, near-complete)
+
+**Everything below is DONE and green unless marked PENDING.** All four lanes landed (see their sections);
+integration seam-fixes applied: #11's DOM-touching tests routed (create-entity-draft-store.test.ts →
+tsconfig.tests-dom.json include + tsconfig.json exclude; save-circuit-breaker.test imports its pure module
+directly, NOT the DOM forms barrel); the load-bearing `?? "null"` in entity-form-base stableStringify is
+eslint-suppressed-with-repro (TS lib lies: JSON.stringify(undefined)===undefined); breaker wiring uses the
+client's sanctioned `performance.timeOrigin + performance.now()` clock; FABRICATION-OK marker on the
+draft-store invalid-shape probe; suppressions baseline regenerated; vitest types project gained
+`ignoreSourceErrors: true` (wrong-lib double-reports die; test-file errors still fail).
+
+**CT harness seam (fixed)**: #7's `chat.previewContextFit` rides the same batch as listMessages; the CT
+harness's unlisted-proc default (`data:null`) is OUT-OF-CONTRACT for it and crashed the chat surfaces.
+Fix: PREVIEW_FIT_STUB folded into ROSTER_STUB in chat-room-surface.ct + message-list-surface.ct. RULE:
+any new always-fired query needs a valid stub in the shared chat-surface stub bundle.
+
+**Playwright config findings (both configs committed-pending)**: e2e = list+json reporters, trace/screenshot
+retain-on-failure, actionTimeout 15s, UTC/en-US, NO video (owner ruling — pnpm record exists). CT = json
+reporter, screenshot only-on-failure, UTC/en-US, but trace STAYS on-first-retry: always-on trace RECORDING
+instruments network enough to flip component behavior (bisect-proven repro: message-content's external-image
+CT). That CT is now route-intercepted (a real served pixel — "LOADS" finally means loads).
+
+**Battery state**: check PASS · pnpm test PASS (6892 vitest + 1215 CT, 1 retry-passed flake:
+settings-shell fuzzy-search anchor — watch item for #10) · routine e2e 12/12 · live 17/18.
+
+**The #7 previewFit null-boundary bug — FIXED (2026-07-24)**: the merge/squash suspects were innocent
+(`squashSameRole` is first-wins and preserves extras; an alternating transcript never merges). The real
+defect lived in `fitHistoryToWindow` (history-budget.ts): the preview's shaped history ends on the
+ID-LESS continuation nudge (preview canon ends on assistant → SHAPE appends `[Continue…]`), and with a
+tiny ceiling the prompt budget goes NEGATIVE, so the old "always keep the newest ROW" irreducible rule
+kept ONLY the nudge — `kept.find(messageId)` found nothing → null boundary with droppedCount 7 (probe's
+usedTokens 11 ≈ the nudge's cost, confirming). Same latent bug on the ENGINE path: a group-nudge tail +
+blown budget kept only the nudge and dropped the user's actual message, violating the function's own
+"never silently drop the user's current turn" doc. FIX (one home): the irreducible unit is the newest
+ID-BEARING turn plus everything after it (trailing synthetics — nudge, depth-0 injections — ride with
+the turn they follow); no-id histories keep the old newest-row behavior. Why the parity int-test missed
+it: its comment DOCUMENTED the degenerate null as intended and dodged it (odd turn count → no nudge; mid
+window) — the per-spec-dodge pattern. Now pinned three ways: unit (blown budget keeps id-turn+nudge,
+names boundary), int (even-count transcript + 200-window → boundary = newest row, droppedCount 5), and
+live P2. Battery after fix: chat domain 995 PASS · **full e2e 18/18 including live** — first fully-green
+live suite. REMAINING: verifier over the wave diff → COMMIT (wave + playwright configs + audit fixes +
+message-content route-intercept + workboard).
+
+**Assertion-quality audit (#17, DONE)**: 205 files / all tests read by 4 sonnet readers — ZERO sick, 2
+MIXED-WEAK both fixed (character-library bulk-tag payload pin; theme-picker delete zero-call pin with
+ONESHOT-OK marker). No gate needed — the house idiom (consequence testids + trpc.lastInput payload polling
++ the state-store <output> funnel) structurally prevents the disease. #18 grows coverage from healthy stock.
 
 ## Open decisions (owner)
 

@@ -58,6 +58,7 @@ import type {
   NominateHostHandoffParams,
   PeekPromptParams,
   PreviewAssemblyParams,
+  PreviewContextFitParams,
   PreviewInviteParams,
   PreviewSectionParams,
   ReapTemporaryChatsParams,
@@ -109,6 +110,7 @@ import type {
   ChatLineageView,
   ChatStreamReplayEvent,
   ChatSummary,
+  ContextFitPreview,
   InvitePreview,
   InviteView,
   MessagesPage,
@@ -145,6 +147,10 @@ export interface ChatService {
   /** The content-free SHAPE trace for the next-turn shaping of the current canon (host/admin inspector,
    *  PD-132). Re-runs SHAPE on demand — no content, nothing persists. */
   readonly getShapeTrace: (params: GetShapeTraceParams) => Promise<ShapeTrace>;
+  /** The present-tense context-fit budget for the current canon against the host's effective preset +
+   *  capability (PD-#7). Member-gated; runs the SAME fit the next real turn would, so `boundaryMessageId`
+   *  equals the canon boundary that turn stamps. Nothing persists — the transcript divider's live source. */
+  readonly previewContextFit: (params: PreviewContextFitParams) => Promise<ContextFitPreview>;
   /** Paged canon read — each slot joined to its selected variant + the page's macro name producer. */
   readonly listMessages: (params: ListMessagesParams) => Promise<MessagesPage>;
   /** The full sibling-variant set for one slot — `{variantId, idx}[]` ordered by idx, no content. */

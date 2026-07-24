@@ -8,7 +8,7 @@ import type { PromptConfig, UserIntent } from "@orb/contracts/preset";
 import { DEFAULT_MAX_OUTPUT_TOKENS, DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { RegexScript } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
-import type { CharacterId, ChatId, ChatTurnId, ModelId, PersonaId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, ChatTurnId, MessageId, ModelId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { getLog } from "@orb/server/foundation/observability";
 import { describe, vi } from "vitest";
@@ -296,6 +296,24 @@ describe("runTurnPipeline — request shaping + fit", () => {
     });
     const result = await runTurnPipeline(args);
     expect(result.droppedCount).toBeGreaterThan(0);
+  });
+
+  test("the fit stamps contextBoundaryMessageId at the earliest KEPT id-bearing turn (previewFit parity anchor)", async () => {
+    // Id-bearing rows so the boundary is a concrete message id (not null) — the SAME stamp previewFit must
+    // reproduce over the same canon+capability. `toShapeCanon` reads the MessageView's `id` onto the shaped
+    // row (that's what fitHistory keys the boundary on). An END-ON-USER canon (odd length) avoids the
+    // continuation nudge (an id-less trailing row); a mid-size window drops SOME rows but keeps id-bearing ones.
+    const idRowOf = (i: number): MessageView => ({
+      ...rowOf(i % 2 === 0 ? "user" : "assistant", `turn ${i} with several words to spend a few tokens`),
+      id: castId<MessageId>(`message_parity_${i}`),
+    });
+    const canon = Array.from({ length: 11 }, (_, i) => idRowOf(i)); // 0..10, last (10) is a USER row
+    const mid = makeModelCapability({ output: { maxTokens: { min: 1, max: 8192 } }, context: { window: 400 } });
+    const result = await runTurnPipeline(baseArgs({ canon, connection: { ...CONNECTION, capability: mid } }).args);
+    expect(result.droppedCount).toBeGreaterThan(0);
+    expect(result.droppedCount).toBeLessThan(11); // real rows survive → the boundary is a real id
+    // The stamped boundary is the earliest KEPT id — canon index === droppedCount (drop the first N).
+    expect(result.contextBoundaryMessageId).toBe(castId<MessageId>(`message_parity_${result.droppedCount}`));
   });
 });
 

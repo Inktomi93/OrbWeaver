@@ -1,6 +1,7 @@
 // Unit: the "last-in-context" boundary resolver (features/chat/lib/context-boundary, Phase 4b §B.5.2).
-// Pins the current-state rule: only the MOST RECENT assistant variant's `contextBoundaryMessageId`
-// reflects where the model's memory currently cuts off — an older turn's stamp is stale.
+// Pins the current-state rule: the MOST RECENT ASSISTANT generation's `contextBoundaryMessageId` is
+// authoritative — `null` included ("everything fit this turn"), skipping user/system rows and never
+// walking past a truthful null into a stale older stamp (the resurrection bug, retro-workboard.md §6).
 
 import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -34,19 +35,38 @@ test("returns the boundary from the MOST RECENT stamped message, not an earlier 
   expect(resolveContextBoundaryMessageId(messages)).toBe(castId<MessageId>("msg_1"));
 });
 
-test("walks past trailing messages with no boundary to find the latest stamped one", () => {
+test("skips a trailing user row and reads the newest assistant stamp", () => {
   const messages = [
     makeMessageView({
       id: castId<MessageId>("msg_1"),
       contextBoundaryMessageId: castId<MessageId>("msg_0"),
     }),
-    // A more recent turn whose history fit entirely (nothing dropped) — no fresher stamp.
-    makeMessageView({ id: castId<MessageId>("msg_2"), contextBoundaryMessageId: null }),
+    makeMessageView({
+      id: castId<MessageId>("msg_2"),
+      contextBoundaryMessageId: castId<MessageId>("msg_1"),
+    }),
+    // A trailing user message the NEXT generation hasn't fit-passed yet — carries no boundary answer.
     makeMessageView({
       id: castId<MessageId>("msg_3"),
       role: "user",
       contextBoundaryMessageId: null,
     }),
   ];
-  expect(resolveContextBoundaryMessageId(messages)).toBe(castId<MessageId>("msg_0"));
+  expect(resolveContextBoundaryMessageId(messages)).toBe(castId<MessageId>("msg_1"));
+});
+
+// Regression (retro-workboard.md §6 — stale-resurrection): an older turn once trimmed (stamped a real
+// boundary) but the NEWEST assistant generation's history fit entirely (null = "everything fit this
+// turn", authoritative). The newest assistant null must win — no divider — never resurrect the stale
+// older stamp.
+test("newest assistant null beats a stale older stamp — no divider (stale-resurrection)", () => {
+  const messages = [
+    makeMessageView({
+      id: castId<MessageId>("msg_1"),
+      contextBoundaryMessageId: castId<MessageId>("msg_0"),
+    }),
+    // A more recent assistant turn whose history fit entirely (nothing dropped) — authoritative null.
+    makeMessageView({ id: castId<MessageId>("msg_2"), contextBoundaryMessageId: null }),
+  ];
+  expect(resolveContextBoundaryMessageId(messages)).toBeNull();
 });

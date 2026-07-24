@@ -13,7 +13,6 @@
 import type { AssembleContext, AssembledPrompt, ChatContentPart, ChatDeltaEvent, ChatInjection, MessageView, ToolCallRecord } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
 import type { UserIntent } from "@orb/contracts/preset";
-import { DEFAULT_MAX_OUTPUT_TOKENS } from "@orb/contracts/preset";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type { ContentImageRef } from "@orb/kit/content";
 import { tokenizeContent } from "@orb/kit/content";
@@ -28,7 +27,16 @@ import { getLog } from "#foundation/observability";
 import type { ToolCallInput } from "#infra/providers";
 import type { ApplyPromptTransformsOp, ApplyRegexReplaceOp, ChatToolExecFrame, ChatToolOps, ChatToolSet, RunChatTurnOp } from "../contract/context";
 import type { HistoryMacroNames, TurnEconomics, TurnKind, TurnMessage, TurnRequest, TurnSpeakerShape } from "../contract/results";
-import { buildPrompt, buildTurnMacroContext, fitHistory, shapeContextForSpeaker, shapeTurn, toShapeCanon } from "../substrate/assembly-access";
+import {
+  buildHistoryBudget,
+  buildPrompt,
+  buildTurnMacroContext,
+  fitHistory,
+  materializeOutputReserve,
+  shapeContextForSpeaker,
+  shapeTurn,
+  toShapeCanon,
+} from "../substrate/assembly-access";
 
 /** What `runTurnPipeline` consumes — the immutable assemble ctx + the loaded canon + the resolved connection
  *  + the turn axes. */
@@ -115,25 +123,16 @@ interface TurnPipelineResult {
  *  is the SAME value the runner sends as wire `max_tokens` — the two-source divergence that dropped all
  *  history is closed. It must NOT fall back to `capability.output.maxTokens.max` (the slider ceiling / on a
  *  self-hosted vLLM the whole window), which reserved the entire context and starved history (amnesia). */
-function fitBudget(
-  args: RunTurnPipelineArgs,
-  intent: UserIntent,
-  systemTokens: number,
-): {
-  windowTokens: number;
-  softMaxTokens: number | undefined;
-  reserveOutputTokens: number;
-  systemTokens: number;
-} {
-  return {
+function fitBudget(args: RunTurnPipelineArgs, intent: UserIntent, systemTokens: number): ReturnType<typeof buildHistoryBudget> {
+  return buildHistoryBudget({
     windowTokens: args.connection.capability.context.window,
     // Context Size (ST `openai_max_context`): the user's soft ceiling. Unset ⇒ undefined ⇒ the fit's
     // `min(window, ∞)` resolves to the window, so context length and window line up by default.
-    softMaxTokens: intent.maxContextTokens,
-    // Materialized upstream — a concrete response length, mirroring the runner's `max_tokens`.
-    reserveOutputTokens: intent.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
+    maxContextTokens: intent.maxContextTokens,
+    // Materialized in `buildHistoryBudget` to a concrete response length, mirroring the runner's `max_tokens`.
+    maxOutputTokens: intent.maxOutputTokens,
     systemTokens,
-  };
+  });
 }
 
 /** Drains the role's stream: text/reasoning deltas accumulate + fan out; the terminal final chunk yields
@@ -277,7 +276,7 @@ function materializeMaxOutput(intent: UserIntent): UserIntent {
   if (intent.maxOutputTokens !== undefined) {
     return intent;
   }
-  return { ...intent, maxOutputTokens: DEFAULT_MAX_OUTPUT_TOKENS };
+  return { ...intent, maxOutputTokens: materializeOutputReserve(intent.maxOutputTokens) };
 }
 
 /** The D50 `assembled_dynamic` transform point (automation-design/04 §6): rewrite the BUILD output's DYNAMIC

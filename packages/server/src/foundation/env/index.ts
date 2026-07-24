@@ -19,6 +19,9 @@ const VLLM_GEN_PORT_DEFAULT = 8703;
 // The unified text+image embedding space's output dimension (matches every F32_BLOB(1024) vector column).
 const VLLM_EMBED_DIM_DEFAULT = 1024;
 const VLLM_EMBED_CHUNK_DEFAULT = 128;
+// The gen engine's --max-model-len (scripts/dev/vllm-engine.sh `gen` arm). ONE home for the window so the
+// launcher's serve flag and the resolved ModelCapability.context.window can't drift (parity-tested).
+const VLLM_GEN_MAX_MODEL_LEN_DEFAULT = 32_768;
 const MIN_SESSION_SECRET_CHARS = 32;
 const MIN_PASSWORD_LENGTH = 8;
 const RATE_LIMIT_WINDOW_MS_DEFAULT = 60_000;
@@ -73,6 +76,9 @@ const envSchema = z
     VLLM_EMBED_MODEL: z.string().min(1).default("Qwen/Qwen3-VL-Embedding-2B"),
     VLLM_RERANK_MODEL: z.string().min(1).default("Qwen/Qwen3-VL-Reranker-2B"),
     VLLM_GEN_MODEL: z.string().min(1).default("Qwen/Qwen3-VL-8B-Instruct"),
+    // The gen engine's context window (--max-model-len). The resolved vllm ModelCapability.context.window
+    // reads this so the launcher flag and the fit ceiling share ONE home (text-parity tested vs the script).
+    VLLM_GEN_MAX_MODEL_LEN: z.coerce.number().int().positive().default(VLLM_GEN_MAX_MODEL_LEN_DEFAULT),
     VLLM_EMBED_DIM: z.coerce.number().int().positive().default(VLLM_EMBED_DIM_DEFAULT),
     VLLM_EMBED_CHUNK_SIZE: z.coerce.number().int().positive().default(VLLM_EMBED_CHUNK_DEFAULT),
     // "true" disables the local engine entirely (a GPU-less/cloud-only box runs without the supervisor).

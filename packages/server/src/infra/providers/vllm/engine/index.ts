@@ -26,6 +26,7 @@ export {
   setEngineStatus,
 } from "./engine-status";
 export { VLLM_ENGINES } from "./engines";
+export { fetchGenMaxModelLen } from "./gen-window";
 export { detectGpu } from "./gpu";
 export { sniffMime, toDataUri } from "./image";
 export {

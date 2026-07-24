@@ -260,7 +260,7 @@ export function renderRowSwipe(args: {
   return args.showSwipes && args.role === "assistant" ? <SwipeStrip message={args.message} /> : null;
 }
 
-export function renderContextBoundaryDivider(show: boolean): ReactNode {
+export function renderContextBoundaryDivider(show: boolean, budgetLabel?: string | undefined): ReactNode {
   if (!show) {
     return null;
   }
@@ -268,7 +268,7 @@ export function renderContextBoundaryDivider(show: boolean): ReactNode {
     <Row gap="field" align="center" data-slot="context-boundary-divider" className="w-full">
       <Separator className="flex-1 bg-(--color-primary)/35" />
       <Text size="micro" tone="muted" transform="caps">
-        In context from here
+        In context from here{budgetLabel !== undefined ? ` · ${budgetLabel}` : ""}
       </Text>
       <Separator className="flex-1 bg-(--color-primary)/35" />
     </Row>

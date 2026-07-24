@@ -32,6 +32,11 @@ type FetchOrCatalogOp = (req: { readonly signal?: AbortSignal | undefined }) => 
 /** infra/providers.fetchAgentSdkModels — the live agent-sdk `supportedModels()` discovery. */
 type FetchAgentSdkModelsOp = (req: { readonly signal?: AbortSignal | undefined }) => Promise<AgentSdkModel[]>;
 
+/** infra/providers.fetchVllmGenWindow — the gen engine's self-reported context window (loopback
+ *  `/v1/models` → `max_model_len`). `null` when the engine is unreachable/warming — the resolver then
+ *  falls back to the env-owned window. */
+type FetchVllmGenWindowOp = (req: { readonly signal?: AbortSignal | undefined }) => Promise<number | null>;
+
 /** settings.loadUserSettings — the parsed per-user UserSettings; connection is a consumer, not an owner. */
 type LoadUserSettingsOp = (userId: UserId) => Promise<UserSettings>;
 
@@ -57,6 +62,7 @@ export interface ConnectionContext {
 
   readonly fetchOrCatalog: FetchOrCatalogOp;
   readonly fetchAgentSdkModels: FetchAgentSdkModelsOp;
+  readonly fetchVllmGenWindow: FetchVllmGenWindowOp;
   readonly loadUserSettings: LoadUserSettingsOp;
 
   readonly verifyClaudeAuth: VerifyClaudeAuthOp;

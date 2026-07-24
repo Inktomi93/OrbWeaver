@@ -88,7 +88,11 @@ test("a seed offers Customize; an owned theme offers Edit + Delete", async ({ mo
 });
 
 test("Delete does not destroy immediately — it opens an AlertDialog confirm (F4)", async ({ mount, page }) => {
-  await stub(page);
+  const trpc = await routeTrpc(page, {
+    "settings.listThemes": () => THEMES,
+    "settings.getUserSettings": () => SETTINGS_VIEW,
+    "settings.removeTheme": () => ({}),
+  });
   const component = await mount(<ThemePickerStory />);
   await component.getByRole("button", { name: "My Theme actions" }).click();
   await page.getByRole("menuitem", { name: "Delete" }).click();
@@ -96,4 +100,9 @@ test("Delete does not destroy immediately — it opens an AlertDialog confirm (F
   await expect(page.getByRole("alertdialog")).toBeVisible();
   await expect(page.getByText("Delete this theme?")).toBeVisible();
   await expect(page.getByRole("button", { name: "Cancel" })).toBeVisible();
+  // The NEGATIVE half of the title's claim, pinned (assertion-quality audit 2026-07-24): the confirm
+  // being open is not proof nothing fired — assert ZERO removeTheme calls until a real confirm.
+  // ONESHOT-OK: reads AFTER the awaited alertdialog assertions settled the surface; a zero can only
+  // false-pass if the mutation fires later, which the still-open confirm makes impossible.
+  expect(trpc.count("settings.removeTheme")).toBe(0);
 });

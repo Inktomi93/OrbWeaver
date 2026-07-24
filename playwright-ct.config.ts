@@ -34,11 +34,26 @@ export default defineConfig({
   // `CT_NO_FLAKES=1` (this config owns env-decode) flips it STRICT → nonzero exit on any retried test, for
   // the orchestrator's flake-hunt passes.
   reporter: [
+    // json = machine-readable results — extracting the 2 failing names from a 1211-test run without it
+    // cost two full re-runs (2026-07-24); the custom flake announcer stays the human-facing summary.
+    ["json", { outputFile: "reports/ct-report.json" }],
     ["html", { outputFolder: "reports/ct-report", open: "never" }],
     ["./scripts/verify/ct-flaky-reporter.ts", { strict: process.env.CT_NO_FLAKES === "1" }],
   ],
   use: {
+    // trace stays on-first-retry for CTs (NOT retain-on-failure): always-on trace RECORDING (retention is
+    // the only conditional part) instruments network enough to change component behavior — repro:
+    // message-content.ct "external image LOADS" renders its media slot only while a dead-domain request
+    // PENDS; under tracing the error fires first and the test reds (2026-07-24 bisect). Failure
+    // diagnosis for CTs rides the screenshot + a fast re-run; e2e (no such pattern, serial, slow to
+    // re-run) keeps retain-on-failure in its own config.
     trace: "on-first-retry",
+    screenshot: "only-on-failure",
+    // Determinism: component date/locale rendering must not depend on the host machine (bisect-cleared
+    // of the trace interaction above).
+    timezoneId: "UTC",
+    locale: "en-US",
+
     // Parameterized so parallel CI port-shards don't collide on the CT dev server.
     ctPort: Number(process.env.CT_PORT ?? CT_PORT),
     ctViteConfig: {

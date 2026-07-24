@@ -7,7 +7,14 @@
 // the inputs/buttons use getByLabel/getByRole.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { BoundaryArrayOpsStory, BoundaryCleanEchoStory, BoundaryIdentitySwitchStory, BoundaryReseedStory, BoundaryStatusStory } from "./_ct-stories";
+import {
+  BoundaryArrayOpsStory,
+  BoundaryBrickHealStory,
+  BoundaryCleanEchoStory,
+  BoundaryIdentitySwitchStory,
+  BoundaryReseedStory,
+  BoundaryStatusStory,
+} from "./_ct-stories";
 
 // CT-1 — identity switch renders the NEW entity (the F1 P0: the preset editor showed A under B). The
 // boundary keys its Session by entityId, so flipping entityId is a full teardown/remount seeded from B's
@@ -114,4 +121,21 @@ test("CT-6: a server echo re-baselines a clean form but is kept out of a dirty o
   await page.getByRole("button", { name: "dirty echo" }).click();
   await page.evaluate(() => new Promise<void>((resolve) => setTimeout(resolve, 200)));
   await expect(page.getByLabel("Echo text")).toHaveValue("my local edit");
+});
+
+// CT-7/CT-8 — the localStorage-brick fix (retro-workboard #11). The store is PRE-SEEDED with a poisoned
+// draft (values mismatch the server, baseline hash stale). The mount MUST discard it: the field heals to
+// SERVER truth (CT-7), and ZERO saves fire without any user input (CT-8, the resurrection guard). Old
+// behavior showed the stale draft as "saved" and resurrected it onto the server on first touch.
+test("CT-7/CT-8: a poisoned draft is discarded on mount — field heals to server, zero saves fire", async ({ mount, page }) => {
+  await mount(<BoundaryBrickHealStory />);
+
+  // CT-7: the field shows SERVER truth, not the stale draft (the whole brick defect).
+  await expect(page.getByLabel("Brick text")).toHaveValue("server truth");
+  await expect(page.getByLabel("Brick text")).not.toHaveValue("STALE DRAFT (should never show)");
+
+  // CT-8: no user input has occurred — a macrotask boundary gives any (buggy) mount-time resurrection
+  // save every chance to fire; the count must stay exactly 0.
+  await page.evaluate(() => new Promise<void>((resolve) => setTimeout(resolve, 300)));
+  await expect(page.getByTestId("brick-count")).toHaveText("0");
 });

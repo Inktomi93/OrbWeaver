@@ -24,6 +24,7 @@ import { DomainNoCredentialError } from "../../../../packages/kit/src/errors/ind
 import type { Handle, UserCredentialId, UserId } from "../../../../packages/kit/src/ids/index.ts";
 import { castId } from "../../../../packages/kit/src/ids/index.ts";
 import type { ConnectionContext } from "../../../../packages/server/src/domain/connection/context.ts";
+import { __resetVllmGenWindowCache } from "../../../../packages/server/src/domain/connection/substrate/vllm-gen-window-cache.ts";
 import type { Clock } from "../../../support/clock.ts";
 import { createFrozenClock } from "../../../support/clock.ts";
 import { principal as makePrincipal } from "../../../support/factories/principal.ts";
@@ -75,6 +76,9 @@ export interface ConnHarness {
   /** Toggle the boot vLLM-availability fact the resolver reads (default `true`). `false` drives the
    *  no-GPU derive fallback (embed/rerank/imageEmbed vllm → local-light). */
   readonly setVllmAvailable: (available: boolean) => void;
+  /** Set the window the faked `fetchVllmGenWindow` returns (the gen engine's self-reported max_model_len);
+   *  default `null` (engine unreachable ⇒ the resolver falls back to the env-owned window). */
+  readonly setVllmGenWindow: (window: number | null) => void;
   /** Every `source` the resolver asked `resolveCredential` for — proves the selection routed to it. */
   readonly credentialCalls: CredentialSource[];
   /** Every request `testClaudeAuth` handed the faked `verifyClaudeAuth` diagnostic. */
@@ -83,11 +87,16 @@ export interface ConnHarness {
 
 /** Build a ConnectionContext over a real db with the three injected ops faked + a frozen clock. */
 export function makeConnHarness(db: Db): ConnHarness {
+  // The gen-window cache is module-scope + per-process; the frozen clock means its TTL never expires within
+  // a run, so a test that warms it (setVllmGenWindow → resolveRole on vllm) would leak into the next. Reset
+  // per-harness so each test starts cold (the resolver falls back to the env window until it re-warms).
+  __resetVllmGenWindowCache();
   const clock = createFrozenClock();
   let roleDefaults: RoleDefaults = DEFAULT_USER_SETTINGS.routing.roleDefaults;
   let orCatalog: ModelCatalogEntry[] = [];
   let agentSdkCatalog: AgentSdkModel[] = [];
   let vllmAvailable = true;
+  let vllmGenWindow: number | null = null;
   const noCredentialSources = new Set<CredentialSource>();
   const credentialCalls: CredentialSource[] = [];
   const verifyCalls: { readonly source: CredentialSource; readonly model: string }[] = [];
@@ -104,6 +113,7 @@ export function makeConnHarness(db: Db): ConnHarness {
     },
     fetchOrCatalog: () => Promise.resolve([...orCatalog]),
     fetchAgentSdkModels: () => Promise.resolve([...agentSdkCatalog]),
+    fetchVllmGenWindow: () => Promise.resolve(vllmGenWindow),
     loadUserSettings: () => Promise.resolve({ ...DEFAULT_USER_SETTINGS, routing: { roleDefaults } }),
     // apiKeySource: "none" signals host login active (contract/service.ts).
     verifyClaudeAuth: ({ credential, model }) => {
@@ -157,6 +167,9 @@ export function makeConnHarness(db: Db): ConnHarness {
     },
     setVllmAvailable: (available: boolean): void => {
       vllmAvailable = available;
+    },
+    setVllmGenWindow: (window: number | null): void => {
+      vllmGenWindow = window;
     },
     credentialCalls,
     verifyCalls,

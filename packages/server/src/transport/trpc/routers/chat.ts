@@ -246,6 +246,14 @@ const getShapeTraceSchema = z.object({
   speakerCharacterId: brandedId<CharacterId>().nullish(),
 });
 
+// `previewContextFit` (PD-#7) — the present-tense fit budget for the current canon (the transcript divider's
+// live source). Member-gated (`requireParticipant`) INSIDE the verb (matrix `previewContextFit: "member"`);
+// reads tenant canon by chatId, so the cross-tenant sweep classifies it PROBED.
+const previewContextFitSchema = z.object({
+  chatId: brandedId<ChatId>(),
+  speakerCharacterId: brandedId<CharacterId>().nullish(),
+});
+
 // `setChatInjection` upserts (id present ⇒ update, absent ⇒ create); the contracts schema owns the
 // authored fields (position/depth/role/content/order + the optional id), the router adds the chatId.
 const setChatInjectionSchema = chatInjectionInputSchema.extend({
@@ -393,6 +401,9 @@ export const chatRouter = t.router({
   previewAssembly: authedProcedure.input(previewAssemblySchema).query(({ ctx, input }) => ctx.services.chat.previewAssembly({ principal: ctx.auth, ...input })),
   // The content-free SHAPE trace (PD-132) — a host/admin inspector read (`requireHost` INSIDE the verb).
   getShapeTrace: authedProcedure.input(getShapeTraceSchema).query(({ ctx, input }) => ctx.services.chat.getShapeTrace({ principal: ctx.auth, ...input })),
+  previewContextFit: authedProcedure
+    .input(previewContextFitSchema)
+    .query(({ ctx, input }) => ctx.services.chat.previewContextFit({ principal: ctx.auth, ...input })),
   setChatInjection: authedProcedure
     .input(setChatInjectionSchema)
     .mutation(({ ctx, input }) => ctx.services.chat.setChatInjection({ principal: ctx.auth, ...input })),

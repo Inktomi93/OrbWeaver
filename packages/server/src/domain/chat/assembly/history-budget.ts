@@ -11,6 +11,7 @@
 // §8 cache breakpoint is an OFFSET-FROM-END, so a front-drop here preserves it structurally — no
 // retagging needed. Token counting via the kit estimator (advisory; truth is provider `usage`).
 
+import { DEFAULT_MAX_OUTPUT_TOKENS } from "@orb/contracts/preset";
 import type { MessageId } from "@orb/kit/ids";
 import { estimateTokens } from "@orb/kit/tokens";
 
@@ -43,30 +44,81 @@ interface FitResult {
    *  divider at. `null` when nothing was dropped, or the fit-pass never ran, or no kept turn carries an
    *  id (a hand-built/preview call with bare `{role,content}` rows). */
   readonly earliestKeptMessageId: MessageId | null;
+  /** The kept history's estimated token cost (message content + per-message overhead) — the "N used" the
+   *  preview budget renders. Zero when there is no history. */
+  readonly usedTokens: number;
+  /** The effective ceiling the fit resolved against — `min(window, softMax)`, or `null` when neither is
+   *  finite (no trustworthy ceiling ⇒ no trim). */
+  readonly ceilingTokens: number | null;
 }
 
 // Per-message wire overhead (role markers the estimator doesn't see) + estimator-slop headroom.
 const PER_MESSAGE_OVERHEAD = 4;
 const SAFETY_MARGIN = 64;
 
+/** The materialized output reserve — the EFFECTIVE `max_tokens` the runner sends AND the fit reserves, one
+ *  value so the two can't diverge (the pipeline's `materializeMaxOutput` + `fitBudget.reserveOutputTokens`
+ *  read this). Unset ⇒ the shared response-length default (NOT the model's output cap). */
+export function materializeOutputReserve(maxOutputTokens: number | undefined): number {
+  return maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS;
+}
+
+/** Build the `HistoryBudget` from the resolved knobs — the ONE fit-budget derivation the engine turn AND the
+ *  previewFit read, so the boundary can't drift between them. `windowTokens` = the model's window;
+ *  `maxContextTokens` = the user's soft cap (undefined ⇒ the window is the ceiling); the reserve is
+ *  materialized from `maxOutputTokens`; `systemTokens` = the assembled system-prompt cost. */
+export function buildHistoryBudget(args: {
+  readonly windowTokens: number;
+  readonly maxContextTokens: number | undefined;
+  readonly maxOutputTokens: number | undefined;
+  readonly systemTokens: number;
+}): HistoryBudget {
+  return {
+    windowTokens: args.windowTokens,
+    softMaxTokens: args.maxContextTokens,
+    reserveOutputTokens: materializeOutputReserve(args.maxOutputTokens),
+    systemTokens: args.systemTokens,
+  };
+}
+
 /**
  * Trim `history` (oldest-first) so that `system + history + reservedOutput` fits the effective context
  * ceiling. The ceiling is the smaller of the model window and the user's soft cap; when neither is known
- * the history is returned untouched (we never trim blind). The most recent turn is always kept — even if
- * it alone exceeds the budget (an irreducible single oversized message; the caller may warn, but we
- * never silently drop the user's current turn).
+ * the history is returned untouched (we never trim blind). The IRREDUCIBLE TAIL — the newest id-bearing
+ * turn and everything after it — is always kept, even when it alone exceeds the budget (the caller may
+ * warn, but we never silently drop the user's current turn). Trailing id-less rows are shape synthetics
+ * (continuation/group nudge, depth-0 injections) riding the turn they follow: anchoring the guarantee on
+ * the newest ROW instead would, under a blown budget, keep only the nudge and drop the real message —
+ * and leave the preview's boundary unnameable (no kept row carries an id).
  */
 export function fitHistoryToWindow(history: readonly HistoryTurn[], budget: HistoryBudget): FitResult {
   const ceiling = Math.min(budget.windowTokens ?? Number.POSITIVE_INFINITY, budget.softMaxTokens ?? Number.POSITIVE_INFINITY);
-  // No trustworthy ceiling → don't trim (e.g. custom-openai with no knob set).
+  const cost = (t: HistoryTurn): number => estimateTokens(t.content) + PER_MESSAGE_OVERHEAD;
+  // No trustworthy ceiling → don't trim (e.g. custom-openai with no knob set). Still report the full cost so
+  // a preview shows honest usage even when nothing can be dropped.
   if (!Number.isFinite(ceiling)) {
-    return { history: [...history], droppedCount: 0, earliestKeptMessageId: null };
+    return {
+      history: [...history],
+      droppedCount: 0,
+      earliestKeptMessageId: null,
+      usedTokens: history.reduce((sum, t) => sum + cost(t), 0),
+      ceilingTokens: null,
+    };
   }
 
   const promptBudget = ceiling - budget.systemTokens - budget.reserveOutputTokens - SAFETY_MARGIN;
-  const cost = (t: HistoryTurn): number => estimateTokens(t.content) + PER_MESSAGE_OVERHEAD;
 
-  // Walk newest→oldest. The newest turn is always kept regardless of budget (irreducible).
+  // The irreducible-tail anchor: the newest id-bearing turn (falling back to the newest row when no row
+  // carries an id — hand-built histories keep the old newest-row guarantee).
+  let irreducibleFrom = history.length - 1;
+  for (let i = history.length - 1; i >= 0; i--) {
+    if (history[i]?.messageId !== undefined) {
+      irreducibleFrom = i;
+      break;
+    }
+  }
+
+  // Walk newest→oldest. Rows at/after the anchor are always kept regardless of budget (irreducible).
   let used = 0;
   let keepFrom = history.length; // index of the oldest KEPT turn
   for (let i = history.length - 1; i >= 0; i--) {
@@ -75,8 +127,7 @@ export function fitHistoryToWindow(history: readonly HistoryTurn[], budget: Hist
       continue;
     }
     const next = used + cost(turn);
-    const isNewest = i === history.length - 1;
-    if (next > promptBudget && !isNewest) {
+    if (next > promptBudget && i < irreducibleFrom) {
       break;
     }
     used = next;
@@ -84,12 +135,14 @@ export function fitHistoryToWindow(history: readonly HistoryTurn[], budget: Hist
   }
 
   if (keepFrom === 0) {
-    return { history: [...history], droppedCount: 0, earliestKeptMessageId: null };
+    return { history: [...history], droppedCount: 0, earliestKeptMessageId: null, usedTokens: used, ceilingTokens: ceiling };
   }
   const kept = history.slice(keepFrom);
   return {
     history: kept,
     droppedCount: keepFrom,
     earliestKeptMessageId: kept.find((t) => t.messageId !== undefined)?.messageId ?? null,
+    usedTokens: used,
+    ceilingTokens: ceiling,
   };
 }

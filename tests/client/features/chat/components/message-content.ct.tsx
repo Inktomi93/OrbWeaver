@@ -67,7 +67,12 @@ test("GUARDRAIL: an external image is GATED (click-to-load, no auto-fetch) when 
   await expect(component.locator("img")).toHaveCount(0);
 });
 
-test("an external image LOADS (renders an <img>) when allowExternal=true", async ({ mount }) => {
+test("an external image LOADS (renders an <img>) when allowExternal=true", async ({ mount, page }) => {
+  // Serve a REAL 1x1 png for the fixture URL: without interception the dead cdn.example request's
+  // pending-vs-error timing decided the outcome (green only while the request PENDED — it flipped
+  // under trace instrumentation and full-suite parallelism, 2026-07-24). Now "LOADS" means loads.
+  const PixelPng = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64");
+  await page.route("https://cdn.example/ok.png", (route) => route.fulfill({ contentType: "image/png", body: PixelPng }));
   const component = await mount(<MessageContentSpansStory trust="untrusted" allowExternal={true} content="look ![ok](https://cdn.example/ok.png) here" />);
   await expect(component.locator('[data-slot="message-media"]')).toHaveCount(1);
   await expect(component.locator('[data-slot="message-media-placeholder"]')).toHaveCount(0);
