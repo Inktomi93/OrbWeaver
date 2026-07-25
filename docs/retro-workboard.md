@@ -47,8 +47,15 @@ layout decisions: consolidated 4-tab strip, labeled talkativeness, reduced panel
 → fix BROKEN → next phase. Do not stop for check-ins between phases; UGLY keeps accruing to the
 facelift list. Phase order: guided P1 (LAUNCHED, 4 lanes incl. CP-1/CP-2) → guided e2e → side-eye →
 Phase 2 greeting studio → side-eye → then the queued remainder.**
-· **PHASE 1 (3 path-disjoint lanes + e2e; LAUNCHED 2026-07-25 together with CP-1/CP-2 — owner "both
-  launch them all"):** Lane A server/assembly = steer→WI haystack (F4, one-arg) + marker-absent-steer
+· **PHASE 1 + CP-1/CP-2: ✅ COMMITTED `36d0b128`** (all 4 lanes + integration: typed ChatContextTabId
+  in lib/registry-contracts (no-inline-types + a dep cycle forced the home) · ChatContextHeader deleted
+  for knip · the __g_/__dc_ probe-strip w/ ORB_GATE_FIXTURES escape (proven both ways) · scoped-lane +
+  read-the-artifacts doctrine into AGENTS.md §4 + agent-doctrine.md). Battery at commit: check PASS ·
+  7232/0 vitest · CT 0-flaky · integrity/errors clean. **GUIDED E2E LANE RUNNING** (guided-generations
+  .spec.ts: steer→assembly · rewrite-as-variant · undo/revert round-trip · steer+speaker; server-truth
+  instruments). **NEXT per the loop: Opus side-eye verify** of the wave's surfaces (judge against
+  Context-Panel-Program.md §1 end state + the guided wand flows), then Phase 2 greeting studio.
+  The original launch record: Lane A server/assembly = steer→WI haystack (F4, one-arg) + marker-absent-steer
   → depth-0-injection fallback (the recovered plan's refinement, attaches to F8). Lane B client
   composer/wand (ONE lane, shared files) = rewrite fire surface (F1, client-only over swipe+guided) +
   D57 input-recovery ring/restore-on-error (F3) + steer+speaker (F5) + F8 preset-card honesty. Lane C

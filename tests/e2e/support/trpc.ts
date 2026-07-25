@@ -66,6 +66,14 @@ export interface CanonMessage {
   /** The selected variant's prompt token count — the SHRINKAGE instrument (a post-compaction turn's tokensIn
    *  drops below the pre-compaction peak because covered turns fall out of the prompt). Null on a user row. */
   readonly tokensIn: number | null;
+  /** Total variants for this slot (1 = single generation) — the guided-rewrite/swipe "correction-as-variant"
+   *  instrument (a rewrite appends a variant, so this grows +1 while round-mates stay put). */
+  readonly variantCount: number;
+  /** Which swipe is shown (the selected variant's idx) — a fresh rewrite selects the new (last) variant. */
+  readonly selectedVariantIdx: number;
+  /** The SELECTED variant carries a continue snapshot (a continue has run on this swipe) — the undo/revert
+   *  phase-gate instrument (Leg 3): false ⇒ the ⋯ items disable with reason; true ⇒ both are live. */
+  readonly hasContinuation: boolean;
 }
 
 /** The `chat.listMessages` page (subset) — chronological canon (`messages` ordered by seq ascending). */
@@ -435,10 +443,39 @@ export function swipeMessage(chatId: string, messageId: string): Promise<unknown
   return trpcMutation("chat.swipe", { chatId, messageId, intent: { maxOutputTokens: GROUP_TURN_MAX_OUTPUT_TOKENS } });
 }
 
+/** One variant's identity + position (`chat.listMessageVariants`) — idx-ordered, NO content. The pointer
+ *  `selectVariant` moves by. (Module-local: consumed via `firstVariantId`/`countMessageVariants`;
+ *  export only with a real spec consumer — an unwired kit export reds knip.) */
+interface VariantSummary {
+  readonly variantId: string;
+  readonly idx: number;
+}
+
 /** How many variants one message slot carries (`chat.listMessageVariants`) — a swiped slot grows, its
  *  round-mates do not. */
 export async function countMessageVariants(chatId: string, messageId: string): Promise<number> {
   return (await trpcQuery<readonly unknown[]>("chat.listMessageVariants", { chatId, messageId })).length;
+}
+
+/** All variant summaries for a slot, idx-ascending (`chat.listMessageVariants`). */
+function listMessageVariants(chatId: string, messageId: string): Promise<readonly VariantSummary[]> {
+  return trpcQuery<readonly VariantSummary[]>("chat.listMessageVariants", { chatId, messageId });
+}
+
+/** The FIRST (idx 0, original) variant id of a slot — the "original intact" comparand for the rewrite leg. */
+export async function firstVariantId(chatId: string, messageId: string): Promise<string> {
+  const variants = await listMessageVariants(chatId, messageId);
+  const first = variants.find((v) => v.idx === 0) ?? variants[0];
+  if (first === undefined) {
+    throw new Error(`e2e: slot ${messageId} has no variants`);
+  }
+  return first.variantId;
+}
+
+/** Move a slot's SELECTED-variant pointer (`chat.selectVariant`) — a pure pointer move (no generation),
+ *  so stepping back to idx 0 proves the original variant survived a rewrite intact. */
+export function selectVariant(chatId: string, messageId: string, variantId: string): Promise<unknown> {
+  return trpcMutation("chat.selectVariant", { chatId, messageId, variantId });
 }
 
 /** The chat's ASSISTANT canon rows in seq order — the arbitration transcript every mode assertion reads
@@ -452,4 +489,61 @@ export async function assistantTurns(chatId: string): Promise<readonly CanonMess
  *  roster member), which is exactly what distinguishes it. */
 export async function speakerSequence(chatId: string): Promise<readonly (string | null)[]> {
   return (await assistantTurns(chatId)).map((m) => m.characterId);
+}
+
+// ── GUIDED-GENERATIONS support (guided-generations.spec.ts). Every guided leg's ground truth is SERVER
+// canon, read through these — the DOM is only ever the second witness (behavior + data-flow, never layout).
+// `previewAssembly` is the honest pre-turn instrument for "the steer shaped the assembly": it routes a
+// `guided` steer through the SAME gather→build a real turn gets and returns the assembled prompt + trace,
+// so the steer text is assertable BEFORE (and without) any generation (read.int.test.ts:598 is the domain
+// twin of this). The wire subset shapes are declared locally (the e2e support tree stays import-free of the
+// package trees — the CanonMessage posture). ──
+
+/** The assembled-prompt subset of `previewAssembly` (the fields the steer-shape leg reads). `dynamic` is the
+ *  per-turn suffix a guided steer lands in (the domain twin asserts the steer text THERE); `static` is the
+ *  cache-stable prefix; `afterHistory` the in-chat injections. `trace.guidedInstructionIncluded` is the
+ *  boolean witness the steer actually reached the build. */
+export interface AssemblyPreview {
+  readonly prompt: {
+    readonly static: string;
+    readonly dynamic: string;
+    readonly afterHistory: readonly { readonly content: string }[];
+  };
+  readonly trace: { readonly guidedInstructionIncluded: boolean };
+}
+
+/** One guided steer as the wire schema (`guidedSteerSchema`) accepts it — the same typed shape the composer
+ *  wand sends on a real turn. `action` stays `string` (the no-inline-union-redecl posture); the spec passes
+ *  the homed literal (`"response"`). */
+export interface GuidedSteerInput {
+  readonly action: string;
+  readonly input: string;
+}
+
+/** Build the assembled prompt for a hypothetical turn, optionally with a guided steer routed through the
+ *  SAME gather→build a real turn runs (`chat.previewAssembly` — host-only; single-user AUTH_MODE is host).
+ *  The pre-turn "did the steer shape the assembly" instrument (no generation, nothing persists). */
+export function previewAssembly(chatId: string, guided?: GuidedSteerInput): Promise<AssemblyPreview> {
+  return trpcQuery<AssemblyPreview>("chat.previewAssembly", { chatId, ...(guided === undefined ? {} : { guided }) });
+}
+
+/** The whole assembled prompt text (static + dynamic + every in-chat injection's content) as ONE string —
+ *  the steer can land in the dynamic suffix OR an in-chat injection depending on the preset's placement, so
+ *  a containment assertion over the union is the placement-agnostic instrument. */
+export function assembledPromptText(preview: AssemblyPreview): string {
+  return [preview.prompt.static, preview.prompt.dynamic, ...preview.prompt.afterHistory.map((i) => i.content)].join("\n");
+}
+
+/** One canon message by id (undefined if absent) — the per-slot instrument for the variant/continuation
+ *  legs (a rewrite grows THIS slot's `variantCount`; a continue flips THIS slot's `hasContinuation`/content). */
+export async function canonMessage(chatId: string, messageId: string): Promise<CanonMessage | undefined> {
+  return (await listCanon(chatId)).find((m) => m.id === messageId);
+}
+
+/** The tail assistant canon row (the wand's swipe/continue/rewrite target), or undefined on an empty/
+ *  user-tail transcript. A greeting-seeded solo chat has this from `startChat` alone — no model turn. */
+export async function tailAssistant(chatId: string): Promise<CanonMessage | undefined> {
+  const rows = await listCanon(chatId);
+  const tail = rows.at(-1);
+  return tail?.role === "assistant" ? tail : undefined;
 }
