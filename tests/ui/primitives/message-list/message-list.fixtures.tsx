@@ -330,6 +330,49 @@ export function TailGrowthList({ initialCount, rowHeightPx, listHeightPx }: Appe
   );
 }
 
+interface PinPromptListProps {
+  readonly count: number;
+  readonly rowHeightPx: number;
+  readonly listHeightPx: number;
+  /** The index the "pin" button pins to the viewport top (the just-sent prompt in the real consumer). */
+  readonly pinIndex: number;
+  /** Defaults to the mode under test; `follow` mounts the SAME fixture to prove pinToIndex is inert there. */
+  readonly scrollMode?: "follow" | "pin-prompt";
+}
+
+/**
+ * The PD-147 `pin-prompt` shape: a "pin" button calls the handle's `pinToIndex(pinIndex)`, scrolling that
+ * row to the viewport TOP. Pinning the LAST index exercises the bottom spacer (`paddingEnd`) — without it
+ * virtual-core clamps the scroll and a near-end row cannot reach the top.
+ */
+export function PinPromptList({ count, rowHeightPx, listHeightPx, pinIndex, scrollMode = "pin-prompt" }: PinPromptListProps): ReactElement {
+  const [items] = useState<FixtureItem[]>(() => makeItems(count));
+  const handleRef = useRef<MessageListHandle>(null);
+  return (
+    <div>
+      <button type="button" data-testid="pin" onClick={(): void => handleRef.current?.pinToIndex(pinIndex)}>
+        pin
+      </button>
+      {/* The "jump to latest" path (PD-147): an explicit scrollToEnd while pinned must abandon the pin
+          (clear the spacer) and land on the LAST REAL row, not the trailing spacer void. */}
+      <button type="button" data-testid="jump" onClick={(): void => handleRef.current?.scrollToEnd()}>
+        jump
+      </button>
+      <div style={{ height: listHeightPx }}>
+        <MessageList
+          ref={handleRef}
+          scrollMode={scrollMode}
+          items={items}
+          getItemKey={(item): string => item.id}
+          estimateSize={(): number => rowHeightPx}
+          renderItem={(item): ReactElement => <div style={{ height: rowHeightPx }}>{item.label}</div>}
+          className="h-full"
+        />
+      </div>
+    </div>
+  );
+}
+
 /**
  * Proves `useCachedMeasurements`'s exact semantics verified from `virtual-core`'s shipped source
  * (see the prop's own doc in `message-list.tsx`): while frozen, a REAL DOM resize of row 0 is

@@ -70,6 +70,16 @@ test("auto-swipe detail fields are gated behind the auto-swipe toggle", async ({
   await expect(page.getByRole("textbox", { name: "Blacklisted phrases" })).toBeVisible();
 });
 
+test("stream scroll mode: picking Pin patches streamScrollMode=pin-prompt (PD-147)", async ({ mount, page }) => {
+  const trpc = await stub(page);
+  await mount(<ChatBehaviorSettingsStory />);
+  // Defaults to Follow.
+  await expect(page.getByRole("combobox", { name: "While a reply streams" })).toContainText("Follow the reply");
+  await page.getByRole("combobox", { name: "While a reply streams" }).click();
+  await page.getByRole("option", { name: "Pin my message to the top" }).click();
+  await expect.poll(() => lastPatch(trpc)?.["streamScrollMode"], { intervals: [20, 50, 100] }).toBe("pin-prompt");
+});
+
 test("smooth-stream reveal speed is gated behind the smooth-streaming toggle, then patches smoothStream", async ({ mount, page }) => {
   const trpc = await stub(page);
   await mount(<ChatBehaviorSettingsStory />);

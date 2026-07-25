@@ -10,6 +10,7 @@
     "./autocomplete": "./src/primitives/autocomplete/index.ts",
     "./avatar": "./src/primitives/avatar/index.ts",
     "./avatar-stack": "./src/primitives/avatar-stack/index.ts",
+    "./background-video": "./src/primitives/background-video/index.ts",
     "./badge": "./src/primitives/badge/index.ts",
     "./bar-list": "./src/charts/bar-list/index.ts",
     "./button": "./src/primitives/button/index.ts",

@@ -6,6 +6,7 @@
 // chip + archive toggles are NOT separate verbs — they ride `character.update` (a partial patch: send only
 // the changed key). Bulk verbs invalidate the same way. TVars are the tRPC-INFERRED inputs.
 
+import type { ThemeBackground } from "@orb/contracts/theme";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
@@ -39,14 +40,15 @@ export const useUpdateCharacter = createEntityMutation<inferInput<Trpc["characte
       if (old === undefined) {
         return old;
       }
-      const { starred, archived } = vars.input;
-      if (starred === undefined && archived === undefined) {
+      const { starred, archived, backgroundOverride } = vars.input;
+      if (starred === undefined && archived === undefined && backgroundOverride === undefined) {
         return old;
       }
       return {
         ...old,
         ...(starred === undefined ? {} : { starred }),
         ...(archived === undefined ? {} : { archived }),
+        ...(backgroundOverride === undefined ? {} : { backgroundOverride: backgroundOverride as ThemeBackground | null }),
       };
     },
   },

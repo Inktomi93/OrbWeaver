@@ -64,7 +64,7 @@ const CHAT_CONTEXT_TABS: readonly ContextTabDef<ChatContextState>[] = [
     label: "Overrides",
     body: (s) =>
       s.phase === "committed" ? (
-        <RoomOverridesTab chatId={s.chatId} roomOverrides={s.roomOverrides} isHost={s.isHost} />
+        <RoomOverridesTab chatId={s.chatId} roomOverrides={s.roomOverrides} isHost={s.isHost} background={s.background} />
       ) : (
         <DraftOverridesTabBody draftKey={s.draftKey} />
       ),

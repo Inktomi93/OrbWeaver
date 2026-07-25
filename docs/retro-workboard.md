@@ -8,6 +8,52 @@
 
 ## ═══ RESUME-HERE STATUS (2026-07-24 late, compaction-survival — read THIS first) ═══
 
+### ═══ OWNER CHECK-IN RULINGS (2026-07-24, latest — these supersede) ═══
+1. **Member-menu doctrine fork → KEEP §8.1 OMIT.** Host-only actions stay HIDDEN for non-hosts (all 7
+   incl. the new Remove). "No omissions ever" [[no-separate-reduced-modes]] is about PHASE-GATING (draft →
+   committed), NOT PERMISSION gating. No work; do not re-litigate. Memory amended with the scope limit.
+2. **#12 held trio → DO ALL THREE**, with a hard guard: **"make sure not to bring back sprites or vn mode."**
+   3 lanes DISPATCHED (PD-147 · BG-C/V · section-hint). ⚠️ MAIN STILL HAS THE PURGED SURFACE:
+   `packages/client/src/features/expressions/` = `expression-stage.tsx` (the VN stage), `sprite-grid.tsx`,
+   `sprite-sheet-cta.tsx`. **BG-C/V is the highest-risk lane** — in main, VN mode composites SPRITES OVER A
+   BACKGROUND, so main's background layer may be coupled to the expression stage; that coupling must be
+   STRIPPED, background layer stands alone. Every lane was told to grep its OWN diff for
+   expression/sprite/vn/pose/rpg before finishing. Retro is otherwise clean (only a harmless
+   `spriteSheetOps` naming analogy in a services.ts COMMENT).
+3. **Promotion to main → HOLD.** Still armed, no git surgery.
+4. **Next verification → MULTI-HUMAN LIVE DRIVE** (dispatched). Needs `AUTH_MODE=local` (stack.sh pins with
+   `:=` so a host export wins; dev SESSION_SECRET/LOCAL_INITIAL_PASSWORD already pinned for exactly this)
+   + the `localMultiUser` runtime AppSetting (gates `multiHumanProcedure`, which NOT-FOUNDs every invite
+   surface while false). 2nd human joins by INVITE ONLY (no addHuman mutation by design). Lane must restore
+   AUTH_MODE=single-user when done.
+
+### ═══ POST-CHECK-IN RESULTS (uncommitted at time of writing — lanes still landing) ═══
+**MULTI-HUMAN LIVE DRIVE — ALL 6 POINTS PROVEN** (3 real identities alice/bob/carol, `AUTH_MODE=local` +
+`localMultiUser`, an ISOLATED 2nd server on :8790 w/ own DB so the owner's stack was never touched; engines
+ADOPTED not spawned — PIDs verified unchanged; `costUsd:0`, engine counter 628→630 = local vLLM only).
+Proven: invite→redeem seats a human · bob's stream gets alice's msg + the character turn (Qwen3-VL-8B, real
+tokens) · `chatsChanged` fans to bob · withhold-then-admit (stream opened pre-join stays silent, then
+admits) · **negative half CLEAN**: carol (authed non-member) 0 events, un-cookied 0 events, pre-invite reads
+404, **kick mid-stream → bob's open stream gets 0 further frames**.
+**BUG FOUND → FIX LANE RUNNING (security-executor): `joinHistoryVisibility` IS NEVER ENFORCED.** Persisted
+per-participant (`db/src/schema/chat.ts:421`, `.notNull().default("from-join")`, documented
+`contracts/src/chat/index.ts:1043` as "only from their joinSeq") but `read.ts:319-331` `createListMessages`
+never reads `joinSeq`/`joinHistoryVisibility`, and neither does the durable replay. Repro: member with
+`{joinSeq:7, visibility:"from-join"}` got seqs 1-7 incl. pre-join greetings; `lastEventId:"0"` replayed ALL
+665 durable events. Only readers anywhere = schema + roster projection + one write. NOT a membership bypass
+(only seated members read) but a declared confidentiality contract doing nothing.
+**PD-147 LANDED** (uncommitted): `streamScrollMode` is no longer a LYING NO-OP — full seam (8 src files,
+pin-spacer wholesale) + 46 CTs incl. one BEYOND main's set proving `follow` vs `pin-prompt` observably
+differ. ⚠️ **The sprite guard CAUGHT A REAL ONE**: main's `chat-behavior-settings-surface` wraps
+`<ChatBehaviorForm2/>` + **`<ExpressionsSettings/>`** — the lane dropped the ExpressionsSettings import.
+Diff sweep = 6 hits, all false positives (com**pose**r). Also deliberately did NOT take main-era
+divergences where RETRO IS AHEAD (main had DELETED `previewContextFit`/`contextBoundaryLabel`/
+`contextBoundaryCompactSummary`; diverged on toolRenderers/greeting-union) → see [[port-from-main-hunk-by-hunk]].
+**SECTION-HINT LANDED** (uncommitted): `@orb/ui` Section gains optional `hint` → info-icon Tooltip as a
+SIBLING of the h3 (never nested — keeps the heading's a11y name clean); ported byte-identical from main;
+purged grep clean; CT 4/4.
+STILL RUNNING: BG-C/V backgrounds (the sprite/VN-risk lane) · joinHistoryVisibility fix.
+
 ### ═══ OVERNIGHT AUTONOMOUS (2026-07-24 night, Fable 5) — read THIS first ═══
 
 **MISSION (owner, autonomous for the night):** DRIVE THE LIVE APP and prove behaviors, pin them as tests —

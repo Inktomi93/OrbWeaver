@@ -130,6 +130,35 @@ test("P0#1 (settle race): live→false ONE commit before the canon bump must NOT
   await expect(pillButton).toHaveAccessibleName("Jump to latest, 2 new messages");
 });
 
+test("PD-147: an armed pin-prompt pin suppresses the false pill (spacer void ≠ scrolled away)", async ({ mount }) => {
+  const component = await mount(<JumpToLatestRegressionStory />);
+  const scroll = component.locator('[data-slot="message-list-scroll"]');
+  await expect(scroll).toBeVisible();
+
+  // Scroll away so the raw geometry reads "not at tail" and the pill would normally fire on an arrival —
+  // this stands in for the pin spacer's ~viewport-tall void inflating distance-from-bottom.
+  await scroll.evaluate((el) => {
+    el.scrollTop = 0;
+    el.dispatchEvent(new Event("scroll"));
+  });
+  await expect(component.getByTestId("at-tail")).toHaveText("false");
+  await component.getByTestId("arrive").click();
+  await expect(component.locator(PILL)).not.toHaveAttribute("aria-hidden");
+
+  // Arm the pin: the surface knows the prompt is pinned + streaming, so the pill must treat the reader
+  // as at-tail (newest content is on-screen) and hide — no "N new" over visible content. The armed
+  // window also syncs the unread snapshot to the live count.
+  await component.getByTestId("toggle-pin").click();
+  await expect(component.getByTestId("at-tail")).toHaveText("true");
+  await expect(component.locator(PILL)).toHaveAttribute("aria-hidden", "true");
+
+  // Un-pin without moving: the geometry is still scrolled up (at-tail false), but the snapshot synced
+  // through the armed window, so the earlier "1 new" does NOT resurrect — the pill stays hidden.
+  await component.getByTestId("toggle-pin").click();
+  await expect(component.getByTestId("at-tail")).toHaveText("false");
+  await expect(component.locator(PILL)).toHaveAttribute("aria-hidden", "true");
+});
+
 test("P0#2: clicking the pill jumps to the tail AND hides the pill", async ({ mount }) => {
   const component = await mount(<JumpToLatestRegressionStory />);
   const scroll = component.locator('[data-slot="message-list-scroll"]');

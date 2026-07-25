@@ -1,6 +1,6 @@
 // CT: `ThemeBackgroundLayer` (D63/Phase-4b) — the fixed-position decorative-photo root layer. Pins the
 // file-header invariants at COMPUTED style, not just source text (done-not-equal-rendered):
-//   • `fit` drives `background-size` (cover/contain).
+//   • `fit` drives `background-size` (cover/contain/stretch=`100% 100%`/center=`auto`).
 //   • NEVER `background-attachment: fixed` — the component uses `position:fixed` (Tailwind `fixed`
 //     class) on the element itself, never the CSS `background-attachment` property, so the computed
 //     property must read the browser default "scroll".
@@ -22,6 +22,16 @@ test("fit=cover sets background-size: cover", async ({ mount, page }) => {
 test("fit=contain sets background-size: contain", async ({ mount, page }) => {
   await mount(<ThemeBackgroundLayer blur={8} dim={0.4} fit="contain" url="/fake.jpg" />);
   await expect(page.locator(PHOTO)).toHaveCSS("background-size", "contain");
+});
+
+test("fit=stretch fills both axes (background-size: 100% 100%)", async ({ mount, page }) => {
+  await mount(<ThemeBackgroundLayer blur={8} dim={0.4} fit="stretch" url="/fake.jpg" />);
+  await expect(page.locator(PHOTO)).toHaveCSS("background-size", "100% 100%");
+});
+
+test("fit=center paints natural size (background-size: auto)", async ({ mount, page }) => {
+  await mount(<ThemeBackgroundLayer blur={8} dim={0.4} fit="center" url="/fake.jpg" />);
+  await expect(page.locator(PHOTO)).toHaveCSS("background-size", "auto");
 });
 
 test("never background-attachment: fixed (position:fixed, not bg-attachment)", async ({ mount, page }) => {

@@ -14,7 +14,7 @@ import { MessageList } from "@orb/ui/message-list";
 import { Text } from "@orb/ui/text";
 import { useQuery, useSuspenseQueries } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import type { ChatBusDeps } from "#data";
 import { QueryBoundary, QueryErrorState, SkeletonRows, useChatBus, useTRPC } from "#data";
 import type { ChatSurfaceContribution, ContributorRegistry } from "#lib";
@@ -28,7 +28,7 @@ import { useChatBehaviorPrefs } from "../hooks/use-chat-behavior-prefs";
 import { useChatStyle } from "../hooks/use-chat-style";
 import { useJumpToLatest } from "../hooks/use-jump-to-latest";
 import { useMessageAppearance } from "../hooks/use-message-appearance";
-import { messageItemKey, useMessageItems, useNewArrivalKeys } from "../hooks/use-message-items";
+import { lastUserRowIndex, messageItemKey, useMessageItems, useNewArrivalKeys } from "../hooks/use-message-items";
 import { resolveRowAttribution } from "../lib/attribution";
 import { resolveContextBoundaryMessageId } from "../lib/context-boundary";
 import type { MESSAGE_ROW_SKINS } from "../lib/message-row-variants";
@@ -133,7 +133,30 @@ function ChatThread({ chatId, chatStyle, onChatForked, surfaceContributors }: Ch
   // "am I at the tail" comes from real scroll geometry sampled at settle, not the seal's follow-intent
   // signal, which desyncs from position once virtual-core writes scrollTop during a re-measure.
   const listHandleRef = useRef<MessageListHandle>(null);
-  const jump = useJumpToLatest({ messagesCount: messages.length, live, listHandleRef });
+
+  // pin-prompt scroll mode (PD-147): on each NEW user message (a send), pin it to the viewport top and
+  // let the reply stream below. The primitive owns the pin/spacer; the surface only names which row is the
+  // prompt. The seed guard means opening a chat lands at the tail (no pin) — only a fresh send fires it.
+  const pinMode = behaviorPrefs.streamScrollMode === "pin-prompt";
+  // A pin is armed only for the live turn it was placed in — feed that to the pill so its spacer void
+  // doesn't read as "scrolled away" (the newest content is on-screen, pinned + streaming).
+  const jump = useJumpToLatest({ messagesCount: messages.length, live, pinActive: pinMode && live, listHandleRef });
+  const pinnedPromptIdRef = useRef<string | null | undefined>(undefined);
+  useEffect(() => {
+    if (!pinMode) {
+      pinnedPromptIdRef.current = undefined;
+      return;
+    }
+    const idx = lastUserRowIndex(items);
+    const row = idx >= 0 ? items[idx] : undefined;
+    const promptId = row !== undefined && row.kind === "message" ? row.view.id : null;
+    if (pinnedPromptIdRef.current === undefined || promptId === null || promptId === pinnedPromptIdRef.current) {
+      pinnedPromptIdRef.current = promptId; // seed on mount / no new prompt → never pins
+      return;
+    }
+    pinnedPromptIdRef.current = promptId;
+    listHandleRef.current?.pinToIndex(idx);
+  }, [pinMode, items]);
   const lastAssistantId = live ? null : findLastAssistantId(messages);
   // The transcript divider's PRESENT-TENSE source (PD-#7): previewContextFit runs the same fit the next real
   // turn would, so the line tracks preset/settings knob changes live (it's invalidated on canon-terminal bus
@@ -212,6 +235,7 @@ function ChatThread({ chatId, chatStyle, onChatForked, surfaceContributors }: Ch
         estimateSize={(): number => ESTIMATED_ROW_PX}
         renderItem={renderItem}
         scrollContainerRef={jump.scrollContainerRef}
+        scrollMode={behaviorPrefs.streamScrollMode}
         gapToken="block"
         // py-block: the first/last rows breathe off the topbar/composer edges instead of butting the
         // scroll container's border (12px is inside the virtualizer's overscan + isAtEnd tolerances).

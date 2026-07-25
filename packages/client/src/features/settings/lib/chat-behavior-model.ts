@@ -6,10 +6,22 @@
 // `updateUserSettingsSection("chat")` write deep-merges.
 
 import type { ChatSettings } from "@orb/contracts/settings";
+import { STREAM_SCROLL_MODES } from "@orb/contracts/settings";
+import type { SelectItems } from "@orb/ui/select";
 
 export const AUTO_SWIPE_MIN_LENGTH_MIN = 0;
 export const SMOOTH_STREAM_CPS_MIN = 15;
 export const SMOOTH_STREAM_CPS_MAX = 300;
+
+const STREAM_SCROLL_MODE_LABELS: Record<ChatSettings["streamScrollMode"], string> = {
+  follow: "Follow the reply",
+  "pin-prompt": "Pin my message to the top",
+};
+/** The scroll-mode Select options — pinned to the contract union so a typo'd value is a tsc error. */
+export const STREAM_SCROLL_MODE_ITEMS: SelectItems<string> = STREAM_SCROLL_MODES.map((value) => ({
+  value,
+  label: STREAM_SCROLL_MODE_LABELS[value],
+}));
 
 /** The flat form shape — one field per bound control; the two `string[]`s are newline-joined text. */
 export interface ChatBehaviorForm {
