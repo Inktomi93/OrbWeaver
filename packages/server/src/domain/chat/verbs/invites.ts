@@ -43,7 +43,7 @@ import {
 } from "../persistence/invites";
 import { loadChatMacroNameProducer } from "../persistence/macro-names";
 import { loadChatRow, loadMemberChat } from "../persistence/queries";
-import { loadPersonaAvatarProducer } from "../persistence/roster-avatars";
+import { loadCharacterAvatarProducer, loadPersonaAvatarProducer } from "../persistence/roster-avatars";
 import { resolveHistoryFloorSeq } from "../substrate/auth";
 import { toChatDetail } from "../substrate/chat-detail";
 
@@ -216,12 +216,14 @@ function createRedeemInvite(ctx: ChatContext, deps: InviteDeps): ChatService["re
     }
     const macroNames = await loadChatMacroNameProducer(ctx.db, { participants });
     const personaAvatars = await loadPersonaAvatarProducer(ctx.db, { participants });
+    const characterAvatars = await loadCharacterAvatarProducer(ctx.db, { participants });
     return {
       chat: toChatDetail({
         chat,
         participants,
         macroNames,
         personaAvatars,
+        characterAvatars,
         viewerUserId: principal.userId,
         // The joiner's OWN D16 floor, off the row the redeem just wrote — a `from-join` joiner must not
         // receive the compaction checkpoint (a distillation of the canon their floor withholds) on the very
@@ -277,12 +279,14 @@ function createAcceptInvite(ctx: ChatContext, deps: InviteDeps): ChatService["ac
     }
     const macroNames = await loadChatMacroNameProducer(ctx.db, { participants });
     const personaAvatars = await loadPersonaAvatarProducer(ctx.db, { participants });
+    const characterAvatars = await loadCharacterAvatarProducer(ctx.db, { participants });
     return {
       chat: toChatDetail({
         chat,
         participants,
         macroNames,
         personaAvatars,
+        characterAvatars,
         viewerUserId: principal.userId,
         // The joiner's OWN D16 floor, off the row the redeem just wrote — a `from-join` joiner must not
         // receive the compaction checkpoint (a distillation of the canon their floor withholds) on the very

@@ -580,6 +580,25 @@ export function buildPersonaAvatarMap(entries: readonly PersonaAvatarEntry[]): R
   return new Map(entries.map((e) => [e.id, e.avatarHash]));
 }
 
+/** One character AVATAR entry — the array form of a `characterAvatarsById` producer map, the assistant-
+ *  row twin of {@link PersonaAvatarEntry}. SAME coverage algorithm as {@link ChatMacroNameProducer}'s
+ *  `characterNames` (every participant's characterId UNION every stored message row's `characterId`
+ *  stamp), and — like `personaAvatars` — a DELIBERATELY SEPARATE type from the names-only macro producer.
+ *  It exists because a message's speaker CAN leave the room while its historical rows stay in the
+ *  transcript: once removed there is no `ParticipantView` to carry `avatarHash`, so the assistant-row
+ *  avatar would degrade to bare initials without this participant-independent portrait floor. Fed to
+ *  `resolveRowAttribution`'s ASSISTANT-row path as the fallback when the live participant is absent. */
+export interface CharacterAvatarEntry {
+  readonly id: CharacterId;
+  readonly avatarHash: string | null;
+}
+
+/** Rebuild the `characterAvatarsById` lookup `resolveRowAttribution` takes, from the wire array. Pure;
+ *  last-write-wins on a duplicate id (mirrors {@link buildPersonaAvatarMap}). */
+export function buildCharacterAvatarMap(entries: readonly CharacterAvatarEntry[]): ReadonlyMap<CharacterId, string | null> {
+  return new Map(entries.map((e) => [e.id, e.avatarHash]));
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 // THE CHAT STREAM DELTA + THE CHAT BUS UNION
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════

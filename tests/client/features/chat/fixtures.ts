@@ -2,7 +2,7 @@
 // a different layer). Kept OUT of _ct-stories.tsx so that module exports only components
 // (lint useComponentExportOnlyModules). Imported by the stories + the .ct.tsx assertions.
 
-import type { ChatMacroNameProducer, MessageView, PersonaAvatarEntry } from "@orb/contracts/chat";
+import type { CharacterAvatarEntry, ChatMacroNameProducer, MessageView, PersonaAvatarEntry } from "@orb/contracts/chat";
 import type { ChatId, MessageId, MessageVariantId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 
@@ -13,6 +13,7 @@ export interface MessagesPageFixture {
   readonly messages: readonly MessageView[];
   readonly macroNames: ChatMacroNameProducer;
   readonly personaAvatars: readonly PersonaAvatarEntry[];
+  readonly characterAvatars: readonly CharacterAvatarEntry[];
 }
 
 /** The empty `ChatMacroNameProducer` (Chat-Macro-Resolution.md §1) — the CT default for a chat with no
@@ -28,7 +29,7 @@ export function makeMacroNameProducer(overrides: Partial<ChatMacroNameProducer> 
 
 /** Wrap a `chat.listMessages` stub's messages array into its actual `MessagesPage` wire shape. */
 export function makeMessagesPage(messages: readonly MessageView[], macroNames: ChatMacroNameProducer = makeMacroNameProducer()): MessagesPageFixture {
-  return { messages, macroNames, personaAvatars: [] };
+  return { messages, macroNames, personaAvatars: [], characterAvatars: [] };
 }
 
 /** The fixed chat the stories address — the CT's routeTrpc/routeChatStream key off this id. */

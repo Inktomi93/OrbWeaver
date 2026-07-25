@@ -5,8 +5,8 @@
 // never re-renders the list. A draft has no committed chatId; `DraftGreetingThread` renders each
 // founding character's greeting as a normal, editable `MessageRow` instead of an empty state.
 
-import type { ChatMacroNameProducer, MessageView, PersonaAvatarEntry } from "@orb/contracts/chat";
-import { buildCharacterNameMap, buildPersonaAvatarMap, buildPersonaNameMap } from "@orb/contracts/chat";
+import type { CharacterAvatarEntry, ChatMacroNameProducer, MessageView, PersonaAvatarEntry } from "@orb/contracts/chat";
+import { buildCharacterAvatarMap, buildCharacterNameMap, buildPersonaAvatarMap, buildPersonaNameMap } from "@orb/contracts/chat";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { Stack } from "@orb/ui/layout";
 import type { MessageListHandle } from "@orb/ui/message-list";
@@ -116,6 +116,10 @@ function ChatThread({ chatId, chatStyle, onChatForked, surfaceContributors, tool
   const personaNamesById = buildPersonaNameMap(producers.flatMap((p) => p.personaNames));
   const personaAvatarEntries: readonly PersonaAvatarEntry[] = [...chatDetail.personaAvatars, ...messagesPage.personaAvatars];
   const personaAvatarsById = buildPersonaAvatarMap(personaAvatarEntries);
+  // The assistant-row portrait floor (same merge contract as macroNames): the chat-level roster avatars
+  // UNION this page's message-stamped ids — the half that carries a REMOVED character's portrait.
+  const characterAvatarEntries: readonly CharacterAvatarEntry[] = [...chatDetail.characterAvatars, ...messagesPage.characterAvatars];
+  const characterAvatarsById = buildCharacterAvatarMap(characterAvatarEntries);
   const activePersonaId = resolveViewerActivePersonaId(chatDetail.participants);
   const viewerUserId = resolveViewerUserId(chatDetail.participants);
   const messageAppearance = useMessageAppearance();
@@ -130,6 +134,7 @@ function ChatThread({ chatId, chatStyle, onChatForked, surfaceContributors, tool
     personaId: null,
     participants,
     characterNamesById,
+    characterAvatarsById,
   });
   const items = useMessageItems(messages, chatId);
   // Only rows that genuinely arrived this render get an enter transition — a windowed row remounts on
@@ -222,6 +227,7 @@ function ChatThread({ chatId, chatStyle, onChatForked, surfaceContributors, tool
         characterNamesById={characterNamesById}
         personaNamesById={personaNamesById}
         personaAvatarsById={personaAvatarsById}
+        characterAvatarsById={characterAvatarsById}
         activePersonaId={activePersonaId}
         anchorPersonaId={chatDetail.anchorPersonaId}
         viewerUserId={viewerUserId}

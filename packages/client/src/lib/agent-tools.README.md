@@ -18,9 +18,34 @@ Read app state in ONE eval instead of scraping the DOM. Installed from `main.tsx
 | `__orb.motion()` | LoAF ring + jank numbers: `{ loafs: { startTime, duration, blockingDuration, styleAndLayoutStart, scripts }[], cls, worstBlocking, worstShift }` — `styleAndLayoutStart>0` = style/layout ran in-frame (jank tell) |
 | `__orb.animations()` | active animations: `{ id?, target, properties, compositorClean }[]` — `compositorClean:false` (animating a non-transform/opacity/filter prop) = per-frame-layout jank risk |
 | `__orb.shell()` | DOM-derived shell state: active section, panel modes, `chatOpen` |
+| `__orb.nav` | dev-only SPA-navigation ACTIONS — see below |
 | `__orb.ready` / `.isReady()` | a promise / bool for "hydrated + initial reads settled" |
 
 Example: `preview_eval("__orb.snap()")`, or in DevTools `copy(__orb.renders())`.
+
+## `window.__orb.nav` — SPA navigation actions (dev only)
+
+The app has only 2 URL routes (`/`, `/login`); ALL navigation is client state (active rail section, open
+modal, settings category, context tab, open chat — `state/shell-store.ts` + `state/active-chat-store.ts`).
+`__orb.nav` drives that state through the SAME store actions the real UI calls (`setActiveSection`,
+`openModal`, `openSettingsTo`, `setContextTab`, `selectChat`) — no parallel mutation path — so an agent /
+`pnpm snap` reaches any surface WITHOUT a click chain. Built at the composition root (`routes/agent-nav.ts`,
+which may compose `#state`/`#features`/`#data` — the `lib/` floor may not) and injected into
+`installAgentDebugHandle`. Every call returns `{ok:true}` or `{ok:false, reason}` — a bad id is a LOUD
+refusal, never a silent no-op. ids validate against the canonical tuples (`SECTION_IDS`, `MODAL_SLOT_IDS`,
+`SETTINGS_CATEGORY_IDS`).
+
+| Call | Effect |
+| --- | --- |
+| `__orb.nav.section(id)` | switch the active rail section (`SECTION_IDS`) |
+| `__orb.nav.openModal(slot)` | open a rail modal (`MODAL_SLOT_IDS`) |
+| `__orb.nav.openSettings(category)` | open Settings at a category (`SETTINGS_CATEGORY_IDS`) |
+| `__orb.nav.contextTab(name)` | ask the active surface's context panel to open a named tab |
+| `__orb.nav.openChat(idOrTitle)` | *(async)* make a chat active by chat id OR exact display title — resolves against the chat-list query cache, fetching it if cold |
+| `__orb.nav.closeModal()` | close any open modal |
+
+`pnpm snap` wraps these as `--goto <section|settings:cat|modal:slot>`, `--open-chat <idOrTitle>`,
+`--context-tab <name>` (run before the regular steps; a `{ok:false}` reddens the exit).
 
 ## `data-app-ready` — the readiness wait target (dev + prod)
 

@@ -16,9 +16,11 @@ export function SaveBar({ title, kind, sticky, className, children, ...props }: 
   return (
     <div {...props} className={slots.root({ className })} data-slot="save-bar-root">
       <div className={slots.label()} data-slot="save-bar-label">
-        <span className={slots.title()} data-slot="save-bar-title">
+        {/* The editor/entity title is the detail pane's section heading — a real <h2> so SR heading-nav
+            can jump to it (the LIST panel titles are h2 too; the Settings modal's h2/h3 is the template). */}
+        <h2 className={slots.title()} data-slot="save-bar-title">
           {title}
-        </span>
+        </h2>
         <span className={slots.kind()} data-slot="save-bar-kind">
           {kind}
         </span>

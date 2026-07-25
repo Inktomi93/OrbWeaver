@@ -53,8 +53,16 @@ import {
   useSectionRegistry,
   useTurnPhase,
 } from "@orb/client/state";
-import type { CharacterNameEntry, JoinHistoryVisibility, MessageView, ParticipantView, PersonaNameEntry, ToolCallRecord } from "@orb/contracts/chat";
-import { buildCharacterNameMap, buildPersonaNameMap, DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
+import type {
+  CharacterAvatarEntry,
+  CharacterNameEntry,
+  JoinHistoryVisibility,
+  MessageView,
+  ParticipantView,
+  PersonaNameEntry,
+  ToolCallRecord,
+} from "@orb/contracts/chat";
+import { buildCharacterAvatarMap, buildCharacterNameMap, buildPersonaNameMap, DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { AssetId, CharacterId, ChatId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
@@ -116,6 +124,16 @@ interface PersonaNameStoryEntry {
   readonly description?: string;
 }
 
+/** A character macro-producer entry decoupled from the live roster (the removal case): the character
+ *  exists in the chat's data (name + avatar producers) but is NOT a `participants` row. Feeds the
+ *  character-name AND character-avatar maps directly, exactly as the wire producer would for a character
+ *  whose messages are still in the transcript after removal. */
+interface CharacterStoryEntry {
+  readonly id: CharacterId;
+  readonly name: string;
+  readonly avatarHash?: string | null;
+}
+
 export interface MessageRowStoryProps {
   readonly chatStyle: (typeof THEME_SCOPE_CHAT_STYLES)[number];
   // Named `messageRole` (not `role`) so the JSX prop at the CT call site isn't read as an ARIA role.
@@ -128,6 +146,9 @@ export interface MessageRowStoryProps {
   readonly participants?: readonly ParticipantView[];
   /** CT-serializable macro-name producer entries (see `PersonaNameStoryEntry`). */
   readonly personas?: readonly PersonaNameStoryEntry[];
+  /** Character name + avatar producer entries INDEPENDENT of `participants` — the transcript-integrity
+   *  path: a removed character (no participant row) whose historical message still resolves its portrait. */
+  readonly characters?: readonly CharacterStoryEntry[];
   readonly activePersonaId?: PersonaId | null;
   /** The chat's ANCHOR persona id — the null-stamp `{{user}}`/`{{persona}}` MACRO fallback subject
    *  (ruling A moved this off `activePersonaId`). Distinct from the badge/avatar `activePersonaId`. */
@@ -156,6 +177,7 @@ export function MessageRowStory({
   personaId = null,
   participants,
   personas,
+  characters,
   activePersonaId,
   anchorPersonaId,
   avatarSize,
@@ -173,16 +195,22 @@ export function MessageRowStory({
           participants.filter((p): p is ParticipantView & { characterId: CharacterId } => p.characterId !== null).map((p) => [p.characterId, p] as const),
         );
   // The story's own producer, built with the REAL contracts builders (never a hand-rolled Map) so
-  // `MessageRow` sees exactly the shape `message-list-surface.tsx` would merge from the wire.
-  const characterNameEntries: CharacterNameEntry[] = (participants ?? [])
+  // `MessageRow` sees exactly the shape `message-list-surface.tsx` would merge from the wire. Names cover
+  // the participant roster UNION any decoupled `characters` (the removal case — a character with no
+  // participant row whose message is still in the transcript); avatars come from `characters` only (that
+  // IS the participant-independent producer under test).
+  const rosterNameEntries: CharacterNameEntry[] = (participants ?? [])
     .filter((p): p is ParticipantView & { characterId: CharacterId } => p.characterId !== null)
     .map((p) => ({ id: p.characterId, name: p.displayName }));
+  const decoupledNameEntries: CharacterNameEntry[] = (characters ?? []).map((c) => ({ id: c.id, name: c.name }));
+  const characterAvatarEntries: CharacterAvatarEntry[] = (characters ?? []).map((c) => ({ id: c.id, avatarHash: c.avatarHash ?? null }));
   const personaNameEntries: PersonaNameEntry[] = (personas ?? []).map((p) => ({
     id: p.id,
     name: p.name,
     description: p.description ?? "",
   }));
-  const characterNamesById = buildCharacterNameMap(characterNameEntries);
+  const characterNamesById = buildCharacterNameMap([...rosterNameEntries, ...decoupledNameEntries]);
+  const characterAvatarsById = buildCharacterAvatarMap(characterAvatarEntries);
   const personaNamesById = buildPersonaNameMap(personaNameEntries);
 
   return (
@@ -202,6 +230,7 @@ export function MessageRowStory({
           showInChatAvatars={showInChatAvatars}
           participants={participantsMap}
           characterNamesById={characterNamesById}
+          characterAvatarsById={characterAvatarsById}
           personaNamesById={personaNamesById}
           activePersonaId={activePersonaId}
           anchorPersonaId={anchorPersonaId}
@@ -405,15 +434,28 @@ export interface GhostRowScriptedStoryProps {
    *  assemble a precise streaming sequence (an unterminated code fence, a torn `<speaker` tag, …) and
    *  assert the render after each step (UI-Gates §11.6 golden checkpoint). */
   readonly chunks: readonly string[];
+  /** The live turn's speaker name — mounts the row WITH attribution so the streaming leading-self-label
+   *  strip (`stripLeadingSpeakerName`) has a name to match. Absent ⇒ no attribution (the pre-existing
+   *  byte-identical mount every other scripted CT uses). */
+  readonly speakerName?: string;
 }
 
 /** The ghost row driven by an explicit, test-controlled SCRIPT of raw text chunks (rather than the
  *  fixed "Hi " token `GhostRowStory` uses). */
-export function GhostRowScriptedStory({ chunks }: GhostRowScriptedStoryProps): ReactElement {
+export function GhostRowScriptedStory({ chunks, speakerName }: GhostRowScriptedStoryProps): ReactElement {
   const [next, setNext] = useState(0);
+  const attribution =
+    speakerName === undefined
+      ? undefined
+      : { name: speakerName, kind: "character" as const, avatarAssetId: null, avatarHash: null, hueSeed: speakerName, tokens: null };
   return (
     <div style={{ width: 360 }}>
-      <GhostMessageRow chatId={SCRIPTED_CHAT_ID} chatStyle="bubble" streaming={useTurnPhase(SCRIPTED_CHAT_ID) === "streaming"} />
+      <GhostMessageRow
+        chatId={SCRIPTED_CHAT_ID}
+        chatStyle="bubble"
+        streaming={useTurnPhase(SCRIPTED_CHAT_ID) === "streaming"}
+        {...(attribution === undefined ? {} : { attribution })}
+      />
       <button
         type="button"
         data-testid="begin"

@@ -9,7 +9,7 @@
 // extra fetch): the title renders immediately and stays put while the count settles.
 
 import { Row } from "@orb/ui/layout";
-import { Text } from "@orb/ui/text";
+import { Heading, Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
@@ -21,9 +21,9 @@ export function CorpusListHeader(): ReactElement {
 
   return (
     <Row align="center" gap="field">
-      <Text size="micro" tone="muted" transform="caps" weight="semibold">
+      <Heading level={2} size="micro" tone="muted" transform="caps" weight="semibold">
         Corpus
-      </Text>
+      </Heading>
       {count > 0 ? (
         <Text className="font-mono" size="micro" tone="muted">
           {count}

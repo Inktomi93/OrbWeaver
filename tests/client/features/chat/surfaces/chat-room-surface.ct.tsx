@@ -63,11 +63,13 @@ const ROSTER_STUB = {
     anchorPersonaId: null;
     macroNames: ReturnType<typeof makeMacroNameProducer>;
     personaAvatars: never[];
+    characterAvatars: never[];
   } => ({
     participants: [],
     anchorPersonaId: null,
     macroNames: makeMacroNameProducer(),
     personaAvatars: [],
+    characterAvatars: [],
   }),
 };
 
@@ -109,6 +111,14 @@ test("a committed chat reads canon and renders the rows beside the composer", as
   await expect(component.getByText("Hi Aria")).toBeVisible();
   await expect(component.getByText("Well met, traveller.")).toBeVisible();
   await expect(component.getByTestId(testId("composer"))).toBeVisible();
+
+  // Finding #2: the programmatically-focused room container carries an explicit role + aria-label so its
+  // name never falls to name-from-content (which concatenated the whole toolbar: "Cast · Jump to latest ·
+  // Attach images · Send message…"). The stubbed getChat has no title/participants, so the label falls to
+  // the derived "Untitled chat" — the point is it's a SHORT, chat-scoped name, not the toolbar dump.
+  const room = component.getByRole("group", { name: "Untitled chat" });
+  await expect(room).toBeVisible();
+  await expect(room).toHaveAccessibleName("Untitled chat");
 });
 
 // THE ANTI-STORM PIN (freshness plan Phase 4). The mutation-vs-bus rule is that a `send` invalidates

@@ -4,9 +4,15 @@
 
 import type { SlashCommandContribution } from "@orb/client/lib";
 import {
+  classifySlashKey,
   matchSlashCommands,
+  nextSlashHighlight,
   parseSlashDraft,
+  resolveSlashHighlight,
+  SLASH_LISTBOX_ID,
+  slashComboboxAria,
   slashCompletionToken,
+  slashOptionId,
   unknownCommandNotice,
 } from "../../../../../packages/client/src/features/chat/lib/slash-command";
 import { expect, test } from "../../../../support/fixtures";
@@ -90,4 +96,52 @@ test("unknownCommandNotice: names both escape hatches, so a refused send is neve
   const notice = unknownCommandNotice("nope");
   expect(notice).toContain("/nope");
   expect(notice).toContain("//nope");
+});
+
+// ── the completion strip's combobox helpers (P2 a11y keyboard nav) ─────────────────────────────────────
+
+test("nextSlashHighlight: ArrowDown from the passive state (-1) lands on the first offer; ArrowUp lands on the last", () => {
+  expect(nextSlashHighlight(-1, 1, 3)).toBe(0);
+  expect(nextSlashHighlight(-1, -1, 3)).toBe(2);
+});
+
+test("nextSlashHighlight: cycles and wraps at both ends", () => {
+  expect(nextSlashHighlight(0, 1, 3)).toBe(1);
+  expect(nextSlashHighlight(2, 1, 3)).toBe(0);
+  expect(nextSlashHighlight(0, -1, 3)).toBe(2);
+});
+
+test("nextSlashHighlight: is -1 (no highlight possible) when there are no offers", () => {
+  expect(nextSlashHighlight(-1, 1, 0)).toBe(-1);
+  expect(nextSlashHighlight(0, -1, 0)).toBe(-1);
+});
+
+test("classifySlashKey: Tab completes the first offer; arrows cycle the highlight", () => {
+  expect(classifySlashKey({ key: "Tab", shiftKey: false, isComposing: false }, false)).toEqual({ kind: "complete-first" });
+  expect(classifySlashKey({ key: "ArrowDown", shiftKey: false, isComposing: false }, false)).toEqual({ kind: "cycle", step: 1 });
+  expect(classifySlashKey({ key: "ArrowUp", shiftKey: false, isComposing: false }, true)).toEqual({ kind: "cycle", step: -1 });
+});
+
+test("classifySlashKey: Enter picks ONLY when a row is highlighted — a bare Enter falls through to the send path", () => {
+  expect(classifySlashKey({ key: "Enter", shiftKey: false, isComposing: false }, true)).toEqual({ kind: "pick" });
+  expect(classifySlashKey({ key: "Enter", shiftKey: false, isComposing: false }, false)).toEqual({ kind: "none" });
+});
+
+test("classifySlashKey: Shift+Enter (newline) and an IME-composing Enter never pick", () => {
+  expect(classifySlashKey({ key: "Enter", shiftKey: true, isComposing: false }, true)).toEqual({ kind: "none" });
+  expect(classifySlashKey({ key: "Enter", shiftKey: false, isComposing: true }, true)).toEqual({ kind: "none" });
+});
+
+test("classifySlashKey: an ordinary character is none (the strip never swallows typing)", () => {
+  expect(classifySlashKey({ key: "a", shiftKey: false, isComposing: false }, true)).toEqual({ kind: "none" });
+});
+
+test("resolveSlashHighlight: yields the highlighted command and its option id; -1 yields neither", () => {
+  expect(resolveSlashHighlight(COMMANDS, 1)).toEqual({ command: COMMANDS[1], activeOptionId: slashOptionId("roll-again") });
+  expect(resolveSlashHighlight(COMMANDS, -1)).toEqual({ command: undefined, activeOptionId: undefined });
+});
+
+test("slashComboboxAria: advertises the listbox only while open (no dangling aria-controls when closed)", () => {
+  expect(slashComboboxAria(true)).toEqual({ "aria-expanded": true, "aria-controls": SLASH_LISTBOX_ID });
+  expect(slashComboboxAria(false)).toEqual({ "aria-expanded": false, "aria-controls": undefined });
 });

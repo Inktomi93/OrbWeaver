@@ -23,6 +23,17 @@ test("the underlying input carries type=file and stays out of the tab order (the
   await expect(input).toHaveAttribute("tabindex", "-1");
 });
 
+// Finding #5 (2026-07-25 a11y sweep): the hidden input is a pure MECHANISM (fired only via open()), so it
+// is aria-hidden — its native "Choose File" affordance must NOT announce as a second, unlabeled control
+// beside the caller's real, labeled trigger. Only ONE file-picker control is in the a11y tree.
+test("the underlying input is aria-hidden — no duplicate unlabeled 'Choose File' control in the a11y tree", async ({ mount, page }) => {
+  await mount(<FileTriggerHarness />);
+  await expect(page.locator('[data-slot="file-trigger-input"]')).toHaveAttribute("aria-hidden", "true");
+  // The caller's trigger is the ONE operable control; the raw file input is not exposed as a second button.
+  await expect(page.getByRole("button", { name: "Replace portrait" })).toBeVisible();
+  await expect(page.getByRole("button")).toHaveCount(1);
+});
+
 test("disabled: the input is disabled and clicking the trigger does not open a picker", async ({ mount, page }) => {
   await mount(<FileTriggerHarness disabled={true} />);
   await expect(page.locator('[data-slot="file-trigger-input"]')).toBeDisabled();

@@ -10,7 +10,7 @@
 
 import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";
-import { Text } from "@orb/ui/text";
+import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { QueryBoundary, QueryErrorState } from "#data";
 
@@ -71,9 +71,9 @@ export function LibraryListLayout({
   return (
     <Stack className="h-full" gap="block">
       <Row align="center" gap="field" justify="between">
-        <Text size="micro" tone="muted" transform="caps">
+        <Heading level={2} size="micro" tone="muted" transform="caps">
           {title}
-        </Text>
+        </Heading>
         <Row align="center" gap="field">
           {actions}
         </Row>

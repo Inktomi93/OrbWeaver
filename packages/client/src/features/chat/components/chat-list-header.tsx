@@ -11,7 +11,7 @@
 import { Button } from "@orb/ui/button";
 import { Icon, Plus } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
-import { Text } from "@orb/ui/text";
+import { Heading, Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
@@ -25,9 +25,9 @@ export function ChatListHeader(): ReactElement {
   return (
     <>
       <Row align="center" gap="field">
-        <Text size="micro" tone="muted" transform="caps" weight="semibold">
+        <Heading level={2} size="micro" tone="muted" transform="caps" weight="semibold">
           Chats
-        </Text>
+        </Heading>
         {count > 0 ? (
           <Text className="font-mono" size="micro" tone="muted">
             {count}

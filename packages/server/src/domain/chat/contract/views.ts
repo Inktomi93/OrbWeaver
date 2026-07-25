@@ -12,6 +12,7 @@
 import type {
   AssembledPrompt,
   AssembleTrace,
+  CharacterAvatarEntry,
   ChatBusEvent,
   ChatInjection,
   ChatMacroNameProducer,
@@ -128,6 +129,12 @@ export interface ChatDetail {
    *  a separate array (§1: never folded into the names-only `macroNames`). The client rebuilds it via
    *  `@orb/contracts/chat`'s `buildPersonaAvatarMap` for `resolveRowAttribution`'s USER-row avatar. */
   readonly personaAvatars: readonly PersonaAvatarEntry[];
+  /** The character AVATAR-chrome producer (`persistence/roster-avatars.ts`) — the assistant-row twin of
+   *  `personaAvatars`, SAME merge contract (this field ∪ `MessagesPage.characterAvatars`, last-write-wins).
+   *  The transcript-integrity floor: a character removed from the room has no `ParticipantView`, so its
+   *  historical rows' avatar must resolve from this participant-independent producer, not the roster. The
+   *  client rebuilds it via `buildCharacterAvatarMap` for `resolveRowAttribution`'s ASSISTANT-row fallback. */
+  readonly characterAvatars: readonly CharacterAvatarEntry[];
 }
 
 /** The `listMessages` page result (Chat-Macro-Resolution.md §1/§3) — the chronological `MessageView[]`
@@ -140,6 +147,8 @@ export interface MessagesPage {
   readonly macroNames: ChatMacroNameProducer;
   /** This page's own loaded rows' `personaId`-stamp coverage — see {@link ChatDetail.personaAvatars}. */
   readonly personaAvatars: readonly PersonaAvatarEntry[];
+  /** This page's own loaded rows' `characterId`-stamp coverage — see {@link ChatDetail.characterAvatars}. */
+  readonly characterAvatars: readonly CharacterAvatarEntry[];
 }
 
 /** The fork-lineage chain (getChatLineage) — the chat's ancestors then self, oldest-root first. Each ancestor

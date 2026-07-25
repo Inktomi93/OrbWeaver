@@ -48,9 +48,14 @@ export function FileTrigger({ accept, multiple = false, disabled = false, onFile
 
   return (
     <>
+      {/* The input is a pure MECHANISM — the caller's own trigger element is the operable, labeled
+          control; this input is only ever fired via `open()`. `aria-hidden` (with `tabIndex={-1}`)
+          keeps its native "Choose File" affordance out of the a11y tree so it never announces as a
+          second, unlabeled control beside the real trigger. */}
       <input
         ref={inputRef}
         accept={accept}
+        aria-hidden={true}
         className="sr-only"
         data-slot="file-trigger-input"
         disabled={disabled}

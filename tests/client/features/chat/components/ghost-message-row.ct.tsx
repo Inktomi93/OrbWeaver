@@ -181,6 +181,18 @@ test("a complete <speaker> marker mid-stream shows the name as plain text (untru
   await expect(component.getByText(ERROR_FALLBACK)).toHaveCount(0);
 });
 
+test("P1: the model's own `Name:` prefix never flashes in the bubble mid-stream", async ({ mount }) => {
+  // In a speakerTags group turn the model echoes its own `JFC: ` prefix at the start of the stream; the
+  // server strips it at finalize, so without the ghost-row leading strip the raw prefix would flash in the
+  // bubble for the WHOLE turn (leaked implementation detail). Mount WITH attribution so the strip has a name.
+  const component = await mount(<GhostRowScriptedStory chunks={["JFC: I own one mug and it says 'no.' "]} speakerName="JFC" />);
+  await driveScript(component, 1);
+
+  await expect(component.getByText("I own one mug", { exact: false })).toBeVisible();
+  await expect(component.getByText("JFC:", { exact: false })).toHaveCount(0);
+  await expect(component.getByText(ERROR_FALLBACK)).toHaveCount(0);
+});
+
 test("reduced motion: the full streamed text lands immediately, with no pacing lag", async ({ mount, page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   const longChunk = Array.from({ length: 40 }, (_, i) => `word${i}`).join(" ");

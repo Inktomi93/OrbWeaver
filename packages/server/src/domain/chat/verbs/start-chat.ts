@@ -40,7 +40,7 @@ import { buildCommittedMessageView, insertCanonMessageStatements } from "../pers
 import { loadChatMacroNameProducer } from "../persistence/macro-names";
 import { loadChatRow } from "../persistence/queries";
 import { buildInitialRosterRows, characterSeatedInAnotherChat } from "../persistence/roster";
-import { loadPersonaAvatarProducer } from "../persistence/roster-avatars";
+import { loadCharacterAvatarProducer, loadPersonaAvatarProducer } from "../persistence/roster-avatars";
 import { gatherAssembleContext } from "../substrate/assemble-gather";
 import { resolveGuidedActionText } from "../substrate/assembly-access";
 import { NO_HISTORY_FLOOR } from "../substrate/auth";
@@ -417,12 +417,14 @@ function createStartChatVerb(ctx: ChatContext, deps: StartChatDeps): ChatService
     const participants = await deps.loadParticipantViews(chatId);
     const macroNames = await loadChatMacroNameProducer(ctx.db, { participants });
     const personaAvatars = await loadPersonaAvatarProducer(ctx.db, { participants });
+    const characterAvatars = await loadCharacterAvatarProducer(ctx.db, { participants });
     return {
       chat: toChatDetail({
         chat: chatRow,
         participants,
         macroNames,
         personaAvatars,
+        characterAvatars,
         viewerUserId: hostUserId,
         // Born-here host: `joinSeq` 0, so the checkpoint clamp is inert by construction (there is no
         // pre-membership canon in a room this call just created).

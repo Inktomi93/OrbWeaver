@@ -23,6 +23,7 @@ import { Composer } from "../components/composer";
 import { MessageSelectionBar } from "../components/message-selection-bar";
 import type { DraftSeed } from "../hooks/use-send-message";
 import { resolveRoomTheme } from "../lib/attribution";
+import { deriveChatTitle } from "../lib/chat-summary-row";
 import { MessageListSurface } from "./message-list-surface";
 
 export interface ChatRoomSurfaceProps {
@@ -94,6 +95,16 @@ export function ChatRoomSurface({
   const roomChatId = isCommitted(handle) ? handle.id : null;
   const { data: roomChat } = useGatedQuery(roomChatId, (id) => trpc.chat.getChat.queryOptions({ chatId: id }));
   const roomTheme = resolveRoomTheme(roomChat?.participants);
+  // Names the room's focus target (finding #2): the chat title, else "Chat room" (a draft or a not-yet-
+  // resolved room). Without this explicit label the tabindex=-1 focus DIV's name falls to name-from-
+  // content — concatenating the whole toolbar (Cast · Jump to latest · Attach · Send…) into one string.
+  const roomLabel =
+    roomChat === undefined
+      ? "Chat room"
+      : deriveChatTitle(
+          roomChat.title,
+          roomChat.participants.map((participant) => participant.displayName),
+        );
 
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
@@ -119,7 +130,7 @@ export function ChatRoomSurface({
 
   return (
     <ThemeScope tokens={roomTheme ?? {}} className="contents">
-      <Stack gap="block" className="h-full px-block pb-block outline-none" ref={surfaceRef} tabIndex={-1}>
+      <Stack aria-label={roomLabel} className="h-full px-block pb-block outline-none" gap="block" ref={surfaceRef} role="group" tabIndex={-1}>
         {isCommitted(handle) ? <ChatCastBar chatId={handle.id} /> : null}
         {/* Zero flank contributions ⇒ the thread renders alone (today's exact layout, no visual
          *  change); ≥1 ⇒ a flank column appears beside it (§17 M8). The `Container` + `@max-lg`

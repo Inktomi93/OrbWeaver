@@ -10,7 +10,7 @@ import { Icon, Pencil } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";
 import { Select } from "@orb/ui/select";
-import { Text } from "@orb/ui/text";
+import { Heading } from "@orb/ui/text";
 import { Toggle } from "@orb/ui/toggle";
 import type { ReactElement } from "react";
 import { setBulkMode, setCharacterSortMode, setCharacterViewMode, useCharacterBulkMode, useCharacterSortMode, useCharacterViewMode } from "#state";
@@ -45,9 +45,9 @@ export function CharacterLibraryToolbar({ query, onQueryChange }: CharacterLibra
   return (
     <Stack gap="field">
       <Row align="center" justify="between">
-        <Text as="span" size="micro" tone="muted" transform="caps">
+        <Heading level={2} size="micro" tone="muted" transform="caps">
           Characters
-        </Text>
+        </Heading>
         <Row align="center" gap="field">
           <Toggle aria-label="Select multiple" onPressedChange={(pressed): void => setBulkMode(pressed)} pressed={bulkMode} size="sm">
             <Icon icon={Pencil} size="sm" />

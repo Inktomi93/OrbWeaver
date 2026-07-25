@@ -55,10 +55,11 @@ test("hides the Archived badge when not archived", async ({ mount }) => {
 
 test("marks the row aria-current when selected", async ({ mount }) => {
   const component = await mount(<CharacterCardTileStory name="Aria Nightshade" selected={true} />);
-  // The ListRow body is a native <button> carrying aria-current (the row-selection grammar); its
-  // accessible name is the title + subtitle, so locate it by its data-slot rather than an exact name.
-  const body = component.locator('[data-slot="list-row-body"]');
+  // Finding #1: the row body's accessible NAME is the character name ALONE (not "Aria Nightshade <pitch>"
+  // run together) — the subtitle/handle ride aria-describedby. So the row is addressable by its exact name.
+  const body = component.getByRole("button", { name: "Aria Nightshade", exact: true });
   await expect(body).toHaveAttribute("aria-current", "true");
+  await expect(body).toHaveAccessibleName("Aria Nightshade");
 });
 
 test("clicking the row body fires onSelect (opens the editor)", async ({ mount }) => {

@@ -78,7 +78,7 @@ import {
   loadStreamReplay,
 } from "../persistence/queries";
 import { loadRoster } from "../persistence/roster";
-import { loadPersonaAvatarProducer } from "../persistence/roster-avatars";
+import { loadCharacterAvatarProducer, loadPersonaAvatarProducer } from "../persistence/roster-avatars";
 import { gatherAssembleContext } from "../substrate/assemble-gather";
 import { buildHistoryBudget, buildPrompt, buildShapeTrace, fitHistory, previewSection, shapeTurn, toShapeCanon } from "../substrate/assembly-access";
 import { isBelowHistoryFloor, NO_HISTORY_FLOOR } from "../substrate/auth";
@@ -302,11 +302,13 @@ function createGetChat(ctx: ChatContext, deps: ReadDeps): ChatService["getChat"]
     const participants = await deps.loadParticipantViews(chatId);
     const macroNames = await loadChatMacroNameProducer(ctx.db, { participants });
     const personaAvatars = await loadPersonaAvatarProducer(ctx.db, { participants });
+    const characterAvatars = await loadCharacterAvatarProducer(ctx.db, { participants });
     return toChatDetail({
       chat: membership.chat,
       participants,
       macroNames,
       personaAvatars,
+      characterAvatars,
       viewerUserId: principal.userId,
       viewerHistoryFloorSeq: membership.historyFloorSeq,
     });
@@ -334,7 +336,8 @@ function createListMessages(ctx: ChatContext, deps: ReadDeps): ChatService["list
     const participants = await deps.loadParticipantViews(chatId);
     const macroNames = await loadChatMacroNameProducer(ctx.db, { participants, messages });
     const personaAvatars = await loadPersonaAvatarProducer(ctx.db, { participants, messages });
-    return { messages, macroNames, personaAvatars };
+    const characterAvatars = await loadCharacterAvatarProducer(ctx.db, { participants, messages });
+    return { messages, macroNames, personaAvatars, characterAvatars };
   };
 }
 

@@ -4,7 +4,7 @@
 // row) + resolves its roster, then hands the pieces here. The viewer-relative fields (`viewerIsHost`,
 // `viewerActivePersonaId`) derive from the roster ⋈ `viewerUserId`.
 
-import type { ChatMacroNameProducer, ChatMetadata, ParticipantView, PersonaAvatarEntry } from "@orb/contracts/chat";
+import type { CharacterAvatarEntry, ChatMacroNameProducer, ChatMetadata, ParticipantView, PersonaAvatarEntry } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
 import type { ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { ChatDetail } from "../contract/views";
@@ -33,6 +33,7 @@ interface ToChatDetailInput {
   readonly participants: readonly ParticipantView[];
   readonly macroNames: ChatMacroNameProducer;
   readonly personaAvatars: readonly PersonaAvatarEntry[];
+  readonly characterAvatars: readonly CharacterAvatarEntry[];
   readonly viewerUserId: UserId;
   /** The viewer's D16 join-history floor (`substrate/auth::resolveHistoryFloorSeq`). REQUIRED, not defaulted,
    *  so a new `ChatDetail` producer must state the viewer's clamp rather than inherit an open one. */
@@ -45,7 +46,15 @@ interface ToChatDetailInput {
  *  model-written prose covering canon from seq 1 through `compactedAtSeq`, so ANY clamped viewer
  *  (`viewerHistoryFloorSeq > 0`) would be reading a distillation of the transcript their floor withholds.
  *  Both fields drop together — a `compactedAtSeq` with no summary is a divider anchored to nothing. */
-export function toChatDetail({ chat, participants, macroNames, personaAvatars, viewerUserId, viewerHistoryFloorSeq }: ToChatDetailInput): ChatDetail {
+export function toChatDetail({
+  chat,
+  participants,
+  macroNames,
+  personaAvatars,
+  characterAvatars,
+  viewerUserId,
+  viewerHistoryFloorSeq,
+}: ToChatDetailInput): ChatDetail {
   const viewer = participants.find((p) => p.userId === viewerUserId);
   const checkpointVisible = viewerHistoryFloorSeq <= NO_HISTORY_FLOOR;
   return {
@@ -71,5 +80,6 @@ export function toChatDetail({ chat, participants, macroNames, personaAvatars, v
     updatedAt: chat.updatedAt,
     macroNames,
     personaAvatars,
+    characterAvatars,
   };
 }

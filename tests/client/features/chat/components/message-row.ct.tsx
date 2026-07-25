@@ -262,6 +262,53 @@ test("showInChatAvatars=true (default) renders the attribution avatar", async ({
   await expect(component.locator(AVATAR)).toHaveCount(1);
 });
 
+// ── P2 transcript integrity (side-eye 2026-07-25): a REMOVED character keeps its historical portrait ──
+// A character removed from the room leaves NO `ParticipantView`, but its messages stay in the transcript
+// ("Their messages stay in the transcript" — member-row.tsx removal promise). The historical avatar must
+// resolve from the participant-independent character-avatar producer, never degrade to bare initials.
+// The distinguishing DOM fact: `@orb/ui/avatar` renders the `avatar-image` element ONLY when a `src`
+// (i.e. an avatarHash) resolves (avatar.tsx: `src === undefined ? null : <Image>`). No image element =
+// initials-only = the bug. (The <img> never actually loads in CT — asserting the element + its src is
+// the load-independent proof the PORTRAIT path was chosen, not the fallback.)
+const AVATAR_IMAGE = '[data-slot="avatar-image"]';
+const BLOB_HASH_ALICE_RE = /\/api\/blob\/hash_alice$/u;
+// `@orb/ui`'s Avatar (Base UI) only mounts the `avatar-image` element once the image STATUS is "loaded"
+// (AvatarImage returns null otherwise); a 404 in the CT harness would never load, so the blob route is
+// fulfilled with a real 1×1 PNG. That makes the assertion load-independent proof the PORTRAIT path was
+// chosen off the character-avatar producer (a removed character with no participant row) — not the
+// initials fallback the bug produced.
+const ONE_BY_ONE_PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==", "base64");
+
+test("a removed character (no participant row) keeps its portrait from the character-avatar producer, not bare initials", async ({ mount, page }) => {
+  // Serve any blob request a real PNG so Base UI's Avatar actually reaches the "loaded" status.
+  await page.route("**/api/blob/**", (route) => route.fulfill({ status: 200, contentType: "image/png", body: ONE_BY_ONE_PNG }));
+  // No `participants` for Alice — she was removed; only the chat's character data (name + avatar) survives.
+  const component = await mount(
+    <MessageRowStory
+      chatStyle="bubble"
+      messageRole="assistant"
+      characterId={ALICE_ID}
+      characters={[{ id: ALICE_ID, name: "Alice", avatarHash: "hash_alice" }]}
+    />,
+  );
+  // The name still resolves off the character-name producer (the transcript stays legible).
+  await expect(component.locator(ATTRIBUTION)).toContainText("Alice");
+  // The PORTRAIT survives: the image element renders (loaded) with the producer's hash — the fix's point.
+  const image = component.locator(AVATAR_IMAGE);
+  await expect(image).toHaveCount(1);
+  await expect(image).toHaveAttribute("src", BLOB_HASH_ALICE_RE);
+});
+
+test("a removed character with NO stored avatar shows initials (no phantom image element) — the fix doesn't fabricate a portrait", async ({ mount }) => {
+  const component = await mount(
+    <MessageRowStory chatStyle="bubble" messageRole="assistant" characterId={ALICE_ID} characters={[{ id: ALICE_ID, name: "Alice", avatarHash: null }]} />,
+  );
+  await expect(component.locator(ATTRIBUTION)).toContainText("Alice");
+  // A genuinely image-less character correctly renders no <img>; the fallback tile carries the initial.
+  await expect(component.locator(AVATAR_IMAGE)).toHaveCount(0);
+  await expect(component.locator(`${AVATAR} ${FALLBACK}`)).toContainText("A");
+});
+
 // ── §B.1 message-row redesign: avatar-LEFT, a sibling of the content column ────────────────────────
 
 const ROW_BODY = '[data-slot="message-row-body"]';

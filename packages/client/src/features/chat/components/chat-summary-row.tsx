@@ -5,9 +5,7 @@
 import type { ChatId } from "@orb/kit/ids";
 import { initialsFor } from "@orb/kit/initials";
 import { Avatar } from "@orb/ui/avatar";
-import { Row } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
-import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { timeLib } from "#lib";
 import { chatSummaryRowView } from "../lib/chat-summary-row";
@@ -30,14 +28,10 @@ export function ChatSummaryRow({ chat, onSelect, selected = false, menu, classNa
   const { title, subtitle, when } = chatSummaryRowView(chat);
   return (
     <ListRow
-      actions={
-        <Row align="center" gap="field">
-          <Text className="whitespace-nowrap font-mono" size="micro" tone="muted">
-            {timeLib.formatRelative(when)}
-          </Text>
-          {menu}
-        </Row>
-      }
+      // The relative-time stamp now rides the ListRow `meta` slot — inside the row's accessible content
+      // (part of aria-describedby), not stranded in the `actions` sibling outside the accessible name.
+      meta={timeLib.formatRelative(when)}
+      {...(menu === undefined ? {} : { actions: menu })}
       clickable={true}
       leading={
         <Avatar fallbackDelay={0} hueSeed={chat.id} size="sm">

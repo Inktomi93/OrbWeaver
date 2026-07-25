@@ -4,6 +4,7 @@ import {
   normalizeExampleStart,
   parseSpeakerSpans,
   speakerTagsToPlain,
+  stripInlineSpeakerLabel,
   stripLeadingSpeakerName,
   stripSelfSpeakerLabel,
   truncateAtForeignLabel,
@@ -131,4 +132,38 @@ test("cleanPerSpeakerReply strips own label then truncates foreign drift", () =>
   expect(cleanPerSpeakerReply("Alice: hi\nBob: yo", "Alice", ["Bob"])).toBe("hi");
   // Solo (no other names): just the leading strip.
   expect(cleanPerSpeakerReply("Alice: solo line", "Alice", [])).toBe("solo line");
+});
+
+// P1 canon-corruption regression: the model, trained on the `Name:`-prefixed transcript in a speakerTags
+// group turn, interleaves its OWN tag MID-generation. The `dumJFC: —b` word-splice observed in fixture
+// message_01kyctjmg6e4e88m0vg5dwr8cd (seq 5): the model spat `JFC: —` at a token boundary between `dum`
+// and `b`. The `^`-anchored leading/foreign strips can't reach a mid-content self-label — before the fix
+// the fragment persisted into canon. RED on old code (stripInlineSpeakerLabel didn't exist).
+test("stripInlineSpeakerLabel removes a mid-word self-tag splice (the dumJFC case)", () => {
+  expect(stripInlineSpeakerLabel("ship the dumJFC: —b version by Friday", "JFC")).toBe("ship the dumb version by Friday");
+});
+
+test("stripInlineSpeakerLabel scrubs every inline self-label but leaves foreign names and prose colons", () => {
+  expect(stripInlineSpeakerLabel("one JFC: two JFC: three", "JFC")).toBe("one two three");
+  // A different speaker's inline label is left alone (foreign-drift truncation owns that case).
+  expect(stripInlineSpeakerLabel("mine Mara: hers", "JFC")).toBe("mine Mara: hers");
+  // Empty name is a no-op.
+  expect(stripInlineSpeakerLabel("JFC: text", "")).toBe("JFC: text");
+});
+
+test("stripInlineSpeakerLabel tolerates markdown-wrapped and dash-opener variants", () => {
+  expect(stripInlineSpeakerLabel("dum**JFC:**b", "JFC")).toBe("dumb");
+  expect(stripInlineSpeakerLabel("a JFC:— b", "JFC")).toBe("a b");
+});
+
+test("stripInlineSpeakerLabel keeps a word separator on a space-delimited inline label", () => {
+  expect(stripInlineSpeakerLabel("one JFC: two", "JFC")).toBe("one two");
+});
+
+// The finalized canon-purity guarantee: cleanPerSpeakerReply (the persist-path entry point) must never
+// leave ANY self-tag fragment — leading, inline, or foreign-drift — in the stored body. This is the exact
+// shape the corrupted fixture row should have persisted. RED on old code (mid-word fragment survived).
+test("cleanPerSpeakerReply persists NO self-tag fragment — leading + inline + foreign all scrubbed", () => {
+  const raw = "JFC: My whole religion fits on an index card: ship the dumJFC: —b version.\nMara: her line";
+  expect(cleanPerSpeakerReply(raw, "JFC", ["Mara", "Niko"])).toBe("My whole religion fits on an index card: ship the dumb version.");
 });

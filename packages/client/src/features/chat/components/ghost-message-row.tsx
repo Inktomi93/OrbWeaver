@@ -6,7 +6,7 @@
 import { holdTornSpeaker } from "@orb/kit/fix-markdown";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { initialsFor } from "@orb/kit/initials";
-import { speakerTagsToPlain } from "@orb/kit/speaker-label";
+import { speakerTagsToPlain, stripLeadingSpeakerName } from "@orb/kit/speaker-label";
 import { Row, Stack } from "@orb/ui/layout";
 import { Markdown } from "@orb/ui/markdown";
 import { TypingDots, useSmoothText } from "@orb/ui/stream";
@@ -102,10 +102,17 @@ export function GhostMessageRow({
   const text = renderContext === undefined ? rawText : renderMessageForDisplay(rawText, renderContext, rowCharacterId);
   const reasoning = renderContext === undefined ? rawReasoning : renderMessageForDisplay(rawReasoning, renderContext, rowCharacterId);
   const paced = useSmoothText(text, { enabled: streaming && smoothStream, cps: smoothStreamCps });
+  // The live speaker's own name (the same value the server's per-speaker clean strips against). In a
+  // speakerTags group turn the model, trained on the `Name:`-prefixed transcript, echoes its own `JFC: `
+  // prefix at the START of the stream — the server strips it at finalize, so without this the raw prefix
+  // would flash in the bubble for the whole turn (P1 leaked-implementation-detail). Progressive leading
+  // strip here mirrors the persist-side `cleanPerSpeakerReply` so the display matches what canon will hold.
+  const speakerName = attribution?.name ?? null;
+  const deLabelled = speakerName === null ? paced : stripLeadingSpeakerName(paced, speakerName);
   // Streamdown repairs the streaming markdown tail itself; the only pre-pass still needed here is
   // holding a torn <speaker> tag, then converting a complete one to a plain "Name:" prefix (the
   // untrusted seal drops the <speaker> element and its name child otherwise).
-  const held = speakerTagsToPlain(streaming ? holdTornSpeaker(paced) : paced);
+  const held = speakerTagsToPlain(streaming ? holdTornSpeaker(deLabelled) : deLabelled);
   const skin = MESSAGE_ROW_SKINS[chatStyle];
 
   const kind = attribution?.kind ?? null;

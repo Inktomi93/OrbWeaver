@@ -18,7 +18,7 @@ import type { ReactElement } from "react";
 // typechecks clean.
 import { lazy, StrictMode, Suspense } from "react";
 import { createRoot } from "react-dom/client";
-import { createAppQueryClient, createTrpcClient, TRPCProvider } from "#data";
+import { createAppQueryClient, createTrpcClient, createTrpcProxy, TRPCProvider } from "#data";
 import { contextToggleChrome, fullscreenChrome, youModal } from "#features/app-shell";
 import { accountModal } from "#features/auth";
 import { characterSlashCommands, makeCharactersSection } from "#features/character";
@@ -56,6 +56,7 @@ import {
   SettingsPaneRegistryProvider,
   SlashCommandRegistryProvider,
 } from "#state";
+import { buildAgentNav } from "./agent-nav";
 import { installAgentDebugHandle, installAppReadySignal } from "./lib/agent-bridge";
 import { isProbeMode } from "./lib/probe-mode";
 import { router } from "./routes/router";
@@ -252,4 +253,4 @@ createRoot(rootEl).render(
 
 // Installed after render so the query cache exists and the readiness check observes the initial reads.
 installAppReadySignal(queryClient);
-installAgentDebugHandle(queryClient);
+installAgentDebugHandle(queryClient, buildAgentNav(createTrpcProxy(trpcClient, queryClient), queryClient));
