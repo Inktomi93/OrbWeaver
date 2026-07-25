@@ -249,6 +249,131 @@ function buildChatToolOps(toolUse: ToolUseService, resolveHostPrincipal: (userId
   };
 }
 
+/** The domain→infra turn bridge: maps a domain {@link TurnRequest} to the infra {@link ChatRequest} (the
+ *  agent-sdk split + the chat-completions/responses passthrough spreads — customParameters/tools/toolChoice/
+ *  responseFormat/cacheBreakpoint), runs it through the injected infra `runChatTurn`, and adapts its
+ *  Promise+onDelta shape back onto the chat role's streaming AsyncIterable. Extracted so the four-layer
+ *  fidelity harness drives THIS real mapping (injecting only the leaf infra surface), not a facsimile. */
+export function createRunChatTurnBridge(deps: {
+  readonly runChatTurn: (req: ChatRequest) => Promise<ChatResult>;
+  readonly getOrSkinTierModels: ConnectionService["getOrSkinTierModels"];
+}): (req: TurnRequest) => AsyncIterable<TurnStreamChunk> {
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: adapter logic
+  return async function* runChatTurn(req: TurnRequest): AsyncIterable<TurnStreamChunk> {
+    const queue: TurnStreamChunk[] = [];
+    let done = false;
+    let error: unknown = null;
+    let notify: (() => void) | null = null;
+
+    const onDelta = (delta: ChatDeltaEvent): void => {
+      queue.push({ kind: delta.kind, text: delta.text });
+      if (notify) {
+        notify();
+        notify = null;
+      }
+    };
+
+    const agentSplit = req.connection.api === "agent-sdk" ? splitAgentHistory(req.history) : null;
+    // The OR-skin tier→slug map the mode-2 firewall needs, derived from connection's live catalogs
+    // (never throws — cold catalog degrades to a curated shortlist).
+    const orSkinTierModels = req.connection.api === "agent-sdk" ? await deps.getOrSkinTierModels() : undefined;
+    const chatReq: ChatRequest =
+      req.connection.api === "agent-sdk" && orSkinTierModels !== undefined
+        ? {
+            api: "agent-sdk",
+            model: req.connection.model,
+            credential: req.connection.credential,
+            capability: req.connection.capability,
+            params: req.intent,
+            systemPrompt: { static: req.prompt.static, dynamic: req.prompt.dynamic },
+            orSkinTierModels,
+            ownerConsented: req.ownerConsented,
+            ...(agentSplit !== null ? { chatId: req.chatId, seed: agentSplit.seed, prompt: agentSplit.prompt } : { prompt: flattenAgentHistory(req.history) }),
+            onDelta,
+            signal: req.signal,
+          }
+        : {
+            api: req.connection.api as "chat-completions" | "responses",
+            model: req.connection.model,
+            credential: req.connection.credential,
+            capability: req.connection.capability,
+            params: req.intent,
+            systemPrompt: { static: req.prompt.static, dynamic: req.prompt.dynamic },
+            ownerConsented: req.ownerConsented,
+            // biome-ignore lint/suspicious/noExplicitAny: interface mismatch
+            history: req.history as any,
+            historyCacheBreakpointFromEnd: req.cacheBreakpointFromEnd ?? undefined,
+            // The preset's provider-passthrough blob (PD-148) rides the chat-completions/responses arm; the
+            // agent-sdk arm carries no wire customParameters by charter.
+            ...(req.customParameters !== undefined ? { customParameters: req.customParameters } : {}),
+            ...(req.tools !== undefined ? { tools: req.tools } : {}),
+            ...(req.toolChoice !== undefined ? { toolChoice: req.toolChoice } : {}),
+            ...(req.responseFormat !== undefined ? { responseFormat: req.responseFormat } : {}),
+            onDelta,
+            signal: req.signal,
+          };
+
+    void deps
+      .runChatTurn(chatReq)
+      .then((result) => {
+        queue.push({
+          kind: "final",
+          economics: {
+            content: result.reply,
+            reasoning: result.reasoning || null,
+            model: req.connection.model,
+            tokensIn: result.usage.tokensIn,
+            tokensOut: result.usage.tokensOut,
+            cacheReadTokens: result.usage.cacheReadTokens,
+            cacheWriteTokens: result.usage.cacheWriteTokens,
+            contextWindow: result.usage.contextWindow,
+            costUsd: result.usage.costUsd,
+            maxOutputTokens: result.usage.maxOutputTokens,
+            reasoningEffort: req.intent.effort ?? null,
+            ttftMs: result.ttftMs,
+            finishReason: result.finishReason,
+            stopReason: result.stopReason,
+            terminalReason: result.terminalReason,
+            generationId: result.generationId ?? null,
+            ...(result.toolCalls !== undefined ? { toolCalls: result.toolCalls } : {}),
+          },
+        });
+        done = true;
+        if (notify) {
+          notify();
+          notify = null;
+        }
+      })
+      .catch((err) => {
+        error = err;
+        done = true;
+        if (notify) {
+          notify();
+          notify = null;
+        }
+      });
+
+    for (;;) {
+      if (queue.length > 0) {
+        // biome-ignore lint/style/noNonNullAssertion: safe since queue.length > 0
+        yield queue.shift()!;
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- `done` is mutated by the onDelta/.then/.catch closures above; tsc's narrowing can't see across those async callback boundaries
+      } else if (done) {
+        if (error !== null && error !== undefined) {
+          throw error;
+        }
+        break;
+      } else {
+        // biome-ignore lint/performance/noAwaitInLoops: waiting for next chunk
+        // biome-ignore lint/nursery/noLoopFunc: simple promise
+        await new Promise<void>((resolve) => {
+          notify = resolve;
+        });
+      }
+    }
+  };
+}
+
 export function buildChatService(input: ChatComposeInput): ChatComposeResult {
   const { db, now, emitChatEvent } = input;
 
@@ -368,123 +493,12 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     emitChatChanged: createChatChangedEmitter(db),
     applyRegexReplace: createRegexApplyReplace(),
     tools: input.toolUse === undefined ? null : buildChatToolOps(input.toolUse, input.resolveHostPrincipal),
-    // Bridges the chat role's streaming AsyncIterable interface onto infra/providers' Promise+onDelta shape.
-    // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: adapter logic
-    async *runChatTurn(req: TurnRequest): AsyncIterable<TurnStreamChunk> {
-      const queue: TurnStreamChunk[] = [];
-      let done = false;
-      let error: unknown = null;
-      let notify: (() => void) | null = null;
-
-      const onDelta = (delta: ChatDeltaEvent) => {
-        queue.push({ kind: delta.kind, text: delta.text });
-        if (notify) {
-          notify();
-          notify = null;
-        }
-      };
-
-      const agentSplit = req.connection.api === "agent-sdk" ? splitAgentHistory(req.history) : null;
-      // The OR-skin tier→slug map the mode-2 firewall needs, derived from connection's live catalogs
-      // (never throws — cold catalog degrades to a curated shortlist).
-      const orSkinTierModels = req.connection.api === "agent-sdk" ? await input.connection.getOrSkinTierModels() : undefined;
-      const chatReq: ChatRequest =
-        req.connection.api === "agent-sdk" && orSkinTierModels !== undefined
-          ? {
-              api: "agent-sdk",
-              model: req.connection.model,
-              credential: req.connection.credential,
-              capability: req.connection.capability,
-              params: req.intent,
-              systemPrompt: { static: req.prompt.static, dynamic: req.prompt.dynamic },
-              orSkinTierModels,
-              ownerConsented: req.ownerConsented,
-              ...(agentSplit !== null
-                ? { chatId: req.chatId, seed: agentSplit.seed, prompt: agentSplit.prompt }
-                : { prompt: flattenAgentHistory(req.history) }),
-              onDelta,
-              signal: req.signal,
-            }
-          : {
-              api: req.connection.api as "chat-completions" | "responses",
-              model: req.connection.model,
-              credential: req.connection.credential,
-              capability: req.connection.capability,
-              params: req.intent,
-              systemPrompt: { static: req.prompt.static, dynamic: req.prompt.dynamic },
-              ownerConsented: req.ownerConsented,
-              // biome-ignore lint/suspicious/noExplicitAny: interface mismatch
-              history: req.history as any,
-              historyCacheBreakpointFromEnd: req.cacheBreakpointFromEnd ?? undefined,
-              // The preset's provider-passthrough blob (PD-148) rides the chat-completions/responses arm; the
-              // agent-sdk arm carries no wire customParameters by charter.
-              ...(req.customParameters !== undefined ? { customParameters: req.customParameters } : {}),
-              ...(req.tools !== undefined ? { tools: req.tools } : {}),
-              ...(req.toolChoice !== undefined ? { toolChoice: req.toolChoice } : {}),
-              ...(req.responseFormat !== undefined ? { responseFormat: req.responseFormat } : {}),
-              onDelta,
-              signal: req.signal,
-            };
-
-      void input
-        .runChatTurn(chatReq)
-        .then((result) => {
-          queue.push({
-            kind: "final",
-            economics: {
-              content: result.reply,
-              reasoning: result.reasoning || null,
-              model: req.connection.model,
-              tokensIn: result.usage.tokensIn,
-              tokensOut: result.usage.tokensOut,
-              cacheReadTokens: result.usage.cacheReadTokens,
-              cacheWriteTokens: result.usage.cacheWriteTokens,
-              contextWindow: result.usage.contextWindow,
-              costUsd: result.usage.costUsd,
-              maxOutputTokens: result.usage.maxOutputTokens,
-              reasoningEffort: req.intent.effort ?? null,
-              ttftMs: result.ttftMs,
-              finishReason: result.finishReason,
-              stopReason: result.stopReason,
-              terminalReason: result.terminalReason,
-              generationId: result.generationId ?? null,
-              ...(result.toolCalls !== undefined ? { toolCalls: result.toolCalls } : {}),
-            },
-          });
-          done = true;
-          if (notify) {
-            notify();
-            notify = null;
-          }
-        })
-        .catch((err) => {
-          error = err;
-          done = true;
-          if (notify) {
-            notify();
-            notify = null;
-          }
-        });
-
-      for (;;) {
-        if (queue.length > 0) {
-          // biome-ignore lint/style/noNonNullAssertion: safe since queue.length > 0
-          yield queue.shift()!;
-          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- `done` is mutated by the onDelta/.then/.catch closures above; tsc's narrowing can't see across those async callback boundaries
-        } else if (done) {
-          if (error !== null && error !== undefined) {
-            throw error;
-          }
-          break;
-        } else {
-          // biome-ignore lint/performance/noAwaitInLoops: waiting for next chunk
-          // biome-ignore lint/nursery/noLoopFunc: simple promise
-          await new Promise<void>((resolve) => {
-            notify = resolve;
-          });
-        }
-      }
-    },
+    // Bridges the chat role's streaming AsyncIterable onto infra's Promise+onDelta shape — the extracted
+    // domain→infra turn bridge (createRunChatTurnBridge), injecting the leaf infra runChatTurn + OR-skin map.
+    runChatTurn: createRunChatTurnBridge({
+      runChatTurn: input.runChatTurn,
+      getOrSkinTierModels: () => input.connection.getOrSkinTierModels(),
+    }),
     resolveChat: (params) => resolveChatVia(params.runAsUserId, params.routable),
 
     resolveCredential: async ({ runAsUserId, source }) => input.credentials.resolve({ principal: await realHostPrincipal(runAsUserId), source }),
