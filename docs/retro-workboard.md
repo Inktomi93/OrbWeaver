@@ -82,10 +82,31 @@ Commit order at close: rotation-3 (code + workboard) → docs-carry (the 11 file
 (legacy-main bookmark → main -f to this HEAD → worktree switch → push legacy + force-with-lease main,
 owner-triggered).
 
-**CLOSING SEQUENCE**: #9 lane lands (deployment-facts DONE) → final re-verify over #9's combined
-diff → full gate (check + battery + complete live sweep) → ROTATION-3 COMMIT → docs-carry commit →
-owner's engines-free ping (GPUs wanted) → promotion on owner's go. The vLLM engines stay up until then (live legs need gen; hosted turns need embed
-for recall).
+**ROTATION 3 — CLOSED + COMMITTED (2026-07-24)**. Commits: `7ff2e410` (rotation-3 code + workboard),
+`f110bcb7` (docs corpus carry), `0272c980` (live-sweep red fixes). **FULL LIVE SWEEP 24/24 GREEN** (all
+3 engines up on GPU 1; repetition_penalty 1.05 session mitigation for #23), check PASS, 971 vitest +
+1236 CT. The two live reds the full-engine sweep surfaced were BOTH test-calibration (not product
+bugs): usedTokens is the wrong shrinkage signal (recall lands in systemTokens, swings the residual —
+assert droppedCount + boundary + the canon stamp instead); disposition "cleared" at a tiny ceiling is
+CORRECT (empty seed → nothing to resume; history rides the system-prompt marker; backend-agnostic).
+The virtualizer raw-vs-rendered fix uncovered + fixed a sweep race and a wrong-chat-by-updatedAt race.
+
+**NEW CHIPS from the live-sweep + sampler investigation**:
+- **#23 ESCALATED + code-verified**: the agent-sdk→vLLM wire threads NO samplers (translate.ts:243 =
+  maxOutputTokens only; Anthropic Messages has no penalty fields); stateless (openai-compat body.ts:
+  62-68) threads them all per-request. So the sdk path CANNOT self-correct — repetition_penalty MUST
+  be a vLLM launch default (Qwen3-VL ships 1.0=loops; card recommends 1.05; proven live turn_127 =
+  8192-out api_error). Session mitigation live; #23 wires it into engineLaunch permanently + verifies
+  preset→stateless penalty threading. HIGH — it corrupts live long-transcript/compaction specs.
+- **E2E shared-DB isolation (chip)**: any spec opening listChats()[0] and asserting identity flakes
+  when a foreign spec's fire-and-forget write floats another chat to top. Fix: open-by-unique-title
+  (done in the virtualizer spec); a `data-chat-id` on the chat-list row makes it a one-liner (@orb/ui).
+- **E2E preset-leak on kill (chip)**: a killed STABLE-leg run leaks a tiny-ceiling defaultPresetId that
+  poisons live-context-cutoff; idempotent entry-cleanup (mintFreshCharacter pattern) fixes it.
+
+**PROMOTION READY** — rotation 3 committed, full battery + full live sweep green, docs corpus carried.
+Ceremony armed for the owner's go (legacy-main bookmark → main -f to HEAD → worktree switch → push
+legacy + force-with-lease main). Engines on GPU 1; GPU 0 is the owner's.
 
 **REMAINING AFTER ROTATION 3 (= rotation 4+)**: the #12-completion lane (items 1-17 at exact file
 scope + held trio PD-147×8/BG×16/hint×2 + scroll-spy polish — see the #12 AUDIT RESULTS section);
