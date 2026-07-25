@@ -8,6 +8,22 @@
 
 ## ═══ RESUME-HERE STATUS (2026-07-24 late, compaction-survival — read THIS first) ═══
 
+**ROTATION 4 COMMITTED `276bc980`** (check PASS incl. the new tests:execution-membership stage; 975
+vitest + 1246 CT; full live sweep 24/24). Consolidated 5 lanes: #21 security (redirect-exfil hardened +
+2 scars pinned), #22 execution-membership gate, #23 sampling launch knob (rep-penalty 1.05 permanent),
+#12-fixes (16 items: 2 data-loss + a11y + dead-doors + 2 restorations), #24 fidelity harness (agent-sdk
+captures SDK query INPUT — no observable HTTP body). Integration seams fixed at consolidation
+(exactOptional fixtures, gate-shape skip, dead helpers, genRepetitionPenalty straggler, getShapeTrace
+CT stub). Commits: rotation2 `7c31da30` → rotation3 `7ff2e410` → docs `f110bcb7` → live-fixes `0272c980`
+→ workboard `cca5037c` → resume-block `1714881b` → **rotation4 `276bc980`**.
+
+**BOARD NOW: original 13-item doc = 11/13 DONE.** Remaining: **#12 held trio** (PD-147 ×8, BG-C/V ×16,
+section-hint ×2 — big features, own wave), **#18** CT coverage expansion (UNBLOCKED by #12's landed
+components; 42-scenario mining backlog + presence ratchet), **#25** custom-byo runner redirect parity
+(1-line, behind the committed backends). **PROMOTION armed** — nothing blocks it.
+
+
+
 **COMMITTED (branch retro-burn-down, promotion-ready):** `a4192372` burn-down → `7c31da30` rotation 2 →
 `7ff2e410` rotation 3 → `f110bcb7` docs corpus carry → `0272c980` live-sweep red fixes → `cca5037c`
 workboard closeout. Tree state at last full run: check PASS, 971 vitest + 1236 CT, **full live e2e
@@ -21,17 +37,35 @@ supervisor adopts these. NEVER run the launcher live to "verify" (spawns real en
 
 **IN FLIGHT (5 lanes, all path-disjoint, dispatched late session — check TaskList + agent inboxes):**
 - **#24** fidelity harness + wire-capture seam (infra/providers/backends + tests). WIRE_CAPTURE env
-  flag already landed (default off, host-read /api/_debug/wire/captures). Needs a VERIFIER when it lands
-  (a cross-layer-divergence tool must not false-green its own capture).
-- **#23** sampling-override LAUNCH knob (infra/providers/vllm/engine + env + user-admin) — makes the
-  rep-penalty 1.05 mitigation PERMANENT via engineLaunch. `VLLM_GEN_REPETITION_PENALTY_DEFAULT=1.05`
-  env home already landed. Deferred sub-item: preset→stateless-body penalty threading (coordinate #24).
-- **#22** execution-membership verify gate (scripts/verify + tests/tooling) — every test runs, every
-  glob matches. Small clean gate.
-- **#12-fixes** the audit tranche (client features + ui + tests/client) — 16 items: 2 data-loss
-  (image-gen prompt, groupOnly strip), warning-notice silent-swallow, a11y (autosave roles, composer
-  bg, turn-abort, markdown break-words, world-info reorder), credential dead-doors, 2 restorations
-  (composer-draft-store, ShapeTrace panel). NOT the held trio.
+  flag landed (default off, host-read /api/_debug/wire/captures). STEERED late (2026-07-24): the CORE
+  harness is an INTEGRATION test — inject the wireCapture SINK via compose dep (rpgTrace-injection
+  pattern, bypasses the env), drive turns through the real pipeline against a capture-and-return STUB
+  provider (fidelity needs the REQUEST BODY captured at dispatch, NOT a live model), assert 4 layers
+  (input / getShapeTrace+peek / captured wire body / canon) over the names-behavior/structure/
+  injection/caps matrix. Deterministic, no live stack/GPU/env, gates normally. The @live e2e is a THIN
+  optional proof that skips-with-message when WIRE_CAPTURE is off on the operator stack (never false
+  pass). Had an in-flight typecheck red (services.ts:280 captureWire/WireCapture.at) — its own to fix.
+  Reverted its stray edit to .env (a symlink → MAIN repo's .env; do NOT edit .env). Needs a VERIFIER
+  when it lands (a cross-layer-divergence tool must not false-green its own capture).
+- **#23 DONE** (uncommitted): sampling-override LAUNCH knob landed — gen argv permanently carries
+  `--override-generation-config {"repetition_penalty":1.05}` (env-floor `VLLM_GEN_REPETITION_PENALTY_DEFAULT`,
+  admin-retunable `genRepetitionPenalty` field + pending-restart, per-engine emit map). 76 vitest + 17
+  CT green. Deferred (→ #24 coord): preset→stateless-body penalty threading (body.ts:62-68 already
+  ACCEPTS repetitionPenalty; does a preset populate it?). NOTE: #24 has an in-flight typecheck red
+  (services.ts:280 captureWire/WireCapture.at) — #24's own to fix before it lands, NOT #23's.
+- **#22 DONE** (uncommitted, awaits consolidation commit): execution-membership verify gate landed —
+  new scripts/verify/tests-execution-membership.ts, wired into the registry + package.json + verify-run
+  pins + docs. Both directions proven-to-bite (orphan file REDs; empty glob REDs). Real tree clean (no
+  orphan/dead-glob). New stage green; the other 6 red static stages are other lanes' uncommitted files.
+- **#12-fixes DONE** (uncommitted): all 16 audit items landed — 2 data-loss killed (failing-generate
+  keeps prompt; groupOnly survives edit round-trip), warning-notice restored + wired (maps #9's
+  context_trimmed_no_summary/compaction_failed), a11y (autosave roles, composer bg-card, turn-abort
+  toast, markdown break-words, world-info reorder + handleLabel), 2 restorations (composer-draft-store
+  survives remount + migrates on commit; ShapeTrace panel — dropped main's `hint=` since that primitive
+  is the held-trio's, panel uses its own Text line), credential dead-doors (inspector + revoke/clear).
+  28 unit + 27 CT green. Its #21 flag RESOLVED by orchestrator: inspect.ts:86 already scrubs the
+  response bodyPreview by secret VALUE (redactSecretsFromText) — the echo-leak sink is safe. NOT the
+  held trio (PD-147/BG/section-hint — still a future wave).
 - **#21 DONE** (security-executor, its own review = the verification): 3 scars CONFIRMED-SAFE +
   hardened the BYO inspect redirect credential-exfil (redirect:"manual" host-pin); pinned the 2
   previously-unpinned scars. Spawned **#25** (same redirect fix for custom-byo/runners/chat.ts, behind #24).
@@ -44,8 +78,19 @@ ratchet — needs #12's landed components as evidence, runs after #12).
 switch → push legacy + force-with-lease main (origin = github Inktomi93/orbweaver). Ceremony is
 independent of the in-flight lanes (all additive atop committed rotation 3).
 
-**NEXT ACTIONS when a lane reports:** verify (fresh-context) the substantive ones → consolidation
-commit → keep this block current. Details of every item live in the sections below.
+**ALL 5 LANES REPORTED (tree quiescent, uncommitted together)**: #21 (done, security-executor-verified),
+#22 (execution gate, both-directions bite), #23 (sampling launch knob, 76+17 green), #12-fixes (16
+items, 28+27 green, its #21 flag resolved — inspect.ts:86 scrubs response bodyPreview by value),
+#24 (fidelity harness — RESOLVED the fork: agent-sdk has NO observable wire body, captures SDK QUERY
+INPUT not a reconstructed HTTP body; matrix all-agree; compose-injected prod-safe sink). #24 IN
+VERIFICATION now (a divergence-tool reporting no-divergence must be proven to actually bite —
+esp. the null-fingerprint row not passing vacuously on an empty capture).
+
+**IMMEDIATE NEXT (post #24-verify):** run the FULL gate on the quiesced tree (it was red only from
+cross-lane uncommitted files — should go green now) + full battery + full live sweep (WIRE_CAPTURE stays
+off; the @live fidelity leg skips honestly) → ONE CONSOLIDATION COMMIT for the whole wave (#21/#22/#23/
+#12-fixes/#24) → update this block. THEN board = promotion (armed) + #18 (now UNBLOCKED by #12's landed
+components) + #12 held trio + #25 (runner-redirect). Details of every item in the sections below.
 
 ## Standing rules minted this program (also in agent memory)
 
