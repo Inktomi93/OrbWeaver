@@ -52,6 +52,9 @@ export interface MemberRowActions {
   readonly onSetDisabled?: ((characterId: CharacterId, disabled: boolean) => void) | undefined;
   readonly onSetTalkativeness?: ((characterId: CharacterId, talkativeness: number) => void) | undefined;
   readonly onForceTurn?: ((characterId: CharacterId) => void) | undefined;
+  /** Peel a cast member out of the roster (host-only; the symmetric drop for the cast-bar add).
+   *  leftSeq-stamps the seat out server-side — reversible via a re-add, so no hard-delete confirm. */
+  readonly onRemoveCharacter?: ((characterId: CharacterId) => void) | undefined;
   readonly onViewCharacter?: ((characterId: CharacterId) => void) | undefined;
   /** Panel focus bookkeeping: called when a KICK is confirmed so the panel can land focus on a
    *  neighbor once the bus echo removes the row (post-destructive focus, §7.1). */

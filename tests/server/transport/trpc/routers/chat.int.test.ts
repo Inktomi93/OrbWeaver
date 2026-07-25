@@ -12,17 +12,32 @@
 // write to `chat_events`). It closes the gap the mock-based test structurally cannot: that the resume
 // path returns real persisted DELTAS (the token-carrying member), not just that the wiring is shaped right.
 
+import type { CharacterCard } from "@orb/contracts/character";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
-import type { ChatId } from "@orb/kit/ids";
+import { characters, chatParticipants } from "@orb/db";
+import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { publishChatEvent } from "@orb/server/transport/trpc";
+import { and, eq } from "drizzle-orm";
 import { beforeEach, describe, vi } from "vitest";
 import { createChatBus } from "../../../../../packages/server/src/domain/chat/bus";
+import { loadRoster } from "../../../../../packages/server/src/domain/chat/persistence/roster";
 import { createRead } from "../../../../../packages/server/src/domain/chat/verbs/read";
+import { createRoster } from "../../../../../packages/server/src/domain/chat/verbs/roster";
 import { freshDb } from "../../../../support/db";
 import { expect, test } from "../../../../support/fixtures";
-import { makeChatContext, seedChat, seedParticipant, seedUser } from "../../../domain/chat/_support";
+import { makeChatContext, seedCharacter, seedChat, seedParticipant, seedUser } from "../../../domain/chat/_support";
 import { caller, principal as callerPrincipal, makeContext } from "../_support";
+
+/** Owner-scoped `getCard` fake mirroring the real one (D28) — `addCharacterToChat` resolves the card only
+ *  for its OWNER (a foreign character reads as missing, leak-free). */
+function ownedCard(rosterDb: Db): (params: { readonly ownerId: UserId; readonly characterId: CharacterId }) => Promise<CharacterCard | null> {
+  return async ({ ownerId, characterId }) => {
+    const [row] = await rosterDb.select().from(characters).where(eq(characters.id, characterId));
+    // FABRICATION-OK: minimal CharacterCard double — the roster read only needs name + avatarAssetId.
+    return row !== undefined && row.ownerId === ownerId ? ({ name: row.name, avatarAssetId: null } as unknown as CharacterCard) : null;
+  };
+}
 
 let db: Db;
 
@@ -162,5 +177,65 @@ describe("chat.streamMessages — durable delta replay over a real reads-slice (
     expect(dataOf(first.value).type).toBe("delta");
     // The durable head was NEVER replayed — a cursor-less open only tails live.
     expect(replaySpy).not.toHaveBeenCalled();
+  });
+});
+
+describe("chat.removeCharacterFromChat — the symmetric drop, driven through the real router + roster service", () => {
+  test("the host removes a present character seat — leftSeq-stamped out of the roster read-model", async () => {
+    const host = await seedUser(db, "host");
+    const characterId = await seedCharacter(db, host, "aria");
+    const chatId: ChatId = await seedChat(db, "room");
+    await seedParticipant(db, { chatId, key: "room_h", userId: host, role: "host" });
+
+    const roster = createRoster(makeChatContext(db, { getCard: ownedCard(db) }), { emit: () => Promise.resolve() });
+    const hostCtx = makeContext({
+      auth: callerPrincipal("user", { userId: host }),
+      services: { chat: { addCharacterToChat: roster.addCharacterToChat, removeCharacterFromChat: roster.removeCharacterFromChat } },
+    });
+
+    await caller(hostCtx).chat.addCharacterToChat({ chatId, characterId });
+    // Present roster (leftSeq IS NULL) carries the seat.
+    expect((await loadRoster(db, chatId)).some((p) => p.characterId === characterId)).toBe(true);
+
+    await caller(hostCtx).chat.removeCharacterFromChat({ chatId, characterId });
+
+    // Gone from the present read-model; the row survives leftSeq-stamped (reversible via a re-add).
+    expect((await loadRoster(db, chatId)).some((p) => p.characterId === characterId)).toBe(false);
+    const [row] = await db
+      .select()
+      .from(chatParticipants)
+      .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.characterId, characterId)));
+    expect(row?.leftSeq).not.toBeNull();
+  });
+
+  test("a plain member caller is rejected — the seat stays present, unstamped", async () => {
+    const host = await seedUser(db, "host");
+    const member = await seedUser(db, "member");
+    const characterId = await seedCharacter(db, host, "aria");
+    const chatId: ChatId = await seedChat(db, "room");
+    await seedParticipant(db, { chatId, key: "room_h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "room_m", userId: member, role: "member" });
+
+    const roster = createRoster(makeChatContext(db, { getCard: ownedCard(db) }), { emit: () => Promise.resolve() });
+    const hostCtx = makeContext({
+      auth: callerPrincipal("user", { userId: host }),
+      services: { chat: { addCharacterToChat: roster.addCharacterToChat, removeCharacterFromChat: roster.removeCharacterFromChat } },
+    });
+    const memberCtx = makeContext({
+      auth: callerPrincipal("user", { userId: member }),
+      services: { chat: { removeCharacterFromChat: roster.removeCharacterFromChat } },
+    });
+
+    await caller(hostCtx).chat.addCharacterToChat({ chatId, characterId });
+
+    await expect(caller(memberCtx).chat.removeCharacterFromChat({ chatId, characterId })).rejects.toThrow();
+
+    // The refusal was total: the seat is still present and unstamped.
+    expect((await loadRoster(db, chatId)).some((p) => p.characterId === characterId)).toBe(true);
+    const [row] = await db
+      .select()
+      .from(chatParticipants)
+      .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.characterId, characterId)));
+    expect(row?.leftSeq).toBeNull();
   });
 });

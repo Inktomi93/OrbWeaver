@@ -59,6 +59,20 @@ function castMenuItems(row: MemberCastRow, actions: MemberRowActions, openWeight
       </MenuItem>,
     );
   }
+  // Destructive row LAST (the header rule): the symmetric drop for the cast-bar add. leftSeq-stamps the
+  // seat out server-side and is reversible via a re-add, so a direct action (like Mute) — no hard-delete
+  // confirm. Host-only seam: absent for a member (§8.1), so this never renders for a non-host.
+  if (actions.onRemoveCharacter !== undefined) {
+    if (items.length > 0) {
+      items.push(<MenuSeparator key="sep" />);
+    }
+    items.push(
+      <MenuItem key="remove" onClick={(): void => actions.onRemoveCharacter?.(row.characterId)}>
+        <Icon icon={UserX} size="sm" />
+        {`Remove ${row.displayName} from chat`}
+      </MenuItem>,
+    );
+  }
   return items;
 }
 

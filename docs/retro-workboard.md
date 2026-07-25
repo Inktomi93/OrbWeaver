@@ -23,6 +23,43 @@ spend); testing DB is DISPOSABLE (delete/seed freely); serve from THIS retro rep
 irreversible actions — PushNotification the owner on a milestone or a real blocker. Keep THIS doc updated
 every chapter so nothing is lost across compaction.
 
+**LIVE GROUP-CHAT VERIFICATION (2026-07-24 night, driving :5173 single-user + local vLLM):**
+PROVEN WORKING: solo→group conversion (Add-a-character flips a solo Mara chat to group; context panel gains
+the 4-tab LAW layout **Members / Overrides / Group / Injections**, +**Preview** once committed); full group
+config surface all wired (Per-speaker/Narrator · policy "Who speaks each round"=Natural incl list/pooled/manual
+· cardScope · memberCardVisibility=Character-sheet · autoMode · speakerTags · groupNudge); a real group turn
+fired on local vLLM — under per-speaker+natural, **Mara spoke turn 1, Niko turn 2** (ban-last-speaker rotation
+WORKS); responses in-character + followed the instruction; variant/swipe + Speak-as-character present; persona
+macro {{user}}→"You" resolved. Members panel = CAST section w/ per-seat Talkativeness (50%) + Mute.
+**BUGS FOUND (2):**
+1. **remove-character was UNWIRED** — domain verb existed, no tRPC/no UI (Cast row menu had only Mute +
+   Talkativeness). FIXED by an executor (UNCOMMITTED): tRPC `removeCharacterFromChat` (sweep=PROBED) + client
+   "Remove X from chat" menu + tests green. NOTE the executor matched the LOCAL member-row-menu §8.1 OMIT law
+   (host actions omitted for non-hosts, 6 siblings + a CT pin it) rather than the "no separate reduced modes"
+   memory (disabled-with-reason). FORK FOR OWNER: is "no omissions ever" meant to supersede §8.1 repo-wide?
+   That's a separate campaign touching all 6 actions, not this ticket.
+2. **Composer does NOT clear on the FIRST (draft→commit) send** — send a msg in a NEW chat: it sends + the turn
+   fires, but the composer textarea RETAINS the sent text; the 2nd send (committed chat) clears fine. So the
+   draft→commit migration carries the composer text to the new chatId key instead of clearing on send. Fix
+   lane RUNNING (composer-draft-store).
+PREVIEW TAB (assembly-preview-panel, host-only) = the fidelity smoking gun, WORKS: shows the assembled
+prompt "What the model will see on the next turn", a token estimate (local QuadChars, advisory), AND a
+PROVENANCE panel "Where each field's value came from" (Scenario from Mara, the char description/personality
+assembled from the card). For the per-speaker group turn the static system prompt read "You are Mara … write
+Mara's perspective ONLY" — so the single-speaker constraint IS correctly in the prompt. → The earlier
+multi-character "Mara: … Niko: …" blob in Niko's turn is the small local model (Qwen3-VL-8B) DISOBEYING a
+correctly-scoped prompt, NOT an app bug. App fidelity confirmed; model obedience is the weak link (expected
+for an 8B). This validates the FE→prompt chain live and is exactly the "prove character options drive the
+app" surface.
+
+COVERAGE ALREADY STRONG (assessed, no big gap to manufacture — owner bans shit tests): select-speakers.test.ts
+pins ALL policies (natural/list/pooled/manual/smart) + ban-last-speaker + talkativeness + @mention hard
+override + eligible-set predicates; emit-chat-changed.int.test.ts pins the chatsChanged fan to EVERY present
+human, never a non-member; chat.streamMessages tests pin the per-yield membership gate + kicked-member
+mid-stream cutoff + durable-first resume. So the multi-human bus + speaker engine are well-proven at the
+integration layer; live-confirmed the happy path. Multi-human LIVE would need multi-user mode + a 2nd identity
+(single-user instance) — deferred; integration coverage already carries it.
+
 **FIDELITY/LOCKDOWN WAVE — COMMITTED (this session):**
 - `4c734060` — extracted the domain→infra turn bridge into exported `createRunChatTurnBridge`; the #24
   fidelity harness now drives PROD code, not a facsimile (owner caught the facsimile).

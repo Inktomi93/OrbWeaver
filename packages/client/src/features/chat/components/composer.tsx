@@ -115,6 +115,17 @@ export function Composer({ handle, value, onChange, draftSeed, onCommitted, tail
       return prev.filter((_, i) => i !== index);
     });
 
+  // The commit signal fires AFTER the draft→committed promotion has flipped the composer's scope key
+  // (setHandle → re-render), but the send hook holds the onDraftCommitted closure captured at SEND time
+  // (draft scope). Clearing through that stale closure would empty the OLD draftKey while the migrate
+  // already carried the sent text onto the NEW committed-chat key — so the just-sent text re-populates the
+  // fresh chat's composer (the "first send doesn't clear" bug). A ref to the LATEST onChange lets the clear
+  // target the current (committed) scope key, so the new chat starts empty.
+  const onChangeRef = useRef(onChange);
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  });
+
   // Not cleared optimistically in submit — onDraftCommitted fires only once the bus confirms the
   // user's own row committed, so a failed send leaves the draft intact for retry.
   const sendMessage = useSendMessage({
@@ -122,7 +133,7 @@ export function Composer({ handle, value, onChange, draftSeed, onCommitted, tail
     draftSeed,
     onCommitted,
     onDraftCommitted: () => {
-      onChange("");
+      onChangeRef.current("");
       clearAttachments();
     },
   });

@@ -9,7 +9,7 @@ import { useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
 import { goToLanding, selectCharacter, setActiveSection, useTurnSpeakerCharacterId } from "#state";
 import { useKickMember, useNominateHostHandoff, useSelfLeave } from "../hooks/use-membership-mutations";
-import { useForceCharacterTurn, useSetSeatKnobs } from "../hooks/use-roster-mutations";
+import { useForceCharacterTurn, useRemoveCharacterFromChat, useSetSeatKnobs } from "../hooks/use-roster-mutations";
 import type { MemberCastRow, MemberPersonRow } from "../lib/member-rows";
 import { filterCharacters, resolveHumanParticipants } from "../lib/roster";
 import { InviteDialog } from "./invite-dialog";
@@ -68,6 +68,7 @@ export function CommittedMembersTab({ chatId, chat, isHost, multiHumanCapable, c
   const invalidation = useInvalidation();
   const setSeatKnobs = useSetSeatKnobs({ trpc, invalidation });
   const forceTurn = useForceCharacterTurn({ trpc, invalidation });
+  const removeCharacter = useRemoveCharacterFromChat({ trpc, invalidation });
   const kick = useKickMember({ trpc, invalidation });
   const selfLeave = useSelfLeave({ trpc, invalidation });
   const nominateHost = useNominateHostHandoff({ trpc, invalidation });
@@ -119,6 +120,7 @@ export function CommittedMembersTab({ chatId, chat, isHost, multiHumanCapable, c
             : undefined
         }
         onForceTurn={isHost ? (characterId): void => forceTurn.mutate({ chatId, characterId }) : undefined}
+        onRemoveCharacter={isHost ? (characterId): void => removeCharacter.mutate({ chatId, characterId }) : undefined}
         onViewCharacter={(characterId): void => {
           selectCharacter(characterId);
           setActiveSection("characters");

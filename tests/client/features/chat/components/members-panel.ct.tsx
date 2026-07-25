@@ -19,6 +19,7 @@ import { MembersKickFocusStory, MembersPanelStory, MembersReseedStory } from "..
 const LAST_ACTION = '[data-testid="members-last-action"]';
 const HANDOFF_RE = /Hand off host…/u;
 const KICK_RE = /Kick…/u;
+const REMOVE_ARIA_RE = /Remove Aria from chat/u;
 const CHIP_50_RE = /Talkativeness: Aria — 50%/u;
 const CHIP_80_RE = /Talkativeness: Aria — 80%/u;
 
@@ -77,6 +78,33 @@ test("Enter opens the per-row Menu (the canonical action home); Mute fires the c
 
   await menu.getByRole("menuitem", { name: "Mute Aria" }).click();
   await expect(component.locator(LAST_ACTION)).toHaveText("disabled:character_aria:true");
+});
+
+test("Remove from chat sits LAST on a cast row and dispatches with the character id (host)", async ({ mount, page }) => {
+  const component = await mount(<MembersPanelStory />);
+
+  await component.getByRole("button", { name: "Aria — character" }).focus();
+  await page.keyboard.press("Enter");
+
+  const menu = page.getByRole("menu");
+  const remove = menu.getByRole("menuitem", { name: "Remove Aria from chat" });
+  await expect(remove).toBeVisible();
+  // Destructive row LAST (the symmetric drop for the cast-bar add).
+  await expect(menu.getByRole("menuitem").last()).toHaveText(REMOVE_ARIA_RE);
+
+  // Reversible (leftSeq-stamp) → a direct action, no AlertDialog; the seam fires with the exact id
+  // the real tab hands to `chat.removeCharacterFromChat({ chatId, characterId })`.
+  await remove.click();
+  await expect(component.locator(LAST_ACTION)).toHaveText("remove:character_aria");
+});
+
+test("a MEMBER view has no Remove from chat item on a cast row (host-only seam absent, §8.1)", async ({ mount, page }) => {
+  const component = await mount(<MembersPanelStory memberView={true} />);
+
+  await component.getByRole("button", { name: "Aria — character" }).focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("menuitem", { name: "View character" })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: "Remove Aria from chat" })).toHaveCount(0);
 });
 
 test("force-turn stays enabled for a MUTED member (#29) and the draft case drops it", async ({ mount, page }) => {

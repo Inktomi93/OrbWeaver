@@ -523,6 +523,10 @@ const PROBES: readonly Probe[] = [
     path: "chat.addCharacterToChat",
     call: (c, i) => c.chat.addCharacterToChat({ chatId: i.chatId, characterId: i.characterId }),
   },
+  {
+    path: "chat.removeCharacterFromChat",
+    call: (c, i) => c.chat.removeCharacterFromChat({ chatId: i.chatId, characterId: i.characterId }),
+  },
   // setSeatKnobs (D80 — the ONE participantId-keyed AI-seat knob write, replacing the retired per-kind
   // forking) is host-gated (`requireHost` → `requireParticipant` miss = leak-free NOT_FOUND) on the chatId
   // BEFORE the seat lookup, so a stranger tuning a seat in A's chat collapses to NOT_FOUND and never touches a

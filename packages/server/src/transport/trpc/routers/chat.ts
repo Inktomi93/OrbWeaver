@@ -325,6 +325,14 @@ const addCharacterToChatSchema = z.object({
   characterId: brandedId<CharacterId>(),
 });
 
+// `removeCharacterFromChat` — the symmetric drop for `addCharacterToChat` (cast-row "Remove from chat").
+// Host-only INSIDE the verb (`requireHost`); leftSeq-stamps the seat out (reversible via re-add), IDEMPOTENT
+// on an absent/already-left character. Same {chatId, characterId} wire shape as the add — thin pass-through.
+const removeCharacterFromChatSchema = z.object({
+  chatId: brandedId<ChatId>(),
+  characterId: brandedId<CharacterId>(),
+});
+
 // `setSeatKnobs` (D80) — the ONE participantId-keyed AI-seat knob write, the replacement for the retired
 // per-kind forking (`setParticipantDisabled`/`setParticipantTalkativeness`/`setAgentSeatDisabled` — the
 // pattern that guaranteed skipped arms, e.g. agent talkativeness was unsettable). Host-gated INSIDE the verb
@@ -417,6 +425,9 @@ export const chatRouter = t.router({
   addCharacterToChat: authedProcedure
     .input(addCharacterToChatSchema)
     .mutation(({ ctx, input }) => ctx.services.chat.addCharacterToChat({ principal: ctx.auth, ...input })),
+  removeCharacterFromChat: authedProcedure
+    .input(removeCharacterFromChatSchema)
+    .mutation(({ ctx, input }) => ctx.services.chat.removeCharacterFromChat({ principal: ctx.auth, ...input })),
   // The ONE AI-seat knob write (D80 — replaces the retired per-kind forking). Host-gated INSIDE the verb.
   setSeatKnobs: authedProcedure.input(setSeatKnobsSchema).mutation(({ ctx, input }) => ctx.services.chat.setSeatKnobs({ principal: ctx.auth, ...input })),
   forceCharacterTurn: authedProcedure

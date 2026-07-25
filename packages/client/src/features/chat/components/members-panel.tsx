@@ -166,6 +166,7 @@ export function MembersPanel(props: MembersPanelProps): ReactElement {
       onSetDisabled={props.onSetDisabled}
       onSetTalkativeness={props.onSetTalkativeness}
       onForceTurn={props.onForceTurn}
+      onRemoveCharacter={props.onRemoveCharacter}
       onViewCharacter={props.onViewCharacter}
     />
   );

@@ -34,6 +34,19 @@ export const useAddCharacterToChat = createEntityMutation<AddCharacterToChatVars
   errorToast: "Couldn't add that character to the chat.",
 });
 
+/** `chat.removeCharacterFromChat` vars — the symmetric drop for the add (host-only). leftSeq-stamps the
+ *  seat out; reversible via a re-add. Bus-driven: the verb emits `chatUpdated` on the OPEN chat. */
+interface RemoveCharacterFromChatVars {
+  readonly chatId: ChatId;
+  readonly characterId: CharacterId;
+}
+
+export const useRemoveCharacterFromChat = createEntityMutation<RemoveCharacterFromChatVars, unknown>({
+  options: (trpc) => trpc.chat.removeCharacterFromChat.mutationOptions(),
+  busDriven: true,
+  errorToast: "Couldn't remove that character from the chat.",
+});
+
 /** `chat.setSeatKnobs` vars — patch one participant's AI-seat knobs (mute + talkativeness) in one verb
  *  (D80 — the per-kind knob-verb forking is retired). Keyed by `participantId` (the `ParticipantView.id`),
  *  host-only. */
