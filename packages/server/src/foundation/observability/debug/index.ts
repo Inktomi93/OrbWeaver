@@ -2,7 +2,11 @@
 // folded into observability). The route registrar + the two structural-injection ports `entry/` fills.
 
 export {
+  type CharacterListRow,
   type ChatInspection,
+  type ChatListRow,
+  characterListSummaries,
+  chatListSummaries,
   type IntegrityReport,
   inspectChatState,
   integrityProbe,

@@ -235,6 +235,49 @@ export const DEFAULT_GUIDED_ACTIONS: GuidedActionsConfig = {
 };
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
+// Rewrite toggle catalog — the "toggle options to guide it" the Rewrite modal renders (owner ruling
+// 2026-07-25). Adapted (not ported) from the ST Guided-Generations rewrite family: the *Corrections*
+// tool itself ships no toggle catalog (only a free-text instruction + include-history + selection-scope),
+// so the guiding vocabulary here is lifted from the sibling **editIntros** transform catalog
+// (`prompts.json editIntros.options`), which IS the source's "one-click steer without prose-writing" set.
+// Only the transforms that make sense for a MID-CONVERSATION reply correction are kept: prose STYLE and
+// TENSE. The perspective/gender options are excluded — they reframe {{user}} in an OPENING and belong to
+// the greeting-studio surface (audit §3), not a reply rewrite. `concise`/`expand` are the two universal
+// correction-length fragments the Corrections OOC prompt implies ("change it to reflect …").
+//
+// Registry-as-data (the databank SCRAPER_KINDS / steer-library precedent — "substrate not a type home":
+// contracts owns the shape+data both the client chips and the pure composer need). Each toggle = a stable
+// `id`, a display `label`, and the instruction `fragment` it contributes. The pure composition lives in
+// `@orb/kit/guided` (`composeRewriteSteer`) — selected fragments join `. ` (the source's exact editIntros
+// join) in CATALOG ORDER, then the user's free-text instruction is appended, producing the ONE steer
+// string that becomes `{{input}}` inside the preset's `rewrite` template. Layering:
+//   preset rewrite template  ⊃  (catalog fragments joined) + free-text instruction
+// which mirrors the source's editIntros layering (options joined `". "` → filled into the task template).
+export interface RewriteToggle {
+  readonly id: string;
+  readonly label: string;
+  /** The instruction sentence this toggle contributes to the composed steer (no trailing period — the
+   *  composer joins with `. ` and terminates the whole steer, matching the source's editIntros join). */
+  readonly fragment: string;
+}
+
+export const REWRITE_TOGGLES = [
+  { id: "concise", label: "More concise", fragment: "Make it more concise and tighter — cut filler while keeping the substance" },
+  { id: "expand", label: "Expand", fragment: "Expand it with more detail and description, keeping the same events" },
+  {
+    id: "novella",
+    label: "Novella prose",
+    fragment: "Rewrite in a novella prose style: full paragraphs and proper dialogue punctuation, no asterisks for narration",
+  },
+  { id: "internet-rp", label: "Internet-RP style", fragment: "Rewrite in internet-RP style: asterisks for actions and narration, dialogue kept in quotes" },
+  { id: "literary", label: "Literary style", fragment: "Rewrite in a richer literary style: vivid metaphor and description while keeping proper formatting" },
+  { id: "past-tense", label: "Past tense", fragment: "Rewrite entirely in the past tense" },
+  { id: "present-tense", label: "Present tense", fragment: "Rewrite entirely in the present tense" },
+] as const satisfies readonly RewriteToggle[];
+
+export type RewriteToggleId = (typeof REWRITE_TOGGLES)[number]["id"];
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
 // Custom parameters — Layer-1 boundary guard (schema). Layer-2 runtime defense (`deepMergeRequestBody`,
 // the ACTUAL defense) lives in `@orb/server/kit/custom-parameters`. Zod strips `__proto__` implicitly;
 // `superRefine` here rejects `constructor`/`prototype` (which Zod does NOT strip) at every nested level.

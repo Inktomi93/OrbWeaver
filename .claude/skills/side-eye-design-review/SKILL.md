@@ -154,7 +154,7 @@ state in ONE eval — never scrape the DOM.
 | `__orb.bus()` | chat-bus `{ live, events }` — live subs + recent canon events |
 | `__orb.shell()` | shell state: active section, panel modes, `chatOpen` |
 | `__orb.ready` / `.isReady()` | promise / bool: hydrated + initial reads settled |
-| `__orb.nav.*` | ACTIONS (dev-only): `section(id)` · `openModal(slot)` · `openSettings(category)` · `contextTab(name)` · `openChat(idOrTitle)` · `closeModal()` — call the REAL store actions; return `{ok}` or `{ok:false, reason}` (loud refusal). snap's `--goto`/`--open-chat`/`--context-tab` ride these |
+| `__orb.nav.*` | ACTIONS (dev-only): `section(id)` · `openModal(slot)` · `openSettings(category)` · `contextTab(name)` · `openChat(idOrTitle)` · `openCharacter(idOrName)` · `closeModal()` — call the REAL store actions; return `{ok}` or `{ok:false, reason}` (loud refusal, incl. an AMBIGUOUS title/name matching >1). snap's `--goto`/`--open-chat`/`--open-character`/`--context-tab` ride these |
 
 Plus raw `getComputedStyle(el)` for the contrast / size / aspect-ratio math behind every visual receipt.
 
@@ -176,7 +176,9 @@ keyboard walk**):
   `--deadcss`.
   **NAVIGATION (the app is state-navigated, 2 URL routes — these replace click-chains):**
   `--goto <target>` (a section id like `presets`, `settings:<category>`, or `modal:<slot>`; refuses
-  loudly on an unknown target, exit 1) · `--open-chat <idOrExactTitle>` · `--context-tab <name>`.
+  loudly on an unknown target, exit 1) · `--open-chat <idOrExactTitle>` (refuses loudly on an AMBIGUOUS
+  title matching >1 chat — pass the id) · `--open-character <idOrName>` (Characters section + select;
+  same ambiguity refusal) · `--context-tab <name>`.
   These run BEFORE the step chain, so `--goto presets --map` maps the presets surface in one call.
   **OBSERVATION OVER TIME:** `--watch <totalMs> [--every <ms>]` — after nav+steps, screenshot + re-run
   every `--eval` each tick (per-tick PNGs + labeled eval results). THE tool for streaming turns /
@@ -287,7 +289,39 @@ UI (or `snap --goto`/`__orb.nav` if present; check `scripts/probes/snap.ts`'s he
 | D-ledger (cite the D-number a finding breaks) | `docs/architecture/core/Core-Laws-and-Precedents.md` → `Core-Path-Registry.md` |
 | CTs (component tests) — repo root, NOT packages/** | `tests/client/**` (e2e: `tests/e2e/**`) |
 | Probe tool manuals — **authoritative, read them fresh; this skill does not duplicate flags** | `scripts/probes/snap.ts` header · `scripts/probes/design-audit*.ts` |
-| Server truth for any chat surface | `GET :8788/api/_debug/db/chat/:id` · `/api/_debug/errors` · `/api/_debug/db/integrity` |
+| Server truth for any chat surface | `GET :8788/api/_debug/db/chat/:id` · `/api/_debug/db/chats` (LIST) · `/api/_debug/db/characters` (LIST) · `/api/_debug/errors` · `/api/_debug/db/integrity` |
+
+**Seeding + enumeration (stop re-deriving this):** enumerate ids straight from the harness —
+`GET /api/_debug/db/chats` (`{id,title,participantCount,messageCount,updatedAt}` per chat) and
+`GET /api/_debug/db/characters` (`{id,name,handle,createdAt}`) — no more re-deriving from the query
+cache. To SEED a SMALL fixture, **drive the UI, never hand-roll tRPC mutations** — you are the UX
+reviewer and the create journey is itself review surface: `--goto chats` lands on the LANDING pane →
+click a character quick-pick → the draft room opens → send one message → the draft COMMITS. Group chats:
+add members via the cast-bar/roster affordances. For a HEAVY fixture the UI can't produce in reasonable
+calls (long transcripts / compaction / virtualization looks), run `tsx scripts/dev/seed-chat.ts
+--messages 120 --characters 3 [--title "…"]` — it writes N deterministic numbered rows through the
+canon-safe bulk seam (restart the stack or seed a fresh DB so the live connection sees it; see the
+script header). Reach a chat by `--open-chat <idOrExactTitle>` (it REFUSES an ambiguous title — pass the
+id) and a character by `--open-character <idOrName>`. The DB on the dev stack is DISPOSABLE. If your
+brief handed you fixture ids, trust them before spending calls rediscovering.
+
+**Two-stacks trap:** the dev stack (:5173/:8788) and the `--isolated` snap stage (:5273/:8888) have
+SEPARATE DATABASES — fixture ids from one do not exist in the other, and "the seeded chat is gone"
+usually means you're on the other stack. Check which base you're driving before concluding data loss.
+
+**The bottom-right ❗N ⚠M chip is vite-plugin-checker's overlay badge** — tsc/ESLint diagnostics for
+the dev build (owner-corrected 2026-07-25; NOT TanStack devtools — that shell is bottom-LEFT,
+hover-hidden). Three hard-won facts:
+- **Read the counts from `.cache/stack/client.log`** (the checker prints full diagnostics there). Do
+  NOT probe the badge with `--eval` DOM queries — it renders in a SHADOW ROOT; `querySelectorAll`
+  returns nothing and lies "no badge".
+- **The long-running checker worker GOES STALE after cross-package type changes** (a new contracts
+  field read as `any` produced 5 phantom strict-boolean-expressions errors, 2026-07-25). On a
+  quiesced tree where `pnpm check` is green but the badge is nonzero: restart the stack FIRST; if the
+  count survives the restart it is real.
+- Mid-multi-lane flight it counts sibling churn — attribute like any whole-tree signal. Separate
+  instruments for separate questions: `/api/_debug/errors` = server truth · `__orb.queries()` =
+  query-cache truth · this badge = compile/lint truth (fresh-worker only).
 
 ## §13 The blunt-taste + IA lens (mandatory — the call no instrument makes)
 

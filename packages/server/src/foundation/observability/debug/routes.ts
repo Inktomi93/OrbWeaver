@@ -16,7 +16,7 @@ import { env } from "#foundation/env";
 import { getAuditFailureSnapshot } from "../audit";
 import { logRing, recentRequests } from "../logger";
 import { getTraceByRequestId, recentTraces } from "../tracing";
-import { inspectChatState, integrityProbe, tableCounts } from "./inspect";
+import { characterListSummaries, chatListSummaries, inspectChatState, integrityProbe, tableCounts } from "./inspect";
 import { recentWireCaptures } from "./wire-capture";
 
 const ERROR_LEVEL = 50; // pino numeric level for "error"
@@ -249,6 +249,15 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = {})
     app.get("/api/_debug/db/stats", async (c) => c.json({ tables: await tableCounts(db), auditFailures: getAuditFailureSnapshot() }));
     app.get("/api/_debug/db/integrity", async (c) => c.json(await integrityProbe(db)));
     app.get("/api/_debug/db/chat/:id", async (c) => c.json(await inspectChatState(db, castId<ChatId>(c.req.param("id")))));
+    // LIST probes: id-discovery so a harness stops re-deriving ids through the client query cache.
+    app.get("/api/_debug/db/chats", async (c) => {
+      const chats = await chatListSummaries(db);
+      return c.json({ count: chats.length, chats });
+    });
+    app.get("/api/_debug/db/characters", async (c) => {
+      const characters = await characterListSummaries(db);
+      return c.json({ count: characters.length, characters });
+    });
   }
   if (assets !== undefined) {
     app.get("/api/_debug/db/assets", async (c) => c.json(await assets.fsck()));

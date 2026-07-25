@@ -199,10 +199,12 @@ test("draft handle: 'Guided response' fires chat.startChat with a forced generat
   await expect(component.getByLabel("Message", { exact: true })).toHaveValue("");
 });
 
-// F1 — Rewrite: the preset card shipped a `rewrite` template with NO fire surface (the dead-ended pair).
-// The wand's Rewrite item fires chat.swipe + guided{action:"rewrite"} on the tail assistant message, so the
-// correction lands as a NEW VARIANT. This is the wire payload the finding demanded proof of.
-test("Rewrite fires chat.swipe + guided{action:'rewrite'} on the tail assistant message (F1)", async ({ mount, page }) => {
+// F1 + owner ruling 2026-07-25 — Rewrite OPENS a modal (instruction box + REWRITE_TOGGLES catalog). Apply
+// composes the selected toggle fragments + the free text into ONE steer and fires the SAME chat.swipe +
+// guided{action:"rewrite"} on the tail assistant message, so the correction lands as a NEW VARIANT.
+
+// The Rewrite menu item opens the modal, pre-seeded from the composer draft; Apply fires the composed steer.
+test("Rewrite opens the modal pre-seeded from the draft; Apply fires chat.swipe + guided{action:'rewrite'} (F1)", async ({ mount, page }) => {
   const tail = makeMessageView({ chatId: COMPOSER_CHAT_ID, role: "assistant" });
   const trpc = await routeTrpc(page, {
     "chat.listMessages": () => makeMessagesPage([tail]),
@@ -212,9 +214,15 @@ test("Rewrite fires chat.swipe + guided{action:'rewrite'} on the tail assistant 
 
   await component.getByLabel("Message", { exact: true }).fill("drop the anachronism, keep the tone");
   await component.getByRole("button", { name: "Guided generations" }).click();
-  const rewriteItem = page.getByRole("menuitem", { name: "Rewrite" });
-  await expect(rewriteItem).toBeEnabled();
-  await rewriteItem.click();
+  await page.getByRole("menuitem", { name: "Rewrite" }).click();
+
+  // The modal is open with the instruction pre-seeded from the composer draft (the existing gesture is kept).
+  const instruction = page.getByRole("textbox", { name: "Correction instruction" });
+  await expect(instruction).toBeVisible();
+  await expect(instruction).toHaveValue("drop the anachronism, keep the tone");
+
+  // Apply fires the composed steer (no toggles selected ⇒ just the terminated instruction).
+  await page.getByRole("button", { name: "Rewrite" }).click();
 
   await expect.poll(() => trpc.count("chat.swipe"), { intervals: [20, 50, 100] }).toBe(1);
   await expect
@@ -222,12 +230,44 @@ test("Rewrite fires chat.swipe + guided{action:'rewrite'} on the tail assistant 
     .toMatchObject({
       chatId: COMPOSER_CHAT_ID,
       messageId: tail.id,
-      guided: { action: "rewrite", input: "drop the anachronism, keep the tone" },
+      guided: { action: "rewrite", input: "drop the anachronism, keep the tone." },
     });
 });
 
-// Rewrite disables with no tail assistant reply to correct (same gate as swipe/continue) — RED on the old
-// code, which shipped no Rewrite item at all.
+// The toggle catalog composes: selected toggles' fragments join (catalog order) then the free text, into the
+// ONE fired steer string — trpc.lastInput pins the exact composed value.
+test("Rewrite toggles compose their fragments + the free text into the fired steer (F1)", async ({ mount, page }) => {
+  const tail = makeMessageView({ chatId: COMPOSER_CHAT_ID, role: "assistant" });
+  const trpc = await routeTrpc(page, {
+    "chat.listMessages": () => makeMessagesPage([tail]),
+    "chat.swipe": () => ({ ok: true }),
+  });
+  const component = await mount(<ComposerStory />);
+
+  await component.getByLabel("Message", { exact: true }).fill("keep the plot beats");
+  await component.getByRole("button", { name: "Guided generations" }).click();
+  await page.getByRole("menuitem", { name: "Rewrite" }).click();
+
+  // Flip two toggles (declared BEFORE "keep the plot beats" appends): "More concise" (id concise, first in
+  // the catalog) and "Past tense" (id past-tense). Composition order is CATALOG order, not click order.
+  await page.getByRole("switch", { name: "Past tense" }).click();
+  await page.getByRole("switch", { name: "More concise" }).click();
+  await page.getByRole("button", { name: "Rewrite" }).click();
+
+  await expect.poll(() => trpc.count("chat.swipe"), { intervals: [20, 50, 100] }).toBe(1);
+  await expect
+    .poll(() => trpc.lastInput("chat.swipe"))
+    .toMatchObject({
+      chatId: COMPOSER_CHAT_ID,
+      messageId: tail.id,
+      guided: {
+        action: "rewrite",
+        input: "Make it more concise and tighter — cut filler while keeping the substance. Rewrite entirely in the past tense. keep the plot beats.",
+      },
+    });
+});
+
+// Rewrite disables with no tail assistant reply to correct (same gate as swipe/continue).
 test("Rewrite is disabled with no tail assistant message to correct (F1)", async ({ mount, page }) => {
   const component = await mount(<ComposerStory />);
   await component.getByLabel("Message", { exact: true }).fill("fix it");

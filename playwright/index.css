@@ -6,6 +6,10 @@
  * bundle or the CT renders different pixels than prod (caught 2026-07-13 — the inline-cluster
  * hover reveal was invisible in CT while fine in the app build). */
 @import "@orb/ui/styles/globals.css";
+/* The shell's own CSS carries feature chrome rules a shell-component CT depends on to render prod pixels
+ * — e.g. the CONTEXT tab strip's `.ctx-tab-strip` @container label-collapse (context-tabs-panel.tsx).
+ * Without it a shell-component CT shows a DIFFERENT strip than prod (labels never collapse). */
+@import "../packages/client/src/features/app-shell/surfaces/shell.css";
 @source "../packages/ui/src";
 @source "../packages/client/src";
 @source "../tests";

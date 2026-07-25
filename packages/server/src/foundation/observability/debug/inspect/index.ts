@@ -8,4 +8,5 @@ export {
   inspectChatState,
 } from "./inspect-chat";
 export { type IntegrityReport, integrityProbe } from "./integrity";
+export { type CharacterListRow, type ChatListRow, characterListSummaries, chatListSummaries } from "./list";
 export { tableCounts } from "./stats";

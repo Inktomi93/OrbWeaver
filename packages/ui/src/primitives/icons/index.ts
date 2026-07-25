@@ -75,6 +75,7 @@ export {
   Square,
   Star,
   SunMoon,
+  Syringe,
   Trash2,
   Undo2,
   Unlock,

@@ -63,6 +63,9 @@ import type {
   ToolCallRecord,
 } from "@orb/contracts/chat";
 import { buildCharacterAvatarMap, buildCharacterNameMap, buildPersonaNameMap, DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
+import type { RewriteToggleId } from "@orb/contracts/preset";
+import { REWRITE_TOGGLES } from "@orb/contracts/preset";
+import { composeRewriteSteer } from "@orb/kit/guided";
 import type { AssetId, CharacterId, ChatId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
@@ -93,6 +96,7 @@ import { MessageRow } from "../../../../packages/client/src/features/chat/compon
 import { MessageSelectionBar } from "../../../../packages/client/src/features/chat/components/message-selection-bar";
 import { MessageToolCalls } from "../../../../packages/client/src/features/chat/components/message-tool-calls";
 import { ReasoningBlock } from "../../../../packages/client/src/features/chat/components/reasoning-block";
+import { RewriteDialog } from "../../../../packages/client/src/features/chat/components/rewrite-dialog";
 import { RoomOverridesForm } from "../../../../packages/client/src/features/chat/components/room-overrides-form";
 import { CommittedSettingsTab, DraftSettingsTab } from "../../../../packages/client/src/features/chat/components/settings-context-tab";
 import { SpeakAsSelect } from "../../../../packages/client/src/features/chat/components/speak-as-select";
@@ -688,6 +692,64 @@ export function ComposerStory(props: ComposerStoryProps): ReactElement {
   return (
     <CtDataProviders>
       <ComposerStoryInner {...props} />
+    </CtDataProviders>
+  );
+}
+
+// ── Rewrite dialog story (the guided-Rewrite modal in isolation) ─────────────────────────────────
+// Owns the instruction + toggle-selection state exactly as the wand does (the modal is controlled), and
+// composes the SAME `composeRewriteSteer` the wand fires on Apply — the composed steer is written to a
+// readout so the CT can assert the exact fired string WITHOUT a tRPC round-trip (the pure-component lane;
+// the wand's own CT proves the tRPC wire). `initialInstruction` seeds the field (the draft-preseed case).
+
+export interface RewriteDialogStoryProps {
+  /** Seeds the instruction field on mount (the composer-draft preseed case). @defaultValue "" */
+  readonly initialInstruction?: string;
+}
+
+function RewriteDialogStoryInner({ initialInstruction = "" }: RewriteDialogStoryProps): ReactElement {
+  const [open, setOpen] = useState(true);
+  const [instruction, setInstruction] = useState(initialInstruction);
+  const [selected, setSelected] = useState<ReadonlySet<RewriteToggleId>>(new Set<RewriteToggleId>());
+  const [fired, setFired] = useState("");
+  return (
+    <div>
+      <button type="button" data-testid="reopen" onClick={(): void => setOpen(true)}>
+        open
+      </button>
+      <div data-testid="fired-steer">{fired}</div>
+      <RewriteDialog
+        open={open}
+        onOpenChange={setOpen}
+        instruction={instruction}
+        onInstructionChange={setInstruction}
+        selected={selected}
+        onToggle={(id, on): void =>
+          setSelected((prev) => {
+            const next = new Set(prev);
+            if (on) {
+              next.add(id);
+            } else {
+              next.delete(id);
+            }
+            return next;
+          })
+        }
+        onApply={(): void => {
+          const fragments = REWRITE_TOGGLES.filter((t) => selected.has(t.id)).map((t) => t.fragment);
+          setFired(composeRewriteSteer(fragments, instruction));
+          setOpen(false);
+        }}
+      />
+    </div>
+  );
+}
+
+/** The Rewrite modal in isolation — controlled state + a composed-steer readout (`fired-steer`). */
+export function RewriteDialogStory(props: RewriteDialogStoryProps): ReactElement {
+  return (
+    <CtDataProviders>
+      <RewriteDialogStoryInner {...props} />
     </CtDataProviders>
   );
 }
