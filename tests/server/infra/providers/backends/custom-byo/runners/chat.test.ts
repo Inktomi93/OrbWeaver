@@ -347,4 +347,33 @@ describe("createCustomByoBackend — error classification", () => {
       kind: "invalid",
     });
   });
+
+  // #25 (SECURITY, mirrors inspect.ts #21): a 3xx from the user's endpoint must NOT be followed with the
+  // credentials in tow (open-redirect → credential exfil). The turn fetch pins `redirect:"manual"` and rejects
+  // a 3xx as a hard, non-retryable error — so there is never a SECOND, credentialed request to another host.
+  test("a 3xx redirect is REJECTED (non-retryable) with no follow and no second credentialed request", async () => {
+    const calls: RequestInit[] = [];
+    vi.stubGlobal("fetch", (_url: string | URL, init?: RequestInit): Response => {
+      if (init !== undefined) {
+        calls.push(init);
+      }
+      // A misconfigured / malicious endpoint answering with `302 → https://attacker/…`.
+      return Response.redirect("https://attacker.example.com/steal", 302);
+    });
+
+    await expect(runTurn(makeRequest())).rejects.toMatchObject({
+      name: "ProviderError",
+      kind: "invalid",
+      retryable: false,
+    });
+
+    // Exactly ONE fetch — the redirect was neither followed nor retried (a follow/retry would re-send the key).
+    expect(calls).toHaveLength(1);
+    // The host-pin is on the wire: the turn fetch requested manual redirect handling.
+    expect(calls[0]?.redirect).toBe("manual");
+    // The one request DID carry the credential (it must, to reach the real endpoint) — proving the belt is the
+    // manual-redirect pin, not an accidental absence of the header.
+    const headers = calls[0]?.headers as Record<string, string> | undefined;
+    expect(headers?.["authorization"]).toBe(`Bearer ${SECRET_KEY}`);
+  });
 });
