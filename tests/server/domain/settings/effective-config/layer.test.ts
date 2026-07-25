@@ -87,12 +87,14 @@ describe("layer (floor-merge)", () => {
       expect(el.embedMaxModelLen).toBe(env.VLLM_EMBED_MAX_MODEL_LEN);
       expect(el.embedGpuUtil).toBe(env.VLLM_EMBED_GPU_UTIL);
       expect(el.genMaxPixels).toBe(env.VLLM_GEN_MAX_PIXELS);
+      expect(el.genRepetitionPenalty).toBe(env.VLLM_GEN_REPETITION_PENALTY); // #23 — the Qwen loop-fix floor
     });
 
     test("an admin override wins per field; unset fields stay on the floor", () => {
-      const el = layer({ engineLaunch: { genMaxModelLen: 65_536, genGpuUtilMulti: 0.35 } }).engineLaunch;
+      const el = layer({ engineLaunch: { genMaxModelLen: 65_536, genGpuUtilMulti: 0.35, genRepetitionPenalty: 1.1 } }).engineLaunch;
       expect(el.genMaxModelLen).toBe(65_536);
       expect(el.genGpuUtilMulti).toBe(0.35);
+      expect(el.genRepetitionPenalty).toBe(1.1);
       expect(el.embedMaxModelLen).toBe(env.VLLM_EMBED_MAX_MODEL_LEN); // floor
     });
 

@@ -12,6 +12,9 @@ export const selectVariants = tv({
       FOCUS_RING,
       DISABLED_STATE,
     ],
+    // The selected-value text stays ONE line (the app-wide single-line trigger convention) — `min-w-0` lets the
+    // flex child shrink so `truncate` can ellipsize a long option label instead of wrapping to two lines.
+    value: "min-w-0 truncate text-left",
     icon: "flex shrink-0 text-muted-foreground",
     positioner: "z-(--z-popover) outline-none",
     // Select's popup can GROW past the anchor for a long option, so it takes `min-w-(--anchor-width)`

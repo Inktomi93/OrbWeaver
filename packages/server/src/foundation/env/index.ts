@@ -40,6 +40,13 @@ const VLLM_GEN_GPU_UTIL_SINGLE_DEFAULT = 0.5;
 // regime; the gen VL engine at its 4.2M-px cap. ONE home for the two literals the shell hand-carried.
 const VLLM_POOLING_MAX_PIXELS_DEFAULT = 1_843_200;
 const VLLM_GEN_MAX_PIXELS_DEFAULT = 4_194_304;
+// The gen engine's --override-generation-config repetition_penalty (#23). Qwen3-VL ships
+// generation_config.json repetition_penalty=1.0 (no repeat penalty → the agent-sdk /v1/messages path
+// loops to the output cap → api_error, live turn_127). The Anthropic Messages wire carries NO per-request
+// penalty, so the sdk path can't self-correct — it MUST be a LAUNCH default baked into the serve command.
+// 1.05 is the Qwen-card-recommended value that fixed the loop live. ONE home for the literal; env-layered
+// so an admin can retune + restart.
+const VLLM_GEN_REPETITION_PENALTY_DEFAULT = 1.05;
 // Whole-request embed timeout (ms): a warming/wedged engine can't hang boot-time embedding forever.
 const VLLM_EMBED_REQUEST_TIMEOUT_MS_DEFAULT = 120_000;
 const MIN_SESSION_SECRET_CHARS = 32;
@@ -73,6 +80,11 @@ const envSchema = z
     // byte-identical turns. `on` wires the per-process ring recorder read host-only at /api/_debug/rpg/traces
     // (the drive kit forces it on via the `rpgTrace` compose dep, bypassing this env knob).
     RPG_TRACE: z.enum(["on", "off"]).default("off"),
+    // TASK-24 wire-capture: opt-in for the provider-request-body recorder (the four-layer fidelity harness).
+    // Default off ⇒ compose wires NO capture sink into the backends ⇒ zero-cost + byte-identical turns +
+    // zero retained bytes. `on` wires the sink; the per-process ring is read host-only at
+    // /api/_debug/wire/captures (the drive kit / an int test forces it on via the `wireCapture` compose dep).
+    WIRE_CAPTURE: z.enum(["on", "off"]).default("off"),
 
     DATABASE_URL: z.string().min(1).default("file:./data/orbweaver.db"),
     // The built client bundle (`vite build` output) the SPA registrar serves in prod. cwd-relative like
@@ -118,6 +130,9 @@ const envSchema = z
     VLLM_GEN_GPU_UTIL_SINGLE: z.coerce.number().positive().default(VLLM_GEN_GPU_UTIL_SINGLE_DEFAULT),
     VLLM_POOLING_MAX_PIXELS: z.coerce.number().int().positive().default(VLLM_POOLING_MAX_PIXELS_DEFAULT),
     VLLM_GEN_MAX_PIXELS: z.coerce.number().int().positive().default(VLLM_GEN_MAX_PIXELS_DEFAULT),
+    // The gen engine's --override-generation-config repetition_penalty (#23) — the LAUNCH default that stops
+    // the Qwen3-VL 1.0-penalty output-cap loop on the sampler-less agent-sdk wire. Admin-layerable + restart.
+    VLLM_GEN_REPETITION_PENALTY: z.coerce.number().positive().default(VLLM_GEN_REPETITION_PENALTY_DEFAULT),
     VLLM_EMBED_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(VLLM_EMBED_REQUEST_TIMEOUT_MS_DEFAULT),
     VLLM_EMBED_DIM: z.coerce.number().int().positive().default(VLLM_EMBED_DIM_DEFAULT),
     VLLM_EMBED_CHUNK_SIZE: z.coerce.number().int().positive().default(VLLM_EMBED_CHUNK_DEFAULT),
@@ -298,6 +313,7 @@ export function engineLaunchEnvFloor(): {
   readonly VLLM_GEN_GPU_UTIL_SINGLE: number;
   readonly VLLM_POOLING_MAX_PIXELS: number;
   readonly VLLM_GEN_MAX_PIXELS: number;
+  readonly VLLM_GEN_REPETITION_PENALTY: number;
   readonly VLLM_EMBED_PORT: number;
   readonly VLLM_RERANK_PORT: number;
   readonly VLLM_GEN_PORT: number;
@@ -316,6 +332,7 @@ export function engineLaunchEnvFloor(): {
     VLLM_GEN_GPU_UTIL_SINGLE: env.VLLM_GEN_GPU_UTIL_SINGLE,
     VLLM_POOLING_MAX_PIXELS: env.VLLM_POOLING_MAX_PIXELS,
     VLLM_GEN_MAX_PIXELS: env.VLLM_GEN_MAX_PIXELS,
+    VLLM_GEN_REPETITION_PENALTY: env.VLLM_GEN_REPETITION_PENALTY,
     VLLM_EMBED_PORT: env.VLLM_EMBED_PORT,
     VLLM_RERANK_PORT: env.VLLM_RERANK_PORT,
     VLLM_GEN_PORT: env.VLLM_GEN_PORT,

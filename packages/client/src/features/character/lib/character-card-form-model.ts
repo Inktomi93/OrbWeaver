@@ -28,8 +28,9 @@ const PREFILL_DEPTH = 0;
  *  save); the nested `depthPrompt` is flattened to three sibling fields (re-nested on save). */
 export interface CharacterCardFormValues {
   readonly name: string;
-  // Mutable (not readonly): TanStack Form's array-field helpers only recognize a mutable T[].
-  readonly greetings: string[];
+  // Mutable (not readonly): TanStack Form's array-field helpers only recognize a mutable T[]. Each greeting is
+  // `{ text, groupOnly? }` — `groupOnly:true` marks a group-chat-only alternate (never greetings[0]).
+  readonly greetings: Greeting[];
   readonly description: string;
   readonly personality: string;
   readonly scenario: string;
@@ -51,7 +52,7 @@ export interface CharacterCardFormValues {
  *  `defaultValues` fallback. */
 export const DEFAULT_CHARACTER_CARD_FORM: CharacterCardFormValues = {
   name: "",
-  greetings: [""],
+  greetings: [{ text: "" }],
   description: "",
   personality: "",
   scenario: "",
@@ -82,7 +83,7 @@ function orNull(value: string): string | null {
 export function characterCardFormFromDetail(card: CharacterDetail): CharacterCardFormValues {
   return {
     name: card.name,
-    greetings: card.greetings.length > 0 ? card.greetings.map((g) => g.text) : [""],
+    greetings: card.greetings.length > 0 ? card.greetings.map((g) => ({ ...g })) : [{ text: "" }],
     description: orEmpty(card.description),
     personality: orEmpty(card.personality),
     scenario: orEmpty(card.scenario),
@@ -153,13 +154,15 @@ function deepEqual(a: unknown, b: unknown): boolean {
   return aKeys.length === bKeys.length && aKeys.every((key) => deepEqual((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key]));
 }
 
-/** Keep `[0]` always (the first message, even when empty), drop only trailing empty ALTERNATES, and lift
- *  each text into the wire {@link Greeting} shape. This snapshot editor is text-only: it has no
- *  `groupOnly` affordance, so it never emits (nor preserves) that flag — a card's group-only greetings
- *  round-trip as normal greetings if the greetings array is edited here. */
-function normalizeGreetings(greetings: readonly string[]): Greeting[] {
-  const [first = "", ...rest] = greetings;
-  return [first, ...rest.filter((g) => g.trim() !== "")].map((text) => ({ text }));
+/** Keep `[0]` always (the first message, even when empty), drop only trailing empty ALTERNATES. greetings[0]
+ *  is force-stripped of `groupOnly` (the first message is always solo-eligible); alternates emit `groupOnly`
+ *  only when true so a normal greeting round-trips as bare `{ text }` (diff-stable vs the server row). */
+function normalizeGreetings(greetings: readonly Greeting[]): Greeting[] {
+  const [first = { text: "" }, ...rest] = greetings;
+  return [
+    { text: first.text },
+    ...rest.filter((g) => g.text.trim() !== "").map((g): Greeting => (g.groupOnly === true ? { text: g.text, groupOnly: true } : { text: g.text })),
+  ];
 }
 
 /** Re-nest the flat depthPrompt siblings, or `null` when the note text is empty (no note). */
@@ -199,6 +202,6 @@ export function permanentTokenCount(values: CharacterCardFormValues): number {
 
 /** The total: permanent + the prompt-bearing non-permanent fields (name + the active greeting). */
 export function totalTokenCount(values: CharacterCardFormValues, activeGreetingIndex: number): number {
-  const activeGreeting = values.greetings[activeGreetingIndex] ?? values.greetings[0] ?? "";
+  const activeGreeting = values.greetings[activeGreetingIndex]?.text ?? values.greetings[0]?.text ?? "";
   return permanentTokenCount(values) + estimateTokens(values.name) + estimateTokens(activeGreeting);
 }

@@ -25,6 +25,7 @@ import {
   goToLanding,
   isCommitted,
   isLanding,
+  migrateComposerDraft,
   openModal,
   openSettingsTo,
   revealContextPanel,
@@ -45,6 +46,7 @@ import {
   setCharacterSortMode,
   setCharacterViewMode,
   setChatListCharacterFilter,
+  setComposerDraft,
   setContextTab,
   setMobileViewport,
   setNarrowViewport,
@@ -64,6 +66,7 @@ import {
   useCharacterViewMode,
   useChatListCharacterFilter,
   useChromeRegistry,
+  useComposerDraft,
   useContextTab,
   useFavoritesOnly,
   useListDocked,
@@ -90,6 +93,7 @@ import {
 import type { CharacterId, ChatId, PresetId, TagId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
+import { useState } from "react";
 import { CtFakeSectionRegistry } from "../../support/ct/ct-data-providers";
 
 export function ShellStoreProbe(): ReactElement {
@@ -539,4 +543,37 @@ function SettingsPaneRegistryReader(): ReactElement {
       <output>{`ids=${ids} appearance=${registry.get("appearance").label}`}</output>
     </div>
   );
+}
+
+/** ComposerDraftProbe — drives the composer-draft store (D70 commons) through its module actions and
+ *  reads the reactive `useComposerDraft` hook, so a CT can prove the item-12 restoration: the typed draft
+ *  is MODULE-scoped state, so it survives a component REMOUNT (the papercut this store exists to kill), and
+ *  a draft→committed promotion MIGRATES the text across the scope-key flip. A CT (not a unit test) because
+ *  the store's only read surface is the reactive hook (useSyncExternalStore needs a browser render). */
+export function ComposerDraftProbe(): ReactElement {
+  // A local mount toggle so the test can unmount+remount the reader and prove the store outlives it.
+  const [mounted, setMounted] = useState(true);
+  return (
+    <div>
+      <button type="button" onClick={(): void => setComposerDraft("cd_scope", "typed but not sent")}>
+        type draft
+      </button>
+      <button type="button" onClick={(): void => migrateComposerDraft("cd_scope", "cd_committed")}>
+        migrate to committed
+      </button>
+      <button type="button" onClick={(): void => setMounted(false)}>
+        unmount reader
+      </button>
+      <button type="button" onClick={(): void => setMounted(true)}>
+        remount reader
+      </button>
+      {mounted ? <ComposerDraftReader /> : <output>reader unmounted</output>}
+    </div>
+  );
+}
+
+function ComposerDraftReader(): ReactElement {
+  const draft = useComposerDraft("cd_scope");
+  const committed = useComposerDraft("cd_committed");
+  return <output>{`draft=${draft === "" ? "empty" : draft} committed=${committed === "" ? "empty" : committed}`}</output>;
 }

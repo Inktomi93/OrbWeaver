@@ -1,7 +1,7 @@
 // One row of the Settings → Connections → Saved keys library — a stored provider credential as the
 // redacted list view: the secret never reaches the client, so this renders only metadata (label ·
-// active/revoked state · a health probe · set-active · remove). Immediate-commit: each control is an
-// independent trpc.credentials.* mutation, no draft/submit lifecycle.
+// active/revoked state · a health probe · set-active · mark-revoked/clear-revoked · remove).
+// Immediate-commit: each control is an independent trpc.credentials.* mutation, no draft/submit lifecycle.
 
 import type { CredentialHealth } from "@orb/contracts/credentials";
 import { Badge } from "@orb/ui/badge";
@@ -15,8 +15,16 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { ConfirmDialog } from "#components";
 import type { Invalidation, Trpc } from "#data";
-import { timeLib } from "#lib";
-import { useFetchModels, useRemoveCredential, useSetActiveCredential, useTestCredentialHealth } from "../hooks/use-connections-mutations";
+import { testId, timeLib } from "#lib";
+import {
+  useClearRevokedCredential,
+  useFetchModels,
+  useMarkRevokedByUser,
+  useRemoveCredential,
+  useSetActiveCredential,
+  useTestCredentialHealth,
+} from "../hooks/use-connections-mutations";
+import { EndpointInspectorDialog } from "./endpoint-inspector-dialog";
 
 type CredentialListItem = inferOutput<Trpc["credentials"]["list"]>[number];
 
@@ -36,7 +44,11 @@ export function CredentialKeyRow({ credential, trpc, invalidation }: CredentialK
   const remove = useRemoveCredential(deps);
   const testHealth = useTestCredentialHealth(deps);
   const fetchModels = useFetchModels(deps);
+  const markRevoked = useMarkRevokedByUser(deps);
+  const clearRevoked = useClearRevokedCredential(deps);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [revokeOpen, setRevokeOpen] = useState(false);
+  const [inspectOpen, setInspectOpen] = useState(false);
   const [testResult, setTestResult] = useState<TestResult | null>(null);
 
   const revoked = credential.revokedAt !== null;
@@ -88,9 +100,35 @@ export function CredentialKeyRow({ credential, trpc, invalidation }: CredentialK
           <Button intent="ghost" size="sm" disabled={testing} onClick={runTest}>
             Test
           </Button>
+          {isCustom ? (
+            <Button intent="ghost" size="sm" onClick={(): void => setInspectOpen(true)}>
+              Test endpoint
+            </Button>
+          ) : null}
           {credential.active || revoked ? null : (
             <Button intent="secondary" size="sm" disabled={setActive.isPending} onClick={(): void => setActive.mutate({ credentialId: credential.id })}>
               Set active
+            </Button>
+          )}
+          {revoked ? (
+            <Button
+              data-testid={testId("credentialClearRevoked")}
+              intent="secondary"
+              size="sm"
+              disabled={clearRevoked.isPending}
+              onClick={(): void => clearRevoked.mutate({ credentialId: credential.id })}
+            >
+              Clear revoked
+            </Button>
+          ) : (
+            <Button
+              data-testid={testId("credentialMarkRevoked")}
+              intent="ghost"
+              size="sm"
+              disabled={markRevoked.isPending}
+              onClick={(): void => setRevokeOpen(true)}
+            >
+              Mark revoked
             </Button>
           )}
           <Button intent="ghost" size="sm" aria-label={`Remove the ${label} key`} onClick={(): void => setDeleteOpen(true)}>
@@ -104,6 +142,24 @@ export function CredentialKeyRow({ credential, trpc, invalidation }: CredentialK
             open={deleteOpen}
             title={`Remove "${label}"?`}
           />
+          <ConfirmDialog
+            confirmLabel="Mark revoked"
+            description="Marks this key as revoked so no turn uses it — do this when you know it was rotated or leaked. Any role using this provider falls back to another active key or the default. You can clear the flag later."
+            onConfirm={(): void => markRevoked.mutate({ credentialId: credential.id })}
+            onOpenChange={setRevokeOpen}
+            open={revokeOpen}
+            title={`Mark "${label}" revoked?`}
+          />
+          {isCustom ? (
+            <EndpointInspectorDialog
+              open={inspectOpen}
+              onOpenChange={setInspectOpen}
+              credentialId={credential.id}
+              label={label}
+              trpc={trpc}
+              invalidation={invalidation}
+            />
+          ) : null}
         </Row>
       }
     />

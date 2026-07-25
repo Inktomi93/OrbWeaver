@@ -18,8 +18,9 @@ updated: 2026-07-17
 > convention, one exit contract, one summary artifact, generalized over a self-describing stage registry.
 > AGENTS.md §4 states the doctrine ("iterate on `--changed`, claim done only after `pnpm check`, pre-push is
 > `--push`, the works is `--full`"); this doc is its as-built spec. The CODE is truth on any conflict:
-> `scripts/verify/{run,registry,selection,tests-type-membership}.ts`, `scripts/check/{report,scoped}.ts`,
-> `scripts/check/gates/verify-registry-parity.ts`, `lefthook.yml`, `.github/workflows/ci.yml`.
+> `scripts/verify/{run,registry,selection,tests-type-membership,tests-execution-membership}.ts`,
+> `scripts/check/{report,scoped}.ts`, `scripts/check/gates/verify-registry-parity.ts`, `lefthook.yml`,
+> `.github/workflows/ci.yml`.
 
 ## 1. Why ONE surface
 
@@ -108,13 +109,14 @@ static is the born-compliant TEST-FREE commit gate. The honest containment for t
 | tier | what it runs | role |
 | - | - | - |
 | `changed` | the scoped inner loop: lint/types(per-owner)/structure/imports/docs over the changed set + vitest `--changed` related tests | fast iteration; `verify --changed` |
-| `static` | biome + eslint + tsc×5 (`types:packages`/`graph`/`testd`/`tests-dom`/`tests-membership`) + `structure:full` + `imports:depcruise` + `deps:knip` + `docs:format` — no behavioral suite | `pnpm check` = `verify --static`; the commit gate |
+| `static` | biome + eslint + tsc×5 (`types:packages`/`graph`/`testd`/`tests-dom`/`tests-membership`) + `tests:execution-membership` + `structure:full` + `imports:depcruise` + `deps:knip` + `docs:format` — no behavioral suite | `pnpm check` = `verify --static`; the commit gate |
 | `push` | static + `tests:node` (vitest projects AND the CT suite) + `browser:e2e-smoke` | pre-push bar; `verify --push` |
 | `full` | push + `quality:cpd` + `browser:e2e` + `tests:parity` + `quality:mutation-gate` + `deps:knip-prod` (the production-strict kept-alive-only-by-tests lens — full-tier during the buildout, promotes post-buildout) | the "nothing omitted" bar; `verify --full` (CI `workflow_dispatch`) |
 
 The static tier is EXACTLY the ordered set `lint:biome, lint:eslint, types:packages, types:graph,
-types:testd, types:tests-dom, types:tests-membership, structure:full, imports:depcruise, deps:knip,
-docs:format` (pinned in the int test) — so `pnpm check` stays byte-compatible with the retired orchestrator.
+types:testd, types:tests-dom, types:tests-membership, tests:execution-membership, structure:full,
+imports:depcruise, deps:knip, docs:format` (pinned in the int test) — so `pnpm check` stays byte-compatible
+with the retired orchestrator, modulo the two membership-floor additions.
 `.github/workflows/ci.yml` runs the full tier (§3.2, V4 — the "nothing omitted" bar).
 
 ### 3.3 The exit contract
@@ -218,6 +220,13 @@ The behavioral suites are ONE `tests` concept expressed as stages with tier + sc
   per-push browser surface. **`browser:e2e`** (`full`), **`browser:e2e-live`** (`manual` — costs model
   credits), **`tests:parity`** (`full`), **`quality:mutation-gate`** (`full`), **`quality:mutation-report`**
   - **`tests:coverage`** (`manual` — report-only, no thresholds gate).
+- **`tests:execution-membership`** (`static`/`push`/`full`, #22 — `scripts/verify/tests-execution-membership.ts`)
+  — `types:tests-membership`'s EXECUTION-lane sibling: BOTH directions of "a test file is run by SOME
+  runner, and a runner glob matches SOME file". Asks each runner its own `--list` view (`vitest list --filesOnly --json` for all six node projects; `playwright test --list --reporter=json` for
+  `playwright.config.ts` — run with `E2E_LIVE=1` so `@live`-tagged specs, structurally matched but grep-
+  skipped at routine run time, still count — and `playwright-ct.config.ts`), never re-parses glob strings
+  (drift-proof). A `tests/**` runner-suffixed file in NO view REDs (never executed); a runner view matching
+  ZERO files REDs (the marinara silent-no-op disease — its server `pnpm test` globs matched nothing).
 
 ## 4. Hook + CI wiring
 

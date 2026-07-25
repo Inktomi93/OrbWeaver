@@ -32,7 +32,7 @@ test("characterCardFormFromDetail maps null text columns to empty strings", () =
 });
 
 test("characterCardFormFromDetail seeds one empty greeting slot when the card has none", () => {
-  expect(characterCardFormFromDetail(card({ greetings: [] })).greetings).toEqual([""]);
+  expect(characterCardFormFromDetail(card({ greetings: [] })).greetings).toEqual([{ text: "" }]);
 });
 
 test("characterCardFormFromDetail flattens a present depthPrompt into its three siblings", () => {
@@ -55,10 +55,40 @@ test("characterUpdateFromForm sends description as-is (non-nullable — never nu
 });
 
 test("characterUpdateFromForm keeps greeting[0] but drops trailing empty alternates", () => {
-  // The text-only editor lifts each greeting into the wire `Greeting` shape (`{ text }`, no `groupOnly`).
-  expect(characterUpdateFromForm(form({ greetings: ["hi", "", "  "] })).greetings).toEqual([{ text: "hi" }]);
+  expect(characterUpdateFromForm(form({ greetings: [{ text: "hi" }, { text: "" }, { text: "  " }] })).greetings).toEqual([{ text: "hi" }]);
   // An empty FIRST message is still a real slot.
-  expect(characterUpdateFromForm(form({ greetings: [""] })).greetings).toEqual([{ text: "" }]);
+  expect(characterUpdateFromForm(form({ greetings: [{ text: "" }] })).greetings).toEqual([{ text: "" }]);
+});
+
+test("characterUpdateFromForm keeps a group-only alternate flagged, strips groupOnly off the first message + off false", () => {
+  const patch = characterUpdateFromForm(
+    form({
+      greetings: [
+        { text: "hi", groupOnly: true },
+        { text: "group hello", groupOnly: true },
+        { text: "solo hello", groupOnly: false },
+      ],
+    }),
+  );
+  // greetings[0] is the first message — always solo-eligible, so its groupOnly is dropped.
+  // The flagged alternate survives; a false flag normalizes away to bare `{ text }`.
+  expect(patch.greetings).toEqual([{ text: "hi" }, { text: "group hello", groupOnly: true }, { text: "solo hello" }]);
+});
+
+test("an imported card's group-only greeting survives a read → edit → write round-trip (item-2 regression)", () => {
+  // An imported card carrying a group-only alternate — the exact shape the editor used to silently strip.
+  const imported = card({ greetings: [{ text: "First message." }, { text: "Group-chat opener.", groupOnly: true }] });
+  // Read into the form (the editor binds this) — the flag must be preserved on the alternate.
+  const values = characterCardFormFromDetail(imported);
+  expect(values.greetings).toEqual([{ text: "First message." }, { text: "Group-chat opener.", groupOnly: true }]);
+  // Edit an UNRELATED field, then write back — the group-only alternate rides through untouched (the old
+  // string-only form flattened it away, clobbering groupOnly on any save).
+  const patch = characterUpdateFromForm({ ...values, name: "Edited name" });
+  expect(patch.greetings).toEqual([{ text: "First message." }, { text: "Group-chat opener.", groupOnly: true }]);
+  // And the diff sees the greetings as UNCHANGED vs the server row (only the touched field differs).
+  const diff = characterUpdateDiff({ ...values, name: "Edited name" }, imported);
+  expect(diff.greetings).toBeUndefined();
+  expect(diff.name).toBe("Edited name");
 });
 
 test("characterUpdateFromForm re-nests depthPrompt, or null when the note text is empty", () => {
@@ -76,13 +106,13 @@ test("permanentTokenCount counts description but NOT creatorNotes / name / greet
   const base = permanentTokenCount(form());
   expect(permanentTokenCount(form({ creatorNotes: "a long note about the author" }))).toBe(base);
   expect(permanentTokenCount(form({ name: "Some Long Name Here" }))).toBe(base);
-  expect(permanentTokenCount(form({ greetings: ["a very long opening line indeed"] }))).toBe(base);
+  expect(permanentTokenCount(form({ greetings: [{ text: "a very long opening line indeed" }] }))).toBe(base);
   expect(permanentTokenCount(form({ description: "a lengthy backstory paragraph" }))).toBeGreaterThan(base);
 });
 
 test("totalTokenCount adds name + the ACTIVE greeting on top of permanent", () => {
   const values = form({
-    greetings: ["short", "a much longer alternate greeting line"],
+    greetings: [{ text: "short" }, { text: "a much longer alternate greeting line" }],
     name: "Aria",
   });
   const permanent = permanentTokenCount(values);

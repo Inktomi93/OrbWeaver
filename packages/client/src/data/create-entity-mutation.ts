@@ -24,8 +24,10 @@ interface EntityMutationBase<TVars, TData, TRead> {
     readonly readKey: (trpc: Trpc, vars: TVars) => QueryKey;
     readonly update: (old: TRead | undefined, vars: TVars) => TRead | undefined;
   };
-  /** Optional global-toast message on failure (rides mutation `meta` → MutationCache.onError). */
-  readonly errorToast?: string | ((error: unknown) => string);
+  /** Optional global-toast message on failure (rides mutation `meta` → MutationCache.onError). A function
+   *  form may return `null` to suppress the toast for a specific error (e.g. a stale turn abort the bus
+   *  surfaces its own notice for — see `isSilencedTurnAbort`). */
+  readonly errorToast?: string | ((error: unknown) => string | null);
 }
 
 /**

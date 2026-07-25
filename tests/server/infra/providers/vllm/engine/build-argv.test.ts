@@ -25,6 +25,7 @@ const FLOOR = {
   VLLM_GEN_GPU_UTIL_SINGLE: 0.5,
   VLLM_POOLING_MAX_PIXELS: 1_843_200,
   VLLM_GEN_MAX_PIXELS: 4_194_304,
+  VLLM_GEN_REPETITION_PENALTY: 1.05,
   VLLM_EMBED_PORT: 8701,
   VLLM_RERANK_PORT: 8702,
   VLLM_GEN_PORT: 8703,
@@ -44,6 +45,7 @@ describe("resolveEngineLaunchConfig — admin override ?? env floor", () => {
     expect(c.genMaxModelLen).toBe(32_768);
     expect(c.embedGpuUtil).toBe(0.14);
     expect(c.genMaxPixels).toBe(4_194_304);
+    expect(c.genRepetitionPenalty).toBe(1.05);
     expect(c.ports).toEqual({ embed: 8701, rerank: 8702, gen: 8703 });
   });
 
@@ -147,8 +149,39 @@ describe("buildEngineArgv snapshots", () => {
         "hermes",
         "--mm-processor-kwargs",
         "{"max_pixels": 4194304}",
+        "--override-generation-config",
+        "{"repetition_penalty":1.05}",
       ]
     `);
+  });
+});
+
+describe("buildEngineArgv — gen --override-generation-config repetition_penalty (#23)", () => {
+  test("env-default gen argv carries repetition_penalty 1.05 as override-generation-config JSON", () => {
+    const config = resolveEngineLaunchConfig(FLOOR, undefined);
+    expect(flagVal(buildEngineArgv("gen", config, CTX), "--override-generation-config")).toBe('{"repetition_penalty":1.05}');
+  });
+
+  test("an admin genRepetitionPenalty override changes the emitted JSON (retune → restart)", () => {
+    const config = resolveEngineLaunchConfig(FLOOR, { genRepetitionPenalty: 1.1 });
+    expect(flagVal(buildEngineArgv("gen", config, CTX), "--override-generation-config")).toBe('{"repetition_penalty":1.1}');
+  });
+
+  test("an env-floor bump to the penalty shows up in the flag (env-layered default)", () => {
+    const config = resolveEngineLaunchConfig({ ...FLOOR, VLLM_GEN_REPETITION_PENALTY: 1.15 }, undefined);
+    expect(flagVal(buildEngineArgv("gen", config, CTX), "--override-generation-config")).toBe('{"repetition_penalty":1.15}');
+  });
+
+  test("admin ⊕ env ⊕ default precedence: an admin override wins over the env floor for the penalty", () => {
+    const config = resolveEngineLaunchConfig({ ...FLOOR, VLLM_GEN_REPETITION_PENALTY: 1.15 }, { genRepetitionPenalty: 1.2 });
+    expect(config.genRepetitionPenalty).toBe(1.2);
+    expect(flagVal(buildEngineArgv("gen", config, CTX), "--override-generation-config")).toBe('{"repetition_penalty":1.2}');
+  });
+
+  test("embed + rerank carry NO override-generation-config flag (only gen has a default today)", () => {
+    const config = resolveEngineLaunchConfig(FLOOR, undefined);
+    expect(buildEngineArgv("embed", config, CTX)).not.toContain("--override-generation-config");
+    expect(buildEngineArgv("rerank", config, CTX)).not.toContain("--override-generation-config");
   });
 });
 

@@ -21,9 +21,15 @@ export {
   type IntegrityReport,
   inspectChatState,
   integrityProbe,
+  isWireCaptureEnabled,
+  recentWireCaptures,
+  recordWireCapture,
   registerDebugRoutes,
+  resetWireCaptures,
   tableCounts,
   tokenMatches,
+  type WireCapture,
+  type WireCaptureFilter,
 } from "./debug";
 export {
   bindRequestUser,

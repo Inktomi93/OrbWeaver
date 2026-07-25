@@ -212,3 +212,102 @@ export async function mintFreshCharacter(handle: string, name: string, greeting:
 export function removeCharacter(characterId: string): Promise<unknown> {
   return trpcMutation("character.remove", { characterId });
 }
+
+// ── TASK-24: the four-layer round-trip fidelity harness support. Reads each of the four layers as WIRE
+// ground truth (FE settings/preset · ASSEMBLE peek/shape-trace · WIRE provider body · DB canon). Shapes are
+// declared locally (the e2e support tree stays import-free of the package trees — the CanonMessage posture). ──
+
+/** ONE captured provider request body (foundation `wire-capture.ts`) — the backend's OWN wire vocabulary
+ *  (openai-compat body | agent-sdk query input; see the recorder header). `body` is left `unknown`-keyed:
+ *  the harness asserts backend-specific fields (`messages`/`max_tokens` for vllm; `prompt`/`maxTokens` for
+ *  agent-sdk). */
+export interface WireCapture {
+  readonly chatId: string | null;
+  readonly api: string;
+  readonly backend: string;
+  readonly model: string;
+  readonly body: Record<string, unknown>;
+}
+
+/** Read the captured provider wire bodies for a chat (host-gated /api/_debug/wire/captures; the debug gate's
+ *  admin tier passes under single-user AUTH_MODE). Newest-first. The capture seam must be ENABLED
+ *  (WIRE_CAPTURE=on) for this to be non-empty. */
+export async function fetchWireCaptures(chatId: string, backend?: string): Promise<readonly WireCapture[]> {
+  const query = new URLSearchParams({ chatId, ...(backend !== undefined ? { backend } : {}) });
+  const res = await fetch(`${BASE_URL}/api/_debug/wire/captures?${query.toString()}`);
+  if (!res.ok) {
+    throw new Error(`e2e wire-captures read failed (${res.status})`);
+  }
+  const body = (await res.json()) as { readonly captures?: readonly WireCapture[] };
+  return body.captures ?? [];
+}
+
+/** The active `PromptConfig` a chat assembles against (the FE-layer ground truth for section order / names /
+ *  params). Only the fields the harness asserts. */
+export interface ActivePresetConfig {
+  readonly namesBehavior?: string;
+  readonly sections: readonly { readonly id: string; readonly enabled?: boolean }[];
+  readonly params: { readonly maxOutputTokens?: number; readonly maxContextTokens?: number; readonly namesBehavior?: string };
+}
+
+/** Read the resolved active preset config for a chat (chat.getActivePresetConfig). The FE-layer read: "what
+ *  the chat is configured to assemble against". */
+export function getActivePresetConfig(chatId: string): Promise<ActivePresetConfig> {
+  return trpcQuery<ActivePresetConfig>("chat.getActivePresetConfig", { chatId });
+}
+
+/** The content-free SHAPE trace (PD-132) — per-stage ROW COUNTS (never content). `named` = rows the name-stamp
+ *  pass touched; `injected` = post-injection row count. The harness asserts these counts move with the config
+ *  (an injection at depth bumps `injected`; a names mode bumps `named`). Subset of the `ShapeTrace` view. */
+export interface ShapeTraceView {
+  readonly multiCharacter: boolean;
+  readonly stageCounts: { readonly withTail: number; readonly injected: number; readonly squashed: number; readonly named: number };
+}
+
+/** Read the content-free SHAPE trace (chat.getShapeTrace — host-gated). The ASSEMBLE-layer shaping stages. */
+export function getShapeTrace(chatId: string): Promise<ShapeTraceView> {
+  return trpcQuery<ShapeTraceView>("chat.getShapeTrace", { chatId });
+}
+
+/** The routing roleDefaults.chat pin (api × source) — the harness swaps it to exercise a specific WIRE
+ *  (agent-sdk vs the openai-compat stateless path) and RESTORES it in a finally. */
+export interface ChatRoute {
+  readonly api: string;
+  readonly source: string;
+}
+
+/** Set the routing.roleDefaults.chat pin over the API (patches the `routing` settings section). RESTORE the
+ *  original in a finally — this is the shared single-user settings row (retro-workboard E2E-spend caveat). */
+export function setChatRoute(route: ChatRoute): Promise<unknown> {
+  return updateSettingsSection("routing", { roleDefaults: { chat: route } });
+}
+
+/** Read the current routing.roleDefaults.chat pin (to snapshot before a harness swap). */
+export async function getChatRoute(): Promise<ChatRoute | undefined> {
+  const settings = await getUserSettings();
+  const chat = settings.config.routing?.roleDefaults?.chat;
+  return chat?.api !== undefined && chat.source !== undefined ? { api: chat.api, source: chat.source } : undefined;
+}
+
+/** The active preset's id + config (resolved via the settings seed default). The harness edits its config to
+ *  drive a PromptConfig-only axis (namesBehavior/sections) and restores it in a finally. */
+export interface PresetRow {
+  readonly id: string;
+  readonly config: Record<string, unknown>;
+}
+
+/** Resolve the active default preset (settings.seeds.defaultPresetId → preset.get). Undefined when unset. */
+export async function getActivePreset(): Promise<PresetRow | undefined> {
+  const settings = await getUserSettings();
+  const id = settings.config.seeds.defaultPresetId;
+  if (id === undefined || id === null) {
+    return;
+  }
+  return await trpcQuery<PresetRow>("preset.get", { id });
+}
+
+/** Patch the active preset's config (preset.update). The harness sends the WHOLE merged config back (the
+ *  update replaces `config` wholesale) and restores the original in a finally. */
+export function updatePresetConfig(id: string, config: Record<string, unknown>): Promise<unknown> {
+  return trpcMutation("preset.update", { id, config });
+}

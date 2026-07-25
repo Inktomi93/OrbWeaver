@@ -174,7 +174,10 @@ export function MembersPanel(props: MembersPanelProps): ReactElement {
 
   return (
     <Stack gap="row" className="h-full min-h-0" data-testid={testId("membersPanel")}>
-      <ScrollArea className="min-h-0 flex-1">
+      {/* contentClassName caps the content at the viewport width (overriding the ScrollArea's default
+          `min-w-max`, which measures past the viewport for horizontal overflow): a members list scrolls
+          vertically only, so a long member name TRUNCATES cleanly instead of busting the panel width. */}
+      <ScrollArea className="min-h-0 flex-1" contentClassName="w-full !min-w-0">
         <Stack gap="section" onKeyDownCapture={handleKeyDownCapture}>
           {showPeople ? (
             <Stack gap="row" data-slot="members-people">

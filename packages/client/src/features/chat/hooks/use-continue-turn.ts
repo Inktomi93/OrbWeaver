@@ -5,6 +5,7 @@
 
 import type { ChatId, MessageId } from "@orb/kit/ids";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
+import { isSilencedTurnAbort } from "../lib/turn-abort-notice";
 
 interface ContinueTurnVars {
   readonly chatId: ChatId;
@@ -14,7 +15,7 @@ interface ContinueTurnVars {
 const useContinueTurnMutation = createEntityMutation<ContinueTurnVars, unknown>({
   options: (trpc) => trpc.chat.continueTurn.mutationOptions(),
   busDriven: true,
-  errorToast: "Couldn't continue the reply.",
+  errorToast: (error) => (isSilencedTurnAbort(error) ? null : "Couldn't continue the reply."),
 });
 
 export interface UseContinueTurnResult {

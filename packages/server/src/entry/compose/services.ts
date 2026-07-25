@@ -93,7 +93,7 @@ import {
 } from "#domain/world-info";
 import { env } from "#foundation/env";
 import type { AuditEntry } from "#foundation/observability";
-import { logAudit } from "#foundation/observability";
+import { isWireCaptureEnabled, logAudit, recordWireCapture } from "#foundation/observability";
 import { createPasswordHasher } from "#infra/auth";
 import type { SecretBox } from "#infra/crypto";
 import { createSecretBox } from "#infra/crypto";
@@ -179,6 +179,10 @@ export interface ServicesDeps {
   /** Force the rpg flight recorder on (R-OBS), independent of `env.RPG_TRACE` — the drive kit / a trace int test
    *  passes `true` so it never depends on the ambient env. Absent ⇒ `env.RPG_TRACE === "on"` decides. */
   readonly rpgTrace?: boolean;
+  /** TASK-24: force the provider wire-capture sink on, independent of `env.WIRE_CAPTURE` — an int test passes
+   *  `true`. Absent ⇒ `isWireCaptureEnabled()` (env) decides. When neither is on, NO sink is wired into the
+   *  backends (zero cost, zero retained bytes). */
+  readonly wireCapture?: boolean;
 }
 
 /** What the composition root hands back: the transport `Services` bundle + the boot handles the lifecycle
@@ -270,9 +274,14 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // Built before the backend registry so the OpenRouter image runners get the real GIF→first-frame-PNG
   // wire-normalize transform (MA-6) — the sharp adapter, wrapped inside providers so it never leaks in.
   const imageAdapter = createImageAdapter();
+  // TASK-24: wire the provider wire-capture sink ONLY when capture is enabled (env or the force flag). When
+  // off, no sink is injected → the send boundaries never record → zero cost, zero retained bytes, prod-safe.
+  const wireCaptureOn = deps.wireCapture === true || isWireCaptureEnabled();
   const registry = createBackendRegistry({
     ...(deps.providerSeams ?? {}),
     now,
+    // The sink stamps `at` from the injected clock (no-raw-clock) and forwards to the process ring.
+    ...(wireCaptureOn ? { captureWire: (entry): void => recordWireCapture({ ...entry, at: now() }) } : {}),
     vllmDisabled: deps.vllmDisabled,
     vllmConcurrency: {
       embed: resolved.vllmConcurrency.embed,

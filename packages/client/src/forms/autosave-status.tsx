@@ -24,8 +24,10 @@ export interface AutosaveStatusProps {
 /** The shared live-save readout. On `error` the retry is a real affordance (a ghost button), never text. */
 export function AutosaveStatus({ state, onRetry, caption }: AutosaveStatusProps): ReactElement {
   if (state === "error") {
+    // A failed WRITE is urgent — assertive so a screen reader interrupts and announces it (role="alert"
+    // = an implicit aria-live="assertive" live region; the retry stays a real focusable affordance).
     return (
-      <Row gap="field" align="center" data-slot="autosave-status">
+      <Row gap="field" align="center" data-slot="autosave-status" role="alert">
         <Text size="micro" tone="muted">
           Save failed —
         </Text>
@@ -37,7 +39,7 @@ export function AutosaveStatus({ state, onRetry, caption }: AutosaveStatusProps)
   }
   if (state === "saved" && caption !== undefined) {
     return (
-      <Row gap="field" align="center" data-slot="autosave-status">
+      <Row gap="field" align="center" data-slot="autosave-status" role="status" aria-live="polite">
         <Text size="micro" tone="muted">
           Saved
         </Text>
@@ -47,8 +49,10 @@ export function AutosaveStatus({ state, onRetry, caption }: AutosaveStatusProps)
       </Row>
     );
   }
+  // Saving…/Saved: polite so the transition is announced without interrupting (role="status" carries an
+  // implicit aria-live="polite"; both are set so the intent reads plainly at the call site).
   return (
-    <Text size="micro" tone="muted" data-slot="autosave-status">
+    <Text size="micro" tone="muted" data-slot="autosave-status" role="status" aria-live="polite">
       {state === "saving" ? "Saving…" : "Saved"}
     </Text>
   );

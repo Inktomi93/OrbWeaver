@@ -1,20 +1,22 @@
 // The assembly preview (task #28 — the CONTEXT panel's Preview tab). Read-only: renders what the model
 // will see on the NEXT turn — the assembled prompt (static + dynamic halves + any in-history injections)
 // plus the `AssembleTrace` (why each overrideable field's value won, which sections fired, world-info
-// included/dropped, the flags). Pure leverage of the existing `chat.previewAssembly` verb (no new server
-// work); the trace is orbweaver's own richer shape than neo's byte-dump.
+// included/dropped, the flags) AND the content-free `ShapeTrace` (PD-132 — the SHAPE-phase projection: how
+// the canon shaped into wire history, the squash merges, the §8 cache-breakpoint decision). Pure leverage of
+// the `chat.previewAssembly` + `chat.getShapeTrace` verbs (no content bytes in either trace by construction).
 //
-// HOST-ONLY: `previewAssembly` is a host/admin debug surface server-side (the full prompt reveals merged
-// member cards). The CONTEXT panel only mounts this tab for the host, so a member never reaches the query
-// (which would NOT_FOUND). A member-scoped `previewSection` affordance is deferred (task #28 flag).
+// HOST-ONLY: both reads are host/admin debug surfaces server-side (the full prompt reveals merged member
+// cards; the shape trace is `requireHost`-gated, matrix `getShapeTrace: "host"`). The CONTEXT panel only
+// mounts this tab for the host, so a member never reaches the queries (which would refuse). A member-scoped
+// `previewSection` affordance is deferred (task #28 flag).
 
-import type { AssembleTrace } from "@orb/contracts/chat";
+import type { AssembleTrace, ShapeBreakpointDecision, ShapeTrace } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import { estimateTokens } from "@orb/kit/tokens";
 import { Badge } from "@orb/ui/badge";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useSuspenseQueries } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { QueryBoundary, QueryErrorState, useTRPC } from "#data";
 
@@ -22,7 +24,8 @@ export interface AssemblyPreviewPanelProps {
   readonly chatId: ChatId;
 }
 
-/** The Preview tab body — suspends on the host-only `previewAssembly` read, then renders it read-only. */
+/** The Preview tab body — suspends on the host-only `previewAssembly` + `getShapeTrace` reads, then
+ *  renders them read-only. */
 export function AssemblyPreviewPanel({ chatId }: AssemblyPreviewPanelProps): ReactElement {
   return (
     <QueryBoundary
@@ -36,7 +39,11 @@ export function AssemblyPreviewPanel({ chatId }: AssemblyPreviewPanelProps): Rea
 
 function PreviewBody({ chatId }: AssemblyPreviewPanelProps): ReactElement {
   const trpc = useTRPC();
-  const { data } = useSuspenseQuery(trpc.chat.previewAssembly.queryOptions({ chatId }));
+  // Plural useSuspenseQueries so previewAssembly + getShapeTrace fire in PARALLEL — two sequential
+  // useSuspenseQuery calls waterfall the second read behind the first.
+  const [{ data }, { data: shapeTrace }] = useSuspenseQueries({
+    queries: [trpc.chat.previewAssembly.queryOptions({ chatId }), trpc.chat.getShapeTrace.queryOptions({ chatId })],
+  });
   const { prompt, trace } = data;
 
   return (
@@ -72,6 +79,8 @@ function PreviewBody({ chatId }: AssemblyPreviewPanelProps): ReactElement {
       ) : null}
 
       <TraceSummary trace={trace} />
+
+      <ShapeTraceSummary trace={shapeTrace} />
     </Stack>
   );
 }
@@ -190,6 +199,42 @@ function TraceSummary({ trace }: { readonly trace: AssembleTrace }): ReactElemen
                 {flag.label}
               </Badge>
             ))}
+          </Row>
+        ) : null}
+      </Stack>
+    </Section>
+  );
+}
+
+/** A human label for each content-free SHAPE cache-breakpoint outcome (`ShapeTrace.breakpointDecision`). */
+const BREAKPOINT_LABELS: Record<ShapeBreakpointDecision, string> = {
+  placed: "Placed",
+  "no-stable-prefix": "No stable prefix",
+  "in-prefix-injection-or-squash": "Prefix injection / squash",
+  "second-volatile-tail": "Second volatile tail",
+};
+
+/** The content-free SHAPE trace (PD-132): how the canon shaped into the wire history — per-stage row counts,
+ *  the adjacent same-role merges the squash performed, and why the §8 cache breakpoint did/didn't land. No
+ *  content by construction (the server projection carries only counts + the decision). */
+function ShapeTraceSummary({ trace }: { readonly trace: ShapeTrace }): ReactElement {
+  const { withTail, injected, squashed, named } = trace.stageCounts;
+  const breakpoint =
+    trace.cacheBreakpointFromEnd === undefined
+      ? BREAKPOINT_LABELS[trace.breakpointDecision]
+      : `${BREAKPOINT_LABELS[trace.breakpointDecision]} (offset ${trace.cacheBreakpointFromEnd} from end)`;
+  return (
+    <Section heading="Shape (wire history)">
+      <Stack gap="field">
+        <Text size="micro" tone="muted">
+          How the canon shaped into the next turn's wire history — row counts only, no content.
+        </Text>
+        <TraceLine label="Stages (tail → inject → squash → name)" value={`${withTail} → ${injected} → ${squashed} → ${named}`} />
+        <TraceLine label="Same-role merges" value={String(trace.squashMerges)} />
+        <TraceLine label="Cache breakpoint" value={breakpoint} />
+        {trace.multiCharacter ? (
+          <Row gap="field" align="center">
+            <Badge intent="info">Multi-character</Badge>
           </Row>
         ) : null}
       </Stack>

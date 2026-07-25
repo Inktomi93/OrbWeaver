@@ -146,8 +146,8 @@ export function Composer({ handle, value, onChange, draftSeed, onCommitted, tail
     if (!canGenerateImage) {
       return;
     }
-    generateImage.generate(value);
-    onChange("");
+    // Clear ONLY on a green settle — a failed generate keeps the typed prompt for retry (F-P1).
+    generateImage.generate(value, { onSuccess: () => onChange("") });
   };
   // Continue-on-empty target: the pure resolver keeps the pref/tail/chat guards out of the component.
   const continueTarget = resolveContinueTarget({
@@ -203,7 +203,11 @@ export function Composer({ handle, value, onChange, draftSeed, onCommitted, tail
           gap="field"
           align="center"
           data-slot="composer"
-          className="mx-auto w-full max-w-(--width-shell-content) rounded-card border border-border bg-input/60 px-field py-field transition-colors duration-(--motion-fast) ease-out-expo hover:border-input hover:bg-input focus-within:border-input focus-within:bg-input focus-within:shadow-glow focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background"
+          // Reading-surface rule (D44 §12.1): the composer carries its OWN opaque backing (`bg-card`), never
+          // leaning on the background scrim for legibility — the translucent `bg-input` tint left the typed
+          // text unreadable over a bright background picture with scrim=0 (side-eye, 2026-07-18). The
+          // interaction LIFT survives on the opaque `bg-muted` step + the border/ring/shadow focus cues.
+          className="mx-auto w-full max-w-(--width-shell-content) rounded-card border border-border bg-card px-field py-field transition-colors duration-(--motion-fast) ease-out-expo hover:border-input hover:bg-muted focus-within:border-input focus-within:bg-muted focus-within:shadow-glow focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background"
         >
           <ComposerWand
             handle={handle}

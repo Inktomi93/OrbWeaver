@@ -113,7 +113,9 @@ test("the static tier is EXACTLY the known ordered stage set (the pre-commit `pn
   // The legacy `pnpm check` was 8 stages; the type-membership floor (UNIFIED-VERIFICATION-DESIGN.md §3)
   // adds two more type stages IN the types group: `types:tests-dom` (the DOM-coupled non-`.tsx` test home)
   // and `types:tests-membership` (the reconciliation guard that makes a silently-un-type-checked test file
-  // structurally impossible). Both are whole-tree invariants → static/push/full.
+  // structurally impossible). Both are whole-tree invariants → static/push/full. `tests:execution-membership`
+  // (#22, docs/retro-workboard.md) is its EXECUTION-lane sibling — same whole-tree-invariant shape, in the
+  // `tests` group (it reconciles RUNNER coverage, not type-program coverage).
   const staticNames = stagesForTier("static").map((s) => s.name);
   expect(staticNames).toEqual([
     "lint:biome",
@@ -123,6 +125,7 @@ test("the static tier is EXACTLY the known ordered stage set (the pre-commit `pn
     "types:testd",
     "types:tests-dom",
     "types:tests-membership",
+    "tests:execution-membership",
     "structure:full",
     "imports:depcruise",
     "deps:knip",
@@ -282,6 +285,9 @@ test("types:testd + types:tests-* + browser:e2e* + tests:parity are whole-only (
     // reconciliation — both are whole-tree invariants with no honest scoped form (§3.4).
     "types:tests-dom",
     "types:tests-membership",
+    // tests-execution-membership's #22 sibling: same whole-tree-reconciliation shape (unions every
+    // runner's --list view), no honest scoped form.
+    "tests:execution-membership",
     // browser:ct is NOT here since 2026-07-17 — it gained a scopedArgv (the CT view mirror-mapping). The
     // e2e suites stay whole-only (cross-cutting by nature).
     "browser:e2e-smoke",

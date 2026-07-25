@@ -77,6 +77,8 @@ export interface AgentSdkBackendDeps {
   readonly normalizeImageBytes?: AgentSdkDeps["normalizeImageBytes"];
   /** Tests inject a hermetic no-op so discovery/turn tests never hit the live OAuth endpoint. */
   readonly refreshHostSubToken?: AgentSdkDeps["refreshHostSubToken"];
+  /** TASK-24 wire-capture sink — compose injects it only when capture is enabled; absent ⇒ no capture. */
+  readonly captureWire?: AgentSdkDeps["captureWire"];
 }
 
 export function createAgentSdkBackend(deps: AgentSdkBackendDeps): ProviderBackend {
@@ -87,6 +89,7 @@ export function createAgentSdkBackend(deps: AgentSdkBackendDeps): ProviderBacken
     sessionStore: sessions.store,
     normalizeImageBytes: deps.normalizeImageBytes ?? passthroughImageNormalizer,
     refreshHostSubToken: deps.refreshHostSubToken ?? ((): Promise<boolean> => ensureFreshHostSubToken({ now: deps.now })),
+    ...(deps.captureWire !== undefined ? { captureWire: deps.captureWire } : {}),
   };
   return {
     key: "agent-sdk",

@@ -28,6 +28,13 @@ export const TEST_IDS = {
   engineLaunchConfig: "engine-launch-config",
   engineLaunchSave: "engine-launch-save",
   engineLaunchPendingRestart: "engine-launch-pending-restart",
+  endpointInspectorDialog: "endpoint-inspector-dialog",
+  endpointInspectorStatus: "endpoint-inspector-status",
+  // The Saved-keys row revoke controls. `credentialMarkRevoked` = the destructive user-facing revoke
+  // action (confirm-gated → credentials.markRevokedByUser); `credentialClearRevoked` = the recover
+  // affordance shown on a revoked row (→ credentials.clearRevoked).
+  credentialMarkRevoked: "credential-mark-revoked",
+  credentialClearRevoked: "credential-clear-revoked",
   composer: "composer",
   composerSend: "composer-send",
   composerWand: "composer-wand",

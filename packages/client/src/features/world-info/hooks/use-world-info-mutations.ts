@@ -3,6 +3,7 @@
 // attached at one of those scopes. The chat scope is deferred at transport, so only the three
 // owner-scoped surfaces are wired here.
 
+import type { EntryView } from "@orb/contracts/world-info";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
@@ -61,6 +62,31 @@ export const useBackfillWorldTitles = createEntityMutation<inferInput<Trpc["worl
   options: (trpc) => trpc.worldInfo.backfillTitles.mutationOptions(),
   invalidates: (trpc) => [trpc.worldInfo.listEntries.pathFilter()],
   errorToast: "Couldn't backfill the entry titles.",
+});
+
+/** Drag-reorder the book's entries — rewrites every entry's `priority` to match `orderedEntryIds` (the verb
+ *  maps position i → priority N-i). Optimistically re-sorts the cached `listEntries` array so the row order
+ *  settles instantly, then reconciles from the server on settle. */
+export const useApplyEntryOrder = createEntityMutation<
+  inferInput<Trpc["worldInfo"]["applyEntryOrder"]>,
+  inferOutput<Trpc["worldInfo"]["applyEntryOrder"]>,
+  readonly EntryView[]
+>({
+  options: (trpc) => trpc.worldInfo.applyEntryOrder.mutationOptions(),
+  optimistic: {
+    readKey: (trpc, vars) => trpc.worldInfo.listEntries.queryKey({ bookId: vars.bookId }),
+    update: (old, vars) => {
+      if (old === undefined) {
+        return old;
+      }
+      const rank = new Map(vars.orderedEntryIds.map((id, i) => [id, i]));
+      // Ids present in the drag order sort by their new position; any not in the order (shouldn't happen —
+      // the list drags every row) keep their relative tail spot.
+      return [...old].sort((a, b) => (rank.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (rank.get(b.id) ?? Number.MAX_SAFE_INTEGER));
+    },
+  },
+  invalidates: (trpc) => [trpc.worldInfo.listEntries.pathFilter()],
+  errorToast: "Couldn't reorder the entries.",
 });
 
 /** Delete an entry. Refetches the book's entry list. */

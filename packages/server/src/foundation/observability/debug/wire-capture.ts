@@ -1,0 +1,103 @@
+// The WIRE-CAPTURE recorder (TASK-24): the ONE missing observability layer — the FINAL provider request
+// body each chat backend actually sends, keyed by chatId. Purpose: a four-layer round-trip fidelity harness
+// can prove a setting flipped at the FE propagates truthfully into the real wire (FE → assemble → WIRE → DB).
+//
+// GATING IS LOAD-BEARING — this is dev/test-only + prod-safe, mirroring the RPG flight recorder (R-OBS):
+//   • OFF by default and in prod. Enabled only via `WIRE_CAPTURE=on` OR the `wireCapture` compose force flag
+//     (the harness / an int test forces it, bypassing the env). When disabled, compose injects NO sink into
+//     the backends, so a send boundary never calls `recordWireCapture` — ZERO overhead + ZERO retained bytes.
+//   • Read HOST-ONLY at /api/_debug/wire/captures (the debug-token / admin-cookie gate), read-only, no table.
+//
+// PROVIDER-NATIVE BODIES DIFFER BY BACKEND BY DESIGN (the api axis — retro-workboard "per-provider specials"
+// discipline): the stateless openai-compat path posts a literal `/v1/chat/completions` JSON body; the
+// agent-sdk path NEVER builds the Anthropic `/v1/messages` body itself — the bundled SDK subprocess does, so
+// the faithful "final bytes WE send" there is the SDK QUERY INPUT (prompt + systemPrompt + resolved options).
+// We capture whatever each backend actually sends; we do NOT normalize (a fabricated Anthropic body would be
+// a lie). `body` is therefore an opaque JSON object whose shape is the backend's own wire vocabulary.
+//
+// The recorder RING is a module singleton (like `logRing`/the trace ring), but WRITES are gated: the sink the
+// backends receive is `recordWireCapture`, and compose only wires it when capture is enabled — so the ring
+// stays empty (never written) with the feature off. Test isolation: `resetWireCaptures()` clears the ring
+// between tests so a foreign run's bytes never bleed in.
+
+import { env } from "#foundation/env";
+
+/** How many captures the ring retains (most-recent-wins). Bounded so a long-lived dev process can't grow it. */
+const WIRE_CAPTURE_RING_CAPACITY = 256;
+
+/** One captured provider request. `body` is the backend's OWN wire shape (see the file header) — an opaque
+ *  JSON object, never normalized across backends. `api` is the protocol axis; `backend` the sealed runner key
+ *  (a plain string — foundation imports nothing UP from infra; the value is provenance only). */
+export interface WireCapture {
+  /** The chat this send belongs to — the harness's correlation key (it opens unique-title chats). Absent on
+   *  a chatless probe turn. */
+  readonly chatId?: string | undefined;
+  /** The protocol axis the request rode: "agent-sdk" (SDK-input shape) | "chat-completions"/"responses"
+   *  (openai-compat body shape). */
+  readonly api: string;
+  readonly backend: string;
+  /** The resolved model string on the request (provenance cross-check against the DB canon `model` stamp). */
+  readonly model: string;
+  readonly at: number;
+  /** The final request body in the backend's own wire vocabulary (see the header). */
+  readonly body: Record<string, unknown>;
+}
+
+/** Filter for a host read: by `chatId` and/or `backend`, newest-first, capped by `limit`. */
+export interface WireCaptureFilter {
+  readonly chatId?: string | undefined;
+  readonly backend?: string | undefined;
+  readonly limit?: number | undefined;
+}
+
+// The bounded ring (most-recent-first read). Module singleton — SAFE because writes are gated (see header).
+const ring: (WireCapture | undefined)[] = new Array<WireCapture | undefined>(WIRE_CAPTURE_RING_CAPACITY);
+let head = 0;
+let size = 0;
+
+/** True iff the env flag enables capture. Compose ORs this with its force flag to decide whether to wire the
+ *  sink into the backends — so with capture off, the sink is absent and the boundaries never write. */
+export function isWireCaptureEnabled(): boolean {
+  return env.WIRE_CAPTURE === "on";
+}
+
+/** Record ONE captured wire body. This is the SINK compose injects into the backends (only when capture is
+ *  enabled). Bytes live only in the process ring, never persisted. */
+export function recordWireCapture(capture: WireCapture): void {
+  ring[head] = capture;
+  head = (head + 1) % WIRE_CAPTURE_RING_CAPACITY;
+  size = Math.min(size + 1, WIRE_CAPTURE_RING_CAPACITY);
+}
+
+const DEFAULT_READ_LIMIT = 50;
+
+/** Read recent captures, newest-first, optionally filtered by chatId/backend. The host-gated debug read. */
+export function recentWireCaptures(filter: WireCaptureFilter = {}): WireCapture[] {
+  const limit = filter.limit ?? DEFAULT_READ_LIMIT;
+  const out: WireCapture[] = [];
+  for (let i = 1; i <= size; i += 1) {
+    const capture = ring[(head - i + WIRE_CAPTURE_RING_CAPACITY) % WIRE_CAPTURE_RING_CAPACITY];
+    if (capture === undefined) {
+      continue;
+    }
+    if (filter.chatId !== undefined && capture.chatId !== filter.chatId) {
+      continue;
+    }
+    if (filter.backend !== undefined && capture.backend !== filter.backend) {
+      continue;
+    }
+    out.push(capture);
+    if (out.length >= limit) {
+      break;
+    }
+  }
+  return out;
+}
+
+/** Clear the ring — test isolation (the harness resets between matrix rows so a prior row's wire never bleeds
+ *  into the next assertion). No-op cost with the feature off (ring already empty). */
+export function resetWireCaptures(): void {
+  ring.fill(undefined);
+  head = 0;
+  size = 0;
+}

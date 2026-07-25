@@ -1,8 +1,9 @@
 // The chat room surface: composes the message-thread anchor + message-list surface with the composer
-// into one pane: [ thread (grows) | composer (pinned) ]. ChatHandle and draft text are local to this
-// pane, not lifted further than they need to be. The tail-role read for continue-on-empty uses a
-// separate useSuspenseQuery on the same listMessages key MessageListSurface already suspends on
-// internally — one shared cache entry, not a second round-trip.
+// into one pane: [ thread (grows) | composer (pinned) ]. ChatHandle is local to this pane; the composer
+// DRAFT lives in the #state commons (composer-draft-store), keyed by this room's stable scope — so it
+// survives a surface remount (draft-loss on remount is a real papercut). The tail-role read for
+// continue-on-empty uses a separate query on the same listMessages key MessageListSurface already
+// suspends on internally — one shared cache entry, not a second round-trip.
 
 import type { ChatId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
@@ -15,7 +16,7 @@ import { useGatedQuery, useTRPC } from "#data";
 import type { ChatRoomSurfaceState, ChatSurfaceContribution, ContributorRegistry } from "#lib";
 import { useFocusOnMount } from "#lib";
 import type { ActiveChatHandle, ChatHandle } from "#state";
-import { committedChat, isCommitted } from "#state";
+import { committedChat, isCommitted, migrateComposerDraft, setComposerDraft, useComposerDraft } from "#state";
 import { MessageThreadAnchor } from "../anchors/message-thread-anchor";
 import { ChatCastBar } from "../components/chat-cast-bar";
 import { Composer } from "../components/composer";
@@ -35,6 +36,18 @@ export interface ChatRoomSurfaceProps {
   readonly surfaceContributors: ContributorRegistry<ChatSurfaceContribution>;
 }
 
+/** This room's stable composer-draft scope key — a committed chat's id, else the draft key (landing never
+ *  mounts a room, so its "" branch is unreachable). */
+function roomScopeKey(handle: ChatHandle): string {
+  if (handle.kind === "committed") {
+    return handle.id;
+  }
+  if (handle.kind === "draft") {
+    return handle.draftKey;
+  }
+  return "";
+}
+
 /** Resolves the `when`-filtered, in-declared-order body nodes for one room anchor — zero contributions
  *  ⇒ an empty array, so callers can gate layout on `.length` (the thread-flank conditional, §17 M8). */
 function resolveRoomAnchor(
@@ -51,14 +64,20 @@ function resolveRoomAnchor(
 
 export function ChatRoomSurface({ initialHandle, busDeps, draftSeed, onChatStarted, onChatForked, surfaceContributors }: ChatRoomSurfaceProps): ReactElement {
   const [handle, setHandle] = useState<ChatHandle>(initialHandle);
-  const [draftText, setDraftText] = useState("");
+  // The composer draft, keyed by this room's stable scope (a committed chat's id, else the draft key).
+  const scopeKey = roomScopeKey(handle);
+  const draftText = useComposerDraft(scopeKey);
+  const setDraftText = (text: string): void => setComposerDraft(scopeKey, text);
   const trpc = useTRPC();
 
   const onCommitted = (chatId: ChatId): void => {
-    setHandle(committedChat(chatId));
     if (initialHandle.kind === "draft") {
+      // Carry the in-flight draft across the draftKey → chatId scope flip (the send is optimistic; the
+      // user's row may not have cleared yet) so the composer text stays visible through the promotion.
+      migrateComposerDraft(initialHandle.draftKey, chatId);
       onChatStarted?.(chatId, initialHandle.draftKey);
     }
+    setHandle(committedChat(chatId));
   };
 
   // Sole-character chrome takeover: in a true-solo room, that character's theme override wins at the

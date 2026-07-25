@@ -3,9 +3,12 @@
 // its OWN #state (handle/draftSeed/sessionKey) + #data (busDeps) so the chats-section definition composing
 // it stays a pure data object — the whole Chats CONTENT now flows from the registry, no route wrapper.
 
+import type { ChatWarningCode, TurnAbortReason } from "@orb/contracts/chat";
 import type { ReactElement } from "react";
+import type { ChatBusDeps } from "#data";
 import { useChatBusDeps } from "#data";
 import type { ChatSurfaceContribution, ContributorRegistry } from "#lib";
+import { notify } from "#lib";
 import {
   commitDraft,
   isLanding,
@@ -18,6 +21,8 @@ import {
   useActiveSessionKey,
   useListDocked,
 } from "#state";
+import { turnAbortNotice } from "../lib/turn-abort-notice";
+import { warningNotice } from "../lib/warning-notice";
 import { ChatLandingSurface } from "../surfaces/chat-landing-surface";
 import { ChatRoomSurface } from "../surfaces/chat-room-surface";
 
@@ -25,11 +30,32 @@ export interface ChatContentProps {
   readonly surfaceContributors: ContributorRegistry<ChatSurfaceContribution>;
 }
 
+// The stale-abort honesty seam: the bus reducer surfaces a turn abort through the injected `onTurnAbort`
+// callback (the `onWarning` precedent — `data/` may not import `features/`, so the reason→copy mapper is
+// wired HERE). `stale` → the honest takeover notice; `user`/`error` → silence (the mapper decides — a real
+// fault rides the tRPC error boundary). Module-stable so `busDeps` stays referentially calm.
+function surfaceTurnAbort(reason: TurnAbortReason): void {
+  const notice = turnAbortNotice(reason);
+  if (notice !== null) {
+    notify.error(notice);
+  }
+}
+
+// The honest-degrade seam: a domain `warning` bus event (non-vision image strip, tools/structured-output/
+// memory/compaction degrades) surfaces through the injected `onWarning` callback — `data/` may not import
+// `features/`, so the code→copy mapper is wired HERE, in the feature. It's an INFO notice — the turn/image
+// still produced a result, so this is non-blocking "here's what got dropped", never an error. Module-stable
+// so `busDeps` stays referentially calm. Every warning surfaces (the mapper is total — no silenced code).
+function surfaceWarning(code: ChatWarningCode): void {
+  notify.info(warningNotice(code));
+}
+
 export function ChatContent({ surfaceContributors }: ChatContentProps): ReactElement {
   const handle = useActiveChatHandle();
   const draftSeed = useActiveDraftSeed();
   const sessionKey = useActiveSessionKey();
-  const busDeps = useChatBusDeps();
+  const baseBusDeps = useChatBusDeps();
+  const busDeps: ChatBusDeps = { ...baseBusDeps, onTurnAbort: surfaceTurnAbort, onWarning: surfaceWarning };
   // When the Chats LIST is docked it already is the recents finder, so the landing drops its own
   // "Recent chats" to avoid duplicating it.
   const listDocked = useListDocked("chats", "docked");

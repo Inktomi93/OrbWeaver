@@ -94,6 +94,10 @@ export const engineLaunchSchema = z.object({
   genGpuUtilSingle: gpuUtil(),
   poolingMaxPixels: z.number().int().positive().optional(),
   genMaxPixels: z.number().int().positive().optional(),
+  // The gen engine's --override-generation-config repetition_penalty (#23). Qwen3-VL ships 1.0 (loops on the
+  // sampler-less agent-sdk /v1/messages wire → output-cap api_error); the launch default (env floor 1.05)
+  // stops the loop. Admin-retunable; applies on engine restart. 0<p (a positive multiplier; 1 = no penalty).
+  genRepetitionPenalty: z.number().gt(GPU_UTIL_FLOOR).optional(),
 });
 export type EngineLaunch = z.infer<typeof engineLaunchSchema>;
 
@@ -650,6 +654,7 @@ export interface ResolvedEngineLaunch {
   genGpuUtilSingle: number;
   poolingMaxPixels: number;
   genMaxPixels: number;
+  genRepetitionPenalty: number;
 }
 
 export interface EffectiveAppConfig {

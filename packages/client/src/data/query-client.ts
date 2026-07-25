@@ -9,8 +9,11 @@ import { notify } from "#lib";
 
 /** Per-query/mutation meta — the sanctioned v5 carrier for global-handler config. */
 export interface AppMeta {
-  /** Toast this message (or derive one from the error) on failure; omit = fail silently to state. */
-  readonly errorToast?: string | ((error: unknown) => string);
+  /** Toast this message (or derive one from the error) on failure; omit = fail silently to state. A
+   *  FUNCTION form may return `null` to suppress the toast for a specific error (e.g. a stale turn abort,
+   *  which the chat bus surfaces its own honest notice for — see `isSilencedTurnAbort`); a returned string
+   *  still toasts. */
+  readonly errorToast?: string | ((error: unknown) => string | null);
 }
 
 declare module "@tanstack/react-query" {
@@ -27,7 +30,11 @@ function toastFromMeta(meta: AppMeta | undefined, error: unknown): void {
   if (meta?.errorToast === undefined) {
     return;
   }
-  notify.error(typeof meta.errorToast === "function" ? meta.errorToast(error) : meta.errorToast);
+  const message = typeof meta.errorToast === "function" ? meta.errorToast(error) : meta.errorToast;
+  // A function-form `errorToast` returns null to suppress (the bus owns the honest surface).
+  if (message !== null) {
+    notify.error(message);
+  }
 }
 
 export function createAppQueryClient(): QueryClient {

@@ -25,7 +25,9 @@ const useGenerateImageMutation = createEntityMutation<GenerateImageVars, unknown
 });
 
 export interface UseGenerateImageResult {
-  readonly generate: (prompt: string) => void;
+  /** `onSuccess` fires only once the post-message mutation SETTLES green — the composer clears the typed
+   *  prompt there, never synchronously, so a failed generate leaves the prompt intact for retry (F-P1). */
+  readonly generate: (prompt: string, opts?: { readonly onSuccess?: () => void }) => void;
   readonly isPending: boolean;
   readonly error: unknown | null;
   readonly clearError: () => void;
@@ -36,13 +38,18 @@ export function useGenerateImage(chatId: ChatId | null): UseGenerateImageResult 
   const invalidation = useInvalidation();
   const mutation = useGenerateImageMutation({ trpc, invalidation });
 
-  const generate = (prompt: string): void => {
+  const generate = (prompt: string, opts?: { readonly onSuccess?: () => void }): void => {
     const trimmed = prompt.trim();
     // Free mode needs a real prompt; a draft chat (chatId null) has no room to post into yet.
     if (chatId === null || trimmed.length === 0) {
       return;
     }
-    mutation.mutate({ chatId, mode: FREE_MODE, prompt: trimmed });
+    // mutateAsync (not mutate) so `onSuccess` runs ONLY on a green settle; the errorToast still fires via
+    // meta → MutationCache.onError, and the catch keeps the rejection from escaping as unhandled (F-P1).
+    void mutation
+      .mutateAsync({ chatId, mode: FREE_MODE, prompt: trimmed })
+      .then(() => opts?.onSuccess?.())
+      .catch(() => undefined);
   };
 
   return {

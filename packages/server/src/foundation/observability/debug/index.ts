@@ -19,3 +19,11 @@ export {
   registerDebugRoutes,
   tokenMatches,
 } from "./routes";
+export {
+  isWireCaptureEnabled,
+  recentWireCaptures,
+  recordWireCapture,
+  resetWireCaptures,
+  type WireCapture,
+  type WireCaptureFilter,
+} from "./wire-capture";

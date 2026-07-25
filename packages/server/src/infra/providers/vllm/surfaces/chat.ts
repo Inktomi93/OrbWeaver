@@ -20,7 +20,7 @@ import {
   reduceChatCompletionStream,
   turnAbortSignal,
 } from "../../backends/kit";
-import type { ChatHistoryMessage, ChatRequest, ChatResult, HistoryRole } from "../../contract";
+import type { ChatHistoryMessage, ChatRequest, ChatResult, HistoryRole, WireCaptureSink } from "../../contract";
 import { ProviderError } from "../../contract";
 import type { VllmEngineClient } from "../engine";
 
@@ -32,6 +32,9 @@ const CHAT_PATH = "/v1/chat/completions";
 export interface VllmChatDeps {
   readonly client: VllmEngineClient;
   readonly now: () => number;
+  /** TASK-24 wire-capture: records the FINAL /v1/chat/completions body this surface POSTs. Absent ⇒ no
+   *  capture (the compose default) — a plain send, zero cost. */
+  readonly captureWire?: WireCaptureSink | undefined;
 }
 
 type VllmChatTurn = ChatRequest & { readonly api: "chat-completions" | "responses" };
@@ -197,7 +200,12 @@ export function createVllmChat(deps: VllmChatDeps): (req: ChatRequest) => Promis
     };
 
     try {
-      const body = await deps.client.engineStream("gen", CHAT_PATH, buildBody(turn), signal);
+      const wireBody = buildBody(turn);
+      // TASK-24: capture the LITERAL openai-compat body right before it goes on the wire (the harness reads
+      // this to prove the FE setting propagated truthfully into the real bytes). Only fires when compose
+      // wired a sink (capture enabled); otherwise absent → zero cost.
+      deps.captureWire?.({ chatId: req.chatId, api: req.api, backend: "vllm", model: req.model, body: wireBody });
+      const body = await deps.client.engineStream("gen", CHAT_PATH, wireBody, signal);
       const view = await reduceChatCompletionStream(toChunks(parseOpenAiSse(body)), {
         onDelta,
         onChunk: reset,

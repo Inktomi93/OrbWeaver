@@ -176,6 +176,7 @@ describe("convergence: system settings (diff-based — see the header)", () => {
       genGpuUtilSingle: 0.5,
       poolingMaxPixels: 1_843_200,
       genMaxPixels: 4_194_304,
+      genRepetitionPenalty: 1.05,
     },
     allowNonOwnerLocalCompute: true,
     nonOwnerLocalComputeBudget: null,
