@@ -9,7 +9,7 @@ import { MessagesSquare } from "@orb/ui/icons";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { QueryBoundary, QueryErrorState } from "#data";
-import type { ChatContextState, ChatSurfaceContribution, CommittedChatContext, ContextTabDef, ContributorRegistry } from "#lib";
+import type { ChatContextState, ChatSurfaceContribution, CommittedChatContext, ContextTabDef, ContributorRegistry, ToolRenderer } from "#lib";
 import { defineContextTabs } from "#lib";
 import type { SectionDefinition } from "#state";
 import { chatDeletedFromList, openModal, selectChatFromList } from "#state";
@@ -111,6 +111,7 @@ const CHAT_CONTEXT_TABS: readonly ContextTabDef<ChatContextState>[] = [
 export function makeChatsSection(
   chatContextContributors: ContributorRegistry<ContextTabDef<ChatContextState>>,
   chatSurfaceContributors: ContributorRegistry<ChatSurfaceContribution>,
+  toolRenderers: ContributorRegistry<ToolRenderer>,
 ): SectionDefinition {
   return {
     id: "chats",
@@ -127,7 +128,7 @@ export function makeChatsSection(
     ),
     // The LIST chrome-band content (§4 N2): "CHATS" title + count + the ONE primary New action.
     listHeader: () => <ChatListHeader />,
-    content: () => <ChatContent surfaceContributors={chatSurfaceContributors} />,
+    content: () => <ChatContent surfaceContributors={chatSurfaceContributors} toolRenderers={toolRenderers} />,
     // Topbar identity: committed roster header vs draft seed, resolved from #state/#data inside the body.
     header: () => <ChatsTopbarHeader />,
     context: defineContextTabs<ChatContextState>({

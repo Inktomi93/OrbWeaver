@@ -17,27 +17,38 @@ import type { Principal } from "@orb/contracts/identity";
 import type { ChatId } from "@orb/kit/ids";
 import type { ChatContext } from "./context";
 import { loadMemberChat } from "./persistence/queries";
-import { assertAuthorOrHost, assertHost, assertParticipant } from "./substrate/auth";
+import { assertAuthorOrHost, assertHost, assertParticipant, resolveHistoryFloorSeq } from "./substrate/auth";
 
 /** The chokepoint's deps: the DB read (`loadMemberChat`) + the injected `can()` decision seam. */
 type GuardCtx = Pick<ChatContext, "db" | "can">;
 
 /** The loaded present-membership (the `loadMemberChat` hit) — the chat row + the caller's `host|member`
- *  role. Reuses the persistence query's inferred return (the `provision-identity` `ExistingUser` pattern);
- *  the row shape stays file-local to `persistence/queries` (callers destructure `{ chat, role }`). */
+ *  role + their own join horizon. Reuses the persistence query's inferred return (the `provision-identity`
+ *  `ExistingUser` pattern); the row shape stays file-local to `persistence/queries` (callers destructure). */
 type MemberChat = NonNullable<Awaited<ReturnType<typeof loadMemberChat>>>;
+
+/** The gated membership every chat surface receives: the loaded row PLUS the caller's resolved D16 canon
+ *  read floor. Stamped once, HERE, so no read path re-derives (or forgets) the policy. */
+type GatedMembership = MemberChat & { readonly historyFloorSeq: number };
 
 /**
  * Present-membership gate — read/stream/post/turn-run (→ `member`). Loads the caller's PRESENT
  * `chat_participants` row; a miss (no chat OR not a present member) throws a leak-free `ChatNotFoundError`.
  * Returns the loaded membership so the verb reuses it (no second query — the turn loads it anyway).
+ *
+ * It ALSO resolves the caller's D16 `joinHistoryVisibility` floor (`substrate/auth::resolveHistoryFloorSeq`)
+ * onto the returned membership as `historyFloorSeq`. This is the ONE place participation is resolved, so it
+ * is the ONE place the floor is derived: every surface that can hand back historical canon reads it from
+ * here (`listMessages`, the durable bus replay, the SSE token-log replay, the fork copy, the compaction
+ * checkpoint) rather than re-reading the participant row. Per-CALLER by construction — the row loaded is the
+ * caller's own, so a host is never clamped by another member's floor.
  */
-export async function requireParticipant(ctx: GuardCtx, principal: Principal, chatId: ChatId): Promise<MemberChat> {
+export async function requireParticipant(ctx: GuardCtx, principal: Principal, chatId: ChatId): Promise<GatedMembership> {
   const membership = assertParticipant(await loadMemberChat(ctx.db, chatId, principal.userId), chatId);
   // Route the read-floor through the ONE seam (spine §6). A present member always reads in v1 — this is the
   // seam where a future `observer` participant kind denies; the verdict lives in `can()`, never here.
   ctx.can(principal, "read", { kind: "chat", roster: { role: membership.role } });
-  return membership;
+  return { ...membership, historyFloorSeq: resolveHistoryFloorSeq(membership) };
 }
 
 /**
@@ -45,7 +56,7 @@ export async function requireParticipant(ctx: GuardCtx, principal: Principal, ch
  * throws `ChatNotFoundError` (leak-free); a member who is not the host throws `ChatOperationError('not_host')`
  * (a known-existence authority refusal, per `contract/errors.ts`).
  */
-export async function requireHost(ctx: GuardCtx, principal: Principal, chatId: ChatId): Promise<MemberChat> {
+export async function requireHost(ctx: GuardCtx, principal: Principal, chatId: ChatId): Promise<GatedMembership> {
   const membership = await requireParticipant(ctx, principal, chatId);
   assertHost(ctx.can, principal, membership.role, chatId);
   return membership;
@@ -56,7 +67,12 @@ export async function requireHost(ctx: GuardCtx, principal: Principal, chatId: C
  * otherwise the caller must be the slot's `authorUserId`. The verb supplies the slot author (read from the
  * `messages` row it is editing).
  */
-export async function requireAuthorOrHost(ctx: GuardCtx, principal: Principal, chatId: ChatId, authorUserId: Principal["userId"] | null): Promise<MemberChat> {
+export async function requireAuthorOrHost(
+  ctx: GuardCtx,
+  principal: Principal,
+  chatId: ChatId,
+  authorUserId: Principal["userId"] | null,
+): Promise<GatedMembership> {
   const membership = await requireParticipant(ctx, principal, chatId);
   assertAuthorOrHost(ctx.can, { principal, role: membership.role, authorUserId }, chatId);
   return membership;

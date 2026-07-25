@@ -227,11 +227,26 @@ describe("persistence/queries — canon reads (D26)", () => {
   test("loadMessagesPage windows backwards from beforeSeq, newest-first, capped at limit", async () => {
     const chatId = await seedChat(db, "a");
     await Promise.all([1, 2, 3, 4, 5].map((seq) => seedMessage(db, chatId, seq)));
-    const page = await loadMessagesPage(db, chatId, 4, 2);
+    const page = await loadMessagesPage(db, chatId, { beforeSeq: 4, limit: 2, floorSeq: 0 });
     expect(page.map((m) => m.seq)).toStrictEqual([3, 2]);
 
-    const tail = await loadMessagesPage(db, chatId, undefined, 2);
+    const tail = await loadMessagesPage(db, chatId, { beforeSeq: undefined, limit: 2, floorSeq: 0 });
     expect(tail.map((m) => m.seq)).toStrictEqual([5, 4]);
+  });
+
+  // The D16 `joinHistoryVisibility` floor at the QUERY level (the verb resolves it from the caller's own row;
+  // this pins the SQL half): the floor is inclusive, it composes with the backward cursor, and a cursor that
+  // has walked past the floor returns an EMPTY page — the honest terminal signal, never a fabricated one.
+  test("loadMessagesPage floors at floorSeq (inclusive), composes with beforeSeq, and pages past the floor to empty", async () => {
+    const chatId = await seedChat(db, "floor");
+    await Promise.all([1, 2, 3, 4, 5].map((seq) => seedMessage(db, chatId, seq)));
+
+    // floorSeq 3 hides seq 1-2 entirely, even on an unbounded tail read.
+    expect((await loadMessagesPage(db, chatId, { beforeSeq: undefined, limit: 50, floorSeq: 3 })).map((m) => m.seq)).toStrictEqual([5, 4, 3]);
+    // The floor is INCLUSIVE — the join row itself is readable.
+    expect((await loadMessagesPage(db, chatId, { beforeSeq: 4, limit: 50, floorSeq: 3 })).map((m) => m.seq)).toStrictEqual([3]);
+    // A cursor at the floor has nothing left below it: empty page, no fabricated rows.
+    expect(await loadMessagesPage(db, chatId, { beforeSeq: 3, limit: 50, floorSeq: 3 })).toStrictEqual([]);
   });
 
   test("loadMessageVariantSummaries returns the full sibling set ordered by idx, no content", async () => {
@@ -264,9 +279,26 @@ describe("persistence/queries — stream-log / bus-log replay + cursors", () => 
     await seedStreamEvent(db, chatId, 2, "b");
     await seedStreamEvent(db, chatId, 3, "c");
 
-    expect((await loadStreamReplay(db, chatId, 1)).map((e) => e.seq)).toStrictEqual([2, 3]);
-    expect((await loadStreamReplay(db, chatId)).map((e) => e.delta)).toStrictEqual(["a", "b", "c"]);
+    expect((await loadStreamReplay(db, chatId, 1, 0)).map((e) => e.seq)).toStrictEqual([2, 3]);
+    expect((await loadStreamReplay(db, chatId, undefined, 0)).map((e) => e.delta)).toStrictEqual(["a", "b", "c"]);
     expect(await loadStreamBounds(db, chatId)).toStrictEqual({ minSeq: 1, maxSeq: 3 });
+  });
+
+  // The D16 floor on the SSE token log: a stream row is raw transcript text, anchored to canon only through
+  // its nullable `messageId`. A clamped caller gets rows whose slot is at/above the floor; a below-floor slot
+  // AND a turn-level (`messageId IS NULL`, unclassifiable) row are both withheld.
+  test("loadStreamReplay floors on the anchored slot's seq and withholds unanchored rows for a clamped caller", async () => {
+    const chatId = await seedChat(db, "streamfloor");
+    const pre = await seedMessage(db, chatId, 1, { content: "pre-join" });
+    const post = await seedMessage(db, chatId, 5, { content: "post-join" });
+    await seedStreamEvent(db, chatId, 1, { delta: "pre-tokens", messageId: pre.messageId });
+    await seedStreamEvent(db, chatId, 2, { delta: "unanchored", messageId: null });
+    await seedStreamEvent(db, chatId, 3, { delta: "post-tokens", messageId: post.messageId });
+
+    // Unclamped (floor 0) sees the whole retained window, unanchored rows included.
+    expect((await loadStreamReplay(db, chatId, undefined, 0)).map((e) => e.delta)).toStrictEqual(["pre-tokens", "unanchored", "post-tokens"]);
+    // Clamped at seq 5: only the post-join slot's tokens survive.
+    expect((await loadStreamReplay(db, chatId, undefined, 5)).map((e) => e.delta)).toStrictEqual(["post-tokens"]);
   });
 
   test("loadStreamBounds is null/null for an empty log", async () => {

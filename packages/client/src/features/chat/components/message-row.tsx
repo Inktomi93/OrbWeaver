@@ -12,7 +12,7 @@ import { Checkbox } from "@orb/ui/checkbox";
 import { Row, Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { Fragment } from "react";
-import type { ChatMessageSurfaceState, ChatSurfaceContribution, ContributorRegistry } from "#lib";
+import type { ChatMessageSurfaceState, ChatSurfaceContribution, ContributorRegistry, ToolRenderer } from "#lib";
 import { cn } from "#lib";
 import { toggleMessageSelected, useIsEditingMessage, useIsMessageSelected, useSelectionActive } from "#state";
 import { AttachmentUrlProvider } from "../hooks/attachment-url-provider";
@@ -34,6 +34,7 @@ import {
   renderRowSwipe,
   resolveRowContent,
 } from "./message-row-parts";
+import { MessageToolCalls } from "./message-tool-calls";
 
 export interface MessageRowProps {
   readonly message: MessageView;
@@ -81,6 +82,9 @@ export interface MessageRowProps {
   /** The §6c/M8 message-footer seam — omitted for a pre-commit draft-greeting row (no server row to
    *  attach a footer to); the committed transcript always supplies it. */
   readonly surfaceContributors?: ContributorRegistry<ChatSurfaceContribution> | undefined;
+  /** The §6c per-tool-name renderer registry — omitted for a pre-commit draft-greeting row (it has no
+   *  persisted tool records); absent ⇒ every record renders through the generic `ToolCallBlock`. */
+  readonly toolRenderers?: ContributorRegistry<ToolRenderer> | undefined;
 }
 
 /** Resolves the `when`-filtered `message-footer` contributions for one row (§6c/M8) — a bare helper
@@ -130,6 +134,7 @@ export function MessageRow({
   contextBoundaryCompactSummary,
   enterMotion = false,
   surfaceContributors,
+  toolRenderers,
 }: MessageRowProps): ReactElement {
   const enterClasses = useEnterMotion(enterMotion);
   const skin = MESSAGE_ROW_SKINS[chatStyle];
@@ -242,6 +247,7 @@ export function MessageRow({
               renderContext,
               speakerThemes,
             })}
+            {editing ? null : <MessageToolCalls records={message.toolCalls} renderers={toolRenderers} />}
             {editing ? null : <MessageMetadataRow message={message} visibility={metadataVisibility} />}
             {renderRowSwipe({ editing, showSwipes, role, greeting, message })}
             {footerContributions.length === 0 ? null : (

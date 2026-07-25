@@ -3,7 +3,7 @@
 // logic, no cross-feature calls, no I/O beyond `db`. `chats.metadata` is read only through
 // `parseChatMetadata`. `users` is never joined here — roster name/handle resolution is a verb concern.
 
-import type { ChatBusEvent, MessageView, StandaloneVariableDelta, ToolCallRecord, TurnOrigin } from "@orb/contracts/chat";
+import type { ChatBusEvent, JoinHistoryVisibility, MessageView, StandaloneVariableDelta, ToolCallRecord, TurnOrigin } from "@orb/contracts/chat";
 import { standaloneVariableDeltasSchema, toolCallRecordSchema, variableDeltaSchema } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
@@ -11,14 +11,12 @@ import { chatEvents, chatInjections, chatParticipants, chatStreamEvents, chats, 
 import type { CharacterId, ChatId, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
-import { and, asc, count, desc, eq, gt, inArray, isNotNull, isNull, lt, lte, max, min, ne, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gt, gte, inArray, isNotNull, isNull, lt, lte, max, min, ne, sql } from "drizzle-orm";
 import type { ChatMetadata } from "../contract/metadata";
 import { parseChatMetadata } from "../contract/metadata";
 import type { ChatStreamReplayEvent, StreamEventBounds } from "../contract/views";
 
 const LIMIT_ONE = 1;
-// The default `listMessages` page window when the verb passes no explicit limit (paged canon read).
-const DEFAULT_PAGE_LIMIT = 50;
 
 /** A resolved `chats` row with its `metadata` blob parsed. File-local: the verb maps it into the
  *  `ChatDetail`/`ChatSummary` view. */
@@ -134,19 +132,32 @@ export async function loadPendingHostUserId(db: Db, chatId: ChatId): Promise<Use
 
 /**
  * The membership-scoped chat read: the chat row joined to the caller's present participant row, returning
- * the row + the caller's `role` + `activePersonaId` (the attribution fallback for un-stamped sends).
+ * the row + the caller's `role` + `activePersonaId` (the attribution fallback for un-stamped sends) + the
+ * caller's OWN join horizon (`joinSeq` + `joinHistoryVisibility` — the D16 confidentiality policy the guard
+ * turns into a canon read floor; loaded HERE so the chokepoint needs no second query).
  * `undefined` ⇒ no such chat OR the caller is not a present member (collapsed into one leak-free answer).
  */
 export async function loadMemberChat(
   db: Db,
   chatId: ChatId,
   userId: UserId,
-): Promise<{ chat: ChatRow; role: ParticipantRole; activePersonaId: PersonaId | null } | undefined> {
+): Promise<
+  | {
+      chat: ChatRow;
+      role: ParticipantRole;
+      activePersonaId: PersonaId | null;
+      joinSeq: number;
+      joinHistoryVisibility: JoinHistoryVisibility;
+    }
+  | undefined
+> {
   const rows = await db
     .select({
       ...chatRowSelection,
       role: chatParticipants.role,
       activePersonaId: chatParticipants.activePersonaId,
+      joinSeq: chatParticipants.joinSeq,
+      joinHistoryVisibility: chatParticipants.joinHistoryVisibility,
     })
     .from(chats)
     .innerJoin(chatParticipants, and(eq(chatParticipants.chatId, chats.id), eq(chatParticipants.userId, userId), isNull(chatParticipants.leftSeq)))
@@ -156,8 +167,8 @@ export async function loadMemberChat(
   if (r === undefined) {
     return;
   }
-  const { role, activePersonaId, ...rest } = r;
-  return { chat: toChatRow(rest), role, activePersonaId };
+  const { role, activePersonaId, joinSeq, joinHistoryVisibility, ...rest } = r;
+  return { chat: toChatRow(rest), role, activePersonaId, joinSeq, joinHistoryVisibility };
 }
 
 /** The membership-scoped library list — every chat the user is a present member of, newest-updated first.
@@ -522,9 +533,17 @@ export async function loadContinueSnapshot(db: Db, chatId: ChatId, messageId: Me
 }
 
 /** A backwards page of canon — slot ⋈ selected-variant rows strictly before `beforeSeq` (absent ⇒ from
- *  the tail), newest-first, capped at `limit`. The verb reverses for chronological display. */
-export async function loadMessagesPage(db: Db, chatId: ChatId, beforeSeq?: number, limit: number = DEFAULT_PAGE_LIMIT): Promise<MessageView[]> {
-  const where = beforeSeq === undefined ? eq(messages.chatId, chatId) : and(eq(messages.chatId, chatId), lt(messages.seq, beforeSeq));
+ *  the tail) and at/above `floorSeq`, newest-first, capped at `limit`. The verb reverses for chronological
+ *  display. `floorSeq` is the CALLER's D16 join-history floor (`substrate/auth::resolveHistoryFloorSeq`,
+ *  stamped by the guard); it is REQUIRED, not defaulted, so a new paginated caller cannot forget it. A
+ *  `beforeSeq` cursor at/below the floor yields an EMPTY page — SQL, never a fabricated one. */
+export async function loadMessagesPage(
+  db: Db,
+  chatId: ChatId,
+  window: { readonly beforeSeq: number | undefined; readonly limit: number; readonly floorSeq: number },
+): Promise<MessageView[]> {
+  const { beforeSeq, limit, floorSeq } = window;
+  const where = and(eq(messages.chatId, chatId), gte(messages.seq, floorSeq), beforeSeq === undefined ? undefined : lt(messages.seq, beforeSeq));
   const rows = await db
     .select(messageViewSelection)
     .from(messages)
@@ -538,18 +557,29 @@ export async function loadMessagesPage(db: Db, chatId: ChatId, beforeSeq?: numbe
 // ── stream-log / bus-log replay + cursor reads ─────────────────────────────────
 
 /** Resume the resumable SSE token log — every row strictly after `afterSeq` (absent ⇒ from the retained
- *  window start), oldest-first. */
-export async function loadStreamReplay(db: Db, chatId: ChatId, afterSeq?: number): Promise<ChatStreamReplayEvent[]> {
-  const where = afterSeq === undefined ? eq(chatStreamEvents.chatId, chatId) : and(eq(chatStreamEvents.chatId, chatId), gt(chatStreamEvents.seq, afterSeq));
+ *  window start), oldest-first, clamped to the caller's D16 join-history `floorSeq`.
+ *
+ *  A stream row is raw transcript text; its only canon anchor is the nullable `messageId`. A clamped caller
+ *  (`floorSeq > 0`) therefore gets an INNER JOIN to `messages` with `seq >= floorSeq`, which by construction
+ *  also drops the turn-level rows whose slot had not committed yet (`messageId IS NULL` — unclassifiable, so
+ *  withheld; the same conservative call `substrate/auth::isBelowHistoryFloor` makes for a `delta` event).
+ *  An unclamped caller takes the plain read (no join, byte-identical to before). */
+export async function loadStreamReplay(db: Db, chatId: ChatId, afterSeq: number | undefined, floorSeq: number): Promise<ChatStreamReplayEvent[]> {
+  const selection = {
+    seq: chatStreamEvents.seq,
+    messageId: chatStreamEvents.messageId,
+    kind: chatStreamEvents.kind,
+    delta: chatStreamEvents.delta,
+  } as const;
+  const where = and(eq(chatStreamEvents.chatId, chatId), afterSeq === undefined ? undefined : gt(chatStreamEvents.seq, afterSeq));
+  if (floorSeq <= 0) {
+    return await db.select(selection).from(chatStreamEvents).where(where).orderBy(asc(chatStreamEvents.seq));
+  }
   return await db
-    .select({
-      seq: chatStreamEvents.seq,
-      messageId: chatStreamEvents.messageId,
-      kind: chatStreamEvents.kind,
-      delta: chatStreamEvents.delta,
-    })
+    .select(selection)
     .from(chatStreamEvents)
-    .where(where)
+    .innerJoin(messages, eq(messages.id, chatStreamEvents.messageId))
+    .where(and(where, gte(messages.seq, floorSeq)))
     .orderBy(asc(chatStreamEvents.seq));
 }
 
@@ -700,11 +730,12 @@ export async function loadChatInjections(db: Db, chatId: ChatId): Promise<(typeo
     .orderBy(asc(chatInjections.depth), asc(chatInjections.order), asc(chatInjections.createdAt));
 }
 
-/** The full message slot rows for a fork copy, oldest-first, optionally truncated at `throughSeq`. Raw
- *  `$inferSelect` rows so the fork can spread→re-id every column; the verb mints fresh ids + remaps the
- *  selected-variant pointer. */
-export async function loadMessageSlots(db: Db, chatId: ChatId, throughSeq?: number): Promise<(typeof messages.$inferSelect)[]> {
-  const where = throughSeq === undefined ? eq(messages.chatId, chatId) : and(eq(messages.chatId, chatId), lte(messages.seq, throughSeq));
+/** The full message slot rows for a fork copy, oldest-first, optionally truncated at `throughSeq` and
+ *  floored at the FORKER's D16 join-history `floorSeq` (a fork COPIES canon into a room the forker hosts, so
+ *  an unfloored copy would launder every row past the forker's own clamp). Raw `$inferSelect` rows so the
+ *  fork can spread→re-id every column; the verb mints fresh ids + remaps the selected-variant pointer. */
+export async function loadMessageSlots(db: Db, chatId: ChatId, throughSeq: number | undefined, floorSeq: number): Promise<(typeof messages.$inferSelect)[]> {
+  const where = and(eq(messages.chatId, chatId), gte(messages.seq, floorSeq), throughSeq === undefined ? undefined : lte(messages.seq, throughSeq));
   return await db.select().from(messages).where(where).orderBy(asc(messages.seq));
 }
 

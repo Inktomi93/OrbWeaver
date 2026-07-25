@@ -43,6 +43,7 @@ import { buildInitialRosterRows, characterSeatedInAnotherChat } from "../persist
 import { loadPersonaAvatarProducer } from "../persistence/roster-avatars";
 import { gatherAssembleContext } from "../substrate/assemble-gather";
 import { resolveGuidedActionText } from "../substrate/assembly-access";
+import { NO_HISTORY_FLOOR } from "../substrate/auth";
 import { toChatDetail } from "../substrate/chat-detail";
 import { canonMessageDelta, chatCreatedDelta, newCharacterDelta } from "../substrate/stats-delta";
 
@@ -423,6 +424,9 @@ function createStartChatVerb(ctx: ChatContext, deps: StartChatDeps): ChatService
         macroNames,
         personaAvatars,
         viewerUserId: hostUserId,
+        // Born-here host: `joinSeq` 0, so the checkpoint clamp is inert by construction (there is no
+        // pre-membership canon in a room this call just created).
+        viewerHistoryFloorSeq: NO_HISTORY_FLOOR,
       }),
       opening: openingOutcome,
     };

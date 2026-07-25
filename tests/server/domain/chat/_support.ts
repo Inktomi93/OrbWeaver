@@ -4,7 +4,7 @@
 // (the persistence layer takes the clock as a PARAM; the schema's `unixepoch()` default would be
 // non-deterministic, so every seeded row stamps `FROZEN_AT`).
 
-import type { ChatBusEvent, ParticipantView } from "@orb/contracts/chat";
+import type { ChatBusEvent, JoinHistoryVisibility, ParticipantView } from "@orb/contracts/chat";
 import type { ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
 import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { ParticipantRole } from "@orb/contracts/identity";
@@ -142,6 +142,9 @@ export async function seedParticipant(
     readonly leftSeq?: number | null;
     readonly disabled?: boolean;
     readonly activePersonaId?: PersonaId | null;
+    /** D16 join-history policy. Omitted ⇒ the COLUMN default (`from-join`) — the seeder deliberately does not
+     *  re-spell it, so a seeded row carries the same default a real redeem writes. */
+    readonly joinHistoryVisibility?: JoinHistoryVisibility;
   },
 ): Promise<ChatParticipantId> {
   const id = castId<ChatParticipantId>(`chat_participant_${opts.key}`);
@@ -157,6 +160,7 @@ export async function seedParticipant(
     joinedAt: FROZEN_AT,
     joinSeq: opts.joinSeq ?? 0,
     leftSeq: opts.leftSeq ?? null,
+    ...(opts.joinHistoryVisibility !== undefined ? { joinHistoryVisibility: opts.joinHistoryVisibility } : {}),
   });
   return id;
 }
@@ -251,10 +255,18 @@ export async function seedChatEvent(db: Db, chatId: ChatId, seq: number, text: s
   return id;
 }
 
-/** Insert a resumable SSE token-log row. */
-export async function seedStreamEvent(db: Db, chatId: ChatId, seq: number, delta: string): Promise<ChatStreamEventId> {
+/** Insert a resumable SSE token-log row. `messageId` anchors the row to a canon slot (null = a turn-level
+ *  delta streamed before its slot committed — the shape the D16 replay floor withholds from a clamped
+ *  caller, since it carries no seq to classify against). */
+export async function seedStreamEvent(
+  db: Db,
+  chatId: ChatId,
+  seq: number,
+  row: string | { readonly delta: string; readonly messageId: MessageId | null },
+): Promise<ChatStreamEventId> {
   const id = castId<ChatStreamEventId>(`stream_event_${chatId}_${seq}`);
-  await db.insert(chatStreamEvents).values({ id, chatId, seq, kind: "text", delta, messageId: null, createdAt: FROZEN_AT });
+  const { delta, messageId } = typeof row === "string" ? { delta: row, messageId: null } : row;
+  await db.insert(chatStreamEvents).values({ id, chatId, seq, kind: "text", delta, messageId, createdAt: FROZEN_AT });
   return id;
 }
 

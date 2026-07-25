@@ -17,7 +17,7 @@ import type { ReactElement, ReactNode } from "react";
 import { useEffect, useRef } from "react";
 import type { ChatBusDeps } from "#data";
 import { QueryBoundary, QueryErrorState, SkeletonRows, useChatBus, useTRPC } from "#data";
-import type { ChatSurfaceContribution, ContributorRegistry } from "#lib";
+import type { ChatSurfaceContribution, ContributorRegistry, ToolRenderer } from "#lib";
 import { useFocusOnMount } from "#lib";
 import type { ChatHandle, DraftSeed } from "#state";
 import { isCommitted, isLiveTurnPhase, useDraftConfig, useTurnPhase, useTurnSpeakerCharacterId } from "#state";
@@ -45,10 +45,11 @@ export interface MessageListSurfaceProps {
   readonly draftSeed?: DraftSeed | undefined;
   readonly onChatForked?: ((chatId: ChatId) => void) | undefined;
   readonly surfaceContributors: ContributorRegistry<ChatSurfaceContribution>;
+  readonly toolRenderers: ContributorRegistry<ToolRenderer>;
 }
 
 /** The scrolling chat transcript for one chat (or a draft's editable greeting preview). */
-export function MessageListSurface({ handle, busDeps, draftSeed, onChatForked, surfaceContributors }: MessageListSurfaceProps): ReactElement {
+export function MessageListSurface({ handle, busDeps, draftSeed, onChatForked, surfaceContributors, toolRenderers }: MessageListSurfaceProps): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
 
@@ -78,7 +79,13 @@ export function MessageListSurface({ handle, busDeps, draftSeed, onChatForked, s
             fallback={<SkeletonRows count={3} />}
             renderError={(_error, retry): ReactElement => <QueryErrorState label="this conversation" onRetry={retry} />}
           >
-            <ChatThread chatId={chatId} chatStyle={chatStyle} onChatForked={onChatForked} surfaceContributors={surfaceContributors} />
+            <ChatThread
+              chatId={chatId}
+              chatStyle={chatStyle}
+              onChatForked={onChatForked}
+              surfaceContributors={surfaceContributors}
+              toolRenderers={toolRenderers}
+            />
           </QueryBoundary>
         );
       })()}
@@ -91,10 +98,11 @@ interface ChatThreadProps {
   readonly chatStyle: keyof typeof MESSAGE_ROW_SKINS;
   readonly onChatForked?: ((chatId: ChatId) => void) | undefined;
   readonly surfaceContributors: ContributorRegistry<ChatSurfaceContribution>;
+  readonly toolRenderers: ContributorRegistry<ToolRenderer>;
 }
 
 /** The committed-chat transcript — suspends on the canon + roster reads, then merges the live ghost. */
-function ChatThread({ chatId, chatStyle, onChatForked, surfaceContributors }: ChatThreadProps): ReactElement {
+function ChatThread({ chatId, chatStyle, onChatForked, surfaceContributors, toolRenderers }: ChatThreadProps): ReactElement {
   const trpc = useTRPC();
   const [{ data: messagesPage }, { data: chatDetail }] = useSuspenseQueries({
     queries: [trpc.chat.listMessages.queryOptions({ chatId }), trpc.chat.getChat.queryOptions({ chatId })],
@@ -220,6 +228,7 @@ function ChatThread({ chatId, chatStyle, onChatForked, surfaceContributors }: Ch
         onChatForked={onChatForked}
         enterMotion={newArrivalKeys.has(item.view.id)}
         surfaceContributors={surfaceContributors}
+        toolRenderers={toolRenderers}
       />
     );
 

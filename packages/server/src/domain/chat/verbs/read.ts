@@ -80,6 +80,7 @@ import { loadRoster } from "../persistence/roster";
 import { loadPersonaAvatarProducer } from "../persistence/roster-avatars";
 import { gatherAssembleContext } from "../substrate/assemble-gather";
 import { buildHistoryBudget, buildPrompt, buildShapeTrace, fitHistory, previewSection, shapeTurn, toShapeCanon } from "../substrate/assembly-access";
+import { isBelowHistoryFloor, NO_HISTORY_FLOOR } from "../substrate/auth";
 
 import { toChatDetail } from "../substrate/chat-detail";
 
@@ -306,6 +307,7 @@ function createGetChat(ctx: ChatContext, deps: ReadDeps): ChatService["getChat"]
       macroNames,
       personaAvatars,
       viewerUserId: principal.userId,
+      viewerHistoryFloorSeq: membership.historyFloorSeq,
     });
   };
 }
@@ -315,12 +317,17 @@ const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
 
 /** `listMessages` — a paged canon read (each slot joined to its selected variant), chronological, + the
- *  page's {@link ChatMacroNameProducer}. The `excludedFromPrompt` flag rides each `MessageView`. */
+ *  page's {@link ChatMacroNameProducer}. The `excludedFromPrompt` flag rides each `MessageView`.
+ *
+ *  D16 join-history clamp: the window's floor is the CALLER's `historyFloorSeq` (stamped by the chokepoint) —
+ *  a `from-join` member never receives a row below their own `joinSeq`. Pagination stays honest: a
+ *  `beforeSeq` cursor at/below the floor simply matches nothing, so the caller gets an EMPTY page (the
+ *  same terminal signal an exhausted backward walk gives), never a fabricated one. */
 function createListMessages(ctx: ChatContext, deps: ReadDeps): ChatService["listMessages"] {
   return async ({ principal, chatId, beforeSeq, limit }: ListMessagesParams): Promise<MessagesPage> => {
-    await requireParticipant(ctx, principal, chatId);
+    const { historyFloorSeq } = await requireParticipant(ctx, principal, chatId);
     const pageSize = Math.min(limit ?? DEFAULT_LIMIT, MAX_LIMIT);
-    const page = await loadMessagesPage(ctx.db, chatId, beforeSeq, pageSize);
+    const page = await loadMessagesPage(ctx.db, chatId, { beforeSeq, limit: pageSize, floorSeq: historyFloorSeq });
     // `loadMessagesPage` returns newest-first (the backward window); reverse for chronological display.
     const messages = page.reverse();
     const participants = await deps.loadParticipantViews(chatId);
@@ -527,12 +534,16 @@ function createPreviewContextFit(ctx: ChatContext, deps: ReadDeps): ChatService[
     });
     const fitted = fitHistory(shaped.history, budget);
     const chatRow = await loadChatRow(ctx.db, chatId);
+    // D16: the checkpoint summary distills canon from seq 1, so a clamped caller never receives it — the
+    // same verdict `toChatDetail` applies to the `ChatDetail` copy of these two fields. The fit NUMBERS stay
+    // room-wide (they describe the next turn's budget, which is the host's prompt, not transcript content).
+    const checkpointVisible = membership.historyFloorSeq <= NO_HISTORY_FLOOR;
     return resolveContextFitPreview({
       fitted,
       budget,
       canon,
-      compactSummary: chatRow?.compactSummary ?? null,
-      coveragePoint: chatRow?.compactedAtSeq ?? 0,
+      compactSummary: checkpointVisible ? (chatRow?.compactSummary ?? null) : null,
+      coveragePoint: checkpointVisible ? (chatRow?.compactedAtSeq ?? 0) : 0,
     });
   };
 }
@@ -567,11 +578,13 @@ function createPreviewSection(ctx: ChatContext, deps: ReadDeps): ChatService["pr
   };
 }
 
-/** `replayStreamEvents` — resume the resumable SSE token log from a cursor (late-subscriber ramp-up). */
+/** `replayStreamEvents` — resume the resumable SSE token log from a cursor (late-subscriber ramp-up).
+ *  D16-clamped: a stream row is raw transcript text, so a `from-join` caller only gets rows anchored to a
+ *  slot at/above their `historyFloorSeq` (see `loadStreamReplay`). */
 function createReplayStreamEvents(ctx: ChatContext): ChatService["replayStreamEvents"] {
   return async ({ principal, chatId, afterSeq }: ReplayStreamEventsParams): Promise<ChatStreamReplayEvent[]> => {
-    await requireParticipant(ctx, principal, chatId);
-    return await loadStreamReplay(ctx.db, chatId, afterSeq);
+    const { historyFloorSeq } = await requireParticipant(ctx, principal, chatId);
+    return await loadStreamReplay(ctx.db, chatId, afterSeq, historyFloorSeq);
   };
 }
 
@@ -584,12 +597,20 @@ function createStreamEventBounds(ctx: ChatContext): ChatService["streamEventBoun
 }
 
 /** `replayChatEvents` — resume the durable chat-bus log from a cursor (the log is append-only, so a
- *  resume is never truncated). Member-gated; the events are room-public by the bus payload allowlist. */
+ *  resume is never truncated). Member-gated; the events are room-public by the bus payload allowlist.
+ *
+ *  D16 join-history clamp: "room-public" is scoped by the CALLER's floor, because the log carries canon
+ *  CONTENT (`MessageView` payloads + raw `delta` text) — an unclamped resume from `lastEventId:"0"` replayed
+ *  the whole pre-join transcript. The verdict is per-EVENT (`substrate/auth::isBelowHistoryFloor`), not a
+ *  cursor clamp: `chat_events.seq` and `messages.seq` are different axes, and a POST-join edit of a PRE-join
+ *  row rides a high event seq with a low view seq — a cursor floor alone would pass it straight through.
+ *  Withheld rows leave a `seq` gap, which is correct: the cursor stays the durable `seq` the caller last saw,
+ *  so a resume never re-offers a withheld row and never stalls. */
 function createReplayChatEvents(ctx: ChatContext): ChatService["replayChatEvents"] {
   return async ({ principal, chatId, afterSeq }: ReplayChatEventsParams) => {
-    await requireParticipant(ctx, principal, chatId);
+    const { historyFloorSeq } = await requireParticipant(ctx, principal, chatId);
     const rows = await loadChatEventReplay(ctx.db, chatId, afterSeq);
-    return rows.map(({ seq, payload }) => ({ seq, event: payload }));
+    return rows.filter(({ payload }) => !isBelowHistoryFloor(payload, historyFloorSeq)).map(({ seq, payload }) => ({ seq, event: payload }));
   };
 }
 

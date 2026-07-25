@@ -1,10 +1,17 @@
-// The D22 member-card visibility clamp (chat.md Part III §7/§11).
+// The per-member visibility clamps: the D22 member-card field clamp (chat.md Part III §7/§11) and the D16
+// `joinHistoryVisibility` canon floor (bottom of this file).
 import type { CharacterCard } from "@orb/contracts/character";
-import type { MemberCardView, MemberCardVisibility } from "@orb/contracts/chat";
-import type { AssetId, CharacterId } from "@orb/kit/ids";
+import type { ChatBusEvent, MemberCardView, MemberCardVisibility, MessageView } from "@orb/contracts/chat";
+import type { AssetId, CharacterId, ChatId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { clampMemberCard, resolveCardVisibility } from "../../../../../../packages/server/src/domain/chat/substrate/auth";
+import {
+  clampMemberCard,
+  isBelowHistoryFloor,
+  NO_HISTORY_FLOOR,
+  resolveCardVisibility,
+  resolveHistoryFloorSeq,
+} from "../../../../../../packages/server/src/domain/chat/substrate/auth";
 import { expect, test } from "../../../../../support/fixtures";
 
 const CHAR = castId<CharacterId>("character_aria");
@@ -109,5 +116,54 @@ describe("resolveCardVisibility — the host always sees full", () => {
     expect(resolveCardVisibility("host", "sheet")).toBe("full");
     expect(resolveCardVisibility("member", "sheet")).toBe("sheet");
     expect(resolveCardVisibility("member", "name-avatar")).toBe("name-avatar");
+  });
+});
+
+// ── The D16 join-history floor (the second clamp in this module) ───────────────────────────────────────
+// `joinHistoryVisibility` is persisted `.notNull().default("from-join")` and was NEVER read by any code
+// path: a member invited at seq 7 received the entire pre-join transcript AND a full durable-event replay.
+// These pin the pure half — the floor number and the per-bus-event verdict; the read paths that consume
+// them are pinned in `verbs/read.int.test.ts` and `verbs/fork.int.test.ts`.
+
+describe("resolveHistoryFloorSeq — the persisted policy becomes a canon floor", () => {
+  test("from-join floors at the member's OWN joinSeq; full is unclamped", () => {
+    expect(resolveHistoryFloorSeq({ joinSeq: 7, joinHistoryVisibility: "from-join" })).toBe(7);
+    expect(resolveHistoryFloorSeq({ joinSeq: 7, joinHistoryVisibility: "full" })).toBe(NO_HISTORY_FLOOR);
+  });
+
+  test("a born-here seat (joinSeq 0) is unclamped under EITHER policy — the default never clamps a founder", () => {
+    expect(resolveHistoryFloorSeq({ joinSeq: 0, joinHistoryVisibility: "from-join" })).toBe(NO_HISTORY_FLOOR);
+    expect(resolveHistoryFloorSeq({ joinSeq: 0, joinHistoryVisibility: "full" })).toBe(NO_HISTORY_FLOOR);
+  });
+});
+
+describe("isBelowHistoryFloor — the durable bus-replay verdict", () => {
+  const chatId = castId<ChatId>("chat_room");
+  const messageId = castId<MessageId>("message_x");
+  const viewAt = (seq: number): MessageView => ({ seq }) as unknown as MessageView; // FABRICATION-OK: only `.seq` is read by the verdict.
+  const delta: ChatBusEvent = { type: "delta", chatId, delta: { chatId, kind: "text", text: "secret tokens" } };
+
+  test("an unclamped caller (floor 0) is never withheld anything — including raw deltas", () => {
+    expect(isBelowHistoryFloor(delta, NO_HISTORY_FLOOR)).toBe(false);
+    expect(isBelowHistoryFloor({ type: "messageCommitted", chatId, messageId, view: viewAt(1) }, NO_HISTORY_FLOOR)).toBe(false);
+  });
+
+  test("a view-carrying event is decided on the view's own seq (below floor = withheld, at floor = kept)", () => {
+    expect(isBelowHistoryFloor({ type: "messageCommitted", chatId, messageId, view: viewAt(6) }, 7)).toBe(true);
+    expect(isBelowHistoryFloor({ type: "messageCommitted", chatId, messageId, view: viewAt(7) }, 7)).toBe(false);
+    expect(isBelowHistoryFloor({ type: "messageEdited", chatId, messageId, view: viewAt(2) }, 7)).toBe(true);
+    // The case a cursor clamp alone cannot catch: a POST-join EDIT of a PRE-join row rides a high durable
+    // seq with a low view seq — the content is still pre-join, so the verdict is content-keyed.
+    expect(isBelowHistoryFloor({ type: "reasoningEdited", chatId, messageId, view: viewAt(1) }, 7)).toBe(true);
+  });
+
+  test("a clamped caller is denied replayed deltas outright (no seq to classify raw transcript text against)", () => {
+    expect(isBelowHistoryFloor(delta, 7)).toBe(true);
+  });
+
+  test("id-only + room-lifecycle payloads carry no canon content, so they ride through a clamp", () => {
+    expect(isBelowHistoryFloor({ type: "messageCommitted", chatId, messageId }, 7)).toBe(false);
+    expect(isBelowHistoryFloor({ type: "messagesDeleted", chatId, messageIds: [messageId] }, 7)).toBe(false);
+    expect(isBelowHistoryFloor({ type: "chatUpdated", chatId }, 7)).toBe(false);
   });
 });

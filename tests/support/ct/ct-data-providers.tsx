@@ -31,7 +31,7 @@ import { analyticsSection } from "@orb/client/features/stats";
 import { adminPane } from "@orb/client/features/user-admin";
 import { backupPane, workloadsPane } from "@orb/client/features/workloads";
 import { worldInfoSection } from "@orb/client/features/world-info";
-import type { CharacterDetailContribution, ChatContextState, ChatSurfaceContribution, ContextTabDef, ContributorRegistry } from "@orb/client/lib";
+import type { CharacterDetailContribution, ChatContextState, ChatSurfaceContribution, ContextTabDef, ContributorRegistry, ToolRenderer } from "@orb/client/lib";
 import { createContributorRegistry, createRegistry } from "@orb/client/lib";
 import type {
   ChromeEntry,
@@ -85,9 +85,11 @@ export function CtDataProviders({ children }: { readonly children: ReactNode }):
 const chatContextContributors = createContributorRegistry<ContextTabDef<ChatContextState>>("chat-context", []);
 const chatSurfaceContributors = createContributorRegistry<ChatSurfaceContribution>("chat-surface", []);
 const characterDetailContributors = createContributorRegistry<CharacterDetailContribution>("character-detail", []);
+// The per-tool-name renderer seam, empty as at the real door — every tool record falls back to `ToolCallBlock`.
+const chatToolRenderers = createContributorRegistry<ToolRenderer>("tool-renderers", []);
 
 const REAL: Record<SectionId, SectionDefinition> = {
-  chats: makeChatsSection(chatContextContributors, chatSurfaceContributors),
+  chats: makeChatsSection(chatContextContributors, chatSurfaceContributors, chatToolRenderers),
   characters: makeCharactersSection(characterDetailContributors),
   corpus: corpusSection,
   worldInfo: worldInfoSection,
@@ -205,7 +207,7 @@ export function CtChatContributorSectionRegistry({
 }): ReactElement {
   const registry = createRegistry<SectionId, SectionDefinition>("sections", SECTION_IDS, {
     ...REAL,
-    chats: makeChatsSection(contextContributors ?? chatContextContributors, surfaceContributors ?? chatSurfaceContributors),
+    chats: makeChatsSection(contextContributors ?? chatContextContributors, surfaceContributors ?? chatSurfaceContributors, chatToolRenderers),
   });
   return (
     <SectionRegistryProvider value={registry}>

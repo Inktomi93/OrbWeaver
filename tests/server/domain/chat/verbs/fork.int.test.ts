@@ -346,3 +346,84 @@ describe("forkChat — D64 cast-drop on a non-owner fork (F4/PD-21 ruling)", () 
     expect(emitted).toContainEqual({ type: "chatCreated", chatId: chat.id });
   });
 });
+
+// The D16 join-history floor on the FORK path. `forkChat` is matrix-classified `member`, and the fork is a
+// deep COPY into a room where the forker is HOST — so an unfloored copy is a laundering bypass: a `from-join`
+// member could fork the source and end up owning the very pre-join transcript `listMessages` withholds. The
+// copy floor is the FORKER's own `historyFloorSeq`, resolved at the same chokepoint every read uses.
+describe("forkChat — the D16 join-history floor (a fork must not launder pre-join canon)", () => {
+  test("a from-join member's fork copies ONLY their own window; the source keeps everything", async () => {
+    const host = await seedUser(db, "jhf_host");
+    const member = await seedUser(db, "jhf_member");
+    const chatId = await seedChat(db, "jhf_src");
+    await seedParticipant(db, { chatId, key: "jhf_h", userId: host, role: "host" });
+    await seedMessage(db, chatId, 1, { role: "assistant", content: "pre-join secret" });
+    await seedMessage(db, chatId, 2, { role: "user", authorUserId: host, content: "more pre-join" });
+    await seedMessage(db, chatId, 3, { role: "assistant", content: "after they joined" });
+    // Redeemed at head 3, column-default `from-join`.
+    await seedParticipant(db, { chatId, key: "jhf_m", userId: member, role: "member", joinSeq: 3 });
+
+    const fork = createFork(makeChatContext(db, { getCard: ownedCard() }), { emit, loadParticipantViews });
+    const { chat } = await fork.forkChat({ principal: principal(member), chatId });
+
+    const forkMsgs = await db
+      .select({ content: messageVariants.content })
+      .from(messages)
+      .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
+      .where(eq(messages.chatId, castId(chat.id)))
+      .orderBy(asc(messages.seq));
+    expect(forkMsgs.map((r) => r.content)).toEqual(["after they joined"]);
+
+    // The SOURCE room is untouched — the clamp narrows what the forker may carry, it never deletes canon.
+    const srcMsgs = await db.select({ id: messages.id }).from(messages).where(eq(messages.chatId, chatId));
+    expect(srcMsgs).toHaveLength(3);
+  });
+
+  test("a clamped forker does not carry the compaction checkpoint (it distills the rows their floor hid)", async () => {
+    const host = await seedUser(db, "jhk_host");
+    const member = await seedUser(db, "jhk_member");
+    const chatId = await seedChat(db, "jhk_src");
+    await seedParticipant(db, { chatId, key: "jhk_h", userId: host, role: "host" });
+    await seedMessage(db, chatId, 1, { role: "assistant", content: "pre-join secret" });
+    await seedMessage(db, chatId, 2, { role: "assistant", content: "after they joined" });
+    await db.update(chats).set({ compactSummary: "the pre-join story", compactedAtSeq: 1 }).where(eq(chats.id, chatId));
+    await seedParticipant(db, { chatId, key: "jhk_m", userId: member, role: "member", joinSeq: 2 });
+
+    const fork = createFork(makeChatContext(db, { getCard: ownedCard() }), { emit, loadParticipantViews });
+    const { chat } = await fork.forkChat({ principal: principal(member), chatId });
+
+    const [forkRow] = await db
+      .select({ summary: chats.compactSummary, at: chats.compactedAtSeq })
+      .from(chats)
+      .where(eq(chats.id, castId(chat.id)));
+    expect(forkRow?.summary).toBeNull();
+    expect(forkRow?.at).toBeNull();
+  });
+
+  test("a `full` member's fork is unchanged — the whole source canon + checkpoint carry", async () => {
+    const host = await seedUser(db, "jhu_host");
+    const member = await seedUser(db, "jhu_member");
+    const chatId = await seedChat(db, "jhu_src");
+    await seedParticipant(db, { chatId, key: "jhu_h", userId: host, role: "host" });
+    await seedMessage(db, chatId, 1, { role: "assistant", content: "pre-join secret" });
+    await seedMessage(db, chatId, 2, { role: "assistant", content: "after they joined" });
+    await db.update(chats).set({ compactSummary: "the pre-join story", compactedAtSeq: 1 }).where(eq(chats.id, chatId));
+    await seedParticipant(db, { chatId, key: "jhu_m", userId: member, role: "member", joinSeq: 2, joinHistoryVisibility: "full" });
+
+    const fork = createFork(makeChatContext(db, { getCard: ownedCard() }), { emit, loadParticipantViews });
+    const { chat } = await fork.forkChat({ principal: principal(member), chatId });
+
+    const forkMsgs = await db
+      .select({ content: messageVariants.content })
+      .from(messages)
+      .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
+      .where(eq(messages.chatId, castId(chat.id)))
+      .orderBy(asc(messages.seq));
+    expect(forkMsgs.map((r) => r.content)).toEqual(["pre-join secret", "after they joined"]);
+    const [forkRow] = await db
+      .select({ summary: chats.compactSummary })
+      .from(chats)
+      .where(eq(chats.id, castId(chat.id)));
+    expect(forkRow?.summary).toBe("the pre-join story");
+  });
+});
