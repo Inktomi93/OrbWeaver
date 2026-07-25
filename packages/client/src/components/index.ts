@@ -11,6 +11,8 @@ export type { EntryListEditorProps } from "./entry-list-editor";
 export { EntryListEditor } from "./entry-list-editor";
 export type { FormDialogProps, FormDialogSubmit, FormSubmitButtonProps } from "./form-dialog";
 export { FormDialog, FormSubmitButton } from "./form-dialog";
+export type { GreetingStudioProps } from "./greeting-studio";
+export { GreetingStudio } from "./greeting-studio";
 export type { LibraryRowActions, LibraryRowProps } from "./library-row";
 export { LibraryRow } from "./library-row";
 export type { LibraryListLayoutProps, LibrarySurfaceShellProps } from "./library-surface";

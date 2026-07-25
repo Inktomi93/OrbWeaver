@@ -23,28 +23,44 @@
 //     per-CALLER (the floor comes from the caller's own row), so a host is never clamped by a member's floor.
 
 import type { CharacterCard } from "@orb/contracts/character";
-import type { ChatBusEvent, JoinHistoryVisibility, MemberCardView, MemberCardVisibility } from "@orb/contracts/chat";
-import { MEMBER_CARD_VISIBILITY_LEVELS } from "@orb/contracts/chat";
+import type { ChatBusEvent, HistoryFloorSeq, JoinHistoryVisibility, MemberCardView, MemberCardVisibility } from "@orb/contracts/chat";
+import { historyFloor, MEMBER_CARD_VISIBILITY_LEVELS } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { CharacterId } from "@orb/kit/ids";
 
-/** The floor for an unclamped reader (`full`, and every born-here host/character seat) — `messages.seq` is
- *  1-based, so 0 admits the whole canon. Also the "no clamp in force" sentinel consumers test against. */
-export const NO_HISTORY_FLOOR = 0;
+/** The floor for an unclamped reader (`full`, every born-here character seat, AND every host — F2) —
+ *  `messages.seq` is 1-based, so 0 admits the whole canon. Also the "no clamp in force" sentinel consumers
+ *  test against. Branded once here (the one mint site) so a resolved floor carries its viewer-scoped brand. */
+export const NO_HISTORY_FLOOR: HistoryFloorSeq = historyFloor(0);
 
 /**
- * Resolve a member's canon read FLOOR in `messages.seq` space from their OWN participant row (D16's
- * `joinHistoryVisibility` + `joinSeq`) — the ONE place the persisted policy becomes a number.
+ * Resolve a member's canon read FLOOR in `messages.seq` space from their OWN participant row (their `role` +
+ * D16's `joinHistoryVisibility` + `joinSeq`) — the ONE place the persisted policy becomes a number, and the
+ * ONE mint site of a {@link HistoryFloorSeq}. Both floor consumers delegate here: `guard::requireParticipant`
+ * (the in-chat read paths — `listMessages`/replay/SSE/fork/compaction) and the cross-domain
+ * `resolveViewerVisibility` op (plugin/extract-quiet), so the verdict below is universal across every path.
  *
- * `full` ⇒ {@link NO_HISTORY_FLOOR} (unchanged — sees everything; the column DEFAULT). `from-join` ⇒ the
+ * THE HOST IS NEVER CLAMPED (F2 — owner ratified "the host has full control"): a promoted/founding host
+ * resolves to {@link NO_HISTORY_FLOOR} regardless of their row's `joinHistoryVisibility`. This closes the
+ * incoherence where a promoted host's `listMessages` withheld pre-join history while export-chat + discovery
+ * already handed them full canon — one authority, one answer.
+ *
+ * Otherwise: `full` ⇒ {@link NO_HISTORY_FLOOR} (sees everything; the column DEFAULT). `from-join` ⇒ the
  * member's `joinSeq`, an INCLUSIVE floor: `seq >= joinSeq` is visible (the member DOES see the row at their
  * own `joinSeq`), a row with `seq < joinSeq` is pre-join and must not be returned. RE-JOIN semantics ride the storage shape: a
  * human's membership is ONE upserted row whose `joinSeq` is re-stamped to the canon head on every re-join
  * (`persistence/participant.ts::upsertMemberOnJoin`), so a re-joined member's floor is their LATEST join —
  * the conservative reading, and the only one the row can support (prior eras are not retained).
  */
-export function resolveHistoryFloorSeq(membership: { readonly joinSeq: number; readonly joinHistoryVisibility: JoinHistoryVisibility }): number {
-  return membership.joinHistoryVisibility === "full" ? NO_HISTORY_FLOOR : Math.max(membership.joinSeq, NO_HISTORY_FLOOR);
+export function resolveHistoryFloorSeq(membership: {
+  readonly role: ParticipantRole;
+  readonly joinSeq: number;
+  readonly joinHistoryVisibility: JoinHistoryVisibility;
+}): HistoryFloorSeq {
+  if (membership.role === "host" || membership.joinHistoryVisibility === "full") {
+    return NO_HISTORY_FLOOR;
+  }
+  return historyFloor(Math.max(membership.joinSeq, NO_HISTORY_FLOOR));
 }
 
 /**

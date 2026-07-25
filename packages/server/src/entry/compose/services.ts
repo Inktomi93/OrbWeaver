@@ -19,6 +19,7 @@ import { generateImageActionArgsSchema } from "@orb/contracts/imagery";
 import { AUTOMATION_NOTICE_MESSAGE_MAX } from "@orb/contracts/notifications";
 import type { InvocationChat, PluginHandlerRef } from "@orb/contracts/plugin";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
+import { DEFAULT_GUIDED_ACTIONS } from "@orb/contracts/preset";
 import type { AccountCredits, EndpointInspection, GenerationCost, VerifyAuthResult } from "@orb/contracts/providers";
 import type { SessionView } from "@orb/contracts/session";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
@@ -34,7 +35,7 @@ import {
 } from "@orb/db";
 import { batchMany } from "@orb/db/kit";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { AssetId, CharacterId, ChatId, Handle, PersonaId, SessionId, TypeIdOf, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, Handle, PersonaId, PresetId, SessionId, TypeIdOf, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId, newId } from "@orb/kit/ids";
 import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
@@ -150,6 +151,11 @@ const IMAGERY_WARNING_CODES = new Set<string>(["image_edit_dropped"]);
 function isImageryWarningCode(code: string): code is ImageryWarning["code"] {
   return IMAGERY_WARNING_CODES.has(code);
 }
+
+// Greeting-studio bounded-completion posture (audit §3) — mirrors quiet-generate's floor constants: a
+// greeting rewrite is a bounded transform of a base text, not an open creative turn.
+const GREETING_STUDIO_TEMPERATURE = 0.3;
+const GREETING_STUDIO_MAX_OUTPUT_TOKENS = 1024;
 
 /**
  * What boot supplies to stand up the whole service graph. `vllmDisabled` is the effective fact
@@ -498,6 +504,34 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     // PD-141: world-info owns the character_books junction — the duplicate carry is its persistence factory,
     // wired here directly (world-info's full service composes after chat, below).
     copyCharacterBooks: createCopyCharacterBooks({ db, now }),
+    // Greeting studio (audit §3). resolveGreetingTemplate reads the CALLER's active-preset guided template
+    // (the resolvePromptConfigFor precedent — default preset id from user settings → preset.get → config,
+    // falling back to the contract default), so character never imports preset. `preset` is a forward
+    // reference resolved at request time (it composes below). generateGreetingText runs the bounded side-LLM
+    // completion over the summarize lane (the imagery captionImage precedent) at quiet-generate's floor
+    // (temp 0.3, 1024 out — a bounded rewrite, not an open turn); the caller IS the request owner so
+    // roleClients (bound for deps.ownerId) is the caller's connection.
+    resolveGreetingTemplate: async ({ caller, kind }): Promise<string> => {
+      const defaultPresetId = (await settings.getUserSettings({ principal: caller })).config.seeds.defaultPresetId;
+      const fallback = DEFAULT_GUIDED_ACTIONS[kind].prompt;
+      if (defaultPresetId === null) {
+        return fallback;
+      }
+      try {
+        const detail = await preset.get({ userId: caller.userId, id: castId<PresetId>(defaultPresetId) });
+        return detail.config.guidedActions?.[kind].prompt ?? fallback;
+      } catch {
+        return fallback;
+      }
+    },
+    generateGreetingText: async ({ prompt }): Promise<{ text: string; costUsd: number | null }> => {
+      const res = await roleClients.summarize([{ systemPrompt: prompt, userPrompt: "" }], {
+        temperature: GREETING_STUDIO_TEMPERATURE,
+        maxTokens: GREETING_STUDIO_MAX_OUTPUT_TOKENS,
+      });
+      const item = res.items[0];
+      return { text: (item?.text ?? "").trim(), costUsd: item?.usage.costUsd ?? null };
+    },
   });
 
   // The live assets ctx extended with the two character-handle resolvers the gallery export/import verbs

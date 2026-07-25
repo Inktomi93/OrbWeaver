@@ -56,6 +56,14 @@ export interface CharacterHarness {
   setTagAttachResult: (result: boolean) => void;
   /** Override the tag-detach port result (default: every call returns `true` = a row was removed). */
   setTagDetachResult: (result: boolean) => void;
+  /** The recorded greeting-studio template resolutions (assert the verb read the caller's template). */
+  readonly greetingTemplateCalls: { readonly caller: Principal; readonly kind: "greeting_rewrite" | "greeting_new" }[];
+  /** The recorded greeting-studio bounded completions (assert the verb ran ONE, and with what prompt). */
+  readonly greetingTextCalls: { readonly caller: Principal; readonly prompt: string }[];
+  /** Override the template the resolveGreetingTemplate fake returns (default: `"[TPL {{base}} {{input}}]"`). */
+  setGreetingTemplate: (template: string) => void;
+  /** Override the {text,costUsd} the generateGreetingText fake returns (default: echoes the prompt). */
+  setGreetingText: (result: { readonly text: string; readonly costUsd: number | null }) => void;
 }
 
 /** Build the CharacterContext over a real db with deterministic + recording fakes. */
@@ -72,6 +80,10 @@ export function makeHarness(db: Db, overrides: { readonly materializeBackground?
   let tagAttachResult = true;
   let tagDetachResult = true;
   let spriteReapResult: readonly AssetId[] = [];
+  const greetingTemplateCalls: { caller: Principal; kind: "greeting_rewrite" | "greeting_new" }[] = [];
+  const greetingTextCalls: { caller: Principal; prompt: string }[] = [];
+  let greetingTemplate = "[TPL {{base}} {{input}}]";
+  let greetingText: { text: string; costUsd: number | null } | null = null;
 
   const ctx: CharacterContext = {
     db,
@@ -111,6 +123,17 @@ export function makeHarness(db: Db, overrides: { readonly materializeBackground?
     // F-P0-2: default refuses (never hit by non-external tests); the external-materialize test injects a stub.
     materializeBackground:
       overrides.materializeBackground ?? ((): ReturnType<MaterializeBackgroundOp> => Promise.resolve({ ok: false, reason: "unreachable" })),
+    // Greeting studio (audit §3) — recording fakes: the template resolver records the caller+kind, the
+    // completion records the caller+prompt (so a test asserts the owner-gate fired BEFORE any completion,
+    // and the prompt carried the resolved template + neutralized base/steer). Default text echoes the prompt.
+    resolveGreetingTemplate: ({ caller, kind }): Promise<string> => {
+      greetingTemplateCalls.push({ caller, kind });
+      return Promise.resolve(greetingTemplate);
+    },
+    generateGreetingText: ({ caller, prompt }): Promise<{ text: string; costUsd: number | null }> => {
+      greetingTextCalls.push({ caller, prompt });
+      return Promise.resolve(greetingText ?? { text: `GEN(${prompt})`, costUsd: null });
+    },
   };
 
   return {
@@ -131,6 +154,14 @@ export function makeHarness(db: Db, overrides: { readonly materializeBackground?
     },
     setTagDetachResult: (result: boolean): void => {
       tagDetachResult = result;
+    },
+    greetingTemplateCalls,
+    greetingTextCalls,
+    setGreetingTemplate: (template: string): void => {
+      greetingTemplate = template;
+    },
+    setGreetingText: (result: { text: string; costUsd: number | null }): void => {
+      greetingText = result;
     },
   };
 }

@@ -19,6 +19,14 @@ export interface ImportedFromMatch {
   readonly characterId: CharacterId;
 }
 
+/** Returned by the greeting-studio verbs (`rewriteGreeting`/`generateGreeting`, audit §3): the generated
+ *  greeting text + the side-LLM spend. The verb NEVER writes — the client previews `text` and appends it to
+ *  `characters.greetings` via `character.update` on accept. `costUsd` is null when the provider didn't report it. */
+export interface GeneratedGreeting {
+  readonly text: string;
+  readonly costUsd: number | null;
+}
+
 /** Returned by `snapshot`. */
 export interface SnapshotRef {
   readonly id: CharacterSnapshotId;

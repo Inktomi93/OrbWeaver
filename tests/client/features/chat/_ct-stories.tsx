@@ -6,7 +6,7 @@
 // stubbed network); pure-render stories rely on the beforeMount toast/tooltip chrome.
 
 import type { ChatBusDeps } from "@orb/client/data";
-import { createInvalidation, useTRPC } from "@orb/client/data";
+import { createInvalidation, QueryBoundary, QueryErrorState, useTRPC } from "@orb/client/data";
 import { characterSlashCommands } from "@orb/client/features/character";
 import type { GoToSection } from "@orb/client/features/chat";
 import {
@@ -69,12 +69,14 @@ import { composeRewriteSteer } from "@orb/kit/guided";
 import type { AssetId, CharacterId, ChatId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
+import { Text } from "@orb/ui/text";
 import type { THEME_SCOPE_CHAT_STYLES } from "@orb/ui/theme-scope";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { SectionContextHeader, SectionContextHost } from "../../../../packages/client/src/features/app-shell/components/section-context-host";
 import { CharacterGalleryDialog } from "../../../../packages/client/src/features/chat/anchors/character-gallery-dialog";
+import { AssemblyPreviewPanel } from "../../../../packages/client/src/features/chat/components/assembly-preview-panel";
 import { ChatCastBar } from "../../../../packages/client/src/features/chat/components/chat-cast-bar";
 import { ChatHeaderSurface } from "../../../../packages/client/src/features/chat/components/chat-header";
 import { ChatOptionsMenu } from "../../../../packages/client/src/features/chat/components/chat-options-menu";
@@ -83,6 +85,7 @@ import { CompactSummaryPeek } from "../../../../packages/client/src/features/cha
 import { GhostMessageRow } from "../../../../packages/client/src/features/chat/components/ghost-message-row";
 import { GreetingSwipeStrip } from "../../../../packages/client/src/features/chat/components/greeting-swipe-strip";
 import { GroupConfigForm } from "../../../../packages/client/src/features/chat/components/group-config-form";
+import { InjectionsManager } from "../../../../packages/client/src/features/chat/components/injections-manager";
 import { InviteDialog } from "../../../../packages/client/src/features/chat/components/invite-dialog";
 import { MembersPanel } from "../../../../packages/client/src/features/chat/components/members-panel";
 import { MessageActionsRow } from "../../../../packages/client/src/features/chat/components/message-actions-row";
@@ -1723,5 +1726,42 @@ export function GreetingSwipeStripStory({ variants, custom = false }: { readonly
       <div data-testid="greeting-current">{current}</div>
       <GreetingSwipeStrip draftKey={GREETING_DRAFT_KEY} characterId={GREETING_CHARACTER_ID} variants={variants} current={current} />
     </div>
+  );
+}
+
+// ── Assembly preview panel (#28 Preview tab) — host-only, host/getShapeTrace + previewAssembly reads ──
+
+/** `AssemblyPreviewPanel` over the stubbed `chat.previewAssembly` + `chat.getShapeTrace` reads (both
+ *  host-only). The `.ct.tsx` routeTrpc-stubs both to drive loading/error/success + the retry path
+ *  (`QueryBoundary`'s reset handshake). */
+export function AssemblyPreviewPanelStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 480 }}>
+        <AssemblyPreviewPanel chatId={CHAT_ID} />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+// ── Injections manager (the manual-injections CRUD tab) ─────────────────────────────────────────────
+
+/** `InjectionsManager` over the stubbed `chat.listChatInjections` + the `setChatInjection`/
+ *  `deleteChatInjection` mutations. Wrapped in `QueryBoundary` (mirrors `chats-section.tsx`'s own
+ *  `injections` tab body — `InjectionsManager` is never mounted bare in production, only ever behind its
+ *  own suspense/error boundary). The `.ct.tsx` drives add/edit/delete and asserts the MUTATION count
+ *  (routeTrpc's recorder), never a UI reaction — the autosave form's own CT covers the save chrome. */
+export function InjectionsManagerStory({ isHost = true }: { readonly isHost?: boolean }): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 420 }}>
+        <QueryBoundary
+          fallback={<Text tone="muted">Loading injections…</Text>}
+          renderError={(_error, retry): ReactElement => <QueryErrorState label="injections" onRetry={retry} />}
+        >
+          <InjectionsManager chatId={CHAT_ID} isHost={isHost} />
+        </QueryBoundary>
+      </div>
+    </CtDataProviders>
   );
 }

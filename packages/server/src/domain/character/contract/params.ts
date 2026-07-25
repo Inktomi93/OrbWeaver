@@ -86,6 +86,27 @@ export interface GetCardParams extends CharacterActorParams {
   readonly characterId: CharacterId;
 }
 
+/** Greeting studio (audit §3) — the guided-action machinery pointed at a BASE greeting, owner-gated. Both
+ *  verbs RETURN text and NEVER write; the client appends the accepted result via `character.update`. The
+ *  transform ids + free-text are already composed into ONE `steer` string client-side (`composeRewriteSteer`
+ *  over `GREETING_TRANSFORMS`), which becomes `{{input}}` inside the resolved preset template. `greeting` is
+ *  the current greeting TEXT for a rewrite (the `{{base}}` token); a new-greeting request omits it. The
+ *  editable template comes from the caller's preset `guidedActions` (resolved at compose via the injected op).
+ */
+export interface RewriteGreetingParams extends CharacterActorParams {
+  readonly characterId: CharacterId;
+  /** The existing greeting text to rewrite (the `{{base}}` token). */
+  readonly greeting: string;
+  /** The composed steer (transform fragments + free-text, joined) → the template's `{{input}}`. May be empty. */
+  readonly steer: string;
+}
+
+export interface GenerateGreetingParams extends CharacterActorParams {
+  readonly characterId: CharacterId;
+  /** The composed steer (transform fragments + free-text, joined) → the template's `{{input}}`. May be empty. */
+  readonly steer: string;
+}
+
 /** Synthetic group-character mint/find (chat-injected, internal); owns the `__group__${chatId}` handle namespace. */
 export interface MintGroupCharParams {
   readonly ownerId: UserId;

@@ -19,6 +19,7 @@ export type {
   FindByHandleParams,
   FindByImportHashParams,
   FindGroupCharParams,
+  GenerateGreetingParams,
   GetCardParams,
   GetCharacterParams,
   ListCharactersParams,
@@ -26,11 +27,13 @@ export type {
   MintGroupCharParams,
   RemoveCharacterParams,
   RestoreParams,
+  RewriteGreetingParams,
   SnapshotParams,
   UpdateCharacterParams,
 } from "./contract/params";
 export type {
   CharacterRef,
+  GeneratedGreeting,
   ListCharactersResult,
   SnapshotRef,
   SnapshotSummary,

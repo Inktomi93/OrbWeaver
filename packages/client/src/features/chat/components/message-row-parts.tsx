@@ -233,7 +233,13 @@ export function renderRowActions(args: {
     return null;
   }
   if (args.greeting !== undefined) {
-    return <GreetingActionsRow message={args.message} messageActions={args.messageActions} />;
+    return (
+      <GreetingActionsRow
+        message={args.message}
+        greeting={{ draftKey: args.greeting.draftKey, characterId: args.greeting.characterId, variants: args.greeting.variants }}
+        messageActions={args.messageActions}
+      />
+    );
   }
   return <MessageActionsRow message={args.message} onChatForked={args.onChatForked} messageActions={args.messageActions} />;
 }

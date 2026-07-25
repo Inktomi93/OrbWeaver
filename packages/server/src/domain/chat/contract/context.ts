@@ -7,6 +7,7 @@ import type {
   ChatBusEvent,
   ChatInjection,
   GroupConfig,
+  HistoryFloorSeq,
   PromptTransform,
   PromptTransformPoint,
   RenderPolicy,
@@ -194,7 +195,7 @@ export interface ExtractQuietParams {
    *  utterance and CAN be clamped per reader without forking canon. Membership alone admitted this call, and
    *  membership is not visibility — so the caller must obtain this from chat's `resolveViewerVisibility` op.
    *  `NO_HISTORY_FLOOR` (0) is the unclamped common case. */
-  readonly historyFloorSeq: number;
+  readonly historyFloorSeq: HistoryFloorSeq;
 }
 export interface ExtractQuietResult {
   readonly text: string;
@@ -281,7 +282,7 @@ export type GetMembership = (chatId: ChatId, userId: UserId) => Promise<{ readon
  *  floor, so "forgot to clamp" is unrepresentable rather than merely discouraged. */
 export interface ViewerVisibility {
   readonly role: ParticipantRole;
-  readonly historyFloorSeq: number;
+  readonly historyFloorSeq: HistoryFloorSeq;
 }
 
 /** THE cross-domain viewer-visibility op (the D-ledger read-visibility entry). Any NON-chat domain that must

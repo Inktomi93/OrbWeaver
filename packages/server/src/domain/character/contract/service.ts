@@ -3,6 +3,7 @@
 
 import type { CharacterCard } from "@orb/contracts/character";
 import type { DomainEvent } from "@orb/contracts/events";
+import type { Principal } from "@orb/contracts/identity";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
@@ -19,6 +20,7 @@ import type {
   FindByImportedFromParams,
   FindByImportHashParams,
   FindGroupCharParams,
+  GenerateGreetingParams,
   GetCardParams,
   GetCharacterParams,
   ListCharactersParams,
@@ -26,10 +28,11 @@ import type {
   MintGroupCharParams,
   RemoveCharacterParams,
   RestoreParams,
+  RewriteGreetingParams,
   SnapshotParams,
   UpdateCharacterParams,
 } from "./params";
-import type { CharacterRef, ImportedFromMatch, ListCharactersResult, SnapshotRef, SnapshotSummary } from "./results";
+import type { CharacterRef, GeneratedGreeting, ImportedFromMatch, ListCharactersResult, SnapshotRef, SnapshotSummary } from "./results";
 import type { CharacterDetail } from "./views";
 
 /** Best-effort reap of avatar assets a deleted character may have orphaned (FK is onDelete: set null). */
@@ -51,6 +54,17 @@ export type DetachCardTagOp = (args: { readonly ownerId: UserId; readonly charac
  *  character_books rows pointing at the SAME books; world-info owns the junction write. Zero attachments =
  *  no-op. Internal to the DI bundle (the runtime op is world-info's `CopyCharacterBooks`, wired at compose). */
 type CopyCharacterBooksOp = (args: { readonly fromCharacterId: CharacterId; readonly toCharacterId: CharacterId }) => Promise<void>;
+
+/** The editable greeting-studio template resolved from the CALLER's preset `guidedActions` (audit §3): the
+ *  `greeting_rewrite`/`greeting_new` prompt string. Wired at compose to the preset domain's active-preset
+ *  read; character never imports preset. */
+type ResolveGreetingTemplateOp = (args: { readonly caller: Principal; readonly kind: "greeting_rewrite" | "greeting_new" }) => Promise<string>;
+
+/** The bounded side-LLM completion the greeting-studio verbs await (the imagery `captionImage` precedent —
+ *  the summarize lane at compose). ONE prompt in, `{text, costUsd}` out; the caller's connection is resolved
+ *  at compose (the caller IS the request owner — every studio verb is owner-gated). Bounded temperature/token
+ *  posture is applied at compose (mirroring quiet-generate's floor constants). */
+type GenerateGreetingTextOp = (args: { readonly caller: Principal; readonly prompt: string }) => Promise<GeneratedGreeting>;
 
 /** DI bundle every character verb closes over. */
 export interface CharacterContext {
@@ -74,6 +88,10 @@ export interface CharacterContext {
    *  `update` runs it for a `kind:"external"` `backgroundOverride` so the persisted card background is always
    *  same-origin-paintable (an external URL is CSP-blocked). Compose-built from infra + assets.store. */
   readonly materializeBackground: MaterializeBackgroundOp;
+  /** Reads the caller's preset greeting-studio template (audit §3); character never imports preset. */
+  readonly resolveGreetingTemplate: ResolveGreetingTemplateOp;
+  /** Runs the bounded side-LLM completion the greeting-studio verbs await (the summarize lane at compose). */
+  readonly generateGreetingText: GenerateGreetingTextOp;
 }
 
 export interface CharacterService {
@@ -112,4 +130,11 @@ export interface CharacterService {
 
   readonly mintSyntheticGroupCharacter: (params: MintGroupCharParams) => Promise<CharacterRef>;
   readonly findSyntheticGroupCharacter: (params: FindGroupCharParams) => Promise<CharacterRef | null>;
+
+  /** Greeting studio (audit §3): rewrite the supplied base greeting under the caller's `greeting_rewrite`
+   *  template + composed steer. Owner-gated (leak-free NOT_FOUND for a non-owner); RETURNS text, NEVER writes. */
+  readonly rewriteGreeting: (params: RewriteGreetingParams) => Promise<GeneratedGreeting>;
+  /** Greeting studio (audit §3): generate a fresh greeting under the caller's `greeting_new` template +
+   *  composed steer. Owner-gated (leak-free NOT_FOUND for a non-owner); RETURNS text, NEVER writes. */
+  readonly generateGreeting: (params: GenerateGreetingParams) => Promise<GeneratedGreeting>;
 }

@@ -126,4 +126,26 @@ export const characterRouter = t.router({
         snapshotId: input.snapshotId,
       }),
     ),
+
+  // Greeting studio (audit §3): owner-gated bounded completions that RETURN text and NEVER write — the
+  // client appends the accepted result to `characters.greetings` via `character.update`. Honest wire schemas
+  // (no z.any): branded id + plain strings (the composed steer +, for rewrite, the base greeting text).
+  rewriteGreeting: authedProcedure
+    .input(z.object({ characterId: brandedId<CharacterId>(), greeting: z.string(), steer: z.string() }))
+    .mutation(({ ctx, input }) =>
+      ctx.services.character.rewriteGreeting({
+        principal: ctx.auth,
+        characterId: input.characterId,
+        greeting: input.greeting,
+        steer: input.steer,
+      }),
+    ),
+
+  generateGreeting: authedProcedure.input(z.object({ characterId: brandedId<CharacterId>(), steer: z.string() })).mutation(({ ctx, input }) =>
+    ctx.services.character.generateGreeting({
+      principal: ctx.auth,
+      characterId: input.characterId,
+      steer: input.steer,
+    }),
+  ),
 });

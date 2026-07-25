@@ -89,6 +89,7 @@ export function CharacterHeroBand({
       <CharacterTagSuggestions characterId={detail.id} trpc={trpc} />
 
       <CharacterGreetingPreview
+        characterId={detail.id}
         form={form}
         themeOverride={detail.themeOverride}
         trusted={detail.trustHtml === true}
