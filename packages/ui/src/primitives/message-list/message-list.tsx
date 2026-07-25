@@ -1,9 +1,10 @@
 import type { Range } from "@tanstack/react-virtual";
 import { defaultRangeExtractor, useVirtualizer } from "@tanstack/react-virtual";
 import type { ReactElement, ReactNode, Ref } from "react";
-import { useCallback, useImperativeHandle, useLayoutEffect, useRef } from "react";
+import { useCallback, useImperativeHandle, useLayoutEffect, useRef, useState } from "react";
 import type { GapToken } from "#lib";
 import { assertBoundedScrollHeight, cn, gapPxFor, usePrefersReducedMotion } from "#lib";
+import { pinSpacerActive } from "./pin-spacer";
 
 // Chat rows are tall/variable; deeper overscan than virtual-list's default avoids pop-in on scrollback.
 const DEFAULT_OVERSCAN = 10;
@@ -59,6 +60,13 @@ export interface MessageListHandle {
   readonly getDistanceFromEnd: () => number;
   /** Imperatively scrolls to the last item. */
   readonly scrollToEnd: () => void;
+  /**
+   * `pin-prompt` mode only: scroll the item at `index` to the viewport TOP and hold it there while
+   * content grows below (a bottom spacer lets a short reply still reach the top). A real no-op under
+   * `scrollMode="follow"` (guarded below) — the caller owns which index is "the prompt" (the primitive
+   * is domain-agnostic).
+   */
+  readonly pinToIndex: (index: number) => void;
 }
 
 export interface MessageListProps<T> {
@@ -80,6 +88,12 @@ export interface MessageListProps<T> {
    * own pin-not-yank logic (e.g. `log-viewer`).
    */
   readonly followTail?: boolean;
+  /**
+   * Stream-display scroll behavior. `follow` (default) = the sealed sticky-tail behavior. `pin-prompt` =
+   * tail-follow OFF; the caller pins the just-sent message to the top via the handle's `pinToIndex` on
+   * turn start and it holds while the reply streams below. Byte-identical to today under `follow`.
+   */
+  readonly scrollMode?: "follow" | "pin-prompt";
   /**
    * Low-level index-space override for the rendered range. Composes as the base window when
    * `keepMounted` is also set; the library default otherwise.
@@ -117,6 +131,7 @@ export function MessageList<T>({
   gapToken,
   scrollEndThreshold = DEFAULT_SCROLL_END_THRESHOLD_PX,
   followTail = true,
+  scrollMode = "follow",
   rangeExtractor,
   keepMounted,
   useCachedMeasurements = false,
@@ -132,6 +147,13 @@ export function MessageList<T>({
   const viewportNodeRef = useRef<HTMLDivElement | null>(null);
   // Last scrollTop virtual-core wrote via `scrollToFn`, used to tell its own drift from an external scroll.
   const programmaticTopRef = useRef<number | null>(null);
+  // pin-prompt mode: tail-follow is OFF (the prompt pin replaces it); everything below keys off this.
+  const pinMode = scrollMode === "pin-prompt";
+  const tailFollowActive = !pinMode && followTail;
+  // The item index currently pinned to the viewport top (null = none) + the bottom spacer that lets a
+  // short reply's pinned prompt still reach the top. Both inert (spacer 0) in `follow` mode → byte-identical.
+  const pinnedIndexRef = useRef<number | null>(null);
+  const [pinSpacerPx, setPinSpacerPx] = useState(0);
   const setFollowing = useCallback((value: boolean): void => {
     if (stickToBottomRef.current !== value) {
       stickToBottomRef.current = value;
@@ -148,20 +170,28 @@ export function MessageList<T>({
 
   const composedRangeExtractor = composeRangeExtractor(items, keepMounted, rangeExtractor);
 
+  // pin-prompt never auto-follows an append (the pin owns placement); otherwise today's behavior
+  // (instant when tail-follow is on — see the scrollToFn note below — else virtual-core's smooth).
+  const followTailAppend: boolean | "smooth" = reducedMotion || followTail ? true : "smooth";
+  const followOnAppend: boolean | "smooth" = pinMode ? false : followTailAppend;
+
   const virtualizer = useVirtualizer<HTMLDivElement, HTMLDivElement>({
     count: items.length,
     getScrollElement: () => scrollRef.current,
     estimateSize,
     overscan,
     gap: gapPxFor(gapToken),
+    // pin-prompt's bottom spacer: extra scrollable height below the last row so a short reply's pinned
+    // prompt can still climb to the top. 0 (= virtual-core default) in `follow` mode → byte-identical.
+    paddingEnd: pinSpacerPx,
     getItemKey: (index) => getItemKey(itemAt(index), index),
     // exactOptionalPropertyTypes distinguishes an omitted prop from one set to undefined.
     ...(composedRangeExtractor === undefined ? {} : { rangeExtractor: composedRangeExtractor }),
     anchorTo: "end",
-    followOnAppend: reducedMotion || followTail ? true : "smooth",
-    // Force followOnAppend instant when followTail is on: a smooth scroll fires intermediate
+    followOnAppend,
+    // Force followOnAppend instant when tail-follow is on: a smooth scroll fires intermediate
     // positions that wouldn't match `programmaticTopRef`, tripping the external-scroll detector below.
-    ...(followTail
+    ...(tailFollowActive
       ? {
           scrollToFn: (offset: number, options: { adjustments?: number; behavior?: ScrollBehavior }) => {
             const el = scrollRef.current;
@@ -193,7 +223,7 @@ export function MessageList<T>({
   // their own message. This ResizeObserver re-pins on any content resize while following the tail.
   useLayoutEffect(() => {
     const node = viewportNodeRef.current;
-    if (!followTail || node === null || typeof ResizeObserver === "undefined") {
+    if (!tailFollowActive || node === null || typeof ResizeObserver === "undefined") {
       return;
     }
     const observer = new ResizeObserver(() => {
@@ -204,7 +234,7 @@ export function MessageList<T>({
     });
     observer.observe(node);
     return (): void => observer.disconnect();
-  }, [virtualizer, followTail]);
+  }, [virtualizer, tailFollowActive]);
 
   // A scroll position matching virtual-core's last recorded write is its own drift/re-pin — ignore
   // it for FOLLOW intent (edge fades track every scroll, whoever moved it). Anything else was moved
@@ -215,7 +245,7 @@ export function MessageList<T>({
       return;
     }
     updateEdgeFades(el);
-    if (!followTail) {
+    if (!tailFollowActive) {
       return;
     }
     const expected = programmaticTopRef.current;
@@ -242,10 +272,38 @@ export function MessageList<T>({
       getDistanceFromEnd: () => virtualizer.getDistanceFromEnd(),
       scrollToEnd: () => {
         setFollowing(true);
+        // An explicit jump abandons an active pin (PD-147): clear the pinned index + collapse the
+        // spacer BEFORE the end offset is computed, else getMaxScrollOffset() (= scrollHeight -
+        // clientHeight) counts the spacer void and the jump lands past the last real row into it.
+        // Defer one frame so paddingEnd=0 lands in the scroll height first (mirrors pinToIndex).
+        if (pinnedIndexRef.current !== null) {
+          pinnedIndexRef.current = null;
+          setPinSpacerPx(0);
+          requestAnimationFrame(() => {
+            virtualizer.scrollToEnd({ behavior: reducedMotion ? "auto" : "smooth" });
+          });
+          return;
+        }
         virtualizer.scrollToEnd({ behavior: reducedMotion ? "auto" : "smooth" });
       },
+      pinToIndex: (index) => {
+        // A real no-op outside pin-prompt mode: follow mode owns tail placement, so a stray pin would
+        // arm the spacer and fight the sticky-tail. Keeps `follow` byte-identical.
+        if (!pinMode) {
+          return;
+        }
+        const el = scrollRef.current;
+        pinnedIndexRef.current = index;
+        // A full viewport of scrollable space below the last row so the pinned prompt can climb to the
+        // top even when the reply is short; the resize observer collapses it once real content fills that
+        // space. Defer the scroll one frame so the new paddingEnd lands in the scroll height first.
+        setPinSpacerPx(el === null ? 0 : el.clientHeight);
+        requestAnimationFrame(() => {
+          virtualizer.scrollToIndex(index, { align: "start", behavior: reducedMotion ? "auto" : "smooth" });
+        });
+      },
     }),
-    [virtualizer, reducedMotion, setFollowing],
+    [virtualizer, reducedMotion, setFollowing, pinMode],
   );
 
   // Unbounded-height tripwire: thrown, not warned — identical to virtual-list.
@@ -263,11 +321,26 @@ export function MessageList<T>({
     if (viewport === null || typeof ResizeObserver === "undefined") {
       return;
     }
-    const observer = new ResizeObserver(() => updateEdgeFades(el));
+    const observer = new ResizeObserver(() => {
+      updateEdgeFades(el);
+      // pin-prompt: once the reply below the pinned prompt fills a viewport, the spacer has done its job
+      // (the prompt now sits at the top against real content) — collapse it so there is no trailing void.
+      const pinnedIndex = pinnedIndexRef.current;
+      if (pinnedIndex === null) {
+        return;
+      }
+      const rendered = virtualizer.getVirtualItems();
+      const pinned = rendered.find((v) => v.index === pinnedIndex);
+      const last = rendered.at(-1);
+      if (pinned !== undefined && last !== undefined && !pinSpacerActive(el.clientHeight, last.end - pinned.start)) {
+        pinnedIndexRef.current = null;
+        setPinSpacerPx(0);
+      }
+    });
     observer.observe(viewport);
     observer.observe(el);
     return (): void => observer.disconnect();
-  }, []);
+  }, [virtualizer]);
 
   return (
     <div

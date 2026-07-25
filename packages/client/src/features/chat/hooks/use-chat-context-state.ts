@@ -33,6 +33,7 @@ export function useChatContextState(): ChatContextState | null {
       roomOverrides: chat.roomOverrides,
       isHost: chat.viewerIsHost === true,
       multiHumanCapable,
+      background: chat.background,
     };
   }
   if (handle.kind === "draft") {

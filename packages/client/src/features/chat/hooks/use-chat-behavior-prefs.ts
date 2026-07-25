@@ -9,12 +9,13 @@ import { DEFAULT_CHAT_SETTINGS } from "@orb/contracts/settings";
 import { useQuery } from "@tanstack/react-query";
 import { useTRPC } from "#data";
 
-/** The client-honored subset of the chat prefs (the knobs the composer + ghost consume). */
+/** The client-honored subset of the chat prefs (the knobs the composer + ghost + list consume). */
 export interface ChatBehaviorPrefs {
   readonly enterSends: ChatSettings["enterSends"];
   readonly continueOnSend: ChatSettings["continueOnSend"];
   readonly smoothStream: ChatSettings["smoothStream"];
   readonly smoothStreamCps: ChatSettings["smoothStreamCps"];
+  readonly streamScrollMode: ChatSettings["streamScrollMode"];
 }
 
 export function useChatBehaviorPrefs(): ChatBehaviorPrefs {
@@ -26,5 +27,6 @@ export function useChatBehaviorPrefs(): ChatBehaviorPrefs {
     continueOnSend: chat.continueOnSend,
     smoothStream: chat.smoothStream,
     smoothStreamCps: chat.smoothStreamCps,
+    streamScrollMode: chat.streamScrollMode,
   };
 }

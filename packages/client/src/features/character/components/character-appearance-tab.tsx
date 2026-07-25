@@ -2,7 +2,7 @@
 // pill): the per-character theme override (an autosave form persisting the whole `themeOverride` blob on
 // change) and Trust (`forbidExternalMedia`/`trustHtml`, tri-state, `override ?? global`).
 
-import type { ThemeChatStyle, ThemeDensity, ThemeRadius } from "@orb/contracts/theme";
+import type { ThemeBackground, ThemeChatStyle, ThemeDensity, ThemeRadius } from "@orb/contracts/theme";
 import { THEME_CHAT_STYLES, THEME_DENSITIES, THEME_FONT_ALLOWLIST, THEME_RADII } from "@orb/contracts/theme";
 import type { CharacterId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
@@ -13,6 +13,7 @@ import { Text } from "@orb/ui/text";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
+import { BackgroundSourceField } from "#components";
 import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms";
 import { useUpdateCharacter } from "../hooks/use-character-mutations";
@@ -92,6 +93,8 @@ function AppearanceTabBody({ characterId }: CharacterAppearanceTabProps): ReactE
     <Stack gap="section">
       <ThemeControls characterId={characterId} serverValue={data.themeOverride} />
 
+      <BackgroundControl characterId={characterId} serverValue={data.backgroundOverride} />
+
       <Section heading="Trust">
         <Row gap="field" className="flex-wrap">
           {/* eslint-disable-next-line jsx-a11y/control-has-associated-label -- the Select's `label` prop renders the visible, associated label (the rule can't see a custom prop); the bound SelectField carries the same suppression. */}
@@ -122,6 +125,34 @@ function AppearanceTabBody({ characterId }: CharacterAppearanceTabProps): ReactE
         </Text>
       </Section>
     </Stack>
+  );
+}
+
+interface BackgroundControlProps {
+  readonly characterId: CharacterId;
+  readonly serverValue: ThemeBackground | null;
+}
+
+/** The card's own carried BACKGROUND source (BG-C, the `ThemeControls` twin) — a discrete immediate-write
+ *  control riding the SAME `character.update` verb, own field (never folded into `ThemeControls`' autosave
+ *  session; the D78 boundary stays with that form alone). */
+function BackgroundControl({ characterId, serverValue }: BackgroundControlProps): ReactElement {
+  const trpc = useTRPC();
+  const invalidation = useInvalidation();
+  const update = useUpdateCharacter({ trpc, invalidation });
+
+  return (
+    <Section heading="Background">
+      <BackgroundSourceField
+        onChange={(next): void => {
+          update.mutate({ characterId, input: { backgroundOverride: next } });
+        }}
+        value={serverValue}
+      />
+      <Text size="micro" tone="muted">
+        Applies instantly — no save needed. Takes over the app background in a true-solo chat, below any chat-set background.
+      </Text>
+    </Section>
   );
 }
 

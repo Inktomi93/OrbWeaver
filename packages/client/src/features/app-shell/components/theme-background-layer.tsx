@@ -18,6 +18,16 @@ export interface ThemeBackgroundLayerProps {
   readonly blur: number;
 }
 
+// The CSS `background-size` each fit resolves to: `cover`/`contain` are the CSS keywords verbatim;
+// `stretch` fills both axes ignoring aspect (`100% 100%`); `center` paints the image at its natural size
+// (`auto`), centered by the `bg-center` class below (ST's fit vocabulary — BG-B).
+const BACKGROUND_SIZE_BY_FIT: Record<AppearanceBackgroundFit, string> = {
+  cover: "cover",
+  contain: "contain",
+  stretch: "100% 100%",
+  center: "auto",
+};
+
 /** Renders nothing when `url === null` — the app's normal `--color-background` paints through. */
 export function ThemeBackgroundLayer({ url, fit, dim, blur }: ThemeBackgroundLayerProps): ReactElement | null {
   if (url === null) {
@@ -25,7 +35,7 @@ export function ThemeBackgroundLayer({ url, fit, dim, blur }: ThemeBackgroundLay
   }
   const photoStyle: CSSProperties = {
     backgroundImage: `url("${url}")`,
-    backgroundSize: fit,
+    backgroundSize: BACKGROUND_SIZE_BY_FIT[fit],
     // blur(0px) is a harmless no-op, kept unconditional so the style object shape never toggles a filter key across renders.
     filter: `blur(${blur}px)`,
   };

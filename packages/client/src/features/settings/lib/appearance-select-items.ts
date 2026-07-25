@@ -6,7 +6,7 @@ import type { AppearanceSettings } from "@orb/contracts/settings";
 import { APPEARANCE_BACKGROUND_FITS, BLUR_SURFACES } from "@orb/contracts/settings";
 import { BACKGROUND_IMAGE_KINDS, THEME_CHAT_STYLES, THEME_DENSITIES } from "@orb/contracts/theme";
 import type { SelectItems, SelectOption } from "@orb/ui/select";
-import { listSeededBackgrounds } from "#lib";
+import { BACKGROUND_KIND_LABELS, listSeededBackgrounds } from "#lib";
 
 const CHAT_STYLE_LABELS: Record<AppearanceSettings["chatStyle"], string> = {
   bubble: "Bubble",
@@ -85,19 +85,12 @@ export const BLUR_SURFACE_ITEMS: readonly SelectOption<string>[] = BLUR_SURFACES
 
 // `external` is a transient INPUT-only kind (the picker's URL-entry branch), never a persisted paintable
 // state (BG-C invariant, contracts/settings) — so it is excluded from the selectable background-kind
-// options and its label table.
-type SelectableBackgroundKind = Exclude<AppearanceSettings["backgroundImageKind"], "external">;
-const BACKGROUND_KIND_LABELS: Record<SelectableBackgroundKind, string> = {
-  none: "None",
-  seeded: "Seeded",
-  asset: "Upload",
-};
-export const BACKGROUND_KIND_ITEMS: SelectItems<string> = BACKGROUND_IMAGE_KINDS.filter((value): value is SelectableBackgroundKind => value !== "external").map(
-  (value) => ({
-    value,
-    label: BACKGROUND_KIND_LABELS[value],
-  }),
-);
+// options here. The labels themselves ride the shared `#lib` table (one home with the carried-background
+// picker, which DOES offer the URL branch — its writes materialize server-side).
+export const BACKGROUND_KIND_ITEMS: SelectItems<string> = BACKGROUND_IMAGE_KINDS.filter((value) => value !== "external").map((value) => ({
+  value,
+  label: BACKGROUND_KIND_LABELS[value],
+}));
 const BACKGROUND_FIT_LABELS: Record<AppearanceSettings["backgroundFit"], string> = {
   cover: "Cover (fill, crop edges)",
   contain: "Contain (fit, may letterbox)",

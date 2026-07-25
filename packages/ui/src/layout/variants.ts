@@ -48,6 +48,10 @@ export const sectionVariants = tv({
   slots: {
     root: "flex flex-col gap-block",
     heading: "font-medium text-foreground text-title leading-title",
+    // inline-flex so the hint trigger sits on the heading's baseline instead of dropping to its own line
+    // (mirrors the Field label/hint row, field/variants.ts).
+    headingRow: "inline-flex items-center gap-field",
+    hintTrigger: "text-muted-foreground hover:text-foreground",
   },
   variants: {
     // A hairline under the section heading — reads as a header edge over its rows, not a floating label.

@@ -10,8 +10,13 @@
 // here at compile time, never a re-spelled union at the call site (§5.5).
 
 import type { ChatInjectionInput, GroupConfig, RoomOverrides } from "@orb/contracts/chat";
+import type { ThemeBackground } from "@orb/contracts/theme";
 import type { ChatId, ChatInjectionId } from "@orb/kit/ids";
+import type { inferOutput } from "@trpc/tanstack-react-query";
+import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
+
+type ChatDetail = inferOutput<Trpc["chat"]["getChat"]>;
 
 /** `chat.setRoomOverrides` vars — the host-only four-field allowlist + the target chat. */
 interface SetRoomOverridesVars {
@@ -61,4 +66,26 @@ export const useSetGroupConfig = createEntityMutation<SetGroupConfigVars, unknow
   // event covers it (like `listChatInjections`), so the mutation invalidates it directly.
   invalidates: (trpc, vars) => [trpc.chat.getGroupConfig.queryFilter({ chatId: vars.chatId })],
   errorToast: "Couldn't save the group settings.",
+});
+
+/** `chat.setChatBackground` vars (BG-C) — the host-only per-chat carried background source + target chat. */
+interface SetChatBackgroundVars {
+  readonly chatId: ChatId;
+  readonly background: ThemeBackground;
+}
+
+export const useSetChatBackground = createEntityMutation<SetChatBackgroundVars, unknown, ChatDetail>({
+  options: (trpc) => trpc.chat.setChatBackground.mutationOptions(),
+  // OPTIMISTIC: this is a discrete-write control OUTSIDE the room-overrides autosave form (no local field
+  // state re-seeds it), so the pick must paint before the round trip — patches `getChat`'s cache directly.
+  optimistic: {
+    readKey: (trpc, vars) => trpc.chat.getChat.queryKey({ chatId: vars.chatId }),
+    update: (old, vars) => (old === undefined ? old : { ...old, background: vars.background }),
+  },
+  // `busDriven` on the OPEN chat: the verb emits `chatUpdated` (→ chatReads covers getChat, where the
+  // background read rides `ChatDetail.background`), delivered by the active subscription — the
+  // `useSetRoomOverrides` twin. The optimistic write above is never trusted as final (createEntityMutation's
+  // onSettled always reconciles); this bus echo is that reconciliation.
+  busDriven: true,
+  errorToast: "Couldn't save the chat background.",
 });

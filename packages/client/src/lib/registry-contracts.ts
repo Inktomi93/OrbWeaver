@@ -10,6 +10,7 @@
 // NON-generic `ContextDefinition` this mint returns (§6b).
 
 import type { MessageView, ParticipantView, RoomOverrides } from "@orb/contracts/chat";
+import type { ThemeBackground } from "@orb/contracts/theme";
 import type { CharacterId, ChatId, PresetId, UserId } from "@orb/kit/ids";
 import type { ReactNode } from "react";
 import type { ContributorRegistry } from "./registry";
@@ -138,6 +139,7 @@ export interface CommittedChatContext {
   readonly roomOverrides: RoomOverrides;
   readonly isHost: boolean;
   readonly multiHumanCapable: boolean;
+  readonly background: ThemeBackground | null;
 }
 
 /** A DRAFT chat's CONTEXT-panel projection — no server row yet, so the tabs write the draft-config store;

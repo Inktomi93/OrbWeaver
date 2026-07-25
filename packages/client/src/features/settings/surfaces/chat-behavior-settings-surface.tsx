@@ -18,7 +18,14 @@ import { useFocusOnMount } from "#lib";
 import { settingsAnchorId } from "#state";
 import { CHAT_BEHAVIOR_ENTITY_ID, ChatBehaviorAutosaveForm } from "../hooks/use-chat-behavior-form";
 import type { ChatBehaviorForm } from "../lib/chat-behavior-model";
-import { AUTO_SWIPE_MIN_LENGTH_MIN, projectChatForm, SMOOTH_STREAM_CPS_MAX, SMOOTH_STREAM_CPS_MIN, toChatSectionPatch } from "../lib/chat-behavior-model";
+import {
+  AUTO_SWIPE_MIN_LENGTH_MIN,
+  projectChatForm,
+  SMOOTH_STREAM_CPS_MAX,
+  SMOOTH_STREAM_CPS_MIN,
+  STREAM_SCROLL_MODE_ITEMS,
+  toChatSectionPatch,
+} from "../lib/chat-behavior-model";
 import { CHAT_BEHAVIOR_SUBCATEGORY_IDS } from "../lib/chat-behavior-nav";
 
 interface UpdateChatVars {
@@ -152,6 +159,15 @@ function ChatBehaviorFormBody({ session }: { readonly session: AutosaveSession<C
         </Section>
 
         <Section divider={true} heading="Streaming" id={anchor(CHAT_BEHAVIOR_SUBCATEGORY_IDS.streaming)}>
+          <form.AppField name="streamScrollMode">
+            {(field): ReactElement => (
+              <field.SelectField
+                label="While a reply streams"
+                description="Follow keeps the newest text in view. Pin scrolls your just-sent message to the top and holds it there while the reply grows below (ChatGPT-style)."
+                items={STREAM_SCROLL_MODE_ITEMS}
+              />
+            )}
+          </form.AppField>
           <form.AppField name="smoothStream">
             {(field): ReactElement => (
               <field.SwitchField

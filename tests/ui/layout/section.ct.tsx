@@ -25,3 +25,27 @@ test("no heading prop → no heading element", async ({ mount }) => {
   );
   await expect(component.getByRole("heading")).toHaveCount(0);
 });
+
+test("hint renders an info trigger whose name derives from the heading, without polluting the heading name", async ({ mount, page }) => {
+  const component = await mount(
+    <Section heading="Sampling" hint="How the sampler shapes the distribution.">
+      <p>content</p>
+    </Section>,
+  );
+  // The heading's own accessible name stays clean — the hint trigger is a SIBLING, never a descendant.
+  await expect(component.getByRole("heading", { name: "Sampling" })).toHaveAccessibleName("Sampling");
+  const trigger = component.getByRole("button", { name: "More info about Sampling" });
+  await expect(trigger).toBeVisible();
+  // Hover surfaces the explainer copy in the tooltip.
+  await trigger.hover();
+  await expect(page.getByText("How the sampler shapes the distribution.")).toBeVisible();
+});
+
+test("no hint → no info trigger beside the heading", async ({ mount }) => {
+  const component = await mount(
+    <Section heading="Sampling">
+      <p>content</p>
+    </Section>,
+  );
+  await expect(component.getByRole("button")).toHaveCount(0);
+});

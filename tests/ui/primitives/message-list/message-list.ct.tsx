@@ -8,6 +8,7 @@ import {
   DerivedItemsMessageList,
   HandleExposingList,
   KeepMountedStateList,
+  PinPromptList,
   PrependableList,
   RangeExtractorMessageList,
   TailGrowthList,
@@ -122,6 +123,86 @@ test("the reader-scrolled-up guard holds for a BARE scroll event (scrollbar/AT �
   await component.getByTestId("append-tall").click();
   await component.getByTestId("read-status").click();
   await expect(component.getByTestId("is-at-end")).toHaveText("false");
+});
+
+// PD-147 pin-prompt placement (the deterministic half; the live streaming FEEL is a side-eye pass). The
+// pinned row's top must land at the scroll viewport's top after `pinToIndex` — returns that px delta.
+async function rowTopDelta(component: import("@playwright/experimental-ct-react").MountResult, rowLabel: string): Promise<number> {
+  const scrollBox = await component.locator('[data-slot="message-list-scroll"]').boundingBox();
+  const rowBox = await component.getByText(rowLabel, { exact: true }).boundingBox();
+  if (scrollBox === null || rowBox === null) {
+    return Number.POSITIVE_INFINITY;
+  }
+  return Math.abs(rowBox.y - scrollBox.y);
+}
+
+// The inverse of rowTopDelta: how far a row's BOTTOM sits from the scroll viewport's bottom edge. Near
+// zero means the row is the last thing on screen with no trailing void below it.
+async function rowBottomDelta(component: import("@playwright/experimental-ct-react").MountResult, rowLabel: string): Promise<number> {
+  const scrollBox = await component.locator('[data-slot="message-list-scroll"]').boundingBox();
+  const rowBox = await component.getByText(rowLabel, { exact: true }).boundingBox();
+  if (scrollBox === null || rowBox === null) {
+    return Number.POSITIVE_INFINITY;
+  }
+  return Math.abs(rowBox.y + rowBox.height - (scrollBox.y + scrollBox.height));
+}
+
+// The virtualizer's inner sizing div — its height IS the total scrollable size, so the pin spacer
+// (`paddingEnd`) shows up here as extra height above the real content and its collapse is visible.
+async function viewportSizingHeight(component: import("@playwright/experimental-ct-react").MountResult): Promise<number> {
+  const box = await component.locator('[data-slot="message-list-viewport"]').boundingBox();
+  return box === null ? Number.NaN : box.height;
+}
+
+test("pin-prompt: pinToIndex scrolls a mid-list row to the viewport top", async ({ mount }) => {
+  const component = await mount(<PinPromptList count={500} rowHeightPx={ROW_HEIGHT_PX} listHeightPx={LIST_HEIGHT_PX} pinIndex={250} />);
+  // Bottom-anchored on mount — index 250 sits well above the viewport, not at its top.
+  await component.getByTestId("pin").click();
+  await expect.poll(() => rowTopDelta(component, "Message 250")).toBeLessThan(2);
+});
+
+test("pin-prompt: the bottom spacer lets a NEAR-END row still reach the top (short-reply pin)", async ({ mount }) => {
+  // Pin the LAST row: its start offset exceeds the un-spaced max scroll, so only the paddingEnd spacer
+  // lets it climb to the top. Pre-spacer this row clamps well below the top.
+  const lastIndex = 499;
+  const component = await mount(<PinPromptList count={500} rowHeightPx={ROW_HEIGHT_PX} listHeightPx={LIST_HEIGHT_PX} pinIndex={lastIndex} />);
+  await component.getByTestId("pin").click();
+  await expect.poll(() => rowTopDelta(component, `Message ${lastIndex}`)).toBeLessThan(2);
+});
+
+// The other half of "the mode does something": under `follow` the SAME pinToIndex call is a real no-op —
+// the sticky tail keeps owning placement, so the target row does NOT climb to the top and the list stays
+// pinned to the last row. This is what makes `follow` byte-identical to the pre-PD-147 seal.
+test("follow mode: pinToIndex is inert — the list stays at the tail", async ({ mount }) => {
+  const component = await mount(<PinPromptList count={500} rowHeightPx={ROW_HEIGHT_PX} listHeightPx={LIST_HEIGHT_PX} pinIndex={250} scrollMode="follow" />);
+  await expect(component.getByText("Message 499", { exact: true })).toBeVisible();
+  await component.getByTestId("pin").click();
+  // Row 250 never mounts (the window is at the tail) and the last row is still the one on screen.
+  await expect(component.getByText("Message 250", { exact: true })).toHaveCount(0);
+  await expect(component.getByText("Message 499", { exact: true })).toBeVisible();
+  expect(await rowBottomDelta(component, "Message 499")).toBeLessThan(LIST_HEIGHT_PX);
+});
+
+// PD-147 void-jump regression: scrollToEnd computes the end offset from getMaxScrollOffset() =
+// scrollHeight - clientHeight, which INCLUDES the live pin spacer — so a jump while pinned landed in the
+// trailing void, pushing the real content above the fold. The fix: an explicit jump abandons the pin
+// (clears the spacer) BEFORE the offset is computed, landing on the last REAL row.
+test("pin-prompt: jumping to latest while pinned lands on the last real row, not the spacer void", async ({ mount }) => {
+  const lastIndex = 499;
+  // Pin a near-end row: rows 498/499 are a SHORT tail below the pin, so the bottom spacer stays armed.
+  const component = await mount(<PinPromptList count={500} rowHeightPx={ROW_HEIGHT_PX} listHeightPx={LIST_HEIGHT_PX} pinIndex={497} />);
+  const baselineSizing = await viewportSizingHeight(component);
+
+  await component.getByTestId("pin").click();
+  await expect.poll(() => rowTopDelta(component, "Message 497")).toBeLessThan(2);
+  // The spacer inflated the total scrollable height past the real content.
+  expect(await viewportSizingHeight(component)).toBeGreaterThan(baselineSizing);
+
+  await component.getByTestId("jump").click();
+  // The last REAL row sits at the viewport bottom (pre-fix it was shoved above the fold into the void).
+  await expect.poll(() => rowBottomDelta(component, `Message ${lastIndex}`)).toBeLessThan(2);
+  // The spacer collapsed — total scrollable height is back to the real content size.
+  await expect.poll(async () => Math.abs((await viewportSizingHeight(component)) - baselineSizing)).toBeLessThan(2);
 });
 
 test("the tripwire THROWS when the parent gives no bounded height", async ({ mount, page }) => {

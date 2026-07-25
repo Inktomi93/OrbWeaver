@@ -52,8 +52,11 @@ export function JumpToLatestRegressionStory(): ReactElement {
   // ordering: flip `live` false (a `toggle-live` click) in one commit, THEN bump `count` (an `arrive`
   // click) in the next — the exact turn-settle race where the turn-phase store beats the canon query.
   const [live, setLive] = useState(false);
+  // Drives the pin-prompt suppression path: while armed, the pill must stay at-tail regardless of the
+  // spacer-inflated geometry (PD-147 false-positive fix).
+  const [pinActive, setPinActive] = useState(false);
   const listHandleRef = useRef<MessageListHandle>(null);
-  const jump = useJumpToLatest({ messagesCount: count, live, listHandleRef });
+  const jump = useJumpToLatest({ messagesCount: count, live, pinActive, listHandleRef });
   const [dist, setDist] = useState<string>("unread");
   const items: readonly RegressionItem[] = Array.from({ length: count }, (_, i) => ({
     id: `m-${i}`,
@@ -70,6 +73,9 @@ export function JumpToLatestRegressionStory(): ReactElement {
         </button>
         <button type="button" data-testid="toggle-live" onClick={(): void => setLive((v) => !v)}>
           toggle live
+        </button>
+        <button type="button" data-testid="toggle-pin" onClick={(): void => setPinActive((v) => !v)}>
+          toggle pin
         </button>
         <button
           type="button"

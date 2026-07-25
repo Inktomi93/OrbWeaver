@@ -18,6 +18,19 @@ export function messageItemKey(item: ChatRowItem): string {
   return item.kind === "ghost" ? item.id : item.view.id;
 }
 
+/** The list index of the last user-role row (the just-sent prompt), or -1 — the pin-prompt scroll target
+ *  (PD-147). Pure over the merged item list so it can be unit-tested without a virtualizer/DOM. Typed
+ *  structurally (a ChatRowItem[] satisfies it) so callers and tests need no full-MessageView value. */
+export function lastUserRowIndex(items: readonly { readonly kind: "message" | "ghost"; readonly view?: { readonly role: MessageView["role"] } }[]): number {
+  for (let i = items.length - 1; i >= 0; i--) {
+    const item = items[i];
+    if (item !== undefined && item.kind === "message" && item.view?.role === "user") {
+      return i;
+    }
+  }
+  return -1;
+}
+
 export function useMessageItems(messages: readonly MessageView[], chatId: ChatId | null): readonly ChatRowItem[] {
   const phase = useTurnPhase(chatId);
   const base: ChatRowItem[] = messages.map((view) => ({ kind: "message", view }));
