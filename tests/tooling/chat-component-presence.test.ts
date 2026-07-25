@@ -23,7 +23,10 @@ const REPO_ROOT = join(HERE, "..", "..");
 const CHAT_TESTS_DIR = join(REPO_ROOT, "tests/client/features/chat");
 const COMPONENTS_DIR = join(REPO_ROOT, "packages/client/src/features/chat/components");
 // The three homes a chat component's CT can live in (components / surfaces / anchors), under the chat CT tree.
-const CT_DIRS = ["components", "surfaces", "anchors"].map((d) => join(CHAT_TESTS_DIR, d));
+// Every home a chat CT can live in. `hooks` is included because a component whose whole behaviour is
+// driven through a hook (the slash strip through `use-slash-commands`) is covered by that hook's CT — and a
+// `coveredBy` naming a CT this list can't see would read as DANGLING, which is a false red.
+const CT_DIRS = ["components", "surfaces", "anchors", "hooks"].map((d) => join(CHAT_TESTS_DIR, d));
 const TSX_SUFFIX = /\.tsx$/u;
 const CT_SUFFIX = /\.ct\.tsx$/u;
 
@@ -60,6 +63,16 @@ const WAIVERS: Readonly<Record<string, Waiver>> = {
   "room-overrides-tab": { deferred: "the context-panel Overrides tab wrapper — CT gap; the form itself is room-overrides-form.ct." },
   "committed-members-tab": { deferred: "the context-panel Members tab wrapper — CT gap; the panel itself is members-panel.ct." },
   "chats-topbar-header": { deferred: "the chats-section topbar header — CT gap." },
+
+  // Slash-command parts — driven through their real hosts, never mounted standalone.
+  "composer-slash-strip": {
+    coveredBy: "use-slash-commands",
+    why: "the strip IS the hook's rendered output; use-slash-commands.ct drives offer→completion and the unknown-command refusal notice through the real composer.",
+  },
+  "slash-new-chat-mount": {
+    coveredBy: "command-palette-surface",
+    why: "an invisible runner mount, rendered by each command host; command-palette-surface.ct picks the contributed command and asserts its runner fired.",
+  },
 };
 
 function componentBasenames(): readonly string[] {
