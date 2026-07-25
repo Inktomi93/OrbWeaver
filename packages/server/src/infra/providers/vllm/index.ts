@@ -6,7 +6,7 @@
 import process from "node:process";
 import type { ResolvedEngineLaunch } from "@orb/contracts/settings";
 import { engineDeploymentEnv, engineLaunchEnvFloor, env, processEnvSnapshot } from "#foundation/env";
-import type { ProviderBackend } from "../contract";
+import type { ProviderBackend, WireCaptureSink } from "../contract";
 import type { EngineDeploymentEnv, EngineDeploymentFacts, EngineSpawnSpec, EngineStatusRecord, VLLM_ENGINES, VllmEngineClient } from "./engine";
 import {
   allEngineStatuses,
@@ -73,6 +73,9 @@ export interface VllmBackendDeps {
   /** Live getter for the RESOLVED engine launch config (admin override ⊕ env floor). Read PER SPAWN so an
    *  admin retune + restart picks up the new flags. Omitted (tests / GPU-less) ⇒ the pure env-floor default. */
   readonly engineLaunch?: (() => ResolvedEngineLaunch) | undefined;
+  /** TASK-24 wire-capture sink — compose injects it only when capture is enabled; absent ⇒ the chat surface
+   *  never records (zero cost). Captures the LITERAL openai-compat /v1/chat/completions body it POSTs. */
+  readonly captureWire?: WireCaptureSink | undefined;
 }
 
 /** Builds the vLLM subsystem: the five surfaces bound to one engine + the lifecycle handle. */
@@ -106,6 +109,7 @@ export function createVllmBackend(deps: VllmBackendDeps): VllmBackend {
       genGpuUtilSingle: floor.VLLM_GEN_GPU_UTIL_SINGLE,
       poolingMaxPixels: floor.VLLM_POOLING_MAX_PIXELS,
       genMaxPixels: floor.VLLM_GEN_MAX_PIXELS,
+      genRepetitionPenalty: floor.VLLM_GEN_REPETITION_PENALTY,
     };
     return buildEngineSpawnSpec(e, { ...launch, ports }, { repoRoot, gpuCount: countGpus(), deployment, baseEnv: processEnvSnapshot() });
   };
@@ -122,7 +126,7 @@ export function createVllmBackend(deps: VllmBackendDeps): VllmBackend {
 
   return {
     key: "vllm",
-    runChatTurn: createVllmChat({ client, now: deps.now }),
+    runChatTurn: createVllmChat({ client, now: deps.now, ...(deps.captureWire !== undefined ? { captureWire: deps.captureWire } : {}) }),
     embed: createVllmEmbed({ client, embedDim, chunkSize, concurrency: embedConcurrency, requestTimeoutMs: env.VLLM_EMBED_REQUEST_TIMEOUT_MS }),
     rerank: createVllmRerank({ client }),
     imageEmbed: createVllmImageEmbed({ client, embedDim, concurrency: embedConcurrency }),

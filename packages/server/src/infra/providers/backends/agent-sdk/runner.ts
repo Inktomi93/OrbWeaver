@@ -88,6 +88,7 @@ export async function runChatTurn(req: AgentSdkChatRequest, deps: AgentSdkDeps, 
   }
 
   const chatId = req.chatId;
+  captureAgentSdkWire(req, deps, { systemPrompt, resume, gen });
   const stream = deps.query({
     prompt: req.prompt,
     options: {
@@ -123,6 +124,32 @@ export async function runChatTurn(req: AgentSdkChatRequest, deps: AgentSdkDeps, 
     configuredMaxContextTokens: gen.envOverrides.maxContextTokens ?? null,
   });
   return appendWarnings(result, gen.warnings, deps.now(), req.onEvent);
+}
+
+// TASK-24: capture the SDK QUERY INPUT — the faithful "final bytes WE send" for the agent-sdk path. The
+// literal Anthropic /v1/messages HTTP body is built INSIDE the bundled SDK subprocess (never observable
+// here), so we capture what we hand the SDK: the prompt + resolved system prompt + the load-bearing options
+// (model, max_tokens, maxContextTokens, disableAutoCompact, resume). Fires only when compose wired a sink.
+function captureAgentSdkWire(
+  req: AgentSdkChatRequest,
+  deps: AgentSdkDeps,
+  ctx: { systemPrompt: string | string[] | undefined; resume: string | undefined; gen: ReturnType<typeof toSdkGeneration> },
+): void {
+  deps.captureWire?.({
+    chatId: req.chatId,
+    api: req.api,
+    backend: "agent-sdk",
+    model: req.model,
+    body: {
+      prompt: req.prompt,
+      systemPrompt: ctx.systemPrompt ?? null,
+      model: req.model,
+      resumed: ctx.resume !== undefined,
+      maxTokens: ctx.gen.envOverrides.maxOutputTokens ?? null,
+      maxContextTokens: ctx.gen.envOverrides.maxContextTokens ?? null,
+      disableAutoCompact: ctx.gen.envOverrides.disableAutoCompact ?? false,
+    },
+  });
 }
 
 /**

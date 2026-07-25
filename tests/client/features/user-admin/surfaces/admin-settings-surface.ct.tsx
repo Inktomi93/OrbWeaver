@@ -77,6 +77,7 @@ const APP_SETTINGS = {
     genGpuUtilSingle: 0.5,
     poolingMaxPixels: 1_843_200,
     genMaxPixels: 4_194_304,
+    genRepetitionPenalty: 1.05,
   },
 };
 
@@ -338,6 +339,24 @@ test("launch config: renders the resolved per-engine flags off getAppSettings", 
   await expect(config.getByTestId("engine-launch-genMaxModelLen")).toHaveValue("32768");
   await expect(config.getByTestId("engine-launch-genGpuUtilMulti")).toHaveValue("0.28");
   await expect(config.getByTestId("engine-launch-genModel")).toHaveValue("Qwen/Qwen3-VL-8B-Instruct");
+  // #23: the gen repetition_penalty launch knob renders the resolved 1.05 loop-fix default.
+  await expect(config.getByTestId("engine-launch-genRepetitionPenalty")).toHaveValue("1.05");
+});
+
+test("launch config: editing the gen repetition penalty fires updateAppSettings with only that field, then arms restart (#23)", async ({ mount, page }) => {
+  const trpc = await stub(page, ADMIN_VIEWER, {
+    "settings.updateAppSettings": () => APP_SETTINGS,
+  });
+  const component = await mount(<AdminSettingsStory />);
+
+  const config = component.getByTestId("engine-launch-config");
+  await config.getByTestId("engine-launch-genRepetitionPenalty").fill("1.1");
+  await config.getByTestId("engine-launch-save").click();
+
+  await expect
+    .poll(() => trpc.lastInput("settings.updateAppSettings"), { intervals: [20, 50, 100] })
+    .toEqual({ partial: { engineLaunch: { genRepetitionPenalty: 1.1 } } });
+  await expect(config.getByTestId("engine-launch-pending-restart")).toBeVisible();
 });
 
 test("launch config: Save fires updateAppSettings with ONLY the moved field, then arms restart-to-apply", async ({ mount, page }) => {

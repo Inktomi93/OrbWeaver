@@ -75,6 +75,7 @@ export { CHROME_ZONES } from "./chrome-registry";
 export type { ChromeRegistry } from "./chrome-registry-context";
 export { ChromeRegistryContext, useChromeRegistry } from "./chrome-registry-context";
 export { ChromeRegistryProvider } from "./chrome-registry-provider";
+export { migrateComposerDraft, setComposerDraft, useComposerDraft } from "./composer-draft-store";
 export {
   clearCorpusSelection,
   selectCorpusCharacter,

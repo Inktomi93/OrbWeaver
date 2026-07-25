@@ -49,6 +49,7 @@ export type {
   ProviderDeps,
   ProviderExecutor,
   ProviderRole,
+  WireCaptureSink,
 } from "./backend";
 // ── Infra-internal: the sealed-backend contract + dispatch surface ───────────────────────────────
 export { BACKEND_KEYS, PROVIDER_ROLES } from "./backend";

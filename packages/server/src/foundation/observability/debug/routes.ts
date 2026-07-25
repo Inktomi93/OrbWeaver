@@ -17,6 +17,7 @@ import { getAuditFailureSnapshot } from "../audit";
 import { logRing, recentRequests } from "../logger";
 import { getTraceByRequestId, recentTraces } from "../tracing";
 import { inspectChatState, integrityProbe, tableCounts } from "./inspect";
+import { recentWireCaptures } from "./wire-capture";
 
 const ERROR_LEVEL = 50; // pino numeric level for "error"
 const MAX_RING_READ = 2000;
@@ -203,6 +204,20 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = {})
   );
 
   app.get("/api/_debug/errors", (c) => c.json({ errors: collectErrors(toLimit(c.req.query("limit"), DEFAULT_LIST_LIMIT)) }));
+
+  // The WIRE-CAPTURE read (TASK-24): the final provider request body each chat backend sent, filterable by
+  // `chatId` (the harness's correlation key) or `backend`. Host-only (this debug gate); read-only, no table.
+  // Returns `[]` when capture is off (the ring is never written) — prod-safe by construction.
+  app.get("/api/_debug/wire/captures", (c) => {
+    const chatId = c.req.query("chatId");
+    const backend = c.req.query("backend");
+    const captures = recentWireCaptures({
+      ...(chatId !== undefined ? { chatId } : {}),
+      ...(backend !== undefined ? { backend } : {}),
+      limit: toLimit(c.req.query("limit"), DEFAULT_LIST_LIMIT),
+    });
+    return c.json({ count: captures.length, captures });
+  });
 
   app.get("/api/_debug/requests", (c) => {
     const userId = c.req.query("userId");

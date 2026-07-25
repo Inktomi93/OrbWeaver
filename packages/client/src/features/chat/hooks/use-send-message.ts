@@ -11,6 +11,7 @@ import type { ChatHandle, DraftSeed } from "#state";
 import { clearDraftConfig, isCommitted, subscribeUserMessageCommitted } from "#state";
 import type { DraftCarry } from "../lib/draft-commit";
 import { resolveDraftCommit } from "../lib/draft-commit";
+import { isSilencedTurnAbort } from "../lib/turn-abort-notice";
 
 export type { DraftSeed } from "#state";
 
@@ -27,7 +28,7 @@ const useSendMutation = createEntityMutation<SendVars, unknown>({
   // busDriven: the turn's messageCommitted/turnCompleted bus events already run the full chatReads
   // invalidation; a mutation-side invalidate here would double-refetch (the observed 4-5x/send storm).
   busDriven: true,
-  errorToast: "Couldn't send your message.",
+  errorToast: (error) => (isSilencedTurnAbort(error) ? null : "Couldn't send your message."),
 });
 
 interface StartChatVars extends DraftCarry {

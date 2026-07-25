@@ -299,6 +299,13 @@ test("the Preview tab renders the assembled prompt + trace", async ({ mount, pag
     "chat.getChat": () => chatDetail("host"),
     "chat.listChatInjections": () => [],
     "chat.previewAssembly": () => PREVIEW,
+    // The restored ShapeTrace half fires a PARALLEL suspense read (#12) — a valid content-free trace
+    // shape, else the unlisted-proc `data:null` default suspends the whole panel forever.
+    "chat.getShapeTrace": () => ({
+      multiCharacter: false,
+      stageCounts: { withTail: 3, injected: 3, squashed: 3, named: 3 },
+      squashMerges: 0,
+    }),
   });
 
   const component = await mount(<ChatContextPanelStory />);

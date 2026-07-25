@@ -3,7 +3,7 @@
 // component, not front-door). Both wrap in the real client data layer (<CtDataProviders> — Query + real tRPC
 // over the routeTrpc-stubbed network).
 
-import { WorldInfoLibrarySurface } from "@orb/client/features/world-info";
+import { WorldInfoEditorSurface, WorldInfoLibrarySurface } from "@orb/client/features/world-info";
 import type { EntryView } from "@orb/contracts/world-info";
 import type { WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -92,6 +92,19 @@ export function EntryEditorSwitchStory(): ReactElement {
           switch entry
         </button>
         <EntryEditor entry={entry} onDeleted={(): void => undefined} />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** WorldInfoEditorReorderStory — the book view with its sortable entry LIST (item-8 restoration). Drives the
+ *  real editor surface over the stubbed network so a CT can keyboard-drag a grip and assert the completed
+ *  drag persists via `worldInfo.applyEntryOrder`. Fixed size so the sortable's nudge math is deterministic. */
+export function WorldInfoEditorReorderStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 420, height: 640, padding: 16 }}>
+        <WorldInfoEditorSurface bookId={castId<WorldBookId>("world_book_reorder001")} />
       </div>
     </CtDataProviders>
   );

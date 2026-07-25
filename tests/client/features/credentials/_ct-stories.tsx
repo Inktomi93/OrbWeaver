@@ -41,3 +41,70 @@ export function CredentialKeyRowStory(): ReactElement {
     </CtDataProviders>
   );
 }
+
+/** A `custom_openai` `<CredentialKeyRow>` — the row that carries the "Test endpoint" inspector affordance.
+ *  The `credentials.inspectEndpoint` mutation the dialog fires on open is stubbed per-test via routeTrpc. */
+function CustomCredentialKeyRowInner(): ReactElement {
+  const trpc = useTRPC();
+  const invalidation = useInvalidation();
+  return (
+    <CredentialKeyRow
+      credential={{
+        id: castId<UserCredentialId>("user_credential_ctstory0002"),
+        provider: "custom_openai",
+        label: "my endpoint",
+        active: true,
+        hasMetadata: true,
+        revokedAt: null,
+        createdAt: 0,
+        updatedAt: 0,
+      }}
+      invalidation={invalidation}
+      trpc={trpc}
+    />
+  );
+}
+
+export function CustomCredentialKeyRowStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 560 }}>
+        <CustomCredentialKeyRowInner />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** A REVOKED `<CredentialKeyRow>` (revokedAt set) — the row that carries the "Clear revoked" recover
+ *  affordance instead of "Mark revoked"/"Set active". The `credentials.clearRevoked` mutation is stubbed
+ *  per-test via routeTrpc. */
+function RevokedCredentialKeyRowInner(): ReactElement {
+  const trpc = useTRPC();
+  const invalidation = useInvalidation();
+  return (
+    <CredentialKeyRow
+      credential={{
+        id: castId<UserCredentialId>("user_credential_ctstory0003"),
+        provider: "openrouter",
+        label: "prod key",
+        active: false,
+        hasMetadata: false,
+        revokedAt: 1,
+        createdAt: 0,
+        updatedAt: 0,
+      }}
+      invalidation={invalidation}
+      trpc={trpc}
+    />
+  );
+}
+
+export function RevokedCredentialKeyRowStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 560 }}>
+        <RevokedCredentialKeyRowInner />
+      </div>
+    </CtDataProviders>
+  );
+}

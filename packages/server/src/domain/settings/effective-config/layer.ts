@@ -70,6 +70,7 @@ function resolveEngineLaunch(o: EngineLaunch | null | undefined): ResolvedEngine
     genGpuUtilSingle: o?.genGpuUtilSingle ?? env.VLLM_GEN_GPU_UTIL_SINGLE,
     poolingMaxPixels: o?.poolingMaxPixels ?? env.VLLM_POOLING_MAX_PIXELS,
     genMaxPixels: o?.genMaxPixels ?? env.VLLM_GEN_MAX_PIXELS,
+    genRepetitionPenalty: o?.genRepetitionPenalty ?? env.VLLM_GEN_REPETITION_PENALTY,
   };
 }
 

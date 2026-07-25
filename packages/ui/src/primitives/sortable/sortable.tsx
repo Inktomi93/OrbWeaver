@@ -24,6 +24,9 @@ export interface SortableListProps<T> {
   readonly onReorder: (orderedKeys: SortableItemKey[]) => void;
   /** When `true`, only a dedicated grip starts a drag (row's own interactive content stays clickable). */
   readonly handle?: boolean;
+  /** Per-item accessible name for the drag handle — a screen reader can't tell N generic "Reorder item"
+   *  grips apart, so name them by row (`(item) => "Reorder Rev"`). Falls back to "Reorder item". */
+  readonly handleLabel?: (item: T) => string;
   readonly disabled?: boolean;
   readonly className?: string;
 }
@@ -32,11 +35,12 @@ interface SortableItemProps {
   readonly id: SortableItemKey;
   readonly index: number;
   readonly handle: boolean;
+  readonly handleLabel: string;
   readonly disabled: boolean;
   readonly children: ReactNode;
 }
 
-function SortableItem({ id, index, handle, disabled, children }: SortableItemProps): ReactElement {
+function SortableItem({ id, index, handle, handleLabel, disabled, children }: SortableItemProps): ReactElement {
   const reducedMotion = usePrefersReducedMotion();
   const { ref, handleRef, isDragging, isDragSource } = useSortable({
     id,
@@ -76,7 +80,7 @@ function SortableItem({ id, index, handle, disabled, children }: SortableItemPro
   return (
     <div className={slots.item()} data-dragging={isDragging || isDragSource ? "" : undefined} data-slot="sortable-item" ref={ref}>
       {handle ? (
-        <button aria-label="Reorder item" className={slots.handle()} data-slot="sortable-handle" disabled={disabled} ref={setHandleRef} type="button">
+        <button aria-label={handleLabel} className={slots.handle()} data-slot="sortable-handle" disabled={disabled} ref={setHandleRef} type="button">
           <Icon icon={GripVertical} size="sm" />
         </button>
       ) : null}
@@ -88,7 +92,16 @@ function SortableItem({ id, index, handle, disabled, children }: SortableItemPro
 }
 
 /** Generic controlled reorderable list over `@dnd-kit/react`; caller owns `items` and applies `onReorder`. */
-export function SortableList<T>({ items, getItemKey, renderItem, onReorder, handle = false, disabled = false, className }: SortableListProps<T>): ReactElement {
+export function SortableList<T>({
+  items,
+  getItemKey,
+  renderItem,
+  onReorder,
+  handle = false,
+  handleLabel,
+  disabled = false,
+  className,
+}: SortableListProps<T>): ReactElement {
   const keys = items.map((item) => getItemKey(item));
 
   const handleDragEnd = (event: DragEndEvent): void => {
@@ -105,7 +118,14 @@ export function SortableList<T>({ items, getItemKey, renderItem, onReorder, hand
     <DragDropProvider onDragEnd={handleDragEnd}>
       <div className={cn(sortableVariants().root(), className)} data-slot="sortable-root">
         {items.map((item, index) => (
-          <SortableItem disabled={disabled} handle={handle} id={getItemKey(item)} index={index} key={getItemKey(item)}>
+          <SortableItem
+            disabled={disabled}
+            handle={handle}
+            handleLabel={handleLabel?.(item) ?? "Reorder item"}
+            id={getItemKey(item)}
+            index={index}
+            key={getItemKey(item)}
+          >
             {renderItem(item, index)}
           </SortableItem>
         ))}

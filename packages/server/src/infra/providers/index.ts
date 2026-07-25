@@ -15,7 +15,7 @@ import { createImageNormalizer } from "./backends/kit";
 import { createLocalLightBackend, createLocalLightMatte, createModelCache } from "./backends/local-light";
 import type { OpenRouterBackendDeps } from "./backends/openrouter";
 import { createOpenRouterBackend } from "./backends/openrouter";
-import type { BackendRegistry, ProviderBackend, ProviderDeps, ProviderExecutor } from "./contract";
+import type { BackendRegistry, ProviderBackend, ProviderDeps, ProviderExecutor, WireCaptureSink } from "./contract";
 import { createAgentRole } from "./roles/agent";
 import { createChatRole } from "./roles/chat";
 import { createEmbedRole } from "./roles/embed";
@@ -57,6 +57,9 @@ export interface BackendRegistryDeps {
 
   readonly query?: AgentSdkBackendDeps["query"];
   readonly sessionStore?: AgentSdkBackendDeps["sessionStore"];
+  /** TASK-24: the provider wire-capture sink. When present, threaded into the agent-sdk + vLLM backends so
+   *  their send boundaries record the final request body; absent ⇒ no capture (the prod default). */
+  readonly captureWire?: WireCaptureSink;
   readonly vllmClient?: VllmBackendDeps["client"];
   readonly vllmEmbedDim?: VllmBackendDeps["embedDim"];
   readonly vllmChunkSize?: VllmBackendDeps["chunkSize"];
@@ -86,6 +89,7 @@ function agentSdkDeps(deps: BackendRegistryDeps): AgentSdkBackendDeps {
     now: deps.now,
     ...(deps.query !== undefined ? { query: deps.query } : {}),
     ...(deps.sessionStore !== undefined ? { sessionStore: deps.sessionStore } : {}),
+    ...(deps.captureWire !== undefined ? { captureWire: deps.captureWire } : {}),
     ...(deps.imageToPng !== undefined ? { normalizeImageBytes: createImageNormalizer(deps.imageToPng) } : {}),
   };
 }
@@ -94,6 +98,7 @@ function vllmDeps(deps: BackendRegistryDeps): VllmBackendDeps {
     now: deps.now,
     ...(deps.vllmConcurrency !== undefined ? { concurrency: deps.vllmConcurrency } : {}),
     ...(deps.engineLaunch !== undefined ? { engineLaunch: deps.engineLaunch } : {}),
+    ...(deps.captureWire !== undefined ? { captureWire: deps.captureWire } : {}),
     ...(deps.repoRoot !== undefined ? { repoRoot: deps.repoRoot } : {}),
     ...(deps.vllmClient !== undefined ? { client: deps.vllmClient } : {}),
     ...(deps.vllmEmbedDim !== undefined ? { embedDim: deps.vllmEmbedDim } : {}),

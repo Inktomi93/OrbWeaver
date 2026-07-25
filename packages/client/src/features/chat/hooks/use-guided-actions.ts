@@ -12,6 +12,7 @@ import type { ChatHandle, DraftSeed } from "#state";
 import { clearDraftConfig, isCommitted } from "#state";
 import type { DraftCarry } from "../lib/draft-commit";
 import { resolveDraftCommit } from "../lib/draft-commit";
+import { isSilencedTurnAbort } from "../lib/turn-abort-notice";
 
 interface GuidedSteerInput {
   readonly action: GuidedActionKind;
@@ -33,25 +34,25 @@ interface GuidedSlotVars {
 const useGuidedGenerateMutation = createEntityMutation<GuidedTurnVars, unknown>({
   options: (trpc) => trpc.chat.generate.mutationOptions(),
   busDriven: true,
-  errorToast: "Couldn't generate a guided response.",
+  errorToast: (error) => (isSilencedTurnAbort(error) ? null : "Couldn't generate a guided response."),
 });
 
 const useGuidedSwipeMutation = createEntityMutation<GuidedSlotVars, unknown>({
   options: (trpc) => trpc.chat.swipe.mutationOptions(),
   busDriven: true,
-  errorToast: "Couldn't generate that guided swipe.",
+  errorToast: (error) => (isSilencedTurnAbort(error) ? null : "Couldn't generate that guided swipe."),
 });
 
 const useGuidedContinueMutation = createEntityMutation<GuidedSlotVars, unknown>({
   options: (trpc) => trpc.chat.continueTurn.mutationOptions(),
   busDriven: true,
-  errorToast: "Couldn't continue with that guidance.",
+  errorToast: (error) => (isSilencedTurnAbort(error) ? null : "Couldn't continue with that guidance."),
 });
 
 const useGuidedImpersonateMutation = createEntityMutation<GuidedTurnVars, unknown>({
   options: (trpc) => trpc.chat.impersonate.mutationOptions(),
   busDriven: true,
-  errorToast: "Couldn't impersonate with that guidance.",
+  errorToast: (error) => (isSilencedTurnAbort(error) ? null : "Couldn't impersonate with that guidance."),
 });
 
 // An empty steer omits the whole `guided` object — `input:""` isn't enough, the server would still
@@ -78,7 +79,7 @@ interface GuidedStartChatResult {
 const useGuidedStartChatMutation = createEntityMutation<GuidedStartChatVars, GuidedStartChatResult>({
   options: (trpc) => trpc.chat.startChat.mutationOptions(),
   busDriven: true,
-  errorToast: "Couldn't guide the opening.",
+  errorToast: (error) => (isSilencedTurnAbort(error) ? null : "Couldn't guide the opening."),
 });
 
 export interface UseGuidedActionsOptions {

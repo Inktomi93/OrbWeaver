@@ -2,7 +2,7 @@
 // providers contract stays SDK-free.
 
 import type { query, SessionStore } from "@anthropic-ai/claude-agent-sdk";
-import type { ChatDeltaEvent, ChatEvent, ContextUsage } from "../../contract";
+import type { ChatDeltaEvent, ChatEvent, ContextUsage, WireCaptureSink } from "../../contract";
 import type { NormalizeImageBytes } from "../kit";
 import type { SeededSessionDecision } from "./session";
 
@@ -29,6 +29,10 @@ export interface AgentSdkDeps {
   /** Pre-spawn mode-1 (Max sub) OAuth refresh so the ephemeral-dir symlink resolves fresh (host-token.ts).
    *  Best-effort — resolves `false`, never throws. */
   readonly refreshHostSubToken: () => Promise<boolean>;
+  /** TASK-24 wire-capture sink — records the SDK QUERY INPUT (prompt + systemPrompt + resolved options)
+   *  right before the SDK subprocess assembles + sends the Anthropic /v1/messages body itself (which is not
+   *  observable here — see runner.ts). Absent ⇒ no capture (zero cost, the compose default). */
+  readonly captureWire?: WireCaptureSink | undefined;
 }
 
 /** `consumeTurnStream` parameter shape. */

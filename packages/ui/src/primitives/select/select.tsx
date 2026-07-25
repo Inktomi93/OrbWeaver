@@ -178,7 +178,9 @@ export function Select<Value = string, Multiple extends boolean = false>(props: 
             data-slot="select-trigger"
             id={id}
           >
-            <BaseSelect.Value placeholder={placeholder}>{renderValue}</BaseSelect.Value>
+            <BaseSelect.Value className={slots.value()} data-slot="select-value" placeholder={placeholder}>
+              {renderValue}
+            </BaseSelect.Value>
             <BaseSelect.Icon className={slots.icon()} data-slot="select-icon">
               {CHEVRON_ICON}
             </BaseSelect.Icon>

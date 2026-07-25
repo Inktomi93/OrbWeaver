@@ -182,6 +182,19 @@ export const REGISTRY: readonly StageDef[] = [
     // A WHOLE-TREE invariant (it reconciles the entire test surface against every program) — whole-only,
     // deferred at a scoped tier, like the other cross-file registry/parity reconciliations.
   },
+  {
+    name: "tests:execution-membership",
+    group: "tests",
+    tiers: STATIC,
+    argv: ["pnpm", "check:tests-execution-membership"],
+    // Our OWN 0/1/2/3-speaking tsx script (scripts/verify/tests-execution-membership.ts): types-membership's
+    // EXECUTION-lane sibling (#22, docs/retro-workboard.md) — reconciles every tests/** runner-suffixed file
+    // against the union of vitest's `--list` view + both playwright configs' `--list` views, BOTH directions
+    // (a file matched by no runner REDs; a runner view matching zero files REDs — the marinara silent-no-op
+    // disease). Asks each runner its OWN --list, never re-parses glob strings (drift-proof).
+    classify: ownScheme,
+    // A WHOLE-TREE invariant (unions every runner's file listing) — whole-only, deferred at a scoped tier.
+  },
 
   // ── structure stage-group (the ts-morph single-pass gates) ──
   {

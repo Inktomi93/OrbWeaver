@@ -11,6 +11,8 @@ import { EmptyState } from "@orb/ui/empty-state";
 import { ArrowLeft, BookOpen, Icon, Pencil, Plus } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
+import type { SortableItemKey } from "@orb/ui/sortable";
+import { SortableList } from "@orb/ui/sortable";
 import { Text } from "@orb/ui/text";
 import { useToastManager } from "@orb/ui/toast";
 import { useSuspenseQuery } from "@tanstack/react-query";
@@ -21,7 +23,7 @@ import { useFocusOnMount } from "#lib";
 import { clearWorldEntrySelection, selectWorldEntry, useSelectedWorldEntryId } from "#state";
 import { BookDetailsDialog } from "../components/book-details-dialog";
 import { EntryEditor } from "../components/entry-editor";
-import { useBackfillWorldTitles, useCreateWorldEntry, useUpdateWorldBook } from "../hooks/use-world-info-mutations";
+import { useApplyEntryOrder, useBackfillWorldTitles, useCreateWorldEntry, useUpdateWorldBook } from "../hooks/use-world-info-mutations";
 
 const NEW_ENTRY_TITLE = "New entry";
 const NEW_ENTRY_CONTENT = "New lore.";
@@ -57,9 +59,16 @@ function BookEditor({ bookId }: { readonly bookId: WorldBookId }): ReactElement 
   const create = useCreateWorldEntry({ trpc, invalidation });
   const update = useUpdateWorldBook({ trpc, invalidation });
   const backfill = useBackfillWorldTitles({ trpc, invalidation });
+  const reorder = useApplyEntryOrder({ trpc, invalidation });
   const [detailsOpen, setDetailsOpen] = useState(false);
 
   const selectedEntry = entries.find((e) => e.id === selectedEntryId) ?? null;
+
+  // Drag settled: the sortable reports the new key order; persist it (position i → priority N-i). The hook
+  // optimistically re-sorts the cached list so the rows land instantly, then reconciles from the server.
+  const onReorder = (orderedKeys: SortableItemKey[]): void => {
+    reorder.mutate({ bookId, orderedEntryIds: orderedKeys.map((k) => k as WorldEntryId) });
+  };
 
   const onCreate = (): void => {
     void create.mutateAsync({ bookId, input: { title: NEW_ENTRY_TITLE, content: NEW_ENTRY_CONTENT } }).then((created) => selectWorldEntry(created.id));
@@ -133,11 +142,15 @@ function BookEditor({ bookId }: { readonly bookId: WorldBookId }): ReactElement 
           }
         />
       ) : (
-        <Stack gap="field">
-          {entries.map((entry) => (
-            <EntryRow key={entry.id} entry={entry} onSelect={(id): void => selectWorldEntry(id)} />
-          ))}
-        </Stack>
+        // handle mode: only the grip drags, so each row's own click (drill into the editor) stays live.
+        <SortableList
+          handle={true}
+          items={entries}
+          getItemKey={(entry): SortableItemKey => entry.id}
+          handleLabel={(entry): string => `Reorder ${entry.title}`}
+          onReorder={onReorder}
+          renderItem={(entry): ReactElement => <EntryRow entry={entry} onSelect={(id): void => selectWorldEntry(id)} />}
+        />
       )}
 
       <BookDetailsDialog

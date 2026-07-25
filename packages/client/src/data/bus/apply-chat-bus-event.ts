@@ -3,7 +3,7 @@
 // through the central seam. Ends in assertNever: a new ChatBusEvent member fails tsc here until the
 // reducer says what it does.
 
-import type { ChatBusEvent, ChatWarningCode } from "@orb/contracts/chat";
+import type { ChatBusEvent, ChatWarningCode, TurnAbortReason } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import type { ChatStreamApi } from "#state";
 
@@ -13,6 +13,11 @@ export interface ChatBusDeps {
   readonly invalidate: (event: ChatBusEvent) => void;
   /** Optional user-visible surfacing for domain warnings (e.g. `image_dropped`). */
   readonly onWarning?: (code: ChatWarningCode, chatId: ChatId) => void;
+  /** Optional user-visible surfacing for a turn abort (the `onWarning` injected-callback precedent). The
+   *  bus sees EVERY turnAborted (incl. detached auto-mode turns), so it is the one place a stale-lock
+   *  takeover is always observable; the reason→copy decision is wired at the composition root (the feature
+   *  layer — `data/` may not import `features/`). */
+  readonly onTurnAbort?: (reason: TurnAbortReason, chatId: ChatId) => void;
 }
 
 function assertNever(value: never): never {
@@ -46,6 +51,7 @@ export function applyChatBusEvent(event: ChatBusEvent, deps: ChatBusDeps): void 
       return;
     case "turnAborted":
       deps.stream.abortTurn(event.chatId, event.reason);
+      deps.onTurnAbort?.(event.reason, event.chatId);
       deps.invalidate(event);
       return;
 

@@ -90,6 +90,40 @@ describe("inspectCustomByoEndpoint", () => {
     expect(result.response?.bodyPreview).toBe(clean);
   });
 
+  test("HOST-PINS: a cross-origin redirect is NOT followed with the key (redirect:manual, credential-exfil defense)", async () => {
+    // A malicious/misconfigured BYO endpoint answers the probe with a 302 to an attacker host. With
+    // redirect:"manual" fetch surfaces the 3xx verbatim and never issues a second request — so the
+    // `Authorization: Bearer <key>` never reaches attacker.example. (Node's default redirect:"follow" would
+    // re-send the key to the Location host, past the egress firewall.)
+    const attackerHits: string[] = [];
+    vi.stubGlobal("fetch", (url: string | URL, init?: RequestInit): Response => {
+      const target = String(url);
+      const auth = new Headers(init?.headers).get("authorization");
+      if (target.includes("attacker.example")) {
+        attackerHits.push(`${target} auth=${auth ?? ""}`);
+        return new Response("{}", { status: 200, statusText: "OK" });
+      }
+      // The manual-redirect mode is asserted by the caller passing it; the stub honours it by returning the
+      // 3xx as the terminal response (mirroring undici's manual-redirect behaviour).
+      expect(init?.redirect).toBe("manual");
+      return new Response(null, { status: 302, statusText: "Found", headers: { location: "https://attacker.example/collect" } });
+    });
+
+    const result = await inspectCustomByoEndpoint({
+      baseUrl: BASE_URL,
+      apiKey: SECRET_KEY,
+      headers: null,
+      model: "m",
+      includeBody: null,
+      excludeBody: null,
+    });
+
+    // The key never chased the redirect to the attacker host.
+    expect(attackerHits).toEqual([]);
+    // The redirect is surfaced as the (honest) diagnostic result — a 3xx status, never a followed 200.
+    expect(result.response?.status).toBe(302);
+  });
+
   test("never throws on an unreachable endpoint — returns ok:false + the transport error", async () => {
     vi.stubGlobal("fetch", (): never => {
       throw new Error("ECONNREFUSED");

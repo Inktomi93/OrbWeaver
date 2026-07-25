@@ -37,6 +37,7 @@
     "typecheck:graph": "node scripts/ts7.cjs --checkers 8 --noEmit --pretty false -p tsconfig.json",
     "typecheck:tests-dom": "node scripts/ts7.cjs --checkers 8 --noEmit --pretty false -p tsconfig.tests-dom.json",
     "check:tests-membership": "tsx scripts/verify/tests-type-membership.ts",
+    "check:tests-execution-membership": "tsx scripts/verify/tests-execution-membership.ts",
     "lint": "biome check . --diagnostic-level=error --reporter=concise",
     "lint:eslint": "eslint packages/ui packages/client tests/ui tests/client packages/server packages/kit packages/db packages/contracts --max-warnings 0 --cache --cache-strategy content",
     "lint:fix": "biome check --write .",

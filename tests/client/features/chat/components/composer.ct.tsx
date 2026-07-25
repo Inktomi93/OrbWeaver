@@ -69,6 +69,39 @@ test("generate-image is gated on typed text, then fires chat.generateImage (mode
   expect(genBody).toContain(COMPOSER_CHAT_ID);
 });
 
+// ── item-1 (F-P1) data-loss: the prompt clears ONLY on a green settle, never fire-and-forget ────────────
+test("a generate-image that FAILS keeps the typed prompt for retry (never cleared on failure)", async ({ mount, page }) => {
+  // The regression this pins: the old fire-and-forget path called onChange("") unconditionally right after
+  // firing, so a failed generate destroyed the user's typed prompt. Now the clear rides the mutation's
+  // green settle (onSuccess) only.
+  await routeTrpc(page, { "chat.generateImage": () => trpcError({ message: "gen boom" }) });
+  const component = await mount(<ComposerStory />);
+  const textarea = component.getByLabel("Message", { exact: true });
+  const generate = component.getByRole("button", { name: "Generate image from text" });
+
+  await textarea.fill("a neon city at dusk");
+  await expect(generate).toBeEnabled();
+  await generate.click();
+
+  // The generate settles as a failure (the button is actionable again, not stuck loading) and the prompt
+  // is INTACT — the data-loss bug would have wiped it to "".
+  await expect(generate).toBeEnabled();
+  await expect(textarea).toHaveValue("a neon city at dusk");
+});
+
+test("a generate-image that SUCCEEDS clears the typed prompt (clear-on-success)", async ({ mount, page }) => {
+  await routeTrpc(page, { "chat.generateImage": () => ({ ok: true }) });
+  const component = await mount(<ComposerStory />);
+  const textarea = component.getByLabel("Message", { exact: true });
+  const generate = component.getByRole("button", { name: "Generate image from text" });
+
+  await textarea.fill("a neon city at dusk");
+  await generate.click();
+
+  // On a green settle the composer clears (the prompt became the posted image message).
+  await expect(textarea).toHaveValue("");
+});
+
 // ── #8 grey-out (side-eye P2): the composer's two secondary disabled buttons explain themselves on hover ──
 // The empty composer is the FIRST thing a user sees on a fresh draft. The wand trigger + the generate-image
 // button were native-disabled (title:null) — zero hover feedback. They now render `focusableWhenDisabled`

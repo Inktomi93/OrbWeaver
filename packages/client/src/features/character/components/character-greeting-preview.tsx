@@ -9,6 +9,7 @@ import { Icon, Pencil, Plus, Trash2 } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { MacroTextarea } from "@orb/ui/macro-textarea";
 import { Markdown } from "@orb/ui/markdown";
+import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement } from "react";
@@ -34,9 +35,14 @@ export interface CharacterGreetingPreviewProps {
   readonly onActiveIndexChange: (index: number) => void;
 }
 
-/** The greeting field path for the active alternate — the array-element key the TanStack Field binds. */
-function greetingName(index: number): `greetings[${number}]` {
-  return `greetings[${index}]`;
+/** The greeting-TEXT field path for the active alternate — the array-element key the TanStack Field binds. */
+function greetingName(index: number): `greetings[${number}].text` {
+  return `greetings[${index}].text`;
+}
+
+/** The per-greeting group-only flag field path (the group-chat-only toggle binds it). */
+function greetingGroupOnlyName(index: number): `greetings[${number}].groupOnly` {
+  return `greetings[${index}].groupOnly`;
 }
 
 export function CharacterGreetingPreview(props: CharacterGreetingPreviewProps): ReactElement {
@@ -44,7 +50,7 @@ export function CharacterGreetingPreview(props: CharacterGreetingPreviewProps): 
   const [editing, setEditing] = useState(false);
 
   return (
-    <form.Subscribe selector={(s): readonly string[] => s.values.greetings}>
+    <form.Subscribe selector={(s): CharacterCardFormValues["greetings"] => s.values.greetings}>
       {(greetings): ReactElement => {
         // Clamp a stale active index (an alternate was just removed) — a render derivation, never an effect.
         const index = Math.min(activeIndex, Math.max(0, greetings.length - 1));
@@ -134,7 +140,7 @@ function GreetingBody({
     );
   }
   return (
-    <form.Subscribe selector={(s): string => s.values.greetings[index] ?? ""}>
+    <form.Subscribe selector={(s): string => s.values.greetings[index]?.text ?? ""}>
       {(active): ReactElement => (
         <ThemeScope tokens={themeOverride ?? {}}>
           <Stack gap="row" className={cn("rounded-card bg-ai-bubble p-block", spoilerBlur && "select-none blur-md")} data-slot="character-greeting-bubble">
@@ -171,42 +177,108 @@ function GreetingActions({
   readonly onStartAlternate: (nextIndex: number) => void;
 }): ReactElement {
   return (
-    <Row gap="field" align="center" className="justify-end">
-      {editing && index > 0 ? (
+    // The group-only toggle (or its Opening-1 absence note) rides its OWN row above the action cluster —
+    // it's an ATTRIBUTE of the greeting, not an action. Keeping it out of the `justify-end` button Row is
+    // also what fixes the phone-width blowout: an `mr-auto` child inside a no-wrap `justify-end` row is
+    // pushed to negative x when the four children overflow a ~320-414px width (side-eye V3 P0).
+    <Stack gap="field" data-slot="character-greeting-actions">
+      <GreetingAttributeRow form={form} index={index} greetingCount={greetingCount} />
+      <Row gap="field" align="center" className="flex-wrap justify-end">
+        {editing && index > 0 ? (
+          <Button
+            type="button"
+            size="sm"
+            intent="ghost"
+            onClick={(): void => {
+              // The D78 store-subscription driver persists structural array ops (removeFieldValue routes
+              // through setFieldValue) — no call-site flush (autosave-form-doctrine.md §3, G-A).
+              void form.removeFieldValue("greetings", index);
+              onActiveIndexChange(Math.max(0, index - 1));
+              // This Remove button unmounts when the new active greeting is the solo first message, dropping
+              // focus to <body> (no SR announcement on a destructive act — side-eye #6). Move focus to the
+              // always-present Add button next tick, after React commits the shrunk array.
+              requestAnimationFrame(() => document.getElementById(ADD_OPENING_ID)?.focus());
+            }}
+          >
+            <Icon icon={Trash2} size="sm" />
+            Remove opening
+          </Button>
+        ) : null}
         <Button
+          id={ADD_OPENING_ID}
           type="button"
           size="sm"
           intent="ghost"
           onClick={(): void => {
-            // The D78 store-subscription driver persists structural array ops (removeFieldValue routes
-            // through setFieldValue) — no call-site flush (autosave-form-doctrine.md §3, G-A).
-            void form.removeFieldValue("greetings", index);
-            onActiveIndexChange(Math.max(0, index - 1));
+            // The D78 store-subscription driver persists the structural push (pushFieldValue routes through
+            // setFieldValue) — no call-site flush (autosave-form-doctrine.md §3, G-A). The new slot then
+            // autosaves its content on the first keystroke.
+            form.pushFieldValue("greetings", { text: "" });
+            onStartAlternate(greetingCount);
           }}
         >
-          <Icon icon={Trash2} size="sm" />
-          Remove opening
+          <Icon icon={Plus} size="sm" />
+          Add opening
         </Button>
-      ) : null}
-      <Button
-        type="button"
-        size="sm"
-        intent="ghost"
-        onClick={(): void => {
-          // The D78 store-subscription driver persists the structural push (pushFieldValue routes through
-          // setFieldValue) — no call-site flush (autosave-form-doctrine.md §3, G-A). The new slot then
-          // autosaves its content on the first keystroke.
-          form.pushFieldValue("greetings", "");
-          onStartAlternate(greetingCount);
-        }}
-      >
-        <Icon icon={Plus} size="sm" />
-        Add opening
-      </Button>
-      <Button type="button" size="sm" intent={editing ? "secondary" : "ghost"} aria-pressed={editing} onClick={onToggleEdit}>
-        <Icon icon={Pencil} size="sm" />
-        {editing ? "Done" : "Edit"}
-      </Button>
-    </Row>
+        <Button type="button" size="sm" intent={editing ? "secondary" : "ghost"} aria-pressed={editing} onClick={onToggleEdit}>
+          <Icon icon={Pencil} size="sm" />
+          {editing ? "Done" : "Edit"}
+        </Button>
+      </Row>
+    </Stack>
+  );
+}
+
+// The one Add-opening button carries a stable DOM id (a single GreetingActions instance mounts per editor)
+// so the remove handler can restore focus to it without threading a ref through the button primitive.
+const ADD_OPENING_ID = "greeting-add-opening";
+
+/** The greeting's own "attribute" line above the action cluster: the group-only toggle on an alternate, or —
+ *  when other openings exist — a one-liner explaining why the flag is absent on the always-shown first
+ *  message (side-eye #4). A single first-message card shows nothing here. */
+function GreetingAttributeRow({
+  form,
+  index,
+  greetingCount,
+}: {
+  readonly form: CardForm;
+  readonly index: number;
+  readonly greetingCount: number;
+}): ReactElement | null {
+  if (index > 0) {
+    return <GreetingGroupOnlyToggle form={form} index={index} />;
+  }
+  if (greetingCount > 1) {
+    return (
+      <Text size="micro" tone="muted">
+        The first opening is always shown; mark alternates group-chats-only.
+      </Text>
+    );
+  }
+  return null;
+}
+
+/** The per-alternate "group chats only" flag (folded ST `group_only_greetings`). A labeled Switch bound to
+ *  `greetings[i].groupOnly`; the autosave driver persists the flag like any other field. Rides its OWN row
+ *  (not a `justify-end` action) so it reads as an attribute OF this greeting AND can't be pushed off-canvas
+ *  at phone widths. `aria-labelledby` names the switch (statically, for AT + the linter); the label's
+ *  `htmlFor` adds mouse/touch click-through onto the switch button (a labelable element). The Switch already
+ *  carries the ≥44px `TOUCH_TARGET_PSEUDO` hit area. */
+function GreetingGroupOnlyToggle({ form, index }: { readonly form: CardForm; readonly index: number }): ReactElement {
+  const labelId = `greeting-group-only-${index}`;
+  const switchId = `greeting-group-only-switch-${index}`;
+  return (
+    <form.Field name={greetingGroupOnlyName(index)}>
+      {(field): ReactElement => (
+        <Row gap="field" align="center">
+          <label htmlFor={switchId}>
+            <Text id={labelId} as="span" size="label" tone="muted">
+              Group chats only
+            </Text>
+          </label>
+          <Switch id={switchId} aria-labelledby={labelId} checked={field.state.value === true} onCheckedChange={(on): void => field.handleChange(on)} />
+        </Row>
+      )}
+    </form.Field>
   );
 }

@@ -42,6 +42,10 @@ export interface EngineLaunchConfig {
   readonly genGpuUtilSingle: number;
   readonly poolingMaxPixels: number;
   readonly genMaxPixels: number;
+  /** The gen engine's repetition_penalty, emitted as `--override-generation-config` (#23). The Qwen3-VL card
+   *  ships 1.0 (no penalty → the sampler-less agent-sdk wire loops to the output cap); 1.05 is the launch
+   *  default that stops it. Only gen carries a value today — see GENERATION_CONFIG_OVERRIDES. */
+  readonly genRepetitionPenalty: number;
   readonly ports: { readonly embed: number; readonly rerank: number; readonly gen: number };
 }
 
@@ -61,6 +65,7 @@ export interface EngineLaunchEnvFloor {
   readonly VLLM_GEN_GPU_UTIL_SINGLE: number;
   readonly VLLM_POOLING_MAX_PIXELS: number;
   readonly VLLM_GEN_MAX_PIXELS: number;
+  readonly VLLM_GEN_REPETITION_PENALTY: number;
   readonly VLLM_EMBED_PORT: number;
   readonly VLLM_RERANK_PORT: number;
   readonly VLLM_GEN_PORT: number;
@@ -82,6 +87,7 @@ export interface EngineLaunchOverride {
   readonly genGpuUtilSingle?: number | null | undefined;
   readonly poolingMaxPixels?: number | null | undefined;
   readonly genMaxPixels?: number | null | undefined;
+  readonly genRepetitionPenalty?: number | null | undefined;
 }
 
 /** Resolve the launch config: `admin override ?? env floor` per field (the layer.ts precedent). Ports stay
@@ -102,6 +108,7 @@ export function resolveEngineLaunchConfig(floor: EngineLaunchEnvFloor, override?
     genGpuUtilSingle: o.genGpuUtilSingle ?? floor.VLLM_GEN_GPU_UTIL_SINGLE,
     poolingMaxPixels: o.poolingMaxPixels ?? floor.VLLM_POOLING_MAX_PIXELS,
     genMaxPixels: o.genMaxPixels ?? floor.VLLM_GEN_MAX_PIXELS,
+    genRepetitionPenalty: o.genRepetitionPenalty ?? floor.VLLM_GEN_REPETITION_PENALTY,
     ports: { embed: floor.VLLM_EMBED_PORT, rerank: floor.VLLM_RERANK_PORT, gen: floor.VLLM_GEN_PORT },
   };
 }
@@ -181,6 +188,26 @@ function genModelAlias(genModel: string): string {
   return genModel.split("/").pop() ?? genModel;
 }
 
+/** The per-engine `--override-generation-config` payload (#23) — vLLM merges this over the model's shipped
+ *  generation_config.json at serve time, so it applies to EVERY request regardless of the wire (the fix for
+ *  the sampler-less agent-sdk /v1/messages path, which can't carry a per-request penalty). Keyed per engine
+ *  so embed/rerank could gain their own overrides; only `gen` needs one today (Qwen3-VL's repetition_penalty
+ *  1.0 → output-cap loop). `null` = no override flag emitted for that engine. */
+function generationConfigOverrides(config: EngineLaunchConfig): Record<VllmEngine, Record<string, number> | null> {
+  return {
+    embed: null,
+    rerank: null,
+    gen: { repetition_penalty: config.genRepetitionPenalty },
+  };
+}
+
+/** Append `--override-generation-config '<json>'` for an engine when it has one, else nothing. Kept beside
+ *  the map so every arm shares one emit shape (embed/rerank stay flag-free until they gain an override). */
+function overrideGenerationConfigArgv(engine: VllmEngine, config: EngineLaunchConfig): string[] {
+  const override = generationConfigOverrides(config)[engine];
+  return override === null ? [] : ["--override-generation-config", JSON.stringify(override)];
+}
+
 function genArgv(config: EngineLaunchConfig, ctx: EngineArgvContext): string[] {
   const multiGpu = ctx.gpuCount >= MULTI_GPU_THRESHOLD;
   const tp = multiGpu ? MULTI_GPU_THRESHOLD : 1;
@@ -206,6 +233,7 @@ function genArgv(config: EngineLaunchConfig, ctx: EngineArgvContext): string[] {
     "hermes",
     "--mm-processor-kwargs",
     `{"max_pixels": ${config.genMaxPixels}}`,
+    ...overrideGenerationConfigArgv("gen", config),
   ];
 }
 

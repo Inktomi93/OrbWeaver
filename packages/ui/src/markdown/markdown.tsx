@@ -107,6 +107,10 @@ export function Markdown({ trust, mode, children, className }: MarkdownProps): R
   // source makes real. All four are visual no-ops (preflight zeroes margins) — the rendering is
   // byte-identical, minus the dead classes. (Don't spell the replaced gap utility here — Tailwind
   // scans comments, and the literal would resurrect it as an unused rule.)
+  // `break-words` (overflow-wrap: break-word, inherited by every rendered block) is the ONE reading-surface
+  // guard against a long unbroken token — a pasted URL/hash/run-on word — overflowing its column and
+  // dragging a horizontal scrollbar onto the whole surface. Inert for normal prose (only breaks a word
+  // that can't otherwise fit) and inert inside code fences (white-space:pre never wraps).
   return (
     <MarkdownErrorBoundary>
       <Streamdown
@@ -117,7 +121,7 @@ export function Markdown({ trust, mode, children, className }: MarkdownProps): R
         {...mermaidProp}
         // Incomplete-markdown repair is a streaming concern only; a settled body must render as-authored.
         parseIncompleteMarkdown={mode === "streaming"}
-        className={cn("space-y-0 whitespace-normal [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_em]:text-narration", className) ?? ""}
+        className={cn("space-y-0 whitespace-normal break-words [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_em]:text-narration", className) ?? ""}
         {...(animate ? { isAnimating: true, animated: STREAMING_ANIMATION } : {})}
         {...(mode === "streaming" ? { caret: "block" as const } : {})}
         {...(untrusted

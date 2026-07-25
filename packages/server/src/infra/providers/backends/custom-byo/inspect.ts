@@ -10,6 +10,15 @@
 // echoing endpoint (httpbin / a debug proxy / a misconfigured BYO server) otherwise reflects the plaintext
 // `Authorization: Bearer <key>` straight into the rendered dialog.
 //
+// SECURITY INVARIANT (credential-exfil via redirect): the probe is HOST-PINNED — `redirect: "manual"`, so a
+// `3xx` from the configured endpoint is surfaced verbatim (its status becomes the diagnostic) and is NEVER
+// followed. Node's default `redirect:"follow"` re-sends the `Authorization: Bearer <key>` header to whatever
+// host the endpoint's `Location` names — a `302 → https://attacker/…` would silently exfil the key past the
+// egress firewall (the firewall blocks PRIVATE targets, not a redirect to a public attacker host, and it does
+// not strip credential headers on a cross-origin hop). This mirrors the host-pin the sibling `/models` probe
+// gets from `safeFetch` (openai-models.ts). We can't use `safeFetch` here — the BYO endpoint is legitimately
+// LAN/http/IP-literal (the owner-configured-endpoint class) — so we pin at the redirect boundary instead.
+//
 // Egress is the GLOBAL undici dispatcher (the firewall applies to this fetch too); we just fetch.
 
 import type { EndpointInspection } from "@orb/contracts/providers";
@@ -66,6 +75,8 @@ export async function inspectCustomByoEndpoint(args: {
       method: "POST",
       headers,
       body: JSON.stringify(body),
+      // Host-pin: never chase a redirect off the configured endpoint with the key in tow (see the header).
+      redirect: "manual",
       ...(args.signal !== undefined ? { signal: args.signal } : {}),
     });
     const text = await res.text().catch((): string => "");

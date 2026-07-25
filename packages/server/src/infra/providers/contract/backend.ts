@@ -73,6 +73,25 @@ export interface ProviderBackend {
   readonly fetchModels?: ((req: FetchAgentSdkModelsRequest) => Promise<AgentSdkModel[]>) | undefined;
 }
 
+/**
+ * TASK-24 wire-capture sink — the send-boundary hook a backend calls with the FINAL request body it sends,
+ * so the four-layer fidelity harness can read the real wire (see foundation `wire-capture.ts`). Compose-
+ * injected (ExtractQuiet-style), threaded through each backend's own factory deps — NEVER a module global,
+ * so a test that doesn't wire it gets zero writes. Absent ⇒ the send boundary is a plain send (no capture).
+ *
+ * `body` is the backend's OWN wire vocabulary (openai-compat JSON body | the agent-sdk query input) — the
+ * caller does NOT normalize (the api axis: Anthropic vs OpenAI wire differ BY DESIGN). The sink is defined
+ * here (the sealed-backend contract home) so the two send boundaries share ONE shape; foundation owns the
+ * ring the compose-wired impl writes to.
+ */
+export type WireCaptureSink = (entry: {
+  readonly chatId: string | undefined;
+  readonly api: string;
+  readonly backend: BackendKey;
+  readonly model: string;
+  readonly body: Record<string, unknown>;
+}) => void;
+
 /** The backend registry the composition root fills (one entry per WIRED backend). A role that resolves
  *  to an unwired key fail-closes (a missing wire is an operator error, not a silent default). */
 export type BackendRegistry = ReadonlyMap<BackendKey, ProviderBackend>;
