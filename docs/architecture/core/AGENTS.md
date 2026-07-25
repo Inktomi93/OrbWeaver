@@ -109,7 +109,7 @@ concept→domain map: §6 below.
 
 ## 4. Build + verify protocol
 
-- Phase order (`Core-BUILD-PLAN.md`): kit → contracts → db → server (foundation → infra →
+- Phase order (frozen in `../history/Core-BUILD-PLAN.md`): kit → contracts → db → server (foundation → infra →
   domain\[leaf-first] → transport → entry) → client; chat + memory LAST, built WHOLE (D16).
 - Multi-agent dispatch in dependency tiers; **disjoint file sets** per agent (agents write only their
   slice + its tests, never shared barrels/compose); the orchestrator integrates, verifies, commits.
@@ -265,7 +265,7 @@ the agent-principal design set (parked in `../proposed/`), or the built code. Li
 | - | - |
 | package cake · server tiers · 8-slot feature template · partitioning table · the 13 legibility gates | `Core-0-Architecture-and-Structure.md` |
 | the D-ledger (canonical decisions) + enforcement catalog | `Core-Laws-and-Precedents.md` (§0–§6 + redirect index) → `Core-Path-Registry.md` · `Core-Enforcement-Active-Gates.md` · `Core-Enforcement-Deferred-Dropped.md` |
-| build phases · checkpoints · stack + version pins | `Core-BUILD-PLAN.md` (version pins: the pnpm catalog) |
+| build phases · checkpoints · stack + version pins | `../history/Core-BUILD-PLAN.md` (superseded — the working doc is `docs/retro-workboard.md`; version pins: the pnpm catalog) |
 | build cursor / status | `Core-STATUS.md` |
 | planning + checklists | `Core-Planning-and-Checklists.md` |
 | identity / auth / permission / agent principals | `Spine-Identity-and-Auth.md` (+ the agent-principal design set, parked in `../proposed/`, D60) |

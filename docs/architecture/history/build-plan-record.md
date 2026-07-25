@@ -4,8 +4,9 @@ status: superseded
 updated: 2026-07-13
 ---
 
-> **History note:** the executed build plan, frozen 2026-07-13; the slim cursor lives in
-> `core/Core-BUILD-PLAN.md`.
+> **History note:** the executed build plan, frozen 2026-07-13; the slim cursor is
+> `Core-BUILD-PLAN.md` (same folder — moved to history 2026-07-25, superseded by
+> `docs/retro-workboard.md`).
 
 # Orbweaver — build plan (the ordered runbook)
 

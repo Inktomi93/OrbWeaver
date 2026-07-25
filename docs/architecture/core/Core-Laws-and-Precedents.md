@@ -45,7 +45,7 @@ The full fired-vs-open table is frozen in [`../history/core-laws-archaeology-rec
 
 ## 4. Build order
 
-The ordered runbook is **`Core-BUILD-PLAN.md`**. The scaffold order + the `@orb/contracts` internal build DAG (completed build archaeology — the edges that made `tsc` fail during scaffolding) are frozen in [`../history/core-laws-archaeology-record.md`](../history/core-laws-archaeology-record.md) §4.
+The ordered runbook is frozen at **`../history/Core-BUILD-PLAN.md`** (superseded 2026-07-25 — the live working doc is `docs/retro-workboard.md`). The scaffold order + the `@orb/contracts` internal build DAG (completed build archaeology — the edges that made `tsc` fail during scaffolding) are frozen in [`../history/core-laws-archaeology-record.md`](../history/core-laws-archaeology-record.md) §4.
 
 ## 5. Council-driven decisions (2026-06-25 greenfield review)
 

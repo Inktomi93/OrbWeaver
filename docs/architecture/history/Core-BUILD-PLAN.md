@@ -1,15 +1,19 @@
 ---
-kind: law
-status: active
-updated: 2026-07-13
+kind: history
+status: superseded
+updated: 2026-07-25
 ---
 
 # Orbweaver — build plan (the ordered runbook)
 
+> **SUPERSEDED (2026-07-25, owner ruling) — moved to history.** The live working doc is
+> `docs/retro-workboard.md`. The phase table below is the pre-rollback main-era cursor; do not
+> work from it.
+>
 > **Status: build is at Phase 6+; completed-phase step detail is archaeology.** This file is a slim
 > cursor — the phase state, one line each. The full executed per-phase runbook (step-level detail,
-> landing commits, checkpoints) is frozen at `../history/build-plan-record.md`. If anything here
-> disagrees with the ledger (`Core-Laws-and-Precedents.md`), the ledger wins.
+> landing commits, checkpoints) is frozen at `build-plan-record.md` (same folder). If anything here
+> disagrees with the ledger (`../core/Core-Laws-and-Precedents.md`), the ledger wins.
 >
 > **Stack note:** version pins live in the pnpm catalog; per-tier runtime libs joined it as their tier
 > was built.

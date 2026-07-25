@@ -6,7 +6,7 @@ updated: 2026-07-13
 
 # Core — SillyTavern Feature Slot Map (the one clear reference)
 
-> **Purpose.** ONE place that says, for every SillyTavern feature orbweaver committed to: which decision commits it, its PD flag, its home, and whether it's built yet. It reconciles the ledger (`Core-Laws-and-Precedents.md` D44–D63), the runbook (`Core-BUILD-PLAN.md`), and the PD registry (`Core-Audits-and-Debt.md`).
+> **Purpose.** ONE place that says, for every SillyTavern feature orbweaver committed to: which decision commits it, its PD flag, its home, and whether it's built yet. It reconciles the ledger (`Core-Laws-and-Precedents.md` D44–D63), the runbook (`../history/Core-BUILD-PLAN.md`, superseded), and the PD registry (`Core-Audits-and-Debt.md`).
 >
 > **Authority:** the ledger D-entry wins on a *decision* conflict; the PD registry (`Core-Audits-and-Debt.md`) wins on *build status*; this doc is the reconciled map, verified against the code + file tree 2026-07-13.
 >
@@ -106,7 +106,7 @@ The 2026-07-01/03 "drift this map corrects" ledger (imagery PD-93-not-54, the re
 ## 6. Cross-refs
 
 - **Decisions:** `Core-Laws-and-Precedents.md` D44 (theming/content) · D45 (vision input) · D46 (scripting/automation) · D47 (7 ST gaps) · D48 (tool-calling) · D49 (closed inventory) · D50 (event bus / prompt-transform) · D51 (multimodal wire seam) · D52 (ECharts) · D53 (regex) · D61 (hub / roster-preset) · D63 (background image = appearance).
-- **Order + phase state:** `Core-BUILD-PLAN.md`.
+- **Order + phase state:** `../history/Core-BUILD-PLAN.md` (superseded — the working doc is `docs/retro-workboard.md`).
 - **Debt / build status:** `Core-Audits-and-Debt.md` — PD-54/55/56/57/93 (the feature-domain flags).
 - **Parked design sets** (in `../proposed/`, see `../proposed/INDEX.md`): `../proposed/{automation,databank,expressions,plugin,imagery,tool-use,hub-browse,rpg}-design/` — mapped by [`../proposed/README.md`](../proposed/README.md).
 - **Gap register (the full ST inventory + dispositions):** [`Core-ST-Feature-Gap-Register.md`](Core-ST-Feature-Gap-Register.md).

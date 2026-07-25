@@ -7,12 +7,12 @@ updated: 2026-07-13
 # Orbweaver — build status & handoff
 
 > **Cursor only** — where the build is and what's next. Law + doc index: `AGENTS.md` §7 (read that
-> first). Phase state (one line each): `Core-BUILD-PLAN.md`. Dated narrative history:
+> first). Phase state (one line each): `../history/Core-BUILD-PLAN.md` (superseded). Dated narrative history:
 > `../history/build-plan-record.md`.
 
 ## Where we are
 
-Build is at Phase 6+ (see `Core-BUILD-PLAN.md` for the phase table). **The core-product backend is
+Build is at Phase 6+ (see `../history/Core-BUILD-PLAN.md` for the phase table — superseded; the live working doc is `docs/retro-workboard.md`). **The core-product backend is
 BUILT** (verified corpus-wide 2026-07-13 — chat engine incl. the pending\_turns defer/drain lane,
 multiplayer, all six provider backends + the turn-shaping axis, search/discovery/stats, portability);
 what's unbuilt backend-side is the parked future programs + short tails, all mapped in
