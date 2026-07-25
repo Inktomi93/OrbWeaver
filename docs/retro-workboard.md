@@ -14,6 +14,50 @@ synthetic "Group" character spoke — `round.ts` was supposed to yield the GM *a
 program keeps finding (5 half-shipped features tonight), and it is why "drive it live, then pin it" is the
 posture rather than paranoia. Judge every finding against that frame.
 
+## ═══ THE REAL PAIN-POINT INVENTORY: `docs/architecture/Agent-And-Composition-Pain-Points.md` ═══
+Owner-pointed (2026-07-25): *"the pain points are actually here… mind you this is from a time where we HAD
+these features, so not all may be applicable."* Dated 2026-07-22, main-era, evidence-tagged
+\[MEASURED]/\[CODE]/\[STATED]. **`shitsfucked` (main root) is the narrow RPG-bug ledger; THIS is the
+architectural inventory.** Triaged against retro's tree 2026-07-25:
+**STILL LIVE (verified in tree):**
+· **§3 the agent provider-role HALF-VESTIGE** — `infra/providers/roles/agent.ts` still hardcodes
+  `AGENT_BACKEND = "agent-sdk"` + "agent mode is always the agent-sdk", contradicting
+  `connection/verbs/resolve-role.ts`'s owner ruling that agent turns ride the CHAT connection. **Two places
+  still disagree about what an agent turn routes to.**
+· **§3 TWO TOOL LOOPS** — chat's `runRecurseLoop` (`chat/engine/pipeline.ts`) AND agent-sdk's internal
+  `agent-runner.ts`. Same "call tool → feed result → repeat" implemented twice. **And the generic loop is
+  trapped INSIDE `domain/chat`** — so automation/plugin (the NEXT build) can't reuse it without going
+  through chat or reimplementing. ⚠️ This one is on the critical path for the planned work.
+· **§4 capability is carried WHOLE on the chat path, HAND-PLUCKED on the agent path** (`ChatRequest` gets
+  `capability: ModelCapability`; `AgentTurnRequest` gets scalar flags each caller re-derives). Plus
+  \[MEASURED]: capability is **source/model-keyed but real tool-ability is CELL-keyed (source × api)** —
+  vLLM hardcodes `tools:{parallel:true}` for every api while `(agent-sdk, vllm)` actually runs tools
+  SEQUENTIALLY.
+· **§5** vLLM breaks the backend folder convention (`infra/providers/vllm/` not `backends/vllm/` — it owns
+  GPU supervision) · agent-sdk keeps its **own turn-state store** beside DB canon (derived cache, but state
+  machinery no raw backend has) · **\[MEASURED] parallel tool calls are UNREACHABLE on the SDK path**
+  (`disable_parallel_tool_use` lives in the compressed CLI binary, not reachable via `Options`) — external
+  constraint, not fixable here.
+· **§7 workloads is a GOD-DOMAIN** — 18 runners (was 30+) owned by other domains + 19 Env bundles in
+  `contract/runner-env.ts`; jobs organized by MECHANISM (async→workloads) not OWNERSHIP; a new background
+  job touches ~6 sites. · **settings is a GOD-FEATURE** on the client (7 surfaces in one feature) ·
+  import/export of the same entities live in different places.
+**ALREADY FIXED BY THIS PROGRAM:** §8 localStorage hard-brick (the autosave loop) → workboard #11, with the
+autosave-convergence property suite as the permanent guard. §3 "every agent-turn caller forks by hand on
+`api === "agent-sdk"`" → the purge removed the crew/buddy/rpg callers AND extracting
+`createRunChatTurnBridge` put the ONE remaining fork in ONE home.
+**N/A (purged):** §2 entity zoo (buddy/crew/party) · §6 crew/agent-principal orchestration duplication ·
+§1 "party" two homes · §5 anth-direct · §9 rpg flank. **§1 "agent" means 6 things is REDUCED not gone** —
+the identity/seat axes died (`USER_KINDS=["human"]`, 2-member `PARTICIPANT_KINDS`) but provider-role + api +
+backend axes remain. **§1 "session" means two things STILL STANDS** (auth session vs agent-sdk resume cache
+— a spine rule exists solely to keep them apart).
+**THE CROSS-CUTTING SHAPE (still the deep one):** every symptom is a cross-domain concern either
+**centralized into a god-domain that must then know about everyone** (workloads, settings) or **fragmented
+to mirror a boundary the composition seam never required**. The doc notes the right pattern EXISTS in-tree —
+thin core + per-thing descriptor (portability core, character-detail editor-sections, chat-surface anchors) —
+but is applied inconsistently. ✅ Tonight's slash-command + tool-renderer registries and the
+`resolveViewerVisibility` op are all that sanctioned shape, so the work is drifting the right way.
+
 **DATABANK · PLUGIN · AUTOMATION ARE PLANNED WORK** (owner, 2026-07-25) — *"something we are going to do, but
 we are getting our base solid first before we begin."* Their unwired tRPC procs are NOT gaps and NOT debris:
 they are deferred until the base is solid. Do not "clean them up", do not build them yet.
