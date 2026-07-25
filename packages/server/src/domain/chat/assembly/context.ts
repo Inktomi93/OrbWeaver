@@ -117,6 +117,11 @@ interface WiConversionArgs {
   readonly recentMessages: readonly string[];
   readonly names: readonly string[];
   readonly pendingUserText: string | undefined;
+  /** The raw one-turn guided steer text (F4 / §6-item-5): the user's steering line joins the keyword
+   *  haystack so "the dragon attacks" can wake dragon lore on a generate/swipe/continue turn that has no
+   *  pendingUserText. The RAW input (not the resolved template) — the template is boilerplate framing; the
+   *  keyword-bearing content is the user's line. Absent/empty ⇒ byte-identical to a non-steered turn. */
+  readonly guidedSteerText: string | undefined;
   readonly lastUserMessage: string | undefined;
   readonly hasBeforeAnchor: boolean;
   readonly hasAfterAnchor: boolean;
@@ -213,7 +218,13 @@ function convertWorldInfo(
   args: WiConversionArgs,
   regexCtx: MacroContext,
 ): { candidates: InjectionCandidate[]; matchedKeys: MatchedKey[] } {
-  const haystackTexts = [...args.recentMessages, ...(args.pendingUserText !== undefined ? [args.pendingUserText] : [])];
+  // Order is immaterial to matching (newline-joined, word-boundary regex per key); the steer is appended
+  // last so a non-steered turn stays byte-identical to the recentMessages+pendingUserText haystack.
+  const haystackTexts = [
+    ...args.recentMessages,
+    ...(args.pendingUserText !== undefined ? [args.pendingUserText] : []),
+    ...(args.guidedSteerText !== undefined && args.guidedSteerText.trim().length > 0 ? [args.guidedSteerText] : []),
+  ];
   const latestUserText = args.pendingUserText ?? args.lastUserMessage ?? "";
   const env: WiConvEnv = {
     ctx,
@@ -412,8 +423,27 @@ function routeKept(kept: readonly InjectionCandidate[]): {
   return { chatInjections, beforeParts, afterParts };
 }
 
+/** A depth-0, ignore-budget guided injection candidate carrying the resolved steer with `role`. */
+function guidedInjectionCandidate(resolved: string, role: ChatInjection["role"]): InjectionCandidate {
+  return {
+    injection: { position: "in_chat", depth: 0, role, content: resolved },
+    tokens: estimateTokens(resolved),
+    ignoreBudget: true,
+    priority: OPERATOR_PRIORITY,
+    entryId: "guided",
+    bucket: null,
+  };
+}
+
 /** Resolves the one-turn guided steer against the built base ctx: `steer.placement`, else the action
- *  config's role (system → marker; user/assistant → depth-0 injection). No steer is a no-op. */
+ *  config's role (system → marker; user/assistant → depth-0 injection). No steer is a no-op.
+ *
+ *  Marker-fallback (§10 addendum / F8): a `system` placement lands via the `{{guided_instruction}}` marker,
+ *  but a preset whose template lacks (or disables) that marker would drop the steer into the void. Instead
+ *  of vanishing, the resolved text falls back to a depth-0 system-role injection — the SAME ChatInjection
+ *  channel every other steer rides (the audit's convergence design) — and flips `guidedPlacedAsInjection`
+ *  so the engine emits a LOUD `guided_placed_as_injection` warning (D41; the config-editor marker chip
+ *  keeps warning at author time). PD-63's one-placement rule holds: still exactly one delivery. */
 function resolveGuidedSteer(base: AssembleContext, input: BuildAssembleContextInput): { candidates: InjectionCandidate[] } {
   const steer = input.guided;
   if (steer === undefined) {
@@ -433,21 +463,15 @@ function resolveGuidedSteer(base: AssembleContext, input: BuildAssembleContextIn
   }
   const placement = steer.placement ?? (config.role === "system" ? ({ kind: "system" } as const) : ({ kind: "inject", role: config.role } as const));
   if (placement.kind === "system") {
-    base.guidedInstruction = resolved;
-    return { candidates: [] };
+    // The marker is the intended system-half home; only fall back when the active preset can't render it.
+    if (hasMarker(input.promptConfig, "guided_instruction")) {
+      base.guidedInstruction = resolved;
+      return { candidates: [] };
+    }
+    base.guidedPlacedAsInjection = true;
+    return { candidates: [guidedInjectionCandidate(resolved, "system")] };
   }
-  return {
-    candidates: [
-      {
-        injection: { position: "in_chat", depth: 0, role: placement.role, content: resolved },
-        tokens: estimateTokens(resolved),
-        ignoreBudget: true,
-        priority: OPERATOR_PRIORITY,
-        entryId: "guided",
-        bucket: null,
-      },
-    ],
-  };
+  return { candidates: [guidedInjectionCandidate(resolved, placement.role)] };
 }
 
 /** The anchor persona's card-context lead-in, marking its description as the established identity the
@@ -683,6 +707,10 @@ export async function buildAssembleContext(ctx: ChatContext, input: BuildAssembl
       wiFormat,
       recentMessages: input.recentMessages,
       pendingUserText: pendingText,
+      // F4: the raw steer line joins the WI keyword haystack (source `scan=true`). Available here before
+      // the convert call, so no resolution-order shift — macro-resolution-before-scan is untouched (the
+      // raw steer never participates in macro resolution for scanning).
+      guidedSteerText: input.guided?.input,
       names,
       lastUserMessage: input.lastUserMessage,
       hasBeforeAnchor: hasMarker(input.promptConfig, "world_info_before"),

@@ -5,7 +5,7 @@
 // mode free on every mutation, and one sticky error slot per mutation with explicit clearError().
 // Callback property order is onMutate → onError → onSettled (type-inference-sensitive).
 
-import type { DefaultError, QueryKey, UseMutationOptions } from "@tanstack/react-query";
+import type { DefaultError, MutateOptions, QueryKey, UseMutationOptions } from "@tanstack/react-query";
 import { useMutation } from "@tanstack/react-query";
 import type { InvalidateFilter, Invalidation } from "./invalidation";
 import type { Trpc } from "./trpc";
@@ -50,7 +50,10 @@ export type EntityMutationConfig<TVars, TData, TRead = unknown> = EntityMutation
 const NO_INVALIDATION = (): readonly InvalidateFilter[] => [];
 
 export interface EntityMutationResult<TVars, TData> {
-  readonly mutate: (vars: TVars) => void;
+  /** `options` forwards react-query's per-call `MutateOptions` — the callbacks run IN ADDITION to the
+   *  factory's baked cache recipe + the global error toast (e.g. a call-site `onError` for the guided
+   *  input-restore, F3). */
+  readonly mutate: (vars: TVars, options?: MutateOptions<TData, DefaultError, TVars>) => void;
   readonly mutateAsync: (vars: TVars) => Promise<TData>;
   readonly isPending: boolean;
   /** The in-flight variables — render as the ghost row in variables-mode (§13.1). */

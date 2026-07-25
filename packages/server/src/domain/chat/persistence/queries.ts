@@ -76,6 +76,9 @@ const messageViewSelection = {
   selectedVariantId: messageVariants.id,
   selectedVariantIdx: messageVariants.idx,
   variantCount: sql<number>`(select count(*) from ${messageVariants} where ${messageVariants.messageId} = ${messages.id})`,
+  // The selected variant's D26 continue snapshot presence (both content columns set) → the client's
+  // undo/revert phase-gate. SQLite has no bool; emit 1/0 and coerce in `toMessageView`.
+  hasContinuation: sql<number>`(case when ${messageVariants.preContinueContent} is not null and ${messageVariants.lastContinuationContent} is not null then 1 else 0 end)`,
   content: messageVariants.content,
   reasoning: messageVariants.reasoning,
   model: messageVariants.model,
@@ -104,9 +107,11 @@ const toolCallsSchema = toolCallRecordSchema.array();
 // re-map is the `toolCalls` JSON blob, safeParsed with `toolCallRecordSchema` (the `variableDelta` read
 // seam pattern — a malformed/absent blob degrades to `[]`, never throws, never a cast). The client's ONLY
 // tool read surface (tool-use-design/03 §3–4).
-function toMessageView(row: Omit<MessageView, "toolCalls"> & { toolCalls: readonly ToolCallRecord[] | null }): MessageView {
+function toMessageView(
+  row: Omit<MessageView, "toolCalls" | "hasContinuation"> & { toolCalls: readonly ToolCallRecord[] | null; hasContinuation: number },
+): MessageView {
   const parsed = toolCallsSchema.safeParse(row.toolCalls);
-  return { ...row, toolCalls: parsed.success ? parsed.data : [] };
+  return { ...row, hasContinuation: row.hasContinuation === 1, toolCalls: parsed.success ? parsed.data : [] };
 }
 
 function toChatRow(r: { readonly metadata: ChatMetadata | null } & Omit<ChatRow, "metadata">): ChatRow {

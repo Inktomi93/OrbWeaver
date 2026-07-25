@@ -163,6 +163,52 @@ describe("buildAssembleContext — GATHER keyword match (the two-phase lag-kill)
     expect(out.wiTrace?.matchedKeys).toContainEqual({ key: "dragon", matchedLatestUserMessage: false });
     expect(out.wiTrace?.entryIds).toEqual([castId<WorldEntryId>("world_entry_k")]);
   });
+
+  // F4 (§6 item 5): the guided steer text joins the WI keyword haystack (source `scan=true`). A generate/
+  // swipe/continue turn carries no pendingUserText, so before this the steer contributed nothing to lore.
+  test("F4: a guided steer keyword WAKES a keyword-scoped WI entry (no pending user text)", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    const charId = await seedCharacter(db, host, "aria");
+    await attachChatEntry(host, chatId, "k", { content: "DRAGON LORE", keys: ["dragon"] });
+    const ctx = ctxWithCard(cardOf("Aria"));
+
+    // No pendingUserText, no recent window mentioning it — ONLY the steer says "dragon". The entry fires.
+    const out = await buildAssembleContext(ctx, {
+      ...inputOf(chatId, host, [charId]),
+      guided: { action: "response", input: "have the dragon attack" },
+    });
+    expect(out.chatInjections?.map((i) => i.content)).toContain("DRAGON LORE");
+    expect(out.wiTrace?.matchedKeys).toContainEqual({ key: "dragon", matchedLatestUserMessage: false });
+    expect(out.wiTrace?.entryIds).toEqual([castId<WorldEntryId>("world_entry_k")]);
+  });
+
+  test("F4: steer ABSENT ⇒ the keyword entry stays asleep (the steer is the only thing that would wake it)", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    const charId = await seedCharacter(db, host, "aria");
+    await attachChatEntry(host, chatId, "k", { content: "DRAGON LORE", keys: ["dragon"] });
+    const ctx = ctxWithCard(cardOf("Aria"));
+
+    const out = await buildAssembleContext(ctx, inputOf(chatId, host, [charId]));
+    expect(out.chatInjections?.map((i) => i.content)).not.toContain("DRAGON LORE");
+    expect(out.wiTrace?.entryIds).toEqual([]);
+  });
+
+  test("F4: a steer with no matching keyword does NOT falsely fire the entry (raw steer input scanned, not the boilerplate template)", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    const charId = await seedCharacter(db, host, "aria");
+    await attachChatEntry(host, chatId, "k", { content: "DRAGON LORE", keys: ["dragon"] });
+    const ctx = ctxWithCard(cardOf("Aria"));
+
+    const out = await buildAssembleContext(ctx, {
+      ...inputOf(chatId, host, [charId]),
+      guided: { action: "response", input: "be more terse" },
+    });
+    expect(out.chatInjections?.map((i) => i.content)).not.toContain("DRAGON LORE");
+    expect(out.wiTrace?.entryIds).toEqual([]);
+  });
 });
 
 describe("buildAssembleContext — the D50 user_input PromptTransform point (automation-design/04 §1.2/§6)", () => {
@@ -760,6 +806,66 @@ describe("buildAssembleContext — guided steering (chat.md §6, PD-63)", () => 
     // The default impersonate template carries a standalone instruction (role system → the marker value).
     expect(out.guidedInstruction).toBeDefined();
     expect(out.guidedInstruction?.length ?? 0).toBeGreaterThan(0);
+  });
+
+  // §10 addendum / F8: a system-placement steer against a preset with NO `guided_instruction` marker used
+  // to land NOWHERE (the marker never renders `ctx.guidedInstruction`). Now it falls back to a depth-0
+  // injection on the same ChatInjection channel + flips the loud-warning flag the engine reads.
+  test("F8: marker PRESENT (default) — system steer still lands via ctx.guidedInstruction, NO fallback, NO injection", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    const charId = await seedCharacter(db, host, "aria");
+    const ctx = ctxWithCard(cardOf("Aria"));
+    const out = await buildAssembleContext(ctx, {
+      ...inputOf(chatId, host, [charId]),
+      guided: { action: "response", input: "be brief" },
+    });
+    expect(out.guidedInstruction).toBeDefined();
+    expect(out.guidedPlacedAsInjection).not.toBe(true);
+    expect(out.chatInjections?.some((i) => i.content.includes("be brief"))).toBe(false);
+  });
+
+  test("F8: marker ABSENT — a system steer FALLS BACK to a depth-0 system injection + flags the loud warning (never vanishes)", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    const charId = await seedCharacter(db, host, "aria");
+    const ctx = ctxWithCard(cardOf("Aria"));
+    // Strip the guided_instruction marker from the preset — the config-editor's "no marker" case.
+    const config = {
+      ...DEFAULT_PROMPT_CONFIG,
+      sections: DEFAULT_PROMPT_CONFIG.sections.filter((s) => !(s.type === "marker" && s.marker === "guided_instruction")),
+    };
+    const out = await buildAssembleContext(ctx, {
+      ...inputOf(chatId, host, [charId]),
+      promptConfig: config,
+      guided: { action: "response", input: "be brief" },
+    });
+    // The marker home is gone, so nothing is staged there…
+    expect(out.guidedInstruction).toBeUndefined();
+    // …instead the resolved steer rides a depth-0 SYSTEM injection (the convergence channel).
+    const guided = out.chatInjections?.find((i) => i.content.includes("be brief"));
+    expect(guided).toMatchObject({ position: "in_chat", depth: 0, role: "system" });
+    // …and the loud-warning signal is set (the engine emits `guided_placed_as_injection` off this).
+    expect(out.guidedPlacedAsInjection).toBe(true);
+  });
+
+  test("F8: marker DISABLED (present but off) — same fallback as absent", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    const charId = await seedCharacter(db, host, "aria");
+    const ctx = ctxWithCard(cardOf("Aria"));
+    const config = {
+      ...DEFAULT_PROMPT_CONFIG,
+      sections: DEFAULT_PROMPT_CONFIG.sections.map((s) => (s.type === "marker" && s.marker === "guided_instruction" ? { ...s, enabled: false } : s)),
+    };
+    const out = await buildAssembleContext(ctx, {
+      ...inputOf(chatId, host, [charId]),
+      promptConfig: config,
+      guided: { action: "response", input: "be brief" },
+    });
+    expect(out.guidedInstruction).toBeUndefined();
+    expect(out.chatInjections?.find((i) => i.content.includes("be brief"))).toMatchObject({ position: "in_chat", depth: 0, role: "system" });
+    expect(out.guidedPlacedAsInjection).toBe(true);
   });
 
   test("the per-action config role decides the DEFAULT placement (role:user → a depth-0 user injection)", async () => {

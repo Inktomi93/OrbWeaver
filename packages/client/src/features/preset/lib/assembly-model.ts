@@ -132,3 +132,27 @@ export function makeSection(marker: MarkerType | null): PromptSection {
     enabled: true,
   };
 }
+
+/** The steer token every guided-action template carries — where the user's composer text lands. ONE home
+ *  (the card header copy + the empty/lint resolver both read it). */
+export const GUIDED_INPUT_TOKEN = "{{input}}";
+
+/** The guided-action card footer's derived state (F8). An EMPTY template is the ghosted default, NOT a
+ *  customization: at resolve an empty template returns the bare (neutralized) steer input (kit/guided) —
+ *  the field ghosts `factoryDefault` for that state, so the footer reads "Default" like an untouched card
+ *  (matching opening/continue's default display). The missing-`{{input}}` lint therefore bites ONLY a
+ *  non-empty template that dropped the token (that steer really vanishes) — never the empty case, where the
+ *  bare input IS exactly what lands (so the old "won't land anywhere" copy was false for it). */
+export interface GuidedFooterState {
+  readonly isEmpty: boolean;
+  readonly isDefault: boolean;
+  readonly missingInputLint: boolean;
+}
+export function guidedFooterState(prompt: string, factoryDefault: string): GuidedFooterState {
+  const isEmpty = prompt.trim().length === 0;
+  return {
+    isEmpty,
+    isDefault: isEmpty || prompt === factoryDefault,
+    missingInputLint: isEmpty ? false : !prompt.includes(GUIDED_INPUT_TOKEN),
+  };
+}

@@ -146,6 +146,18 @@ const continueTurnSchema = z.object({
   guided: guidedSteerSchema.optional(),
 });
 
+// The continue undo/redo pair (guided Phase-1 Lane C — F2): `ChatService.undoContinue`/`revertContinue`
+// (domain/chat/verbs/turn.ts createUndoContinue/createRevertContinue) were fully implemented + int-tested
+// (participant-gated, chat-scoped snapshot restore over the D26 `preContinue*`/`lastContinuation*` columns,
+// `messageCommitted`-emitting) but never exposed on this router. NOT generating verbs — they restore the
+// selected variant's stored snapshot in place, so NO steer/intent rides them; the shape is just
+// `swipe`-minus-the-guidance (a messageId-scoped pointer restore). A never-continued target is refused
+// `no_continuation` inside the verb (a ChatOperationError → BAD_REQUEST via the error map, never a 500).
+const restoreContinueSchema = z.object({
+  chatId: brandedId<ChatId>(),
+  messageId: brandedId<MessageId>(),
+});
+
 const impersonateSchema = z.object({
   chatId: brandedId<ChatId>(),
   personaId: brandedId<PersonaId>().nullish(),
@@ -405,6 +417,11 @@ export const chatRouter = t.router({
   selectVariant: authedProcedure.input(selectVariantSchema).mutation(({ ctx, input }) => ctx.services.chat.selectVariant({ principal: ctx.auth, ...input })),
   // The three guided-generations verbs (see the schemas' header note above).
   continueTurn: authedProcedure.input(continueTurnSchema).mutation(({ ctx, input }) => ctx.services.chat.continueTurn({ principal: ctx.auth, ...input })),
+  // The continue undo/redo pair (Lane C — F2; see restoreContinueSchema's header note above).
+  undoContinue: authedProcedure.input(restoreContinueSchema).mutation(({ ctx, input }) => ctx.services.chat.undoContinue({ principal: ctx.auth, ...input })),
+  revertContinue: authedProcedure
+    .input(restoreContinueSchema)
+    .mutation(({ ctx, input }) => ctx.services.chat.revertContinue({ principal: ctx.auth, ...input })),
   impersonate: authedProcedure.input(impersonateSchema).mutation(({ ctx, input }) => ctx.services.chat.impersonate({ principal: ctx.auth, ...input })),
   generate: authedProcedure.input(generateSchema).mutation(({ ctx, input }) => ctx.services.chat.generate({ principal: ctx.auth, ...input })),
   abort: authedProcedure.input(abortSchema).mutation(({ ctx, input }) => ctx.services.chat.abort({ principal: ctx.auth, ...input })),

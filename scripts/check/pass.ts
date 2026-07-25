@@ -229,6 +229,22 @@ export function runPass(gates: readonly GateDescriptor[], ctxBase: Omit<GateRunC
   return { gates: results, toolErrors: errors };
 }
 
+/** Gate-conformance PROBE artifacts (`__g_*` / `__dc_*`): transient fixtures the conformance tests
+ *  write while proving gates bite. A REAL-TREE run racing a concurrent battery (or finding a
+ *  crash-orphaned probe) must not red on them — they are the self-test's props, not code. Applied ONLY
+ *  at the real-tree entrypoints (report.ts / scoped.ts), NEVER inside runPass: conformance's own
+ *  fixture runs assert findings ON probe-named files, and a runPass-level filter would blind them. */
+export const PROBE_ARTIFACT_RE = /(^|\/)__(?:g|dc)_/u;
+
+/** Drop probe-artifact findings from a real-tree pass (see PROBE_ARTIFACT_RE). */
+export function stripProbeFindings(pass: PassResult): PassResult {
+  const gates = pass.gates.map((g) => {
+    const findings = g.findings.filter((f) => !PROBE_ARTIFACT_RE.test(f.file));
+    return findings.length === g.findings.length ? g : { name: g.name, ok: findings.length === 0, findings };
+  });
+  return { gates, toolErrors: pass.toolErrors };
+}
+
 /** Build a full-project run context over the shared workspace (the default `pnpm check:structure` run). */
 export function projectCtx(root: string): Omit<GateRunCtx, "report"> {
   const project = getWorkspace({ root });

@@ -22,6 +22,10 @@ test("image_edit_dropped → generated without your reference", () => {
   expect(warningNotice("image_edit_dropped")).toContain("without your reference");
 });
 
+test("guided_placed_as_injection → steering added inline, no marker to place it in", () => {
+  expect(warningNotice("guided_placed_as_injection")).toContain("inline instruction");
+});
+
 // ── The #9 compaction degrades the restoration must surface (was silently swallowed) ─────────────────
 
 test("compaction_failed → the summary couldn't update, reply unaffected", () => {

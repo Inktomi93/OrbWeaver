@@ -9,7 +9,7 @@ import type { CharacterId, ChatId, MessageId, PersonaId } from "@orb/kit/ids";
 import { useMemo, useState } from "react";
 import { createEntityMutation, useGatedQuery, useInvalidation, useTRPC } from "#data";
 import type { ChatHandle, DraftSeed } from "#state";
-import { clearDraftConfig, isCommitted } from "#state";
+import { clearDraftConfig, isCommitted, pushFiredSteer } from "#state";
 import type { DraftCarry } from "../lib/draft-commit";
 import { resolveDraftCommit } from "../lib/draft-commit";
 import { isSilencedTurnAbort } from "../lib/turn-abort-notice";
@@ -23,6 +23,9 @@ interface GuidedSteerInput {
 interface GuidedTurnVars {
   readonly chatId: ChatId;
   readonly guided?: GuidedSteerInput | undefined;
+  /** F5 — a steer + a chosen speaker in ONE `chat.generate` (a targeted nudge in a multi-character room);
+   *  null/omitted ⇒ arbitration picks. The verb has always accepted both fields together. */
+  readonly speakerCharacterId?: CharacterId | null | undefined;
 }
 
 interface GuidedSlotVars {
@@ -47,6 +50,17 @@ const useGuidedContinueMutation = createEntityMutation<GuidedSlotVars, unknown>(
   options: (trpc) => trpc.chat.continueTurn.mutationOptions(),
   busDriven: true,
   errorToast: (error) => (isSilencedTurnAbort(error) ? null : "Couldn't continue with that guidance."),
+});
+
+// F1 — Rewrite/Corrections: "fix the last reply per my instruction" lands as a NEW VARIANT of the tail
+// assistant message, so it rides `chat.swipe` (append-variant) exactly like a guided swipe — the ONLY
+// difference is the guided action kind (`rewrite`), which selects the out-of-character rewrite template.
+// The delivery seam already existed (swipe + guided); this was the missing fire surface (the preset card
+// shipped its config with nothing able to trigger it — the dead-ended-pair defect).
+const useGuidedRewriteMutation = createEntityMutation<GuidedSlotVars, unknown>({
+  options: (trpc) => trpc.chat.swipe.mutationOptions(),
+  busDriven: true,
+  errorToast: (error) => (isSilencedTurnAbort(error) ? null : "Couldn't rewrite that reply."),
 });
 
 const useGuidedImpersonateMutation = createEntityMutation<GuidedTurnVars, unknown>({
@@ -86,15 +100,22 @@ export interface UseGuidedActionsOptions {
   readonly handle: ChatHandle;
   readonly draftSeed?: DraftSeed | undefined;
   readonly onCommitted?: ((chatId: ChatId) => void) | undefined;
+  /** F3 — restore the just-fired steer text into the composer when a guided mutation FAILS (the source's
+   *  sacred input-restore, client-only per D57). The wand's `onChange` clears the draft at fire time; on
+   *  error the ephemeral steer would otherwise be lost. Called with the fired text on any non-abort error. */
+  readonly onFireError?: ((firedText: string) => void) | undefined;
 }
 
 export interface UseGuidedActionsResult {
   readonly isPending: boolean;
   /** Null while unknown (a draft, an empty transcript, still loading, or the tail isn't assistant). */
   readonly tailAssistantMessageId: MessageId | null;
-  readonly fireResponse: (input: string) => void;
+  /** F5 — a chosen speaker rides the response steer in a multi-character room (null ⇒ arbitrate). */
+  readonly fireResponse: (input: string, speakerCharacterId?: CharacterId | null) => void;
   readonly fireSwipe: (input: string) => void;
   readonly fireContinue: (input: string) => void;
+  /** F1 — rewrite the tail assistant reply out of character (lands as a variant via `chat.swipe`). */
+  readonly fireRewrite: (input: string) => void;
   readonly fireImpersonate: (input: string, person: GuidedImpersonatePerson) => void;
   readonly fireOpening: (input: string) => void;
 }
@@ -107,8 +128,28 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
   const generate = useGuidedGenerateMutation({ trpc, invalidation });
   const swipe = useGuidedSwipeMutation({ trpc, invalidation });
   const continueTurn = useGuidedContinueMutation({ trpc, invalidation });
+  const rewrite = useGuidedRewriteMutation({ trpc, invalidation });
   const impersonate = useGuidedImpersonateMutation({ trpc, invalidation });
   const startChat = useGuidedStartChatMutation({ trpc, invalidation });
+
+  // F3 — the fired-steer side-effects, applied around every committed guided fire: record the steer into
+  // the session recovery ring, and on a NON-ABORT failure hand the text back so the wand can restore the
+  // draft (a silenced turn-abort is a user stop, not a lost steer). The error toast rides the mutation's
+  // own `errorToast` meta; this only handles the input-restore + ring the source treats as sacred.
+  const onFireError = opts.onFireError;
+  const perFire = (firedText: string): { onError: (error: unknown) => void } | undefined => {
+    if (firedText.trim().length === 0) {
+      return;
+    }
+    pushFiredSteer(firedText);
+    return {
+      onError: (error: unknown): void => {
+        if (!isSilencedTurnAbort(error)) {
+          onFireError?.(firedText);
+        }
+      },
+    };
+  };
 
   const tailQuery = useGatedQuery(chatId, (id) => trpc.chat.listMessages.queryOptions({ chatId: id }));
   const tailAssistantMessageId = useMemo<MessageId | null>(() => {
@@ -120,6 +161,7 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
 
   const fireOpening = (input: string): void => {
     setOpeningPending(true);
+    const restore = perFire(input);
     const run = async (): Promise<void> => {
       const { draftKey, characterIds, carry } = resolveDraftCommit(opts.handle, opts.draftSeed);
       const result = await startChat.mutateAsync({
@@ -136,40 +178,61 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
       }
     };
     run()
-      .catch(() => undefined)
+      .catch((error: unknown) => restore?.onError(error))
       .finally(() => setOpeningPending(false));
   };
 
   return {
-    isPending: generate.isPending || swipe.isPending || continueTurn.isPending || impersonate.isPending || openingPending,
+    isPending: generate.isPending || swipe.isPending || continueTurn.isPending || rewrite.isPending || impersonate.isPending || openingPending,
     tailAssistantMessageId,
-    fireResponse: (input): void => {
+    fireResponse: (input, speakerCharacterId): void => {
       if (chatId === null) {
         return;
       }
       const guided = steerFor("response", input);
-      generate.mutate(guided === undefined ? { chatId } : { chatId, guided });
+      // F5 — a chosen speaker rides the steer in one `chat.generate` (null/omitted ⇒ arbitration picks).
+      const speaker = speakerCharacterId ?? null;
+      const base: GuidedTurnVars = guided === undefined ? { chatId } : { chatId, guided };
+      generate.mutate(speaker === null ? base : { ...base, speakerCharacterId: speaker }, perFire(input));
     },
     fireSwipe: (input): void => {
       if (chatId === null || tailAssistantMessageId === null) {
         return;
       }
       const guided = steerFor("swipe", input);
-      swipe.mutate(guided === undefined ? { chatId, messageId: tailAssistantMessageId } : { chatId, messageId: tailAssistantMessageId, guided });
+      swipe.mutate(
+        guided === undefined ? { chatId, messageId: tailAssistantMessageId } : { chatId, messageId: tailAssistantMessageId, guided },
+        perFire(input),
+      );
     },
     fireContinue: (input): void => {
       if (chatId === null || tailAssistantMessageId === null) {
         return;
       }
       const guided = steerFor("continue", input);
-      continueTurn.mutate(guided === undefined ? { chatId, messageId: tailAssistantMessageId } : { chatId, messageId: tailAssistantMessageId, guided });
+      continueTurn.mutate(
+        guided === undefined ? { chatId, messageId: tailAssistantMessageId } : { chatId, messageId: tailAssistantMessageId, guided },
+        perFire(input),
+      );
+    },
+    fireRewrite: (input): void => {
+      // Rewrite requires a steer (the correction instruction) AND a tail assistant reply to rewrite — an
+      // empty steer would be an unguided reroll, which the guided-swipe item already covers.
+      if (chatId === null || tailAssistantMessageId === null) {
+        return;
+      }
+      const guided = steerFor("rewrite", input);
+      if (guided === undefined) {
+        return;
+      }
+      rewrite.mutate({ chatId, messageId: tailAssistantMessageId, guided }, perFire(input));
     },
     fireImpersonate: (input, person): void => {
       if (chatId === null) {
         return;
       }
       const guided = steerFor("impersonate", input, person);
-      impersonate.mutate(guided === undefined ? { chatId } : { chatId, guided });
+      impersonate.mutate(guided === undefined ? { chatId } : { chatId, guided }, perFire(input));
     },
     fireOpening,
   };

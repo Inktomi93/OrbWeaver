@@ -113,6 +113,9 @@ interface TurnPipelineResult {
   readonly structuredOutputUnsupported: boolean;
   /** The WI entries that fired this turn (budget-survived). */
   readonly worldInfoEntryIds: readonly WorldEntryId[];
+  /** True when a `system`-placement guided steer fell back to a depth-0 injection (marker absent/disabled;
+   *  §10 addendum / F8) — the engine emits `guided_placed_as_injection` off this. */
+  readonly guidedPlacedAsInjection: boolean;
   /** The id of the earliest message actually included in the assembled history this turn, or null. */
   readonly contextBoundaryMessageId: MessageId | null;
   /** The turn's TOTAL estimated context consumption (kept history + system prompt + reserved output) — the
@@ -410,6 +413,7 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
     toolsUnsupported: attach.unsupported,
     structuredOutputUnsupported: structured.unsupported,
     worldInfoEntryIds: ctx.wiTrace?.entryIds ?? [],
+    guidedPlacedAsInjection: ctx.guidedPlacedAsInjection === true,
   };
 }
 

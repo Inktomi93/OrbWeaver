@@ -250,11 +250,13 @@ test("Talkativeness… opens the anchored popover; the slider commits on release
 test("the weight chip RE-SEEDS from the prop on a value-only change (bus/other-device echo)", async ({ mount }) => {
   const component = await mount(<MembersReseedStory />);
   const chip = component.getByRole("button", { name: CHIP_50_RE });
-  await expect(chip).toHaveText("50%");
+  // The chip is a labeled value now (CP-1 ride-along): the "Talks" label names WHAT the number is; the
+  // percent stays the glance readout. `toContainText` tolerates the label + the mono span split.
+  await expect(chip).toContainText("50%");
 
   // A value-only prop change (the row's key is unchanged, so React never remounts it).
   await component.getByTestId("bump-aria").click();
-  await expect(component.getByRole("button", { name: CHIP_80_RE })).toHaveText("80%");
+  await expect(component.getByRole("button", { name: CHIP_80_RE })).toContainText("80%");
 });
 
 test("the popover thumb SNAPS BACK to the prop after a failed write (no stale local value)", async ({ mount, page }) => {

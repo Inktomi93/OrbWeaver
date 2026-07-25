@@ -77,7 +77,7 @@ export const TOKENS = {
   "aspect.banner": { cssVar: "--aspect-banner", value: "3 / 1" },
   "dimension.rail": { cssVar: "--dimension-rail", value: "3.5rem" },
   "dimension.chrome-row": { cssVar: "--dimension-chrome-row", value: "3rem" },
-  "dimension.panel": { cssVar: "--dimension-panel", value: "clamp(16rem, 22vw, 22rem)" },
+  "dimension.panel": { cssVar: "--dimension-panel", value: "clamp(17rem, 24vw, 26rem)" },
   "dimension.shell-breakpoint": { cssVar: "--dimension-shell-breakpoint", value: "48rem" },
   "shadow.glow": { cssVar: "--shadow-glow", value: "0 0 0 1px oklch(0.72 0.175 52 / 0.4), 0 0 18px oklch(0.72 0.175 52 / 0.18)" },
   "shadow.overlay": { cssVar: "--shadow-overlay", value: "0 0 0 1px oklch(1 0 0 / 0.06), inset 0 1px 0 0 oklch(1 0 0 / 0.08), 0 2px 4px oklch(0 0 0 / 0.4), 0 12px 32px oklch(0 0 0 / 0.5)" },

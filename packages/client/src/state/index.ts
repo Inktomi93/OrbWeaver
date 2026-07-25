@@ -208,6 +208,13 @@ export type { SlashCommandRegistry } from "./slash-command-registry-context";
 export { SlashCommandRegistryContext } from "./slash-command-registry-context";
 export { SlashCommandRegistryProvider } from "./slash-command-registry-provider";
 export {
+  clearRecentSteers,
+  pushFiredSteer,
+  readRecentSteers,
+  STEER_RECOVERY_CAP,
+  useRecentSteers,
+} from "./steer-recovery-store";
+export {
   clearWorldBookSelection,
   clearWorldEntrySelection,
   selectWorldBook,

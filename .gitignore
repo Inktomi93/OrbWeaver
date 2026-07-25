@@ -91,3 +91,8 @@ scratch/
 
 # SillyTavern data snapshot (copied from neo-tavern) — import fodder for the ST-profile loader; never committed
 .st-data/
+
+# --- gate-conformance probe fixtures (transient test artifacts; a crashed run can orphan them —
+# they must never reach git, and the real gate scan excludes them too: scripts/check/harness.ts) ---
+**/__g_*
+**/__dc_*

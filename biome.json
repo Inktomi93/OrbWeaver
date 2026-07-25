@@ -18,7 +18,7 @@
       "!packages/ui/src/tokens/index.ts",
       "!packages/ui/src/styles/theme.css",
       "!**/__g_*",
-      "!**/__g_*",
+      "!**/__dc_*",
       "!**/node_modules",
       "!**/.git",
       "!**/dist",

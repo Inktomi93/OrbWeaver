@@ -63,6 +63,13 @@ function runStructure(): string {
   try {
     return execFileSync("pnpm", ["exec", "tsx", "scripts/check/report.ts"], {
       cwd: ROOT,
+      // THIS suite's child runs must SEE the __g_ fixtures it plants — the real-tree entrypoints strip
+      // probe-artifact findings by default (a concurrent battery's transient fixtures must not red an
+      // independent structure run; scripts/check/pass.ts stripProbeFindings). The env opts this run out.
+      // biome-ignore lint/style/noProcessEnv: passthrough env for the child run — harness plumbing, not app config.
+      // biome-ignore lint/correctness/noProcessGlobal: same passthrough — this test file is node-run tooling.
+      // biome-ignore lint/style/useNamingConvention: ORB_GATE_FIXTURES is an environment variable name.
+      env: { ...process.env, ORB_GATE_FIXTURES: "1" },
       encoding: "utf8",
       // The fixture-run report (every gate firing on its __g_ fixture) exceeds execFileSync's 1MB default
       // buffer — a truncated tail would silently drop the last-sorted gates from `fired` (a false anti-drift

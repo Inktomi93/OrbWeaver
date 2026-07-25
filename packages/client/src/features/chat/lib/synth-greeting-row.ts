@@ -46,6 +46,7 @@ export function synthGreetingRow(characterId: CharacterId, content: string, seq:
     selectedVariantId: castId<MessageVariantId>(`draft-greeting-variant_${characterId}`),
     selectedVariantIdx: 0,
     variantCount: 1,
+    hasContinuation: false,
     content,
     reasoning: null,
     model: null,

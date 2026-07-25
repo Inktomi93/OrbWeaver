@@ -1291,7 +1291,12 @@ export function createTurnEngine(ctx: ChatContext, deps: EngineDeps): TurnEngine
 async function emitCapabilityDropWarnings(
   emit: (event: ChatBusEvent) => Promise<void>,
   chatId: ChatId,
-  result: { readonly imageDropped: boolean; readonly toolsUnsupported: boolean; readonly structuredOutputUnsupported: boolean },
+  result: {
+    readonly imageDropped: boolean;
+    readonly toolsUnsupported: boolean;
+    readonly structuredOutputUnsupported: boolean;
+    readonly guidedPlacedAsInjection: boolean;
+  },
 ): Promise<void> {
   if (result.imageDropped) {
     await emit({ type: "warning", chatId, code: "image_dropped" });
@@ -1301,5 +1306,10 @@ async function emitCapabilityDropWarnings(
   }
   if (result.structuredOutputUnsupported) {
     await emit({ type: "warning", chatId, code: "structured_output_unsupported" });
+  }
+  // §10 addendum / F8: the system-placement steer fell back to a depth-0 injection (no marker) — landed,
+  // not lost, and said so loudly (D41).
+  if (result.guidedPlacedAsInjection) {
+    await emit({ type: "warning", chatId, code: "guided_placed_as_injection" });
   }
 }

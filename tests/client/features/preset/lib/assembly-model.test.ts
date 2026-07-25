@@ -6,6 +6,7 @@
 import type { GenerationType, PromptSection } from "@orb/contracts/preset";
 import {
   addableSections,
+  guidedFooterState,
   hasRoleField,
   makeSection,
   sectionKind,
@@ -92,4 +93,41 @@ test("makeSection mints a fresh id and the right shape", () => {
   const marker = makeSection("persona");
   expect(marker.type === "marker" ? marker.marker : null).toBe("persona");
   expect(makeSection(null).id).not.toBe(makeSection(null).id); // unique ids
+});
+
+// F8 — the guided-action card footer truth: an EMPTY template is the ghosted DEFAULT (not "Customized"),
+// and the missing-`{{input}}` lint must NOT fire for it (bare input is exactly what lands; the old copy
+// claiming "won't land anywhere" was false). A default-equal template is default; a real customization is
+// not; a non-empty template that dropped `{{input}}` DOES trip the lint.
+const GUIDED_DEFAULT = "Write your reply. {{input}}";
+
+test("guidedFooterState: an empty template is the ghosted default with no missing-input lint (F8)", () => {
+  const state = guidedFooterState("", GUIDED_DEFAULT);
+  expect(state.isEmpty).toBe(true);
+  expect(state.isDefault).toBe(true);
+  expect(state.missingInputLint).toBe(false);
+});
+
+test("guidedFooterState: a whitespace-only template is treated as empty (F8)", () => {
+  expect(guidedFooterState("   \n\t ", GUIDED_DEFAULT)).toEqual({ isEmpty: true, isDefault: true, missingInputLint: false });
+});
+
+test("guidedFooterState: a template equal to the factory default reads as default (F8)", () => {
+  const state = guidedFooterState(GUIDED_DEFAULT, GUIDED_DEFAULT);
+  expect(state.isDefault).toBe(true);
+  expect(state.isEmpty).toBe(false);
+  expect(state.missingInputLint).toBe(false);
+});
+
+test("guidedFooterState: a non-empty template that DROPS {{input}} trips the lint (F8)", () => {
+  const state = guidedFooterState("Write a reply with no token", GUIDED_DEFAULT);
+  expect(state.isEmpty).toBe(false);
+  expect(state.isDefault).toBe(false);
+  expect(state.missingInputLint).toBe(true);
+});
+
+test("guidedFooterState: a customized template carrying {{input}} is not default and not linted (F8)", () => {
+  const state = guidedFooterState("Steer it darker: {{input}}", GUIDED_DEFAULT);
+  expect(state.isDefault).toBe(false);
+  expect(state.missingInputLint).toBe(false);
 });

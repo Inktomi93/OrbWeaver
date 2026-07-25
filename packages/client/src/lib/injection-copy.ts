@@ -16,6 +16,10 @@ export const DRAFT_UNLOCK_AFTER_SEND = "Available after you send the first messa
  *  no messages yet; also true for a committed chat whose latest turn isn't an assistant reply). */
 export const NEEDS_ASSISTANT_REPLY = "Needs an assistant reply to work on — send a message first";
 
+/** Undo/revert the last continuation — need a continue to have run on this reply's shown swipe first
+ *  (the D26 snapshot columns are empty until then). Phase-gate, never hidden (owner: no reduced menus). */
+export const NEEDS_CONTINUATION = "Continue this reply first — there's no added text to undo yet";
+
 // The composer's own disabled-affordance hover reasons — the empty composer is the FIRST thing a user
 // sees on a fresh draft, so its two secondary actions (the guided-generations wand + generate-image)
 // must explain their unlock on hover, not sit silently native-disabled. Each names WHAT to do to enable.

@@ -61,6 +61,7 @@ export function makeMessageView(overrides: Partial<MessageView> = {}): MessageVi
     selectedVariantId: castId<MessageVariantId>("mv_ct_1"),
     selectedVariantIdx: 0,
     variantCount: 1,
+    hasContinuation: false,
     content: "Hello there",
     reasoning: null,
     model: null,
