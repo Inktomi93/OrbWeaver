@@ -20,7 +20,6 @@ import type { ChatContentPart } from "@orb/contracts/chat";
 import type { OpenRouterProviderRouting } from "@orb/contracts/connection";
 import type { UserIntent } from "@orb/contracts/preset";
 import { errorMessage } from "@orb/kit/error-message";
-import { deepMergeRequestBody } from "@orb/server/kit/custom-parameters";
 import type { ChatCompletionStreamChunk, ChatToolCallDelta, ProviderSamplingDrop, ReasoningRequest } from "../../../../backends/kit";
 import { cacheControlBlock, chatHistoryText, effectiveProviderRouting, extractHttpErrorDiagnostic, logProviderSampling } from "../../../../backends/kit";
 import type {
@@ -32,12 +31,14 @@ import type {
   ResolvedWarning,
   ResponseFormat,
   ToolChoice,
+  WireCaptureSink,
   WireTool,
 } from "../../../../contract";
 
 export interface OpenRouterChatDeps {
   readonly now: () => number;
   readonly random?: (() => number) | undefined;
+  readonly captureWire?: WireCaptureSink | undefined;
 }
 
 const TEXT_BLOCK_TYPE = "text";
@@ -306,13 +307,20 @@ export function resolveFallbackModels(userRouting: OpenRouterProviderRouting | u
   return models !== undefined && models.length > 0 ? [...models] : undefined;
 }
 
-// Deep merge (owned wins at every leaf, incl. nested objects like a custom reasoning block); a shallow
-// spread gave the same top-level precedence but let an unrecognized nested object through untouched.
-export function mergeCustomParameters<T extends Record<string, unknown>>(owned: T, customParameters: Record<string, unknown> | undefined): T {
-  if (customParameters === undefined) {
-    return owned;
+const CUSTOM_PARAMETERS_IGNORED = "customParameters ignored on OpenRouter (BYOK/custom-byo only)";
+
+// D41 no-silent-degrade: a preset's customParameters escape hatch does NOT reach the OpenRouter wire (it is
+// BYOK/custom-byo-only — OpenRouter's knobs are the modeled sampling surface). When a turn still carries a
+// NON-EMPTY blob, append a loud `custom_parameters_ignored` warning so the drop is observable, never silent.
+// Both OR chat runners fold this over their resolved warnings before building the turn's warning events.
+export function withCustomParametersDrop(
+  warnings: readonly ResolvedWarning[],
+  customParameters: Record<string, unknown> | undefined,
+): readonly ResolvedWarning[] {
+  if (customParameters === undefined || Object.keys(customParameters).length === 0) {
+    return warnings;
   }
-  return deepMergeRequestBody(customParameters, owned) as T;
+  return [...warnings, { code: "custom_parameters_ignored", message: CUSTOM_PARAMETERS_IGNORED }];
 }
 
 // True when the upstream 400 is a mandatory-reasoning endpoint rejecting reasoning.effort:"none" — drives the strip-and-replay-once recovery.

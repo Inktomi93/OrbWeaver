@@ -378,9 +378,9 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
     prompt: assembled,
     history,
     intent: effectiveIntent,
-    // The preset's provider-passthrough blob (PD-148) — flows to the wire `customParameters` only when set,
-    // so a preset that carries none leaves the request byte-identical (the runner overlays it UNDER its
-    // owned fields; the two-layer prototype-pollution defense holds).
+    // The preset's BYOK provider-passthrough blob (PD-148) — flows onto the request only when set. It is
+    // applied ONLY by the custom-byo backend (preset-wins, with the two-layer prototype-pollution defense); on
+    // OpenRouter it is intentionally not applied (BYOK/custom-byo-only) and dropped-and-loud.
     ...(ctx.promptConfig.customParameters !== undefined ? { customParameters: ctx.promptConfig.customParameters } : {}),
     kind: args.kind,
     ownerConsented: args.ownerConsented,

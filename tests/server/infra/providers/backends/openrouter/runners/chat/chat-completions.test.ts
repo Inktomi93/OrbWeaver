@@ -1,11 +1,11 @@
-// biome-ignore-all lint/style/useNamingConvention: snake_case customParameters fixtures (top_a) are the
-// real OpenRouter wire — a preset's escape-hatch passthrough.
+// biome-ignore-all lint/style/useNamingConvention: snake_case fixtures (top_a) are the real OpenRouter wire.
 //
 // backends/openrouter chat-completions — the wire shaping (Anthropic per-block system cache + the rolling
 // history breakpoint + the provider-routing pin), the sampling/reasoning projection, the customParameters
-// overlay (owned wins), the SDK→kit stream reshape + usage/cost mapping, the pre-commit retry, the
-// mandatory-reasoning strip-and-replay, and HTTP error classification. The SDK client is a hand-built fake
-// (plain wire-shaped objects — the runner's own type-guard narrows the stream); clock + jitter injected.
+// LOCKOUT (BYOK/custom-byo-only — a preset's escape-hatch blob never reaches the OpenRouter wire), the SDK→kit
+// stream reshape + usage/cost mapping, the pre-commit retry, the mandatory-reasoning strip-and-replay, and HTTP
+// error classification. The SDK client is a hand-built fake (plain wire-shaped objects — the runner's own
+// type-guard narrows the stream); clock + jitter injected.
 
 import type { ModelCapability } from "@orb/contracts/connection";
 import type { ResolvedCredential } from "@orb/contracts/credentials";
@@ -138,7 +138,7 @@ describe("runChatCompletionTurn — wire shaping", () => {
     expect(captured.chatRequest?.["provider"]).toBeUndefined();
   });
 
-  test("projects sampling + reasoning effort; customParameters overlay loses to runner-owned fields", async () => {
+  test("projects sampling + reasoning effort; customParameters is LOCKED OUT of the OpenRouter wire (BYOK-only)", async () => {
     const { client, captured } = streamingClient(OK_STREAM);
     await runChatCompletionTurn(
       client,
@@ -151,8 +151,46 @@ describe("runChatCompletionTurn — wire shaping", () => {
     expect(captured.chatRequest?.["temperature"]).toBe(0.3);
     expect(captured.chatRequest?.["topP"]).toBe(0.9);
     expect(captured.chatRequest?.["reasoning"]).toEqual({ effort: "low" });
+    // The owned model is intact — the colliding `model` override never landed.
     expect(captured.chatRequest?.["model"]).toBe(ANTHROPIC_MODEL);
-    expect(captured.chatRequest?.["top_a"]).toBe(0.5);
+    // Neither the colliding key (`model`) NOR a non-colliding one (`top_a`) reaches the wire: customParameters
+    // is not merged on OpenRouter at all (BYOK/custom-byo-only).
+    expect(captured.chatRequest?.["top_a"]).toBeUndefined();
+  });
+
+  // F1 TRUE-WIRE + D41: the captureWire sink records the SDK-outbound-transformed body (the literal wire), and a
+  // non-empty customParameters blob is dropped-and-loud. Reaches the SDK `$outboundSchema` through the runner
+  // (never a direct `@openrouter/sdk` test-root import); fails loudly if an SDK bump renames/moves the export.
+  test("captureWire records the TRUE snake_case wire (SDK outbound schema); customParameters dropped loudly (F1/D41)", async () => {
+    const { client } = streamingClient(OK_STREAM);
+    const wires: Record<string, unknown>[] = [];
+    const result = await runChatCompletionTurn(
+      client,
+      makeRequest({
+        model: castId<ModelId>(OPENAI_MODEL),
+        capability: { ...CAPABILITY, sampling: { ...CAPABILITY.sampling, topA: { min: 0, max: 1 } } },
+        params: { temperature: 0.3, effort: "low", topP: 0.9, topA: 0.4, maxOutputTokens: 64 },
+        customParameters: { model: "evil/override", top_a: 0.9 },
+      }),
+      { ...DEPS, captureWire: (e): void => void wires.push(e.body) },
+    );
+    const wire = wires.at(0);
+    // camelCase → snake_case: the SDK outbound schema renamed the runner's owned fields.
+    expect(wire?.["max_completion_tokens"]).toBe(64);
+    expect(wire?.["top_p"]).toBe(0.9);
+    expect(wire?.["top_a"]).toBe(0.4);
+    // The camelCase forms are NOT on the true wire.
+    expect(wire?.["maxCompletionTokens"]).toBeUndefined();
+    expect(wire?.["topP"]).toBeUndefined();
+    // customParameters never reached the wire (owned model intact; the colliding override never landed).
+    expect(wire?.["model"]).toBe(OPENAI_MODEL);
+    // Dropped-and-loud (D41 no-silent-degrade).
+    expect(result.events.filter((e) => e.kind === "warning")).toContainEqual({
+      kind: "warning",
+      at: FIXED_NOW,
+      code: "custom_parameters_ignored",
+      message: "customParameters ignored on OpenRouter (BYOK/custom-byo only)",
+    });
   });
 
   test("emits the resolved minP as the first-class SDK `minP` field (D68-A)", async () => {

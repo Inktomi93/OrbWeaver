@@ -8,7 +8,7 @@ import type { UserIntent } from "@orb/contracts/preset";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { deepMergeRequestBody } from "@orb/server/kit/custom-parameters";
-import type { ChatHistoryMessage, ChatRequest, ChatResult } from "../../../contract";
+import type { ChatHistoryMessage, ChatRequest, ChatResult, WireCaptureSink } from "../../../contract";
 import { ProviderError } from "../../../contract";
 import type { ChatCompletionStreamChunk, OpenAiSamplingInput, StreamReduceOptions } from "../../kit";
 import {
@@ -22,14 +22,17 @@ import {
   rawToolCallDeltas,
   rawToolChoice,
   rawWireTools,
+  redactSecretsFromText,
   reduceChatCompletionStream,
   runWithPreCommitRetry,
+  secretHeaderValues,
   turnAbortSignal,
 } from "../../kit";
 
 export interface CustomByoRunnerDeps {
   readonly now: () => number;
   readonly random?: (() => number) | undefined;
+  readonly captureWire?: WireCaptureSink | undefined;
 }
 
 type ChatCompletionsRequest = Extract<ChatRequest, { readonly api: "chat-completions" }>;
@@ -336,6 +339,22 @@ async function fetchAndReduce(args: {
   }
 }
 
+type CustomOpenAiCredential = Extract<ResolvedCredential, { readonly source: "custom_openai" }>;
+
+// Redact the known credential literals (the apiKey + any secret-valued header) out of a captured wire body
+// by VALUE. `includeBody` is user-controlled and can embed key-in-body auth, so a raw capture would sink a
+// secret into the debug ring. Scrub the serialized form, then re-parse to keep a valid object (the `body`
+// contract). A body with no secrets present round-trips unchanged; the `Bearer …`/`sk-…` defense-in-depth in
+// `redactSecretsFromText` also catches a reshaped token. (The credential-leak-by-value class, per the
+// image-proxy / response-echo precedents.)
+function scrubCapturedBody(body: Record<string, unknown>, cred: CustomOpenAiCredential): Record<string, unknown> {
+  const secrets = [...(cred.apiKey !== null ? [cred.apiKey] : []), ...secretHeaderValues(cred.headers)];
+  if (secrets.length === 0) {
+    return body;
+  }
+  return JSON.parse(redactSecretsFromText(JSON.stringify(body), secrets)) as Record<string, unknown>;
+}
+
 export async function runChatTurn(req: ChatRequest, deps: CustomByoRunnerDeps): Promise<ChatResult> {
   if (req.api !== "chat-completions") {
     throw new ProviderError({
@@ -355,6 +374,10 @@ export async function runChatTurn(req: ChatRequest, deps: CustomByoRunnerDeps): 
 
   const startedAt = deps.now();
   const body = buildBody(req, cred.includeBody, cred.excludeBody);
+  // `includeBody` can carry key-in-body auth (nonstandard endpoints), so a secret could land in the debug
+  // ring by VALUE. Scrub the known credential literals (the apiKey + any secret-valued header) out of the
+  // captured body before recording — same seam the "Test endpoint" inspector uses on echoed responses.
+  deps.captureWire?.({ chatId: req.chatId, api: req.api, backend: "custom-openai", model: req.model, body: scrubCapturedBody(body, cred) });
   const headers = buildHeaders(cred.apiKey, cred.headers);
   const url = `${cred.baseUrl.replace(TRAILING_SLASH_RE, "")}${CHAT_COMPLETIONS_PATH}`;
 

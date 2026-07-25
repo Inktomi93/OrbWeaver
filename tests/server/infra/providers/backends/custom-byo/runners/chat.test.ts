@@ -57,12 +57,16 @@ function makeRequest(overrides: Partial<ChatCompletionsRequest> = {}): ChatCompl
 
 // The backend's `runChatTurn` is optional on the contract (a backend implements only the roles it serves);
 // custom-byo always sets it. Pull it through a typed helper so the await is on a real Promise.
-function runTurn(req: ChatRequest): Promise<ChatResult> {
-  const run = createCustomByoBackend(DEPS).runChatTurn;
+function runTurnWith(deps: Parameters<typeof createCustomByoBackend>[0], req: ChatRequest): Promise<ChatResult> {
+  const run = createCustomByoBackend(deps).runChatTurn;
   if (run === undefined) {
     throw new Error("custom-byo backend must implement runChatTurn");
   }
   return run(req);
+}
+
+function runTurn(req: ChatRequest): Promise<ChatResult> {
+  return runTurnWith(DEPS, req);
 }
 
 // A streaming SSE body whose `.body` is a real ReadableStream (what the runner reads).
@@ -238,6 +242,50 @@ describe("createCustomByoBackend — streaming + non-streaming + the user-declar
     expect(capturedBody["safety"]).toBe("off");
     // excludeBody strips LAST — `stream` is removed even though the base body set it true.
     expect(capturedBody).not.toHaveProperty("stream");
+  });
+});
+
+// F4 (SECURITY): `includeBody` is user-controlled and can carry key-in-body auth (nonstandard endpoints), so a
+// raw wire capture would sink a plaintext credential into the debug ring. The runner scrubs the known secret
+// literals (the apiKey + any secret-valued header) out of the CAPTURED body by value — while the body actually
+// SENT to the endpoint keeps the plaintext (the endpoint needs it). Credential-leak-by-value class.
+describe("createCustomByoBackend — captured wire scrubs credential literals (F4)", () => {
+  const REDACTED = "«redacted»";
+  const HEADER_SECRET = "hdr-secret-abcdef123456";
+
+  test("an includeBody-embedded apiKey is REDACTED in the capture but PLAINTEXT on the sent body", async () => {
+    let sentBody: Record<string, unknown> = {};
+    vi.stubGlobal("fetch", (_url: string | URL, init?: RequestInit): Response => {
+      sentBody = typeof init?.body === "string" ? (JSON.parse(init.body) as Record<string, unknown>) : {};
+      return sseResponse(['data: {"choices":[{"delta":{"content":"x"}}]}', "data: [DONE]"]);
+    });
+    const captured: Record<string, unknown>[] = [];
+    // The user pastes their key into the body (a real nonstandard-endpoint pattern) AND a secret-valued header.
+    const cred = makeCustomOpenAiCredential({
+      ...CRED_BASE,
+      apiKey: SECRET_KEY,
+      headers: { "x-team": "alpha", "x-api-key": HEADER_SECRET },
+      includeBody: { auth_token: SECRET_KEY, note: `bearer ${HEADER_SECRET}` },
+    });
+    await runTurnWith({ ...DEPS, captureWire: (e): void => void captured.push(e.body) }, makeRequest({ credential: cred }));
+
+    // The capture redacted BOTH secrets by value — nothing plaintext lands in the ring.
+    const wire = captured.at(0);
+    expect(wire?.["auth_token"]).toBe(REDACTED);
+    expect(JSON.stringify(wire)).not.toContain(SECRET_KEY);
+    expect(JSON.stringify(wire)).not.toContain(HEADER_SECRET);
+    // But the endpoint still receives the plaintext key-in-body (scrub is capture-only, never on the real send).
+    expect(sentBody["auth_token"]).toBe(SECRET_KEY);
+  });
+
+  test("a secret-free body round-trips unchanged (scrub is a no-op when no secrets are present)", async () => {
+    vi.stubGlobal("fetch", (): Response => sseResponse(['data: {"choices":[{"delta":{"content":"x"}}]}', "data: [DONE]"]));
+    const captured: Record<string, unknown>[] = [];
+    // Keyless endpoint, no secret headers → no secret literals to scrub.
+    const cred = makeCustomOpenAiCredential({ ...CRED_BASE, apiKey: null, headers: null, includeBody: { safety: "off" } });
+    await runTurnWith({ ...DEPS, captureWire: (e): void => void captured.push(e.body) }, makeRequest({ credential: cred }));
+    expect(captured.at(0)?.["safety"]).toBe("off");
+    expect(captured.at(0)?.["model"]).toBe("local-model");
   });
 });
 

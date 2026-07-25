@@ -148,6 +148,35 @@ describe("runResponsesTurn — wire shaping", () => {
     expect(captured.body?.["text"]).toBeUndefined();
   });
 
+  // F1 TRUE-WIRE + D41 on the responses arm: captureWire records the SDK-outbound-transformed body (snake_case
+  // literal wire), and a non-empty customParameters blob is dropped loudly. Reaches `ResponsesRequest$outboundSchema`
+  // through the runner (no direct `@openrouter/sdk` test-root import); fails loudly on an SDK export rename.
+  test("captureWire records the TRUE snake_case wire (maxOutputTokens→max_output_tokens); customParameters dropped loudly (F1/D41)", async () => {
+    const { client } = streamingClient(OK_EVENTS);
+    const wires: Record<string, unknown>[] = [];
+    const result = await runResponsesTurn(
+      client,
+      makeRequest({
+        params: { effort: "high", maxOutputTokens: 128 },
+        customParameters: { model: "evil/override", foo: "bar" },
+      }),
+      { ...DEPS, captureWire: (e): void => void wires.push(e.body) },
+    );
+    const wire = wires.at(0);
+    expect(wire?.["max_output_tokens"]).toBe(128);
+    expect(wire?.["maxOutputTokens"]).toBeUndefined();
+    // customParameters never reached the responses wire (owned model intact; the unknown key stripped).
+    expect(wire?.["model"]).toBe(OPENAI_MODEL);
+    expect(wire?.["foo"]).toBeUndefined();
+    // Dropped-and-loud (D41 no-silent-degrade).
+    expect(result.events.filter((e) => e.kind === "warning")).toContainEqual({
+      kind: "warning",
+      at: FIXED_NOW,
+      code: "custom_parameters_ignored",
+      message: "customParameters ignored on OpenRouter (BYOK/custom-byo only)",
+    });
+  });
+
   test("parallelToolCalls + fallback models[] ride the responses wire (mirrors chat-completions)", async () => {
     const tools = [{ name: "get_weather", description: "weather", parameters: { type: "object" } }];
     const { client, captured } = streamingClient(OK_EVENTS);

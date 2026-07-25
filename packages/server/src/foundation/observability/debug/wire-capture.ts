@@ -9,11 +9,20 @@
 //   • Read HOST-ONLY at /api/_debug/wire/captures (the debug-token / admin-cookie gate), read-only, no table.
 //
 // PROVIDER-NATIVE BODIES DIFFER BY BACKEND BY DESIGN (the api axis — retro-workboard "per-provider specials"
-// discipline): the stateless openai-compat path posts a literal `/v1/chat/completions` JSON body; the
-// agent-sdk path NEVER builds the Anthropic `/v1/messages` body itself — the bundled SDK subprocess does, so
-// the faithful "final bytes WE send" there is the SDK QUERY INPUT (prompt + systemPrompt + resolved options).
-// We capture whatever each backend actually sends; we do NOT normalize (a fabricated Anthropic body would be
-// a lie). `body` is therefore an opaque JSON object whose shape is the backend's own wire vocabulary.
+// discipline), and so does CAPTURE FIDELITY. Three levels, each the most honest "final bytes WE send" that
+// backend can offer:
+//   • LITERAL fetch body (vLLM + custom-byo) — the exact JSON object handed to `fetch`, byte-for-byte the wire.
+//     (custom-byo additionally SCRUBS known credential literals by value first: `includeBody` can carry
+//     key-in-body auth, and the ring must not sink a secret — see the custom-byo runner.)
+//   • SDK-OUTBOUND-SCHEMA-TRANSFORMED true wire (OpenRouter) — the runner hands the SDK a camelCase object,
+//     then the SDK's own outbound zod schema renames camelCase→snake_case and strips unknown keys BEFORE the
+//     real HTTP send; the runner re-parses the body through that same `$outboundSchema` at the capture site so
+//     the recorded bytes ARE the literal wire, not the pre-serialize SDK input.
+//   • SDK QUERY INPUT / honest exception (agent-sdk) — the bundled SDK subprocess builds the Anthropic
+//     `/v1/messages` body itself, so there is no observable HTTP body here; the faithful capture is the SDK
+//     QUERY INPUT (prompt + systemPrompt + resolved options), never a fabricated Anthropic body (that'd be a lie).
+// We capture whatever each backend actually sends; we do NOT normalize across backends. `body` is therefore an
+// opaque JSON object whose shape is the backend's own wire vocabulary.
 //
 // The recorder RING is a module singleton (like `logRing`/the trace ring), but WRITES are gated: the sink the
 // backends receive is `recordWireCapture`, and compose only wires it when capture is enabled — so the ring

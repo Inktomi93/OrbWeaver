@@ -102,8 +102,9 @@ export interface TurnRequest {
   /** The SHAPE-shaped history (egocentric-scoped, spliced, squashed, name-stamped). */
   readonly history: readonly TurnMessage[];
   readonly intent: UserIntent;
-  /** The preset's provider-passthrough blob (PD-148) — folded onto the wire request body UNDER the runner's
-   *  owned fields (the preset-hijack firewall). Absent when the preset carries none ⇒ byte-identical request. */
+  /** The preset's BYOK provider-passthrough blob (PD-148) — applied ONLY by the custom-byo backend (folded onto
+   *  its wire body, preset-wins). It does NOT reach the OpenRouter wire (OR's knobs are the modeled sampling
+   *  surface; a non-empty blob on OR is dropped-and-loud). Absent when the preset carries none. */
   readonly customParameters?: CustomParameters | undefined;
   readonly kind: TurnKind;
   /** The owner-consent value the infra credential firewall re-verifies, already enforced by the engine's

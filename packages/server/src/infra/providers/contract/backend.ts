@@ -79,10 +79,13 @@ export interface ProviderBackend {
  * injected (ExtractQuiet-style), threaded through each backend's own factory deps — NEVER a module global,
  * so a test that doesn't wire it gets zero writes. Absent ⇒ the send boundary is a plain send (no capture).
  *
- * `body` is the backend's OWN wire vocabulary (openai-compat JSON body | the agent-sdk query input) — the
- * caller does NOT normalize (the api axis: Anthropic vs OpenAI wire differ BY DESIGN). The sink is defined
- * here (the sealed-backend contract home) so the two send boundaries share ONE shape; foundation owns the
- * ring the compose-wired impl writes to.
+ * `body` is the backend's OWN TRUE wire vocabulary — the caller does NOT normalize across backends (the api
+ * axis: Anthropic vs OpenAI wire differ BY DESIGN). Fidelity is per-backend: vLLM + custom-byo pass the literal
+ * `fetch` body (custom-byo scrubs credential literals by value first — `includeBody` can carry key-in-body
+ * auth); OpenRouter re-parses the body through the SDK's own `$outboundSchema` at the capture site so the
+ * recorded bytes are the snake_case literal wire, not the pre-serialize SDK input; agent-sdk has no observable
+ * HTTP body (the SDK subprocess builds it), so its `body` is the SDK QUERY INPUT. The sink is defined here (the
+ * sealed-backend contract home) so the two send boundaries share ONE shape; foundation owns the ring.
  */
 export type WireCaptureSink = (entry: {
   readonly chatId: string | undefined;
