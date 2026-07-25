@@ -14,6 +14,63 @@ synthetic "Group" character spoke — `round.ts` was supposed to yield the GM *a
 program keeps finding (5 half-shipped features tonight), and it is why "drive it live, then pin it" is the
 posture rather than paranoia. Judge every finding against that frame.
 
+## ═══ ▶ RESUME HERE (2026-07-25, pre-compaction) ═══
+**TREE: CLEAN. Everything committed.** HEAD = `4887a75b`. Tonight's chain: `4c734060` → `20ac4154` →
+`0d26921a` → `073c39b9` → `abec580d` → `f845607a` → `9de029ef` → `5ca8cc53` (the 126-file wave) →
+`9cff7257` → `4887a75b`. Whole-tree `pnpm check` PASS · full battery green (CT 1317 pass / 0 fail / 1 flaky).
+**OBSERVABILITY HARNESS says the wave landed clean** (`/api/_debug/*` on :8788): `db/integrity` →
+`{ok:true, foreignKeyViolations:[], integrityCheck:["ok"]}` · `errors` → `[]` · `db/stats` → **0 audit
+failures**. Real evidence for the squashed migration + default flip + crash fix, not an assertion.
+**USE THIS HARNESS AS A STANDING STEP** — see [[observability-harness-verify-landings]].
+**⚠️ THE ONE THING IN FLIGHT THAT DIED: the side-eye GROUP-CHAT FRONT-END REVIEW (task #31).** The agent was
+killed when the process exited; **its work is LOST, nothing landed, re-dispatch from scratch.** Also note
+`claude-in-chrome` MCP disconnected and `chrome-devtools` was reconnecting — confirm a browser tool is
+actually available before re-dispatching, or the replacement will fail the same way.
+**RE-DISPATCH KIT (everything it needs):**
+· Stack: `bash scripts/dev/stack.sh status` (was up: server :8788, vite :5173, single-user auto-authed,
+  vLLM live on GPU1 so turns are FREE — take them freely).
+· **Seeded fixture: chat `chat_01kycthyz9e4e88kqxeqpd0pn2`, title "Group UX review — 3 cast"** — JFC + Mara +
+  Niko, `output:per-speaker`, `policy:list`, `speakerTags:true`, 3 greetings + a user turn + a real
+  multi-speaker round. Verified via `inspectChatState`: 4 participants / 6 messages / 19 events.
+  (DB is DISPOSABLE — seed more freely.)
+· Review targets, ranked: ① the ROOM (multi-speaker attribution legibility with 3 replying, avatar/name/
+  spacing, does a 3-reply round read as conversation or a wall; streaming reflow BETWEEN speakers) ② the
+  4-tab context panel (Members · Overrides · Group · Injections + Preview) incl. **3 surfaces NEVER SEEN**:
+  the host-only history-visibility menu item, the **"Limited history" badge**, and the **slash-command
+  strip** (type `/`) ③ cast bar + add/**remove** member flow ④ multi-tab GRACEFULNESS (correctness is
+  already proven — the open question is jump/flash/scroll-loss in the passive tab) ⑤ responsive + dark +
+  keyboard-only a11y.
+· **Cross-check UI against server truth** via `/api/_debug/db/chat/:id` (`messages[]` count AND per-row
+  `characterId` vs what the room renders; `participants[]` vs the Members panel), poll `/api/_debug/errors`
+  after every novel/destructive interaction, re-run `/api/_debug/db/integrity` at the end.
+· Judge with computed styles (`inspect`) for colour/contrast/spacing — screenshots lie about both. Classify
+  **BROKEN vs UGLY vs FINE**; a facelift is planned, so pure taste notes rank below defects.
+· ❌ **NOT a bug — do not re-flag**: `{{char}}` / `{{user}}` inside STORED greetings is standard character-card
+  practice and the display path renders them correctly (observed live: Mara's greeting rendered `{{user}}` →
+  "You"). I wrongly flagged this once already.
+**AFTER THE REVIEW:** fix the BROKEN findings, keep UGLY as a separate list for the facelift.
+**THEN:** the ranked remainder further down (d-citation-integrity gate · F2 host⇒floor-0 · brand
+`HistoryFloorSeq` · worldInfoActivated display · the Stop-button-not-rendered-during-hung-arbitration fix ·
+#18's deferred CTs · the `contracts/chat/index.ts` 9-seam split). **Promotion to main still ARMED, un-executed.**
+
+## ═══ 🎯 CURRENT FOCUS (owner, 2026-07-25): GROUP CHAT — FLAWLESS, INCLUDING THE FRONT END ═══
+*"we can leave it for now, i'd like to finish getting everything else flawless with group chat and multi-tab
+multi-human and group chat stuff and ensuring the group chat FRONT END looks and works well."*
+So: **agent-role / two-tool-loops / agent-runner work is PARKED** (see the pain-point triage below — the
+`runAgentTurn` role + `agent-runner.ts` MCP tool-loop are unreachable but deliberately KEPT; 180 lines of
+working MCP plumbing aimed at the automation/plugin lane, cheap to keep, expensive to rebuild).
+**GROUP CHAT STATUS: mechanics PROVEN, appearance UNREVIEWED.** Done: 16 e2e (group-chat · live-group-modes ·
+multi-tab-room-sync) · live multi-human bus proof (3 identities, isolated server, negative half clean) · all
+modes verified live · remove-character wired · the cross-tab `getGroupConfig` invalidation bug found+fixed.
+**NEVER LOOKED AT** — several surfaces landed sight-unseen: the per-seat history-visibility menu item + the
+"Limited history" badge · the slash-command strip · the background/video layer (the BG lane SKIPPED its live
+drive to avoid HMR contention with concurrent lanes). side-eye review DISPATCHED (task #31) against a seeded
+3-cast fixture ("Group UX review — 3 cast", per-speaker + list + speakerTags, greetings + a real multi-speaker
+round). Watch-list handed to it: multi-speaker attribution legibility, **whether `{{char}}` in a stored
+greeting RENDERS or shows raw**, streaming reflow across speakers, the 4-tab panel at narrow widths, slash-strip
+caret behaviour, and multi-tab update GRACEFULNESS (not just correctness — does the passive tab jump/flash/lose
+scroll).
+
 ## ═══ THE REAL PAIN-POINT INVENTORY: `docs/architecture/Agent-And-Composition-Pain-Points.md` ═══
 Owner-pointed (2026-07-25): *"the pain points are actually here… mind you this is from a time where we HAD
 these features, so not all may be applicable."* Dated 2026-07-22, main-era, evidence-tagged
