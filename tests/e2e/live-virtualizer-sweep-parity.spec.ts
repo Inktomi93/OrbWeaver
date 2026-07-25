@@ -12,8 +12,8 @@
 // NOT the routine-battery default.
 
 import { expect, test } from "@playwright/test";
-import { openNewestChat, waitForStreamOpen } from "./support/chat-room";
-import { listCanon, listCharacters, sendTurn, startChat } from "./support/trpc";
+import { waitForAppReady, waitForStreamOpen } from "./support/chat-room";
+import { listCanon, listCharacters, sendTurn, startChat, trpcMutation } from "./support/trpc";
 import { assertVirtualListMatchesCanon, collectVirtualRows } from "./support/virtualizer";
 
 const TURN_COUNT = 12;
@@ -34,11 +34,24 @@ test("collectVirtualRows sweeps a transcript longer than the viewport and matche
     await sendTurn(chatId, `Reply with exactly: sweep-probe-${i}`);
   }
 
-  await openNewestChat(page);
-  await waitForStreamOpen(page);
-
   const canon = await listCanon(chatId);
   expect(canon.length).toBeGreaterThan(TURN_COUNT * 2); // greeting + TURN_COUNT user + TURN_COUNT assistant rows
+
+  // Title THIS chat uniquely and open it BY TITLE — NOT "the newest row". `openNewestChat` (desc updatedAt) is
+  // unsafe here: a PRIOR spec's fire-and-forget compaction hook / late summarizer write can bump ITS chat's
+  // updatedAt AFTER our seeding finishes, PERSISTENTLY floating a foreign chat to the top of the Chats list —
+  // the sweep would then faithfully collect the WRONG chat. An authored unique title makes the target row
+  // addressable regardless of updatedAt ordering.
+  const chatTitle = `sweep-parity-${Date.now()}`;
+  await trpcMutation("chat.updateTitle", { chatId, title: chatTitle });
+
+  await page.goto("/");
+  await waitForAppReady(page);
+  const targetRow = page.getByRole("list", { name: "Chats" }).getByRole("button", { name: new RegExp(chatTitle, "u") });
+  await expect(targetRow).toBeVisible({ timeout: 15_000 });
+  await targetRow.click();
+  await expect(page.getByRole("textbox", { name: "Message" })).toBeVisible({ timeout: 15_000 });
+  await waitForStreamOpen(page);
 
   // Prove the windowed DOM genuinely does NOT show every row at rest (the sweep is load-bearing, not a
   // no-op on an already-fully-mounted list).
