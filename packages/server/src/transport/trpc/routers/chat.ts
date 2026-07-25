@@ -41,11 +41,20 @@
 
 import { ASSET_LIST_LIMIT_MAX, assetIdSchema } from "@orb/contracts/assets";
 import type { ChatBusEvent } from "@orb/contracts/chat";
-import { chatInjectionInputSchema, groupConfigSchema, roomOverridesSchema, seatKnobsSchema } from "@orb/contracts/chat";
+import {
+  chatInjectionInputSchema,
+  groupConfigSchema,
+  guidedSteerSchema,
+  messageContentBlockSchema,
+  openingPolicySchema,
+  roomOverridesSchema,
+  seatKnobsSchema,
+} from "@orb/contracts/chat";
 import { chatDocumentVisibilitySchema } from "@orb/contracts/databank";
 import type { Principal } from "@orb/contracts/identity";
 
 import { generatePictureRequestSchema } from "@orb/contracts/imagery";
+import { userIntentSchema } from "@orb/contracts/preset";
 import { themeBackgroundSchema } from "@orb/contracts/theme";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, ChatInjectionId, ChatParticipantId, MessageId, MessageVariantId, PersonaId } from "@orb/kit/ids";
@@ -64,7 +73,7 @@ const startChatSchema = z.object({
   characterIds: z.array(brandedId<CharacterId>()),
   anchorPersonaId: brandedId<PersonaId>().nullish(),
   title: z.string().nullish(),
-  opening: z.any().optional(),
+  opening: openingPolicySchema.optional(),
   // THE DRAFT CARRY (StartChatParams — a new chat is fully editable pre-send; the first send hands its
   // draft-config state to this ONE creation entry). All optional/sparse: absent ⇒ today's plain new chat.
   seedGreetings: z.record(brandedId<CharacterId>(), z.string()).optional(),
@@ -82,9 +91,9 @@ const startChatSchema = z.object({
   injections: z.array(chatInjectionInputSchema).optional(),
   // The composer wand's degenerate "Guide the opening" (a draft chat has no committed turn to steer
   // yet — its guided input rides the founding `generate` opening instead; ignored by every other
-  // `opening` policy). Same `z.any()` shape as `send`/`swipe`'s `guided` below (no dedicated
-  // `GuidedSteer` wire schema exists yet — the domain type is the validated shape server-side).
-  guided: z.any().optional(),
+  // `opening` policy). The DERIVED `guidedSteerSchema` (F6) — the transport trust boundary; a garbage
+  // action/non-string input is refused here as BAD_REQUEST instead of 500ing the domain resolver.
+  guided: guidedSteerSchema.optional(),
 });
 
 const listMessagesSchema = z.object({
@@ -107,19 +116,19 @@ const sendSchema = z.object({
   chatId: brandedId<ChatId>(),
   content: z.string(),
   personaId: brandedId<PersonaId>().nullish(),
-  blocks: z.array(z.any()).optional(),
+  blocks: z.array(messageContentBlockSchema).optional(),
   // #67 — inline images the user attached (asset ids). The send verb TRUST-BOUNDARY-checks each is the
   // actor's own asset (rejecting a foreign/gone id), then persists a `message_assets` row + a body ref per id.
   attachmentAssetIds: z.array(assetIdSchema).max(ASSET_LIST_LIMIT_MAX).optional(),
-  intent: z.any().optional(),
-  guided: z.any().optional(),
+  intent: userIntentSchema.optional(),
+  guided: guidedSteerSchema.optional(),
 });
 
 const swipeSchema = z.object({
   chatId: brandedId<ChatId>(),
   messageId: brandedId<MessageId>(),
-  intent: z.any().optional(),
-  guided: z.any().optional(),
+  intent: userIntentSchema.optional(),
+  guided: guidedSteerSchema.optional(),
 });
 
 // The three remaining guided-generations verbs (chat-surface-lane task #27 — the composer WAND):
@@ -133,22 +142,22 @@ const swipeSchema = z.object({
 const continueTurnSchema = z.object({
   chatId: brandedId<ChatId>(),
   messageId: brandedId<MessageId>(),
-  intent: z.any().optional(),
-  guided: z.any().optional(),
+  intent: userIntentSchema.optional(),
+  guided: guidedSteerSchema.optional(),
 });
 
 const impersonateSchema = z.object({
   chatId: brandedId<ChatId>(),
   personaId: brandedId<PersonaId>().nullish(),
-  intent: z.any().optional(),
-  guided: z.any().optional(),
+  intent: userIntentSchema.optional(),
+  guided: guidedSteerSchema.optional(),
 });
 
 const generateSchema = z.object({
   chatId: brandedId<ChatId>(),
   speakerCharacterId: brandedId<CharacterId>().nullish(),
-  intent: z.any().optional(),
-  guided: z.any().optional(),
+  intent: userIntentSchema.optional(),
+  guided: guidedSteerSchema.optional(),
 });
 
 // The step-BACK verb (task #19 — swipe-strip's left chevron): `ChatService.selectVariant`
@@ -245,12 +254,11 @@ const setChatBackgroundSchema = z.object({
 });
 
 // speakerCharacterId/guided mirror `PreviewAssemblyParams` (a hypothetical per-speaker turn); `guided`
-// has no dedicated wire schema yet (the domain type is the validated shape — same `z.any()` shape as
-// `send`/`generate` above).
+// rides the DERIVED `guidedSteerSchema` (F6 — the same wire boundary as `send`/`generate` above).
 const previewAssemblySchema = z.object({
   chatId: brandedId<ChatId>(),
   speakerCharacterId: brandedId<CharacterId>().nullish(),
-  guided: z.any().optional(),
+  guided: guidedSteerSchema.optional(),
 });
 
 // `getShapeTrace` (PD-132) — the content-free SHAPE trace for the next-turn shaping of the current canon.
@@ -329,7 +337,7 @@ const setChatAnchorPersonaSchema = z.object({
 // cluster were in; swept via grep before this addition, no call site referenced any of the three). Thin
 // pass-throughs; authz lives INSIDE each verb (`requireHost`, the sibling-cluster shape). `forceCharacterTurn`
 // mirrors `generate` minus the persona/speaker knobs (chatId + the target characterId + the optional
-// intent/guided steer — same `z.any()` shape as `send`/`generate` above, no dedicated wire schema yet).
+// intent/guided steer — the DERIVED `userIntentSchema`/`guidedSteerSchema` wire boundary, as `send`/`generate`).
 // NOTE (#29): a MUTED member is still force-summonable — mute is passive arbitration exclusion, not a host-
 // override block (the verb's presence-only target check, verbs/turn.ts).
 // Add a character to an existing chat's roster (J7 add-member — the cast-bar "+"). Host-only INSIDE the
@@ -373,8 +381,8 @@ const getGroupConfigSchema = z.object({ chatId: brandedId<ChatId>() });
 const forceCharacterTurnSchema = z.object({
   chatId: brandedId<ChatId>(),
   characterId: brandedId<CharacterId>(),
-  intent: z.any().optional(),
-  guided: z.any().optional(),
+  intent: userIntentSchema.optional(),
+  guided: guidedSteerSchema.optional(),
 });
 
 export const chatRouter = t.router({

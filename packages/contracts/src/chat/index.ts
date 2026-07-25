@@ -38,6 +38,7 @@ import type { ChatDocumentVisibility } from "#databank";
 import type { ParticipantRole } from "#identity";
 import { PARTICIPANT_ROLES } from "#identity";
 import type { GenerationType, PromptConfig, UserIntent } from "#preset";
+import { GUIDED_IMPERSONATE_PERSONS, guidedActionKindSchema } from "#preset";
 import type { RegexScript } from "#regex";
 import type { ThemeBackground, ThemeOverride } from "#theme";
 import type { WiBusEvent, WorldInfoScope } from "#world-info";
@@ -1046,6 +1047,30 @@ export const DEFAULT_GROUP_CONFIG: GroupConfig = {
  *  the server resolves absent → greet-all-vs-first-message by roster size. */
 export const openingPolicySchema = z.enum(["greet-all", "generate", "none", "first-message"]);
 export type OpeningPolicy = z.infer<typeof openingPolicySchema>;
+
+// ── The guided-steer wire contract (F6 — the transport trust boundary for the composer wand) ──
+// The one-turn typed steer every generating chat verb accepts. DERIVED, never re-spelled: `action` from
+// `guidedActionKindSchema` (#preset), `person` from `GUIDED_IMPERSONATE_PERSONS` (#preset), the inject
+// placement role from `messageRoleSchema`. Before this schema the six turn verbs rode `z.any()` and the
+// domain assumed the shape — a garbage `action` dereferenced `undefined.prompt` and a non-string `input`
+// hit `.trim()`, so any authed participant could 500 the turn with a malformed body. This schema IS the
+// trust boundary; the domain re-exports this exact `GuidedSteer` type (`domain/chat/contract/params.ts`)
+// — the pre-F6 local re-spell died with `z.any()`, so there is one shape and no drift to guard.
+/** The steer text cap — the house user-prose bound ({@link OVERRIDE_FIELD_MAX}); a steer is a short one-turn
+ *  nudge, so this ceiling is only a wire-abuse floor, never a real-usage limit. */
+export const GUIDED_STEER_INPUT_MAX = OVERRIDE_FIELD_MAX;
+export const guidedSteerSchema = z
+  .object({
+    action: guidedActionKindSchema,
+    input: z.string().max(GUIDED_STEER_INPUT_MAX).optional(),
+    placement: z
+      .discriminatedUnion("kind", [z.object({ kind: z.literal("system") }), z.object({ kind: z.literal("inject"), role: messageRoleSchema })])
+      .optional(),
+    /** The `{{person}}` word for impersonate's 1st/2nd/3rd-person templates; ignored by other actions. */
+    person: z.enum(GUIDED_IMPERSONATE_PERSONS).optional(),
+  })
+  .strict();
+export type GuidedSteer = z.infer<typeof guidedSteerSchema>;
 
 /** The parsed `chats.metadata` room-behavior blob (D16). No single schema spans it — the column composes
  *  independently fault-isolated sub-blobs, each optional (absent ⇒ the consumer applies its canonical
