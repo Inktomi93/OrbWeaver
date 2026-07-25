@@ -122,6 +122,10 @@ export interface ChatScenarioOptions {
   readonly chatBehavior?: ChatBehaviorInputs;
   /** Capture each wire `TurnRequest` before the tape replays (feeds `assertStaticPrefixStable`). */
   readonly onRequest?: (req: TurnRequest) => void;
+  /** A REAL bus emit to run BESIDE the in-memory `events` recorder (e.g. `createChatBus(ctx).emit`) — for the
+   *  tests that need the durable `chat_events` write itself, not just the event stream (the delete-mid-turn FK
+   *  race). Awaited after the recorder push; omitted ⇒ recorder only. */
+  readonly emit?: (event: ChatBusEvent) => Promise<unknown>;
   /** Extra `ChatContext` overrides merged over the defaults (an escape hatch for a seam the driver doesn't
    *  surface — `readPresence`, `resolveSeatDeco`, …). Applied AFTER the driver's own wiring. */
   readonly ctx?: Partial<ChatContext>;
@@ -232,9 +236,9 @@ async function buildChatScenario(script: Tape, options: ChatScenarioOptions): Pr
     ...options.ctx,
   });
 
-  const emit = (event: ChatBusEvent): Promise<void> => {
+  const emit = async (event: ChatBusEvent): Promise<void> => {
     events.push(event);
-    return Promise.resolve();
+    await options.emit?.(event);
   };
   const engine = createTurnEngine(ctx, {
     emit,

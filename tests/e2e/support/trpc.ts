@@ -311,3 +311,145 @@ export async function getActivePreset(): Promise<PresetRow | undefined> {
 export function updatePresetConfig(id: string, config: Record<string, unknown>): Promise<unknown> {
   return trpcMutation("preset.update", { id, config });
 }
+
+// ── GROUP-CHAT support (group-chat.spec.ts · live-group-modes.spec.ts · multi-tab-room-sync.spec.ts).
+// The group surface is roster + `chats.metadata.group` + arbitration, and EVERY assertion in those specs
+// reads server truth through these — the DOM is only ever the second witness. Shapes are declared locally
+// (the e2e support tree stays import-free of the package trees — the `CanonMessage` posture); the
+// string-union axes (`output`/`policy`/`memberCardVisibility`/`kind`) stay `string`: the
+// no-inline-union-redecl gate bans re-spelling the homed tuples here, and the specs compare to literals. ──
+
+/** One PRESENT roster seat (a subset of the `ParticipantView` the `chat.getChat` detail carries). The
+ *  `id` is the `chat_participants` row id — the key `chat.setSeatKnobs` writes by (D80), NOT the
+ *  characterId. */
+export interface RosterSeat {
+  readonly id: string;
+  readonly kind: string;
+  readonly characterId: string | null;
+  readonly displayName: string;
+  readonly disabled: boolean;
+  readonly talkativeness: number;
+  readonly leftSeq: number | null;
+}
+
+/** The effective `GroupConfig` as `chat.getGroupConfig` returns it — always fully defaulted server-side
+ *  (the verb parses the lenient input before persisting), so every knob is present. `cardScope` is the
+ *  exception: the `narrator` arm OMITS it (the narrator ⇒ merged constraint is unrepresentable). */
+export interface GroupConfigView {
+  readonly output: string;
+  readonly policy: string;
+  readonly cardScope?: string;
+  readonly speakerTags: boolean;
+  readonly groupNudge: boolean;
+  readonly autoMode: boolean;
+  readonly autoModeMaxTurns: number;
+  readonly autoModeDelayMs: number;
+  readonly allowSelfResponses: boolean;
+  readonly memberCardVisibility: string;
+}
+
+/** The `chat.startChat` / `chat.getChat` room detail (the fields the group specs read). */
+interface ChatDetail {
+  readonly id: string;
+  readonly participants: readonly RosterSeat[];
+}
+
+interface StartedGroupChat {
+  readonly chat: ChatDetail;
+}
+
+/** Self-seed a committed chat with a KNOWN founding cast. `opening: "none"` seeds NO greeting rows, so the
+ *  canon starts empty and every later assertion counts only rows this spec caused (the shared-DB isolation
+ *  rule: never `listChats()[0]`, and never inherit a greeting the arbitration would read as a last speaker).
+ *  Returns the room detail so the caller keeps the seat ids `setSeatKnobs` needs. */
+export async function startGroupChat(args: {
+  readonly characterIds: readonly string[];
+  readonly title: string;
+  readonly groupConfig?: Record<string, unknown>;
+}): Promise<ChatDetail> {
+  const started = await trpcMutation<StartedGroupChat>("chat.startChat", {
+    characterIds: args.characterIds,
+    title: args.title,
+    opening: "none",
+    ...(args.groupConfig === undefined ? {} : { groupConfig: args.groupConfig }),
+  });
+  return started.chat;
+}
+
+/** The room detail (`chat.getChat`) — the roster ground truth after a membership mutation. */
+export function getChatDetail(chatId: string): Promise<ChatDetail> {
+  return trpcQuery<ChatDetail>("chat.getChat", { chatId });
+}
+
+/** The PRESENT character seats of a room, in roster (join) order — the order `list`/`pooled` arbitration
+ *  walks. A removed seat is absent (the roster read is present-only, `leftSeq IS NULL`). */
+export async function characterSeats(chatId: string): Promise<readonly RosterSeat[]> {
+  return (await getChatDetail(chatId)).participants.filter((p) => p.kind === "character" && p.characterId !== null);
+}
+
+/** The effective group config (`chat.getGroupConfig`) — the "is the setting real?" read. */
+export function getGroupConfig(chatId: string): Promise<GroupConfigView> {
+  return trpcQuery<GroupConfigView>("chat.getGroupConfig", { chatId });
+}
+
+/** Seat one more character (`chat.addCharacterToChat`) — idempotent on an already-present character. */
+export function addCharacterToChat(chatId: string, characterId: string): Promise<RosterSeat> {
+  return trpcMutation<RosterSeat>("chat.addCharacterToChat", { chatId, characterId });
+}
+
+/** Patch ONE AI seat's arbitration knobs (`chat.setSeatKnobs`, D80) — keyed by the PARTICIPANT row id. */
+export function setSeatKnobs(
+  chatId: string,
+  participantId: string,
+  patch: { readonly disabled?: boolean; readonly talkativeness?: number },
+): Promise<RosterSeat> {
+  return trpcMutation<RosterSeat>("chat.setSeatKnobs", { chatId, participantId, patch });
+}
+
+/** Delete a spec-owned chat (`chat.delete`) — the cleanup half of `startGroupChat`. */
+export function deleteChat(chatId: string): Promise<unknown> {
+  return trpcMutation("chat.delete", { chatId });
+}
+
+/** The per-send output ceiling every @live group turn rides. Small on purpose: the group specs assert WHO
+ *  speaks and HOW MANY messages land, never prose — so each turn buys the cheapest tokens that still
+ *  produce a committed row. */
+const GROUP_TURN_MAX_OUTPUT_TOKENS = 32;
+
+/** Drive one real turn with a small `maxOutputTokens` ceiling riding the per-send `intent` (which overrides
+ *  the preset's params in the fold). Distinct from `sendTurn` (the context-ceiling harness) so neither
+ *  spec's knob leaks into the other. Resolves after the WHOLE round commits — including every extra speaker
+ *  a multi-speaker round drove and any auto-mode chain. */
+export function sendGroupTurn(chatId: string, content: string): Promise<unknown> {
+  return trpcMutation("chat.send", { chatId, content, intent: { maxOutputTokens: GROUP_TURN_MAX_OUTPUT_TOKENS } });
+}
+
+/** Host-summon one present character to speak next (`chat.forceCharacterTurn`) — the hard override that
+ *  bypasses the policy entirely (and still reaches a MUTED seat: mute is passive arbitration exclusion). */
+export function forceCharacterTurn(chatId: string, characterId: string): Promise<unknown> {
+  return trpcMutation("chat.forceCharacterTurn", { chatId, characterId, intent: { maxOutputTokens: GROUP_TURN_MAX_OUTPUT_TOKENS } });
+}
+
+/** Regenerate ONE message slot (`chat.swipe`) — the per-speaker "individually swipeable" prover. */
+export function swipeMessage(chatId: string, messageId: string): Promise<unknown> {
+  return trpcMutation("chat.swipe", { chatId, messageId, intent: { maxOutputTokens: GROUP_TURN_MAX_OUTPUT_TOKENS } });
+}
+
+/** How many variants one message slot carries (`chat.listMessageVariants`) — a swiped slot grows, its
+ *  round-mates do not. */
+export async function countMessageVariants(chatId: string, messageId: string): Promise<number> {
+  return (await trpcQuery<readonly unknown[]>("chat.listMessageVariants", { chatId, messageId })).length;
+}
+
+/** The chat's ASSISTANT canon rows in seq order — the arbitration transcript every mode assertion reads
+ *  ("who spoke, in what order, how many messages"). */
+export async function assistantTurns(chatId: string): Promise<readonly CanonMessage[]> {
+  return (await listCanon(chatId)).filter((m) => m.role === "assistant");
+}
+
+/** The `characterId` of every assistant row in seq order — the speaker sequence a policy assertion
+ *  compares against roster order. A narrator round contributes the SYNTHETIC group character's id (never a
+ *  roster member), which is exactly what distinguishes it. */
+export async function speakerSequence(chatId: string): Promise<readonly (string | null)[]> {
+  return (await assistantTurns(chatId)).map((m) => m.characterId);
+}

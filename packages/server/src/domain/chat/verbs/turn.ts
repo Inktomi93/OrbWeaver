@@ -383,12 +383,27 @@ async function persistUserMessage(
   return view;
 }
 
+/** What {@link arbitrate} resolved: the name-mapped speakers, plus whether the turn was CANCELLED mid-
+ *  arbitration (the side-LLM call saw the turn's signal fire). File-local — the callers pass it straight to
+ *  their own outcome, nothing outside this verb reads it. `aborted:true` ⇒ `speakers: []`. */
+interface ArbitrationOutcome {
+  readonly speakers: readonly CastName[];
+  readonly aborted: boolean;
+}
+
 /** Arbitrates who speaks. An `@mention`/forced target hard-overrides any policy; `smart` (no forced) runs
- *  the side-LLM. Maps resolved ids back to their cast names. */
+ *  the side-LLM, and a side-LLM that threw / answered off-roster degrades to the deterministic `natural`
+ *  arbitration — VISIBLY (the `smart_arbitration_degraded` warning; D41 bans a silent degrade). Maps
+ *  resolved ids back to their cast names.
+ *
+ *  `aborted` is the OTHER outcome and never a degrade: the turn's signal fired during the side-LLM call, so
+ *  the round is cancelled — no warning (nothing degraded), no speakers, and the caller must stop rather than
+ *  fall back and generate anyway. Only the `smart` arm can report it; the deterministic arm is synchronous. */
 async function arbitrate(
   ctx: ChatContext,
   deps: TurnDeps,
   args: {
+    readonly chatId: ChatId;
     readonly group: GroupConfig;
     readonly candidates: readonly ArbiterCandidate[];
     readonly castNames: readonly CastName[];
@@ -396,19 +411,30 @@ async function arbitrate(
     readonly lastSpeaker: SpeakerRef | null;
     readonly recentHistory: string;
     readonly maxSpeakers?: number | undefined;
+    /** The turn's abort signal — threaded into the `smart` side-LLM call so a non-responsive director box
+     *  can't hang the turn. Absent on the paths that never reach the side-LLM. */
+    readonly signal?: AbortSignal | undefined;
   },
-): Promise<CastName[]> {
+): Promise<ArbitrationOutcome> {
   const forced = args.forcedIds ?? [];
   let refs: readonly SpeakerRef[];
   if (args.group.policy === "smart" && forced.length === 0) {
-    refs = await smartArbitrateVia({
+    const smart = await smartArbitrateVia({
       summarize: ctx.summarize,
       candidates: args.candidates,
       castNames: args.castNames,
       recentHistory: args.recentHistory,
       lastSpeaker: args.lastSpeaker,
       rng: deps.prng,
+      ...(args.signal !== undefined ? { signal: args.signal } : {}),
     });
+    if (smart.aborted) {
+      return { speakers: [], aborted: true };
+    }
+    if (smart.degraded) {
+      await deps.emit({ type: "warning", chatId: args.chatId, code: "smart_arbitration_degraded" });
+    }
+    refs = smart.speakers;
   } else {
     refs = selectSpeakersVia({
       candidates: args.candidates,
@@ -420,10 +446,11 @@ async function arbitrate(
     });
   }
   const byKey = new Map(args.castNames.map((c) => [speakerKey(c.ref), c] as const));
-  return refs.flatMap((ref) => {
+  const speakers = refs.flatMap((ref) => {
     const c = byKey.get(speakerKey(ref));
     return c !== undefined ? [c] : [];
   });
+  return { speakers, aborted: false };
 }
 
 /** Coerces a room config to `per-speaker` for a single forced character, so a narrator room still forces a
@@ -470,15 +497,19 @@ async function runChain(
     initialLastSpeaker: args.initialLastSpeaker,
     nextSpeaker: async (last) => {
       const facts = await canonFacts(ctx, args.base.chatId);
-      const speakers = await arbitrate(ctx, deps, {
+      const arbitration = await arbitrate(ctx, deps, {
+        chatId: args.base.chatId,
         group: args.group,
         candidates: args.room.candidates,
         castNames: args.room.castNames,
         lastSpeaker: args.group.allowSelfResponses ? null : last,
         recentHistory: facts.recentHistory,
         maxSpeakers: 1,
+        signal: args.signal,
       });
-      return speakers[0] ?? null;
+      // A cancelled arbitration yields no speaker, which stops the chain — `runAutoMode` reports it as
+      // `interrupt` (not `no-eligible`) because the signal it already holds is settled.
+      return arbitration.speakers[0] ?? null;
     },
     runTurn: async (speaker) =>
       await driveRoundVia({
@@ -517,14 +548,25 @@ async function runAiRound(
   },
 ): Promise<TurnOutcome> {
   const facts = await canonFacts(ctx, args.base.chatId);
-  const speakers = await arbitrate(ctx, deps, {
+  const arbitration = await arbitrate(ctx, deps, {
+    chatId: args.base.chatId,
     group: args.group,
     candidates: args.room.candidates,
     castNames: args.room.castNames,
     forcedIds: args.forcedIds,
     lastSpeaker: facts.lastSpeaker,
     recentHistory: facts.recentHistory,
+    signal: args.signal,
   });
+  // CANCELLED mid-arbitration: the caller stopped the turn while the `smart` side-LLM was deciding. End here
+  // — no narrator mint, no round, no generation on a turn nobody is waiting for. Nothing committed, so the
+  // outcome is the bare aborted shape ("user": the only pre-engine abort source is `activeTurns`, i.e. the
+  // caller's own Stop or the host's room-gone sweep — the heartbeat's "stale" lock abort lives INSIDE the
+  // engine and cannot fire before a turn starts).
+  if (arbitration.aborted) {
+    return { messages: [], aborted: true, abortReason: "user" };
+  }
+  const speakers = arbitration.speakers;
   const groupCharacterId =
     args.group.output === "narrator"
       ? (

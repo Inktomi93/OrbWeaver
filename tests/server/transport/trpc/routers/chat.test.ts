@@ -19,7 +19,9 @@ import { caller, makeContext, principal } from "../_support.ts";
 const MEMBER = castId<UserId>("user_member");
 const NON_MEMBER = castId<UserId>("user_non_member");
 const CHAT = castId<ChatId>("chat_1");
-const BOUNDS = { minSeq: 1, maxSeq: 3 };
+// `historyFloorSeq: 0` = the UNCLAMPED probe (a host / a `full` member / any born-here seat) — the arm every
+// pre-D16 assertion in this file was written against, so the clamp is provably invisible to it.
+const BOUNDS = { minSeq: 1, maxSeq: 3, historyFloorSeq: 0 };
 
 const event = (type: "chatUpdated" | "chatDeleted" = "chatUpdated"): ChatBusEvent => ({
   type,
@@ -135,7 +137,7 @@ describe("chat.streamMessages — synthesized attach/resume events (PD-134/PD-13
 
   test("PD-135: a cursor PREDATING the retained window yields `historyTruncated` after chatOpened, BEFORE the retained rows", async () => {
     // minSeq=5 ⇒ events 1..4 were dropped; resume cursor 1 predates the window (1 < 5 - 1) ⇒ truncated.
-    const chatEventBounds = vi.fn<ChatService["chatEventBounds"]>(async () => ({ minSeq: 5, maxSeq: 8 }));
+    const chatEventBounds = vi.fn<ChatService["chatEventBounds"]>(async () => ({ minSeq: 5, maxSeq: 8, historyFloorSeq: 0 }));
     const replayChatEvents = vi.fn<ChatService["replayChatEvents"]>(async () => [
       { seq: 5, event: event("chatDeleted") },
       { seq: 6, event: event() },
@@ -165,7 +167,7 @@ describe("chat.streamMessages — synthesized attach/resume events (PD-134/PD-13
 
   test("PD-135: a cursor INSIDE the retained window replays WITHOUT `historyTruncated`", async () => {
     // minSeq=1 ⇒ nothing dropped; resume cursor 3 is caught up within the window (3 < 1 - 1 is false).
-    const chatEventBounds = vi.fn<ChatService["chatEventBounds"]>(async () => ({ minSeq: 1, maxSeq: 6 }));
+    const chatEventBounds = vi.fn<ChatService["chatEventBounds"]>(async () => ({ minSeq: 1, maxSeq: 6, historyFloorSeq: 0 }));
     const replayChatEvents = vi.fn<ChatService["replayChatEvents"]>(async () => [{ seq: 4, event: event("chatDeleted") }]);
     const ctx = makeContext({
       auth: principal("user", { userId: MEMBER }),
@@ -187,7 +189,7 @@ describe("chat.streamMessages — synthesized attach/resume events (PD-134/PD-13
   test("PD-134 round-trip: the chatOpened synthetic does NOT corrupt the resume cursor — replay runs from the same lastEventId", async () => {
     // Even caught-up-at-window-floor (minSeq=1, cursor 0): resume replay uses the client cursor unchanged,
     // and the synthetic id equals that cursor (never a faked/advanced durable seq).
-    const chatEventBounds = vi.fn<ChatService["chatEventBounds"]>(async () => ({ minSeq: 1, maxSeq: 2 }));
+    const chatEventBounds = vi.fn<ChatService["chatEventBounds"]>(async () => ({ minSeq: 1, maxSeq: 2, historyFloorSeq: 0 }));
     const replayChatEvents = vi.fn<ChatService["replayChatEvents"]>(async ({ afterSeq }) => [{ seq: (afterSeq ?? 0) + 1, event: event() }]);
     const ctx = makeContext({
       auth: principal("user", { userId: MEMBER }),
@@ -252,6 +254,140 @@ const MESSAGE: MessageView = {
 // The empty producer fixture (Chat-Macro-Resolution.md §1) — this router test only proves the wire-through,
 // not the producer's own resolution (that's `persistence/macro-names.int.test.ts` + `read.int.test.ts`).
 const EMPTY_MACRO_NAMES: ChatMacroNameProducer = { characterNames: [], personaNames: [] };
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+// D16 join-history clamp — the LIVE half. The durable replay was clamped inside the domain
+// (`replayChatEvents` → `substrate/auth::isBelowHistoryFloor`) while this per-yield loop fanned the
+// in-process bus out UNFILTERED, so the two halves disagreed about the SAME durable row: a clamped member
+// who was CONNECTED received a post-join `messageEdited` carrying a PRE-join `MessageView` that the
+// identical row would have been denied on reconnect. These pin the TRANSPORT contract — the floor comes off
+// the member-gated probe, the verdict is the domain's, and a withheld row does not touch the cursor. The
+// floor→row resolution itself (a real `chat_participants` row → a real live yield) is pinned end-to-end in
+// the sibling `chat.int.test.ts`.
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+describe("chat.streamMessages — the D16 join-history clamp on the LIVE fan-out", () => {
+  const LiveChat = castId<ChatId>("chat_live_clamp");
+
+  /** A canon-mutation event carrying a `MessageView` at `seq` — the payload class the clamp decides on. A
+   *  POST-join edit of a PRE-join row rides a HIGH durable seq with a LOW view seq, which is exactly why the
+   *  verdict is content-keyed and not a cursor floor. */
+  const editedAt = (seq: number): ChatBusEvent => ({
+    type: "messageEdited",
+    chatId: LiveChat,
+    messageId: MESSAGE.id,
+    view: { ...MESSAGE, chatId: LiveChat, seq },
+  });
+
+  /** The subscription's own attach probe, stubbed at a given floor (`0` = unclamped). */
+  function streamAt(historyFloorSeq: number): ReturnType<typeof makeContext> {
+    const chatEventBounds = vi.fn<ChatService["chatEventBounds"]>(async () => ({ minSeq: 1, maxSeq: 20, historyFloorSeq }));
+    const replayChatEvents = vi.fn<ChatService["replayChatEvents"]>(async () => []);
+    return makeContext({
+      auth: principal("user", { userId: MEMBER }),
+      services: { chat: { replayChatEvents, chatEventBounds } },
+    });
+  }
+
+  test("a clamped member gets NO live view-carrying event for a PRE-join row — and the withheld row never advances the cursor", async () => {
+    // Floor 5: the member joined at canon head 5, so `messages.seq` 1-4 are not theirs to see.
+    const sub = await caller(streamAt(5)).chat.streamMessages({ chatId: LiveChat });
+    const iterator = sub[Symbol.asyncIterator]();
+    expect(dataOf((await iterator.next()).value).type).toBe("chatOpened");
+
+    const pending = iterator.next(); // parks the generator in the live loop before anything is published
+    // durable seq 10 — the host edits a PRE-join row while the clamped member is connected (the exploit).
+    publishChatEvent({ seq: 10, event: editedAt(2) });
+    // durable seq 11 — a row at/above their floor: legitimately theirs.
+    publishChatEvent({ seq: 11, event: editedAt(6) });
+    const first = await pending;
+    await iterator.return?.(undefined);
+
+    // The FIRST thing the clamped member ever receives is the post-join row, carried at its OWN durable seq:
+    // event 10 was dropped whole (unclamped, this asserted "10"), and the cursor was never advanced to 10, so
+    // 11 was neither renumbered nor re-offered. The gap is the intended shape — a reconnect from 11 replays
+    // forward and the domain re-applies the same verdict to anything behind it.
+    expect(idOf(first.value)).toBe("11");
+    const delivered = dataOf(first.value);
+    expect(delivered.type === "messageEdited" ? delivered.view?.seq : null).toBe(6);
+  });
+
+  test("an UNCLAMPED subscriber (host / `full` member) receives that same pre-join-view event live — the other arm works", async () => {
+    const sub = await caller(streamAt(0)).chat.streamMessages({ chatId: LiveChat });
+    const iterator = sub[Symbol.asyncIterator]();
+    expect(dataOf((await iterator.next()).value).type).toBe("chatOpened");
+
+    const pending = iterator.next();
+    publishChatEvent({ seq: 10, event: editedAt(2) });
+    const first = await pending;
+    await iterator.return?.(undefined);
+
+    // Byte-identical event, same room, same instant — floor 0 short-circuits the verdict, so nothing is filtered.
+    expect(idOf(first.value)).toBe("10");
+    const delivered = dataOf(first.value);
+    expect(delivered.type === "messageEdited" ? delivered.view?.seq : null).toBe(2);
+  });
+
+  /** A live token chunk anchored to the canon slot it fills (`slotSeq` — what the engine's emit site stamps
+   *  from the target it resolved). `text` names the slot so a leak is unmistakable in the assertion. */
+  const deltaInto = (slotSeq: number, text: string): ChatBusEvent => ({
+    type: "delta",
+    chatId: LiveChat,
+    slotSeq,
+    delta: { chatId: LiveChat, kind: "text", text },
+  });
+
+  test("a clamped member DOES stream a POST-join turn's live deltas — the restoration `from-join` had lost", async () => {
+    // The whole point of carrying `slotSeq`: blanket-withholding deltas silently un-streamed every
+    // host-restricted (`from-join`) member in a room with prior canon (messages popped in on commit).
+    // Floor 5, tokens streaming into slot 7 — theirs, so they arrive at their own durable seq.
+    const sub = await caller(streamAt(5)).chat.streamMessages({ chatId: LiveChat });
+    const iterator = sub[Symbol.asyncIterator]();
+    expect(dataOf((await iterator.next()).value).type).toBe("chatOpened");
+
+    const pending = iterator.next();
+    publishChatEvent({ seq: 12, event: deltaInto(7, "post-join tokens") });
+    const first = await pending;
+    await iterator.return?.(undefined);
+
+    expect(idOf(first.value)).toBe("12");
+    expect(JSON.stringify(first.value)).toContain("post-join tokens");
+  });
+
+  test("a live `delta` for a PRE-join slot is still withheld — the leak (host swipes/continues an old row) stays closed", async () => {
+    // The exploit this clamp exists for: a host swiping or continuing a PRE-join slot streams THAT slot's
+    // tokens live. The emit site stamps the loaded target's own seq, so the verdict withholds it — while the
+    // very next post-join stream still flows. Live and replay ask the same function, so a row's visibility
+    // never depends on whether the client happened to be connected.
+    const sub = await caller(streamAt(5)).chat.streamMessages({ chatId: LiveChat });
+    const iterator = sub[Symbol.asyncIterator]();
+    expect(dataOf((await iterator.next()).value).type).toBe("chatOpened");
+
+    const pending = iterator.next();
+    publishChatEvent({ seq: 12, event: deltaInto(2, "pre-join tokens") });
+    publishChatEvent({ seq: 13, event: deltaInto(6, "post-join tokens") });
+    const first = await pending;
+    await iterator.return?.(undefined);
+
+    // Withheld WITHOUT advancing the cursor: the first yield is seq 13, not a renumbered 12.
+    expect(idOf(first.value)).toBe("13");
+    expect(JSON.stringify(first.value)).not.toContain("pre-join tokens");
+    expect(JSON.stringify(first.value)).toContain("post-join tokens");
+  });
+
+  test("an UNCLAMPED subscriber receives that same pre-join-slot delta — floor 0 short-circuits before any compare", async () => {
+    const sub = await caller(streamAt(0)).chat.streamMessages({ chatId: LiveChat });
+    const iterator = sub[Symbol.asyncIterator]();
+    expect(dataOf((await iterator.next()).value).type).toBe("chatOpened");
+
+    const pending = iterator.next();
+    publishChatEvent({ seq: 12, event: deltaInto(2, "pre-join tokens") });
+    const first = await pending;
+    await iterator.return?.(undefined);
+
+    expect(idOf(first.value)).toBe("12");
+    expect(JSON.stringify(first.value)).toContain("pre-join tokens");
+  });
+});
 
 describe("chat.listMessages — the paged canon read (D26), member-gated", () => {
   test("a member pages messages: the parsed cursor/limit reach the verb with the resolved Principal", async () => {

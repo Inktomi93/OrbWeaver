@@ -20,7 +20,6 @@ import { AUTOMATION_NOTICE_MESSAGE_MAX } from "@orb/contracts/notifications";
 import type { InvocationChat, PluginHandlerRef } from "@orb/contracts/plugin";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
 import type { AccountCredits, EndpointInspection, GenerationCost, VerifyAuthResult } from "@orb/contracts/providers";
-import type { RoleClients } from "@orb/contracts/role-clients";
 import type { SessionView } from "@orb/contracts/session";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import { listSeededBackgrounds } from "@orb/contracts/theme";
@@ -31,7 +30,6 @@ import {
   chatParticipants,
   messageAssets,
   messages as messagesTable,
-  messageVariants,
   personas as personasTable,
 } from "@orb/db";
 import { batchMany } from "@orb/db/kit";
@@ -55,7 +53,7 @@ import {
 } from "#domain/automation";
 import type { DefaultCharacterSeeder } from "#domain/character";
 import { createCharacterService, createDefaultCharacterSeeder } from "#domain/character";
-import { createExtractQuiet, loadPresentRole } from "#domain/chat";
+import { createExtractQuiet, createResolveViewerVisibility, loadPresentRole } from "#domain/chat";
 import { createConnectionService } from "#domain/connection";
 import { createCredentialsService } from "#domain/credentials";
 import type { DatabankContext, DatabankIngest } from "#domain/databank";
@@ -101,7 +99,7 @@ import { createExtractText, EXTRACTOR_VERSION } from "#infra/extraction";
 import { createImageAdapter } from "#infra/image";
 import { fetchImageBytes, fetchOpenAiModels, fetchWebDocument } from "#infra/network";
 import { createPluginHost } from "#infra/plugin-host";
-import type { BackendRegistryDeps, EngineDeploymentFacts, VllmEngineHandle } from "#infra/providers";
+import type { BackendRegistryDeps, EngineDeploymentFacts, RoleClientsWithSignal, VllmEngineHandle } from "#infra/providers";
 import {
   createBackendRegistry,
   createProviderDiagnostics,
@@ -139,6 +137,7 @@ import { createCharacterUpdatedChatFan } from "./emit-character-updated";
 import type { DomainEventBus } from "./event-bus";
 import { createDomainEventBus } from "./event-bus";
 import { createMaterializeBackground } from "./materialize-background";
+import { loadPluginMessages } from "./plugin-chat-reads";
 import { buildPortabilityRegistry } from "./portability";
 import { bindRoleClientsForUser } from "./role-clients";
 import { buildWorkloadRunnerEnv } from "./runner-env";
@@ -203,10 +202,10 @@ export interface ServicesResult {
   readonly importWorldInfo: ImportWorldInfoPort;
   readonly eventBus: DomainEventBus;
   readonly runnerEnv: WorkloadRunnerEnv;
-  readonly roleClients: RoleClients;
+  readonly roleClients: RoleClientsWithSignal;
   /** The per-owner `RoleClients` binder, pre-bound to the connection service + the executor. The workloads
    *  worker's `bindRoleClients` is wired from this; entry never touches the raw executor. */
-  readonly bindRoleClients: (ownerId: UserId) => Promise<RoleClients>;
+  readonly bindRoleClients: (ownerId: UserId) => Promise<RoleClientsWithSignal>;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   readonly effectiveConfig: EffectiveConfigWiring;
   readonly secretBox: SecretBox;
@@ -344,7 +343,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     },
   });
 
-  const bindRoleClients = (ownerId: UserId): Promise<RoleClients> => bindRoleClientsForUser({ connection, executor }, ownerId);
+  const bindRoleClients = (ownerId: UserId): Promise<RoleClientsWithSignal> => bindRoleClientsForUser({ connection, executor }, ownerId);
   const roleClients = await bindRoleClients(deps.ownerId);
 
   // Built before character so character's by-name card-tag attach port wires to the real tag verb.
@@ -471,7 +470,11 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   const chatBus = createChatBus({ db, now, newEventId: minter(ID_PREFIX.chatEvent) });
   const emitChatEvent = async (event: ChatBusEvent): Promise<void> => {
     const seq = await chatBus.emit(event);
-    publishChatEvent({ seq, event });
+    // `null` ⇒ the durable append was dropped + reported (bus.ts FLAG[emit-is-total], e.g. the chat was
+    // deleted mid-turn). Durable-first means an un-logged event is never fanned — it has no replay cursor.
+    if (seq !== null) {
+      publishChatEvent({ seq, event });
+    }
   };
 
   const character = createCharacterService({
@@ -915,10 +918,16 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
         getCard: ({ ownerId, characterId }) => character.getCard({ principal: imageryCardPrincipal(ownerId), characterId }),
       });
       return async ({ caller, ...rest }) => {
-        if ((await loadPresentRole(db, rest.chatId, caller.userId)) === null) {
+        // MEMBERSHIP *AND* THE FLOOR — one op, one answer. The old gate was `loadPresentRole !== null`
+        // (membership only), which admitted a `from-join`-clamped member and then let the extractor read the
+        // room's last rows unfloored: `imagery.extractPrompt` hands the model's distillation of those rows
+        // straight back on the wire, so a clamped caller could read a summary of canon their own
+        // `listMessages` withholds. `null` ⇒ the same leak-free NOT_FOUND as before.
+        const visibility = await resolveViewerVisibility(rest.chatId, caller.userId);
+        if (visibility === null) {
           throw new DomainNotFoundError("chat", rest.chatId);
         }
-        return base(rest);
+        return base({ ...rest, historyFloorSeq: visibility.historyFloorSeq });
       };
     })(),
     // The ONE vision caption op (D45/D47-6): the multimodal template + the avatar bytes over the summarize
@@ -1025,6 +1034,14 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     gatherDatabank: databank.gatherRetrieval,
   });
   const { service: chat, emitBusEvent: emitChatBusEvent } = chatCompose;
+  // THE cross-domain viewer-visibility op (the read-visibility D-entry): membership AND the D16 canon floor as
+  // ONE answer for one human over one chat. Built ONCE here and injected into every non-chat consumer that
+  // decides "may this human see this chat's CONTENT" — the automation plugin fan-out's delivery gate and the
+  // plugin membrane's canon read. Those consumers used to answer that question with a membership select of
+  // their own, which is how a `from-join`-clamped member's plugin could receive pre-join canon. There is
+  // exactly ONE clamp home (chat's `resolveHistoryFloorSeq`, reached only through this op) — a sibling domain
+  // re-deriving the floor is the defect this wiring exists to make impossible.
+  const resolveViewerVisibility = createResolveViewerVisibility({ db });
 
   // Built after chat — world-info's chat scope injects chat's membership guards + the chat bus emit.
   const worldInfo = createWorldInfoService({
@@ -1085,6 +1102,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   const automationNotify = publishAutomationEvent;
   const automationOps = createAutomationOps({
     db,
+    resolveViewerVisibility,
     applyVariableOps: chatCompose.applyVariableOps,
     // The `trigger_turn` arm's autonomous turn (03 §1.6 / §4) → chat's `requestTurn`. `initiator:"automation"`
     // is HARDCODED here (automation cannot forge a different origin); the funder = the rule author (chat resolves
@@ -1229,8 +1247,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // realm marshalling; the lifecycle (install→enable→getLog→disable→uninstall) round-trips over the REAL
   // runtime, and a plugin tool would namespace + land in the ONE tool-use registry through `registerTool`.
   const pluginMessageContentCap = 16_384;
-  const pluginMessageDefaultLimit = 20;
-  const pluginMessageMaxLimit = 50;
   // The plugin prompt-transform ORDER BAND (04 §6 — automation 0–999, plugins 1000+; host policy wraps guest).
   // Each collected transform takes the next slot by ACTIVATION order (a per-deploy monotonic seq — stable enough
   // for v1's single-replica compose; two plugins never share a slot).
@@ -1246,36 +1262,13 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     // NON-membrane caller that reaches them without that admission = an instant cross-tenant hole — re-gate at
     // the new caller (loadPresentRole→NOT_FOUND before any read), never loosen the admission the membrane owns.
     chat: {
-      // The reduced plugin view (01 §2): id/role/authorDisplayName/characterId/seq/content only, oldest→newest,
-      // content capped — no economics/promptSnapshot (the read floor is "what a member sees in the transcript").
-      listMessages: async (chatId, opts) => {
-        const limit = Math.min(opts?.limit ?? pluginMessageDefaultLimit, pluginMessageMaxLimit);
-        const rows = await db
-          .select({
-            id: messagesTable.id,
-            role: messagesTable.role,
-            characterId: messagesTable.characterId,
-            authorName: charactersTable.name,
-            seq: messagesTable.seq,
-            content: messageVariants.content,
-          })
-          .from(messagesTable)
-          .innerJoin(messageVariants, eq(messageVariants.id, messagesTable.selectedVariantId))
-          .leftJoin(charactersTable, eq(charactersTable.id, messagesTable.characterId))
-          .where(eq(messagesTable.chatId, chatId))
-          .orderBy(desc(messagesTable.seq))
-          .limit(limit);
-        return rows
-          .map((r) => ({
-            id: r.id,
-            role: r.role,
-            authorDisplayName: r.authorName ?? r.role,
-            characterId: r.characterId,
-            seq: r.seq,
-            content: r.content.length > pluginMessageContentCap ? r.content.slice(0, pluginMessageContentCap) : r.content,
-          }))
-          .reverse();
-      },
+      // The reduced plugin view (01 §2), FLOOR-CLAMPED in SQL — `plugin-chat-reads.ts` (extracted so the
+      // predicate deciding which canon bytes reach an untrusted guest realm has a reachable test seam).
+      listMessages: (chatId, opts) => loadPluginMessages(db, chatId, opts),
+      // The bridge asks this BEFORE `listMessages` and hands the resolved floor down (a non-member ⇒ `[]`).
+      // The admissions upstream of the membrane (`resolveChatAuthority`, the tool registrar's PL-C gate, the
+      // `events.on` per-delivery role read) resolve MEMBERSHIP only — this is the half they cannot answer.
+      resolveViewerVisibility,
       getVariables: automationOps.chat.readVariables,
       applyVariableOps: automationOps.chat.applyVariableOps,
       // turn.trigger (01 §2) → chat's principal-free `requestTurn`. `initiator:"plugin"` is HARDCODED (a plugin

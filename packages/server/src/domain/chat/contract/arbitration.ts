@@ -29,6 +29,24 @@ export interface CastName {
   readonly name: string;
 }
 
+/** The 7b (`smart`) arbitration outcome: WHO speaks, plus whether the side-LLM actually decided it. Shared
+ *  across modules (the engine produces it, the turn verb reads `degraded` to emit the honest-degrade warning
+ *  — D41 bans a silent degrade), so it lives here rather than inline on the engine file. */
+export interface SmartArbitrationResult {
+  /** The chosen next speaker (one element), or `[]` when NO candidate is eligible. */
+  readonly speakers: readonly SpeakerRef[];
+  /** True ⇒ the side-LLM was consulted and its answer was unusable (it threw, or named nothing on the
+   *  eligible roster), so `speakers` came from the deterministic `natural` fallback instead of the model.
+   *  False for a validated model pick AND for the short-circuits (no LLM was needed — not a degrade). */
+  readonly degraded: boolean;
+  /** True ⇒ the CALLER'S TURN SIGNAL fired while the side-LLM call was in flight (or before it started), so
+   *  the arbitration was cancelled. An abort is NOT a degrade: nobody wants the round anymore, so the caller
+   *  must end the turn rather than fall back and generate anyway — and it must NOT emit the
+   *  `smart_arbitration_degraded` warning (the model didn't fail; the user/host cancelled). Invariant:
+   *  `aborted:true` ⇒ `speakers: []` and `degraded:false`. */
+  readonly aborted: boolean;
+}
+
 /** Why an auto-mode AI→AI chain stopped (the dual bound + the interrupt/eligibility/
  *  lock guards). ONE home; the union derives from this tuple (no inline re-spell). */
 const AUTO_MODE_STOP_REASONS = [

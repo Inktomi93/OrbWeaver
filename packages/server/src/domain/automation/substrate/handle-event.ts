@@ -69,7 +69,7 @@ async function handle(ctx: AutomationContext, event: BusEvent): Promise<void> {
   if (wantPlugins) {
     // The plugin fan-out runs its OWN three gates (depth / visibility / declared-match) — leak-free by
     // construction, and it never touches the rule dispatch's state.
-    await fanOutToPluginSubscribers({ db: ctx.db, registry: ctx.pluginSubscribers }, resolved);
+    await fanOutToPluginSubscribers({ db: ctx.db, registry: ctx.pluginSubscribers, resolveViewerVisibility: ctx.ops.chat.resolveViewerVisibility }, resolved);
   }
   if (!wantRules) {
     return;

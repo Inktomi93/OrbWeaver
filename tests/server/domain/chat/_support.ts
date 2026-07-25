@@ -142,8 +142,10 @@ export async function seedParticipant(
     readonly leftSeq?: number | null;
     readonly disabled?: boolean;
     readonly activePersonaId?: PersonaId | null;
-    /** D16 join-history policy. Omitted ⇒ the COLUMN default (`from-join`) — the seeder deliberately does not
-     *  re-spell it, so a seeded row carries the same default a real redeem writes. */
+    /** D16 join-history policy. Omitted ⇒ the COLUMN default (`full` — an invited member sees the whole
+     *  room history) — the seeder deliberately does not re-spell it, so a seeded row carries the same
+     *  default a real redeem writes. Any test whose POINT is the clamp must pass `"from-join"` EXPLICITLY;
+     *  the restriction is opt-in and is never what an omitted policy gives you. */
     readonly joinHistoryVisibility?: JoinHistoryVisibility;
   },
 ): Promise<ChatParticipantId> {
@@ -247,10 +249,18 @@ export async function addVariant(db: Db, messageId: MessageId, idx: number, cont
   return variantId;
 }
 
-/** Insert a durable chat-bus log row. */
-export async function seedChatEvent(db: Db, chatId: ChatId, seq: number, text: string): Promise<ChatEventId> {
+/** Insert a durable chat-bus log row (a `delta`). The row param takes the bare token text (its D16 clamp
+ *  anchor then defaults to the event's own seq — an unclamped-caller fixture) or `{text, slotSeq}` to pin the
+ *  `messages.seq` of the canon slot the tokens stream into. Same shape as {@link seedStreamEvent}. */
+export async function seedChatEvent(
+  db: Db,
+  chatId: ChatId,
+  seq: number,
+  row: string | { readonly text: string; readonly slotSeq: number },
+): Promise<ChatEventId> {
   const id = castId<ChatEventId>(`chat_event_${chatId}_${seq}`);
-  const payload: ChatBusEvent = { type: "delta", chatId, delta: { chatId, kind: "text", text } };
+  const { text, slotSeq } = typeof row === "string" ? { text: row, slotSeq: seq } : row;
+  const payload: ChatBusEvent = { type: "delta", chatId, slotSeq, delta: { chatId, kind: "text", text } };
   await db.insert(chatEvents).values({ id, chatId, seq, type: "delta", payload, createdAt: FROZEN_AT });
   return id;
 }

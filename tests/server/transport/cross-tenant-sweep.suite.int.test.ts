@@ -587,6 +587,13 @@ const PROBES: readonly Probe[] = [
     path: "invites.kick",
     call: (c, i) => c.invites.kick({ chatId: i.chatId, userId: OWNER_USER_ID }),
   },
+  // The D16 join-history policy write is host-gated on the chatId (`requireHost` → `requireParticipant` miss =
+  // leak-free NOT_FOUND) BEFORE the target lookup, so a stranger restricting a member of A's chat collapses to
+  // NOT_FOUND and never touches a row — the `chat.setSeatKnobs` shape, keyed by userId instead of participantId.
+  {
+    path: "invites.setMemberHistoryVisibility",
+    call: (c, i) => c.invites.setMemberHistoryVisibility({ chatId: i.chatId, userId: OWNER_USER_ID, visibility: "from-join" }),
+  },
   { path: "invites.selfLeave", call: (c, i) => c.invites.selfLeave({ chatId: i.chatId }) },
   {
     path: "invites.nominateHostHandoff",

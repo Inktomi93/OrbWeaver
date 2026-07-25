@@ -613,6 +613,99 @@ describe("setSeatKnobs — the ONE participantId-keyed AI-seat knob write (D80)"
   });
 });
 
+// The D16 join-history policy SETTER — the write path the confidentiality mechanism spent its life without
+// (the column was reachable only by a manual SQL edit). The round-trip against the real read clamp lives in
+// read.int.test.ts's D16 block; these are the setter's own gates + persistence.
+describe("setMemberHistoryVisibility — the host's per-member join-history write (D16)", () => {
+  test("the host restricts a member to from-join: the column flips + chatUpdated is emitted", async () => {
+    const host = await seedUser(db, "host");
+    const member = await seedUser(db, "member");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "m", userId: member, role: "member", joinSeq: 4 });
+    const roster = createRoster(makeChatContext(db), { emit });
+
+    await roster.setMemberHistoryVisibility({ principal: principal(host), chatId, userId: member, visibility: "from-join" });
+
+    const [row] = await db.select().from(chatParticipants).where(eq(chatParticipants.userId, member));
+    expect(row?.joinHistoryVisibility).toBe("from-join");
+    // The restriction is a READ policy, not a re-join: the member's join point is untouched.
+    expect(row?.joinSeq).toBe(4);
+    expect(emitted).toEqual([{ type: "chatUpdated", chatId }]);
+  });
+
+  test("re-setting the value the row already carries is a no-op (idempotent)", async () => {
+    const host = await seedUser(db, "host");
+    const member = await seedUser(db, "member");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "m", userId: member, role: "member", joinHistoryVisibility: "from-join" });
+    const roster = createRoster(makeChatContext(db), { emit });
+
+    await roster.setMemberHistoryVisibility({ principal: principal(host), chatId, userId: member, visibility: "from-join" });
+
+    const [row] = await db.select().from(chatParticipants).where(eq(chatParticipants.userId, member));
+    expect(row?.joinHistoryVisibility).toBe("from-join");
+  });
+
+  test("a plain MEMBER cannot set it — not even on themselves (the confidentiality policy is the host's)", async () => {
+    const host = await seedUser(db, "host");
+    const member = await seedUser(db, "member");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "m", userId: member, role: "member", joinHistoryVisibility: "from-join" });
+    const roster = createRoster(makeChatContext(db), { emit });
+
+    const err = await roster.setMemberHistoryVisibility({ principal: principal(member), chatId, userId: member, visibility: "full" }).catch((e: unknown) => e);
+
+    expect(err).toBeInstanceOf(ChatOperationError);
+    expect((err as ChatOperationError).code).toBe("not_host");
+    // A clamped member cannot self-unclamp — the row is untouched and nothing was announced.
+    const [row] = await db.select().from(chatParticipants).where(eq(chatParticipants.userId, member));
+    expect(row?.joinHistoryVisibility).toBe("from-join");
+    expect(emitted).toEqual([]);
+  });
+
+  // A CHARACTER seat carries a NULL userId (and no reader floor at all — its joinSeq/leftSeq are the
+  // WITNESSING interval, a different axis), so the userId key can never resolve one. Pinned with the
+  // character's OWN participant id cast to a UserId: even that hand-forged key finds nothing.
+  test("a character seat is unreachable through the userId key", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    const characterId = await seedCharacter(db, host, "Aria");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    const seatId = await seedParticipant(db, { chatId, key: "c", characterId, role: "member" });
+    const roster = createRoster(makeChatContext(db), { emit });
+
+    const err = await roster
+      // FABRICATION-OK: a participant id forged into the userId slot — the point is that no key reaches a character seat.
+      .setMemberHistoryVisibility({ principal: principal(host), chatId, userId: castId<UserId>(seatId), visibility: "from-join" })
+      .catch((e: unknown) => e);
+
+    expect(err).toBeInstanceOf(ChatOperationError);
+    expect((err as ChatOperationError).code).toBe("participant_not_found");
+    const [row] = await db.select().from(chatParticipants).where(eq(chatParticipants.id, seatId));
+    expect(row?.joinHistoryVisibility).toBe("full");
+    expect(emitted).toEqual([]);
+  });
+
+  test("a member who has LEFT is not a target (present-only roster)", async () => {
+    const host = await seedUser(db, "host");
+    const member = await seedUser(db, "member");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "m", userId: member, role: "member", leftSeq: 2 });
+    const roster = createRoster(makeChatContext(db), { emit });
+
+    const err = await roster
+      .setMemberHistoryVisibility({ principal: principal(host), chatId, userId: member, visibility: "from-join" })
+      .catch((e: unknown) => e);
+
+    expect(err).toBeInstanceOf(ChatOperationError);
+    expect((err as ChatOperationError).code).toBe("participant_not_found");
+  });
+});
+
 describe("kick — host removes a member", () => {
   test("the member's leftSeq is stamped + a kicked notification is delivered", async () => {
     const host = await seedUser(db, "host");

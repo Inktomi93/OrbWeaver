@@ -7,6 +7,7 @@
 
 import type { ChatBusDeps } from "@orb/client/data";
 import { createInvalidation, useTRPC } from "@orb/client/data";
+import { characterSlashCommands } from "@orb/client/features/character";
 import type { GoToSection } from "@orb/client/features/chat";
 import {
   ChatLandingSurface,
@@ -15,6 +16,7 @@ import {
   ChatRoomSurface,
   CommandPaletteSurface,
   Composer,
+  chatSlashCommands,
   JoinInviteDialog,
   MessageListSurface,
   MessageThreadAnchor,
@@ -27,6 +29,8 @@ import type {
   ContextTabDef,
   MessageRenderContext,
   MessageToolsRenderer,
+  SlashCommandContribution,
+  SlashCommandMountProps,
   ToolRenderer,
 } from "@orb/client/lib";
 import { createContributorRegistry } from "@orb/client/lib";
@@ -39,6 +43,7 @@ import {
   enterSelectionMode,
   isLiveTurnPhase,
   MessageToolsRendererRegistryProvider,
+  SlashCommandRegistryProvider,
   selectChat,
   setDraftGreeting,
   startEditingMessage,
@@ -48,7 +53,7 @@ import {
   useSectionRegistry,
   useTurnPhase,
 } from "@orb/client/state";
-import type { CharacterNameEntry, MessageView, ParticipantView, PersonaNameEntry, ToolCallRecord } from "@orb/contracts/chat";
+import type { CharacterNameEntry, JoinHistoryVisibility, MessageView, ParticipantView, PersonaNameEntry, ToolCallRecord } from "@orb/contracts/chat";
 import { buildCharacterNameMap, buildPersonaNameMap, DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { AssetId, CharacterId, ChatId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -56,7 +61,7 @@ import type { MessageRole } from "@orb/kit/message-role";
 import type { THEME_SCOPE_CHAT_STYLES } from "@orb/ui/theme-scope";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { SectionContextHeader, SectionContextHost } from "../../../../packages/client/src/features/app-shell/components/section-context-host";
 import { CharacterGalleryDialog } from "../../../../packages/client/src/features/chat/anchors/character-gallery-dialog";
 import { ChatCastBar } from "../../../../packages/client/src/features/chat/components/chat-cast-bar";
@@ -747,16 +752,53 @@ const CT_GO_TO_SECTIONS: readonly GoToSection[] = [
   { id: "corpus", label: "Corpus" },
 ];
 
+const CT_PALETTE_COMMAND_ID = "ct-fake-command";
+const CT_PALETTE_COMMAND_LABEL = "Fake contributed command";
+
+function CtFakeCommandMount({ onRunner, onFire }: SlashCommandMountProps & { readonly onFire: () => void }): null {
+  useEffect(() => {
+    onRunner((): void => onFire());
+  }, [onRunner, onFire]);
+  return null;
+}
+
+export interface CommandPaletteSurfaceStoryProps {
+  /** Which slash-command registry the palette reads.
+   *  `"door"` (default) mirrors main.tsx's assembly — the feature-owned built-ins, and nothing else.
+   *  `"none"` mounts NO Provider at all: the zero-registrant baseline (navigation groups only).
+   *  `"contributed"` adds one fake contribution on top of the door set (the extension proof). */
+  readonly commands?: "door" | "none" | "contributed";
+}
+
 /** The J4 ⌘K command palette body, wired to the real data layer (routeTrpc stubs `chat.listChats`).
- *  `goToSections` is a fixed CT literal (app-root derives it from the section registry in production). */
-export function CommandPaletteSurfaceStory(): ReactElement {
-  return (
-    <CtDataProviders>
-      <div style={{ height: 480, width: 560 }}>
-        <CommandPaletteSurface goToSections={CT_GO_TO_SECTIONS} />
-      </div>
-    </CtDataProviders>
+ *  `goToSections` is a fixed CT literal (app-root derives it from the section registry in production);
+ *  the COMMAND rows come from the real slash-command registry, exactly as they do at the door. */
+export function CommandPaletteSurfaceStory({ commands = "door" }: CommandPaletteSurfaceStoryProps): ReactElement {
+  const [ranFake, setRanFake] = useState(false);
+  const registry = useMemo(() => {
+    const door = [...chatSlashCommands, ...characterSlashCommands];
+    const contributions: readonly SlashCommandContribution[] =
+      commands === "contributed"
+        ? [
+            ...door,
+            {
+              id: CT_PALETTE_COMMAND_ID,
+              label: CT_PALETTE_COMMAND_LABEL,
+              describe: "A grafted command, registered at the door",
+              mount: (props): ReactElement => <CtFakeCommandMount {...props} onFire={(): void => setRanFake(true)} />,
+            },
+          ]
+        : door;
+    return createContributorRegistry<SlashCommandContribution>("slash-commands", contributions);
+  }, [commands]);
+
+  const body = (
+    <div style={{ height: 480, width: 560 }}>
+      <CommandPaletteSurface goToSections={CT_GO_TO_SECTIONS} />
+      <div data-testid="ct-palette-command-ran">{ranFake ? "ran" : ""}</div>
+    </div>
   );
+  return <CtDataProviders>{commands === "none" ? body : <SlashCommandRegistryProvider value={registry}>{body}</SlashCommandRegistryProvider>}</CtDataProviders>;
 }
 
 // ── Chat-room story (the composed transcript + composer pane) ────────────────────────────────────
@@ -1120,8 +1162,15 @@ export interface MembersPanelStoryProps {
   readonly omitForceTurn?: boolean;
   readonly withPeople?: boolean;
   readonly memberView?: boolean;
+  /** Seats Kestrel at the NON-default D16 posture (`from-join`) — the state chip + the RESTORE direction. */
+  readonly restrictedMember?: boolean;
 }
-export function MembersPanelStory({ omitForceTurn = false, withPeople = false, memberView = false }: MembersPanelStoryProps): ReactElement {
+export function MembersPanelStory({
+  omitForceTurn = false,
+  withPeople = false,
+  memberView = false,
+  restrictedMember = false,
+}: MembersPanelStoryProps): ReactElement {
   const [lastAction, setLastAction] = useState("");
   const people: MemberPersonRow[] = withPeople
     ? [
@@ -1135,6 +1184,7 @@ export function MembersPanelStory({ omitForceTurn = false, withPeople = false, m
           isViewer: true,
           avatarHash: null,
           pendingNominee: false,
+          historyVisibility: "full",
         },
         {
           kind: "person",
@@ -1146,6 +1196,9 @@ export function MembersPanelStory({ omitForceTurn = false, withPeople = false, m
           isViewer: false,
           avatarHash: null,
           pendingNominee: !memberView,
+          // Default `full` ⇒ the row menu offers the RESTRICT direction; `restrictedMember` flips both the
+          // state chip and the item to the RESTORE direction.
+          historyVisibility: restrictedMember ? "from-join" : "full",
         },
       ]
     : [];
@@ -1192,6 +1245,7 @@ export function MembersPanelStory({ omitForceTurn = false, withPeople = false, m
                 onInvitePeople: (): void => setLastAction("invite"),
                 onKick: (userId: UserId): void => setLastAction(`kick:${userId}`),
                 onNominateHost: (userId: UserId): void => setLastAction(`nominate:${userId}`),
+                onSetHistoryVisibility: (userId: UserId, visibility: JoinHistoryVisibility): void => setLastAction(`history:${userId}:${visibility}`),
                 onLeave: (): void => setLastAction("leave"),
                 leaveArchivesRoom: true,
               }
@@ -1218,6 +1272,7 @@ export function MembersKickFocusStory(): ReactElement {
     isViewer: false,
     avatarHash: null,
     pendingNominee: false,
+    historyVisibility: "full",
   };
   const people: MemberPersonRow[] = [
     {
@@ -1230,6 +1285,7 @@ export function MembersKickFocusStory(): ReactElement {
       isViewer: true,
       avatarHash: null,
       pendingNominee: false,
+      historyVisibility: "full",
     },
     ...(kicked ? [] : [kestrel]),
   ];

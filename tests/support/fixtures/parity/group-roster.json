@@ -74,8 +74,8 @@
       "disabled": false,
       "joinSeq": 4,
       "leftSeq": null,
-      "joinHistoryVisibility": "from-join",
-      "note": "joined mid-room via the invite below (joinSeq stamped at redeem); history replays from joinSeq."
+      "joinHistoryVisibility": "full",
+      "note": "joined mid-room via the invite below (joinSeq stamped at redeem). `full` is the COLUMN DEFAULT a redeem writes — an invited member reads the room's ENTIRE history; a host may opt this row down to `from-join` (floors reads at joinSeq, inclusive)."
     },
     {
       "chatId": "chat_group_room",
@@ -88,7 +88,7 @@
       "disabled": false,
       "joinSeq": 0,
       "leftSeq": null,
-      "joinHistoryVisibility": "from-join"
+      "joinHistoryVisibility": "full"
     },
     {
       "chatId": "chat_group_room",
@@ -101,7 +101,7 @@
       "disabled": false,
       "joinSeq": 0,
       "leftSeq": 9,
-      "joinHistoryVisibility": "from-join",
+      "joinHistoryVisibility": "full",
       "note": "KICKED at seq 9 (leftSeq set; authored rows retained; subscription torn down). The present-and-contributing predicate drops it from every union thereafter."
     }
   ],

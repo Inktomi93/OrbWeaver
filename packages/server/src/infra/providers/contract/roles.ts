@@ -1,10 +1,25 @@
 // Infra-internal REQUEST shapes for the non-chat roles (embed/rerank/imageEmbed/summarize/generateImage):
 // the credential-free arg shape from `@orb/contracts/role-clients` plus the dispatcher-bound
 // `credential`/`model`/`signal`. RESULT shapes live in `@orb/contracts/providers`, not redeclared here.
+// ALSO the server-side CALL seam for those same signals: `@orb/contracts` is isomorphic and DOM/node-free
+// (`lib: es2025`), so an `AbortSignal` cannot live on `RoleClients`/`SummarizeOptions` there (the
+// `PortableEntity.exportAll` precedent states the rule). The cancellation-carrying variants therefore live
+// HERE — the lowest tier both `domain/` (the caller) and `entry/compose` (the binder) may import.
 
 import type { ModelCapability } from "@orb/contracts/connection";
 import type { ResolvedCredential } from "@orb/contracts/credentials";
-import type { ImageEmbedInput, ImageInput, RepetitionDetection, RerankDocument, RerankQuery, ResponseFormat } from "@orb/contracts/role-clients";
+import type { SummarizeResult } from "@orb/contracts/providers";
+import type {
+  ImageEmbedInput,
+  ImageInput,
+  RepetitionDetection,
+  RerankDocument,
+  RerankQuery,
+  ResponseFormat,
+  RoleClients,
+  SummarizeInput,
+  SummarizeOptions,
+} from "@orb/contracts/role-clients";
 import type { ModelId, UserId } from "@orb/kit/ids";
 import type { ResolvedWarning } from "./resolve";
 
@@ -54,6 +69,23 @@ export interface SummarizeRequest extends RoleRequestCommon {
   /** Structured output (D79) — vLLM enforces via guided decoding; the agent-sdk via its native output
    *  format. Realized per backend; a family that can't honor it drops it. */
   readonly responseFormat?: ResponseFormat | undefined;
+}
+
+/** The `RoleClients.summarize` CALL options as the SERVER sees them: the isomorphic contracts vocabulary plus
+ *  the caller's `AbortSignal`. The binder forwards it onto {@link SummarizeRequest.signal}, so a caller that
+ *  already owns a cancellation (a chat turn's active-turn handle) can kill an in-flight side-LLM call instead
+ *  of waiting on a box that accepted the socket and never answered. */
+export interface SummarizeCallOptions extends SummarizeOptions {
+  readonly signal?: AbortSignal | undefined;
+}
+
+/** The `RoleClients` bundle as the composition root actually mints it — identical to the isomorphic
+ *  `RoleClients` except `summarize` accepts {@link SummarizeCallOptions}. A subtype of `RoleClients`
+ *  (the extra option is optional), so every existing `RoleClients` consumer keeps working unchanged; only a
+ *  caller typed against THIS can hand the summarizer a signal. Naming it is the enforcer: the binder's
+ *  return type is what states the capability, so dropping the forward is a type change, not a silent lie. */
+export interface RoleClientsWithSignal extends RoleClients {
+  readonly summarize: (inputs: SummarizeInput[], opts?: SummarizeCallOptions) => Promise<SummarizeResult>;
 }
 
 /** Text→image edit/img2img payload. Present on {@link ImageGenerateRequest.edit} ⇒ img2img/edit;

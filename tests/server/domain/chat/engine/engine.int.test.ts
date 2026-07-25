@@ -715,6 +715,48 @@ describe("createTurnEngine — swipe (append-variant on an existing slot, D26)",
   });
 });
 
+// THE D16 CLAMP ANCHOR, at its ONE emit site. `substrate/auth::isBelowHistoryFloor` decides a raw-text
+// `delta` on the `slotSeq` stamped here, so a wrong anchor is either a silent LEAK (too high — a clamped
+// member streams a pre-join slot's tokens live) or silent un-streaming (too low — the regression this whole
+// change exists to undo). `tsc` only proves the field exists; these prove the engine stamps the TRUTH for
+// both target shapes, against the real committed row rather than a constant.
+describe("createTurnEngine — the D16 `slotSeq` anchor on every streamed delta", () => {
+  const deltaAnchors = (events: readonly ChatBusEvent[]): number[] => events.flatMap((e) => (e.type === "delta" ? [e.slotSeq] : []));
+
+  test("a NEW-slot turn anchors its deltas to the seq the reply ACTUALLY commits at", async () => {
+    const chatId = await seedChat(db, "slotseq-new");
+    await seedMessage(db, chatId, 1, { role: "user", content: "hi" });
+    await seedMessage(db, chatId, 2, { role: "assistant", content: "first" });
+    const h = harness(db);
+
+    const outcome = await h.engine.runTurn(prepOf(chatId));
+
+    const committedSeq = outcome.messages[0]?.seq;
+    expect(committedSeq).toBe(3);
+    const anchors = deltaAnchors(h.events);
+    expect(anchors.length).toBeGreaterThan(0);
+    // The anchor IS the committed row's own seq — at/above every present member's join floor, so a post-join
+    // turn streams to everyone entitled to the row it produces.
+    expect([...new Set(anchors)]).toEqual([committedSeq]);
+  });
+
+  test("a SWIPE anchors its deltas to the TARGET slot's seq, not the canon tail — the leak the clamp closes", async () => {
+    const chatId = await seedChat(db, "slotseq-swipe");
+    await seedMessage(db, chatId, 1, { role: "user", content: "hi" });
+    const { messageId } = await seedMessage(db, chatId, 2, { role: "assistant", content: "first take" });
+    // Newer canon so the tail (+1 = 6) is unmistakably different from the target slot's seq (2): a host
+    // re-rolling this OLD row must stream it as slot 2, or a member floored above 2 would receive it.
+    await seedMessage(db, chatId, 5, { role: "assistant", content: "later" });
+    const h = harness(db);
+
+    await h.engine.runTurn(prepOf(chatId, { kind: "swipe", persist: { mode: "append-variant", targetMessageId: messageId } }));
+
+    const anchors = deltaAnchors(h.events);
+    expect(anchors.length).toBeGreaterThan(0);
+    expect([...new Set(anchors)]).toEqual([2]);
+  });
+});
+
 describe("createTurnEngine — continue (extend in place + the D26 snapshot)", () => {
   test("appends the continuation to the variant + records preContinue*/lastContinuation*", async () => {
     const chatId = await seedChat(db, "a");

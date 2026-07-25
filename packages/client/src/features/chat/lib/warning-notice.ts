@@ -39,6 +39,8 @@ export function warningNotice(code: ChatWarningCode): string {
       return "The conversation summary couldn't update this turn — your reply is unaffected.";
     case "context_trimmed_no_summary":
       return "The conversation got too long to summarize — the oldest messages were dropped from context to keep going.";
+    case "smart_arbitration_degraded":
+      return "The turn director model wasn't available — who speaks next was picked automatically instead.";
     default:
       return assertNeverCode(code);
   }

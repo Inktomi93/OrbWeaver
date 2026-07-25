@@ -50,6 +50,7 @@ import type {
   AssembledPrompt,
   AssemblyPreview,
   ChatDetail,
+  ChatEventAttach,
   ChatLineageView,
   ChatStreamReplayEvent,
   ChatSummary,
@@ -604,6 +605,9 @@ function createStreamEventBounds(ctx: ChatContext): ChatService["streamEventBoun
  *  the whole pre-join transcript. The verdict is per-EVENT (`substrate/auth::isBelowHistoryFloor`), not a
  *  cursor clamp: `chat_events.seq` and `messages.seq` are different axes, and a POST-join edit of a PRE-join
  *  row rides a high event seq with a low view seq — a cursor floor alone would pass it straight through.
+ *  A `delta` is decided the same per-row way (on the `slotSeq` its emit site stamped), NOT withheld wholesale:
+ *  a replayed mid-turn token stream for a POST-join slot reaches a clamped member; one for a PRE-join slot (a
+ *  host swiping an old row) does not. The LIVE half applies this identical verdict at the transport.
  *  Withheld rows leave a `seq` gap, which is correct: the cursor stays the durable `seq` the caller last saw,
  *  so a resume never re-offers a withheld row and never stalls. */
 function createReplayChatEvents(ctx: ChatContext): ChatService["replayChatEvents"] {
@@ -614,13 +618,21 @@ function createReplayChatEvents(ctx: ChatContext): ChatService["replayChatEvents
   };
 }
 
-/** `chatEventBounds` — the durable bus-log cursor bounds. Also the SSE per-yield membership gate: the
- *  `streamMessages` generator calls this before each live yield so a kicked member's stream stops within
- *  the kick tx. */
+/** `chatEventBounds` — the durable bus-log cursor bounds + the caller's own D16 read floor. Also the SSE
+ *  attach / per-yield membership gate: the `streamMessages` generator calls this before each live yield so a
+ *  kicked member's stream stops within the kick tx.
+ *
+ *  D16: it hands back `historyFloorSeq` because the LIVE fan-out needs the same floor the durable replay
+ *  applies — the transport tails an in-process bus keyed by chatId ONLY, so without it a post-join emit
+ *  carrying a PRE-join `MessageView` (the host editing/re-voicing an old row) reached a clamped member live
+ *  even though the identical durable row was withheld on resume. Piggybacking the floor on the probe the
+ *  generator already runs keeps that ONE member-gated read per yield (no extra I/O) and keeps the policy
+ *  per-CALLER — the floor is resolved from the SUBSCRIBER's own participant row at the chokepoint, never
+ *  from anything the client sends. */
 function createChatEventBounds(ctx: ChatContext): ChatService["chatEventBounds"] {
-  return async ({ principal, chatId }: ChatEventBoundsParams): Promise<StreamEventBounds> => {
-    await requireParticipant(ctx, principal, chatId);
-    return await loadChatEventBounds(ctx.db, chatId);
+  return async ({ principal, chatId }: ChatEventBoundsParams): Promise<ChatEventAttach> => {
+    const { historyFloorSeq } = await requireParticipant(ctx, principal, chatId);
+    return { ...(await loadChatEventBounds(ctx.db, chatId)), historyFloorSeq };
   };
 }
 

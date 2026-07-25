@@ -34,6 +34,84 @@ test("ChatBusEvent cannot represent a secret / credential / baseUrl / caller id 
   expectTypeOf<UnionMemberHasKey<ChatBusEvent, "callerUserId">>().toEqualTypeOf<false>();
 });
 
+// ── D16 POSITIVE ANCHOR ALLOWLIST: the bus vocabulary is CLOSED, and canon bytes always carry an anchor ─
+// The deny-list above is keyed on secret NAMES, so it cannot see a NEW content-bearing member (`{ type:
+// "noteAdded"; chatId; note: string }` passes every check up there). These three pins are the POSITIVE
+// complement — they enumerate what a member MAY declare, so a new member is RED by default:
+//
+//  1. KEY VOCABULARY — the union of every member's keys is exactly this closed set. A member declaring any
+//     other key widens the union and fails here, forcing a deliberate, reviewed vocabulary extension.
+//  2. RAW-STRING KEYS — the only key on the whole bus whose value is unconstrained `string` (free text) is
+//     `turnStarted.model`. Branded ids (`ChatId`) and enum literals (`ChatWarningCode`) do NOT satisfy
+//     `string extends T`, so this axis is independent of (1): renaming a free-text field to an
+//     already-allowlisted key still fails.
+//  3. STRUCTURED CARRIERS — the only non-scalar, non-id-array payloads are `view` (a `MessageView`, anchored
+//     by its own `seq`) and `delta` (raw streamed tokens, anchored by the SIBLING `slotSeq` the one emit
+//     site stamps). This is the set `substrate/auth/clamp.ts::canonAnchorSeq` inspects, so a member that
+//     carries canon bytes inherits `isBelowHistoryFloor` instead of riding through it: to ship content you
+//     must use `view`/`delta`, and both are anchored — the clamp then covers you automatically.
+//
+// Together: a content-bearing member cannot land without either an anchor or a visible edit to these pins.
+
+/** Distributes over each member; the union of every key any member declares. */
+type BusMemberKeys<U> = U extends unknown ? keyof U : never;
+
+/** Keys whose value type is the RAW, unconstrained `string` — the only shape that can carry free text.
+ *  A branded id (`string & {…}`) and a string-literal union do NOT satisfy `string extends T`. */
+type RawStringKeys<U> = U extends unknown ? { [K in keyof U]-?: string extends U[K] ? K : never }[keyof U] : never;
+
+/** Keys whose value is a STRUCTURED payload — excluding scalars, branded ids (string-assignable), and
+ *  id ARRAYS (the ratified activity plane: `messageIds`/`entryIds` name rows, they don't carry bytes). */
+type StructuredKeys<U> = U extends unknown
+  ? {
+      [K in keyof U]-?: NonNullable<U[K]> extends string | number | boolean | readonly unknown[] ? never : NonNullable<U[K]> extends object ? K : never;
+    }[keyof U]
+  : never;
+
+test("ChatBusEvent's key vocabulary is CLOSED (a new member's free-text field is RED — D16 anchor allowlist)", () => {
+  expectTypeOf<BusMemberKeys<ChatBusEvent>>().toEqualTypeOf<
+    | "type"
+    | "chatId"
+    // delta: raw tokens + their canon anchor
+    | "slotSeq"
+    | "delta"
+    // canon mutations: the id plane + the anchored view carrier
+    | "messageId"
+    | "messageIds"
+    | "view"
+    // turn lifecycle (scalars + enum literals + ids)
+    | "intent"
+    | "api"
+    | "source"
+    | "model"
+    | "speakerCharacterId"
+    | "targetMessageId"
+    | "reason"
+    | "automationDepth"
+    | "code"
+    // world-info activation + attachment (embedded WiBusEvent)
+    | "entryIds"
+    | "surface"
+    | "bookId"
+    | "entryId"
+    | "scope"
+    // persona switch
+    | "from"
+    | "to"
+  >();
+});
+
+test("the ONLY free-text (raw `string`) field on the chat bus is turnStarted.model (D16 anchor allowlist)", () => {
+  expectTypeOf<RawStringKeys<ChatBusEvent>>().toEqualTypeOf<"model">();
+});
+
+test("the ONLY structured canon carriers are `view` + `delta`, and both are seq-anchored (D16 anchor allowlist)", () => {
+  expectTypeOf<StructuredKeys<ChatBusEvent>>().toEqualTypeOf<"view" | "delta">();
+  // `view` is anchored by its OWN seq; `delta` by the sibling `slotSeq` — the two carriers canonAnchorSeq reads.
+  expectTypeOf<MessageView["seq"]>().toEqualTypeOf<number>();
+  expectTypeOf<UnionMemberHasKey<Extract<ChatBusEvent, { delta: unknown }>, "slotSeq">>().toEqualTypeOf<true>();
+});
+
 // ── InviteView exposes no token (raw or hashed) — a leak would let anyone redeem ──────────────────────
 test("InviteView has no token field at the type level (no redeem-token leak)", () => {
   expectTypeOf<UnionMemberHasKey<InviteView, "token">>().toEqualTypeOf<false>();

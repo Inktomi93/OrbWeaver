@@ -27,8 +27,15 @@ export function createExtractQuiet(deps: ExtractQuietDeps): ExtractQuiet {
     const charName = hostUserId !== null && subjectId !== null ? ((await deps.getCard({ ownerId: hostUserId, characterId: subjectId }))?.name ?? "") : "";
 
     // The bounded recent-history window (prompt-excluded rows dropped), as the scene the extractor reads.
+    // VIEWER-CLAMPED FIRST: `loadCanonHistory` is a room-plane (floorless) reader, but this product is a model
+    // DISTILLATION handed back to ONE human (`imagery.extractPrompt` returns the prompt string on the wire), so
+    // rows below that caller's own D16 floor must never enter the scene. Unlike a turn reply this is not one
+    // shared utterance, so clamping it per reader is coherent (it forks nothing). Filtering BEFORE the window
+    // slice is deliberate — a clamped caller still gets a full RECENT_WINDOW of rows they may actually see.
+    // Floor 0 (the common `full` case) is inert: `messages.seq` is 1-based.
     const canon = await loadCanonHistory(deps.db, p.chatId);
     const recent = canon
+      .filter((m) => m.seq >= p.historyFloorSeq)
       .slice(-RECENT_WINDOW)
       .filter((m) => !m.excludedFromPrompt)
       .map((m) => m.content)

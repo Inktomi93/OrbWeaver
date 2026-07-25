@@ -27,6 +27,8 @@ export type {
   PostNarratorMessageDeps,
   PresenceReadOp,
   PromptTransformRegistry,
+  ResolveViewerVisibility,
+  ViewerVisibility,
 } from "./contract/context";
 export type { ChatOpCode } from "./contract/errors";
 export { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "./contract/errors";
@@ -55,6 +57,14 @@ export { loadTurnForClassify, loadTurnOrigin } from "./persistence/queries";
 // cross-tenant-sweep-enforced; the createGetMembership precedent, a pure `(db, chatId, userId)` read).
 export { loadPresentRole } from "./persistence/roster";
 export { createChatService } from "./service";
+// The ONE D16 per-bus-event visibility verdict (`substrate/auth/clamp`). Exported because the LIVE half of
+// `chat.streamMessages` runs OUTSIDE the domain (the per-chat fan-out is transport state, keyed by chatId
+// only) yet must apply the IDENTICAL verdict the durable replay applies: one emitted event is BOTH fanned
+// out live AND logged under ONE `seq`, so a laxer live arm would make a row's visibility depend on whether
+// the client happened to be connected. The transport only APPLIES the verdict — it never re-derives the
+// policy (the floor is handed to it by `chatEventBounds`). Same posture as the `requireHost`/
+// `requireParticipant` guards this door already exports for out-of-domain enforcement.
+export { isBelowHistoryFloor } from "./substrate/auth";
 export { backfillGroupCharacters, backfillMemory } from "./substrate/backfill";
 // The D50 PromptTransform registrar (automation-design/04 §6) — created ONCE at compose; its `apply` is wired
 // as `ChatContext.promptTransforms`, its `register`/`unregister` onto automation's rule lifecycle + the plugin
@@ -72,4 +82,10 @@ export { createExtractQuiet } from "./verbs/extract-quiet";
 export { createGetMembership } from "./verbs/get-membership";
 export { createGetPendingUserText } from "./verbs/get-pending-user-text";
 export { createPostNarratorMessage } from "./verbs/post-narrator-message";
+// THE cross-domain viewer-visibility op (the read-visibility D-entry) — membership AND the D16 canon floor as
+// ONE inseparable answer, wired at the composition root into every non-chat consumer that decides "may this
+// human see this chat's CONTENT" (today: the automation plugin fan-out + the plugin membrane's chat read).
+// Exported for the same reason `isBelowHistoryFloor` is: the verdict must be chat's everywhere it is applied,
+// and a sibling domain re-deriving it is the defect class this op exists to make impossible.
+export { createResolveViewerVisibility } from "./verbs/resolve-viewer-visibility";
 export { setParticipantActivePersona } from "./verbs/roster";

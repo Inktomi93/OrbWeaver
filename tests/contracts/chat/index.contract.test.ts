@@ -379,6 +379,24 @@ test("ChatDeltaEvent carries text and reasoning chunks", () => {
   };
   expect(textDelta.kind).toBe("text");
   expect(reasoningDelta.kind).toBe("reasoning");
+  // The D16 classification anchor is on the BUS member, NOT on this chunk — `ChatDeltaEvent` is also the
+  // provider-level payload every backend runner constructs, and a provider cannot know a `messages.seq`
+  // (it would have to be fabricated). Pinned here so the anchor never migrates down onto the chunk.
+  expect("slotSeq" in textDelta).toBe(false);
+});
+
+test("the `delta` bus member carries its target slot's seq — the D16 anchor that keeps clamped members streaming", () => {
+  // Without this, a raw-text delta is unclassifiable and the clamp must withhold it from EVERY `from-join`
+  // member (the DB default) — which is every invited human in a room with prior canon.
+  const streamed: ChatBusEvent = {
+    type: "delta",
+    chatId: SAMPLE_CHAT_ID,
+    slotSeq: 7,
+    delta: { chatId: SAMPLE_CHAT_ID, kind: "text", text: "hi" },
+  };
+  // A plain scalar, so the bus-payload allowlist (no unknown/Record/index field) is untouched.
+  expect(streamed.type === "delta" ? streamed.slotSeq : null).toBe(7);
+  expect(JSON.parse(JSON.stringify(streamed))).toEqual(streamed);
 });
 
 test("CHAT_BUS_EVENT_TYPES is the exhaustive discriminator set incl. the embedded WI events", () => {

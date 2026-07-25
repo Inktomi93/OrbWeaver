@@ -3,6 +3,7 @@
 // the roving-focus + action-seam prop contracts, and the accessible-name derivation. Pure — no JSX
 // (the row shell is components/member-row.tsx; the canonical action home is member-row-menu.tsx).
 
+import type { JoinHistoryVisibility } from "@orb/contracts/chat";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 
 /** A PEOPLE (human) row view — projected by the surface from `ParticipantView` (+ `pendingHostUserId`). */
@@ -19,6 +20,9 @@ export interface MemberPersonRow {
   readonly avatarHash: string | null;
   /** The pending host-handoff nominee (host view chip, FINAL-Chats §8.3) — cleared on accept. */
   readonly pendingNominee: boolean;
+  /** D16 — how much of the room's canon this member may read (`full` = all of it, the default;
+   *  `from-join` = only from their own join point). The host flips it from this row's menu. */
+  readonly historyVisibility: JoinHistoryVisibility;
 }
 
 /** A CAST (character) row view — source-agnostic (committed roster OR draft founding cards). */
@@ -47,6 +51,9 @@ export interface MemberRowActions {
   readonly onKick?: ((userId: UserId) => void) | undefined;
   readonly onNominateHost?: ((userId: UserId) => void) | undefined;
   readonly onLeave?: (() => void) | undefined;
+  /** Set how much room canon a human member may read (host-only; D16). Absent for a non-host — the
+   *  action simply doesn't render (§8.1). */
+  readonly onSetHistoryVisibility?: ((userId: UserId, visibility: JoinHistoryVisibility) => void) | undefined;
   /** Sole-host leave archives the room — the confirm copy must say so (FINAL-Chats §8.3). */
   readonly leaveArchivesRoom?: boolean | undefined;
   readonly onSetDisabled?: ((characterId: CharacterId, disabled: boolean) => void) | undefined;
@@ -68,7 +75,9 @@ export function rowAccessibleName(row: MemberPersonRow | MemberCastRow): string 
     const role = row.isHost ? "host" : "member";
     const you = row.isViewer ? ", you" : "";
     const nominated = row.pendingNominee ? ", nominated as host" : "";
-    return `${row.displayName} — ${role}${you}${nominated}`;
+    // The non-default D16 posture is state, so it rides the accessible NAME (the cast ", muted" precedent).
+    const history = row.historyVisibility === "from-join" ? ", limited history" : "";
+    return `${row.displayName} — ${role}${you}${nominated}${history}`;
   }
   return `${row.displayName} — character${row.disabled ? ", muted" : ""}`;
 }

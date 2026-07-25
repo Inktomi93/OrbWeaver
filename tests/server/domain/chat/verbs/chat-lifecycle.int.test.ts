@@ -2,17 +2,24 @@
 // libSQL db: the host-authority gate, the row writes, the variables round-trip (config plane), the injections
 // CRUD, and the emitted bus events. Reached through the BUNDLE `createChatLifecycle(ctx, { emit })`.
 
+import process from "node:process";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
-import { chatInjections, chats } from "@orb/db";
+import { chatEvents, chatInjections, chats } from "@orb/db";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { AuditEntry } from "@orb/server/foundation/observability";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
+import { createActiveTurns } from "../../../../../packages/server/src/domain/chat/active-turns";
+import { createChatBus } from "../../../../../packages/server/src/domain/chat/bus";
+import type { ActiveTurns } from "../../../../../packages/server/src/domain/chat/contract/active-turns";
 import { ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors";
+import type { TurnStreamChunk } from "../../../../../packages/server/src/domain/chat/contract/results";
 import { createChatLifecycle } from "../../../../../packages/server/src/domain/chat/verbs/chat-lifecycle";
+import { scenario } from "../../../../support/chat/scenario";
+import { tape } from "../../../../support/chat/tape";
 import { freshDb } from "../../../../support/db";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../support/fixtures";
@@ -30,6 +37,12 @@ const emit = (event: ChatBusEvent): Promise<void> => {
   emitted.push(event);
   return Promise.resolve();
 };
+
+/** The bundle deps: the recorder emit + a private (empty) turn registry. `delete` sweeps the registry, so the
+ *  delete-mid-turn arm below wires the SCENARIO's live one instead. */
+function lifecycleDeps(): { emit: typeof emit; activeTurns: ActiveTurns } {
+  return { emit, activeTurns: createActiveTurns() };
+}
 
 function principal(userId: UserId): Principal {
   return makePrincipal(userId, { handle: castId<Handle>("h") });
@@ -52,7 +65,7 @@ async function seedRoom(): Promise<{
 describe("chat-row flags (host-only)", () => {
   test("updateTitle writes the row + emits chatUpdated; a member is refused", async () => {
     const { host, member, chatId } = await seedRoom();
-    const life = createChatLifecycle(makeChatContext(db), { emit });
+    const life = createChatLifecycle(makeChatContext(db), lifecycleDeps());
 
     await life.updateTitle({ principal: principal(host), chatId, title: "Renamed" });
     const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
@@ -66,7 +79,7 @@ describe("chat-row flags (host-only)", () => {
 
   test("archive + star toggle the row flags", async () => {
     const { host, chatId } = await seedRoom();
-    const life = createChatLifecycle(makeChatContext(db), { emit });
+    const life = createChatLifecycle(makeChatContext(db), lifecycleDeps());
 
     await life.archive({ principal: principal(host), chatId, archived: true });
     await life.star({ principal: principal(host), chatId, star: true });
@@ -85,7 +98,7 @@ describe("chat-row flags (host-only)", () => {
           return Promise.resolve();
         },
       }),
-      { emit },
+      lifecycleDeps(),
     );
 
     await life.delete({ principal: principal(host), chatId });
@@ -94,6 +107,72 @@ describe("chat-row flags (host-only)", () => {
     expect(emitted).toEqual([{ type: "chatDeleted", chatId }]);
     // The best-effort forensic row (entity_id is the D24-sanctioned soft ref — it outlives the chat).
     expect(audits).toEqual([{ actorUserId: host, action: "chat.delete", entityType: "chat", entityId: chatId }]);
+  });
+
+  // The observed production crash (server.log 12:45:05Z / 12:47:54Z): deleting a chat mid-turn left the
+  // in-flight turn streaming, its next `delta` INSERT tripped the `chat_events.chat_id` FK, and the
+  // fire-and-forget emit's rejection was UNHANDLED — the node process exited for every user. The fix is both
+  // halves: `delete` ABORTS the room's turns (source) and the bus emit is TOTAL (floor).
+  test("deleting a chat mid-turn: the streaming turn is aborted, the post-delete delta is dropped (no unhandled rejection), and the process survives", async () => {
+    let sawFirstDelta!: () => void;
+    const streaming = new Promise<void>((resolve) => {
+      sawFirstDelta = resolve;
+    });
+    let deleteDone!: () => void;
+    const deleted = new Promise<void>((resolve) => {
+      deleteDone = resolve;
+    });
+    // The scripted role stream, PARKED mid-turn: chunk 1 streams while the chat is alive, chunk 2 + the
+    // terminal `final` only resume AFTER the chat row is gone — the exact interleaving that crashed.
+    async function* gatedStream(): AsyncGenerator<TurnStreamChunk> {
+      yield { kind: "text", text: "hel" };
+      sawFirstDelta();
+      await deleted;
+      yield { kind: "text", text: "lo" };
+      yield { kind: "final", economics: { content: "hello", tokensIn: 4, tokensOut: 2, model: "test-model" } };
+    }
+    // The REAL durable bus (not the recorder) — this test exists to exercise the `chat_events` FK itself.
+    const bus = createChatBus(makeChatContext(db));
+    const sc = await scenario.chat(tape(), { db, emit: bus.emit, ctx: { runChatTurn: () => gatedStream() } });
+    // The verb emits through the SAME durable bus the turn does — `chatDeleted` is itself an append into the
+    // chat it is deleting, so its ordering against the row drop is part of what this test pins.
+    const life = createChatLifecycle(makeChatContext(db), {
+      emit: async (event: ChatBusEvent): Promise<void> => {
+        await bus.emit(event);
+      },
+      activeTurns: sc.activeTurns,
+    });
+    const rejections: unknown[] = [];
+    const onUnhandled = (reason: unknown): void => {
+      rejections.push(reason);
+    };
+    process.on("unhandledRejection", onUnhandled);
+
+    const sending = sc.send("hi");
+    await streaming;
+    expect(sc.activeTurns.countActive(sc.chatId)).toBe(1);
+
+    await life.delete({ principal: sc.principal(), chatId: sc.chatId });
+    deleteDone();
+    const outcome = await sending;
+    // Let any rejection the fire-and-forget emits produced reach the process handler.
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    process.off("unhandledRejection", onUnhandled);
+
+    // THE bug: a single racing emit must never reach the process as an unhandled rejection.
+    expect(rejections).toEqual([]);
+    // The turn TERMINATED (aborted) instead of running to completion against a dead chat — and it committed
+    // no canon into the deleted room.
+    expect(outcome.aborted).toBe(true);
+    expect(sc.activeTurns.countActive(sc.chatId)).toBe(0);
+    expect(await sc.loadCanon()).toEqual([]);
+    // The row is gone and no orphan event survived (`chatDeleted` rode the cascade, as it must).
+    expect(await db.select().from(chats).where(eq(chats.id, sc.chatId))).toEqual([]);
+    expect(await db.select().from(chatEvents).where(eq(chatEvents.chatId, sc.chatId))).toEqual([]);
+    // `chatDeleted` was still DELIVERED: it is emitted before the row drop, so it got a real durable seq and
+    // reached the ring the transport fans from (emitting after the delete would silently drop it).
+    // (Ring ORDER is not asserted: the in-flight delta emits are fire-and-forget, so one can settle after it.)
+    expect(bus.readRing(sc.chatId).map((e) => e.event)).toContainEqual({ type: "chatDeleted", chatId: sc.chatId });
   });
 
   test("a member's refused delete writes NO audit row (existence-before-audit order)", async () => {
@@ -106,7 +185,7 @@ describe("chat-row flags (host-only)", () => {
           return Promise.resolve();
         },
       }),
-      { emit },
+      lifecycleDeps(),
     );
 
     await life.delete({ principal: principal(member), chatId }).catch((e: unknown) => e);
@@ -118,7 +197,7 @@ describe("setChatAnchorPersona — the manual/host Anchor re-pin (#4, FINAL-Pers
   test("host re-pins to a present human's persona; emits chatUpdated; a member is refused", async () => {
     const { host, member, chatId } = await seedRoom();
     const hostPersona = await seedPersona(db, host, "host_p");
-    const life = createChatLifecycle(makeChatContext(db), { emit });
+    const life = createChatLifecycle(makeChatContext(db), lifecycleDeps());
 
     await life.setChatAnchorPersona({
       principal: principal(host),
@@ -137,7 +216,7 @@ describe("setChatAnchorPersona — the manual/host Anchor re-pin (#4, FINAL-Pers
   test("the host may pin to ANOTHER present human's persona (multi-human — the host freely picks it)", async () => {
     const { host, member, chatId } = await seedRoom();
     const memberPersona = await seedPersona(db, member, "member_p");
-    const life = createChatLifecycle(makeChatContext(db), { emit });
+    const life = createChatLifecycle(makeChatContext(db), lifecycleDeps());
 
     await life.setChatAnchorPersona({
       principal: principal(host),
@@ -152,7 +231,7 @@ describe("setChatAnchorPersona — the manual/host Anchor re-pin (#4, FINAL-Pers
     const { host, chatId } = await seedRoom();
     const outsider = await seedUser(db, "outsider");
     const foreignPersona = await seedPersona(db, outsider, "foreign_p");
-    const life = createChatLifecycle(makeChatContext(db), { emit });
+    const life = createChatLifecycle(makeChatContext(db), lifecycleDeps());
 
     const err = await life.setChatAnchorPersona({ principal: principal(host), chatId, personaId: foreignPersona }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
@@ -164,7 +243,7 @@ describe("setChatAnchorPersona — the manual/host Anchor re-pin (#4, FINAL-Pers
   test("personaId: null clears an existing pin", async () => {
     const { host, chatId } = await seedRoom();
     const hostPersona = await seedPersona(db, host, "host_p");
-    const life = createChatLifecycle(makeChatContext(db), { emit });
+    const life = createChatLifecycle(makeChatContext(db), lifecycleDeps());
     await life.setChatAnchorPersona({
       principal: principal(host),
       chatId,
@@ -180,7 +259,7 @@ describe("setChatAnchorPersona — the manual/host Anchor re-pin (#4, FINAL-Pers
 describe("variables — the config-plane round-trip (member)", () => {
   test("setVariables persists; get/getStored read them back; clearVariables empties", async () => {
     const { member, chatId } = await seedRoom();
-    const life = createChatLifecycle(makeChatContext(db), { emit });
+    const life = createChatLifecycle(makeChatContext(db), lifecycleDeps());
 
     await life.setVariables({ principal: principal(member), chatId, values: { mood: "tense" } });
     expect(await life.getStoredVariables({ principal: principal(member), chatId })).toEqual({
@@ -198,7 +277,7 @@ describe("variables — the config-plane round-trip (member)", () => {
 describe("injections — CRUD (write host, list member)", () => {
   test("create → list → update → delete", async () => {
     const { host, member, chatId } = await seedRoom();
-    const life = createChatLifecycle(makeChatContext(db), { emit });
+    const life = createChatLifecycle(makeChatContext(db), lifecycleDeps());
 
     const created = await life.setChatInjection({
       principal: principal(host),
@@ -232,7 +311,7 @@ describe("injections — CRUD (write host, list member)", () => {
 
   test("a member cannot write an injection (host-only)", async () => {
     const { member, chatId } = await seedRoom();
-    const life = createChatLifecycle(makeChatContext(db), { emit });
+    const life = createChatLifecycle(makeChatContext(db), lifecycleDeps());
     const err = await life
       .setChatInjection({
         principal: principal(member),
@@ -269,7 +348,7 @@ describe("reapTemporaryChats — the caller's expired temp chats (PD-65)", () =>
     await seedParticipant(db, { chatId: foreign, key: "x_h", userId: other, role: "host" });
     await seedParticipant(db, { chatId: foreign, key: "x_m", userId: host, role: "member" });
 
-    const life = createChatLifecycle(makeChatContext(db), { emit });
+    const life = createChatLifecycle(makeChatContext(db), lifecycleDeps());
     expect(await life.reapTemporaryChats({ principal: principal(host) })).toEqual({ reaped: 1 });
 
     const surviving = (await db.select({ id: chats.id }).from(chats)).map((r) => r.id);

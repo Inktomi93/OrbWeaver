@@ -57,7 +57,7 @@ describe("createExtractQuiet", () => {
     const calls: SummarizeCall[] = [];
     const extractQuiet = createExtractQuiet({ db, summarize: fakeSummarize(calls), getCard: fakeGetCard("Aria") });
 
-    const result = await extractQuiet({ chatId, instruction: "Describe {{char}} in the current moment." });
+    const result = await extractQuiet({ chatId, instruction: "Describe {{char}} in the current moment.", historyFloorSeq: 0 });
 
     expect(calls).toHaveLength(1);
     const item = calls[0]?.inputs[0];
@@ -79,7 +79,7 @@ describe("createExtractQuiet", () => {
     const calls: SummarizeCall[] = [];
     const extractQuiet = createExtractQuiet({ db, summarize: fakeSummarize(calls), getCard: fakeGetCard("Aria") });
 
-    await extractQuiet({ chatId, instruction: "Describe {{char}}." });
+    await extractQuiet({ chatId, instruction: "Describe {{char}}.", historyFloorSeq: 0 });
 
     expect(calls[0]?.inputs[0]?.userPrompt).toContain("just starting");
   });
@@ -93,10 +93,31 @@ describe("createExtractQuiet", () => {
     const calls: SummarizeCall[] = [];
     const extractQuiet = createExtractQuiet({ db, summarize: fakeSummarize(calls), getCard: fakeGetCard("Aria") });
 
-    await extractQuiet({ chatId, instruction: "x" });
+    await extractQuiet({ chatId, instruction: "x", historyFloorSeq: 0 });
 
     const userPrompt = calls[0]?.inputs[0]?.userPrompt ?? "";
     expect(userPrompt).toContain("VISIBLE line.");
     expect(userPrompt).not.toContain("HIDDEN line.");
+  });
+
+  // The extraction's product is a model DISTILLATION of the transcript returned to ONE human on the wire
+  // (`imagery.extractPrompt`), so it is viewer-plane: a `from-join`-clamped caller's pre-join rows must never
+  // reach the side-LLM at all. The floor is resolved at the compose gate by `resolveViewerVisibility`.
+  test("a positive history floor keeps every PRE-JOIN row out of the scene the side-LLM reads", async () => {
+    const db = await freshDb();
+    const chatId = await seedRoom(db);
+    await seedMessage(db, chatId, 1, { role: "assistant", content: "PREJOIN secret." });
+    await seedMessage(db, chatId, 2, { role: "assistant", content: "ALSO prejoin." });
+    await seedMessage(db, chatId, 3, { role: "assistant", content: "AFTERJOIN line." });
+
+    const calls: SummarizeCall[] = [];
+    const extractQuiet = createExtractQuiet({ db, summarize: fakeSummarize(calls), getCard: fakeGetCard("Aria") });
+
+    await extractQuiet({ chatId, instruction: "x", historyFloorSeq: 3 });
+
+    const userPrompt = calls[0]?.inputs[0]?.userPrompt ?? "";
+    expect(userPrompt).toContain("AFTERJOIN line.");
+    expect(userPrompt).not.toContain("PREJOIN secret.");
+    expect(userPrompt).not.toContain("ALSO prejoin.");
   });
 });

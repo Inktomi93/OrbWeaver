@@ -1,11 +1,18 @@
-// The command-palette body: Threads (chat.listChats -> selectChat), Go to (rail sections ->
-// setActiveSection), Create (New chat/New character). Lives in features/chat because the palette is
-// chat-led (recent threads are its primary group); "Go to" section metadata arrives as a prop from the
-// route, which owns the section registry. cmdk owns search/filtering/keyboard nav — do not reimplement.
+// The command-palette body. THREE kinds of row, and the distinction is the whole design:
+//   • Threads — ENTITY navigation, derived from `chat.listChats` (unbounded, data-driven: a row per thread
+//     is not a declarable command, it is a query result).
+//   • Go to   — SECTION navigation, derived from the section registry (already one source of truth, handed
+//     down by `command-modal.tsx`).
+//   • Commands — the SLASH-COMMAND registry (client-architecture-lockdown.md §6c): the same registry the
+//     chat composer dispatches `/<id>` against, so a command is DECLARED ONCE and is automatically both
+//     typeable and discoverable. "New chat"/"New character" used to be hardcoded rows here; they are now
+//     ordinary contributions owned by their features, which is what makes this list extensible at all.
+// Lives in features/chat because the palette is chat-led (recent threads are its primary group). cmdk owns
+// search/filtering/keyboard nav — do not reimplement.
 
 import type { ChatId } from "@orb/kit/ids";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@orb/ui/command";
-import { Icon, MessagesSquare, Plus, Users } from "@orb/ui/icons";
+import { Icon, MessagesSquare } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
@@ -14,12 +21,19 @@ import { useRef } from "react";
 
 import type { Trpc } from "#data";
 import { QueryBoundary, useTRPC } from "#data";
-import { useFocusOnMount } from "#lib";
+import type { SlashCommandContribution, SlashCommandGroup } from "#lib";
+import { SLASH_COMMAND_GROUP_LABELS, SLASH_COMMAND_GROUPS, useFocusOnMount } from "#lib";
 import type { SectionId } from "#state";
-import { closeModal, openModal, selectChat, setActiveSection } from "#state";
+import { closeModal, selectChat, setActiveSection, useActiveChatId } from "#state";
+import { useSlashCommands } from "../hooks/use-slash-commands";
 import { chatSummaryRowView } from "../lib/chat-summary-row";
 
 type ChatSummaryItem = inferOutput<Trpc["chat"]["listChats"]>[number];
+
+/** A command's declared bucket, defaulted — the contribution's `group` is optional by design. */
+function groupOf(command: SlashCommandContribution): SlashCommandGroup {
+  return command.group ?? "commands";
+}
 
 export interface GoToSection {
   readonly id: SectionId;
@@ -33,6 +47,9 @@ export interface CommandPaletteSurfaceProps {
 export function CommandPaletteSurface({ goToSections }: CommandPaletteSurfaceProps): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
+  // The palette can be opened from anywhere, so the projection is the ACTIVE chat (null outside one) — a
+  // command that needs a room says so through `unavailableReason` and renders disabled, never hidden.
+  const slash = useSlashCommands(useActiveChatId());
 
   const jumpToChat = (chatId: ChatId): void => {
     selectChat(chatId);
@@ -42,18 +59,17 @@ export function CommandPaletteSurface({ goToSections }: CommandPaletteSurfacePro
     setActiveSection(id);
     closeModal();
   };
-  const newChat = (): void => {
-    openModal("newChat");
-  };
-  const newCharacter = (): void => {
-    // No dedicated create-character flow exists yet — land in the Characters section.
-    // TODO(character-lane): route straight to the create form when it lands.
-    setActiveSection("characters");
+  // Close BEFORE running: a command whose runner opens another modal (`/new-chat`) would otherwise have
+  // its modal closed right back by this dismissal.
+  const runCommand = (id: string): void => {
     closeModal();
+    slash.run(id);
   };
 
   return (
     <Stack ref={surfaceRef} tabIndex={-1} className="outline-none h-full">
+      {/* The registered commands' invisible runner mounts — the palette is a slash-command host too. */}
+      {slash.mounts}
       <Command className="rounded-card border shadow-overlay h-full flex flex-col" label="Command palette" onEscape={closeModal}>
         <CommandInput aria-label="Search commands" placeholder="Jump to a thread, section, or action…" />
         <CommandList className="max-h-96">
@@ -71,19 +87,53 @@ export function CommandPaletteSurface({ goToSections }: CommandPaletteSurfacePro
             ))}
           </CommandGroup>
 
-          <CommandGroup heading="Create">
-            <CommandItem keywords={["new", "chat", "thread"]} onSelect={newChat} value="create:chat">
-              <Icon icon={Plus} size="sm" />
-              New chat
-            </CommandItem>
-            <CommandItem keywords={["new", "character"]} onSelect={newCharacter} value="create:character">
-              <Icon icon={Users} size="sm" />
-              New character
-            </CommandItem>
-          </CommandGroup>
+          {SLASH_COMMAND_GROUPS.map((group) => (
+            <CommandsGroup
+              commands={slash.commands.filter((c) => groupOf(c) === group)}
+              group={group}
+              key={group}
+              onRun={runCommand}
+              unavailableFor={slash.unavailableFor}
+            />
+          ))}
         </CommandList>
       </Command>
     </Stack>
+  );
+}
+
+interface CommandsGroupProps {
+  readonly commands: readonly SlashCommandContribution[];
+  readonly group: SlashCommandGroup;
+  readonly onRun: (id: string) => void;
+  readonly unavailableFor: (command: SlashCommandContribution) => string | null;
+}
+
+/** One slash-command bucket. Renders nothing when the bucket is empty, so a zero-registrant build shows
+ *  exactly the navigation groups. */
+function CommandsGroup({ commands, group, onRun, unavailableFor }: CommandsGroupProps): ReactElement | null {
+  if (commands.length === 0) {
+    return null;
+  }
+  return (
+    <CommandGroup heading={SLASH_COMMAND_GROUP_LABELS[group]}>
+      {commands.map((command) => {
+        const reason = unavailableFor(command);
+        return (
+          <CommandItem
+            disabled={reason !== null}
+            key={command.id}
+            keywords={[command.label, command.describe, `/${command.id}`, ...(command.keywords ?? [])]}
+            onSelect={(): void => onRun(command.id)}
+            title={reason ?? undefined}
+            value={`command:${command.id}`}
+          >
+            {command.icon === undefined ? null : <Icon icon={command.icon} size="sm" />}
+            {command.label}
+          </CommandItem>
+        );
+      })}
+    </CommandGroup>
   );
 }
 

@@ -2,12 +2,17 @@
 // Send <-> Stop off the live turn phase. Attach picks local images into a pending strip; on send they
 // upload to CAS and ride the send as attachmentAssetIds. continue-on-empty is real, tested groundwork
 // the Send button doesn't yet act on (parked until chat.continueTurn is exposed here).
+//
+// SLASH COMMANDS (client-architecture-lockdown.md §6c): a send whose draft names a REGISTERED `/command`
+// dispatches to that command's runner instead of posting. Non-command text takes the byte-identical old
+// path; an UNKNOWN command is refused with a reason (never silently posted), and `//…` is the escape that
+// sends a message legitimately starting with a slash. With zero registrants nothing here can fire — every
+// draft classifies as a message, so the send path is exactly what it was.
 
 import type { ChatId, MessageId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import { Button } from "@orb/ui/button";
 import { CrossfadeImage } from "@orb/ui/crossfade-image";
-import type { FileDropzoneResult } from "@orb/ui/file-dropzone";
 import { FileDropzone } from "@orb/ui/file-dropzone";
 import { Icon, ImagePlus, Send, Sparkles, Square, X } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
@@ -15,17 +20,23 @@ import { Spinner } from "@orb/ui/spinner";
 import { Textarea } from "@orb/ui/textarea";
 import type { KeyboardEvent, ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
+import type { SlashCommandContribution } from "#lib";
 import { IMAGE_GEN_NEEDS_CHAT, IMAGE_GEN_NEEDS_TEXT, testId } from "#lib";
 import type { ChatHandle } from "#state";
 import { isCommitted } from "#state";
 import { useChatBehaviorPrefs } from "../hooks/use-chat-behavior-prefs";
+import type { PendingAttachment } from "../hooks/use-composer-attachments";
+import { useComposerAttachments } from "../hooks/use-composer-attachments";
 import { useContinueTurn } from "../hooks/use-continue-turn";
 import { useGenerateImage } from "../hooks/use-generate-image";
 import type { DraftSeed } from "../hooks/use-send-message";
 import { useSendMessage } from "../hooks/use-send-message";
+import { useSlashCommands } from "../hooks/use-slash-commands";
 import { useStopTurn } from "../hooks/use-stop-turn";
 import { shouldSendOnEnter } from "../lib/composer-send-keys";
 import { resolveContinueTarget } from "../lib/continue-on-empty";
+import { matchSlashCommands } from "../lib/slash-command";
+import { ComposerSlashStrip } from "./composer-slash-strip";
 import { ComposerWand } from "./composer-wand";
 import { SpeakAsSelect } from "./speak-as-select";
 
@@ -48,11 +59,6 @@ function resolveImageGenReason(hasChat: boolean, hasText: boolean): string | und
 
 // Client-side pre-check ceiling; the server re-caps at 64 MiB + magic-byte checks regardless.
 const MAX_ATTACHMENT_BYTES = 20_000_000;
-
-interface PendingAttachment {
-  readonly file: File;
-  readonly url: string;
-}
 
 function AttachmentPreview({ attachment, onRemove }: { readonly attachment: PendingAttachment; readonly onRemove: () => void }): ReactElement {
   return (
@@ -79,41 +85,14 @@ export interface ComposerProps {
 
 export function Composer({ handle, value, onChange, draftSeed, onCommitted, tailRole = null, tailAssistantMessageId = null }: ComposerProps): ReactElement {
   const chatId = isCommitted(handle) ? handle.id : null;
+  const slash = useSlashCommands(chatId);
+  // The refusal from the LAST send attempt (unknown/unavailable command). Cleared on the next keystroke —
+  // it explains one action, it is not a persistent state.
+  const [slashNotice, setSlashNotice] = useState<string | null>(null);
   const stopTurn = useStopTurn(chatId);
   const behaviorPrefs = useChatBehaviorPrefs();
   const continueOnEmpty = useContinueTurn();
-  const [attachments, setAttachments] = useState<readonly PendingAttachment[]>([]);
-  // Mirrors `attachments` for the unmount-cleanup effect below — a cleanup closure would otherwise
-  // revoke a stale list instead of the current one at actual unmount.
-  const attachmentsRef = useRef(attachments);
-  useEffect(() => {
-    attachmentsRef.current = attachments;
-  });
-  useEffect(
-    () => (): void => {
-      for (const a of attachmentsRef.current) {
-        URL.revokeObjectURL(a.url);
-      }
-    },
-    [],
-  );
-  const clearAttachments = (): void =>
-    setAttachments((prev) => {
-      for (const a of prev) {
-        URL.revokeObjectURL(a.url);
-      }
-      return [];
-    });
-  const addFiles = ({ accepted }: FileDropzoneResult): void =>
-    setAttachments((prev) => [...prev, ...accepted.map((file) => ({ file, url: URL.createObjectURL(file) }))]);
-  const removeAttachment = (index: number): void =>
-    setAttachments((prev) => {
-      const target = prev[index];
-      if (target !== undefined) {
-        URL.revokeObjectURL(target.url);
-      }
-      return prev.filter((_, i) => i !== index);
-    });
+  const { attachments, addFiles, removeAttachment, clearAttachments } = useComposerAttachments();
 
   // The commit signal fires AFTER the draft→committed promotion has flipped the composer's scope key
   // (setHandle → re-render), but the send hook holds the onDraftCommitted closure captured at SEND time
@@ -175,20 +154,58 @@ export function Composer({ handle, value, onChange, draftSeed, onCommitted, tail
 
   const placeholder = resolvePlaceholder(isCommitted(handle), canContinue);
 
-  const submit = (): void => {
-    if (canSubmit) {
-      sendMessage.send(
-        value,
-        attachments.map((a) => a.file),
-      );
+  // The completion offer: the commands whose id extends the token the user is mid-way through typing
+  // (a bare "/" matches them all). Empty when the draft isn't a command-in-progress.
+  const slashMatches = matchSlashCommands(slash.commands, value);
+
+  const pickCommand = (command: SlashCommandContribution): void => {
+    setSlashNotice(null);
+    onChange(`/${command.id} `);
+  };
+
+  // A draft with TEXT goes through slash classification first; the three outcomes are refuse (with a
+  // reason, never a silent post), run the command, or send exactly what the classifier handed back.
+  const submitText = (files: readonly File[]): void => {
+    const outcome = slash.dispatch(value);
+    if (outcome.kind === "blocked") {
+      setSlashNotice(outcome.reason);
       return;
     }
-    if (canContinue) {
-      continueOnEmpty.continueTurn(continueTarget.chatId, continueTarget.messageId);
+    setSlashNotice(null);
+    if (outcome.kind === "ran") {
+      // Cleared BEFORE the runner's own draft write lands, so a command that rewrites the draft
+      // (the verb-then-insert shape) still wins.
+      onChange("");
+      return;
     }
+    sendMessage.send(outcome.text, files);
+  };
+
+  const submit = (): void => {
+    if (!canSubmit) {
+      if (canContinue) {
+        continueOnEmpty.continueTurn(continueTarget.chatId, continueTarget.messageId);
+      }
+      return;
+    }
+    const files = attachments.map((a) => a.file);
+    // An attachment-only draft can't name a command — straight to the original send path.
+    if (canSubmitText) {
+      submitText(files);
+      return;
+    }
+    sendMessage.send(value, files);
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>): void => {
+    // Tab completes the first offer. Deliberately NOT Enter: Enter's meaning is owned by the enterSends
+    // pref, and overloading it would make "send" mean "complete" for one draft shape only.
+    const firstMatch = slashMatches[0];
+    if (event.key === "Tab" && firstMatch !== undefined) {
+      event.preventDefault();
+      pickCommand(firstMatch);
+      return;
+    }
     if (
       shouldSendOnEnter(
         { key: event.key, shiftKey: event.shiftKey, metaKey: event.metaKey, ctrlKey: event.ctrlKey, isComposing: event.nativeEvent.isComposing },
@@ -202,7 +219,11 @@ export function Composer({ handle, value, onChange, draftSeed, onCommitted, tail
 
   return (
     <footer data-testid={testId("composer")}>
+      {/* The registered commands' invisible runner mounts — one fiber each, so a runner may use hooks.
+          Zero registrants renders nothing at all. */}
+      {slash.mounts}
       <Stack gap="field">
+        <ComposerSlashStrip matches={slashMatches} notice={slashNotice} unavailableFor={slash.unavailableFor} onPick={pickCommand} />
         {hasAttachments ? (
           <Row gap="field" align="center" data-slot="composer-attachments" className="mx-auto w-full max-w-(--width-shell-content) flex-wrap">
             {attachments.map((attachment, index) => (
@@ -274,7 +295,11 @@ export function Composer({ handle, value, onChange, draftSeed, onCommitted, tail
             aria-label="Message"
             placeholder={placeholder}
             value={value}
-            onChange={(e): void => onChange(e.target.value)}
+            onChange={(e): void => {
+              // The refusal explained the PREVIOUS send attempt — the next keystroke retires it.
+              setSlashNotice(null);
+              onChange(e.target.value);
+            }}
             onKeyDown={onKeyDown}
             disabled={sendMessage.isPending}
             className="max-h-48 min-w-0 flex-1 resize-none border-0 bg-transparent px-0 focus-visible:ring-0 focus-visible:ring-offset-0"

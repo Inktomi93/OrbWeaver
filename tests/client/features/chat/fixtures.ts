@@ -36,6 +36,11 @@ export const CHAT_ID = castId<ChatId>("chat_ct_keystone");
 /** The chat a committed `ComposerStory` addresses — its own id (distinct from `CHAT_ID`) so the
  *  composer suite's turn slots never collide with the message-list suite's in the shared store. */
 export const COMPOSER_CHAT_ID = castId<ChatId>("chat_ct_composer");
+
+/** The `unavailableReason` the slash-command stories' `/locked` fake returns — shared with the CT that
+ *  asserts it, and homed HERE (not on the story module) because a `.ct.tsx` may import only components
+ *  from a story module (Playwright's CT transform double-declares a mixed value+component import). */
+export const SLASH_LOCKED_REASON = "Locked in this room — join it first.";
 const FROZEN_AT = 1_750_000_000_000;
 
 /** A fully-valid `MessageView` literal (the client read model — slot ⋈ selected variant). */

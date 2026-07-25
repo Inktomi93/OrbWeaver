@@ -26,6 +26,11 @@ export interface ActiveTurns {
   readonly register: (chatId: ChatId, ownerUserId: UserId) => ActiveTurnHandle;
   /** Signal every in-flight turn for `chatId` owned by `principalUserId`; report any foreign in-flight turn. */
   readonly abort: (chatId: ChatId, principalUserId: UserId) => AbortResult;
+  /** Signal EVERY in-flight turn for `chatId`, owner-blind, and return how many were signalled. Not the
+   *  owner-only `abort`: this is the ROOM-GONE sweep (host delete) — once the chat row is dropped no turn in it
+   *  can commit anything, so generating on is pointless and every event it emits is a dropped write. The
+   *  rollback-theft defense does not apply (there is no chat left to steal a rollback in). */
+  readonly abortAll: (chatId: ChatId) => number;
   /** How many turns are currently in flight for `chatId` (a test/observability hook). */
   readonly countActive: (chatId: ChatId) => number;
 }

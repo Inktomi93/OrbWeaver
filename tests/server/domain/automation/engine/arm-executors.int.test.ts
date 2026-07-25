@@ -88,6 +88,8 @@ function makeHarness(
     chat: {
       getMessageFact: () => Promise.resolve(null),
       getTurnOrigin: () => Promise.resolve(null),
+      // The visibility op is inert (fail-closed) — this suite never drives the plugin fan-out that consumes it.
+      resolveViewerVisibility: () => Promise.resolve(null),
       readVariables: () => Promise.resolve({}),
       readChoicePicks: () => Promise.resolve({}),
       applyVariableOps: (chatId, varOps) => {

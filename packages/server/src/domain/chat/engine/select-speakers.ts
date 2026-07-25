@@ -12,7 +12,8 @@
 //      rather than empty). A solo roster falls out here: the pool empties → restores → re-speaks.
 //   4. Policy — order/subset the pool: `list` (roster order, all), `natural` (talkativeness-weighted
 //      sample order, Efraimidis-Spirakis), `pooled` (roster order, round-robin), `manual` (none — only
-//      forced drives it), `smart` (side-LLM path; falls back to `natural` if reached here).
+//      forced drives it), `smart` (the side-LLM path lives in `engine/smart-arbitrate`; this file only sees
+//      `smart` on the forced-target branch and treats it as `natural` — see `applyPolicy`).
 //   5. Cap — `maxSpeakers` (optional) truncates the ordered result; default = all eligible.
 
 import type { GroupConfig, SpeakerRef } from "@orb/contracts/chat";
@@ -91,8 +92,11 @@ export function selectSpeakers(params: SelectSpeakersParams): SpeakerRef[] {
 function applyPolicy(pool: readonly ArbiterCandidate[], policy: GroupConfig["policy"], rng: () => number): readonly ArbiterCandidate[] {
   switch (policy) {
     case "natural":
-    // `smart` is the side-LLM path — the round driver routes it elsewhere; if it reaches the sync path
-    // it degrades to `natural`.
+    // `smart` is the side-LLM path (`engine/smart-arbitrate`) — the turn verb routes a smart round there,
+    // so this arm is reached ONLY on the forced-target branch: a `smart` room whose human `@mention`
+    // resolved to nobody eligible (the named seat is muted/left), which lands here with an empty forced
+    // list. No model was consulted, so this is a plain `natural` order, not the degrade path (the model
+    // failing IS the degrade path, and it is emitted as `smart_arbitration_degraded` by the caller).
     case "smart":
       return weightedOrder(pool, rng);
     // `list` (roster order, all) + `pooled` (round-robin — the banned last speaker is already excluded, so

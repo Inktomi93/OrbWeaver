@@ -12,6 +12,7 @@
 import type { MessageView, ParticipantView, RoomOverrides, ToolCallRecord } from "@orb/contracts/chat";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type { CharacterId, ChatId, PresetId, UserId } from "@orb/kit/ids";
+import type { LucideIcon } from "@orb/ui/icons";
 import type { ReactNode } from "react";
 import type { ContributorRegistry } from "./registry";
 
@@ -249,6 +250,76 @@ export interface MessageToolsRenderer {
   /** Names this contributor (the registry key). */
   readonly id: string;
   readonly render: (records: readonly ToolCallRecord[]) => ReactNode | null;
+}
+
+/** The palette BUCKET a slash command lands in — a CLOSED axis (§5.5: one importable union, extended by
+ *  editing this tuple), so a contributed command can never invent a heading. Entries are growth; the
+ *  buckets are architecture. Declared order IS the palette's group order. */
+export const SLASH_COMMAND_GROUPS = ["create", "commands"] as const;
+export type SlashCommandGroup = (typeof SLASH_COMMAND_GROUPS)[number];
+
+/** The heading each bucket renders under. Homed BESIDE its vocabulary tuple (the one sanctioned home for a
+ *  keyed map over a closed axis — G2's "vocabulary tuple" allowance), so a heading can never drift from the
+ *  axis: adding a group member fails `tsc` here until it is given copy. */
+export const SLASH_COMMAND_GROUP_LABELS: Record<SlashCommandGroup, string> = {
+  create: "Create",
+  commands: "Commands",
+};
+
+/** THE projection every slash command is resolved against — the ONE place a new availability input lands.
+ *  This is the forward-compatibility hinge: a command that later needs a PERMISSION (host-only, a capability
+ *  flag, a seat) gets it by adding a field HERE and reading it in `unavailableReason`, never by growing the
+ *  contribution shape — derive, don't re-declare (§5 rule 6's projection posture, applied to commands).
+ *  `chatId` is `null` when there is no committed chat in view (a draft room, or the palette opened from a
+ *  non-chat section); a command that needs a room says so through `unavailableReason`. */
+export interface SlashCommandContext {
+  readonly chatId: ChatId | null;
+}
+
+/** A command's imperative runner — receives the raw remainder AFTER `/<id>` (trimmed), so a command owns its
+ *  own argument grammar. A future DECLARED argument spec (for completion/validation) is an ADDITIVE optional
+ *  field on the contribution; this runner signature is what it would describe, never replace. */
+export type SlashCommandRunner = (args: string) => void;
+
+/** What a slash-command mount is handed. It receives the whole {@link SlashCommandContext} (not a bare
+ *  `chatId`) precisely so a later context field reaches every command with zero call-site churn. */
+export interface SlashCommandMountProps {
+  readonly context: SlashCommandContext;
+  /** Publish this command's runner. Called from an effect in the mount's OWN fiber. */
+  readonly onRunner: (run: SlashCommandRunner) => void;
+}
+
+/** A SLASH COMMAND (§6c) — the ONE source of truth a command is declared in: the chat composer dispatches
+ *  `/<id> …` to it AND the command palette lists it, so a feature grafts a command onto BOTH surfaces
+ *  without importing either (assembled at `main.tsx`, delivered by context).
+ *
+ *  The `mount` render-to-publish shape (not a plain `run` callback) is what lets a runner use hooks: the
+ *  host renders `mount` as a component, so the hooks live in their own fiber instead of a hooks-in-a-loop
+ *  at the host. A host may mount the set more than once (the composer and the palette are different
+ *  subtrees with different lifetimes) — a mount must therefore be render-idempotent and side-effect-free
+ *  until its runner is called.
+ *
+ *  UNAVAILABILITY IS NEVER AN OMISSION: `unavailableReason` returns copy naming the unlock condition, and
+ *  the surfaces render the command DISABLED with that reason (never hide it) — the one-real-surface rule. */
+export interface SlashCommandContribution {
+  /** The token after the leading slash — the registry key AND the match token. Lowercase kebab (`new-chat`). */
+  readonly id: string;
+  /** The palette row's title (Title Case, e.g. "New chat"). */
+  readonly label: string;
+  /** One-line help — the palette row's description and the composer completion strip's hint. */
+  readonly describe: string;
+  /** The argument shape shown after the token in the completion strip (e.g. `<NdM±K>`). Absent = no args. */
+  readonly usage?: string;
+  /** Extra palette search terms (cmdk scores `value`/`keywords`, never the rendered children). */
+  readonly keywords?: readonly string[];
+  readonly icon?: LucideIcon;
+  /** @defaultValue `"commands"` */
+  readonly group?: SlashCommandGroup;
+  /** `null` = runnable. A string = the honest reason it is not, naming the unlock condition. */
+  readonly unavailableReason?: (context: SlashCommandContext) => string | null;
+  /** Rendered invisibly by each host; publishes the runner via `props.onRunner`. A component (capitalized
+   *  at the render site) — it may use hooks. */
+  readonly mount: (props: SlashCommandMountProps) => ReactNode;
 }
 
 /** A character-detail contribution (§6c) — a discriminated union BY ANCHOR (the M8 `ChatSurfaceContribution`

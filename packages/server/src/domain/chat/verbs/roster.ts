@@ -40,6 +40,7 @@ import type {
   SetChatBackgroundParams,
   SetChatDocumentVisibilityParams,
   SetGroupConfigParams,
+  SetMemberHistoryVisibilityParams,
   SetRoomOverridesParams,
   SetSeatKnobsParams,
 } from "../contract/params";
@@ -79,6 +80,7 @@ type RosterVerbs = Pick<
   | "getGroupConfigForChat"
   | "getRoomOverridesForChat"
   | "kick"
+  | "setMemberHistoryVisibility"
   | "selfLeave"
   | "nominateHostHandoff"
   | "acceptHostHandoff"
@@ -98,6 +100,7 @@ export function createRoster(ctx: ChatContext, deps: RosterDeps): RosterVerbs {
     removeCharacterFromChat: createRemoveCharacterFromChat(ctx, emit),
     setSeatKnobs: createSetSeatKnobs(ctx, emit),
     kick: createKick(ctx, emit),
+    setMemberHistoryVisibility: createSetMemberHistoryVisibility(ctx, emit),
     selfLeave: createSelfLeave(ctx, emit),
     nominateHostHandoff: createNominateHostHandoff(ctx, emit),
     acceptHostHandoff: createAcceptHostHandoff(ctx, emit),
@@ -383,7 +386,8 @@ function createAddCharacterToChat(ctx: ChatContext, emit: EmitChatEvent): ChatSe
         joinedAt: at,
         joinSeq,
         leftSeq: null,
-        joinHistoryVisibility: "from-join",
+        // Mirrors the column default the insert above left unset (a character seat is never history-clamped).
+        joinHistoryVisibility: "full",
       },
       card,
       ctx.resolveAssetHash,
@@ -514,6 +518,44 @@ function createKick(ctx: ChatContext, emit: EmitChatEvent): ChatService["kick"] 
         entityType: "chat",
         entityId: chatId,
         metadata: { targetUserId: userId },
+      },
+      ctx.now(),
+    );
+  };
+}
+
+/** `setMemberHistoryVisibility` — host-only; the ONE write path for the D16 per-participant join-history
+ *  policy (`chat_participants.joinHistoryVisibility`). The column is the ONLY input to
+ *  `substrate/auth::resolveHistoryFloorSeq`, which `requireParticipant` stamps onto every membership — so
+ *  flipping it here re-clamps the target's history reads, replay, live stream, and forks on their very next
+ *  call, with no other wiring. Keyed by `userId` like `kick`/`nominateHostHandoff`: a character seat carries
+ *  a NULL userId (and has no reader floor — its `joinSeq`/`leftSeq` are the WITNESSING interval, a different
+ *  axis), so it is unreachable through this key; the `kind === "human"` predicate makes that structural
+ *  rather than incidental. A non-present / non-human target is a leak-free NOT_FOUND (the host already sees
+ *  the roster, so a coded refusal leaks nothing — the `setSeatKnobs` idiom). Setting the value the row
+ *  already carries skips the UPDATE (idempotent). Never touches `joinSeq`: `from-join` restricts what the
+ *  member may read FROM THE JOIN POINT THEY ALREADY HAVE, it does not re-stamp their join. */
+function createSetMemberHistoryVisibility(ctx: ChatContext, emit: EmitChatEvent): ChatService["setMemberHistoryVisibility"] {
+  return async ({ principal, chatId, userId, visibility }: SetMemberHistoryVisibilityParams): Promise<void> => {
+    await requireHost(ctx, principal, chatId);
+    const target = (await loadRoster(ctx.db, chatId)).find((p) => p.kind === "human" && p.userId === userId);
+    if (target === undefined) {
+      throw new ChatOperationError(CHAT_OP_CODES.participantNotFound, `chat ${chatId}: ${userId} is not a present human member`);
+    }
+    if (target.joinHistoryVisibility !== visibility) {
+      await ctx.db
+        .update(chatParticipants)
+        .set({ joinHistoryVisibility: visibility })
+        .where(and(eq(chatParticipants.id, target.id), isNull(chatParticipants.leftSeq)));
+    }
+    await emit({ type: "chatUpdated", chatId });
+    await ctx.audit(
+      {
+        actorUserId: principal.userId,
+        action: "chat.setMemberHistoryVisibility",
+        entityType: "chat",
+        entityId: chatId,
+        metadata: { targetUserId: userId, visibility },
       },
       ctx.now(),
     );

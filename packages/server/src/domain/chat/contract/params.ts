@@ -6,6 +6,7 @@ import type {
   ChatInjectionInput,
   CreateInviteInput,
   GroupConfigInput,
+  JoinHistoryVisibility,
   MessageContentBlock,
   OpeningPolicy,
   PreviewInviteInput,
@@ -448,6 +449,16 @@ export interface AcceptInviteParams extends ChatActorParams {
 /** `kick` — host-only. Removes a member (sets leftSeq + SSE teardown + notifies the removed user). */
 export interface KickParticipantParams extends ChatScopedParams {
   readonly userId: UserId;
+}
+
+/** `setMemberHistoryVisibility` — host-only. The ONE write path for the D16 per-participant join-history
+ *  policy (`chat_participants.joinHistoryVisibility`, the floor `substrate/auth::resolveHistoryFloorSeq`
+ *  reads). Targets a PRESENT HUMAN member by `userId` (the kick/nominate keying) — a character seat carries
+ *  a NULL userId and has no reader floor at all, so it is unreachable here by construction. Does NOT move
+ *  the target's `joinSeq`: `from-join` clamps their reads to the join point they already have. */
+export interface SetMemberHistoryVisibilityParams extends ChatScopedParams {
+  readonly userId: UserId;
+  readonly visibility: JoinHistoryVisibility;
 }
 
 /** `selfLeave` — a member leaves their own membership. A sole-host self-leave archives the room. */

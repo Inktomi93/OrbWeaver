@@ -5,12 +5,12 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { EmbedResult, ImageEmbedResult, RerankResult, SummarizeResult } from "@orb/contracts/providers";
-import type { ImageEmbedInput, RerankDocument, RerankQuery, RoleClients, SummarizeInput, SummarizeOptions } from "@orb/contracts/role-clients";
+import type { ImageEmbedInput, RerankDocument, RerankQuery, SummarizeInput } from "@orb/contracts/role-clients";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ConnectionService } from "#domain/connection";
 import { env } from "#foundation/env";
-import type { ProviderExecutor } from "#infra/providers";
+import type { ProviderExecutor, RoleClientsWithSignal, SummarizeCallOptions } from "#infra/providers";
 
 // Summarizer context fallback (tokens) for when a resolved connection reports window 0 (no contextLength).
 // The default summarizer runs on the vLLM GEN engine, so its floor DERIVES from the gen window's single home
@@ -36,7 +36,7 @@ function ownerPrincipal(ownerId: UserId): Principal {
  * Bind a `RoleClients` bundle for one user by resolving each derive-role's `{credential, model}` once via
  * `connection.resolveRole`, then binding a callable per role over the executor.
  */
-export async function bindRoleClientsForUser(deps: RoleClientsBinderDeps, ownerId: UserId): Promise<RoleClients> {
+export async function bindRoleClientsForUser(deps: RoleClientsBinderDeps, ownerId: UserId): Promise<RoleClientsWithSignal> {
   const principal = ownerPrincipal(ownerId);
   const [embedConn, rerankConn, imageEmbedConn, summarizeConn] = await Promise.all([
     deps.connection.resolveRole({ role: "embed", principal }),
@@ -67,11 +67,15 @@ export async function bindRoleClientsForUser(deps: RoleClientsBinderDeps, ownerI
         model: imageEmbedConn.model,
         input: req,
       }),
-    summarize: (inputs: SummarizeInput[], opts?: SummarizeOptions): Promise<SummarizeResult> =>
+    summarize: (inputs: SummarizeInput[], opts?: SummarizeCallOptions): Promise<SummarizeResult> =>
       deps.executor.summarize({
         credential: summarizeConn.credential,
         model: summarizeConn.model,
         inputs,
+        // The caller's cancellation (a chat turn's active-turn handle) rides straight onto the provider
+        // request — every summarize-serving backend honors `SummarizeRequest.signal`, so a non-responsive
+        // box can be cut loose instead of hanging the caller forever.
+        ...(opts?.signal !== undefined ? { signal: opts.signal } : {}),
         ...(opts?.maxTokens !== undefined ? { maxTokens: opts.maxTokens } : {}),
         ...(opts?.temperature !== undefined ? { temperature: opts.temperature } : {}),
         ...(opts?.minP !== undefined ? { minP: opts.minP } : {}),

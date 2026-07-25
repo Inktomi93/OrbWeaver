@@ -8,7 +8,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
 import { goToLanding, selectCharacter, setActiveSection, useTurnSpeakerCharacterId } from "#state";
-import { useKickMember, useNominateHostHandoff, useSelfLeave } from "../hooks/use-membership-mutations";
+import { useKickMember, useNominateHostHandoff, useSelfLeave, useSetMemberHistoryVisibility } from "../hooks/use-membership-mutations";
 import { useForceCharacterTurn, useRemoveCharacterFromChat, useSetSeatKnobs } from "../hooks/use-roster-mutations";
 import type { MemberCastRow, MemberPersonRow } from "../lib/member-rows";
 import { filterCharacters, resolveHumanParticipants } from "../lib/roster";
@@ -31,6 +31,7 @@ function toPersonRows(participants: readonly ParticipantView[], viewerUserId: Us
       isViewer: viewerUserId !== null && p.userId === viewerUserId,
       avatarHash: p.avatarHash,
       pendingNominee: pendingHostUserId !== null && p.userId === pendingHostUserId,
+      historyVisibility: p.joinHistoryVisibility,
     });
   }
   return rows;
@@ -72,6 +73,7 @@ export function CommittedMembersTab({ chatId, chat, isHost, multiHumanCapable, c
   const kick = useKickMember({ trpc, invalidation });
   const selfLeave = useSelfLeave({ trpc, invalidation });
   const nominateHost = useNominateHostHandoff({ trpc, invalidation });
+  const setHistoryVisibility = useSetMemberHistoryVisibility({ trpc, invalidation });
   const [inviteOpen, setInviteOpen] = useState(false);
 
   const respondingCharacterId = useTurnSpeakerCharacterId(chatId);
@@ -97,6 +99,7 @@ export function CommittedMembersTab({ chatId, chat, isHost, multiHumanCapable, c
         onInvitePeople={hostMembership ? (): void => setInviteOpen(true) : undefined}
         onKick={hostMembership ? (userId): void => kick.mutate({ chatId, userId }) : undefined}
         onNominateHost={hostMembership ? (userId): void => nominateHost.mutate({ chatId, userId }) : undefined}
+        onSetHistoryVisibility={hostMembership ? (userId, visibility): void => setHistoryVisibility.mutate({ chatId, userId, visibility }) : undefined}
         onLeave={multiHumanCapable ? onLeave : undefined}
         leaveArchivesRoom={isHost}
         onSetDisabled={

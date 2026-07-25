@@ -38,7 +38,10 @@ type StepResult = { readonly done: AutoModeStopReason } | { readonly committed: 
 async function step(params: AutoModeParams, last: SpeakerRef | null): Promise<StepResult> {
   const speaker = await params.nextSpeaker(last);
   if (speaker === null) {
-    return { done: "no-eligible" };
+    // `nextSpeaker` is now CANCELLABLE (the `smart` side-LLM arbitration reads this same signal), and a
+    // cancelled arbitration yields no speaker. A settled signal means the caller interrupted — report that,
+    // not the "everyone is muted/left" story `no-eligible` tells.
+    return { done: params.signal?.aborted === true ? "interrupt" : "no-eligible" };
   }
   try {
     const outcome = await params.runTurn(speaker);

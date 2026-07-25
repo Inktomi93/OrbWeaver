@@ -559,10 +559,12 @@ export async function loadMessagesPage(
 /** Resume the resumable SSE token log — every row strictly after `afterSeq` (absent ⇒ from the retained
  *  window start), oldest-first, clamped to the caller's D16 join-history `floorSeq`.
  *
- *  A stream row is raw transcript text; its only canon anchor is the nullable `messageId`. A clamped caller
- *  (`floorSeq > 0`) therefore gets an INNER JOIN to `messages` with `seq >= floorSeq`, which by construction
- *  also drops the turn-level rows whose slot had not committed yet (`messageId IS NULL` — unclassifiable, so
- *  withheld; the same conservative call `substrate/auth::isBelowHistoryFloor` makes for a `delta` event).
+ *  A stream row is raw transcript text; its only canon anchor is the nullable `messageId` column. A clamped
+ *  caller (`floorSeq > 0`) therefore gets an INNER JOIN to `messages` with `seq >= floorSeq` — the row-level
+ *  equivalent of the `slotSeq` compare `substrate/auth::isBelowHistoryFloor` runs on a `delta` bus event. The
+ *  join by construction also drops turn-level rows whose slot had not committed yet (`messageId IS NULL` —
+ *  anchorless HERE, unlike the bus `delta`, whose anchor is stamped by the emit site rather than read back
+ *  from a column, so those stay conservatively withheld).
  *  An unclamped caller takes the plain read (no join, byte-identical to before). */
 export async function loadStreamReplay(db: Db, chatId: ChatId, afterSeq: number | undefined, floorSeq: number): Promise<ChatStreamReplayEvent[]> {
   const selection = {

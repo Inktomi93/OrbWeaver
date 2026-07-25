@@ -11,6 +11,20 @@
 // EVERY live yield so a kicked member's stream stops within the kick tx (the membership chokepoint
 // covers the SSE path). Any non-NotFound error propagates into `withSubscriptionErrors`' typed frame.
 //
+// THE D16 JOIN-HISTORY CLAMP APPLIES TO BOTH HALVES. The durable replay is clamped inside the domain
+// (`chat.replayChatEvents` → `substrate/auth::isBelowHistoryFloor`); the LIVE half is clamped HERE, because
+// the per-chat fan-out is transport state keyed by chatId ONLY — every subscriber of a room sees every
+// event published to it. One emit is BOTH logged and fanned out under ONE `seq`, so the two halves must
+// return the SAME verdict for the same row: otherwise a post-join emit carrying a PRE-join `MessageView`
+// (a host editing / re-voicing an old slot) leaks live to a clamped member while the identical durable row
+// is withheld on their reconnect. The transport does not own the policy — it applies the domain's ONE
+// verdict to the floor `chatEventBounds` handed back for THIS subscriber (their own participant row, never
+// client input). A withheld row does NOT advance the resume cursor (the replay path's rule): it leaves a
+// `seq` gap, so a reconnect neither stalls nor re-offers it. An unclamped caller (`full` / the host / any
+// born-here seat) has floor 0 and the verdict short-circuits — zero per-yield cost. `delta` is clamped
+// PER-ROW like everything else (on the `slotSeq` its emit site stamps), NOT blanket-withheld: a clamped
+// member streams a post-join turn's tokens live and is denied a pre-join slot's.
+//
 // SUBSCRIPTION-SIDE SYNTHESES (PD-134/PD-135). Two `ChatBusEvent` members are synthesized HERE, per
 // subscription, not published on the bus (no other subscriber sees them) and never logged to `chat_events`:
 //   • `chatOpened` — yielded once at attach after the membership probe admits the subscriber (the ST
@@ -40,6 +54,7 @@ import type { TrackedEnvelope } from "@trpc/server";
 import { tracked } from "@trpc/server";
 import { z } from "zod";
 import type { ChatService } from "#domain/chat";
+import { isBelowHistoryFloor } from "#domain/chat";
 import { notifyChatOpened } from "../automation-chat-open-tap";
 import { subscribeChatEvents } from "../chat-events-bus";
 import { withSubscriptionErrors } from "../subscriptions";
@@ -505,7 +520,17 @@ async function* chatEventStream(args: {
     }
     // The PER-YIELD membership gate: a kicked member stops receiving within the kick tx; a pre-start
     // subscriber stays open and silent until the room exists and they are seated (withhold-not-throw).
-    if ((await memberBounds(service, principal, chatId)) === null) {
+    const gate = await memberBounds(service, principal, chatId);
+    if (gate === null) {
+      continue;
+    }
+    // The D16 JOIN-HISTORY clamp on the LIVE half — an ADDITIONAL filter after (never instead of) the
+    // membership gate, applying the domain's ONE verdict over the floor that same probe just handed back.
+    // Zero cost for the common case: an unclamped caller's floor is 0 and the verdict short-circuits.
+    if (isBelowHistoryFloor(entry.event, gate.historyFloorSeq)) {
+      // Withhold WITHOUT advancing `maxSeq` — the cursor is "the last seq actually delivered", exactly as on
+      // the replay path. The withheld row leaves a `seq` gap, a reconnect resumes from the last delivered
+      // event, and the durable replay re-applies the same verdict to the gap: never a stall, never a re-offer.
       continue;
     }
     yield tracked(String(entry.seq), entry.event);
@@ -522,7 +547,7 @@ async function* attachSynthesesAndReplay(args: {
   readonly principal: Principal;
   readonly chatId: ChatId;
   readonly resumeSeq: number | null;
-  readonly bounds: StreamEventBounds;
+  readonly bounds: ChatEventAttach;
 }): AsyncGenerator<TrackedEnvelope<ChatBusEvent>> {
   const { service, principal, chatId, resumeSeq, bounds } = args;
   const cursorId = String(resumeSeq ?? 0);
@@ -547,10 +572,11 @@ async function* attachSynthesesAndReplay(args: {
   }
 }
 
-// The withhold-not-throw membership probe, carrying the retained-window bounds: NOT_FOUND (no chat / not a
-// member — the leak-free collapse) → `null`; anything else is a real fault and propagates. The returned
-// `{minSeq, maxSeq}` backs the `historyTruncated` predicate (no second read for the truncation check).
-async function memberBounds(service: ChatService, principal: Principal, chatId: ChatId): Promise<StreamEventBounds | null> {
+// The withhold-not-throw membership probe, carrying the retained-window bounds + the caller's D16 floor:
+// NOT_FOUND (no chat / not a member — the leak-free collapse) → `null`; anything else is a real fault and
+// propagates. The returned `{minSeq, maxSeq}` backs the `historyTruncated` predicate (no second read for the
+// truncation check); `historyFloorSeq` backs the per-yield join-history clamp.
+async function memberBounds(service: ChatService, principal: Principal, chatId: ChatId): Promise<ChatEventAttach | null> {
   try {
     return await service.chatEventBounds({ principal, chatId });
   } catch (err) {
@@ -561,9 +587,9 @@ async function memberBounds(service: ChatService, principal: Principal, chatId: 
   }
 }
 
-/** The retained-window bounds the member-gated `chatEventBounds` probe returns (derived off the service
- *  type — no new front-door export; the shape is `{ minSeq, maxSeq }`). */
-type StreamEventBounds = Awaited<ReturnType<ChatService["chatEventBounds"]>>;
+/** What the member-gated `chatEventBounds` attach probe returns (derived off the service type — no new
+ *  front-door export; the shape is `{ minSeq, maxSeq, historyFloorSeq }`). */
+type ChatEventAttach = Awaited<ReturnType<ChatService["chatEventBounds"]>>;
 
 // A finite, non-error resume cursor, or `null` (first subscribe / a malformed or sentinel id).
 function parseResumeSeq(lastEventId: string | null): number | null {

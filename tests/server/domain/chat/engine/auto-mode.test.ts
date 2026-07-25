@@ -109,6 +109,28 @@ describe("runAutoMode — interrupt (user abort)", () => {
     expect(result.stopReason).toBe("interrupt");
     expect(result.turns).toBe(1);
   });
+
+  // `nextSpeaker` is CANCELLABLE now (the `smart` side-LLM arbitration reads this same signal), and a
+  // cancelled arbitration yields no speaker. That must read as the interrupt it is, not the
+  // "everyone is muted/left" story `no-eligible` tells.
+  test("a null speaker from a CANCELLED arbitration reports interrupt, not no-eligible", async () => {
+    const controller = new AbortController();
+    const runTurn = vi.fn((): Promise<TurnOutcome> => Promise.resolve(committed()));
+    const result = await runAutoMode({
+      maxTurns: 5,
+      delayMs: 0,
+      delay: noDelay,
+      signal: controller.signal,
+      nextSpeaker: (): Promise<CastName | null> => {
+        controller.abort(); // the arbitration was cut mid-flight → no speaker
+        return Promise.resolve(null);
+      },
+      runTurn,
+    });
+    expect(result.stopReason).toBe("interrupt");
+    expect(result.turns).toBe(0);
+    expect(runTurn).not.toHaveBeenCalled();
+  });
 });
 
 describe("runAutoMode — locked (a concurrent turn holds the lock)", () => {

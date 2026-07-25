@@ -204,6 +204,9 @@ export {
   usePanelOverride,
   useSettingsTarget,
 } from "./shell-store";
+export type { SlashCommandRegistry } from "./slash-command-registry-context";
+export { SlashCommandRegistryContext } from "./slash-command-registry-context";
+export { SlashCommandRegistryProvider } from "./slash-command-registry-provider";
 export {
   clearWorldBookSelection,
   clearWorldEntrySelection,

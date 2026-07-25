@@ -34,7 +34,8 @@ export function resolveMentionsVia(...args: Parameters<typeof resolveMentions>):
   return resolveMentions(...args);
 }
 
-/** 7b side-LLM arbitration (the `smart` policy) — one chosen speaker, roster-validating with a `natural` fallback. */
+/** 7b side-LLM arbitration (the `smart` policy) — one chosen speaker, roster-validating, with a `natural`
+ *  fallback the result flags (`degraded`) so the caller can surface it. */
 export function smartArbitrateVia(...args: Parameters<typeof smartArbitrate>): ReturnType<typeof smartArbitrate> {
   return smartArbitrate(...args);
 }

@@ -14,8 +14,10 @@
 
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import { chatInjections, chatParticipants, chats } from "@orb/db";
+import type { ChatId } from "@orb/kit/ids";
 import { and, eq, exists, isNull, lt } from "drizzle-orm";
 import type { ChatContext } from "../context";
+import type { ActiveTurns } from "../contract/active-turns";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors";
 import type {
   ArchiveChatParams,
@@ -46,6 +48,8 @@ type EmitChatEvent = (event: ChatBusEvent) => Promise<void>;
 /** The collaborators not on `ChatContext`. */
 interface ChatLifecycleDeps {
   readonly emit: EmitChatEvent;
+  /** The in-flight turn registry — `delete` sweeps the deleted room's turns (see {@link createDelete}). */
+  readonly activeTurns: ActiveTurns;
 }
 
 /** The lifecycle slice of `ChatService` this grouped file owns. */
@@ -140,16 +144,25 @@ function createSetChatAnchorPersona(ctx: ChatContext, emit: EmitChatEvent): Chat
 }
 
 /** `delete` — host-only. Drop the chat row; every child cascades (FK). Emits `chatDeleted` + writes the
- *  best-effort audit row after the delete lands. */
-function createDelete(ctx: ChatContext, emit: EmitChatEvent): ChatService["delete"] {
+ *  best-effort audit row after the delete lands.
+ *
+ *  ORDER IS LOAD-BEARING (the delete-mid-turn crash):
+ *  1. ABORT every in-flight turn (owner-blind — the room is going away, so a still-generating turn can commit
+ *     nothing and only produces dropped writes). This stops the delta emits at the SOURCE.
+ *  2. EMIT `chatDeleted` BEFORE the row delete — `chat_events.chat_id` FKs to `chats`, so an append after the
+ *     delete can never land (it FK-fails and the bus drops it, bus.ts FLAG[emit-is-total]) and no live
+ *     subscriber would ever learn the chat is gone. Emitting first fans it; the log row then cascades away
+ *     with the chat, which is correct — there is nothing left to replay. */
+function createDelete(ctx: ChatContext, emit: EmitChatEvent, abortTurns: (chatId: ChatId) => number): ChatService["delete"] {
   return async ({ principal, chatId }: DeleteChatParams): Promise<void> => {
     await requireHost(ctx, principal, chatId);
     // Enumerate present human members before the FK cascade drops the roster — each must have the
     // deleted chat drop from their live list, so they ride `extraUserIds`.
     const roster = await loadRoster(ctx.db, chatId);
     const members = [...new Set(roster.flatMap((r) => (r.kind === "human" && r.userId !== null ? [r.userId] : [])))];
-    await ctx.db.delete(chats).where(eq(chats.id, chatId));
+    abortTurns(chatId);
     await emit({ type: "chatDeleted", chatId });
+    await ctx.db.delete(chats).where(eq(chats.id, chatId));
     await ctx.emitChatChanged(chatId, { detail: true, extraUserIds: members });
     await ctx.audit(
       {
@@ -305,7 +318,7 @@ export function createChatLifecycle(ctx: ChatContext, deps: ChatLifecycleDeps): 
     star: createStar(ctx, emit),
     archive: createArchive(ctx, emit),
     setChatAnchorPersona: createSetChatAnchorPersona(ctx, emit),
-    delete: createDelete(ctx, emit),
+    delete: createDelete(ctx, emit, (chatId) => deps.activeTurns.abortAll(chatId)),
     reapTemporaryChats: createReapTemporaryChats(ctx),
     getVariables: createGetVariables(ctx),
     getStoredVariables: createGetStoredVariables(ctx),

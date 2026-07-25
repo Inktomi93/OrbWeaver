@@ -78,6 +78,7 @@ import type {
   SetChatDocumentVisibilityParams,
   SetChatInjectionParams,
   SetGroupConfigParams,
+  SetMemberHistoryVisibilityParams,
   SetMessageHiddenParams,
   SetRoomOverridesParams,
   SetSeatKnobsParams,
@@ -106,6 +107,7 @@ import type {
   AssemblyPreview,
   ChatBusReplayEvent,
   ChatDetail,
+  ChatEventAttach,
   ChatInjectionView,
   ChatLineageView,
   ChatStreamReplayEvent,
@@ -163,8 +165,11 @@ export interface ChatService {
   readonly streamEventBounds: (params: StreamEventBoundsParams) => Promise<StreamEventBounds>;
   /** Resume the durable chat-bus log from a cursor (the `chat.streamMessages` SSE reconnect replay). */
   readonly replayChatEvents: (params: ReplayChatEventsParams) => Promise<ChatBusReplayEvent[]>;
-  /** The durable bus-log cursor bounds — also the SSE per-yield membership gate (member-scoped read). */
-  readonly chatEventBounds: (params: ChatEventBoundsParams) => Promise<StreamEventBounds>;
+  /** The durable bus-log cursor bounds + the caller's own D16 canon read floor — also the SSE attach /
+   *  per-yield membership gate (the ONE member-scoped read the subscription performs). The floor rides on
+   *  this probe so the live fan-out applies the SAME `isBelowHistoryFloor` verdict the durable replay does,
+   *  without re-reading the participant row per yield. */
+  readonly chatEventBounds: (params: ChatEventBoundsParams) => Promise<ChatEventAttach>;
 
   // ── turn-running ──────────────────────────────────────────────────────────────
   /** Persist a user message (SEND-regex applied) then run the AI turn (arbitration → per-speaker/narrator). */
@@ -301,6 +306,13 @@ export interface ChatService {
   // ── membership lifecycle (host-gated where authority applies) ─────────────────────────────
   /** Remove a member (host-only; sets `leftSeq` + SSE teardown in the kick tx + notifies the removed user). */
   readonly kick: (params: KickParticipantParams) => Promise<void>;
+  /** Set a present HUMAN member's D16 join-history policy (host-only) — the ONE write path for
+   *  `chat_participants.joinHistoryVisibility`, the column `substrate/auth::resolveHistoryFloorSeq` turns
+   *  into the reader floor every history read/replay/live-stream/fork already enforces. `full` (the column
+   *  default) = the whole room canon; `from-join` = only from the member's own `joinSeq` inclusive. Keyed by
+   *  `userId`: a character seat has no reader floor and carries a NULL userId, so it cannot be targeted.
+   *  Idempotent (re-setting the current value skips the UPDATE); never moves the target's `joinSeq`. */
+  readonly setMemberHistoryVisibility: (params: SetMemberHistoryVisibilityParams) => Promise<void>;
   /** Leave your own membership (authored rows retained, persona drops; a sole-host self-leave archives). */
   readonly selfLeave: (params: SelfLeaveParams) => Promise<void>;
   /** Two-party host handoff, step 1 — nominate a member as the new host (host-only; notifies the nominee). */

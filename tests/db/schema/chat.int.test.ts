@@ -414,7 +414,9 @@ test("a human participant (userId only) and a character participant (characterId
   expect(human?.talkativeness).toBeCloseTo(0.5);
   expect(human?.disabled).toBe(false);
   expect(human?.leftSeq).toBeNull();
-  expect(human?.joinHistoryVisibility).toBe("from-join");
+  // The D16 column default: an unset policy grants the FULL room history (owner ruling — inviting someone
+  // into a room gives them its past). `from-join` is the host's opt-in restriction, never the ambient state.
+  expect(human?.joinHistoryVisibility).toBe("full");
 });
 
 test("the kind-shape CHECK rejects a human with BOTH userId+characterId set", async () => {

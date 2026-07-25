@@ -4,7 +4,8 @@
 //
 // ABORT IS OWNER-ONLY (the rollback-theft defense): each registration records the owner; `abort(chatId,
 // caller)` signals only the caller's own in-flight turns. A caller who owns none while another user's turn
-// is in flight gets `foreignInFlight: true` — a host cannot abort a member's turn.
+// is in flight gets `foreignInFlight: true` — a host cannot abort a member's turn. The ONE owner-blind sweep
+// is `abortAll`, reserved for the room-gone case (the host deleted the chat) — see its contract note.
 
 import type { ChatId, UserId } from "@orb/kit/ids";
 import type { AbortResult, ActiveTurnHandle, ActiveTurns } from "./contract/active-turns";
@@ -65,7 +66,20 @@ export function createActiveTurns(): ActiveTurns {
     return { aborted, foreignInFlight };
   };
 
+  const abortAll = (chatId: ChatId): number => {
+    const set = byChat.get(chatId);
+    if (set === undefined) {
+      return 0;
+    }
+    const signalled = set.size;
+    for (const entry of set) {
+      entry.controller.abort();
+    }
+    byChat.delete(chatId);
+    return signalled;
+  };
+
   const countActive = (chatId: ChatId): number => byChat.get(chatId)?.size ?? 0;
 
-  return { register, abort, countActive };
+  return { register, abort, abortAll, countActive };
 }

@@ -91,8 +91,9 @@ const TURN: ChatBusEvent[] = [
     speakerCharacterId: null,
     targetMessageId: null,
   },
-  { type: "delta", chatId: CHAT_ID, delta: { chatId: CHAT_ID, kind: "text", text: "Hello " } },
-  { type: "delta", chatId: CHAT_ID, delta: { chatId: CHAT_ID, kind: "text", text: "world" } },
+  // `slotSeq` = the canon slot these tokens fill (the AI reply this turn commits) — the D16 clamp anchor.
+  { type: "delta", chatId: CHAT_ID, slotSeq: AI_VIEW.seq, delta: { chatId: CHAT_ID, kind: "text", text: "Hello " } },
+  { type: "delta", chatId: CHAT_ID, slotSeq: AI_VIEW.seq, delta: { chatId: CHAT_ID, kind: "text", text: "world" } },
   { type: "turnCompleted", chatId: CHAT_ID, intent: "send", messageId: AI_VIEW.id },
 ];
 
@@ -214,8 +215,9 @@ const HEAD_DELTAS: ChatBusEvent[] = [
     speakerCharacterId: null,
     targetMessageId: null,
   },
-  { type: "delta", chatId: CHAT_ID, delta: { chatId: CHAT_ID, kind: "text", text: "Hello " } },
-  { type: "delta", chatId: CHAT_ID, delta: { chatId: CHAT_ID, kind: "text", text: "world" } },
+  // `slotSeq` = the canon slot these tokens fill (the AI reply this turn commits) — the D16 clamp anchor.
+  { type: "delta", chatId: CHAT_ID, slotSeq: AI_VIEW.seq, delta: { chatId: CHAT_ID, kind: "text", text: "Hello " } },
+  { type: "delta", chatId: CHAT_ID, slotSeq: AI_VIEW.seq, delta: { chatId: CHAT_ID, kind: "text", text: "world" } },
 ];
 
 // Bug 2 regression — "Stop flashes the reply away" (isLiveTurnPhase). The store keeps accumulated text

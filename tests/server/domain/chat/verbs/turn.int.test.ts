@@ -11,6 +11,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { NotificationEvent } from "@orb/contracts/notifications";
 import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+import type { SummarizeResult } from "@orb/contracts/providers";
 import type { RegexScript } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
 import type { StatsDelta } from "@orb/contracts/stats";
@@ -133,6 +134,9 @@ function harness(
     chatBehavior?: ChatBehaviorInputs;
     /** Replace the provider stream entirely (the return-based-abort pin injects one that honors the signal). */
     runChatTurn?: ChatContext["runChatTurn"];
+    /** The `smart` policy's side-LLM turn director (default = the throwing `notStubbed` — every non-smart
+     *  room must never reach it). The smart-policy pins script it (a pick, or an outage). */
+    summarize?: ChatContext["summarize"];
   } = {},
 ): Harness {
   const events: ChatBusEvent[] = [];
@@ -167,6 +171,7 @@ function harness(
       return Promise.resolve();
     },
     ...(over.readPresence !== undefined ? { readPresence: over.readPresence } : {}),
+    ...(over.summarize !== undefined ? { summarize: over.summarize } : {}),
   });
   const emit = (event: ChatBusEvent): Promise<void> => {
     events.push(event);
@@ -570,6 +575,144 @@ describe("send — the group round (N speakers via driveRound)", () => {
     const assistants = outcome.messages.filter((m) => m.role === "assistant");
     expect(assistants).toHaveLength(1);
     expect(assistants[0]?.characterId).toBe(chars[1]);
+  });
+});
+
+// The `smart` policy routes the round through the side-LLM turn director (`engine/smart-arbitrate`) BEFORE
+// the deterministic sampler is reached. The owner contract: when that call fails, the round degrades to the
+// `natural` math rather than stalling — and says so out loud (D41: no silent degrade).
+describe("send — the smart policy (side-LLM turn director + its visible fallback)", () => {
+  /** A scripted turn-director reply (the `summarize` role op the smart arbitration calls). */
+  function director(text: string): { op: ChatContext["summarize"]; calls: () => number } {
+    let calls = 0;
+    return {
+      op: (): Promise<SummarizeResult> => {
+        calls += 1;
+        return Promise.resolve({ items: [{ text, usage: { tokensIn: 1, tokensOut: 1, costUsd: null } }], model: "fake" });
+      },
+      calls: () => calls,
+    };
+  }
+
+  const warnings = (events: readonly ChatBusEvent[]): readonly ChatBusEvent[] => events.filter((e) => e.type === "warning");
+
+  test("the side-LLM's pick is honored (the happy path still works)", async () => {
+    const { host, chatId, chars, names } = await seedRoom("smart", ["aria", "bryn"]);
+    const chosen = director("bryn");
+    const h = harness(db, names, { summarize: chosen.op });
+
+    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "who's up?" });
+
+    const assistants = outcome.messages.filter((m) => m.role === "assistant");
+    expect(assistants.map((m) => m.characterId)).toEqual([chars[1]]);
+    expect(chosen.calls()).toBe(1);
+    expect(warnings(h.events)).toHaveLength(0);
+  });
+
+  test("a THROWING director (outage) still commits a turn, chosen by the natural math, with a warning", async () => {
+    const { host, chatId, chars, names } = await seedRoom("smart", ["aria", "bryn"]);
+    const h = harness(db, names, {
+      summarize: () => Promise.reject(new Error("side-LLM down")),
+    });
+
+    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "who's up?" });
+
+    const assistants = outcome.messages.filter((m) => m.role === "assistant");
+    expect(assistants).toHaveLength(1);
+    expect(chars).toContainEqual(assistants[0]?.characterId);
+    expect(warnings(h.events)).toEqual([{ type: "warning", chatId, code: "smart_arbitration_degraded" }]);
+  });
+
+  // The small-hardware arm (plan-for-small-hardware): no summarize backend wired ⇒ the role dispatcher
+  // fail-closes with a SYNCHRONOUS throw. Same outcome — the round happens and the user is told.
+  test("an UNWIRED director (sync fail-closed throw) degrades the same way", async () => {
+    const { host, chatId, names } = await seedRoom("smart", ["aria", "bryn"]);
+    const h = harness(db, names, {
+      summarize: () => {
+        throw new Error('provider "vllm" is not wired for the "summarize" role');
+      },
+    });
+
+    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "who's up?" });
+
+    expect(outcome.messages.filter((m) => m.role === "assistant")).toHaveLength(1);
+    expect(warnings(h.events)).toEqual([{ type: "warning", chatId, code: "smart_arbitration_degraded" }]);
+  });
+
+  test("a GARBLED / off-roster reply degrades to the math (never schedules a non-member)", async () => {
+    const { host, chatId, chars, names } = await seedRoom("smart", ["aria", "bryn"]);
+    const h = harness(db, names, { summarize: director("Gandalf the Grey").op });
+
+    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "who's up?" });
+
+    const assistants = outcome.messages.filter((m) => m.role === "assistant");
+    expect(assistants).toHaveLength(1);
+    expect(chars).toContainEqual(assistants[0]?.characterId);
+    expect(warnings(h.events)).toEqual([{ type: "warning", chatId, code: "smart_arbitration_degraded" }]);
+  });
+
+  test("a human @mention hard-overrides smart entirely — the director is never called", async () => {
+    const { host, chatId, chars, names } = await seedRoom("smart", ["aria", "bryn"]);
+    const chosen = director("aria");
+    const h = harness(db, names, { summarize: chosen.op });
+
+    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "@bryn hello" });
+
+    const assistants = outcome.messages.filter((m) => m.role === "assistant");
+    expect(assistants.map((m) => m.characterId)).toEqual([chars[1]]);
+    expect(chosen.calls()).toBe(0);
+    expect(warnings(h.events)).toHaveLength(0);
+  });
+
+  test("a MUTED member named by the director is never scheduled (untrusted model output)", async () => {
+    const { host, chatId, chars, names } = await seedRoom("smart", ["aria", "bryn", "cara"], { disabledKeys: ["cara"] });
+    const h = harness(db, names, { summarize: director("cara").op });
+
+    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "who's up?" });
+
+    const assistants = outcome.messages.filter((m) => m.role === "assistant");
+    expect(assistants).toHaveLength(1);
+    expect(assistants[0]?.characterId).not.toBe(chars[2]);
+    expect(warnings(h.events)).toEqual([{ type: "warning", chatId, code: "smart_arbitration_degraded" }]);
+  });
+
+  // THE HANG (a hang is not a failure, so the degrade belt above cannot catch it): a director box that
+  // accepts the request and never answers holds the whole turn open. The turn's abort signal now rides INTO
+  // the summarize op, so the user's Stop cuts it — and a cancelled arbitration is NOT a degrade: the round
+  // ends with nothing generated and no warning (nothing degraded — the user stopped it).
+  test("an abort mid-arbitration ends the turn: no fallback speaker, no generation, no degrade warning", async () => {
+    const { host, chatId, names } = await seedRoom("smart", ["aria", "bryn"]);
+    let generations = 0;
+    let directorEntered: () => void = () => undefined;
+    const arrived = new Promise<void>((resolve) => {
+      directorEntered = resolve;
+    });
+    const h = harness(db, names, {
+      onChatRequest: () => {
+        generations += 1;
+      },
+      // The non-responsive box: settles ONLY when the injected signal fires, exactly like a real provider
+      // fetch that got a socket and no bytes.
+      summarize: (_inputs, opts): Promise<SummarizeResult> =>
+        new Promise((_resolve, reject) => {
+          opts?.signal?.addEventListener("abort", () => reject(new Error("aborted")), { once: true });
+          directorEntered();
+        }),
+    });
+
+    const sending = h.turn.send({ principal: principal(host), chatId, content: "who's up?" });
+    await arrived;
+    await h.turn.abort({ principal: principal(host), chatId });
+    const outcome = await sending;
+
+    expect(outcome.aborted).toBe(true);
+    expect(outcome.abortReason).toBe("user");
+    // The user's own line is durable canon; nothing was generated on top of it.
+    expect(outcome.messages.filter((m) => m.role === "assistant")).toHaveLength(0);
+    expect(generations).toBe(0);
+    expect(warnings(h.events)).toHaveLength(0);
+    // Nothing reached canon either — the fallback never ran, so no speaker was scheduled.
+    expect((await loadCanonHistory(db, chatId)).filter((m) => m.role === "assistant")).toHaveLength(0);
   });
 });
 

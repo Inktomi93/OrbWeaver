@@ -4,10 +4,11 @@
 // renders no menu at all): Cast rows = Mute/Unmute · Talkativeness… (opens the anchored popover) ·
 // Make X speak next (force-turn; stays available for a MUTED member — #29, mute is passive arbitration
 // exclusion) · View character (the FINAL-Chats §9e cross-section jump). Person rows = Hand off host… ·
+// the D16 join-history toggle (host-only: hide/reveal the canon sent before that member joined) ·
 // Kick… (host, on others) / Leave chat… (the viewer's own row) — destructive rows LAST, behind the
 // AlertDialog confirms the row shell owns (member-row.tsx).
 
-import { CircleUser, Crown, Icon, LogOut, UserX, Volume2, VolumeX, Zap } from "@orb/ui/icons";
+import { CircleUser, Crown, Eye, EyeOff, Icon, LogOut, UserX, Volume2, VolumeX, Zap } from "@orb/ui/icons";
 import { MenuItem, MenuSeparator } from "@orb/ui/menu";
 import type { ReactNode } from "react";
 import type { MemberCastRow, MemberPersonRow, MemberRowActions } from "../lib/member-rows";
@@ -94,6 +95,19 @@ function personMenuItems(row: MemberPersonRow, actions: MemberRowActions, setCon
       <MenuItem key="handoff" onClick={(): void => actions.onNominateHost?.(row.userId)}>
         <Icon icon={Crown} size="sm" />
         Hand off host…
+      </MenuItem>,
+    );
+  }
+  // D16 join-history — the host-only per-member read horizon. Label states what CHANGES (the direction),
+  // never a mode name: the current state is the row's "Limited history" badge. Honest about the mechanism —
+  // this never moves when they joined, only whether they may read below it, so "since they joined" is the
+  // member's EXISTING join point, and both directions take effect on their next read.
+  if (actions.onSetHistoryVisibility !== undefined) {
+    const restricted = row.historyVisibility === "from-join";
+    items.push(
+      <MenuItem key="history" onClick={(): void => actions.onSetHistoryVisibility?.(row.userId, restricted ? "full" : "from-join")}>
+        <Icon icon={restricted ? Eye : EyeOff} size="sm" />
+        {restricted ? `Let ${row.displayName} read all earlier messages` : `Hide messages sent before ${row.displayName} joined`}
       </MenuItem>,
     );
   }
