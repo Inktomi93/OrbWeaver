@@ -148,6 +148,21 @@ describe("buildAssembleContext — GATHER keyword match (the two-phase lag-kill)
     expect(quiet.chatInjections?.map((i) => i.content)).not.toContain("DRAGON LORE");
     expect(quiet.wiTrace?.entryIds).toEqual([]);
   });
+
+  test("a keyword entry fires on a COMMITTED recent message (the haystack spans the recent window, not just the in-flight turn)", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    const charId = await seedCharacter(db, host, "aria");
+    await attachChatEntry(host, chatId, "k", { content: "DRAGON LORE", keys: ["dragon"] });
+    const ctx = ctxWithCard(cardOf("Aria"));
+
+    // The key appears in a prior committed turn (no in-flight pending text). buildKeywordHaystack folds
+    // recentMessages in → the entry still fires, flagged NOT-latest-user (it wasn't just typed).
+    const out = await buildAssembleContext(ctx, inputOf(chatId, host, [charId], { recentMessages: ["a dragon flew overhead", "the knight fled"] }));
+    expect(out.chatInjections?.map((i) => i.content)).toContain("DRAGON LORE");
+    expect(out.wiTrace?.matchedKeys).toContainEqual({ key: "dragon", matchedLatestUserMessage: false });
+    expect(out.wiTrace?.entryIds).toEqual([castId<WorldEntryId>("world_entry_k")]);
+  });
 });
 
 describe("buildAssembleContext — the D50 user_input PromptTransform point (automation-design/04 §1.2/§6)", () => {
@@ -260,6 +275,22 @@ describe("buildAssembleContext — the ONE injection list + ONE budget pass (§4
     // D50 pt-2: `entryIds` is the budget-SURVIVED fired set — the kept entry's real id, not the dropped one,
     // and never the synthetic `user:*`/`guided` ids of the operator injection.
     expect(out.wiTrace?.entryIds).toEqual([castId<WorldEntryId>("world_entry_hi")]);
+  });
+
+  test("budget <= 0 keeps ALL candidates (unbudgeted pass) — the same set that a positive budget drops survives whole", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    const charId = await seedCharacter(db, host, "aria");
+    // Identical entries to the drop-by-priority case above; at budget 0 BOTH survive (no charge, no drop).
+    await attachChatEntry(host, chatId, "hi", { content: "AAAAAAAA", priority: 10 });
+    await attachChatEntry(host, chatId, "lo", { content: "BBBBBBBB", priority: 1 });
+    const ctx = ctxWithCard(cardOf("Aria"));
+    const out = await buildAssembleContext(ctx, inputOf(chatId, host, [charId], { injectionTokenBudget: 0 }));
+
+    expect(out.worldInfoBefore).toContain("AAAAAAAA");
+    expect(out.worldInfoBefore).toContain("BBBBBBBB");
+    expect(out.wiTrace?.dropped).toEqual([]);
+    expect(out.wiTrace?.entryIds).toEqual(expect.arrayContaining([castId<WorldEntryId>("world_entry_hi"), castId<WorldEntryId>("world_entry_lo")]));
   });
 });
 
