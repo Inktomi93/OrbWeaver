@@ -8,19 +8,43 @@
 
 ## ═══ RESUME-HERE STATUS (2026-07-24 late, compaction-survival — read THIS first) ═══
 
-**ROTATION 4 COMMITTED `276bc980`** (check PASS incl. the new tests:execution-membership stage; 975
-vitest + 1246 CT; full live sweep 24/24). Consolidated 5 lanes: #21 security (redirect-exfil hardened +
-2 scars pinned), #22 execution-membership gate, #23 sampling launch knob (rep-penalty 1.05 permanent),
-#12-fixes (16 items: 2 data-loss + a11y + dead-doors + 2 restorations), #24 fidelity harness (agent-sdk
-captures SDK query INPUT — no observable HTTP body). Integration seams fixed at consolidation
-(exactOptional fixtures, gate-shape skip, dead helpers, genRepetitionPenalty straggler, getShapeTrace
-CT stub). Commits: rotation2 `7c31da30` → rotation3 `7ff2e410` → docs `f110bcb7` → live-fixes `0272c980`
-→ workboard `cca5037c` → resume-block `1714881b` → **rotation4 `276bc980`**.
+### ═══ OVERNIGHT AUTONOMOUS (2026-07-24 night, Fable 5) — read THIS first ═══
 
-**BOARD NOW: original 13-item doc = 11/13 DONE.** Remaining: **#12 held trio** (PD-147 ×8, BG-C/V ×16,
-section-hint ×2 — big features, own wave), **#18** CT coverage expansion (UNBLOCKED by #12's landed
-components; 42-scenario mining backlog + presence ratchet), **#25** custom-byo runner redirect parity
-(1-line, behind the committed backends). **PROMOTION armed** — nothing blocks it.
+**MISSION (owner, autonomous for the night):** DRIVE THE LIVE APP and prove behaviors, pin them as tests —
+**behavior + data-flow, NOT layout snapshots** (a facelift is coming; hard-coded layout tests are banned by
+owner). PRIMARY: **group chat**. Prove: all group-chat modes + their special options/types; single-human
+multi-character; **multi-human multi-character** (observe flow between two humans, verify the BUS is correct);
+add/remove characters to a chat; add/remove humans; **solo→group conversion** (add chars); the group panel in
+the context panel is properly set up. The **four-panel context layout is LAW** — verify group mgmt lives
+within it, don't invent panels. THEN (ongoing): character options drive the app · presets do what they mean ·
+settings apply for real · world-info + guided actions. **RAILS:** local vLLM ONLY (gen :8703 — zero hosted
+spend); testing DB is DISPOSABLE (delete/seed freely); serve from THIS retro repo (verify); leave GPU0/ComfyUI
++ the engine launcher alone (engines already up GPU1); no account creation / credential entry / external
+irreversible actions — PushNotification the owner on a milestone or a real blocker. Keep THIS doc updated
+every chapter so nothing is lost across compaction.
+
+**FIDELITY/LOCKDOWN WAVE — COMMITTED (this session):**
+- `4c734060` — extracted the domain→infra turn bridge into exported `createRunChatTurnBridge`; the #24
+  fidelity harness now drives PROD code, not a facsimile (owner caught the facsimile).
+- `20ac4154` — **customParameters is BYOK-ONLY** (owner ruling; see [D-LEDGER CANDIDATE] below). Removed from
+  OpenRouter (both runners; `mergeCustomParameters` deleted); custom-byo keeps it (preset-wins). D41
+  `custom_parameters_ignored` warning on OR. TRUE-WIRE capture: OR capture reparses through the SDK
+  `$outboundSchema` (snake_case literal wire) + tripwire test; captureWire threaded into OR+custom-byo (were
+  blind); custom-byo scrubs body-borne creds; bridge sets chatId on the stateless arm (debug ?chatId= filter).
+- `0d26921a` — multi-surface fidelity matrix (vLLM full-4-layer + OR cc/responses + custom-byo + agent-sdk,
+  all through the real bridge; pins OR-drops-customParameters + custom-byo-customParameters-WINS as law) +
+  26 chat behavior CTs + a component-presence ratchet (tests/tooling) + #25 custom-byo redirect:"manual" pin.
+
+**[D-LEDGER CANDIDATE — mint when convenient]:** customParameters BYOK-only. First-class/known providers
+(vLLM, OpenRouter) use the MODELED sampling surface ONLY (the anti-SillyTavern-sprawl design — one
+ResolvedSampling → each backend's wire); customParameters is the passthrough escape hatch for BYOK/unknown
+endpoints (custom-byo) where you can't model the endpoint. OR leaked it via the shared chat-completions arm;
+removed. Provider routing (`OpenRouterProviderRouting`) is DORMANT/RESERVED (contract + wire projection built,
+middle hop unwired, no UI) — owner chose leave-dormant.
+
+**TASKS: #24–#27 DONE. #18 partial** (26 CTs + ratchet landed; deferred gaps flagged: assembly-preview-panel
+#28, injections-manager). **#12 held trio** (PD-147 ×8, BG-C/V ×16, section-hint ×2) — awaiting owner's
+launch-now-vs-one-beat call. **Promotion to main still armed.**
 
 **POST-ROTATION-4 FIX (2026-07-24, UNCOMMITTED — owner caught it): #24 harness was NOT using prod code.**
 The fidelity harness drove a hand-rolled `harnessRunChatTurn` that reconstructed a LOPPED-OFF subset of the
