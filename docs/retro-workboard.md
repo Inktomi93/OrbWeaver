@@ -6,6 +6,47 @@
 > battery green: check PASS · 6859 vitest + 1209 CT · e2e 11/11) + `3469212d` (worktree-shared vLLM
 > stores) + `34d1829a` (live spec CTA repoint).
 
+## ═══ RESUME-HERE STATUS (2026-07-24 late, compaction-survival — read THIS first) ═══
+
+**COMMITTED (branch retro-burn-down, promotion-ready):** `a4192372` burn-down → `7c31da30` rotation 2 →
+`7ff2e410` rotation 3 → `f110bcb7` docs corpus carry → `0272c980` live-sweep red fixes → `cca5037c`
+workboard closeout. Tree state at last full run: check PASS, 971 vitest + 1236 CT, **full live e2e
+24/24 green** (all 3 vLLM engines on GPU 1, gen has `--override-generation-config repetition_penalty
+1.05` as a SESSION mitigation for #23). Original 13-item doc ≈ 10/13 done.
+
+**ENGINE TOPOLOGY (owner reclaimed GPU 0 for ComfyUI):** all 3 vLLM engines hand-launched on **GPU 1**
+via `CUDA_VISIBLE_DEVICES=1` + the shared buildEngineSpawnSpec argv (embed :8701 util 0.14, rerank
+:8702 0.22, gen :8703 0.5 + rep-penalty 1.05). GPU 0 = owner's ComfyUI. The dev-server adoptive
+supervisor adopts these. NEVER run the launcher live to "verify" (spawns real engines — see memory).
+
+**IN FLIGHT (5 lanes, all path-disjoint, dispatched late session — check TaskList + agent inboxes):**
+- **#24** fidelity harness + wire-capture seam (infra/providers/backends + tests). WIRE_CAPTURE env
+  flag already landed (default off, host-read /api/_debug/wire/captures). Needs a VERIFIER when it lands
+  (a cross-layer-divergence tool must not false-green its own capture).
+- **#23** sampling-override LAUNCH knob (infra/providers/vllm/engine + env + user-admin) — makes the
+  rep-penalty 1.05 mitigation PERMANENT via engineLaunch. `VLLM_GEN_REPETITION_PENALTY_DEFAULT=1.05`
+  env home already landed. Deferred sub-item: preset→stateless-body penalty threading (coordinate #24).
+- **#22** execution-membership verify gate (scripts/verify + tests/tooling) — every test runs, every
+  glob matches. Small clean gate.
+- **#12-fixes** the audit tranche (client features + ui + tests/client) — 16 items: 2 data-loss
+  (image-gen prompt, groupOnly strip), warning-notice silent-swallow, a11y (autosave roles, composer
+  bg, turn-abort, markdown break-words, world-info reorder), credential dead-doors, 2 restorations
+  (composer-draft-store, ShapeTrace panel). NOT the held trio.
+- **#21 DONE** (security-executor, its own review = the verification): 3 scars CONFIRMED-SAFE +
+  hardened the BYO inspect redirect credential-exfil (redirect:"manual" host-pin); pinned the 2
+  previously-unpinned scars. Spawned **#25** (same redirect fix for custom-byo/runners/chat.ts, behind #24).
+
+**HELD (sequenced, not forgotten):** #12 held trio (PD-147 ×8 files, BG-C/V ×16, section hint ×2 — big
+multi-file FEATURES, own wave); **#18** CT coverage expansion (42-scenario mining backlog + presence
+ratchet — needs #12's landed components as evidence, runs after #12).
+
+**PROMOTION** armed for owner's go: legacy-main bookmark → `git branch -f main <HEAD>` → worktree
+switch → push legacy + force-with-lease main (origin = github Inktomi93/orbweaver). Ceremony is
+independent of the in-flight lanes (all additive atop committed rotation 3).
+
+**NEXT ACTIONS when a lane reports:** verify (fresh-context) the substantive ones → consolidation
+commit → keep this block current. Details of every item live in the sections below.
+
 ## Standing rules minted this program (also in agent memory)
 
 - **THE RIGHT WAY, ONCE (owner, 2026-07-24 — relay into every dispatch)**: "we do things the right way
