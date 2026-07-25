@@ -49,6 +49,43 @@ test('{{person}} defaults to "first" when unset', () => {
   expect(out).toBe("first person: go");
 });
 
+// --- {{base}}: the greeting-studio rewrite base text (audit §3) ---
+
+test("{{base}} is replaced by opts.base before macro processing", () => {
+  const out = resolveGuidedInstruction("Revise: {{base}}\nAdjustments: {{input}}", "make it formal", macroOpts(), { base: "hey there" });
+  expect(out).toBe("Revise: hey there\nAdjustments: make it formal");
+});
+
+test("{{base}} is ABSENT when opts.base is unset — the token survives literally (greeting_new has no base)", () => {
+  const out = resolveGuidedInstruction("Write fresh: {{input}}. (no base: {{base}})", "cheerful", macroOpts());
+  expect(out).toBe("Write fresh: cheerful. (no base: {{base}})");
+});
+
+test("ZWSP defense: a {{char}} inside the base greeting is neutralized and never macro-evaluated", () => {
+  // The stored greeting is OTHER-AUTHOR content — a macro in it must NOT re-trigger evaluation.
+  const out = resolveGuidedInstruction("Base: {{base}}", "", macroOpts(), { base: "{{char}} waves" });
+  expect(out).toBe(`Base: {${ZWSP}{char}${ZWSP}} waves`);
+  // Proof it did not evaluate: the context char ("Alice") never appears.
+  expect(out).not.toContain("Alice");
+});
+
+test("ZWSP defense on {{base}}: the inserted codepoint is exactly U+200B and sits BETWEEN the braces", () => {
+  const out = resolveGuidedInstruction("{{base}}", "", macroOpts(), { base: "{{user}}" });
+  expect(out[0]).toBe("{");
+  expect(out.charCodeAt(1)).toBe(ZWSP_CODEPOINT);
+  expect(out[2]).toBe("{");
+  expect(out.charCodeAt(out.length - 2)).toBe(ZWSP_CODEPOINT);
+  expect(out.at(-1)).toBe("}");
+  expect(out).not.toContain("Bob");
+});
+
+test("{{base}} and {{input}} and {{char}} all coexist — base+input neutralized, template macros resolve", () => {
+  const out = resolveGuidedInstruction("{{char}} rewrites {{base}} per {{input}}", "{{user}}", macroOpts(), { base: "{{user}} smiles" });
+  // {{char}} (template) resolves to Alice; the base's {{user}} and the input's {{user}} are neutralized.
+  expect(out).toBe(`Alice rewrites {${ZWSP}{user}${ZWSP}} smiles per {${ZWSP}{user}${ZWSP}}`);
+  expect(out).not.toContain("Bob");
+});
+
 test("a blank/whitespace template returns the neutralized input as a defensive floor", () => {
   const out = resolveGuidedInstruction("   ", "{{char}}", macroOpts());
   expect(out).toBe(`{${ZWSP}{char}${ZWSP}}`);

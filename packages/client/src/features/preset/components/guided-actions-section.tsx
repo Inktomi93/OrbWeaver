@@ -31,6 +31,12 @@ const GUIDED_ACTION_COPY: Record<GuidedActionKind, { readonly title: string; rea
   rewrite: { title: "Rewrite", fires: "You rewrite the last reply out of character" },
   opening: { title: "Opening", fires: "A new chat's first message" },
   continue: { title: "Continue", fires: "You steer a continuation of the last reply" },
+  // Greeting studio (audit §3) — authoring-time card templates the studio verbs resolve; `{{base}}` (the
+  // existing greeting) is available in the rewrite template.
+  // biome-ignore-start lint/style/useNamingConvention: the map key IS the GuidedActionKind string (snake_case vocabulary, audit §3)
+  greeting_rewrite: { title: "Greeting rewrite", fires: "You rewrite an existing greeting in the character studio" },
+  greeting_new: { title: "New greeting", fires: "You generate a fresh greeting in the character studio" },
+  // biome-ignore-end lint/style/useNamingConvention: the map key IS the GuidedActionKind string (snake_case vocabulary, audit §3)
 };
 
 /** The three cross-link states for the `guided_instruction` marker's health + their chip copy. */

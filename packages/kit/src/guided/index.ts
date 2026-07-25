@@ -45,6 +45,13 @@ const DEFAULT_PERSON = "first";
  *
  * The untrusted `userInput` is run through `neutralizeMacros` BEFORE it is spliced in, so a user
  * cannot re-trigger macro evaluation by typing `{{…}}` into the steering box.
+ *
+ * `{{base}}` (the greeting studio's rewrite base text — the existing greeting, audit §3) is an OPTIONAL
+ * guided-only pre-substitution mirroring `{{person}}`: it is spliced into the template BEFORE macro
+ * processing so the editable template controls placement. The base is OTHER-AUTHOR content (the card
+ * creator's greeting), so it is `neutralizeMacros`'d exactly like `userInput` — a `{{…}}` in the stored
+ * greeting cannot re-trigger macro evaluation once spliced. Unset ⇒ the token is left intact (a template
+ * without a rewrite base — e.g. `greeting_new` — simply never contains it).
  */
 /** A trailing `.` (plus any following whitespace) on a composed piece — stripped so the join doesn't
  *  double the terminator. Hoisted (top-level-regex lint) — `composeRewriteSteer` runs per keystroke-ish. */
@@ -70,12 +77,20 @@ export function composeRewriteSteer(fragments: readonly string[], freeText: stri
   return `${pieces.map((p) => p.replace(TRAILING_PERIOD, "")).join(". ")}.`;
 }
 
-export function resolveGuidedInstruction(promptTemplate: string, userInput: string, baseMacroOptions: ProcessMacroOptions, opts?: { person?: string }): string {
+export function resolveGuidedInstruction(
+  promptTemplate: string,
+  userInput: string,
+  baseMacroOptions: ProcessMacroOptions,
+  opts?: { person?: string; base?: string },
+): string {
   const safeInput = neutralizeMacros(userInput);
-  // Substitute `{{person}}` in the template BEFORE macro processing so the editable template
-  // controls placement while the chosen button controls the word. Done as a string replace, not a
-  // macro, so it stays a guided-only concern and never touches the general macro engine/registry.
-  const template = promptTemplate.trim().replace(/\{\{\s*person\s*\}\}/gi, opts?.person ?? DEFAULT_PERSON);
+  // Substitute `{{person}}` and `{{base}}` in the template BEFORE macro processing so the editable template
+  // controls placement while the caller controls the value. Done as string replaces, not macros, so they
+  // stay guided-only concerns and never touch the general macro engine/registry. `{{base}}` is
+  // NEUTRALIZED first (other-author greeting text — the same injection defense as `{{input}}`) so a
+  // `{{…}}` in the stored greeting cannot re-trigger macro evaluation once it lands in the template.
+  const withPerson = promptTemplate.trim().replace(/\{\{\s*person\s*\}\}/gi, opts?.person ?? DEFAULT_PERSON);
+  const template = opts?.base === undefined ? withPerson : withPerson.replace(/\{\{\s*base\s*\}\}/gi, neutralizeMacros(opts.base));
   if (template.length === 0) {
     return safeInput;
   }

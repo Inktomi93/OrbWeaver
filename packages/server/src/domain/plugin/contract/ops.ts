@@ -9,6 +9,7 @@
 // + the installing user's global-var KV are declared here. Every op is wired at `entry/compose` (one-directional
 // flow); the domain declares only the TYPE.
 
+import type { HistoryFloorSeq } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { GenerateImageActionArgs } from "@orb/contracts/imagery";
 import type { NotificationEvent } from "@orb/contracts/notifications";
@@ -64,7 +65,7 @@ export interface PluginHostOps {
      *  alone is not visibility: a `from-join`-clamped member is admitted to their room yet may not read its
      *  pre-join rows. A caller therefore cannot obtain the value without asking chat's `resolveViewerVisibility`
      *  first — {@link buildPluginBridge} is that caller, and a non-member short-circuits to `[]` there. */
-    readonly listMessages: (chatId: ChatId, opts: { readonly limit?: number; readonly floorSeq: number }) => Promise<readonly PluginMessageView[]>;
+    readonly listMessages: (chatId: ChatId, opts: { readonly limit?: number; readonly floorSeq: HistoryFloorSeq }) => Promise<readonly PluginMessageView[]>;
     /** THE cross-domain viewer-visibility op (chat's `resolveViewerVisibility`, compose-wired) — the bridge
      *  resolves the INSTALLER's membership + history floor with it before any canon read crosses the realm
      *  boundary. `null` = not a present member ⇒ the guest sees nothing. The TYPE is chat's (type-only

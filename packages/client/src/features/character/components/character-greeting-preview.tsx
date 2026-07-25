@@ -4,8 +4,9 @@
 // The spoiler-blur eye toggle CSS-blurs the preview only — never the edit textarea.
 
 import type { ThemeOverride } from "@orb/contracts/theme";
+import type { CharacterId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
-import { Icon, Pencil, Plus, Trash2 } from "@orb/ui/icons";
+import { Icon, Pencil, Plus, Trash2, WandSparkles } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { MacroTextarea } from "@orb/ui/macro-textarea";
 import { Markdown } from "@orb/ui/markdown";
@@ -14,6 +15,7 @@ import { Text } from "@orb/ui/text";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { GreetingStudio } from "#components";
 import type { AppFormInstance } from "#forms";
 import { cn } from "#lib";
 import type { CharacterCardFormValues } from "../lib/character-card-form-model";
@@ -22,6 +24,7 @@ import { CHARACTER_CARD_MACROS } from "../lib/character-card-macros";
 type CardForm = AppFormInstance<CharacterCardFormValues>;
 
 export interface CharacterGreetingPreviewProps {
+  readonly characterId: CharacterId;
   readonly form: CardForm;
   /** THIS character's raw theme override (immediate-commit — server truth) painting the preview scope;
    *  `null` ⇒ inherit the ambient theme. */
@@ -59,10 +62,13 @@ export function CharacterGreetingPreview(props: CharacterGreetingPreviewProps): 
             <GreetingPills count={greetings.length} activeIndex={index} onSelect={onActiveIndexChange} />
             <GreetingBody {...props} index={index} editing={editing} />
             <GreetingActions
+              characterId={props.characterId}
               form={form}
               index={index}
               greetingCount={greetings.length}
               editing={editing}
+              baseGreeting={greetings[index]?.text ?? ""}
+              trusted={props.trusted}
               onActiveIndexChange={onActiveIndexChange}
               onToggleEdit={(): void => setEditing((e) => !e)}
               onStartAlternate={(nextIndex): void => {
@@ -158,24 +164,31 @@ function GreetingBody({
   );
 }
 
-/** Add-opening / remove-alternate / edit-toggle row. */
+/** Add-opening / remove-alternate / edit-toggle row + the greeting studio (audit §3) toggled inline. */
 function GreetingActions({
+  characterId,
   form,
   index,
   greetingCount,
   editing,
+  baseGreeting,
+  trusted,
   onActiveIndexChange,
   onToggleEdit,
   onStartAlternate,
 }: {
+  readonly characterId: CharacterId;
   readonly form: CardForm;
   readonly index: number;
   readonly greetingCount: number;
   readonly editing: boolean;
+  readonly baseGreeting: string;
+  readonly trusted: boolean;
   readonly onActiveIndexChange: (index: number) => void;
   readonly onToggleEdit: () => void;
   readonly onStartAlternate: (nextIndex: number) => void;
 }): ReactElement {
+  const [studioOpen, setStudioOpen] = useState(false);
   return (
     // The group-only toggle (or its Opening-1 absence note) rides its OWN row above the action cluster —
     // it's an ATTRIBUTE of the greeting, not an action. Keeping it out of the `justify-end` button Row is
@@ -224,7 +237,26 @@ function GreetingActions({
           <Icon icon={Pencil} size="sm" />
           {editing ? "Done" : "Edit"}
         </Button>
+        <Button type="button" size="sm" intent={studioOpen ? "secondary" : "ghost"} aria-pressed={studioOpen} onClick={(): void => setStudioOpen((o) => !o)}>
+          <Icon icon={WandSparkles} size="sm" />
+          Studio
+        </Button>
       </Row>
+      {studioOpen ? (
+        // The greeting studio (audit §3): accept appends the result as a NEW alternate (the original is
+        // preserved — the source's swipe semantics, but durable on the card). The push routes through the
+        // D78 store-subscription driver (autosaves through character.update), then jumps to the new opening.
+        <GreetingStudio
+          characterId={characterId}
+          baseGreeting={baseGreeting}
+          trusted={trusted}
+          onAccept={(text): void => {
+            form.pushFieldValue("greetings", { text });
+            onStartAlternate(greetingCount);
+            setStudioOpen(false);
+          }}
+        />
+      ) : null}
     </Stack>
   );
 }

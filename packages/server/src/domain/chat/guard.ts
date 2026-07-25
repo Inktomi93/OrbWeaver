@@ -13,6 +13,7 @@
 // `role === 'host'` verdict lives in admin's `can()`, never here (spine #6). `can` is injected on `ChatContext`
 // (wired at the entry composition root) — chat NEVER imports admin (`domain-no-cross-feature`).
 
+import type { HistoryFloorSeq } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { ChatId } from "@orb/kit/ids";
 import type { ChatContext } from "./context";
@@ -29,7 +30,7 @@ type MemberChat = NonNullable<Awaited<ReturnType<typeof loadMemberChat>>>;
 
 /** The gated membership every chat surface receives: the loaded row PLUS the caller's resolved D16 canon
  *  read floor. Stamped once, HERE, so no read path re-derives (or forgets) the policy. */
-type GatedMembership = MemberChat & { readonly historyFloorSeq: number };
+type GatedMembership = MemberChat & { readonly historyFloorSeq: HistoryFloorSeq };
 
 /**
  * Present-membership gate — read/stream/post/turn-run (→ `member`). Loads the caller's PRESENT

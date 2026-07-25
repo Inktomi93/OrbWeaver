@@ -7,6 +7,8 @@ import {
   customParametersSchema,
   DEFAULT_GUIDED_ACTIONS,
   DEFAULT_PROMPT_CONFIG,
+  GREETING_TRANSFORM_AXES,
+  GREETING_TRANSFORMS,
   GUIDED_ACTION_KINDS,
   guidedActionsSchema,
   importStChatCompletionPreset,
@@ -24,7 +26,7 @@ import { expect, test } from "../../support/fixtures";
 // Sample values named so the test isn't littered with bare magic numbers (noMagicNumbers).
 const SAMPLE_TEMPERATURE = 0.7;
 const OUT_OF_RANGE_TEMPERATURE = 3; // userIntentSchema caps temperature at 2
-const GUIDED_ACTION_COUNT = 6;
+const GUIDED_ACTION_COUNT = 8;
 const SCHEMA_VERSION_V1 = 1;
 const SCHEMA_VERSION_V2 = 2;
 const SCHEMA_VERSION_V3 = 3;
@@ -195,7 +197,7 @@ test("guidedActionsSchema round-trips DEFAULT_GUIDED_ACTIONS over all six action
   }
 });
 
-test("guidedActionsSchema fills opening + continue defaults for a blob predating them (back-compat)", () => {
+test("guidedActionsSchema fills opening + continue + greeting defaults for a blob predating them (back-compat)", () => {
   const legacy = {
     response: { prompt: "r", role: "system" },
     swipe: { prompt: "s", role: "system" },
@@ -205,6 +207,16 @@ test("guidedActionsSchema fills opening + continue defaults for a blob predating
   const parsed = guidedActionsSchema.parse(legacy);
   expect(parsed.opening).toEqual(DEFAULT_GUIDED_ACTIONS.opening);
   expect(parsed.continue).toEqual(DEFAULT_GUIDED_ACTIONS.continue);
+  // Greeting-studio kinds (audit §3) — defaulted like opening/continue so a stored blob predating them parses.
+  expect(parsed.greeting_rewrite).toEqual(DEFAULT_GUIDED_ACTIONS.greeting_rewrite);
+  expect(parsed.greeting_new).toEqual(DEFAULT_GUIDED_ACTIONS.greeting_new);
+});
+
+test("greeting_rewrite default carries the {{base}} token; greeting_new does not (audit §3)", () => {
+  expect(DEFAULT_GUIDED_ACTIONS.greeting_rewrite.prompt).toContain("{{base}}");
+  expect(DEFAULT_GUIDED_ACTIONS.greeting_rewrite.prompt).toContain("{{input}}");
+  expect(DEFAULT_GUIDED_ACTIONS.greeting_new.prompt).not.toContain("{{base}}");
+  expect(DEFAULT_GUIDED_ACTIONS.greeting_new.prompt).toContain("{{input}}");
 });
 
 test("GuidedActionKind is the canonical KIND name (the §7.5 axis), not neo's GuidedAction", () => {
@@ -212,6 +224,32 @@ test("GuidedActionKind is the canonical KIND name (the §7.5 axis), not neo's Gu
   const kind: GuidedActionKind = "impersonate";
   expect(GUIDED_ACTION_KINDS).toContain(kind);
   expect(GUIDED_ACTION_KINDS.length).toBe(GUIDED_ACTION_COUNT);
+});
+
+// ── GREETING_TRANSFORMS catalog (audit §3) — the registry-as-data the client renders chips from blind ──
+
+test("GREETING_TRANSFORMS has stable unique ids and every axis is a declared GREETING_TRANSFORM_AXES member", () => {
+  const ids = GREETING_TRANSFORMS.map((t) => t.id);
+  expect(new Set(ids).size).toBe(ids.length); // no dup ids
+  for (const t of GREETING_TRANSFORMS) {
+    expect(GREETING_TRANSFORM_AXES).toContain(t.axis);
+    expect(t.label.length).toBeGreaterThan(0);
+    expect(t.fragment.length).toBeGreaterThan(0);
+  }
+});
+
+test("GREETING_TRANSFORMS covers all four axes (perspective/tense/style/gender)", () => {
+  for (const axis of GREETING_TRANSFORM_AXES) {
+    expect(GREETING_TRANSFORMS.some((t) => t.axis === axis)).toBe(true);
+  }
+});
+
+test("GREETING_TRANSFORMS fragments carry NO macros (they are ZWSP-neutralized as {{input}} downstream)", () => {
+  // The composed steer becomes the template's {{input}}, which is macro-neutralized — a {{…}} in a fragment
+  // would render as literal braces. The catalog spells "the user"/"the character" in plain words instead.
+  for (const t of GREETING_TRANSFORMS) {
+    expect(t.fragment).not.toContain("{{");
+  }
 });
 
 test("a guided action role rejects a value outside the MessageRole axis (D32)", () => {

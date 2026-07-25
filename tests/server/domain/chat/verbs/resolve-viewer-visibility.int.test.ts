@@ -42,6 +42,21 @@ describe("resolveViewerVisibility — membership and the D16 floor are ONE answe
     expect(await resolveViewerVisibility(chatId, host)).toEqual({ role: "host", historyFloorSeq: NO_HISTORY_FLOOR });
   });
 
+  // F2 — the host has full control (owner ratified): a PROMOTED host (a member who joined late with a
+  // `from-join` restriction, then handed the host seat) resolves to NO_HISTORY_FLOOR despite their row still
+  // carrying `from-join` at a nonzero joinSeq. This is the incoherence F2 closes: their `listMessages` used to
+  // withhold pre-join history while export-chat + discovery already handed them full canon. The row shape here
+  // is exactly what a host-handoff leaves behind — the seat flips to `host`, the `joinSeq`/policy do not.
+  test("a promoted host (from-join row, late joinSeq) is unclamped — F2 host full control", async () => {
+    const promoted = await seedUser(db, "promoted");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "promoted", userId: promoted, role: "host", joinSeq: 15, joinHistoryVisibility: "from-join" });
+
+    const resolveViewerVisibility = createResolveViewerVisibility({ db });
+
+    expect(await resolveViewerVisibility(chatId, promoted)).toEqual({ role: "host", historyFloorSeq: NO_HISTORY_FLOOR });
+  });
+
   test("the floor is PER-CALLER — one member's restriction never clamps another member's read", async () => {
     const clamped = await seedUser(db, "clamped");
     const other = await seedUser(db, "other");

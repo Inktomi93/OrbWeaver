@@ -1130,6 +1130,22 @@ export const JOIN_HISTORY_VISIBILITIES = ["from-join", "full"] as const;
 export type JoinHistoryVisibility = (typeof JOIN_HISTORY_VISIBILITIES)[number];
 export const joinHistoryVisibilitySchema = z.enum(JOIN_HISTORY_VISIBILITIES);
 
+// A viewer's INCLUSIVE `messages.seq` read floor (the D16 join-history clamp resolved to a number): rows
+// with `seq >= HistoryFloorSeq` are visible, rows below are pre-join and withheld. Branded (the phantom
+// `unique symbol` precedent — `connection::ChatModelId`) so a bare `number` can't flow where a resolved,
+// viewer-scoped floor is expected: the ONLY way to obtain one is `substrate/auth::resolveHistoryFloorSeq`
+// (the one resolver) which mints it via {@link historyFloor}. The brand ERASES at runtime — it never
+// crosses a wire as anything but a plain number (D-inv: no wire-shape change). NOT a zod/tool-schema field
+// (a branded/transform field throws in `z.toJSONSchema`) — it rides TS-typed op params only.
+declare const historyFloorBrand: unique symbol;
+export type HistoryFloorSeq = number & { readonly [historyFloorBrand]: true };
+/** Mint a raw `messages.seq` value as a {@link HistoryFloorSeq}. The one sanctioned cast — call it ONLY in
+ *  the floor resolver (`substrate/auth::resolveHistoryFloorSeq`), never at a read site (a read consumes an
+ *  already-resolved floor, it never mints one). */
+export function historyFloor(seq: number): HistoryFloorSeq {
+  return seq as HistoryFloorSeq;
+}
+
 const TALKATIVENESS_MIN = 0;
 const TALKATIVENESS_MAX = 1;
 /** The default talkativeness weight (Part III §1) — the natural-arbitration sampling weight. */

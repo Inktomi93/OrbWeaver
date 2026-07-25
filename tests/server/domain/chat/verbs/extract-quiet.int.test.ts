@@ -4,6 +4,7 @@
 // spend. The summarize role + getCard are fakes (the shaper declares their ports; compose binds the real ones).
 
 import type { CharacterCard } from "@orb/contracts/character";
+import { historyFloor } from "@orb/contracts/chat";
 import type { SummarizeResult } from "@orb/contracts/providers";
 import type { SummarizeInput, SummarizeOptions } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
@@ -57,7 +58,7 @@ describe("createExtractQuiet", () => {
     const calls: SummarizeCall[] = [];
     const extractQuiet = createExtractQuiet({ db, summarize: fakeSummarize(calls), getCard: fakeGetCard("Aria") });
 
-    const result = await extractQuiet({ chatId, instruction: "Describe {{char}} in the current moment.", historyFloorSeq: 0 });
+    const result = await extractQuiet({ chatId, instruction: "Describe {{char}} in the current moment.", historyFloorSeq: historyFloor(0) });
 
     expect(calls).toHaveLength(1);
     const item = calls[0]?.inputs[0];
@@ -79,7 +80,7 @@ describe("createExtractQuiet", () => {
     const calls: SummarizeCall[] = [];
     const extractQuiet = createExtractQuiet({ db, summarize: fakeSummarize(calls), getCard: fakeGetCard("Aria") });
 
-    await extractQuiet({ chatId, instruction: "Describe {{char}}.", historyFloorSeq: 0 });
+    await extractQuiet({ chatId, instruction: "Describe {{char}}.", historyFloorSeq: historyFloor(0) });
 
     expect(calls[0]?.inputs[0]?.userPrompt).toContain("just starting");
   });
@@ -93,7 +94,7 @@ describe("createExtractQuiet", () => {
     const calls: SummarizeCall[] = [];
     const extractQuiet = createExtractQuiet({ db, summarize: fakeSummarize(calls), getCard: fakeGetCard("Aria") });
 
-    await extractQuiet({ chatId, instruction: "x", historyFloorSeq: 0 });
+    await extractQuiet({ chatId, instruction: "x", historyFloorSeq: historyFloor(0) });
 
     const userPrompt = calls[0]?.inputs[0]?.userPrompt ?? "";
     expect(userPrompt).toContain("VISIBLE line.");
@@ -113,7 +114,7 @@ describe("createExtractQuiet", () => {
     const calls: SummarizeCall[] = [];
     const extractQuiet = createExtractQuiet({ db, summarize: fakeSummarize(calls), getCard: fakeGetCard("Aria") });
 
-    await extractQuiet({ chatId, instruction: "x", historyFloorSeq: 3 });
+    await extractQuiet({ chatId, instruction: "x", historyFloorSeq: historyFloor(3) });
 
     const userPrompt = calls[0]?.inputs[0]?.userPrompt ?? "";
     expect(userPrompt).toContain("AFTERJOIN line.");

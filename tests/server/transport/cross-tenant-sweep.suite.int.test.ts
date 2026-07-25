@@ -151,6 +151,19 @@ const PROBES: readonly Probe[] = [
     path: "character.bulkRemoveCardTag",
     call: (c, i) => c.character.bulkRemoveCardTag({ tagName: "x", characterIds: [i.characterId] }),
   },
+  // Greeting studio (audit §3) — owner-gated bounded completions on a caller-supplied characterId. The
+  // owner gate (`loadOwnedCharacterRow`) is the chokepoint: a stranger passing A's characterId collapses to
+  // a leak-free CharacterNotFoundError → NOT_FOUND BEFORE any preset read or LLM spend (so the sweep's
+  // vllmDisabled harness never reaches an engine). Both RETURN text and NEVER write — the post-sweep
+  // character integrity re-read proves A's card was untouched.
+  {
+    path: "character.rewriteGreeting",
+    call: (c, i) => c.character.rewriteGreeting({ characterId: i.characterId, greeting: "hi there", steer: "make it formal" }),
+  },
+  {
+    path: "character.generateGreeting",
+    call: (c, i) => c.character.generateGreeting({ characterId: i.characterId, steer: "a cheerful opening" }),
+  },
   // ── persona (owner-scoped) ──
   { path: "persona.get", call: (c, i) => c.persona.get({ personaId: i.personaId }) },
   {

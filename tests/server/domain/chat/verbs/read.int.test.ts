@@ -325,6 +325,27 @@ describe("read — the D16 join-history floor (joinHistoryVisibility)", () => {
     expect(body).not.toContain("private chatter");
   });
 
+  // F2 — the host has full control (owner ratified). A PROMOTED host is a member who joined late under a
+  // `from-join` restriction and was then handed the host seat: the seat flips to `host`, but the row's
+  // `joinSeq`/`joinHistoryVisibility` do NOT. Before F2 their `listMessages` still withheld pre-join history
+  // (their old member floor) while export-chat + discovery already handed them full canon — an incoherent
+  // split. The derive now floors a HOST at 0 in the ONE resolver, so `listMessages` sees the whole transcript.
+  test("a PROMOTED host (from-join row, late joinSeq) reads the WHOLE pre-join history — F2 host full control", async () => {
+    const founder = await seedUser(db, "f2_founder");
+    const promoted = await seedUser(db, "f2_promoted");
+    const chatId = await seedRoomWithHistory("f2", founder);
+    // The row a host-handoff leaves on a formerly-clamped member: role `host`, but joinSeq 4 + from-join intact.
+    await seedParticipant(db, { chatId, key: "f2_p", userId: promoted, role: "host", joinSeq: 4, joinHistoryVisibility: "from-join" });
+
+    const { listMessages } = createRead(makeChatContext(db), makeDeps());
+    const page = await listMessages({ principal: principal(promoted), chatId });
+
+    expect(page.messages.map((m) => m.seq)).toEqual([1, 2, 3, 4]);
+    const body = JSON.stringify(page.messages);
+    expect(body).toContain("greeting one");
+    expect(body).toContain("private chatter");
+  });
+
   // THE DEFAULT, pinned end-to-end. Owner ruling: "if you are inviting someone into a group chat they should
   // be able to view previous turns." So a member seeded with NO policy — the shape a real invite redeem
   // writes, which never names the column — must read the ENTIRE canon, including rows below their `joinSeq`.

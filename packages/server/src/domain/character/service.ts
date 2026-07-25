@@ -22,6 +22,7 @@ import { createFindByHandle } from "./verbs/find-by-handle";
 import { createFindByImportHash } from "./verbs/find-by-import-hash";
 import { createFindByImportedFrom } from "./verbs/find-by-imported-from";
 import { createFindSyntheticGroupCharacter } from "./verbs/find-synthetic-group-character";
+import { createGenerateGreeting } from "./verbs/generate-greeting";
 import { createGet } from "./verbs/get";
 import { createGetCard } from "./verbs/get-card";
 import { createList } from "./verbs/list";
@@ -33,6 +34,7 @@ import { createMintSyntheticGroupCharacter } from "./verbs/mint-synthetic-group-
 
 import { createRemove } from "./verbs/remove";
 import { createRestore } from "./verbs/restore";
+import { createRewriteGreeting } from "./verbs/rewrite-greeting";
 import { createSnapshot } from "./verbs/snapshot";
 import { createUpdate } from "./verbs/update";
 
@@ -59,5 +61,7 @@ export function createCharacterService(ctx: CharacterContext): CharacterService 
     findByImportedFrom: createFindByImportedFrom(ctx),
     mintSyntheticGroupCharacter: createMintSyntheticGroupCharacter(ctx),
     findSyntheticGroupCharacter: createFindSyntheticGroupCharacter(ctx),
+    rewriteGreeting: createRewriteGreeting(ctx),
+    generateGreeting: createGenerateGreeting(ctx),
   };
 }

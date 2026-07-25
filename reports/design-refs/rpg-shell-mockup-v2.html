@@ -1,0 +1,403 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>CP-4 mockup v2 — the sharpened OSRS takeover (2026-07-25)</title>
+<style>
+  /* Token-mirroring custom props — the real components ride @orb/ui intents; these stand in for them. */
+  :root {
+    --bg: oklch(0.14 0.012 60);
+    --sidebar: oklch(0.165 0.014 60);
+    --card: oklch(0.19 0.016 60);
+    --raised: oklch(0.215 0.018 60);
+    --border: oklch(0.9 0.02 60 / 0.1);
+    --fg: oklch(0.93 0.012 75);
+    --muted: oklch(0.63 0.018 70);
+    --primary: oklch(0.7 0.15 50);          /* ember */
+    --primary-tint: oklch(0.7 0.15 50 / 0.14);
+    --crown: oklch(0.79 0.12 95);
+    /* the proposed D71 track ramp (--color-track-1..6), first four shown */
+    --track-1: oklch(0.68 0.13 145);        /* vitality green */
+    --track-2: oklch(0.68 0.11 250);        /* resolve blue */
+    --track-3: oklch(0.76 0.12 90);         /* supply gold */
+    --track-4: oklch(0.68 0.12 310);        /* corruption violet */
+    --track-bg: oklch(0.9 0.02 60 / 0.12);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 28px; background: oklch(0.11 0.01 60);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 11.5px; line-height: 1.45; color: var(--fg);
+  }
+  .num { font-variant-numeric: tabular-nums; }
+  .muted { color: var(--muted); }
+  .kicker { font-size: 9px; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  .page { max-width: 1180px; margin: 0 auto; }
+  .lead { font-size: 13px; margin: 0 0 4px; }
+  .sub { margin: 0 0 14px; color: var(--muted); max-width: 960px; }
+
+  svg.ic { width: 15px; height: 15px; flex: none; }
+
+  /* ---------- shell frame ---------- */
+  .frame {
+    display: flex; height: 640px; max-width: 1180px;
+    background: var(--bg); border: 1px solid var(--border); border-radius: 12px; overflow: hidden;
+  }
+  .rail {
+    width: 46px; background: var(--sidebar); border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; align-items: center; padding-bottom: 10px;
+  }
+  .rail-brand { height: 38px; width: 100%; display: flex; align-items: center; justify-content: center; border-bottom: 1px solid var(--border); }
+  .rail-brand .orb-mark { width: 18px; height: 18px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, oklch(0.8 0.13 55), oklch(0.45 0.12 45)); }
+  .railbtn { width: 32px; height: 32px; margin-top: 10px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: var(--muted); }
+  .railbtn.active { background: var(--primary-tint); color: var(--primary); box-shadow: inset 0 0 0 1px oklch(0.7 0.15 50 / 0.35); }
+  .rail-spacer { flex: 1; }
+
+  .list {
+    width: 172px; background: var(--sidebar); border-right: 1px solid var(--border);
+    display: flex; flex-direction: column;
+  }
+  .list-head { height: 38px; display: flex; align-items: center; justify-content: space-between; padding: 0 10px; border-bottom: 1px solid var(--border); }
+  .chatrow { padding: 7px 9px; margin: 3px 6px 0; border-radius: 7px; }
+  .chatrow.active { background: var(--primary-tint); }
+  .chatrow .t { font-weight: 600; }
+  .chatrow.active .t { color: var(--primary); }
+  .tag { display: inline-block; font-size: 8.5px; font-weight: 700; letter-spacing: 0.06em; padding: 0 4px; border-radius: 4px; border: 1px solid oklch(0.7 0.15 50 / 0.5); color: var(--primary); vertical-align: 1px; }
+
+  .main { flex: 1; display: flex; flex-direction: column; min-width: 0; background: var(--bg); }
+  .topbar { height: 38px; display: flex; align-items: center; gap: 8px; padding: 0 12px; border-bottom: 1px solid var(--border); }
+  .topbar .title { font-weight: 650; font-size: 12px; }
+  .topbar .grow { flex: 1; }
+  .chip { border: 1px solid var(--border); border-radius: 6px; padding: 1px 6px; color: var(--muted); font-size: 10px; }
+  .transcript { flex: 1; padding: 14px 16px; display: flex; flex-direction: column; gap: 11px; overflow: hidden; }
+  .msg { max-width: 76%; }
+  .msg .who { margin: 0 0 3px; color: var(--muted); font-size: 10px; }
+  .bubble { background: var(--card); border-radius: 9px; padding: 8px 11px; line-height: 1.55; }
+  .msg.me { align-self: flex-end; }
+  .msg.me .bubble { background: oklch(0.26 0.05 50); color: oklch(0.93 0.03 60); }
+  .toolchip {
+    align-self: flex-start; display: flex; align-items: center; gap: 6px;
+    border: 1px solid var(--border); border-radius: 999px; padding: 3px 10px 3px 7px;
+    color: var(--muted); font-size: 10px; background: oklch(0.16 0.014 60);
+  }
+  .toolchip b { color: var(--fg); font-weight: 600; }
+  .composer {
+    margin: 0 14px 14px; height: 36px; border: 1px solid var(--border); border-radius: 18px;
+    display: flex; align-items: center; gap: 9px; padding: 0 6px 0 12px; background: var(--sidebar); color: var(--muted);
+  }
+  .send { width: 26px; height: 26px; border-radius: 50%; background: var(--primary); color: oklch(0.16 0.03 50); display: flex; align-items: center; justify-content: center; }
+
+  /* ---------- CONTEXT panel — the takeover ---------- */
+  .ctx {
+    width: 306px; background: var(--sidebar); border-left: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    /* takeover density: the compact spacing scale, scoped to this panel */
+  }
+  /* the landed 2px ember inset edge on the context band */
+  .ctx-band { box-shadow: inset 0 2px 0 oklch(0.7 0.15 50 / 0.55); border-bottom: 1px solid var(--border); padding: 8px 12px 9px; }
+  .scene-line1 { display: flex; align-items: center; gap: 6px; }
+  .scene-line1 .loc { font-weight: 650; font-size: 11.5px; }
+  .scene-when { color: var(--muted); font-size: 10px; margin-top: 1px; }
+  .orbs { display: flex; gap: 10px; margin-top: 8px; }
+  .orb { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .orb svg { width: 32px; height: 32px; }
+  .orb text { font: 700 10px system-ui; fill: var(--fg); }
+  .orb .lbl { font-size: 8px; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; }
+  .orb .vals { font-size: 8.5px; color: var(--muted); }
+
+  .strip { display: flex; border-bottom: 1px solid var(--border); background: var(--sidebar); }
+  .strip.bottom { border-bottom: none; border-top: 1px solid var(--border); background: oklch(0.15 0.013 60); }
+  .tabbtn {
+    flex: 1; height: 34px; display: flex; align-items: center; justify-content: center;
+    color: var(--muted); position: relative;
+  }
+  .tabbtn.active { background: var(--primary-tint); color: var(--primary); box-shadow: inset 0 -2px 0 var(--primary); }
+  .tabbtn .dot { position: absolute; top: 5px; right: 7px; width: 5px; height: 5px; border-radius: 50%; background: var(--primary); }
+  .tabbtn.disabled { opacity: 0.38; }
+  .tabbtn.disabled .lock { position: absolute; bottom: 4px; right: 6px; width: 8px; height: 8px; opacity: 1; }
+  .tabbtn.crown { color: var(--crown); }
+
+  .viewport { flex: 1; overflow: hidden; padding: 10px 12px; display: flex; flex-direction: column; gap: 10px; }
+  .sect { margin: 0 0 2px; }
+  .member { padding: 6px 0 2px; }
+  .member + .member { border-top: 1px solid var(--border); }
+  .mrow { display: flex; align-items: baseline; justify-content: space-between; }
+  .mname { font-weight: 650; }
+  .mclass { color: var(--muted); font-size: 10px; }
+  .meter { margin-top: 4px; }
+  .meter .mline { display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); margin-bottom: 2px; }
+  .meter .mline .v { color: var(--fg); }
+  .bar { height: 6px; border-radius: 3px; background: var(--track-bg); overflow: hidden; }
+  .bar > i { display: block; height: 100%; border-radius: 3px; }
+  .cond { display: inline-block; font-size: 9px; padding: 1px 7px; border-radius: 999px; border: 1px solid oklch(0.65 0.14 30 / 0.5); color: oklch(0.75 0.12 30); margin-top: 5px; }
+  .chip2 { display: inline-block; font-size: 9.5px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); margin: 2px 3px 0 0; }
+
+  .enc {
+    border: 1px solid oklch(0.7 0.15 50 / 0.35); border-radius: 8px; padding: 7px 9px; background: oklch(0.7 0.15 50 / 0.06);
+  }
+  .enc .kicker { color: var(--primary); }
+  .init { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
+  .init span { font-size: 9.5px; border: 1px solid var(--border); border-radius: 5px; padding: 1px 6px; color: var(--muted); }
+  .init span.turn { border-color: oklch(0.7 0.15 50 / 0.6); color: var(--primary); font-weight: 650; }
+
+  .ro-pill { display: inline-flex; align-items: center; gap: 4px; font-size: 9px; font-weight: 600; padding: 1px 7px; border-radius: 999px; border: 1px solid oklch(0.76 0.12 90 / 0.5); color: var(--crown); }
+
+  /* ---------- asides ---------- */
+  .asides { display: flex; gap: 18px; margin-top: 22px; align-items: flex-start; flex-wrap: wrap; }
+  .aside-col { width: 306px; flex: none; }
+  .aside-col h3 { margin: 0 0 8px; font-size: 11px; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); }
+  .panelbox { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: var(--sidebar); display: flex; flex-direction: column; height: 430px; }
+  .notes { flex: 1 1 300px; min-width: 280px; color: var(--muted); line-height: 1.6; }
+  .notes b { color: var(--fg); }
+  .cast { border: 1px solid var(--border); border-radius: 8px; padding: 7px 9px; }
+  .beat { font-size: 10px; color: var(--muted); padding: 2px 0; }
+  .beat::before { content: "— "; }
+</style>
+</head>
+<body>
+<div class="page">
+<p class="lead">CP-4 mockup v2 (2026-07-25) — the sharpened OSRS takeover. Spec: docs/architecture/Context-Panel-Program.md §4.</p>
+<p class="sub">Main frame: the four-region shell with a FULL-rpg chat active — scene banner + ring-gauge pool orbs in the header slot, the 7-tab game strip above the viewport, the CP-1 meta set + host crown below it (one selection across both strips). Below: the LITE trim and the CP-3 Trackers tab — the other two rungs of the escalation ladder, same block kit.</p>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <g id="d-users"><circle cx="9" cy="8" r="3.4"/><path d="M3.4 20c0-3.1 2.5-5 5.6-5s5.6 1.9 5.6 5"/><path d="M15.5 3.6a3.3 3.3 0 0 1 0 6.4"/><path d="M17 15.3c2.3.6 3.6 2.3 3.6 4.7"/></g>
+    <g id="d-heart"><path d="M12 20.5 4.8 13.4A4.8 4.8 0 0 1 12 6.8a4.8 4.8 0 0 1 7.2 6.6Z"/><path d="M4 12h4l1.5-2.5 2.5 5 1.5-2.5H20"/></g>
+    <g id="d-scroll"><path d="M17 3H7a2 2 0 0 0-2 2v13"/><path d="M17 3a2 2 0 0 1 2 2v12H8a3 3 0 0 0-3 3 3 3 0 0 0 3 3h11"/><path d="M9 8h6M9 12h6"/></g>
+    <g id="d-pack"><path d="M7 9a5 5 0 0 1 10 0v11a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 7 20Z"/><path d="M9.5 9V6.5a2.5 2.5 0 0 1 5 0V9"/><path d="M7 14h10"/><path d="M10 14v7.5M14 14v7.5"/></g>
+    <g id="d-mask"><path d="M4.5 4.5c3 1.4 12 1.4 15 0V12c0 5-3.3 8.5-7.5 8.5S4.5 17 4.5 12Z"/><path d="M8.7 10.2h.01M15.3 10.2h.01"/><path d="M9 14.6c1.6 1.6 4.4 1.6 6 0"/></g>
+    <g id="d-flag"><path d="M5.5 21.5V4.2c3.7-1.9 6.5 1.9 11 .1v9c-4.5 1.8-7.3-2-11-.1"/></g>
+    <g id="d-book"><path d="M12 6.4C10 5 7.2 4.4 3.5 4.4v13.8c3.7 0 6.5.6 8.5 2 2-1.4 4.8-2 8.5-2V4.4c-3.7 0-6.5.6-8.5 2Z"/><path d="M12 6.4v13.8"/></g>
+    <g id="d-map"><path d="m9 4.2-5.5 1.9v13.7L9 17.9l6 1.9 5.5-1.9V4.2L15 6.1Z"/><path d="M9 4.2v13.7M15 6.1v13.7"/></g>
+    <g id="d-gear"><circle cx="12" cy="12" r="3.1"/><path d="M12 2.8v2.6M12 18.6v2.6M2.8 12h2.6M18.6 12h2.6M5.5 5.5l1.8 1.8M16.7 16.7l1.8 1.8M18.5 5.5l-1.8 1.8M7.3 16.7l-1.8 1.8"/></g>
+    <g id="d-syringe"><path d="m17.5 2.5 4 4"/><path d="m16 7 3-3"/><path d="M18.5 9.5 9 19l-4.2 1.2L6 16 15.5 6.5"/><path d="m8.5 11.5 3.5 3.5"/></g>
+    <g id="d-eye"><path d="M2.5 12S6.3 5.5 12 5.5 21.5 12 21.5 12 17.7 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="3"/></g>
+    <g id="d-crown"><path d="M4.5 19h15M4.5 19 2.6 7.5 7.8 11 12 4.5 16.2 11l5.2-3.5L19.5 19"/></g>
+    <g id="d-gauge"><path d="M3.4 17.4a9.8 9.8 0 1 1 17.2 0"/><path d="m12 14 3.8-3.8"/><circle cx="12" cy="14" r="1"/></g>
+    <g id="d-lock"><rect x="5.5" y="10.5" width="13" height="9.5" rx="2"/><path d="M8.5 10.5V7.5a3.5 3.5 0 0 1 7 0v3"/></g>
+    <g id="d-msg"><path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z"/></g>
+    <g id="d-wand"><path d="m5 19 10-10"/><path d="m14 5.5.7-2 .7 2 2 .7-2 .7-.7 2-.7-2-2-.7Z"/><path d="m19 12 .5-1.4.5 1.4 1.4.5-1.4.5-.5 1.4-.5-1.4-1.4-.5Z"/></g>
+    <g id="d-send"><path d="m6 12 12-6-4 6 4 6Z"/></g>
+    <g id="d-globe"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.7 2.6 2.7 15.4 0 18-2.7-2.6-2.7-15.4 0-18Z"/></g>
+    <g id="d-compass"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5Z"/></g>
+  </defs>
+</svg>
+
+<!-- ============ THE SHELL ============ -->
+<div class="frame">
+  <!-- RAIL -->
+  <div class="rail">
+    <div class="rail-brand"><div class="orb-mark"></div></div>
+    <div class="railbtn active"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#d-msg"/></svg></div>
+    <div class="railbtn"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#d-users"/></svg></div>
+    <div class="railbtn"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#d-globe"/></svg></div>
+    <div class="rail-spacer"></div>
+    <div class="railbtn"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#d-gear"/></svg></div>
+  </div>
+
+  <!-- LIST -->
+  <div class="list">
+    <div class="list-head"><span class="kicker">Chats — 3</span><span class="muted">＋</span></div>
+    <div class="chatrow active"><p class="t" style="margin:0">The Rusted Lantern <span class="tag">RPG</span></p><p class="muted" style="margin:0">2m ago</p></div>
+    <div class="chatrow"><p class="t" style="margin:0">Group UX review</p><p class="muted" style="margin:0">1h ago</p></div>
+    <div class="chatrow"><p class="t" style="margin:0">Ember — solo</p><p class="muted" style="margin:0">yesterday</p></div>
+  </div>
+
+  <!-- CONTENT -->
+  <div class="main">
+    <div class="topbar">
+      <span class="title">The Rusted Lantern</span>
+      <span class="muted num">day 3 · night</span>
+      <span class="grow"></span>
+      <span class="chip">⌘K</span>
+      <span class="chip">▤</span><span class="chip">▥</span>
+    </div>
+    <div class="transcript">
+      <div class="msg"><p class="who">GM · 9:12 PM</p>
+        <div class="bubble">Rain hammers the shutters. The innkeep slides two keys across the bar — one iron, one bone. Behind you, the common-room door bangs open on the wind. Two silhouettes shoulder in, blades already loose.</div>
+      </div>
+      <div class="msg me"><div class="bubble">I palm the bone key and step between them and Niko. "We want no trouble — but we keep the key."</div></div>
+      <div class="toolchip"><svg class="ic" style="width:12px;height:12px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#d-heart"/></svg><span><b>update_roster</b> · Niko: Vitality −4 · condition +poisoned</span></div>
+      <div class="msg"><p class="who">Niko · 9:14 PM</p>
+        <div class="bubble">The thrown dart takes Niko in the shoulder before she can duck. She hisses, yanks it free — the tip is green-slicked. <em class="muted">"…okay. NOW it's trouble."</em></div>
+      </div>
+    </div>
+    <div class="composer">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#d-wand"/></svg>
+      <span style="flex:1">Continue, or type a message…</span>
+      <div class="send"><svg class="ic" style="width:13px;height:13px" viewBox="0 0 24 24" fill="currentColor" stroke="none"><use href="#d-send"/></svg></div>
+    </div>
+  </div>
+
+  <!-- CONTEXT — the takeover (full rpg) -->
+  <div class="ctx">
+    <!-- header band: scene banner + pool orbs (the `header` slot; ember inset edge is the landed band treatment) -->
+    <div class="ctx-band">
+      <div class="scene-line1">
+        <svg class="ic muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#d-compass"/></svg>
+        <div style="min-width:0">
+          <div class="loc">The Rusted Lantern — Common Room</div>
+          <div class="scene-when num">day 3 · night · rain</div>
+        </div>
+      </div>
+      <div class="orbs">
+        <div class="orb" title="Vitality 24/30">
+          <svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="11.5" fill="none" stroke="var(--track-bg)" stroke-width="3.4"/><circle cx="16" cy="16" r="11.5" fill="none" stroke="var(--track-1)" stroke-width="3.4" stroke-linecap="round" stroke-dasharray="57.8 72.2" transform="rotate(-90 16 16)"/><text x="16" y="19.5" text-anchor="middle" class="num">24</text></svg>
+          <span class="lbl">VIT</span><span class="vals num">24/30</span>
+        </div>
+        <div class="orb" title="Resolve 7/10">
+          <svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="11.5" fill="none" stroke="var(--track-bg)" stroke-width="3.4"/><circle cx="16" cy="16" r="11.5" fill="none" stroke="var(--track-2)" stroke-width="3.4" stroke-linecap="round" stroke-dasharray="50.6 72.2" transform="rotate(-90 16 16)"/><text x="16" y="19.5" text-anchor="middle" class="num">7</text></svg>
+          <span class="lbl">RES</span><span class="vals num">7/10</span>
+        </div>
+        <div class="orb" title="Supply 3/5">
+          <svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="11.5" fill="none" stroke="var(--track-bg)" stroke-width="3.4"/><circle cx="16" cy="16" r="11.5" fill="none" stroke="var(--track-3)" stroke-width="3.4" stroke-linecap="round" stroke-dasharray="43.3 72.2" transform="rotate(-90 16 16)"/><text x="16" y="19.5" text-anchor="middle" class="num">3</text></svg>
+          <span class="lbl">SUP</span><span class="vals num">3/5</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- TOP STRIP — game state (Status active · Quests badged · Map PHASE-disabled) -->
+    <div class="strip" role="tablist" aria-label="Game">
+      <div class="tabbtn active" title="Status"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#d-heart"/></svg></div>
+      <div class="tabbtn" title="Sheet"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#d-scroll"/></svg></div>
+      <div class="tabbtn" title="Inventory"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#d-pack"/></svg></div>
+      <div class="tabbtn" title="Scene"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#d-mask"/></svg></div>
+      <div class="tabbtn" title="Quests — updated"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#d-flag"/></svg><span class="dot"></span></div>
+      <div class="tabbtn" title="Journal"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#d-book"/></svg></div>
+      <div class="tabbtn disabled" title="Maps unlock with the map arc (MA-3)" aria-disabled="true">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#d-map"/></svg>
+        <svg class="lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><use href="#d-lock"/></svg>
+      </div>
+    </div>
+
+    <!-- VIEWPORT — Status (encounter live) -->
+    <div class="viewport">
+      <div class="enc">
+        <span class="kicker">Encounter — round 2</span>
+        <div class="init">
+          <span class="turn">▸ Niko</span><span>Bandit ×2</span><span>Mara</span><span>JFC</span>
+        </div>
+      </div>
+
+      <p class="kicker sect">Roster — 3</p>
+
+      <div class="member">
+        <div class="mrow"><span class="mname">Mara</span><span class="mclass">Warden</span></div>
+        <div class="meter"><div class="mline"><span>Vitality</span><span class="v num">24/30</span></div><div class="bar"><i style="width:80%;background:var(--track-1)"></i></div></div>
+        <div class="meter"><div class="mline"><span>Resolve</span><span class="v num">7/10</span></div><div class="bar"><i style="width:70%;background:var(--track-2)"></i></div></div>
+      </div>
+
+      <div class="member">
+        <div class="mrow"><span class="mname">Niko</span><span class="mclass">Trickster</span></div>
+        <div class="meter"><div class="mline"><span>Vitality</span><span class="v num">9/20</span></div><div class="bar"><i style="width:45%;background:var(--track-1)"></i></div></div>
+        <div class="meter"><div class="mline"><span>Resolve</span><span class="v num">9/10</span></div><div class="bar"><i style="width:90%;background:var(--track-2)"></i></div></div>
+        <span class="cond">poisoned</span>
+      </div>
+
+      <div class="member">
+        <div class="mrow"><span class="mname">JFC</span><span class="mclass">Lantern-keeper</span></div>
+        <div class="meter"><div class="mline"><span>Vitality</span><span class="v num">28/28</span></div><div class="bar"><i style="width:100%;background:var(--track-1)"></i></div></div>
+        <div class="meter"><div class="mline"><span>Resolve</span><span class="v num">3/10</span></div><div class="bar"><i style="width:30%;background:var(--track-2)"></i></div></div>
+      </div>
+    </div>
+
+    <!-- BOTTOM STRIP — meta (CP-1 set + host crown; none active) -->
+    <div class="strip bottom" role="tablist" aria-label="Chat">
+      <div class="tabbtn" title="Members"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#d-users"/></svg></div>
+      <div class="tabbtn" title="Settings"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#d-gear"/></svg></div>
+      <div class="tabbtn" title="Injections"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#d-syringe"/></svg></div>
+      <div class="tabbtn" title="Preview (host)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#d-eye"/></svg></div>
+      <div class="tabbtn crown" title="Game (host) — GM console"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#d-crown"/></svg></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ ASIDES: the other two rungs ============ -->
+<div class="asides">
+
+  <!-- LITE trim -->
+  <div class="aside-col">
+    <h3>Rung 3 — rpg-lite trim (context column only)</h3>
+    <div class="panelbox">
+      <div class="ctx-band">
+        <div class="scene-line1" style="justify-content:space-between">
+          <span class="ro-pill" title="This model can't update trackers — they still steer the story; edit them by hand.">
+            <svg class="ic" style="width:9px;height:9px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><use href="#d-lock"/></svg>
+            Trackers read-only
+          </span>
+        </div>
+        <div class="orbs">
+          <div class="orb" title="Health 12/20"><svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="11.5" fill="none" stroke="var(--track-bg)" stroke-width="3.4"/><circle cx="16" cy="16" r="11.5" fill="none" stroke="var(--track-1)" stroke-width="3.4" stroke-linecap="round" stroke-dasharray="43.3 72.2" transform="rotate(-90 16 16)"/><text x="16" y="19.5" text-anchor="middle" class="num">12</text></svg><span class="lbl">HP</span><span class="vals num">12/20</span></div>
+          <div class="orb" title="Sanity 6/10"><svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="11.5" fill="none" stroke="var(--track-bg)" stroke-width="3.4"/><circle cx="16" cy="16" r="11.5" fill="none" stroke="var(--track-2)" stroke-width="3.4" stroke-linecap="round" stroke-dasharray="43.3 72.2" transform="rotate(-90 16 16)"/><text x="16" y="19.5" text-anchor="middle" class="num">6</text></svg><span class="lbl">SAN</span><span class="vals num">6/10</span></div>
+        </div>
+      </div>
+      <div class="strip" role="tablist" aria-label="Game">
+        <div class="tabbtn" title="Status"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#d-heart"/></svg></div>
+        <div class="tabbtn" title="Sheet"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#d-scroll"/></svg></div>
+        <div class="tabbtn" title="Inventory"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#d-pack"/></svg></div>
+        <div class="tabbtn active" title="Scene"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#d-mask"/></svg></div>
+      </div>
+      <div class="viewport">
+        <p class="kicker sect">On stage — 1</p>
+        <div class="cast">
+          <div class="mrow"><span class="mname">Sera</span><span class="mclass">mood — guarded</span></div>
+          <div class="meter"><div class="mline"><span>Corruption</span><span class="v num">70/100</span></div><div class="bar"><i style="width:70%;background:var(--track-4)"></i></div></div>
+          <span class="chip2">Trust — low</span><span class="chip2">Debt — 3 favors</span>
+        </div>
+        <p class="kicker sect" style="margin-top:6px">Just now</p>
+        <div>
+          <div class="beat">Sera pocketed the bone key while you argued.</div>
+          <div class="beat">The rain has not let up since dusk.</div>
+          <div class="beat">You owe the innkeep for the broken chair.</div>
+        </div>
+      </div>
+      <div class="strip bottom" role="tablist" aria-label="Chat">
+        <div class="tabbtn" title="Members"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#d-users"/></svg></div>
+        <div class="tabbtn" title="Settings"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#d-gear"/></svg></div>
+        <div class="tabbtn" title="Injections"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#d-syringe"/></svg></div>
+        <div class="tabbtn crown" title="Game (host) — Stats &amp; Trackers, steering note, graduate to full"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#d-crown"/></svg></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CP-3 trackers tab -->
+  <div class="aside-col">
+    <h3>Rung 2 — CP-3 Trackers tab (normal chat, no takeover)</h3>
+    <div class="panelbox">
+      <div class="ctx-band" style="min-height:20px"></div>
+      <div class="strip" role="tablist" aria-label="Detail">
+        <div class="tabbtn" title="Members"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#d-users"/></svg></div>
+        <div class="tabbtn" title="Settings"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#d-gear"/></svg></div>
+        <div class="tabbtn" title="Preview (host)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#d-eye"/></svg></div>
+        <div class="tabbtn" title="Injections"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#d-syringe"/></svg></div>
+        <div class="tabbtn active" title="Trackers"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#d-gauge"/></svg></div>
+      </div>
+      <div class="viewport">
+        <p class="kicker sect">Meters</p>
+        <div class="meter"><div class="mline"><span>Affection</span><span class="v num">42/100</span></div><div class="bar"><i style="width:42%;background:var(--track-1)"></i></div></div>
+        <div class="meter"><div class="mline"><span>Suspicion</span><span class="v num">3/10</span></div><div class="bar"><i style="width:30%;background:var(--track-2)"></i></div></div>
+        <p class="kicker sect" style="margin-top:8px">Guides</p>
+        <div>
+          <span class="chip2"><svg class="ic" style="width:9px;height:9px;vertical-align:-1px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><use href="#d-gauge"/></svg> pacing — slow burn</span>
+          <span class="chip2"><svg class="ic" style="width:9px;height:9px;vertical-align:-1px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><use href="#d-gauge"/></svg> tone — dry wit</span>
+        </div>
+        <p class="kicker sect" style="margin-top:8px">Trackers</p>
+        <div>
+          <span class="chip2">mood — wary</span><span class="chip2">location — rooftop</span>
+        </div>
+      </div>
+      <div style="border-top:1px solid var(--border);padding:6px 10px" class="muted">Authoring lives in Injections — this tab is the glance lens. Omitted until tracker-class data exists.</div>
+    </div>
+  </div>
+
+  <!-- notes -->
+  <div class="notes">
+    <p style="margin-top:0"><b>What v2 fixes over v1:</b> phantom "lvl" data killed (no level exists in the sheet model); emoji icons replaced with the lucide vocabulary the shell already speaks; circled-number orbs became ring GAUGES with value + label (they read as notification counts before); every meter carries label + value text — the bar is decorative, never the datum.</p>
+    <p><b>Anatomy (spec §4.2):</b> header band = scene banner + pool orbs in the existing <code>header</code> slot, keeping the landed 2px ember inset edge; TOP strip = rpg-contributed game tabs (Quests change-badged; Map PHASE-disabled with the MA-3 reason on hover, OSRS locked-tab style); the viewport swaps per tab; BOTTOM strip = CP-1's Members · Settings · Injections · Preview(host) · Game/GM crown(host). One selection across both strips. Encounter lives inside Status (round banner + initiative), badged — not a transient tab.</p>
+    <p><b>The ladder:</b> normal chat → standard strip; steering data present → + Trackers tab (rung 2); lite game → 4-tab takeover with read-only pill when the model can't write tools (rung 3); full game → the 7-tab rail (main frame). One block kit — meter row, stat cell, chip, cast card, beat line — mounted at every rung.</p>
+    <p><b>Skin note:</b> everything here rides intent tokens (the track ramp <code>--color-track-1..6</code> is the one proposed addition, via the D71 pipeline). The stone/parchment OSRS look, if wanted, is an optional seed THEME — no component owns it.</p>
+  </div>
+</div>
+</div>
+</body>
+</html>

@@ -58,8 +58,6 @@ const WAIVERS: Readonly<Record<string, Waiver>> = {
 
   // Acknowledged CT gaps — real surfaces without a CT yet. Named so the gap is loud, never silent. When
   // one gains a CT, delete its line (the ratchet fails on a stale waiver).
-  "assembly-preview-panel": { deferred: "#28 host-only Preview tab — suspense over two host-gated reads; CT deferred (needs a two-query suspense harness)." },
-  "injections-manager": { deferred: "in-history injections editor — CT gap; behavior partially covered via room-overrides-form.ct's consumer." },
   "room-overrides-tab": { deferred: "the context-panel Overrides tab wrapper — CT gap; the form itself is room-overrides-form.ct." },
   "committed-members-tab": { deferred: "the context-panel Members tab wrapper — CT gap; the panel itself is members-panel.ct." },
   "chats-topbar-header": { deferred: "the chats-section topbar header — CT gap." },

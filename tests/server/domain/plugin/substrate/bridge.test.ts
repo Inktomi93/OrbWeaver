@@ -6,6 +6,7 @@
 // spend wrap was stripped 2026-07-24 — enterprise spend enforcement; loop safety rides the per-member turn RATE
 // budget + the cascade guard downstream in requestTurn, the n≤4 clamp + the ≤32 host-call cap for imagery.)
 
+import { historyFloor } from "@orb/contracts/chat";
 import type { ChatId, PluginId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
@@ -124,7 +125,7 @@ function readingOps(visibility: Awaited<ReturnType<PluginHostOps["chat"]["resolv
 // legitimately admitted to a room whose pre-join canon they may not read.
 describe("buildPluginBridge — listMessages is clamped to the INSTALLER's own viewer visibility", () => {
   test("a clamped installer's read carries their D16 floor, resolved for the installer (not a guest-supplied id)", async () => {
-    const rec = readingOps({ role: "member", historyFloorSeq: 7 });
+    const rec = readingOps({ role: "member", historyFloorSeq: historyFloor(7) });
     const bridge = buildPluginBridge(rec.ops, INSTALLER, PLUGIN);
 
     await bridge.chat.listMessages(CHAT, 20);
@@ -134,7 +135,7 @@ describe("buildPluginBridge — listMessages is clamped to the INSTALLER's own v
   });
 
   test("an unrestricted installer reads at floor 0 — the common case is unchanged", async () => {
-    const rec = readingOps({ role: "host", historyFloorSeq: 0 });
+    const rec = readingOps({ role: "host", historyFloorSeq: historyFloor(0) });
     const bridge = buildPluginBridge(rec.ops, INSTALLER, PLUGIN);
 
     await bridge.chat.listMessages(CHAT, undefined);

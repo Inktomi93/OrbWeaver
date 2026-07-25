@@ -179,7 +179,16 @@ export type UserIntent = z.infer<typeof userIntentSchema>;
 // Guided actions — the config half (the resolver + ZWSP neutralization live in `@orb/kit/guided`).
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 
-export const GUIDED_ACTION_KINDS = ["response", "swipe", "impersonate", "rewrite", "opening", "continue"] as const satisfies readonly string[];
+export const GUIDED_ACTION_KINDS = [
+  "response",
+  "swipe",
+  "impersonate",
+  "rewrite",
+  "opening",
+  "continue",
+  "greeting_rewrite",
+  "greeting_new",
+] as const satisfies readonly string[];
 export type GuidedActionKind = (typeof GUIDED_ACTION_KINDS)[number];
 
 // The `impersonate` action's `{{person}}` word — spliced verbatim into "{{person}}-person perspective"
@@ -196,6 +205,16 @@ const IMPERSONATE_DEFAULT_PROMPT =
   "[Forget all other previous instructions. For this turn only, write in the {{person}}-person perspective AS {{user}} (not {{char}}). Limit yourself strictly to {{user}}'s voice and actions; do NOT narrate {{char}}'s reaction or the surrounding scene. Guidance: {{input}}]";
 const REWRITE_DEFAULT_PROMPT =
   "[OOC: Answer me out of character. Don't continue the RP. Instead, rewrite {{char}}'s last response to reflect the following: {{input}}. Don't make any other changes besides this.]";
+// Greeting studio (audit §3) — the guided-action machinery pointed at a BASE greeting text (the card's own
+// opening), NOT a chat turn. `greeting_rewrite` carries `{{base}}` — the existing greeting text, spliced
+// (ZWSP-neutralized, other-author content) by the same guided-only pre-substitution as `{{person}}`
+// (@orb/kit/guided). Keep-close prose adapted from the source's editIntros.editExisting (verbatim
+// sanctioned). `greeting_new` writes fresh from the instructions (editIntros.makeNew). Both resolve
+// {{char}}/{{user}} through the normal macro engine, so the templates read naturally in the card editor.
+const GREETING_REWRITE_DEFAULT_PROMPT =
+  "Revise the existing greeting for {{char}} using ONLY the requested adjustments below.\n\nRequested adjustments: {{input}}\n\nOriginal greeting:\n{{base}}\n\nRules:\n- Keep the greeting content, structure, formatting, links, and length as close as possible unless a requested adjustment requires a specific change.\n- Do NOT add new story events, new actions, or extra continuation text.\n- Do NOT expand the greeting.\n- Return ONLY the revised greeting text — no commentary, no quotes.";
+const GREETING_NEW_DEFAULT_PROMPT =
+  "Write a single opening greeting for {{char}}, in character, based on the following requirements: {{input}}\n\nRules:\n- Set the scene and greet {{user}} as {{char}} would.\n- Output ONLY the greeting text — no commentary, no quotes.\n- Do NOT continue beyond the greeting or add extra sections or explanations.";
 
 const GUIDED_DEFAULT_ROLE: MessageRole = "system";
 
@@ -222,6 +241,21 @@ export const guidedActionsSchema = z.object({
     prompt: CONTINUE_DEFAULT_PROMPT,
     role: GUIDED_DEFAULT_ROLE,
   }),
+  // Greeting-studio kinds (audit §3) — defaulted like opening/continue so a stored blob predating them
+  // still parses. `role` is inert for these (the studio verbs run a standalone bounded completion, never a
+  // chat-turn injection) but kept for schema uniformity. The keys ARE the `GuidedActionKind` strings (the
+  // schema map is keyed by kind, so key === kind avoids a translation layer); the audit-ratified vocabulary
+  // is snake_case.
+  // biome-ignore-start lint/style/useNamingConvention: the map key IS the GuidedActionKind string (snake_case vocabulary, audit §3)
+  greeting_rewrite: guidedActionConfigSchema.default({
+    prompt: GREETING_REWRITE_DEFAULT_PROMPT,
+    role: GUIDED_DEFAULT_ROLE,
+  }),
+  greeting_new: guidedActionConfigSchema.default({
+    prompt: GREETING_NEW_DEFAULT_PROMPT,
+    role: GUIDED_DEFAULT_ROLE,
+  }),
+  // biome-ignore-end lint/style/useNamingConvention: the map key IS the GuidedActionKind string (snake_case vocabulary, audit §3)
 });
 export type GuidedActionsConfig = z.infer<typeof guidedActionsSchema>;
 
@@ -232,6 +266,10 @@ export const DEFAULT_GUIDED_ACTIONS: GuidedActionsConfig = {
   rewrite: { prompt: REWRITE_DEFAULT_PROMPT, role: GUIDED_DEFAULT_ROLE },
   opening: { prompt: OPENING_DEFAULT_PROMPT, role: GUIDED_DEFAULT_ROLE },
   continue: { prompt: CONTINUE_DEFAULT_PROMPT, role: GUIDED_DEFAULT_ROLE },
+  // biome-ignore-start lint/style/useNamingConvention: the map key IS the GuidedActionKind string (snake_case vocabulary, audit §3)
+  greeting_rewrite: { prompt: GREETING_REWRITE_DEFAULT_PROMPT, role: GUIDED_DEFAULT_ROLE },
+  greeting_new: { prompt: GREETING_NEW_DEFAULT_PROMPT, role: GUIDED_DEFAULT_ROLE },
+  // biome-ignore-end lint/style/useNamingConvention: the map key IS the GuidedActionKind string (snake_case vocabulary, audit §3)
 };
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -276,6 +314,117 @@ export const REWRITE_TOGGLES = [
 ] as const satisfies readonly RewriteToggle[];
 
 export type RewriteToggleId = (typeof REWRITE_TOGGLES)[number]["id"];
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+// Greeting transform catalog — the greeting studio's one-click steer set (audit §3). Adapted (not ported)
+// from the ST Guided-Generations editIntros transform catalog (`prompts.json editIntros.options`): the
+// 4-axis catalog (perspective / tense / style / gender) that IS the source's "steer an OPENING without
+// prose-writing" ergonomic. Unlike REWRITE_TOGGLES (which drops the perspective/gender axes as nonsensical
+// for a mid-conversation reply), the greeting studio keeps ALL FOUR — they reframe the user's viewpoint in
+// an opening, which is exactly the greeting-authoring surface.
+//
+// Registry-as-data (the REWRITE_TOGGLES / databank SCRAPER_KINDS precedent — "substrate not a type home":
+// contracts owns the shape+data both the client chips and the composed steer need). Each transform = a
+// stable `id`, an `axis` (the group it belongs to — the client can render chips grouped), a display
+// `label`, and the instruction `fragment` it contributes. The client renders chips BLIND from this data;
+// the selected fragments join `. ` in CATALOG ORDER (the source's exact editIntros join, via
+// `composeRewriteSteer` in @orb/kit/guided), then the free-text instruction is appended — the ONE steer
+// string that becomes `{{input}}` inside the preset's `greeting_rewrite`/`greeting_new` template. Fragments
+// carry NO macros (the composed steer is ZWSP-neutralized downstream as `{{input}}`, so a `{{user}}` in a
+// fragment would render as literal braces — the REWRITE_TOGGLES posture): "the user" / "the character" are
+// spelled in plain words; the template's OWN {{char}}/{{user}} macros resolve the names.
+export const GREETING_TRANSFORM_AXES = ["perspective", "tense", "style", "gender"] as const satisfies readonly string[];
+export type GreetingTransformAxis = (typeof GREETING_TRANSFORM_AXES)[number];
+
+export interface GreetingTransform {
+  readonly id: string;
+  readonly axis: GreetingTransformAxis;
+  readonly label: string;
+  /** The instruction sentence this transform contributes to the composed steer (no trailing period — the
+   *  composer joins with `. ` and terminates the whole steer, matching the source's editIntros join). */
+  readonly fragment: string;
+}
+
+export const GREETING_TRANSFORMS = [
+  // ── perspective ──
+  {
+    id: "first-person-standard",
+    axis: "perspective",
+    label: "First person (I/me)",
+    fragment: "Rewrite the greeting in first person, where the user is the narrator using I/me, keeping the character's references consistent",
+  },
+  {
+    id: "first-person-by-name",
+    axis: "perspective",
+    label: "First person (by name)",
+    fragment:
+      "Rewrite the greeting in first person, but refer to the user by their name instead of I/me, as if the narrator refers to themselves in the third person",
+  },
+  {
+    id: "first-person-as-you",
+    axis: "perspective",
+    label: "First person (as 'you')",
+    fragment: "Rewrite the greeting in first person, but refer to the user as 'you', creating a self-addressing perspective",
+  },
+  {
+    id: "second-person",
+    axis: "perspective",
+    label: "Second person",
+    fragment: "Rewrite the greeting in second person, addressing the user directly as 'you' and referring to the character accordingly",
+  },
+  {
+    id: "third-person",
+    axis: "perspective",
+    label: "Third person",
+    fragment:
+      "Rewrite the greeting in third person, referring to the user and the character by name and appropriate pronouns, described from an outside observer",
+  },
+  // ── tense ──
+  {
+    id: "past-tense",
+    axis: "tense",
+    label: "Past tense",
+    fragment: "Rewrite the greeting entirely in the past tense, as if these events had already occurred",
+  },
+  {
+    id: "present-tense",
+    axis: "tense",
+    label: "Present tense",
+    fragment: "Rewrite the greeting in present tense, making it feel immediate and ongoing",
+  },
+  // ── style ──
+  {
+    id: "novella-style",
+    axis: "style",
+    label: "Novella prose",
+    fragment:
+      "Change the greeting to a novella prose style: full paragraphs and proper dialogue punctuation, no asterisks for narration, keeping all links and images unchanged — a style change only, do not invent new sentences",
+  },
+  {
+    id: "internet-rp-style",
+    axis: "style",
+    label: "Internet-RP style",
+    fragment: "Change the greeting to internet-RP style: asterisks for actions and narration, dialogue kept in quotes",
+  },
+  {
+    id: "literary-style",
+    axis: "style",
+    label: "Literary style",
+    fragment: "Rewrite the greeting in a richer literary style: vivid metaphor and description while keeping proper formatting",
+  },
+  {
+    id: "script-style",
+    axis: "style",
+    label: "Script style",
+    fragment: "Rewrite the greeting in a script style: minimal narration, character names followed by dialogue lines, brief scene directions in parentheses",
+  },
+  // ── gender ──
+  { id: "he-him", axis: "gender", label: "He/him", fragment: "Change all references to the user to use he/him pronouns" },
+  { id: "she-her", axis: "gender", label: "She/her", fragment: "Change all references to the user to use she/her pronouns" },
+  { id: "they-them", axis: "gender", label: "They/them", fragment: "Change all references to the user to use they/them pronouns" },
+] as const satisfies readonly GreetingTransform[];
+
+export type GreetingTransformId = (typeof GREETING_TRANSFORMS)[number]["id"];
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 // Custom parameters — Layer-1 boundary guard (schema). Layer-2 runtime defense (`deepMergeRequestBody`,

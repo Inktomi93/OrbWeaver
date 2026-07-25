@@ -54,12 +54,41 @@ arrives with Phase 2's greeting studio where it belongs. **SELECTION-SCOPED REWR
 = icon-mode effectively always — §13 cold-read question for the next side-eye pass; the suppressions
 red resolved the GOOD way: the CSS killed a whole ResizeObserver effect + its suppression).
 
-**ON THE LANES' LANDING (the standing loop):** reconcile (KNOWN ITEM: chats-section.tsx's new comment
-claims `ChatContextHeader` "stays" — it was DELETED for knip; true it up) → quiesced `pnpm check` +
-battery (READ the reports/ artifacts, never pipe) → ONE consolidation commit (security fix + 4 lanes)
-→ **PHASE 2: the greeting studio** (audit §3 design: `greeting_rewrite`/`greeting_new` action kinds,
-transform catalog as-const, results APPEND to `characters.greetings`, zero migrations — it inherits
-the rewrite-modal's toggle-catalog pattern) → side-eye verify → the queued remainder.
+**✅ CONSOLIDATION LANDED — `20627b64` (2026-07-25 evening):** security fix (generate speaker
+presence-gate + persona ownership twin) + all four lanes + the stale-comment reconcile + 3
+import-sort fixes in ONE commit. Bar: check PASS · vitest 7247/0 · CT 1362/1 (the 1 = the KNOWN
+`message-list-surface.ct.tsx` load flake — 3rd hard-fail under battery load today, 9/9 clean
+isolated every time; CHIP: root-fix its timing sensitivity) · integrity ok · `_debug/errors` [].
+
+**✅ NIGHT WAVE LANDED (all 4 lanes + reconcile; check GREEN `ok:true failed:[]` + battery GREEN):**
+① **PHASE 2 greeting studio** — verbs `character.rewriteGreeting`/`generateGreeting` (owner-gated,
+leak-free NOT_FOUND, RETURN-never-write, swept PROBED), `{{base}}` ZWSP-pinned kit pre-sub,
+`GREETING_TRANSFORMS` 4-axis catalog, `GreetingStudio` in tier-2 `components/` (CharacterPicker
+precedent) mounted in character-editor + draft greeting row, client appends on accept, ZERO
+migrations. Design calls RATIFIED: side-LLM lane = `summarize` (caption precedent, NOT `agent`);
+kind-widening closed BOTH exhaustive consumers (macros + preset editor — which now surfaces the
+greeting templates as editable cards). ② **F2 host⇒floor-0 + `HistoryFloorSeq` brand** — landed in
+`resolveHistoryFloorSeq` (clamp.ts — the REAL single authority; the visibility op AND guard both
+delegate; see memory). ③ **#18 CTs** (assembly-preview-panel 3 · injections-manager 6; the
+QueryBoundary-or-infinite-refetch trap memorized). ④ **Fable design pass on
+Context-Panel-Program.md** — CP-4 blueprint (bracket, rosters, states, D71 theming, a11y, registry
+deltas) + mockup v2 (rendered PNG). **OWNER RULINGS folded: NO party system — roster is the ONE
+membership, tab renamed `rpg.status`; late-game gotchas headed off (ambient strip
+location/date/time/weather MODE-AGNOSTIC in lite v1 · goal lines = lite quest tracker, no engine ·
+editable-in-place law, corruption-trainer failure named · Status headshots D44 · Inventory currency
+line reserved + money = open Q6 · minimap header allowance MA-3 + extensible orbs).** Reconcile
+fixes: services.ts optional-chain truth (`guidedActions?.[kind].prompt ?? fallback`), historyFloor
+mints in 2 test files, 3 lastInput reads → expect.poll (DEF-14), 2 stale WAIVERS deleted (ratchet
+worked), 3 knip un-exports, docs formatted.
+
+**IN FLIGHT: side-eye on the greeting studio** (both mounts, live :5173; honest-error arm
+acceptable if the dev side-LLM connection is unset). **NEXT (post-commit dispatch order):**
+worldInfoActivated → Preview tab (owner leaned) · Stop-button-during-hung-arbitration (slot opens
+on turn ACCEPT + `turnAborted` from arbitration-abort) · F3 satisfies pins +
+`NOTIFICATION_RECIPIENTS` (mech) — THEN the `contracts/chat` 9-seam split ALONE (most-imported
+file; never alongside other lanes) · no-inline-union-redecl repair · F1 comment-drift sweep ·
+facelift ledger (Group-tab loading state; overflow cue died with the container-responsive fix) ·
+`--contexts N` snap chip · root-fix the message-list-surface load flake.
 
 **PUSH POSTURE (owner, 2026-07-25): commit-only — do not push; don't ask again.** Nothing pending
 on the owner right now.
