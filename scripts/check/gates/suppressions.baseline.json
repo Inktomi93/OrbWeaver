@@ -4,7 +4,7 @@
   "packages/client/src/data/bus/apply-chat-bus-event.ts": 5,
   "packages/client/src/data/create-collection-surface.ts": 1,
   "packages/client/src/data/create-entity-mutation.ts": 1,
-  "packages/client/src/features/app-shell/components/context-tabs-panel.tsx": 2,
+  "packages/client/src/features/app-shell/components/context-tabs-panel.tsx": 1,
   "packages/client/src/features/character/components/character-appearance-tab.tsx": 2,
   "packages/client/src/features/character/components/character-facet-editor.tsx": 1,
   "packages/client/src/features/character/components/character-greeting-preview.tsx": 1,

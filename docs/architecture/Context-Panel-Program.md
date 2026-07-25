@@ -93,6 +93,14 @@ When a chat is an rpg/rpg-lite game, the SAME pane (same registry, same geometry
 [ bottom icon strip — meta: Members · Settings · Injections · Preview · GM(crown, host) ]
 ```
 
+The committed visual references (both `git add -f`'d past the reports gitignore — cited records rule):
+
+![The OSRS fixed-screen interface — the source anatomy](../../reports/design-refs/osrs-fixed-interface.png)
+
+![The CP-4 mockup — the four-panel shell with the rpg CONTEXT panel](../../reports/design-refs/rpg-shell-mockup.png)
+
+(`reports/design-refs/rpg-shell-mockup.html` is the editable source of the mockup PNG.)
+
 Decisions (owner-reviewed via mockups, 2026-07-25):
 
 - **Header replaces the minimap slot**: scene banner day one (scenes/weather existed in legacy lite);

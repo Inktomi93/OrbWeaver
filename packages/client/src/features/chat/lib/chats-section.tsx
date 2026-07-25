@@ -5,7 +5,7 @@
 // pairs with the tabs so `S` never crosses the shell seam. `makeChatsSection` takes the chat-context
 // contributor registry (§6c) so rpg/crew can graft tabs at the door without importing chat.
 
-import { MessagesSquare } from "@orb/ui/icons";
+import { Eye, MessagesSquare, Settings, Syringe, Users } from "@orb/ui/icons";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { QueryBoundary, QueryErrorState } from "#data";
@@ -54,6 +54,7 @@ const CHAT_CONTEXT_TABS: readonly (ContextTabDef<ChatContextState> & { readonly 
   {
     id: "members",
     label: "Members",
+    icon: Users,
     when: (s) => (s.phase === "committed" ? membersTabJustified(s.participants, s.multiHumanCapable) : s.cast.length >= GROUP_FLOOR),
     body: (s) => (s.phase === "committed" ? <CommittedMembersTab {...toMembersTabProps(s)} /> : <DraftMembersTabBody draftKey={s.draftKey} cast={s.cast} />),
   },
@@ -64,6 +65,7 @@ const CHAT_CONTEXT_TABS: readonly (ContextTabDef<ChatContextState> & { readonly 
   {
     id: "settings",
     label: "Settings",
+    icon: Settings,
     body: (s) =>
       s.phase === "committed" ? (
         <CommittedSettingsTab
@@ -80,12 +82,14 @@ const CHAT_CONTEXT_TABS: readonly (ContextTabDef<ChatContextState> & { readonly 
   {
     id: "preview",
     label: "Preview",
+    icon: Eye,
     when: (s) => s.phase === "committed" && s.isHost,
     body: (s) => (s.phase === "committed" ? <AssemblyPreviewPanel chatId={s.chatId} /> : null),
   },
   {
     id: "injections",
     label: "Injections",
+    icon: Syringe,
     body: (s) =>
       s.phase === "committed" ? (
         <QueryBoundary
@@ -128,8 +132,8 @@ export function makeChatsSection(
       tabs: CHAT_CONTEXT_TABS,
       // No panel-header identity slot (Context-Panel-Program §1 Q3 / §0 IA de-dup): the topbar owns the
       // chat's avatar + title, so the CONTEXT band no longer re-renders the same cluster 300px away — the
-      // band reduces to neutral chrome above the tab strip. `ChatContextHeader` (chat-header.tsx N4/P4)
-      // stays as the reusable band-identity component CP-4's scene header will graft here.
+      // band reduces to neutral chrome above the tab strip. (`ChatContextHeader` was DELETED for knip;
+      // CP-4's scene banner will be a NEW component grafted into this `header` slot, not a resurrection.)
       actions: (s) => (s.phase === "draft" ? <DraftAddMemberPopover draftKey={s.draftKey} existingCharacterIds={s.cast} /> : null),
       contributors: chatContextContributors,
     }),

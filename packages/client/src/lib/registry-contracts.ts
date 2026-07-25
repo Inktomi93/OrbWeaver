@@ -22,6 +22,11 @@ import type { ContributorRegistry } from "./registry";
 export interface ContextTabDef<S> {
   readonly id: string;
   readonly label: string;
+  /** The tab's glyph (icon home = the registry, §4.3 rule 10). Carried so the strip can compress to
+   *  icon+tooltip tabs when its container can't fit the word labels (progressive disclosure, §4.3 rule 4,
+   *  via a container query) — the label stays the accessible name in BOTH forms. The CP-4 OSRS icon strips
+   *  ARE this compressed form. Absent ⇒ the tab can only ever render its word label (never a nameless icon). */
+  readonly icon?: LucideIcon;
   /** Absent = always visible. THE dynamic axis — subsumes chat's isHost/group/member conditionals. */
   readonly when?: (state: S) => boolean;
   readonly body: (state: S) => ReactNode;
@@ -31,6 +36,7 @@ export interface ContextTabDef<S> {
 export interface ResolvedContextTab {
   readonly id: string;
   readonly label: string;
+  readonly icon?: LucideIcon;
   readonly node: ReactNode;
 }
 
@@ -84,7 +90,7 @@ export function resolveContextTabs<S>(spec: ContextTabsSpec<S>, state: S): Resol
   const tabs: ResolvedContextTab[] = [];
   for (const tab of all) {
     if (tab.when?.(state) ?? true) {
-      tabs.push({ id: tab.id, label: tab.label, node: tab.body(state) });
+      tabs.push({ id: tab.id, label: tab.label, node: tab.body(state), ...(tab.icon === undefined ? {} : { icon: tab.icon }) });
     }
   }
   return { tabs, actions: spec.actions?.(state), header: spec.header?.(state) };

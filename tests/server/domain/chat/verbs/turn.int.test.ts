@@ -1241,6 +1241,110 @@ describe("forceCharacterTurn — host-only", () => {
   });
 });
 
+describe("generate — member-reachable speaker attribution is presence-gated (forgery + cross-tenant chrome leak defense)", () => {
+  test("a member generating for a character NOT in this roster is a leak-free NOT_FOUND, nothing committed", async () => {
+    // The hole: `generate` stamped any wire-supplied speakerCharacterId onto an assistant canon row without
+    // a room check — a member could forge attribution to a foreign (e.g. another user's private) character
+    // and leak its name+portrait through the message-stamped roster-avatar/name producers.
+    const { chatId, names } = await seedRoom("natural", ["aria"]);
+    const member = await seedUser(db, "member");
+    await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
+    const h = harness(db, names);
+
+    await expect(
+      h.turn.generate({
+        principal: principal(member),
+        chatId,
+        speakerCharacterId: castId<CharacterId>("character_foreign"),
+      }),
+    ).rejects.toBeInstanceOf(ChatNotFoundError);
+
+    // Attribution forgery must leave zero canon: no assistant row for the foreign speaker.
+    expect((await loadCanonHistory(db, chatId)).filter((m) => m.role === "assistant")).toHaveLength(0);
+  });
+
+  test("a member generating for a DEPARTED (leftSeq set) cast member is refused NOT_FOUND", async () => {
+    // Presence is the hard requirement: a character that LEFT still has cards/history but is no longer a
+    // present cast seat, so it may not be voiced by a fresh generate (the leftSeq === null sibling of
+    // forceCharacterTurn's presence check).
+    const { host, chatId, names } = await seedRoom("natural", ["aria"]);
+    const member = await seedUser(db, "member");
+    await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
+    // bryn is a DEPARTED cast seat: its participant row + card survive, but leftSeq is set (no longer present).
+    const departed = await seedCharacter(db, host, "bryn");
+    await seedParticipant(db, { chatId, key: "bryn", characterId: departed, joinSeq: 0, leftSeq: 1 });
+    const h = harness(db, names);
+
+    await expect(
+      h.turn.generate({
+        principal: principal(member),
+        chatId,
+        speakerCharacterId: departed,
+      }),
+    ).rejects.toBeInstanceOf(ChatNotFoundError);
+    expect((await loadCanonHistory(db, chatId)).filter((m) => m.role === "assistant")).toHaveLength(0);
+  });
+
+  test("a member generating for a PRESENT cast character succeeds (regression: the legitimate path stays open)", async () => {
+    const { chatId, chars, names } = await seedRoom("natural", ["aria", "bryn"]);
+    const member = await seedUser(db, "member");
+    await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
+    const h = harness(db, names);
+
+    const outcome = await h.turn.generate({
+      principal: principal(member),
+      chatId,
+      speakerCharacterId: chars[1] as CharacterId,
+    });
+
+    expect(outcome.messages).toHaveLength(1);
+    expect(outcome.messages[0]?.role).toBe("assistant");
+    expect(outcome.messages[0]?.characterId).toBe(chars[1]);
+  });
+
+  test("a member generating for a PRESENT-but-MUTED cast character succeeds (mute gates arbitration, not manual targeting)", async () => {
+    // Mute (`disabled`) governs auto-selection eligibility + `{{groupNotMuted}}`, NOT explicit speaker
+    // targeting — a member manually generating a muted seat is legitimate (it does NOT inherit any host
+    // bypass; the only host-only bypass is a LEFT seat, refused above). Documented at the generate check site.
+    const { chatId, chars, names } = await seedRoom("natural", ["aria", "bryn"], { disabledKeys: ["bryn"] });
+    const member = await seedUser(db, "member");
+    await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
+    const h = harness(db, names);
+
+    const outcome = await h.turn.generate({
+      principal: principal(member),
+      chatId,
+      speakerCharacterId: chars[1] as CharacterId,
+    });
+
+    expect(outcome.messages).toHaveLength(1);
+    expect(outcome.messages[0]?.characterId).toBe(chars[1]);
+  });
+});
+
+describe("send / impersonate — an EXPLICIT foreign personaId is refused (cross-tenant persona chrome leak defense)", () => {
+  test("a member sending with ANOTHER user's personaId is refused not_persona_owner, nothing committed", async () => {
+    // The sibling hole: send/impersonate stamped any wire-supplied personaId onto a user row without an
+    // ownership check — a member could stamp a foreign (private) persona and leak its name+avatar through the
+    // message-stamped persona name/avatar producers. reattributePersona already guards the re-stamp path;
+    // this closes the initial-stamp path with the SAME code.
+    const { chatId, names } = await seedRoom("natural", ["aria"]);
+    const member = await seedUser(db, "member");
+    await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
+    const stranger = await seedUser(db, "stranger");
+    const foreignPersona = await seedPersona(stranger, "stranger_pov");
+    const h = harness(db, names);
+
+    await expect(h.turn.send({ principal: principal(member), chatId, content: "hi", personaId: foreignPersona })).rejects.toMatchObject({
+      code: "not_persona_owner",
+    });
+    expect((await loadCanonHistory(db, chatId)).filter((m) => m.role === "user")).toHaveLength(0);
+
+    await expect(h.turn.impersonate({ principal: principal(member), chatId, personaId: foreignPersona })).rejects.toMatchObject({ code: "not_persona_owner" });
+    expect((await loadCanonHistory(db, chatId)).filter((m) => m.role === "user")).toHaveLength(0);
+  });
+});
+
 describe("abort — owner-only (rollback-theft defense)", () => {
   test("a caller aborting another user's in-flight turn is refused not_turn_owner", async () => {
     const { host, chatId, names } = await seedRoom("natural", ["aria"]);

@@ -297,6 +297,63 @@
 .shell-panel[data-panel-side="context"] .shell-panel-header {
   box-shadow: inset 0 2px 0 color-mix(in oklab, var(--color-primary) 55%, transparent);
 }
+/* Container-responsive CONTEXT tab strip (Context-Panel-Program CP-1 · UI-Arch §4.3 rule-4 progressive
+ * disclosure · §4b axis-1 @container — NEVER a viewport @media). The strip is the query CONTAINER; each
+ * tab shows its word label ONLY when the container is wide enough to fit EVERY current tab's label,
+ * else it compresses to icon+tooltip (the label stays the accessible name — see context-tabs-panel.tsx).
+ * Icon-mode is the DEFAULT (labels hidden); a per-COUNT threshold reveals labels, because "fits" depends
+ * on how many tabs share the width. Thresholds are the measured label-mode need per count (label text +
+ * icon + padding + gaps, receipts in context-tabs-panel.tsx) rounded up — single-homed HERE. Measured
+ * reality: the panel clamps to 26rem max, so even 4 word labels (~28rem need) only reveal in a container
+ * wider than this panel ever gets — the strip is icon-mode in the shell, word-mode only in a wide host
+ * (a test container, or CP-4's wider game panel). This is the CP-4 OSRS icon-strip trajectory, not a
+ * one-off. A tab with NO icon can't compress, so it keeps its label unconditionally (data-has-icon). */
+.ctx-tab-strip {
+  container-type: inline-size;
+}
+/* Icon-mode floor: hide compressible labels; the icon carries the tab, tooltip/title + aria-label carry
+ * the name. Labels of icon-less tabs (a contributor that set none) always show — never a nameless tab. */
+.ctx-tab-strip [data-slot="tabs-tab"][data-has-icon] .ctx-tab-label {
+  display: none;
+}
+/* Per-count label reveal — the container must fit ALL current tabs' labels before words return. */
+.ctx-tab-strip[data-tab-count="1"] {
+  @container (min-width: 7rem) {
+    [data-slot="tabs-tab"] .ctx-tab-label {
+      display: revert;
+    }
+  }
+}
+.ctx-tab-strip[data-tab-count="2"] {
+  @container (min-width: 14rem) {
+    [data-slot="tabs-tab"] .ctx-tab-label {
+      display: revert;
+    }
+  }
+}
+.ctx-tab-strip[data-tab-count="3"] {
+  @container (min-width: 21rem) {
+    [data-slot="tabs-tab"] .ctx-tab-label {
+      display: revert;
+    }
+  }
+}
+.ctx-tab-strip[data-tab-count="4"] {
+  @container (min-width: 28rem) {
+    [data-slot="tabs-tab"] .ctx-tab-label {
+      display: revert;
+    }
+  }
+}
+/* 5 = the Trackers ceiling (CP-1's max, never 6). ~35rem label-mode need. */
+.ctx-tab-strip[data-tab-count="5"] {
+  @container (min-width: 35rem) {
+    [data-slot="tabs-tab"] .ctx-tab-label {
+      display: revert;
+    }
+  }
+}
+
 .shell-panel-body {
   flex: 1 1 auto;
   min-height: 0;

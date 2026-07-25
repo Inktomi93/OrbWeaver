@@ -17,6 +17,9 @@ test("splitPageSuffix pulls a @<idx> page suffix off a flag", () => {
 test("splitPageSuffix defaults to page 0 for an unprefixed flag", () => {
   expect(splitPageSuffix("--click")).toEqual({ flag: "--click", page: 0 });
   expect(splitPageSuffix("--map")).toEqual({ flag: "--map", page: 0 });
+  // The nav flags share the same page-suffix parse — `--open-character`/`--open-chat` route to a tab too.
+  expect(splitPageSuffix("--open-character")).toEqual({ flag: "--open-character", page: 0 });
+  expect(splitPageSuffix("--open-character@2")).toEqual({ flag: "--open-character", page: 2 });
 });
 
 test("splitPageSuffix leaves a bare or non-numeric @ untouched — not every @ is a page prefix", () => {

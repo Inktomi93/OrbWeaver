@@ -14,23 +14,79 @@ synthetic "Group" character spoke — `round.ts` was supposed to yield the GM *a
 program keeps finding (5 half-shipped features tonight), and it is why "drive it live, then pin it" is the
 posture rather than paranoia. Judge every finding against that frame.
 
-## ═══ ▶ RESUME HERE (2026-07-25 PM — the review-fix wave; supersedes the block below) ═══
-**The side-eye review RAN (report below) and ALL THREE BROKEN findings are FIXED + two bonus fixes,
-riding one consolidation commit** (whole-tree check PASS · battery at commit time): ① P1 speaker-tag
-leak — the MODEL emits its own tag mid-word under speakerTags; strip was ^-anchored; now scrubbed
-inline at persist AND on the streaming ghost row (red-on-old proven) ② P2 removed-character avatar
-blanking — new participant-independent `characterAvatars` producer (personaAvatars twin) through all 5
-read verbs ③ P2 slash-strip keyboard — full combobox semantics via the NEW `@orb/ui option-strip`
-primitive (aria-activedescendant, focus never leaves the textarea) ④ BONUS: persisted `orb:shell`
-main-era blob (`activeSection:"hubs"`) hard-bricked boot — zustand `persist.migrate` only fires on
-version MISMATCH; sanitize now rides the always-run `merge` seam at the createPersistedStore door
-(family-wide fix) ⑤ the ARIA sweep fixes (ListRow title-only names + describedby, room focus-target
-labeled, real h2s app-wide, "Chat actions for <title>", file-input hidden).
-**TOOLING LANDED:** snap gained `--goto`/`--open-chat`/`--context-tab` (via the new dev-only
-`__orb.nav`, home: `packages/client/src/agent-nav/`) · `--watch` tick series · `--pages N` + `@idx`
-step suffixes · `--mobile` (iPhone 14 Pro Max) /`--desktop`. side-eye agent+skill OVERHAULED: Opus,
-scope discipline (focused vs full), ~8-call MCP budget, §12 repo map, §13 mandatory blunt-taste+IA
-lens, §14 shell anatomy, and the landed snap flags baked in.
+## ═══ ▶ RESUME HERE (2026-07-25 EVENING — full current state; supersedes everything below) ═══
+
+**TODAY'S COMMIT LEDGER (all LOCAL — nothing pushed to origin, owner hasn't said push):**
+`4b18cdbe` post-move check-in (biome useIgnoreFile) → `67ae9abd` BUILD-PLAN/BUILD-QUEUE → history/ →
+`bb18ed73` the first side-eye wave (speaker-tag P1 · avatar P2 · slash-strip combobox+option-strip ·
+shell-store family brick fix · ARIA sweep · snap nav/watch/pages/mobile · side-eye overhaul) →
+`ba1eb63f` recovered design records committed (Backrest saved the rpg-lite cohesion game plan+brief +
+marinara research; RULE minted: cited reports get `git add -f`) → `b733a0b0` F6 transport schemas
+(zero z.any() across all 22 routers) → `36d0b128` guided Phase-1 + CP-1/CP-2 (details below) →
+`a659c48b` guided-generations e2e (first ever; 4 @live legs, server-truth instruments).
+
+**LANDED-UNCOMMITTED:** the `chat.generate` speaker-attribution hole CLOSED (security-executor:
+presence-gate on explicit speakerCharacterId, leak-free NOT_FOUND; found via the turn-verb scout —
+any member could stamp an ARBITRARY CharacterId onto canon and the message-stamp producers would
+render a FOREIGN character's name+portrait) + the persona twin (`assertPersonaOwnedIfExplicit` on
+send/impersonate — VALIDATION-ONLY, persona-resolution suite 7/7 ZERO diff; persona pin mechanics are
+OWNER-SACRED, see memory). Mute ruled scheduling-not-authorization, documented at the check site.
+Red-on-old proven; siblings swept safe (requestTurn eligible-intersects; swipe/continue stamp
+DB-loaded ids). Rides the next consolidation commit.
+
+**FOUR LANES IN FLIGHT (path-disjoint):** ① tab-strip container-responsive compression
+(labels→icon+tooltip via @container; ContextTabDef gained `icon?` — fixes the side-eye BROKEN miss;
+touches client context-tabs + ui) ② agent-drivability family (`/api/_debug/db/chats`+`db/characters`
+lists · `--open-chat` ambiguity refusal then DEDUPE the duplicate fixture chats · `__orb.nav
+.openCharacter`+`--open-character` · `scripts/dev/seed-chat.ts` heavy seeder · skill/README bake-in)
+③ ✅ `d-citation-integrity` gate LANDED (own module on the pd pattern; reserved-range D79–D105
+resolves; tree GREEN — no real dangling; both-direction bite proofs; gate count 147→148)
+④ ✅ the Rewrite MODAL LANDED (FormDialog composite; `REWRITE_TOGGLES` as-const in contracts/preset;
+`composeRewriteSteer` kit fn, catalog-order deterministic; existing fireRewrite wire; e2e leg 2 green
+w/ the minimal modal-click edit). **SOURCE TRUTH FOUND: ST Corrections has NO toggle catalog** — the
+toggles are editIntros vocabulary; shipped set = style(novella/internet-RP/literary) ·
+tense(past/present) · length(concise/expand); perspective/gender excluded as greeting-studio's.
+✅ OWNER-RESOLVED (2026-07-25): the toggle-memory was the editIntros/greetings set ("mixed up with
+the create-greetings set") — the rewrite modal's lean trio STANDS; the remembered 17-option catalog
+arrives with Phase 2's greeting studio where it belongs. **SELECTION-SCOPED REWRITE = PARKED for now**
+(owner: "fine without it"; the feasibility verdict is on record if it ever revives). ⑤ ✅ tab-strip container-responsive fix LANDED (per-count
+@container thresholds single-homed in shell.css; 5-tab icon-mode headroom 127px PROVEN; shell widths
+= icon-mode effectively always — §13 cold-read question for the next side-eye pass; the suppressions
+red resolved the GOOD way: the CSS killed a whole ResizeObserver effect + its suppression).
+
+**ON THE LANES' LANDING (the standing loop):** reconcile (KNOWN ITEM: chats-section.tsx's new comment
+claims `ChatContextHeader` "stays" — it was DELETED for knip; true it up) → quiesced `pnpm check` +
+battery (READ the reports/ artifacts, never pipe) → ONE consolidation commit (security fix + 4 lanes)
+→ **PHASE 2: the greeting studio** (audit §3 design: `greeting_rewrite`/`greeting_new` action kinds,
+transform catalog as-const, results APPEND to `characters.greetings`, zero migrations — it inherits
+the rewrite-modal's toggle-catalog pattern) → side-eye verify → the queued remainder.
+
+**PUSH POSTURE (owner, 2026-07-25): commit-only — do not push; don't ask again.** Nothing pending
+on the owner right now.
+
+**TOOLING STATE:** snap = `--goto/--open-chat/--context-tab` (`__orb.nav`, home
+`packages/client/src/agent-nav/` — the client composition-tier directory-module precedent) ·
+`--watch` · `--pages N`+`@idx` · `--mobile/--desktop`; lane ② is adding `--open-character` +
+ambiguity refusal. side-eye = OPUS, focused-scope discipline, ~8-call MCP budget, §12 repo map
+(+seeding/enumeration/two-stacks-trap/checker-badge footguns), §13 blunt-taste+IA mandate, §14 shell
+anatomy, flags baked in. Doctrine now LAW in AGENTS.md §4 + agent-doctrine.md: lanes verify SCOPED
+(whole-tree gates banned in lanes; orchestrator runs them once, resurrects lanes to fix) + the
+harness AUTO-WRITES artifacts (verify.json · test-report.json · ct-flaky.json — read, never re-run).
+`__g_*`/`__dc_*` probe fixtures: gitignored + stripped from real-tree gate runs (ORB_GATE_FIXTURES
+escape for the conformance suite, proven both directions). The bottom-right ❗N⚠M chip =
+vite-plugin-checker overlay (STALE-WORKER caveat: restart the stack before trusting a nonzero on a
+quiesced tree; renders in a shadow root — invisible to naive --eval probes).
+
+## ═══ the review-fix wave record (2026-07-25 PM, committed `bb18ed73`) ═══
+① P1 speaker-tag leak — the MODEL emits its own tag mid-word under speakerTags; strip was ^-anchored;
+now scrubbed inline at persist AND on the streaming ghost row (red-on-old proven) ② P2
+removed-character avatar blanking — participant-independent `characterAvatars` producer (personaAvatars
+twin) through all 5 read verbs ③ P2 slash-strip keyboard — full combobox semantics via the NEW
+`@orb/ui option-strip` primitive (aria-activedescendant, focus never leaves the textarea) ④ BONUS:
+persisted `orb:shell` main-era blob (`activeSection:"hubs"`) hard-bricked boot — zustand
+`persist.migrate` only fires on version MISMATCH; sanitize rides the always-run `merge` seam at the
+createPersistedStore door (family-wide) ⑤ the ARIA sweep (ListRow title-only names + describedby,
+room focus-target labeled, real h2s app-wide, "Chat actions for <title>", file-input hidden).
 **GUIDED-GENERATIONS PROGRAM (audit DONE 2026-07-25 → the phased plan; THE report is LAW-adjacent:
 `reports/stickler/2026-07-25-guided-generations-parity-audit.md` — COMMITTED `ba1eb63f`, incl. the §10
 reconciliation against the backup-RECOVERED rpg-lite cohesion game plan, which RATIFIED the
@@ -51,10 +107,10 @@ Phase 2 greeting studio → side-eye → then the queued remainder.**
   in lib/registry-contracts (no-inline-types + a dep cycle forced the home) · ChatContextHeader deleted
   for knip · the __g_/__dc_ probe-strip w/ ORB_GATE_FIXTURES escape (proven both ways) · scoped-lane +
   read-the-artifacts doctrine into AGENTS.md §4 + agent-doctrine.md). Battery at commit: check PASS ·
-  7232/0 vitest · CT 0-flaky · integrity/errors clean. **GUIDED E2E LANE RUNNING** (guided-generations
-  .spec.ts: steer→assembly · rewrite-as-variant · undo/revert round-trip · steer+speaker; server-truth
-  instruments). **NEXT per the loop: Opus side-eye verify** of the wave's surfaces (judge against
-  Context-Panel-Program.md §1 end state + the guided wand flows), then Phase 2 greeting studio.
+  7232/0 vitest · CT 0-flaky · integrity/errors clean. Guided e2e ✅ COMMITTED `a659c48b` (4 @live
+  legs green; input-survives-failure deliberately CT-only, reason in the spec tail; `previewAssembly`
+  = the honest pre-turn steer instrument). Opus side-eye verify ✅ RAN — see the SIDE-EYE WAVE-VERIFY
+  block above (ship-with-fixes; the tab-clip fix + Rewrite-modal lanes it spawned are in flight).
   The original launch record: Lane A server/assembly = steer→WI haystack (F4, one-arg) + marker-absent-steer
   → depth-0-injection fallback (the recovered plan's refinement, attaches to F8). Lane B client
   composer/wand (ONE lane, shared files) = rewrite fire surface (F1, client-only over swipe+guided) +
@@ -92,6 +148,45 @@ tab set — same slot, same registry; graduates to the full takeover at the rpg 
 the orchestrator's own widescreen taste verdict (context panel underfilled — 3 rows in 1080px, bare
 unlabeled "50%"; bubble-mode voids at 1920; title duplicated topbar+panel header; dot-size avatars
 carry no identity) — items 2–4 are facelift, item 1 is INPUT to this chip, not polish.
+**SIDE-EYE WAVE-VERIFY LANDED (2026-07-25): SHIP WITH FIXES.** Delivered-clean: solo/group
+applicability gating airtight (conversion drive server-confirmed) · Settings-tab consolidation +
+header de-dup · wand gating + speaker submenu · ARIA strong ("Sam can operate all of this") · mobile
+clean. **BROKEN: the tab strip STILL clips at desktop default width** (4 word-labels overflow 64px;
+CP-1's done-criterion missed — its deferred live receipt hid it) → FIX LANE RUNNING
+(container-responsive labels→icon+tooltip, lays the CP-4 rails). **OWNER RULING: Rewrite NEEDS the
+modal** ("it has toggle options to guide it") → LANE RUNNING (source Corrections toggle vocabulary →
+contracts as-const catalog → composed steer through the existing fireRewrite wire; e2e leg 2 is the
+regression guard). UGLY→facelift: solo add-character double-popper stacking; Members-tab underfill
+acknowledged until Trackers. Honest-scope note: recent-steers ring not live-verifiable via snap
+(session-only, dies on reload) — CT/e2e carry it.
+**TURN-VERB CONSOLIDATION QUESTION — RULED NO (scout-verified 2026-07-25):** `generate` vs
+`forceCharacterTurn` look like two doors for one concept but diverge on THREE load-bearing axes:
+authority (member vs host, matrix.ts:66/70) · locking (lock-free-concurrent-with-send vs
+lock-holding) · eligibility (none vs presence-with-deliberate-mute-bypass). Intentional two-door
+design per the code's own headers (chat.ts:343-354, turn.ts:953-956/1254) — do not re-raise without
+new evidence. **BUT the scout surfaced a REAL HOLE, orchestrator-verified: `generate` validates its
+`speakerCharacterId` against NOTHING (turn.ts:1267)** — any member can commit an assistant row
+stamped with an ARBITRARY CharacterId (attribution forgery), and the message-stamp-driven name/avatar
+producers would render a FOREIGN character's identity in the room (cross-tenant read).
+**security-executor lane ✅ LANDED (uncommitted — rides the next consolidation commit)**: presence
+validation + leak-free NOT_FOUND on generate; `assertPersonaOwnedIfExplicit` on send/impersonate
+(validation-only — persona-resolution suite 7/7 zero diff); mute ruled scheduling-not-authorization
+(documented at the check site); sibling sweep = requestTurn/swipe/continue safe by construction;
+red-on-old proven (3 tests red on the vulnerable code), turn suite 78/78. Doctrine memory minted:
+[[stamped-id-write-boundary-gate]].
+**CHIP FAMILY — agent-drivability (2026-07-25, one small lane when convenient; the class = agents
+burning discovery calls / ambiguity in the drive loop):**
+· `/api/_debug/db/chats` LIST endpoint (harness has per-chat reads, no list — everyone re-derives ids
+  via the query cache). Same gate as siblings; consider a matching `db/characters` list row while there.
+· **snap `--open-chat` must REFUSE on an ambiguous title** (loud, like its unknown-target refusal) —
+  the dev DB holds TWO chats titled "Group UX review — 3 cast" and by-title open silently picks one;
+  also DEDUPE that fixture (delete one dup) once no review is mid-flight.
+· `__orb.nav.openCharacter(idOrName)` — the characters-section twin of `openChat` (character-detail
+  reviews currently click rows by name; same one-hop rationale).
+· A heavy-fixture seeder (`scripts/dev/seed-chat.ts`: N messages × M characters) — UI-driving seeds
+  honest SMALL fixtures, but long-transcript/compaction/virtualization looks need volume the UI can't
+  produce in reasonable calls.
+· (DONE in-skill: the two-stacks separate-DB trap + the ❗-badge-is-devtools-noise footgun.)
 **ALSO QUEUED (unchanged):** the UGLY facelift list (tab-strip overflow cue · Group-tab loading state)
 · the `--contexts N` multi-user snap chip · the ranked remainder below (d-citation gate · F2
 host⇒floor-0 · HistoryFloorSeq brand · worldInfoActivated placement (owner leaned Preview-tab) ·

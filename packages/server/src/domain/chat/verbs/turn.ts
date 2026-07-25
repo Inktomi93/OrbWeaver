@@ -665,6 +665,22 @@ async function assertAttachmentsOwned(ctx: ChatContext, principalUserId: UserId,
   }
 }
 
+/** Trust boundary for a caller-supplied authoring persona (send/impersonate): an EXPLICIT personaId stamped
+ *  onto a role:"user" row must be owned by the acting caller, else the message-stamped persona name/avatar
+ *  producers would leak a foreign persona's chrome into this chat (cross-tenant identity read). Undefined ⇒
+ *  the caller's own active persona is used (server-derived, trusted) — no-op. An explicit null clears the
+ *  slot — no persona to own, no-op. Mirrors reattributePersona's ownership belt (`verifyPersonaOwned`), and
+ *  returns the same `not_persona_owner` code as the re-stamp path. */
+async function assertPersonaOwnedIfExplicit(ctx: ChatContext, principalUserId: UserId, chatId: ChatId, personaId: PersonaId | null | undefined): Promise<void> {
+  if (personaId === undefined || personaId === null) {
+    return;
+  }
+  const owned = await ctx.verifyPersonaOwned({ ownerId: principalUserId, personaId });
+  if (!owned) {
+    throw new ChatOperationError(CHAT_OP_CODES.notPersonaOwner, `chat ${chatId}: the authoring persona must be owned by the caller`);
+  }
+}
+
 // ── PD-146 post-round auto-behaviors (server home for the schema-real UserSettings.chat auto-* knobs) ──
 // neo honors these CLIENT-side (use-chat-verbs) by re-issuing continue/swipe after the send resolves; orb is
 // server-authoritative, so the send verb runs them in-band and joins the follow-up rows onto its outcome.
@@ -844,6 +860,10 @@ function createSend(ctx: ChatContext, deps: TurnDeps, auto: AutoBehaviorDeps): C
     const membership = await requireParticipant(ctx, principal, chatId);
     const attachments = attachmentAssetIds ?? [];
     await assertAttachmentsOwned(ctx, principal.userId, chatId, attachments);
+    // Same trust boundary as impersonate: an EXPLICIT personaId stamped onto the committed user row must be
+    // owned by the caller, else the message-stamped persona name/avatar producers leak a foreign persona's
+    // chrome. Omitted ⇒ the caller's own active persona (trusted). See assertPersonaOwnedIfExplicit.
+    await assertPersonaOwnedIfExplicit(ctx, principal.userId, chatId, personaId);
     const room = await loadRoom(ctx, chatId);
     const identity = resolveTurnIdentityVia({
       principalUserId: principal.userId,
@@ -1217,6 +1237,14 @@ function createContinueTurn(ctx: ChatContext, deps: TurnDeps): ChatService["cont
 function createImpersonate(ctx: ChatContext, deps: TurnDeps): ChatService["impersonate"] {
   return async ({ principal, chatId, personaId, intent, guided }: ImpersonateParams): Promise<TurnOutcome> => {
     const membership = await requireParticipant(ctx, principal, chatId);
+    // An EXPLICIT personaId must be owned by the acting caller — never trust the branded id from the wire to
+    // name any persona. It is stamped onto a role:"user" row (authored by the caller) and the message-stamped
+    // persona name/avatar producers resolve chrome for it, so a foreign personaId would render another user's
+    // private persona name+portrait in this chat = a cross-tenant identity read. Mirrors reattributePersona's
+    // belt (d) (verifyPersonaOwned by the row author). An omitted id falls back to the caller's OWN active
+    // persona (server-derived, trusted — no check). A non-owned id is refused notPersonaOwner (same code the
+    // re-stamp path returns).
+    await assertPersonaOwnedIfExplicit(ctx, principal.userId, chatId, personaId);
     const { identity, connection, assembleContext, memoryConfig, memoryRecall, chatBehavior, attachedToolNames } = await resolveTurnBase(ctx, deps, {
       principal,
       chatId,
@@ -1264,7 +1292,27 @@ function createGenerate(ctx: ChatContext, deps: TurnDeps): ChatService["generate
       triggerPersonaId: membership.activePersonaId,
       guided,
     });
-    const speaker = speakerCharacterId ?? primaryCharacterId(room);
+    // An EXPLICIT speaker must be a PRESENT cast member of THIS chat — never trust the branded id from the
+    // wire to name any character (a bare `speakerShapeFor` silently returns an undefined shape for an unknown
+    // id, so an unvalidated foreign CharacterId would commit an assistant canon row attributed to it and leak
+    // that character's name+portrait through the message-stamped roster-avatar/name producers = attribution
+    // forgery + a cross-tenant identity read). Presence-only (`leftSeq === null`), the forceCharacterTurn
+    // sibling (see createForceCharacterTurn) — mute (`disabled`) is NOT respected here: mute governs
+    // arbitration SCHEDULING (`isArbiterEligible`) + `{{groupNotMuted}}`, not manual speaker targeting, so a
+    // member explicitly generating for a muted seat is legitimate (it does not inherit any host bypass — the
+    // host-only bypass is presence of a LEFT member, which this refuses). A non-present / unknown / foreign id
+    // is a leak-free NOT_FOUND (never reveals whether the character exists elsewhere), mirroring selectVariant's
+    // foreign-variantId refusal.
+    let speaker: CharacterId | null;
+    if (speakerCharacterId === undefined || speakerCharacterId === null) {
+      speaker = primaryCharacterId(room);
+    } else {
+      const present = room.candidates.some((c) => c.ref.characterId === speakerCharacterId && c.leftSeq === null);
+      if (!present) {
+        throw new ChatNotFoundError(chatId);
+      }
+      speaker = speakerCharacterId;
+    }
     const shape = speakerShapeFor(room, speaker);
     return await runRegistered(deps, chatId, identity.triggeredBy, {
       chatId,

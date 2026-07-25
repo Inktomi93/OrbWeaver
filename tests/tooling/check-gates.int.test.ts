@@ -153,6 +153,14 @@ function writeFixtures(): void {
   // The citation is assembled so the literal isn't present in THIS file's source (which the gate
   // also scans) — only the written fixture resolves to the orphan citation.
   fx("packages/server/src/__g_pd.ts", `// ${["FLAG", "[PD-9999]"].join("")} — orphan citation, no registry row.\nexport const x = 1;\n`);
+  // d-citation-integrity: a bare D<n> ledger citation resolving to nothing — no `- **D<n>** —` anchor in
+  // Core-Path-Registry.md and above the reserved range (D79–D105). The number is assembled so the literal
+  // isn't present in THIS file's source (the gate scopes to packages/**.{ts,tsx} + core/** but shares the
+  // project — same technique as the __g_pd fixture above). The path is a packages/**.ts in-scope site.
+  fx(
+    "packages/contracts/src/__g_dcite/index.ts",
+    `// per ${["D", "998"].join("")} — a dangling D-citation, no anchor, above the ceiling.\nexport const gDcite = 1;\n`,
+  );
   // no-direct-users-read: a domain outside sessions/admin importing the `users` table from @orb/db.
   fx(`${D}/__g_users/persistence/x.ts`, `import { users } from "@orb/db";\nexport const x = users;\n`);
   // discovery-no-stats-rollups: a stats rollup table imported inside domain/discovery (the seam breach

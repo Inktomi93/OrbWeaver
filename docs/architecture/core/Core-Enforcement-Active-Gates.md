@@ -94,6 +94,7 @@ lands) and **pinned by `tests/tooling/check-gates.int.test.ts`** — it derives 
 | `no-direct-users-read` | the `users` table is read/written ONLY by `sessions` + `admin`; any other domain importing the `users` symbol from `@orb/db` is RED (identity comes from the Principal — resolve-once) |
 | `discovery-no-stats-rollups` | the stats rollup tables (`ownerStats`/`characterStats`/`dailyStats`/`modelStats`) are stats' alone — `domain/discovery` importing one from `@orb/db` is RED; economics reach discovery ONLY as the injected pre-aggregated stats ops (stats-discovery-seam.md; a dep-cruiser `to: schema/stats` rule cannot fire — the `@orb/db` barrel absorbs the resolution, so the seal matches the ImportSpecifier like `no-direct-users-read`) |
 | `pd-citation-integrity` | every in-code `FLAG[PD-n]` resolves to a `Core-Audits-and-Debt.md` registry row; no duplicate PD ids (the concurrent-append collision) |
+| `d-citation-integrity` | every bare `D<n>` ledger citation in `packages/**` (`.ts`/`.tsx`) + `docs/architecture/core/**` resolves against the LIVE `Core-Path-Registry.md` — it has a `- **D<n>** —` entry anchor OR falls inside the reserved range (D79–D105, main-era rulings that rolled back while the surviving code kept citing them). Keyed off the registry's own anchors + reserved-range note (never a hardcoded ceiling — the path-keyed-gates-die-on-rename failure in number form); the non-`P` left boundary excludes the `PD-n` sibling namespace; `history/**` scoped out (archaeology cites dead numbers). A citation above the ceiling and outside any anchor/reserved slot is DANGLING (RED). The D-sibling of `pd-citation-integrity` (contracts-layer-audit G1) |
 | `test-mock-doctrine` | `vi.mock` of an internal module is banned — fake at the edges, inject at the root (`core/Spine-Testing.md §3`); third-party node edges only |
 | `test-factory-contract` | `makeX(overrides?)` builders are pure (no db param); persisted variants are `seedX(db, …)`; factories live in `tests/support/factories/` |
 | `test-fixture-imports` | tests import `{ test, expect }` from `support/fixtures`, never raw `vitest`/`@playwright/test` (e2e, support/, `.test-d.ts` exempt) |
@@ -216,7 +217,7 @@ lands) and **pinned by `tests/tooling/check-gates.int.test.ts`** — it derives 
 | `serde-core-seal` | the PNG card-chunk engine (`@orb/kit/png-card-chunk`) is shared byte surgery for `domain/import` (read) and `domain/export` (write) ONLY — an import outside those sanctioned serde homes is RED (Spine-Config-and-Serialization.md §"Serialization / serde core") |
 | `suppressions` | counts down the four suppression-marker shapes under `packages/*/src` (`biome-ignore`(-all), every `eslint-disable` variant, the two `@orb-gate-ignore`/ts-expect-error escapes) against a committed both-ways baseline ratchet (Spine-Testing.md §5 house-suppression discipline) |
 
-The table mirrors `report.ts`'s `loadGates()`-discovered `status:"active"` set (147 registered gates);
+The table mirrors `report.ts`'s `loadGates()`-discovered `status:"active"` set (148 registered gates);
 the discovered descriptor set is the runtime truth.
 
 The 7th fired-trigger gate (PD-116), `solo-byte-identical`, is NOT a static gate — it is the

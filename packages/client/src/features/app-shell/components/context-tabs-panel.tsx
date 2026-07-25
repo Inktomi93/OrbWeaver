@@ -5,21 +5,22 @@
 //
 // Tab selection rides the shared #state contextTab seam; resolved against the visible ids so a
 // foreign/absent value falls back to the first tab instead of selecting nothing.
+//
+// CONTAINER-RESPONSIVE labels (Context-Panel-Program CP-1 · UI-Arch §4.3 rule-4 · §4b axis-1): each tab
+// renders its icon + a word label; the label COLLAPSES to icon-only (icon+tooltip) when the strip's
+// @container can't fit every current tab's words (the fit logic + per-count thresholds live in shell.css
+// `.ctx-tab-strip`, NOT a viewport @media and NOT a JS px). The label is ALWAYS the accessible name — a
+// compressed tab is icon + `title` + `aria-label`, never nameless (Jordan/§9 icon-name ban); the visible
+// word is what disappears, not the name. The CP-4 OSRS icon strips ARE this compressed form. A tab with
+// no icon can't compress (data-has-icon absent), so its word stays put — never a nameless tab.
 
+import { Icon } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { Tabs, TabsIndicator, TabsList, TabsPanel, TabsTab } from "@orb/ui/tabs";
 import type { ReactElement, ReactNode } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import type { ResolvedContextTab } from "#lib";
 import { setContextTab, useContextTab } from "#state";
-
-/** A soft ceiling for "usually fits" reasoning — the actual stretch/scroll switch is the MEASURED
- *  `overflowing` state below, since fit depends on live panel width, not tab count alone. */
-const MAX_STRETCH_TABS = 4;
-
-/** An edge fades / the strip counts as overflowing only past this many px — sub-pixel rounding must
- *  not flicker the fade on a strip that actually fits. */
-const EDGE_FADE_EPSILON_PX = 1;
 
 export interface ContextTabsPanelProps {
   readonly tabs: readonly ResolvedContextTab[];
@@ -29,41 +30,13 @@ export interface ContextTabsPanelProps {
 
 export function ContextTabsPanel({ tabs: entries, actions }: ContextTabsPanelProps): ReactElement | null {
   const contextTab = useContextTab();
-  // A few tabs stretch to fill the strip; a crowded strip (5+ in this narrow panel) can't fit at
-  // every panel width, so it packs tabs at their natural width, tightens their padding, and scrolls.
-  const stretch = entries.length <= MAX_STRETCH_TABS;
-  // Overflow drives the stretch/scroll switch; the edge fades ride the live SCROLL POSITION (not just
-  // "overflows somewhere") so whichever edge has clipped content behind it dissolves — the same
-  // scroll-aware, both-edge mechanism as the vertical `message-list-scroll` fade. Re-measures on panel
-  // resize, tab-set change, and every scroll.
   const listRef = useRef<HTMLDivElement | null>(null);
-  const [overflowing, setOverflowing] = useState(false);
   const tabKey = entries.map((entry) => entry.id).join(",");
-  // biome-ignore lint/correctness/useExhaustiveDependencies: tabKey is the intentional re-measure trigger — a new tab SET changes the strip's content width with no resize event for the observer to catch.
-  useEffect(() => {
-    const el = listRef.current;
-    if (el === null) {
-      return;
-    }
-    const measure = (): void => {
-      setOverflowing(el.scrollWidth > el.clientWidth + EDGE_FADE_EPSILON_PX);
-      el.toggleAttribute("data-fade-start", el.scrollLeft > EDGE_FADE_EPSILON_PX);
-      el.toggleAttribute("data-fade-end", el.scrollWidth - el.scrollLeft - el.clientWidth > EDGE_FADE_EPSILON_PX);
-    };
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(el);
-    el.addEventListener("scroll", measure, { passive: true });
-    return (): void => {
-      observer.disconnect();
-      el.removeEventListener("scroll", measure);
-    };
-  }, [tabKey]);
 
   // Keep the active tab fully in view on BOTH activation paths. Roving focus (arrow keys) native-scrolls
   // the focused tab; a click does not — so without this, click- and keyboard-activation leave DIFFERENT
-  // neighbors clipped. Runs after Base UI has moved `data-active` onto the selected tab; `nearest` scrolls
-  // the minimum (a no-op when the tab is already fully visible) and never nudges the block axis.
+  // neighbors clipped when a wide-host label-mode strip does overflow. Runs after Base UI has moved
+  // `data-active` onto the selected tab; `nearest` scrolls the minimum (a no-op when fully visible).
   // biome-ignore lint/correctness/useExhaustiveDependencies: contextTab + tabKey are the intentional re-run triggers (selection change / tab-set change); the body reads the resolved active tab from the DOM, so neither appears in it.
   useEffect(() => {
     const activeEl = listRef.current?.querySelector<HTMLElement>('[data-slot="tabs-tab"][data-active]');
@@ -76,10 +49,6 @@ export function ContextTabsPanel({ tabs: entries, actions }: ContextTabsPanelPro
   const visible = new Set(entries.map((entry) => entry.id));
   const first = entries[0]?.id ?? null;
   const activeTab = contextTab !== null && visible.has(contextTab) ? contextTab : first;
-  // Fit is the MEASURED state, not the static tab count: a strip that actually overflows must scroll
-  // (with the fade cue) and its tabs must NOT be flex-1-forced, regardless of how few tabs it holds.
-  const fits = stretch && !overflowing;
-  const listClassName = fits ? "min-w-0 w-full overflow-x-auto" : "min-w-0 w-full overflow-x-auto gap-field scroll-fade-x";
 
   return (
     <Tabs
@@ -88,11 +57,12 @@ export function ContextTabsPanel({ tabs: entries, actions }: ContextTabsPanelPro
       className="flex h-full min-h-0 flex-col gap-row"
     >
       <Row align="center" gap="row" className="min-w-0 shrink-0">
-        <TabsList ref={listRef} aria-label="Detail" className={listClassName}>
+        {/* `.ctx-tab-strip` = the @container; `data-tab-count` picks the per-count label-reveal threshold
+            (shell.css). `overflow-x-auto` is the safety scroll if a wide host shows words that still don't
+            fit — icon-mode always fits, so this only ever bites in label-mode. */}
+        <TabsList ref={listRef} aria-label="Detail" data-tab-count={entries.length} className="ctx-tab-strip min-w-0 w-full gap-field overflow-x-auto">
           {entries.map((entry) => (
-            <TabsTab key={entry.id} value={entry.id} className={fits ? "flex-1" : "shrink-0 px-field"}>
-              {entry.label}
-            </TabsTab>
+            <ContextTab key={entry.id} entry={entry} />
           ))}
           <TabsIndicator />
         </TabsList>
@@ -108,5 +78,25 @@ export function ContextTabsPanel({ tabs: entries, actions }: ContextTabsPanelPro
         </TabsPanel>
       ))}
     </Tabs>
+  );
+}
+
+/** One tab: icon (when the def carries one) + the word label. The label is the accessible name in BOTH
+ *  forms — `aria-label` carries it always, so when shell.css collapses `.ctx-tab-label` in icon-mode the
+ *  tab is still named. An icon-mode tab is icon + `title` (the hover name reveal) + `aria-label` (never
+ *  nameless — Jordan/§9). An icon-less tab keeps its visible word unconditionally (no `data-has-icon`),
+ *  so it needs neither `title` nor `data-has-icon`. */
+function ContextTab({ entry }: { readonly entry: ResolvedContextTab }): ReactElement {
+  const hasIcon = entry.icon !== undefined;
+  return (
+    <TabsTab
+      value={entry.id}
+      aria-label={entry.label}
+      className="shrink-0 flex items-center justify-center gap-field px-field"
+      {...(hasIcon ? { "data-has-icon": true, title: entry.label } : {})}
+    >
+      {entry.icon !== undefined ? <Icon icon={entry.icon} size="sm" /> : null}
+      <span className="ctx-tab-label">{entry.label}</span>
+    </TabsTab>
   );
 }

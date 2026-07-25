@@ -84,8 +84,11 @@ export interface OrbNavHandle {
   /** Ask the active content's context surface to open a named tab (opaque string; always ok). */
   readonly contextTab: (name: string) => NavResult;
   /** Make an existing chat active by chat id OR exact display title — resolves against the chat-list
-   *  query cache (fetching it first if not loaded). Rejects loudly on no match. */
+   *  query cache (fetching it first if not loaded). Rejects loudly on no match OR an ambiguous title. */
   readonly openChat: (idOrTitle: string) => Promise<NavResult>;
+  /** Switch to the Characters section + select a character by id OR name — resolves against the character
+   *  list query. Rejects loudly on no match OR an ambiguous name. */
+  readonly openCharacter: (idOrName: string) => Promise<NavResult>;
   /** Close any open modal. */
   readonly closeModal: () => NavResult;
 }
@@ -193,7 +196,7 @@ export function installAgentDebugHandle(queryClient: QueryClient, nav: OrbNavHan
     nav,
   };
   console.info(
-    "%c[orb]%c dev introspection ready → %cwindow.__orb%c.snap() · .queries() · .bus() · .perf() · .renders() · .motion() · .animations() · .shell() · .nav.section/openModal/openSettings/contextTab/openChat/closeModal;  wait on %chtml[data-app-ready]%c.  Docs: packages/client/src/lib/agent-tools.README.md",
+    "%c[orb]%c dev introspection ready → %cwindow.__orb%c.snap() · .queries() · .bus() · .perf() · .renders() · .motion() · .animations() · .shell() · .nav.section/openModal/openSettings/contextTab/openChat/openCharacter/closeModal;  wait on %chtml[data-app-ready]%c.  Docs: packages/client/src/lib/agent-tools.README.md",
     "color:#e0a; font-weight:bold",
     "color:#888",
     "color:#0a7; font-weight:bold",

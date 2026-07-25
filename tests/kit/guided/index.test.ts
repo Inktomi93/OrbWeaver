@@ -1,4 +1,4 @@
-import { neutralizeMacros, resolveGuidedInstruction, ZWSP } from "@orb/kit/guided";
+import { composeRewriteSteer, neutralizeMacros, resolveGuidedInstruction, ZWSP } from "@orb/kit/guided";
 import type { ProcessMacroOptions } from "@orb/kit/macro";
 import { expect, test } from "../../support/fixtures";
 
@@ -78,4 +78,32 @@ test("neutralizeMacros makes a user {{char}} un-evaluatable", () => {
 test("neutralizeMacros leaves brace-free text unchanged", () => {
   const plain = "just some steering text, no macros here";
   expect(neutralizeMacros(plain)).toBe(plain);
+});
+
+// --- composeRewriteSteer: the Rewrite modal's toggle-fragments + free-text → ONE steer string ---
+
+test("composeRewriteSteer joins fragments in given order, then appends the free text, terminated once", () => {
+  const out = composeRewriteSteer(["Make it more concise", "Rewrite entirely in the past tense"], "drop the anachronism");
+  expect(out).toBe("Make it more concise. Rewrite entirely in the past tense. drop the anachronism.");
+});
+
+test("composeRewriteSteer with only fragments (no free text) composes the fragments alone", () => {
+  expect(composeRewriteSteer(["Make it more concise", "Expand it"], "")).toBe("Make it more concise. Expand it.");
+});
+
+test("composeRewriteSteer with only free text (no fragments) returns the terminated instruction", () => {
+  expect(composeRewriteSteer([], "make it terse and clinical")).toBe("make it terse and clinical.");
+});
+
+test("composeRewriteSteer returns empty string when there is nothing to steer with", () => {
+  expect(composeRewriteSteer([], "   ")).toBe("");
+  expect(composeRewriteSteer([], "")).toBe("");
+});
+
+test("composeRewriteSteer does not double the terminator when a piece already ends with a period", () => {
+  expect(composeRewriteSteer(["Rewrite in past tense."], "keep it short.")).toBe("Rewrite in past tense. keep it short.");
+});
+
+test("composeRewriteSteer trims and drops blank pieces", () => {
+  expect(composeRewriteSteer(["  Make it concise  ", "   "], "  do it  ")).toBe("Make it concise. do it.");
 });

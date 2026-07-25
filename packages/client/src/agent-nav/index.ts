@@ -7,15 +7,29 @@
 // path — and validates ids against the canonical vocabulary tuples, returning a loud {ok:false} on a
 // bad target instead of a silent no-op.
 
-import type { ChatId } from "@orb/kit/ids";
+import type { CharacterId, ChatId } from "@orb/kit/ids";
 import type { QueryClient } from "@tanstack/react-query";
 import type { Trpc } from "#data";
 import { deriveChatTitle } from "#features/chat";
 import type { ModalSlotId, SectionId, SettingsCategoryId } from "#state";
-import { closeModal, MODAL_SLOT_IDS, openModal, openSettingsTo, SECTION_IDS, SETTINGS_CATEGORY_IDS, selectChat, setActiveSection, setContextTab } from "#state";
+import {
+  closeModal,
+  MODAL_SLOT_IDS,
+  openModal,
+  openSettingsTo,
+  SECTION_IDS,
+  SETTINGS_CATEGORY_IDS,
+  selectCharacter,
+  selectChat,
+  setActiveSection,
+  setContextTab,
+} from "#state";
 import type { NavResult, OrbNavHandle } from "../lib/agent-bridge";
 
 const OK: NavResult = { ok: true };
+// One generous page covers a dev character library (small by construction) — enough to resolve any id/name
+// without a keyset walk. This is a dev-drivability bridge, not a paged UI surface.
+const CHARACTER_NAV_PAGE_LIMIT = 500;
 
 function reject(kind: string, id: string, allowed: readonly string[]): NavResult {
   return { ok: false, reason: `unknown ${kind} "${id}" — expected one of: ${allowed.join(", ")}` };
@@ -79,13 +93,47 @@ export function buildAgentNav(trpc: Trpc, queryClient: QueryClient): OrbNavHandl
         return OK;
       }
       // Fall back to an EXACT display-title match (the same derivation the list rows render), so a caller
-      // can name a chat by what they see, not just its opaque id.
-      const byTitle = chats.find((c) => deriveChatTitle(c.title, c.participantNames) === idOrTitle);
-      if (byTitle) {
-        selectChat(byTitle.id as ChatId);
+      // can name a chat by what they see, not just its opaque id. Titles are NOT unique (the dev DB holds
+      // two "Group UX review — 3 cast" chats) — REFUSE loudly on a multi-match rather than silently picking
+      // one, so the caller disambiguates with the id (its unknown-target sibling's contract).
+      const byTitle = chats.filter((c) => deriveChatTitle(c.title, c.participantNames) === idOrTitle);
+      if (byTitle.length > 1) {
+        return { ok: false, reason: `ambiguous title "${idOrTitle}" matches ${byTitle.length} chats — use the chat id` };
+      }
+      const singleTitle = byTitle[0];
+      if (singleTitle !== undefined) {
+        selectChat(singleTitle.id as ChatId);
         return OK;
       }
       return { ok: false, reason: `no chat matches id-or-title "${idOrTitle}" (${chats.length} chat(s) in list)` };
+    },
+    async openCharacter(idOrName: string): Promise<NavResult> {
+      // The characters-section twin of openChat: switch the rail to Characters + select the character
+      // via the SAME store action a library-row click calls (selectCharacter), never a parallel path. The
+      // dev library is small, so one generous page resolves every id/name (no keyset walk needed here).
+      const page = await queryClient.fetchQuery(trpc.character.list.queryOptions({ limit: CHARACTER_NAV_PAGE_LIMIT })).catch(() => null);
+      if (page === null) {
+        return { ok: false, reason: "character list query failed — cannot resolve the character" };
+      }
+      const byId = page.items.find((ch) => ch.id === idOrName);
+      if (byId) {
+        setActiveSection("characters");
+        selectCharacter(byId.id);
+        return OK;
+      }
+      // Names are NOT unique — REFUSE loudly on a multi-match (openChat's ambiguity contract), so the
+      // caller disambiguates with the character id.
+      const byName = page.items.filter((ch) => ch.name === idOrName);
+      if (byName.length > 1) {
+        return { ok: false, reason: `ambiguous name "${idOrName}" matches ${byName.length} characters — use the character id` };
+      }
+      const singleName = byName[0];
+      if (singleName !== undefined) {
+        setActiveSection("characters");
+        selectCharacter(singleName.id as CharacterId);
+        return OK;
+      }
+      return { ok: false, reason: `no character matches id-or-name "${idOrName}" (${page.items.length} character(s) in list)` };
     },
     closeModal(): NavResult {
       closeModal();

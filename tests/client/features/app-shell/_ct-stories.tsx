@@ -19,12 +19,14 @@
 // (1280px > 48rem) the desktop icon column shows, matching production.
 
 import { AppShell, YouSheet } from "@orb/client/features/app-shell";
+import type { ResolvedContextTab } from "@orb/client/lib";
 import { createContributorRegistry, defineContextTabs, VOID_STATE } from "@orb/client/lib";
 import type { ChromeEntry, SectionDefinition } from "@orb/client/state";
 import { ChromeRegistryProvider } from "@orb/client/state";
-import { MessagesSquare } from "@orb/ui/icons";
+import { Eye, FlaskConical, MessagesSquare, Settings, Users } from "@orb/ui/icons";
 import type { ReactElement, ReactNode } from "react";
 import { useEffect } from "react";
+import { ContextTabsPanel } from "../../../../packages/client/src/features/app-shell/components/context-tabs-panel";
 import { CustomThemeStyle } from "../../../../packages/client/src/features/app-shell/components/custom-theme-style";
 import { Rail } from "../../../../packages/client/src/features/app-shell/components/rail";
 import { SectionContextHeader } from "../../../../packages/client/src/features/app-shell/components/section-context-host";
@@ -204,6 +206,47 @@ export function SectionContextHeaderDefaultStory(): ReactElement {
     <CtDataProviders>
       <SectionContextHeader definition={fakeHeaderSection({ kind: "none" })} />
     </CtDataProviders>
+  );
+}
+
+// ── The container-responsive CONTEXT tab strip (context-tabs-panel.tsx, CP-1) ───────────────────────
+// Mounts the real ContextTabsPanel inside a FIXED-width container the `.ct.tsx` sets, so the shell.css
+// `.ctx-tab-strip` @container query resolves against a known width — narrow ⇒ icon-mode (labels hidden,
+// no clip), wide ⇒ label-mode (words shown). Proves both forms render + the accessible NAME survives in
+// BOTH (aria-label). A `showTrackers` flag adds the 5th tab (the Trackers-ceiling headroom pin); a fake
+// icon-LESS contributor tab proves an icon-less tab keeps its word unconditionally (never a nameless tab).
+
+const CTX_STRIP_TABS: readonly ResolvedContextTab[] = [
+  { id: "members", label: "Members", icon: Users, node: <div data-testid="ctx-body-members">members</div> },
+  { id: "settings", label: "Settings", icon: Settings, node: <div>settings</div> },
+  { id: "preview", label: "Preview", icon: Eye, node: <div>preview</div> },
+  { id: "injections", label: "Injections", icon: FlaskConical, node: <div>injections</div> },
+];
+const CTX_TRACKERS_TAB: ResolvedContextTab = { id: "trackers", label: "Trackers", icon: MessagesSquare, node: <div>trackers</div> };
+// A contributor that set NO icon — must keep its word label at every container width (can't compress).
+const CTX_ICONLESS_TAB: ResolvedContextTab = { id: "iconless", label: "Iconless", node: <div>iconless</div> };
+
+export interface ContextTabStripStoryProps {
+  /** The container width (px) the strip's @container resolves against. */
+  readonly width: number;
+  /** Add the 5th (Trackers) tab — the CP-1 ceiling headroom pin. @defaultValue false */
+  readonly showTrackers?: boolean;
+  /** Append an icon-LESS tab — proves it keeps its word unconditionally. @defaultValue false */
+  readonly withIconless?: boolean;
+}
+
+export function ContextTabStripStory({ width, showTrackers = false, withIconless = false }: ContextTabStripStoryProps): ReactElement {
+  const tabs: ResolvedContextTab[] = [...CTX_STRIP_TABS];
+  if (showTrackers) {
+    tabs.push(CTX_TRACKERS_TAB);
+  }
+  if (withIconless) {
+    tabs.push(CTX_ICONLESS_TAB);
+  }
+  return (
+    <div style={{ width }} data-testid="ctx-strip-container">
+      <ContextTabsPanel tabs={tabs} />
+    </div>
   );
 }
 

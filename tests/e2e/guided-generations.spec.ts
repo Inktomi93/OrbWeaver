@@ -207,9 +207,15 @@ test.describe("guided generations on the live local stack", () => {
       const originalContent = before?.content ?? null;
       const originalVariantId = await firstVariantId(chat.id, tailId);
 
-      // FIRE REWRITE — the out-of-character correction, landing as swipe+guided{action:"rewrite"}.
+      // FIRE REWRITE — the out-of-character correction, landing as swipe+guided{action:"rewrite"}. The
+      // Rewrite item OPENS the modal (owner ruling 2026-07-25: toggle options to guide it), pre-seeded from
+      // the composer draft; Apply fires. No toggles selected here — the pinned contract is variant landing,
+      // not toggle composition (that's CT-covered against trpc.lastInput). The composed steer is the
+      // instruction terminated with a period; the app-fidelity contract (a variant landed) is unchanged.
       await typeSteerAndOpenWand(page, STEER_REWRITE);
       await page.getByRole("menuitem", { name: "Rewrite" }).click();
+      await page.getByRole("textbox", { name: "Correction instruction" }).waitFor({ state: "visible" });
+      await page.getByRole("button", { name: "Rewrite" }).click();
 
       // SERVER TRUTH: the SAME slot grew to 2 variants, the new one is selected (idx 1), and the assistant
       // ROW count did not change (a variant is not a new row).

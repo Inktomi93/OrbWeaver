@@ -172,7 +172,12 @@
  *   pnpm snap / --goto modal:theme --shot-of '[role=dialog]'   # open a rail modal (modal:<slot>)
  *   pnpm snap / --open-chat "My Chat Title" --text  # make a chat active by id OR exact display title
  *                                          # (resolves against the chat-list query cache, fetching it if
- *                                          # cold). --goto target ∈ section id | settings:<cat> | modal:<slot>.
+ *                                          # cold). REFUSES loudly (NAV FAILED, exit 1) on an AMBIGUOUS title
+ *                                          # matching >1 chat — pass the chat id to disambiguate.
+ *                                          # --goto target ∈ section id | settings:<cat> | modal:<slot>.
+ *   pnpm snap / --open-character Rev --aria # switch to Characters + select a character by id OR name
+ *                                          # (resolves against character.list). Same ambiguity refusal:
+ *                                          # a name matching >1 character is rejected — pass the id.
  *   pnpm snap / --context-tab members       # ask the active surface's context panel to open a named tab
  *
  *   WATCH SERIES — `--watch <totalMs> [--every <ms>]` (default --every 1000). After nav+steps settle,
@@ -332,6 +337,7 @@ type Step = StepAction & { page: number };
 type NavAction =
   | { kind: "goto"; target: string; page: number }
   | { kind: "open-chat"; target: string; page: number }
+  | { kind: "open-character"; target: string; page: number }
   | { kind: "context-tab"; target: string; page: number };
 
 // A per-page eval/contrast keeps its argv-order expr/selector plus the target page.
@@ -552,6 +558,9 @@ const FLAG_HANDLERS: Record<string, FlagHandler> = {
   },
   "--open-chat": (a, rest, page) => {
     a.navActions.push({ kind: "open-chat", target: rest.shift() ?? "", page });
+  },
+  "--open-character": (a, rest, page) => {
+    a.navActions.push({ kind: "open-character", target: rest.shift() ?? "", page });
   },
   "--context-tab": (a, rest, page) => {
     a.navActions.push({ kind: "context-tab", target: rest.shift() ?? "", page });
@@ -858,6 +867,7 @@ async function runSteps(page: Page, steps: readonly Step[]): Promise<number> {
 // the action with a clear reason rather than silently no-op'ing.
 const NAV_METHOD: Record<Exclude<NavAction["kind"], "goto">, string> = {
   "open-chat": "openChat",
+  "open-character": "openCharacter",
   "context-tab": "contextTab",
 };
 
