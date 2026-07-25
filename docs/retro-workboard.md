@@ -26,6 +26,31 @@ they are deferred until the base is solid. Do not "clean them up", do not build 
 
 ## ═══ RESUME-HERE STATUS (2026-07-24 late, compaction-survival — read THIS first) ═══
 
+### ═══ ✅ COMMITTED `5ca8cc53` — 126 files, whole-tree check PASS ═══
+Everything below this line that said "uncommitted" IS NOW IN. Contents: the cross-domain
+`resolveViewerVisibility` op + **3 leaks closed** · structural enforcement (bus anchor allowlist ·
+matrix-keyed reader gate · firehose import allowlist) · `joinHistoryVisibility` default → `full` + the
+host-facing setter · delta `slotSeq` (streaming survives the clamp) · slash-command architecture · smart
+degrade made LOUD + abort-signal→summarize · delete-during-stream crash + **`chat.delete` 500-on-every-call**
+· 16 group-chat/multi-tab e2e · group-config cross-tab invalidation · `chatLayout` VN-debris removal ·
+26 chat CTs + the component-presence ratchet · D106 mint + the D79–D105 reserved range.
+Session commits: `4c734060` → `20ac4154` → `0d26921a` → `073c39b9` → `abec580d` → `f845607a` → `9de029ef`
+→ **`5ca8cc53`**.
+**REMAINING (not started, ranked):** ① contracts-audit follow-ups — the **`d-citation-integrity` gate**
+(catches the whole D80/D85/D86/D91/D93/D99 dangling class), F3's two `satisfies` pins +
+`NOTIFICATION_RECIPIENTS`, the `no-inline-union-redecl` repair (2-member floor + `as const satisfies`
+blind spots), F1's comment-drift sweep. ② The **F2 host⇒floor-0 derive** (owner ratified "host has full
+control"; the op already passes `role` through so it lands in one place) — also closes `export-chat` +
+discovery handing a promoted host full-canon artifacts their `listMessages` withholds. ③ Brand
+`HistoryFloorSeq` (flows through `ViewerVisibility` · `PluginHostOps.chat.listMessages.floorSeq` ·
+`ExtractQuietParams.historyFloorSeq` — all bare `number` today). ④ `worldInfoActivated` human-facing display
+(data is live; needs a placement call — natural home is beside the Preview provenance panel). ⑤ **The Stop
+button is NOT RENDERED during a hung smart arbitration** (the turn slot only leaves `idle` on `turnStarted`,
+emitted AFTER arbitration) — fix by opening the slot on turn ACCEPT, and pair it with emitting `turnAborted`
+from the arbitration-abort path (deliberately withheld today precisely BECAUSE the slot is idle). ⑥ #18's
+deferred CT gaps (`assembly-preview-panel`, `injections-manager`). ⑦ `contracts/chat/index.ts` 9-seam split
+(now that lanes have settled). **PROMOTION to main still armed and un-executed.**
+
 ### ═══ CONTRACTS-LAYER AUDIT (Fable 5, 183/183 files read in full) — report: reports/stickler/2026-07-25-contracts-layer-audit.md ═══
 **BOUNDARY VERDICT — CLEAN, the strongest structural result of the night.** `packages/contracts` vs
 `domain/*/contract` is coherent and consistently applied across all 183 files; **nothing crosses in the wrong
