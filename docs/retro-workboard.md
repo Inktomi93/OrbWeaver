@@ -33,15 +33,16 @@ WORKS); responses in-character + followed the instruction; variant/swipe + Speak
 macro {{user}}→"You" resolved. Members panel = CAST section w/ per-seat Talkativeness (50%) + Mute.
 **BUGS FOUND (2):**
 1. **remove-character was UNWIRED** — domain verb existed, no tRPC/no UI (Cast row menu had only Mute +
-   Talkativeness). FIXED by an executor (UNCOMMITTED): tRPC `removeCharacterFromChat` (sweep=PROBED) + client
+   Talkativeness). FIXED+COMMITTED `073c39b9`: tRPC `removeCharacterFromChat` (sweep=PROBED) + client
    "Remove X from chat" menu + tests green. NOTE the executor matched the LOCAL member-row-menu §8.1 OMIT law
    (host actions omitted for non-hosts, 6 siblings + a CT pin it) rather than the "no separate reduced modes"
    memory (disabled-with-reason). FORK FOR OWNER: is "no omissions ever" meant to supersede §8.1 repo-wide?
    That's a separate campaign touching all 6 actions, not this ticket.
 2. **Composer does NOT clear on the FIRST (draft→commit) send** — send a msg in a NEW chat: it sends + the turn
    fires, but the composer textarea RETAINS the sent text; the 2nd send (committed chat) clears fine. So the
-   draft→commit migration carries the composer text to the new chatId key instead of clearing on send. Fix
-   lane RUNNING (composer-draft-store).
+   draft→commit migration carries the composer text to the new chatId key instead of clearing on send.
+   FIXED+COMMITTED `073c39b9` — root cause was a stale-closure key mismatch (clear listener bound to the DRAFT
+   scope key at send time); fix = hold onChange in a ref, clear post-commit. CT red-without/green-with.
 PREVIEW TAB (assembly-preview-panel, host-only) = the fidelity smoking gun, WORKS: shows the assembled
 prompt "What the model will see on the next turn", a token estimate (local QuadChars, advisory), AND a
 PROVENANCE panel "Where each field's value came from" (Scenario from Mara, the char description/personality
@@ -59,6 +60,16 @@ human, never a non-member; chat.streamMessages tests pin the per-yield membershi
 mid-stream cutoff + durable-first resume. So the multi-human bus + speaker engine are well-proven at the
 integration layer; live-confirmed the happy path. Multi-human LIVE would need multi-user mode + a 2nd identity
 (single-user instance) — deferred; integration coverage already carries it.
+
+ROUTE HEALTH BASELINE (pnpm snap, 2026-07-24 night): `/` `/presets` `/characters` `/world-info` `/corpus`
+all render CLEAN — nav=OK, page-errors=0, failed-req=0, contrast-fails=0, deadcss=0. No broken routes. PNGs
+in reports/snaps/night-*.png. (Minor: long-task ~126-168ms on `/`.) **USE `pnpm snap <route> [--eval …]`**
+for further live looks — far lighter than chrome-devtools a11y dumps (owner's steer).
+**NEXT AREA (owner's secondary list, not yet behaviorally verified):** do presets/settings/world-info actually
+APPLY? (health is clean; need: change a preset knob → observe it in the Preview/wire; toggle a setting → observe
+runtime effect; a world-info entry fires on its keyword → lands in the assembled prompt via the Preview panel).
+The Preview tab + the wire-capture seam are the observation instruments. Multi-human LIVE needs multi-user mode
++ a 2nd identity (DB is disposable — owner OK'd wiping/seeding).
 
 **FIDELITY/LOCKDOWN WAVE — COMMITTED (this session):**
 - `4c734060` — extracted the domain→infra turn bridge into exported `createRunChatTurnBridge`; the #24
