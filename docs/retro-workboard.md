@@ -65,11 +65,14 @@ ROUTE HEALTH BASELINE (pnpm snap, 2026-07-24 night): `/` `/presets` `/characters
 all render CLEAN — nav=OK, page-errors=0, failed-req=0, contrast-fails=0, deadcss=0. No broken routes. PNGs
 in reports/snaps/night-*.png. (Minor: long-task ~126-168ms on `/`.) **USE `pnpm snap <route> [--eval …]`**
 for further live looks — far lighter than chrome-devtools a11y dumps (owner's steer).
-**NEXT AREA (owner's secondary list, not yet behaviorally verified):** do presets/settings/world-info actually
-APPLY? (health is clean; need: change a preset knob → observe it in the Preview/wire; toggle a setting → observe
-runtime effect; a world-info entry fires on its keyword → lands in the assembled prompt via the Preview panel).
-The Preview tab + the wire-capture seam are the observation instruments. Multi-human LIVE needs multi-user mode
-+ a 2nd identity (DB is disposable — owner OK'd wiping/seeding).
+**NEXT AREA (owner's secondary list):** WORLD-INFO injection = VERIFIED + PINNED `abec580d` (5 behaviors:
+keyword-fire from pending AND committed-recent haystack, keyword-absent→absent, always-scope, budget-drop +
+budget<=0-keeps-all; NO bug — coverage was already solid, closed 2 gaps). STILL PENDING: do presets/settings
+actually APPLY? (health clean; presets→wire is already covered by the fidelity harness + the Preview provenance
+panel, so marginal — the un-covered bit is SETTINGS runtime-effect: toggle a setting → observe the behavior
+change, not just the persist). Multi-human LIVE needs multi-user mode + a 2nd identity (DB disposable — owner
+OK'd wiping/seeding); the bus fan-out is already integration-covered. Instruments: the Preview tab + wire-capture
+seam + `pnpm snap`.
 
 FULL BATTERY (post-commit, `pnpm test`): vitest all green + CT 1271 passed. ONE CT hard-failed UNDER BATTERY
 LOAD — `message-list-surface.ct.tsx:305` (chatOpened non-advancing-cursor seq-guard/invalidation, a
