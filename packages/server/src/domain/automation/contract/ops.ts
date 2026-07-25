@@ -16,6 +16,7 @@ import type { UpsertEntriesResult, UpsertLoreEntryInput } from "@orb/contracts/w
 import type { automationRules, Db } from "@orb/db";
 import type { CharacterId, ChatId, MessageId, UserId, WorldBookId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
+import type { ResolveViewerVisibility } from "#domain/chat";
 
 /** A stored automation-rule row — the dispatch's unit of work (its `actions` json is parsed at dispatch with
  *  the active disable-on-corrupt). Homed here (not persistence) so the engine/watcher share ONE row type. */
@@ -116,6 +117,14 @@ export interface AutomationOps {
     readonly getMessageFact: (chatId: ChatId, messageId: MessageId) => Promise<NonNullable<TriggerFact["message"]> | null>;
     /** The cascade-guard depth read off a committed reply slot (03 §4). `null` = no such slot / a human turn. */
     readonly getTurnOrigin: (chatId: ChatId, messageId: MessageId) => Promise<TurnOriginRead | null>;
+    /** THE cross-domain viewer-visibility op (chat's `resolveViewerVisibility`, compose-wired) — the ONLY way
+     *  this domain may answer "may this human see that chat's CONTENT". It hands back membership AND the D16
+     *  history floor as one value (`null` = not a present member), so the plugin fan-out's delivery gate
+     *  cannot stop at "member: yes" the way it used to and ship pre-join canon to a clamped member. Automation
+     *  never re-derives either half: no membership select, no second clamp home. The TYPE is chat's (type-only
+     *  cross-domain import — the sanctioned injected-op shape declaration), so a change to the verdict shape
+     *  fails tsc here instead of drifting. */
+    readonly resolveViewerVisibility: ResolveViewerVisibility;
     /** The chat's CURRENT runtime variables — the materialized delta-fold cache (CEL `vars`). */
     readonly readVariables: (chatId: ChatId) => Promise<Record<string, string>>;
     /** The chat's config-plane ChoiceBlock picks (CEL `choice`). */

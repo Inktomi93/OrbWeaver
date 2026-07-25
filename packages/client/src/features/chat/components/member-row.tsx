@@ -164,6 +164,13 @@ function RowStateBadges({ row }: { readonly row: MemberPersonRow | MemberCastRow
           Nominated
         </Badge>
       ) : null}
+      {/* The non-default D16 posture — the read side of the row menu's join-history toggle (the "Muted"
+          precedent: the state is glanceable, the menu item states the change). */}
+      {row.historyVisibility === "from-join" ? (
+        <Badge size="sm" intent="neutral" tone="soft">
+          Limited history
+        </Badge>
+      ) : null}
     </>
   );
 }

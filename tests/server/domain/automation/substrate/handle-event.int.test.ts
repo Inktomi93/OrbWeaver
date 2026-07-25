@@ -110,6 +110,8 @@ function depthOps(depth: number): AutomationOps {
     chat: {
       getMessageFact: () => Promise.resolve(null),
       getTurnOrigin: () => Promise.resolve({ initiator: "automation" as const, automationDepth: depth }),
+      // The visibility op is inert (fail-closed) — this suite never drives the plugin fan-out that consumes it.
+      resolveViewerVisibility: () => Promise.resolve(null),
       readVariables: () => Promise.resolve({}),
       readChoicePicks: () => Promise.resolve({}),
       applyVariableOps: () => Promise.resolve(),
@@ -302,6 +304,8 @@ describe("F2 shared-env write-through (order is semantics)", () => {
       chat: {
         getMessageFact: () => Promise.resolve(null),
         getTurnOrigin: () => Promise.resolve(null),
+        // The visibility op is inert (fail-closed) — this suite never drives the plugin fan-out that consumes it.
+        resolveViewerVisibility: () => Promise.resolve(null),
         readVariables: () => Promise.resolve({}),
         readChoicePicks: () => Promise.resolve({}),
         applyVariableOps: (_chatId, varOps) => {
@@ -401,6 +405,8 @@ describe("F3 durable auto-disable author notice", () => {
       chat: {
         getMessageFact: () => Promise.resolve(null),
         getTurnOrigin: () => Promise.resolve(null),
+        // The visibility op is inert (fail-closed) — this suite never drives the plugin fan-out that consumes it.
+        resolveViewerVisibility: () => Promise.resolve(null),
         readVariables: () => Promise.resolve({}),
         readChoicePicks: () => Promise.resolve({}),
         applyVariableOps: () => Promise.resolve(),
@@ -512,6 +518,8 @@ describe("N1 image-post cascade guard (F1 self-loop closed)", () => {
       chat: {
         // Read ops off the REAL db (the fact resolver reads `getTurnOrigin` back off the posted slot).
         getMessageFact: () => Promise.resolve(null),
+        // The visibility op is inert (fail-closed) — this suite never drives the plugin fan-out that consumes it.
+        resolveViewerVisibility: () => Promise.resolve(null),
         getTurnOrigin: async (_chatId, messageId) => {
           const rows = await db
             .select({ initiator: messages.initiator, automationDepth: messages.automationDepth })

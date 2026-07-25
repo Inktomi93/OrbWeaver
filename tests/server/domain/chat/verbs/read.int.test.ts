@@ -19,6 +19,9 @@ import { ChatNotFoundError, ChatOperationError } from "../../../../../packages/s
 import { upsertMemberOnJoin } from "../../../../../packages/server/src/domain/chat/persistence/participant";
 import { loadMessageView } from "../../../../../packages/server/src/domain/chat/persistence/queries";
 import { createRead } from "../../../../../packages/server/src/domain/chat/verbs/read";
+// The D16 policy SETTER (verbs/roster.ts) — imported here so the round-trip tests below drive the real
+// write path against the real read clamp in one room (the setter's own gates live in roster.int.test.ts).
+import { createRoster } from "../../../../../packages/server/src/domain/chat/verbs/roster";
 import { freshDb } from "../../../../support/db";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { makeModelCapability, makeResolvedConnection } from "../../../../support/factories/resolved-connection.ts";
@@ -284,7 +287,9 @@ describe("read — single reads", () => {
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 // D16 `joinHistoryVisibility` — the per-participant confidentiality policy (`chat_participants`,
-// `.notNull().default("from-join")`). It was PERSISTED AND NEVER READ: a live multi-human drive found that a
+// `.notNull().default("full")` — an invited member sees the room's whole history; `from-join` is the host's
+// OPT-IN restriction, so every test below whose subject is the CLAMP spells it out).
+// It was PERSISTED AND NEVER READ: a live multi-human drive found that a
 // human invited at canon head 7 received `listMessages` seqs 1-7 (the host's pre-join greetings included)
 // and a `lastEventId:"0"` subscribe replayed the whole durable log. The floor is resolved ONCE at the
 // membership chokepoint (`guard.requireParticipant` → `substrate/auth::resolveHistoryFloorSeq`) and every
@@ -306,9 +311,9 @@ describe("read — the D16 join-history floor (joinHistoryVisibility)", () => {
     const joiner = await seedUser(db, "jh_joiner");
     const chatId = await seedRoomWithHistory("jh", host);
     // The invite-redeem shape: role `member`, joinSeq stamped at the canon head when they joined (4 rows
-    // existed, so the FIRST row they may see is seq 4). `joinHistoryVisibility` is left to the COLUMN
-    // default — this is the common case, not an opt-in.
-    await seedParticipant(db, { chatId, key: "jh_m", userId: joiner, role: "member", joinSeq: 4 });
+    // existed, so the FIRST row they may see is seq 4 — the floor is INCLUSIVE). The host RESTRICTED this
+    // member to `from-join`; the column default (`full`) is pinned separately below.
+    await seedParticipant(db, { chatId, key: "jh_m", userId: joiner, role: "member", joinSeq: 4, joinHistoryVisibility: "from-join" });
 
     const { listMessages } = createRead(makeChatContext(db), makeDeps());
     const page = await listMessages({ principal: principal(joiner), chatId });
@@ -318,6 +323,26 @@ describe("read — the D16 join-history floor (joinHistoryVisibility)", () => {
     expect(body).not.toContain("greeting one");
     expect(body).not.toContain("greeting two");
     expect(body).not.toContain("private chatter");
+  });
+
+  // THE DEFAULT, pinned end-to-end. Owner ruling: "if you are inviting someone into a group chat they should
+  // be able to view previous turns." So a member seeded with NO policy — the shape a real invite redeem
+  // writes, which never names the column — must read the ENTIRE canon, including rows below their `joinSeq`.
+  // This is the guard against a future schema edit silently re-restricting every invitee.
+  test("the COLUMN DEFAULT is `full`: a member joined at head 4 with NO explicit policy reads the whole history", async () => {
+    const host = await seedUser(db, "jhd_host");
+    const joiner = await seedUser(db, "jhd_joiner");
+    const chatId = await seedRoomWithHistory("jhd", host);
+    const participantId = await seedParticipant(db, { chatId, key: "jhd_m", userId: joiner, role: "member", joinSeq: 4 });
+
+    // The persisted policy itself — the default the DB wrote, not a value any caller supplied.
+    const row = await db.select().from(chatParticipants).where(eq(chatParticipants.id, participantId));
+    expect(row.at(0)?.joinHistoryVisibility).toBe("full");
+
+    const { listMessages } = createRead(makeChatContext(db), makeDeps());
+    const page = await listMessages({ principal: principal(joiner), chatId });
+    expect(page.messages.map((m) => m.seq)).toEqual([1, 2, 3, 4]);
+    expect(JSON.stringify(page.messages)).toContain("greeting one");
   });
 
   test("a `full` member DOES see everything — the policy's other arm actually works", async () => {
@@ -331,11 +356,48 @@ describe("read — the D16 join-history floor (joinHistoryVisibility)", () => {
     expect(page.messages.map((m) => m.seq)).toEqual([1, 2, 3, 4]);
   });
 
+  // THE ROUND TRIP — the setter wired to the enforcement. The mechanism above was complete and unreachable
+  // (no write path existed anywhere: only a manual SQL edit produced `from-join`). These two prove the host's
+  // verb actually moves what the member reads, in both directions, with no other wiring.
+  test("the host RESTRICTS a member (setMemberHistoryVisibility → from-join) and their next listMessages is clamped at their joinSeq", async () => {
+    const host = await seedUser(db, "jhw_host");
+    const joiner = await seedUser(db, "jhw_joiner");
+    const chatId = await seedRoomWithHistory("jhw", host);
+    // The invite-redeem shape: no explicit policy → the `full` column default. They read everything first.
+    await seedParticipant(db, { chatId, key: "jhw_m", userId: joiner, role: "member", joinSeq: 4 });
+    const { listMessages } = createRead(makeChatContext(db), makeDeps());
+    expect((await listMessages({ principal: principal(joiner), chatId })).messages.map((m) => m.seq)).toEqual([1, 2, 3, 4]);
+
+    const roster = createRoster(makeChatContext(db), { emit: async (): Promise<void> => undefined });
+    await roster.setMemberHistoryVisibility({ principal: principal(host), chatId, userId: joiner, visibility: "from-join" });
+
+    const after = await listMessages({ principal: principal(joiner), chatId });
+    expect(after.messages.map((m) => m.seq)).toEqual([4]);
+    expect(JSON.stringify(after.messages)).not.toContain("private chatter");
+    // The restriction never moved their join point — it only changed what they may read from it.
+    const [row] = await db.select().from(chatParticipants).where(eq(chatParticipants.userId, joiner));
+    expect(row?.joinSeq).toBe(4);
+  });
+
+  test("the host RESTORES a member (→ full) and they read the whole canon again", async () => {
+    const host = await seedUser(db, "jhwr_host");
+    const joiner = await seedUser(db, "jhwr_joiner");
+    const chatId = await seedRoomWithHistory("jhwr", host);
+    await seedParticipant(db, { chatId, key: "jhwr_m", userId: joiner, role: "member", joinSeq: 4, joinHistoryVisibility: "from-join" });
+    const { listMessages } = createRead(makeChatContext(db), makeDeps());
+    expect((await listMessages({ principal: principal(joiner), chatId })).messages.map((m) => m.seq)).toEqual([4]);
+
+    const roster = createRoster(makeChatContext(db), { emit: async (): Promise<void> => undefined });
+    await roster.setMemberHistoryVisibility({ principal: principal(host), chatId, userId: joiner, visibility: "full" });
+
+    expect((await listMessages({ principal: principal(joiner), chatId })).messages.map((m) => m.seq)).toEqual([1, 2, 3, 4]);
+  });
+
   test("the HOST is never clamped by a member's floor (the clamp is per-CALLER)", async () => {
     const host = await seedUser(db, "jhh_host");
     const joiner = await seedUser(db, "jhh_joiner");
     const chatId = await seedRoomWithHistory("jhh", host);
-    await seedParticipant(db, { chatId, key: "jhh_m", userId: joiner, role: "member", joinSeq: 4 });
+    await seedParticipant(db, { chatId, key: "jhh_m", userId: joiner, role: "member", joinSeq: 4, joinHistoryVisibility: "from-join" });
 
     const { listMessages } = createRead(makeChatContext(db), makeDeps());
     expect((await listMessages({ principal: principal(host), chatId })).messages.map((m) => m.seq)).toEqual([1, 2, 3, 4]);
@@ -347,7 +409,7 @@ describe("read — the D16 join-history floor (joinHistoryVisibility)", () => {
     const host = await seedUser(db, "jhp_host");
     const joiner = await seedUser(db, "jhp_joiner");
     const chatId = await seedRoomWithHistory("jhp", host);
-    await seedParticipant(db, { chatId, key: "jhp_m", userId: joiner, role: "member", joinSeq: 3 });
+    await seedParticipant(db, { chatId, key: "jhp_m", userId: joiner, role: "member", joinSeq: 3, joinHistoryVisibility: "from-join" });
 
     const { listMessages } = createRead(makeChatContext(db), makeDeps());
     // The member's window is seq 3-4; walking back from 4 yields the floor row, then nothing.
@@ -362,7 +424,7 @@ describe("read — the D16 join-history floor (joinHistoryVisibility)", () => {
     const host = await seedUser(db, "jhc_host");
     const joiner = await seedUser(db, "jhc_joiner");
     const chatId = await seedRoomWithHistory("jhc", host);
-    await seedParticipant(db, { chatId, key: "jhc_m", userId: joiner, role: "member", joinSeq: 4 });
+    await seedParticipant(db, { chatId, key: "jhc_m", userId: joiner, role: "member", joinSeq: 4, joinHistoryVisibility: "from-join" });
     await db.update(chatsTable).set({ compactSummary: "the pre-join story so far", compactedAtSeq: 3 }).where(eq(chatsTable.id, chatId));
 
     const { getChat } = createRead(makeChatContext(db), makeDeps());
@@ -381,33 +443,56 @@ describe("read — the D16 join-history floor (joinHistoryVisibility)", () => {
     const chatId = await seedRoom("jhr", host);
     const pre = await seedMessage(db, chatId, 1, { role: "assistant", content: "pre-join greeting" });
     const post = await seedMessage(db, chatId, 5, { role: "assistant", content: "post-join reply" });
-    await seedParticipant(db, { chatId, key: "jhr_m", userId: joiner, role: "member", joinSeq: 5 });
+    await seedParticipant(db, { chatId, key: "jhr_m", userId: joiner, role: "member", joinSeq: 5, joinHistoryVisibility: "from-join" });
 
     // Emit through the REAL durable-first bus, in the order a live room produces: a pre-join commit, the raw
     // token deltas of that pre-join turn, then a post-join commit — plus a POST-join EDIT of the PRE-join row
-    // (the case a cursor floor alone would let straight through: high durable seq, low view seq).
+    // (the case a cursor floor alone would let straight through: high durable seq, low view seq), and finally
+    // the token stream of a turn writing INTO the post-join slot (the member's own content).
     const ctx = makeChatContext(db);
     const bus = createChatBus({ db, now: ctx.now, newEventId: ctx.newEventId });
     const preView = await loadMessageView(db, pre.messageId);
     const postView = await loadMessageView(db, post.messageId);
     await bus.emit({ type: "messageCommitted", chatId, messageId: pre.messageId, ...(preView === undefined ? {} : { view: preView }) });
-    await bus.emit({ type: "delta", chatId, delta: { chatId, kind: "text", text: "pre-join greeting" } });
+    // slotSeq 1 = the PRE-join slot these tokens fill (a host swiping/continuing that old row streams exactly
+    // this) — below the joiner's floor, so it must not reach them.
+    await bus.emit({ type: "delta", chatId, slotSeq: 1, delta: { chatId, kind: "text", text: "pre-join greeting" } });
     await bus.emit({ type: "messageCommitted", chatId, messageId: post.messageId, ...(postView === undefined ? {} : { view: postView }) });
     await bus.emit({ type: "messageEdited", chatId, messageId: pre.messageId, ...(preView === undefined ? {} : { view: preView }) });
+    // slotSeq 5 = the POST-join slot — at the joiner's floor, so its tokens ARE theirs to stream.
+    await bus.emit({ type: "delta", chatId, slotSeq: 5, delta: { chatId, kind: "text", text: "post-join tokens" } });
 
     const { replayChatEvents } = createRead(ctx, makeDeps());
     // `afterSeq: 0` IS the client's `lastEventId:"0"` seed — the exact live repro cursor.
     const replayed = await replayChatEvents({ principal: principal(joiner), chatId, afterSeq: 0 });
 
     expect(JSON.stringify(replayed)).not.toContain("pre-join greeting");
-    // The member still receives their OWN post-join commit, at its true durable cursor (withheld rows leave a
-    // seq gap; the cursor is never rewritten).
-    expect(replayed.map((e) => e.seq)).toEqual([3]);
-    expect(replayed[0]?.event.type).toBe("messageCommitted");
+    // The member receives their OWN post-join commit AND the post-join slot's token stream, each at its true
+    // durable cursor (withheld rows leave a seq gap; the cursor is never rewritten). Deltas are clamped
+    // per-ROW, not blanket-withheld — a clamped member still gets streaming for content that is theirs.
+    expect(replayed.map((e) => e.seq)).toEqual([3, 5]);
+    expect(replayed.map((e) => e.event.type)).toEqual(["messageCommitted", "delta"]);
+    expect(JSON.stringify(replayed)).toContain("post-join tokens");
 
     // The host, unclamped, still gets the whole log — the clamp is per-CALLER.
     const hostReplay = await replayChatEvents({ principal: principal(host), chatId, afterSeq: 0 });
-    expect(hostReplay.map((e) => e.seq)).toEqual([1, 2, 3, 4]);
+    expect(hostReplay.map((e) => e.seq)).toEqual([1, 2, 3, 4, 5]);
+  });
+
+  // The SSE attach probe is the seam that carries the floor OUT of the domain: `chat.streamMessages` tails an
+  // in-process fan-out keyed by chatId only, so the transport must be handed a per-CALLER floor to clamp the
+  // LIVE half with (the durable half is clamped in `replayChatEvents` above). Pinned here at the source —
+  // the transport's use of it is pinned in `tests/server/transport/trpc/routers/chat.int.test.ts`.
+  test("chatEventBounds carries the CALLER's own floor — clamped for the joiner, 0 for the host, from one member-gated read", async () => {
+    const host = await seedUser(db, "jhb_host");
+    const joiner = await seedUser(db, "jhb_joiner");
+    const chatId = await seedRoomWithHistory("jhb", host);
+    await seedParticipant(db, { chatId, key: "jhb_m", userId: joiner, role: "member", joinSeq: 4, joinHistoryVisibility: "from-join" });
+
+    const { chatEventBounds } = createRead(makeChatContext(db), makeDeps());
+    expect((await chatEventBounds({ principal: principal(joiner), chatId })).historyFloorSeq).toBe(4);
+    // Same probe, same room, same instant — the host is never clamped by the member's policy.
+    expect((await chatEventBounds({ principal: principal(host), chatId })).historyFloorSeq).toBe(0);
   });
 
   test("a `full` member's durable replay is unchanged (the other arm, on the event path too)", async () => {
@@ -421,7 +506,8 @@ describe("read — the D16 join-history floor (joinHistoryVisibility)", () => {
     const bus = createChatBus({ db, now: ctx.now, newEventId: ctx.newEventId });
     const preView = await loadMessageView(db, pre.messageId);
     await bus.emit({ type: "messageCommitted", chatId, messageId: pre.messageId, ...(preView === undefined ? {} : { view: preView }) });
-    await bus.emit({ type: "delta", chatId, delta: { chatId, kind: "text", text: "pre-join greeting" } });
+    // A delta anchored to the PRE-join slot — withheld from a `from-join` member, delivered here.
+    await bus.emit({ type: "delta", chatId, slotSeq: 1, delta: { chatId, kind: "text", text: "pre-join greeting" } });
 
     const { replayChatEvents } = createRead(ctx, makeDeps());
     const replayed = await replayChatEvents({ principal: principal(joiner), chatId, afterSeq: 0 });
@@ -440,7 +526,7 @@ describe("read — the D16 join-history floor (joinHistoryVisibility)", () => {
     const joiner = await seedUser(db, "jhrj_joiner");
     const chatId = await seedRoomWithHistory("jhrj", host);
     // First era: joined at head 1, so seqs 1-4 were all visible to them at the time.
-    await seedParticipant(db, { chatId, key: "jhrj_m", userId: joiner, role: "member", joinSeq: 1, leftSeq: 2 });
+    await seedParticipant(db, { chatId, key: "jhrj_m", userId: joiner, role: "member", joinSeq: 1, leftSeq: 2, joinHistoryVisibility: "from-join" });
 
     const { listMessages } = createRead(makeChatContext(db), makeDeps());
     // Re-invited at the current head (4) — the same write a redeem performs.
@@ -457,7 +543,7 @@ describe("read — the D16 join-history floor (joinHistoryVisibility)", () => {
     const chatId = await seedRoom("jhs", host);
     const pre = await seedMessage(db, chatId, 1, { role: "assistant", content: "pre" });
     const post = await seedMessage(db, chatId, 5, { role: "assistant", content: "post" });
-    await seedParticipant(db, { chatId, key: "jhs_m", userId: joiner, role: "member", joinSeq: 5 });
+    await seedParticipant(db, { chatId, key: "jhs_m", userId: joiner, role: "member", joinSeq: 5, joinHistoryVisibility: "from-join" });
     await seedStreamEvent(db, chatId, 1, { delta: "pre-join tokens", messageId: pre.messageId });
     await seedStreamEvent(db, chatId, 2, { delta: "post-join tokens", messageId: post.messageId });
 
@@ -629,8 +715,10 @@ describe("read — durable chat-bus log (the streamMessages SSE resume)", () => 
     expect(tail.map((e) => e.seq)).toEqual([2, 3]);
     expect(tail.map((e) => e.event.type)).toEqual(["chatDeleted", "chatUpdated"]);
 
+    // The attach probe carries the caller's own D16 floor alongside the window (the SSE live loop clamps on
+    // it) — `me` is the born-here host, so it is the unclamped 0.
     const bounds = await chatEventBounds({ principal: principal(me), chatId });
-    expect(bounds).toEqual({ minSeq: 1, maxSeq: 3 });
+    expect(bounds).toEqual({ minSeq: 1, maxSeq: 3, historyFloorSeq: 0 });
 
     // The membership chokepoint: a stranger's read collapses to a leak-free NOT_FOUND.
     await expect(replayChatEvents({ principal: principal(stranger), chatId })).rejects.toBeInstanceOf(ChatNotFoundError);
@@ -660,8 +748,9 @@ describe("read — durable chat-bus log (the streamMessages SSE resume)", () => 
       speakerCharacterId: null,
       targetMessageId: null,
     });
-    await bus.emit({ type: "delta", chatId, delta: { chatId, kind: "text", text: "Hello " } });
-    await bus.emit({ type: "delta", chatId, delta: { chatId, kind: "text", text: "world" } });
+    // The fresh room's first reply lands at `messages.seq` 1, so that is the slot these tokens fill.
+    await bus.emit({ type: "delta", chatId, slotSeq: 1, delta: { chatId, kind: "text", text: "Hello " } });
+    await bus.emit({ type: "delta", chatId, slotSeq: 1, delta: { chatId, kind: "text", text: "world" } });
 
     const { replayChatEvents } = createRead(ctx, makeDeps());
     // afterSeq:0 == the client's `lastEventId:"0"` seed — replay the whole durable log from baseline.
@@ -669,10 +758,11 @@ describe("read — durable chat-bus log (the streamMessages SSE resume)", () => 
 
     expect(replayed.map((e) => e.seq)).toEqual([1, 2, 3]);
     expect(replayed.map((e) => e.event.type)).toEqual(["turnStarted", "delta", "delta"]);
-    // The token-carrying payload survives the JSON round-trip through the durable column, byte-for-byte.
-    expect(replayed.slice(1).map((e) => (e.event.type === "delta" ? e.event.delta : null))).toEqual([
-      { chatId, kind: "text", text: "Hello " },
-      { chatId, kind: "text", text: "world" },
+    // The token-carrying payload survives the JSON round-trip through the durable column, byte-for-byte —
+    // including the `slotSeq` clamp anchor (a lost anchor would silently re-blind every clamped member).
+    expect(replayed.slice(1).map((e) => (e.event.type === "delta" ? e.event : null))).toEqual([
+      { type: "delta", chatId, slotSeq: 1, delta: { chatId, kind: "text", text: "Hello " } },
+      { type: "delta", chatId, slotSeq: 1, delta: { chatId, kind: "text", text: "world" } },
     ]);
   });
 });

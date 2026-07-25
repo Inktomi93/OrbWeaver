@@ -360,8 +360,8 @@ describe("forkChat — the D16 join-history floor (a fork must not launder pre-j
     await seedMessage(db, chatId, 1, { role: "assistant", content: "pre-join secret" });
     await seedMessage(db, chatId, 2, { role: "user", authorUserId: host, content: "more pre-join" });
     await seedMessage(db, chatId, 3, { role: "assistant", content: "after they joined" });
-    // Redeemed at head 3, column-default `from-join`.
-    await seedParticipant(db, { chatId, key: "jhf_m", userId: member, role: "member", joinSeq: 3 });
+    // Redeemed at head 3 and host-RESTRICTED to `from-join` (the opt-in clamp; the column default is `full`).
+    await seedParticipant(db, { chatId, key: "jhf_m", userId: member, role: "member", joinSeq: 3, joinHistoryVisibility: "from-join" });
 
     const fork = createFork(makeChatContext(db, { getCard: ownedCard() }), { emit, loadParticipantViews });
     const { chat } = await fork.forkChat({ principal: principal(member), chatId });
@@ -387,7 +387,7 @@ describe("forkChat — the D16 join-history floor (a fork must not launder pre-j
     await seedMessage(db, chatId, 1, { role: "assistant", content: "pre-join secret" });
     await seedMessage(db, chatId, 2, { role: "assistant", content: "after they joined" });
     await db.update(chats).set({ compactSummary: "the pre-join story", compactedAtSeq: 1 }).where(eq(chats.id, chatId));
-    await seedParticipant(db, { chatId, key: "jhk_m", userId: member, role: "member", joinSeq: 2 });
+    await seedParticipant(db, { chatId, key: "jhk_m", userId: member, role: "member", joinSeq: 2, joinHistoryVisibility: "from-join" });
 
     const fork = createFork(makeChatContext(db, { getCard: ownedCard() }), { emit, loadParticipantViews });
     const { chat } = await fork.forkChat({ principal: principal(member), chatId });

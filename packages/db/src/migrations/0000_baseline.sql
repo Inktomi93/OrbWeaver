@@ -215,7 +215,7 @@ CREATE TABLE `chat_participants` (
 	`joined_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	`join_seq` integer NOT NULL,
 	`left_seq` integer,
-	`join_history_visibility` text DEFAULT 'from-join' NOT NULL,
+	`join_history_visibility` text DEFAULT 'full' NOT NULL,
 	FOREIGN KEY (`chat_id`) REFERENCES `chats`(`id`) ON UPDATE no action ON DELETE cascade,
 	FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade,
 	FOREIGN KEY (`character_id`) REFERENCES `characters`(`id`) ON UPDATE no action ON DELETE cascade,

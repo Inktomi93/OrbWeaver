@@ -162,6 +162,7 @@ export function MembersPanel(props: MembersPanelProps): ReactElement {
       onKick={props.onKick}
       onNominateHost={props.onNominateHost}
       onLeave={props.onLeave}
+      onSetHistoryVisibility={props.onSetHistoryVisibility}
       leaveArchivesRoom={props.leaveArchivesRoom}
       onSetDisabled={props.onSetDisabled}
       onSetTalkativeness={props.onSetTalkativeness}

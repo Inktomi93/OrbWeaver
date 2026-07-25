@@ -417,8 +417,11 @@ export const chatParticipants = sqliteTable(
     // Lifecycle horizons live in `messages.seq` (NOT the stream cursor). `leftSeq` null = present.
     joinSeq: integer("join_seq").notNull(),
     leftSeq: integer("left_seq"),
-    // from-join | full — derives JOIN_HISTORY_VISIBILITIES (default from-join).
-    joinHistoryVisibility: text("join_history_visibility", { enum: JOIN_HISTORY_VISIBILITIES }).notNull().default("from-join"),
+    // from-join | full — derives JOIN_HISTORY_VISIBILITIES. Default `full`: an invited member sees the room's
+    // ENTIRE history (owner ruling) — `from-join` is the OPT-IN restriction a host chooses per participant,
+    // never the ambient posture. `from-join` floors reads at the member's own `joinSeq`, INCLUSIVE (they see
+    // the row AT their joinSeq).
+    joinHistoryVisibility: text("join_history_visibility", { enum: JOIN_HISTORY_VISIBILITIES }).notNull().default("full"),
   },
   (t) => [
     // No duplicate human membership; the re-join `ON CONFLICT(chatId,userId) DO UPDATE` target. userId is

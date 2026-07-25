@@ -55,11 +55,11 @@ The 5-seat council's committed calls are now law in their canonical homes — v1
 
 Canonical: **`Spine-Testing.md`** (lanes by suffix, `test-presence`/`test-determinism`, mock + factory doctrine); layout is `Core-0-Architecture-and-Structure.md §5` + the `test-layout` gate. The 2026-06-26 consolidation record is frozen in [`../history/core-laws-archaeology-record.md`](../history/core-laws-archaeology-record.md) §6.
 
-## 7. The path/home registry (D1–D77)
+## 7. The path/home registry (D1–D78, D106)
 
-THE decision registry — every ledger ruling D1–D77, one file. Cite as `Core-Path-Registry.md D<n>` or `Core-Laws-and-Precedents.md §7 D<n>` — D-numbers are stable global ids; grep the id. If a doc ever disagrees with a D-entry, the registry wins.
+THE decision registry — every ledger ruling D1–D78 and D106, one file. Cite as `Core-Path-Registry.md D<n>` or `Core-Laws-and-Precedents.md §7 D<n>` — D-numbers are stable global ids; grep the id. If a doc ever disagrees with a D-entry, the registry wins. **D79–D105 are RESERVED** for main-era rulings that rolled back with the retro burn-down while the code obeying them survived — never mint a new ruling into that range; see the reserved-range note in `Core-Path-Registry.md`.
 
-- **D1–D77** → [`Core-Path-Registry.md`](Core-Path-Registry.md) — THE registry, one file (merged 2026-07-13, D66; D70 = client-architecture lockdown is law, 2026-07-14; D71 = the theme-palette pipeline — generated seed value-sets, seeds render static, polarity-aware `light-dark()` intent tokens, clamp-derived color-scheme; D72 = a machine ships WITH its seal — mint → migrate → SEAL in one wave; D73 = clusters-are-registries + D74 = You ⊃ Identity ⊃ Account (shell-chrome program close, 2026-07-16); D75–D77 = the neo-parity accepted deltas, 2026-07-16 — debug surface stays read-only/eval-free, healthz stays minimal, ingress XFF-only + empty-403).
+- **D1–D78, D106** → [`Core-Path-Registry.md`](Core-Path-Registry.md) — THE registry, one file (merged 2026-07-13, D66; D70 = client-architecture lockdown is law, 2026-07-14; D71 = the theme-palette pipeline — generated seed value-sets, seeds render static, polarity-aware `light-dark()` intent tokens, clamp-derived color-scheme; D72 = a machine ships WITH its seal — mint → migrate → SEAL in one wave; D73 = clusters-are-registries + D74 = You ⊃ Identity ⊃ Account (shell-chrome program close, 2026-07-16); D75–D77 = the neo-parity accepted deltas, 2026-07-16 — debug surface stays read-only/eval-free, healthz stays minimal, ingress XFF-only + empty-403; D78 = autosave entity forms mount only through the factory session boundary; D106 = chat read-visibility — presence-interval clamp, two planes, one verdict).
 - **D65** → OIDC group-derived roles (extends D17), in the registry.
 
 ## Enforcement registry

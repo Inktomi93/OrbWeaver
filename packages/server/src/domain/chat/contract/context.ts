@@ -21,7 +21,6 @@ import type { Can, ChatRoster, ParticipantRole, Principal } from "@orb/contracts
 import type { PromptTemplateMode } from "@orb/contracts/imagery";
 import type { NotificationEvent, PresenceView } from "@orb/contracts/notifications";
 import type { ChoiceBlockSpec, UserIntent } from "@orb/contracts/preset";
-import type { RoleClients } from "@orb/contracts/role-clients";
 import type { BlockKey, MemoryQueryOptions } from "@orb/contracts/search";
 import type { ApplyStatsDelta } from "@orb/contracts/stats";
 import type { MaterializeBackgroundOp, ThemeBackground, ThemeOverride } from "@orb/contracts/theme";
@@ -48,7 +47,7 @@ import type {
 } from "@orb/kit/ids";
 import type { RegexReplacer } from "@orb/kit/regex";
 import type { AuditEntry } from "#foundation/observability";
-import type { ToolCallInput, WireTool } from "#infra/providers";
+import type { RoleClientsWithSignal, ToolCallInput, WireTool } from "#infra/providers";
 import type { ActiveTurns } from "./active-turns";
 import type { ResolveForeignInputsOp } from "./foreign";
 import type { MemoryLog } from "./memory";
@@ -172,8 +171,11 @@ type FindSyntheticGroupCharacterOp = (params: { readonly ownerId: UserId; readon
 /** Persists the turn-economics delta the chat-side builders produced. */
 type ApplyStatsDeltaOp = ApplyStatsDelta<unknown, Db>;
 
-/** The memory summarizer + the smart-arbitrate side-LLM. */
-export type SummarizeOp = RoleClients["summarize"];
+/** The memory summarizer + the smart-arbitrate side-LLM. The SIGNAL-BEARING variant of the isomorphic
+ *  `RoleClients["summarize"]` (`RoleClientsWithSignal`): chat is the one caller that already owns a
+ *  cancellation — the turn's active-turn `AbortSignal` — and a side-LLM call that cannot be cancelled hangs
+ *  the whole turn when the box accepts the socket and never answers. */
+export type SummarizeOp = RoleClientsWithSignal["summarize"];
 
 /** The imagery quiet-extraction shaper (imagery-design/02 §2) — a STANDALONE op (not on ChatContext; built
  *  at compose from db + summarize + getCard, the `loadTurnForClassify` precedent). Chat owns the history
@@ -186,6 +188,13 @@ export interface ExtractQuietParams {
   readonly instruction: string;
   /** Focuses the char macro on one character in a group chat; absent ⇒ the roster's primary character. */
   readonly subjectCharacterId?: CharacterId | undefined;
+  /** The CALLER's D16 canon floor — REQUIRED, not optional. The extraction's product is a model DISTILLATION
+   *  of the recent transcript handed straight back to ONE human (`imagery.extractPrompt` returns the prompt
+   *  string on the wire), so it is viewer-plane, not room-plane: unlike a turn reply it is not one shared
+   *  utterance and CAN be clamped per reader without forking canon. Membership alone admitted this call, and
+   *  membership is not visibility — so the caller must obtain this from chat's `resolveViewerVisibility` op.
+   *  `NO_HISTORY_FLOOR` (0) is the unclamped common case. */
+  readonly historyFloorSeq: number;
 }
 export interface ExtractQuietResult {
   readonly text: string;
@@ -263,6 +272,34 @@ export interface PostNarratorMessageDeps {
  *  `null` is the not-a-participant 404. A STANDALONE op with no principal — the raw membership lookup rpg gates
  *  around (membership has ONE loader; this is it exposed for injection, never a second read path). */
 export type GetMembership = (chatId: ChatId, userId: UserId) => Promise<{ readonly role: ParticipantRole } | null>;
+
+/** ONE human's read-visibility over ONE chat — membership AND the D16 canon floor as a SINGLE value, because
+ *  they are one inseparable answer. `historyFloorSeq` is the INCLUSIVE `messages.seq` floor this viewer may
+ *  read from (`NO_HISTORY_FLOOR` = 0 = unclamped); it is DERIVED by the one resolver
+ *  (`substrate/auth/clamp::resolveHistoryFloorSeq`), never re-computed by the consumer. There is deliberately
+ *  no "member: yes" projection without the floor — a consumer that only wants membership still receives the
+ *  floor, so "forgot to clamp" is unrepresentable rather than merely discouraged. */
+export interface ViewerVisibility {
+  readonly role: ParticipantRole;
+  readonly historyFloorSeq: number;
+}
+
+/** THE cross-domain viewer-visibility op (the D-ledger read-visibility entry). Any NON-chat domain that must
+ *  decide "may this human see this chat's CONTENT" consumes this — never a membership read of its own, and
+ *  never a second clamp home (a mirrored floor computation in another domain is the defect class the plugin
+ *  fan-out already demonstrated).
+ *
+ *  `null` = NOT a present member (or no such chat — one leak-free answer, the `GetMembership` posture). `null`
+ *  is the sentinel precisely BECAUSE the alternative (`{ member: false, historyFloorSeq: 0 }`) reads as
+ *  "no floor in force" to a caller that forgets to test membership first: a floor of 0 means UNCLAMPED, so a
+ *  non-member would inherit the widest possible visibility on the exact code path where the check was
+ *  skipped. `null` fails CLOSED under `?.` / `if (v === null)` and cannot be misread as a permissive floor.
+ *
+ *  STANDALONE + principal-free (the `GetMembership`/`ExtractQuiet` precedent — the consumer's own authority
+ *  gate runs around it) and compose-wired: `userId` is the VIEWER whose visibility is being resolved and MUST
+ *  be a server-resolved identity, never a caller-supplied one (the injected-op caller-gate rule — an op whose
+ *  params drop the caller is a latent cross-tenant hole). */
+export type ResolveViewerVisibility = (chatId: ChatId, userId: UserId) => Promise<ViewerVisibility | null>;
 
 /** The pending user text a game turn is responding to (rpg-design/05 §6): the latest user-role message's
  *  selected-variant content, or `null` (no user line yet). rpg's `skill_check` re-reads it server-side to feed

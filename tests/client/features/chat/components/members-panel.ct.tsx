@@ -144,6 +144,41 @@ test("Kick sits LAST behind an AlertDialog; confirm fires onKick", async ({ moun
   await expect(component.locator(LAST_ACTION)).toHaveText("kick:user_kestrel");
 });
 
+// The D16 join-history toggle — the only write path into `chat_participants.joinHistoryVisibility`.
+// Asserts the DISPATCH (userId + the target enum value), not a UI reaction: the panel is a pure component
+// and the mutation's payload is what the server clamps on.
+test("the join-history item dispatches the RESTRICT direction with the member's userId (host)", async ({ mount, page }) => {
+  const component = await mount(<MembersPanelStory withPeople={true} />);
+
+  await component.getByRole("button", { name: "Kestrel — member, nominated as host" }).focus();
+  await page.keyboard.press("Enter");
+  // Kestrel is at the `full` default, so the item offers the restriction (never a mode name).
+  await page.getByRole("menuitem", { name: "Hide messages sent before Kestrel joined" }).click();
+  await expect(component.locator(LAST_ACTION)).toHaveText("history:user_kestrel:from-join");
+});
+
+test("a RESTRICTED member shows the state chip + accessible-name suffix, and the item offers the RESTORE direction", async ({ mount, page }) => {
+  const component = await mount(<MembersPanelStory withPeople={true} restrictedMember={true} />);
+
+  const row = component.getByRole("button", { name: "Kestrel — member, nominated as host, limited history" });
+  await expect(row).toBeVisible();
+  await expect(component.getByText("Limited history")).toBeVisible();
+
+  await row.focus();
+  await page.keyboard.press("Enter");
+  await page.getByRole("menuitem", { name: "Let Kestrel read all earlier messages" }).click();
+  await expect(component.locator(LAST_ACTION)).toHaveText("history:user_kestrel:full");
+});
+
+test("the host's OWN row carries no join-history item (you cannot clamp yourself) — only Leave", async ({ mount, page }) => {
+  const component = await mount(<MembersPanelStory withPeople={true} />);
+
+  await component.getByRole("button", { name: "Riley — host, you" }).focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("menuitem", { name: "Hide messages sent before Riley joined" })).toHaveCount(0);
+  await expect(page.getByRole("menuitem")).toHaveCount(1);
+});
+
 test("the viewer's own row carries Leave behind an AlertDialog with the sole-host archive copy", async ({ mount, page }) => {
   const component = await mount(<MembersPanelStory withPeople={true} />);
 

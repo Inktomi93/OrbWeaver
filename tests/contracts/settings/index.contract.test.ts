@@ -223,7 +223,6 @@ test("UserSettings.appearance reads the §12.1 defaults from an empty blob (no v
   expect(parsed.appearance.avatarRing).toBe("none");
   expect(parsed.appearance.density).toBe("comfortable");
   expect(parsed.appearance.chatStyle).toBe("bubble"); // the ST-parity default
-  expect(parsed.appearance.chatLayout).toBe("classic"); // VN-1 — the standard thread until opted into VN
   // Metadata visibility (timestamps + in-chat avatars ON; the rest OFF)
   expect(parsed.appearance.showTimestamps).toBe(true);
   expect(parsed.appearance.showInChatAvatars).toBe(true);
@@ -245,7 +244,6 @@ test("UserSettings.appearance self-heals per-field: a garbage knob degrades to i
     {
       appearance: {
         chatStyle: "hologram", // not a THEME_CHAT_STYLES member → catch → "bubble"
-        chatLayout: "hologram", // not a CHAT_LAYOUTS member → catch → "classic"
         avatarSize: "enormous", // not sm/md/lg → catch → "md"
         avatarAspect: "landscape", // not square/portrait → catch → "square"
         chatWidthPct: 5000, // over the max → catch → 60
@@ -257,7 +255,6 @@ test("UserSettings.appearance self-heals per-field: a garbage knob degrades to i
     USER_SETTINGS_SCHEMA_VERSION,
   );
   expect(parsed.appearance.chatStyle).toBe("bubble");
-  expect(parsed.appearance.chatLayout).toBe("classic");
   expect(parsed.appearance.avatarSize).toBe("md");
   expect(parsed.appearance.avatarAspect).toBe("square");
   expect(parsed.appearance.chatWidthPct).toBe(60);

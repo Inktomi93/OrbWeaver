@@ -4,7 +4,11 @@
 //   (a) cascade-depth — depth ≥ cap delivers to NObody; a depth ≥ 1 cascade fact reaches a plugin ONLY if it
 //       opted in (matchAutomationEvents); the SAME guard the rule dispatch runs.
 //   (b) visibility (LEAK-FREE) — an installer who is NOT a present member of the fact's chat gets ZERO
-//       deliveries for it; a member does. Ownership gates the chat-less domain facts.
+//       deliveries for it; a member does. Ownership gates the chat-less domain facts. Membership is NOT the
+//       whole verdict: the gate consumes chat's `resolveViewerVisibility` op (membership AND the D16 history
+//       floor), so a `from-join`-clamped installer receives NOTHING for a PRE-JOIN canon row — the confirmed
+//       leak this suite pins (a host edit/re-voice of a pre-join slot resolves that row's CONTENT into the
+//       fact, which every direct read path withholds from that same member).
 //   (c) declared-match — only the trigger types the plugin declared deliver.
 // The fan-out runs alongside rule dispatch: a chat with a plugin subscriber but NO rules still delivers.
 
@@ -15,10 +19,11 @@ import { describe } from "vitest";
 import type { AutomationOps } from "../../../../../packages/server/src/domain/automation/contract/ops.ts";
 import type { PluginSubscriberRegistry, PluginTriggerSubscriber } from "../../../../../packages/server/src/domain/automation/contract/plugin-subscribers.ts";
 import { createAutomationService, createPluginSubscriberRegistry } from "../../../../../packages/server/src/domain/automation/index.ts";
+import { createResolveViewerVisibility } from "../../../../../packages/server/src/domain/chat/verbs/resolve-viewer-visibility.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { seedCharacter } from "../../../../support/factories/character.ts";
 import { expect, test } from "../../../../support/fixtures";
-import { seedChat, seedParticipant } from "../../chat/_support.ts";
+import { seedChat, seedMessage, seedParticipant } from "../../chat/_support.ts";
 import { makeAutomationHarness, seedHostChat, seedUser } from "../_support.ts";
 
 type TriggerType = AutomationTrigger["type"];
@@ -49,12 +54,15 @@ function turnCompleted(chatId: ChatId): { type: "turnCompleted"; chatId: ChatId;
   return { type: "turnCompleted", chatId, intent: "send", messageId: mintTypeId(ID_PREFIX.message) };
 }
 
-/** Ops whose `getTurnOrigin` reports a fixed cascade depth (the depth-gate probe) — mirrors handle-event's. */
-function depthOps(depth: number): AutomationOps {
+/** Ops whose `getTurnOrigin` reports a fixed cascade depth (the depth-gate probe) — mirrors handle-event's.
+ *  `resolveViewerVisibility` stays the REAL chat op over the real db (a faked visibility verdict would make
+ *  every visibility assertion in this file vacuous). */
+function depthOps(db: Awaited<ReturnType<typeof freshDb>>, depth: number): AutomationOps {
   return {
     chat: {
       getMessageFact: () => Promise.resolve(null),
       getTurnOrigin: () => Promise.resolve({ initiator: "automation" as const, automationDepth: depth }),
+      resolveViewerVisibility: createResolveViewerVisibility({ db }),
       readVariables: () => Promise.resolve({}),
       readChoicePicks: () => Promise.resolve({}),
       applyVariableOps: () => Promise.resolve(),
@@ -77,12 +85,13 @@ interface Fixture {
   readonly svc: ReturnType<typeof createAutomationService>;
 }
 
-async function setup(ops?: AutomationOps): Promise<Fixture> {
+/** `opsFor` is a FACTORY, not a value: the ops bundle closes over the fresh db (the real visibility op). */
+async function setup(opsFor?: (db: Awaited<ReturnType<typeof freshDb>>) => AutomationOps): Promise<Fixture> {
   const db = await freshDb();
   const host = await seedUser(db, "user_host");
   const chatId = await seedHostChat(db, host); // host is a PRESENT member of chatId
   const registry = createPluginSubscriberRegistry();
-  const ctx = makeAutomationHarness(db, { pluginSubscribers: registry, ...(ops !== undefined ? { ops } : {}) });
+  const ctx = makeAutomationHarness(db, { pluginSubscribers: registry, ...(opsFor !== undefined ? { ops: opsFor(db) } : {}) });
   return { db, host, chatId, registry, svc: createAutomationService(ctx) };
 }
 
@@ -136,6 +145,69 @@ describe("plugin events.on fan-out — the P4 delivery gates", () => {
     expect(cap.delivered).toEqual([]);
   });
 
+  test("(b) FLOOR — a from-join installer gets ZERO deliveries for a PRE-JOIN row's content, and the post-join row DOES deliver", async () => {
+    const f = await setup();
+    // The clamped installer: a global admin (that is what install requires) who is a RESTRICTED member of
+    // someone else's room. Their own `listMessages` withholds seq < 5; the plugin fan-out must agree.
+    const clamped = await seedUser(f.db, "user_clamped");
+    await seedParticipant(f.db, { chatId: f.chatId, key: "clamped", userId: clamped, role: "member", joinSeq: 5, joinHistoryVisibility: "from-join" });
+    const preJoin = await seedMessage(f.db, f.chatId, 2, { content: "the secret the newcomer may not read" });
+    const postJoin = await seedMessage(f.db, f.chatId, 6, { content: "said after they joined" });
+
+    const cap = capturingSubscriber(clamped, ["messageEdited"]);
+    const hostCap = capturingSubscriber(f.host, ["messageEdited"]);
+    f.registry.register(cap.subscriber);
+    f.registry.register(hostCap.subscriber);
+
+    // The exact F1 path: the HOST edits/re-voices a PRE-join slot → messageEdited → the unclamped all-chats
+    // firehose → the fact resolver reads the selected variant's CONTENT → the fan-out's visibility gate.
+    await f.svc.handleEvent({ type: "messageEdited", chatId: f.chatId, messageId: preJoin.messageId });
+    expect(cap.delivered).toEqual([]); // ZERO deliveries — the pre-join content never reaches the guest
+    expect(hostCap.delivered.map((x) => x.message?.seq)).toEqual([2]); // the host is unclamped — still delivered
+
+    // ...and the fix does NOT over-block: a row at/after their joinSeq is theirs to see.
+    await f.svc.handleEvent({ type: "messageEdited", chatId: f.chatId, messageId: postJoin.messageId });
+    expect(cap.delivered.map((x) => x.message?.seq)).toEqual([6]);
+    expect(cap.delivered[0]?.message?.content).toBe("said after they joined");
+  });
+
+  test("(b) FLOOR — the row AT the member's own joinSeq is INCLUSIVE (delivered), and an UNRESTRICTED member sees pre-join content", async () => {
+    const f = await setup();
+    const clamped = await seedUser(f.db, "user_clamped");
+    const openMember = await seedUser(f.db, "user_open");
+    await seedParticipant(f.db, { chatId: f.chatId, key: "clamped", userId: clamped, role: "member", joinSeq: 5, joinHistoryVisibility: "from-join" });
+    // No explicit policy ⇒ the COLUMN default (`full`) — the ordinary invitee joining at the same seq.
+    await seedParticipant(f.db, { chatId: f.chatId, key: "open", userId: openMember, role: "member", joinSeq: 5 });
+    const atJoin = await seedMessage(f.db, f.chatId, 5, { content: "the room as they walked in" });
+    const before = await seedMessage(f.db, f.chatId, 1, { content: "long before either joined" });
+
+    const clampedCap = capturingSubscriber(clamped, ["messageEdited"]);
+    const openCap = capturingSubscriber(openMember, ["messageEdited"]);
+    f.registry.register(clampedCap.subscriber);
+    f.registry.register(openCap.subscriber);
+
+    await f.svc.handleEvent({ type: "messageEdited", chatId: f.chatId, messageId: atJoin.messageId });
+    await f.svc.handleEvent({ type: "messageEdited", chatId: f.chatId, messageId: before.messageId });
+
+    expect(clampedCap.delivered.map((x) => x.message?.seq)).toEqual([5]); // inclusive at joinSeq, withheld below
+    expect(openCap.delivered.map((x) => x.message?.seq)).toEqual([5, 1]); // `full` — the other arm still works
+  });
+
+  test("(b) ACTIVITY PLANE — a clamped installer still receives the chat's id-only/lifecycle facts (no over-clamping)", async () => {
+    const f = await setup();
+    const clamped = await seedUser(f.db, "user_clamped");
+    await seedParticipant(f.db, { chatId: f.chatId, key: "clamped", userId: clamped, role: "member", joinSeq: 5, joinHistoryVisibility: "from-join" });
+    const cap = capturingSubscriber(clamped, ["chatOpened", "messagesDeleted"]);
+    f.registry.register(cap.subscriber);
+
+    // `chatOpened`/`messagesDeleted` carry no canon CONTENT — ids + lifecycle only. The floor governs bytes,
+    // never room-activity metadata; withholding these would blind the member's plugin to its OWN room.
+    await f.svc.handleEvent(chatOpened(f.chatId));
+    await f.svc.handleEvent({ type: "messagesDeleted", chatId: f.chatId, messageIds: [mintTypeId(ID_PREFIX.message)] });
+
+    expect(cap.delivered.map((x) => x.type)).toEqual(["chatOpened", "messagesDeleted"]);
+  });
+
   test("(b) visibility — a chat-less DOMAIN fact (character.updated) delivers only to the resource OWNER", async () => {
     const f = await setup();
     const stranger = await seedUser(f.db, "user_stranger");
@@ -153,7 +225,7 @@ describe("plugin events.on fan-out — the P4 delivery gates", () => {
   });
 
   test("(a) cascade hard-cap — nothing delivers at depth ≥ 3, even declared + opted-in + visible", async () => {
-    const f = await setup(depthOps(3));
+    const f = await setup((db) => depthOps(db, 3));
     const cap = capturingSubscriber(f.host, ["turnCompleted"], { matchAutomationEvents: true });
     f.registry.register(cap.subscriber);
 
@@ -163,13 +235,13 @@ describe("plugin events.on fan-out — the P4 delivery gates", () => {
   });
 
   test("(a) cascade opt-in — a depth-1 fact is suppressed WITHOUT matchAutomationEvents, delivered WITH it", async () => {
-    const suppressed = await setup(depthOps(1));
+    const suppressed = await setup((db) => depthOps(db, 1));
     const off = capturingSubscriber(suppressed.host, ["turnCompleted"], { matchAutomationEvents: false });
     suppressed.registry.register(off.subscriber);
     await suppressed.svc.handleEvent(turnCompleted(suppressed.chatId));
     expect(off.delivered).toEqual([]); // un-opted cascade — suppressed
 
-    const opted = await setup(depthOps(1));
+    const opted = await setup((db) => depthOps(db, 1));
     const on = capturingSubscriber(opted.host, ["turnCompleted"], { matchAutomationEvents: true });
     opted.registry.register(on.subscriber);
     await opted.svc.handleEvent(turnCompleted(opted.chatId));
@@ -177,7 +249,7 @@ describe("plugin events.on fan-out — the P4 delivery gates", () => {
   });
 
   test("(a) the fan-out threads the fact's RESOLVED cascade depth to deliver (the plugin turn's +1 source)", async () => {
-    const f = await setup(depthOps(2)); // below the hard cap; opted-in so a depth ≥ 1 fact delivers
+    const f = await setup((db) => depthOps(db, 2)); // below the hard cap; opted-in so a depth ≥ 1 fact delivers
     const depths: number[] = [];
     f.registry.register({
       installer: f.host,

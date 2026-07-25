@@ -198,6 +198,9 @@ export function makeInertOps(): PluginHostOps {
   return {
     chat: {
       listMessages: () => Promise.resolve([]),
+      // Fail-closed default: the inert bundle reports NO membership, so a bridge test that forgets to wire a
+      // visibility verdict sees an empty read rather than a silently-unclamped one.
+      resolveViewerVisibility: () => Promise.resolve(null),
       getVariables: () => Promise.resolve({}),
       applyVariableOps: () => Promise.resolve(),
       requestTurn: () => Promise.resolve(),

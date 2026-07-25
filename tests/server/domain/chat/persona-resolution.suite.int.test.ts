@@ -36,6 +36,7 @@ import { assemblePrompt } from "../../../../packages/server/src/domain/chat/asse
 import { buildAssembleContext } from "../../../../packages/server/src/domain/chat/assembly/context";
 import { renderHistoryMacros } from "../../../../packages/server/src/domain/chat/assembly/macros";
 import type { ChatContext } from "../../../../packages/server/src/domain/chat/context";
+import type { ActiveTurns } from "../../../../packages/server/src/domain/chat/contract/active-turns";
 import type { HistoryMacroNames } from "../../../../packages/server/src/domain/chat/contract/results";
 import { createChatLifecycle } from "../../../../packages/server/src/domain/chat/verbs/chat-lifecycle";
 import { setParticipantActivePersona } from "../../../../packages/server/src/domain/chat/verbs/roster";
@@ -120,6 +121,24 @@ async function assembledText(
   const prompt = assemblePrompt(DEFAULT_PROMPT_CONFIG, out);
   return { out, full: `${prompt.static}\n${prompt.dynamic}` };
 }
+
+/** This suite drives ONLY `setChatAnchorPersona`, which must never touch in-flight turns. `delete` is the
+ *  one lifecycle verb that sweeps them (it aborts before dropping the row), so a REAL registry here would
+ *  silently absorb an accidental reach — every arm throws instead, per `_support.ts`'s notStubbed idiom. */
+const NO_TURNS: ActiveTurns = {
+  register: (): never => {
+    throw new Error("activeTurns.register: persona resolution must not touch in-flight turns");
+  },
+  abort: (): never => {
+    throw new Error("activeTurns.abort: persona resolution must not touch in-flight turns");
+  },
+  abortAll: (): never => {
+    throw new Error("activeTurns.abortAll: persona resolution must not touch in-flight turns");
+  },
+  countActive: (): never => {
+    throw new Error("activeTurns.countActive: persona resolution must not touch in-flight turns");
+  },
+};
 
 describe("THE FOUR WORKED EXAMPLES (FINAL-Persona §A.2 — the headline acceptance tests)", () => {
   test("worked example 1 — anchor=Nate, active=Nate: card AND prompt {{user}} both resolve to Nate", async () => {
@@ -265,7 +284,7 @@ describe("canon freeze — swapping the Chat persona (#3) or the Anchor (#4) NEV
       personaId: nate,
       content: "{{user}} waves",
     });
-    const life = createChatLifecycle(makeChatContext(db), { emit });
+    const life = createChatLifecycle(makeChatContext(db), { emit, activeTurns: NO_TURNS });
 
     // The Anchor re-pin: this chat's card {{user}} moves Nate → Steve.
     await life.setChatAnchorPersona({ principal: principal(host), chatId, personaId: steve });

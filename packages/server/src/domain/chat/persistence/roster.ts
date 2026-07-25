@@ -26,6 +26,24 @@ export async function loadPresentRole(db: Db, chatId: ChatId, userId: UserId): P
   return rows.at(0)?.role ?? null;
 }
 
+/** The caller's PRESENT participant row narrowed to the three columns a VISIBILITY verdict is derived from —
+ *  the role plus the D16 horizon pair (`joinSeq` + `joinHistoryVisibility`) the ONE clamp resolver consumes.
+ *  `null` = not a present member OR no such chat (the same leak-free collapse as {@link loadPresentRole}).
+ *  Deliberately raw: the policy→number derivation stays in `substrate/auth/clamp`, so this file cannot become
+ *  a second clamp home. Backs the injected `resolveViewerVisibility` op (`verbs/resolve-viewer-visibility`). */
+export async function loadPresentVisibilityRow(
+  db: Db,
+  chatId: ChatId,
+  userId: UserId,
+): Promise<Pick<typeof chatParticipants.$inferSelect, "role" | "joinSeq" | "joinHistoryVisibility"> | null> {
+  const rows = await db
+    .select({ role: chatParticipants.role, joinSeq: chatParticipants.joinSeq, joinHistoryVisibility: chatParticipants.joinHistoryVisibility })
+    .from(chatParticipants)
+    .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.userId, userId), isNull(chatParticipants.leftSeq)))
+    .limit(LIMIT_ONE);
+  return rows.at(0) ?? null;
+}
+
 type ParticipantInsertRow = typeof chatParticipants.$inferInsert;
 
 /** The roster read (listParticipants / arbitration substrate). Default = PRESENT members only

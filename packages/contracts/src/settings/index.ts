@@ -375,9 +375,6 @@ export const backgroundLibraryEntrySchema = z.object({
 });
 export type BackgroundLibraryEntry = z.infer<typeof backgroundLibraryEntrySchema>;
 
-export const CHAT_LAYOUTS = ["classic"] as const;
-export type ChatLayout = (typeof CHAT_LAYOUTS)[number];
-
 const READING_LINE_HEIGHT_MIN = 1.2;
 const READING_LINE_HEIGHT_MAX = 2.2;
 const READING_LINE_HEIGHT_DEFAULT = 1.55;
@@ -408,7 +405,6 @@ const appearanceSchema = z
     density: z.enum(THEME_DENSITIES).catch("comfortable").default("comfortable"),
     elevation: z.enum(["flat", "ramp", "glow"]).catch("flat").default("flat"),
     chatStyle: z.enum(THEME_CHAT_STYLES).catch("bubble").default("bubble"),
-    chatLayout: z.enum(CHAT_LAYOUTS).catch("classic").default("classic"),
     showTimestamps: z.boolean().catch(true).default(true),
     showGenerationTimer: z.boolean().catch(false).default(false),
     // PD-137 — reveal a quiet per-message settled-cost affordance (a paid upstream OpenRouter call, fired

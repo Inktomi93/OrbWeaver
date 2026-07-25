@@ -1,21 +1,30 @@
-// domain/plugin/substrate/bridge — build the authority-agnostic `PluginBridge` the membrane's host functions
-// call (P4b-CORE), PER INSTALLER. The composed `PluginHostOps` chat reads/writes are already chat-id-keyed and
-// principal-free (the DOMAIN is their authority gate — the invocation-chat-context admission ran
-// `can(installer,…)` before any chat reaches here); global-vars is the ONE installer-scoped op, closed over the
-// installer's `UserId` so a cross-user KV read is structurally impossible (fetchOwned under the installer, 02
-// §4). Pure of DB/Principal — testable with fake ops.
+// domain/plugin/substrate/bridge — build the `PluginBridge` the membrane's host functions call (P4b-CORE),
+// PER INSTALLER. The composed `PluginHostOps` chat writes are chat-id-keyed and principal-free (the DOMAIN is
+// their authority gate — the invocation-chat-context admission ran `can(installer,…)` before any chat reaches
+// here); global-vars is the ONE installer-scoped op, closed over the installer's `UserId` so a cross-user KV
+// read is structurally impossible (fetchOwned under the installer, 02 §4). Pure of DB/Principal — testable
+// with fake ops.
+//
+// THE ONE VIEWER-VISIBILITY CHOKE for guest canon reads. Every admission path that can put a chat in a guest's
+// scope resolves MEMBERSHIP ONLY — `resolveChatAuthority` (runSnippet), `resolveInvocationChat` (a plugin
+// tool's PL-C ceiling), and the `events.on` per-delivery `loadPresentRole` — and membership is not visibility:
+// a `from-join`-clamped member is legitimately admitted to a room whose pre-join canon they may not read. All
+// three funnel through THIS bridge, so the D16 floor is resolved here, once, via chat's
+// `resolveViewerVisibility` op (membership AND floor as one value; `null` ⇒ the guest sees nothing) and pushed
+// into the read as a REQUIRED param. Reading canon without it is not expressible in `PluginHostOps`.
 //
 // LOOP SAFETY (the per-plugin $/action spend ceiling was stripped 2026-07-24 — enterprise spend enforcement):
 // a runaway plugin's autonomous turns stay bounded by the engine's per-member turn RATE budget + the
 // cascade-depth guard (resolved inside chat's `requestTurn`); its images are clamped n≤4 + the membrane's ≤32
 // concurrent-host-call cap. Cost VISIBILITY rides the stats domain off the imagery/chat writes themselves.
 
-import type { PluginBridge } from "@orb/contracts/plugin";
+import type { PluginBridge, PluginMessageView } from "@orb/contracts/plugin";
 import type { PluginId, UserId, WorldBookId } from "@orb/kit/ids";
 import type { PluginHostOps } from "../contract/ops";
 
-/** Adapt the injected `PluginHostOps` into the membrane's `PluginBridge` for one installing user. The chat ops
- *  pass through (only the `{limit}` opts shape is re-wrapped); the global-vars ops close over `installerUserId`;
+/** Adapt the injected `PluginHostOps` into the membrane's `PluginBridge` for one installing user. `listMessages`
+ *  is clamped to the installer's own viewer visibility (see the file header); the other chat ops
+ *  pass through; the global-vars ops close over `installerUserId`;
  *  worldInfo + imagery close over the installer for the ownership attribution the shared writers gate on.
  *  worldInfo maps the guest `PluginWorldEntryUpsert` onto the shared `UpsertLoreEntryInput` writer
  *  (`entryKey`→`title`, `contentTemplate`→`content`; the guest's `position` hint has no target in the shared
@@ -34,7 +43,18 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
   };
   return {
     chat: {
-      listMessages: (chatId, limit) => ops.chat.listMessages(chatId, limit === undefined ? undefined : { limit }),
+      // VIEWER CLAMP (the read-visibility D-entry): resolve the INSTALLER's membership + D16 history floor as
+      // ONE answer before any canon crosses the realm boundary. `null` (not a present member — a chat that
+      // raced a kick/leave between admission and this call) ⇒ `[]`, never a partial read. Otherwise the floor
+      // rides into the read as a required param, so the SQL — not a post-filter — withholds pre-join rows and
+      // the `limit` still returns a full page of what this human may actually see.
+      listMessages: async (chatId, limit): Promise<readonly PluginMessageView[]> => {
+        const visibility = await ops.chat.resolveViewerVisibility(chatId, installerUserId);
+        if (visibility === null) {
+          return [];
+        }
+        return await ops.chat.listMessages(chatId, { ...(limit === undefined ? {} : { limit }), floorSeq: visibility.historyFloorSeq });
+      },
       getVariables: (chatId) => ops.chat.getVariables(chatId),
       applyVariableOps: (chatId, varOps) => ops.chat.applyVariableOps(chatId, varOps),
       // The FUNDER is closed over the installer (never infra/guest-supplied) — the membrane passes only the

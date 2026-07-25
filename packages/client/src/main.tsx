@@ -21,8 +21,8 @@ import { createRoot } from "react-dom/client";
 import { createAppQueryClient, createTrpcClient, TRPCProvider } from "#data";
 import { contextToggleChrome, fullscreenChrome, youModal } from "#features/app-shell";
 import { accountModal } from "#features/auth";
-import { makeCharactersSection } from "#features/character";
-import { chatOptionsChrome, commandModal, makeChatsSection, newChatModal } from "#features/chat";
+import { characterSlashCommands, makeCharactersSection } from "#features/character";
+import { chatOptionsChrome, chatSlashCommands, commandModal, makeChatsSection, newChatModal } from "#features/chat";
 import { connectionsPane } from "#features/credentials";
 import { corpusSection } from "#features/discovery";
 import { notificationsChrome } from "#features/notifications";
@@ -34,7 +34,15 @@ import { analyticsSection } from "#features/stats";
 import { adminPane } from "#features/user-admin";
 import { backupPane, workloadsPane } from "#features/workloads";
 import { worldInfoSection } from "#features/world-info";
-import type { CharacterDetailContribution, ChatContextState, ChatSurfaceContribution, ContextTabDef, MessageToolsRenderer, ToolRenderer } from "#lib";
+import type {
+  CharacterDetailContribution,
+  ChatContextState,
+  ChatSurfaceContribution,
+  ContextTabDef,
+  MessageToolsRenderer,
+  SlashCommandContribution,
+  ToolRenderer,
+} from "#lib";
 import { AppErrorBoundary, bindNotify, buildClientErrorPayload, createContributorRegistry, createRegistry } from "#lib";
 import {
   assembleChrome,
@@ -46,6 +54,7 @@ import {
   SETTINGS_CATEGORY_IDS,
   SectionRegistryProvider,
   SettingsPaneRegistryProvider,
+  SlashCommandRegistryProvider,
 } from "#state";
 import { installAgentDebugHandle, installAppReadySignal } from "./lib/agent-bridge";
 import { isProbeMode } from "./lib/probe-mode";
@@ -99,6 +108,13 @@ const toolRenderers = createContributorRegistry<ToolRenderer>("tool-renderers", 
 // records). Delivered via a context provider; the FIRST renderer to claim a message owns its whole tool block,
 // else chat falls back to the per-record path. Empty ⇒ byte-identical.
 const messageToolsRenderers = createContributorRegistry<MessageToolsRenderer>("message-tools-renderer", []);
+
+// The ONE slash-command assembly (§6c/G8): the single source of truth BOTH command surfaces read — the chat
+// composer dispatches `/<id> …` against it and the command palette lists it. The two entries here are the
+// palette's former hardcoded "Create" rows, now owned by their own features; a grafted feature (automation,
+// a plugin surface) appends its commands the same way, without importing chat. Delivered via a context
+// provider, so a build/CT with no Provider has zero commands and every send is a plain send.
+const slashCommands = createContributorRegistry<SlashCommandContribution>("slash-commands", [...chatSlashCommands, ...characterSlashCommands]);
 
 // The character-detail contributor seam (§6c): EMPTY but typed — the door → factory → editor-body anchor
 // path is compiled and exercised with zero contributions; the crew feature appends its card-evolution
@@ -213,7 +229,9 @@ createRoot(rootEl).render(
                 <ChromeRegistryProvider value={chrome}>
                   <SettingsPaneRegistryProvider value={settingsPanes}>
                     <MessageToolsRendererRegistryProvider value={messageToolsRenderers}>
-                      <RouterProvider router={router} />
+                      <SlashCommandRegistryProvider value={slashCommands}>
+                        <RouterProvider router={router} />
+                      </SlashCommandRegistryProvider>
                     </MessageToolsRendererRegistryProvider>
                   </SettingsPaneRegistryProvider>
                 </ChromeRegistryProvider>

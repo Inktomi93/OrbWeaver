@@ -200,3 +200,16 @@ export interface StreamEventBounds {
   readonly minSeq: number | null;
   readonly maxSeq: number | null;
 }
+
+/** What the SSE attach / per-yield probe (`chatEventBounds`) hands the subscription: the retained-window
+ *  bounds PLUS the caller's own D16 canon read floor, resolved at the membership chokepoint
+ *  (`guard.requireParticipant` → `substrate/auth::resolveHistoryFloorSeq`).
+ *
+ *  The floor rides HERE rather than being re-derived at the transport because that probe is ALREADY the one
+ *  member-gated read the subscription performs (at attach and before every live yield): the same read that
+ *  decides "may this caller still receive at all" now also carries "…and from which `messages.seq` up". It is
+ *  therefore per-CALLER by construction and never client-supplied. `0` = unclamped (`full` / a born-here host
+ *  seat) — the common case, which the `isBelowHistoryFloor` verdict short-circuits on. */
+export interface ChatEventAttach extends StreamEventBounds {
+  readonly historyFloorSeq: number;
+}

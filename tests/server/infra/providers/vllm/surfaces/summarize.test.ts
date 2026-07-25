@@ -1,7 +1,9 @@
 // Unit tests for the vLLM summarize surface — a request SHAPER over the gen chat-completion core (NOT a
 // separate engine). Asserts: one item per input (index-aligned), the (system,user) shape reaches the gen
 // chat endpoint, `<think>` CoT scaffolding is stripped, usage is carried (cost null for local), and a
-// batch fans out. Independent — it shapes onto the engine core via the injected client, never a sibling.
+// batch fans out, and the caller's AbortSignal reaches the engine POST (the cancellation seam that keeps a
+// non-responsive box from hanging its caller — the `smart` arbitration's only way out of a hang).
+// Independent — it shapes onto the engine core via the injected client, never a sibling.
 
 import type { ModelId } from "@orb/kit/ids";
 import { createVllmSummarize } from "@orb/server/infra/providers/vllm";
@@ -19,6 +21,7 @@ interface ChatBody {
 interface PostCall {
   readonly path: string;
   readonly body: ChatBody;
+  readonly signal: AbortSignal | undefined;
 }
 
 // A recording fake: echoes the user prompt back as the "summary", wrapped with a <think> block to prove
@@ -26,9 +29,9 @@ interface PostCall {
 function fakeClient(): { client: VllmEngineClient; calls: PostCall[] } {
   const calls: PostCall[] = [];
   const client: VllmEngineClient = {
-    enginePost: <T>(_engine: unknown, path: string, body: unknown): Promise<T> => {
+    enginePost: <T>(_engine: unknown, path: string, body: unknown, signal?: AbortSignal): Promise<T> => {
       const b = body as ChatBody;
-      calls.push({ path, body: b });
+      calls.push({ path, body: b, signal });
       const user = b.messages.find((m) => m.role === "user")?.content ?? "";
       return Promise.resolve({
         choices: [{ message: { content: `<think>reasoning</think>summary of ${String(user)}` } }],
@@ -113,5 +116,37 @@ describe("createVllmSummarize", () => {
 
     expect(calls).toHaveLength(3);
     expect(res.items.map((i) => i.text)).toEqual(["summary of a", "summary of b", "summary of c"]);
+  });
+
+  // THE HANG SEAM: a summarize caller that owns a cancellation (a chat turn's active-turn handle) can only
+  // escape a box that accepted the socket and never answered if its signal reaches the fetch. Asserted at the
+  // engine-POST boundary — the identity check proves the CALLER'S signal arrives, not a fresh one the surface
+  // minted (which would abort nothing).
+  test("threads the request's AbortSignal into every engine POST", async () => {
+    const { client, calls } = fakeClient();
+    const summarize = createVllmSummarize({ client, concurrency: 2 });
+    const controller = new AbortController();
+    await summarize({
+      credential: CRED,
+      model: MODEL,
+      inputs: [
+        { systemPrompt: "s", userPrompt: "a" },
+        { systemPrompt: "s", userPrompt: "b" },
+      ],
+      signal: controller.signal,
+    });
+
+    expect(calls).toHaveLength(2);
+    for (const call of calls) {
+      expect(call.signal).toBe(controller.signal);
+    }
+  });
+
+  test("a request with no signal posts without one (no fabricated controller)", async () => {
+    const { client, calls } = fakeClient();
+    const summarize = createVllmSummarize({ client, concurrency: 1 });
+    await summarize({ credential: CRED, model: MODEL, inputs: [{ systemPrompt: "s", userPrompt: "a" }] });
+
+    expect(need(calls[0]).signal).toBeUndefined();
   });
 });

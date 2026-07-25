@@ -255,6 +255,15 @@ function writeFixtures(): void {
   fx(`${D}/chat/engine/__g_ti.ts`, "export function leak(principal: { userId: string }): string {\n  return principal.userId;\n}\n");
   // membership-enforcer: an owner-equality comparison inside domain/chat (D18).
   fx(`${D}/chat/verbs/__g_me.ts`, "export const isOwner = (c: { ownerId: string }, u: string): boolean => c.ownerId === u;\n");
+  // chat-viewer-plane-canon-reads: a VIEWER-plane verb (matrix `listMessages: "member"`) reaching the
+  // floorless bulk canon reader — the D79 leak shape. The gate resolves the verb through the
+  // `ChatService["<verb>"]` return annotation and keys the verdict off the LIVE authority matrix.
+  fx(
+    `${D}/chat/verbs/__g_vpcr.ts`,
+    'import type { ChatService } from "../contract/service";\nimport { loadCanonHistory } from "../persistence/queries";\n\nexport function createGVpcr(): ChatService["listMessages"] {\n  return (async (a: never) => await loadCanonHistory(a, a)) as never;\n}\n',
+  );
+  // firehose-import-allowlist: the unclamped all-chats firehose imported outside entry/compose (D79).
+  fx("packages/server/src/transport/trpc/__g_firehose.ts", 'import { subscribeAllChatEvents } from "./index";\nexport const f = subscribeAllChatEvents;\n');
   // owner-role-split: a global-role literal comparison outside admin/guard.ts (D17).
   fx("packages/server/src/domain/__g_role.ts", 'export const elevated = (p: { role: string }): boolean => p.role === "admin";\n');
   // assets-single-writer arm 1: storeBlob imported outside domain/assets (the CAS write chokepoint).

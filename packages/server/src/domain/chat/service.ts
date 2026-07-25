@@ -144,7 +144,7 @@ export function createChatService(ctx: ChatContext, deps: ChatServiceDeps): { re
     resolveConnection: deps.resolveConnection,
     resolveForeignInputs: deps.resolveForeignInputs,
   });
-  const chatLifecycle = createChatLifecycle(ctx, { emit: deps.emit });
+  const chatLifecycle = createChatLifecycle(ctx, { emit: deps.emit, activeTurns: deps.activeTurns });
   const roster = createRoster(ctx, { emit: deps.emit });
 
   return {

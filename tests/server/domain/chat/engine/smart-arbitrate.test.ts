@@ -1,6 +1,12 @@
 // engine/smart-arbitrate — the 7b SIDE-LLM arbitration (chat.md Part III §6 `smart`). Pure unit tests over a
 // FAKE summarize op: a validated pick from the eligible roster; the round-robin (natural) fallback on an
-// off-roster / garbled reply AND on an op throw; single-eligible short-circuit (no LLM call); no eligible → [].
+// off-roster / garbled / EMPTY reply AND on an op throw (including the small-hardware "provider not wired"
+// fail-closed throw); single-eligible short-circuit (no LLM call); no eligible → []. Every arm also pins the
+// `degraded` flag — the turn verb keys the visible `smart_arbitration_degraded` warning off it (D41), so a
+// fallback that reported `degraded:false` would degrade the user SILENTLY.
+// Plus the CANCELLATION arm: the turn's AbortSignal reaches the summarize op (the only escape from a box that
+// accepted the socket and never answered), and an abort is reported as `aborted:true` — NOT a degrade, so the
+// caller ends the turn instead of falling back and generating on a round nobody is waiting for.
 
 import type { SpeakerRef } from "@orb/contracts/chat";
 import type { SummarizeResult } from "@orb/contracts/providers";
@@ -54,7 +60,7 @@ describe("smartArbitrate — the validated side-LLM pick", () => {
       lastSpeaker: null,
       rng,
     });
-    expect(out).toEqual([charRef("bran")]);
+    expect(out).toEqual({ speakers: [charRef("bran")], degraded: false, aborted: false });
     expect(summarize).toHaveBeenCalledTimes(1);
   });
 
@@ -67,7 +73,7 @@ describe("smartArbitrate — the validated side-LLM pick", () => {
       lastSpeaker: null,
       rng,
     });
-    expect(out).toEqual([charRef("cara")]);
+    expect(out).toEqual({ speakers: [charRef("cara")], degraded: false, aborted: false });
   });
 });
 
@@ -81,11 +87,13 @@ describe("smartArbitrate — the deterministic fallback", () => {
       lastSpeaker: null,
       rng,
     });
-    expect(out).toHaveLength(1);
+    expect(out.speakers).toHaveLength(1);
+    expect(out.degraded).toBe(true);
+    expect(out.aborted).toBe(false);
     // Loose by DESIGN: the arbiter's pick is non-deterministic (the side-LLM summarize + rng), so this
     // asserts only that the result is SOME eligible candidate — not a pinned winner. Tightening it to one
     // expected speaker would make the test flaky against the intended non-determinism, not stronger.
-    expect([charRef("aria"), charRef("bran"), charRef("cara")]).toContainEqual(out[0]);
+    expect([charRef("aria"), charRef("bran"), charRef("cara")]).toContainEqual(out.speakers[0]);
   });
 
   test("an op throw degrades to the fallback, never throws", async () => {
@@ -98,7 +106,61 @@ describe("smartArbitrate — the deterministic fallback", () => {
       lastSpeaker: null,
       rng,
     });
-    expect(out).toHaveLength(1);
+    expect(out.speakers).toHaveLength(1);
+    expect(out.degraded).toBe(true);
+    expect(out.aborted).toBe(false);
+  });
+
+  // The SMALL-HARDWARE case (plan-for-small-hardware): no vLLM wired for the summarize role, so the role
+  // dispatcher fail-closes SYNCHRONOUSLY (`requireBackend` throws before any promise). The call sits inside
+  // the try, so a sync throw degrades exactly like a rejection — the round still happens.
+  test("an unwired summarize backend (sync throw) degrades to the fallback", async () => {
+    const summarize: SummarizeOp = vi.fn(() => {
+      throw new Error('provider "vllm" is not wired for the "summarize" role');
+    });
+    const out = await smartArbitrate({
+      summarize,
+      candidates: CANDIDATES,
+      castNames: CAST,
+      recentHistory: "...",
+      lastSpeaker: null,
+      rng,
+    });
+    expect(out.speakers).toHaveLength(1);
+    expect(out.degraded).toBe(true);
+    expect(out.aborted).toBe(false);
+  });
+
+  test("an EMPTY reply (no items / blank text) degrades to the fallback", async () => {
+    const empty: SummarizeOp = vi.fn((): Promise<SummarizeResult> => Promise.resolve({ items: [], model: "fake" }));
+    const out = await smartArbitrate({
+      summarize: empty,
+      candidates: CANDIDATES,
+      castNames: CAST,
+      recentHistory: "...",
+      lastSpeaker: null,
+      rng,
+    });
+    expect(out.speakers).toHaveLength(1);
+    expect(out.degraded).toBe(true);
+    expect(out.aborted).toBe(false);
+  });
+
+  // The UNTRUSTED-INPUT arm: the arbiter is model output crossing into scheduling. A reply naming a real
+  // roster member who is MUTED must not schedule that seat — the eligible set is the only vocabulary.
+  test("a reply naming a MUTED member never schedules it (falls back to an eligible seat)", async () => {
+    const out = await smartArbitrate({
+      summarize: summarizeReturning("Cara"),
+      candidates: [candidate("aria"), candidate("bran"), candidate("cara", { disabled: true })],
+      castNames: CAST,
+      recentHistory: "...",
+      lastSpeaker: null,
+      rng,
+    });
+    expect(out.speakers).not.toContainEqual(charRef("cara"));
+    expect(out.speakers).toHaveLength(1);
+    expect(out.degraded).toBe(true);
+    expect(out.aborted).toBe(false);
   });
 
   test("the fallback honors ban-last (the previous speaker is not re-picked when others remain)", async () => {
@@ -110,7 +172,7 @@ describe("smartArbitrate — the deterministic fallback", () => {
       lastSpeaker: charRef("aria"),
       rng,
     });
-    expect(out[0]).not.toEqual(charRef("aria"));
+    expect(out.speakers[0]).not.toEqual(charRef("aria"));
   });
 });
 
@@ -132,7 +194,7 @@ describe("smartArbitrate — whole-word roster match (F9)", () => {
       lastSpeaker: charRef("ari"), // ban-last → the fallback avoids Ari, proving no substring match
       rng,
     });
-    expect(out).toEqual([charRef("bran")]);
+    expect(out).toEqual({ speakers: [charRef("bran")], degraded: true, aborted: false });
   });
 
   test('a whole-word "Ari." (trailing punctuation) still matches', async () => {
@@ -144,7 +206,7 @@ describe("smartArbitrate — whole-word roster match (F9)", () => {
       lastSpeaker: null,
       rng,
     });
-    expect(out).toEqual([charRef("ari")]);
+    expect(out).toEqual({ speakers: [charRef("ari")], degraded: false, aborted: false });
   });
 });
 
@@ -159,7 +221,8 @@ describe("smartArbitrate — short-circuits (no LLM call)", () => {
       lastSpeaker: null,
       rng,
     });
-    expect(out).toEqual([charRef("aria")]);
+    // No LLM was consulted, so this is NOT a degrade — a warning here would cry wolf on every solo round.
+    expect(out).toEqual({ speakers: [charRef("aria")], degraded: false, aborted: false });
     expect(summarize).not.toHaveBeenCalled();
   });
 
@@ -173,7 +236,100 @@ describe("smartArbitrate — short-circuits (no LLM call)", () => {
       lastSpeaker: null,
       rng,
     });
-    expect(out).toEqual([]);
+    expect(out).toEqual({ speakers: [], degraded: false, aborted: false });
     expect(summarize).not.toHaveBeenCalled();
+  });
+});
+
+describe("smartArbitrate — cancellation (a HANG is not a failure)", () => {
+  // The signal must reach the OP, not just be inspected locally: only the provider's fetch can cut a socket
+  // that is hanging. Identity-asserted so a fresh controller (which would abort nothing) fails.
+  test("threads the turn's AbortSignal into the summarize call", async () => {
+    const controller = new AbortController();
+    const seen: (AbortSignal | undefined)[] = [];
+    const summarize: SummarizeOp = vi.fn((_inputs, opts): Promise<SummarizeResult> => {
+      seen.push(opts?.signal);
+      return Promise.resolve({ items: [{ text: "Bran", usage: { tokensIn: 1, tokensOut: 1, costUsd: null } }], model: "fake" });
+    });
+    const out = await smartArbitrate({
+      summarize,
+      candidates: CANDIDATES,
+      castNames: CAST,
+      recentHistory: "...",
+      lastSpeaker: null,
+      rng,
+      signal: controller.signal,
+    });
+
+    expect(seen).toEqual([controller.signal]);
+    expect(out).toEqual({ speakers: [charRef("bran")], degraded: false, aborted: false });
+  });
+
+  // THE HANG: the op never settles until the signal fires (exactly what a box that accepts the socket and
+  // never answers does). The abort must both TERMINATE the arbitration and report `aborted` — a degrade here
+  // would fall back to the natural pick and generate a reply the user just cancelled.
+  test("an abort mid-call terminates the arbitration with aborted:true (no speaker, no degrade)", async () => {
+    const controller = new AbortController();
+    let observed: AbortSignal | undefined;
+    const summarize: SummarizeOp = vi.fn((_inputs, opts): Promise<SummarizeResult> => {
+      observed = opts?.signal;
+      // The hanging box: settles ONLY on abort, the way a real provider fetch rejects on its signal.
+      return new Promise((_resolve, reject) => {
+        opts?.signal?.addEventListener("abort", () => reject(new Error("aborted")), { once: true });
+      });
+    });
+    const pending = smartArbitrate({
+      summarize,
+      candidates: CANDIDATES,
+      castNames: CAST,
+      recentHistory: "...",
+      lastSpeaker: null,
+      rng,
+      signal: controller.signal,
+    });
+    controller.abort();
+    const out = await pending;
+
+    expect(observed).toBe(controller.signal);
+    expect(out).toEqual({ speakers: [], degraded: false, aborted: true });
+  });
+
+  // An ALREADY-cancelled turn spends nothing: the side-LLM is never consulted.
+  test("a pre-aborted signal short-circuits without calling summarize", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const summarize = summarizeReturning("Bran");
+    const out = await smartArbitrate({
+      summarize,
+      candidates: CANDIDATES,
+      castNames: CAST,
+      recentHistory: "...",
+      lastSpeaker: null,
+      rng,
+      signal: controller.signal,
+    });
+
+    expect(out).toEqual({ speakers: [], degraded: false, aborted: true });
+    expect(summarize).not.toHaveBeenCalled();
+  });
+
+  // THE REGRESSION GUARD on the freshly-landed degrade behavior: a NON-abort failure with a live signal is
+  // still a degrade (fallback + `degraded:true`), never an abort. Distinguishing them is the whole point.
+  test("a NON-abort failure with a LIVE signal still degrades (never aborts)", async () => {
+    const controller = new AbortController();
+    const summarize: SummarizeOp = vi.fn(() => Promise.reject(new Error("side-LLM down")));
+    const out = await smartArbitrate({
+      summarize,
+      candidates: CANDIDATES,
+      castNames: CAST,
+      recentHistory: "...",
+      lastSpeaker: null,
+      rng,
+      signal: controller.signal,
+    });
+
+    expect(out.speakers).toHaveLength(1);
+    expect(out.degraded).toBe(true);
+    expect(out.aborted).toBe(false);
   });
 });

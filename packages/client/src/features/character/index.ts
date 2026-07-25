@@ -31,6 +31,7 @@ export type {
   TagGroup,
 } from "./lib/character-list-view";
 export { filterByChips, groupByTag, resumeTargets } from "./lib/character-list-view";
+export { characterSlashCommands } from "./lib/character-slash-commands";
 export { makeCharactersSection } from "./lib/characters-section";
 export type { CharacterEditorSurfaceProps } from "./surfaces/character-editor-surface";
 export { CharacterEditorSurface } from "./surfaces/character-editor-surface";

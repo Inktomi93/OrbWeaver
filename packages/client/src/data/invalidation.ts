@@ -86,7 +86,12 @@ const BUS_FILTERS: BusFilterMap = {
   chatDeleted: (e, trpc) => chatReads(trpc, e.chatId),
   chatOpened: (e, trpc) => [trpc.chat.getChat.queryFilter({ chatId: e.chatId })],
   historyTruncated: (e, trpc) => [trpc.chat.getChat.queryFilter({ chatId: e.chatId })],
-  chatUpdated: (e, trpc) => chatReads(trpc, e.chatId),
+  // The roster/group/override/membership catch-all ("refetch the chat detail"). `getGroupConfig` rides
+  // here EXPLICITLY: it is the Group tab's OWN read of the `chats.metadata.group` sub-blob and does not
+  // live under `getChat`, so without this a second tab/device sitting in the same room kept showing the
+  // PREVIOUS room behavior forever (staleTime is Infinity and refetchOnWindowFocus is off — the bus is the
+  // only freshness driver). The setter's own `invalidates` only ever covered the writing tab.
+  chatUpdated: (e, trpc) => [...chatReads(trpc, e.chatId), trpc.chat.getGroupConfig.queryFilter({ chatId: e.chatId })],
 };
 
 // Second map: the per-user bus. staleTime: Infinity means only a bus tick refetches a non-chat

@@ -59,6 +59,10 @@ async function readChatColumn(db: Db, chatId: ChatId, column: "runtime" | "choic
  *  where the sibling gates on ownership (world-info book owner, imagery caller). */
 export interface AutomationActionOpsDeps {
   readonly db: Db;
+  /** THE cross-domain viewer-visibility op (chat's `resolveViewerVisibility`) — membership AND the D16 canon
+   *  floor as one answer. The plugin fan-out's delivery gate consumes it; automation never re-derives either
+   *  half (no membership select of its own, no second clamp home). */
+  readonly resolveViewerVisibility: AutomationOps["chat"]["resolveViewerVisibility"];
   /** chat's standalone (out-of-turn) variable write — `ChatComposeResult.applyVariableOps`. */
   readonly applyVariableOps: (chatId: ChatId, ops: readonly VarOp[]) => Promise<void>;
   /** the SHARED hand-edit-safe world-info writer (CC-D), resolving the book owner's Principal at compose. */
@@ -91,6 +95,7 @@ export function createAutomationOps(deps: AutomationActionOpsDeps): AutomationOp
     chat: {
       getMessageFact: (_chatId, messageId) => getMessageFact(db, messageId),
       getTurnOrigin: (chatId, messageId) => loadTurnOrigin(db, chatId, messageId),
+      resolveViewerVisibility: deps.resolveViewerVisibility,
       readVariables: (chatId) => readChatColumn(db, chatId, "runtime"),
       readChoicePicks: (chatId) => readChatColumn(db, chatId, "choice"),
       applyVariableOps: deps.applyVariableOps,

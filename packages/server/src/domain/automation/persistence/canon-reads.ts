@@ -4,7 +4,6 @@
 // attachment probe (the `insert_world_info_entry` arm's consent check — 03 §1.3), and a message count for
 // the CEL `chat` projection (02 §1). Reads only; automation never mutates another domain's canon here.
 
-import type { TriggerFact } from "@orb/contracts/automation";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { assets, characters, chatBooks, chatParticipants, chats, messages, worldEntries } from "@orb/db";
@@ -57,36 +56,30 @@ export async function loadPresentHumanMemberIds(db: Db, chatId: ChatId): Promise
   return rows.flatMap((row) => (row.userId === null ? [] : [row.userId]));
 }
 
-/** Whether the installing user OWNS a row by id — the chat-less domain-fact visibility check (character.updated
- *  / asset.created). A forged / stale id names no row ⇒ `false` (fail-closed by construction — the re-read IS the
- *  gate). `ownerId` is the D18/D23 scope anchor. */
-async function isRowOwnedBy(db: Db, table: typeof characters | typeof assets, id: string, userId: UserId): Promise<boolean> {
+/** Whether the installing user OWNS the referenced row — the chat-less domain-fact visibility check
+ *  (character.updated / asset.created). A forged / stale id names no row ⇒ `false` (fail-closed by
+ *  construction — the re-read IS the gate). `ownerId` is the D18/D23 scope anchor; the id arrives UNBRANDED
+ *  (the TriggerFact wire shape) and is re-branded here only to query — a re-read gate, never a trust transfer.
+ *  The drizzle table stays module-private (the caller names a KIND, not a schema object).
+ *
+ *  Consumed by the plugin fan-out's visibility gate (`substrate/plugin-subscribers::canInstallerSeeFact`). The
+ *  CHAT arm of that gate is deliberately NOT here: a chat verdict is chat's `resolveViewerVisibility` op
+ *  (membership AND floor as one answer), never a membership select this domain re-derives. */
+export async function isDomainRowOwnedBy(db: Db, kind: "character" | "asset", id: string, userId: UserId): Promise<boolean> {
+  if (kind === "character") {
+    const rows = await db
+      .select({ ownerId: characters.ownerId })
+      .from(characters)
+      .where(eq(characters.id, castId<CharacterId>(id)))
+      .limit(LIMIT_ONE);
+    return rows[0]?.ownerId === userId;
+  }
   const rows = await db
-    .select({ ownerId: table.ownerId })
-    .from(table)
-    .where(eq(table.id, table === characters ? castId<CharacterId>(id) : castId<AssetId>(id)))
+    .select({ ownerId: assets.ownerId })
+    .from(assets)
+    .where(eq(assets.id, castId<AssetId>(id)))
     .limit(LIMIT_ONE);
   return rows[0]?.ownerId === userId;
-}
-
-/** The plugin fan-out's leak-free VISIBILITY gate (plugin-design/04 §P4): may `installer` SEE this fact? A
- *  chat-scoped fact requires PRESENT membership in its chat (the D18 predicate — a stranger installer gets
- *  zero deliveries for a chat it cannot read). A chat-less DOMAIN fact (character.updated / asset.created)
- *  requires OWNERSHIP of the referenced resource. Any other chat-less fact fails CLOSED. Fail-closed
- *  everywhere: a garbage/forged id in the (untrusted-marshalled) fact simply resolves to no row / no role.
- *  Ids arrive UNBRANDED (the TriggerFact wire shape) and are re-branded here only to query — a re-read gate,
- *  never a trust transfer. */
-export async function canInstallerSeeFact(db: Db, installer: UserId, fact: TriggerFact): Promise<boolean> {
-  if (fact.chatId !== null) {
-    return (await loadCallerRole(db, castId<ChatId>(fact.chatId), installer)) !== undefined;
-  }
-  if (fact.characterId !== undefined) {
-    return isRowOwnedBy(db, characters, fact.characterId, installer);
-  }
-  if (fact.assetId !== undefined) {
-    return isRowOwnedBy(db, assets, fact.assetId, installer);
-  }
-  return false;
 }
 
 /** The titles of the entries a rule OWNS in a book (its `insert_world_info_entry` arm namespaces every entry

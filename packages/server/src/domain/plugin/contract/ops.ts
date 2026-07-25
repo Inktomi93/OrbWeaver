@@ -22,6 +22,7 @@ import type {
 } from "@orb/contracts/plugin";
 import type { ChatId, PluginId, UserId } from "@orb/kit/ids";
 import type { AutomationOps } from "#domain/automation";
+import type { ResolveViewerVisibility } from "#domain/chat";
 
 /** The per-handler invoker activation closes over: run the guest callback `handler` with JSON-encoded args
  *  under the §3 invocation budget (the port's `invoke`, curried over the resident instance). `chat` sets the
@@ -55,9 +56,23 @@ export interface PluginActivationScope {
 export interface PluginHostOps {
   readonly chat: {
     /** Recent canon projected to the REDUCED plugin view (01 §2 — the read floor is "what a member sees").
-     *  `capability: chat.read`. */
-    readonly listMessages: (chatId: ChatId, opts?: { readonly limit?: number }) => Promise<readonly PluginMessageView[]>;
-    /** The chat's current runtime variable fold cache (read) — `capability: chat.read`. */
+     *  `capability: chat.read`.
+     *
+     *  `floorSeq` is REQUIRED, not optional, and is the D16 canon floor of the human this read runs for — the
+     *  read returns only `messages.seq >= floorSeq`. It is required BY TYPE because the admission that reaches
+     *  this op resolves membership only (`can(installer,"read",chat)` / `loadPresentRole`), and membership
+     *  alone is not visibility: a `from-join`-clamped member is admitted to their room yet may not read its
+     *  pre-join rows. A caller therefore cannot obtain the value without asking chat's `resolveViewerVisibility`
+     *  first — {@link buildPluginBridge} is that caller, and a non-member short-circuits to `[]` there. */
+    readonly listMessages: (chatId: ChatId, opts: { readonly limit?: number; readonly floorSeq: number }) => Promise<readonly PluginMessageView[]>;
+    /** THE cross-domain viewer-visibility op (chat's `resolveViewerVisibility`, compose-wired) — the bridge
+     *  resolves the INSTALLER's membership + history floor with it before any canon read crosses the realm
+     *  boundary. `null` = not a present member ⇒ the guest sees nothing. The TYPE is chat's (type-only
+     *  cross-domain import); plugin never re-derives membership or the floor. */
+    readonly resolveViewerVisibility: ResolveViewerVisibility;
+    /** The chat's current runtime variable fold cache (read) — `capability: chat.read`. The CURRENT fold is
+     *  room-state, not transcript (every member plays against it and post-join turns render it into text via
+     *  `{{getvar}}`), so it is NOT floor-clamped — the read-visibility ruling's activity plane. */
     readonly getVariables: (chatId: ChatId) => Promise<Record<string, string>>;
     /** The standalone runtime-variable write — the SAME delta seam automation's `set_variable` arm rides (03
      *  §1.1). `capability: chat.variables.write`. */

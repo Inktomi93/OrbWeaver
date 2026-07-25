@@ -1,5 +1,23 @@
 # Retro Workboard — post-burn-down improvement program
 
+> **THIS IS THE WORKING DOC** (owner-stated 2026-07-25). Not law, not a deliverable — the live board.
+> Authority for LAW = `docs/architecture/core/**`. `docs/architecture/proposed/**` is PRE-ROLLBACK main-era
+> REBUILD REFERENCE — never cite its status as current, never "correct" it.
+
+## ═══ WHY RETRO EXISTS (read `shitsfucked` in MAIN's root — the post-mortem) ═══
+Main's own ledger, verbatim: *"We are tired of hunting down invisible bugs. **Everything must be proven.**"*
+Its two entries: (1) the SSE bus **dropped `turnCompleted`** so `MessageListSurface` never refetched and the
+composer **locked forever** — caused by an RPG query storm (`getHud`/`getEncounter`) making React
+unmount/remount the SSE subscription; (2) the multi-speaker engine **threw the characters away** so only the
+synthetic "Group" character spoke — `round.ts` was supposed to yield the GM *and* the party.
+**BOTH ARE THE SAME DISEASE: features that looked done and silently weren't.** That is the exact class this
+program keeps finding (5 half-shipped features tonight), and it is why "drive it live, then pin it" is the
+posture rather than paranoia. Judge every finding against that frame.
+
+**DATABANK · PLUGIN · AUTOMATION ARE PLANNED WORK** (owner, 2026-07-25) — *"something we are going to do, but
+we are getting our base solid first before we begin."* Their unwired tRPC procs are NOT gaps and NOT debris:
+they are deferred until the base is solid. Do not "clean them up", do not build them yet.
+
 > **Living work doc**, not law (the constitution + D-ledger stay authoritative). Written 2026-07-24 so the
 > diagnoses and rulings survive context compression. Each item carries its CAUSE (traced, with file refs)
 > and its RULING (owner-sanctioned fix shape). Baseline: commit `a4192372` (burn-down complete, full
@@ -7,6 +25,471 @@
 > stores) + `34d1829a` (live spec CTA repoint).
 
 ## ═══ RESUME-HERE STATUS (2026-07-24 late, compaction-survival — read THIS first) ═══
+
+### ═══ CONTRACTS-LAYER AUDIT (Fable 5, 183/183 files read in full) — report: reports/stickler/2026-07-25-contracts-layer-audit.md ═══
+**BOUNDARY VERDICT — CLEAN, the strongest structural result of the night.** `packages/contracts` vs
+`domain/*/contract` is coherent and consistently applied across all 183 files; **nothing crosses in the wrong
+direction.** Practiced rule: wire/domain↔domain/db-derived tuples → `@orb/contracts` (zod-first);
+Principal-wrapping params, DI bundles, service interfaces, typed errors, tRPC-inference views → domain
+`contract/`. The promotion rule ("promote iff the client deep-imports") is obeyed in ≥4 domains. **The
+apparent duplicates are SANCTIONED MIRROR CLASSES verified at both ends — do NOT "fix" them.**
+**WHAT'S GOOD (propagate):** the derive machinery SURVIVED the rollback (tuple narrowing auto-propagated to
+db enums/CHECKs — only comments strayed); exhaustiveness pins used correctly everywhere;
+secret-unrepresentability is ENGINEERED (closed bus unions + brand-protected credentials); fault-isolated
+blob parsing is a house pattern; **`workloads/contract/` is the template folder**. Clean with nothing to
+report: admin · character · credentials · export · imagery · notifications · persona · search · sessions ·
+stats · tag · tool-use · world-info + ~13 contracts modules.
+**FINDINGS (ranked):**
+· **F1 HIGH — post-rollback COMMENT DRIFT: comments describe PURGED members as live.** `USER_KINDS=["human"]`
+  under a comment declaring "`human|agent`" + "AP0-AP4a landed (D99)"; `PARTICIPANT_KINDS` (2 members) under
+  a comment claiming a live **`chat.seatAgent` verb that has ZERO definitions** (7 comments repeat the
+  claim); `events/index.ts` narrates 4 `crew.*` + 5 `rpg.*` union members (tuple has 2, neither family);
+  db headers state a "4-member tuple"/"`human|agent`" while deriving 2/1 correctly. → one comment-
+  reconciliation sweep; phrase future intent as "COMMITTED (not yet built)". **Ungateable without permanent
+  noise — review-fixed.**
+· **F2 HIGH — the D-citation problem** (see the collision section below).
+· **F3 MED-HIGH — automation trigger tuples not machine-pinned.** `CHAT_TRIGGER_TYPES`/`DOMAIN_TRIGGER_TYPES`
+  CLAIM to be subsets of `ChatBusEvent["type"]`/`DomainEventType` with **no `satisfies` binding**, while the
+  sibling `AUTOMATION_TRIGGER_BUSES` in the same file models the correct idiom; the contract test pins the
+  tuple against a literal copy of ITSELF. A bus-member rename leaves a trigger that **silently never fires**.
+  → two one-line `satisfies` pins (type system beats a gate).
+· **F4 MED — live axis re-spells slipping `no-inline-union-redecl` via TWO confirmed blind spots:**
+  (a) `MIN_MEMBERS = 3` exempts every 2-member axis; (b) `tupleSig()` requires a bare `AsExpression`, so
+  `as const satisfies …` tuples never register as canonical (a live instance of the gate-probe-literal-shapes
+  trap). Instances: `PROMPT_TRANSFORM_POINTS` ×2, `ENTRY_POSITIONS` ×3, the notification-recipient axis with
+  **no canonical tuple at all** (4 independent spellings), injection-position re-spelled instead of derived.
+· **F5 MED — `contracts/chat/index.ts` (1,475 lines) should split along its own 9 banner seams** — AFTER the
+  lanes settle (it is the highest-churn merge surface). `theme/` + `plugin/` model the sanctioned multi-file
+  module; D15 makes the split consumer-invisible. `preset/index.ts` (1,215) is second.
+· **F6/F7 LOW-MED — dead + contradictory:** `DEFAULT_BLUR_SURFACES` exports `["panels","composer","modals"]`
+  as "the default set" while the schema default is `[]`, zero consumers; `google_vertex` is an orphan
+  metadata arm whose provider tuple has no such member (the db CHECK would refuse it) + a lying db header.
+· **F8/F9/F10 LOW — 32 orphan contract exports** (evaluate-intent, not auto-delete — "unwired ≠ worthless"),
+  4 sideways deep-imports bypassing front doors, and a 1-line placeholder barrel with zero importers.
+**GATE RECOMMENDATIONS (build order):** ① **`d-citation-integrity`** — every bare `D<n>` in `packages/**` +
+`core/**` resolves to a registry entry; keyed off the live registry anchors (never a hardcoded ceiling);
+built as a 2nd pattern on the `pd-citation-integrity` chassis; FP control = non-`P` left boundary. Catches
+ALL of F2. ② F3's two `satisfies` pins + mint `NOTIFICATION_RECIPIENTS` (no gate — the type system is
+stronger). ③ **repair `no-inline-union-redecl`** — unwrap `SatisfiesExpression` in `tupleSig()` + drop the
+member floor to 2 for the exact-match arm only. ④ optional depcruise front-door arm (probe the
+databank↔embeddings cycle risk first). **NOT to gate:** comment drift (noise), orphan exports (fights
+"unwired ≠ worthless" — keep `pnpm ast orphans` advisory), contracts file size (ossifies).
+
+### ═══ 🚨 D-LEDGER NUMBERING COLLISION — my error, renumber lane RUNNING ═══
+**The rollback dropped D79–D105 from the registry while the CODE obeying them SURVIVED.** Retro's registry
+ends at **D78**; MAIN's runs to **D105**. Tonight's mint took "next free = D79" — correct for retro's file,
+**WRONG for the repo**: **main's D79 = "ONE structured-output stack"** and retro's surviving code cites D79
+in **8 places** with that original meaning (`kit/src/json-schema/index.ts:1`, `.../lift.ts:1,5`,
+`contracts/role-clients/index.ts:6,18,93`, `contracts/chat/index.ts:640`, `contracts/plugin/host-v1.ts:138`).
+So the new entry made those citations resolve to the **WRONG LAW** — worse than dangling, which is at least
+visible. Retro code also cites D80, D81, D82, D85, D86, D91, D93, D99 (all main-era, no retro home).
+**FIX (lane running): renumber the visibility entry D79 → D106** (next free above main's D105), fix every
+coupled site (title range · intro count · frontmatter · both `Core-Laws-and-Precedents` §7 refs ·
+`Core-STATUS` ledger cursor), and add a **RESERVED-RANGE note: D79–D105 are reserved for main-era rulings —
+re-mint them from main's registry WITH THEIR ORIGINAL NUMBERS AND MEANINGS as their domains return; never
+mint a NEW ruling into that range; next free for new rulings is D106+.** Fix the LEDGER, never the code —
+the code's citations are correct and traceable to main.
+**LESSON: "next free D-number" must be computed against MAIN's ceiling, not retro's registry.**
+
+### ═══ CROSS-DOMAIN VISIBILITY OP + 3 LEAKS CLOSED (uncommitted) ═══
+`resolveViewerVisibility(chatId, userId) → { role, historyFloorSeq } | null` — chat's ONE exported
+cross-domain op (contract in `domain/chat/contract/context.ts`, factory
+`verbs/resolve-viewer-visibility.ts`, compose-wired once, consumers type-import via the front door).
+**`null` for non-member is load-bearing**: the alternative (`{member:false, floor:0}`) is dangerous because
+floor 0 MEANS UNCLAMPED — a consumer that forgot the membership test would grant the WIDEST visibility on
+exactly the path where the check was skipped. `null` fails closed. The op passes the WHOLE membership row to
+`resolveHistoryFloorSeq`, so F2's role-aware derive lands in one place.
+**THREE leaks, all the same membership-without-floor mistake — the law's justification:**
+1. **F1 plugin fan-out** (as briefed) — `canInstallerSeeFact` moved to `automation/substrate/`, now
+   op-consuming; message-shaped facts deliver only at `seq >= floor`; activity-plane facts unclamped.
+2. **Plugin membrane `chat.listMessages` — WORSE than F1** (whole transcript vs one row). Every admission
+   path (`resolveChatAuthority`, `resolveInvocationChat`, the `events.on` delivery) is membership-only, so a
+   clamped installer whose plugin got ANY legitimate post-join fact could read the ENTIRE pre-join
+   transcript. Fixed at the ONE per-installer choke all three share (`plugin/substrate/bridge.ts`), and
+   `floorSeq` is now a REQUIRED param — reading canon without a floor is no longer EXPRESSIBLE.
+3. **🚨 `imagery.extractPrompt` — WIRE-REACHABLE BY ANY CLAMPED MEMBER, no plugin, no admin.** A plain
+   `authedProcedure` gated on membership only; `createExtractQuiet` read the last 10 rows via floorless
+   `loadCanonHistory` and returned **the side-LLM's DISTILLATION of them as a string on the wire**. Exploit:
+   a from-join member calls `extractPrompt({chatId, mode})` and gets an LLM summary of canon their own
+   `listMessages` withholds. Fixed: `historyFloorSeq` required, filter applied BEFORE the window slice (so a
+   clamped caller still gets a full 10-row window of rows they MAY see).
+   ⚠️ **THIS CORRECTS FABLE'S RULING**: its F3 claimed every floorless reader is "room-plane/host-gated, no
+   live leak in-domain". WRONG on `extract-quiet.ts` — it is MEMBER-gated. Amend the report.
+**Reviewer calls flagged, NOT fixed:** `/api/_debug/db/chat/:id` hands an operator full canon of any chat
+(admin-cookie/DEBUG_TOKEN — operator plane, deliberate); `portable-refs::selectInlineReferencedContents`
+joins `chat_participants` with **no `leftSeq IS NULL`** so a DEPARTED member's asset export still scans that
+room's canon (harmless today — content never escapes, asset exit is owner-gated — one-line predicate if it
+ever widens); notification `automation-notice.message` judged activity-plane.
+
+### ═══ RECONCILIATION LOG (2026-07-25) — cross-lane seams I fixed by hand ═══
+0. **`activeTurns` fixture (owner caught it).** I patched `persona-resolution.suite.int.test.ts` with a REAL
+   `createActiveTurns()`. Wrong: that suite drives only `setChatAnchorPersona` and must NEVER touch in-flight
+   turns, so a working registry would SILENTLY ABSORB an accidental reach. Replaced with a loudly-throwing
+   `NO_TURNS` fixture per `_support.ts`'s notStubbed idiom ("an accidental reach fails loudly"). The DEP
+   itself is correctly REQUIRED — `delete` must abort turns before dropping the row (abort→emit→drop); an
+   optional dep would let a miswiring silently skip the abort and resurrect the process-kill.
+With ~10 lanes writing one tree, the gate failures at consolidation were all INTEGRATION seams, not lane
+defects. Fixed by me (the orchestrator's job — lanes are correct in isolation and can't see each other):
+1. **`clamp.ts::canonAnchorSeq`** — `"view" in event && event.view !== undefined` became a provably-dead arm
+   once the positive bus key-vocabulary pin landed (`view` is REQUIRED on every member that declares it), so
+   eslint `no-unnecessary-condition` red. Dropped the arm; comment now explains WHY the key test alone is the
+   whole guard (so nobody "defensively" re-adds it).
+2. **`bus.emit` widened to `Promise<number | null>`** (the crash lane's total-emit fix) broke 5 assigning
+   sites in `chat.int.test.ts` (the delta/clamp lane's file). Added a local `emitSeq()` that THROWS on null
+   rather than publishing a fabricated cursor — a `?? 0` there would silently mis-key the live fan and make
+   every clamp assertion meaningless. ⚠️ my first patch was a too-greedy string replace that rewrote the call
+   INSIDE the helper → infinite recursion (biome `noParametersOnlyUsedInRecursion` caught it).
+3. **`ChatLifecycleDeps` gained `activeTurns`** (crash lane) — it fixed `chat-lifecycle.int.test.ts` but
+   MISSED `persona-resolution.suite.int.test.ts:268`. Patched + added the `createActiveTurns` import.
+4. **3 dead e2e helpers** (`setGroupConfig`, `removeCharacterFromChat`, `GROUP_TURN_MAX_OUTPUT_TOKENS`
+   exported) — knip red. All genuinely unused because the specs chose BETTER paths: group config is set at
+   creation via `startGroupChat`, character removal is driven through the REAL UI affordance ("Remove X from
+   chat" menu item), and the token ceiling is internal-only. Deleted two, unexported one.
+**LESSON: knip `--cache` can go stale across a long multi-lane session** — `node_modules/.cache/knip` needed
+clearing before its verdict matched the tree.
+
+### ═══ D79 MINTED — chat read-visibility is now LAW (+ a reconciliation debt) ═══
+Home: `docs/architecture/core/Core-Path-Registry.md` (NOT Core-Laws-and-Precedents, which holds the redirect
+index). Coupled sites all updated: the entry, the `D1–D79` title range, the intro count, the frontmatter
+date, BOTH §7 cross-refs in `Core-Laws-and-Precedents.md`, and the `Core-STATUS.md` ledger cursor (**it was
+stale at D77**, predating even D78). `pnpm check:docs` green.
+Encodes: canon-row unit · span classification · two planes (ROOM unclamped BY TYPE / VIEWER clamped) ·
+membership+visibility inseparable (plugin fan-out precedent named) · one resolver + one chokepoint + three
+projections · one `[joinSeq, leftSeq)` interval algebra, join-INCLUSIVE · **default `full`, from-join is a
+host OPT-IN** · authority⇒visibility · "the prompt is the room's, the transcript is the reader's" ·
+floored-fork-not-per-reader-prompts · invisible history collapses to a visible baseline · one verdict for one
+seq across live+durable.
+**⚠️ RECONCILIATION DEBT — D79 currently describes the TARGET, and several pieces are UNBUILT or in-flight:**
+the branded `HistoryFloorSeq` (HELD), `role==="host" ⇒ floor 0` (F2, HELD), the matrix-keyed reader gate +
+firehose import allowlist (in-flight lane), and `resolveViewerVisibility` (in-flight lane). The entry IS
+honest about the host-facing setter being in progress but NOT about these five. **BEFORE CALLING THIS DONE:
+re-read D79 against the landed code and either (a) confirm each clause is implemented, or (b) amend the entry
+to state what is doctrine-pending-implementation.** A ledger that overstates the code is worse than no entry.
+
+### ═══ SYSTEMATIC HALF-SHIPPED SWEEP (2026-07-25) — 7 categories, results ═══
+Ran because the pattern was 4-for-4 tonight (removeCharacterFromChat · streamScrollMode · toolCalls ·
+joinHistoryVisibility). Categories: A verb-without-transport · B proc-without-client-caller · C
+persisted-but-never-read column · D emitted-but-never-consumed event · E setting-nothing-honors · F unused UI
+primitive · G unreachable enum arm.
+**CLEAN CATEGORIES (a real result):** **A** (no forgotten verb lacking transport) · **C** (no unread column
+beyond the already-fixed `joinHistoryVisibility`) · **F** (`pnpm ast orphans ui` → only `handle.ts` ref-type
+exports + a trivial `ToolbarSeparator`; **`ToolCallBlock` now confirmed WIRED with 3 client callers** — our
+fix landed) · **D-reducer** (`apply-chat-bus-event.ts` is `assertNever`-exhaustive, every member has a case).
+**FINDINGS:**
+1. **`settings.addExternalBackground` — ⚠️ SCOUT SEVERITY CORRECTED BY ME (was "Medium-High, the
+   streamScrollMode shape"; ACTUALLY an unbuilt feature, no broken flow).** I traced it: `BackgroundSourceField`
+   (the URL+Apply UI) is used ONLY by chat room-overrides + character appearance, and BOTH materialize
+   server-side on write (`chat/verbs/roster.ts:258`, `character/verbs/update.ts:104`) — **those flows WORK**.
+   The SETTINGS surface deliberately FILTERS `external` OUT (`appearance-select-items.ts:90` — "a transient
+   INPUT-only kind, never a persisted paintable"), so no user can reach a dead Apply. The verb serves a
+   DIFFERENT unbuilt feature: adding a URL to the background LIBRARY from settings (verb returns a ready
+   `BackgroundLibraryEntry` for the client to append via autosave). Server half complete, UI never built =
+   VOLUME not SHAPE ⇒ NOT built tonight. **Lesson: a scout finding is an INPUT — this one's severity was
+   wrong because it assumed the Apply button was reachable in settings.**
+2. **`worldInfoActivated` — GENUINE GAP (transparency), NOT built.** The server computes which WI entries
+   FIRED this turn and emits `entryIds` (`assembly/context.ts:712`, `engine.ts:1091`); automation's
+   `fact-resolver.ts:114` consumes it for triggers — but the human-facing half doesn't exist
+   (`data/invalidation.ts:61` filter = `nothing`, `apply-chat-bus-event.ts:76` = a no-op case). The code
+   comment (`contracts/chat/index.ts` ~L807) explicitly names the ST-precedent `WORLD_INFO_ACTIVATED` display
+   hook. Data is fully live; only a display is missing. Natural home = beside/inside the **Preview tab**
+   (which already shows assembly provenance). Needs a placement decision ⇒ owner call, not auto-built.
+3. **`chatLayout` — ⚠️ NOT a gap: VN-MODE PURGE DEBRIS. ✅ REMOVED (uncommitted).** Clean 2-file deletion
+   (`contracts/src/settings/index.ts` + its contract test); repo-wide grep now returns ZERO. **No schema
+   version bump needed** — `appearanceSchema` is a plain `z.object` (no `.strict()`/`.passthrough()`), so a
+   stored blob carrying `chatLayout:"classic"` parses cleanly, drops the key, and keeps every sibling;
+   verified EMPIRICALLY against `update-user-settings-echo-stability.suite.int.test.ts` (7/7) + the
+   autosave-convergence fixed-point suite (11/11), not just asserted. The deleted line read
+   `// VN-1 — the standard thread until opted into VN` — provenance confirmed. Owner's instinct
+   ("check classic against main, see where it originally fed") cracked it. In MAIN:
+   `CHAT_LAYOUTS = ["classic", **"vn"**]` (`contracts/settings:386`) feeding `use-chat-layout.ts:21`, an
+   `AppField name="chatLayout"` (`appearance-settings-surface.tsx:109`), and a label map whose comment reads
+   *"chatLayout (VN-1) — the whole-pane layout mode, orthogonal to the per-message `chatStyle` skin."*
+   **`vn` = Visual Novel mode = PURGED.** The burn-down removed the arm + hook + UI and left the field ⇒ an
+   INCOMPLETE PURGE, and a single-arm enum that selects nothing is a trap (a future reader assumes a layout
+   system exists). Correct action = DELETE, not wire. Lane briefed to handle the versioned-config
+   implications properly (persisted rows carry `chatLayout:"classic"`; removal must not throw, wipe siblings,
+   or break the autosave-convergence fixed-point suite). `chatStyle` is a DIFFERENT, fully-wired concept —
+   untouched.
+   **GENERAL TRIAGE LESSON** → [[check-main-for-the-original-consumer]]: when retro has dead scaffolding,
+   READ MAIN for what originally fed it — main still has the removed arms + their consumers, so it tells you
+   instantly whether it's an unbuilt feature (build) or purge debris (delete). A **single-arm closed tuple is
+   the loudest tell**; a fully-wired SIBLING (here `chatStyle`) is the corroborating clue.
+4. **NOT gaps — the rollback's honest state:** `automation.*` (11 procs) is self-declared unbuilt
+   (`automation-pane.tsx` = `placeholder: true`, the LAST placeholder pane); `databank.*` (16) + `plugin.*`
+   (7) have NO client directories at all post-rollback — server domains survived, client wasn't rebuilt yet.
+5. **INTENTIONALLY UNEXPOSED (verified, not gaps):** `chat.setChatDocumentVisibility` (host-only per
+   `matrix.ts:108`, D85) · `connection.getModelCapability` (consumed server-side by `resolve-role.ts`) ·
+   `assets.resolveBlobRefs` (superseded by the chat-scoped twin `resolveChatBlobRefs`, which IS client-called).
+6. **UNVERIFIED, likely false positives** (docs assert client consumption, call chain not traced — do NOT act
+   without a second pass): `world-info.attachToChat/detachFromChat/listForChat`, `discovery.swipeHotspots/
+   similarChats`, `imagery.editImage/extractPrompt/readProvenance`, `tag.bulkAttachTag`.
+7. ~~DOC DRIFT: BUILD-QUEUE.md claims A8 "DONE"…~~ **❌ RETRACTED — MY ERROR, owner corrected.**
+   `docs/architecture/proposed/**` is **PRE-ROLLBACK MAIN-ERA REBUILD REFERENCE, not our plan** — retro
+   exists BECAUSE that line was reverted. `BUILD-QUEUE.md` already carries the marker: *"⚠️ RETRO NOTE
+   (2026-07-24): carried from main pre-rollback — the code this describes was purged in the retro burn-down;
+   this set is the REBUILD reference."* and `INDEX.md` says *"Re-verify before trusting any set's internal
+   status lines — several rotted."* So **"correcting" it to match current reality would DESTROY its value as
+   a historical rebuild record.** Do not edit it; do not cite its status claims as current state.
+   **THE ACTUAL FAILURE WAS AGENT DISCIPLINE (twice):** the sweep read PAST the marker and used
+   "per BUILD-QUEUE wave 5-7 / A8 DONE" to JUSTIFY classifying the unwired `automation.*`/`databank.*`/
+   `plugin.*` procs — reasoning from a doc that does not govern us; and I compounded it by proposing a fix.
+   Their CONCLUSIONS still stand on INDEPENDENT evidence (the automation pane self-declares
+   `placeholder:true`; databank/plugin have no client directories at all post-rollback) — but re-derive from
+   code, never from proposed/. **The one authoritative status doc for this line is THIS workboard +
+   `docs/architecture/core/**`.**
+
+### ═══ LANE STATUS (2026-07-25, autonomous — owner: "keep going, no stopping for context") ═══
+**LANDED, UNCOMMITTED** (nothing committed since `9de029ef` — 5 lanes were live so no clean gate window):
+· live-SSE clamp · delta `slotSeq` classification (Fable-RATIFIED) · smart-arbitration degrade warning
+· delete-during-stream crash fix (**+ `chat.delete` was returning 500 on 100% of calls** — emit-after-drop is
+DOA under FK cascade; now abort→emit→drop, and `bus.emit` is TOTAL, classified off GROUND TRUTH via a row
+probe, never off the error code) · 16 group-chat/multi-tab e2e tests · group-config cross-tab invalidation fix
+· **joinHistoryVisibility default → `full`** (migration SQUASHED into `0000_baseline.sql` via a scratch
+out-dir regen, one-line diff, parity test green; every clamp test now spells `from-join` EXPLICITLY; new pin
+asserts the default) · **slash-command architecture** (ONE registry, TWO hosts: composer `/cmd` dispatch +
+⌘K palette; the hardcoded "Create" rows became first-class contributions — `/new-chat` owned by
+features/chat, `/new-character` by features/character; `SlashCommandContext` projection is the
+forward-compat hinge so permissions arrive as PROJECTION fields, never new contribution fields;
+`unavailableReason` returns a REASON not a boolean per the no-hiding law; `//` escapes; unknown `/cmd` is
+REFUSED with an inline notice, never silently sent; 12 CTs + 17 grammar tests).
+**RUNNING (5)**: structural enforcement (positive bus anchor allowlist · matrix-keyed reader gate ·
+firehose import allowlist) · abort-signal→summarize (the smart HANG) · cross-domain
+`resolveViewerVisibility` op + F1 fix · per-seat history-visibility SETTER · `quickReplySurfaced` dead-wire
+triage.
+**HELD**: brand `HistoryFloorSeq` (waits for the enforcement lane) · D-ledger mint (⚠️ Fable's ready text
+says `from-join` is default — MUST be rewritten for `full` + opt-in + inclusive-joinSeq before minting) ·
+F2 host⇒floor 0 · fork baseline batch (F6).
+**`quickReplySurfaced` TRIAGED → VERDICT: DON'T BUILD (dead-ENDED pair, not a missing consumer).**
+Both producers are complete + compose-wired + the watcher IS running (`lifecycle.ts:249`), BUT **nothing in
+the product can trigger either**: the rule arm needs an `automation_rules` row and `createRule` has **ZERO
+non-test call sites** (only `tests/**` + the tRPC router — the tell for *API-reachable, product-unreachable*);
+the only client automation surface is `features/settings/lib/automation-pane.tsx`, 13 lines,
+`body:{placeholder:true}`, **the LAST placeholder pane in the app**. The plugin arm DELIBERATELY withholds
+`chat.quick_reply` from snippets (`plugin/verbs/run-snippet.ts:7-10,27`) so only an INSTALLED plugin can emit
+— and there is no plugin installer UI (`packages/client/src` has zero refs to `plugin.install`/`runSnippet`).
+No orphan UI primitive exists either (unlike `ToolCallBlock`) — the chip would be net-new.
+⚠️ **MY BRIEF WAS WRONG ON A LOAD-BEARING FACT**: this does NOT ride the chat bus. It uses its own
+`automation:${chatId}` channel with a SEPARATE gated subscription `automation.stream`
+(`transport/trpc/automation-bus.ts:18-20`, `routers/automation.ts:142-168`) — the client tails only
+`chat.streamMessages`. So the wiring point is a NEW subscription hook (the `use-chat-bus.ts` shape), NOT a
+case in `apply-chat-bus-event.ts`. Whoever builds this later must know that.
+**THE REAL MISSING HALF IS THE AUTOMATION RULE EDITOR (O1)** — build that and the chip becomes a genuine,
+demonstrable requirement of it (and should ship in the same wave, since the chip is the member-facing payoff
+of the `surface_quick_reply` arm). Building the chip first inverts the dependency. NOT built tonight: it is a
+whole planned feature (VOLUME), explicitly marked DECLARED-PLANNED/unbuilt in the repo's own docs — not an
+accidental gap. See [[dead-wire-vs-dead-ended-pair]].
+**SERVER-SIDE SLASH-COMMAND DESIGN (scoped, NOT built)**: only 3 plugin contribution kinds exist today
+(`PluginTool`/`Transform`/`EventSubscription`, `contracts/plugin/registrations.ts:18,27`, collected at
+`plugin-host/sandbox.ts:185,192,199`); **no command capability**, and `plugin.list` returns NO registrations
+at all so the client cannot discover them. Proposal: add `"commands.register"` to the closed
+`PLUGIN_CAPABILITIES` tuple + a `PluginCommandRegistration` carrying THE SAME four fields the client
+contribution does (so the mapper is a projection, not a translation); `collectedCommands` behind a
+capability-gated membrane fn; a slim `domain/command/` (NOT inside `tool-use` — a command is not
+model-callable). **THE FORK — decide before building**: a tool runs under the INSTALLER's ceiling but a
+slash command is HUMAN-initiated. (i) run as the invoking caller = semantically right but the whole membrane
+effect surface is written against the installer ceiling ⇒ consent gap. (ii) **installer ceiling ∩ caller's
+chat authority** — reuses `resolveInvocationChat` verbatim, keeps "chat tools execute as HOST" intact —
+**RECOMMENDED**. Client needs NO new architecture, only an additive **provider arm** on the registry
+(`{id, useCommands()}`) so query-result commands coexist with statically-assembled ones (G8 keeps assembly
+at the door).
+
+### ═══ OWNER RULING: joinHistoryVisibility DEFAULT → `full` (+ the re-ordered plan) ═══
+**RULING (2026-07-25):** *"if you are inviting someone into a group chat they should be able to view previous
+turns, that makes the most sense for me"* + *"the host obviously should have full control."* ⇒ the
+`chat_participants.joinHistoryVisibility` column default flips **`from-join` → `full`**. Lane dispatched.
+The clamp machinery is NOT removed — it is **demoted from default-behavior to an OPT-IN restriction
+mechanism**. Presence-ERAS: **accept destruction** (no append-only eras; a future per-era feature is
+new-data-only).
+**⚠️ VERIFIED: the restriction is currently UNSETTABLE.** Repo-wide sweep: **ZERO** references to
+`joinHistoryVisibility` in `packages/client` (no UI) and **ZERO** in `packages/server/src/transport` (no tRPC
+proc). The only write hardcodes `"full"` (`verbs/roster.ts:387`). So the clamp is pure mechanism with no way
+to invoke it — not merely cold, **unreachable**. A setter (UI + proc) is future work; until then the
+structural enforcement below is the ONLY thing keeping it correct.
+**RE-ORDERED PLAN (supersedes Fable's §(C) ordering — the default flip landed AFTER Fable wrote it).**
+The inversion: with `full` as default + no setter, F1/F2 both require a restricted member and are now
+near-unreachable, while the hardening ladder becomes MORE important — compile-time + CI enforcement are the
+only things that protect an unexercised path. New order:
+  1. **Positive bus anchor allowlist** (contracts test-d) — a new content-bearing bus member is RED until it
+     carries a canon anchor. ← DISPATCHED
+  2. **Matrix-keyed reader gate** (ts-morph, keyed off `CHAT_VERB_AUTHORITY`, NOT a path list) — a
+     member/author-or-host verb may not call the floorless room-plane canon readers. ← DISPATCHED
+  3. **Firehose import allowlist** — `subscribeAllChatEvents` importable only by the compose root. ← DISPATCHED
+  4. **Brand `HistoryFloorSeq`** (minted ONLY by `resolveHistoryFloorSeq`; a fabricated `0` stops
+     typechecking) — HELD until the default-flip lane settles (it owns clamp.ts/queries.ts/guard.ts).
+  5. **D-ledger mint + docs** — ⚠️ Fable's ready-to-mint entry text says `from-join` is the default; it MUST
+     be rewritten for `full` + "the clamp is opt-in" + "joinSeq is INCLUSIVE" before minting.
+  6. **F1 plugin-firehose fix** (real, now narrow) · 7. **F2 host⇒floor 0** (cheap belt) · 8. **fork baseline
+     batch / F6** (rare path).
+**THE NOT-BUILDING LIST IS REJECTED-FOR-CAUSE, NOT DEFERRED** — do not "finish" it later: a viewer-scoped
+repository / clamped DB handle / edge membrane buys the SAME guarantee the ladder reaches, by inverting
+persistence (churn for elegance); per-reader assembly + event redaction are incoherent (fork canon, N
+assemblies per turn); clamping `getVariables`/`historyTruncated`/id-only payloads/fit numbers is theater and
+would BREAK things (blinds a member to their own events); a second clamp home in another domain IS the F1
+defect. Only two items are genuinely "not yet": a member-facing recall/search surface (rule defined, no
+consumer) and multi-era floor reads (owner ruled: accept destruction).
+
+### ═══ FABLE 5 DESIGN RULING — Presence-Interval Visibility (full report: reports/stickler/2026-07-25-join-history-visibility-model.md) ═══
+**THE MODEL.** Unit of visibility = the **canon row** (`messages.seq`); every derived artifact classifies by
+the seq-span of the canon it derives from (live stream → its slot, summary → coverage span, digest → block
+span, variable delta → its stamp). An artifact with **no canon anchor** (ids, counts, lifecycle, resume
+control, current variable values) is room-activity metadata and is **never clamped**.
+**TWO PLANES**: the **ROOM plane** (assembly, engine, compaction, quiet extraction, arbitration, automation
+fact resolution, the firehose) reads full canon under host authority, unclamped **BY TYPE**. The **VIEWER
+plane** (any bytes toward a specific human) is clamped by that human's floor, resolved once at
+`requireParticipant`. **THE LAW: membership and visibility are ONE INSEPARABLE ANSWER — no API may report
+"member: yes" without handing back the floor in the same value.** One resolver, three projections: SQL
+`seq >= floor` · per-event `isBelowHistoryFloor` (closed anchor-carrier set) · per-span `spanWitnessed`.
+**The member floor and character witnessing are the SAME `[joinSeq, leftSeq)` interval algebra — never fork
+the comparator.**
+**ANSWER TO "is the required-floor-param an invariant or a convention?"** — type-forced in only 3 persistence
+reads; repo-wide it is a **CONVENTION**, and it has **already failed once outside domain/chat** (F1). Keep
+the chokepoint/matrix/one-resolver bones; add the hardening ladder: branded `HistoryFloorSeq` (minted only by
+the resolver) · ONE cross-domain `resolveViewerVisibility({chatId,userId}) → null | {role, floor}` · positive
+bus key-ALLOWLIST pin (content carriers = `view` | `delta`+`slotSeq` ONLY) · ts-morph gate keyed off
+`CHAT_VERB_AUTHORITY` (member-classified verbs may not call floorless canon readers) · firehose importer
+allowlist. **EXPLICITLY NOT: a viewer-scoped repository / clamped DB handle / edge membrane — "payoff would
+be elegance alone."**
+**CONFIRMED FINDINGS**: **F1 MEDIUM LEAK (unfixed)** — plugin event fan-out bypasses the floor: host edits a
+pre-join slot → `messageEdited` → unclamped firehose (`compose/automation-watcher.ts:115`) → `fact-resolver`
+resolves the variant's CONTENT → `plugin-subscribers.ts:50` gates on `canInstallerSeeFact`
+(`automation/persistence/canon-reads.ts:79-82`) which checks **membership only, no floor** → pre-join content
+to a clamped installer's guest. Precondition: installer is global admin AND a from-join member. THE proof the
+floor is a convention outside chat. **F2 MEDIUM coherence** — host-handoff makes a clamped host
+(`participant.ts:166` swaps role only; the resolver ignores role) ⇒ `listMessages` withholds while
+`chat.compact` hands them the seq-1 summary. **F4 LOW** — `canonAnchorSeq` keys on carrier names; the
+existing secret pin is a DENY-list, so a future content field under a new key bypasses both silently (→ the
+positive allowlist). **F6 LOW** — floored fork's variable carry is a hybrid (drops pre-floor slot deltas but
+carries pre-floor standalone batches verbatim ⇒ wrong current values + resurfaced pre-join values).
+**RULINGS**: (1) `joinSeq` INCLUSIVE — keep (one interval algebra; exclusive forks it + needs a founder
+special case). (2) id-only payloads ride through — RATIFY (the floor governs canon CONTENT, never
+room-activity facts; same principle answers #4 + F5). (3) **`slotSeq` IS the right shape — RATIFIES the
+landed delta lane** (the verdict is inherently per-event: one stream interleaves pre-join-slot and post-join
+deltas, so floor-on-subscription is wrong). (4) `historyTruncated` leave as-is, reclassify as resume-control.
+(5) firehose unclamped BY TYPE + two structural belts (importer allowlist; every per-member egress consumes
+`resolveViewerVisibility` — one mechanism answers #5 AND F1). (6) turn assembly unclamped IS right doctrine —
+"the prompt is the room's; the transcript is the reader's" (a turn is ONE shared utterance; per-reader
+assembly forks canon; real secrecy = the floored fork). (7) memory/search **swept, NO current leak, proven**
+(digests owner-belted via `characters.ownerId`; segments via `ownedChatIds`; documents chat-scope
+transport-refused) — BUT closed by the WRONG AXIS (ownership, not membership+floor), so a future
+member-facing "search this room" MUST consume the visibility op + `spanWitnessed`. (8) variables: current
+VALUES are room-state (no floor — clamping is theater since post-join turns render them anyway); delta
+HISTORY collapses to ONE synthetic baseline batch on a floored fork (the variables twin of the
+compaction-checkpoint rule) — fixes F6 entirely.
+**OWNER ANSWERS SO FAR**: presence-ERAS → **accept destruction, single interval is enough** (no append-only
+eras; a future per-era feature would be new-data-only). Host/invite → **"if you invite someone to the room
+they should be able to see the room's ENTIRE history; the host obviously should have full control"** ⇒ this
+is BIGGER than F2: it implies the `joinHistoryVisibility` **column default should flip `from-join` → `full`**,
+demoting the clamp from default-behavior to an opt-in restriction mechanism. **AWAITING CONFIRMATION** +
+whether a deliberately-restricted member should also have the AI's knowledge restricted (ruling 6 is moot for
+the default case once the flip lands). Turn-assembly doctrine → owner asked for a plain-language explanation,
+given.
+
+### ═══ SMART-POLICY FALLBACK (uncommitted) — was CORRECT but SILENT ═══
+Owner's design ("smart routes to the side LLM for turn order; if that fails fall back to the math way from
+SillyTavern") was **already implemented correctly**. `verbs/turn.ts::arbitrate` → `engine/smart-arbitrate.ts`
+(a real `ctx.summarize` call) and EVERY failure mode already degraded to `selectSpeakers({policy:"natural"})`:
+op rejects · **sync throw (the small-hardware `provider "vllm" is not wired for the "summarize" role` case)** ·
+unparseable · empty · hallucinated names · a muted/left seat (unmatchable — the vocabulary is
+`eligibleNamed`). All were **100% SILENT** ⇒ D41 violation. FIXED: `SmartArbitrationResult {speakers,
+degraded}`, `degraded` true ONLY when the model was actually consulted and its answer was unusable (the
+single-eligible / no-eligible short-circuits stay false — no model called, don't cry wolf), new
+`smart_arbitration_degraded` warning code → toast: "The turn director model wasn't available — who speaks
+next was picked automatically instead." Tests bite (flip to `degraded:false` → 10 fail; widen the match
+vocabulary to all candidates → 2 muted-seat fails). Also corrected the LYING comment in `select-speakers.ts`
+(read as "smart is unwired"; the `case "smart"` arm IS reachable — a smart room whose @mention resolved to
+nobody eligible falls through with an empty forced list; that is NOT the degrade path, no model was called).
+**UNFIXED, NEEDS A CALL — THE HANG**: `smartArbitrate` passes no signal/deadline, `RoleClients.summarize` has
+no signal param, `vllm/engine/client.ts::enginePost` sets no fetch timeout ⇒ a box that accepts the socket
+and never answers **hangs the whole turn**. The lane refused to invent a constant (a 7B director on slow
+local HW can legitimately take tens of seconds). PROPOSED: plumb the turn's existing AbortSignal into the
+summarize role so the user's own Stop governs it (matches [[chat-engine-abort-seam]]), NOT a guessed timeout.
+Minor: auto-mode re-arbitrates per chained turn ⇒ one warning per turn on a persistent outage (client dedupe
+by code is the polish).
+
+### ═══ GROUP-CHAT + MULTI-TAB E2E LANDED (uncommitted) — 16 tests + 3 findings ═══
+`tests/e2e/group-chat.spec.ts` 5/5 · `multi-tab-room-sync.spec.ts` 3/3 · `live-group-modes.spec.ts` 8/8.
+Instrument = the COMMITTED CANON's speaker sequence (characterId per assistant row, in seq order) + row
+count, read from the SERVER never the DOM. Each arm DISTINGUISHES its mode by controlled contrast:
+per-speaker vs narrator use the SAME 3-cast + SAME `list` policy so 3-rows-vs-1-row is attributable to
+`output` ALONE (and narrator's single author is a real id NOT in the roster = the synthetic group char);
+`manual` = a plain send commits ZERO assistant rows (any other policy → ≥1); @mention is run UNDER manual
+(policy schedules nobody ⇒ any speaker can only be the override); mute vs talkativeness-0 separated by
+ABSENCE vs ORDER; autoMode's assertion is the BOUND (2 chain turns at maxTurns 2).
+**FINDING 1 — FIXED: group config did NOT propagate cross-tab.** `BUS_FILTERS.chatUpdated → chatReads()`
+covered getChat/listMessages/listMessageVariants/previewContextFit/listChats but **never
+`chat.getGroupConfig`** — the Group tab's own read. With `staleTime: Infinity` + no refetchOnWindowFocus, a
+2nd tab/device in the same room showed the PREVIOUS room behavior FOREVER; only the writing tab's own
+mutation-invalidate refreshed it. Caught RED first, then fixed in `packages/client/src/data/invalidation.ts`
++ the coupled `tests/client/data/invalidation.test.ts` row. **LESSON: `chatUpdated` does not cover a context
+tab's OWN read — any new per-room read outside `getChat` needs its own filter on that arm + the
+invalidation.test.ts row.**
+**FINDING 2 — 🚨 SERVER CRASH, FIX LANE RUNNING: deleting a chat while a turn STREAMS kills the process.**
+The next `delta` after the chat row is gone violates the `chat_events.chat_id` FK; nothing catches it ⇒
+unhandled rejection ⇒ Node exits. Observed TWICE with stack traces (`bus.ts:44` emit ←
+`compose/services.ts:473` emitChatEvent). Real user path (delete from the list mid-turn). Fix brief: abort
+the in-flight turn on delete AND make no bus emit able to kill the process (whole class), while keeping
+durable-first ordering and NOT blanket-swallowing real DB errors.
+**FINDING 3 — a COMMITTED SOLO chat has NO UI to add a character.** `AddMemberPopover` is rendered only by
+`ChatCastBar`, which returns null below 2 characters; the Members + Group context tabs are likewise gated at
+>1 character. So solo→group conversion is reachable ONLY via the API or by seeding a multi-character DRAFT.
+(My earlier live drive did solo→group from a DRAFT, which DOES have the affordance — hence it looked fine.)
+NOT FIXED — needs an owner call on where the affordance belongs on a committed solo chat.
+**FINDING 4 — the `smart` policy premise is wrong in the docs**: `verbs/turn.ts:403` routes `smart` (no
+forced target) to `smartArbitrateVia` — a REAL side-LLM `summarize` call — BEFORE `selectSpeakers` is
+reached; the `select-speakers.ts:94-96` natural fallback only applies on the sync path. So e2e-observable
+`smart` is the summarizer's behavior, not the documented fallback. Deliberately left uncovered (asserting
+the fallback would be a lie; exercising the side-LLM is unscoped spend).
+**MINOR**: the `list` form label "Everyone, in order" over-promises — after ban-last, a 2-char cast has ONE
+speaker in round 2. And a per-send `maxOutputTokens` intent makes the **agent-sdk** arm fail
+(`success-subtype flagged is_error`) — the live spec pins the stateless chat-completions × vllm wire and
+restores the route in afterAll.
+**OPS FLAG**: every dev-server restart **SPAWNS** an owned `rerank` vLLM engine (`"reason":"no engine
+running"`) while embed/gen are ADOPTED — if rerank is meant to be adopted too, that's a supervisor gap.
+
+### ═══ joinHistoryVisibility ENFORCED `9de029ef` — open questions + residue ═══
+Single home: `substrate/auth/clamp.ts` (`resolveHistoryFloorSeq` / `isBelowHistoryFloor`), stamped onto
+membership by `guard.ts::requireParticipant` (THE chokepoint), consumed as a REQUIRED param by every history
+query (so a new caller can't forget it). Replay clamps by CONTENT (`"view" in event`) not cursor —
+chat_events.seq and messages.seq are different axes; a post-join edit of a pre-join row rides a HIGH event
+seq with a LOW view seq and would sail through a cursor floor. Verified by neutering the floor → 8 tests red.
+**TWO ESCALATIONS found beyond the reported symptom (both fixed):** (1) `forkChat` was a FULL BYPASS —
+member-classified, deep-copies every slot into a chat where the forker becomes HOST ⇒ a from-join member
+could fork and permanently own the whole pre-join transcript; (2) the compaction summary (model prose
+distilling canon from seq 1) leaked via getChat + previewContextFit + **redeemInvite/acceptInvite** — the
+join response handed a joiner a summary of exactly what their floor withholds.
+**⚠️ OPEN QUESTIONS FOR OWNER (low stakes, none blocking):**
+· `joinSeq` treated as INCLUSIVE (member sees the last message posted before they arrived). Exclusive (`gt`)
+  is one stricter and a ONE-CHARACTER change. Contract wording "only from their joinSeq" read inclusive.
+· Id-only bus payloads (a `view`-less `messageCommitted`, `messagesDeleted` naming pre-join ids) ride through
+  the clamp — no content, ids resolve only through the now-clamped listMessages, but it IS a weak existence
+  oracle. Withholding them would blind a member to their OWN post-join events when a view races a delete.
+· A from-join member reconnecting MID-TURN loses that turn's partial token stream (both replay paths).
+  Functional cost, not security; doing better needs a schema-level event-log join marker.
+**RESIDUE — ranked:** (1) ~~live SSE fan-out unclamped~~ **CLOSED (uncommitted)** — shape (a): `chatEventBounds`
+(already the ONE member-gated read the subscription does per yield) now returns `historyFloorSeq`; the yield
+site applies `isBelowHistoryFloor` verbatim at ZERO extra I/O. Cursor advances only on delivery ⇒ withheld
+row leaves a gap, no stall/re-offer. Host/`full` short-circuit on one numeric compare. Proven to bite.
+  ⚠️ **BUT it forced a UX trade → SECOND LANE RUNNING to remove it.** `ChatDeltaEvent` carries no
+  messageId/seq so deltas are UNCLASSIFIABLE; the clamp lane conservatively withheld ALL deltas from clamped
+  members. Since `from-join` is the DB DEFAULT, that means **every invited member in a room with prior canon
+  loses token STREAMING** (messages pop in on commit). Unacceptable — streaming is core feel and multi-human
+  group chat is the active focus. PROPER FIX DISPATCHED: put the target slot's seq on `ChatDeltaEvent` so
+  deltas get the same per-row verdict → streaming restored for post-join content, pre-join slot deltas still
+  withheld (the real leak: a host swiping/continuing a PRE-JOIN slot streams that slot's tokens live).
+  Live and replay MUST agree (one emit = one seq, durably logged AND fanned; visibility must not depend on
+  whether the client was connected) — that coherence was the clamp lane's core argument, preserved.
+  Also flagged by that lane: `subscribeAllChatEvents` (firehose) is unclamped BY DESIGN — sole consumer is
+  `entry/compose/automation-watcher.ts` (server-side rule engine under host authority, not per-member
+  delivery). Fine today; if anything user-facing is ever wired to it, it needs the same clamp.
+  And: `historyTruncated` is computed from the ROOM-wide retained window, not the member's floor — carries
+  no content, but a clamped member can be told "history truncated" about rows they never had rights to. (2) Turn ASSEMBLY intentionally unclamped — the prompt builds from
+full canon under the HOST's runAsUserId, so a from-join member can trigger a turn and ask the model about
+pre-join events; that's room-semantics (the AI's context is the room's, not the reader's), a DESIGN question
+not a defect. (3) `chat/memory` recall + `search`/`embeddings` never swept for the join floor — memory's
+witnessing gates CHARACTERS not human readers; if any member-facing recall/search returns message bodies
+cross-scope it needs the same treatment. **That cluster is unopened — highest-value next security sweep.**
+(4) `standaloneVariableDeltas` on fork carry pre-join seq stamps (ChoiceBlock gameplay state, not transcript;
+`getVariables` is member-gated with no floor — left alone rather than half-clamping one of two paths).
 
 ### ═══ OWNER CHECK-IN RULINGS (2026-07-24, latest — these supersede) ═══
 1. **Member-menu doctrine fork → KEEP §8.1 OMIT.** Host-only actions stay HIDDEN for non-hosts (all 7

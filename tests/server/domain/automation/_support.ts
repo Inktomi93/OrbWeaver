@@ -10,6 +10,7 @@ import { chats, messages, messageVariants, users } from "@orb/db";
 import type { ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { can } from "@orb/server/domain/admin";
+import { createResolveViewerVisibility } from "@orb/server/domain/chat";
 import { eq } from "drizzle-orm";
 import type { ArmDispatch, AutomationOps, TurnOriginRead } from "../../../../packages/server/src/domain/automation/contract/ops.ts";
 import type { PluginSubscriberRegistry } from "../../../../packages/server/src/domain/automation/contract/plugin-subscribers.ts";
@@ -107,6 +108,9 @@ function testChatOps(db: Db): AutomationOps {
         const rows = await db.select({ v: chats.variableValues }).from(chats).where(eq(chats.id, chatId)).limit(1);
         return rows[0]?.v ?? {};
       },
+      // THE cross-domain viewer-visibility op — the REAL chat factory over the real db (never a fake): the
+      // plugin fan-out's delivery gate consumes it, so a stubbed verdict here would test nothing.
+      resolveViewerVisibility: createResolveViewerVisibility({ db }),
       // A6 write ops — inert defaults (the shared harness's A3/A4/A5 tests never fire a real arm; the arm
       // tests inject a capturing `AutomationOps`). Overridable via `overrides.ops`.
       applyVariableOps: async (): Promise<void> => undefined,

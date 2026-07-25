@@ -3,14 +3,20 @@
 // truth) AND pushes to the in-process ring, the per-chat `seq` is monotonic, and the ring read honors the
 // `afterSeq` cursor.
 
+import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
-import { chatEvents } from "@orb/db";
+import { chatEvents, chats } from "@orb/db";
+import { isConstraintViolation } from "@orb/db/kit";
+import type { ChatEventId, ChatId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
+import { getLog } from "@orb/server/foundation/observability";
 import { asc, eq } from "drizzle-orm";
-import { beforeEach, describe } from "vitest";
+import { beforeEach, describe, vi } from "vitest";
 import { createChatBus } from "../../../../packages/server/src/domain/chat/bus";
+import { appendChatEvent } from "../../../../packages/server/src/domain/chat/persistence/events";
 import { freshDb } from "../../../support/db";
 import { expect, test } from "../../../support/fixtures";
-import { makeChatContext, seedChat } from "./_support";
+import { FROZEN_AT, makeChatContext, seedChat } from "./_support";
 
 let db: Db;
 
@@ -60,5 +66,81 @@ describe("createChatBus.emit — durable-first + the replay ring", () => {
     expect(bus.readRing(chatId, 1)).toEqual([{ seq: 2, event: { type: "chatDeleted", chatId } }]);
     // An empty ring for an unknown chat is not an error.
     expect(bus.readRing(await seedChat(db, "z"))).toEqual([]);
+  });
+});
+
+/** A `delta` for `chatId` — the exact event shape the streaming engine fire-and-forgets per token. */
+function deltaEvent(chatId: ChatId): ChatBusEvent {
+  return { type: "delta", chatId, slotSeq: 1, delta: { chatId, kind: "text", text: ' "' } };
+}
+
+// The observed production crash (server.log 12:45:05Z / 12:47:54Z): a chat deleted mid-turn cascade-drops the
+// `chats` row, the in-flight turn's NEXT `delta` INSERT trips the `chat_events.chat_id` FK, and because the
+// engine emits deltas fire-and-forget (`void deps.emit(…)`) the rejection was UNHANDLED — the node process
+// exited, taking every user's server with it. `emit` is therefore TOTAL (bus.ts FLAG[emit-is-total]).
+describe("createChatBus.emit — a failed durable append never rejects (the process-kill floor)", () => {
+  test("the raw append into a DELETED chat is a FOREIGN-KEY violation — the exact crash `emit` must absorb", async () => {
+    const chatId = await seedChat(db, "a");
+    await db.delete(chats).where(eq(chats.id, chatId));
+
+    const err = await appendChatEvent(db, {
+      id: castId<ChatEventId>("chat_event_raw"),
+      chatId,
+      event: deltaEvent(chatId),
+      createdAt: FROZEN_AT,
+    }).catch((e: unknown) => e);
+
+    expect(isConstraintViolation(err)?.kind).toBe("foreign-key");
+  });
+
+  test("a delta emitted into a deleted chat resolves null, writes nothing, does not push the ring, and is NOT an error", async () => {
+    const chatId = await seedChat(db, "a");
+    const bus = createChatBus(makeChatContext(db));
+    await bus.emit({ type: "chatUpdated", chatId });
+    await db.delete(chats).where(eq(chats.id, chatId));
+    const errorSpy = vi.spyOn(getLog(), "error").mockImplementation(() => undefined);
+    const debugSpy = vi.spyOn(getLog(), "debug").mockImplementation(() => undefined);
+
+    await expect(bus.emit(deltaEvent(chatId))).resolves.toBeNull();
+
+    // Dropped, not written; the ring still holds only the pre-delete event (no phantom cursor for the fan).
+    expect(await db.select().from(chatEvents).where(eq(chatEvents.chatId, chatId))).toEqual([]);
+    expect(bus.readRing(chatId).map((e) => e.event.type)).toEqual(["chatUpdated"]);
+    // The aggregate is gone: an EXPECTED race — debug, never the error channel that pages someone.
+    expect(errorSpy).not.toHaveBeenCalled();
+    expect(debugSpy).toHaveBeenCalledTimes(1);
+    errorSpy.mockRestore();
+    debugSpy.mockRestore();
+  });
+
+  test("a durable append that fails while the chat is ALIVE is a real fault — logged at ERROR, still not thrown", async () => {
+    const chatId = await seedChat(db, "a");
+    // A constant event id ⇒ the second append is a PRIMARY-KEY collision on a live chat: a genuine db fault,
+    // not the delete race, so it must surface loudly instead of being classified as benign.
+    const bus = createChatBus({ ...makeChatContext(db), newEventId: () => castId<ChatEventId>("chat_event_fixed") });
+    await bus.emit({ type: "chatUpdated", chatId });
+    const errorSpy = vi.spyOn(getLog(), "error").mockImplementation(() => undefined);
+    const debugSpy = vi.spyOn(getLog(), "debug").mockImplementation(() => undefined);
+
+    await expect(bus.emit(deltaEvent(chatId))).resolves.toBeNull();
+
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+    expect(debugSpy).not.toHaveBeenCalled();
+    expect((await db.select().from(chatEvents).where(eq(chatEvents.chatId, chatId))).map((r) => r.type)).toEqual(["chatUpdated"]);
+    errorSpy.mockRestore();
+    debugSpy.mockRestore();
+  });
+
+  test("REGRESSION GUARD: a normal emit into a live chat still writes durably, returns its seq, and fans the ring", async () => {
+    const chatId = await seedChat(db, "a");
+    const bus = createChatBus(makeChatContext(db));
+
+    const seq = await bus.emit(deltaEvent(chatId));
+
+    expect(seq).toBe(1);
+    const rows = await db.select().from(chatEvents).where(eq(chatEvents.chatId, chatId));
+    expect(rows.map((r) => r.type)).toEqual(["delta"]);
+    expect(rows[0]?.payload).toEqual(deltaEvent(chatId));
+    expect(bus.readRing(chatId)).toEqual([{ seq: 1, event: deltaEvent(chatId) }]);
   });
 });

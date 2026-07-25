@@ -1415,7 +1415,7 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": "'from-join'"
+          "default": "'full'"
         }
       },
       "indexes": {

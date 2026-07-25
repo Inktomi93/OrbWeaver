@@ -228,6 +228,75 @@ export async function renameFirstChatViaRowKebab(page: Page, title: string): Pro
   await resp;
 }
 
+// ── GROUP-ROOM helpers (group-chat.spec.ts · multi-tab-room-sync.spec.ts). Orb has NO `/chat/$id` URL, so
+// the ONLY way to put a page (or a SECOND page in the same context) into a specific room is to click that
+// chat's LIST row — which is why every group/hub spec self-seeds a UNIQUELY-titled chat and opens it BY
+// TITLE. The group surfaces are roster-size-gated by construction (chats-section.tsx): the Cast bar renders
+// only above 1 character, and the Members/Group CONTEXT tabs only when the room is a group (>1 character)
+// — so their PRESENCE is a behavioral assertion about the roster, never a layout claim. ──
+
+const CAST_BAR = '[aria-label="Cast"]';
+const CAST_CHIP = '[data-slot="cast-chip"]';
+
+/** Navigate to `/` and open the chat whose LIST row carries `title` (the row's accessible name leads with
+ *  it). The room's composer is live on return. Titles are minted unique per spec, so the match is
+ *  unambiguous on the shared DB. */
+export async function openChatByTitle(page: Page, title: string): Promise<void> {
+  await page.goto("/");
+  await waitForAppReady(page);
+  const row = page.getByRole("list", { name: "Chats" }).getByRole("button", { name: title }).first();
+  await expect(row).toBeVisible({ timeout: 15_000 });
+  await row.click();
+  await expect(page.getByRole("textbox", { name: "Message" })).toBeVisible({ timeout: 15_000 });
+}
+
+/** Expand the CONTEXT (detail) panel if it is collapsed — the ONE toggle is the topbar
+ *  `ContextToggle` (context-toggle.tsx), whose label states the action it performs. Idempotent. */
+export async function openDetailPanel(page: Page): Promise<void> {
+  const show = page.getByRole("button", { name: "Show detail panel" });
+  if ((await show.count()) > 0) {
+    await show.first().click();
+  }
+  await expect(page.getByRole("tablist", { name: "Detail" })).toBeVisible({ timeout: 15_000 });
+}
+
+/** Select one CONTEXT tab by its visible label (Members / Group / Overrides / …). Assumes the detail
+ *  panel is already open (`openDetailPanel`). */
+export async function openContextTab(page: Page, label: string): Promise<void> {
+  const tab = page.getByRole("tab", { name: label, exact: true });
+  await expect(tab).toBeVisible({ timeout: 15_000 });
+  await tab.click();
+}
+
+/** The cast bar's chip locator (chat-cast-bar.tsx) — one chip per PRESENT character, and the whole bar is
+ *  absent below 2 characters. `castChipNames` reads the rendered roster; `castChip` targets one member. */
+export function castChips(page: Page): ReturnType<Page["locator"]> {
+  return page.locator(`${CAST_BAR} ${CAST_CHIP}`);
+}
+
+/** The rendered cast-bar member names (empty when the bar isn't mounted — a solo room). A chip's text is
+ *  `<avatar initials>\n<display name>`, so the NAME is its last non-empty line. */
+export async function castChipNames(page: Page): Promise<readonly string[]> {
+  const texts = await castChips(page).allInnerTexts();
+  return texts
+    .map(
+      (text) =>
+        text
+          .split("\n")
+          .map((line) => line.trim())
+          .findLast((line) => line.length > 0) ?? "",
+    )
+    .filter((name) => name.length > 0);
+}
+
+/** Open one Members-row action menu (member-row.tsx's trailing ⋯, `Actions for <name>`) — the canonical
+ *  action home for Mute / Talkativeness… / Make X speak next / Remove X from chat. */
+export async function openMemberRowMenu(page: Page, displayName: string): Promise<void> {
+  const kebab = page.getByRole("button", { name: `Actions for ${displayName}`, exact: true });
+  await expect(kebab).toBeVisible({ timeout: 15_000 });
+  await kebab.click();
+}
+
 /** Re-open the FIRST chat in the LIST after a reload (orb has no `/chat/$id` URL — the active chat is
  *  store-only, so a reload returns to the landing state; the row still exists in the refetched list, and
  *  re-opening reads DB truth). Returns once the room's composer is live again. */

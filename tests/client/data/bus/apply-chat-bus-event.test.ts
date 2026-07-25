@@ -135,7 +135,8 @@ describe("applyChatBusEvent — stream-transient events", () => {
     );
     const delta: ChatDeltaEvent = { chatId, kind: "text", text: "hel" };
 
-    applyChatBusEvent({ type: "delta", chatId, delta }, h.deps);
+    // `slotSeq` is the SERVER-side D16 clamp anchor; the reducer forwards only the inner chunk.
+    applyChatBusEvent({ type: "delta", chatId, slotSeq: 1, delta }, h.deps);
 
     expect(h.appendDelta).toHaveBeenCalledExactlyOnceWith(delta);
     expect(h.slotOf(chatId)).toMatchObject({ phase: "streaming", text: "hel" });

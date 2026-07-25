@@ -881,6 +881,25 @@ function scopeCanon(canon: readonly MessageView[], persist: TurnPersist, target:
   return persist.mode === "append-variant" ? canon.filter((m) => m.seq < target.seq) : canon.filter((m) => m.seq <= target.seq);
 }
 
+/**
+ * The `messages.seq` of the slot this turn's tokens stream INTO — the D16 classification anchor stamped on
+ * every `delta` bus event (`ChatBusEvent`'s delta arm → `slotSeq`), so `substrate/auth::isBelowHistoryFloor`
+ * can decide raw transcript text the same way it decides a `MessageView`. Same target resolution
+ * `scopeCanon`/`commitGeneration` already use, no extra read:
+ *
+ *  • append-variant / continue ⇒ the LOADED target slot's own `seq` — so a host swiping or continuing a
+ *    PRE-join slot streams below a clamped member's floor and is withheld (the leak this closes).
+ *  • new-slot ⇒ the allocated tail `maxSeq + 1` (the same number `commitGeneration` gets as `nextSeq`) — at
+ *    or above every present member's join floor, so a post-join turn streams to everyone entitled to it.
+ *
+ * Truthful, never fabricated. The one skew is the new-slot seq-unique retry (`commitGeneration` re-derives a
+ * HIGHER head when a concurrent turn takes the seq): the row then lands ABOVE the announced anchor, so the
+ * announcement errs toward withholding, never toward leaking.
+ */
+function resolveSlotSeq(persist: TurnPersist, target: SlotTarget | null, maxSeq: number): number {
+  return persist.mode === "new-slot" || target === null ? maxSeq + 1 : target.seq;
+}
+
 /** The abort reason the heartbeat stamps onto its internal AbortController when the turn-lock is lost mid-turn.
  *  `signal.reason` carries it through `AbortSignal.any` to the provider stream, so the engine's catch can tell
  *  a lock-fault abort ("stale") from a caller cancel ("user") — the provider itself only ever surfaces a bare
@@ -1008,6 +1027,8 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
     // when no pre-turn compaction ran) so this turn's assembly already reflects the advanced coverage.
     const pre = await runPreTurnCompaction(ctx, deps, prep);
     const { canonAll, maxSeq, compactionOverlay } = pre;
+    // The D16 classification anchor stamped on every `delta` this turn publishes (see `resolveSlotSeq`).
+    const slotSeq = resolveSlotSeq(persist, target, maxSeq);
     // Builds the per-chat macro name producer from the full loaded canon's distinct characterId/personaId
     // stamps, engine-side (the ids aren't knowable in turn prep).
     const macroProducer = await loadChatMacroNameProducer(ctx.db, { messages: canonAll });
@@ -1055,7 +1076,7 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
         signal: prep.signal,
       },
       onDelta: (delta) => {
-        void deps.emit({ type: "delta", chatId: prep.chatId, delta });
+        void deps.emit({ type: "delta", chatId: prep.chatId, slotSeq, delta });
       },
     });
     const genFinishedAt = ctx.now();

@@ -92,6 +92,66 @@ describe("buildPluginBridge — turn.trigger funder is the installer (can't fund
   });
 });
 
+/** An ops bundle recording every `listMessages` call, with an injectable viewer-visibility verdict. */
+function readingOps(visibility: Awaited<ReturnType<PluginHostOps["chat"]["resolveViewerVisibility"]>>): {
+  readonly ops: PluginHostOps;
+  readonly reads: Parameters<PluginHostOps["chat"]["listMessages"]>[1][];
+  readonly viewers: UserId[];
+} {
+  const reads: Parameters<PluginHostOps["chat"]["listMessages"]>[1][] = [];
+  const viewers: UserId[] = [];
+  const base = makeInertOps();
+  const ops: PluginHostOps = {
+    ...base,
+    chat: {
+      ...base.chat,
+      resolveViewerVisibility: (_chatId, userId) => {
+        viewers.push(userId);
+        return Promise.resolve(visibility);
+      },
+      listMessages: (_chatId, opts) => {
+        reads.push(opts);
+        return Promise.resolve([]);
+      },
+    },
+  };
+  return { ops, reads, viewers };
+}
+
+// The bridge is the ONE viewer-visibility choke for guest canon reads: every admission path upstream of the
+// membrane (runSnippet's `resolveChatAuthority`, the plugin tool's PL-C `can(installer,"read",chat)`, the
+// `events.on` per-delivery `loadPresentRole`) resolves MEMBERSHIP ONLY, and a `from-join`-clamped member is
+// legitimately admitted to a room whose pre-join canon they may not read.
+describe("buildPluginBridge — listMessages is clamped to the INSTALLER's own viewer visibility", () => {
+  test("a clamped installer's read carries their D16 floor, resolved for the installer (not a guest-supplied id)", async () => {
+    const rec = readingOps({ role: "member", historyFloorSeq: 7 });
+    const bridge = buildPluginBridge(rec.ops, INSTALLER, PLUGIN);
+
+    await bridge.chat.listMessages(CHAT, 20);
+
+    expect(rec.viewers).toEqual([INSTALLER]); // the viewer is the bridge's installer, structurally
+    expect(rec.reads).toEqual([{ limit: 20, floorSeq: 7 }]);
+  });
+
+  test("an unrestricted installer reads at floor 0 — the common case is unchanged", async () => {
+    const rec = readingOps({ role: "host", historyFloorSeq: 0 });
+    const bridge = buildPluginBridge(rec.ops, INSTALLER, PLUGIN);
+
+    await bridge.chat.listMessages(CHAT, undefined);
+
+    expect(rec.reads).toEqual([{ floorSeq: 0 }]); // no `limit` key forwarded (exactOptionalPropertyTypes)
+  });
+
+  test("a NON-member installer reads NOTHING — the canon read is never even issued", async () => {
+    const rec = readingOps(null);
+    const bridge = buildPluginBridge(rec.ops, INSTALLER, PLUGIN);
+
+    // `null` = not a present member (an admission that raced a kick/leave). Fail-closed: `[]`, no partial read.
+    await expect(bridge.chat.listMessages(CHAT, 20)).resolves.toEqual([]);
+    expect(rec.reads).toEqual([]);
+  });
+});
+
 describe("buildPluginBridge — global-vars close over the installer", () => {
   test("variables.get fetches under the installer's owner id (cross-user read structurally impossible)", async () => {
     const rec = recordingOps();

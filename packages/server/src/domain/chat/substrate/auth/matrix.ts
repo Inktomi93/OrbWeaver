@@ -120,6 +120,7 @@ export const CHAT_VERB_AUTHORITY = {
   listInvites: "host", // the host-management outstanding-invites read (FIX #4; InviteViews — no tokens)
   declineInvite: "non-chat-scoped", // self/token: the invited user (may not be a member yet)
   kick: "host", // host-only
+  setMemberHistoryVisibility: "host", // D16 — the host governs how much room canon each HUMAN member may read (the `joinHistoryVisibility` opt-in restriction; the enforcement floor is substrate/auth::resolveHistoryFloorSeq)
   selfLeave: "member", // self: you must be a present member to leave your own membership
   nominateHostHandoff: "host", // host-only (step 1)
   acceptHostHandoff: "member", // the nominee (a member) accepts; the nominee-MATCH is a verb-level state check on the nomination

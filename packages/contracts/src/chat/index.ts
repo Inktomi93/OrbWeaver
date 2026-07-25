@@ -584,7 +584,13 @@ export function buildPersonaAvatarMap(entries: readonly PersonaAvatarEntry[]): R
 // THE CHAT STREAM DELTA + THE CHAT BUS UNION
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
-/** A stream delta wrapped inside a `ChatBusEvent` of `type: "delta"`. */
+/** A stream delta wrapped inside a `ChatBusEvent` of `type: "delta"`.
+ *
+ *  THIS TYPE IS ALSO THE PROVIDER-LEVEL CHUNK (`infra/providers/contract/events` re-exports it; every backend
+ *  runner constructs one). It therefore carries only what a backend can truthfully know — chat id, channel,
+ *  text. The D16 classification anchor (`messages.seq`) is NOT here and must never be: a provider has no
+ *  concept of a canon slot, so a `seq` on this type could only be fabricated. The anchor rides the BUS member
+ *  instead (`ChatBusEvent`'s `delta` arm → `slotSeq`), stamped by the ONE domain emit site that knows it. */
 export type ChatDeltaEvent = { chatId: ChatId; kind: "text"; text: string } | { chatId: ChatId; kind: "reasoning"; text: string };
 
 /** One part of a history turn's content on the PROVIDER-SEND path (D45). A turn is ALWAYS a content-part
@@ -654,6 +660,11 @@ export const CHAT_WARNING_CODES = [
   // Degraded-and-loud, never error-and-dead. The client warning-notice mapper is a rotation-4 restoration; the
   // server emits this now so the pickup lands later.
   "context_trimmed_no_summary",
+  // The `smart` group policy's side-LLM turn director was unusable this round — the summarize role threw
+  // (unwired/offline backend, HTTP error) or its reply named nobody on the eligible roster — so the speaking
+  // order fell back to the deterministic talkativeness-weighted `natural` arbitration. Emitted from the turn
+  // verb's arbitrate step: the round still happens, but the user is told the MATH picked, not the model.
+  "smart_arbitration_degraded",
 ] as const;
 export type ChatWarningCode = (typeof CHAT_WARNING_CODES)[number];
 
@@ -750,7 +761,18 @@ export interface PromptTransform {
  *  carries a caller id — turn attribution lives on the turn path (`triggeredBy`/`runAsUserId`), never the
  *  public bus (D19). */
 export type ChatBusEvent =
-  | { type: "delta"; chatId: ChatId; delta: ChatDeltaEvent }
+  // `slotSeq` = the `messages.seq` of the canon slot these tokens are being streamed INTO — the D16
+  // classification anchor that makes a raw-text delta decidable by `substrate/auth::isBelowHistoryFloor`
+  // exactly like a `view`-carrying member (a delta below a caller's join floor is withheld; one at/above it
+  // streams). Without it every delta was unclassifiable and had to be withheld from EVERY clamped member,
+  // which killed token streaming for every `from-join` member in a room with prior canon (back when
+  // `from-join` was the column DEFAULT — it now costs only host-restricted members, and is still wrong:
+  // streaming is the product). Stamped by the ONE emit site (`domain/chat/engine/engine.ts`, the turn pipeline's
+  // `onDelta`) from the target it already resolved: the loaded slot's own `seq` for swipe/continue, the
+  // allocated tail seq (`maxSeq + 1`) for a new slot. NEVER client-supplied, never defaulted; on the
+  // new-slot seq-race retry the real row lands at a HIGHER seq than announced, which errs toward
+  // withholding, never toward leaking.
+  | { type: "delta"; chatId: ChatId; slotSeq: number; delta: ChatDeltaEvent }
   // ── Canon mutations (view = the no-refetch carrier; absent only if the row raced a delete) ──
   | { type: "messageCommitted"; chatId: ChatId; messageId: MessageId; view?: MessageView }
   | { type: "messageEdited"; chatId: ChatId; messageId: MessageId; view?: MessageView }
@@ -1040,7 +1062,10 @@ export interface ChatMetadata {
  *  root) — every consumer imports them from there (no second name, no alias); this only derives the schema. */
 export const participantRoleSchema = z.enum(PARTICIPANT_ROLES);
 
-/** How much history a (re)joining member sees: `from-join` (only from their `joinSeq`) or `full`. */
+/** How much history a (re)joining member sees: `full` (the whole room canon — the COLUMN DEFAULT, owner
+ *  ruling: inviting someone into a room grants them its history) or `from-join` (only from their own
+ *  `joinSeq`, INCLUSIVE — they see the row AT `joinSeq`, nothing below it). `from-join` is the host's
+ *  OPT-IN per-participant restriction, never the ambient posture. */
 export const JOIN_HISTORY_VISIBILITIES = ["from-join", "full"] as const;
 export type JoinHistoryVisibility = (typeof JOIN_HISTORY_VISIBILITIES)[number];
 export const joinHistoryVisibilitySchema = z.enum(JOIN_HISTORY_VISIBILITIES);

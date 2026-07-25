@@ -10,7 +10,6 @@ import type { ResolvedConnection, RouteChatAssignment } from "@orb/contracts/con
 import type { Can, Principal } from "@orb/contracts/identity";
 import type { ChoiceBlockSpec, PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
-import type { RoleClients } from "@orb/contracts/role-clients";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { BatchStmt, Db } from "@orb/db";
 import { characterPersonas, chatParticipants, chats, personas, users } from "@orb/db";
@@ -68,7 +67,7 @@ import type { ResolvedToolSet, ToolUseService } from "#domain/tool-use";
 import { env } from "#foundation/env";
 import type { AuditEntry } from "#foundation/observability";
 import { recordMemoryLog } from "#foundation/observability";
-import type { AgentSeedTurn, ChatDeltaEvent, ChatRequest, ChatResult } from "#infra/providers";
+import type { AgentSeedTurn, ChatDeltaEvent, ChatRequest, ChatResult, RoleClientsWithSignal } from "#infra/providers";
 import { AGENT_PROMPT_TAIL_JOINER } from "#infra/providers";
 import { createRegexApplyReplace } from "#kit/regex";
 import { createMemberBudget } from "../../transport/rate-limit";
@@ -159,7 +158,7 @@ export interface ChatComposeInput {
   readonly resolveHostPrincipal: (userId: UserId) => Promise<Principal>;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   readonly can: Can;
-  readonly roleClients: RoleClients;
+  readonly roleClients: RoleClientsWithSignal;
   readonly connection: ConnectionService;
   readonly credentials: CredentialsService;
   readonly character: CharacterService;

@@ -113,6 +113,8 @@ export type {
   ImageGenerateRequest,
   ImageGenerateResult,
   RerankRequest,
+  RoleClientsWithSignal,
+  SummarizeCallOptions,
   SummarizeRequest,
   SummarizeRequestItem,
 } from "./roles";

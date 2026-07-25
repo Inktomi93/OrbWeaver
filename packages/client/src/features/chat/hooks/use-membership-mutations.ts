@@ -14,9 +14,13 @@
 //     would 404), so `getChat` is never re-read.
 //   • nominateHostHandoff — emits `chatUpdated` on the OPEN chat (the nominating host is subscribed);
 //     `ChatDetail.pendingHostUserId` refreshes via the bus → busDriven.
+//   • setMemberHistoryVisibility — emits `chatUpdated` on the OPEN chat, which both the host and the target
+//     member are subscribed to; `chatUpdated → chatReads` already covers the two reads it moves (`getChat`
+//     for the roster's `joinHistoryVisibility`, `listMessages` for the target's re-clamped canon) → busDriven.
 //   • acceptHostHandoff lives in `features/notifications` (its firing surface is the inbox row — features
 //     are islands; each feature owns its own mutations over the shared trpc contract).
 
+import type { JoinHistoryVisibility } from "@orb/contracts/chat";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import { createEntityMutation } from "#data";
 
@@ -42,6 +46,24 @@ export const useSelfLeave = createEntityMutation<SelfLeaveVars, unknown>({
   // The leaver's own chat list drops the room and no delivered bus event covers it (header audit).
   invalidates: (trpc) => [trpc.chat.listChats.pathFilter()],
   errorToast: "Couldn't leave the chat.",
+});
+
+/** `invites.setMemberHistoryVisibility` vars — host sets how much room canon one HUMAN member may read
+ *  (D16 `joinHistoryVisibility`: `full` = the whole canon, the default; `from-join` = only from their own
+ *  join point). Never moves their join point — it changes what they may read from it. */
+interface SetMemberHistoryVisibilityVars {
+  readonly chatId: ChatId;
+  readonly userId: UserId;
+  readonly visibility: JoinHistoryVisibility;
+}
+
+export const useSetMemberHistoryVisibility = createEntityMutation<SetMemberHistoryVisibilityVars, unknown>({
+  options: (trpc) => trpc.invites.setMemberHistoryVisibility.mutationOptions(),
+  // Bus-driven: the verb emits `chatUpdated` on the OPEN chat → `chatReads` (getChat, which carries the
+  // roster's `joinHistoryVisibility`, AND listMessages, which the TARGET member's clamp just moved). Both the
+  // setting host and the affected member are subscribed, so no mutation-side filter and no new bus row.
+  busDriven: true,
+  errorToast: "Couldn't change what that member can read.",
 });
 
 /** `invites.nominateHostHandoff` vars — host nominates a present member as the new host (step 1 of two). */

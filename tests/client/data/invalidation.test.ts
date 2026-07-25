@@ -51,6 +51,10 @@ const TRACKED_KEYS = [
   // The character library `character.list` — driven ONLY by the user-bus `chatsChanged` fan now (the sole
   // `lastChattedAt` recency driver, same AND cross device); the chat-bus terminal arms no longer carry it.
   "characterList",
+  // The Group tab's OWN read of `chats.metadata.group` — it does NOT live under `getChat`, so it needs its
+  // own filter on the roster/group catch-all or a second tab/device in the same room shows stale room
+  // behavior forever (staleTime Infinity + refetchOnWindowFocus off ⇒ the bus is the only freshness driver).
+  "getGroupConfig",
 ] as const;
 type TrackedKey = (typeof TRACKED_KEYS)[number];
 
@@ -88,7 +92,10 @@ const EXPECTED: Record<ChatBusEvent["type"], readonly TrackedKey[]> = {
   turnCompleted: CHAT_DETAIL_READS,
   turnAborted: CHAT_READS,
   chatDeleted: CHAT_READS,
-  chatUpdated: CHAT_READS,
+  // The roster/group/override/membership catch-all — the full room+list refetch PLUS the Group tab's own
+  // `getGroupConfig` read (the only bus arm that carries it; proven cross-tab by
+  // tests/e2e/multi-tab-room-sync.spec.ts).
+  chatUpdated: [...CHAT_READS, "getGroupConfig"],
   // Room-only.
   personaSwitched: ["getChat"],
   chatOpened: ["getChat"],
@@ -130,6 +137,7 @@ describe("invalidation — the bus half (invalidate)", () => {
         listChats: trpc.chat.listChats.queryKey(),
         worldInfo: trpc.worldInfo.listBooks.queryKey(),
         characterList: trpc.character.list.queryKey(),
+        getGroupConfig: trpc.chat.getGroupConfig.queryKey({ chatId: CHAT_ID }),
       };
       // Seed every tracked read so `isInvalidated` reflects the FILTER, not an absent cache entry.
       for (const key of Object.values(keys)) {

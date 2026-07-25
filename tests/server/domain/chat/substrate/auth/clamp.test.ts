@@ -120,12 +120,16 @@ describe("resolveCardVisibility — the host always sees full", () => {
 });
 
 // ── The D16 join-history floor (the second clamp in this module) ───────────────────────────────────────
-// `joinHistoryVisibility` is persisted `.notNull().default("from-join")` and was NEVER read by any code
-// path: a member invited at seq 7 received the entire pre-join transcript AND a full durable-event replay.
+// `joinHistoryVisibility` is persisted `.notNull().default("full")` — an invited member sees the room's whole
+// history by default, and `from-join` is the host's OPT-IN per-participant restriction. The mechanism was
+// once persisted but NEVER read by any code path: a `from-join` member invited at seq 7 still received the
+// entire pre-join transcript AND a full durable-event replay.
 // These pin the pure half — the floor number and the per-bus-event verdict; the read paths that consume
 // them are pinned in `verbs/read.int.test.ts` and `verbs/fork.int.test.ts`.
 
 describe("resolveHistoryFloorSeq — the persisted policy becomes a canon floor", () => {
+  // The floor is INCLUSIVE: floor 7 admits seq 7 (the row AT the member's join) and withholds only seq < 7 —
+  // pinned on the verdict side by the `viewAt(7)` / `deltaFor(7)` cases below.
   test("from-join floors at the member's OWN joinSeq; full is unclamped", () => {
     expect(resolveHistoryFloorSeq({ joinSeq: 7, joinHistoryVisibility: "from-join" })).toBe(7);
     expect(resolveHistoryFloorSeq({ joinSeq: 7, joinHistoryVisibility: "full" })).toBe(NO_HISTORY_FLOOR);
@@ -137,14 +141,17 @@ describe("resolveHistoryFloorSeq — the persisted policy becomes a canon floor"
   });
 });
 
-describe("isBelowHistoryFloor — the durable bus-replay verdict", () => {
+describe("isBelowHistoryFloor — the ONE verdict both the durable replay and the live fan-out ask", () => {
   const chatId = castId<ChatId>("chat_room");
   const messageId = castId<MessageId>("message_x");
   const viewAt = (seq: number): MessageView => ({ seq }) as unknown as MessageView; // FABRICATION-OK: only `.seq` is read by the verdict.
-  const delta: ChatBusEvent = { type: "delta", chatId, delta: { chatId, kind: "text", text: "secret tokens" } };
+  /** A streamed token chunk anchored to the canon slot it is filling (`slotSeq` — stamped by the engine's
+   *  ONE emit site from the target it already resolved: the loaded slot for swipe/continue, `maxSeq + 1` for
+   *  a new slot). This anchor is what makes raw transcript text decidable at all. */
+  const deltaFor = (slotSeq: number): ChatBusEvent => ({ type: "delta", chatId, slotSeq, delta: { chatId, kind: "text", text: "secret tokens" } });
 
   test("an unclamped caller (floor 0) is never withheld anything — including raw deltas", () => {
-    expect(isBelowHistoryFloor(delta, NO_HISTORY_FLOOR)).toBe(false);
+    expect(isBelowHistoryFloor(deltaFor(1), NO_HISTORY_FLOOR)).toBe(false);
     expect(isBelowHistoryFloor({ type: "messageCommitted", chatId, messageId, view: viewAt(1) }, NO_HISTORY_FLOOR)).toBe(false);
   });
 
@@ -157,8 +164,15 @@ describe("isBelowHistoryFloor — the durable bus-replay verdict", () => {
     expect(isBelowHistoryFloor({ type: "reasoningEdited", chatId, messageId, view: viewAt(1) }, 7)).toBe(true);
   });
 
-  test("a clamped caller is denied replayed deltas outright (no seq to classify raw transcript text against)", () => {
-    expect(isBelowHistoryFloor(delta, 7)).toBe(true);
+  test("a delta is decided on its target SLOT's seq — pre-join tokens withheld, post-join tokens DELIVERED", () => {
+    // THE LEAK, closed: the host swipes/continues a PRE-join slot, so its tokens stream below the floor.
+    expect(isBelowHistoryFloor(deltaFor(2), 7)).toBe(true);
+    expect(isBelowHistoryFloor(deltaFor(6), 7)).toBe(true);
+    // THE RESTORATION: a turn writing at/above the caller's own join floor streams to them (the floor is
+    // INCLUSIVE — slot 7 at floor 7 is delivered). Blanket-withholding here un-streams a host-restricted
+    // member for a whole live turn they are entitled to watch.
+    expect(isBelowHistoryFloor(deltaFor(7), 7)).toBe(false);
+    expect(isBelowHistoryFloor(deltaFor(8), 7)).toBe(false);
   });
 
   test("id-only + room-lifecycle payloads carry no canon content, so they ride through a clamp", () => {

@@ -18,7 +18,7 @@
 // chosen for the security property, not the read/write semantics). The domain stores only the peppered
 // token HASH; these bodies + the `/join/:token` redirect are the token's only transit points.
 
-import { acceptInviteSchema, createInviteSchema, previewInviteSchema, redeemInviteSchema } from "@orb/contracts/chat";
+import { acceptInviteSchema, createInviteSchema, joinHistoryVisibilitySchema, previewInviteSchema, redeemInviteSchema } from "@orb/contracts/chat";
 import type { ChatId, ChatInviteId, UserId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
@@ -46,6 +46,16 @@ const chatScopedSchema = z.object({ chatId: brandedId<ChatId>() });
 const nominateSchema = z.object({
   chatId: brandedId<ChatId>(),
   userId: brandedId<UserId>(),
+});
+
+// The D16 per-member join-history policy write (host-only INSIDE the verb). Belongs on THIS router, not the
+// ungated chat surface: it governs what a second HUMAN may read, so it is inert — and refused leak-free — in
+// a deployment that cannot seat one (the `kick`/`nominateHostHandoff` shape). The wire enum is the ONE-HOME
+// `joinHistoryVisibilitySchema` (`@orb/contracts/chat`), the same tuple the DB column's enum derives from.
+const setMemberHistoryVisibilitySchema = z.object({
+  chatId: brandedId<ChatId>(),
+  userId: brandedId<UserId>(),
+  visibility: joinHistoryVisibilitySchema,
 });
 
 export const invitesRouter = t.router({
@@ -79,6 +89,12 @@ export const invitesRouter = t.router({
 
   // Host removes a HUMAN member (character mute/remove is the ungated chat surface, not here).
   kick: multiHumanProcedure.input(kickSchema).mutation(({ ctx, input }) => ctx.services.chat.kick({ principal: ctx.auth, ...input })),
+
+  // Host sets how much of the room's canon one HUMAN member may read (D16). The change takes effect on the
+  // target's very NEXT read — the floor is resolved per-call from this column, never cached in a session.
+  setMemberHistoryVisibility: multiHumanProcedure
+    .input(setMemberHistoryVisibilitySchema)
+    .mutation(({ ctx, input }) => ctx.services.chat.setMemberHistoryVisibility({ principal: ctx.auth, ...input })),
 
   selfLeave: multiHumanProcedure
     .input(chatScopedSchema)
