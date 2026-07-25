@@ -18,7 +18,7 @@ import { testId } from "../../../../../packages/client/src/lib/test-ids";
 import { routeTrpc } from "../../../../support/ct/route-trpc";
 import { routeChatStream } from "../../../../support/ct/route-trpc-subscription";
 import { ChatRoomSurfaceStory, ChatSurfaceContributorStory } from "../_ct-stories";
-import { makeMacroNameProducer, makeMessagesPage, makeMessageView } from "../fixtures";
+import { CHAT_ID, makeMacroNameProducer, makeMessagesPage, makeMessageView } from "../fixtures";
 
 // The divider's present-tense preview (PD-#7). Every map stubs it with a VALID resolved shape — the
 // harness's unlisted-proc default (`data: null`) is out-of-contract for this query and crashes the
@@ -163,6 +163,62 @@ test("a committed send adds NO invalidation of its own — the list refetch is b
   // THE PIN: the send fired for real, and it refetched the list ZERO extra times. Bus-only freshness.
   await expect.poll(() => trpc.count("chat.send")).toBe(1);
   await expect.poll(() => trpc.count("chat.listMessages")).toBe(1);
+});
+
+// ── the FIRST send (draft→commit) clears the composer for the new chat ─────────────────────────────
+// The bug: on a draft's first send, ChatRoomSurface.onCommitted migrates the in-flight text from the
+// draftKey scope onto the new committed-chatId scope (visual continuity across the promotion). The
+// clear-on-commit signal then fired onChange("") through the send hook's closure — captured at SEND time,
+// still bound to the OLD draftKey scope — so it emptied the stale draftKey while the migrated text stayed
+// on the new chatId key and RE-POPULATED the fresh chat's composer. Net: the first send left the sent text
+// lingering; only the SECOND (already-committed) send cleared. The fix reads the LATEST onChange via a ref
+// so the clear targets the current (committed) scope. This pins the whole draft→commit-via-send path
+// end-to-end (real ChatRoomSurface + Composer + useSendMessage), driving the commit through a scripted
+// user-role messageCommitted on the new chat's stream — the production clear-on-commit trigger.
+test("the FIRST send on a draft clears the composer for the newly-committed chat (draft→commit doesn't carry the sent text forward)", async ({
+  mount,
+  page,
+}) => {
+  // startChat mints the committed id (CHAT_ID, the harness's committed constant); listMessages/getChat feed
+  // the settled room. `chat.send` is HELD in flight (registered AFTER routeTrpc ⇒ runs FIRST, LIFO) — the
+  // send promise stays open for the whole turn in production, so the clear-on-commit listener (torn down
+  // when the send settles) stays alive to receive the commit signal driven below.
+  const trpc = await routeTrpc(page, {
+    ...ROSTER_STUB,
+    "chat.startChat": () => ({ chat: { id: CHAT_ID } }),
+    "chat.listMessages": () => makeMessagesPage([]),
+    // The founding-card greeting preview the draft reads before commit.
+    "character.get": () => ({ id: castId<CharacterId>("char_ct_room"), name: "Aria", greetings: ["Greetings, traveller."] }),
+  });
+  await page.route("**/api/trpc/**", async (route) => {
+    const req = route.request();
+    if (req.method() === "POST" && new URL(req.url()).pathname.includes("chat.send")) {
+      await new Promise<void>(() => undefined);
+      return;
+    }
+    await route.fallback();
+  });
+
+  const component = await mount(<ChatRoomSurfaceStory committed={false} />);
+  const textarea = component.getByRole("textbox", { name: "Message" });
+
+  await textarea.fill("First message");
+  await component.getByRole("button", { name: "Send message" }).click();
+
+  // The draft promoted to CHAT_ID (startChat fired) and the composer is disabled while the send holds in
+  // flight — but the text is still there (clear rides the commit signal, never optimistic submit).
+  await expect.poll(() => trpc.count("chat.startChat"), { intervals: [20, 50, 100] }).toBe(1);
+  await expect(textarea).toBeDisabled();
+  await expect(textarea).toHaveValue("First message");
+
+  // Drive the caller's own user-row messageCommitted on the NEW chat (the production clear-on-commit
+  // trigger, stood in for the SSE bus — ComposerStory's `drive-message-committed` precedent).
+  await component.getByTestId("drive-message-committed").click();
+
+  // The composer clears for the newly-committed chat. Before the fix, the send hook's stale onChange closure
+  // cleared the OLD draftKey scope while the migrated sent text stayed on the CHAT_ID scope and
+  // re-populated this composer — so it stayed "First message" (the "first send doesn't clear" bug).
+  await expect(textarea).toHaveValue("");
 });
 
 // ── #13: the composer survives room-settle (no remount eats keystrokes) ───────────────────────────

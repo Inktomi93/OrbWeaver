@@ -723,6 +723,14 @@ function ChatRoomHarness({ committed }: { readonly committed: boolean }): ReactE
   return (
     <div style={{ height: 480 }}>
       <ChatRoomSurface busDeps={busDeps} draftSeed={draftSeed} initialHandle={handle} surfaceContributors={NO_SURFACE_CONTRIBUTORS} />
+      {/* The clear-on-commit signal (mirrors ComposerStory's `drive-message-committed`): simulates the bus
+          observing the caller's OWN user-row `messageCommitted` on the (post-promotion) committed chat.
+          Driven directly rather than through the SSE stub because the draft→committed subscription churns
+          (null→committed re-attach), so a scripted stream event races the sticky subscribe; the signal
+          itself is what the send hook subscribes to, and this fires it deterministically for CHAT_ID. */}
+      <button type="button" data-testid="drive-message-committed" onClick={(): void => chatStream.notifyUserMessageCommitted(CHAT_ID)}>
+        commit
+      </button>
     </div>
   );
 }
@@ -1121,6 +1129,7 @@ export function MembersPanelStory({ omitForceTurn = false, withPeople = false, m
                 onSetTalkativeness: (id: CharacterId, t: number): void => setLastAction(`talkativeness:${id}:${t}`),
               })}
           {...(omitForceTurn || memberView ? {} : { onForceTurn: (id: CharacterId): void => setLastAction(`force:${id}`) })}
+          {...(memberView ? {} : { onRemoveCharacter: (id: CharacterId): void => setLastAction(`remove:${id}`) })}
           {...(withPeople && !memberView
             ? {
                 onInvitePeople: (): void => setLastAction("invite"),
