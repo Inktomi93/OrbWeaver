@@ -71,6 +71,15 @@ runtime effect; a world-info entry fires on its keyword → lands in the assembl
 The Preview tab + the wire-capture seam are the observation instruments. Multi-human LIVE needs multi-user mode
 + a 2nd identity (DB is disposable — owner OK'd wiping/seeding).
 
+FULL BATTERY (post-commit, `pnpm test`): vitest all green + CT 1271 passed. ONE CT hard-failed UNDER BATTERY
+LOAD — `message-list-surface.ct.tsx:305` (chatOpened non-advancing-cursor seq-guard/invalidation, a
+timing-sensitive test) — but PASSES CLEAN IN ISOLATION (9/9, 0 flaky via `playwright test -c
+playwright-ct.config.ts message-list-surface`). Confirmed FLAKE not regression (my _ct-stories change was
+purely additive — a ChatRoomHarness button + a members-panel prop, never touches the MessageList stories or
+the shared chatStream mock). Also: don't run a commit's whole-tree static gate CONCURRENTLY with `pnpm test`
+— the gate-conformance tests litter `packages/server/src/domain/__dc_*` transient fixtures that trip
+structure:full until they clean up. Serialize commits after the battery.
+
 **FIDELITY/LOCKDOWN WAVE — COMMITTED (this session):**
 - `4c734060` — extracted the domain→infra turn bridge into exported `createRunChatTurnBridge`; the #24
   fidelity harness now drives PROD code, not a facsimile (owner caught the facsimile).
