@@ -28,10 +28,14 @@ import {
   chatStream,
   committedChat,
   draftChat,
+  enterSelectionMode,
   isLiveTurnPhase,
   selectChat,
+  setDraftGreeting,
   startEditingMessage,
   startNewChat,
+  toggleMessageSelected,
+  useDraftConfig,
   useSectionRegistry,
   useTurnPhase,
 } from "@orb/client/state";
@@ -50,16 +54,21 @@ import { ChatCastBar } from "../../../../packages/client/src/features/chat/compo
 import { ChatHeaderSurface } from "../../../../packages/client/src/features/chat/components/chat-header";
 import { ChatOptionsMenu } from "../../../../packages/client/src/features/chat/components/chat-options-menu";
 import { ActiveChatOptionsMenu } from "../../../../packages/client/src/features/chat/components/chat-options-topbar";
+import { CompactSummaryPeek } from "../../../../packages/client/src/features/chat/components/compact-summary-peek";
 import { GhostMessageRow } from "../../../../packages/client/src/features/chat/components/ghost-message-row";
+import { GreetingSwipeStrip } from "../../../../packages/client/src/features/chat/components/greeting-swipe-strip";
 import { GroupConfigForm } from "../../../../packages/client/src/features/chat/components/group-config-form";
 import { InviteDialog } from "../../../../packages/client/src/features/chat/components/invite-dialog";
 import { MembersPanel } from "../../../../packages/client/src/features/chat/components/members-panel";
 import { MessageActionsRow } from "../../../../packages/client/src/features/chat/components/message-actions-row";
 import { MessageContent } from "../../../../packages/client/src/features/chat/components/message-content";
+import { MessageCostReadout } from "../../../../packages/client/src/features/chat/components/message-cost-readout";
 import { MessageEditTextarea } from "../../../../packages/client/src/features/chat/components/message-edit-textarea";
 import { MessageMediaBlock } from "../../../../packages/client/src/features/chat/components/message-media-block";
 import type { MessageMetadataVisibility } from "../../../../packages/client/src/features/chat/components/message-metadata-row";
+import { MessageMetadataRow } from "../../../../packages/client/src/features/chat/components/message-metadata-row";
 import { MessageRow } from "../../../../packages/client/src/features/chat/components/message-row";
+import { MessageSelectionBar } from "../../../../packages/client/src/features/chat/components/message-selection-bar";
 import { ReasoningBlock } from "../../../../packages/client/src/features/chat/components/reasoning-block";
 import { RoomOverridesForm } from "../../../../packages/client/src/features/chat/components/room-overrides-form";
 import { SpeakAsSelect } from "../../../../packages/client/src/features/chat/components/speak-as-select";
@@ -1339,5 +1348,114 @@ export function AttachmentMediaStory({ empty = false }: AttachmentMediaStoryProp
     <AttachmentUrlContext value={map}>
       <MessageMediaBlock block={block} allowExternal={false} />
     </AttachmentUrlContext>
+  );
+}
+
+// ── Metadata / cost stories (WS3, PD-137) ─────────────────────────────────────────────────────────
+
+const FROZEN_META_AT = 1_750_000_000_000;
+
+/** `MessageMetadataRow` over a fully-populated `MessageView`, the visibility toggles supplied by the
+ *  `.ct.tsx` — proving the datum-gating matrix (toggle ⋀ datum-present) + the `·` separators + the
+ *  render-nothing-when-empty floor. Wrapped in `CtDataProviders` because a revealed cost datum's
+ *  `MessageCostReadout` reads tRPC (it never fetches until clicked). */
+export function MessageMetadataRowStory({
+  visibility,
+  message,
+}: {
+  readonly visibility: MessageMetadataVisibility;
+  readonly message?: Partial<MessageView>;
+}): ReactElement {
+  const view = makeMessageView({
+    model: "qwen3-vl",
+    tokensOut: 128,
+    tokensIn: 64,
+    genStartedAt: FROZEN_META_AT,
+    genFinishedAt: FROZEN_META_AT + 3400,
+    generationId: null,
+    ...message,
+  });
+  return (
+    <CtDataProviders>
+      <div data-testid="metadata-host">
+        <MessageMetadataRow message={view} visibility={visibility} />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** `MessageCostReadout` in isolation — the PD-137 paid-fetch gate. The story sets a `generationId` so the
+ *  row renders (a null-id row returns null); the `.ct.tsx` routes (or withholds) `connection.orGenerationCost`
+ *  to drive the reveal → loading → settled / error labels, and asserts the fetch fires ONLY after the click. */
+export function MessageCostReadoutStory({ generationId = "gen_ct_1" }: { readonly generationId?: string | null }): ReactElement {
+  const view = makeMessageView({ generationId });
+  return (
+    <CtDataProviders>
+      <MessageCostReadout message={view} />
+    </CtDataProviders>
+  );
+}
+
+const SELECTION_MSG_A = castId<MessageId>("msg_ct_sel_a");
+const SELECTION_MSG_B = castId<MessageId>("msg_ct_sel_b");
+
+/** `MessageSelectionBar` driven by the real `message-selection` store. The store lives in the BROWSER, so
+ *  the `.ct.tsx` (node-side) can't call its setters directly — this harness exposes them as in-page
+ *  controls (the jump-to-latest `ctl-*` precedent): enter select mode, toggle each id. The bar then
+ *  renders-when-active with the live count, and the `.ct.tsx` observes confirm→`chat.deleteMessages`→
+ *  exit-mode via routeTrpc. Renders null while the mode is off (the render-when-active contract). */
+export function MessageSelectionBarStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <button type="button" data-testid="ctl-enter" onClick={(): void => enterSelectionMode()}>
+        enter
+      </button>
+      <button type="button" data-testid="ctl-toggle-a" onClick={(): void => toggleMessageSelected(SELECTION_MSG_A)}>
+        toggle a
+      </button>
+      <button type="button" data-testid="ctl-toggle-b" onClick={(): void => toggleMessageSelected(SELECTION_MSG_B)}>
+        toggle b
+      </button>
+      <MessageSelectionBar chatId={CHAT_ID} />
+    </CtDataProviders>
+  );
+}
+
+// ── #9 compaction-marker peek ─────────────────────────────────────────────────────────────────────
+
+/** `CompactSummaryPeek` — the memory-marker popover. Pure render; the `.ct.tsx` proves the summary text
+ *  is behind the trigger (not in the DOM until opened) and reveals on click. The popup renders through a
+ *  Base UI Portal, so the `.ct.tsx` reads it via the PAGE locator. */
+export function CompactSummaryPeekStory({ summary }: { readonly summary: string }): ReactElement {
+  return <CompactSummaryPeek summary={summary} />;
+}
+
+// ── Draft greeting swipe strip ────────────────────────────────────────────────────────────────────
+
+const GREETING_DRAFT_KEY = "draft_ct_greeting";
+const GREETING_CHARACTER_ID = castId<CharacterId>("character_ct_greeting");
+
+/** `GreetingSwipeStrip` wired to the real draft-config store the way `message-row.tsx` drives it: the
+ *  shown `current` text is DERIVED from `useDraftConfig` (falling back to `variants[0]`), so a prev/next
+ *  pick writes `setDraftGreeting` → the store updates → this harness re-derives `current` → the counter
+ *  moves. That round-trip (not just "a button exists") is what the `.ct.tsx` asserts, plus the
+ *  hand-edited "— / m" custom case and the disabled-edge gating. A `custom` seed models a hand-typed
+ *  greeting that matches no alternate. */
+export function GreetingSwipeStripStory({ variants, custom = false }: { readonly variants: readonly string[]; readonly custom?: boolean }): ReactElement {
+  const draft = useDraftConfig(GREETING_DRAFT_KEY);
+  const stored = draft.greetings?.[GREETING_CHARACTER_ID];
+  // Seed a hand-edited greeting (matches no alternate → idx -1) once, so the "— / m" custom path renders
+  // without the store already holding an alternate.
+  useEffect(() => {
+    if (custom) {
+      setDraftGreeting(GREETING_DRAFT_KEY, GREETING_CHARACTER_ID, "a hand-typed opening that matches no alternate");
+    }
+  }, [custom]);
+  const current = stored ?? variants[0] ?? "";
+  return (
+    <div>
+      <div data-testid="greeting-current">{current}</div>
+      <GreetingSwipeStrip draftKey={GREETING_DRAFT_KEY} characterId={GREETING_CHARACTER_ID} variants={variants} current={current} />
+    </div>
   );
 }

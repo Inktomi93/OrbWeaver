@@ -257,6 +257,15 @@ function errorPrefix(baseUrl: string): string {
   return `custom-byo (${baseUrl})`;
 }
 
+const REDIRECT_STATUS_MIN = 300;
+const REDIRECT_STATUS_MAX = 400;
+
+// True when a `redirect:"manual"` fetch response is a redirect the endpoint asked us to chase: a 3xx status,
+// or the `opaqueredirect` sentinel (type "opaqueredirect", status 0). Never followed — see the fetch host-pin.
+function isManualRedirect(res: Response): boolean {
+  return res.type === "opaqueredirect" || (res.status >= REDIRECT_STATUS_MIN && res.status < REDIRECT_STATUS_MAX);
+}
+
 async function* oneChunk(chunk: ChatCompletionStreamChunk): AsyncGenerator<ChatCompletionStreamChunk> {
   await Promise.resolve(); // makes this a genuine async iterable
   yield chunk;
@@ -302,10 +311,27 @@ async function fetchAndReduce(args: {
         method: "POST",
         headers,
         body: JSON.stringify(body),
+        // Host-pin (#25, mirrors inspect.ts #21): NEVER chase a redirect off the configured endpoint with the
+        // user's credentials in tow. Node's default `redirect:"follow"` re-sends the `Authorization: Bearer
+        // <key>` header (+ any key-in-body auth) to whatever host a `302 → https://attacker/…` names — a
+        // credential-exfil past the egress firewall (which blocks PRIVATE targets, not a public attacker host,
+        // and does not strip credential headers on a cross-origin hop). The BYO endpoint is legitimately
+        // LAN/http/IP-literal so `safeFetch` can't be used; we pin at the redirect boundary instead.
+        redirect: "manual",
         signal: idle.signal,
       });
     } catch (err) {
       throw providerErrorFromHttp(err, errorPrefix(baseUrl));
+    }
+    // A redirect is the endpoint asking us to re-send elsewhere — surface it as a hard, NON-retryable error
+    // (never a follow, never a retry that would re-send the credentials). `redirect:"manual"` guarantees fetch
+    // did not follow it.
+    if (isManualRedirect(res)) {
+      throw new ProviderError({
+        kind: "invalid",
+        retryable: false,
+        message: `${errorPrefix(baseUrl)}: endpoint returned a redirect (status ${res.status}); refusing to forward credentials to another host`,
+      });
     }
     if (!res.ok || res.body === null) {
       const text = await res.text().catch((): string => "");
