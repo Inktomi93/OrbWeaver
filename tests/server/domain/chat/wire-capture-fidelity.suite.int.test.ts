@@ -26,7 +26,7 @@ import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { ChatDeltaEvent, ChatRequest } from "@orb/server/infra/providers";
+import { createRunChatTurnBridge } from "@orb/server/entry/compose";
 import { createVllmChat } from "@orb/server/infra/providers/vllm";
 import type { VllmEngineClient } from "@orb/server/infra/providers/vllm/engine";
 import { describe } from "vitest";
@@ -83,52 +83,30 @@ function capturingClient(sink: { body?: Record<string, unknown> }): VllmEngineCl
   };
 }
 
-/** The domain `RunChatTurnOp` for the harness: capture the SHAPEd `TurnRequest` (ASSEMBLE layer), map it to
- *  the infra `ChatRequest` (the chat.ts:409 stateless arm — `history as-is`), run it through the REAL vllm
- *  surface (buildBody + the capture sink → WIRE layer), then re-emit the surface's deltas as domain chunks so
- *  the engine folds + persists (DB layer). Mirrors compose's runChatTurn bridge, minus the agent-sdk arm. */
+/** The domain `runChatTurn` for the harness — the REAL compose bridge (`createRunChatTurnBridge`), NOT a
+ *  facsimile: it runs the actual domain→infra `ChatRequest` map (the agent-sdk split, the passthrough spreads
+ *  for customParameters/tools/toolChoice/responseFormat/cacheBreakpoint, the final-chunk economics) that every
+ *  live turn flows through. The ONLY injected fakes are the two leaves: the infra vllm surface's engine client
+ *  (a canned SSE reply — no GPU) and the OR-skin tier map (unreached here; the harness drives chat-completions,
+ *  where the bridge short-circuits `getOrSkinTierModels`). A thin wrapper records the input `TurnRequest` for
+ *  the ASSEMBLE-layer assertion — pure observation, the code path underneath is prod. */
 function harnessRunChatTurn(requests: TurnRequest[], wireSink: { body?: Record<string, unknown> }): ReturnType<typeof makeChatContext>["runChatTurn"] {
-  const engineClient = capturingClient(wireSink);
-  // The compose-injected capture sink: records the FINAL body the surface POSTs (my TASK-24 seam).
-  let capturedWire: Record<string, unknown> | undefined;
+  // The REAL leaf infra surface: buildBody + my TASK-24 capture sink → WIRE layer. The capturing client
+  // records the FINAL posted body (the fidelity target) into `wireSink`.
   const surface = createVllmChat({
-    client: engineClient,
+    client: capturingClient(wireSink),
     now: () => 1000,
     captureWire: (entry) => {
-      capturedWire = entry.body;
+      wireSink.body = entry.body;
     },
+  });
+  const bridge = createRunChatTurnBridge({
+    runChatTurn: surface,
+    getOrSkinTierModels: () => Promise.reject(new Error("agent-sdk arm is not driven by this harness")),
   });
   return (req: TurnRequest): AsyncIterable<TurnStreamChunk> => {
     requests.push(req);
-    return (async function* (): AsyncGenerator<TurnStreamChunk> {
-      const chunks: { kind: ChatDeltaEvent["kind"]; text: string }[] = [];
-      const chatReq: ChatRequest = {
-        api: "chat-completions",
-        model: req.connection.model,
-        credential: req.connection.credential,
-        capability: req.connection.capability,
-        params: req.intent,
-        systemPrompt: { static: req.prompt.static, dynamic: req.prompt.dynamic },
-        ownerConsented: req.ownerConsented,
-        // biome-ignore lint/suspicious/noExplicitAny: the domain TurnMessage[] is the infra history shape (chat.ts:417 `as any`).
-        history: req.history as any,
-        onDelta: (d) => chunks.push({ kind: d.kind, text: d.text }),
-      };
-      const result = await surface(chatReq);
-      // Stash the captured wire on the request object so the assertion reads it (one round, one capture).
-      // Guarded assignment: under exactOptionalPropertyTypes an optional `body?` can't take an explicit
-      // undefined — only overwrite when a real body was captured.
-      if (capturedWire !== undefined) {
-        wireSink.body = capturedWire;
-      }
-      for (const c of chunks) {
-        yield { kind: c.kind, text: c.text };
-      }
-      yield {
-        kind: "final" as const,
-        economics: { content: result.reply, tokensIn: result.usage.tokensIn, tokensOut: result.usage.tokensOut, model: req.connection.model },
-      };
-    })();
+    return bridge(req);
   };
 }
 

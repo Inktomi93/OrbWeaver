@@ -22,6 +22,21 @@ section-hint ×2 — big features, own wave), **#18** CT coverage expansion (UNB
 components; 42-scenario mining backlog + presence ratchet), **#25** custom-byo runner redirect parity
 (1-line, behind the committed backends). **PROMOTION armed** — nothing blocks it.
 
+**POST-ROTATION-4 FIX (2026-07-24, UNCOMMITTED — owner caught it): #24 harness was NOT using prod code.**
+The fidelity harness drove a hand-rolled `harnessRunChatTurn` that reconstructed a LOPPED-OFF subset of the
+real domain→infra bridge (chat-completions arm only; DROPPED customParameters/tools/toolChoice/
+responseFormat/cacheBreakpoint spreads + the final-chunk economics). A fidelity tool testing a facsimile
+can't catch a bug in the real mapping. FIX: extracted the inline `runChatTurn` generator from
+`buildChatService` (compose/chat.ts) into an exported `createRunChatTurnBridge({ runChatTurn,
+getOrSkinTierModels })` — behavior-preserving (2 `input.`→`deps.` swaps, nothing else) — barreled it via
+`entry/compose`, and rewired the harness to call the SAME function, injecting only the leaf infra surface
+(canned-SSE vllm client + captureWire sink) + a rejecting skin-map (agent-sdk arm unreached). Now the
+name/history/max_tokens/DB assertions run through PROD code incl. real economics. Green: 89 files / 1045
+chat-domain tests, type-clean; harness 5/5. NOTE: the dropped passthrough fields (customParameters etc.)
+are mostly NOT vllm-surfaced — proving those needs a 2nd surface (custom-byo) row = a real follow-up, NOT
+faked. Verifier dispatched on behavior-preservation. Files: `packages/server/src/entry/compose/chat.ts`,
+`.../compose/index.ts`, `tests/server/domain/chat/wire-capture-fidelity.suite.int.test.ts`.
+
 
 
 **COMMITTED (branch retro-burn-down, promotion-ready):** `a4192372` burn-down → `7c31da30` rotation 2 →
