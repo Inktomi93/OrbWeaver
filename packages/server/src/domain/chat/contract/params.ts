@@ -6,6 +6,7 @@ import type {
   ChatInjectionInput,
   CreateInviteInput,
   GroupConfigInput,
+  GuidedSteer,
   JoinHistoryVisibility,
   MessageContentBlock,
   OpeningPolicy,
@@ -18,7 +19,7 @@ import type {
 import type { ChatDocumentVisibility } from "@orb/contracts/databank";
 import type { Principal } from "@orb/contracts/identity";
 import type { PromptTemplateMode, SizePresetName } from "@orb/contracts/imagery";
-import type { GuidedActionKind, GuidedImpersonatePerson, UserIntent } from "@orb/contracts/preset";
+import type { UserIntent } from "@orb/contracts/preset";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type {
   AssetId,
@@ -34,6 +35,10 @@ import type {
 } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 
+// The one-turn typed steer is the CONTRACTS wire shape (`guidedSteerSchema`) — re-exported here so the
+// verb *Params surface stays one import (F6 re-home: the local re-spell died when the wire schema landed).
+export type { GuidedSteer } from "@orb/contracts/chat";
+
 /** Common to every chat verb: the acting principal. */
 interface ChatActorParams {
   readonly principal: Principal;
@@ -47,18 +52,6 @@ interface ChatScopedParams extends ChatActorParams {
 /** A message-scoped base (canon edits/variant operations). */
 interface MessageScopedParams extends ChatScopedParams {
   readonly messageId: MessageId;
-}
-
-/** A one-turn typed steer. `placement` defaults to the system marker; the `inject` arm is for an action
- *  that must read as an in-character turn. Untrusted `input` is macro-neutralized downstream. */
-type GuidedPlacement = { readonly kind: "system" } | { readonly kind: "inject"; readonly role: MessageRole };
-
-export interface GuidedSteer {
-  readonly action: GuidedActionKind;
-  readonly input?: string | undefined;
-  readonly placement?: GuidedPlacement | undefined;
-  /** The `{{person}}` word for impersonate's 1st/2nd/3rd-person templates; meaningless for other actions. */
-  readonly person?: GuidedImpersonatePerson | undefined;
 }
 
 /** `startChat` — lazy chat+roster creation, greeting/verbatim seeding, first-turn delegate. */

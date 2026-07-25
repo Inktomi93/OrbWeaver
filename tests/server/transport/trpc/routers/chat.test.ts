@@ -545,6 +545,69 @@ describe("chat.continueTurn — the guided-continue verb (composer wand wire-thr
   });
 });
 
+// F6 (guided-generations stickler audit) — the `guided` wire trust boundary. Before `guidedSteerSchema`
+// the six turn verbs rode `z.any()` and the domain assumed the shape: a garbage `action` dereferenced
+// `undefined.prompt` (assembly/macros.ts) and a non-string `input` hit `.trim()`, so any authed
+// participant could 500 the turn with a malformed body. Each verb must now REFUSE garbage as a
+// BAD_REQUEST at the transport BEFORE the verb runs (the service mock is never called). RED-ON-OLD: with
+// `guided: z.any()` these inputs sail through and the assertion (`not.toHaveBeenCalled` + BAD_REQUEST) fails.
+describe("F6 — the guided-steer wire boundary refuses a malformed body (BAD_REQUEST, not a 500)", () => {
+  test("send: a garbage guided.action is refused at the boundary; the verb never runs", async () => {
+    const sendFn = vi.fn<ChatService["send"]>();
+    const ctx = makeContext({ auth: principal("user", { userId: MEMBER }), services: { chat: { send: sendFn } } });
+
+    await expect(
+      caller(ctx).chat.send({
+        chatId: CHAT,
+        content: "hi",
+        // biome-ignore lint/suspicious/noExplicitAny: deliberately off-schema — an unknown action is the exact 500 vector F6 closes.
+        guided: { action: "nope", input: "x" } as any,
+      }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    expect(sendFn).not.toHaveBeenCalled();
+  });
+
+  test("swipe: a non-string guided.input is refused at the boundary; the verb never runs", async () => {
+    const swipeFn = vi.fn<ChatService["swipe"]>();
+    const ctx = makeContext({ auth: principal("user", { userId: MEMBER }), services: { chat: { swipe: swipeFn } } });
+
+    await expect(
+      caller(ctx).chat.swipe({
+        chatId: CHAT,
+        messageId: MESSAGE.id,
+        // biome-ignore lint/suspicious/noExplicitAny: deliberately off-schema — a non-string input is the `.trim()` 500 vector.
+        guided: { action: "swipe", input: { evil: true } } as any,
+      }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    expect(swipeFn).not.toHaveBeenCalled();
+  });
+
+  test("continueTurn: an arbitrary placement.role (off the message-role vocab) is refused; the verb never runs", async () => {
+    const continueTurn = vi.fn<ChatService["continueTurn"]>();
+    const ctx = makeContext({ auth: principal("user", { userId: MEMBER }), services: { chat: { continueTurn } } });
+
+    await expect(
+      caller(ctx).chat.continueTurn({
+        chatId: CHAT,
+        messageId: MESSAGE.id,
+        // biome-ignore lint/suspicious/noExplicitAny: deliberately off-schema — a junk role must not reach the provider wire.
+        guided: { action: "continue", input: "x", placement: { kind: "inject", role: "wizard" } } as any,
+      }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    expect(continueTurn).not.toHaveBeenCalled();
+  });
+
+  test("a well-formed guided body still passes the boundary and reaches the verb (the boundary isn't over-tight)", async () => {
+    const generate = vi.fn<ChatService["generate"]>(async () => ({ messages: [MESSAGE], aborted: false }));
+    const ctx = makeContext({ auth: principal("user", { userId: MEMBER }), services: { chat: { generate } } });
+
+    const guided = { action: "response" as const, input: "hint at the letter", placement: { kind: "system" as const } };
+    await caller(ctx).chat.generate({ chatId: CHAT, guided });
+
+    expect(generate).toHaveBeenCalledWith({ principal: expect.objectContaining({ userId: MEMBER }), chatId: CHAT, guided });
+  });
+});
+
 describe("chat.impersonate — the guided-impersonate verb (composer wand wire-through)", () => {
   test("a thin pass-through: chatId/personaId/guided (incl. the person word) reach the verb", async () => {
     const impersonate = vi.fn<ChatService["impersonate"]>(async () => ({
@@ -559,7 +622,7 @@ describe("chat.impersonate — the guided-impersonate verb (composer wand wire-t
     const guided = {
       action: "impersonate" as const,
       input: "ask about the ruins",
-      person: "third",
+      person: "third" as const,
     };
     const result = await caller(ctx).chat.impersonate({ chatId: CHAT, guided });
 

@@ -22,6 +22,12 @@ export const settingsRouter = t.router({
     .input(
       z.object({
         section: z.enum(USER_SETTINGS_SECTIONS),
+        // Deliberately opaque: `patch` is a DEEP-MERGE intake, not the authoritative shape. It is
+        // owner-scoped (`principal.userId` — no cross-tenant surface), merged into ONE named section, then
+        // the WHOLE blob is re-validated through the lenient `parseUserSettings` at the write seam
+        // (`domain/settings/verbs/update-user-settings-section.ts`), which self-heals any malformed key
+        // rather than persisting it. A per-section wire schema here would just duplicate that parser; the
+        // real enforcement is the re-validate, not this record. (F6 sweep: classified opaque-with-reason.)
         patch: z.record(z.string(), z.unknown()),
       }),
     )
