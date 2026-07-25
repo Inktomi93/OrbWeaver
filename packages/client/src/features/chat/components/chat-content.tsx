@@ -7,7 +7,7 @@ import type { ChatWarningCode, TurnAbortReason } from "@orb/contracts/chat";
 import type { ReactElement } from "react";
 import type { ChatBusDeps } from "#data";
 import { useChatBusDeps } from "#data";
-import type { ChatSurfaceContribution, ContributorRegistry } from "#lib";
+import type { ChatSurfaceContribution, ContributorRegistry, ToolRenderer } from "#lib";
 import { notify } from "#lib";
 import {
   commitDraft,
@@ -28,6 +28,7 @@ import { ChatRoomSurface } from "../surfaces/chat-room-surface";
 
 export interface ChatContentProps {
   readonly surfaceContributors: ContributorRegistry<ChatSurfaceContribution>;
+  readonly toolRenderers: ContributorRegistry<ToolRenderer>;
 }
 
 // The stale-abort honesty seam: the bus reducer surfaces a turn abort through the injected `onTurnAbort`
@@ -50,7 +51,7 @@ function surfaceWarning(code: ChatWarningCode): void {
   notify.info(warningNotice(code));
 }
 
-export function ChatContent({ surfaceContributors }: ChatContentProps): ReactElement {
+export function ChatContent({ surfaceContributors, toolRenderers }: ChatContentProps): ReactElement {
   const handle = useActiveChatHandle();
   const draftSeed = useActiveDraftSeed();
   const sessionKey = useActiveSessionKey();
@@ -81,6 +82,7 @@ export function ChatContent({ surfaceContributors }: ChatContentProps): ReactEle
       onChatForked={selectChat}
       onChatStarted={commitDraft}
       surfaceContributors={surfaceContributors}
+      toolRenderers={toolRenderers}
     />
   );
 }

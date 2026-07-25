@@ -8,6 +8,7 @@ import type { ChatMacroNameProducer, ChatMetadata, ParticipantView, PersonaAvata
 import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
 import type { ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { ChatDetail } from "../contract/views";
+import { NO_HISTORY_FLOOR } from "./auth";
 
 /** The projected `chats` row (metadata already parsed) — structurally the persistence `ChatRow`, which
  *  both `loadChatRow` and `listMemberChats` return. Only the fields `ChatDetail` reads. */
@@ -33,11 +34,20 @@ interface ToChatDetailInput {
   readonly macroNames: ChatMacroNameProducer;
   readonly personaAvatars: readonly PersonaAvatarEntry[];
   readonly viewerUserId: UserId;
+  /** The viewer's D16 join-history floor (`substrate/auth::resolveHistoryFloorSeq`). REQUIRED, not defaulted,
+   *  so a new `ChatDetail` producer must state the viewer's clamp rather than inherit an open one. */
+  readonly viewerHistoryFloorSeq: number;
 }
 
-/** Map a loaded chat row + its resolved roster + macro name producer → `ChatDetail`. */
-export function toChatDetail({ chat, participants, macroNames, personaAvatars, viewerUserId }: ToChatDetailInput): ChatDetail {
+/** Map a loaded chat row + its resolved roster + macro name producer → `ChatDetail`.
+ *
+ *  The COMPACTION CHECKPOINT is D16-clamped here (the one home every detail producer shares): the summary is
+ *  model-written prose covering canon from seq 1 through `compactedAtSeq`, so ANY clamped viewer
+ *  (`viewerHistoryFloorSeq > 0`) would be reading a distillation of the transcript their floor withholds.
+ *  Both fields drop together — a `compactedAtSeq` with no summary is a divider anchored to nothing. */
+export function toChatDetail({ chat, participants, macroNames, personaAvatars, viewerUserId, viewerHistoryFloorSeq }: ToChatDetailInput): ChatDetail {
   const viewer = participants.find((p) => p.userId === viewerUserId);
+  const checkpointVisible = viewerHistoryFloorSeq <= NO_HISTORY_FLOOR;
   return {
     id: chat.id,
     title: chat.title,
@@ -55,8 +65,8 @@ export function toChatDetail({ chat, participants, macroNames, personaAvatars, v
     roomOverrides: chat.metadata.roomOverrides ?? DEFAULT_ROOM_OVERRIDES,
     background: chat.metadata.background ?? null,
     opening: chat.metadata.opening ?? null,
-    compactSummary: chat.compactSummary,
-    compactedAtSeq: chat.compactedAtSeq,
+    compactSummary: checkpointVisible ? chat.compactSummary : null,
+    compactedAtSeq: checkpointVisible ? chat.compactedAtSeq : null,
     createdAt: chat.createdAt,
     updatedAt: chat.updatedAt,
     macroNames,

@@ -703,3 +703,30 @@ test("action cluster is hidden-at-rest (opacity 0, in-flow, inert) and never sta
   const overflow = await nameRow.evaluate((el) => el.scrollWidth > el.clientWidth + 1);
   expect(overflow).toBe(false);
 });
+
+// ── D48 tool records reach the row (the wiring the transcript was silently dropping) ────────────────
+// `MessageView.toolCalls` is the client's ONLY tool read surface and is present on EVERY message read
+// (`[]` on a non-tool turn). These two pin the row-level ends of that seam: a record renders, and the
+// empty array adds NOTHING to the row (no empty shell) — the byte-identical-when-absent floor every
+// other CT in this file relies on.
+test("a row with a persisted tool record renders it (name + result visible)", async ({ mount }) => {
+  const component = await mount(
+    <MessageRowStory
+      chatStyle="bubble"
+      messageRole="assistant"
+      toolCalls={[{ toolCallId: "call_row_1", name: "lookup_lore", arguments: '{"q":"aria"}', result: '{"found":true}', isError: false, durationMs: 42 }]}
+    />,
+  );
+  const block = component.locator('[data-slot="message-tool-calls"]');
+  await expect(block).toBeVisible();
+  await expect(block).toContainText("lookup_lore");
+  // The <details> body holds arguments + result; open it so the result text is actually rendered/visible.
+  await block.locator("summary").click();
+  await expect(block).toContainText("found");
+});
+
+test("a row with an EMPTY toolCalls array renders no tool block at all", async ({ mount }) => {
+  const component = await mount(<MessageRowStory chatStyle="bubble" messageRole="assistant" toolCalls={[]} />);
+  await expect(component.locator('[data-slot="message-tool-calls"]')).toHaveCount(0);
+  await expect(component.locator('[data-slot="tool-call-block"]')).toHaveCount(0);
+});

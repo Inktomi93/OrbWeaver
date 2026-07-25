@@ -52,7 +52,20 @@ divergences where RETRO IS AHEAD (main had DELETED `previewContextFit`/`contextB
 **SECTION-HINT LANDED** (uncommitted): `@orb/ui` Section gains optional `hint` → info-icon Tooltip as a
 SIBLING of the h3 (never nested — keeps the heading's a11y name clean); ported byte-identical from main;
 purged grep clean; CT 4/4.
-STILL RUNNING: BG-C/V backgrounds (the sprite/VN-risk lane) · joinHistoryVisibility fix.
+**BG-C/V LANDED** — carried+video backgrounds WHOLE (server half was already live; client half = set via
+chat+card, resolve via true-solo cascade, paint image|video). New `@orb/ui` **background-video** primitive
+carries the D44 media policy + its subpath export (the 16th file). Sprite guard clean (only "ex**posed**");
+stripped 2 TEXTUAL couplings (a TSDoc "VN/cinematic modes", a purged BG-F reference) and took ONLY
+`background: ThemeBackground|null` out of the registry-contracts hunk — left `hasRpgGame`, 5 rpg
+surface-anchor arms, ToolRenderer/SlashCommand/HubCard behind. **Fixed a live retro bug en route**:
+`theme-background-layer` set `backgroundSize: fit` raw → INVALID CSS for `stretch`/`center`, so 2 of 4 fit
+options silently did nothing.
+
+**➡️ #12 HELD TRIO COMMITTED `f845607a`** (42 files, whole-tree check PASS; my OWN independent purged-domain
+sweep over the full diff = zero code hits). **The #12 trio is DONE — the original 13-item board is CLOSED.**
+STILL RUNNING: joinHistoryVisibility enforcement (task #29, security-executor).
+QUEUED (not blocking): a live side-eye drive on a real chat with a video background — the BG lane skipped it
+to avoid HMR contention with the concurrent lanes; worth doing now that the tree is settled.
 
 ### ═══ OVERNIGHT AUTONOMOUS (2026-07-24 night, Fable 5) — read THIS first ═══
 
@@ -647,8 +660,46 @@ macro gap ledger, neo anti-swipe-fishing, hosted auto-compact characterization (
   theme-background-layer + room-overrides-tab need diffs only; the video primitive + use-chat-background
   + background-source-field + registry-contracts background field are absent-wholesale).
 - **FUTURE-RELEVANT (ledger-for-rebuild)**: world-book attach/detach-to-chat hooks (server live;
-  returns with the chat context-tab seam); accept-all tag suggestions (tag.bulkAttachTag live); the
-  message-tools-renderer/text-decorator/slash-command registry-seam pattern (returns with rpg).
+  returns with the chat context-tab seam); accept-all tag suggestions (tag.bulkAttachTag live); ~~the
+  message-tools-renderer/text-decorator/slash-command registry-seam pattern (returns with rpg)~~
+  ⚠️ **MISCLASSIFIED — OWNER CORRECTED 2026-07-24**: "tool renderer and slash commands are still valid
+  with our automation and plugin lane and macro engine." These are NOT rpg-coupled and do NOT wait for a
+  rebuild — automation (`domain/automation/`), plugin-host (`infra/plugin-host/`) and the macro engine
+  (`kit/src/macro/`) are ALL LIVE in retro, and chat TOOLS are live. So `ToolRenderer` /
+  `MessageToolsRenderer` / `MessageTextDecorator` / `SlashCommandContribution` are the CLIENT
+  CONTRIBUTION SEAMS those live systems need. (`HubCardContextState` + `hasRpgGame` DO stay purged.)
+  **SCOUTED — per-seam verdicts (2026-07-24), act on these, don't re-derive:**
+  · **TOOL-CALL RENDERING = GENUINE GAP, FIX LANE RUNNING.** `MessageView.toolCalls: ToolCallRecord[]`
+    (`contracts/chat/index.ts:521`, shape at :468 — toolCallId/name/arguments/result/isError/durationMs) is
+    populated on EVERY message read and its own doc calls it "the client's ONLY tool read surface". The
+    client has ZERO handling (`message-content.tsx` renders markdown|media|html-card exhaustively, never
+    reads it). AND `packages/ui/src/primitives/tool-call-block/` ships a generic `ToolCallBlock` with **no
+    caller repo-wide**. Server emits → client drops → the renderer built for it sits unused. THIRD
+    half-shipped feature of the night (after removeCharacterFromChat + streamScrollMode).
+  · **MessageTextDecorator = NOT NEEDED YET** — generic seam, but its only producer was rpg's dice tag.
+    Reinstate when automation emits an analogous inline marker.
+  · **SlashCommandContribution = valid infra, NO LIVE PRODUCER.** Retro has no `/command` dispatch in the
+    composer at ALL (missing lower in the stack than main); the command palette
+    (`command-palette-surface.tsx`) is a fixed cmdk list, no registry. Nothing server-side emits a command
+    today — plugin-host supports ONLY event subscribers (`automation/contract/plugin-subscribers.ts:20`),
+    no renderer/command contribution kind exists. So: NOT dead, but YAGNI until a producer exists. Build it
+    WITH the first producer, not before.
+  · **Macro client seam = NOT NEEDED** — `kit/src/macro/registry.ts` is a fixed builtin registry consumed
+    during server-side prompt assembly; macros resolve into the persisted body before the client sees text.
+    No dynamic/plugin registration point exists anywhere.
+  · **`HubCardContextState` + `hasRpgGame` = CORRECTLY PURGED** (genuinely hub/rpg-coupled).
+  So the BG-C/V lane's omission was RIGHT for 4 of 5 and WRONG for tool rendering only — now FIXED.
+  · **TOOL-CALL RENDERING LANDED (uncommitted).** `ToolCallBlock` needed ZERO changes (it already handled
+    error/unexecuted/success + pretty-print fallback + duration — it was purely uncalled). New
+    `message-tool-calls.tsx`; `ToolRenderer` (per-tool-NAME) rides the EXISTING `ChatSurfaceContribution`
+    prop chain (no second mechanism); `MessageToolsRenderer` (whole-message) rides a null-tolerant registry
+    context (G26). Precedence: whole-message → per-name → generic block. Empty `toolCalls` returns null
+    BEFORE touching any registry ⇒ zero DOM on non-tool turns (2 tests pin it). Both registries EMPTY at
+    `main.tsx` ⇒ today = bare ToolCallBlock. 7+2 CTs, check:structure clean, snap 0 page errors, purged
+    grep clean. **FINDING: the tool path is LIVE but has NO DEFAULT REGISTRANT** — producers are
+    plugin-registered tools only (`domain/plugin/activation/activate.ts` → `registerTool` →
+    `domain/tool-use`); no built-in tool ships pre-registered, so blocks appear once automation/plugins
+    register one. That matches the owner's automation/plugin lane; renderer is no longer the missing half.
 - **OWNER RULED (2026-07-24) — both RESTORE**: (12) composer-draft-store persistence returns (keyed
   store + draft→commit migration; losing typed text on navigation is the image-gen-prompt data-loss
   family, unrelated to the reduced-modes trap); (13) ShapeTraceSummary host-only assembly-trace panel

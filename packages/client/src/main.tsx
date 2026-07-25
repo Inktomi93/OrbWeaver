@@ -34,11 +34,12 @@ import { analyticsSection } from "#features/stats";
 import { adminPane } from "#features/user-admin";
 import { backupPane, workloadsPane } from "#features/workloads";
 import { worldInfoSection } from "#features/world-info";
-import type { CharacterDetailContribution, ChatContextState, ChatSurfaceContribution, ContextTabDef } from "#lib";
+import type { CharacterDetailContribution, ChatContextState, ChatSurfaceContribution, ContextTabDef, MessageToolsRenderer, ToolRenderer } from "#lib";
 import { AppErrorBoundary, bindNotify, buildClientErrorPayload, createContributorRegistry, createRegistry } from "#lib";
 import {
   assembleChrome,
   ChromeRegistryProvider,
+  MessageToolsRendererRegistryProvider,
   MODAL_SLOT_IDS,
   ModalRegistryProvider,
   SECTION_IDS,
@@ -88,6 +89,17 @@ const chatContextContributors = createContributorRegistry<ContextTabDef<ChatCont
 // compiled and exercised with zero contributions; rpg/crew append array members later.
 const chatSurfaceContributors = createContributorRegistry<ChatSurfaceContribution>("chat-surface", []);
 
+// The per-tool-name renderer seam (§6c): EMPTY but typed — zero contributions ⇒ every persisted tool record
+// renders through the generic @orb/ui `ToolCallBlock` fallback, so today's transcript is byte-identical to a
+// build with no renderers; an automation/plugin feature appends array members later without importing chat.
+const toolRenderers = createContributorRegistry<ToolRenderer>("tool-renderers", []);
+
+// The WHOLE-MESSAGE tool-renderer seam (§6c): the per-message override that renders ALL of a message's tool
+// records together so a contributor can AGGREGATE across them (the per-tool registry above cannot see across
+// records). Delivered via a context provider; the FIRST renderer to claim a message owns its whole tool block,
+// else chat falls back to the per-record path. Empty ⇒ byte-identical.
+const messageToolsRenderers = createContributorRegistry<MessageToolsRenderer>("message-tools-renderer", []);
+
 // The character-detail contributor seam (§6c): EMPTY but typed — the door → factory → editor-body anchor
 // path is compiled and exercised with zero contributions; the crew feature appends its card-evolution
 // review section later (crew 07-client-ui §4.2), grafting into the editor WITHOUT importing character.
@@ -96,7 +108,7 @@ const characterDetailContributors = createContributorRegistry<CharacterDetailCon
 // The ONE section assembly (G1/G8): total over SECTION_IDS by tsc; delivered as a context value so
 // app-shell reads it (incl. the use-shell-layout hook) without a #features import.
 const sections = createRegistry("sections", SECTION_IDS, {
-  chats: makeChatsSection(chatContextContributors, chatSurfaceContributors),
+  chats: makeChatsSection(chatContextContributors, chatSurfaceContributors, toolRenderers),
   characters: makeCharactersSection(characterDetailContributors),
   corpus: corpusSection,
   worldInfo: worldInfoSection,
@@ -200,7 +212,9 @@ createRoot(rootEl).render(
               <ModalRegistryProvider value={modals}>
                 <ChromeRegistryProvider value={chrome}>
                   <SettingsPaneRegistryProvider value={settingsPanes}>
-                    <RouterProvider router={router} />
+                    <MessageToolsRendererRegistryProvider value={messageToolsRenderers}>
+                      <RouterProvider router={router} />
+                    </MessageToolsRendererRegistryProvider>
                   </SettingsPaneRegistryProvider>
                 </ChromeRegistryProvider>
               </ModalRegistryProvider>

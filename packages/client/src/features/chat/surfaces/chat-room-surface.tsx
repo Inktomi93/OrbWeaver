@@ -13,7 +13,7 @@ import type { ReactElement, ReactNode } from "react";
 import { Fragment, useRef, useState } from "react";
 import type { ChatBusDeps } from "#data";
 import { useGatedQuery, useTRPC } from "#data";
-import type { ChatRoomSurfaceState, ChatSurfaceContribution, ContributorRegistry } from "#lib";
+import type { ChatRoomSurfaceState, ChatSurfaceContribution, ContributorRegistry, ToolRenderer } from "#lib";
 import { useFocusOnMount } from "#lib";
 import type { ActiveChatHandle, ChatHandle } from "#state";
 import { committedChat, isCommitted, migrateComposerDraft, setComposerDraft, useComposerDraft } from "#state";
@@ -34,6 +34,7 @@ export interface ChatRoomSurfaceProps {
   readonly onChatStarted?: ((chatId: ChatId, draftKey: string) => void) | undefined;
   readonly onChatForked?: ((chatId: ChatId) => void) | undefined;
   readonly surfaceContributors: ContributorRegistry<ChatSurfaceContribution>;
+  readonly toolRenderers: ContributorRegistry<ToolRenderer>;
 }
 
 /** This room's stable composer-draft scope key — a committed chat's id, else the draft key (landing never
@@ -62,7 +63,15 @@ function resolveRoomAnchor(
     .map((c) => ({ id: c.id, node: c.body(state) }));
 }
 
-export function ChatRoomSurface({ initialHandle, busDeps, draftSeed, onChatStarted, onChatForked, surfaceContributors }: ChatRoomSurfaceProps): ReactElement {
+export function ChatRoomSurface({
+  initialHandle,
+  busDeps,
+  draftSeed,
+  onChatStarted,
+  onChatForked,
+  surfaceContributors,
+  toolRenderers,
+}: ChatRoomSurfaceProps): ReactElement {
   const [handle, setHandle] = useState<ChatHandle>(initialHandle);
   // The composer draft, keyed by this room's stable scope (a committed chat's id, else the draft key).
   const scopeKey = roomScopeKey(handle);
@@ -96,7 +105,14 @@ export function ChatRoomSurface({ initialHandle, busDeps, draftSeed, onChatStart
   const thread = (
     <Stack className="min-h-0 flex-1">
       <MessageThreadAnchor>
-        <MessageListSurface busDeps={busDeps} handle={handle} draftSeed={draftSeed} onChatForked={onChatForked} surfaceContributors={surfaceContributors} />
+        <MessageListSurface
+          busDeps={busDeps}
+          handle={handle}
+          draftSeed={draftSeed}
+          onChatForked={onChatForked}
+          surfaceContributors={surfaceContributors}
+          toolRenderers={toolRenderers}
+        />
       </MessageThreadAnchor>
     </Stack>
   );

@@ -35,6 +35,7 @@ import {
 } from "../persistence/queries";
 import { loadRoster } from "../persistence/roster";
 import { loadPersonaAvatarProducer } from "../persistence/roster-avatars";
+import { NO_HISTORY_FLOOR } from "../substrate/auth";
 import { toChatDetail } from "../substrate/chat-detail";
 import { foldChain } from "../substrate/runtime-variables";
 import { canonMessageDelta, chatCreatedDelta, swipeVariantDelta } from "../substrate/stats-delta";
@@ -202,16 +203,23 @@ async function resolveOwnedCharacterSeats(
 }
 
 /** `forkChat` — deep copy. Gate membership (a member may fork), copy the chat + cast + canon + injections
- *  with fresh ids into a new chat where the forker is host, in one atomic batch. Emits `chatCreated`. */
+ *  with fresh ids into a new chat where the forker is host, in one atomic batch. Emits `chatCreated`.
+ *
+ *  D16 join-history clamp: a fork COPIES canon into a room the forker HOSTS, so it is a read path with a
+ *  permanent product — an unfloored copy would launder every pre-join row past the forker's own
+ *  `joinHistoryVisibility` and hand them host authority over it. The copy floor is the forker's
+ *  `historyFloorSeq` (`loadMessageSlots`), and the compaction checkpoint only rides along for an UNCLAMPED
+ *  forker (the summary covers canon from seq 1, so a clamped forker would carry a distillation of exactly
+ *  the rows the floor withheld). `full` forkers are unaffected. */
 function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat"] {
   return async ({ principal, chatId, throughSeq, title }: ForkChatParams): Promise<ForkResult> => {
-    const { chat: source } = await requireParticipant(ctx, principal, chatId);
+    const { chat: source, historyFloorSeq } = await requireParticipant(ctx, principal, chatId);
     const now = ctx.now();
     const newChatId = ctx.newChatId();
 
     const [variables, slots, injections, roster, standaloneDeltas] = await Promise.all([
       loadStoredVariables(ctx.db, chatId),
-      loadMessageSlots(ctx.db, chatId, throughSeq),
+      loadMessageSlots(ctx.db, chatId, throughSeq, historyFloorSeq),
       loadChatInjections(ctx.db, chatId),
       loadRoster(ctx.db, chatId),
       loadStandaloneVariableDeltas(ctx.db, chatId),
@@ -228,8 +236,10 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
     );
 
     // The compaction checkpoint copies only when it is covered by the fork point (else a truncated fork
-    // would claim a summary over trimmed turns).
-    const keepCheckpoint = source.compactedAtSeq !== null && (throughSeq === undefined || source.compactedAtSeq <= throughSeq);
+    // would claim a summary over trimmed turns) AND the forker is unclamped (a `from-join` forker's floor
+    // withheld the very rows the summary distills — carrying it would re-expose them as prose).
+    const keepCheckpoint =
+      source.compactedAtSeq !== null && (throughSeq === undefined || source.compactedAtSeq <= throughSeq) && historyFloorSeq <= NO_HISTORY_FLOOR;
 
     // The fork's runtime cache is the fold of the copied selected-variant chain (recomputed from the
     // possibly-truncated `slots` — a partial fork must not claim the source's full-chain cache).
@@ -319,6 +329,9 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
         macroNames,
         personaAvatars,
         viewerUserId: principal.userId,
+        // The forker is the NEW room's born-here host (`joinSeq` 0) — unclamped in the fork, which already
+        // carries only what their source-room floor allowed.
+        viewerHistoryFloorSeq: NO_HISTORY_FLOOR,
       }),
     };
   };

@@ -44,6 +44,7 @@ import {
 import { loadChatMacroNameProducer } from "../persistence/macro-names";
 import { loadChatRow, loadMemberChat } from "../persistence/queries";
 import { loadPersonaAvatarProducer } from "../persistence/roster-avatars";
+import { resolveHistoryFloorSeq } from "../substrate/auth";
 import { toChatDetail } from "../substrate/chat-detail";
 
 /** The collaborators the invite verbs close over (see the file header). */
@@ -222,6 +223,10 @@ function createRedeemInvite(ctx: ChatContext, deps: InviteDeps): ChatService["re
         macroNames,
         personaAvatars,
         viewerUserId: principal.userId,
+        // The joiner's OWN D16 floor, off the row the redeem just wrote — a `from-join` joiner must not
+        // receive the compaction checkpoint (a distillation of the canon their floor withholds) on the very
+        // response that seats them.
+        viewerHistoryFloorSeq: resolveHistoryFloorSeq(participant),
       }),
       participant,
     };
@@ -279,6 +284,10 @@ function createAcceptInvite(ctx: ChatContext, deps: InviteDeps): ChatService["ac
         macroNames,
         personaAvatars,
         viewerUserId: principal.userId,
+        // The joiner's OWN D16 floor, off the row the redeem just wrote — a `from-join` joiner must not
+        // receive the compaction checkpoint (a distillation of the canon their floor withholds) on the very
+        // response that seats them.
+        viewerHistoryFloorSeq: resolveHistoryFloorSeq(participant),
       }),
       participant,
     };

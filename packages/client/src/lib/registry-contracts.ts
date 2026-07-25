@@ -9,7 +9,7 @@
 // `resolveContextTabs`, paired with its consumer INSIDE the definition file; the shell only ever sees the
 // NON-generic `ContextDefinition` this mint returns (§6b).
 
-import type { MessageView, ParticipantView, RoomOverrides } from "@orb/contracts/chat";
+import type { MessageView, ParticipantView, RoomOverrides, ToolCallRecord } from "@orb/contracts/chat";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type { CharacterId, ChatId, PresetId, UserId } from "@orb/kit/ids";
 import type { ReactNode } from "react";
@@ -223,6 +223,32 @@ interface CharacterDetailSectionsContribution {
   readonly anchor: Extract<CharacterDetailAnchor, "editor-sections">;
   readonly when?: (state: CharacterDetailState) => boolean;
   readonly body: (state: CharacterDetailState) => ReactNode;
+}
+
+/** A per-tool-name renderer (§6c) — the cross-feature seam a feature (automation / a plugin surface) plugs a
+ *  rich renderer into WITHOUT importing chat: chat consumes a `ContributorRegistry<ToolRenderer>` wired empty
+ *  at `main.tsx` (the `ChatSurfaceContribution` precedent), keyed by the wire tool `name`. An UNREGISTERED name
+ *  falls back to the generic `@orb/ui` `ToolCallBlock`, so zero registrants renders exactly the default block.
+ *  `render` receives ONE persisted `ToolCallRecord` (the client's ONLY tool read surface — chat never
+ *  body-parses for tool markers) and parses its `arguments`/`result` through the feature's own schemas. */
+export interface ToolRenderer {
+  /** The wire tool name this renderer claims (the registry key). */
+  readonly id: string;
+  readonly render: (record: ToolCallRecord) => ReactNode;
+}
+
+/** A WHOLE-MESSAGE tool renderer (§6c) — the per-message fold the per-tool {@link ToolRenderer} cannot
+ *  express: a feature renders ALL of a message's tool records TOGETHER so it can AGGREGATE across them (fold
+ *  N bookkeeping calls into one line) WITHOUT importing chat. Chat consumes a
+ *  `ContributorRegistry<MessageToolsRenderer>` (assembled at `main.tsx`, delivered by context); for each
+ *  committed message it tries the renderers in order and uses the FIRST non-null result, which OWNS that
+ *  message's entire tool block. `null` = this renderer claims no tool in the message ⇒ chat falls back to the
+ *  per-record `ToolRenderer` path (byte-identical). `records` is the message's persisted `ToolCallRecord[]` in
+ *  array order (the client's ONLY tool read surface). */
+export interface MessageToolsRenderer {
+  /** Names this contributor (the registry key). */
+  readonly id: string;
+  readonly render: (records: readonly ToolCallRecord[]) => ReactNode | null;
 }
 
 /** A character-detail contribution (§6c) — a discriminated union BY ANCHOR (the M8 `ChatSurfaceContribution`

@@ -20,7 +20,15 @@ import {
   MessageThreadAnchor,
   NewChatPicker,
 } from "@orb/client/features/chat";
-import type { ChatContextState, ChatSurfaceAnchor, ChatSurfaceContribution, ContextTabDef, MessageRenderContext } from "@orb/client/lib";
+import type {
+  ChatContextState,
+  ChatSurfaceAnchor,
+  ChatSurfaceContribution,
+  ContextTabDef,
+  MessageRenderContext,
+  MessageToolsRenderer,
+  ToolRenderer,
+} from "@orb/client/lib";
 import { createContributorRegistry } from "@orb/client/lib";
 import type { ActiveChatHandle, ChatHandle } from "@orb/client/state";
 import {
@@ -30,6 +38,7 @@ import {
   draftChat,
   enterSelectionMode,
   isLiveTurnPhase,
+  MessageToolsRendererRegistryProvider,
   selectChat,
   setDraftGreeting,
   startEditingMessage,
@@ -39,7 +48,7 @@ import {
   useSectionRegistry,
   useTurnPhase,
 } from "@orb/client/state";
-import type { CharacterNameEntry, MessageView, ParticipantView, PersonaNameEntry } from "@orb/contracts/chat";
+import type { CharacterNameEntry, MessageView, ParticipantView, PersonaNameEntry, ToolCallRecord } from "@orb/contracts/chat";
 import { buildCharacterNameMap, buildPersonaNameMap, DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { AssetId, CharacterId, ChatId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -69,6 +78,7 @@ import type { MessageMetadataVisibility } from "../../../../packages/client/src/
 import { MessageMetadataRow } from "../../../../packages/client/src/features/chat/components/message-metadata-row";
 import { MessageRow } from "../../../../packages/client/src/features/chat/components/message-row";
 import { MessageSelectionBar } from "../../../../packages/client/src/features/chat/components/message-selection-bar";
+import { MessageToolCalls } from "../../../../packages/client/src/features/chat/components/message-tool-calls";
 import { ReasoningBlock } from "../../../../packages/client/src/features/chat/components/reasoning-block";
 import { RoomOverridesForm } from "../../../../packages/client/src/features/chat/components/room-overrides-form";
 import { SpeakAsSelect } from "../../../../packages/client/src/features/chat/components/speak-as-select";
@@ -81,6 +91,10 @@ import { CHAT_ID, COMPOSER_CHAT_ID, makeMessageView } from "./fixtures";
 // The door's empty chat-surface registry (§6c/M8) — stories that don't test the seam itself pass this,
 // mirroring main.tsx's zero-contribution assembly (no visual change over today's layout).
 const NO_SURFACE_CONTRIBUTORS = createContributorRegistry<ChatSurfaceContribution>("chat-surface", []);
+
+// The door's empty per-tool-name renderer registry (§6c) — mirrors main.tsx's zero-contribution assembly, so
+// every persisted tool record renders through the generic `ToolCallBlock` fallback.
+const NO_TOOL_RENDERERS = createContributorRegistry<ToolRenderer>("tool-renderers", []);
 
 // ── Pure-render stories (no data layer) ─────────────────────────────────────────────────────────
 
@@ -123,6 +137,8 @@ export interface MessageRowStoryProps {
   /** WS3/N3 — the per-toggle metadata-chip visibility (timestamp → name row, the rest → metadata row).
    *  Omitted ⇒ every datum hidden (the `MessageRow` NO_METADATA_VISIBLE default). */
   readonly metadataVisibility?: MessageMetadataVisibility;
+  /** The row's persisted tool exchanges (D48) — omitted ⇒ `[]`, the non-tool turn every other story drives. */
+  readonly toolCalls?: readonly ToolCallRecord[];
 }
 
 /** One row in a chosen chatStyle — the variant-mechanism CT mounts this three times; also the
@@ -143,6 +159,7 @@ export function MessageRowStory({
   avatarRing,
   showInChatAvatars,
   metadataVisibility,
+  toolCalls,
 }: MessageRowStoryProps): ReactElement {
   const participantsMap =
     participants === undefined
@@ -170,7 +187,7 @@ export function MessageRowStory({
     <CtDataProviders>
       <MessageThreadAnchor>
         <MessageRow
-          message={makeMessageView({ role: messageRole, content, characterId, personaId, tokensOut: 128, model: "ct/model-x" })}
+          message={makeMessageView({ role: messageRole, content, characterId, personaId, tokensOut: 128, model: "ct/model-x", toolCalls: toolCalls ?? [] })}
           chatStyle={chatStyle}
           metadataVisibility={metadataVisibility}
           avatarSize={avatarSize}
@@ -183,10 +200,44 @@ export function MessageRowStory({
           personaNamesById={personaNamesById}
           activePersonaId={activePersonaId}
           anchorPersonaId={anchorPersonaId}
+          toolRenderers={NO_TOOL_RENDERERS}
         />
       </MessageThreadAnchor>
     </CtDataProviders>
   );
+}
+
+export interface MessageToolCallsStoryProps {
+  readonly records: readonly ToolCallRecord[];
+  /** Registers a per-tool-name `ToolRenderer` claiming this wire tool name (the specialization seam). */
+  readonly customToolName?: string;
+  /** Registers a whole-message renderer: "claims" owns the block; "abstains" returns null (chat falls
+   *  through to the per-record path). Omitted ⇒ no Provider at all, the zero-registrant default. */
+  readonly messageRenderer?: "claims" | "abstains";
+}
+
+/** The tool-call block seam in isolation (message-tool-calls.tsx): the generic `@orb/ui` `ToolCallBlock`
+ *  fallback, an optional per-tool-name renderer that wins on a name match, and an optional whole-message
+ *  renderer with first refusal. The registries are built HERE (post-mount, in the browser) because a
+ *  registry instance does NOT survive the Playwright CT prop wire — only plain data crosses it. */
+export function MessageToolCallsStory({ records, customToolName, messageRenderer }: MessageToolCallsStoryProps): ReactElement {
+  const renderers = createContributorRegistry<ToolRenderer>(
+    "tool-renderers",
+    customToolName === undefined
+      ? []
+      : [{ id: customToolName, render: (record): ReactElement => <div data-testid="custom-tool">{`custom:${record.name}`}</div> }],
+  );
+  const block = <MessageToolCalls records={records} renderers={renderers} />;
+  if (messageRenderer === undefined) {
+    return block;
+  }
+  const messageRenderers = createContributorRegistry<MessageToolsRenderer>("message-tools-renderer", [
+    {
+      id: "ct-message-tools",
+      render: (all): ReactElement | null => (messageRenderer === "claims" ? <div data-testid="message-fold">{`${all.length} tool calls`}</div> : null),
+    },
+  ]);
+  return <MessageToolsRendererRegistryProvider value={messageRenderers}>{block}</MessageToolsRendererRegistryProvider>;
 }
 
 export interface MessageActionsRowStoryProps {
@@ -422,7 +473,7 @@ function SurfaceHarness({ committed }: SurfaceHarnessProps): ReactElement {
   return (
     <div style={{ height: 480 }}>
       <MessageThreadAnchor>
-        <MessageListSurface handle={handle} busDeps={busDeps} surfaceContributors={NO_SURFACE_CONTRIBUTORS} />
+        <MessageListSurface handle={handle} busDeps={busDeps} surfaceContributors={NO_SURFACE_CONTRIBUTORS} toolRenderers={NO_TOOL_RENDERERS} />
       </MessageThreadAnchor>
     </div>
   );
@@ -457,7 +508,7 @@ function ReplaySeedHarness(): ReactElement {
   return (
     <div style={{ height: 480 }}>
       <MessageThreadAnchor>
-        <MessageListSurface handle={handle} busDeps={busDeps} surfaceContributors={NO_SURFACE_CONTRIBUTORS} />
+        <MessageListSurface handle={handle} busDeps={busDeps} surfaceContributors={NO_SURFACE_CONTRIBUTORS} toolRenderers={NO_TOOL_RENDERERS} />
       </MessageThreadAnchor>
       <button type="button" data-testid="commit-draft" onClick={(): void => setCommitted(true)}>
         commit
@@ -488,7 +539,7 @@ function StoppingHarness(): ReactElement {
   return (
     <div style={{ height: 480 }}>
       <MessageThreadAnchor>
-        <MessageListSurface handle={committedChat(CHAT_ID)} busDeps={busDeps} surfaceContributors={NO_SURFACE_CONTRIBUTORS} />
+        <MessageListSurface handle={committedChat(CHAT_ID)} busDeps={busDeps} surfaceContributors={NO_SURFACE_CONTRIBUTORS} toolRenderers={NO_TOOL_RENDERERS} />
       </MessageThreadAnchor>
       <button type="button" data-testid="mark-stopping" onClick={(): void => chatStream.markStopping(CHAT_ID)}>
         stop
@@ -722,7 +773,13 @@ function ChatRoomHarness({ committed }: { readonly committed: boolean }): ReactE
   const draftSeed = committed ? undefined : { characterIds: [castId<CharacterId>("char_ct_room")] };
   return (
     <div style={{ height: 480 }}>
-      <ChatRoomSurface busDeps={busDeps} draftSeed={draftSeed} initialHandle={handle} surfaceContributors={NO_SURFACE_CONTRIBUTORS} />
+      <ChatRoomSurface
+        busDeps={busDeps}
+        draftSeed={draftSeed}
+        initialHandle={handle}
+        surfaceContributors={NO_SURFACE_CONTRIBUTORS}
+        toolRenderers={NO_TOOL_RENDERERS}
+      />
       {/* The clear-on-commit signal (mirrors ComposerStory's `drive-message-committed`): simulates the bus
           observing the caller's OWN user-row `messageCommitted` on the (post-promotion) committed chat.
           Driven directly rather than through the SSE stub because the draft→committed subscription churns

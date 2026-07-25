@@ -120,6 +120,9 @@ export {
   useSelectedCount,
   useSelectionActive,
 } from "./message-selection-store";
+export type { MessageToolsRendererRegistry } from "./message-tools-renderer-registry-context";
+export { MessageToolsRendererRegistryContext } from "./message-tools-renderer-registry-context";
+export { MessageToolsRendererRegistryProvider } from "./message-tools-renderer-registry-provider";
 export type {
   ModalDefinition,
   ModalTrigger,
