@@ -10,7 +10,7 @@ import type { GateDescriptor } from "./contract.ts";
 import type { GateResult, Violation } from "./harness.ts";
 import { loadGates } from "./loader.ts";
 import type { PassResult } from "./pass.ts";
-import { projectCtx, runPass } from "./pass.ts";
+import { projectCtx, runPass, stripProbeFindings } from "./pass.ts";
 import { renderPass } from "./render.ts";
 
 /** JSON shape for `reports/check-structure.json` — the read-don't-rerun artifact show.ts renders. */
@@ -52,7 +52,11 @@ function writeStructureReport(root: string, report: StructureReport): void {
 async function runSinglePass(root: string): Promise<void> {
   const gates = await loadGates(root);
   const gatesByName = new Map(gates.map((g) => [g.name, g]));
-  const pass = runPass(gates, projectCtx(root));
+  // Probe-artifact findings are stripped UNLESS this run is the check-gates conformance suite's own
+  // child (it plants __g_ fixtures and MUST see them fire — it sets ORB_GATE_FIXTURES=1).
+  const rawPass = runPass(gates, projectCtx(root));
+  // biome-ignore lint/style/noProcessEnv: ORB_GATE_FIXTURES is the check-gates suite's opt-out knob for its own child runs — harness plumbing, not app config.
+  const pass = process.env["ORB_GATE_FIXTURES"] === "1" ? rawPass : stripProbeFindings(rawPass);
 
   process.stdout.write(renderPass(pass, gatesByName));
   process.stdout.write("\n");

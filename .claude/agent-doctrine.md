@@ -21,6 +21,17 @@ Do not skim. You are an amnesiac agent; these docs are your memory.
   hook runs `pnpm check`, NOT `pnpm test`. After editing any gate or token file, run the gate's own
   integration test (`check-gates.int`). CT/unit tests are NOT in the commit hook — a change can be
   gate-green and still fail `pnpm test`.
+- **Lane verification is SCOPED (owner ruling 2026-07-25). Whole-tree `pnpm check`, `structure:full`,
+  and the full `pnpm test` battery are BANNED in a lane** — on a shared multi-lane tree they only show
+  sibling churn and burn your time attributing it. Your DONE bar: run exactly the test files you touched
+  (`pnpm vitest run <paths>`, single-file playwright CT), typecheck your surface (scoped tsc / the fast
+  per-package stages), biome+eslint on your files. The ORCHESTRATOR runs the big gates once on the
+  quiesced tree; anything it catches comes back to you to fix.
+- **The harness AUTO-WRITES artifacts — READ them, never pipe or re-run to rediscover a failure.**
+  `pnpm check` → `reports/verify.json` + per-stage `reports/verify/<stage>.log` +
+  `reports/check-structure.json`; `pnpm test` → `reports/test-report.json` + `reports/ct-flaky.json`.
+  Invoke the SCRIPTS, not bare runners (a bare `npx vitest run` skips the json reporter and loses the
+  artifact); a `| tail`/`| grep` filter on live output eats the failure list you needed.
 - **NEVER run `biome check --write`, `biome format`, or any format-all / fix-all.** Its INFO-level
   autofixes have changed behavior and crashed the server (the `/u` unicode-regex wave took down boot).
   Fix only ERROR-level diagnostics. `useUnicodeRegex` is deliberately deleted from biome.json — do not

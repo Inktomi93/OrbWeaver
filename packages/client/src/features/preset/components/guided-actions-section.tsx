@@ -15,12 +15,10 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import type { AppFormInstance } from "#forms";
 import { MESSAGE_ROLE_ITEMS } from "#lib";
+import { GUIDED_INPUT_TOKEN, guidedFooterState } from "../lib/assembly-model";
 import { PRESET_PROMPT_MACROS } from "../lib/preset-prompt-macros";
 
 type AssemblyForm = AppFormInstance<PromptConfig>;
-
-/** The steer token every template must carry — where the user's composer text lands. */
-const INPUT_TOKEN = "{{input}}";
 
 /** The `impersonate`-only macro whose value is the perspective word (`GUIDED_IMPERSONATE_PERSONS`). */
 const PERSON_TOKEN = "{{person}}";
@@ -65,7 +63,7 @@ export function GuidedActionsSection({
     <Stack gap="block">
       <Row gap="row" align="start" justify="between">
         <Text size="micro" tone="muted">
-          When you steer a generation, the matching template wraps your text — <code>{INPUT_TOKEN}</code> is where your steer lands.
+          When you steer a generation, the matching template wraps your text — <code>{GUIDED_INPUT_TOKEN}</code> is where your steer lands.
         </Text>
         <form.Subscribe selector={(state): MarkerHealth => markerHealth(state.values.sections)}>
           {(health): ReactElement => <MarkerCrossLink health={health} form={form} onSelectSection={onSelectSection} />}
@@ -150,24 +148,30 @@ function GuidedActionCard({ form, kind }: { readonly form: AssemblyForm; readonl
           role: state.values.guidedActions?.[kind].role ?? "system",
         })}
       >
-        {({ prompt, role }): ReactElement => <CardFooter prompt={prompt} role={role} isDefault={prompt === factoryDefault} />}
+        {({ prompt, role }): ReactElement => <CardFooter prompt={prompt} role={role} factoryDefault={factoryDefault} />}
       </form.Subscribe>
     </Stack>
   );
 }
 
 /** The card footer — Default/Customized state, the missing-`{{input}}` lint, + the assistant-prefill note. */
-function CardFooter({ prompt, role, isDefault }: { readonly prompt: string; readonly role: MessageRole; readonly isDefault: boolean }): ReactElement {
+function CardFooter({ prompt, role, factoryDefault }: { readonly prompt: string; readonly role: MessageRole; readonly factoryDefault: string }): ReactElement {
+  const { isEmpty, isDefault, missingInputLint } = guidedFooterState(prompt, factoryDefault);
   return (
     <Stack gap="field">
       <Text size="micro" tone="muted">
         {isDefault ? "Default" : "Customized"}
       </Text>
-      {prompt.includes(INPUT_TOKEN) ? null : (
-        <Text size="micro" tone="warning">
-          No {INPUT_TOKEN} — your steering text won't land anywhere.
+      {isEmpty ? (
+        <Text size="micro" tone="muted">
+          Empty — your steering text lands on its own, unwrapped.
         </Text>
-      )}
+      ) : null}
+      {missingInputLint ? (
+        <Text size="micro" tone="warning">
+          No {GUIDED_INPUT_TOKEN} — your steering text won't land anywhere.
+        </Text>
+      ) : null}
       {role === "assistant" ? (
         <Text size="micro" tone="muted">
           Assistant delivery is normalized on wires without prefill support.

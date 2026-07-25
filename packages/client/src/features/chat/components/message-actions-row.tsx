@@ -9,13 +9,13 @@
 import type { MessageView } from "@orb/contracts/chat";
 import type { ChatId, MessageId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
-import { Copy, Eye, EyeOff, GitFork, Icon, Pencil } from "@orb/ui/icons";
+import { Copy, Eye, EyeOff, GitFork, Icon, Pencil, Redo2, Undo2 } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { MenuItem } from "@orb/ui/menu";
 import type { ReactElement } from "react";
 import { RowActionsMenu } from "#components";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
-import { notify } from "#lib";
+import { NEEDS_CONTINUATION, notify } from "#lib";
 import { startEditingMessage } from "#state";
 import { MESSAGE_ACTION_ICON_CLASS, messageActionsRevealClass } from "../lib/message-actions-reveal";
 
@@ -33,6 +33,11 @@ interface DeleteVars {
 interface ForkVars {
   readonly chatId: ChatId;
   readonly throughSeq: number;
+}
+
+interface ContinueRestoreVars {
+  readonly chatId: ChatId;
+  readonly messageId: MessageId;
 }
 
 const useHideMutation = createEntityMutation<HideVars, unknown>({
@@ -53,6 +58,20 @@ const useForkMutation = createEntityMutation<ForkVars, { chat: { id: ChatId } }>
   errorToast: "Couldn't fork this chat.",
 });
 
+// Undo/revert the last continuation on THIS reply's shown swipe (F2). Bus-driven like the other row
+// mutations — the verb emits `messageCommitted`, the surface refetches; no manual cache write here.
+const useUndoContinueMutation = createEntityMutation<ContinueRestoreVars, unknown>({
+  options: (trpc) => trpc.chat.undoContinue.mutationOptions(),
+  busDriven: true,
+  errorToast: "Couldn't undo the continuation.",
+});
+
+const useRevertContinueMutation = createEntityMutation<ContinueRestoreVars, unknown>({
+  options: (trpc) => trpc.chat.revertContinue.mutationOptions(),
+  busDriven: true,
+  errorToast: "Couldn't re-apply the continuation.",
+});
+
 function isEditableRole(role: MessageView["role"]): boolean {
   return role === "user" || role === "assistant";
 }
@@ -70,9 +89,17 @@ export function MessageActionsRow({ message, onChatForked, messageActions }: Mes
   const hide = useHideMutation({ trpc, invalidation });
   const remove = useDeleteMutation({ trpc, invalidation });
   const fork = useForkMutation({ trpc, invalidation });
+  const undoContinue = useUndoContinueMutation({ trpc, invalidation });
+  const revertContinue = useRevertContinueMutation({ trpc, invalidation });
 
-  const { chatId, id: messageId, role, content, excludedFromPrompt } = message;
+  const { chatId, id: messageId, role, content, excludedFromPrompt, hasContinuation } = message;
   const editable = isEditableRole(role);
+  // Undo/revert target the continue snapshot, which only assistant replies carry. Phase-gated on the shown
+  // swipe's snapshot presence (`hasContinuation`) — disabled-with-reason when absent, NEVER hidden (owner:
+  // no reduced menus). Both stay enabled once a continuation exists (the snapshot is retained across an undo,
+  // so revert re-applies it); the row simply toggles between the pre-continue and continued text.
+  const showContinueRestore = role === "assistant";
+  const continueRestoreReason = hasContinuation ? undefined : NEEDS_CONTINUATION;
 
   const onEdit = (): void => {
     startEditingMessage(messageId, content);
@@ -103,6 +130,20 @@ export function MessageActionsRow({ message, onChatForked, messageActions }: Mes
     } catch {
       // The sticky mutation error + the global errorToast already surfaced the failure.
     }
+  };
+
+  const onUndoContinue = (): void => {
+    if (undoContinue.isPending || !hasContinuation) {
+      return;
+    }
+    undoContinue.mutate({ chatId, messageId });
+  };
+
+  const onRevertContinue = (): void => {
+    if (revertContinue.isPending || !hasContinuation) {
+      return;
+    }
+    revertContinue.mutate({ chatId, messageId });
   };
 
   const onCopy = async (): Promise<void> => {
@@ -145,6 +186,20 @@ export function MessageActionsRow({ message, onChatForked, messageActions }: Mes
           <Icon icon={Copy} size="sm" />
           Copy
         </MenuItem>
+        {/* The continue undo/redo pair (F2) — only on an assistant reply (the sole role that carries a
+            continue snapshot), disabled-with-reason until a continue has run on the shown swipe. */}
+        {showContinueRestore ? (
+          <MenuItem disabled={!hasContinuation} title={continueRestoreReason} onClick={onUndoContinue}>
+            <Icon icon={Undo2} size="sm" />
+            Undo last continuation
+          </MenuItem>
+        ) : null}
+        {showContinueRestore ? (
+          <MenuItem disabled={!hasContinuation} title={continueRestoreReason} onClick={onRevertContinue}>
+            <Icon icon={Redo2} size="sm" />
+            Re-apply continuation
+          </MenuItem>
+        ) : null}
       </RowActionsMenu>
     </Row>
   );

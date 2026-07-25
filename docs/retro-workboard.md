@@ -31,13 +31,63 @@ labeled, real h2s app-wide, "Chat actions for <title>", file-input hidden).
 step suffixes · `--mobile` (iPhone 14 Pro Max) /`--desktop`. side-eye agent+skill OVERHAULED: Opus,
 scope discipline (focused vs full), ~8-call MCP budget, §12 repo map, §13 mandatory blunt-taste+IA
 lens, §14 shell anatomy, and the landed snap flags baked in.
-**IN FLIGHT:** the guided-generations parity STICKLER (Fable/xhigh, reads all 97 reference files +
-our guided/injection surface; report → reports/stickler/2026-07-25-guided-generations-parity-audit.md)
-— owner wants the heart-came-through verdict + a "create opening" bring-over design. **QUEUED:**
-guided-generations E2E (owner-asked; ZERO e2e exist for it — wait for the stickler's verdict so we
-don't pin semantics about to change) · the UGLY facelift list (tab-strip overflow cue · Group-tab
-loading state) · the `--contexts N` multi-user snap chip · the ranked remainder below (d-citation gate
-· F2 host⇒floor-0 · HistoryFloorSeq brand · worldInfoActivated placement (owner leaned Preview-tab) ·
+**GUIDED-GENERATIONS PROGRAM (audit DONE 2026-07-25 → the phased plan; THE report is LAW-adjacent:
+`reports/stickler/2026-07-25-guided-generations-parity-audit.md` — COMMITTED `ba1eb63f`, incl. the §10
+reconciliation against the backup-RECOVERED rpg-lite cohesion game plan, which RATIFIED the
+convergence design: ONE ChatInjection channel for ALL steering; persistent guide ≡ tracker block, two
+content arms (prose side-gen vs D48 tools), write paths + rewind semantics NEVER unified).**
+Verdict: heart came through; builder mostly on base; F6 transport hole FIXED+COMMITTED `b733a0b0`
+(zero z.any() across all 22 routers). **THE PLAN (owner asked for it; phases sized so NO rpg is
+built — the only rpg obligation now is the one-channel/one-vocabulary discipline):**
+**🔁 STANDING DRIVE LOOP (owner, 2026-07-25: "keep driving it; after side-eye each phase make sure
+things look like your mockup / the right steps"): the orchestrator drives phase → reconcile → gate +
+battery → consolidation commit → OPUS SIDE-EYE VERIFY of that phase's surfaces (focused brief citing
+the design doc's expected end state — CP work is judged against Context-Panel-Program.md §1/§4's
+layout decisions: consolidated 4-tab strip, labeled talkativeness, reduced panel header, width bump)
+→ fix BROKEN → next phase. Do not stop for check-ins between phases; UGLY keeps accruing to the
+facelift list. Phase order: guided P1 (LAUNCHED, 4 lanes incl. CP-1/CP-2) → guided e2e → side-eye →
+Phase 2 greeting studio → side-eye → then the queued remainder.**
+· **PHASE 1 (3 path-disjoint lanes + e2e; LAUNCHED 2026-07-25 together with CP-1/CP-2 — owner "both
+  launch them all"):** Lane A server/assembly = steer→WI haystack (F4, one-arg) + marker-absent-steer
+  → depth-0-injection fallback (the recovered plan's refinement, attaches to F8). Lane B client
+  composer/wand (ONE lane, shared files) = rewrite fire surface (F1, client-only over swipe+guided) +
+  D57 input-recovery ring/restore-on-error (F3) + steer+speaker (F5) + F8 preset-card honesty. Lane C
+  = expose undoContinue/revertContinue (F2 — verbs built+int-tested, need tRPC+menu). THEN the guided
+  E2E lane (owner-asked; ZERO e2e exist) — after A–C so it pins the IMPROVED semantics; real journey,
+  canon asserted from server truth.
+· **PHASE 2:** the greeting studio (the "create opening is lame" fix) — rewrite-existing + make-new +
+  transform catalog; `greeting_rewrite`/`greeting_new` GUIDED_ACTION_KINDS arms; results APPEND to
+  `characters.greetings` (zero migrations); owner-gated character verbs (buddy-`ask` precedent).
+· **PHASE 3 — deferred FOR CAUSE with triggers, do not pull forward:** persistent guides/trackers =
+  D59, waits for its rebuild to be the SECOND consumer of the steering-prose kit (lift trigger
+  recorded in §10); steer-library TABLE only when a real user-authored library is asked (as-const/blob
+  first — recovered-plan precedent); spellchecker later; simpleSend/prompts.json machinery/profile
+  hot-swap = NEVER (sanctioned).
+· After Phase 1+2: ONE Opus side-eye re-verify pass (new rules: focused scope + taste mandate + §14
+  anatomy) covering the group-chat fixes AND the new guided surfaces.
+**CONTEXT-PANEL PROGRAM — OWNER'S NAMED NEXT SECTION (2026-07-25). SPEC MINTED:
+`docs/architecture/Context-Panel-Program.md`** — CP-1 tab consolidation (Overrides+Group → one
+"Settings" tab, kills the P3 clip; build FIRST, parallel-safe with guided Phase 1) → CP-2 width bump
+(`--dimension-panel` value amendment via the D71 seed) → CP-3 Trackers embryo (gated on the steering
+wave) → CP-4 the OSRS takeover (rpg rebuild; layout decisions recorded in the spec). Open questions
+§6 await owner: clamp values · tab name · panel-header de-dup timing. The original chip context:
+
+![The OSRS fixed-screen interface — minimap block over the two-strip tabbed control panel](../reports/design-refs/osrs-fixed-interface.png)
+ a persistent non-tabbed header block (OSRS minimap →
+our scene banner; the REAL map is MA-3-gated) over one sunken content pane framed by TWO icon-tab
+strips — top strip = game state (Party · Stats/Trackers · Inventory · Quests · Journal), bottom
+strip = meta (the EXISTING chat tabs Members/Overrides/Injections/Preview demoted, OSRS
+settings/logout-style). Fits LAW as-is: it is `defineContextTabs` registry content for the rpg
+artifact — no new geography, no pane replacement; the RS *look* must stay a token-clean visual
+treatment (themes-are-palettes; the parked `orb-readable` parchment treatment is the natural skin
+hook). **The lite-mode EMBRYO ships first**: the convergence design's Trackers tab in the normal chat
+tab set — same slot, same registry; graduates to the full takeover at the rpg rebuild. Also recorded:
+the orchestrator's own widescreen taste verdict (context panel underfilled — 3 rows in 1080px, bare
+unlabeled "50%"; bubble-mode voids at 1920; title duplicated topbar+panel header; dot-size avatars
+carry no identity) — items 2–4 are facelift, item 1 is INPUT to this chip, not polish.
+**ALSO QUEUED (unchanged):** the UGLY facelift list (tab-strip overflow cue · Group-tab loading state)
+· the `--contexts N` multi-user snap chip · the ranked remainder below (d-citation gate · F2
+host⇒floor-0 · HistoryFloorSeq brand · worldInfoActivated placement (owner leaned Preview-tab) ·
 Stop-button-during-hung-arbitration · #18 CTs · the 9-seam split).
 
 ## ═══ ▶ the pre-wave block (2026-07-25 early, kept for context) ═══

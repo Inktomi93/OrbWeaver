@@ -20,6 +20,9 @@ const HOVER_REVEAL_RE = /group-hover:opacity-100/u;
 const FOCUS_REVEAL_RE = /group-focus-within:opacity-100/u;
 const COARSE_REVEAL_RE = /pointer-coarse:opacity-100/u;
 const MENU_TRIGGER = "More message actions";
+const UNDO_CONTINUE = "Undo last continuation";
+const REVERT_CONTINUE = "Re-apply continuation";
+const NEEDS_CONTINUATION_REASON = "Continue this reply first — there's no added text to undo yet";
 const SYSTEM_MESSAGE: MessageView = makeMessageView({ role: "system", content: "a room notice" });
 
 // A3: the cluster rests HIDDEN (opacity-0 / pointer-events-none) and reveals on hover / focus-within /
@@ -174,4 +177,80 @@ test("copy writes the message content to the clipboard (no network call)", async
 
   const readClipboard = (): Promise<string> => page.evaluate(() => navigator.clipboard.readText());
   await expect.poll(readClipboard, { intervals: [20, 50, 100] }).toBe("copy me please");
+});
+
+// ── The continue undo/redo pair (F2) — the ⋯ menu items, phase-gated on the shown swipe's `hasContinuation`.
+//    Assistant-only (the sole role that carries a D26 continue snapshot); disabled-with-reason, never hidden.
+
+test("a NON-continued assistant reply renders both items DISABLED with the continuation-needed reason (never hidden)", async ({ mount, page }) => {
+  const component = await mount(<MessageActionsRowStory message={makeMessageView({ hasContinuation: false })} />);
+
+  await openActionsMenu(component);
+  // Base UI renders a disabled MenuItem as div[role=menuitem] aria-disabled — the item is PRESENT (not
+  // hidden) with the phase-gate reason on `title` (the disabled-affordance law).
+  await Promise.all(
+    [UNDO_CONTINUE, REVERT_CONTINUE].map(async (label) => {
+      const item = menuItem(page, label);
+      await expect(item).toBeVisible();
+      await expect(item).toHaveAttribute("aria-disabled", "true");
+      await expect(item).toHaveAttribute("title", NEEDS_CONTINUATION_REASON);
+    }),
+  );
+});
+
+test("a CONTINUED assistant reply enables both items (no disabled reason)", async ({ mount, page }) => {
+  const component = await mount(<MessageActionsRowStory message={makeMessageView({ hasContinuation: true })} />);
+
+  await openActionsMenu(component);
+  await Promise.all(
+    [UNDO_CONTINUE, REVERT_CONTINUE].map(async (label) => {
+      const item = menuItem(page, label);
+      await expect(item).toBeVisible();
+      await expect(item).not.toHaveAttribute("aria-disabled", "true");
+    }),
+  );
+});
+
+test("a non-assistant row exposes NEITHER continuation item (only assistant replies continue)", async ({ mount, page }) => {
+  const component = await mount(<MessageActionsRowStory message={makeMessageView({ role: "user", hasContinuation: true })} />);
+
+  await openActionsMenu(component);
+  await expect(menuItem(page, UNDO_CONTINUE)).toHaveCount(0);
+  await expect(menuItem(page, REVERT_CONTINUE)).toHaveCount(0);
+});
+
+test("Undo last continuation fires undoContinue with this chatId + messageId", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, { "chat.undoContinue": () => null });
+  const message = makeMessageView({ hasContinuation: true });
+  const component = await mount(<MessageActionsRowStory message={message} />);
+
+  await openActionsMenu(component);
+  await menuItem(page, UNDO_CONTINUE).click();
+
+  await expect.poll(() => trpc.count("chat.undoContinue"), { intervals: [20, 50, 100] }).toBe(1);
+  await expect.poll(() => trpc.lastInput("chat.undoContinue")).toMatchObject({ chatId: message.chatId, messageId: message.id });
+});
+
+test("Re-apply continuation fires revertContinue with this chatId + messageId", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, { "chat.revertContinue": () => null });
+  const message = makeMessageView({ hasContinuation: true });
+  const component = await mount(<MessageActionsRowStory message={message} />);
+
+  await openActionsMenu(component);
+  await menuItem(page, REVERT_CONTINUE).click();
+
+  await expect.poll(() => trpc.count("chat.revertContinue"), { intervals: [20, 50, 100] }).toBe(1);
+  await expect.poll(() => trpc.lastInput("chat.revertContinue")).toMatchObject({ chatId: message.chatId, messageId: message.id });
+});
+
+test("a DISABLED (non-continued) item does not fire the mutation on click", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, { "chat.undoContinue": () => null });
+  const component = await mount(<MessageActionsRowStory message={makeMessageView({ hasContinuation: false })} />);
+
+  await openActionsMenu(component);
+  // A disabled Base UI MenuItem is aria-disabled (still clickable in the DOM) — force the click past the
+  // menu's own pointer guard to prove the HANDLER's own `!hasContinuation` guard also holds.
+  await menuItem(page, UNDO_CONTINUE).click({ force: true });
+
+  await expect.poll(() => trpc.count("chat.undoContinue")).toBe(0);
 });

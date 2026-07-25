@@ -10,7 +10,7 @@ import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/cha
 import type { CharacterId, ChatId, ChatInjectionId, ChatParticipantId, MessageVariantId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ChatService } from "@orb/server/domain/chat";
-import { ChatNotFoundError } from "@orb/server/domain/chat";
+import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "@orb/server/domain/chat";
 import { publishChatEvent } from "@orb/server/transport/trpc";
 import { describe, vi } from "vitest";
 import { expect, test } from "../../../../support/fixtures";
@@ -230,6 +230,7 @@ const MESSAGE: MessageView = {
   selectedVariantId: castId<MessageView["selectedVariantId"]>("message_variant_1"),
   selectedVariantIdx: 0,
   variantCount: 1,
+  hasContinuation: false,
   content: "hi",
   reasoning: null,
   model: null,
@@ -542,6 +543,66 @@ describe("chat.continueTurn — the guided-continue verb (composer wand wire-thr
     });
 
     await expect(caller(ctx).chat.continueTurn({ chatId: CHAT, messageId: MESSAGE.id })).rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
+});
+
+// Lane C (F2) — the continue undo/redo pair: verbs built + int-tested in domain/chat/verbs/turn.ts, never
+// on the router. Thin `{chatId, messageId}` pass-throughs (NO steer — they restore the D26 snapshot in
+// place, not generate), each returning the restored `MessageView`. A never-continued target throws
+// `no_continuation` (ChatOperationError → BAD_REQUEST via the error map, never a 500).
+describe("chat.undoContinue / chat.revertContinue — the continue undo/redo pair (Lane C wire-through)", () => {
+  test("undoContinue: a thin pass-through — chatId/messageId reach the verb with the resolved Principal", async () => {
+    const undoContinue = vi.fn<ChatService["undoContinue"]>(async () => MESSAGE);
+    const ctx = makeContext({
+      auth: principal("user", { userId: MEMBER }),
+      services: { chat: { undoContinue } },
+    });
+
+    const result = await caller(ctx).chat.undoContinue({ chatId: CHAT, messageId: MESSAGE.id });
+
+    expect(undoContinue).toHaveBeenCalledWith({
+      principal: expect.objectContaining({ userId: MEMBER }),
+      chatId: CHAT,
+      messageId: MESSAGE.id,
+    });
+    expect(result).toEqual(MESSAGE);
+  });
+
+  test("revertContinue: a thin pass-through — chatId/messageId reach the verb with the resolved Principal", async () => {
+    const revertContinue = vi.fn<ChatService["revertContinue"]>(async () => MESSAGE);
+    const ctx = makeContext({
+      auth: principal("user", { userId: MEMBER }),
+      services: { chat: { revertContinue } },
+    });
+
+    const result = await caller(ctx).chat.revertContinue({ chatId: CHAT, messageId: MESSAGE.id });
+
+    expect(revertContinue).toHaveBeenCalledWith({
+      principal: expect.objectContaining({ userId: MEMBER }),
+      chatId: CHAT,
+      messageId: MESSAGE.id,
+    });
+    expect(result).toEqual(MESSAGE);
+  });
+
+  test("undoContinue on a never-continued target surfaces the verb's `no_continuation` as BAD_REQUEST", async () => {
+    const undoContinue = vi.fn<ChatService["undoContinue"]>().mockRejectedValue(new ChatOperationError(CHAT_OP_CODES.noContinuation, "nothing to undo"));
+    const ctx = makeContext({
+      auth: principal("user", { userId: MEMBER }),
+      services: { chat: { undoContinue } },
+    });
+
+    await expect(caller(ctx).chat.undoContinue({ chatId: CHAT, messageId: MESSAGE.id })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+  });
+
+  test("a non-member's foreign chatId surfaces the participant gate's leak-free NOT_FOUND", async () => {
+    const revertContinue = vi.fn<ChatService["revertContinue"]>().mockRejectedValue(new ChatNotFoundError(CHAT));
+    const ctx = makeContext({
+      auth: principal("user", { userId: NON_MEMBER }),
+      services: { chat: { revertContinue } },
+    });
+
+    await expect(caller(ctx).chat.revertContinue({ chatId: CHAT, messageId: MESSAGE.id })).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
 });
 

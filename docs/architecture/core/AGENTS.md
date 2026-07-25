@@ -118,6 +118,15 @@ concept→domain map: §6 below.
   verifies, domain resolves, entry constructs).
 - **Green-to-commit:** `pnpm check` AND `pnpm test` must BOTH pass before any commit. Commit on `main`;
   end the message with the `Co-Authored-By` trailer.
+- **Lane verification is SCOPED; the big gates are the ORCHESTRATOR'S (owner ruling 2026-07-25).** A
+  dispatched lane on a shared multi-lane tree proves its work with exactly the test files it touched +
+  a scoped typecheck + biome/eslint on its files — whole-tree `pnpm check`/`structure:full`/the full
+  battery are banned in lanes (they only surface sibling churn). The orchestrator runs them ONCE on the
+  quiesced tree and routes anything caught back to the still-warm lane to fix.
+- **The harness auto-writes its artifacts — read them, never pipe or re-run to find a failure:**
+  `pnpm check` → `reports/verify.json` + `reports/verify/<stage>.log` + `reports/check-structure.json`;
+  `pnpm test` → `reports/test-report.json` + `reports/ct-flaky.json`. Invoke the scripts (a bare
+  `npx vitest run` drops the json reporter); never `| tail` live output — it eats the failure list.
 - **The ONE verification surface (`UNIFIED-VERIFICATION-DESIGN.md`):** iterate on `pnpm verify --changed`
   (scoped, fast inner loop); claim "done" only after `pnpm verify` (= `--static`, = `pnpm check`); the
   pre-push bar is `pnpm verify --push` (adds the node tests + CT + e2e-smoke — the behavioral suites a

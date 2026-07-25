@@ -615,6 +615,18 @@ const PROBES: readonly Probe[] = [
     path: "chat.continueTurn",
     call: (c, i) => c.chat.continueTurn({ chatId: i.chatId, messageId: i.messageId }),
   },
+  // undo/revertContinue gate `requireParticipant(chatId)` then load the snapshot chat-scoped: a stranger
+  // passing A's chatId collapses to NOT_FOUND before the load, and a foreign messageId (chat B's) matches
+  // nothing under A → refused `no_continuation`, identical to a nonexistent id (turn.int.test.ts F1 pins the
+  // canon-untouched proof). Same messageId-scoped shape as `continueTurn`.
+  {
+    path: "chat.undoContinue",
+    call: (c, i) => c.chat.undoContinue({ chatId: i.chatId, messageId: i.messageId }),
+  },
+  {
+    path: "chat.revertContinue",
+    call: (c, i) => c.chat.revertContinue({ chatId: i.chatId, messageId: i.messageId }),
+  },
   { path: "chat.impersonate", call: (c, i) => c.chat.impersonate({ chatId: i.chatId }) },
   { path: "chat.generate", call: (c, i) => c.chat.generate({ chatId: i.chatId }) },
   {

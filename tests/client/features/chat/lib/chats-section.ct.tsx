@@ -12,6 +12,7 @@
 // form) — a partial `ChatDetail`, the same posture as message-list-surface.ct's ROSTER_STUB. Every
 // value crosses the routeTrpc JSON boundary as a plain object.
 
+import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { routeTrpc } from "../../../../support/ct/route-trpc";
@@ -132,7 +133,7 @@ function multiHumanChat(viewerIsHost: boolean, humans: readonly Record<string, u
   };
 }
 
-test("host sees all three tabs (Overrides · Preview · Injections)", async ({ mount, page }) => {
+test("host sees all three tabs (Settings · Preview · Injections)", async ({ mount, page }) => {
   await routeTrpc(page, {
     "chat.getChat": () => chatDetail("host", { mainPrompt: "Be terse." }),
     "chat.listChatInjections": () => [],
@@ -141,9 +142,15 @@ test("host sees all three tabs (Overrides · Preview · Injections)", async ({ m
 
   const component = await mount(<ChatContextPanelStory />);
 
-  await expect(component.getByRole("tab", { name: "Overrides" })).toBeVisible();
+  // Overrides + Group consolidated into ONE "Settings" tab (CP-1): the strip is now Settings · Preview ·
+  // Injections (Members gated out in this solo chat) — never the pre-CP-1 5-tab clip.
+  await expect(component.getByRole("tab", { name: "Settings" })).toBeVisible();
+  await expect(component.getByRole("tab", { name: "Overrides" })).toHaveCount(0);
+  await expect(component.getByRole("tab", { name: "Group" })).toHaveCount(0);
   await expect(component.getByRole("tab", { name: "Preview" })).toBeVisible();
   await expect(component.getByRole("tab", { name: "Injections" })).toBeVisible();
+  // The Appearance overrides + (host+group) Group behavior are SECTIONS inside the tab, with real h3s.
+  await expect(component.getByRole("heading", { name: "Appearance overrides", level: 3 })).toBeVisible();
 });
 
 test("host in a SOLO (1-character) chat sees no Members tab (D16 size-gate)", async ({ mount, page }) => {
@@ -179,6 +186,41 @@ test("host in a GROUP (2-character) chat sees the Members tab AND it is the defa
   await expect(component.getByRole("button", { name: "Bryn — character" })).toBeVisible();
 });
 
+// ── CP-1 group-level omit matrix: the merged Settings tab's "Group behavior" section is host+group-only ──
+// The gate that used to hide the WHOLE Group tab (chats-section.tsx `when: isHost && isGroupChat`) now
+// gates the SECTION inside Settings. HOST of a group chat sees it; a MEMBER of the same group does not.
+
+test("CP-1: HOST of a group chat sees the Group behavior section inside Settings", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "chat.getChat": () => chatDetail("host", {}, [character("aria"), character("bryn")]),
+    "chat.listChatInjections": () => [],
+    "chat.previewAssembly": () => PREVIEW,
+    // The group section suspends on its own read (getGroupConfig) — the Group tab body's query, unchanged.
+    "chat.getGroupConfig": () => ({ ...DEFAULT_GROUP_CONFIG }),
+  });
+
+  const component = await mount(<ChatContextPanelStory />);
+  // Members is the default in a group; open Settings to reach the sections.
+  await component.getByRole("tab", { name: "Settings" }).click();
+
+  await expect(component.getByRole("heading", { name: "Appearance overrides", level: 3 })).toBeVisible();
+  await expect(component.getByRole("heading", { name: "Group behavior", level: 3 })).toBeVisible();
+});
+
+test("CP-1: MEMBER of a group chat sees Settings but NOT the Group behavior section (§8.1 host-only omit)", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "chat.getChat": () => chatDetail("member", {}, [character("aria"), character("bryn")]),
+    "chat.listChatInjections": () => [],
+  });
+
+  const component = await mount(<ChatContextPanelStory />);
+  await component.getByRole("tab", { name: "Settings" }).click();
+
+  // Appearance overrides is present (read-only for a member); Group behavior is omitted for a non-host.
+  await expect(component.getByRole("heading", { name: "Appearance overrides", level: 3 })).toBeVisible();
+  await expect(component.getByRole("heading", { name: "Group behavior", level: 3 })).toHaveCount(0);
+});
+
 test("NOT multi-human capable → no People section anywhere (single-user renders no invite surface)", async ({ mount, page }) => {
   await routeTrpc(page, {
     "chat.getChat": () => multiHumanChat(true, [humanSeat("nate", "Nate", "host")]),
@@ -189,7 +231,7 @@ test("NOT multi-human capable → no People section anywhere (single-user render
   // The default story mounts WITHOUT the capability prop — the single-user composition.
   const component = await mount(<ChatContextPanelStory />);
 
-  await expect(component.getByRole("tab", { name: "Overrides" })).toBeVisible();
+  await expect(component.getByRole("tab", { name: "Settings" })).toBeVisible();
   // One character + one human, no capability ⇒ no Members tab at all (both sections empty).
   await expect(component.getByRole("tab", { name: "Members" })).toHaveCount(0);
 });
@@ -259,11 +301,14 @@ test("member loses the Preview tab and the overrides are read-only", async ({ mo
 
   const component = await mount(<ChatContextPanelStory />);
 
-  await expect(component.getByRole("tab", { name: "Overrides" })).toBeVisible();
+  await expect(component.getByRole("tab", { name: "Settings" })).toBeVisible();
   await expect(component.getByRole("tab", { name: "Injections" })).toBeVisible();
   // Preview is host-only (previewAssembly is a host debug surface) — hidden for a member.
   await expect(component.getByRole("tab", { name: "Preview" })).toHaveCount(0);
-  // The main-prompt field seeded from the server value, but disabled (a member cannot edit).
+  // A non-host member sees NO "Group behavior" section (the §8.1 host-only omit, moved to section level).
+  await expect(component.getByRole("heading", { name: "Group behavior", level: 3 })).toHaveCount(0);
+  // The Appearance-overrides main-prompt field seeded from the server value, but disabled (a member
+  // cannot edit) — the override control is still reachable inside the merged Settings tab.
   const mainPrompt = component.getByLabel("Main prompt", { exact: true });
   await expect(mainPrompt).toHaveValue("Be terse.");
   await expect(mainPrompt).toBeDisabled();
@@ -273,7 +318,7 @@ test("migrated tabs obey the server host field, NOT the first-seat proxy (member
   await routeTrpc(page, {
     // The FIRST human seat is a host, so the old `resolveViewerIsHost` first-seat proxy would return
     // TRUE and mis-grant host UI. The server-resolved `viewerIsHost:false` says THIS viewer is a
-    // member — the migrated Overrides/Preview/Injections tabs must obey the server field, not the seat.
+    // member — the migrated Settings/Preview/Injections tabs must obey the server field, not the seat.
     "chat.getChat": () => ({
       participants: [human("host"), human("member")],
       roomOverrides: { mainPrompt: "Be terse." },
@@ -285,8 +330,10 @@ test("migrated tabs obey the server host field, NOT the first-seat proxy (member
   const component = await mount(<ChatContextPanelStory />);
 
   // Preview is host-only → hidden despite the host-first roster that would trip the proxy.
-  await expect(component.getByRole("tab", { name: "Overrides" })).toBeVisible();
+  await expect(component.getByRole("tab", { name: "Settings" })).toBeVisible();
   await expect(component.getByRole("tab", { name: "Preview" })).toHaveCount(0);
+  // The Group-behavior SECTION obeys the server host field too — a member behind a host seat sees none.
+  await expect(component.getByRole("heading", { name: "Group behavior", level: 3 })).toHaveCount(0);
   // Overrides seed from the server value but stay read-only — the member cannot edit even though a
   // host holds the first human seat.
   const mainPrompt = component.getByLabel("Main prompt", { exact: true });
@@ -526,6 +573,6 @@ test("a fake context-tab contributor's `when:false` hides it from the real tab s
 
   const component = await mount(<ChatContextTabContributorStory visible={false} />);
 
-  await expect(component.getByRole("tab", { name: "Overrides" })).toBeVisible();
+  await expect(component.getByRole("tab", { name: "Settings" })).toBeVisible();
   await expect(component.getByRole("tab", { name: "Fake Tab" })).toHaveCount(0);
 });

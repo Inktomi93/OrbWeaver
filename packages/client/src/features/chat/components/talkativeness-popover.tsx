@@ -51,9 +51,15 @@ export function TalkativenessPopover({
             size="sm"
             tabIndex={-1}
             aria-label={`Talkativeness: ${row.displayName} — ${Math.round(row.talkativeness * PERCENT)}%`}
-            className="font-mono"
           >
-            {Math.round(weight * PERCENT)}%
+            {/* Labeled value — a bare "50%" fails the cold read (Context-Panel-Program §1 ride-along):
+                the "Talks" label names WHAT the number is; the percent stays mono for column alignment. */}
+            <Text as="span" size="micro" tone="muted">
+              Talks
+            </Text>
+            <Text as="span" className="font-mono">
+              {Math.round(weight * PERCENT)}%
+            </Text>
           </Button>
         }
       />

@@ -10,7 +10,7 @@
 // omit-doctrine is OVERRIDDEN for PHASE-gated items (owner ruling 2026-07-24: "i fucking hate things
 // hiding") — every action that becomes available on commit still RENDERS on a draft, DISABLED, with a
 // hover reason that NAMES the unlock condition (send the first message). A draft CAN do the actions that
-// don't need canon (open its Overrides/Injections context tabs, start a fresh chat with the same cast,
+// don't need canon (open its Settings/Injections context tabs, start a fresh chat with the same cast,
 // browse a founding character's gallery), so those stay live; everything else (turn steering, membership,
 // rename/download/delete of a row not yet created) is disabled-with-reason. `title` on a MenuItem surfaces
 // on hover because Base UI renders a div[role=menuitem] aria-disabled (not native-disabled), so a disabled
@@ -23,6 +23,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { ConfirmDialog, RowActionsMenu } from "#components";
 import { useInvalidation, useTRPC } from "#data";
+import type { ChatContextTabId } from "#lib";
 import { DRAFT_UNLOCK_AFTER_SEND, NEEDS_ASSISTANT_REPLY } from "#lib";
 import { committedChat, draftChat, enterSelectionMode, goToLanding, setContextTab, setPanelMode, startNewChat } from "#state";
 import { CharacterGalleryDialog } from "../anchors/character-gallery-dialog";
@@ -115,7 +116,7 @@ export function ChatOptionsMenu({ chatId, committed = true, title, characters, i
       }
     })();
   };
-  const openContextTab = (tab: string): void => {
+  const openContextTab = (tab: ChatContextTabId): void => {
     setContextTab(tab);
     setPanelMode("context", "docked");
   };
@@ -194,7 +195,7 @@ export function ChatOptionsMenu({ chatId, committed = true, title, characters, i
         <MenuItem disabled={!committed} title={draftReason} onClick={enterSelectionMode}>
           Select messages…
         </MenuItem>
-        <MenuItem onClick={(): void => openContextTab("overrides")}>Chat overrides…</MenuItem>
+        <MenuItem onClick={(): void => openContextTab("settings")}>Chat settings…</MenuItem>
         {isHost ? (
           <MenuItem disabled={!committed} title={draftReason} onClick={(): void => openContextTab("preview")}>
             Preview request…

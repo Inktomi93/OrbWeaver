@@ -94,6 +94,7 @@ import { MessageSelectionBar } from "../../../../packages/client/src/features/ch
 import { MessageToolCalls } from "../../../../packages/client/src/features/chat/components/message-tool-calls";
 import { ReasoningBlock } from "../../../../packages/client/src/features/chat/components/reasoning-block";
 import { RoomOverridesForm } from "../../../../packages/client/src/features/chat/components/room-overrides-form";
+import { CommittedSettingsTab, DraftSettingsTab } from "../../../../packages/client/src/features/chat/components/settings-context-tab";
 import { SpeakAsSelect } from "../../../../packages/client/src/features/chat/components/speak-as-select";
 import { SwipeStrip } from "../../../../packages/client/src/features/chat/components/swipe-strip";
 import { AttachmentUrlContext } from "../../../../packages/client/src/features/chat/hooks/attachment-url-context";
@@ -1057,6 +1058,45 @@ export function DraftContextPanelStory({ characterIds = [] }: DraftContextPanelS
       <CtRealSectionRegistry>
         <ChatContextHostHarness />
       </CtRealSectionRegistry>
+    </CtDataProviders>
+  );
+}
+
+export interface CommittedSettingsTabStoryProps {
+  /** Gates the host-only "Group behavior" section (with `showGroup`) + the overrides read-only copy. */
+  readonly isHost?: boolean;
+  /** The group-level gate the section carries — host of a group chat (CP-1). @defaultValue false */
+  readonly showGroup?: boolean;
+}
+
+/** The consolidated Settings CONTEXT tab (settings-context-tab.tsx, CP-1) mounted DIRECTLY as the component
+ *  it is — the `.ct.tsx` pins its own section-composition contract (Appearance overrides always; Group
+ *  behavior gated by `showGroup`) independent of the section-registry resolve. The `.ct.tsx` routeTrpc-stubs
+ *  `chat.getGroupConfig` (the Group-behavior section's suspense read) + `chat.setRoomOverrides`. */
+export function CommittedSettingsTabStory({ isHost = true, showGroup = false }: CommittedSettingsTabStoryProps): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 380 }}>
+        <CommittedSettingsTab chatId={CHAT_ID} roomOverrides={{}} isHost={isHost} background={null} showGroup={showGroup} />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+export interface DraftSettingsTabStoryProps {
+  /** The draft group-level gate (≥2 cast) the section carries. @defaultValue false */
+  readonly showGroup?: boolean;
+}
+
+/** The draft twin of the Settings tab (settings-context-tab.tsx, CP-1) mounted directly — store-backed, no
+ *  network. Appearance overrides always renders (a draft is host-editable); Group behavior gates on
+ *  `showGroup`. */
+export function DraftSettingsTabStory({ showGroup = false }: DraftSettingsTabStoryProps): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 380 }}>
+        <DraftSettingsTab draftKey="settings-tab-ct" showGroup={showGroup} />
+      </div>
     </CtDataProviders>
   );
 }

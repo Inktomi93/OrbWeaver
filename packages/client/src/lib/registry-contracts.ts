@@ -155,6 +155,16 @@ export interface DraftChatContext {
  *  `defineContextTabs<ChatContextState>` unifies both the committed panel and its draft twin (§6b/§15). */
 export type ChatContextState = CommittedChatContext | DraftChatContext;
 
+/** The chat context-tab id VOCABULARY — one home beside `ChatContextState` (feature lib is not a type
+ *  home, and importing it from chats-section created a component↔section cycle). The shell's
+ *  `contextTab` channel stays an opaque string (sections interpret it); this typed vocabulary is how
+ *  every chat deep-link (`setContextTab`/`openContextTab`) spells a tab id — a rename becomes a compile
+ *  error at every site instead of a silent first-visible fallback (the CP-1 overrides→settings rename
+ *  orphaned two deep-links exactly that way). The chats `defineContextTabs` defs derive their `id`s
+ *  from this type. */
+export const CHAT_CONTEXT_TAB_IDS = ["members", "settings", "preview", "injections"] as const;
+export type ChatContextTabId = (typeof CHAT_CONTEXT_TAB_IDS)[number];
+
 /** The Analytics CONTEXT-panel state projection (O5 strict — a real named type, never void/any). The
  *  three dimension tabs (Models/Time/Personas) are owner-scoped and IGNORE this state; it exists only so
  *  the definition-owned `header` slot (P4) can name the leaderboard-drilled character. `null` = the

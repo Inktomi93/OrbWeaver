@@ -11,9 +11,27 @@
 // the same split `tests/ui/primitives/menu/menu.ct.tsx` already established.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
+import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc";
 import { ComposerStory } from "../_ct-stories";
 import { COMPOSER_CHAT_ID, makeMessagesPage, makeMessageView } from "../fixtures";
+
+// A `chat.getChat` roster member (F5 speaker submenu) — the speak-as-select.ct.tsx shape, homed here for
+// the wand's multi-room "Guided response" submenu.
+function character(key: string, name: string): unknown {
+  return {
+    id: `chat_participant_${key}`,
+    kind: "character",
+    userId: null,
+    characterId: `character_${key}`,
+    role: "member",
+    displayName: name,
+    disabled: false,
+    talkativeness: 0.5,
+  };
+}
+function roster(...members: unknown[]): unknown {
+  return { participants: members };
+}
 
 // The disabled-item unlock reasons (owner ruling: name the unlock, not just "unavailable"). A DRAFT unlocks
 // on the first send; a COMMITTED chat with no assistant tail needs an assistant reply to target.
@@ -179,6 +197,104 @@ test("draft handle: 'Guided response' fires chat.startChat with a forced generat
       guided: { action: "opening", input: "start mid-chase" },
     });
   await expect(component.getByLabel("Message", { exact: true })).toHaveValue("");
+});
+
+// F1 — Rewrite: the preset card shipped a `rewrite` template with NO fire surface (the dead-ended pair).
+// The wand's Rewrite item fires chat.swipe + guided{action:"rewrite"} on the tail assistant message, so the
+// correction lands as a NEW VARIANT. This is the wire payload the finding demanded proof of.
+test("Rewrite fires chat.swipe + guided{action:'rewrite'} on the tail assistant message (F1)", async ({ mount, page }) => {
+  const tail = makeMessageView({ chatId: COMPOSER_CHAT_ID, role: "assistant" });
+  const trpc = await routeTrpc(page, {
+    "chat.listMessages": () => makeMessagesPage([tail]),
+    "chat.swipe": () => ({ ok: true }),
+  });
+  const component = await mount(<ComposerStory />);
+
+  await component.getByLabel("Message", { exact: true }).fill("drop the anachronism, keep the tone");
+  await component.getByRole("button", { name: "Guided generations" }).click();
+  const rewriteItem = page.getByRole("menuitem", { name: "Rewrite" });
+  await expect(rewriteItem).toBeEnabled();
+  await rewriteItem.click();
+
+  await expect.poll(() => trpc.count("chat.swipe"), { intervals: [20, 50, 100] }).toBe(1);
+  await expect
+    .poll(() => trpc.lastInput("chat.swipe"))
+    .toMatchObject({
+      chatId: COMPOSER_CHAT_ID,
+      messageId: tail.id,
+      guided: { action: "rewrite", input: "drop the anachronism, keep the tone" },
+    });
+});
+
+// Rewrite disables with no tail assistant reply to correct (same gate as swipe/continue) — RED on the old
+// code, which shipped no Rewrite item at all.
+test("Rewrite is disabled with no tail assistant message to correct (F1)", async ({ mount, page }) => {
+  const component = await mount(<ComposerStory />);
+  await component.getByLabel("Message", { exact: true }).fill("fix it");
+  await component.getByRole("button", { name: "Guided generations" }).click();
+  await expect(page.getByRole("menuitem", { name: "Rewrite" })).toBeDisabled();
+});
+
+// F3 — a FAILED guided mutation must NOT eat the typed steer (the source restores the input in `finally`).
+// The wand clears the draft at fire time; on the mutation error the fired text is restored to the composer.
+// RED on the old fireAndClear, which cleared unconditionally with no restore path.
+test("a failed guided response restores the typed steer to the composer (F3)", async ({ mount, page }) => {
+  await routeTrpc(page, { "chat.generate": () => trpcError({ message: "provider down" }) });
+  const component = await mount(<ComposerStory />);
+
+  const box = component.getByLabel("Message", { exact: true });
+  await box.fill("hint at the letter");
+  await component.getByRole("button", { name: "Guided generations" }).click();
+  await page.getByRole("menuitem", { name: "Guided response" }).click();
+
+  // Cleared optimistically at fire time, then restored once the mutation rejects.
+  await expect(box).toHaveValue("hint at the letter");
+});
+
+// F3 — the fired steer joins the session recovery ring; re-opening the wand offers it back under "Recent
+// steers", and picking it refills the composer (it does not re-fire — the user re-aims it).
+test("a fired steer is recallable from Recent steers and refills the composer (F3)", async ({ mount, page }) => {
+  await routeTrpc(page, { "chat.generate": () => ({ ok: true }) });
+  const component = await mount(<ComposerStory />);
+
+  const box = component.getByLabel("Message", { exact: true });
+  await box.fill("make it rain");
+  await component.getByRole("button", { name: "Guided generations" }).click();
+  await page.getByRole("menuitem", { name: "Guided response" }).click();
+  await expect(box).toHaveValue("");
+
+  // Type something else, open the wand, recall the earlier steer.
+  await box.fill("unrelated");
+  await component.getByRole("button", { name: "Guided generations" }).click();
+  await page.getByRole("menuitem", { name: "Recent steers" }).hover();
+  await page.getByRole("menuitem", { name: "make it rain" }).click();
+
+  await expect(box).toHaveValue("make it rain");
+});
+
+// F5 — steer + a chosen speaker in ONE chat.generate. In a multi-character room "Guided response" is a
+// speaker submenu; picking a member sends BOTH the guided steer and that speakerCharacterId on the wire.
+// RED on the old wand, which fired chat.generate with no speaker (the two actions were uncombinable).
+test("a multi-room 'Guided response' sends the steer + chosen speaker on ONE chat.generate (F5)", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    "chat.getChat": () => roster(character("aria", "Aria"), character("bryn", "Bryn")),
+    "chat.generate": () => ({ ok: true }),
+  });
+  const component = await mount(<ComposerStory />);
+
+  await component.getByLabel("Message", { exact: true }).fill("respond to the threat");
+  await component.getByRole("button", { name: "Guided generations" }).click();
+  await page.getByRole("menuitem", { name: "Guided response" }).hover();
+  await page.getByRole("menuitem", { name: "Bryn" }).click();
+
+  await expect.poll(() => trpc.count("chat.generate"), { intervals: [20, 50, 100] }).toBe(1);
+  await expect
+    .poll(() => trpc.lastInput("chat.generate"))
+    .toMatchObject({
+      chatId: COMPOSER_CHAT_ID,
+      speakerCharacterId: "character_bryn",
+      guided: { action: "response", input: "respond to the threat" },
+    });
 });
 
 test("the wand trigger is disabled while a turn is mid-flight, even with draft text", async ({ mount }) => {

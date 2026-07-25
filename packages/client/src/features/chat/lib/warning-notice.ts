@@ -41,6 +41,8 @@ export function warningNotice(code: ChatWarningCode): string {
       return "The conversation got too long to summarize — the oldest messages were dropped from context to keep going.";
     case "smart_arbitration_degraded":
       return "The turn director model wasn't available — who speaks next was picked automatically instead.";
+    case "guided_placed_as_injection":
+      return "Your steering was added as an inline instruction — this preset has no Guided instruction marker to place it in.";
     default:
       return assertNeverCode(code);
   }

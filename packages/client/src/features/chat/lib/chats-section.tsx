@@ -9,7 +9,7 @@ import { MessagesSquare } from "@orb/ui/icons";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { QueryBoundary, QueryErrorState } from "#data";
-import type { ChatContextState, ChatSurfaceContribution, CommittedChatContext, ContextTabDef, ContributorRegistry, ToolRenderer } from "#lib";
+import type { ChatContextState, ChatContextTabId, ChatSurfaceContribution, CommittedChatContext, ContextTabDef, ContributorRegistry, ToolRenderer } from "#lib";
 import { defineContextTabs } from "#lib";
 import type { SectionDefinition } from "#state";
 import { chatDeletedFromList, openModal, selectChatFromList } from "#state";
@@ -17,15 +17,13 @@ import { ChatListAnchor } from "../anchors/chat-list-anchor";
 import { DraftAddMemberPopover } from "../components/add-member-popover";
 import { AssemblyPreviewPanel } from "../components/assembly-preview-panel";
 import { ChatContent } from "../components/chat-content";
-import { ChatContextHeader } from "../components/chat-header";
 import { ChatListHeader } from "../components/chat-list-header";
 import { ChatsTopbarHeader } from "../components/chats-topbar-header";
 import type { CommittedMembersTabProps } from "../components/committed-members-tab";
 import { CommittedMembersTab } from "../components/committed-members-tab";
-import { DraftGroupConfigTabBody, DraftInjectionsTab, DraftMembersTabBody, DraftOverridesTabBody } from "../components/draft-context-tabs";
-import { CommittedGroupConfigTab } from "../components/group-config-form";
+import { DraftInjectionsTab, DraftMembersTabBody } from "../components/draft-context-tabs";
 import { InjectionsManager } from "../components/injections-manager";
-import { RoomOverridesTab } from "../components/room-overrides-tab";
+import { CommittedSettingsTab, DraftSettingsTab } from "../components/settings-context-tab";
 import { useChatContextState } from "../hooks/use-chat-context-state";
 import { ChatListSurface } from "../surfaces/chat-list-surface";
 import { castSectionVisible, membersTabJustified, resolveIsGroupChat } from "./roster";
@@ -52,37 +50,31 @@ function queryFallback(label: string): ReactElement {
 
 // Flat declared order encodes the Members-default (§6b): members first ⇒ the generic resolve picks it as
 // the active tab whenever visible, else the first visible tab. Each body narrows on `s.phase`.
-const CHAT_CONTEXT_TABS: readonly ContextTabDef<ChatContextState>[] = [
+const CHAT_CONTEXT_TABS: readonly (ContextTabDef<ChatContextState> & { readonly id: ChatContextTabId })[] = [
   {
     id: "members",
     label: "Members",
     when: (s) => (s.phase === "committed" ? membersTabJustified(s.participants, s.multiHumanCapable) : s.cast.length >= GROUP_FLOOR),
     body: (s) => (s.phase === "committed" ? <CommittedMembersTab {...toMembersTabProps(s)} /> : <DraftMembersTabBody draftKey={s.draftKey} cast={s.cast} />),
   },
+  // Overrides + Group consolidated into ONE "Settings" tab (Context-Panel-Program §1 CP-1). Always
+  // visible (Appearance overrides shows for everyone); the former Group tab's host+group-chat gate moves
+  // DOWN to the "Group behavior" SECTION inside the body (`showGroup`) — the §8.1 permission-omit, now at
+  // section granularity so the strip drops a slot without dropping a control.
   {
-    id: "overrides",
-    label: "Overrides",
+    id: "settings",
+    label: "Settings",
     body: (s) =>
       s.phase === "committed" ? (
-        <RoomOverridesTab chatId={s.chatId} roomOverrides={s.roomOverrides} isHost={s.isHost} background={s.background} />
+        <CommittedSettingsTab
+          chatId={s.chatId}
+          roomOverrides={s.roomOverrides}
+          isHost={s.isHost}
+          background={s.background}
+          showGroup={s.isHost && resolveIsGroupChat(s.participants)}
+        />
       ) : (
-        <DraftOverridesTabBody draftKey={s.draftKey} />
-      ),
-  },
-  {
-    id: "group",
-    label: "Group",
-    when: (s) => (s.phase === "committed" ? s.isHost && resolveIsGroupChat(s.participants) : s.cast.length >= GROUP_FLOOR),
-    body: (s) =>
-      s.phase === "committed" ? (
-        <QueryBoundary
-          fallback={queryFallback("group settings")}
-          renderError={(_error, retry): ReactElement => <QueryErrorState label="group settings" onRetry={retry} />}
-        >
-          <CommittedGroupConfigTab chatId={s.chatId} />
-        </QueryBoundary>
-      ) : (
-        <DraftGroupConfigTabBody draftKey={s.draftKey} />
+        <DraftSettingsTab draftKey={s.draftKey} showGroup={s.cast.length >= GROUP_FLOOR} />
       ),
   },
   {
@@ -134,8 +126,10 @@ export function makeChatsSection(
     context: defineContextTabs<ChatContextState>({
       useContextState: useChatContextState,
       tabs: CHAT_CONTEXT_TABS,
-      // The CONTEXT-panel BAND identity (N4/P4) — the active chat's avatar + title, definition-owned.
-      header: (s) => <ChatContextHeader state={s} />,
+      // No panel-header identity slot (Context-Panel-Program §1 Q3 / §0 IA de-dup): the topbar owns the
+      // chat's avatar + title, so the CONTEXT band no longer re-renders the same cluster 300px away — the
+      // band reduces to neutral chrome above the tab strip. `ChatContextHeader` (chat-header.tsx N4/P4)
+      // stays as the reusable band-identity component CP-4's scene header will graft here.
       actions: (s) => (s.phase === "draft" ? <DraftAddMemberPopover draftKey={s.draftKey} existingCharacterIds={s.cast} /> : null),
       contributors: chatContextContributors,
     }),

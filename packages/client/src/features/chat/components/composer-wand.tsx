@@ -1,21 +1,32 @@
 // The guided-generations wand: the composer's current draft text becomes the guidance param, the item
 // fires, the composer clears. ONE menu across draft + committed (no separate reduced-mode surface — the
-// draft renders the SAME four items with the not-yet-applicable ones DISABLED, never a swapped sibling
-// menu): Guided response / swipe / continue / Impersonate. "Guided response" is the one action a draft
-// CAN take — it routes to `fireOpening` (chat.startChat, opening:"generate") pre-commit and to
-// `fireResponse` (chat.generate) once committed, same user intent (steer the next AI turn) either side of
-// the promotion. swipe/continue need a tail assistant turn to target; impersonate needs a committed chat —
-// all three disable on a draft (and swipe/continue also disable on a committed chat with no assistant tail).
+// draft renders the SAME items with the not-yet-applicable ones DISABLED, never a swapped sibling menu):
+// Guided response / swipe / continue / Rewrite / Impersonate, plus a Recent-steers recall. "Guided
+// response" is the one action a draft CAN take — it routes to `fireOpening` (chat.startChat,
+// opening:"generate") pre-commit and to `fireResponse` (chat.generate) once committed, same user intent
+// (steer the next AI turn) either side of the promotion. swipe/continue/rewrite need a tail assistant turn
+// to target; impersonate needs a committed chat — all disable on a draft (swipe/continue/rewrite also
+// disable on a committed chat with no assistant tail).
+//
+// F5 — in a MULTI-CHARACTER room "Guided response" becomes a speaker submenu (Auto + one member each) so a
+// steer + a chosen speaker ride ONE `chat.generate`; a solo/1:1 chat keeps the plain item (no "which
+// character" choice). F3 — the just-fired steer is restored to the composer on a mutation FAILURE (the
+// source's sacred input-restore, client-only per D57), and a Recent-steers submenu recalls this session's
+// last fired steers back into the composer.
+// F1 — Rewrite fires chat.swipe + guided{action:"rewrite"} on the tail assistant message, landing the
+// out-of-character correction as a new VARIANT (the delivery seam existed; this is the missing fire).
 
-import type { ChatId } from "@orb/kit/ids";
+import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
-import { Icon, WandSparkles } from "@orb/ui/icons";
-import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@orb/ui/menu";
+import { Drama, History, Icon, Pencil, WandSparkles } from "@orb/ui/icons";
+import { Menu, MenuItem, MenuPopup, MenuSeparator, MenuSubmenuRoot, MenuSubmenuTrigger, MenuTrigger } from "@orb/ui/menu";
 import type { ReactElement } from "react";
+import { useGatedQuery, useTRPC } from "#data";
 import { DRAFT_UNLOCK_AFTER_SEND, NEEDS_ASSISTANT_REPLY, testId, WAND_NEEDS_TEXT } from "#lib";
 import type { ChatHandle, DraftSeed } from "#state";
-import { isCommitted, useTurnPhase } from "#state";
+import { isCommitted, useRecentSteers, useTurnPhase } from "#state";
 import { useGuidedActions } from "../hooks/use-guided-actions";
+import { filterCharacters } from "../lib/roster";
 import { ImpersonateSubmenu } from "./impersonate-submenu";
 
 export interface ComposerWandProps {
@@ -30,11 +41,20 @@ export interface ComposerWandProps {
 }
 
 export function ComposerWand({ handle, value, onChange, draftSeed, onCommitted, busy = false }: ComposerWandProps): ReactElement {
+  const trpc = useTRPC();
   const committed = isCommitted(handle);
   const chatId = committed ? handle.id : null;
   const phase = useTurnPhase(chatId);
   const turnBusy = phase === "pending" || phase === "streaming" || phase === "stopping";
-  const guided = useGuidedActions({ handle, draftSeed, onCommitted });
+  // F3 — restore the just-fired steer to the composer when a guided mutation fails (the input isn't lost).
+  const guided = useGuidedActions({ handle, draftSeed, onCommitted, onFireError: (firedText): void => onChange(firedText) });
+  const recentSteers = useRecentSteers();
+
+  // F5 — the room roster (same warm cache speak-as reads); a >1-character room makes "Guided response" a
+  // speaker submenu. Gated on a committed chatId (a draft has no roster yet), degrades to [] until populated.
+  const rosterQuery = useGatedQuery(chatId, (id) => trpc.chat.getChat.queryOptions({ chatId: id }));
+  const cast = filterCharacters(rosterQuery.data?.participants ?? []);
+  const isMultiRoom = committed && cast.length > 1;
 
   const trimmed = value.trim();
   const hasText = trimmed.length > 0;
@@ -43,7 +63,7 @@ export function ComposerWand({ handle, value, onChange, draftSeed, onCommitted, 
   // empty-composer case is the FIRST thing a user sees on a fresh draft — name the unlock (type a message).
   // A busy/pending disablement is transient (a turn is running) — no persistent reason to surface there.
   const triggerReason = hasText ? undefined : WAND_NEEDS_TEXT;
-  // A tail assistant slot to target — never present on a draft (no canon), so swipe/continue disable there.
+  // A tail assistant slot to target — never present on a draft (no canon), so swipe/continue/rewrite disable.
   const canTargetTail = committed && guided.tailAssistantMessageId !== null;
   // The primary steer: a draft opens the chat (chat.startChat) with the steer; a committed chat generates
   // the next turn (chat.generate). Same item, same intent, phase picks the verb — no swapped sibling item.
@@ -55,6 +75,11 @@ export function ComposerWand({ handle, value, onChange, draftSeed, onCommitted, 
 
   const fireAndClear = (run: (input: string) => void): void => {
     run(trimmed);
+    onChange("");
+  };
+  // F5 — fire "Guided response" at a chosen speaker (or Auto) in a multi-room, clearing the draft.
+  const fireResponseAs = (speakerCharacterId: CharacterId | null): void => {
+    guided.fireResponse(trimmed, speakerCharacterId);
     onChange("");
   };
 
@@ -73,12 +98,33 @@ export function ComposerWand({ handle, value, onChange, draftSeed, onCommitted, 
         }
       />
       <MenuPopup>
-        <MenuItem onClick={(): void => fireAndClear(firePrimarySteer)}>Guided response</MenuItem>
+        {isMultiRoom ? (
+          // A targeted nudge: the steer + a chosen speaker (or Auto) on one turn (F5).
+          <MenuSubmenuRoot>
+            <MenuSubmenuTrigger>Guided response</MenuSubmenuTrigger>
+            <MenuPopup>
+              <MenuItem onClick={(): void => fireResponseAs(null)}>Auto (arbitrate)</MenuItem>
+              {cast.map((member) => (
+                <MenuItem key={member.id} onClick={(): void => fireResponseAs(member.characterId)}>
+                  <Icon icon={Drama} size="sm" />
+                  {member.displayName}
+                </MenuItem>
+              ))}
+            </MenuPopup>
+          </MenuSubmenuRoot>
+        ) : (
+          <MenuItem onClick={(): void => fireAndClear(firePrimarySteer)}>Guided response</MenuItem>
+        )}
         <MenuItem disabled={!canTargetTail} title={tailReason} onClick={(): void => fireAndClear(guided.fireSwipe)}>
           Guided swipe
         </MenuItem>
         <MenuItem disabled={!canTargetTail} title={tailReason} onClick={(): void => fireAndClear(guided.fireContinue)}>
           Guided continue
+        </MenuItem>
+        {/* F1 — rewrite the last reply out of character; needs a tail assistant reply to correct. */}
+        <MenuItem disabled={!canTargetTail} title={tailReason} onClick={(): void => fireAndClear(guided.fireRewrite)}>
+          <Icon icon={Pencil} size="sm" />
+          Rewrite
         </MenuItem>
         {/* Impersonate needs a committed chat's turn machinery — disabled (never swapped away) on a draft. */}
         <ImpersonateSubmenu
@@ -86,6 +132,27 @@ export function ComposerWand({ handle, value, onChange, draftSeed, onCommitted, 
           reason={draftReason}
           onPick={(person): void => fireAndClear((input) => guided.fireImpersonate(input, person))}
         />
+        {/* F3 — recall a steer fired earlier this session back into the composer (the source's input
+            recovery). Rendered only when the ring has entries; picking one refills the draft, it does not
+            re-fire (the user re-aims it). */}
+        {recentSteers.length > 0 ? (
+          <>
+            <MenuSeparator />
+            <MenuSubmenuRoot>
+              <MenuSubmenuTrigger>
+                <Icon icon={History} size="sm" />
+                Recent steers
+              </MenuSubmenuTrigger>
+              <MenuPopup>
+                {recentSteers.map((steer) => (
+                  <MenuItem key={steer} onClick={(): void => onChange(steer)}>
+                    {steer}
+                  </MenuItem>
+                ))}
+              </MenuPopup>
+            </MenuSubmenuRoot>
+          </>
+        ) : null}
       </MenuPopup>
     </Menu>
   );

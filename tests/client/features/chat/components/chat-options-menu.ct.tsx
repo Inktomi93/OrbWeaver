@@ -82,7 +82,7 @@ const FULL_ITEM_SET = [
   "Invite people…",
   "Hand off host…",
   "Select messages…",
-  "Chat overrides…",
+  "Chat settings…",
   "Preview request…",
   "Injections…",
   "Rename",
@@ -105,7 +105,7 @@ const DRAFT_DISABLED = [
   "Delete chat",
 ];
 // The items that stay LIVE on a draft (canon-less: the unified draft context-config tabs + navigation).
-const DRAFT_ENABLED = ["New chat with same cast", "Chat overrides…", "Injections…", "Close chat"];
+const DRAFT_ENABLED = ["New chat with same cast", "Chat settings…", "Injections…", "Close chat"];
 // The unlock-condition reason must NAME when it becomes available, not just say "unavailable".
 const UNLOCK_REASON = /send|assistant reply/u;
 const ASSISTANT_REPLY_UNLOCK = /assistant reply/u;

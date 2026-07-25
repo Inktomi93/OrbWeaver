@@ -19,6 +19,7 @@ export {
   IMAGE_GEN_NEEDS_CHAT,
   IMAGE_GEN_NEEDS_TEXT,
   NEEDS_ASSISTANT_REPLY,
+  NEEDS_CONTINUATION,
   WAND_NEEDS_TEXT,
 } from "./injection-copy";
 export type { SeededBackground } from "./list-seeded-backgrounds";

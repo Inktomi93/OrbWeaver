@@ -14,7 +14,7 @@ import type { SourceFile } from "ts-morph";
 import type { GateDescriptor, GateRunCtx, Scope } from "./contract.ts";
 import { loadGates } from "./loader.ts";
 import type { PassResult } from "./pass.ts";
-import { projectCtx, repoRel, runPass } from "./pass.ts";
+import { projectCtx, repoRel, runPass, stripProbeFindings } from "./pass.ts";
 import { renderPass } from "./render.ts";
 
 const TRAILING_SLASH_RE = /\/+$/u;
@@ -187,7 +187,9 @@ export function runScopedPass(
 ): ScopedResult {
   const { incremental, deferred } = partitionGates(gates);
   const files: SourceFile[] = base.project.getSourceFiles().filter((sf) => selection.inScope(repoRel(base.root, sf.getFilePath())));
-  const pass = runPass(incremental, { ...base, scope: selection.scope, files });
+  const rawPass = runPass(incremental, { ...base, scope: selection.scope, files });
+  // biome-ignore lint/style/noProcessEnv: ORB_GATE_FIXTURES is the check-gates suite's opt-out knob for its own child runs — harness plumbing, not app config.
+  const pass = process.env["ORB_GATE_FIXTURES"] === "1" ? rawPass : stripProbeFindings(rawPass);
   return { pass, deferred, files: files.length };
 }
 

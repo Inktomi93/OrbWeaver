@@ -323,6 +323,11 @@ export interface AssembleContext {
   opLog?: VarOp[] | undefined;
   /** One-turn ephemeral guidance for the `{{guided_instruction}}` marker. NEVER persisted; ALWAYS dynamic. */
   guidedInstruction?: string | null;
+  /** Set true when a `system`-placement guided steer FELL BACK to a depth-0 injection because the active
+   *  preset lacks/disables the `{{guided_instruction}}` marker (§10 addendum / F8). The steer still lands
+   *  (via the injection list), but the engine reads this to emit a LOUD `guided_placed_as_injection`
+   *  warning (D41). Absent/false ⇒ the steer landed via its intended placement. */
+  guidedPlacedAsInjection?: boolean;
   /** Per-speaker group nudge fence — set FRESH per speaker (never accumulates), never persisted/rendered. */
   groupNudge?: string | null;
   /** The turn's generation type (the ST `injection_trigger` gate). Absent ⇒ `normal`. */
@@ -488,6 +493,12 @@ export interface MessageView {
   selectedVariantIdx: number;
   /** Total variants for this slot (1 = single generation). */
   variantCount: number;
+  /** The SELECTED variant carries a continue snapshot (`preContinue*` + `lastContinuation*` both set, D26)
+   *  — i.e. a guided/plain continue has run on this swipe, so `chat.undoContinue`/`revertContinue` have
+   *  something to restore. Per-swipe (the columns live on `message_variants`); stays true after an undo (the
+   *  snapshot is retained so revert can re-apply). Powers the ⋯ menu's undo/revert phase-gate — false ⇒ the
+   *  items disable with the "continue this reply first" reason, never hidden. */
+  hasContinuation: boolean;
   content: string;
   reasoning: string | null;
   model: string | null;
@@ -685,6 +696,11 @@ export const CHAT_WARNING_CODES = [
   // order fell back to the deterministic talkativeness-weighted `natural` arbitration. Emitted from the turn
   // verb's arbitrate step: the round still happens, but the user is told the MATH picked, not the model.
   "smart_arbitration_degraded",
+  // A `system`-placement guided steer FELL BACK to a depth-0 injection because the active preset's template
+  // lacks (or disabled) the `{{guided_instruction}}` marker (§10 addendum / F8). The steer still lands — via
+  // the ChatInjection channel — instead of vanishing behind the config-editor's marker chip. Degraded-and-loud
+  // (D41): emitted from the engine's capability-drop pass off the assembled `guidedPlacedAsInjection` flag.
+  "guided_placed_as_injection",
 ] as const;
 export type ChatWarningCode = (typeof CHAT_WARNING_CODES)[number];
 

@@ -434,6 +434,8 @@ export function buildCommittedMessageView(params: InsertCanonMessageParams): Mes
     selectedVariantId: params.variantId,
     selectedVariantIdx: 0,
     variantCount: 1,
+    // A freshly-committed variant has never been continued — its D26 snapshot columns are null.
+    hasContinuation: false,
     ...variantEconomics(params.variant),
     // The freshly-committed view's tool exchanges — the read seam's `[]`-default (never null) for the
     // client's tool read surface; a non-tool turn commits an empty array (tool-use-design/03 §3).

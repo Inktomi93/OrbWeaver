@@ -44,7 +44,7 @@ test("a member behind a host seat sees NO host affordance (server viewerIsHost w
   await component.getByRole("button", { name: "Chat options" }).click();
 
   // The menu opened (a non-host item is present), but the host-only Preview jump is absent.
-  await expect(page.getByRole("menuitem", { name: "Chat overrides…" })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: "Chat settings…" })).toBeVisible();
   await expect(page.getByRole("menuitem", { name: "Preview request…" })).toHaveCount(0);
 });
 
