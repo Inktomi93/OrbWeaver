@@ -3,6 +3,13 @@
 // against the roster; user rows resolve personaId (falling back to activePersonaId for legacy rows) but
 // never go bare — a viewer's own row always labels as "You". A null characterId in a multi-character
 // room is a neutral "Narrator", never participants[0] (which would misattribute a merged turn).
+//
+// Transcript-integrity floor: a character REMOVED from the room keeps its historical rows in the
+// transcript ("their messages stay" — the removal-confirm promise), but its `ParticipantView` is gone.
+// The name still resolves (`characterNamesById` covers every referenced id, removed or not); the AVATAR
+// falls back to the participant-independent `characterAvatarsById` producer so a removal never degrades a
+// historical portrait to bare initials. The live participant still WINS when present (its avatarHash can
+// carry a per-chat override the character-level producer doesn't).
 
 import type { ParticipantView } from "@orb/contracts/chat";
 import type { AssetId, CharacterId, PersonaId } from "@orb/kit/ids";
@@ -60,6 +67,9 @@ export interface ResolveRowAttributionInput {
   readonly characterNamesById?: ReadonlyMap<CharacterId, RowCharacterName> | undefined;
   readonly personaNamesById?: ReadonlyMap<PersonaId, RowPersonaName> | undefined;
   readonly personaAvatarsById?: ReadonlyMap<PersonaId, string | null> | undefined;
+  /** The assistant-row portrait floor: `characterId → avatarHash` covering every character the chat
+   *  references (incl. one removed from the room). Used only when the live participant is absent. */
+  readonly characterAvatarsById?: ReadonlyMap<CharacterId, string | null> | undefined;
   /** Fallback for legacy rows with a null personaId; never the chat's anchorPersonaId pin. */
   readonly activePersonaId?: PersonaId | null | undefined;
 }
@@ -101,11 +111,14 @@ function resolveAssistantAttribution(input: ResolveRowAttributionInput): RowAttr
   }
   const participant = input.participants?.get(input.characterId);
   const tokens = participant?.themeOverride ?? colorForCharacter(input.characterId);
+  // The live participant wins (it can carry a per-chat avatar override); once removed it's absent, so the
+  // portrait falls back to the character-level producer — never straight to the initials fallback.
+  const avatarHash = participant?.avatarHash ?? input.characterAvatarsById?.get(input.characterId) ?? null;
   return {
     name,
     kind: "character",
     avatarAssetId: participant?.avatarAssetId ?? null,
-    avatarHash: participant?.avatarHash ?? null,
+    avatarHash,
     hueSeed: input.characterId,
     tokens,
   };

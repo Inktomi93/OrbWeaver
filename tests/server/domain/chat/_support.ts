@@ -52,7 +52,7 @@ export async function seedUser(db: Db, handle: string): Promise<UserId> {
 }
 
 /** Insert a flat `characters` row (D28 — no version table); returns its branded id. */
-export async function seedCharacter(db: Db, ownerId: UserId, key: string): Promise<CharacterId> {
+export async function seedCharacter(db: Db, ownerId: UserId, key: string, overrides: { readonly avatarAssetId?: AssetId } = {}): Promise<CharacterId> {
   const id = castId<CharacterId>(`character_${key}`);
   await db.insert(characters).values({
     id,
@@ -60,6 +60,7 @@ export async function seedCharacter(db: Db, ownerId: UserId, key: string): Promi
     ownerId,
     name: key,
     contentHash: `hash_${key}`,
+    avatarAssetId: overrides.avatarAssetId ?? null,
     createdAt: FROZEN_AT,
   });
   return id;

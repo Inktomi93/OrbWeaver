@@ -136,6 +136,32 @@ export function stripSelfSpeakerLabel(content: string, speakerName: string): str
   return out;
 }
 
+/** A leaked SELF label anywhere in the body (not just leading): the exact escaped name, optional
+ *  markdown emphasis, a `:` and — crucially — an OPTIONAL immediately-following em-dash/en-dash/hyphen run
+ *  (the per-speaker "new turn" opener the model interleaves, e.g. `JFC: —`). Global, un-anchored: a torn
+ *  self-tag the model spat MID-generation (the `dumJFC: —b` word-splice — `dum` + a token-boundary `JFC: —`
+ *  + `b`) is removed wherever it landed, so the token-boundary case can't survive into canon. Built per
+ *  call so the name is escaped fresh; kept private (only `stripInlineSpeakerLabel` wraps it). */
+function inlineLabelRe(name: string): RegExp {
+  const n = escapeRegExp(name.trim());
+  // NO leading whitespace grab (that would delete a word separator, gluing `one JFC: two` → `onetwo`); the
+  // TRAILING whitespace + dash run IS consumed — the model's aborted turn-opener dash (`Name: —`) — so a
+  // mid-word `dumJFC: —b` collapses to `dumb`, while a space-separated `one JFC: two` becomes `one two`.
+  return new RegExp(`(?:\\*\\*|\\*|__|_)?${n}(?:\\*\\*|\\*|__|_)?\\s*:(?:\\*\\*|\\*|__|_)?\\s*[—–-]*\\s*`, "g");
+}
+
+/** Remove a leaked SELF speaker label anywhere in a per-speaker reply — the mid-content twin of
+ *  `stripLeadingSpeakerName`. A member never legitimately prefixes their OWN dialogue with `TheirName:` in a
+ *  per-speaker row, so an inline `${speakerName}:` (with the crunchy markdown/dash variants) is always a
+ *  leaked tag fragment; strip every occurrence. Empty name / no match ⇒ unchanged. */
+export function stripInlineSpeakerLabel(content: string, speakerName: string): string {
+  const name = speakerName.trim();
+  if (name.length === 0) {
+    return content;
+  }
+  return content.replace(inlineLabelRe(name), "");
+}
+
 /** Truncate a per-speaker reply at the first FOREIGN speaker label — a line that starts with
  *  `<other>:` (optionally markdown-wrapped) for any name in `otherNames`. The agent-sdk fence
  *  FALLBACK: that runner ignores stop sequences (completion runners get `\nName:` stops), so a turn
@@ -162,9 +188,15 @@ export function truncateAtForeignLabel(content: string, otherNames: readonly str
   return cut === null ? content : content.slice(0, cut).trimEnd();
 }
 
-/** Full per-speaker reply clean: strip a leaked LEADING own-label, then truncate any FOREIGN-speaker
- *  drift. The one entry point the canon-persist paths (send/force/opening + continue) call so a
- *  per-speaker row is exactly its own speaker's content. Solo / no other names → just the leading strip. */
+/** Full per-speaker reply clean: strip a leaked LEADING own-label + tag, scrub any INLINE self-label the
+ *  model interleaved mid-generation (the `dumJFC: —b` word-splice), then truncate any FOREIGN-speaker drift.
+ *  The one entry point the canon-persist paths (send/force/opening + continue) call so a per-speaker row is
+ *  exactly its own speaker's content. Solo / no other names → the self strips still run (the foreign
+ *  truncate is the no-op). The inline scrub runs AFTER the leading strip so a leading label is handled by the
+ *  emphasis-backref-aware `stripLeadingSpeakerName`, and BEFORE the foreign truncate so a removed inline
+ *  fragment can't shift a foreign label's line-start position. */
 export function cleanPerSpeakerReply(content: string, speakerName: string, otherNames: readonly string[]): string {
-  return truncateAtForeignLabel(stripSelfSpeakerLabel(content, speakerName), otherNames);
+  const deLeaded = stripSelfSpeakerLabel(content, speakerName);
+  const deInlined = stripInlineSpeakerLabel(deLeaded, speakerName);
+  return truncateAtForeignLabel(deInlined, otherNames);
 }

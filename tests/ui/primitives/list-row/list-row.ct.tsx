@@ -79,6 +79,34 @@ test("trailing action is a separate tab stop, not nested in the row's accessible
   expect(rowClicks.length).toBe(0);
 });
 
+// Finding #1 (2026-07-25 a11y sweep): the clickable row's accessible NAME is the TITLE ALONE — the
+// subtitle no longer runs into the name ("Mara mara-soul-check" → "Mara"). The subtitle stays reachable
+// for SR users via aria-describedby, so it's a description, not name pollution. Name-from-content used to
+// concatenate every descendant span; aria-label + an aria-hidden title span makes the name authoritative.
+test("clickable row's accessible name is the TITLE ALONE — subtitle rides aria-describedby, not the name", async ({ mount, page }) => {
+  await mount(<ListRow clickable={true} subtitle="mara-soul-check" title="Mara" />);
+  const row = page.getByRole("button");
+  // The name is the title with the subtitle NOWHERE in it.
+  await expect(row).toHaveAccessibleName("Mara");
+  // The subtitle survives as the row's DESCRIPTION (SR announces it after the name).
+  await expect(row).toHaveAccessibleDescription("mara-soul-check");
+  // The visible subtitle text is still on screen.
+  await expect(page.getByText("mara-soul-check")).toBeVisible();
+});
+
+// The relative-time meta now rides the `meta` slot INSIDE the row's accessible content (part of the
+// description), not stranded in the `actions` sibling outside the accessible name (the old chats-row bug
+// where "18m ago" was invisible to a SR walking the row button).
+test("meta (timestamp) is inside the accessible content — part of the description, kept for SR users", async ({ mount, page }) => {
+  await mount(<ListRow clickable={true} meta="18m ago" subtitle="You, Mara, Niko" title="Group UX review" />);
+  const row = page.getByRole("button");
+  await expect(row).toHaveAccessibleName("Group UX review");
+  // Both the subtitle and the meta land in the description (space-joined via aria-describedby).
+  await expect(row).toHaveAccessibleDescription("You, Mara, Niko 18m ago");
+  // The meta renders inside the row body, not as an actions sibling.
+  await expect(page.locator('[data-slot="list-row-body"] [data-slot="list-row-meta"]')).toHaveText("18m ago");
+});
+
 test("selected reads via a 2px left ember bar (rides --color-primary) + aria-current", async ({ mount, page }) => {
   await mount(<ListRow clickable={true} selected={true} title="Elara" />);
   const row = page.getByRole("button", { name: "Elara" });

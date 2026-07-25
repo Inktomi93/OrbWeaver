@@ -6,10 +6,10 @@
 
 import type { Db } from "@orb/db";
 import { beforeEach, describe } from "vitest";
-import { loadPersonaAvatarProducer } from "../../../../../packages/server/src/domain/chat/persistence/roster-avatars";
+import { loadCharacterAvatarProducer, loadPersonaAvatarProducer } from "../../../../../packages/server/src/domain/chat/persistence/roster-avatars";
 import { freshDb } from "../../../../support/db";
 import { expect, test } from "../../../../support/fixtures";
-import { seedAsset, seedPersona, seedUser } from "../_support";
+import { seedAsset, seedCharacter, seedPersona, seedUser } from "../_support";
 
 let db: Db;
 
@@ -102,5 +102,48 @@ describe("persistence/roster-avatars — multi-human coverage is member-gated, n
       ],
     });
     expect(new Set(producer.map((p) => p.avatarHash))).toEqual(new Set(["hash_host", "hash_member"]));
+  });
+});
+
+// loadCharacterAvatarProducer — the assistant-row twin, the transcript-integrity floor: a character
+// REMOVED from the room (no participant row) whose message is still in the transcript must still resolve
+// its portrait. Same coverage algorithm + LEFT-JOIN semantics as the persona sibling above.
+describe("persistence/roster-avatars — loadCharacterAvatarProducer (removal-integrity floor)", () => {
+  test("covers a participant character, joined to its avatar hash", async () => {
+    const owner = await seedUser(db, "owner");
+    const avatar = await seedAsset(db, owner, "aria_avatar", { hash: "hash_aria" });
+    const characterId = await seedCharacter(db, owner, "aria", { avatarAssetId: avatar });
+
+    const producer = await loadCharacterAvatarProducer(db, {
+      participants: [{ characterId, activePersonaId: null }],
+    });
+    expect(producer).toEqual([{ id: characterId, avatarHash: "hash_aria" }]);
+  });
+
+  test("covers a message-stamped characterId NOT on any participant (a REMOVED character's historical row)", async () => {
+    const owner = await seedUser(db, "owner");
+    const avatar = await seedAsset(db, owner, "removed_avatar", { hash: "hash_removed" });
+    const removed = await seedCharacter(db, owner, "removed", { avatarAssetId: avatar });
+
+    // No participant carries this character — she was removed; only her stored message row references her.
+    const producer = await loadCharacterAvatarProducer(db, {
+      participants: [],
+      messages: [{ characterId: removed, personaId: null }],
+    });
+    expect(producer).toEqual([{ id: removed, avatarHash: "hash_removed" }]);
+  });
+
+  test("a character with NO avatar resolves avatarHash: null (never dropped from the array)", async () => {
+    const owner = await seedUser(db, "owner");
+    const characterId = await seedCharacter(db, owner, "bare");
+
+    const producer = await loadCharacterAvatarProducer(db, {
+      participants: [{ characterId, activePersonaId: null }],
+    });
+    expect(producer).toEqual([{ id: characterId, avatarHash: null }]);
+  });
+
+  test("both args omitted ⇒ empty array (the getChat-with-no-cast floor)", async () => {
+    expect(await loadCharacterAvatarProducer(db, {})).toEqual([]);
   });
 });

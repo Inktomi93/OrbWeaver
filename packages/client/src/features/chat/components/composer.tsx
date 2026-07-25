@@ -35,10 +35,81 @@ import { useSlashCommands } from "../hooks/use-slash-commands";
 import { useStopTurn } from "../hooks/use-stop-turn";
 import { shouldSendOnEnter } from "../lib/composer-send-keys";
 import { resolveContinueTarget } from "../lib/continue-on-empty";
-import { matchSlashCommands } from "../lib/slash-command";
+import { matchSlashCommands, nextSlashHighlight, resolveSlashHighlight, resolveSlashKey, slashComboboxAria } from "../lib/slash-command";
 import { ComposerSlashStrip } from "./composer-slash-strip";
 import { ComposerWand } from "./composer-wand";
 import { SpeakAsSelect } from "./speak-as-select";
+
+// The composer's glue for the OPEN slash strip's combobox keys — kept at module scope (not a closure in the
+// component) so its branching does not inflate the component's cognitive complexity. Classification is the
+// pure `classifySlashKey`; this only translates the resulting action into effects and `preventDefault`, and
+// returns whether it consumed the event (the composer then skips its native send path). Called ONLY while the
+// strip is open, so a CLOSED-strip draft never reaches it and native cursor movement stays untouched.
+interface SlashStripKeyDeps {
+  readonly open: boolean;
+  readonly matches: readonly SlashCommandContribution[];
+  readonly highlighted: SlashCommandContribution | undefined;
+  readonly setHighlight: (updater: (prev: number) => number) => void;
+  /** Completes the draft to the picked command's token (the click path's effect). */
+  readonly pick: (command: SlashCommandContribution) => void;
+  readonly unavailableFor: (command: SlashCommandContribution) => string | null;
+  /** Surfaces an UNAVAILABLE offer's reason instead of completing it (the disabled-affordance law). */
+  readonly setNotice: (reason: string) => void;
+}
+// Complete a keyboard-selected offer, OR refuse an UNAVAILABLE one with its reason (never completing) — the
+// same law the click path gets from the Button's `disabled`; a keyboard user must not force what a click can't.
+function pickOrRefuse(command: SlashCommandContribution, deps: SlashStripKeyDeps): void {
+  const reason = deps.unavailableFor(command);
+  if (reason === null) {
+    deps.pick(command);
+  } else {
+    deps.setNotice(reason);
+  }
+}
+function handleSlashStripKey(event: KeyboardEvent<HTMLTextAreaElement>, deps: SlashStripKeyDeps): boolean {
+  if (!deps.open) {
+    return false;
+  }
+  // The pure lib resolves the key into an offer to complete and/or a highlight step (no exported union — §7.4).
+  // A completed offer consumes the event even if unavailable (pickOrRefuse surfaces its reason), so Tab/Enter
+  // never fall through to send.
+  const { pick, cycle } = resolveSlashKey(
+    { key: event.key, shiftKey: event.shiftKey, isComposing: event.nativeEvent.isComposing },
+    deps.matches,
+    deps.highlighted,
+  );
+  if (pick !== undefined) {
+    event.preventDefault();
+    pickOrRefuse(pick, deps);
+    return true;
+  }
+  if (cycle !== undefined) {
+    event.preventDefault();
+    deps.setHighlight((prev) => nextSlashHighlight(prev, cycle, deps.matches.length));
+    return true;
+  }
+  return false;
+}
+
+// The composer textarea's whole keydown policy — the strip's keys win first (when it's open), otherwise the
+// enterSends pref decides whether Enter submits. Kept at module scope so its branching stays out of the
+// component's cognitive-complexity budget.
+function handleComposerKeyDown(
+  event: KeyboardEvent<HTMLTextAreaElement>,
+  deps: { readonly strip: SlashStripKeyDeps; readonly enterSends: boolean; readonly submit: () => void },
+): void {
+  if (handleSlashStripKey(event, deps.strip)) {
+    return;
+  }
+  const sends = shouldSendOnEnter(
+    { key: event.key, shiftKey: event.shiftKey, metaKey: event.metaKey, ctrlKey: event.ctrlKey, isComposing: event.nativeEvent.isComposing },
+    deps.enterSends,
+  );
+  if (sends) {
+    event.preventDefault();
+    deps.submit();
+  }
+}
 
 function resolvePlaceholder(committed: boolean, canContinue: boolean): string {
   if (!committed) {
@@ -89,6 +160,10 @@ export function Composer({ handle, value, onChange, draftSeed, onCommitted, tail
   // The refusal from the LAST send attempt (unknown/unavailable command). Cleared on the next keystroke —
   // it explains one action, it is not a persistent state.
   const [slashNotice, setSlashNotice] = useState<string | null>(null);
+  // The keyboard-highlighted completion offer (-1 = none, the passive-open state). Arrow keys move it while
+  // focus STAYS in the textarea; the textarea's aria-activedescendant points at the highlighted row. Reset
+  // to -1 on every keystroke (below) because the match set narrows as the token grows.
+  const [slashHighlight, setSlashHighlight] = useState<number>(-1);
   const stopTurn = useStopTurn(chatId);
   const behaviorPrefs = useChatBehaviorPrefs();
   const continueOnEmpty = useContinueTurn();
@@ -158,11 +233,14 @@ export function Composer({ handle, value, onChange, draftSeed, onCommitted, tail
   // (a bare "/" matches them all). Empty when the draft isn't a command-in-progress.
   const slashMatches = matchSlashCommands(slash.commands, value);
 
+  // Completes the draft to `/<id> ` and clears any highlight/notice. The click path only ever reaches this for
+  // an AVAILABLE row (the Button is `disabled` otherwise); the keyboard path re-checks availability itself
+  // (pickOrRefuse) before calling, matching the disabled-affordance law.
   const pickCommand = (command: SlashCommandContribution): void => {
     setSlashNotice(null);
+    setSlashHighlight(-1);
     onChange(`/${command.id} `);
   };
-
   // A draft with TEXT goes through slash classification first; the three outcomes are refuse (with a
   // reason, never a silent post), run the command, or send exactly what the classifier handed back.
   const submitText = (files: readonly File[]): void => {
@@ -197,24 +275,24 @@ export function Composer({ handle, value, onChange, draftSeed, onCommitted, tail
     sendMessage.send(value, files);
   };
 
+  const stripOpen = slashMatches.length > 0;
+  const { command: highlightedCommand, activeOptionId: activeSlashOptionId } = resolveSlashHighlight(slashMatches, slashHighlight);
+
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>): void => {
-    // Tab completes the first offer. Deliberately NOT Enter: Enter's meaning is owned by the enterSends
-    // pref, and overloading it would make "send" mean "complete" for one draft shape only.
-    const firstMatch = slashMatches[0];
-    if (event.key === "Tab" && firstMatch !== undefined) {
-      event.preventDefault();
-      pickCommand(firstMatch);
-      return;
-    }
-    if (
-      shouldSendOnEnter(
-        { key: event.key, shiftKey: event.shiftKey, metaKey: event.metaKey, ctrlKey: event.ctrlKey, isComposing: event.nativeEvent.isComposing },
-        behaviorPrefs.enterSends,
-      )
-    ) {
-      event.preventDefault();
-      submit();
-    }
+    // The strip's keys first (Tab/arrows/Enter-on-highlight), then the send pref — see handleComposerKeyDown.
+    handleComposerKeyDown(event, {
+      strip: {
+        open: stripOpen,
+        matches: slashMatches,
+        highlighted: highlightedCommand,
+        setHighlight: setSlashHighlight,
+        pick: pickCommand,
+        unavailableFor: slash.unavailableFor,
+        setNotice: setSlashNotice,
+      },
+      enterSends: behaviorPrefs.enterSends,
+      submit,
+    });
   };
 
   return (
@@ -223,7 +301,13 @@ export function Composer({ handle, value, onChange, draftSeed, onCommitted, tail
           Zero registrants renders nothing at all. */}
       {slash.mounts}
       <Stack gap="field">
-        <ComposerSlashStrip matches={slashMatches} notice={slashNotice} unavailableFor={slash.unavailableFor} onPick={pickCommand} />
+        <ComposerSlashStrip
+          matches={slashMatches}
+          notice={slashNotice}
+          unavailableFor={slash.unavailableFor}
+          highlightIndex={slashHighlight}
+          onPick={pickCommand}
+        />
         {hasAttachments ? (
           <Row gap="field" align="center" data-slot="composer-attachments" className="mx-auto w-full max-w-(--width-shell-content) flex-wrap">
             {attachments.map((attachment, index) => (
@@ -293,11 +377,18 @@ export function Composer({ handle, value, onChange, draftSeed, onCommitted, tail
           <SpeakAsSelect handle={handle} />
           <Textarea
             aria-label="Message"
+            // Editable-combobox wiring for the slash strip (P2 a11y): while the strip is open the textarea
+            // advertises the listbox it CONTROLS and, when a row is highlighted, the active descendant — so a
+            // screen reader announces the highlighted offer without focus ever leaving the textarea.
+            {...slashComboboxAria(stripOpen)}
+            aria-activedescendant={activeSlashOptionId}
             placeholder={placeholder}
             value={value}
             onChange={(e): void => {
-              // The refusal explained the PREVIOUS send attempt — the next keystroke retires it.
+              // The refusal explained the PREVIOUS send attempt — the next keystroke retires it. The highlight
+              // resets too: the match set narrows as the token grows, so a stale index would point elsewhere.
               setSlashNotice(null);
+              setSlashHighlight(-1);
               onChange(e.target.value);
             }}
             onKeyDown={onKeyDown}

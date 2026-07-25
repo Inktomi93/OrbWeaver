@@ -395,6 +395,7 @@ describe("chat.listMessages — the paged canon read (D26), member-gated", () =>
       messages: [MESSAGE],
       macroNames: EMPTY_MACRO_NAMES,
       personaAvatars: [],
+      characterAvatars: [],
     }));
     const ctx = makeContext({
       auth: principal("user", { userId: MEMBER }),
@@ -413,6 +414,7 @@ describe("chat.listMessages — the paged canon read (D26), member-gated", () =>
       messages: [MESSAGE],
       macroNames: EMPTY_MACRO_NAMES,
       personaAvatars: [],
+      characterAvatars: [],
     });
   });
 
@@ -753,6 +755,7 @@ describe("chat.forkChat — the deep-copy-into-a-new-chat verb (chat-surface lan
       updatedAt: 0,
       macroNames: EMPTY_MACRO_NAMES,
       personaAvatars: [],
+      characterAvatars: [],
     },
   };
 

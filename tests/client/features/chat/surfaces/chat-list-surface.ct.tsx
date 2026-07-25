@@ -24,8 +24,11 @@ const UNTITLED = makeChatSummary({
   participantNames: [],
 });
 
-const ADVENTURE_ROW = /A grand adventure/u;
-const UNTITLED_ROW = /Untitled chat/u;
+// EXACT row names — the row button's accessible name is now the TITLE ALONE (finding #1: subtitle rides
+// aria-describedby, not the name). A loose /regex/ would ALSO match the per-row kebab, whose label is now
+// "Chat actions for <title>" (finding #4), so pin the row by its exact name.
+const ADVENTURE_ROW = "A grand adventure";
+const UNTITLED_ROW = "Untitled chat";
 
 test("renders each chat row (title + participant names), with a fallback title/subtitle", async ({ mount, page }) => {
   await routeTrpc(page, { "chat.listChats": [ADVENTURE, UNTITLED] });
@@ -78,9 +81,9 @@ test("the active chat's row is marked current", async ({ mount, page }) => {
   const component = await mount(<ChatListSurfaceStory activeChatId="chat_adventure" />);
   await expect(component.getByText("A grand adventure")).toBeVisible();
 
-  const activeRow = page.getByRole("button", { name: ADVENTURE_ROW });
+  const activeRow = page.getByRole("button", { name: ADVENTURE_ROW, exact: true });
   await expect(activeRow).toHaveAttribute("aria-current", "true");
-  const otherRow = page.getByRole("button", { name: UNTITLED_ROW });
+  const otherRow = page.getByRole("button", { name: UNTITLED_ROW, exact: true });
   await expect(otherRow).not.toHaveAttribute("aria-current", "true");
 });
 
@@ -88,7 +91,9 @@ test("the per-row kebab opens the actions menu", async ({ mount, page }) => {
   await routeTrpc(page, { "chat.listChats": [ADVENTURE] });
 
   const component = await mount(<ChatListSurfaceStory />);
-  await component.getByRole("button", { name: "Chat actions" }).click();
+  // Finding #4: the kebab is named after the row ("Chat actions for <title>"), not a bare, indistinguishable
+  // "Chat actions" repeated N times — so N chat rows expose N distinct menu-trigger names.
+  await component.getByRole("button", { name: "Chat actions for A grand adventure", exact: true }).click();
 
   await expect(page.getByRole("menuitem", { name: "Rename" })).toBeVisible();
   await expect(page.getByRole("menuitem", { name: "Star" })).toBeVisible();

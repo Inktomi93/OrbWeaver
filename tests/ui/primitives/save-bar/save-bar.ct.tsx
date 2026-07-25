@@ -12,6 +12,15 @@ test("renders the title and kind label", async ({ mount }) => {
   await expect(bar.getByText("Character")).toBeVisible();
 });
 
+// Finding #3 (2026-07-25 a11y sweep): the editor/entity title is the detail pane's section heading — a
+// real <h2> so SR heading-navigation can jump to it (the LIST panel titles are h2 too; the Settings
+// modal's h2/h3 is the house template). It was a nameless <span> before, invisible to heading nav.
+test("the title is a real level-2 heading (SR heading navigation)", async ({ mount }) => {
+  const bar = await mount(<SaveBar kind="Character" title="Aria" />);
+  await expect(bar.getByRole("heading", { level: 2, name: "Aria" })).toBeVisible();
+  await expect(bar.locator('[data-slot="save-bar-title"]')).toHaveJSProperty("tagName", "H2");
+});
+
 test("children render in the actions slot on the right", async ({ mount }) => {
   const bar = await mount(
     <SaveBar kind="Character" title="Aria">

@@ -10,7 +10,7 @@
 // instead of the whole band suspending.
 
 import { Row } from "@orb/ui/layout";
-import { Text } from "@orb/ui/text";
+import { Heading, Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
@@ -23,9 +23,9 @@ export function AnalyticsListHeader(): ReactElement {
 
   return (
     <Row align="center" gap="field">
-      <Text size="micro" tone="muted" transform="caps" weight="semibold">
+      <Heading level={2} size="micro" tone="muted" transform="caps" weight="semibold">
         Analytics
-      </Text>
+      </Heading>
       {count > 0 ? (
         <Text className="font-mono" size="micro" tone="muted">
           {count}

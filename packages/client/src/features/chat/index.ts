@@ -23,6 +23,7 @@ export type { UseStopTurnResult } from "./hooks/use-stop-turn";
 export { useStopTurn } from "./hooks/use-stop-turn";
 export { chatOptionsChrome } from "./lib/chat-options-chrome";
 export { chatSlashCommands } from "./lib/chat-slash-commands";
+export { deriveChatTitle } from "./lib/chat-summary-row";
 export { makeChatsSection } from "./lib/chats-section";
 export { commandModal } from "./lib/command-modal";
 export { isContinueEligible } from "./lib/continue-on-empty";

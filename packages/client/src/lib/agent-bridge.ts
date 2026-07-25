@@ -65,6 +65,31 @@ interface ShellSnapshot {
   readonly chatOpen: boolean;
 }
 
+/** Loud outcome of a `__orb.nav.*` action — `ok:true` on success, `ok:false` + a human reason on a
+ *  rejected/invalid target. NEVER a silent no-op (a snap step reddens its exit on `ok:false`). */
+export type NavResult = { readonly ok: true } | { readonly ok: false; readonly reason: string };
+
+/** Dev-only SPA-navigation bridge: drive the app's client-state navigation (rail section, modals,
+ *  settings category, context tab, open chat) through the SAME store actions the real UI calls — the app
+ *  has only `/` + `/login` as URL routes, so this is how a harness reaches every surface without a click
+ *  chain. Built at the composition root (routes/agent-nav.ts, which may legally compose #state/#features/
+ *  #data — the lib/ floor may not) and injected into `installAgentDebugHandle`. */
+export interface OrbNavHandle {
+  /** Switch the active rail section (validated against SECTION_IDS). */
+  readonly section: (id: string) => NavResult;
+  /** Open a rail modal by slot (validated against MODAL_SLOT_IDS). */
+  readonly openModal: (slot: string) => NavResult;
+  /** Open the settings modal at a category (validated against SETTINGS_CATEGORY_IDS). */
+  readonly openSettings: (category: string) => NavResult;
+  /** Ask the active content's context surface to open a named tab (opaque string; always ok). */
+  readonly contextTab: (name: string) => NavResult;
+  /** Make an existing chat active by chat id OR exact display title — resolves against the chat-list
+   *  query cache (fetching it first if not loaded). Rejects loudly on no match. */
+  readonly openChat: (idOrTitle: string) => Promise<NavResult>;
+  /** Close any open modal. */
+  readonly closeModal: () => NavResult;
+}
+
 interface OrbDebugHandle {
   /** Resolves when `data-app-ready` is set (initial reads settled). */
   readonly ready: Promise<void>;
@@ -85,6 +110,8 @@ interface OrbDebugHandle {
   readonly animations: () => readonly AnimationRecord[];
   /** One-call overview for a quick `preview_eval("__orb.snap()")`. */
   readonly snap: () => Record<string, unknown>;
+  /** Dev-only SPA-navigation actions (see OrbNavHandle) — reach any surface without a click chain. */
+  readonly nav: OrbNavHandle;
 }
 
 declare global {
@@ -109,7 +136,7 @@ function motionSummary(): {
   };
 }
 
-export function installAgentDebugHandle(queryClient: QueryClient): void {
+export function installAgentDebugHandle(queryClient: QueryClient, nav: OrbNavHandle): void {
   if (!IS_DEV) {
     return;
   }
@@ -163,9 +190,10 @@ export function installAgentDebugHandle(queryClient: QueryClient): void {
     motion: motionSnapshot,
     animations: activeAnimations,
     snap,
+    nav,
   };
   console.info(
-    "%c[orb]%c dev introspection ready → %cwindow.__orb%c.snap() · .queries() · .bus() · .perf() · .renders() · .motion() · .animations() · .shell();  wait on %chtml[data-app-ready]%c.  Docs: packages/client/src/lib/agent-tools.README.md",
+    "%c[orb]%c dev introspection ready → %cwindow.__orb%c.snap() · .queries() · .bus() · .perf() · .renders() · .motion() · .animations() · .shell() · .nav.section/openModal/openSettings/contextTab/openChat/closeModal;  wait on %chtml[data-app-ready]%c.  Docs: packages/client/src/lib/agent-tools.README.md",
     "color:#e0a; font-weight:bold",
     "color:#888",
     "color:#0a7; font-weight:bold",

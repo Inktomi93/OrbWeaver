@@ -14,7 +14,33 @@ synthetic "Group" character spoke — `round.ts` was supposed to yield the GM *a
 program keeps finding (5 half-shipped features tonight), and it is why "drive it live, then pin it" is the
 posture rather than paranoia. Judge every finding against that frame.
 
-## ═══ ▶ RESUME HERE (2026-07-25, pre-compaction) ═══
+## ═══ ▶ RESUME HERE (2026-07-25 PM — the review-fix wave; supersedes the block below) ═══
+**The side-eye review RAN (report below) and ALL THREE BROKEN findings are FIXED + two bonus fixes,
+riding one consolidation commit** (whole-tree check PASS · battery at commit time): ① P1 speaker-tag
+leak — the MODEL emits its own tag mid-word under speakerTags; strip was ^-anchored; now scrubbed
+inline at persist AND on the streaming ghost row (red-on-old proven) ② P2 removed-character avatar
+blanking — new participant-independent `characterAvatars` producer (personaAvatars twin) through all 5
+read verbs ③ P2 slash-strip keyboard — full combobox semantics via the NEW `@orb/ui option-strip`
+primitive (aria-activedescendant, focus never leaves the textarea) ④ BONUS: persisted `orb:shell`
+main-era blob (`activeSection:"hubs"`) hard-bricked boot — zustand `persist.migrate` only fires on
+version MISMATCH; sanitize now rides the always-run `merge` seam at the createPersistedStore door
+(family-wide fix) ⑤ the ARIA sweep fixes (ListRow title-only names + describedby, room focus-target
+labeled, real h2s app-wide, "Chat actions for <title>", file-input hidden).
+**TOOLING LANDED:** snap gained `--goto`/`--open-chat`/`--context-tab` (via the new dev-only
+`__orb.nav`, home: `packages/client/src/agent-nav/`) · `--watch` tick series · `--pages N` + `@idx`
+step suffixes · `--mobile` (iPhone 14 Pro Max) /`--desktop`. side-eye agent+skill OVERHAULED: Opus,
+scope discipline (focused vs full), ~8-call MCP budget, §12 repo map, §13 mandatory blunt-taste+IA
+lens, §14 shell anatomy, and the landed snap flags baked in.
+**IN FLIGHT:** the guided-generations parity STICKLER (Fable/xhigh, reads all 97 reference files +
+our guided/injection surface; report → reports/stickler/2026-07-25-guided-generations-parity-audit.md)
+— owner wants the heart-came-through verdict + a "create opening" bring-over design. **QUEUED:**
+guided-generations E2E (owner-asked; ZERO e2e exist for it — wait for the stickler's verdict so we
+don't pin semantics about to change) · the UGLY facelift list (tab-strip overflow cue · Group-tab
+loading state) · the `--contexts N` multi-user snap chip · the ranked remainder below (d-citation gate
+· F2 host⇒floor-0 · HistoryFloorSeq brand · worldInfoActivated placement (owner leaned Preview-tab) ·
+Stop-button-during-hung-arbitration · #18 CTs · the 9-seam split).
+
+## ═══ ▶ the pre-wave block (2026-07-25 early, kept for context) ═══
 **TREE: CLEAN. Everything committed.** HEAD = `4887a75b`. Tonight's chain: `4c734060` → `20ac4154` →
 `0d26921a` → `073c39b9` → `abec580d` → `f845607a` → `9de029ef` → `5ca8cc53` (the 126-file wave) →
 `9cff7257` → `4887a75b`. Whole-tree `pnpm check` PASS · full battery green (CT 1317 pass / 0 fail / 1 flaky).
@@ -49,6 +75,53 @@ actually available before re-dispatching, or the replacement will fail the same 
   practice and the display path renders them correctly (observed live: Mara's greeting rendered `{{user}}` →
   "You"). I wrongly flagged this once already.
 **AFTER THE REVIEW:** fix the BROKEN findings, keep UGLY as a separate list for the facelift.
+
+### ═══ ✅ SIDE-EYE GROUP-CHAT REVIEW LANDED (2026-07-25) — ship-with-fixes 30/40; fix lanes dispatched ═══
+**BROKEN (3, lanes dispatched):**
+· **P1 speaker-tag leak into message CONTENT** — every streaming turn renders the raw `Speaker:` prefix
+  in the bubble (transient), and at least one row is PERMANENTLY corrupted: fixture chat seq 5
+  (`message_01kyctjmg6e4e88m0vg5dwr8cd`) stores `"...ship the dumJFC: —b version by Friday..."` — the
+  strip spliced mid-word under a token-boundary condition. Fix = strip on the FINALIZED message before
+  persistence + handle the streaming display; regression test named for the word-boundary case.
+· **P2 remove-character blanks historical avatars** — after Remove, every past message from that character
+  degrades to initials fallback (self-heals on re-add). Contradicts member-row.tsx:232's own promise
+  ("Their messages stay in the transcript"). Fix = message-row avatar resolver falls back to the character
+  record, not initials, when the live participant is absent.
+· **P2 slash-strip is click-only** — suggestions render but ArrowDown/Up do nothing, no combobox ARIA
+  (composer-slash-strip.tsx:1-8 documents the posture). Keyboard users can type the full command (works)
+  but can't pick a suggestion. Fix = aria-activedescendant highlight + Enter-to-pick (focus stays in the
+  textarea), per the review's recommendation.
+**UGLY (facelift list, do NOT fix now):** 5-tab strip clips at default width with no overflow affordance
+(fade/scroll cue); Group tab's text-only "Loading group settings…" (~1.5s) beneath the panel's polish bar.
+**VERIFIED GOOD (don't touch):** transcript contrast 6.7–15.7:1 all AA+; slash-refusal error recovery
+(role=alert, preserves input, `//` escape proven live end-to-end); multi-tab gracefulness CLEAN (real
+2-page drive: passive tab tracked a whole streaming turn, no jump/flash/scroll-loss); kick/leave confirms
+correctly scoped, remove-character no-confirm is documented-defensible; all other ARIA clean.
+**Receipts:** reports/side-eye/*.png + reports/snaps/*.png; integrity + errors clean at close.
+**ARIA/AGENT-NAVIGABILITY SWEEP (orchestrator live drive, 2026-07-25, all sections + settings + ⌘K):**
+goal = SR-friendly AND agent-targetable (accessible names are snap --map's selector currency). SYSTEMIC:
+① the shared ListRow mashes title+subtitle into row names app-wide (chats "…3 cast You, Mara, Niko, JFC" ·
+characters "Mara mara-soul-check" · presets "Default Built-in default") — fix ONCE in the primitive;
+② the chat-room focus target (tabindex=-1 DIV, focused on open) has no label → announces the ENTIRE
+toolbar as its name; ③ no heading hierarchy outside Settings (LIST titles + detail sections are
+paragraphs); ④ chats-list "Chat actions" generic ×N while characters does "Actions for Niko" right;
+⑤ stray unlabeled "Choose File" beside "Replace portrait" in character detail. GOOD templates: Settings
+modal (h2/h3+landmarks) · characters-list actions · Corpus pressed-group · ⌘K listbox · role=article per
+message. Fix lane QUEUED behind the avatar lane (task #2). **BONUS CRASH FOUND+LANE RUNNING: a persisted
+main-era `orb:shell` blob (`activeSection:"hubs"`) hard-bricks the app on boot** — registry throws on the
+unvalidated persisted id; sanitize-on-rehydrate lane dispatched. TOOLING: chrome-devtools take_snapshot
+FLATTENED role=article nodes (12 in DOM, 0 shown) — snap --aria is the trustworthy structure receipt.
+**TOOLING ANSWER (snap vs MCP):** the review burned ~45 MCP calls before course-correcting to ~15 snap
+calls + 1 hand-rolled 2-page Playwright script. Verdict: snap already covers static/computed checks fully
+(`--contrast` corroborated the hand math); the two REAL gaps = **`--watch` (timed screenshot+eval series
+during a stream)** and **`--pages N` (multi-page one-context step script)** — with those, this review ≈
+8–12 snap calls and near-zero MCP. Upgrade lane dispatched (+ `__orb.nav` action arm + `--goto`, since the
+app is state-navigated: 2 URL routes only; + `--mobile`/`--desktop` iPhone-14-Pro-Max/default toggles, owner ask).
+**CHIP (deliberately NOT in the lane): `--contexts N` multi-USER mode** — side-eye's gap wording was
+"multi-page/multi-CONTEXT"; its concrete ask (built) is N pages/one context (multi-tab, same user). The
+multi-context tier = distinct identities per context (the alice/bob multi-human class) and needs
+AUTH_MODE=local + credential seeding + invite scripting — the earlier multi-human drive hand-built exactly
+this on :8790. Build when the next multi-human proof is needed, not speculatively.
 **THEN:** the ranked remainder further down (d-citation-integrity gate · F2 host⇒floor-0 · brand
 `HistoryFloorSeq` · worldInfoActivated display · the Stop-button-not-rendered-during-hung-arbitration fix ·
 #18's deferred CTs · the `contracts/chat/index.ts` 9-seam split).

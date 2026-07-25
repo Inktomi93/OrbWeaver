@@ -44,6 +44,14 @@
  *                                          # JSON) — drive zustand-persisted prefs
  *                                          # without bespoke flags per store
  *   pnpm snap / --viewport 1920x1080      # default 1280x800 (--wide = 1920x1080)
+ *   pnpm snap / --mobile                   # iPhone 14 Pro Max: 430x932 css, DPR3, TOUCH + mobile UA +
+ *                                          # pointer:coarse — REAL device emulation, not a bare narrow
+ *                                          # viewport. The app's progressive-disclosure law renders hover-
+ *                                          # revealed controls ALWAYS-VISIBLE at coarse pointer, and the
+ *                                          # rail flips to a bottom tab bar — a narrow viewport alone
+ *                                          # misses both. scale:"css" keeps the DPR3 shot at 1px/css-px.
+ *   pnpm snap / --desktop                  # explicit alias for the default 1280x800 (symmetric scripts)
+ *                                          # --mobile/--desktop/--wide/--viewport share ONE slot: last wins.
  *   pnpm snap / --crop 360x500+920+0       # ALSO write <out>-crop.png (native
  *                                          # Playwright clip, WxH+X+Y — no ffmpeg)
  *   pnpm snap / --no-deadcss               # skip the dead-class scan (ON by default:
@@ -154,6 +162,34 @@
  *   ffmpeg: NOT in the dev container until a Dockerfile rebuild — --diff then prints a
  *   skipped-with-reason line and stays green (skip ≠ fail). FFMPEG_BIN env overrides.
  *
+ *   SPA NAVIGATION — the app has only 2 URL routes (/, /login); every surface is CLIENT STATE. Instead of
+ *   click-chaining to a section, drive the app's dev nav bridge (window.__orb.nav) directly. These run
+ *   BEFORE the regular --click/--fill steps (and before captures), so one call reaches AND inspects a
+ *   surface. Each FAILS the run loudly (reddens exit, prints NAV FAILED) on a bad id or a missing bridge —
+ *   never a silent no-op.
+ *   pnpm snap / --goto presets --map        # switch the rail to a section, then map it — no click chain
+ *   pnpm snap / --goto settings:appearance --aria   # open Settings on a category (settings:<category>)
+ *   pnpm snap / --goto modal:theme --shot-of '[role=dialog]'   # open a rail modal (modal:<slot>)
+ *   pnpm snap / --open-chat "My Chat Title" --text  # make a chat active by id OR exact display title
+ *                                          # (resolves against the chat-list query cache, fetching it if
+ *                                          # cold). --goto target ∈ section id | settings:<cat> | modal:<slot>.
+ *   pnpm snap / --context-tab members       # ask the active surface's context panel to open a named tab
+ *
+ *   WATCH SERIES — `--watch <totalMs> [--every <ms>]` (default --every 1000). After nav+steps settle,
+ *   observe PAGE 0 over time: every tick a screenshot (<out>-t<elapsed>.png) AND, if --eval exprs were
+ *   given, a re-run of them labeled with elapsed ms. Watch a streaming turn reflow between speakers or
+ *   catch a transient state (a raw speaker-tag prefix mid-stream) without eyeballing MCP shots one call at
+ *   a time. RESULT gains watch=N-ticks; the tick artifacts + eval lines print under --- WATCH ---.
+ *   pnpm snap / --open-chat <id> --watch 5000 --every 500 --eval 'document.querySelectorAll("[role=article]").length'
+ *
+ *   MULTI-PAGE — `--pages <N>` opens N tabs in ONE browser context (shared auth/localStorage), all on the
+ *   route. Target a tab with a `@<idx>` suffix on any step/capture flag (`--click@0`, `--eval@1`,
+ *   `--aria@1`, `--goto@1 chats`); unprefixed = page 0. Drive one tab and read the passive tab (does it
+ *   flash / jump / reflow when the other sends?). Shots suffix `-p<idx>`; the report gets a per-page
+ *   section; RESULT gains pages=N.
+ *   pnpm snap / --pages 2 --open-chat@0 <id> --open-chat@1 <id> --fill@0 '[data-testid=composer]=hi' \
+ *               --key@0 '[data-testid=composer]=Enter' --eval@1 '__orb.bus().live'
+ *
  *   ISOLATED STAGE — serve snaps from a FROZEN HEAD worktree, never the live dev stack. The one-flag
  *   recovery for the crash-loop story: a visual pass against the dev stack fights concurrent lanes' HMR
  *   (tsx-watch/vite crash-looping under a reviewer mid-edit). --isolated boots a SECOND, fully isolated
@@ -194,7 +230,7 @@ import type { CapturedRequest, LocalStorageSeed, ProbeSession } from "./_kit/bro
 import { buildUrl, DEFAULT_BASE, DEFAULT_DEBUG_TOKEN, launchProbeSession, settle } from "./_kit/browser.ts";
 import { resolveFfmpeg } from "./_kit/ffmpeg.ts";
 import type { Viewport } from "./_kit/flags.ts";
-import { parseViewport, splitFirstEq, splitLastEq } from "./_kit/flags.ts";
+import { parseGotoTarget, parseViewport, splitFirstEq, splitLastEq, splitPageSuffix } from "./_kit/flags.ts";
 import type { ResultPair } from "./_kit/result.ts";
 import { print, printResult } from "./_kit/result.ts";
 import { ensureStage, teardownStage } from "./_kit/snap-stage.ts";
@@ -249,6 +285,11 @@ const DEFAULT_VIEWPORT: Viewport = { width: 1280, height: 800 };
 // --wide: layout sanity at a real monitor width (neo's default 1280 disguised a
 // dialog max-width bug for a whole morning).
 const WIDE_VIEWPORT: Viewport = { width: 1920, height: 1080 };
+// --mobile: a Playwright device descriptor name (registry lookup in _kit/browser.ts). Real touch +
+// pointer:coarse + mobile UA + DPR3, so the app's coarse-pointer progressive-disclosure and bottom-tab
+// rail both render — a bare narrow viewport misses them. `scale:"css"` in SHOT_BASE keeps the DPR3 shot
+// at 1 image px / CSS px (not 3×), so the PNG cost stays sane.
+const MOBILE_DEVICE = "iPhone 14 Pro Max";
 // Native screenshot stabilization, applied to EVERY shot (page + element):
 //   animations:"disabled" — rewinds CSS animations/transitions to a consistent
 //     finished state (correct way; supersedes probe-mode's injected killer CSS).
@@ -274,7 +315,9 @@ const PROBE_CSS_SCRIPT = `document.addEventListener("DOMContentLoaded", () => {
   document.head.appendChild(style);
 });`;
 
-type Step =
+// `page` = the target page index for --pages multi-tab mode (0 when unprefixed / single-page). Every
+// step/capture carries it so one flat argv-ordered list can drive N tabs in one shared context.
+type StepAction =
   | { kind: "click"; selector: string }
   | { kind: "jsclick"; selector: string }
   | { kind: "press"; selector: string }
@@ -282,6 +325,18 @@ type Step =
   | { kind: "fill"; selector: string; value: string }
   | { kind: "key"; selector: string; key: string }
   | { kind: "waitfor"; selector: string };
+type Step = StepAction & { page: number };
+
+// --goto / --open-chat / --context-tab: SPA navigation via the app's dev nav bridge (window.__orb.nav),
+// run BEFORE the regular steps. `target` is the raw flag value; the kind picks the __orb.nav method.
+type NavAction =
+  | { kind: "goto"; target: string; page: number }
+  | { kind: "open-chat"; target: string; page: number }
+  | { kind: "context-tab"; target: string; page: number };
+
+// A per-page eval/contrast keeps its argv-order expr/selector plus the target page.
+type PagedExpr = { expr: string; page: number };
+type PagedSelector = { selector: string; page: number };
 
 type Args = {
   route: string;
@@ -296,8 +351,21 @@ type Args = {
   debugToken: string;
   /** Pre-shot interaction steps, executed in argv order. Each waits for its selector
    *  (5s) then acts; failures are REPORTED (and fail the exit code) but don't abort —
-   *  you still get a PNG of wherever the page ended up. */
+   *  you still get a PNG of wherever the page ended up. A `@<idx>` flag suffix targets a
+   *  --pages tab (`--click@1 …`); unprefixed = page 0. */
   steps: Step[];
+  /** SPA navigation via the app's dev nav bridge (`__orb.nav`), run BEFORE steps so
+   *  `--goto presets --map` maps the presets surface in one call. Fails the step loudly
+   *  (reddens exit) on a rejected target. Carries a `@<idx>` page suffix like steps. */
+  navActions: NavAction[];
+  /** How many pages (tabs) to open in ONE shared browser context (shared auth/localStorage).
+   *  Default 1 (byte-identical single-page path). Steps/captures target a tab via `@<idx>`. */
+  pages: number;
+  /** Timed observation series after nav+steps settle: total window (ms). 0 = disabled (single-shot).
+   *  Every tick screenshots (`<out>-t<elapsed>.png`) and re-runs --eval exprs, labeled by elapsed ms. */
+  watchMs: number;
+  /** --watch tick interval (ms). Default 1000. */
+  watchEveryMs: number;
   /** Output basename override (reports/snaps/<out>.png). Defaults to the route slug. */
   out: string | null;
   viewport: Viewport;
@@ -322,6 +390,8 @@ type Args = {
   ariaDepth: number | null;
   /** Append each node's `[box=x,y,w,h]` viewport geometry (Playwright `boxes`). */
   ariaBoxes: boolean;
+  /** Which --pages tab to snapshot (default 0), set by a `@<idx>` suffix on --aria/--text. */
+  ariaPage: number;
   // ── IMAGE PATH ──────────────────────────────────────────────────────────────
   /** Produce a PNG at all. `--no-shot`/`--text` set false; --baseline/--diff force it. */
   shot: boolean;
@@ -336,11 +406,12 @@ type Args = {
   /** Settle on networkidle (bounded) instead of a fixed timeout before capture. */
   idle: boolean;
   // ── INTROSPECTION (the "skip the MCP hop" escape hatches) ───────────────────
-  /** Raw JS run in-page post-settle (repeatable, argv order). JSON-printed, capped. */
-  eval: string[];
+  /** Raw JS run in-page post-settle (repeatable, argv order). JSON-printed, capped. `@<idx>` targets a
+   *  --pages tab (default page 0). Also re-run every --watch tick. */
+  eval: PagedExpr[];
   /** Selectors WCAG-contrast-checked post-settle (repeatable): text color vs effective
-   *  ancestor background of the FIRST match. */
-  contrast: string[];
+   *  ancestor background of the FIRST match. `@<idx>` targets a --pages tab (default page 0). */
+  contrast: PagedSelector[];
   /** Force PIXEL-SAMPLE for every --contrast target (even ones the css walk could resolve) — verify a
    *  css-resolve number against the real composite, or sample when you already know a layer paints behind. */
   contrastPixel: boolean;
@@ -349,6 +420,13 @@ type Args = {
   map: boolean;
   /** Subtree to map (default "body"); scope it (e.g. a just-revealed dialog) to shrink output. */
   mapSelector: string;
+  /** Which --pages tab to map (default 0), set by a `@<idx>` suffix on --map. */
+  mapPage: number;
+  // ── DEVICE PRESETS ──────────────────────────────────────────────────────────
+  /** A Playwright device descriptor name (e.g. "iPhone 14 Pro Max") — full touch + mobile-UA + DPR
+   *  emulation, not just a narrow viewport. null = the raw `viewport` field drives (desktop). Last of
+   *  --mobile/--desktop/--wide/--viewport wins the slot. */
+  device: string | null;
   // ── ISOLATED STAGE (serve from a frozen HEAD worktree, not the live dev stack) ─────────────
   /** Serve snaps from an ISOLATED snap-stage (detached HEAD worktree, offset ports + own db/data) — never
    *  the live dev stack. Immune to the dev stack's HMR/crash-loops. See scripts/probes/_kit/snap-stage.ts. */
@@ -368,8 +446,11 @@ type Args = {
 // ── Flag dispatch ───────────────────────────────────────────────────────────
 // One handler per flag (Record dispatch, house style) — each consumes what it
 // needs from `rest`. Repeatable flags push; order-sensitive steps land in
-// args.steps in argv order.
-type FlagHandler = (args: Args, rest: string[]) => void;
+// args.steps in argv order. `page` is the --pages tab index parsed off a `@<idx>`
+// flag suffix (0 when unprefixed / single-page) — steps + per-page captures stamp it.
+type FlagHandler = (args: Args, rest: string[], page: number) => void;
+// A `@<idx>` suffix on a flag (`--click@1`, `--eval@0`, `--aria@2`) selects a --pages tab — parsed by
+// splitPageSuffix (_kit/flags.ts, unit-tested there).
 
 // Optional inline selector: consume the next token ONLY if it's not a flag (--…) and not a
 // route (/…). Selectors start with [ . # or a tag name. Shared by --aria/--text/--map's
@@ -382,8 +463,9 @@ function consumeOptionalSelector(rest: string[]): string | null {
   return null;
 }
 
-function ariaFlag(args: Args, rest: string[], textMode: boolean): void {
+function ariaFlag(args: Args, rest: string[], textMode: boolean, page: number): void {
   args.aria = true;
+  args.ariaPage = page;
   // --text is the cheap combo: structure-as-text, no pixels.
   if (textMode) {
     args.shot = false;
@@ -394,8 +476,9 @@ function ariaFlag(args: Args, rest: string[], textMode: boolean): void {
   }
 }
 
-function mapFlag(args: Args, rest: string[]): void {
+function mapFlag(args: Args, rest: string[], page: number): void {
   args.map = true;
+  args.mapPage = page;
   const sel = consumeOptionalSelector(rest);
   if (sel !== null) {
     args.mapSelector = sel;
@@ -421,22 +504,22 @@ const FLAG_HANDLERS: Record<string, FlagHandler> = {
   "--debug-token": (a, rest) => {
     a.debugToken = rest.shift() ?? "";
   },
-  "--click": (a, rest) => {
-    a.steps.push({ kind: "click", selector: rest.shift() ?? "" });
+  "--click": (a, rest, page) => {
+    a.steps.push({ kind: "click", selector: rest.shift() ?? "", page });
   },
   // In-page el.click() — bypasses Playwright's actionability checks for
   // stubborn targets (icon divs under overlay stacks).
-  "--jsclick": (a, rest) => {
-    a.steps.push({ kind: "jsclick", selector: rest.shift() ?? "" });
+  "--jsclick": (a, rest, page) => {
+    a.steps.push({ kind: "jsclick", selector: rest.shift() ?? "", page });
   },
   // Hover the target's position then FORCE-click — for hover-revealed controls
   // (group-hover kebabs/toolbars stay actionability-invisible) and Radix
   // triggers that want real pointer events but fail visibility checks.
-  "--press": (a, rest) => {
-    a.steps.push({ kind: "press", selector: rest.shift() ?? "" });
+  "--press": (a, rest, page) => {
+    a.steps.push({ kind: "press", selector: rest.shift() ?? "", page });
   },
-  "--hover": (a, rest) => {
-    a.steps.push({ kind: "hover", selector: rest.shift() ?? "" });
+  "--hover": (a, rest, page) => {
+    a.steps.push({ kind: "hover", selector: rest.shift() ?? "", page });
   },
   // FIRST '=' splits (localStorage keys never contain '='; JSON values often do).
   "--ls": (a, rest) => {
@@ -446,31 +529,50 @@ const FLAG_HANDLERS: Record<string, FlagHandler> = {
     }
   },
   // --fill "selector=value" — LAST '=' splits (selectors contain '=').
-  "--fill": (a, rest) => {
+  "--fill": (a, rest, page) => {
     const s = splitLastEq(rest.shift() ?? "");
-    a.steps.push({ kind: "fill", selector: s.head, value: s.tail });
+    a.steps.push({ kind: "fill", selector: s.head, value: s.tail, page });
   },
   // --key "selector=KeyName" (LAST '=' splits; default Enter). Pairs with --fill to
   // COMMIT a search box: `--fill 'input=q' --key 'input=Enter'` snaps a results view.
-  "--key": (a, rest) => {
+  "--key": (a, rest, page) => {
     const s = splitLastEq(rest.shift() ?? "");
-    a.steps.push({ kind: "key", selector: s.head, key: s.tail === "" ? "Enter" : s.tail });
+    a.steps.push({ kind: "key", selector: s.head, key: s.tail === "" ? "Enter" : s.tail, page });
   },
   // A POST-STEP wait (vs the page-load `--wait`): waits for `selector` to ATTACH at
   // this point in the step sequence — for content that appears AFTER an interaction.
   // "attached" not "visible": the visibility check false-negatives on full-bleed-
   // modal / portal content that IS painted — pair with `--shot-of`.
-  "--wait-for": (a, rest) => {
-    a.steps.push({ kind: "waitfor", selector: rest.shift() ?? "" });
+  "--wait-for": (a, rest, page) => {
+    a.steps.push({ kind: "waitfor", selector: rest.shift() ?? "", page });
+  },
+  // ── SPA navigation (dev nav bridge __orb.nav) — runs BEFORE the regular steps ──
+  "--goto": (a, rest, page) => {
+    a.navActions.push({ kind: "goto", target: rest.shift() ?? "", page });
+  },
+  "--open-chat": (a, rest, page) => {
+    a.navActions.push({ kind: "open-chat", target: rest.shift() ?? "", page });
+  },
+  "--context-tab": (a, rest, page) => {
+    a.navActions.push({ kind: "context-tab", target: rest.shift() ?? "", page });
+  },
+  "--pages": (a, rest) => {
+    a.pages = Math.max(1, Number(rest.shift() ?? "1") || 1);
+  },
+  "--watch": (a, rest) => {
+    a.watchMs = Math.max(0, Number(rest.shift() ?? "0") || 0);
+  },
+  "--every": (a, rest) => {
+    a.watchEveryMs = Math.max(1, Number(rest.shift() ?? "0") || MS_PER_SECOND);
   },
   "--no-deadcss": (a) => {
     a.deadCss = false;
   },
-  "--aria": (a, rest) => {
-    ariaFlag(a, rest, false);
+  "--aria": (a, rest, page) => {
+    ariaFlag(a, rest, false, page);
   },
-  "--text": (a, rest) => {
-    ariaFlag(a, rest, true);
+  "--text": (a, rest, page) => {
+    ariaFlag(a, rest, true, page);
   },
   "--aria-depth": (a, rest) => {
     a.ariaDepth = Number(rest.shift() ?? "0") || null;
@@ -517,29 +619,44 @@ const FLAG_HANDLERS: Record<string, FlagHandler> = {
   "--out": (a, rest) => {
     a.out = rest.shift() ?? null;
   },
+  // --wide/--viewport/--mobile/--desktop all fill ONE slot — last wins. The device presets and the raw
+  // viewport are mutually exclusive, so each clears the other.
   "--wide": (a) => {
     a.viewport = WIDE_VIEWPORT;
+    a.device = null;
   },
   "--viewport": (a, rest) => {
     a.viewport = parseViewport(rest.shift() ?? "") ?? a.viewport;
+    a.device = null;
   },
-  "--eval": (a, rest) => {
+  // Full mobile emulation (touch + mobile UA + DPR), not just a narrow viewport — the app's
+  // progressive-disclosure law renders hover-revealed controls ALWAYS-VISIBLE at pointer:coarse, and the
+  // rail flips to a bottom tab bar; a bare narrow viewport would miss both.
+  "--mobile": (a) => {
+    a.device = MOBILE_DEVICE;
+  },
+  // Explicit alias for the default desktop viewport — lets a script pair --mobile/--desktop symmetrically.
+  "--desktop": (a) => {
+    a.viewport = DEFAULT_VIEWPORT;
+    a.device = null;
+  },
+  "--eval": (a, rest, page) => {
     const expr = rest.shift();
     if (expr) {
-      a.eval.push(expr);
+      a.eval.push({ expr, page });
     }
   },
-  "--contrast": (a, rest) => {
+  "--contrast": (a, rest, page) => {
     const sel = rest.shift();
     if (sel) {
-      a.contrast.push(sel);
+      a.contrast.push({ selector: sel, page });
     }
   },
   "--contrast-pixel": (a) => {
     a.contrastPixel = true;
   },
-  "--map": (a, rest) => {
-    mapFlag(a, rest);
+  "--map": (a, rest, page) => {
+    mapFlag(a, rest, page);
   },
   "--isolated": (a) => {
     a.isolated = true;
@@ -571,6 +688,10 @@ function parseArgs(argv: string[]): Args {
     fullPage: false,
     debugToken: DEFAULT_DEBUG_TOKEN,
     steps: [],
+    navActions: [],
+    pages: 1,
+    watchMs: 0,
+    watchEveryMs: MS_PER_SECOND,
     out: null,
     viewport: DEFAULT_VIEWPORT,
     localStorage: [],
@@ -583,6 +704,7 @@ function parseArgs(argv: string[]): Args {
     ariaSelector: "body",
     ariaDepth: null,
     ariaBoxes: false,
+    ariaPage: 0,
     shot: true,
     shotOf: null,
     mask: [],
@@ -594,6 +716,8 @@ function parseArgs(argv: string[]): Args {
     contrastPixel: false,
     map: false,
     mapSelector: "body",
+    mapPage: 0,
+    device: null,
     isolated: false,
     ref: null,
     fresh: false,
@@ -603,9 +727,12 @@ function parseArgs(argv: string[]): Args {
   const rest = [...argv];
   while (rest.length > 0) {
     const tok = rest.shift() as string;
-    const handler = FLAG_HANDLERS[tok];
+    // Strip a `@<idx>` --pages suffix (0 when absent) so `--click@1` dispatches the SAME handler as
+    // `--click`, just stamped with the target tab.
+    const { flag, page } = splitPageSuffix(tok);
+    const handler = FLAG_HANDLERS[flag];
     if (handler !== undefined) {
-      handler(args, rest);
+      handler(args, rest, page);
     } else if (tok.startsWith("--")) {
       // Unlike neo (silent), a typo'd flag gets a line — agents can't eyeball a
       // missing drawer the way a human watching VNC would.
@@ -620,8 +747,12 @@ function parseArgs(argv: string[]): Args {
 // ── Capture phases ──────────────────────────────────────────────────────────
 
 type CaptureOutcome = {
+  /** The --pages tab this outcome belongs to (0 in single-page mode). */
+  pageIndex: number;
   navError: string | null;
   stepFailures: number;
+  /** --goto/--open-chat/--context-tab actions that failed on this page (reddens exit). */
+  navFailures: number;
   deadCss: Array<{ token: string; count: number }>;
   emptyCss: string[];
   ariaText: string | null;
@@ -715,6 +846,65 @@ async function runSteps(page: Page, steps: readonly Step[]): Promise<number> {
       failures += 1;
       print(`STEP FAILED  ${step.kind} ${step.selector}: ${msg}`);
     }
+  }
+  return failures;
+}
+
+// ── SPA navigation via the app's dev nav bridge (__orb.nav) ──────────────────
+// Each --goto/--open-chat/--context-tab awaits app-readiness + __orb.ready, invokes the matching
+// __orb.nav method IN-PAGE, and FAILS loudly (reddens exit like a STEP FAILED) on {ok:false} or a
+// missing bridge. Runs BEFORE the regular steps so `--goto presets --map` maps the presets surface.
+// __orb is dev-only (installAgentDebugHandle gates on IS_DEV) — a prod/old build with no bridge fails
+// the action with a clear reason rather than silently no-op'ing.
+const NAV_METHOD: Record<Exclude<NavAction["kind"], "goto">, string> = {
+  "open-chat": "openChat",
+  "context-tab": "contextTab",
+};
+
+// The in-page bridge call. --goto's target is a namespaced string the app doesn't understand directly
+// (`settings:appearance`, `modal:theme`, or a bare section id) — DECODE it in Node via parseGotoTarget
+// (unit-tested, _kit/flags.ts) to the right __orb.nav method, then emit a call to just that method. All
+// other kinds map 1:1. Returns the NavResult shape.
+function buildNavScript(action: NavAction): string {
+  const method = action.kind === "goto" ? parseGotoTarget(action.target).method : NAV_METHOD[action.kind];
+  const arg = JSON.stringify(action.kind === "goto" ? parseGotoTarget(action.target).arg : action.target);
+  return `(async () => {
+    const nav = window.__orb && window.__orb.nav;
+    if (!nav) return { ok: false, reason: "__orb.nav unavailable (not a dev build?)" };
+    return await nav.${method}(${arg});
+  })()`;
+}
+
+type NavResultShape = { ok: boolean; reason?: string };
+
+// Run one page's nav actions in argv order; returns the failure count (each failure prints + reddens exit).
+async function runNavActions(page: Page, actions: readonly NavAction[]): Promise<number> {
+  let failures = 0;
+  for (const action of actions) {
+    // Every nav action needs the app hydrated AND the bridge installed — wait on both, gracefully bounded.
+    // biome-ignore lint/performance/noAwaitInLoops: nav actions are argv-ordered and each may depend on the prior surface being live (open a modal, then a settings pane) — sequential by contract.
+    await page
+      .locator("html[data-app-ready]")
+      .waitFor({ state: "attached", timeout: WAIT_SELECTOR_TIMEOUT_MS })
+      .catch(() => undefined);
+    let result: NavResultShape;
+    try {
+      // (Awaits below share the loop's one noAwaitInLoops suppression above — sequential by contract:
+      // the bridge must be ready, then the nav call + its store write must settle before the next action.)
+      await page.evaluate("window.__orb && window.__orb.ready").catch(() => undefined);
+      result = (await page.evaluate(buildNavScript(action))) as NavResultShape;
+    } catch (e) {
+      failures += 1;
+      print(`NAV FAILED  ${action.kind} ${action.target}: ${errorMessage(e)}`);
+      continue;
+    }
+    if (!result.ok) {
+      failures += 1;
+      print(`NAV FAILED  ${action.kind} ${action.target}: ${result.reason ?? "rejected"}`);
+      continue;
+    }
+    // Let the store write + view transition settle before the next action / the shot.
+    await settle(page, STEP_SETTLE_MS);
   }
   return failures;
 }
@@ -1254,10 +1444,23 @@ async function captureMap(page: Page, selector: string): Promise<{ entries: MapE
   }
 }
 
-async function capture(page: Page, opts: Args, plan: ShotPlan): Promise<CaptureOutcome> {
+// The shot path for a page: `<out>.png` on page 0 / single-page (byte-identical), `<out>-p<idx>.png` on
+// a --pages tab so N tabs never clobber one file.
+function pageOut(out: string, pageIndex: number, totalPages: number): string {
+  return totalPages > 1 ? out.replace(PNG_EXT_RE, `-p${pageIndex}.png`) : out;
+}
+
+// One page's full capture pass. Nav actions + steps + captures are FILTERED to this page's index, so a
+// flat argv list drives N tabs. On single-page (totalPages 1) every filter is a no-op and the flow is
+// byte-identical to the original.
+type PagePlan = ShotPlan & { pageIndex: number; totalPages: number };
+async function capture(page: Page, opts: Args, plan: PagePlan): Promise<CaptureOutcome> {
+  const { pageIndex, totalPages } = plan;
   const outcome: CaptureOutcome = {
+    pageIndex,
     navError: null,
     stepFailures: 0,
+    navFailures: 0,
     deadCss: [],
     emptyCss: [],
     ariaText: null,
@@ -1266,40 +1469,50 @@ async function capture(page: Page, opts: Args, plan: ShotPlan): Promise<CaptureO
     mapResult: null,
     mapError: null,
   };
+  const forThisPage = <T extends { page: number }>(items: readonly T[]): T[] => items.filter((i) => i.page === pageIndex);
+  const out = pageOut(plan.out, pageIndex, totalPages);
   // Volatile-region masks (pink overlay) shared by the main shot, --shot-of, and crop.
   const mask = opts.mask.map((s) => page.locator(s));
   try {
     outcome.navError = await navigate(page, opts, plan.url);
-    outcome.stepFailures = await runSteps(page, opts.steps);
+    // SPA nav (dev bridge) runs BEFORE the regular steps so `--goto presets --map` maps the presets surface.
+    outcome.navFailures = await runNavActions(page, forThisPage(opts.navActions));
+    outcome.stepFailures = await runSteps(page, forThisPage(opts.steps));
     await settlePage(page, opts);
+    // Dead-CSS is a whole-DOM scan, run per page (multi-tab may sit on different surfaces).
     if (opts.deadCss) {
       const scan = await scanDeadCss(page);
       outcome.deadCss = scan.dead;
       outcome.emptyCss = scan.empty;
     }
-    if (opts.aria) {
+    if (opts.aria && opts.ariaPage === pageIndex) {
       outcome.ariaText = await captureAria(page, opts);
     }
-    if (opts.eval.length > 0) {
-      outcome.evalResults = await captureEvals(page, opts.eval);
+    const pageEvals = forThisPage(opts.eval).map((e) => e.expr);
+    if (pageEvals.length > 0) {
+      outcome.evalResults = await captureEvals(page, pageEvals);
     }
-    if (opts.contrast.length > 0) {
-      outcome.contrastResults = await captureContrasts(page, opts.contrast, opts.contrastPixel, opts.viewport);
+    const pageContrasts = forThisPage(opts.contrast).map((c) => c.selector);
+    if (pageContrasts.length > 0) {
+      // The REAL rendered viewport (a --mobile device carries its own, not opts.viewport) — the pixel-sample
+      // clip clamps against it, so read it off the page rather than the requested desktop default.
+      const vp = page.viewportSize() ?? opts.viewport;
+      outcome.contrastResults = await captureContrasts(page, pageContrasts, opts.contrastPixel, vp);
     }
-    if (opts.map) {
+    if (opts.map && opts.mapPage === pageIndex) {
       const mapped = await captureMap(page, opts.mapSelector);
       outcome.mapResult = mapped.entries;
       outcome.mapError = mapped.error;
     }
     if (plan.produceShot) {
-      await captureShot(page, opts, plan.out, mask);
+      await captureShot(page, opts, out, mask);
     }
   } catch (e) {
     outcome.navError = `nav/wait threw: ${errorMessage(e)}`;
     // Try to screenshot whatever we got anyway.
     if (plan.produceShot) {
       try {
-        await captureShot(page, opts, plan.out, mask);
+        await captureShot(page, opts, out, mask);
       } catch {
         /* best effort — the report + RESULT line still land */
       }
@@ -1431,7 +1644,7 @@ type ShotPlan = {
   produceShot: boolean;
 };
 
-type ReportCtx = ShotPlan & { failed: CapturedRequest[] };
+type ReportCtx = ShotPlan & { failed: CapturedRequest[]; totalPages: number };
 
 function printSummary(session: ProbeSession, outcome: CaptureOutcome, opts: Args, ctx: ReportCtx): void {
   let shotDisplay = ctx.out;
@@ -1488,7 +1701,9 @@ function printContrastBlock(contrasts: readonly ContrastOutcome[]): void {
 }
 
 function printMapBlock(opts: Args, entries: MapEntry[] | null, error: string | null): void {
-  if (!opts.map) {
+  // Gate on whether the map actually RAN on this page (multi-tab: --map targets one page). A null
+  // result + null error means it didn't run here.
+  if (entries === null && error === null) {
     return;
   }
   if (error !== null) {
@@ -1639,6 +1854,64 @@ function buildSeeds(opts: Args): LocalStorageSeed[] {
   return seeds;
 }
 
+// ── --watch: a timed observation series after nav+steps settle ────────────────
+// Watch a streaming turn reflow / catch a transient state (a raw speaker-tag prefix mid-stream) without
+// eyeballing MCP screenshots one call at a time. Every tick: a screenshot (`<out>-t<elapsed>.png`) and,
+// if --eval exprs were given, re-run them labeled with elapsed ms. Runs on PAGE 0's evals only (the
+// series is a single-surface time-lapse). Returns the tick count + the artifact/eval lines to report.
+type WatchTick = { elapsedMs: number; shot: string; evals: EvalOutcome[] };
+
+async function runWatchSeries(page: Page, opts: Args, out: string): Promise<WatchTick[]> {
+  const ticks: WatchTick[] = [];
+  const page0Evals = opts.eval.filter((e) => e.page === 0).map((e) => e.expr);
+  const start = Date.now();
+  let elapsed = 0;
+  while (elapsed <= opts.watchMs) {
+    const shotPath = out.replace(PNG_EXT_RE, `-t${elapsed}.png`);
+    // biome-ignore lint/performance/noAwaitInLoops: the series is INHERENTLY sequential — each tick observes the surface at a distinct wall-clock moment (shot + evals + the inter-tick wait); parallelizing would collapse the timeline the flag exists to capture.
+    await page.screenshot({ path: shotPath, ...SHOT_BASE }).catch(() => undefined);
+    const evals = page0Evals.length > 0 ? await captureEvals(page, page0Evals) : [];
+    ticks.push({ elapsedMs: elapsed, shot: shotPath, evals });
+    if (elapsed >= opts.watchMs) {
+      break;
+    }
+    await settle(page, opts.watchEveryMs);
+    elapsed = Date.now() - start;
+  }
+  return ticks;
+}
+
+function printWatchBlock(ticks: readonly WatchTick[]): void {
+  if (ticks.length === 0) {
+    return;
+  }
+  print(`\n--- WATCH (${ticks.length} tick(s)) ---`);
+  for (const t of ticks) {
+    print(`  t+${t.elapsedMs}ms  →  ${t.shot}`);
+    t.evals.forEach((e, i) => {
+      const label = e.expr.length > EVAL_LABEL_CAP ? `${e.expr.slice(0, EVAL_LABEL_CAP)}…` : e.expr;
+      // Collapse a multi-line eval result to keep the series scannable; the single-shot --eval block
+      // (post-watch) still prints the full pretty-printed value.
+      const oneLine = e.text.replace(/\s+/g, " ").slice(0, EVAL_LABEL_CAP);
+      print(`    eval[${i}] (${label}): ${oneLine}`);
+    });
+  }
+}
+
+// One page's report section. Multi-tab prefixes a `=== PAGE N ===` banner; single-page prints exactly
+// the original layout. Session-wide logs (requests/console/pageErrors) print ONCE after all pages.
+function printPageReport(session: ProbeSession, outcome: CaptureOutcome, opts: Args, ctx: ReportCtx): void {
+  if (ctx.totalPages > 1) {
+    print(`\n========== PAGE ${outcome.pageIndex} ==========`);
+  }
+  printSummary(session, outcome, opts, ctx);
+  printAriaBlock(opts, outcome.ariaText);
+  printEvalBlock(outcome.evalResults);
+  printContrastBlock(outcome.contrastResults);
+  printMapBlock(opts, outcome.mapResult, outcome.mapError);
+  printCssFindings(outcome);
+}
+
 async function snap(opts: Args): Promise<number> {
   const url = buildUrl(opts.base, opts.route);
   const name = opts.out ?? routeSlug(opts.route);
@@ -1646,6 +1919,7 @@ async function snap(opts: Args): Promise<number> {
   // Whether we write a PNG. --no-shot/--text suppress it, but --baseline/--diff
   // need pixels to compare, and --shot-of is itself a shot — so those force it on.
   const produceShot = opts.shotOf !== null || opts.shot || opts.baseline || opts.diff;
+  const totalPages = opts.pages;
 
   const session = await launchProbeSession({
     headless: !opts.vnc,
@@ -1653,42 +1927,62 @@ async function snap(opts: Args): Promise<number> {
     colorScheme: opts.colorScheme,
     reducedMotion: opts.reducedMotion || opts.probe,
     localStorage: buildSeeds(opts),
+    device: opts.device,
+    pages: totalPages,
   });
   if (opts.probe) {
     await session.context.addInitScript({ content: PROBE_CSS_SCRIPT });
   }
 
   const plan: ShotPlan = { url, out, produceShot };
-  const outcome = await capture(session.page, opts, plan);
+  // Capture every page in argv/index order (they share one context, so page 0's send is visible to page 1).
+  const outcomes: CaptureOutcome[] = [];
+  for (let i = 0; i < totalPages; i += 1) {
+    const page = session.pages[i] as Page;
+    // biome-ignore lint/performance/noAwaitInLoops: pages capture SEQUENTIALLY — a --pages review drives page 0 (a send) then reads the passive page; interleaving would race the observation.
+    outcomes.push(await capture(page, opts, { ...plan, pageIndex: i, totalPages }));
+  }
+  // --watch: a timed series on PAGE 0 after everything settled (a streaming turn reflow, transient states).
+  const watchTicks = opts.watchMs > 0 ? await runWatchSeries(session.pages[0] as Page, opts, pageOut(out, 0, totalPages)) : [];
   await session.browser.close();
 
   const failed = [...session.requests.values()].filter((r) => r.failed !== null || (r.status ?? 0) >= HTTP_ERROR_STATUS_MIN);
-  const ctx: ReportCtx = { ...plan, failed };
-  printSummary(session, outcome, opts, ctx);
-  printAriaBlock(opts, outcome.ariaText);
-  printEvalBlock(outcome.evalResults);
-  printContrastBlock(outcome.contrastResults);
-  printMapBlock(opts, outcome.mapResult, outcome.mapError);
+  for (const outcome of outcomes) {
+    const ctx: ReportCtx = { ...plan, out: pageOut(out, outcome.pageIndex, totalPages), failed, totalPages };
+    printPageReport(session, outcome, opts, ctx);
+  }
+  printWatchBlock(watchTicks);
   printCaptureLog(session, failed);
-  printCssFindings(outcome);
-  printCropNote(opts, ctx);
-  const { diffPairs, ssimFailed } = await runBaselineOrDiff(opts, out, name);
+  printCropNote(opts, { ...plan, failed, totalPages });
+  // Baseline/diff compares PAGE 0's shot (the canonical surface); multi-page baselines aren't a use case yet.
+  const { diffPairs, ssimFailed } = await runBaselineOrDiff(opts, pageOut(out, 0, totalPages), name);
 
-  const contrastFails = outcome.contrastResults.filter((c) => c.failed).length;
+  const contrastFails = outcomes.reduce((n, o) => n + o.contrastResults.filter((c) => c.failed).length, 0);
+  const navFailures = outcomes.reduce((n, o) => n + o.navFailures, 0);
+  const stepFailures = outcomes.reduce((n, o) => n + o.stepFailures, 0);
+  const anyNavError = outcomes.some((o) => o.navError !== null);
+  const deadCssTotal = outcomes.reduce((n, o) => n + o.deadCss.length, 0);
+  const emptyCssTotal = outcomes.reduce((n, o) => n + o.emptyCss.length, 0);
+  const mappedOutcome = outcomes.find((o) => o.mapResult !== null || o.mapError !== null);
+  const ariaSeen = outcomes.some((o) => o.ariaText !== null);
+  const evalsTotal = outcomes.reduce((n, o) => n + o.evalResults.length, 0);
   // Exit non-zero if anything observably went wrong, so `snap` is CI-usable.
-  const red = outcome.navError !== null || session.pageErrors.length > 0 || failed.length > 0 || outcome.stepFailures > 0 || contrastFails > 0 || ssimFailed;
+  const red = anyNavError || navFailures > 0 || session.pageErrors.length > 0 || failed.length > 0 || stepFailures > 0 || contrastFails > 0 || ssimFailed;
   printResult("snap", [
-    ["out", produceShot ? out : "(none)"],
-    ["aria", outcome.ariaText === null ? "no" : "yes"],
-    ["map", opts.map ? String((outcome.mapResult ?? []).length) : "no"],
-    ["evals", outcome.evalResults.length],
+    ["out", produceShot ? pageOut(out, 0, totalPages) : "(none)"],
+    ["pages", totalPages],
+    ["watch", watchTicks.length],
+    ["aria", ariaSeen ? "yes" : "no"],
+    ["map", opts.map ? String((mappedOutcome?.mapResult ?? []).length) : "no"],
+    ["evals", evalsTotal],
     ["contrast-fails", contrastFails],
-    ["nav", outcome.navError === null ? "OK" : "ERROR"],
-    ["steps-failed", outcome.stepFailures],
+    ["nav", anyNavError ? "ERROR" : "OK"],
+    ["nav-actions-failed", navFailures],
+    ["steps-failed", stepFailures],
     ["page-errors", session.pageErrors.length],
     ["failed-req", failed.length],
-    ["deadcss", outcome.deadCss.length],
-    ["emptycss", outcome.emptyCss.length],
+    ["deadcss", deadCssTotal],
+    ["emptycss", emptyCssTotal],
     ...diffPairs,
   ]);
   return red ? 1 : 0;

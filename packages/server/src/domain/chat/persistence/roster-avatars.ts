@@ -1,17 +1,21 @@
-// domain/chat/persistence/roster-avatars — the chat roster persona-avatar producer loader, the avatar-
-// chrome sibling to macro-names.ts's name producer. Kept in its own file/type, never folded into
+// domain/chat/persistence/roster-avatars — the chat roster avatar producer loaders, the avatar-chrome
+// siblings to macro-names.ts's name producer. Kept in their own file/type, never folded into
 // ChatMacroNameProducer, because that producer is explicitly names-only — avatar chrome is a display
 // concern, not a macro-resolution input.
 //
-// Coverage: identical algorithm to loadChatMacroNameProducer (every participant's active persona union
-// every stored message row's personaId stamp) — reuses collectMacroIds so the two loaders can never drift
-// on which ids are covered.
+// Coverage: identical algorithm to loadChatMacroNameProducer (every participant's active persona/
+// characterId union every stored message row's personaId/characterId stamp) — reuses collectMacroIds so
+// the loaders can never drift on which ids are covered.
 //
-// Character avatars are NOT covered here — they already flow through ParticipantView.avatarHash.
+// Both persona AND character avatars are loaded here (participant-independent): a speaker can be removed
+// from the room while its historical rows stay in the transcript, so ParticipantView.avatarHash is NOT a
+// sufficient source for the assistant-row portrait — it vanishes on removal. The character-avatar
+// producer is the portrait floor that survives a removal (mirrors the persona-avatar producer, which
+// already covered since-switched personas the roster no longer lists).
 
-import type { PersonaAvatarEntry } from "@orb/contracts/chat";
+import type { CharacterAvatarEntry, PersonaAvatarEntry } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
-import { assets, personas } from "@orb/db";
+import { assets, characters, personas } from "@orb/db";
 import { eq, inArray } from "drizzle-orm";
 import type { MessageMacroIdSource, ParticipantMacroIdSource } from "../contract/macro-ids";
 import { collectMacroIds } from "./macro-names";
@@ -34,5 +38,27 @@ export async function loadPersonaAvatarProducer(
     .from(personas)
     .leftJoin(assets, eq(personas.avatarAssetId, assets.id))
     .where(inArray(personas.id, personaIds));
+  return rows.map((row) => ({ id: row.id, avatarHash: row.avatarHash ?? null }));
+}
+
+/** Load the character-avatar producer for a chat: `assets.hash` joined off `characters.avatarAssetId` for
+ *  every character id `args.participants`/`args.messages` cover — including a character removed from the
+ *  room whose messages remain in `args.messages` (the transcript-integrity floor). */
+export async function loadCharacterAvatarProducer(
+  db: Db,
+  args: {
+    readonly participants?: readonly ParticipantMacroIdSource[];
+    readonly messages?: readonly MessageMacroIdSource[];
+  },
+): Promise<readonly CharacterAvatarEntry[]> {
+  const { characterIds } = collectMacroIds(args);
+  if (characterIds.length === 0) {
+    return [];
+  }
+  const rows = await db
+    .select({ id: characters.id, avatarHash: assets.hash })
+    .from(characters)
+    .leftJoin(assets, eq(characters.avatarAssetId, assets.id))
+    .where(inArray(characters.id, characterIds));
   return rows.map((row) => ({ id: row.id, avatarHash: row.avatarHash ?? null }));
 }

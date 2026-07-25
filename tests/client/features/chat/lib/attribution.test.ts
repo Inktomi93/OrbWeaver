@@ -50,6 +50,41 @@ test("assistant row resolves name from the producer + avatar/color from the rost
   expect(result.tokens).not.toBeNull();
 });
 
+// P2 transcript-integrity (side-eye 2026-07-25): a character REMOVED from the room keeps its historical
+// rows, so its `ParticipantView` is gone but `characterNamesById` still resolves the name. Before the fix
+// the avatar keyed ONLY off the (now-absent) participant → the portrait degraded to bare initials. The
+// character-avatar producer is the participant-independent floor that keeps the portrait.
+test("assistant row of a REMOVED character keeps its portrait from the character-avatar producer (not the absent participant)", () => {
+  // No participant for Alice — she was removed; only her name + character-avatar producer entries survive.
+  const characterNamesById = new Map<CharacterId, RowCharacterName>([[ALICE_ID, { name: "Alice" }]]);
+  const characterAvatarsById = new Map<CharacterId, string | null>([[ALICE_ID, "hash_alice"]]);
+  const result = resolveRowAttribution({
+    role: "assistant",
+    characterId: ALICE_ID,
+    personaId: null,
+    participants: new Map<CharacterId, ParticipantView>(),
+    characterNamesById,
+    characterAvatarsById,
+  });
+  expect(result.name).toBe("Alice");
+  expect(result.avatarHash).toBe("hash_alice");
+});
+
+test("the live participant's avatarHash WINS over the character-avatar producer (per-chat override survives)", () => {
+  const participants = new Map([[ALICE_ID, makeParticipant({ displayName: "Alice", avatarHash: "hash_participant_override" })]]);
+  const characterNamesById = new Map<CharacterId, RowCharacterName>([[ALICE_ID, { name: "Alice" }]]);
+  const characterAvatarsById = new Map<CharacterId, string | null>([[ALICE_ID, "hash_character_level"]]);
+  const result = resolveRowAttribution({
+    role: "assistant",
+    characterId: ALICE_ID,
+    personaId: null,
+    participants,
+    characterNamesById,
+    characterAvatarsById,
+  });
+  expect(result.avatarHash).toBe("hash_participant_override");
+});
+
 test("a characterId absent from the producer gets no chrome (not a crash, not char[0])", () => {
   const characterNamesById = new Map<CharacterId, RowCharacterName>([[ALICE_ID, { name: "Alice" }]]);
   const result = resolveRowAttribution({

@@ -34,7 +34,7 @@ import {
   loadVariantsByMessageIds,
 } from "../persistence/queries";
 import { loadRoster } from "../persistence/roster";
-import { loadPersonaAvatarProducer } from "../persistence/roster-avatars";
+import { loadCharacterAvatarProducer, loadPersonaAvatarProducer } from "../persistence/roster-avatars";
 import { NO_HISTORY_FLOOR } from "../substrate/auth";
 import { toChatDetail } from "../substrate/chat-detail";
 import { foldChain } from "../substrate/runtime-variables";
@@ -322,12 +322,14 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
     const participants = await deps.loadParticipantViews(newChatId);
     const macroNames = await loadChatMacroNameProducer(ctx.db, { participants });
     const personaAvatars = await loadPersonaAvatarProducer(ctx.db, { participants });
+    const characterAvatars = await loadCharacterAvatarProducer(ctx.db, { participants });
     return {
       chat: toChatDetail({
         chat: forkRow,
         participants,
         macroNames,
         personaAvatars,
+        characterAvatars,
         viewerUserId: principal.userId,
         // The forker is the NEW room's born-here host (`joinSeq` 0) — unclamped in the fork, which already
         // carries only what their source-room floor allowed.

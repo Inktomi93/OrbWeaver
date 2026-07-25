@@ -53,6 +53,7 @@
     "./message-media": "./src/content/message-media/index.ts",
     "./meter": "./src/charts/meter/index.ts",
     "./number-field": "./src/primitives/number-field/index.ts",
+    "./option-strip": "./src/primitives/option-strip/index.ts",
     "./popover": "./src/primitives/popover/index.ts",
     "./progress": "./src/primitives/progress/index.ts",
     "./radio-group": "./src/primitives/radio-group/index.ts",

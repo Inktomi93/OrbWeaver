@@ -52,6 +52,9 @@ export interface MessageRowProps {
   readonly characterNamesById: ReadonlyMap<CharacterId, RowCharacterName>;
   readonly personaNamesById: ReadonlyMap<PersonaId, RowPersonaName>;
   readonly personaAvatarsById?: ReadonlyMap<PersonaId, string | null> | undefined;
+  /** The assistant-row portrait floor — a character removed from the room keeps its historical avatar
+   *  from this producer (its `ParticipantView` is gone; `participants` no longer carries the hash). */
+  readonly characterAvatarsById?: ReadonlyMap<CharacterId, string | null> | undefined;
   readonly activePersonaId?: PersonaId | null | undefined;
   /** The chat's anchor persona id — the null-stamp `{{user}}`/`{{persona}}` macro fallback (distinct
    *  from `activePersonaId`, the badge fallback). */
@@ -121,6 +124,7 @@ export function MessageRow({
   characterNamesById,
   personaNamesById,
   personaAvatarsById,
+  characterAvatarsById,
   activePersonaId,
   anchorPersonaId,
   viewerUserId,
@@ -147,6 +151,7 @@ export function MessageRow({
     characterNamesById,
     personaNamesById,
     personaAvatarsById,
+    characterAvatarsById,
     activePersonaId,
   });
   const render = resolveRowRenderPolicy({

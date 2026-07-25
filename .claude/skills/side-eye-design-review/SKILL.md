@@ -1,9 +1,9 @@
 ---
 name: side-eye-design-review
-description: "The UX / usability / visual-design / accessibility review laws — the reading-surface rule, contrast/typography/layout/motion rules, the AI-slop antipattern registry, Nielsen's 10 heuristics 0–4 rubric, the cognitive-load checklist (Miller ≤4), the 5 persona walkthroughs (Sam/Riley/Casey/Alex/Jordan), the P0–P3 severity scale, and this app's __orb introspection API + probe tooling. Preloaded into the side-eye reviewer agent; also usable standalone whenever you critique or audit any UI/UX surface in this repo."
+description: "The UX / usability / visual-design / accessibility review laws — the reading-surface rule, contrast/typography/layout/motion rules, the AI-slop antipattern registry, Nielsen's 10 heuristics 0–4 rubric, the cognitive-load checklist (Miller ≤4), the 5 persona walkthroughs (Sam/Riley/Casey/Alex/Jordan), the P0–P3 severity scale, this app's __orb introspection API + probe tooling, the §12 repo map (where CSS/tokens/UI-law docs/features/CTs live; navigation is client state — 2 URL routes only), the §13 mandatory blunt-taste + IA lens (is it ugly · does it flow weird · more than one home for a concept · intuitive cold), and the §14 shell anatomy (TOPBAR + RAIL|LIST|CONTENT|CONTEXT, context follows content, settings is a MODAL, nothing replaces the panes). Preloaded into the side-eye reviewer agent; also usable standalone whenever you critique or audit any UI/UX surface in this repo."
 ---
 
-# side-eye design-review laws (§0–§11)
+# side-eye design-review laws (§0–§14)
 
 Distilled from the `impeccable` design language (pbakaus/impeccable), Nielsen/NN-g heuristics, and the
 Orbweaver constitution. A checklist you APPLY. When a finding breaks one of these, name the rule.
@@ -154,6 +154,7 @@ state in ONE eval — never scrape the DOM.
 | `__orb.bus()` | chat-bus `{ live, events }` — live subs + recent canon events |
 | `__orb.shell()` | shell state: active section, panel modes, `chatOpen` |
 | `__orb.ready` / `.isReady()` | promise / bool: hydrated + initial reads settled |
+| `__orb.nav.*` | ACTIONS (dev-only): `section(id)` · `openModal(slot)` · `openSettings(category)` · `contextTab(name)` · `openChat(idOrTitle)` · `closeModal()` — call the REAL store actions; return `{ok}` or `{ok:false, reason}` (loud refusal). snap's `--goto`/`--open-chat`/`--context-tab` ride these |
 
 Plus raw `getComputedStyle(el)` for the contrast / size / aspect-ratio math behind every visual receipt.
 
@@ -173,6 +174,19 @@ keyboard walk**):
   `__orb.snap()` and `getComputedStyle`) · `--aria`/`--text` (a11y tree) · `--click/--press/--fill/
   --wait-for` (interaction chain) · `--shot-of` · `--diff`/`--baseline` · `--dark`/`--reduced-motion` ·
   `--deadcss`.
+  **NAVIGATION (the app is state-navigated, 2 URL routes — these replace click-chains):**
+  `--goto <target>` (a section id like `presets`, `settings:<category>`, or `modal:<slot>`; refuses
+  loudly on an unknown target, exit 1) · `--open-chat <idOrExactTitle>` · `--context-tab <name>`.
+  These run BEFORE the step chain, so `--goto presets --map` maps the presets surface in one call.
+  **OBSERVATION OVER TIME:** `--watch <totalMs> [--every <ms>]` — after nav+steps, screenshot + re-run
+  every `--eval` each tick (per-tick PNGs + labeled eval results). THE tool for streaming turns /
+  transient states — never eyeball a stream one MCP screenshot at a time.
+  **MULTI-TAB:** `--pages <N>` opens N pages in ONE shared context; step/capture flags take an
+  `@<idx>` suffix (`--fill@0`, `--eval@1`; unsuffixed = page 0) — drive one tab, read the passive one,
+  per-page report sections. (Multi-tab is NO LONGER a chrome-devtools reason.)
+  **VIEWPORT TOGGLES:** `--mobile` (real iPhone 14 Pro Max emulation — 430×932, DPR 3, touch +
+  `pointer: coarse`, so hover-reveals go always-visible and the rail becomes the bottom tab bar) ·
+  `--desktop` (the 1280×800 default, explicit) · last of `--mobile`/`--desktop`/`--wide`/`--viewport` wins.
 - `pnpm perf-meter` (responsiveness + CPU profile) · `pnpm design-audit` (bulk defect scan).
 
 Read `__orb` and any computed value via `snap --eval` / `snap --contrast` — a **Bash** call, no MCP.
@@ -195,6 +209,10 @@ Read `__orb` and any computed value via `snap --eval` / `snap --contrast` — a 
   sub-44px target (or a truly nameless control) is real. (Last full pass: 52 such findings, all false.)
 - **chrome-devtools MCP can HANG a browser session** — if it stalls, fall back to `pnpm snap` (its own
   headless browser) and don't leave a stray session; kill it and re-drive via snap.
+- **chrome-devtools `take_snapshot` FLATTENS structure** — verified 2026-07-25: a chat room with 12
+  `role="article"` message nodes in the DOM showed ZERO articles in its tree (children rendered flat).
+  Never report "missing grouping/landmark" from a devtools snapshot alone — `snap --aria` (Playwright's
+  ARIA snapshot) is the trustworthy structure receipt; cross-check the DOM via `--eval` when in doubt.
 
 ### The appearance EFFECT axes (2026-07 additions — know they EXIST, don't slop-flag them, verify each)
 
@@ -244,3 +262,91 @@ drawer/panel slides, scroll, immersive chat modes), read the numbers instead of 
 - **Thresholds** (name the number in the finding): frame budget **16.7ms** · LoAF blocking **≤50ms** ·
   INP **≤200ms** · CLS **≤0.1** · animations must be **compositor-clean**. A breach on a reading/immersive
   surface is ≥ P1 (jank on the primary experience); polish motion elsewhere is P2–P3.
+
+## §12 Repo map — where things live (stop re-discovering this every review)
+
+**Navigation is CLIENT STATE, not URLs.** The router has exactly TWO routes (`/` and `/login` —
+`packages/client/src/routes/router.tsx`); entity ids never enter the address bar. Sections, modals,
+settings panes, context tabs, and the open chat are all shell state — so "go to X" means driving the
+UI (or `snap --goto`/`__orb.nav` if present; check `scripts/probes/snap.ts`'s header). Snapping
+`/some-path` does NOT navigate anywhere — it renders the home shell under a misleading PNG name.
+
+| What | Where |
+| --- | --- |
+| Global CSS (incl. the reduced-motion killer) | `packages/ui/src/styles/globals.css` |
+| Theme CSS + tokens — **GENERATED, never hand-read as intent** (D71: seed value-sets in json) | `packages/ui/src/styles/theme.css` · `packages/ui/src/tokens/index.ts` |
+| `@orb/ui` primitives (the ONLY elements features may use; D44 media primitives) | `packages/ui/src/primitives/` (+ `layout/`, `content/`, `markdown/`, `stream/`) |
+| Shell vocabulary — `SECTION_IDS` · `MODAL_SLOT_IDS` · `SETTINGS_CATEGORY_IDS` · panel modes | `packages/client/src/state/shell-store.ts` |
+| Section registry (rail entry · panel defaults · context model per section) | `packages/client/src/state/section-registry.ts` |
+| Feature layout (per domain: `components/` `surfaces/` `hooks/` `lib/`) | `packages/client/src/features/<domain>/` — chat lives at `features/chat/` |
+| Test ids | `packages/client/src/lib/test-ids.ts` |
+| In-page introspection manual (`__orb`) | `packages/client/src/lib/agent-tools.README.md` |
+| **UI LAW** — region map + interaction physics (§4.2), the ten UX rules (§4.3) | `docs/architecture/core/UI-Architecture-and-Layout.md` |
+| Client architecture law (lockdown — component/registry discipline) | `docs/architecture/core/client-architecture-lockdown.md` |
+| The constitution + doc index | `docs/architecture/core/AGENTS.md` |
+| D-ledger (cite the D-number a finding breaks) | `docs/architecture/core/Core-Laws-and-Precedents.md` → `Core-Path-Registry.md` |
+| CTs (component tests) — repo root, NOT packages/** | `tests/client/**` (e2e: `tests/e2e/**`) |
+| Probe tool manuals — **authoritative, read them fresh; this skill does not duplicate flags** | `scripts/probes/snap.ts` header · `scripts/probes/design-audit*.ts` |
+| Server truth for any chat surface | `GET :8788/api/_debug/db/chat/:id` · `/api/_debug/errors` · `/api/_debug/db/integrity` |
+
+## §13 The blunt-taste + IA lens (mandatory — the call no instrument makes)
+
+Instruments measure; YOU judge. For every surface driven, deliver the human verdict in plain words:
+
+- **Does it look like shit?** Say so, plainly, and say WHY the eye reads it that way: cramped ·
+  cluttered · unbalanced (one side heavy) · generic/template-y · washed out · too dense · too empty ·
+  misaligned rhythm · elements fighting for attention. The receipt is the screenshot + the specific
+  description — no ratio required. "Fine" is also a verdict; deliver it with the same confidence.
+- **Does it flow weird?** Walk the surface as a task, not a checklist: does the eye land where the
+  work starts? Does the action you'd want next sit where you'd reach for it? Do related things sit
+  together and unrelated things apart? Does anything appear/move/reflow in a way that breaks the
+  reading order?
+- **One home per concept — the IA single-homing rule (the UX twin of the codebase's single-homing
+  law).** Flag on sight: the same setting or concept reachable/editable in TWO places · two surfaces
+  doing the same job with different vocabularies · duplicated affordances for one action in one view ·
+  a control far from where its effect is visible · the same information rendered twice with different
+  values possible. More than one home for a concept is a defect, not a convenience.
+- **Is it intuitive COLD?** The 5-second test: from the screenshot alone, could a first-timer name
+  what this surface is for and what to do first? If YOU had to read source to understand a control's
+  purpose, a user has no chance — that's a finding, not a research note.
+
+These verdicts are ALWAYS in scope, focused mode included — the scope discipline bounds WHICH
+surfaces you drive, never whether you judge the ones you drove. File them BROKEN when they block or
+mislead, UGLY when they're taste — but file them.
+
+## §14 The shell anatomy — Discord's bones, our nouns (LAW: `UI-Architecture-and-Layout.md` §4.1–4.3)
+
+You are reviewing surfaces INSIDE a fixed four-region shell. Judge every surface against this
+geography; a surface inventing its own geography is a finding, not a style choice.
+
+```
+[ TOPBAR (chrome: reopen affordances · ⌘K · bell · fullscreen — the topbar.trail registry) ]
+[ RAIL | LIST | CONTENT | CONTEXT ]
+```
+
+- **RAIL** (left, ~56px icon column) — WHICH facet. Seven sections is the CEILING (Chats · Characters ·
+  Corpus | World Info · Presets · Refinery | Analytics), then Theme/Settings/Identity at the foot.
+  Facets of ONE world, not separate servers — cross-section jumps route through store actions.
+- **LIST** — FINDING. The section's collection: header band → search → rows. Collapsible side panel,
+  per-section defaults.
+- **CONTENT** — DOING. The fluid hero: the artifact you're in (chat room, editor, dashboard). Nothing
+  selected ⇒ a designed landing/teaching state, never an empty room.
+- **CONTEXT** — detail + config OF CONTENT's active artifact, and it CHANGES WITH the section/artifact
+  (chat ⇒ the Members/Overrides/Group/Preview/Injections tabs; character ⇒ activity+actions; preset ⇒
+  usage/bindings). Closable. **Never navigation** — actions ON the artifact only.
+
+**The physics to enforce (violations are findings, cite §4.2):**
+1. LIST selection drives CONTENT; CONTEXT follows CONTENT.
+2. **Modals are for interrupts and pickers ONLY** (new-chat picker, add-member, theme, settings,
+   account, ⌘K). **Settings IS a modal** — not a section, not a pane. Section content NEVER lives in
+   a modal; it's a CONTEXT tab or a CONTENT state.
+3. **Nothing replaces the three main panes.** A feature that mints its own frame, hijacks the pane
+   geometry, adds rail sections past seven, or full-screens over the shell is the EXACT abuse class
+   the rollback burned down (main-era rpg/hubs grew the shell 7→10 sections + bespoke modals). Flag
+   any new geography on sight — the shell is invariant; sections swap what FILLS the panes.
+4. One `primary` action per region at rest · chrome quiet/content loud (accent ≤10% of viewport) ·
+   same action = same home + same label everywhere · rail-switch away and back restores the section.
+
+When judging "does this flow weird" (§13), this anatomy is the baseline: finding happens in LIST,
+doing in CONTENT, artifact config in CONTEXT — a task that bounces the user across regions or parks
+a concept in the wrong region flows weird BY LAW, not just by taste.

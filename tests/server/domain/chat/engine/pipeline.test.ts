@@ -943,6 +943,20 @@ describe("runTurnPipeline — RECEIVE per-speaker canon clean (F1)", () => {
     expect(result.content).toBe("I attack the goblin.");
   });
 
+  test("a mid-word self-tag splice never persists to canon (the dumJFC word-boundary case)", async () => {
+    // P1 corruption regression, fixture message_01kyctjmg6e4e88m0vg5dwr8cd (seq 5): a speakerTags group
+    // turn trained the model to echo its own `Kai:` tag, and it spat one MID-WORD at a token boundary
+    // (`dum` + `Kai: —` + `b`). The `^`-anchored leading strip can't reach it — RED before the inline scrub.
+    const { args } = baseArgs({
+      runChatTurn: finalTurn("ship the dumKai: —b version by Friday"),
+      assembleContext: groupCtx(),
+      shape: perSpeaker,
+    });
+    const result = await runTurnPipeline(args);
+    expect(result.content).toBe("ship the dumb version by Friday");
+    expect(result.content).not.toContain("Kai:");
+  });
+
   test("merged/narrator output is NOT cleaned — foreign labels are the intended transcript", async () => {
     const { args } = baseArgs({
       runChatTurn: finalTurn("I attack the goblin.\nAria: I cast a shield."),

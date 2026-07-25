@@ -40,3 +40,40 @@ export function parseViewport(raw: string): Viewport | null {
   }
   return null;
 }
+
+/**
+ * Split a `@<idx>` --pages tab suffix off a flag token: `--click@1` → `{ flag: "--click", page: 1 }`,
+ * `--eval` → `{ flag: "--eval", page: 0 }`. Only a `@` followed by DIGITS counts — a bare `@` or a
+ * non-numeric tail leaves the token untouched (page 0), so a value that happens to contain `@` is never
+ * mistaken for a page prefix. Digits-only keeps the regex ASCII (no `/u` needed).
+ */
+const PAGE_SUFFIX_RE = /^(--[a-z-]+)@(\d+)$/;
+export function splitPageSuffix(tok: string): { flag: string; page: number } {
+  const m = PAGE_SUFFIX_RE.exec(tok);
+  if (m?.[1] !== undefined && m[2] !== undefined) {
+    return { flag: m[1], page: Number(m[2]) };
+  }
+  return { flag: tok, page: 0 };
+}
+
+/** The decoded `--goto` target: which `__orb.nav` method reaches it + the argument to pass. A bare id is a
+ *  rail SECTION; `settings:<cat>` opens Settings on a category; `modal:<slot>` opens a rail modal. */
+export type GotoTarget =
+  | { readonly method: "section"; readonly arg: string }
+  | { readonly method: "openSettings"; readonly arg: string }
+  | { readonly method: "openModal"; readonly arg: string };
+
+const SETTINGS_PREFIX = "settings:";
+const MODAL_PREFIX = "modal:";
+
+/** Parse a `--goto` target string into the nav method + argument. Pure (the same decode snap injects
+ *  in-page), so it's unit-testable in Node without a browser. */
+export function parseGotoTarget(target: string): GotoTarget {
+  if (target.startsWith(SETTINGS_PREFIX)) {
+    return { method: "openSettings", arg: target.slice(SETTINGS_PREFIX.length) };
+  }
+  if (target.startsWith(MODAL_PREFIX)) {
+    return { method: "openModal", arg: target.slice(MODAL_PREFIX.length) };
+  }
+  return { method: "section", arg: target };
+}

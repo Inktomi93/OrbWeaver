@@ -1,5 +1,5 @@
 import type { MouseEventHandler, ReactElement, ReactNode, RefObject } from "react";
-import { useLayoutEffect, useRef, useState } from "react";
+import { useId, useLayoutEffect, useRef, useState } from "react";
 import { listRowVariants } from "./variants";
 
 export interface ListRowProps {
@@ -12,6 +12,12 @@ export interface ListRowProps {
   title: string;
   /** Optional secondary line (subtitle/meta — one slot, caller's call which it means). */
   subtitle?: string;
+  /**
+   * Optional trailing meta on the title line (e.g. a relative-time stamp) — rendered INSIDE the row's
+   * accessible content so screen readers keep it, unlike a stamp stranded in the `actions` sibling. Part
+   * of the row's `aria-describedby`, never its name (the name stays the `title` alone).
+   */
+  meta?: string;
   /**
    * Optional hover/:focus-within reveal that display-swaps the `subtitle` on the same content-
    * column line. Lives in the content column (never `actions`), so it truncates within the
@@ -58,37 +64,58 @@ export interface ListRowProps {
  */
 type Slots = ReturnType<typeof listRowVariants>;
 
-/** The body's inner content — strictly phrasing content so it's valid inside the clickable button. */
+/** The DOM ids of the row's describing spans (subtitle · meta), for the body's `aria-describedby`.
+ *  Undefined-when-absent so callers space-join only the present ones (empty string ⇒ omit the attr). */
+interface ListRowDescriptors {
+  subtitleId: string | undefined;
+  metaId: string | undefined;
+}
+
+/** The body's inner content — strictly phrasing content so it's valid inside the clickable button. The
+ *  title is `aria-hidden` because it backs the body's `aria-label` (repeating it as content would double
+ *  the name); subtitle + meta stay visible AND carry ids the body's `aria-describedby` points at, so a
+ *  screen reader hears "<title>, <subtitle> <meta>" — the name is the title alone, the rest a description. */
 function ListRowContent({
   slots,
   leading,
   title,
   subtitle,
   subtitleReveal,
+  meta,
+  ids,
 }: {
   slots: Slots;
   leading: ReactNode;
   title: string;
   subtitle: string | undefined;
   subtitleReveal: string | undefined;
+  meta: string | undefined;
+  ids: ListRowDescriptors;
 }): ReactElement {
   // The subtitle hides on hover/focus only when a reveal is present, so it takes the exact line.
   const subtitleSwap = subtitleReveal === undefined ? "" : "group-hover:hidden group-focus-within:hidden";
   return (
     <>
       {leading === undefined ? null : (
-        // Decorative — title/subtitle are the row's accessible name. aria-hidden keeps a fallback
-        // avatar's initials (or an image's alt) from leaking into the name.
+        // Decorative — the title backs the accessible name. aria-hidden keeps a fallback avatar's
+        // initials (or an image's alt) from leaking into the name.
         <span className={slots.leading()} data-slot="list-row-leading" aria-hidden={true}>
           {leading}
         </span>
       )}
       <span className={slots.content()} data-slot="list-row-content">
-        <span className={slots.title()} data-slot="list-row-title" title={title}>
-          {title}
+        <span className={slots.titleRow()} data-slot="list-row-title-row">
+          <span aria-hidden={true} className={slots.title()} data-slot="list-row-title" title={title}>
+            {title}
+          </span>
+          {meta === undefined ? null : (
+            <span className={slots.meta()} data-slot="list-row-meta" id={ids.metaId}>
+              {meta}
+            </span>
+          )}
         </span>
         {subtitle === undefined ? null : (
-          <span className={slots.subtitle({ className: subtitleSwap })} data-slot="list-row-subtitle" title={subtitle}>
+          <span className={slots.subtitle({ className: subtitleSwap })} data-slot="list-row-subtitle" id={ids.subtitleId} title={subtitle}>
             {subtitle}
           </span>
         )}
@@ -110,6 +137,8 @@ function ListRowBody({
   selected,
   disabled,
   onClick,
+  ariaLabel,
+  ariaDescribedBy,
   children,
 }: {
   slots: Slots;
@@ -117,12 +146,16 @@ function ListRowBody({
   selected: boolean;
   disabled: boolean;
   onClick: MouseEventHandler<HTMLButtonElement> | undefined;
+  /** The row's accessible name — the `title` alone (set only on the clickable button body). */
+  ariaLabel: string;
+  /** Space-joined subtitle/meta ids, or undefined when the row has neither descriptor. */
+  ariaDescribedBy: string | undefined;
   children: ReactNode;
 }): ReactElement {
   const ariaCurrent = selected ? "true" : undefined;
   if (!clickable) {
-    // Non-clickable rows are a static <div> body — no role, no tab stop; onClick is honored only
-    // when clickable.
+    // Non-clickable rows are a static <div> body — no role, no tab stop, no name/description (the visible
+    // title/subtitle text stands on its own); onClick is honored only when clickable.
     return (
       <div aria-current={ariaCurrent} className={slots.body()} data-selected={selected ? "" : undefined} data-slot="list-row-body">
         {children}
@@ -130,11 +163,15 @@ function ListRowBody({
     );
   }
   // aria-disabled (not the native disabled attribute) keeps a disabled row focusable + announced;
-  // dropping onClick neutralizes activation with no pointer-events CSS trick needed.
+  // dropping onClick neutralizes activation with no pointer-events CSS trick needed. aria-label pins the
+  // name to the title (the title span is aria-hidden), and aria-describedby carries the subtitle + meta so
+  // they survive for SR users without polluting the name (the whole point of finding #1).
   return (
     <button
       aria-current={ariaCurrent}
+      aria-describedby={ariaDescribedBy}
       aria-disabled={disabled ? true : undefined}
+      aria-label={ariaLabel}
       className={slots.body()}
       data-disabled={disabled ? "" : undefined}
       data-selected={selected ? "" : undefined}
@@ -172,6 +209,7 @@ export function ListRow({
   title,
   subtitle,
   subtitleReveal,
+  meta,
   actions,
   renderActions,
   collapseBelow,
@@ -186,10 +224,31 @@ export function ListRow({
   const rootRef = useRef<HTMLDivElement>(null);
   const collapsed = useCollapsedBelow(rootRef, renderActions === undefined ? undefined : collapseBelow);
   const resolvedActions = renderActions !== undefined ? renderActions(collapsed) : actions;
+  // Stable per-row id base for the describedby wiring; the subtitle/meta ids only attach where the slot renders.
+  const baseId = useId();
+  const subtitleId = subtitle === undefined ? undefined : `${baseId}-subtitle`;
+  const metaId = meta === undefined ? undefined : `${baseId}-meta`;
+  const describedBy = [subtitleId, metaId].filter((id) => id !== undefined).join(" ") || undefined;
   return (
     <div className={slots.root({ className })} data-slot="list-row-root" ref={rootRef}>
-      <ListRowBody clickable={clickable} disabled={disabled} onClick={onClick} selected={selected} slots={slots}>
-        <ListRowContent leading={leading} slots={slots} subtitle={subtitle} subtitleReveal={subtitleReveal} title={title} />
+      <ListRowBody
+        ariaDescribedBy={describedBy}
+        ariaLabel={title}
+        clickable={clickable}
+        disabled={disabled}
+        onClick={onClick}
+        selected={selected}
+        slots={slots}
+      >
+        <ListRowContent
+          ids={{ subtitleId, metaId }}
+          leading={leading}
+          meta={meta}
+          slots={slots}
+          subtitle={subtitle}
+          subtitleReveal={subtitleReveal}
+          title={title}
+        />
       </ListRowBody>
       {resolvedActions === undefined ? null : (
         <div className={slots.actions()} data-slot="list-row-actions">

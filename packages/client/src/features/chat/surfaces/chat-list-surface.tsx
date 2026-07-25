@@ -27,6 +27,7 @@ import type { ChatListCharacterFilter } from "#state";
 import { clearChatListCharacterFilter, useActiveChatId, useChatListCharacterFilter } from "#state";
 import { ChatListRowMenu } from "../components/chat-list-row-menu";
 import { ChatSummaryRow } from "../components/chat-summary-row";
+import { deriveChatTitle } from "../lib/chat-summary-row";
 import { filterChats } from "../lib/filter-chats";
 
 const SKELETON_ROW_COUNT = 5;
@@ -175,7 +176,19 @@ function ChatListRow({ chat, selected, onSelect, onDeletedChat }: ChatListRowPro
       // `group` roots the row so the kebab's hover/focus-within reveal (P3) fires on row hover (the
       // character-card precedent); the reveal lives on RowActionsMenu's `reveal`.
       className="group"
-      menu={<ChatListRowMenu archived={chat.archived} chatId={chat.id} onDeleted={onDeletedChat} starred={chat.star} title={chat.title} />}
+      // The DERIVED display title (participant names when unauthored) names the kebab menu ("Chat actions
+      // for <title>") so the per-row menus are distinguishable, not N identical "Chat actions" (finding #4).
+      // `title` (raw, nullable) still seeds the rename input — the empty box for an unnamed chat is intact.
+      menu={
+        <ChatListRowMenu
+          archived={chat.archived}
+          chatId={chat.id}
+          displayTitle={deriveChatTitle(chat.title, chat.participantNames)}
+          onDeleted={onDeletedChat}
+          starred={chat.star}
+          title={chat.title}
+        />
+      }
       onSelect={onSelect}
       selected={selected}
     />
