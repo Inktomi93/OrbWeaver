@@ -3,7 +3,7 @@
 //
 // backends/openrouter chat/shared — the pure wire-shaping helpers: the system-prompt cache split, history
 // assembly, sampling projection, the reasoning request (adaptive/budget guard), the provider-routing pin,
-// the customParameters overlay, the mandatory-reasoning detector, and the SDK→kit chunk reshape.
+// the mandatory-reasoning detector, and the SDK→kit chunk reshape.
 
 import {
   buildChatResponseFormat,
@@ -14,7 +14,6 @@ import {
   buildWireTools,
   chatSamplingFields,
   isMandatoryReasoningRejection,
-  mergeCustomParameters,
   reshapeChatStreamChunk,
   resolveFallbackModels,
   resolveProviderPreferences,
@@ -213,35 +212,6 @@ describe("resolveFallbackModels", () => {
     expect(resolveFallbackModels(undefined)).toBeUndefined();
     expect(resolveFallbackModels({ order: ["Anthropic"] })).toBeUndefined();
     expect(resolveFallbackModels({ models: [] })).toBeUndefined();
-  });
-});
-
-describe("mergeCustomParameters", () => {
-  test("owned fields WIN over customParameters (the preset-hijack firewall)", () => {
-    expect(mergeCustomParameters({ model: "owned", temperature: 0.7 }, { model: "evil", topK: 5 })).toEqual({
-      model: "owned",
-      temperature: 0.7,
-      topK: 5,
-    });
-  });
-
-  test("undefined customParameters returns owned unchanged", () => {
-    const owned = { model: "m" };
-    expect(mergeCustomParameters(owned, undefined)).toBe(owned);
-  });
-
-  test("owned wins even inside a nested object customParameters also sets (deep merge, PD-101)", () => {
-    expect(mergeCustomParameters({ model: "owned", reasoning: { effort: "high", enabled: true } }, { reasoning: { effort: "low", extra: "x" } })).toEqual({
-      model: "owned",
-      reasoning: { effort: "high", enabled: true, extra: "x" },
-    });
-  });
-
-  test("a __proto__/constructor-carrying customParameters does not pollute Object.prototype (PD-101 Layer 2)", () => {
-    const poison = JSON.parse('{"__proto__":{"polluted":true},"nested":{"constructor":{"polluted":true},"ok":1},"topOk":1}') as Record<string, unknown>;
-    const merged = mergeCustomParameters({ model: "owned" }, poison);
-    expect(({} as Record<string, unknown>)["polluted"]).toBeUndefined();
-    expect(merged).toEqual({ model: "owned", nested: { ok: 1 }, topOk: 1 });
   });
 });
 

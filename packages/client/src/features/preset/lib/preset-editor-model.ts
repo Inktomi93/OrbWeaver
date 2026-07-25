@@ -2,6 +2,10 @@
 // directly via TanStack Form, so the form's value shape IS `PromptConfig` (no flat mapper). This file
 // owns `seedConfig` (the mount seed) and `mergeOnSubmit` (normalize the edited config for persistence,
 // round-tripping all-default blocks back to unset).
+//
+// `customParameters` is a SERVER-ONLY, custom-byo-only provider passthrough (the BYOK escape hatch): it is
+// persisted through here but only the custom-byo backend applies it to the wire. OpenRouter intentionally
+// ignores it (its knobs are the modeled sampling surface). This model just round-trips the blob.
 
 import type { PromptConfig, UserIntent } from "@orb/contracts/preset";
 import { THINK_PREFIX_DEFAULT, THINK_SUFFIX_DEFAULT } from "@orb/contracts/preset";

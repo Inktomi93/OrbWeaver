@@ -81,6 +81,7 @@ function openRouterDeps(deps: BackendRegistryDeps): OpenRouterBackendDeps {
     ...(deps.random !== undefined ? { random: deps.random } : {}),
     ...(deps.getClient !== undefined ? { getClient: deps.getClient } : {}),
     ...(deps.imageToPng !== undefined ? { normalizeImageBytes: createImageNormalizer(deps.imageToPng) } : {}),
+    ...(deps.captureWire !== undefined ? { captureWire: deps.captureWire } : {}),
   };
 }
 
@@ -118,6 +119,7 @@ export function createBackendRegistry(deps: BackendRegistryDeps): BackendRegistr
     createCustomByoBackend({
       now: deps.now,
       ...(deps.random !== undefined ? { random: deps.random } : {}),
+      ...(deps.captureWire !== undefined ? { captureWire: deps.captureWire } : {}),
     }),
     createLocalLightBackend({ cache: localLightCache }),
   ];

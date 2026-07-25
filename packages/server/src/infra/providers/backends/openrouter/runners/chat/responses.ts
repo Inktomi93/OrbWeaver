@@ -12,6 +12,7 @@ import type {
   ResponsesRequestToolFunction,
   StreamEvents,
 } from "@openrouter/sdk/models";
+import { ResponsesRequest$outboundSchema } from "@openrouter/sdk/models";
 import type { ChatContentPart } from "@orb/contracts/chat";
 import type { Verbosity } from "@orb/contracts/connection";
 import type { ChatId } from "@orb/kit/ids";
@@ -45,10 +46,10 @@ import {
   emitSamplingReceipt,
   isMandatoryReasoningRejection,
   joinSystemPrompt,
-  mergeCustomParameters,
   resolveFallbackModels,
   resolveProviderPreferences,
   warningEvents,
+  withCustomParametersDrop,
 } from "./shared";
 
 const USER_ROLE = "user";
@@ -196,7 +197,9 @@ function buildResponsesBody(req: OpenRouterChatRequest, resolved: ResolvedChatKn
     ...(text !== undefined ? { text } : {}),
     plugins: withContextCompressionPlugin(req.params),
   };
-  return mergeCustomParameters(owned, req.customParameters);
+  // OpenRouter's wire is official-only: no customParameters overlay (BYOK/custom-byo-only, D41 drop surfaced
+  // as a loud warning below).
+  return owned;
 }
 
 interface ResponsesDrain {
@@ -421,13 +424,24 @@ export async function runResponsesTurn(client: OpenRouterResponsesClient, req: O
   const reasoningBlock = effortToResponsesReasoning(buildReasoningRequest(resolved.reasoning));
   const run = (includeReasoning: boolean): Promise<ResponsesDrain> =>
     runWithPreCommitRetry(
-      (markCommitted) =>
-        drainOnce({
+      (markCommitted) => {
+        const body = buildResponsesBody(req, resolved, includeReasoning);
+        // Capture the TRUE wire: the SDK's own outbound schema renames camelCase→snake_case and strips unknown
+        // keys before the real HTTP send, so parsing here records the literal bytes, not the pre-serialize input.
+        deps.captureWire?.({
+          chatId: req.chatId,
+          api: req.api,
+          backend: "openrouter",
+          model: req.model,
+          body: ResponsesRequest$outboundSchema.parse(body) as Record<string, unknown>,
+        });
+        return drainOnce({
           client,
-          body: buildResponsesBody(req, resolved, includeReasoning),
+          body,
           req,
           markCommitted,
-        }),
+        });
+      },
       (err): ProviderError => (err instanceof ProviderError ? err : providerErrorFromHttp(err, errorPrefix(req.model))),
       retryOpts,
     );
@@ -451,7 +465,8 @@ export async function runResponsesTurn(client: OpenRouterResponsesClient, req: O
     maxOutputTokens: req.capability.output.maxTokens.max,
   });
   emitSamplingReceipt(req.params, resolved);
-  const warnings = warningEvents(resolved.warnings, deps.now());
+  // A customParameters blob is BYOK-only and dropped loudly on the OpenRouter wire (D41 no-silent-degrade).
+  const warnings = warningEvents(withCustomParametersDrop(resolved.warnings, req.customParameters), deps.now());
   for (const event of warnings) {
     req.onEvent?.(event);
   }

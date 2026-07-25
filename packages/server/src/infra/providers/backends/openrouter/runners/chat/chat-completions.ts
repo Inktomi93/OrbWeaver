@@ -2,6 +2,7 @@
 // placement (system per-block + rolling history breakpoint) and the mandatory-reasoning strip-and-replay.
 
 import type { ChatMessages, ChatRequest, ChatStreamChunk } from "@openrouter/sdk/models";
+import { ChatRequest$outboundSchema } from "@openrouter/sdk/models";
 import { CACHE_MIN_FLOOR } from "@orb/contracts/connection";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -35,11 +36,11 @@ import {
   chatSamplingFields,
   emitSamplingReceipt,
   isMandatoryReasoningRejection,
-  mergeCustomParameters,
   reshapeChatStreamChunk,
   resolveFallbackModels,
   resolveProviderPreferences,
   warningEvents,
+  withCustomParametersDrop,
   withVerbosityDrop,
 } from "./shared";
 
@@ -132,7 +133,8 @@ function emitCapabilityReceipt(req: OpenRouterChatRequest, resolved: ResolvedCha
   });
 }
 
-// `customParameters` are overlaid UNDER the runner-owned fields — owned wins (preset-hijack firewall).
+// OpenRouter's wire is official-only: the body is the runner-owned fields alone. A preset's `customParameters`
+// escape hatch is BYOK/custom-byo-only and never reaches this wire (D41 drop surfaced as a loud warning).
 function buildChatBody(req: OpenRouterChatRequest, resolved: ResolvedChatKnobs, includeReasoning: boolean): ChatRequest {
   const systemMessage = buildSystemMessage(req.systemPrompt, isAnthropicModel(req.model));
   const cacheOffset = historyCacheGateOffset(req);
@@ -158,7 +160,7 @@ function buildChatBody(req: OpenRouterChatRequest, resolved: ResolvedChatKnobs, 
     ...(req.responseFormat !== undefined ? { responseFormat: buildChatResponseFormat(req.responseFormat) } : {}),
     plugins: withContextCompressionPlugin(req.params),
   };
-  return mergeCustomParameters(owned, req.customParameters);
+  return owned;
 }
 
 // `markCommitted` fires on the first streamed delta so a retry can never replay tokens.
@@ -235,13 +237,24 @@ export async function runChatCompletionTurn(client: OpenRouterChatClient, req: O
   const reasoning = effortToOpenAIReasoning(buildReasoningRequest(resolved.reasoning));
   const run = (includeReasoning: boolean): Promise<{ view: ChatCompletionResult; reasoning: string }> =>
     runWithPreCommitRetry(
-      (markCommitted) =>
-        streamOnce({
+      (markCommitted) => {
+        const body = buildChatBody(req, resolved, includeReasoning);
+        // Capture the TRUE wire: the SDK's own outbound schema renames camelCase→snake_case and strips unknown
+        // keys before the real HTTP send, so parsing here records the literal bytes, not the pre-serialize input.
+        deps.captureWire?.({
+          chatId: req.chatId,
+          api: req.api,
+          backend: "openrouter",
+          model: req.model,
+          body: ChatRequest$outboundSchema.parse(body) as Record<string, unknown>,
+        });
+        return streamOnce({
           client,
-          body: buildChatBody(req, resolved, includeReasoning),
+          body,
           req,
           markCommitted,
-        }),
+        });
+      },
       (err): ProviderError => (err instanceof ProviderError ? err : providerErrorFromHttp(err, errorPrefix(req.model))),
       retryOpts,
     );
@@ -268,8 +281,9 @@ export async function runChatCompletionTurn(client: OpenRouterChatClient, req: O
   emitCacheReceipt(req, turn, resolved.turnId);
   emitCapabilityReceipt(req, resolved);
   emitSamplingReceipt(req.params, resolved);
-  // chat-completions has NO verbosity field, so a resolved verbosity is dropped loudly here.
-  const warnings = warningEvents(withVerbosityDrop(resolved), deps.now());
+  // chat-completions has NO verbosity field, so a resolved verbosity is dropped loudly here; a customParameters
+  // blob is likewise BYOK-only and dropped loudly on the OpenRouter wire (D41 no-silent-degrade).
+  const warnings = warningEvents(withCustomParametersDrop(withVerbosityDrop(resolved), req.customParameters), deps.now());
   for (const event of warnings) {
     req.onEvent?.(event);
   }

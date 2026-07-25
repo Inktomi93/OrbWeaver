@@ -31,6 +31,7 @@ import type {
   SummarizeRequest,
   SummarizeRequestItem,
   SummarizeResult,
+  WireCaptureSink,
 } from "../../contract";
 import { ProviderError } from "../../contract";
 import type { NormalizeImageBytes } from "../kit";
@@ -70,7 +71,6 @@ export {
   buildWireTools,
   chatSamplingFields,
   isMandatoryReasoningRejection,
-  mergeCustomParameters,
   reshapeChatStreamChunk,
   resolveFallbackModels,
   resolveProviderPreferences,
@@ -108,6 +108,7 @@ export interface OpenRouterBackendDeps {
   /** Outbound image-input wire-normalize (MA-6): GIF → first-frame PNG, else passthrough. Injected so the
    *  sharp adapter never leaks into this sealed backend; defaults to a label-only passthrough (no decode). */
   readonly normalizeImageBytes?: NormalizeImageBytes | undefined;
+  readonly captureWire?: WireCaptureSink | undefined;
 }
 
 // ONE chat turn per input, run sequentially — OpenRouter's per-key rate limits make a parallel fan-out
@@ -152,6 +153,7 @@ export function createOpenRouterBackend(deps: OpenRouterBackendDeps): ProviderBa
   const chatDeps: OpenRouterChatDeps = {
     now: deps.now,
     ...(deps.random !== undefined ? { random: deps.random } : {}),
+    ...(deps.captureWire !== undefined ? { captureWire: deps.captureWire } : {}),
   };
   const clientFor = (credential: EmbedRequest["credential"], label: string): OrClient => getClient(requireOpenRouterApiKey(credential, label));
 

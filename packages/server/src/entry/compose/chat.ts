@@ -300,11 +300,15 @@ export function createRunChatTurnBridge(deps: {
             params: req.intent,
             systemPrompt: { static: req.prompt.static, dynamic: req.prompt.dynamic },
             ownerConsented: req.ownerConsented,
+            // Carried so the wire-capture sink keys the recorded body by chat (the debug endpoint's `chatId`
+            // filter); the agent-sdk arm sets it on the seeded spread above.
+            chatId: req.chatId,
             // biome-ignore lint/suspicious/noExplicitAny: interface mismatch
             history: req.history as any,
             historyCacheBreakpointFromEnd: req.cacheBreakpointFromEnd ?? undefined,
-            // The preset's provider-passthrough blob (PD-148) rides the chat-completions/responses arm; the
-            // agent-sdk arm carries no wire customParameters by charter.
+            // The preset's provider-passthrough blob (PD-148) rides the shared chat-completions/responses arm,
+            // but is BYOK-ONLY at the wire: only the custom-byo runner honors it. OpenRouter drops it (its knobs
+            // are the modeled sampling surface — the anti-sprawl design); the agent-sdk arm carries none by charter.
             ...(req.customParameters !== undefined ? { customParameters: req.customParameters } : {}),
             ...(req.tools !== undefined ? { tools: req.tools } : {}),
             ...(req.toolChoice !== undefined ? { toolChoice: req.toolChoice } : {}),

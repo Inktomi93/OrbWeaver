@@ -6,9 +6,11 @@
 // re-implement the resolution (one home: `resolveRole`).
 //
 // `resolveRole` is injected at the composition root (service.ts) rather than imported sibling-verb→verb —
-// the dependency is explicit at the root. `providerRouting` rides on the row/overlay but is NOT part of the
-// resolved 4-tuple (ResolvedConnection = {api, model, credential, capability}); the chat domain threads it
-// into the providers request separately.
+// the dependency is explicit at the root. `providerRouting` rides on the row/overlay (RouteChatAssignment)
+// but is NOT part of the resolved 4-tuple (ResolvedConnection = {api, model, credential, capability}). It is
+// DORMANT/RESERVED: the OpenRouterProviderRouting contract + the wire projection (resolveProviderPreferences)
+// are fully built, but the middle hop from here → ChatRequest.providerRouting is intentionally NOT wired
+// (no writer verb, no UI). This verb drops it today; wiring it is a deferred feature, not an accident.
 
 import type { ResolvedConnection } from "@orb/contracts/connection";
 import type { ResolveChatParams, RouteOverride } from "../contract/params";

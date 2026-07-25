@@ -21,6 +21,10 @@ export const WARNING_CODES = [
   // resolved `maxOutputTokens` (on Anthropic/OR-responses the reasoning budget counts against the output
   // cap — an unclamped budget ≥ cap 400s or starves the structured/visible payload). Visible, never silent.
   "reasoning_budget_clamped",
+  // A preset's `customParameters` escape-hatch blob rode a turn on OpenRouter, where it is INTENTIONALLY not
+  // applied — OpenRouter's knobs are the modeled sampling surface (anti-sprawl); customParameters is BYOK/
+  // custom-byo-only. Dropped-and-loud (D41), never silently swallowed. Emitted from the OR chat runners.
+  "custom_parameters_ignored",
 ] as const;
 export type WarningCode = (typeof WARNING_CODES)[number];
 
