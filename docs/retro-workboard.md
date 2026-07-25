@@ -51,7 +51,22 @@ actually available before re-dispatching, or the replacement will fail the same 
 **AFTER THE REVIEW:** fix the BROKEN findings, keep UGLY as a separate list for the facelift.
 **THEN:** the ranked remainder further down (d-citation-integrity gate · F2 host⇒floor-0 · brand
 `HistoryFloorSeq` · worldInfoActivated display · the Stop-button-not-rendered-during-hung-arbitration fix ·
-#18's deferred CTs · the `contracts/chat/index.ts` 9-seam split). **Promotion to main still ARMED, un-executed.**
+#18's deferred CTs · the `contracts/chat/index.ts` 9-seam split).
+
+## ═══ ✅ PROMOTION EXECUTED (2026-07-25) — retro IS main; ONE folder on disk ═══
+The armed ceremony ran to completion (owner-triggered): `legacy-main` bookmarked at the old main HEAD
+(+ a final strays commit `9c64387a` carrying the `shitsfucked` post-mortem + pain-points original into git),
+both lines pushed BEFORE surgery, then `main` force-with-lease'd to the retro HEAD. **GitHub verified: default
+branch `main` = the retro tree** (workboard present; purged `expressions/` 404s); `legacy-main` +
+`retro-burn-down` both on origin. **DISK: the two-worktree layout is GONE** — the old `orbweaver/` folder was
+deleted (17 dirty agent-sdk files discarded by owner ruling; caches + `.env` rescued first) and
+`orbweaver-retro/` was renamed to **`/home/inktomi/inktomi-stack/development/orbweaver`**, now a STANDALONE
+repo (real `.git` absorbed, hooks re-linked, HEAD=`main` tracking origin). The 9.5G vLLM store + uv cache
+moved with it (same absolute path post-rename, so venv paths + the RUNNING engines survived — all 3 re-ADOPTED
+on stack restart with `VLLM_DISABLED=false`). DB + seeded side-eye fixture verified intact (`db/integrity` ok).
+**Main-era reference reads now go through the BRANCH, not a folder**: `git show legacy-main:<path>` /
+`git grep <pat> legacy-main` / a temp worktree — anywhere this doc says "MAIN's root" or "the main worktree",
+read `legacy-main`. Memory files updated; the work-directly-on-main rule applies again (this line IS main).
 
 ## ═══ 🎯 CURRENT FOCUS (owner, 2026-07-25): GROUP CHAT — FLAWLESS, INCLUDING THE FRONT END ═══
 *"we can leave it for now, i'd like to finish getting everything else flawless with group chat and multi-tab
@@ -150,7 +165,7 @@ button is NOT RENDERED during a hung smart arbitration** (the turn slot only lea
 emitted AFTER arbitration) — fix by opening the slot on turn ACCEPT, and pair it with emitting `turnAborted`
 from the arbitration-abort path (deliberately withheld today precisely BECAUSE the slot is idle). ⑥ #18's
 deferred CT gaps (`assembly-preview-panel`, `injections-manager`). ⑦ `contracts/chat/index.ts` 9-seam split
-(now that lanes have settled). **PROMOTION to main still armed and un-executed.**
+(now that lanes have settled). ~~PROMOTION to main still armed and un-executed.~~ **EXECUTED 2026-07-25 — see the PROMOTION EXECUTED block above.**
 
 ### ═══ CONTRACTS-LAYER AUDIT (Fable 5, 183/183 files read in full) — report: reports/stickler/2026-07-25-contracts-layer-audit.md ═══
 **BOUNDARY VERDICT — CLEAN, the strongest structural result of the night.** `packages/contracts` vs
