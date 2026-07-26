@@ -82,8 +82,14 @@ function RateLimitsBody(): ReactElement {
     save.mutateAsync({ partial: { rateLimits: patch } }).catch(() => undefined); // sticky error slot below
   };
   // Reset the whole rateLimits override to the floor — a top-level `null` the deep-merge clears wholesale.
+  // Re-sync the local draft to the RESOLVED floor the reset returned so each input VALUE flips to its default
+  // alongside the "Using the deployment default" copy (side-eye P2 — `useState` inits once; the mutation
+  // result is the server truth after the clear).
   const onReset = (): void => {
-    save.mutateAsync({ partial: { rateLimits: null } }).catch(() => undefined);
+    save
+      .mutateAsync({ partial: { rateLimits: null } })
+      .then((resolvedAfter) => setDraft(toDraft(resolvedAfter.rateLimits)))
+      .catch(() => undefined);
   };
 
   return (

@@ -184,6 +184,10 @@ function SystemTuningBody(): ReactElement {
           engineLaunch: { genPresencePenalty: null },
         },
       })
+      // Re-sync the local draft to the RESOLVED floor the reset returned so each input VALUE flips to its
+      // default alongside the "Using the deployment default" copy — otherwise the input keeps the stale typed
+      // value (side-eye P2). `useState` runs its initializer once; the mutation result is the server truth.
+      .then((resolvedAfter) => setDraft(toDraft(resolvedAfter)))
       .catch(() => undefined);
   };
 

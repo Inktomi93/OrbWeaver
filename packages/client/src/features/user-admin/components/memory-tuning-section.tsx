@@ -9,7 +9,13 @@
 
 import { MEMORY_RETRIEVAL_MODES } from "@orb/contracts/search";
 import type { MemoryDefaults, MemoryDefaultsBoundKey, ResolvedMemoryDefaults } from "@orb/contracts/settings";
-import { clampMemoryDefault, clampMemorySummarizerMaxTokens, DEFAULT_MEMORY_DEFAULTS, DEFAULT_MEMORY_SUMMARIZER_MAX_TOKENS } from "@orb/contracts/settings";
+import {
+  clampMemoryDefault,
+  clampMemorySummarizerMaxTokens,
+  DEFAULT_MEMORY_DEFAULTS,
+  DEFAULT_MEMORY_SUMMARIZER_MAX_TOKENS,
+  MEMORY_DEFAULTS_BOUNDS,
+} from "@orb/contracts/settings";
 import { Section, Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
@@ -96,6 +102,10 @@ function MemoryTuningBody(): ReactElement {
     save.mutateAsync({ partial: { memoryDefaults: { ...(stored ?? {}), ...delta } } }).catch(() => undefined);
   };
   const resetMemoryDefaults = (): void => {
+    // Re-sync the local draft to the floor so the input VALUE flips to the default alongside the "Using the
+    // deployment default" copy — otherwise the input keeps the stale typed value (side-eye P2: a visible
+    // contradiction). `useState` runs its initializer once, so the post-reset refetch alone never updates it.
+    setDraft(toNumericDraft(DEFAULT_MEMORY_DEFAULTS));
     save.mutateAsync({ partial: { memoryDefaults: null } }).catch(() => undefined);
   };
 
@@ -115,6 +125,7 @@ function MemoryTuningBody(): ReactElement {
     save.mutateAsync({ partial: { memorySummarizer: { ...(summarizerStored ?? {}), maxTokens: summarizerClamped } } }).catch(() => undefined);
   };
   const resetSummarizer = (): void => {
+    setSummarizerDraft(String(DEFAULT_MEMORY_SUMMARIZER_MAX_TOKENS)); // re-sync the draft to the floor (side-eye P2)
     save.mutateAsync({ partial: { memorySummarizer: null } }).catch(() => undefined);
   };
 
@@ -151,7 +162,8 @@ function MemoryTuningBody(): ReactElement {
               onChange={(next): void => setDraft((d) => ({ ...d, [key]: next }))}
               overridden={isOverridden(stored?.[key])}
               floorLabel={String(DEFAULT_MEMORY_DEFAULTS[key])}
-              min={0}
+              min={MEMORY_DEFAULTS_BOUNDS[key].min}
+              {...(MEMORY_DEFAULTS_BOUNDS[key].max === null ? {} : { max: MEMORY_DEFAULTS_BOUNDS[key].max })}
               step={step}
             />
           ))}

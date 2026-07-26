@@ -36,6 +36,7 @@ export function CharacterCategorizedList<T extends { readonly id: string }>({
       {groups.map((group) => (
         <Collapsible defaultOpen={true} key={group.tag === null ? UNCATEGORIZED_KEY : group.tag.id}>
           <CollapsibleTrigger
+            chevron={false}
             render={
               <Button className="w-full justify-start" intent="ghost" size="sm">
                 <Icon icon={ChevronDown} size="sm" />

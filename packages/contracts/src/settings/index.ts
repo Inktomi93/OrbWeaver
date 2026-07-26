@@ -35,6 +35,9 @@ export const APP_SETTINGS_SCHEMA_VERSION = 4;
 const SCORE_FLOOR = 0;
 const SCORE_CEIL = 1;
 const RECENCY_BIAS_FLOOR = 0;
+// recencyBias is a boost ADDED to the 0..1 cosine score — capped at 1 so an admin can't type an absurd 5.0
+// that would swamp similarity entirely (side-eye P3; the schema derives this cap via memoryKnob).
+const RECENCY_BIAS_CEIL = 1;
 const TEMPERATURE_FLOOR = 0;
 const TEMPERATURE_CEIL = 2;
 
@@ -52,7 +55,7 @@ export const MEMORY_DEFAULTS_BOUNDS = {
   retrieveK: { min: 1, max: null, int: true },
   rerankTo: { min: 1, max: null, int: true },
   minScore: { min: SCORE_FLOOR, max: SCORE_CEIL, int: false },
-  recencyBias: { min: RECENCY_BIAS_FLOOR, max: null, int: false },
+  recencyBias: { min: RECENCY_BIAS_FLOOR, max: RECENCY_BIAS_CEIL, int: false },
 } as const;
 export type MemoryDefaultsBoundKey = keyof typeof MEMORY_DEFAULTS_BOUNDS;
 
