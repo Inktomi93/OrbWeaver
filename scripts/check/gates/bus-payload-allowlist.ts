@@ -25,7 +25,7 @@ import type { GateDescriptor, GateRunCtx } from "../contract.ts";
 // The bus event UNION declarations, by their one-home paths. The gate reads these files and picks out the
 // named declarations below — it does NOT flag every property in these large contract files.
 const BUS_FILES = new Set([
-  "packages/contracts/src/chat/index.ts",
+  "packages/contracts/src/chat/bus.ts",
   "packages/contracts/src/user-bus/index.ts",
   "packages/contracts/src/notifications/index.ts",
   "packages/contracts/src/events/index.ts",
@@ -172,7 +172,7 @@ export const gate: GateDescriptor = {
   mustFlag: [
     {
       files: 'export type ChatBusEvent = { type: "x"; chatId: string; apiKey: string };\n',
-      at: "packages/contracts/src/chat/index.ts",
+      at: "packages/contracts/src/chat/bus.ts",
       expect: { messageIncludes: "TYPE-LEVEL UNREPRESENTABLE" },
       why: "a ChatBusEvent member carrying `apiKey` — the exact D16 leak the allowlist forbids",
     },
@@ -198,12 +198,12 @@ export const gate: GateDescriptor = {
     },
     {
       files: 'export type ChatBusEvent = { type: "turnStarted"; chatId: string; model: string; source: string };\n',
-      at: "packages/contracts/src/chat/index.ts",
+      at: "packages/contracts/src/chat/bus.ts",
       why: "no credential-smell field (model/source/chatId are safe scalars/ids) — passes",
     },
     {
       files: "export interface MessageView {\n  cacheReadTokens: number;\n  maxOutputTokens: number;\n}\n",
-      at: "packages/contracts/src/chat/index.ts",
+      at: "packages/contracts/src/chat/bus.ts",
       why: "MessageView is NOT a bus-union declaration name — its `*Tokens` economics fields are out of scope (not scanned), passes",
     },
     {

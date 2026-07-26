@@ -497,6 +497,15 @@ async function runChain(
     signal: args.signal,
     initialLastSpeaker: args.initialLastSpeaker,
     nextSpeaker: async (last) => {
+      // Each chain iteration re-arbitrates the NEXT speaker via the same `smart` side-LLM that can HANG — the
+      // very window the primary `turnAccepted` fix opened the slot for. The loop only calls `nextSpeaker` when a
+      // turn is genuinely about to be arbitrated (it guards `aborted()` before each step), so this is never a
+      // speculative open. Re-open the slot NOW (completed→pending flicker between speakers is honest — the
+      // director IS working); `speakerCharacterId` is null until this arbitration resolves it, exactly like the
+      // primary emit. Every exit below resolves this slot (turnStarted→terminal on the speaking path via
+      // runTurn, turnAborted on a cancelled arbitration, turnCompleted on a no-next-speaker end).
+      const chainIntent = KIND_TO_INTENT.auto;
+      await deps.emit({ type: "turnAccepted", chatId: args.base.chatId, intent: chainIntent, speakerCharacterId: null, targetMessageId: null });
       const facts = await canonFacts(ctx, args.base.chatId);
       const arbitration = await arbitrate(ctx, deps, {
         chatId: args.base.chatId,
@@ -509,8 +518,25 @@ async function runChain(
         signal: args.signal,
       });
       // A cancelled arbitration yields no speaker, which stops the chain — `runAutoMode` reports it as
-      // `interrupt` (not `no-eligible`) because the signal it already holds is settled.
-      return arbitration.speakers[0] ?? null;
+      // `interrupt` (not `no-eligible`) because the signal it already holds is settled. CLOSE the slot this
+      // iteration opened with `turnAborted` (the user's Stop mid-chain-arbitration), mirroring the primary window.
+      if (arbitration.aborted) {
+        await deps.emit({
+          type: "turnAborted",
+          chatId: args.base.chatId,
+          intent: chainIntent,
+          reason: "user",
+          automationDepth: args.base.automationDepth ?? 0,
+        });
+        return null;
+      }
+      const next = arbitration.speakers[0] ?? null;
+      // No-next-speaker end (everyone muted/left): the engine never runs this iteration, so nothing else closes
+      // the slot this iteration opened — close it with the honest no-reply terminal (the primary no-eligible pattern).
+      if (next === null) {
+        await deps.emit({ type: "turnCompleted", chatId: args.base.chatId, intent: chainIntent, messageId: null });
+      }
+      return next;
     },
     runTurn: async (speaker) =>
       await driveRoundVia({

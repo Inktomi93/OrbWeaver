@@ -30,7 +30,7 @@ const CHANNELS: readonly WarningChannel[] = [
   },
   {
     tuple: "CHAT_WARNING_CODES",
-    homeFile: /\/packages\/contracts\/src\/chat\/index\.ts$/u,
+    homeFile: /\/packages\/contracts\/src\/chat\/bus\.ts$/u,
     emitScope: /\/packages\/server\/src\/domain\/chat\//u,
     deferred: {},
   },
@@ -127,7 +127,7 @@ export const gate: GateDescriptor = {
   mustFlag: [
     {
       files: {
-        "packages/contracts/src/chat/index.ts": 'export const CHAT_WARNING_CODES = ["never_emitted"] as const;\n',
+        "packages/contracts/src/chat/bus.ts": 'export const CHAT_WARNING_CODES = ["never_emitted"] as const;\n',
         "packages/server/src/domain/chat/x.ts": 'export const q = "something_else";\n',
       },
       expect: { messageIncludes: "NO emit site" },
@@ -137,7 +137,7 @@ export const gate: GateDescriptor = {
       // the tuple home file is EXCLUDED from its own emit corpus: the member string appears in the home
       // declaration but there is no separate emit site, so it still flags (the home copy doesn't count).
       files: {
-        "packages/contracts/src/chat/index.ts": 'export const CHAT_WARNING_CODES = ["home_only"] as const;\n',
+        "packages/contracts/src/chat/bus.ts": 'export const CHAT_WARNING_CODES = ["home_only"] as const;\n',
       },
       expect: { messageIncludes: "NO emit site" },
       why: "the tuple home file is excluded from its own emit corpus — a home-only member has no emit, flags",
@@ -146,7 +146,7 @@ export const gate: GateDescriptor = {
   mustPass: [
     {
       files: {
-        "packages/contracts/src/chat/index.ts": 'export const CHAT_WARNING_CODES = ["emitted_code"] as const;\n',
+        "packages/contracts/src/chat/bus.ts": 'export const CHAT_WARNING_CODES = ["emitted_code"] as const;\n',
         "packages/server/src/domain/chat/x.ts": 'export const q = "emitted_code";\n',
       },
       why: "the code's discriminator appears as an emit literal in the channel scope — covered, passes",

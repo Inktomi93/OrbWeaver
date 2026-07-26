@@ -110,18 +110,37 @@ subset pins compiled clean (zero drift) + `NOTIFICATION_RECIPIENTS` minted in
 contracts/notifications, 3 re-spell sites derive. ④ side-eye P3 fixes (editor explainer ·
 aria-labelledby axes) re-proven CT 3/3.
 
-**NEW CHIP (from the Stop lane's honest deferral):** auto-mode CHAIN arbitration has the SAME
-no-Stop window (chains arbitrate after the first round's slot closes; per-iteration turnAccepted
-would churn completed→accepted→pending) — needs an owner ruling on the slot semantics before
-building.
+**CHAIN-ARBITRATION STOP — OWNER RULED (2026-07-25): "handle it properly in full."** No known-gap
+arm: `turnAccepted` fires at EVERY chain iteration's arbitration start (the
+completed→accepted→pending flicker is ACCEPTED as honest UI — the director IS working between
+speakers; any ugliness is a facelift concern, not semantics); per-iteration totality; Stop cancels
+the WHOLE chain (abort handle must span the loop). Dispatched to the resumed warm Stop lane with a
+contracts-touch ban (the 9-seam split owns that dir concurrently).
 
-**NEXT (dispatch order):** the `contracts/chat` 9-seam split ALONE (most-imported file; never
-alongside other lanes) · no-inline-union-redecl repair (G2) · F1 comment-drift sweep · facelift
-ledger (Group-tab loading state · @orb/ui Toggle pressed-fill contrast [side-eye P3,
-primitive-level]; overflow cue died with the container-responsive fix) · `--contexts N` snap chip
-· root-fix the message-list-surface load flake (3rd battery sighting) · chain-arbitration Stop
-window (owner ruling first). Watch item: lightbox focus-trap CT flaked once on the wave-2 bar
-(passed retry) — 2nd strike promotes it to the flake ledger.
+**✅ WAVE 3 LANDED (bar: check ok:true failed:[] · vitest 7279/0 · CT 1374/0):** ① **the
+`contracts/chat` 9-seam split** — index.ts = 178-line re-export front-door (explicit named exports;
+noReExportAll); 9 seam files (participants·assemble·messages·producers·bus·metadata·roster·
+content-blocks·bulk-import), acyclic DAG, 135 exports 1:1, ZERO consumer edits (root-tsc proof).
+Ripples closed by the orchestrator: `.ts`-extension sibling imports (root tsc allows, the
+PER-PACKAGE tsconfig doesn't — plugin/'s extensionless style is the law) · **THREE path-keyed
+gates went silently green** (bus-payload-allowlist [the credential-leak allowlist] · bus-coverage
+· warning-code-coverage — retargeted to bus.ts incl. the ESCAPED-REGEX literals a plain sed
+misses, bite re-proven via conformance mustFlag/mustPass) · the scoped-run suite's own fixture
+(4th coupled site) · test-presence demanded 6 seam mirror contract tests → index.contract.test.ts
+split byte-identical along the seams (6 mirrors + 9-test bus/producers residual; 47/47 total
+unchanged; front-door imports kept per D15 — no deep-imports). ② **chain-arbitration Stop IN FULL
+(owner ruling honored)** — turnAccepted at every chain iteration's arbitration; per-iteration
+totality (no-next-speaker → turnCompleted(null)); Stop cancels the WHOLE chain (the activeTurns
+handle already spanned the loop — proven by the hung-iteration-2 int test: only 2 speakers commit,
+trailing event = the chain's turnAborted); bus-golden pins turnCompleted→turnAccepted→turnStarted
+at the chain boundary; reducer completed→pending re-open pinned; zero contracts edits; 151 green.
+
+**FLAKE LEDGER (both passed-on-retry, root-fix queued):** message-list-surface.ct:309 (4th battery
+sighting) · lightbox focus-trap (2nd strike — promoted as warned).
+
+**NEXT (dispatch order):** no-inline-union-redecl repair (G2, audit) · F1 comment-drift sweep ·
+facelift ledger (Group-tab loading state · @orb/ui Toggle pressed-fill contrast [side-eye P3,
+primitive-level]) · `--contexts N` snap chip · root-fix the two ledgered flakes.
 
 **PUSH POSTURE (owner, 2026-07-25): commit-only — do not push; don't ask again.** Nothing pending
 on the owner right now.

@@ -55,6 +55,28 @@ describe("chatStream turn slots", () => {
     unsub();
   });
 
+  test("completed → beginTurn RE-OPENS to pending (the auto-mode chain's next-speaker turnAccepted)", () => {
+    // A chained AI→AI turn (or a manual regenerate) re-opens a slot that already reached a terminal: the bus
+    // reducer routes the continuation's `turnAccepted` to `beginTurn`, which is unconditional BY DESIGN. This
+    // is the client half of the chain-arbitration Stop-affordance fix — the slot re-opens so Stop renders
+    // through the continuation's arbitration instead of sitting idle after the human round completed.
+    const chatId = freshChatId();
+    const seen: TurnSlot[] = [];
+    const unsub = subscribeTurnSlot(chatId, (slot) => seen.push(slot));
+
+    begin(chatId);
+    chatStream.appendDelta(textDelta(chatId, "one"));
+    chatStream.completeTurn(chatId, MSG);
+    expect(seen.at(-1)?.phase).toBe("completed");
+
+    // The chain's next-speaker accept re-opens the SAME chat's slot — completed → pending, clean (no stale text).
+    begin(chatId);
+    const reopened = seen.at(-1);
+    expect(reopened).toMatchObject({ phase: "pending", intent: "send", speakerCharacterId: null });
+    expect(reopened !== undefined && "text" in reopened).toBe(false);
+    unsub();
+  });
+
   test("abort from pending; per-chat isolation; delta without a live turn is dropped", () => {
     const chatB = freshChatId();
     const seenB: TurnSlot[] = [];

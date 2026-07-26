@@ -118,7 +118,7 @@ test("scope-isolation: an OUT-of-scope violation is invisible to the scoped run 
 // on a scoped run it is a whole-project gate → DEFERRED, never run → zero findings (even though the firing
 // condition is present in the project).
 const BUS_FIRING_TREE: Readonly<Record<string, string>> = {
-  "packages/contracts/src/chat/index.ts": 'export const CHAT_BUS_EVENT_TYPES = { neverEmitted: "neverEmitted" } as const;\n',
+  "packages/contracts/src/chat/bus.ts": 'export const CHAT_BUS_EVENT_TYPES = { neverEmitted: "neverEmitted" } as const;\n',
   "packages/server/src/domain/chat/x.ts": 'export const q = "somethingElse";\n',
 };
 
