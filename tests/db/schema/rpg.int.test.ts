@@ -62,7 +62,7 @@ test("rpg enum columns mirror their contracts tuples (db derives, never re-spell
 // `isConstraintViolation` returns `ConstraintViolation | undefined`; `toSatisfy` needs a boolean predicate.
 const isConstraint = (e: unknown): boolean => isConstraintViolation(e) !== undefined;
 
-const CONFIG: RpgGameConfig = { statProfile: RPG_PROFILE_FREEFORM, lite: { steeringNote: "" } };
+const CONFIG: RpgGameConfig = { statProfile: RPG_PROFILE_FREEFORM, lite: { steeringNote: "" }, extractionMode: "reliable" };
 const EMPTY_SHEET = { className: "", attributes: {}, poolDefs: [], maxHp: null, flavor: "" };
 const CUSTOM_BINDING = { source: "custom", subjectName: null } as const;
 

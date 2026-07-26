@@ -91,9 +91,11 @@ export interface RpgJournalEntryView {
 }
 
 /** `getConfigView` (HOST-gated) — the Stats & Trackers editor surface: the full `statProfile` +
- *  `steeringNote` (never on a member view — the host-read discipline). */
+ *  `steeringNote` + the `gmPresetId`/`extractionMode` knobs (never on a member view — the host-read
+ *  discipline). `extractionMode` is the delivery-model knob (the 2026-07-26 amendment). */
 export interface RpgConfigView {
   readonly statProfile: RpgGameConfig["statProfile"];
   readonly steeringNote: string;
   readonly gmPresetId: string | null;
+  readonly extractionMode: RpgGameConfig["extractionMode"];
 }

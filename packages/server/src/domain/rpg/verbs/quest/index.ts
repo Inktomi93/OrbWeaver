@@ -1,0 +1,4 @@
+// domain/rpg/verbs/quest — the quest hand-verb group barrel (upsert/delete).
+
+export { createDeleteQuest } from "./delete-quest";
+export { createUpsertQuest } from "./upsert-quest";

@@ -30,6 +30,7 @@ import { can, requireAdmin, requireOwner } from "#domain/admin";
 import type { AssetsService } from "#domain/assets";
 import type { AutomationService } from "#domain/automation";
 import type { DefaultCharacterSeeder } from "#domain/character";
+import type { ChatContext } from "#domain/chat";
 import { createResolveViewerVisibility } from "#domain/chat";
 import { createConnectionService } from "#domain/connection";
 import { createCredentialsService } from "#domain/credentials";
@@ -41,6 +42,7 @@ import type { SettingsContext, SettingsServiceDeps } from "#domain/settings";
 import { createSettingsContext, createSettingsService } from "#domain/settings";
 import type { TagContext } from "#domain/tag";
 import { createTagService } from "#domain/tag";
+import type { ToolUseService } from "#domain/tool-use";
 import type { WorkloadRunnerEnv } from "#domain/workloads";
 import { createImportStandaloneLorebook } from "#domain/world-info";
 import type { AuditEntry } from "#foundation/observability";
@@ -73,6 +75,7 @@ import type { ImportWorldInfoPort } from "../import";
 import { buildAdmin } from "./admin";
 import { buildAssetsCharacter } from "./assets-character";
 import { buildAutomationPlugin } from "./automation-plugin";
+import type { ChatComposeResult } from "./chat";
 import { buildChatService } from "./chat";
 import { buildDatabank } from "./databank";
 import type { EffectiveConfigWiring } from "./effective-config";
@@ -83,6 +86,8 @@ import { buildImagery } from "./imagery";
 import { minter } from "./minter";
 import { buildPortabilityRunner } from "./portability-runner";
 import { bindRoleClientsForUser } from "./role-clients";
+import type { RpgComposeResult } from "./rpg";
+import { buildRpg } from "./rpg";
 import { buildSearchDiscovery } from "./search-discovery";
 import { buildSideGenParams } from "./side-gen-params";
 import { buildWorldInfo } from "./world-info";
@@ -151,6 +156,18 @@ export interface ServicesResult {
   readonly characterSeeder: DefaultCharacterSeeder;
   /** Mirrors `characterSeeder`, for the default "You" persona. */
   readonly personaSeeder: DefaultPersonaSeeder;
+  /** The rpg `ChatRpgOps` runtime (the turn hooks chat fires) — surfaced top-level so the composed-real int
+   *  test drives a turn's flush (`onTurnCompleted`) through the REAL compose graph (the [compose-stub-goes-stale]
+   *  antidote). Not on the transport `Services` bundle (chat's turn lifecycle is its only production caller). */
+  readonly rpgChatOps: RpgComposeResult["chatOps"];
+  /** The ONE tool-use registry (rpg's 7 state tools registered into it) — surfaced so the composed-real int
+   *  test drives a CHEAP tool turn through the REAL registered handlers (`resolveTools` + `executeToolCalls`),
+   *  proving the compose tool-registration is live. Not on the transport `Services` bundle. */
+  readonly toolUse: ToolUseService;
+  /** The REAL chat-side rpg-facing ops (getMembership/postNarratorMessage/setRpgPointer/resolveRpgRoster) —
+   *  the deps `buildRpg` closes over. Surfaced so the composed-real reliable test builds its own `buildRpg`
+   *  over the SAME real chat wiring with only the executor/connection faked (never a live model). */
+  readonly chatRpgOps: ChatComposeResult["rpgChatOps"];
 }
 
 /** Construct the full service graph + the boot handles. Async: the boot-global `RoleClients` bundle
@@ -418,6 +435,26 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // The host's REAL principal by userId — shared by chat compose and rpg's lite capability resolve (a game turn
   // runs as the host, D19).
   const resolveHostPrincipal = createHostPrincipalResolver(sessions);
+  // FORWARD-REF (rpg-design/05 §4.10): chat's turn hooks call rpg's `ChatRpgOps`, but rpg builds AFTER chat
+  // (chat's `rpgChatOps` is rpg's dep). The delegate below forwards to a late-bound holder bound SYNCHRONOUSLY
+  // once rpg composes, a few lines down (the crew-delegate precedent) — no request can run before then, so the
+  // holder is always live at call time (a null read would be a compose-order bug, hence the throw).
+  let rpgOpsHolder: NonNullable<ChatContext["rpg"]> | null = null;
+  const rpgOps = (): NonNullable<ChatContext["rpg"]> => {
+    if (rpgOpsHolder === null) {
+      throw new Error("rpg ops accessed before the rpg seam composed (compose-order bug)");
+    }
+    return rpgOpsHolder;
+  };
+  const rpgOpsDelegate: NonNullable<ChatContext["rpg"]> = {
+    resolvePresetOverride: (chatId) => rpgOps().resolvePresetOverride(chatId),
+    gatherTurnContext: (chatId, pending, responds) => rpgOps().gatherTurnContext(chatId, pending, responds),
+    markDicePreRollEligible: (turnId) => rpgOps().markDicePreRollEligible(turnId),
+    onUserCommit: (chatId, messageId) => rpgOps().onUserCommit(chatId, messageId),
+    onTurnCompleted: (chatId, messageId, variantId, turnId) => rpgOps().onTurnCompleted(chatId, messageId, variantId, turnId),
+    onTurnAborted: (chatId, turnId, reason) => rpgOps().onTurnAborted(chatId, turnId, reason),
+    resolveGmSeatHolderKind: (chatId) => rpgOps().resolveGmSeatHolderKind(chatId),
+  };
   const chatCompose = buildChatService({
     toolUse,
     db,
@@ -445,8 +482,24 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     readPresence: (userId) => Promise.resolve(presence.read(userId)),
     generatePicture: imagery.generatePicture,
     gatherDatabank: databank.gatherRetrieval,
+    rpg: rpgOpsDelegate,
   });
   const { service: chat, emitBusEvent: emitChatBusEvent } = chatCompose;
+
+  // ── rpg (the rpg seam) — the LITE vertical. Built AFTER chat (its `rpgChatOps` are rpg's cross-feature deps);
+  // its `ChatRpgOps` are bound back onto the forward-ref holder above so chat's turn hooks reach the live rpg
+  // service. Registers rpg's 7 state tools into the ONE tool registry (the imagery precedent).
+  const rpgCompose = buildRpg({
+    db,
+    now,
+    rpgChatOps: chatCompose.rpgChatOps,
+    connection,
+    executor,
+    resolveHostPrincipal,
+    toolUse,
+  });
+  rpgOpsHolder = rpgCompose.chatOps;
+  const rpg = rpgCompose.service;
   // THE cross-domain viewer-visibility op (the read-visibility D-entry): membership AND the D16 canon floor as
   // ONE answer for one human over one chat. Built ONCE here and injected into every non-chat consumer that
   // decides "may this human see this chat's CONTENT" — imagery's extractQuiet (via the late-bound getter above),
@@ -533,6 +586,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     persona,
     plugin,
     preset,
+    rpg,
     search,
     sessions,
     settings,
@@ -564,5 +618,8 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     vllmEngine: registry.vllmEngine,
     characterSeeder,
     personaSeeder,
+    rpgChatOps: rpgCompose.chatOps,
+    toolUse,
+    chatRpgOps: chatCompose.rpgChatOps,
   };
 }
