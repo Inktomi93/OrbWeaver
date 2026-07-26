@@ -638,6 +638,10 @@ export type PromptSection = z.infer<typeof promptSectionSchema>;
 export const DEFAULT_FORMAT_STRINGS = {
   continueNudge:
     "[OOC: Continue your previous response exactly where it left off. Pick up mid-sentence if needed. Do NOT restate the existing text, do NOT rephrase, do NOT add a preamble or recap. Output ONLY the continuation, starting from where your previous reply ended.]",
+  // The trailing user-turn nudge that steers an unsteered `impersonate` (the model writes the user's next
+  // line). Default = the turn verb's former hardcoded baseline, verbatim, so absent-field presets are
+  // byte-identical to pre-wire behavior.
+  impersonateNudge: "[Write the next message as the user, in the user's own voice.]",
   wiFormat: "{{entry}}",
 } as const;
 
@@ -713,6 +717,7 @@ export const promptConfigSchema = z.object({
   formatStrings: z
     .object({
       continueNudge: z.string().max(MAX_FORMAT_STRING_LENGTH).optional(),
+      impersonateNudge: z.string().max(MAX_FORMAT_STRING_LENGTH).optional(),
       wiFormat: z.string().max(MAX_FORMAT_STRING_LENGTH).optional(),
     })
     .optional(),
@@ -1320,12 +1325,10 @@ const ST_CONTINUE_POSTFIX: Record<string, ContinuePostfix> = {
 
 // Top-level ST fields with no neo home — reported (when present + meaningful) so the user knows.
 const DROPPABLE_FIELDS: readonly StDroppedField[] = [
-  { field: "impersonation_prompt", reason: "no impersonation-prompt slot" },
   { field: "group_nudge_prompt", reason: "group nudge is room-owned, not preset-owned" },
   { field: "new_chat_prompt", reason: "no new-chat injection slot" },
   { field: "new_group_chat_prompt", reason: "no group chats" },
   { field: "new_example_chat_prompt", reason: "no example-chat injection slot" },
-  { field: "continue_nudge_prompt", reason: "neo uses formatStrings.continueNudge default" },
   { field: "bias_preset_selected", reason: "no logit-bias presets" },
   { field: "assistant_prefill", reason: "response prefill unsupported across providers" },
   { field: "assistant_impersonation", reason: "no impersonation prefill" },
@@ -1388,6 +1391,23 @@ function collectDroppableFields(rawObj: Record<string, unknown>): StDroppedField
   return out;
 }
 
+/** Map ST's prompt-string slots onto the preset's `formatStrings`. `impersonation_prompt` →
+ *  `impersonateNudge` (previously dropped) and `continue_nudge_prompt` → `continueNudge`; a blank/absent slot
+ *  is omitted so the assembler falls back to `DEFAULT_FORMAT_STRINGS`. Bounds each to the schema max so a
+ *  hostile import can't smuggle an oversized nudge. */
+function collectFormatStrings(rawObj: Record<string, unknown>): PromptConfig["formatStrings"] {
+  const out: Record<string, string> = {};
+  const take = (key: string, slot: string): void => {
+    const v = rawObj[key];
+    if (typeof v === "string" && v.trim().length > 0) {
+      out[slot] = v.slice(0, MAX_FORMAT_STRING_LENGTH);
+    }
+  };
+  take("continue_nudge_prompt", "continueNudge");
+  take("impersonation_prompt", "impersonateNudge");
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
 /** Import a SillyTavern Chat Completion preset (parsed JSON) into a validated PromptConfig. Throws when
  *  `raw` isn't a recognizable ST preset (no prompts AND no prompt_order). */
 export function importStChatCompletionPreset(raw: unknown): StImportResult {
@@ -1410,6 +1430,7 @@ export function importStChatCompletionPreset(raw: unknown): StImportResult {
   const namesBehavior = namesBehaviorOf(rawObj["names_behavior"]);
   const rawPostfix = rawObj["continue_postfix"];
   const continuePostfix = typeof rawPostfix === "string" ? ST_CONTINUE_POSTFIX[rawPostfix] : undefined;
+  const formatStrings = collectFormatStrings(rawObj);
 
   // Construct + validate via the canonical (lenient) parser — fills defaults, runs the lift, drops
   // anything malformed to a safe shape so the importer can never emit an invalid PromptConfig.
@@ -1419,6 +1440,7 @@ export function importStChatCompletionPreset(raw: unknown): StImportResult {
     params,
     ...(namesBehavior !== undefined ? { namesBehavior } : {}),
     ...(continuePostfix !== undefined ? { continuePostfix } : {}),
+    ...(formatStrings !== undefined ? { formatStrings } : {}),
   });
 
   return { config, dropped, sectionCount: sections.length };

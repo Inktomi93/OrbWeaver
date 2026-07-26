@@ -637,6 +637,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     },
     summarize: input.roleClients.summarize,
     summarizerContextTokens: input.roleClients.summarizerContextTokens,
+    memorySummarizer: input.settings.getEffectiveConfig().memorySummarizer,
     // record INSERTs the row (assigning seq) THEN the persisted view is published onto the live bus —
     // a dead bus path never loses an event (subscriptions replay from the table by seq).
     resolveHandle: (handle) => input.resolveHandle(handle),
@@ -805,6 +806,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       const routable: RouteChatAssignment = meta.providerRouting !== undefined ? { providerRouting: meta.providerRouting } : {};
       return resolveChatVia(runAsUserId, routable);
     },
+    resolveCreatorGroupDefaults: async (userId) => (await input.settings.loadUserSettings(userId)).groupDefaults,
     resolveForeignInputs: async ({ runAsUserId, anchorPersonaId, personaIds, triggerPersonaId, presetOverride }) => {
       const us = await input.settings.loadUserSettings(runAsUserId);
       const principal = hostPrincipal(runAsUserId);

@@ -422,15 +422,17 @@ export function GhostRowStory(): ReactElement {
 export interface ReasoningBlockStoryProps {
   readonly reasoning: string;
   readonly thinking: boolean;
+  readonly smoothStream?: boolean;
+  readonly smoothStreamCps?: number;
 }
 
 /** The bare `<ReasoningBlock>` — a pure-render leaf (no chat-store dependency), so the CT test drives
  *  its TTFT/auto-collapse/toggle behavior by mounting with props and re-`update()`-ing them, exactly
  *  like `crossfade-image.ct.tsx` drives a prop transition. */
-export function ReasoningBlockStory({ reasoning, thinking }: ReasoningBlockStoryProps): ReactElement {
+export function ReasoningBlockStory({ reasoning, thinking, smoothStream, smoothStreamCps }: ReasoningBlockStoryProps): ReactElement {
   return (
     <div style={{ width: 360 }}>
-      <ReasoningBlock reasoning={reasoning} thinking={thinking} />
+      <ReasoningBlock reasoning={reasoning} thinking={thinking} smoothStream={smoothStream} smoothStreamCps={smoothStreamCps} />
     </div>
   );
 }

@@ -10,12 +10,13 @@
 import type { BulkImportChatInput, BulkImportChatsResult } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { BulkImportPersonaInput, BulkImportPersonasResult } from "@orb/contracts/persona";
+import { ASSET_UPLOAD_MAX_BYTES } from "@orb/contracts/uploads";
 import type { AssetId, CharacterId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { writeCardChunk } from "@orb/kit/png-card-chunk";
 import type { ImportFsPort } from "@orb/server/domain/import";
 import type { ImportAssetPort, ImportCharacterPort, ImportTagPort, ProfileDirImportDeps } from "@orb/server/entry/import";
-import { createNodeFsImportPort, PROFILE_IMPORT_MAX_ASSET_BYTES, runProfileDirImport } from "@orb/server/entry/import";
+import { createNodeFsImportPort, runProfileDirImport } from "@orb/server/entry/import";
 import { describe } from "vitest";
 import { expect, test } from "../../../support/fixtures";
 
@@ -263,7 +264,7 @@ describe("runProfileDirImport", () => {
     // PD-94: every stored blob (persona avatar + the card PNG) carries the maxBytes cap.
     expect(f.stores).toHaveLength(2);
     for (const s of f.stores) {
-      expect(s.maxBytes).toBe(PROFILE_IMPORT_MAX_ASSET_BYTES);
+      expect(s.maxBytes).toBe(ASSET_UPLOAD_MAX_BYTES);
     }
     // A real_conversation chat enqueues exactly one memory backfill (PD-78).
     expect(f.backfills).toEqual([OWNER.userId]);

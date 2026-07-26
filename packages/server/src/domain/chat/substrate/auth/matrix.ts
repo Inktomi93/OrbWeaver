@@ -107,6 +107,7 @@ export const CHAT_VERB_AUTHORITY = {
   setRoomOverrides: "host",
   setChatDocumentVisibility: "host", // D85 — the host governs which databank documents feed the shared room's retrieval (room-wide prompt content is the host's authority, the setRoomOverrides twin)
   setChatBackground: "host", // BG-C — the host sets the per-chat carried background (room-wide chrome is the host's authority, the setRoomOverrides twin); asset-ownership additionally gated inside the verb
+  setToolRecurseLimit: "host", // the host sets the per-chat tool-call recursion cap (room-wide turn behavior is the host's authority, the setRoomOverrides twin)
 
   getGroupConfigForChat: "member", // read the effective room config (it affects the member)
   getRoomOverridesForChat: "member",

@@ -4,6 +4,7 @@
 // segment rows carry a dummy F32_BLOB(1024) embedding (memory never reads the vector column — only the facets).
 
 import type { SummarizeResult } from "@orb/contracts/providers";
+import type { SummarizeOptions } from "@orb/contracts/role-clients";
 import type { BlockKey, MemoryQueryOptions } from "@orb/contracts/search";
 import type { Db } from "@orb/db";
 import { chatDigestSpeakers, chatDigests, chatSegments } from "@orb/db";
@@ -115,22 +116,26 @@ export async function seedSegment(
 }
 
 /** A deterministic fake `summarize` that echoes the input into a well-formed three-part digest + records the
- *  calls. The digest anchor encodes the input length so different blocks yield different digests. */
+ *  calls. The digest anchor encodes the input length so different blocks yield different digests. `optsSeen`
+ *  captures the per-call sampling options (the `AppSettings.memorySummarizer` wire). */
 export function fakeSummarize(): {
-  fn: (inputs: { systemPrompt: string; userPrompt: string }[]) => Promise<SummarizeResult>;
+  fn: (inputs: { systemPrompt: string; userPrompt: string }[], opts?: SummarizeOptions) => Promise<SummarizeResult>;
   calls: { systemPrompt: string; userPrompt: string }[];
+  optsSeen: (SummarizeOptions | undefined)[];
 } {
   const calls: { systemPrompt: string; userPrompt: string }[] = [];
-  const fn = (inputs: { systemPrompt: string; userPrompt: string }[]): Promise<SummarizeResult> => {
+  const optsSeen: (SummarizeOptions | undefined)[] = [];
+  const fn = (inputs: { systemPrompt: string; userPrompt: string }[], opts?: SummarizeOptions): Promise<SummarizeResult> => {
     const input = inputs.at(0) ?? { systemPrompt: "", userPrompt: "" };
     calls.push(input);
+    optsSeen.push(opts);
     const text = `[entities — scene ${calls.length}]\nFacts about turn ${calls.length}.\nkeywords: alpha, beta, gamma`;
     return Promise.resolve({
       items: [{ text, usage: { tokensIn: 1, tokensOut: 1, costUsd: null } }],
       model: MODEL,
     });
   };
-  return { fn, calls };
+  return { fn, calls, optsSeen };
 }
 
 /** A fake `embeddingsStore` that RECORDS every call AND actually inserts the row (digest or segment) — so a

@@ -144,6 +144,7 @@ export function createChatService(ctx: ChatContext, deps: ChatServiceDeps): { re
     engine,
     resolveConnection: deps.resolveConnection,
     resolveForeignInputs: deps.resolveForeignInputs,
+    resolveCreatorGroupDefaults: deps.resolveCreatorGroupDefaults,
   });
   const chatLifecycle = createChatLifecycle(ctx, { emit: deps.emit, activeTurns: deps.activeTurns });
   const roster = createRoster(ctx, { emit: deps.emit });

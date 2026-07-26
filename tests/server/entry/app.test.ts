@@ -178,6 +178,8 @@ describe("createApp", () => {
       defaultHandle: "owner",
       // single-user can never seat a second human (the PD-106 MULTI_HUMAN_CAPABLE map's fixed arm).
       multiHumanCapable: false,
+      // The served deployment byte caps (L5 uploads catalog): route caps + the effective image ceiling.
+      uploads: { assetUpload: 67_108_864, image: 5_000_000, databankUpload: 20_971_520, importTotal: 268_435_456 },
     });
   });
 

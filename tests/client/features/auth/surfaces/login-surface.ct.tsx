@@ -5,6 +5,7 @@
 // the OIDC SSO button + the local credential form. Router-free (LoginBody takes `config` + a stub
 // `onDone`), so no memory-router harness is needed.
 
+import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { AuthConfig } from "../../../../../packages/client/src/data/auth-config";
 import { LoginArmStory } from "../_ct-stories";
@@ -18,6 +19,7 @@ function config(overrides: Partial<AuthConfig>): AuthConfig {
     discreetLogin: false,
     defaultHandle: "owner",
     multiHumanCapable: false,
+    uploads: DEFAULT_UPLOAD_CAPS,
     ...overrides,
   };
 }

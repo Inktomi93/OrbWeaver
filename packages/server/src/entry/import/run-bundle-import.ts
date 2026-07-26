@@ -19,17 +19,6 @@ import type { UserId } from "@orb/kit/ids";
 import type { ExtractOptions, StagedArchive } from "#infra/storage";
 import { extractZip } from "#infra/storage";
 
-// Shared by the HTTP edge and the workload runner-env op (both hand these to extractZip). The decompressed
-// cap is disk-usage (10 GiB) so a full-account all-blobs backup fits, while an amplification bomb aborts.
-const BYTES_PER_KIB = 1024;
-const BYTES_PER_MIB = BYTES_PER_KIB * BYTES_PER_KIB;
-const IMPORT_MAX_MIB = 256;
-const IMPORT_MAX_DECOMPRESSED_MIB = 10_240;
-/** The per-request compressed archive cap (256 MiB) — a larger upload is aborted mid-stream, never fully staged. */
-export const IMPORT_MAX_TOTAL_BYTES = IMPORT_MAX_MIB * BYTES_PER_MIB;
-/** The aggregate decompressed cap (10 GiB, disk-staged) — the amplification-bomb belt for a genuine all-blobs bundle. */
-export const IMPORT_MAX_DECOMPRESSED_BYTES = IMPORT_MAX_DECOMPRESSED_MIB * BYTES_PER_MIB;
-
 /** One file's bundle-import outcome, aggregated into the operator-auditable report. `kind: null` marks a
  *  file whose directory matched no registered entity (skipped, not failed). */
 export interface BundleImportFileOutcome {

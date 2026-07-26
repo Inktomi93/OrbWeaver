@@ -482,3 +482,21 @@ test("importStChatCompletionPreset: group_nudge_prompt still drops, with the cor
   const drop = result.dropped.find((d) => d.field === "group_nudge_prompt");
   expect(drop?.reason).toBe("group nudge is room-owned, not preset-owned");
 });
+
+test("importStChatCompletionPreset: impersonation_prompt maps onto formatStrings.impersonateNudge (no longer dropped)", () => {
+  const result = importStChatCompletionPreset(stBlob({ impersonation_prompt: "speak as the user" }));
+  expect(result.config.formatStrings?.impersonateNudge).toBe("speak as the user");
+  expect(result.dropped.some((d) => d.field === "impersonation_prompt")).toBe(false);
+});
+
+test("importStChatCompletionPreset: continue_nudge_prompt maps onto formatStrings.continueNudge (no longer dropped)", () => {
+  const result = importStChatCompletionPreset(stBlob({ continue_nudge_prompt: "keep going" }));
+  expect(result.config.formatStrings?.continueNudge).toBe("keep going");
+  expect(result.dropped.some((d) => d.field === "continue_nudge_prompt")).toBe(false);
+});
+
+test("importStChatCompletionPreset: a blank prompt slot is omitted (falls back to the built-in default)", () => {
+  const result = importStChatCompletionPreset(stBlob({ impersonation_prompt: "   ", continue_nudge_prompt: "" }));
+  expect(result.config.formatStrings?.impersonateNudge).toBeUndefined();
+  expect(result.config.formatStrings?.continueNudge).toBeUndefined();
+});

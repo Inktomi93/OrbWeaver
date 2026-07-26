@@ -40,6 +40,7 @@ export {
   getToolRecurseLimit,
   parseChatMetadata,
   TOOL_RECURSE_LIMIT_DEFAULT,
+  toolRecurseLimitSchema,
 } from "./contract/metadata";
 export type { RequestTurnOp, TurnMessage, TurnRequest, TurnStreamChunk } from "./contract/results";
 export type { ChatService } from "./contract/service";

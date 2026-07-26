@@ -82,6 +82,7 @@ import type {
   SetMessageHiddenParams,
   SetRoomOverridesParams,
   SetSeatKnobsParams,
+  SetToolRecurseLimitParams,
   SetVariablesParams,
   StarChatParams,
   StartChatParams,
@@ -272,6 +273,10 @@ export interface ChatService {
    *  the whole blob (`kind:"none"` clears it). Returns the stored value. Applied client-side at the app-root
    *  background layer in a true-solo room; INERT for every viewer in any other composition. */
   readonly setChatBackground: (params: SetChatBackgroundParams) => Promise<ThemeBackground>;
+
+  /** Host-only write of the per-chat tool-call recursion cap (`chatMetadata.toolRecurseLimit`, 1..20).
+   *  Returns the stored value. */
+  readonly setToolRecurseLimit: (params: SetToolRecurseLimitParams) => Promise<number>;
 
   readonly getGroupConfigForChat: (params: GetGroupConfigForChatParams) => Promise<GroupConfig>;
   readonly getRoomOverridesForChat: (params: GetRoomOverridesForChatParams) => Promise<RoomOverrides>;

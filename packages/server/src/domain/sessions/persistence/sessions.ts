@@ -3,10 +3,15 @@ import type { SessionView } from "@orb/contracts/session";
 import type { Db } from "@orb/db";
 import { sessions, users } from "@orb/db";
 import type { ExternalId, Handle, SessionId, UserId } from "@orb/kit/ids";
-import { and, asc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 
 // domain/sessions/persistence/sessions — all `sessions`-table access (queries only). Every timestamp
 // arrives as a param (no ambient Date.now()); the token is never stored, lookups key on `tokenHash`.
+
+// A hard ceiling on the per-user session list (admin device view). Not a tunable — a DoS floor: without
+// it, an account that churned thousands of sessions makes the admin read pull (and serialize) every row.
+// Newest-first so the truncation drops the STALEST devices, which is the only useful window anyway.
+const SESSION_LIST_HARD_CAP = 200;
 
 interface SessionInsert {
   id: SessionId;
@@ -97,6 +102,7 @@ export async function listForUser(db: Db, userId: UserId): Promise<SessionView[]
     })
     .from(sessions)
     .where(eq(sessions.userId, userId))
-    .orderBy(asc(sessions.createdAt));
+    .orderBy(desc(sessions.createdAt))
+    .limit(SESSION_LIST_HARD_CAP);
   return rows;
 }

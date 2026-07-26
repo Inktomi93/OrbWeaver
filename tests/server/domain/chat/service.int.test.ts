@@ -6,6 +6,7 @@
 
 import type { CharacterCard } from "@orb/contracts/character";
 import type { ChatBusEvent } from "@orb/contracts/chat";
+import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { StatsDelta } from "@orb/contracts/stats";
@@ -99,6 +100,7 @@ function makeService(
     prng: seededPrng(),
     delay: () => Promise.resolve(),
     resolveConnection: () => Promise.resolve(testConnection()),
+    resolveCreatorGroupDefaults: () => Promise.resolve(DEFAULT_GROUP_CONFIG),
     resolveForeignInputs: () =>
       Promise.resolve({
         promptConfig: DEFAULT_PROMPT_CONFIG,

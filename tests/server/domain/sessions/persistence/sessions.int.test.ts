@@ -27,15 +27,15 @@ beforeEach(async () => {
   await db.insert(users).values({ id: USER_ID, handle: HANDLE, role: "owner" });
 });
 
-async function seedSession(id: string, tokenHash: string): Promise<SessionId> {
+async function seedSession(id: string, tokenHash: string, createdAt: number = T0): Promise<SessionId> {
   const sessionId = castId<SessionId>(id);
   await insertSession(db, {
     id: sessionId,
     userId: USER_ID,
     tokenHash,
-    createdAt: T0,
-    lastSeenAt: T0,
-    expiresAt: T0 + TTL,
+    createdAt,
+    lastSeenAt: createdAt,
+    expiresAt: createdAt + TTL,
     userAgent: null,
   });
   return sessionId;
@@ -85,11 +85,22 @@ describe("persistence/sessions", () => {
     expect(await revokeAllForUser(db, USER_ID, T0 + 2)).toStrictEqual([]);
   });
 
-  test("listForUser projects the secret-free view, oldest-first", async () => {
-    await seedSession("session_a", "hash-a");
+  test("listForUser projects the secret-free view, newest-first", async () => {
+    const older = await seedSession("session_a", "hash-a", T0);
+    const newer = await seedSession("session_b", "hash-b", T0 + 1000);
     const views = await listForUser(db, USER_ID);
-    expect(views).toHaveLength(1);
+    expect(views.map((v) => v.id)).toStrictEqual([newer, older]);
     expect(views[0]).not.toHaveProperty("tokenHash");
     expect(views[0]).not.toHaveProperty("userId");
+  });
+
+  test("listForUser caps at the hard ceiling (DoS floor), keeping the newest window", async () => {
+    // One over the cap; the STALEST row (created earliest) must be the one dropped by the newest-first cap.
+    const cap = 200;
+    await Promise.all(Array.from({ length: cap + 1 }, (_, i) => seedSession(`session_${i}`, `hash-${i}`, T0 + i)));
+    const views = await listForUser(db, USER_ID);
+    expect(views).toHaveLength(cap);
+    expect(views.some((v) => v.id === castId<SessionId>("session_0"))).toBe(false);
+    expect(views.some((v) => v.id === castId<SessionId>(`session_${cap}`))).toBe(true);
   });
 });

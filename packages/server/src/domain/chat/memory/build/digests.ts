@@ -15,7 +15,7 @@ import { loadCanonThroughSeq, loadChatMeta, loadDigestHashes, loadDigestSpeakers
 import type { BlockSpan, DigestRow, MemoryConfig, MemoryPassCounts, MemoryScope, WitnessInterval } from "../types";
 import { parseDigest, renderDigestFacets } from "./substrate/parse";
 import { CONSOLIDATION_SYSTEM_PROMPT, consolidationUserPrompt, DIGEST_SYSTEM_PROMPT, digestUserPrompt } from "./substrate/prompts";
-import { fitBlockToBudget, SUMMARIZER_CONTEXT_FLOOR } from "./substrate/token-guard";
+import { DEFAULT_OUTPUT_RESERVE_TOKENS, fitBlockToBudget, SUMMARIZER_CONTEXT_FLOOR } from "./substrate/token-guard";
 import { blockHash, blockSpeakerIds, consolidationHash, EMPTY_MACRO_NAMES, renderTranscript, sliceBlocks } from "./substrate/transcript";
 import { spanWitnessed } from "./substrate/witnessing";
 
@@ -27,6 +27,22 @@ interface GenerateDigestsArgs {
   readonly macroNames?: RowMacroNameContext | undefined;
   readonly witnessing?: readonly WitnessInterval[] | undefined;
   readonly signal?: AbortSignal | undefined;
+}
+
+/** The admin-resolved summarize call options (`AppSettings.memorySummarizer`) — passed onto every `summarize`
+ *  call. Both fields absent ⇒ `{}`, so the summarizer runs on its own defaults (byte-identical to pre-wire). */
+function summarizerOpts(ctx: ChatContext): { maxTokens?: number; temperature?: number } {
+  const { maxTokens, temperature } = ctx.memorySummarizer;
+  return {
+    ...(maxTokens !== undefined ? { maxTokens } : {}),
+    ...(temperature !== undefined ? { temperature } : {}),
+  };
+}
+
+/** The token-guard output reserve — the SAME `max_tokens` the summarize request sends (the one-home rule so
+ *  the fit and the request can't diverge); unset ⇒ the baseline reserve. */
+function outputReserve(ctx: ChatContext): number {
+  return ctx.memorySummarizer.maxTokens ?? DEFAULT_OUTPUT_RESERVE_TOKENS;
 }
 
 /** The mutable tier-0 pass accumulator (the observability counts the build trace reports). */
@@ -117,14 +133,14 @@ async function buildTier0(
       counts.skipped += 1;
       continue;
     }
-    const fitted = fitBlockToBudget(block.rows, env.macroNames, ctx.summarizerContextTokens, systemPromptTokens);
+    const fitted = fitBlockToBudget(block.rows, env.macroNames, ctx.summarizerContextTokens, systemPromptTokens, outputReserve(ctx));
     if (fitted === null) {
       counts.skippedTokenGuard += 1;
       continue;
     }
     const transcript = renderTranscript(fitted, env.macroNames);
     // biome-ignore lint/performance/noAwaitInLoops: the summarizer is metered + the in-flight set guards spend — blocks are summarized sequentially, not fanned out (core/Knowledge-Cluster.md esoteric).
-    const res = await ctx.summarize([{ systemPrompt: DIGEST_SYSTEM_PROMPT, userPrompt: digestUserPrompt(transcript) }]);
+    const res = await ctx.summarize([{ systemPrompt: DIGEST_SYSTEM_PROMPT, userPrompt: digestUserPrompt(transcript) }], summarizerOpts(ctx));
     const raw = res.items.at(0)?.text ?? "";
     // Don't store a blank digest — it'd skip forever under the content-hash staleness gate. Leave un-digested.
     if (raw.trim().length === 0) {
@@ -247,12 +263,15 @@ async function writeConsolidations(
     }
     const childFacets = ordered.map((c) => renderDigestFacets(c));
     // biome-ignore lint/performance/noAwaitInLoops: the side-LLM is metered — parents are summarized sequentially (one consolidation at a time), mirroring the tier-0 spend guard.
-    const res = await ctx.summarize([
-      {
-        systemPrompt: CONSOLIDATION_SYSTEM_PROMPT,
-        userPrompt: consolidationUserPrompt(childFacets),
-      },
-    ]);
+    const res = await ctx.summarize(
+      [
+        {
+          systemPrompt: CONSOLIDATION_SYSTEM_PROMPT,
+          userPrompt: consolidationUserPrompt(childFacets),
+        },
+      ],
+      summarizerOpts(ctx),
+    );
     const raw = res.items.at(0)?.text ?? "";
     // Mirrors the tier-0 guard: don't store a blank arc digest — it'd skip forever under parentHash.
     if (raw.trim().length === 0) {

@@ -22,8 +22,8 @@
 // `chatEventStream`, PD-134): a local per-viewer yield, never published on the bus, never logged to
 // `chat_events`. This verb deliberately stays silent on it (the marker guarding against a stray emit here).
 
-import type { ChatBusEvent, GroupConfigInput, OpeningPolicy, ParticipantView, RoomOverrides } from "@orb/contracts/chat";
-import { groupConfigSchema, roomOverridesSchema } from "@orb/contracts/chat";
+import type { ChatBusEvent, GroupConfig, GroupConfigInput, OpeningPolicy, ParticipantView, RoomOverrides } from "@orb/contracts/chat";
+import { DEFAULT_GROUP_CONFIG, groupConfigSchema, roomOverridesSchema } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
 import { chatInjections, chatParticipants, chats } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
@@ -31,6 +31,7 @@ import { batchMany, batchStmt } from "@orb/db/kit";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { ChatContext } from "../context";
+import type { ResolveCreatorGroupDefaultsOp } from "../contract/context";
 import { ChatNotFoundError } from "../contract/errors";
 import type { ResolveForeignInputsOp } from "../contract/foreign";
 import type { GuidedSteer, StartChatParams } from "../contract/params";
@@ -56,6 +57,9 @@ interface StartChatDeps {
   readonly resolveConnection: (args: { readonly runAsUserId: UserId; readonly chatId: ChatId }) => Promise<ResolvedConnection>;
   /** The foreign half of the assemble ctx (preset/persona/settings) for the `generate` opening only. */
   readonly resolveForeignInputs: ResolveForeignInputsOp;
+  /** The creator's per-user default GroupConfig — seeds a new chat's `metadata.group` when the caller supplies
+   *  no `groupConfig` draft AND the creator customized their default (the FOREIGN-inputs seam). */
+  readonly resolveCreatorGroupDefaults: ResolveCreatorGroupDefaultsOp;
 }
 
 type StartChatVerbs = Pick<ChatService, "startChat">;
@@ -74,21 +78,35 @@ function resolveOpeningPolicy(opening: OpeningPolicy | undefined, charCount: num
   return charCount === 1 ? "first-message" : "greet-all";
 }
 
+/** Resolve the `metadata.group` sub-blob for a new chat: an explicit caller `groupConfig` draft WINS (parsed
+ *  → fully-defaulted, byte-identical to `setGroupConfig`); absent, the creator's `settings.groupDefaults` seeds
+ *  it — but ONLY when it deviates from `DEFAULT_GROUP_CONFIG` (a user on defaults writes NOTHING, so a plain
+ *  chat keeps `metadata === null` exactly as today; the read side's `?? DEFAULT_GROUP_CONFIG` covers the absent
+ *  case identically). Explicit \> settings \> absent — the FOREIGN-inputs precedence. */
+function resolveCreationGroup(groupConfig: GroupConfigInput | undefined, creatorDefaults: GroupConfig): GroupConfig | undefined {
+  if (groupConfig !== undefined) {
+    return groupConfigSchema.parse(groupConfig);
+  }
+  const isDefault = JSON.stringify(creatorDefaults) === JSON.stringify(DEFAULT_GROUP_CONFIG);
+  return isDefault ? undefined : creatorDefaults;
+}
+
 /** Compose the creation `metadata` blob from the pre-send draft config. Group config + room overrides
  *  route through the same schemas the `setGroupConfig`/`setRoomOverrides` verbs use, so a draft-carried
- *  config is byte-identical to what those verbs would persist. All-absent ⇒ `null`. */
+ *  config is byte-identical to what those verbs would persist. `group` is pre-resolved (draft or the
+ *  creator's seeded default; see {@link resolveCreationGroup}). All-absent ⇒ `null`. */
 function buildCreationMetadata(args: {
   readonly opening: OpeningPolicy | undefined;
-  readonly groupConfig: GroupConfigInput | undefined;
+  readonly group: GroupConfig | undefined;
   readonly roomOverrides: RoomOverrides | undefined;
 }): (typeof chats.$inferInsert)["metadata"] {
-  const { opening, groupConfig, roomOverrides } = args;
-  if (opening === undefined && groupConfig === undefined && roomOverrides === undefined) {
+  const { opening, group, roomOverrides } = args;
+  if (opening === undefined && group === undefined && roomOverrides === undefined) {
     return null;
   }
   return {
     ...(opening === undefined ? {} : { opening }),
-    ...(groupConfig === undefined ? {} : { group: groupConfigSchema.parse(groupConfig) }),
+    ...(group === undefined ? {} : { group }),
     ...(roomOverrides === undefined ? {} : { roomOverrides: roomOverridesSchema.parse(roomOverrides) }),
   };
 }
@@ -350,6 +368,11 @@ function createStartChatVerb(ctx: ChatContext, deps: StartChatDeps): ChatService
     const greetings = targets.length > 0 ? await loadGreetings(ctx, hostUserId, targets, seedGreetings) : [];
     const seed = buildGreetingSeed(ctx, { chatId, now, greetings });
 
+    // Seed metadata.group from the creator's settings when they supplied no draft (explicit draft wins; a
+    // creator on default settings writes nothing → metadata stays null exactly as today).
+    const creatorGroupDefaults = await deps.resolveCreatorGroupDefaults(hostUserId);
+    const group = resolveCreationGroup(groupConfig, creatorGroupDefaults);
+
     // One atomic creation batch: the chat row, the roster, and any verbatim greeting canon — all or none.
     const stmts: BatchStmt[] = [
       batchStmt(
@@ -359,7 +382,7 @@ function createStartChatVerb(ctx: ChatContext, deps: StartChatDeps): ChatService
           anchorPersonaId: anchor,
           // Born ephemeral — hidden from listChats, reap-eligible past the TTL.
           temporary: temporary === true,
-          metadata: buildCreationMetadata({ opening, groupConfig, roomOverrides }),
+          metadata: buildCreationMetadata({ opening, group, roomOverrides }),
           createdAt: now,
           updatedAt: now,
         }),

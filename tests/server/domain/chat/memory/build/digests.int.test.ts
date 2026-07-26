@@ -106,6 +106,40 @@ describe("memory/build/digests", () => {
     expect(sum.calls).toHaveLength(3);
   });
 
+  test("the resolved AppSettings.memorySummarizer sampling rides every summarize call", async () => {
+    const chatId = await seedChat(db, "sampling");
+    await seedTurns(db, chatId, aria, 4);
+    const sum = fakeSummarize();
+    const store = fakeEmbeddingsStore(db);
+    const ctx = makeChatContext(db, { summarize: sum.fn, embeddingsStore: store.store, memorySummarizer: { maxTokens: 512, temperature: 0.3 } });
+
+    await generateDigests(ctx, {
+      scope: sharedScope(chatId),
+      config: { blockSize: 2, verbatimWindow: 0, fanOut: 2, maxTier: 2 },
+    });
+
+    // every summarize call (both tier-0 blocks + the tier-1 consolidation) carries the admin's sampling.
+    expect(sum.optsSeen).toHaveLength(3);
+    for (const opts of sum.optsSeen) {
+      expect(opts).toEqual({ maxTokens: 512, temperature: 0.3 });
+    }
+  });
+
+  test("an unset memorySummarizer passes empty opts — the summarizer runs on its own defaults", async () => {
+    const chatId = await seedChat(db, "sampling-default");
+    await seedTurns(db, chatId, aria, 2);
+    const sum = fakeSummarize();
+    const store = fakeEmbeddingsStore(db);
+    const ctx = makeChatContext(db, { summarize: sum.fn, embeddingsStore: store.store });
+
+    await generateDigests(ctx, { scope: sharedScope(chatId), config: { blockSize: 2, verbatimWindow: 0 } });
+
+    expect(sum.optsSeen.length).toBeGreaterThan(0);
+    for (const opts of sum.optsSeen) {
+      expect(opts).toEqual({});
+    }
+  });
+
   test("verbatimWindow protects the tip — only aged-out blocks digest", async () => {
     const chatId = await seedChat(db, "b");
     await seedTurns(db, chatId, aria, 4); // maxSeq 4

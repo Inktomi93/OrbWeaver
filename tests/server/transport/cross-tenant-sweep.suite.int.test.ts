@@ -510,6 +510,12 @@ const PROBES: readonly Probe[] = [
     path: "chat.setChatBackground",
     call: (c, i) => c.chat.setChatBackground({ chatId: i.chatId, background: { kind: "none" } }),
   },
+  {
+    // Host-only per-chat tool-recurse cap — `requireHost` → `requireParticipant` miss on a stranger's chatId
+    // is a leak-free NOT_FOUND (the setRoomOverrides shape) BEFORE any metadata write.
+    path: "chat.setToolRecurseLimit",
+    call: (c, i) => c.chat.setToolRecurseLimit({ chatId: i.chatId, limit: 5 }),
+  },
   { path: "chat.previewAssembly", call: (c, i) => c.chat.previewAssembly({ chatId: i.chatId }) },
   { path: "chat.getShapeTrace", call: (c, i) => c.chat.getShapeTrace({ chatId: i.chatId }) },
   { path: "chat.previewContextFit", call: (c, i) => c.chat.previewContextFit({ chatId: i.chatId }) },

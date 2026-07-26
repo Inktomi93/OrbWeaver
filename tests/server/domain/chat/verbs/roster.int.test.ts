@@ -19,6 +19,7 @@ import type { AuditEntry } from "@orb/server/foundation/observability";
 import { and, eq, isNull } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { ChatNotFoundError, ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors";
+import { getToolRecurseLimit } from "../../../../../packages/server/src/domain/chat/contract/metadata";
 import { createRoster, setParticipantActivePersona } from "../../../../../packages/server/src/domain/chat/verbs/roster";
 import { freshDb } from "../../../../support/db";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
@@ -349,6 +350,61 @@ describe("setChatBackground — host-only per-chat carried background (BG-C)", (
     const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
     expect(row?.metadata?.background?.assetId).toBe("");
     expect(emitted).toEqual([{ type: "chatUpdated", chatId }]);
+  });
+});
+
+describe("setToolRecurseLimit — host-only per-chat tool-recurse cap", () => {
+  test("the host writes the cap, persists it into metadata, and emits chatUpdated", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    const roster = createRoster(makeChatContext(db), { emit });
+
+    const result = await roster.setToolRecurseLimit({ principal: principal(host), chatId, limit: 12 });
+    expect(result).toBe(12);
+    const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
+    expect(getToolRecurseLimit(row?.metadata)).toBe(12);
+    expect(emitted).toEqual([{ type: "chatUpdated", chatId }]);
+  });
+
+  test("the write MERGES — a sibling sub-blob (roomOverrides) survives", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    const roster = createRoster(makeChatContext(db), { emit });
+
+    await roster.setRoomOverrides({ principal: principal(host), chatId, overrides: { scenario: "a tavern" } });
+    await roster.setToolRecurseLimit({ principal: principal(host), chatId, limit: 3 });
+    const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
+    expect(row?.metadata?.roomOverrides).toEqual({ scenario: "a tavern" });
+    expect(row?.metadata?.toolRecurseLimit).toBe(3);
+  });
+
+  test("an out-of-range value is refused forbidden_override (no write)", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    const roster = createRoster(makeChatContext(db), { emit });
+
+    const err = await roster.setToolRecurseLimit({ principal: principal(host), chatId, limit: 999 }).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ChatOperationError);
+    expect((err as ChatOperationError).code).toBe("forbidden_override");
+    const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
+    expect(row?.metadata?.toolRecurseLimit).toBeUndefined();
+  });
+
+  test("a plain member is refused with not_host — no write", async () => {
+    const host = await seedUser(db, "host");
+    const member = await seedUser(db, "member");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
+    const roster = createRoster(makeChatContext(db), { emit });
+
+    const err = await roster.setToolRecurseLimit({ principal: principal(member), chatId, limit: 5 }).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ChatOperationError);
+    expect((err as ChatOperationError).code).toBe("not_host");
+    expect(emitted).toEqual([]);
   });
 });
 

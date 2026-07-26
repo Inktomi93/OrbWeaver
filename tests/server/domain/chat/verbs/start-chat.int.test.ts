@@ -6,7 +6,8 @@
 // fires. Reached through the BUNDLE `createStartChat(ctx, deps)`.
 
 import type { CharacterCard } from "@orb/contracts/character";
-import type { ChatBusEvent } from "@orb/contracts/chat";
+import type { ChatBusEvent, GroupConfig } from "@orb/contracts/chat";
+import { DEFAULT_GROUP_CONFIG, groupConfigSchema } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
 import type { Principal } from "@orb/contracts/identity";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
@@ -77,13 +78,14 @@ const notReached = (): never => {
 };
 
 function makeDeps(
-  over: { readonly engine?: TurnEngine; readonly resolveConnection?: () => Promise<ResolvedConnection> } = {},
+  over: { readonly engine?: TurnEngine; readonly resolveConnection?: () => Promise<ResolvedConnection>; readonly creatorGroupDefaults?: GroupConfig } = {},
 ): Parameters<typeof createStartChat>[1] {
   return {
     emit,
     loadParticipantViews,
     engine: over.engine ?? { runTurn: notReached },
     resolveConnection: over.resolveConnection ?? notReached,
+    resolveCreatorGroupDefaults: () => Promise.resolve(over.creatorGroupDefaults ?? DEFAULT_GROUP_CONFIG),
     resolveForeignInputs: () =>
       Promise.resolve({
         promptConfig: DEFAULT_PROMPT_CONFIG,
@@ -632,6 +634,53 @@ describe("startChat — the draft carry (pre-send edits persisted at creation)",
     // Parsed through `groupConfigSchema` (like `setGroupConfig`) → the omitted fields carry their defaults.
     expect(chat.group.speakerTags).toBe(true);
     expect(chat.roomOverrides.scenario).toBe("a rainy alley");
+  });
+
+  test("groupDefaults seed: a creator with CUSTOM groupDefaults + no draft ⇒ the new chat carries them", async () => {
+    const host = await seedUser(db, "host");
+    const aria = await seedCharacter(db, host, "aria");
+    const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardWith("Aria", "")) });
+    const custom: GroupConfig = groupConfigSchema.parse({ output: "narrator", policy: "list", speakerTags: false });
+    const { startChat } = createStartChat(ctx, makeDeps({ creatorGroupDefaults: custom }));
+
+    const { chat } = await startChat({ principal: principal(host), characterIds: [aria], opening: "none" });
+    expect(chat.group).toEqual(custom);
+    const [row] = await db.select().from(chats).where(eq(chats.id, chat.id));
+    expect(row?.metadata?.group).toEqual(custom);
+  });
+
+  test("groupDefaults seed: an EXPLICIT draft wins over the creator's custom groupDefaults", async () => {
+    const host = await seedUser(db, "host");
+    const aria = await seedCharacter(db, host, "aria");
+    const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardWith("Aria", "")) });
+    const custom: GroupConfig = groupConfigSchema.parse({ output: "narrator", policy: "list", speakerTags: false });
+    const { startChat } = createStartChat(ctx, makeDeps({ creatorGroupDefaults: custom }));
+
+    const { chat } = await startChat({
+      principal: principal(host),
+      characterIds: [aria],
+      opening: "none",
+      groupConfig: { output: "per-speaker", policy: "natural" },
+    });
+    expect(chat.group.output).toBe("per-speaker");
+    const [row] = await db.select().from(chats).where(eq(chats.id, chat.id));
+    expect(row?.metadata?.group?.output).toBe("per-speaker");
+  });
+
+  test("groupDefaults seed: a creator on DEFAULT settings + no draft ⇒ no group sub-blob written (byte-identical to today)", async () => {
+    const host = await seedUser(db, "host");
+    const aria = await seedCharacter(db, host, "aria");
+    const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardWith("Aria", "")) });
+    // makeDeps defaults resolveCreatorGroupDefaults to DEFAULT_GROUP_CONFIG.
+    const { startChat } = createStartChat(ctx, makeDeps());
+
+    // No opening/draft/roomOverrides at all → the creation blob is fully absent → metadata null (the
+    // all-absent contract), so a creator on defaults writes NOTHING new.
+    const { chat } = await startChat({ principal: principal(host), characterIds: [aria] });
+    const [row] = await db.select().from(chats).where(eq(chats.id, chat.id));
+    expect(row?.metadata).toBeNull();
+    // The read side still resolves the canonical default (the ?? fallback is untouched).
+    expect(chat.group).toEqual(DEFAULT_GROUP_CONFIG);
   });
 
   test("injections seed founding chat_injections rows in the same creation batch", async () => {

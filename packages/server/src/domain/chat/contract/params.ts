@@ -388,6 +388,13 @@ export interface SetChatBackgroundParams extends ChatScopedParams {
   readonly background: ThemeBackground;
 }
 
+/** `setToolRecurseLimit` — host-only write of the per-chat tool-call recursion cap
+ *  (`chatMetadata.toolRecurseLimit`, 1..20). Bounds how many times a turn may re-enter the engine on a
+ *  `finishReason:"tool"` before it stops. */
+export interface SetToolRecurseLimitParams extends ChatScopedParams {
+  readonly limit: number;
+}
+
 export interface GetGroupConfigForChatParams extends ChatScopedParams {}
 
 export interface GetRoomOverridesForChatParams extends ChatScopedParams {}

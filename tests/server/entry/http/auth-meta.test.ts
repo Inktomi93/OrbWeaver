@@ -6,6 +6,7 @@
 // healthz.test.ts pattern).
 
 import type { AuthMode, Principal } from "@orb/contracts/identity";
+import { resolveUploadCaps } from "@orb/contracts/uploads";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { AuthMetaDeps } from "@orb/server/entry/http";
@@ -52,12 +53,15 @@ function run(handler: Handler, principal: Principal | null = null): MockResult {
   return handler(ctx);
 }
 
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+
 function depsFor(mode: AuthMode, discreet = false, capable = false): AuthMetaDeps {
   return {
     mode,
     defaultHandle: "owner",
     discreetLogin: () => discreet,
     multiHumanCapable: () => capable,
+    maxImageBytes: () => MAX_IMAGE_BYTES,
   };
 }
 
@@ -79,7 +83,15 @@ describe("GET /api/auth/config", () => {
       discreetLogin: false,
       defaultHandle: "owner",
       multiHumanCapable: false,
+      uploads: resolveUploadCaps(MAX_IMAGE_BYTES),
     });
+  });
+
+  test("serves the resolved upload byte caps (image cap = min of the route cap and the admin maxImageBytes)", () => {
+    const body = run(handlers(depsFor("local")).config).body;
+    // maxImageBytes (5 MiB) is tighter than the 64 MiB route cap, so the served image cap is the admin value.
+    expect(body["uploads"]).toEqual(resolveUploadCaps(MAX_IMAGE_BYTES));
+    expect((body["uploads"] as { image: number }).image).toBe(MAX_IMAGE_BYTES);
   });
 
   test("oidc mode → requiresLogin + oidcEnabled", () => {
@@ -107,6 +119,7 @@ describe("GET /api/auth/config", () => {
       defaultHandle: "owner",
       discreetLogin: () => false,
       multiHumanCapable: () => capable,
+      maxImageBytes: () => MAX_IMAGE_BYTES,
     });
     expect(run(config).body["multiHumanCapable"]).toBe(false);
     capable = true;
@@ -120,6 +133,7 @@ describe("GET /api/auth/config", () => {
       defaultHandle: "owner",
       discreetLogin: () => discreet,
       multiHumanCapable: () => false,
+      maxImageBytes: () => MAX_IMAGE_BYTES,
     });
     expect(run(config).body["defaultHandle"]).toBe("owner");
     discreet = true;

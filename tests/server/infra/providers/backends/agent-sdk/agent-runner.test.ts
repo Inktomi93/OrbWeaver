@@ -26,7 +26,7 @@ const AGENT_TITLE = "orbweaver-agent";
 const ALLOWED_TOOLS = ["mcp__orbweaver__*"];
 const COWORK_DENYLIST = ["DesignSync", "Monitor", "PushNotification", "RemoteTrigger"];
 const DEFAULT_MAX_TURNS = 8;
-const DEFAULT_MAX_OUTPUT = "4096";
+const DEFAULT_MAX_OUTPUT = "2048";
 
 /** A vLLM (keyless, loopback) credential — keeps the firewall env deterministic + host-free. */
 const VLLM_CRED = makeResolvedCredential("vllm");
@@ -160,7 +160,7 @@ describe("runAgentTurn — the agent surface it ADDS (the only asymmetry)", () =
 });
 
 describe("runAgentTurn — bounded defaults + overrides", () => {
-  test("maxTurns defaults to 8 and maxOutputTokens defaults to 4096 (short, bounded)", async () => {
+  test("maxTurns defaults to 8 and maxOutputTokens defaults to 2048 (preset contract align) (short, bounded)", async () => {
     const { run, lastOptions } = harness();
     await run(buildReq());
     const opts = lastOptions();

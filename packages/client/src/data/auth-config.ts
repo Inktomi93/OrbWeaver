@@ -5,6 +5,8 @@
 // features/auth re-exports this for its own login/account surfaces.
 
 import type { AuthMode } from "@orb/contracts/identity";
+import type { UploadCaps } from "@orb/contracts/uploads";
+import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
 import type { UseQueryResult } from "@tanstack/react-query";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 
@@ -24,6 +26,10 @@ export interface AuthConfig {
    *  probe-and-catch of a `multiHumanProcedure` NOT_FOUND. Derived server-side per request from the
    *  same `MULTI_HUMAN_CAPABLE` map the transport belt runs. */
   readonly multiHumanCapable: boolean;
+  /** The served deployment upload byte caps — the ONE source the client's dropzone hints + pre-checks
+   *  derive from (resolved server-side, incl. the admin-tunable `maxImageBytes` clamp on the image cap).
+   *  The `useUploadCaps` hook falls back to `DEFAULT_UPLOAD_CAPS` until this config has landed. */
+  readonly uploads: UploadCaps;
 }
 
 export const AUTH_CONFIG_KEY = ["auth", "config"] as const;
@@ -56,4 +62,10 @@ const authConfigOptions = queryOptions({
  *  fetcher's own memo additionally dedupes across cache evictions. */
 export function useAuthConfig(): UseQueryResult<AuthConfig> {
   return useQuery(authConfigOptions);
+}
+
+/** The served upload byte caps, falling back to the contract defaults until `/api/auth/config` lands. The
+ *  ONE read every upload pre-check + dropzone hint uses — never an invented per-widget number. */
+export function useUploadCaps(): UploadCaps {
+  return useAuthConfig().data?.uploads ?? DEFAULT_UPLOAD_CAPS;
 }

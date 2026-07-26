@@ -20,6 +20,7 @@ import { Spinner } from "@orb/ui/spinner";
 import { Textarea } from "@orb/ui/textarea";
 import type { KeyboardEvent, ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
+import { useUploadCaps } from "#data";
 import type { SlashCommandContribution } from "#lib";
 import { IMAGE_GEN_NEEDS_CHAT, IMAGE_GEN_NEEDS_TEXT, testId } from "#lib";
 import type { ChatHandle } from "#state";
@@ -128,9 +129,6 @@ function resolveImageGenReason(hasChat: boolean, hasText: boolean): string | und
   return hasText ? undefined : IMAGE_GEN_NEEDS_TEXT;
 }
 
-// Client-side pre-check ceiling; the server re-caps at 64 MiB + magic-byte checks regardless.
-const MAX_ATTACHMENT_BYTES = 20_000_000;
-
 function AttachmentPreview({ attachment, onRemove }: { readonly attachment: PendingAttachment; readonly onRemove: () => void }): ReactElement {
   return (
     <Row gap="field" align="center" className="shrink-0" data-slot="composer-attachment">
@@ -156,6 +154,9 @@ export interface ComposerProps {
 
 export function Composer({ handle, value, onChange, draftSeed, onCommitted, tailRole = null, tailAssistantMessageId = null }: ComposerProps): ReactElement {
   const chatId = isCommitted(handle) ? handle.id : null;
+  // A composer attachment is an image, so the pre-check ceiling is the SERVED image cap (the tighter of the
+  // route cap and the admin `maxImageBytes`); the server re-caps + magic-byte checks regardless.
+  const maxAttachmentBytes = useUploadCaps().image;
   const slash = useSlashCommands(chatId);
   // The refusal from the LAST send attempt (unknown/unavailable command). Cleared on the next keystroke —
   // it explains one action, it is not a persistent state.
@@ -346,7 +347,7 @@ export function Composer({ handle, value, onChange, draftSeed, onCommitted, tail
             <FileDropzone
               accept="image/*"
               multiple={true}
-              maxSizeBytes={MAX_ATTACHMENT_BYTES}
+              maxSizeBytes={maxAttachmentBytes}
               disabled={sendMessage.isPending}
               onFilesSelected={addFiles}
               instructions=""

@@ -60,11 +60,19 @@ export const memorySummarizerSchema = z.object({
 });
 export type MemorySummarizerConfig = z.infer<typeof memorySummarizerSchema>;
 
+// Per-window request-cap bounds (a security control — see domain/settings/effective-config/layer.ts +
+// entry/rate-limit-gate.ts). MIN keeps an admin from setting a self-locking absurd-low cap (a cap of 1/min
+// would DoS the deployment); MAX keeps a fat-fingered/hostile value from being an effectively-uncapped hole.
+// A value outside these bounds fails parse → the field is dropped → the resolver reads the env floor
+// (fail-safe: an absurd override never LOOSENS or breaks the limiter, it falls back to the known-good floor).
+const RATE_LIMIT_CAP_MIN = 5;
+const RATE_LIMIT_CAP_MAX = 100_000;
+const rateLimitCap = (): z.ZodOptional<z.ZodNumber> => z.number().int().min(RATE_LIMIT_CAP_MIN).max(RATE_LIMIT_CAP_MAX).optional();
 export const rateLimitsSchema = z.object({
-  general: z.number().int().positive().optional(),
-  aiTurn: z.number().int().positive().optional(),
-  publicIp: z.number().int().positive().optional(),
-  authed: z.number().int().positive().optional(),
+  general: rateLimitCap(),
+  aiTurn: rateLimitCap(),
+  publicIp: rateLimitCap(),
+  authed: rateLimitCap(),
 });
 export type RateLimits = z.infer<typeof rateLimitsSchema>;
 

@@ -4,6 +4,7 @@
 // middleware already resolved — deliberately not a second resolution call (drift-free by construction).
 
 import type { AuthMode, Principal } from "@orb/contracts/identity";
+import { resolveUploadCaps } from "@orb/contracts/uploads";
 import type { Hono } from "hono";
 
 interface PrincipalEnv {
@@ -17,6 +18,9 @@ export interface AuthMetaDeps {
   readonly discreetLogin: () => boolean;
   /** Can ≥2 humans authenticate here? The same per-request derivation the tRPC context + /join/:token use. */
   readonly multiHumanCapable: () => boolean;
+  /** The admin-tunable effective `maxImageBytes` — resolves the served image cap (min of route cap and this)
+   *  so the client's dropzone hints + pre-checks derive the LIVE value instead of an invented per-widget number. */
+  readonly maxImageBytes: () => number;
 }
 
 /** Register the public bootstrap routes `GET /api/auth/config` + `GET /api/auth/me` on `app`. */
@@ -31,6 +35,7 @@ export function registerAuthMeta(app: Hono<PrincipalEnv>, deps: AuthMetaDeps): v
       discreetLogin: discreet,
       defaultHandle: discreet ? null : deps.defaultHandle,
       multiHumanCapable: deps.multiHumanCapable(),
+      uploads: resolveUploadCaps(deps.maxImageBytes()),
     });
   });
 

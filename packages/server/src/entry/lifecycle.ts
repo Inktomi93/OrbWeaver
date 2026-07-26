@@ -308,7 +308,7 @@ export function createLifecycle(): Lifecycle {
       db,
       seam: createAuthSeam({ sessions: built.sessions, verifyForwardJwt: createForwardJwtVerifier() }),
       services: built.services,
-      rateLimit: createRateLimitGate({ db, now }),
+      rateLimit: createRateLimitGate({ db, now, resolveRateLimits: () => built.services.settings.getEffectiveConfig().rateLimits }),
       presence: built.presence,
       assets: built.assets,
       cas: createCas(env.ASSETS_DIR),

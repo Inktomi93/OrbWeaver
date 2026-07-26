@@ -8,19 +8,17 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Progress } from "@orb/ui/progress";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import { useUploadCaps } from "#data";
 import { testId } from "#lib";
 import { useLibraryImport } from "../hooks/use-library-import";
 import { BundleWorkloadTracker } from "./bundle-workload-tracker";
 import { ImportReportSummary } from "./import-report-summary";
 
-// Mirrors the server's per-request body cap so an over-cap file is rejected inline, not after a wasted round-trip.
-const BYTES_PER_KIB = 1024;
-const BYTES_PER_MIB = BYTES_PER_KIB * BYTES_PER_KIB;
-const IMPORT_MAX_MIB = 256;
-const IMPORT_MAX_BYTES = IMPORT_MAX_MIB * BYTES_PER_MIB;
-
 /** The import controls: dropzone → busy + live progress → summary (or error) → reset. */
 export function ImportLibrarySection(): ReactElement {
+  // The per-request body cap, SERVED from the deployment config (never a hand-kept mirror) so an over-cap
+  // file is rejected inline, not after a wasted round-trip.
+  const importMaxBytes = useUploadCaps().importTotal;
   const { state, importFiles, importFolder, reset, track } = useLibraryImport();
   const busy = state.status === "uploading" || state.status === "running";
   const done = state.status === "done";
@@ -40,7 +38,7 @@ export function ImportLibrarySection(): ReactElement {
         hint="A .zip carries your whole library; a .png / .json is a single card"
         loading={busy}
         success={succeeded}
-        maxSizeBytes={IMPORT_MAX_BYTES}
+        maxSizeBytes={importMaxBytes}
         onFilesSelected={({ accepted }): void => {
           if (accepted.length > 0) {
             importFiles(accepted);
@@ -49,7 +47,7 @@ export function ImportLibrarySection(): ReactElement {
       />
       <Row justify="start" align="center" gap="field">
         <FolderPicker
-          maxSizeBytes={IMPORT_MAX_BYTES}
+          maxSizeBytes={importMaxBytes}
           loading={busy}
           onFilesSelected={({ accepted }): void => {
             if (accepted.length > 0) {

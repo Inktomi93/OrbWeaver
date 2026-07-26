@@ -14,6 +14,7 @@ import type {
   UserDialogRequest,
   UserDialogResult,
 } from "@anthropic-ai/claude-agent-sdk";
+import { DEFAULT_MAX_OUTPUT_TOKENS } from "@orb/contracts/preset";
 import type { AgentMcpServerHealth, AgentMcpServerSpec, AgentTurnRequest, ChatResult, ResponseFormat } from "../../contract";
 import { ProviderError } from "../../contract";
 import { refreshHostSubTokenIfMode1 } from "./host-token";
@@ -25,7 +26,10 @@ import type { AgentSdkDeps } from "./types";
 
 const MCP_NAMESPACE = "orbweaver";
 const DEFAULT_AGENT_MAX_TURNS = 8;
-const DEFAULT_AGENT_MAX_OUTPUT_TOKENS = 4096;
+// Aligned to the preset contract's DEFAULT_MAX_OUTPUT_TOKENS (2048) — the exact pattern the vllm chat
+// surface uses one backend over — so the whole codebase has one default output-token floor. Dormant path
+// (the only agent-turn consumer, buddy, is purged), so this is zero live behavior change today; the value
+// exists for the rebuilt caller that will feed a preset's maxOutputTokens.
 const SDK_TITLE_AGENT = "orbweaver-agent";
 const MCP_STATUS_PROBE_TIMEOUT_MS = 2000;
 const UNHEALTHY_MCP_STATUSES: ReadonlySet<string> = new Set(["failed", "needs-auth", "pending", "disabled"]);
@@ -133,7 +137,7 @@ export async function runAgentTurn(req: AgentTurnRequest, deps: AgentSdkDeps): P
   }
   await refreshHostSubTokenIfMode1(req.credential, deps.refreshHostSubToken);
   const overrides = {
-    maxOutputTokens: req.maxOutputTokens ?? DEFAULT_AGENT_MAX_OUTPUT_TOKENS,
+    maxOutputTokens: req.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
     ...(req.maxContextTokens !== undefined ? { maxContextTokens: req.maxContextTokens } : {}),
   };
   const abortController = new AbortController();
