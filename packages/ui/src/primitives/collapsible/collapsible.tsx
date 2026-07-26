@@ -5,6 +5,7 @@ import type {
 } from "@base-ui/react/collapsible";
 import { Collapsible as BaseCollapsible } from "@base-ui/react/collapsible";
 import type { ReactElement } from "react";
+import { ChevronDown, Icon } from "#primitives/icons";
 import { collapsibleVariants } from "./variants";
 
 const slots = collapsibleVariants();
@@ -19,10 +20,20 @@ export function Collapsible({ className, ...rest }: CollapsibleProps): ReactElem
 
 export interface CollapsibleTriggerProps extends Omit<BaseTriggerProps, "className"> {
   className?: string;
+  /** Bake the trailing `ChevronDown` that rotates on open (the discovery affordance; default `true`). Set
+   *  `false` when the consumer renders its OWN chevron/icon inside the trigger, to avoid a double chevron. */
+  chevron?: boolean;
 }
 
-export function CollapsibleTrigger({ className, ...rest }: CollapsibleTriggerProps): ReactElement {
-  return <BaseCollapsible.Trigger className={slots.trigger({ className })} data-slot="collapsible-trigger" {...rest} />;
+/** Bakes the trailing `ChevronDown` that rotates on `data-panel-open` (the accordion precedent) unless the
+ *  consumer opts out with `chevron={false}` (it renders its own). */
+export function CollapsibleTrigger({ className, chevron = true, children, ...rest }: CollapsibleTriggerProps): ReactElement {
+  return (
+    <BaseCollapsible.Trigger className={slots.trigger({ className })} data-slot="collapsible-trigger" {...rest}>
+      {children}
+      {chevron ? <Icon icon={ChevronDown} size="sm" className={slots.chevron()} /> : null}
+    </BaseCollapsible.Trigger>
+  );
 }
 
 export interface CollapsiblePanelProps extends Omit<BasePanelProps, "className"> {

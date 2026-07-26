@@ -50,8 +50,15 @@ default 1 byte-identical, AUTO_* constants dead] · ⑨ compaction.verbatimTail 
 disclosure · ⑪ library.pageSize 10..100; + the SORTABLE PRODUCT FIX
 [useDragDropMonitor+rAF, 600-green] + swipe-strip root-fix; both verifiers CONFIRMED-zero-defects;
 bar: check all-green · vitest 7355/0 · CT residues fixed [scroll-spy → Library · knip un-export]).
-**PHASE B REMAINING: ⑩ admin tier (stint 6, dispatching) → the ONE side-eye pass → ⑫
-imagery-templates (own sub-lane, last).**
+**✅ STINT 6 COMMITTED — `c4561fa8`** (the admin tier ⑩ complete: system-tuning section w/ 7 knobs
+[agentSdkConcurrency.summarize env-floor-4 · promptTransformDeadlineMs · maxDatabankBytes
+TIGHTEN-only · member-budget windowMs · catalog cadence · imageVariantQuality-in-cache-key ·
+VLLM_GEN_PRESENCE_PENALTY per-request preset-wins wire-snapshot-proven] + AppSettings v3→v4 lift +
+EffectiveAppConfig 16→22 + spine doc corrected + the RESET TRAP-UNDER-THE-TRAP: nested undefined
+strips on the JSON wire AND the naive leaf-null would have section-.catch-wiped engineLaunch —
+.nullable() leaf + null reset, probe-verified; bar perfect 7369/0 · 1420/0 · zero flakes).
+**MANIFEST ①–⑪ ALL DONE. PHASE B REMAINING: the ONE side-eye pass (dispatching NOW, quiesced
+tree) → fix BROKEN via the warm lane → ⑫ imagery-templates (own sub-lane, LAST).**
 
 **MORNING NOTE #2 (operational, safe-by-design):** stint 6 folded image-variant QUALITY into the
 variant cache KEY (`w<w>-q<q>.webp`) — every pre-existing cached variant ORPHANS on next serve
@@ -91,6 +98,11 @@ dnd-kit's own drop-time restoreFocus defers identically); target = source.handle
 Proof: 600 consecutive green @ the reproducing 12-worker parallelism + the new
 multi-step-continues CT arm; lying header comment corrected. Memory:
 [[sortable-keyboard-focus-monitor]].
+
+**ENGINES RULING (owner, 2026-07-26): stay LAZY — no proactive warm-up.** Nothing remaining
+tonight needs a model (⑫ = editing-surface lift; facelift = CSS-tier; the databank cosine hop
+stays the documented boundary). The supervisor spawns on first real demand; a cold spin-up
+on-demand beats holding GPUs hot. The earlier "warm after side-eye" plan is CANCELLED.
 
 **✅ PHASE A CONSOLIDATED — `d9525f02`** (perfect bar: check ok:true failed:[] · vitest 7341/0 ·
 CT 1380 expected / 0 unexpected / 0 flaky — first flake-free battery of the night). In it: the
