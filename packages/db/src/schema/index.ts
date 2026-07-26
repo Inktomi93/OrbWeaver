@@ -25,6 +25,7 @@ export * from "./plugin";
 export * from "./preset";
 export * from "./rate-limit";
 export * from "./relations";
+export * from "./rpg";
 export * from "./sdk-session";
 export * from "./sessions";
 export * from "./settings";

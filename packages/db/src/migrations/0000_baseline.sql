@@ -733,6 +733,111 @@ CREATE TABLE `rate_limit_buckets` (
 	`expires_at` integer NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE `rpg_checkpoints` (
+	`id` text PRIMARY KEY NOT NULL,
+	`game_id` text NOT NULL,
+	`snapshot_id` text NOT NULL,
+	`label` text NOT NULL,
+	`trigger` text NOT NULL,
+	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	FOREIGN KEY (`game_id`) REFERENCES `rpg_games`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`snapshot_id`) REFERENCES `rpg_snapshots`(`id`) ON UPDATE no action ON DELETE restrict,
+	CONSTRAINT "rpg_checkpoints_trigger_check" CHECK(trigger in ('manual'))
+);
+--> statement-breakpoint
+CREATE INDEX `rpg_checkpoints_game_idx` ON `rpg_checkpoints` (`game_id`);--> statement-breakpoint
+CREATE TABLE `rpg_games` (
+	`id` text PRIMARY KEY NOT NULL,
+	`chat_id` text NOT NULL,
+	`mode` text NOT NULL,
+	`status` text NOT NULL,
+	`session_number` integer DEFAULT 1 NOT NULL,
+	`gm_user_id` text,
+	`gm_preset_id` text,
+	`config` text NOT NULL,
+	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	FOREIGN KEY (`chat_id`) REFERENCES `chats`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`gm_user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE set null,
+	FOREIGN KEY (`gm_preset_id`) REFERENCES `presets`(`id`) ON UPDATE no action ON DELETE set null,
+	CONSTRAINT "rpg_games_mode_check" CHECK(mode in ('lite', 'full')),
+	CONSTRAINT "rpg_games_status_check" CHECK(status in ('setup', 'ready', 'active', 'concluded'))
+);
+--> statement-breakpoint
+CREATE UNIQUE INDEX `rpg_games_chat_unique` ON `rpg_games` (`chat_id`);--> statement-breakpoint
+CREATE TABLE `rpg_hud_widgets` (
+	`id` text PRIMARY KEY NOT NULL,
+	`game_id` text NOT NULL,
+	`type` text NOT NULL,
+	`label` text NOT NULL,
+	`icon` text,
+	`position` text NOT NULL,
+	`accent` text,
+	`sort` integer DEFAULT 0 NOT NULL,
+	`binding` text NOT NULL,
+	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	FOREIGN KEY (`game_id`) REFERENCES `rpg_games`(`id`) ON UPDATE no action ON DELETE cascade,
+	CONSTRAINT "rpg_hud_widgets_type_check" CHECK(type in ('meter', 'counter', 'gauge', 'badge', 'text')),
+	CONSTRAINT "rpg_hud_widgets_position_check" CHECK(position in ('banner', 'sidebar', 'footer'))
+);
+--> statement-breakpoint
+CREATE INDEX `rpg_hud_widgets_game_idx` ON `rpg_hud_widgets` (`game_id`);--> statement-breakpoint
+CREATE TABLE `rpg_journal` (
+	`id` text PRIMARY KEY NOT NULL,
+	`game_id` text NOT NULL,
+	`type` text NOT NULL,
+	`title` text NOT NULL,
+	`content` text NOT NULL,
+	`variant_id` text,
+	`source_message_id` text,
+	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	FOREIGN KEY (`game_id`) REFERENCES `rpg_games`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`variant_id`) REFERENCES `message_variants`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`source_message_id`) REFERENCES `messages`(`id`) ON UPDATE no action ON DELETE set null,
+	CONSTRAINT "rpg_journal_type_check" CHECK(type in ('location', 'npc', 'combat', 'quest', 'item', 'event', 'note'))
+);
+--> statement-breakpoint
+CREATE INDEX `rpg_journal_game_variant_idx` ON `rpg_journal` (`game_id`,`variant_id`);--> statement-breakpoint
+CREATE TABLE `rpg_sheets` (
+	`id` text PRIMARY KEY NOT NULL,
+	`game_id` text NOT NULL,
+	`character_id` text,
+	`user_id` text,
+	`sheet` text NOT NULL,
+	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	FOREIGN KEY (`game_id`) REFERENCES `rpg_games`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`character_id`) REFERENCES `characters`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade,
+	CONSTRAINT "rpg_sheets_actor_xor_check" CHECK((character_id is null) + (user_id is null) = 1)
+);
+--> statement-breakpoint
+CREATE UNIQUE INDEX `rpg_sheets_game_character_unique` ON `rpg_sheets` (`game_id`,`character_id`);--> statement-breakpoint
+CREATE UNIQUE INDEX `rpg_sheets_game_user_unique` ON `rpg_sheets` (`game_id`,`user_id`);--> statement-breakpoint
+CREATE TABLE `rpg_snapshots` (
+	`id` text PRIMARY KEY NOT NULL,
+	`game_id` text NOT NULL,
+	`message_id` text NOT NULL,
+	`variant_id` text NOT NULL,
+	`clock` text,
+	`calendar_date` text,
+	`location` text DEFAULT '' NOT NULL,
+	`weather` text,
+	`present_characters` text,
+	`recent_events` text,
+	`actor_state` text,
+	`widget_values` text,
+	`quests` text DEFAULT '[]',
+	`field_locks` text,
+	`committed` integer DEFAULT 0 NOT NULL,
+	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	FOREIGN KEY (`game_id`) REFERENCES `rpg_games`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`message_id`) REFERENCES `messages`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`variant_id`) REFERENCES `message_variants`(`id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
+CREATE UNIQUE INDEX `rpg_snapshots_variant_unique` ON `rpg_snapshots` (`variant_id`);--> statement-breakpoint
+CREATE INDEX `rpg_snapshots_game_idx` ON `rpg_snapshots` (`game_id`);--> statement-breakpoint
 CREATE TABLE `session_entries` (
 	`id` text PRIMARY KEY NOT NULL,
 	`chat_id` text NOT NULL,

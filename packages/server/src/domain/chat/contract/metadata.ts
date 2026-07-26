@@ -9,6 +9,7 @@ import type { ChatMetadata, GroupConfig, RoomOverrides } from "@orb/contracts/ch
 import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES, groupConfigSchema, openingPolicySchema, roomOverridesSchema } from "@orb/contracts/chat";
 import { openRouterProviderRoutingSchema } from "@orb/contracts/connection";
 import { chatDocumentVisibilitySchema } from "@orb/contracts/databank";
+import { chatRpgPointerSchema } from "@orb/contracts/rpg";
 
 import { themeBackgroundSchema } from "@orb/contracts/theme";
 import { stripUndefined } from "@orb/kit/objects";
@@ -34,6 +35,7 @@ const chatMetadataSchema = z
     toolRecurseLimit: toolRecurseLimitSchema.optional().catch(undefined),
     databankVisibility: chatDocumentVisibilitySchema.optional().catch(undefined),
     background: themeBackgroundSchema.optional().catch(undefined),
+    rpg: chatRpgPointerSchema.optional().catch(undefined),
   })
   .loose();
 

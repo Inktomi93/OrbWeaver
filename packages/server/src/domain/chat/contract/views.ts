@@ -24,6 +24,7 @@ import type {
   RoomOverrides,
 } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
+import type { ChatRpgPointer } from "@orb/contracts/rpg";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type { CharacterId, ChatId, ChatInjectionId, MessageVariantId, UserId } from "@orb/kit/ids";
 
@@ -114,6 +115,11 @@ export interface ChatDetail {
    *  unset. Applied at the app-root background layer in a TRUE-SOLO room, above the card-carried twin; INERT
    *  for every viewer in any other composition (client-resolved). */
   readonly background: ThemeBackground | null;
+  /** The OPAQUE rpg sync pointer (parsed `metadata.rpg`, rpg-design/05 §2.1), or `null` when this chat is
+   *  not a game. Mode-free `{gameId}` — the client's takeover gate is a SYNC read off this (data it already
+   *  holds), then it reads the lite/full trim from `rpg.getGame`. Chat never dereferences it; a corrupt blob
+   *  heals to absent at the parser. */
+  readonly rpg: ChatRpgPointer | null;
 
   readonly opening: OpeningPolicy | null;
   /** The portable compaction checkpoint (D25) — the summary text + the seq it covers through. */
