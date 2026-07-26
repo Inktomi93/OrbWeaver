@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "67a70da1-d6ec-4a87-90e1-6d416b05e203",
+  "id": "a480c989-7011-44b8-adde-6cc2a10e6b69",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "assets": {
@@ -4756,6 +4756,698 @@
       },
       "indexes": {},
       "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "rpg_checkpoints": {
+      "name": "rpg_checkpoints",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "game_id": {
+          "name": "game_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "snapshot_id": {
+          "name": "snapshot_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "label": {
+          "name": "label",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "trigger": {
+          "name": "trigger",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch() * 1000)"
+        }
+      },
+      "indexes": {
+        "rpg_checkpoints_game_idx": {
+          "name": "rpg_checkpoints_game_idx",
+          "columns": ["game_id"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "rpg_checkpoints_game_id_rpg_games_id_fk": {
+          "name": "rpg_checkpoints_game_id_rpg_games_id_fk",
+          "tableFrom": "rpg_checkpoints",
+          "tableTo": "rpg_games",
+          "columnsFrom": ["game_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "rpg_checkpoints_snapshot_id_rpg_snapshots_id_fk": {
+          "name": "rpg_checkpoints_snapshot_id_rpg_snapshots_id_fk",
+          "tableFrom": "rpg_checkpoints",
+          "tableTo": "rpg_snapshots",
+          "columnsFrom": ["snapshot_id"],
+          "columnsTo": ["id"],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "rpg_checkpoints_trigger_check": {
+          "name": "rpg_checkpoints_trigger_check",
+          "value": "trigger in ('manual')"
+        }
+      }
+    },
+    "rpg_games": {
+      "name": "rpg_games",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "chat_id": {
+          "name": "chat_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "mode": {
+          "name": "mode",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "session_number": {
+          "name": "session_number",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 1
+        },
+        "gm_user_id": {
+          "name": "gm_user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "gm_preset_id": {
+          "name": "gm_preset_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "config": {
+          "name": "config",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch() * 1000)"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch() * 1000)"
+        }
+      },
+      "indexes": {
+        "rpg_games_chat_unique": {
+          "name": "rpg_games_chat_unique",
+          "columns": ["chat_id"],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "rpg_games_chat_id_chats_id_fk": {
+          "name": "rpg_games_chat_id_chats_id_fk",
+          "tableFrom": "rpg_games",
+          "tableTo": "chats",
+          "columnsFrom": ["chat_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "rpg_games_gm_user_id_users_id_fk": {
+          "name": "rpg_games_gm_user_id_users_id_fk",
+          "tableFrom": "rpg_games",
+          "tableTo": "users",
+          "columnsFrom": ["gm_user_id"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "rpg_games_gm_preset_id_presets_id_fk": {
+          "name": "rpg_games_gm_preset_id_presets_id_fk",
+          "tableFrom": "rpg_games",
+          "tableTo": "presets",
+          "columnsFrom": ["gm_preset_id"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "rpg_games_mode_check": {
+          "name": "rpg_games_mode_check",
+          "value": "mode in ('lite', 'full')"
+        },
+        "rpg_games_status_check": {
+          "name": "rpg_games_status_check",
+          "value": "status in ('setup', 'ready', 'active', 'concluded')"
+        }
+      }
+    },
+    "rpg_hud_widgets": {
+      "name": "rpg_hud_widgets",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "game_id": {
+          "name": "game_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "type": {
+          "name": "type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "label": {
+          "name": "label",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "icon": {
+          "name": "icon",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "position": {
+          "name": "position",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "accent": {
+          "name": "accent",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "sort": {
+          "name": "sort",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "binding": {
+          "name": "binding",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch() * 1000)"
+        }
+      },
+      "indexes": {
+        "rpg_hud_widgets_game_idx": {
+          "name": "rpg_hud_widgets_game_idx",
+          "columns": ["game_id"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "rpg_hud_widgets_game_id_rpg_games_id_fk": {
+          "name": "rpg_hud_widgets_game_id_rpg_games_id_fk",
+          "tableFrom": "rpg_hud_widgets",
+          "tableTo": "rpg_games",
+          "columnsFrom": ["game_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "rpg_hud_widgets_type_check": {
+          "name": "rpg_hud_widgets_type_check",
+          "value": "type in ('meter', 'counter', 'gauge', 'badge', 'text')"
+        },
+        "rpg_hud_widgets_position_check": {
+          "name": "rpg_hud_widgets_position_check",
+          "value": "position in ('banner', 'sidebar', 'footer')"
+        }
+      }
+    },
+    "rpg_journal": {
+      "name": "rpg_journal",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "game_id": {
+          "name": "game_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "type": {
+          "name": "type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "content": {
+          "name": "content",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "variant_id": {
+          "name": "variant_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "source_message_id": {
+          "name": "source_message_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch() * 1000)"
+        }
+      },
+      "indexes": {
+        "rpg_journal_game_variant_idx": {
+          "name": "rpg_journal_game_variant_idx",
+          "columns": ["game_id", "variant_id"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "rpg_journal_game_id_rpg_games_id_fk": {
+          "name": "rpg_journal_game_id_rpg_games_id_fk",
+          "tableFrom": "rpg_journal",
+          "tableTo": "rpg_games",
+          "columnsFrom": ["game_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "rpg_journal_variant_id_message_variants_id_fk": {
+          "name": "rpg_journal_variant_id_message_variants_id_fk",
+          "tableFrom": "rpg_journal",
+          "tableTo": "message_variants",
+          "columnsFrom": ["variant_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "rpg_journal_source_message_id_messages_id_fk": {
+          "name": "rpg_journal_source_message_id_messages_id_fk",
+          "tableFrom": "rpg_journal",
+          "tableTo": "messages",
+          "columnsFrom": ["source_message_id"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "rpg_journal_type_check": {
+          "name": "rpg_journal_type_check",
+          "value": "type in ('location', 'npc', 'combat', 'quest', 'item', 'event', 'note')"
+        }
+      }
+    },
+    "rpg_sheets": {
+      "name": "rpg_sheets",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "game_id": {
+          "name": "game_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "character_id": {
+          "name": "character_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "sheet": {
+          "name": "sheet",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch() * 1000)"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch() * 1000)"
+        }
+      },
+      "indexes": {
+        "rpg_sheets_game_character_unique": {
+          "name": "rpg_sheets_game_character_unique",
+          "columns": ["game_id", "character_id"],
+          "isUnique": true
+        },
+        "rpg_sheets_game_user_unique": {
+          "name": "rpg_sheets_game_user_unique",
+          "columns": ["game_id", "user_id"],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "rpg_sheets_game_id_rpg_games_id_fk": {
+          "name": "rpg_sheets_game_id_rpg_games_id_fk",
+          "tableFrom": "rpg_sheets",
+          "tableTo": "rpg_games",
+          "columnsFrom": ["game_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "rpg_sheets_character_id_characters_id_fk": {
+          "name": "rpg_sheets_character_id_characters_id_fk",
+          "tableFrom": "rpg_sheets",
+          "tableTo": "characters",
+          "columnsFrom": ["character_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "rpg_sheets_user_id_users_id_fk": {
+          "name": "rpg_sheets_user_id_users_id_fk",
+          "tableFrom": "rpg_sheets",
+          "tableTo": "users",
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "rpg_sheets_actor_xor_check": {
+          "name": "rpg_sheets_actor_xor_check",
+          "value": "(character_id is null) + (user_id is null) = 1"
+        }
+      }
+    },
+    "rpg_snapshots": {
+      "name": "rpg_snapshots",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "game_id": {
+          "name": "game_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "message_id": {
+          "name": "message_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "variant_id": {
+          "name": "variant_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "clock": {
+          "name": "clock",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "calendar_date": {
+          "name": "calendar_date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "location": {
+          "name": "location",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "''"
+        },
+        "weather": {
+          "name": "weather",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "present_characters": {
+          "name": "present_characters",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "recent_events": {
+          "name": "recent_events",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "actor_state": {
+          "name": "actor_state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "widget_values": {
+          "name": "widget_values",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "quests": {
+          "name": "quests",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "'[]'"
+        },
+        "field_locks": {
+          "name": "field_locks",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "committed": {
+          "name": "committed",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch() * 1000)"
+        }
+      },
+      "indexes": {
+        "rpg_snapshots_variant_unique": {
+          "name": "rpg_snapshots_variant_unique",
+          "columns": ["variant_id"],
+          "isUnique": true
+        },
+        "rpg_snapshots_game_idx": {
+          "name": "rpg_snapshots_game_idx",
+          "columns": ["game_id"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "rpg_snapshots_game_id_rpg_games_id_fk": {
+          "name": "rpg_snapshots_game_id_rpg_games_id_fk",
+          "tableFrom": "rpg_snapshots",
+          "tableTo": "rpg_games",
+          "columnsFrom": ["game_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "rpg_snapshots_message_id_messages_id_fk": {
+          "name": "rpg_snapshots_message_id_messages_id_fk",
+          "tableFrom": "rpg_snapshots",
+          "tableTo": "messages",
+          "columnsFrom": ["message_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "rpg_snapshots_variant_id_message_variants_id_fk": {
+          "name": "rpg_snapshots_variant_id_message_variants_id_fk",
+          "tableFrom": "rpg_snapshots",
+          "tableTo": "message_variants",
+          "columnsFrom": ["variant_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}

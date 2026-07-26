@@ -74,6 +74,7 @@ export function toChatDetail({
     roomOverrides: chat.metadata.roomOverrides ?? DEFAULT_ROOM_OVERRIDES,
     toolRecurseLimit: chat.metadata.toolRecurseLimit ?? null,
     background: chat.metadata.background ?? null,
+    rpg: chat.metadata.rpg ?? null,
     opening: chat.metadata.opening ?? null,
     compactSummary: checkpointVisible ? chat.compactSummary : null,
     compactedAtSeq: checkpointVisible ? chat.compactedAtSeq : null,

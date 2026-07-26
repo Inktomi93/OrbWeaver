@@ -73,6 +73,15 @@ export const ID_PREFIX = {
   // The installed-plugin registry row (D46). `plugin_kv` has NO TypeID — its identity is the composite
   // PK (pluginId, key).
   plugin: "plugin",
+  // RPG lite substrate (rpg-design/05 §4.1). Quest ids are PLAIN strings minted inside the snapshot
+  // blob (no table, no FK — a TypeID brand buys nothing there; the objective-id precedent), so no
+  // `rpgQuest` prefix. Full ADDS its own prefixes (npc/clock/map/session/encounter/scene/pendingCheck).
+  rpgGame: "rpg_game",
+  rpgSnapshot: "rpg_snapshot",
+  rpgSheet: "rpg_sheet",
+  rpgWidget: "rpg_widget",
+  rpgJournal: "rpg_journal",
+  rpgCheckpoint: "rpg_checkpoint",
 } as const;
 
 // --- Identity / auth ---------------------------------------------------------
@@ -152,6 +161,18 @@ export type DocumentChunkId = TypeIdOf<"document_chunk">;
 
 // --- Plugins (D46 code sandbox) ----------------------------------------------
 export type PluginId = TypeIdOf<"plugin">;
+
+// --- RPG (lite substrate — the 6-table floor, rpg-design/05 §4.1) ------------
+export type RpgGameId = TypeIdOf<"rpg_game">;
+export type RpgSnapshotId = TypeIdOf<"rpg_snapshot">;
+export type RpgSheetId = TypeIdOf<"rpg_sheet">;
+export type RpgWidgetId = TypeIdOf<"rpg_widget">;
+export type RpgJournalId = TypeIdOf<"rpg_journal">;
+export type RpgCheckpointId = TypeIdOf<"rpg_checkpoint">;
+/** A quest's stable id — a PLAIN (prefix-less) branded nanoid, minted IN the snapshot blob (no table, no
+ *  FK, no `ID_PREFIX` entry). The `no-raw-id` gate requires a brand even for the in-blob object id; a
+ *  prefix-less brand is the type-safety-without-TypeID-machinery middle. Mint via `newId<RpgQuestId>()`. */
+export type RpgQuestId = Branded<"RpgQuestId">;
 
 // --- Workloads (in-server bulk-work lifecycle) -------------------------------
 export type WorkloadId = TypeIdOf<"workload">;

@@ -872,6 +872,7 @@ describe("chat.forkChat — the deep-copy-into-a-new-chat verb (chat-surface lan
       group: DEFAULT_GROUP_CONFIG,
       roomOverrides: DEFAULT_ROOM_OVERRIDES,
       toolRecurseLimit: null,
+      rpg: null,
       background: null,
       opening: null,
       compactSummary: null,
