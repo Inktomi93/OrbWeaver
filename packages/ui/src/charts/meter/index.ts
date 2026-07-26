@@ -5,5 +5,9 @@
 
 export type { MeterProps } from "./meter";
 export { Meter } from "./meter";
+export type { RingColor, RingGaugeProps } from "./ring-gauge";
+export { RingGauge } from "./ring-gauge";
 export type { SegmentedClockProps } from "./segmented-clock";
 export { SegmentedClock } from "./segmented-clock";
+export type { TrackBarProps, TrackColor } from "./track-bar";
+export { TrackBar } from "./track-bar";
