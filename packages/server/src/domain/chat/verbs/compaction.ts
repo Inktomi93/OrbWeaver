@@ -22,6 +22,7 @@
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
 import type { UserIntent } from "@orb/contracts/preset";
+import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import { chats } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
@@ -81,8 +82,12 @@ function buildCompactionPrompt(args: { readonly priorSummary: string | null; rea
   return parts.join("\n\n");
 }
 
-/** The low-temp, bounded intent the marker generation runs at (a summary is not creative writing). */
-const COMPACTION_INTENT: UserIntent = { temperature: 0.3 };
+/** The compaction call's per-pass sampling override (a summary is not creative writing) — the side-gen ladder's
+ *  TOP rung, sourced from the ONE catalog (`SIDE_GEN_POSTURES.compaction`), never a local const. quiet-generate
+ *  folds it OVER the chat's preset params + the `quiet_generate` floor: the low temp is deliberately pinned here,
+ *  while the output length is left to the chat's preset params / the quiet floor (the user's maxOutputTokens now
+ *  reaches it). Spread into a mutable `UserIntent` (the catalog entry is `readonly`). */
+const COMPACTION_INTENT: UserIntent = { ...SIDE_GEN_POSTURES.compaction };
 
 /** Generate the fresh marker for a NON-empty prompt-eligible span + write it. Split out to keep the core under
  *  the complexity cap. A THROW propagates (failure honesty); an EMPTY generation leaves the prior marker intact. */

@@ -347,6 +347,9 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     tools: null,
     applyRegexReplace: (text, regex, replacer) => text.replace(regex, replacer),
     runChatTurn: notStubbed,
+    // The side-gen sampling ladder's middle rung (chat host preset params) — default = an empty posture so the
+    // per-site floors stand (byte-identical to pre-ladder behavior). A test exercising the override supplies its own.
+    resolveChatPresetParams: () => Promise.resolve({}),
     resolveChat: notStubbed,
     resolveCredential: notStubbed,
     maybeRevokeOnAuthFailed: notStubbed,

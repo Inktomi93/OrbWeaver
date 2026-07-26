@@ -12,8 +12,11 @@ import type { AssembleContext, ChatBusEvent, GroupConfig, MessageView, SpeakerRe
 import { AUTOMATION_DEPTH_HARD_CAP, DEFAULT_GROUP_CONFIG, isAiDriven, speakerKey } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
 import type { GenerationType } from "@orb/contracts/preset";
+import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import { batchMany, isConstraintViolation } from "@orb/db/kit";
 import type { AssetId, CharacterId, ChatId, MessageId, PendingTurnId, PersonaId, UserId } from "@orb/kit/ids";
+import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
+import { toSummarizeOptions } from "@orb/server/kit/side-gen-posture";
 import { getLog } from "#foundation/observability";
 import type { ChatContext } from "../context";
 import type { ActiveTurns } from "../contract/active-turns";
@@ -420,6 +423,10 @@ async function arbitrate(
   const forced = args.forcedIds ?? [];
   let refs: readonly SpeakerRef[];
   if (args.group.policy === "smart" && forced.length === 0) {
+    // The side-gen sampling ladder: the `arbiter` floor (temp 0.2, 24 out — a deterministic name pick) ← the
+    // chat host's default-preset params. A user with no preset params gets byte-identical behavior; a user WITH
+    // preset params can now widen/tune it. Mapped to the summarize seam's `{temperature, maxTokens}`.
+    const arbiterSampling = toSummarizeOptions(resolveSideGenSampling(SIDE_GEN_POSTURES.arbiter, await ctx.resolveChatPresetParams(args.chatId)));
     const smart = await smartArbitrateVia({
       summarize: ctx.summarize,
       candidates: args.candidates,
@@ -427,6 +434,7 @@ async function arbitrate(
       recentHistory: args.recentHistory,
       lastSpeaker: args.lastSpeaker,
       rng: deps.prng,
+      sampling: arbiterSampling,
       ...(args.signal !== undefined ? { signal: args.signal } : {}),
     });
     if (smart.aborted) {

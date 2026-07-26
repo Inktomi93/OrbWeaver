@@ -15,11 +15,15 @@ import type { Principal } from "@orb/contracts/identity";
 import { generateImageActionArgsSchema } from "@orb/contracts/imagery";
 import { AUTOMATION_NOTICE_MESSAGE_MAX } from "@orb/contracts/notifications";
 import type { InvocationChat, PluginHandlerRef } from "@orb/contracts/plugin";
+import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import { listSeededBackgrounds } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
+import type { SideGenSampling } from "@orb/kit/side-gen-posture";
+import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
+import { toSummarizeOptions } from "@orb/server/kit/side-gen-posture";
 import { can } from "#domain/admin";
 import type { AssetsService } from "#domain/assets";
 import type { AutomationService } from "#domain/automation";
@@ -47,8 +51,6 @@ import type { ChatComposeResult } from "./chat";
 import { minter } from "./minter";
 import { loadPluginMessages } from "./plugin-chat-reads";
 
-const AUTOBG_TEMPERATURE = 0.2;
-const AUTOBG_MAX_TOKENS = 32;
 const AUTOBG_SYSTEM =
   "You choose the single best-matching background for a scene. Reply with ONLY the exact background name from the provided list, nothing else.";
 const PLUGIN_MESSAGE_CONTENT_CAP = 16_384;
@@ -70,6 +72,8 @@ export interface AutomationPluginComposeDeps {
   readonly toolUse: Pick<ToolUseService, "registerPluginTool">;
   readonly resolveOwnerPrincipal: (userId: UserId) => Promise<Principal>;
   readonly bindRoleClients: (ownerId: UserId) => Promise<RoleClientsWithSignal>;
+  /** The author's default-preset generation params (the side-gen sampling ladder's middle rung — /autobg). */
+  readonly resolveUserPresetParams: (userId: UserId) => Promise<SideGenSampling>;
 }
 
 /** The automation+plugin compose product. */
@@ -164,10 +168,13 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     setChatBackground: async ({ authorUserId, chatId, background }) => {
       await chat.setChatBackground({ principal: await resolveOwnerPrincipal(authorUserId), chatId, background });
     },
-    // BG-F — the quiet summarize-role pick: one summarize generation under the author's connection.
+    // BG-F — the quiet summarize-role pick: one summarize generation under the author's connection. The side-gen
+    // sampling ladder: the `autobg` floor (temp 0.2, 32 out — a deterministic name pick) ← the author's
+    // default-preset params. A user with no preset params gets byte-identical behavior.
     summarizeQuiet: async ({ authorUserId, prompt }) => {
       const rc = await bindRoleClients(authorUserId);
-      const res = await rc.summarize([{ systemPrompt: AUTOBG_SYSTEM, userPrompt: prompt }], { temperature: AUTOBG_TEMPERATURE, maxTokens: AUTOBG_MAX_TOKENS });
+      const posture = resolveSideGenSampling(SIDE_GEN_POSTURES.autobg, await deps.resolveUserPresetParams(authorUserId));
+      const res = await rc.summarize([{ systemPrompt: AUTOBG_SYSTEM, userPrompt: prompt }], toSummarizeOptions(posture));
       const item = res.items[0];
       return { text: (item?.text ?? "").trim() };
     },

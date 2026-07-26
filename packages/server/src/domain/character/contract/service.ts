@@ -62,9 +62,14 @@ type ResolveGreetingTemplateOp = (args: { readonly caller: Principal; readonly k
 
 /** The bounded side-LLM completion the greeting-studio verbs await (the imagery `captionImage` precedent —
  *  the summarize lane at compose). ONE prompt in, `{text, costUsd}` out; the caller's connection is resolved
- *  at compose (the caller IS the request owner — every studio verb is owner-gated). Bounded temperature/token
- *  posture is applied at compose (mirroring quiet-generate's floor constants). */
-type GenerateGreetingTextOp = (args: { readonly caller: Principal; readonly prompt: string }) => Promise<GeneratedGreeting>;
+ *  at compose (the caller IS the request owner — every studio verb is owner-gated). The sampling posture is
+ *  resolved at compose through the side-gen ladder (`greeting_studio` floor ← the caller's preset params ←
+ *  the guided action's per-action `sampling`); `kind` selects which guided action's per-action rung applies. */
+type GenerateGreetingTextOp = (args: {
+  readonly caller: Principal;
+  readonly prompt: string;
+  readonly kind: "greeting_rewrite" | "greeting_new";
+}) => Promise<GeneratedGreeting>;
 
 /** DI bundle every character verb closes over. */
 export interface CharacterContext {

@@ -56,6 +56,75 @@ export const QUALITY_SAMPLING: Record<Quality, { readonly temperature?: number }
   deep: { temperature: 1 },
 };
 
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+// Side-generation postures — the FLOOR sampling catalog (the third rung of the side-gen sampling ladder).
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// Every side-generation call site (arbitration, quiet generation, compaction, distillation, analysis,
+// greeting studio, /autobg, caption) used to hardcode its own `temperature`/`maxTokens` constants — a
+// buried const that the user's own generation params could never override. The ladder resolves each site's
+// posture right-to-left through `@orb/kit/side-gen-posture`:
+//   per-action override (guidedActions.sampling)  →  the caller's preset `params`  →  THIS floor.
+// This catalog is the FLOOR — the last word, and the byte-identical encoding of the OLD hardcoded consts, so
+// a user with no preset params + no per-action sampling gets exactly today's behavior. The numbers are NOT
+// arbitrary — each entry carries the WHY from the const it replaced (a summary is not creative writing; a
+// name is not prose; etc.). To retune a floor, edit HERE (one home), never at a call site.
+export const SIDE_GEN_KINDS = [
+  "arbiter",
+  "quiet_generate",
+  "extract_quiet",
+  "compaction",
+  "distill",
+  "analyze",
+  "greeting_studio",
+  "autobg",
+  "caption",
+] as const satisfies readonly string[];
+export type SideGenKind = (typeof SIDE_GEN_KINDS)[number];
+
+/** A side-generation floor posture — the sampling knobs a side-gen call runs at ABSENT a preset/per-action
+ *  override. Both fields optional: an ABSENT field means "the runner/backend default stands" (caption's
+ *  empty posture is the honest encoding of a call that passed nothing). `maxOutputTokens` (not `maxTokens`)
+ *  matches the `userIntentSchema` vocabulary — a call site whose seam takes `maxTokens` (the summarize role)
+ *  maps the field at the seam. */
+export interface SideGenPosture {
+  readonly temperature?: number;
+  readonly maxOutputTokens?: number;
+}
+
+// biome-ignore-start lint/style/useNamingConvention: the map key IS the SideGenKind string (snake_case vocabulary)
+export const SIDE_GEN_POSTURES = {
+  // Smart 7b arbitration: a deterministic-ish classify (pick ONE next speaker) — a tiny output budget
+  // because we want a name, not prose (the roster-validating parse + fallback cover the non-determinism).
+  arbiter: { temperature: 0.2, maxOutputTokens: 24 },
+  // Quiet (non-canon) generation: near-deterministic + bounded — a summary/marker is not creative writing.
+  quiet_generate: { temperature: 0.3, maxOutputTokens: 1024 },
+  // Imagery quiet keyword-extraction: low temp for a near-deterministic extraction, a budget sized for a
+  // keyword list, not prose.
+  extract_quiet: { temperature: 0.4, maxOutputTokens: 320 },
+  // Managed-compaction marker: low-temp + bounded (a faithful summary, not creative writing). Historically
+  // this passed ONLY a temperature (the output length floored through quiet_generate, which it rides) — so
+  // the encoding carries NO `maxOutputTokens`, and the quiet_generate floor still supplies the length.
+  compaction: { temperature: 0.3 },
+  // Library distillation (card → filterable facets): near-deterministic guided decode, a budget sized for
+  // the compact structured payload.
+  distill: { temperature: 0.2, maxOutputTokens: 512 },
+  // Library analysis (compare narrative + askCard answer): a grounded read over a precomputed diff / recent
+  // scenes — a short, grounded structured answer. Both analyze calls share this posture (identical today:
+  // 0.3 / 400 out for each); if the two budgets ever diverge, split into two kinds.
+  analyze: { temperature: 0.3, maxOutputTokens: 400 },
+  // Greeting studio bounded completion: a bounded transform of a base greeting, not an open creative turn —
+  // mirrors the quiet_generate floor (temp 0.3, 1024 out).
+  greeting_studio: { temperature: 0.3, maxOutputTokens: 1024 },
+  // Automation /autobg background pick: a deterministic classify (pick ONE background name from a list) —
+  // a tiny output budget because we want a name, nothing else.
+  autobg: { temperature: 0.2, maxOutputTokens: 32 },
+  // Vision caption: an EMPTY floor — the caption call historically passed NO sampling options (the backend
+  // defaults stood). An empty posture is the honest encoding; a preset/per-action override CAN now reach it.
+  caption: {},
+} as const satisfies Record<SideGenKind, SideGenPosture>;
+// biome-ignore-end lint/style/useNamingConvention: the map key IS the SideGenKind string (snake_case vocabulary)
+
 // The user-INTENT effort vocabulary (adds `none` = thinking-disabled) — derived from connection's
 // `EffortLevel` set (never redeclared) so the two can't diverge.
 export const EFFORT_LEVELS = ["none", ...MODEL_EFFORT_LEVELS] as const;
@@ -218,12 +287,28 @@ const GREETING_NEW_DEFAULT_PROMPT =
 
 const GUIDED_DEFAULT_ROLE: MessageRole = "system";
 
+/** The per-action sampling override — the TOP rung of the side-gen sampling ladder (the resolver folds it
+ *  over the caller's preset params, then the floor posture). Every field OPTIONAL + the whole object absent
+ *  by default (the stored-blob-predates-field precedent): a blob without it parses, and an absent field
+ *  simply defers to the next rung. Only guided-action-backed side-gen sites consume it today (the greeting
+ *  studio via greeting_rewrite/greeting_new → the `greeting_studio` posture); non-guided sites skip this
+ *  rung. The knob VOCABULARY is `userIntentSchema`'s (camelCase — these are NOT snake-case wire fields). */
+const guidedActionSamplingSchema = z
+  .object({
+    temperature: generationKnobSchemas.temperature,
+    topP: generationKnobSchemas.topP,
+    maxOutputTokens: generationKnobSchemas.maxOutputTokens,
+  })
+  .optional();
+
 export const guidedActionConfigSchema = z.object({
   /** The injection template; `{{input}}` = the user's steering text. Missing/empty falls back to `{{input}}` alone. */
   prompt: z.string(),
   /** Conversation role the resolved text is delivered with; `system` renders in the cacheable system
    *  prompt, `user`/`assistant` push as an in-chat depth-0 injection. */
   role: z.enum(MESSAGE_ROLES).default(GUIDED_DEFAULT_ROLE),
+  /** Per-action sampling override — the ladder's top rung (see {@link guidedActionSamplingSchema}). */
+  sampling: guidedActionSamplingSchema,
 });
 export type GuidedActionConfig = z.infer<typeof guidedActionConfigSchema>;
 

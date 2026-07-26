@@ -27,7 +27,7 @@
   "packages/client/src/lib/motion-stats.ts": 1,
   "packages/client/src/lib/registry-contracts.ts": 1,
   "packages/contracts/src/character/index.ts": 2,
-  "packages/contracts/src/preset/index.ts": 6,
+  "packages/contracts/src/preset/index.ts": 8,
   "packages/db/src/client/index.ts": 2,
   "packages/db/src/schema/automation.ts": 1,
   "packages/db/src/schema/character.ts": 1,

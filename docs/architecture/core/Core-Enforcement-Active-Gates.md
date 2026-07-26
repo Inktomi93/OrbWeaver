@@ -197,6 +197,7 @@ lands) and **pinned by `tests/tooling/check-gates.int.test.ts`** — it derives 
 | `no-external-media-without-gate` | raw media elements (img/video/audio) outside of MessageMedia in features (D44 containment) |
 | `no-inline-types` | exported type/zod-schema outside of type homes (contract, kit, tests) (Spine-TypeScript-and-Patterns.md §7.4) |
 | `no-layout-context-props` | layout-context boolean/enum props (compact/inDrawer) on JSX (D42) |
+| `no-hardcoded-side-gen-sampling` | a hardcoded sampling literal (`temperature`/`maxOutputTokens`/`maxTokens`/`topP` = a numeric literal) at a side-generation call site in `packages/server/src/domain/**` or `entry/**` is RED — resolve the posture through the ladder (`resolveSideGenSampling` + `SIDE_GEN_POSTURES` from `@orb/contracts/preset`) so the user's preset params can override the floor. `infra/**` (wire translation + usage accounting) + tests are exempt; key-name scoped so unrelated numerics (`topK`, counters) don't trip |
 | `no-manual-token-estimate` | hand-rolled `.length / 4` token estimates — use `@orb/kit/tokens` instead |
 | `no-media-queries-in-features` | viewport breakpoint variants in features — use `@orb/ui` responsive primitives |
 | `no-multiplexed-mutation-error` | multiplexed mutation errors (`a.error ?? b.error`) — use a single mutation |
@@ -217,7 +218,7 @@ lands) and **pinned by `tests/tooling/check-gates.int.test.ts`** — it derives 
 | `serde-core-seal` | the PNG card-chunk engine (`@orb/kit/png-card-chunk`) is shared byte surgery for `domain/import` (read) and `domain/export` (write) ONLY — an import outside those sanctioned serde homes is RED (Spine-Config-and-Serialization.md §"Serialization / serde core") |
 | `suppressions` | counts down the four suppression-marker shapes under `packages/*/src` (`biome-ignore`(-all), every `eslint-disable` variant, the two `@orb-gate-ignore`/ts-expect-error escapes) against a committed both-ways baseline ratchet (Spine-Testing.md §5 house-suppression discipline) |
 
-The table mirrors `report.ts`'s `loadGates()`-discovered `status:"active"` set (148 registered gates);
+The table mirrors `report.ts`'s `loadGates()`-discovered `status:"active"` set (149 registered gates);
 the discovered descriptor set is the runtime truth.
 
 The 7th fired-trigger gate (PD-116), `solo-byte-identical`, is NOT a static gate — it is the

@@ -17,6 +17,7 @@ import {
   parsePresetFile,
   parsePromptConfig,
   promptConfigSchema,
+  SIDE_GEN_POSTURES,
   THINK_PREFIX_DEFAULT,
   THINK_SUFFIX_DEFAULT,
   userIntentSchema,
@@ -210,6 +211,36 @@ test("guidedActionsSchema fills opening + continue + greeting defaults for a blo
   // Greeting-studio kinds (audit §3) — defaulted like opening/continue so a stored blob predating them parses.
   expect(parsed.greeting_rewrite).toEqual(DEFAULT_GUIDED_ACTIONS.greeting_rewrite);
   expect(parsed.greeting_new).toEqual(DEFAULT_GUIDED_ACTIONS.greeting_new);
+});
+
+test("guidedActionConfigSchema: the optional `sampling` rung defaults ABSENT (a blob predating it parses)", () => {
+  // The stored-blob-predates-field precedent — a guided action with no `sampling` key parses, and the field
+  // stays absent (never fabricated), so the side-gen ladder folds only the preset params + floor.
+  const parsed = guidedActionsSchema.parse(DEFAULT_GUIDED_ACTIONS);
+  for (const kind of GUIDED_ACTION_KINDS) {
+    expect(parsed[kind].sampling).toBeUndefined();
+  }
+  // A blob that DOES carry per-action sampling round-trips it (the camelCase userIntent vocabulary).
+  const withSampling = guidedActionsSchema.parse({
+    ...DEFAULT_GUIDED_ACTIONS,
+    greeting_new: { prompt: "g", role: "system", sampling: { temperature: 1.2, maxOutputTokens: 700 } },
+  });
+  expect(withSampling.greeting_new.sampling).toEqual({ temperature: 1.2, maxOutputTokens: 700 });
+});
+
+test("SIDE_GEN_POSTURES: every kind carries today's exact floor values (byte-identical default encoding)", () => {
+  // The floor catalog IS the byte-identical encoding of the OLD hardcoded consts — a user with no preset params
+  // + no per-action sampling gets exactly these values. Caption's EMPTY posture is the honest encoding of a call
+  // that historically passed nothing.
+  expect(SIDE_GEN_POSTURES.arbiter).toEqual({ temperature: 0.2, maxOutputTokens: 24 });
+  expect(SIDE_GEN_POSTURES.quiet_generate).toEqual({ temperature: 0.3, maxOutputTokens: 1024 });
+  expect(SIDE_GEN_POSTURES.extract_quiet).toEqual({ temperature: 0.4, maxOutputTokens: 320 });
+  expect(SIDE_GEN_POSTURES.compaction).toEqual({ temperature: 0.3 });
+  expect(SIDE_GEN_POSTURES.distill).toEqual({ temperature: 0.2, maxOutputTokens: 512 });
+  expect(SIDE_GEN_POSTURES.analyze).toEqual({ temperature: 0.3, maxOutputTokens: 400 });
+  expect(SIDE_GEN_POSTURES.greeting_studio).toEqual({ temperature: 0.3, maxOutputTokens: 1024 });
+  expect(SIDE_GEN_POSTURES.autobg).toEqual({ temperature: 0.2, maxOutputTokens: 32 });
+  expect(SIDE_GEN_POSTURES.caption).toEqual({});
 });
 
 test("greeting_rewrite default carries the {{base}} token; greeting_new does not (audit §3)", () => {

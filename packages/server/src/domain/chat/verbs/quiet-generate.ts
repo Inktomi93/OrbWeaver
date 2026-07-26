@@ -12,13 +12,11 @@
 
 import type { AssembledPrompt } from "@orb/contracts/chat";
 import type { UserIntent } from "@orb/contracts/preset";
+import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
+import type { SideGenSampling } from "@orb/kit/side-gen-posture";
+import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
 import type { QuietGenerate, QuietGenerateDeps, QuietGenerateParams } from "../contract/context";
 import type { TurnMessage } from "../contract/results";
-
-/** A near-deterministic, bounded quiet generation (a summary is not creative writing). Callers may override via
- *  `params.intent`, but these are the floor the marker build runs at. */
-const QUIET_TEMPERATURE = 0.3;
-const QUIET_MAX_OUTPUT_TOKENS = 1024;
 
 /** The minimal `AssembledPrompt` a quiet generation carries: the instruction as the static system prefix, an
  *  empty dynamic suffix, no injections, `sendHistory` true (the one user message IS the history). The trace is
@@ -55,23 +53,24 @@ function quietHistory(userText: string): readonly TurnMessage[] {
   return [{ role: "user", content: [{ type: "text", text: userText }] }];
 }
 
-/** Fold the caller's `intent` over the bounded quiet floor (temperature + output length). */
-function quietIntent(intent: UserIntent | undefined): UserIntent {
-  return {
-    ...intent,
-    temperature: intent?.temperature ?? QUIET_TEMPERATURE,
-    maxOutputTokens: intent?.maxOutputTokens ?? QUIET_MAX_OUTPUT_TOKENS,
-  };
+/** Resolve the quiet generation's sampling through the side-gen ladder: the `quiet_generate` floor (temp 0.3,
+ *  1024 out — a summary is not creative writing) ← the chat host's default-preset params ← the caller's `intent`
+ *  (compaction's per-pass override wins). The resolved sampling is spread OVER the caller's intent so its other
+ *  fields (e.g. `compaction`) survive, then temperature/maxOutputTokens carry the ladder's answer. */
+function quietIntent(intent: UserIntent | undefined, chatParams: SideGenSampling): UserIntent {
+  const sampling = resolveSideGenSampling(SIDE_GEN_POSTURES.quiet_generate, chatParams, intent);
+  return { ...intent, ...sampling };
 }
 
 export function createQuietGenerate(deps: QuietGenerateDeps): QuietGenerate {
   return async (params: QuietGenerateParams) => {
+    const chatParams = await deps.resolveChatPresetParams(params.chatId);
     const stream = deps.runChatTurn({
       connection: params.connection,
       chatId: params.chatId,
       prompt: quietPrompt(params.systemPrompt),
       history: quietHistory(params.userText),
-      intent: quietIntent(params.intent),
+      intent: quietIntent(params.intent, chatParams),
       kind: "generate",
       // No non-owner max-pro-sub consent is asserted here: the caller (the engine turn) already ran the belt
       // for this chat's connection this turn; a quiet generation reuses that same connection.

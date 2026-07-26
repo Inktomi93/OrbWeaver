@@ -6,17 +6,17 @@
 // that call's spend; imagery normalizes it (processReply) and decides empty-is-error. Never persisted, never
 // streamed — the spend is attributed by imagery to the initiating principal.
 
+import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import type { ProcessMacroOptions } from "@orb/kit/macro";
 import { processMacros } from "@orb/kit/macro";
+import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
+import { toSummarizeOptions } from "@orb/server/kit/side-gen-posture";
 import type { ExtractQuiet, ExtractQuietDeps, ExtractQuietParams, ExtractQuietResult } from "../contract/context";
 import { loadCanonHistory } from "../persistence/queries";
 import { loadRoster } from "../persistence/roster";
 
 /** How many recent canon rows the extractor reads as scene context (the same window `smart` arbitration uses). */
 const RECENT_WINDOW = 10;
-/** A low temperature for a near-deterministic keyword extraction, and a budget sized for a keyword list, not prose. */
-const EXTRACT_TEMPERATURE = 0.4;
-const EXTRACT_MAX_TOKENS = 320;
 
 export function createExtractQuiet(deps: ExtractQuietDeps): ExtractQuiet {
   return async (p: ExtractQuietParams): Promise<ExtractQuietResult> => {
@@ -56,10 +56,10 @@ export function createExtractQuiet(deps: ExtractQuietDeps): ExtractQuiet {
     const instruction = processMacros(p.instruction, macroOptions);
 
     const scene = recent.length > 0 ? recent : "(the conversation is just starting)";
-    const res = await deps.summarize([{ systemPrompt: instruction, userPrompt: `Recent conversation:\n${scene}` }], {
-      temperature: EXTRACT_TEMPERATURE,
-      maxTokens: EXTRACT_MAX_TOKENS,
-    });
+    // The side-gen sampling ladder: the `extract_quiet` floor (temp 0.4, 320 out — near-deterministic keyword
+    // extraction) ← the chat host's default-preset params (extract-quiet is chat-scoped).
+    const posture = resolveSideGenSampling(SIDE_GEN_POSTURES.extract_quiet, await deps.resolveChatPresetParams(p.chatId));
+    const res = await deps.summarize([{ systemPrompt: instruction, userPrompt: `Recent conversation:\n${scene}` }], toSummarizeOptions(posture));
     const item = res.items[0];
     return { text: (item?.text ?? "").trim(), costUsd: item?.usage.costUsd ?? null };
   };

@@ -22,8 +22,10 @@ import type { PortabilityRegistry } from "@orb/contracts/portability";
 import type { AccountCredits, EndpointInspection, GenerationCost, VerifyAuthResult } from "@orb/contracts/providers";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
-import type { UserId } from "@orb/kit/ids";
+import { chatParticipants } from "@orb/db";
+import type { ChatId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, newId } from "@orb/kit/ids";
+import { and, eq, isNull } from "drizzle-orm";
 import { can, requireAdmin, requireOwner } from "#domain/admin";
 import type { AssetsService } from "#domain/assets";
 import type { AutomationService } from "#domain/automation";
@@ -82,6 +84,7 @@ import { minter } from "./minter";
 import { buildPortabilityRunner } from "./portability-runner";
 import { bindRoleClientsForUser } from "./role-clients";
 import { buildSearchDiscovery } from "./search-discovery";
+import { buildSideGenParams } from "./side-gen-params";
 import { buildWorldInfo } from "./world-info";
 
 /**
@@ -294,6 +297,25 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     }
   };
 
+  // The side-gen sampling ladder's MIDDLE rung (WHICH preset's params a side-gen call reads) — ONE home so
+  // every side-gen consumer resolves the caller/chat preset params the same way. `preset` composes below (the
+  // search-discovery seam), so its `get` is a request-time forward-ref (the `getPreset` precedent — derefed only
+  // when a side-gen call fires, never at boot). `resolveChatHostUserId` is the chat's PRESENT host (role='host',
+  // leftSeq NULL) — the room authority whose preset a chat-scoped side-gen reads.
+  const resolveChatHostUserId = async (chatId: ChatId): Promise<UserId | null> => {
+    const rows = await db
+      .select({ userId: chatParticipants.userId })
+      .from(chatParticipants)
+      .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.role, "host"), isNull(chatParticipants.leftSeq)))
+      .limit(1);
+    return rows.at(0)?.userId ?? null;
+  };
+  const { resolveUserPresetParams, resolveChatPresetParams } = buildSideGenParams({
+    preset: { get: (args) => preset.get(args) },
+    settings,
+    resolveChatHostUserId,
+  });
+
   // ── assets + character + the two seeders (the assets-character seam). Threads the late-bound
   // materializeBackground holder + the request-time preset/persona forward-ref getters (both compose below).
   const assetsCharacter = buildAssetsCharacter({
@@ -311,6 +333,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     settings,
     getPreset: () => preset,
     getPersona: () => persona,
+    resolveUserPresetParams,
   });
   const { assets, character, galleryCtx, characterSeeder, personaSeeder } = assetsCharacter;
   // Now that `assets` exists, rebind the real materializeBackground op (the holder above forwards to it).
@@ -326,6 +349,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     roleClients,
     eventBus,
     attachCardTagByName: tag.attachCardTagByName,
+    resolveUserPresetParams,
     character,
     assets,
     settings,
@@ -365,6 +389,8 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     roleClients,
     maxImageBytes: () => effectiveConfig.getEffectiveConfig().maxImageBytes,
     resolveViewerVisibility: (chatId, userId) => resolveViewerVisibility(chatId, userId),
+    resolveUserPresetParams,
+    resolveChatPresetParams,
     toolUse,
   });
 
@@ -447,6 +473,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     toolUse,
     resolveOwnerPrincipal,
     bindRoleClients,
+    resolveUserPresetParams,
   });
 
   // ── portability + the workloads runner-env (the portability-runner seam) — built LAST.

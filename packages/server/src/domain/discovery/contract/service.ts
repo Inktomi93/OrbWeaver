@@ -16,6 +16,7 @@ import type {
   ThemeClusterId,
   UserId,
 } from "@orb/kit/ids";
+import type { SideGenSampling } from "@orb/kit/side-gen-posture";
 // Type-only cross-feature SHAPE imports (depcruise domain-no-cross-feature: type-only across features is
 // allowed; the runtime op is wired at the entry composition root). discovery imports no embeddings/tag/stats
 // runtime — only the SHAPE of the injected ops it composes.
@@ -82,6 +83,11 @@ type WriteHubScores = EmbeddingsService["writeHubScores"];
 
 /** The bound `summarize` role thunk — discovery's only inference surface (theme naming + distill). */
 export type Summarize = RoleClients["summarize"];
+
+/** The side-gen sampling ladder's middle rung — a user's default-preset generation params, resolved at the
+ *  entry root (the caller of distill/analyze is the card owner). Bound type-only here (discovery never reads
+ *  the preset domain); the runtime resolver is wired at compose. */
+type ResolveUserPresetParams = (userId: UserId) => Promise<SideGenSampling>;
 
 /** The tag-staging seam — tag's `attachCardTagByName` verb, bound at the entry root; distill's only tag write. */
 type AttachCardTagByName = TagService["attachCardTagByName"];
@@ -153,6 +159,9 @@ export interface DistillCharactersDeps {
   readonly summarize: Summarize;
   readonly summarizerModel: string;
   readonly attachCardTagByName: AttachCardTagByName;
+  /** The card owner's default-preset params (the side-gen sampling ladder's middle rung). The whole-library
+   *  batch has no single owner ⇒ the floor stands; the on-demand single-card pass folds `opts.ownerId`'s. */
+  readonly resolveUserPresetParams: ResolveUserPresetParams;
 }
 
 // ── the DI bundle (the full context the service factory closes over) ──────────
@@ -165,6 +174,8 @@ export interface DiscoveryContext {
   readonly summarize: Summarize;
   readonly summarizerModel: string;
   readonly attachCardTagByName: AttachCardTagByName;
+  /** The side-gen sampling ladder's middle rung — the card owner's default-preset params (distill + analyze). */
+  readonly resolveUserPresetParams: ResolveUserPresetParams;
   readonly writeHubScores: WriteHubScores;
   readonly characterEconomics: CharacterEconomicsOp;
   readonly characterModelEconomics: CharacterModelEconomicsOp;

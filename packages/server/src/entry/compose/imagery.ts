@@ -9,11 +9,15 @@
 // keystone's `materializeBackground`/`enqueueEmbedReindex` holders use to break a genuine construction cycle.
 
 import type { Principal } from "@orb/contracts/identity";
+import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import type { BatchStmt, Db } from "@orb/db";
 import { batchMany } from "@orb/db/kit";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { Handle, UserId } from "@orb/kit/ids";
+import type { ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
+import type { SideGenSampling } from "@orb/kit/side-gen-posture";
+import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
+import { toSummarizeOptions } from "@orb/server/kit/side-gen-posture";
 import type { AssetsService } from "#domain/assets";
 import type { CharacterService } from "#domain/character";
 import type { ResolveViewerVisibility } from "#domain/chat";
@@ -46,6 +50,10 @@ export interface ImageryComposeDeps {
   readonly assets: Pick<AssetsService, "store" | "readOwnedAssetBytes">;
   readonly character: Pick<CharacterService, "getCard" | "get">;
   readonly roleClients: Pick<RoleClientsWithSignal, "summarize">;
+  /** The caller's default-preset generation params (the side-gen sampling ladder's middle rung — caption). */
+  readonly resolveUserPresetParams: (userId: UserId) => Promise<SideGenSampling>;
+  /** The chat host's default-preset params (the side-gen ladder's middle rung — extract-quiet is chat-scoped). */
+  readonly resolveChatPresetParams: (chatId: ChatId) => Promise<SideGenSampling>;
   readonly maxImageBytes: () => number;
   /** Late-bound: chat's `resolveViewerVisibility` (built after chat). Deref'd only at request time inside the
    *  `extractQuiet` gate — never during boot. */
@@ -98,6 +106,7 @@ export function buildImagery(deps: ImageryComposeDeps): ImageryService {
         db,
         summarize: roleClients.summarize,
         getCard: ({ ownerId, characterId }) => character.getCard({ principal: imageryCardPrincipal(ownerId), characterId }),
+        resolveChatPresetParams: deps.resolveChatPresetParams,
       });
       return async ({ caller, ...rest }) => {
         // MEMBERSHIP *AND* THE FLOOR — one op, one answer. The old gate was `loadPresentRole !== null`
@@ -114,8 +123,15 @@ export function buildImagery(deps: ImageryComposeDeps): ImageryService {
     })(),
     // The ONE vision caption op (D45/D47-6): the multimodal template + the avatar bytes over the summarize
     // lane (IC-B: runSummarize forwards images as multimodal content parts).
-    captionImage: async ({ instruction, bytes }): Promise<{ text: string; costUsd: number | null }> => {
-      const res = await roleClients.summarize([{ systemPrompt: instruction, userPrompt: "Describe the attached image.", images: [bytes] }]);
+    captionImage: async ({ caller, instruction, bytes }): Promise<{ text: string; costUsd: number | null }> => {
+      // The side-gen sampling ladder: the `caption` floor is EMPTY (this call historically passed no options —
+      // the backend default stood) ← the caller's default-preset params. A user with no preset params still
+      // gets an empty options object ⇒ byte-identical to before; a user WITH preset params now reaches caption.
+      const posture = resolveSideGenSampling(SIDE_GEN_POSTURES.caption, await deps.resolveUserPresetParams(caller.userId));
+      const res = await roleClients.summarize(
+        [{ systemPrompt: instruction, userPrompt: "Describe the attached image.", images: [bytes] }],
+        toSummarizeOptions(posture),
+      );
       const item = res.items[0];
       return { text: (item?.text ?? "").trim(), costUsd: item?.usage.costUsd ?? null };
     },

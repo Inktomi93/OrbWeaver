@@ -20,6 +20,6 @@ export function createGenerateGreeting(ctx: CharacterContext): CharacterService[
     }
     const template = await ctx.resolveGreetingTemplate({ caller: principal, kind: "greeting_new" });
     const prompt = buildGreetingPrompt({ card: cardOf(row), template, steer });
-    return ctx.generateGreetingText({ caller: principal, prompt });
+    return ctx.generateGreetingText({ caller: principal, prompt, kind: "greeting_new" });
   };
 }
