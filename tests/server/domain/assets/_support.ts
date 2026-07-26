@@ -73,6 +73,9 @@ export async function makeHarness(db: Db): Promise<AssetsHarness> {
     cas,
     variants,
     imageTransform,
+    // Item 6: the live variant-quality getter (byte-identical to the infra DEFAULT_QUALITY floor). Folded into
+    // the variant cache key + passed to imageTransform; tests assert `quality: 80` in the transform opts.
+    imageVariantQuality: () => 80,
     imageProbe,
     emit: (event: DomainEvent): void => {
       emitted.push(event);

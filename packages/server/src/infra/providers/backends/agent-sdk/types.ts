@@ -29,6 +29,9 @@ export interface AgentSdkDeps {
   /** Pre-spawn mode-1 (Max sub) OAuth refresh so the ephemeral-dir symlink resolves fresh (host-token.ts).
    *  Best-effort — resolves `false`, never throws. */
   readonly refreshHostSubToken: () => Promise<boolean>;
+  /** Live getter for the max in-flight summarize workers (Q6 — agentSdkConcurrency.summarize, env floor 4 ⊕
+   *  AppSettings override). Read per BATCH so an admin retune applies without a restart. Omitted ⇒ the floor. */
+  readonly summarizeConcurrency?: (() => number) | undefined;
   /** TASK-24 wire-capture sink — records the SDK QUERY INPUT (prompt + systemPrompt + resolved options)
    *  right before the SDK subprocess assembles + sends the Anthropic /v1/messages body itself (which is not
    *  observable here — see runner.ts). Absent ⇒ no capture (zero cost, the compose default). */

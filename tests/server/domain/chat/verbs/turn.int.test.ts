@@ -982,6 +982,30 @@ describe("send — PD-146 custom stopping strings + auto-behaviors", () => {
     expect(tip?.variantCount).toBe(3);
   });
 
+  // ⑧(b) belt (stint-6 item 8) — the auto-continue bound is the host's `autoContinueRounds` knob, not a
+  // const: autoContinueRounds=2 continues TWICE (mirrors the maxRetries=2 idiom above).
+  test("autoContinue honors autoContinueRounds=2: a persistently length-capped model continues exactly TWICE", async () => {
+    const { host, chatId, names } = await seedRoom("natural", ["aria"]);
+    let generations = 0;
+    const h = harness(db, names, {
+      chatBehavior: { ...behaviorOff, autoContinue: true, autoContinueRounds: 2 },
+      onChatRequest: () => {
+        generations += 1;
+      },
+      // Every reply hits the length cap — the bound (2) stops the loop after two follow-ups.
+      replyTape: [
+        { content: "a", finishReason: "length" },
+        { content: "b", finishReason: "length" },
+        { content: "c", finishReason: "length" },
+        { content: "d", finishReason: "length" },
+      ],
+    });
+
+    await h.turn.send({ principal: principal(host), chatId, content: "go" });
+
+    expect(generations).toBe(3); // initial + exactly two continues (the autoContinueRounds=2 bound).
+  });
+
   test("auto-swipe takes precedence over auto-continue on a reply that is both short AND length-capped", async () => {
     const { host, chatId, names } = await seedRoom("natural", ["aria"]);
     let generations = 0;

@@ -215,6 +215,9 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     },
     // LIVE getter (not the boot snapshot) so an admin retune + engine restart applies the new launch flags.
     engineLaunch: () => effectiveConfig.getEffectiveConfig().engineLaunch,
+    // LIVE getters (per batch / per request) so an admin retune applies WITHOUT a restart (Q6 / item 7).
+    agentSdkSummarizeConcurrency: () => effectiveConfig.getEffectiveConfig().agentSdkConcurrency.summarize,
+    genPresencePenalty: () => effectiveConfig.getEffectiveConfig().engineLaunch.genPresencePenalty,
     imageToPng: (bytes) => imageAdapter.transform(bytes, { format: "png" }),
     ...(deps.repoRoot !== undefined ? { repoRoot: deps.repoRoot } : {}),
   });
@@ -330,6 +333,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     roleClients,
     materializeBackground,
     maxImageBytes: () => effectiveConfig.getEffectiveConfig().maxImageBytes,
+    imageVariantQuality: () => effectiveConfig.getEffectiveConfig().imageVariantQuality,
     settings,
     getPreset: () => preset,
     getPersona: () => persona,

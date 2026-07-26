@@ -17,7 +17,9 @@ import { assertInitFrameShape } from "./verify";
 
 const SDK_TITLE_SUMMARIZE = "orbweaver-summarize";
 const SUMMARIZE_ITEM_TIMEOUT_MS = 120_000;
-const SUMMARIZE_CONCURRENCY = 4;
+// The env-floor fallback when compose doesn't inject the resolved concurrency getter (tests). Byte-identical
+// to the former hardcoded SUMMARIZE_CONCURRENCY; the live value comes from deps.summarizeConcurrency (Q6).
+const SUMMARIZE_CONCURRENCY_FALLBACK = 4;
 const TEXT_TYPE = "text";
 const USER_ROLE = "user";
 
@@ -235,7 +237,8 @@ export async function summarize(req: SummarizeRequest, deps: AgentSdkDeps): Prom
       }
     }
   };
-  const workerCount = Math.min(SUMMARIZE_CONCURRENCY, req.inputs.length);
+  const concurrency = deps.summarizeConcurrency?.() ?? SUMMARIZE_CONCURRENCY_FALLBACK;
+  const workerCount = Math.min(concurrency, req.inputs.length);
   await Promise.all(Array.from({ length: workerCount }, () => worker()));
 
   logProviderSummarize({ items: req.inputs.length, ok, fail, durationMs: deps.now() - startedAt });

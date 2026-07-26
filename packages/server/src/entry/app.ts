@@ -231,6 +231,7 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
     worldInfo: deps.importWorldInfo,
     databank: deps.services.databank,
     maxImageBytes: () => deps.services.settings.getEffectiveConfig().maxImageBytes,
+    maxDatabankBytes: () => deps.services.settings.getEffectiveConfig().maxDatabankBytes,
   });
   registerExport(app, { export: deps.exportService, registry: deps.portability });
   registerImportBundle(app, {
@@ -256,6 +257,7 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
     discreetLogin: () => deps.services.settings.getEffectiveConfig().discreetLogin,
     multiHumanCapable,
     maxImageBytes: () => deps.services.settings.getEffectiveConfig().maxImageBytes,
+    maxDatabankBytes: () => deps.services.settings.getEffectiveConfig().maxDatabankBytes,
   });
   registerJoin(plain, { multiHumanCapable });
 

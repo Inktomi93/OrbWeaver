@@ -201,6 +201,8 @@ export function createLifecycle(): Lifecycle {
         };
       },
       checkIntervalMs: CATALOG_CHECK_INTERVAL_MS,
+      // Item 5: the success-refresh cadence is a live admin knob (catalogRefreshIntervalMs).
+      refreshEveryMs: () => built.services.settings.getEffectiveConfig().catalogRefreshIntervalMs,
     });
     stopScheduleScheduler = startWorkloadScheduleScheduler({
       db,

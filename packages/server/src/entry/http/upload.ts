@@ -59,6 +59,9 @@ export interface UploadDeps {
    *  of the route cap and this (the same per-request accessor the character/imagery asset stores use). A
    *  non-image kind (document/plugin) keeps the fixed route cap. */
   readonly maxImageBytes: () => number;
+  /** The admin-tunable effective `maxDatabankBytes` — the databank route rejects (413) a document over this
+   *  (already ≤ the static route belt; an override may only TIGHTEN). Read per request so a retune applies live. */
+  readonly maxDatabankBytes: () => number;
 }
 
 interface PrincipalEnv {
@@ -133,6 +136,11 @@ export function registerUpload(app: Hono<PrincipalEnv>, deps: UploadDeps): void 
     const file = form.get(UPLOAD_FIELD);
     if (!(file instanceof File)) {
       return c.json({ error: `missing "${UPLOAD_FIELD}" upload` }, BAD_REQUEST);
+    }
+    // The static bodyCap belt is the route ceiling; the admin override may only TIGHTEN below it, enforced
+    // per-request against the effective cap (a File carries its byte size, so no full read is needed to reject).
+    if (file.size > deps.maxDatabankBytes()) {
+      return c.body(null, PAYLOAD_TOO_LARGE);
     }
     const nameField = form.get(NAME_FIELD);
     const name = typeof nameField === "string" && nameField.length > 0 ? nameField : file.name;

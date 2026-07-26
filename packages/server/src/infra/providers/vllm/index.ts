@@ -73,6 +73,10 @@ export interface VllmBackendDeps {
   /** Live getter for the RESOLVED engine launch config (admin override ⊕ env floor). Read PER SPAWN so an
    *  admin retune + restart picks up the new flags. Omitted (tests / GPU-less) ⇒ the pure env-floor default. */
   readonly engineLaunch?: (() => ResolvedEngineLaunch) | undefined;
+  /** Live getter for the per-REQUEST presence-penalty default the chat surface applies when a preset is silent
+   *  (item 7 — engineLaunch.genPresencePenalty). Read per request so an admin retune applies without a restart.
+   *  Omitted (tests) ⇒ the surface's card-default fallback (byte-identical to the former CARD_DEFAULT). */
+  readonly genPresencePenalty?: (() => number) | undefined;
   /** TASK-24 wire-capture sink — compose injects it only when capture is enabled; absent ⇒ the chat surface
    *  never records (zero cost). Captures the LITERAL openai-compat /v1/chat/completions body it POSTs. */
   readonly captureWire?: WireCaptureSink | undefined;
@@ -126,7 +130,12 @@ export function createVllmBackend(deps: VllmBackendDeps): VllmBackend {
 
   return {
     key: "vllm",
-    runChatTurn: createVllmChat({ client, now: deps.now, ...(deps.captureWire !== undefined ? { captureWire: deps.captureWire } : {}) }),
+    runChatTurn: createVllmChat({
+      client,
+      now: deps.now,
+      ...(deps.captureWire !== undefined ? { captureWire: deps.captureWire } : {}),
+      ...(deps.genPresencePenalty !== undefined ? { genPresencePenalty: deps.genPresencePenalty } : {}),
+    }),
     embed: createVllmEmbed({ client, embedDim, chunkSize, concurrency: embedConcurrency, requestTimeoutMs: env.VLLM_EMBED_REQUEST_TIMEOUT_MS }),
     rerank: createVllmRerank({ client }),
     imageEmbed: createVllmImageEmbed({ client, embedDim, concurrency: embedConcurrency }),

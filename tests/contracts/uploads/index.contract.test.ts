@@ -31,7 +31,7 @@ test("DEFAULT_UPLOAD_CAPS mirrors the raw constants exactly", () => {
 // ── resolveUploadCaps: the image cap is the TIGHTER of the route cap and the admin maxImageBytes ─────────
 test("resolveUploadCaps clamps the image cap to a tighter maxImageBytes", () => {
   const tighter = 5 * MIB;
-  const caps = resolveUploadCaps(tighter);
+  const caps = resolveUploadCaps({ maxImageBytes: tighter, maxDatabankBytes: DATABANK_UPLOAD_MAX_BYTES });
   expect(caps.image).toBe(tighter);
   // Only the image cap is clamped; the others are the fixed route/runner caps.
   expect(caps.assetUpload).toBe(ASSET_UPLOAD_MAX_BYTES);
@@ -41,5 +41,17 @@ test("resolveUploadCaps clamps the image cap to a tighter maxImageBytes", () => 
 
 test("resolveUploadCaps keeps the route cap when maxImageBytes is looser", () => {
   const looser = 500 * MIB;
-  expect(resolveUploadCaps(looser).image).toBe(ASSET_UPLOAD_MAX_BYTES);
+  expect(resolveUploadCaps({ maxImageBytes: looser, maxDatabankBytes: DATABANK_UPLOAD_MAX_BYTES }).image).toBe(ASSET_UPLOAD_MAX_BYTES);
+});
+
+// ── item 3: the databank cap TIGHTENS below the route belt; a looser override never widens past it ────────
+test("resolveUploadCaps clamps the databank cap to a tighter maxDatabankBytes", () => {
+  const tighter = 5 * MIB;
+  const caps = resolveUploadCaps({ maxImageBytes: ASSET_UPLOAD_MAX_BYTES, maxDatabankBytes: tighter });
+  expect(caps.databankUpload).toBe(tighter);
+});
+
+test("resolveUploadCaps never widens the databank cap past the route belt", () => {
+  const looser = 500 * MIB;
+  expect(resolveUploadCaps({ maxImageBytes: ASSET_UPLOAD_MAX_BYTES, maxDatabankBytes: looser }).databankUpload).toBe(DATABANK_UPLOAD_MAX_BYTES);
 });

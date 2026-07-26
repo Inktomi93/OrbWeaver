@@ -187,13 +187,20 @@ describe("convergence: system settings (diff-based — see the header)", () => {
       poolingMaxPixels: 1_843_200,
       genMaxPixels: 4_194_304,
       genRepetitionPenalty: 1.05,
+      genPresencePenalty: 1.5,
     },
+    agentSdkConcurrency: { summarize: 4 },
     allowNonOwnerLocalCompute: true,
     nonOwnerLocalComputeBudget: null,
+    nonOwnerLocalComputeBudgetWindowMs: 86_400_000,
     allowNonOwnerMaxProSub: false,
     localMultiUser: false,
     discreetLogin: false,
     maxImageBytes: 5_000_000,
+    maxDatabankBytes: 20_971_520,
+    promptTransformDeadlineMs: 250,
+    catalogRefreshIntervalMs: 86_400_000,
+    imageVariantQuality: 80,
   };
 
   test("projectSystemForm is a stable fixed point (projecting twice is identical)", () => {

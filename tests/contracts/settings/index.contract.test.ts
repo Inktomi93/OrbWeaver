@@ -80,6 +80,33 @@ test("maxImageBytes parses a valid override and self-heals out-of-bounds values 
   expect(parseAppSettings({ maxImageBytes: 1.5 }).maxImageBytes).toBeUndefined(); // non-int
 });
 
+// ── Phase B ⑩ admin-tier fields (item 3 databank cap + item 6 quality bounds + additive lift) ──
+
+test("maxDatabankBytes parses a tighten-only override and self-heals out-of-bounds (.catch → undefined)", () => {
+  // A value ≤ the 20 MiB route belt is stored; the resolver's `min` then tightens the served cap.
+  expect(parseAppSettings({ maxDatabankBytes: 5_000_000 }).maxDatabankBytes).toBe(5_000_000);
+  // Above the route belt (an attempt to WIDEN) fails the schema max → drops → the belt governs (fail-safe).
+  expect(parseAppSettings({ maxDatabankBytes: 999_999_999 }).maxDatabankBytes).toBeUndefined();
+  expect(parseAppSettings({ maxDatabankBytes: 1 }).maxDatabankBytes).toBeUndefined(); // below the floor
+});
+
+test("imageVariantQuality parses a valid 1–100 override and self-heals out-of-bounds", () => {
+  expect(parseAppSettings({ imageVariantQuality: 60 }).imageVariantQuality).toBe(60);
+  expect(parseAppSettings({ imageVariantQuality: 0 }).imageVariantQuality).toBeUndefined();
+  expect(parseAppSettings({ imageVariantQuality: 101 }).imageVariantQuality).toBeUndefined();
+  expect(parseAppSettings({ imageVariantQuality: 60.5 }).imageVariantQuality).toBeUndefined(); // non-int
+});
+
+test("v3→v4 AppSettings lift is a no-op passthrough — the ⑩ admin fields are additive (absent ⇒ the resolver floor)", () => {
+  // A v3 blob (no ⑩ fields) lifts to v4 untouched; existing overrides survive, the missing fields stay absent
+  // (read back as their floor by the resolver) — the v2→v3 engineLaunch additive precedent. `schemaVersion`
+  // is stamped only on WRITE (the schema strips it on parse), so we assert the field survival, not the stamp.
+  const liftedV3 = parseAppSettings({ schemaVersion: 3, maxImageBytes: 20_000_000 });
+  expect(liftedV3.maxImageBytes).toBe(20_000_000);
+  expect(liftedV3.imageVariantQuality).toBeUndefined();
+  expect(liftedV3.agentSdkConcurrency).toBeUndefined();
+});
+
 // ── Lenient parse: garbage degrades to the default (never throws) ──
 
 test("parseAppSettings degrades a non-object / garbage blob to {} (no overrides)", () => {
@@ -382,8 +409,8 @@ test("v4→v5 lift is a no-op passthrough — the databank section is additive, 
   expect(lifted.databank.slotTokenBudget).toBe(4096);
 });
 
-test("the pinned schema versions: AppSettings v3 (the engineLaunch section), UserSettings v5 (the databank section)", () => {
-  expect(APP_SETTINGS_SCHEMA_VERSION).toBe(SCHEMA_VERSION_V3);
+test("the pinned schema versions: AppSettings v4 (the Phase B ⑩ admin-tier fields), UserSettings v5 (the databank section)", () => {
+  expect(APP_SETTINGS_SCHEMA_VERSION).toBe(SCHEMA_VERSION_V4);
   expect(USER_SETTINGS_SCHEMA_VERSION).toBe(SCHEMA_VERSION_V5);
 });
 

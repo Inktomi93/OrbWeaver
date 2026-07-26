@@ -14,8 +14,9 @@ import type { ChatId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
 import type { PromptTransformRegistry } from "../contract/context";
 
-/** The per-call deadline each transform apply is bounded by (04 §6 LEAN — the plugin bridge is async by
- *  nature). A transform that outruns it is SKIPPED (the draft passes through unchanged). */
+/** The per-call deadline FLOOR each transform apply is bounded by (04 §6 LEAN — the plugin bridge is async by
+ *  nature). A transform that outruns it is SKIPPED (the draft passes through unchanged). Now the born-in-DB
+ *  admin floor (AppSettings.promptTransformDeadlineMs); compose injects a live getter, this is the fallback. */
 export const PROMPT_TRANSFORM_DEADLINE_MS = 250;
 
 /** Run ONE transform under the deadline. Resolves `{ ok: true, text }` on a clean in-time render, or
@@ -43,10 +44,11 @@ async function applyBounded(
 }
 
 /** Build the per-deploy PromptTransform registrar. `emit` is the chat bus (the skip warning); `deadlineMs`
- *  is injectable so a deadline test runs fast + deterministic (defaults to {@link PROMPT_TRANSFORM_DEADLINE_MS}). */
+ *  is a LIVE getter (read per apply so an admin retune of AppSettings.promptTransformDeadlineMs applies without
+ *  a restart) — injectable so a deadline test runs fast + deterministic (defaults to the floor const). */
 export function createPromptTransformRegistry(
   emit: (event: ChatBusEvent) => Promise<void>,
-  deadlineMs: number = PROMPT_TRANSFORM_DEADLINE_MS,
+  deadlineMs: () => number = () => PROMPT_TRANSFORM_DEADLINE_MS,
 ): PromptTransformRegistry {
   const byId = new Map<string, PromptTransform>();
 
@@ -65,7 +67,7 @@ export function createPromptTransformRegistry(
       if (transform === undefined) {
         return current;
       }
-      const result = await applyBounded(transform, current, env, deadlineMs);
+      const result = await applyBounded(transform, current, env, deadlineMs());
       if (result.ok) {
         return foldFrom(index + 1, result.text);
       }

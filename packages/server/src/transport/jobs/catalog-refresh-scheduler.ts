@@ -19,8 +19,9 @@ const MS_PER_HOUR = 3_600_000;
 const MS_PER_DAY = 86_400_000;
 
 const DEFAULT_CHECK_INTERVAL_MS = MS_PER_HOUR;
-/** Refresh cadence after a success — once a day. */
-const REFRESH_EVERY_MS = MS_PER_DAY;
+/** Refresh cadence FLOOR after a success — once a day (item 5: now the born-in-DB admin floor
+ *  AppSettings.catalogRefreshIntervalMs; entry injects a live getter, this is the fallback). */
+const DEFAULT_REFRESH_EVERY_MS = MS_PER_DAY;
 /** Retry cadence after a failure/cancel — within the hour, so a transient OR outage recovers fast. */
 const RETRY_AFTER_MS = MS_PER_HOUR;
 
@@ -42,6 +43,9 @@ export interface CatalogRefreshSchedulerDeps {
   readonly now: () => number;
   readonly scheduleInterval: ScheduleOp;
   readonly checkIntervalMs?: number;
+  /** Live getter for the success-refresh cadence (item 5 — AppSettings.catalogRefreshIntervalMs). Read per
+   *  check so an admin retune applies without a restart. Absent ⇒ the once-a-day floor. */
+  readonly refreshEveryMs?: () => number;
 }
 
 /** One decision step: is a fresh catalog refresh due, and if so, enqueue it. Skips when an active row
@@ -57,7 +61,8 @@ export async function runCatalogCheck(deps: CatalogRefreshSchedulerDeps): Promis
       return;
     }
     const age = deps.now() - latest.updatedAt;
-    const due = latest.status === "succeeded" ? REFRESH_EVERY_MS : RETRY_AFTER_MS;
+    const refreshEvery = deps.refreshEveryMs?.() ?? DEFAULT_REFRESH_EVERY_MS;
+    const due = latest.status === "succeeded" ? refreshEvery : RETRY_AFTER_MS;
     if (age < due) {
       return;
     }

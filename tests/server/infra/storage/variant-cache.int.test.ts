@@ -16,8 +16,9 @@ const OWNER_B = castId<UserId>("user_beta");
 // A valid 64-hex CAS key, COMPUTED (never a hardcoded high-entropy literal — `noSecrets`).
 const HASH = createHash("sha256").update("orbweaver-variant-key").digest("hex");
 const WIDTH = 96;
-const ICON_KEY = { kind: "icon" as const, width: WIDTH };
-const PORTRAIT_KEY = { kind: "portrait" as const, width: WIDTH };
+const QUALITY = 80;
+const ICON_KEY = { kind: "icon" as const, width: WIDTH, quality: QUALITY };
+const PORTRAIT_KEY = { kind: "portrait" as const, width: WIDTH, quality: QUALITY };
 const WEBP_BYTES = new TextEncoder().encode("pretend-webp-bytes");
 const PORTRAIT_WEBP_BYTES = new TextEncoder().encode("pretend-portrait-webp-bytes");
 
@@ -59,7 +60,7 @@ describe("per-user isolation (D21)", () => {
 describe("guards", () => {
   test("an invalid width and a non-hash both throw", async () => {
     const cache = createVariantCache(root);
-    await expect(cache.put(OWNER_A, HASH, { kind: "icon", width: 0 }, WEBP_BYTES)).rejects.toThrow();
+    await expect(cache.put(OWNER_A, HASH, { kind: "icon", width: 0, quality: QUALITY }, WEBP_BYTES)).rejects.toThrow();
     await expect(cache.read(OWNER_A, "not-a-hash", ICON_KEY)).resolves.toBeUndefined();
     await expect(cache.removeAll(OWNER_A, "not-a-hash")).rejects.toThrow();
   });
@@ -85,5 +86,26 @@ describe("kind discriminator (icon vs. portrait, #67)", () => {
     await cache.removeAll(OWNER_A, HASH);
     expect(await cache.read(OWNER_A, HASH, ICON_KEY)).toBeUndefined();
     expect(await cache.read(OWNER_A, HASH, PORTRAIT_KEY)).toBeUndefined();
+  });
+});
+
+// item 6 CACHE-KEY CAVEAT — the quality value folds into the cache key so an admin change to the variant
+// quality yields a DIFFERENT key → a MISS → regeneration, never a stale-quality variant served forever.
+describe("quality discriminator (item 6 cache-key cavat)", () => {
+  test("a different quality is a distinct cache entry — the same (kind,width) at a new quality MISSES", async () => {
+    const cache = createVariantCache(root);
+    const q80 = { kind: "icon" as const, width: WIDTH, quality: 80 };
+    const q60 = { kind: "icon" as const, width: WIDTH, quality: 60 };
+    await cache.put(OWNER_A, HASH, q80, WEBP_BYTES);
+
+    // The admin lowered quality → the q60 key is fresh → a miss (regeneration), not the stale q80 bytes.
+    expect(await cache.read(OWNER_A, HASH, q60)).toBeUndefined();
+    // The old-quality entry is still addressable at its own key (both coexist until GC).
+    expect(new Uint8Array((await cache.read(OWNER_A, HASH, q80)) ?? new Uint8Array())).toEqual(WEBP_BYTES);
+  });
+
+  test("an invalid quality throws (guard)", async () => {
+    const cache = createVariantCache(root);
+    await expect(cache.put(OWNER_A, HASH, { kind: "icon", width: WIDTH, quality: 0 }, WEBP_BYTES)).rejects.toThrow();
   });
 });

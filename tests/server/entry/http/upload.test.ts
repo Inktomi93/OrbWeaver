@@ -146,7 +146,9 @@ const noopDatabank: UploadDeps["databank"] = { upload: () => Promise.reject(new 
 // A generous effective image cap so the DEFAULT paths keep asserting the fixed 64 MiB route cap; the
 // image-clamp test overrides it to a tighter value to prove the min() takes it.
 const ROUTE_CAP_BYTES = 64 * 1024 * 1024;
+const DATABANK_ROUTE_CAP_BYTES = 20 * 1024 * 1024;
 const generousMaxImageBytes = (): number => ROUTE_CAP_BYTES * 2;
+const routeMaxDatabankBytes = (): number => DATABANK_ROUTE_CAP_BYTES;
 
 const okDeps: UploadDeps = {
   assets: okAssets,
@@ -155,6 +157,7 @@ const okDeps: UploadDeps = {
   worldInfo: noopWorldInfo,
   databank: noopDatabank,
   maxImageBytes: generousMaxImageBytes,
+  maxDatabankBytes: routeMaxDatabankBytes,
 };
 
 describe("registerUpload — asset upload", () => {
@@ -202,6 +205,7 @@ describe("registerUpload — asset upload", () => {
       worldInfo: noopWorldInfo,
       databank: noopDatabank,
       maxImageBytes: generousMaxImageBytes,
+      maxDatabankBytes: routeMaxDatabankBytes,
     };
     const form = new FormData();
     form.append("file", new File([new Uint8Array([1, 2, 3])], "a.png", { type: "image/png" }));

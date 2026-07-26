@@ -94,7 +94,7 @@ test("a throwing transform is SKIPPED (draft unchanged) + emits one prompt_trans
 test("a transform that overruns its deadline is SKIPPED + warns (draft unchanged)", async () => {
   const { emit, warnings } = recorder();
   // A tiny deadline so the hang resolves fast + deterministically.
-  const reg = createPromptTransformRegistry(emit, 20);
+  const reg = createPromptTransformRegistry(emit, () => 20);
   reg.register({ id: "hang", point: "user_input", order: 0, apply: () => new Promise<string>(() => undefined) });
   const out = await reg.apply("user_input", CHAT, "kept", {});
   expect(out).toBe("kept");

@@ -118,7 +118,7 @@ export function fakeEnv(overrides: { [K in keyof WorkloadRunnerEnv]?: Partial<Wo
         scanned: 8,
         written: 8,
       })),
-      computeCooccurrence: vi.fn(async (_args: { signal: AbortSignal }) => ({
+      computeCooccurrence: vi.fn(async (_args: { signal: AbortSignal; maxPairs?: number | undefined; hubFraction?: number | undefined }) => ({
         scanned: 6,
         written: 4,
       })),

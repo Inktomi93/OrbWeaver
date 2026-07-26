@@ -40,9 +40,10 @@ export interface RateLimiter {
 }
 
 /** Config for the per-member count budget (a fixed-window cap; the cap itself is supplied per-debit from
- *  an admin-flippable AppSettings knob). */
+ *  an admin-flippable AppSettings knob). `windowMs` is a live getter so an admin retune of the window
+ *  (nonOwnerLocalComputeBudgetWindowMs) applies without a restart — matching the per-debit-live cap. */
 export interface MemberBudgetConfig {
-  readonly windowMs: number;
+  readonly windowMs: () => number;
   readonly now: () => number;
 }
 
@@ -121,7 +122,7 @@ export function createMemberBudget(db: Db, cfg: MemberBudgetConfig): MemberBudge
         scope: MEMBER_BUDGET_SCOPE,
         id: triggeredBy,
         points: budget,
-        windowMs: cfg.windowMs,
+        windowMs: cfg.windowMs(),
         now: cfg.now(),
       });
     },

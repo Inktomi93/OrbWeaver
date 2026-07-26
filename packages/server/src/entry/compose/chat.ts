@@ -77,7 +77,6 @@ import { resolveImageRefToUrl } from "./resolve-image-ref";
 
 /** Per-chat turn-lock TTL (ms) — auto-expires so a crashed holder's lock is takeover-eligible. */
 const CHAT_LOCK_TTL_MS = 120_000;
-const MEMBER_BUDGET_WINDOW_MS = 86_400_000;
 
 function minter<P extends string>(prefix: P): () => TypeIdOf<P> {
   return (): TypeIdOf<P> => mintTypeId(prefix);
@@ -485,7 +484,8 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
   // The D50 PromptTransform registrar (automation-design/04 §6) — one per deploy. Zero registrants today
   // (automation A7 + the plugin host register onto it later); its `apply` is the `ChatContext.promptTransforms`
   // op, so a chat with no transforms assembles + streams byte-identically.
-  const promptTransformRegistry = createPromptTransformRegistry(emitChatEvent);
+  // Item 2: the per-transform deadline is a live admin knob (promptTransformDeadlineMs) — read per apply.
+  const promptTransformRegistry = createPromptTransformRegistry(emitChatEvent, () => input.settings.getEffectiveConfig().promptTransformDeadlineMs);
 
   const chatCtx: ChatContext = {
     db,
@@ -792,7 +792,9 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     promptTransforms: promptTransformRegistry.apply,
   };
 
-  const memberBudget = createMemberBudget(db, { windowMs: MEMBER_BUDGET_WINDOW_MS, now });
+  // The budget WINDOW is a live admin knob (nonOwnerLocalComputeBudgetWindowMs) — read per debit so a retune
+  // applies without a restart, matching the per-debit-live cap (item 4).
+  const memberBudget = createMemberBudget(db, { windowMs: () => input.settings.getEffectiveConfig().nonOwnerLocalComputeBudgetWindowMs, now });
 
   const chatDeps: ChatServiceDeps = {
     emit: emitChatEvent,
